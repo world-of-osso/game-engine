@@ -143,6 +143,7 @@ fn build_hud_options_file(hud: &HudOptions) -> HudOptionsFile {
         show_health_bars: hud.show_health_bars,
         show_target_marker: hud.show_target_marker,
         auto_loot: hud.auto_loot,
+        soft_target_interact: hud.soft_target_interact,
         show_fps_overlay: hud.show_fps_overlay,
         chat_font_size: hud
             .chat_font_size

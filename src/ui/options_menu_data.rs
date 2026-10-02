@@ -100,6 +100,7 @@ pub struct HudDraft {
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub auto_loot: bool,
+    pub soft_target_interact: bool,
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
 }
@@ -169,6 +170,7 @@ pub fn hud_draft_from_file(hud: &HudOptionsFile) -> HudDraft {
         show_health_bars: hud.show_health_bars,
         show_target_marker: hud.show_target_marker,
         auto_loot: hud.auto_loot,
+        soft_target_interact: hud.soft_target_interact,
         show_fps_overlay: hud.show_fps_overlay,
         chat_font_size: hud.chat_font_size,
     }
@@ -222,6 +224,7 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
         show_health_bars: h.show_health_bars,
         show_target_marker: h.show_target_marker,
         auto_loot: h.auto_loot,
+        soft_target_interact: h.soft_target_interact,
         show_fps_overlay: h.show_fps_overlay,
         chat_font_size: h.chat_font_size,
     }
@@ -610,6 +613,7 @@ fn apply_hud_toggle(key: &str, hud: &mut HudDraft) -> bool {
         "show_health_bars" => hud.show_health_bars = !hud.show_health_bars,
         "show_target_marker" => hud.show_target_marker = !hud.show_target_marker,
         "auto_loot" => hud.auto_loot = !hud.auto_loot,
+        "soft_target_interact" => hud.soft_target_interact = !hud.soft_target_interact,
         "show_fps_overlay" => hud.show_fps_overlay = !hud.show_fps_overlay,
         _ => return false,
     }
@@ -711,6 +715,7 @@ pub fn apply_hud_file_snapshot(h: &mut HudOptionsFile, d: &HudDraft) {
     h.show_health_bars = d.show_health_bars;
     h.show_target_marker = d.show_target_marker;
     h.auto_loot = d.auto_loot;
+    h.soft_target_interact = d.soft_target_interact;
     h.show_fps_overlay = d.show_fps_overlay;
     h.chat_font_size = d
         .chat_font_size

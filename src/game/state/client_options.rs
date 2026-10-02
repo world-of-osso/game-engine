@@ -216,6 +216,7 @@ pub struct HudOptions {
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub auto_loot: bool,
+    pub soft_target_interact: bool,
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
 }
@@ -231,6 +232,7 @@ impl Default for HudOptions {
             show_health_bars: true,
             show_target_marker: true,
             auto_loot: false,
+            soft_target_interact: false,
             show_fps_overlay: false,
             chat_font_size: default_chat_font_size(),
         }
@@ -250,6 +252,7 @@ impl HudOptions {
             show_health_bars: file.show_health_bars,
             show_target_marker: file.show_target_marker,
             auto_loot: file.auto_loot,
+            soft_target_interact: file.soft_target_interact,
             show_fps_overlay: file.show_fps_overlay,
             chat_font_size: file
                 .chat_font_size

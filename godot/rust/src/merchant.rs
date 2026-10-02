@@ -236,7 +236,7 @@ impl GameClient {
         });
         let unit = match clicked {
             Some(unit) => {
-                if self.use_guild_vault(unit)? || self.use_mailbox(unit)? || self.use_chair(unit)? {
+                if self.use_game_object(unit)? {
                     return Ok(());
                 }
                 // Right-click targets, as Retail does.
@@ -248,16 +248,25 @@ impl GameClient {
                 None => return Ok(()),
             },
         };
-        if self.send_corpse_loot(unit)? {
+        self.interact_unit(unit)
+    }
+
+    /// `InteractUnit`: use a game object, else loot, attack or talk to a unit.
+    pub(crate) fn interact_unit(&mut self, unit: u64) -> Result<(), FrameError> {
+        if self.use_game_object(unit)? || self.send_corpse_loot(unit)? {
             return Ok(());
         }
-        // Right-clicking an attackable unit attacks it (`CMSG_ATTACK_SWING`).
+        // Interacting with an attackable unit attacks it (`CMSG_ATTACK_SWING`).
         if self.can_auto_attack(unit) {
             self.start_auto_attack(unit)?;
         } else if self.unit_right_click(unit) == RightClick::Interact {
             self.account.send_interact(unit)?;
         }
         Ok(())
+    }
+
+    fn use_game_object(&mut self, id: u64) -> Result<bool, FrameError> {
+        Ok(self.use_guild_vault(id)? || self.use_mailbox(id)? || self.use_chair(id)?)
     }
 
     fn unit_right_click(&self, id: u64) -> RightClick {
@@ -294,6 +303,11 @@ impl GameClient {
         if self.game_objects.contains(id) {
             return Some(ActiveWowCursor::Mail);
         }
+        self.unit_cursor(id)
+    }
+
+    /// The cursor a unit shows under the pointer; the pointer for one that is no NPC.
+    pub(crate) fn unit_cursor(&mut self, id: u64) -> Option<ActiveWowCursor> {
         let unit = self.replica.unit(id)?;
         if !unit.has::<Npc>() {
             return Some(ActiveWowCursor::Default);
@@ -366,7 +380,7 @@ impl GameClient {
     }
 
     /// The cached cursor art; a load failure is reported once and cached as absent.
-    fn cursor_texture(&mut self, cursor: ActiveWowCursor) -> Option<Gd<ImageTexture>> {
+    pub(crate) fn cursor_texture(&mut self, cursor: ActiveWowCursor) -> Option<Gd<ImageTexture>> {
         if let Some((_, texture)) = self
             .merchant
             .cursor_textures

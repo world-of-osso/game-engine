@@ -90,6 +90,7 @@ fn hud_visibility_toggles_follow_hud_options() {
         show_health_bars: false,
         show_target_marker: true,
         auto_loot: false,
+        soft_target_interact: false,
         show_fps_overlay: false,
         chat_font_size: default_chat_font_size(),
     });
@@ -473,6 +474,7 @@ fn save_options_file_to_path_persists_and_loads_back() {
             show_health_bars: true,
             show_target_marker: false,
             auto_loot: true,
+            soft_target_interact: false,
             show_fps_overlay: false,
             chat_font_size: 13.0,
         },

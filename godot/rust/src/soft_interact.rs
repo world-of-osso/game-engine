@@ -1,0 +1,420 @@
+//! Retail soft interact (`SoftTargetInteract`): the interactable unit or game object the
+//! player faces, which the `INTERACTTARGET` binding uses (`InteractUnit("anyinteract")`,
+//! Bindings_Standard.xml:1171-1173) and whose nameplate shows the unit's cursor icon
+//! (`SoftTargetFrame`, Blizzard_NamePlates.xml:286-296).
+//!
+//! Default CVars (wow-ui-sim `cvars.yaml`, the values the Kiosk keyboard reset restores in
+//! Blizzard_Gamepad/Core.lua:83-88): `SoftTargetInteractArc` 0 ("No yaw arc allowance, must
+//! be directly in front"), `SoftTargetInteractRange` 10 ("limited to tab targeting and
+//! individual interact ranges"), `SoftTargetIconInteract` 1, `SoftTargetIconGameObject` 0,
+//! `SoftTargetLowPriorityIcons` 0.
+
+use game_engine_core::input_bindings_data::InputAction;
+use game_engine_session::SessionScreen;
+use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
+use godot::classes::{
+    CanvasLayer, Control, TextureRect, control::MouseFilter, texture_rect::ExpandMode,
+    texture_rect::StretchMode,
+};
+use godot::prelude::*;
+use shared::components::Npc;
+use shared::protocol::{
+    GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo,
+};
+
+use crate::GameClient;
+use crate::frame_error::FrameError;
+use crate::nameplates::plate_anchor;
+
+/// `SoftTargetInteractRange` default.
+const SOFT_TARGET_INTERACT_RANGE: f32 = 10.0;
+/// Every interaction the client sends (NPC, mailbox, vault, chair) is limited to
+/// TrinityCore `INTERACTION_DISTANCE` (ObjectDefines.h:24), within the soft range.
+const INTERACTION_DISTANCE: f32 = 5.0;
+/// Width of "directly in front" for a unit: TrinityCore `HasInLine` widened by the
+/// target's size (Position.cpp:192-200), a creature's `DEFAULT_PLAYER_COMBAT_REACH`
+/// (ObjectDefines.h:40). The arc-0 width is not published; this is the server's model.
+const UNIT_LINE_WIDTH: f32 = 1.5;
+/// `SoftTargetNameplateSize` default, in pixels.
+const ICON_SIZE: f32 = 19.0;
+/// `SoftTargetFrame` BOTTOM to the plate's TOP at `y="-8"` (Blizzard_NamePlates.xml:288-290).
+const ICON_PLATE_OVERLAP: f32 = 8.0;
+
+/// A game object's size: `DEFAULT_PLAYER_BOUNDING_RADIUS`, "also currently used for any
+/// non Unit world objects" (ObjectDefines.h:39).
+const OBJECT_LINE_WIDTH: f32 = 0.389;
+
+/// What a soft interact candidate is.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub(crate) enum SoftKind {
+    /// A unit and the cursor it shows under the pointer.
+    Unit(ActiveWowCursor),
+    /// A game object the client can use (mailbox, Guild Vault, chair).
+    GameObject,
+}
+
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct SoftCandidate {
+    pub id: u64,
+    pub position: Vector3,
+    pub kind: SoftKind,
+}
+
+/// The nearest interactable candidate directly in front of the player at `feet` facing the
+/// horizontal unit vector `forward`, within interact range.
+pub(crate) fn soft_interact_target(
+    feet: Vector3,
+    forward: Vector3,
+    candidates: &[SoftCandidate],
+) -> Option<u64> {
+    let range = SOFT_TARGET_INTERACT_RANGE.min(INTERACTION_DISTANCE);
+    candidates
+        .iter()
+        .filter(|candidate| interactable(candidate.kind) && in_line(feet, forward, candidate))
+        .map(|candidate| (feet.distance_to(candidate.position), candidate.id))
+        .filter(|(distance, _)| *distance <= range)
+        .min_by(|a, b| a.0.total_cmp(&b.0))
+        .map(|(_, id)| id)
+}
+
+/// Units the interact key can use: not enemies (`Attack`) nor units with nothing to offer.
+fn interactable(kind: SoftKind) -> bool {
+    match kind {
+        SoftKind::Unit(cursor) => {
+            !matches!(cursor, ActiveWowCursor::Default | ActiveWowCursor::Attack)
+        }
+        SoftKind::GameObject => true,
+    }
+}
+
+/// TrinityCore `HasInLine` with no extra width: in the front half (`HasInArc(M_PI)`) and
+/// the facing line within the target's size.
+fn in_line(feet: Vector3, forward: Vector3, candidate: &SoftCandidate) -> bool {
+    let offset = candidate.position - feet;
+    let ground = Vector3::new(offset.x, 0.0, offset.z);
+    let along = ground.dot(forward);
+    let width = match candidate.kind {
+        SoftKind::Unit(_) => UNIT_LINE_WIDTH,
+        SoftKind::GameObject => OBJECT_LINE_WIDTH,
+    };
+    along >= 0.0 && (ground - forward * along).length() < width
+}
+
+/// The icon above the soft interact target: `SetUnitCursorTexture` (the unit's cursor art),
+/// none for a game object (`SoftTargetIconGameObject` 0).
+pub(crate) fn soft_target_icon(kind: SoftKind) -> Option<ActiveWowCursor> {
+    match kind {
+        SoftKind::GameObject => None,
+        // `SoftTargetLowPriorityIcons` 0: a lootable corpse already shows its loot effect.
+        SoftKind::Unit(ActiveWowCursor::Loot) => None,
+        SoftKind::Unit(cursor) => Some(cursor),
+    }
+}
+
+/// The soft interact target and its icon node.
+#[derive(Default)]
+pub(crate) struct SoftInteract {
+    target: Option<(u64, SoftKind)>,
+    icon: Option<Gd<TextureRect>>,
+}
+
+impl GameClient {
+    /// Per frame after the merchant's right-click: pick the soft interact target, and
+    /// `INTERACTTARGET` interacts with it.
+    pub(super) fn update_soft_interact(&mut self) -> Result<(), FrameError> {
+        let enabled = self.account.session.screen == SessionScreen::InWorld
+            && self.client_options.hud.soft_target_interact;
+        self.soft_interact.target = if enabled {
+            self.pick_soft_interact()
+        } else {
+            None
+        };
+        let Some((id, _)) = self.soft_interact.target else {
+            return Ok(());
+        };
+        let input = self.physical_input.gameplay_state(self.keyboard_free());
+        let pressed = self
+            .client_options
+            .bindings
+            .is_just_pressed(InputAction::InteractTarget, &input);
+        if pressed && self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
+            self.interact_unit(id)?;
+        }
+        Ok(())
+    }
+
+    fn pick_soft_interact(&mut self) -> Option<(u64, SoftKind)> {
+        let feet = self.world.local_player_transform()?.origin;
+        let yaw = self.world.local_player_facing()?;
+        let player = self.world.local_player_id();
+        let ids: Vec<u64> = self
+            .replica
+            .units()
+            .map(|unit| unit.server_id)
+            .filter(|id| Some(*id) != player)
+            .collect();
+        let candidates: Vec<SoftCandidate> = ids
+            .into_iter()
+            .filter_map(|id| self.soft_candidate(id))
+            .collect();
+        let forward = Vector3::new(yaw.sin(), 0.0, yaw.cos());
+        let id = soft_interact_target(feet, forward, &candidates)?;
+        candidates
+            .iter()
+            .find(|candidate| candidate.id == id)
+            .map(|candidate| (id, candidate.kind))
+    }
+
+    /// A drawn unit with its cursor, or a game object the client can use.
+    fn soft_candidate(&mut self, id: u64) -> Option<SoftCandidate> {
+        let unit = self.replica.unit(id)?;
+        if let Some(info) = unit.get::<GameObjectInfo>() {
+            let usable = matches!(
+                info.go_type,
+                GAMEOBJECT_TYPE_MAILBOX | GAMEOBJECT_TYPE_GUILD_BANK | GAMEOBJECT_TYPE_CHAIR
+            );
+            return usable.then_some(SoftCandidate {
+                id,
+                position: self.game_objects.position(id)?,
+                kind: SoftKind::GameObject,
+            });
+        }
+        if !unit.has::<Npc>() {
+            return None;
+        }
+        let position = self.world.unit_node(id)?.get_global_position();
+        Some(SoftCandidate {
+            id,
+            position,
+            kind: SoftKind::Unit(self.unit_cursor(id)?),
+        })
+    }
+
+    /// Per frame after the nameplates: the soft target's icon over its plate, or where the
+    /// plate would sit when the unit shows none.
+    pub(super) fn sync_soft_interact_icon(&mut self) -> Result<(), FrameError> {
+        let placed = self.soft_icon_placement();
+        let texture = placed.and_then(|(_, cursor)| self.cursor_texture(cursor));
+        let (Some((bottom, _)), Some(texture)) = (placed, texture) else {
+            if let Some(icon) = self.soft_interact.icon.as_mut() {
+                icon.set_visible(false);
+            }
+            return Ok(());
+        };
+        let icon = self.soft_interact_icon_node();
+        icon.set_texture(&texture);
+        icon.set_size(Vector2::splat(ICON_SIZE));
+        icon.set_position(bottom - Vector2::new(ICON_SIZE / 2.0, ICON_SIZE));
+        icon.set_visible(true);
+        Ok(())
+    }
+
+    /// The icon's bottom-centre on screen and its cursor.
+    fn soft_icon_placement(&self) -> Option<(Vector2, ActiveWowCursor)> {
+        let (id, kind) = self.soft_interact.target?;
+        let cursor = soft_target_icon(kind)?;
+        let camera = self.base().get_viewport()?.get_camera_3d()?;
+        let anchor = plate_anchor(&self.world.unit_node(id)?);
+        if !camera.is_position_in_frustum(anchor) {
+            return None;
+        }
+        let point = camera.unproject_position(anchor);
+        let bottom = match self
+            .nameplates
+            .plate_rects()
+            .find(|(plate, _)| *plate == id)
+        {
+            Some((_, rect)) => Vector2::new(point.x, rect.position.y + ICON_PLATE_OVERLAP),
+            None => point,
+        };
+        Some((bottom, cursor))
+    }
+
+    pub(super) fn soft_interact_snapshot(&self) -> VarDictionary {
+        let mut state = VarDictionary::new();
+        let Some((id, kind)) = self.soft_interact.target else {
+            return state;
+        };
+        state.set("target", id as i64);
+        if let Some(cursor) = soft_target_icon(kind) {
+            state.set("icon", format!("{cursor:?}").as_str());
+        }
+        if let Some(icon) = self
+            .soft_interact
+            .icon
+            .as_ref()
+            .filter(|icon| icon.is_visible())
+        {
+            state.set("icon_rect", icon.get_global_rect());
+        }
+        state
+    }
+
+    fn soft_interact_icon_node(&mut self) -> &mut Gd<TextureRect> {
+        if self.soft_interact.icon.is_none() {
+            let mut layer = CanvasLayer::new_alloc();
+            layer.set_name("SoftTargetFrame");
+            // With the nameplates, below the registry UI layers.
+            layer.set_layer(0);
+            let mut icon = TextureRect::new_alloc();
+            icon.set_expand_mode(ExpandMode::IGNORE_SIZE);
+            icon.set_stretch_mode(StretchMode::SCALE);
+            icon.upcast_mut::<Control>()
+                .set_mouse_filter(MouseFilter::IGNORE);
+            layer.add_child(&icon);
+            self.base_mut().add_child(&layer);
+            self.soft_interact.icon = Some(icon);
+        }
+        self.soft_interact
+            .icon
+            .as_mut()
+            .expect("icon created above")
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use game_engine_ui_model::wow_cursor_data::{NpcCursorView, npc_cursor};
+    use shared::faction_reaction::Reaction;
+    use shared::protocol::NpcFlags;
+
+    use super::*;
+
+    /// A WoW world point `(x, y, z)` in a frame isometric to the client's (ground plane
+    /// X/Z, height Y); selection only measures distances and angles.
+    fn at(x: f32, y: f32, z: f32) -> Vector3 {
+        Vector3::new(x, z, y)
+    }
+
+    /// The facing of WoW `orientation` radians in the frame of [`at`].
+    fn facing(orientation: f32) -> Vector3 {
+        Vector3::new(orientation.cos(), 0.0, orientation.sin())
+    }
+
+    fn npc(id: u64, npcflag: u64, reaction: Reaction, position: Vector3) -> SoftCandidate {
+        let cursor = npc_cursor(NpcCursorView {
+            flags: NpcFlags(npcflag),
+            dead: false,
+            lootable: false,
+            reaction,
+        });
+        SoftCandidate {
+            id,
+            position,
+            kind: SoftKind::Unit(cursor),
+        }
+    }
+
+    // world.db Northshire Abbey vendors (creature guid, npcflag 384/4224, faction 12).
+    const DANIL: u64 = 79950;
+    const DERMOT: u64 = 79951;
+    const GODRIC: u64 = 79952;
+    // world.db Goldshire Mailbox (gameobject guid 26784, entry 142075, type 19).
+    const MAILBOX: u64 = 26784;
+
+    fn northshire_vendors() -> [SoftCandidate; 3] {
+        [
+            npc(
+                DANIL,
+                384,
+                Reaction::Friendly,
+                at(-8901.59, -112.716, 82.0314),
+            ),
+            npc(
+                DERMOT,
+                4224,
+                Reaction::Friendly,
+                at(-8897.71, -115.328, 81.9982),
+            ),
+            npc(
+                GODRIC,
+                4224,
+                Reaction::Friendly,
+                at(-8898.23, -119.838, 82.016),
+            ),
+        ]
+    }
+
+    fn goldshire_mailbox() -> SoftCandidate {
+        SoftCandidate {
+            id: MAILBOX,
+            position: at(-9455.99, 45.8229, 56.4395),
+            kind: SoftKind::GameObject,
+        }
+    }
+
+    #[test]
+    fn nearest_vendor_in_line_wins() {
+        // Brother Danil 1.21 yd and Dermot Johns 4.63 yd ahead, both within 1.15 yd of the
+        // facing line; Godric Rothgar is 7.15 yd away.
+        let feet = at(-8902.09, -113.82, 82.03);
+        let target = soft_interact_target(feet, facing(355f32.to_radians()), &northshire_vendors());
+        assert_eq!(target, Some(DANIL));
+    }
+
+    #[test]
+    fn a_vendor_beside_the_player_loses_to_one_in_front() {
+        // Brother Danil is 3.0 yd away but 2.88 yd off the facing line; Dermot Johns is
+        // 4.8 yd straight ahead.
+        let feet = at(-8902.5, -115.6, 82.03);
+        let target = soft_interact_target(feet, facing(0.0), &northshire_vendors());
+        assert_eq!(target, Some(DERMOT));
+    }
+
+    #[test]
+    fn nothing_behind_or_beyond_interact_range() {
+        let feet = at(-8902.09, -113.82, 82.03);
+        let behind = soft_interact_target(feet, facing(175f32.to_radians()), &northshire_vendors());
+        assert_eq!(behind, None);
+        // Dermot Johns straight ahead at 6.79 yd: inside SoftTargetInteractRange 10 but
+        // past the 5 yd interaction distance.
+        let far = soft_interact_target(
+            at(-8904.5, -115.33, 82.03),
+            facing(0.0),
+            &northshire_vendors(),
+        );
+        assert_eq!(far, None);
+    }
+
+    #[test]
+    fn hostile_and_serviceless_units_are_not_interact_targets() {
+        // A hostile Kobold Vermin (Attack cursor) and a friendly NPC with no services
+        // (pointer cursor) stand nearer on the line than Dermot Johns.
+        let feet = at(-8902.5, -115.6, 82.03);
+        let mut candidates = northshire_vendors().to_vec();
+        candidates.push(npc(6, 0, Reaction::Hostile, at(-8900.5, -115.5, 82.0)));
+        candidates.push(npc(2, 0, Reaction::Friendly, at(-8899.5, -115.5, 82.0)));
+        let target = soft_interact_target(feet, facing(0.0), &candidates);
+        assert_eq!(target, Some(DERMOT));
+    }
+
+    #[test]
+    fn a_mailbox_must_be_directly_in_front() {
+        let feet = at(-9459.0, 45.8229, 56.44);
+        let mailbox = [goldshire_mailbox()];
+        assert_eq!(
+            soft_interact_target(feet, facing(0.0), &mailbox),
+            Some(MAILBOX)
+        );
+        // 3 yd ahead but 0.5 yd off the line, past the object's 0.389 yd size.
+        let off_line = at(-9459.0, 45.3229, 56.44);
+        assert_eq!(soft_interact_target(off_line, facing(0.0), &mailbox), None);
+    }
+
+    #[test]
+    fn icons_follow_the_unit_cursor() {
+        let [danil, dermot, _] = northshire_vendors();
+        assert_eq!(soft_target_icon(danil.kind), Some(ActiveWowCursor::Buy));
+        assert_eq!(soft_target_icon(dermot.kind), Some(ActiveWowCursor::Buy));
+        // Marshal McBride (npcflag 3: gossip + quest giver) shows the speak bubble.
+        let mcbride = npc(79970, 3, Reaction::Friendly, Vector3::ZERO);
+        assert_eq!(soft_target_icon(mcbride.kind), Some(ActiveWowCursor::Speak));
+        // SoftTargetIconGameObject 0: no icon over the mailbox.
+        assert_eq!(soft_target_icon(goldshire_mailbox().kind), None);
+        // SoftTargetLowPriorityIcons 0: no icon over a corpse that already sparkles.
+        assert_eq!(
+            soft_target_icon(SoftKind::Unit(ActiveWowCursor::Loot)),
+            None
+        );
+    }
+}
