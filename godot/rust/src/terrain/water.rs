@@ -36,6 +36,9 @@ struct LiquidSurface {
     slots: [Vec<Gd<ImageTexture>>; TEXTURE_SLOTS],
     /// Crossfaded slot and its period in milliseconds (`Float[index] * 1000`).
     crossfade: Option<(usize, f64)>,
+    /// Frame each slot has bound. Every texture write rebuilds the material's uniform set
+    /// and re-validates every instance drawing it, so only a changed frame is written.
+    bound: [Option<usize>; TEXTURE_SLOTS],
 }
 
 impl WaterMaterials {
@@ -195,6 +198,7 @@ impl WaterMaterials {
             material,
             slots,
             crossfade,
+            bound: [None; TEXTURE_SLOTS],
         };
         surface.set_time(0.0);
         Ok(surface)
@@ -286,11 +290,13 @@ impl LiquidSurface {
                 }
                 Some(_) => 0,
                 None => second,
-            };
-            self.material.set_shader_parameter(
-                SLOT_UNIFORMS[slot],
-                &frames[frame % frames.len()].to_variant(),
-            );
+            } % frames.len();
+            if self.bound[slot] == Some(frame) {
+                continue;
+            }
+            self.bound[slot] = Some(frame);
+            self.material
+                .set_shader_parameter(SLOT_UNIFORMS[slot], &frames[frame].to_variant());
             if crossfade.is_some() {
                 let next = &frames[(frame + 1) % frames.len()];
                 self.material
