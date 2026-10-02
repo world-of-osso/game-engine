@@ -423,7 +423,7 @@ fn prepare_player_appearance(
     Ok(PlayerAppearanceParts {
         body: AppearanceParts {
             source: "player",
-            textures: pixels,
+            textures: super::appearance::mip_chains(pixels),
             selected_geosets: selected.geosets,
             authored_geosets: Vec::new(),
             equipment_geosets: equipment.outfit.geoset_overrides.clone(),
