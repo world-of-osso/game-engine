@@ -32,6 +32,7 @@ fn load_bytes(path: &str) -> Result<Vec<u8>, String> {
 }
 
 pub fn load_font(font: GameFont) -> Result<Gd<FontFile>, String> {
+    let _span = crate::profile::span(|| format!("ui.load_font {font:?}"));
     let path = match font {
         GameFont::FrizQuadrata => "data/fonts/FRIZQT__.TTF",
         GameFont::ArialNarrow => "data/fonts/ARIALN.ttf",
