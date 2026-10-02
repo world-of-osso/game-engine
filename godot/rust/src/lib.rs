@@ -484,6 +484,7 @@ impl INode3D for GameClient {
 
     fn process(&mut self, delta: f64) {
         let started = std::time::Instant::now();
+        let _span = profile::span(|| "client.frame".to_owned());
         self.poll_native_ipc();
         self.run_frame(delta);
         self.last_process_ms = started.elapsed().as_secs_f64() * 1000.0;
