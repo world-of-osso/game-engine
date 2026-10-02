@@ -93,7 +93,7 @@ Run4 at fixture `6520c861` runtime-proves first-invalid-snapshot capture without
 
 ## Known gaps (current cycle)
 
-- [ ] Complete final goal20 scope audit; post-removal artifact/observer evidence above is bounded, not full acceptance. Saved GPU assertions do not make timeout124 a process PASS. Other-owner root-format issues and existing build warnings remain uncleared.
+- [x] Final bounded scope audit16–20: independent report `/tmp/claude/retained-conversion-20/final-independent-verification.md` accepts source/render evidence and measurement coherence at `ded19eb7`, while rejecting settled-window acceptance. This completes evidence accounting, not retained/full-conversion acceptance. Mip timeout124, inherited format/build warnings and remaining gaps stay open.
 - [ ] Supply authoritative default `Light.map2703` data, currently absent: explicit default-source blocker, no fallback.
 - [ ] Complete remaining source/animation/input coverage and unsupported same-scene live Options proof without promoting bounded FOV105/.007 evidence to all options.
 - [ ] Establish a valid settled performance window and comparable baseline; readiness changes invalidate steady claims.
