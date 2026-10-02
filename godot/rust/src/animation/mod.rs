@@ -4,7 +4,7 @@ use game_engine_core::movement_animation_data::locomotion_playback_rate;
 use game_engine_core::{asset::m2_format::m2_anim, m2};
 use godot::{
     builtin::{Quaternion, Vector3},
-    classes::{INode, Node, Skeleton3D},
+    classes::{INode, MeshInstance3D, Node, Skeleton3D},
     prelude::*,
 };
 
@@ -564,6 +564,8 @@ pub struct WowAnimationPlayer {
     /// model keeps its first pose and never processes.
     animates: bool,
     billboards: Option<billboard::Billboards>,
+    /// The sequence whose bounds the sibling skinned batches cull by.
+    bounds_sequence: Option<usize>,
 }
 
 #[godot_api]
@@ -578,6 +580,7 @@ impl INode for WowAnimationPlayer {
             stale: false,
             animates: true,
             billboards: None,
+            bounds_sequence: None,
         }
     }
 
@@ -612,6 +615,7 @@ impl WowAnimationPlayer {
             stale: false,
             animates: !m2::bones_are_static(model) || billboards.is_some(),
             billboards,
+            bounds_sequence: None,
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
@@ -810,7 +814,45 @@ impl WowAnimationPlayer {
             skeleton.set_bone_pose_rotation(index as i32, pose.rotation);
             skeleton.set_bone_pose_scale(index as i32, pose.scale);
         }
+        self.apply_sequence_bounds();
     }
+
+    /// Sibling skinned batches cull by the playing sequence's `M2Sequence.bounds`, set on
+    /// every sequence change like WebWowViewerCpp `M2Object` (`isNeedUpdateBB`,
+    /// `getAnimatinonBB`); an empty box keeps the previous one.
+    pub(crate) fn apply_sequence_bounds(&mut self) {
+        let Some(animation) = &self.animation else {
+            return;
+        };
+        let current = animation.current;
+        if self.bounds_sequence == Some(current) {
+            return;
+        }
+        let bounds = sequence_bounds(&animation.sequences[current]);
+        let Some(parent) = self.base().get_parent() else {
+            return;
+        };
+        self.bounds_sequence = Some(current);
+        let Some(bounds) = bounds else {
+            return;
+        };
+        for child in parent.get_children().iter_shared() {
+            if let Ok(mut batch) = child.try_cast::<MeshInstance3D>()
+                && batch.get_skin().is_some()
+            {
+                batch.set_custom_aabb(bounds);
+            }
+        }
+    }
+}
+
+/// A sequence's bounds in engine axes, unless empty (WebWowViewerCpp `m2Object.cpp`
+/// `boundsValid`: min <= max and a diagonal over 0.001 squared).
+fn sequence_bounds(sequence: &m2::Sequence) -> Option<Aabb> {
+    let [min, max] = sequence.bounds;
+    let ordered = (0..3).all(|axis| min[axis] <= max[axis]);
+    let diagonal: f32 = (0..3).map(|axis| (max[axis] - min[axis]).powi(2)).sum();
+    (ordered && diagonal > 0.001).then(|| crate::assets::wow_aabb(min, max))
 }
 
 #[godot_api]

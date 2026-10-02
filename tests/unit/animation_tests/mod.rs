@@ -47,6 +47,7 @@ pub(super) fn stand_sequence() -> M2AnimSequence {
         frequency: 32767,
         replay: [0, 0],
         variation_next: -1,
+        bounds: [[0.0; 3]; 2],
     }
 }
 
@@ -61,6 +62,7 @@ pub(super) fn sequence(anim_id: u16, duration: u32) -> M2AnimSequence {
         frequency: 32767,
         replay: [0, 0],
         variation_next: -1,
+        bounds: [[0.0; 3]; 2],
     }
 }
 
@@ -79,6 +81,7 @@ pub(super) fn stand_sequence_with_next(
         frequency: 32767,
         replay: [0, 0],
         variation_next,
+        bounds: [[0.0; 3]; 2],
     }
 }
 

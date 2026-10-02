@@ -312,6 +312,7 @@ mod tests {
                     frequency: 32767,
                     replay: [0, 0],
                     variation_next: -1,
+                    bounds: [[0.0; 3]; 2],
                 })
                 .collect(),
             bone_tracks: Arc::from([tracks]),

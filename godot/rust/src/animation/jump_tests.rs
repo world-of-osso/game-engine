@@ -12,6 +12,7 @@ fn sequence(id: u16, duration: u32, blend_time: u16) -> m2::Sequence {
         frequency: 1,
         replay: [0, 0],
         variation_next: -1,
+        bounds: [[0.0; 3]; 2],
     }
 }
 

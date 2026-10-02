@@ -267,6 +267,7 @@ fn switch_animation_uses_swim_idle_when_stationary_in_water() {
                         frequency: 32767,
                         replay: [0, 0],
                         variation_next: -1,
+                        bounds: [[0.0; 3]; 2],
                     },
                     M2AnimSequence {
                         id: ANIM_SWIM_IDLE,
@@ -278,6 +279,7 @@ fn switch_animation_uses_swim_idle_when_stationary_in_water() {
                         frequency: 32767,
                         replay: [0, 0],
                         variation_next: -1,
+                        bounds: [[0.0; 3]; 2],
                     },
                 ],
                 bone_tracks: Vec::new().into(),
