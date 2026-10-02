@@ -44,56 +44,33 @@ impl Footsteps {
     }
 
     pub fn load(&mut self, data_root: &Path) -> Result<(), String> {
-        let path = data_root.join("community-listfile.csv");
-        let file =
-            File::open(&path).map_err(|error| format!("open {}: {error}", path.display()))?;
+        self.apply(read_footstep_files(data_root)?)
+    }
+
+    /// Replace the catalog with `files`' footsteps.
+    pub fn apply(&mut self, files: FootstepFiles) -> Result<(), String> {
         self.stop();
         self.catalog.entries.clear();
         self.streams.clear();
-        let mut counts = HashMap::new();
-        for line in BufReader::new(file).lines() {
-            let line = line.map_err(|error| format!("read {}: {error}", path.display()))?;
-            self.try_load_row(&line, data_root, &mut counts);
+        for error in files.errors {
+            godot_error!("{error}");
+        }
+        for (entry, bytes) in files.files {
+            match ogg_stream(&bytes, entry.fdid) {
+                Some(stream) => {
+                    self.streams.insert(entry.fdid, stream);
+                    self.catalog.entries.push(entry);
+                }
+                None => godot_error!("Footstep {}: Godot rejected Ogg stream", entry.fdid),
+            }
         }
         if self.catalog.entries.is_empty() {
             return Err(format!(
                 "{}: no supported local Ogg footstep files loaded",
-                path.display()
+                files.listfile.display()
             ));
         }
         Ok(())
-    }
-
-    fn try_load_row(
-        &mut self,
-        line: &str,
-        data_root: &Path,
-        counts: &mut HashMap<(FootstepCreature, FootstepSurface), usize>,
-    ) {
-        let Some((fdid, source)) = parse_supported_row(line) else {
-            return;
-        };
-        let local = data_root
-            .join("sounds/footsteps")
-            .join(format!("{fdid}.ogg"));
-        if !local.exists() {
-            return;
-        }
-        let Some(entry) = FootstepCatalogEntry::from_path(fdid, source) else {
-            return;
-        };
-        let count = counts.entry((entry.creature, entry.surface)).or_insert(0);
-        if *count >= MAX_FILES_PER_BUCKET {
-            return;
-        }
-        match load_ogg(&local, fdid) {
-            Ok(stream) => {
-                self.streams.insert(fdid, stream);
-                self.catalog.entries.push(entry);
-                *count += 1;
-            }
-            Err(error) => godot_error!("Footstep {fdid}: {error}"),
-        }
     }
 
     pub fn observe(
@@ -182,6 +159,66 @@ impl Footsteps {
     }
 }
 
+/// Local footstep Ogg files the community listfile names, at most
+/// `MAX_FILES_PER_BUCKET` per creature and surface, with the files that could not be
+/// read. Reading touches no Godot object, so it runs on any thread.
+pub(crate) struct FootstepFiles {
+    listfile: PathBuf,
+    files: Vec<(FootstepCatalogEntry, Vec<u8>)>,
+    errors: Vec<String>,
+}
+
+pub(crate) fn read_footstep_files(data_root: &Path) -> Result<FootstepFiles, String> {
+    let listfile = data_root.join("community-listfile.csv");
+    let file =
+        File::open(&listfile).map_err(|error| format!("open {}: {error}", listfile.display()))?;
+    let mut files = FootstepFiles {
+        listfile,
+        files: Vec::new(),
+        errors: Vec::new(),
+    };
+    let mut counts = HashMap::new();
+    for line in BufReader::new(file).lines() {
+        let line =
+            line.map_err(|error| format!("read {}: {error}", files.listfile.display()))?;
+        files.read_row(&line, data_root, &mut counts);
+    }
+    Ok(files)
+}
+
+impl FootstepFiles {
+    fn read_row(
+        &mut self,
+        line: &str,
+        data_root: &Path,
+        counts: &mut HashMap<(FootstepCreature, FootstepSurface), usize>,
+    ) {
+        let Some((fdid, source)) = parse_supported_row(line) else {
+            return;
+        };
+        let local = data_root
+            .join("sounds/footsteps")
+            .join(format!("{fdid}.ogg"));
+        if !local.exists() {
+            return;
+        }
+        let Some(entry) = FootstepCatalogEntry::from_path(fdid, source) else {
+            return;
+        };
+        let count = counts.entry((entry.creature, entry.surface)).or_insert(0);
+        if *count >= MAX_FILES_PER_BUCKET {
+            return;
+        }
+        match read_ogg(&local) {
+            Ok(bytes) => {
+                self.files.push((entry, bytes));
+                *count += 1;
+            }
+            Err(error) => self.errors.push(format!("Footstep {fdid}: {error}")),
+        }
+    }
+}
+
 fn parse_supported_row(line: &str) -> Option<(u32, &str)> {
     let (fdid, path) = line.split_once(';')?;
     let lower = path.to_ascii_lowercase();
@@ -195,16 +232,23 @@ fn parse_supported_row(line: &str) -> Option<(u32, &str)> {
 }
 
 pub(super) fn load_ogg(path: &PathBuf, fdid: u32) -> Result<Gd<AudioStream>, String> {
+    let bytes = read_ogg(path)?;
+    ogg_stream(&bytes, fdid).ok_or_else(|| format!("{}: Godot rejected Ogg stream", path.display()))
+}
+
+fn read_ogg(path: &Path) -> Result<Vec<u8>, String> {
     let bytes = std::fs::read(path).map_err(|error| format!("read {}: {error}", path.display()))?;
     if !bytes.starts_with(b"OggS") {
         return Err(format!("{}: not Ogg data", path.display()));
     }
-    let buffer = PackedByteArray::from(bytes.as_slice());
-    let mut stream: Gd<AudioStream> = AudioStreamOggVorbis::load_from_buffer(&buffer)
-        .ok_or_else(|| format!("{}: Godot rejected Ogg stream", path.display()))?
-        .upcast();
+    Ok(bytes)
+}
+
+fn ogg_stream(bytes: &[u8], fdid: u32) -> Option<Gd<AudioStream>> {
+    let mut stream: Gd<AudioStream> =
+        AudioStreamOggVorbis::load_from_buffer(&PackedByteArray::from(bytes))?.upcast();
     stream.set_name(&fdid.to_string());
-    Ok(stream)
+    Some(stream)
 }
 
 fn movement_gain(movement: FootstepMovement) -> f32 {
