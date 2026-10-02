@@ -1,25 +1,41 @@
 //! Native scene-light resources sampled from authored map-position/time data.
 
 pub(crate) mod assets;
+mod fog_cone;
+mod planets;
+
+use std::{collections::HashMap, ops::RangeInclusive};
 
 use game_engine_core::{
     asset::wmo_format::fog::WmoFogBlend,
     lighting_assets::{authored_to_linear_rgb, linear_to_authored_rgb},
     retail_fog::{FogResult, FogUniforms, blend_wmo_fog, fog_uniforms, wmo_fog},
     retail_light_data::RetailLightData,
-    sky_cubemap_data,
+    sky_cubemap_data::{self, sky_dome_profile},
 };
 use godot::{
     classes::{
-        Cubemap, DirectionalLight3D, Environment, Image, Node3D, ShaderMaterial, WorldEnvironment,
-        environment, image,
+        Cubemap, DirectionalLight3D, Environment, Image, Node3D, ResourceLoader, Shader,
+        ShaderMaterial, Sky, WorldEnvironment, environment, image, sky,
     },
     prelude::*,
 };
 
 use assets::{LightingCatalog, LightingSample, WaterLight};
+use game_engine_core::sky_bodies::{LIGHT_SKYBOX_FINAL_FOG, PlanetDraw, STARS_FDID, SkyboxDraw};
+
+use crate::sky_model::SkyModel;
 
 type SkyStops = [[f32; 3]; 7];
+type LightValues = (
+    RetailLightData,
+    FogResult,
+    SkyStops,
+    WaterLight,
+    Option<f32>,
+    Vec<SkyboxDraw>,
+    Vec<PlanetDraw>,
+);
 
 #[derive(Clone)]
 pub(crate) struct TerrainLight {
@@ -65,6 +81,11 @@ impl TerrainLight {
         ] {
             material.set_shader_parameter(name, &Vector3::from_array(value).to_variant());
         }
+        bind_fog(material, &self.fog);
+    }
+
+    /// Only the scene fog (`retail_fog.gdshaderinc`), for unlit materials such as particles.
+    pub fn bind_scene_fog(&self, material: &mut Gd<ShaderMaterial>) {
         bind_fog(material, &self.fog);
     }
 
@@ -116,8 +137,26 @@ impl TerrainLight {
 pub(crate) struct WorldLighting {
     root: Option<Gd<Node3D>>,
     sun: Option<Gd<DirectionalLight3D>>,
-    previous: Option<(RetailLightData, FogResult, SkyStops, WaterLight)>,
+    sky: Option<Gd<ShaderMaterial>>,
+    stars: Option<SkyModel>,
+    /// LightSkybox models by FDID, with the day fraction a flag 0x1 skybox is held at.
+    skyboxes: HashMap<u32, (SkyModel, Option<f32>)>,
+    planets: Option<planets::Planets>,
+    fog_cone: Option<fog_cone::FogCone>,
+    previous: Option<LightValues>,
 }
+
+/// Render priorities of the sky models, in WebWowViewerCpp's sky-view draw order (dome,
+/// stars, planets, skybox models, 0x4 fog cone; `ViewsObjects.cpp:40-55`). Godot draws
+/// transparents by priority first, so these stay below the world's (0): the sky view draws
+/// before the world, and water or particles in front of the far plane blend over it.
+/// Godot's priorities start at -128; a model's batches take consecutive priorities in its band.
+const STARS_PRIORITIES: RangeInclusive<i32> = -128..=-113;
+pub(super) const PLANETS_PRIORITY: i32 = -112;
+const SKYBOX_PRIORITIES: RangeInclusive<i32> = -111..=-2;
+pub(super) const FOG_CONE_PRIORITY: i32 = -1;
+
+const SKY_DOME_SHADER: &str = "res://shaders/sky_dome.gdshader";
 
 impl WorldLighting {
     /// Samples the authored light at `position`; `wmo_fog` is the MFOG fog of the WMO
@@ -143,13 +182,31 @@ impl WorldLighting {
             sky.fog_color,
         ];
         let fog = apply_wmo_fog(&sample.fog, wmo_fog);
-        let values = (sample.retail.clone(), fog, stops, sample.water.clone());
+        let stars_alpha = sample.stars_alpha;
+        let values = (
+            sample.retail.clone(),
+            fog,
+            stops,
+            sample.water.clone(),
+            stars_alpha,
+            sample.skyboxes.clone(),
+            sample.planets.clone(),
+        );
         if self.previous.as_ref() == Some(&values) {
             return Ok(None);
         }
         let direction = Vector3::from_array(sample.retail.sun_direction);
         let light = TerrainLight::new(sample, fog)?;
-        self.attach_nodes(parent);
+        self.attach_nodes(parent)?;
+        bind_sky_dome(self.sky.as_mut().expect("attached sky"), &stops, &light.fog);
+        self.sync_stars(catalog, stars_alpha)?;
+        self.sync_skyboxes(catalog, &values.5, minutes)?;
+        self.sync_planets(catalog, &values.6, values.3.specular)?;
+        let final_fog = values
+            .5
+            .iter()
+            .any(|draw| draw.flags & LIGHT_SKYBOX_FINAL_FOG != 0);
+        self.sync_fog_cone(final_fog, fog.end_fog_color, stops[5], &light.fog)?;
         self.sun
             .as_mut()
             .expect("attached sun")
@@ -158,10 +215,139 @@ impl WorldLighting {
         Ok(Some(light))
     }
 
-    fn attach_nodes(&mut self, parent: &mut Gd<Node3D>) {
-        if self.root.is_some() {
-            return;
+    /// map.cpp: the stars model draws in the sky view while `stars.enabled`, at the
+    /// night alpha.
+    fn sync_stars(&mut self, catalog: &LightingCatalog, alpha: Option<f32>) -> Result<(), String> {
+        if self.stars.is_none() && alpha.is_some() {
+            let mut stars =
+                SkyModel::load_model(&catalog.data_root, &catalog.stars_path, STARS_FDID, None)?;
+            stars.place_render_priorities(STARS_PRIORITIES)?;
+            self.root
+                .as_mut()
+                .expect("attached root")
+                .add_child(&stars.node);
+            self.stars = Some(stars);
         }
+        if let Some(stars) = self.stars.as_mut() {
+            stars.node.set_visible(alpha.is_some());
+            stars.set_alpha(alpha.unwrap_or(0.0));
+        }
+        Ok(())
+    }
+
+    /// map.cpp: the Light's LightSkybox models draw in the sky view at their collected
+    /// alphas; a flag 0x1 skybox holds its animation at the day's fraction.
+    fn sync_skyboxes(
+        &mut self,
+        catalog: &LightingCatalog,
+        draws: &[SkyboxDraw],
+        minutes: f32,
+    ) -> Result<(), String> {
+        for draw in draws {
+            let fraction = (draw.flags & 1 != 0).then_some(minutes.rem_euclid(2880.0) / 2880.0);
+            if self
+                .skyboxes
+                .get(&draw.fdid)
+                .is_some_and(|(_, held)| *held != fraction)
+            {
+                let (stale, _) = self.skyboxes.remove(&draw.fdid).expect("present");
+                stale.node.free();
+            }
+            if !self.skyboxes.contains_key(&draw.fdid) {
+                let path = assets::cache_sky_model(&catalog.data_root, draw.fdid)
+                    .map_err(|error| format!("Skybox {}: {error}", draw.fdid))?;
+                let mut model = match fraction {
+                    Some(fraction) => {
+                        SkyModel::load_at_fraction(&catalog.data_root, &path, draw.fdid, fraction)?
+                    }
+                    None => SkyModel::load_model(&catalog.data_root, &path, draw.fdid, None)?,
+                };
+                model
+                    .place_render_priorities(SKYBOX_PRIORITIES)
+                    .map_err(|error| format!("Skybox {}: {error}", draw.fdid))?;
+                self.root
+                    .as_mut()
+                    .expect("attached root")
+                    .add_child(&model.node);
+                self.skyboxes.insert(draw.fdid, (model, fraction));
+            }
+            let (model, _) = self.skyboxes.get_mut(&draw.fdid).expect("loaded above");
+            model.node.set_visible(true);
+            model.set_alpha(draw.alpha);
+        }
+        for (fdid, (model, _)) in &mut self.skyboxes {
+            if !draws.iter().any(|draw| draw.fdid == *fdid) {
+                model.node.set_visible(false);
+            }
+        }
+        Ok(())
+    }
+
+    /// map.cpp: the sun and moon discs draw in the sky view while visible.
+    fn sync_planets(
+        &mut self,
+        catalog: &LightingCatalog,
+        draws: &[PlanetDraw],
+        color: [f32; 3],
+    ) -> Result<(), String> {
+        if self.planets.is_none() {
+            let root = self.root.as_mut().expect("attached root");
+            self.planets = Some(planets::Planets::load(root, &catalog.data_root)?);
+        }
+        self.planets
+            .as_mut()
+            .expect("loaded above")
+            .sync(draws, color);
+        Ok(())
+    }
+
+    /// map.cpp: the 0x4 fog cone draws after the skybox models while one has flag 0x4.
+    fn sync_fog_cone(
+        &mut self,
+        shown: bool,
+        end_fog_color: [f32; 3],
+        sky_fog: [f32; 3],
+        fog: &FogUniforms,
+    ) -> Result<(), String> {
+        if self.fog_cone.is_none() {
+            let root = self.root.as_mut().expect("attached root");
+            self.fog_cone = Some(fog_cone::FogCone::load(root)?);
+        }
+        self.fog_cone
+            .as_mut()
+            .expect("loaded above")
+            .sync(shown, end_fog_color, sky_fog, fog);
+        Ok(())
+    }
+
+    /// Sky models sit on the camera (WebWowViewerCpp's sky view drops the view
+    /// translation) and play their animation at `time_ms`.
+    pub fn place_sky(&mut self, camera: Vector3, time_ms: u32) {
+        if let Some(stars) = self.stars.as_mut().filter(|stars| stars.node.is_visible()) {
+            stars.node.set_global_position(camera);
+            stars.sample(time_ms);
+        }
+        if let Some(planets) = self.planets.as_mut() {
+            planets.place(camera);
+        }
+        if let Some(cone) = self.fog_cone.as_mut() {
+            cone.place(camera);
+        }
+        for (model, fraction) in self.skyboxes.values_mut() {
+            if model.node.is_visible() {
+                model.node.set_global_position(camera);
+                if fraction.is_none() {
+                    model.sample(time_ms);
+                }
+            }
+        }
+    }
+
+    fn attach_nodes(&mut self, parent: &mut Gd<Node3D>) -> Result<(), String> {
+        if self.root.is_some() {
+            return Ok(());
+        }
+        let sky_material = sky_dome_material()?;
         let mut root = Node3D::new_alloc();
         root.set_name("WorldLighting");
         parent.add_child(&root);
@@ -169,6 +355,11 @@ impl WorldLighting {
         environment.set_ambient_source(environment::AmbientSource::DISABLED);
         environment.set_reflection_source(environment::ReflectionSource::DISABLED);
         environment.set_tonemapper(environment::ToneMapper::LINEAR);
+        let mut sky = Sky::new_gd();
+        sky.set_material(&sky_material);
+        sky.set_radiance_size(sky::RadianceSize::SIZE_32);
+        environment.set_sky(&sky);
+        environment.set_background(environment::BgMode::SKY);
         let mut environment_node = WorldEnvironment::new_alloc();
         environment_node.set_name("Environment");
         environment_node.set_environment(&environment);
@@ -178,7 +369,9 @@ impl WorldLighting {
         sun.set_shadow(true);
         root.add_child(&sun);
         self.sun = Some(sun);
+        self.sky = Some(sky_material);
         self.root = Some(root);
+        Ok(())
     }
 
     /// The attached sun, once the first sample placed it.
@@ -188,10 +381,49 @@ impl WorldLighting {
 
     pub fn reset(&mut self) {
         self.sun = None;
+        self.sky = None;
+        self.stars = None;
+        self.skyboxes.clear();
+        self.planets = None;
+        self.fog_cone = None;
         if let Some(root) = self.root.take() {
             root.free();
         }
         self.previous = None;
+    }
+}
+
+fn sky_dome_material() -> Result<Gd<ShaderMaterial>, String> {
+    let shader = ResourceLoader::singleton()
+        .load(SKY_DOME_SHADER)
+        .and_then(|resource| resource.try_cast::<Shader>().ok())
+        .ok_or_else(|| format!("Sky dome shader {SKY_DOME_SHADER} failed to load"))?;
+    let mut material = ShaderMaterial::new_gd();
+    material.set_shader(&shader);
+    let points: PackedVector2Array = sky_dome_profile()
+        .iter()
+        .map(|point| Vector2::new(point.horizontal, point.height))
+        .collect();
+    material.set_shader_parameter("dome_points", &points.to_variant());
+    Ok(material)
+}
+
+/// The exterior sky dome's ring colours (map.cpp `Map::updateBuffers` skyColor[0..5])
+/// and the scene sun fog it scatters (skyConus.frag.slang).
+fn bind_sky_dome(material: &mut Gd<ShaderMaterial>, stops: &SkyStops, fog: &FogUniforms) {
+    let stops: PackedVector3Array = stops.iter().copied().map(Vector3::from_array).collect();
+    material.set_shader_parameter("sky_stops", &stops.to_variant());
+    for (name, value) in [
+        ("fog_sun_direction", fog.sun_direction),
+        ("fog_sun_color", fog.sun_color),
+    ] {
+        material.set_shader_parameter(name, &Vector3::from_array(value).to_variant());
+    }
+    for (name, value) in [
+        ("fog_sun_angle", fog.sun_angle),
+        ("fog_sun_percentage", fog.sun_percentage),
+    ] {
+        material.set_shader_parameter(name, &value.to_variant());
     }
 }
 

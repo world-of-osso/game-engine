@@ -49,7 +49,9 @@ impl TerrainTextureCache {
                 .texture_fdids
                 .get(index as usize)
                 .ok_or_else(|| format!("MCLY texture index {index} has no MDID entry"))?;
-            let diffuse_fdid = resolve_diffuse_fdid(resolver, authored)?;
+            // WebWowViewerCpp adtObject.cpp:528: the MDID texture itself, usually the
+            // `_s.blp` whose alpha is the layer's specular mask (adtShader.frag.slang).
+            let diffuse_fdid = authored;
             let diffuse = self.load_image(resolver, data_root, diffuse_fdid)?;
             let height = tex
                 .height_texture_fdids
@@ -99,22 +101,6 @@ impl TerrainTextureCache {
     }
 }
 
-fn resolve_diffuse_fdid(resolver: &CascListfileResolver, authored: u32) -> Result<u32, String> {
-    let path = resolver
-        .resolve_path(authored)
-        .ok_or_else(|| format!("MDID FDID {authored} not in local listfile"))?;
-    let Some(base) = path
-        .strip_suffix("_s.blp")
-        .or_else(|| path.strip_suffix("_S.blp"))
-    else {
-        return Ok(authored);
-    };
-    let diffuse_path = format!("{base}.blp");
-    resolver.lookup_path(&diffuse_path).ok_or_else(|| {
-        format!("MDID FDID {authored} requires diffuse {diffuse_path}, absent from local listfile")
-    })
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -138,14 +124,17 @@ mod tests {
     #[test]
     fn loads_only_referenced_authored_diffuse_and_reuses_pixels_across_tile_loads() {
         let (data_root, resolver, mut tex) = fixture();
-        // This tile's MDID starts at 186770 (_s); the named diffuse is 186769.
+        // This tile's MDID starts at 186770 (aeriepeaksscrubbrushbase_s.blp); its alpha
+        // is the specular mask, where the plain 186769 is opaque everywhere.
         // MHID is all zero: no authored height images.
         let mut cache = TerrainTextureCache::default();
         let all = cache
             .load_for_tile(&resolver, &data_root, &tex)
             .expect("tile textures");
         let first = all.get(&0).expect("referenced first layer");
-        assert_eq!(first.diffuse_fdid, 186769);
+        assert_eq!(first.diffuse_fdid, 186770);
+        let alphas: Vec<u8> = first.diffuse.pixels.chunks_exact(4).map(|p| p[3]).collect();
+        assert!(alphas.iter().any(|&alpha| alpha < 128), "no specular mask");
         assert_eq!((first.diffuse.width, first.diffuse.height), (256, 256));
         assert_eq!(first.diffuse.pixels.len(), 256 * 256 * 4);
         assert!(first.height.is_none());
@@ -166,7 +155,7 @@ mod tests {
     }
 
     #[test]
-    fn mdid_already_pointing_to_diffuse_preserves_authored_fdid() {
+    fn mdid_pointing_to_a_plain_diffuse_preserves_authored_fdid() {
         let (data_root, resolver, mut tex) = fixture();
         tex.chunk_layers.truncate(1);
         let index = tex.chunk_layers[0].layers[0].texture_index as usize;

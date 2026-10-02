@@ -33,6 +33,35 @@ fn mh2o_payload(liquid_object: u16, vertex_data: &[u8]) -> Vec<u8> {
     payload
 }
 
+/// A chunk-0 layer of `width` x `height` cells (no vertex data) with an exists bitmap.
+fn mh2o_masked_payload(width: u8, height: u8, exists: &[u8]) -> Vec<u8> {
+    let header_size = 256 * 12;
+    let mut payload = vec![0u8; header_size];
+    payload[0..4].copy_from_slice(&(header_size as u32).to_le_bytes());
+    payload[4..8].copy_from_slice(&1u32.to_le_bytes());
+    let exists_offset = header_size as u32 + 24;
+    payload.extend_from_slice(&5u16.to_le_bytes());
+    payload.extend_from_slice(&0u16.to_le_bytes());
+    payload.extend_from_slice(&10.0f32.to_le_bytes());
+    payload.extend_from_slice(&10.0f32.to_le_bytes());
+    payload.extend_from_slice(&[2, 1, width, height]);
+    payload.extend_from_slice(&exists_offset.to_le_bytes());
+    payload.extend_from_slice(&0u32.to_le_bytes());
+    payload.extend_from_slice(exists);
+    payload
+}
+
+/// wowdev MH2O: the exists bitmap is one bit stream, bit y * width + x. A 3 x 2 layer with
+/// cells (0,0), (2,0) and (1,1) packs them as bits 0, 2 and 4 of a single byte; the byte
+/// after it belongs to the next payload.
+#[test]
+fn narrow_layer_exists_bits_run_across_rows() {
+    let water = parse_mh2o(&mh2o_masked_payload(3, 2, &[0b1_0101, 0xFF])).expect("masked MH2O");
+    let layer = &water.chunks[0].layers[0];
+    assert_eq!(layer.exists[..2], [0b101, 0b010]);
+    assert!(layer.exists[2..].iter().all(|row| *row == 0));
+}
+
 const HEIGHTS: [f32; 4] = [10.0, 10.25, 10.5, 11.0];
 
 fn heights() -> Vec<u8> {

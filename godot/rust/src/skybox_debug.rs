@@ -19,8 +19,8 @@ use godot::{
 use crate::{
     GameClient,
     assets::uv_animation::WowMaterialClock,
-    character_select::sky::Sky,
     scene_export::{SceneEntry, camera_entry, m2_source},
+    sky_model::SkyModel,
 };
 use game_engine_core::scene_snapshot::NodeProps;
 
@@ -159,7 +159,7 @@ pub struct WowSkyboxDebug {
     orbit: Orbit,
     dragging: bool,
     camera: Gd<Camera3D>,
-    sky: Sky,
+    sky: SkyModel,
     fixed_time_ms: Option<u32>,
     // Only pending inside load; a failed environment construction frees the entire root.
     environment: Option<environment::DebugEnvironment>,
@@ -206,7 +206,7 @@ impl WowSkyboxDebug {
     ) -> Result<Gd<Self>, String> {
         let source = source::read_source(data_root, args)?;
         let composition = Composition::from_source(&source, args.skybox_verify);
-        let sky = Sky::load_model(data_root, &source.path, source.fdid, args.skybox_time_ms)?;
+        let sky = SkyModel::load_model(data_root, &source.path, source.fdid, args.skybox_time_ms)?;
         let mut root = Self::from_sky(sky, camera_options, args.skybox_time_ms);
         let result = root.bind_mut().attach_environment(data_root, composition);
         if let Err(error) = result {
@@ -216,7 +216,11 @@ impl WowSkyboxDebug {
         Ok(root)
     }
 
-    fn from_sky(mut sky: Sky, options: CameraOptionsFile, fixed_time_ms: Option<u32>) -> Gd<Self> {
+    fn from_sky(
+        mut sky: SkyModel,
+        options: CameraOptionsFile,
+        fixed_time_ms: Option<u32>,
+    ) -> Gd<Self> {
         sky.node.set_position(FOCUS);
         // The constructor is outside the tree: retain the loader's initial zero/fixed sample.
         sky.sample(fixed_time_ms.unwrap_or(0));

@@ -185,6 +185,7 @@ impl WmoBuild {
         let batches = renderable_batches(asset);
         let mut root = Node3D::new_alloc();
         root.set_name(&format!("Wmo{}", asset.root_fdid));
+        super::point_lights::add_point_lights(&mut root, asset, doodad_sets);
         Ok(Self {
             root,
             batches,
