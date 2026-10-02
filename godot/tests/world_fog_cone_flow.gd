@@ -7,7 +7,9 @@ extends "res://tests/world_planets_flow.gd"
 ## colour (cone hidden, liquids shown vs hidden) at most MAX_LIQUID_OVERPAINT change with
 ## the cone (pixels stable across two cone frames). Environment as capture_world_view.gd, plus
 ##   CONE_CASES   "name,minutes,yaw,pitch,distance" joined by ";"
-## Twilight Highlands (-5138.5, -5567.8, 35; skybox 451101 flags 6): "noon,1440,2.6,0.05,15".
+## Twilight Highlands (-5138.5, -5567.8, 35; skybox 451101 flags 6), facing the sea's horizon
+## strip at dusk and dawn: "dusk,2400,2.6,0.05,15;dawn,780,2.6,0.05,15". At noon the dome's
+## horizon already matches EndFogColor and the cone changes under 0.05 (66 px).
 
 const MIN_CONE_PIXELS := 500
 ## Fraction of liquid pixels the cone may change (8-bit noise of the far plane).
