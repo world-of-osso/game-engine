@@ -50,7 +50,7 @@ func run_test() -> void:
 		return
 	if not await enter_zaralda_world():
 		return
-	var npc := await find_named_vendor(ZARALDA)
+	var npc := await find_zaralda_body()
 	if npc.is_empty():
 		return
 	print("ZARALDA PICK server_entity=", npc.id, " point=", npc.point)
@@ -146,6 +146,31 @@ func enter_zaralda_world() -> bool:
 			return true
 	fail("Timed out entering Zaralda world (local CASC only): " + str(client.account_state()))
 	return false
+
+func find_zaralda_body() -> Dictionary:
+	var deadline := Time.get_ticks_msec() + NPC_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var units = client.get_node_or_null("WorldUnits")
+		var world_camera = camera()
+		if units == null or world_camera == null:
+			continue
+		var unit = units.get_node_or_null(ZARALDA) as Node3D
+		if unit == null:
+			continue
+		var area = unit.find_child("UnitPick", true, false) as Area3D
+		if area == null:
+			continue
+		# Observed posed torso ray hits Zaralda; proxy-shape center did not.
+		var body_point := unit.global_position + Vector3.UP * 0.8
+		if not world_camera.is_position_in_frustum(body_point):
+			continue
+		var point := world_camera.unproject_position(body_point)
+		var entity = area.get_meta("unit_server_id")
+		if UnitPicker.pick(world_camera, point) == entity:
+			return {"id": entity, "name": ZARALDA, "point": point}
+	fail("Zaralda's posed torso is not ray-pickable")
+	return {}
 
 func inspect_midnight_item(state: Dictionary) -> bool:
 	for item_id in MIDNIGHT_ITEMS:
