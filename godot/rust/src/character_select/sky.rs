@@ -347,8 +347,10 @@ fn build_material(
         return Err("Sky shader render mode signature changed".into());
     }
     let shader_source = source.replace(RENDER_MODE, &variant);
+    let span = crate::profile::span(|| "sky.set_shader".to_owned());
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&crate::assets::material::shared_shader(&shader_source));
+    drop(span);
     material.set_render_priority(priority);
     let texture_dir = data_root.join("textures");
     let mut missing = PackedInt32Array::new();

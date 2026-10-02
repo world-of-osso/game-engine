@@ -2164,12 +2164,16 @@ impl GameClient {
             self.account.session.selected_index,
         );
         self.delete_confirmation.clear();
-        let result =
-            authored_campsites(&self.data_root, self.campsite.selected_id).and_then(|campsite| {
-                self.campsite = campsite;
-                ui.bind_mut().set_state(state)?;
-                ui.bind_mut().set_state(self.campsite.clone())
-            });
+        let span = profile::span(|| "attach.campsites".to_owned());
+        let campsites = authored_campsites(&self.data_root, self.campsite.selected_id);
+        drop(span);
+        let result = campsites.and_then(|campsite| {
+            self.campsite = campsite;
+            let _span = profile::span(|| "attach.roster_state".to_owned());
+            ui.bind_mut().set_state(state)?;
+            let _span = profile::span(|| "attach.campsite_state".to_owned());
+            ui.bind_mut().set_state(self.campsite.clone())
+        });
         if let Err(error) = result {
             ui.free();
             return Err(error);

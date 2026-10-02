@@ -1599,7 +1599,10 @@ impl RegistryUi {
             screen,
             shared,
             registry,
-        } = CharacterSelectModel::new(size.x, size.y);
+        } = {
+            let _span = crate::profile::span(|| "ui.character_select.new".to_owned());
+            CharacterSelectModel::new(size.x, size.y)
+        };
         let mut model = RegistryModel {
             screen,
             shared,
@@ -1607,7 +1610,10 @@ impl RegistryUi {
             icon_masks: Default::default(),
             postsetup: ScreenPostsetup::CharacterSelect,
         };
+        let span = crate::profile::span(|| "ui.character_select.sync".to_owned());
         model.sync();
+        drop(span);
+        let _span = crate::profile::span(|| "ui.character_select.initialize".to_owned());
         GString::from(
             self.initialize_model(model, size.x, size.y)
                 .err()
