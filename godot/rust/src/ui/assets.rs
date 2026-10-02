@@ -246,6 +246,14 @@ pub fn arrived_file_textures() -> u64 {
     })
 }
 
+/// Whether FileDataID `id`'s art has arrived (or failed to load); starts its load.
+pub fn file_data_id_arrived(id: u32) -> bool {
+    with_file_textures(|textures| {
+        textures.poll();
+        !matches!(textures.get(&format!("data/textures/{id}.blp")), Ok(None))
+    })
+}
+
 fn load_file(path: &str) -> Result<Option<Gd<ImageTexture>>, String> {
     with_file_textures(|textures| textures.get(path))
 }

@@ -523,22 +523,37 @@ impl GameClient {
     }
 
     /// Bag and equipment items that arrived while the item catalog loaded get their
-    /// icon, quality and name in the first frame it is loaded; no frame waits for it.
+    /// icon, quality and name in the first frame it is loaded and their icon art has
+    /// arrived; no frame waits for either. Switching earlier draws the slots without an
+    /// icon until the art arrives.
     pub(super) fn receive_item_catalog(&mut self) {
-        if self.merchant.item_data_resolved
-            || game_engine_ui_model::item_catalog::item_catalog().is_none()
-        {
+        if self.merchant.item_data_resolved {
             return;
         }
-        self.merchant.item_data_resolved = true;
-        let inventory = &mut self.merchant.session.inventory;
-        inventory.refresh_item_data();
-        let items = inventory
+        let Some(catalog) = game_engine_ui_model::item_catalog::item_catalog() else {
+            return;
+        };
+        let inventory = &self.merchant.session.inventory;
+        let items: Vec<u32> = inventory
             .slots
             .iter()
             .flatten()
-            .chain(inventory.equipment.values());
-        let received = items.filter(|item| item.item_id != 0).count();
+            .chain(inventory.equipment.values())
+            .map(|item| item.item_id)
+            .filter(|&item_id| item_id != 0)
+            .collect();
+        // Every icon starts loading in this frame; none waits for another.
+        let loading = items
+            .iter()
+            .filter_map(|&item_id| catalog.icon_fdid(item_id))
+            .filter(|&fdid| !crate::ui::assets::file_data_id_arrived(fdid))
+            .count();
+        if loading > 0 {
+            return;
+        }
+        self.merchant.item_data_resolved = true;
+        self.merchant.session.inventory.refresh_item_data();
+        let received = items.len();
         godot_print!("Item catalog loaded: {received} received bag and equipment items resolved");
     }
 
