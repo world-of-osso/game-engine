@@ -324,7 +324,8 @@ pub fn log_age(seconds: u64) -> String {
 
 /// One Retail log line (GB.lua:750-817): `GUILDBANK_DEPOSIT_FORMAT` "%s deposited %s",
 /// `GUILDBANK_WITHDRAW_FORMAT` "%s withdrew %s", `GUILDBANK_BUYTAB_MONEY_FORMAT`
-/// "%s purchased a guild bank tab for %s"; items read "name x count".
+/// "%s purchased a guild bank tab for %s", `GUILDBANK_REPAIR_MONEY_FORMAT`
+/// "%s withdrew %s for repairs" (GB.lua:797-798); items read "name x count".
 pub fn log_line(entry: &shared::protocol::GuildBankLogEntry) -> String {
     let item = if entry.count > 1 {
         format!("{} x {}", entry.item_name, entry.count)
@@ -340,6 +341,7 @@ pub fn log_line(entry: &shared::protocol::GuildBankLogEntry) -> String {
         GuildBankLogKind::BuyTab => {
             format!("{} purchased a guild bank tab for {money}", entry.actor)
         }
+        GuildBankLogKind::RepairMoney => format!("{} withdrew {money} for repairs", entry.actor),
     };
     format!("{text} {}", log_age(entry.seconds_ago))
 }

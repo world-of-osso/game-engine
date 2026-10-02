@@ -395,6 +395,7 @@ fn build_vendor_inventory() -> VendorInventory {
     VendorInventory {
         npc: NPC,
         can_repair: true,
+        guild_repair_money: None,
         items: vec![VendorItem {
             slot: 0,
             item_id: 2589,
@@ -405,6 +406,7 @@ fn build_vendor_inventory() -> VendorInventory {
             max_stack: 1000,
             num_available: None,
             usable: true,
+            max_durability: None,
         }],
     }
 }

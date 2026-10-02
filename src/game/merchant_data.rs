@@ -25,6 +25,9 @@ pub struct MerchantState {
     pub npc: Option<u64>,
     pub vendor_name: String,
     pub can_repair: bool,
+    /// Guild money the player may spend on repairs here; `Some` is Retail
+    /// `CanGuildBankRepair()`, the amount `GetGuildBankWithdrawMoney` capped by the bank.
+    pub guild_repair_money: Option<u64>,
     pub items: Vec<VendorItem>,
     pub buyback: Vec<BuybackItem>,
     pub tab: MerchantTab,
@@ -48,6 +51,7 @@ impl MerchantState {
             };
         }
         self.can_repair = inventory.can_repair;
+        self.guild_repair_money = inventory.guild_repair_money;
         self.items = inventory.items;
         self.page = self.page.min(self.page_count() - 1);
     }
@@ -151,6 +155,8 @@ pub enum MerchantRequest {
     Repair {
         item_guid: Option<u64>,
     },
+    /// `RepairAllItems(true)`: repair all from the guild bank.
+    GuildRepairAll,
 }
 
 #[cfg(test)]
@@ -168,6 +174,7 @@ mod tests {
             max_stack: 1,
             num_available: None,
             usable: true,
+            max_durability: None,
         }
     }
 
@@ -175,6 +182,7 @@ mod tests {
         VendorInventory {
             npc,
             can_repair: false,
+            guild_repair_money: None,
             items: (0..count).map(item).collect(),
         }
     }
