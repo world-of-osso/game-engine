@@ -7,7 +7,8 @@ extends SceneTree
 ##   orbit  the camera yaw sweeps one full turn around the standing character
 ##   walk   real key input: W runs forward for BENCH_WALK_S seconds (default 2), S backpedals
 ##          the same distance back (run 7 yd/s, backpedal 4.5 yd/s), repeatedly
-## Environment: GODOT_TEST_SERVER, BENCH_ACCOUNT (password fbtest), BENCH_CHARACTER.
+## Environment: GODOT_TEST_SERVER, BENCH_ACCOUNT (password fbtest), BENCH_CHARACTER;
+## BENCH_SCREENSHOT=<png> saves the settled idle view before measuring.
 ## Place the character with `game-server-admin set-position|teleport` while it is offline.
 ## Each segment prints `BENCH_MARK <segment> start|end` (for an external profiler) and
 ## `BENCH_SEGMENT {json}`: wall-clock frame interval percentiles, per-frame means of the
@@ -102,6 +103,9 @@ func run_test() -> void:
 	var spawn := Vector2(player.position.x, player.position.z)
 	print("BENCH_SCENE ", JSON.stringify({"character": character, "spawn": [spawn.x, spawn.y],
 		"objects": client.account_state().world_objects, "load": load_average()}))
+	if OS.get_environment("BENCH_SCREENSHOT") != "":
+		await RenderingServer.frame_post_draw
+		root.get_texture().get_image().save_png(OS.get_environment("BENCH_SCREENSHOT"))
 	if OS.get_environment("BENCH_NODES") == "1":
 		print("BENCH_NODES ", JSON.stringify(node_census(root)))
 	await measure("idle", segment_s, func(_t: float): pass)
