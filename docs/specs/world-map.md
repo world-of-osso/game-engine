@@ -28,6 +28,8 @@ Bevy hosts. How it works: [world-map system](../wiki/systems/world-map.md).
 - [x] The player arrow sits at the player's map position on every level whose assignments contain the player, and points where forward movement goes.
 - [x] Flight masters (`TaxiNodes` with the Alliance/Horde map flags) of the player's faction (`ChrRaces.Alliance` of the selected character's race) show on zone maps with the `TaxiNode_Alliance/Horde/Neutral` icon.
 - [x] Quest-log entries with POIs on the displayed zone or continent show one pin each: the numbered objective area (`UI-QuestPoi-QuestNumber`) while incomplete, the turn-in (`UI-QuestPoi-QuestBangTurnIn`) once complete. The world map shows no pins.
+- [x] Creature vignettes with `ShowOnMap` (`VignetteInfo.onWorldMap`) the server shows near the player pin `VignetteKill`/`VignetteKillElite` (32×32, the atlas size) on zone maps, and on continent maps unless `HideOnContinentMaps` (`VignetteDataProvider.lua`). Proof: `doomwalkers_vignette_pins_tanaris_and_kalimdor`, `godot/tests/vignettes_live.gd`.
+- [ ] Vignette pin tooltips, unique-vignette selection, fog of war and supertracking.
 - [ ] Quest pins appear in the Godot client from the live server quest log (subscription wired; no runtime proof with a character holding POI quests).
 
 ## How it works
