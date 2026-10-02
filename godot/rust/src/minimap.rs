@@ -31,18 +31,19 @@ use shared::components::Position;
 use shared::protocol::QuestGiverStatus;
 use ui_toolkit::frame::WidgetData;
 
+use crate::background_load::BackgroundLoad;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 
 /// Composite resolution: the 198-unit map at up to 1.3× UI scale without upsampling.
 const COMPOSITE_PX: u32 = 256;
 const DB2_DIR: &str = "db2/12.1.0.69933";
 
-#[derive(Default)]
 pub(crate) struct Minimap {
     pub(crate) ui: Option<Gd<RegistryUi>>,
     zoom: u8,
     hovered: bool,
-    catalogs: Option<Result<Catalogs, String>>,
+    /// `AreaTable` and `ChrRaces`, loaded from client start.
+    catalogs: BackgroundLoad<Result<Catalogs, String>>,
     resolver: Option<CascListfileResolver>,
     /// Decoded tiles by map directory and key; None where the install has no tile.
     tiles: HashMap<(String, TileKey), Option<Tile>>,
@@ -66,18 +67,26 @@ struct Tile {
 }
 
 impl Minimap {
+    pub(crate) fn new(data_root: &std::path::Path) -> Self {
+        let data_root = data_root.to_owned();
+        Self {
+            ui: None,
+            zoom: 0,
+            hovered: false,
+            catalogs: BackgroundLoad::start("minimap-catalogs", move || load_catalogs(&data_root)),
+            resolver: None,
+            tiles: HashMap::new(),
+            chrome: HashMap::new(),
+            drawn: None,
+            quest_areas: (Vec::new(), 0),
+        }
+    }
+
     /// `AreaTable` name of `area_id` (the quest log's zone headers share the catalog).
-    pub(crate) fn area_name(
-        &mut self,
-        data_root: &std::path::Path,
-        area_id: u32,
-    ) -> Option<String> {
-        let catalogs = self
-            .catalogs
-            .get_or_insert_with(|| load_catalogs(data_root))
-            .as_ref()
-            .ok()?;
-        catalogs.areas.name(area_id).map(str::to_owned)
+    /// `None` while the catalog loads; then the name, `None` for an area it lacks.
+    pub(crate) fn area_name(&mut self, area_id: u32) -> Option<Option<String>> {
+        let catalogs = self.catalogs.poll()?.as_ref().ok();
+        Some(catalogs.and_then(|catalogs| catalogs.areas.name(area_id).map(str::to_owned)))
     }
 
     fn free_ui(&mut self) {
@@ -191,8 +200,21 @@ impl GameClient {
             self.minimap.free_ui();
             return Ok(());
         }
+        self.apply_minimap_zoom_bindings();
         self.poll_minimap_actions()?;
         Ok(self.sync_minimap()?)
+    }
+
+    /// Retail `MINIMAPZOOMIN`/`MINIMAPZOOMOUT` (Bindings_Standard.xml:1378-1383).
+    fn apply_minimap_zoom_bindings(&mut self) {
+        let input = self.physical_input.gameplay_state(self.keyboard_free());
+        let bindings = &self.client_options.bindings;
+        if bindings.is_just_pressed(InputAction::MinimapZoomIn, &input) {
+            self.minimap.zoom = zoom_in(self.minimap.zoom);
+        }
+        if bindings.is_just_pressed(InputAction::MinimapZoomOut, &input) {
+            self.minimap.zoom = zoom_out(self.minimap.zoom);
+        }
     }
 
     fn poll_minimap_actions(&mut self) -> Result<(), String> {
@@ -236,7 +258,7 @@ impl GameClient {
     /// the world map button text with its key.
     pub(crate) fn zone_text_tooltip(&mut self) -> Option<GameTooltip> {
         let (position, _) = self.minimap_player()?;
-        let catalogs = self.minimap.catalogs.as_ref()?.as_ref().ok()?;
+        let catalogs = self.minimap.catalogs.loaded()?.as_ref().ok()?;
         let area = self.terrain.area_id_at(position[0], position[1])?;
         let group = self.player_faction_group(catalogs);
         let pvp = catalogs.areas.pvp(area, group);
@@ -270,20 +292,20 @@ impl GameClient {
         position: [f32; 2],
         yaw: f32,
     ) -> Result<MinimapClusterState, String> {
-        if self.minimap.catalogs.is_none() {
-            self.minimap.catalogs = Some(load_catalogs(&self.data_root));
-        }
-        let catalogs = match self.minimap.catalogs.as_ref() {
-            Some(Ok(catalogs)) => catalogs,
+        self.minimap.catalogs.poll();
+        let catalogs = match self.minimap.catalogs.loaded() {
+            Some(Ok(catalogs)) => Some(catalogs),
             Some(Err(error)) => return Err(format!("Minimap catalogs: {error}")),
-            None => unreachable!("catalogs loaded above"),
+            // Loading: no zone text yet.
+            None => None,
         };
         let area = self.terrain.area_id_at(position[0], position[1]);
-        let zone_text = area
-            .and_then(|area| catalogs.areas.name(area))
+        let zone = catalogs.zip(area);
+        let zone_text = zone
+            .and_then(|(catalogs, area)| catalogs.areas.name(area))
             .unwrap_or_default()
             .to_owned();
-        let pvp = area.map(|area| {
+        let pvp = zone.map(|(catalogs, area)| {
             catalogs
                 .areas
                 .pvp(area, self.player_faction_group(catalogs))

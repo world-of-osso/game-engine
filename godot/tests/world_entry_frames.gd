@@ -10,23 +10,36 @@ extends SceneTree
 ## The loading screen may cover world-entry loading, but no frame, loading or not, may
 ## block for seconds: the longest loading frame is reported, and must stay under
 ## WORLD_ENTRY_LOADING_FRAME_MS (default 1000). After the loading screen hides, every
-## frame until the object queue drains, and 120 frames after, must stay under
-## WORLD_ENTRY_FRAME_MS.
+## frame until the object queue drains, and a bounded settled observation after,
+## must stay under WORLD_ENTRY_FRAME_MS. These limits are fixture policy, NOT product
+## budgets. WORLD_ENTRY_MEASURE_S controls settled observation (60–300 s, default 60).
+## PERF_PHASE / PERF_REPORT JSON records separate startup, loading, queue drain and
+## settled process-frame intervals; these are not GPU or presentation timings.
 
 const PASSWORD := "fbtest"
+const Readiness = preload("res://tests/world_entry_readiness.gd")
 
 var client: Node
 var last_usec := 0
-## "select", "loading" (Enter World pressed until InWorld) or "world".
+## A frame crossing a phase boundary belongs to the outgoing phase.
 var phase := "select"
+var startup_ms: Array[float] = []
 var loading_ms: Array[float] = []
+var transition_ms: Array[float] = []
+var settled_ms: Array[float] = []
 var world_ms: Array[float] = []
+var memory: Dictionary = {}
+var workload_snapshots: Dictionary = {}
+var script_started_usec := 0
 ## Frames over the threshold after the loading screen hid: [seconds since hide, ms].
 var slow_world: Array = []
 var world_started_usec := 0
 var frame_limit := 100.0
 
 func _initialize() -> void:
+	script_started_usec = Time.get_ticks_usec()
+	last_usec = script_started_usec
+	record_phase("script_start")
 	call_deferred("run_test")
 
 func _process(_delta: float) -> bool:
@@ -34,10 +47,16 @@ func _process(_delta: float) -> bool:
 	var now := Time.get_ticks_usec()
 	if last_usec > 0:
 		var ms := (now - last_usec) / 1000.0
-		if phase == "loading":
+		if phase == "select":
+			startup_ms.append(ms)
+		elif phase == "loading":
 			loading_ms.append(ms)
-		elif phase == "world":
+		elif phase == "world" or phase == "settled":
 			world_ms.append(ms)
+			if phase == "world":
+				transition_ms.append(ms)
+			else:
+				settled_ms.append(ms)
 			if ms > frame_limit:
 				# The client's last main-thread process time and the viewport's render CPU time.
 				var rid := root.get_viewport_rid()
@@ -48,6 +67,7 @@ func _process(_delta: float) -> bool:
 	if client != null and is_instance_valid(client) and phase == "loading" and client.account_state().screen == "InWorld":
 		phase = "world"
 		world_started_usec = now
+		record_phase("loading_hidden")
 	return false
 
 func env_float(name: String, fallback: float) -> float:
@@ -66,16 +86,28 @@ func run_test() -> void:
 	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
 	var loading_limit := env_float("WORLD_ENTRY_LOADING_FRAME_MS", 1000.0)
 	var settle_s := env_float("WORLD_ENTRY_SETTLE_S", 300.0)
+	var measure_s := env_float("WORLD_ENTRY_MEASURE_S", 60.0)
+	if not is_finite(settle_s) or settle_s <= 0 or settle_s > 300 \
+			or not is_finite(measure_s) or measure_s < 60 or measure_s > 300 \
+			or not is_finite(frame_limit) or frame_limit <= 0 \
+			or not is_finite(loading_limit) or loading_limit <= 0:
+		fail("Fixture limits must be finite/positive; settle <=300 s, measure 60–300 s")
+		return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
+	record_phase("client_mounted")
 	var error = client.connect_account(server, account, PASSWORD, false)
 	if error != "":
 		fail("Fixture connection: " + error)
 		return
 	if not await select_character(character):
 		return
+	record_phase("character_selected")
 	var pressed_usec := Time.get_ticks_usec()
 	phase = "loading"
+	# Exclude the preceding selection frame from the Enter World interval.
+	last_usec = pressed_usec
+	record_phase("enter_world")
 	await click(client.get_node("CharacterSelectUI").find_child("EnterWorld", true, false))
 	var deadline := Time.get_ticks_msec() + 600000
 	while phase == "loading" and Time.get_ticks_msec() < deadline:
@@ -89,20 +121,50 @@ func run_test() -> void:
 	var settled := false
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
-		if client.account_state().world_objects.pending == 0:
+		if Readiness.is_ready(client.account_state()):
 			settled = true
 			break
 	var settled_s := (Time.get_ticks_usec() - world_started_usec) / 1e6
-	for i in 120:
-		await process_frame
+	var measurement_started_usec := Time.get_ticks_usec()
+	var settled_pending_changed := false
+	if settled:
+		workload_snapshots["queue_drained"] = snapshot_workload(client.account_state())
+		record_phase("queue_drained")
+		phase = "settled"
+		last_usec = measurement_started_usec
+		# End only after captured intervals cover the requested duration. process_frame
+		# resumes before _process; elapsed wall time alone could omit the final interval.
+		deadline = Time.get_ticks_msec() + int((measure_s + 5.0) * 1000)
+		while last_usec - measurement_started_usec < int(measure_s * 1e6) and Time.get_ticks_msec() < deadline:
+			await process_frame
+			var observed: Dictionary = client.account_state()
+			var same_tiles: bool = observed.terrain.parsed_tiles == workload_snapshots.queue_drained.terrain.parsed_tiles
+			if not Readiness.is_ready(observed) or not same_tiles:
+				settled_pending_changed = true
+	var settled_elapsed_s := (Time.get_ticks_usec() - measurement_started_usec) / 1e6 if settled else 0.0
 	phase = "done"
+	workload_snapshots["measurement_end"] = snapshot_workload(client.account_state())
+	record_phase("settled_end" if settled else "queue_timeout")
 	var objects: Dictionary = client.account_state().world_objects
 	var sorted := world_ms.duplicate()
 	sorted.sort()
+	print("PERF_REPORT ", JSON.stringify({
+		"startup_ms": startup_ms, "loading_ms": loading_ms,
+		"transition_ms": transition_ms, "settled_ms": settled_ms,
+		"loading_s": loading_s, "queue_drain_s": settled_s,
+		"settled_elapsed_s": settled_elapsed_s, "settled_pending_changed": settled_pending_changed,
+		"frame_limit_ms": frame_limit, "loading_limit_ms": loading_limit,
+		"memory": memory, "objects": objects, "queue_drained": settled,
+		"workload_snapshots": workload_snapshots,
+		"measurement_scope": "all current requested terrain jobs/object jobs/unit visuals at stationary initialworld workload; monitored throughout60s, not global gameworld terminal",
+		"readiness_predicate": "terrain.pending_count == 0; world_objects.pending == 0; unit_visuals_pending == 0; parsed tile set unchanged throughout observation",
+		"startup_scope": "script initialize through character selection; launch/import excluded",
+	}))
 	print("FIXTURE MEMORY ", resident_memory())
 	print("FIXTURE WORLD_ENTRY loading_s=%.1f loading_frames=%d loading_max_ms=%.1f world_frames=%d world_median_ms=%.1f world_p99_ms=%.1f world_max_ms=%.1f over_%d_ms=%d settled=%s settled_s=%.1f objects=%s" % [
 		loading_s, loading_ms.size(), max_of(loading_ms), world_ms.size(),
-		sorted[sorted.size() / 2], sorted[int(sorted.size() * 0.99)], max_of(world_ms),
+		sorted[sorted.size() / 2] if not sorted.is_empty() else 0.0,
+		sorted[mini(int(sorted.size() * 0.99), sorted.size() - 1)] if not sorted.is_empty() else 0.0, max_of(world_ms),
 		int(frame_limit), slow_world.size(), settled, settled_s, objects])
 	print("FIXTURE SLOW_WORLD_FRAMES ", slow_world.map(func(f): return "%.1fs:%.0fms(client %.0f render %.0f)" % f))
 	var failures: Array[String] = []
@@ -110,6 +172,8 @@ func run_test() -> void:
 		failures.append("a loading frame took %.1f ms (limit %.0f)" % [max_of(loading_ms), loading_limit])
 	if not slow_world.is_empty():
 		failures.append("%d frames after the loading screen hid exceeded %.0f ms" % [slow_world.size(), frame_limit])
+	if settled_pending_changed:
+		failures.append("world_objects.pending changed during settled observation")
 	if not settled:
 		failures.append("world_objects.pending did not reach 0 within %.0f s: %s" % [settle_s, objects])
 	if not failures.is_empty():
@@ -119,16 +183,38 @@ func run_test() -> void:
 	client.free()
 	quit(0)
 
+func snapshot_workload(state: Dictionary) -> Dictionary:
+	return {
+		"terrain": state.terrain.duplicate(true),
+		"world_objects": state.world_objects.duplicate(true),
+		"unit_visuals_pending": state.unit_visuals_pending,
+	}
+
 ## VmRSS and VmHWM of this process (/proc/self/status).
-func resident_memory() -> String:
-	# /proc files report size 0: read them line by line.
+func resident_memory() -> Dictionary:
+	# Linux process RSS and lifetime HWM. Not VRAM, allocations, growth or leak proof.
 	var file := FileAccess.open("/proc/self/status", FileAccess.READ)
-	var found: Array[String] = []
-	while file != null and not file.eof_reached():
-		var line := file.get_line()
-		if line.begins_with("VmRSS") or line.begins_with("VmHWM"):
-			found.append(line.replace("\t", " ").strip_edges())
-	return " ".join(found)
+	var found := {"VmRSS_kib": null, "VmHWM_kib": null}
+	if file == null:
+		found["error"] = "Cannot open /proc/self/status: %s" % FileAccess.get_open_error()
+		push_error(found.error)
+		return found
+	while not file.eof_reached():
+		var fields := file.get_line().replace("\t", " ").split(" ", false)
+		if fields.size() >= 3 and fields[0] in ["VmRSS:", "VmHWM:"]:
+			found[fields[0].trim_suffix(":") + "_kib"] = int(fields[1])
+	if found.VmRSS_kib == null or found.VmHWM_kib == null:
+		found["error"] = "VmRSS/VmHWM missing from /proc/self/status"
+		push_error(found.error)
+	return found
+
+func record_phase(name: String) -> void:
+	var snapshot := resident_memory()
+	memory[name] = snapshot
+	print("PERF_PHASE ", JSON.stringify({
+		"phase": name, "since_script_s": (Time.get_ticks_usec() - script_started_usec) / 1e6,
+		"memory": snapshot,
+	}))
 
 func max_of(values: Array[float]) -> float:
 	var longest := 0.0

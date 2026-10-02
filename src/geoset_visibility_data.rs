@@ -5,10 +5,12 @@ pub fn default_geoset_visible(mesh_part_id: u16) -> bool {
     match group {
         0 => matches!(mesh_part_id, 0 | 1 | 5 | 16 | 17 | 27..=33),
         1..=3 => variant == 2,
-        7 => matches!(variant, 1 | 2),
+        // WMVx CharacterDefaultsGeosetModifier: ears 702 (solarity BASE_GEOSETS too).
+        7 => variant == 2,
         15 => false,
         17 => false,
-        32 => variant >= 1,
+        // WMVx ModernCharCustomGeosetModifier forces the face to 3202; one face only.
+        32 => variant == 2,
         _ => variant == 1,
     }
 }
@@ -36,16 +38,11 @@ pub fn is_geoset_visible(
         .any(|(t, id)| *t == group && *id == variant)
 }
 
+/// A selected hairstyle shows the body (0) and its own mesh only: WebWowViewerCpp
+/// m2Object meshIds, WMVx GeosetState::setVisibility, solarityclient geoset.rs
+/// base_geosets. Meshes 1 and 27+ are other hairstyles (orc female 1/27/28 are hair).
 fn group_zero_visible(mesh_part_id: u16, selected_variant: u16) -> bool {
-    mesh_part_id == selected_variant || is_group_zero_body_segment(mesh_part_id)
-}
-
-/// Group-0 body segments always visible regardless of hair selection.
-/// 0-1 are the human male base skin + scalp closure meshes; 27-33 are
-/// body segments on models that multiplex body geometry through group 0.
-/// Hair variants like 16/17 must remain switchable so helmet hides can suppress them.
-fn is_group_zero_body_segment(mesh_part_id: u16) -> bool {
-    matches!(mesh_part_id, 0 | 1 | 27..=33)
+    mesh_part_id == 0 || mesh_part_id == selected_variant
 }
 
 pub fn apply_exact_geoset_overrides(
@@ -87,24 +84,25 @@ mod tests {
 
     #[test]
     fn default_nonzero_groups_keep_their_distinct_variants() {
-        for id in [102, 202, 302, 701, 702, 401, 3201, 3202] {
+        for id in [102, 202, 302, 702, 401, 3202] {
             assert!(default_geoset_visible(id), "{id}");
         }
-        for id in [100, 101, 201, 301, 700, 703, 1501, 1701, 3200, 402] {
+        for id in [
+            100, 101, 201, 301, 700, 701, 703, 1501, 1701, 3200, 3201, 402,
+        ] {
             assert!(!default_geoset_visible(id), "{id}");
         }
     }
 
     #[test]
-    fn selected_group_zero_retains_only_persistent_body_segments_and_selected_hair() {
+    fn selected_group_zero_shows_only_the_body_and_selected_hair() {
         let selected = [(0, 5)];
-        for id in [0, 1, 5, 27, 28, 29, 30, 31, 32, 33] {
+        for id in [0, 5] {
             assert!(is_geoset_visible(id, &selected, &[0]), "{id}");
         }
-        for id in [2, 16, 17, 34] {
+        for id in [1, 2, 16, 17, 27, 28, 33, 34] {
             assert!(!is_geoset_visible(id, &selected, &[0]), "{id}");
         }
-        assert!(is_geoset_visible(27, &[(0, 16)], &[0]));
         assert!(is_geoset_visible(16, &[(0, 16)], &[0]));
         assert!(!is_geoset_visible(5, &[(0, 16)], &[0]));
     }

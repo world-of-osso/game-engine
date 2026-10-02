@@ -2,12 +2,14 @@ mod account;
 mod animation;
 #[path = "../../../src/rendering/character/appearance_options.rs"]
 pub mod appearance_options;
+pub(crate) use game_engine_core::asset;
 pub use game_engine_core::{customization_data, outfit_data};
 mod asset_startup;
 mod assets;
 mod auction;
 mod auras;
 mod auto_attack;
+mod background_load;
 mod bag_cursor;
 mod bag_destroy;
 mod bags;
@@ -25,6 +27,7 @@ mod display_options;
 mod entrance_bar;
 #[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
+mod eula;
 #[path = "../../../src/game/faction_reaction.rs"]
 mod faction_reaction;
 mod frame_error;
@@ -46,6 +49,8 @@ mod merchant;
 mod merchant_window;
 mod minimap;
 mod mirror_timers;
+mod nameplate_cast_bar;
+mod nameplate_casts;
 mod nameplates;
 #[path = "../../../src/game/creatures/npc_gear_data.rs"]
 pub mod npc_gear_data;
@@ -54,12 +59,16 @@ mod particle_debug;
 mod particles;
 mod party_frames;
 mod player_spells;
+#[path = "../../../src/process_memory_status.rs"]
+mod process_memory_status;
 mod profile;
 mod quests;
 mod replicated;
 mod scene;
+mod scene_export;
 mod selection_debug;
 mod sky_model;
+mod skybox_debug;
 mod sound;
 mod sound_client;
 mod sound_footsteps;
@@ -80,6 +89,7 @@ mod ui;
 mod ui_scale;
 mod unit_menu;
 mod unit_pick;
+mod waypoint_path;
 mod window_stack;
 mod wmo;
 mod world;
@@ -161,6 +171,8 @@ pub struct GameClient {
     game_menu_drag: Option<game_menu::drag::OptionsDrag>,
     logout: game_engine_session::logout::LogoutState,
     in_rest_area: bool,
+    /// The server's last rest state (IPC `status character-stats`).
+    rest: Option<shared::protocol::RestSnapshot>,
     account: Account,
     sound: Option<Gd<sound::NativeSound>>,
     area_parents: HashMap<u32, u32>,
@@ -184,13 +196,23 @@ pub struct GameClient {
     /// Ctrl+R (`TOGGLEFPS`) flips the saved FPS overlay preference for this session.
     framerate_toggled: bool,
     player_movement: gameplay::PlayerMovement,
+    /// IPC `ScriptedMovementForward`: forward steps for a bounded time.
+    scripted_movement: game_engine_network::movement_control::ScriptedMovement,
+    /// IPC `MapWaypointAdd`: the map waypoint (world x, z).
+    map_waypoint: Option<(f32, f32)>,
+    waypoint_path: waypoint_path::WaypointPath,
+    /// The newest received `CombatEvent`s (IPC `combat log|recap`).
+    ipc_combat_events: std::collections::VecDeque<shared::protocol::CombatEvent>,
+    /// The last area (and its zone) found under the local player; kept where no tile
+    /// answers, as the original's `CurrentZone`.
+    current_zone: Option<(u32, u32)>,
     world_minutes: f32,
     /// The server's game time: `(second of day, speed, received)`; drives `world_minutes`
     /// unless automation fixed the time of day.
     world_clock: Option<(u32, f32, Instant)>,
     world_minutes_fixed: bool,
     server_hostname: String,
-    startup_customize: bool,
+    startup_panel: Option<startup::StartupPanel>,
     targeting: targeting::Targeting,
     nameplates: nameplates::Nameplates,
     spells: spells::SpellsHud,
@@ -259,16 +281,17 @@ impl INode3D for GameClient {
             chat: Default::default(),
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
-            minimap: minimap::Minimap::default(),
+            minimap: minimap::Minimap::new(&data_root),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
             quests: quests::QuestHud::default(),
-            entrance_bar: entrance_bar::EntranceBar::default(),
+            entrance_bar: entrance_bar::EntranceBar::new(&data_root),
             damage_meter: damage_meter::DamageMeterHud::default(),
             group_frames: party_frames::GroupFramesHud::default(),
             game_menu_options: None,
             game_menu_drag: None,
             logout: Default::default(),
             in_rest_area: false,
+            rest: None,
             account: Account::new(data_root.clone()),
             sound: None,
             area_parents: HashMap::new(),
@@ -286,11 +309,16 @@ impl INode3D for GameClient {
             client_options,
             framerate_toggled: false,
             player_movement: gameplay::PlayerMovement::default(),
+            scripted_movement: Default::default(),
+            map_waypoint: None,
+            waypoint_path: Default::default(),
+            ipc_combat_events: std::collections::VecDeque::new(),
+            current_zone: None,
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
             world_clock: None,
             world_minutes_fixed: false,
-            startup_customize: false,
+            startup_panel: None,
             targeting: targeting::Targeting::new(data_root.clone()),
             nameplates: nameplates::Nameplates::new(),
             spells: spells::SpellsHud::default(),
@@ -1449,11 +1477,15 @@ impl GameClient {
     }
 
     fn poll_native_ipc(&mut self) {
+        let Some(mut service) = self.ipc.take() else {
+            return;
+        };
         let client = self.to_gd().upcast();
-        let result = self.ipc.as_mut().map(|service| service.poll(&client));
-        if let Some(Err(error)) = result {
-            godot_error!("Client IPC stopped: {error}");
-            drop(self.ipc.take());
+        match service.poll(&client, &mut |request, reply| {
+            self.client_request(request, reply)
+        }) {
+            Ok(()) => self.ipc = Some(service),
+            Err(error) => godot_error!("Client IPC stopped: {error}"),
         }
     }
 
@@ -1473,7 +1505,14 @@ impl GameClient {
             ("UI scale", |c, _| Ok(c.sync_registry_ui_scale()?)),
             ("UI click sounds", |c, _| Ok(c.play_ui_clicks()?)),
             ("UI actions", |c, _| c.poll_ui_actions()),
+            ("Skybox debug options", |c, _| {
+                Ok(c.update_skybox_debug_options()?)
+            }),
             ("Account", |c, _| c.poll_account()),
+            ("Item data", |c, _| {
+                c.receive_item_catalog();
+                Ok(())
+            }),
             ("Unit visuals", |c, _| {
                 c.world.attach_loaded_visuals(&c.replica);
                 Ok(())
@@ -1546,7 +1585,7 @@ impl GameClient {
                 c.update_ground_detail();
                 Ok(())
             }),
-            ("Nameplates", |c, _| Ok(c.update_nameplates()?)),
+            ("Nameplates", |c, d| Ok(c.update_nameplates(d)?)),
             ("Tooltips", |c, _| c.update_tooltips()),
             ("Culling", |c, _| {
                 c.cull_world_objects();
@@ -1565,6 +1604,7 @@ impl GameClient {
             }
         }
         self.physical_input.finish_frame();
+        self.track_zone();
         if let Err(error) = self.update_sound() {
             frame_error::report_once(&format!("Sound update failed: {error}"));
         }
@@ -1617,7 +1657,11 @@ impl GameClient {
             AccountEvent::Feedback => self.show_session_feedback()?,
             AccountEvent::WorldReset => self.reset_world()?,
             AccountEvent::RestState(update) => {
-                self.in_rest_area = update.snapshot.is_some_and(|rest| rest.in_rest_area);
+                self.in_rest_area = update
+                    .snapshot
+                    .as_ref()
+                    .is_some_and(|rest| rest.in_rest_area);
+                self.rest = update.snapshot;
             }
             AccountEvent::GameTime(time) => {
                 self.world_clock = Some((time.second_of_day(), time.new_speed, Instant::now()));
@@ -1728,13 +1772,18 @@ impl GameClient {
     fn request_terrain(&mut self, request: shared::protocol::LoadTerrain) -> Result<(), String> {
         let map_changed = self.terrain.state().map.as_deref() != Some(&request.map_name);
         if map_changed {
+            let _span = profile::span(|| "terrain.map_id".to_owned());
             self.world_map_id = Some(account::read_map_id(&self.data_root, &request.map_name)?);
         }
-        self.terrain.request_map(
-            request.map_name,
-            (request.initial_tile_y, request.initial_tile_x),
-        )?;
+        {
+            let _span = profile::span(|| "terrain.request_map".to_owned());
+            self.terrain.request_map(
+                request.map_name,
+                (request.initial_tile_y, request.initial_tile_x),
+            )?;
+        }
         if map_changed {
+            let _span = profile::span(|| "terrain.enter_loading".to_owned());
             self.world_camera.reset();
             self.world_lighting.reset();
             self.world.update_lighting(None);
@@ -1973,10 +2022,14 @@ impl GameClient {
         self.mailbox.reset();
         self.trade.reset();
         self.in_rest_area = false;
+        self.rest = None;
         self.character_preview.reset();
         self.creation_scene.reset();
         self.physical_input.clear();
         self.player_movement = gameplay::PlayerMovement::default();
+        self.map_waypoint = None;
+        self.waypoint_path.clear();
+        self.current_zone = None;
         if let Some(ui) = self.errors_ui.as_mut() {
             ui.bind_mut().clear_errors()?;
             ui.set_visible(false);
@@ -2090,7 +2143,7 @@ impl GameClient {
                 }
             }
         }
-        self.apply_startup_customize(screen)?;
+        self.apply_startup_panel(screen)?;
         self.set_account_ui_visibility(screen);
         let name = GString::from(format!("{screen:?}").as_str());
         self.base_mut()
@@ -2316,6 +2369,13 @@ fn account_event_kind(event: &AccountEvent) -> String {
         AccountEvent::LoadTerrain(_) => "LoadTerrain".into(),
         AccountEvent::NewWorld(_) => "NewWorld".into(),
         AccountEvent::Combat(_) => "Combat".into(),
+        AccountEvent::Replication(_) => "Replication".into(),
+        AccountEvent::Npc(account::NpcMessage::Inventory(_)) => "Npc(Inventory)".into(),
+        AccountEvent::Npc(account::NpcMessage::Equipment(_)) => "Npc(Equipment)".into(),
+        AccountEvent::Npc(account::NpcMessage::InventoryChanged(_)) => {
+            "Npc(InventoryChanged)".into()
+        }
+        AccountEvent::Npc(_) => "Npc".into(),
         _ => "other".into(),
     }
 }

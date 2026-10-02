@@ -17,7 +17,7 @@ use game_engine_ui_model::trade_frame_component::ACTION_PLAYER_SLOT_PREFIX;
 use godot::classes::Control;
 use godot::global::Key;
 use godot::prelude::*;
-use shared::protocol::{EquipItem, ItemLocation};
+use shared::protocol::{EquipItem, ItemLocation, UseItem};
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
@@ -224,7 +224,7 @@ impl GameClient {
             if self.offer_trade_item(action)? {
                 return Ok(());
             }
-            return self.send_bag_equip_request(location);
+            return self.send_bag_use_request(location);
         }
         if click.shift && self.bags.cursor.item.is_empty() {
             self.open_bag_split(location);
@@ -233,16 +233,23 @@ impl GameClient {
         self.send_cursor_click(CursorTarget::Location(location))
     }
 
-    fn send_bag_equip_request(&self, location: ItemLocation) -> Result<(), FrameError> {
+    /// `C_Container.UseContainerItem` (ContainerFrame.lua:1342): an equippable item is
+    /// equipped, any other item used (its on-use spell, server-side).
+    fn send_bag_use_request(&self, location: ItemLocation) -> Result<(), FrameError> {
         let Some(item) = self.merchant.session.inventory.item_at(location) else {
             return Ok(());
         };
         let can_equip =
             item_catalog_entry(item.item_id).is_some_and(|entry| entry.inventory_type != 0);
-        if can_equip {
-            let request = InventoryRequest::Equip(EquipItem { from: location });
-            self.account.send_inventory_request(&request)?;
-        }
+        let request = if can_equip {
+            InventoryRequest::Equip(EquipItem { from: location })
+        } else {
+            InventoryRequest::Use(UseItem {
+                location,
+                target: None,
+            })
+        };
+        self.account.send_inventory_request(&request)?;
         Ok(())
     }
 

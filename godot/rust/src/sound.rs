@@ -405,6 +405,11 @@ impl NativeSound {
         )
     }
 
+    /// Whether a zone ambience track is playing.
+    pub fn ambient_playing(&self) -> bool {
+        self.ambient.player.is_playing()
+    }
+
     pub fn stop(&mut self) {
         self.music.stop();
         self.ambient.stop();

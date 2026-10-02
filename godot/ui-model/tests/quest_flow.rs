@@ -25,6 +25,7 @@ fn configure_assets() {
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
 }
 
 fn aldric() -> QuestTextTokens {
@@ -534,7 +535,10 @@ fn buckler_pants_and_hammer() -> QuestRewards {
     QuestRewards {
         money: 0,
         items: vec![reward(5580, "Small Wooden Hammer")],
-        choice_items: vec![reward(2249, "Militia Buckler"), reward(2238, "Urchin's Pants")],
+        choice_items: vec![
+            reward(2249, "Militia Buckler"),
+            reward(2238, "Urchin's Pants"),
+        ],
     }
 }
 

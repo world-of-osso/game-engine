@@ -4,16 +4,17 @@
 
 use std::path::PathBuf;
 
+use game_engine_core::spell_catalog::PrimaryStat;
 use game_engine_ui_model::bag_data::InventoryState;
 use game_engine_ui_model::character_frame::{
     ACTION_FRAME, CharacterFrameView, MIN_LEVEL_FOR_ITEM_LEVEL, PAPERDOLL_BUTTONS,
     apply_character_frame_postsetup, attribute_lines, average_equipped_item_level,
-    break_up_large_numbers, character_frame_screen, level_line, paperdoll_button, paperdoll_slots,
-    parse_equipment_slot_action,
+    break_up_large_numbers, character_frame_screen, enhancement_lines, level_line,
+    paperdoll_button, paperdoll_slots, parse_equipment_slot_action,
 };
 use game_engine_ui_model::item_catalog::item_catalog_entry;
 use game_engine_ui_model::micro_menu::{ACTION_CHARACTER, micro_menu_screen};
-use shared::components::{CombatRatings, UnitStats};
+use shared::components::{CombatRatings, DerivedStats, UnitStats};
 use shared::protocol::{
     EquipmentSlot, EquipmentSnapshot, EquippedItem, InventoryDelta, InventorySlotChange,
     ItemLocation, ItemStack,
@@ -29,6 +30,7 @@ fn data_root() {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
 }
 
 fn stack(guid: u64, item_id: u32) -> ItemStack {
@@ -79,6 +81,7 @@ fn view(inventory: &InventoryState, cursor: Option<ItemLocation>) -> CharacterFr
         slots: paperdoll_slots(inventory, cursor),
         item_level: Some("1".into()),
         attributes: Vec::new(),
+        enhancements: Vec::new(),
         race_id: 1,
         class_id: 1,
     }
@@ -346,7 +349,7 @@ fn warrior_sheet() -> (UnitStats, CombatRatings) {
 #[test]
 fn attributes_list_primaries_stamina_and_armor_as_retail_integers() {
     let (stats, ratings) = warrior_sheet();
-    let lines = attribute_lines(Some((&stats, &ratings)));
+    let lines = attribute_lines(Some((&stats, &ratings)), None);
     let shown: Vec<_> = lines
         .iter()
         .map(|line| (line.label, line.value.as_str()))
@@ -361,7 +364,7 @@ fn attributes_list_primaries_stamina_and_armor_as_retail_integers() {
             ("Armor:", "1,234"),
         ]
     );
-    assert!(attribute_lines(None).is_empty());
+    assert!(attribute_lines(None, None).is_empty());
     assert_eq!(break_up_large_numbers(1_234_567), "1,234,567");
     assert_eq!(break_up_large_numbers(999), "999");
     assert_eq!(break_up_large_numbers(-1_000), "-1,000");
@@ -371,7 +374,7 @@ fn attributes_list_primaries_stamina_and_armor_as_retail_integers() {
 fn attributes_category_sits_under_the_item_level_and_hides_without_stats() {
     let (stats, ratings) = warrior_sheet();
     let mut sheet = view(&InventoryState::default(), None);
-    sheet.attributes = attribute_lines(Some((&stats, &ratings)));
+    sheet.attributes = attribute_lines(Some((&stats, &ratings)), None);
     let registry = build(sheet.clone());
     assert_eq!(
         text(&registry, "CharacterStatsPaneAttributesCategoryTitle"),
@@ -416,6 +419,156 @@ fn attributes_category_sits_under_the_item_level_and_hides_without_stats() {
     assert!(
         empty
             .get_by_name("CharacterStatsPaneAttributesCategoryTitle")
+            .is_none()
+    );
+}
+
+#[test]
+fn a_specialization_shows_only_its_primary_stat() {
+    let (stats, ratings) = warrior_sheet();
+    let labels = |primary| {
+        attribute_lines(Some((&stats, &ratings)), Some(primary))
+            .iter()
+            .map(|line| line.label)
+            .collect::<Vec<_>>()
+    };
+    assert_eq!(
+        labels(PrimaryStat::Strength),
+        ["Strength:", "Stamina:", "Armor:"]
+    );
+    assert_eq!(
+        labels(PrimaryStat::Agility),
+        ["Agility:", "Stamina:", "Armor:"]
+    );
+    assert_eq!(
+        labels(PrimaryStat::Intellect),
+        ["Intellect:", "Stamina:", "Armor:"]
+    );
+}
+
+/// The server's `DerivedStats` of a level 20 human Arcane mage in three caster cloth
+/// pieces (game-server `level_20_arcane_mage_in_caster_cloth_derives_sheet_stats`).
+fn arcane_mage_derived() -> DerivedStats {
+    DerivedStats {
+        spell_power: 66.0,
+        attack_power: 0.0,
+        crit_pct: 5.0 + 3.0 / 4.431_969_6,
+        haste_pct: 8.0 / 4.239_275_5,
+        mastery_pct: 10.56,
+        versatility_pct: 6.0 / 5.202_747,
+        ..DerivedStats::default()
+    }
+}
+
+#[test]
+fn enhancements_round_retail_percentages_and_hide_zero_stats() {
+    let lines = enhancement_lines(Some(&arcane_mage_derived()));
+    let shown: Vec<_> = lines
+        .iter()
+        .map(|line| (line.label, line.value.as_str()))
+        .collect();
+    // format("%d%%", value + 0.5): 5.68 -> 6, 1.89 -> 2, 10.56 -> 11, 1.15 -> 1.
+    assert_eq!(
+        shown,
+        [
+            ("Critical Strike:", "6%"),
+            ("Haste:", "2%"),
+            ("Mastery:", "11%"),
+            ("Versatility:", "1%"),
+        ]
+    );
+    // hideAt = 0: a level 1 character without gear has only its 5% base crit.
+    let bare = DerivedStats {
+        crit_pct: 5.0,
+        ..DerivedStats::default()
+    };
+    let labels: Vec<_> = enhancement_lines(Some(&bare))
+        .iter()
+        .map(|line| line.label)
+        .collect();
+    assert_eq!(labels, ["Critical Strike:"]);
+    assert!(enhancement_lines(None).is_empty());
+}
+
+/// Leech, Avoidance and Speed follow Versatility in `PAPERDOLL_STATCATEGORIES` order once
+/// non-zero; the server's level 20 values for 12% raw leech, 5% avoidance and 30% raw
+/// speed (game-server `tertiary_ratings_follow_curve_21025`).
+#[test]
+fn enhancements_show_nonzero_tertiary_stats_after_versatility() {
+    let derived = DerivedStats {
+        leech_pct: 11.6,
+        avoidance_pct: 5.0,
+        speed_pct: 21.0,
+        ..arcane_mage_derived()
+    };
+    let shown: Vec<_> = enhancement_lines(Some(&derived))
+        .iter()
+        .map(|line| (line.label, line.value.clone()))
+        .collect();
+    assert_eq!(
+        shown[3..],
+        [
+            ("Versatility:", "1%".to_string()),
+            ("Leech:", "12%".to_string()),
+            ("Avoidance:", "5%".to_string()),
+            ("Speed:", "21%".to_string()),
+        ]
+    );
+}
+
+#[test]
+fn enhancements_category_follows_the_last_attribute_and_numbers_on() {
+    let (stats, ratings) = warrior_sheet();
+    let mut sheet = view(&InventoryState::default(), None);
+    sheet.attributes = attribute_lines(Some((&stats, &ratings)), Some(PrimaryStat::Intellect));
+    sheet.enhancements = enhancement_lines(Some(&arcane_mage_derived()));
+    let registry = build(sheet.clone());
+    assert_eq!(
+        text(&registry, "CharacterStatsPaneEnhancementsCategoryTitle"),
+        "Enhancements"
+    );
+    // Intellect, Stamina, Armor, then the four enhancements from Stat4.
+    assert_eq!(text(&registry, "CharacterStatsPaneStat3Label"), "Armor:");
+    assert_eq!(
+        text(&registry, "CharacterStatsPaneStat4Label"),
+        "Critical Strike:"
+    );
+    assert_eq!(text(&registry, "CharacterStatsPaneStat4Value"), "6%");
+    assert_eq!(
+        text(&registry, "CharacterStatsPaneStat7Label"),
+        "Versatility:"
+    );
+    let top = |registry: &FrameRegistry, name: &str| {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Val::Px(top) = frame.position.top else {
+            panic!("{name} has no absolute top");
+        };
+        top
+    };
+    // The category sits right under the last attribute (categoryYOffset 0), its first
+    // stat 2 below its 40-tall title.
+    let armor = top(&registry, "CharacterStatsPaneStat3Label");
+    let category = top(
+        &registry,
+        "CharacterStatsPaneEnhancementsCategoryBackground",
+    );
+    assert_eq!(category - armor, 15.0);
+    assert_eq!(
+        top(&registry, "CharacterStatsPaneStat4Label") - category,
+        42.0
+    );
+
+    // Below level 10: categoryYOffset -11 and statYOffset -5.
+    sheet.item_level = None;
+    let low = build(sheet.clone());
+    let armor = top(&low, "CharacterStatsPaneStat3Label");
+    let category = top(&low, "CharacterStatsPaneEnhancementsCategoryBackground");
+    assert_eq!(category - armor, 15.0 + 11.0);
+
+    sheet.enhancements.clear();
+    assert!(
+        build(sheet)
+            .get_by_name("CharacterStatsPaneEnhancementsCategoryTitle")
             .is_none()
     );
 }

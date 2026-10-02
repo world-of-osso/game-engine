@@ -108,7 +108,7 @@ fn missing_layout_and_missing_decoded_image_keep_original_absence_behavior() {
 }
 
 #[test]
-fn hd_body_head_and_hair_keep_nearest_neighbor_crop_bytes() {
+fn hd_body_keeps_its_material_canvas_and_head_hair_keep_their_crops() {
     let data = CharTextureData::from_parts(
         vec![TextureLayer {
             texture_type: 6,
@@ -147,7 +147,8 @@ fn hd_body_head_and_hair_keep_nearest_neighbor_crop_bytes() {
     let result = data
         .composite_model_textures_with(&[(10, 3)], &[], 103, 1, texture)
         .unwrap();
-    assert_eq!((result.body.1, result.body.2), (1024, 512));
+    // ChrModelMaterial: the HD body (type 1) canvas is 2048x1024, bound unscaled.
+    assert_eq!((result.body.1, result.body.2), (2048, 1024));
     assert_eq!(&result.body.0[..4], &[1, 2, 3, 255]);
     assert_eq!(
         result.head.as_ref().map(|h| (h.1, h.2, &h.0[..4])),
@@ -230,7 +231,11 @@ fn separate_texture_type_composites_its_layers_on_its_material_canvas() {
         .composite_texture_type(&[(10, 1), (12, 3)], 1, 9, texture)
         .unwrap();
     assert_eq!((width, height), (2, 2));
-    assert_eq!(pixels, [40, 50, 60, 255].repeat(4), "target 12 is drawn last");
+    assert_eq!(
+        pixels,
+        [40, 50, 60, 255].repeat(4),
+        "target 12 is drawn last"
+    );
 
     let (pixels, ..) = data
         .composite_texture_type(&[(10, 1)], 1, 9, texture)
@@ -241,4 +246,66 @@ fn separate_texture_type_composites_its_layers_on_its_material_canvas() {
             .is_none(),
         "no selected material targets a type 9 layer"
     );
+}
+
+#[test]
+fn item_textures_alpha_blend_over_the_body() {
+    // Wow.exe Paste (solarityclient composer.rs `alpha_blend`): an item texel of alpha
+    // 128 mixes with the skin below instead of replacing it.
+    let data = data(vec![]);
+    let result = data
+        .composite_model_textures_with(&[], &[(0, 4)], 1, 1, texture)
+        .unwrap();
+    let blended =
+        |item: u8, skin: u8| ((u16::from(item) * 128 + u16::from(skin) * 127) / 255) as u8;
+    assert_eq!(
+        result.body.0[4..8],
+        [blended(90, 1), blended(100, 2), blended(110, 3), 255]
+    );
+}
+
+#[test]
+fn item_textures_expand_by_stock_paste_scale() {
+    // Wow.exe PasteScale (solarityclient composer.rs `blend_scaled_rect`): a texture half
+    // its section's size expands 2x with odd texels averaging their neighbours.
+    let data = CharTextureData::from_parts(
+        vec![],
+        HashMap::from([(
+            (1, 0),
+            TextureSection {
+                x: 0,
+                y: 0,
+                width: 4,
+                height: 2,
+            },
+        )]),
+        HashMap::from([(
+            1,
+            TextureLayout {
+                width: 4,
+                height: 2,
+            },
+        )]),
+    );
+    let result = data
+        .composite_model_textures_with(&[], &[(0, 2)], 1, 1, texture)
+        .unwrap();
+    let row = [
+        10, 20, 30, 255, 25, 35, 45, 255, 40, 50, 60, 255, 40, 50, 60, 255,
+    ];
+    assert_eq!(result.body.0[..16], row);
+    assert_eq!(result.body.0[16..], row);
+}
+
+#[test]
+fn translucent_first_layer_keeps_its_colour_on_an_empty_canvas() {
+    // Straight-alpha "over" an empty canvas (WMVx CharacterTextureBuilder::mergeLayer,
+    // QPainter SourceOver): the eye texel keeps its colour and alpha instead of
+    // darkening towards the canvas' transparent black.
+    let data = data(vec![layer(25, 10, 1, -1, 19)])
+        .with_material_sizes(HashMap::from([((1, 19), (1, 1))]));
+    let (pixels, ..) = data
+        .composite_texture_type(&[(25, 4)], 1, 19, texture)
+        .unwrap();
+    assert_eq!(pixels, [90, 100, 110, 128]);
 }

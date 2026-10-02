@@ -32,17 +32,7 @@ impl StartupArgs {
                 index += 1;
                 continue;
             }
-            if !matches!(
-                flag,
-                "--screen"
-                    | "--state"
-                    | "--server"
-                    | "--char"
-                    | "--run-js-ui-script"
-                    | "--skybox-fdid"
-                    | "--light-skybox-id"
-                    | "--skybox-time-ms"
-            ) {
+            if !is_paired_client_option(flag) {
                 return Err(format!("unknown client option '{flag}'"));
             }
             let value = args.get(index + 1).map(String::as_str).unwrap_or_default();
@@ -86,6 +76,20 @@ impl StartupArgs {
         }
         Ok(())
     }
+}
+
+fn is_paired_client_option(flag: &str) -> bool {
+    matches!(
+        flag,
+        "--screen"
+            | "--state"
+            | "--server"
+            | "--char"
+            | "--run-js-ui-script"
+            | "--skybox-fdid"
+            | "--light-skybox-id"
+            | "--skybox-time-ms"
+    )
 }
 
 fn parse_u32_option(flag: &str, value: &str) -> Result<u32, String> {

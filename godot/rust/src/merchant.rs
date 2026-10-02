@@ -45,6 +45,8 @@ pub(crate) struct Merchant {
     shown: bool,
     /// Item icon FDIDs already looked up in local CASC.
     cached_icons: std::collections::HashSet<u32>,
+    /// The bags took the item catalog's data once it loaded.
+    item_data_resolved: bool,
     cursor: Option<ActiveWowCursor>,
     /// Loaded cursor art; `None` caches a kind whose art failed to load.
     cursor_textures: Vec<(ActiveWowCursor, Option<Gd<ImageTexture>>)>,
@@ -234,7 +236,7 @@ impl GameClient {
         });
         let unit = match clicked {
             Some(unit) => {
-                if self.use_guild_vault(unit)? || self.use_mailbox(unit)? {
+                if self.use_guild_vault(unit)? || self.use_mailbox(unit)? || self.use_chair(unit)? {
                     return Ok(());
                 }
                 // Right-click targets, as Retail does.
@@ -520,6 +522,26 @@ impl GameClient {
         self.place_merchant()
     }
 
+    /// Bag and equipment items that arrived while the item catalog loaded get their
+    /// icon, quality and name in the first frame it is loaded; no frame waits for it.
+    pub(super) fn receive_item_catalog(&mut self) {
+        if self.merchant.item_data_resolved
+            || game_engine_ui_model::item_catalog::item_catalog().is_none()
+        {
+            return;
+        }
+        self.merchant.item_data_resolved = true;
+        let inventory = &mut self.merchant.session.inventory;
+        inventory.refresh_item_data();
+        let items = inventory
+            .slots
+            .iter()
+            .flatten()
+            .chain(inventory.equipment.values());
+        let received = items.filter(|item| item.item_id != 0).count();
+        godot_print!("Item catalog loaded: {received} received bag and equipment items resolved");
+    }
+
     /// Item icons come from local CASC into `data/textures` before the frame draws them,
     /// as the quest frame does for its rewards.
     fn cache_merchant_icons(&mut self, states: &MerchantStates) {
@@ -595,6 +617,10 @@ impl GameClient {
             "buyback",
             &string_array(merchant.buyback.iter().map(|item| &item.name)),
         );
+        state.set(
+            "item_catalog_loaded",
+            game_engine_ui_model::item_catalog::item_catalog().is_some(),
+        );
         state.set("bags", &bag_items(&session.inventory));
         state.set("equipment", &equipment_items(&session.inventory));
         state.set("money", session.money as i64);
@@ -639,6 +665,8 @@ fn equipment_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -
             entry.set("item_id", i64::from(item.item_id));
             entry.set("item_guid", item.item_guid as i64);
             entry.set("count", i64::from(item.count));
+            entry.set("name", item.name.as_str());
+            entry.set("icon_fdid", i64::from(item.icon_fdid));
             entry.to_variant()
         })
         .collect()
@@ -659,6 +687,8 @@ fn bag_items(inventory: &game_engine_ui_model::bag_data::InventoryState) -> VarA
             entry.set("item_id", i64::from(item.item_id));
             entry.set("name", item.name.as_str());
             entry.set("count", i64::from(item.count));
+            entry.set("icon_fdid", i64::from(item.icon_fdid));
+            entry.set("quality", i64::from(item.quality.id()));
             bags.push(&entry.to_variant());
         }
     }

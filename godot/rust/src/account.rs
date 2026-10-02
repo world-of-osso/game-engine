@@ -17,6 +17,7 @@ use game_engine_session::{
 };
 use game_engine_ui_model::bank_data::{BankRequest, GuildBankRequest};
 use game_engine_ui_model::trade::TradeRequest;
+use shared::components::StandState;
 use shared::protocol::{
     AcceptTrade, CancelTrade, CancelTradeAccept, ClearTradeItem, ConfirmTrade, DeclineTrade,
     InitiateTrade, SetTradeMoney, TradeChannel, TradeStateUpdate,
@@ -31,8 +32,8 @@ use shared::protocol::{
     MirrorTimerStop, NewWorld, PlayerInput, QuestChannel, QuestFailed, QuestGiverStatusMultiple,
     QuestGiverStatusQuery, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo,
     RestStateUpdate, SetDungeonDifficulty, SetSpecialization, SetTarget, SpecializationChanged,
-    SpellCastIntent, SpellCooldownUpdate, SpellGo, SpellsLearned, SpellsUnlearned, TalentChannel,
-    TransferAborted, TransferChannel, WorldPortAck,
+    SpellCastIntent, SpellCooldownUpdate, SpellFailure, SpellGo, SpellsLearned, SpellsUnlearned,
+    StandStateIntent, StopSpellCast, TalentChannel, TransferAborted, TransferChannel, WorldPortAck,
 };
 use shared::protocol::{
     AppearanceCollectionUpdate, CreatureTooltip, CreatureTooltipQuery, TooltipChannel,
@@ -99,6 +100,8 @@ pub struct Account {
     pub reply_received: bool,
     pub(crate) startup_options: StartupLoginOptions,
     bridge: Option<NetworkBridge>,
+    /// The running bridge's endpoint and Netcode client, for `status network`.
+    pub link: Option<NetworkLink>,
     data_root: PathBuf,
     hostname: String,
     /// Server quest log, watch list, quest giver markers and the open quest dialog.
@@ -119,6 +122,13 @@ pub struct Account {
     pub xp: Option<shared::protocol::PlayerXpUpdate>,
     /// Party/raid roster, live member states, the ready check and the pending invite.
     pub group: GroupState,
+}
+
+pub struct NetworkLink {
+    pub server: std::net::SocketAddr,
+    pub client_id: u64,
+    /// Whether the server's protocol fingerprint matched (`Event::Connected`).
+    pub connected: bool,
 }
 
 pub enum AccountEvent {
@@ -216,6 +226,8 @@ pub enum CombatMessage {
     Event(CombatEvent),
     /// `SpellGo`: a cast resolved.
     SpellGo(SpellGo),
+    /// `SpellFailure` (`SMSG_SPELL_FAILURE`): a cast or channel was interrupted or failed.
+    SpellFailure(SpellFailure),
     /// `AttackStart` (`SMSG_ATTACK_START`): a unit started auto-attacking.
     AttackStart(AttackStart),
     /// `AttackStopped` (`SMSG_ATTACK_STOP`): a unit stopped auto-attacking.
@@ -250,6 +262,7 @@ impl Account {
             reply_received: false,
             startup_options: StartupLoginOptions::default(),
             bridge: None,
+            link: None,
             data_root,
             hostname: String::new(),
             quests: QuestRuntime::default(),
@@ -334,6 +347,11 @@ impl Account {
             AuthRequest::Register(request) => bridge.send::<_, AuthChannel>(request)?,
         }
         self.bridge = Some(bridge);
+        self.link = Some(NetworkLink {
+            server: address,
+            client_id,
+            connected: false,
+        });
         Ok(())
     }
 
@@ -408,6 +426,20 @@ impl Account {
                 spell: name.to_owned(),
                 target_entity: target,
             })
+            .map_err(SessionError)
+    }
+
+    /// IPC `spell cast`: the intent as given, by spell ID or name token.
+    pub fn send_spell_intent(&self, intent: SpellCastIntent) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(intent)
+            .map_err(SessionError)
+    }
+
+    /// `SpellStopCasting`: cancel the current cast.
+    pub fn send_stop_cast(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(StopSpellCast)
             .map_err(SessionError)
     }
 
@@ -609,6 +641,7 @@ impl Account {
             InventoryRequest::Destroy(request) => {
                 bridge.send::<_, InventoryChannel>(request.clone())
             }
+            InventoryRequest::Use(request) => bridge.send::<_, InventoryChannel>(request.clone()),
         }
         .map_err(SessionError)
     }
@@ -793,6 +826,13 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// `CMSG_STAND_STATE_CHANGE`: ask the server to stand, sit, sleep or kneel.
+    pub fn send_stand_state(&self, state: StandState) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(StandStateIntent { state })
+            .map_err(SessionError)
+    }
+
     /// Called by the host only after the destination is ready for world entry.
     pub fn finish_world_port(&mut self) -> Result<(), SessionError> {
         self.session.finish_world_port();
@@ -828,9 +868,13 @@ impl Account {
         let mut output = Vec::new();
         for event in events {
             match event {
-                Event::Connected => self.session.receive_connected(),
+                Event::Connected => {
+                    self.set_link_connected(true);
+                    self.session.receive_connected();
+                }
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
+                    self.set_link_connected(false);
                     output.push(AccountEvent::ReplicationEnded);
                     let effects = match reason.as_deref() {
                         Some(reason @ HANDSHAKE_TIMEOUT_REASON) => {
@@ -1160,6 +1204,7 @@ impl Account {
             || message.is::<CastFailed>()
             || message.is::<CombatLogEvent>()
             || message.is::<SpellGo>()
+            || message.is::<SpellFailure>()
             || message.is::<AttackStart>()
             || message.is::<AttackStopped>()
     }
@@ -1187,6 +1232,10 @@ impl Account {
             output.push(AccountEvent::CastFailed(decode(message)?));
         } else if message.is::<SpellGo>() {
             output.push(AccountEvent::Combat(CombatMessage::SpellGo(decode(
+                message,
+            )?)));
+        } else if message.is::<SpellFailure>() {
+            output.push(AccountEvent::Combat(CombatMessage::SpellFailure(decode(
                 message,
             )?)));
         } else if message.is::<AttackStart>() {
@@ -1292,8 +1341,15 @@ impl Account {
         self.stop_bridge().map_err(SessionError)
     }
 
+    fn set_link_connected(&mut self, connected: bool) {
+        if let Some(link) = &mut self.link {
+            link.connected = connected;
+        }
+    }
+
     fn stop_bridge(&mut self) -> Result<(), String> {
         self.session.reset_world_port();
+        self.link = None;
         if let Some(mut bridge) = self.bridge.take() {
             bridge.stop()?;
         }

@@ -1,0 +1,34 @@
+{
+  "example_only": true,
+  "workload_description": "Existing world_entry_frames.gd: real account, first roster card equals requested character, stationary post-entry camera, pending object queue drains, then 60–300 seconds settled sampling. MAIN supplies server availability; runner does not start or mutate server.",
+  "comparison": {
+    "workload": null,
+    "assets": null,
+    "options": null,
+    "cache": null,
+    "hardware_driver": null,
+    "resolution": null,
+    "renderer": null,
+    "server_state": null,
+    "camera": null,
+    "sampling": null,
+    "resource_limits": null
+  },
+  "input_paths": {},
+  "build_provenance": null,
+  "required_inputs": {
+    "workload": "Account/character identity (no passwords), map/position, roster ordering, scene, observation duration and fixture revision/hash.",
+    "assets": "Frozen content/build/resolver identity and relevant asset-set fingerprints. Hash concrete captured inventory via input_paths; never delete, warm or rewrite caches implicitly.",
+    "options": "Exact persisted options snapshot hash plus actual effective graphics/cap/vsync/sound/resolution settings. Supply snapshot path in input_paths; no user settings mutation.",
+    "cache": "Observed pre-run warm/cold state, import state, OS page cache condition (unknown if not established), loader/cache identity; do not equate two warm labels without matching contents/procedure.",
+    "hardware_driver": "GPU/device, driver, CPU, RAM, power/clocks, compositor/display driver and host; note agents.slice contention. Host uname is auto-recorded, not GPU/clock proof.",
+    "renderer": "API and equivalent rendering configuration, not equal engine names; expected Bevy/Godot implementation differences recorded in each build provenance.",
+    "server_state": "Existing private endpoint, server revision/state snapshot and availability supplied by MAIN. No restart/mutation by runner. Workload server activity may alter state: record that limit.",
+    "camera": "Initial/final position/orientation, FOV, stationary/controlled route and requested character. No native JS/IPC edits or additional camera control supplied by this runner.",
+    "sampling": "Equal startup boundary, EnterWorld-to-InWorld boundary, queue drain condition, 60–300 second settled wall-clock process-frame interval method; nearest-rank percentiles. Original Bevy baseline without these boundaries is a comparison gap.",
+    "resource_limits": "agent-run slice/cgroup limits, other concurrent workloads, renderer/display resolution, cap and vsync. User disabled hardware/services remain disabled.",
+    "input_paths": "Map names to real files: Godot executable, native extension .so, fixture, captured options/cache/asset inventories. SHA256 before/after is auto-recorded; no placeholder paths provided.",
+    "build_provenance": "Separate root launcher/legacy binary and native extension source revisions, exact compiled scope/profile, build ID/log and artifact hash. Observed git HEAD does not establish built source. Root build is not native build proof. Unknown/unused scopes explicit."
+  },
+  "proof_limits": "Null fields are unanswered inputs, not measured state. No retained matching original baseline yet. Native measurements alone are not parity. VmHWM is process lifetime high-water; VmRSS phase observations are not leak/growth/shutdown proof. Numeric frame limits remain fixture policy."
+}

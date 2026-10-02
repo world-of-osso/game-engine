@@ -44,16 +44,18 @@ points, `$t` aura period, `$u` max stacks, `$v` max target level, `$x` chain tar
 | `$@spelldesc123` `$@spelltooltip123` `$spelldesc123` | rendered description of 123 (depth 4) |
 | `$@spellaura123` `$@auradesc123` | rendered aura description of 123 |
 | `$@spellname123` | spell name |
+| `$s1` etc. of a spell/attack power scaled effect | base points + trunc(`EffectBonusCoefficient` × spell power) + trunc(`BonusCoefficientFromAP` × attack power), from the owner-only `DerivedStats` (TrinityCore `Unit::SpellDamageBonusDone`); no crit, versatility or aura percentages |
+| `$SP` `$sp` `$AP` `$ap` | the player's spell / attack power |
 
 ## Unresolved
 
 Rendered as `{?<token>}` and logged once per spell and token (`warn!`):
 
-- Effect points that scale with caster stats or level: `EffectBonusCoefficient` or
-  `BonusCoefficientFromAP` non-zero on a SCHOOL_DAMAGE / HEAL effect or PERIODIC_DAMAGE /
-  PERIODIC_HEAL aura, or with 0 stored points; `ScalingClass` with a `Coefficient`. The
-  client has no spell power, attack power or ExpectedStat data.
-- Caster stats (`$AP`, `$SP`, `$MHP`, `$pri`, `$PL`, ...), `$<var>` (no
+- Effect points that scale with level (`ScalingClass` with a `Coefficient`; the client
+  has no ExpectedStat data), and spell/attack power scaled points (`EffectBonusCoefficient`
+  or `BonusCoefficientFromAP` non-zero on a SCHOOL_DAMAGE / HEAL effect or PERIODIC_DAMAGE /
+  PERIODIC_HEAL aura, or with 0 stored points) before `DerivedStats` arrives.
+- Other caster stats (`$MHP`, `$pri`, `$PL`, `$SPH`, `$RAP`, ...), `$<var>` (no
   SpellDescriptionVariables table locally), `$g` gender forms, `$@spellicon`,
   `$@versadmg`, `$@switch`, garrison / loot-spec references, `$j`, `$e`, `$i`, `$p`, `$q`.
 - Conditions other than `s`/`a`/`c`/comparisons (`diff`, `pc`, `j1g`, ...).

@@ -484,10 +484,23 @@ fn spawn_equipment_slot(
     m2_path: &Path,
     skin_fdids: [u32; 3],
 ) -> Option<Entity> {
-    let use_bound_joints = slot_uses_bound_joints(slot, m2_path);
+    validate_equipment_model_path(ctx.warned, slot, m2_path)?;
+    let model = crate::asset::m2::load_m2(m2_path, &skin_fdids)
+        .map_err(|error| {
+            warn_once(
+                ctx.warned,
+                format!("Equipment {slot:?} {}: {error}", m2_path.display()),
+            );
+        })
+        .ok()?;
+    let use_bound_joints = slot_uses_bound_joints(
+        slot,
+        m2_path,
+        &model.bones,
+        model.batches.iter().map(|batch| batch.mesh_part_id),
+    );
     let (parent_entity, base_offset) =
         resolve_equipment_parent(ctx, slot, m2_path, use_bound_joints)?;
-    validate_equipment_model_path(ctx.warned, slot, m2_path)?;
 
     let mut transform = ctx.transforms.resolve(slot, m2_path);
     transform.translation += base_offset;

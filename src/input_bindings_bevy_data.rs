@@ -75,6 +75,8 @@ impl TryFrom<KeyCode> for BindingKey {
             KeyCode::Delete => Ok(Self::Delete),
             KeyCode::Backspace => Ok(Self::Backspace),
             KeyCode::Enter => Ok(Self::Enter),
+            KeyCode::NumpadAdd => Ok(Self::NumpadAdd),
+            KeyCode::NumpadSubtract => Ok(Self::NumpadSubtract),
             _ => Err(key),
         }
     }
@@ -150,6 +152,8 @@ impl From<BindingKey> for KeyCode {
             BindingKey::Delete => Self::Delete,
             BindingKey::Backspace => Self::Backspace,
             BindingKey::Enter => Self::Enter,
+            BindingKey::NumpadAdd => Self::NumpadAdd,
+            BindingKey::NumpadSubtract => Self::NumpadSubtract,
         }
     }
 }

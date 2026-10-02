@@ -27,12 +27,12 @@ pub mod char_texture_query_data;
 pub mod character_creation_icon_mask_data;
 #[path = "../../../src/character_model_data.rs"]
 pub mod character_model_data;
-#[path = "../../../src/game/equipment/component_file_data.rs"]
-mod component_file_data;
 #[path = "../../../src/client_options_data.rs"]
 pub mod client_options_data;
 #[cfg(test)]
 mod client_options_data_tests;
+#[path = "../../../src/game/equipment/component_file_data.rs"]
+mod component_file_data;
 #[path = "../../../src/scenes/char_create/background_data.rs"]
 pub mod creation_scene_data;
 #[path = "../../../src/game/creatures/creature_display_data.rs"]
@@ -65,6 +65,8 @@ pub mod horizon;
 pub mod input_bindings_data;
 #[path = "../../../src/rendering/lighting/light_lookup_data.rs"]
 pub mod light_lookup_data;
+#[path = "../../../src/rendering/lighting/light_lookup_types.rs"]
+pub mod light_lookup_types;
 pub mod lighting_assets;
 pub mod liquid_data;
 #[path = "../../../src/game/state/loading_readiness.rs"]
@@ -93,6 +95,7 @@ pub mod quest_area_data;
 pub mod realm_preset_data;
 #[path = "../../../src/scenes/scene_snapshot_data.rs"]
 pub mod scene_snapshot;
+pub mod skybox_debug_data;
 pub mod spell_visual;
 #[path = "../../../src/sound/ui_click_data.rs"]
 pub mod ui_click_data;
@@ -364,5 +367,34 @@ mod terrain_height_data_tests {
         assert_eq!(sample(&grid, -0.25, 0.0), None);
         assert_eq!(sample(&grid, 0.0, -0.25), None);
         assert!(sample(&grid, 7.5, 7.5).is_some());
+    }
+
+    /// Azeroth 31_48's last chunk row starts at z -33.334015 and ends 0.00068 short of
+    /// tile row 32 at z 0. A scripted run east from z 0 reports z -3.23e-7: in that
+    /// gap neither chunk's half-open bounds contain it. Index arithmetic rounds it onto
+    /// tile row 32's first chunk in f32, which samples its z edge.
+    #[test]
+    fn index_arithmetic_locates_positions_in_the_gap_between_authored_chunks() {
+        use crate::terrain_height_data::{bevy_to_chunk_coords, sample_located_chunk_height};
+        let (x, z) = (-8941.611, -0.000_000_322_978_85);
+        assert_eq!(bevy_to_chunk_coords(x, z), ((32, 48), (0, 12)));
+        let row_32 = ChunkHeightGrid {
+            index_x: 0,
+            index_y: 12,
+            origin_x: -8933.334,
+            origin_z: 0.0,
+            ..authored_grid()
+        };
+        let row_31 = ChunkHeightGrid {
+            index_x: 15,
+            origin_z: -33.334_015,
+            ..row_32.clone()
+        };
+        assert_eq!(sample_chunk_height(&row_32, x, z), None, "the authored gap");
+        assert_eq!(sample_chunk_height(&row_31, x, z), None, "the authored gap");
+        // 8.277 yd (1.9866 units) in along x, on the near z edge (column 0): linear
+        // between rows 1 and 2 of that edge, 50 + 10 + 9.866.
+        let edge = sample_located_chunk_height(&row_32, x, z);
+        assert!((edge - 69.866).abs() < 0.01, "{edge}");
     }
 }

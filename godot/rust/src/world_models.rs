@@ -44,10 +44,10 @@ pub(crate) fn bind_visual_light(visual: &Gd<Node3D>, light: Option<&TerrainLight
         .done();
     for node in meshes.iter_shared() {
         let mesh = node.cast::<MeshInstance3D>();
-        // The native M2 loader creates one surface and one ShaderMaterial per batch.
+        // M2 batches and WMO groups each have one surface and one ShaderMaterial.
         let mut material = mesh
-            .get_surface_override_material(0)
-            .expect("M2 batch has an authored material")
+            .get_active_material(0)
+            .expect("M2 or WMO batch has an authored material")
             .cast::<ShaderMaterial>();
         match light {
             Some(light) => light.bind_model(&mut material),
@@ -226,9 +226,15 @@ impl VisualCatalogs {
                 items,
                 sheath,
             } => self.load_creature(display_id, &items, sheath),
-            VisualRequest::Player(player, equipment) => Ok(VisualParts::Player(
-                prepare_player_parts(&self.data_root, &player, &equipment)?,
-            )),
+            VisualRequest::Player(player, equipment) => {
+                // The main thread places an arrived visual's weapons from these rows.
+                self.gear()?;
+                Ok(VisualParts::Player(prepare_player_parts(
+                    &self.data_root,
+                    &player,
+                    &equipment,
+                )?))
+            }
         }
     }
 
@@ -378,9 +384,19 @@ impl WorldModels {
             })
     }
 
-    /// The build-pinned DB2 pose and gear rows (`NpcGearData`).
-    pub fn gear(&self) -> Result<&NpcGearData, String> {
-        self.catalogs.gear()
+    /// The build-pinned DB2 pose and gear rows (`NpcGearData`) once the startup worker
+    /// has loaded them; `None` until then, so no frame waits for the load.
+    pub fn loaded_gear(&self) -> Result<Option<&NpcGearData>, String> {
+        let loaded = self.catalogs.gear.get();
+        loaded
+            .map(|gear| gear.as_ref().map_err(Clone::clone))
+            .transpose()
+    }
+
+    /// The gear rows for a unit whose visual has arrived: every visual load reads them.
+    pub fn visual_gear(&self) -> Result<&NpcGearData, String> {
+        self.loaded_gear()?
+            .ok_or_else(|| "NPC pose and gear rows not loaded before a unit visual".into())
     }
 
     #[cfg(test)]
@@ -394,7 +410,7 @@ impl WorldModels {
         items: &EquipmentAppearance,
         sheath: SheathState,
     ) -> Result<Vec<(EquipmentSlot, Option<u32>)>, String> {
-        Ok(virtual_item_placements(self.gear()?, items, sheath))
+        Ok(virtual_item_placements(self.visual_gear()?, items, sheath))
     }
 
     /// Where a player's weapons sit under `sheath` (see [`player_weapon_placements`]).
@@ -403,7 +419,11 @@ impl WorldModels {
         equipment: &EquipmentAppearance,
         sheath: SheathState,
     ) -> Result<Vec<(EquipmentSlot, Option<u32>)>, String> {
-        Ok(player_weapon_placements(self.gear()?, equipment, sheath))
+        Ok(player_weapon_placements(
+            self.visual_gear()?,
+            equipment,
+            sheath,
+        ))
     }
 
     /// Start loading the visual of `appearance` (its virtual items placed for `sheath`);
@@ -593,6 +613,24 @@ pub(crate) fn place_items(
 mod tests {
     use super::*;
 
+    /// The main thread reads the gear rows without waiting for their startup load; the
+    /// first replicated unit at world entry used to wait for the whole 28 MB parse.
+    #[test]
+    fn gear_rows_are_read_without_waiting_for_their_load() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let models = WorldModels::new(data_root);
+        let started = std::time::Instant::now();
+        let first = models.loaded_gear().map(|gear| gear.is_some());
+        let waited = started.elapsed();
+        assert!(
+            waited < std::time::Duration::from_millis(50),
+            "waited {waited:?}"
+        );
+        assert_eq!(first, Ok(false), "the startup load is still parsing");
+        models.catalogs.gear().expect("gear rows");
+        assert!(models.loaded_gear().expect("gear rows").is_some());
+    }
+
     #[test]
     fn player_model_display_native_identity_uses_authored_chrmodel_rows() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
@@ -622,7 +660,7 @@ mod tests {
     fn stockade_guard_display_armor_resolves_to_body_geosets() {
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let models = WorldModels::new(data_root.clone());
-        let armor = models.gear().unwrap().display_armor(2989).unwrap();
+        let armor = models.catalogs.gear().unwrap().display_armor(2989).unwrap();
         let resolved = resolve_equipment_appearance(&armor, models.outfit(), 1, 0).unwrap();
         for geoset in [(4, 2), (5, 2), (20, 2), (12, 2)] {
             assert!(
@@ -642,6 +680,8 @@ mod tests {
         use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let mut models = WorldModels::new(data_root.clone());
+        // Placements read the gear rows; wait for the startup load, as a visual load does.
+        models.catalogs.gear().expect("gear rows");
         let item = |slot, item_id, inventory_type| EquippedAppearanceEntry {
             slot,
             item_id: Some(item_id),
@@ -676,6 +716,8 @@ mod tests {
         use shared::components::{EquipmentVisualSlot, EquippedAppearanceEntry};
         let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let mut models = WorldModels::new(data_root.clone());
+        // Placements read the gear rows; wait for the startup load, as a visual load does.
+        models.catalogs.gear().expect("gear rows");
         let item = |slot, item_id, inventory_type| EquippedAppearanceEntry {
             slot,
             item_id: Some(item_id),

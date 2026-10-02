@@ -420,10 +420,15 @@ impl GameClient {
         if let Some(name) = self.quests.zone_names.get(&sort_id) {
             return name.clone();
         }
-        let name = u32::try_from(sort_id)
-            .ok()
-            .and_then(|area| self.minimap.area_name(&self.data_root, area))
-            .unwrap_or_else(|| "Unknown".into());
+        let name = match u32::try_from(sort_id) {
+            Ok(area) => match self.minimap.area_name(area) {
+                // The header names its zone once the area table has loaded.
+                None => return String::new(),
+                Some(name) => name,
+            },
+            Err(_) => None,
+        };
+        let name = name.unwrap_or_else(|| "Unknown".into());
         self.quests.zone_names.insert(sort_id, name.clone());
         name
     }

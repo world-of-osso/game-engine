@@ -8,9 +8,13 @@ use game_engine_core::warband_scene_data::{
 };
 use godot::{classes::Node3D, prelude::*};
 
+use game_engine_core::scene_snapshot::NodeProps;
+
 use crate::{
     lighting::{TerrainLight, WorldLighting},
+    scene_export::{SceneEntry, light_entry, m2_source},
     sky_model::SkyModel,
+    terrain::objects::WMO_MODEL_META,
     terrain::{material::TerrainMaterials, streaming::StreamedTerrain},
     world_models::bind_visual_light,
 };
@@ -169,6 +173,57 @@ impl Background {
             .expect("sky loaded above")
             .sample(elapsed as u32);
         Ok(())
+    }
+
+    /// `Background`: `terrain:<map>_<y>_<x>` and its spawned doodad count, with its WMOs
+    /// and skybox.
+    pub fn scene_entry(&self) -> Result<SceneEntry, String> {
+        let (tile_y, tile_x) = self.scene.tile_coords();
+        let mut children = self
+            .objects
+            .wmo_nodes()
+            .into_iter()
+            .map(|node| {
+                let model = node
+                    .get_meta(WMO_MODEL_META)
+                    .try_to::<GString>()
+                    .map_err(|_| format!("scene export: {} has no WMO model", node.get_name()))?
+                    .to_string();
+                Ok(SceneEntry::new(
+                    "Object",
+                    Some(node),
+                    NodeProps::Object {
+                        kind: "WMO".into(),
+                        model,
+                    },
+                ))
+            })
+            .collect::<Result<Vec<_>, String>>()?;
+        if let Some(sky) = &self.sky {
+            children.push(SceneEntry::new(
+                "Skybox",
+                Some(sky.node.clone()),
+                NodeProps::Object {
+                    kind: "Skybox".into(),
+                    model: m2_source(&sky.node)?,
+                },
+            ));
+        }
+        Ok(SceneEntry::new(
+            "Background",
+            None,
+            NodeProps::Background {
+                model: format!("terrain:{}_{tile_y}_{tile_x}", self.scene.map_name()),
+                doodad_count: self.objects.doodad_count(),
+            },
+        )
+        .with_children(children))
+    }
+
+    /// The scene's sun, once lighting placed it.
+    pub fn sun_entry(&self) -> Option<SceneEntry> {
+        let sun = self.lighting.sun()?;
+        Some(light_entry("EnvironmentSun", &sun))
     }
 
     pub fn position_sky(&mut self, focus: Vector3) {

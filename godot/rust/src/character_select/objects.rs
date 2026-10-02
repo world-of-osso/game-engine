@@ -98,4 +98,12 @@ impl CampsiteObjects {
     pub fn reset(&mut self) {
         self.objects.reset();
     }
+
+    pub fn doodad_count(&self) -> usize {
+        self.objects.doodad_count()
+    }
+
+    pub fn wmo_nodes(&self) -> Vec<Gd<Node3D>> {
+        self.objects.wmo_nodes()
+    }
 }

@@ -11,7 +11,7 @@ Native Godot diagnostics serve the existing public engine CLI through `godot/rus
 - [x] Tokio handles only wire values/channels. Godot objects, registry reads, viewport readback and response construction stay on the main thread; no unsafe `Send` implementation.
 - [ ] Main-thread exit disconnects capture callbacks, stops and joins the worker, cancels connection tasks and removes only the own-PID socket. Never scan/remove another instance's sockets or replace Godot's process signal handlers.
 - [x] Preserve all 129 original request definitions through the shared wire source (accepted six-diagnostic source proof).
-- [ ] After MAIN integrates `ExportScene`, the other 122 consumers dispatch to `Response::Error`, not successful placeholders or gameplay side effects. All 129 variants deserialize through shared definitions; exhaustive runtime coverage remains unproved.
+- [ ] Requests the client does not serve dispatch to `Response::Error` (`native IPC: unported request …`), not successful placeholders or gameplay side effects; the unported set and reasons are in the [conversion wiki](../wiki/systems/godot-conversion.md#native-ipc-request-coverage). All 129 variants deserialize through shared definitions; exhaustive runtime coverage remains unproved.
 - [x] The unchanged fixture exits normally within its 10-second bound and removes its own-PID socket.
 
 ### Diagnostic surface
@@ -26,11 +26,42 @@ Native Godot diagnostics serve the existing public engine CLI through `godot/rus
 
 ### Scene export
 
-- [ ] `ExportScene` writes the original `SceneSnapshot` JSON through the shared `game_engine_core::scene_snapshot` types/writer; preserve externally tagged `NodeProps`, labels, optional transforms and recursive children without schema changes. Success returns original `Response::Text("scene exported to {output_path}")`; tree, metadata, encoding and file-write failures return `Response::Error`.
-- [ ] Export the live containing Window as the root: actual node name, `Scene` props, `transform: null`. A scene with no selected semantic children may serialize normally.
-- [ ] Select actual `Camera3D` as `Camera { fov }` in native degrees and `Light3D` as `Light { kind, intensity }` using the actual native class and energy. Select M2 roots only from typed `m2_source_path` GString metadata containing the exact loader input; emit `Object { kind: "M2", model }`. Empty/malformed metadata fails explicitly; never infer model paths from names, bounds, skeletons or batches.
-- [ ] Omit nonsemantic spatial groups, UI containers and procedural meshes without retyping them as Scene/Object. Retain nearest exported semantic ancestry; accumulate local `Transform3D` through skipped Node3D groups, resetting for children of selected nodes. Export translation/rotation-quaternion/scale arrays relative to the nearest exported ancestor; no global-transform substitution or coordinate fallback.
-- [ ] Do not fabricate character race/gender/name/ID, background/doodad counts, equipment slots/anchors, generic mesh-resource identity or unsupported Player/Npc/Terrain/Ground semantics. Legacy JSON compatibility does not mean full legacy semantic parity.
+- [x] `ExportScene` writes the original `SceneSnapshot` JSON through the shared `game_engine_core::scene_snapshot` types/writer (externally tagged `NodeProps`, labels, optional transforms, recursive children; schema unchanged). Success returns `Response::Text("scene exported to {output_path}")`; tree, metadata, encoding and file-write failures return `Response::Error`.
+- [x] A screen the original described with a `SceneTree` resource exports that tree's labels and props from live native state (`godot/rust/src/scene_export.rs`). The root carries the original label, `Scene` props and `transform: null`; a node's transform is its live transform relative to the nearest exported ancestor with a node (global under `InWorldScene`); a node without a backing node exports `transform: null`.
+  - `InWorldScene` (`src/scenes/inworld_tree.rs`): one `Player` per player unit (name, `is_local`, `PlayerModel` loader input, its `{stem}00.skin`, `display_scale` only for a creature-display form), one `Npc` per NPC (`template_<template_id>`, replicated `display_id`, `NpcModel` loader input and skin, `NpcVisualRoot` display scale), `Camera`, and the world sun as `EnvironmentSun`.
+  - `CharSelectScene` (`src/scenes/char_select/scene_tree.rs`): `Background` (`terrain:<map>_<tile y>_<tile x>`, spawned campsite doodad count) with one `Object` `WMO` per spawned WMO root (`wmo_model` metadata: listfile path of the root FDID, else the FDID, plus ` nameSet=<n>`) and the `Skybox` object; `Character` (model file name, race name, Male/Female, roster name and ID) with one `Slot:<slot>` per shown equipment entry (shoulder → both shoulders; `display:<id>` or none for an item-only entry; anchor/attachment/attachment_anchor from the placed item model); `Camera`; `EnvironmentSun`.
+  - `M2DebugScene`, `DebugCharacterScene` (characters sorted by label, nine slots each, then Camera/Light/Ground) and `SkyboxDebugScene` (Camera, Skybox).
+  - Values the original filled with constants come from the live nodes: camera FOV (original 60), sun class and energy (original "directional (initial; sky-managed)" lux), equipment slots (original two empty Head/MainHand), debug character race/sex/model (original fixed human male). The original's fabricated `AmbientLight` (no entity, intensity 0) is not exported.
+- [x] Other screens (login, loading, character creation, menus, particle/selection/nameplate debug) had no original `SceneTree` (the original answered `no scene tree available to export`). They export the live containing Window as the root with selected actual `Camera3D` (`Camera { fov }`), `Light3D` (`Light { kind: native class, intensity: energy }`) and M2 roots by `m2_source_path` metadata (`Object { kind: "M2" }`); nonsemantic groups are skipped and their local transforms accumulated; empty/malformed metadata fails explicitly.
+- [x] Never infer model paths from names, bounds, skeletons or batches; terrain chunks, doodads and UI are not exported as nodes (the original exported none of them).
+
+### Client requests
+
+The client answers these from its live state (`godot/rust/src/ipc/dev.rs`, `world.rs`, `items.rs`) in the original response text; other requests reach the unported error.
+
+- [x] `status network`: bridge endpoint, game state, Netcode `Connected`, client id, zone, replicated entity count, local player, chat messages.
+- [x] `status sound`: sound node present, mute and master/ambient volumes from options, ambience playing, playing audio players.
+- [x] `status terrain`: map, the map request's tile, load radius, initial/loaded/pending/failed tiles, server-requested tiles, heightmap (parsed) tiles, process memory, parsed-model cache entries, terrain and liquid material counts. The original's Bevy asset-store counters (images, meshes, M2/effect materials, composited textures, model byte estimates) have no native store and are not reported.
+- [x] Zone: the MCNK area under the local player and its root zone; a position no loaded chunk answers keeps the last zone (original `CurrentZone`).
+- [x] `map position`, `map waypoint add|clear` (the reply is the position text; scripted movement clears the waypoint): zone, the local player's x,z, waypoint; no death state, so no graveyard marker (`-`). No local player is an error.
+- [x] `map target`: `none`, `missing`, or the target's name, server entity, x,z and ground distance from the local player.
+- [x] `camera set`: the original angle validation and reply; the live camera follows the new orbit.
+- [x] `movement forward|stop`: the original duration/heading validation; forward steps along the heading for the duration, manual movement input or a modal cancels it, stop reports one stop input.
+- [x] `hover --x/--y|--npc`: pointer motion through the root window at the point or the nearest named NPC in front of the camera (1 yd above its origin), driving hover tooltips; outside the window or no such NPC is an error.
+- [x] `group roster|status`, `group invite|uninvite`, `emote`, `spell cast|stop`: the original texts; the intents go to the server (not connected is the original error; a spell target defaults to the current target, `none` or a server entity).
+- [x] `quest list|watch|show`: the replicated quest log and watch list.
+- [x] `quest interact`: the nearest NPC of that name is targeted and looted (lootable corpse, auto-loot off), only targeted (other corpse) or interacted with; else the nearest game object of that name is used (a mailbox expects to open); else the player of that name is targeted. The server checks range.
+- [x] `loot take-all` (`quest take-loot`): `LootSlot` for every slot of the open loot window; the reply lists them; no window is an error.
+- [x] `status bags`, `inventory list|search|whereis`: the live bags (the original read the last auction-house inventory query), with the item catalog's required level; the guild vault and Warband bank (`status guild-vault|warbank`) list the last contents the server sent, without item names, as the original.
+- [x] `item info`: the DB2 item catalog (`ItemSparse`, including `ExpansionID`); the appearance is known when the item is in the bags or equipped. The original read a generated item table its line parser never matched.
+- [x] `presence status`: the local player's replicated presence.
+- [x] `mail status|send|read|take-item|take-money|return|delete`: status is the original text (shared `src/ipc/mail_format.rs`: mailbox, pending senders, mails sent since it opened, inbox); send and inbox actions need an open mailbox (`no mailbox is open`) and go through the native `MailSession` as the MailFrame's own requests, answering at once (`mail send queued to …`, `mail <id> <action> queued`).
+- [x] Formatters free of Bevy types are shared with the original by `#[path]` (`src/ipc/format_shared.rs`: group roster/status, spell identifier; `src/ipc/mail_format.rs`). Those over Bevy resources are re-stated natively with the original file:line.
+- [x] `status character-stats`: the selected roster entry (name, level, race, class), the local player's replicated health, mana, class resource, speed, money, presence and combat flag, the server's last rest state and the zone.
+- [x] `trade status` and the trade actions: an action sends its request and is answered by the server's next `TradeStateUpdate` (its error, its message with the status while a trade remains, or the status); not connected is the original immediate error. Requests can therefore wait for the server (`ipc::Reply`), with the original's absent response deadline.
+- [x] `combat log|recap`: the newest 200 received `CombatEvent`s mapped as the original `combat_event_to_log_entry` (source and target are server entity bits).
+- [x] `map waypoint add` walks there: the original grid path search around segments the movement rules (walls, slope, step height) change, smoothed to the furthest walkable node; the player faces the next node and runs forward until within 0.8 yd, which clears the waypoint; manual movement input clears it.
+- [x] Terrain height, area and footstep surface take the tile and chunk from the coordinates by index arithmetic (TrinityCore `GridMap::getHeight`), not the authored MCNK bounds, whose sub-millimetre gaps had no height or area.
 
 ## How it works
 
@@ -40,7 +71,7 @@ Native Godot diagnostics serve the existing public engine CLI through `godot/rus
 
 - `godot/rust/src/ipc.rs` — own-PID worker, typed request/reply queue, main-thread dispatcher, actual post-draw capture and lifecycle cleanup.
 - `godot/rust/src/ipc/tree.rs` — actual native hierarchy and rendering-semantic dumps.
-- `godot/rust/src/ipc/export.rs` — selected live camera/light/M2 snapshot export with compensated local TRS; dispatcher wiring is MAIN-owned.
+- `godot/rust/src/scene_export.rs` — semantic scene trees per screen; `godot/rust/src/ipc/export.rs` — writer and the selected camera/light/M2 export for screens without one.
 - `game_engine_core::scene_snapshot` — MAIN-owned shared original JSON types and file writer; schema unchanged.
 - `godot/rust/src/assets/mod.rs` — MAIN-owned `M2_SOURCE_META` loader-input metadata on real M2 roots.
 - `godot/rust/src/ipc/ui_tree.rs` — mounted registry traversal and original UI dump text/filter behavior.
@@ -50,12 +81,18 @@ Native Godot diagnostics serve the existing public engine CLI through `godot/rus
 
 ## Tests asserting this spec
 
+- `native_debug_screen_fixture m2debug|debugcharacter|skyboxdebug --skybox-fdid 525142` — public CLI `export-scene`; `godot/tests/{m2debug,debugcharacter,skyboxdebug}_screen_flow.gd` check labels, props and transforms against the live nodes.
+- `native_input_fixture dev-ipc` (`godot/network/examples/native_input_fixture/dev_ipc.rs`) — every client request above through the public CLI against the fixture server: exact replies, the intents the server decodes (group invite/uninvite, emote, spell cast/stop, `InteractNpc`), seeded bags/quest log/presence.
+- `native_input_fixture charselect-export` (`godot/tests/charselect_export_flow.gd`) and `native_input_fixture dev-ipc` (`world_dev_ipc_flow.gd` `check_export`) — character select and in-world snapshots against the live scene.
+
 - `godot/network/examples/native_ipc_fixture.rs` — parent invokes actual public CLI after native READY; retained six diagnostics/captures/normal-exit checks plus public `export-scene` before captures, exact plain-text response and written JSON. A directory output path must produce the original explicit write error; later capture requests still run.
 - `godot/tests/native_ipc_flow.gd` — retained diagnostic/pixel oracles plus independent exported-JSON checks: schema/tag/TRS arrays, omitted groups/UI/procedural mesh, direct Camera→Light/M2 ancestry, exact loader input, native FOV75/energy2.5 and analytically authored compensated transforms. Camera `(0,0,3)`; skipped group `(4,2,-6)`/Y90; light `(1,3,2)`/X60 becomes camera-relative `(6,5,-7)`; M2 `(-2,1,3)`/Y−90/scale0.5 becomes `(7,3,-4)`/identity quaternion/scale0.5. MAIN observed these assertions and directory-write failure pass at `c33da2a8` with Depot `nsmjhqpnzt` build0 and native parent0; [evidence SSOT](../wiki/systems/godot-conversion.md#native-exportscene--accepted-bounded-pass) retains exact revisions, legacy-decoder limits and MAIN-accepted independent1573 bounded PASS at `3ea4580c`, with root check0 and known rootfmt FAIL.
 
 MAIN-observed pre-implementation RED: `/tmp/claude/native-ipc-third-runtime-red.log`, October 1, 2026. Actual Login READY precedes public CLI `ping` failing with `No such file or directory`; this is socket absence, not a fixture setup failure. MAIN accepts independent1531 **bounded PASS** at formatter fix `68dfe530`: [acceptance SSOT](/tmp/claude/verify-native-ipc-diagnostics-accepted.md). Scope: six public diagnostics and the unchanged fixture's normal exit/own socket cleanup, not full conversion.
 
 Export RED at `d1981968`, October 1, 2026: `/tmp/claude/native-export-scene-first-red-runtime.log` records READY PID635186; retained `data/diagnostics/native-ipc-635183/export-scene.stderr` records public CLI `ExportScene` unported failure (parent exit1). Depot `330ww90wlr0`; the existing six diagnostic requests passed before RED. This is missing consumer behavior, not setup failure. New export implementation has no compile/runtime GREEN or full semantic acceptance yet.
+
+- `native_input_fixture dev-ipc` + `godot/tests/world_dev_ipc_flow.gd` — public CLI against the live client: exact status/map replies, vendor tooltip on `hover --npc`, cleared on a sky point, camera forward after `camera set`, eastward `PlayerInput`s, 7 yd and one stop for `movement forward --seconds 1 --yaw-degrees 90`, `movement stop` ending a 30 s run, and the error replies.
 
 ## Known gaps (current cycle)
 
@@ -71,7 +108,7 @@ Export RED at `d1981968`, October 1, 2026: `/tmp/claude/native-export-scene-firs
 
 ## Out of scope
 
-- The other 122 IPC consumers after export integration, including Auction House, Mail, quest, Bank and Trade actions: explicit unported errors only; native gameplay/UI ownership is unchanged.
+- Requests whose native feature does not exist (no state and no server-update receive) stay unported; see the [coverage matrix](../wiki/systems/godot-conversion.md#native-ipc-request-coverage).
 - JS automation, other exports and debug-screen conversions: separate requests/features, not silently covered by `DumpScene` or this selected-node `ExportScene`.
 - CLI/wire redesign, stale socket cleanup, UID authorization, process signal replacement, synthetic screenshots/performance and alternate renderer paths: not authorized.
 - Shared integration, dependency/lock changes, deployment, operational proof, readability/check/final gates and broad conversion acceptance: MAIN-owned.

@@ -80,6 +80,33 @@ impl WowAssetLoader {
         }
     }
 
+    /// `load_player` with customization `choices`, a dictionary of ChrCustomizationOption
+    /// ID to ChrCustomizationChoice ID, set as character creation and the barber do.
+    #[func]
+    fn load_player_customized(
+        &self,
+        race: i64,
+        sex: i64,
+        class: i64,
+        items: VarArray,
+        choices: VarDictionary,
+    ) -> VarDictionary {
+        let loaded = player_request::player(race, sex, class)
+            .and_then(|player| player_request::customized(player, &choices))
+            .and_then(|player| {
+                let equipment = player_request::equipment(&items)?;
+                player::load_player_model(&player_request::data_root(), &player, &equipment)
+            });
+        match loaded {
+            Ok(node) => {
+                let mut result = VarDictionary::new();
+                result.set("node", &node);
+                result
+            }
+            Err(error) => error_result(error),
+        }
+    }
+
     /// Place `model`'s weapons (`items`, as given to `load_player`) for sheath state
     /// `sheath` (0 sheathed, 1 melee drawn, 2 ranged drawn); "" or the error.
     #[func]
@@ -132,6 +159,14 @@ pub(crate) fn read_model(path: &GString) -> Result<m2::Model, String> {
     read_model_file(Path::new(&global_path(path)))
 }
 
+/// The `{stem}00.skin` read with the M2 at `model_path`.
+pub(crate) fn primary_skin_path(model_path: &str) -> Result<String, String> {
+    let stem = model_path
+        .strip_suffix(".m2")
+        .ok_or_else(|| format!("Expected .m2 path: {model_path}"))?;
+    Ok(format!("{stem}00.skin"))
+}
+
 /// Parse the M2 at `model_path` with its `{stem}00.skin`, optional `{stem}.skel` and
 /// external `.anim` files; no engine calls, so a worker thread can run it.
 pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
@@ -141,7 +176,7 @@ pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
     let model = read(model_path)?;
     let base = model_path.to_string_lossy();
     let stem = base.strip_suffix(".m2").ok_or("Expected .m2 path")?;
-    let skin = read(Path::new(&format!("{stem}00.skin")))?;
+    let skin = read(Path::new(&primary_skin_path(&base)?))?;
     let skel_path = format!("{stem}.skel");
     let skeleton = if Path::new(&skel_path).exists() {
         Some(read(Path::new(&skel_path))?)
@@ -372,7 +407,11 @@ pub(super) fn build_model_filtered(
             instance.set_skin(skin);
             instance.set_skeleton_path("../Skeleton3D");
         }
-        instance.set_surface_override_material(0, &material);
+        // Bound as the material override, which GeometryInstance3D clears from its
+        // RenderingServer instance before releasing: a surface override is released
+        // first, and freeing a batch that held its last reference before the instance
+        // was next drawn read the freed material (godotengine/godot#85817).
+        instance.set_material_override(&material);
         root.add_child(&instance);
     }
     if let Some(player) = player {
@@ -411,7 +450,7 @@ fn load_batch(
         )
     })?;
     let mesh = shared_batch_mesh(model, batch.submesh_index, path)?;
-    let replacement = replacement_texture(batch, appearance)?;
+    check_required_replacement(batch, appearance)?;
     let (material, binding) = material::load_material(
         model,
         tracks,
@@ -419,7 +458,7 @@ fn load_batch(
         skin_texture_fdids,
         path,
         missing,
-        replacement,
+        appearance.map(|appearance| &appearance.textures),
     )?;
     let visible = appearance.is_none_or(|appearance| {
         let visible = !appearance.hidden_geoset_ids.contains(&batch.mesh_part_id)
@@ -442,24 +481,21 @@ fn load_batch(
     })
 }
 
-fn replacement_texture<'a>(
+/// A prepared body must bind its own body (1) and hair (6) textures.
+fn check_required_replacement(
     batch: &game_engine_core::m2_batch_data::ResolvedBatch,
-    appearance: Option<&'a appearance::PreparedAppearance>,
-) -> Result<Option<&'a Gd<ImageTexture>>, String> {
-    let Some(appearance) = appearance else {
-        return Ok(None);
+    appearance: Option<&appearance::PreparedAppearance>,
+) -> Result<(), String> {
+    let (Some(appearance), Some(kind)) = (appearance, batch.texture_type) else {
+        return Ok(());
     };
-    let Some(kind) = batch.texture_type else {
-        return Ok(None);
-    };
-    let replacement = appearance.textures.get(&kind);
-    if replacement.is_none() && matches!(kind, 1 | 6) {
+    if matches!(kind, 1 | 6) && !appearance.textures.contains_key(&kind) {
         return Err(format!(
             "missing {} replacement texture type {kind} for batch {}",
             appearance.source, batch.source_unit_index
         ));
     }
-    Ok(replacement)
+    Ok(())
 }
 
 thread_local! {

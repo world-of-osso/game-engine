@@ -58,6 +58,8 @@ pub fn cast_failed_text(
         CastFailReason::LevelRequirement => "You are not high enough level",
         // SPELL_FAILED_LOWLEVEL
         CastFailReason::TargetTooLowLevel => "Target is too low level",
+        // SPELL_FAILED_INTERRUPTED, SPELL_FAILED_INTERRUPTED_COMBAT
+        CastFailReason::Interrupted | CastFailReason::InterruptedCombat => "Interrupted",
     };
     text.to_string()
 }

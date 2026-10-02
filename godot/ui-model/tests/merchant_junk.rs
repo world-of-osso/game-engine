@@ -18,6 +18,7 @@ fn configure_catalog_session(poor: bool) -> MerchantSession {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
     let mut items = vec![stack(1, 2589, 3)];
     if poor {
         items.push(stack(0, 4865, 2));

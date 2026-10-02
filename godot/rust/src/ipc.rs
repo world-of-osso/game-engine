@@ -3,9 +3,16 @@
 //! MAIN calls `start` in ready, `poll` on the main thread each process frame,
 //! and drops this value in exit_tree, before Godot singleton teardown.
 
+mod character;
+mod combat;
+mod dev;
 mod export;
+mod items;
+mod mail;
+mod trade;
 mod tree;
 mod ui_tree;
+mod world;
 
 use std::{
     cell::RefCell,
@@ -32,12 +39,28 @@ pub(crate) fn dump_ui_tree(client: &Gd<Node>, filter: Option<&str>) -> Response 
     ui_tree::dump_mounted_ui(client, filter)
 }
 
+pub(crate) use export::export_scene;
+
 struct Command {
     request: Request,
     respond: oneshot::Sender<Response>,
 }
 
 type ScreenshotReplies = Rc<RefCell<Vec<oneshot::Sender<Response>>>>;
+
+/// The answer to one request; the client may keep it until the server replies, as the
+/// original's queued requests do.
+pub(crate) struct Reply(oneshot::Sender<Response>);
+
+impl Reply {
+    pub(crate) fn send(self, response: Response) {
+        reply(self.0, response);
+    }
+}
+
+/// The client's own requests over its live state; a request it does not serve comes
+/// back with its reply.
+pub(crate) type ClientRequests<'a> = dyn FnMut(Request, Reply) -> Result<(), (Request, Reply)> + 'a;
 
 /// Own-PID listener plus main-thread diagnostics dispatch. Never move to a worker.
 pub(crate) struct NativeIpc {
@@ -83,11 +106,15 @@ impl NativeIpc {
     }
 
     /// Call once per process frame on Godot's main thread with the mounted client.
-    pub(crate) fn poll(&mut self, client: &Gd<Node>) -> Result<(), String> {
+    pub(crate) fn poll(
+        &mut self,
+        client: &Gd<Node>,
+        requests: &mut ClientRequests,
+    ) -> Result<(), String> {
         self.measure_frame();
         loop {
             match self.commands.try_recv() {
-                Ok(command) => self.dispatch(client, command),
+                Ok(command) => self.dispatch(client, requests, command),
                 Err(mpsc::TryRecvError::Empty) => return Ok(()),
                 Err(mpsc::TryRecvError::Disconnected) => {
                     return Err("native IPC: socket worker stopped".into());
@@ -105,20 +132,26 @@ impl NativeIpc {
             .filter(|value| value.is_finite() && *value > 0.0);
     }
 
-    fn dispatch(&mut self, client: &Gd<Node>, command: Command) {
+    fn dispatch(&mut self, client: &Gd<Node>, requests: &mut ClientRequests, command: Command) {
         let response = match command.request {
             Request::Ping => Response::Pong,
             Request::DumpTree { filter } => tree::dump_tree(client, filter.as_deref()),
             Request::DumpUiTree { filter } => ui_tree::dump_mounted_ui(client, filter.as_deref()),
             // The original scene dispatcher ignores this filter.
             Request::DumpScene { filter: _ } => tree::dump_scene(client),
-            Request::ExportScene { output_path } => export::export_scene(client, &output_path),
             Request::Performance => self.performance(client),
             Request::Screenshot => {
                 self.queue_screenshot(client, command.respond);
                 return;
             }
-            request => Response::Error(format!("native IPC: unported request {request:?}")),
+            request => {
+                if let Err((request, respond)) = requests(request, Reply(command.respond)) {
+                    respond.send(Response::Error(format!(
+                        "native IPC: unported request {request:?}"
+                    )));
+                }
+                return;
+            }
         };
         reply(command.respond, response);
     }
