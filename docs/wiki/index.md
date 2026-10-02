@@ -75,7 +75,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
-- [godot-wayland-exit-hang](investigations/godot-wayland-exit-hang.md) — client never exits after `quit()` (exit 124): Godot 4.7.2 `WaylandThread::destroy()` wakes its events thread with a racy roundtrip (godotengine/godot#123059); PR #123946 patch 0/180 vs 14/190 hangs.
+- [godot-wayland-exit-hang](investigations/godot-wayland-exit-hang.md) — client never exits after `quit()` (exit 124): Godot 4.7.2 `WaylandThread::destroy()` wakes its events thread with a racy roundtrip (godotengine/godot#123059); PR #123946 patch 0/180 vs 14/190 hangs; launcher pins the patched build (0/120).
 - [godot-material-null-free](investigations/godot-material-null-free.md) — freeing an M2 logged four `Parameter "material" is null` errors per batch (footsteps/keybinds fixtures): MeshInstance3D releases surface override materials before its RenderingServer instance (godotengine/godot#85817); `eb619da4` binds batch materials as the material override, read through `get_active_material(0)`.
 - [local-animation-loading-gate](investigations/local-animation-loading-gate.md) — first cursor GREEN fails before readiness after async world entry; `f7b137fb` gates local animation on InWorld without suppressing missing-visual errors. `76487261` import fix reaches READY; `40497cb7` fixes actual cursor event-pointer DataMismatch and final UI/network flow exits0. Independent bounded cursor PASS accepted; no exact request-timing claim.
 
@@ -130,7 +130,7 @@ Root cause analyses and debug findings.
 - [washed-out-sky](investigations/washed-out-sky.md) — near-white noon sky: swapped/linear LightData colours, horizon bands spread over the dome, raw FogEnd units and Smog fog colour; sky and fog now blend the player's Light zones
 - [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, Empty scheduling boundaries, capped-measurement retirement, and September 5 replicated-NPC M2 cache reuse; uncapped Green remains pending
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof; prior paced values are historical
-- [npc-stance-gear](investigations/npc-stance-gear.md) — Stockade guard/criminal pose, virtual items, authored armor, replication mirror and external `.anim` causes; both clients now render them (Godot live fixture `npc_pose_gear.gd`)
+- [npc-stance-gear](investigations/npc-stance-gear.md) — Stockade guard/criminal pose, virtual items, authored armor, replication mirror and external `.anim` causes; both clients now render them (Godot live fixture `npc_pose_gear.gd`); Zaralda rigid-waist root/fix and genuine appearance/geoset caveat, CPU 27/27 plus retained check and native 116-mesh/torso-ray evidence; body-point fixture corrected, faction-35 native merchant flow observed exit0; independent artifact gate116 scoped PASS
 - [compile-latency](investigations/compile-latency.md) — Bevy dynamic-link feature wiring, measured edit-build comparison, and remaining under-three-second gap
 
 - [Native loot integration](systems/godot-conversion.md#native-loot--implemented-proof-pending) — Final `292a2fb2`/Depot `tt4c247nl1`: four cases, rejection/retry, bags 11/money 32756 and LOOT_DONE observed. Full exit 101 after DONE is fixture timeout, not historical RenderingServer-null; shutdown deferred, verifier 1314 pending, clean acceptance open.
@@ -143,7 +143,7 @@ Root cause analyses and debug findings.
 External resources and asset lists.
 
 - [open-source-wow-clients](reference/open-source-wow-clients.md) — Clients, renderers, viewers, editors, format libraries
-- [test-assets](reference/test-assets.md) — Available local test files; [Zaralda fixture](reference/test-assets.md#zaralda-native-merchant-fixture-2026-10-01) blocked 0/3, linked server SSOT for data/CLI proof and native limits
+- [test-assets](reference/test-assets.md) — Available local test files; [Zaralda fixture](reference/test-assets.md#zaralda-native-merchant-fixture-2026-10-01) historical 0/3; matched-protocol InWorld then binding fix/real torso pick; faction-0 AutoAttack observed, faction-35 native success observed; artifact gate116 scoped PASS, server SSOT for content/CLI proof
 - [keybindings](reference/keybindings.md) — Bindable actions vs fixed inputs, scope boundaries
 - [audio-libraries](reference/audio-libraries.md) — Audio engines and spatial audio tools (AudioNimbus, etc.)
 
@@ -154,3 +154,5 @@ External resources and asset lists.
 [SettingsReload](systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof): accepted independent bounded saved-artifact functional reload and scoped Rust formatting PASS; byte equality at observation boundaries, deliberate SIGKILL not normal shutdown. Partial/full conversion remains open; no all-options/geometry upgrade.
 
 [Standalone bag tooltip checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending): native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + oracle `88b0505f`: MAIN-observed bounded GREEN with corrected runtime, CPU native5/shared4, registry2, same-build regressions and inspected Linen/Poor captures. Verifier1415 accepted bounded PASS after MAIN read the full report. Authentic RED101 retained; first GREEN attempt101 false oracle, not production failure; pure gear proof is not native gear hover. Prior bounded foreign gate and exclusions unchanged.
+
+- [Zaralda observed native success](investigations/npc-stance-gear.md#native-fixture-boundary-follow-up-evidence-date-2026-10-01) — saved exit0 interaction; source/import and renderer gates distinct; independent artifact gate116 scoped PASS, no whole-world PASS.

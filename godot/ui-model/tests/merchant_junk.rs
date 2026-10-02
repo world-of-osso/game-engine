@@ -39,6 +39,7 @@ fn configure_catalog_session(poor: bool) -> MerchantSession {
         VendorInventory {
             npc: NPC,
             can_repair: true,
+            guild_repair_money: None,
             items: vec![],
         },
         "Fixture Vendor".into(),

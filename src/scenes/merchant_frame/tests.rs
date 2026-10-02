@@ -17,6 +17,7 @@ fn tharynn() -> MerchantState {
             max_stack: 20,
             num_available: (slot == 11).then_some(1),
             usable: slot != 3,
+            max_durability: None,
         })
         .collect();
     let mut state = MerchantState::default();
@@ -24,6 +25,7 @@ fn tharynn() -> MerchantState {
         VendorInventory {
             npc: THARYNN_SERVER,
             can_repair: false,
+            guild_repair_money: None,
             items,
         },
         "Tharynn Bouden".into(),

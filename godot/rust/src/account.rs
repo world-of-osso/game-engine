@@ -773,8 +773,17 @@ impl Account {
                 bridge.send::<_, MerchantChannel>(BuybackItemRequest { npc, slot })
             }
             MerchantRequest::Repair { item_guid } => {
-                bridge.send::<_, MerchantChannel>(RepairItem { npc, item_guid })
+                bridge.send::<_, MerchantChannel>(RepairItem {
+                    npc,
+                    item_guid,
+                    guild_bank: false,
+                })
             }
+            MerchantRequest::GuildRepairAll => bridge.send::<_, MerchantChannel>(RepairItem {
+                npc,
+                item_guid: None,
+                guild_bank: true,
+            }),
         }
         .map_err(SessionError)
     }
