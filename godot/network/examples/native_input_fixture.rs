@@ -233,6 +233,8 @@ struct Incoming {
     /// A moving or jumping input arrived whose release no stop input has reported yet.
     unreported_release: bool,
     stops: u32,
+    /// Facing of the newest decoded input; an idle input that changes it is a turn in place.
+    reported_yaw: Option<f32>,
 }
 
 fn receive_requests(
@@ -970,15 +972,21 @@ fn take_inputs(app: &mut App) -> Vec<PlayerInput> {
     let inputs = std::mem::take(&mut incoming.inputs);
     let mut moving = Vec::with_capacity(inputs.len());
     for input in inputs {
+        let previous_yaw = incoming.reported_yaw.replace(input.facing_yaw);
         if input.direction != [0.0; 3] || input.jumping {
             incoming.unreported_release = true;
             moving.push(input);
             continue;
         }
-        assert!(
-            std::mem::take(&mut incoming.unreported_release),
-            "stop PlayerInput without preceding movement: {input:?}"
-        );
+        if !incoming.unreported_release {
+            // The client reports a turn in place (CMSG_MOVE_SET_FACING, TC MovementHandler).
+            assert!(
+                previous_yaw.is_none_or(|yaw| yaw != input.facing_yaw),
+                "idle PlayerInput neither stopped movement nor turned: {input:?}"
+            );
+            continue;
+        }
+        incoming.unreported_release = false;
         assert!(
             input.position.iter().all(|axis| axis.is_finite()),
             "stop PlayerInput lost its reported position: {input:?}"
