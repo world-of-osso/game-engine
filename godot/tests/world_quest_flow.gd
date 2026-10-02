@@ -4,19 +4,20 @@ extends SceneTree
 ## Marshal McBride wears the yellow `!` talktome marker; a real right-click opens
 ## QuestFrame on his greeting; clicking "Beating Them Back!" shows its detail page and
 ## Accept puts it in the log, the tracker and on the world map and minimap, with the
-## grey `?` over McBride; two minutes of Blackrock Worg hunting, then admin
-## `quest-complete` fills the six kills, and McBride shows the
+## grey `?` over McBride; the six Blackrock Worgs are hunted for real (a worg the
+## player hit credits the player whoever lands the killing blow), and McBride shows the
 ## yellow `?`; the turn-in pays money and XP and offers the follow-up "Lions for Lambs",
 ## which is accepted and then abandoned through the quest log and the ABANDON_QUEST popup.
 ## Then the reward choice on "Riverpaw Gnoll Bounty" (11): Marshal Dughan's chain
-## The Fargodeep Mine (62) -> The Jasperlode Mine (76) -> "Westbrook Garrison Needs
-## Help!" (239) in Goldshire, which is turned in to Deputy Rainer, who offers
+## The Fargodeep Mine (62) -> The Jasperlode Mine (76), each explored by walking into its
+## mine's area trigger -> "Westbrook Garrison Needs Help!" (239) in Goldshire, which is turned in to Deputy Rainer, who offers
 ## 11 as its follow-up; the eight Painted Gnoll Armbands come from the server admin
 ## `grant-item` (setup, not the gnoll hunt). Complete Quest shows "You must choose a
 ## reward." until a reward is chosen, and the chosen Urchin's Pants land in the bags.
-## Last the fixed-item reward of "Extinguishing Hope" (26391) from Milly Osworth: its
-## eight Vineyard Fires (a spell credit the server does not model) come from admin
-## `quest-complete`, and both reward items land in the bags. Travel between NPCs uses
+## Last the fixed-item reward of "Extinguishing Hope" (26391) from Milly Osworth: eight
+## Vineyard Fires are put out by right-clicking Milly's Fire Extinguisher in the backpack
+## while facing each fire (Spray Water's cone credits the fire's SmartAI), and both reward
+## items land in the bags. No objective is completed by admin. Travel between NPCs uses
 ## the admin `teleport`, the fixture's stand-in for the walk; short distances are walked
 ## with W and the turn keys.
 ## Environment:
@@ -55,6 +56,24 @@ const FIXED_QUEST := 26391
 const FIXED_TITLE := "Extinguishing Hope"
 const MILLY := "Milly Osworth"
 const FIXED_REWARDS := {57247: 1, 11475: 1}
+const FIRE := "Northshire Vineyards Fire Trigger"
+const EXTINGUISHER := 58362
+## Spray Water's cone reaches 15 yards; stand closer.
+const SPRAY_YARDS := 8.0
+const FIRES := 8
+## WoW world positions: amid the vineyard fire spawns; outside each mine's exploration
+## trigger (Fargodeep 197, radius 9; Jasperlode 87, radius 30) and the walk to its centre.
+## Jasperlode's trigger lies deep in the mine, under the hill: the walk enters at the
+## mine's south mouth and follows the tunnel floor (waypoints from the server's WMO
+## ground).
+const VINEYARD_AT := [-9050.0, -325.0, 74.0]
+const FARGODEEP_OUTSIDE_AT := [-9781.2, 157.8, 25.4]
+const FARGODEEP_ROUTE := [[-9796.2, 157.8, 25.4]]
+const JASPERLODE_OUTSIDE_AT := [-9185.0, -598.0, 61.5]
+const JASPERLODE_ROUTE := [[-9170.0, -595.4, 62.6], [-9137.3, -592.9, 57.6], [-9132.3, -580.4, 57.5],
+	[-9122.3, -575.4, 59.0], [-9119.8, -566.0, 59.0], [-9112.3, -560.4, 60.9], [-9097.3, -560.4, 62.5],
+	[-9077.3, -552.9, 60.3]]
+const HUNT_MS := 900000
 const MUST_CHOOSE := "You must choose a reward."
 ## WoW world positions about three yards from each NPC's spawn.
 const DUGHAN_AT := [-9462.5, 74.0, 56.8]
@@ -108,6 +127,12 @@ func check_pickup() -> bool:
 	if giver.is_empty():
 		return false
 	if not await wait_quest(func(s): return s.markers.get(giver.id) == TALKTOME, "yellow ! over " + GIVER):
+		return false
+	if not await teleport(GIVER_AT):
+		return false
+	# Units are mirrored again after the teleport.
+	giver = await locate(GIVER)
+	if giver.is_empty():
 		return false
 	if not await approach(giver.id, INTERACT_YARDS + 4.0):
 		fail("Could not walk to " + GIVER)
@@ -172,15 +197,23 @@ func check_map_objectives() -> bool:
 func check_kills() -> bool:
 	if not await teleport(WORG_FIELD_AT):
 		return false
-	# Hunt for real for two minutes: a kill shows kill credit in the log and tracker.
-	# The worgs mostly fight Northshire soldiers, who take the credit, so admin
-	# `quest-complete` fills whatever is left.
-	var deadline := Time.get_ticks_msec() + 120000
+	# Hunt for real until the six kills are in: a worg the player hit counts for the
+	# player even when a Northshire soldier lands the killing blow (tap list).
+	var deadline := Time.get_ticks_msec() + HUNT_MS
+	var captured := false
 	while Time.get_ticks_msec() < deadline:
 		var entry := log_entry(client.quest_state(), QUEST)
-		if not String(entry.objectives[0]).begins_with("0/"):
-			await capture("06b-kill-credit.png")
+		if entry.get("completed", false):
 			break
+		if not captured and not String(entry.objectives[0]).begins_with("0/"):
+			await capture("06b-kill-credit.png")
+			captured = true
+		# The worg pack can kill the level-1 warrior: revive (setup, not credit) and go on.
+		if player_dead():
+			print("FIXTURE DIED ", entry.objectives)
+			if not admin(["revive", character_name()]) or not await teleport(WORG_FIELD_AT):
+				return false
+			continue
 		var prey := nearest_living(PREY)
 		if prey.is_empty():
 			await frames(30)
@@ -188,12 +221,9 @@ func check_kills() -> bool:
 		if await approach(prey.id, MELEE_YARDS):
 			await attack(prey.id, entry.objectives[0])
 	print("FIXTURE HUNTED ", log_entry(client.quest_state(), QUEST).objectives, " alive ", client.account_state().get("local_player_alive"))
-	# The worg pack can kill the level-4 warrior; the dead cannot talk to McBride.
-	if not admin(["revive", character_name()]):
-		return false
-	if not admin(["quest-complete", character_name(), str(QUEST)]):
-		return false
 	if not await wait_quest(func(s): return log_entry(s, QUEST).get("completed", false), "worg objective complete"):
+		return false
+	if player_dead() and not admin(["revive", character_name()]):
 		return false
 	print("FIXTURE COMPLETED ", log_entry(client.quest_state(), QUEST))
 	return true
@@ -274,9 +304,10 @@ func check_abandon() -> bool:
 
 func check_reward_choice() -> bool:
 	# 239 needs The Jasperlode Mine (76) turned in, which follows The Fargodeep Mine
-	# (62); both are Dughan's exploration quests, which the server completes on accept
-	# (no area-trigger data).
+	# (62); both are Dughan's exploration quests, done by walking into the mine's trigger.
 	if not await take_quest(DUGHAN_AT, DUGHAN, FARGODEEP, "The Fargodeep Mine"):
+		return false
+	if not await explore(FARGODEEP, FARGODEEP_OUTSIDE_AT, FARGODEEP_ROUTE, 9.0):
 		return false
 	if not await turn_in(DUGHAN_AT, DUGHAN, FARGODEEP, "The Fargodeep Mine"):
 		return false
@@ -284,6 +315,8 @@ func check_reward_choice() -> bool:
 		return false
 	await click_control(quest_control("QuestFrameUI", "QuestFrameAcceptButton"))
 	if not await wait_quest(func(s): return in_log(s, JASPERLODE), "The Jasperlode Mine accepted"):
+		return false
+	if not await explore(JASPERLODE, JASPERLODE_OUTSIDE_AT, JASPERLODE_ROUTE, 30.0):
 		return false
 	if not await turn_in(DUGHAN_AT, DUGHAN, JASPERLODE, "The Jasperlode Mine"):
 		return false
@@ -343,9 +376,9 @@ func check_reward_choice() -> bool:
 	return true
 
 func check_fixed_reward() -> bool:
-	if not await take_quest(MILLY_AT, MILLY, FIXED_QUEST, FIXED_TITLE):
+	if not in_log(client.quest_state(), FIXED_QUEST) and not await take_quest(MILLY_AT, MILLY, FIXED_QUEST, FIXED_TITLE):
 		return false
-	if not admin(["quest-complete", character_name(), str(FIXED_QUEST)]):
+	if not await put_out_fires():
 		return false
 	if not await wait_quest(func(s): return log_entry(s, FIXED_QUEST).get("completed", false), FIXED_TITLE + " objectives complete"):
 		return false
@@ -370,6 +403,95 @@ func check_fixed_reward() -> bool:
 		return false
 	print("FIXTURE FIXED_REWARD ", before, " lines ", Array(client.quest_state().system_lines).slice(-4))
 	return true
+
+## Teleport outside the trigger (`outside`), check the quest is not explored yet, then
+## walk the `route` (its last point the trigger's centre, `radius` yards) until the
+## objective completes.
+func explore(quest_id: int, outside: Array, route: Array, radius: float) -> bool:
+	if not await teleport(outside):
+		return false
+	await frames(30)
+	if log_entry(client.quest_state(), quest_id).get("completed", false):
+		fail("%d completed before entering its trigger: %s" % [quest_id, log_entry(client.quest_state(), quest_id)])
+		return false
+	for index in route.size():
+		var point: Array = route[index]
+		var target := Vector3(point[0], point[2], -point[1])
+		if not await walk_to(target, radius * 0.5 if index == route.size() - 1 else 2.0):
+			await capture("stuck-%d.png" % quest_id)
+			fail("Could not walk to %s on the way into the trigger of %d from %s" % [point, quest_id, player_position()])
+			return false
+		if log_entry(client.quest_state(), quest_id).get("completed", false):
+			break
+	print("FIXTURE IN_TRIGGER? ", quest_id, " player ", player_position(), " center ", route[-1])
+	if not await wait_quest(func(s): return log_entry(s, quest_id).get("completed", false), "%d explored" % quest_id):
+		return false
+	await capture("explored-%d.png" % quest_id)
+	print("FIXTURE EXPLORED ", log_entry(client.quest_state(), quest_id))
+	return true
+
+## Spray `FIRES` Vineyard Fires: walk within `SPRAY_YARDS` of the nearest burning fire,
+## face it and right-click the extinguisher in the open backpack (UseItem → Spray Water's
+## 5 s channel); each fire it hits gives one credit. Put-out fires respawn after 2 minutes.
+func put_out_fires() -> bool:
+	if not await teleport(VINEYARD_AT):
+		return false
+	await click_control(client.find_child("MainMenuBarBackpackButton", true, false) as Control)
+	if not await wait_frames(func(): return backpack_shown(), "backpack open"):
+		return false
+	var deadline := Time.get_ticks_msec() + HUNT_MS
+	var shot := 0
+	while Time.get_ticks_msec() < deadline:
+		var entry := log_entry(client.quest_state(), FIXED_QUEST)
+		if entry.get("completed", false):
+			break
+		# Vineyard mobs can kill the level-1 warrior: revive (setup, not credit) and go on.
+		if player_dead():
+			print("FIXTURE DIED ", entry.objectives)
+			if not admin(["revive", character_name()]) or not await teleport(VINEYARD_AT):
+				return false
+			continue
+		var fire := nearest_living(FIRE)
+		if fire.is_empty():
+			await frames(30)
+			continue
+		if not await approach(fire.id, SPRAY_YARDS):
+			continue
+		await face_unit(fire.id)
+		await frames(10)
+		var slot := bag_entry(EXTINGUISHER)
+		if slot.is_empty():
+			fail("No Milly's Fire Extinguisher in the bags: " + str(client.merchant_state().bags))
+			return false
+		var button := client.find_child("ContainerFrame%dSlot%d" % [slot.bag, slot.slot], true, false) as Control
+		if button == null or not button.is_visible_in_tree():
+			fail("Extinguisher bag button not shown")
+			return false
+		var before: String = entry.objectives[0]
+		await click(button.get_global_rect().get_center(), MOUSE_BUTTON_RIGHT)
+		var credited := await wait_quest(func(s): return log_entry(s, FIXED_QUEST).objectives[0] != before, "fire credit", 8000, false)
+		print("FIXTURE SPRAY ", fire, " ", before, " -> ", log_entry(client.quest_state(), FIXED_QUEST).objectives, " credited ", credited)
+		if credited and shot < 2:
+			shot += 1
+			await capture("19a-fire-%d.png" % shot)
+		# Let the channel end before walking on.
+		await wait_real(5.5)
+	print("FIXTURE FIRES ", log_entry(client.quest_state(), FIXED_QUEST))
+	await tap(KEY_ESCAPE)
+	return true
+
+func player_dead() -> bool:
+	var health = client.account_state().get("local_player_health")
+	return health != null and float(health) <= 0.0
+
+func bag_entry(item_id: int) -> Dictionary:
+	for item in client.merchant_state().bags:
+		if item.item_id == item_id:
+			return item
+	return {}
+
+func wait_real(seconds: float) -> void:
+	await create_timer(seconds).timeout
 
 ## The reward page of `quest_id`, through its progress page (captured as `shot` when
 ## set) with Continue when the server shows one first.
@@ -702,6 +824,7 @@ func face_unit(id: int) -> void:
 ## Walk to within `yards` of the engine point `target`.
 func walk_to(target: Vector3, yards: float) -> bool:
 	var deadline := Time.get_ticks_msec() + 45000
+	var step := 0
 	while Time.get_ticks_msec() < deadline:
 		var to: Vector3 = target - player_position()
 		if Vector2(to.x, to.z).length() <= yards:
@@ -711,6 +834,9 @@ func walk_to(target: Vector3, yards: float) -> bool:
 		await face_direction(atan2(to.x, to.z))
 		push_key(KEY_W, true)
 		await frames(6)
+		step += 1
+		if step % 20 == 0:
+			print("FIXTURE WALK ", player_position(), " yaw ", yaw(), " to ", target, " fps ", Engine.get_frames_per_second())
 	push_key(KEY_W, false)
 	return false
 
@@ -731,6 +857,7 @@ func approach(id: int, yards: float) -> bool:
 	while Time.get_ticks_msec() < deadline:
 		var unit := unit_by_id(id)
 		if unit == null:
+			print("FIXTURE APPROACH_LOST ", id)
 			return false
 		var to: Vector3 = (unit as Node3D).global_position - player_position()
 		if Vector2(to.x, to.z).length() <= yards:
@@ -741,6 +868,8 @@ func approach(id: int, yards: float) -> bool:
 		push_key(KEY_W, true)
 		await frames(6)
 	push_key(KEY_W, false)
+	var unit := unit_by_id(id)
+	print("FIXTURE APPROACH_TIMEOUT ", id, " player ", player_position(), " unit ", (unit as Node3D).global_position if unit != null else null)
 	return false
 
 ## Right-click the prey to start auto-attack and fight until its objective count rises
