@@ -19,12 +19,13 @@ use godot::classes::{ImageTexture, Input};
 use godot::global::Key;
 use godot::prelude::*;
 use shared::components::{Health, Npc};
-use shared::protocol::{InteractionKind, NpcFlags, NpcRole};
+use shared::protocol::{GameObjectInfo, InteractionKind, NpcFlags, NpcRole};
 
 use crate::GameClient;
 use crate::account::NpcMessage;
 use crate::faction_reaction::{Reaction, reaction};
 use crate::frame_error::{FrameError, SessionError, report_once};
+use crate::game_objects::game_object_cursor;
 use crate::replicated::UnitFields;
 use crate::targeting::pick_unit;
 use crate::ui::{MerchantStates, RegistryUi};
@@ -300,8 +301,8 @@ impl GameClient {
         else {
             return Some(ActiveWowCursor::Default);
         };
-        if self.game_objects.contains(id) {
-            return Some(ActiveWowCursor::Mail);
+        if let Some(info) = self.replica.unit(id)?.get::<GameObjectInfo>() {
+            return game_object_cursor(info.go_type);
         }
         self.unit_cursor(id)
     }

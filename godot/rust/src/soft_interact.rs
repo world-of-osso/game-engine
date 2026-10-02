@@ -13,17 +13,16 @@ use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
 use godot::classes::{
-    CanvasLayer, Control, TextureRect, control::MouseFilter, texture_rect::ExpandMode,
+    Camera3D, CanvasLayer, Control, TextureRect, control::MouseFilter, texture_rect::ExpandMode,
     texture_rect::StretchMode,
 };
 use godot::prelude::*;
 use shared::components::Npc;
-use shared::protocol::{
-    GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo,
-};
+use shared::protocol::GameObjectInfo;
 
 use crate::GameClient;
 use crate::frame_error::FrameError;
+use crate::game_objects::game_object_cursor;
 use crate::nameplates::plate_anchor;
 
 /// `SoftTargetInteractRange` default.
@@ -40,6 +39,13 @@ const ICON_SIZE: f32 = 19.0;
 /// `SoftTargetFrame` BOTTOM to the plate's TOP at `y="-8"` (Blizzard_NamePlates.xml:288-290).
 const ICON_PLATE_OVERLAP: f32 = 8.0;
 
+/// `SoftTargetWorldtextSize` default, in pixels.
+const WORLD_TEXT_ICON_SIZE: f32 = 32.0;
+/// `SoftTargetWorldtextNearScale` default: the scale within `SoftTargetWorldtextNearDist`
+/// (4 yd). Scaling between that and `SoftTargetWorldtextFarDist` (40 yd) is unpublished
+/// and not applied; interaction range ends at 5 yd.
+const WORLD_TEXT_NEAR_SCALE: f32 = 1.0;
+
 /// A game object's size: `DEFAULT_PLAYER_BOUNDING_RADIUS`, "also currently used for any
 /// non Unit world objects" (ObjectDefines.h:39).
 const OBJECT_LINE_WIDTH: f32 = 0.389;
@@ -49,8 +55,8 @@ const OBJECT_LINE_WIDTH: f32 = 0.389;
 pub(crate) enum SoftKind {
     /// A unit and the cursor it shows under the pointer.
     Unit(ActiveWowCursor),
-    /// A game object the client can use (mailbox, Guild Vault, chair).
-    GameObject,
+    /// A game object the client can use (mailbox, Guild Vault, chair) and its cursor.
+    GameObject(ActiveWowCursor),
 }
 
 #[derive(Clone, Copy, Debug)]
@@ -83,7 +89,7 @@ fn interactable(kind: SoftKind) -> bool {
         SoftKind::Unit(cursor) => {
             !matches!(cursor, ActiveWowCursor::Default | ActiveWowCursor::Attack)
         }
-        SoftKind::GameObject => true,
+        SoftKind::GameObject(_) => true,
     }
 }
 
@@ -95,19 +101,30 @@ fn in_line(feet: Vector3, forward: Vector3, candidate: &SoftCandidate) -> bool {
     let along = ground.dot(forward);
     let width = match candidate.kind {
         SoftKind::Unit(_) => UNIT_LINE_WIDTH,
-        SoftKind::GameObject => OBJECT_LINE_WIDTH,
+        SoftKind::GameObject(_) => OBJECT_LINE_WIDTH,
     };
     along >= 0.0 && (ground - forward * along).length() < width
 }
 
 /// The icon above the soft interact target: `SetUnitCursorTexture` (the unit's cursor art),
-/// none for a game object (`SoftTargetIconGameObject` 0).
+/// and the object's cursor over a game object (`SoftTargetIconGameObject` 1, on by user
+/// decision; Retail defaults it to 0).
 pub(crate) fn soft_target_icon(kind: SoftKind) -> Option<ActiveWowCursor> {
     match kind {
-        SoftKind::GameObject => None,
+        SoftKind::GameObject(cursor) => Some(cursor),
         // `SoftTargetLowPriorityIcons` 0: a lootable corpse already shows its loot effect.
         SoftKind::Unit(ActiveWowCursor::Loot) => None,
         SoftKind::Unit(cursor) => Some(cursor),
+    }
+}
+
+/// The icon's size in pixels: `SoftTargetNameplateSize` on a unit's plate, and the world
+/// text icon's `SoftTargetWorldtextSize` at `SoftTargetWorldtextNearScale` over a game
+/// object, which has no plate.
+pub(crate) fn soft_icon_size(kind: SoftKind) -> f32 {
+    match kind {
+        SoftKind::Unit(_) => ICON_SIZE,
+        SoftKind::GameObject(_) => WORLD_TEXT_ICON_SIZE * WORLD_TEXT_NEAR_SCALE,
     }
 }
 
@@ -169,14 +186,10 @@ impl GameClient {
     fn soft_candidate(&mut self, id: u64) -> Option<SoftCandidate> {
         let unit = self.replica.unit(id)?;
         if let Some(info) = unit.get::<GameObjectInfo>() {
-            let usable = matches!(
-                info.go_type,
-                GAMEOBJECT_TYPE_MAILBOX | GAMEOBJECT_TYPE_GUILD_BANK | GAMEOBJECT_TYPE_CHAIR
-            );
-            return usable.then_some(SoftCandidate {
+            return Some(SoftCandidate {
                 id,
                 position: self.game_objects.position(id)?,
-                kind: SoftKind::GameObject,
+                kind: SoftKind::GameObject(game_object_cursor(info.go_type)?),
             });
         }
         if !unit.has::<Npc>() {
@@ -194,8 +207,8 @@ impl GameClient {
     /// plate would sit when the unit shows none.
     pub(super) fn sync_soft_interact_icon(&mut self) -> Result<(), FrameError> {
         let placed = self.soft_icon_placement();
-        let texture = placed.and_then(|(_, cursor)| self.cursor_texture(cursor));
-        let (Some((bottom, _)), Some(texture)) = (placed, texture) else {
+        let texture = placed.and_then(|(_, cursor, _)| self.cursor_texture(cursor));
+        let (Some((bottom, _, size)), Some(texture)) = (placed, texture) else {
             if let Some(icon) = self.soft_interact.icon.as_mut() {
                 icon.set_visible(false);
             }
@@ -203,31 +216,48 @@ impl GameClient {
         };
         let icon = self.soft_interact_icon_node();
         icon.set_texture(&texture);
-        icon.set_size(Vector2::splat(ICON_SIZE));
-        icon.set_position(bottom - Vector2::new(ICON_SIZE / 2.0, ICON_SIZE));
+        icon.set_size(Vector2::splat(size));
+        icon.set_position(bottom - Vector2::new(size / 2.0, size));
         icon.set_visible(true);
         Ok(())
     }
 
-    /// The icon's bottom-centre on screen and its cursor.
-    fn soft_icon_placement(&self) -> Option<(Vector2, ActiveWowCursor)> {
+    /// The icon's bottom-centre on screen, its cursor and its size.
+    fn soft_icon_placement(&self) -> Option<(Vector2, ActiveWowCursor, f32)> {
         let (id, kind) = self.soft_interact.target?;
         let cursor = soft_target_icon(kind)?;
         let camera = self.base().get_viewport()?.get_camera_3d()?;
+        let bottom = match kind {
+            // The world text icon stands on top of the object's model bounds.
+            SoftKind::GameObject(_) => {
+                let anchor = self.game_objects.icon_anchor(id)?;
+                if !camera.is_position_in_frustum(anchor) {
+                    return None;
+                }
+                camera.unproject_position(anchor)
+            }
+            SoftKind::Unit(_) => self.unit_icon_bottom(&camera, id)?,
+        };
+        Some((bottom, cursor, soft_icon_size(kind)))
+    }
+
+    /// `SoftTargetFrame` on the unit's plate, or at the plate anchor when it shows none.
+    fn unit_icon_bottom(&self, camera: &Gd<Camera3D>, id: u64) -> Option<Vector2> {
         let anchor = plate_anchor(&self.world.unit_node(id)?);
         if !camera.is_position_in_frustum(anchor) {
             return None;
         }
         let point = camera.unproject_position(anchor);
-        let bottom = match self
-            .nameplates
-            .plate_rects()
-            .find(|(plate, _)| *plate == id)
-        {
-            Some((_, rect)) => Vector2::new(point.x, rect.position.y + ICON_PLATE_OVERLAP),
-            None => point,
-        };
-        Some((bottom, cursor))
+        Some(
+            match self
+                .nameplates
+                .plate_rects()
+                .find(|(plate, _)| *plate == id)
+            {
+                Some((_, rect)) => Vector2::new(point.x, rect.position.y + ICON_PLATE_OVERLAP),
+                None => point,
+            },
+        )
     }
 
     pub(super) fn soft_interact_snapshot(&self) -> VarDictionary {
@@ -339,7 +369,7 @@ mod tests {
         SoftCandidate {
             id: MAILBOX,
             position: at(-9455.99, 45.8229, 56.4395),
-            kind: SoftKind::GameObject,
+            kind: SoftKind::GameObject(ActiveWowCursor::Mail),
         }
     }
 
@@ -402,6 +432,13 @@ mod tests {
     }
 
     #[test]
+    fn object_icons_use_world_text_size() {
+        let [danil, _, _] = northshire_vendors();
+        assert_eq!(soft_icon_size(danil.kind), 19.0);
+        assert_eq!(soft_icon_size(goldshire_mailbox().kind), 32.0);
+    }
+
+    #[test]
     fn icons_follow_the_unit_cursor() {
         let [danil, dermot, _] = northshire_vendors();
         assert_eq!(soft_target_icon(danil.kind), Some(ActiveWowCursor::Buy));
@@ -409,8 +446,15 @@ mod tests {
         // Marshal McBride (npcflag 3: gossip + quest giver) shows the speak bubble.
         let mcbride = npc(79970, 3, Reaction::Friendly, Vector3::ZERO);
         assert_eq!(soft_target_icon(mcbride.kind), Some(ActiveWowCursor::Speak));
-        // SoftTargetIconGameObject 0: no icon over the mailbox.
-        assert_eq!(soft_target_icon(goldshire_mailbox().kind), None);
+        // SoftTargetIconGameObject 1 (user decision): the object's cursor over it.
+        assert_eq!(
+            soft_target_icon(goldshire_mailbox().kind),
+            Some(ActiveWowCursor::Mail)
+        );
+        assert_eq!(
+            soft_target_icon(SoftKind::GameObject(ActiveWowCursor::Interact)),
+            Some(ActiveWowCursor::Interact)
+        );
         // SoftTargetLowPriorityIcons 0: no icon over a corpse that already sparkles.
         assert_eq!(
             soft_target_icon(SoftKind::Unit(ActiveWowCursor::Loot)),
