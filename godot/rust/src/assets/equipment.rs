@@ -218,14 +218,9 @@ impl EquipmentContext<'_> {
         } else {
             None
         };
-        let collection = bound && is_collection_model(authored_path);
         let (mut item, missing) =
             build_model_filtered(parsed, &path, &definition.skin_fdids, None, |part| {
-                if collection {
-                    collection_mesh_part_in_slot(definition.slot, part)
-                } else {
-                    runtime_mesh_part_allowed(definition.slot, part)
-                }
+                equipment_mesh_part_allowed(definition.slot, authored_path, bound, part)
             })?;
         if !missing.is_empty() {
             item.free();
@@ -283,6 +278,19 @@ impl EquipmentContext<'_> {
 
     fn bound_skin(&self, model: &m2::Model) -> Result<Gd<Skin>, String> {
         bound_skin(&*self.character, self.character_model, model)
+    }
+}
+
+fn equipment_mesh_part_allowed(
+    slot: EquipmentSlot,
+    authored: &Path,
+    bound: bool,
+    mesh_part: u16,
+) -> bool {
+    if bound && is_collection_model(authored) {
+        collection_mesh_part_in_slot(slot, mesh_part)
+    } else {
+        runtime_mesh_part_allowed(slot, mesh_part)
     }
 }
 
@@ -419,6 +427,51 @@ mod tests {
         // An unknown CRC on a non-key bone past the character's bones has no joint.
         let unknown = [crc(-1, 22), crc(-1, 11), crc(6, 0), crc(-1, 99)];
         assert!(map_equipment_bones(&character, &unknown).is_err());
+    }
+
+    #[test]
+    fn native_waist_base_mesh_and_skeletal_collection_keep_their_parts() {
+        let path =
+            Path::new("item/objectcomponents/collections/belt_leather_questbloodelf_b_01.m2");
+        let rigid = [m2::Bone {
+            name_crc: 3_962_896_125,
+            pivot: [0.014494737, 0.0, -0.20134047],
+            ..bone(-1)
+        }];
+        let bound = slot_uses_bound_joints(EquipmentSlot::Waist, path, &rigid, [0]);
+        assert!(!bound);
+        assert_eq!(model_attachment_id(EquipmentSlot::Waist, path), 53);
+        assert!(equipment_mesh_part_allowed(
+            EquipmentSlot::Waist,
+            path,
+            bound,
+            0
+        ));
+
+        // Actual body belt collections retain their 18xx parts, not base mesh0.
+        let skeletal = [m2::Bone {
+            flags: 0x200,
+            ..bone(-1)
+        }];
+        let bound =
+            slot_uses_bound_joints(EquipmentSlot::Waist, path, &skeletal, [1801, 1802, 2201]);
+        assert!(bound);
+        for part in [1801, 1802] {
+            assert!(equipment_mesh_part_allowed(
+                EquipmentSlot::Waist,
+                path,
+                bound,
+                part
+            ));
+        }
+        for part in [0, 2201] {
+            assert!(!equipment_mesh_part_allowed(
+                EquipmentSlot::Waist,
+                path,
+                bound,
+                part
+            ));
+        }
     }
 
     #[test]
