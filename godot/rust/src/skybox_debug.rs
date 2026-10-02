@@ -181,6 +181,14 @@ impl INode3D for WowSkyboxDebug {
     }
 
     fn input(&mut self, event: Gd<InputEvent>) {
+        let menu_open = self
+            .base()
+            .get_parent()
+            .is_some_and(|parent| parent.get_node_or_null("GameMenuUI").is_some());
+        if menu_open {
+            self.dragging = false;
+            return;
+        }
         let consumed = self.consume_orbit_input(event);
         if consumed {
             if let Some(mut viewport) = self.base().get_viewport() {
