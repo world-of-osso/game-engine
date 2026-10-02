@@ -173,7 +173,9 @@ pub struct GameClient {
     rest: Option<shared::protocol::RestSnapshot>,
     account: Account,
     sound: Option<Gd<sound::NativeSound>>,
-    area_parents: HashMap<u32, u32>,
+    /// Zone parents for the zone music; `None` until the sound data has loaded.
+    area_parents: Option<HashMap<u32, u32>>,
+    sound_data: Option<background_load::BackgroundLoad<sound_client::SoundData>>,
     /// Every replicated entity of the connection, the client's only copy.
     replica: Replica,
     world: world::WorldUnits,
@@ -283,7 +285,8 @@ impl INode3D for GameClient {
             rest: None,
             account: Account::new(data_root.clone()),
             sound: None,
-            area_parents: HashMap::new(),
+            area_parents: None,
+            sound_data: Some(sound_client::start_sound_data(&data_root)),
             terrain: terrain::streaming::StreamedTerrain::new(data_root.clone()),
             terrain_materials: terrain::material::TerrainMaterials::default(),
             world_objects,
@@ -1485,6 +1488,7 @@ impl GameClient {
                 c.receive_item_catalog();
                 Ok(())
             }),
+            ("Sound data", |c, _| Ok(c.apply_loaded_sound()?)),
             ("Unit visuals", |c, _| {
                 c.world.attach_loaded_visuals(&c.replica);
                 Ok(())
