@@ -133,12 +133,16 @@ pub fn planet_draws(
         .collect()
 }
 
+/// LightSkybox flag 0x4: the dome's lower cone draws over the skyboxes in the final fog
+/// colour (`SkyBoxCollector` `m_overrideValuesWithFinalFog`).
+pub const LIGHT_SKYBOX_FINAL_FOG: u32 = 0x4;
+
 /// One LightSkybox model to draw this frame: its FDID, `LightSkybox.Flags` and alpha.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct SkyboxDraw {
     pub fdid: u32,
-    /// 0x1: the model's animation follows the time of day; 0x4: an extra sky mesh carries
-    /// the final fog values (not drawn).
+    /// 0x1: the model's animation follows the time of day; 0x4
+    /// (`LIGHT_SKYBOX_FINAL_FOG`): the fog cone draws over it.
     pub flags: u32,
     pub alpha: f32,
 }
