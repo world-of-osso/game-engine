@@ -111,8 +111,11 @@ pub(super) fn load_material(
     let binding = m2_material::batch_binding(model, unit, skin_texture_fdids)?;
     let pipeline = Pipeline::of(batch)?;
     let (shader, fade) = batch_shaders(pipeline)?;
+    let span = crate::profile::span(|| "material.set_shader".to_owned());
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&shader);
+    drop(span);
+    let _span = crate::profile::span(|| "material.parameters".to_owned());
     if let Some(fade) = fade {
         material.set_meta(SCENERY_FADE_SHADER_META, &fade.to_variant());
     }
