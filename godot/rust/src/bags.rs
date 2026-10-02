@@ -35,6 +35,7 @@ pub(crate) struct Bags {
 pub(crate) struct BagsView {
     containers: BagFrameState,
     money: u64,
+    free_slots: usize,
 }
 
 pub(crate) fn bags_screen(ctx: &SharedContext) -> Element {
@@ -43,7 +44,10 @@ pub(crate) fn bags_screen(ctx: &SharedContext) -> Element {
         .expect("BagsView must be in SharedContext");
     let mut shared = SharedContext::new();
     shared.insert(view.containers.clone());
-    shared.insert(BagBarState { money: view.money });
+    shared.insert(BagBarState {
+        money: view.money,
+        free_slots: view.free_slots,
+    });
     let mut elements = bags_bar_screen(&shared);
     elements.extend(bag_frame_screen(&shared));
     elements
@@ -276,7 +280,11 @@ impl GameClient {
             .local_player_id()
             .and_then(|id| self.replica.unit(id)?.gold())
             .unwrap_or(0);
-        BagsView { containers, money }
+        BagsView {
+            containers,
+            money,
+            free_slots: self.merchant.session.inventory.total_free_slots(),
+        }
     }
 
     fn mount_bags(&mut self, view: BagsView, scale: f32) -> Result<(), String> {

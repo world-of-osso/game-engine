@@ -515,12 +515,7 @@ impl GameClient {
 /// The backpack's free slots over every bag, an equipped bag, or `EQUIP_CONTAINER`.
 fn bag_bar_button_tooltip(inventory: &InventoryState, bag: usize) -> GameTooltip {
     if bag == 0 {
-        let free = inventory
-            .slots
-            .iter()
-            .flatten()
-            .filter(|slot| slot.is_empty());
-        return backpack_tooltip(free.count());
+        return backpack_tooltip(inventory.total_free_slots());
     }
     match inventory.bags.iter().find(|info| info.index == bag) {
         Some(info) => bag_item_tooltip(&info.name, info.size),
