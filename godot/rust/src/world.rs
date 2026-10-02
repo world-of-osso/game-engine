@@ -10,6 +10,7 @@ use std::{
 use crate::{
     animation::{ActionPriority, WowAnimationPlayer, lod::AnimationLod},
     lighting::TerrainLight,
+    particles::{ParticlePools, PlacedParticles, view_basis},
     world_models::{
         UnitAppearance, VisualParts, WorldModels, bind_visual_light, place_items,
         place_virtual_items,
@@ -85,6 +86,10 @@ struct UnitNode {
     weapon: MeleeWeapon,
     /// `Item.SubclassID` of the main-hand weapon, for spell visual conditions.
     main_hand_subclass: Option<u8>,
+    /// The particle emitters of `visual`'s creature model.
+    particles: Option<PlacedParticles>,
+    /// The particle emitters of `visual`'s item models, on each item model node.
+    item_particles: Vec<(PlacedParticles, Gd<Node3D>)>,
     /// The clip of a held social emote (/dance) the player shows while still.
     emote: Option<u16>,
     /// A player's newest replicated stand state.
@@ -119,6 +124,9 @@ impl UnitNode {
         if let Some(previous) = self.visual.take() {
             previous.free();
         }
+        // The emitters were placed on the previous visual's model and item nodes.
+        self.particles = None;
+        self.item_particles.clear();
         self.lod_target = visual.as_ref().and_then(LodTarget::of);
         self.visual = visual;
     }
@@ -282,6 +290,8 @@ fn spawn_unit(
         in_combat: false,
         weapon: MeleeWeapon::Unarmed,
         main_hand_subclass: None,
+        particles: None,
+        item_particles: Vec::new(),
         emote: None,
         stand_state: None,
         stand_anim: None,
@@ -498,7 +508,13 @@ fn attach_unit_visual(
     sheath: SheathState,
     models: &WorldModels,
     light: Option<&TerrainLight>,
+    particles: Option<(&mut ParticlePools, &std::path::Path)>,
 ) {
+    let model_particles = loaded.as_ref().ok().and_then(VisualParts::particles);
+    let item_particles = loaded
+        .as_ref()
+        .map(|parts| parts.item_particles(models.data_root()))
+        .unwrap_or_default();
     let appearance = unit
         .appearance
         .clone()
@@ -521,7 +537,36 @@ fn attach_unit_visual(
             }
             bind_visual_light(&visual, light);
             unit.node.add_child(&visual);
-            unit.replace_visual(Some(visual));
+            unit.replace_visual(Some(visual.clone()));
+            if let Some((pools, texture_dir)) = particles {
+                if let (Some(model_particles), Some(model)) = (
+                    model_particles,
+                    visual.try_get_node_as::<Node3D>("NpcModel"),
+                ) {
+                    let (placed, errors) =
+                        pools.place(&model_particles, &model, server_id as u32, texture_dir);
+                    for error in errors {
+                        godot_error!("{}: {error}", appearance.describe_unit(server_id));
+                    }
+                    unit.particles = Some(placed);
+                }
+                for (slot, item_particles) in item_particles {
+                    let Some(item) = visual
+                        .find_child_ex(&format!("Equipment{slot:?}"))
+                        .owned(false)
+                        .done()
+                        .and_then(|node| node.try_cast::<Node3D>().ok())
+                    else {
+                        continue;
+                    };
+                    let seed = (server_id as u32).wrapping_add(slot as u32 + 1);
+                    let (placed, errors) = pools.place(&item_particles, &item, seed, texture_dir);
+                    for error in errors {
+                        godot_error!("{} {slot:?}: {error}", appearance.describe_unit(server_id));
+                    }
+                    unit.item_particles.push((placed, item));
+                }
+            }
             unit.visual_player_model = appearance.player_model();
         }
         Err(error) => {
@@ -842,6 +887,8 @@ pub struct WorldUnits {
     /// Visual requests owned by another scene (the paperdoll model), and their arrivals.
     detached: Vec<u64>,
     detached_arrived: Vec<(u64, Result<VisualParts, String>)>,
+    /// Creature model particle emitters, when particle effects are enabled.
+    particles: Option<ParticlePools>,
 }
 
 impl WorldUnits {
@@ -859,7 +906,104 @@ impl WorldUnits {
             deaths: Vec::new(),
             detached: Vec::new(),
             detached_arrived: Vec::new(),
+            particles: None,
         }
+    }
+
+    /// Draws the particle emitters of creature models attached from now on, emitting at
+    /// `density` (0.1..=1) of their authored rates.
+    pub fn enable_particles(&mut self, density: f32) {
+        self.particles = Some(ParticlePools::new(density));
+    }
+
+    /// Units with emitters, their emitters, pools and particles drawn last frame; `None`
+    /// while particle effects are off.
+    pub fn particle_state(&self) -> Option<VarDictionary> {
+        let pools = self.particles.as_ref()?;
+        let placed: Vec<_> = self
+            .units
+            .values()
+            .filter_map(|unit| unit.particles.as_ref())
+            .collect();
+        let mut state = VarDictionary::new();
+        state.set("units", placed.len() as i64);
+        state.set(
+            "emitters",
+            placed
+                .iter()
+                .map(|placed| placed.emitter_count())
+                .sum::<usize>() as i64,
+        );
+        let items: Vec<_> = self
+            .units
+            .values()
+            .flat_map(|unit| unit.item_particles.iter().map(|(placed, _)| placed))
+            .collect();
+        state.set("item_models", items.len() as i64);
+        state.set(
+            "item_emitters",
+            items
+                .iter()
+                .map(|placed| placed.emitter_count())
+                .sum::<usize>() as i64,
+        );
+        state.set("pools", pools.pool_count() as i64);
+        state.set("drawn", pools.drawn() as i64);
+        Some(state)
+    }
+
+    /// Changes the density default for creature models attached later.
+    pub fn set_particle_density(&mut self, density: f32) {
+        if let Some(pools) = &mut self.particles {
+            pools.set_density(density);
+        }
+    }
+
+    /// Advances and draws the emitters of every shown creature whose model box is in
+    /// `frustum`; the others replay at most one lifespan of the time they skipped.
+    pub fn update_particles(&mut self, camera: Transform3D, frustum: &[HalfSpace], delta: f32) {
+        let Some(pools) = &mut self.particles else {
+            return;
+        };
+        let view = view_basis(camera);
+        pools.begin_frame();
+        for unit in self.units.values_mut() {
+            if unit.particles.is_none() && unit.item_particles.is_empty() {
+                continue;
+            }
+            let Some(model) = unit.visual.as_ref().and_then(|visual| {
+                visual
+                    .try_get_node_as::<Node3D>("NpcModel")
+                    .or_else(|| visual.try_get_node_as::<Node3D>("PlayerModel"))
+            }) else {
+                continue;
+            };
+            let bounds = crate::world_models::mesh_bounds(&model);
+            let to_glam = |v: Vector3| Vec3::new(v.x, v.y, v.z);
+            let in_frustum = unit.node.is_visible_in_tree()
+                && SceneryDistance::new(
+                    to_glam(bounds.position),
+                    to_glam(bounds.end()),
+                    crate::terrain::objects::affine(model.get_global_transform()),
+                )
+                .box_in_frustum(frustum);
+            if let Some(placed) = unit.particles.as_mut() {
+                if in_frustum {
+                    placed.update_and_draw(&model, delta, 1.0, &view, pools);
+                } else {
+                    placed.defer(delta);
+                }
+            }
+            for (placed, item) in &mut unit.item_particles {
+                // A hidden item (no attachment for its sheath state) emits nothing.
+                if in_frustum && item.is_visible_in_tree() {
+                    placed.update_and_draw(item, delta, 1.0, &view, pools);
+                } else {
+                    placed.defer(delta);
+                }
+            }
+        }
+        pools.end_frame();
     }
 
     /// The appearance of the local player's newest requested visual.
@@ -982,7 +1126,22 @@ impl WorldUnits {
             let (_, sheath) = unit.loading.take().expect("matched a loading unit");
             let prepared_result_ok = loaded.is_ok();
             let existing_visual = unit.visual.is_some();
-            attach_unit_visual(unit, id, loaded, sheath, &self.models, self.light.as_ref());
+            let texture_dir = self.data_root.join("textures");
+            let pools = self.particles.as_mut().map(|pools| {
+                if let Some(root) = self.root.as_mut() {
+                    pools.attach(root);
+                }
+                (pools, texture_dir.as_path())
+            });
+            attach_unit_visual(
+                unit,
+                id,
+                loaded,
+                sheath,
+                &self.models,
+                self.light.as_ref(),
+                pools,
+            );
             log_visual_result(unit, id, request, existing_visual, prepared_result_ok);
             if let Some(snapshot) = replica.unit(id) {
                 // Every visual load read the gear rows, so the weapon and pose resolve now.
@@ -1024,6 +1183,9 @@ impl WorldUnits {
             if let Some(visual) = &unit.visual {
                 bind_visual_light(visual, light.as_ref());
             }
+        }
+        if let (Some(pools), Some(light)) = (&mut self.particles, &light) {
+            pools.update_lighting(light);
         }
         self.light = light;
     }
@@ -1132,6 +1294,9 @@ impl WorldUnits {
         self.light = None;
         for (id, unit) in &self.units {
             log_unit_removal("WORLD_UNIT_RESET", *id, unit);
+        }
+        if let Some(pools) = &mut self.particles {
+            pools.reset();
         }
         self.units.clear();
         self.deaths.clear();

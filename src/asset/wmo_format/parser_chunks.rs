@@ -37,6 +37,8 @@ const GROUP_CHUNK_HANDLERS: &[(&[u8; 4], GroupChunkHandler)] = &[
     (b"YPOM", apply_group_mopy_chunk),
     (b"RDOM", apply_group_modr_chunk),
     (b"RLOM", apply_group_molr_chunk),
+    (b"PLOM", apply_group_molp_chunk),
+    (b"PSLM", apply_group_mlsp_chunk),
     (b"QILM", apply_group_mliq_chunk),
     (b"TVOM", apply_group_movt_chunk),
     (b"RNOM", apply_group_monr_chunk),
@@ -356,6 +358,8 @@ fn empty_group_data() -> RawGroupData {
         triangle_materials: Vec::new(),
         doodad_refs: Vec::new(),
         light_refs: Vec::new(),
+        point_lights: Vec::new(),
+        point_light_sets: Vec::new(),
         liquid: None,
         vertices: Vec::new(),
         normals: Vec::new(),
@@ -398,6 +402,55 @@ fn apply_group_modr_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<()
 
 fn apply_group_molr_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
     group.light_refs = parse_u16_array(payload);
+    Ok(())
+}
+
+const MOLP_ENTRY_SIZE: usize = 44;
+
+fn apply_group_molp_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    if payload.len() % MOLP_ENTRY_SIZE != 0 {
+        return Err(format!(
+            "MOLP size {} is not a multiple of {MOLP_ENTRY_SIZE}",
+            payload.len()
+        ));
+    }
+    group.point_lights = payload
+        .chunks_exact(MOLP_ENTRY_SIZE)
+        .map(parse_point_light)
+        .collect();
+    Ok(())
+}
+
+/// `map_object_point_light`: lightId, BGRA colour, position, attenuation start/end,
+/// intensity, rotation (unused by point lights).
+fn parse_point_light(entry: &[u8]) -> WmoPointLight {
+    let f32_at = |offset: usize| f32::from_le_bytes(entry[offset..offset + 4].try_into().unwrap());
+    WmoPointLight {
+        light_id: u32::from_le_bytes(entry[0..4].try_into().unwrap()),
+        color: [entry[6], entry[5], entry[4]].map(|byte| f32::from(byte) / 255.0),
+        position: [f32_at(8), f32_at(12), f32_at(16)],
+        attenuation_start: f32_at(20),
+        attenuation_end: f32_at(24),
+        intensity: f32_at(28),
+    }
+}
+
+fn apply_group_mlsp_chunk(payload: &[u8], group: &mut RawGroupData) -> Result<(), String> {
+    if payload.len() % 8 != 0 {
+        return Err(format!(
+            "MLSP size {} is not a multiple of 8",
+            payload.len()
+        ));
+    }
+    group.point_light_sets = payload
+        .chunks_exact(8)
+        .map(|entry| {
+            (
+                u32::from_le_bytes(entry[0..4].try_into().unwrap()),
+                u32::from_le_bytes(entry[4..8].try_into().unwrap()),
+            )
+        })
+        .collect();
     Ok(())
 }
 

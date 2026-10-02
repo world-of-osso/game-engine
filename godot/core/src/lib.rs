@@ -59,6 +59,8 @@ pub mod geoset_visibility_data;
 pub mod ground_effect_data;
 #[cfg(test)]
 mod ground_effect_data_tests;
+pub mod ground_detail;
+pub mod horizon;
 #[path = "../../../src/input_bindings_data.rs"]
 pub mod input_bindings_data;
 #[path = "../../../src/rendering/lighting/light_lookup_data.rs"]
@@ -103,6 +105,7 @@ pub mod ui_sound_kits;
 pub mod wmo_surface_data;
 #[cfg(test)]
 mod wmo_surface_data_tests;
+pub mod world_time;
 pub use asset::m2_batch_data;
 #[path = "../../../src/cache_source_mtime.rs"]
 mod cache_source_mtime;
@@ -141,6 +144,7 @@ pub mod player_physics_data;
 pub mod retail_fog;
 #[path = "../../../src/rendering/lighting/retail_light_data.rs"]
 pub mod retail_light_data;
+pub mod sky_bodies;
 #[path = "../../../src/screen_arg_data.rs"]
 pub mod screen_arg_data;
 #[path = "../../../src/rendering/skybox/sky_cubemap_data.rs"]

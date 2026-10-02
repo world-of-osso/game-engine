@@ -90,6 +90,10 @@ pub(crate) struct McnkData {
     pub sound_emitters: Vec<SoundEmitter>,
     pub blend_batches: Vec<BlendBatch>,
     pub detail_doodad_disable: Option<[u8; MCDD_BYTES]>,
+    /// Header 0x40, one little-endian row of 2-bit layer indices per cell row.
+    pub texture_selection: [u16; 8],
+    /// Header 0x50, one byte of detail-doodad disable bits per cell row.
+    pub detail_exclusion: [u8; 8],
     pub holes_low_res: u16,
     pub holes_high_res: Option<u64>,
     pub heights: [f32; MCVT_COUNT],
@@ -250,8 +254,10 @@ struct McnkHeader {
     /// 0x3C
     _holes_low_res: u16,
     _unknown_but_used: u16,
-    _low_quality_texture_map: [u8; 16],
-    _no_effect_doodad: u64,
+    /// 0x40: per cell row, eight 2-bit MCLY indices (the cell's ground effect layer).
+    low_quality_texture_map: [u8; 16],
+    /// 0x50: per cell row, eight bits that disable detail doodads.
+    no_effect_doodad: u64,
     _ofs_mcse: u32,
     _n_sound_emitters: u32,
     _ofs_mclq: u32,

@@ -20,6 +20,7 @@ use godot::{
 
 use crate::animation::WowAnimationPlayer;
 use crate::assets::material::{shared_shader, shared_texture};
+use crate::lighting::TerrainLight;
 
 const SHADER_PATH: &str = "res://shaders/particle.gdshader";
 const RENDER_MODE: &str =
@@ -204,6 +205,7 @@ pub(crate) fn write_instance(buffer: &mut [f32], quad: &Quad, fade: f32) {
 /// One drawn emitter shared by every placement of its model.
 pub(crate) struct ParticlePool {
     node: Gd<MultiMeshInstance3D>,
+    material: Gd<ShaderMaterial>,
     multimesh: Gd<MultiMesh>,
     /// Sum of the placements' emitter capacities, capped at [`POOL_CAPACITY_CAP`].
     reserved: usize,
@@ -229,6 +231,7 @@ impl ParticlePool {
         node.set_as_top_level(true);
         Self {
             node,
+            material: material.clone(),
             multimesh,
             reserved: 0,
             allocated: 0,
@@ -491,6 +494,8 @@ pub(crate) struct ParticlePools {
     quads: Vec<Quad>,
     /// Last frame's updated emitters, simulation and upload time.
     timing: (usize, Duration, Duration),
+    /// The scene light whose fog every pool takes.
+    light: Option<TerrainLight>,
 }
 
 impl ParticlePools {
@@ -503,7 +508,16 @@ impl ParticlePools {
             density,
             quads: Vec::new(),
             timing: (0, Duration::ZERO, Duration::ZERO),
+            light: None,
         }
+    }
+
+    /// Fogs every pool with the scene fog of `light`, and pools created later too.
+    pub fn update_lighting(&mut self, light: &TerrainLight) {
+        for pool in &mut self.pools {
+            light.bind_scene_fog(&mut pool.material);
+        }
+        self.light = Some(light.clone());
     }
 
     /// Changes the default only for placements registered after this call.
@@ -576,7 +590,10 @@ impl ParticlePools {
             .root
             .as_mut()
             .ok_or("particle pools are not attached")?;
-        let material = particle_material(emitter, texture_dir)?;
+        let mut material = particle_material(emitter, texture_dir)?;
+        if let Some(light) = &self.light {
+            light.bind_scene_fog(&mut material);
+        }
         let pool = ParticlePool::new(&format!("Particles{fdid}_{index}"), &material);
         root.add_child(pool.node());
         self.pools.push(pool);
@@ -622,6 +639,7 @@ impl ParticlePools {
         }
         self.pools.clear();
         self.by_emitter.clear();
+        self.light = None;
     }
 }
 

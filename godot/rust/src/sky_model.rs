@@ -1,5 +1,7 @@
-//! Scene-one authored sky: M2 geometry and texture stages stay behind world depth.
-use std::path::Path;
+//! Authored sky M2s (character-select skyboxes, in-world stars): M2 geometry and texture
+//! stages drawn behind world depth, with an overall model alpha (WebWowViewerCpp
+//! `M2Object::setAlpha`, as `map.cpp` sets the stars' and `SkyBoxCollector` the skyboxes').
+use std::{ops::RangeInclusive, path::Path};
 
 use game_engine_core::{
     asset::m2_format::m2_anim::{evaluate_i16_track, evaluate_vec3_track},
@@ -19,9 +21,9 @@ use crate::{animation::WowAnimationPlayer, assets};
 mod sky_time;
 use sky_time::fixed_sequence_phase_ms;
 
-const SKY_FDID: u32 = 525142;
-const SKY_NAME: &str = "costalislandskybox";
 const SHADER_PATH: &str = "res://shaders/sky_m2.gdshader";
+/// Godot's lowest material render priority; batch `n` in draw order takes this + n.
+const FIRST_BATCH_PRIORITY: i32 = -128;
 const RENDER_MODE: &str =
     "render_mode unshaded, fog_disabled, cull_back, blend_mix, depth_draw_never, shadows_disabled;";
 
@@ -33,26 +35,47 @@ struct AnimatedBatch {
     second_uv: Option<m2::AnimTrack<[f32; 3]>>,
 }
 
-pub(crate) struct Sky {
+pub(crate) struct SkyModel {
     pub node: Gd<Node3D>,
+    /// Every batch's material, for the model alpha.
+    materials: Vec<Gd<ShaderMaterial>>,
     animations: Vec<AnimatedBatch>,
     global_sequences: Vec<u32>,
     default_sequence_index: usize,
 }
 
-impl Sky {
-    pub fn load(data_root: &Path) -> Result<Self, String> {
-        let path = data_root
-            .join("models/skyboxes")
-            .join(format!("{SKY_NAME}.m2"));
-        Self::load_model(data_root, &path, SKY_FDID, None)
-    }
-
+impl SkyModel {
+    /// Sky M2 `fdid`, cached at `model_path` with its skin and its textures under
+    /// `data_root/textures`.
     pub fn load_model(
         data_root: &Path,
         model_path: &Path,
         fdid: u32,
         time_override_ms: Option<u32>,
+    ) -> Result<Self, String> {
+        Self::load_with_phase(data_root, model_path, fdid, |_| time_override_ms)
+    }
+
+    /// As `load_model`, held at `fraction` of its default sequence (WebWowViewerCpp
+    /// `M2Object::setOverrideAnimationPerc`, LightSkybox flag 0x1 skyboxes at the day's
+    /// fraction).
+    pub fn load_at_fraction(
+        data_root: &Path,
+        model_path: &Path,
+        fdid: u32,
+        fraction: f32,
+    ) -> Result<Self, String> {
+        Self::load_with_phase(data_root, model_path, fdid, |duration| {
+            Some((fraction.clamp(0.0, 1.0) * duration as f32) as u32)
+        })
+    }
+
+    /// `phase` maps the default sequence's duration to the fixed time to hold, if any.
+    fn load_with_phase(
+        data_root: &Path,
+        model_path: &Path,
+        fdid: u32,
+        phase: impl FnOnce(u32) -> Option<u32>,
     ) -> Result<Self, String> {
         let context = |error| format!("Sky FDID {fdid} at {}: {error}", model_path.display());
         if !model_path.is_file() {
@@ -62,6 +85,11 @@ impl Sky {
         let span = crate::profile::span(|| "sky.read_model".to_owned());
         let model = assets::read_model(&source).map_err(&context)?;
         drop(span);
+        let duration = model
+            .sequences
+            .get(default_sequence_index(&model))
+            .map_or(0, |sequence| sequence.duration);
+        let time_override_ms = phase(duration);
         let span = crate::profile::span(|| "sky.prepare_batches".to_owned());
         let prepared = prepare_batches(&model, data_root).map_err(&context)?;
         drop(span);
@@ -71,6 +99,38 @@ impl Sky {
         sky.node
             .set_meta(assets::M2_SOURCE_META, &source.to_variant());
         Ok(sky)
+    }
+
+    /// Moves the batches' render priorities (built from `FIRST_BATCH_PRIORITY` in draw
+    /// order) to start at the first of `band`, so the model sorts by sky-view order (stars,
+    /// discs, skyboxes, fog cone) ahead of the world's transparent surfaces. Fails when the
+    /// batches do not fit in `band`.
+    pub fn place_render_priorities(&mut self, band: RangeInclusive<i32>) -> Result<(), String> {
+        let shift = band.start() - FIRST_BATCH_PRIORITY;
+        let priorities: Vec<i32> = self
+            .materials
+            .iter()
+            .map(|material| material.get_render_priority() + shift)
+            .collect();
+        if let Some(outside) = priorities
+            .iter()
+            .find(|&&priority| !band.contains(&priority))
+        {
+            return Err(format!(
+                "Sky batch render priority {outside} outside its band {band:?}"
+            ));
+        }
+        for (material, priority) in self.materials.iter_mut().zip(priorities) {
+            material.set_render_priority(priority);
+        }
+        Ok(())
+    }
+
+    /// The model alpha every batch's transparency is multiplied by.
+    pub fn set_alpha(&mut self, alpha: f32) {
+        for material in &mut self.materials {
+            material.set_shader_parameter("model_alpha", &alpha.to_variant());
+        }
     }
 
     pub fn sample(&mut self, time_ms: u32) {
@@ -144,7 +204,12 @@ fn prepare_batches(model: &m2::Model, data_root: &Path) -> Result<Vec<PreparedBa
                 )
             })?;
             let mesh = assets::build_batch_mesh(model, submesh)?;
-            let material = build_material(&batch, &shader, data_root, order as i32 - 128)?;
+            let material = build_material(
+                &batch,
+                &shader,
+                data_root,
+                order as i32 + FIRST_BATCH_PRIORITY,
+            )?;
             Ok((batch, mesh, material))
         })
         .collect()
@@ -154,7 +219,7 @@ fn assemble_sky(
     model: m2::Model,
     prepared: Vec<PreparedBatch>,
     time_override_ms: Option<u32>,
-) -> Result<Sky, String> {
+) -> Result<SkyModel, String> {
     let (skeleton, skin) = assets::build_skeleton(&model.bones);
     let player = match load_player(&model, skeleton.clone(), time_override_ms) {
         Ok(player) => player,
@@ -169,12 +234,17 @@ fn assemble_sky(
         player.set_name("M2Animation");
         node.add_child(&player);
     }
+    let materials = prepared
+        .iter()
+        .map(|(_, _, material)| material.clone())
+        .collect();
     let animations = prepared
         .into_iter()
         .filter_map(|batch| attach_batch(&mut node, batch, skin.as_ref()))
         .collect();
-    let mut sky = Sky {
+    let mut sky = SkyModel {
         node,
+        materials,
         animations,
         default_sequence_index: default_sequence_index(&model),
         global_sequences: model.global_sequences,
