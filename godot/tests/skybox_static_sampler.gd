@@ -204,7 +204,9 @@ func set_quad_uvs(minified: bool) -> void:
 
 func create_texture(minified: bool) -> ImageTexture:
 	var bytes: PackedByteArray = PackedByteArray()
-	var levels: Array[int] = LEVEL_SIZES if minified else [SIZE]
+	var levels: Array[int] = [SIZE]
+	if minified:
+		levels = LEVEL_SIZES
 	for level in range(levels.size()):
 		var size: int = levels[level]
 		for y in range(size):
