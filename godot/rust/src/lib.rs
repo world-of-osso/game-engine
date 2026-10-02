@@ -91,6 +91,7 @@ mod ui;
 mod ui_scale;
 mod unit_menu;
 mod unit_pick;
+mod vignettes;
 mod waypoint_path;
 mod window_stack;
 mod wmo;

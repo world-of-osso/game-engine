@@ -53,6 +53,8 @@ const CRUMB_FONT: f32 = 12.0;
 const CLOSE_SIZE: f32 = 24.0;
 const PIN_SIZE: f32 = 20.0;
 const QUEST_PIN_SIZE: f32 = 24.0;
+/// `VignettePinBaseMixin:ApplyTextures` sizes the pin to its atlas (32×32).
+const VIGNETTE_PIN_SIZE: f32 = 32.0;
 const ARROW_SIZE: f32 = 32.0;
 
 const GOLD: &str = "1.0,0.82,0.0,1.0";
@@ -68,6 +70,10 @@ pub enum MapPinType {
     FlightAlliance,
     FlightHorde,
     FlightNeutral,
+    /// A creature vignette (`VignettePinTemplate`).
+    Vignette {
+        elite: bool,
+    },
 }
 
 impl MapPinType {
@@ -78,12 +84,15 @@ impl MapPinType {
             Self::FlightAlliance => art::TAXI_ALLIANCE,
             Self::FlightHorde => art::TAXI_HORDE,
             Self::FlightNeutral => art::TAXI_NEUTRAL,
+            Self::Vignette { elite: false } => art::VIGNETTE_KILL,
+            Self::Vignette { elite: true } => art::VIGNETTE_KILL_ELITE,
         }
     }
 
     fn size(self) -> f32 {
         match self {
             Self::QuestObjective | Self::QuestTurnIn => QUEST_PIN_SIZE,
+            Self::Vignette { .. } => VIGNETTE_PIN_SIZE,
             _ => PIN_SIZE,
         }
     }

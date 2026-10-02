@@ -167,6 +167,7 @@ impl MapContext<'_, '_> {
                 player: player.as_ref(),
                 quests: &[],
                 quest_areas: &[],
+                vignettes: &[],
             },
         )
     }
