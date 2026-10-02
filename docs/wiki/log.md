@@ -2476,3 +2476,7 @@ Recorded supplied retained binding PASS, 116-mesh/frustum/posed-torso native evi
 ## 2026-10-01 — Zaralda final observed-proof reconciliation (task evidence)
 
 Updated existing Zaralda SSOT and linked specs/reference/index: native-friendly exit0 / 529.10s now observes actual merchant pick/title/tooltip/backpack/close. Retained historical RED attempts, independent gate114 source/import proof and renderer/cache limits; gate116 artifact audit gives scoped PASS for the saved native flow and three current AH receipts. Server SSOT separates current three AH receipts from pinned old-binary performance. Prior uncommitted docs preserved; no tests, builds, commits, data/source/PLAN edits or service operations.
+
+## 2026-10-02 — Shader compilation ahead of need (stalls)
+
+Added "Shader compilation ahead of need" to [world-entry-stalls](investigations/world-entry-stalls.md): used M2/WMO/terrain/liquid shaders recorded in `user://used_shaders.txt` and compiled during startup, login and loading; campsite catalog off the main thread. Idle character select max frame 136 ms cold, 54-79 ms warm.

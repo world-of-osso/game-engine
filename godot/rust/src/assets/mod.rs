@@ -47,6 +47,20 @@ impl WowAssetLoader {
         result_image(read_asset(&path).and_then(|data| blp::decode_rgba(&data)))
     }
 
+    /// Compiles the next used shader (`shader_warmup::compile_next`): `{compiled}`, false
+    /// once none remain, or `{error}`.
+    #[func]
+    fn compile_next_used_shader(&self) -> VarDictionary {
+        match crate::shader_warmup::compile_next() {
+            Ok(compiled) => {
+                let mut result = VarDictionary::new();
+                result.set("compiled", compiled);
+                result
+            }
+            Err(error) => error_result(error),
+        }
+    }
+
     #[func]
     fn load_m2(&self, path: GString) -> VarDictionary {
         model_result(load_model_node(&path))
@@ -362,11 +376,14 @@ pub(super) fn build_model_filtered(
         })
         .collect::<Result<Vec<_>, String>>()?;
     let mesh_parts: Vec<u16> = resolved.iter().map(|batch| batch.mesh_part_id).collect();
+    let span = crate::profile::span(|| "model.skeleton".to_owned());
     let (mut skeleton, skin) = build_skeleton(&model.bones);
     if let Err(error) = attachments::add_attachment_nodes(&mut skeleton, model) {
         skeleton.free();
         return Err(error);
     }
+    drop(span);
+    let span = crate::profile::span(|| "model.animation_player".to_owned());
     let player = if model.sequences.is_empty() {
         None
     } else {
@@ -381,6 +398,7 @@ pub(super) fn build_model_filtered(
             }
         }
     };
+    drop(span);
     let material_animation = uv_animation::WowMaterialAnimation::from_batches(
         tracks,
         batches
@@ -451,6 +469,7 @@ fn load_batch(
     })?;
     let mesh = shared_batch_mesh(model, batch.submesh_index, path)?;
     check_required_replacement(batch, appearance)?;
+    let _span = crate::profile::span(|| format!("model.load_material {}", batch.submesh_index));
     let (material, binding) = material::load_material(
         model,
         tracks,
@@ -515,6 +534,7 @@ fn shared_batch_mesh(
         return Ok(mesh);
     }
     let sub = &model.submeshes[submesh_index];
+    let _span = crate::profile::span(|| format!("model.build_batch_mesh {submesh_index}"));
     let mesh = build_batch_mesh(model, sub)?;
     MESHES.with_borrow_mut(|meshes| meshes.insert(key, mesh.clone()));
     Ok(mesh)

@@ -180,13 +180,7 @@ pub(crate) struct WmoBuild {
 
 impl WmoBuild {
     pub(crate) fn new(asset: &NativeWmoAsset, doodad_sets: &[u16]) -> Result<Self, String> {
-        let source = ResourceLoader::singleton()
-            .load(SHADER_PATH)
-            .ok_or_else(|| format!("Cannot load WMO shader {SHADER_PATH}"))?
-            .try_cast::<Shader>()
-            .map_err(|_| format!("WMO shader {SHADER_PATH} has wrong resource type"))?
-            .get_code()
-            .to_string();
+        let source = load_shader_source()?;
         let black = black_pixel_texture()?;
         let batches = renderable_batches(asset);
         let mut root = Node3D::new_alloc();
@@ -531,8 +525,10 @@ fn build_batch_material(
     light: Option<&TerrainLight>,
 ) -> Result<Gd<ShaderMaterial>, String> {
     let authored = batch.material;
+    let span = crate::profile::span(|| "wmo.set_shader".to_owned());
     let mut material = ShaderMaterial::new_gd();
-    material.set_shader(&material_shader(source, authored)?);
+    material.set_shader(&material_shader(source, WmoShaderKey::of(authored))?);
+    drop(span);
     let slots = pixel_shader_texture_slots(batch.shader.pixel);
     let fdids = authored.retail_texture_fdids(batch.shader.pixel);
     for (slot, (name, fdid)) in TEXTURE_UNIFORMS.into_iter().zip(fdids).enumerate() {
@@ -580,37 +576,95 @@ fn build_batch_material(
 }
 
 thread_local! {
-    /// WMO shaders by (two-sided, blended, clamp S, clamp T): the only material inputs
-    /// `shader_variant` reads.
-    static SHADERS: std::cell::RefCell<std::collections::HashMap<(bool, bool, bool, bool), Gd<Shader>>> =
+    /// WMO shaders by `WmoShaderKey`.
+    static SHADERS: std::cell::RefCell<std::collections::HashMap<WmoShaderKey, Gd<Shader>>> =
         std::cell::RefCell::new(std::collections::HashMap::new());
 }
 
-fn material_shader(source: &str, material: &WmoMaterialDef) -> Result<Gd<Shader>, String> {
-    let flags = &material.material_flags;
-    let key = (
-        flags.unculled,
-        matches!(material.blend_mode, 2 | 3),
-        flags.clamp_s,
-        flags.clamp_t,
-    );
+/// The only material inputs `shader_variant` reads.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(crate) struct WmoShaderKey {
+    two_sided: bool,
+    blended: bool,
+    clamp_s: bool,
+    clamp_t: bool,
+}
+
+impl WmoShaderKey {
+    fn of(material: &WmoMaterialDef) -> Self {
+        let flags = &material.material_flags;
+        Self {
+            two_sided: flags.unculled,
+            blended: matches!(material.blend_mode, 2 | 3),
+            clamp_s: flags.clamp_s,
+            clamp_t: flags.clamp_t,
+        }
+    }
+
+    /// Two-sided, blended, clamp S and clamp T as 0/1.
+    pub(crate) fn line(self) -> String {
+        [self.two_sided, self.blended, self.clamp_s, self.clamp_t]
+            .map(|flag| u8::from(flag).to_string())
+            .join(" ")
+    }
+
+    pub(crate) fn parse(line: &str) -> Option<Self> {
+        let flags: Vec<bool> = line
+            .split(' ')
+            .map(|field| match field {
+                "0" => Some(false),
+                "1" => Some(true),
+                _ => None,
+            })
+            .collect::<Option<_>>()?;
+        match flags[..] {
+            [two_sided, blended, clamp_s, clamp_t] => Some(Self {
+                two_sided,
+                blended,
+                clamp_s,
+                clamp_t,
+            }),
+            _ => None,
+        }
+    }
+}
+
+fn load_shader_source() -> Result<String, String> {
+    Ok(ResourceLoader::singleton()
+        .load(SHADER_PATH)
+        .ok_or_else(|| format!("Cannot load WMO shader {SHADER_PATH}"))?
+        .try_cast::<Shader>()
+        .map_err(|_| format!("WMO shader {SHADER_PATH} has wrong resource type"))?
+        .get_code()
+        .to_string())
+}
+
+fn material_shader(source: &str, key: WmoShaderKey) -> Result<Gd<Shader>, String> {
     if let Some(shader) = SHADERS.with_borrow(|shaders| shaders.get(&key).cloned()) {
         return Ok(shader);
     }
-    let shader = crate::assets::material::shared_shader(&shader_variant(source, material)?);
+    let shader = crate::assets::material::shared_shader(&shader_variant(source, key)?);
     SHADERS.with_borrow_mut(|shaders| shaders.insert(key, shader.clone()));
+    crate::shader_warmup::record(crate::shader_warmup::UsedShader::Wmo(key));
     Ok(shader)
+}
+
+/// Compiles `key`'s shader: Godot compiles a shader when a material first takes it.
+pub(crate) fn compile_shader(key: WmoShaderKey) -> Result<(), String> {
+    // The RID creates the rendering server's shader, which compiles it.
+    material_shader(&load_shader_source()?, key)?.get_rid();
+    Ok(())
 }
 
 pub(crate) fn clear_shaders() {
     SHADERS.with_borrow_mut(std::collections::HashMap::clear);
 }
 
-fn shader_variant(source: &str, material: &WmoMaterialDef) -> Result<String, String> {
+fn shader_variant(source: &str, key: WmoShaderKey) -> Result<String, String> {
     if source.matches(RENDER_MODE).count() != 1 || !source.starts_with(SHADER_TYPE) {
         return Err("WMO shader type/render-mode declaration changed".into());
     }
-    let cull = if material.material_flags.unculled {
+    let cull = if key.two_sided {
         "cull_disabled"
     } else {
         "cull_back"
@@ -619,20 +673,20 @@ fn shader_variant(source: &str, material: &WmoMaterialDef) -> Result<String, Str
         "render_mode ambient_light_disabled, fog_disabled, specular_disabled, {cull}, blend_mix;"
     );
     let mut code = source.replace(RENDER_MODE, &render_mode);
-    if matches!(material.blend_mode, 2 | 3) {
+    if key.blended {
         code = code.replacen(
             SHADER_TYPE,
             &format!("{SHADER_TYPE}\n#define WMO_BLENDED"),
             1,
         );
     }
-    if material.material_flags.clamp_s || material.material_flags.clamp_t {
-        return clamp_wmo_shader_uv(code, material);
+    if key.clamp_s || key.clamp_t {
+        return clamp_wmo_shader_uv(code, key);
     }
     Ok(code)
 }
 
-fn clamp_wmo_shader_uv(mut code: String, material: &WmoMaterialDef) -> Result<String, String> {
+fn clamp_wmo_shader_uv(mut code: String, key: WmoShaderKey) -> Result<String, String> {
     for (original, replacement) in [
         (
             "texture(base_texture, UV)",
@@ -657,8 +711,8 @@ fn clamp_wmo_shader_uv(mut code: String, material: &WmoMaterialDef) -> Result<St
     };
     let uv = format!(
         "vec2 wmo_clamp_uv(vec2 uv, sampler2D tex) {{ vec2 half_pixel = vec2(0.5) / vec2(textureSize(tex, 0)); return vec2({}, {}); }}\n",
-        clamp_axis("x", material.material_flags.clamp_s),
-        clamp_axis("y", material.material_flags.clamp_t)
+        clamp_axis("x", key.clamp_s),
+        clamp_axis("y", key.clamp_t)
     );
     if code.matches("void vertex() {").count() != 1 {
         return Err("WMO shader vertex entry changed".into());
