@@ -82,8 +82,40 @@ fn money_state_sync_matches_original_updater_denominations() {
         (45, "45c"),
         (0, "0c"),
     ] {
-        shared.insert(BagBarState { money });
+        shared.insert(BagBarState {
+            money,
+            free_slots: 0,
+        });
         screen.sync(&shared, &mut registry);
         assert_eq!(money_text(&registry), expected);
     }
+}
+
+fn text_of<'a>(registry: &'a FrameRegistry, name: &str) -> &'a str {
+    match frame(registry, name).widget_data.as_ref() {
+        Some(WidgetData::FontString(text)) => &text.text,
+        other => panic!("{name} is not a font string: {other:?}"),
+    }
+}
+
+/// `MainMenuBarBackpackMixin:UpdateFreeSlots`: `Count` reads `(%s)` of the free slots,
+/// centred 10 below the backpack's centre (MainMenuBarBagButtons.lua:239-240, 278-289).
+#[test]
+fn backpack_count_shows_free_slots_under_its_centre() {
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut shared = SharedContext::new();
+    let mut screen = Screen::new(bags_bar_screen);
+    for (free_slots, expected) in [(16, "(16)"), (3, "(3)"), (0, "(0)")] {
+        shared.insert(BagBarState {
+            money: 0,
+            free_slots,
+        });
+        screen.sync(&shared, &mut registry);
+        assert_eq!(text_of(&registry, "MainMenuBarBackpackButtonCount"), expected);
+    }
+    let count = frame(&registry, "MainMenuBarBackpackButtonCount");
+    assert_eq!(count.width, Dimension::Fixed(48.0));
+    assert_eq!(count.height, Dimension::Fixed(14.0));
+    // 48-high backpack: centre 24, +10 down, minus half the 14-high text.
+    assert_eq!(count.position.top, Val::Px(27.0));
 }

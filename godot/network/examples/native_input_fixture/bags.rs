@@ -71,10 +71,10 @@ pub(super) fn reject_runtime_error(line: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn observe(app: &mut App, line: &str, phase: &mut Phase, selected: bool) -> Result<(), String> {
+fn observe(app: &mut App, line: &str, phase: &mut Phase) -> Result<(), String> {
     reject_runtime_error(line)?;
     match line {
-        "FIXTURE BAGS_LOADING" if selected && *phase == Phase::Loading => {
+        "FIXTURE BAGS_LOADING" if *phase == Phase::Loading => {
             send::<_, TerrainChannel>(
                 app,
                 LoadTerrain {
@@ -112,8 +112,12 @@ fn run_until_done(
         app.update();
         respond_to_login(app, StartupScreen::Bags)?;
         respond_to_selection(app, StartupScreen::Bags, &mut selected, &mut remote)?;
-        for line in lines.try_iter() {
-            observe(app, line.trim(), &mut phase, selected.is_some())?;
+        // The client prints Loading as it sends SelectCharacter; leave its lines queued
+        // until this peer has processed the selection.
+        if selected.is_some() {
+            for line in lines.try_iter() {
+                observe(app, line.trim(), &mut phase)?;
+            }
         }
         if let Some(status) = child
             .try_wait()

@@ -24,15 +24,23 @@ pub(super) const BAG_COUNT: usize = 4;
 const MONEY_DISPLAY_W: f32 = 160.0;
 const MONEY_DISPLAY_H: f32 = 14.0;
 const MONEY_TEXT_COLOR: &str = "1.0,0.82,0.0,1.0";
+/// Backpack `Count`: `NumberFontNormal` (ARIALN 14 outline, white), CENTER 0,-10
+/// (ItemButtonTemplate.xml:59, MainMenuBarBagButtons.lua:239-240).
+const COUNT_FONT_SIZE: f32 = 14.0;
+const COUNT_H: f32 = 14.0;
+const COUNT_BELOW_CENTRE: f32 = 10.0;
+const WHITE: &str = "1.0,1.0,1.0,1.0";
 
-/// Player money in total copper, matching the original money updater.
+/// Player money in total copper, matching the original money updater, and the free slots
+/// over every bag (`C_Container.CalculateTotalNumberOfFreeBagSlots`).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct BagBarState {
     pub money: u64,
+    pub free_slots: usize,
 }
 
 pub fn bags_bar_screen(ctx: &SharedContext) -> Element {
-    bag_bar(ctx.get::<BagBarState>().map(|state| state.money))
+    bag_bar(ctx.get::<BagBarState>().copied())
 }
 
 // Same leading-denomination omission as auction_house_data::Money::display.
@@ -51,7 +59,7 @@ fn format_money(money: u64) -> String {
 
 /// Bags chained leftward from the backpack, vertically centred on it, as in Retail. Money
 /// (not part of the Retail bar) sits left of the bags.
-fn bag_bar(money: Option<u64>) -> Element {
+fn bag_bar(state: Option<BagBarState>) -> Element {
     let bags_w = BAG_COUNT as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
     let total_w = MONEY_DISPLAY_W + bags_w + BACKPACK_SIZE;
     let backpack_x = total_w - BACKPACK_SIZE;
@@ -66,7 +74,7 @@ fn bag_bar(money: Option<u64>) -> Element {
                 size: BAG_SLOT_SIZE,
                 art: BAG_SLOT_EMPTY,
             };
-            bag_slot(slot, x, centre_y(BAG_SLOT_SIZE))
+            bag_slot(slot, x, centre_y(BAG_SLOT_SIZE), Vec::new())
         })
         .collect();
     let backpack = BagSlot {
@@ -75,6 +83,7 @@ fn bag_bar(money: Option<u64>) -> Element {
         size: BACKPACK_SIZE,
         art: BACKPACK,
     };
+    let count = state.map_or_else(Vec::new, |s| backpack_count(s.free_slots));
     rsx! {
         r#frame {
             name: "BagsBar",
@@ -83,9 +92,9 @@ fn bag_bar(money: Option<u64>) -> Element {
             pos_type: "absolute",
             right: {BAGS_BAR_RIGHT},
             bottom: {BAGS_BAR_BOTTOM},
-            {bag_slot(backpack, backpack_x, centre_y(BACKPACK_SIZE))}
+            {bag_slot(backpack, backpack_x, centre_y(BACKPACK_SIZE), count)}
             {bags}
-            {money_display(centre_y(MONEY_DISPLAY_H), money)}
+            {money_display(centre_y(MONEY_DISPLAY_H), state.map(|s| s.money))}
         }
     }
 }
@@ -109,6 +118,28 @@ fn money_display(y: f32, money: Option<u64>) -> Element {
     }
 }
 
+/// `MainMenuBarBackpackMixin:UpdateFreeSlots`: `(%s)` of the free slots, shown from
+/// PLAYER_ENTERING_WORLD on (MainMenuBarBagButtons.lua:278-304).
+fn backpack_count(free_slots: usize) -> Element {
+    let text = format!("({free_slots})");
+    rsx! {
+        fontstring {
+            name: "MainMenuBarBackpackButtonCount",
+            width: {BACKPACK_SIZE},
+            height: {COUNT_H},
+            text: text.as_str(),
+            font: "ArialNarrow",
+            font_size: COUNT_FONT_SIZE,
+            font_color: WHITE,
+            outline: "OUTLINE",
+            justify_h: "CENTER",
+            pos_type: "absolute",
+            left: 0.0,
+            top: {(BACKPACK_SIZE - COUNT_H) / 2.0 + COUNT_BELOW_CENTRE},
+        }
+    }
+}
+
 struct BagSlot {
     name: String,
     index: usize,
@@ -116,7 +147,7 @@ struct BagSlot {
     art: SheetCrop,
 }
 
-fn bag_slot(slot: BagSlot, x: f32, y: f32) -> Element {
+fn bag_slot(slot: BagSlot, x: f32, y: f32, overlay: Element) -> Element {
     let action = bag_toggle_action(slot.index);
     let art_name = DynName(format!("{}Art", slot.name));
     let coords = slot.art.tex_coords();
@@ -141,6 +172,7 @@ fn bag_slot(slot: BagSlot, x: f32, y: f32) -> Element {
                 left: 0.0,
                 top: 0.0,
             }
+            {overlay}
         }
     }
 }

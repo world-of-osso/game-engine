@@ -42,6 +42,11 @@ func run_test() -> void:
 	var backpack := await wait_bag_button(client, BACKPACK)
 	if backpack == null:
 		return
+	# UpdateFreeSlots: (13 free of backpack 16) + (7 free of bag1 8).
+	var count := authored_control(client, BACKPACK + "Count") as Label
+	if count == null or not count.is_visible_in_tree() or count.text != "(20)":
+		fail("RED: backpack free-slot count must read (20), got %s" % (count.text if count != null else "missing"))
+		return
 	await right_click_control(backpack)
 	for frame in range(8):
 		await process_frame
