@@ -44,7 +44,7 @@ Offline Godot `--screen skyboxdebug` must preserve the original authored-sky deb
 - `godot/rust/src/character_select/sky.rs` — shared authored M2 loading with exact source metadata and fixed-time material/bone sampling; character-select default entry remains unchanged.
 - `godot/rust/src/animation/mod.rs` — dedicated validated fixed-time seek samples sky bones without ordinary clip advancement; ordinary playback remains unchanged.
 - `godot/rust/src/skybox_debug/environment.rs` — original procedural/reference layer; custom radial linear fog is shader-owned, not stock Environment fog. Physical-unit/image equivalence remains unproved.
-- `godot/shaders/sky_m2.gdshader` — authored texture-stage combinations retain the original linear color domain without extra gamma roundtrip; independent owner removed screenshot-driven forced-mip-0 policy in `ba05872c` (source-only observation here).
+- `godot/shaders/sky_m2.gdshader` — authored texture-stage combinations retain the original linear color domain without extra gamma roundtrip; independent owner removed screenshot-driven forced-mip-0 policy in `ba05872c` (post-removal saved runtime evidence below).
 
 ## Tests asserting this spec
 
@@ -52,10 +52,10 @@ Offline Godot `--screen skyboxdebug` must preserve the original authored-sky deb
 - `godot/core/src/skybox_debug_data.rs` tests — cached LightSkybox653 → FDID5412968/flags15, LightParams5615 → skybox653, and explicit unknown-row error; not runtime/render proof.
 - `launcher/tests/process.rs` — three `skybox` process cases asserting exact recorded Godot argv with fake build/Godot executables; not native runtime proof.
 - `src/scenes/skybox_debug/tests.rs` — legacy source, composition, FOV and camera-relative behavior references; not native acceptance.
-- `godot/tests/skybox_debug_screen.gd` — production observer for cached source cases, real orbit/zoom, composition and hide/restore image attribution. Bounded coastal runtime proof is retained below; cloud authored attribution fails. Attribution is not original-expected pixel parity.
+- `godot/tests/skybox_debug_screen.gd` — production observer for cached source cases, real orbit/zoom, composition and hide/restore image attribution. Bounded coastal and corrected cloud dark/active/live runtime proof is retained below; historical incorrect cloud contribution oracles remain recorded. Attribution is not original-expected pixel parity.
 
 - `godot/tests/skybox_linear_combine.gd` — real production-shader GPU single-stage control and two-stage linear-product contract; source difference reproduced before correction. Not complete asset/image parity.
-- `godot/tests/skybox_static_sampler.gd` and `godot/tests/skybox_mipmap_sampling.gd` — synthetic GPU sampling diagnostics. Historical forced-mip-0 witnesses do not define product acceptance. Independent `ba05872c` deletes the static sampler fixture and restores the mip-consumption witness; no post-removal runtime proof is claimed here.
+- `godot/tests/skybox_static_sampler.gd` and `godot/tests/skybox_mipmap_sampling.gd` — synthetic GPU sampling diagnostics. Historical forced-mip-0 witnesses do not define product acceptance. Independent `ba05872c` deletes the static sampler fixture and restores the mip-consumption witness; post-removal synthetic GPU assertions and exact process exits are retained below.
 
 ## Retained proof limits — 2026-10-01
 
@@ -68,14 +68,30 @@ Primary evidence: `/tmp/claude/retained-conversion-20/main-proof-ledger.md`, `sa
 | Cloud active200000/live | Fixed observer exit0,70176 contribution pixels; natural live reaches200001ms and changes16771 samples (`cloud-authored-200000-retry.log`, `cloud-live-active-matrix.log`) | Bounded source/animation visibility, not all phases |
 | Source/input/fog/layers/camera | Coastal fixed/live observers exit0; corrected source/default composition retries exit0; persisted FOV105/sensitivity.007 observer exit0 (`coastal-authored-100000.log`, `coastal-live.log`, `cloud-light-default-0-retry.log`, `cloud-fdid-default-0-matrix.log`, `persisted-camera-105-007.log`) | Preserve exact fixture scopes; same-scene live Options remains unsupported offline |
 | Linear texture-stage arithmetic | `b3e546e2` removes extra gamma roundtrip; six GPU witnesses pass (`sky-linear-combine-green.log`), process124 | Genuine stage-arithmetic fix, not general shutdown or full-image acceptance |
-| Historical sampler detour | `ca400060` clamp candidate contradicted original Repeat source; subsequent all-sky forced-mip-0 candidate was introduced to chase screenshots | Wrong detour, not product policy. Independent `ba05872c` removes forced-mip-0 shader hints and the static fixture; post-removal runtime proof remains outside this docs task |
+| Historical sampler detour | `ca400060` clamp candidate contradicted original Repeat source; subsequent all-sky forced-mip-0 candidate was introduced to chase screenshots | Wrong detour, not product policy. Independent `ba05872c` removes forced-mip-0 shader hints and the static fixture; post-removal runtime evidence is retained below |
 | Native `6b1c7650fb975b884adcfbb3570c833c11354c40` | Depot `lc0jr8r3x3`, installed SHA-256 prefix `062521`; build provenance `mip0-correction-build-inputs.txt`/`mip0-correction-native-build.log`. Stage GPU assertions pass, several processes124; coastal functional observer0 (`skybox_static_sampler-mip0-final.log`, `skybox_mipmap_sampling-mip0-final.log`, `skybox_debug_screen-mip0-final.log`) | Saved candidate evidence, not proof of independently changing current policy; general shutdown deferred |
 | Coastal image diagnostics | 450491 initial,450489 phase-ready,450481 after linear correction,450454 clamp candidate; `6b1c7650` comparator451234/921600, exit1, max.95686275/mean.04712256 (`coastal-mip0-original-comparison.log`) | Actual numeric diagnostic failures retained, not product failures under linked acceptance. No threshold relaxation or fitted mask; premature FrameReady, missing Color-case and clamp explanations are not established |
 | Real performance runs1/2 | Coherent distributions/memory observations; run1 pending5803; run2 nominal60.077382s/289 intervals with changing readiness (`performance-run1-verification.md`, `performance-runner{1,2}.log`, `perf-settled-boundary.md`) | Neither proves steady performance; no comparable baseline or invented product budget |
 
+## Post-removal native evidence — 2026-10-01
+
+Saved evidence under `/tmp/claude/retained-conversion-20/`: `final-native-build-inputs.json`/`final-native-build.log` record native `ee61569f5371b91a54fef8b125d1607bc0024b6b`, Depot `0gvshwskx4`, build exit0, installed DLL SHA-256 `681b43cdf70ea88b5b02043b1d1558ff6aad19971b38801c0b8e65d9ca421322`. `final-native-mips-results.json` records unchanged before/after DLL hashes and shader SHA-256 `6652b9ddc064b222cbc728fb126be41c40fbd4cdc52898b779e90473604ef8ef`; `final-native-mips-additional-results.json` records the same DLL for corrected Light653 and persisted-camera runs. These replace the source-only post-`ba05872c` boundary, not historical candidate results.
+
+| Exact saved case / full log | Assertions / observation | Process boundary |
+|---|---|---|
+| `final-native-mips-mips.log` | Real RGBA8 authored mip chain: three explicit-control and three production-shader witnesses all return expected green `(0,128,0,255)`; six assertions PASS, native mips consumed | Exit124 at timeout60; **not process PASS**, shutdown deferred |
+| `final-native-mips-linear.log` | Three single-stage `[64,96,128]` and three linear-product `[9,31,61]` witnesses PASS at unchanged two-code tolerance | Exit0; bounded arithmetic, not full-scene parity |
+| `final-native-mips-cloud-{dark,active,live}.log` | Regular cloud fixed100000: all54 selected batches transparent, shown/hidden change0 and stable restore; fixed200000:70074 contribution pixels; natural live reaches200043ms after186779ms wait and changes16793 samples | Each exit0; live timeout300, not a fixed-time shortcut; all-track coverage unproved |
+| `final-native-mips-coastal-{fixed,live}.log` | Fixed100000 UV.5/stable and114853 contribution pixels; live UV/render change29022 samples | Each exit0; bounded observers, no original-expected pixel oracle |
+| `final-native-mips-light653.log` → `final-native-mips-light653-fixed0.log` | First command omitted time, therefore LIVE; natural source activation requires200000ms. Corrected command explicitly sets `--skybox-time-ms 0`: transparent authored output, radial fog and reference126932/procedural230400 contribution pixels | First timeout180 exits124, preserved command-boundary timeout; corrected fixed0 exits0, not live completion proof |
+| `final-native-mips-persisted-camera.log` | Saved FOV105/sensitivity.007 with coastal fixed100000 UV.5 and104557 contribution pixels | Exit0; persisted camera only, not unsupported offline same-scene live Options |
+| `final-sky-tests-depot.log` / `final-sky-tests-full.log` | Saved `--lib sky` core12/native15 pass; `final-sky-test-inputs.txt` records `e0f0661f36d63e5863cc317e43923a73fe7825cb` | Exit0; filtered tests, not full suite or warning-free: core unused imports plus native unused import/two unused-mut warnings retained |
+
+Cross-engine pixel comparisons remain optional diagnostics under [visual acceptance](godot-conversion.md#cross-engine-acceptance), not blockers; retained numeric failures and thresholds are unchanged. Performance run3 is pending: run1/2 readiness/window gaps and absence of a comparable baseline remain, with no steady-performance claim. Default Map2703 data, unsupported offline live Options and deferred shutdown remain **OPEN**; retained goal20 and full conversion remain **OPEN**.
+
 ## Known gaps (current cycle)
 
-- [ ] Reconcile independent policy removal/current artifact and final goal20 scope audit. Saved GPU assertions do not make timeout124 a process PASS. Other-owner root-format issues and existing build warnings remain uncleared.
+- [ ] Complete final goal20 scope audit; post-removal artifact/observer evidence above is bounded, not full acceptance. Saved GPU assertions do not make timeout124 a process PASS. Other-owner root-format issues and existing build warnings remain uncleared.
 - [ ] Supply authoritative default `Light.map2703` data, currently absent: explicit default-source blocker, no fallback.
 - [ ] Complete remaining source/animation/input coverage and unsupported same-scene live Options proof without promoting bounded FOV105/.007 evidence to all options.
 - [ ] Establish a valid settled performance window and comparable baseline; readiness changes invalidate steady claims.
