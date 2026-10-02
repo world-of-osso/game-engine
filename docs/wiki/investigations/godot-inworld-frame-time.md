@@ -77,9 +77,44 @@ safeguards).
   (0.4-1.2%, moving NPCs); two cascades soften distant leaf shadows (1-3% of pixels). `m2_real_pixels` and
   `character_real_pixels` pass.
 
+- **Where the renderer CPU goes (branch `godotprof`).** DWARF call-graph perf (`cycles:u`, 199 Hz, symbolized
+  Godot) of the Stormwind idle segment after `shadowpass`, 42.5 ms main-thread CPU per frame (inclusive ms/frame):
+
+  | function | ms | cause in our scene |
+  |---|---|---|
+  | `RenderingServerDefault::_draw` | 26.7 | whole renderer |
+  | `RenderForwardClustered::_render_list` | 7.3 | per draw: 6.9k colour + shadow draws |
+  | `RenderingDeviceGraph::end` (command replay) | 6.5 | per draw; plus `libvulkan_radeon` 5.2 ms self |
+  | `RendererSceneCull::update` | 6.6 | dirty instances + material queue |
+  | `update_dirty_instances` | 4.3 | instances re-dirtied every frame |
+  | `_fill_render_list` | 2.5 | per visible surface |
+  | `MeshStorage::mesh_get_aabb` | 2.1 | skinned batch meshes re-derive their AABB from bones after each pose write |
+  | `_update_queued_materials` | 2.0 | animated M2 material inputs (changed only) |
+  | `_update_dirty_geometry_instances` | 1.7 | water: see below |
+  | `_update_dirty_geometry_pipelines` | 0.9 | water: see below |
+
+  Self time by object: Godot 62%, the extension 19% (8 ms), `libvulkan_radeon` 12% (5 ms). Draw submission
+  (`_render_list` + graph replay + driver) is about 19 ms for 6.9k draws, about 2.8 us per draw, so it is
+  proportional to draws; the 8% and 12% draw cuts (`doodadinst-unmerged-ref`, `terrainmerge-unmerged-ref`)
+  predict 1.5-2.5 ms, below the run-to-run spread of p50 (35-46 ms).
+- **Liquid texture rewrites (fixed, `godotprof`).** `LiquidSurface::set_time` wrote every texture slot each
+  frame. In Godot a texture parameter write marks the material's textures dirty
+  (`MaterialStorage::material_set_param`), so `update_parameters_uniform_set` rebuilds the uniform set and
+  `_update_queued_materials` sends `DEPENDENCY_CHANGED_MATERIAL`, which re-runs `_geometry_instance_update`
+  and pipeline lookup for every water chunk instance using that material. The flipbook advances one frame
+  per second (`LiquidMaterialManager.cpp` `updateLiquidDataAnimatedTextures`), so a slot is now written only
+  when its frame changes. Stormwind idle, same profile: geometry instance updates 1.67 -> 0.17 ms, pipeline
+  updates 0.89 -> 0.11 ms, `_fill_render_list` 2.52 -> 1.38 ms, `_draw` 26.7 -> 24.9 ms.
+  Stormwind idle without perf, interleaved (`data/diagnostics/godotprof/r{2,3}-*`, load 4.7-5.2, same draws):
+  base p50 40.7 / 39.3 ms, render CPU 21.4 / 20.3; fix p50 35.2 / 35.1 ms, render CPU 16.9 / 16.7. A first
+  round under 997 Hz perf (`r1-*`) showed no difference (38.0 vs 38.6), so the size of the gain is not settled.
+
 ## Remaining leads
 
 - Draw-call volume: doodads ~4.6k, terrain ~1.9k, units ~1.1k of 7.8k draws (Stormwind, hiding each root).
   Instancing identical static doodads or merging terrain chunks would cut it.
 - Skinned M2 culling bounds: WebWowViewerCpp `M2Object::createAABB` culls by the header `bounding_box`; Godot
-  recomputes each posed skinned mesh's AABB from its bones every frame (`custom_aabb` would match the reference).
+  recomputes each posed skinned batch mesh's AABB from its bones every frame (`mesh_get_aabb`, 2.1 ms in
+  Stormwind idle; `custom_aabb` would match the reference).
+- `Node3D::_propagate_transform_changed` 1.4 ms self, reached from extension `set_quaternion`/`set_position`
+  calls during idle (callers lost at Rust frames).
