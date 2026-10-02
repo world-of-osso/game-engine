@@ -4,7 +4,7 @@ pub(crate) mod assets;
 mod fog_cone;
 mod planets;
 
-use std::collections::HashMap;
+use std::{collections::HashMap, ops::RangeInclusive};
 
 use game_engine_core::{
     asset::wmo_format::fog::WmoFogBlend,
@@ -150,10 +150,11 @@ pub(crate) struct WorldLighting {
 /// stars, planets, skybox models, 0x4 fog cone; `ViewsObjects.cpp:40-55`). Godot draws
 /// transparents by priority first, so these stay below the world's (0): the sky view draws
 /// before the world, and water or particles in front of the far plane blend over it.
-const STARS_PRIORITY: i32 = -100;
-pub(super) const PLANETS_PRIORITY: i32 = -80;
-const SKYBOX_PRIORITY: i32 = -60;
-pub(super) const FOG_CONE_PRIORITY: i32 = -40;
+/// Godot's priorities start at -128; a model's batches take consecutive priorities in its band.
+const STARS_PRIORITIES: RangeInclusive<i32> = -128..=-113;
+pub(super) const PLANETS_PRIORITY: i32 = -112;
+const SKYBOX_PRIORITIES: RangeInclusive<i32> = -111..=-2;
+pub(super) const FOG_CONE_PRIORITY: i32 = -1;
 
 const SKY_DOME_SHADER: &str = "res://shaders/sky_dome.gdshader";
 
@@ -220,7 +221,7 @@ impl WorldLighting {
         if self.stars.is_none() && alpha.is_some() {
             let mut stars =
                 SkyModel::load_model(&catalog.data_root, &catalog.stars_path, STARS_FDID, None)?;
-            stars.offset_render_priority(STARS_PRIORITY);
+            stars.place_render_priorities(STARS_PRIORITIES)?;
             self.root
                 .as_mut()
                 .expect("attached root")
@@ -261,7 +262,9 @@ impl WorldLighting {
                     }
                     None => SkyModel::load_model(&catalog.data_root, &path, draw.fdid, None)?,
                 };
-                model.offset_render_priority(SKYBOX_PRIORITY);
+                model
+                    .place_render_priorities(SKYBOX_PRIORITIES)
+                    .map_err(|error| format!("Skybox {}: {error}", draw.fdid))?;
                 self.root
                     .as_mut()
                     .expect("attached root")
