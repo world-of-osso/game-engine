@@ -1,5 +1,6 @@
-//! Original character-creation icon masking (`src/scenes/char_create/icon_masks.rs`):
-//! race/class portrait icons are clipped by the authored round portrait mask.
+//! Round icon masking with `TempPortraitAlphaMask`: character-creation race/class icons
+//! (`src/scenes/char_create/icon_masks.rs`) and the bag bar's `CircularItemButtonTemplate`
+//! bag icons (`CircleMask`, ItemButtonTemplate.xml:5-21).
 
 use std::collections::HashMap;
 
@@ -22,18 +23,13 @@ pub struct IconMasks {
 }
 
 impl IconMasks {
-    /// Swap every `Race_*_Icon` / `Class_*_Icon` / `Form_*_Icon` FDID source for its masked image.
+    /// Swap every round icon's FDID source (`is_round_icon`) for its masked image.
     /// Failures never fall back to the unmasked square icon.
     pub fn apply(&mut self, registry: &mut FrameRegistry) {
         let pending: Vec<_> = registry
             .frames_iter()
             .filter_map(|frame| {
-                let name = frame.name.as_deref()?;
-                if !name.ends_with("_Icon")
-                    || !(name.starts_with("Race_")
-                        || name.starts_with("Class_")
-                        || name.starts_with("Form_"))
-                {
+                if !is_round_icon(frame.name.as_deref()?) {
                     return None;
                 }
                 let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
@@ -49,7 +45,7 @@ impl IconMasks {
             let source = match self.masked(fdid, crop, registry) {
                 Ok(texture) => TextureSource::Dynamic(texture),
                 Err(error) => {
-                    godot_error!("Character-creation icon {fdid} cannot be masked: {error}");
+                    godot_error!("Round icon {fdid} cannot be masked: {error}");
                     TextureSource::None
                 }
             };
@@ -86,6 +82,16 @@ impl IconMasks {
     }
 }
 
+/// `Race_*_Icon` / `Class_*_Icon` / `Form_*_Icon`, and the bag bar's
+/// `CharacterBag{n}SlotIconTexture` / `CharacterReagentBag0SlotIconTexture`.
+fn is_round_icon(name: &str) -> bool {
+    let creation = name.ends_with("_Icon")
+        && (name.starts_with("Race_") || name.starts_with("Class_") || name.starts_with("Form_"));
+    let bag = name.ends_with("SlotIconTexture")
+        && (name.starts_with("CharacterBag") || name.starts_with("CharacterReagentBag"));
+    creation || bag
+}
+
 /// The (left, right, top, bottom) normalized region of `image`.
 fn crop_normalized(image: RgbaImage, crop: [f32; 4]) -> RgbaImage {
     if crop == [0.0, 1.0, 0.0, 1.0] {
@@ -101,12 +107,10 @@ fn crop_normalized(image: RgbaImage, crop: [f32; 4]) -> RgbaImage {
 
 fn load_rgba(fdid: u32, role: &str) -> Result<RgbaImage, String> {
     let rgba = assets::decode_blp(&format!("data/textures/{fdid}.blp"))
-        .map_err(|error| format!("character-creation {role} FDID {fdid}: {error}"))?;
+        .map_err(|error| format!("round {role} FDID {fdid}: {error}"))?;
     if rgba.width == 0 || rgba.height == 0 {
-        return Err(format!(
-            "character-creation {role} FDID {fdid} has zero dimensions"
-        ));
+        return Err(format!("round {role} FDID {fdid} has zero dimensions"));
     }
     RgbaImage::from_raw(rgba.width, rgba.height, rgba.pixels)
-        .ok_or_else(|| format!("character-creation {role} FDID {fdid} has invalid RGBA size"))
+        .ok_or_else(|| format!("round {role} FDID {fdid} has invalid RGBA size"))
 }

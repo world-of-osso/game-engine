@@ -116,6 +116,8 @@ enum ScreenPostsetup {
     Spellbook,
     Minimap,
     CharacterFrame,
+    /// Bag bar icons get their round `CircleMask`.
+    Bags,
 }
 
 impl RegistryModel {
@@ -165,6 +167,7 @@ impl RegistryModel {
                 apply_character_create_postsetup(&self.shared, &mut self.registry);
                 self.icon_masks.apply(&mut self.registry);
             }
+            ScreenPostsetup::Bags => self.icon_masks.apply(&mut self.registry),
         }
     }
 
@@ -646,7 +649,7 @@ impl RegistryUi {
 
     /// Initialize the authored bag strip and standalone containers.
     pub(crate) fn show_bags(&mut self, view: crate::bags::BagsView) -> Result<(), String> {
-        self.show_viewport_screen(view, crate::bags::bags_screen, ScreenPostsetup::None)?;
+        self.show_viewport_screen(view, crate::bags::bags_screen, ScreenPostsetup::Bags)?;
         self.enable_cursor_inputs();
         // ContainerFrame.xml:216: every bag lives in toplevel `ContainerFrameContainer`.
         self.toplevel = true;

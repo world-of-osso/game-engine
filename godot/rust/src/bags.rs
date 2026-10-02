@@ -4,10 +4,14 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::bag_frame_component::{
     ACTION_BAG_TOGGLE_PREFIX, BagFrameState, bag_frame_screen,
 };
-use game_engine_ui_model::bags_bar_component::{BagBarState, bags_bar_screen};
+use game_engine_ui_model::bags_bar_component::{
+    ACTION_BAG_BAR_EXPAND_TOGGLE, BagBarState, bags_bar_screen,
+};
 use game_engine_ui_model::container_layout_data::container_positions;
+use game_engine_ui_model::cursor_item::CursorTarget;
 use game_engine_ui_model::window_manager::{WindowId, WindowManager};
 use godot::prelude::*;
+use shared::protocol::{EquipmentSlot, ItemLocation};
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
@@ -29,13 +33,14 @@ pub(crate) struct Bags {
     npc_windows: Vec<WindowId>,
     /// Retail `FRAME_THAT_OPENED_BAGS` (ContainerFrame.lua:1903-1921, 1987-1999).
     bags_opener: Option<WindowId>,
+    /// `MainMenuBarBagManager:ToggleExpandBar` collapsed the four bag slots.
+    bar_collapsed: bool,
 }
 
 #[derive(Clone, PartialEq)]
 pub(crate) struct BagsView {
     containers: BagFrameState,
-    money: u64,
-    free_slots: usize,
+    bar: BagBarState,
 }
 
 pub(crate) fn bags_screen(ctx: &SharedContext) -> Element {
@@ -44,10 +49,7 @@ pub(crate) fn bags_screen(ctx: &SharedContext) -> Element {
         .expect("BagsView must be in SharedContext");
     let mut shared = SharedContext::new();
     shared.insert(view.containers.clone());
-    shared.insert(BagBarState {
-        money: view.money,
-        free_slots: view.free_slots,
-    });
+    shared.insert(view.bar);
     let mut elements = bags_bar_screen(&shared);
     elements.extend(bag_frame_screen(&shared));
     elements
@@ -148,6 +150,16 @@ impl Bags {
             }
         }
     }
+}
+
+/// The bag bar slot a `bag_toggle:N` action names: `CharacterBag{N-1}Slot` holds bag N
+/// (`Bag1`-`Bag4`), `CharacterReagentBag0Slot` the reagent bag; the backpack has none.
+pub(crate) fn bag_slot_target(action: &str) -> Option<EquipmentSlot> {
+    let index: u8 = action
+        .strip_prefix(ACTION_BAG_TOGGLE_PREFIX)?
+        .parse()
+        .ok()?;
+    EquipmentSlot::from_bag_index(index)
 }
 
 impl GameClient {
@@ -280,10 +292,16 @@ impl GameClient {
             .local_player_id()
             .and_then(|id| self.replica.unit(id)?.gold())
             .unwrap_or(0);
+        let inventory = &self.merchant.session.inventory;
         BagsView {
             containers,
-            money,
-            free_slots: self.merchant.session.inventory.total_free_slots(),
+            bar: BagBarState {
+                money,
+                free_slots: inventory.total_free_slots(),
+                bag_icons: EquipmentSlot::BAGS
+                    .map(|slot| inventory.equipped(slot).map(|bag| bag.icon_fdid)),
+                collapsed: self.bags.bar_collapsed,
+            },
         }
     }
 
@@ -316,6 +334,15 @@ impl GameClient {
                 return Ok(handled?);
             }
             self.bag_cursor_click(action, click)
+        } else if action == ACTION_BAG_BAR_EXPAND_TOGGLE {
+            self.bags.bar_collapsed = !self.bags.bar_collapsed;
+            Ok(())
+        } else if let Some(slot) = bag_slot_target(action)
+            && !self.bags.cursor.item.is_empty()
+        {
+            // BaseBagSlotButtonMixin:BagSlotOnClick: `PutItemInBag(self:GetID())` with an
+            // item on the cursor, else `ToggleBag` (MainMenuBarBagButtons.lua:70-84).
+            self.send_cursor_click(CursorTarget::Location(ItemLocation::Equipment(slot)))
         } else {
             Ok(self.toggle_bag_action(action)?)
         }
