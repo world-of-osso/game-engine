@@ -1,17 +1,17 @@
 extends SceneTree
 
 # Godot compiles a shader when a material first takes it, 10-50 ms of main-thread time,
-# so the first model of each M2 pipeline, the terrain and each liquid stalled character
-# select and world entry. Each shader the scene uses is recorded in user://, and a later
+# so the first model of each M2 pipeline, WMO variant, the terrain and each liquid
+# stalled character select and world entry. Each shader the scene uses is recorded in user://, and a later
 # run compiles the recorded shaders ahead of need, one per call.
 
 const DATA := "res://../data/models/"
 # Single-batch doodad model (FDID 1016191).
 const MODEL := 1016191
 const USED := "user://used_shaders.txt"
-# An M2 pipeline the model does not use (Mod blend, two-sided, no depth test or write)
-# and a liquid shader.
-const RECORDED := ["m2 4 1 0 0", "resource res://shaders/water.gdshader"]
+# An M2 pipeline the model does not use (Mod blend, two-sided, no depth test or write),
+# a WMO variant (two-sided, blended, clamped T) and a liquid shader.
+const RECORDED := ["m2 4 1 0 0", "wmo 1 1 0 1", "resource res://shaders/water.gdshader"]
 
 var saved = null
 

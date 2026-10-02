@@ -11,15 +11,20 @@ use godot::{
     prelude::*,
 };
 
-use crate::assets::material::{self, Pipeline};
+use crate::{
+    assets::material::{self, Pipeline},
+    wmo::scene::{self as wmo, WmoShaderKey},
+};
 
-/// One used shader per line: `m2 <pipeline>` or `resource <res:// path>`.
+/// One used shader per line: `m2 <pipeline>`, `wmo <key>` or `resource <res:// path>`.
 const USED_SHADERS_PATH: &str = "user://used_shaders.txt";
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub(crate) enum UsedShader {
     /// An M2 batch pipeline's shader variants.
     M2(Pipeline),
+    /// A WMO material shader variant.
+    Wmo(WmoShaderKey),
     /// A shader resource, used as authored.
     Resource(String),
 }
@@ -28,6 +33,7 @@ impl UsedShader {
     fn line(&self) -> String {
         match self {
             Self::M2(pipeline) => format!("m2 {}", pipeline.line()),
+            Self::Wmo(key) => format!("wmo {}", key.line()),
             Self::Resource(path) => format!("resource {path}"),
         }
     }
@@ -35,6 +41,7 @@ impl UsedShader {
     fn parse(line: &str) -> Option<Self> {
         match line.split_once(' ')? {
             ("m2", pipeline) => Pipeline::parse(pipeline).map(Self::M2),
+            ("wmo", key) => WmoShaderKey::parse(key).map(Self::Wmo),
             ("resource", path) if path.starts_with("res://") => {
                 Some(Self::Resource(path.to_owned()))
             }
@@ -46,6 +53,7 @@ impl UsedShader {
     fn compile(&self) -> Result<Option<Gd<Shader>>, String> {
         match self {
             Self::M2(pipeline) => material::compile_pipeline(*pipeline).map(|()| None),
+            Self::Wmo(key) => wmo::compile_shader(*key).map(|()| None),
             Self::Resource(path) => {
                 let shader = load_resource(path)?;
                 // The RID creates the rendering server's shader, which compiles it.
