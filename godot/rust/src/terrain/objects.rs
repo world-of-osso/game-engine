@@ -533,8 +533,13 @@ impl TerrainObjects {
         if let Some(pools) = &mut self.particles {
             pools.attach(parent);
         }
+        let name = self.name;
+        let span = crate::profile::span(|| format!("{name}.queue_tiles"));
         self.queue_tiles(terrain, selection);
+        drop(span);
+        let span = crate::profile::span(|| format!("{name}.poll"));
         self.arrived.extend(self.loader.poll());
+        drop(span);
         // Placements whose files are loaded spawn within the budget; the others are
         // handed to the workers and wait.
         let started = Instant::now();
