@@ -112,8 +112,29 @@ use game_engine_ui_model::{
     },
     char_select_state_from_roster,
 };
-use godot::classes::{INode3D, Node3D, ProjectSettings};
+use godot::classes::{Engine as GodotEngine, INode3D, Node3D, ProjectSettings, Time};
 use godot::prelude::*;
+
+/// Observe projection removal; despawn has no surviving replica snapshot.
+fn log_replication_removal(server_id: u64, snapshot: Option<game_engine_network::replica::Unit>) {
+    godot_print!(
+        "REPLICATION_REMOVAL server_id={} reason={} snapshot_present={} model_display={:?} npc_present={:?} player_present={:?} observed_process_frame={} observed_ticks_usec={}",
+        server_id,
+        if snapshot.is_some() {
+            "nonunit"
+        } else {
+            "despawned"
+        },
+        snapshot.is_some(),
+        snapshot.and_then(|unit| unit
+            .get::<shared::components::ModelDisplay>()
+            .map(|model| model.display_id)),
+        snapshot.map(|unit| unit.has::<shared::components::Npc>()),
+        snapshot.map(|unit| unit.has::<shared::components::Player>()),
+        GodotEngine::singleton().get_process_frames(),
+        Time::singleton().get_ticks_usec(),
+    );
+}
 
 struct GameEngineExtension;
 
@@ -1715,6 +1736,7 @@ impl GameClient {
                     components,
                 } => (server_id, components),
                 UnitChange::Despawned(server_id) => {
+                    log_replication_removal(server_id, None);
                     self.remove_replicated(server_id);
                     continue;
                 }
@@ -1731,6 +1753,7 @@ impl GameClient {
             } else if let Some(info) = unit.get::<shared::protocol::GameObjectInfo>() {
                 errors.extend(self.game_objects.upsert(&mut parent, unit, info).err());
             } else {
+                log_replication_removal(server_id, Some(unit));
                 self.remove_replicated(server_id);
             }
         }
