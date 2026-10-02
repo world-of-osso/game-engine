@@ -1196,6 +1196,7 @@ mod tests {
             max_stack: 1,
             num_available: None,
             usable: true,
+            max_durability: None,
         }];
         let tooltip = hovered_merchant_tooltip(&registry, name, Some(&merchant)).expect("merchant");
         assert_eq!(

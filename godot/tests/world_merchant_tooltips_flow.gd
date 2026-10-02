@@ -1,13 +1,15 @@
 extends "res://tests/world_merchant_click_flow.gd"
 
-# Source oracles: tooltip_frame/mod.rs merchant_tooltip + owner_anchor_position;
-# shared item_tooltip.rs and local ItemSparse4865 SellPrice5, quality0.
-# Vendor/buyback names and quality intentionally differ from ItemSparse, proving
-# peer cell content is not accidentally replaced by the catalog formatter.
+# Source oracles: SetMerchantItem / SetBuybackItem (MF.lua:710-724) show the full item
+# tooltip of shared item_tooltip.rs: local ItemSparse 2589 SellPrice13, 4865 SellPrice5,
+# 25 Worn Shortsword (binds when equipped, 1-1 Speed 2.60, SellPrice3) at the peer's
+# durability 20. Vendor/buyback names and quality intentionally differ from ItemSparse,
+# proving peer cell content is not replaced by the catalog's.
 const MT_WAIT_MS := 6000
 const MT_QUIET_MS := 900
 const MT_TOLERANCE := 2.0
-const MT_VENDOR_ITEMS := ["Fixture Linen Bundle", "Fixture Single Pelt"]
+const MT_VENDOR_ITEMS := ["Fixture Linen Bundle", "Fixture Single Pelt", "Fixture Vendor Sword"]
+const MT_GOLD := Color(1.0, 0.82, 0.0, 1.0)
 const MT_BUYBACK_ITEMS := ["Fixture Returned Linen", "Fixture Returned Pelt"]
 var mt_npc: Variant
 var mt_bag_rect := Rect2()
@@ -76,28 +78,41 @@ func open_vendor(client: Node, vendor: Dictionary) -> bool:
 	return false
 
 func mt_vendor_hovers(client: Node) -> bool:
-	var bundle := mt_expected("Fixture Linen Bundle", Color(0.12, 1.0, 0.0, 1.0), [["Stack Count", "5"], ["In Stock", "7"], ["Item ID: 2589", ""]])
+	# The purchase of 5 sells for 5 x 13 copper.
+	var bundle := mt_item("Fixture Linen Bundle", Color(0.12, 1.0, 0.0, 1.0), [["Sell Price:", ""], ["Item ID: 2589", ""]], "65")
 	if not await mt_hover(client, "MerchantItem1", bundle, "VENDOR"):
 		return false
-	var single := mt_expected("Fixture Single Pelt", Color(0.62, 0.62, 0.62, 1.0), [["Item ID: 4865", ""]])
+	var single := mt_item("Fixture Single Pelt", Color(0.62, 0.62, 0.62, 1.0), [["Sell Price:", ""], ["Item ID: 4865", ""]], "5")
 	if not await mt_hover(client, "MerchantItem2", single, "SINGLE"):
 		return false
-	if not await mt_hover(client, "MerchantItem3", {}, "EMPTY_CELL"):
+	var sword := mt_item("Fixture Vendor Sword", Color.WHITE, [
+		["Item Level 1", "", MT_GOLD],
+		["Binds when equipped", ""],
+		["Main Hand", "Sword", Color.WHITE, Color.WHITE],
+		["1 - 1 Damage", "Speed 2.60", Color.WHITE, Color.WHITE],
+		["(0.4 damage per second)", ""],
+		["Durability 20 / 20", ""],
+		["Sell Price:", ""],
+		["Item ID: 25", ""]], "3")
+	sword.money_line = 6
+	if not await mt_hover(client, "MerchantItem3", sword, "WEAPON"):
+		return false
+	if not await mt_hover(client, "MerchantItem4", {}, "EMPTY_CELL"):
 		return false
 	# Re-show before peer refresh; same physical pointer, not a synthetic callback.
 	if not await mt_hover(client, "MerchantItem1", bundle, "REFRESH_ARM"):
 		return false
 	mt_refreshed = true
-	bundle.lines = [["Stack Count", "2"], ["In Stock", "0"], ["Item ID: 2589", ""]]
+	bundle.copper = "26"
 	return await mt_expect_stable(client, "MerchantItem1", bundle, true, "REFRESHED")
 
 func mt_buyback_hovers(client: Node) -> bool:
 	if not await mt_tab(client, "MerchantFrameTab2", "Buyback"):
 		return false
-	var returned := mt_expected("Fixture Returned Linen", Color(0.64, 0.21, 0.93, 1.0), [["Stack Count", "3"], ["Item ID: 2589", ""]])
+	var returned := mt_item("Fixture Returned Linen", Color(0.64, 0.21, 0.93, 1.0), [["Sell Price:", ""], ["Item ID: 2589", ""]], "39")
 	if not await mt_hover(client, "MerchantItem1", returned, "BUYBACK"):
 		return false
-	var single := mt_expected("Fixture Returned Pelt", Color.WHITE, [["Item ID: 4865", ""]])
+	var single := mt_item("Fixture Returned Pelt", Color.WHITE, [["Sell Price:", ""], ["Item ID: 4865", ""]], "5")
 	if not await mt_hover(client, "MerchantItem2", single, "BUYBACK_SINGLE"):
 		return false
 	return await mt_hover(client, "MerchantItem3", {}, "BUYBACK_EMPTY")
@@ -141,11 +156,18 @@ func mt_service_hovers(client: Node) -> bool:
 	short.copper = "10"
 	if not await mt_expect_stable(client, "MerchantRepairAllButton", short, true, "REPAIR_ALL_SHORT"):
 		return false
-	var last := mt_expected("Fixture Returned Pelt", Color.WHITE, [["Item ID: 4865", ""]])
+	var last := mt_item("Fixture Returned Pelt", Color.WHITE, [["Sell Price:", ""], ["Item ID: 4865", ""]], "5")
 	return await mt_hover(client, "MerchantBuyBackItem", last, "LAST_BUYBACK")
 
 func mt_expected(title: String, color: Color, lines: Array) -> Dictionary:
-	return {"title": title, "color": color, "lines": lines, "copper": "", "bag": false}
+	return {"title": title, "color": color, "lines": lines, "copper": "", "money_line": 0, "bag": false, "item": false}
+
+# An item tooltip at a merchant cell: white lines as in the bags, ANCHOR_RIGHT.
+func mt_item(title: String, color: Color, lines: Array, copper: String) -> Dictionary:
+	var expected := mt_expected(title, color, lines)
+	expected.copper = copper
+	expected.item = true
+	return expected
 
 func mt_control(client: Node, name: String) -> Control:
 	var ui := client.get_node_or_null("MerchantUI")
@@ -288,12 +310,14 @@ func mt_projection(client: Node, owner: String, expected: Dictionary) -> bool:
 			if label == null or not label.is_visible_in_tree() or label.text != expected.lines[index][side]:
 				return false
 			var color := Color(0.92, 0.89, 0.82, 1.0)
+			if side == 1 and expected.lines[index].size() > 3:
+				color = expected.lines[index][3]
 			if side == 0:
 				if expected.lines[index].size() > 2:
 					color = expected.lines[index][2]
 				elif expected.lines[index][0].begins_with("Item ID:"):
 					color = Color(0.5, 0.5, 0.5, 1.0)
-				elif expected.bag:
+				elif expected.bag or expected.item:
 					color = Color.WHITE
 				else:
 					color = Color(0.72, 0.72, 0.72, 1.0)
@@ -302,9 +326,9 @@ func mt_projection(client: Node, owner: String, expected: Dictionary) -> bool:
 	var extra := host.find_child("TooltipLine%dLeft" % expected.lines.size(), true, false) as Control
 	if extra != null and extra.is_visible_in_tree():
 		return false
-	var amount := host.find_child("TooltipLine0MoneyAmount0", true, false) as Label
+	var amount := host.find_child("TooltipLine%dMoneyAmount0" % expected.money_line, true, false) as Label
 	if not expected.copper.is_empty():
-		var coin := mt_texture(host.find_child("TooltipLine0MoneyCoin0", true, false) as Control)
+		var coin := mt_texture(host.find_child("TooltipLine%dMoneyCoin0" % expected.money_line, true, false) as Control)
 		if amount == null or not amount.is_visible_in_tree() or amount.text != expected.copper or coin == null:
 			return false
 	elif amount != null and amount.is_visible_in_tree():
