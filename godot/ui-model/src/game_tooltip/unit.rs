@@ -450,7 +450,9 @@ mod tests {
             npc_level_text(11, Elite, Some("Humanoid")),
             "Level 11 Elite Humanoid"
         );
-        assert_eq!(npc_level_text(12, RareElite, None), "Level 12 Rare Elite");
+        // Bruegal Ironknuckle (1720): level 25 rare elite, before the type arrives.
+        assert_eq!(npc_level_text(25, RareElite, None), "Level 25 Rare Elite");
+        // Azuregos (6109): level 63 dragonkin, rank 3.
         assert_eq!(
             npc_level_text(63, WorldBoss, Some("Dragonkin")),
             "Level ?? Dragonkin"
