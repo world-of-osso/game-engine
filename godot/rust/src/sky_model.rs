@@ -107,7 +107,10 @@ impl SkyModel {
             .iter()
             .map(|material| material.get_render_priority() + shift)
             .collect();
-        if let Some(outside) = priorities.iter().find(|priority| !band.contains(priority)) {
+        if let Some(outside) = priorities
+            .iter()
+            .find(|&&priority| !band.contains(&priority))
+        {
             return Err(format!(
                 "Sky batch render priority {outside} outside its band {band:?}"
             ));
