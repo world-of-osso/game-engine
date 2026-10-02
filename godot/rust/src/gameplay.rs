@@ -47,6 +47,9 @@ pub(crate) struct PlayerMovement {
     reported_speed: f32,
     /// Whether the newest reported input moved or jumped, so a release reports one stop.
     reported_motion: bool,
+    /// Facing of the newest reported input (or of the first idle frame); a turn in place
+    /// reports the new facing (`CMSG_MOVE_SET_FACING`, TC MovementHandler).
+    reported_yaw: Option<f32>,
 }
 
 /// What an input reports moving: a direction, a jump, or a swim step that changed height.
@@ -83,6 +86,7 @@ impl Default for PlayerMovement {
             // The server spawns players with `MovementSpeed(RUN_SPEED)`.
             reported_speed: RUN_SPEED,
             reported_motion: false,
+            reported_yaw: None,
         }
     }
 }
@@ -364,9 +368,12 @@ impl PlayerMovement {
             swimming_vertically,
         } = motion;
         let moving = direction != [0.0; 3] || jumping || swimming_vertically;
-        if !moving && !self.reported_motion {
+        let turned = self.reported_yaw.is_some_and(|reported| reported != yaw);
+        if !moving && !self.reported_motion && !turned {
+            self.reported_yaw.get_or_insert(yaw);
             return None;
         }
+        self.reported_yaw = Some(yaw);
         self.reported_motion = moving;
         self.reported_speed = self.unmodified_speed();
         Some(PlayerInput {
@@ -755,6 +762,17 @@ mod tests {
         assert_eq!(stop.direction, [0.0; 3]);
         assert!(movement.stop_input(0.0, FEET, 2).is_none());
         assert!(movement.network_input(0.0, FEET, 2).is_none());
+    }
+
+    /// Turning in place reports the new facing once, with no movement; holding still
+    /// at that facing reports nothing more.
+    #[test]
+    fn turning_in_place_reports_the_new_facing_once() {
+        let mut movement = PlayerMovement::default();
+        assert!(movement.network_input(0.0, FEET, 2).is_none());
+        let turn = movement.network_input(1.25, FEET, 2).unwrap();
+        assert_eq!((turn.direction, turn.facing_yaw), ([0.0; 3], 1.25));
+        assert!(movement.network_input(1.25, FEET, 2).is_none());
     }
 
     fn resolve_speed(movement: &mut PlayerMovement, keys: &[BindingKey]) -> f32 {
