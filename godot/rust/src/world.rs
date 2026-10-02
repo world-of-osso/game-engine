@@ -61,6 +61,8 @@ struct UnitNode {
     /// The appearance of the newest requested visual.
     appearance: Option<UnitAppearance>,
     visual: Option<Gd<Node3D>>,
+    /// The parts of `visual` its animation LOD reads every frame.
+    lod_target: Option<LodTarget>,
     /// Visual request still loading and the sheath state its virtual items are placed
     /// for; `visual` shows the previous appearance until it arrives.
     loading: Option<(u64, SheathState)>,
@@ -90,6 +92,36 @@ struct UnitNode {
     /// The pose clip `stand_state` holds while the player stands still; cleared when it
     /// moves (the server stands it up).
     stand_anim: Option<u16>,
+}
+
+/// An NPC visual's model node, its bone animation and the merged bounds of its meshes,
+/// looked up once when the visual attaches.
+struct LodTarget {
+    model: Gd<Node3D>,
+    animation: Gd<WowAnimationPlayer>,
+    bounds: Aabb,
+}
+
+impl LodTarget {
+    fn of(visual: &Gd<Node3D>) -> Option<Self> {
+        let model = visual.try_get_node_as::<Node3D>("NpcModel")?;
+        Some(Self {
+            animation: model.try_get_node_as::<WowAnimationPlayer>("M2Animation")?,
+            bounds: crate::world_models::mesh_bounds(&model),
+            model,
+        })
+    }
+}
+
+impl UnitNode {
+    /// Frees the current visual and shows `visual` (already in the tree) instead.
+    fn replace_visual(&mut self, visual: Option<Gd<Node3D>>) {
+        if let Some(previous) = self.visual.take() {
+            previous.free();
+        }
+        self.lod_target = visual.as_ref().and_then(LodTarget::of);
+        self.visual = visual;
+    }
 }
 
 struct UnitMotion {
@@ -238,6 +270,7 @@ fn spawn_unit(
         motion: UnitMotion::new([position.x, position.y, position.z], yaw),
         appearance: None,
         visual: None,
+        lod_target: None,
         loading: None,
         visual_player_model: None,
         death_applied: false,
@@ -358,9 +391,7 @@ fn request_unit_visual(unit: &mut UnitNode, snapshot: Unit, models: &mut WorldMo
     if unit.appearance.is_none() {
         unit.animation = None;
         unit.sheath = None;
-        if let Some(previous) = unit.visual.take() {
-            previous.free();
-        }
+        unit.replace_visual(None);
     }
 }
 
@@ -375,7 +406,7 @@ fn attach_unit_visual(
 ) {
     let appearance = unit
         .appearance
-        .as_ref()
+        .clone()
         .expect("a loading unit has an appearance");
     let preserve_playback = unit.visual.is_some()
         && unit.visual_player_model.is_some()
@@ -387,9 +418,7 @@ fn attach_unit_visual(
     // A creature's load places its virtual items for `sheath`; a player's weapons are
     // placed by the sheath sync that follows the attach.
     unit.sheath = appearance.player_model().is_none().then_some(sheath);
-    if let Some(previous) = unit.visual.take() {
-        previous.free();
-    }
+    unit.replace_visual(None);
     match replacement {
         Ok(visual) => {
             if let Err(error) = crate::targeting::attach_pick_area(&visual, server_id) {
@@ -397,7 +426,7 @@ fn attach_unit_visual(
             }
             bind_visual_light(&visual, light);
             unit.node.add_child(&visual);
-            unit.visual = Some(visual);
+            unit.replace_visual(Some(visual));
             unit.visual_player_model = appearance.player_model();
         }
         Err(error) => {
@@ -971,29 +1000,21 @@ impl WorldUnits {
     /// distance and whether its bounds are in the view frustum allow; players always
     /// sample.
     pub fn apply_animation_lod(&mut self, camera: Vector3, frustum: &[HalfSpace], frame: u64) {
-        for (id, unit) in &self.units {
+        for (id, unit) in &mut self.units {
             if unit.is_player {
                 continue;
             }
-            let Some(model) = unit
-                .visual
-                .as_ref()
-                .and_then(|visual| visual.try_get_node_as::<Node3D>("NpcModel"))
-            else {
+            let Some(target) = &mut unit.lod_target else {
                 continue;
             };
-            let Some(mut animation) = model.try_get_node_as::<WowAnimationPlayer>("M2Animation")
-            else {
-                continue;
-            };
-            let bounds = crate::world_models::mesh_bounds(&model);
             let lod = npc_animation_lod(
-                (bounds.position, bounds.end()),
-                crate::terrain::objects::affine(model.get_global_transform()),
+                (target.bounds.position, target.bounds.end()),
+                crate::terrain::objects::affine(target.model.get_global_transform()),
                 Vec3::new(camera.x, camera.y, camera.z),
                 frustum,
             );
-            animation
+            target
+                .animation
                 .bind_mut()
                 .set_sampling(lod.samples_frame(frame, *id));
         }
