@@ -179,8 +179,7 @@ pub(crate) fn read_footstep_files(data_root: &Path) -> Result<FootstepFiles, Str
     };
     let mut counts = HashMap::new();
     for line in BufReader::new(file).lines() {
-        let line =
-            line.map_err(|error| format!("read {}: {error}", files.listfile.display()))?;
+        let line = line.map_err(|error| format!("read {}: {error}", files.listfile.display()))?;
         files.read_row(&line, data_root, &mut counts);
     }
     Ok(files)
