@@ -7,7 +7,9 @@ use std::{
 };
 
 use crate::{
-    equipment_appearance_data::{ResolvedEquipmentAppearance, resolve_equipment_appearance},
+    equipment_appearance_data::{
+        ResolvedEquipmentAppearance, RuntimeModelAppearance, resolve_equipment_appearance,
+    },
     outfit_data::OutfitData,
 };
 use game_engine_core::{
@@ -204,6 +206,11 @@ pub(crate) struct PlayerParts {
 impl PlayerParts {
     pub(crate) fn into_textures(self) -> Vec<(u32, blp::GpuImage)> {
         self.textures
+    }
+
+    /// The equipment's attached item models.
+    pub(crate) fn runtime_models(&self) -> &[RuntimeModelAppearance] {
+        &self.equipment.runtime_models
     }
 }
 

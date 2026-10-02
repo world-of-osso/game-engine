@@ -532,14 +532,14 @@ fn main_fog_range(fog: &FogResult) -> [f32; 2] {
 }
 
 /// `sunPhiTable` and `sunThetaTable` (mathHelper.cpp:887-903): the sun disc's path.
-const SUN_PHI: [[f32; 2]; 5] = [
+pub(crate) const SUN_PHI: [[f32; 2]; 5] = [
     [0.25, 1.745_329_3],
     [0.496_527_8, 0.087_266_46],
     [0.5, 0.087_266_46],
     [0.503_472_2, 0.087_266_46],
     [0.791_666_7, 1.745_329_3],
 ];
-const SUN_THETA: [[f32; 2]; 3] = [
+pub(crate) const SUN_THETA: [[f32; 2]; 3] = [
     [0.25, 0.785_398_2],
     [0.5, 0.785_398_2],
     [0.791_666_7, 0.785_398_2],

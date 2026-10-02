@@ -366,6 +366,16 @@ impl NativeTerrainAssets {
         Ok(result)
     }
 
+    /// The map's `.wdl` low-detail heights, `None` when the listfile has none.
+    pub fn read_map_wdl(&self, map: &str) -> Result<Option<Vec<u8>>, String> {
+        let path = format!("world/maps/{map}/{map}.wdl");
+        if self.resolver.lookup_path(&path).is_none() {
+            return Ok(None);
+        }
+        self.read_declared_file(&path, "wdl")
+            .map(|(_, bytes)| Some(bytes))
+    }
+
     fn read_optional_companion(
         &self,
         wow_path: &str,

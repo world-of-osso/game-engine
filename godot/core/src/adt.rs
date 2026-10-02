@@ -40,6 +40,12 @@ pub struct Chunk {
     pub sound_emitters: Vec<SoundEmitter>,
     pub blend_batches: Vec<BlendBatch>,
     pub detail_doodad_disable: Option<[u8; 64]>,
+    /// MCNK header 0x40: per cell row, eight 2-bit MCLY indices.
+    pub texture_selection: [u16; 8],
+    /// MCNK header 0x50: per cell row, eight detail-doodad disable bits.
+    pub detail_exclusion: [u8; 8],
+    /// MCCV is authored (otherwise `vertex_colors` is white).
+    pub has_vertex_colors: bool,
     pub holes_low_res: u16,
     pub holes_high_res: Option<u64>,
     pub shadow_map: Option<[u8; 512]>,
@@ -107,6 +113,9 @@ fn root_from_parsed(parsed: adt::ParsedAdtData) -> Root {
                 sound_emitters: chunk.sound_emitters,
                 blend_batches: chunk.blend_batches,
                 detail_doodad_disable: chunk.detail_doodad_disable,
+                texture_selection: chunk.texture_selection,
+                detail_exclusion: chunk.detail_exclusion,
+                has_vertex_colors: chunk.flags.has_mccv,
                 holes_low_res: chunk.holes_low_res,
                 holes_high_res: chunk.holes_high_res,
                 shadow_map: chunk.shadow_map,

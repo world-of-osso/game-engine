@@ -133,6 +133,45 @@ pub(crate) enum VisualParts {
     Player(PlayerParts),
 }
 
+impl VisualParts {
+    /// The particle emitters of a creature's display model (the model `build_visual`
+    /// names `NpcModel`); `None` for players and emitterless models.
+    pub fn particles(&self) -> Option<std::rc::Rc<crate::particles::ModelParticles>> {
+        match self {
+            Self::Creature { display, model, .. } => {
+                crate::particles::ModelParticles::from_model(display.model_fdid, &model.model.model)
+            }
+            Self::Player(_) => None,
+        }
+    }
+
+    /// The particle emitters of the item models the visual attaches (a creature's virtual
+    /// items and armor models, a player's equipment), by the slot their node is named for.
+    pub fn item_particles(
+        &self,
+        data_root: &std::path::Path,
+    ) -> Vec<(EquipmentSlot, std::rc::Rc<crate::particles::ModelParticles>)> {
+        let models: Vec<_> = match self {
+            Self::Creature { gear, .. } => gear
+                .items
+                .iter()
+                .map(|(model, _)| model)
+                .chain(&gear.armor_models)
+                .collect(),
+            Self::Player(parts) => parts.runtime_models().iter().collect(),
+        };
+        models
+            .into_iter()
+            .filter_map(|model| {
+                let cached = crate::assets::creature::cached_model(data_root, model.fdid)?;
+                let particles =
+                    crate::particles::ModelParticles::from_model(model.fdid, &cached.model)?;
+                Some((model.slot, particles))
+            })
+            .collect()
+    }
+}
+
 /// The catalogs unit visuals read, shared by the main thread and the workers; each
 /// loads once, on a worker at startup, so no frame waits for it.
 struct VisualCatalogs {
@@ -282,6 +321,10 @@ pub(crate) struct WorldModels {
 }
 
 impl WorldModels {
+    pub fn data_root(&self) -> &std::path::Path {
+        &self.catalogs.data_root
+    }
+
     pub fn new(data_root: PathBuf) -> Self {
         let catalogs = Arc::new(VisualCatalogs {
             outfit: OutfitData::load(&data_root),
