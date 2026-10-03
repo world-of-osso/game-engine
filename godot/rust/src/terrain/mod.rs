@@ -1,6 +1,7 @@
 //! Native ADT geometry and streamed texture resources. World lighting/readiness are separate.
 mod assets;
 pub(crate) mod doodad_collision;
+pub(crate) mod elastic_tree;
 pub(crate) mod ground_detail;
 pub(crate) mod horizon;
 pub(crate) mod material;
@@ -10,6 +11,8 @@ pub(crate) mod scenery;
 pub(crate) mod state;
 pub(crate) mod streaming;
 mod textures;
+pub(crate) mod tree_contact;
+pub(crate) mod tree_render;
 mod water;
 mod wmo_liquid;
 

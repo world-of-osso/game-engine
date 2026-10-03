@@ -10,7 +10,9 @@ extends SceneTree
 ## Launch from a high point (the driver `set-position`s the character on the peak east of
 ## Northshire, WoW (-8793, 213, 382)) so the dive has room.
 ## Environment: GODOT_TEST_SERVER (private server), SKY_ACCOUNT / SKY_CHARACTER (password
-## fbtest, card 0). SKY_READY_FILE: wait in the world until that file exists (the driver
+## fbtest, card 0). SKY_STALL_FPS: cap the client at that frame rate for the descent onto the
+## ground (a host stall), so the landing report reaches the server while it is still flying
+## behind; the landing must cost no health. SKY_READY_FILE: wait in the world until that file exists (the driver
 ## creates it after, on the online character:
 ##   game-server-admin learn-spell <name> 34090
 ##   game-server-admin learn-spell <name> 32235
@@ -125,11 +127,20 @@ func run_test() -> void:
 	await snapshot("glided")
 
 	# Down onto the ground.
+	var health_before = client.account_state().local_player_health
+	var stall_fps := int(OS.get_environment("SKY_STALL_FPS"))
+	if stall_fps > 0:
+		Engine.max_fps = stall_fps
+		trace("stalled at %d fps" % stall_fps)
 	client.set_camera_orbit(PI, -0.5, 12.0)
 	var landing_deadline := Time.get_ticks_msec() + 30000
 	while not on_ground() and Time.get_ticks_msec() < landing_deadline:
 		await sample_flight()
+		if Engine.max_fps != 60 and height_over_ground() < 0.5:
+			Engine.max_fps = 60
+			trace("client landed")
 	push_mouse(MOUSE_BUTTON_RIGHT, false)
+	Engine.max_fps = 60
 	if not on_ground():
 		fail("never landed")
 		return
@@ -137,6 +148,11 @@ func run_test() -> void:
 		return
 	trace("landed")
 	await snapshot("landed")
+	var health_after = client.account_state().local_player_health
+	print("TRACE health before the landing %s, after %s" % [health_before, health_after])
+	if health_after != health_before:
+		fail("the landing cost health: %s -> %s" % [health_before, health_after])
+		return
 	print("TRACE worst server gap off the client's path %.2f yards, worst lag %.3f s, top speed %.1f yd/s" % [
 		worst_gap, worst_lag, top_speed])
 	if worst_gap > 1.0:

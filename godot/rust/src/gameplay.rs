@@ -276,12 +276,20 @@ impl PlayerMovement {
         frame: MovementFrame,
         jump_pressed: bool,
         ground: &crate::ground::TerrainGround<'_>,
+        contacts: &mut dyn FnMut(Vec3, Vec3, f32) -> Vec3,
         delta: f32,
     ) -> Vec3 {
         self.rose = false;
         let steps = (delta / MAX_STEP_SECONDS).ceil().max(1.0);
         (0..steps as u32).fold(position, |position, _| {
-            self.step(position, &frame, jump_pressed, ground, delta / steps)
+            self.step(
+                position,
+                &frame,
+                jump_pressed,
+                ground,
+                contacts,
+                delta / steps,
+            )
         })
     }
 
@@ -291,10 +299,11 @@ impl PlayerMovement {
         frame: &MovementFrame,
         jump_pressed: bool,
         ground: &crate::ground::TerrainGround<'_>,
+        contacts: &mut dyn FnMut(Vec3, Vec3, f32) -> Vec3,
         delta: f32,
     ) -> Vec3 {
         let position = if self.flying {
-            self.fly(position, frame, ground, delta)
+            self.fly(position, frame, ground, contacts, delta)
         } else if self.swimming {
             self.swim(position, frame, ground, delta)
         } else {
@@ -393,15 +402,17 @@ impl PlayerMovement {
         current: Vec3,
         frame: &MovementFrame,
         ground: &crate::ground::TerrainGround<'_>,
+        contacts: &mut dyn FnMut(Vec3, Vec3, f32) -> Vec3,
         delta: f32,
     ) -> Vec3 {
         if let Some(glider) = self.glider {
-            return self.skyride(glider, current, ground, delta);
+            return self.skyride(glider, current, ground, contacts, delta);
         }
         let direction = Vec3::from(frame.direction).normalize_or_zero();
         let velocity = (direction * frame.speed + Vec3::Y * frame.vertical)
             .clamp_length_max(FLIGHT_SPEED * self.speed_modifier);
-        let moved = ground.validate_swim_move(current, current + velocity * delta);
+        let proposed = contacts(current, current + velocity * delta, delta);
+        let moved = ground.validate_swim_move(current, proposed);
         self.rose |= moved.y != current.y;
         let floor = match ground.probe(moved) {
             GroundState::Supported(height) => Some(height),
@@ -425,6 +436,7 @@ impl PlayerMovement {
         mut glider: Glider,
         current: Vec3,
         ground: &crate::ground::TerrainGround<'_>,
+        contacts: &mut dyn FnMut(Vec3, Vec3, f32) -> Vec3,
         delta: f32,
     ) -> Vec3 {
         let floor = |feet: Vec3| match ground.probe(feet) {
@@ -434,7 +446,12 @@ impl PlayerMovement {
         let height = floor(current).map_or(f32::INFINITY, |floor| current.y - floor);
         let Steering { yaw, pitch } = self.steering;
         let displacement = glider.step(&SKYRIDING, yaw, pitch, height, delta);
-        let moved = ground.validate_swim_move(current, current + displacement);
+        let proposed = current + displacement;
+        let contacted = contacts(current, proposed, delta);
+        if contacted != proposed {
+            apply_glider_contact(&mut glider, displacement, contacted - current);
+        }
+        let moved = ground.validate_swim_move(current, contacted);
         self.rose |= moved.y != current.y;
         self.glider = Some(glider);
         let touched_down = floor(moved).is_some_and(|floor| moved.y <= floor + LANDING_SLACK);
@@ -732,11 +749,13 @@ impl crate::GameClient {
             terrain: &self.terrain,
             walls: &walls,
         };
+        let mut contacts = |from, to, step_delta| flight_tree_contact(&space, from, to, step_delta);
         let next = self.player_movement.predict(
             glam::Vec3::new(current.x, current.y, current.z),
             frame,
             jump,
             &ground,
+            &mut contacts,
             delta,
         );
         player.set_position(Vector3::new(next.x, next.y, next.z));
@@ -792,6 +811,36 @@ impl crate::GameClient {
         self.player_movement
             .set_can_adv_fly(motion.contains(PlayerMotion::CAN_ADV_FLY));
     }
+}
+
+/// Contact removes inward momentum, never tangent velocity or additional energy.
+fn apply_glider_contact(glider: &mut Glider, proposed: Vec3, corrected: Vec3) {
+    let correction = corrected - proposed;
+    let normal = correction.normalize_or_zero();
+    let inward = -proposed.dot(normal);
+    if inward <= 0.0 {
+        return;
+    }
+    let resistance = correction.length() / inward;
+    glider.velocity =
+        game_engine_core::elastic_tree::deflect_motion(glider.velocity, normal, resistance);
+}
+
+fn flight_tree_contact(
+    space: &godot::prelude::Gd<godot::classes::PhysicsDirectSpaceState3D>,
+    from: Vec3,
+    to: Vec3,
+    delta: f32,
+) -> Vec3 {
+    use crate::terrain::tree_contact::{MOUNT_CONTACT_HEIGHT, MOUNT_CONTACT_RADIUS, move_airborne};
+    let offset = Vec3::Y * MOUNT_CONTACT_HEIGHT;
+    move_airborne(
+        space,
+        from + offset,
+        to + offset,
+        MOUNT_CONTACT_RADIUS,
+        delta,
+    ) - offset
 }
 
 /// The facing toward the map waypoint's next path node while walking to it.
@@ -1056,7 +1105,7 @@ mod tests {
         let mut feet = FEET;
         for _ in 0..60 {
             let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0, false);
-            feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
+            feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
         }
         let ran = (feet - FEET).length();
         assert!((ran - 3.5).abs() < 0.01, "{ran}");
@@ -1081,7 +1130,7 @@ mod tests {
         let mut feet = FEET;
         for _ in 0..60 {
             let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0, false);
-            feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
+            feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
         }
         let packet = movement.network_input(yaw, feet, 3).unwrap();
         assert_eq!(packet.position, feet.to_array());
@@ -1212,7 +1261,7 @@ mod tests {
     ) -> Vec3 {
         for _ in 0..frames {
             let frame = movement.resolve(&InputBindingsData::default(), input, yaw, pitch, false);
-            feet = movement.predict(feet, frame, false, ground, dt);
+            feet = movement.predict(feet, frame, false, ground, &mut |_, to, _| to, dt);
         }
         feet
     }
@@ -1629,7 +1678,7 @@ mod tests {
     ) -> Vec3 {
         input.set_key(BindingKey::Space, true);
         let frame = movement.resolve(&InputBindingsData::default(), input, INLAND, 0.0, false);
-        let feet = movement.predict(feet, frame, true, ground, DT);
+        let feet = movement.predict(feet, frame, true, ground, &mut |_, to, _| to, DT);
         assert!(movement.jumping && !movement.flying);
         let mut feet = feet;
         for _ in 0..30 {
@@ -1705,6 +1754,66 @@ mod tests {
         assert_eq!(touchdown.position, landed.to_array());
     }
 
+    #[test]
+    fn tree_contact_deflects_flight_and_reports_corrected_position_without_losing_steering() {
+        use game_engine_core::elastic_tree::{Capsule, deflect_motion, sweep_capsule};
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let mut movement = PlayerMovement::default();
+        movement.set_can_fly(true);
+        let mut input = PhysicalInput::default();
+        let airborne = take_off(&mut movement, &ground, &mut input, SHORE);
+        let high = hold(&mut movement, &ground, &input, airborne, (INLAND, 0.0), 120);
+        input.set_key(BindingKey::Space, false);
+        input.set_key(BindingKey::KeyW, true);
+        let trunk_center = high + Vec3::new(-1.6, 0.0, 2.0);
+        let trunk = Capsule {
+            start: (trunk_center - Vec3::Y * 4.0).to_array(),
+            end: (trunk_center + Vec3::Y * 4.0).to_array(),
+            radius: 0.5,
+        };
+        let mut contacts = |from: Vec3, to: Vec3, _: f32| {
+            let Some(hit) = sweep_capsule(from, to, 1.25, &trunk) else {
+                return to;
+            };
+            let motion = to - from;
+            from + motion * hit.fraction
+                + deflect_motion(motion * (1.0 - hit.fraction), hit.normal, 1.0)
+        };
+        let mut position = high;
+        for _ in 0..60 {
+            let frame = movement.resolve(&InputBindingsData::default(), &input, INLAND, 0.0, false);
+            position = movement.predict(position, frame, false, &ground, &mut contacts, DT);
+        }
+        let outside_trunk = trunk_center.x + trunk.radius + 1.25;
+        assert!(
+            position.x >= outside_trunk,
+            "flight did not slide clear of trunk: {position}, required x >= {outside_trunk}"
+        );
+        assert!(
+            position.z > high.z + 2.0,
+            "tangential motion stopped: {position}"
+        );
+        assert!(movement.flying, "tree contact ended flight");
+        assert!((position.y - high.y).abs() < 0.01);
+        let packet = movement
+            .network_input(INLAND, position, 1)
+            .expect("moving flight input");
+        assert!(packet.flying);
+        assert_eq!(packet.position, position.to_array());
+        input.set_key(BindingKey::KeyW, false);
+        input.set_key(BindingKey::KeyS, true);
+        let frame = movement.resolve(&InputBindingsData::default(), &input, INLAND, 0.0, false);
+        let reversed = movement.predict(position, frame, false, &ground, &mut contacts, DT);
+        assert!(
+            reversed.z < position.z,
+            "contact removed steering: {reversed}"
+        );
+    }
+
     /// Mouse-steered forward flight follows the camera pitch (`MOVEANDSTEER`); keyboard
     /// forward flies level.
     #[test]
@@ -1775,6 +1884,51 @@ mod tests {
     /// Inland along the shore (−X, a little +Z): the glide stays inside the loaded tile,
     /// whose +Z edge lies 11 yards past `SHORE`.
     const ALONG_SHORE: f32 = -1.2;
+
+    #[test]
+    fn skyriding_tree_contact_preserves_tangential_travel_and_changes_momentum() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let start = SHORE + Vec3::Y * 50.0;
+        let wall_x = start.x + 0.25;
+        let mut movement = PlayerMovement::default();
+        movement.set_can_fly(true);
+        movement.set_can_adv_fly(true);
+        movement.flying = true;
+        movement.glider = Some(shared::skyriding::Glider {
+            velocity: Vec3::new(10.0, 0.0, 12.0),
+            pitch: 0.0,
+            gliding: true,
+        });
+        let mut contacts = |_: Vec3, to: Vec3, _: f32| to.with_x(to.x.min(wall_x));
+        let mut position = start;
+        for _ in 0..60 {
+            let frame = super::MovementFrame {
+                direction: [0.0, 0.0, 1.0],
+                speed: 12.0,
+                vertical: 0.0,
+            };
+            position = movement.predict(position, frame, false, &ground, &mut contacts, DT);
+        }
+        assert!(
+            position.x <= wall_x + 0.001,
+            "skyride passed trunk: {position}"
+        );
+        assert!(
+            position.z > start.z + 1.0,
+            "tangential momentum stopped: {position}"
+        );
+        assert!(movement.flying);
+        assert!(movement.glider.expect("airborne glider").velocity.x.abs() < 0.1);
+        let reported = movement
+            .network_input(INLAND, position, 1)
+            .expect("skyride input");
+        assert!(reported.flying);
+        assert_eq!(reported.position, position.to_array());
+    }
 
     /// The skyriding mount's speed over the last frame of `feet` → `next`.
     fn frame_speed(feet: Vec3, next: Vec3) -> f32 {
@@ -1926,7 +2080,7 @@ mod tests {
         let mut input = PhysicalInput::default();
         input.set_key(BindingKey::Space, true);
         let frame = movement.resolve(&InputBindingsData::default(), &input, INLAND, 0.0, false);
-        let feet = movement.predict(SHORE, frame, true, &ground, DT);
+        let feet = movement.predict(SHORE, frame, true, &ground, &mut |_, to, _| to, DT);
         let landed = hold(&mut movement, &ground, &input, feet, (INLAND, 0.0), 120);
         assert!(!movement.flying);
         assert!((landed.y - SHORE.y).abs() < 0.06, "{landed}");

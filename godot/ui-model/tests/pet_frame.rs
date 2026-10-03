@@ -24,6 +24,7 @@ fn frames(pet: Option<PetFrameState>) -> FrameRegistry {
         pet,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
+        personal_resource: None,
     });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(inworld_unit_frames_screen).sync(&shared, &mut registry);
@@ -34,11 +35,13 @@ fn wolf() -> PetFrameState {
     PetFrameState {
         name: "Wolf".into(),
         health_fraction: 0.5,
+        health_text: Default::default(),
         power: Some(PowerBarState {
             power: PowerType::Focus,
             current: 100,
             max: 100,
         }),
+        power_text: Default::default(),
     }
 }
 

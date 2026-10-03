@@ -231,7 +231,7 @@ mod tests {
                 speed: shared::movement::RUN_SPEED,
                 vertical: 0.0,
             };
-            feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
+            feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
             lowest = lowest.min(feet.y);
         }
         assert!(feet.x > -8773.0, "{feet}");

@@ -57,11 +57,13 @@ fn model() -> GameMenuViewModel {
                 show_health_bars: true,
                 show_target_marker: true,
                 auto_loot: false,
+                personal_resource_display: false,
                 soft_target_interact: false,
                 interact_key_icons:
                     game_engine_ui_model::soft_target_data::InteractKeyIcons::Default,
                 show_fps_overlay: true,
                 chat_font_size: 10.0,
+                status_text_display: Default::default(),
             },
             bindings: KeybindingsView {
                 section: BindingSection::Movement,
@@ -186,4 +188,38 @@ fn sound_values_update_without_replacing_the_screen() {
     shared.insert(view);
     screen.sync(&shared, &mut registry);
     assert_eq!(label(&registry, "SliderValuemaster_volume"), "0.25");
+}
+
+/// Interface → Display "Status Text": Numeric Value, Percentage, Both, None; the current
+/// choice is lit and the others click `options_toggle:status_text_display:<value>`.
+#[test]
+fn interface_status_text_row_offers_the_four_retail_choices() {
+    use game_engine_ui_model::status_text_data::StatusTextDisplay;
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut shared = SharedContext::new();
+    let mut view = model();
+    view.options.category = OptionsCategory::Interface;
+    view.options.hud.status_text_display = StatusTextDisplay::Both;
+    shared.insert(view);
+    Screen::new(game_menu_screen).sync(&shared, &mut registry);
+    assert_eq!(
+        label(&registry, "ChoiceLabelstatus_text_display"),
+        "Status Text"
+    );
+    let labels: Vec<String> = (1..=4)
+        .map(|value| label(&registry, &format!("Choicestatus_text_display{value}Label")))
+        .collect();
+    assert_eq!(labels, ["Numeric Value", "Percentage", "Both", "None"]);
+    assert!(
+        registry
+            .get_by_name("Choicestatus_text_display3Hit")
+            .is_none()
+    );
+    let hit = registry
+        .get_by_name("Choicestatus_text_display2Hit")
+        .unwrap();
+    assert_eq!(
+        registry.click_frame(hit),
+        Some("options_toggle:status_text_display:2".into())
+    );
 }

@@ -959,8 +959,11 @@ impl TerrainObjects {
             model.free();
             return Err(format!("model {fdid} missing textures {missing:?}"));
         }
-        if let Some(shape) = &parsed.collision {
-            doodad_collision::attach_collision(&mut model, shape);
+        // Annotated trees replace static authored collision with trunk/limb capsules.
+        if !model.has_node("ElasticTree") {
+            if let Some(shape) = &parsed.collision {
+                doodad_collision::attach_collision(&mut model, shape);
+            }
         }
         let engine_axes = |[x, y, z]: [f32; 3]| Vec3::new(x, z, -y);
         let render_box = (

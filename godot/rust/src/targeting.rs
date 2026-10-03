@@ -15,11 +15,15 @@ use game_engine_core::{
 use game_engine_network::replica::Unit;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::inworld_unit_frames_component::class_bars::ClassBarAnimator;
+use game_engine_ui_model::inworld_unit_frames_component::personal_resource_display::{
+    self, PersonalResourceDisplayState,
+};
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, PetFrameState, PowerBarState, UnitFrameMenuState, UnitFrameState,
     format_value_text, fraction, target_level_text,
 };
 use game_engine_ui_model::status::{ClassBarPlayer, ClassBarResource};
+use game_engine_ui_model::status_text_data::{StatusBarText, StatusTextDisplay, TextStatusBar};
 use godot::{
     classes::{
         Area3D, BoxShape3D, Camera3D, CollisionShape3D, Decal, Image, ImageTexture, MeshInstance3D,
@@ -28,13 +32,14 @@ use godot::{
     prelude::*,
 };
 use shared::components::{
-    CreatureClassification, Health, Npc, Player, UnitLevel, UnitPowers, UnitRunes,
+    CreatureClassification, Health, Npc, Player, PowerType, UnitLevel, UnitPowers, UnitRunes,
 };
 use shared::level_scaling::{LevelScaling, level_for_viewer};
 
 use crate::replicated::{UnitFields, is_unit, local_pet};
 
 use crate::frame_error::{FrameError, SessionError, report_once};
+use crate::tooltips::named_ancestor;
 pub(crate) use crate::unit_pick::pick_unit;
 use crate::unit_pick::{UNIT_ID_META, UNIT_VISUAL_META};
 use crate::{GameClient, assets::M2_BOUNDS_META, ui::RegistryUi};
@@ -69,11 +74,13 @@ pub(crate) struct Targeting {
     frame_ui: Option<Gd<RegistryUi>>,
     /// The player's class resource bar, timed from `started`.
     class_bar: ClassBarAnimator,
+    /// The Personal Resource Display's own class frame.
+    personal_class_bar: ClassBarAnimator,
     started: Instant,
     data_root: PathBuf,
     /// ExpectedStat creature health, loaded with the first tuned target.
     health_by_level: Option<Result<CreatureHealthByLevel, String>>,
-    /// The TargetFrame's level and health texts last shown, for automation.
+    /// The TargetFrame's level text and health values ("current / max"), for automation.
     frame_texts: (String, String),
     pub(crate) portraits: crate::unit_portraits::UnitPortraits,
 }
@@ -106,6 +113,7 @@ impl Targeting {
             ring_fdid: RING_FDID,
             frame_ui: None,
             class_bar: ClassBarAnimator::default(),
+            personal_class_bar: ClassBarAnimator::default(),
             started: Instant::now(),
             data_root,
             health_by_level: None,
@@ -300,6 +308,7 @@ fn target_frame_state(
     unit: Unit,
     viewer_level: Option<u8>,
     health_multiplier: f32,
+    texts: &BarTexts,
 ) -> UnitFrameState {
     let mut state = UnitFrameState::named(unit_name(unit));
     let level = unit.get::<UnitLevel>().map(|&level| {
@@ -311,15 +320,55 @@ fn target_frame_state(
     });
     state.level_text = target_level_text(level, viewer_level);
     state.classification = unit_classification(unit);
+    // `TargetFrameStatusBarMixin:OnLoad` `zeroText = ""` (TargetFrame.lua:760-769).
+    let target_health = TextStatusBar::HEALTH.with_zero_text("");
     if let Some(health) = unit.get::<Health>() {
         let (current, max) = (
             (health.current * health_multiplier).round(),
             (health.max * health_multiplier).round(),
         );
-        state.health_text = format_value_text(current, max);
+        state.health_text = texts.text("TargetHealthBar", target_health, current, max);
         state.health_fraction = fraction(health.current, health.max);
     }
+    state.power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
+    state.power_text = texts.power("TargetManaBar", state.power.as_ref(), Some(""));
     state
+}
+
+/// The Status Text setting and the unit frame bar the pointer is over (its `lockShow`).
+struct BarTexts {
+    display: StatusTextDisplay,
+    hovered: Option<String>,
+}
+
+impl BarTexts {
+    /// `bar`'s text for `value` of `max`, as integers (`UnitHealth`, `UnitPower`).
+    fn text(&self, bar: &str, kind: TextStatusBar, value: f32, max: f32) -> StatusBarText {
+        let hovered = self.hovered.as_deref() == Some(bar);
+        kind.text(
+            value.round() as i64,
+            max.round() as i64,
+            self.display,
+            hovered,
+        )
+    }
+
+    /// A power bar's text; Both shows its percentage only for Mana.
+    fn power(
+        &self,
+        bar: &str,
+        power: Option<&PowerBarState>,
+        zero_text: Option<&'static str>,
+    ) -> StatusBarText {
+        let Some(power) = power else {
+            return StatusBarText::default();
+        };
+        let mut kind = TextStatusBar::power(power.power == PowerType::Mana);
+        if let Some(zero_text) = zero_text {
+            kind = kind.with_zero_text(zero_text);
+        }
+        self.text(bar, kind, power.current as f32, power.max as f32)
+    }
 }
 
 /// `UnitClassification`: a creature's replicated rank; players are "normal".
@@ -343,7 +392,7 @@ fn target_health_multiplier(
     }
 }
 
-fn player_frame_state(unit: Unit, in_rest_area: bool) -> UnitFrameState {
+fn player_frame_state(unit: Unit, in_rest_area: bool, texts: &BarTexts) -> UnitFrameState {
     let mut state = UnitFrameState::named(
         unit.get::<Player>()
             .map_or("", |player| player.name.as_str()),
@@ -355,33 +404,73 @@ fn player_frame_state(unit: Unit, in_rest_area: bool) -> UnitFrameState {
     state.show_combat_icon = unit.in_combat();
     state.show_resting_icon = in_rest_area;
     if let Some(health) = unit.get::<Health>() {
-        state.health_text = format_value_text(health.current, health.max);
+        state.health_text = texts.text(
+            "PlayerHealthBar",
+            TextStatusBar::HEALTH,
+            health.current,
+            health.max,
+        );
         state.health_fraction = fraction(health.current, health.max);
     }
     state.power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
+    state.power_text = texts.power("PlayerManaBar", state.power.as_ref(), None);
     state
 }
 
 /// `UnitFrame_Update` on PetFrame: the pet's name, health and primary power.
-fn pet_frame_state(unit: Unit) -> PetFrameState {
+fn pet_frame_state(unit: Unit, texts: &BarTexts) -> PetFrameState {
+    let health = unit.get::<Health>();
+    let power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
     PetFrameState {
         name: unit_name(unit),
-        health_fraction: unit
-            .get::<Health>()
-            .map_or(0.0, |health| fraction(health.current, health.max)),
-        power: unit.get::<UnitPowers>().and_then(PowerBarState::primary),
+        health_fraction: health.map_or(0.0, |health| fraction(health.current, health.max)),
+        health_text: health
+            .map(|health| {
+                let kind = TextStatusBar::HEALTH;
+                texts.text("PetFrameHealthBar", kind, health.current, health.max)
+            })
+            .unwrap_or_default(),
+        power_text: texts.power("PetFrameManaBar", power.as_ref(), None),
+        power,
     }
 }
 
-/// The player's class bar power, when Retail shows the class's bar.
-fn player_class_resource(unit: Unit, spec: Option<u32>) -> Option<ClassBarResource> {
-    let player = ClassBarPlayer {
+fn class_bar_player(unit: Unit, spec: Option<u32>) -> Option<ClassBarPlayer> {
+    Some(ClassBarPlayer {
         class: unit.get::<Player>()?.class,
         spec,
         level: unit.get::<UnitLevel>().map_or(0, |level| level.0),
         in_combat: unit.in_combat(),
-    };
+    })
+}
+
+/// The player's class bar power, when Retail shows the class's bar.
+fn player_class_resource(unit: Unit, spec: Option<u32>) -> Option<ClassBarResource> {
+    let player = class_bar_player(unit, spec)?;
     ClassBarResource::for_player(unit.get::<UnitPowers>()?, unit.get::<UnitRunes>(), &player)
+}
+
+/// PersonalResourceDisplayFrame with its own class frame, fed like the PlayerFrame's;
+/// `None` while the `nameplateShowSelf` option is off.
+fn personal_resource_state(
+    enabled: bool,
+    unit: Unit,
+    spec: Option<u32>,
+    class_frame: &mut ClassBarAnimator,
+    now: f64,
+    hovered: Option<&str>,
+) -> Option<PersonalResourceDisplayState> {
+    if !enabled {
+        return None;
+    }
+    let player = class_bar_player(unit, spec)?;
+    let powers = unit.get::<UnitPowers>().cloned().unwrap_or_default();
+    let resource = ClassBarResource::for_player(&powers, unit.get::<UnitRunes>(), &player);
+    let class_bar = class_frame.update_received(unit.server_id, resource.as_ref(), now);
+    let health = unit
+        .get::<Health>()
+        .map_or((0.0, 0.0), |health| (health.current, health.max));
+    PersonalResourceDisplayState::for_player(enabled, &player, health, &powers, class_bar, hovered)
 }
 
 fn unit_frames_state(
@@ -400,6 +489,7 @@ fn unit_frames_state(
         pet,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
+        personal_resource: None,
     }
 }
 
@@ -568,7 +658,35 @@ impl GameClient {
         Ok(())
     }
 
+    /// The unit frame bar under the pointer (`PlayerHealthBar`, `TargetManaBar`,
+    /// `PersonalResourceDisplayPowerBar`, ...), whose `OnEnter` shows its text
+    /// (TextStatusBar.lua:217-220).
+    fn hovered_unit_frame_bar(&mut self) -> Result<Option<String>, String> {
+        let Some(hit) = self.hovered_ui_frame()? else {
+            return Ok(None);
+        };
+        if self.targeting.frame_ui.as_ref() != Some(&hit.ui) {
+            return Ok(None);
+        }
+        let ui = hit.ui.bind();
+        let Some(registry) = ui.registry() else {
+            return Ok(None);
+        };
+        Ok(named_ancestor(registry, hit.frame, |frame| {
+            let name = frame.name.as_deref()?;
+            ["HealthBar", "ManaBar", "PowerBar"]
+                .iter()
+                .any(|bar| name.ends_with(bar))
+                .then(|| name.to_owned())
+        })
+        .map(|(_, name)| name))
+    }
+
     fn sync_unit_frames(&mut self) -> Result<(), String> {
+        let texts = BarTexts {
+            display: self.client_options.hud.status_text_display,
+            hovered: self.hovered_unit_frame_bar()?,
+        };
         let viewer_level = self
             .world
             .local_player_id()
@@ -584,7 +702,14 @@ impl GameClient {
             }
             None => 1.0,
         };
-        let mut target = target_unit.map(|unit| target_frame_state(unit, viewer_level, multiplier));
+        let mut target =
+            target_unit.map(|unit| target_frame_state(unit, viewer_level, multiplier, &texts));
+        let target_health = target_unit
+            .and_then(|unit| unit.get::<Health>())
+            .map(|health| {
+                let scaled = |value: f32| (value * multiplier).round();
+                format_value_text(scaled(health.current), scaled(health.max))
+            });
         if let (Some(state), Some(id)) = (target.as_mut(), target_id) {
             self.fill_target_auras(state, id);
             state.raid_target = self.raid_target_of(id);
@@ -592,7 +717,7 @@ impl GameClient {
         let target_state = target.clone();
         self.targeting.frame_texts = target
             .as_ref()
-            .map(|state| (state.level_text.clone(), state.health_text.clone()))
+            .map(|state| (state.level_text.clone(), target_health.unwrap_or_default()))
             .unwrap_or_default();
         let player = self
             .world
@@ -600,7 +725,7 @@ impl GameClient {
             .and_then(|id| self.replica.unit(id))
             .map(|unit| {
                 let spec = self.account.spells.spec();
-                let mut state = player_frame_state(unit, self.in_rest_area);
+                let mut state = player_frame_state(unit, self.in_rest_area, &texts);
                 let resource = player_class_resource(unit, spec);
                 let now = self.targeting.started.elapsed().as_secs_f64();
                 state.class_bar = self.targeting.class_bar.update_received(
@@ -611,10 +736,27 @@ impl GameClient {
                 state
             });
         let class_bar = player.as_ref().and_then(|player| player.class_bar.clone());
+        let personal_resource = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id))
+            .and_then(|unit| {
+                personal_resource_state(
+                    self.client_options.hud.personal_resource_display,
+                    unit,
+                    self.account.spells.spec(),
+                    &mut self.targeting.personal_class_bar,
+                    self.targeting.started.elapsed().as_secs_f64(),
+                    texts.hovered.as_deref(),
+                )
+            });
+        let personal_class_bar = personal_resource
+            .as_ref()
+            .and_then(|display| display.class_frame.as_ref()?.bar.clone());
         let pet = self
             .local_pet_id()
             .and_then(|id| self.replica.unit(id))
-            .map(pet_frame_state);
+            .map(|unit| pet_frame_state(unit, &texts));
         let mut state = unit_frames_state(
             player,
             target,
@@ -622,6 +764,7 @@ impl GameClient {
             self.client_options.hud.show_health_bars,
         );
         state.menu = self.unit_menu.state.clone();
+        state.personal_resource = personal_resource;
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
             ui.bind_mut().set_state(state)?;
         } else {
@@ -636,7 +779,11 @@ impl GameClient {
             self.targeting.frame_ui = Some(ui);
         }
         self.sync_target_aura_swipes(target_state.as_ref())?;
-        self.sync_class_bar_swipes(class_bar.as_ref())?;
+        self.sync_class_bar_swipes("", class_bar.as_ref())?;
+        self.sync_class_bar_swipes(
+            personal_resource_display::FRAME_PREFIX,
+            personal_class_bar.as_ref(),
+        )?;
         self.sync_unit_portraits()
     }
 

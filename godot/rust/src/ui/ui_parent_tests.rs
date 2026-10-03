@@ -50,6 +50,7 @@ fn unit_frame_rects<const N: usize>(
         pet: None,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
+        personal_resource: None,
     });
     Screen::new(inworld_unit_frames_screen).sync(&shared, &mut registry);
     let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();

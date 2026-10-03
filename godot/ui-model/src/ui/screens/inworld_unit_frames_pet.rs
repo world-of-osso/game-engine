@@ -4,6 +4,7 @@
 use ui_toolkit::widget_def::Element;
 
 use super::inworld_unit_frames_art::{TOT_HEALTH_BAR, TOT_PORTRAIT_ON, tot_power_bar_art};
+use super::inworld_unit_frames_layout::TextAnchors;
 use super::inworld_unit_frames_parts::{
     BarSpec, art_root, centred, portrait_slot, status_bar, unit_label,
 };
@@ -11,6 +12,11 @@ use super::{
     GOLD_TEXT, PET_FRAME_BOTTOM, PET_FRAME_H, PET_FRAME_LEFT, PET_FRAME_W, PET_HEALTH, PET_NAME,
     PET_PORTRAIT, PET_POWER, PowerBarState, UNIT_FONT_SIZE, dyn_name, fraction,
 };
+use crate::status_text_data::StatusBarText;
+
+/// PetFrame bar text anchors (PetFrame.xml:102-116,141-155).
+const PET_HEALTH_TEXT: TextAnchors = TextAnchors::new(0.0, 0.0, 0.0);
+const PET_POWER_TEXT: TextAnchors = TextAnchors::new(2.0, 4.0, 0.0);
 
 /// The local player's pet (`UnitIsUnit("pet", …)`): name, health and primary power.
 #[derive(Clone, Debug, PartialEq)]
@@ -18,7 +24,9 @@ pub struct PetFrameState {
     pub name: String,
     /// Health fill fraction 0.0..=1.0.
     pub health_fraction: f32,
+    pub health_text: StatusBarText,
     pub power: Option<PowerBarState>,
+    pub power_text: StatusBarText,
 }
 
 /// `PetFrameMixin:UpdateShownState`: shown while the pet is visible.
@@ -53,7 +61,8 @@ fn pet_frame_contents(pet: &PetFrameState) -> Element {
             rect: PET_HEALTH,
             fraction: pet.health_fraction,
             art: Some(TOT_HEALTH_BAR),
-            text: "",
+            text: &pet.health_text,
+            anchors: PET_HEALTH_TEXT,
             font_size: UNIT_FONT_SIZE,
             hidden: false,
         }),
@@ -65,7 +74,8 @@ fn pet_frame_contents(pet: &PetFrameState) -> Element {
                 .power
                 .as_ref()
                 .and_then(|power| tot_power_bar_art(power.power)),
-            text: "",
+            text: &pet.power_text,
+            anchors: PET_POWER_TEXT,
             font_size: UNIT_FONT_SIZE - 1.0,
             hidden: pet.power.is_none(),
         }),

@@ -19,6 +19,15 @@ Animation: the rider holds Mount (91). The mount plays the rider's locomotion cl
 - `PlayerInput.flying` reports the flight; a vertical-only climb or descent reports like a swimmer's.
 - Using the mount spell while riding it sends `CancelMountAura` (dismount). `use_spell(id)` (`#[func]`) casts through that same path for fixtures.
 
+## Annotated tree contact
+
+The flying movement path now consumes manually annotated tree contact with a fixed prototype sphere, tangential deflection and per-placement damped branches. The bounded tree prototype has separate native contact and mounted-input proof. See [[elastic-trees]] for authoring and limits.
+
+## See Also
+
+- [[elastic-trees]] — manual annotations, native flight contact and bounded proof.
+- [[collision-system]] — terrain, WMO and camera collision boundaries.
+
 ## Skyriding (part 1: physics)
 
 Model and constants: shared-protocol `src/skyriding.rs` (`Glider`, FlightCapability 11 from Retail DB2 12.1.0.69933). Server bound and the test-character switch (`game-server-admin flight-style <name> skyriding`): game-server mounts page.

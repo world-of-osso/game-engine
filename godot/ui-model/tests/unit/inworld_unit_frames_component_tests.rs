@@ -233,7 +233,10 @@ fn target_aura_buttons_show_icon_count_dispel_border_and_swipe_frame() {
 fn sample_player_frame_state() -> UnitFrameState {
     UnitFrameState {
         level_text: "70".into(),
-        health_text: "80 / 100".into(),
+        health_text: StatusBarText {
+            center: "80 / 100".into(),
+            ..Default::default()
+        },
         health_fraction: 0.8,
         ..UnitFrameState::named("Theron")
     }
@@ -296,12 +299,16 @@ fn sample_unit_frames_context() -> SharedContext {
         target: Some(target),
         bosses: vec![UnitFrameState {
             level_text: "32".into(),
-            health_text: "153265 / 153265".into(),
+            health_text: StatusBarText {
+                center: "153 K / 153 K".into(),
+                ..Default::default()
+            },
             health_fraction: 1.0,
             reaction: Some(crate::faction_reaction::Reaction::Hostile),
             ..UnitFrameState::named("Hogger")
         }],
         menu: UnitFrameMenuState::default(),
+        personal_resource: None,
     });
     shared
 }
