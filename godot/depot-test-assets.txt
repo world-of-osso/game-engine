@@ -1999,3 +1999,12 @@ models/921844.skel
 # game-engine-godot ui::flare_panel_tests: flare_bronze border and background
 textures/137057.blp
 textures/312922.blp
+
+# ui-model forever_chat_meter: existing Blizzard chrome and class atlas sheets
+textures/1121272.blp
+textures/7518377.blp
+textures/5390329.blp
+textures/1662186.blp
+textures/8200846.blp
+textures/6704514.blp
+textures/ui/chattynator/Fade.png
