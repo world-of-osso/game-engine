@@ -9,6 +9,13 @@ use crate::csv_util::{header_index, parse_csv_line as parse_csv_fields};
 /// Build whose UI atlas and texture kit tables live under `data/db2/`.
 const UI_DB2_DIR: &str = "db2/12.1.0.69933";
 
+/// WoW Forever build whose UI atlas tables live under `data/db2/` (Wago DB2CSV exports; see
+/// `scripts/import_forever_atlas.py`).
+const FOREVER_UI_DB2_DIR: &str = "db2/1.60.1.69913";
+
+/// Forever's `UiTextureAtlas.UiTextureAtlasSetID` of its `c60` re-skins of Retail atlas names.
+const FOREVER_ATLAS_SET: &str = "1";
+
 /// A single warband scene entry (parsed from WarbandScene.csv).
 #[derive(Debug, Clone)]
 pub struct WarbandSceneEntry {
@@ -113,7 +120,36 @@ pub fn read_atlas_art(
     data_root: &Path,
     names: &[&str],
 ) -> Result<HashMap<String, AtlasArt>, String> {
-    let dir = data_root.join(UI_DB2_DIR);
+    read_atlas_art_in(&data_root.join(UI_DB2_DIR), names, None)
+}
+
+/// The art each named Retail `UiTextureAtlasElement` draws under WoW Forever's skin: as
+/// [`read_atlas_art`], over only the members on `UiTextureAtlasSetID` 1 atlases, whose
+/// committed names add `-c60` (so the smallest, `-c60` rather than `-c60-2x`, wins).
+/// A name without a set-1 member is an error.
+pub fn read_forever_atlas_art(
+    data_root: &Path,
+    names: &[&str],
+) -> Result<HashMap<String, AtlasArt>, String> {
+    let dir = data_root.join(FOREVER_UI_DB2_DIR);
+    let set_atlases: HashSet<u32> = read_columns(
+        &dir.join("UiTextureAtlas.csv"),
+        &["ID", "UiTextureAtlasSetID"],
+    )?
+    .into_iter()
+    .filter(|row| row[1] == FOREVER_ATLAS_SET)
+    .filter_map(|row| row[0].parse().ok())
+    .collect();
+    read_atlas_art_in(&dir, names, Some(&set_atlases))
+}
+
+/// [`read_atlas_art`] over the tables in `dir`, considering only members of `atlas_set`
+/// atlases when given.
+fn read_atlas_art_in(
+    dir: &Path,
+    names: &[&str],
+    atlas_set: Option<&HashSet<u32>>,
+) -> Result<HashMap<String, AtlasArt>, String> {
     let wanted: HashSet<String> = names.iter().map(|name| name.to_ascii_lowercase()).collect();
     let elements: HashMap<u32, String> =
         read_columns(&dir.join("UiTextureAtlasElement.csv"), &["Name", "ID"])?
@@ -121,7 +157,7 @@ pub fn read_atlas_art(
             .filter(|row| wanted.contains(&row[0].to_ascii_lowercase()))
             .filter_map(|row| Some((row[1].parse().ok()?, row[0].to_ascii_lowercase())))
             .collect();
-    let atlases = read_atlas_sizes(&dir)?;
+    let atlases = read_atlas_sizes(dir)?;
     let columns = [
         "CommittedName",
         "UiTextureAtlasElementID",
@@ -144,6 +180,9 @@ pub fn read_atlas_art(
         let Some(name) = elements.get(&element) else {
             continue;
         };
+        if atlas_set.is_some_and(|set| !set.contains(&atlas)) {
+            continue;
+        }
         let exact = row[0].eq_ignore_ascii_case(name);
         let art = member_art(&atlases, atlas, [left, right, top, bottom], &row[0])?;
         let better = best
