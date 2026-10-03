@@ -62,6 +62,10 @@ pub fn cast_failed_text(
         CastFailReason::Interrupted | CastFailReason::InterruptedCombat => "Interrupted",
         // SPELL_FAILED_LINE_OF_SIGHT
         CastFailReason::LineOfSight => "Target not in line of sight",
+        // SPELL_FAILED_AFFECTING_COMBAT
+        CastFailReason::AffectingCombat => "You are in combat",
+        // SPELL_FAILED_NOT_MOUNTED
+        CastFailReason::NotMounted => "You are mounted.",
     };
     text.to_string()
 }
