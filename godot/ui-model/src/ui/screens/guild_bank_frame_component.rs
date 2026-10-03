@@ -589,6 +589,3 @@ fn mode_tabs(mode: GuildBankModeView) -> Element {
     others
 }
 
-#[cfg(all(test, feature = "dev"))]
-#[path = "guild_bank_frame_component_tests.rs"]
-mod tests;

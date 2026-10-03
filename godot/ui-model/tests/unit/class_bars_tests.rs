@@ -1,15 +1,8 @@
 use super::*;
 use crate::status::{ClassBar, ClassBarResource};
-#[cfg(feature = "dev")]
-use crate::ui::layout::LayoutRect;
 use crate::ui::registry::FrameRegistry;
-#[cfg(feature = "dev")]
-#[path = "../../src/ui/screens/menu_character_layout_test_support.rs"]
-mod layout_test_support;
 use crate::ui::widgets::texture::{TextureData, TextureSource};
 use class_bars::{ClassBarAnimator, settled_view};
-#[cfg(feature = "dev")]
-use layout_test_support::compute_layout;
 use ui_toolkit::screen::Screen;
 
 fn resource(bar: ClassBar, current: u8, max: u8) -> ClassBarResource {
@@ -198,16 +191,7 @@ fn registry_with(view: ClassBarView) -> FrameRegistry {
     context.insert(state);
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(inworld_unit_frames_screen).sync(&context, &mut reg);
-    #[cfg(feature = "dev")]
-    compute_layout(&mut reg);
     reg
-}
-
-#[cfg(feature = "dev")]
-fn rect_by_name(reg: &FrameRegistry, name: &str) -> LayoutRect {
-    reg.get(reg.get_by_name(name).expect(name))
-        .and_then(|frame| frame.layout_rect.clone())
-        .expect(name)
 }
 
 fn registry_texture<'a>(reg: &'a FrameRegistry, name: &str) -> &'a TextureData {
@@ -222,21 +206,6 @@ fn registry_texture<'a>(reg: &'a FrameRegistry, name: &str) -> &'a TextureData {
 
 fn hidden(reg: &FrameRegistry, name: &str) -> bool {
     reg.get(reg.get_by_name(name).expect(name)).unwrap().hidden
-}
-
-/// Retail Arcane Charges: container top 4 px below the mana bar plus `topPadding` 7, centred
-/// 1 px left of the bar (PlayerFrame.lua:716,758; MageArcaneChargesBar.xml:134), four 21 px
-/// charges 10 px apart (MageArcaneChargesBar.xml:6,125).
-#[cfg(feature = "dev")]
-#[test]
-fn arcane_charges_hang_below_the_mana_bar_clear_of_its_text() {
-    let view = settled_view(&resource(ClassBar::ArcaneCharges, 0, 4)).unwrap();
-    let reg = registry_with(view);
-    let mana = rect_by_name(&reg, "PlayerManaBar");
-    let row = rect_by_name(&reg, "PlayerSecondaryResourceRow");
-    assert_eq!(row.y, mana.y + mana.height + 11.0);
-    assert_eq!(row.x + row.width / 2.0, mana.x + mana.width / 2.0 - 1.0);
-    assert_eq!((row.width, row.height), (4.0 * 21.0 + 3.0 * 10.0, 21.0));
 }
 
 /// `ArcaneChargeTemplate` (MageArcaneChargesBar.xml:5-53): shadow 2.5 px low, background

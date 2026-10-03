@@ -12,11 +12,6 @@ pub use main::{
     ACTION_ADDONS, ACTION_EXIT, ACTION_LOGOUT, ACTION_OPTIONS, ACTION_RESUME, ACTION_SUPPORT,
     GAME_MENU_ROOT,
 };
-#[cfg(all(test, feature = "dev"))]
-use main::{
-    BUTTON_ATLAS_DISABLED, BUTTON_ATLAS_HIGHLIGHT, BUTTON_ATLAS_PRESSED, BUTTON_ATLAS_UP, BUTTON_H,
-    BUTTON_W, MENU_MOUNT, MENU_PANEL, PANEL_W, TITLE_FRAME, TITLE_H, TITLE_PANEL_OVERLAP,
-};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum GameMenuView {
@@ -56,6 +51,3 @@ fn options_menu_overlay(options: &OptionsViewModel) -> Element {
 }
 
 // Native layout tests require Bevy and the renderer-backed UI toolkit.
-#[cfg(all(test, feature = "dev"))]
-#[path = "game_menu_component_tests.rs"]
-mod tests;

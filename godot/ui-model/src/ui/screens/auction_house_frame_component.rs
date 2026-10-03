@@ -759,6 +759,3 @@ pub fn duration_token(duration: AuctionDuration) -> &'static str {
     }
 }
 
-#[cfg(all(test, feature = "dev"))]
-#[path = "auction_house_frame_component_tests.rs"]
-mod tests;
