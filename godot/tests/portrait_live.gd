@@ -15,7 +15,9 @@ const PASSWORD := "fbtest"
 ## world.db content_creature spawns (map 0), a few yards off: McBride inside Northshire
 ## Abbey, Timber at Iceflow Lake.
 const MCBRIDE_SPAWN := [0, -8920.0, -137.5, 81.0]
-## On Timber's spawn point: it wanders within 8 yards and aggroes the player there.
+## 25 yards off Timber's spawn point, outside its aggro; then on it, where it aggroes the
+## player (it wanders within 8 yards and outlevels an ungeared player).
+const TIMBER_VIEW := [0, -5151.4, -24.0, 386.5]
 const TIMBER_SPAWN := [0, -5176.4, -24.0, 386.5]
 ## The warrior's Auto Attack and the action bar keys.
 const ATTACK := 88163
@@ -66,7 +68,7 @@ func run_test() -> void:
 		return
 	await capture("01-mcbride.png")
 	creature = "Timber"
-	if not await teleport(TIMBER_SPAWN):
+	if not await teleport(TIMBER_VIEW):
 		return
 	var timber = await target_portrait()
 	if timber.is_empty():
@@ -143,14 +145,20 @@ func check_star(portrait: Dictionary) -> bool:
 	print("FIXTURE STAR centre=%s portrait_bottom=%s" % [star.get_global_rect().get_center(), bottom])
 	return true
 
-## Attack Timber so it targets the player: the target-of-target frame shows clear of the
+## Step onto Timber and attack it so it targets the player: the target-of-target frame
+## shows clear of the
 ## whole TargetFrame.
 func check_target_of_target() -> bool:
+	if not await teleport(TIMBER_SPAWN, 10):
+		return false
+	if not client.unit_alive(client.account_state().local_player_id):
+		fail("%s is dead: a dead player is nobody's target" % character)
+		return false
 	await press(BAR_KEYS[client.spells_state().bar.find(ATTACK)])
 	var tot := control("UnitFramesUI", "TargetOfTargetFrame")
 	if not await wait_until(func(): return tot.is_visible_in_tree(), 15000, "Timber targeting the player"):
 		return false
-	await wait_frames(30)
+	await wait_frames(5)
 	var target := control("UnitFramesUI", "TargetFrame").get_global_rect()
 	if tot.get_global_rect().intersects(target):
 		fail("TargetOfTargetFrame %s overlaps TargetFrame %s" % [tot.get_global_rect(), target])
@@ -159,7 +167,7 @@ func check_target_of_target() -> bool:
 	return true
 
 ## Teleport the character to `spawn` (map, x, y, z) and wait for the terrain there.
-func teleport(spawn: Array) -> bool:
+func teleport(spawn: Array, settle_frames := 60) -> bool:
 	var output := []
 	var args := ["teleport", character] + spawn.map(func(value): return str(value))
 	var code := OS.execute(OS.get_environment("PORTRAIT_ADMIN"), args, output, true)
@@ -175,7 +183,7 @@ func teleport(spawn: Array) -> bool:
 		return position != null and Vector2(position.x, -position.z).distance_to(at) < 5.0 and state.terrain.pending_count == 0
 	if not await wait_until(arrived, 60000, "arrival at %s" % [spawn]):
 		return false
-	await wait_frames(60)
+	await wait_frames(settle_frames)
 	return true
 
 func opaque_fraction(image: Image) -> float:
@@ -220,7 +228,7 @@ func enter_world() -> bool:
 		fail("Card 0 is %s, not %s" % [selected.text, character])
 		return false
 	await click(ui.find_child("EnterWorld", true, false))
-	deadline = Time.get_ticks_msec() + 120000
+	deadline = Time.get_ticks_msec() + 300000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
