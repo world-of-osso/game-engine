@@ -3,7 +3,8 @@
 
 Run inside OssoBuild: python3 desktop_server_smoke.py /root/data/game-engine-trial/server
 The staged root must contain bin/{game-server,game-server-admin,game-cli} and
-read-only data/world.db plus data/gametables. Never copies existing player storage.
+read-only data/world.db, data/gametables, and data/economy/config.json.
+Never copies existing player storage.
 """
 import os
 from pathlib import Path
@@ -15,9 +16,9 @@ import time
 import uuid
 
 
-def run_checked(command, root, environment):
+def run_checked(command, root, environment, timeout=20):
     result = subprocess.run(command, cwd=root, env=environment, text=True,
-                            capture_output=True, timeout=20)
+                            capture_output=True, timeout=timeout)
     if result.returncode:
         raise RuntimeError(f"{Path(command[0]).name} failed ({result.returncode}): {result.stdout}\n{result.stderr}")
     print(result.stdout, end="", flush=True)
@@ -26,9 +27,9 @@ def run_checked(command, root, environment):
 
 def smoke(root):
     root = root.resolve()
-    world = root / "data/world.db"
-    if not world.is_file():
-        raise FileNotFoundError(world)
+    for relative in ("data/world.db", "data/economy/config.json"):
+        if not (root / relative).is_file():
+            raise FileNotFoundError(root / relative)
     owned = root / "data/smoke"
     owned.mkdir(parents=True, exist_ok=True)
     with tempfile.TemporaryDirectory(prefix="run-", dir=owned) as directory:
@@ -52,7 +53,10 @@ def smoke(root):
                     if time.monotonic() >= deadline:
                         raise TimeoutError(f"admin socket not ready; inspect {log_path}")
                     time.sleep(0.2)
-                if run_checked(command, root, environment).strip() != "pong":
+                # The socket is bound before world/economy startup finishes.
+                # Readiness is the response, within the original startup deadline.
+                remaining = max(0.1, deadline - time.monotonic())
+                if run_checked(command, root, environment, timeout=remaining).strip() != "pong":
                     raise RuntimeError("admin ping did not return pong")
                 username = "hosttrial" + uuid.uuid4().hex[:8]
                 # Disposable credentials exist only in this owned, deleted test database.
