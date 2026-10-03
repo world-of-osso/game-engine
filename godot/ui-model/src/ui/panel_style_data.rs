@@ -1,6 +1,7 @@
 //! Authored panel skins shared by the Bevy and Godot registry hosts: the default slate
 //! panel and the Retail metal window borders composed from their atlas members.
 
+use ui_toolkit::atlas::{AtlasRegion, AtlasSource, active_skin, resolve_region};
 use ui_toolkit::frame::NineSlice;
 use ui_toolkit::widgets::texture::TextureSource;
 
@@ -41,10 +42,10 @@ pub enum MetalTopLeft {
 }
 
 impl MetalTopLeft {
-    fn source(self) -> PixelRect {
+    fn atlas(self) -> &'static str {
         match self {
-            Self::Portrait => (1, 153, 150, 150),
-            Self::Plain => (1, 1, 150, 150),
+            Self::Portrait => "UI-Frame-PortraitMetal-CornerTopLeft",
+            Self::Plain => "UI-Frame-Metal-CornerTopLeft",
         }
     }
 
@@ -60,18 +61,13 @@ impl MetalTopLeft {
 type PixelRect = (u32, u32, u32, u32);
 
 /// One copy into the composed metal sheet: source texture, source rect, destination.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug)]
 struct MetalBlit {
-    fdid: u32,
-    source: PixelRect,
+    atlas: &'static str,
     dest: PixelRect,
+    /// The final bottom-edge tile uses only the leading fraction of its member.
+    width_fraction: f32,
 }
-
-/// `UiTextureAtlas` 1390 (corners), 1394 (`!` left/right edges), 1395 (`_` top/bottom
-/// edges); all members are `-2x`, drawn at half their pixel size.
-pub const METAL_CORNERS: u32 = 2_406_979;
-pub const METAL_SIDE_EDGES: u32 = 2_406_984;
-pub const METAL_TOP_BOTTOM_EDGES: u32 = 2_406_987;
 
 /// The composed sheet is a 3×3 grid in atlas pixels: columns 150 | 64 | 150 and rows
 /// 150 | 32 | 64. The Retail layout's bottom corners are 32 display units wide while
@@ -83,34 +79,36 @@ pub const METAL_SHEET: (u32, u32) = (364, 246);
 /// Display edge sizes `[left, top, right, bottom]` (half the atlas pixels).
 pub const METAL_EDGE_SIZES: [f32; 4] = [75.0, 75.0, 75.0, 32.0];
 
-/// `_ui-frame-metal-edgebottom-2x` (8516): a 32×64 strip tiled along the bottom.
-const EDGE_BOTTOM: PixelRect = (0, 153, 32, 64);
+/// Keep the existing 32-pixel bottom-edge tiling and composed-sheet geometry.
+const BOTTOM_TILE_WIDTH: u32 = 32;
 
+// Retail and Forever AddOns/Blizzard_SharedXML/Mainline/NineSliceLayouts.lua:
+// portrait TL :20, plain TL :46, TR :21, BL :22, BR :23, T/B/L/R :24-27.
 fn metal_frame_blits(top_left: MetalTopLeft) -> Vec<MetalBlit> {
-    let blit = |fdid, source, dest| MetalBlit { fdid, source, dest };
+    let blit = |atlas, dest| MetalBlit {
+        atlas,
+        dest,
+        width_fraction: 1.0,
+    };
     let bottom_y = METAL_ROWS[0] + METAL_ROWS[1];
     let mut blits = vec![
-        blit(METAL_CORNERS, top_left.source(), (0, 0, 150, 150)),
-        // _ui-frame-metal-edgetop-2x (8517)
-        blit(METAL_TOP_BOTTOM_EDGES, (0, 1, 64, 150), (150, 0, 64, 150)),
-        // ui-frame-metal-cornertopright-2x (8502)
-        blit(METAL_CORNERS, (153, 1, 150, 150), (214, 0, 150, 150)),
-        // !ui-frame-metal-edgeleft-2x (8514) / edgeright (8515)
-        blit(METAL_SIDE_EDGES, (1, 0, 150, 32), (0, 150, 150, 32)),
-        blit(METAL_SIDE_EDGES, (153, 0, 150, 32), (214, 150, 150, 32)),
-        // ui-frame-metal-cornerbottomleft-2x (8499) / bottomright (8500)
-        blit(METAL_CORNERS, (153, 153, 64, 64), (0, bottom_y, 64, 64)),
-        blit(METAL_CORNERS, (219, 153, 64, 64), (300, bottom_y, 64, 64)),
+        blit(top_left.atlas(), (0, 0, 150, 150)),
+        blit("_UI-Frame-Metal-EdgeTop", (150, 0, 64, 150)),
+        blit("UI-Frame-Metal-CornerTopRight", (214, 0, 150, 150)),
+        blit("!UI-Frame-Metal-EdgeLeft", (0, 150, 150, 32)),
+        blit("!UI-Frame-Metal-EdgeRight", (214, 150, 150, 32)),
+        blit("UI-Frame-Metal-CornerBottomLeft", (0, bottom_y, 64, 64)),
+        blit("UI-Frame-Metal-CornerBottomRight", (300, bottom_y, 64, 64)),
     ];
     // Bottom edge from the end of the left corner to the start of the right corner.
     let mut x = 64;
     while x < 300 {
-        let width = (300 - x).min(EDGE_BOTTOM.2);
-        blits.push(blit(
-            METAL_TOP_BOTTOM_EDGES,
-            (EDGE_BOTTOM.0, EDGE_BOTTOM.1, width, EDGE_BOTTOM.3),
-            (x, bottom_y, width, 64),
-        ));
+        let width = (300 - x).min(BOTTOM_TILE_WIDTH);
+        blits.push(MetalBlit {
+            atlas: "_UI-Frame-Metal-EdgeBottom",
+            dest: (x, bottom_y, width, 64),
+            width_fraction: width as f32 / BOTTOM_TILE_WIDTH as f32,
+        });
         x += width;
     }
     blits
@@ -146,29 +144,54 @@ pub fn compose_metal_sheet(
 ) -> Result<Vec<u8>, String> {
     let (sheet_w, sheet_h) = METAL_SHEET;
     let mut sheet = vec![0u8; (sheet_w * sheet_h * 4) as usize];
-    let mut loaded: Vec<(u32, (Vec<u8>, u32))> = Vec::new();
+    let mut loaded = std::collections::HashMap::new();
+    let skin = active_skin();
     for blit in metal_frame_blits(top_left) {
-        if !loaded.iter().any(|(fdid, _)| *fdid == blit.fdid) {
-            loaded.push((blit.fdid, source(blit.fdid)?));
-        }
-        let (pixels, width) = &loaded
-            .iter()
-            .find(|(fdid, _)| *fdid == blit.fdid)
-            .unwrap()
-            .1;
-        let (sx, sy, w, h) = blit.source;
-        let (dx, dy, _, _) = blit.dest;
-        for row in 0..h {
-            let from = (((sy + row) * width + sx) * 4) as usize;
-            let to = (((dy + row) * sheet_w + dx) * 4) as usize;
-            let len = (w * 4) as usize;
-            let src = pixels
-                .get(from..from + len)
-                .ok_or_else(|| format!("metal frame source {} too small", blit.fdid))?;
-            sheet[to..to + len].copy_from_slice(src);
-        }
+        let region = resolve_region(blit.atlas, skin)
+            .ok_or_else(|| format!("metal frame atlas {} missing for {skin:?}", blit.atlas))?;
+        let AtlasSource::FileDataId(fdid) = region.source else {
+            return Err(format!(
+                "metal frame atlas {} is not a BLP sheet",
+                blit.atlas
+            ));
+        };
+        let (pixels, width) = match loaded.entry(fdid) {
+            std::collections::hash_map::Entry::Occupied(entry) => entry.into_mut(),
+            std::collections::hash_map::Entry::Vacant(entry) => entry.insert(source(fdid)?),
+        };
+        copy_metal_member(&mut sheet, pixels, *width, region, blit)?;
     }
     Ok(sheet)
+}
+
+/// Sample the resolved member into the unchanged sheet cell. Identical source/destination
+/// sizes copy identical pixels; differently sized skin art uses the same fixed window geometry.
+fn copy_metal_member(
+    sheet: &mut [u8],
+    pixels: &[u8],
+    width: u32,
+    region: AtlasRegion,
+    blit: MetalBlit,
+) -> Result<(), String> {
+    let height = pixels.len() as u32 / (width * 4);
+    let rect = region.rect_pixels(width, height);
+    let [sx, sy] = rect.min.map(|value| value.round() as u32);
+    let sw = ((rect.max[0] - rect.min[0]) * blit.width_fraction).round() as u32;
+    let sh = (rect.max[1] - rect.min[1]).round() as u32;
+    let (dx, dy, dw, dh) = blit.dest;
+    for y in 0..dh {
+        for x in 0..dw {
+            let source_x = sx + x * sw / dw;
+            let source_y = sy + y * sh / dh;
+            let from = ((source_y * width + source_x) * 4) as usize;
+            let to = (((dy + y) * METAL_SHEET.0 + dx + x) * 4) as usize;
+            let pixel = pixels
+                .get(from..from + 4)
+                .ok_or_else(|| format!("metal frame atlas {} source too small", blit.atlas))?;
+            sheet[to..to + 4].copy_from_slice(pixel);
+        }
+    }
+    Ok(())
 }
 
 /// The metal border `NineSlice` drawing the composed sheet `texture`.
