@@ -3,7 +3,7 @@ mod icon_masks;
 pub(crate) mod input_queue;
 mod layout;
 mod parts;
-pub(crate) mod projection;
+mod projection;
 pub(crate) mod ui_parent;
 
 use std::collections::VecDeque;

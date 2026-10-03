@@ -428,7 +428,11 @@ impl UiProjection {
         node.set_visible(frame.visible);
         node.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, frame.alpha));
         node.set_z_as_relative(false);
-        node.set_z_index(frame_z_index(frame));
+        node.set_z_index(
+            i32::from(frame.strata as u8) * 100
+                + frame.frame_level
+                + i32::from(frame.draw_layer as u8),
+        );
         let visual = FrameVisual {
             images: parts::project_images(frame, rect.width, rect.height),
             text: parts::project_button_text(frame),
@@ -816,12 +820,6 @@ pub(crate) fn frame_click_action(registry: &FrameRegistry, mut id: u64) -> Optio
         }
         id = frame.parent_id?;
     }
-}
-
-/// Canvas z of a frame's node: strata, then frame level, then draw layer. Equal z draws in
-/// tree order, which a rebuilt frame changes.
-pub(crate) fn frame_z_index(frame: &Frame) -> i32 {
-    i32::from(frame.strata as u8) * 100 + frame.frame_level + i32::from(frame.draw_layer as u8)
 }
 
 fn connect_pointer_down(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
