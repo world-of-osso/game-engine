@@ -415,7 +415,6 @@ mod tests {
 
     #[test]
     fn a_sell_price_line_draws_its_coins_after_the_label() {
-        #[cfg(godot_host)]
         crate::paths::set_data_root(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
         )
