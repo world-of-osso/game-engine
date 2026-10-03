@@ -4,10 +4,38 @@
 
 use std::collections::HashMap;
 
+use game_engine_core::spell_catalog::SpellCatalogData;
+use shared::components::AuraView;
 use shared::protocol::{ActionRef, SpellCooldownUpdate};
 
 /// Server action bar slots 0..=119.
 pub(crate) const ACTION_SLOT_COUNT: usize = 120;
+/// Retail `NUM_ACTIONBAR_BUTTONS` / `NUM_ACTIONBAR_PAGES` (ActionButtonUtil.lua).
+const NUM_ACTIONBAR_BUTTONS: usize = 12;
+const NUM_ACTIONBAR_PAGES: usize = 6;
+
+/// `C_ActionBar.GetBonusBarOffset`: the `BonusActionBar` of the player's shapeshift
+/// form, which comes from its form aura (one form at a time).
+pub(crate) fn bonus_bar_offset(auras: &[AuraView], catalog: &SpellCatalogData) -> u8 {
+    auras
+        .iter()
+        .filter_map(|aura| catalog.get(aura.spell_id))
+        .map(|spell| spell.bonus_bar)
+        .find(|&offset| offset > 0)
+        .unwrap_or(0)
+}
+
+/// Action slot of main bar button `index` (0-based). `ActionBarController_UpdateAll`
+/// sets the main bar's `actionpage` to `GetBonusBarIndex()` (`NUM_ACTIONBAR_PAGES` +
+/// offset) while a bonus bar is active, else page 1; `CalculateAction` adds
+/// `(page - 1) * NUM_ACTIONBAR_BUTTONS`. Cat Form (offset 1) shows slots 72..=83.
+pub(crate) fn main_bar_slot(index: usize, bonus_bar_offset: u8) -> usize {
+    let page = match bonus_bar_offset {
+        0 => 1,
+        offset => NUM_ACTIONBAR_PAGES + usize::from(offset),
+    };
+    index + (page - 1) * NUM_ACTIONBAR_BUTTONS
+}
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct CooldownTimer {
@@ -143,10 +171,21 @@ impl PlayerSpells {
 
 #[cfg(test)]
 mod tests {
+    use game_engine_core::spell_catalog::CatalogSpell;
+
     use super::*;
 
     const SLAM: u32 = 1464;
     const CHARGE: u32 = 100;
+    const ATTACK: u32 = 88163;
+    const MOONFIRE: u32 = 8921;
+    const WRATH: u32 = 5176;
+    const SHRED: u32 = 5221;
+    const FEROCIOUS_BITE: u32 = 22568;
+    const MANGLE: u32 = 33917;
+    const CAT_FORM: u32 = 768;
+    const BEAR_FORM: u32 = 5487;
+    const BATTLE_STANCE: u32 = 386164;
 
     fn cooldown(
         spell_id: u32,
@@ -201,5 +240,88 @@ mod tests {
         );
         spells.apply_cooldown(&cooldown(CHARGE, 20_000, 0, false));
         assert_eq!(spells.button_cooldown(CHARGE, true), None);
+    }
+
+    /// `bonus_bar` values the real catalog carries (core `spell_catalog` test).
+    fn form_catalog() -> SpellCatalogData {
+        let spell = |id, bonus_bar| CatalogSpell {
+            id,
+            bonus_bar,
+            ..Default::default()
+        };
+        let spells = vec![
+            spell(CAT_FORM, 1),
+            spell(BEAR_FORM, 3),
+            spell(BATTLE_STANCE, 0),
+        ];
+        SpellCatalogData::from_parts(spells, Default::default())
+    }
+
+    fn aura(spell_id: u32) -> AuraView {
+        AuraView {
+            instance_id: 1,
+            spell_id,
+            caster: None,
+            stacks: 1,
+            charges: 0,
+            duration_ms: 0,
+            remaining_ms: 0,
+            harmful: false,
+            dispel_type: 0,
+            flags: 0,
+        }
+    }
+
+    fn main_bar(spells: &PlayerSpells, auras: &[AuraView]) -> Vec<Option<ActionRef>> {
+        let offset = bonus_bar_offset(auras, &form_catalog());
+        (0..NUM_ACTIONBAR_BUTTONS)
+            .map(|index| spells.slot(main_bar_slot(index, offset)))
+            .collect()
+    }
+
+    /// playercreateinfo_action (28, 11), Highmountain Tauren Druid.
+    fn druid_bar() -> PlayerSpells {
+        let mut spells = PlayerSpells::default();
+        let slots = [
+            (0, MOONFIRE),
+            (1, WRATH),
+            (72, SHRED),
+            (73, FEROCIOUS_BITE),
+            (96, MANGLE),
+        ];
+        let slots: Vec<_> = slots
+            .iter()
+            .map(|&(slot, spell)| (slot, ActionRef::Spell(spell)))
+            .collect();
+        spells.set_bar(&slots);
+        spells
+    }
+
+    #[test]
+    fn cat_and_bear_form_page_the_main_bar_to_their_bonus_bars() {
+        let spells = druid_bar();
+        let cat = main_bar(&spells, &[aura(CAT_FORM)]);
+        assert_eq!(cat[0], Some(ActionRef::Spell(SHRED)));
+        assert_eq!(cat[1], Some(ActionRef::Spell(FEROCIOUS_BITE)));
+        assert_eq!(cat[2..], [None; 10]);
+
+        let bear = main_bar(&spells, &[aura(BEAR_FORM)]);
+        assert_eq!(bear[0], Some(ActionRef::Spell(MANGLE)));
+        assert_eq!(bear[1..], [None; 11]);
+
+        let caster = main_bar(&spells, &[]);
+        assert_eq!(caster[0], Some(ActionRef::Spell(MOONFIRE)));
+        assert_eq!(caster[1], Some(ActionRef::Spell(WRATH)));
+    }
+
+    /// Retail Battle Stance applies no shapeshift form, so a warrior's main bar stays on
+    /// page 1 and playercreateinfo_action's Attack on slot 72 never shows there.
+    #[test]
+    fn retail_battle_stance_keeps_the_warrior_bar_on_page_one() {
+        let mut spells = PlayerSpells::default();
+        spells.set_bar(&[(0, ActionRef::Spell(SLAM)), (72, ActionRef::Spell(ATTACK))]);
+        let bar = main_bar(&spells, &[aura(BATTLE_STANCE)]);
+        assert_eq!(bar[0], Some(ActionRef::Spell(SLAM)));
+        assert!(!bar.contains(&Some(ActionRef::Spell(ATTACK))));
     }
 }

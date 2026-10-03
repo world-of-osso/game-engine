@@ -1,7 +1,7 @@
 //! Cached authored skybox metadata decoded with the original WDC5 reader.
 use std::{fs, path::Path};
 
-#[path = "../../../src/rendering/lighting/light_lookup_wdc5.rs"]
+#[path = "rendering/lighting/light_lookup_wdc5.rs"]
 mod wdc5;
 
 use crate::light_lookup_types::{LightParamsFlags, LightSkyboxFlags, LightSkyboxMetadata};
