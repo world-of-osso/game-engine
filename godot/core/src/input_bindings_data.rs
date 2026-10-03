@@ -585,9 +585,8 @@ impl InputAction {
 
     /// Retail `BONUSACTIONBUTTON1..10` (`Bindings_Standard.xml:272-361`,
     /// `BINDING_HEADER_ACTIONBAR`, `BINDING_NAME_BONUSACTIONBUTTONn` "Pet Action Button n")
-    /// on Ctrl-1..Ctrl-9, Ctrl-0. The bindings XML carries no keys; the Retail client's
-    /// defaults are evidenced by the user's `bindings-cache.wtf` explicitly unbinding
-    /// CTRL-1..CTRL-0 (`bind CTRL-1 NONE`).
+    /// on Ctrl-1..Ctrl-9, Ctrl-0 (`~/Repos/worldofwhatever/DefaultBindings.wtf:53-62`,
+    /// `bind CTRL-1 BONUSACTIONBUTTON1`; the bindings XML carries no keys).
     fn pet_action_slot_meta(self) -> Option<InputActionMeta> {
         const KEYS: [(&str, &str, BindingKey); 10] = [
             (

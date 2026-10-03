@@ -223,22 +223,10 @@ impl GameClient {
         self.pet_bar.move_to.take().is_some()
     }
 
-    fn pet_bar_state(&mut self, spells: &PetSpells, delta: f32) -> PetActionBarState {
+    fn pet_bar_view(&mut self, spells: &PetSpells, delta: f32) -> PetActionBarState {
         let pet_in_combat = self.pet_in_combat(spells.pet);
-        let attack = PetActionSlot::Command(COMMAND_ATTACK);
-        let attacking = pet_in_combat
-            && spells
-                .action_buttons
-                .iter()
-                .any(|&packed| PetActionSlot::from_packed(packed) == attack);
-        self.pet_bar.flash = attacking.then(|| self.pet_bar.flash.map_or(0.0, |t| t + delta));
-        let hotkeys = InputAction::PET_ACTION_SLOTS.map(|action| {
-            self.client_options
-                .bindings
-                .binding(action)
-                .map(InputBinding::hotkey_text)
-                .unwrap_or_default()
-        });
+        self.advance_attack_flash(spells, pet_in_combat, delta);
+        let hotkeys = self.pet_bar_hotkeys();
         let catalog_icon = |spell_id: u32| {
             self.spells
                 .catalog()
@@ -251,18 +239,9 @@ impl GameClient {
             button.icon_fdid = self.drawable_fdid(button.icon_fdid);
             button.pushed = self.pet_bar.pushed[index] > 0.0;
         }
-        if let Some(index) = self
-            .pet_bar
-            .ui
-            .as_ref()
-            .and_then(|ui| ui.bind().hovered_button())
-            .and_then(|(name, _)| {
-                name.strip_prefix("PetActionButton")?
-                    .parse::<usize>()
-                    .ok()?
-                    .checked_sub(1)
-            })
-            && let Some(button) = buttons.get_mut(index)
+        if let Some(button) = self
+            .hovered_pet_button()
+            .and_then(|index| buttons.get_mut(index))
         {
             button.hovered = true;
         }
@@ -272,8 +251,38 @@ impl GameClient {
         }
     }
 
+    /// `StartFlash` when Attack becomes active, `StopFlash` when it stops.
+    fn advance_attack_flash(&mut self, spells: &PetSpells, pet_in_combat: bool, delta: f32) {
+        let attack = PetActionSlot::Command(COMMAND_ATTACK);
+        let attacking = pet_in_combat
+            && spells
+                .action_buttons
+                .iter()
+                .any(|&packed| PetActionSlot::from_packed(packed) == attack);
+        self.pet_bar.flash = attacking.then(|| self.pet_bar.flash.map_or(0.0, |t| t + delta));
+    }
+
+    /// `PetActionButtonMixin:SetHotkeys`: each button's `BONUSACTIONBUTTONn` key.
+    fn pet_bar_hotkeys(&self) -> [String; PET_BAR_BUTTONS] {
+        InputAction::PET_ACTION_SLOTS.map(|action| {
+            self.client_options
+                .bindings
+                .binding(action)
+                .map(InputBinding::hotkey_text)
+                .unwrap_or_default()
+        })
+    }
+
+    fn hovered_pet_button(&self) -> Option<usize> {
+        let (name, _) = self.pet_bar.ui.as_ref()?.bind().hovered_button()?;
+        name.strip_prefix("PetActionButton")?
+            .parse::<usize>()
+            .ok()?
+            .checked_sub(1)
+    }
+
     fn sync_pet_bar(&mut self, spells: &PetSpells, delta: f32) -> Result<(), String> {
-        let state = self.pet_bar_state(spells, delta);
+        let state = self.pet_bar_view(spells, delta);
         let shown = self.client_options.hud.show_action_bars;
         if let Some(ui) = self.pet_bar.ui.as_mut() {
             ui.set_visible(shown);
@@ -286,7 +295,8 @@ impl GameClient {
         ui.set_name("PetActionBarUI");
         ui.set_layer(2);
         self.base_mut().add_child(&ui);
-        if let Err(error) = ui.bind_mut().show_pet_action_bar(state) {
+        let built = ui.bind_mut().show_pet_action_bar(state);
+        if let Err(error) = built {
             ui.free();
             return Err(error);
         }
@@ -304,46 +314,47 @@ impl GameClient {
         state.set("local_pet", &optional_id(self.local_pet_id()));
         state.set("shown", self.pet_bar.ui.is_some());
         if let Some(spells) = spells {
-            let pet_in_combat = self.pet_in_combat(spells.pet);
-            state.set("command_state", i64::from(spells.command_state));
-            state.set("react_state", i64::from(spells.react_state));
-            let buttons: PackedInt64Array = spells
-                .action_buttons
-                .iter()
-                .map(|&packed| i64::from(packed))
-                .collect();
-            state.set("buttons", &buttons);
-            let checked: PackedInt64Array = spells
-                .action_buttons
-                .iter()
-                .map(|&packed| {
-                    let slot = PetActionSlot::from_packed(packed);
-                    i64::from(pet_action_active(slot, &spells, pet_in_combat))
-                })
-                .collect();
-            state.set("checked", &checked);
-            state.set("pet_in_combat", pet_in_combat);
+            set_bar_snapshot(&mut state, &spells, self.pet_in_combat(spells.pet));
         }
         state.set("move_to_pending", self.pet_bar.move_to.is_some());
-        let sent: Array<VarDictionary> = self
-            .pet_bar
-            .sent
-            .iter()
-            .map(|action| {
-                let mut entry = VarDictionary::new();
-                entry.set("pet", action.pet as i64);
-                entry.set("action", i64::from(action.action));
-                entry.set("target", &optional_id(action.target));
-                let position = action.position.map_or(Variant::nil(), |[x, y, z]| {
-                    Vector3::new(x, y, z).to_variant()
-                });
-                entry.set("position", &position);
-                entry
-            })
-            .collect();
+        let sent: Array<VarDictionary> = self.pet_bar.sent.iter().map(sent_action).collect();
         state.set("sent", &sent);
         state
     }
+}
+
+/// The bar's states, packed buttons and which of them are checked.
+fn set_bar_snapshot(state: &mut VarDictionary, spells: &PetSpells, pet_in_combat: bool) {
+    state.set("command_state", i64::from(spells.command_state));
+    state.set("react_state", i64::from(spells.react_state));
+    state.set("pet_in_combat", pet_in_combat);
+    let buttons: PackedInt64Array = spells
+        .action_buttons
+        .iter()
+        .map(|&packed| i64::from(packed))
+        .collect();
+    state.set("buttons", &buttons);
+    let checked: PackedInt64Array = spells
+        .action_buttons
+        .iter()
+        .map(|&packed| {
+            let slot = PetActionSlot::from_packed(packed);
+            i64::from(pet_action_active(slot, spells, pet_in_combat))
+        })
+        .collect();
+    state.set("checked", &checked);
+}
+
+fn sent_action(action: &PetAction) -> VarDictionary {
+    let mut entry = VarDictionary::new();
+    entry.set("pet", action.pet as i64);
+    entry.set("action", i64::from(action.action));
+    entry.set("target", &optional_id(action.target));
+    let position = action.position.map_or(Variant::nil(), |[x, y, z]| {
+        Vector3::new(x, y, z).to_variant()
+    });
+    entry.set("position", &position);
+    entry
 }
 
 #[cfg(test)]
