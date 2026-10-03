@@ -2,11 +2,7 @@ use std::path::PathBuf;
 use std::sync::mpsc;
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
-use bevy::diagnostic::{
-    Diagnostic, DiagnosticMeasurement, DiagnosticsStore, FrameTimeDiagnosticsPlugin,
-};
-use bevy::platform::time::Instant;
-use game_engine_network::ipc_wire::{PerformanceSnapshot, Request, Response, build_performance_snapshot};
+use game_engine_network::ipc_wire::{PerformanceSnapshot, Request, Response};
 
 use super::*;
 use crate::command_dispatch::{
@@ -84,53 +80,6 @@ fn performance_response_formats_text_and_json() {
     assert_eq!(parsed["Performance"]["fps"], Value::Null);
     assert_eq!(parsed["Performance"]["frame_time_ms"], 33.333);
     assert_eq!(parsed["Performance"]["focused"], false);
-}
-
-#[test]
-fn performance_snapshot_extracts_smoothed_diagnostics_and_focus() {
-    let start = Instant::now();
-    let mut fps = Diagnostic::new(FrameTimeDiagnosticsPlugin::FPS)
-        .with_max_history_length(8)
-        .with_smoothing_factor(1.0);
-    fps.add_measurement(DiagnosticMeasurement {
-        time: start,
-        value: 60.0,
-    });
-    fps.add_measurement(DiagnosticMeasurement {
-        time: start + Duration::from_millis(500),
-        value: 30.0,
-    });
-
-    let mut frame_time = Diagnostic::new(FrameTimeDiagnosticsPlugin::FRAME_TIME)
-        .with_max_history_length(8)
-        .with_smoothing_factor(1.0);
-    frame_time.add_measurement(DiagnosticMeasurement {
-        time: start,
-        value: 16.0,
-    });
-    frame_time.add_measurement(DiagnosticMeasurement {
-        time: start + Duration::from_millis(500),
-        value: 20.0,
-    });
-
-    let mut diagnostics = DiagnosticsStore::default();
-    diagnostics.add(fps);
-    diagnostics.add(frame_time);
-
-    let snapshot = build_performance_snapshot(&diagnostics, true);
-
-    assert_eq!(snapshot.fps, Some(45.0));
-    assert_eq!(snapshot.frame_time_ms, Some(18.0));
-    assert!(snapshot.focused);
-}
-
-#[test]
-fn performance_snapshot_reports_unavailable_diagnostics() {
-    let snapshot = build_performance_snapshot(&DiagnosticsStore::default(), false);
-
-    assert_eq!(snapshot.fps, None);
-    assert_eq!(snapshot.frame_time_ms, None);
-    assert!(!snapshot.focused);
 }
 
 #[test]

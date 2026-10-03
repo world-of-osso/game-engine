@@ -5,16 +5,14 @@ use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-#[path = "char_texture_query_data.rs"]
-pub mod char_texture_query_data;
+use crate::char_texture_query_data;
 use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
 use crate::sqlite_util::is_missing_table_error;
 
-fn cache_path() -> PathBuf {
-    crate::paths::shared_data_path(format!(
-        "cache/{}",
-        char_texture_query_data::char_texture_cache_file()
-    ))
+fn cache_path(data_dir: &Path) -> PathBuf {
+    data_dir
+        .join("cache")
+        .join(char_texture_query_data::char_texture_cache_file())
 }
 
 fn source_paths(data_dir: &Path) -> [PathBuf; 4] {
@@ -277,8 +275,10 @@ fn populate_model_materials(conn: &Connection, path: &Path) -> Result<(), String
     )
 }
 
+/// Builds `<data_dir>/cache/char_texture-v<N>.sqlite` from the DB2 CSVs in `data_dir`,
+/// reusing it when its recorded sources are unchanged.
 pub fn import_char_texture_cache(data_dir: &Path) -> Result<PathBuf, String> {
-    let cache_path = cache_path();
+    let cache_path = cache_path(data_dir);
     let csv_paths = source_paths(data_dir);
     let needs_rebuild = if cache_path.exists() {
         let conn = open_read_only(&cache_path)?;
@@ -292,23 +292,10 @@ pub fn import_char_texture_cache(data_dir: &Path) -> Result<PathBuf, String> {
     Ok(cache_path)
 }
 
-pub(crate) fn load_char_texture_data(
-    _data_dir: &Path,
-) -> Result<char_texture_query_data::CharTextureCacheData, String> {
-    let cache_path = cache_path();
-    if !cache_path.exists() {
-        return Err(format!(
-            "{} missing; run `cargo run --bin char_texture_cache_import` to build it",
-            cache_path.display()
-        ));
-    }
-    let conn = open_read_only(&cache_path)?;
-    char_texture_query_data::query_char_texture_data(&conn)
-}
-
 #[cfg(test)]
 mod tests {
-    use super::{import_char_texture_cache, load_char_texture_data};
+    use super::import_char_texture_cache;
+    use crate::cache_sqlite::open_read_only;
     use std::path::Path;
 
     #[test]
@@ -325,7 +312,7 @@ mod tests {
         .expect("seed texture cache");
 
         let (layers, sections, layouts) =
-            super::char_texture_query_data::query_char_texture_data(&conn).expect("query cache");
+            crate::char_texture_query_data::query_char_texture_data(&conn).expect("query cache");
         let layer_keys: Vec<_> = layers
             .iter()
             .map(|layer| (layer.layout_id, layer.texture_type, layer.layer))
@@ -341,9 +328,12 @@ mod tests {
 
     #[test]
     fn char_texture_data_loads_from_imported_cache() {
-        import_char_texture_cache(Path::new("data")).expect("import char texture cache");
+        let cache =
+            import_char_texture_cache(Path::new("data")).expect("import char texture cache");
+        let conn = open_read_only(&cache).expect("open char texture cache");
         let (layers, sections, layouts) =
-            load_char_texture_data(Path::new("data")).expect("load char texture cache");
+            crate::char_texture_query_data::query_char_texture_data(&conn)
+                .expect("load char texture cache");
         assert!(!layers.is_empty());
         assert!(!sections.is_empty());
         assert!(!layouts.is_empty());

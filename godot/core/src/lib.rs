@@ -19,6 +19,8 @@ mod campsite_object_data_tests;
 pub mod catalog_data;
 #[path = "char_select_camera_data.rs"]
 pub mod char_select_camera_data;
+#[path = "rendering/character/char_texture_cache.rs"]
+pub mod char_texture_cache;
 #[path = "asset/char_texture_data.rs"]
 pub mod char_texture_data;
 #[path = "rendering/character/char_texture_query_data.rs"]
@@ -35,6 +37,8 @@ mod client_options_data_tests;
 mod component_file_data;
 #[path = "scenes/char_create/background_data.rs"]
 pub mod creation_scene_data;
+#[path = "game/creatures/creature_display_cache.rs"]
+pub mod creature_display_cache;
 #[path = "game/creatures/creature_display_data.rs"]
 pub mod creature_display_data;
 #[cfg(test)]
@@ -43,6 +47,8 @@ mod creature_display_data_tests;
 pub mod creature_health_scaling_data;
 #[path = "csv_util.rs"]
 pub mod csv_util;
+#[path = "rendering/character/customization_cache.rs"]
+pub mod customization_cache;
 #[path = "rendering/character/customization_catalog.rs"]
 pub mod customization_data;
 #[path = "rendering/character/customization_query_data.rs"]

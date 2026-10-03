@@ -6,16 +6,13 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
-use crate::customization_data::{RaceModels, RawData};
+use crate::customization_data::RaceModels;
 
-#[path = "customization_query_data.rs"]
-mod customization_query_data;
+use crate::customization_query_data::{CACHE_SCHEMA_VERSION, customization_cache_file};
 use crate::sqlite_util::is_missing_table_error;
 
-use customization_query_data::{CACHE_SCHEMA_VERSION, customization_cache_file};
-
-fn cache_path() -> PathBuf {
-    crate::paths::shared_data_path(format!("cache/{}", customization_cache_file()))
+fn cache_path(data_dir: &Path) -> PathBuf {
+    data_dir.join("cache").join(customization_cache_file())
 }
 
 fn required_csv_paths(data_dir: &Path) -> [PathBuf; 9] {
@@ -566,8 +563,10 @@ fn populate_texture_fdids(conn: &Connection, path: &Path) -> Result<(), String> 
     )
 }
 
+/// Builds `<data_dir>/cache/customization-v<N>.sqlite` from the DB2 CSVs in `data_dir`,
+/// reusing it when its recorded sources are unchanged.
 pub fn import_customization_cache(data_dir: &Path) -> Result<PathBuf, String> {
-    import_customization_cache_at(data_dir, &cache_path())
+    import_customization_cache_at(data_dir, &cache_path(data_dir))
 }
 
 fn import_customization_cache_at(data_dir: &Path, cache_path: &Path) -> Result<PathBuf, String> {
@@ -585,14 +584,17 @@ fn import_customization_cache_at(data_dir: &Path, cache_path: &Path) -> Result<P
     Ok(cache_path.to_path_buf())
 }
 
-pub(crate) fn load_customization_raw_data(data_dir: &Path) -> Result<RawData, String> {
-    load_customization_raw_data_at(data_dir, &cache_path())
-}
-
-fn load_customization_raw_data_at(data_dir: &Path, cache_path: &Path) -> Result<RawData, String> {
+#[cfg(test)]
+fn load_customization_raw_data_at(
+    data_dir: &Path,
+    cache_path: &Path,
+) -> Result<crate::customization_data::RawData, String> {
     import_customization_cache_at(data_dir, cache_path)?;
     let conn = open_read_only(cache_path)?;
-    customization_query_data::query_customization_raw_data(&conn, RaceModels::load(data_dir)?)
+    crate::customization_query_data::query_customization_raw_data(
+        &conn,
+        RaceModels::load(data_dir)?,
+    )
 }
 
 #[cfg(test)]
@@ -601,7 +603,7 @@ mod catalog_tests;
 
 #[cfg(test)]
 mod tests {
-    use super::{import_customization_cache, load_customization_raw_data};
+    use super::{import_customization_cache, load_customization_raw_data_at};
     use crate::customization_data::RaceModels;
     use std::path::Path;
 
@@ -624,7 +626,7 @@ mod tests {
         .unwrap();
         let mut races = RaceModels::default();
         races.chr_model_by_race_sex.insert((1, 0), 9);
-        let raw = super::customization_query_data::query_customization_raw_data(&conn, races)
+        let raw = crate::customization_query_data::query_customization_raw_data(&conn, races)
             .expect("query imported customization rows");
         assert_eq!(
             raw.chr_models.iter().map(|row| row.id).collect::<Vec<_>>(),
@@ -662,7 +664,7 @@ mod tests {
     #[test]
     fn query_customization_raw_data_reports_missing_table_context() {
         let conn = rusqlite::Connection::open_in_memory().unwrap();
-        let Err(error) = super::customization_query_data::query_customization_raw_data(
+        let Err(error) = crate::customization_query_data::query_customization_raw_data(
             &conn,
             RaceModels::default(),
         ) else {
@@ -684,8 +686,10 @@ mod tests {
 
     #[test]
     fn customization_raw_data_loads_from_imported_cache() {
-        import_customization_cache(Path::new("data")).expect("import customization cache");
-        let raw = load_customization_raw_data(Path::new("data")).expect("load customization cache");
+        let cache =
+            import_customization_cache(Path::new("data")).expect("import customization cache");
+        let raw = load_customization_raw_data_at(Path::new("data"), &cache)
+            .expect("load customization cache");
         assert!(!raw.chr_models.is_empty());
         assert!(!raw.options.is_empty());
         assert!(!raw.choices.is_empty());

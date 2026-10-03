@@ -130,6 +130,20 @@ db2/12.1.0.69933/ChrModel.csv
 db2/12.1.0.69933/ChrRaceXChrModel.csv
 
 # game-engine-core --lib
+# customization_cache / char_texture_cache importers: their DB2 CSV sources
+ChrModel.csv
+ChrCustomizationOption.csv
+ChrCustomizationChoice.csv
+ChrCustomizationElement.csv
+ChrCustomizationMaterial.csv
+ChrCustomizationGeoset.csv
+CharHairGeosets.csv
+ChrCustomizationCategory.csv
+ChrCustomizationSkinnedModel.csv
+ChrModelTextureLayer.csv
+CharComponentTextureSections.csv
+CharComponentTextureLayouts.csv
+ChrModelMaterial.csv
 textures/464811.blp
 textures/1886758.blp
 textures/464043.blp
