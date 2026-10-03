@@ -108,10 +108,10 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 61);
+    assert_eq!(InputAction::ALL.len(), 70);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 5, 22, 1, 13, 6]
+        [8, 6, 14, 22, 1, 13, 6]
     );
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {

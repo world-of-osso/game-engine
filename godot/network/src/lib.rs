@@ -589,7 +589,7 @@ fn install_mirror_timer_relay(app: &mut App, events: Sender<Event>) {
 fn install_group_relay(app: &mut App, events: Sender<Event>) {
     use protocol::{
         GroupCommandResponse, GroupInviteCancelled, GroupInvitePrompt, GroupMemberStates,
-        GroupRosterSnapshot, ReadyCheckUpdate,
+        GroupRosterSnapshot, RaidTargetIcons, ReadyCheckUpdate,
     };
     app.add_systems(
         Update,
@@ -598,7 +598,8 @@ fn install_group_relay(app: &mut App, events: Sender<Event>) {
                mut prompts: Query<&mut MessageReceiver<GroupInvitePrompt>>,
                mut cancels: Query<&mut MessageReceiver<GroupInviteCancelled>>,
                mut checks: Query<&mut MessageReceiver<ReadyCheckUpdate>>,
-               mut responses: Query<&mut MessageReceiver<GroupCommandResponse>>| {
+               mut responses: Query<&mut MessageReceiver<GroupCommandResponse>>,
+               mut raid_targets: Query<&mut MessageReceiver<RaidTargetIcons>>| {
             let mut received = Vec::new();
             macro_rules! drain {
                 ($receivers:ident) => {
@@ -615,6 +616,7 @@ fn install_group_relay(app: &mut App, events: Sender<Event>) {
             drain!(cancels);
             drain!(checks);
             drain!(responses);
+            drain!(raid_targets);
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
                 events

@@ -587,6 +587,7 @@ impl GameClient {
         let mut target = target_unit.map(|unit| target_frame_state(unit, viewer_level, multiplier));
         if let (Some(state), Some(id)) = (target.as_mut(), target_id) {
             self.fill_target_auras(state, id);
+            state.raid_target = self.raid_target_of(id);
         }
         let target_state = target.clone();
         self.targeting.frame_texts = target
@@ -664,6 +665,9 @@ impl GameClient {
                 .unwrap_or_default()
                 .as_str(),
         );
+        if let Some(icon) = target.and_then(|id| self.raid_target_of(id)) {
+            state.set("raid_target", i64::from(icon));
+        }
         state.set("level_text", self.targeting.frame_texts.0.as_str());
         state.set("health_text", self.targeting.frame_texts.1.as_str());
         state.set("sent", &optional_id(self.targeting.sent));

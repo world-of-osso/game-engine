@@ -185,6 +185,7 @@ impl WowNameplateDebug {
                     fraction: owner.health / 100.0,
                     color,
                     name_color: Color::WHITE,
+                    raid_target: None,
                 };
                 (owner.id, view)
             })
