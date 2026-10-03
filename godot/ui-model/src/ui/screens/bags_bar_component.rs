@@ -5,15 +5,26 @@ use ui_toolkit::widget_def::Element;
 
 use crate::hud_layout::{HudAnchor, hud_layout};
 use crate::ui::screens::bag_frame_component::bag_toggle_action;
-use crate::ui::screens::bags_bar_art::{
-    BACKPACK, BAG_ARROW, BAG_SLOT, BAG_SLOT_EMPTY, REAGENT_SLOT, REAGENT_SLOT_EMPTY, SheetCrop,
-};
 
 struct DynName(String);
 
+/// Retail bag bar art (UiTextureAtlas 2098, FDID 4691255; no Forever set-1 members).
+/// `bag-main` (member 16752): the backpack button.
+const BACKPACK: &str = "bag-main";
+/// `bag-border-empty` (16751): an empty bag slot.
+const BAG_SLOT_EMPTY: &str = "bag-border-empty";
+/// `bag-border` (16750): a bag slot holding a bag.
+const BAG_SLOT: &str = "bag-border";
+/// `bag-reagent-border` (16753): the reagent bag slot holding a bag.
+const REAGENT_SLOT: &str = "bag-reagent-border";
+/// `bag-reagent-border-empty` (16754): the empty reagent bag slot.
+const REAGENT_SLOT_EMPTY: &str = "bag-reagent-border-empty";
+/// `bag-arrow` (16749): `BagBarExpandToggle`, pointing left unrotated.
+const BAG_ARROW: &str = "bag-arrow";
+
 /// Retail BagsBar: 47 high, backpack 48x48, bag slots 30x30 chained with no padding
 /// (Blizzard_MainMenuBarBagButtons/Mainline/MainMenuBarBagButtons.xml).
-const BAGS_BAR_H: f32 = 47.0;
+pub const BAGS_BAR_H: f32 = 47.0;
 pub(super) const BAG_SLOT_SIZE: f32 = 30.0;
 pub(super) const BACKPACK_SIZE: f32 = 48.0;
 pub(super) const BAG_SLOT_GAP: f32 = 0.0;
@@ -50,6 +61,25 @@ pub struct BagBarState {
     pub collapsed: bool,
 }
 
+/// Bag button atlases of Camelot's own 45×45 square bag bar, which only Forever's set 1
+/// has: `BaseBagSlotButtonMixin:GetSlotAtlases`, the keyring's slot art
+/// (`KeyRingMixin:OnBagUpdate`) and `KeyRingMixin:GetSlotAtlases`
+/// (Camelot/MainMenuBarBagButtons.lua:2, 143-145, 211). This bar keeps Retail's round bag
+/// buttons, so it draws none of them.
+pub const FOREVER_ONLY_BAG_ATLASES: [&str; 4] = [
+    "ui-hud-actionbar-iconframe-bags",
+    "UI-HUD-ActionBar-IconFrame-Slot-Small",
+    "UI-HUD-ActionBar-IconFrame-Small",
+    "UI-HUD-ActionBar-Keyring-Small",
+];
+
+/// The bar's width: money, the five bag slots, the toggle and the backpack. Like
+/// `GetBagBarLength`, it counts hidden bag buttons too: the bar keeps its length.
+pub fn bags_bar_width() -> f32 {
+    let bags_w = (BAG_COUNT + 1) as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
+    MONEY_DISPLAY_W + bags_w + EXPAND_TOGGLE_W + BACKPACK_SIZE
+}
+
 pub fn bags_bar_screen(ctx: &SharedContext) -> Element {
     bag_bar(ctx.get::<BagBarState>().copied(), &hud_layout(ctx).bags_bar)
 }
@@ -75,9 +105,7 @@ fn format_money(money: u64) -> String {
 /// 391). Money (not part of the Retail bar) sits left of the bags.
 fn bag_bar(synced: Option<BagBarState>, anchor: &HudAnchor) -> Element {
     let state = synced.unwrap_or_default();
-    // GetBagBarLength counts hidden bag buttons too: the bar keeps its length.
-    let bags_w = (BAG_COUNT + 1) as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
-    let total_w = MONEY_DISPLAY_W + bags_w + EXPAND_TOGGLE_W + BACKPACK_SIZE;
+    let total_w = bags_bar_width();
     let backpack_x = total_w - BACKPACK_SIZE;
     let toggle_x = backpack_x - EXPAND_TOGGLE_W;
     let centre_y = |size: f32| (BAGS_BAR_H - size) / 2.0;
@@ -147,7 +175,6 @@ fn bag_bar(synced: Option<BagBarState>, anchor: &HudAnchor) -> Element {
 /// bar is expanded (MainMenuBarBagButtons.lua:404-425).
 fn expand_toggle(x: f32, y: f32, collapsed: bool) -> Element {
     let rotation = if collapsed { 0.0 } else { std::f32::consts::PI };
-    let coords = BAG_ARROW.tex_coords();
     rsx! {
         button {
             name: "BagBarExpandToggle",
@@ -163,8 +190,7 @@ fn expand_toggle(x: f32, y: f32, collapsed: bool) -> Element {
                 name: "BagBarExpandToggleNormalTexture",
                 width: {EXPAND_TOGGLE_W},
                 height: {EXPAND_TOGGLE_H},
-                texture_fdid: {BAG_ARROW.fdid},
-                tex_coords: {coords.as_str()},
+                texture_atlas: BAG_ARROW,
                 rotation: {rotation},
                 pos_type: "absolute",
                 left: 0.0,
@@ -219,7 +245,7 @@ struct BagSlot {
     name: String,
     index: usize,
     size: f32,
-    art: SheetCrop,
+    art: &'static str,
     /// The equipped bag's icon, under the slot art (`BaseBagSlotButtonMixin:UpdateTextures`).
     icon: Option<u32>,
 }
@@ -227,7 +253,6 @@ struct BagSlot {
 fn bag_slot(slot: BagSlot, x: f32, y: f32, overlay: Element) -> Element {
     let action = bag_toggle_action(slot.index);
     let art_name = DynName(format!("{}Art", slot.name));
-    let coords = slot.art.tex_coords();
     let icon = slot
         .icon
         .map(|fdid| bag_icon(format!("{}IconTexture", slot.name), fdid))
@@ -237,8 +262,7 @@ fn bag_slot(slot: BagSlot, x: f32, y: f32, overlay: Element) -> Element {
             name: art_name,
             width: {slot.size},
             height: {slot.size},
-            texture_fdid: {slot.art.fdid},
-            tex_coords: {coords.as_str()},
+            texture_atlas: slot.art,
             pos_type: "absolute",
             left: 0.0,
             top: 0.0,

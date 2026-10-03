@@ -6,10 +6,12 @@ use game_engine_ui_model::micro_menu::{
     ACTION_CHARACTER, MICRO_BUTTONS, MicroButtonState, MicroMenuView, OpenWindows,
     micro_button_index, micro_button_tooltip, micro_menu_screen, unavailable_message,
 };
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::button::ButtonState;
+use ui_toolkit::widgets::texture::TextureSource;
 
 fn build(view: MicroMenuView) -> FrameRegistry {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
@@ -24,16 +26,21 @@ fn index(name: &str) -> usize {
     micro_button_index(name).expect(name)
 }
 
-/// Normalized `left,top` of a texture child, in 1024×512 sheet pixels.
+/// `left,top` of a texture child's Modern atlas member, in 1024×512 sheet pixels.
 fn crop(registry: &FrameRegistry, name: &str) -> (f32, f32) {
+    data_root();
     let frame = registry
         .get(registry.get_by_name(name).expect(name))
         .unwrap();
     let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
         panic!("{name} is a texture");
     };
-    let [left, _, top, _] = texture.tex_coords;
-    ((left * 1024.0).round(), (top * 512.0).round())
+    let TextureSource::Atlas(atlas) = &texture.source else {
+        panic!("{name} draws {:?}, not an atlas", texture.source);
+    };
+    let region = resolve_region(atlas, ActiveSkin::Modern).expect(atlas);
+    assert_eq!(region.source, AtlasSource::FileDataId(4_708_813), "{atlas}");
+    ((region.left * 1024.0).round(), (region.top * 512.0).round())
 }
 
 fn button_state(registry: &FrameRegistry, name: &str) -> (ButtonState, f32, Option<String>) {
