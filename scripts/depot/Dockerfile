@@ -11,12 +11,14 @@ COPY --exclude=test-assets . /src/
 FROM source AS build
 ARG FIXTURE=""
 ARG CLI=""
+ARG RELEASE=""
 RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=godot-bench-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/src/game-engine-godot-conversion/target,sharing=locked \
     python3 /src/refresh-source-mtimes.py /src && \
-    cargo build --locked --manifest-path godot/Cargo.toml -p game-engine-godot --lib -j 16 && \
-    mkdir -p /out && gzip -1 -c target/debug/libgame_engine_godot.so > /out/libgame_engine_godot.so.gz && \
+    if [ -n "$RELEASE" ]; then profile=release; else profile=debug; fi && \
+    cargo build --locked --manifest-path godot/Cargo.toml -p game-engine-godot --lib -j 16 ${RELEASE:+--release} && \
+    mkdir -p /out && gzip -1 -c "target/$profile/libgame_engine_godot.so" > /out/libgame_engine_godot.so.gz && \
     case "$FIXTURE" in \
       "") ;; \
       *) \
