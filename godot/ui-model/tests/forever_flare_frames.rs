@@ -52,6 +52,7 @@ fn unit(name: &str, power: PowerType) -> UnitFrameState {
 fn small(name: &str) -> SmallUnitFrameState {
     SmallUnitFrameState {
         name: name.into(),
+        level: None,
         health_fraction: 0.5,
         reaction: Some(Reaction::Neutral),
     }

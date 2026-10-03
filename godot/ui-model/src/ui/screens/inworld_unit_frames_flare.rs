@@ -29,7 +29,7 @@ const BORDER_COLOR: &str = "0.65,0.49,0.27,1.0";
 const BACKGROUND_FDID: u32 = 312_922;
 /// A bar's `bg` (UnitFrames.lua:240).
 pub const BAR_BACKGROUND: &str = "0.15,0.15,0.15,0.9";
-/// `TEXT_INSET` (UnitFrames.lua:48).
+/// `TEXT_INSET` (UnitFrames.lua:49).
 const TEXT_INSET: f32 = 4.0;
 /// `db.font` Friz Quadrata 12 OUTLINE (Core.lua:275).
 const FONT_SIZE: f32 = 12.0;
@@ -74,9 +74,10 @@ pub const FLARE_TARGET_OF_TARGET: FlareFrame = FlareFrame {
     prefix: "TargetOfTarget",
     size: (120.0, 28.0),
     power_height: 0.0,
-    health_percent: false,
-    show_level: false,
-    mirror: false,
+    // Reference screenshot overrides Core.lua:293's text defaults.
+    health_percent: true,
+    show_level: true,
+    mirror: true,
 };
 pub const FLARE_FOCUS: FlareFrame = FlareFrame {
     root: "FocusFrame",
@@ -104,6 +105,7 @@ pub struct FlareUnit<'a> {
     pub health_fraction: f32,
     pub reaction: Option<Reaction>,
     pub power: Option<&'a PowerBarState>,
+    pub aura_state: Option<&'a UnitFrameState>,
 }
 
 impl<'a> From<&'a UnitFrameState> for FlareUnit<'a> {
@@ -114,6 +116,7 @@ impl<'a> From<&'a UnitFrameState> for FlareUnit<'a> {
             health_fraction: unit.health_fraction,
             reaction: unit.reaction,
             power: unit.power.as_ref(),
+            aura_state: None,
         }
     }
 }
@@ -122,10 +125,14 @@ impl<'a> From<&'a SmallUnitFrameState> for FlareUnit<'a> {
     fn from(unit: &'a SmallUnitFrameState) -> Self {
         Self {
             name: &unit.name,
-            level: None,
+            level: unit
+                .level
+                .as_ref()
+                .map(|(text, color)| (text.as_str(), color.as_str())),
             health_fraction: unit.health_fraction,
             reaction: unit.reaction,
             power: None,
+            aura_state: None,
         }
     }
 }
@@ -138,6 +145,7 @@ impl<'a> From<&'a PetFrameState> for FlareUnit<'a> {
             health_fraction: pet.health_fraction,
             reaction: None,
             power: pet.power.as_ref(),
+            aura_state: None,
         }
     }
 }
@@ -224,6 +232,7 @@ fn flare_contents(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
         {power_bar.unwrap_or_default()}
         {flare_border(spec.root, spec.size)}
         {flare_texts(spec, unit, health)}
+        {unit.aura_state.map(|state| super::inworld_unit_frames_aura::flare_auras(state, width)).unwrap_or_default()}
     }
 }
 

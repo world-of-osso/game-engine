@@ -35,6 +35,7 @@ struct CastBarStyle {
     /// The bronze border round the holder.
     border: bool,
     spark: bool,
+    icon: bool,
     cast: &'static str,
     channel: &'static str,
     uninterruptible: &'static str,
@@ -46,6 +47,7 @@ const MODERN_STYLE: CastBarStyle = CastBarStyle {
     holder_background: BORDER_BG,
     border: false,
     spark: true,
+    icon: false,
     cast: FILL_CAST,
     channel: FILL_CHANNEL,
     uninterruptible: FILL_UNINTERRUPTIBLE,
@@ -54,13 +56,15 @@ const MODERN_STYLE: CastBarStyle = CastBarStyle {
 /// FlareUI's standalone player cast bar: `playerCastbar` 292×26 (Core.lua:281) in a
 /// transparent holder INSET 4 larger under the bronze border, `PLAYER_CAST_COLOR`
 /// #5C8FC7, `PLAYER_CAST_CHANNEL` #80BFE0 and `CAST_NOINTERRUPT` grey
-/// (UnitFrames.lua:75-79,651-661,2224-2227). The spell icon left of the bar is not drawn.
+/// (UnitFrames.lua:75-79,651-661,2225-2234). Icon height equals bar height,
+/// flush against its left edge (UnitFrames.lua:53,568-569).
 const FOREVER_STYLE: CastBarStyle = CastBarStyle {
     bar: (292.0, 26.0),
     inset: FLARE_INSET,
     holder_background: "0.0,0.0,0.0,0.0",
     border: true,
     spark: false,
+    icon: true,
     cast: "0.36,0.56,0.78,1.0",
     channel: "0.50,0.75,0.88,1.0",
     uninterruptible: "0.55,0.55,0.55,1.0",
@@ -80,6 +84,8 @@ const TIMER_COLOR: &str = "1.0,1.0,1.0,1.0";
 pub struct CastingBarState {
     pub visible: bool,
     pub spell_name: String,
+    /// The catalog's spell art; absent art gets no substitute texture.
+    pub icon_fdid: Option<u32>,
     pub timer_text: String,
     /// Fill fraction 0.0..=1.0.
     pub progress: f32,
@@ -93,6 +99,7 @@ impl Default for CastingBarState {
         Self {
             visible: false,
             spell_name: String::new(),
+            icon_fdid: None,
             timer_text: String::new(),
             progress: 0.0,
             is_channel: false,
@@ -125,7 +132,19 @@ pub fn casting_bar_frame_screen(ctx: &SharedContext) -> Element {
     let style = cast_bar_style(skin);
     let hide = !state.visible;
     let (bar_w, bar_h) = style.bar;
-    let holder = (bar_w + 2.0 * style.inset, bar_h + 2.0 * style.inset);
+    let icon_width = if style.icon { bar_h } else { 0.0 };
+    let holder = (
+        bar_w + icon_width + 2.0 * style.inset,
+        bar_h + 2.0 * style.inset,
+    );
+    let icon = if style.icon {
+        state
+            .icon_fdid
+            .map(|fdid| spell_icon(fdid, bar_h, style.inset))
+            .unwrap_or_default()
+    } else {
+        Element::default()
+    };
     let fill_w = bar_w * state.progress.clamp(0.0, 1.0);
     let at = hud_layout(ctx).cast_bar.place(holder);
     let border = if style.border {
@@ -148,6 +167,7 @@ pub fn casting_bar_frame_screen(ctx: &SharedContext) -> Element {
             margin_left: {at.margin_left},
             margin_top: {at.margin_top},
             {bar_background(style, fill_w, bar_fill_color(state, style), state)}
+            {icon}
             {border}
         }
     }
@@ -172,6 +192,9 @@ fn bar_background(
     state: &CastingBarState,
 ) -> Element {
     let (bar_w, bar_h) = style.bar;
+    if style.icon {
+        return forever_bar_background(style, fill_w, color, state);
+    }
     let spark = if style.spark {
         spark(fill_w - SPARK_W / 2.0, bar_h)
     } else {
@@ -192,6 +215,71 @@ fn bar_background(
             {spark}
             {spell_name_text(&state.spell_name, bar_w)}
             {timer_text(&state.timer_text)}
+        }
+    }
+}
+
+fn spell_icon(fdid: u32, size: f32, inset: f32) -> Element {
+    rsx! {
+        texture {
+            name: "CastingBarIcon",
+            width: size,
+            height: size,
+            texture_fdid: fdid,
+            pos_type: "absolute",
+            pos_x: inset,
+            pos_y: inset,
+        }
+    }
+}
+
+fn forever_bar_background(
+    style: &CastBarStyle,
+    fill_w: f32,
+    color: &str,
+    state: &CastingBarState,
+) -> Element {
+    let (width, height) = style.bar;
+    // UnitFrames.lua:49,588-596: 4px text inset and 4px before the timer.
+    const TEXT_INSET: f32 = 4.0;
+    let timer_x = width - TEXT_INSET - TIMER_W;
+    let name_width = timer_x - 2.0 * TEXT_INSET;
+    rsx! {
+        r#frame {
+            name: "CastingBarBackground",
+            width,
+            height,
+            background_color: BAR_BG,
+            pos_type: "absolute",
+            pos_x: {style.inset + height},
+            pos_y: style.inset,
+            {fill_bar(fill_w, height, color)}
+            {forever_cast_label("CastingBarSpellName", &state.spell_name, (TEXT_INSET, name_width, height), "LEFT")}
+            {forever_cast_label("CastingBarTimer", &state.timer_text, (timer_x, TIMER_W, height), "RIGHT")}
+        }
+    }
+}
+
+fn forever_cast_label(
+    name: &str,
+    text: &str,
+    (x, width, height): (f32, f32, f32),
+    justify: &str,
+) -> Element {
+    rsx! {
+        fontstring {
+            name: {crate::ui::screens::inworld_unit_frames_component::dyn_name(name.to_string())},
+            width,
+            height,
+            text,
+            font: "FrizQuadrata",
+            font_size: 12.0,
+            font_color: SPELL_NAME_COLOR,
+            outline: "OUTLINE",
+            justify_h: justify,
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: 0.0,
         }
     }
 }
