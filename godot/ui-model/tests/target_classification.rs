@@ -27,6 +27,7 @@ fn target_frames(name: &str, classification: CreatureClassification) -> FrameReg
         }),
         target_of_target: None,
         focus: None,
+        pet: None,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
     });

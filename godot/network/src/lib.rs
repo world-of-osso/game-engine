@@ -89,6 +89,12 @@ impl ProtocolMessage {
     pub fn is<M: network::Message>(&self) -> bool {
         self.0.is::<M>()
     }
+
+    /// A message as the bridge would deliver it, for host dispatch tests.
+    #[cfg(feature = "test-util")]
+    pub fn for_tests<M: network::Message>(message: M) -> Self {
+        Self(Box::new(message))
+    }
 }
 
 pub enum Event {
@@ -145,6 +151,13 @@ impl BridgeConfig {
     /// All three merchant replies in their reliable ordered `MerchantChannel` send order.
     pub fn receive_merchant(mut self) -> Self {
         self.relays.push(install_merchant_relay);
+        self
+    }
+
+    /// `PetSpells` and `PetClearSpells` in their `CombatChannel` send order: a dismiss and
+    /// call in one frame must leave the new bar, not the clear.
+    pub fn receive_pet_bar(mut self) -> Self {
+        self.relays.push(install_pet_bar_relay);
         self
     }
 
@@ -256,6 +269,8 @@ impl NetworkBridge {
             .receive::<protocol::EmoteEvent>()
             // Party/raid roster, member states, invites and results (group-frames.md).
             .receive_group()
+            // The owner's pet action bar and its removal.
+            .receive_pet_bar()
             .connect(server_addr, client_id)
     }
 
@@ -713,6 +728,36 @@ fn install_mail_relay(app: &mut App, events: Sender<Event>) {
     );
 }
 
+/// A single relay preserves order between the pet bar messages sharing `CombatChannel`.
+fn install_pet_bar_relay(app: &mut App, events: Sender<Event>) {
+    use protocol::{PetClearSpells, PetSpells};
+    app.add_systems(
+        Update,
+        (move |mut bars: Query<&mut MessageReceiver<PetSpells>>,
+               mut clears: Query<&mut MessageReceiver<PetClearSpells>>| {
+            let mut received = Vec::new();
+            macro_rules! drain {
+                ($receivers:ident) => {
+                    for mut receiver in &mut $receivers {
+                        received.extend(receiver.receive_with_tick().map(|message| {
+                            (message.message_id, ProtocolMessage(Box::new(message.data)))
+                        }));
+                    }
+                };
+            }
+            drain!(bars);
+            drain!(clears);
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
+            }
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
 /// Forward replicon payloads; nothing from a rejected connection reaches the host.
 fn install_replication(app: &mut App, events: Sender<Event>) {
     app.add_systems(
@@ -774,6 +819,9 @@ mod wire_tests;
 
 #[cfg(test)]
 mod merchant_wire_tests;
+
+#[cfg(test)]
+mod pet_wire_tests;
 
 #[cfg(test)]
 mod tests {

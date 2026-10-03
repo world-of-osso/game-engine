@@ -16,6 +16,7 @@ Sources:
   - F `ASSISTTARGET` (`AssistUnit("target")`, :1174);
   - F1 `TARGETSELF`.
 - [x] Action bar: 1–0, −, = for `ACTIONBUTTON1-12`.
+- [x] Pet bar: Ctrl-1..Ctrl-0 for `BONUSACTIONBUTTON1-10` (DefaultBindings.wtf:53-62, `BINDING_HEADER_ACTIONBAR`), listed in the Action Bar section; they press pet bar buttons only while it is shown, and Ctrl-N never presses `ACTIONBUTTONn` (Ctrl shadowing). Hotkeys show `c-1`..`c-0` (`CTRL_KEY_TEXT_ABBR`).
 - [x] Frames:
   - C character, P spellbook, L quest log, M world map;
   - Ctrl-R `TOGGLEFPS`;
@@ -38,12 +39,12 @@ These defaults are in the table, or Retail has them, but the Godot client has no
 ### Blocked: the native system lacks what the action needs
 - `TARGETPARTYMEMBER1-4` F2–F5 and `TARGETPARTYPET1-4`: native group frames have no unit-targeting path.
 - `TARGETNEARESTFRIEND` Ctrl-Tab and `TARGETPREVIOUSFRIEND`: native Tab targeting does not check reaction.
-- `TARGETPET` Shift-F1, `PETATTACK` Shift-T: no pets.
+- `TARGETPET` Shift-F1, `PETATTACK` Shift-T: not implemented.
 - `TARGETLASTHOSTILE` G: no last-hostile history.
 - `NAMEPLATES` V, `FRIENDNAMEPLATES` Shift-V, `ALLNAMEPLATES` Ctrl-V: these toggle `nameplateShowEnemies` and `nameplateShowFriendlyPlayers` (:1121-1160). Native options have only one `show_nameplates` flag.
 - `TOGGLEUI` Alt-Z: the binding grammar has no Alt modifier, and there is no single native UIParent root.
 - `ACTIONPAGE1-6` Shift-1..6, `NEXTACTIONPAGE` and `PREVIOUSACTIONPAGE`: there is one action bar page.
-- `SHAPESHIFTBUTTON1-10` Ctrl-F1..F10 and `BONUSACTIONBUTTON1-10` Ctrl-1..0: no stance or pet bar.
+- `SHAPESHIFTBUTTON1-10` Ctrl-F1..F10: no stance bar.
 - `TOGGLESOUND` Ctrl-S: it is in the table but only Bevy handles it. It also mutes everything, while Retail's `Sound_ToggleSound` toggles SFX, ambience and dialog. `TOGGLEMUSIC` Ctrl-M and `MASTERVOLUMEUP`/`MASTERVOLUMEDOWN` Ctrl-=/− are absent.
 - `SCREENSHOT` PrintScreen, `TOGGLESHEATH` Z, `TOGGLERUN` Num Pad /, `CHATPAGEUP`/`CHATPAGEDOWN`/`CHATBOTTOM`, `REPLY2` Shift-R, and the vehicle keys are not implemented.
 

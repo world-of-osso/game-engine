@@ -142,6 +142,12 @@ impl PhysicalInput {
         self.pointer
     }
 
+    /// Take this frame's press of `button` so later steps no longer see it; whether it was
+    /// pressed. The button stays held.
+    pub fn take_mouse_press(&mut self, button: BindingMouseButton) -> bool {
+        self.pressed_buttons.remove(&button)
+    }
+
     pub fn finish_frame(&mut self) {
         self.pressed_keys.clear();
         self.pressed_buttons.clear();

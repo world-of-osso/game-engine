@@ -55,6 +55,7 @@ use shared::protocol::{
     MailChannel, MailFailed, MailRequest, MailSent, MailboxContents, PendingMail, SendMail,
     UseGameObject,
 };
+use shared::protocol::{PetAction, PetClearSpells, PetSpells};
 
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
 use game_engine_ui_model::merchant_data::MerchantRequest;
@@ -124,6 +125,8 @@ pub struct Account {
     pub xp: Option<shared::protocol::PlayerXpUpdate>,
     /// Party/raid roster, live member states, the ready check and the pending invite.
     pub group: GroupState,
+    /// The pet action bar of the last `PetSpells`; `None` without a pet (`PetClearSpells`).
+    pub pet_bar: Option<PetSpells>,
     /// The group's raid target icons, or the solo player's own.
     pub raid_targets: RaidTargetIcons,
 }
@@ -278,6 +281,7 @@ impl Account {
             damage_meter: None,
             xp: None,
             group: GroupState::default(),
+            pet_bar: None,
             raid_targets: RaidTargetIcons::default(),
         }
     }
@@ -324,6 +328,7 @@ impl Account {
         self.damage_meter = None;
         self.xp = None;
         self.group = GroupState::default();
+        self.pet_bar = None;
         self.raid_targets = RaidTargetIcons::default();
         self.quests = QuestRuntime::default();
         self.session.token = self.read_token()?;
@@ -404,6 +409,14 @@ impl Account {
     pub fn send_attack_swing(&self, target: u64) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, CombatChannel>(AttackSwing { target })
+            .map_err(SessionError)
+    }
+
+    /// `CMSG_PET_ACTION`: a pet bar button (`PetSpells.action_buttons` value) for `pet`,
+    /// at `target` (Attack, spells) or the ground `position` (Move To, `Position` space).
+    pub fn send_pet_action(&self, action: PetAction) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(action)
             .map_err(SessionError)
     }
 
@@ -970,6 +983,15 @@ impl Account {
         }
         if message.is::<CombatEvent>() {
             output.push(AccountEvent::Combat(CombatMessage::Event(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<PetSpells>() {
+            self.pet_bar = Some(decode(message)?);
+            return Ok(());
+        }
+        if message.is::<PetClearSpells>() {
+            decode::<PetClearSpells>(message)?;
+            self.pet_bar = None;
             return Ok(());
         }
         if self.receive_spell_message(&message) {
@@ -1621,6 +1643,36 @@ mod tests {
             "Shadowfang Keep"
         );
         assert!(read_transfer_map_name(&data_root, u32::MAX).is_err());
+    }
+
+    /// `SMSG_PET_SPELLS_MESSAGE` replaces the owner's pet bar; `SMSG_PET_CLEAR_SPELLS`
+    /// removes it.
+    #[test]
+    fn pet_spells_set_and_clear_the_pet_bar() {
+        use shared::protocol::{
+            ACT_COMMAND, ACT_REACTION, COMMAND_FOLLOW, PetClearSpells, PetSpells, REACT_ASSIST,
+            pet_action_button,
+        };
+        let mut account = Account::new(PathBuf::from("/nonexistent-pet-data"));
+        let mut buttons = [0; 10];
+        buttons[1] = pet_action_button(COMMAND_FOLLOW, ACT_COMMAND);
+        buttons[7] = pet_action_button(REACT_ASSIST, ACT_REACTION);
+        let bar = PetSpells {
+            pet: 0x0000_0002_0000_0031,
+            command_state: COMMAND_FOLLOW,
+            react_state: REACT_ASSIST,
+            action_buttons: buttons,
+        };
+        let mut output = Vec::new();
+        account
+            .dispatch_message(ProtocolMessage::for_tests(bar), &mut output)
+            .unwrap();
+        assert_eq!(account.pet_bar, Some(bar));
+        account
+            .dispatch_message(ProtocolMessage::for_tests(PetClearSpells), &mut output)
+            .unwrap();
+        assert_eq!(account.pet_bar, None);
+        assert!(output.is_empty());
     }
 
     #[test]

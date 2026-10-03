@@ -24,6 +24,7 @@ fn target_frames(raid_target: Option<u8>) -> FrameRegistry {
         }),
         target_of_target: None,
         focus: None,
+        pet: None,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
     });
