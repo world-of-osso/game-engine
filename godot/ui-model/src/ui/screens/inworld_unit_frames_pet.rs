@@ -1,9 +1,12 @@
 //! Retail PetFrame (Blizzard_UnitFrame/Mainline/PetFrame.xml, PetFrame.lua): the player's
 //! pet under the PlayerFrame with the target-of-target art. Retail shows no level text.
 
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::widget_def::Element;
 
-use super::inworld_unit_frames_art::{TOT_HEALTH_BAR, TOT_PORTRAIT_ON, tot_power_bar_art};
+use super::inworld_unit_frames_art::{
+    TOT_HEALTH_BAR, TOT_PORTRAIT_ON, atlas_size, tot_power_bar_atlas,
+};
 use super::inworld_unit_frames_layout::TextAnchors;
 use super::inworld_unit_frames_parts::{
     BarSpec, art_root, centred, portrait_slot, status_bar, unit_label,
@@ -31,7 +34,11 @@ pub struct PetFrameState {
 }
 
 /// `PetFrameMixin:UpdateShownState`: shown while the pet is visible.
-pub(super) fn pet_frame(pet: Option<&PetFrameState>, anchor: &HudAnchor) -> Element {
+pub(super) fn pet_frame(
+    pet: Option<&PetFrameState>,
+    anchor: &HudAnchor,
+    skin: ActiveSkin,
+) -> Element {
     let size = (PET_FRAME_W, PET_FRAME_H);
     let content = pet.map(pet_frame_contents).unwrap_or_default();
     art_root(
@@ -39,7 +46,10 @@ pub(super) fn pet_frame(pet: Option<&PetFrameState>, anchor: &HudAnchor) -> Elem
         size,
         anchor,
         pet.is_none(),
-        (&TOT_PORTRAIT_ON, centred(&TOT_PORTRAIT_ON, size)),
+        (
+            TOT_PORTRAIT_ON,
+            centred(atlas_size(TOT_PORTRAIT_ON, skin), size),
+        ),
         portrait_slot(&PET_PORTRAIT),
         content,
     )
@@ -74,7 +84,7 @@ fn pet_frame_contents(pet: &PetFrameState) -> Element {
             art: pet
                 .power
                 .as_ref()
-                .and_then(|power| tot_power_bar_art(power.power)),
+                .and_then(|power| tot_power_bar_atlas(power.power)),
             text: &pet.power_text,
             anchors: PET_POWER_TEXT,
             font_size: UNIT_FONT_SIZE - 1.0,

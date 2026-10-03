@@ -157,9 +157,9 @@ pub(super) const PLAYER_REST_ICON: Rect = (64.0 + 10.0 - 15.0, 6.0 + 10.0 - 15.0
 pub(super) const TARGET_AURAS_LEFT: f32 = (UNIT_FRAME_W - 192.0) / 2.0 + 5.0;
 pub(super) const TARGET_AURAS_TOP: f32 = UNIT_FRAME_H - (UNIT_FRAME_H - 67.0) / 2.0 - 9.0;
 
-/// `BossPortraitFrameTexture` (80×79) for elites and rare elites: TOPRIGHT at (-11, -8)
-/// (TargetFrame.lua:436-443, TargetFrame.xml:93-97).
-pub(super) const TARGET_BOSS_PORTRAIT: (f32, f32) = (UNIT_FRAME_W - 11.0 - 80.0, 8.0);
+/// `BossPortraitFrameTexture` for elites and rare elites, at its atlas size: TOPRIGHT at
+/// (-11, -8) (TargetFrame.lua:436-443, TargetFrame.xml:93-97), as right and top insets.
+pub(super) const TARGET_BOSS_PORTRAIT_TOPRIGHT: (f32, f32) = (11.0, 8.0);
 /// `BossIcon` star centred on the `Portrait`'s BOTTOM (TargetFrame.xml:281-284).
 pub(super) const TARGET_BOSS_ICON_CENTRE: (f32, f32) = (
     TARGET_PORTRAIT.rect.0 + TARGET_PORTRAIT.rect.2 / 2.0,

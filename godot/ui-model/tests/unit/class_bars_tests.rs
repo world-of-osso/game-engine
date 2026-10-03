@@ -192,6 +192,7 @@ fn registry_with(view: ClassBarView) -> FrameRegistry {
         max: 1000,
     });
     state.player.class_bar = Some(view);
+    load_atlas_tables();
     let mut context = SharedContext::new();
     context.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     context.insert(state);
@@ -955,4 +956,12 @@ fn holy_power_runes_light_and_pulse_when_spell_ready() {
     );
     assert_alpha(&spent, "PlayerSecondaryResourcePip2DepleteFlipbook", 1.0);
     assert_alpha(&spent, "PlayerSecondaryResourcePip2ActiveTexture", 0.0);
+}
+
+/// Unit frames size their art from the atlas tables (`atlas_size`).
+fn load_atlas_tables() {
+    crate::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
 }

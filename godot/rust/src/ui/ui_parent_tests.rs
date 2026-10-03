@@ -37,6 +37,7 @@ fn unit_frame_rects<const N: usize>(
 ) -> [LayoutRect; N] {
     let parent = UiParent::for_viewport(viewport.0, viewport.1);
     let mut registry = parent.registry();
+    load_atlas_tables();
     let mut shared = SharedContext::new();
     shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(InWorldUnitFramesState {
@@ -182,4 +183,12 @@ fn portraits_sit_at_their_retail_anchors_with_the_rare_star_on_the_target_portra
         tot.x,
         target.x + target.width
     );
+}
+
+/// Unit frames size their art from the atlas tables (`atlas_size`).
+fn load_atlas_tables() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
 }
