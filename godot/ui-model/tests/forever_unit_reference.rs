@@ -26,7 +26,7 @@ fn unit(name: &str, reaction: Reaction) -> UnitFrameState {
             current: 40,
             max: 100,
         }),
-        target_buffs: vec![aura(1), aura(2)],
+        target_buffs: (1..=7).map(aura).collect(),
         ..UnitFrameState::named(name)
     }
 }
@@ -174,9 +174,10 @@ fn existing_aura_icons_are_above_right_edge_growing_left() {
         );
         assert_eq!(
             rect(&r, &format!("{prefix}BuffIcon1")),
-            (193.0, -24.0, 20.0, 20.0)
+            (194.0, -24.0, 20.0, 20.0)
         );
     }
+    assert_eq!(rect(&r, "TargetBuffIcon5"), (216.0, -46.0, 20.0, 20.0));
 }
 #[test]
 fn cast_icon_name_remaining_time_and_dark_track() {
