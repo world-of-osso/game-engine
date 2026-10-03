@@ -1,6 +1,8 @@
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
+use super::inworld_unit_frames_art::sized_atlas_texture;
 use super::inworld_unit_frames_layout::TextAnchors;
 use super::{DynName, PortraitSlot, Rect, UNIT_FONT, VALUE_TEXT, dyn_name};
 use crate::hud_layout::HudAnchor;
@@ -25,11 +27,10 @@ pub(super) fn art_root(
     (width, height): (f32, f32),
     anchor: &HudAnchor,
     hidden: bool,
-    (art, art_rect): (&str, Rect),
+    art: Element,
     portrait: Element,
     content: Element,
 ) -> Element {
-    let art = art_texture(dyn_name(format!("{}Art", name.0)), art, art_rect, false);
     let at = anchor.place((width, height));
     rsx! {
         r#frame {
@@ -53,7 +54,7 @@ pub(super) fn art_root(
 }
 
 /// Art of size `art_w`×`art_h` centred in a `width`×`height` frame.
-pub(super) fn centred((art_w, art_h): (f32, f32), (width, height): (f32, f32)) -> Rect {
+fn centred((art_w, art_h): (f32, f32), (width, height): (f32, f32)) -> Rect {
     ((width - art_w) / 2.0, (height - art_h) / 2.0, art_w, art_h)
 }
 
@@ -72,9 +73,23 @@ pub(super) fn portrait_slot(slot: &PortraitSlot) -> Element {
     }
 }
 
+/// `{root}Art`: atlas element `art` centred at its atlas size in a `frame`-sized root.
+pub(super) fn centred_art(root: &str, art: &str, frame: (f32, f32), skin: ActiveSkin) -> Element {
+    sized_atlas_texture(
+        format!("{root}Art"),
+        art,
+        skin,
+        |size| centred(size, frame),
+        WHITE,
+        false,
+    )
+}
+
+pub(super) const WHITE: &str = "1.0,1.0,1.0,1.0";
+
 /// Atlas element `art` stretched over `rect`.
 pub(super) fn art_texture(name: DynName, art: &str, rect: Rect, hidden: bool) -> Element {
-    tinted_art_texture(name, art, rect, "1.0,1.0,1.0,1.0", hidden)
+    tinted_art_texture(name, art, rect, WHITE, hidden)
 }
 
 pub(super) fn tinted_art_texture(

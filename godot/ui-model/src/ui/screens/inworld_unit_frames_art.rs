@@ -3,6 +3,10 @@
 
 use shared::components::PowerType;
 use ui_toolkit::atlas::{ActiveSkin, resolve_region};
+use ui_toolkit::widget_def::Element;
+
+use super::inworld_unit_frames_parts::tinted_art_texture;
+use super::{Rect, dyn_name};
 
 /// One atlas member: pixel rect inside an atlas texture of `atlas` size.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -38,14 +42,32 @@ pub const fn art(fdid: u32, atlas: (f32, f32), rect: (f32, f32, f32, f32)) -> At
     AtlasArt { fdid, atlas, rect }
 }
 
-/// Size of atlas element `name` under `skin` (`SetAtlas(name, useAtlasSize)`).
-///
-/// # Panics
-/// When `skin` has no member for `name`: the frame names art its data lacks.
-pub fn atlas_size(name: &str, skin: ActiveSkin) -> (f32, f32) {
-    let region = resolve_region(name, skin)
-        .unwrap_or_else(|| panic!("atlas {name} has no UiTextureAtlasMember under {skin:?}"));
-    (region.width, region.height)
+/// Size of atlas element `name` under `skin` (`SetAtlas(name, useAtlasSize)`); an error
+/// when `skin` has no member for `name`.
+pub fn atlas_size(name: &str, skin: ActiveSkin) -> Result<(f32, f32), String> {
+    resolve_region(name, skin)
+        .map(|region| (region.width, region.height))
+        .ok_or_else(|| format!("atlas {name} has no UiTextureAtlasMember under {skin:?}"))
+}
+
+/// Texture `name` drawing atlas element `art` at its atlas size under `skin`, at the rect
+/// `place` gives that size. A name `skin` has no member for is art the data lacks: logged
+/// and not drawn.
+pub fn sized_atlas_texture(
+    name: String,
+    art: &str,
+    skin: ActiveSkin,
+    place: impl FnOnce((f32, f32)) -> Rect,
+    vertex_color: &str,
+    hidden: bool,
+) -> Element {
+    match atlas_size(art, skin) {
+        Ok(size) => tinted_art_texture(dyn_name(name), art, place(size), vertex_color, hidden),
+        Err(error) => {
+            eprintln!("{error}: {name} not drawn");
+            Element::default()
+        }
+    }
 }
 
 /// `UI-HUD-UnitFrame-Player-PortraitOff`: name tab over a health and power slot.
