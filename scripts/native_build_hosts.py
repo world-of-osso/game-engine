@@ -7,6 +7,7 @@ import hashlib
 import json
 import os
 from pathlib import Path
+import random
 import select
 import shutil
 import signal
@@ -30,6 +31,8 @@ from build_hosts import (
 CACHE_ROOT = Path("/home/osso-test/.cache/native-builds")
 AGENT_RUN = Path(__file__).resolve().parent / "agent/agent-run"
 TOOLCHAIN = "1.98.1"
+UPLOAD_TIMEOUT = 60
+UPLOAD_BACKOFF = 1
 
 
 def digest(path):
@@ -348,6 +351,79 @@ def worker(
         )
 
 
+def upload(source, destination):
+    """Retry only idempotent SCP writes; own every attempt's process group."""
+    command = [
+        "scp",
+        "-o",
+        "BatchMode=yes",
+        "-o",
+        "ConnectTimeout=10",
+        str(source),
+        destination,
+    ]
+    transient = (
+        "connection reset",
+        "timed out",
+        "lost connection",
+        "broken pipe",
+        "connection closed",
+    )
+    with lifetime() as (stopped, reason):
+        for attempt in range(1, 4):
+            if stopped.is_set():
+                return 128 + reason[0]
+            timed_out = False
+            with tempfile.TemporaryFile() as errors:
+                process = subprocess.Popen(
+                    command,
+                    start_new_session=True,
+                    stdin=subprocess.DEVNULL,
+                    stderr=errors,
+                )
+                deadline = time.monotonic() + UPLOAD_TIMEOUT
+                try:
+                    while process.poll() is None and not stopped.is_set():
+                        remaining = deadline - time.monotonic()
+                        if remaining <= 0:
+                            timed_out = True
+                            break
+                        stopped.wait(min(0.1, remaining))
+                finally:
+                    kill_group(process, signal.SIGTERM)
+                    try:
+                        process.wait(timeout=2)
+                    except subprocess.TimeoutExpired:
+                        kill_group(process, signal.SIGKILL)
+                        process.wait()
+                    kill_group(process, signal.SIGKILL)
+                errors.seek(0)
+                stderr = errors.read().decode(errors="replace").strip()
+            if stopped.is_set():
+                return 128 + reason[0]
+            if not timed_out and process.returncode == 0:
+                return 0
+            detail = (
+                f"timed out after {UPLOAD_TIMEOUT}s"
+                if timed_out
+                else f"exit {process.returncode}"
+            )
+            message = f"native upload {source} -> {destination}, attempt {attempt}/3: {detail}: {stderr}"
+            print(message, file=sys.stderr, flush=True)
+            if attempt == 3 or not (
+                timed_out or any(text in stderr.lower() for text in transient)
+            ):
+                if timed_out:
+                    raise TimeoutError(message)
+                raise subprocess.CalledProcessError(
+                    process.returncode, command, stderr=stderr
+                )
+            stopped.wait(
+                UPLOAD_BACKOFF * 2 ** (attempt - 1) + random.uniform(0, UPLOAD_BACKOFF)
+            )
+    return 128 + reason[0]
+
+
 def desktop(
     context,
     key,
@@ -375,10 +451,9 @@ def desktop(
                 (Path(__file__), "native_build_hosts.py"),
                 (Path(__file__).with_name("build_hosts.py"), "build_hosts.py"),
             ):
-                subprocess.run(
-                    ["scp", str(source), f"desktop:{(transfer / name).as_posix()}"],
-                    check=True,
-                )
+                status = upload(source, f"desktop:{(transfer / name).as_posix()}")
+                if status:
+                    return status
             request = json.dumps(
                 [
                     key,
