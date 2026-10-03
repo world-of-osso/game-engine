@@ -134,10 +134,16 @@ fn sample_roll(state: &mut u64, upper: u32) -> u32 {
     }
 }
 
+/// Global-sequence tracks keep their keys in timeline 0 for every sequence.
 fn keyframed<T>(track: &m2_anim::AnimTrack<T>, sequence: usize) -> bool {
+    let timeline = if track.global_sequence < 0 {
+        sequence
+    } else {
+        0
+    };
     track
         .sequences
-        .get(sequence)
+        .get(timeline)
         .is_some_and(|(times, _)| times.len() > 1)
 }
 
@@ -146,6 +152,10 @@ fn keyframed<T>(track: &m2_anim::AnimTrack<T>, sequence: usize) -> bool {
 pub struct AnimationState {
     sequences: Vec<m2::Sequence>,
     tracks: std::sync::Arc<Vec<m2::BoneAnimTracks>>,
+    /// Global sequence durations (ms) and the model's global clock, which runs
+    /// whichever sequence plays.
+    global_sequences: Vec<u32>,
+    global_ms: f64,
     local_pivots: Vec<Vector3>,
     current: usize,
     time_ms: f64,
@@ -178,6 +188,17 @@ impl AnimationState {
         if model.sequences.is_empty() || model.bones.len() != model.bone_tracks.len() {
             return Err("M2 animation requires sequences and a track for each bone".into());
         }
+        let globals = model.global_sequences.len();
+        let unknown_global = |global: i16| usize::try_from(global).is_ok_and(|g| g >= globals);
+        if model.bone_tracks.iter().any(|track| {
+            unknown_global(track.translation.global_sequence)
+                || unknown_global(track.rotation.global_sequence)
+                || unknown_global(track.scale.global_sequence)
+        }) {
+            return Err(format!(
+                "M2 bone track names a global sequence beyond the model's {globals}"
+            ));
+        }
         let local_pivots = model
             .bones
             .iter()
@@ -203,6 +224,8 @@ impl AnimationState {
         Ok(Self {
             sequences: model.sequences.clone(),
             tracks: model.bone_tracks.clone(),
+            global_sequences: model.global_sequences.clone(),
+            global_ms: 0.0,
             local_pivots,
             current: model
                 .sequences
@@ -242,19 +265,41 @@ impl AnimationState {
         self.transition.is_some() || self.action.is_some() || self.sequence_animated[self.current]
     }
 
+    /// Timeline and time a track samples: a global-sequence track reads timeline 0
+    /// at the global clock wrapped to its global sequence (WebWowViewerCpp
+    /// animate.h `animateTrack`), others the given sequence at its time.
+    fn track_time<T>(
+        &self,
+        track: &m2_anim::AnimTrack<T>,
+        index: usize,
+        time_ms: f64,
+    ) -> (usize, u32) {
+        let Ok(global) = usize::try_from(track.global_sequence) else {
+            return (index, time_ms as u32);
+        };
+        let duration = f64::from(self.global_sequences[global]);
+        if duration == 0.0 {
+            (0, 0)
+        } else {
+            (0, (self.global_ms % duration) as u32)
+        }
+    }
+
     fn sample_sequence(&self, index: usize, time_ms: f64) -> Vec<BonePose> {
         self.tracks
             .iter()
             .zip(&self.local_pivots)
             .map(|(track, &pivot)| {
-                let time = time_ms as u32;
-                let translation = m2_anim::evaluate_vec3_track(&track.translation, index, time)
+                let (timeline, time) = self.track_time(&track.translation, index, time_ms);
+                let translation = m2_anim::evaluate_vec3_track(&track.translation, timeline, time)
                     .map(wow_vec3)
                     .unwrap_or(Vector3::ZERO);
-                let rotation = m2_anim::evaluate_rotation_track(&track.rotation, index, time)
+                let (timeline, time) = self.track_time(&track.rotation, index, time_ms);
+                let rotation = m2_anim::evaluate_rotation_track(&track.rotation, timeline, time)
                     .map(|q| Quaternion::new(q[0], q[1], q[2], q[3]).normalized())
                     .unwrap_or(Quaternion::IDENTITY);
-                let scale = m2_anim::evaluate_vec3_track(&track.scale, index, time)
+                let (timeline, time) = self.track_time(&track.scale, index, time_ms);
+                let scale = m2_anim::evaluate_vec3_track(&track.scale, timeline, time)
                     .map(|s| Vector3::new(s[0], s[2], s[1]))
                     .unwrap_or(Vector3::ONE);
                 BonePose {
@@ -477,6 +522,9 @@ impl AnimationState {
         });
         self.random_state = state;
         result?;
+        // Global sequences run at real time, not the clip's playback rate
+        // (WebWowViewerCpp animationManager.cpp updateSequencing `deltaTimeForGS`).
+        self.global_ms += delta_ms;
         self.tick_action(delta_ms);
         Ok(())
     }
