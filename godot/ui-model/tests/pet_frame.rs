@@ -34,11 +34,13 @@ fn wolf() -> PetFrameState {
     PetFrameState {
         name: "Wolf".into(),
         health_fraction: 0.5,
+        health_text: Default::default(),
         power: Some(PowerBarState {
             power: PowerType::Focus,
             current: 100,
             max: 100,
         }),
+        power_text: Default::default(),
     }
 }
 
