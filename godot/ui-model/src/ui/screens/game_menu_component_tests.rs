@@ -86,6 +86,7 @@ fn hud_view() -> HudOptionsView {
         interact_key_icons: crate::soft_target_data::InteractKeyIcons::Default,
         show_fps_overlay: true,
         chat_font_size: 10.0,
+        status_text_display: Default::default(),
     }
 }
 

@@ -37,10 +37,6 @@ impl PowerBarState {
             max: entry.max / modifier,
         }
     }
-
-    pub fn text(&self) -> String {
-        format!("{} / {}", self.current, self.max)
-    }
 }
 
 fn is_pip_power(power: PowerType) -> bool {
