@@ -3,7 +3,7 @@
 //! own copy of the class resource bar, stacked top-down. The client has no Edit Mode for
 //! the system, so it keeps the Modern preset (EditModePresetLayouts.lua:756-780): BOTTOM to
 //! UIParent BOTTOM at (-410, 380), Size and Bar Width 100%, both bar heights 15, Padding 0,
-//! Opacity 100%, Visible Always, nothing hidden, no class colour, no bar text.
+//! Opacity 100%, Visible Always, nothing hidden, no class colour, Show Bar Text off.
 
 use shared::components::{PowerType, UnitPowers};
 use ui_toolkit::rsx;
@@ -11,8 +11,12 @@ use ui_toolkit::widget_def::Element;
 
 use super::class_bars::ClassBarView;
 use super::inworld_unit_frames_art::AtlasArt;
-use super::{PowerBarState, class_bar_texture, dyn_name, fraction, power_bar_rgb};
+use super::inworld_unit_frames_parts::bar_texts;
+use super::{PowerBarState, UNIT_FONT_SIZE, class_bar_texture, dyn_name, fraction, power_bar_rgb};
 use crate::status::{ClassBar, ClassBarPlayer};
+use crate::status_text_data::{
+    StatusBarText, StatusTextDisplay, TextStatusBar, abbreviate_large_numbers,
+};
 
 pub const FRAME_NAME: &str = "PersonalResourceDisplayFrame";
 /// Prefix of the display's frame names; keeps its class frame apart from the PlayerFrame's.
@@ -75,10 +79,13 @@ pub fn shown(enabled: bool, setting: VisibleSetting, in_combat: bool) -> bool {
 #[derive(Clone, Debug, PartialEq)]
 pub struct PersonalResourceDisplayState {
     pub health_fraction: f32,
+    pub health_text: StatusBarText,
     /// `UnitPowerType("player")`.
     pub power: Option<PowerBarState>,
+    pub power_text: StatusBarText,
     /// The class's alternate power bar when its requirements are met.
     pub alternate_power: Option<PowerBarState>,
+    pub alternate_text: StatusBarText,
     /// `ClassFrameContainer`, shown for classes with a class frame.
     pub class_frame: Option<ClassFrame>,
 }
@@ -95,30 +102,71 @@ pub struct ClassFrame {
 
 impl PersonalResourceDisplayState {
     /// `enabled` is the `nameplateShowSelf` option; `class_bar` is the display's own class
-    /// frame, driven like the PlayerFrame's.
+    /// frame, driven like the PlayerFrame's; `hovered` names the bar under the pointer.
     pub fn for_player(
         enabled: bool,
         player: &ClassBarPlayer,
-        health_fraction: f32,
+        (health, max_health): (f32, f32),
         powers: &UnitPowers,
         class_bar: Option<ClassBarView>,
+        hovered: Option<&str>,
     ) -> Option<Self> {
         if !shown(enabled, VisibleSetting::Always, player.in_combat) {
             return None;
         }
         let display_power = powers.entries.first().map(|entry| entry.power);
+        let hovered =
+            |bar: &str| hovered.and_then(|name| name.strip_prefix(FRAME_PREFIX)) == Some(bar);
+        let power = PowerBarState::primary(powers);
+        let alternate_power = alternate_mana(player)
+            .then(|| PowerBarState::of(powers, PowerType::Mana))
+            .flatten();
         Some(Self {
-            health_fraction,
-            power: PowerBarState::primary(powers),
-            alternate_power: alternate_mana(player)
-                .then(|| PowerBarState::of(powers, PowerType::Mana))
-                .flatten(),
+            health_fraction: fraction(health, max_health),
+            health_text: both_text(
+                hovered("HealthBar"),
+                health.round() as i64,
+                max_health.round() as i64,
+            ),
+            power_text: power
+                .as_ref()
+                .map(|power| both_text(hovered("PowerBar"), power.current.into(), power.max.into()))
+                .unwrap_or_default(),
+            alternate_text: alternate_power
+                .as_ref()
+                .map(|power| value_text(hovered("AlternatePowerBar"), power))
+                .unwrap_or_default(),
+            power,
+            alternate_power,
             class_frame: class_frame_y_offset(player.class).map(|y_offset| ClassFrame {
                 y_offset,
                 counted: has_class_info(player.class, display_power),
                 bar: class_bar,
             }),
         })
+    }
+}
+
+/// `PersonalResourceStatusBar` text: no `cvar`, Show Bar Text off, so only the hover's
+/// `lockShow` shows it (TextStatusBar.lua:113-121,217-220); `showNumeric` and
+/// `showPercentage` force Both, and the bars carry no `powerToken`, so every power keeps
+/// its percentage (lua:156-158,180).
+fn both_text(hovered: bool, value: i64, max: i64) -> StatusBarText {
+    if !hovered {
+        return StatusBarText::default();
+    }
+    TextStatusBar::HEALTH.text(value, max, StatusTextDisplay::Both, true)
+}
+
+/// The alternate bar: `showPercentage` false leaves Numeric, `disableMaxValue` drops the
+/// max, so its `TextString` holds the value alone.
+fn value_text(hovered: bool, power: &PowerBarState) -> StatusBarText {
+    if !hovered || power.max <= 0 {
+        return StatusBarText::default();
+    }
+    StatusBarText {
+        center: abbreviate_large_numbers(power.current.into()),
+        ..Default::default()
     }
 }
 
@@ -205,9 +253,9 @@ pub(super) fn frame(state: Option<&PersonalResourceDisplayState>) -> Element {
             left: "50%",
             margin_left: {ANCHOR_X - FRAME_W / 2.0},
             bottom: ANCHOR_BOTTOM,
-            {bar("HealthBar", (0.0, HEALTH_H), state.health_fraction, Some(HEALTH_RGB))}
-            {bar("PowerBar", (layout.power_y, POWER_H), power.map_or(0.0, power_fraction), power.map(|power| power_rgb(power.power)))}
-            {bar("AlternatePowerBar", (layout.alternate_y, POWER_H), alternate.map_or(0.0, power_fraction), alternate.map(|power| power_bar_rgb(power.power)))}
+            {bar("HealthBar", (0.0, HEALTH_H), state.health_fraction, Some(HEALTH_RGB), &state.health_text)}
+            {bar("PowerBar", (layout.power_y, POWER_H), power.map_or(0.0, power_fraction), power.map(|power| power_rgb(power.power)), &state.power_text)}
+            {bar("AlternatePowerBar", (layout.alternate_y, POWER_H), alternate.map_or(0.0, power_fraction), alternate.map(|power| power_bar_rgb(power.power)), &state.alternate_text)}
             {class_container(state.class_frame.as_ref(), layout.class_y)}
         }
     }
@@ -225,20 +273,31 @@ fn power_rgb(power: PowerType) -> [f32; 3] {
     }
 }
 
-/// One `PersonalResourceStatusBar`, hidden without a colour (no such power).
-fn bar(key: &str, (y, height): (f32, f32), fraction: f32, rgb: Option<[f32; 3]>) -> Element {
+/// One `PersonalResourceStatusBar`, hidden without a colour (no such power). It takes
+/// the pointer (`enableMouseMotion`, TextStatusBar.xml:3) so hovering shows its text,
+/// anchored RIGHT −5 (`TextString`, `RightText`) and LEFT 5 (`LeftText`).
+fn bar(
+    key: &str,
+    (y, height): (f32, f32),
+    fraction: f32,
+    rgb: Option<[f32; 3]>,
+    text: &StatusBarText,
+) -> Element {
     let name = format!("{FRAME_PREFIX}{key}");
+    let anchors = [("RIGHT", -5.0), ("LEFT", 5.0), ("RIGHT", -5.0)];
     rsx! {
         r#frame {
             name: {dyn_name(name.clone())},
             width: FRAME_W,
             height,
             hidden: {rgb.is_none()},
+            mouse_enabled: true,
             pos_type: "absolute",
             pos_x: 0.0,
             pos_y: y,
             {bar_background(&name, height)}
             {bar_fill(&name, height, fraction, rgb.unwrap_or([1.0; 3]))}
+            {bar_texts(&name, (FRAME_W, height), text, anchors, UNIT_FONT_SIZE)}
         }
     }
 }

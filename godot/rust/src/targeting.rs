@@ -458,6 +458,7 @@ fn personal_resource_state(
     spec: Option<u32>,
     class_frame: &mut ClassBarAnimator,
     now: f64,
+    hovered: Option<&str>,
 ) -> Option<PersonalResourceDisplayState> {
     if !enabled {
         return None;
@@ -468,8 +469,8 @@ fn personal_resource_state(
     let class_bar = class_frame.update_received(unit.server_id, resource.as_ref(), now);
     let health = unit
         .get::<Health>()
-        .map_or(0.0, |health| fraction(health.current, health.max));
-    PersonalResourceDisplayState::for_player(enabled, &player, health, &powers, class_bar)
+        .map_or((0.0, 0.0), |health| (health.current, health.max));
+    PersonalResourceDisplayState::for_player(enabled, &player, health, &powers, class_bar, hovered)
 }
 
 fn unit_frames_state(
@@ -657,8 +658,9 @@ impl GameClient {
         Ok(())
     }
 
-    /// The unit frame bar under the pointer (`PlayerHealthBar`, `TargetManaBar`, ...),
-    /// whose `OnEnter` shows its text (TextStatusBar.lua:217-220).
+    /// The unit frame bar under the pointer (`PlayerHealthBar`, `TargetManaBar`,
+    /// `PersonalResourceDisplayPowerBar`, ...), whose `OnEnter` shows its text
+    /// (TextStatusBar.lua:217-220).
     fn hovered_unit_frame_bar(&mut self) -> Result<Option<String>, String> {
         let Some(hit) = self.hovered_ui_frame()? else {
             return Ok(None);
@@ -672,7 +674,10 @@ impl GameClient {
         };
         Ok(named_ancestor(registry, hit.frame, |frame| {
             let name = frame.name.as_deref()?;
-            (name.ends_with("HealthBar") || name.ends_with("ManaBar")).then(|| name.to_owned())
+            ["HealthBar", "ManaBar", "PowerBar"]
+                .iter()
+                .any(|bar| name.ends_with(bar))
+                .then(|| name.to_owned())
         })
         .map(|(_, name)| name))
     }
@@ -742,6 +747,7 @@ impl GameClient {
                     self.account.spells.spec(),
                     &mut self.targeting.personal_class_bar,
                     self.targeting.started.elapsed().as_secs_f64(),
+                    texts.hovered.as_deref(),
                 )
             });
         let personal_class_bar = personal_resource

@@ -139,34 +139,18 @@ pub(super) fn status_bar(spec: BarSpec<'_>) -> Element {
             )
         })
         .unwrap_or_default();
-    let texts = [
-        ("Text", &spec.text.center, "CENTER", spec.anchors.center),
-        ("TextLeft", &spec.text.left, "LEFT", spec.anchors.left),
-        ("TextRight", &spec.text.right, "RIGHT", spec.anchors.right),
-    ]
-    .into_iter()
-    .flat_map(|(suffix, text, justify_h, x)| {
-        let name = dyn_name(format!("{}{suffix}", spec.name));
-        let hidden = text.is_empty();
-        rsx! {
-            fontstring {
-                name,
-                width,
-                height,
-                hidden,
-                text: text.as_str(),
-                font: UNIT_FONT,
-                font_size: spec.font_size,
-                font_color: VALUE_TEXT,
-                outline: "OUTLINE",
-                justify_h,
-                pos_type: "absolute",
-                pos_x: x,
-                pos_y: 0.0,
-            }
-        }
-    })
-    .collect::<Element>();
+    let anchors = spec.anchors;
+    let texts = bar_texts(
+        &spec.name,
+        (width, height),
+        spec.text,
+        [
+            ("CENTER", anchors.center),
+            ("LEFT", anchors.left),
+            ("RIGHT", anchors.right),
+        ],
+        spec.font_size,
+    );
     rsx! {
         r#frame {
             name: {dyn_name(spec.name.clone())},
@@ -181,6 +165,46 @@ pub(super) fn status_bar(spec: BarSpec<'_>) -> Element {
             {texts}
         }
     }
+}
+
+/// A bar's `TextString`, `LeftText` and `RightText` (`{bar}Text`, `TextLeft`, `TextRight`),
+/// each `(justifyH, x)` across the bar; an empty text is hidden.
+pub(super) fn bar_texts(
+    bar: &str,
+    (width, height): (f32, f32),
+    text: &StatusBarText,
+    anchors: [(&str, f32); 3],
+    font_size: f32,
+) -> Element {
+    let [center, left, right] = anchors;
+    [
+        ("Text", &text.center, center),
+        ("TextLeft", &text.left, left),
+        ("TextRight", &text.right, right),
+    ]
+    .into_iter()
+    .flat_map(|(suffix, text, (justify_h, x))| {
+        let name = dyn_name(format!("{bar}{suffix}"));
+        let hidden = text.is_empty();
+        rsx! {
+            fontstring {
+                name,
+                width,
+                height,
+                hidden,
+                text: text.as_str(),
+                font: UNIT_FONT,
+                font_size,
+                font_color: VALUE_TEXT,
+                outline: "OUTLINE",
+                justify_h,
+                pos_type: "absolute",
+                pos_x: x,
+                pos_y: 0.0,
+            }
+        }
+    })
+    .collect()
 }
 
 fn bar_fill(name: String, art: &AtlasArt, (width, height): (f32, f32), fraction: f32) -> Element {
