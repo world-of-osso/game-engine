@@ -623,12 +623,14 @@ impl GameClient {
         self.spells.cast = self.local_cast_state(delta);
         let state = match self.spells.cast {
             Some(cast) => {
-                let name = self
+                let spell = self
                     .spells
                     .catalog()
-                    .and_then(|data| data.get(cast.spell_id))
+                    .and_then(|data| data.get(cast.spell_id));
+                let name = spell
                     .map(|spell| spell.name.to_string())
                     .unwrap_or_default();
+                let icon_fdid = spell.map(|spell| spell.icon_fdid);
                 let fraction = if cast.duration > 0.0 {
                     cast.elapsed / cast.duration
                 } else {
@@ -637,6 +639,7 @@ impl GameClient {
                 CastingBarState {
                     visible: true,
                     spell_name: name,
+                    icon_fdid,
                     timer_text: format!("{:.1}", (cast.duration - cast.elapsed).max(0.0)),
                     progress: if cast.channel {
                         1.0 - fraction

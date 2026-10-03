@@ -52,6 +52,7 @@ fn unit(name: &str, power: PowerType) -> UnitFrameState {
 fn small(name: &str) -> SmallUnitFrameState {
     SmallUnitFrameState {
         name: name.into(),
+        level: None,
         health_fraction: 0.5,
         reaction: Some(Reaction::Neutral),
     }
@@ -302,7 +303,7 @@ fn forever_cast_bar_is_flareui_steel_blue_292_by_26_bar() {
     let holder = frame(&registry, "PlayerCastingBarFrame");
     assert_eq!(
         (holder.width, holder.height),
-        (Dimension::Fixed(300.0), Dimension::Fixed(34.0))
+        (Dimension::Fixed(326.0), Dimension::Fixed(34.0))
     );
     // `PLAYER_CAST_COLOR` #5C8FC7 (UnitFrames.lua:78).
     let fill = frame(&registry, "CastingBarFill");

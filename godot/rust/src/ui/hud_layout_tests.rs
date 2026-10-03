@@ -204,17 +204,17 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
     // 240×60 player/target CENTER (∓330, -270); centre y 384.
     assert_eq!(top_left(&hud, "PlayerFrame"), (233.0, 624.0));
     assert_eq!(top_left(&hud, "TargetFrame"), (893.0, 624.0));
-    // 120×28 target of target BOTTOM (270, 248), 160×36 focus RIGHT (-453, -258), 160×28
-    // pet BOTTOM (-290, 271).
-    assert_eq!(top_left(&hud, "TargetOfTargetFrame"), (893.0, 492.0));
+    // Reference: ToT top-aligned 8px right of target; pet 6px below player, right-aligned.
+    // Source sizes remain 120×28 ToT, 160×28 pet, 160×36 focus (RIGHT -453,-258).
+    assert_eq!(top_left(&hud, "TargetOfTargetFrame"), (1141.0, 624.0));
     assert_eq!(top_left(&hud, "FocusFrame"), (753.0, 624.0));
-    assert_eq!(top_left(&hud, "PetFrame"), (313.0, 469.0));
-    // The 292×26 cast bar inside its 300×34 holder at BOTTOM (0, 268).
-    assert_eq!(top_left(&hud, "PlayerCastingBarFrame"), (533.0, 466.0));
+    assert_eq!(top_left(&hud, "PetFrame"), (313.0, 690.0));
+    // The 292×26 cast bar plus flush 26px icon inside its 326×34 holder at BOTTOM (0,268).
+    assert_eq!(top_left(&hud, "PlayerCastingBarFrame"), (520.0, 466.0));
     let bar = rect(&hud, "CastingBarBackground");
     assert_eq!(
         (bar.x, bar.y, bar.width, bar.height),
-        (537.0, 470.0, 292.0, 26.0)
+        (550.0, 470.0, 292.0, 26.0)
     );
     // Camelot: micro menu BOTTOM (116.5, 6); main bar BOTTOMRIGHT on its BOTTOMLEFT
     // (-4.5, -4); bags bar BOTTOMLEFT on its BOTTOMRIGHT (7, -4).
