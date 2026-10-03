@@ -32,9 +32,9 @@ Model and constants: shared-protocol `src/skyriding.rs` (`Glider`, FlightCapabil
 ## Skyriding (part 2: vigor and abilities)
 
 Vigor is the Skyriding Charges the server keeps (game-server mounts page: ChargeCategory 2391, 6 charges, 10.35 s each while on the Skyriding aura). The client casts the abilities through the normal spell path (`use_spell`; part 3 puts them on the override bar) and flaps only on the server's `SpellGo` for the local player (`combat_visuals.rs` → `PlayerMovement::skyriding_spell` → shared `Glider::cast`), so a refused cast (no charge, cooldown) never moves it:
-- Surge Forward 372608: +31.5 yd/s along the facing and pitch; Skyward Ascent 372610: +31.5 yd/s up. The speed an impulse reaches is capped at FlightCapability 11 `AddImpulseMaxSpeed` 100; above `MaxVel` 65 the mount loses `OverMaxDeceleration` 7 yd/s² more. Both impulse sizes are assumptions: the effects are DUMMY server scripts (shared-protocol `src/skyriding.rs`).
+- Surge Forward 372608 and Whirling Surge 361584: +31.5 yd/s along the facing and pitch; Skyward Ascent 372610: +31.5 yd/s up. The speed an impulse reaches is capped at FlightCapability 11 `AddImpulseMaxSpeed` 100; above `MaxVel` 65 the mount loses `OverMaxDeceleration` 7 yd/s² more. The impulse sizes are assumptions in one block of shared-protocol `src/skyriding.rs` (the effects are DUMMY server scripts), listed in game-server `docs/specs/skyriding.md`.
 - Aerial Halt 403092: air friction × 100 (its MOD_ADV_FLYING_AIR_FRICTION 10000%) for 0.5 s, which stops a mount at up to 75 yd/s; its reduced gravity (4 s, amount unpublished) is not modelled.
-- Not yet: Whirling Surge 361584's movement (DUMMY, unpublished), the vigor display (`SpellChargesUpdate` is not read by the client).
+- Not yet: Whirling Surge's spiral visual, the vigor display (`SpellChargesUpdate` is not read by the client).
 
 ## Proof
 
