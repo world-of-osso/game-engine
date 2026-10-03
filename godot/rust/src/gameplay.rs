@@ -396,7 +396,7 @@ impl PlayerMovement {
         delta: f32,
     ) -> Vec3 {
         if let Some(glider) = self.glider {
-            return self.skyride(glider, current, ground, delta);
+            return self.skyride(glider, current, ground, contacts, delta);
         }
         let direction = Vec3::from(frame.direction).normalize_or_zero();
         let velocity = (direction * frame.speed + Vec3::Y * frame.vertical)
@@ -426,6 +426,7 @@ impl PlayerMovement {
         mut glider: Glider,
         current: Vec3,
         ground: &crate::ground::TerrainGround<'_>,
+        contacts: &mut dyn FnMut(Vec3, Vec3, f32) -> Vec3,
         delta: f32,
     ) -> Vec3 {
         let floor = |feet: Vec3| match ground.probe(feet) {
@@ -435,7 +436,12 @@ impl PlayerMovement {
         let height = floor(current).map_or(f32::INFINITY, |floor| current.y - floor);
         let Steering { yaw, pitch } = self.steering;
         let displacement = glider.step(&SKYRIDING, yaw, pitch, height, delta);
-        let moved = ground.validate_swim_move(current, current + displacement);
+        let proposed = current + displacement;
+        let contacted = contacts(current, proposed, delta);
+        if contacted != proposed {
+            apply_glider_contact(&mut glider, displacement, contacted - current);
+        }
+        let moved = ground.validate_swim_move(current, contacted);
         self.rose |= moved.y != current.y;
         self.glider = Some(glider);
         let touched_down = floor(moved).is_some_and(|floor| moved.y <= floor + LANDING_SLACK);
@@ -795,6 +801,19 @@ impl crate::GameClient {
         self.player_movement
             .set_can_adv_fly(motion.contains(PlayerMotion::CAN_ADV_FLY));
     }
+}
+
+/// Contact removes inward momentum, never tangent velocity or additional energy.
+fn apply_glider_contact(glider: &mut Glider, proposed: Vec3, corrected: Vec3) {
+    let correction = corrected - proposed;
+    let normal = correction.normalize_or_zero();
+    let inward = -proposed.dot(normal);
+    if inward <= 0.0 {
+        return;
+    }
+    let resistance = correction.length() / inward;
+    glider.velocity =
+        game_engine_core::elastic_tree::deflect_motion(glider.velocity, normal, resistance);
 }
 
 fn flight_tree_contact(
