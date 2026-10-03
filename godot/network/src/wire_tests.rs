@@ -811,6 +811,7 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
         jumping: false,
         running: true,
         swimming: true,
+        flying: true,
         position: [-8949.5, 112.88, 0.25],
         epoch: 7,
     };
@@ -823,6 +824,7 @@ fn native_bridge_decodes_udp_input_and_receives_control_epochs() {
     assert_eq!(received.jumping, input.jumping);
     assert_eq!(received.running, input.running);
     assert_eq!(received.swimming, input.swimming);
+    assert_eq!(received.flying, input.flying);
     assert_eq!(received.position, input.position);
     assert_eq!(received.epoch, input.epoch);
 
