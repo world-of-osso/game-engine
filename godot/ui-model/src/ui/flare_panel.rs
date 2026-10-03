@@ -15,7 +15,7 @@ use ui_toolkit::widgets::texture::TextureSource;
 
 use crate::damage_meter_data::class_color;
 use crate::merchant_data::quality_color;
-use crate::tooltip_presentation::{TooltipBorder, parse_rgba, rgba_string};
+use crate::tooltip_presentation::{TooltipBorder, parse_rgba};
 
 pub const FLARE_BRONZE_PANEL_STYLE: &str = "flare_bronze";
 /// `Interface\Tooltips\UI-Tooltip-Border`: eight 16-px cells, left, right, top and bottom
@@ -132,30 +132,6 @@ pub fn flare_panel(name: &str, (x, y, width, height): (f32, f32, f32, f32)) -> E
 
 /// `tooltips.background` (Core.lua:333): `NineSlice:SetCenterColor` (Tooltips.lua:142-143).
 pub const TOOLTIP_BACKGROUND: [f32; 4] = [0.05, 0.05, 0.06, 0.9];
-
-/// A tooltip's `flare_bronze` panel in its [`tooltip_border_rgb`] colour.
-pub fn flare_tooltip_panel(
-    name: &str,
-    (width, height): (f32, f32),
-    border: TooltipBorder,
-) -> Element {
-    let [r, g, b] = tooltip_border_rgb(border);
-    let border_color = rgba_string([r, g, b, 1.0]);
-    let bg_color = rgba_string(TOOLTIP_BACKGROUND);
-    rsx! {
-        r#frame {
-            name: {DynName(name.to_owned())},
-            width,
-            height,
-            style: FLARE_BRONZE_PANEL_STYLE,
-            nine_slice_border_color: {border_color.as_str()},
-            nine_slice_bg_color: {bg_color.as_str()},
-            pos_type: "absolute",
-            left: 0.0,
-            top: 0.0,
-        }
-    }
-}
 
 /// `DEFAULT_BORDER_COLOR` #CC9957 (Tooltips.lua:47).
 pub const TOOLTIP_DEFAULT_BORDER: [f32; 3] = [0.80, 0.60, 0.34];
