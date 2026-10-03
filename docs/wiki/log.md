@@ -1,3 +1,7 @@
+## 2026-10-03 — Desktop/local trial bounded evidence reconciliation
+
+[[build-hosts]] links the [operational SSOT](../remote-builds.md): both extension exports, desktop CLI and 16 camera tests, fully staged admin/authenticated UDP server fixture, and inspected authored GPU Login capture. Rerun commands and gaming host selection documented; snapshot pinning, full-world/parity/audio/shutdown and independent code-gate exclusions retained. Docs only; no runtime/test reruns.
+
 ## 2026-10-03 — Skyriding part 2: vigor and abilities (skyride2)
 
 [[mounts]]: Skyriding Charges (cat 2391) spent by Surge Forward / Skyward Ascent through the spell pipeline; the local player's `SpellGo` flaps the shared `Glider` (impulse capped at AddImpulseMaxSpeed 100), Aerial Halt air friction; live `skyriding_abilities_live.gd` (`data/diagnostics/skyride2-2026-10-03/`).
