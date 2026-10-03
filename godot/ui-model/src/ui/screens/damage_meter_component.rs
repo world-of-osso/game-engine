@@ -23,9 +23,9 @@ use crate::flare_panel::{
     flare_panel, flare_text,
 };
 use crate::hud_layout::hud_layout;
+use crate::inworld_unit_frames_component::inworld_unit_frames_flare::flare_border_with_edge;
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
-use crate::ui::screens::inworld_unit_frames_flare::flare_border_with_edge;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 pub const DAMAGE_METER_ROOT: FrameName = FrameName("DamageMeter");
