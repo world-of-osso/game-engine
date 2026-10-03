@@ -10,7 +10,7 @@ use ui_toolkit::widgets::font_string::GameFont;
 use crate::ui::screens::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, POI_IN_PROGRESS, POI_TURN_IN,
     QUEST_LOG_DIVIDER, QUEST_PARCHMENT, QUEST_TEXT_COLOR, TRACKER_CHECK, atlas_texture,
-    panel_button, window_chrome, wrapped_text_height,
+    named_atlas_texture, panel_button, window_chrome, wrapped_text_height,
 };
 use crate::ui::screens::quest_frame_component::{Column, RewardView, rewards_section};
 use crate::ui::strata::FrameStrata;
@@ -181,9 +181,9 @@ fn group_header(group: &QuestLogGroup, y: f32) -> Element {
     let name = format!("QuestLogHeader{}", group.sort_id);
     let action = format!("{HEADER_PREFIX}{}", group.sort_id);
     let marker = if group.collapsed { "+" } else { "-" };
-    let mut elements = atlas_texture(
+    let mut elements = named_atlas_texture(
         format!("{name}Background"),
-        &QUEST_LOG_DIVIDER,
+        QUEST_LOG_DIVIDER,
         (LIST_X, y - 5.0, LIST_W, 37.0),
     );
     elements.extend(rsx! {
@@ -279,9 +279,9 @@ fn quest_row(row: &QuestLogRow, y: f32) -> Element {
 }
 
 fn details_pane(details: Option<&QuestLogDetails>) -> Element {
-    let mut elements = atlas_texture(
+    let mut elements = named_atlas_texture(
         "QuestLogDetailsBackground".into(),
-        &QUEST_PARCHMENT,
+        QUEST_PARCHMENT,
         (DETAILS_X, PANE_TOP, DETAILS_W, PANE_BOTTOM - PANE_TOP),
     );
     let Some(details) = details else {
@@ -382,4 +382,3 @@ fn details_text(name: &str, text: &str, font_size: f32, color: &str, y: &mut f32
         }
     }
 }
-
