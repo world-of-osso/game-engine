@@ -4,11 +4,11 @@ Forever-only reference chrome in `godot/ui-model/src/ui/screens/{chat_frame,dama
 
 ## What it must do
 
-- [ ] Both panels retain dark translucent Blizzard dialog backgrounds, bronze tooltip borders, a header band and separator.
-- [ ] Meter header shows DPS and a display-only Threat tab, chart and gear icons; no Retail timer, arrow, minimize or dropdown background.
-- [ ] Meter rows show square class icons (snapshot has no specialization), rounded bronze outlines, class-coloured horizontal-gradient fills over dark tracks and white shadowed rank/name and damage (DPS) labels.
-- [ ] Chat keeps existing tabs/actions as plain text, active bright bronze and inactive dim bronze; four bronze header icons. Message rendering, input and scroll behavior remain unchanged.
-- [ ] Modern serialized chat/meter trees remain byte-identical to the pre-change baseline, for all chat tabs and an open meter session menu.
+- [x] Both panels retain dark translucent Blizzard dialog backgrounds, bronze tooltip borders, a header band and separator.
+- [x] Meter header shows DPS and a display-only Threat tab, chart and gear icons; no Retail timer, arrow, minimize or dropdown background.
+- [x] Meter rows show square class icons (snapshot has no specialization), rounded bronze outlines, class-coloured horizontal-gradient fills over dark tracks and white shadowed rank/name and damage (DPS) labels.
+- [x] Chat keeps existing tabs/actions as plain text, active bright bronze and inactive dim bronze; four bronze header icons. Message rendering, input and scroll behavior remain unchanged.
+- [x] Modern serialized chat/meter trees remain byte-identical to the pre-change baseline, for all chat tabs and an open meter session menu.
 
 ## Number and colour provenance
 
@@ -50,7 +50,7 @@ Class colours remain `RAID_CLASS_COLORS` (`damage_meter_data::class_color`); no 
 
 ## Tests asserting this spec
 
-`godot/ui-model/tests/forever_chat_meter.rs`; Modern serialized fixture in `tests/fixtures/modern_chat_meter.rs` captured before production edits.
+`godot/ui-model/tests/forever_chat_meter.rs`; Modern serialized fixture in `tests/fixtures/modern_chat_meter.rs` captured before production edits at `5c1e2db5` (88,806 bytes). Targeted Depot run at `423dbf7b`: 5 passed, 0 failed, exit 0. Behavioral RED at `5c1e2db5`: missing chat/meter headers and Retail row rectangle instead of reference rectangle. No live run.
 
 ## Known gaps (current cycle)
 
