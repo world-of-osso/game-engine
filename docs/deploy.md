@@ -1,6 +1,6 @@
 # Deploying the client
 
-`./deploy.sh` builds the Linux x86_64 Godot client bundle and publishes it to the world-of-osso file server. `./deploy.sh --dry-run` builds and assembles the same bundle, then prints the publish commands without running them.
+`./deploy.sh` builds the Linux x86_64 Godot client bundle and publishes it to the public R2 bucket behind `files.worldofosso.com`. `./deploy.sh --dry-run` builds and assembles the same bundle, then prints the publish commands without running them.
 
 ## Build
 
@@ -32,17 +32,17 @@ The run used a saved-token login, the builder's WoW install for CASC, and its re
 
 ## Publish
 
-This is the path the live file server uses. As of 2026-10-03, sakuin's `osso-file-server` runs `file-server serve /var/lib/file-server --storage s3`, serving the manifest from `/var/lib/private/file-server/manifest.json` and files from DigitalOcean Spaces. The older `/docker-volumes/file-server` and `/repos/sakuin/ops` compose path no longer exists.
+Since 2026-10-03 players download from the public R2 bucket `worldofosso-client` (Cloudflare account `mh`), served at its custom domain `https://files.worldofosso.com`: the manifest at `/manifest.json`, every manifest path at `/<path>`. No droplet is in the download path; sakuin's `osso-file-server` service is retired.
 
 1. `cargo run --release --manifest-path ../file-server/Cargo.toml -- manifest <bundle>` writes `<bundle>/manifest.json`. `FILE_SERVER_DIR` overrides the checkout.
-2. `rclone sync <bundle>/ woo:<bucket>[/<prefix>]` with the `FILE_SERVER_S3_*` credentials decrypted from `../sakuin/secrets/sakuin-env.age`.
-3. `scp` the manifest to `sakuin:/var/lib/private/file-server/manifest.json`, then `chmod 0644` it and check that `osso-file-server` is active.
+2. `rclone copy` uploads the bundle without the manifest, `rclone copyto` then publishes `manifest.json`, and a final `rclone sync` deletes what the bundle no longer has. The live manifest therefore never names a missing file.
+3. Every object is uploaded with `Cache-Control: no-cache`, because paths keep their names across deploys and the launcher does not re-hash downloads; Cloudflare's edge never serves a superseded copy.
 
-`file-server/sync-files.sh` follows the same route but still builds the retired Bevy binary.
+The destination is the rclone remote `woo-r2` (`DESTINATION` overrides). It needs an R2 S3 credential with *Workers R2 Storage Bucket Item Write* on `worldofosso-client` only: the access key id is the API token id, the secret is the SHA-256 hex of the token value, the endpoint `https://b4e0993d34a0fae9030e79751cc337fe.r2.cloudflarestorage.com`, region `auto`, `no_check_bucket = true`. `deploy.sh` stops if it cannot list the remote.
 
 ## game-launcher contract
 
-game-launcher (`../game-launcher`) downloads every manifest path into `~/.local/share/WorldOfOsso/`. It skips top-level `game-engine-*` paths other than its own platform's, gives mode 755 only to paths starting with `game-engine`, and spawns `game-engine-<platform>` with no arguments and the game directory as the working directory. The bundle therefore:
+game-launcher (`../game-launcher`) fetches `https://files.worldofosso.com/manifest.json` and downloads every manifest path into `~/.local/share/WorldOfOsso/`. It skips top-level `game-engine-*` paths other than its own platform's, gives mode 755 only to paths starting with `game-engine`, and spawns `game-engine-<platform>` with no arguments and the game directory as the working directory. The bundle therefore:
 
 - names its entry `game-engine-linux-x86_64`;
 - keeps every other path from starting with `game-engine-`;
