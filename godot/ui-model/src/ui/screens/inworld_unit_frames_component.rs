@@ -3,6 +3,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::faction_reaction::Reaction;
+use crate::status_text_data::StatusBarText;
 use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
 };
@@ -110,13 +111,16 @@ pub struct UnitFrameState {
     pub level_text: String,
     /// "r,g,b,a" of the level text: gold, or the target's difficulty colour.
     pub level_color: String,
-    pub health_text: String,
+    /// The health bar's status text (`TextStatusBar`).
+    pub health_text: StatusBarText,
     /// Health fill fraction 0.0..=1.0.
     pub health_fraction: f32,
     pub reaction: Option<Reaction>,
     /// `UnitClassification`: elite and rare art around the target portrait slot.
     pub classification: CreatureClassification,
     pub power: Option<PowerBarState>,
+    /// The power bar's status text.
+    pub power_text: StatusBarText,
     /// The player's class resource bar as drawn this frame ([`class_bars`]).
     pub class_bar: Option<ClassBarView>,
     pub show_combat_icon: bool,
@@ -135,11 +139,12 @@ impl UnitFrameState {
             name: name.into(),
             level_text: String::new(),
             level_color: GOLD_TEXT.to_string(),
-            health_text: String::new(),
+            health_text: StatusBarText::default(),
             health_fraction: 0.0,
             reaction: None,
             classification: CreatureClassification::Normal,
             power: None,
+            power_text: StatusBarText::default(),
             class_bar: None,
             show_combat_icon: false,
             show_resting_icon: false,
@@ -503,7 +508,6 @@ fn unit_frame_contents(
     slots: &FrameSlots,
     health_art: AtlasArt,
 ) -> Element {
-    let power_text = state.power.as_ref().map(PowerBarState::text);
     let power_fraction = state.power.as_ref().map_or(0.0, |power| {
         fraction(power.current as f32, power.max as f32)
     });
@@ -516,6 +520,7 @@ fn unit_frame_contents(
             fraction: state.health_fraction,
             art: Some(health_art),
             text: &state.health_text,
+            anchors: slots.health_text,
             font_size: UNIT_FONT_SIZE,
             hidden: false,
         })}
@@ -524,7 +529,8 @@ fn unit_frame_contents(
             rect: slots.power,
             fraction: power_fraction,
             art: state.power.as_ref().and_then(|power| power_bar_art(power.power)),
-            text: power_text.as_deref().unwrap_or_default(),
+            text: &state.power_text,
+            anchors: slots.power_text,
             font_size: UNIT_FONT_SIZE - 1.0,
             hidden: state.power.is_none(),
         })}
@@ -653,7 +659,8 @@ fn small_unit_contents(spec: &SmallFrameSpec, unit: &SmallUnitFrameState) -> Ele
             rect: scaled(PORTRAIT_OFF_SLOTS.health, scale),
             fraction: unit.health_fraction,
             art: Some(HEALTH_BAR),
-            text: "",
+            text: &StatusBarText::default(),
+            anchors: PORTRAIT_OFF_SLOTS.health_text,
             font_size: UNIT_FONT_SIZE * scale,
             hidden: false,
         })}
