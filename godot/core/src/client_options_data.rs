@@ -5,6 +5,7 @@ use crate::input_bindings_data::InputBindingsData;
 use crate::nameplate_style_data::NameplateStyle;
 use crate::realm_preset_data::{RealmPreset, default_realm_preset};
 use crate::soft_target_data::SoftTargetOptions;
+use crate::status_text_data::StatusTextDisplay;
 use serde::{Deserialize, Serialize};
 use std::{
     fs,
@@ -247,6 +248,9 @@ pub struct HudOptionsFile {
     pub show_fps_overlay: bool,
     #[serde(default = "default_chat_font_size", rename = "chatFontSize")]
     pub chat_font_size: f32,
+    /// Interface "Status Text" (`statusTextDisplay`).
+    #[serde(default, rename = "statusTextDisplay")]
+    pub status_text_display: StatusTextDisplay,
 }
 
 impl Default for HudOptionsFile {
@@ -264,6 +268,7 @@ impl Default for HudOptionsFile {
             soft_target: SoftTargetOptions::default(),
             show_fps_overlay: false,
             chat_font_size: default_chat_font_size(),
+            status_text_display: StatusTextDisplay::default(),
         }
     }
 }
