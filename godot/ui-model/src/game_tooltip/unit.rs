@@ -16,8 +16,8 @@ use super::{GameTooltip, TooltipRecord};
 use crate::csv_util::parse_csv_line;
 use crate::merchant_data::quality_color;
 use crate::tooltip_presentation::{
-    ItemMark, TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_LABEL_COLOR, TOOLTIP_WHITE, TooltipLineState,
-    TooltipPresentation, parse_rgba,
+    ItemMark, TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_LABEL_COLOR, TOOLTIP_WHITE, TooltipBorder,
+    TooltipLineState, TooltipPresentation, parse_rgba,
 };
 
 /// `FACTION_BAR_COLORS` by `UnitReaction` (SharedColorConstants.lua:3-13): 2 red (hostile),
@@ -99,6 +99,7 @@ pub fn npc_tooltip(input: &NpcTooltipInput, collection: &AppearanceCollection) -
             title: input.name.to_owned(),
             title_color: npc_name_color(input.reaction),
             lines,
+            border: TooltipBorder::Reaction(input.reaction),
             ..TooltipPresentation::hidden()
         },
         Some(TooltipRecord::Creature(input.entry)),
@@ -181,6 +182,8 @@ pub struct PlayerTooltipInput<'a> {
     pub level: Option<u8>,
     pub race: &'a str,
     pub class: &'a str,
+    /// `ChrClasses` id of `class`.
+    pub class_id: u8,
 }
 
 /// Name, "<Guild>", "Level %d %s %s (Player)".
@@ -204,6 +207,7 @@ pub fn player_tooltip(input: &PlayerTooltipInput) -> GameTooltip {
             title: input.name.to_owned(),
             title_color: player_name_color(input.reaction),
             lines,
+            border: TooltipBorder::Class(input.class_id),
             ..TooltipPresentation::hidden()
         },
         None,
@@ -573,6 +577,7 @@ mod tests {
             level: Some(12),
             race: "Human",
             class: "Mage",
+            class_id: 8,
         };
         let tooltip = player_tooltip(&input);
         assert_eq!(tooltip.content.title_color, TOOLTIP_WHITE);

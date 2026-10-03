@@ -5,11 +5,13 @@
 //! 12), 10 px insets, 2 px between lines, a right text at least 20 px after its left text
 //! (wow-ui-sim `DOUBLE_LINE_GAP`), and the width of the widest line.
 
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
+use crate::flare_panel::flare_tooltip_panel;
 use crate::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::merchant_frame_component::{MoneyAlign, money, money_width};
 use crate::tooltip_presentation::{
@@ -97,11 +99,19 @@ fn line_top(index: usize) -> f32 {
 }
 
 /// One tooltip: `{prefix}Frame` with its nine-slice, `{prefix}Title` and
-/// `{prefix}Line{i}Left`/`Right`/`Mark`/`Money*`.
-pub fn retail_tooltip(state: &TooltipPresentation, prefix: &str) -> Element {
+/// `{prefix}Line{i}Left`/`Right`/`Mark`/`Money*`. Under the Forever skin the nine-slice is
+/// FlareUI's bronze panel `{prefix}FlareBackdrop` in the tooltip's border colour.
+pub fn retail_tooltip(state: &TooltipPresentation, prefix: &str, skin: ActiveSkin) -> Element {
     let [width, height] = tooltip_size(state);
     let hidden = !state.visible;
-    let border = nine_slice(prefix, width, height);
+    let border = match skin {
+        ActiveSkin::Modern => nine_slice(prefix, width, height),
+        ActiveSkin::Forever => flare_tooltip_panel(
+            &format!("{prefix}FlareBackdrop"),
+            (width, height),
+            state.border,
+        ),
+    };
     let title = text(
         format!("{prefix}Title"),
         &state.title,

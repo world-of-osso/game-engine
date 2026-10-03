@@ -144,6 +144,7 @@ impl GameClient {
                 level,
                 race: race_by_id(player.race).map_or("Unknown", |race| race.name),
                 class: class_by_id(player.class).map_or("Unknown", |class| class.name),
+                class_id: player.class,
             }));
         }
         let npc = unit.get::<Npc>()?.clone();

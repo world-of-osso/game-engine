@@ -10,6 +10,7 @@
 //! Rows (`DamageMeterSourceEntryTemplate`, Default style): a class-coloured StatusBar with
 //! "N. Name" on the left and "damage (dps)" on the right.
 
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
@@ -17,6 +18,7 @@ use ui_toolkit::widget_def::Element;
 use crate::damage_meter_data::{
     DAMAGE_DONE_LABEL, DamageMeterRow, DamageMeterView, MeterSessionType,
 };
+use crate::flare_panel::flare_panel;
 use crate::hud_layout::hud_layout;
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
@@ -79,6 +81,17 @@ const ROW_FONT_SIZE: f32 = 14.0;
 /// Edit Mode background transparency 50.
 const BACKGROUND_INSET: f32 = 10.0;
 const BACKGROUND_ALPHA: f32 = 0.5;
+/// Forever skin: FlareUI's `FlareUI_DMSkin` over the whole window, `textPadding` 2 outside
+/// it, with Blizzard's background and header at alpha 0 (DamageMeter.lua:202-232,
+/// Core.lua:249).
+pub const DAMAGE_METER_FLARE_SKIN: &str = "DamageMeterFlareSkin";
+const FLARE_PADDING: f32 = 2.0;
+const FLARE_SKIN_RECT: (f32, f32, f32, f32) = (
+    -FLARE_PADDING,
+    -FLARE_PADDING,
+    WINDOW_W + 2.0 * FLARE_PADDING,
+    WINDOW_H + 2.0 * FLARE_PADDING,
+);
 /// Session menu under the session dropdown: one radio row per session type.
 const MENU_W: f32 = 150.0;
 const MENU_ROW_H: f32 = 20.0;
@@ -153,10 +166,8 @@ fn session_left() -> f32 {
 /// Vertical centre of the minimize button, which the dropdowns chain from.
 const MINIMIZE_CENTER_Y: f32 = MINIMIZE_TOP + 19.0 / 2.0;
 
-pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
-    let view = ctx
-        .get::<DamageMeterView>()
-        .expect("DamageMeterView must be in SharedContext");
+/// Retail's `Background` and `Header` art.
+fn blizzard_background() -> Element {
     let mut children = art_alpha(
         "DamageMeterBackground",
         &BACKGROUND,
@@ -173,6 +184,20 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
         &HEADER,
         [0.0, 0.0, WINDOW_W, HEADER_H],
     ));
+    children
+}
+
+pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
+    let view = ctx
+        .get::<DamageMeterView>()
+        .expect("DamageMeterView must be in SharedContext");
+    let skin = *ctx
+        .get::<ActiveSkin>()
+        .expect("canvas carries the active skin");
+    let mut children = match skin {
+        ActiveSkin::Modern => blizzard_background(),
+        ActiveSkin::Forever => flare_panel(DAMAGE_METER_FLARE_SKIN, FLARE_SKIN_RECT),
+    };
     children.extend(header(view));
     for (index, row) in view.rows.iter().take(VISIBLE_ROWS).enumerate() {
         children.extend(entry(index, row));

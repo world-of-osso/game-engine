@@ -921,7 +921,11 @@ impl RegistryUi {
             return Err("RegistryUi already has a screen".into());
         }
         let parent = self.hud_parent()?;
-        let registry = parent.registry();
+        let mut registry = parent.registry();
+        register_flare_bronze_style(&mut registry, |fdid| {
+            let image = assets::decode_blp(&format!("data/textures/{fdid}.blp"))?;
+            Ok((image.pixels, image.width))
+        })?;
         self.show_viewport_screen_in(state, build, postsetup, registry, parent)
     }
 
@@ -2079,6 +2083,27 @@ fn register_metal_frame_style(
     Ok(())
 }
 
+/// The Forever skin's `flare_bronze` panel on a HUD canvas, from its sheet composed of the
+/// textures `load` decodes to `(pixels, width)`.
+pub(crate) fn register_flare_bronze_style(
+    registry: &mut FrameRegistry,
+    load: impl FnMut(u32) -> Result<(Vec<u8>, u32), String>,
+) -> Result<(), String> {
+    use game_engine_ui_model::flare_panel::{
+        FLARE_BRONZE_PANEL_STYLE, FLARE_SHEET, compose_flare_bronze_sheet, flare_bronze_style,
+    };
+    let pixels = compose_flare_bronze_sheet(load)?;
+    let (width, height) = FLARE_SHEET;
+    let sheet = registry
+        .create_dynamic_texture(width, height, pixels)
+        .map_err(|error| format!("flare_bronze sheet: {error}"))?;
+    registry.register_panel_style(
+        FLARE_BRONZE_PANEL_STYLE,
+        flare_bronze_style(TextureSource::Dynamic(sheet)),
+    );
+    Ok(())
+}
+
 /// Original `sync_editbox_focus_visual`: focused login fields brighten their border and fill.
 fn apply_login_focus_visual(registry: &mut FrameRegistry) {
     let focused = registry.focused_frame;
@@ -2148,6 +2173,12 @@ mod hud_layout_tests;
 #[cfg(test)]
 #[path = "skin_sync_tests.rs"]
 mod skin_sync_tests;
+#[cfg(test)]
+#[path = "modern_panel_snapshot_tests.rs"]
+mod modern_panel_snapshot_tests;
+#[cfg(test)]
+#[path = "flare_panel_tests.rs"]
+mod flare_panel_tests;
 
 fn register_auction_popup_style(registry: &mut FrameRegistry) {
     const COLUMNS: [f32; 4] = [1.0 / 128.0, 17.0 / 128.0, 55.0 / 128.0, 71.0 / 128.0];

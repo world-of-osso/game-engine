@@ -10,6 +10,7 @@ pub mod render;
 pub mod spell;
 pub mod unit;
 
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::text_measure::measure_text;
@@ -89,6 +90,8 @@ pub enum TooltipAnchor {
     Default,
     /// `ANCHOR_CURSOR`: follows the cursor.
     Cursor,
+    /// `ANCHOR_CURSOR_RIGHT` with no offset: the tooltip's BOTTOMLEFT on the cursor.
+    CursorRight,
     /// `SetOwner(owner, side)`; `rect` is the owner's `[x, y, w, h]` in UI units, y down.
     Owner { rect: [f32; 4], side: OwnerSide },
 }
@@ -124,6 +127,19 @@ impl GameTooltip {
         Self {
             anchor: TooltipAnchor::Cursor,
             ..self
+        }
+    }
+
+    /// The Forever skin takes FlareUI's tooltip anchor: its `GameTooltip_SetDefaultAnchor`
+    /// hook re-owns default-anchored tooltips at `ANCHOR_CURSOR_RIGHT` with offset 0, 0
+    /// (Tooltips.lua:410-423,459; `anchor`/`anchorFrames` "cursorOffset", Core.lua:350-353).
+    pub fn for_skin(self, skin: ActiveSkin) -> Self {
+        match (skin, self.anchor) {
+            (ActiveSkin::Forever, TooltipAnchor::Default) => Self {
+                anchor: TooltipAnchor::CursorRight,
+                ..self
+            },
+            _ => self,
         }
     }
 }
@@ -172,12 +188,15 @@ pub fn game_tooltip_screen(ctx: &SharedContext) -> Element {
     let view = ctx
         .get::<GameTooltipView>()
         .expect("GameTooltipView must be in SharedContext");
-    let mut elements = retail_tooltip(&view.main, "Tooltip");
+    let skin = *ctx
+        .get::<ActiveSkin>()
+        .expect("canvas carries the active skin");
+    let mut elements = retail_tooltip(&view.main, "Tooltip", skin);
     elements.extend(health_bar(&view.main, view.health));
     for (index, shopping) in view.shopping.iter().enumerate() {
         let prefix = format!("ShoppingTooltip{}", index + 1);
         elements.extend(compare_header(&prefix, shopping));
-        elements.extend(retail_tooltip(&shopping.tooltip, &prefix));
+        elements.extend(retail_tooltip(&shopping.tooltip, &prefix, skin));
     }
     elements
 }
@@ -297,6 +316,7 @@ fn anchor_origin(anchor: TooltipAnchor, screen: TooltipScreen, [w, h]: [f32; 2])
             sh - DEFAULT_ANCHOR_BOTTOM - h,
         ],
         TooltipAnchor::Cursor => [screen.cursor[0], screen.cursor[1] - CURSOR_OFFSET_Y],
+        TooltipAnchor::CursorRight => [screen.cursor[0], screen.cursor[1] - h],
         TooltipAnchor::Owner { rect, side } => owner_origin(rect, side, sw, [w, h]),
     }
 }
@@ -474,6 +494,22 @@ mod tests {
     }
 
     #[test]
+    fn forever_puts_default_anchored_tooltips_right_of_the_cursor() {
+        let tooltip = five_lines();
+        let height = tooltip_size(&tooltip.content)[1];
+        let placed = place(tooltip.clone().for_skin(ActiveSkin::Forever), SCREEN);
+        // ANCHOR_CURSOR_RIGHT: the tooltip's BOTTOMLEFT on the cursor (800, 600).
+        assert_eq!((placed.x, placed.y), (800.0, 600.0 - height));
+        // Modern keeps GameTooltip_SetDefaultAnchor's bottom right.
+        let placed = place(tooltip.clone().for_skin(ActiveSkin::Modern), SCREEN);
+        assert_eq!(placed.x + w(), 1920.0 - 9.0);
+        // FlareUI only hooks the default anchor: owned tooltips keep their owner.
+        let owned = tooltip.owned([600.0, 500.0, 36.0, 36.0], OwnerSide::Right);
+        let placed = place(owned.for_skin(ActiveSkin::Forever), SCREEN);
+        assert_eq!((placed.x, placed.y), (636.0, 500.0 - height));
+    }
+
+    #[test]
     fn tooltips_clamp_to_every_screen_edge() {
         let (x, y, _) = beside(1900.0, 10.0, OwnerSide::Right);
         assert_eq!((x, y), (1920.0 - w(), 0.0));
@@ -541,6 +577,7 @@ mod tests {
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
         shared.insert(view);
+        shared.insert(ActiveSkin::Modern);
         Screen::new(game_tooltip_screen).sync(&shared, &mut registry);
         let frame = |name: &str| {
             registry
