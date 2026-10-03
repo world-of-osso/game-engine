@@ -664,6 +664,17 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
             );
         }
         for node in [
+            "CharacterStatsPaneStat2Label",
+            "CharacterStatsPaneStat2Value",
+            "CharacterStatsPaneItemLevelCategoryTitle",
+        ] {
+            let frame = registry.get(registry.get_by_name(node).unwrap()).unwrap();
+            let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+                panic!("not text: {node}")
+            };
+            assert_eq!(text.font_size, 12.0, "{node}");
+        }
+        for node in [
             "CharacterStatsPaneStat2Background",
             "CharacterStatsPaneItemLevelFrameBackground",
         ] {
