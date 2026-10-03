@@ -275,9 +275,9 @@ fn forever_player_frame_is_flareui_thin_frame_with_bronze_border() {
     // Target 240×60 without power, ToT 120×28, focus 160×36, pet 160×28.
     for (name, size) in [
         ("TargetFrame", (240.0, 60.0)),
-        ("TargetOfTargetFrame", (120.0, 28.0)),
+        ("TargetOfTargetFrame", (160.0, 32.0)),
         ("FocusFrame", (160.0, 36.0)),
-        ("PetFrame", (160.0, 28.0)),
+        ("PetFrame", (120.0, 24.0)),
     ] {
         let f = frame(&registry, name);
         assert_eq!(
@@ -286,7 +286,7 @@ fn forever_player_frame_is_flareui_thin_frame_with_bronze_border() {
             "{name}"
         );
     }
-    assert!(registry.get_by_name("TargetManaBar").is_none());
+    assert_eq!(fixed_rect(&registry, "TargetManaBar"), (4.0, 42.0, 232.0, 14.0));
 }
 
 #[test]
