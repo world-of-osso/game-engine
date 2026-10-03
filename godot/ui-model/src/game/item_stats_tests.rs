@@ -2,7 +2,6 @@ use super::*;
 use crate::item_catalog::wait_for_item_catalog;
 
 fn entry(item_id: u32) -> &'static ItemCatalogEntry {
-    #[cfg(godot_host)]
     crate::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )

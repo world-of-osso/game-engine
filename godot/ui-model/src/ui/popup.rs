@@ -5,9 +5,6 @@
 
 use std::time::Duration;
 
-#[cfg(not(godot_host))]
-use bevy::prelude::*;
-
 pub const MAX_VISIBLE_POPUPS: usize = 3;
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
@@ -35,7 +32,6 @@ pub enum PopupOutcome {
     TimedOut,
 }
 
-#[cfg_attr(not(godot_host), derive(Message))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct PopupResult {
     pub id: PopupId,
@@ -70,7 +66,6 @@ struct PopupSlot {
     shown_for: Duration,
 }
 
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Default)]
 pub struct PopupStack {
     slots: Vec<PopupSlot>,

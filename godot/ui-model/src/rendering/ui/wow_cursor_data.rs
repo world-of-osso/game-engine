@@ -1,13 +1,10 @@
 //! Retail unit cursors, shared by the Bevy and Godot hosts: which cursor the unit under
 //! the pointer shows (`GameTooltip`/`UnitCursor` behavior) and its `Interface/CURSOR` art.
 
-#[cfg(not(godot_host))]
-use bevy::prelude::*;
 use shared::faction_reaction::Reaction;
 use shared::protocol::NpcFlags;
 
 /// Retail cursor modes (`Interface/CURSOR`).
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum ActiveWowCursor {
     Default,

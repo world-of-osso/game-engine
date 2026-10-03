@@ -5,8 +5,6 @@
 //! Retail sends for that drop; the server owns every move and answers with
 //! inventory deltas.
 
-#[cfg(not(godot_host))]
-use bevy::prelude::*;
 use shared::protocol::{DestroyItem, EquipmentSlot, ItemLocation, SplitItem, SwapItem};
 
 use crate::bag_data::{InventoryRequest, InventoryState, ItemQuality};
@@ -17,7 +15,6 @@ use crate::ui::popup::PopupSpec;
 pub const DELETE_ITEM: &str = "DELETE_ITEM";
 pub const DELETE_GOOD_ITEM: &str = "DELETE_GOOD_ITEM";
 
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub enum CursorItem {
     #[default]

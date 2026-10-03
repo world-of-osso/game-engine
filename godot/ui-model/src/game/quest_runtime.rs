@@ -7,8 +7,6 @@
 
 use std::collections::{HashMap, HashSet};
 
-#[cfg(not(godot_host))]
-use bevy::prelude::*;
 use shared::protocol::{
     GossipMenu, GossipMenuOption, NpcRole, QuestEntrySnapshot, QuestFailedReason,
     QuestGiverOfferReward, QuestGiverQuestComplete, QuestGiverQuestDetails, QuestGiverQuestEntry,
@@ -16,7 +14,6 @@ use shared::protocol::{
     QuestLogUpdate, QuestMarkerClass, QuestPoiSnapshot,
 };
 
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct QuestRuntime {
     /// Quest log in server order.
@@ -30,7 +27,6 @@ pub struct QuestRuntime {
 
 /// A role frame (auction house, vendor, ...) the server opened for an NPC interaction,
 /// or the end of that interaction. Frames other than the quest dialog read these.
-#[cfg_attr(not(godot_host), derive(Message))]
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum NpcFrameEvent {
     Opened { npc: u64, role: NpcRole },
@@ -38,15 +34,8 @@ pub enum NpcFrameEvent {
 }
 
 /// A player action for the server quest / interaction runtime.
-#[cfg_attr(not(godot_host), derive(Message))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum NpcInteractionRequest {
-    /// Right-click on an NPC (main-world entity).
-    #[cfg(not(godot_host))]
-    Interact(Entity),
-    /// Right-click on a server game object (main-world entity).
-    #[cfg(not(godot_host))]
-    UseObject(Entity),
     Hello {
         npc: u64,
     },
@@ -84,7 +73,6 @@ pub enum NpcInteractionRequest {
 }
 
 /// Player-facing UI state that the server does not own.
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct QuestUiState {
     pub log_selected: Option<u32>,

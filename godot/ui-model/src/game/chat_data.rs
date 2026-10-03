@@ -1,5 +1,3 @@
-#[cfg(not(godot_host))]
-use bevy::prelude::*;
 use shared::protocol::ChatType;
 
 /// Chat messages the client keeps.
@@ -129,7 +127,6 @@ pub fn monster_emote_text(text: &str, sender: &str) -> String {
 }
 
 /// Runtime chat state.
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct ChatState {
     pub joined_channels: Vec<JoinedChannel>,
@@ -235,7 +232,6 @@ pub fn runtime_chat_channel(
 // --- Whisper state ---
 
 /// Whisper conversation tracking and reply target.
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct WhisperState {
     /// The last player who whispered us (reply target for `/r`).
@@ -309,7 +305,6 @@ pub enum ChatIntent {
 }
 
 /// Queue of chat intents waiting to be sent to the server.
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Default)]
 pub struct ChatIntentQueue {
     pub pending: Vec<ChatIntent>,

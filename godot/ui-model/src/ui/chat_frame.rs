@@ -2,8 +2,6 @@
 //! formatting, the client slash-command parser, combat log lines, timestamps, tab flashing,
 //! scrolling and word wrapping. Chattynator references are to its Lua source.
 
-#[cfg(not(godot_host))]
-use bevy::prelude::*;
 use chrono::TimeZone;
 use shared::protocol::{ChatType, CombatLogEvent, CombatLogKind, EmoteKind, MissKind};
 
@@ -155,7 +153,6 @@ pub struct ChatEntry {
 
 /// Combat log tab lines. Names are resolved when the event arrives because the
 /// entities may be gone by the time the line is shown.
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct CombatLogChat {
     pub lines: Vec<ChatEntry>,
@@ -175,7 +172,6 @@ impl CombatLogChat {
 }
 
 /// Selected tab, flashing tabs, scroll position, edit box visibility and sent-line history.
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ChatFrameState {
     pub tab: ChatTab,

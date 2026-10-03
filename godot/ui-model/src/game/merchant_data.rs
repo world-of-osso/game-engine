@@ -2,8 +2,6 @@
 //! vendor NPC, the Retail MerchantFrame tab and page, and the player actions the
 //! frame asks the network layer to send (`MerchantRequest`).
 
-#[cfg(not(godot_host))]
-use bevy::prelude::*;
 use shared::protocol::{BuybackItem, ItemLocation, VendorInventory, VendorItem};
 
 /// Retail `MERCHANT_ITEMS_PER_PAGE` (MerchantFrame.lua:1).
@@ -19,7 +17,6 @@ pub enum MerchantTab {
 }
 
 /// The open vendor frame (`npc` = server entity bits; `None` = closed).
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct MerchantState {
     pub npc: Option<u64>,
@@ -130,7 +127,6 @@ pub fn quality_color(quality: u8) -> &'static str {
 }
 
 /// A MerchantFrame action for the server, sent to the open vendor.
-#[cfg_attr(not(godot_host), derive(Message))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum MerchantRequest {
     /// `count` purchases of the vendor slot, into `destination` when a merchant

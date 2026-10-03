@@ -4,45 +4,6 @@
 //! at most two Panels (slot L then R), one Wide window exclusive with every Panel,
 //! and Containers (bags) that coexist with everything.
 
-#[cfg(not(godot_host))]
-use bevy::prelude::*;
-
-#[cfg(not(godot_host))]
-use crate::game_state::GameState;
-
-#[cfg(not(godot_host))]
-mod input;
-#[cfg(not(godot_host))]
-mod placement;
-#[cfg(not(godot_host))]
-mod sessions;
-
-#[cfg(not(godot_host))]
-pub use placement::{WindowPlacements, place_windows};
-
-/// Clears the current character's moved-window positions ("Reset window positions").
-#[cfg(not(godot_host))]
-pub struct ResetWindowPositionsCommand;
-
-#[cfg(not(godot_host))]
-impl Command for ResetWindowPositionsCommand {
-    type Out = ();
-
-    fn apply(self, world: &mut World) {
-        let character = crate::ui_layout_store::character_key(
-            world.get_resource::<crate::networking::SelectedCharacterId>(),
-        );
-        let Some(character) = character else { return };
-        let Some(mut store) = world.get_resource_mut::<crate::ui_layout_store::UiLayoutStore>()
-        else {
-            return;
-        };
-        if store.clear_window_positions(&character) {
-            store.save();
-        }
-    }
-}
-
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum WindowId {
     Achievements,
@@ -150,7 +111,6 @@ impl WindowId {
 }
 
 #[derive(Default, Debug)]
-#[cfg_attr(not(godot_host), derive(Resource))]
 pub struct WindowManager {
     /// Open windows, oldest first.
     open: Vec<WindowId>,
@@ -288,39 +248,3 @@ impl WindowManager {
         }
     }
 }
-
-/// Leaving the world (logout, character switch) starts the next session clean.
-#[cfg(not(godot_host))]
-fn close_all_windows(mut manager: ResMut<WindowManager>) {
-    if manager.any_open() {
-        manager.close_all();
-    }
-}
-
-#[cfg(not(godot_host))]
-pub struct WindowManagerPlugin;
-
-#[cfg(not(godot_host))]
-impl Plugin for WindowManagerPlugin {
-    fn build(&self, app: &mut App) {
-        app.init_resource::<WindowManager>();
-        app.init_resource::<WindowPlacements>();
-        app.init_resource::<input::WindowDrag>();
-        app.add_systems(
-            Update,
-            (
-                sessions::sync_inspect_window,
-                (input::raise_window_on_click, input::drag_window_by_title).chain(),
-            ),
-        );
-        app.add_systems(OnExit(GameState::InWorld), close_all_windows);
-        app.add_systems(
-            PostUpdate,
-            place_windows.before(ui_toolkit::plugin::UiRenderSet::Prepare),
-        );
-    }
-}
-
-#[cfg(all(test, not(godot_host)))]
-#[path = "../../tests/unit/window_manager_tests.rs"]
-mod tests;
