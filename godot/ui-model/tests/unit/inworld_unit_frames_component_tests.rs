@@ -106,7 +106,7 @@ fn frames_draw_portrait_off_art_with_bars_in_its_slots() {
         let art = texture(&reg, &art_name);
         assert_eq!(
             art.source,
-            TextureSource::FileDataId(FRAME_PORTRAIT_OFF.fdid),
+            TextureSource::Atlas(FRAME_PORTRAIT_OFF.into()),
             "{art_name}"
         );
     }
@@ -276,6 +276,7 @@ fn unit_frames_registry() -> FrameRegistry {
 fn cluster_registry() -> FrameRegistry {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(inworld_unit_frames_screen).sync(&sample_unit_frames_context(), &mut reg);
+    load_atlas_tables();
     let mut cast = SharedContext::new();
     cast.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     cast.insert(CastingBarState {
@@ -289,6 +290,7 @@ fn cluster_registry() -> FrameRegistry {
 
 fn sample_unit_frames_context() -> SharedContext {
     let target = sample_target_frame_state();
+    load_atlas_tables();
     let mut shared = SharedContext::new();
     shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(InWorldUnitFramesState {
@@ -364,6 +366,7 @@ fn the_difficulty_submenu_is_laid_out_when_it_opens_on_a_settled_menu() {
     app.finish();
     app.cleanup();
     let mut screen = Screen::new(inworld_unit_frames_screen);
+    load_atlas_tables();
     let mut shared = SharedContext::new();
     shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     open_menu_state(&mut shared, None);
@@ -403,4 +406,12 @@ fn the_difficulty_submenu_is_laid_out_when_it_opens_on_a_settled_menu() {
     let heroic = rect_by_name(&ui.registry, "UnitFrameDifficultyMenu2");
     assert_eq!((heroic.x, heroic.width), (892.0, 108.0));
     assert!(heroic.y > 928.0, "{heroic:?}");
+}
+
+/// Unit frames size their art from the atlas tables (`atlas_size`).
+fn load_atlas_tables() {
+    crate::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
 }

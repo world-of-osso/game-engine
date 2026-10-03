@@ -2,7 +2,7 @@
 //! Blizzard_UnitFrame/Mainline/TargetFrame.lua:436-462) around the portrait.
 
 use game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::{
-    AtlasArt, BOSS_GOLD, BOSS_RARE_SILVER, BOSS_RARE_STAR,
+    BOSS_GOLD, BOSS_RARE_SILVER, BOSS_RARE_STAR,
 };
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, UnitFrameMenuState, UnitFrameState, inworld_unit_frames_screen,
@@ -15,6 +15,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::TextureSource;
 
 fn target_frames(name: &str, classification: CreatureClassification) -> FrameRegistry {
+    load_atlas_tables();
     let mut shared = SharedContext::new();
     shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(InWorldUnitFramesState {
@@ -61,13 +62,8 @@ fn rect(registry: &FrameRegistry, name: &str) -> (Val, Val, Dimension, Dimension
     )
 }
 
-fn atlas(art: &AtlasArt) -> (TextureSource, [f32; 4]) {
-    let (left, right, top, bottom) = art.rect;
-    let (width, height) = art.atlas;
-    (
-        TextureSource::FileDataId(art.fdid),
-        [left / width, right / width, top / height, bottom / height],
-    )
+fn atlas(name: &str) -> (TextureSource, [f32; 4]) {
+    (TextureSource::Atlas(name.into()), [0.0, 1.0, 0.0, 1.0])
 }
 
 /// Timber (world.db creature_template 1132, rank 4): the rare star centred on the
@@ -77,7 +73,7 @@ fn timber_shows_the_rare_star_without_a_dragon() {
     let registry = target_frames("Timber", CreatureClassification::Rare);
     assert!(frame(&registry, "TargetBossPortraitFrameTexture").hidden);
     assert!(!frame(&registry, "TargetBossIcon").hidden);
-    assert_eq!(texture(&registry, "TargetBossIcon"), atlas(&BOSS_RARE_STAR));
+    assert_eq!(texture(&registry, "TargetBossIcon"), atlas(BOSS_RARE_STAR));
     assert_eq!(
         rect(&registry, "TargetBossIcon"),
         (
@@ -98,7 +94,7 @@ fn hogger_shows_the_gold_dragon_at_its_retail_anchor() {
     assert!(frame(&registry, "TargetBossIcon").hidden);
     assert_eq!(
         texture(&registry, "TargetBossPortraitFrameTexture"),
-        atlas(&BOSS_GOLD)
+        atlas(BOSS_GOLD)
     );
     assert_eq!(
         rect(&registry, "TargetBossPortraitFrameTexture"),
@@ -118,9 +114,17 @@ fn rare_elites_get_the_silver_dragon_and_star_normal_units_neither() {
     assert!(!frame(&registry, "TargetBossIcon").hidden);
     assert_eq!(
         texture(&registry, "TargetBossPortraitFrameTexture"),
-        atlas(&BOSS_RARE_SILVER)
+        atlas(BOSS_RARE_SILVER)
     );
     let normal = target_frames("Timber Wolf", CreatureClassification::Normal);
     assert!(frame(&normal, "TargetBossPortraitFrameTexture").hidden);
     assert!(frame(&normal, "TargetBossIcon").hidden);
+}
+
+/// Unit frames size their art from the atlas tables (`atlas_size`).
+fn load_atlas_tables() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
 }
