@@ -1,11 +1,8 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::inworld_unit_frames_art::{AtlasArt, FRAME_PORTRAIT_OFF};
-use super::{DynName, UNIT_FONT, VALUE_TEXT, dyn_name};
-
-/// Rect `(x, y, width, height)` from the parent's top-left.
-pub(super) type Rect = (f32, f32, f32, f32);
+use super::inworld_unit_frames_art::AtlasArt;
+use super::{DynName, PortraitSlot, Rect, UNIT_FONT, VALUE_TEXT, dyn_name};
 
 pub(super) struct BarSpec<'a> {
     pub(super) name: String,
@@ -17,21 +14,18 @@ pub(super) struct BarSpec<'a> {
     pub(super) hidden: bool,
 }
 
-/// Cluster frame: the Retail portrait-off art filling the root, anchored from the screen's
-/// bottom centre (`left` is the offset of the frame's left edge from the centre line).
+/// Cluster frame anchored from the screen's bottom centre (`left` is the offset of the
+/// frame's left edge from the centre line): `portrait` under its `art`, then `content`.
 pub(super) fn art_root(
     name: DynName,
     (width, height): (f32, f32),
     (left, bottom): (f32, f32),
     hidden: bool,
+    (art, art_rect): (&AtlasArt, Rect),
+    portrait: Element,
     content: Element,
 ) -> Element {
-    let art = art_texture(
-        dyn_name(format!("{}Art", name.0)),
-        &FRAME_PORTRAIT_OFF,
-        (0.0, 0.0, width, height),
-        false,
-    );
+    let art = art_texture(dyn_name(format!("{}Art", name.0)), art, art_rect, false);
     rsx! {
         r#frame {
             name,
@@ -43,8 +37,30 @@ pub(super) fn art_root(
             left: "50%",
             margin_left: left,
             bottom,
+            {portrait}
             {art}
             {content}
+        }
+    }
+}
+
+/// `art` at its atlas size, centred in a `width`×`height` frame.
+pub(super) fn centred(art: &AtlasArt, (width, height): (f32, f32)) -> Rect {
+    let (art_w, art_h) = art.size();
+    ((width - art_w) / 2.0, (height - art_h) / 2.0, art_w, art_h)
+}
+
+/// The empty portrait slot the client fills with the unit's rendered head.
+pub(super) fn portrait_slot(slot: &PortraitSlot) -> Element {
+    let (x, y, width, height) = slot.rect;
+    rsx! {
+        r#frame {
+            name: {dyn_name(slot.frame.to_string())},
+            width,
+            height,
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
         }
     }
 }

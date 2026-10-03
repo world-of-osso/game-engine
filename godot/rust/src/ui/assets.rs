@@ -238,6 +238,11 @@ fn with_file_textures<T>(visit: impl FnOnce(&mut FileTextures) -> T) -> T {
     FILE_TEXTURES.with_borrow_mut(|textures| visit(textures.get_or_insert_with(FileTextures::new)))
 }
 
+/// FileDataID `id`'s art (`data/textures/<id>.blp`); `Ok(None)` while it loads.
+pub fn load_file_data_id(id: u32) -> Result<Option<Gd<ImageTexture>>, String> {
+    load_file(&format!("data/textures/{id}.blp"))
+}
+
 /// UI files whose textures arrived so far.
 pub fn arrived_file_textures() -> u64 {
     with_file_textures(|textures| {

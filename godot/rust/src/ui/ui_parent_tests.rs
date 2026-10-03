@@ -1,8 +1,10 @@
 use std::collections::HashMap;
 
 use game_engine_ui_model::inworld_unit_frames_component::{
-    InWorldUnitFramesState, UnitFrameMenuState, UnitFrameState, inworld_unit_frames_screen,
+    InWorldUnitFramesState, SmallUnitFrameState, UnitFrameMenuState, UnitFrameState,
+    inworld_unit_frames_screen,
 };
+use shared::components::CreatureClassification;
 use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -26,25 +28,40 @@ fn pixels(parent: &UiParent, rect: &LayoutRect) -> LayoutRect {
     }
 }
 
-/// Lay out the unit frames with a target on the UIParent canvas of `viewport`; pixel rects.
-fn target_rects(viewport: (f32, f32)) -> (LayoutRect, LayoutRect) {
+/// Lay out the player frame, `target` with a target of target, on the UIParent canvas of
+/// `viewport`; pixel rects of frames `names`.
+fn unit_frame_rects<const N: usize>(
+    viewport: (f32, f32),
+    target: UnitFrameState,
+    names: [&str; N],
+) -> [LayoutRect; N] {
     let parent = UiParent::for_viewport(viewport.0, viewport.1);
     let mut registry = parent.registry();
     let mut shared = SharedContext::new();
     shared.insert(InWorldUnitFramesState {
-        show_player_frame: false,
+        show_player_frame: true,
         show_target_frame: true,
-        player: UnitFrameState::named(""),
-        target: Some(UnitFrameState::named("Training Dummy")),
-        target_of_target: None,
+        player: UnitFrameState::named("Fbportrait"),
+        target_of_target: Some(SmallUnitFrameState::from(&UnitFrameState::named(
+            "Fbportrait",
+        ))),
+        target: Some(target),
         focus: None,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
     });
     Screen::new(inworld_unit_frames_screen).sync(&shared, &mut registry);
     let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
-    let rect = |name| pixels(&parent, &bounds[&registry.get_by_name(name).unwrap()]);
-    (rect("TargetFrame"), rect("TargetHealthBar"))
+    names.map(|name| pixels(&parent, &bounds[&registry.get_by_name(name).expect(name)]))
+}
+
+fn target_rects(viewport: (f32, f32)) -> (LayoutRect, LayoutRect) {
+    let [frame, health] = unit_frame_rects(
+        viewport,
+        UnitFrameState::named("Training Dummy"),
+        ["TargetFrame", "TargetHealthBar"],
+    );
+    (frame, health)
 }
 
 /// Retail health bar left and bottom edges in pixels for `viewport`.
@@ -82,12 +99,8 @@ fn ui_parent_is_768_units_tall_at_any_resolution() {
 #[test]
 fn target_frame_sits_at_the_modern_preset_at_720p() {
     let (frame, health) = target_rects((1280.0, 720.0));
-    // UI units: x = 1365.33/2 + 320, y = 768 - 273 - 51; 133×51 portrait-off art.
-    assert_rect(
-        &frame,
-        [940.0, 416.25, 124.6875, 47.8125],
-        "720p TargetFrame",
-    );
+    // UI units: x = 1365.33/2 + 300, y = 768 - 250 - 100; 232×100.
+    assert_rect(&frame, [921.25, 391.875, 217.5, 93.75], "720p TargetFrame");
     let (left, bottom) = retail_health_corner((1280.0, 720.0));
     assert_near(health.x, left, "720p health left");
     assert_near(health.y + health.height, bottom, "720p health bottom");
@@ -98,10 +111,72 @@ fn target_frame_sits_at_the_modern_preset_at_1080p() {
     let (frame, health) = target_rects((1920.0, 1080.0));
     assert_rect(
         &frame,
-        [1410.0, 624.375, 187.03125, 71.71875],
+        [1381.875, 587.8125, 326.25, 140.625],
         "1080p TargetFrame",
     );
     let (left, bottom) = retail_health_corner((1920.0, 1080.0));
     assert_near(health.x, left, "1080p health left");
     assert_near(health.y + health.height, bottom, "1080p health bottom");
+}
+
+/// Timber (world.db creature_template 1132, rank 4 rare) at 1080p (scale 1.40625): the
+/// TargetFrame `Portrait` 58×58 TOPRIGHT (-26, -19) (TargetFrame.xml:58-64) and the
+/// `PlayerPortrait` 60×60 TOPLEFT (24, -19) (PlayerFrame.xml:27-31); the rare star centred on
+/// the target portrait's BOTTOM (TargetFrame.xml:281-284); target of target clear of the
+/// whole target frame.
+#[test]
+fn portraits_sit_at_their_retail_anchors_with_the_rare_star_on_the_target_portrait() {
+    let scale = 1080.0 / 768.0;
+    let timber = UnitFrameState {
+        classification: CreatureClassification::Rare,
+        ..UnitFrameState::named("Timber")
+    };
+    let [target, portrait, star, player, player_portrait, tot] = unit_frame_rects(
+        (1920.0, 1080.0),
+        timber,
+        [
+            "TargetFrame",
+            "TargetFramePortrait",
+            "TargetBossIcon",
+            "PlayerFrame",
+            "PlayerPortrait",
+            "TargetOfTargetFrame",
+        ],
+    );
+    assert_rect(
+        &portrait,
+        [
+            target.x + 148.0 * scale,
+            target.y + 19.0 * scale,
+            58.0 * scale,
+            58.0 * scale,
+        ],
+        "TargetFramePortrait",
+    );
+    assert_rect(
+        &player_portrait,
+        [
+            player.x + 24.0 * scale,
+            player.y + 19.0 * scale,
+            60.0 * scale,
+            60.0 * scale,
+        ],
+        "PlayerPortrait",
+    );
+    assert_near(
+        star.x + star.width / 2.0,
+        portrait.x + portrait.width / 2.0,
+        "star centre x",
+    );
+    assert_near(
+        star.y + star.height / 2.0,
+        portrait.y + portrait.height,
+        "star centre y",
+    );
+    assert!(
+        tot.x >= target.x + target.width,
+        "TargetOfTargetFrame at {} overlaps TargetFrame ending at {}",
+        tot.x,
+        target.x + target.width
+    );
 }
