@@ -19,9 +19,9 @@ from build_hosts import execute
 
 
 ROOT_NAME = "game-engine-godot-conversion"
-SIBLINGS = ("asset-resolver", "ui-toolkit-godot-conversion", "ui-toolkit-macros", "shared-protocol", "bevy-patches")
+SIBLINGS = ("asset-resolver", "ui-toolkit-godot-conversion", "ui-toolkit-macros", "shared-protocol")
 SOURCE_SUFFIXES = {".rs", ".c", ".h", ".cpp", ".hpp", ".wgsl"}
-ROOT_PATHS = ("godot",)
+ROOT_PATHS = ("godot", "vendor")
 EXCLUDED_DIRS = {".git", "target", "data", ".godot"}
 ARTIFACT = "libgame_engine_godot.so"
 CLI = "game-engine-cli"
@@ -55,7 +55,7 @@ def allowed(repo_name, path, tracked):
         return True
     if tracked and repo_name == ROOT_NAME and path.suffix == ".png":
         return parts[:6] == ("godot", "rust", "src", "rendering", "ui", "nameplate_skins")
-    return tracked and repo_name == "bevy-patches" and parts == ("taffy", "README.md")
+    return tracked and repo_name == ROOT_NAME and parts == ("vendor", "taffy", "README.md")
 
 
 def snapshot_repo(repo, destination, paths, name):
@@ -91,8 +91,8 @@ def validate_sources(context):
     root = context / ROOT_NAME
     required = [root / "godot/Cargo.toml", root / "godot/Cargo.lock"]
     required.extend(root / "godot" / member / "Cargo.toml" for member in ("cli", "core", "network", "rust", "session", "ui-model"))
-    required.extend(context / name / "Cargo.toml" for name in SIBLINGS if name != "bevy-patches")
-    required.extend(context / "bevy-patches" / name / "Cargo.toml" for name in ("taffy", "ktx2-rw"))
+    required.extend(context / name / "Cargo.toml" for name in SIBLINGS)
+    required.extend(root / "vendor" / name / "Cargo.toml" for name in ("taffy", "ktx2-rw"))
     for path in required:
         if not path.is_file():
             raise FileNotFoundError(f"missing build dependency: {path.relative_to(context)}")
