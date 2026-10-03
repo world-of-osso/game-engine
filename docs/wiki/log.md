@@ -2500,3 +2500,7 @@ Added "Shader compilation ahead of need" to [world-entry-stalls](investigations/
 ## 2026-10-02 — Shadow and depth passes
 
 Updated [godot-inworld-frame-time](investigations/godot-inworld-frame-time.md): interior WMO groups/doodads cast no shadows, two cascades (retail `shadowNumCascades 2`), depth pre-pass off. Stormwind idle p50 45.9 -> 34.9 ms, shadow draws 2.46k -> 1.40k.
+
+## 2026-10-02 — Bevy client retired
+
+User decision: the Godot client is the only client. The root Bevy package `game-engine` (src/, Bevy tests, shaders, release Dockerfile/deploy.sh) is deleted; the 312 root files godot crates compiled through `#[path]` moved into their owning `godot/<crate>/` (shared ones in `game-engine-core`), `game-engine-cli` moved to `godot/cli` (`depot-build.py --cli`), and `png_to_ktx2` plus the cache importers the client reads moved to root `tools/` (`game-engine-tools`). Wiki pages citing `src/` paths describe the pre-retirement tree. See [godot-conversion spec](../specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).

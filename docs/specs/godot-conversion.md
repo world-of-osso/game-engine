@@ -2,6 +2,14 @@
 
 Replace the Bevy client engine with Godot while retaining reusable Rust and preserving existing feature behavior and UI appearance. The conversion is an isolated experiment; a partial renderer or launchable scene does not satisfy completion.
 
+## Retired Bevy client (user decision 2026-10-02)
+
+The Godot client is the only client. The root Bevy package `game-engine` is deleted; historical evidence below that cites root `cargo check -p game-engine`/`--bin game-engine`, root Bevy adapters or root `src/` paths describes the pre-retirement tree and is no longer a gate.
+
+- [x] Every file a godot crate compiles lives under `godot/`; no `#[path]` or `include_*!` reaches outside it, and Depot snapshots only `godot/` from the checkout.
+- [x] The root workspace (launcher, `game-engine-tools`) builds without any Bevy crate. `game-engine-tools` keeps `png_to_ktx2` and the cache importers whose `data/cache/*.sqlite` output the client reads (customization, char_texture, creature_display, outfit_links).
+- [x] `game-engine-cli` lives in the godot workspace on `game-engine-network::ipc_wire`; `scripts/depot-build.py --cli` builds it.
+
 ## Cross-engine acceptance
 
 Acceptance requires visual and behavioral fidelity, not cross-engine pixel identity, for either 3D scenes or 2D UI. Engine-dependent gradients, colors, fonts and rasterization differences are allowed. Structural, authored-data, layout, control, input and animation correctness remain required. Meaningful same-engine pixel, deterministic and regression tests retain their contracts.
