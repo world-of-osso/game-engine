@@ -1,5 +1,7 @@
 # Character-creation icon masks
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 `src/ui/character_creation_icons.rs` prepares reusable native image assets for the character-creation icon layers. The reference is local `Blizzard_SharedXML/Shared/FrameTemplate/RingedFrameTemplate.xml`, whose `CircleMask` uses `Interface/CharacterFrame/TempPortraitAlphaMask` (FileDataID `130924`).
 
 ## What it must do

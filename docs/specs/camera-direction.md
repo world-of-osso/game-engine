@@ -1,5 +1,7 @@
 # Live camera direction
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 `game-engine-cli camera set` changes the running in-world camera's viewing angles. The CLI lives in `src/bin/game-engine-cli/`; runtime dispatch lives in `src/ipc/plugin/camera_direction.rs`.
 
 ## What it must do
@@ -17,14 +19,14 @@
 ## Implementation inventory
 
 - `src/ipc/mod.rs` — request serialization.
-- `src/bin/game-engine-cli/main.rs`, `requests.rs` — command arguments and request mapping.
+- `godot/cli/src/main.rs`, `requests.rs` — command arguments and request mapping.
 - `src/ipc/plugin.rs`, `plugin/camera_direction.rs` — main-thread active-camera selection and response.
 - `src/camera_control.rs` — shared `WowCamera` component, atomic validation and angle update.
 - `src/lib.rs`, `src/rendering/camera/camera.rs` — expose the same component to IPC and runtime camera systems.
 
 ## Tests asserting this spec
 
-- `src/bin/game-engine-cli/tests/camera.rs` — command parsing and wire request.
+- `godot/cli/src/tests/camera.rs` — command parsing and wire request.
 - `tests/unit/camera_tests.rs` — angle updates and rejected inputs.
 - `src/ipc/plugin/camera_direction.rs` — scene and camera selection.
 - `src/rendering/camera/camera_follow.rs` — resulting view direction persists across follow updates.

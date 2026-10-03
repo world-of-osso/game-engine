@@ -1,5 +1,7 @@
 # Group Frames
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Party and raid play against the live server group backend: the invite flow, raid-style party frames and raid frames with live member state, leadership, conversions, roles and ready checks.
 
 - Contract: shared-protocol `protocol/group_messages.rs`, plus `GroupRosterSnapshot` and `GroupCommandResponse` in `protocol_snapshots.rs`.
@@ -138,7 +140,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - level-up resend;
   - member states carrying health/power/ghost/debuffs, sent only on change, resent after relog.
 - game-engine:
-  - `src/game/group_state_tests.rs`: roster/live-state lifecycle (a state ahead of its roster is kept until the roster decides), ready marks and decay, menu entries by role.
+  - `godot/ui-model/src/game/group_state_tests.rs`: roster/live-state lifecycle (a state ahead of its roster is kept until the roster decides), ready marks and decay, menu entries by role.
   - `godot/network/src/wire_tests.rs::native_bridge_receives_group_messages_in_channel_order`.
   - `godot/rust/src/party_frames.rs`: party order, live bars, Dead/Offline, range, target highlight; invite popup accept/cancel/timeout.
   - `godot/rust/src/chat_tests.rs::group_commands_become_group_requests`.
@@ -150,4 +152,4 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
     - click to target, menu Promote / Convert / Leave, ready check buttons;
     - `PARTY_INVITE` accept, timeout and cancel.
   - `src/rendering/ui/unit_frames.rs`: the target frame Invite entry and the player frame Leave / Convert entries.
-  - `src/ui/chat_frame_tests.rs`: slash commands.
+  - `godot/ui-model/src/ui/chat_frame_tests.rs`: slash commands.

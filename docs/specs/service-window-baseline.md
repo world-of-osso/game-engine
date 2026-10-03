@@ -1,5 +1,7 @@
 # Additive service-window baseline
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 `--service-window <core|render|continuous>` adds engine services above the [native empty-window baseline](empty-window-baseline.md) without entering normal game startup.
 
 ## What it must do

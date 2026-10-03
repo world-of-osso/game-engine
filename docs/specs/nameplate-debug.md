@@ -1,5 +1,7 @@
 # Nameplate debug screen
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 `--screen nameplatedebug` (also `--screen nameplate-debug`) is an offline inspection scene using the runtime nameplate renderers. Source: `src/scenes/nameplate_debug.rs`.
 
 ## What it must do
@@ -21,7 +23,7 @@
 
 ## Implementation inventory
 
-- `src/game/state/game_state_enum.rs` — state and CLI route.
+- `godot/network/src/game/state/game_state_enum.rs` — state and CLI route.
 - `src/app_setup.rs` — debug plugin registration.
 - `src/scenes/nameplate_debug.rs` — offline owners, looping playback, Space pause, selection annotation, and instruction text.
 - `src/rendering/ui/nameplate.rs` — shared name projection active in this state.

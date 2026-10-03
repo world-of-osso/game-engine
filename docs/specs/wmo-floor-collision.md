@@ -1,5 +1,7 @@
 # WMO Floor Collision
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Players stand on WMO floors (building interiors, paving, ramps), not only on ADT terrain. The client (prediction) and the server (authority) apply the same rule, `shared::ground` in shared-protocol. The client code is in `src/collision.rs`. How it works: [player ground](../wiki/systems/player-ground.md).
 
 ## What it must do

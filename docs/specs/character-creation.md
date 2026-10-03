@@ -1,6 +1,8 @@
 # Character creation
 
-Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_component/` provides race/class selection, a live preview, customization and character creation. User-selected target: full supported customization and the locally available retail UI source. Architecture and reference provenance live in [character creation](../wiki/systems/character-creation.md).
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
+Character creation in `src/scenes/char_create/` and `godot/ui-model/src/ui/screens/char_create_component/` provides race/class selection, a live preview, customization and character creation. User-selected target: full supported customization and the locally available retail UI source. Architecture and reference provenance live in [character creation](../wiki/systems/character-creation.md).
 
 ## What it must do
 
@@ -12,7 +14,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 - [x] Resolve exact local artwork identities through FileDataIDs, including the authored portrait alpha mask, without machine-specific source directories or substitute images.
 - [x] Child-art race, class, body-type and category buttons opt out of the toolkit default skin so only explicitly authored layers paint; camera controls retain their separately authored square treatment.
 - [x] Present the DB category `Mirror` (ID 23) as an authored normal/selected icon tab, without a permanent raw-category caption.
-- [x] Render push buttons (Back, Customize, Create Character, Randomize, Randomize Name and camera controls) with character select's button skin (`defaultbutton-nineslice-*` up/highlight/pressed/disabled from `src/ui/screens/default_button_atlas.rs`) and its button-text font and state colors, preserving wording, geometry and actions.
+- [x] Render push buttons (Back, Customize, Create Character, Randomize, Randomize Name and camera controls) with character select's button skin (`defaultbutton-nineslice-*` up/highlight/pressed/disabled from `godot/ui-model/src/ui/screens/default_button_atlas.rs`) and its button-text font and state colors, preserving wording, geometry and actions.
 - [x] Lay out dropdown choices column-major: one column through 10 choices, then two through 24, three through 36 and four above that, compacting for the popup anchor, viewport and 100-pixel margin. Include MenuStyle2 content insets 3/6/3/7 and element 25590's asymmetric 23/18/23/28 nine-slice background; use subtle hover opacity.
 - [x] Size dropdown rows from Retail content: 144 single-column, then 107 multi-column color, 136 multi-column named text, or 70 multi-column numeric-only. Derive columns from those widths.
 - [x] Render a first swatch after the selectable 25-pixel number field; use half then full palette artwork for dual colors, support secondary-only colors, and anchor the 51×20 selected outline four pixels before the first effective swatch.
@@ -67,7 +69,7 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 
 ## Implementation inventory
 
-- `src/ui/screens/char_create_component/` — reference views, actions, layout and view models.
+- `godot/ui-model/src/ui/screens/char_create_component/` — reference views, actions, layout and view models.
 - `src/scenes/char_create/` — input, catalog/view bridge, authored name catalog and draft, preview and masked-icon integration.
 - `src/rendering/character/{customization_data,customization_cache,appearance_options,character_customization}.rs` — catalog/cache, disjoint selections and material/geoset application.
 - `src/ui/character_creation_icons.rs` — cached authored-alpha-mask composition.
@@ -76,15 +78,15 @@ Character creation in `src/scenes/char_create/` and `src/ui/screens/char_create_
 
 ## Tests asserting this spec
 
-- `src/ui/screens/char_create_component/mod_tests.rs` — reference geometry, popup insets, content-dependent columns, swatch/outline placement, dropdown nine-slice projection, hit areas, choice identity, disabled controls and popup/name stability.
+- `godot/ui-model/src/ui/screens/char_create_component/mod_tests.rs` — reference geometry, popup insets, content-dependent columns, swatch/outline placement, dropdown nine-slice projection, hit areas, choice identity, disabled controls and popup/name stability.
 - `tests/unit/charcreate_button_background_tests.rs` — child-art controls project no default root image; Mirror icon tab projects authored pixels without a permanent caption; circular hover artwork has native geometry/pixel regressions.
 - `godot/rust/src/ui/button_style_tests.rs` — every character-creation push button projects the same skin sources/crops as character select's Back button in normal, hover, pressed and disabled states; navigation labels share its text font and state colors.
 - `tests/unit/{char_create_tests,char_create_shared_tests,char_create_response_tests,character_customization_tests}.rs` — selection, request loopback, response and render-effect behavior.
-- `src/scenes/char_create/{name_catalog_tests,name_action_tests}.rs` and `src/ui/screens/char_create_component/name_button_tests.rs` — real authored race/body-type coverage, validation, distinct action, native placement, missing data, draft/editbox preservation.
+- `src/scenes/char_create/{name_catalog_tests,name_action_tests}.rs` and `godot/ui-model/src/ui/screens/char_create_component/name_button_tests.rs` — real authored race/body-type coverage, validation, distinct action, native placement, missing data, draft/editbox preservation.
 - `src/scenes/char_create/{scene_tests,scene_tests_runtime,neutral_capture_tests}.rs` — authored backdrop lighting/material boundaries, camera/preview presentation, neutral loader-only capture and native mouse-input scheduling.
 - `tests/unit/{customization_data_tests,customization_catalog_cache_tests}.rs` — catalog fidelity, filtering, stale-schema autoload and real local-data loading.
 - `godot/rust/src/char_create/tests.rs` — real-catalog Human skin eligibility, a rejected Death Knight skin for a warrior, the reported skin 4978/face 27 combination, and a sweep over races 1/2/3/4/10/22 × sex × class checking requirements, randomize and select-any-choice ReqChoice validity.
-- `src/scenes/char_create/data.rs` tests: CharBaseInfo gates of the new classes, Dracthyr factions and default class, Retail class order. `godot/ui-model/tests/char_create.rs` `race_columns_end_above_the_navigation_buttons_at_720p`. `godot/rust/src/char_create/tests.rs`: Demon Hunter class choices and the Dracthyr dragon-form options.
+- `godot/ui-model/src/scenes/char_create/data.rs` tests: CharBaseInfo gates of the new classes, Dracthyr factions and default class, Retail class order. `godot/ui-model/tests/char_create.rs` `race_columns_end_above_the_navigation_buttons_at_720p`. `godot/rust/src/char_create/tests.rs`: Demon Hunter class choices and the Dracthyr dragon-form options.
 - `godot/tests/new_class_live.gd` (live, private server): creates a character through the real screens, enters the world, then casts at a Training Dummy.
 - `godot/rust/src/assets/player.rs` `swatch_tests`, `godot/core/tests/char_texture_data.rs` — rendered body chromaticity against every offered skin swatch (Human, Orc, Dwarf, Night Elf, Blood Elf), and exact blend-mode and non-body-layer bytes.
 - `src/ui/character_creation_icons.rs` — decoded pixel/mask/cache/error regressions.

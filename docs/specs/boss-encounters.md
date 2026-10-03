@@ -1,6 +1,8 @@
 # Boss encounters (client)
 
-Dungeons phase 3: what the client shows of a scripted boss fight. Server contract: game-server `docs/specs/boss-scripts.md`; protocol shared-protocol `protocol/encounter_messages.rs` and `ChatType::Monster*`. Code: `src/game/networking/encounter.rs`, `src/ui/raid_warning.rs`, `src/scenes/raid_warning_frame/`, boss frames in `src/ui/screens/inworld_unit_frames_component.rs` and `src/rendering/ui/unit_frames.rs`.
+> Root `src/` paths and `cargo test --bin game-engine` selectors below name files and tests deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
+Dungeons phase 3: what the client shows of a scripted boss fight. Server contract: game-server `docs/specs/boss-scripts.md`; protocol shared-protocol `protocol/encounter_messages.rs` and `ChatType::Monster*`. Code: `src/game/networking/encounter.rs`, `src/ui/raid_warning.rs`, `src/scenes/raid_warning_frame/`, boss frames in `godot/ui-model/src/ui/screens/inworld_unit_frames_component.rs` and `src/rendering/ui/unit_frames.rs`.
 
 ## What it must do
 - [x] Creature chat reads as Retail lines: `MonsterSay` "Name says: text", `MonsterYell` "Name yells: text", `MonsterEmote`/`RaidBossEmote` the text with `%s` replaced by the speaker, in the Retail default ChatTypeInfo colours (say 1/1/0.624, yell 1/0.251/0.251, emote 1/0.502/0.251, boss emote 1/0.867/0).
@@ -13,9 +15,9 @@ Dungeons phase 3: what the client shows of a scripted boss fight. Server contrac
 
 ## Implementation inventory
 - `src/game/networking/encounter.rs` — `EncounterFrames`, encounter message handlers
-- `src/game/chat_data.rs`, `src/ui/chat_frame.rs`, `src/game/networking/messages.rs` — monster chat types and lines, boss emote → RaidWarnings
+- `godot/ui-model/src/game/chat_data.rs`, `godot/ui-model/src/ui/chat_frame.rs`, `src/game/networking/messages.rs` — monster chat types and lines, boss emote → RaidWarnings
 - `src/ui/raid_warning.rs`, `src/ui/screens/raid_warning_frame_component.rs`, `src/scenes/raid_warning_frame/mod.rs` — RaidWarningFrame
-- `src/ui/screens/inworld_unit_frames_component.rs`, `src/rendering/ui/unit_frames.rs` — boss frames
+- `godot/ui-model/src/ui/screens/inworld_unit_frames_component.rs`, `src/rendering/ui/unit_frames.rs` — boss frames
 
 ## Tests asserting this spec
 `cargo test --bin game-engine encounter`, `creature_texts`, `raid_boss_emote`, `boss1`, `raid_warning`, `hud_layout`.

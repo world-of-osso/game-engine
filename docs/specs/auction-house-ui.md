@@ -1,5 +1,7 @@
 # Auction house frame
 
+> Root `src/` paths and `cargo test --bin game-engine` selectors below name files and tests deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Economy row of the [in-game UI plan](../plans/2026-09-23-ingame-ui.md): Retail `AuctionHouseFrame`
 opened from an auctioneer, on the existing auction protocol (`shared-protocol`
 `protocol/gameplay_messages.rs`) and the server auction house (`game-server`
