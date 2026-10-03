@@ -548,9 +548,10 @@ impl SpellEffects {
         self.sounds.reset();
         self.swings.clear();
         self.auras.clear();
-        for effect in self.active.drain(..) {
-            effect.node.free();
-        }
+        // Kit models are their unit's model's children (`spawn_kit_model`), freed with it:
+        // a lost link despawns every unit just before the world resets, and the world's
+        // reset frees the rest.
+        self.active.clear();
         for missile in self.missiles.drain(..) {
             missile.node.free();
         }

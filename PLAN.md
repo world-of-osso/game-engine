@@ -98,3 +98,6 @@
 - [ ] Refactor `godot/rust/src/auras.rs`: sync_swipe (line 334): 36 body lines (max 30) — extract into helper functions
 - [ ] Refactor `godot/rust/src/pet_bar.rs`: pet_bar_state (line 222): 39 body lines (max 30) — extract into helper functions
 - [ ] Refactor `godot/rust/src/pet_bar.rs`: pet_bar_snapshot (line 297): 56 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_effects.rs`: start_kit_on (line 808): 47 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_effects.rs`: launch (line 973): 42 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/spell_effects.rs`: spawn_kit_model (line 1160): 35 body lines (max 30) — extract into helper functions
