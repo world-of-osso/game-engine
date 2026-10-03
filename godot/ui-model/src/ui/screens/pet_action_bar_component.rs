@@ -8,16 +8,22 @@
 //! `EditModeManagerFrameMixin:UpdateBottomActionBarPositions` stacks it on the shown bottom
 //! bars: BOTTOMLEFT at UIParent BOTTOM + (-MainActionBar width / 2, 45 + 45 +
 //! `BOTTOM_ACTION_BARS_SPACER_Y` 5); this client shows no MultiBarBottomLeft/Right or
-//! StanceBar between them. The autocast overlay is not drawn.
+//! StanceBar between them. Autocastable spells carry the `AutoCastOverlay` (31×31 at
+//! CENTER + (0.5, -0.5), `SmallActionButtonMixin_OnLoad`): its Corners, and while autocast is
+//! on its rotating Shine, which the host composes into `shine_texture`
+//! (`game_engine_core::pet_autocast_shine_data`).
 
 use shared::protocol::{
-    ACT_COMMAND, ACT_REACTION, COMMAND_ATTACK, COMMAND_FOLLOW, COMMAND_MOVE_TO, COMMAND_STAY,
-    PET_ACTION_BAR_SLOTS, PetSpells, REACT_AGGRESSIVE, REACT_ASSIST, REACT_DEFENSIVE,
-    REACT_PASSIVE, pet_action_button_action, pet_action_button_type,
+    ACT_COMMAND, ACT_DISABLED, ACT_ENABLED, ACT_REACTION, COMMAND_ATTACK, COMMAND_FOLLOW,
+    COMMAND_MOVE_TO, COMMAND_STAY, PET_ACTION_BAR_SLOTS, PetSpells, REACT_AGGRESSIVE, REACT_ASSIST,
+    REACT_DEFENSIVE, REACT_PASSIVE, pet_action_button_action, pet_action_button_type,
 };
+use ui_toolkit::frame::WidgetData;
+use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
 use crate::main_action_bar_component::{BAR_BOTTOM, BAR_W as MAIN_BAR_W, BUTTON_SIZE};
 use crate::ui::anchor::FrameName;
@@ -55,6 +61,25 @@ pub const ATTACK_BUTTON_FLASH_TIME: f32 = 0.4;
 /// "the checked texture looks a little confusing at full alpha" (PetActionBar.lua:168-169).
 const ATTACK_CHECKED_ALPHA: f32 = 0.5;
 
+/// `AutoCastOverlay` of a small button: 31×31 at CENTER + (0.5, -0.5) of the 30×30 button.
+const AUTOCAST_OVERLAY: (f32, f32, f32, f32) = (0.0, 0.0, 31.0, 31.0);
+/// Its Shine: TOPLEFT (-5, 5), BOTTOMRIGHT (5, -5) of the overlay.
+const AUTOCAST_SHINE: (f32, f32, f32, f32) = (-5.0, -5.0, 41.0, 41.0);
+/// `UI-HUD-ActionBar-PetAutoCast-Corners` (UiTextureAtlasMember 25944) in UiTextureAtlas
+/// 2476 (FDID 5199404, 2048×1024).
+const AUTOCAST_CORNERS: AtlasArt = AtlasArt {
+    fdid: PET_AUTOCAST_ATLAS,
+    atlas: (2048.0, 1024.0),
+    rect: (1059.0, 1105.0, 498.0, 544.0),
+};
+pub const PET_AUTOCAST_ATLAS: u32 = 5_199_404;
+/// `UI-HUD-ActionBar-PetAutoCast-Ants` (UiTextureAtlasMember 25943): `(left, right, top,
+/// bottom)` in `PET_AUTOCAST_ATLAS`.
+pub const PET_AUTOCAST_ANTS: (u32, u32, u32, u32) = (1036, 1113, 403, 480);
+/// `UI-HUD-ActionBar-PetAutoCast-Mask` (UiTextureAtlasMember 25946): all of UiTextureAtlas
+/// 2710, FDID 5550114 (32×32).
+pub const PET_AUTOCAST_MASK: u32 = 5_550_114;
+
 /// UiTextureAtlas 1979 `interface/hud/uiactionbar.blp` (FDID 4613342, 256×1024).
 const fn action_bar(rect: (f32, f32, f32, f32)) -> AtlasArt {
     AtlasArt {
@@ -88,8 +113,10 @@ pub const PET_PASSIVE_TEXTURE: u32 = 132_311; // Interface\Icons\Ability_Seal
 pub const PET_AGGRESSIVE_TEXTURE: u32 = 132_277; // Interface\Icons\Ability_Racial_BloodRage
 
 /// Every texture the bar draws besides spell icons, for hosts that copy art from local CASC.
-pub const PET_BAR_ART_FDIDS: [u32; 9] = [
+pub const PET_BAR_ART_FDIDS: [u32; 11] = [
     4_613_342,
+    PET_AUTOCAST_ATLAS,
+    PET_AUTOCAST_MASK,
     PET_ATTACK_TEXTURE,
     PET_FOLLOW_TEXTURE,
     PET_WAIT_TEXTURE,
@@ -139,6 +166,39 @@ impl PetActionSlot {
     }
 }
 
+/// `GetPetActionInfo` autoCastAllowed / autoCastEnabled of a button.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum PetAutocast {
+    /// A command, a stance, an empty slot or a spell that cannot autocast (`ACT_PASSIVE`).
+    #[default]
+    Unavailable,
+    /// `ACT_DISABLED`.
+    Off,
+    /// `ACT_ENABLED`.
+    On,
+}
+
+impl PetAutocast {
+    pub fn from_packed(packed: u32) -> Self {
+        match pet_action_button_type(packed) {
+            _ if packed == 0 => Self::Unavailable,
+            ACT_ENABLED => Self::On,
+            ACT_DISABLED => Self::Off,
+            _ => Self::Unavailable,
+        }
+    }
+}
+
+/// `TogglePetAutocast`: the spell of an autocastable button and whether autocast turns on.
+pub fn pet_autocast_toggle(packed: u32) -> Option<(u32, bool)> {
+    let spell = pet_action_button_action(packed);
+    match PetAutocast::from_packed(packed) {
+        PetAutocast::On => Some((spell, false)),
+        PetAutocast::Off => Some((spell, true)),
+        PetAutocast::Unavailable => None,
+    }
+}
+
 /// `GetPetActionInfo` isActive: Attack while the pet attacks (`UNIT_FLAG_PET_IN_COMBAT`),
 /// another command matching the pet's `CommandState`, a reaction matching its `ReactState`.
 pub fn pet_action_active(slot: PetActionSlot, spells: &PetSpells, pet_in_combat: bool) -> bool {
@@ -173,6 +233,8 @@ pub struct PetActionButtonView {
     pub pushed: bool,
     /// Pointer over the button: `HighlightTexture`.
     pub hovered: bool,
+    /// `AutoCastOverlay:SetShown(autoCastAllowed)`, `ShowAutoCastEnabled(autoCastEnabled)`.
+    pub autocast: PetAutocast,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -180,6 +242,8 @@ pub struct PetActionBarState {
     /// `PetHasActionBar() and UnitIsVisible("pet")`.
     pub visible: bool,
     pub buttons: [PetActionButtonView; PET_BAR_BUTTONS],
+    /// The host's composed autocast Shine, drawn by every button with autocast on.
+    pub shine_texture: Option<DynamicTextureId>,
 }
 
 /// `PetActionBarMixin:Update` for the server's bar: `spell_icon` maps a spell id to its
@@ -207,8 +271,27 @@ pub fn pet_bar_buttons(
             hotkey: hotkeys[index].clone(),
             pushed: false,
             hovered: false,
+            autocast: PetAutocast::from_packed(spells.action_buttons[index]),
         }
     })
+}
+
+/// Registry-only property the markup does not set: the Shines draw the host's composite.
+pub fn apply_pet_action_bar_postsetup(state: &PetActionBarState, registry: &mut FrameRegistry) {
+    let Some(shine) = state.shine_texture else {
+        return;
+    };
+    for index in 0..PET_BAR_BUTTONS {
+        let name = format!("{}AutoCastShine", pet_action_button_name(index));
+        let Some(id) = registry.get_by_name(&name) else {
+            continue;
+        };
+        if let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut()
+        {
+            texture.source = TextureSource::Dynamic(shine);
+        }
+    }
 }
 
 /// Retail `PetActionButton<n>` name of button `index` (0-based).
@@ -246,6 +329,38 @@ fn art(
             texture_fdid: {art.fdid},
             tex_coords: {coords.as_str()},
             vertex_color: {color.as_str()},
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+        }
+    }
+}
+
+/// The `AutoCastOverlay` frame's OVERLAY layer: Corners while autocast is allowed, the
+/// Shine (its source set by `apply_pet_action_bar_postsetup`) while it is on.
+fn autocast_overlay(name: &str, autocast: PetAutocast) -> Element {
+    let corners = AUTOCAST_CORNERS.tex_coords(1.0);
+    let (x, y, width, height) = AUTOCAST_OVERLAY;
+    let (shine_x, shine_y, shine_w, shine_h) = AUTOCAST_SHINE;
+    rsx! {
+        texture {
+            name: {DynName(format!("{name}AutoCastShine"))},
+            width: shine_w,
+            height: shine_h,
+            hidden: {autocast != PetAutocast::On},
+            draw_layer: "OVERLAY",
+            pos_type: "absolute",
+            pos_x: shine_x,
+            pos_y: shine_y,
+        }
+        texture {
+            name: {DynName(format!("{name}AutoCastCorners"))},
+            width,
+            height,
+            hidden: {autocast == PetAutocast::Unavailable},
+            texture_fdid: {AUTOCAST_CORNERS.fdid},
+            tex_coords: {corners.as_str()},
+            draw_layer: "OVERLAY",
             pos_type: "absolute",
             pos_x: x,
             pos_y: y,
@@ -332,6 +447,7 @@ fn button(index: usize, view: &PetActionButtonView) -> Element {
             1.0,
             !view.hovered,
         ),
+        autocast_overlay(&name, view.autocast),
         hotkey(&name, &view.hotkey),
     ]
     .into_iter()

@@ -2,12 +2,14 @@
 //! with the hunter bar the server sends.
 
 use game_engine_ui_model::pet_action_bar_component::{
-    PET_ACTION_BAR, PetActionBarState, PetActionSlot, attack_flash_shown, parse_pet_action_button,
-    pet_action_bar_screen, pet_bar_buttons,
+    PET_ACTION_BAR, PetActionBarState, PetActionSlot, PetAutocast, apply_pet_action_bar_postsetup,
+    attack_flash_shown, parse_pet_action_button, pet_action_bar_screen, pet_autocast_toggle,
+    pet_bar_buttons,
 };
 use shared::protocol::{
-    ACT_COMMAND, ACT_ENABLED, ACT_REACTION, COMMAND_ATTACK, COMMAND_FOLLOW, COMMAND_MOVE_TO,
-    COMMAND_STAY, PetSpells, REACT_ASSIST, REACT_DEFENSIVE, REACT_PASSIVE, pet_action_button,
+    ACT_COMMAND, ACT_DISABLED, ACT_ENABLED, ACT_PASSIVE, ACT_REACTION, COMMAND_ATTACK,
+    COMMAND_FOLLOW, COMMAND_MOVE_TO, COMMAND_STAY, PetSpells, REACT_ASSIST, REACT_DEFENSIVE,
+    REACT_PASSIVE, pet_action_button,
 };
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
@@ -58,6 +60,7 @@ fn shown(spells: &PetSpells, pet_in_combat: bool, attack_flash: bool) -> FrameRe
     let state = PetActionBarState {
         visible: true,
         buttons: pet_bar_buttons(spells, pet_in_combat, attack_flash, spell_icon, &hotkeys()),
+        shine_texture: None,
     };
     build(state)
 }
@@ -65,8 +68,9 @@ fn shown(spells: &PetSpells, pet_in_combat: bool, attack_flash: bool) -> FrameRe
 fn build(state: PetActionBarState) -> FrameRegistry {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
-    shared.insert(state);
+    shared.insert(state.clone());
     Screen::new(pet_action_bar_screen).sync(&shared, &mut registry);
+    apply_pet_action_bar_postsetup(&state, &mut registry);
     registry
 }
 
@@ -204,4 +208,92 @@ fn attack_is_checked_and_flashing_while_the_pet_attacks() {
 fn no_pet_bar_without_pet_spells() {
     let registry = build(PetActionBarState::default());
     assert!(frame(&registry, PET_ACTION_BAR.0).hidden);
+}
+
+fn shown_or_hidden(registry: &FrameRegistry, part: &str) -> Vec<usize> {
+    (1..=10)
+        .filter(|button| !frame(registry, &format!("PetActionButton{button}{part}")).hidden)
+        .collect()
+}
+
+/// `GetPetActionInfo` autoCastAllowed/autoCastEnabled → `AutoCastOverlay:SetShown` and
+/// `ShowAutoCastEnabled` (PetActionBar.lua:154-155): every autocastable spell
+/// (`ACT_ENABLED`/`ACT_DISABLED`) shows the overlay's Corners; the rotating Shine only
+/// while autocast is on (`AutoCastOverlayMixin:UpdateShineAnim`).
+#[test]
+fn autocast_overlay_follows_the_spell_buttons_autocast_state() {
+    let mut spells = wolf_bar(COMMAND_FOLLOW, REACT_PASSIVE);
+    // Bite turned off; Growl not autocastable (`SPELL_ATTR1_NO_AUTOCAST_AI` → ACT_PASSIVE).
+    spells.action_buttons[4] = pet_action_button(17_253, ACT_DISABLED);
+    spells.action_buttons[5] = pet_action_button(2_649, ACT_PASSIVE);
+    let buttons = pet_bar_buttons(&spells, false, false, spell_icon, &hotkeys());
+    let autocast: Vec<PetAutocast> = buttons.iter().map(|button| button.autocast).collect();
+    use PetAutocast::{Off, On, Unavailable};
+    assert_eq!(
+        autocast,
+        [
+            Unavailable,
+            Unavailable,
+            Unavailable,
+            On,
+            Off,
+            Unavailable,
+            Unavailable,
+            Unavailable,
+            Unavailable,
+            Unavailable
+        ]
+    );
+    let shine = ui_toolkit::widgets::texture::DynamicTextureId(7);
+    let registry = build(PetActionBarState {
+        visible: true,
+        buttons,
+        shine_texture: Some(shine),
+    });
+    assert_eq!(shown_or_hidden(&registry, "AutoCastCorners"), vec![4, 5]);
+    assert_eq!(shown_or_hidden(&registry, "AutoCastShine"), vec![4]);
+    // UI-HUD-ActionBar-PetAutoCast-Corners (UiTextureAtlasMember 25944, atlas FDID 5199404)
+    // over the 31×31 overlay at CENTER + (0.5, -0.5).
+    let corners = frame(&registry, "PetActionButton4AutoCastCorners");
+    assert_eq!(corners.width, Dimension::Fixed(31.0));
+    assert_eq!(
+        texture(&registry, "PetActionButton4AutoCastCorners").0,
+        TextureSource::FileDataId(5_199_404)
+    );
+    // The Shine is 10 px larger than the overlay (TOPLEFT -5,5 / BOTTOMRIGHT 5,-5) and
+    // draws the host's rotated, masked ants.
+    let shine_frame = frame(&registry, "PetActionButton4AutoCastShine");
+    assert_eq!(shine_frame.width, Dimension::Fixed(41.0));
+    assert_eq!(shine_frame.position.left, Val::Px(-5.0));
+    assert_eq!(
+        texture(&registry, "PetActionButton4AutoCastShine").0,
+        TextureSource::Dynamic(shine)
+    );
+}
+
+/// `TogglePetAutocast` (a right click, PetActionBar.lua:271): an autocastable spell flips
+/// its autocast; commands, stances and spells that cannot autocast do nothing.
+#[test]
+fn right_click_toggles_autocast_of_autocastable_spells_only() {
+    assert_eq!(
+        pet_autocast_toggle(pet_action_button(17_253, ACT_ENABLED)),
+        Some((17_253, false))
+    );
+    assert_eq!(
+        pet_autocast_toggle(pet_action_button(17_253, ACT_DISABLED)),
+        Some((17_253, true))
+    );
+    assert_eq!(
+        pet_autocast_toggle(pet_action_button(2_649, ACT_PASSIVE)),
+        None
+    );
+    assert_eq!(
+        pet_autocast_toggle(pet_action_button(COMMAND_ATTACK, ACT_COMMAND)),
+        None
+    );
+    assert_eq!(
+        pet_autocast_toggle(pet_action_button(REACT_PASSIVE, ACT_REACTION)),
+        None
+    );
+    assert_eq!(pet_autocast_toggle(0), None);
 }

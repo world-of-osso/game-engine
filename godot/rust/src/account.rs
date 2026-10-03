@@ -55,7 +55,7 @@ use shared::protocol::{
     MailChannel, MailFailed, MailRequest, MailSent, MailboxContents, PendingMail, SendMail,
     UseGameObject,
 };
-use shared::protocol::{PetAction, PetClearSpells, PetSpells};
+use shared::protocol::{PetAction, PetClearSpells, PetSpellAutocast, PetSpells};
 
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
 use game_engine_ui_model::merchant_data::MerchantRequest;
@@ -417,6 +417,14 @@ impl Account {
     pub fn send_pet_action(&self, action: PetAction) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, CombatChannel>(action)
+            .map_err(SessionError)
+    }
+
+    /// `CMSG_PET_SPELL_AUTOCAST` (`TogglePetAutocast`): autocast of the pet's `spell` on or
+    /// off.
+    pub fn send_pet_spell_autocast(&self, toggle: PetSpellAutocast) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(toggle)
             .map_err(SessionError)
     }
 
