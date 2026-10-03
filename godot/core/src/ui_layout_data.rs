@@ -47,6 +47,17 @@ pub struct ActiveLayout {
     pub skin: LayoutSkin,
 }
 
+/// The Modern preset: the layout of a character that never chose one.
+impl Default for ActiveLayout {
+    fn default() -> Self {
+        let (name, skin) = SYSTEM_PRESETS[0];
+        Self {
+            name: name.to_string(),
+            skin,
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize)]
 struct SavedElement {
     anchor: HudAnchor,
@@ -109,13 +120,11 @@ fn layout_skin(file: &LayoutFile, name: &str) -> Result<LayoutSkin, String> {
 /// The character's active layout; a character that never chose one uses the Modern preset.
 pub fn active_layout(path: &Path, character_id: u64) -> Result<ActiveLayout, String> {
     let file = read_layout(path)?;
-    let name = file
-        .edit_mode
-        .active_layout
-        .get(&character_id.to_string())
-        .map_or(SYSTEM_PRESETS[0].0, String::as_str);
+    let Some(name) = file.edit_mode.active_layout.get(&character_id.to_string()) else {
+        return Ok(ActiveLayout::default());
+    };
     Ok(ActiveLayout {
-        name: name.to_string(),
+        name: name.clone(),
         skin: layout_skin(&file, name)?,
     })
 }

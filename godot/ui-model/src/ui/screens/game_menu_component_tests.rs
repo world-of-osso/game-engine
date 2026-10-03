@@ -29,6 +29,7 @@ fn model(view: GameMenuView) -> GameMenuViewModel {
             camera: camera_view(),
             hud: hud_view(),
             bindings: bindings_view(),
+            active_layout: "Modern".into(),
         },
     }
 }

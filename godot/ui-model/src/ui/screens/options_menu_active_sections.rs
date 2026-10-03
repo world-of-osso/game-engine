@@ -15,6 +15,10 @@ use super::options_menu_sections;
 use crate::input_bindings::BindingSection;
 use crate::soft_target_data::InteractKeyIcons;
 use crate::status_text_data::StatusTextDisplay;
+use game_engine_core::ui_layout_data::SYSTEM_PRESETS;
+
+/// `choice_row` key of the HUD "Layout" dropdown.
+pub const LAYOUT_CHOICE_KEY: &str = "ui_layout";
 
 #[path = "options_menu_active_sections_keybindings.rs"]
 mod keybindings_section;
@@ -163,6 +167,20 @@ fn status_text_row(selected: StatusTextDisplay) -> Element {
     )
 }
 
+/// Retail Edit Mode "Layout" dropdown (`Blizzard_EditMode/Shared/EditModeManager.xml:50`,
+/// `EditModeManager.lua:1277-1310`) over the system presets. This client has no Edit Mode
+/// window yet, so the dropdown heads HUD options; a saved layout lights no preset.
+fn layout_row(active_layout: &str) -> Element {
+    let choices: Vec<(u8, &str)> = (0u8..)
+        .zip(SYSTEM_PRESETS.iter().map(|&(name, _)| name))
+        .collect();
+    let selected = (0u8..)
+        .zip(SYSTEM_PRESETS)
+        .find_map(|(index, (name, _))| (name == active_layout).then_some(index))
+        .unwrap_or(u8::MAX);
+    choice_row(LAYOUT_CHOICE_KEY, "Layout", &choices, selected)
+}
+
 /// A dropdown's `(value, label)` choices as one segmented row; the selected one is lit.
 fn choice_row(key: &str, label: &str, choices: &[(u8, &str)], selected: u8) -> Element {
     let segment_w = CHOICE_ROW_W / choices.len() as f32;
@@ -278,9 +296,10 @@ fn accessibility_info_rows() -> Element {
     .collect()
 }
 
-pub fn hud_body(hud: &HudOptionsView) -> Element {
+pub fn hud_body(hud: &HudOptionsView, active_layout: &str) -> Element {
     content_stack(
         [
+            layout_row(active_layout),
             toggle_row("show_minimap", "Show Minimap", hud.show_minimap),
             toggle_row("show_action_bars", "Show Action Bars", hud.show_action_bars),
             toggle_row("show_nameplates", "Show Nameplates", hud.show_nameplates),
