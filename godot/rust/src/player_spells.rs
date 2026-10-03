@@ -1,26 +1,46 @@
 //! The owning player's spell state from the server (Bevy `game/player_spells.rs`):
-//! known spells in learn order, active specialization, the 120 action slots and
-//! running cooldowns including the global cooldown.
+//! known spells in learn order, active specialization, the action slots, running
+//! cooldowns including the global cooldown, and spell charges.
 
 use std::collections::HashMap;
 
 use game_engine_core::spell_catalog::SpellCatalogData;
 use shared::components::AuraView;
-use shared::protocol::{ActionRef, SpellCooldownUpdate};
+use shared::protocol::{ActionRef, SpellChargesUpdate, SpellCooldownUpdate};
 
-/// Server action bar slots 0..=119.
-pub(crate) const ACTION_SLOT_COUNT: usize = 120;
+/// Server action bar slots 0..=179 (TrinityCore Player.h `MAX_ACTION_BUTTONS` 180).
+pub(crate) const ACTION_SLOT_COUNT: usize = 180;
 /// Retail `NUM_ACTIONBAR_BUTTONS` / `NUM_ACTIONBAR_PAGES` (ActionButtonUtil.lua).
 const NUM_ACTIONBAR_BUTTONS: usize = 12;
 const NUM_ACTIONBAR_PAGES: usize = 6;
 
+/// `SPELL_AURA_ADV_FLYING` (TrinityCore SpellAuraDefines.h:533), the Skyriding aura
+/// 406095's effect 0.
+const AURA_ADV_FLYING: u16 = 446;
+/// The bonus bar of the Skyriding abilities, action slots 120..=131: Retail's Skyriding
+/// tutorial looks for Surge Forward past `(NUM_ACTIONBAR_PAGES + GetBonusBarOffset() - 1) *
+/// NUM_ACTIONBAR_BUTTONS` (Blizzard_Tutorials_RPE.lua:446), the macro conditional
+/// `[bonusbar:5]`.
+pub(crate) const SKYRIDING_BONUS_BAR: u8 = 5;
+
 /// `C_ActionBar.GetBonusBarOffset`: the `BonusActionBar` of the player's shapeshift
-/// form, which comes from its form aura (one form at a time).
+/// form, which comes from its form aura (one form at a time), or the Skyriding bar while
+/// an ADV_FLYING aura lets the player skyride.
 pub(crate) fn bonus_bar_offset(auras: &[AuraView], catalog: &SpellCatalogData) -> u8 {
     auras
         .iter()
         .filter_map(|aura| catalog.get(aura.spell_id))
-        .map(|spell| spell.bonus_bar)
+        .map(|spell| {
+            if spell
+                .effects
+                .iter()
+                .any(|effect| effect.aura == AURA_ADV_FLYING)
+            {
+                SKYRIDING_BONUS_BAR
+            } else {
+                spell.bonus_bar
+            }
+        })
         .find(|&offset| offset > 0)
         .unwrap_or(0)
 }
@@ -57,6 +77,39 @@ impl CooldownTimer {
     }
 }
 
+/// Charges of one charge category, recovered locally between server updates the way
+/// Retail's `SpellHistory` restores one every `recharge` seconds (`C_Spell.GetSpellCharges`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(crate) struct ChargeTimer {
+    pub current: u8,
+    pub max: u8,
+    pub recharge: f32,
+    /// Seconds until the next charge returns; meaningful while `current < max`.
+    pub remaining: f32,
+}
+
+impl ChargeTimer {
+    fn tick(&mut self, dt: f32) {
+        let mut dt = dt;
+        while self.current < self.max && dt >= self.remaining {
+            dt -= self.remaining;
+            self.current += 1;
+            self.remaining = self.recharge;
+        }
+        if self.current < self.max {
+            self.remaining -= dt;
+        }
+    }
+
+    /// How far the recovering charge is, 0..1 (a full category has none recovering).
+    pub fn recovered(&self) -> f32 {
+        if self.current >= self.max || self.recharge <= 0.0 {
+            return 0.0;
+        }
+        (1.0 - self.remaining / self.recharge).clamp(0.0, 1.0)
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub(crate) struct PlayerSpells {
     known: Vec<u32>,
@@ -64,6 +117,8 @@ pub(crate) struct PlayerSpells {
     slots: [Option<ActionRef>; ACTION_SLOT_COUNT],
     cooldowns: HashMap<u32, CooldownTimer>,
     gcd: Option<CooldownTimer>,
+    /// By `ChargeCategory`.
+    charges: HashMap<u32, ChargeTimer>,
 }
 
 impl Default for PlayerSpells {
@@ -74,6 +129,7 @@ impl Default for PlayerSpells {
             slots: [None; ACTION_SLOT_COUNT],
             cooldowns: HashMap::new(),
             gcd: None,
+            charges: HashMap::new(),
         }
     }
 }
@@ -138,7 +194,28 @@ impl PlayerSpells {
         }
     }
 
+    /// `SpellChargesUpdate` (`SMSG_SET_SPELL_CHARGES`): the category's charges now.
+    pub fn apply_charges(&mut self, update: &SpellChargesUpdate) {
+        self.charges.insert(
+            update.category,
+            ChargeTimer {
+                current: update.current,
+                max: update.max,
+                recharge: update.recharge_ms as f32 / 1000.0,
+                remaining: update.remaining_ms as f32 / 1000.0,
+            },
+        );
+    }
+
+    /// Charges of `category` the server reported, recovered to now; None before any.
+    pub fn charges(&self, category: u32) -> Option<ChargeTimer> {
+        self.charges.get(&category).copied()
+    }
+
     pub fn tick(&mut self, dt: f32) {
+        for charges in self.charges.values_mut() {
+            charges.tick(dt);
+        }
         self.cooldowns.retain(|_, timer| timer.tick(dt));
         if let Some(gcd) = &mut self.gcd
             && !gcd.tick(dt)
@@ -171,7 +248,7 @@ impl PlayerSpells {
 
 #[cfg(test)]
 mod tests {
-    use game_engine_core::spell_catalog::CatalogSpell;
+    use game_engine_core::spell_catalog::{CatalogEffect, CatalogSpell};
 
     use super::*;
 
@@ -186,6 +263,14 @@ mod tests {
     const CAT_FORM: u32 = 768;
     const BEAR_FORM: u32 = 5487;
     const BATTLE_STANCE: u32 = 386164;
+    /// The Skyriding aura (MountCapability 494) and its abilities.
+    const SKYRIDING: u32 = 406095;
+    const SURGE_FORWARD: u32 = 372608;
+    const SKYWARD_ASCENT: u32 = 372610;
+    const AERIAL_HALT: u32 = 403092;
+    const WHIRLING_SURGE: u32 = 361584;
+    const SECOND_WIND: u32 = 425782;
+    const SKYRIDING_CHARGES: u32 = 2391;
 
     fn cooldown(
         spell_id: u32,
@@ -249,10 +334,27 @@ mod tests {
             bonus_bar,
             ..Default::default()
         };
+        // Skyriding 406095 effect 0: APPLY_AURA ADV_FLYING.
+        let skyriding = CatalogSpell {
+            effects: Box::new([CatalogEffect {
+                index: 0,
+                effect: 6,
+                aura: 446,
+                base_points: 0.0,
+                aura_period_ms: 0,
+                chain_targets: 0,
+                radius_yd: 0.0,
+                spell_power_coefficient: 0.0,
+                attack_power_coefficient: 0.0,
+                level_scaled: false,
+            }]),
+            ..spell(SKYRIDING, 0)
+        };
         let spells = vec![
             spell(CAT_FORM, 1),
             spell(BEAR_FORM, 3),
             spell(BATTLE_STANCE, 0),
+            skyriding,
         ];
         SpellCatalogData::from_parts(spells, Default::default())
     }
@@ -323,5 +425,68 @@ mod tests {
         let bar = main_bar(&spells, &[aura(BATTLE_STANCE)]);
         assert_eq!(bar[0], Some(ActionRef::Spell(SLAM)));
         assert!(!bar.contains(&Some(ActionRef::Spell(ATTACK))));
+    }
+
+    /// The server's Skyriding bar (bonus bar 5, slots 120..=124) replaces the main bar while
+    /// the Skyriding aura is up; dismounting (the aura gone) shows page 1 again.
+    #[test]
+    fn the_skyriding_aura_pages_the_main_bar_to_the_skyriding_bar() {
+        let mut spells = PlayerSpells::default();
+        let skyriding_bar = [
+            SURGE_FORWARD,
+            SKYWARD_ASCENT,
+            AERIAL_HALT,
+            WHIRLING_SURGE,
+            SECOND_WIND,
+        ];
+        let mut slots = vec![(0, ActionRef::Spell(SLAM))];
+        slots.extend(
+            (120..)
+                .zip(skyriding_bar)
+                .map(|(slot, spell)| (slot, ActionRef::Spell(spell))),
+        );
+        spells.set_bar(&slots);
+
+        let mounted = main_bar(&spells, &[aura(SKYRIDING)]);
+        let expected: Vec<_> = skyriding_bar
+            .iter()
+            .map(|&spell| Some(ActionRef::Spell(spell)))
+            .chain([None; 7])
+            .collect();
+        assert_eq!(mounted, expected);
+
+        let dismounted = main_bar(&spells, &[]);
+        assert_eq!(dismounted[0], Some(ActionRef::Spell(SLAM)));
+        assert_eq!(dismounted[1..], [None; 11]);
+    }
+
+    /// Two Skyriding Charges spent (4 of 6 left, 10.35 s each): the client recovers them
+    /// between updates, one every 10.35 s, and stops at 6.
+    #[test]
+    fn skyriding_charges_recover_locally_between_updates() {
+        let mut spells = PlayerSpells::default();
+        assert_eq!(spells.charges(SKYRIDING_CHARGES), None);
+        spells.apply_charges(&SpellChargesUpdate {
+            spell_id: SKYWARD_ASCENT,
+            category: SKYRIDING_CHARGES,
+            current: 4,
+            max: 6,
+            recharge_ms: 10_350,
+            remaining_ms: 8_000,
+        });
+        spells.tick(4.0);
+        let charges = spells.charges(SKYRIDING_CHARGES).unwrap();
+        assert_eq!(charges.current, 4);
+        assert!((charges.recovered() - 6.35 / 10.35).abs() < 1e-4);
+
+        // The fifth returns 4 s later; the sixth starts recovering from there.
+        spells.tick(5.0);
+        let charges = spells.charges(SKYRIDING_CHARGES).unwrap();
+        assert_eq!(charges.current, 5);
+        assert!((charges.remaining - 9.35).abs() < 1e-4);
+
+        spells.tick(30.0);
+        let charges = spells.charges(SKYRIDING_CHARGES).unwrap();
+        assert_eq!((charges.current, charges.recovered()), (6, 0.0));
     }
 }

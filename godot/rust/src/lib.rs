@@ -96,6 +96,7 @@ mod unit_menu;
 mod unit_pick;
 mod unit_portraits;
 mod vignettes;
+mod vigor;
 mod waypoint_path;
 mod window_stack;
 mod wmo;
