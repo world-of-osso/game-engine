@@ -36,6 +36,23 @@ python3 scripts/depot-build.py --root "$PWD" --cli
 
 `--fixture`, `--cli`, `--release`, and `--test` retain their arguments and source/assets behavior on both hosts. For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host desktop --test -p game-engine-core` (substitute `local` as needed). Host selection does not make GDScript or GPU tests part of `--test`.
 
+## Server builds and tests
+
+`scripts/desktop-server-build.py` selects its host like the extension helper: `--build-host desktop|local`, else the saved `~/.config/game-engine/build-host`. `--test` uses the same selection.
+
+```sh
+# Export target/debug/{game-server,game-server-admin,game-cli} into the server checkout (--release/--bin as needed):
+python3 scripts/desktop-server-build.py --root ../game-server
+# Same, against a shared-protocol branch worktree instead of ../shared-protocol:
+DEPOT_SIBLING_SHARED_PROTOCOL=/path/to/shared-protocol-branch python3 scripts/desktop-server-build.py --root ../game-server
+# `cargo test --locked` for the server workspace; every argument after --test goes to cargo:
+python3 scripts/desktop-server-build.py --root ../game-server --test -- --skip query_300k_listings_under_200ms
+```
+
+`--test` cannot combine with `--release`, `--bin` or `--save-build-host`. It prints the log tail and summary, saves the full log to `<root>/target/server-test.log`, and exits with cargo's status. Tests read their data from the paths they use locally: `scripts/desktop-server/test-data.txt` lists files, directories and globs under the server checkout's `data/` and its sibling game-engine's `data/` (`DEPOT_SIBLING_GAME_ENGINE` overrides it). An entry matching nothing fails before the host is used; tests needing an unlisted file fail on the host with their own missing-path error. `rsync` mirrors the list (size+mtime quick check, unlisted files deleted) to one `server-test-data` directory per host (`/root/.cache/game-engine/` in OssoBuild, `~/.cache/game-engine/depot-build/` locally), which the Dockerfile `test` stage binds read-only as the `test-data` build context: the game-engine part sits at `<checkout parent>/game-engine/data`, beside the checkout (the image keeps the host checkout paths) where the server's ground and LOS load by default, and the server part is copied to `data/` because SQLite writes beside `world.db`. Every checkout shares that mirror, so server test runs serialize on its lock. The first sync of the ~12 GB ground/LOS set over the ~17 MB/s desktop link takes about 12 minutes; the desktop mirror was seeded from the trial ground copy instead.
+
+On October 3, 2026, `--test --no-fail-fast -- --skip query_300k_listings_under_200ms` on desktop against game-server `a8d9c58` passed 1394 tests (53 ignored, exit 0). Against `04e65e0` (before the checkout-path image) it ran 1392 passed and failed `creature_aggro::tests::neutral_boar_attacked_by_a_players_pet_fights_the_pet` twice on different assertions. After the initial `world.db` upload, a rerun's sync took about 1-3 s.
+
 ## Desktop runtime capability boundary
 
 Build-host selection does not start runtime processes. `python3 scripts/desktop-server-build.py --root ../game-server` builds and exports compatible Linux server, admin, and game-cli executables from current sources; an old Arch-built server requires newer glibc than Ubuntu 24.04. Stage those executables under `bin/`, a consistent SQLite backup at `data/world.db`, `data/gametables/`, and `data/economy/config.json` in an owned WSL runtime directory. Set `GAME_SERVER_GROUND_DIR` to an owned copy of the ground assets selected by the server's `scripts/ground_files.py`, including the complete `los/` bake. Never copy live `game.redb`. The bounded fixture `scripts/tests/desktop_server_smoke.py <staged-root>` starts a loopback UDP server on port 15001 with fresh player storage, requires admin `pong` and a disposable-account authenticated roster, then stops its owned process. On October 3, 2026, fixture `8ef0928c` passed admin `pong` and an authenticated disposable-account UDP roster after this complete staging (`target/desktop-server-smoke-complete-data.log`). Earlier missing economy/ground/LOS failures were staging defects; existing world-data warnings remain. This is server capability proof, not gameplay acceptance.

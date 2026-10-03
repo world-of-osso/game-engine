@@ -1,0 +1,14 @@
+# Data synced for `scripts/desktop-server-build.py --test`; see docs/remote-builds.md.
+# <repo>/<path under that repo's data/>: a file, a directory ending in `/`, or a glob.
+# game-engine is the server checkout's sibling (DEPOT_SIBLING_GAME_ENGINE overrides it),
+# where the server's ground and line of sight load by default.
+# Tests needing files absent here fail on the build host with their own missing-path error.
+
+game-server/world.db
+game-server/economy/config.json
+
+# Ground of every spawned map (ADT terrain, WDTs, WMO floors) and the LOS bake.
+game-engine/terrain/*.adt
+game-engine/terrain/*.wdt
+game-engine/models/*.wmo
+game-engine/los/
