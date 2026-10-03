@@ -71,8 +71,10 @@ fn validate_capsule(capsule: &Capsule) -> Result<(), String> {
     let start = Vec3::from_array(capsule.start);
     let end = Vec3::from_array(capsule.end);
     let length_squared = start.distance_squared(end);
-    if !start.is_finite() || !end.is_finite() || !length_squared.is_finite() || length_squared <= 0.
-    {
+    let finite_endpoints = start.is_finite() && end.is_finite();
+    let positive_length = length_squared.is_finite() && length_squared > 0.;
+    let valid_segment = finite_endpoints && positive_length;
+    if !valid_segment {
         return Err("endpoints must be finite and distinct".into());
     }
     if !capsule.radius.is_finite() || capsule.radius <= 0. {
@@ -104,7 +106,10 @@ fn validate_branch(branch: &BranchAnnotation) -> Result<(), String> {
     }
     let min = Vec3::from_array(branch.region_min);
     let max = Vec3::from_array(branch.region_max);
-    if !min.is_finite() || !max.is_finite() || !min.cmplt(max).all() {
+    let finite_bounds = min.is_finite() && max.is_finite();
+    let ordered_bounds = min.cmplt(max).all();
+    let valid_region = finite_bounds && ordered_bounds;
+    if !valid_region {
         return Err("region bounds must be finite and strictly ordered".into());
     }
     Ok(())
