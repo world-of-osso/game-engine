@@ -3,13 +3,13 @@
 import importlib
 import json
 import os
-from pathlib import Path
 import signal
 import subprocess
 import sys
 import tempfile
 import time
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 SCRIPTS = Path(__file__).resolve().parents[1]
@@ -350,15 +350,50 @@ class NativeTests(unittest.TestCase):
                             [],
                         )
 
+    def test_worker_cli_invalid_key_reports_failure(self):
+        request = ["invalid/key", "project", ["build"], None, None, False, {}]
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPTS / "native_build_hosts.py"),
+                "unused.tar.gz",
+                json.dumps(request),
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("native worker failed: invalid checkout cache key", result.stderr)
+        self.assertNotIn("Traceback", result.stderr)
+        self.assertFalse((self.base / "cargo.log").exists())
+
+    def test_worker_cli_unexpected_request_keeps_traceback(self):
+        result = subprocess.run(
+            [
+                sys.executable,
+                str(SCRIPTS / "native_build_hosts.py"),
+                "unused.tar.gz",
+                "[]",
+            ],
+            capture_output=True,
+            text=True,
+            check=False,
+        )
+        self.assertEqual(result.returncode, 1)
+        self.assertIn("Traceback", result.stderr)
+        self.assertIn("TypeError", result.stderr)
+        self.assertFalse((self.base / "cargo.log").exists())
+
     def test_no_build_missing_binary_fails_without_cargo(self):
         for host in ("local", "desktop"):
             with self.subTest(host=host):
-                arguments = dict(
-                    runtime_args=[],
-                    binary="fixture",
-                    root=self.context / "project",
-                    build=False,
-                )
+                arguments = {
+                    "runtime_args": [],
+                    "binary": "fixture",
+                    "root": self.context / "project",
+                    "build": False,
+                }
                 if host == "local":
                     with self.assertRaisesRegex(FileNotFoundError, "fixture"):
                         self.h.execute(
@@ -452,27 +487,29 @@ class NativeTests(unittest.TestCase):
         archive = self.base / "snapshot.tar.gz"
         self.h.pack_directory(self.context, archive)
         original_exists = Path.exists
-        with patch.object(
-            Path,
-            "exists",
-            lambda path: (
-                False
-                if str(path).startswith("/run/user/") and path.name == "bus"
-                else original_exists(path)
+        with (
+            patch.object(
+                Path,
+                "exists",
+                lambda path: (
+                    False
+                    if str(path).startswith("/run/user/") and path.name == "bus"
+                    else original_exists(path)
+                ),
             ),
+            self.assertRaisesRegex(RuntimeError, "bus"),
         ):
-            with self.assertRaisesRegex(RuntimeError, "bus"):
-                self.h.worker(
-                    archive,
-                    "bus",
-                    "project",
-                    ["build"],
-                    None,
-                    None,
-                    False,
-                    {},
-                    monitor=False,
-                )
+            self.h.worker(
+                archive,
+                "bus",
+                "project",
+                ["build"],
+                None,
+                None,
+                False,
+                {},
+                monitor=False,
+            )
         self.assertFalse((self.base / "cache/bus/target/observed.json").exists())
 
     def test_second_build_during_runtime_and_stopped_heartbeat_cleanup(self):
@@ -652,11 +689,13 @@ class NativeTests(unittest.TestCase):
             self.h.execute(self.context, "key", "project", ["build"], "other")
         with self.assertRaises(ValueError):
             self.h.execute(self.context, "key", "project", ["build"], "local")
-        with patch.object(
-            self.h, "windows_profile", side_effect=OSError("host unavailable")
+        with (
+            patch.object(
+                self.h, "windows_profile", side_effect=OSError("host unavailable")
+            ),
+            self.assertRaisesRegex(OSError, "host unavailable"),
         ):
-            with self.assertRaisesRegex(OSError, "host unavailable"):
-                self.h.execute(self.context, "key", "project", ["build"], "desktop")
+            self.h.execute(self.context, "key", "project", ["build"], "desktop")
         self.assertFalse((self.context / "project/target").exists())
 
     def test_desktop_full_transport_status_and_no_exports(self):
@@ -683,11 +722,11 @@ class NativeTests(unittest.TestCase):
             with (
                 self.subTest(stage=stage),
                 patch.dict(os.environ, {"FAIL_STAGE": stage}),
+                self.assertRaises(subprocess.CalledProcessError),
             ):
-                with self.assertRaises(subprocess.CalledProcessError):
-                    self.h.execute(
-                        self.context, "failed-key", "project", ["build"], "desktop"
-                    )
+                self.h.execute(
+                    self.context, "failed-key", "project", ["build"], "desktop"
+                )
             self.assertFalse((self.base / "cache/failed-key").exists())
 
     def test_desktop_wrapper_signal_closes_lease_and_kills_remote_cargo(self):
