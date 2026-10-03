@@ -14,6 +14,7 @@ use ui_toolkit::widgets::button::ButtonState;
 fn build(view: MicroMenuView) -> FrameRegistry {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(view);
     Screen::new(micro_menu_screen).sync(&shared, &mut registry);
     registry

@@ -13,6 +13,7 @@ const SLAM_ICON: u32 = 132340;
 fn build(state: MainActionBarState) -> FrameRegistry {
     let mut registry = FrameRegistry::new(1280.0, 720.0);
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(state);
     Screen::new(main_action_bar_screen).sync(&shared, &mut registry);
     registry

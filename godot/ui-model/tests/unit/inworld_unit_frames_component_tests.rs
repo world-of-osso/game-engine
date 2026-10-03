@@ -277,6 +277,7 @@ fn cluster_registry() -> FrameRegistry {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(inworld_unit_frames_screen).sync(&sample_unit_frames_context(), &mut reg);
     let mut cast = SharedContext::new();
+    cast.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     cast.insert(CastingBarState {
         visible: true,
         ..CastingBarState::default()
@@ -289,6 +290,7 @@ fn cluster_registry() -> FrameRegistry {
 fn sample_unit_frames_context() -> SharedContext {
     let target = sample_target_frame_state();
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
@@ -363,6 +365,7 @@ fn the_difficulty_submenu_is_laid_out_when_it_opens_on_a_settled_menu() {
     app.cleanup();
     let mut screen = Screen::new(inworld_unit_frames_screen);
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     open_menu_state(&mut shared, None);
     {
         let mut ui = app.world_mut().resource_mut::<crate::ui::plugin::UiState>();

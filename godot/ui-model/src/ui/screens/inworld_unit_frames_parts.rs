@@ -4,6 +4,7 @@ use ui_toolkit::widget_def::Element;
 use super::inworld_unit_frames_art::AtlasArt;
 use super::inworld_unit_frames_layout::TextAnchors;
 use super::{DynName, PortraitSlot, Rect, UNIT_FONT, VALUE_TEXT, dyn_name};
+use crate::hud_layout::HudAnchor;
 use crate::status_text_data::StatusBarText;
 
 pub(super) struct BarSpec<'a> {
@@ -17,18 +18,19 @@ pub(super) struct BarSpec<'a> {
     pub(super) hidden: bool,
 }
 
-/// Cluster frame anchored from the screen's bottom centre (`left` is the offset of the
-/// frame's left edge from the centre line): `portrait` under its `art`, then `content`.
+/// Unit frame at its preset `anchor` on the screen: `portrait` under its `art`, then
+/// `content`.
 pub(super) fn art_root(
     name: DynName,
     (width, height): (f32, f32),
-    (left, bottom): (f32, f32),
+    anchor: &HudAnchor,
     hidden: bool,
     (art, art_rect): (&AtlasArt, Rect),
     portrait: Element,
     content: Element,
 ) -> Element {
     let art = art_texture(dyn_name(format!("{}Art", name.0)), art, art_rect, false);
+    let at = anchor.place((width, height));
     rsx! {
         r#frame {
             name,
@@ -37,9 +39,12 @@ pub(super) fn art_root(
             hidden,
             mouse_enabled: true,
             pos_type: "absolute",
-            left: "50%",
-            margin_left: left,
-            bottom,
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {portrait}
             {art}
             {content}

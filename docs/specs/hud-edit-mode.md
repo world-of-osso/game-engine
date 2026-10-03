@@ -19,6 +19,13 @@ Edit Mode" and open decision 1 (layouts account-wide, active layout per characte
 - [x] Persistence: `ui_layout.ron` beside `options_settings.ron`, key `edit_mode: (layouts: {name: (elements: {key: (anchor, offset)})}, active_layout: {character: name})`, RON. Survives restart.
 - [x] The action-bar preview (bars 2–5 and mover labels) follows edit mode instead of owning F10.
 
+## Godot client presets
+
+- [x] Two system presets, Modern and Forever, set every HUD frame's anchor (`godot/ui-model/src/ui/hud_layout.rs`); the selected character's preset applies in the world and a switch moves the frames at once.
+- [x] Modern keeps the Retail Modern Edit Mode anchors.
+- [x] Forever puts player, target, target of target, focus, pet and the player cast bar at FlareUI's positions (`Modules/UnitFrames.lua:1888-1894`), and the micro menu, main action bar and bags bar at Forever's Camelot constants (`Blizzard_EditMode/Camelot/EditModePresetLayoutConstants.lua:6-10,38-49`). Its minimap, buffs, debuffs, party, raid, damage meter and objective tracker keep Modern's anchors, as Forever's own preset does.
+- Test: `godot/rust/src/ui/hud_layout_tests.rs`.
+
 ## Art
 
 - Selection boxes: `Interface/EditMode/EditModeUIHighlightBackground.blp` (FDID 4554383) and `EditModeUISelectedBackground.blp` (4554386), stretched, alpha 0.7. Retail slices these as nine-slices; this uses them stretched.

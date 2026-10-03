@@ -3,6 +3,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::hud_layout::{HudAnchor, hud_layout};
 use crate::ui::screens::bag_frame_component::bag_toggle_action;
 use crate::ui::screens::bags_bar_art::{
     BACKPACK, BAG_ARROW, BAG_SLOT, BAG_SLOT_EMPTY, REAGENT_SLOT, REAGENT_SLOT_EMPTY, SheetCrop,
@@ -10,15 +11,9 @@ use crate::ui::screens::bags_bar_art::{
 
 struct DynName(String);
 
-// Retail MicroButtonAndBagsBar placement, retained for the standalone strip.
-const MICRO_BAGS_INSET: f32 = 6.0;
-const MICRO_BAGS_BAR_H: f32 = 80.0;
-const BAGS_ABOVE_BAR: f32 = 10.0;
 /// Retail BagsBar: 47 high, backpack 48x48, bag slots 30x30 chained with no padding
 /// (Blizzard_MainMenuBarBagButtons/Mainline/MainMenuBarBagButtons.xml).
 const BAGS_BAR_H: f32 = 47.0;
-const BAGS_BAR_RIGHT: f32 = MICRO_BAGS_INSET;
-const BAGS_BAR_BOTTOM: f32 = MICRO_BAGS_INSET + MICRO_BAGS_BAR_H + BAGS_ABOVE_BAR - BAGS_BAR_H;
 pub(super) const BAG_SLOT_SIZE: f32 = 30.0;
 pub(super) const BACKPACK_SIZE: f32 = 48.0;
 pub(super) const BAG_SLOT_GAP: f32 = 0.0;
@@ -56,7 +51,7 @@ pub struct BagBarState {
 }
 
 pub fn bags_bar_screen(ctx: &SharedContext) -> Element {
-    bag_bar(ctx.get::<BagBarState>().copied())
+    bag_bar(ctx.get::<BagBarState>().copied(), &hud_layout(ctx).bags_bar)
 }
 
 // Same leading-denomination omission as auction_house_data::Money::display.
@@ -78,7 +73,7 @@ fn format_money(money: u64) -> String {
 /// on the backpack. Collapsed, the four bag slots hide and the reagent slot, which stays
 /// shown, chains on from the toggle (BagsBar.lua:62-107, MainMenuBarBagButtons.lua:259,
 /// 391). Money (not part of the Retail bar) sits left of the bags.
-fn bag_bar(synced: Option<BagBarState>) -> Element {
+fn bag_bar(synced: Option<BagBarState>, anchor: &HudAnchor) -> Element {
     let state = synced.unwrap_or_default();
     // GetBagBarLength counts hidden bag buttons too: the bar keeps its length.
     let bags_w = (BAG_COUNT + 1) as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
@@ -126,14 +121,19 @@ fn bag_bar(synced: Option<BagBarState>) -> Element {
         icon: None,
     };
     let count = synced.map_or_else(Vec::new, |s| backpack_count(s.free_slots));
+    let at = anchor.place((total_w, BAGS_BAR_H));
     rsx! {
         r#frame {
             name: "BagsBar",
             width: {total_w},
             height: {BAGS_BAR_H},
             pos_type: "absolute",
-            right: {BAGS_BAR_RIGHT},
-            bottom: {BAGS_BAR_BOTTOM},
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {bag_slot(backpack, backpack_x, centre_y(BACKPACK_SIZE), count)}
             {expand_toggle(toggle_x, centre_y(EXPAND_TOGGLE_H), state.collapsed)}
             {bags}

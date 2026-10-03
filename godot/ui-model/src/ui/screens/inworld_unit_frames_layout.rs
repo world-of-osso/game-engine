@@ -1,12 +1,8 @@
-//! Unit frame geometry in UI units. The player and target frames sit at the Retail Modern
-//! Edit Mode preset, target-of-target and focus to the target's right; the cast bar is
-//! centred above the action bars. Party frames (`group_frames_component`) sit left of the
-//! player frame, the raid grid above the action bars.
+//! Unit frame geometry in UI units. Where each frame sits comes from the active preset
+//! (`crate::hud_layout`).
 
-/// Width of the cast bar area centred above the action bars.
+/// Width of the cast bar area.
 pub const CAST_DOCK_W: f32 = 264.0;
-/// Cast bar bottom edge above the bottom of the screen; clears two action bar rows.
-pub const CLUSTER_BOTTOM: f32 = 152.0;
 
 /// Rect `(x, y, width, height)` from the parent's top-left.
 pub type Rect = (f32, f32, f32, f32);
@@ -16,15 +12,6 @@ pub type Rect = (f32, f32, f32, f32);
 /// TargetFrame.xml:79-83).
 pub const UNIT_FRAME_W: f32 = 232.0;
 pub const UNIT_FRAME_H: f32 = 100.0;
-
-/// Retail Modern preset PlayerFrame: BOTTOMRIGHT to UIParent BOTTOM at (-300, 250)
-/// (Blizzard_EditMode/Mainline/EditModePresetLayouts.lua:231-243).
-pub const PLAYER_FRAME_LEFT: f32 = -300.0 - UNIT_FRAME_W;
-pub const PLAYER_FRAME_BOTTOM: f32 = 250.0;
-/// Retail Modern preset TargetFrame: BOTTOMLEFT to UIParent BOTTOM at (300, 250)
-/// (EditModePresetLayouts.lua:245-257).
-pub const TARGET_FRAME_LEFT: f32 = 300.0;
-pub const TARGET_FRAME_BOTTOM: f32 = 250.0;
 
 /// A unit frame's text and bar slots, in its own top-left pixels.
 #[derive(Clone, Copy)]
@@ -151,14 +138,8 @@ pub const SMALL_FRAME_GAP: f32 = 8.0;
 pub const SMALL_ART_SCALE: f32 = 0.75;
 pub const TOT_W: f32 = FRAME_W * SMALL_ART_SCALE;
 pub const TOT_H: f32 = FRAME_H * SMALL_ART_SCALE;
-/// Right of the whole 232-wide TargetFrame, clear of its portrait and classification art.
-pub const TOT_LEFT: f32 = TARGET_FRAME_LEFT + UNIT_FRAME_W + SMALL_FRAME_GAP;
 pub const FOCUS_W: f32 = TOT_W;
 pub const FOCUS_H: f32 = TOT_H;
-pub const FOCUS_LEFT: f32 = TOT_LEFT + TOT_W + SMALL_FRAME_GAP;
-/// Small frames align with the top of the target's 192×67 `FrameTexture`.
-pub const SMALL_FRAME_BOTTOM: f32 =
-    TARGET_FRAME_BOTTOM + UNIT_FRAME_H - (UNIT_FRAME_H - 67.0) / 2.0 - TOT_H;
 
 /// Retail `PlayerFrameBottomManagedFramesContainer` hangs from the player frame's BOTTOM at
 /// (30, 25) (PlayerFrame.lua:758): its top is 4 px below the mana bar and its centre 61 px
@@ -195,16 +176,9 @@ pub(super) const VALUE_TEXT: &str = "1.0,1.0,1.0,1.0";
 pub(super) const UNIT_FONT: &str = "FrizQuadrata";
 pub(super) const UNIT_FONT_SIZE: f32 = 10.0;
 
-/// PetFrame 120×49 (PetFrame.xml:12-13): a `PlayerBottomManagedFrameTemplate` (`align`
-/// center, PlayerFrameTemplates.xml:4-10) with `leftPadding` 15, the first child of
-/// `PlayerBottomManagedFrameContainer`, whose TOP sits at PlayerFrame's BOTTOM + (30, 25)
-/// (PlayerFrame.xml:467-474). `VerticalLayoutMixin` puts a centred child's TOP at the
-/// container TOP + (leftPadding / 2, 0) (LayoutFrame.lua:345-348).
+/// PetFrame 120×49 (PetFrame.xml:12-13).
 pub const PET_FRAME_W: f32 = 120.0;
 pub const PET_FRAME_H: f32 = 49.0;
-pub const PET_FRAME_LEFT: f32 =
-    PLAYER_FRAME_LEFT + UNIT_FRAME_W / 2.0 + 30.0 + 15.0 / 2.0 - PET_FRAME_W / 2.0;
-pub const PET_FRAME_BOTTOM: f32 = PLAYER_FRAME_BOTTOM + 25.0 - PET_FRAME_H;
 
 /// `PetPortrait` 37×37 TOPLEFT (5, -5) under `PortraitMask` (`CircleMask`, atlas 1582
 /// `interface/masks/circlemask.blp`) over the same rect (PetFrame.xml:22-38).

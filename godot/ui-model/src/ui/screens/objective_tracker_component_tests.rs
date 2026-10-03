@@ -55,6 +55,7 @@ fn runtime(entries: Vec<QuestEntrySnapshot>, watched: Vec<u32>) -> QuestRuntime 
 fn build(state: ObjectiveTrackerState) -> FrameRegistry {
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(state);
     Screen::new(objective_tracker_screen).sync(&shared, &mut reg);
     compute_layout(&mut reg);
@@ -127,8 +128,8 @@ fn tracker_renders_headers_titles_and_lines_at_the_retail_anchor() {
     let reg = build(ObjectiveTrackerState::from_runtime(&runtime, false, false));
 
     let frame = rect(&reg, TRACKER_FRAME);
-    assert!((frame.x - (1920.0 - TRACKER_RIGHT - TRACKER_W)).abs() < 1.0);
-    assert!((frame.y - TRACKER_TOP).abs() < 1.0);
+    assert!((frame.x - (1920.0 - 110.0 - TRACKER_W)).abs() < 1.0);
+    assert!((frame.y - 275.0).abs() < 1.0);
     assert_eq!(
         fontstring_text(&reg, "ObjectiveTrackerFrameHeaderText"),
         "All Objectives"
