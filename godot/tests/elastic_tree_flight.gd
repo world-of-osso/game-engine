@@ -27,10 +27,14 @@ func run_test() -> void:
 	if not await enter_world():
 		return
 	player = client.get_node("WorldUnits/" + character) as Node3D
+	if not on_ground():
+		fail("Private fixture must spawn on terrain; server admin coordinates are WoW x/y/z, not engine x/up/z: " + str(player.position))
+		return
 	var ready_file := OS.get_environment("FLY_READY_FILE")
 	print("ELASTIC_TREE_FLIGHT READY_FOR_SPELLS")
 	if ready_file != "" and not await wait_until(func(): return FileAccess.file_exists(ready_file), 60000, ready_file):
 		return
+	await wait_frames(6)
 	client.set_world_minutes(720)
 	client.set_camera_orbit(0, -0.3, 30)
 	var sent: String = client.use_spell(GOLDEN_GRYPHON)
