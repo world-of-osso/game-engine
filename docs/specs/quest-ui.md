@@ -19,7 +19,17 @@ Retail objective tracker, quest log and quest giver frame on the live server que
 - [ ] Godot Edit Mode: Retail shows the empty tracker while Edit Mode is active (`Blizzard_ObjectiveTrackerContainer.lua:104-105`); the Godot client has no Edit Mode.
 - [ ] NPC portrait in the frame's portrait ring; scroll frames for texts taller than the parchment; super-tracking.
 
+## Skin-resolved quest chrome
+
+- Quest giver and quest log retain their Modern geometry and serialized frame trees. `RedButton-Exit`, `_UI-Frame-TopTileStreaks`, `QuestBG-Parchment` and `questlog_divider` resolve by atlas name under the active skin, then populate the existing FDID/UV fields. No local-texture fallback or layout change.
+- Forever close button selects FDID `8107307`, rect `(35,67,1,33)` on 256×128; Modern keeps `5262907`, `(21,39,1,20)` on 128×64. The three other members are unchanged set-0 art. Missing Forever BLP does not prevent atlas resolution.
+- Retail and Forever source roots: `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowforever}/AddOns`. Both `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:137` name the close button, `:76` the streaks; both `Blizzard_UIPanels_Game/Mainline/QuestFrameTemplates.xml:10` name the parchment. Neither XML/Lua export references `questlog_divider`; it is this client's pre-existing zone-header plate, named in both atlas exports.
+- `data/db2/12.1.0.69933/UiTextureAtlasMember.csv`: close `:8148`, streaks `:2848`, parchment `:5632`, divider `:3107`; `UiTextureAtlas.csv`: corresponding sheets `:1410`, `:674`, `:1053`, `:3`. Forever `data/db2/1.60.1.69913/UiTextureAtlasMember.csv`: close `:17773`, streaks `:2848`, parchment `:5635`, divider `:3107`; `UiTextureAtlas.csv`: `:2602`, `:674`, `:1054`, `:3`.
+- Settings and game-menu Modern trees are also fixture-covered, not restyled: their toggles/segmented choices are procedural; slider and panel/button art is project-owned KTX, not equivalent FDID crops. Replacing these with `minimalcheckbox`, `minimalsliderbar`, `commondropdown` or `options` would change Modern output and requires separate authorization.
+
 ## Tests asserting this spec
+
+- `godot/ui-model/tests/forever_quest_windows.rs` — exact Modern base tree bytes for four quest pages, quest log, logged-in/out menu and all settings categories; concrete Modern/Forever atlas regions and rendered quest texture fields, including a zone header.
 
 - `godot/ui-model/src/game/quest_runtime_tests.rs` — log deltas and accept lines, quest list per NPC, reward choice bounds, turn-in lines, token substitution.
 - `src/game/networking/quests_tests.rs` — message handlers through inboxes: gossip → Hello request, turn-in + chain offer in one batch, errors, IPC status, markers.

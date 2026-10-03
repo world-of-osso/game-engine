@@ -10,7 +10,7 @@ use ui_toolkit::widgets::font_string::GameFont;
 use crate::ui::screens::quest_art::{
     DynName, GOSSIP_ACTIVE_ICON, GOSSIP_AVAILABLE_ICON, GOSSIP_IN_PROGRESS_ICON,
     HIGHLIGHT_FONT_COLOR, QUEST_PARCHMENT, QUEST_SMALL_HEADER_COLOR, QUEST_TEXT_COLOR,
-    atlas_texture, panel_button, window_chrome, wrapped_text_height,
+    atlas_texture, named_atlas_texture, panel_button, window_chrome, wrapped_text_height,
 };
 use crate::ui::strata::FrameStrata;
 
@@ -158,9 +158,9 @@ pub fn quest_frame_screen(ctx: &SharedContext) -> Element {
         &state.npc_name,
         CLOSE_ACTION,
     );
-    let parchment = atlas_texture(
+    let parchment = named_atlas_texture(
         "QuestFrameParchment".into(),
-        &QUEST_PARCHMENT,
+        QUEST_PARCHMENT,
         (PARCHMENT_X, PARCHMENT_Y, PARCHMENT_W, PARCHMENT_H),
     );
     let page = page_elements(&state.page);
@@ -742,4 +742,3 @@ fn item_button(
     }
     elements
 }
-
