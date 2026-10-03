@@ -32,11 +32,19 @@ func run_test() -> void:
 	controller = tree.get_node("ElasticTree")
 	var camera := Camera3D.new()
 	root.add_child(camera)
+	var sun := DirectionalLight3D.new()
+	sun.rotation_degrees = Vector3(-35, -25, 0)
+	root.add_child(sun)
 	camera.position = Vector3(65, 35, 70)
 	camera.look_at(Vector3(0, 18, 0))
 	camera.current = true
 	camera.far = 200
 	await frames(3)
+	for model in [tree, other]:
+		for name in ["M2Animation", "M2MaterialAnimation"]:
+			var animation := model.get_node_or_null(name)
+			if animation != null:
+				animation.set_process(false)
 	await snapshot("rest")
 	if not check_trunk():
 		return
