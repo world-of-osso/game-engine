@@ -2,6 +2,7 @@ shader_type spatial;
 // The binder creates source variants for the authored blend, cull and depth state.
 render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;
 #include "res://shaders/m2_point_light.gdshaderinc"
+#include "res://shaders/tree_bend.gdshaderinc"
 
 // Retail M2 batch shading after WebWowViewerCpp 1a8cccb: calcM2VertexMat and
 // calcM2FragMaterial (commonM2Material.slang), the mesh colour, texture weights and
@@ -117,6 +118,10 @@ vec3 blend_output(vec3 rgb) {
 }
 
 void vertex() {
+	if (tree_bend_enabled) {
+		tree_bend(VERTEX, NORMAL, tree_pivot_0, tree_rotation_0, COLOR.r);
+		tree_bend(VERTEX, NORMAL, tree_pivot_1, tree_rotation_1, COLOR.g);
+	}
 	world_position = (MODEL_MATRIX * vec4(VERTEX, 1.0)).xyz;
 }
 
