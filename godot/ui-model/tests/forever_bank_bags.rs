@@ -13,8 +13,8 @@ use game_engine_ui_model::bank_frame_component::{
 };
 use game_engine_ui_model::panel_style_data::{MetalTopLeft, metal_frame_style};
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_active_skin};
-use ui_toolkit::frame::{Frame, WidgetData};
-use ui_toolkit::layout_values::{Dimension, Val};
+use ui_toolkit::frame::{Dimension, Frame, WidgetData};
+use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::strata::DrawLayer;
