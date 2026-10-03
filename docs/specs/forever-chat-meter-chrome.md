@@ -32,7 +32,7 @@ All rectangles use top-left screen coordinates. Derived coordinates below are ar
 
 Chart column boxes (x=4,9,14; y=12,8,4; width=3; heights=6,10,14 inside a 22-square hit box) are **measured** icon proportions adapted from the damage-meter reference, drawn geometrically rather than copying FlareUI Media. Gear art fills the 22-square box; zero-based column index and unit alpha are structural values, not screenshot claims.
 
-Class colours remain `RAID_CLASS_COLORS` (`damage_meter_data::class_color`); no changes to amounts, ordering or formatting. Atlas substitutions are explicit existing Blizzard art choices, not missing-texture fallbacks: chatballon, settings-shadowless, Forever guild/communities-up-c60-2x, sound-on and classicon-*; chart is drawn as three bronze columns because FlareUI's chart artwork is not reusable.
+Class colours remain `RAID_CLASS_COLORS` (`damage_meter_data::class_color`); no changes to amounts, ordering or formatting. Atlas substitutions are explicit existing Blizzard art choices, not missing-texture fallbacks: chatballon, settings-shadowless, UI-HUD-MicroMenu-GuildCommunities-Up (Forever set-1 sheet), sound-on and classicon-*; chart is drawn as three bronze columns because FlareUI's chart artwork is not reusable.
 
 ## How it works
 
