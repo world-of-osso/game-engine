@@ -97,6 +97,8 @@ pub struct DamageMeterRow {
     /// StatusBar fill: the source's damage over the session's highest.
     pub fraction: f32,
     pub color: [f32; 3],
+    /// Source class identity for the Forever row icon; no specialization is supplied.
+    pub class_id: u8,
     pub is_local_player: bool,
 }
 
@@ -171,6 +173,7 @@ impl DamageMeterWindow {
                     0.0
                 },
                 color: class_color(source.class_id),
+                class_id: source.class_id,
                 is_local_player: source.is_local_player,
             })
             .collect()

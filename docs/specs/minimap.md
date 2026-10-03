@@ -30,15 +30,17 @@ Retail sources are in `~/.cache/wow-ui-sim/blizzard-ui`: `Blizzard_Minimap/Mainl
 
 ### Forever skin (FlareUI square minimap)
 
-Layout numbers are FlareUI 1.3 `Modules/Minimap.lua:32-50,115-136` as quoted in the Forever plan; the FlareUI source was not available when this was built, so the placements marked *assumed* are not verified against it. FlareUI art is not used.
+Sources: local FlareUI 1.3 `data/reference/flareui/`; Forever Blizzard files relative to `~/.cache/wow-ui-sim/blizzard-ui/wowforever/AddOns/`. The user's `user-minimap-zoom-2026-10-03.png` and `user-flareui-hud-2026-10-03.png` references require a **bronze tooltip border rather than FlareUI's metal minimap frame**, and fixed yellow zone text. No FlareUI Media or new art.
 
-- [x] `MinimapCluster` is 260×260 at the Modern anchor; the map is 244×244 without a mask: the composite fills its corners and blips show anywhere on the square.
-- [x] The map is centred across (8 from each side) with its top at 16, one unit under the header (*assumed*).
-- [x] A 17-high header across the cluster's top holds the zone name from the left inset 8 (*assumed*) and the 40-wide clock with its TOPRIGHT on the header's TOPRIGHT, inset 8.
-- [x] The border is the `ButtonFrameTemplateNoPortrait` NineSlice (`metal_frame_no_portrait` panel style) around the cluster. Retail's compass ring, header bar, tracking button and calendar are not drawn.
-- [x] The mail icon sits 2 inside the map's top-left corner (*assumed*). Hover zoom buttons keep their offsets from the map centre.
-- [x] A skin switch rebuilds the cluster canvas and the composite.
-- [ ] Camelot round ring (`Blizzard_Minimap/Camelot/Skin.lua:9-18`: `UI-HUD-Minimap-Frame`, mask `ui-hud-minimap-frame-generic-mask`): not drawn, the FlareUI layout replaces it. Day/night ring (`Diel.lua`). The `uiframemetal2xc60` re-skin of the border (the panel style composes Retail's sheets by FileDataID).
+- [x] Cluster 260×260, map 244×244, centred at (8,8), square mask: FlareUI `Modules/Minimap.lua:32-37,301-304`. Blips and arrow follow the map; zoom behavior and map-centre-relative offsets remain unchanged.
+- [x] Header order: tracking, zone, clock, calendar. Header height 17, map-relative top 2, sides 6, gaps 2, clock width 40, calendar drop 1 (`Modules/Minimap.lua:42-47,200-208`). Tracking background `(14,10,17,17)`; its centred icon `(15,11,15,15)` uses height minus 2 (`:154-157`). Existing tracking art and behavior are reused.
+- [x] Zone rect `(35,10,150,17)` fills the bar before the clock, left-aligned without wrapping (`Modules/Minimap.lua:162-167`). User-requested fixed GameFontNormal yellow `[1,0.82,0,1]`, not PvP tint: `Blizzard_Fonts_Shared/Shared/FontStyles.xml:50-52`, explicit gold RGB in `Blizzard_Fonts_Shared/Mainline/FontStyles.xml:6-7`. FRIZQT 12 and black shadow offset `(1,-1)` from `Blizzard_Fonts_Shared/Shared/Fonts.xml:275-282`.
+- [x] White right-aligned clock `(185,10,40,17)` uses GameFontHighlight (`Modules/Minimap.lua:178-184`): white from `Blizzard_Fonts_Shared/Shared/FontStyles.xml:62-64`, FRIZQT 12 from `Shared/Fonts.xml:275-277`. Calendar `(227,10.5,19,18)` retains day art and behavior; its 19×18 size is `Blizzard_Minimap/Mainline/GameTime.xml:4`, placement derived from FlareUI `Modules/Minimap.lua:200-208`. Clock still uses the existing local-time format, not FlareUI's dynamic-width AM/PM clock.
+- [x] Bronze border only, no opaque centre: existing `UI-Tooltip-Border` mechanism, 16-pixel cells (`Modules/UnitFrames.lua:35,41`; `Core.lua:144`). Fixed tint `[0.65,0.49,0.27,1]`, labelled #A67D45 (`Core.lua:8`), not tooltip reaction tint #CC9957 `[0.80,0.60,0.34]` (`Modules/Tooltips.lua:48`). Border frame `(0,0,260,260)` derives from cluster size; corner/edge rects derive from its 16-pixel cells. No Retail metal NineSlice, compass ring or Retail header bar. Cache includes Blizzard border FDID 137057 and calendar art.
+- [x] Mail stays below the header, avoiding tracking overlap: `(14,33,20,15)` from map-relative side 6, title-band height 22, gap 3 (`Modules/Minimap.lua:41,44,50,226`); inherited art size 20×15 (`Retail Blizzard_Minimap/Mainline/Minimap.xml:99`).
+- [x] Modern serialized trees remain byte-identical to the pre-skin fixture; a skin switch rebuilds the cluster canvas and composite.
+
+No screenshot-measured header/border values remain. Inherited engine arrow/blip sizes are still assumptions listed below, not screenshot measurements. The old assumed map origin (8,16) and measured header placements were replaced by source-derived values. Round day/night sun button, objective tracker and zoom behavior are outside this change; the sun button remains pending a user decision.
 
 ### Not done
 - [ ] Indoor (WMO) minimaps, the indoor diameter table, and `rotateMinimap` 1.

@@ -7,7 +7,7 @@
 //! as a dynamic texture; every position here is in cluster-local UI units.
 //!
 //! Under the Forever skin the cluster is FlareUI's square minimap (FlareUI 1.3
-//! `Modules/Minimap.lua:32-50,115-136`): see [`FOREVER_STYLE`].
+//! `Modules/Minimap.lua:32-47,154-208,301-303`): see [`FOREVER_STYLE`].
 
 use game_engine_core::minimap_data::MapMask;
 use ui_toolkit::atlas::ActiveSkin;
@@ -19,12 +19,10 @@ use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::widgets::texture::{DynamicTextureId, TextureData, TextureSource};
 
+use crate::flare_panel::BORDER_FDID;
 use crate::hud_layout::hud_layout;
-use crate::panel_style_data::{
-    METAL_FRAME_NO_PORTRAIT_OUTSET, METAL_FRAME_NO_PORTRAIT_PANEL_STYLE, MetalTopLeft,
-    metal_sheet_fdids,
-};
-use crate::quest_art::metal_border;
+use crate::panel_style_data::{MetalTopLeft, metal_sheet_fdids};
+use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_flare::flare_border;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -86,15 +84,24 @@ const MODERN_STYLE: ClusterStyle = ClusterStyle {
     mask: MapMask::Round,
 };
 
-/// FlareUI header height: the zone name and the clock sit on it.
+/// FlareUI 1.3 Modules/Minimap.lua:42-47: header row geometry.
 const FOREVER_HEADER_H: f32 = 17.0;
-/// Gap between the cluster's sides and the map: (260 − 244) / 2.
+const FOREVER_HEADER_TOP: f32 = 2.0;
+const FOREVER_HEADER_SIDE: f32 = 6.0;
+const FOREVER_HEADER_GAP: f32 = 2.0;
+const FOREVER_CLOCK_W: f32 = 40.0;
+const FOREVER_CALENDAR_DROP: f32 = 1.0;
+/// Modules/Minimap.lua:41,50,226: indicators below the title band.
+const FOREVER_BAND_H: f32 = 22.0;
+const FOREVER_MAIL_GAP: f32 = 3.0;
+/// Forever Blizzard_Minimap/Mainline/GameTime.xml:4.
+const CALENDAR_SIZE: [f32; 2] = [19.0, 18.0];
+/// FlareUI Modules/Minimap.lua:33: gap between the cluster's sides and map.
 const FOREVER_INSET: f32 = 8.0;
-/// FlareUI's square minimap: a 244×244 map without a mask in a 260×260 cluster. The map
-/// is centred across and hangs below the header.
+/// FlareUI Modules/Minimap.lua:32-34,301-303: square map centred in the cluster.
 const FOREVER_STYLE: ClusterStyle = ClusterStyle {
     cluster_size: 260.0,
-    map_origin: [FOREVER_INSET, FOREVER_HEADER_H - 1.0],
+    map_origin: [FOREVER_INSET, FOREVER_INSET],
     map_size: 244.0,
     mask: MapMask::Square,
 };
@@ -240,6 +247,7 @@ pub fn calendar_art(day: u32) -> Option<SheetArt> {
 pub fn minimap_texture_fdids(state: &MinimapClusterState) -> Vec<u32> {
     let mut fdids = vec![FRAME.fdid, EDGE_LEFT.fdid, ARROW_FDID];
     fdids.extend(metal_sheet_fdids(MetalTopLeft::Plain));
+    fdids.push(BORDER_FDID);
     if !state.blips.is_empty() {
         fdids.push(QUEST_AVAILABLE.fdid);
     }
@@ -352,36 +360,74 @@ fn modern_chrome(state: &MinimapClusterState, centre: [f32; 2]) -> Element {
     elements
 }
 
-/// FlareUI's square minimap: the `ButtonFrameTemplateNoPortrait` NineSlice around the
-/// cluster instead of the compass ring, the zone name at the header's left and the clock
-/// at its TOPRIGHT; the mail icon in the map's top-left corner.
+/// Forever's square minimap with border-only bronze chrome and the FlareUI header row.
 fn forever_chrome(state: &MinimapClusterState, style: &ClusterStyle) -> Element {
-    const CLOCK_W: f32 = 40.0;
     let size = style.cluster_size;
-    let mut elements = metal_border(
-        MINIMAP_CLUSTER,
-        size,
-        size,
-        METAL_FRAME_NO_PORTRAIT_PANEL_STYLE,
-        METAL_FRAME_NO_PORTRAIT_OUTSET,
-    );
+    let mut elements = rsx! {
+        r#frame {
+            name: "MinimapClusterFlareBorder",
+            width: size,
+            height: size,
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
+            {flare_border(MINIMAP_CLUSTER, (size, size))}
+        }
+    };
     if state.zoom_buttons {
         elements.extend(zoom_buttons(state.zoom, style.map_centre()));
     }
+    elements.extend(forever_header(state, style));
+    if state.has_mail {
+        let [left, top] = style.map_origin;
+        elements.extend(mail_indicator([
+            left + FOREVER_HEADER_SIDE,
+            top + FOREVER_BAND_H + FOREVER_MAIL_GAP,
+        ]));
+    }
+    elements
+}
+
+/// Modules/Minimap.lua:154-167,178-184,200-208: tracking, zone/clock bar, calendar.
+fn forever_header(state: &MinimapClusterState, style: &ClusterStyle) -> Element {
+    let [map_left, map_top] = style.map_origin;
+    let left = map_left + FOREVER_HEADER_SIDE;
+    let top = map_top + FOREVER_HEADER_TOP;
+    let bar_left = left + FOREVER_HEADER_H + FOREVER_HEADER_GAP;
+    let calendar_left = map_left + style.map_size - FOREVER_HEADER_SIDE - CALENDAR_SIZE[0];
+    let clock_left = calendar_left - FOREVER_HEADER_GAP - FOREVER_CLOCK_W;
+    let zone_left = bar_left + FOREVER_HEADER_GAP;
+    let icon_size = FOREVER_HEADER_H - 2.0; // Modules/Minimap.lua:157.
+    let mut elements = tracking_button_at([left, top], [icon_size, icon_size]);
+    let mut yellow_zone = state.clone();
+    // User-requested fixed yellow; GameFontNormal gold (FontStyles.xml:50-52).
+    yellow_zone.zone_color = [1.0, 0.82, 0.0, 1.0];
     elements.extend(zone_text(
-        state,
-        [FOREVER_INSET, (FOREVER_HEADER_H - 12.0) / 2.0],
-        size - 2.0 * FOREVER_INSET - CLOCK_W - 4.0,
+        &yellow_zone,
+        [zone_left, top],
+        clock_left - zone_left,
+        FOREVER_HEADER_H,
     ));
     elements.extend(clock_text(
         state,
-        [size - FOREVER_INSET - CLOCK_W, 0.0],
+        [clock_left, top],
         FOREVER_HEADER_H,
         "RIGHT",
+        12.0,
     ));
-    if state.has_mail {
-        let [left, top] = style.map_origin;
-        elements.extend(mail_indicator([left + 2.0, top + 2.0]));
+    if let Some(art) = state.calendar_day.and_then(calendar_art) {
+        let calendar_top =
+            top + (FOREVER_HEADER_H - CALENDAR_SIZE[1]) / 2.0 + FOREVER_CALENDAR_DROP;
+        elements.extend(art_texture(
+            "GameTimeFrame".into(),
+            art,
+            [
+                calendar_left,
+                calendar_top,
+                CALENDAR_SIZE[0],
+                CALENDAR_SIZE[1],
+            ],
+        ));
     }
     elements
 }
@@ -466,7 +512,7 @@ fn zoom_button(
 
 fn header(state: &MinimapClusterState) -> Element {
     let mut elements = border_top();
-    elements.extend(tracking_button());
+    elements.extend(tracking_button_at(tracking_origin(), [13.0, 14.0]));
     if state.has_mail {
         // `IndicatorFrame` TOPRIGHT at the Tracking button's BOTTOMRIGHT.
         let [left, top] = tracking_origin();
@@ -480,6 +526,7 @@ fn header(state: &MinimapClusterState) -> Element {
             BORDER_TOP + BORDER_H / 2.0 - 6.0 - 1.0,
         ],
         130.0,
+        12.0,
     ));
     // TimeManagerClockButton 40×16 TOPRIGHT at BorderTop TOPRIGHT −4; ticker centred +3,
     // +1 up.
@@ -488,6 +535,7 @@ fn header(state: &MinimapClusterState) -> Element {
         [BORDER_LEFT + BORDER_W - 4.0 - 40.0 + 3.0, BORDER_TOP - 1.0],
         BORDER_H,
         "CENTER",
+        10.0,
     ));
     // GameTimeFrame 19×18 TOPLEFT at BorderTop TOPRIGHT +1.
     if let Some(art) = state.calendar_day.and_then(calendar_art) {
@@ -500,15 +548,20 @@ fn header(state: &MinimapClusterState) -> Element {
     elements
 }
 
-/// `MinimapZoneText`, `width`×12 at (`left`, `top`): GameFontNormal in the zone's PvP
+/// `MinimapZoneText`, `width`×`height` at (`left`, `top`): GameFontNormal in the zone's PvP
 /// colour; a click toggles the world map.
-fn zone_text(state: &MinimapClusterState, [left, top]: [f32; 2], width: f32) -> Element {
+fn zone_text(
+    state: &MinimapClusterState,
+    [left, top]: [f32; 2],
+    width: f32,
+    height: f32,
+) -> Element {
     let color = color_text(state.zone_color);
     rsx! {
         fontstring {
             name: {DynName(MINIMAP_ZONE_TEXT.into())},
             width,
-            height: 12.0,
+            height,
             text: {state.zone_text.as_str()},
             font: GameFont::FrizQuadrata,
             font_size: 12.0,
@@ -524,12 +577,13 @@ fn zone_text(state: &MinimapClusterState, [left, top]: [f32; 2], width: f32) -> 
     }
 }
 
-/// The clock ticker, 40×`height` at (`left`, `top`): WhiteNormalNumberFont (FRIZQT 10).
+/// The clock ticker, 40×`height`: Retail FRIZQT 10, Forever GameFontHighlight 12.
 fn clock_text(
     state: &MinimapClusterState,
     [left, top]: [f32; 2],
     height: f32,
     justify: &str,
+    font_size: f32,
 ) -> Element {
     rsx! {
         fontstring {
@@ -538,7 +592,7 @@ fn clock_text(
             height,
             text: {state.clock_text.as_str()},
             font: GameFont::FrizQuadrata,
-            font_size: 10.0,
+            font_size,
             font_color: WHITE,
             shadow_color: SHADOW,
             shadow_offset: "1,-1",
@@ -596,8 +650,7 @@ fn border_top() -> Element {
 
 /// `Tracking` 17×17 RIGHT at BorderTop LEFT −2: `ui-hud-minimap-button` background and
 /// the 13×14 `ui-hud-minimap-tracking-up` button.
-fn tracking_button() -> Element {
-    let [left, top] = tracking_origin();
+fn tracking_button_at([left, top]: [f32; 2], [icon_w, icon_h]: [f32; 2]) -> Element {
     let mut elements = art_texture(
         "MinimapClusterTrackingBackground".into(),
         BUTTON,
@@ -606,7 +659,12 @@ fn tracking_button() -> Element {
     elements.extend(art_texture(
         "MinimapClusterTrackingButton".into(),
         TRACKING_UP,
-        [left + 2.0, top + 1.5, 13.0, 14.0],
+        [
+            left + (17.0 - icon_w) / 2.0,
+            top + (17.0 - icon_h) / 2.0,
+            icon_w,
+            icon_h,
+        ],
     ));
     elements
 }
