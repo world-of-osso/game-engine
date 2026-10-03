@@ -275,9 +275,13 @@ func expect_distance(client: Node, id: int, limit: float) -> bool:
 	return true
 
 func open_options(client: Node, category: String) -> void:
+	# Escape clears a target before it opens the game menu (targeting.rs clear_target_on_escape).
+	if client.target_state().target != null:
+		await tap(KEY_ESCAPE)
 	await tap(KEY_ESCAPE)
-	await tap(KEY_ESCAPE)
-	await process_frame
+	var deadline := Time.get_ticks_msec() + 5000
+	while Time.get_ticks_msec() < deadline and client.get_node_or_null("GameMenuUI") == null:
+		await process_frame
 	await click_option(client, "MenuBtnOptions")
 	await click_option(client, "OptionsTab" + category)
 
