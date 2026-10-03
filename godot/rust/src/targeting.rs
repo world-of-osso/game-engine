@@ -20,6 +20,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{
     format_value_text, fraction, target_level_text,
 };
 use game_engine_ui_model::status::{ClassBarPlayer, ClassBarResource};
+use game_engine_ui_model::status_text_data::{StatusBarText, StatusTextDisplay, TextStatusBar};
 use godot::{
     classes::{
         Area3D, BoxShape3D, Camera3D, CollisionShape3D, Decal, Image, ImageTexture, MeshInstance3D,
@@ -28,13 +29,14 @@ use godot::{
     prelude::*,
 };
 use shared::components::{
-    CreatureClassification, Health, Npc, Player, UnitLevel, UnitPowers, UnitRunes,
+    CreatureClassification, Health, Npc, Player, PowerType, UnitLevel, UnitPowers, UnitRunes,
 };
 use shared::level_scaling::{LevelScaling, level_for_viewer};
 
 use crate::replicated::{UnitFields, is_unit, local_pet};
 
 use crate::frame_error::{FrameError, SessionError, report_once};
+use crate::tooltips::named_ancestor;
 pub(crate) use crate::unit_pick::pick_unit;
 use crate::unit_pick::{UNIT_ID_META, UNIT_VISUAL_META};
 use crate::{GameClient, assets::M2_BOUNDS_META, ui::RegistryUi};
@@ -73,7 +75,7 @@ pub(crate) struct Targeting {
     data_root: PathBuf,
     /// ExpectedStat creature health, loaded with the first tuned target.
     health_by_level: Option<Result<CreatureHealthByLevel, String>>,
-    /// The TargetFrame's level and health texts last shown, for automation.
+    /// The TargetFrame's level text and health values ("current / max"), for automation.
     frame_texts: (String, String),
     pub(crate) portraits: crate::unit_portraits::UnitPortraits,
 }
@@ -300,6 +302,7 @@ fn target_frame_state(
     unit: Unit,
     viewer_level: Option<u8>,
     health_multiplier: f32,
+    texts: &BarTexts,
 ) -> UnitFrameState {
     let mut state = UnitFrameState::named(unit_name(unit));
     let level = unit.get::<UnitLevel>().map(|&level| {
@@ -311,15 +314,55 @@ fn target_frame_state(
     });
     state.level_text = target_level_text(level, viewer_level);
     state.classification = unit_classification(unit);
+    // `TargetFrameStatusBarMixin:OnLoad` `zeroText = ""` (TargetFrame.lua:760-769).
+    let target_health = TextStatusBar::HEALTH.with_zero_text("");
     if let Some(health) = unit.get::<Health>() {
         let (current, max) = (
             (health.current * health_multiplier).round(),
             (health.max * health_multiplier).round(),
         );
-        state.health_text = format_value_text(current, max);
+        state.health_text = texts.text("TargetHealthBar", target_health, current, max);
         state.health_fraction = fraction(health.current, health.max);
     }
+    state.power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
+    state.power_text = texts.power("TargetManaBar", state.power.as_ref(), Some(""));
     state
+}
+
+/// The Status Text setting and the unit frame bar the pointer is over (its `lockShow`).
+struct BarTexts {
+    display: StatusTextDisplay,
+    hovered: Option<String>,
+}
+
+impl BarTexts {
+    /// `bar`'s text for `value` of `max`, as integers (`UnitHealth`, `UnitPower`).
+    fn text(&self, bar: &str, kind: TextStatusBar, value: f32, max: f32) -> StatusBarText {
+        let hovered = self.hovered.as_deref() == Some(bar);
+        kind.text(
+            value.round() as i64,
+            max.round() as i64,
+            self.display,
+            hovered,
+        )
+    }
+
+    /// A power bar's text; Both shows its percentage only for Mana.
+    fn power(
+        &self,
+        bar: &str,
+        power: Option<&PowerBarState>,
+        zero_text: Option<&'static str>,
+    ) -> StatusBarText {
+        let Some(power) = power else {
+            return StatusBarText::default();
+        };
+        let mut kind = TextStatusBar::power(power.power == PowerType::Mana);
+        if let Some(zero_text) = zero_text {
+            kind = kind.with_zero_text(zero_text);
+        }
+        self.text(bar, kind, power.current as f32, power.max as f32)
+    }
 }
 
 /// `UnitClassification`: a creature's replicated rank; players are "normal".
@@ -343,7 +386,7 @@ fn target_health_multiplier(
     }
 }
 
-fn player_frame_state(unit: Unit, in_rest_area: bool) -> UnitFrameState {
+fn player_frame_state(unit: Unit, in_rest_area: bool, texts: &BarTexts) -> UnitFrameState {
     let mut state = UnitFrameState::named(
         unit.get::<Player>()
             .map_or("", |player| player.name.as_str()),
@@ -355,21 +398,34 @@ fn player_frame_state(unit: Unit, in_rest_area: bool) -> UnitFrameState {
     state.show_combat_icon = unit.in_combat();
     state.show_resting_icon = in_rest_area;
     if let Some(health) = unit.get::<Health>() {
-        state.health_text = format_value_text(health.current, health.max);
+        state.health_text = texts.text(
+            "PlayerHealthBar",
+            TextStatusBar::HEALTH,
+            health.current,
+            health.max,
+        );
         state.health_fraction = fraction(health.current, health.max);
     }
     state.power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
+    state.power_text = texts.power("PlayerManaBar", state.power.as_ref(), None);
     state
 }
 
 /// `UnitFrame_Update` on PetFrame: the pet's name, health and primary power.
-fn pet_frame_state(unit: Unit) -> PetFrameState {
+fn pet_frame_state(unit: Unit, texts: &BarTexts) -> PetFrameState {
+    let health = unit.get::<Health>();
+    let power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
     PetFrameState {
         name: unit_name(unit),
-        health_fraction: unit
-            .get::<Health>()
-            .map_or(0.0, |health| fraction(health.current, health.max)),
-        power: unit.get::<UnitPowers>().and_then(PowerBarState::primary),
+        health_fraction: health.map_or(0.0, |health| fraction(health.current, health.max)),
+        health_text: health
+            .map(|health| {
+                let kind = TextStatusBar::HEALTH;
+                texts.text("PetFrameHealthBar", kind, health.current, health.max)
+            })
+            .unwrap_or_default(),
+        power_text: texts.power("PetFrameManaBar", power.as_ref(), None),
+        power,
     }
 }
 
@@ -568,7 +624,31 @@ impl GameClient {
         Ok(())
     }
 
+    /// The unit frame bar under the pointer (`PlayerHealthBar`, `TargetManaBar`, ...),
+    /// whose `OnEnter` shows its text (TextStatusBar.lua:217-220).
+    fn hovered_unit_frame_bar(&mut self) -> Result<Option<String>, String> {
+        let Some(hit) = self.hovered_ui_frame()? else {
+            return Ok(None);
+        };
+        if self.targeting.frame_ui.as_ref() != Some(&hit.ui) {
+            return Ok(None);
+        }
+        let ui = hit.ui.bind();
+        let Some(registry) = ui.registry() else {
+            return Ok(None);
+        };
+        Ok(named_ancestor(registry, hit.frame, |frame| {
+            let name = frame.name.as_deref()?;
+            (name.ends_with("HealthBar") || name.ends_with("ManaBar")).then(|| name.to_owned())
+        })
+        .map(|(_, name)| name))
+    }
+
     fn sync_unit_frames(&mut self) -> Result<(), String> {
+        let texts = BarTexts {
+            display: self.client_options.hud.status_text_display,
+            hovered: self.hovered_unit_frame_bar()?,
+        };
         let viewer_level = self
             .world
             .local_player_id()
@@ -584,15 +664,22 @@ impl GameClient {
             }
             None => 1.0,
         };
-        let mut target = target_unit.map(|unit| target_frame_state(unit, viewer_level, multiplier));
+        let mut target =
+            target_unit.map(|unit| target_frame_state(unit, viewer_level, multiplier, &texts));
         if let (Some(state), Some(id)) = (target.as_mut(), target_id) {
             self.fill_target_auras(state, id);
             state.raid_target = self.raid_target_of(id);
         }
         let target_state = target.clone();
-        self.targeting.frame_texts = target
-            .as_ref()
-            .map(|state| (state.level_text.clone(), state.health_text.clone()))
+        self.targeting.frame_texts = target_unit
+            .zip(target.as_ref())
+            .map(|(unit, state)| {
+                let health = unit.get::<Health>().map(|health| {
+                    let scaled = |value: f32| (value * multiplier).round();
+                    format_value_text(scaled(health.current), scaled(health.max))
+                });
+                (state.level_text.clone(), health.unwrap_or_default())
+            })
             .unwrap_or_default();
         let player = self
             .world
@@ -600,7 +687,7 @@ impl GameClient {
             .and_then(|id| self.replica.unit(id))
             .map(|unit| {
                 let spec = self.account.spells.spec();
-                let mut state = player_frame_state(unit, self.in_rest_area);
+                let mut state = player_frame_state(unit, self.in_rest_area, &texts);
                 let resource = player_class_resource(unit, spec);
                 let now = self.targeting.started.elapsed().as_secs_f64();
                 state.class_bar = self.targeting.class_bar.update_received(
@@ -614,7 +701,7 @@ impl GameClient {
         let pet = self
             .local_pet_id()
             .and_then(|id| self.replica.unit(id))
-            .map(pet_frame_state);
+            .map(|unit| pet_frame_state(unit, &texts));
         let mut state = unit_frames_state(
             player,
             target,
