@@ -369,6 +369,13 @@ def upload(source, destination):
         "broken pipe",
         "connection closed",
     )
+    permanent = (
+        "permission denied",
+        "no such file",
+        "not a directory",
+        "authentication failed",
+        "host key verification failed",
+    )
     with lifetime() as (stopped, reason):
         for attempt in range(1, 4):
             if stopped.is_set():
@@ -410,8 +417,11 @@ def upload(source, destination):
             )
             message = f"native upload {source} -> {destination}, attempt {attempt}/3: {detail}: {stderr}"
             print(message, file=sys.stderr, flush=True)
-            if attempt == 3 or not (
-                timed_out or any(text in stderr.lower() for text in transient)
+            diagnostic = stderr.lower()
+            if (
+                attempt == 3
+                or any(text in diagnostic for text in permanent)
+                or not (timed_out or any(text in diagnostic for text in transient))
             ):
                 if timed_out:
                     raise TimeoutError(message)

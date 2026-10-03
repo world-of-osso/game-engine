@@ -35,9 +35,10 @@ if name == 'scp':
     mode = os.environ.get('UPLOAD_MODE', '')
     attempts = len((base / 'uploads.log').read_text().splitlines())
     if mode in ('stall', 'stall-once') and (mode == 'stall' or attempts == 1):
-        child = subprocess.Popen([sys.executable, '-c', 'import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(60)'])
+        child = subprocess.Popen([sys.executable, '-c', 'import time; time.sleep(60)'])
         def stop(number, frame):
-            child.kill(); child.wait()
+            # Group TERM must reach the child; the parent cannot terminate it.
+            child.wait()
         signal.signal(signal.SIGTERM, stop)
         (base / ('upload-%s.json' % attempts)).write_text(json.dumps([os.getpid(), child.pid]))
         print('upload stalled', file=sys.stderr, flush=True)
@@ -45,7 +46,7 @@ if name == 'scp':
     if mode == 'transient' or (mode == 'transient-once' and attempts == 1):
         print('Connection reset by peer', file=sys.stderr); sys.exit(17)
     if mode == 'permanent':
-        print('Permission denied (publickey)', file=sys.stderr); sys.exit(19)
+        print(os.environ.get('UPLOAD_ERROR', 'Permission denied (publickey)\nscp: Connection closed'), file=sys.stderr); sys.exit(19)
     def resolve(value):
         if value.startswith('desktop:'):
             return base / 'windows' / value.removeprefix('desktop:C:/Users/Test User/')
@@ -207,6 +208,10 @@ class NativeTests(unittest.TestCase):
             for marker in self.base.glob("upload-*.json"):
                 parent, child = json.loads(marker.read_text())
                 try:
+                    os.kill(child, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                try:
                     os.kill(parent, signal.SIGTERM)
                     time.sleep(0.05)
                     os.kill(parent, signal.SIGKILL)
@@ -258,12 +263,22 @@ class NativeTests(unittest.TestCase):
         )
 
     def test_upload_permanent_failure_does_not_retry(self):
-        status, error, attempts = self.upload_fixture("permanent")
-        self.assertNotEqual(status, 0)
-        self.assertEqual(len(attempts), 1)
-        self.assertIn("Permission denied (publickey)", error)
-        self.assertIn("19", error)
-        self.assertFalse((self.base / "cache/upload").exists())
+        for message in (
+            "Permission denied (publickey)\nscp: Connection closed",
+            "scp: dest: No such file or directory\nscp: Connection closed",
+            "scp: dest: Permission denied\nscp: Connection closed",
+        ):
+            with (
+                self.subTest(error=message),
+                patch.dict(os.environ, {"UPLOAD_ERROR": message}),
+            ):
+                status, error, attempts = self.upload_fixture("permanent")
+                self.assertNotEqual(status, 0)
+                self.assertEqual(len(attempts), 1)
+                self.assertIn(message.splitlines()[0], error)
+                self.assertIn("19", error)
+                self.assertFalse((self.base / "cache/upload").exists())
+                (self.base / "uploads.log").unlink()
 
     def test_upload_transient_failures_stop_after_three(self):
         status, error, attempts = self.upload_fixture("transient")
