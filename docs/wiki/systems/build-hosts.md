@@ -1,6 +1,6 @@
 # Desktop and local build hosts
 
-The October 3, 2026 trial replaces Depot-only extension builds with explicit desktop/local Docker transports. [Build commands, provisioning status, limits, and runtime/GPU boundaries](../../remote-builds.md) are the operational source of truth; [Godot conversion](../../specs/godot-conversion.md) owns the build contract and its remaining verification gate.
+The October 3, 2026 trial replaces Depot-only extension builds with explicit desktop/local Docker transports. [Build commands, provisioning status, limits, and runtime/GPU boundaries](../../remote-builds.md) are the operational source of truth; [Godot conversion](../../specs/godot-conversion.md) owns the build contract.
 
 ## Architecture
 
@@ -12,7 +12,7 @@ The helper retains source-only snapshots, explicit test assets, checkout-specifi
 
 October 3, 2026: main observed real extension export from both hosts, desktop CLI export and 16 camera CPU tests. The fully staged desktop server fixture passed admin `pong` plus an authenticated disposable-account UDP roster. The unprivileged desktop GPU fixture passed native Forward+ Vulkan login input and IPC capture on RTX-backed test-only Dozen; main inspected the authored login image. These are bounded host-capability proofs, not head-pinned native/sibling snapshot acceptance.
 
-[The build guide](../../remote-builds.md#desktop-runtime-capability-boundary) owns exact commands, resources, prerequisites, logs and exclusions. Full-world/parity, audio and normal-shutdown acceptance remain unproved; the independent code-gate followup remains pending. Trial-owned runtimes stopped, but unrelated jobs may remain active. Historical Depot results retain their original scope.
+[The build guide](../../remote-builds.md#desktop-runtime-capability-boundary) owns exact commands, resources, prerequisites, logs and exclusions. Independent followup accepted the bounded host trial; full-world/parity, audio and normal-shutdown acceptance remain unproved. Trial-owned runtimes stopped, but unrelated jobs may remain active. Historical Depot results retain their original scope.
 
 ## Sources
 

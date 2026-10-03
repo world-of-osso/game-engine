@@ -1,3 +1,7 @@
+## 2026-10-03 — Desktop/local trial independently accepted
+
+Independent followup at `0c8f7275` accepts the bounded [[build-hosts]] trial: refreshed launcher format/check/readability and 25 process tests; unchanged Python proof retained; server admin/UDP and authored RTX Login capture inspected. [Operational SSOT](../remote-builds.md#desktop-runtime-capability-boundary) retains Dozen, audio, full-world, shutdown and snapshot limits. Docs-only acceptance reconciliation; no broad checks rerun.
+
 ## 2026-10-03 — Desktop/local trial bounded evidence reconciliation
 
 [[build-hosts]] links the [operational SSOT](../remote-builds.md): both extension exports, desktop CLI and 16 camera tests, fully staged admin/authenticated UDP server fixture, and inspected authored GPU Login capture. Rerun commands and gaming host selection documented; snapshot pinning, full-world/parity/audio/shutdown and independent code-gate exclusions retained. Docs only; no runtime/test reruns.
