@@ -211,7 +211,17 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
     // Camelot: micro menu BOTTOM (116.5, 6); main bar BOTTOMRIGHT on its BOTTOMLEFT
     // (-4.5, -4); bags bar BOTTOMLEFT on its BOTTOMRIGHT (7, -4).
     assert_eq!(top_left(&hud, MICRO_MENU), (635.0, 722.0));
-    assert_eq!(top_left(&hud, MAIN_ACTION_BAR.0), (68.5, 721.0));
+    // The main bar's buttons take FlareUI's scale 1.06: 562×45 grows to 595.72×47.7.
+    let bar = rect(&hud, MAIN_ACTION_BAR.0);
+    let edges = [bar.x, bar.y, bar.x + bar.width, bar.y + bar.height];
+    let expected = [630.5 - 562.0 * 1.06, 766.0 - 45.0 * 1.06, 630.5, 766.0];
+    assert!(
+        edges
+            .iter()
+            .zip(expected)
+            .all(|(a, b)| (a - b).abs() < 1e-3),
+        "MainActionBar {edges:?} != {expected:?}"
+    );
     assert_eq!(top_left(&hud, "BagsBar"), (971.0, 719.0));
     // Forever's Mainline preset keeps Modern's minimap, aura, group, meter and tracker
     // anchors.

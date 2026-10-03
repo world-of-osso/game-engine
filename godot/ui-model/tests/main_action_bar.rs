@@ -62,7 +62,7 @@ fn main_bar_uses_retail_geometry_and_default_keys() {
     assert_eq!(text(&registry, "ActionButton12HotKey"), "=");
     assert_eq!(
         source(&registry, "ActionButton1NormalTexture"),
-        TextureSource::FileDataId(4_613_342)
+        TextureSource::Atlas("UI-HUD-ActionBar-IconFrame".into())
     );
     assert!(frame(&registry, "ActionButton1Icon").hidden, "empty slot");
     assert!(frame(&registry, "ActionButton1PushedTexture").hidden);

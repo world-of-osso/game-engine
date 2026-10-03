@@ -17,7 +17,6 @@ pub mod ui {
     }
 
     pub mod screens {
-        pub(crate) use crate::bags_bar_art;
         pub(crate) use crate::screen_title;
         pub use crate::{
             auction_house_frame_component, bag_frame_component, bags_bar_component, bank_art,
@@ -220,8 +219,6 @@ pub mod cursor_item_component;
 // Merchant frame, backpack and stack split (docs/specs/merchant-frame.md, cursor-item.md).
 #[path = "ui/screens/bag_frame_component.rs"]
 pub mod bag_frame_component;
-#[path = "ui/screens/bags_bar_art.rs"]
-pub(crate) mod bags_bar_art;
 #[path = "ui/screens/bags_bar_component.rs"]
 pub mod bags_bar_component;
 #[path = "ui/screens/merchant_frame_component.rs"]
