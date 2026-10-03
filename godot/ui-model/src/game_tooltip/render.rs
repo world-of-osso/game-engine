@@ -11,7 +11,7 @@ use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
-use crate::flare_panel::flare_tooltip_panel;
+use crate::flare_panel::{TOOLTIP_BACKGROUND, tooltip_border_rgb};
 use crate::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::merchant_frame_component::{MoneyAlign, money, money_width};
 use crate::tooltip_presentation::{
@@ -99,18 +99,23 @@ fn line_top(index: usize) -> f32 {
 }
 
 /// One tooltip: `{prefix}Frame` with its nine-slice, `{prefix}Title` and
-/// `{prefix}Line{i}Left`/`Right`/`Mark`/`Money*`. Under the Forever skin the nine-slice is
-/// FlareUI's bronze panel `{prefix}FlareBackdrop` in the tooltip's border colour.
+/// `{prefix}Line{i}Left`/`Right`/`Mark`/`Money*`. Under the Forever skin FlareUI keeps the
+/// nine-slice and only recolours it (Tooltips.lua:138-146): the border in the tooltip's
+/// border colour, the centre [`TOOLTIP_BACKGROUND`].
 pub fn retail_tooltip(state: &TooltipPresentation, prefix: &str, skin: ActiveSkin) -> Element {
     let [width, height] = tooltip_size(state);
     let hidden = !state.visible;
     let border = match skin {
-        ActiveSkin::Modern => nine_slice(prefix, width, height),
-        ActiveSkin::Forever => flare_tooltip_panel(
-            &format!("{prefix}FlareBackdrop"),
-            (width, height),
-            state.border,
-        ),
+        ActiveSkin::Modern => nine_slice(prefix, (width, height), BORDER_COLOR, CENTER_COLOR),
+        ActiveSkin::Forever => {
+            let [r, g, b] = tooltip_border_rgb(state.border);
+            nine_slice(
+                prefix,
+                (width, height),
+                &rgba_string([r, g, b, 1.0]),
+                &rgba_string(TOOLTIP_BACKGROUND),
+            )
+        }
     };
     let title = text(
         format!("{prefix}Title"),
@@ -216,8 +221,13 @@ fn mark(name: &str, mark: Option<ItemMark>, top: f32) -> Element {
 }
 
 /// `TooltipDefaultLayout` over a `width`×`height` tooltip: corners at their size, edges
-/// stretched between them, the tinted centre inset 3.
-fn nine_slice(prefix: &str, width: f32, height: f32) -> Element {
+/// stretched between them in `border_color`, the centre inset 3 in `center_color`.
+fn nine_slice(
+    prefix: &str,
+    (width, height): (f32, f32),
+    border_color: &str,
+    center_color: &str,
+) -> Element {
     let (w, h, c) = (width, height, CORNER);
     let pieces = [
         (
@@ -229,45 +239,45 @@ fn nine_slice(prefix: &str, width: f32, height: f32) -> Element {
                 w - 2.0 * CENTER_INSET,
                 h - 2.0 * CENTER_INSET,
             ],
-            CENTER_COLOR,
+            center_color,
         ),
-        ("TopLeftCorner", &TOP_LEFT, [0.0, 0.0, c, c], BORDER_COLOR),
+        ("TopLeftCorner", &TOP_LEFT, [0.0, 0.0, c, c], border_color),
         (
             "TopRightCorner",
             &TOP_RIGHT,
             [w - c, 0.0, c, c],
-            BORDER_COLOR,
+            border_color,
         ),
         (
             "BottomLeftCorner",
             &BOTTOM_LEFT,
             [0.0, h - c, c, c],
-            BORDER_COLOR,
+            border_color,
         ),
         (
             "BottomRightCorner",
             &BOTTOM_RIGHT,
             [w - c, h - c, c, c],
-            BORDER_COLOR,
+            border_color,
         ),
-        ("TopEdge", &EDGE_TOP, [c, 0.0, w - 2.0 * c, c], BORDER_COLOR),
+        ("TopEdge", &EDGE_TOP, [c, 0.0, w - 2.0 * c, c], border_color),
         (
             "BottomEdge",
             &EDGE_BOTTOM,
             [c, h - c, w - 2.0 * c, c],
-            BORDER_COLOR,
+            border_color,
         ),
         (
             "LeftEdge",
             &EDGE_LEFT,
             [0.0, c, c, h - 2.0 * c],
-            BORDER_COLOR,
+            border_color,
         ),
         (
             "RightEdge",
             &EDGE_RIGHT,
             [w - c, c, c, h - 2.0 * c],
-            BORDER_COLOR,
+            border_color,
         ),
     ];
     pieces

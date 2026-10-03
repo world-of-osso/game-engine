@@ -10,9 +10,9 @@ use game_engine_ui_model::game_tooltip::game_tooltip_screen;
 use game_engine_ui_model::tooltip_presentation::TooltipBorder;
 use shared::faction_reaction::Reaction;
 use ui_toolkit::atlas::ActiveSkin;
+use ui_toolkit::frame::{NineSlice, WidgetData};
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widget_def::Element;
-use ui_toolkit::frame::{NineSlice, WidgetData};
 use ui_toolkit::widgets::texture::TextureSource;
 
 use super::modern_panel_snapshot_tests::{chat_view, meter_view, tooltip_view};
@@ -215,7 +215,10 @@ fn forever_tooltip_border(subject: TooltipBorder) -> [f32; 4] {
 
 #[test]
 fn forever_tooltip_tints_blizzards_nine_slice_by_class_reaction_and_quality() {
-    assert_eq!(forever_tooltip_border(TooltipBorder::Default), TOOLTIP_DEFAULT);
+    assert_eq!(
+        forever_tooltip_border(TooltipBorder::Default),
+        TOOLTIP_DEFAULT
+    );
     assert_eq!(
         forever_tooltip_border(TooltipBorder::Reaction(Reaction::Hostile)),
         [0.78, 0.28, 0.24, 1.0]
@@ -262,7 +265,10 @@ fn forever_reskins_and_modern_restores_live_canvases() {
     tooltip.sync_skin(ActiveSkin::Forever);
     assert_eq!(slice(&chat, "ChatFrame1FlareSkin").border_color, BRONZE);
     assert_eq!(center(&tooltip), TOOLTIP_BG);
-    assert_eq!(piece(&tooltip, "TooltipNineSliceTopEdge").1, TOOLTIP_DEFAULT);
+    assert_eq!(
+        piece(&tooltip, "TooltipNineSliceTopEdge").1,
+        TOOLTIP_DEFAULT
+    );
     assert!(!has(&chat, CHAT_BACKGROUND.0));
 
     chat.sync_skin(ActiveSkin::Modern);
