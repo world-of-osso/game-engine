@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build/export bookworm Linux server executables on desktop; never start them."""
+"""Build/export bookworm Linux server executables on desktop or local; never start them."""
 
 import argparse
 import importlib.util
@@ -52,12 +52,13 @@ def snapshot(root, context):
     )
 
 
-def build(root):
+def build(root, host=None, release=False):
     root = Path(root).resolve()
+    host = depot.select_build_host(host)
     lock, cache, checkout_key = depot.locked_checkout(root)
     key = "server-" + checkout_key
     with lock:
-        target = root / "target/debug"
+        target = root / "target" / ("release" if release else "debug")
         if (root / "target").is_symlink() or target.is_symlink():
             raise ValueError(
                 f"target symlink cannot guarantee checkout-local artifact: {target}"
@@ -75,8 +76,14 @@ def build(root):
                 f"TARGET_CACHE=server-target-{key}",
                 "--build-arg",
                 f"SERVER_CACHE={key}",
+                "--build-arg",
+                f"BUILD_ROOT={root}",
+                "--build-arg",
+                f"BUILD_PARENT={root.parent}",
+                "--build-arg",
+                f"RELEASE={str(release).lower()}",
             ]
-            execute(context, output, key, "artifact", arguments, host="desktop")
+            execute(context, output, key, "artifact", arguments, host=host)
             for name in BINARIES:
                 depot.install_artifact(
                     output / (name + ".gz"), target / name, executable=True
@@ -92,9 +99,17 @@ def main():
         default=SCRIPTS.parents[1] / "game-server",
         help="originating server checkout",
     )
+    parser.add_argument("--build-host", choices=("desktop", "local"))
+    parser.add_argument("--save-build-host", choices=("desktop", "local"))
+    parser.add_argument("--release", action="store_true")
     args = parser.parse_args()
     try:
-        build(args.root)
+        if args.save_build_host:
+            if args.build_host or args.release:
+                parser.error("--save-build-host cannot combine with build options")
+            depot.save_build_host(args.save_build_host)
+            return 0
+        build(args.root, host=args.build_host, release=args.release)
     except (OSError, EOFError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Desktop server build failed: {error}", file=sys.stderr)
         return 1
