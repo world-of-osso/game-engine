@@ -209,10 +209,19 @@ def save_build_host(host):
     print(f"Saved build host {host}: {setting}")
 
 
-def locked_checkout(root):
-    cache = Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache")) / "game-engine" / "depot-build"
+def prepare_checkout_cache(root):
+    cache = (
+        Path(os.environ.get("XDG_CACHE_HOME", Path.home() / ".cache"))
+        / "game-engine"
+        / "depot-build"
+    )
     cache.mkdir(parents=True, exist_ok=True)
     checkout_key = hashlib.sha256(os.fsencode(root)).hexdigest()[:20]
+    return cache, checkout_key
+
+
+def locked_checkout(root):
+    cache, checkout_key = prepare_checkout_cache(root)
     lock = (cache / (checkout_key + ".lock")).open("w")
     fcntl.flock(lock, fcntl.LOCK_EX)
     return lock, cache, checkout_key
