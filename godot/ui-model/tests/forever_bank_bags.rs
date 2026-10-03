@@ -1,4 +1,6 @@
-//! Bank/container Modern fixtures captured at 818e14b8, before skin conversion.
+//! Bank/container skin art; byte-identical Modern trees captured before conversion.
+#[path = "fixtures/modern_bank_bag_trees.rs"]
+mod fixture;
 use std::fmt::Write;
 use std::path::PathBuf;
 
@@ -150,6 +152,12 @@ fn modern_trees() -> String {
             );
         }
     }
+    out += &bag_trees();
+    out
+}
+
+fn bag_trees() -> String {
+    let mut out = String::new();
     let registry = mount(bag_state(), bag_frame_screen);
     for root in ["ContainerFrame0", "ContainerFrame1"] {
         dump_frame(&registry, registry.get_by_name(root).unwrap(), &mut out);
@@ -327,14 +335,38 @@ fn assert_forever_bank_tree() {
 }
 
 #[test]
-fn capture_modern_bank_bags() {
+fn bank_bag_skin_art_preserves_modern_trees() {
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+    assert_bank_regions();
     set_active_skin(ActiveSkin::Modern);
-    println!(
-        "BANK_BAGS_FIXTURE_BEGIN\n{}BANK_BAGS_FIXTURE_END",
-        modern_trees()
-    );
+    assert_eq!(modern_trees(), fixture::TREES);
+    let modern_bags = bag_trees();
+    for account in [false, true] {
+        let registry = mount(bank_state(account), bank_frame_screen);
+        assert!(registry.get_by_name("BankFrameDivider").is_none());
+        assert!(
+            registry
+                .get_by_name("BankFrameItem1NormalTexture")
+                .is_none()
+        );
+        assert_art(
+            &registry,
+            "BankFrameItem1Background",
+            if account {
+                "warband-bank-slot"
+            } else {
+                "bags-item-slot64"
+            },
+            ActiveSkin::Modern,
+        );
+    }
+    println!("Modern 1630-line fixture and concrete atlas regions passed");
+    set_active_skin(ActiveSkin::Forever);
+    assert_eq!(bag_trees(), modern_bags);
+    assert_forever_bank_tree();
+    set_active_skin(ActiveSkin::Modern);
+    assert_eq!(modern_trees(), fixture::TREES);
 }
