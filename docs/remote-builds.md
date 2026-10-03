@@ -36,6 +36,14 @@ python3 scripts/depot-build.py --root "$PWD" --cli
 
 `--fixture`, `--cli`, `--release`, and `--test` retain their arguments and source/assets behavior on both hosts. For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host desktop --test -p game-engine-core` (substitute `local` as needed). Host selection does not make GDScript or GPU tests part of `--test`.
 
+## Native server/simulator acceptance boundary
+
+The server and simulator normal development paths use the shared native runner, not the Docker extension builder described above; see the [server guide](../../game-server/docs/remote-builds.md) and [simulator guide](../../../wow/wow-ui-sim/docs/remote-builds.md).
+
+Main-observed evidence on October 3, 2026: actual native desktop builds passed for both projects; simulator headless CLI startup returned `lua-errors []`, exit 0; isolated desktop server admin `pong` and disposable-account authenticated UDP login passed, with the owned process cleaned up. Simulator normal GUI evidence is only a log artifact and process alive for 25 seconds, not proof of a visible normal GUI. Existing 93 fixtures passed; lint fixes remain pending.
+
+The local native-tool fix is in progress: local uses installed Arch Cargo/rustc 1.98.1 without rustup; desktop uses pinned Rust 1.98.1 through rustup. This is host-specific tool selection, not fallback. Actual local native acceptance remains pending; the whole workflow is not complete. These native observations do not supersede the older Docker trial evidence below.
+
 ## Server builds and tests
 
 `scripts/desktop-server-build.py` selects its host like the extension helper: `--build-host desktop|local`, else the saved `~/.config/game-engine/build-host`. `--test` uses the same selection.
