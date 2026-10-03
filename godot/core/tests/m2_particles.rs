@@ -160,17 +160,17 @@ fn lifetime_keys_interpolate_linearly_and_clamp() {
 #[test]
 fn appearance_samples_colour_opacity_and_size_over_normalized_age() {
     let emitters = portal();
-    let quarter = appearance(&emitters[1], 0.2375, 0x1234);
+    let quarter = appearance(&emitters[1], emitters[1].lifespan, 0.2375, 0x1234);
     assert!(close(quarter.color.x, 71.000_61 / 255.0), "{quarter:?}");
     assert!(close(quarter.color.z, (210.0 - 40.0 * 0.499_985) / 255.0));
     assert!(close(quarter.alpha, 0.121_232_42));
-    let late = appearance(&emitters[1], 0.7125, 0x1234);
+    let late = appearance(&emitters[1], emitters[1].lifespan, 0.7125, 0x1234);
     assert!(close(late.scale.x, 0.480_045_2) && close(late.scale.y, 0.480_045_2));
     assert_eq!(twinkle_scale(&emitters[1], 0.3, 7), Some(1.5));
     assert_eq!(twinkle_scale(&emitters[5], 0.3, 7), Some(0.4));
     // Emitter 5 varies size by +-20%, the same factor on both axes.
     for seed in [1u16, 999, 40_000, 65_535] {
-        let sized = appearance(&emitters[5], 0.0, seed);
+        let sized = appearance(&emitters[5], emitters[5].lifespan, 0.0, seed);
         assert!(
             sized.scale.x >= 6.474 * 0.8 && sized.scale.x <= 6.475 * 1.2,
             "{sized:?}"
@@ -179,13 +179,13 @@ fn appearance_samples_colour_opacity_and_size_over_normalized_age() {
     }
     // 2x2 atlas with RANDOM_TEXTURE and no head track: a cell 0..4 fixed per seed.
     let cells: Vec<u32> = (0..64u16)
-        .map(|s| appearance(&emitters[1], 0.1, s * 997).head_cell)
+        .map(|s| appearance(&emitters[1], emitters[1].lifespan, 0.1, s * 997).head_cell)
         .collect();
     assert!(cells.iter().all(|&cell| cell < 4));
     assert!((0..4).all(|cell| cells.contains(&cell)), "{cells:?}");
     assert_eq!(
-        appearance(&emitters[1], 0.1, 5).head_cell,
-        appearance(&emitters[1], 0.8, 5).head_cell
+        appearance(&emitters[1], emitters[1].lifespan, 0.1, 5).head_cell,
+        appearance(&emitters[1], emitters[1].lifespan, 0.8, 5).head_cell
     );
 }
 
@@ -211,9 +211,15 @@ fn twinkle_hides_particles_outside_its_percentage() {
 #[test]
 fn particle_lifespan_varies_by_signed_seed() {
     let emitter = &portal()[1];
-    assert!(close(particle_lifespan(emitter, 0x7FFF), 0.95));
-    assert!(close(particle_lifespan(emitter, 0x8001), 0.85));
-    assert!(close(particle_lifespan(emitter, 0), 0.9));
+    assert!(close(
+        particle_lifespan(emitter, emitter.lifespan, 0x7FFF),
+        0.95
+    ));
+    assert!(close(
+        particle_lifespan(emitter, emitter.lifespan, 0x8001),
+        0.85
+    ));
+    assert!(close(particle_lifespan(emitter, emitter.lifespan, 0), 0.9));
 }
 
 /// Position += v dt + g dt^2 / 2, then v += g dt and v *= 1 - min(drag dt, 1).
@@ -247,7 +253,7 @@ fn portal_sphere_emitter_reaches_steady_state_on_its_shell() {
             particle.velocity.dot(particle.position) < 0.0,
             "moves inward"
         );
-        assert!(particle.age <= particle_lifespan(emitter, particle.seed));
+        assert!(particle.age <= particle_lifespan(emitter, emitter.lifespan, particle.seed));
     }
     // Density scales the emission rate.
     let mut sparse = EmitterSim::new(emitter, 42);
@@ -457,4 +463,64 @@ fn global_sequence_emission_rate_follows_the_global_clock() {
     assert!(alive(3200.0) >= 30, "burst: {}", alive(3200.0));
     assert!(alive(1000.0) <= 6, "lull: {}", alive(1000.0));
     assert!(alive(3200.0 + 3.0 * 5333.0) >= 30, "wrapped burst");
+}
+
+/// Runs `emitter` for `seconds` at a fixed animation time of sequence 0.
+fn run_at(emitter: &ParticleEmitter, time_ms: u32, seconds: f32) -> EmitterSim {
+    let mut sim = EmitterSim::new(emitter, 3);
+    sim.set_animation(
+        emitter,
+        &m2::AnimTime {
+            sequence: 0,
+            time_ms,
+            global_ms: 0.0,
+            global_sequences: &[],
+        },
+    );
+    let steps = (seconds * 60.0).round() as usize;
+    for _ in 0..steps {
+        sim.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
+    }
+    sim
+}
+
+/// spells/frost_nova_area.m2 (166210) keys emitter 0's lifespan: 0.372 s at 0 ms,
+/// 0.701 s at 33 ms, 0.6 s from 67 ms; at 40 ms it is 0.680 s. Particles live the
+/// animated lifespan (WebWowViewerCpp animationManager.cpp:1424-1432 sets
+/// `aniProp->lifespan`, read by `CParticleGenerator::GetLifeSpan`, particleEmitter.cpp:659).
+#[test]
+fn keyframed_lifespan_follows_the_playing_sequence_time() {
+    let emitter = &model(166210).particle_emitters[0];
+    assert!(
+        close(emitter.lifespan, 0.372_049_15),
+        "the static first key"
+    );
+    let sim = run_at(emitter, 40, 0.6);
+    let oldest = sim
+        .particles()
+        .iter()
+        .map(|particle| particle.age)
+        .fold(0.0, f32::max);
+    assert!(oldest > 0.55 && oldest <= 0.681, "oldest age {oldest}");
+}
+
+/// world/.../hive_lightshaft01.m2 (190967) keys emitter 0's plane area: 4.86 yd at 0 ms,
+/// 19.44 yd at 1000 ms. Plane particles spawn within +-area/2 (`CPlaneGenerator.cpp:36-39`
+/// with `aniProp->emissionAreaX/Y`, animationManager.cpp:1442-1459); their drift over
+/// 2 s is under 1 yd.
+#[test]
+fn keyframed_emission_area_follows_the_playing_sequence_time() {
+    let emitter = &model(190967).particle_emitters[0];
+    assert!(
+        close(emitter.area_length, 4.861_111),
+        "the static first key"
+    );
+    let sim = run_at(emitter, 1000, 2.0);
+    let spread = sim
+        .particles()
+        .iter()
+        .map(|particle| particle.position.x.abs().max(particle.position.y.abs()))
+        .fold(0.0, f32::max);
+    assert!(sim.particles().len() >= 10, "{}", sim.particles().len());
+    assert!(spread > 5.0 && spread < 10.8, "spread {spread}");
 }
