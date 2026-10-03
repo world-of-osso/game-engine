@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Build the Godot native library, or run godot/ workspace tests, on Depot from a source-only checkout snapshot."""
+"""Build the Linux Godot extension or run workspace tests on explicit desktop/local hosts."""
 
 import argparse
 import contextlib
@@ -14,6 +14,8 @@ import subprocess
 import sys
 import tempfile
 import time
+
+from build_hosts import execute
 
 
 ROOT_NAME = "game-engine-godot-conversion"
@@ -98,7 +100,7 @@ def validate_sources(context):
 
 def install_artifact(compressed, destination, executable=False):
     if not compressed.is_file():
-        raise FileNotFoundError(f"Depot did not produce {compressed.name}")
+        raise FileNotFoundError(f"Build host did not produce {compressed.name}")
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:
@@ -177,29 +179,34 @@ def fixture_names(root):
     return sorted(path.stem for path in (root / FIXTURE_DIR).glob("*.rs") if path.is_file())
 
 
-def depot_environment():
-    """Depot reads its login from $XDG_CONFIG_HOME/depot/depot.yaml. Fixtures isolate
-    XDG_CONFIG_HOME for Godot, so the login also resolves from the user's ~/.config."""
-    environment = dict(os.environ)
-    if environment.get("DEPOT_TOKEN"):
-        return environment
-    home_config = Path.home() / ".config"
-    configs = [Path(environment["XDG_CONFIG_HOME"])] if environment.get("XDG_CONFIG_HOME") else []
-    for config in (*configs, home_config):
-        if (config / "depot" / "depot.yaml").is_file():
-            environment["XDG_CONFIG_HOME"] = str(config)
-            return environment
-    searched = ", ".join(str(config / "depot" / "depot.yaml") for config in (*configs, home_config))
-    raise FileNotFoundError(f"Depot login not found in {searched}; run `depot login` or set DEPOT_TOKEN")
+def build_host_setting():
+    # Runtime fixtures isolate XDG_CONFIG_HOME; this setting belongs to the build user.
+    return Path.home() / ".config" / "game-engine" / "build-host"
 
 
-def depot_command(context, output, checkout_key, target):
-    return [
-        "depot", "build", "--project", os.environ.get("DEPOT_PROJECT_ID", "003c4ttwqh"),
-        "--platform", "linux/amd64", "--file", str(context / "Dockerfile"), "--target", target,
-        "--build-arg", f"TARGET_CACHE=godot-target-{checkout_key}",
-        "--output", f"type=local,dest={output}",
-    ]
+def select_build_host(explicit):
+    if explicit is not None:
+        return explicit
+    setting = build_host_setting()
+    if not setting.is_file():
+        raise ValueError("choose --build-host desktop|local or --save-build-host desktop|local")
+    host = setting.read_text().strip()
+    if host not in {"desktop", "local"}:
+        raise ValueError(f"invalid build-host {host!r} in {setting}; choose --build-host desktop|local")
+    return host
+
+
+def save_build_host(host):
+    setting = build_host_setting()
+    setting.parent.mkdir(parents=True, exist_ok=True)
+    with tempfile.NamedTemporaryFile(mode="w", dir=setting.parent, delete=False) as output:
+        temporary = Path(output.name)
+        output.write(host + "\n")
+    try:
+        os.replace(temporary, setting)
+    finally:
+        temporary.unlink(missing_ok=True)
+    print(f"Saved build host {host}: {setting}")
 
 
 def locked_checkout(root):
@@ -225,10 +232,10 @@ def stable_context(cache, mode, checkout_key):
         shutil.rmtree(context, ignore_errors=True)
 
 
-def build(root, fixture=None, cli=False, release=False):
+def build(root, fixture=None, cli=False, release=False, host=None):
     if fixture and fixture not in fixture_names(root):
         raise ValueError(f"unknown fixture {fixture!r}; choose from {', '.join(fixture_names(root))}")
-    environment = depot_environment()
+    host = select_build_host(host)
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         target = root / "target"
@@ -242,15 +249,15 @@ def build(root, fixture=None, cli=False, release=False):
             phase("Snapshot", start)
             output = Path(work) / "output"
             output.mkdir()
-            command = depot_command(context, output, checkout_key, "artifact")
+            command = []
             if fixture:
                 command.extend(["--build-arg", f"FIXTURE={fixture}"])
             if cli:
                 command.extend(["--build-arg", "CLI=1"])
             if release:
                 command.extend(["--build-arg", "RELEASE=1"])
-            subprocess.run([*command, str(context)], check=True, env=environment)
-            phase("Remote build", start)
+            execute(context, output, checkout_key, "artifact", command, host)
+            phase(f"{host} build", start)
             destination = root / "target" / ("release" if release else "debug") / ARTIFACT
             if fixture:
                 fixture_destination = root / "target" / "debug" / "examples" / fixture
@@ -267,9 +274,9 @@ def build(root, fixture=None, cli=False, release=False):
                 print(cli_destination)
 
 
-def run_tests(root, cargo_args):
-    """Run `cargo test` remotely and return cargo's exit status."""
-    environment = depot_environment()
+def run_tests(root, cargo_args, host=None):
+    """Run `cargo test` on the selected host and return cargo's exit status."""
+    host = select_build_host(host)
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         start = time.monotonic()
@@ -280,14 +287,13 @@ def run_tests(root, cargo_args):
             phase(f"Snapshot ({count} test assets)", start)
             output = Path(work) / "output"
             output.mkdir()
-            command = depot_command(context, output, checkout_key, "test-result")
-            command.extend(["--build-arg", f"TEST_ARGS={shlex.join(cargo_args)}",
-                            "--build-arg", f"TEST_RUN={time.time_ns()}"])
-            subprocess.run([*command, str(context)], check=True, env=environment)
-            phase("Remote test", start)
+            command = ["--build-arg", f"TEST_ARGS={shlex.join(cargo_args)}",
+                       "--build-arg", f"TEST_RUN={time.time_ns()}"]
+            execute(context, output, checkout_key, "test-result", command, host)
+            phase(f"{host} test", start)
             log, status = output / "test.log", output / "status"
             if not log.is_file() or not status.is_file():
-                raise FileNotFoundError("Depot did not produce test.log and status")
+                raise FileNotFoundError("Build host did not produce test.log and status")
             code = int(status.read_text())
             saved = root / TEST_LOG
             saved.parent.mkdir(parents=True, exist_ok=True)
@@ -307,7 +313,9 @@ def print_test_summary(lines):
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, required=True, help="originating checkout")
+    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1], help="originating checkout")
+    parser.add_argument("--build-host", choices=("desktop", "local"), help="override saved build host for this run")
+    parser.add_argument("--save-build-host", choices=("desktop", "local"), help="save default host and exit without building")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--fixture", help=f"also export one {FIXTURE_DIR} executable, named by file stem")
     parser.add_argument("--cli", action="store_true", help=f"also export target/debug/{CLI}")
@@ -322,9 +330,14 @@ def main():
     if args.cli and (args.test or args.release):
         parser.error(f"argument --cli: not allowed with argument {'--test' if args.test else '--release'}")
     try:
+        if args.save_build_host:
+            if args.build_host or args.fixture or args.cli or args.release or args.test:
+                parser.error("--save-build-host cannot combine with build options")
+            save_build_host(args.save_build_host)
+            return 0
         if args.test:
-            return run_tests(args.root.resolve(), argv[split:])
-        build(args.root.resolve(), args.fixture, args.cli, args.release)
+            return run_tests(args.root.resolve(), argv[split:], args.build_host)
+        build(args.root.resolve(), args.fixture, args.cli, args.release, args.build_host)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Remote build failed: {error}", file=sys.stderr)
         return 1
