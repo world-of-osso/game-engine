@@ -17,8 +17,8 @@ SIBLINGS = ("asset-resolver", "ui-toolkit-godot-conversion", "ui-toolkit-macros"
 FAKE_DEPOT = '''#!/usr/bin/env python3
 import gzip, json, os, pathlib, sys, time
 args = sys.argv[1:]
-assert args[:1] == ['build'], args
-project = args[args.index('--project') + 1]
+assert args[:2] == ['buildx', 'build'], args
+project = args[args.index('--builder') + 1]
 output = pathlib.Path(args[args.index('--output') + 1].split('dest=', 1)[1])
 context = pathlib.Path(args[-1])
 files = {str(p.relative_to(context)): p.read_bytes().decode('latin1') for p in context.rglob('*') if p.is_file()}
@@ -108,12 +108,12 @@ class DepotBuildTests(unittest.TestCase):
         self._git(patch, "commit", "-qm", "initial")
         bin_dir = self.base / "bin"
         bin_dir.mkdir()
-        depot = bin_dir / "depot"
+        depot = bin_dir / "docker"
         depot.write_text(FAKE_DEPOT)
         depot.chmod(0o755)
         self.record = self.base / "record.jsonl"
         self.home = self.base / "home"
-        self._put(self.home, ".config/depot/depot.yaml", "api_token: fake\n")
+        self._put(self.home, ".config/game-engine/build-host", "local\n")
         self.env = {key: value for key, value in os.environ.items() if key not in ("XDG_CONFIG_HOME", "DEPOT_TOKEN")}
         self.env.update(PATH=str(bin_dir) + os.pathsep + os.environ["PATH"], HOME=str(self.home),
                         XDG_CACHE_HOME=str(self.base / "cache"), DEPOT_RECORD=str(self.record))
@@ -145,11 +145,37 @@ class DepotBuildTests(unittest.TestCase):
         args = record["args"]
         return dict(args[index + 1].split("=", 1) for index, arg in enumerate(args) if arg == "--build-arg")
 
-    def test_default_project_is_local_builds(self):
-        self.env.pop("DEPOT_PROJECT_ID", None)
+    def test_saved_host_builds_without_depot_credentials(self):
         result = self.build()
         self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual(self.records()[0]["project"], "003c4ttwqh")
+        self.assertEqual(self.records()[0]["project"], "game-engine")
+
+    def test_save_host_only_writes_setting_without_building(self):
+        result = subprocess.run(["python3", str(SCRIPT), "--save-build-host", "desktop"],
+                                env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.home / ".config/game-engine/build-host").read_text(), "desktop\n")
+        self.assertEqual(self.records(), [])
+
+    def test_explicit_local_overrides_saved_desktop(self):
+        self._put(self.home, ".config/game-engine/build-host", "desktop\n")
+        result = subprocess.run(["python3", str(SCRIPT), "--root", str(self.root), "--build-host", "local"],
+                                env=self.env, capture_output=True, text=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.root / "target/debug/libgame_engine_godot.so").read_bytes(), b"new binary")
+        self.assertEqual((self.home / ".config/game-engine/build-host").read_text(), "desktop\n")
+
+    def test_invalid_or_missing_saved_host_requires_explicit_selection(self):
+        setting = self.home / ".config/game-engine/build-host"
+        setting.write_text("depot\n")
+        result = self.build()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("build-host", result.stderr)
+        setting.unlink()
+        result = self.build()
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("--build-host", result.stderr)
+        self.assertEqual(self.records(), [])
 
     def test_source_snapshot_and_originating_install(self):
         result = self.build(DEPOT_PROJECT_ID="custom-id")
@@ -157,7 +183,7 @@ class DepotBuildTests(unittest.TestCase):
         snapshot = self.records()[0]
         files = snapshot["files"]
         prefix = "game-engine-godot-conversion/"
-        self.assertEqual(snapshot["project"], "custom-id")
+        self.assertEqual(snapshot["project"], "game-engine")
         self.assertEqual(snapshot["args"][snapshot["args"].index("--platform") + 1], "linux/amd64")
         self.assertEqual(files[prefix + "godot/rust/src/lib.rs"], "modified")
         self.assertEqual(files[prefix + "godot/core/src/new.rs"], "untracked")
@@ -334,32 +360,12 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual((self.root / "target/debug/examples/native_water_fixture").read_bytes(), b"water")
 
-    def test_isolated_xdg_config_still_finds_user_depot_login(self):
+    def test_isolated_runtime_xdg_config_does_not_change_saved_build_host(self):
         isolated = self.base / "fixture-config"
         isolated.mkdir()
-        for run in (lambda **env: self.build(fixture="native_reconnect_fixture", **env), self.run_test_mode):
-            result = run(XDG_CONFIG_HOME=str(isolated))
-            self.assertEqual(result.returncode, 0, result.stderr)
-            builds = [record for record in self.records() if "args" in record]
-            self.assertEqual(builds[-1]["xdg_config_home"], str(self.home / ".config"))
-        self.assertNotIn("fake", result.stdout + result.stderr)
-
-    def test_depot_login_in_xdg_config_or_token_is_used_unchanged(self):
-        own = self.base / "own-config"
-        self._put(own, "depot/depot.yaml", "api_token: other\n")
-        self.assertEqual(self.build(XDG_CONFIG_HOME=str(own)).returncode, 0)
-        self.assertEqual(self.records()[-1]["xdg_config_home"], str(own))
-        isolated = self.base / "fixture-config"
-        self.assertEqual(self.build(XDG_CONFIG_HOME=str(isolated), DEPOT_TOKEN="secret").returncode, 0)
-        self.assertEqual((self.records()[-1]["xdg_config_home"], self.records()[-1]["has_token"]), (str(isolated), True))
-
-    def test_missing_depot_login_fails_before_depot_without_token(self):
-        (self.home / ".config/depot/depot.yaml").unlink()
-        result = self.build(XDG_CONFIG_HOME=str(self.base / "fixture-config"))
-        self.assertNotEqual(result.returncode, 0)
-        self.assertIn("Depot login not found", result.stderr)
-        self.assertIn("depot login", result.stderr)
-        self.assertEqual(self.records(), [])
+        result = self.build(XDG_CONFIG_HOME=str(isolated))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual((self.root / "target/debug/libgame_engine_godot.so").read_bytes(), b"new binary")
 
     def test_failed_fixture_download_preserves_existing_executable(self):
         executable = self.root / "target/debug/examples/native_input_fixture"
