@@ -2,7 +2,7 @@
 use game_engine_core::elastic_tree::TreeAnnotation;
 use glam::Vec3;
 use godot::{
-    classes::{ArrayMesh, MeshInstance3D, Node3D, RenderingServer, mesh},
+    classes::{ArrayMesh, MeshInstance3D, Node3D, RenderingServer, ShaderMaterial, mesh},
     prelude::*,
 };
 
@@ -32,6 +32,7 @@ pub fn prepare_batches(
             continue;
         }
         let context = format!("Tree {} batch {}", annotation.model_fdid, batch.get_name());
+        let material = batch_material(&batch).map_err(|error| format!("{context}: {error}"))?;
         let source = batch
             .get_mesh()
             .ok_or_else(|| format!("{context}: missing mesh"))?
@@ -43,7 +44,7 @@ pub fn prepare_batches(
             .get_aabb()
             .merge(batch.get_custom_aabb())
             .grow(padding);
-        prepared.push((batch, weighted, bounds));
+        prepared.push((batch, material, weighted, bounds));
     }
     if prepared.is_empty() {
         return Err(format!(
@@ -53,7 +54,7 @@ pub fn prepare_batches(
     }
     // Do not change any live instance until every batch has been prepared.
     let mut batches = Vec::with_capacity(prepared.len());
-    for (mut batch, weighted, bounds) in prepared {
+    for (mut batch, mut material, weighted, bounds) in prepared {
         batch.set_mesh(&weighted);
         batch.set_custom_aabb(bounds);
         batch.set_meta(BEND_BOUNDS_META, &bounds.to_variant());
@@ -62,9 +63,9 @@ pub fn prepare_batches(
                 .branches
                 .get(index)
                 .map_or(Vector3::ZERO, |branch| Vector3::from_array(branch.pivot));
-            batch.set_instance_shader_parameter(*parameter, &pivot.to_variant());
+            material.set_shader_parameter(*parameter, &pivot.to_variant());
         }
-        batch.set_instance_shader_parameter("tree_bend_enabled", &true.to_variant());
+        material.set_shader_parameter("tree_bend_enabled", &true.to_variant());
         batches.push(batch);
     }
     update_bends(&mut batches, &[]);
@@ -75,9 +76,11 @@ pub fn prepare_batches(
 /// Reapply prepared bounds because M2 sequence changes replace custom AABBs.
 pub fn update_bends(batches: &mut [Gd<MeshInstance3D>], rotations: &[Vec3]) {
     for batch in batches {
+        // prepare_batches validated the material before returning this placement.
+        let mut material = batch_material(batch).expect("Prepared tree batch lost its material");
         for (index, parameter) in ROTATION_PARAMETERS.iter().enumerate() {
             let rotation = rotations.get(index).copied().unwrap_or(Vec3::ZERO);
-            batch.set_instance_shader_parameter(
+            material.set_shader_parameter(
                 *parameter,
                 &Vector3::from_array(rotation.to_array()).to_variant(),
             );
@@ -85,6 +88,16 @@ pub fn update_bends(batches: &mut [Gd<MeshInstance3D>], rotations: &[Vec3]) {
         let bounds = batch.get_meta(BEND_BOUNDS_META).to::<Aabb>();
         batch.set_custom_aabb(bounds);
     }
+}
+
+// build_model's load_material allocates a distinct ShaderMaterial for every batch.
+// Using that existing ownership avoids Godot's world-wide instance uniform pool.
+fn batch_material(batch: &Gd<MeshInstance3D>) -> Result<Gd<ShaderMaterial>, String> {
+    batch
+        .get_material_override()
+        .ok_or("missing batch material")?
+        .try_cast::<ShaderMaterial>()
+        .map_err(|_| "expected M2 ShaderMaterial".into())
 }
 
 fn build_weighted_mesh(
