@@ -358,6 +358,7 @@ pub(super) fn build_model_filtered(
     appearance: Option<&appearance::PreparedAppearance>,
     allowed: impl Fn(u16) -> bool,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
+    let annotation = crate::terrain::elastic_tree::load_annotation(path)?;
     let mut missing = PackedInt32Array::new();
     let model_path = global_path(path);
     let resolver = model_asset_resolver(Path::new(&model_path))?;
@@ -459,6 +460,14 @@ pub(super) fn build_model_filtered(
     }
     if let Some(lights) = m2_lights::WowM2Lights::from_model(model) {
         root.add_child(&lights);
+    }
+    if let Some(annotation) = annotation {
+        if let Err(error) =
+            crate::terrain::elastic_tree::WowElasticTree::attach(&mut root, annotation)
+        {
+            root.free();
+            return Err(error);
+        }
     }
     Ok((root, missing))
 }

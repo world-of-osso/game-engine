@@ -231,12 +231,20 @@ impl PlayerMovement {
         frame: MovementFrame,
         jump_pressed: bool,
         ground: &crate::ground::TerrainGround<'_>,
+        contacts: &mut dyn FnMut(Vec3, Vec3, f32) -> Vec3,
         delta: f32,
     ) -> Vec3 {
         self.rose = false;
         let steps = (delta / MAX_STEP_SECONDS).ceil().max(1.0);
         (0..steps as u32).fold(position, |position, _| {
-            self.step(position, &frame, jump_pressed, ground, delta / steps)
+            self.step(
+                position,
+                &frame,
+                jump_pressed,
+                ground,
+                contacts,
+                delta / steps,
+            )
         })
     }
 
@@ -246,10 +254,11 @@ impl PlayerMovement {
         frame: &MovementFrame,
         jump_pressed: bool,
         ground: &crate::ground::TerrainGround<'_>,
+        contacts: &mut dyn FnMut(Vec3, Vec3, f32) -> Vec3,
         delta: f32,
     ) -> Vec3 {
         let position = if self.flying {
-            self.fly(position, frame, ground, delta)
+            self.fly(position, frame, ground, contacts, delta)
         } else if self.swimming {
             self.swim(position, frame, ground, delta)
         } else {
@@ -343,12 +352,14 @@ impl PlayerMovement {
         current: Vec3,
         frame: &MovementFrame,
         ground: &crate::ground::TerrainGround<'_>,
+        contacts: &mut dyn FnMut(Vec3, Vec3, f32) -> Vec3,
         delta: f32,
     ) -> Vec3 {
         let direction = Vec3::from(frame.direction).normalize_or_zero();
         let velocity = (direction * frame.speed + Vec3::Y * frame.vertical)
             .clamp_length_max(FLIGHT_SPEED * self.speed_modifier);
-        let moved = ground.validate_swim_move(current, current + velocity * delta);
+        let proposed = contacts(current, current + velocity * delta, delta);
+        let moved = ground.validate_swim_move(current, proposed);
         self.rose |= moved.y != current.y;
         let floor = match ground.probe(moved) {
             GroundState::Supported(height) => Some(height),
@@ -648,11 +659,25 @@ impl crate::GameClient {
             terrain: &self.terrain,
             walls: &walls,
         };
+        let mut contacts = |from: Vec3, to: Vec3, step_delta: f32| {
+            use crate::terrain::tree_contact::{
+                MOUNT_CONTACT_HEIGHT, MOUNT_CONTACT_RADIUS, move_airborne,
+            };
+            let offset = Vec3::Y * MOUNT_CONTACT_HEIGHT;
+            move_airborne(
+                &space,
+                from + offset,
+                to + offset,
+                MOUNT_CONTACT_RADIUS,
+                step_delta,
+            ) - offset
+        };
         let next = self.player_movement.predict(
             glam::Vec3::new(current.x, current.y, current.z),
             frame,
             jump,
             &ground,
+            &mut contacts,
             delta,
         );
         player.set_position(Vector3::new(next.x, next.y, next.z));
@@ -971,7 +996,7 @@ mod tests {
         let mut feet = FEET;
         for _ in 0..60 {
             let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0, false);
-            feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
+            feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
         }
         let ran = (feet - FEET).length();
         assert!((ran - 3.5).abs() < 0.01, "{ran}");
@@ -996,7 +1021,7 @@ mod tests {
         let mut feet = FEET;
         for _ in 0..60 {
             let frame = movement.resolve(&InputBindingsData::default(), &input, yaw, 0.0, false);
-            feet = movement.predict(feet, frame, false, &ground, 1.0 / 60.0);
+            feet = movement.predict(feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
         }
         let packet = movement.network_input(yaw, feet, 3).unwrap();
         assert_eq!(packet.position, feet.to_array());
@@ -1127,7 +1152,7 @@ mod tests {
     ) -> Vec3 {
         for _ in 0..frames {
             let frame = movement.resolve(&InputBindingsData::default(), input, yaw, pitch, false);
-            feet = movement.predict(feet, frame, false, ground, dt);
+            feet = movement.predict(feet, frame, false, ground, &mut |_, to, _| to, dt);
         }
         feet
     }
@@ -1544,7 +1569,7 @@ mod tests {
     ) -> Vec3 {
         input.set_key(BindingKey::Space, true);
         let frame = movement.resolve(&InputBindingsData::default(), input, INLAND, 0.0, false);
-        let feet = movement.predict(feet, frame, true, ground, DT);
+        let feet = movement.predict(feet, frame, true, ground, &mut |_, to, _| to, DT);
         assert!(movement.jumping && !movement.flying);
         let mut feet = feet;
         for _ in 0..30 {
@@ -1618,6 +1643,65 @@ mod tests {
         let touchdown = last.expect("landing input");
         assert!(!touchdown.flying);
         assert_eq!(touchdown.position, landed.to_array());
+    }
+
+    #[test]
+    fn tree_contact_deflects_flight_and_reports_corrected_position_without_losing_steering() {
+        use game_engine_core::elastic_tree::{Capsule, deflect_motion, sweep_capsule};
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let mut movement = PlayerMovement::default();
+        movement.set_can_fly(true);
+        let mut input = PhysicalInput::default();
+        let airborne = take_off(&mut movement, &ground, &mut input, SHORE);
+        let high = hold(&mut movement, &ground, &input, airborne, (INLAND, 0.0), 120);
+        input.set_key(BindingKey::Space, false);
+        input.set_key(BindingKey::KeyW, true);
+        let trunk_center = high + Vec3::new(-1.6, 0.0, 2.0);
+        let trunk = Capsule {
+            start: (trunk_center - Vec3::Y * 4.0).to_array(),
+            end: (trunk_center + Vec3::Y * 4.0).to_array(),
+            radius: 0.5,
+        };
+        let mut contacts = |from: Vec3, to: Vec3, _: f32| {
+            let Some(hit) = sweep_capsule(from, to, 1.25, &trunk) else {
+                return to;
+            };
+            let motion = to - from;
+            from + motion * hit.fraction
+                + deflect_motion(motion * (1.0 - hit.fraction), hit.normal, 1.0)
+        };
+        let mut position = high;
+        for _ in 0..60 {
+            let frame = movement.resolve(&InputBindingsData::default(), &input, INLAND, 0.0, false);
+            position = movement.predict(position, frame, false, &ground, &mut contacts, DT);
+        }
+        assert!(
+            position.x > high.x + 0.2,
+            "no lateral deflection: {position}"
+        );
+        assert!(
+            position.z > high.z + 2.0,
+            "tangential motion stopped: {position}"
+        );
+        assert!(movement.flying, "tree contact ended flight");
+        assert!((position.y - high.y).abs() < 0.01);
+        let packet = movement
+            .network_input(INLAND, position, 1)
+            .expect("moving flight input");
+        assert!(packet.flying);
+        assert_eq!(packet.position, position.to_array());
+        input.set_key(BindingKey::KeyW, false);
+        input.set_key(BindingKey::KeyS, true);
+        let frame = movement.resolve(&InputBindingsData::default(), &input, INLAND, 0.0, false);
+        let reversed = movement.predict(position, frame, false, &ground, &mut contacts, DT);
+        assert!(
+            reversed.z < position.z,
+            "contact removed steering: {reversed}"
+        );
     }
 
     /// Mouse-steered forward flight follows the camera pitch (`MOVEANDSTEER`); keyboard
@@ -1699,7 +1783,7 @@ mod tests {
         let mut input = PhysicalInput::default();
         input.set_key(BindingKey::Space, true);
         let frame = movement.resolve(&InputBindingsData::default(), &input, INLAND, 0.0, false);
-        let feet = movement.predict(SHORE, frame, true, &ground, DT);
+        let feet = movement.predict(SHORE, frame, true, &ground, &mut |_, to, _| to, DT);
         let landed = hold(&mut movement, &ground, &input, feet, (INLAND, 0.0), 120);
         assert!(!movement.flying);
         assert!((landed.y - SHORE.y).abs() < 0.06, "{landed}");
