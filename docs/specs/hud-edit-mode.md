@@ -34,6 +34,10 @@ Edit Mode" and open decision 1 (layouts account-wide, active layout per characte
 - Test: `godot/rust/src/ui/flare_panel_tests.rs`, `godot/rust/src/ui/modern_panel_snapshot_tests.rs` (Modern chat/meter/tooltip canvases pinned to their forever6 hashes).
 - Not drawn under Forever yet: class colour on the player health bar (state carries no class), FlareUI's power text, health/power separator, player/ToT aura population, indicators and target/ToT cast bars (#CC995C); class bars and status icons are not shown on the Forever player frame. The objective tracker is not scaled to the minimap width yet (FlareUI `matchTrackerWidth`, Minimap.lua:366-405: scale = minimap frame outer width 260 / 288): the Godot projection has no per-frame scale. The tooltip centre multiplies the dark dialog background, so it shows black at 0.78 alpha where FlareUI's recoloured Blizzard centre is 0.05/0.05/0.06 at 0.9. `ANCHOR_CURSOR_RIGHT` is taken as the tooltip's BOTTOMLEFT on the cursor: no local Blizzard source defines it.
 
+### Bounded reference-correction boundary
+
+The unit-frame reference fixtures prove geometry/text with populated ToT/focus states. Runtime `targeting.rs::unit_frames_state` still supplies `None` for both (pre-existing); this pass does not add unit relationships. Target/ToT cast bars remain deferred: `nameplates.rs:974-983` reads replicated `CastState`, but the HUD snapshot has no cast projection and ToT has no resolved unit identity. Reuse that state in a separate bounded binding pass; no new network plumbing was started. No live client proof is claimed.
+
 ## Art
 
 - Selection boxes: `Interface/EditMode/EditModeUIHighlightBackground.blp` (FDID 4554383) and `EditModeUISelectedBackground.blp` (4554386), stretched, alpha 0.7. Retail slices these as nine-slices; this uses them stretched.
