@@ -22,6 +22,10 @@ files = {str(p.relative_to(context)): p.read_text() for p in context.rglob('*') 
 Path(os.environ['CAPTURE']).write_text(json.dumps(dict(files=files, context=str(context), key=key, target=target, args=json.loads(args), host=host)))
 if os.environ.get('FAIL_EXPORT') == 'transport':
     sys.exit(7)
+if target == 'test-result':
+    (output / 'test.log').write_text('test result: ok. 2 passed\n')
+    (output / 'status').write_text(os.environ.get('TEST_STATUS', '0'))
+    sys.exit(0)
 arguments = dict(value.split('=', 1) for value in json.loads(args)[1::2])
 profile = 'release' if arguments.get('RELEASE') == 'true' else 'new'
 binary = arguments.get('BINARY')
@@ -69,6 +73,18 @@ class DesktopServerBuildTests(unittest.TestCase):
         )
         self.environment.start()
         self.addCleanup(self.environment.stop)
+        os.environ.pop("DEPOT_SIBLING_SHARED_PROTOCOL", None)
+        os.environ.pop("DEPOT_SIBLING_GAME_ENGINE", None)
+        self.engine = self.base / "game-engine"
+        self.put(self.root, "data/world.db", "world rows")
+        self.put(self.root, "data/game.redb", "live player storage")
+        self.put(self.engine, "data/terrain/1.adt", "tile")
+        self.put(self.engine, "data/terrain/1.blp", "minimap")
+        self.put(self.engine, "data/los/0/32_48.los", "los tile")
+        self.manifest = self.base / "test-data.txt"
+        self.manifest.write_text(
+            "# comment\ngame-server/world.db\ngame-engine/terrain/*.adt\ngame-engine/los/\n"
+        )
 
     def put(self, root, name, content):
         path = root / name
@@ -372,6 +388,80 @@ class DesktopServerBuildTests(unittest.TestCase):
             shutil.copytree(self.shared, other.parent / "shared-protocol")
             module.build(other)
             self.assertNotEqual(json.loads(self.capture.read_text())["key"], first)
+
+    def test_shared_protocol_sibling_override_is_snapshotted(self):
+        module = self.load()
+        branch = self.base / "protocol-branch"
+        subprocess.run(["git", "init", "-q", str(branch)], check=True)
+        self.put(branch, "Cargo.toml", "[package]\n")
+        self.put(branch, "src/lib.rs", "branch protocol")
+        subprocess.run(["git", "-C", str(branch), "add", "."], check=True)
+        with (
+            patch.dict(os.environ, {"DEPOT_SIBLING_SHARED_PROTOCOL": str(branch)}),
+            patch.object(module, "execute", self.execute),
+        ):
+            module.build(self.root)
+        files = json.loads(self.capture.read_text())["files"]
+        self.assertEqual(files["shared-protocol/src/lib.rs"], "branch protocol")
+
+    def run_test_mode(self, module, *argv):
+        with patch.object(module, "TEST_DATA", self.manifest):
+            return self.main(module, "--root", str(self.root), "--build-host", "local", "--test", *argv)
+
+    def test_test_mode_syncs_listed_data_forwards_cargo_args_and_saves_log(self):
+        module = self.load()
+        code = self.run_test_mode(module, "-p", "server", "--", "--skip", "query 300k")
+        self.assertEqual(code, 0)
+        result = json.loads(self.capture.read_text())
+        self.assertEqual(result["host"], "local")
+        self.assertEqual(result["target"], "test-result")
+        self.assertIn("TEST_ARGS=-p server -- --skip 'query 300k'", result["args"])
+        self.assertIn(f"BUILD_ROOT={self.root.resolve()}", result["args"])
+        mirror = self.base / "cache/game-engine/depot-build/server-test-data"
+        self.assertIn(f"test-data={mirror}", result["args"])
+        synced = sorted(str(p.relative_to(mirror)) for p in mirror.rglob("*") if p.is_file())
+        self.assertEqual(
+            synced,
+            ["game-engine/los/0/32_48.los", "game-engine/terrain/1.adt", "game-server/world.db"],
+        )
+        self.assertEqual(
+            (self.root / "target/server-test.log").read_text(), "test result: ok. 2 passed\n"
+        )
+        (self.engine / "data/los/0/32_48.los").unlink()
+        self.put(self.engine, "data/los/0/33_48.los", "new tile")
+        self.put(self.root, "data/world.db", "reimported rows")
+        with patch.dict(os.environ, {"TEST_STATUS": "101"}):
+            self.assertEqual(self.run_test_mode(module), 101)
+        self.assertEqual((mirror / "game-server/world.db").read_text(), "reimported rows")
+        self.assertFalse((mirror / "game-engine/los/0/32_48.los").exists())
+        self.assertTrue((mirror / "game-engine/los/0/33_48.los").is_file())
+
+    def test_test_mode_fails_on_missing_listed_data_before_the_host(self):
+        module = self.load()
+        (self.root / "data/world.db").unlink()
+        self.assertEqual(self.run_test_mode(module), 1)
+        self.assertFalse(self.capture.exists())
+
+    def test_test_mode_rejects_build_options(self):
+        module = self.load()
+        for option in ("--release", "--bin=game-cli"):
+            with self.subTest(option=option), self.assertRaises(SystemExit) as error:
+                self.main(module, "--root", str(self.root), option, "--test")
+            self.assertEqual(error.exception.code, 2)
+        self.assertFalse(self.capture.exists())
+
+    def test_game_engine_data_sibling_override(self):
+        module = self.load()
+        other = self.base / "elsewhere/game-engine"
+        self.put(other, "data/terrain/2.adt", "other tile")
+        self.put(other, "data/los/0/1.los", "other los")
+        with patch.dict(os.environ, {"DEPOT_SIBLING_GAME_ENGINE": str(other)}):
+            self.assertEqual(self.run_test_mode(module), 0)
+        mirror = self.base / "cache/game-engine/depot-build/server-test-data/game-engine"
+        self.assertEqual(
+            sorted(str(p.relative_to(mirror)) for p in mirror.rglob("*") if p.is_file()),
+            ["los/0/1.los", "terrain/2.adt"],
+        )
 
 
 if __name__ == "__main__":
