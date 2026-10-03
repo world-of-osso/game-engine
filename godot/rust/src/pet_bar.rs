@@ -494,59 +494,6 @@ fn sent_action(action: &PetAction) -> VarDictionary {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use game_engine_ui_model::pet_action_bar_component::pet_action_bar_screen;
-    use shared::protocol::{
-        ACT_COMMAND, ACT_ENABLED, ACT_REACTION, COMMAND_FOLLOW, REACT_PASSIVE, pet_action_button,
-    };
-    use ui_toolkit::registry::FrameRegistry;
-    use ui_toolkit::screen::{Screen, SharedContext};
-
-    /// Every button's `HotKey` draws above its icon and autocast overlay, as Retail's
-    /// `TextOverlayContainer` (frameLevel 500, ActionButtonTemplate.xml:82-102) does: the
-    /// Ctrl-N text stays visible on filled buttons and is not left to tree order.
-    #[test]
-    fn hotkey_text_draws_above_the_icon_and_autocast_overlay() {
-        let spells = PetSpells {
-            pet: 7,
-            command_state: COMMAND_FOLLOW,
-            react_state: REACT_PASSIVE,
-            action_buttons: [
-                pet_action_button(COMMAND_ATTACK, ACT_COMMAND),
-                pet_action_button(COMMAND_FOLLOW, ACT_COMMAND),
-                pet_action_button(COMMAND_MOVE_TO, ACT_COMMAND),
-                pet_action_button(61_684, ACT_ENABLED),
-                pet_action_button(17_253, ACT_ENABLED),
-                pet_action_button(2_649, ACT_ENABLED),
-                0,
-                pet_action_button(3, ACT_REACTION),
-                pet_action_button(1, ACT_REACTION),
-                pet_action_button(0, ACT_REACTION),
-            ],
-        };
-        let hotkeys = std::array::from_fn(|index| format!("c-{}", (index + 1) % 10));
-        let state = PetActionBarState {
-            visible: true,
-            buttons: pet_bar_buttons(&spells, false, false, |_| 132_127, &hotkeys),
-            shine_texture: None,
-        };
-        let mut registry = FrameRegistry::new(1920.0, 1080.0);
-        let mut shared = SharedContext::new();
-        shared.insert(state);
-        Screen::new(pet_action_bar_screen).sync(&shared, &mut registry);
-        let z = |name: String| {
-            let id = registry.get_by_name(&name).expect(&name);
-            crate::ui::projection::frame_z_index(registry.get(id).unwrap())
-        };
-        for button in 1..=10 {
-            let hotkey = z(format!("PetActionButton{button}HotKey"));
-            for part in ["Icon", "AutoCastShine", "AutoCastCorners", "CheckedTexture"] {
-                assert!(
-                    hotkey > z(format!("PetActionButton{button}{part}")),
-                    "PetActionButton{button}HotKey not above {part}"
-                );
-            }
-        }
-    }
 
     /// Placing a unit at the returned `Position` under the same root puts its node back on
     /// the clicked ground point, for a moved and turned root too.

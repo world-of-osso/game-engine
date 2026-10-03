@@ -395,9 +395,6 @@ fn hotkey(name: &str, text: &str) -> Element {
             font_color: HOTKEY_COLOR,
             outline: "OUTLINE",
             justify_h: "RIGHT",
-            // Retail's `TextOverlayContainer` (frameLevel 500) draws it above every
-            // button layer; here the top draw layer among the button's children.
-            draw_layer: "HIGHLIGHT",
             pos_type: "absolute",
             right: HOTKEY_RIGHT,
             pos_y: HOTKEY_TOP,
