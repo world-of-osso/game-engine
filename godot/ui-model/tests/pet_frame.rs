@@ -1,6 +1,5 @@
 //! Retail PetFrame (Blizzard_UnitFrame/Mainline/PetFrame.xml) under the PlayerFrame.
 
-use game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::FOCUS_BAR_TOT;
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, PET_PORTRAIT, PetFrameState, PowerBarState, UnitFrameMenuState,
     UnitFrameState, inworld_unit_frames_screen,
@@ -13,6 +12,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::TextureSource;
 
 fn frames(pet: Option<PetFrameState>) -> FrameRegistry {
+    load_atlas_tables();
     let mut shared = SharedContext::new();
     shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(InWorldUnitFramesState {
@@ -115,12 +115,11 @@ fn pet_frame_parts_use_retail_rects_and_focus_bar_art() {
         Some(WidgetData::Texture(texture)) => {
             assert_eq!(
                 texture.source,
-                TextureSource::FileDataId(FOCUS_BAR_TOT.fdid)
+                TextureSource::Atlas("UI-HUD-UnitFrame-TargetofTarget-PortraitOn-Bar-Focus".into())
             )
         }
         other => panic!("PetFrameManaBarFill is not a Texture: {other:?}"),
     }
-    assert_eq!(FOCUS_BAR_TOT.rect, (884.0, 958.0, 77.0, 84.0));
     assert_eq!(
         frame(&registry, "PetFrameHealthBarFill").width,
         Dimension::Fixed(35.0)
@@ -133,4 +132,12 @@ fn pet_frame_parts_use_retail_rects_and_focus_bar_art() {
 fn no_pet_frame_without_a_pet() {
     let registry = frames(None);
     assert!(frame(&registry, "PetFrame").hidden);
+}
+
+/// Unit frames size their art from the atlas tables (`atlas_size`).
+fn load_atlas_tables() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
 }

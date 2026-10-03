@@ -1,13 +1,12 @@
 //! Retail `CompactUnitFrame` (raid-style party and raid member frames), the default
 //! "Legacy" layout of `DefaultCompactUnitFrameSetup` (CompactUnitFrame.lua:1941-2069).
-//! Atlas rects are `UiTextureAtlasMember` entries of build 12.1.0.69933.
+//! Art names `UiTextureAtlasElement`s, drawn from the active skin's atlas set.
 
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
 use crate::buff_data::DebuffType;
 use crate::group_state::ReadyMark;
-use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
 use shared::protocol::GroupRoleSnapshot;
@@ -45,32 +44,22 @@ const NAME_COLOR: FontColor = FontColor::new(1.0, 1.0, 1.0, 1.0);
 /// `GameFontDisable`.
 const STATUS_COLOR: FontColor = FontColor::new(0.5, 0.5, 0.5, 1.0);
 
-const fn art(fdid: u32, atlas: (f32, f32), rect: (f32, f32, f32, f32)) -> AtlasArt {
-    AtlasArt { fdid, atlas, rect }
-}
-
-/// `raidframe-hp-bg-white` (atlas 7658229).
-const BACKGROUND: AtlasArt = art(7_658_229, (32.0, 32.0), (0.0, 32.0, 0.0, 32.0));
-/// `RaidFrame-Hp-Fill` (atlas 7539072), tinted by class colour.
-const HEALTH_FILL: AtlasArt = art(7_539_072, (32.0, 32.0), (0.0, 32.0, 0.0, 32.0));
-/// `_RaidFrame-Resource-Fill` / `_RaidFrame-Resource-Background` (atlas 7539067).
-const POWER_FILL: AtlasArt = art(7_539_067, (16.0, 64.0), (0.0, 16.0, 51.0, 57.0));
-const POWER_BACKGROUND: AtlasArt = art(7_539_067, (16.0, 64.0), (0.0, 16.0, 43.0, 49.0));
-/// `RaidFrame-TargetFrame` (atlas 7526019): selection highlight.
-const SELECTION: AtlasArt = art(7_526_019, (256.0, 128.0), (145.0, 215.0, 1.0, 35.0));
-/// Group finder sheet 5171843 (2048²).
-const LFG_SHEET: (u32, (f32, f32)) = (5_171_843, (2048.0, 2048.0));
-const fn lfg(rect: (f32, f32, f32, f32)) -> AtlasArt {
-    art(LFG_SHEET.0, LFG_SHEET.1, rect)
-}
+/// White, tinted `BACKGROUND_RGB`.
+const BACKGROUND: &str = "raidframe-hp-bg-white";
+/// `RaidFrame-Hp-Fill`, tinted by class colour.
+const HEALTH_FILL: &str = "RaidFrame-Hp-Fill";
+const POWER_FILL: &str = "_RaidFrame-Resource-Fill";
+const POWER_BACKGROUND: &str = "_RaidFrame-Resource-Background";
+/// Selection highlight.
+const SELECTION: &str = "RaidFrame-TargetFrame";
 /// `UI-LFG-RoleIcon-<Role>-Micro-GroupFinder` (`GetMicroIconForRole`).
-const ROLE_TANK: AtlasArt = lfg((2026.0, 2047.0, 47.0, 68.0));
-const ROLE_HEALER: AtlasArt = lfg((2003.0, 2024.0, 24.0, 45.0));
-const ROLE_DAMAGE: AtlasArt = lfg((2003.0, 2024.0, 1.0, 22.0));
+const ROLE_TANK: &str = "UI-LFG-RoleIcon-Tank-Micro-GroupFinder";
+const ROLE_HEALER: &str = "UI-LFG-RoleIcon-Healer-Micro-GroupFinder";
+const ROLE_DAMAGE: &str = "UI-LFG-RoleIcon-DPS-Micro-GroupFinder";
 /// `READY_CHECK_*_TEXTURE_RAID` (ReadyCheck.lua:1-10).
-const READY_READY: AtlasArt = lfg((1947.0, 2011.0, 391.0, 455.0));
-const READY_WAITING: AtlasArt = lfg((1947.0, 2011.0, 325.0, 389.0));
-const READY_NOT_READY: AtlasArt = lfg((1947.0, 2011.0, 259.0, 323.0));
+const READY_READY: &str = "UI-LFG-ReadyMark-Raid";
+const READY_WAITING: &str = "UI-LFG-PendingMark-Raid";
+const READY_NOT_READY: &str = "UI-LFG-DeclineMark-Raid";
 /// `Interface\Buttons\UI-Debuff-Overlays` border crop of `CompactDebuffTemplate`,
 /// vertex-coloured by the debuff type (`debuff_border_rgb`).
 const DEBUFF_BORDER_FDID: u32 = 130_759;
@@ -129,7 +118,7 @@ pub fn compact_unit_frame(name: &str, view: &CompactUnitView, rect: Rect) -> Ele
             pos_type: "absolute",
             pos_x: x,
             pos_y: y,
-            {art_texture(format!("{name}Background"), &BACKGROUND, (0.0, 0.0, width, height), BACKGROUND_RGB, false)}
+            {art_texture(format!("{name}Background"), BACKGROUND, (0.0, 0.0, width, height), BACKGROUND_RGB, false)}
             {health_bar(name, view, (width, height))}
             {power_bar(name, view, (width, height))}
             {role_icon(name, view.role)}
@@ -137,7 +126,7 @@ pub fn compact_unit_frame(name: &str, view: &CompactUnitView, rect: Rect) -> Ele
             {status_text(name, view.status, (width, height))}
             {ready_icon(name, view.ready, (width, height))}
             {debuffs(name, &view.debuffs, height)}
-            {art_texture(format!("{name}SelectionHighlight"), &SELECTION, (0.0, 0.0, width, height), [1.0; 3], !view.selected)}
+            {art_texture(format!("{name}SelectionHighlight"), SELECTION, (0.0, 0.0, width, height), [1.0; 3], !view.selected)}
         }
     }
 }
@@ -161,7 +150,7 @@ fn health_bar(name: &str, view: &CompactUnitView, (width, height): (f32, f32)) -
     let fill_w = bar_w * fraction.unwrap_or(0.0).clamp(0.0, 1.0);
     art_texture(
         format!("{name}HealthBar"),
-        &HEALTH_FILL,
+        HEALTH_FILL,
         (1.0, 1.0, fill_w, bar_h),
         rgb,
         fill_w <= 0.0,
@@ -179,14 +168,14 @@ fn power_bar(name: &str, view: &CompactUnitView, (width, height): (f32, f32)) ->
     let fill_w = bar_w * fraction.clamp(0.0, 1.0);
     let mut bar = art_texture(
         format!("{name}PowerBarBackground"),
-        &POWER_BACKGROUND,
+        POWER_BACKGROUND,
         (1.0, y, bar_w, POWER_H),
         [1.0; 3],
         false,
     );
     bar.extend(art_texture(
         format!("{name}PowerBar"),
-        &POWER_FILL,
+        POWER_FILL,
         (1.0, y, fill_w, POWER_H),
         rgb,
         fill_w <= 0.0,
@@ -203,7 +192,7 @@ fn role_icon(name: &str, role: GroupRoleSnapshot) -> Element {
     };
     art_texture(
         format!("{name}RoleIcon"),
-        &art,
+        art,
         (ROLE_X, ROLE_Y, ROLE_SIZE, ROLE_SIZE),
         [1.0; 3],
         role == GroupRoleSnapshot::None,
@@ -273,7 +262,7 @@ fn ready_icon(name: &str, ready: Option<ReadyMark>, (width, height): (f32, f32))
     let bottom = height / 3.0 - 4.0;
     art_texture(
         format!("{name}ReadyCheckIcon"),
-        &art,
+        art,
         ((width - size) / 2.0, height - bottom - size, size, size),
         [1.0; 3],
         ready.is_none(),
@@ -338,9 +327,8 @@ fn rgba([r, g, b]: [f32; 3]) -> String {
     format!("{r},{g},{b},1.0")
 }
 
-fn art_texture(name: String, art: &AtlasArt, rect: Rect, rgb: [f32; 3], hidden: bool) -> Element {
+fn art_texture(name: String, art: &str, rect: Rect, rgb: [f32; 3], hidden: bool) -> Element {
     let (x, y, width, height) = rect;
-    let coords = art.tex_coords(1.0);
     let vertex_color = rgba(rgb);
     rsx! {
         texture {
@@ -348,8 +336,7 @@ fn art_texture(name: String, art: &AtlasArt, rect: Rect, rgb: [f32; 3], hidden: 
             width,
             height,
             hidden,
-            texture_fdid: {art.fdid},
-            tex_coords: {coords.as_str()},
+            texture_atlas: art,
             vertex_color: {vertex_color.as_str()},
             pos_type: "absolute",
             pos_x: x,

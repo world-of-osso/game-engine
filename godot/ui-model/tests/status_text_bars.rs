@@ -13,6 +13,7 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 fn frames(player: UnitFrameState, pet: Option<PetFrameState>) -> FrameRegistry {
+    load_atlas_tables();
     let mut shared = SharedContext::new();
     shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(InWorldUnitFramesState {
@@ -131,4 +132,12 @@ fn pet_bars_show_their_status_text() {
         texts(&registry, "PetFrameManaBar"),
         [Some("0 / 100".into()), None, None]
     );
+}
+
+/// Unit frames size their art from the atlas tables (`atlas_size`).
+fn load_atlas_tables() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
 }

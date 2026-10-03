@@ -1,3 +1,4 @@
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
@@ -28,9 +29,9 @@ mod inworld_unit_frames_power;
 pub mod personal_resource_display;
 use class_bars::{ClassBarView, TextureView};
 use inworld_unit_frames_art::{
-    AtlasArt, BOSS_GOLD, BOSS_RARE_SILVER, BOSS_RARE_STAR, BOSS_RARE_STAR_SIZE, COMBAT_ICON,
-    FRAME_PORTRAIT_OFF, HEALTH_BAR, PLAYER_PORTRAIT_ON, REACTION_STRIP, REST_ICON,
-    TARGET_HEALTH_BAR, TARGET_PORTRAIT_ON, power_bar_art,
+    BOSS_GOLD, BOSS_RARE_SILVER, BOSS_RARE_STAR, COMBAT_ICON, FRAME_PORTRAIT_OFF, HEALTH_BAR,
+    PLAYER_PORTRAIT_ON, REACTION_STRIP, REST_FLIPBOOK, REST_ICON_COORDS, TARGET_HEALTH_BAR,
+    TARGET_PORTRAIT_ON, atlas_size, power_bar_atlas,
 };
 use inworld_unit_frames_aura::target_auras;
 pub use inworld_unit_frames_aura::{
@@ -278,6 +279,9 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
         .get::<InWorldUnitFramesState>()
         .expect("InWorldUnitFramesState must be in SharedContext");
     let layout = hud_layout(ctx);
+    let skin = *ctx
+        .get::<ActiveSkin>()
+        .expect("canvas carries the active skin");
     rsx! {
         r#frame {
             name: "InWorldUnitFramesRoot",
@@ -288,12 +292,12 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             pos_y: 0.0,
             strata: FrameStrata::Dialog,
             background_color: "0.0,0.0,0.0,0.0",
-            {player_frame(&state.player, state.show_player_frame, &layout.player)}
-            {pet_frame(state.pet.as_ref().filter(|_| state.show_player_frame), &layout.pet)}
-            {target_frame(state.target.as_ref(), state.show_target_frame, &layout.target)}
-            {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state), &layout.target_of_target)}
-            {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref(), &layout.focus)}
-            {boss_frames(&state.bosses)}
+            {player_frame(&state.player, state.show_player_frame, &layout.player, skin)}
+            {pet_frame(state.pet.as_ref().filter(|_| state.show_player_frame), &layout.pet, skin)}
+            {target_frame(state.target.as_ref(), state.show_target_frame, &layout.target, skin)}
+            {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state), &layout.target_of_target, skin)}
+            {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref(), &layout.focus, skin)}
+            {boss_frames(&state.bosses, skin)}
             {personal_resource_display::frame(state.personal_resource.as_ref())}
             {unit_frame_menu(&state.menu)}
             {difficulty_menu(state.menu.difficulty_menu.as_ref())}
@@ -308,11 +312,16 @@ fn visible_target_of(state: &InWorldUnitFramesState) -> Option<&SmallUnitFrameSt
 
 const UNIT_FRAME_SIZE: (f32, f32) = (UNIT_FRAME_W, UNIT_FRAME_H);
 
-fn player_frame(state: &UnitFrameState, visible: bool, anchor: &HudAnchor) -> Element {
+fn player_frame(
+    state: &UnitFrameState,
+    visible: bool,
+    anchor: &HudAnchor,
+    skin: ActiveSkin,
+) -> Element {
     let content = rsx! {
         {unit_frame_contents("Player", state, &PLAYER_SLOTS, HEALTH_BAR)}
         {class_bar(state.class_bar.as_ref())}
-        {status_icons(state)}
+        {status_icons(state, skin)}
     };
     art_root(
         dyn_name("PlayerFrame".into()),
@@ -320,37 +329,44 @@ fn player_frame(state: &UnitFrameState, visible: bool, anchor: &HudAnchor) -> El
         anchor,
         !visible,
         (
-            &PLAYER_PORTRAIT_ON,
-            centred(&PLAYER_PORTRAIT_ON, UNIT_FRAME_SIZE),
+            PLAYER_PORTRAIT_ON,
+            centred(atlas_size(PLAYER_PORTRAIT_ON, skin), UNIT_FRAME_SIZE),
         ),
         portrait_slot(&PLAYER_PORTRAIT),
         content,
     )
 }
 
-fn target_frame(target: Option<&UnitFrameState>, visible: bool, anchor: &HudAnchor) -> Element {
-    let content = target.map(target_frame_contents).unwrap_or_default();
+fn target_frame(
+    target: Option<&UnitFrameState>,
+    visible: bool,
+    anchor: &HudAnchor,
+    skin: ActiveSkin,
+) -> Element {
+    let content = target
+        .map(|target| target_frame_contents(target, skin))
+        .unwrap_or_default();
     art_root(
         dyn_name("TargetFrame".into()),
         UNIT_FRAME_SIZE,
         anchor,
         target.is_none() || !visible,
         (
-            &TARGET_PORTRAIT_ON,
-            centred(&TARGET_PORTRAIT_ON, UNIT_FRAME_SIZE),
+            TARGET_PORTRAIT_ON,
+            centred(atlas_size(TARGET_PORTRAIT_ON, skin), UNIT_FRAME_SIZE),
         ),
         portrait_slot(&TARGET_PORTRAIT),
         content,
     )
 }
 
-fn target_frame_contents(state: &UnitFrameState) -> Element {
+fn target_frame_contents(state: &UnitFrameState, skin: ActiveSkin) -> Element {
     let (strip_x, strip_y) = TARGET_REPUTATION;
-    let (strip_w, strip_h) = REACTION_STRIP.size();
+    let (strip_w, strip_h) = atlas_size(REACTION_STRIP, skin);
     rsx! {
         {reaction_strip("Target", state.reaction, (strip_x, strip_y, strip_w, strip_h))}
         {unit_frame_contents("Target", state, &TARGET_SLOTS, TARGET_HEALTH_BAR)}
-        {classification_art(state.classification)}
+        {classification_art(state.classification, skin)}
         {raid_target_icon(state.raid_target)}
         {target_auras(state, (TARGET_AURAS_LEFT, TARGET_AURAS_TOP))}
     }
@@ -358,7 +374,7 @@ fn target_frame_contents(state: &UnitFrameState) -> Element {
 
 /// `TargetFrameMixin:CheckClassification` (TargetFrame.lua:436-445): the gold dragon for
 /// elites, the silver one for rare elites. The winged `UnitIsBossMob` dragon is not drawn.
-pub fn boss_portrait_art(classification: CreatureClassification) -> Option<AtlasArt> {
+pub fn boss_portrait_atlas(classification: CreatureClassification) -> Option<&'static str> {
     match classification {
         CreatureClassification::RareElite => Some(BOSS_RARE_SILVER),
         CreatureClassification::Elite => Some(BOSS_GOLD),
@@ -374,17 +390,19 @@ pub fn shows_rare_star(classification: CreatureClassification) -> bool {
     )
 }
 
-/// The dragon frames the portrait, the star sits on its bottom edge.
-fn classification_art(classification: CreatureClassification) -> Element {
-    let portrait = boss_portrait_art(classification);
+/// The dragon at its atlas size TOPRIGHT of the frame frames the portrait; the star,
+/// at its atlas size, is centred on the portrait's bottom edge.
+fn classification_art(classification: CreatureClassification, skin: ActiveSkin) -> Element {
+    let portrait = boss_portrait_atlas(classification);
     let portrait_art = portrait.unwrap_or(BOSS_GOLD);
-    let (portrait_w, portrait_h) = portrait_art.size();
-    let (portrait_x, portrait_y) = TARGET_BOSS_PORTRAIT;
+    let (portrait_w, portrait_h) = atlas_size(portrait_art, skin);
+    let (right, top) = TARGET_BOSS_PORTRAIT_TOPRIGHT;
+    let portrait_x = UNIT_FRAME_W - right - portrait_w;
     let (star_x, star_y) = TARGET_BOSS_ICON_CENTRE;
-    let half_star = BOSS_RARE_STAR_SIZE / 2.0;
+    let (star_w, star_h) = atlas_size(BOSS_RARE_STAR, skin);
     rsx! {
-        {art_texture(dyn_name("TargetBossPortraitFrameTexture".into()), &portrait_art, (portrait_x, portrait_y, portrait_w, portrait_h), portrait.is_none())}
-        {art_texture(dyn_name("TargetBossIcon".into()), &BOSS_RARE_STAR, (star_x - half_star, star_y - half_star, BOSS_RARE_STAR_SIZE, BOSS_RARE_STAR_SIZE), !shows_rare_star(classification))}
+        {art_texture(dyn_name("TargetBossPortraitFrameTexture".into()), portrait_art, (portrait_x, top, portrait_w, portrait_h), portrait.is_none())}
+        {art_texture(dyn_name("TargetBossIcon".into()), BOSS_RARE_STAR, (star_x - star_w / 2.0, star_y - star_h / 2.0, star_w, star_h), !shows_rare_star(classification))}
     }
 }
 
@@ -445,26 +463,26 @@ pub fn boss_frame_name(index: usize) -> String {
     format!("Boss{}TargetFrame", index + 1)
 }
 
-fn boss_frames(bosses: &[UnitFrameState]) -> Element {
+fn boss_frames(bosses: &[UnitFrameState], skin: ActiveSkin) -> Element {
     (0..MAX_BOSS_FRAMES)
-        .flat_map(|index| boss_frame(index, bosses.get(index)))
+        .flat_map(|index| boss_frame(index, bosses.get(index), skin))
         .collect()
 }
 
-fn boss_frame(index: usize, boss: Option<&UnitFrameState>) -> Element {
+fn boss_frame(index: usize, boss: Option<&UnitFrameState>, skin: ActiveSkin) -> Element {
     let name = boss_frame_name(index);
     let prefix = format!("Boss{}", index + 1);
     let content = boss
         .map(|state| {
             rsx! {
-                {reaction_strip(&prefix, state.reaction, portrait_off_strip(1.0))}
+                {reaction_strip(&prefix, state.reaction, portrait_off_strip(1.0, skin))}
                 {unit_frame_contents(&prefix, state, &PORTRAIT_OFF_SLOTS, HEALTH_BAR)}
             }
         })
         .unwrap_or_default();
     let art = art_texture(
         dyn_name(format!("{name}Art")),
-        &FRAME_PORTRAIT_OFF,
+        FRAME_PORTRAIT_OFF,
         (0.0, 0.0, FRAME_W, FRAME_H),
         false,
     );
@@ -493,8 +511,11 @@ fn scaled((x, y, width, height): Rect, scale: f32) -> Rect {
 
 /// The reaction strip over the portrait-off name tab. Authored 18px tall: a 13px band
 /// that fades out above its transparent lower rows.
-fn portrait_off_strip(scale: f32) -> Rect {
-    scaled((BAR_X, NAME_Y, BAR_W, REACTION_STRIP.size().1), scale)
+fn portrait_off_strip(scale: f32, skin: ActiveSkin) -> Rect {
+    scaled(
+        (BAR_X, NAME_Y, BAR_W, atlas_size(REACTION_STRIP, skin).1),
+        scale,
+    )
 }
 
 fn reaction_strip(prefix: &str, reaction: Option<Reaction>, rect: Rect) -> Element {
@@ -503,7 +524,7 @@ fn reaction_strip(prefix: &str, reaction: Option<Reaction>, rect: Rect) -> Eleme
     };
     tinted_art_texture(
         dyn_name(format!("{prefix}ReputationColor")),
-        &REACTION_STRIP,
+        REACTION_STRIP,
         rect,
         reaction_color(reaction),
         false,
@@ -514,7 +535,7 @@ fn unit_frame_contents(
     prefix: &str,
     state: &UnitFrameState,
     slots: &FrameSlots,
-    health_art: AtlasArt,
+    health_art: &'static str,
 ) -> Element {
     let power_fraction = state.power.as_ref().map_or(0.0, |power| {
         fraction(power.current as f32, power.max as f32)
@@ -536,7 +557,7 @@ fn unit_frame_contents(
             name: format!("{prefix}ManaBar"),
             rect: slots.power,
             fraction: power_fraction,
-            art: state.power.as_ref().and_then(|power| power_bar_art(power.power)),
+            art: state.power.as_ref().and_then(|power| power_bar_atlas(power.power)),
             text: &state.power_text,
             anchors: slots.power_text,
             font_size: UNIT_FONT_SIZE - 1.0,
@@ -613,12 +634,24 @@ fn class_bar_texture(prefix: &str, texture: &TextureView) -> Element {
 }
 
 /// Retail `AttackIcon` and the rest flipbook's first cell beside the portrait.
-fn status_icons(state: &UnitFrameState) -> Element {
-    let (combat_w, combat_h) = COMBAT_ICON.size();
+fn status_icons(state: &UnitFrameState, skin: ActiveSkin) -> Element {
+    let (combat_w, combat_h) = atlas_size(COMBAT_ICON, skin);
     let (combat_x, combat_y) = PLAYER_ATTACK_ICON;
+    let (rest_x, rest_y, rest_w, rest_h) = PLAYER_REST_ICON;
+    let rest_hidden = !state.show_resting_icon;
     rsx! {
-        {art_texture(dyn_name("PlayerCombatIcon".into()), &COMBAT_ICON, (combat_x, combat_y, combat_w, combat_h), !state.show_combat_icon)}
-        {art_texture(dyn_name("PlayerRestingIcon".into()), &REST_ICON, PLAYER_REST_ICON, !state.show_resting_icon)}
+        {art_texture(dyn_name("PlayerCombatIcon".into()), COMBAT_ICON, (combat_x, combat_y, combat_w, combat_h), !state.show_combat_icon)}
+        texture {
+            name: {dyn_name("PlayerRestingIcon".into())},
+            width: rest_w,
+            height: rest_h,
+            hidden: rest_hidden,
+            texture_atlas: REST_FLIPBOOK,
+            tex_coords: REST_ICON_COORDS,
+            pos_type: "absolute",
+            pos_x: rest_x,
+            pos_y: rest_y,
+        }
     }
 }
 
@@ -647,26 +680,31 @@ fn small_unit_frame(
     spec: SmallFrameSpec,
     state: Option<&SmallUnitFrameState>,
     anchor: &HudAnchor,
+    skin: ActiveSkin,
 ) -> Element {
     let content = state
-        .map(|unit| small_unit_contents(&spec, unit))
+        .map(|unit| small_unit_contents(&spec, unit, skin))
         .unwrap_or_default();
     art_root(
         dyn_name(spec.root.into()),
         (TOT_W, TOT_H),
         anchor,
         state.is_none(),
-        (&FRAME_PORTRAIT_OFF, (0.0, 0.0, TOT_W, TOT_H)),
+        (FRAME_PORTRAIT_OFF, (0.0, 0.0, TOT_W, TOT_H)),
         Element::default(),
         content,
     )
 }
 
-fn small_unit_contents(spec: &SmallFrameSpec, unit: &SmallUnitFrameState) -> Element {
+fn small_unit_contents(
+    spec: &SmallFrameSpec,
+    unit: &SmallUnitFrameState,
+    skin: ActiveSkin,
+) -> Element {
     let scale = SMALL_ART_SCALE;
     let strip = unit.reaction.filter(|_| spec.reaction_strip);
     rsx! {
-        {reaction_strip(spec.prefix, strip, portrait_off_strip(scale))}
+        {reaction_strip(spec.prefix, strip, portrait_off_strip(scale, skin))}
         {unit_label(dyn_name(format!("{}Name", spec.prefix)), &unit.name, scaled(PORTRAIT_OFF_SLOTS.name, scale), (GOLD_TEXT, UNIT_FONT_SIZE * scale), "LEFT")}
         {status_bar(BarSpec {
             name: format!("{}HealthBar", spec.prefix),

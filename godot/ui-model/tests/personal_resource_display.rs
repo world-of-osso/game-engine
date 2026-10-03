@@ -68,6 +68,7 @@ fn hovering(
 }
 
 fn frames(display: Option<PersonalResourceDisplayState>) -> FrameRegistry {
+    load_atlas_tables();
     let mut shared = SharedContext::new();
     shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(InWorldUnitFramesState {
@@ -403,4 +404,12 @@ fn alternate_bar_text_is_the_value_alone() {
         bar_texts(&registry, "AlternatePowerBar"),
         [Some("12,500"), None, None]
     );
+}
+
+/// Unit frames size their art from the atlas tables (`atlas_size`).
+fn load_atlas_tables() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
 }
