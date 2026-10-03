@@ -100,8 +100,8 @@ fn modern_trees() -> String {
 }
 
 use ui_toolkit::atlas::{AtlasSource, resolve_region};
-use ui_toolkit::frame::{SizeMode, WidgetData};
-use ui_toolkit::layout::Val;
+use ui_toolkit::frame::{Dimension, WidgetData};
+use ui_toolkit::layout_values::Val;
 use ui_toolkit::widgets::texture::TextureSource;
 
 type ArtCase = (&'static str, u32, (u32, u32), [f32; 4]);
@@ -528,7 +528,7 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
                 "CharacterStatsPaneItemLevelFrameBackground",
                 "UI-Character-Info-ItemLevel-Bounce",
             ),
-            ("CharacterFrameCloseButtonIcon", "RedButton-Exit"),
+            ("CharacterFrameCloseButtonNormal", "RedButton-Exit"),
         ] {
             check_texture(&registry, node, cases, atlas);
         }
@@ -584,7 +584,7 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
             .unwrap();
         assert_eq!(
             (frame.width, frame.height),
-            (SizeMode::Fixed(631.0), SizeMode::Fixed(484.0))
+            (Dimension::Fixed(631.0), Dimension::Fixed(484.0))
         );
         for (node, atlas) in [
             ("CharacterFrameBackground", "UI-Character-Info-General-BG"),
