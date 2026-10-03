@@ -240,6 +240,10 @@ fn forever_border_is_the_no_portrait_metal_nine_slice_instead_of_the_ring() {
     }
     assert!(modern.get_by_name("MinimapClusterNineSlice").is_none());
     // The host caches the metal sheets (UiTextureAtlas 1390, 1394, 1395) with the chrome.
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let fdids = minimap_texture_fdids(&busy_state());
     for fdid in [2_406_979, 2_406_984, 2_406_987] {
         assert!(fdids.contains(&fdid), "{fdid}");
