@@ -33,6 +33,11 @@ func run_test() -> void:
 	if id < 0:
 		fail("Replicated NPC has no pick ID")
 		return
+	# Retail's default Status Text is None (hover only); the authored values below are
+	# read from the bars' Numeric Value text.
+	await open_options(client, "interface")
+	await click_option(client, "Choicestatus_text_display1Hit")
+	await click_option(client, "OptionsDoneButton")
 	for attempt in range(8):
 		if client.target_state().target == id:
 			break
