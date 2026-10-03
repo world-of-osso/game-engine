@@ -4,12 +4,11 @@
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::widget_def::Element;
 
-use super::inworld_unit_frames_art::{
-    TOT_HEALTH_BAR, TOT_PORTRAIT_ON, atlas_size, tot_power_bar_atlas,
-};
+use super::inworld_unit_frames_art::{TOT_HEALTH_BAR, TOT_PORTRAIT_ON, tot_power_bar_atlas};
+use super::inworld_unit_frames_flare::{FLARE_PET, FlareUnit, flare_frame};
 use super::inworld_unit_frames_layout::TextAnchors;
 use super::inworld_unit_frames_parts::{
-    BarSpec, art_root, centred, portrait_slot, status_bar, unit_label,
+    BarSpec, art_root, centred_art, portrait_slot, status_bar, unit_label,
 };
 use super::{
     GOLD_TEXT, PET_FRAME_H, PET_FRAME_W, PET_HEALTH, PET_NAME, PET_PORTRAIT, PET_POWER,
@@ -39,6 +38,9 @@ pub(super) fn pet_frame(
     anchor: &HudAnchor,
     skin: ActiveSkin,
 ) -> Element {
+    if skin == ActiveSkin::Forever {
+        return flare_frame(&FLARE_PET, pet.map(FlareUnit::from), false, anchor);
+    }
     let size = (PET_FRAME_W, PET_FRAME_H);
     let content = pet.map(pet_frame_contents).unwrap_or_default();
     art_root(
@@ -46,10 +48,7 @@ pub(super) fn pet_frame(
         size,
         anchor,
         pet.is_none(),
-        (
-            TOT_PORTRAIT_ON,
-            centred(atlas_size(TOT_PORTRAIT_ON, skin), size),
-        ),
+        centred_art("PetFrame", TOT_PORTRAIT_ON, size, skin),
         portrait_slot(&PET_PORTRAIT),
         content,
     )

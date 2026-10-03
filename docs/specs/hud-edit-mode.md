@@ -24,7 +24,11 @@ Edit Mode" and open decision 1 (layouts account-wide, active layout per characte
 - [x] Two system presets, Modern and Forever, set every HUD frame's anchor (`godot/ui-model/src/ui/hud_layout.rs`); the selected character's preset applies in the world and a switch moves the frames at once.
 - [x] Modern keeps the Retail Modern Edit Mode anchors.
 - [x] Forever puts player, target, target of target, focus, pet and the player cast bar at FlareUI's positions (`Modules/UnitFrames.lua:1888-1894`), and the micro menu, main action bar and bags bar at Forever's Camelot constants (`Blizzard_EditMode/Camelot/EditModePresetLayoutConstants.lua:6-10,38-49`). Its minimap, buffs, debuffs, party, raid, damage meter and objective tracker keep Modern's anchors, as Forever's own preset does.
-- Test: `godot/rust/src/ui/hud_layout_tests.rs`.
+- [x] Forever draws those five unit frames in FlareUI 1.3's shape (`Core.lua:281-302`, `Modules/UnitFrames.lua` `LayoutBars`/`LayoutFrame`): player and target 240×60, target of target 120×28, focus 160×36, pet 160×28; a 4-px inset health bar (the player's 14-high power bar below it), reaction-coloured, filling right to left on target and focus; health as a percentage on player, target and focus; no portrait; `Interface\Tooltips\UI-Tooltip-Border` (16-px edge) tinted FlareUI's #A67D45 over `DialogFrame\UI-DialogBox-Background-Dark`. Boss and party frames keep their Retail shape.
+- [x] Forever's player cast bar is FlareUI's standalone bar: 292×26 in a 300×34 bronze-bordered holder at BOTTOM (0, 268), filled #5C8FC7 (channels #80BFE0, uninterruptible grey).
+- [x] A unit-frame atlas name the active skin has no member for is logged and not drawn.
+- Test: `godot/rust/src/ui/hud_layout_tests.rs`, `godot/ui-model/tests/forever_flare_frames.rs` (Modern frame trees pinned to their pre-Forever dump).
+- Not drawn under Forever yet: class colour on the player health bar (state carries no class), FlareUI's power text, health/power separator, auras, indicators and target cast bar (#CC995C), the cast bar's spell icon; class bars and status icons are not shown on the Forever player frame.
 
 ## Art
 

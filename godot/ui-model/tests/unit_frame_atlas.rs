@@ -1,6 +1,6 @@
 //! Unit frame art names Blizzard atlas elements. Under Modern every element draws exactly
 //! the Retail `UiTextureAtlasMember` crop the frames hard-coded before; under Forever the
-//! names Forever re-skins draw its set-1 `*c60` member.
+//! FlareUI-shaped frames draw none and boss frames keep their Retail crops.
 
 use std::path::PathBuf;
 
@@ -16,7 +16,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{
 use shared::components::{CreatureClassification, PowerType};
 use shared::protocol::GroupRoleSnapshot;
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
-use ui_toolkit::frame::{Dimension, WidgetData};
+use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::TextureSource;
@@ -426,59 +426,27 @@ fn modern_party_frames_draw_the_retail_crops_they_hard_coded() {
     }
 }
 
-const UNIT_FRAME_C60: u32 = 8_036_204;
-const BOSS_C60: u32 = 8_244_541;
-
-/// Forever re-skins the portrait-on frames and the boss dragons onto set-1 members of
-/// `uiunitframec60` / `uiunitframebossc60` (Forever 1.60.1.69913 UiTextureAtlasMember
-/// 38478, 38483, 38485, 40217, 40219); every other unit frame name has no set-1 member and
-/// keeps its Retail crop.
+/// Under Forever the player, target, target-of-target, focus and pet frames take FlareUI's
+/// shape (`forever_flare_frames.rs`) and draw no portrait art; boss frames keep the
+/// portrait-off names, which Forever does not re-skin (no set-1 member), so they draw
+/// their Retail crops.
 #[test]
-fn forever_unit_frames_draw_the_c60_art_of_the_names_it_reskins() {
+fn forever_boss_frames_keep_retail_crops_and_flare_frames_draw_no_portrait_art() {
     let skin = ActiveSkin::Forever;
     let registry = unit_frames(skin, CreatureClassification::Elite, PowerType::Mana);
-    let reskinned = [
-        (
-            "PlayerFrameArt",
-            Crop(UNIT_FRAME_C60, [1.0, 199.0, 246.0, 317.0]),
-        ),
-        (
-            "TargetFrameArt",
-            Crop(UNIT_FRAME_C60, [1.0, 193.0, 388.0, 455.0]),
-        ),
-        (
-            "PetFrameArt",
-            Crop(UNIT_FRAME_C60, [123.0, 243.0, 457.0, 506.0]),
-        ),
-        (
-            "TargetBossPortraitFrameTexture",
-            Crop(BOSS_C60, [1.0, 101.0, 1.0, 101.0]),
-        ),
-    ];
-    let reskinned_names: Vec<&str> = reskinned.iter().map(|(name, _)| *name).collect();
-    for (name, crop) in reskinned {
-        assert_crop(&registry, name, skin, crop);
-    }
-    let rare = unit_frames(skin, CreatureClassification::RareElite, PowerType::Mana);
-    let silver = Crop(BOSS_C60, [103.0, 203.0, 1.0, 101.0]);
-    assert_crop(&rare, "TargetBossPortraitFrameTexture", skin, silver);
-
     for (name, crop) in modern_frame_crops() {
-        if !reskinned_names.contains(&name) {
+        if name.starts_with("Boss1") {
             assert_crop(&registry, name, skin, crop);
         }
     }
-    // The 100×100 c60 dragon is drawn at its atlas size (`useAtlasSize`), TOPRIGHT
-    // (-11, -8) of the 232-wide frame.
-    let dragon = registry
-        .get(
-            registry
-                .get_by_name("TargetBossPortraitFrameTexture")
-                .unwrap(),
-        )
-        .unwrap();
-    assert_eq!(
-        (dragon.width, dragon.height),
-        (Dimension::Fixed(100.0), Dimension::Fixed(100.0))
-    );
+    for name in [
+        "PlayerFrameArt",
+        "TargetFrameArt",
+        "TargetOfTargetFrameArt",
+        "FocusFrameArt",
+        "PetFrameArt",
+        "TargetBossPortraitFrameTexture",
+    ] {
+        assert!(registry.get_by_name(name).is_none(), "{name} drawn");
+    }
 }

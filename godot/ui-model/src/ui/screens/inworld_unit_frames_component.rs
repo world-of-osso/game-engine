@@ -17,6 +17,8 @@ pub mod class_bars;
 pub mod inworld_unit_frames_art;
 #[path = "inworld_unit_frames_aura.rs"]
 mod inworld_unit_frames_aura;
+#[path = "inworld_unit_frames_flare.rs"]
+pub mod inworld_unit_frames_flare;
 #[path = "inworld_unit_frames_layout.rs"]
 mod inworld_unit_frames_layout;
 #[path = "inworld_unit_frames_parts.rs"]
@@ -31,17 +33,20 @@ use class_bars::{ClassBarView, TextureView};
 use inworld_unit_frames_art::{
     BOSS_GOLD, BOSS_RARE_SILVER, BOSS_RARE_STAR, COMBAT_ICON, FRAME_PORTRAIT_OFF, HEALTH_BAR,
     PLAYER_PORTRAIT_ON, REACTION_STRIP, REST_FLIPBOOK, REST_ICON_COORDS, TARGET_HEALTH_BAR,
-    TARGET_PORTRAIT_ON, atlas_size, power_bar_atlas,
+    TARGET_PORTRAIT_ON, power_bar_atlas, sized_atlas_texture,
 };
 use inworld_unit_frames_aura::target_auras;
 pub use inworld_unit_frames_aura::{
     MAX_TARGET_BUFFS, MAX_TARGET_DEBUFFS, TargetAuraView, set_target_auras, target_aura_icon,
     target_frame_auras,
 };
+use inworld_unit_frames_flare::{
+    FLARE_FOCUS, FLARE_PLAYER, FLARE_TARGET, FLARE_TARGET_OF_TARGET, FlareFrame, FlareUnit,
+    flare_frame,
+};
 pub use inworld_unit_frames_layout::*;
 use inworld_unit_frames_parts::{
-    BarSpec, art_root, art_texture, centred, portrait_slot, status_bar, tinted_art_texture,
-    unit_label,
+    BarSpec, WHITE, art_root, art_texture, centred_art, portrait_slot, status_bar, unit_label,
 };
 pub use inworld_unit_frames_pet::PetFrameState;
 use inworld_unit_frames_pet::pet_frame;
@@ -318,6 +323,9 @@ fn player_frame(
     anchor: &HudAnchor,
     skin: ActiveSkin,
 ) -> Element {
+    if skin == ActiveSkin::Forever {
+        return flare_frame(&FLARE_PLAYER, Some(state.into()), !visible, anchor);
+    }
     let content = rsx! {
         {unit_frame_contents("Player", state, &PLAYER_SLOTS, HEALTH_BAR)}
         {class_bar(state.class_bar.as_ref())}
@@ -328,10 +336,7 @@ fn player_frame(
         UNIT_FRAME_SIZE,
         anchor,
         !visible,
-        (
-            PLAYER_PORTRAIT_ON,
-            centred(atlas_size(PLAYER_PORTRAIT_ON, skin), UNIT_FRAME_SIZE),
-        ),
+        centred_art("PlayerFrame", PLAYER_PORTRAIT_ON, UNIT_FRAME_SIZE, skin),
         portrait_slot(&PLAYER_PORTRAIT),
         content,
     )
@@ -343,6 +348,9 @@ fn target_frame(
     anchor: &HudAnchor,
     skin: ActiveSkin,
 ) -> Element {
+    if skin == ActiveSkin::Forever {
+        return flare_frame(&FLARE_TARGET, target.map(FlareUnit::from), !visible, anchor);
+    }
     let content = target
         .map(|target| target_frame_contents(target, skin))
         .unwrap_or_default();
@@ -351,10 +359,7 @@ fn target_frame(
         UNIT_FRAME_SIZE,
         anchor,
         target.is_none() || !visible,
-        (
-            TARGET_PORTRAIT_ON,
-            centred(atlas_size(TARGET_PORTRAIT_ON, skin), UNIT_FRAME_SIZE),
-        ),
+        centred_art("TargetFrame", TARGET_PORTRAIT_ON, UNIT_FRAME_SIZE, skin),
         portrait_slot(&TARGET_PORTRAIT),
         content,
     )
@@ -362,9 +367,9 @@ fn target_frame(
 
 fn target_frame_contents(state: &UnitFrameState, skin: ActiveSkin) -> Element {
     let (strip_x, strip_y) = TARGET_REPUTATION;
-    let (strip_w, strip_h) = atlas_size(REACTION_STRIP, skin);
+    let strip = move |(width, height)| (strip_x, strip_y, width, height);
     rsx! {
-        {reaction_strip("Target", state.reaction, (strip_x, strip_y, strip_w, strip_h))}
+        {reaction_strip("Target", state.reaction, skin, strip)}
         {unit_frame_contents("Target", state, &TARGET_SLOTS, TARGET_HEALTH_BAR)}
         {classification_art(state.classification, skin)}
         {raid_target_icon(state.raid_target)}
@@ -394,15 +399,11 @@ pub fn shows_rare_star(classification: CreatureClassification) -> bool {
 /// at its atlas size, is centred on the portrait's bottom edge.
 fn classification_art(classification: CreatureClassification, skin: ActiveSkin) -> Element {
     let portrait = boss_portrait_atlas(classification);
-    let portrait_art = portrait.unwrap_or(BOSS_GOLD);
-    let (portrait_w, portrait_h) = atlas_size(portrait_art, skin);
     let (right, top) = TARGET_BOSS_PORTRAIT_TOPRIGHT;
-    let portrait_x = UNIT_FRAME_W - right - portrait_w;
     let (star_x, star_y) = TARGET_BOSS_ICON_CENTRE;
-    let (star_w, star_h) = atlas_size(BOSS_RARE_STAR, skin);
     rsx! {
-        {art_texture(dyn_name("TargetBossPortraitFrameTexture".into()), portrait_art, (portrait_x, top, portrait_w, portrait_h), portrait.is_none())}
-        {art_texture(dyn_name("TargetBossIcon".into()), BOSS_RARE_STAR, (star_x - star_w / 2.0, star_y - star_h / 2.0, star_w, star_h), !shows_rare_star(classification))}
+        {sized_atlas_texture("TargetBossPortraitFrameTexture".into(), portrait.unwrap_or(BOSS_GOLD), skin, |(width, height)| (UNIT_FRAME_W - right - width, top, width, height), WHITE, portrait.is_none())}
+        {sized_atlas_texture("TargetBossIcon".into(), BOSS_RARE_STAR, skin, |(width, height)| (star_x - width / 2.0, star_y - height / 2.0, width, height), WHITE, !shows_rare_star(classification))}
     }
 }
 
@@ -475,7 +476,7 @@ fn boss_frame(index: usize, boss: Option<&UnitFrameState>, skin: ActiveSkin) -> 
     let content = boss
         .map(|state| {
             rsx! {
-                {reaction_strip(&prefix, state.reaction, portrait_off_strip(1.0, skin))}
+                {reaction_strip(&prefix, state.reaction, skin, portrait_off_strip(1.0))}
                 {unit_frame_contents(&prefix, state, &PORTRAIT_OFF_SLOTS, HEALTH_BAR)}
             }
         })
@@ -509,23 +510,26 @@ fn scaled((x, y, width, height): Rect, scale: f32) -> Rect {
     (x * scale, y * scale, width * scale, height * scale)
 }
 
-/// The reaction strip over the portrait-off name tab. Authored 18px tall: a 13px band
-/// that fades out above its transparent lower rows.
-fn portrait_off_strip(scale: f32, skin: ActiveSkin) -> Rect {
-    scaled(
-        (BAR_X, NAME_Y, BAR_W, atlas_size(REACTION_STRIP, skin).1),
-        scale,
-    )
+/// The reaction strip over the portrait-off name tab, at its atlas height. Authored 18px
+/// tall: a 13px band that fades out above its transparent lower rows.
+fn portrait_off_strip(scale: f32) -> impl FnOnce((f32, f32)) -> Rect {
+    move |(_, height)| scaled((BAR_X, NAME_Y, BAR_W, height), scale)
 }
 
-fn reaction_strip(prefix: &str, reaction: Option<Reaction>, rect: Rect) -> Element {
+fn reaction_strip(
+    prefix: &str,
+    reaction: Option<Reaction>,
+    skin: ActiveSkin,
+    place: impl FnOnce((f32, f32)) -> Rect,
+) -> Element {
     let Some(reaction) = reaction else {
         return Element::default();
     };
-    tinted_art_texture(
-        dyn_name(format!("{prefix}ReputationColor")),
+    sized_atlas_texture(
+        format!("{prefix}ReputationColor"),
         REACTION_STRIP,
-        rect,
+        skin,
+        place,
         reaction_color(reaction),
         false,
     )
@@ -635,12 +639,11 @@ fn class_bar_texture(prefix: &str, texture: &TextureView) -> Element {
 
 /// Retail `AttackIcon` and the rest flipbook's first cell beside the portrait.
 fn status_icons(state: &UnitFrameState, skin: ActiveSkin) -> Element {
-    let (combat_w, combat_h) = atlas_size(COMBAT_ICON, skin);
     let (combat_x, combat_y) = PLAYER_ATTACK_ICON;
     let (rest_x, rest_y, rest_w, rest_h) = PLAYER_REST_ICON;
     let rest_hidden = !state.show_resting_icon;
     rsx! {
-        {art_texture(dyn_name("PlayerCombatIcon".into()), COMBAT_ICON, (combat_x, combat_y, combat_w, combat_h), !state.show_combat_icon)}
+        {sized_atlas_texture("PlayerCombatIcon".into(), COMBAT_ICON, skin, |(width, height)| (combat_x, combat_y, width, height), WHITE, !state.show_combat_icon)}
         texture {
             name: {dyn_name("PlayerRestingIcon".into())},
             width: rest_w,
@@ -656,6 +659,7 @@ fn status_icons(state: &UnitFrameState, skin: ActiveSkin) -> Element {
 }
 
 struct SmallFrameSpec {
+    flare: &'static FlareFrame,
     root: &'static str,
     prefix: &'static str,
     /// Retail's focus frame is a `TargetFrameTemplate` with the reaction strip; target of
@@ -665,11 +669,13 @@ struct SmallFrameSpec {
 
 impl SmallFrameSpec {
     const TARGET_OF_TARGET: Self = Self {
+        flare: &FLARE_TARGET_OF_TARGET,
         root: "TargetOfTargetFrame",
         prefix: "TargetOfTarget",
         reaction_strip: false,
     };
     const FOCUS: Self = Self {
+        flare: &FLARE_FOCUS,
         root: "FocusFrame",
         prefix: "Focus",
         reaction_strip: true,
@@ -682,6 +688,9 @@ fn small_unit_frame(
     anchor: &HudAnchor,
     skin: ActiveSkin,
 ) -> Element {
+    if skin == ActiveSkin::Forever {
+        return flare_frame(spec.flare, state.map(FlareUnit::from), false, anchor);
+    }
     let content = state
         .map(|unit| small_unit_contents(&spec, unit, skin))
         .unwrap_or_default();
@@ -690,7 +699,12 @@ fn small_unit_frame(
         (TOT_W, TOT_H),
         anchor,
         state.is_none(),
-        (FRAME_PORTRAIT_OFF, (0.0, 0.0, TOT_W, TOT_H)),
+        art_texture(
+            dyn_name(format!("{}Art", spec.root)),
+            FRAME_PORTRAIT_OFF,
+            (0.0, 0.0, TOT_W, TOT_H),
+            false,
+        ),
         Element::default(),
         content,
     )
@@ -704,7 +718,7 @@ fn small_unit_contents(
     let scale = SMALL_ART_SCALE;
     let strip = unit.reaction.filter(|_| spec.reaction_strip);
     rsx! {
-        {reaction_strip(spec.prefix, strip, portrait_off_strip(scale, skin))}
+        {reaction_strip(spec.prefix, strip, skin, portrait_off_strip(scale))}
         {unit_label(dyn_name(format!("{}Name", spec.prefix)), &unit.name, scaled(PORTRAIT_OFF_SLOTS.name, scale), (GOLD_TEXT, UNIT_FONT_SIZE * scale), "LEFT")}
         {status_bar(BarSpec {
             name: format!("{}HealthBar", spec.prefix),
