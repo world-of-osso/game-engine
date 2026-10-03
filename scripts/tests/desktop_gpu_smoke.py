@@ -2,7 +2,8 @@
 """Owned desktop Vulkan/login/input/screenshot smoke; run as osso-test in OssoBuild.
 
 Requires staged root/{bin/godot,bin/game-engine-cli,godot/,target/debug/,data/},
-Weston, and test-only Dozen ICD. No window appears on the Windows desktop.
+authored data/{glues,ui,fonts,sounds}, sound indexes, the active CASC resolution
+cache, Weston, and test-only Dozen ICD. No window or audio reaches Windows desktop.
 """
 import os
 from pathlib import Path
@@ -57,7 +58,8 @@ def smoke(root):
                         raise RuntimeError(f"owned compositor not ready; inspect {output / 'weston.log'}")
                     time.sleep(0.1)
                 client = subprocess.Popen([str(root / "bin/godot"), "--path", str(root / "godot"),
-                                           "--display-driver", "wayland", "--rendering-driver", "vulkan", "--",
+                                           "--display-driver", "wayland", "--rendering-driver", "vulkan",
+                                           "--audio-driver", "Dummy", "--",
                                            "--screen", "login", "--run-js-ui-script", str(script)],
                                           cwd=root, env=environment, stdout=client_log, stderr=client_log,
                                           start_new_session=True)
@@ -77,8 +79,11 @@ def smoke(root):
                 performance = read_cli(root, socket, environment, "performance")
                 print(performance, flush=True)
                 print(read_cli(root, socket, environment, "screenshot", str(output / "login.webp")), flush=True)
-                if "Microsoft Direct3D12 (NVIDIA GeForce RTX 4070 Ti)" not in (output / "godot.log").read_text():
+                log = (output / "godot.log").read_text()
+                if "Microsoft Direct3D12 (NVIDIA GeForce RTX 4070 Ti)" not in log:
                     raise RuntimeError("Godot did not report RTX-backed Vulkan")
+                if "Read authored UI asset" in log:
+                    raise RuntimeError("login art is missing; stage authored glues/ui assets before visual acceptance")
                 from PIL import Image
                 with Image.open(output / "login.webp") as image:
                     if min(image.size) < 100 or all(low == high for low, high in image.getextrema()):
