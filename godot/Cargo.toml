@@ -10,8 +10,8 @@ rust-version = "1.95"
 ui-toolkit-macros = { path = "../../ui-toolkit-macros" }
 
 [patch.crates-io]
-ktx2-rw = { path = "../../bevy-patches/ktx2-rw" }
-taffy = { path = "../../bevy-patches/taffy" }
+ktx2-rw = { path = "../vendor/ktx2-rw" }
+taffy = { path = "../vendor/taffy" }
 
 [patch."https://github.com/world-of-osso/shared-protocol.git"]
 shared = { path = "../../shared-protocol" }
