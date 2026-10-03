@@ -11,7 +11,7 @@ Client options `--screen`, `--state`, `--server`, `--char`, and `--run-js-ui-scr
 - Linux x86_64 caller with Python 3 and Git.
 - `local`: Docker/buildx access on the caller; use this host when the desktop is occupied by gaming.
 - `desktop`: SSH alias `desktop`, reaching the `OssoBuild` Ubuntu 24.04 WSL distribution as root, with Docker/buildx available there.
-- Both hosts use the named `game-engine` buildx builder for Linux amd64. Builder limits: 8 CPUs/16 GB; desktop WSL limits: 8 processors/20 GB. Builders have been created; provisioning and real build/test acceptance are still pending.
+- Both hosts use the named `game-engine` buildx builder for Linux amd64. Builder limits: 8 CPUs/16 GB; desktop WSL limits: 8 processors/20 GB. Both builders have exported real native extensions; desktop also exported the IPC CLI and ran 16 camera-related core tests on October 3, 2026.
 
 ## Usage
 
@@ -38,7 +38,9 @@ python3 scripts/depot-build.py --root "$PWD" --cli
 
 ## Desktop runtime capability boundary
 
-Approved scope includes desktop server execution, tests, and GPU-backed manual client testing, but build-host selection is not runtime orchestration. Desktop server startup/network access, runtime test execution, and manual client workflows remain pending; no working desktop runtime command is asserted here. The newly provisioned desktop has an i7-13700 (16 cores/24 threads), 32 GB RAM, and RTX 4070 Ti. Current WSL GPU probes report software `llvmpipe`, not RTX-backed rendering; hardware presence is not GPU acceptance. No real desktop/local build, test, or GPU pass is claimed by this trial documentation.
+Build-host selection does not start runtime processes. `python3 scripts/desktop-server-build.py --root ../game-server` builds and exports compatible Linux server, admin, and game-cli executables from current sources; an old Arch-built server requires newer glibc than Ubuntu 24.04. Stage those executables under `bin/`, a consistent SQLite backup at `data/world.db`, and `data/gametables/` in an owned WSL runtime directory. Never copy live `game.redb`. The bounded fixture `scripts/tests/desktop_server_smoke.py <staged-root>` starts a loopback UDP server on port 15001 with fresh player storage, requires admin `pong` and a disposable-account authenticated roster, then stops its owned process. Runtime acceptance is pending until this fixture runs.
+
+Desktop has an i7-13700 (16 cores/24 threads), 32 GB RAM, and RTX 4070 Ti. Ubuntu's stock Vulkan ICDs do not expose this GPU. A test-only Mesa 25.2.8 Dozen build under `/opt/game-engine/mesa-dzn` enumerates `Microsoft Direct3D12 (NVIDIA GeForce RTX 4070 Ti)` with Vulkan 1.2; it is explicitly nonconformant. Set `VK_DRIVER_FILES=/opt/game-engine/mesa-dzn/share/vulkan/icd.d/dzn_icd.x86_64.json` and `LD_LIBRARY_PATH=/usr/lib/wsl/lib` only for owned tests. Unset both `DISPLAY` and `WAYLAND_DISPLAY` for displayless enumeration: inherited WSLg surface probing can hang without an interactive Windows display. GPU enumeration is not game rendering, screenshot, or manual-testing acceptance; those remain pending. Dozen is a workaround for missing packaged WSL Vulkan support, restricted to testing; retire the custom build when the distro supplies a proven suitable driver.
 
 Each worktree needs the matching sibling repositories beside it: `asset-resolver`, `ui-toolkit-godot-conversion`, `ui-toolkit-macros`, `shared-protocol`, and `bevy-patches`. `DEPOT_SIBLING_<NAME>` (name upper-cased, `-` as `_`) points one of them elsewhere, for example `DEPOT_SIBLING_SHARED_PROTOCOL=/home/osso/.worktrees/shared-protocol-visage` for a protocol branch. The worktree itself can have any directory name. Source-file symlinks and symlinked `target`/`target/debug` directories fail explicitly; the helper never deletes existing targets. Use a checkout-local artifact directory rather than a shared target symlink.
 
