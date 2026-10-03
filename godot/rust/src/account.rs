@@ -67,8 +67,9 @@ use shared::protocol::{
 use shared::protocol::{
     ConvertGroupToParty, ConvertGroupToRaid, GroupChannel, GroupCommandResponse,
     GroupInviteCancelled, GroupInviteIntent, GroupInvitePrompt, GroupMemberStates,
-    GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup, PromoteGroupLeader, ReadyCheckUpdate,
-    RespondGroupInvite, RespondReadyCheck, SetGroupRole, StartReadyCheck,
+    GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup, PromoteGroupLeader, RaidTargetIcons,
+    ReadyCheckUpdate, RespondGroupInvite, RespondReadyCheck, SetGroupRole, SetRaidTarget,
+    StartReadyCheck,
 };
 
 use shared::protocol::{
@@ -123,6 +124,8 @@ pub struct Account {
     pub xp: Option<shared::protocol::PlayerXpUpdate>,
     /// Party/raid roster, live member states, the ready check and the pending invite.
     pub group: GroupState,
+    /// The group's raid target icons, or the solo player's own.
+    pub raid_targets: RaidTargetIcons,
 }
 
 pub struct NetworkLink {
@@ -275,6 +278,7 @@ impl Account {
             damage_meter: None,
             xp: None,
             group: GroupState::default(),
+            raid_targets: RaidTargetIcons::default(),
         }
     }
 
@@ -320,6 +324,7 @@ impl Account {
         self.damage_meter = None;
         self.xp = None;
         self.group = GroupState::default();
+        self.raid_targets = RaidTargetIcons::default();
         self.quests = QuestRuntime::default();
         self.session.token = self.read_token()?;
         Ok(())
@@ -800,6 +805,13 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// `SetRaidTarget(unit, icon)`: icon 1–8 on the unit's server entity bits, 0 clears.
+    pub fn send_raid_target(&self, target: u64, icon: u8) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, GroupChannel>(SetRaidTarget { target, icon })
+            .map_err(SessionError)
+    }
+
     /// A group request from chat or the invite popup, on `GroupChannel` as the root
     /// client's `send_group_command` sends it.
     pub fn send_group(&self, command: GroupCommand) -> Result<(), SessionError> {
@@ -1052,6 +1064,7 @@ impl Account {
             || message.is::<GroupInviteCancelled>()
             || message.is::<ReadyCheckUpdate>()
             || message.is::<GroupCommandResponse>()
+            || message.is::<RaidTargetIcons>()
     }
 
     /// Fill [`GroupState`] as the root client's `receive_group` does; results go to chat.
@@ -1075,6 +1088,8 @@ impl Account {
             }
         } else if message.is::<ReadyCheckUpdate>() {
             self.group.apply_ready_check(decode(message)?);
+        } else if message.is::<RaidTargetIcons>() {
+            self.raid_targets = decode(message)?;
         } else {
             let response: GroupCommandResponse = decode(message)?;
             self.group.last_server_message = Some(response.message.clone());

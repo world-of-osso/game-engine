@@ -64,6 +64,7 @@ mod player_spells;
 mod process_memory_status;
 mod profile;
 mod quests;
+mod raid_targets;
 mod replicated;
 mod scene;
 mod scene_export;
@@ -1589,6 +1590,7 @@ impl GameClient {
             ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
             ("Soft interact", |c, _| c.update_soft_interact()),
+            ("Raid target keys", |c, _| c.update_raid_target_keys()),
             ("Mailbox", |c, _| c.update_mailbox()),
             ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),

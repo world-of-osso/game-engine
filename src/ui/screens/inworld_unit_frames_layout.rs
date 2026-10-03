@@ -103,6 +103,11 @@ pub(super) const TARGET_BOSS_ICON_CENTRE: (f32, f32) = (
     232.0 - 26.0 - 58.0 / 2.0 + RETAIL_TARGET_TO_ART.0,
     19.0 + 58.0 + RETAIL_TARGET_TO_ART.1,
 );
+/// `RaidTargetIcon` centred on the 58×58 `Portrait`'s TOP (TargetFrame.xml:275-279).
+pub(super) const TARGET_RAID_TARGET_ICON_CENTRE: (f32, f32) = (
+    232.0 - 26.0 - 58.0 / 2.0 + RETAIL_TARGET_TO_ART.0,
+    19.0 + RETAIL_TARGET_TO_ART.1,
+);
 
 pub(super) const GOLD_TEXT: &str = "1.0,0.82,0.0,1.0";
 pub(super) const VALUE_TEXT: &str = "1.0,1.0,1.0,1.0";

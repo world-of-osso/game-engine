@@ -566,6 +566,7 @@ impl GameClient {
         let mut target = target_unit.map(|unit| target_frame_state(unit, viewer_level, multiplier));
         if let (Some(state), Some(id)) = (target.as_mut(), target_id) {
             self.fill_target_auras(state, id);
+            state.raid_target = self.raid_target_of(id);
         }
         let target_state = target.clone();
         self.targeting.frame_texts = target

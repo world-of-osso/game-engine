@@ -206,6 +206,15 @@ pub enum InputAction {
     AssistTarget,
     TargetSelf,
     InteractTarget,
+    RaidTarget1,
+    RaidTarget2,
+    RaidTarget3,
+    RaidTarget4,
+    RaidTarget5,
+    RaidTarget6,
+    RaidTarget7,
+    RaidTarget8,
+    RaidTargetNone,
     ActionSlot1,
     ActionSlot2,
     ActionSlot3,
@@ -241,7 +250,7 @@ pub enum InputAction {
 }
 
 impl InputAction {
-    pub const ALL: [Self; 51] = [
+    pub const ALL: [Self; 60] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -261,6 +270,15 @@ impl InputAction {
         Self::AssistTarget,
         Self::TargetSelf,
         Self::InteractTarget,
+        Self::RaidTarget1,
+        Self::RaidTarget2,
+        Self::RaidTarget3,
+        Self::RaidTarget4,
+        Self::RaidTarget5,
+        Self::RaidTarget6,
+        Self::RaidTarget7,
+        Self::RaidTarget8,
+        Self::RaidTargetNone,
         Self::ActionSlot1,
         Self::ActionSlot2,
         Self::ActionSlot3,
@@ -315,6 +333,22 @@ impl InputAction {
 
     pub fn section(self) -> BindingSection {
         self.meta().section
+    }
+
+    /// The raid target icon a `RAIDTARGET1..8` binding assigns, 0 for `RAIDTARGETNONE`.
+    pub fn raid_target_icon(self) -> Option<u8> {
+        Some(match self {
+            Self::RaidTarget1 => 1,
+            Self::RaidTarget2 => 2,
+            Self::RaidTarget3 => 3,
+            Self::RaidTarget4 => 4,
+            Self::RaidTarget5 => 5,
+            Self::RaidTarget6 => 6,
+            Self::RaidTarget7 => 7,
+            Self::RaidTarget8 => 8,
+            Self::RaidTargetNone => 0,
+            _ => return None,
+        })
     }
 
     pub fn default_binding(self) -> Option<InputBinding> {
@@ -485,6 +519,19 @@ impl InputAction {
                 BindingSection::Targeting,
                 None,
             ),
+            // `RAIDTARGET1..8`: `SetRaidTargetIcon("target", n)`; `RAIDTARGETNONE`:
+            // `SetRaidTarget("target", 0)` (Bindings_Standard.xml:1573-1599), unbound.
+            Self::RaidTarget1 => raid_target_meta("raid_target_1", "Assign Star to Target"),
+            Self::RaidTarget2 => raid_target_meta("raid_target_2", "Assign Circle to Target"),
+            Self::RaidTarget3 => raid_target_meta("raid_target_3", "Assign Diamond to Target"),
+            Self::RaidTarget4 => raid_target_meta("raid_target_4", "Assign Triangle to Target"),
+            Self::RaidTarget5 => raid_target_meta("raid_target_5", "Assign Moon to Target"),
+            Self::RaidTarget6 => raid_target_meta("raid_target_6", "Assign Square to Target"),
+            Self::RaidTarget7 => raid_target_meta("raid_target_7", "Assign Cross to Target"),
+            Self::RaidTarget8 => raid_target_meta("raid_target_8", "Assign Skull to Target"),
+            Self::RaidTargetNone => {
+                raid_target_meta("raid_target_none", "Clear Target Marker Icon")
+            }
             Self::ToggleMute => input_action_meta(
                 "toggle_mute",
                 "Toggle Mute",
@@ -829,6 +876,11 @@ fn targeting_meta(
     )
 }
 
+/// Retail files these under `BINDING_HEADER_RAID_TARGET` ("Target Markers").
+fn raid_target_meta(key: &'static str, label: &'static str) -> InputActionMeta {
+    input_action_meta(key, label, BindingSection::Targeting, None)
+}
+
 fn movement_action_from_key(key: &str) -> Option<InputAction> {
     Some(match key {
         "move_forward" => InputAction::MoveForward,
@@ -862,6 +914,15 @@ fn targeting_action_from_key(key: &str) -> Option<InputAction> {
         "assist_target" => InputAction::AssistTarget,
         "target_self" => InputAction::TargetSelf,
         "interact_target" => InputAction::InteractTarget,
+        "raid_target_1" => InputAction::RaidTarget1,
+        "raid_target_2" => InputAction::RaidTarget2,
+        "raid_target_3" => InputAction::RaidTarget3,
+        "raid_target_4" => InputAction::RaidTarget4,
+        "raid_target_5" => InputAction::RaidTarget5,
+        "raid_target_6" => InputAction::RaidTarget6,
+        "raid_target_7" => InputAction::RaidTarget7,
+        "raid_target_8" => InputAction::RaidTarget8,
+        "raid_target_none" => InputAction::RaidTargetNone,
         _ => return None,
     })
 }
@@ -979,6 +1040,15 @@ fn targeting_section_actions() -> &'static [InputAction] {
         InputAction::AssistTarget,
         InputAction::TargetSelf,
         InputAction::InteractTarget,
+        InputAction::RaidTarget1,
+        InputAction::RaidTarget2,
+        InputAction::RaidTarget3,
+        InputAction::RaidTarget4,
+        InputAction::RaidTarget5,
+        InputAction::RaidTarget6,
+        InputAction::RaidTarget7,
+        InputAction::RaidTarget8,
+        InputAction::RaidTargetNone,
     ]
 }
 
