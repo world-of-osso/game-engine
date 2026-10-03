@@ -162,10 +162,10 @@ fn exec_godot(root: &Path, godot: &Path, args: Vec<OsString>) -> Result<i32, Str
     Err(format!("cannot launch Godot {}: {error}", godot.display()))
 }
 
-const GODOT_VERSION: &str = "4.7.2-pr123946";
+const GODOT_VERSION: &str = "4.7.2-pr123946-pr123546";
 const GODOT_BUILD_SCRIPT: &str = "scripts/godot/build-patched-godot.sh";
-/// Official 4.7.2 plus upstream godotengine/godot#123946, as built by `GODOT_BUILD_SCRIPT`.
-const GODOT_SHA512: &str = include_str!("../../scripts/godot/godot-4.7.2-pr123946.sha512");
+/// Official 4.7.2 plus upstream godotengine/godot#123946 and #123546, as built by `GODOT_BUILD_SCRIPT`.
+const GODOT_SHA512: &str = include_str!("../../scripts/godot/godot-4.7.2-pr123946-pr123546.sha512");
 
 /// Pinned patched Godot under the user cache, checksum-verified on every launch.
 fn pinned_godot(root: &Path) -> Result<PathBuf, String> {

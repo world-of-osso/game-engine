@@ -23,7 +23,7 @@ import signal
 import subprocess
 import time
 
-GODOT = Path.home() / ".cache/game-engine/godot/4.7.2-pr123946/godot-4.7.2-pr123946"
+GODOT = Path.home() / ".cache/game-engine/godot/4.7.2-pr123946-pr123546/godot-4.7.2-pr123946-pr123546"
 AGENT_RUN = "/syncthing/Sync/Projects/world-of-osso/game-engine/scripts/agent/agent-run"
 
 
