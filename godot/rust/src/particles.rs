@@ -300,6 +300,7 @@ pub(crate) struct ModelParticles {
     emitters: Vec<(usize, ParticleEmitter)>,
     /// Bone pivots in Godot model axes.
     pivots: Vec<Vector3>,
+    global_sequences: Vec<u32>,
 }
 
 impl ModelParticles {
@@ -324,6 +325,7 @@ impl ModelParticles {
             fdid,
             emitters,
             pivots,
+            global_sequences: model.global_sequences.clone(),
         }))
     }
 
@@ -346,6 +348,7 @@ impl ModelParticles {
                 fdid: self.fdid,
                 emitters,
                 pivots: self.pivots.clone(),
+                global_sequences: self.global_sequences.clone(),
             })
         })
     }
@@ -434,7 +437,10 @@ impl PlacedParticles {
             .player
             .as_ref()
             .filter(|player| player.is_instance_valid())
-            .and_then(|player| player.bind().playback());
+            .and_then(|player| {
+                let player = player.bind();
+                Some((player.playback()?, player.global_ms()?))
+            });
         for placed in &mut self.emitters {
             let emitter = &self.model.emitters[placed.emitter].1;
             let bone = self
@@ -459,8 +465,14 @@ impl PlacedParticles {
             } else {
                 self.density
             };
-            if let Some((sequence, time_ms)) = playback {
-                placed.sim.set_animation(emitter, sequence, time_ms);
+            if let Some(((sequence, time_ms), global_ms)) = playback {
+                let time = m2::AnimTime {
+                    sequence,
+                    time_ms,
+                    global_ms,
+                    global_sequences: &self.model.global_sequences,
+                };
+                placed.sim.set_animation(emitter, &time);
             }
             placed
                 .sim
