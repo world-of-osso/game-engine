@@ -160,6 +160,110 @@ fn successful_build_then_launch_forwards_arguments_and_environment() {
 }
 
 #[test]
+fn build_host_is_consumed_and_forwarded_only_to_helper() {
+    for host in ["desktop", "local"] {
+        let fixture = Fixture::new();
+        let output = fixture.launch(&[
+            "--headless",
+            "--screen",
+            "login",
+            "--build-host",
+            host,
+            "--verbose",
+        ]);
+        assert!(output.status.success(), "{output:?}");
+        let log = fixture.log();
+        let records: Vec<_> = log.lines().collect();
+        assert_eq!(records.len(), 2, "{log}");
+        assert_eq!(
+            records[0].split('\t').nth(4).unwrap(),
+            [
+                hex("--root"),
+                hex(&fixture.directory),
+                hex("--build-host"),
+                hex(host),
+            ]
+            .join(",")
+        );
+        assert_eq!(
+            fixture.godot_args(),
+            [
+                hex("--path"),
+                hex(fixture.directory.join("godot")),
+                hex("--headless"),
+                hex("--verbose"),
+                hex("--"),
+                hex("--screen"),
+                hex("login"),
+            ]
+        );
+    }
+}
+
+#[test]
+fn build_host_omission_leaves_default_selection_to_helper() {
+    let fixture = Fixture::new();
+    let output = fixture.launch(&[]);
+    assert!(output.status.success(), "{output:?}");
+    let log = fixture.log();
+    assert_eq!(
+        log.lines().next().unwrap().split('\t').nth(4).unwrap(),
+        [hex("--root"), hex(&fixture.directory)].join(",")
+    );
+}
+
+#[test]
+fn build_host_after_separator_remains_a_client_argument() {
+    let fixture = Fixture::new();
+    let output = fixture.launch(&["--", "--build-host", "client-owned"]);
+    assert!(output.status.success(), "{output:?}");
+    let log = fixture.log();
+    assert_eq!(
+        log.lines().next().unwrap().split('\t').nth(4).unwrap(),
+        [hex("--root"), hex(&fixture.directory)].join(",")
+    );
+    assert_eq!(
+        fixture.godot_args(),
+        [
+            hex("--path"),
+            hex(fixture.directory.join("godot")),
+            hex("--"),
+            hex("--build-host"),
+            hex("client-owned"),
+        ]
+    );
+}
+
+#[test]
+fn build_host_missing_value_fails_before_any_process() {
+    for args in [
+        vec!["--build-host"],
+        vec!["--build-host", "--verbose"],
+        vec!["--build-host", "--"],
+    ] {
+        let fixture = Fixture::new();
+        let output = fixture.launch(&args);
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("--build-host requires a value"), "{stderr}");
+        assert!(fixture.log().is_empty());
+    }
+}
+
+#[test]
+fn build_host_invalid_value_fails_before_any_process() {
+    for host in ["depot", "Desktop", "", "remote"] {
+        let fixture = Fixture::new();
+        let output = fixture.launch(&["--build-host", host]);
+        assert_eq!(output.status.code(), Some(1), "{output:?}");
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        assert!(stderr.contains("invalid --build-host"), "{stderr}");
+        assert!(stderr.contains("desktop or local"), "{stderr}");
+        assert!(fixture.log().is_empty());
+    }
+}
+
+#[test]
 fn js_script_flag_reaches_godot_as_a_client_argument() {
     let fixture = Fixture::new();
     let output = fixture.launch(&[
@@ -427,7 +531,9 @@ fn non_utf8_native_and_client_values_survive_routing() {
 #[test]
 fn build_failure_preserves_status_and_prevents_godot() {
     let fixture = Fixture::new();
+    fs::remove_dir_all(fixture.directory.join("godot/.godot")).unwrap();
     let output = Command::new(env!("CARGO_BIN_EXE_game-engine-launcher"))
+        .args(["--build-host", "local"])
         .env("CARGO", &fixture.cargo)
         .env("GODOT_BIN", &fixture.godot)
         .env("FAKE_LOG", fixture.directory.join("log"))
@@ -436,8 +542,19 @@ fn build_failure_preserves_status_and_prevents_godot() {
         .output()
         .unwrap();
     assert_eq!(output.status.code(), Some(37));
-    assert_eq!(fixture.log().lines().count(), 1);
-    assert!(fixture.log().starts_with("depot-build.py\t"));
+    let log = fixture.log();
+    assert_eq!(log.lines().count(), 1);
+    assert!(log.starts_with("depot-build.py\t"));
+    assert_eq!(
+        log.lines().next().unwrap().split('\t').nth(4).unwrap(),
+        [
+            hex("--root"),
+            hex(&fixture.directory),
+            hex("--build-host"),
+            hex("local"),
+        ]
+        .join(",")
+    );
 }
 
 #[test]
