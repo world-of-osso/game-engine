@@ -18,6 +18,8 @@ cargo run -- --screen charselect
 python3 scripts/depot-build.py --root "$PWD"
 # Build the extension and one owned UDP fixture executable (any godot/network/examples/*.rs stem):
 python3 scripts/depot-build.py --root "$PWD" --fixture native_input_fixture
+# Optimized library only, into target/release/ (used by ./deploy.sh; not combinable with --fixture/--cli/--test):
+python3 scripts/depot-build.py --root "$PWD" --release
 # Also export the IPC client to target/debug/game-engine-cli (with or without --fixture):
 python3 scripts/depot-build.py --root "$PWD" --cli
 ```
