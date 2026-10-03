@@ -48,7 +48,7 @@ fn sprite_sheet_cells_follow_the_retail_icon_order() {
 }
 
 /// Portrait 58×58 TOPRIGHT (-26, -19) of the 232×100 frame: its TOP centre is (177, 19),
-/// (157, -7) of the portrait-off art, so the 26px icon spans 144..170 × -20..6.
+/// so the 26px icon spans 164..190 × 6..32.
 #[test]
 fn skull_sits_on_the_portrait_top() {
     let registry = target_frames(Some(8));
@@ -72,8 +72,8 @@ fn skull_sits_on_the_portrait_top() {
             icon.height
         ),
         (
-            Val::Px(144.0),
-            Val::Px(-20.0),
+            Val::Px(164.0),
+            Val::Px(6.0),
             Dimension::Fixed(26.0),
             Dimension::Fixed(26.0)
         )

@@ -2500,3 +2500,7 @@ Added "Shader compilation ahead of need" to [world-entry-stalls](investigations/
 ## 2026-10-02 — Shadow and depth passes
 
 Updated [godot-inworld-frame-time](investigations/godot-inworld-frame-time.md): interior WMO groups/doodads cast no shadows, two cascades (retail `shadowNumCascades 2`), depth pre-pass off. Stormwind idle p50 45.9 -> 34.9 ms, shadow draws 2.46k -> 1.40k.
+
+## 2026-10-02 — Bevy client retired
+
+User decision: the Godot client is the only client. The root Bevy package `game-engine` (src/, Bevy tests, shaders, release Dockerfile/deploy.sh) is deleted; the 312 root files godot crates compiled through `#[path]` moved into their owning `godot/<crate>/` (shared ones in `game-engine-core`), `game-engine-cli` moved to `godot/cli` (`depot-build.py --cli`), and `png_to_ktx2` plus the cache importers the client reads moved to root `tools/` (`game-engine-tools`). Wiki pages citing `src/` paths describe the pre-retirement tree. Deleted (git history keeps them): zone_name, sound_music_zone and particle_color cache importers, `lightdata_convert`, `blp_to_pam`, `blp_to_ppm`, `debug_blp`, `benches/parser_benches.rs`, `examples/ui_demo.rs`, `scripts/run_screenshot_regression.sh`, `scripts/run_skybox_screenshot_regression.sh`, `scripts/capture_skybox_validation.sh`. Root `deploy.sh`, `Dockerfile` and `scripts/windows-dev.ps1` are kept pending a user decision; they build the deleted Bevy package and are broken until then. See [godot-conversion spec](../specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).

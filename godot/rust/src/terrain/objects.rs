@@ -382,6 +382,9 @@ pub(crate) struct TerrainObjects {
     arrived: VecDeque<(ObjectAsset, Result<LoadedAsset, String>)>,
     /// Placements whose files have loaded, in arrival order.
     ready: VecDeque<Pending>,
+    /// Placements of the prioritized tiles, loaded or not: they spawn before every other
+    /// placement, including the doodads of other tiles' WMOs placed meanwhile.
+    first: VecDeque<Pending>,
     /// The WMO placement being built; other placements wait for it.
     building: Option<WmoSpawn>,
     spawned_doodads: BTreeSet<u32>,
@@ -428,6 +431,7 @@ impl TerrainObjects {
             waiting_count: 0,
             arrived: VecDeque::new(),
             ready: VecDeque::new(),
+            first: VecDeque::new(),
             building: None,
             spawned_doodads: BTreeSet::new(),
             spawned_wmos: BTreeSet::new(),
@@ -489,6 +493,7 @@ impl TerrainObjects {
         self.pending.len()
             + self.waiting_count
             + self.ready.len()
+            + self.first.len()
             + usize::from(self.building.is_some())
     }
 
@@ -502,21 +507,46 @@ impl TerrainObjects {
         self.progress.get(tile)
     }
 
-    /// Moves `tile`'s queued placements ahead of the other tiles', once it is queued; the
-    /// loading screen waits for them.
+    /// Moves `tile`'s placements ahead of the other tiles', once it is queued: its loaded
+    /// and queued placements, its model loads ahead of the loads the other tiles queued
+    /// before it parsed, and the doodads of its WMOs once placed. The loading screen
+    /// waits for them.
     pub fn prioritize_tile(&mut self, tile: Tile) {
         if self.prioritized.contains(&tile) || !self.queued_tiles.contains(&tile) {
             return;
         }
         self.prioritized.insert(tile);
-        let wmo_tiles = &self.wmo_tiles;
-        let (first, rest): (VecDeque<_>, VecDeque<_>) =
-            self.pending.drain(..).partition(|&pending| match pending {
-                Pending::Doodad(of, _) | Pending::Wmo(of, _) => of == tile,
-                Pending::WmoDoodad(wmo, _) => wmo_tiles.get(&wmo) == Some(&tile),
-            });
-        self.pending = first;
-        self.pending.extend(rest);
+        let ready = std::mem::take(&mut self.ready);
+        self.ready = self.take_tile(ready, tile);
+        let pending = std::mem::take(&mut self.pending);
+        self.pending = self.take_tile(pending, tile);
+        let assets: Vec<ObjectAsset> = self
+            .waiting
+            .iter()
+            .filter(|(_, placements)| {
+                placements
+                    .iter()
+                    .any(|&pending| self.tile_of(pending) == Some(tile))
+            })
+            .map(|(&asset, _)| asset)
+            .collect();
+        for asset in assets {
+            self.loader.request(asset, Priority::First);
+        }
+    }
+
+    /// Moves `placements` of `tile` to `first`, in order; the others, in order.
+    fn take_tile(&mut self, placements: VecDeque<Pending>, tile: Tile) -> VecDeque<Pending> {
+        let (of_tile, rest): (VecDeque<_>, VecDeque<_>) = placements
+            .into_iter()
+            .partition(|&pending| self.tile_of(pending) == Some(tile));
+        self.first.extend(of_tile);
+        rest
+    }
+
+    fn is_prioritized(&self, pending: Pending) -> bool {
+        self.tile_of(pending)
+            .is_some_and(|tile| self.prioritized.contains(&tile))
     }
 
     /// The tile a placement counts toward; `None` for the global WMO's doodads.
@@ -560,7 +590,12 @@ impl TerrainObjects {
                 self.finish_asset(asset, loaded);
                 continue;
             }
-            let Some(pending) = self.ready.pop_front().or_else(|| self.pending.pop_front()) else {
+            let Some(pending) = self
+                .first
+                .pop_front()
+                .or_else(|| self.ready.pop_front())
+                .or_else(|| self.pending.pop_front())
+            else {
                 break;
             };
             let spawned = match self.asset_of(terrain, pending) {
@@ -619,7 +654,12 @@ impl TerrainObjects {
     }
 
     fn wait_for(&mut self, asset: ObjectAsset, pending: Pending) {
-        self.loader.request(asset, Priority::Now);
+        let priority = if self.is_prioritized(pending) {
+            Priority::First
+        } else {
+            Priority::Now
+        };
+        self.loader.request(asset, priority);
         self.waiting.entry(asset).or_default().push(pending);
         self.waiting_count += 1;
     }
@@ -658,7 +698,13 @@ impl TerrainObjects {
         }
         let placements = self.waiting.remove(&asset).unwrap_or_default();
         self.waiting_count -= placements.len();
-        self.ready.extend(placements);
+        for pending in placements {
+            if self.is_prioritized(pending) {
+                self.first.push_back(pending);
+            } else {
+                self.ready.push_back(pending);
+            }
+        }
     }
 
     fn queue_tiles(&mut self, terrain: &StreamedTerrain, selection: &impl ObjectSelection) {
@@ -943,7 +989,8 @@ impl TerrainObjects {
     }
 
     /// Doodads spawn later, one per pending entry, so the object budget covers them; they
-    /// are next in line, so a placed WMO is furnished before other placements spawn.
+    /// are next in line, so a placed WMO is furnished before other placements spawn,
+    /// except those of the prioritized tiles unless it is one of theirs.
     fn queue_wmo_doodads(
         &mut self,
         wmo: u32,
@@ -954,8 +1001,17 @@ impl TerrainObjects {
         if doodads.is_empty() {
             return;
         }
+        let of_prioritized = self
+            .wmo_tiles
+            .get(&wmo)
+            .is_some_and(|tile| self.prioritized.contains(tile));
+        let queue = if of_prioritized {
+            &mut self.first
+        } else {
+            &mut self.pending
+        };
         for index in (0..doodads.len()).rev() {
-            self.pending.push_front(Pending::WmoDoodad(wmo, index));
+            queue.push_front(Pending::WmoDoodad(wmo, index));
         }
         let node = node.clone();
         self.wmo_doodads.insert(
@@ -1141,6 +1197,7 @@ impl TerrainObjects {
         self.waiting.clear();
         self.waiting_count = 0;
         self.ready.clear();
+        self.first.clear();
         if let Some(spawn) = self.building.take() {
             spawn.build.abandon();
         }
