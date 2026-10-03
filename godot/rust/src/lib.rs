@@ -915,6 +915,17 @@ impl GameClient {
         GString::from(sent.err().unwrap_or_default().as_str())
     }
 
+    /// Use spell `spell_id` as its action button does (`UseAction` → `CastSpellByID`, or a
+    /// dismount for the mount being ridden), for fixtures casting a spell not on the bar.
+    /// An empty string once sent, else the error.
+    #[func]
+    fn use_spell(&mut self, spell_id: i64) -> GString {
+        let sent = u32::try_from(spell_id)
+            .map_err(|_| format!("Bad spell {spell_id}"))
+            .and_then(|id| self.cast_spell(id).map_err(|error| error.to_string()));
+        GString::from(sent.err().unwrap_or_default().as_str())
+    }
+
     /// The shown fill of mirror timer `timer`'s bar, or nil while it is not running.
     #[func]
     fn mirror_timer_fraction(&self, timer: i64) -> Variant {

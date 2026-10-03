@@ -402,7 +402,10 @@ impl GameClient {
         }
     }
 
-    fn cast_spell(&mut self, spell_id: u32) -> Result<(), SessionError> {
+    pub(crate) fn cast_spell(&mut self, spell_id: u32) -> Result<(), SessionError> {
+        if self.riding_mount_of(spell_id) {
+            return self.account.send_cancel_mount_aura();
+        }
         let name = self
             .spells
             .catalog()
@@ -420,6 +423,22 @@ impl GameClient {
         self.account.send_cast(spell_id, &name, target, witness)?;
         self.spells.sent.push(spell_id);
         Ok(())
+    }
+
+    /// Whether the local player rides the mount `spell_id` summons (it is mounted and has
+    /// that spell's aura): using the mount again dismounts, as Retail's mount buttons do.
+    fn riding_mount_of(&self, spell_id: u32) -> bool {
+        let Some(unit) = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id))
+        else {
+            return false;
+        };
+        unit.has::<shared::components::Mounted>()
+            && unit
+                .get::<shared::components::UnitAuras>()
+                .is_some_and(|auras| auras.auras.iter().any(|aura| aura.spell_id == spell_id))
     }
 
     /// `CastFailed`: Retail GlobalStrings text in UIErrorsFrame.

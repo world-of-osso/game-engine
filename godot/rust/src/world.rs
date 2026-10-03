@@ -34,9 +34,9 @@ use godot::{
     prelude::*,
 };
 use shared::components::{
-    CombatStatus, CreatureMotion, EquipmentAppearance, Health, ModelDisplay, MovementControl,
-    MovementSpeed, Npc, Player, PlayerMotion, PlayerStandState, Position, Rotation, SheathState,
-    StandState, UnitPose,
+    CombatStatus, CreatureMotion, EquipmentAppearance, Health, ModelDisplay, Mounted,
+    MovementControl, MovementSpeed, Npc, Player, PlayerMotion, PlayerStandState, Position,
+    Rotation, SheathState, StandState, UnitPose,
 };
 use shared::protocol::EmoteKind;
 
@@ -44,6 +44,8 @@ use shared::protocol::EmoteKind;
 pub(crate) mod combat;
 #[path = "world_emotes.rs"]
 mod emotes;
+#[path = "world_mount.rs"]
+mod mount;
 #[path = "world_stand.rs"]
 pub(crate) mod stand;
 use combat::MeleeWeapon;
@@ -97,6 +99,8 @@ struct UnitNode {
     /// The pose clip `stand_state` holds while the player stands still; cleared when it
     /// moves (the server stands it up).
     stand_anim: Option<u16>,
+    /// A player's mount (replicated `Mounted`), which its visual rides.
+    mount: Option<mount::UnitMount>,
 }
 
 /// An NPC visual's model node, its bone animation and the merged bounds of its meshes,
@@ -295,6 +299,7 @@ fn spawn_unit(
         emote: None,
         stand_state: None,
         stand_anim: None,
+        mount: None,
     }
 }
 
@@ -1099,6 +1104,9 @@ impl WorldUnits {
             .get::<CombatStatus>()
             .is_some_and(|status| status.0);
         request_unit_visual(unit, snapshot, &mut self.models);
+        if unit.is_player {
+            mount::sync_mount(unit, snapshot.get::<Mounted>(), &mut self.models);
+        }
         if let Some(class) = combat::unit_weapon_class(unit, &self.models) {
             (unit.weapon, unit.main_hand_subclass) = class;
         }
@@ -1126,6 +1134,24 @@ impl WorldUnits {
             if let Some(index) = self.detached.iter().position(|id| *id == request) {
                 self.detached.swap_remove(index);
                 self.detached_arrived.push((request, loaded));
+                continue;
+            }
+            if let Some(unit) = self.units.values_mut().find(|unit| {
+                unit.mount
+                    .as_ref()
+                    .is_some_and(|mount| mount.request == Some(request))
+            }) {
+                let mount = unit.mount.as_mut().expect("matched a mounted unit");
+                mount.request = None;
+                match loaded.and_then(|parts| self.models.build_visual(parts, None)) {
+                    Ok(model) => {
+                        bind_visual_light(&model, self.light.as_ref());
+                        unit.node.add_child(&model);
+                        mount.node = Some(model);
+                        mount::seat_rider(unit);
+                    }
+                    Err(error) => godot_error!("Mount of {}: {error}", unit.name),
+                }
                 continue;
             }
             let loading = self
@@ -1226,6 +1252,7 @@ impl WorldUnits {
     pub fn advance(&mut self, delta: f32) {
         for (id, unit) in &mut self.units {
             advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
+            mount::seat_rider(unit);
         }
     }
 
@@ -1243,6 +1270,15 @@ impl WorldUnits {
             else {
                 continue;
             };
+            let flying = unit
+                .player_motion
+                .is_some_and(|motion| motion.contains(PlayerMotion::FLYING));
+            if let Some(result) = mount::animate_mounted(unit, locomotion, flying, fallbacks) {
+                if let Err(error) = result {
+                    errors.push(error);
+                }
+                continue;
+            }
             let Some(mut animation) = unit
                 .visual
                 .as_ref()
@@ -1404,10 +1440,20 @@ impl WorldUnits {
         animation_id: u16,
         jumping: bool,
         running_forward: bool,
+        flying: bool,
     ) -> Result<(), String> {
         let Some(unit) = self.local_player_id.and_then(|id| self.units.get_mut(&id)) else {
             return Ok(());
         };
+        let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
+        let locomotion = Locomotion {
+            animation_id,
+            jumping,
+            running_forward,
+        };
+        if let Some(result) = mount::animate_mounted(unit, locomotion, flying, fallbacks) {
+            return result;
+        }
         let visual = unit
             .visual
             .as_ref()
@@ -1415,7 +1461,6 @@ impl WorldUnits {
         let mut animation = visual
             .try_get_node_as::<WowAnimationPlayer>("M2Animation")
             .ok_or_else(|| format!("Local player {} has no bone animation", unit.name))?;
-        let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         let movement = player_movement_clip(unit, &animation, animation_id, jumping, fallbacks);
         animation
             .bind_mut()
