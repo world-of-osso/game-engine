@@ -9,7 +9,7 @@
 use glam::{Mat3, Mat4, Vec2, Vec3, Vec4};
 
 use crate::asset::m2_format::m2_anim;
-use crate::m2::ParticleEmitter;
+use crate::m2::{AnimTime, ParticleEmitter};
 
 const FLAG_VELOCITY_ORIENTED: u32 = 0x4;
 const FLAG_MODEL_SPACE: u32 = 0x10;
@@ -418,28 +418,24 @@ impl EmitterSim {
         }
     }
 
-    /// Evaluate the emitter's keyframed emission tracks at `time_ms` of model
-    /// sequence `sequence` (`CParticleEmitter2::SetAnimTime`); used by the next updates.
-    /// Global-sequence tracks keep their static value.
-    pub fn set_animation(&mut self, emitter: &ParticleEmitter, sequence: usize, time_ms: u32) {
+    /// Evaluate the emitter's keyframed emission tracks at the model's animation `time`
+    /// (`CParticleEmitter2::SetAnimTime`); used by the next updates.
+    pub fn set_animation(&mut self, emitter: &ParticleEmitter, time: &AnimTime) {
         let tracks = &emitter.tracks;
-        let local = |track: &&m2_anim::AnimTrack<f32>| track.global_sequence < 0;
+        let f32_at = |track: &m2_anim::AnimTrack<f32>| {
+            let (timeline, time_ms) = time.track_time(track);
+            m2_anim::evaluate_f32_track(track, timeline, time_ms)
+        };
         self.animated = AnimatedEmission {
-            rate: tracks
-                .emission_rate
-                .as_ref()
-                .filter(local)
-                .and_then(|track| m2_anim::evaluate_f32_track(track, sequence, time_ms)),
-            speed: tracks
-                .emission_speed
-                .as_ref()
-                .filter(local)
-                .and_then(|track| m2_anim::evaluate_f32_track(track, sequence, time_ms)),
+            rate: tracks.emission_rate.as_ref().and_then(f32_at),
+            speed: tracks.emission_speed.as_ref().and_then(f32_at),
             enabled: tracks
                 .enabled
                 .as_ref()
-                .filter(|track| track.global_sequence < 0)
-                .and_then(|track| m2_anim::evaluate_u8_track(track, sequence, time_ms))
+                .and_then(|track| {
+                    let (timeline, time_ms) = time.track_time(track);
+                    m2_anim::evaluate_u8_track(track, timeline, time_ms)
+                })
                 .is_none_or(|enabled| enabled != 0),
         };
     }
