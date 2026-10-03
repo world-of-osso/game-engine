@@ -59,6 +59,7 @@ mod objective_tracker;
 mod particle_debug;
 mod particles;
 mod party_frames;
+mod pet_bar;
 mod player_spells;
 #[path = "process_memory_status.rs"]
 mod process_memory_status;
@@ -250,6 +251,7 @@ pub struct GameClient {
     nameplates: nameplates::Nameplates,
     soft_interact: soft_interact::SoftInteract,
     spells: spells::SpellsHud,
+    pet_bar: pet_bar::PetBarHud,
     merchant: merchant::Merchant,
     bags: bags::Bags,
     character_frame: character_frame::CharacterFrame,
@@ -365,6 +367,7 @@ impl INode3D for GameClient {
             nameplates: nameplates::Nameplates::new(),
             soft_interact: soft_interact::SoftInteract::default(),
             spells: spells::SpellsHud::default(),
+            pet_bar: pet_bar::PetBarHud::default(),
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
             character_frame: character_frame::CharacterFrame::default(),
@@ -480,6 +483,13 @@ impl INode3D for GameClient {
                 return;
             }
             Ok(false) => {}
+        }
+        // Escape ends pet Move To ground targeting first (`SpellStopTargeting`).
+        if key.get_keycode() == godot::global::Key::ESCAPE && self.cancel_pet_move_to() {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
         }
         if key.get_keycode() == godot::global::Key::ESCAPE {
             match self.close_all_windows() {
@@ -900,6 +910,13 @@ impl GameClient {
         self.spells_snapshot()
     }
 
+    /// The pet bar: pet, command/react states, buttons, checked states, Move To targeting
+    /// and the `PetAction`s sent.
+    #[func]
+    fn pet_bar_state(&self) -> VarDictionary {
+        self.pet_bar_snapshot()
+    }
+
     /// `SetSpecialization(spec_id)` as the talent frame's spec choice sends it, for
     /// fixtures that need a spec (a level-10 character without one gets the server's
     /// default). An empty string once sent, else the error.
@@ -1103,6 +1120,7 @@ impl GameClient {
             visit(ui)?;
         }
         self.spells.visit_uis(&mut visit)?;
+        self.pet_bar.visit_uis(&mut visit)?;
         self.targeting.visit_uis(&mut visit)?;
         self.minimap.visit_uis(&mut visit)?;
         self.objective_tracker.visit_uis(&mut visit)?;
@@ -1579,6 +1597,7 @@ impl GameClient {
             ),
             ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
             ("Player input", |c, d| Ok(c.update_player_input(d)?)),
+            ("Pet bar", |c, d| c.update_pet_bar(d)),
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),

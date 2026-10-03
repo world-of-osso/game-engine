@@ -16,8 +16,8 @@ use game_engine_network::replica::Unit;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::inworld_unit_frames_component::class_bars::ClassBarAnimator;
 use game_engine_ui_model::inworld_unit_frames_component::{
-    InWorldUnitFramesState, PowerBarState, UnitFrameMenuState, UnitFrameState, format_value_text,
-    fraction, target_level_text,
+    InWorldUnitFramesState, PetFrameState, PowerBarState, UnitFrameMenuState, UnitFrameState,
+    format_value_text, fraction, target_level_text,
 };
 use game_engine_ui_model::status::{ClassBarPlayer, ClassBarResource};
 use godot::{
@@ -32,7 +32,7 @@ use shared::components::{
 };
 use shared::level_scaling::{LevelScaling, level_for_viewer};
 
-use crate::replicated::{UnitFields, is_unit};
+use crate::replicated::{UnitFields, is_unit, local_pet};
 
 use crate::frame_error::{FrameError, SessionError, report_once};
 pub(crate) use crate::unit_pick::pick_unit;
@@ -362,6 +362,17 @@ fn player_frame_state(unit: Unit, in_rest_area: bool) -> UnitFrameState {
     state
 }
 
+/// `UnitFrame_Update` on PetFrame: the pet's name, health and primary power.
+fn pet_frame_state(unit: Unit) -> PetFrameState {
+    PetFrameState {
+        name: unit_name(unit),
+        health_fraction: unit
+            .get::<Health>()
+            .map_or(0.0, |health| fraction(health.current, health.max)),
+        power: unit.get::<UnitPowers>().and_then(PowerBarState::primary),
+    }
+}
+
 /// The player's class bar power, when Retail shows the class's bar.
 fn player_class_resource(unit: Unit, spec: Option<u32>) -> Option<ClassBarResource> {
     let player = ClassBarPlayer {
@@ -376,6 +387,7 @@ fn player_class_resource(unit: Unit, spec: Option<u32>) -> Option<ClassBarResour
 fn unit_frames_state(
     player: Option<UnitFrameState>,
     target: Option<UnitFrameState>,
+    pet: Option<PetFrameState>,
     show_health_bars: bool,
 ) -> InWorldUnitFramesState {
     InWorldUnitFramesState {
@@ -385,6 +397,7 @@ fn unit_frames_state(
         target,
         target_of_target: None,
         focus: None,
+        pet,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
     }
@@ -393,6 +406,11 @@ fn unit_frames_state(
 impl GameClient {
     pub(super) fn targeting_target(&self) -> Option<u64> {
         self.targeting.target
+    }
+
+    /// The local player's pet among the replicated units (`UnitSummonedBy`).
+    pub(super) fn local_pet_id(&self) -> Option<u64> {
+        local_pet(&self.replica, self.world.local_player_id()?)
     }
 
     /// Select `target`; `SetTarget` follows on the next update.
@@ -592,7 +610,16 @@ impl GameClient {
                 state
             });
         let class_bar = player.as_ref().and_then(|player| player.class_bar.clone());
-        let mut state = unit_frames_state(player, target, self.client_options.hud.show_health_bars);
+        let pet = self
+            .local_pet_id()
+            .and_then(|id| self.replica.unit(id))
+            .map(pet_frame_state);
+        let mut state = unit_frames_state(
+            player,
+            target,
+            pet,
+            self.client_options.hud.show_health_bars,
+        );
         state.menu = self.unit_menu.state.clone();
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
             ui.bind_mut().set_state(state)?;

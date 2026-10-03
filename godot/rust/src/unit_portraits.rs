@@ -1,6 +1,6 @@
 //! Unit frame portraits (`SetPortraitTexture`, Blizzard_UnitFrame/Mainline/UnitFrame.lua:188):
-//! the unit's model seen from its M2 portrait camera, rendered into the PlayerFrame and
-//! TargetFrame portrait slots over black and rounded by their masks. A portrait follows its
+//! the unit's model seen from its M2 portrait camera, rendered into the PlayerFrame,
+//! TargetFrame and PetFrame portrait slots over black and rounded by their masks. A portrait follows its
 //! unit and re-renders when the unit's visual appearance changes (`UNIT_PORTRAIT_UPDATE`).
 
 use std::fs;
@@ -8,7 +8,7 @@ use std::fs;
 use game_engine_core::asset::m2_format::m2_camera::parse_portrait_camera;
 use game_engine_core::creation_scene_data::vertical_fov;
 use game_engine_ui_model::inworld_unit_frames_component::{
-    PLAYER_PORTRAIT, PortraitSlot, TARGET_PORTRAIT,
+    PET_PORTRAIT, PLAYER_PORTRAIT, PortraitSlot, TARGET_PORTRAIT,
 };
 use godot::classes::control::{LayoutPreset, MouseFilter};
 use godot::classes::sub_viewport::UpdateMode;
@@ -42,6 +42,7 @@ void fragment() {
 pub(crate) struct UnitPortraits {
     player: Portrait,
     target: Portrait,
+    pet: Portrait,
 }
 
 impl Default for UnitPortraits {
@@ -49,6 +50,7 @@ impl Default for UnitPortraits {
         Self {
             player: Portrait::new(PLAYER_PORTRAIT),
             target: Portrait::new(TARGET_PORTRAIT),
+            pet: Portrait::new(PET_PORTRAIT),
         }
     }
 }
@@ -371,7 +373,8 @@ fn describe(appearance: &UnitAppearance) -> String {
 }
 
 impl GameClient {
-    /// The local player's portrait in PlayerFrame, the target's in TargetFrame.
+    /// The local player's portrait in PlayerFrame, the target's in TargetFrame, the pet's
+    /// in PetFrame.
     pub(super) fn sync_unit_portraits(&mut self) -> Result<(), String> {
         let ui = self.targeting.frame_ui().cloned();
         let host = |slot: &PortraitSlot| {
@@ -380,6 +383,7 @@ impl GameClient {
         };
         let player_host = host(&PLAYER_PORTRAIT);
         let target_host = host(&TARGET_PORTRAIT);
+        let pet_host = host(&PET_PORTRAIT);
         let player = self
             .world
             .local_player_id()
@@ -389,27 +393,34 @@ impl GameClient {
             .targeting_target()
             .and_then(|id| self.world.unit_appearance(id))
             .cloned();
+        let pet = self
+            .local_pet_id()
+            .and_then(|id| self.world.unit_appearance(id))
+            .cloned();
         let portraits = &mut self.targeting.portraits;
         let player_result = portraits.player.sync(&mut self.world, player_host, player);
         let target_result = portraits.target.sync(&mut self.world, target_host, target);
-        player_result.and(target_result)
+        let pet_result = portraits.pet.sync(&mut self.world, pet_host, pet);
+        player_result.and(target_result).and(pet_result)
     }
 
     pub(super) fn clear_unit_portraits(&mut self) {
         let portraits = &mut self.targeting.portraits;
         portraits.player.clear(&mut self.world);
         portraits.target.clear(&mut self.world);
+        portraits.pet.clear(&mut self.world);
     }
 }
 
 #[godot_api(secondary)]
 impl GameClient {
-    /// Portrait state for automation: `frame` is `PlayerPortrait` or `TargetFramePortrait`.
+    /// Portrait state for automation: `frame` is `PlayerPortrait`, `TargetFramePortrait` or
+    /// `PetPortrait`.
     #[func]
     fn unit_portrait_state(&self, frame: GString) -> VarDictionary {
         let portraits = &self.targeting.portraits;
         let frame = frame.to_string();
-        [&portraits.player, &portraits.target]
+        [&portraits.player, &portraits.target, &portraits.pet]
             .into_iter()
             .find(|portrait| portrait.slot.frame == frame)
             .map(Portrait::snapshot)

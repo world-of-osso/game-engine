@@ -47,6 +47,7 @@ fn unit_frame_rects<const N: usize>(
         ))),
         target: Some(target),
         focus: None,
+        pet: None,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
     });
