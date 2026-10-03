@@ -22,8 +22,10 @@ files = {str(p.relative_to(context)): p.read_text() for p in context.rglob('*') 
 Path(os.environ['CAPTURE']).write_text(json.dumps(dict(files=files, context=str(context), key=key, target=target, args=json.loads(args), host=host)))
 if os.environ.get('FAIL_EXPORT') == 'transport':
     sys.exit(7)
-profile = 'release' if 'RELEASE=true' in json.loads(args) else 'new'
-for name in ('game-server', 'game-server-admin', 'game-cli'):
+arguments = dict(value.split('=', 1) for value in json.loads(args)[1::2])
+profile = 'release' if arguments.get('RELEASE') == 'true' else 'new'
+binary = arguments.get('BINARY')
+for name in ((binary,) if binary else ('game-server', 'game-server-admin', 'game-cli')):
     content = (profile + ' ' + name).encode()
     (output / (name + '.gz')).write_bytes(b'broken' if os.environ.get('FAIL_EXPORT') == name else gzip.compress(content))
 """
@@ -246,7 +248,11 @@ class DesktopServerBuildTests(unittest.TestCase):
 
     def test_save_host_rejects_build_options_without_saving_or_building(self):
         module = self.load()
-        for options in (("--release",), ("--build-host", "local")):
+        for options in (
+            ("--release",),
+            ("--build-host", "local"),
+            ("--bin", "game-cli"),
+        ):
             with self.subTest(options=options):
                 with self.assertRaises(SystemExit) as error:
                     self.main(module, "--save-build-host", "local", *options)
@@ -291,6 +297,68 @@ class DesktopServerBuildTests(unittest.TestCase):
                 module.build(self.root, host="local", release=True)
         self.assertFalse(self.capture.exists())
         self.assertEqual(list(outside.iterdir()), [])
+
+    def test_selected_binary_api_exports_only_requested_debug_binary(self):
+        module = self.load()
+        for binary in module.BINARIES:
+            with self.subTest(binary=binary):
+                for name in module.BINARIES:
+                    self.put(self.root, f"target/debug/{name}", "old executable")
+                with patch.object(module, "execute", self.execute):
+                    module.build(self.root, host="local", binary=binary)
+                result = json.loads(self.capture.read_text())
+                self.assertIn(f"BINARY={binary}", result["args"])
+                for name in module.BINARIES:
+                    expected = f"new {name}" if name == binary else "old executable"
+                    self.assertEqual(
+                        (self.root / "target/debug" / name).read_text(), expected
+                    )
+                self.assertEqual(
+                    (self.root / "target/debug" / binary).stat().st_mode & 0o777, 0o755
+                )
+
+    def test_selected_binary_cli_exports_only_requested_release_binary(self):
+        module = self.load()
+        for binary in module.BINARIES:
+            with self.subTest(binary=binary):
+                for name in module.BINARIES:
+                    self.put(self.root, f"target/release/{name}", "old executable")
+                self.assertEqual(
+                    self.main(
+                        module,
+                        "--root",
+                        str(self.root),
+                        "--build-host",
+                        "desktop",
+                        "--release",
+                        "--bin",
+                        binary,
+                    ),
+                    0,
+                )
+                result = json.loads(self.capture.read_text())
+                self.assertEqual(result["host"], "desktop")
+                self.assertIn(f"BINARY={binary}", result["args"])
+                for name in module.BINARIES:
+                    expected = f"release {name}" if name == binary else "old executable"
+                    self.assertEqual(
+                        (self.root / "target/release" / name).read_text(), expected
+                    )
+                self.assertEqual(
+                    (self.root / "target/release" / binary).stat().st_mode & 0o777,
+                    0o755,
+                )
+        self.assertFalse((self.root / "target/debug").exists())
+
+    def test_invalid_binary_rejected_before_export(self):
+        module = self.load()
+        with patch.object(module, "execute", self.execute):
+            with self.assertRaisesRegex(ValueError, "unsupported server binary"):
+                module.build(self.root, host="local", binary="unknown")
+        with self.assertRaises(SystemExit) as error:
+            self.main(module, "--root", str(self.root), "--bin", "unknown")
+        self.assertEqual(error.exception.code, 2)
+        self.assertFalse(self.capture.exists())
 
     def test_checkout_keys_are_distinct(self):
         module = self.load()

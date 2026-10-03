@@ -52,7 +52,10 @@ def snapshot(root, context):
     )
 
 
-def build(root, host=None, release=False):
+def build(root, host=None, release=False, binary=None):
+    if binary is not None and binary not in BINARIES:
+        raise ValueError(f"unsupported server binary: {binary!r}")
+    binaries = (binary,) if binary else BINARIES
     root = Path(root).resolve()
     host = depot.select_build_host(host)
     lock, cache, checkout_key = depot.locked_checkout(root)
@@ -82,9 +85,11 @@ def build(root, host=None, release=False):
                 f"BUILD_PARENT={root.parent}",
                 "--build-arg",
                 f"RELEASE={str(release).lower()}",
+                "--build-arg",
+                f"BINARY={binary or ''}",
             ]
             execute(context, output, key, "artifact", arguments, host=host)
-            for name in BINARIES:
+            for name in binaries:
                 depot.install_artifact(
                     output / (name + ".gz"), target / name, executable=True
                 )
@@ -102,14 +107,15 @@ def main():
     parser.add_argument("--build-host", choices=("desktop", "local"))
     parser.add_argument("--save-build-host", choices=("desktop", "local"))
     parser.add_argument("--release", action="store_true")
+    parser.add_argument("--bin", choices=BINARIES, dest="binary")
     args = parser.parse_args()
     try:
         if args.save_build_host:
-            if args.build_host or args.release:
+            if args.build_host or args.release or args.binary:
                 parser.error("--save-build-host cannot combine with build options")
             depot.save_build_host(args.save_build_host)
             return 0
-        build(args.root, host=args.build_host, release=args.release)
+        build(args.root, host=args.build_host, release=args.release, binary=args.binary)
     except (OSError, EOFError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Desktop server build failed: {error}", file=sys.stderr)
         return 1
