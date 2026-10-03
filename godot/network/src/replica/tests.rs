@@ -24,7 +24,8 @@ use lightyear::prelude::{
     LinkOf, NetworkTarget, Replicate, ReplicationReceiver, VisibilityExt, client as client_network,
 };
 use shared::components::{
-    CreatureClassification, Health, Npc, Player, Position, UnitAuras, UnitLevel, UnitVignette,
+    CreatureClassification, Health, Npc, Player, Position, UnitAuras, UnitLevel, UnitSummonedBy,
+    UnitVignette,
 };
 
 use super::{Replica, ReplicationBatch, Schema, Unit, UnitChange, receive::acknowledgments};
@@ -401,6 +402,28 @@ fn unit_vignette_reaches_the_replica_and_leaves_it() {
     });
     session.until("vignette removed", doomwalker, |unit| {
         unit.is_some_and(|unit| !unit.has::<UnitVignette>())
+    });
+}
+
+/// A hunter's wolf (creature_template 299) carries its owner's server entity bits in
+/// `UnitSummonedBy` (UF `SummonedBy`) until it is dismissed.
+#[test]
+fn unit_summoned_by_reaches_the_replica_and_leaves_it() {
+    let mut session = Session::start(9105);
+    let owner = 0x0000_0001_0000_0010;
+    let wolf = Npc {
+        template_id: 299,
+        name: "Wolf".into(),
+    };
+    let wolf = session.spawn((wolf, position(7.0), UnitSummonedBy(owner)));
+    session.until("wolf spawn", wolf, |unit| {
+        unit.and_then(|unit| unit.get::<UnitSummonedBy>().copied()) == Some(UnitSummonedBy(owner))
+    });
+    session.edit(wolf, |entity| {
+        entity.remove::<UnitSummonedBy>();
+    });
+    session.until("owner cleared", wolf, |unit| {
+        unit.is_some_and(|unit| !unit.has::<UnitSummonedBy>())
     });
 }
 
