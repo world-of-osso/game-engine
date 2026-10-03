@@ -5,7 +5,7 @@
 ## Build
 
 1. `python3 scripts/depot-build.py --root <checkout> --release` builds the optimized extension on Depot into `target/release/libgame_engine_godot.so` (see [remote builds](remote-builds.md)). Release builds default to the live realm, `game.worldofosso.com:5000`.
-2. The runtime is the patched pinned Godot `4.7.2-pr123946` from `scripts/godot/pinned.sh`, checksum-verified; build it with `scripts/godot/build-patched-godot.sh` if missing.
+2. The runtime is the patched pinned Godot `4.7.2-pr123946-pr123546` from `scripts/godot/pinned.sh`, checksum-verified; build it with `scripts/godot/build-patched-godot.sh` if missing.
 3. The bundle is assembled in `target/deploy/linux-x86_64/` (`BUNDLE_DIR` overrides):
 
 | Path | Content |

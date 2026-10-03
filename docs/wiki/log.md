@@ -1,3 +1,7 @@
+## 2026-10-03 — Pinned Godot adds PR #123546: cold import crash (coldimport)
+
+[[godot-cold-import-crash]]: the launcher's and deploy.sh's cold `--import` crashed 134/139 intermittently from a Godot ClassDB race hit by threaded `.glsl` imports; the pin becomes `4.7.2-pr123946-pr123546` (upstream PR #123546 backported). Symbolized build: 0/40 cold imports vs 3/20 (`data/diagnostics/coldimport-2026-10-03/`).
+
 ## 2026-10-03 — Skyriding part 2: vigor and abilities (skyride2)
 
 [[mounts]]: Skyriding Charges (cat 2391) spent by Surge Forward / Skyward Ascent through the spell pipeline; the local player's `SpellGo` flaps the shared `Glider` (impulse capped at AddImpulseMaxSpeed 100), Aerial Halt air friction; live `skyriding_abilities_live.gd` (`data/diagnostics/skyride2-2026-10-03/`).

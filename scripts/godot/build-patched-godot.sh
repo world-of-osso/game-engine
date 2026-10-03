@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-# Builds the Godot the launcher pins: 4.7.2-stable plus upstream PR #123946 (Wayland exit
-# hang, issue #123059; docs/wiki/investigations/godot-wayland-exit-hang.md), installed as
+# Builds the Godot the launcher pins: 4.7.2-stable plus upstream PRs #123946 (Wayland exit
+# hang, issue #123059; docs/wiki/investigations/godot-wayland-exit-hang.md) and #123546
+# (ClassDB default-value race that crashes cold imports;
+# docs/wiki/investigations/godot-cold-import-crash.md), installed as
 # $GODOT_PINNED (scripts/godot/pinned.sh) only when its SHA-512 matches
 # scripts/godot/godot-$GODOT_PINNED_VERSION.sha512.
 #
@@ -8,8 +10,8 @@
 # godot-build-scripts 213defb build-linux/build.sh (production=yes, accesskit-c 0.22.3)
 # in build-containers aaef187 (buildroot SDK godot-2023.08.x-4, GCC 13.2, SCons 4.10.1).
 #
-# Retire this script, the patch and the pin once the launcher moves to an official Godot
-# release that contains #123946.
+# Retire this script, the patches and the pin once the launcher moves to an official Godot
+# release that contains #123946 and #123546.
 set -euo pipefail
 
 # Usage: build-patched-godot.sh [--jobs N]   (default 2 parallel compile jobs)
@@ -67,11 +69,11 @@ git clone --quiet --depth 1 --branch "$tag" https://github.com/godotengine/godot
   echo "$tag is not $tag_commit" >&2
   exit 1
 }
-git -C "$src" apply "$here/pr123946-wayland-exit-hang.patch"
+git -C "$src" apply "$here/pr123946-wayland-exit-hang.patch" "$here/pr123546-classdb-default-values-race.patch"
 
 # PYTHONHASHSEED: editor/editor_builders.py embeds Python hash() of the docs, randomized
 # per process otherwise, so the binary would differ on every build.
-(cd "$src" && PATH="$sdk/bin:$PATH" BUILD_NAME=pr123946 PYTHONHASHSEED=0 uvx --from scons==4.10.1 scons \
+(cd "$src" && PATH="$sdk/bin:$PATH" BUILD_NAME=pr123946-pr123546 PYTHONHASHSEED=0 uvx --from scons==4.10.1 scons \
   -j"$jobs" verbose=yes warnings=no progress=no redirect_build_objects=no \
   platform=linuxbsd arch=x86_64 production=yes accesskit_sdk_path="$accesskit" target=editor)
 
