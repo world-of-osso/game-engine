@@ -206,6 +206,28 @@ class DepotBuildTests(unittest.TestCase):
         self.assertNotIn("CLI", self.build_args(self.records()[-1]))
         self.assertFalse(cli.exists())
 
+    def test_release_installs_optimized_library_only_under_target_release(self):
+        command = ["python3", str(SCRIPT), "--root", str(self.root), "--release"]
+        result = subprocess.run(command, env={**self.env, "DEPOT_ARTIFACT": "release binary"}, text=True, capture_output=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        release = self.root / "target/release/libgame_engine_godot.so"
+        self.assertEqual(release.read_bytes(), b"release binary")
+        self.assertIn(str(release), result.stdout)
+        self.assertFalse((self.root / "target/debug/libgame_engine_godot.so").exists())
+        self.assertEqual(self.build_args(self.records()[-1])["RELEASE"], "1")
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("RELEASE", self.build_args(self.records()[-1]))
+        self.assertEqual(release.read_bytes(), b"release binary")
+
+    def test_release_is_not_allowed_with_fixture_test_or_cli(self):
+        for extra in (["--fixture", "native_input_fixture"], ["--test"], ["--cli"]):
+            command = ["python3", str(SCRIPT), "--root", str(self.root), "--release", *extra]
+            result = subprocess.run(command, env=self.env, text=True, capture_output=True)
+            self.assertNotEqual(result.returncode, 0, extra)
+            self.assertIn("not allowed", result.stderr)
+        self.assertEqual(self.records(), [])
+
     def test_cli_is_not_allowed_with_test_mode(self):
         command = ["python3", str(SCRIPT), "--root", str(self.root), "--cli", "--test"]
         result = subprocess.run(command, env=self.env, text=True, capture_output=True)
