@@ -27,6 +27,7 @@ fn target_frames(raid_target: Option<u8>) -> FrameRegistry {
         pet: None,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
+        personal_resource: None,
     });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(inworld_unit_frames_screen).sync(&shared, &mut registry);

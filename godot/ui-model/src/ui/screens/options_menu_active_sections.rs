@@ -307,6 +307,12 @@ pub fn hud_body(hud: &HudOptionsView) -> Element {
                 "Show Target Marker",
                 hud.show_target_marker,
             ),
+            // `nameplateShowSelf` (Combat: Personal Resource Display, Combat.lua:14-17).
+            toggle_row(
+                "personal_resource_display",
+                "Personal Resource Display",
+                hud.personal_resource_display,
+            ),
             // `autoLootDefault` (Controls: Auto Loot); Shift inverts it.
             toggle_row("auto_loot", "Auto Loot", hud.auto_loot),
             // `ENABLE_INTERACT_TEXT` (Controls: Enable Interact Key, Controls.lua:72-86).
