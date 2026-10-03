@@ -183,6 +183,7 @@ pub struct HudOptionsView {
     pub show_health_bars: bool,
     pub show_target_marker: bool,
     pub auto_loot: bool,
+    pub personal_resource_display: bool,
     pub soft_target_interact: bool,
     pub interact_key_icons: crate::soft_target_data::InteractKeyIcons,
     pub show_fps_overlay: bool,

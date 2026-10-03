@@ -15,6 +15,9 @@ use game_engine_core::{
 use game_engine_network::replica::Unit;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::inworld_unit_frames_component::class_bars::ClassBarAnimator;
+use game_engine_ui_model::inworld_unit_frames_component::personal_resource_display::{
+    self, PersonalResourceDisplayState,
+};
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, PetFrameState, PowerBarState, UnitFrameMenuState, UnitFrameState,
     format_value_text, fraction, target_level_text,
@@ -69,6 +72,8 @@ pub(crate) struct Targeting {
     frame_ui: Option<Gd<RegistryUi>>,
     /// The player's class resource bar, timed from `started`.
     class_bar: ClassBarAnimator,
+    /// The Personal Resource Display's own class frame.
+    personal_class_bar: ClassBarAnimator,
     started: Instant,
     data_root: PathBuf,
     /// ExpectedStat creature health, loaded with the first tuned target.
@@ -106,6 +111,7 @@ impl Targeting {
             ring_fdid: RING_FDID,
             frame_ui: None,
             class_bar: ClassBarAnimator::default(),
+            personal_class_bar: ClassBarAnimator::default(),
             started: Instant::now(),
             data_root,
             health_by_level: None,
@@ -373,15 +379,41 @@ fn pet_frame_state(unit: Unit) -> PetFrameState {
     }
 }
 
-/// The player's class bar power, when Retail shows the class's bar.
-fn player_class_resource(unit: Unit, spec: Option<u32>) -> Option<ClassBarResource> {
-    let player = ClassBarPlayer {
+fn class_bar_player(unit: Unit, spec: Option<u32>) -> Option<ClassBarPlayer> {
+    Some(ClassBarPlayer {
         class: unit.get::<Player>()?.class,
         spec,
         level: unit.get::<UnitLevel>().map_or(0, |level| level.0),
         in_combat: unit.in_combat(),
-    };
+    })
+}
+
+/// The player's class bar power, when Retail shows the class's bar.
+fn player_class_resource(unit: Unit, spec: Option<u32>) -> Option<ClassBarResource> {
+    let player = class_bar_player(unit, spec)?;
     ClassBarResource::for_player(unit.get::<UnitPowers>()?, unit.get::<UnitRunes>(), &player)
+}
+
+/// PersonalResourceDisplayFrame with its own class frame, fed like the PlayerFrame's;
+/// `None` while the `nameplateShowSelf` option is off.
+fn personal_resource_state(
+    enabled: bool,
+    unit: Unit,
+    spec: Option<u32>,
+    class_frame: &mut ClassBarAnimator,
+    now: f64,
+) -> Option<PersonalResourceDisplayState> {
+    if !enabled {
+        return None;
+    }
+    let player = class_bar_player(unit, spec)?;
+    let powers = unit.get::<UnitPowers>().cloned().unwrap_or_default();
+    let resource = ClassBarResource::for_player(&powers, unit.get::<UnitRunes>(), &player);
+    let class_bar = class_frame.update_received(unit.server_id, resource.as_ref(), now);
+    let health = unit
+        .get::<Health>()
+        .map_or(0.0, |health| fraction(health.current, health.max));
+    PersonalResourceDisplayState::for_player(enabled, &player, health, &powers, class_bar)
 }
 
 fn unit_frames_state(
@@ -400,6 +432,7 @@ fn unit_frames_state(
         pet,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
+        personal_resource: None,
     }
 }
 
@@ -611,6 +644,22 @@ impl GameClient {
                 state
             });
         let class_bar = player.as_ref().and_then(|player| player.class_bar.clone());
+        let personal_resource = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id))
+            .and_then(|unit| {
+                personal_resource_state(
+                    self.client_options.hud.personal_resource_display,
+                    unit,
+                    self.account.spells.spec(),
+                    &mut self.targeting.personal_class_bar,
+                    self.targeting.started.elapsed().as_secs_f64(),
+                )
+            });
+        let personal_class_bar = personal_resource
+            .as_ref()
+            .and_then(|display| display.class_frame.as_ref()?.bar.clone());
         let pet = self
             .local_pet_id()
             .and_then(|id| self.replica.unit(id))
@@ -622,6 +671,7 @@ impl GameClient {
             self.client_options.hud.show_health_bars,
         );
         state.menu = self.unit_menu.state.clone();
+        state.personal_resource = personal_resource;
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
             ui.bind_mut().set_state(state)?;
         } else {
@@ -636,7 +686,11 @@ impl GameClient {
             self.targeting.frame_ui = Some(ui);
         }
         self.sync_target_aura_swipes(target_state.as_ref())?;
-        self.sync_class_bar_swipes(class_bar.as_ref())?;
+        self.sync_class_bar_swipes("", class_bar.as_ref())?;
+        self.sync_class_bar_swipes(
+            personal_resource_display::FRAME_PREFIX,
+            personal_class_bar.as_ref(),
+        )?;
         self.sync_unit_portraits()
     }
 

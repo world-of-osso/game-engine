@@ -237,6 +237,10 @@ pub struct HudOptionsFile {
     pub show_target_marker: bool,
     #[serde(default, rename = "autoLoot")]
     pub auto_loot: bool,
+    /// Retail `nameplateShowSelf`: Combat "Personal Resource Display" (Combat.lua:14-17),
+    /// off by default.
+    #[serde(default, rename = "nameplateShowSelf")]
+    pub personal_resource_display: bool,
     /// Retail `softTargetInteract` keyboard bit: Controls "Enable Interact Key"
     /// (Controls.lua:72-86), off by default (`SoftTargetInteract` 1, gamepad only).
     #[serde(default, rename = "softTargetInteract")]
@@ -260,6 +264,7 @@ impl Default for HudOptionsFile {
             show_health_bars: true,
             show_target_marker: true,
             auto_loot: false,
+            personal_resource_display: false,
             soft_target_interact: false,
             soft_target: SoftTargetOptions::default(),
             show_fps_overlay: false,
