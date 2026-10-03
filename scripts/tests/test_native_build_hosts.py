@@ -64,6 +64,8 @@ assert args[:2] == ['run', '1.98.1'], args
 if args[2] == 'rustc':
     print(os.environ['FIXTURE_ROOT']); sys.exit(0)
 assert args[2] == 'cargo' and '--locked' in args and '-j8' in args, args
+if '--' in args and any(arg in ('--locked', '-j8') for arg in args[args.index('--') + 1:]):
+    print('test harness received Cargo-only flags', file=sys.stderr); sys.exit(31)
 if os.environ.get('SLEEP_CARGO'):
     import signal, time
     signal.signal(signal.SIGTERM, signal.SIG_IGN)
@@ -133,6 +135,21 @@ class NativeTests(unittest.TestCase):
                 "HOME": str(self.home),
             },
         ).start()
+
+    def test_test_harness_receives_only_its_arguments(self):
+        status = self.h.execute(
+            self.context,
+            "test-args",
+            "project",
+            ["test", "--test", "integration", "filter", "--", "--nocapture"],
+            "local",
+            root=self.context / "project",
+        )
+        self.assertEqual(status, 0)
+        arguments = json.loads(
+            (self.context / "project/target/observed.json").read_text()
+        )["args"]
+        self.assertEqual(arguments[arguments.index("--") + 1 :], ["--nocapture"])
 
     def test_runtime_cwd_environment_local_and_desktop(self):
         runtime = self.base / "prepared-assets"
