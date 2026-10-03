@@ -88,27 +88,13 @@ fn route_arguments(
             break;
         }
         if arg == "--build-host" {
-            let value = args
-                .next()
-                .filter(|value| !value.as_bytes().starts_with(b"-"))
-                .ok_or("--build-host requires a value")?;
-            if !matches!(value.to_str(), Some("desktop" | "local")) {
-                return Err(format!(
-                    "invalid --build-host {:?}; expected desktop or local",
-                    value
-                ));
-            }
-            build_host = Some(value);
+            let value = consume_option_value(&mut args, &arg)?;
+            build_host = Some(validate_build_host(value)?);
         } else if arg == "--skybox-verify" {
             client.push(arg);
         } else if is_client_option(&arg) {
-            let value = args
-                .next()
-                .filter(|value| !value.as_bytes().starts_with(b"-"));
-            let value =
-                value.ok_or_else(|| format!("{} requires a value", arg.to_string_lossy()))?;
-            client.push(arg);
-            client.push(value);
+            let value = consume_option_value(&mut args, &arg)?;
+            client.extend([arg, value]);
         } else {
             engine.push(arg);
         }
@@ -119,6 +105,26 @@ fn route_arguments(
         engine.extend(client);
     }
     Ok((engine, build_host))
+}
+
+fn consume_option_value(
+    args: &mut impl Iterator<Item = OsString>,
+    option: &OsStr,
+) -> Result<OsString, String> {
+    args.next()
+        .filter(|value| !value.as_bytes().starts_with(b"-"))
+        .ok_or_else(|| format!("{} requires a value", option.to_string_lossy()))
+}
+
+fn validate_build_host(value: OsString) -> Result<OsString, String> {
+    if matches!(value.to_str(), Some("desktop" | "local")) {
+        Ok(value)
+    } else {
+        Err(format!(
+            "invalid --build-host {:?}; expected desktop or local",
+            value
+        ))
+    }
 }
 
 fn is_client_option(argument: &OsStr) -> bool {
@@ -149,7 +155,7 @@ fn build_native_extension(root: &Path, build_host: Option<&OsStr>) -> Result<Exi
     }
     command
         .status()
-        .map_err(|error| format!("cannot run Depot native build: {error}"))
+        .map_err(|error| format!("cannot run native build: {error}"))
 }
 
 fn exec_godot(root: &Path, godot: &Path, args: Vec<OsString>) -> Result<i32, String> {
