@@ -18,6 +18,8 @@ const HALF_WIDTH := 4.0
 const BACKING_WIDTH := 400.0
 
 var material: ShaderMaterial
+## The scene light `load_liquid_material` bound (`TerrainLight::scene_state`).
+var scene_light: Dictionary
 var viewport: SubViewport
 var water_root: Node3D
 var backing_root: Node3D
@@ -35,6 +37,7 @@ func run() -> void:
 		fail("load_liquid_material: " + str(result.error))
 		return
 	material = result.material
+	scene_light = result.scene_light
 	make_viewport()
 	var checks := [check_vertex_depth, check_depth_zero, check_thickness, check_colour, check_animation]
 	for check in checks:
@@ -89,9 +92,10 @@ func check_colour() -> String:
 	var close: Vector4 = material.get_shader_parameter("river_close")
 	var far: Vector4 = material.get_shader_parameter("river_far")
 	var water := close.lerp(far, mix_amount)
-	var ambient: Vector3 = material.get_shader_parameter("ambient")
-	var direct: Vector3 = material.get_shader_parameter("direct")
-	var sun: Vector3 = material.get_shader_parameter("sun_direction")
+	# The scene-lit material reads the scene light's global uniforms.
+	var ambient: Vector3 = scene_light.ambient
+	var direct: Vector3 = scene_light.direct
+	var sun: Vector3 = scene_light.sun_direction
 	var n_dot_l := clampf(-sun.y, 0.0, 1.0)
 	var lit := Vector3(water.x, water.y, water.z) * (direct * n_dot_l + ambient)
 	var fog_color: Vector3 = material.get_shader_parameter("underwater_fog_color")

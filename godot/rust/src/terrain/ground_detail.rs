@@ -126,9 +126,13 @@ impl GroundDetail {
         self.update_time = started.elapsed();
     }
 
+    /// Materials read the scene light (`TerrainLight::bind_scene`), so only its arrival
+    /// rebinds them.
     pub fn update_lighting(&mut self, light: &TerrainLight) {
-        for material in self.materials.values_mut() {
-            light.bind_model(material);
+        if self.light.is_none() {
+            for material in self.materials.values_mut() {
+                light.bind_model(material);
+            }
         }
         self.light = Some(light.clone());
     }
