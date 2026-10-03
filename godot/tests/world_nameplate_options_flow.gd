@@ -45,6 +45,8 @@ func run_test() -> void:
 	if client.target_state().target != id:
 		fail("Tab never targeted replicated enemy")
 		return
+	if not await wait_target_portrait(client):
+		return
 	if not await turn_until_plate(client, id):
 		return
 	if not await expect_plate(client, id, true, Color.WHITE):
@@ -255,6 +257,20 @@ func expect_target_frame(client: Node, id: int, shown: bool) -> bool:
 		fail("Selected target frame cluster visibility did not follow authored HUD switch")
 		return false
 	return true
+
+## TargetFrame's portrait frames the NPC through its model's type-0 M2 camera; a model
+## without one is removed from the portrait.
+func wait_target_portrait(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + 5000
+	var state: Dictionary = {}
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		state = client.unit_portrait_state("TargetFramePortrait")
+		if state.get("model_shown", false) and not state.pending and str(state.appearance).begins_with("creature display 910010"):
+			return true
+	state.erase("image")
+	fail("Target portrait never showed the framed NPC model: " + str(state))
+	return false
 
 func expect_distance(client: Node, id: int, limit: float) -> bool:
 	await process_frame

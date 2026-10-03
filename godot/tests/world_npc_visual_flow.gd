@@ -391,6 +391,13 @@ func make_npc_m2() -> PackedByteArray:
 	put_float(md20, 0x3bc, 1.0) # Stand WoW Z becomes Godot Y.
 	put_float(md20, 0x3c8, 2.0) # Death starts above Stand's entire Y range.
 	put_float(md20, 0x3d4, 3.0) # Death ends at Godot Y 3.
+	md20.resize(0x3d8 + 116)
+	put_u32(md20, 0x110, 1) # One type-0 portrait camera with unanimated tracks.
+	put_u32(md20, 0x114, 0x3d8)
+	put_float(md20, 0x3d8 + 4, 50.0) # Far clip.
+	put_float(md20, 0x3d8 + 8, 0.1) # Near clip.
+	put_float(md20, 0x3d8 + 32, 2.0) # Position base: WoW (2, 0, 2).
+	put_float(md20, 0x3d8 + 40, 2.0)
 	var authored := chunk("MD21", md20)
 	authored.append_array(model.slice(8 + model.decode_u32(4))) # Retain TXID.
 	return authored
