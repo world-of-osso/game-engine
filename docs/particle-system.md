@@ -1,5 +1,7 @@
 # Particle System
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 This page describes the abandoned Bevy client's Hanabi path. The Godot client simulates emitters on the CPU in `godot/core/src/m2_particles.rs` and draws pooled MultiMeshes; see [m2-particles](specs/m2-particles.md) and [godot-conversion](wiki/systems/godot-conversion.md#native-m2-particles). The emitter type byte is 1 = plane, 2 = sphere, 3 = spline (WebWowViewerCpp `particleEmitter.cpp:128-136`).
 
 ## Architecture

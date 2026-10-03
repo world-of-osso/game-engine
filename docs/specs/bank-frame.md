@@ -1,5 +1,7 @@
 # Bank Frame
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 The Retail combined `BankFrame` (character bank + Warband bank) running against the live server banker. Contract: shared-protocol `protocol/bank_messages.rs`; server rules: game-server `docs/specs/banks.md`. How it works: [banks](../wiki/systems/banks.md).
 
 References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / `.lua` under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`; strings from GlobalStrings (build 12.1); atlases from UiTextureAtlas (12.1.0.69933).
@@ -55,18 +57,18 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
 ## Implementation inventory
 | File | Role |
 |---|---|
-| `src/game/bank_data.rs` | `BankState`, `BankRequest`, `BankPrompt` |
+| `godot/ui-model/src/game/bank_data.rs` | `BankState`, `BankRequest`, `BankPrompt` |
 | `src/game/networking/bank.rs` | Receives contents and failures, follows the interaction, sends requests, IPC status |
 | `src/scenes/bank_frame/{mod,view,actions}.rs` | Screen, windows, clicks, edit boxes, confirmation popup |
-| `src/ui/screens/bank_frame_component.rs` | Retail BankFrame layout |
-| `src/ui/screens/bank_art.rs` | Slots, labels, money entry, checkbox shared with the guild bank |
+| `godot/ui-model/src/ui/screens/bank_frame_component.rs` | Retail BankFrame layout |
+| `godot/ui-model/src/ui/screens/bank_art.rs` | Slots, labels, money entry, checkbox shared with the guild bank |
 | `src/scenes/bag_frame/mod.rs` | Right-click deposit (`use_bag_item`) |
 
 ## Tests asserting this spec
-- `src/game/bank_data_tests.rs`
+- `godot/ui-model/src/game/bank_data_tests.rs`
 - `src/game/networking/bank_tests.rs`
 - `src/scenes/bank_frame/tests.rs`
-- `src/ui/screens/bank_frame_component_tests.rs`
+- `godot/ui-model/src/ui/screens/bank_frame_component_tests.rs`
 - `src/scenes/bag_frame/mod.rs` (`right_clicking_a_bag_item_deposits_into_the_open_bank_tab`)
 
 ## Known gaps (current cycle)

@@ -54,8 +54,9 @@ This binary:
 # Known-good spot check
 cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- 145513 4219004 4239595 4226685 -o data/textures
 
-# Optional: verify runtime extraction path too
-cargo run --bin game-engine -- screenshot data/charselect-check.webp --screen charselect
+# Optional: verify runtime extraction path too (client running, then capture)
+cargo run -- --screen charselect
+target/debug/game-engine-cli screenshot data/charselect-check.webp
 ```
 
 If refresh worked, `casc-local` should extract files instead of failing with

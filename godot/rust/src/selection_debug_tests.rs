@@ -37,8 +37,14 @@ fn back_leaves_and_keys_follow_the_original_bindings() {
     assert_eq!(key_action(Key::LEFT), Some(SelectionDebugAction::Prev));
     assert_eq!(key_action(Key::DOWN), Some(SelectionDebugAction::Next));
     assert_eq!(key_action(Key::RIGHT), Some(SelectionDebugAction::Next));
-    assert_eq!(key_action(Key::ENTER), Some(SelectionDebugAction::TogglePinned));
-    assert_eq!(key_action(Key::SPACE), Some(SelectionDebugAction::TogglePinned));
+    assert_eq!(
+        key_action(Key::ENTER),
+        Some(SelectionDebugAction::TogglePinned)
+    );
+    assert_eq!(
+        key_action(Key::SPACE),
+        Some(SelectionDebugAction::TogglePinned)
+    );
     assert_eq!(key_action(Key::ESCAPE), Some(SelectionDebugAction::Back));
     assert_eq!(key_action(Key::A), None);
 }

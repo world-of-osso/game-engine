@@ -28,13 +28,7 @@ uniform sampler2D height_3 : repeat_enable;
 uniform sampler2D alpha_packed : filter_linear, repeat_disable;
 uniform samplerCube environment_map : source_color;
 
-// RetailSceneLight, in authored (sRGB-byte / 255) space.
-uniform vec3 ambient = vec3(1.0);
-uniform vec3 horizon_ambient = vec3(1.0);
-uniform vec3 ground_ambient = vec3(1.0);
-uniform vec3 direct;
-// World direction sunlight travels, not the direction towards the sun.
-uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
+#include "res://shaders/scene_light.gdshaderinc"
 // Godot's fog is disabled: fog colour in linear space.
 #include "res://shaders/retail_fog.gdshaderinc"
 
@@ -93,9 +87,9 @@ vec3 retail_ambient(vec3 world_normal, float n_dot_l) {
 	float n_dot_up = dot(world_normal, vec3(0.0, 1.0, 0.0));
 	vec3 hemisphere;
 	if (n_dot_up >= 0.0) {
-		hemisphere = mix(horizon_ambient, ambient, n_dot_up);
+		hemisphere = mix(light_horizon_ambient(), light_ambient(), n_dot_up);
 	} else {
-		hemisphere = mix(horizon_ambient, ground_ambient, -n_dot_up);
+		hemisphere = mix(light_horizon_ambient(), light_ground_ambient(), -n_dot_up);
 	}
 	return mix(hemisphere * 0.7, hemisphere * 1.1, 0.5 + 0.5 * n_dot_l);
 }
@@ -162,11 +156,11 @@ void fragment() {
 void light() {
 	if (LIGHT_IS_DIRECTIONAL) {
 		vec3 normal = normalize(terrain_world_normal);
-		float n_dot_l = clamp(dot(normal, -normalize(sun_direction)), 0.0, 1.0);
-		vec3 authored = terrain_diffuse * (retail_ambient(normal, n_dot_l) + direct * n_dot_l * ATTENUATION);
-		vec3 half_vector = -normalize(sun_direction - terrain_view_direction);
+		float n_dot_l = clamp(dot(normal, -normalize(light_sun_direction())), 0.0, 1.0);
+		vec3 authored = terrain_diffuse * (retail_ambient(normal, n_dot_l) + light_direct() * n_dot_l * ATTENUATION);
+		vec3 half_vector = -normalize(light_sun_direction() - terrain_view_direction);
 		float highlight = pow(max(0.0, dot(half_vector, normal)), 20.0);
-		authored += terrain_spec_blend * direct * highlight * ATTENUATION;
+		authored += terrain_spec_blend * light_direct() * highlight * ATTENUATION;
 		authored = apply_retail_fog(authored, terrain_world_position, terrain_camera_position);
 		DIFFUSE_LIGHT += gamma_to_linear(authored);
 	} else {

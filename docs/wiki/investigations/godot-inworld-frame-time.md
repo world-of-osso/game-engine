@@ -36,8 +36,9 @@ safeguards).
   (7.8k draw calls: `_render_list`, `RenderingDeviceGraph`, pipeline lookups), scene update about 17%
   (skinned-mesh AABBs from skeleton bones 4%, BVH moves 4%, remaining material updates 7%), Rust about 10%.
 - Skeletons already run in `MANUAL` modifier mode, so the 17k `Skeleton3D` nodes cost nothing per frame unposed.
-- World lighting rebinds every model's light parameters only when the sampled light changes; in the benchmark that
-  is rare (0.2 ms/frame mean), so it is not a steady-state cost.
+- World lighting cost 0.2 ms/frame here only because the benchmark fixes the time; with the live server clock the light
+  changes every frame and rebinding every model's uniforms cost 400-710 ms per Stormwind frame. The light is now global
+  shader uniforms ([[world-entry-stalls#scene-light-rebound-every-frame--2026-10-02]]).
 
 - **Shadow and depth passes (branch `shadowpass`).** The benchmark now reports `shadow_draw_calls`
   (`Viewport.RENDER_INFO_TYPE_SHADOW`; the depth pre-pass is not counted separately). Stormwind idle: 2.46k of

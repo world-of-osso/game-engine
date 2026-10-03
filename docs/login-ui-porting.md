@@ -1,5 +1,7 @@
 # Login UI Porting Brief
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Status as of 2026-03-08. Resume from here if context is lost.
 
 ## What's Done

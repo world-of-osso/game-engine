@@ -18,8 +18,7 @@ uniform float animation_time_ms = 0.0;
 uniform vec4 floats_0 = vec4(0.0);
 uniform vec4 floats_4 = vec4(0.0);
 uniform vec4 floats_12 = vec4(0.0);
-// Godot world direction the sunlight travels.
-uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
+#include "res://shaders/scene_light.gdshaderinc"
 #include "res://shaders/retail_fog.gdshaderinc"
 
 // MapSceneRenderer.cpp:204 binds uExteriorSpecularColor.a, the specular power, as 1.0.
@@ -149,7 +148,7 @@ void fragment() {
 	vec3 color = 0.5 * clamp(fresnel + 0.9, 0.0, 1.0) * mix(mirror, vec3(luminance), 0.3);  // v86
 	color += 0.5 * fresnel * mix(mirror, vec3(luminance), 0.7);
 
-	vec3 to_sun = normalize(-to_wow(sun_direction));  // v87
+	vec3 to_sun = normalize(-to_wow(light_sun_direction()));  // v87
 	// uSunAttenuation.z is 0 without LightParams sun attenuation, so v92 = 1.
 	float sun_attenuation = 1.0;
 	vec3 halfway = normalize(to_sun - view_direction);  // v102

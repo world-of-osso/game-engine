@@ -930,8 +930,9 @@ mod tests {
         assert!(shadows.casts(&[0]));
         assert!(!shadows.casts(&[1]));
         let doodads = asset.doodads(&[0, 2]);
-        let (casting, silent): (Vec<_>, Vec<_>) =
-            doodads.iter().partition(|(doodad, _)| shadows.casts(&doodad.groups));
+        let (casting, silent): (Vec<_>, Vec<_>) = doodads
+            .iter()
+            .partition(|(doodad, _)| shadows.casts(&doodad.groups));
         let indices = |doodads: &[&assets::LitDoodad]| -> Vec<u16> {
             doodads.iter().map(|(doodad, _)| doodad.index).collect()
         };

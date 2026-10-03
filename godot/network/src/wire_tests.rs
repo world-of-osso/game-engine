@@ -426,7 +426,10 @@ use shared::{
         RestSnapshot, RestStateUpdate,
     },
 };
-use std::net::UdpSocket;
+use std::{
+    net::UdpSocket,
+    sync::atomic::{AtomicU16, Ordering},
+};
 
 #[derive(Resource, Default)]
 struct ReceivedInputs(Vec<PlayerInput>);
@@ -459,15 +462,46 @@ fn create_fixture_server(register_extra: fn(&mut App)) -> App {
     app
 }
 
+/// First port handed to fixture servers; must sit below the kernel's ephemeral range.
+const FIXTURE_PORT_BASE: u16 = 20000;
+
+/// `ServerUdpIo` binds its own socket and does not expose the port it gets for port zero, and an
+/// ephemeral port reserved then released can be handed to a parallel test's client socket before
+/// the server binds it. Fixture servers therefore take distinct ports below the ephemeral range,
+/// which the kernel never assigns to port-zero binds.
+fn allocate_fixture_address() -> SocketAddr {
+    static NEXT_PORT: AtomicU16 = AtomicU16::new(FIXTURE_PORT_BASE);
+    let ephemeral_start = ephemeral_port_range_start();
+    loop {
+        let port = NEXT_PORT.fetch_add(1, Ordering::Relaxed);
+        assert!(
+            port < ephemeral_start,
+            "fixture port {port} reached the ephemeral range starting at {ephemeral_start}"
+        );
+        let address = SocketAddr::from(([127, 0, 0, 1], port));
+        // Skip ports another process already holds.
+        if UdpSocket::bind(address).is_ok() {
+            return address;
+        }
+    }
+}
+
+fn ephemeral_port_range_start() -> u16 {
+    let range = std::fs::read_to_string("/proc/sys/net/ipv4/ip_local_port_range")
+        .expect("read kernel ephemeral port range");
+    range
+        .split_whitespace()
+        .next()
+        .and_then(|start| start.parse().ok())
+        .unwrap_or_else(|| panic!("parse kernel ephemeral port range {range:?}"))
+}
+
 pub(crate) fn start_fixture_server() -> (App, SocketAddr) {
     start_fixture_server_with(|_| {})
 }
 
 pub(crate) fn start_fixture_server_with(register_extra: fn(&mut App)) -> (App, SocketAddr) {
-    // ServerUdpIo binds its own socket and does not expose the assigned port for port zero.
-    let reservation = UdpSocket::bind("127.0.0.1:0").expect("reserve fixture UDP port");
-    let address = reservation.local_addr().expect("read fixture UDP address");
-    drop(reservation);
+    let address = allocate_fixture_address();
     let mut app = create_fixture_server(register_extra);
     let entity = app
         .world_mut()

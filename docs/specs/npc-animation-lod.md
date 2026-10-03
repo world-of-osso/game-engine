@@ -1,5 +1,7 @@
 # NPC and doodad animation LOD
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Replicated NPC models and placed doodads sample their bone animation at a rate chosen from camera distance and whether they are on screen. The animation clock, sequence selection, and crossfades keep running; only pose sampling and joint writes are skipped. The server interest radius (100 yd) is unchanged. Both clients (Bevy and Godot) share these rules.
 
 ## What it must do

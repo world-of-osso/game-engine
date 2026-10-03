@@ -1,5 +1,7 @@
 # Split ADT Shadows
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Terrain loading combines root geometry with shadow payloads from its `_tex0.adt` companion before validating shadow declarations. See [waterfall loading investigation](../wiki/investigations/character-select-waterfall-loading.md).
 
 ## What it must do
@@ -28,8 +30,8 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 
 ## Implementation inventory
 
-- `src/asset/adt_format/adt.rs` — aligns root and companion chunks.
-- `src/asset/adt_format/adt/parsing.rs` — merges shadow inputs before validation.
+- `godot/core/src/asset/adt_format/adt.rs` — aligns root and companion chunks.
+- `godot/core/src/asset/adt_format/adt/parsing.rs` — merges shadow inputs before validation.
 - `src/asset/adt.rs` — mesh-producing split-input entry point.
 - `src/rendering/terrain/terrain_spawn.rs` — resolves and reads companion data.
 - `src/scenes/char_select/scene_tree.rs` — reports backdrop load failures.
@@ -38,13 +40,13 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - `src/rendering/model/m2_spawn_material.rs`, `m2_spawn.rs`, `m2_scene/mod.rs` — retain model timing data when creating ordinary effect materials.
 - `src/rendering/model/m2_spawn.rs` — forwards authored emitters and spawned M2 joints to `particle::spawn_emitters` when the terrain caller selects waterfall/ripple backdrops.
 - `src/rendering/terrain/terrain_objects.rs` — limits emitter restoration to `is_waterfall_backdrop_doodad` rather than activating unrelated terrain-prop emitters, and preserves authored backdrop heights while grounding ordinary props.
-- `src/asset/m2_format/m2_particle.rs` — parses particle-tail/twinkle/burst/drag fields at their authored tail offsets.
+- `godot/core/src/asset/m2_format/m2_particle.rs` — parses particle-tail/twinkle/burst/drag fields at their authored tail offsets.
 - `src/rendering/particles/effect_builder_shared.rs` — selects a world-XZ-plane modifier for raw `XY_QUAD` orientation while preserving spin.
 - `src/rendering/particles/effect_builder.rs`, `src/particle_effect_builder.rs` — apply that orientation consistently in native and library paths.
 
 ## Tests asserting this spec
 
-- `src/asset/adt_format/adt_tests/mcnk.rs`
+- `godot/core/src/asset/adt_format/adt_tests/mcnk.rs`
 - `src/rendering/terrain/terrain_spawn/tests.rs`
 - `src/rendering/model/m2_spawn_material_tests.rs` — actual waterfall model sampled across multiple global periods.
 - `src/scenes/char_select/scene/tests/supplemental_waterfall_tests.rs` — actual mist M2 terrain attachment emitter regression.

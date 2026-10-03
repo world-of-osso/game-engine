@@ -1,5 +1,7 @@
 # Meeting stones (client)
 
+> `cargo test --bin game-engine` selectors below name tests deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Using a meeting stone and answering a summon. Contract: shared-protocol `protocol/interaction_messages.rs` (`UseGameObject`, `SummonRequest`, `SummonResponse`). Server rules: game-server `docs/specs/meeting-stones.md`.
 
 References: GameDialogDefs.lua (`CONFIRM_SUMMON`, `GetConfirmSummonExpiryText`), StaticPopup.lua (`StaticPopup_OnUpdate`), UIParent.lua (`CONFIRM_SUMMON` event) under `/syncthing/Sync/Projects/wow/Interface/AddOns/`.

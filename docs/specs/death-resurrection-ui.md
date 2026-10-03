@@ -1,5 +1,7 @@
 # Death and resurrection UI
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Retail-style death flow on the live `DeathStateUpdate` stream (phase 3 of [in-game UI plan](../plans/2026-09-23-ingame-ui.md)). UI lives in `src/scenes/death_ui/`; network state and actions in `src/death.rs`.
 
 ## What it must do
@@ -23,5 +25,5 @@ Retail-style death flow on the live `DeathStateUpdate` stream (phase 3 of [in-ga
 
 - `src/scenes/death_ui/mod.rs` — popup sync, results → death actions, ghost grading, hint screen, world-exit reset.
 - `src/ui/screens/ghost_hint_component.rs` — corpse-run hint frame.
-- `src/ui/popup.rs` — `PopupStack::hide`/`contains` (`StaticPopup_Hide`).
+- `godot/ui-model/src/ui/popup.rs` — `PopupStack::hide`/`contains` (`StaticPopup_Hide`).
 - `src/death.rs` — `DeathRuntimeState::request_release_spirit` / `request_resurrect_at_corpse`.

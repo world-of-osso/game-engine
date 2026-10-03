@@ -2,6 +2,10 @@
 
 [[mounts]]: skyriding momentum flight on `CAN_ADV_FLY` (shared-protocol `skyriding`, FlightCapability 11), launch/glide/dive/landing; live `skyriding_live.gd` on a private server (`data/diagnostics/skyride1-2026-10-02/`).
 
+## 2026-10-02 — Scene light as global shader uniforms (settlegate)
+
+[[world-entry-stalls#scene-light-rebound-every-frame--2026-10-02]]: "World did not settle" in Stormwind was the live clock changing the light every frame and rebinding every material (400-710 ms/frame); light and fog are now global uniforms written once per change. Stormwind settle 488 s → 32 s.
+
 ## 2026-10-02 — Mounts and steady flight (flymount)
 
 [[mounts]]: Godot mount model and rider seat, flight controls after Retail JUMP/SITORSTAND, `PlayerInput.flying`; live `flying_mount_live.gd` PASS on a private server (`data/diagnostics/flymount-2026-10-02/`).
@@ -2512,3 +2516,7 @@ Updated [godot-inworld-frame-time](investigations/godot-inworld-frame-time.md): 
 ## 2026-10-02 — Bevy client retired
 
 User decision: the Godot client is the only client. The root Bevy package `game-engine` (src/, Bevy tests, shaders, release Dockerfile/deploy.sh) is deleted; the 312 root files godot crates compiled through `#[path]` moved into their owning `godot/<crate>/` (shared ones in `game-engine-core`), `game-engine-cli` moved to `godot/cli` (`depot-build.py --cli`), and `png_to_ktx2` plus the cache importers the client reads moved to root `tools/` (`game-engine-tools`). Wiki pages citing `src/` paths describe the pre-retirement tree. Deleted (git history keeps them): zone_name, sound_music_zone and particle_color cache importers, `lightdata_convert`, `blp_to_pam`, `blp_to_ppm`, `debug_blp`, `benches/parser_benches.rs`, `examples/ui_demo.rs`, `scripts/run_screenshot_regression.sh`, `scripts/run_skybox_screenshot_regression.sh`, `scripts/capture_skybox_validation.sh`. Root `deploy.sh`, `Dockerfile` and `scripts/windows-dev.ps1` are kept pending a user decision; they build the deleted Bevy package and are broken until then. See [godot-conversion spec](../specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
+## 2026-10-03 — Godot client deploy
+
+Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-build.py --release` builds the optimized extension, and the Linux x86_64 bundle holds the pinned patched Godot runtime, project files with a pre-imported `.godot/` cache, and an allowlisted `data/` (38 GB). It publishes through the live S3-backed file server. The removed Bevy files are `Dockerfile`, `scripts/windows-dev.ps1` and `docs/windows-development.md`. A cold `--import` that hot-loads the extension aborts at exit, so the bundle registers the extension first. See [deploy](../deploy.md).

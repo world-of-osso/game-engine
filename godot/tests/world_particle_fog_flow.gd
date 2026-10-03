@@ -46,8 +46,10 @@ func check_particle_fog(name: String) -> bool:
 	if terrain_material == null:
 		fail("%s: no fogged terrain material" % name)
 		return false
-	var want: Vector2 = terrain_material.get_shader_parameter("fog_range")
-	var want_color: Vector3 = terrain_material.get_shader_parameter("fog_color")
+	# Every fogged material reads the scene fog's global uniforms.
+	var scene: Dictionary = client.account_state().scene_light
+	var want: Vector2 = scene.fog_range
+	var want_color: Vector3 = scene.fog_color
 	var pools := client.find_children("Particles*", "MultiMeshInstance3D", true, false)
 	if pools.is_empty():
 		fail("%s: no particle pools in the world" % name)
@@ -55,10 +57,8 @@ func check_particle_fog(name: String) -> bool:
 	for pool in pools:
 		var material := (pool as GeometryInstance3D).material_override as ShaderMaterial
 		var mode = material.get_shader_parameter("fog_mode")
-		var range = material.get_shader_parameter("fog_range")
-		var color = material.get_shader_parameter("fog_color")
-		if mode != 1 or range != want or color != want_color:
-			fail("%s: pool %s fog mode %s range %s colour %s, scene fog %s %s" % [name, pool.name, mode, range, color, want, want_color])
+		if mode != 1 or want.y <= want.x:
+			fail("%s: pool %s fog mode %s, scene fog %s %s" % [name, pool.name, mode, want, want_color])
 			return false
 	print("FIXTURE PARTICLE_FOG %s pools=%d fog_range=%s fog_color=%s" % [name, pools.size(), want, want_color])
 	return true

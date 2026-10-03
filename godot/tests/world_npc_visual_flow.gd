@@ -227,9 +227,8 @@ func wait_lighting(client: Node, ambient: Vector3, direct: Vector3, map: String,
 	var batch := model.find_child("Batch0", true, false) as MeshInstance3D if model != null else null
 	var material := batch.get_active_material(0) as ShaderMaterial if batch != null else null
 	var actual := "no creature material" if material == null else str({
-		"ambient": material.get_shader_parameter("ambient"),
-		"direct": material.get_shader_parameter("direct"),
-		"fog_range": material.get_shader_parameter("fog_range"),
+		"scene_lit": material.get_shader_parameter("scene_light"),
+		"scene_light": client.account_state().scene_light,
 		"fog_mode": material.get_shader_parameter("fog_mode"),
 	})
 	fail("Timed out waiting for %s creature lighting %s / %s; producer=%s material=%s state=%s" % [map, ambient, direct, lighting, actual, client.account_state()])
@@ -245,13 +244,16 @@ func lighting_matches(client: Node, ambient: Vector3, direct: Vector3, map: Stri
 	var model := npc.get_node_or_null("NpcVisualRoot/NpcModel") if npc != null else null
 	var batch := model.find_child("Batch0", true, false) as MeshInstance3D if model != null else null
 	var material := batch.get_active_material(0) as ShaderMaterial if batch != null else null
-	if sun == null or material == null:
+	# Scene-lit materials read the scene light's global uniforms.
+	var scene = client.account_state().scene_light
+	if sun == null or material == null or scene == null:
 		return false
-	var actual_ambient = material.get_shader_parameter("ambient")
-	var actual_direct = material.get_shader_parameter("direct")
-	var direction = material.get_shader_parameter("sun_direction")
-	var fog = material.get_shader_parameter("fog_range")
-	return actual_ambient is Vector3 and (actual_ambient as Vector3).is_equal_approx(ambient) \
+	var actual_ambient = scene.ambient
+	var actual_direct = scene.direct
+	var direction = scene.sun_direction
+	var fog = scene.fog_range
+	return material.get_shader_parameter("scene_light") == true \
+		and actual_ambient is Vector3 and (actual_ambient as Vector3).is_equal_approx(ambient) \
 		and actual_direct is Vector3 and (actual_direct as Vector3).is_equal_approx(direct) \
 		and direction is Vector3 and (direction as Vector3).is_equal_approx(-sun.global_basis.z) \
 		and fog is Vector2 and (fog as Vector2).is_equal_approx(RETAIL_FOG_RANGE) \

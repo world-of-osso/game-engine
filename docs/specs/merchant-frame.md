@@ -1,5 +1,7 @@
 # Merchant Frame
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 The Retail `MerchantFrame` running against the live server vendor. The contract is shared-protocol `protocol/merchant_messages.rs`; server rules are in game-server `docs/specs/merchant.md`.
 
 References:
@@ -72,16 +74,16 @@ Native cursor coverage is partial, not wholly unconverted: [current bounded Buy 
 
 ## Tests asserting this spec
 
-- `src/ui/screens/merchant_frame_component_tests.rs`: frame size, title, grid offsets, coins, gray price, red tint, stock, paging, repair position/enable, money anchor, buyback tab layout, last-sale slot.
+- `godot/ui-model/src/ui/screens/merchant_frame_component_tests.rs`: frame size, title, grid offsets, coins, gray price, red tint, stock, paging, repair position/enable, money anchor, buyback tab layout, last-sale slot.
 - `src/scenes/merchant_frame/tests.rs`: Tharynn Bouden's 19 items page 10/9, affordability, stock, repair enable, right-click → requests, window open/close → `CloseInteraction`, bags open and close.
-- `src/game/merchant_data.rs` tests: paging and a stock refresh keeping the page.
+- `godot/ui-model/src/game/merchant_data.rs` tests: paging and a stock refresh keeping the page.
 - `src/game/networking/merchant_tests.rs`: list/buyback/failure inboxes, interaction end closes, requests go out only while a vendor is open.
-- `src/game/bag_data_tests/inventory.rs`: snapshot then delta drive the backpack.
-- `src/ui/screens/bag_frame_component.rs` tests: icon, count, click action.
+- `godot/ui-model/src/game/bag_data_tests/inventory.rs`: snapshot then delta drive the backpack.
+- `godot/ui-model/src/ui/screens/bag_frame_component.rs` tests: icon, count, click action.
 - `src/scenes/bag_frame/mod.rs` tests: right-click sells only on the merchant tab.
-- `src/ui/screens/merchant_frame_component_tests.rs`: Sell All Junk placement with and without repair, disabled icon, hidden on buyback, the frame's drop action; `src/scenes/merchant_frame/tests.rs`: junk detection (Ruined Pelt vs Linen Cloth), historical Bevy confirmation behavior. Native direct services: `godot/ui-model/tests/merchant_junk.rs` and `godot/tests/world_merchant_services_flow.gd` assert immediate requests without confirmation, no optimistic mutation, and authoritative results.
+- `godot/ui-model/src/ui/screens/merchant_frame_component_tests.rs`: Sell All Junk placement with and without repair, disabled icon, hidden on buyback, the frame's drop action; `src/scenes/merchant_frame/tests.rs`: junk detection (Ruined Pelt vs Linen Cloth), historical Bevy confirmation behavior. Native direct services: `godot/ui-model/tests/merchant_junk.rs` and `godot/tests/world_merchant_services_flow.gd` assert immediate requests without confirmation, no optimistic mutation, and authoritative results.
 - `src/scenes/tooltip_frame/mod.rs` tests: the Bevy client's merchant cell tooltip (name, stack, stock).
-- `src/ui/js_automation.rs` test: `ui.rightClick`.
+- `godot/network/src/ui/js_automation.rs` test: `ui.rightClick`.
 - Godot: `godot/ui-model/tests/merchant_repair.rs` (repair cursor toggle, guid requests, close reset, button placement, click sounds, guild repair button layout/request/sound), `godot/ui-model/src/game_tooltip/merchant.rs` tests (vendor weapon full tooltip at full durability, bundle sell price, buyback stack, Shift comparison, service and guild repair tooltips), `godot/ui-model/tests/native_guild_bank.rs` (repair money log line), `godot/core/src/ui_sound_kits.rs` tests, `godot/ui-model/tests/merchant.rs` (session over world.db vendors), `godot/network/src/wire_tests.rs` (`NpcFlags`, `Gold`, `VendorInventory` over UDP), `godot/rust/src/merchant.rs` tests (interact range, split keys), live `godot/tests/world_merchant_flow.gd` (`data/diagnostics/merchant-godot-20260928/`).
 - Live guild repair and vendor weapon tooltip (native client, `godot/tests/merchant_guild_live.gd`, private server): `data/diagnostics/merchant3-20261001/live/` — the Guild Master deposits 10g at the Stormwind vault, Janos Hammerknuckle's Shortsword shows its full tooltip (item level, binding, One-Hand Sword, damage/speed/DPS, Durability 20 / 20, sell price) and Shift compares it with the equipped Worn Shortsword and shield; the guild button repairs 16c from the guild (10g → 9g 99s 84c, personal 90g unchanged, server `RepairItem { guild_bank: true }`); the Money Log reads "withdrew 16c for repairs". Fixture: `fixture-merchant-tooltips.log` there.
 - Live evidence: `data/diagnostics/merchant-20260924/`; drag buy, split, drop-sell, Sell All Junk and bundle buys: `data/diagnostics/cursoritems-20260926/run1/` (tree/shot 03-28).

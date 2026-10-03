@@ -261,6 +261,16 @@ pub fn parse_u8_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<u8>,
     })
 }
 
+/// An in-file 4-byte `M2Track` at `block_offset`, keys as raw bytes (compressed
+/// particle gravity or a float the caller decodes).
+pub fn parse_bytes4_track(md20: &[u8], block_offset: usize) -> Result<AnimTrack<[u8; 4]>, String> {
+    parse_anim_track(md20, block_offset, 4, &[], |data, offset| {
+        data.get(offset..offset + 4)
+            .and_then(|bytes| bytes.try_into().ok())
+            .ok_or_else(|| format!("4-byte key out of bounds at {offset:#x}"))
+    })
+}
+
 /// Parse an AnimBlock's nested M2Array structure.
 /// `block_offset` is the offset of the AnimBlock within the MD20 blob.
 /// `value_size` is the byte size of each keyframe value.

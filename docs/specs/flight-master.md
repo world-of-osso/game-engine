@@ -1,5 +1,7 @@
 # Flight Master
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 The Retail `FlightMapFrame` and server-driven flights. The contract is shared-protocol `protocol/taxi_messages.rs` and the replicated `MovementControl`; server rules are in game-server `docs/specs/taxi.md`.
 
 References:
