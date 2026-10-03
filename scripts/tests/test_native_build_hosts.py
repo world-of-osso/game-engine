@@ -27,6 +27,25 @@ if name == 'systemd-run':
     index = next(i for i, arg in enumerate(args) if arg == 'rustup' or arg.endswith('/fixture'))
     os.execvp(args[index], args[index:])
 if name == 'scp':
+    import signal, subprocess, time
+    while args and args[0] == '-o':
+        del args[:2]
+    with (base / 'uploads.log').open('a') as log:
+        log.write(json.dumps(args) + '\n')
+    mode = os.environ.get('UPLOAD_MODE', '')
+    attempts = len((base / 'uploads.log').read_text().splitlines())
+    if mode in ('stall', 'stall-once') and (mode == 'stall' or attempts == 1):
+        child = subprocess.Popen([sys.executable, '-c', 'import signal,time; signal.signal(signal.SIGTERM,signal.SIG_IGN); time.sleep(60)'])
+        def stop(number, frame):
+            child.kill(); child.wait()
+        signal.signal(signal.SIGTERM, stop)
+        (base / ('upload-%s.json' % attempts)).write_text(json.dumps([os.getpid(), child.pid]))
+        print('upload stalled', file=sys.stderr, flush=True)
+        time.sleep(60)
+    if mode == 'transient' or (mode == 'transient-once' and attempts == 1):
+        print('Connection reset by peer', file=sys.stderr); sys.exit(17)
+    if mode == 'permanent':
+        print('Permission denied (publickey)', file=sys.stderr); sys.exit(19)
     def resolve(value):
         if value.startswith('desktop:'):
             return base / 'windows' / value.removeprefix('desktop:C:/Users/Test User/')
@@ -137,6 +156,120 @@ class NativeTests(unittest.TestCase):
                 "HOME": str(self.home),
             },
         ).start()
+
+    def upload_fixture(self, mode, cancel=None):
+        old = self.base / "cache/old/source/project/state"
+        old.parent.mkdir(parents=True, exist_ok=True)
+        old.write_bytes(b"previous project state")
+        code = (
+            "import sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); "
+            "import native_build_hosts as h; h.UPLOAD_TIMEOUT=.3; h.UPLOAD_BACKOFF=.02; "
+            'sys.exit(h.execute(Path(sys.argv[2]),"upload","project",["build"],"desktop",build=False))'
+        )
+        env = dict(os.environ, UPLOAD_MODE=mode)
+        process = subprocess.Popen(
+            [sys.executable, "-c", code, str(SCRIPTS), str(self.context)],
+            env=env,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+        )
+        try:
+            if cancel is not None:
+                deadline = time.monotonic() + 4
+                while not (self.base / "upload-1.json").exists():
+                    self.assertLess(time.monotonic(), deadline)
+                    time.sleep(0.02)
+                process.send_signal(cancel)
+            try:
+                _, stderr = process.communicate(timeout=12)
+            except subprocess.TimeoutExpired:
+                self.fail("native upload did not finish within bounded wait")
+            for marker in self.base.glob("upload-*.json"):
+                for pid in json.loads(marker.read_text()):
+                    with self.assertRaises(ProcessLookupError):
+                        os.kill(pid, 0)
+            self.assertEqual(old.read_bytes(), b"previous project state")
+            self.assertFalse((self.context / "project/target").exists())
+            self.assertFalse((self.base / "cargo.log").exists())
+            self.assertEqual(
+                list((self.base / "windows/data/build-host/transfers").iterdir()), []
+            )
+            return (
+                process.returncode,
+                stderr.decode(),
+                [
+                    json.loads(line)
+                    for line in (self.base / "uploads.log").read_text().splitlines()
+                ],
+            )
+        finally:
+            # RED must not leave either the unowned SCP or its descendants running.
+            for marker in self.base.glob("upload-*.json"):
+                parent, child = json.loads(marker.read_text())
+                try:
+                    os.kill(parent, signal.SIGTERM)
+                    time.sleep(0.05)
+                    os.kill(parent, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+                try:
+                    os.kill(child, signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            if process.poll() is None:
+                process.kill()
+            process.communicate()
+
+    def test_upload_timeout_retries_three_and_reaps_descendants(self):
+        status, error, attempts = self.upload_fixture("stall")
+        self.assertNotEqual(status, 0)
+        self.assertEqual(len(attempts), 3)
+        self.assertIn("source.tar.gz", error)
+        self.assertIn("desktop:", error)
+        self.assertIn("timed out", error)
+        self.assertIn("upload stalled", error)
+        self.assertFalse((self.base / "cache/upload").exists())
+
+    def test_upload_cancellation_reaps_owned_descendants(self):
+        for number in (signal.SIGINT, signal.SIGTERM):
+            with self.subTest(signal=number):
+                status, _, attempts = self.upload_fixture("stall", number)
+                self.assertEqual(status, 128 + number)
+                self.assertEqual(len(attempts), 1)
+                (self.base / "uploads.log").unlink()
+                (self.base / "upload-1.json").unlink()
+                (self.base / "cache/old/source/project/state").unlink()
+                # Reuse the existing cache directory in the next signal case.
+
+    def test_upload_transient_once_transfers_successful_bytes(self):
+        status, _, attempts = self.upload_fixture("transient-once")
+        self.assertEqual(status, 0)
+        self.assertEqual(len(attempts), 4)
+        self.assertEqual(
+            (self.base / "cache/upload/source/project/src/main.rs").read_bytes(), b"A"
+        )
+
+    def test_upload_timeout_once_transfers_successful_bytes(self):
+        status, _, attempts = self.upload_fixture("stall-once")
+        self.assertEqual(status, 0)
+        self.assertEqual(len(attempts), 4)
+        self.assertEqual(
+            (self.base / "cache/upload/source/project/src/main.rs").read_bytes(), b"A"
+        )
+
+    def test_upload_permanent_failure_does_not_retry(self):
+        status, error, attempts = self.upload_fixture("permanent")
+        self.assertNotEqual(status, 0)
+        self.assertEqual(len(attempts), 1)
+        self.assertIn("Permission denied (publickey)", error)
+        self.assertIn("19", error)
+        self.assertFalse((self.base / "cache/upload").exists())
+
+    def test_upload_transient_failures_stop_after_three(self):
+        status, error, attempts = self.upload_fixture("transient")
+        self.assertNotEqual(status, 0)
+        self.assertEqual(len(attempts), 3)
+        self.assertIn("Connection reset by peer", error)
 
     def test_no_build_runs_existing_profiles_and_syncs_desktop_without_cargo(self):
         for host in ("local", "desktop"):
