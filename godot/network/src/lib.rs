@@ -222,6 +222,7 @@ impl NetworkBridge {
             .receive::<SpecializationChanged>()
             .receive::<ActionBarSnapshot>()
             .receive::<SpellCooldownUpdate>()
+            .receive::<protocol::SpellChargesUpdate>()
             .receive::<CastFailed>()
             .receive::<CombatLogEvent>()
             // Server-computed damage meter sessions.
