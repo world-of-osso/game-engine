@@ -266,23 +266,15 @@ impl AnimationState {
     }
 
     /// Timeline and time a track samples: a global-sequence track reads timeline 0
-    /// at the global clock wrapped to its global sequence (WebWowViewerCpp
-    /// animate.h `animateTrack`), others the given sequence at its time.
+    /// at the global clock (`m2::global_track_time`), others the given sequence at its time.
     fn track_time<T>(
         &self,
         track: &m2_anim::AnimTrack<T>,
         index: usize,
         time_ms: f64,
     ) -> (usize, u32) {
-        let Ok(global) = usize::try_from(track.global_sequence) else {
-            return (index, time_ms as u32);
-        };
-        let duration = f64::from(self.global_sequences[global]);
-        if duration == 0.0 {
-            (0, 0)
-        } else {
-            (0, (self.global_ms % duration) as u32)
-        }
+        m2::global_track_time(track, &self.global_sequences, self.global_ms)
+            .unwrap_or((index, time_ms as u32))
     }
 
     fn sample_sequence(&self, index: usize, time_ms: f64) -> Vec<BonePose> {
@@ -771,6 +763,11 @@ impl WowAnimationPlayer {
     pub(crate) fn playback(&self) -> Option<(usize, u32)> {
         let animation = self.animation.as_ref()?;
         Some((animation.current, animation.time_ms as u32))
+    }
+
+    /// The model's global clock, which global-sequence tracks run on.
+    pub(crate) fn global_ms(&self) -> Option<f64> {
+        Some(self.animation.as_ref()?.global_ms)
     }
 
     /// Select model clip `id` (base variation) as its own sequence, crossfading.

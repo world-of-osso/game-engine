@@ -393,7 +393,15 @@ fn keyframed_emission_follows_the_playing_sequence_time() {
     assert_eq!(emitter.emission_rate, 0.0, "the static first key");
     let emitted = |sequence: usize, time_ms: u32| {
         let mut sim = EmitterSim::new(emitter, 3);
-        sim.set_animation(emitter, sequence, time_ms);
+        sim.set_animation(
+            emitter,
+            &m2::AnimTime {
+                sequence,
+                time_ms,
+                global_ms: 0.0,
+                global_sequences: &[],
+            },
+        );
         for _ in 0..30 {
             sim.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
         }
@@ -410,4 +418,43 @@ fn keyframed_emission_follows_the_playing_sequence_time() {
         sim.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
     }
     assert_eq!(sim.particles().len(), 0);
+}
+
+/// world/unk_exp11_6323400/6323400.m2 (one sequence, global sequences 50000/5333/14667 ms)
+/// drives emitter 0's rate on global sequence 1 (5333 ms, timeline 0): 149.13/s from
+/// 3167 to 3300 ms, 10/s from 833 to 1233 ms; particles live 0.3 s. The rate follows the
+/// model's global clock whatever the sequence time (WebWowViewerCpp animationManager.cpp
+/// `calcParticleEmitters` → `animateTrackWithBlend` with `globalSequenceTimes`).
+#[test]
+fn global_sequence_emission_rate_follows_the_global_clock() {
+    let model = model(6323400);
+    let emitter = &model.particle_emitters[0];
+    let rate = emitter
+        .tracks
+        .emission_rate
+        .as_ref()
+        .expect("keyframed rate");
+    assert_eq!(rate.global_sequence, 1);
+    assert_eq!(model.global_sequences[1], 5333);
+    let alive = |global_ms: f64| {
+        let mut sim = EmitterSim::new(emitter, 3);
+        sim.set_animation(
+            emitter,
+            &m2::AnimTime {
+                sequence: 0,
+                time_ms: 0,
+                global_ms,
+                global_sequences: &model.global_sequences,
+            },
+        );
+        for _ in 0..30 {
+            sim.update(emitter, 1.0 / 60.0, Mat4::IDENTITY, wow_to_godot(), 1.0);
+        }
+        sim.particles().len()
+    };
+    // About 149 × 0.3 alive in the burst, 10 × 0.3 in the lull, the burst again a
+    // whole global loop later.
+    assert!(alive(3200.0) >= 30, "burst: {}", alive(3200.0));
+    assert!(alive(1000.0) <= 6, "lull: {}", alive(1000.0));
+    assert!(alive(3200.0 + 3.0 * 5333.0) >= 30, "wrapped burst");
 }
