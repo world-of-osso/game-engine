@@ -36,16 +36,24 @@ Model and constants: shared-protocol `src/skyriding.rs` (`Glider`, FlightCapabil
 - Take off as for steady flight (Space jumps, Space held in the air): the mount launches straight up at 31.5 yd/s on top of its run and rises without lift (about 24 yards), then glides once falling with 7.5 yards of air under it.
 - Gliding: no thrust; lift turns the velocity toward the facing and the pitch, gravity trades height for speed (dive faster, climb slower), air friction 1.5 yd/s², gravity stops at 65 yd/s. With the right mouse button the pitch follows the camera pitch (at most 180°/s); without it the pitch stays.
 - Landing: coming down onto terrain or a WMO floor clears `flying`; swimming depth ends it into a swim. Every frame of a skyride reports (`PlayerInput.flying`); the server sets `FLYING | ADV_FLYING`.
-- Not yet: vigor UI, override bar and the Retail flight style toggle (part 3), banking, surface friction, the old-world 85% speed, Skyward Ascent as the real takeoff (the Space launch spends no charge).
+- Not yet: the Retail flight style toggle, banking, surface friction, the old-world 85% speed, Skyward Ascent as the real takeoff (the Space launch spends no charge).
 
 ## Skyriding (part 2: vigor and abilities)
 
 Vigor is the Skyriding Charges the server keeps (game-server mounts page: ChargeCategory 2391, 6 charges, 10.35 s each while on the Skyriding aura). The client casts the abilities through the normal spell path (`use_spell`; part 3 puts them on the override bar) and flaps only on the server's `SpellGo` for the local player (`combat_visuals.rs` → `PlayerMovement::skyriding_spell` → shared `Glider::cast`), so a refused cast (no charge, cooldown) never moves it:
 - Surge Forward 372608 and Whirling Surge 361584: +31.5 yd/s along the facing and pitch; Skyward Ascent 372610: +31.5 yd/s up. The speed an impulse reaches is capped at FlightCapability 11 `AddImpulseMaxSpeed` 100; above `MaxVel` 65 the mount loses `OverMaxDeceleration` 7 yd/s² more. The impulse sizes are assumptions in one block of shared-protocol `src/skyriding.rs` (the effects are DUMMY server scripts), listed in game-server `docs/specs/skyriding.md`.
 - Aerial Halt 403092: air friction × 100 (its MOD_ADV_FLYING_AIR_FRICTION 10000%) for 0.5 s, which stops a mount at up to 75 yd/s; its reduced gravity (4 s, amount unpublished) is not modelled.
-- Not yet: Whirling Surge's spiral visual, the vigor display (`SpellChargesUpdate` is not read by the client).
+- Not yet: Whirling Surge's spiral visual.
+
+## Skyriding (part 3: bar and vigor)
+
+- Skyriding bar: while an ADV_FLYING aura is up (Skyriding 406095) `GetBonusBarOffset` is 5, so the main bar shows bonus bar 5, action slots 120..131 (`player_spells::bonus_bar_offset`; Retail's Skyriding tutorial finds Surge Forward past `(NUM_ACTIONBAR_PAGES + GetBonusBarOffset() - 1) * 12`, Blizzard_Tutorials_RPE.lua:446). The server fills those slots when the rider gains ADV_FLYING (game-server mounts page). Dismounting shows page 1 again. Action slots are 0..179 (`MAX_ACTION_BUTTONS`).
+- Vigor: `SpellChargesUpdate` carries its `ChargeCategory`; the client keeps charges per category and recovers them locally between updates. `vigor.rs` shows the Retail `FillUpFrames` widget (`dragonriding_vigor`, atlas FDID 4730866: 42×45 frames, first and last padded -20, decor wings 8 lower) for Skyriding Charges 2391 above the main bar while the Skyriding bar is up; unreported charges count as full.
+- Assumed: the `dragonriding_vigor` texture kit (Retail also has `dragonriding_sgvigor` themes; the widget's kit is server data we do not have) and the bar order Surge Forward, Skyward Ascent, Aerial Halt, Whirling Surge, Second Wind. Not modelled: the widget's flash/flipbook animations and the spark mask.
 
 ## Proof
+
+- Live `godot/tests/skyriding_bar_live.gd` (2026-10-03, private server UDP 5196, game-server skyride3 `62cbfca`, character Fbskybar with 34090, 32235, 403092, 361584, 425782 and `flight-style skyriding`): page 1 → mounted bar `[372608, 372610, 403092, 361584, 425782]` with vigor 6/6, key 1 casts Surge Forward → 5/6 with the sixth filling, dismount → page 1, no vigor. `data/diagnostics/skyride3-2026-10-03/` (run 1 failed: the transport did not receive `SpellChargesUpdate`).
 
 - Depot unit tests (`gameplay::tests`): takeoff/climb at flight speed, hover without gravity, X descent and landing input, mouse-steered pitch, fall after losing `CAN_FLY`, Space without `CAN_FLY` only jumps.
 - Live `godot/tests/flying_mount_live.gd` (2026-10-02, private server UDP 5179, game-server `4ac0e91`, character Fbflymount with Expert Riding 34090 and Golden Gryphon 32235 via `game-server-admin learn-spell`): mounts (display 17697, rider on attachment 0), climbs 30 yd in 1.66 s, flies forward, hovers 2 s with no height change, server height within one frame of the client, lands at the terrain height (server speed back to mounted run 14), dismounts. Screenshots and traces: `data/diagnostics/flymount-2026-10-02/`. The client needs ≥ 4 fps: the server applies at most 0.25 s of movement per input; an earlier run at 2 fps (loaded host) left the server half a flight behind.
