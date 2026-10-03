@@ -224,7 +224,7 @@ Fix: the scene light and fog are Godot global shader uniforms (`project.godot` `
 |---|---|---|
 | base `59e9791f`, load ~5 | settled 488 s; 2,836 pending at 300 s | ~1 fps |
 | fix, load ~7.4 (`GAME_PROFILE_MS=100`) | settled 31.9 s | 9-10 fps, no lighting span over 100 ms |
-| fix, 10 consecutive (`LOOP_SETTLE_S=300`), load 6.7-16.8 | 10/10 settled in 26-162 s (median 48 s) | 3-10 fps |
+| fix, 10 consecutive (`LOOP_SETTLE_S=300`), load 6.7-16.8 | 10/10 settled in 26-162 s (median 49 s) | 3-10 fps |
 
 Evidence: `data/diagnostics/settlegate-2026-10-02/` (`base-prof-1`, `diag-1`, `fix-prof-1`, `green-*`). Loading itself (~127 s at load 7) is the separate Loading gate ([world-loading](../../specs/world-loading.md)).
 
