@@ -37,11 +37,13 @@ func run_test() -> void:
 	await wait_frames(6)
 	client.set_world_minutes(720)
 	client.set_camera_orbit(0, -0.3, 30)
+	print("TRACE mount setup known=", client.spells_state().known, " auras=", client.aura_state())
 	var sent: String = client.use_spell(GOLDEN_GRYPHON)
 	if sent != "":
 		fail("mount: " + sent)
 		return
 	if not await wait_until(func(): return mounted(), 30000, "mounted"):
+		print("TRACE mount failure errors=", client.spells_state().errors, " sent=", client.spells_state().sent, " auras=", client.aura_state(), " saddle=", player.find_child("Attachment0", true, false))
 		return
 	var ground := player.position.y
 	push_key(KEY_SPACE, true)
