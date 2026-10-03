@@ -30,38 +30,14 @@ const GAP: f32 = -5.0;
 pub const MICRO_MENU_W: f32 = MICRO_BUTTONS.len() as f32 * (BUTTON_W + GAP) - GAP;
 /// The 32×41 atlas art (`useAtlasSize`) is centred on the 32×40 button.
 const ART_H: f32 = 41.0;
-/// UiTextureAtlas 2136 `4708813`, 1024×512; members are 64×82 (2x).
-const SHEET: u32 = 4_708_813;
 /// `OnDisable`: `SetAlpha(0.5)`.
 const DISABLED_ALPHA: f32 = 0.5;
 
-/// Committed (left, top) of a 64×82 member of the sheet.
-type Crop = (f32, f32);
-
-/// `UI-HUD-MicroMenu-<name>-Up/-Down/-Disabled/-Mouseover`.
-#[derive(Clone, Copy)]
-struct ButtonArt {
-    up: Crop,
-    down: Crop,
-    disabled: Crop,
-    mouseover: Crop,
-}
-
-/// `UI-HUD-MicroMenu-ButtonBG-Up` / `-Down`.
-const BACKGROUND_UP: Crop = (67.0, 253.0);
-const BACKGROUND_DOWN: Crop = (67.0, 169.0);
-/// `UI-HUD-MicroMenu-Portrait-Shadow` / `-Down` of the CharacterMicroButton.
-const PORTRAIT_SHADOW: Crop = (397.0, 1.0);
-const PORTRAIT_DOWN: Crop = (331.0, 421.0);
-
-const fn art(up: Crop, down: Crop, disabled: Crop, mouseover: Crop) -> Option<ButtonArt> {
-    Some(ButtonArt {
-        up,
-        down,
-        disabled,
-        mouseover,
-    })
-}
+const BACKGROUND_UP: &str = "UI-HUD-MicroMenu-ButtonBG-Up";
+const BACKGROUND_DOWN: &str = "UI-HUD-MicroMenu-ButtonBG-Down";
+/// The CharacterMicroButton's `Shadow` and `PushedShadow`.
+const PORTRAIT_SHADOW: &str = "UI-HUD-MicroMenu-Portrait-Shadow";
+const PORTRAIT_DOWN: &str = "UI-HUD-MicroMenu-Portrait-Down";
 
 /// Why a button without a native window is disabled: its Retail tooltip line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -82,8 +58,10 @@ pub struct MicroButton {
     pub title: &'static str,
     /// The binding `MicroButtonTooltipText` shows, where the client has that action.
     pub binding: Option<InputAction>,
-    /// `None` for the CharacterMicroButton, which draws the portrait instead.
-    art: Option<ButtonArt>,
+    /// `LoadMicroButtonTextures` name of the `UI-HUD-MicroMenu-<name>-Up/-Down/-Disabled/
+    /// -Mouseover` atlases (MainMenuBarMicroButtons.lua:32-38); `None` for the
+    /// CharacterMicroButton, which draws the portrait instead.
+    art: Option<&'static str>,
     /// `None` when the button's window is native.
     pub unavailable: Option<Unavailable>,
 }
@@ -102,12 +80,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "ProfessionMicroButton",
         title: "Professions",
         binding: Some(InputAction::ToggleProfessions),
-        art: art(
-            (397.0, 337.0),
-            (397.0, 169.0),
-            (397.0, 85.0),
-            (397.0, 253.0),
-        ),
+        art: Some("Professions"),
         unavailable: Some(SYSTEM_DISABLED),
     },
     // `PlayerSpellsUtil.TogglePlayerSpellsFrame`: the native spellbook.
@@ -115,12 +88,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "PlayerSpellsMicroButton",
         title: "Talents & Spellbook",
         binding: Some(InputAction::ToggleTalents),
-        art: art(
-            (529.0, 337.0),
-            (529.0, 169.0),
-            (529.0, 85.0),
-            (529.0, 253.0),
-        ),
+        art: Some("SpecTalents"),
         unavailable: None,
     },
     // No achievement earned and not `CanShowAchievementUI`: disabled with `minLevel`
@@ -129,7 +97,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "AchievementMicroButton",
         title: "Achievements",
         binding: Some(InputAction::ToggleAchievements),
-        art: art((1.0, 253.0), (1.0, 85.0), (1.0, 1.0), (1.0, 169.0)),
+        art: Some("Achievements"),
         unavailable: Some(Unavailable::MinLevel(10)),
     },
     // `ToggleQuestLog`: the native QuestLogFrame.
@@ -137,7 +105,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "QuestLogMicroButton",
         title: "Quest Log",
         binding: Some(InputAction::ToggleQuestLog),
-        art: art((463.0, 169.0), (463.0, 1.0), (397.0, 421.0), (463.0, 85.0)),
+        art: Some("Questlog"),
         unavailable: None,
     },
     // Not `C_Housing.IsHousingServiceEnabled()`.
@@ -145,12 +113,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "HousingMicroButton",
         title: "Housing Dashboard",
         binding: None,
-        art: art(
-            (331.0, 337.0),
-            (331.0, 169.0),
-            (331.0, 85.0),
-            (331.0, 253.0),
-        ),
+        art: Some("Housing"),
         unavailable: Some(Unavailable::Reason(
             "This action is not available right now",
         )),
@@ -160,12 +123,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "GuildMicroButton",
         title: "Guild & Communities",
         binding: None,
-        art: art(
-            (265.0, 421.0),
-            (199.0, 421.0),
-            (199.0, 337.0),
-            (265.0, 337.0),
-        ),
+        art: Some("GuildCommunities"),
         unavailable: Some(Unavailable::Reason(
             "Unavailable\n\nBlizzard services are currently unavailable.",
         )),
@@ -175,7 +133,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "LFDMicroButton",
         title: "Group Finder",
         binding: None,
-        art: art((199.0, 253.0), (199.0, 85.0), (199.0, 1.0), (199.0, 169.0)),
+        art: Some("Groupfinder"),
         unavailable: Some(SYSTEM_DISABLED),
     },
     // No CollectionsJournal natively; the Lua's only disabled branch is the kiosk one.
@@ -183,7 +141,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "CollectionsMicroButton",
         title: "Warband Collections",
         binding: None,
-        art: art((133.0, 85.0), (67.0, 421.0), (67.0, 337.0), (133.0, 1.0)),
+        art: Some("Collections"),
         unavailable: Some(SYSTEM_DISABLED),
     },
     // Not `AdventureGuideUtil.IsAvailable()`: `FEATURE_NOT_YET_AVAILABLE`.
@@ -191,7 +149,7 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "EJMicroButton",
         title: "Adventure Guide",
         binding: Some(InputAction::ToggleEncounterJournal),
-        art: art((67.0, 85.0), (1.0, 421.0), (1.0, 337.0), (67.0, 1.0)),
+        art: Some("AdventureGuide"),
         unavailable: Some(Unavailable::Reason("This feature is not yet available.")),
     },
     // Not `C_StorePublic.IsEnabled()` outside CN: `BLIZZARD_STORE_ERROR_UNAVAILABLE`.
@@ -199,19 +157,14 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         name: "StoreMicroButton",
         title: "Shop",
         binding: None,
-        art: art((529.0, 1.0), (463.0, 421.0), (463.0, 253.0), (463.0, 337.0)),
+        art: Some("Shop"),
         unavailable: Some(Unavailable::Reason("The shop is currently unavailable.")),
     },
     MicroButton {
         name: "MainMenuMicroButton",
         title: "Game Menu",
         binding: None,
-        art: art(
-            (133.0, 421.0),
-            (133.0, 253.0),
-            (133.0, 169.0),
-            (133.0, 337.0),
-        ),
+        art: Some("GameMenu"),
         unavailable: None,
     },
 ];
@@ -356,7 +309,7 @@ fn micro_button(view: &MicroMenuView, index: usize) -> Element {
     let layers: Element = button_layers(view, index)
         .into_iter()
         .enumerate()
-        .flat_map(|(layer, (crop, offset))| art_layer(button.name, layer, crop, offset))
+        .flat_map(|(layer, (atlas, offset))| art_layer(button.name, layer, &atlas, offset))
         .collect();
     let state = view.state(index);
     let disabled = state == MicroButtonState::Disabled;
@@ -381,51 +334,43 @@ fn micro_button(view: &MicroMenuView, index: usize) -> Element {
 }
 
 /// `Background` or `PushedBackground`, then the portrait shadows or the state atlas.
-fn button_layers(view: &MicroMenuView, index: usize) -> Vec<(Crop, [f32; 2])> {
+fn button_layers(view: &MicroMenuView, index: usize) -> Vec<(String, [f32; 2])> {
     let pushed = view.shows_pushed(index);
     let background = if pushed {
         BACKGROUND_DOWN
     } else {
         BACKGROUND_UP
     };
-    let mut layers = vec![(background, [0.0, 0.0])];
+    let mut layers = vec![(background.to_owned(), [0.0, 0.0])];
     match MICRO_BUTTONS[index].art {
         // `Shadow` (BORDER, CENTER) and, pushed, `PushedShadow` (CENTER 1,-4).
         None => {
-            layers.push((PORTRAIT_SHADOW, [0.0, 0.0]));
+            layers.push((PORTRAIT_SHADOW.to_owned(), [0.0, 0.0]));
             if pushed {
-                layers.push((PORTRAIT_DOWN, [1.0, 4.0]));
+                layers.push((PORTRAIT_DOWN.to_owned(), [1.0, 4.0]));
             }
         }
         // `OnEnter` hides the normal texture under the `-Mouseover` highlight.
-        Some(art) => {
-            let crop = match view.state(index) {
-                MicroButtonState::Disabled => art.disabled,
-                _ if pushed => art.down,
-                _ if view.hovered == Some(index) => art.mouseover,
-                _ => art.up,
+        Some(name) => {
+            let state = match view.state(index) {
+                MicroButtonState::Disabled => "Disabled",
+                _ if pushed => "Down",
+                _ if view.hovered == Some(index) => "Mouseover",
+                _ => "Up",
             };
-            layers.push((crop, [0.0, 0.0]));
+            layers.push((format!("UI-HUD-MicroMenu-{name}-{state}"), [0.0, 0.0]));
         }
     }
     layers
 }
 
-fn art_layer(button: &str, layer: usize, (left, top): Crop, [dx, dy]: [f32; 2]) -> Element {
-    let coords = format!(
-        "{},{},{},{}",
-        left / 1024.0,
-        (left + 64.0) / 1024.0,
-        top / 512.0,
-        (top + 82.0) / 512.0
-    );
+fn art_layer(button: &str, layer: usize, atlas: &str, [dx, dy]: [f32; 2]) -> Element {
     rsx! {
         texture {
             name: {DynName(format!("{button}Art{layer}"))},
             width: BUTTON_W,
             height: ART_H,
-            texture_fdid: SHEET,
-            tex_coords: {coords.as_str()},
+            texture_atlas: atlas,
             pos_type: "absolute",
             left: dx,
             top: {(BUTTON_H - ART_H) / 2.0 + dy},
