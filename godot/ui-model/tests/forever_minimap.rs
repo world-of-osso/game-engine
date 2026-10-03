@@ -1,6 +1,6 @@
 //! The MinimapCluster under both skins. Modern is exactly the Retail cluster the component
 //! built before it knew skins (master 5e9c5994). Forever is FlareUI's square minimap
-//! (FlareUI 1.3 `Modules/Minimap.lua:32-50,115-136`): a 244×244 map without a mask in a
+//! (FlareUI 1.3 `Modules/Minimap.lua:32-47,154-208,301-303`): a 244×244 map without a mask in a
 //! 260×260 cluster, a 17-high header with the zone name and the clock at its TOPRIGHT, and
 //! bronze Blizzard tooltip-border chrome instead of the compass ring.
 
@@ -185,7 +185,7 @@ fn forever_cluster_is_a_square_244_map_in_a_260_cluster() {
     );
 }
 
-/// FlareUI Modules/Minimap.lua:42-48,159-177,190-199,218-226;
+/// FlareUI Modules/Minimap.lua:42-47,154-167,178-184,200-208;
 /// Forever Blizzard_Minimap/Mainline/GameTime.xml:4 supplies the 19×18 calendar.
 #[test]
 fn forever_header_holds_the_zone_name_and_the_clock_at_its_top_right() {
@@ -234,6 +234,9 @@ fn forever_header_holds_the_zone_name_and_the_clock_at_its_top_right() {
     );
     let clock = text(MINIMAP_CLOCK_TEXT);
     assert_eq!(clock.text, "3:07");
+    assert_eq!(clock.font_size, 12.0); // GameFontHighlight, Fonts.xml:275-277.
+    assert_eq!(zone.font_size, 12.0);
+    assert!(!zone.word_wrap);
     assert_eq!(clock.justify_h, JustifyH::Right);
     assert_eq!(clock.color, [1.0, 1.0, 1.0, 1.0]);
 }
@@ -313,8 +316,8 @@ fn forever_map_marks_follow_the_square_map() {
     // ZoomIn 17×17 at CENTER (+88, −68), ZoomOut 17×9 at (+72, −84) (Minimap.xml:190-219).
     assert_rect(&registry, MINIMAP_ZOOM_IN, (209.5, 189.5, 17.0, 17.0));
     assert_rect(&registry, MINIMAP_ZOOM_OUT, (193.5, 209.5, 17.0, 9.0));
-    // The mail icon sits 2 inside the map's top-left corner.
-    assert_rect(&registry, MINIMAP_MAIL_FRAME, (10.0, 10.0, 20.0, 15.0));
+    // Modules/Minimap.lua:41,44,50,226: mail below the 22-high title band + 3 gap.
+    assert_rect(&registry, MINIMAP_MAIL_FRAME, (14.0, 33.0, 20.0, 15.0));
 }
 
 /// One Screen re-synced with the other skin rebuilds the cluster, then Modern's frames
