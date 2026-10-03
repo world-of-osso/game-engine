@@ -1,9 +1,10 @@
 //! Values several HUD systems read from replicated units, derived in one place.
 
-use game_engine_network::replica::Unit;
+use game_engine_network::replica::{Replica, Unit};
 use shared::{
     components::{
-        CombatStatus, Gold, Npc, Player, UnitFactionTemplate, UnitFlags, UnitTarget, UnitThreatList,
+        CombatStatus, Gold, Npc, Player, UnitFactionTemplate, UnitFlags, UnitSummonedBy,
+        UnitTarget, UnitThreatList,
     },
     protocol::NpcFlags,
 };
@@ -11,6 +12,14 @@ use shared::{
 /// Players and creatures get world nodes; other replicated entities (game objects) do not.
 pub(crate) fn is_unit(unit: Unit) -> bool {
     unit.has::<Player>() || unit.has::<Npc>()
+}
+
+/// `UnitIsUnit("pet", unit)`: the replicated unit whose `SummonedBy` is `player`.
+pub(crate) fn local_pet(replica: &Replica, player: u64) -> Option<u64> {
+    replica
+        .units()
+        .find(|unit| unit.summoned_by() == Some(player))
+        .map(|unit| unit.server_id)
 }
 
 pub(crate) trait UnitFields<'a> {
@@ -28,6 +37,8 @@ pub(crate) trait UnitFields<'a> {
     fn npc_flags(self) -> Option<u64>;
     /// The local player's money in copper.
     fn gold(self) -> Option<u64>;
+    /// Server entity bits of the unit that owns this one (`UF SummonedBy`).
+    fn summoned_by(self) -> Option<u64>;
 }
 
 impl<'a> UnitFields<'a> for Unit<'a> {
@@ -64,5 +75,56 @@ impl<'a> UnitFields<'a> for Unit<'a> {
 
     fn gold(self) -> Option<u64> {
         self.get::<Gold>().map(|gold| gold.0)
+    }
+
+    fn summoned_by(self) -> Option<u64> {
+        self.get::<UnitSummonedBy>().map(|owner| owner.0)
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use game_engine_network::replica::Replica;
+    use shared::components::{Health, UnitSummonedBy};
+
+    const HUNTER: u64 = 0x0000_0001_0000_0010;
+    const OTHER_HUNTER: u64 = 0x0000_0001_0000_0011;
+    const WOLF: u64 = 0x0000_0002_0000_0031;
+    const OTHER_WOLF: u64 = 0x0000_0002_0000_0032;
+    const BOAR: u64 = 0x0000_0002_0000_0040;
+
+    fn npc(name: &str) -> Npc {
+        Npc {
+            template_id: 299,
+            name: name.into(),
+        }
+    }
+
+    /// `UnitIsUnit("pet", unit)`: the unit whose `SummonedBy` is the local player; another
+    /// hunter's wolf and an unowned boar are not it.
+    #[test]
+    fn local_pet_is_the_unit_summoned_by_the_local_player() {
+        let mut replica = Replica::for_tests();
+        replica.insert(BOAR, npc("Young Boar"));
+        replica.insert(OTHER_WOLF, npc("Wolf"));
+        replica.insert(OTHER_WOLF, UnitSummonedBy(OTHER_HUNTER));
+        replica.insert(WOLF, npc("Wolf"));
+        replica.insert(WOLF, UnitSummonedBy(HUNTER));
+        replica.insert(
+            WOLF,
+            Health {
+                current: 50.0,
+                max: 100.0,
+            },
+        );
+        assert_eq!(local_pet(&replica, HUNTER), Some(WOLF));
+        assert_eq!(local_pet(&replica, OTHER_HUNTER), Some(OTHER_WOLF));
+        assert_eq!(
+            replica.unit(WOLF).and_then(|unit| unit.summoned_by()),
+            Some(HUNTER)
+        );
+        replica.remove::<UnitSummonedBy>(WOLF);
+        assert_eq!(local_pet(&replica, HUNTER), None);
     }
 }
