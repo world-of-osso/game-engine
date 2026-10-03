@@ -8,6 +8,9 @@ const CAMERA_RECORD_SIZE: usize = 116;
 const TRACK_SIZE: usize = 20;
 const ARRAY_ENTRY_SIZE: usize = 8;
 const SPLINE_COMPONENTS: usize = 3;
+/// Diagonal FoV of a camera whose FoV track has no key (WebWowViewerCpp
+/// `AnimationManager::calcCamera`, animationManager.cpp:1265, `defaultFloat`).
+const DEFAULT_FOV: f32 = 1.0;
 
 /// Raw WoW model-local coordinates and diagonal field of view in radians.
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -135,7 +138,7 @@ fn parse_camera_record(md20: &[u8], offset: usize) -> Result<M2CameraSnapshot, S
         target,
         roll: read_first_offset::<1>(md20, offset + 76, "camera roll")?[0],
         fov: read_first_spline::<1>(md20, offset + 96, "camera fov")?
-            .ok_or("camera fov has no key")?[0],
+            .map_or(DEFAULT_FOV, |[fov]| fov),
         near_clip: read_f32(md20, offset + 8)?,
         far_clip: read_f32(md20, offset + 4)?,
     })
@@ -278,6 +281,30 @@ mod tests {
         assert_eq!(camera.target, [44.0, 55.0, 66.0]);
     }
 
+    /// A camera whose FoV track has no key in its first sequence sees with the default
+    /// diagonal FoV of one radian.
+    #[test]
+    fn camera_without_fov_keys_uses_the_default_fov() {
+        let mut file = model_with_camera();
+        write_u32(&mut file, 8 + 0x420, 0);
+        write_u32(&mut file, 8 + 0x420 + 8, 0);
+        assert_eq!(parse_camera_snapshot(&file).unwrap().fov, 1.0);
+    }
+
+    /// humanfemale_hd's portrait camera animates its FoV only in later sequences.
+    #[test]
+    fn human_female_portrait_camera_has_the_default_fov() {
+        let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/models/1000764.m2");
+        let bytes =
+            std::fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
+        let camera = super::parse_portrait_camera(&bytes).unwrap();
+        assert_eq!(camera.camera_type, 0);
+        assert_eq!(camera.position, [0.62774545, -0.40620404, 1.7988782]);
+        assert_eq!(camera.target, [-0.03356784, 0.0626493, 1.7492048]);
+        assert_eq!(camera.fov, 1.0);
+        assert_eq!((camera.near_clip, camera.far_clip), (0.22222222, 27.777779));
+    }
+
     #[test]
     fn malformed_required_camera_data_fails_with_context() {
         let mut cases = Vec::new();
@@ -302,9 +329,6 @@ mod tests {
         let mut mismatched_keys = model_with_camera();
         write_u32(&mut mismatched_keys, 8 + 0x420, 2);
         cases.push(("fov", mismatched_keys));
-        let mut no_fov_key = model_with_camera();
-        write_u32(&mut no_fov_key, 8 + 0x420 + 8, 0);
-        cases.push(("fov", no_fov_key));
         for (label, file) in cases {
             let error = parse_camera_snapshot(&file).unwrap_err();
             assert!(error.to_lowercase().contains(label), "{label}: {error}");
