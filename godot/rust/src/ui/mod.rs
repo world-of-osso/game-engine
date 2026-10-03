@@ -723,6 +723,18 @@ impl RegistryUi {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
     }
 
+    /// Initialize a dedicated RegistryUi instance for the Skyriding vigor widget.
+    pub fn show_vigor_bar(
+        &mut self,
+        state: game_engine_ui_model::vigor_bar_component::VigorBarState,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::vigor_bar_component::vigor_bar_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail pet action bar, with an empty
     /// autocast Shine composite.
     pub fn show_pet_action_bar(&mut self, mut state: PetActionBarState) -> Result<(), String> {
