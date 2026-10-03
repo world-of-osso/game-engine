@@ -1,5 +1,7 @@
 # HD Model Loading — Status Brief
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 ## Current State
 
 ### Legacy humanmale.m2 — WORKING

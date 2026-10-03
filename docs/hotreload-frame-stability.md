@@ -1,5 +1,7 @@
 # Hotreload Frame Stability
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 ## Problem
 
 When Dioxus hotreload changes a static attribute value (e.g. `width: 320.0` → `width: 350.0`), the dx CLI converts the static attribute to a dynamic one and sends a new `HotReloadedTemplate` with different `roots`. This produces a new `Template` with different pointers and structure. Dioxus's `diff_node` compares old vs new Template — they don't match — so it emits `replace_node_with`, tearing down the entire frame tree and rebuilding it with new frame IDs. `LoginUi`'s cached frame IDs become stale.
@@ -71,7 +73,7 @@ Replace `templates: Vec<Template>` with `templates: HashMap<TemplateGlobalKey, T
 - `src/ui/dioxus_renderer.rs` — `MutationApplier` implements `WriteMutations` (load_template, replace_node_with, set_attribute)
 - `src/ui/registry.rs` — `FrameRegistry`, frame storage with name-based lookup
 - `src/ui/mod.rs` — `ui_resource!` macro, generates `LoginUi::resolve()`
-- `src/ui/screens/login_component.rs` — login screen rsx components
+- `godot/ui-model/src/ui/screens/login_component.rs` — login screen rsx components
 
 ## Dioxus Internals (0.7.3)
 

@@ -1,5 +1,7 @@
 # Character-Selection Visibility
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Character-selection fog preserves nearby campsite scenery while fading distant terrain. Fog ownership and camera setup live in `src/scenes/char_select/scene/camera.rs`; see [skybox rendering](../wiki/systems/skybox.md).
 
 ## What it must do

@@ -1,5 +1,7 @@
 # Shared material animation clock
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Terrain and water shaders animate UVs from Bevy’s shared shader clock instead of per-material elapsed-time writes. See [terrain](../wiki/systems/terrain.md) and [rendering pipeline](../wiki/systems/rendering-pipeline.md).
 
 ## What it must do

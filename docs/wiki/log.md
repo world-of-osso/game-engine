@@ -2,6 +2,14 @@
 
 [[elastic-trees]]: accepted coarse annotation, saved lit contact/recovery and private mounted-input/network proof reconciled at `34b6ada6`; spec checks distinguish placement reuse from source-only FDID caching. Preserved uniform-buffer root cause, prototype boundaries, pending live-image inspection and latest-source checks. Docs only; no reruns.
 
+## 2026-10-03 — Skyriding part 1: physics (skyride1)
+
+[[mounts]]: skyriding momentum flight on `CAN_ADV_FLY` (shared-protocol `skyriding`, FlightCapability 11), launch/glide/dive/landing; live `skyriding_live.gd` on a private server (`data/diagnostics/skyride1-2026-10-02/`).
+
+## 2026-10-02 — Scene light as global shader uniforms (settlegate)
+
+[[world-entry-stalls#scene-light-rebound-every-frame--2026-10-02]]: "World did not settle" in Stormwind was the live clock changing the light every frame and rebinding every material (400-710 ms/frame); light and fog are now global uniforms written once per change. Stormwind settle 488 s → 32 s.
+
 ## 2026-10-02 — Mounts and steady flight (flymount)
 
 [[mounts]]: Godot mount model and rider seat, flight controls after Retail JUMP/SITORSTAND, `PlayerInput.flying`; live `flying_mount_live.gd` PASS on a private server (`data/diagnostics/flymount-2026-10-02/`).
@@ -2516,3 +2524,7 @@ User decision: the Godot client is the only client. The root Bevy package `game-
 ## 2026-10-02 — Elastic tree prototype source audit
 
 [[elastic-trees]] records `0290ca95`, `7cf63c9b`, `32e9726b`: manual Barrens FDID 201394 annotation, two-branch limit, loader/render ownership, native swept flight contact and damped recovery. Spec inventory and fixture assertions updated; pivots/regions provisional pending screenshot inspection. Mount/terrain/collision cross-links reconcile annotated capsule exception only. No tests run or native acceptance claimed; main owns integration proofs.
+
+## 2026-10-03 — Godot client deploy
+
+Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-build.py --release` builds the optimized extension, and the Linux x86_64 bundle holds the pinned patched Godot runtime, project files with a pre-imported `.godot/` cache, and an allowlisted `data/` (38 GB). It publishes through the live S3-backed file server. The removed Bevy files are `Dockerfile`, `scripts/windows-dev.ps1` and `docs/windows-development.md`. A cold `--import` that hot-loads the extension aborts at exit, so the bundle registers the extension first. See [deploy](../deploy.md).

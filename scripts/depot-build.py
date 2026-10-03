@@ -225,14 +225,14 @@ def stable_context(cache, mode, checkout_key):
         shutil.rmtree(context, ignore_errors=True)
 
 
-def build(root, fixture=None, cli=False):
+def build(root, fixture=None, cli=False, release=False):
     if fixture and fixture not in fixture_names(root):
         raise ValueError(f"unknown fixture {fixture!r}; choose from {', '.join(fixture_names(root))}")
     environment = depot_environment()
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         target = root / "target"
-        if (target.is_symlink() or (target / "debug").is_symlink()
+        if (target.is_symlink() or (target / "debug").is_symlink() or (target / "release").is_symlink()
                 or (fixture and (target / "debug" / "examples").is_symlink())):
             raise ValueError(f"target symlink cannot guarantee checkout-local artifact: {target}")
         start = time.monotonic()
@@ -247,9 +247,11 @@ def build(root, fixture=None, cli=False):
                 command.extend(["--build-arg", f"FIXTURE={fixture}"])
             if cli:
                 command.extend(["--build-arg", "CLI=1"])
+            if release:
+                command.extend(["--build-arg", "RELEASE=1"])
             subprocess.run([*command, str(context)], check=True, env=environment)
             phase("Remote build", start)
-            destination = root / "target" / "debug" / ARTIFACT
+            destination = root / "target" / ("release" if release else "debug") / ARTIFACT
             if fixture:
                 fixture_destination = root / "target" / "debug" / "examples" / fixture
                 install_artifact(output / (fixture + ".gz"), fixture_destination, executable=True)
@@ -309,18 +311,20 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--fixture", help=f"also export one {FIXTURE_DIR} executable, named by file stem")
     parser.add_argument("--cli", action="store_true", help=f"also export target/debug/{CLI}")
+    mode.add_argument("--release", action="store_true",
+                      help=f"build only the optimized library into target/release/{ARTIFACT}")
     mode.add_argument("--test", action="store_true",
                       help="run `cargo test --locked` in godot/ with every following argument; must be last")
     argv = sys.argv[1:]
     # argparse drops `--`, which cargo needs to separate test-binary arguments.
     split = argv.index("--test") + 1 if "--test" in argv else len(argv)
     args = parser.parse_args(argv[:split])
-    if args.test and args.cli:
-        parser.error("argument --cli: not allowed with argument --test")
+    if args.cli and (args.test or args.release):
+        parser.error(f"argument --cli: not allowed with argument {'--test' if args.test else '--release'}")
     try:
         if args.test:
             return run_tests(args.root.resolve(), argv[split:])
-        build(args.root.resolve(), args.fixture, args.cli)
+        build(args.root.resolve(), args.fixture, args.cli, args.release)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Remote build failed: {error}", file=sys.stderr)
         return 1

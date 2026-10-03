@@ -34,11 +34,7 @@ uniform vec3 frame_counts_3 = vec3(1.0);
 // LiquidObject FlowSpeed and FlowDirection (degrees).
 uniform vec2 flow = vec2(0.0);
 
-// Scene light, authored RGB.
-uniform vec3 ambient = vec3(1.0);
-uniform vec3 direct = vec3(0.0);
-// Godot world direction the sunlight travels.
-uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
+#include "res://shaders/scene_light.gdshaderinc"
 uniform vec3 specular_color = vec3(0.0);
 #include "res://shaders/retail_fog.gdshaderinc"
 
@@ -165,11 +161,11 @@ void fragment() {
 	}
 	vec3 base = mix(layer_0, layer_1, layer_mix);  // v127
 
-	vec3 to_sun = normalize(-to_wow(sun_direction));  // v129
+	vec3 to_sun = normalize(-to_wow(light_sun_direction()));  // v129
 	// uSunAttenuation.z is 0 without LightParams sun attenuation, so v134 = 1.
 	float sun_attenuation = 1.0;
 	float n_dot_l = clamp(dot(to_sun, normal), 0.0, 1.0);  // v139
-	vec3 light = direct * (n_dot_l * sun_attenuation) + ambient;  // v143
+	vec3 light = light_direct() * (n_dot_l * sun_attenuation) + light_ambient();  // v143
 	vec3 color = mix(light * base, base, f13);  // v146
 
 	vec3 camera = to_wow(CAMERA_POSITION_WORLD);  // v128

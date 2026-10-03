@@ -1,5 +1,7 @@
 # Nameplate style
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 This spec defines the requested WoW-reference overhead health and spell bars. Rendering lives in `src/rendering/ui/`; [nameplate design](../wiki/design/nameplate-design.md) distinguishes implemented data paths from its separate target-first design.
 
 ## What it must do
@@ -30,6 +32,7 @@ Retail decides plate visibility in the engine from CVars; the default UI only ex
 - [x] `nameplateOccludedAlphaMult = 0.4` (cvars.yaml:984): a plate whose unit is hidden from the camera multiplies its alpha (the selected alpha or the distance fade) by 0.4, else by 1. The test is a ray from the camera to the centre of the unit's pick box against terrain (physics layer 1) and WMO collision (layer 2). M2 doodads have no collision and do not occlude.
 - [x] Native HUD `show_health_bars = false` hides the health frame and fill but retains and centers the name. Accessibility `colorblind_mode` changes only the label: player cyan `(0.45, 0.9, 1.0)`, NPC yellow `(1.0, 0.92, 0.35)`; off restores white. Reaction-based health fill remains unchanged. Independent native verification fresh-runs the owned loopback NPC fixture through the live NPC node, health visibility, NPC label restoration, unchanged fill tint, and camera-body fade separately from CVar eligibility (`/tmp/claude/verify-native-nameplate-options.md`). The pure test asserts both exact label colors; it is not live player rendering. Current rules reject player-vs-player attacks, friendly-player plates default off, and no authored control enables them, leaving live player-label proof blocked (`/tmp/claude/nameplate-player-*.log`).
 - [x] Godot look and layout come from the Bevy client: reference skins, the Thick/Thin frame chosen by the nearest preset, the fill desaturated then tinted by reaction, a normally white 13px Friz name with a black shadow 2px above the plate when bars show, and the body centred 2.5 yd above the unit origin (Bevy `BAR_Y_OFFSET`). 1 UI unit is 1 viewport pixel.
+- [x] Classification indicator (`NamePlateClassificationFrameMixin:GetClassificationAtlasElement`, Blizzard_NamePlateClassificationFrame.lua:90-130): plates of units that are not friendly (`NamePlateEnemyFrameOptions.showClassificationIndicator`) show `nameplates-icon-elite-gold` for elite and world-boss units, `nameplates-icon-elite-silver` for rare elites and `UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Star` for rares, at 20×20 with its RIGHT on the 22×22 raid-icon slot's LEFT (Blizzard_NamePlates.xml:195-214). A raid icon or a name-only plate hides it. Only the Medium size (`classificationScale` 1) exists; PvP carrier icons are not implemented. Live: `godot/tests/plateclass_live.gd` on a private server (UDP 5187) shows Hogger's gold dragon 22px left of the health bar, `data/diagnostics/plateclass-2026-10-02/`.
 
 ### Cast bars (Godot client)
 
@@ -50,9 +53,9 @@ Retail `NamePlateCastingBarMixin` over `CastingBarMixin` (`Blizzard_NamePlates/B
 - `src/game/nameplate_style.rs` — `NameplateStyle` (sizes, colours, presets, ranges) and the Options slider model.
 - `src/game/state/client_options.rs` — persists `HudOptions.nameplate_style` (`nameplateStyle`).
 - `src/scenes/game_menu/options.rs` — settings draft/apply wiring, style sliders and toggles.
-- `src/ui/screens/options_menu_active_sections.rs` — HUD Thin/Thick preset selectors.
-- `src/ui/screens/options_menu_active_sections_nameplates.rs` — Options > Nameplates page.
-- `src/game/faction_reaction.rs` — `FactionTemplate.csv` loader for `shared::faction_reaction`.
+- `godot/ui-model/src/ui/screens/options_menu_active_sections.rs` — HUD Thin/Thick preset selectors.
+- `godot/ui-model/src/ui/screens/options_menu_active_sections_nameplates.rs` — Options > Nameplates page.
+- `godot/rust/src/game/faction_reaction.rs` — `FactionTemplate.csv` loader for `shared::faction_reaction`.
 - `src/rendering/ui/nameplate_art.rs` — shared art cache: reference-derived health/cast frame PNGs with transparent live interiors; glyph-free health gradient crop; authored `4505182` cast fill/background. No generic pip is rendered because none appears in the reference.
 - `debug/make_nameplate_skins.py` — reproducibly derives frame/fill skins from the supplied screenshot using linear unmatting; `provenance.json` records crops, source hash, and reconstruction limits.
 - `debug/compare_nameplates.py` — compares aligned half-size GPU captures against the BOX-resized reference while excluding glyph regions; diagnostics only, not acceptance proof.
@@ -65,7 +68,7 @@ Retail `NamePlateCastingBarMixin` over `CastingBarMixin` (`Blizzard_NamePlates/B
 - `src/game/networking/npc.rs` — `NotSelectable` marker from `UnitFlags`; plate, pick, hover and target queries exclude it.
 - `../game-server/crates/server/src/cast_presentation.rs` — validated player cast-state lifecycle; no spell effect execution or NPC cast source.
 
-- `src/rendering/ui/nameplate_visibility_data.rs` — engine-free CVar defaults and the Retail visibility/alpha rules, shared by both clients.
+- `godot/core/src/rendering/ui/nameplate_visibility_data.rs` — engine-free CVar defaults and the Retail visibility/alpha rules, shared by both clients.
 - `godot/rust/src/nameplates.rs` — Godot plates: rule inputs from snapshots, occlusion ray, CanvasLayer nodes, `nameplate_state()`/`nameplate_rules(id)` automation, `NameplateProbe`.
 - `godot/rust/src/replicated.rs` — `faction_template`, `unit_flags`, `in_combat` from the host `Replica`.
 - `godot/rust/src/nameplate_casts.rs` — engine-free cast bar state from `CastState`, `SpellGo` and `SpellFailure`.
@@ -78,7 +81,7 @@ Retail `NamePlateCastingBarMixin` over `CastingBarMixin` (`Blizzard_NamePlates/B
 - `src/rendering/ui/health_bar_facing_tests.rs` — FactionTemplate 7/14/11 fills against a Human player, class colour, edited sizes, border hiding.
 - `src/rendering/ui/nameplate_bar_tests.rs` — name centred 2px above the plate for both presets and hidden border; font size.
 - `src/rendering/ui/nameplate_projection_tests.rs` — cast fill colours and sizes; alignment under a scaled UI camera.
-- `src/scenes/game_menu/options_tests.rs`, `src/ui/screens/game_menu_component_tests.rs` — Options editing and the Nameplates page.
+- `src/scenes/game_menu/options_tests.rs`, `godot/ui-model/src/ui/screens/game_menu_component_tests.rs` — Options editing and the Nameplates page.
 - `src/rendering/ui/nameplate_projection_tests.rs` — late-local-owner exclusion and shared body-distance/fade behavior.
 - `src/rendering/ui/target_nameplate_tests.rs` — plate-owner selection, mesh precedence, registry UI precedence, and hidden/local exclusion.
 - `src/rendering/ui/nameplate_gpu_tests.rs` — half-size visual comparison fixture.

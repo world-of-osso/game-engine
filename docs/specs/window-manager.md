@@ -1,5 +1,7 @@
 # In-world window manager
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Implements the framework items "Window classes" and interaction rule 15 of the
 [in-game UI plan](../plans/2026-09-23-ingame-ui.md). How the UI renders:
 [UI system](../wiki/systems/ui-system.md).
@@ -35,11 +37,11 @@ Implements the framework items "Window classes" and interaction rule 15 of the
 
 ## Implementation inventory
 
-- `src/window_manager/mod.rs` — `WindowId`, `WindowClass`, `WindowManager`, plugin.
-- `src/window_manager/placement.rs` — `PostUpdate` placement before `UiRenderSet::Prepare` (screen rebuilds reset authored positions).
-- `src/window_manager/input.rs` — click-to-raise, title-region drag.
+- `godot/ui-model/src/window_manager/mod.rs` — `WindowId`, `WindowClass`, `WindowManager`, plugin.
+- `godot/ui-model/src/window_manager/placement.rs` — `PostUpdate` placement before `UiRenderSet::Prepare` (screen rebuilds reset authored positions).
+- `godot/ui-model/src/window_manager/input.rs` — click-to-raise, title-region drag.
 - `src/ui_layout_store.rs` — `UiLayoutStore` (`ui_layout.ron`) load/save.
-- `src/window_manager/sessions.rs` — merchant/inspect session reconciliation.
+- `godot/ui-model/src/window_manager/sessions.rs` — merchant/inspect session reconciliation.
 
 ## Tests asserting this spec
 

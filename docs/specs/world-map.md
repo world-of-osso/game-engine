@@ -1,5 +1,7 @@
 # World map
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 The in-world World Map: a Retail-style windowed `WorldMapFrame` toggled by the
 `ToggleWorldMap` binding (default `M`) that shows the player's current map from the
 Retail `UiMap` DB2 data, zooms out zone → continent → world, and marks the player
@@ -36,19 +38,19 @@ Bevy hosts. How it works: [world-map system](../wiki/systems/world-map.md).
 - [world-map system](../wiki/systems/world-map.md)
 
 ## Implementation inventory
-- `src/ui_map_data.rs` — Bevy-free `UiMap` catalog: hierarchy, assignments, art tiles, best map, map positions, child lookup.
-- `src/world_map_view_data.rs` — shared view model: navigation, breadcrumbs, tiles, highlight, player arrow, flight and quest pins; `TaxiNodes`/`ChrRaces` readers.
-- `src/ui/screens/world_map_frame_component.rs` — shared `rsx!` frame, layout, postsetup (arrow rotation, additive highlight), texture list.
-- `src/ui/screens/world_map_frame_art.rs` — Retail atlas crops and textures for chrome and pins.
+- `godot/ui-model/src/ui_map_data.rs` — Bevy-free `UiMap` catalog: hierarchy, assignments, art tiles, best map, map positions, child lookup.
+- `godot/ui-model/src/world_map_view_data.rs` — shared view model: navigation, breadcrumbs, tiles, highlight, player arrow, flight and quest pins; `TaxiNodes`/`ChrRaces` readers.
+- `godot/ui-model/src/ui/screens/world_map_frame_component.rs` — shared `rsx!` frame, layout, postsetup (arrow rotation, additive highlight), texture list.
+- `godot/ui-model/src/ui/screens/world_map_frame_art.rs` — Retail atlas crops and textures for chrome and pins.
 - `godot/rust/src/world_map.rs` — Godot host: binding, pointer navigation, CASC texture caching, `world_map_state()` fixture query.
 - `godot/rust/src/ui/{parts,projection}.rs` — texture rotation and additive blend projection.
 - `godot/rust/src/account.rs`, `godot/network/src/lib.rs` — quest log subscription and `QuestLogUpdate` merge.
 - `src/scenes/world_map_frame/mod.rs` — Bevy host over the same view model.
 
 ## Tests asserting this spec
-- `src/ui_map_data_tests.rs`
-- `src/world_map_view_data_tests.rs`
-- `src/ui/screens/world_map_frame_component_tests.rs`
+- `godot/ui-model/src/ui_map_data_tests.rs`
+- `godot/ui-model/src/world_map_view_data_tests.rs`
+- `godot/ui-model/src/ui/screens/world_map_frame_component_tests.rs`
 - `godot/tests/world_map_flow.gd` (dev server `127.0.0.1:5000`, run under the shared dev-server lock)
 - `godot/rust/src/world_map.rs` pointer and open-reset state tests; `/tmp/claude/world-map-owned-fixture-ac44cc2e.log` proves scaled drag/release, character-scoped save/reset retention, reopen at the Wide slot, and a second-process read without a live server.
 - `godot/rust/src/ui/parts_tests.rs` (rotation and additive parts), `godot/rust/src/account.rs` (quest log merge)

@@ -1,5 +1,7 @@
 # Loot Frame
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 The Retail `LootFrame`, lootable corpses and the unit cursor, running against the live server loot. The contract is shared-protocol `protocol/loot_messages.rs`; server rules are in game-server `docs/specs/loot.md`.
 
 References:
@@ -52,7 +54,7 @@ The [saved reach gate](../wiki/systems/godot-conversion.md#native-loot-reach--bo
 ## Tests asserting this spec
 
 - `src/game/loot_state.rs` tests: slots taken until close, Shift inversion, right-click choice, money lines and coin icon, loot chat lines.
-- `src/ui/screens/loot_frame_component_tests.rs`: frame size, title, card offsets, quality tag only on items, stack count.
+- `godot/ui-model/src/ui/screens/loot_frame_component_tests.rs`: frame size, title, card offsets, quality tag only on items, stack count.
 - `src/scenes/loot_frame/mod.rs` tests: placement under the cursor, card clicks, card state.
 - `tests/unit/target_tests/interactions.rs`: right-click loots with Shift inversion, empty corpse, living NPC.
 - `src/rendering/ui/wow_cursor.rs` tests: cursor by role, reaction and corpse.

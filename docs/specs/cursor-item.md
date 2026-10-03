@@ -1,5 +1,7 @@
 # Cursor Item
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 The Retail cursor item: bag and equipped items picked up, moved, split, equipped, sold, bought and destroyed through the cursor, the `StackSplitFrame`, and bag / paperdoll item tooltips from the client item catalog. The server owns every move (shared-protocol `protocol/inventory_messages.rs`, `protocol/merchant_messages.rs`; game-server `docs/specs/inventory.md`, `docs/specs/merchant.md`).
 
 References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
@@ -56,15 +58,15 @@ Standalone bag hover: native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + c
 
 ## Tests asserting this spec
 
-- `src/game/cursor_item_tests.rs`: pick up and swap, put back, equip and unequip, split drop / sell / destroy counts, sell only with a vendor open, destroy confirm (poor, rare, heirloom), vendor item bought into the dropped slot, buyback cells not picked up, stale cursor clears.
-- `src/game/stack_split.rs` tests: arrow bounds, typed digits, vendor bundles.
-- `src/ui/screens/stack_split_frame_component.rs` tests: single and bundle layouts, enabled arrows.
+- `godot/ui-model/src/game/cursor_item_tests.rs`: pick up and swap, put back, equip and unequip, split drop / sell / destroy counts, sell only with a vendor open, destroy confirm (poor, rare, heirloom), vendor item bought into the dropped slot, buyback cells not picked up, stale cursor clears.
+- `godot/ui-model/src/game/stack_split.rs` tests: arrow bounds, typed digits, vendor bundles.
+- `godot/ui-model/src/ui/screens/stack_split_frame_component.rs` tests: single and bundle layouts, enabled arrows.
 - `src/scenes/cursor_item/tests.rs`: click actions → targets, Shift-click openings and the money cap, typing 7 + Enter puts 7 Linen Cloth on the cursor, bundle Okay buys 3 purchases, Escape cancels, DELETE_ITEM Yes / No, the popup hides with the cursor empty, Escape clears the cursor.
-- `src/ui/screens/bag_frame_component.rs` tests: the dimmed source slot; `src/scenes/bag_frame/mod.rs`: right-click equips the Worn Shortsword, not Linen Cloth.
-- `src/ui/screens/character_frame_component.rs` tests: paperdoll slot actions and icons.
+- `godot/ui-model/src/ui/screens/bag_frame_component.rs` tests: the dimmed source slot; `src/scenes/bag_frame/mod.rs`: right-click equips the Worn Shortsword, not Linen Cloth.
+- `godot/ui-model/src/ui/screens/character_frame_component.rs` tests: paperdoll slot actions and icons.
 - `src/scenes/tooltip_frame/item_tooltip.rs` tests: Worn Shortsword, Linen Cloth stack sell price, grey title for junk, red level requirement; `src/scenes/tooltip_frame/mod.rs`: the sell-price coins.
-- `src/game/item_catalog_tests.rs`: ItemSparse fields, quoted newlines, subclass names, the real tables.
+- `godot/ui-model/src/game/item_catalog_tests.rs`: ItemSparse fields, quoted newlines, subclass names, the real tables.
 - `godot/ui-model/tests/item_catalog_pending.rs`: an inventory and equipment snapshot applied during the catalog load returns at once with pending items and the retrieving tooltip, then resolves Linen Cloth, Ruined Pelt and Worn Shortsword. Live: `godot/tests/world_entry_item_data.gd` (bags, equipment and the Linen Cloth tooltip after a world entry that beat the load).
-- `src/ui/popup.rs`, `src/ui/screens/static_popup_component.rs`, `src/scenes/static_popup/tests.rs`: the confirm-word popup (disabled Yes, typed text, Escape).
-- `src/ui/automation_inworld.rs`, `src/ui/js_automation.rs`: `ui.shiftClick`.
+- `godot/ui-model/src/ui/popup.rs`, `godot/ui-model/src/ui/screens/static_popup_component.rs`, `src/scenes/static_popup/tests.rs`: the confirm-word popup (disabled Yes, typed text, Escape).
+- `src/ui/automation_inworld.rs`, `godot/network/src/ui/js_automation.rs`: `ui.shiftClick`.
 - Live evidence `data/diagnostics/cursoritems-20260926/` (server :5079, Theron at Brother Danil): run1 tree/shot 03 water on the cursor, 06 bought into slot 8, 08-11 split frame 1 → 7, 14 SplitItem 33/7, 17 sold by frame drop, 19-21 Sell All Junk popup and sale, 23-27 bundle split 1 → 2 Stacks, water 5 → 15; run3 13 right-click equipped the vest, 16-17 Escape cleared the cursor, run3 shots 08-09 `ui.key("p")` opened the spellbook; run4-tooltip/tt-22 vest tooltip (Item Level 2, Binds when equipped, Chest / Mail, Sell Price).

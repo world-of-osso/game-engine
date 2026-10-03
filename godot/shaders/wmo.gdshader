@@ -31,12 +31,7 @@ uniform int vertex_shader = 0;
 uniform int pixel_shader = 0;
 uniform int blend_mode = 0;
 
-// RetailSceneLight in authored (sRGB byte / 255) space.
-uniform vec3 ambient = vec3(1.0);
-uniform vec3 horizon_ambient = vec3(1.0);
-uniform vec3 ground_ambient = vec3(1.0);
-uniform vec3 direct;
-uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
+#include "res://shaders/scene_light.gdshaderinc"
 #include "res://shaders/retail_fog.gdshaderinc"
 
 varying vec3 world_position;
@@ -302,12 +297,12 @@ void fragment() {
 	emission_authored = linear_to_gamma(emissive);
 	vec3 mocv = has_mocv ? COLOR.rgb * 2.0 : vec3(0.0);
 	exterior_weight = exterior_lit ? 1.0 : (has_mocv ? COLOR.a : 0.0);
-	float exterior_dot = clamp(dot(world_normal, -normalize(sun_direction)), 0.0, 1.0);
+	float exterior_dot = clamp(dot(world_normal, -normalize(light_sun_direction())), 0.0, 1.0);
 	// Retail's fixed interior sun only weights the ambients; it adds no direct light.
 	vec3 interior_sun = normalize(vec3(-0.30822, -0.9, 0.30822));
 	float interior_dot = clamp(dot(world_normal, -interior_sun), 0.0, 1.0);
 	vec3 interior = retail_ambient(interior_ambient + mocv, interior_ambient + mocv, interior_ambient + mocv, world_normal, interior_dot);
-	vec3 exterior = retail_ambient(ambient + mocv, horizon_ambient + mocv, ground_ambient + mocv, world_normal, exterior_dot);
+	vec3 exterior = retail_ambient(light_ambient() + mocv, light_horizon_ambient() + mocv, light_ground_ambient() + mocv, world_normal, exterior_dot);
 	// calcLight adds the pixel-shader emissive after lighting; F_UNLIT keeps matDiffuse only.
 	ambient_authored = diffuse_authored * mix(interior, exterior, exterior_weight) + emission_authored + texel.emissive;
 	if (unlit) {
@@ -321,8 +316,8 @@ void fragment() {
 void light() {
 	if (LIGHT_IS_DIRECTIONAL && !unlit) {
 		vec3 normal = normalize(world_normal);
-		float n_dot_l = clamp(dot(normal, -normalize(sun_direction)), 0.0, 1.0);
-		vec3 with_direct = ambient_authored + diffuse_authored * exterior_weight * direct * n_dot_l * ATTENUATION;
+		float n_dot_l = clamp(dot(normal, -normalize(light_sun_direction())), 0.0, 1.0);
+		vec3 with_direct = ambient_authored + diffuse_authored * exterior_weight * light_direct() * n_dot_l * ATTENUATION;
 		vec3 lit = gamma_to_linear(apply_retail_fog(with_direct));
 		vec3 base = gamma_to_linear(apply_retail_fog(ambient_authored));
 		DIFFUSE_LIGHT += lit - base;

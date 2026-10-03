@@ -33,12 +33,7 @@ uniform float scenery_opacity = 1.0;
 uniform int render_flags = 0;
 uniform int gx_blend = 0;
 
-// RetailSceneLight, in authored sRGB-byte / 255 space.
-uniform vec3 ambient = vec3(1.0);
-uniform vec3 horizon_ambient = vec3(1.0);
-uniform vec3 ground_ambient = vec3(1.0);
-uniform vec3 direct;
-uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
+#include "res://shaders/scene_light.gdshaderinc"
 #include "res://shaders/retail_fog.gdshaderinc"
 
 // WMO doodad interior light (WebWowViewerCpp M2 intLight, m2Object.cpp:1405-1432):
@@ -263,8 +258,8 @@ void fragment() {
 void light() {
 	if (LIGHT_IS_DIRECTIONAL && (render_flags & 1) == 0) {
 		vec3 normal = normalize(world_normal);
-		float n_dot_l = clamp(dot(normal, -normalize(sun_direction)), 0.0, 1.0);
-		vec3 light_color = retail_ambient(ambient, horizon_ambient, ground_ambient, normal, n_dot_l) + direct * n_dot_l * ATTENUATION;
+		float n_dot_l = clamp(dot(normal, -normalize(light_sun_direction())), 0.0, 1.0);
+		vec3 light_color = retail_ambient(light_ambient(), light_horizon_ambient(), light_ground_ambient(), normal, n_dot_l) + light_direct() * n_dot_l * ATTENUATION;
 		if (exterior_blend < 1.0) {
 			float interior_dot = clamp(dot(normal, -normalize(interior_sun_direction)), 0.0, 1.0);
 			vec3 interior = retail_ambient(interior_ambient, interior_horizon_ambient, interior_ground_ambient, normal, interior_dot) + interior_direct * interior_dot;

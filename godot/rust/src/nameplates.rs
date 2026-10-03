@@ -16,6 +16,7 @@ use game_engine_core::nameplate_visibility_data::{
     NameplateCvars, PlateUnit, in_combat_with_player, nameplate_alpha, plate_alpha, plate_shown,
     selection_in_combat_is_hostile,
 };
+use game_engine_core::warband_scene_data::read_atlas_art;
 use game_engine_network::replica::{Replica, Unit as ReplicatedUnit};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::inworld_unit_frames_component::{
@@ -31,7 +32,7 @@ use godot::{
 };
 use shared::{
     casting::CastState,
-    components::{Health, Player, UnitFlags},
+    components::{CreatureClassification, Health, Player, UnitFlags},
     faction_reaction::{Unit, can_attack},
     protocol::RAID_TARGET_ICON_COUNT,
 };
@@ -39,10 +40,10 @@ use shared::{
 use crate::{
     GameClient,
     faction_reaction::{FactionTemplateEntry, Reaction, parse_faction_template_csv, reaction},
-    nameplate_cast_bar::{CastArt, CastNodes, text_bbcode},
+    nameplate_cast_bar::{CastArt, CastNodes, atlas_art, text_bbcode},
     nameplate_casts::{BarType, Interrupter, PlateCasts},
     replicated::UnitFields,
-    targeting::unit_pick_shape,
+    targeting::{unit_classification, unit_pick_shape},
     wmo::collision::{TERRAIN_LAYER, WMO_LAYER},
 };
 
@@ -57,6 +58,11 @@ const NAMEPLATE_SCALE: f32 = 0.5;
 const BAR_Y_OFFSET: f32 = 2.5;
 /// Retail `RaidTargetFrame` size (Blizzard_NamePlates.xml:185-193).
 const RAID_ICON_SIZE: f32 = 22.0;
+/// `ClassificationFrame` and its `classificationIndicator` size (Blizzard_NamePlates.xml:196,203).
+const CLASSIFICATION_SIZE: f32 = 20.0;
+const ELITE_GOLD_ATLAS: &str = "nameplates-icon-elite-gold";
+const ELITE_SILVER_ATLAS: &str = "nameplates-icon-elite-silver";
+const RARE_STAR_ATLAS: &str = "UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Star";
 /// `PixelUtil.SetPoint(RaidTargetFrame, "BOTTOM", name, "TOP", 0, 10)` on name-only plates.
 const RAID_ICON_ABOVE_NAME: f32 = 10.0;
 /// Physics layers that hide a unit from the camera.
@@ -139,6 +145,56 @@ fn raid_icon_rect(style: &NameplateStyle, show_health_bars: bool, name: Rect2) -
         )
     };
     Rect2::new(position, size)
+}
+
+/// `NamePlateClassificationFrameMixin:GetClassificationAtlasElement`
+/// (Blizzard_NamePlateClassificationFrame.lua:90-130) on Retail defaults: only
+/// `NamePlateEnemyFrameOptions` sets `showClassificationIndicator`
+/// (Blizzard_NamePlateFrameOptions.lua:53,84; chosen for every unit that is not
+/// `UnitIsFriend`, Blizzard_NamePlateBase.lua:57-63), `nameplateInfoDisplay`'s default
+/// `\x02D` has the `RarityIcon` bit, and a raid icon or a name-only plate hides it.
+fn classification_atlas(
+    classification: CreatureClassification,
+    friend: bool,
+    raid_target: Option<u8>,
+    show_only_name: bool,
+) -> Option<&'static str> {
+    if friend || raid_target.is_some() || show_only_name {
+        return None;
+    }
+    match classification {
+        CreatureClassification::Elite | CreatureClassification::WorldBoss => Some(ELITE_GOLD_ATLAS),
+        CreatureClassification::Rare => Some(RARE_STAR_ATLAS),
+        CreatureClassification::RareElite => Some(ELITE_SILVER_ATLAS),
+        _ => None,
+    }
+}
+
+/// `ClassificationFrame` (Blizzard_NamePlates.xml:195-214): 20×20, RIGHT on the
+/// `RaidTargetFrame`'s LEFT, whose own RIGHT sits on the health bars' LEFT
+/// (Blizzard_NamePlateUnitFrame.lua:815). `classificationScale` is 1: our plates have
+/// only the Medium size (Blizzard_NamePlateConstants.lua:57).
+fn classification_rect(style: &NameplateStyle) -> Rect2 {
+    let size = Vector2::splat(CLASSIFICATION_SIZE);
+    let raid_left = -style.health_width / 2.0 - RAID_ICON_SIZE;
+    Rect2::new(Vector2::new(raid_left - size.x, -size.y / 2.0), size)
+}
+
+/// The three PvE classification atlases, cropped from their `UiTextureAtlas` sheets.
+fn classification_textures(
+    data_root: &Path,
+) -> Result<HashMap<&'static str, Gd<AtlasTexture>>, String> {
+    let names = [ELITE_GOLD_ATLAS, ELITE_SILVER_ATLAS, RARE_STAR_ATLAS];
+    let atlases = read_atlas_art(data_root, &names)?;
+    names
+        .into_iter()
+        .map(|name| {
+            Ok((
+                name,
+                atlas_art(&atlases[&name.to_ascii_lowercase()], data_root)?,
+            ))
+        })
+        .collect()
 }
 
 /// `SetRaidTargetIconTexture`: one `UI-RaidTargetingIcons` cell per icon 1–8.
@@ -260,6 +316,7 @@ struct PlateNodes {
     fill: Gd<TextureRect>,
     name: Gd<Label>,
     raid_icon: Gd<TextureRect>,
+    classification: Gd<TextureRect>,
     cast: CastNodes,
 }
 
@@ -275,6 +332,8 @@ struct PlateView {
     name_color: Color,
     /// `GetRaidTargetIndex(unit)`.
     raid_target: Option<u8>,
+    /// `classificationIndicator`'s atlas, when shown.
+    classification: Option<&'static str>,
 }
 
 pub(crate) struct Nameplates {
@@ -283,6 +342,7 @@ pub(crate) struct Nameplates {
     art: Option<PlateArt>,
     cast_art: Option<CastArt>,
     raid_icons: Option<Vec<Gd<AtlasTexture>>>,
+    classification_icons: Option<HashMap<&'static str, Gd<AtlasTexture>>>,
     /// Every plate's cast bar.
     pub(crate) casts: PlateCasts,
     layer: Option<Gd<CanvasLayer>>,
@@ -298,6 +358,7 @@ impl Nameplates {
             art: None,
             cast_art: None,
             raid_icons: None,
+            classification_icons: None,
             casts: PlateCasts::default(),
             layer: None,
             plates: HashMap::new(),
@@ -362,8 +423,14 @@ impl Nameplates {
         if self.raid_icons.is_none() && views.values().any(|view| view.raid_target.is_some()) {
             self.raid_icons = Some(raid_icon_textures(data_root)?);
         }
+        if self.classification_icons.is_none()
+            && views.values().any(|view| view.classification.is_some())
+        {
+            self.classification_icons = Some(classification_textures(data_root)?);
+        }
         let art = self.art.as_ref().expect("art loaded above");
         let raid_icons = self.raid_icons.as_deref().unwrap_or_default();
+        let classification_icons = self.classification_icons.as_ref();
         let cast_art = self.cast_art.as_mut().expect("cast art loaded above");
         let textures = data_root.join("textures");
         let layer = self.layer.get_or_insert_with(|| {
@@ -389,6 +456,7 @@ impl Nameplates {
                 .or_insert_with(|| spawn_plate(layer, art, cast_art));
             apply_plate(plate, view, style, thick, art, show_health_bars);
             apply_raid_icon(plate, view, style, show_health_bars, raid_icons);
+            apply_classification(plate, view, style, classification_icons);
             // `ShouldShowCastBar`: no cast bar on a name-only plate.
             let bar = self.casts.get(*id).filter(|_| show_health_bars);
             let icon = match bar.and_then(|bar| icons.get(&bar.spell_id)) {
@@ -419,6 +487,7 @@ fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt, cast_art: &CastArt) 
     let fill = texture_rect();
     let frame = texture_rect();
     let raid_icon = texture_rect();
+    let classification = texture_rect();
     let mut name = Label::new_alloc();
     ignore_mouse(&mut name);
     name.add_theme_font_override("font", &art.font);
@@ -431,6 +500,7 @@ fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt, cast_art: &CastArt) 
     root.add_child(&frame);
     root.add_child(&name);
     root.add_child(&raid_icon);
+    root.add_child(&classification);
     let cast = CastNodes::spawn(&mut root, cast_art, &art.font);
     layer.add_child(&root);
     PlateNodes {
@@ -439,8 +509,31 @@ fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt, cast_art: &CastArt) 
         fill,
         name,
         raid_icon,
+        classification,
         cast,
     }
+}
+
+/// `UpdateClassificationIndicator`: the atlas while one applies, else hidden.
+fn apply_classification(
+    plate: &mut PlateNodes,
+    view: &PlateView,
+    style: &NameplateStyle,
+    textures: Option<&HashMap<&'static str, Gd<AtlasTexture>>>,
+) {
+    let texture = view
+        .classification
+        .zip(textures)
+        .and_then(|(name, textures)| textures.get(name));
+    let Some(texture) = texture else {
+        plate.classification.set_visible(false);
+        return;
+    };
+    let rect = classification_rect(style);
+    plate.classification.set_texture(texture);
+    plate.classification.set_position(rect.position);
+    plate.classification.set_size(rect.size);
+    plate.classification.set_visible(true);
 }
 
 /// `NamePlateRaidTargetMixin:SetRaidTargetIndex`: shown while the unit has an icon, also
@@ -650,6 +743,7 @@ fn project_plate(
         color,
         name_color,
         raid_target: None,
+        classification: None,
     })
 }
 
@@ -728,6 +822,7 @@ impl GameClient {
         let style = self.client_options.hud.nameplate_style;
         let fade_far = self.client_options.hud.nameplate_distance;
         let colorblind_mode = self.client_options.graphics.colorblind_mode;
+        let show_health_bars = self.client_options.hud.show_health_bars;
         let templates = self.nameplates.templates(&self.data_root)?;
         let Some(viewer) = build_viewer(&self.world, &self.replica, target, templates) else {
             return Ok(HashMap::new());
@@ -762,6 +857,12 @@ impl GameClient {
                     rules.targeted,
                 )?;
                 view.raid_target = self.account.raid_targets.icon_of(unit.server_id);
+                view.classification = classification_atlas(
+                    unit_classification(unit),
+                    friendly,
+                    view.raid_target,
+                    !show_health_bars,
+                );
                 Some((unit.server_id, view))
             })
             .collect();
@@ -820,6 +921,16 @@ impl GameClient {
                 entry.set("name_rect", plate.name.get_global_rect());
                 if plate.raid_icon.is_visible() {
                     entry.set("raid_icon_rect", plate.raid_icon.get_global_rect());
+                }
+                if let Some(atlas) = view
+                    .classification
+                    .filter(|_| plate.classification.is_visible())
+                {
+                    entry.set("classification", atlas);
+                    entry.set(
+                        "classification_rect",
+                        plate.classification.get_global_rect(),
+                    );
                 }
             }
             if let Some(bar) = self.nameplates.casts.get(*id) {
@@ -963,5 +1074,59 @@ mod tests {
             raid_icon_rect(&style, false, name),
             Rect2::new(Vector2::new(-11.0, -39.0), Vector2::new(22.0, 22.0))
         );
+    }
+
+    /// Timber (creature_template 1132, rank 4 rare): the `rare` branch's star.
+    #[test]
+    fn timber_rare_plate_shows_the_rare_star() {
+        assert_eq!(
+            classification_atlas(CreatureClassification::Rare, false, None, false),
+            Some("UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Star")
+        );
+    }
+
+    /// Hogger (creature_template 448, rank 1 elite): the gold elite dragon; world bosses
+    /// share it and rare elites get the silver one.
+    #[test]
+    fn hogger_elite_plate_shows_the_gold_dragon() {
+        assert_eq!(
+            classification_atlas(CreatureClassification::Elite, false, None, false),
+            Some("nameplates-icon-elite-gold")
+        );
+        assert_eq!(
+            classification_atlas(CreatureClassification::WorldBoss, false, None, false),
+            Some("nameplates-icon-elite-gold")
+        );
+        assert_eq!(
+            classification_atlas(CreatureClassification::RareElite, false, None, false),
+            Some("nameplates-icon-elite-silver")
+        );
+    }
+
+    /// A normal Kobold Vermin (rank 0) shows nothing; friendly plates use
+    /// `NamePlateFriendlyFrameOptions` (`showClassificationIndicator = false`); a raid
+    /// icon or a name-only plate hides the frame.
+    #[test]
+    fn normal_friendly_marked_or_name_only_plates_show_no_classification() {
+        use CreatureClassification::{Elite, Normal};
+        assert_eq!(classification_atlas(Normal, false, None, false), None);
+        assert_eq!(classification_atlas(Elite, true, None, false), None);
+        assert_eq!(classification_atlas(Elite, false, Some(8), false), None);
+        assert_eq!(classification_atlas(Elite, false, None, true), None);
+    }
+
+    /// The 20×20 `ClassificationFrame` hangs RIGHT on the 22×22 `RaidTargetFrame`'s LEFT,
+    /// which hangs on the health bars' LEFT (-94): -136..-116 × -10..10, ending where the
+    /// raid icon's -116..-94 begins.
+    #[test]
+    fn classification_sits_left_of_the_raid_icon_slot() {
+        let style = NameplateStyle::default();
+        let rect = classification_rect(&style);
+        assert_eq!(
+            rect,
+            Rect2::new(Vector2::new(-136.0, -10.0), Vector2::new(20.0, 20.0))
+        );
+        let name = Rect2::new(Vector2::new(-30.0, -28.5), Vector2::new(60.0, 14.0));
+        assert_eq!(rect.end().x, raid_icon_rect(&style, true, name).position.x);
     }
 }

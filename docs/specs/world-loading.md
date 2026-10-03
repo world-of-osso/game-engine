@@ -1,6 +1,6 @@
 # World loading screen (Godot client)
 
-The loading screen shown on world entry and map transfers hides only once the world under the player can be drawn: terrain, the player's model, and the authored objects of the tile the player stands on. Readiness is one path: `lib.rs` `update_loading_readiness` → `loading::evaluate_native_loading`, which adds the object stage to the shared terrain rules (`src/game/state/loading_readiness.rs`).
+The loading screen shown on world entry and map transfers hides only once the world under the player can be drawn: terrain, the player's model, and the authored objects of the tile the player stands on. Readiness is one path: `lib.rs` `update_loading_readiness` → `loading::evaluate_native_loading`, which adds the object stage to the shared terrain rules (`godot/core/src/game/state/loading_readiness.rs`).
 
 ## What it must do
 

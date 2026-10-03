@@ -1,5 +1,7 @@
 # XP Bar
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 The Retail experience bar in `MainStatusTrackingBarContainer`, fed by the server's owner-only experience messages. The contract is shared-protocol `protocol/experience_messages.rs` (`PlayerXpUpdate { xp, next_level_xp, rested_xp }`, `LogXpGain`); the server sends `PlayerXpUpdate` on enter world, after each gain and on a level change, with `next_level_xp` 0 at the level cap.
 
 References:

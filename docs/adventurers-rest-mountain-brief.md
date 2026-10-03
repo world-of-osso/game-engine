@@ -1,5 +1,7 @@
 # Adventurer's Rest Mountain Brief
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 ## Summary
 
 The missing/wrong Adventurer's Rest background mountain is not a separate asset. It is present in the ADT elevation data for the main campsite tile, and the authored camera is pointed toward it. The concrete root cause found in the char-select scene loader is that the client was loading the supplemental west tile first and never loading the actual primary campsite tile. For Adventurer's Rest, that meant `2703_31_36.adt` rendered while `2703_31_37.adt`, which contains the mountain ridge, was omitted.

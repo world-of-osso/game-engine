@@ -1,5 +1,7 @@
 # M2 weighted loop variations
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 M2 looping playback selects authored alternatives rather than following a temporal chain. Source lives in `src/rendering/model/animation/variants.rs` and `runtime.rs`; [animation](../wiki/systems/animation.md#weighted-loop-variations) describes the implementation.
 
 ## What it must do
@@ -18,7 +20,7 @@ M2 looping playback selects authored alternatives rather than following a tempor
 
 ## Implementation inventory
 
-- `src/asset/m2_format/m2_anim.rs` — sequence record parsing.
+- `godot/core/src/asset/m2_format/m2_anim.rs` — sequence record parsing.
 - `src/rendering/model/animation/variants.rs` — validated family selection and entity random streams.
 - `src/rendering/model/animation/runtime.rs` — cycle boundaries and crossfade clock advancement.
 - `src/rendering/model/animation.rs` — required per-player random state.
