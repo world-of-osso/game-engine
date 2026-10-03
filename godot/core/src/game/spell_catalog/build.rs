@@ -28,6 +28,7 @@ pub(super) const SOURCE_TABLES: &[&str] = &[
     "SpellCategories",
     "SpellCategory",
     "SpellAuraOptions",
+    "SpellShapeshiftForm",
 ];
 
 type SpellMap = HashMap<u32, CatalogSpell>;
@@ -38,6 +39,8 @@ type SpellMap = HashMap<u32, CatalogSpell>;
 /// when their stored points are 0.
 const DAMAGE_OR_HEAL_EFFECTS: [u16; 2] = [2, 10];
 const DAMAGE_OR_HEAL_AURAS: [u16; 2] = [3, 8];
+/// `EffectAura` MOD_SHAPESHIFT; `EffectMiscValue_0` is the `SpellShapeshiftForm` id.
+const AURA_MOD_SHAPESHIFT: u16 = 36;
 
 /// `SpellMisc.Attributes_0` bit of passive spells.
 const SPELL_ATTR0_PASSIVE: i64 = 0x40;
@@ -226,6 +229,12 @@ fn auto_attack(attributes_1: i64, attributes_2: i64) -> SpellAutoAttack {
 fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
     let radii = load_id_map(dir, "SpellRadius", &["ID", "Radius"], |row| row.get(1))?;
     let radius = |index: u32| radii.get(&index).copied().unwrap_or(0.0_f32);
+    let form_bonus_bars = load_id_map(
+        dir,
+        "SpellShapeshiftForm",
+        &["ID", "BonusActionBar"],
+        |row| row.get::<u8>(1),
+    )?;
     let columns = [
         "SpellID",
         "DifficultyID",
@@ -241,8 +250,10 @@ fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         "BonusCoefficientFromAP",
         "ScalingClass",
         "Coefficient",
+        "EffectMiscValue_0",
     ];
     let mut effects: HashMap<u32, Vec<CatalogEffect>> = HashMap::new();
+    let mut bonus_bars: HashMap<u32, u8> = HashMap::new();
     for_each_row(dir, "SpellEffect", &columns, |row| {
         if !row.is_base_difficulty(1)? {
             return Ok(());
@@ -260,6 +271,11 @@ fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
             || DAMAGE_OR_HEAL_AURAS.contains(&row.get(4)?);
         let spell_power_scaled = has_power_coefficient && (damage_or_heal || base_points == 0.0);
         let level_scaled = row.get::<i32>(12)? != 0 && row.get::<f32>(13)? != 0.0;
+        if row.get::<u16>(4)? == AURA_MOD_SHAPESHIFT
+            && let Some(&bonus_bar) = form_bonus_bars.get(&row.get(14)?)
+        {
+            bonus_bars.insert(row.get(0)?, bonus_bar);
+        }
         effects.entry(row.get(0)?).or_default().push(CatalogEffect {
             index: row.get(2)?,
             effect: row.get(3)?,
@@ -286,6 +302,11 @@ fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         if let Some(spell) = spells.get_mut(&id) {
             list.sort_unstable_by_key(|effect| effect.index);
             spell.effects = list.into_boxed_slice();
+        }
+    }
+    for (id, bonus_bar) in bonus_bars {
+        if let Some(spell) = spells.get_mut(&id) {
+            spell.bonus_bar = bonus_bar;
         }
     }
     Ok(())
