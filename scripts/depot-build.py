@@ -17,7 +17,6 @@ from pathlib import Path
 
 from build_hosts import execute
 
-
 ROOT_NAME = "game-engine-godot-conversion"
 SIBLINGS = (
     "asset-resolver",
