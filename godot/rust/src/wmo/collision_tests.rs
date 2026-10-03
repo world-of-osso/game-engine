@@ -269,7 +269,7 @@ fn player_runs_down_and_back_up_the_stockade_stairs_between_the_walls() {
                 speed: shared::movement::RUN_SPEED,
                 vertical: 0.0,
             };
-            *feet = movement.predict(*feet, frame, false, &ground, 1.0 / 60.0);
+            *feet = movement.predict(*feet, frame, false, &ground, &mut |_, to, _| to, 1.0 / 60.0);
         }
     };
     run(&mut feet, [1.0, 0.0, 0.0]);
@@ -391,7 +391,7 @@ fn run_route(
             speed: shared::movement::RUN_SPEED,
             vertical: 0.0,
         };
-        feet = movement.predict(feet, frame, false, ground, delta);
+        feet = movement.predict(feet, frame, false, ground, &mut |_, to, _| to, delta);
         lowest = lowest.min(feet.y);
     }
     (feet, lowest)

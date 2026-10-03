@@ -55,6 +55,7 @@ pub mod customization_data;
 mod customization_query_data;
 #[path = "game/db2_cache.rs"]
 pub mod db2_cache;
+pub mod elastic_tree;
 #[path = "sound/footstep_data.rs"]
 pub mod footstep_data;
 #[cfg(test)]

@@ -1,3 +1,7 @@
+## 2026-10-03 — Elastic-tree evidence reconciliation
+
+[[elastic-trees]]: accepted coarse annotation, saved lit contact/recovery and private mounted-input/network proof reconciled at `34b6ada6`; spec checks distinguish placement reuse from source-only FDID caching. Preserved uniform-buffer root cause, prototype boundaries, pending live-image inspection and latest-source checks. Docs only; no reruns.
+
 ## 2026-10-03 — Skyriding part 1: physics (skyride1)
 
 [[mounts]]: skyriding momentum flight on `CAN_ADV_FLY` (shared-protocol `skyriding`, FlightCapability 11), launch/glide/dive/landing; live `skyriding_live.gd` on a private server (`data/diagnostics/skyride1-2026-10-02/`).
@@ -2516,6 +2520,10 @@ Updated [godot-inworld-frame-time](investigations/godot-inworld-frame-time.md): 
 ## 2026-10-02 — Bevy client retired
 
 User decision: the Godot client is the only client. The root Bevy package `game-engine` (src/, Bevy tests, shaders, release Dockerfile/deploy.sh) is deleted; the 312 root files godot crates compiled through `#[path]` moved into their owning `godot/<crate>/` (shared ones in `game-engine-core`), `game-engine-cli` moved to `godot/cli` (`depot-build.py --cli`), and `png_to_ktx2` plus the cache importers the client reads moved to root `tools/` (`game-engine-tools`). Wiki pages citing `src/` paths describe the pre-retirement tree. Deleted (git history keeps them): zone_name, sound_music_zone and particle_color cache importers, `lightdata_convert`, `blp_to_pam`, `blp_to_ppm`, `debug_blp`, `benches/parser_benches.rs`, `examples/ui_demo.rs`, `scripts/run_screenshot_regression.sh`, `scripts/run_skybox_screenshot_regression.sh`, `scripts/capture_skybox_validation.sh`. Root `deploy.sh`, `Dockerfile` and `scripts/windows-dev.ps1` are kept pending a user decision; they build the deleted Bevy package and are broken until then. See [godot-conversion spec](../specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
+## 2026-10-02 — Elastic tree prototype source audit
+
+[[elastic-trees]] records `0290ca95`, `7cf63c9b`, `32e9726b`: manual Barrens FDID 201394 annotation, two-branch limit, loader/render ownership, native swept flight contact and damped recovery. Spec inventory and fixture assertions updated; pivots/regions provisional pending screenshot inspection. Mount/terrain/collision cross-links reconcile annotated capsule exception only. No tests run or native acceptance claimed; main owns integration proofs.
 
 ## 2026-10-03 — Godot client deploy
 
