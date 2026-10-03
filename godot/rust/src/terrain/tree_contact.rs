@@ -31,13 +31,7 @@ pub(crate) fn move_airborne(
     radius: f32,
     delta: f32,
 ) -> Vec3 {
-    if !delta.is_finite()
-        || delta <= 0.0
-        || !radius.is_finite()
-        || radius <= 0.0
-        || !from.is_finite()
-        || !to.is_finite()
-    {
+    if !valid_sweep(from, to, radius, delta) {
         godot_error!("Invalid airborne tree sweep: {from} -> {to}, radius {radius}");
         return from;
     }
@@ -53,15 +47,7 @@ pub(crate) fn move_airborne(
         let Some(mut placed) = first_hit(space, position, end, radius, &contacted) else {
             return end;
         };
-        let fraction = (placed.hit.contact.fraction - CONTACT_MARGIN / length).max(0.0);
-        position += remaining * fraction;
-        let incoming = remaining;
-        remaining *= 1.0 - fraction;
-        let resistance = placed
-            .tree
-            .bind_mut()
-            .apply_hit(&placed.hit, incoming / delta);
-        remaining = deflect_motion(remaining, placed.hit.contact.normal, resistance);
+        (position, remaining) = resolve_hit(position, remaining, delta, &mut placed);
         if let Some(index) = placed.hit.branch {
             contacted
                 .entry(placed.tree.instance_id())
@@ -71,6 +57,34 @@ pub(crate) fn move_airborne(
     }
     // Several rigid surfaces can enclose the mover. Do not advance through unchecked geometry.
     position
+}
+
+fn valid_sweep(from: Vec3, to: Vec3, radius: f32, delta: f32) -> bool {
+    let positive_finite = [radius, delta]
+        .iter()
+        .all(|value| value.is_finite() && *value > 0.0);
+    let finite_positions = from.is_finite() && to.is_finite();
+    positive_finite && finite_positions
+}
+
+fn resolve_hit(
+    position: Vec3,
+    remaining: Vec3,
+    delta: f32,
+    placed: &mut PlacedHit,
+) -> (Vec3, Vec3) {
+    let fraction = (placed.hit.contact.fraction - CONTACT_MARGIN / remaining.length()).max(0.0);
+    let position = position + remaining * fraction;
+    let resistance = placed
+        .tree
+        .bind_mut()
+        .apply_hit(&placed.hit, remaining / delta);
+    let remaining = deflect_motion(
+        remaining * (1.0 - fraction),
+        placed.hit.contact.normal,
+        resistance,
+    );
+    (position, remaining)
 }
 
 fn first_hit(

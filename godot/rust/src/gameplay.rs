@@ -659,19 +659,7 @@ impl crate::GameClient {
             terrain: &self.terrain,
             walls: &walls,
         };
-        let mut contacts = |from: Vec3, to: Vec3, step_delta: f32| {
-            use crate::terrain::tree_contact::{
-                MOUNT_CONTACT_HEIGHT, MOUNT_CONTACT_RADIUS, move_airborne,
-            };
-            let offset = Vec3::Y * MOUNT_CONTACT_HEIGHT;
-            move_airborne(
-                &space,
-                from + offset,
-                to + offset,
-                MOUNT_CONTACT_RADIUS,
-                step_delta,
-            ) - offset
-        };
+        let mut contacts = |from, to, step_delta| flight_tree_contact(&space, from, to, step_delta);
         let next = self.player_movement.predict(
             glam::Vec3::new(current.x, current.y, current.z),
             frame,
@@ -732,6 +720,23 @@ impl crate::GameClient {
             .is_some_and(|motion| motion.contains(PlayerMotion::CAN_FLY));
         self.player_movement.set_can_fly(can_fly);
     }
+}
+
+fn flight_tree_contact(
+    space: &godot::prelude::Gd<godot::classes::PhysicsDirectSpaceState3D>,
+    from: Vec3,
+    to: Vec3,
+    delta: f32,
+) -> Vec3 {
+    use crate::terrain::tree_contact::{MOUNT_CONTACT_HEIGHT, MOUNT_CONTACT_RADIUS, move_airborne};
+    let offset = Vec3::Y * MOUNT_CONTACT_HEIGHT;
+    move_airborne(
+        space,
+        from + offset,
+        to + offset,
+        MOUNT_CONTACT_RADIUS,
+        delta,
+    ) - offset
 }
 
 /// The facing toward the map waypoint's next path node while walking to it.

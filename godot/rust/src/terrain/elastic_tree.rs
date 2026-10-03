@@ -188,15 +188,28 @@ impl WowElasticTree {
         radius: f32,
         excluded: &[usize],
     ) -> Option<TreeHit> {
-        let local = |point: Vec3| {
-            Vec3::from(
-                self.base()
-                    .to_local(Vector3::from_array(point.to_array()))
-                    .to_array(),
-            )
-        };
-        let (from, to) = (local(from), local(to));
+        let from = self.local_point(from);
+        let to = self.local_point(to);
         let radius = radius / self.uniform_scale();
+        self.sweep_local(from, to, radius, excluded)
+            .map(|hit| self.world_hit(hit))
+    }
+
+    fn local_point(&self, point: Vec3) -> Vec3 {
+        Vec3::from(
+            self.base()
+                .to_local(Vector3::from_array(point.to_array()))
+                .to_array(),
+        )
+    }
+
+    fn sweep_local(
+        &self,
+        from: Vec3,
+        to: Vec3,
+        radius: f32,
+        excluded: &[usize],
+    ) -> Option<TreeHit> {
         let trunk =
             sweep_capsule(from, to, radius, &self.annotation.trunk).map(|contact| TreeHit {
                 contact,
@@ -216,17 +229,17 @@ impl WowElasticTree {
             .into_iter()
             .chain(branches)
             .min_by(|a, b| a.contact.fraction.total_cmp(&b.contact.fraction))
-            .map(|mut hit| {
-                hit.contact.point = Vec3::from(
-                    self.base()
-                        .to_global(Vector3::from_array(hit.contact.point.to_array()))
-                        .to_array(),
-                );
-                let normal = self.base().get_global_basis()
-                    * Vector3::from_array(hit.contact.normal.to_array());
-                hit.contact.normal = Vec3::from(normal.to_array()).normalize_or_zero();
-                hit
-            })
+    }
+
+    fn world_hit(&self, mut hit: TreeHit) -> TreeHit {
+        let point = self
+            .base()
+            .to_global(Vector3::from_array(hit.contact.point.to_array()));
+        let normal =
+            self.base().get_global_basis() * Vector3::from_array(hit.contact.normal.to_array());
+        hit.contact.point = Vec3::from(point.to_array());
+        hit.contact.normal = Vec3::from(normal.to_array()).normalize_or_zero();
+        hit
     }
 
     pub(crate) fn apply_hit(&mut self, hit: &TreeHit, motion: Vec3) -> f32 {
