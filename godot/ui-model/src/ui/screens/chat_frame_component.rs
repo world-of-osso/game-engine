@@ -2,6 +2,7 @@
 //! skin (Skins/Dark.lua) and default window (Core/Config.lua). Lua references are to the
 //! Chattynator source; positions are from the frame's top-left, y down.
 
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
@@ -9,6 +10,7 @@ use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 
 use crate::chat_data::ChatState;
+use crate::flare_panel::flare_panel;
 use crate::ui::anchor::FrameName;
 use crate::ui::chat_frame::{
     ChatFrameState, ChatRow, ChatRun, ChatTab, CombatLogChat, local_timestamp, messages_that_fit,
@@ -63,6 +65,17 @@ const BACKGROUND_ALPHA: f32 = 0.8;
 /// `Assets/ChatBackground.tga`, stored flipped vertically because the skin draws it with
 /// `SetTexCoord(0, 1, 1, 0)` (Skins/Dark.lua:168-169).
 const BACKGROUND_TEXTURE: &str = "data/textures/ui/chattynator/ChatBackground.png";
+/// Forever skin: FlareUI's `FlareUI_Skin` replaces the background, `textPadding` 10 around
+/// the messages and `headerHeight` 24 above them (Chat.lua:1515-1520, Core.lua:143,146).
+pub const CHAT_FLARE_SKIN: &str = "ChatFrame1FlareSkin";
+const FLARE_PADDING: f32 = 10.0;
+const FLARE_HEADER_H: f32 = 24.0;
+const FLARE_SKIN_RECT: (f32, f32, f32, f32) = (
+    MESSAGES_LEFT - FLARE_PADDING,
+    MESSAGES_TOP - FLARE_PADDING - FLARE_HEADER_H,
+    MESSAGES_W + 2.0 * FLARE_PADDING,
+    MESSAGES_H + 2.0 * FLARE_PADDING + FLARE_HEADER_H,
+);
 const TAB_LEFT_TEXTURE: &str = "data/textures/ui/chattynator/ChatTabLeft.png";
 const TAB_MIDDLE_TEXTURE: &str = "data/textures/ui/chattynator/ChatTabMiddle.png";
 const TAB_RIGHT_TEXTURE: &str = "data/textures/ui/chattynator/ChatTabRight.png";
@@ -221,13 +234,35 @@ fn tab_width(tab: ChatTab) -> f32 {
     (text_width(tab.label(), TAB_FONT, TAB_FONT_SIZE).max(MIN_TAB_TEXT_W) + TAB_PADDING).ceil()
 }
 
+fn chattynator_background(tab: ChatTab) -> Element {
+    let [r, g, b] = tab.background();
+    rsx! {
+        texture {
+            name: CHAT_BACKGROUND,
+            width: FRAME_W,
+            height: BACKGROUND_H,
+            texture_file: BACKGROUND_TEXTURE,
+            vertex_color: {format!("{r},{g},{b},{BACKGROUND_ALPHA}")},
+            pos_type: "absolute",
+            left: 0.0,
+            top: BACKGROUND_TOP,
+        }
+    }
+}
+
 pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
     let view = ctx
         .get::<ChatFrameView>()
         .expect("ChatFrameView must be in SharedContext");
     let hide_input = !view.input_open;
     let hide_scroll_button = !view.scrolled_up;
-    let [r, g, b] = view.tab.background();
+    let skin = *ctx
+        .get::<ActiveSkin>()
+        .expect("canvas carries the active skin");
+    let background = match skin {
+        ActiveSkin::Modern => chattynator_background(view.tab),
+        ActiveSkin::Forever => flare_panel(CHAT_FLARE_SKIN, FLARE_SKIN_RECT),
+    };
     let input_header_w = text_width(INPUT_HEADER, CHAT_FONT, CHAT_FONT_SIZE).ceil();
     let input_insets = format!(
         "{},{INPUT_RIGHT_INSET},0,0",
@@ -241,16 +276,7 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
             pos_type: "absolute",
             left: 0.0,
             bottom: FRAME_BOTTOM,
-            texture {
-                name: CHAT_BACKGROUND,
-                width: FRAME_W,
-                height: BACKGROUND_H,
-                texture_file: BACKGROUND_TEXTURE,
-                vertex_color: {format!("{r},{g},{b},{BACKGROUND_ALPHA}")},
-                pos_type: "absolute",
-                left: 0.0,
-                top: BACKGROUND_TOP,
-            }
+            {background}
             {tabs(view)}
             r#frame {
                 name: {DynName(CHAT_MESSAGES.to_string())},
@@ -615,6 +641,7 @@ mod tests {
     fn build(rows: Vec<ChatRow>) -> FrameRegistry {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
+        shared.insert(ActiveSkin::Modern);
         shared.insert(ChatFrameView {
             tab: ChatTab::CombatLog,
             messages: vec![ChatMessageView {
