@@ -11,6 +11,10 @@ fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
         .unwrap()
 }
 
+fn atlas(name: &str) -> TextureSource {
+    TextureSource::Atlas(name.into())
+}
+
 fn money_text(registry: &FrameRegistry) -> &str {
     match frame(registry, "BagsBarMoneyDisplay").widget_data.as_ref() {
         Some(WidgetData::FontString(text)) => &text.text,
@@ -55,19 +59,12 @@ fn standalone_bar_preserves_authored_buttons_art_and_geometry() {
         assert_eq!(art.height, Dimension::Fixed(size));
         match art.widget_data.as_ref() {
             Some(WidgetData::Texture(texture)) => {
-                assert_eq!(texture.source, TextureSource::FileDataId(4_691_255));
-                let expected_crop = match name {
-                    "MainMenuBarBackpackButton" => {
-                        [1.0 / 512.0, 97.0 / 512.0, 1.0 / 128.0, 97.0 / 128.0]
-                    }
-                    // bag-reagent-border-empty
-                    "CharacterReagentBag0Slot" => {
-                        [421.0 / 512.0, 482.0 / 512.0, 1.0 / 128.0, 62.0 / 128.0]
-                    }
-                    // bag-border-empty
-                    _ => [295.0 / 512.0, 356.0 / 512.0, 64.0 / 128.0, 125.0 / 128.0],
+                let expected = match name {
+                    "MainMenuBarBackpackButton" => "bag-main",
+                    "CharacterReagentBag0Slot" => "bag-reagent-border-empty",
+                    _ => "bag-border-empty",
                 };
-                assert_eq!(texture.tex_coords, expected_crop);
+                assert_eq!(texture.source, atlas(expected));
             }
             other => panic!("{name} art is not a texture: {other:?}"),
         }
@@ -155,22 +152,10 @@ fn equipped_bags_show_their_icon_under_the_filled_slot_art() {
         ..Default::default()
     });
     Screen::new(bags_bar_screen).sync(&shared, &mut registry);
-    for (slot, fdid, crop) in [
-        (
-            "CharacterBag0Slot",
-            133_633,
-            [295.0 / 512.0, 356.0 / 512.0, 1.0 / 128.0, 62.0 / 128.0],
-        ),
-        (
-            "CharacterBag3Slot",
-            133_622,
-            [295.0 / 512.0, 356.0 / 512.0, 1.0 / 128.0, 62.0 / 128.0],
-        ),
-        (
-            "CharacterReagentBag0Slot",
-            4_549_293,
-            [358.0 / 512.0, 419.0 / 512.0, 64.0 / 128.0, 125.0 / 128.0],
-        ),
+    for (slot, fdid, art) in [
+        ("CharacterBag0Slot", 133_633, "bag-border"),
+        ("CharacterBag3Slot", 133_622, "bag-border"),
+        ("CharacterReagentBag0Slot", 4_549_293, "bag-reagent-border"),
     ] {
         let icon_name = format!("{slot}IconTexture");
         let icon = texture_of(&registry, &icon_name);
@@ -183,8 +168,8 @@ fn equipped_bags_show_their_icon_under_the_filled_slot_art() {
         assert_eq!(icon_frame.width, Dimension::Fixed(24.0));
         assert_eq!(icon_frame.position.left, Val::Px(2.0));
         assert_eq!(icon_frame.position.top, Val::Px(2.0));
-        let art = texture_of(&registry, &format!("{slot}Art"));
-        assert_eq!(art.tex_coords, crop);
+        let drawn = texture_of(&registry, &format!("{slot}Art"));
+        assert_eq!(drawn.source, atlas(art));
     }
     for slot in ["CharacterBag1Slot", "CharacterBag2Slot"] {
         assert!(
@@ -193,8 +178,8 @@ fn equipped_bags_show_their_icon_under_the_filled_slot_art() {
                 .is_none()
         );
         assert_eq!(
-            texture_of(&registry, &format!("{slot}Art")).tex_coords,
-            [295.0 / 512.0, 356.0 / 512.0, 64.0 / 128.0, 125.0 / 128.0]
+            texture_of(&registry, &format!("{slot}Art")).source,
+            atlas("bag-border-empty")
         );
     }
 }
@@ -217,10 +202,7 @@ fn expand_toggle_collapses_the_four_bag_slots() {
     assert_eq!(toggle.position.left, Val::Px(310.0));
     assert_eq!(toggle.position.top, Val::Px(15.5));
     let arrow = texture_of(&registry, "BagBarExpandToggleNormalTexture");
-    assert_eq!(
-        arrow.tex_coords,
-        [484.0 / 512.0, 504.0 / 512.0, 1.0 / 128.0, 33.0 / 128.0]
-    );
+    assert_eq!(arrow.source, atlas("bag-arrow"));
     assert_eq!(arrow.rotation, std::f32::consts::PI);
 
     shared.insert(BagBarState {
