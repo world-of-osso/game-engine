@@ -11,7 +11,7 @@ use crate::item_stats::{ItemStat, item_armor, item_stats, weapon_damage};
 use crate::merchant_data::quality_color;
 
 use crate::tooltip_presentation::{
-    TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipLineState, TooltipPresentation,
+    TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipBorder, TooltipLineState, TooltipPresentation,
     description_lines, parse_rgba,
 };
 
@@ -45,6 +45,7 @@ pub fn item_tooltip(slot: &InventorySlot, player_level: Option<u16>) -> TooltipP
             title: RETRIEVING_ITEM_INFO.into(),
             title_color: RED_FONT_COLOR,
             lines: Vec::new(),
+            border: TooltipBorder::Quality(slot.quality.id()),
         };
     };
     let entry = catalog.get(slot.item_id);
@@ -55,6 +56,7 @@ pub fn item_tooltip(slot: &InventorySlot, player_level: Option<u16>) -> TooltipP
         title: slot.name.clone(),
         title_color: parse_rgba(quality_color(slot.quality.id())),
         lines: entry.map_or_else(Vec::new, |entry| item_lines(entry, &item)),
+        border: TooltipBorder::Quality(slot.quality.id()),
     }
 }
 
