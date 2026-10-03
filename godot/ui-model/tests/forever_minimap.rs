@@ -290,6 +290,10 @@ fn forever_border_is_bronze_tooltip_art_instead_of_the_metal_frame() {
     }
     assert!(modern.get_by_name("MinimapClusterNineSlice").is_none());
     // The host also caches the reused bronze border and calendar art.
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let fdids = minimap_texture_fdids(&busy_state());
     for fdid in [137_057, 4_618_663] {
         assert!(fdids.contains(&fdid), "{fdid}");
