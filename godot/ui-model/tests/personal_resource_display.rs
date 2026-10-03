@@ -12,6 +12,7 @@ use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
+use ui_toolkit::widgets::font_string::FontStringData;
 use ui_toolkit::widgets::texture::{TextureData, TextureSource};
 
 const ROGUE: u8 = 4;
@@ -49,9 +50,21 @@ fn display(
     health_fraction: f32,
     powers: &UnitPowers,
 ) -> Option<PersonalResourceDisplayState> {
+    hovering(enabled, player, health_fraction, powers, None)
+}
+
+/// The display with the pointer over the bar named `hovered`.
+fn hovering(
+    enabled: bool,
+    player: &ClassBarPlayer,
+    health_fraction: f32,
+    powers: &UnitPowers,
+    hovered: Option<&str>,
+) -> Option<PersonalResourceDisplayState> {
     let class_bar: Option<ClassBarView> =
         ClassBarResource::for_player(powers, None, player).and_then(|r| settled_view(&r));
-    PersonalResourceDisplayState::for_player(enabled, player, health_fraction, powers, class_bar)
+    let health = (health_fraction * 1000.0, 1000.0);
+    PersonalResourceDisplayState::for_player(enabled, player, health, powers, class_bar, hovered)
 }
 
 fn frames(display: Option<PersonalResourceDisplayState>) -> FrameRegistry {
@@ -305,5 +318,88 @@ fn disabled_display_draws_nothing() {
         registry
             .get_by_name("PersonalResourceDisplayFrame")
             .is_none()
+    );
+}
+
+fn text<'a>(registry: &'a FrameRegistry, name: &str) -> Option<&'a str> {
+    let frame = frame(registry, name);
+    match frame.widget_data.as_ref() {
+        Some(WidgetData::FontString(FontStringData { text, .. })) if !frame.hidden => {
+            Some(text.as_str())
+        }
+        Some(WidgetData::FontString(_)) => None,
+        other => panic!("{name} is not a font string: {other:?}"),
+    }
+}
+
+fn bar_texts<'a>(registry: &'a FrameRegistry, bar: &str) -> [Option<&'a str>; 3] {
+    ["Text", "TextLeft", "TextRight"]
+        .map(|suffix| text(registry, &format!("PersonalResourceDisplay{bar}{suffix}")))
+}
+
+/// `PersonalResourceStatusBar` has no `cvar` and the preset's Show Bar Text is off, so
+/// its text shows only while hovered (`lockShow`, TextStatusBar.lua:113-121,217-220);
+/// `showNumeric` and `showPercentage` force Both: percentage left, value right. The
+/// PowerBar has no `powerToken`, so Energy keeps its percentage too.
+#[test]
+fn bar_text_shows_both_only_while_hovered() {
+    let rogue = player(ROGUE, None);
+    let powers = UnitPowers {
+        entries: vec![
+            entry(PowerType::Energy, 80, 100),
+            entry(PowerType::ComboPoints, 0, 5),
+        ],
+        ..Default::default()
+    };
+    let idle = frames(display(true, &rogue, 0.75, &powers));
+    assert_eq!(bar_texts(&idle, "HealthBar"), [None, None, None]);
+    assert_eq!(bar_texts(&idle, "PowerBar"), [None, None, None]);
+    let health = frames(hovering(
+        true,
+        &rogue,
+        0.75,
+        &powers,
+        Some("PersonalResourceDisplayHealthBar"),
+    ));
+    assert_eq!(
+        bar_texts(&health, "HealthBar"),
+        [None, Some("75%"), Some("750")]
+    );
+    assert_eq!(bar_texts(&health, "PowerBar"), [None, None, None]);
+    let power = frames(hovering(
+        true,
+        &rogue,
+        0.75,
+        &powers,
+        Some("PersonalResourceDisplayPowerBar"),
+    ));
+    assert_eq!(
+        bar_texts(&power, "PowerBar"),
+        [None, Some("80%"), Some("80")]
+    );
+}
+
+/// The alternate bar: `showPercentage` false and `disableMaxValue` leave Numeric with the
+/// value alone in its `TextString`.
+#[test]
+fn alternate_bar_text_is_the_value_alone() {
+    let priest = player(PRIEST, Some(SHADOW));
+    let powers = UnitPowers {
+        entries: vec![
+            entry(PowerType::Insanity, 4000, 10000),
+            entry(PowerType::Mana, 12500, 50000),
+        ],
+        ..Default::default()
+    };
+    let registry = frames(hovering(
+        true,
+        &priest,
+        1.0,
+        &powers,
+        Some("PersonalResourceDisplayAlternatePowerBar"),
+    ));
+    assert_eq!(
+        bar_texts(&registry, "AlternatePowerBar"),
+        [Some("12,500"), None, None]
     );
 }
