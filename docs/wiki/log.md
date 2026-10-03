@@ -1,3 +1,7 @@
+## 2026-10-03 — Skyriding part 2: vigor and abilities (skyride2)
+
+[[mounts]]: Skyriding Charges (cat 2391) spent by Surge Forward / Skyward Ascent through the spell pipeline; the local player's `SpellGo` flaps the shared `Glider` (impulse capped at AddImpulseMaxSpeed 100), Aerial Halt air friction; live `skyriding_abilities_live.gd` (`data/diagnostics/skyride2-2026-10-03/`).
+
 ## 2026-10-03 — Skyriding part 1: physics (skyride1)
 
 [[mounts]]: skyriding momentum flight on `CAN_ADV_FLY` (shared-protocol `skyriding`, FlightCapability 11), launch/glide/dive/landing; live `skyriding_live.gd` on a private server (`data/diagnostics/skyride1-2026-10-02/`).
