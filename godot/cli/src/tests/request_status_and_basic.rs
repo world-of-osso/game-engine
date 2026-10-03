@@ -58,7 +58,7 @@ fn barber_set_command_maps_to_request() {
         })
         .unwrap(),
         Request::BarberSet {
-            option: game_engine::ipc::BarberOption::HairStyle,
+            option: game_engine_network::ipc_wire::BarberOption::HairStyle,
             value: 3,
         }
     );

@@ -1,6 +1,6 @@
 use std::path::PathBuf;
 
-use game_engine::ipc::{Request, Response};
+use game_engine_network::ipc_wire::{Request, Response};
 use peercred_ipc::Client;
 
 use super::requests::{

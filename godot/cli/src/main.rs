@@ -6,7 +6,9 @@ mod tests;
 use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
-use game_engine::ipc::socket_glob;
+
+/// Native client sockets: /tmp/game-engine-<pid>.sock.
+const SOCKET_GLOB: &str = "/tmp/game-engine-*.sock";
 
 #[derive(Parser)]
 #[command(
@@ -750,8 +752,7 @@ pub(crate) enum EquipmentCmd {
 }
 
 fn find_socket() -> Result<PathBuf, String> {
-    let pattern = socket_glob();
-    let mut sockets: Vec<PathBuf> = glob::glob(&pattern)
+    let mut sockets: Vec<PathBuf> = glob::glob(SOCKET_GLOB)
         .map_err(|e| format!("bad glob: {e}"))?
         .filter_map(Result::ok)
         .collect();

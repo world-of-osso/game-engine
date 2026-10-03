@@ -1,5 +1,5 @@
-use game_engine::ipc::Request;
-use game_engine::item_info::ItemInfoQuery;
+use game_engine_network::ipc_wire::Request;
+use game_engine_network::ipc_wire::ItemInfoQuery;
 use shared::protocol::{
     AuctionDuration, AuctionSearchQuery, AuctionSortDir, AuctionSortField, BuyoutAuction,
     CalendarSignupStatusSnapshot, CancelAuction, CreateAuction, EmoteKind, MailAction, PlaceBid,
@@ -475,25 +475,25 @@ fn parse_pvp_bracket(value: &str) -> Result<PvpBracketSnapshot, String> {
     }
 }
 
-fn parse_group_role(value: &str) -> Result<game_engine::status::GroupRole, String> {
+fn parse_group_role(value: &str) -> Result<game_engine_network::ipc_wire::GroupRole, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "tank" => Ok(game_engine::status::GroupRole::Tank),
-        "healer" | "heal" => Ok(game_engine::status::GroupRole::Healer),
-        "damage" | "dps" => Ok(game_engine::status::GroupRole::Damage),
-        "none" => Ok(game_engine::status::GroupRole::None),
+        "tank" => Ok(game_engine_network::ipc_wire::GroupRole::Tank),
+        "healer" | "heal" => Ok(game_engine_network::ipc_wire::GroupRole::Healer),
+        "damage" | "dps" => Ok(game_engine_network::ipc_wire::GroupRole::Damage),
+        "none" => Ok(game_engine_network::ipc_wire::GroupRole::None),
         _ => Err(format!("unknown role: {value}")),
     }
 }
 
-fn parse_barber_option(value: &str) -> Result<game_engine::ipc::BarberOption, String> {
+fn parse_barber_option(value: &str) -> Result<game_engine_network::ipc_wire::BarberOption, String> {
     match value.trim().to_ascii_lowercase().as_str() {
-        "hair-style" | "hairstyle" | "hair_style" => Ok(game_engine::ipc::BarberOption::HairStyle),
-        "hair-color" | "haircolor" | "hair_color" => Ok(game_engine::ipc::BarberOption::HairColor),
+        "hair-style" | "hairstyle" | "hair_style" => Ok(game_engine_network::ipc_wire::BarberOption::HairStyle),
+        "hair-color" | "haircolor" | "hair_color" => Ok(game_engine_network::ipc_wire::BarberOption::HairColor),
         "facial-hair" | "facialhair" | "facial_hair" => {
-            Ok(game_engine::ipc::BarberOption::FacialHair)
+            Ok(game_engine_network::ipc_wire::BarberOption::FacialHair)
         }
-        "skin-color" | "skincolor" | "skin_color" => Ok(game_engine::ipc::BarberOption::SkinColor),
-        "face" => Ok(game_engine::ipc::BarberOption::Face),
+        "skin-color" | "skincolor" | "skin_color" => Ok(game_engine_network::ipc_wire::BarberOption::SkinColor),
+        "face" => Ok(game_engine_network::ipc_wire::BarberOption::Face),
         _ => Err(format!("unknown barber option: {value}")),
     }
 }
