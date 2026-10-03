@@ -232,6 +232,16 @@ impl PlayerMovement {
         }
     }
 
+    /// A Skyriding ability the server resolved for this player (its `SpellGo`): flap the
+    /// glider facing the newest steering (`shared::skyriding::Glider::cast`). `false` when
+    /// not skyriding or for any other spell.
+    pub fn skyriding_spell(&mut self, spell_id: u32) -> bool {
+        let yaw = self.steering.yaw;
+        self.glider
+            .as_mut()
+            .is_some_and(|glider| glider.cast(&SKYRIDING, spell_id, yaw))
+    }
+
     /// The server's speed for the current state without auras (game-server
     /// `compute_movement_speed`): flight, swim, run or walk base × the direction multiplier.
     fn unmodified_speed(&self) -> f32 {
@@ -1853,6 +1863,55 @@ mod tests {
             (fallen.y - ground_y(&terrain, fallen)).abs() < 0.06,
             "{fallen}"
         );
+    }
+
+    /// The server's `SpellGo` of Surge Forward flaps the skyrider along its facing, 31.5 yd/s
+    /// faster (`shared::skyriding::Glider::cast`); Aerial Halt then stops it. On the ground
+    /// there is no glider to flap.
+    #[test]
+    fn skyriding_abilities_flap_the_glider() {
+        use shared::skyriding::{AERIAL_HALT, SURGE_FORWARD, facing};
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let mut movement = PlayerMovement::default();
+        movement.set_can_fly(true);
+        movement.set_can_adv_fly(true);
+        assert!(!movement.skyriding_spell(SURGE_FORWARD));
+        let mut input = PhysicalInput::default();
+        let launched = take_off(&mut movement, &ground, &mut input, SHORE);
+        input.set_key(BindingKey::Space, false);
+        let feet = hold(
+            &mut movement,
+            &ground,
+            &input,
+            launched,
+            (ALONG_SHORE, 0.0),
+            90,
+        );
+        let before = movement.glider.expect("skyriding").velocity;
+
+        assert!(movement.skyriding_spell(SURGE_FORWARD));
+        let flapped = movement.glider.expect("skyriding").velocity;
+        let pitch = movement.glider.unwrap().pitch;
+        assert!(
+            (flapped - before - facing(ALONG_SHORE, pitch) * 31.5).length() < 1e-3,
+            "{before} -> {flapped}"
+        );
+        let next = hold(&mut movement, &ground, &input, feet, (ALONG_SHORE, 0.0), 1);
+        assert!(
+            frame_speed(feet, next) > before.length() + 25.0,
+            "{} after {}",
+            frame_speed(feet, next),
+            before.length()
+        );
+
+        assert!(movement.skyriding_spell(AERIAL_HALT));
+        let halted = hold(&mut movement, &ground, &input, next, (ALONG_SHORE, 0.0), 24);
+        let horizontal = movement.glider.expect("skyriding").velocity.with_y(0.0);
+        assert!(horizontal.length() < 1.0, "{horizontal} at {halted}");
     }
 
     /// Without a flying mount held Space only jumps: the player never flies.

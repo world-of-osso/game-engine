@@ -23,6 +23,9 @@ impl GameClient {
                 Ok(voiced?)
             }
             CombatMessage::SpellGo(go) => {
+                if self.world.local_player_id() == Some(go.caster) {
+                    self.player_movement.skyriding_spell(go.spell_id);
+                }
                 self.nameplates.casts.spell_go(go.caster, go.spell_id);
                 self.auto_attack_post_cast(&go)?;
                 let started = Instant::now();
