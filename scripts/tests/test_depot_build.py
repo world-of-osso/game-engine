@@ -71,6 +71,10 @@ class DepotBuildTests(unittest.TestCase):
         self._put(self.root, "godot/network/examples/fixture_support/mod.rs", "shared")
         self._put(self.root, "godot/core/src/asset/mod.rs", "asset")
         self._put(self.root, "godot/rust/src/rendering/ui/nameplate_skins/health-fill.png", "png")
+        for crate in ("taffy", "ktx2-rw"):
+            self._put(self.root, f"vendor/{crate}/Cargo.toml", "[package]\nname='fixture'\nversion='0.1.0'\n")
+            self._put(self.root, f"vendor/{crate}/src/lib.rs", "vendored patch")
+        self._put(self.root, "vendor/taffy/README.md", "required compile include")
         self._put(self.root, "src/legacy.rs", "retired root crate")
         self._put(self.root, "data/private.rs", "private")
         self._put(self.root, "data/models/boar.m2", "boar model")
@@ -97,15 +101,6 @@ class DepotBuildTests(unittest.TestCase):
             self._git(repo, "init", "-q")
             self._git(repo, "add", ".")
             self._git(repo, "commit", "-qm", "initial")
-        patch = self.base / "bevy-patches"
-        patch.mkdir()
-        for crate in ("taffy", "ktx2-rw"):
-            self._put(patch, f"{crate}/Cargo.toml", "[package]\nname='fixture'\nversion='0.1.0'\n")
-        self._put(patch, "taffy/README.md", "required compile include")
-        self._put(patch, "taffy/src/lib.rs", "patch")
-        self._git(patch, "init", "-q")
-        self._git(patch, "add", ".")
-        self._git(patch, "commit", "-qm", "initial")
         bin_dir = self.base / "bin"
         bin_dir.mkdir()
         depot = bin_dir / "docker"
@@ -189,7 +184,10 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(files[prefix + "godot/core/src/new.rs"], "untracked")
         self.assertEqual(files[prefix + "godot/rust/src/rendering/ui/nameplate_skins/health-fill.png"], "png")
         self.assertNotIn(prefix + "godot/core/src/deleted.rs", files)
-        self.assertEqual(files["bevy-patches/taffy/README.md"], "required compile include")
+        self.assertEqual(files[prefix + "vendor/taffy/README.md"], "required compile include")
+        for crate in ("taffy", "ktx2-rw"):
+            self.assertEqual(files[prefix + f"vendor/{crate}/src/lib.rs"], "vendored patch")
+        self.assertFalse(any(key.startswith("bevy-patches/") for key in files))
         for name in SIBLINGS:
             self.assertIn(name + "/src/lib.rs", files)
         for excluded in ("data/private.rs", "godot/.godot/imported.rs", "target/debug/hidden.rs",
@@ -421,7 +419,7 @@ class DepotBuildTests(unittest.TestCase):
         context = self.base / "remote-context"
         source = context / "game-engine-godot-conversion/godot/core/src/asset/mod.rs"
         manifest = context / "game-engine-godot-conversion/godot/Cargo.toml"
-        included = context / "bevy-patches/taffy/README.md"
+        included = context / "game-engine-godot-conversion/vendor/taffy/README.md"
         texture = context / "game-engine-godot-conversion/godot/rust/src/rendering/ui/nameplate_skins/health-fill.png"
         cache = context / "game-engine-godot-conversion/target/debug/libcore.rlib"
         top_cache = context / "target/debug/libcore.rlib"

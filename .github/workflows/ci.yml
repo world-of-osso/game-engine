@@ -10,11 +10,9 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
-# Format check only. Cargo cannot load the root workspace here: its ktx2-rw patch
-# points at sibling ../bevy-patches, which is not published. The godot/ workspace
-# builds and tests on Depot (docs/remote-builds.md). Run ./run-tests.sh locally.
+# Root workspace tests; Godot workspace uses the build helper (docs/remote-builds.md).
 jobs:
-  rustfmt:
+  test:
     runs-on: ubuntu-latest
 
     steps:
@@ -25,8 +23,10 @@ jobs:
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: 1.98.1
-          components: rustfmt
+          components: rustfmt, clippy
 
-      # Same files as `cargo fmt -p game-engine-launcher -p game-engine-tools --check`.
-      - name: Rustfmt launcher and tools
-        run: git ls-files -z 'launcher/*.rs' 'tools/*.rs' | xargs -0 rustfmt --check --edition 2024
+      - name: Install native build dependencies
+        run: sudo apt-get update && sudo apt-get install -y clang libclang-dev mold cmake pkg-config
+
+      - name: Test launcher and tools
+        run: ./run-tests.sh
