@@ -1,12 +1,12 @@
 [workspace]
 members = ["launcher", "tools"]
 default-members = ["launcher"]
-exclude = ["godot"]
+exclude = ["godot", "vendor/ktx2-rw", "vendor/taffy"]
 resolver = "3"
 
-# Local crate patch; provenance, retirement condition and regression tests in ../bevy-patches/README.md.
+# Local crate patch; provenance and retirement conditions in vendor/README.md.
 [patch.crates-io]
-ktx2-rw = { path = "../bevy-patches/ktx2-rw" }
+ktx2-rw = { path = "vendor/ktx2-rw" }
 
 [profile.dev]
 debug = 1
