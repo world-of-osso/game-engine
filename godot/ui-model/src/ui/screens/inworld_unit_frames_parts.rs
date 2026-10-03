@@ -1,7 +1,6 @@
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::inworld_unit_frames_art::AtlasArt;
 use super::inworld_unit_frames_layout::TextAnchors;
 use super::{DynName, PortraitSlot, Rect, UNIT_FONT, VALUE_TEXT, dyn_name};
 use crate::hud_layout::HudAnchor;
@@ -11,7 +10,8 @@ pub(super) struct BarSpec<'a> {
     pub(super) name: String,
     pub(super) rect: Rect,
     pub(super) fraction: f32,
-    pub(super) art: Option<AtlasArt>,
+    /// Atlas element of the bar texture.
+    pub(super) art: Option<&'static str>,
     pub(super) text: &'a StatusBarText,
     pub(super) anchors: TextAnchors,
     pub(super) font_size: f32,
@@ -25,7 +25,7 @@ pub(super) fn art_root(
     (width, height): (f32, f32),
     anchor: &HudAnchor,
     hidden: bool,
-    (art, art_rect): (&AtlasArt, Rect),
+    (art, art_rect): (&str, Rect),
     portrait: Element,
     content: Element,
 ) -> Element {
@@ -52,9 +52,8 @@ pub(super) fn art_root(
     }
 }
 
-/// `art` at its atlas size, centred in a `width`×`height` frame.
-pub(super) fn centred(art: &AtlasArt, (width, height): (f32, f32)) -> Rect {
-    let (art_w, art_h) = art.size();
+/// Art of size `art_w`×`art_h` centred in a `width`×`height` frame.
+pub(super) fn centred((art_w, art_h): (f32, f32), (width, height): (f32, f32)) -> Rect {
     ((width - art_w) / 2.0, (height - art_h) / 2.0, art_w, art_h)
 }
 
@@ -73,27 +72,25 @@ pub(super) fn portrait_slot(slot: &PortraitSlot) -> Element {
     }
 }
 
-/// One atlas crop stretched over `rect`.
-pub(super) fn art_texture(name: DynName, art: &AtlasArt, rect: Rect, hidden: bool) -> Element {
+/// Atlas element `art` stretched over `rect`.
+pub(super) fn art_texture(name: DynName, art: &str, rect: Rect, hidden: bool) -> Element {
     tinted_art_texture(name, art, rect, "1.0,1.0,1.0,1.0", hidden)
 }
 
 pub(super) fn tinted_art_texture(
     name: DynName,
-    art: &AtlasArt,
+    art: &str,
     (x, y, width, height): Rect,
     vertex_color: &str,
     hidden: bool,
 ) -> Element {
-    let coords = art.tex_coords(1.0);
     rsx! {
         texture {
             name,
             width,
             height,
             hidden,
-            texture_fdid: {art.fdid},
-            tex_coords: {coords.as_str()},
+            texture_atlas: art,
             vertex_color,
             pos_type: "absolute",
             pos_x: x,
@@ -138,7 +135,7 @@ pub(super) fn status_bar(spec: BarSpec<'_>) -> Element {
         .map(|art| {
             bar_fill(
                 format!("{}Fill", spec.name),
-                &art,
+                art,
                 (width, height),
                 spec.fraction,
             )
@@ -212,17 +209,19 @@ pub(super) fn bar_texts(
     .collect()
 }
 
-fn bar_fill(name: String, art: &AtlasArt, (width, height): (f32, f32), fraction: f32) -> Element {
+/// The leftmost `fraction` of atlas element `art`, the way a Retail `StatusBar` reveals
+/// its bar texture.
+fn bar_fill(name: String, art: &str, (width, height): (f32, f32), fraction: f32) -> Element {
     let fraction = fraction.clamp(0.0, 1.0);
     let fill_w = width * fraction;
-    let coords = art.tex_coords(fraction);
+    let coords = format!("0,{fraction},0,1");
     rsx! {
         texture {
             name: {dyn_name(name)},
             width: fill_w,
             height,
             hidden: {fill_w <= 0.0},
-            texture_fdid: {art.fdid},
+            texture_atlas: art,
             tex_coords: {coords.as_str()},
             pos_type: "absolute",
             pos_x: 0.0,

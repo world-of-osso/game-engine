@@ -1,7 +1,8 @@
-//! Retail unit frame art: `UiTextureAtlasMember` crops of their `UiTextureAtlas` texture.
-//! Each constant cites `CommittedName` (member id) and the atlas texture FileDataID.
+//! Retail unit frame art. Unit frames name `UiTextureAtlasElement`s, which the atlas
+//! resolver draws from the active skin's set; [`AtlasArt`] crops serve the other frames.
 
 use shared::components::PowerType;
+use ui_toolkit::atlas::{ActiveSkin, resolve_region};
 
 /// One atlas member: pixel rect inside an atlas texture of `atlas` size.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -33,106 +34,78 @@ impl AtlasArt {
     }
 }
 
-/// UiTextureAtlas 2060 `interface/hud/uiunitframe.blp`.
-const UNIT_FRAME: (u32, (f32, f32)) = (4_631_591, (1024.0, 512.0));
-
-const fn unit_frame(rect: (f32, f32, f32, f32)) -> AtlasArt {
-    AtlasArt {
-        fdid: UNIT_FRAME.0,
-        atlas: UNIT_FRAME.1,
-        rect,
-    }
-}
-
 pub const fn art(fdid: u32, atlas: (f32, f32), rect: (f32, f32, f32, f32)) -> AtlasArt {
     AtlasArt { fdid, atlas, rect }
 }
 
-/// `UI-HUD-UnitFrame-Player-PortraitOff` (16107): name tab over a health and power slot.
-pub const FRAME_PORTRAIT_OFF: AtlasArt = unit_frame((195.0, 328.0, 160.0, 211.0));
-/// `UI-HUD-UnitFrame-Player-PortraitOn` (16110), 198×71: PlayerFrame's `FrameTexture`.
-pub const PLAYER_PORTRAIT_ON: AtlasArt = unit_frame((1.0, 199.0, 87.0, 158.0));
-/// `UI-HUD-UnitFrame-Target-PortraitOn` (16118), 192×67: TargetFrame's `FrameTexture`.
-pub const TARGET_PORTRAIT_ON: AtlasArt = unit_frame((1.0, 193.0, 229.0, 296.0));
-/// `UI-HUD-UnitFrame-Player-PortraitOn-Bar-Health` (16108), 124×20 like the slot.
-pub const HEALTH_BAR: AtlasArt = unit_frame((705.0, 829.0, 213.0, 233.0));
-/// `UI-HUD-UnitFrame-Target-PortraitOn-Bar-Health` (16111), 126×20.
-pub const TARGET_HEALTH_BAR: AtlasArt = unit_frame((195.0, 321.0, 213.0, 233.0));
-/// `UI-HUD-UnitFrame-Target-PortraitOn-Type` (16713): reaction strip behind the target name.
-pub const REACTION_STRIP: AtlasArt = unit_frame((195.0, 330.0, 235.0, 253.0));
-/// `UI-HUD-UnitFrame-Player-CombatIcon` (16779).
-pub const COMBAT_ICON: AtlasArt = unit_frame((1007.0, 1023.0, 133.0, 149.0));
-/// First 60×60 cell of `UI-HUD-UnitFrame-Player-Rest-Flipbook` (16568, 6×7 cells),
-/// atlas 2075 `interface/hud/uiunitframerestingflipbook.blp`.
-pub const REST_ICON: AtlasArt = art(4_659_635, (512.0, 512.0), (1.0, 61.0, 1.0, 61.0));
+/// Size of atlas element `name` under `skin` (`SetAtlas(name, useAtlasSize)`).
+///
+/// # Panics
+/// When `skin` has no member for `name`: the frame names art its data lacks.
+pub fn atlas_size(name: &str, skin: ActiveSkin) -> (f32, f32) {
+    let region = resolve_region(name, skin)
+        .unwrap_or_else(|| panic!("atlas {name} has no UiTextureAtlasMember under {skin:?}"));
+    (region.width, region.height)
+}
 
-/// `UI-HUD-UnitFrame-TargetofTarget-PortraitOn` (16121), 120×49: PetFrame's
-/// `PetFrameTexture` (PetFrame.xml:42-47; the pet frame uses the target-of-target art).
-pub const TOT_PORTRAIT_ON: AtlasArt = unit_frame((330.0, 450.0, 160.0, 209.0));
-/// `UI-HUD-UnitFrame-TargetofTarget-PortraitOn-Bar-Health` (16119), 70×10.
-pub const TOT_HEALTH_BAR: AtlasArt = unit_frame((950.0, 1020.0, 160.0, 170.0));
-/// `UI-HUD-UnitFrame-TargetofTarget-PortraitOn-Bar-Focus` (16885), 74×7.
-pub const FOCUS_BAR_TOT: AtlasArt = unit_frame((884.0, 958.0, 77.0, 84.0));
+/// `UI-HUD-UnitFrame-Player-PortraitOff`: name tab over a health and power slot.
+pub const FRAME_PORTRAIT_OFF: &str = "UI-HUD-UnitFrame-Player-PortraitOff";
+/// PlayerFrame's `FrameTexture`.
+pub const PLAYER_PORTRAIT_ON: &str = "UI-HUD-UnitFrame-Player-PortraitOn";
+/// TargetFrame's `FrameTexture`.
+pub const TARGET_PORTRAIT_ON: &str = "UI-HUD-UnitFrame-Target-PortraitOn";
+pub const HEALTH_BAR: &str = "UI-HUD-UnitFrame-Player-PortraitOn-Bar-Health";
+pub const TARGET_HEALTH_BAR: &str = "UI-HUD-UnitFrame-Target-PortraitOn-Bar-Health";
+/// TargetFrame's `ReputationColor`: reaction strip behind the target name.
+pub const REACTION_STRIP: &str = "UI-HUD-UnitFrame-Target-PortraitOn-Type";
+/// PlayerFrame's `AttackIcon`.
+pub const COMBAT_ICON: &str = "UI-HUD-UnitFrame-Player-CombatIcon";
+/// PlayerFrame's `RestTexture` flipbook (PlayerFrame.xml:387): 6 columns × 7 rows.
+pub const REST_FLIPBOOK: &str = "UI-HUD-UnitFrame-Player-Rest-Flipbook";
+/// The flipbook's first cell, `left,right,top,bottom` of its atlas crop.
+pub const REST_ICON_COORDS: &str = "0,0.16666667,0,0.14285715";
+
+/// PetFrame's `PetFrameTexture` (PetFrame.xml:42-47; the pet frame uses the
+/// target-of-target art).
+pub const TOT_PORTRAIT_ON: &str = "UI-HUD-UnitFrame-TargetofTarget-PortraitOn";
+pub const TOT_HEALTH_BAR: &str = "UI-HUD-UnitFrame-TargetofTarget-PortraitOn-Bar-Health";
 
 /// The `TargetofTarget` frame type's power bar: `UI-HUD-UnitFrame-TargetofTarget-
 /// PortraitOn-Bar-<atlasElementName>` (`UnitFrameManaBar_UpdateType`, UnitFrame.lua:527).
 /// Powers without such a member draw no fill.
-pub fn tot_power_bar_art(power: PowerType) -> Option<AtlasArt> {
+pub fn tot_power_bar_atlas(power: PowerType) -> Option<&'static str> {
     Some(match power {
-        // ...-Bar-Mana (16120)
-        PowerType::Mana => unit_frame((389.0, 463.0, 267.0, 274.0)),
-        // ...-Bar-Rage (16886)
-        PowerType::Rage => unit_frame((661.0, 735.0, 267.0, 274.0)),
-        PowerType::Focus => FOCUS_BAR_TOT,
-        // ...-Bar-Energy (16884)
-        PowerType::Energy => unit_frame((808.0, 882.0, 77.0, 84.0)),
-        // ...-Bar-RunicPower (16887)
-        PowerType::RunicPower => unit_frame((933.0, 1007.0, 255.0, 262.0)),
+        PowerType::Mana => "UI-HUD-UnitFrame-TargetofTarget-PortraitOn-Bar-Mana",
+        PowerType::Rage => "UI-HUD-UnitFrame-TargetofTarget-PortraitOn-Bar-Rage",
+        PowerType::Focus => "UI-HUD-UnitFrame-TargetofTarget-PortraitOn-Bar-Focus",
+        PowerType::Energy => "UI-HUD-UnitFrame-TargetofTarget-PortraitOn-Bar-Energy",
+        PowerType::RunicPower => "UI-HUD-UnitFrame-TargetofTarget-PortraitOn-Bar-RunicPower",
         _ => return None,
     })
 }
 
-/// UiTextureAtlas 2130 `interface/hud/uiunitframeboss.blp`.
-const UNIT_FRAME_BOSS: (u32, (f32, f32)) = (4_703_659, (256.0, 256.0));
-
-const fn unit_frame_boss(rect: (f32, f32, f32, f32)) -> AtlasArt {
-    art(UNIT_FRAME_BOSS.0, UNIT_FRAME_BOSS.1, rect)
-}
-
-/// `UI-HUD-UnitFrame-Target-PortraitOn-Boss-Gold` (17120): the elite dragon, 80×79.
-pub const BOSS_GOLD: AtlasArt = unit_frame_boss((1.0, 81.0, 84.0, 163.0));
-/// `ui-hud-unitframe-target-portraiton-boss-rare-silver` (19019): the rare elite dragon.
-pub const BOSS_RARE_SILVER: AtlasArt = unit_frame_boss((1.0, 81.0, 165.0, 244.0));
-/// `UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Star` (17122), drawn at its 20×20
-/// override size.
-pub const BOSS_RARE_STAR: AtlasArt = unit_frame_boss((83.0, 109.0, 148.0, 174.0));
-pub const BOSS_RARE_STAR_SIZE: f32 = 20.0;
+/// TargetFrame's `BossPortraitFrameTexture` for elites: the gold dragon.
+pub const BOSS_GOLD: &str = "UI-HUD-UnitFrame-Target-PortraitOn-Boss-Gold";
+/// The rare elite silver dragon.
+pub const BOSS_RARE_SILVER: &str = "ui-hud-unitframe-target-portraiton-boss-rare-silver";
+/// TargetFrame's `BossIcon`, the rare star, drawn at its override size.
+pub const BOSS_RARE_STAR: &str = "UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Star";
 
 /// Retail power bar texture: `UI-HUD-UnitFrame-Player-PortraitOff-Bar-<Power>` where the
 /// atlas has a 124×10 portrait-off variant, the portrait-on one for mana, and the
 /// `PowerBarColor[...].atlas` fill for spec powers (`PowerBarColorUtil.lua`).
-pub fn power_bar_art(power: PowerType) -> Option<AtlasArt> {
+pub fn power_bar_atlas(power: PowerType) -> Option<&'static str> {
     Some(match power {
-        // UI-HUD-UnitFrame-Player-PortraitOn-Bar-Mana (16109)
-        PowerType::Mana => unit_frame((647.0, 771.0, 301.0, 311.0)),
-        // UI-HUD-UnitFrame-Player-PortraitOff-Bar-Rage (16868)
-        PowerType::Rage => unit_frame((779.0, 903.0, 289.0, 299.0)),
-        // UI-HUD-UnitFrame-Player-PortraitOff-Bar-Focus (16867)
-        PowerType::Focus => unit_frame((653.0, 777.0, 289.0, 299.0)),
-        // UI-HUD-UnitFrame-Player-PortraitOff-Bar-Energy (16866)
-        PowerType::Energy => unit_frame((527.0, 651.0, 289.0, 299.0)),
-        // UI-HUD-UnitFrame-Player-PortraitOff-Bar-RunicPower (16869)
-        PowerType::RunicPower => unit_frame((269.0, 393.0, 301.0, 311.0)),
-        // Unit_Druid_AstralPower_Fill_1x (24917), atlas 2649
-        PowerType::LunarPower => art(5_410_916, (128.0, 32.0), (1.0, 127.0, 1.0, 11.0)),
-        // Unit_Shaman_Maelstrom_Fill_1x (24922), atlas 2651
-        PowerType::Maelstrom => art(5_410_922, (128.0, 32.0), (1.0, 127.0, 1.0, 11.0)),
-        // Unit_Priest_Insanity_Fill_1x (25012), atlas 2661
-        PowerType::Insanity => art(5_412_495, (1024.0, 1024.0), (1.0, 127.0, 1.0, 11.0)),
-        // Unit_DemonHunter_Fury_Fill_1x (24914), atlas 2647
-        PowerType::Fury => art(5_410_910, (128.0, 32.0), (1.0, 127.0, 1.0, 11.0)),
-        // _DemonHunter-DemonicPainBar (5458), atlas 690
-        PowerType::Pain => art(1_237_599, (128.0, 32.0), (0.0, 128.0, 13.0, 23.0)),
+        PowerType::Mana => "UI-HUD-UnitFrame-Player-PortraitOn-Bar-Mana",
+        PowerType::Rage => "UI-HUD-UnitFrame-Player-PortraitOff-Bar-Rage",
+        PowerType::Focus => "UI-HUD-UnitFrame-Player-PortraitOff-Bar-Focus",
+        PowerType::Energy => "UI-HUD-UnitFrame-Player-PortraitOff-Bar-Energy",
+        PowerType::RunicPower => "UI-HUD-UnitFrame-Player-PortraitOff-Bar-RunicPower",
+        PowerType::LunarPower => "Unit_Druid_AstralPower_Fill",
+        PowerType::Maelstrom => "Unit_Shaman_Maelstrom_Fill",
+        PowerType::Insanity => "Unit_Priest_Insanity_Fill",
+        PowerType::Fury => "Unit_DemonHunter_Fury_Fill",
+        PowerType::Pain => "_DemonHunter-DemonicPainBar",
         _ => return None,
     })
 }

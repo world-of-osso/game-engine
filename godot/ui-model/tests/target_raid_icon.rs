@@ -13,6 +13,7 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::TextureSource;
 
 fn target_frames(raid_target: Option<u8>) -> FrameRegistry {
+    load_atlas_tables();
     let mut shared = SharedContext::new();
     shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(InWorldUnitFramesState {
@@ -87,4 +88,12 @@ fn skull_sits_on_the_portrait_top() {
 fn unmarked_target_hides_the_icon() {
     let registry = target_frames(None);
     assert!(frame(&registry, "TargetRaidTargetIcon").hidden);
+}
+
+/// Unit frames size their art from the atlas tables (`atlas_size`).
+fn load_atlas_tables() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
 }
