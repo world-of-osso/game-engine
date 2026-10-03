@@ -12,6 +12,9 @@ extends SceneTree
 ## 3x slower than wall time, so the server's bank never caps it; real frame deltas can, but
 ## then a server simulating slower than wall time caps a correct client too.
 ## SPEED_YAW (radians, default PI) is the run heading; SPEED_SWIM=1 requires swimming.
+## SPEED_FRAME_MS (with SPEED_REAL_TIME=1) stalls each run frame that long: a slow client,
+## e.g. 667 for the ~1.5 fps loaded headless one, sends one input per long frame.
+## GODOT_TEST_SERVER=127.0.0.1:<port> selects a private server.
 const WORLD_WAIT_MS := 180000
 const YAW_TOLERANCE := 0.05
 const SETTLE_FRAMES := 60
@@ -33,8 +36,8 @@ func run_test() -> void:
 		fail("Run with --fixed-fps 60, or SPEED_REAL_TIME=1")
 		return
 	var server := OS.get_environment("GODOT_TEST_SERVER")
-	if server != "127.0.0.1:5000":
-		fail("GODOT_TEST_SERVER must explicitly select 127.0.0.1:5000")
+	if not server.begins_with("127.0.0.1:"):
+		fail("GODOT_TEST_SERVER must explicitly select a 127.0.0.1 server")
 		return
 	var account := OS.get_environment("SPEED_ACCOUNT")
 	var password := OS.get_environment("SPEED_PASSWORD")
@@ -44,6 +47,7 @@ func run_test() -> void:
 	var seconds := float(OS.get_environment("SPEED_RUN_SECONDS")) if OS.get_environment("SPEED_RUN_SECONDS") != "" else 2.5
 	var yaw := float(OS.get_environment("SPEED_YAW")) if OS.get_environment("SPEED_YAW") != "" else PI
 	var swim := OS.get_environment("SPEED_SWIM") == "1"
+	var frame_ms := int(OS.get_environment("SPEED_FRAME_MS"))
 	var client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var error = client.connect_account(server, account, password, false)
@@ -69,6 +73,7 @@ func run_test() -> void:
 	var ran := 0.0
 	var frame := 0
 	while ran < seconds:
+		OS.delay_msec(frame_ms)
 		await process_frame
 		ran += root.get_process_delta_time()
 		frame += 1
@@ -157,13 +162,17 @@ func release_turns() -> void:
 	push_key(KEY_LEFT, false)
 
 func enter_world(client: Node) -> Node3D:
-	var deadline := Time.get_ticks_msec() + 20000
+	var deadline := Time.get_ticks_msec() + 60000
+	var ui = null
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
-		if state.screen == "CharacterSelect" and state.reply_received:
+		ui = client.get_node_or_null("CharacterSelectUI")
+		if state.screen == "CharacterSelect" and state.reply_received and ui != null:
 			break
-	var ui = client.get_node("CharacterSelectUI")
+	if ui == null:
+		fail("No character select: " + str(client.account_state()))
+		return null
 	await click_control(ui.find_child("CharCard_0", true, false))
 	var selected = ui.find_child("CharSelectCharacterName", true, false)
 	if selected.text != NAME:

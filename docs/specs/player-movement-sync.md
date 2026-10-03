@@ -17,6 +17,9 @@ The Godot client predicts the local player's movement and reports each moved pos
 - [x] Every release in the native input fixture (walk, run, backpedal, strafe, swim, jump landing, menu return) sends exactly one stop.
 - [x] Live: after a backpedal release the server replicates the unmodified speed (only a stop input makes it recompute; 2.833 stayed before) and its position matches the client's.
 
+### Slow client
+- [x] A client sending fewer inputs than the server's movement bank needs (one per 0.67 s frame) ends, after its stop, where the server's player stands: the server keeps moving the player to a report its bank has not reached (game-server `MovementClocks.unreached`). Live 2026-10-02, private server, `SPEED_REAL_TIME=1 SPEED_FRAME_MS=667 SPEED_RUN_SECONDS=10`: before, server 15.75 yd of the client's 66.24 (gap 50.49); after, 69.57 of 69.57 (gap 0.000; up to 10.2 yd behind while running). Evidence `data/diagnostics/posdrift-2026-10-02/`.
+
 ## How it works
 
 - [networking](../wiki/systems/networking.md#local-player-speed-and-stop-input)
@@ -33,7 +36,8 @@ The Godot client predicts the local player's movement and reports each moved pos
 - `godot/rust/src/gameplay.rs` tests: `replicated_snare_scales_run_walk_backward_strafe_and_swim_speeds`, `swimming_predicts_at_swim_speed`, `replicated_speed_is_read_against_the_newest_reported_input`, `replicated_root_stops_prediction`, `snared_run_predicts_the_server_distance`, `release_sends_exactly_one_stop_input_with_final_position_and_epoch`, `stop_input_reports_a_modal_stop_once`
 - `godot/network/src/lib.rs` `unit_snapshot_owns_server_identity_and_component_values`
 - `godot/network/examples/native_input_fixture.rs` (`inworld`, `swimming`, `menu`)
-- `godot/tests/world_speed_walk.gd` (live dev server)
+- `godot/tests/world_speed_walk.gd` (live dev or private server; `SPEED_FRAME_MS` for a slow client)
+- game-server `networking_tests/receiver_rate.rs` `a_low_fps_client_run_ends_where_the_client_stopped`
 
 ## Known gaps (current cycle)
 
