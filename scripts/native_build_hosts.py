@@ -259,6 +259,8 @@ def native_runtime(
         )
     )
     executable = target / profile / binary
+    if not executable.is_file():
+        raise FileNotFoundError(f"missing native runtime binary: {executable}")
     print(f"native artifact={executable}", flush=True)
     return run_owned(
         [*prefix, str(executable), *runtime_args],
@@ -279,11 +281,13 @@ def native_commands(
     lease,
     local,
     runtime_cwd=None,
+    build=True,
 ):
     env, prefix = native_environment(target, environment, local)
-    status = native_build(project, target, cargo_args, release, env, prefix, lease)
-    if status:
-        return status
+    if build:
+        status = native_build(project, target, cargo_args, release, env, prefix, lease)
+        if status:
+            return status
     return native_runtime(
         project, target, runtime_args, binary, release, env, prefix, lease, runtime_cwd
     )
@@ -300,6 +304,7 @@ def worker(
     environment,
     monitor=True,
     runtime_cwd=None,
+    build=True,
 ):
     validate_key(checkout_key)
     validate_key(project_name)
@@ -323,12 +328,13 @@ def worker(
                 snapshot = Path(temporary)
                 extract_directory(archive, snapshot)
                 sync_source(snapshot, state / "source", state / "manifest.json")
-            status = native_build(
-                project, target, cargo_args, release, env, prefix, lease
-            )
+            if build:
+                status = native_build(
+                    project, target, cargo_args, release, env, prefix, lease
+                )
+                if status:
+                    return status
         # Runtime owns its lease, not the source synchronization/build lock.
-        if status:
-            return status
         return native_runtime(
             project,
             target,
@@ -352,6 +358,7 @@ def desktop(
     release,
     environment,
     runtime_cwd=None,
+    build=True,
 ):
     transfer = windows_profile() / "data/build-host/transfers" / uuid.uuid4().hex
     with tempfile.TemporaryDirectory(
@@ -383,6 +390,7 @@ def desktop(
                     environment,
                     True,
                     str(runtime_cwd) if runtime_cwd is not None else None,
+                    build,
                 ]
             )
             command = subprocess.list2cmdline(
@@ -420,8 +428,9 @@ def execute(
     environment: dict[str, str] | None = None,
     root: Path | None = None,
     runtime_cwd: Path | None = None,
+    build: bool = True,
 ) -> int:
-    """Build and optionally run on chosen host; never export artifacts or fall back."""
+    """Optionally build/run on chosen host; never export artifacts or fall back."""
     validate_key(checkout_key)
     validate_key(project_name)
     if host not in {"local", "desktop"}:
@@ -444,6 +453,7 @@ def execute(
                 lease,
                 True,
                 runtime_cwd,
+                build,
             )
     return desktop(
         context.resolve(strict=True),
@@ -455,6 +465,7 @@ def execute(
         release,
         environment,
         runtime_cwd,
+        build,
     )
 
 
