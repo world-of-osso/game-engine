@@ -34,7 +34,34 @@ pub(super) struct FrameSlots {
     pub(super) level_justify: &'static str,
     pub(super) health: Rect,
     pub(super) power: Rect,
+    pub(super) health_text: TextAnchors,
+    pub(super) power_text: TextAnchors,
 }
+
+/// X offsets of a bar's `TextString` (CENTER), `LeftText` (LEFT) and `RightText` (RIGHT)
+/// anchors.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub(super) struct TextAnchors {
+    pub(super) center: f32,
+    pub(super) left: f32,
+    pub(super) right: f32,
+}
+
+impl TextAnchors {
+    pub(super) const fn new(center: f32, left: f32, right: f32) -> Self {
+        Self {
+            center,
+            left,
+            right,
+        }
+    }
+}
+
+/// `TextStatusBar` default anchors of PlayerFrame bars (PlayerFrame.xml:200-214,260-274).
+const PLAYER_BAR_TEXT: TextAnchors = TextAnchors::new(0.0, 2.0, -2.0);
+/// TargetFrame health (TargetFrame.xml:167-181); boss frames keep it and move their mana
+/// `RightText` to RIGHT (-5, 0) (TargetFrame.lua:995-996).
+const TARGET_HEALTH_TEXT: TextAnchors = TextAnchors::new(0.0, 2.0, -5.0);
 
 /// The portrait-off art (`UI-HUD-UnitFrame-Player-PortraitOff`, 133×51) boss,
 /// target-of-target and focus frames draw: name tab on rows 0..12, health slot inside
@@ -52,6 +79,8 @@ pub(super) const PORTRAIT_OFF_SLOTS: FrameSlots = FrameSlots {
     level_justify: "RIGHT",
     health: (BAR_X, 14.0, BAR_W, 20.0),
     power: (BAR_X, 35.0, BAR_W, 10.0),
+    health_text: TARGET_HEALTH_TEXT,
+    power_text: TARGET_HEALTH_TEXT,
 };
 
 /// PlayerFrame (PlayerFrame.xml:73-83; `PlayerFrame_ToPlayerArt`, PlayerFrame.lua:698,717):
@@ -63,6 +92,8 @@ pub(super) const PLAYER_SLOTS: FrameSlots = FrameSlots {
     level_justify: "RIGHT",
     health: (85.0, 41.0, 124.0, 20.0),
     power: (85.0, 61.0, 124.0, 10.0),
+    health_text: PLAYER_BAR_TEXT,
+    power_text: PLAYER_BAR_TEXT,
 };
 
 /// TargetFrame `ReputationColor` (135×18) TOPRIGHT (-75, -25) (TargetFrame.xml:100-104).
@@ -78,6 +109,9 @@ pub(super) const TARGET_SLOTS: FrameSlots = FrameSlots {
     level_justify: "LEFT",
     health: (149.0 - 126.0, 60.0 - 20.0, 126.0, 20.0),
     power: (149.0 + 8.0 - 134.0, 61.0, 134.0, 10.0),
+    health_text: TARGET_HEALTH_TEXT,
+    // TargetFrame mana (TargetFrame.xml:220-234).
+    power_text: TextAnchors::new(-4.0, 2.0, -13.0),
 };
 
 /// A unit portrait (`SetPortraitTexture`, UnitFrame.lua:188) and the mask that rounds it.

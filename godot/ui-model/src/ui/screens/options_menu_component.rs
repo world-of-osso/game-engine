@@ -188,6 +188,7 @@ pub struct HudOptionsView {
     pub interact_key_icons: crate::soft_target_data::InteractKeyIcons,
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
+    pub status_text_display: crate::status_text_data::StatusTextDisplay,
 }
 
 #[derive(Debug, Clone, PartialEq)]

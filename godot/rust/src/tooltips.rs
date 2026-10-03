@@ -184,7 +184,7 @@ impl GameClient {
 
     /// The frame the pointer hovers: the same topmost-canvas test as clicks
     /// ([`Self::ui_hit_at`]), past the tooltip's and the cursor item's own canvases.
-    fn hovered_ui_frame(&mut self) -> Result<Option<HoveredFrame>, String> {
+    pub(crate) fn hovered_ui_frame(&mut self) -> Result<Option<HoveredFrame>, String> {
         let at = Vector2::from_array(self.physical_input.pointer());
         let skip = [self.tooltips.ui.clone(), self.bags.cursor.ui.clone()];
         self.ui_frame_at(at, &skip)

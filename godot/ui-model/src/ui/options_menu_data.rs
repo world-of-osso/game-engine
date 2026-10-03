@@ -7,6 +7,7 @@ use crate::input_bindings_data::{
 };
 use crate::nameplate_style_data::{NameplateStyle, StyleSlider};
 use crate::soft_target_data::{InteractKeyIcons, SoftTargetOptions};
+use crate::status_text_data::StatusTextDisplay;
 use crate::ui::screens::game_menu_component::{GameMenuView, GameMenuViewModel};
 use crate::ui::screens::options_menu_component::{
     CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
@@ -106,6 +107,7 @@ pub struct HudDraft {
     pub soft_target: SoftTargetOptions,
     pub show_fps_overlay: bool,
     pub chat_font_size: f32,
+    pub status_text_display: StatusTextDisplay,
 }
 
 #[derive(Clone)]
@@ -178,6 +180,7 @@ pub fn hud_draft_from_file(hud: &HudOptionsFile) -> HudDraft {
         soft_target: hud.soft_target,
         show_fps_overlay: hud.show_fps_overlay,
         chat_font_size: hud.chat_font_size,
+        status_text_display: hud.status_text_display,
     }
 }
 
@@ -234,6 +237,7 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
         interact_key_icons: h.soft_target.interact_key_icons(),
         show_fps_overlay: h.show_fps_overlay,
         chat_font_size: h.chat_font_size,
+        status_text_display: h.status_text_display,
     }
 }
 
@@ -626,10 +630,13 @@ fn apply_hud_toggle(key: &str, hud: &mut HudDraft) -> bool {
         "soft_target_interact" => hud.soft_target_interact = !hud.soft_target_interact,
         "show_fps_overlay" => hud.show_fps_overlay = !hud.show_fps_overlay,
         _ => {
-            let Some(choice) = interact_key_icons_choice(key) else {
+            if let Some(choice) = interact_key_icons_choice(key) {
+                hud.soft_target.set_interact_key_icons(choice);
+            } else if let Some(choice) = status_text_display_choice(key) {
+                hud.status_text_display = choice;
+            } else {
                 return false;
-            };
-            hud.soft_target.set_interact_key_icons(choice);
+            }
         }
     }
     true
@@ -639,6 +646,12 @@ fn apply_hud_toggle(key: &str, hud: &mut HudDraft) -> bool {
 fn interact_key_icons_choice(key: &str) -> Option<InteractKeyIcons> {
     let value = key.strip_prefix("interact_key_icons:")?.parse().ok()?;
     InteractKeyIcons::from_value(value)
+}
+
+/// `status_text_display:<1|2|3|4>`: a choice of the "Status Text" dropdown.
+fn status_text_display_choice(key: &str) -> Option<StatusTextDisplay> {
+    let value = key.strip_prefix("status_text_display:")?.parse().ok()?;
+    StatusTextDisplay::from_value(value)
 }
 
 pub fn reset_category_defaults(model: &mut OptionsModel) {
@@ -740,6 +753,7 @@ pub fn apply_hud_file_snapshot(h: &mut HudOptionsFile, d: &HudDraft) {
     h.soft_target_interact = d.soft_target_interact;
     h.soft_target = d.soft_target;
     h.show_fps_overlay = d.show_fps_overlay;
+    h.status_text_display = d.status_text_display;
     h.chat_font_size = d
         .chat_font_size
         .clamp(
