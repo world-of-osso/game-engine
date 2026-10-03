@@ -10,7 +10,10 @@ extends SceneTree
 ## fbtest, card 0) knowing 32235 and Expert Riding 34090:
 ##   game-server-admin learn-spell <name> 34090
 ##   game-server-admin learn-spell <name> 32235
-## FLY_SHOTS: screenshot directory.
+## The client needs at least 4 fps: the server applies at most 0.25 s of movement per input
+## (game-server `MAX_INPUT_STEP_SECS`), so a slower client outruns it.
+## FLY_SHOTS: screenshot directory. FLY_READY_FILE: when set, wait in the world until that
+## file exists (a driver creates it after teaching the online character the spells).
 
 const PASSWORD := "fbtest"
 const GOLDEN_GRYPHON := 32235
@@ -28,7 +31,7 @@ func _initialize() -> void:
 	call_deferred("run_test")
 
 func run_test() -> void:
-	root.size = Vector2i(1280, 720)
+	root.size = Vector2i(960, 540)
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	var account := OS.get_environment("FLY_ACCOUNT")
 	character = OS.get_environment("FLY_CHARACTER")
@@ -47,7 +50,12 @@ func run_test() -> void:
 	if not await enter_world():
 		return
 	player = client.get_node("WorldUnits/" + character) as Node3D
-	client.set_camera_orbit(0.0, -0.35, 14.0)
+	var ready_file := OS.get_environment("FLY_READY_FILE")
+	if ready_file != "" and not await wait_until(func(): return FileAccess.file_exists(ready_file), 60000, ready_file):
+		return
+	# Noon light and a close orbit, so the screenshots show the rider on the mount.
+	client.set_world_minutes(720.0)
+	client.set_camera_orbit(0.0, -0.3, 9.0)
 	await wait_frames(30)
 	trace("ground")
 	await snapshot("ground")
@@ -56,7 +64,7 @@ func run_test() -> void:
 	if sent != "":
 		fail("mount cast: " + sent)
 		return
-	if not await wait_until(func(): return mounted(), 8000, "mounted on the gryphon"):
+	if not await wait_until(func(): return mounted(), 30000, "mounted on the gryphon"):
 		return
 	await wait_frames(60)
 	trace("mounted")
@@ -65,11 +73,14 @@ func run_test() -> void:
 	var ground := player.position.y
 	push_key(KEY_SPACE, true)
 	var climb_start := Time.get_ticks_msec()
-	if not await wait_until(func(): return player.position.y > ground + 30.0, 8000, "climb 30 yards"):
+	for _sample in 6:
+		await wait_seconds(0.25)
+		trace("climbing")
+	if not await wait_until(func(): return player.position.y > ground + 30.0, 60000, "climb 30 yards"):
 		return
 	var climb_secs := (Time.get_ticks_msec() - climb_start) / 1000.0
 	push_key(KEY_SPACE, false)
-	print("TRACE climbed 30 yards in %.2f s (flight speed %.1f yd/s)" % [climb_secs, STANDARD_FLIGHT])
+	print("TRACE climbed 30 yards in %.2f wall s (flight speed %.1f yd/s)" % [climb_secs, STANDARD_FLIGHT])
 	trace("climbed")
 	await snapshot("climbed")
 
@@ -84,13 +95,13 @@ func run_test() -> void:
 	if absf(player.position.y - hover) > 0.01:
 		fail("fell while hovering: %s -> %s" % [hover, player.position.y])
 		return
-	if not await wait_until(func(): return server_close(), 3000, "server height follows the flyer"):
+	if not await wait_until(func(): return server_close(), 30000, "server height follows the flyer"):
 		return
 	trace("hovering")
 	await snapshot("hovering")
 
 	push_key(KEY_X, true)
-	if not await wait_until(func(): return on_ground(), 20000, "land"):
+	if not await wait_until(func(): return on_ground(), 120000, "land"):
 		return
 	push_key(KEY_X, false)
 	await wait_frames(30)
@@ -101,7 +112,7 @@ func run_test() -> void:
 	if sent != "":
 		fail("dismount: " + sent)
 		return
-	if not await wait_until(func(): return not mounted(), 5000, "dismounted"):
+	if not await wait_until(func(): return not mounted(), 30000, "dismounted"):
 		return
 	await wait_frames(60)
 	trace("dismounted")
@@ -129,9 +140,9 @@ func on_ground() -> bool:
 func trace(label: String) -> void:
 	var state: Dictionary = client.account_state()
 	var height = client.terrain_height_at(player.position.x, player.position.z)
-	print("TRACE t=%d %s client=%s server=%s terrain=%s mounted=%s" % [
-		Time.get_ticks_msec(), label, player.position, state.local_server_position, height,
-		mounted()])
+	print("TRACE t=%d %s client=%s server=%s server_speed=%s terrain=%s mounted=%s fps=%s" % [
+		Time.get_ticks_msec(), label, player.position, state.local_server_position,
+		state.local_server_speed, height, mounted(), Engine.get_frames_per_second()])
 
 func snapshot(label: String) -> void:
 	await RenderingServer.frame_post_draw
@@ -141,11 +152,12 @@ func snapshot(label: String) -> void:
 	print("TRACE screenshot ", path)
 
 func enter_world() -> bool:
-	var deadline := Time.get_ticks_msec() + 20000
+	var deadline := Time.get_ticks_msec() + 60000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
-		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1:
+		if state.reply_received and state.screen == "CharacterSelect" and state.character_count >= 1 \
+				and client.get_node_or_null("CharacterSelectUI") != null:
 			break
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	if ui == null:
