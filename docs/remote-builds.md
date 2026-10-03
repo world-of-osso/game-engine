@@ -1,20 +1,28 @@
-# Remote Godot extension builds
+# Desktop and local Godot extension builds
 
-Root `cargo run` and `rd` compile only the tiny std-only launcher locally. The launcher runs `python3 scripts/depot-build.py --root <checkout>` to compile the Godot native extension remotely, then launches/imports Godot locally as usual.
+Root `cargo run` and `rd` compile only the tiny std-only launcher locally. The launcher runs `python3 scripts/depot-build.py --root <checkout>` on the selected `desktop` or `local` Docker build host, then launches/imports Godot locally as usual. The helper retains its filename; Depot is no longer required. This October 3, 2026 trial replaces the Depot-only contract; historical Depot evidence below remains evidence for its original runs, not proof of either new host.
+
+`--build-host desktop|local` selects a host for one helper or launcher invocation; the launcher consumes it rather than forwarding it to Godot. Without an explicit host, the helper reads `~/.config/game-engine/build-host`, independent of runtime `XDG_CONFIG_HOME` isolation. Missing or invalid defaults fail explicitly; no host fallback.
 
 Client options `--screen`, `--state`, `--server`, `--char`, and `--run-js-ui-script <path>` are routed after Godot's `--` separator; native Godot options stay before it. Direct Godot invocation must place client options after `--`. The script uses the shared synchronous JS compiler and native frame-driven consumer; see the [native UI automation contract](specs/native-ui-automation.md) and [bounded Login evidence and open gates](wiki/systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail). Routing is not all-action or full-feature acceptance.
 
 ## Requirements
 
-- Linux x86_64 host.
-- Authenticated `depot` CLI, Python 3, and Git.
-- Depot project `local-builds` (`003c4ttwqh`) in the existing Globalcomix organization, overridden only with `DEPOT_PROJECT_ID`.
+- Linux x86_64 caller with Python 3 and Git.
+- `local`: Docker/buildx access on the caller; use this host when the desktop is occupied by gaming.
+- `desktop`: SSH alias `desktop`, reaching the `OssoBuild` Ubuntu 24.04 WSL distribution as root, with Docker/buildx available there.
+- Both hosts use the named `game-engine` buildx builder for Linux amd64. Builder limits: 8 CPUs/16 GB; desktop WSL limits: 8 processors/20 GB. Builders have been created; provisioning and real build/test acceptance are still pending.
 
 ## Usage
 
 ```sh
-cargo run -- --screen charselect
-# Build/download only, without launching:
+# Save the default (choose desktop, or local while gaming):
+python3 scripts/depot-build.py --save-build-host desktop
+python3 scripts/depot-build.py --save-build-host local
+# One-shot override; does not change the saved default:
+cargo run -- --build-host desktop --screen charselect
+python3 scripts/depot-build.py --root "$PWD" --build-host local
+# Build/install only, without launching:
 python3 scripts/depot-build.py --root "$PWD"
 # Build the extension and one owned UDP fixture executable (any godot/network/examples/*.rs stem):
 python3 scripts/depot-build.py --root "$PWD" --fixture native_input_fixture
@@ -26,7 +34,11 @@ python3 scripts/depot-build.py --root "$PWD" --cli
 
 `--fixture` accepts every top-level `godot/network/examples/*.rs` file stem (`native_input_fixture`, `native_npc_visual_fixture`, `native_reconnect_fixture`, `native_transfer_fixture`, and any new one); the helper validates the name and the Dockerfile builds it. Fixtures locate their checkout from the installed `target/debug/examples/<name>` path.
 
-The helper runs `depot` with `DEPOT_TOKEN` when set; otherwise with the first `depot/depot.yaml` login found in `$XDG_CONFIG_HOME`, then `~/.config`, and fails before uploading when neither has one. Fixtures that isolate `XDG_CONFIG_HOME` for Godot therefore still reach the user's login through the root launcher. The token is never printed.
+`--fixture`, `--cli`, `--release`, and `--test` retain their arguments and source/assets behavior on both hosts. For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host desktop --test -p game-engine-core` (substitute `local` as needed). Host selection does not make GDScript or GPU tests part of `--test`.
+
+## Desktop runtime capability boundary
+
+Approved scope includes desktop server execution, tests, and GPU-backed manual client testing, but build-host selection is not runtime orchestration. Desktop server startup/network access, runtime test execution, and manual client workflows remain pending; no working desktop runtime command is asserted here. The newly provisioned desktop has an i7-13700 (16 cores/24 threads), 32 GB RAM, and RTX 4070 Ti. Current WSL GPU probes report software `llvmpipe`, not RTX-backed rendering; hardware presence is not GPU acceptance. No real desktop/local build, test, or GPU pass is claimed by this trial documentation.
 
 Each worktree needs the matching sibling repositories beside it: `asset-resolver`, `ui-toolkit-godot-conversion`, `ui-toolkit-macros`, `shared-protocol`, and `bevy-patches`. `DEPOT_SIBLING_<NAME>` (name upper-cased, `-` as `_`) points one of them elsewhere, for example `DEPOT_SIBLING_SHARED_PROTOCOL=/home/osso/.worktrees/shared-protocol-visage` for a protocol branch. The worktree itself can have any directory name. Source-file symlinks and symlinked `target`/`target/debug` directories fail explicitly; the helper never deletes existing targets. Use a checkout-local artifact directory rather than a shared target symlink.
 
@@ -34,7 +46,7 @@ Each worktree needs the matching sibling repositories beside it: `asset-resolver
 
 The helper uploads a source-only snapshot: tracked inputs, nonignored untracked compile inputs under the checkout's `godot/` (the only checkout path any godot crate reads), and matching sibling repositories. It excludes `data/`, secrets, targets, and Git metadata.
 
-Remote registry and Git caches are shared. The Cargo target cache is per checkout (`godot-target-<sha256(checkout path)[:20]>`, `sharing=locked`); Cargo decides freshness by mtime, so checkout-specific target state is never reused by another worktree. Source snapshots retain original file timestamps (`copy2`); after acquiring the checkout target lock, the build refreshes staged compile-input timestamps before Cargo runs. This retains the lock-held freshness protection from the earlier A/B/A stale-artifact diagnosis without sharing target artifacts between diverging checkouts. Stable Cargo cannot use `-Zchecksum-freshness`. Worktrees never receive a target cache. By default, each worktree gets only `target/debug/libgame_engine_godot.so`, installed atomically after a lossless gzip download. `--fixture` also builds exactly one `game-engine-network` example after the lock-held source refresh and installs its decompressed executable at `target/debug/examples/<name>`; no target cache is downloaded. Run that executable from the same checkout. `native_input_fixture` modes `menu`, `sound`, `sound-click`, `sound-outcome`, `merchant-click`, `merchant-cursor`, `merchant-services`, `loot`, `settings-reload`, `footsteps`, `reset-windows`, `portal-particles-enabled`, `portal-particles-disabled`, and `portal-density` launch pinned Godot directly (or `GODOT_BIN`), with client flags after `--`. Menu intentionally routes `--screen charselect` and tests the already-built extension without invoking the root launcher or Depot inside its isolated `XDG_CONFIG_HOME`. Menu seeds owned `canonical()` keybinding defaults so inherited legacy bindings cannot change its W movement assertion; user legacy data remains untouched. Other input modes retain their root-launcher requirement, which needs a separate lightweight root launcher build if absent. The NPC visual fixture launches Godot directly.
+Registry and Git caches are shared within each selected builder; caches are not transferred between hosts. The Cargo target cache is per checkout (`godot-target-<sha256(checkout path)[:20]>`, `sharing=locked`); Cargo decides freshness by mtime, so checkout-specific target state is never reused by another worktree. Source snapshots retain original file timestamps (`copy2`); after acquiring the checkout target lock, the build refreshes staged compile-input timestamps before Cargo runs. This retains the lock-held freshness protection from the earlier A/B/A stale-artifact diagnosis without sharing target artifacts between diverging checkouts. Stable Cargo cannot use `-Zchecksum-freshness`. Worktrees never receive a target cache. By default, each worktree gets only `target/debug/libgame_engine_godot.so`, installed atomically after a lossless gzip download. `--fixture` also builds exactly one `game-engine-network` example after the lock-held source refresh and installs its decompressed executable at `target/debug/examples/<name>`; no target cache is downloaded. Run that executable from the same checkout. `native_input_fixture` modes `menu`, `sound`, `sound-click`, `sound-outcome`, `merchant-click`, `merchant-cursor`, `merchant-services`, `loot`, `settings-reload`, `footsteps`, `reset-windows`, `portal-particles-enabled`, `portal-particles-disabled`, and `portal-density` launch pinned Godot directly (or `GODOT_BIN`), with client flags after `--`. Menu intentionally routes `--screen charselect` and tests the already-built extension without invoking the root launcher or Depot inside its isolated `XDG_CONFIG_HOME`. Menu seeds owned `canonical()` keybinding defaults so inherited legacy bindings cannot change its W movement assertion; user legacy data remains untouched. Other input modes retain their root-launcher requirement, which needs a separate lightweight root launcher build if absent. The NPC visual fixture launches Godot directly.
 
 `settings-reload` saves authored Options in one authenticated native process and checks the same owned canonical file through camera, TargetSelf and AutoLoot consumers in a fresh process. Both processes deliberately terminate at markers via owned SIGKILL/reap/reader join; not normal-shutdown coverage. See [accepted bounded saved-artifact PASS](wiki/systems/godot-conversion.md#native-settingsreload--bounded-two-process-proof).
 
@@ -68,9 +80,9 @@ target/debug/examples/native_input_fixture merchant-services
 
 MAIN independently accepted1513 **bounded PASS**, recorded in `158e523d`: direct Repair All and Sell All Junk without confirmation, exact decoded requests, client-before-authority barriers, authoritative results and quiet disabled repeats. See [authoritative acceptance, historical REDs, retained warnings and exclusions](wiki/systems/godot-conversion.md#native-direct-services--main-accepted-bounded-pass); that section owns the proof ledger. Cleanup deliberately kills/reaps the owned child: forced cleanup is not normal shutdown proof. Full conversion remains **OPEN**.
 
-## Remote tests
+## CPU tests and historical Depot evidence
 
-`python3 scripts/depot-build.py --root "$PWD" --test <cargo test args...>` runs `cargo test --locked` in the `godot/` workspace on Depot with every argument after `--test` (including `--`), prints the log tail and every `Running`/`test result`/`error`/`FAILED` line, saves the full log to `target/depot-test.log`, and exits with cargo's status; it installs nothing else. It uses the same snapshot, checkout lock and target cache as builds. Depot has no GPU and no Godot engine.
+`python3 scripts/depot-build.py --root "$PWD" --test <cargo test args...>` runs `cargo test --locked` in the `godot/` workspace on the selected desktop/local host with every argument after `--test` (including `--`), prints the log tail and every `Running`/`test result`/`error`/`FAILED` line, saves the full log to `target/depot-test.log`, and exits with cargo's status; it installs nothing else. It uses the same snapshot, checkout lock and target cache as builds. This mode runs CPU Rust tests, not Godot/GPU runtime tests. The measurements and pass/failure records below are historical Depot evidence; they do not assert replacement-host passes.
 
 Test data comes only from `godot/depot-test-assets.txt`: data/-relative file paths, validated locally (missing or escaping entries fail before upload), reflinked (else hardlinked, else copied) into the snapshot's `test-assets/`, excluded from the image `COPY`, bind-mounted read-only at `/test-assets`, and copied to the remote `data/` (plus the `godot/core/data` symlink) for the test run. Remote writes, such as the outfit tests' `data/cache/outfit_links.sqlite`, stay in the build container; local `data/` was byte-identical before and after two runs. A test needing an unlisted file fails remotely with its own missing-path error. Add files to the manifest rather than uploading `data/`. Measured September 29, 2026: staging 131 files (605 MiB) takes 0.3 s by reflink, and Depot re-uploads them in full every run (645 MB context, 21.5–23.2 s on consecutive runs, both as a stable named context and inside the main context). On September 30, 2026 the manifest grew to 1,801 files (1,271 MiB) so every `game-engine-godot --lib` test runs: staging took 1.7 s and the 1.36 GB context upload 108 s of a 179 s run. The added entries are the files those tests open, traced with `strace` from a Depot-built test binary run locally; the largest users are the `wmo` (431 MiB), `assets` (124 MiB), `terrain` (97 MiB), `ground` (83 MiB) and `animation` (74 MiB) test modules. `local-listfile-cache.sqlite` answers the resolver's FDID/path lookups; `community-listfile.csv` is read directly by the outfit model-path tests, and its presence makes the resolver build its community cache remotely. A local run of that binary with only the manifest's files and no CASC install passes all 294 tests. Since September 30, 2026 repeat uploads are incremental: the context is rebuilt at a fixed per-checkout path (`~/.cache/game-engine/depot-build/context-{build,test}-<checkout key>`), and the assets are no longer bind-mounted writable. BuildKit re-sent the whole context whenever its path changed (three runs from fresh temporary paths: 1.33 GB each) or after a writable bind of it (three runs of an unchanged fixed context: 1.36 GB each). Three consecutive `--test -p game-engine-godot --lib` runs then sent 1.36 GB (97.6 s), 16.3 MB (2.4 s) and 267 kB (0.3 s), finishing in 137 s, 48 s and 45 s.
 
@@ -86,9 +98,9 @@ Results on September 29, 2026 (branch `depottest`):
 
 `game-engine-godot --lib` compiles and runs without the engine: no test hit godot-rust's "engine not available" panic. GDScript tests under `godot/tests/` need Godot and are not covered.
 
-Remote build or download failures fail explicitly. There is no local Cargo fallback for the extension. Godot import and launch stay local and unchanged.
+Selected-host build or artifact-transfer failures fail explicitly. `local` is an explicit build host, not a Cargo fallback. Godot import and launch stay local and unchanged.
 
-## Cost and performance
+## Historical Depot cost and performance
 
 Verified September 29, 2026: `local-builds` uses the user-selected **200 GB per-architecture cache cleanup target** (214,748,364,800 bytes) and **14-day stale retention**. The cleanup target covers checkout-specific target caches (about 6 GB each, measured September 29, 2026). Depot evicts old cache above its target; this is not a hard storage or spending cap. Organization billing controls and the existing `default` project remain unchanged.
 
@@ -98,8 +110,8 @@ On September 29, 2026, one warm constant-change benchmark measured 13.321 s befo
 
 ## Agent rule
 
-Build the Godot extension only through the Depot launcher/helper. Do not invoke local extension Cargo or recreate a bulk target cache unless explicitly asked. Lightweight launcher tests remain allowed.
+Build the Godot extension through the launcher/helper with `desktop` or `local`. Do not bypass it with direct extension Cargo or recreate a bulk target cache unless explicitly asked. Every agent-started local build/server/client/extraction still requires `agent-run`; existing resource and data-safety rules remain unchanged. Lightweight launcher tests remain allowed.
 
-Proof: `/tmp/claude/verify-depot-options-migration.md`.
+Historical Depot migration proof: `/tmp/claude/verify-depot-options-migration.md`.
 
 See [Godot conversion](specs/godot-conversion.md) and the [conversion wiki](wiki/systems/godot-conversion.md).
