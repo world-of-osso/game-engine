@@ -8,18 +8,23 @@ import gzip
 import hashlib
 import os
 import shlex
-from pathlib import Path
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+from pathlib import Path
 
 from build_hosts import execute
 
 
 ROOT_NAME = "game-engine-godot-conversion"
-SIBLINGS = ("asset-resolver", "ui-toolkit-godot-conversion", "ui-toolkit-macros", "shared-protocol")
+SIBLINGS = (
+    "asset-resolver",
+    "ui-toolkit-godot-conversion",
+    "ui-toolkit-macros",
+    "shared-protocol",
+)
 SOURCE_SUFFIXES = {".rs", ".c", ".h", ".cpp", ".hpp", ".wgsl"}
 ROOT_PATHS = ("godot", "vendor")
 EXCLUDED_DIRS = {".git", "target", "data", ".godot"}
@@ -40,22 +45,36 @@ def git_files(repo, paths, tracked):
     selection = ["--cached"] if tracked else ["--others", "--exclude-standard"]
     result = subprocess.run(
         ["git", "-C", str(repo), "ls-files", "-z", *selection, "--", *paths],
-        check=True, capture_output=True,
+        check=True,
+        capture_output=True,
     )
-    return sorted({Path(os.fsdecode(path)) for path in result.stdout.split(b"\0") if path})
+    return sorted(
+        {Path(os.fsdecode(path)) for path in result.stdout.split(b"\0") if path}
+    )
 
 
 def allowed(repo_name, path, tracked):
     parts = path.parts
-    if any(part in EXCLUDED_DIRS for part in parts) or any(part.startswith(".") for part in parts):
+    if any(part in EXCLUDED_DIRS for part in parts) or any(
+        part.startswith(".") for part in parts
+    ):
         return False
     if repo_name == ROOT_NAME and parts[0] not in ROOT_PATHS:
         return False
     if path.suffix in SOURCE_SUFFIXES or path.name in {"Cargo.toml", "Cargo.lock"}:
         return True
     if tracked and repo_name == ROOT_NAME and path.suffix == ".png":
-        return parts[:6] == ("godot", "rust", "src", "rendering", "ui", "nameplate_skins")
-    return tracked and repo_name == ROOT_NAME and parts == ("vendor", "taffy", "README.md")
+        return parts[:6] == (
+            "godot",
+            "rust",
+            "src",
+            "rendering",
+            "ui",
+            "nameplate_skins",
+        )
+    return (
+        tracked and repo_name == ROOT_NAME and parts == ("vendor", "taffy", "README.md")
+    )
 
 
 def snapshot_repo(repo, destination, paths, name):
@@ -65,7 +84,11 @@ def snapshot_repo(repo, destination, paths, name):
         if not allowed(name, relative, True):
             continue
         source = repo / relative
-        if source.is_symlink() or any((repo / parent).is_symlink() for parent in relative.parents if parent != Path(".")):
+        if source.is_symlink() or any(
+            (repo / parent).is_symlink()
+            for parent in relative.parents
+            if parent != Path(".")
+        ):
             raise ValueError(f"unsupported source symlink: {source}")
         if not source.exists():
             continue
@@ -79,7 +102,11 @@ def snapshot_repo(repo, destination, paths, name):
         if relative in tracked or not allowed(name, relative, False):
             continue
         source = repo / relative
-        if source.is_symlink() or any((repo / parent).is_symlink() for parent in relative.parents if parent != Path(".")):
+        if source.is_symlink() or any(
+            (repo / parent).is_symlink()
+            for parent in relative.parents
+            if parent != Path(".")
+        ):
             raise ValueError(f"unsupported source symlink: {source}")
         if source.is_file():
             target = destination / relative
@@ -90,12 +117,19 @@ def snapshot_repo(repo, destination, paths, name):
 def validate_sources(context):
     root = context / ROOT_NAME
     required = [root / "godot/Cargo.toml", root / "godot/Cargo.lock"]
-    required.extend(root / "godot" / member / "Cargo.toml" for member in ("cli", "core", "network", "rust", "session", "ui-model"))
+    required.extend(
+        root / "godot" / member / "Cargo.toml"
+        for member in ("cli", "core", "network", "rust", "session", "ui-model")
+    )
     required.extend(context / name / "Cargo.toml" for name in SIBLINGS)
-    required.extend(root / "vendor" / name / "Cargo.toml" for name in ("taffy", "ktx2-rw"))
+    required.extend(
+        root / "vendor" / name / "Cargo.toml" for name in ("taffy", "ktx2-rw")
+    )
     for path in required:
         if not path.is_file():
-            raise FileNotFoundError(f"missing build dependency: {path.relative_to(context)}")
+            raise FileNotFoundError(
+                f"missing build dependency: {path.relative_to(context)}"
+            )
 
 
 def install_artifact(compressed, destination, executable=False):
@@ -104,7 +138,9 @@ def install_artifact(compressed, destination, executable=False):
     destination.parent.mkdir(parents=True, exist_ok=True)
     temporary = None
     try:
-        with tempfile.NamedTemporaryFile(dir=destination.parent, prefix=f".{destination.name}-", delete=False) as output:
+        with tempfile.NamedTemporaryFile(
+            dir=destination.parent, prefix=f".{destination.name}-", delete=False
+        ) as output:
             temporary = Path(output.name)
             with gzip.open(compressed, "rb") as source:
                 shutil.copyfileobj(source, output)
@@ -124,7 +160,9 @@ def read_asset_manifest(root):
             continue
         relative = Path(entry)
         if relative.is_absolute() or ".." in relative.parts:
-            raise ValueError(f"{TEST_ASSETS}: asset path must stay inside data/: {entry}")
+            raise ValueError(
+                f"{TEST_ASSETS}: asset path must stay inside data/: {entry}"
+            )
         if not (root / "data" / relative).is_file():
             raise FileNotFoundError(f"{TEST_ASSETS}: missing test asset data/{entry}")
         entries.append(relative)
@@ -167,16 +205,22 @@ def snapshot(root, context):
         repo = root if name == ROOT_NAME else sibling_repo(root, name)
         if not repo.is_dir():
             raise FileNotFoundError(f"missing build dependency: {repo}")
-        snapshot_repo(repo, context / name, ROOT_PATHS if name == ROOT_NAME else (".",), name)
+        snapshot_repo(
+            repo, context / name, ROOT_PATHS if name == ROOT_NAME else (".",), name
+        )
     validate_sources(context)
     depot_scripts = Path(__file__).resolve().parent / "depot"
     shutil.copyfile(depot_scripts / "Dockerfile", context / "Dockerfile")
-    shutil.copyfile(depot_scripts / "refresh-source-mtimes.py", context / "refresh-source-mtimes.py")
+    shutil.copyfile(
+        depot_scripts / "refresh-source-mtimes.py", context / "refresh-source-mtimes.py"
+    )
 
 
 def fixture_names(root):
     """Every top-level `game-engine-network` example; subdirectories hold their modules."""
-    return sorted(path.stem for path in (root / FIXTURE_DIR).glob("*.rs") if path.is_file())
+    return sorted(
+        path.stem for path in (root / FIXTURE_DIR).glob("*.rs") if path.is_file()
+    )
 
 
 def build_host_setting():
@@ -189,17 +233,23 @@ def select_build_host(explicit):
         return explicit
     setting = build_host_setting()
     if not setting.is_file():
-        raise ValueError("choose --build-host desktop|local or --save-build-host desktop|local")
+        raise ValueError(
+            "choose --build-host desktop|local or --save-build-host desktop|local"
+        )
     host = setting.read_text().strip()
     if host not in {"desktop", "local"}:
-        raise ValueError(f"invalid build-host {host!r} in {setting}; choose --build-host desktop|local")
+        raise ValueError(
+            f"invalid build-host {host!r} in {setting}; choose --build-host desktop|local"
+        )
     return host
 
 
 def save_build_host(host):
     setting = build_host_setting()
     setting.parent.mkdir(parents=True, exist_ok=True)
-    with tempfile.NamedTemporaryFile(mode="w", dir=setting.parent, delete=False) as output:
+    with tempfile.NamedTemporaryFile(
+        mode="w", dir=setting.parent, delete=False
+    ) as output:
         temporary = Path(output.name)
         output.write(host + "\n")
     try:
@@ -243,17 +293,27 @@ def stable_context(cache, mode, checkout_key):
 
 def build(root, fixture=None, cli=False, release=False, host=None):
     if fixture and fixture not in fixture_names(root):
-        raise ValueError(f"unknown fixture {fixture!r}; choose from {', '.join(fixture_names(root))}")
+        raise ValueError(
+            f"unknown fixture {fixture!r}; choose from {', '.join(fixture_names(root))}"
+        )
     host = select_build_host(host)
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         target = root / "target"
-        if (target.is_symlink() or (target / "debug").is_symlink() or (target / "release").is_symlink()
-                or (fixture and (target / "debug" / "examples").is_symlink())):
-            raise ValueError(f"target symlink cannot guarantee checkout-local artifact: {target}")
+        if (
+            target.is_symlink()
+            or (target / "debug").is_symlink()
+            or (target / "release").is_symlink()
+            or (fixture and (target / "debug" / "examples").is_symlink())
+        ):
+            raise ValueError(
+                f"target symlink cannot guarantee checkout-local artifact: {target}"
+            )
         start = time.monotonic()
-        with tempfile.TemporaryDirectory(prefix="build-", dir=cache) as work, \
-                stable_context(cache, "build", checkout_key) as context:
+        with (
+            tempfile.TemporaryDirectory(prefix="build-", dir=cache) as work,
+            stable_context(cache, "build", checkout_key) as context,
+        ):
             snapshot(root, context)
             phase("Snapshot", start)
             output = Path(work) / "output"
@@ -267,13 +327,19 @@ def build(root, fixture=None, cli=False, release=False, host=None):
                 command.extend(["--build-arg", "RELEASE=1"])
             execute(context, output, checkout_key, "artifact", command, host)
             phase(f"{host} build", start)
-            destination = root / "target" / ("release" if release else "debug") / ARTIFACT
+            destination = (
+                root / "target" / ("release" if release else "debug") / ARTIFACT
+            )
             if fixture:
                 fixture_destination = root / "target" / "debug" / "examples" / fixture
-                install_artifact(output / (fixture + ".gz"), fixture_destination, executable=True)
+                install_artifact(
+                    output / (fixture + ".gz"), fixture_destination, executable=True
+                )
             if cli:
                 cli_destination = root / "target" / "debug" / CLI
-                install_artifact(output / (CLI + ".gz"), cli_destination, executable=True)
+                install_artifact(
+                    output / (CLI + ".gz"), cli_destination, executable=True
+                )
             install_artifact(output / (ARTIFACT + ".gz"), destination)
             phase("Installed", start)
             print(destination)
@@ -289,20 +355,28 @@ def run_tests(root, cargo_args, host=None):
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         start = time.monotonic()
-        with tempfile.TemporaryDirectory(prefix="test-", dir=cache) as work, \
-                stable_context(cache, "test", checkout_key) as context:
+        with (
+            tempfile.TemporaryDirectory(prefix="test-", dir=cache) as work,
+            stable_context(cache, "test", checkout_key) as context,
+        ):
             snapshot(root, context)
             count = stage_assets(root, context / "test-assets")
             phase(f"Snapshot ({count} test assets)", start)
             output = Path(work) / "output"
             output.mkdir()
-            command = ["--build-arg", f"TEST_ARGS={shlex.join(cargo_args)}",
-                       "--build-arg", f"TEST_RUN={time.time_ns()}"]
+            command = [
+                "--build-arg",
+                f"TEST_ARGS={shlex.join(cargo_args)}",
+                "--build-arg",
+                f"TEST_RUN={time.time_ns()}",
+            ]
             execute(context, output, checkout_key, "test-result", command, host)
             phase(f"{host} test", start)
             log, status = output / "test.log", output / "status"
             if not log.is_file() or not status.is_file():
-                raise FileNotFoundError("Build host did not produce test.log and status")
+                raise FileNotFoundError(
+                    "Build host did not produce test.log and status"
+                )
             code = int(status.read_text())
             saved = root / TEST_LOG
             saved.parent.mkdir(parents=True, exist_ok=True)
@@ -316,28 +390,56 @@ def run_tests(root, cargo_args, host=None):
 def print_test_summary(lines):
     print("--- log tail ---", *lines[-20:], "--- test summary ---", sep="\n")
     for line in lines:
-        if line.startswith(SUMMARY_PREFIXES) or (line.startswith("test ") and line.endswith("FAILED")):
+        if line.startswith(SUMMARY_PREFIXES) or (
+            line.startswith("test ") and line.endswith("FAILED")
+        ):
             print(line)
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--root", type=Path, default=Path(__file__).resolve().parents[1], help="originating checkout")
-    parser.add_argument("--build-host", choices=("desktop", "local"), help="override saved build host for this run")
-    parser.add_argument("--save-build-host", choices=("desktop", "local"), help="save default host and exit without building")
+    parser.add_argument(
+        "--root",
+        type=Path,
+        default=Path(__file__).resolve().parents[1],
+        help="originating checkout",
+    )
+    parser.add_argument(
+        "--build-host",
+        choices=("desktop", "local"),
+        help="override saved build host for this run",
+    )
+    parser.add_argument(
+        "--save-build-host",
+        choices=("desktop", "local"),
+        help="save default host and exit without building",
+    )
     mode = parser.add_mutually_exclusive_group()
-    mode.add_argument("--fixture", help=f"also export one {FIXTURE_DIR} executable, named by file stem")
-    parser.add_argument("--cli", action="store_true", help=f"also export target/debug/{CLI}")
-    mode.add_argument("--release", action="store_true",
-                      help=f"build only the optimized library into target/release/{ARTIFACT}")
-    mode.add_argument("--test", action="store_true",
-                      help="run `cargo test --locked` in godot/ with every following argument; must be last")
+    mode.add_argument(
+        "--fixture",
+        help=f"also export one {FIXTURE_DIR} executable, named by file stem",
+    )
+    parser.add_argument(
+        "--cli", action="store_true", help=f"also export target/debug/{CLI}"
+    )
+    mode.add_argument(
+        "--release",
+        action="store_true",
+        help=f"build only the optimized library into target/release/{ARTIFACT}",
+    )
+    mode.add_argument(
+        "--test",
+        action="store_true",
+        help="run `cargo test --locked` in godot/ with every following argument; must be last",
+    )
     argv = sys.argv[1:]
     # argparse drops `--`, which cargo needs to separate test-binary arguments.
     split = argv.index("--test") + 1 if "--test" in argv else len(argv)
     args = parser.parse_args(argv[:split])
     if args.cli and (args.test or args.release):
-        parser.error(f"argument --cli: not allowed with argument {'--test' if args.test else '--release'}")
+        parser.error(
+            f"argument --cli: not allowed with argument {'--test' if args.test else '--release'}"
+        )
     try:
         if args.save_build_host:
             if args.build_host or args.fixture or args.cli or args.release or args.test:
@@ -346,7 +448,9 @@ def main():
             return 0
         if args.test:
             return run_tests(args.root.resolve(), argv[split:], args.build_host)
-        build(args.root.resolve(), args.fixture, args.cli, args.release, args.build_host)
+        build(
+            args.root.resolve(), args.fixture, args.cli, args.release, args.build_host
+        )
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Remote build failed: {error}", file=sys.stderr)
         return 1
