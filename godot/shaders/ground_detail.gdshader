@@ -4,11 +4,7 @@ shader_type spatial;
 render_mode unshaded, cull_disabled, depth_draw_opaque, fog_disabled, shadows_disabled;
 
 uniform sampler2D detail_texture : source_color, filter_linear_mipmap, repeat_enable;
-// RetailSceneLight, in authored (sRGB-byte / 255) space.
-uniform vec3 ambient = vec3(1.0);
-uniform vec3 direct;
-// World direction sunlight travels, not the direction towards the sun.
-uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
+#include "res://shaders/scene_light.gdshaderinc"
 // groundEffectDist: opacity ramps from 1 at 85% of it to 0 at it.
 uniform float detail_distance = 140.0;
 #include "res://shaders/retail_fog.gdshaderinc"
@@ -35,9 +31,9 @@ void vertex() {
 	detail_visibility = clamp((detail_distance - depth) / (detail_distance * 0.15), 0.0, 1.0);
 	// The terrain face normal, unrotated with the model: the whole card lights alike.
 	vec3 normal = normalize((MODEL_MATRIX * vec4(NORMAL, 0.0)).xyz);
-	float diffuse = clamp(dot(normal, -normalize(sun_direction)), 0.0, 1.0);
+	float diffuse = clamp(dot(normal, -normalize(light_sun_direction())), 0.0, 1.0);
 	// COLOR is the terrain tint (doubled MCCV, 255 white) and the MCSH visibility.
-	detail_color = vec4(min(ambient + direct * diffuse, vec3(1.0)) * COLOR.rgb, COLOR.a);
+	detail_color = vec4(min(light_ambient() + light_direct() * diffuse, vec3(1.0)) * COLOR.rgb, COLOR.a);
 }
 
 void fragment() {
