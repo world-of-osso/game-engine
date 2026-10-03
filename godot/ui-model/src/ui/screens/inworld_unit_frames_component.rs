@@ -18,6 +18,8 @@ mod inworld_unit_frames_aura;
 mod inworld_unit_frames_layout;
 #[path = "inworld_unit_frames_parts.rs"]
 mod inworld_unit_frames_parts;
+#[path = "inworld_unit_frames_pet.rs"]
+mod inworld_unit_frames_pet;
 #[path = "inworld_unit_frames_power.rs"]
 mod inworld_unit_frames_power;
 use class_bars::{ClassBarView, TextureView};
@@ -36,6 +38,8 @@ use inworld_unit_frames_parts::{
     BarSpec, art_root, art_texture, centred, portrait_slot, status_bar, tinted_art_texture,
     unit_label,
 };
+pub use inworld_unit_frames_pet::PetFrameState;
+use inworld_unit_frames_pet::pet_frame;
 pub use inworld_unit_frames_power::PowerBarState;
 
 pub const ACTION_UNIT_MENU_SET_FOCUS: &str = "unit_menu_set_focus";
@@ -228,6 +232,8 @@ pub struct InWorldUnitFramesState {
     pub target: Option<UnitFrameState>,
     pub target_of_target: Option<SmallUnitFrameState>,
     pub focus: Option<SmallUnitFrameState>,
+    /// The local player's pet, shown in PetFrame.
+    pub pet: Option<PetFrameState>,
     /// `boss1..boss5` (`INSTANCE_ENCOUNTER_ENGAGE_UNIT`), Boss1TargetFrame first.
     pub bosses: Vec<UnitFrameState>,
     pub menu: UnitFrameMenuState,
@@ -268,6 +274,7 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::Dialog,
             background_color: "0.0,0.0,0.0,0.0",
             {player_frame(&state.player, state.show_player_frame)}
+            {pet_frame(state.pet.as_ref().filter(|_| state.show_player_frame))}
             {target_frame(state.target.as_ref(), state.show_target_frame)}
             {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state))}
             {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref())}
