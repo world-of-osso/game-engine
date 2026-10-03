@@ -838,10 +838,15 @@ impl RegistryUi {
     }
 
     /// Initialize a dedicated RegistryUi instance for the MinimapCluster, with an empty
-    /// composite registered for `MinimapDisplay`.
+    /// composite registered for `MinimapDisplay` and the metal border the Forever skin's
+    /// cluster draws.
     pub fn show_minimap(&mut self, mut state: MinimapClusterState) -> Result<(), String> {
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
         state.map_texture = Some(registry.create_dynamic_texture(1, 1, vec![0; 4])?);
         self.show_viewport_screen_in(
             state,
