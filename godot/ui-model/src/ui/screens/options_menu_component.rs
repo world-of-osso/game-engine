@@ -216,6 +216,8 @@ pub struct OptionsViewModel {
     pub camera: CameraOptionsView,
     pub hud: HudOptionsView,
     pub bindings: KeybindingsView,
+    /// Name of the character's active Edit Mode layout.
+    pub active_layout: String,
 }
 
 pub fn cat_action(category: OptionsCategory) -> String {
@@ -477,7 +479,9 @@ fn category_body(model: &OptionsViewModel) -> Element {
         OptionsCategory::Sound => options_menu_active_sections::sound_body(&model.sound),
         OptionsCategory::Camera => options_menu_active_sections::camera_body(&model.camera),
         OptionsCategory::Interface => options_menu_active_sections::interface_body(&model.hud),
-        OptionsCategory::Hud => options_menu_active_sections::hud_body(&model.hud),
+        OptionsCategory::Hud => {
+            options_menu_active_sections::hud_body(&model.hud, &model.active_layout)
+        }
         OptionsCategory::Nameplates => options_menu_active_sections::nameplates_body(&model.hud),
         OptionsCategory::Controls => options_menu_sections::controls_body(),
         OptionsCategory::Accessibility => {
