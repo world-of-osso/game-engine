@@ -1,6 +1,6 @@
 # Desktop and local build hosts
 
-The October 3, 2026 trial replaces Depot-only extension builds with explicit desktop/local Docker transports. [Build commands, provisioning status, limits, and runtime/GPU boundaries](../../remote-builds.md) are the operational source of truth; [Godot conversion](../../specs/godot-conversion.md) owns the unverified build contract.
+The October 3, 2026 trial replaces Depot-only extension builds with explicit desktop/local Docker transports. [Build commands, provisioning status, limits, and runtime/GPU boundaries](../../remote-builds.md) are the operational source of truth; [Godot conversion](../../specs/godot-conversion.md) owns the build contract and its remaining verification gate.
 
 ## Architecture
 
@@ -10,13 +10,15 @@ The helper retains source-only snapshots, explicit test assets, checkout-specifi
 
 ## Evidence boundary
 
-Both builders have been created; setup is in flight. Real replacement-host builds/tests and desktop server/manual runtime acceptance remain pending. WSL software rendering is not hardware-GPU proof. Historical Depot results retain their original scope and do not validate these transports.
+October 3, 2026: main observed real extension export from both hosts, desktop CLI export and 16 camera CPU tests. The fully staged desktop server fixture passed admin `pong` plus an authenticated disposable-account UDP roster. The unprivileged desktop GPU fixture passed native Forward+ Vulkan login input and IPC capture on RTX-backed test-only Dozen; main inspected the authored login image. These are bounded host-capability proofs, not head-pinned native/sibling snapshot acceptance.
+
+[The build guide](../../remote-builds.md#desktop-runtime-capability-boundary) owns exact commands, resources, prerequisites, logs and exclusions. Full-world/parity, audio and normal-shutdown acceptance remain unproved; the independent code-gate followup remains pending. Trial-owned runtimes stopped, but unrelated jobs may remain active. Historical Depot results retain their original scope.
 
 ## Sources
 
-- [Build guide](../../remote-builds.md) — approved host workflow and pending capability boundary.
+- [Build guide](../../remote-builds.md) — host workflow, observed capability, rerun prerequisites and open gates.
 - [Build contract](../../specs/godot-conversion.md) — requirements and proof status.
-- `scripts/depot-build.py`, `scripts/build_hosts.py`, `launcher/` — implementation surface under active integration.
+- `scripts/depot-build.py`, `scripts/build_hosts.py`, `launcher/` — host transport and launcher implementation.
 
 ## See Also
 
