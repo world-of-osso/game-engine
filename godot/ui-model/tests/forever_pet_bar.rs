@@ -1,3 +1,6 @@
+#[path = "fixtures/modern_pet_bar.rs"]
+mod modern_fixture;
+
 use std::fmt::Write;
 use std::path::PathBuf;
 
@@ -160,7 +163,7 @@ fn assert_rect(registry: &FrameRegistry, expected: (f32, f32, f32, f32)) {
 #[test]
 fn modern_pet_bar_matches_base_fixture() {
     let (_, _, registry) = setup(ActiveSkin::Modern);
-    assert_eq!(dump(&registry), include_str!("fixtures/modern_pet_bar.txt"));
+    assert_eq!(dump(&registry), modern_fixture::MODERN_PET_BAR);
     assert_rect(&registry, (679.0, 955.0, 318.0, 30.0));
 }
 
