@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Builds the Linux x86_64 Godot client bundle and publishes it to the world-of-osso file
-# server: files to DigitalOcean Spaces, manifest to sakuin, where game-launcher reads it.
+# Builds the Linux x86_64 Godot client bundle and publishes it to the public R2 bucket
+# behind https://files.worldofosso.com, where game-launcher reads it.
 # See docs/deploy.md for the bundle layout and the game-launcher contract.
 #
 # Usage: ./deploy.sh [--dry-run]
@@ -12,10 +12,8 @@ ROOT=$(cd "$(dirname "$0")" && pwd)
 PLATFORM=linux-x86_64
 BUNDLE=${BUNDLE_DIR:-$ROOT/target/deploy/$PLATFORM}
 FILE_SERVER_DIR=${FILE_SERVER_DIR:-$ROOT/../file-server}
-SAKUIN_REPO=${SAKUIN_REPO:-/syncthing/Sync/Projects/sakuin}
-SAKUIN_AGE_IDENTITY=${SAKUIN_AGE_IDENTITY:-$SAKUIN_REPO/docs/local/sakuin_host_ed25519}
-SERVER=${SERVER:-sakuin}
-REMOTE_MANIFEST=${REMOTE_MANIFEST:-/var/lib/private/file-server/manifest.json}
+# rclone remote with write access to the bucket (docs/deploy.md).
+DESTINATION=${DESTINATION:-woo-r2:worldofosso-client}
 
 # Runtime data: what the client reads from data/ that a player's WoW install cannot supply.
 # An allowlist, because data/ also holds auth tokens and gigabytes of diagnostics.
@@ -136,27 +134,6 @@ assemble() {
     import_project
 }
 
-load_s3_env() {
-    if [ -n "${FILE_SERVER_S3_BUCKET:-}" ]; then
-        return
-    fi
-    eval "$(nix run nixpkgs#age -- -d -i "$SAKUIN_AGE_IDENTITY" "$SAKUIN_REPO/secrets/sakuin-env.age" \
-        | grep '^FILE_SERVER_S3_')"
-    export RCLONE_CONFIG_WOO_TYPE=s3
-    export RCLONE_CONFIG_WOO_PROVIDER=DigitalOcean
-    export RCLONE_CONFIG_WOO_ACCESS_KEY_ID="$FILE_SERVER_S3_ACCESS_KEY_ID"
-    export RCLONE_CONFIG_WOO_SECRET_ACCESS_KEY="$FILE_SERVER_S3_SECRET_ACCESS_KEY"
-    export RCLONE_CONFIG_WOO_ENDPOINT="${FILE_SERVER_S3_ENDPOINT#https://}"
-    export RCLONE_CONFIG_WOO_REGION="$FILE_SERVER_S3_REGION"
-}
-
-spaces_destination() {
-    local prefix=${FILE_SERVER_S3_PREFIX:-}
-    prefix=${prefix#/}
-    prefix=${prefix%/}
-    echo "woo:${FILE_SERVER_S3_BUCKET}${prefix:+/$prefix}"
-}
-
 # run: execute, or under --dry-run print the exact command.
 run() {
     if [ "$dry_run" = 1 ]; then
@@ -168,26 +145,26 @@ run() {
     fi
 }
 
+# publish: files first, then the manifest, then deletions, so the live manifest never
+# names a missing file. no-cache because paths keep their names across deploys.
 publish() {
     if [ ! -f "$FILE_SERVER_DIR/Cargo.toml" ]; then
         echo "file-server checkout not found at $FILE_SERVER_DIR (set FILE_SERVER_DIR)" >&2
         exit 1
     fi
-    local destination
-    if [ "$dry_run" = 1 ]; then
-        echo "+ load FILE_SERVER_S3_* from $SAKUIN_REPO/secrets/sakuin-env.age (age identity $SAKUIN_AGE_IDENTITY)"
-        destination="woo:\${FILE_SERVER_S3_BUCKET}\${FILE_SERVER_S3_PREFIX:+/prefix}"
-    else
-        load_s3_env
-        destination=$(spaces_destination)
+    if [ "$dry_run" = 0 ] && ! rclone lsf "$DESTINATION" --max-depth 1 >/dev/null; then
+        echo "cannot list $DESTINATION; configure the rclone remote (docs/deploy.md)" >&2
+        exit 1
     fi
+    local upload=(--header-upload "Cache-Control: no-cache" --transfers 8 --checkers 16)
     echo "=== Generating manifest ==="
     run cargo run --release --quiet --manifest-path "$FILE_SERVER_DIR/Cargo.toml" -- manifest "$BUNDLE"
-    echo "=== Syncing bundle to Spaces ($destination) ==="
-    run rclone sync "$BUNDLE/" "$destination" --s3-no-check-bucket --transfers 8 --checkers 16 --progress
-    echo "=== Updating server manifest ==="
-    run scp "$BUNDLE/manifest.json" "$SERVER:$REMOTE_MANIFEST"
-    run ssh "$SERVER" "chmod 0644 '$REMOTE_MANIFEST' && systemctl is-active osso-file-server"
+    echo "=== Uploading bundle to $DESTINATION ==="
+    run rclone copy "$BUNDLE/" "$DESTINATION" --exclude /manifest.json "${upload[@]}" --progress
+    echo "=== Publishing manifest ==="
+    run rclone copyto "$BUNDLE/manifest.json" "$DESTINATION/manifest.json" "${upload[@]}"
+    echo "=== Deleting files the manifest no longer names ==="
+    run rclone sync "$BUNDLE/" "$DESTINATION" "${upload[@]}"
 }
 
 echo "=== Building native extension (release, Depot) ==="
