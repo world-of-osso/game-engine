@@ -14,9 +14,9 @@
    83eb4cdc8845756de5748773dec63407 is in no Data/data/*.idx bucket file. Textures
    still come from local CASC.
 
-Then rebuild the caches the clients read with the root-crate importers:
-  cargo run -j2 --bin customization_cache_import
-  cargo run -j2 --bin char_texture_cache_import
+Then rebuild the caches the client reads with the tools importers:
+  cargo run -p game-engine-tools --bin customization_cache_import
+  cargo run -p game-engine-tools --bin char_texture_cache_import
 """
 
 import argparse
