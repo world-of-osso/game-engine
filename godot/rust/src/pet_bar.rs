@@ -5,15 +5,21 @@
 //! ground sends that point in `Position` space; right click or Escape cancels.
 
 use game_engine_core::input_bindings_data::{BindingMouseButton, InputAction, InputBinding};
+use game_engine_core::pet_autocast_shine_data::compose_autocast_shine;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::pet_action_bar_component::{
-    PET_BAR_ART_FDIDS, PET_BAR_BUTTONS, PetActionBarState, PetActionSlot, attack_flash_shown,
-    parse_pet_action_button, pet_action_active, pet_bar_buttons,
+    PET_AUTOCAST_ANTS, PET_AUTOCAST_ATLAS, PET_AUTOCAST_MASK, PET_BAR_ART_FDIDS, PET_BAR_BUTTONS,
+    PetActionBarState, PetActionSlot, PetAutocast, attack_flash_shown, parse_pet_action_button,
+    pet_action_active, pet_action_button_name, pet_autocast_toggle, pet_bar_buttons,
 };
-use godot::classes::{Camera3D, CollisionObject3D, PhysicsRayQueryParameters3D};
+use godot::classes::{
+    Camera3D, CollisionObject3D, InputEvent, InputEventMouseButton, PhysicsRayQueryParameters3D,
+};
+use godot::global::MouseButton;
 use godot::prelude::*;
+use image::{GrayImage, Luma, RgbaImage};
 use shared::components::UnitFlags;
-use shared::protocol::{COMMAND_ATTACK, COMMAND_MOVE_TO, PetAction, PetSpells};
+use shared::protocol::{COMMAND_ATTACK, COMMAND_MOVE_TO, PetAction, PetSpellAutocast, PetSpells};
 
 use crate::frame_error::{FrameError, SessionError};
 use crate::replicated::UnitFields;
@@ -23,6 +29,14 @@ use crate::{GameClient, ui::RegistryUi};
 
 /// `PushedTexture` stays for this long after a key press.
 const PUSH_SECS: f32 = 0.15;
+/// Side of the composed autocast Shine: its 41 px at twice the UI resolution.
+const SHINE_PX: u32 = 82;
+
+/// The Shine's sources: the ants region of its atlas and the ring mask's alpha.
+struct ShineArt {
+    ants: RgbaImage,
+    mask: GrayImage,
+}
 
 #[derive(Default)]
 pub(crate) struct PetBarHud {
@@ -34,6 +48,11 @@ pub(crate) struct PetBarHud {
     move_to: Option<(u64, u32)>,
     /// `PetAction`s sent, oldest first, for automation.
     sent: Vec<PetAction>,
+    /// `PetSpellAutocast` toggles sent, oldest first, for automation.
+    autocast_sent: Vec<PetSpellAutocast>,
+    shine: Option<ShineArt>,
+    /// Seconds the Shine animation has run.
+    shine_secs: f32,
 }
 
 impl PetBarHud {
@@ -53,7 +72,26 @@ impl PetBarHud {
         }
         self.flash = None;
         self.move_to = None;
+        self.shine_secs = 0.0;
     }
+}
+
+fn load_rgba(fdid: u32) -> Result<RgbaImage, String> {
+    let rgba = crate::ui::assets::decode_blp(&format!("data/textures/{fdid}.blp"))?;
+    RgbaImage::from_raw(rgba.width, rgba.height, rgba.pixels)
+        .ok_or_else(|| format!("autocast texture {fdid} has an invalid RGBA size"))
+}
+
+/// The ants region of `PET_AUTOCAST_ATLAS` and the alpha of `PET_AUTOCAST_MASK`.
+fn load_shine_art() -> Result<ShineArt, String> {
+    let atlas = load_rgba(PET_AUTOCAST_ATLAS)?;
+    let (left, right, top, bottom) = PET_AUTOCAST_ANTS;
+    let ants = image::imageops::crop_imm(&atlas, left, top, right - left, bottom - top).to_image();
+    let mask = load_rgba(PET_AUTOCAST_MASK)?;
+    let mask = GrayImage::from_fn(mask.width(), mask.height(), |x, y| {
+        Luma([mask.get_pixel(x, y)[3]])
+    });
+    Ok(ShineArt { ants, mask })
 }
 
 /// The inverse of how units are placed: a unit's node sits at its replicated `Position` as
@@ -248,6 +286,7 @@ impl GameClient {
         PetActionBarState {
             visible: true,
             buttons,
+            shine_texture: None,
         }
     }
 
@@ -284,9 +323,11 @@ impl GameClient {
     fn sync_pet_bar(&mut self, spells: &PetSpells, delta: f32) -> Result<(), String> {
         let state = self.pet_bar_view(spells, delta);
         let shown = self.client_options.hud.show_action_bars;
-        if let Some(ui) = self.pet_bar.ui.as_mut() {
+        if self.pet_bar.ui.is_some() {
+            let shine = self.compose_shine(&state, delta)?;
+            let ui = self.pet_bar.ui.as_mut().expect("checked above");
             ui.set_visible(shown);
-            return ui.bind_mut().set_state(state);
+            return ui.bind_mut().set_pet_action_bar(state, shine);
         }
         for fdid in PET_BAR_ART_FDIDS {
             self.drawable_fdid(fdid);
@@ -305,6 +346,77 @@ impl GameClient {
         Ok(())
     }
 
+    /// `AutoCastOverlayMixin:UpdateShineAnim`: while any button has autocast on, the Shine
+    /// advances and is composed anew.
+    fn compose_shine(
+        &mut self,
+        state: &PetActionBarState,
+        delta: f32,
+    ) -> Result<Option<(u32, Vec<u8>)>, String> {
+        if !state
+            .buttons
+            .iter()
+            .any(|button| button.autocast == PetAutocast::On)
+        {
+            self.pet_bar.shine_secs = 0.0;
+            return Ok(None);
+        }
+        let art = match &self.pet_bar.shine {
+            Some(art) => art,
+            None => self.pet_bar.shine.insert(load_shine_art()?),
+        };
+        self.pet_bar.shine_secs += delta;
+        let shine = compose_autocast_shine(&art.ants, &art.mask, SHINE_PX, self.pet_bar.shine_secs);
+        Ok(Some((SHINE_PX, shine.into_raw())))
+    }
+
+    /// A right click on a pet bar button toggles autocast (`TogglePetAutocast`,
+    /// PetActionBar.lua:270-272) before the button's GUI sees it.
+    pub(super) fn pet_bar_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+        let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
+            return false;
+        };
+        if !button.is_pressed()
+            || button.get_button_index() != MouseButton::RIGHT
+            || self.game_menu_ui.is_some()
+        {
+            return false;
+        }
+        let Some(spells) = self.shown_pet_bar() else {
+            return false;
+        };
+        let Some(index) = self.pet_button_at(button.get_position()) else {
+            return false;
+        };
+        if let Some((spell, enabled)) = pet_autocast_toggle(spells.action_buttons[index]) {
+            let toggle = PetSpellAutocast {
+                pet: spells.pet,
+                spell,
+                enabled,
+            };
+            if let Err(error) = self.account.send_pet_spell_autocast(toggle) {
+                godot_error!("Pet autocast toggle: {error}");
+            }
+            self.pet_bar.autocast_sent.push(toggle);
+        }
+        if let Some(mut viewport) = self.base().get_viewport() {
+            viewport.set_input_as_handled();
+        }
+        true
+    }
+
+    fn pet_button_at(&self, point: Vector2) -> Option<usize> {
+        let ui = self.pet_bar.ui.as_ref().filter(|ui| ui.is_visible())?;
+        let ui = ui.bind();
+        (0..PET_BAR_BUTTONS).find(|&index| {
+            ui.frame_rect(&pet_action_button_name(index)).is_some_and(
+                |([x, y, width, height], _)| {
+                    (x..x + width).contains(&point.x) && (y..y + height).contains(&point.y)
+                },
+            )
+        })
+    }
+
     /// Pet bar state for automation: the pet, its command and react states, the buttons'
     /// packed actions and checked states, Move To targeting and the actions sent.
     pub(super) fn pet_bar_snapshot(&self) -> VarDictionary {
@@ -319,6 +431,18 @@ impl GameClient {
         state.set("move_to_pending", self.pet_bar.move_to.is_some());
         let sent: Array<VarDictionary> = self.pet_bar.sent.iter().map(sent_action).collect();
         state.set("sent", &sent);
+        let toggles: Array<VarDictionary> = self
+            .pet_bar
+            .autocast_sent
+            .iter()
+            .map(|toggle| {
+                let mut entry = VarDictionary::new();
+                entry.set("spell", i64::from(toggle.spell));
+                entry.set("enabled", toggle.enabled);
+                entry
+            })
+            .collect();
+        state.set("autocast_sent", &toggles);
         state
     }
 }
@@ -343,6 +467,16 @@ fn set_bar_snapshot(state: &mut VarDictionary, spells: &PetSpells, pet_in_combat
         })
         .collect();
     state.set("checked", &checked);
+    let autocast: PackedInt64Array = spells
+        .action_buttons
+        .iter()
+        .map(|&packed| match PetAutocast::from_packed(packed) {
+            PetAutocast::Unavailable => 0,
+            PetAutocast::Off => 1,
+            PetAutocast::On => 2,
+        })
+        .collect();
+    state.set("autocast", &autocast);
 }
 
 fn sent_action(action: &PetAction) -> VarDictionary {

@@ -34,6 +34,7 @@ use game_engine_ui_model::mirror_timer_data::MirrorTimersData;
 use game_engine_ui_model::objective_tracker_component::{
     ObjectiveTrackerState, objective_tracker_screen,
 };
+use game_engine_ui_model::pet_action_bar_component::PetActionBarState;
 use game_engine_ui_model::spellbook_frame_component::{
     SpellbookFrameState, apply_spellbook_postsetup, spellbook_frame_screen,
 };
@@ -118,6 +119,8 @@ enum ScreenPostsetup {
     CharacterFrame,
     /// Bag bar icons get their round `CircleMask`.
     Bags,
+    /// Autocast Shines draw the host's composite.
+    PetActionBar,
 }
 
 impl RegistryModel {
@@ -168,6 +171,14 @@ impl RegistryModel {
                 self.icon_masks.apply(&mut self.registry);
             }
             ScreenPostsetup::Bags => self.icon_masks.apply(&mut self.registry),
+            ScreenPostsetup::PetActionBar => {
+                if let Some(state) = self.shared.get::<PetActionBarState>() {
+                    game_engine_ui_model::pet_action_bar_component::apply_pet_action_bar_postsetup(
+                        state,
+                        &mut self.registry,
+                    );
+                }
+            }
         }
     }
 
@@ -712,16 +723,49 @@ impl RegistryUi {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
     }
 
-    /// Initialize a dedicated RegistryUi instance for the Retail pet action bar.
-    pub fn show_pet_action_bar(
-        &mut self,
-        state: game_engine_ui_model::pet_action_bar_component::PetActionBarState,
-    ) -> Result<(), String> {
-        self.show_viewport_screen(
+    /// Initialize a dedicated RegistryUi instance for the Retail pet action bar, with an empty
+    /// autocast Shine composite.
+    pub fn show_pet_action_bar(&mut self, mut state: PetActionBarState) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        state.shine_texture = Some(registry.create_dynamic_texture(1, 1, vec![0; 4])?);
+        self.show_viewport_screen_in(
             state,
             game_engine_ui_model::pet_action_bar_component::pet_action_bar_screen,
-            ScreenPostsetup::None,
+            ScreenPostsetup::PetActionBar,
+            registry,
+            parent,
         )
+    }
+
+    /// Replace the pet bar state and, when given, the `size`² RGBA8 autocast Shine.
+    pub fn set_pet_action_bar(
+        &mut self,
+        mut state: PetActionBarState,
+        shine: Option<(u32, Vec<u8>)>,
+    ) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Pet bar UI is not initialized")?;
+        let texture = model
+            .shared
+            .get::<PetActionBarState>()
+            .and_then(|current| current.shine_texture)
+            .ok_or("Pet bar Shine texture missing")?;
+        state.shine_texture = Some(texture);
+        let redraw = shine.is_some();
+        if let Some((size, rgba)) = shine {
+            model
+                .registry
+                .update_dynamic_texture(texture, size, size, rgba)?;
+        }
+        self.set_state(state)?;
+        if redraw {
+            let model = self.model.as_mut().ok_or("Pet bar UI is not initialized")?;
+            self.projection
+                .as_mut()
+                .ok_or("Native projection not initialized")?
+                .sync(&mut model.registry)?;
+        }
+        Ok(())
     }
 
     /// Initialize a dedicated RegistryUi instance for the damage meter window.
