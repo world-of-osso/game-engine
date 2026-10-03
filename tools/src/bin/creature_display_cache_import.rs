@@ -1,5 +1,8 @@
+use std::path::Path;
+
 fn main() {
-    match game_engine::creature_display::import_creature_display_cache() {
+    match game_engine_core::creature_display_cache::import_creature_display_cache(Path::new("data"))
+    {
         Ok(path) => {
             println!("wrote {}", path.display());
         }

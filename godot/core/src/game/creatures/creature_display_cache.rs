@@ -4,13 +4,9 @@ use std::path::{Path, PathBuf};
 
 use crate::cache_source_mtime::csv_mtime;
 use crate::cache_sqlite::open_read_only;
+use crate::creature_display_data::CreatureDisplay;
 use crate::sqlite_util::is_missing_table_error;
-use game_engine::paths;
 use rusqlite::Connection;
-
-use game_engine::creature_display_data::{self, CreatureDisplay};
-
-const CREATURE_DISPLAY_CACHE_PATH: &str = "cache/creature_display.sqlite";
 
 #[derive(Clone, Copy)]
 struct CreatureModelData {
@@ -25,13 +21,12 @@ struct DisplayInfoColumns {
     tex_var: [usize; 3],
 }
 
-pub(crate) fn creature_display_cache_path() -> PathBuf {
-    paths::shared_data_path(CREATURE_DISPLAY_CACHE_PATH)
-}
-
-pub(crate) fn import_creature_display_cache() -> Result<PathBuf, String> {
-    let di = paths::resolve_data_path("CreatureDisplayInfo.csv");
-    let md = paths::resolve_data_path("CreatureModelData.csv");
+/// Builds `<data_dir>/cache/creature_display.sqlite` (display rows and per-model preferred
+/// skins) from CreatureDisplayInfo.csv and CreatureModelData.csv in `data_dir`, reusing it
+/// when its recorded sources are unchanged.
+pub fn import_creature_display_cache(data_dir: &Path) -> Result<PathBuf, String> {
+    let di = data_dir.join("CreatureDisplayInfo.csv");
+    let md = data_dir.join("CreatureModelData.csv");
     if !di.exists() || !md.exists() {
         return Err(format!(
             "Creature display CSVs not found: {} / {}",
@@ -40,7 +35,7 @@ pub(crate) fn import_creature_display_cache() -> Result<PathBuf, String> {
         ));
     }
 
-    let cache_path = creature_display_cache_path();
+    let cache_path = data_dir.join("cache/creature_display.sqlite");
     if let Some(parent) = cache_path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|err| format!("create {}: {err}", parent.display()))?;
@@ -60,51 +55,6 @@ pub(crate) fn import_creature_display_cache() -> Result<PathBuf, String> {
     build_preferred_skins(&conn)?;
     record_source_files(&conn, &source_paths)?;
     Ok(cache_path)
-}
-
-pub(crate) fn query_display(display_id: u32) -> Option<CreatureDisplay> {
-    let cache_path = creature_display_cache_path();
-    let conn = open_read_only(&cache_path).ok()?;
-    creature_display_data::query_display(&conn, display_id)
-        .ok()
-        .flatten()
-}
-
-pub(crate) fn query_preferred_skins(model_fdid: u32) -> Option<[u32; 3]> {
-    let cache_path = creature_display_cache_path();
-    let conn = open_read_only(&cache_path).ok()?;
-    let mut stmt = conn
-        .prepare(
-            "SELECT skin_fdid_0, skin_fdid_1, skin_fdid_2
-             FROM preferred_skins WHERE model_fdid = ?1",
-        )
-        .ok()?;
-    stmt.query_row([model_fdid], |row| {
-        Ok([row.get(0)?, row.get(1)?, row.get(2)?])
-    })
-    .ok()
-}
-
-/// Return all distinct model FDIDs in the cache.
-///
-/// Used by the named-model fallback path to match local filenames against
-/// listfile entries. Only called once per unique model name (result is cached
-/// in named-model-lookups.sqlite).
-pub(crate) fn query_distinct_model_fdids() -> Vec<u32> {
-    let cache_path = creature_display_cache_path();
-    let conn = match open_read_only(&cache_path) {
-        Ok(c) => c,
-        Err(_) => return Vec::new(),
-    };
-    let mut stmt = match conn.prepare("SELECT DISTINCT model_fdid FROM creature_displays") {
-        Ok(s) => s,
-        Err(_) => return Vec::new(),
-    };
-    let rows = match stmt.query_map([], |row| row.get::<_, u32>(0)) {
-        Ok(r) => r,
-        Err(_) => return Vec::new(),
-    };
-    rows.filter_map(|r| r.ok()).collect()
 }
 
 fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, String> {
@@ -431,7 +381,9 @@ mod tests {
 
     #[test]
     fn import_and_query_creature_display() {
-        let dir = game_engine::test_harness::temp_test_dir("creature-display-cache");
+        let dir =
+            std::env::temp_dir().join(format!("creature-display-cache-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
         let display_path = dir.join("CreatureDisplayInfo.csv");
         let model_path = dir.join("CreatureModelData.csv");
         std::fs::write(

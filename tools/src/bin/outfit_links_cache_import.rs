@@ -1,12 +1,12 @@
 use std::path::Path;
 
 fn main() {
-    match game_engine::char_texture_cache::import_char_texture_cache(Path::new("data")) {
+    match game_engine_core::outfit_catalog_db::import_outfit_links_cache(Path::new("data")) {
         Ok(path) => {
             println!("wrote {}", path.display());
         }
         Err(err) => {
-            eprintln!("failed to import char texture cache: {err}");
+            eprintln!("failed to import outfit links cache: {err}");
             std::process::exit(1);
         }
     }
