@@ -42,7 +42,7 @@ func run_test() -> void:
 	await frames(3)
 	for model in [tree, other]:
 		for name in ["M2Animation", "M2MaterialAnimation"]:
-			var animation := model.get_node_or_null(name)
+			var animation: Node = model.get_node_or_null(name)
 			if animation != null:
 				animation.set_process(false)
 	var rest_image: Image = await snapshot("rest")
