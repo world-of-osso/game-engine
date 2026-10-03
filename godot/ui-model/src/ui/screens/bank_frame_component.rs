@@ -211,7 +211,7 @@ fn bank_atlas(
             texture_fdid: fdid,
             tex_coords: {coords.as_str()},
             vertex_color: color,
-            draw_layer: layer,
+            draw_layer: {layer.as_str()},
             pos_type: "absolute",
             left: x,
             top: y,
