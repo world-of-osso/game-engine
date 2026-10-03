@@ -1,8 +1,10 @@
 //! TargetFrame right-click menu (Retail `UnitPopup`; Bevy `rendering/ui/unit_frames.rs`
-//! `UnitFrameClick`): right-clicking the target frame of a player opens the authored
-//! `UnitFrameContextMenu` with the group entries and, for another player, Trade
-//! (`UnitPopupTradeButtonMixin:OnClick` → `InitiateTrade(unit)`). An entry's click runs
-//! it and closes the menu; a click outside closes it. Set/Clear Focus are not converted.
+//! `UnitFrameClick`): right-clicking the target frame opens the authored
+//! `UnitFrameContextMenu`. For a player it has the group entries and, for another player,
+//! Trade (`UnitPopupTradeButtonMixin:OnClick` → `InitiateTrade(unit)`); every unit gets the
+//! raid target icons (`UnitPopupRaidTargetButtonMixin`), listed inline rather than in a
+//! submenu. An entry's click runs it and closes the menu; a click outside closes it.
+//! Set/Clear Focus are not converted.
 use game_engine_ui_model::group_state::{GroupMenuEntry, group_menu_entries};
 use game_engine_ui_model::inworld_unit_frames_component::{
     ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_CLOSE, ACTION_UNIT_MENU_SET_FOCUS,
@@ -15,12 +17,42 @@ use shared::components::Player;
 
 use crate::GameClient;
 use crate::frame_error::{FrameError, SessionError};
+use crate::replicated::UnitFields;
+
+/// `UnitPopupRaidTarget<n>ButtonMixin:OnClick` → `SetRaidTargetIcon(unit, n)`.
+const ACTION_UNIT_MENU_RAID_TARGET_PREFIX: &str = "unit_menu_raid_target:";
+/// `UnitPopupRaidTargetButtonMixin:GetEntries` order with `RAID_TARGET_8..1` and
+/// `RAID_TARGET_NONE` (GlobalStrings).
+const RAID_TARGET_ENTRIES: [(u8, &str); 9] = [
+    (8, "Skull"),
+    (7, "Cross"),
+    (6, "Square"),
+    (5, "Moon"),
+    (4, "Triangle"),
+    (3, "Diamond"),
+    (2, "Circle"),
+    (1, "Star"),
+    (0, "None"),
+];
 
 #[derive(Default)]
 pub(crate) struct UnitMenu {
-    /// The player the open menu acts on.
+    /// The unit the open menu acts on, and its name when it is a player.
+    unit: Option<u64>,
     player: Option<String>,
     pub state: UnitFrameMenuState,
+}
+
+/// The raid target icon entries.
+pub(crate) fn raid_target_items() -> Vec<UnitMenuItem> {
+    RAID_TARGET_ENTRIES
+        .iter()
+        .map(|&(index, label)| UnitMenuItem {
+            name: format!("UnitFrameContextMenuRaidTarget{index}"),
+            label: label.into(),
+            action: format!("{ACTION_UNIT_MENU_RAID_TARGET_PREFIX}{index}"),
+        })
+        .collect()
 }
 
 /// Group entries, then Trade for another player.
@@ -81,25 +113,35 @@ impl GameClient {
             .and_then(|ui| ui.bind().frame_rect("TargetFrame"))
             .is_some_and(|(rect, _)| inside(rect, point));
         let (Some(unit), Some(local)) = (
-            self.target_player_name(),
+            self.targeting_target(),
             self.account.session.selected_character_name.clone(),
         ) else {
+            return false;
+        };
+        let Some(name) = self.replica.unit(unit).and_then(|unit| unit.name()) else {
             return false;
         };
         if !on_target_frame {
             return false;
         }
-        let items = player_items(&self.account.group, &local, &unit);
+        let title = name.to_owned();
+        let player = self.target_player_name(unit);
+        let mut items = match &player {
+            Some(player) => player_items(&self.account.group, &local, player),
+            None => Vec::new(),
+        };
+        items.extend(raid_target_items());
         self.unit_menu = UnitMenu {
-            state: self.unit_menu_state(unit.clone(), items, point),
-            player: Some(unit),
+            state: self.unit_menu_state(title, items, point),
+            unit: Some(unit),
+            player,
         };
         true
     }
 
-    fn target_player_name(&self) -> Option<String> {
-        self.targeting_target()
-            .and_then(|id| self.replica.unit(id))
+    fn target_player_name(&self, unit: u64) -> Option<String> {
+        self.replica
+            .unit(unit)
             .and_then(|unit| unit.get::<Player>())
             .map(|player| player.name.clone())
     }
@@ -172,7 +214,19 @@ impl GameClient {
 
     fn run_unit_menu_action(&mut self, action: &str) -> Result<(), SessionError> {
         let menu = std::mem::take(&mut self.unit_menu);
-        let Some(unit) = menu.player.filter(|_| menu.state.visible) else {
+        if !menu.state.visible {
+            return Ok(());
+        }
+        if let Some(index) = action.strip_prefix(ACTION_UNIT_MENU_RAID_TARGET_PREFIX) {
+            let index = index
+                .parse()
+                .map_err(|error| SessionError(format!("Raid target entry {action}: {error}")))?;
+            return match menu.unit {
+                Some(unit) => self.set_raid_icon(unit, index),
+                None => Ok(()),
+            };
+        }
+        let Some(unit) = menu.player else {
             return Ok(());
         };
         match action {
