@@ -35,7 +35,7 @@ func select_second_character(client: Node) -> void:
 		if loading_ui.visible:
 			fail("Completed loading gate retained visible loading screen")
 			return
-		var error = client.connect_account("127.0.0.1:5000", "admin", "admin", false)
+		var error = client.connect_account(server, account, password, false)
 		if error != "":
 			fail("Reconnect failed: " + error)
 			return

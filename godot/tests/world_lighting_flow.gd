@@ -1,5 +1,8 @@
 extends "res://tests/world_terrain_flow.gd"
 
+# Requires GODOT_TEST_SERVER, GODOT_TEST_ACCOUNT and GODOT_TEST_PASSWORD
+# through world_units_flow.gd, including its reconnect to the same endpoint.
+
 func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 	if not super.inspect_material_tiles(client, parsed_tiles):
 		return false

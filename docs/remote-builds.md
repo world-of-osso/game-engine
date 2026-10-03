@@ -142,6 +142,17 @@ Results on September 29, 2026 (branch `depottest`):
 
 `game-engine-godot --lib` compiles and runs without the engine: no test hit godot-rust's "engine not available" panic. GDScript tests under `godot/tests/` need Godot and are not covered.
 
+### Units-derived world flows
+
+`world_units_flow.gd` and its inherited terrain, lighting, height, collision, camera and objects flows require `GODOT_TEST_SERVER` (host:UDP-port), `GODOT_TEST_ACCOUNT` and `GODOT_TEST_PASSWORD`. Missing inputs fail before connecting; initial authentication and reconnect use the same supplied values. The account needs at least two roster characters, with card 1 positioned in the world region required by the flow's assertions. Build/import the client first, then run, for example:
+
+```sh
+GODOT_TEST_SERVER=127.0.0.1:5203 GODOT_TEST_ACCOUNT=fb_unitsflow GODOT_TEST_PASSWORD=fbtest \
+  scripts/agent/agent-run unitsflow "$GODOT_BIN" --path godot -s res://tests/world_lighting_flow.gd
+```
+
+Use an owned private server and account. Substitute any of the inherited flow script names above; they share these required inputs, with no endpoint or credential defaults.
+
 Selected-host build or artifact-transfer failures fail explicitly. `local` is an explicit build host, not a Cargo fallback. Godot import and launch stay local and unchanged.
 
 ## Historical Depot cost and performance

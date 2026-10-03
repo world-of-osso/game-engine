@@ -62,7 +62,7 @@ func select_second_character(client: Node) -> void:
 			await create_timer(3.0).timeout
 			print("no-anim fps=%.1f" % Engine.get_frames_per_second())
 		await capture()
-		var error = client.connect_account("127.0.0.1:5000", "admin", "admin", false)
+		var error = client.connect_account(server, account, password, false)
 		if error != "":
 			fail("Reconnect failed: " + error)
 			return
