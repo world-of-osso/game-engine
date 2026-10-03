@@ -13,6 +13,8 @@ Chattynator references are `file:line` in its source
 `data/textures/ui/chattynator/` (`ChatTabLeft/Middle/Right`, `ChatBackground` flipped vertically,
 from TGA to PNG; `ChatButton`, `Copy`, `ScrollToBottom` and `Fade` PNGs as shipped).
 
+Modern chrome follows the contracts below. Forever overrides only panel/header/tab art; [Forever reference chrome and number provenance](forever-chat-meter-chrome.md).
+
 ## What it must do
 
 ### Frame

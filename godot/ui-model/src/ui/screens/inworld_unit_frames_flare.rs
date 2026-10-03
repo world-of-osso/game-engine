@@ -333,7 +333,12 @@ fn flare_texts(spec: &FlareFrame, unit: &FlareUnit<'_>, (x, y, width, height): R
 /// 14×14 (Backdrop.lua:144-154). The top and bottom edge cells lie on their side and are
 /// turned to run along the frame; edges stretch where Blizzard repeats them.
 pub fn flare_border(root: &str, size: (f32, f32)) -> Element {
-    border_pieces(size)
+    flare_border_with_edge(root, size, BORDER_EDGE)
+}
+
+/// Same Blizzard border with a caller-specified corner extent (meter rows are thinner).
+pub fn flare_border_with_edge(root: &str, size: (f32, f32), edge: f32) -> Element {
+    border_pieces(size, edge)
         .into_iter()
         .flat_map(|piece| border_piece(root, piece))
         .collect()
@@ -342,8 +347,7 @@ pub fn flare_border(root: &str, size: (f32, f32)) -> Element {
 /// One backdrop piece: name suffix, `UI-Tooltip-Border` cell, rect and rotation.
 type BorderPiece = (&'static str, u8, Rect, f32);
 
-fn border_pieces((width, height): (f32, f32)) -> [BorderPiece; 8] {
-    let edge = BORDER_EDGE;
+fn border_pieces((width, height): (f32, f32), edge: f32) -> [BorderPiece; 8] {
     let (span_x, span_y) = (
         (width - 2.0 * edge).max(0.0),
         (height - 2.0 * edge).max(0.0),

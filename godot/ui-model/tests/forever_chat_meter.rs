@@ -1,0 +1,414 @@
+//! Reference chrome and a byte-for-byte Modern tree captured at c699d4e7.
+#[path = "fixtures/modern_chat_meter.rs"]
+mod baseline;
+use std::fmt::Write;
+use std::path::PathBuf;
+
+use game_engine_ui_model::chat_frame::ChatTab;
+use game_engine_ui_model::chat_frame_component::{ChatFrameView, chat_frame_screen};
+use game_engine_ui_model::damage_meter_component::damage_meter_screen;
+use game_engine_ui_model::damage_meter_data::{
+    DamageMeterView, DamageMeterWindow, MeterSessionType,
+};
+use game_engine_ui_model::flare_panel::{FLARE_BRONZE_PANEL_STYLE, flare_bronze_style};
+use shared::protocol::{DamageMeterSession, DamageMeterSnapshot, DamageMeterSource};
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
+use ui_toolkit::frame::{Dimension, Frame, WidgetData};
+use ui_toolkit::layout_values::Val;
+use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::screen::{Screen, SharedContext};
+use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::{FontStringData, JustifyH};
+use ui_toolkit::widgets::texture::{TextureData, TextureSource};
+
+fn canvas<T: 'static>(
+    skin: ActiveSkin,
+    view: T,
+    build: fn(&SharedContext) -> Element,
+) -> FrameRegistry {
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(skin);
+    shared.insert(view);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    registry.register_panel_style(
+        FLARE_BRONZE_PANEL_STYLE,
+        flare_bronze_style(TextureSource::FileDataId(137_057)),
+    );
+    Screen::new(build).sync(&shared, &mut registry);
+    registry
+}
+
+fn meter_view() -> DamageMeterView {
+    let session = DamageMeterSession {
+        session_id: 1,
+        duration_secs: 20.0,
+        active: true,
+        total_amount: 2400,
+        sources: vec![
+            DamageMeterSource {
+                unit: 42,
+                name: "Fbmage".into(),
+                class_id: 8,
+                is_local_player: true,
+                total_amount: 2400,
+                amount_per_second: 120.0,
+                spells: vec![],
+            },
+            DamageMeterSource {
+                unit: 43,
+                name: "Fbwarrior".into(),
+                class_id: 1,
+                is_local_player: false,
+                total_amount: 1200,
+                amount_per_second: 60.0,
+                spells: vec![],
+            },
+        ],
+    };
+    DamageMeterWindow {
+        snapshot: Some(DamageMeterSnapshot {
+            current: Some(session.clone()),
+            overall: session,
+        }),
+        session: MeterSessionType::Current,
+        menu_open: true,
+    }
+    .view(true, 45.0)
+}
+
+fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
+    registry
+        .get(
+            registry
+                .get_by_name(name)
+                .unwrap_or_else(|| panic!("no {name}")),
+        )
+        .unwrap()
+}
+
+fn rect(registry: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
+    let f = frame(registry, name);
+    let px = |v| match v {
+        Val::Px(n) => n,
+        other => panic!("{name}: {other:?}"),
+    };
+    let (Dimension::Fixed(w), Dimension::Fixed(h)) = (f.width, f.height) else {
+        panic!("{name}: size")
+    };
+    (px(f.position.left), px(f.position.top), w, h)
+}
+
+fn font<'a>(registry: &'a FrameRegistry, name: &str) -> &'a FontStringData {
+    let Some(WidgetData::FontString(text)) = frame(registry, name).widget_data.as_ref() else {
+        panic!("{name}: text")
+    };
+    text
+}
+
+fn texture<'a>(registry: &'a FrameRegistry, name: &str) -> &'a TextureData {
+    let Some(WidgetData::Texture(tex)) = frame(registry, name).widget_data.as_ref() else {
+        panic!("{name}: texture")
+    };
+    tex
+}
+
+fn dump(registry: &FrameRegistry, name: &str, out: &mut String) {
+    let f = frame(registry, name);
+    writeln!(out, "{:?} {:?} size={:?},{:?} pos={:?} translate={:?} margin={:?} hidden={} alpha={} scale={} strata={:?} level={} layer={:?} bg={:?} slice={:?} border={:?} style={:?} mouse={} click={:?} data={:?}",
+        f.name, f.widget_type, f.width, f.height, f.position, f.translation, f.margin,
+        f.hidden, f.alpha, f.scale, f.strata, f.frame_level, f.draw_layer, f.background_color,
+        f.nine_slice, f.border, f.panel_style, f.mouse_enabled, f.onclick, f.widget_data).unwrap();
+    for child in &f.children {
+        dump(
+            registry,
+            registry.get(*child).unwrap().name.as_deref().unwrap(),
+            out,
+        );
+    }
+}
+
+#[test]
+fn modern_chat_and_meter_are_byte_identical_to_base() {
+    let mut tree = String::new();
+    for tab in ChatTab::ALL {
+        let view = ChatFrameView {
+            tab,
+            input_open: true,
+            scrolled_up: true,
+            flashing: vec![ChatTab::Whispers],
+            ..Default::default()
+        };
+        dump(
+            &canvas(ActiveSkin::Modern, view, chat_frame_screen),
+            "ChatFrame1",
+            &mut tree,
+        );
+    }
+    dump(
+        &canvas(ActiveSkin::Modern, meter_view(), damage_meter_screen),
+        "DamageMeter",
+        &mut tree,
+    );
+    if baseline::MODERN_TREE.is_empty() || std::env::var_os("CAPTURE_FLAREPANELS_BASE").is_some() {
+        println!("<<<FLAREPANELS_BASE\n{tree}FLAREPANELS_BASE>>>");
+    }
+    assert_eq!(tree.as_bytes(), baseline::MODERN_TREE.as_bytes());
+}
+
+#[test]
+fn forever_meter_header_has_text_tabs_and_bronze_icons() {
+    let registry = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
+    assert_eq!(
+        rect(&registry, "DamageMeterFlareHeader"),
+        (-2.0, -2.0, 404.0, 24.0)
+    );
+    assert_eq!(
+        rect(&registry, "DamageMeterFlareSeparator"),
+        (1.0, 22.0, 398.0, 1.0)
+    );
+    assert_eq!(
+        frame(&registry, "DamageMeterFlareSeparator").background_color,
+        Some([0.65, 0.49, 0.27, 1.0])
+    );
+    assert_eq!(
+        rect(&registry, "DamageMeterTypeName"),
+        (15.0, 7.0, 90.0, 12.0)
+    );
+    assert_eq!(font(&registry, "DamageMeterTypeName").text, "DPS");
+    assert_eq!(
+        font(&registry, "DamageMeterTypeName").color,
+        [0.80, 0.60, 0.34, 1.0]
+    );
+    assert_eq!(font(&registry, "DamageMeterThreatTab").text, "Threat");
+    assert_eq!(
+        font(&registry, "DamageMeterThreatTab").color,
+        [0.56, 0.51, 0.46, 1.0]
+    );
+    assert!(frame(&registry, "DamageMeterThreatTab").onclick.is_none());
+    assert_eq!(
+        rect(&registry, "DamageMeterSessionDropdown"),
+        (348.5, 2.0, 22.0, 22.0)
+    );
+    assert_eq!(
+        rect(&registry, "DamageMeterSettings"),
+        (369.5, 2.0, 22.0, 22.0)
+    );
+    for (index, top, height) in [(0, 12.0, 6.0), (1, 8.0, 10.0), (2, 4.0, 14.0)] {
+        let name = format!("DamageMeterChartColumn{index}");
+        assert_eq!(
+            rect(&registry, &name),
+            (4.0 + index as f32 * 5.0, top, 3.0, height)
+        );
+        assert_eq!(
+            frame(&registry, &name).background_color,
+            Some([0.61, 0.48, 0.29, 1.0])
+        );
+    }
+    assert_eq!(
+        texture(&registry, "DamageMeterSettingsIcon").source,
+        TextureSource::Atlas("common-dropdown-a-button-settings-shadowless".into())
+    );
+    assert_eq!(
+        texture(&registry, "DamageMeterSettingsIcon").vertex_color,
+        [0.61, 0.48, 0.29, 1.0]
+    );
+    for removed in [
+        "DamageMeterSessionTimer",
+        "DamageMeterTypeArrow",
+        "DamageMeterMinimize",
+        "DamageMeterSessionDropdownBackground",
+    ] {
+        assert!(registry.get_by_name(removed).is_none(), "{removed}");
+    }
+    let panel = frame(&registry, "DamageMeterFlareSkin");
+    assert_eq!(
+        rect(&registry, "DamageMeterFlareSkin"),
+        (-2.0, -2.0, 404.0, 144.0)
+    );
+    assert_eq!(panel.panel_style.as_deref(), Some("flare_bronze"));
+    assert_eq!(
+        panel.nine_slice.as_ref().unwrap().bg_color,
+        [1.0, 1.0, 1.0, 0.6]
+    );
+}
+
+#[test]
+fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
+    let registry = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
+    assert_eq!(
+        rect(&registry, "DamageMeterEntry1"),
+        (4.0, 32.0, 392.0, 16.0)
+    );
+    assert_eq!(
+        rect(&registry, "DamageMeterEntry2"),
+        (4.0, 52.0, 392.0, 16.0)
+    );
+    assert_eq!(
+        rect(&registry, "DamageMeterEntry1Icon"),
+        (0.0, 0.0, 16.0, 16.0)
+    );
+    assert_eq!(
+        texture(&registry, "DamageMeterEntry1Icon").source,
+        TextureSource::Atlas("classicon-mage".into())
+    );
+    assert_eq!(
+        texture(&registry, "DamageMeterEntry2Icon").source,
+        TextureSource::Atlas("classicon-warrior".into())
+    );
+    assert_eq!(
+        rect(&registry, "DamageMeterEntry1Bar"),
+        (20.0, 0.0, 372.0, 16.0)
+    );
+    assert_eq!(
+        frame(&registry, "DamageMeterEntry1Bar").background_color,
+        Some([0.1, 0.1, 0.1, 0.9])
+    );
+    assert_eq!(
+        rect(&registry, "DamageMeterEntry1StatusBar"),
+        (1.0, 1.0, 370.0, 14.0)
+    );
+    assert_eq!(
+        rect(&registry, "DamageMeterEntry2StatusBar"),
+        (1.0, 1.0, 185.0, 14.0)
+    );
+    assert_eq!(
+        texture(&registry, "DamageMeterEntry1StatusBar").source,
+        TextureSource::FileDataId(6_704_514)
+    );
+    assert_eq!(
+        texture(&registry, "DamageMeterEntry1StatusBar").vertex_color,
+        [0.25, 0.78, 0.92, 1.0]
+    );
+    let gradient = texture(&registry, "DamageMeterEntry1Gradient");
+    assert_eq!(
+        gradient.source,
+        TextureSource::File("data/textures/ui/chattynator/Fade.png".into())
+    );
+    assert_eq!(gradient.tex_coords, [1.0, 0.0, 0.0, 1.0]);
+    assert_eq!(gradient.vertex_color, [0.0, 0.0, 0.0, 0.6]);
+    assert_eq!(
+        rect(&registry, "DamageMeterEntry1BarBorderTopLeft"),
+        (0.0, 0.0, 8.0, 8.0)
+    );
+    assert_eq!(
+        texture(&registry, "DamageMeterEntry1BarBorderTopLeft").source,
+        TextureSource::FileDataId(137_057)
+    );
+    assert_eq!(
+        texture(&registry, "DamageMeterEntry1BarBorderTopLeft").vertex_color,
+        [0.65, 0.49, 0.27, 1.0]
+    );
+    assert_eq!(
+        rect(&registry, "DamageMeterEntry1Name"),
+        (5.0, 0.0, 214.0, 16.0)
+    );
+    assert_eq!(
+        rect(&registry, "DamageMeterEntry1Value"),
+        (224.0, 0.0, 140.0, 16.0)
+    );
+    for (name, label, justify) in [
+        ("DamageMeterEntry1Name", "1. Fbmage", JustifyH::Left),
+        ("DamageMeterEntry1Value", "2,400 (120)", JustifyH::Right),
+    ] {
+        let text = font(&registry, name);
+        assert_eq!(text.text, label);
+        assert_eq!(text.font_size, 12.0);
+        assert_eq!(text.color, [1.0; 4]);
+        assert_eq!(text.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
+        assert_eq!(text.shadow_offset, [1.0, -1.0]);
+        assert_eq!(text.justify_h, justify);
+    }
+}
+
+#[test]
+fn forever_chat_has_plain_text_tabs_separator_and_four_header_icons() {
+    let registry = canvas(
+        ActiveSkin::Forever,
+        ChatFrameView::default(),
+        chat_frame_screen,
+    );
+    assert_eq!(
+        rect(&registry, "ChatFrame1FlareSkin"),
+        (24.0, -7.0, 481.0, 259.0)
+    );
+    assert_eq!(
+        rect(&registry, "ChatFrame1FlareHeader"),
+        (24.0, -7.0, 481.0, 24.0)
+    );
+    assert_eq!(
+        rect(&registry, "ChatFrame1FlareSeparator"),
+        (27.0, 17.0, 475.0, 1.0)
+    );
+    for index in 0..3 {
+        let name = format!("ChatFrame1TabsTab{index}");
+        assert_eq!(frame(&registry, &name).height, Dimension::Fixed(24.0));
+        assert_eq!(
+            frame(&registry, &name).onclick.as_deref(),
+            Some(ChatTab::ALL[index].action())
+        );
+        let label = font(&registry, &format!("{name}Text"));
+        assert_eq!(label.font_size, 12.0);
+        assert_eq!(
+            label.color,
+            if index == 0 {
+                [0.80, 0.60, 0.34, 1.0]
+            } else {
+                [0.56, 0.51, 0.46, 1.0]
+            }
+        );
+        assert!(registry.get_by_name(&format!("{name}Left")).is_none());
+    }
+    for (name, x, atlas) in [
+        ("Channel", 352.0, "chatballon"),
+        (
+            "Menu",
+            387.0,
+            "common-dropdown-a-button-settings-shadowless",
+        ),
+        ("Social", 422.0, "UI-HUD-MicroMenu-GuildCommunities-Up"),
+        ("Volume", 457.0, "common-dropdown-icon-sound-on"),
+    ] {
+        let name = format!("ChatFrame1Flare{name}");
+        assert_eq!(rect(&registry, &name), (x, -1.0, 22.0, 22.0));
+        let icon = texture(&registry, &format!("{name}Icon"));
+        assert_eq!(icon.source, TextureSource::Atlas(atlas.into()));
+        assert_eq!(icon.vertex_color, [0.61, 0.48, 0.29, 1.0]);
+    }
+    assert!(registry.get_by_name("ChatFrame1CopyButton").is_none());
+    assert_eq!(
+        rect(&registry, "ChatFrame1Messages"),
+        (34.0, 27.0, 461.0, 215.0)
+    );
+}
+
+#[test]
+fn forever_chrome_atlases_resolve_to_assets_already_in_data() {
+    canvas(
+        ActiveSkin::Forever,
+        ChatFrameView::default(),
+        chat_frame_screen,
+    );
+    for name in [
+        "chatballon",
+        "common-dropdown-a-button-settings-shadowless",
+        "common-dropdown-icon-sound-on",
+        "classicon-mage",
+        "classicon-warrior",
+        "UI-HUD-MicroMenu-GuildCommunities-Up",
+    ] {
+        let art = resolve_region(name, ActiveSkin::Forever).unwrap_or_else(|| panic!("no {name}"));
+        let AtlasSource::FileDataId(fdid) = art.source else {
+            panic!("{name}: not Blizzard art")
+        };
+        assert!(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+                .join(format!("../../data/textures/{fdid}.blp"))
+                .exists(),
+            "missing {name}: {fdid}"
+        );
+    }
+}
