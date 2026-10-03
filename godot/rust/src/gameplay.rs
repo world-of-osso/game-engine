@@ -19,6 +19,7 @@ use shared::{
     components::{MovementSpeed, PlayerMotion},
     movement::{FLIGHT_SPEED, RUN_SPEED, SWIM_SPEED, WALK_SPEED, swim_top},
     protocol::PlayerInput,
+    skyriding::{Glider, SKYRIDING},
 };
 
 use crate::swim::{at_swim_surface, swim_height};
@@ -43,6 +44,14 @@ pub(crate) struct PlayerMovement {
     /// Flying (`MOVEMENTFLAG_FLYING`): no gravity; Jump ascends, SitOrStand descends and
     /// mouse steering pitches forward movement.
     pub flying: bool,
+    /// The server lets the player skyride (its replicated `PlayerMotion::CAN_ADV_FLY`, from
+    /// the Skyriding capability aura).
+    can_adv_fly: bool,
+    /// Skyriding (`MOVEMENTFLAG_ADV_FLYING`): a flight moved by momentum
+    /// (`shared::skyriding`) instead of the flight speed.
+    glider: Option<Glider>,
+    /// The facing and, while mouse-steered, the camera pitch of the newest `resolve`.
+    steering: Steering,
     direction: MoveDirection,
     /// Whether the swimmer floats at the water surface.
     at_surface: bool,
@@ -66,6 +75,14 @@ pub(crate) struct PlayerMovement {
     /// Facing of the newest reported input (or of the first idle frame); a turn in place
     /// reports the new facing (`CMSG_MOVE_SET_FACING`, TC MovementHandler).
     reported_yaw: Option<f32>,
+}
+
+/// Where the player steers a skyriding mount.
+#[derive(Clone, Copy, Debug, Default)]
+struct Steering {
+    yaw: f32,
+    /// The camera pitch while the right mouse button steers (`MOVEANDSTEER`).
+    pitch: Option<f32>,
 }
 
 /// What an input reports moving: a direction, a jump, or a swim or flight step that changed
@@ -94,6 +111,9 @@ impl Default for PlayerMovement {
             swimming: false,
             can_fly: false,
             flying: false,
+            can_adv_fly: false,
+            glider: None,
+            steering: Steering::default(),
             direction: MoveDirection::None,
             at_surface: false,
             rose: false,
@@ -171,9 +191,14 @@ impl PlayerMovement {
             compute_movement_input(bindings, input, self.autorun, scripted_forward, yaw);
         self.direction = animation;
         let mut direction = Vec3::from_array(direction);
-        if (self.swimming || self.flying) && input.mouse_pressed(BindingMouseButton::Right) {
+        let steered = input.mouse_pressed(BindingMouseButton::Right);
+        if (self.swimming || self.flying) && steered {
             direction = pitch_forward(direction, yaw, pitch);
         }
+        self.steering = Steering {
+            yaw,
+            pitch: steered.then_some(pitch),
+        };
         let vertical_speed = if self.swimming {
             SWIM_SPEED
         } else if self.can_fly {
@@ -193,6 +218,16 @@ impl PlayerMovement {
     pub fn set_can_fly(&mut self, can_fly: bool) {
         self.can_fly = can_fly;
         if !can_fly {
+            self.flying = false;
+            self.glider = None;
+        }
+    }
+
+    /// Adopt the server's `PlayerMotion::CAN_ADV_FLY`; losing it ends a skyride
+    /// (`Unit::SetCanAdvFly(false)` drops `MOVEMENTFLAG_ADV_FLYING`), and the player falls.
+    pub fn set_can_adv_fly(&mut self, can_adv_fly: bool) {
+        self.can_adv_fly = can_adv_fly;
+        if !can_adv_fly && self.glider.take().is_some() {
             self.flying = false;
         }
     }
@@ -312,11 +347,16 @@ impl PlayerMovement {
             position = ground.validate_move(position, proposed, self.grounded && !self.jumping);
         }
         self.update_jump(position, jump_pressed, ground);
-        // `JumpOrAscendStart` in the air: a player who can fly takes off.
+        // `JumpOrAscendStart` in the air: a player who can fly takes off; a skyrider
+        // launches upward with its run on (`shared::skyriding::LAUNCH_SPEED`).
         if self.can_fly && !self.grounded && frame.vertical > 0.0 {
             self.flying = true;
             self.jumping = false;
             self.vertical_velocity = 0.0;
+            if self.can_adv_fly {
+                let run = Vec3::from(frame.direction).with_y(0.0).normalize_or_zero();
+                self.glider = Some(Glider::launch(run * frame.speed));
+            }
             return position;
         }
         let vertical = apply_gravity_and_ground_snap(
@@ -345,6 +385,9 @@ impl PlayerMovement {
         ground: &crate::ground::TerrainGround<'_>,
         delta: f32,
     ) -> Vec3 {
+        if let Some(glider) = self.glider {
+            return self.skyride(glider, current, ground, delta);
+        }
         let direction = Vec3::from(frame.direction).normalize_or_zero();
         let velocity = (direction * frame.speed + Vec3::Y * frame.vertical)
             .clamp_length_max(FLIGHT_SPEED * self.speed_modifier);
@@ -360,6 +403,35 @@ impl PlayerMovement {
         }
         if ground.swimming(moved) {
             self.flying = false;
+        }
+        moved
+    }
+
+    /// Skyride `glider` along the steering (`shared::skyriding`), over the ground and short
+    /// of WMO walls. Coming down onto the ground lands; reaching swimming depth ends the
+    /// flight into a swim.
+    fn skyride(
+        &mut self,
+        mut glider: Glider,
+        current: Vec3,
+        ground: &crate::ground::TerrainGround<'_>,
+        delta: f32,
+    ) -> Vec3 {
+        let floor = |feet: Vec3| match ground.probe(feet) {
+            GroundState::Supported(height) => Some(height),
+            _ => None,
+        };
+        let height = floor(current).map_or(f32::INFINITY, |floor| current.y - floor);
+        let Steering { yaw, pitch } = self.steering;
+        let displacement = glider.step(&SKYRIDING, yaw, pitch, height, delta);
+        let moved = ground.validate_swim_move(current, current + displacement);
+        self.rose |= moved.y != current.y;
+        self.glider = Some(glider);
+        let touched_down = floor(moved).is_some_and(|floor| moved.y <= floor + LANDING_SLACK);
+        if (touched_down && glider.velocity.y <= 0.0) || ground.swimming(moved) {
+            self.flying = false;
+            self.glider = None;
+            self.grounded = touched_down;
         }
         moved
     }
@@ -423,7 +495,9 @@ impl PlayerMovement {
         epoch: u32,
     ) -> Option<PlayerInput> {
         let direction = movement_to_direction(self.direction, yaw);
-        let moving_vertically = (self.swimming || self.flying) && self.rose;
+        // A skyrider is always on its way somewhere.
+        let moving_vertically =
+            ((self.swimming || self.flying) && self.rose) || self.glider.is_some();
         let motion = ReportedMotion {
             direction,
             jumping: self.jumping,
@@ -690,7 +764,7 @@ impl crate::GameClient {
     }
 
     /// The local player's replicated `MovementSpeed`, as the aura speed multiplier, and
-    /// whether its `PlayerMotion` lets it fly.
+    /// whether its `PlayerMotion` lets it fly and skyride.
     fn adopt_server_speed(&mut self) {
         let Some(unit) = self
             .world
@@ -702,10 +776,11 @@ impl crate::GameClient {
         if let Some(speed) = unit.get::<MovementSpeed>() {
             self.player_movement.adopt_server_speed(speed.0);
         }
-        let can_fly = unit
-            .get::<PlayerMotion>()
-            .is_some_and(|motion| motion.contains(PlayerMotion::CAN_FLY));
-        self.player_movement.set_can_fly(can_fly);
+        let motion = unit.get::<PlayerMotion>().copied().unwrap_or_default();
+        self.player_movement
+            .set_can_fly(motion.contains(PlayerMotion::CAN_FLY));
+        self.player_movement
+            .set_can_adv_fly(motion.contains(PlayerMotion::CAN_ADV_FLY));
     }
 }
 
@@ -1681,6 +1756,99 @@ mod tests {
         movement.set_can_fly(false);
         assert!(!movement.flying);
         let fallen = hold(&mut movement, &ground, &input, high, (INLAND, 0.0), 180);
+        assert!(
+            (fallen.y - ground_y(&terrain, fallen)).abs() < 0.06,
+            "{fallen}"
+        );
+    }
+
+    /// Inland along the shore (−X, a little +Z): the glide stays inside the loaded tile,
+    /// whose +Z edge lies 11 yards past `SHORE`.
+    const ALONG_SHORE: f32 = -1.2;
+
+    /// The skyriding mount's speed over the last frame of `feet` → `next`.
+    fn frame_speed(feet: Vec3, next: Vec3) -> f32 {
+        feet.distance(next) / DT
+    }
+
+    /// A skyriding mount (`CAN_ADV_FLY`) takes off like a flying one (Space jumps, Space in
+    /// the air), but launches at 31.5 yd/s and rises ballistically, 31.5² / (2 × (19.29 +
+    /// 1.5)) = 23.9 yards, with no climb held; then it glides, a mouse-steered dive builds
+    /// speed past the steady flight speed and coming down onto the ground lands.
+    #[test]
+    fn a_skyriding_mount_launches_dives_with_momentum_and_lands() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let mut movement = PlayerMovement::default();
+        movement.set_can_fly(true);
+        movement.set_can_adv_fly(true);
+        let mut input = PhysicalInput::default();
+        let launched = take_off(&mut movement, &ground, &mut input, SHORE);
+        assert!(movement.glider.is_some());
+        input.set_key(BindingKey::Space, false);
+
+        let mut feet = launched;
+        let mut apex = launched;
+        for _ in 0..120 {
+            feet = hold(&mut movement, &ground, &input, feet, (ALONG_SHORE, 0.0), 1);
+            apex = if feet.y > apex.y { feet } else { apex };
+        }
+        let rise = apex.y - launched.y;
+        assert!((rise - 23.9).abs() < 0.3, "rose {rise}");
+        assert_eq!(
+            (apex.x, apex.z),
+            (launched.x, launched.z),
+            "no lift before gliding"
+        );
+        let gliding = movement.glider.expect("still skyriding");
+        assert!(gliding.gliding, "{gliding:?}");
+        let packet = movement
+            .network_input(ALONG_SHORE, feet, 1)
+            .expect("glide input");
+        assert!(packet.flying && !packet.jumping, "{packet:?}");
+        assert_eq!(packet.position, feet.to_array());
+
+        input.set_mouse(BindingMouseButton::Right, true);
+        let dive = (ALONG_SHORE, -0.7);
+        let mut top_speed = 0.0_f32;
+        for _ in 0..600 {
+            let next = hold(&mut movement, &ground, &input, feet, dive, 1);
+            top_speed = top_speed.max(frame_speed(feet, next));
+            feet = next;
+            if !movement.flying {
+                break;
+            }
+        }
+        // Steady flight caps at 22.4 yd/s (Mount Speed Mod: Standard Flying Mount 86459).
+        assert!(top_speed > 25.0, "top speed {top_speed}");
+        assert!(
+            !movement.flying && movement.glider.is_none(),
+            "never landed: {feet}"
+        );
+        assert!((feet.y - ground_y(&terrain, feet)).abs() < 0.06, "{feet}");
+    }
+
+    /// Losing `CAN_ADV_FLY` in the air ends the skyride and the player falls.
+    #[test]
+    fn losing_can_adv_fly_ends_the_skyride() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let mut movement = PlayerMovement::default();
+        movement.set_can_fly(true);
+        movement.set_can_adv_fly(true);
+        let mut input = PhysicalInput::default();
+        let launched = take_off(&mut movement, &ground, &mut input, SHORE);
+        input.set_key(BindingKey::Space, false);
+        let high = hold(&mut movement, &ground, &input, launched, (INLAND, 0.0), 20);
+        movement.set_can_adv_fly(false);
+        assert!(!movement.flying && movement.glider.is_none());
+        let fallen = hold(&mut movement, &ground, &input, high, (INLAND, 0.0), 240);
         assert!(
             (fallen.y - ground_y(&terrain, fallen)).abs() < 0.06,
             "{fallen}"

@@ -5,13 +5,13 @@ use super::{AnimationState, MIN_MOVEMENT_BLEND_MS};
 use crate::world::{Locomotion, player_motion_locomotion, remote_player_locomotion};
 use shared::components::PlayerMotion;
 
-const FORWARD: u32 = PlayerMotion::FORWARD;
-const BACKWARD: u32 = PlayerMotion::BACKWARD;
-const LEFT: u32 = PlayerMotion::STRAFE_LEFT;
-const RIGHT: u32 = PlayerMotion::STRAFE_RIGHT;
-const WALK: u32 = PlayerMotion::WALKING;
-const FALLING: u32 = PlayerMotion::FALLING;
-const SWIM: u32 = PlayerMotion::SWIMMING;
+const FORWARD: u64 = PlayerMotion::FORWARD;
+const BACKWARD: u64 = PlayerMotion::BACKWARD;
+const LEFT: u64 = PlayerMotion::STRAFE_LEFT;
+const RIGHT: u64 = PlayerMotion::STRAFE_RIGHT;
+const WALK: u64 = PlayerMotion::WALKING;
+const FALLING: u64 = PlayerMotion::FALLING;
+const SWIM: u64 = PlayerMotion::SWIMMING;
 
 /// One 60 fps client frame.
 const FRAME_MS: f64 = 1000.0 / 60.0;
@@ -29,7 +29,7 @@ fn current_id(player: &AnimationState) -> u16 {
 }
 
 /// Drive the model from the newest flags, as `WorldUnits` does after each clock advance.
-fn drive(player: &mut AnimationState, flags: u32) -> bool {
+fn drive(player: &mut AnimationState, flags: u64) -> bool {
     let Locomotion {
         animation_id,
         jumping,
@@ -41,7 +41,7 @@ fn drive(player: &mut AnimationState, flags: u32) -> bool {
 }
 
 /// One client frame: advance the clock, then drive the model.
-fn frame(player: &mut AnimationState, flags: u32) -> bool {
+fn frame(player: &mut AnimationState, flags: u64) -> bool {
     player.advance(FRAME_MS).unwrap();
     drive(player, flags)
 }
@@ -138,7 +138,7 @@ fn remote_jump_starts_loops_and_lands_from_the_falling_flag() {
     frame(&mut player, FORWARD);
     player.advance(400.0).unwrap();
     let mut seen = vec![current_id(&player)];
-    let mut record = |player: &mut AnimationState, flags: u32, frames: usize| {
+    let mut record = |player: &mut AnimationState, flags: u64, frames: usize| {
         for _ in 0..frames {
             player.advance(FRAME_MS).unwrap();
             let before = player.poses();
