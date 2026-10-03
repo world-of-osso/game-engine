@@ -8,6 +8,7 @@ use godot::classes::{
 };
 use godot::global::{HorizontalAlignment, VerticalAlignment};
 use godot::prelude::*;
+use ui_toolkit::atlas;
 use ui_toolkit::frame::{Dimension, Frame, WidgetData, WidgetType};
 use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::registry::FrameRegistry;
@@ -379,9 +380,13 @@ impl UiProjection {
 
     /// Cached decoded source and atlas region; dynamic textures are re-read every time.
     /// Art that fails to load is reported once and draws absent, as in the Bevy client;
-    /// `Loading` while its file is decoded.
+    /// `Loading` while its file is decoded. Atlas names resolve under the active skin, so
+    /// the skin is part of their key.
     fn source(&mut self, source: &TextureSource, registry: &FrameRegistry) -> Art {
-        let key = format!("{source:?}");
+        let key = match source {
+            TextureSource::Atlas(_) => format!("{source:?}/{:?}", atlas::active_skin()),
+            _ => format!("{source:?}"),
+        };
         if let Some(loaded) = self.textures.get(&key) {
             return loaded.clone().map_or(Art::Absent, Art::Ready);
         }
