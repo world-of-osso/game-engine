@@ -41,12 +41,14 @@ fn read_array(
     Ok((count, start))
 }
 
+/// The first key of a track's first sequence; `None` when the track is not animated (no
+/// sequences, or a first sequence without keys).
 fn find_first_spline_key(
     md20: &[u8],
     track: usize,
     key_size: usize,
     label: &str,
-) -> Result<usize, String> {
+) -> Result<Option<usize>, String> {
     md20.get(track..track + TRACK_SIZE)
         .ok_or_else(|| format!("{label} track header truncated"))?;
     let (times_count, timestamps) = read_array(
@@ -61,72 +63,112 @@ fn find_first_spline_key(
         ARRAY_ENTRY_SIZE,
         &format!("{label} values"),
     )?;
-    if times_count == 0 || times_count != values_count {
+    if times_count != values_count {
         return Err(format!(
-            "{label} requires matching nonempty timestamp/value sequences"
+            "{label} requires matching timestamp/value sequences"
         ));
+    }
+    if times_count == 0 {
+        return Ok(None);
     }
     let (time_keys, _) = read_array(md20, timestamps, 4, &format!("{label} first timestamps"))?;
     let (value_keys, first_key) =
         read_array(md20, values, key_size, &format!("{label} first values"))?;
-    if time_keys == 0 || time_keys != value_keys {
-        return Err(format!(
-            "{label} first spline requires matching nonempty keys"
-        ));
+    if time_keys != value_keys {
+        return Err(format!("{label} first spline requires matching keys"));
     }
-    Ok(first_key)
+    Ok((time_keys > 0).then_some(first_key))
 }
 
 fn read_first_spline<const N: usize>(
     md20: &[u8],
     track: usize,
     label: &str,
-) -> Result<[f32; N], String> {
-    let first_key = find_first_spline_key(md20, track, N * SPLINE_COMPONENTS * 4, label)?;
+) -> Result<Option<[f32; N]>, String> {
+    let Some(first_key) = find_first_spline_key(md20, track, N * SPLINE_COMPONENTS * 4, label)?
+    else {
+        return Ok(None);
+    };
     let mut coordinates = [0.0; N];
     for (index, coordinate) in coordinates.iter_mut().enumerate() {
         *coordinate = read_f32(md20, first_key + index * 4)?;
     }
-    Ok(coordinates)
+    Ok(Some(coordinates))
 }
 
-fn parse_md20_camera(md20: &[u8]) -> Result<M2CameraSnapshot, String> {
+/// An animated offset (position, target, roll): zero when the track has no key.
+fn read_first_offset<const N: usize>(
+    md20: &[u8],
+    track: usize,
+    label: &str,
+) -> Result<[f32; N], String> {
+    Ok(read_first_spline(md20, track, label)?.unwrap_or([0.0; N]))
+}
+
+fn md20_cameras(md20: &[u8]) -> Result<(usize, usize), String> {
     if md20.get(..4) != Some(b"MD20") {
         return Err("Invalid MD20 magic".into());
     }
+    // Cataclysm (272) through Legion and later (274) share the header's camera array and
+    // the camera record with its FoV track (wowdev.wiki M2, `M2Camera`).
     let version = read_u32(md20, 4)?;
-    if version != 274 {
+    if !(272..=274).contains(&version) {
         return Err(format!(
-            "Unsupported M2 camera version {version}; expected 274"
+            "Unsupported M2 camera version {version}; expected 272..=274"
         ));
     }
-    let (count, offset) = read_array(md20, CAMERA_ARRAY_OFFSET, CAMERA_RECORD_SIZE, "camera")?;
-    if count == 0 {
-        return Err("No authored camera in MD20".into());
-    }
+    read_array(md20, CAMERA_ARRAY_OFFSET, CAMERA_RECORD_SIZE, "camera")
+}
+
+fn parse_camera_record(md20: &[u8], offset: usize) -> Result<M2CameraSnapshot, String> {
     let position_base =
         read_vec3(md20, offset + 32).map_err(|error| format!("camera position: {error}"))?;
     let target_base =
         read_vec3(md20, offset + 64).map_err(|error| format!("camera target: {error}"))?;
-    let position_offset = read_first_spline::<3>(md20, offset + 12, "camera position")?;
-    let target_offset = read_first_spline::<3>(md20, offset + 44, "camera target")?;
+    let position_offset = read_first_offset::<3>(md20, offset + 12, "camera position")?;
+    let target_offset = read_first_offset::<3>(md20, offset + 44, "camera target")?;
     let position = std::array::from_fn(|index| position_base[index] + position_offset[index]);
     let target = std::array::from_fn(|index| target_base[index] + target_offset[index]);
     Ok(M2CameraSnapshot {
         camera_type: read_i32(md20, offset)?,
         position,
         target,
-        roll: read_first_spline::<1>(md20, offset + 76, "camera roll")?[0],
-        fov: read_first_spline::<1>(md20, offset + 96, "camera fov")?[0],
+        roll: read_first_offset::<1>(md20, offset + 76, "camera roll")?[0],
+        fov: read_first_spline::<1>(md20, offset + 96, "camera fov")?
+            .ok_or("camera fov has no key")?[0],
         near_clip: read_f32(md20, offset + 8)?,
         far_clip: read_f32(md20, offset + 4)?,
     })
+}
+
+fn parse_md20_camera(md20: &[u8]) -> Result<M2CameraSnapshot, String> {
+    let (count, offset) = md20_cameras(md20)?;
+    if count == 0 {
+        return Err("No authored camera in MD20".into());
+    }
+    parse_camera_record(md20, offset)
 }
 
 /// Extract camera index zero at its first track key; does not evaluate animation.
 pub fn parse_camera_snapshot(m2_file: &[u8]) -> Result<M2CameraSnapshot, String> {
     let chunks = super::parse_chunks(m2_file)?;
     parse_md20_camera(chunks.md20)
+}
+
+/// M2 camera type of the unit-frame portrait camera (`SetPortraitTexture`); 1 is the
+/// character-info camera, -1 a flyby.
+pub const PORTRAIT_CAMERA_TYPE: i32 = 0;
+
+/// The model's portrait camera at its first track key.
+pub fn parse_portrait_camera(m2_file: &[u8]) -> Result<M2CameraSnapshot, String> {
+    let chunks = super::parse_chunks(m2_file)?;
+    let md20 = chunks.md20;
+    let (count, offset) = md20_cameras(md20)?;
+    let record = (0..count)
+        .map(|index| offset + index * CAMERA_RECORD_SIZE)
+        .find(|&record| read_i32(md20, record).is_ok_and(|kind| kind == PORTRAIT_CAMERA_TYPE))
+        .ok_or_else(|| format!("No portrait camera among {count} MD20 cameras"))?;
+    parse_camera_record(md20, record)
 }
 
 #[cfg(test)]
@@ -196,6 +238,44 @@ mod tests {
         assert_eq!(snapshot.roll, 0.1);
         assert_eq!(snapshot.fov, 0.8);
         assert_eq!((snapshot.near_clip, snapshot.far_clip), (0.2, 500.0));
+    }
+
+    #[test]
+    fn portrait_camera_is_the_camera_of_type_zero() {
+        let mut file = model_with_camera();
+        let error = super::parse_portrait_camera(&file).unwrap_err();
+        assert!(error.contains("No portrait camera among 1"), "{error}");
+        // The camera array moved to free space as two copies of the flyby record (track
+        // offsets are MD20-absolute), the second retyped as the portrait camera with its
+        // base position moved.
+        let flyby: Vec<u8> =
+            file[8 + CAMERA_OFFSET..8 + CAMERA_OFFSET + super::CAMERA_RECORD_SIZE].to_vec();
+        let array = 0x480;
+        let second = array + super::CAMERA_RECORD_SIZE;
+        file[8 + array..8 + second].copy_from_slice(&flyby);
+        file[8 + second..8 + second + flyby.len()].copy_from_slice(&flyby);
+        write_u32(&mut file, 8 + 0x110, 2);
+        write_u32(&mut file, 8 + 0x114, array as u32);
+        write_u32(&mut file, 8 + second, 0);
+        write_f32(&mut file, 8 + second + 32, 100.0);
+        let portrait = super::parse_portrait_camera(&file).unwrap();
+        assert_eq!(portrait.camera_type, 0);
+        assert_eq!(portrait.position, [101.0, 22.0, 33.0]);
+        assert_eq!(portrait.target, [44.0, 55.0, 66.0]);
+        assert_eq!(parse_camera_snapshot(&file).unwrap().camera_type, -1);
+    }
+
+    /// A Cataclysm-era (version 272) model whose position track has no sequence: the
+    /// camera sits at its base position.
+    #[test]
+    fn version_272_camera_without_position_keys_sits_at_its_base() {
+        let mut file = model_with_camera();
+        write_u32(&mut file, 8 + 4, 272);
+        write_u32(&mut file, 8 + CAMERA_OFFSET + 12 + 4, 0);
+        write_u32(&mut file, 8 + CAMERA_OFFSET + 12 + 12, 0);
+        let camera = parse_camera_snapshot(&file).unwrap();
+        assert_eq!(camera.position, [10.0, 20.0, 30.0]);
+        assert_eq!(camera.target, [44.0, 55.0, 66.0]);
     }
 
     #[test]

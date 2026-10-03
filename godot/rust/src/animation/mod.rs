@@ -4,7 +4,7 @@ use game_engine_core::movement_animation_data::locomotion_playback_rate;
 use game_engine_core::{asset::m2_format::m2_anim, m2};
 use godot::{
     builtin::{Quaternion, Vector3},
-    classes::{INode, Node, Skeleton3D},
+    classes::{INode, MeshInstance3D, Node, Skeleton3D},
     prelude::*,
 };
 
@@ -134,10 +134,16 @@ fn sample_roll(state: &mut u64, upper: u32) -> u32 {
     }
 }
 
+/// Global-sequence tracks keep their keys in timeline 0 for every sequence.
 fn keyframed<T>(track: &m2_anim::AnimTrack<T>, sequence: usize) -> bool {
+    let timeline = if track.global_sequence < 0 {
+        sequence
+    } else {
+        0
+    };
     track
         .sequences
-        .get(sequence)
+        .get(timeline)
         .is_some_and(|(times, _)| times.len() > 1)
 }
 
@@ -146,6 +152,10 @@ fn keyframed<T>(track: &m2_anim::AnimTrack<T>, sequence: usize) -> bool {
 pub struct AnimationState {
     sequences: Vec<m2::Sequence>,
     tracks: std::sync::Arc<Vec<m2::BoneAnimTracks>>,
+    /// Global sequence durations (ms) and the model's global clock, which runs
+    /// whichever sequence plays.
+    global_sequences: Vec<u32>,
+    global_ms: f64,
     local_pivots: Vec<Vector3>,
     current: usize,
     time_ms: f64,
@@ -178,6 +188,17 @@ impl AnimationState {
         if model.sequences.is_empty() || model.bones.len() != model.bone_tracks.len() {
             return Err("M2 animation requires sequences and a track for each bone".into());
         }
+        let globals = model.global_sequences.len();
+        let unknown_global = |global: i16| usize::try_from(global).is_ok_and(|g| g >= globals);
+        if model.bone_tracks.iter().any(|track| {
+            unknown_global(track.translation.global_sequence)
+                || unknown_global(track.rotation.global_sequence)
+                || unknown_global(track.scale.global_sequence)
+        }) {
+            return Err(format!(
+                "M2 bone track names a global sequence beyond the model's {globals}"
+            ));
+        }
         let local_pivots = model
             .bones
             .iter()
@@ -203,6 +224,8 @@ impl AnimationState {
         Ok(Self {
             sequences: model.sequences.clone(),
             tracks: model.bone_tracks.clone(),
+            global_sequences: model.global_sequences.clone(),
+            global_ms: 0.0,
             local_pivots,
             current: model
                 .sequences
@@ -242,19 +265,41 @@ impl AnimationState {
         self.transition.is_some() || self.action.is_some() || self.sequence_animated[self.current]
     }
 
+    /// Timeline and time a track samples: a global-sequence track reads timeline 0
+    /// at the global clock wrapped to its global sequence (WebWowViewerCpp
+    /// animate.h `animateTrack`), others the given sequence at its time.
+    fn track_time<T>(
+        &self,
+        track: &m2_anim::AnimTrack<T>,
+        index: usize,
+        time_ms: f64,
+    ) -> (usize, u32) {
+        let Ok(global) = usize::try_from(track.global_sequence) else {
+            return (index, time_ms as u32);
+        };
+        let duration = f64::from(self.global_sequences[global]);
+        if duration == 0.0 {
+            (0, 0)
+        } else {
+            (0, (self.global_ms % duration) as u32)
+        }
+    }
+
     fn sample_sequence(&self, index: usize, time_ms: f64) -> Vec<BonePose> {
         self.tracks
             .iter()
             .zip(&self.local_pivots)
             .map(|(track, &pivot)| {
-                let time = time_ms as u32;
-                let translation = m2_anim::evaluate_vec3_track(&track.translation, index, time)
+                let (timeline, time) = self.track_time(&track.translation, index, time_ms);
+                let translation = m2_anim::evaluate_vec3_track(&track.translation, timeline, time)
                     .map(wow_vec3)
                     .unwrap_or(Vector3::ZERO);
-                let rotation = m2_anim::evaluate_rotation_track(&track.rotation, index, time)
+                let (timeline, time) = self.track_time(&track.rotation, index, time_ms);
+                let rotation = m2_anim::evaluate_rotation_track(&track.rotation, timeline, time)
                     .map(|q| Quaternion::new(q[0], q[1], q[2], q[3]).normalized())
                     .unwrap_or(Quaternion::IDENTITY);
-                let scale = m2_anim::evaluate_vec3_track(&track.scale, index, time)
+                let (timeline, time) = self.track_time(&track.scale, index, time_ms);
+                let scale = m2_anim::evaluate_vec3_track(&track.scale, timeline, time)
                     .map(|s| Vector3::new(s[0], s[2], s[1]))
                     .unwrap_or(Vector3::ONE);
                 BonePose {
@@ -477,6 +522,9 @@ impl AnimationState {
         });
         self.random_state = state;
         result?;
+        // Global sequences run at real time, not the clip's playback rate
+        // (WebWowViewerCpp animationManager.cpp updateSequencing `deltaTimeForGS`).
+        self.global_ms += delta_ms;
         self.tick_action(delta_ms);
         Ok(())
     }
@@ -564,6 +612,8 @@ pub struct WowAnimationPlayer {
     /// model keeps its first pose and never processes.
     animates: bool,
     billboards: Option<billboard::Billboards>,
+    /// The sequence whose bounds the sibling skinned batches cull by.
+    bounds_sequence: Option<usize>,
 }
 
 #[godot_api]
@@ -578,6 +628,7 @@ impl INode for WowAnimationPlayer {
             stale: false,
             animates: true,
             billboards: None,
+            bounds_sequence: None,
         }
     }
 
@@ -612,6 +663,7 @@ impl WowAnimationPlayer {
             stale: false,
             animates: !m2::bones_are_static(model) || billboards.is_some(),
             billboards,
+            bounds_sequence: None,
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
@@ -810,7 +862,45 @@ impl WowAnimationPlayer {
             skeleton.set_bone_pose_rotation(index as i32, pose.rotation);
             skeleton.set_bone_pose_scale(index as i32, pose.scale);
         }
+        self.apply_sequence_bounds();
     }
+
+    /// Sibling skinned batches cull by the playing sequence's `M2Sequence.bounds`, set on
+    /// every sequence change like WebWowViewerCpp `M2Object` (`isNeedUpdateBB`,
+    /// `getAnimatinonBB`); an empty box keeps the previous one.
+    pub(crate) fn apply_sequence_bounds(&mut self) {
+        let Some(animation) = &self.animation else {
+            return;
+        };
+        let current = animation.current;
+        if self.bounds_sequence == Some(current) {
+            return;
+        }
+        let bounds = sequence_bounds(&animation.sequences[current]);
+        let Some(parent) = self.base().get_parent() else {
+            return;
+        };
+        self.bounds_sequence = Some(current);
+        let Some(bounds) = bounds else {
+            return;
+        };
+        for child in parent.get_children().iter_shared() {
+            if let Ok(mut batch) = child.try_cast::<MeshInstance3D>()
+                && batch.get_skin().is_some()
+            {
+                batch.set_custom_aabb(bounds);
+            }
+        }
+    }
+}
+
+/// A sequence's bounds in engine axes, unless empty (WebWowViewerCpp `m2Object.cpp`
+/// `boundsValid`: min <= max and a diagonal over 0.001 squared).
+fn sequence_bounds(sequence: &m2::Sequence) -> Option<Aabb> {
+    let [min, max] = sequence.bounds;
+    let ordered = (0..3).all(|axis| min[axis] <= max[axis]);
+    let diagonal: f32 = (0..3).map(|axis| (max[axis] - min[axis]).powi(2)).sum();
+    (ordered && diagonal > 0.001).then(|| crate::assets::wow_aabb(min, max))
 }
 
 #[godot_api]
@@ -914,6 +1004,9 @@ fn pose_write_due(changed: bool, sampling: bool, stale: &mut bool) -> bool {
 
 #[cfg(test)]
 mod action_tests;
+
+#[cfg(test)]
+mod global_sequence_tests;
 
 #[cfg(test)]
 mod jump_tests;
@@ -1378,13 +1471,18 @@ mod tests {
             authored.sequence_animated[walk],
             "authored Walk moves bones"
         );
+        // Global-sequence tracks (HD bones 186/187/210 scale over the 1518667 ms
+        // global sequence 0) play in timeline 0 during Walk too.
+        let timeline = |global: i16| if global < 0 { walk } else { 0 };
         for track in std::sync::Arc::make_mut(&mut model.bone_tracks) {
-            if let Some((times, values)) = track.rotation.sequences.get_mut(walk) {
+            let rotation = timeline(track.rotation.global_sequence);
+            if let Some((times, values)) = track.rotation.sequences.get_mut(rotation) {
                 times.truncate(1);
                 values.truncate(1);
             }
             for vec3 in [&mut track.translation, &mut track.scale] {
-                if let Some((times, values)) = vec3.sequences.get_mut(walk) {
+                let index = timeline(vec3.global_sequence);
+                if let Some((times, values)) = vec3.sequences.get_mut(index) {
                     times.truncate(1);
                     values.truncate(1);
                 }

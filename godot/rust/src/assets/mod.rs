@@ -262,7 +262,8 @@ fn image_from_rgba(decoded: blp::RgbaImage) -> Result<Gd<Image>, String> {
     .ok_or_else(|| "Godot rejected decoded BLP image".into())
 }
 
-fn wow_vec3(value: [f32; 3]) -> Vector3 {
+/// A WoW model-space vector in the model root's Godot axes.
+pub(crate) fn wow_vec3(value: [f32; 3]) -> Vector3 {
     Vector3::new(value[0], value[2], -value[1])
 }
 
@@ -277,8 +278,13 @@ pub(crate) const M2_SOURCE_META: &str = "m2_source_path";
 const M2_MESH_PART_META: &str = "m2_mesh_part";
 
 fn m2_bounds(model: &m2::Model) -> Aabb {
-    let [min_x, min_y, min_z] = model.bounding_box_min;
-    let [max_x, max_y, max_z] = model.bounding_box_max;
+    wow_aabb(model.bounding_box_min, model.bounding_box_max)
+}
+
+/// A WoW model-local (min, max) box in engine axes.
+pub(crate) fn wow_aabb(min: [f32; 3], max: [f32; 3]) -> Aabb {
+    let [min_x, min_y, min_z] = min;
+    let [max_x, max_y, max_z] = max;
     // `wow_vec3` negates WoW Y into engine -Z, so the extremes swap on that axis.
     let min = Vector3::new(min_x, min_z, -max_y);
     let max = Vector3::new(max_x, max_z, -min_y);
@@ -408,8 +414,9 @@ pub(super) fn build_model_filtered(
             .iter()
             .map(|batch| (batch.material.clone(), batch.binding.clone())),
     );
+    let bounds = m2_bounds(model);
     let mut root = Node3D::new_alloc();
-    root.set_meta(M2_BOUNDS_META, &m2_bounds(model).to_variant());
+    root.set_meta(M2_BOUNDS_META, &bounds.to_variant());
     if let Some(position) = m2::above_character_position(model) {
         root.set_meta(M2_ABOVE_CHARACTER_META, &wow_vec3(position).to_variant());
     }
@@ -430,6 +437,10 @@ pub(super) fn build_model_filtered(
         if let Some(skin) = &skin {
             instance.set_skin(skin);
             instance.set_skeleton_path("../Skeleton3D");
+            // Culled by the header box like WebWowViewerCpp `M2Object::createAABB` until the
+            // animation player sets the playing sequence's bounds; without a custom AABB Godot
+            // re-derives it from the bones after every pose write.
+            instance.set_custom_aabb(bounds);
         }
         // Bound as the material override, which GeometryInstance3D clears from its
         // RenderingServer instance before releasing: a surface override is released
@@ -438,8 +449,9 @@ pub(super) fn build_model_filtered(
         instance.set_material_override(&material);
         root.add_child(&instance);
     }
-    if let Some(player) = player {
+    if let Some(mut player) = player {
         root.add_child(&player);
+        player.bind_mut().apply_sequence_bounds();
     }
     if let Some(mut animation) = material_animation {
         animation.set_name("M2MaterialAnimation");
