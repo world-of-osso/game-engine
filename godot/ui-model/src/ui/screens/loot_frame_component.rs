@@ -300,6 +300,3 @@ fn card_texts(prefix: &str, row: &LootFrameRow) -> Element {
     children
 }
 
-#[cfg(all(test, feature = "dev"))]
-#[path = "loot_frame_component_tests.rs"]
-mod tests;

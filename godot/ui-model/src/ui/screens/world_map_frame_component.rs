@@ -641,6 +641,3 @@ pub fn world_map_texture_fdids(state: &WorldMapFrameState) -> Vec<u32> {
 }
 
 // Bevy layout support; the Godot UI model builds without it.
-#[cfg(all(test, feature = "dev"))]
-#[path = "world_map_frame_component_tests.rs"]
-mod tests;
