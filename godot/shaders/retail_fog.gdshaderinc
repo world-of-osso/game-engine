@@ -1,39 +1,40 @@
 // Retail scene fog: WebWowViewerCpp commonFogFunctions.slang makeFog2 (legacy exponential
 // and artistic polynomial fog, height fog, end and height colours, sun scattering), in
 // Godot world space (y up). Colours are linear RGB and mix in authored (gamma) space,
-// as the reference's byte colours do. Rust fills the uniforms from the FogResult
-// (lighting/mod.rs `TerrainLight::bind_model`, MapSceneRenderer.cpp:214-294).
+// as the reference's byte colours do. The FogResult is scene-wide, like the reference's
+// SceneWideParams fog (MapSceneRenderer.cpp:214-294): Rust writes these global uniforms
+// once per light change (lighting/mod.rs `TerrainLight::bind_scene`).
 
-// 0 off, 1 retail fog.
+// 0 off, 1 retail fog; set per material (`TerrainLight::bind_model`).
 uniform int fog_mode = 0;
 uniform float fog_opacity;
 // FogColor (SkyFogColor), EndFogColor, FogHeightColor, EndFogHeightColor, SunFogColor.
-uniform vec3 fog_color;
-uniform vec3 fog_end_color;
-uniform vec3 fog_height_color;
-uniform vec3 fog_height_end_color;
-uniform vec3 fog_sun_color;
+global uniform vec3 fog_color;
+global uniform vec3 fog_end_color;
+global uniform vec3 fog_height_color;
+global uniform vec3 fog_height_end_color;
+global uniform vec3 fog_sun_color;
 // densityParams: start, end (yards), FogDensity and FogHeightDensity per yard.
-uniform vec2 fog_range;
-uniform float fog_density;
-uniform float fog_height_density;
+global uniform vec2 fog_range;
+global uniform float fog_density;
+global uniform float fog_height_density;
 // World height of the height-fog plane (FogHeight) and FogHeightScaler.
-uniform float fog_height;
-uniform float fog_height_rate;
-uniform float fog_z_scalar;
+global uniform float fog_height;
+global uniform float fog_height_rate;
+global uniform float fog_z_scalar;
 // mix(artistic, legacy, fog_legacy_scalar).
-uniform float fog_legacy_scalar = 1.0;
+global uniform float fog_legacy_scalar;
 // MainFogStartDist, MainFogEndDist; FogStartOffset, EndFogColorDistance.
-uniform vec2 fog_main_range = vec2(0.0, 0.001);
-uniform vec2 fog_color_range = vec2(0.0, 1000.0);
+global uniform vec2 fog_main_range;
+global uniform vec2 fog_color_range;
 // Polynomials (x^3, x^2, x, 1): height factor, main and height-density artistic fog.
-uniform vec4 fog_height_coefficients = vec4(1.0, 0.0, 0.0, 0.0);
-uniform vec4 fog_main_coefficients;
-uniform vec4 fog_height_density_coefficients;
+global uniform vec4 fog_height_coefficients;
+global uniform vec4 fog_main_coefficients;
+global uniform vec4 fog_height_density_coefficients;
 // World direction toward the sun, SunFogAngle, SunAngleBlend * SunFogStrength.
-uniform vec3 fog_sun_direction = vec3(0.0, 1.0, 0.0);
-uniform float fog_sun_angle = 1.0;
-uniform float fog_sun_percentage;
+global uniform vec3 fog_sun_direction;
+global uniform float fog_sun_angle;
+global uniform float fog_sun_percentage;
 
 vec3 retail_fog_gamma(vec3 linear_color) {
 	vec3 low = linear_color * 12.92;

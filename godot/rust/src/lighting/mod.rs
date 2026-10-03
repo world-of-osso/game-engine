@@ -15,8 +15,9 @@ use game_engine_core::{
 };
 use godot::{
     classes::{
-        Cubemap, DirectionalLight3D, Environment, Image, Node3D, ResourceLoader, Shader,
-        ShaderMaterial, Sky, WorldEnvironment, directional_light_3d, environment, image, sky,
+        Cubemap, DirectionalLight3D, Environment, Image, Node3D, RenderingServer, ResourceLoader,
+        Shader, ShaderMaterial, Sky, WorldEnvironment, directional_light_3d, environment, image,
+        sky,
     },
     prelude::*,
 };
@@ -71,22 +72,52 @@ impl TerrainLight {
         material.set_shader_parameter("environment_map", &self.cube.to_variant());
     }
 
-    pub fn bind_model(&self, material: &mut Gd<ShaderMaterial>) {
+    /// Writes the scene light and fog: the global uniforms every `bind_model` material
+    /// reads (`shaders/scene_light.gdshaderinc`, `shaders/retail_fog.gdshaderinc`), once
+    /// per light change rather than per material, as WebWowViewerCpp fills its per-scene
+    /// SceneWideParams (commonLightFunctions.slang:26-52) once per frame.
+    pub fn bind_scene(&self) {
+        let mut server = RenderingServer::singleton();
+        for (name, value) in [
+            ("scene_ambient", self.retail.ambient),
+            ("scene_horizon_ambient", self.retail.horizon_ambient),
+            ("scene_ground_ambient", self.retail.ground_ambient),
+            ("scene_direct", self.retail.direct),
+            ("scene_sun_direction", self.retail.sun_direction),
+        ] {
+            server.global_shader_parameter_set(name, &Vector3::from_array(value).to_variant());
+        }
+        bind_fog(&mut server, &self.fog);
+    }
+
+    /// The scene light and fog range `bind_scene` writes, for automation (scene-lit
+    /// materials hold none of it).
+    pub fn scene_state(&self) -> VarDictionary {
+        let mut state = VarDictionary::new();
         for (name, value) in [
             ("ambient", self.retail.ambient),
             ("horizon_ambient", self.retail.horizon_ambient),
             ("ground_ambient", self.retail.ground_ambient),
             ("direct", self.retail.direct),
             ("sun_direction", self.retail.sun_direction),
+            ("fog_color", self.fog.color),
         ] {
-            material.set_shader_parameter(name, &Vector3::from_array(value).to_variant());
+            state.set(name, Vector3::from_array(value));
         }
-        bind_fog(material, &self.fog);
+        state.set("fog_range", Vector2::from_array(self.fog.range));
+        state
+    }
+
+    /// Lights `material` with the scene light and fog of `bind_scene`.
+    pub fn bind_model(&self, material: &mut Gd<ShaderMaterial>) {
+        material.set_shader_parameter("scene_light", &true.to_variant());
+        self.bind_scene_fog(material);
     }
 
     /// Only the scene fog (`retail_fog.gdshaderinc`), for unlit materials such as particles.
     pub fn bind_scene_fog(&self, material: &mut Gd<ShaderMaterial>) {
-        bind_fog(material, &self.fog);
+        material.set_shader_parameter("fog_mode", &1i32.to_variant());
+        material.set_shader_parameter("fog_opacity", &1.0f32.to_variant());
     }
 
     /// The model light plus the retail water scene inputs of `water.gdshader`.
@@ -117,17 +148,9 @@ impl TerrainLight {
         }
     }
 
+    /// Back to the material's own light, without fog.
     pub fn clear_model(material: &mut Gd<ShaderMaterial>) {
-        for name in [
-            "ambient",
-            "horizon_ambient",
-            "ground_ambient",
-            "direct",
-            "sun_direction",
-        ]
-        .into_iter()
-        .chain(FOG_UNIFORMS)
-        {
+        for name in ["scene_light", "fog_mode", "fog_opacity"] {
             material.set_shader_parameter(name, &Variant::nil());
         }
     }
@@ -197,6 +220,7 @@ impl WorldLighting {
         }
         let direction = Vector3::from_array(sample.retail.sun_direction);
         let light = TerrainLight::new(sample, fog)?;
+        light.bind_scene();
         self.attach_nodes(parent)?;
         bind_sky_dome(self.sky.as_mut().expect("attached sky"), &stops, &light.fog);
         self.sync_stars(catalog, stars_alpha)?;
@@ -462,36 +486,8 @@ pub(crate) fn apply_wmo_fog(fog: &FogResult, wmo: Option<&WmoFogBlend>) -> FogRe
     blended
 }
 
-/// Every uniform of `shaders/retail_fog.gdshaderinc`.
-const FOG_UNIFORMS: [&str; 22] = [
-    "fog_mode",
-    "fog_opacity",
-    "fog_color",
-    "fog_end_color",
-    "fog_height_color",
-    "fog_height_end_color",
-    "fog_sun_color",
-    "fog_range",
-    "fog_density",
-    "fog_height_density",
-    "fog_height",
-    "fog_height_rate",
-    "fog_z_scalar",
-    "fog_legacy_scalar",
-    "fog_main_range",
-    "fog_color_range",
-    "fog_height_coefficients",
-    "fog_main_coefficients",
-    "fog_height_density_coefficients",
-    "fog_sun_direction",
-    "fog_sun_angle",
-    "fog_sun_percentage",
-];
-
-fn bind_fog(material: &mut Gd<ShaderMaterial>, fog: &FogUniforms) {
-    let mut set = |name: &str, value: Variant| material.set_shader_parameter(name, &value);
-    set("fog_mode", 1i32.to_variant());
-    set("fog_opacity", 1.0f32.to_variant());
+fn bind_fog(server: &mut Gd<RenderingServer>, fog: &FogUniforms) {
+    let mut set = |name: &str, value: Variant| server.global_shader_parameter_set(name, &value);
     for (name, value) in [
         ("fog_color", fog.color),
         ("fog_end_color", fog.end_color),
