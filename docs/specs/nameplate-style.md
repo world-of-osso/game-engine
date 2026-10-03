@@ -43,6 +43,14 @@ Retail `NamePlateCastingBarMixin` over `CastingBarMixin` (`Blizzard_NamePlates/B
 - [x] `SpellFailure` turns the bar red with `ui-castingbar-pip-red`, reads `Interrupted: <interrupter>` in the interrupter's class colour for a kick, `Interrupted` without an interrupter, `Failed` for a failure on completion, holds 1.0 s and fades 0.3 s (`HoldFadeOutAnim`).
 - [x] A removed cast keeps running until its `SpellGo` or `SpellFailure`; the same cast still replicated after either does not restart the bar, and a new cast of the same spell after a replication gap does.
 
+### Skins (Godot client)
+
+- [x] Cast bar background, fill, pip and interrupt shield are drawn by atlas name (`ui-castingbar-background`, `ui-castingbar-filling-standard`, `ui-castingbar-pip`, `nameplates-InterruptShield`) from the active skin's `UiTextureAtlas` members: Retail `uicastingbar` under Modern, Forever's set-1 `uicastingbarc60` under Forever. A skin switch rebuilds the plates.
+- [x] Forever plates carry Camelot's `NameplateLevelFrame` (`Blizzard_NamePlates/Camelot/Blizzard_NamePlateLevelFrame.xml`): 28 wide, 23 high on the Thick health bar and 16 on the Thin one, taking the right end of the health bars; `ui-hud-nameplates-levelindicator` behind the unit's level, `-skull` for level 0, `-selected` on the target. Modern plates have none.
+- [ ] Level text difficulty colour (`GetDifficultyColor`, `C_QuestLog.GetTrivialRange`): no data source; the text is white.
+- [ ] `ui-castingbar-pip-red` stays the Retail 1x crop under both skins: its two canvas-1 members resolve to the 2x one in the skin resolver.
+- [ ] Focus colour of the level frame's selected border, and Camelot's hidden classification indicator (`Camelot/Blizzard_NamePlateFrameOptionsOverrides.lua:1`).
+
 ## How it works
 
 - [Nameplate design](../wiki/design/nameplate-design.md)
@@ -91,6 +99,7 @@ Retail `NamePlateCastingBarMixin` over `CastingBarMixin` (`Blizzard_NamePlates/B
 - `godot/tests/nameplate_occlusion.gd` — the occlusion ray on real Godot physics.
 - `godot/tests/world_nameplate_flow.gd` — in world on the dev server.
 - `godot/rust/src/nameplate_casts_tests.rs` — fill/drain, shield, SpellGo finish, interrupt/failure texts and holds, replication races.
+- `godot/rust/src/nameplate_skin_tests.rs` — cast bar crops under Modern and Forever, Forever level frame atlases and layout, Modern plate without one.
 - `native_npc_visual_fixture nameplate-casts` + `godot/tests/world_nameplate_casts_flow.gd` — the fixture server replicates the targeted enemy's `CastState` and sends `SpellFailure`/`SpellGo`; the live plate shows kick, uninterruptible resolve, channel and completion failure.
 - `godot/tests/world_nameplate_options_flow.gd` — owned loopback NPC fixture for authored HUD/Accessibility controls, label/fill visibility, label color/restoration, and camera fade versus CVar eligibility; no live player-label rendering.
 - `not_selectable_unit_flags_hide_every_plate_part_until_cleared`, `clicking_a_not_selectable_npc_model_selects_nothing`, `tab_target_skips_not_selectable_npcs`, `unit_frame_snapshot_preserves_powers_auras_level_faction_flags_target_and_removal`.
