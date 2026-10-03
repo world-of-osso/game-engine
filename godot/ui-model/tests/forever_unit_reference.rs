@@ -92,7 +92,7 @@ fn rect(registry: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
 fn text<'a>(
     registry: &'a FrameRegistry,
     name: &str,
-) -> &'a ui_toolkit::widgets::font_string::FontString {
+) -> &'a ui_toolkit::widgets::font_string::FontStringData {
     let Some(WidgetData::FontString(text)) = frame(registry, name).widget_data.as_ref() else {
         panic!("{name} not text")
     };
