@@ -200,7 +200,18 @@ def native_environment(target, environment, local):
 
 
 def native_build(project, target, cargo_args, release, env, prefix, lease):
-    cargo = ["rustup", "run", TOOLCHAIN, "cargo", *cargo_args, "--locked", "-j8"]
+    if not cargo_args:
+        raise ValueError("native Cargo subcommand is required")
+    cargo = [
+        "rustup",
+        "run",
+        TOOLCHAIN,
+        "cargo",
+        cargo_args[0],
+        "--locked",
+        "-j8",
+        *cargo_args[1:],
+    ]
     if release and "--release" not in cargo_args:
         cargo.append("--release")
     print(f"native source={project} target={target} scope={prefix}", flush=True)
