@@ -23,7 +23,7 @@ Annotated ADT doodads skip their ordinary authored-triangle camera collider. The
 
 ## Contact and recovery lifecycle
 
-The local `PlayerMovement::fly` path calls tree contact before existing ground/WMO validation. Gating is the movement's `flying` flag (from the existing can-fly/takeoff rules), not a separate mounted-model test. Prototype envelope is a **fixed sphere radius 1.25**, centered **1.0 above player position**, not fitted to the current mount.
+The local steady-flight and Skyriding paths call tree contact before existing ground/WMO validation. Skyriding also removes the contact's inward momentum component without adding energy; lift, steering and gravity remain in the existing glider model. Gating is the movement's `flying` flag (from the existing can-fly/takeoff rules), not a separate mounted-model test. Prototype envelope is a **fixed sphere radius 1.25**, centered **1.0 above player position**, not fitted to the current mount.
 
 Godot `intersect_shape` queries a box enclosing the full swept sphere segment on the tree layer, deduplicates tree parents, then analytic model-local sphere-versus-capsule sweeps choose earliest trunk or currently bent limb contact. This is not endpoint overlap or a scan of every placement. Uniform scale adjusts mover radius; world normals are normalized after transformation. Broadphase result saturation is not established by current fixtures.
 

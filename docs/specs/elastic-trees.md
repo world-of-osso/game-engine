@@ -32,7 +32,8 @@ Source inventory reconciled at `34b6ada6`; exact runtime revisions and evidence 
 Passing saved runs and integrated verification, with revision limits: [evidence SSOT](../wiki/systems/elastic-trees.md#evidence-boundary).
 
 - `godot/core/tests/elastic_tree.rs`: seven tests for validation, stiffness/leverage, recontact/recovery, rigid trunk and region weights, fast/cap/oblique sweep/miss, overlap escape, and tangential response without added energy.
-- `gameplay::tests::tree_contact_deflects_flight_and_reports_corrected_position_without_losing_steering`: pure movement with injected analytic contact; corrected packet position, continued flight and reverse steering. Not Godot broadphase or live network proof.
+- `gameplay::tests::tree_contact_deflects_flight_and_reports_corrected_position_without_losing_steering`: pure steady-flight movement with injected analytic contact; corrected packet position, continued flight and reverse steering.
+- `gameplay::tests::skyriding_tree_contact_preserves_tangential_travel_and_changes_momentum`: Skyriding contact constrains position, preserves tangential travel and corrects momentum/reporting. Not a separate native Skyriding tree-contact run.
 - `godot/tests/elastic_tree_contact.gd`: actual M2 loading, trunk/glancing/high-speed/foliage, transformed placement, thin/thick response, independent state, continuous recontact, recovery and unloaded collision. Optional `ELASTIC_TREE_SHOTS` enables lit captures and rendered-pixel deformation/recovery assertions.
 - `godot/tests/elastic_tree_flight.gd`: real private-server mount, physical W/S input, limb contact, server-replicated corrected position and recovery; private-server run passes. Captures inspected; canopy occlusion limits assessment of exact mount/hero contact pixels.
 
