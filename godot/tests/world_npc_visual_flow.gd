@@ -678,11 +678,14 @@ func wait_no_npc(client: Node) -> bool:
 	fail("NPC despawn retained world node")
 	return false
 
+# The session reaches a screen while local CASC startup still holds its UI back
+# (`assets_starting`); the screen is shown once startup is over.
 func wait_screen(client: Node, wanted: String, timeout_ms := WAIT_MS) -> bool:
 	var deadline := Time.get_ticks_msec() + timeout_ms
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
-		if client.account_state().screen == wanted:
+		var state: Dictionary = client.account_state()
+		if state.screen == wanted and not state.assets_starting:
 			return true
 	fail("Timed out waiting for " + wanted + ": " + str(client.account_state()))
 	return false
