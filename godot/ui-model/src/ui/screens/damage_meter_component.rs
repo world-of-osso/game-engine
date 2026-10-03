@@ -18,10 +18,14 @@ use ui_toolkit::widget_def::Element;
 use crate::damage_meter_data::{
     DAMAGE_DONE_LABEL, DamageMeterRow, DamageMeterView, MeterSessionType,
 };
-use crate::flare_panel::flare_panel;
+use crate::flare_panel::{
+    FLARE_ACTIVE_TEXT, FLARE_ICON_COLOR, FLARE_INACTIVE_TEXT, flare_header, flare_icon,
+    flare_panel, flare_text,
+};
 use crate::hud_layout::hud_layout;
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
+use crate::ui::screens::inworld_unit_frames_flare::flare_border_with_edge;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 pub const DAMAGE_METER_ROOT: FrameName = FrameName("DamageMeter");
@@ -198,9 +202,19 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
         ActiveSkin::Modern => blizzard_background(),
         ActiveSkin::Forever => flare_panel(DAMAGE_METER_FLARE_SKIN, FLARE_SKIN_RECT),
     };
-    children.extend(header(view));
-    for (index, row) in view.rows.iter().take(VISIBLE_ROWS).enumerate() {
-        children.extend(entry(index, row));
+    match skin {
+        ActiveSkin::Modern => {
+            children.extend(header(view));
+            for (index, row) in view.rows.iter().take(VISIBLE_ROWS).enumerate() {
+                children.extend(entry(index, row));
+            }
+        }
+        ActiveSkin::Forever => {
+            children.extend(forever_header());
+            for (index, row) in view.rows.iter().take(VISIBLE_ROWS).enumerate() {
+                children.extend(forever_entry(index, row));
+            }
+        }
     }
     if view.menu_open {
         children.extend(session_menu(view.session));
@@ -219,6 +233,200 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
             margin_left: {at.margin_left},
             margin_top: {at.margin_top},
             {children}
+        }
+    }
+}
+
+// Forever reference measurements, derived geometry and palette provenance:
+// docs/specs/forever-chat-meter-chrome.md. Existing Modern constants stay untouched.
+const FOREVER_ROWS_LEFT: f32 = 4.0;
+const FOREVER_ROWS_TOP: f32 = 32.0;
+const FOREVER_ROW_W: f32 = WINDOW_W - 2.0 * FOREVER_ROWS_LEFT;
+const FOREVER_ICON_SIZE: f32 = BAR_H;
+const FOREVER_BAR_LEFT: f32 = FOREVER_ICON_SIZE + BAR_SPACING;
+const FOREVER_BAR_W: f32 = FOREVER_ROW_W - FOREVER_BAR_LEFT;
+const FOREVER_FILL_W: f32 = FOREVER_BAR_W - 2.0;
+const FOREVER_BAR_EDGE: f32 = 8.0;
+const FOREVER_BUTTON_SIZE: f32 = 22.0;
+const FOREVER_CHART_LEFT: f32 = 348.5;
+const FOREVER_GEAR_LEFT: f32 = 369.5;
+
+fn forever_header() -> Element {
+    let mut parts = flare_header("DamageMeterFlare", FLARE_SKIN_RECT);
+    parts.extend(flare_text(
+        "DamageMeterTypeName",
+        "DPS",
+        [15.0, 7.0, 90.0, 12.0],
+        FLARE_ACTIVE_TEXT,
+        JustifyH::Left,
+    ));
+    // DamageMeterSnapshot contains no threat stream: label only, no invented action/data.
+    parts.extend(flare_text(
+        "DamageMeterThreatTab",
+        "Threat",
+        [64.0, 7.0, 60.0, 12.0],
+        FLARE_INACTIVE_TEXT,
+        JustifyH::Left,
+    ));
+    parts.extend(forever_chart_button());
+    parts.extend(flare_icon(
+        "DamageMeterSettings",
+        "common-dropdown-a-button-settings-shadowless",
+        [
+            FOREVER_GEAR_LEFT,
+            2.0,
+            FOREVER_BUTTON_SIZE,
+            FOREVER_BUTTON_SIZE,
+        ],
+        None,
+    ));
+    parts
+}
+
+fn forever_chart_button() -> Element {
+    let columns: Element = [(12.0, 6.0), (8.0, 10.0), (4.0, 14.0)]
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, (top, height))| {
+            rsx! {
+                r#frame {
+                    name: {DynName(format!("DamageMeterChartColumn{index}"))},
+                    width: 3.0,
+                    height,
+                    background_color: FLARE_ICON_COLOR,
+                    pos_type: "absolute",
+                    left: {4.0 + index as f32 * 5.0},
+                    top,
+                }
+            }
+        })
+        .collect();
+    rsx! {
+        button {
+            name: "DamageMeterSessionDropdown",
+            width: FOREVER_BUTTON_SIZE,
+            height: FOREVER_BUTTON_SIZE,
+            onclick: ACTION_DAMAGE_METER_MENU,
+            button_default_skin: false,
+            pos_type: "absolute",
+            left: FOREVER_CHART_LEFT,
+            top: 2.0,
+            {columns}
+        }
+    }
+}
+
+fn class_icon(class_id: u8) -> &'static str {
+    match class_id {
+        1 => "classicon-warrior",
+        2 => "classicon-paladin",
+        3 => "classicon-hunter",
+        4 => "classicon-rogue",
+        5 => "classicon-priest",
+        6 => "classicon-deathknight",
+        7 => "classicon-shaman",
+        8 => "classicon-mage",
+        9 => "classicon-warlock",
+        10 => "classicon-monk",
+        11 => "classicon-druid",
+        12 => "classicon-demonhunter",
+        13 => "classicon-evoker",
+        _ => panic!("damage meter source has unsupported class {class_id}"),
+    }
+}
+
+fn forever_entry(index: usize, row: &DamageMeterRow) -> Element {
+    let name = damage_meter_row_name(index);
+    let icon = class_icon(row.class_id);
+    let bar = forever_bar(&name, row);
+    rsx! {
+        r#frame {
+            name: {DynName(name.clone())},
+            width: FOREVER_ROW_W,
+            height: BAR_H,
+            pos_type: "absolute",
+            left: FOREVER_ROWS_LEFT,
+            top: {FOREVER_ROWS_TOP + (BAR_H + BAR_SPACING) * index as f32},
+            texture {
+                name: {DynName(format!("{name}Icon"))},
+                width: FOREVER_ICON_SIZE,
+                height: FOREVER_ICON_SIZE,
+                texture_atlas: icon,
+                pos_type: "absolute",
+                left: 0.0,
+                top: 0.0,
+            }
+            {bar}
+        }
+    }
+}
+
+fn forever_bar(name: &str, row: &DamageMeterRow) -> Element {
+    let value_left = FOREVER_BAR_W - VALUE_RIGHT - VALUE_W;
+    let mut parts = forever_fill(name, row);
+    parts.extend(flare_border_with_edge(
+        &format!("{name}Bar"),
+        (FOREVER_BAR_W, BAR_H),
+        FOREVER_BAR_EDGE,
+    ));
+    parts.extend(flare_text(
+        &format!("{name}Name"),
+        &row.name_text,
+        [NAME_X, 0.0, value_left - 5.0 - NAME_X, BAR_H],
+        [1.0; 4],
+        JustifyH::Left,
+    ));
+    parts.extend(flare_text(
+        &format!("{name}Value"),
+        &row.value_text,
+        [value_left, 0.0, VALUE_W, BAR_H],
+        [1.0; 4],
+        JustifyH::Right,
+    ));
+    rsx! {
+        r#frame {
+            name: {DynName(format!("{name}Bar"))},
+            width: FOREVER_BAR_W,
+            height: BAR_H,
+            background_color: "0.1,0.1,0.1,0.9",
+            pos_type: "absolute",
+            left: FOREVER_BAR_LEFT,
+            top: 0.0,
+            {parts}
+        }
+    }
+}
+
+fn forever_fill(name: &str, row: &DamageMeterRow) -> Element {
+    let fraction = row.fraction.clamp(0.0, 1.0);
+    let width = FOREVER_FILL_W * fraction;
+    let [r, g, b] = row.color;
+    let coords = BAR_FILL.tex_coords(fraction);
+    let hidden = width <= 0.0;
+    rsx! {
+        texture {
+            name: {DynName(format!("{name}StatusBar"))},
+            width,
+            height: STATUS_BAR_H,
+            hidden,
+            texture_fdid: {BAR_FILL.fdid},
+            tex_coords: {coords.as_str()},
+            vertex_color: {format!("{r},{g},{b},1")},
+            pos_type: "absolute",
+            left: 1.0,
+            top: 1.0,
+        }
+        texture {
+            name: {DynName(format!("{name}Gradient"))},
+            width,
+            height: STATUS_BAR_H,
+            hidden,
+            texture_file: "data/textures/ui/chattynator/Fade.png",
+            tex_coords: "1,0,0,1",
+            vertex_color: "0,0,0,0.6",
+            pos_type: "absolute",
+            left: 1.0,
+            top: 1.0,
         }
     }
 }

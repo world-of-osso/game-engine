@@ -10,7 +10,8 @@
 use shared::faction_reaction::Reaction;
 use ui_toolkit::frame::NineSlice;
 use ui_toolkit::rsx;
-use ui_toolkit::widget_def::Element;
+use ui_toolkit::widget_def::{Attr, Element, WidgetChild};
+use ui_toolkit::widgets::font_string::{FontColor, GameFont, JustifyH};
 use ui_toolkit::widgets::texture::TextureSource;
 
 use crate::damage_meter_data::class_color;
@@ -128,6 +129,102 @@ pub fn flare_panel(name: &str, (x, y, width, height): (f32, f32, f32, f32)) -> E
             top: y,
         }
     }
+}
+
+/// Header palette and font: DamageMeter.lua:60-61,548,705; Core.lua:194.
+pub const FLARE_ACTIVE_TEXT: [f32; 4] = [0.80, 0.60, 0.34, 1.0];
+pub const FLARE_INACTIVE_TEXT: [f32; 4] = [0.56, 0.51, 0.46, 1.0];
+pub const FLARE_ICON_COLOR: &str = "0.61,0.48,0.29,1";
+pub const FLARE_HEADER_HEIGHT: f32 = 24.0;
+pub const FLARE_FONT_SIZE: f32 = 12.0;
+
+/// Header and measured thin solid separator, siblings in the panel's parent.
+/// Measurements and all derived rectangles: docs/specs/forever-chat-meter-chrome.md.
+pub fn flare_header(root: &str, (x, y, width, _): (f32, f32, f32, f32)) -> Element {
+    rsx! {
+        r#frame {
+            name: {DynName(format!("{root}Header"))},
+            width,
+            height: FLARE_HEADER_HEIGHT,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+        r#frame {
+            name: {DynName(format!("{root}Separator"))},
+            width: {width - 2.0 * INSET},
+            height: 1.0,
+            background_color: "0.65,0.49,0.27,1",
+            pos_type: "absolute",
+            left: {x + INSET},
+            top: {y + FLARE_HEADER_HEIGHT},
+        }
+    }
+}
+
+/// Shadowed reference text, using FlareUI's font values, not its artwork.
+pub fn flare_text(
+    name: &str,
+    label: &str,
+    [x, y, width, height]: [f32; 4],
+    [r, g, b, a]: [f32; 4],
+    justify: JustifyH,
+) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(name.to_owned())},
+            width,
+            height,
+            text: label,
+            font: GameFont::FrizQuadrata,
+            font_size: FLARE_FONT_SIZE,
+            font_color: {FontColor::new(r, g, b, a)},
+            shadow_color: "0,0,0,1",
+            shadow_offset: "1,-1",
+            justify_h: justify,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    }
+}
+
+/// Existing Blizzard icon, bronze tinted. Only supported actions get a hit target.
+pub fn flare_icon(
+    name: &str,
+    atlas: &str,
+    [x, y, width, height]: [f32; 4],
+    action: Option<&str>,
+) -> Element {
+    let mut icon = rsx! {
+        r#frame {
+            name: {DynName(name.to_owned())},
+            width,
+            height,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+            texture {
+                name: {DynName(format!("{name}Icon"))},
+                width,
+                height,
+                texture_atlas: atlas,
+                vertex_color: FLARE_ICON_COLOR,
+                pos_type: "absolute",
+                left: 0.0,
+                top: 0.0,
+            }
+        }
+    };
+    if let (Some(action), Some(WidgetChild::Widget(frame))) = (action, icon.first_mut()) {
+        frame
+            .attrs
+            .push(Attr::new_dynamic("onclick", action.to_owned()));
+        frame
+            .attrs
+            .push(Attr::new_dynamic("mouse_enabled", "true".to_owned()));
+    }
+    icon
 }
 
 /// `tooltips.background` (Core.lua:333): `NineSlice:SetCenterColor` (Tooltips.lua:142-143).
