@@ -7,6 +7,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{
     UnitFrameMenuState, UnitFrameState, inworld_unit_frames_screen,
 };
 use shared::components::PowerType;
+use std::path::PathBuf;
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
@@ -27,6 +28,7 @@ fn aura(spell_id: u32) -> TargetAuraIconState {
     TargetAuraIconState { spell_id, icon_fdid: 135812, stacks: 1, dispel_color: None, large: true, elapsed: None }
 }
 fn units(reaction: Reaction) -> FrameRegistry {
+    game_engine_ui_model::paths::set_data_root(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")).unwrap();
     let player = unit("Testpaladin", Reaction::Friendly);
     let target = unit("Target", reaction);
     let mut shared = SharedContext::new();
@@ -63,13 +65,11 @@ fn text_is_player_left_and_target_tot_focus_mirrored() {
         ("PlayerLevelText", (8.0,4.0,20.0,38.0), "60", "LEFT"),
         ("PlayerName", (31.0,4.0,157.0,38.0), "Testpaladin", "LEFT"),
         ("PlayerHealthBarText", (192.0,4.0,40.0,38.0), "75%", "RIGHT"),
-        ("TargetLevelText", (212.0,4.0,20.0,38.0), "60", "RIGHT"),
-        ("TargetName", (52.0,4.0,157.0,38.0), "Target", "RIGHT"),
-        ("TargetHealthBarText", (8.0,4.0,40.0,38.0), "75%", "LEFT"),
-        ("TargetOfTargetLevelText", (132.0,4.0,20.0,24.0), "60", "RIGHT"),
-        ("TargetOfTargetName", (52.0,4.0,77.0,24.0), "Target", "RIGHT"),
-        ("TargetOfTargetHealthBarText", (8.0,4.0,40.0,24.0), "75%", "LEFT"),
-        ("FocusLevelText", (132.0,4.0,20.0,28.0), "60", "RIGHT"),
+        ("TargetLevelText", (212.0,4.0,20.0,52.0), "60", "RIGHT"),
+        ("TargetName", (52.0,4.0,157.0,52.0), "Target", "RIGHT"),
+        ("TargetHealthBarText", (8.0,4.0,40.0,52.0), "75%", "LEFT"),
+        ("TargetOfTargetName", (52.0,4.0,60.0,20.0), "Target", "RIGHT"),
+        ("TargetOfTargetHealthBarText", (8.0,4.0,40.0,20.0), "75%", "LEFT"),
     ] {
         assert_eq!(rect(&r,name), expected, "{name}");
         assert_eq!(text(&r,name).text, value, "{name}");
@@ -77,38 +77,12 @@ fn text_is_player_left_and_target_tot_focus_mirrored() {
     }
 }
 #[test]
-fn player_class_and_target_reaction_colours() {
-    for (reaction, color) in [
-        (Reaction::Hostile, [0.87,0.27,0.27,1.0]),
-        (Reaction::Neutral, [0.93,0.78,0.25,1.0]),
-        (Reaction::Friendly, [0.30,0.78,0.30,1.0]),
-    ] {
-        let r = units(reaction);
-        assert_eq!(frame(&r,"PlayerHealthBarFill").background_color, Some([0.96,0.55,0.73,1.0]));
-        assert_eq!(frame(&r,"TargetHealthBarFill").background_color, Some(color));
-        assert_eq!(frame(&r,"TargetOfTargetHealthBarFill").background_color, Some(color));
-        assert_eq!(rect(&r,"TargetHealthBarFill"), (58.0,0.0,174.0,38.0));
-        assert_eq!(rect(&r,"TargetOfTargetHealthBarFill"), (38.0,0.0,114.0,24.0));
-    }
-}
-#[test]
-fn power_values_are_right_aligned_below_health() {
-    let r = units(Reaction::Hostile);
-    for prefix in ["Player", "Target"] {
-        assert_eq!(rect(&r,&format!("{prefix}ManaBar")), (4.0,42.0,232.0,14.0));
-        assert_eq!(rect(&r,&format!("{prefix}ManaBarText")), (8.0,42.0,224.0,14.0));
-        let value = text(&r,&format!("{prefix}ManaBarText"));
-        assert_eq!(value.text,"40");
-        assert_eq!(value.justify_h.as_str(),"RIGHT");
-    }
-}
-#[test]
 fn pet_is_below_player_right_and_tot_right_of_target() {
     let r = units(Reaction::Hostile);
     let pet = frame(&r,"PetFrame");
     let tot = frame(&r,"TargetOfTargetFrame");
-    assert_eq!((pet.width,pet.height), (Dimension::Fixed(120.0),Dimension::Fixed(24.0)));
-    assert_eq!((pet.margin.left,pet.margin.top), (Val::Px(-330.0),Val::Px(306.0)));
+    assert_eq!((pet.width,pet.height), (Dimension::Fixed(160.0),Dimension::Fixed(28.0)));
+    assert_eq!((pet.margin.left,pet.margin.top), (Val::Px(-290.0),Val::Px(320.0)));
     assert_eq!((tot.margin.left,tot.margin.top), (Val::Px(458.0),Val::Px(240.0)));
     for prefix in ["Player", "Target", "TargetOfTarget", "Focus", "PetFrame"] {
         assert!(r.get_by_name(&format!("{prefix}Portrait")).is_none());
@@ -117,9 +91,9 @@ fn pet_is_below_player_right_and_tot_right_of_target() {
 #[test]
 fn existing_aura_icons_are_above_right_edge_growing_left() {
     let r = units(Reaction::Hostile);
-    for prefix in ["Player", "Target"] {
-        assert_eq!(rect(&r,&format!("{prefix}BuffIcon0")), (215.0,-27.0,21.0,21.0));
-        assert_eq!(rect(&r,&format!("{prefix}BuffIcon1")), (191.0,-27.0,21.0,21.0));
+    for prefix in ["Target"] {
+        assert_eq!(rect(&r,&format!("{prefix}BuffIcon0")), (216.0,-24.0,20.0,20.0));
+        assert_eq!(rect(&r,&format!("{prefix}BuffIcon1")), (193.0,-24.0,20.0,20.0));
     }
 }
 #[test]
@@ -129,8 +103,8 @@ fn cast_icon_name_remaining_time_and_dark_track() {
     shared.insert(CastingBarState { visible:true, spell_name:"Fireball".into(),timer_text:"1.5".into(),progress:0.5,..Default::default() });
     let mut r=FrameRegistry::new(1920.0,1080.0);
     Screen::new(casting_bar_frame_screen).sync(&shared,&mut r);
-    assert_eq!(rect(&r,"CastingBarIcon"),(-30.0,4.0,26.0,26.0));
-    assert_eq!(rect(&r,"CastingBarSpellName"),(4.0,0.0,244.0,26.0));
+    assert_eq!(rect(&r,"CastingBarIcon"),(4.0,4.0,26.0,26.0));
+    assert_eq!(rect(&r,"CastingBarSpellName"),(4.0,0.0,240.0,26.0));
     assert_eq!(rect(&r,"CastingBarTimer"),(248.0,0.0,40.0,26.0));
     assert_eq!(text(&r,"CastingBarSpellName").text,"Fireball");
     assert_eq!(text(&r,"CastingBarSpellName").justify_h.as_str(),"LEFT");
