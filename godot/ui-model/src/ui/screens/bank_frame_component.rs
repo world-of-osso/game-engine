@@ -5,16 +5,16 @@
 //! the tab settings menu. Positions are top-left offsets converted from the anchors;
 //! docs/specs/bank-frame.md lists them.
 
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, active_skin, resolve_region};
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
+use ui_toolkit::strata::DrawLayer;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::screens::bank_art::{
-    HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, SlotItem, WHITE, atlas,
-    checkbox, cropped, edit_box, item_slot, label, money_display, money_prompt, selected_marker,
-    texture,
+    HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, SlotItem, WHITE, checkbox,
+    cropped, edit_box, item_slot, label, money_display, money_prompt, selected_marker, texture,
 };
-use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::screens::merchant_frame_component::{tab, tab_width};
 use crate::ui::screens::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome};
 use crate::ui::strata::FrameStrata;
@@ -51,28 +51,24 @@ pub const MONEY_BOXES: MoneyBoxNames = MoneyBoxNames {
 };
 pub const TAB_NAME_BOX: &str = "BankTabSettingsName";
 
-/// `bank-frame-background` (member of 5782252, 256×256), BF.xml:677.
-const BACKGROUND: AtlasArt = AtlasArt {
-    fdid: 5_782_252,
-    atlas: (256.0, 256.0),
-    rect: (0.0, 256.0, 0.0, 256.0),
-};
-/// `bags-item-slot64` (4701874, 64×64): character bank slot background.
-const SLOT: u32 = 4_701_874;
-/// `warband-bank-slot` (5782246 256×256, 1..54 × 121..173).
-const WARBAND_SLOT: AtlasArt = AtlasArt {
-    fdid: 5_782_246,
-    atlas: (256.0, 256.0),
-    rect: (1.0, 54.0, 121.0, 173.0),
-};
+/// BF.xml:677; Retail UiTextureAtlasMember.csv:11422, Forever :17833.
+const BACKGROUND: &str = "bank-frame-background";
+/// BF.xml:571 / BF.lua:586; Retail members :7767, Forever :18117.
+const SLOT: &str = "bags-item-slot64";
+/// BF.lua:582; Retail members :11547 (same set-0 member under Forever).
+const WARBAND_SLOT: &str = "warband-bank-slot";
+/// Forever Camelot/BankFrame.xml:34,36; Forever members :18121,:17832.
+const FOREVER_SLOT_FRAME: &str = "bank-frame-item-slotframe";
+const FOREVER_SLOT: &str = "bags-item-bankslot64";
+/// Camelot/BankFrame.xml:76-79: useAtlasSize, scale .48, BOTTOM +220.
+/// Forever member :18118 (864×32 on a 1024×128 sheet).
+const FOREVER_DIVIDER: &str = "bank-divider";
+const FOREVER_DIVIDER_SCALE: f32 = 0.48;
+const FOREVER_DIVIDER_BOTTOM: f32 = 220.0;
 /// `Interface\SpellBook\SpellBook-SkillLineTab`, the side tab border (BF.xml:353).
 const SKILL_LINE_TAB: u32 = 136_831;
-/// `bags-icon-addslots` (969828 512×256): the purchase tab icon.
-const ADD_SLOTS: AtlasArt = AtlasArt {
-    fdid: 969_828,
-    atlas: (512.0, 256.0),
-    rect: (273.0, 315.0, 1.0, 43.0),
-};
+/// Retail and Forever UiTextureAtlasMember.csv:2883: the existing purchase-tab crop.
+const ADD_SLOTS: &str = "bags-icon-addslots";
 /// `Interface\GuildBankFrame\Corners`, the purchase prompt corners (BF.xml:410-437).
 const PROMPT_CORNERS: u32 = 590_067;
 
@@ -151,19 +147,26 @@ pub fn bank_frame_screen(ctx: &SharedContext) -> Element {
         .get::<BankFrameState>()
         .expect("BankFrameState must be in SharedContext");
     let hide = !state.visible;
+    let skin = active_skin();
     let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), &state.title, ACTION_CLOSE);
     // `Background` TOPLEFT 0,-20 / BOTTOMRIGHT 0,30 (BF.xml:677-682).
-    children.extend(atlas(
+    children.extend(bank_atlas(
         format!("{FRAME_NAME}Background"),
-        &BACKGROUND,
+        BACKGROUND,
+        skin,
         (2.0, 20.0, FRAME_W - 4.0, FRAME_H - 50.0),
+        (WHITE, DrawLayer::Artwork),
     ));
-    children.extend(side_tabs(state));
+    match skin {
+        ActiveSkin::Modern => {}
+        ActiveSkin::Forever => children.extend(bank_divider(skin)),
+    }
+    children.extend(side_tabs(state, skin));
     match &state.purchase {
-        Some(prompt) => children.extend(purchase_prompt(prompt)),
+        Some(prompt) => children.extend(purchase_prompt(prompt, skin)),
         None => {
             children.extend(header(&state.header));
-            children.extend(slots(state));
+            children.extend(slots(state, skin));
             children.extend(deposit_all(state));
         }
     }
@@ -190,6 +193,98 @@ pub fn bank_frame_screen(ctx: &SharedContext) -> Element {
     }
 }
 
+/// Resolve names before mounting so Modern retains its exact FDID/UV tree contract.
+/// Missing local c60 BLPs are intentionally not checked here.
+fn bank_atlas(
+    name: String,
+    atlas_name: &str,
+    skin: ActiveSkin,
+    (x, y, width, height): (f32, f32, f32, f32),
+    (color, layer): (&str, DrawLayer),
+) -> Element {
+    let (fdid, coords) = resolve_bank_texture(atlas_name, skin);
+    rsx! {
+        texture {
+            name: {DynName(name)},
+            width,
+            height,
+            texture_fdid: fdid,
+            tex_coords: {coords.as_str()},
+            vertex_color: color,
+            draw_layer: {layer.as_str()},
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    }
+}
+
+fn resolve_bank_texture(name: &str, skin: ActiveSkin) -> (u32, String) {
+    let region = resolve_region(name, skin)
+        .unwrap_or_else(|| panic!("bank atlas {name} missing under {skin:?}"));
+    let AtlasSource::FileDataId(fdid) = region.source else {
+        panic!("bank atlas {name} is not a DB2 texture")
+    };
+    let coords = format!(
+        "{},{},{},{}",
+        region.left, region.right, region.top, region.bottom
+    );
+    (fdid, coords)
+}
+
+fn bank_divider(skin: ActiveSkin) -> Element {
+    let region = resolve_region(FOREVER_DIVIDER, skin).expect("Forever bank-divider atlas");
+    let width = region.width * FOREVER_DIVIDER_SCALE;
+    let height = region.height * FOREVER_DIVIDER_SCALE;
+    bank_atlas(
+        format!("{FRAME_NAME}Divider"),
+        FOREVER_DIVIDER,
+        skin,
+        (
+            (FRAME_W - width) / 2.0,
+            FRAME_H - FOREVER_DIVIDER_BOTTOM - height,
+            width,
+            height,
+        ),
+        (WHITE, DrawLayer::Artwork),
+    )
+}
+
+/// Camelot/BankFrame.xml:34-36 changes only the slot art, not the existing grid.
+fn slot_chrome(prefix: &str, account: bool, skin: ActiveSkin) -> Element {
+    let mut children = slot_background(prefix, account, skin);
+    match skin {
+        ActiveSkin::Modern => {}
+        ActiveSkin::Forever => children.extend(bank_atlas(
+            format!("{prefix}NormalTexture"),
+            FOREVER_SLOT_FRAME,
+            skin,
+            (0.0, 0.0, ITEM_BUTTON, ITEM_BUTTON),
+            (WHITE, DrawLayer::Overlay),
+        )),
+    }
+    children
+}
+
+fn slot_background(prefix: &str, account: bool, skin: ActiveSkin) -> Element {
+    let (name, rect) = match (skin, account) {
+        // BF.lua:579-585: Warband backgrounds grow -6,5 / 6,-7.
+        (_, true) => (
+            WARBAND_SLOT,
+            (-6.0, -5.0, ITEM_BUTTON + 12.0, ITEM_BUTTON + 12.0),
+        ),
+        (ActiveSkin::Modern, false) => (SLOT, (0.0, 0.0, ITEM_BUTTON, ITEM_BUTTON)),
+        (ActiveSkin::Forever, false) => (FOREVER_SLOT, (0.0, 0.0, ITEM_BUTTON, ITEM_BUTTON)),
+    };
+    bank_atlas(
+        format!("{prefix}Background"),
+        name,
+        skin,
+        rect,
+        (WHITE, DrawLayer::Artwork),
+    )
+}
+
 /// `BankPanelHeaderFrameTemplate` 300×20 at TOP 0,-36 (BF.xml:166-176, 605-608).
 fn header(text: &str) -> Element {
     label(
@@ -200,28 +295,14 @@ fn header(text: &str) -> Element {
     )
 }
 
-fn slots(state: &BankFrameState) -> Element {
+fn slots(state: &BankFrameState, skin: ActiveSkin) -> Element {
     state
         .slots
         .iter()
         .enumerate()
         .flat_map(|(index, item)| {
             let prefix = format!("{FRAME_NAME}Item{}", index + 1);
-            // Account slots use `warband-bank-slot` grown -6,5 / 6,-7 (BF.lua:579-585).
-            let background = if state.account {
-                atlas(
-                    format!("{prefix}Background"),
-                    &WARBAND_SLOT,
-                    (-6.0, -5.0, ITEM_BUTTON + 12.0, ITEM_BUTTON + 12.0),
-                )
-            } else {
-                texture(
-                    format!("{prefix}Background"),
-                    SLOT,
-                    (0.0, 0.0, ITEM_BUTTON, ITEM_BUTTON),
-                    WHITE,
-                )
-            };
+            let background = slot_chrome(&prefix, state.account, skin);
             item_slot(
                 &prefix,
                 slot_position(index),
@@ -235,7 +316,7 @@ fn slots(state: &BankFrameState) -> Element {
 
 /// `BankPanelTabTemplate` 32×32: SkillLineTab border 64×64 at -3,11, the icon, and
 /// `CheckButtonHilight` when selected (BF.xml:349-376).
-fn side_tabs(state: &BankFrameState) -> Element {
+fn side_tabs(state: &BankFrameState, skin: ActiveSkin) -> Element {
     let mut children: Element = state
         .tabs
         .iter()
@@ -245,6 +326,7 @@ fn side_tabs(state: &BankFrameState) -> Element {
                 &format!("{FRAME_NAME}Tab{}", index + 1),
                 side_tab_position(index),
                 SideTabIcon::Texture(side.icon_fdid),
+                skin,
                 side.selected,
                 &format!("{ACTION_TAB_PREFIX}{index}"),
             )
@@ -254,7 +336,8 @@ fn side_tabs(state: &BankFrameState) -> Element {
         children.extend(side_tab(
             &format!("{FRAME_NAME}PurchaseTab"),
             side_tab_position(state.tabs.len()),
-            SideTabIcon::Atlas(&ADD_SLOTS),
+            SideTabIcon::Atlas(ADD_SLOTS),
+            skin,
             selected,
             ACTION_PURCHASE_TAB,
         ));
@@ -264,13 +347,14 @@ fn side_tabs(state: &BankFrameState) -> Element {
 
 enum SideTabIcon<'a> {
     Texture(u32),
-    Atlas(&'a AtlasArt),
+    Atlas(&'a str),
 }
 
 fn side_tab(
     name: &str,
     (x, y): (f32, f32),
     icon: SideTabIcon,
+    skin: ActiveSkin,
     selected: bool,
     action: &str,
 ) -> Element {
@@ -284,7 +368,13 @@ fn side_tab(
         SideTabIcon::Texture(fdid) => {
             texture(format!("{name}Icon"), fdid, (0.0, 0.0, 32.0, 32.0), WHITE)
         }
-        SideTabIcon::Atlas(art) => atlas(format!("{name}Icon"), art, (0.0, 0.0, 32.0, 32.0)),
+        SideTabIcon::Atlas(art) => bank_atlas(
+            format!("{name}Icon"),
+            art,
+            skin,
+            (0.0, 0.0, 32.0, 32.0),
+            (WHITE, DrawLayer::Artwork),
+        ),
     });
     if selected {
         children.extend(selected_marker(format!("{name}Selected"), (0.0, 0.0, 32.0)));
@@ -307,22 +397,17 @@ fn side_tab(
 /// `BankPanelPurchasePromptTemplate` inset 10,-60 / -10,70 (BF.xml:477-560, 645-649):
 /// title, `PurchasePromptBody`, "Cost:" with the price (red when unaffordable) and the
 /// 105×21 Purchase button.
-fn purchase_prompt(prompt: &PurchasePromptView) -> Element {
+fn purchase_prompt(prompt: &PurchasePromptView, skin: ActiveSkin) -> Element {
     let (x, y) = (10.0, 60.0);
     let (width, height) = (FRAME_W - 20.0, FRAME_H - 130.0);
     let name = format!("{FRAME_NAME}PurchasePrompt");
-    let mut children = rsx! {
-        texture {
-            name: {DynName(format!("{name}Background"))},
-            width: {width - 8.0},
-            height: {height - 7.0},
-            texture_fdid: SLOT,
-            vertex_color: "0.0,0.0,0.0,0.75",
-            pos_type: "absolute",
-            left: {x + 4.0},
-            top: {y + 4.0},
-        }
-    };
+    let mut children = bank_atlas(
+        format!("{name}Background"),
+        SLOT,
+        skin,
+        (x + 4.0, y + 4.0, width - 8.0, height - 7.0),
+        ("0.0,0.0,0.0,0.75", DrawLayer::Artwork),
+    );
     // Corners: Interface\GuildBankFrame\Corners (BF.xml:410-437).
     let corners = [
         (
@@ -566,4 +651,3 @@ fn tab_settings(flags: u32, name_prompt: &str) -> Element {
         }
     }
 }
-
