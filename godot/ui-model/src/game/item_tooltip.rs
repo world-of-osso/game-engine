@@ -273,7 +273,6 @@ mod tests {
     use super::*;
 
     fn configure_test_data() {
-        #[cfg(godot_host)]
         crate::paths::set_data_root(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
         )

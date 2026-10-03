@@ -66,9 +66,6 @@ fn tables() -> &'static ItemStatTables {
     TABLES.get_or_init(|| {
         let dir = crate::paths::resolve_data_path(Path::new("db2").join(SPELL_DB2_BUILD));
         load_item_stat_tables(&dir).unwrap_or_else(|err| {
-            #[cfg(not(godot_host))]
-            bevy::log::error!("item stat tables unavailable: {err}");
-            #[cfg(godot_host)]
             eprintln!("item stat tables unavailable: {err}");
             ItemStatTables::default()
         })

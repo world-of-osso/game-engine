@@ -1,5 +1,3 @@
-#[cfg(not(godot_host))]
-use bevy::prelude::*;
 use std::collections::BTreeMap;
 
 use shared::protocol::{
@@ -157,7 +155,6 @@ pub struct BagInfo {
 }
 
 /// A bag or equipment request for the server (`InventoryChannel`).
-#[cfg_attr(not(godot_host), derive(Message))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum InventoryRequest {
     Swap(SwapItem),
@@ -168,7 +165,6 @@ pub enum InventoryRequest {
 }
 
 /// Runtime inventory state for all bags and the equipped items.
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct InventoryState {
     pub bags: Vec<BagInfo>,

@@ -3,8 +3,6 @@
 //! the tab and mode the frames show, and the player actions the frames ask the
 //! network layer to send (`BankRequest`, `GuildBankRequest`).
 
-#[cfg(not(godot_host))]
-use bevy::prelude::*;
 use shared::protocol::{BankContents, BankType, GuildBankContents, GuildBankLog, GuildBankLogKind};
 
 /// A prompt shown over a bank frame.
@@ -19,7 +17,6 @@ pub enum BankPrompt {
 }
 
 /// The open bank frame (`npc` = banker server entity bits; `None` = closed).
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Clone, Debug, PartialEq)]
 pub struct BankState {
     pub npc: Option<u64>,
@@ -143,7 +140,6 @@ impl BankState {
 }
 
 /// A bank frame action for the server, sent to the open banker.
-#[cfg_attr(not(godot_host), derive(Message))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum BankRequest {
     Deposit {
@@ -188,7 +184,6 @@ pub enum GuildBankMode {
 }
 
 /// The open guild bank frame (`object` = vault server entity bits; `None` = closed).
-#[cfg_attr(not(godot_host), derive(Resource))]
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct GuildBankState {
     pub object: Option<u64>,
@@ -276,7 +271,6 @@ impl GuildBankState {
 }
 
 /// A guild bank frame action for the server, sent to the open vault.
-#[cfg_attr(not(godot_host), derive(Message))]
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum GuildBankRequest {
     Deposit { tab: u8, item_guid: u64 },

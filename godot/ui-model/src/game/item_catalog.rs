@@ -139,15 +139,9 @@ fn load_client_catalog() -> ItemCatalog {
     });
     if let Ok(catalog) = &loaded {
         let (items, seconds) = (catalog.len(), started.elapsed().as_secs_f32());
-        #[cfg(not(godot_host))]
-        bevy::log::info!("item catalog: {items} items loaded in {seconds:.1} s");
-        #[cfg(godot_host)]
         println!("item catalog: {items} items loaded in {seconds:.1} s");
     }
     loaded.unwrap_or_else(|err| {
-        #[cfg(not(godot_host))]
-        bevy::log::error!("item catalog unavailable: {err}");
-        #[cfg(godot_host)]
         eprintln!("item catalog unavailable: {err}");
         ItemCatalog::default()
     })
