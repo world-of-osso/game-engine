@@ -19,7 +19,7 @@ import time
 ROOT_NAME = "game-engine-godot-conversion"
 SIBLINGS = ("asset-resolver", "ui-toolkit-godot-conversion", "ui-toolkit-macros", "shared-protocol", "bevy-patches")
 SOURCE_SUFFIXES = {".rs", ".c", ".h", ".cpp", ".hpp", ".wgsl"}
-ROOT_PATHS = ("godot", "src", "tests")  # tests/unit is compiled into crates through #[path]
+ROOT_PATHS = ("godot",)
 EXCLUDED_DIRS = {".git", "target", "data", ".godot"}
 ARTIFACT = "libgame_engine_godot.so"
 FIXTURE_DIR = Path("godot/network/examples")
@@ -51,7 +51,7 @@ def allowed(repo_name, path, tracked):
     if path.suffix in SOURCE_SUFFIXES or path.name in {"Cargo.toml", "Cargo.lock"}:
         return True
     if tracked and repo_name == ROOT_NAME and path.suffix == ".png":
-        return parts[:4] == ("src", "rendering", "ui", "nameplate_skins")
+        return parts[:6] == ("godot", "rust", "src", "rendering", "ui", "nameplate_skins")
     return tracked and repo_name == "bevy-patches" and parts == ("taffy", "README.md")
 
 
@@ -93,8 +93,6 @@ def validate_sources(context):
     for path in required:
         if not path.is_file():
             raise FileNotFoundError(f"missing build dependency: {path.relative_to(context)}")
-    if not any((root / "src").rglob("*.rs")):
-        raise FileNotFoundError("missing build dependency: game-engine-godot-conversion/src/*.rs")
 
 
 def install_artifact(compressed, destination, executable=False):
