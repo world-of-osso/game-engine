@@ -133,5 +133,10 @@ safeguards).
   sub-array 0 at the global sequence's time). 2171/3818 local multi-bone M2s have such tracks; boar.m2's bone 0
   translation (+0.282 x, global sequence 1) is dropped in 16 of 17 sequences, so the boar renders 0.28 back
   and pokes 0.2-1.1 outside its sequence bounds.
+  Fixed: `AnimationState` samples global-sequence bone tracks from timeline 0 at a model global clock advanced
+  by unscaled real time (WebWowViewerCpp animate.h `animateTrack`, animationManager.cpp `deltaTimeForGS`).
+  `m2_skinned_bounds.gd` now also holds boar.m2 inside all 17 sequence bounds (tolerance 0.03: JumpStart's
+  last key at 834 ms sits 0.028 above its box). Particle emission tracks still skip global sequences
+  (`m2_particles.rs` `set_animation`); sky tracks sample the preferred timeline, not 0 (`sky_model.rs`).
 - `Node3D::_propagate_transform_changed` 1.4 ms self, reached from extension `set_quaternion`/`set_position`
   calls during idle (callers lost at Rust frames).
