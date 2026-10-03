@@ -1,7 +1,7 @@
-//! Under the Forever skin the chat frame, damage meter and tooltip draw FlareUI's
-//! `flare_bronze` panel (Blizzard's `UI-Tooltip-Border` over
-//! `UI-DialogBox-Background-Dark`) in FlareUI's colours, and a skin switch re-skins the
-//! live canvases.
+//! Under the Forever skin the chat frame and damage meter draw FlareUI's `flare_bronze`
+//! panel (Blizzard's `UI-Tooltip-Border` over `UI-DialogBox-Background-Dark`) in FlareUI's
+//! colours, tooltips keep Blizzard's nine-slice in FlareUI's border and background colours,
+//! and a skin switch re-skins the live canvases.
 
 use game_engine_ui_model::chat_frame_component::{CHAT_BACKGROUND, chat_frame_screen};
 use game_engine_ui_model::damage_meter_component::{DAMAGE_METER_ROOT, damage_meter_screen};
@@ -10,9 +10,9 @@ use game_engine_ui_model::game_tooltip::game_tooltip_screen;
 use game_engine_ui_model::tooltip_presentation::TooltipBorder;
 use shared::faction_reaction::Reaction;
 use ui_toolkit::atlas::ActiveSkin;
-use ui_toolkit::frame::NineSlice;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::frame::{NineSlice, WidgetData};
 use ui_toolkit::widgets::texture::TextureSource;
 
 use super::modern_panel_snapshot_tests::{chat_view, meter_view, tooltip_view};
@@ -162,55 +162,112 @@ fn bronze_sheet_turns_the_top_and_bottom_edges_to_run_along_the_frame() {
     );
 }
 
-#[test]
-fn forever_tooltip_border_follows_class_reaction_and_quality() {
-    let border = |subject: TooltipBorder| {
-        let mut view = tooltip_view();
-        view.main.border = subject;
-        let tooltip = canvas(view, game_tooltip_screen, ActiveSkin::Forever);
-        let slice = slice(&tooltip, "TooltipFlareBackdrop");
-        assert_eq!(slice.bg_color, TOOLTIP_BG);
-        assert!(
-            !has(&tooltip, "TooltipNineSliceCenter"),
-            "the retail nine-slice is replaced"
-        );
-        slice.border_color
-    };
-    assert_eq!(border(TooltipBorder::Default), TOOLTIP_DEFAULT);
+/// `(fdid, vertex colour)` of the texture `name`.
+fn piece(model: &RegistryModel, name: &str) -> (u32, [f32; 4]) {
+    let id = model
+        .registry
+        .get_by_name(name)
+        .unwrap_or_else(|| panic!("no {name}"));
+    match &model.registry.get(id).unwrap().widget_data {
+        Some(WidgetData::Texture(texture)) => match texture.source {
+            TextureSource::FileDataId(fdid) => (fdid, texture.vertex_color),
+            ref other => panic!("{name} draws {other:?}"),
+        },
+        other => panic!("{name} is not a texture: {other:?}"),
+    }
+}
+
+/// `TooltipDefaultLayout` border pieces and the art each draws.
+const TOOLTIP_BORDER_PIECES: [(&str, u32); 8] = [
+    ("TopLeftCorner", 4_185_447),
+    ("TopRightCorner", 4_185_447),
+    ("BottomLeftCorner", 4_185_447),
+    ("BottomRightCorner", 4_185_447),
+    ("TopEdge", 4_185_447),
+    ("BottomEdge", 4_185_447),
+    ("LeftEdge", 4_185_474),
+    ("RightEdge", 4_185_474),
+];
+
+/// FlareUI keeps Blizzard's tooltip nine-slice: every border piece tinted one colour
+/// (`NineSlice:SetBorderColor`) and the centre at 0.05/0.05/0.06 alpha 0.9
+/// (`SetCenterColor`, Tooltips.lua:138-146). Returns that border colour.
+fn forever_tooltip_border(subject: TooltipBorder) -> [f32; 4] {
+    let mut view = tooltip_view();
+    view.main.border = subject;
+    let tooltip = canvas(view, game_tooltip_screen, ActiveSkin::Forever);
+    assert!(!has(&tooltip, "TooltipFlareBackdrop"), "no bronze panel");
     assert_eq!(
-        border(TooltipBorder::Reaction(Reaction::Hostile)),
+        piece(&tooltip, "TooltipNineSliceCenter"),
+        (4_185_455, TOOLTIP_BG)
+    );
+    let colors: Vec<[f32; 4]> = TOOLTIP_BORDER_PIECES
+        .iter()
+        .map(|(part, fdid)| {
+            let (drawn, color) = piece(&tooltip, &format!("TooltipNineSlice{part}"));
+            assert_eq!(drawn, *fdid, "{part}");
+            color
+        })
+        .collect();
+    assert!(colors.iter().all(|color| *color == colors[0]));
+    colors[0]
+}
+
+#[test]
+fn forever_tooltip_tints_blizzards_nine_slice_by_class_reaction_and_quality() {
+    assert_eq!(forever_tooltip_border(TooltipBorder::Default), TOOLTIP_DEFAULT);
+    assert_eq!(
+        forever_tooltip_border(TooltipBorder::Reaction(Reaction::Hostile)),
         [0.78, 0.28, 0.24, 1.0]
     );
     assert_eq!(
-        border(TooltipBorder::Reaction(Reaction::Friendly)),
+        forever_tooltip_border(TooltipBorder::Reaction(Reaction::Friendly)),
         [0.35, 0.65, 0.38, 1.0]
     );
     // Mage RAID_CLASS_COLORS, unmuted.
-    assert_eq!(border(TooltipBorder::Class(8)), [0.25, 0.78, 0.92, 1.0]);
+    assert_eq!(
+        forever_tooltip_border(TooltipBorder::Class(8)),
+        [0.25, 0.78, 0.92, 1.0]
+    );
     // Rare 0.0, 0.44, 0.87 muted by 0.85.
-    let [r, g, b, a] = border(TooltipBorder::Quality(3));
+    let [r, g, b, a] = forever_tooltip_border(TooltipBorder::Quality(3));
     assert_eq!([r, a], [0.0, 1.0]);
     assert!((g - 0.374).abs() < 1e-5 && (b - 0.7395).abs() < 1e-5);
+}
+
+#[test]
+fn modern_tooltip_keeps_the_white_border_and_retail_centre() {
+    let mut view = tooltip_view();
+    view.main.border = TooltipBorder::Reaction(Reaction::Hostile);
+    let tooltip = canvas(view, game_tooltip_screen, ActiveSkin::Modern);
+    assert_eq!(
+        piece(&tooltip, "TooltipNineSliceCenter"),
+        (4_185_455, [0.09, 0.09, 0.188, 1.0])
+    );
+    for (part, fdid) in TOOLTIP_BORDER_PIECES {
+        let name = format!("TooltipNineSlice{part}");
+        assert_eq!(piece(&tooltip, &name), (fdid, [1.0; 4]), "{part}");
+    }
 }
 
 #[test]
 fn forever_reskins_and_modern_restores_live_canvases() {
     let mut chat = canvas(chat_view(), chat_frame_screen, ActiveSkin::Modern);
     let mut tooltip = canvas(tooltip_view(), game_tooltip_screen, ActiveSkin::Modern);
+    let center = |model: &RegistryModel| piece(model, "TooltipNineSliceCenter").1;
     assert!(has(&chat, CHAT_BACKGROUND.0) && !has(&chat, "ChatFrame1FlareSkin"));
-    assert!(has(&tooltip, "TooltipNineSliceCenter") && !has(&tooltip, "TooltipFlareBackdrop"));
+    assert_eq!(center(&tooltip), [0.09, 0.09, 0.188, 1.0]);
 
     chat.sync_skin(ActiveSkin::Forever);
     tooltip.sync_skin(ActiveSkin::Forever);
     assert_eq!(slice(&chat, "ChatFrame1FlareSkin").border_color, BRONZE);
-    assert_eq!(
-        slice(&tooltip, "TooltipFlareBackdrop").border_color,
-        TOOLTIP_DEFAULT
-    );
-    assert!(!has(&chat, CHAT_BACKGROUND.0) && !has(&tooltip, "TooltipNineSliceCenter"));
+    assert_eq!(center(&tooltip), TOOLTIP_BG);
+    assert_eq!(piece(&tooltip, "TooltipNineSliceTopEdge").1, TOOLTIP_DEFAULT);
+    assert!(!has(&chat, CHAT_BACKGROUND.0));
 
     chat.sync_skin(ActiveSkin::Modern);
     tooltip.sync_skin(ActiveSkin::Modern);
     assert!(has(&chat, CHAT_BACKGROUND.0) && !has(&chat, "ChatFrame1FlareSkin"));
-    assert!(has(&tooltip, "TooltipNineSliceCenter") && !has(&tooltip, "TooltipFlareBackdrop"));
+    assert_eq!(center(&tooltip), [0.09, 0.09, 0.188, 1.0]);
+    assert_eq!(piece(&tooltip, "TooltipNineSliceTopEdge").1, [1.0; 4]);
 }
