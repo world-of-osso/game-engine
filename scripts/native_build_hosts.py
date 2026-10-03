@@ -1,22 +1,23 @@
 #!/usr/bin/env python3
 """Native Rust execution; caller owns source selection and runtime settings."""
 
-from contextlib import contextmanager
 import fcntl
 import hashlib
 import json
 import os
-from pathlib import Path
 import random
 import select
 import shutil
 import signal
 import subprocess
 import sys
+import tarfile
 import tempfile
 import threading
 import time
 import uuid
+from contextlib import contextmanager
+from pathlib import Path
 
 from build_hosts import (
     extract_directory,
@@ -578,6 +579,6 @@ def execute(
 if __name__ == "__main__":
     try:
         sys.exit(worker(Path(sys.argv[1]), *json.loads(sys.argv[2])))
-    except Exception as error:
+    except (OSError, ValueError, RuntimeError, tarfile.TarError) as error:
         print(f"native worker failed: {error}", file=sys.stderr, flush=True)
         sys.exit(1)
