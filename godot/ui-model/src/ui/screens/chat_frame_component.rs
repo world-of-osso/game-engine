@@ -10,7 +10,10 @@ use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 
 use crate::chat_data::ChatState;
-use crate::flare_panel::flare_panel;
+use crate::flare_panel::{
+    FLARE_ACTIVE_TEXT, FLARE_FONT_SIZE, FLARE_HEADER_HEIGHT, FLARE_INACTIVE_TEXT, flare_header,
+    flare_icon, flare_panel, flare_text,
+};
 use crate::ui::anchor::FrameName;
 use crate::ui::chat_frame::{
     ChatFrameState, ChatRow, ChatRun, ChatTab, CombatLogChat, local_timestamp, messages_that_fit,
@@ -261,7 +264,22 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
         .expect("canvas carries the active skin");
     let background = match skin {
         ActiveSkin::Modern => chattynator_background(view.tab),
-        ActiveSkin::Forever => flare_panel(CHAT_FLARE_SKIN, FLARE_SKIN_RECT),
+        ActiveSkin::Forever => forever_background(),
+    };
+    let tab_parts = match skin {
+        ActiveSkin::Modern => tabs(view),
+        ActiveSkin::Forever => forever_tabs(view),
+    };
+    let copy_button = match skin {
+        ActiveSkin::Modern => chat_button(
+            CHAT_COPY_BUTTON,
+            COPY_CHAT_ACTION,
+            COPY_ICON,
+            BUTTONS_LEFT,
+            BUTTONS_TOP,
+            false,
+        ),
+        ActiveSkin::Forever => Element::new(), // Copy action lives on the header's menu icon.
     };
     let input_header_w = text_width(INPUT_HEADER, CHAT_FONT, CHAT_FONT_SIZE).ceil();
     let input_insets = format!(
@@ -277,7 +295,7 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
             left: 0.0,
             bottom: FRAME_BOTTOM,
             {background}
-            {tabs(view)}
+            {tab_parts}
             r#frame {
                 name: {DynName(CHAT_MESSAGES.to_string())},
                 width: MESSAGES_W,
@@ -287,7 +305,7 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
                 top: MESSAGES_TOP,
                 {messages(view)}
             }
-            {chat_button(CHAT_COPY_BUTTON, COPY_CHAT_ACTION, COPY_ICON, BUTTONS_LEFT, BUTTONS_TOP, false)}
+            {copy_button}
             {chat_button(
                 CHAT_SCROLL_TO_BOTTOM_BUTTON,
                 SCROLL_TO_BOTTOM_ACTION,
@@ -333,6 +351,118 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
                 left: 0.0,
                 top: {FRAME_H - INPUT_H},
             }
+        }
+    }
+}
+
+// Sourced palette/layout and measured adaptations:
+// docs/specs/forever-chat-meter-chrome.md. No message/input/scroll changes.
+const FOREVER_TAB_PADDING: f32 = 14.0;
+const FOREVER_TAB_GAP: f32 = 4.0;
+const FOREVER_BUTTON_SIZE: f32 = 22.0;
+const FOREVER_BUTTON_LEFT: f32 = 352.0;
+const FOREVER_BUTTON_GAP: f32 = 35.0;
+const FOREVER_BUTTON_TOP: f32 = -1.0;
+
+fn forever_background() -> Element {
+    let mut parts = flare_panel(CHAT_FLARE_SKIN, FLARE_SKIN_RECT);
+    parts.extend(flare_header("ChatFrame1Flare", FLARE_SKIN_RECT));
+    for (index, (suffix, atlas, action)) in [
+        ("Channel", "chatballon", None),
+        (
+            "Menu",
+            "common-dropdown-a-button-settings-shadowless",
+            Some(COPY_CHAT_ACTION),
+        ),
+        ("Social", "UI-HUD-MicroMenu-GuildCommunities-Up", None),
+        ("Volume", "common-dropdown-icon-sound-on", None),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        parts.extend(flare_icon(
+            &format!("ChatFrame1Flare{suffix}"),
+            atlas,
+            [
+                FOREVER_BUTTON_LEFT + FOREVER_BUTTON_GAP * index as f32,
+                FOREVER_BUTTON_TOP,
+                FOREVER_BUTTON_SIZE,
+                FOREVER_BUTTON_SIZE,
+            ],
+            action,
+        ));
+    }
+    parts
+}
+
+fn forever_tabs(view: &ChatFrameView) -> Element {
+    let mut x = FLARE_SKIN_RECT.0 + FLARE_PADDING;
+    let mut parts = Element::new();
+    for (index, tab) in ChatTab::ALL.into_iter().enumerate() {
+        let width = text_width(tab.label(), TAB_FONT, FLARE_FONT_SIZE).ceil() + FOREVER_TAB_PADDING;
+        parts.extend(forever_tab_button(index, tab, x, width, tab == view.tab));
+        parts.extend(forever_tab_flash(
+            index,
+            tab,
+            x,
+            width,
+            view.flashing.contains(&tab),
+        ));
+        x += width + FOREVER_TAB_GAP;
+    }
+    parts
+}
+
+fn forever_tab_button(index: usize, tab: ChatTab, x: f32, width: f32, selected: bool) -> Element {
+    let name = tab_name(index);
+    let color = if selected {
+        FLARE_ACTIVE_TEXT
+    } else {
+        FLARE_INACTIVE_TEXT
+    };
+    let label = flare_text(
+        &format!("{name}Text"),
+        tab.label(),
+        [0.0, 6.0, width, FLARE_FONT_SIZE],
+        color,
+        JustifyH::Center,
+    );
+    rsx! {
+        r#frame {
+            name: {DynName(name)},
+            width,
+            height: FLARE_HEADER_HEIGHT,
+            mouse_enabled: true,
+            onclick: {tab.action()},
+            pos_type: "absolute",
+            left: x,
+            top: {FLARE_SKIN_RECT.1},
+            {label}
+        }
+    }
+}
+
+/// Keep the existing host's named flash pulse, but flash text rather than coloured caps.
+fn forever_tab_flash(index: usize, tab: ChatTab, x: f32, width: f32, flashing: bool) -> Element {
+    let name = tab_flash_name(index);
+    let hidden = !flashing;
+    let label = flare_text(
+        &format!("{name}Text"),
+        tab.label(),
+        [0.0, 6.0, width, FLARE_FONT_SIZE],
+        FLARE_ACTIVE_TEXT,
+        JustifyH::Center,
+    );
+    rsx! {
+        r#frame {
+            name: {DynName(name)},
+            width,
+            height: FLARE_HEADER_HEIGHT,
+            hidden,
+            pos_type: "absolute",
+            left: x,
+            top: {FLARE_SKIN_RECT.1},
+            {label}
         }
     }
 }
