@@ -16,6 +16,11 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
 
 #[test]
 fn server_removal_rebinds_the_remaining_card_and_closure_hides_the_frame() {
+    // The close button resolves `RedButton-Exit` through the atlas tables.
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut loot = LootState::default();
     loot.open(LootResponse {
         corpse: 42,
