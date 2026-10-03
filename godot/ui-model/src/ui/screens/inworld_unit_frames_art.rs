@@ -66,6 +66,32 @@ pub const COMBAT_ICON: AtlasArt = unit_frame((1007.0, 1023.0, 133.0, 149.0));
 /// atlas 2075 `interface/hud/uiunitframerestingflipbook.blp`.
 pub const REST_ICON: AtlasArt = art(4_659_635, (512.0, 512.0), (1.0, 61.0, 1.0, 61.0));
 
+/// `UI-HUD-UnitFrame-TargetofTarget-PortraitOn` (16121), 120×49: PetFrame's
+/// `PetFrameTexture` (PetFrame.xml:42-47; the pet frame uses the target-of-target art).
+pub const TOT_PORTRAIT_ON: AtlasArt = unit_frame((330.0, 450.0, 160.0, 209.0));
+/// `UI-HUD-UnitFrame-TargetofTarget-PortraitOn-Bar-Health` (16119), 70×10.
+pub const TOT_HEALTH_BAR: AtlasArt = unit_frame((950.0, 1020.0, 160.0, 170.0));
+/// `UI-HUD-UnitFrame-TargetofTarget-PortraitOn-Bar-Focus` (16885), 74×7.
+pub const FOCUS_BAR_TOT: AtlasArt = unit_frame((884.0, 958.0, 77.0, 84.0));
+
+/// The `TargetofTarget` frame type's power bar: `UI-HUD-UnitFrame-TargetofTarget-
+/// PortraitOn-Bar-<atlasElementName>` (`UnitFrameManaBar_UpdateType`, UnitFrame.lua:527).
+/// Powers without such a member draw no fill.
+pub fn tot_power_bar_art(power: PowerType) -> Option<AtlasArt> {
+    Some(match power {
+        // ...-Bar-Mana (16120)
+        PowerType::Mana => unit_frame((389.0, 463.0, 267.0, 274.0)),
+        // ...-Bar-Rage (16886)
+        PowerType::Rage => unit_frame((661.0, 735.0, 267.0, 274.0)),
+        PowerType::Focus => FOCUS_BAR_TOT,
+        // ...-Bar-Energy (16884)
+        PowerType::Energy => unit_frame((808.0, 882.0, 77.0, 84.0)),
+        // ...-Bar-RunicPower (16887)
+        PowerType::RunicPower => unit_frame((933.0, 1007.0, 255.0, 262.0)),
+        _ => return None,
+    })
+}
+
 /// UiTextureAtlas 2130 `interface/hud/uiunitframeboss.blp`.
 const UNIT_FRAME_BOSS: (u32, (f32, f32)) = (4_703_659, (256.0, 256.0));
 

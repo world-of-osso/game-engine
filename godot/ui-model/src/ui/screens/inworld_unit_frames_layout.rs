@@ -155,3 +155,30 @@ pub(super) const GOLD_TEXT: &str = "1.0,0.82,0.0,1.0";
 pub(super) const VALUE_TEXT: &str = "1.0,1.0,1.0,1.0";
 pub(super) const UNIT_FONT: &str = "FrizQuadrata";
 pub(super) const UNIT_FONT_SIZE: f32 = 10.0;
+
+/// PetFrame 120×49 (PetFrame.xml:12-13): a `PlayerBottomManagedFrameTemplate` (`align`
+/// center, PlayerFrameTemplates.xml:4-10) with `leftPadding` 15, the first child of
+/// `PlayerBottomManagedFrameContainer`, whose TOP sits at PlayerFrame's BOTTOM + (30, 25)
+/// (PlayerFrame.xml:467-474). `VerticalLayoutMixin` puts a centred child's TOP at the
+/// container TOP + (leftPadding / 2, 0) (LayoutFrame.lua:345-348).
+pub const PET_FRAME_W: f32 = 120.0;
+pub const PET_FRAME_H: f32 = 49.0;
+pub const PET_FRAME_LEFT: f32 =
+    PLAYER_FRAME_LEFT + UNIT_FRAME_W / 2.0 + 30.0 + 15.0 / 2.0 - PET_FRAME_W / 2.0;
+pub const PET_FRAME_BOTTOM: f32 = PLAYER_FRAME_BOTTOM + 25.0 - PET_FRAME_H;
+
+/// `PetPortrait` 37×37 TOPLEFT (5, -5) under `PortraitMask` (`CircleMask`, atlas 1582
+/// `interface/masks/circlemask.blp`) over the same rect (PetFrame.xml:22-38).
+pub const PET_PORTRAIT: PortraitSlot = PortraitSlot {
+    frame: "PetPortrait",
+    rect: (5.0, 5.0, 37.0, 37.0),
+    mask_fdid: 3_528_314,
+    mask_rect: (5.0, 5.0, 37.0, 37.0),
+};
+
+/// `PetName` 68×10 TOPLEFT at `PetPortrait` TOPRIGHT + (2, 0); `PetFrameHealthBar` 70×10
+/// BOTTOMLEFT at `PetPortrait` RIGHT + (2, -3.5); `PetFrameManaBar` 74×7 TOPLEFT at the
+/// health bar's BOTTOMLEFT + (-4, -1) (PetFrame.xml:72-79,83-86,134-137).
+pub(super) const PET_NAME: Rect = (5.0 + 37.0 + 2.0, 5.0, 68.0, 10.0);
+pub(super) const PET_HEALTH: Rect = (5.0 + 37.0 + 2.0, 5.0 + 37.0 / 2.0 + 3.5 - 10.0, 70.0, 10.0);
+pub(super) const PET_POWER: Rect = (PET_HEALTH.0 - 4.0, PET_HEALTH.1 + 10.0 + 1.0, 74.0, 7.0);

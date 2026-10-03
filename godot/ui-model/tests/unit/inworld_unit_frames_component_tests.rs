@@ -292,6 +292,7 @@ fn sample_unit_frames_context() -> SharedContext {
         player: sample_player_frame_state(),
         target_of_target: Some(SmallUnitFrameState::from(&sample_player_frame_state())),
         focus: Some(SmallUnitFrameState::from(&target)),
+        pet: None,
         target: Some(target),
         bosses: vec![UnitFrameState {
             level_text: "32".into(),
