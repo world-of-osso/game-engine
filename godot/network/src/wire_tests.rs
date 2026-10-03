@@ -463,7 +463,7 @@ pub(crate) fn start_fixture_server() -> (App, SocketAddr) {
     start_fixture_server_with(|_| {})
 }
 
-fn start_fixture_server_with(register_extra: fn(&mut App)) -> (App, SocketAddr) {
+pub(crate) fn start_fixture_server_with(register_extra: fn(&mut App)) -> (App, SocketAddr) {
     // ServerUdpIo binds its own socket and does not expose the assigned port for port zero.
     let reservation = UdpSocket::bind("127.0.0.1:0").expect("reserve fixture UDP port");
     let address = reservation.local_addr().expect("read fixture UDP address");
