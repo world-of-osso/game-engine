@@ -18,10 +18,14 @@ use game_engine_core::nameplate_visibility_data::{
 };
 use game_engine_network::replica::{Replica, Unit as ReplicatedUnit};
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::inworld_unit_frames_component::{
+    RAID_TARGET_ICONS_FDID, raid_target_tex_coords,
+};
 use godot::{
     classes::{
-        Camera3D, CanvasLayer, Control, Image, ImageTexture, Label, PhysicsRayQueryParameters3D,
-        TextureRect, control::MouseFilter, texture_rect::ExpandMode, texture_rect::StretchMode,
+        AtlasTexture, Camera3D, CanvasLayer, Control, Image, ImageTexture, Label,
+        PhysicsRayQueryParameters3D, TextureRect, control::MouseFilter, texture_rect::ExpandMode,
+        texture_rect::StretchMode,
     },
     prelude::*,
 };
@@ -29,6 +33,7 @@ use shared::{
     casting::CastState,
     components::{Health, Player, UnitFlags},
     faction_reaction::{Unit, can_attack},
+    protocol::RAID_TARGET_ICON_COUNT,
 };
 
 use crate::{
@@ -50,6 +55,10 @@ const NAMEPLATE_SCALE: f32 = 0.5;
 /// Bevy `BAR_Y_OFFSET` (health_bar.rs): the health body centre above the unit origin, in
 /// the unit's space.
 const BAR_Y_OFFSET: f32 = 2.5;
+/// Retail `RaidTargetFrame` size (Blizzard_NamePlates.xml:185-193).
+const RAID_ICON_SIZE: f32 = 22.0;
+/// `PixelUtil.SetPoint(RaidTargetFrame, "BOTTOM", name, "TOP", 0, 10)` on name-only plates.
+const RAID_ICON_ABOVE_NAME: f32 = 10.0;
 /// Physics layers that hide a unit from the camera.
 const OCCLUDER_MASK: u32 = TERRAIN_LAYER | WMO_LAYER;
 
@@ -114,6 +123,54 @@ fn plate_layout(style: &NameplateStyle, fraction: f32) -> PlateLayout {
         fill,
         name_bottom: center - Vector2::new(0.0, top + NAME_ABOVE_BAR_SPACING),
     }
+}
+
+/// `RaidTargetFrame` placement (Blizzard_NamePlateUnitFrame.lua:809-817), relative to
+/// the anchor: RIGHT on the health bars' LEFT, or BOTTOM 10px above the name's TOP when
+/// the plate shows only the name.
+fn raid_icon_rect(style: &NameplateStyle, show_health_bars: bool, name: Rect2) -> Rect2 {
+    let size = Vector2::splat(RAID_ICON_SIZE);
+    let position = if show_health_bars {
+        Vector2::new(-style.health_width / 2.0 - size.x, -size.y / 2.0)
+    } else {
+        Vector2::new(
+            name.position.x + (name.size.x - size.x) / 2.0,
+            name.position.y - RAID_ICON_ABOVE_NAME - size.y,
+        )
+    };
+    Rect2::new(position, size)
+}
+
+/// `SetRaidTargetIconTexture`: one `UI-RaidTargetingIcons` cell per icon 1–8.
+fn raid_icon_textures(data_root: &Path) -> Result<Vec<Gd<AtlasTexture>>, String> {
+    let path = data_root.join(format!("textures/{RAID_TARGET_ICONS_FDID}.blp"));
+    let bytes =
+        std::fs::read(&path).map_err(|error| format!("Read {}: {error}", path.display()))?;
+    let image = game_engine_core::blp::decode_rgba(&bytes)
+        .map_err(|error| format!("Decode {}: {error}", path.display()))?;
+    let (width, height) = (image.width as f32, image.height as f32);
+    let image = Image::create_from_data(
+        image.width as i32,
+        image.height as i32,
+        false,
+        godot::classes::image::Format::RGBA8,
+        &PackedByteArray::from(image.pixels.as_slice()),
+    )
+    .ok_or_else(|| format!("Godot rejected {}", path.display()))?;
+    let sheet = ImageTexture::create_from_image(&image)
+        .ok_or_else(|| format!("Godot rejected {}", path.display()))?;
+    Ok((1..=RAID_TARGET_ICON_COUNT as u8)
+        .map(|index| {
+            let [left, right, top, bottom] = raid_target_tex_coords(index);
+            let mut cell = AtlasTexture::new_gd();
+            cell.set_atlas(&sheet);
+            cell.set_region(Rect2::new(
+                Vector2::new(left * width, top * height),
+                Vector2::new((right - left) * width, (bottom - top) * height),
+            ));
+            cell
+        })
+        .collect())
 }
 
 fn nameplate_text_color(is_player: bool, colorblind_mode: bool) -> Color {
@@ -202,6 +259,7 @@ struct PlateNodes {
     frame: Gd<TextureRect>,
     fill: Gd<TextureRect>,
     name: Gd<Label>,
+    raid_icon: Gd<TextureRect>,
     cast: CastNodes,
 }
 
@@ -215,6 +273,8 @@ struct PlateView {
     fraction: f32,
     color: Color,
     name_color: Color,
+    /// `GetRaidTargetIndex(unit)`.
+    raid_target: Option<u8>,
 }
 
 pub(crate) struct Nameplates {
@@ -222,6 +282,7 @@ pub(crate) struct Nameplates {
     templates: Option<Result<HashMap<u32, FactionTemplateEntry>, String>>,
     art: Option<PlateArt>,
     cast_art: Option<CastArt>,
+    raid_icons: Option<Vec<Gd<AtlasTexture>>>,
     /// Every plate's cast bar.
     pub(crate) casts: PlateCasts,
     layer: Option<Gd<CanvasLayer>>,
@@ -236,6 +297,7 @@ impl Nameplates {
             templates: None,
             art: None,
             cast_art: None,
+            raid_icons: None,
             casts: PlateCasts::default(),
             layer: None,
             plates: HashMap::new(),
@@ -297,7 +359,11 @@ impl Nameplates {
         if self.cast_art.is_none() {
             self.cast_art = Some(CastArt::load(data_root, |bytes| png_texture(bytes, false))?);
         }
+        if self.raid_icons.is_none() && views.values().any(|view| view.raid_target.is_some()) {
+            self.raid_icons = Some(raid_icon_textures(data_root)?);
+        }
         let art = self.art.as_ref().expect("art loaded above");
+        let raid_icons = self.raid_icons.as_deref().unwrap_or_default();
         let cast_art = self.cast_art.as_mut().expect("cast art loaded above");
         let textures = data_root.join("textures");
         let layer = self.layer.get_or_insert_with(|| {
@@ -322,6 +388,7 @@ impl Nameplates {
                 .entry(*id)
                 .or_insert_with(|| spawn_plate(layer, art, cast_art));
             apply_plate(plate, view, style, thick, art, show_health_bars);
+            apply_raid_icon(plate, view, style, show_health_bars, raid_icons);
             // `ShouldShowCastBar`: no cast bar on a name-only plate.
             let bar = self.casts.get(*id).filter(|_| show_health_bars);
             let icon = match bar.and_then(|bar| icons.get(&bar.spell_id)) {
@@ -351,6 +418,7 @@ fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt, cast_art: &CastArt) 
     };
     let fill = texture_rect();
     let frame = texture_rect();
+    let raid_icon = texture_rect();
     let mut name = Label::new_alloc();
     ignore_mouse(&mut name);
     name.add_theme_font_override("font", &art.font);
@@ -362,6 +430,7 @@ fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt, cast_art: &CastArt) 
     root.add_child(&fill);
     root.add_child(&frame);
     root.add_child(&name);
+    root.add_child(&raid_icon);
     let cast = CastNodes::spawn(&mut root, cast_art, &art.font);
     layer.add_child(&root);
     PlateNodes {
@@ -369,8 +438,32 @@ fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt, cast_art: &CastArt) 
         frame,
         fill,
         name,
+        raid_icon,
         cast,
     }
+}
+
+/// `NamePlateRaidTargetMixin:SetRaidTargetIndex`: shown while the unit has an icon, also
+/// on name-only plates.
+fn apply_raid_icon(
+    plate: &mut PlateNodes,
+    view: &PlateView,
+    style: &NameplateStyle,
+    show_health_bars: bool,
+    textures: &[Gd<AtlasTexture>],
+) {
+    let Some(index) = view.raid_target else {
+        plate.raid_icon.set_visible(false);
+        return;
+    };
+    let name = Rect2::new(plate.name.get_position(), plate.name.get_size());
+    let rect = raid_icon_rect(style, show_health_bars, name);
+    plate
+        .raid_icon
+        .set_texture(&textures[usize::from(index) - 1]);
+    plate.raid_icon.set_position(rect.position);
+    plate.raid_icon.set_size(rect.size);
+    plate.raid_icon.set_visible(true);
 }
 
 fn apply_plate(
@@ -556,6 +649,7 @@ fn project_plate(
         fraction: health_fraction(unit),
         color,
         name_color,
+        raid_target: None,
     })
 }
 
@@ -658,7 +752,7 @@ impl GameClient {
                         reaction_color(&style, reaction)
                     };
                 let name_color = nameplate_text_color(unit.has::<Player>(), colorblind_mode);
-                let view = project_plate(
+                let mut view = project_plate(
                     camera,
                     &cvars,
                     unit,
@@ -667,6 +761,7 @@ impl GameClient {
                     fade_far,
                     rules.targeted,
                 )?;
+                view.raid_target = self.account.raid_targets.icon_of(unit.server_id);
                 Some((unit.server_id, view))
             })
             .collect();
@@ -717,9 +812,15 @@ impl GameClient {
             entry.set("anchor", view.anchor);
             entry.set("fraction", view.fraction);
             entry.set("color", view.color);
+            if let Some(index) = view.raid_target {
+                entry.set("raid_target", i64::from(index));
+            }
             if let Some(plate) = self.nameplates.plates.get(id) {
                 entry.set("frame_rect", plate.frame.get_global_rect());
                 entry.set("name_rect", plate.name.get_global_rect());
+                if plate.raid_icon.is_visible() {
+                    entry.set("raid_icon_rect", plate.raid_icon.get_global_rect());
+                }
             }
             if let Some(bar) = self.nameplates.casts.get(*id) {
                 entry.set("cast", &cast_snapshot(bar, self.nameplates.plates.get(id)));
@@ -839,5 +940,28 @@ mod tests {
         assert!(!thick_preset(&style));
         // 10px body centred on the anchor, name 2px above its top.
         assert_eq!(layout.name_bottom.y, -7.0);
+    }
+
+    /// Retail `RaidTargetFrame` (22×22) hangs RIGHT on the health bars' LEFT: the
+    /// 188×20 body spans -94..94, so the icon spans -116..-94 × -11..11.
+    #[test]
+    fn raid_icon_sits_left_of_the_health_bar() {
+        let style = NameplateStyle::default();
+        let name = Rect2::new(Vector2::new(-30.0, -28.5), Vector2::new(60.0, 14.0));
+        assert_eq!(
+            raid_icon_rect(&style, true, name),
+            Rect2::new(Vector2::new(-116.0, -11.0), Vector2::new(22.0, 22.0))
+        );
+    }
+
+    /// Name-only plates (`IsShowOnlyName`) put the icon's BOTTOM 10px above the name's TOP.
+    #[test]
+    fn raid_icon_stands_above_a_name_only_plate() {
+        let style = NameplateStyle::default();
+        let name = Rect2::new(Vector2::new(-30.0, -7.0), Vector2::new(60.0, 14.0));
+        assert_eq!(
+            raid_icon_rect(&style, false, name),
+            Rect2::new(Vector2::new(-11.0, -39.0), Vector2::new(22.0, 22.0))
+        );
     }
 }

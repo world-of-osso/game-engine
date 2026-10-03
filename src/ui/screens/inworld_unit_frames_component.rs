@@ -119,6 +119,8 @@ pub struct UnitFrameState {
     pub target_debuffs: Vec<TargetAuraIconState>,
     /// Friendly target: buffs lead the aura container, else debuffs do.
     pub target_buffs_first: bool,
+    /// `GetRaidTargetIndex(unit)`: raid target icon 1–8.
+    pub raid_target: Option<u8>,
 }
 
 impl UnitFrameState {
@@ -138,6 +140,7 @@ impl UnitFrameState {
             target_buffs: Vec::new(),
             target_debuffs: Vec::new(),
             target_buffs_first: false,
+            raid_target: None,
         }
     }
 }
@@ -312,6 +315,7 @@ fn target_frame_contents(state: &UnitFrameState) -> Element {
         {reaction_strip("Target", state.reaction, 1.0)}
         {unit_frame_contents("Target", state)}
         {classification_art(state.classification)}
+        {raid_target_icon(state.raid_target)}
         {target_auras(state, (TARGET_AURAS_LEFT, TARGET_AURAS_TOP))}
     }
 }
@@ -345,6 +349,50 @@ fn classification_art(classification: CreatureClassification) -> Element {
     rsx! {
         {art_texture(dyn_name("TargetBossPortraitFrameTexture".into()), &portrait_art, (portrait_x, portrait_y, portrait_w, portrait_h), portrait.is_none())}
         {art_texture(dyn_name("TargetBossIcon".into()), &BOSS_RARE_STAR, (star_x - half_star, star_y - half_star, BOSS_RARE_STAR_SIZE, BOSS_RARE_STAR_SIZE), !shows_rare_star(classification))}
+    }
+}
+
+/// `Interface\TargetingFrame\UI-RaidTargetingIcons`: a 4×4 sheet whose first two rows
+/// hold Star, Circle, Diamond, Triangle, Moon, Square, Cross, Skull.
+pub const RAID_TARGET_ICONS_FDID: u32 = 137_009;
+/// Retail `RAID_TARGET_TEXTURE_ROWS` / `RAID_TARGET_TEXTURE_COLUMNS` (TargetFrame.lua:682-683).
+const RAID_TARGET_TEXTURE_CELLS: u8 = 4;
+const TARGET_RAID_TARGET_ICON_SIZE: f32 = 26.0;
+
+/// `SetRaidTargetIconTexture` → `SetSpriteSheetCell(index, 4, 4)`: left, right, top,
+/// bottom of raid target icon `index` (1–8).
+pub fn raid_target_tex_coords(index: u8) -> [f32; 4] {
+    let cell = index - 1;
+    let cells = f32::from(RAID_TARGET_TEXTURE_CELLS);
+    let column = f32::from(cell % RAID_TARGET_TEXTURE_CELLS);
+    let row = f32::from(cell / RAID_TARGET_TEXTURE_CELLS);
+    [
+        column / cells,
+        (column + 1.0) / cells,
+        row / cells,
+        (row + 1.0) / cells,
+    ]
+}
+
+/// `TargetFrameMixin:UpdateRaidTargetIcon` (TargetFrame.lua:672-680).
+fn raid_target_icon(raid_target: Option<u8>) -> Element {
+    let [left, right, top, bottom] = raid_target_tex_coords(raid_target.unwrap_or(1));
+    let coords = format!("{left},{right},{top},{bottom}");
+    let (centre_x, centre_y) = TARGET_RAID_TARGET_ICON_CENTRE;
+    let size = TARGET_RAID_TARGET_ICON_SIZE;
+    let hidden = raid_target.is_none();
+    rsx! {
+        texture {
+            name: {dyn_name("TargetRaidTargetIcon".into())},
+            width: size,
+            height: size,
+            hidden,
+            texture_fdid: RAID_TARGET_ICONS_FDID,
+            tex_coords: {coords.as_str()},
+            pos_type: "absolute",
+            pos_x: {centre_x - size / 2.0},
+            pos_y: {centre_y - size / 2.0},
+        }
     }
 }
 
