@@ -1,10 +1,11 @@
 //! CharacterFrame art: the inset and stats-pane backgrounds, the race backdrop behind the
 //! model, the paperdoll inner border and the slot frames (CF.xml texture templates).
 
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, active_skin, resolve_region};
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::{Column, FRAME_NAME, INSET, INSET_RIGHT, MODEL, PaperDollButton, SLOT, STATS};
+use super::{Column, FRAME_NAME, INSET, INSET_RIGHT, PaperDollButton, SLOT, STATS};
 use crate::quest_art::DynName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 
@@ -17,48 +18,46 @@ const PAPERDOLL_PARTS: u32 = 410_248;
 const PAPERDOLL_HORIZONTAL: u32 = 410_247;
 const PAPERDOLL_VERTICAL: u32 = 410_249;
 
-/// `character-panel-background` (27190), atlas 2845 `5882640` 1024×512.
-const PANEL_BACKGROUND: AtlasArt = art(5_882_640, (1024.0, 512.0), (1.0, 451.0, 1.0, 421.0));
-/// UiTextureAtlas 838 `1400895` 1024×1024 and 839 `1400896` 1024×512.
-const INFO_ATLAS: (u32, (f32, f32)) = (1_400_895, (1024.0, 1024.0));
-const INFO_ATLAS2: (u32, (f32, f32)) = (1_400_896, (1024.0, 512.0));
-/// `UI-Character-Info-Title` (6033) 196×40.
-pub(super) const CATEGORY_TITLE: AtlasArt = info((1.0, 197.0, 715.0, 755.0));
-/// `UI-Character-Info-Line-Bounce` (6028) 157×19.
-pub(super) const LINE_BOUNCE: AtlasArt = info((1.0, 158.0, 788.0, 807.0));
-/// `UI-Character-Info-ItemLevel-Bounce` (6030) 162×29.
-pub(super) const ITEM_LEVEL_BOUNCE: AtlasArt = info((1.0, 163.0, 757.0, 786.0));
-
-const fn art(fdid: u32, atlas: (f32, f32), rect: (f32, f32, f32, f32)) -> AtlasArt {
-    AtlasArt { fdid, atlas, rect }
+/// Resolve the authored name, then preserve the existing FDID/UV representation.
+/// Sources and exact CSV rows: docs/specs/character-frame.md, Forever first slice.
+pub(super) fn resolve_art(name: &str) -> AtlasArt {
+    let region = resolve_region(name, active_skin())
+        .unwrap_or_else(|| panic!("CharacterFrame atlas missing: {name}"));
+    let AtlasSource::FileDataId(fdid) = region.source else {
+        panic!("CharacterFrame atlas is not a DB2 sheet: {name}");
+    };
+    let width = region.width / (region.right - region.left);
+    let height = region.height / (region.bottom - region.top);
+    AtlasArt {
+        fdid,
+        atlas: (width, height),
+        rect: (
+            region.left * width,
+            region.right * width,
+            region.top * height,
+            region.bottom * height,
+        ),
+    }
 }
 
-const fn info(rect: (f32, f32, f32, f32)) -> AtlasArt {
-    art(INFO_ATLAS.0, INFO_ATLAS.1, rect)
-}
-
-const fn info2(rect: (f32, f32, f32, f32)) -> AtlasArt {
-    art(INFO_ATLAS2.0, INFO_ATLAS2.1, rect)
-}
-
-/// `UI-Character-Info-<CLASS>-BG` (6022-6040) 197×355 by `ChrClasses` id; Evoker has none.
+/// `UI-Character-Info-<CLASS>-BG` by `ChrClasses` id; Evoker has no authored backdrop.
 pub fn class_background(class_id: u8) -> Option<AtlasArt> {
-    let row = |left: f32, top: f32| (left, left + 197.0, top, top + 355.0);
-    Some(match class_id {
-        1 => info(row(797.0, 1.0)),
-        2 => info(row(200.0, 1.0)),
-        3 => info2(row(598.0, 1.0)),
-        4 => info(row(399.0, 1.0)),
-        5 => info(row(200.0, 358.0)),
-        6 => info2(row(1.0, 1.0)),
-        7 => info(row(399.0, 358.0)),
-        8 => info(row(1.0, 1.0)),
-        9 => info(row(598.0, 1.0)),
-        10 => info(row(1.0, 358.0)),
-        11 => info2(row(399.0, 1.0)),
-        12 => info2(row(200.0, 1.0)),
+    let class = match class_id {
+        1 => "Warrior",
+        2 => "Paladin",
+        3 => "Hunter",
+        4 => "Rogue",
+        5 => "Priest",
+        6 => "DeathKnight",
+        7 => "Shaman",
+        8 => "Mage",
+        9 => "Warlock",
+        10 => "Monk",
+        11 => "Druid",
+        12 => "DemonHunter",
         _ => return None,
-    })
+    };
+    Some(resolve_art(&format!("UI-Character-Info-{class}-BG")))
 }
 
 /// `Interface\DressUpFrame\DressUpBackground-<ChrRaces.ClientFileString>1`; the four
@@ -139,10 +138,13 @@ pub(super) fn atlas(
 /// `Inset.Background` `character-panel-background`; `InsetRight` (InsetFrameTemplate)
 /// with the class background of the stats pane.
 pub(super) fn inset_backgrounds(class_id: u8) -> Element {
+    if active_skin() == ActiveSkin::Forever {
+        return forever_pane_backgrounds(class_id);
+    }
     let (left, top, right, bottom) = INSET;
     let mut children = atlas(
         format!("{FRAME_NAME}Background"),
-        &PANEL_BACKGROUND,
+        &resolve_art("character-panel-background"),
         (left, top, right - left, bottom - top),
         WHITE,
     );
@@ -166,6 +168,45 @@ pub(super) fn inset_backgrounds(class_id: u8) -> Element {
     children
 }
 
+/// Camelot CharacterFrame.xml:408-454; stats class art starts below the 85px stone cap.
+fn forever_pane_backgrounds(class_id: u8) -> Element {
+    let mut children = Element::default();
+    for (node, name, rect) in [
+        (
+            "CharacterFrameBackground",
+            "UI-Character-Info-General-BG",
+            (0.0, 20.0, 398.0, 464.0),
+        ),
+        (
+            "CharacterFrameInsetRightBg",
+            "UI-Character-Info-Stat-BG",
+            (398.0, 20.0, 233.0, 383.0),
+        ),
+        (
+            "CharacterFrameStoneBg",
+            "UI-Character-Info-Stat-StoneBG",
+            (398.0, 20.0, 233.0, 85.0),
+        ),
+        (
+            "CharacterFrameDivider",
+            "common-framedivider",
+            (392.0, 21.0, 11.0, 463.0),
+        ),
+    ] {
+        children.extend(atlas(node.into(), &resolve_art(name), rect, WHITE));
+    }
+    if let Some(art) = class_background(class_id) {
+        let (w, h) = art.size();
+        children.extend(atlas(
+            "CharacterStatsPaneClassBackground".into(),
+            &art,
+            (398.0, 110.0, w, h),
+            WHITE,
+        ));
+    }
+    children
+}
+
 pub(super) const MODEL_BACKGROUND_NAMES: [&str; 4] = [
     "CharacterModelFrameBackgroundTopLeft",
     "CharacterModelFrameBackgroundTopRight",
@@ -178,7 +219,7 @@ pub(super) fn race_backdrop(race_id: u8) -> Element {
     let Some(first) = race_background(race_id) else {
         return Element::default();
     };
-    let (x, y, ..) = MODEL;
+    let (x, y, ..) = super::read_character_layout().model;
     // (size, offset, tex coords) of TopLeft, TopRight, BotLeft, BotRight.
     let quarters = [
         (
@@ -194,6 +235,9 @@ pub(super) fn race_backdrop(race_id: u8) -> Element {
         ((212.0, 128.0), (0.0, 245.0), "0.171875,1,0,1"),
         ((19.0, 128.0), (212.0, 245.0), "0,0.296875,0,1"),
     ];
+    if active_skin() == ActiveSkin::Forever {
+        return forever_race_backdrop(first);
+    }
     let mut children: Element = quarters
         .into_iter()
         .zip(MODEL_BACKGROUND_NAMES)
@@ -215,6 +259,32 @@ pub(super) fn race_backdrop(race_id: u8) -> Element {
             top: y,
         }
     });
+    children
+}
+
+/// Camelot PaperDollFrame.xml:613-647: quarters overlap by one pixel at their seams.
+fn forever_race_backdrop(first: u32) -> Element {
+    let quarters = [
+        ((0.0, 20.0, 319.0, 335.0), "0.171875,1,0.0392156862745098,1"),
+        (
+            (318.0, 20.0, 80.0, 335.0),
+            "0,0.296875,0.0392156862745098,1",
+        ),
+        ((0.0, 354.0, 319.0, 130.0), "0.171875,1,0,0.62"),
+        ((318.0, 354.0, 80.0, 130.0), "0,0.296875,0,0.62"),
+    ];
+    let mut children: Element = quarters
+        .into_iter()
+        .zip(MODEL_BACKGROUND_NAMES)
+        .zip(first..)
+        .flat_map(|(((rect, coords), name), fdid)| texture(name.into(), fdid, rect, coords, WHITE))
+        .collect();
+    children.extend(atlas(
+        "CharacterModelFrameBackgroundOverlay".into(),
+        &resolve_art("UI-Character-Info-RaceBG-Overlay"),
+        (0.0, 20.0, 398.0, 464.0),
+        WHITE,
+    ));
     children
 }
 
@@ -250,6 +320,9 @@ fn inner_corners() -> [(&'static str, (f32, f32), &'static str); 4] {
 /// The paperdoll inner border: corners, the tiled edges between them and `Bottom2` 27
 /// above the Inset bottom (PDF.xml:667-716).
 pub(super) fn inner_border() -> Element {
+    if active_skin() == ActiveSkin::Forever {
+        return Element::default();
+    }
     let corners = inner_corners();
     let mut children: Element = corners
         .iter()
@@ -309,6 +382,17 @@ pub(super) fn inner_border() -> Element {
 /// 42×53 TOPLEFT -4,+8, plus the weapon pair's outer caps `Char-Slot-Bottom-Left/Right`.
 pub(super) fn slot_frame_art(button: &PaperDollButton) -> Element {
     let name = button.name;
+    if active_skin() == ActiveSkin::Forever {
+        // Camelot PaperDollFrame.xml:67-70: GearSlot centered on the 37px button.
+        let art = resolve_art("UI-Character-Info-GearSlot");
+        let (w, h) = art.size();
+        return atlas(
+            format!("{name}Frame"),
+            &art,
+            ((SLOT - w) / 2.0, (SLOT - h) / 2.0, w, h),
+            WHITE,
+        );
+    }
     let (rect, coords) = match button.column {
         Column::Left => (
             (-4.0, 0.0, 49.0, 44.0),

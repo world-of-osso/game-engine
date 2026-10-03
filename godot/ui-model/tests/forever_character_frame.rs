@@ -562,6 +562,12 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
                 cases,
                 "character-panel-background",
             );
+            check_texture(
+                &registry,
+                "CharacterFrameTopTileStreaks",
+                cases,
+                "_UI-Frame-TopTileStreaks",
+            );
             for (suffix, atlas) in [("Left", "left"), ("Middle", "center"), ("Right", "right")] {
                 let prefix = if suffix == "Middle" { "_" } else { "" };
                 check_texture(
@@ -598,6 +604,10 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
             ("CharacterFrameTab1Background", "common-sidetab"),
             ("CharacterFrameTab2Background", "common-sidetab"),
             ("CharacterFrameTab1Selected", "common-sidetab-selected"),
+            (
+                "CharacterLevelTextBackground",
+                "UI-Character-Info-ItemLevel-Bounce",
+            ),
         ] {
             check_texture(&registry, node, cases, atlas);
         }
@@ -617,7 +627,7 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
         check_position(&registry, "CharacterModelScene", 0.0, 20.0);
         check_position(&registry, "CharacterStatsPaneClassBackground", 398.0, 110.0);
         check_position(&registry, "CharacterFrameTab1", 631.0, 30.0);
-        check_position(&registry, "CharacterFrameTab2", 631.0, 92.0);
+        check_position(&registry, "CharacterFrameTab2", 631.0, 87.0);
         assert!(
             registry
                 .get_by_name("PaperDollInnerBorderTopLeft")
@@ -631,6 +641,38 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
         assert!(registry.get_by_name("CharacterFrameTab1Left").is_none());
         assert!(registry.get_by_name("CharacterRangedSlot").is_none());
         assert!(registry.get_by_name("CharacterAmmoSlot").is_none());
+        assert!(
+            registry
+                .get_by_name("CharacterFrameTopTileStreaks")
+                .is_none()
+        );
+        for (node, width, height) in [
+            ("CharacterModelScene", 398.0, 464.0),
+            ("CharacterStatsPaneClassBackground", 233.0, 383.0),
+            ("CharacterStatsPaneItemLevelCategoryBackground", 197.0, 40.0),
+            ("CharacterStatsPaneItemLevelFrameBackground", 204.0, 21.0),
+            ("CharacterStatsPaneStat2Background", 213.0, 18.0),
+            ("CharacterHeadSlotFrame", 55.0, 55.0),
+            ("CharacterFrameTab1", 55.0, 55.0),
+            ("CharacterFrameTab1Background", 55.0, 60.0),
+        ] {
+            let frame = registry.get(registry.get_by_name(node).unwrap()).unwrap();
+            assert_eq!(
+                (frame.width, frame.height),
+                (Dimension::Fixed(width), Dimension::Fixed(height)),
+                "{node}"
+            );
+        }
+        for node in [
+            "CharacterStatsPaneStat2Background",
+            "CharacterStatsPaneItemLevelFrameBackground",
+        ] {
+            let frame = registry.get(registry.get_by_name(node).unwrap()).unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("not a texture")
+            };
+            assert_eq!(texture.vertex_color, [1.0; 4], "{node}");
+        }
     }
     set_active_skin(ActiveSkin::Modern);
 }
