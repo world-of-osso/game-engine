@@ -15,6 +15,46 @@ from unittest.mock import patch
 SCRIPTS = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(SCRIPTS))
 
+TRANSPORT = r"""#!/usr/bin/env python3
+import base64, importlib, json, os, pathlib, shlex, shutil, sys
+base = pathlib.Path(os.environ['FIXTURE_ROOT'])
+name = pathlib.Path(sys.argv[0]).name
+args = sys.argv[1:]
+if os.environ.get('FAIL_STAGE') == name:
+    sys.exit(21)
+if name == 'systemd-run':
+    assert 'MemoryMax=16G' in args and 'CPUQuota=800%' in args
+    index = next(i for i, arg in enumerate(args) if arg == 'rustup' or arg.endswith('/fixture'))
+    os.execvp(args[index], args[index:])
+if name == 'scp':
+    def resolve(value):
+        if value.startswith('desktop:'):
+            return base / 'windows' / value.removeprefix('desktop:C:/Users/Test User/')
+        return pathlib.Path(value)
+    shutil.copy2(resolve(args[0]), resolve(args[1])); sys.exit(0)
+assert name == 'ssh' and args[0] == 'desktop'
+command = args[1]
+if command.startswith('powershell.exe'):
+    script = base64.b64decode(command.split()[-1]).decode('utf-16-le')
+    if script == '$env:USERPROFILE':
+        print('C:\\Users\\Test User'); sys.exit(0)
+    directory = base / 'windows/data/build-host/transfers' / script.split("'")[1].replace('\\', '/').split('/')[-1]
+    if script.startswith('New-Item'):
+        directory.mkdir(parents=True)
+    else:
+        shutil.rmtree(directory)
+    sys.exit(0)
+values = shlex.split(command)
+assert values[:7] == ['wsl.exe', '-d', 'OssoBuild', '-u', 'osso-test', '--exec', 'python3'], values
+worker, archive, request = values[7:]
+def mapped(value):
+    return str(base / 'windows' / value.removeprefix('/mnt/c/Users/Test User/'))
+sys.path.insert(0, str(pathlib.Path(mapped(worker)).parent))
+h = importlib.import_module('native_build_hosts')
+h.CACHE_ROOT = base / 'cache'
+sys.exit(h.worker(pathlib.Path(mapped(archive)), *json.loads(request)))
+"""
+
 RUSTUP = """#!/usr/bin/env python3
 import json, os, pathlib, sys
 args = sys.argv[1:]
@@ -51,6 +91,10 @@ class NativeTests(unittest.TestCase):
         (self.context / "sibling/lib.rs").write_text("sibling")
         self.bin = self.base / "bin"
         self.bin.mkdir()
+        for name in ("ssh", "scp", "systemd-run"):
+            path = self.bin / name
+            path.write_text(TRANSPORT)
+            path.chmod(0o755)
         (self.bin / "rustup").write_text(RUSTUP)
         (self.bin / "rustup").chmod(0o755)
         wrapper = self.bin / "agent-run"
@@ -157,6 +201,80 @@ class NativeTests(unittest.TestCase):
             with self.assertRaisesRegex(OSError, "host unavailable"):
                 self.h.execute(self.context, "key", "project", ["build"], "desktop")
         self.assertFalse((self.context / "project/target").exists())
+
+    def test_desktop_full_transport_status_and_no_exports(self):
+        result = self.h.execute(
+            self.context,
+            "desktop-key",
+            "project",
+            ["build"],
+            "desktop",
+            ["12"],
+            "fixture",
+            environment={"SETTING": "remote"},
+        )
+        self.assertEqual(result, 12)
+        report = json.loads(
+            (self.base / "cache/desktop-key/target/observed.json").read_text()
+        )
+        self.assertEqual(report["setting"], "remote")
+        self.assertFalse((self.context / "project/target").exists())
+        self.assertEqual(
+            list((self.base / "windows/data/build-host/transfers").iterdir()), []
+        )
+        for stage in ("ssh", "scp"):
+            with (
+                self.subTest(stage=stage),
+                patch.dict(os.environ, {"FAIL_STAGE": stage}),
+            ):
+                with self.assertRaises(subprocess.CalledProcessError):
+                    self.h.execute(
+                        self.context, "failed-key", "project", ["build"], "desktop"
+                    )
+            self.assertFalse((self.base / "cache/failed-key").exists())
+
+    def test_sysroot_query_is_owned_and_bounded(self):
+        script = RUSTUP.replace(
+            "print(os.environ['FIXTURE_ROOT']); sys.exit(0)",
+            "import time, signal; signal.signal(signal.SIGTERM, signal.SIG_IGN); pathlib.Path(os.environ['FIXTURE_ROOT'], 'query.pid').write_text(str(os.getpid())); time.sleep(60)",
+        )
+        (self.bin / "rustup").write_text(script)
+        code = (
+            "import sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); "
+            "import native_build_hosts as h; h.AGENT_RUN=Path(sys.argv[2]); "
+            'sys.exit(h.execute(Path(sys.argv[3]),"key","project",["build"],"local",["0"],"fixture",root=Path(sys.argv[3])/"project"))'
+        )
+        process = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                code,
+                str(SCRIPTS),
+                str(self.bin / "agent-run"),
+                str(self.context),
+            ]
+        )
+        marker = self.base / "query.pid"
+        try:
+            deadline = time.monotonic() + 5
+            while not marker.exists():
+                self.assertLess(time.monotonic(), deadline)
+                time.sleep(0.02)
+            pid = int(marker.read_text())
+            process.send_signal(signal.SIGTERM)
+            self.assertEqual(process.wait(timeout=6), 143)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(pid, 0)
+        finally:
+            # RED must also clean the unowned query, not leave a sleeper behind.
+            if marker.exists():
+                try:
+                    os.kill(int(marker.read_text()), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            if process.poll() is None:
+                process.kill()
+            process.wait()
 
     def cleanup_fixture(self, action):
         marker = self.base / "child.pid"
