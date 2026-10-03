@@ -6,7 +6,7 @@ use bevy::diagnostic::{
     Diagnostic, DiagnosticMeasurement, DiagnosticsStore, FrameTimeDiagnosticsPlugin,
 };
 use bevy::platform::time::Instant;
-use game_engine::ipc::{PerformanceSnapshot, Request, Response, build_performance_snapshot};
+use game_engine_network::ipc_wire::{PerformanceSnapshot, Request, Response, build_performance_snapshot};
 
 use super::*;
 use crate::command_dispatch::{

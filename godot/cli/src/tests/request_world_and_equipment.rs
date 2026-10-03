@@ -9,7 +9,7 @@ fn lfg_queue_command_maps_to_request() {
         })
         .unwrap(),
         Request::LfgQueue {
-            role: game_engine::status::GroupRole::Tank,
+            role: game_engine_network::ipc_wire::GroupRole::Tank,
             dungeon_ids: vec![33, 48],
         }
     );

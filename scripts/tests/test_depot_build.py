@@ -45,6 +45,8 @@ artifact.write_bytes(b'bad gzip' if os.environ.get('DEPOT_CORRUPT') else gzip.co
 build_args = [args[index + 1] for index, arg in enumerate(args) if arg == '--build-arg']
 options = dict(option.split('=', 1) for option in build_args)
 assert len(options) == len(build_args), build_args
+if options.get('CLI') == '1':
+    (output / 'game-engine-cli.gz').write_bytes(gzip.compress(b'cli binary'))
 fixture = options.get('FIXTURE')
 if fixture and not os.environ.get('DEPOT_MISSING_FIXTURE'):
     (output / (fixture + '.gz')).write_bytes(b'bad gzip' if os.environ.get('DEPOT_CORRUPT_FIXTURE') else gzip.compress(os.environ.get('DEPOT_FIXTURE', 'fixture binary').encode()))
@@ -61,7 +63,7 @@ class DepotBuildTests(unittest.TestCase):
         (self.root / "godot").mkdir()
         self._put(self.root, "godot/Cargo.toml", "[workspace]\nmembers=[]\n")
         self._put(self.root, "godot/Cargo.lock", "lock")
-        for member in ("core", "network", "rust", "session", "ui-model"):
+        for member in ("cli", "core", "network", "rust", "session", "ui-model"):
             self._put(self.root, f"godot/{member}/Cargo.toml", "[package]\nname='fixture'\nversion='0.1.0'\n")
         self._put(self.root, "godot/rust/src/lib.rs", "original")
         for name in FIXTURES:
@@ -124,10 +126,12 @@ class DepotBuildTests(unittest.TestCase):
     def _git(self, root, *args):
         subprocess.run(["git", "-C", str(root), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", *args], check=True, capture_output=True)
 
-    def build(self, *, fixture=None, **env):
+    def build(self, *, fixture=None, cli=False, **env):
         command = ["python3", str(SCRIPT), "--root", str(self.root)]
         if fixture is not None:
             command.extend(["--fixture", fixture])
+        if cli:
+            command.append("--cli")
         return subprocess.run(command, env={**self.env, **env}, text=True, capture_output=True)
 
     def run_test_mode(self, *cargo_args, **env):
@@ -186,6 +190,28 @@ class DepotBuildTests(unittest.TestCase):
         result = self.build()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("FIXTURE", self.build_args(self.records()[-1]))
+
+    def test_cli_installs_executable_alongside_fixture_and_extension(self):
+        result = self.build(fixture="native_input_fixture", cli=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        cli = self.root / "target/debug/game-engine-cli"
+        self.assertEqual(cli.read_bytes(), b"cli binary")
+        self.assertTrue(os.access(cli, os.X_OK))
+        self.assertEqual((self.root / "target/debug/examples/native_input_fixture").read_bytes(), b"fixture binary")
+        self.assertEqual(self.build_args(self.records()[-1])["CLI"], "1")
+        self.assertIn(str(cli), result.stdout)
+        cli.unlink()
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("CLI", self.build_args(self.records()[-1]))
+        self.assertFalse(cli.exists())
+
+    def test_cli_is_not_allowed_with_test_mode(self):
+        command = ["python3", str(SCRIPT), "--root", str(self.root), "--cli", "--test"]
+        result = subprocess.run(command, env=self.env, text=True, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not allowed", result.stderr)
+        self.assertEqual(self.records(), [])
 
     def test_test_mode_forwards_cargo_args_stages_listed_assets_and_prints_log(self):
         result = self.run_test_mode("-p", "game-engine-core", "--test", "m2_events", "--", "--exact", "a b",
