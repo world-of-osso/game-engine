@@ -273,6 +273,13 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
         texture(&registry, "DamageMeterEntry1StatusBar").vertex_color,
         [0.25, 0.78, 0.92, 1.0]
     );
+    let gradient = texture(&registry, "DamageMeterEntry1Gradient");
+    assert_eq!(
+        gradient.source,
+        TextureSource::File("data/textures/ui/chattynator/Fade.png".into())
+    );
+    assert_eq!(gradient.tex_coords, [1.0, 0.0, 0.0, 1.0]);
+    assert_eq!(gradient.vertex_color, [0.0, 0.0, 0.0, 0.6]);
     assert_eq!(
         rect(&registry, "DamageMeterEntry1BarBorderTopLeft"),
         (0.0, 0.0, 8.0, 8.0)
@@ -351,7 +358,11 @@ fn forever_chat_has_plain_text_tabs_separator_and_four_header_icons() {
             387.0,
             "common-dropdown-a-button-settings-shadowless",
         ),
-        ("Social", 422.0, "UI-HUD-MicroMenu-GuildCommunities-Up"),
+        (
+            "Social",
+            422.0,
+            "ui-hud-micromenu-guildcommunities-up-c60-2x",
+        ),
         ("Volume", 457.0, "common-dropdown-icon-sound-on"),
     ] {
         let name = format!("ChatFrame1Flare{name}");
@@ -380,6 +391,7 @@ fn forever_chrome_atlases_resolve_to_assets_already_in_data() {
         "common-dropdown-icon-sound-on",
         "classicon-mage",
         "classicon-warrior",
+        "ui-hud-micromenu-guildcommunities-up-c60-2x",
     ] {
         let art = resolve_region(name, ActiveSkin::Forever).unwrap_or_else(|| panic!("no {name}"));
         let AtlasSource::FileDataId(fdid) = art.source else {
