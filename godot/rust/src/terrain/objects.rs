@@ -19,8 +19,7 @@ use game_engine_core::{
 use glam::{Affine3A, Vec3};
 use godot::{
     classes::{
-        ConcavePolygonShape3D, MeshInstance3D, Node3D,
-        geometry_instance_3d::ShadowCastingSetting,
+        ConcavePolygonShape3D, MeshInstance3D, Node3D, geometry_instance_3d::ShadowCastingSetting,
     },
     prelude::*,
 };

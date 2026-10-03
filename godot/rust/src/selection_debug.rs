@@ -105,7 +105,11 @@ impl SelectionModel {
 
     fn toggle_pinned(&mut self) {
         self.state.pinned = !self.state.pinned;
-        let verb = if self.state.pinned { "Pinned" } else { "Unpinned" };
+        let verb = if self.state.pinned {
+            "Pinned"
+        } else {
+            "Unpinned"
+        };
         self.state.last_action = format!("{verb} {}", self.current_label());
     }
 

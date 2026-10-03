@@ -173,6 +173,11 @@ fn race_columns_end_above_the_navigation_buttons_at_720p() {
         let Val::Px(top) = frame(&model, &format!("Race_{}", race.id)).position.top else {
             panic!("Race_{} has no pixel top", race.id);
         };
-        assert!(top + 79.0 <= nav_top, "{} ends at {}", race.name, top + 79.0);
+        assert!(
+            top + 79.0 <= nav_top,
+            "{} ends at {}",
+            race.name,
+            top + 79.0
+        );
     }
 }

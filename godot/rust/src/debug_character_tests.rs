@@ -25,7 +25,10 @@ fn displays(config: &DebugCharacterConfig, left: bool) -> Vec<(EquipmentVisualSl
 #[test]
 fn defaults_are_the_original_human_warrior_and_displays() {
     let config = config(&[]).unwrap();
-    assert_eq!((config.race, config.class, config.appearance.sex), (1, 1, 0));
+    assert_eq!(
+        (config.race, config.class, config.appearance.sex),
+        (1, 1, 0)
+    );
     assert_eq!(config.appearance.hair_style, 4);
     assert_eq!(
         displays(&config, true),
@@ -61,8 +64,16 @@ fn variables_override_and_zero_empties_a_slot() {
     .unwrap();
     assert_eq!((config.race, config.appearance.sex), (4, 1));
     let right = displays(&config, false);
-    assert!(!right.iter().any(|(slot, _)| *slot == EquipmentVisualSlot::Head));
-    assert!(!right.iter().any(|(slot, _)| *slot == EquipmentVisualSlot::Back));
+    assert!(
+        !right
+            .iter()
+            .any(|(slot, _)| *slot == EquipmentVisualSlot::Head)
+    );
+    assert!(
+        !right
+            .iter()
+            .any(|(slot, _)| *slot == EquipmentVisualSlot::Back)
+    );
     assert_eq!(right.len(), 6);
 }
 
