@@ -21,7 +21,30 @@ struct EditModeLayoutsFile {
 #[derive(Default, Serialize, Deserialize)]
 struct EditLayout {
     #[serde(default)]
+    skin: LayoutSkin,
+    #[serde(default)]
     elements: BTreeMap<String, SavedElement>,
+}
+
+/// The art a layout draws its frames with: Retail atlases, or Forever's set-1 re-skin.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum LayoutSkin {
+    #[default]
+    Modern,
+    Forever,
+}
+
+/// Built-in layouts, listed before saved ones as Retail lists its presets
+/// (`Blizzard_EditMode/Shared/EditModePresetLayoutsManager.lua:5-21`); ours also pick a skin.
+pub const SYSTEM_PRESETS: [(&str, LayoutSkin); 2] = [
+    ("Modern", LayoutSkin::Modern),
+    ("Forever", LayoutSkin::Forever),
+];
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct ActiveLayout {
+    pub name: String,
+    pub skin: LayoutSkin,
 }
 
 #[derive(Serialize, Deserialize)]
@@ -72,6 +95,40 @@ fn write_layout(path: &Path, file: &LayoutFile) -> Result<(), String> {
     }
     fs::write(path, serialized)
         .map_err(|error| format!("failed to write UI layout {}: {error}", path.display()))
+}
+
+fn layout_skin(file: &LayoutFile, name: &str) -> Result<LayoutSkin, String> {
+    SYSTEM_PRESETS
+        .iter()
+        .find(|(preset, _)| *preset == name)
+        .map(|&(_, skin)| skin)
+        .or_else(|| file.edit_mode.layouts.get(name).map(|layout| layout.skin))
+        .ok_or_else(|| format!("unknown UI layout {name:?}"))
+}
+
+/// The character's active layout; a character that never chose one uses the Modern preset.
+pub fn active_layout(path: &Path, character_id: u64) -> Result<ActiveLayout, String> {
+    let file = read_layout(path)?;
+    let name = file
+        .edit_mode
+        .active_layout
+        .get(&character_id.to_string())
+        .map_or(SYSTEM_PRESETS[0].0, String::as_str);
+    Ok(ActiveLayout {
+        name: name.to_string(),
+        skin: layout_skin(&file, name)?,
+    })
+}
+
+/// Save `name` (a system preset or saved layout) as the character's active layout.
+pub fn set_active_layout(path: &Path, character_id: u64, name: &str) -> Result<LayoutSkin, String> {
+    let mut file = read_layout(path)?;
+    let skin = layout_skin(&file, name)?;
+    file.edit_mode
+        .active_layout
+        .insert(character_id.to_string(), name.to_string());
+    write_layout(path, &file)?;
+    Ok(skin)
 }
 
 pub fn window_position(
