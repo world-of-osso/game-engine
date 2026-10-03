@@ -12,7 +12,7 @@ Client: `godot/ui-model/src/damage_meter_data.rs` (session selection, rows, numb
 - [x] Rows (`DamageMeterSourceEntryTemplate`, Default style): the server's rank order, "N. Name" (`DAMAGE_METER_SOURCE_NAME`) left, Compact numbers "damage (dps)" (`DAMAGE_METER_ENTRY_FORMAT_COMPACT`, the preset `Numbers`) right in NumberFontNormal (ARIALN 14 outline); the StatusBar fill is `UI-HUD-CoolDownManager-Bar` tinted by `RAID_CLASS_COLORS`, filled by damage over the session's highest, over `ui-damagemeters-bar-shadowbg`/`-shadowedge`. Numbers use `AbbreviateLargeNumbers` as last shipped in Lua (UIParent.lua:774-785).
 - [x] `damagemeters-background` behind everything at 50% (preset BackgroundTransparency 50).
 - [ ] The dropdown menu's art is a plain dark panel, not `MenuStyle2`; past sessions ("Combat N"), the meter type menu, the settings menu, minimize, resize and moving are not implemented.
-- [ ] Spec icons (`ShowSpecIcon` 1) are not drawn: the snapshot has no spec. The rows start at the bar's left edge as with icons off.
+- [ ] Modern spec icons (`ShowSpecIcon` 1) are not drawn: the snapshot has no spec. Modern rows start at the bar's left edge as with icons off. Forever uses the supplied class identity; [reference chrome and provenance](forever-chat-meter-chrome.md).
 - [ ] Retail's C `AbbreviateLargeNumbers` may format differently from the old Lua one.
 - [ ] Only the first 5 rows fit; the scroll box, scroll bar and pinned local-player row (`AlwaysShowsLocalPlayer`) are not implemented.
 - [ ] The per-spell breakdown window (`DamageMeterSourceWindow`, opened by clicking a row) is not implemented; the snapshot already carries each source's spells.
