@@ -7,8 +7,9 @@ extends SceneTree
 ##   PORTRAIT_ADMIN           game-server-admin binary for that server (its
 ##                            GAME_SERVER_ADMIN_SOCKET in the environment)
 ##   PORTRAIT_SHOTS           screenshot directory
-## Teleports beside Marshal McBride (world.db creature 197) and targets him, then beside
-## Timber (1132, rank 4 rare) and targets it: each target's portrait is its own model, masked round at the Retail anchor; the
+## Teleports beside Marshal McBride (world.db creature 197) and targets him, then Milly
+## Osworth (9296, humanfemale_hd 1000764: a portrait camera without FoV keys); each portrait
+## is a still image, not re-rendered while its unit is unchanged. Then beside Timber (1132, rank 4 rare) and targets it: each target's portrait is its own model, masked round at the Retail anchor; the
 ## rare star sits on the portrait's bottom and the target of target clears the frame.
 
 const PASSWORD := "fbtest"
@@ -67,6 +68,19 @@ func run_test() -> void:
 	if mcbride.is_empty():
 		return
 	await capture("01-mcbride.png")
+	creature = "Milly Osworth"
+	if not await click_target():
+		return
+	var milly = await target_portrait()
+	if milly.is_empty():
+		return
+	if image_difference(mcbride.image, milly.image) < 0.05:
+		fail("Milly Osworth's portrait render matches McBride's")
+		return
+	await capture("01-milly.png")
+	await measure_cost("TargetFramePortrait")
+	if not await check_still("TargetFramePortrait"):
+		return
 	creature = "Timber"
 	if not await teleport(TIMBER_VIEW):
 		return
@@ -101,6 +115,35 @@ func target_portrait() -> Dictionary:
 		return {}
 	return await shown_portrait("TargetFramePortrait", TARGET_PORTRAIT, TARGET_MASK_RECT, "TargetFrame", "creature display")
 
+## Left-click `creature` (friendly, so Tab skips it while hostiles are near), turning left
+## until it is on screen.
+func click_target() -> bool:
+	for turn in range(48):
+		var point = creature_on_screen()
+		if point != null:
+			await click_point(point, MOUSE_BUTTON_LEFT)
+			if client.target_state().target_name == creature:
+				return true
+		await press(KEY_LEFT)
+	fail("Could not click %s: %s" % [creature, client.target_state()])
+	return false
+
+## The screen point of `creature`'s pick volume, or null while it is off screen.
+func creature_on_screen():
+	var camera := root.get_viewport().get_camera_3d()
+	if camera == null:
+		return null
+	for unit in client.get_node("WorldUnits").get_children():
+		if unit.get_meta("unit_name", "") != creature:
+			continue
+		var area := unit.find_child("UnitPick", true, false) as Area3D
+		if area == null or area.get_child_count() == 0:
+			continue
+		var center := (area.get_child(0) as Node3D).global_position
+		if camera.is_position_in_frustum(center):
+			return camera.unproject_position(center)
+	return null
+
 ## Wait for portrait `name` to show a model, then check it sits at `anchor` of `frame`
 ## with its mask and renders a model over a masked-out outside.
 func shown_portrait(name: String, anchor: Rect2, mask_rect: Vector4, frame: String, appearance: String) -> Dictionary:
@@ -130,6 +173,43 @@ func shown_portrait(name: String, anchor: Rect2, mask_rect: Vector4, frame: Stri
 	var centre := screen.get_pixelv(Vector2i(rect.get_center()))
 	print("FIXTURE PORTRAIT %s appearance=%s rect=%s coverage=%.3f centre=%s camera=%s" % [name, state.appearance, rect, coverage, centre, state.camera_position])
 	return state
+
+## SetPortraitTexture sets a still texture: an unchanged unit's portrait renders the same
+## image frame after frame.
+func check_still(name: String) -> bool:
+	var before: Image = client.unit_portrait_state(name).image
+	await wait_frames(90)
+	await RenderingServer.frame_post_draw
+	var after: Image = client.unit_portrait_state(name).image
+	var difference := image_difference(before, after)
+	print("FIXTURE STILL %s difference=%.6f over 90 frames" % [name, difference])
+	if difference > 0.0:
+		fail("%s re-renders while its unit is unchanged (difference %.6f)" % [name, difference])
+		return false
+	return true
+
+## Per-frame render cost with the portraits shown: whole-frame draw calls, primitives and
+## objects, process time, and the portrait viewport's own measured render time.
+func measure_cost(name: String) -> void:
+	var viewport := control("UnitFramesUI", name).find_child("PortraitViewport", true, false) as SubViewport
+	var rid := viewport.get_viewport_rid()
+	RenderingServer.viewport_set_measure_render_time(rid, true)
+	await wait_frames(10)
+	var frames := 240
+	var sums := {"draw_calls": 0.0, "primitives": 0.0, "objects": 0.0, "process_ms": 0.0, "portrait_cpu_ms": 0.0, "portrait_gpu_ms": 0.0}
+	for frame in range(frames):
+		await RenderingServer.frame_post_draw
+		sums.draw_calls += Performance.get_monitor(Performance.RENDER_TOTAL_DRAW_CALLS_IN_FRAME)
+		sums.primitives += Performance.get_monitor(Performance.RENDER_TOTAL_PRIMITIVES_IN_FRAME)
+		sums.objects += Performance.get_monitor(Performance.RENDER_TOTAL_OBJECTS_IN_FRAME)
+		sums.process_ms += Performance.get_monitor(Performance.TIME_PROCESS) * 1000.0
+		sums.portrait_cpu_ms += RenderingServer.viewport_get_measured_render_time_cpu(rid)
+		sums.portrait_gpu_ms += RenderingServer.viewport_get_measured_render_time_gpu(rid)
+	RenderingServer.viewport_set_measure_render_time(rid, false)
+	var line := "FIXTURE COST %s frames=%d" % [name, frames]
+	for key in sums:
+		line += " %s=%.3f" % [key, sums[key] / frames]
+	print(line)
 
 ## The rare star centred on the TargetFrame portrait's bottom edge (TargetFrame.xml:281-284).
 func check_star(portrait: Dictionary) -> bool:
