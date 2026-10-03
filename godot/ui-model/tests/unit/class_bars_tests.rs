@@ -181,6 +181,7 @@ fn registry_with(view: ClassBarView) -> FrameRegistry {
         target: None,
         target_of_target: None,
         focus: None,
+        pet: None,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
     };

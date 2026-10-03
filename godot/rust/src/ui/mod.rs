@@ -712,6 +712,18 @@ impl RegistryUi {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
     }
 
+    /// Initialize a dedicated RegistryUi instance for the Retail pet action bar.
+    pub fn show_pet_action_bar(
+        &mut self,
+        state: game_engine_ui_model::pet_action_bar_component::PetActionBarState,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::pet_action_bar_component::pet_action_bar_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the damage meter window.
     pub fn show_damage_meter(
         &mut self,

@@ -227,6 +227,17 @@ pub enum InputAction {
     ActionSlot10,
     ActionSlot11,
     ActionSlot12,
+    /// Retail `BONUSACTIONBUTTON1..10`: the pet action bar buttons.
+    PetActionSlot1,
+    PetActionSlot2,
+    PetActionSlot3,
+    PetActionSlot4,
+    PetActionSlot5,
+    PetActionSlot6,
+    PetActionSlot7,
+    PetActionSlot8,
+    PetActionSlot9,
+    PetActionSlot10,
     ToggleMute,
     ToggleCharacter,
     ToggleSpellbook,
@@ -250,7 +261,21 @@ pub enum InputAction {
 }
 
 impl InputAction {
-    pub const ALL: [Self; 60] = [
+    /// `BONUSACTIONBUTTON1..10`, pet bar button 1..10.
+    pub const PET_ACTION_SLOTS: [Self; 10] = [
+        Self::PetActionSlot1,
+        Self::PetActionSlot2,
+        Self::PetActionSlot3,
+        Self::PetActionSlot4,
+        Self::PetActionSlot5,
+        Self::PetActionSlot6,
+        Self::PetActionSlot7,
+        Self::PetActionSlot8,
+        Self::PetActionSlot9,
+        Self::PetActionSlot10,
+    ];
+
+    pub const ALL: [Self; 70] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -291,6 +316,16 @@ impl InputAction {
         Self::ActionSlot10,
         Self::ActionSlot11,
         Self::ActionSlot12,
+        Self::PetActionSlot1,
+        Self::PetActionSlot2,
+        Self::PetActionSlot3,
+        Self::PetActionSlot4,
+        Self::PetActionSlot5,
+        Self::PetActionSlot6,
+        Self::PetActionSlot7,
+        Self::PetActionSlot8,
+        Self::PetActionSlot9,
+        Self::PetActionSlot10,
         Self::ToggleMute,
         Self::ToggleCharacter,
         Self::ToggleSpellbook,
@@ -322,6 +357,7 @@ impl InputAction {
             .or_else(|| camera_action_from_key(key))
             .or_else(|| targeting_action_from_key(key))
             .or_else(|| action_slot_from_key(key))
+            .or_else(|| pet_action_slot_from_key(key))
             .or_else(|| audio_action_from_key(key))
             .or_else(|| interface_action_from_key(key))
             .or_else(|| bag_action_from_key(key))
@@ -355,8 +391,18 @@ impl InputAction {
         self.meta().default_binding
     }
 
+    /// Pet bar button index (0-based) a `BONUSACTIONBUTTON` binding presses.
+    pub fn pet_action_slot(self) -> Option<usize> {
+        Self::PET_ACTION_SLOTS
+            .iter()
+            .position(|action| *action == self)
+    }
+
     fn meta(self) -> InputActionMeta {
         if let Some(meta) = self.action_slot_meta() {
+            return meta;
+        }
+        if let Some(meta) = self.pet_action_slot_meta() {
             return meta;
         }
         if let Some(meta) = self.interface_meta() {
@@ -569,7 +615,85 @@ impl InputAction {
             | Self::ActionSlot10
             | Self::ActionSlot11
             | Self::ActionSlot12 => unreachable!("action slots handled by action_slot_meta"),
+            Self::PetActionSlot1
+            | Self::PetActionSlot2
+            | Self::PetActionSlot3
+            | Self::PetActionSlot4
+            | Self::PetActionSlot5
+            | Self::PetActionSlot6
+            | Self::PetActionSlot7
+            | Self::PetActionSlot8
+            | Self::PetActionSlot9
+            | Self::PetActionSlot10 => {
+                unreachable!("pet action slots handled by pet_action_slot_meta")
+            }
         }
+    }
+
+    /// Retail `BONUSACTIONBUTTON1..10` (`Bindings_Standard.xml:272-361`,
+    /// `BINDING_HEADER_ACTIONBAR`, `BINDING_NAME_BONUSACTIONBUTTONn` "Pet Action Button n")
+    /// on Ctrl-1..Ctrl-9, Ctrl-0 (`~/Repos/worldofwhatever/DefaultBindings.wtf:53-62`,
+    /// `bind CTRL-1 BONUSACTIONBUTTON1`; the bindings XML carries no keys).
+    fn pet_action_slot_meta(self) -> Option<InputActionMeta> {
+        const KEYS: [(&str, &str, BindingKey); 10] = [
+            (
+                "pet_action_slot_1",
+                "Pet Action Button 1",
+                BindingKey::Digit1,
+            ),
+            (
+                "pet_action_slot_2",
+                "Pet Action Button 2",
+                BindingKey::Digit2,
+            ),
+            (
+                "pet_action_slot_3",
+                "Pet Action Button 3",
+                BindingKey::Digit3,
+            ),
+            (
+                "pet_action_slot_4",
+                "Pet Action Button 4",
+                BindingKey::Digit4,
+            ),
+            (
+                "pet_action_slot_5",
+                "Pet Action Button 5",
+                BindingKey::Digit5,
+            ),
+            (
+                "pet_action_slot_6",
+                "Pet Action Button 6",
+                BindingKey::Digit6,
+            ),
+            (
+                "pet_action_slot_7",
+                "Pet Action Button 7",
+                BindingKey::Digit7,
+            ),
+            (
+                "pet_action_slot_8",
+                "Pet Action Button 8",
+                BindingKey::Digit8,
+            ),
+            (
+                "pet_action_slot_9",
+                "Pet Action Button 9",
+                BindingKey::Digit9,
+            ),
+            (
+                "pet_action_slot_10",
+                "Pet Action Button 10",
+                BindingKey::Digit0,
+            ),
+        ];
+        let (key, label, digit) = KEYS[self.pet_action_slot()?];
+        Some(input_action_meta(
+            key,
+            label,
+            BindingSection::ActionBar,
+            Some(InputBinding::CtrlKeyboard(digit)),
+        ))
     }
 
     fn action_slot_meta(self) -> Option<InputActionMeta> {
@@ -678,6 +802,17 @@ impl InputBinding {
             Self::ShiftKeyboard(key) => state.shift_held() && state.key_just_pressed(key),
             Self::CtrlKeyboard(key) => state.ctrl_held() && state.key_just_pressed(key),
             Self::Mouse(button) => state.mouse_just_pressed(button),
+        }
+    }
+
+    /// Action button hotkey label, `GetBindingText(key, true)`: modifiers abbreviated to
+    /// `CTRL_KEY_TEXT_ABBR` "c" and `SHIFT_KEY_TEXT_ABBR` "s" (GlobalStrings).
+    pub fn hotkey_text(self) -> String {
+        match self {
+            Self::Keyboard(key) => key_display(key),
+            Self::ShiftKeyboard(key) => format!("s-{}", key_display(key)),
+            Self::CtrlKeyboard(key) => format!("c-{}", key_display(key)),
+            Self::Mouse(button) => mouse_button_display(button),
         }
     }
 
@@ -945,6 +1080,12 @@ fn action_slot_from_key(key: &str) -> Option<InputAction> {
     })
 }
 
+fn pet_action_slot_from_key(key: &str) -> Option<InputAction> {
+    InputAction::PET_ACTION_SLOTS
+        .into_iter()
+        .find(|action| action.key() == key)
+}
+
 fn interface_action_from_key(key: &str) -> Option<InputAction> {
     Some(match key {
         "toggle_character" => InputAction::ToggleCharacter,
@@ -1077,6 +1218,16 @@ fn action_bar_section_actions() -> &'static [InputAction] {
         InputAction::ActionSlot10,
         InputAction::ActionSlot11,
         InputAction::ActionSlot12,
+        InputAction::PetActionSlot1,
+        InputAction::PetActionSlot2,
+        InputAction::PetActionSlot3,
+        InputAction::PetActionSlot4,
+        InputAction::PetActionSlot5,
+        InputAction::PetActionSlot6,
+        InputAction::PetActionSlot7,
+        InputAction::PetActionSlot8,
+        InputAction::PetActionSlot9,
+        InputAction::PetActionSlot10,
     ]
 }
 
