@@ -62,6 +62,11 @@ assert args[:2] == ['run', '1.98.1'], args
 if args[2] == 'rustc':
     print(os.environ['FIXTURE_ROOT']); sys.exit(0)
 assert args[2] == 'cargo' and '--locked' in args and '-j8' in args, args
+if os.environ.get('SLEEP_CARGO'):
+    import signal, time
+    signal.signal(signal.SIGTERM, signal.SIG_IGN)
+    pathlib.Path(os.environ['FIXTURE_ROOT'], 'cargo.pid').write_text(str(os.getpid()))
+    time.sleep(60)
 root = pathlib.Path.cwd()
 target = pathlib.Path(os.environ['CARGO_TARGET_DIR'])
 target.mkdir(parents=True, exist_ok=True)
@@ -232,6 +237,58 @@ class NativeTests(unittest.TestCase):
                         self.context, "failed-key", "project", ["build"], "desktop"
                     )
             self.assertFalse((self.base / "cache/failed-key").exists())
+
+    def test_desktop_wrapper_signal_closes_lease_and_kills_remote_cargo(self):
+        code = (
+            "import sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); "
+            "import native_build_hosts as h; "
+            'sys.exit(h.execute(Path(sys.argv[2]),"remote","project",["build"],"desktop",environment={"SLEEP_CARGO":"1"}))'
+        )
+        process = subprocess.Popen(
+            [sys.executable, "-c", code, str(SCRIPTS), str(self.context)]
+        )
+        marker = self.base / "cargo.pid"
+        try:
+            deadline = time.monotonic() + 8
+            while not marker.exists():
+                self.assertLess(time.monotonic(), deadline)
+                time.sleep(0.02)
+            pid = int(marker.read_text())
+            process.send_signal(signal.SIGTERM)
+            self.assertEqual(process.wait(timeout=8), 143)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(pid, 0)
+            self.assertEqual(
+                list((self.base / "windows/data/build-host/transfers").iterdir()), []
+            )
+        finally:
+            if marker.exists():
+                try:
+                    os.kill(int(marker.read_text()), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
+            if process.poll() is None:
+                process.kill()
+            process.wait()
+
+    def test_prune_refuses_runtime_symlink_parent(self):
+        state = self.base / "state"
+        source = state / "source"
+        manifest = state / "manifest.json"
+        self.h.sync_source(self.context, source, manifest)
+        incoming = self.context / "project/src/main.rs"
+        incoming.unlink()
+        (source / "project/src/main.rs").unlink()
+        (source / "project/src").rmdir()
+        runtime = source / "runtime"
+        runtime.mkdir()
+        (runtime / "main.rs").write_text("runtime-owned")
+        (source / "project/src").symlink_to(runtime, target_is_directory=True)
+        # Remove incoming directory so only the prune encounters the alias.
+        incoming.parent.rmdir()
+        with self.assertRaises(ValueError):
+            self.h.sync_source(self.context, source, manifest)
+        self.assertEqual((runtime / "main.rs").read_text(), "runtime-owned")
 
     def test_sysroot_query_is_owned_and_bounded(self):
         script = RUSTUP.replace(

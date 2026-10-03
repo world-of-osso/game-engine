@@ -61,7 +61,9 @@ def sync_source(snapshot: Path, source: Path, manifest: Path):
         destination.chmod(incoming.stat().st_mode & 0o777)
     for name in set(previous) - set(owned):
         path = source / name
-        if not path.resolve().is_relative_to(source.resolve()) or path.is_symlink():
+        if not path.resolve().is_relative_to(source.resolve()) or any(
+            parent.is_symlink() for parent in (path, *path.parents)
+        ):
             raise ValueError(f"unsafe owned source: {name}")
         path.unlink(missing_ok=True)
     manifest.parent.mkdir(parents=True, exist_ok=True)
@@ -138,12 +140,15 @@ def run_owned(
         stdin=subprocess.PIPE if relay else subprocess.DEVNULL,
         stdout=stdout,
     )
+    if relay:
+        os.set_blocking(process.stdin.fileno(), False)
     try:
         while process.poll() is None and not stopped.is_set():
             if relay:
                 try:
-                    process.stdin.write(b".\n")
-                    process.stdin.flush()
+                    os.write(process.stdin.fileno(), b".\n")
+                except BlockingIOError:
+                    pass  # Worker lease expires if transport stops draining.
                 except BrokenPipeError:
                     break
             stopped.wait(0.2)
