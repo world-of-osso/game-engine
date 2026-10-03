@@ -1,3 +1,7 @@
+## 2026-10-03 — Elastic-tree evidence reconciliation
+
+[[elastic-trees]]: accepted coarse annotation, saved lit contact/recovery and private mounted-input/network proof reconciled at `34b6ada6`; spec checks distinguish placement reuse from source-only FDID caching. Preserved uniform-buffer root cause, prototype boundaries, pending live-image inspection and latest-source checks. Docs only; no reruns.
+
 ## 2026-10-02 — Mounts and steady flight (flymount)
 
 [[mounts]]: Godot mount model and rider seat, flight controls after Retail JUMP/SITORSTAND, `PlayerInput.flying`; live `flying_mount_live.gd` PASS on a private server (`data/diagnostics/flymount-2026-10-02/`).
