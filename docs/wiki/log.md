@@ -1,3 +1,7 @@
+## 2026-10-02 — Mounts and steady flight (flymount)
+
+[[mounts]]: Godot mount model and rider seat, flight controls after Retail JUMP/SITORSTAND, `PlayerInput.flying`; live `flying_mount_live.gd` PASS on a private server (`data/diagnostics/flymount-2026-10-02/`).
+
 ## 2026-10-01 — Launcher pins patched Godot 4.7.2-pr123946
 
 [[godot-wayland-exit-hang]]: launcher and shell helpers now use official 4.7.2 plus upstream PR #123946, built by `scripts/godot/build-patched-godot.sh` and SHA-512 pinned; missing or mismatched binary fails with build instructions, no fallback. `PYTHONHASHSEED=0` makes the build bit-reproducible (`editor/editor_builders.py` embeds Python `hash()` of the docs). Pinned binary: 0/120 hangs of `m2_animation.gd` via `quit-hang-loop.sh` (`data/diagnostics/godotpatch-2026-10-01/loop-anim-seeded.txt`). Retire when an official release contains #123946.

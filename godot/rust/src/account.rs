@@ -464,6 +464,13 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// Retail `Dismount()` (`CMSG_CANCEL_MOUNT_AURA`): the server removes the mount aura.
+    pub fn send_cancel_mount_aura(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(shared::protocol::CancelMountAura)
+            .map_err(SessionError)
+    }
+
     /// `SetDungeonDifficultyID`; the server validates it and answers `DungeonDifficultySet`.
     pub fn send_set_dungeon_difficulty(&self, difficulty_id: u32) -> Result<(), SessionError> {
         self.bridge()?

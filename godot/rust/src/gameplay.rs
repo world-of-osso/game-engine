@@ -16,8 +16,8 @@ use game_engine_network::movement_control::{ScriptedMovement, ScriptedMovementSt
 use game_engine_session::SessionScreen;
 use glam::Vec3;
 use shared::{
-    components::MovementSpeed,
-    movement::{RUN_SPEED, SWIM_SPEED, WALK_SPEED, swim_top},
+    components::{MovementSpeed, PlayerMotion},
+    movement::{FLIGHT_SPEED, RUN_SPEED, SWIM_SPEED, WALK_SPEED, swim_top},
     protocol::PlayerInput,
 };
 
@@ -29,17 +29,26 @@ use crate::swim::{at_swim_surface, swim_height};
 /// the world. The original client resolves a frame's travel by continuous collision substeps
 /// (solarityclient `player_movement/interval.rs`, 762E00).
 const MAX_STEP_SECONDS: f32 = 1.0 / 60.0;
+/// Height over the floor at which a descending flyer touches down.
+const LANDING_SLACK: f32 = 0.05;
 
 pub(crate) struct PlayerMovement {
     pub running: bool,
     pub autorun: bool,
     pub jumping: bool,
     pub swimming: bool,
+    /// The server lets the player fly (its replicated `PlayerMotion::CAN_FLY`, from a
+    /// flying mount's speed aura).
+    can_fly: bool,
+    /// Flying (`MOVEMENTFLAG_FLYING`): no gravity; Jump ascends, SitOrStand descends and
+    /// mouse steering pitches forward movement.
+    pub flying: bool,
     direction: MoveDirection,
     /// Whether the swimmer floats at the water surface.
     at_surface: bool,
-    /// Whether the last `predict` changed the swimmer's height, for a vertical-only input.
-    swim_rose: bool,
+    /// Whether the last `predict` changed a swimmer's or flyer's height, for a vertical-only
+    /// input.
+    rose: bool,
     /// Whether the previous `predict` left the player walking on dry ground.
     wading: bool,
     previous_facing: Option<f32>,
@@ -59,18 +68,20 @@ pub(crate) struct PlayerMovement {
     reported_yaw: Option<f32>,
 }
 
-/// What an input reports moving: a direction, a jump, or a swim step that changed height.
+/// What an input reports moving: a direction, a jump, or a swim or flight step that changed
+/// height.
 struct ReportedMotion {
     direction: [f32; 3],
     jumping: bool,
-    swimming_vertically: bool,
+    moving_vertically: bool,
 }
 
 pub(crate) struct MovementFrame {
-    /// World direction; its Y is the pitched part of mouse-steered swimming.
+    /// World direction; its Y is the pitched part of mouse-steered swimming or flight.
     pub direction: [f32; 3],
     pub speed: f32,
-    /// Swim ascend (+) or descend (-) speed: `SWIM_SPEED` × the server's aura modifier.
+    /// Ascend (+) or descend (-) speed: `SWIM_SPEED` (swimming) or `FLIGHT_SPEED` (able to
+    /// fly) × the server's aura modifier.
     pub vertical: f32,
 }
 
@@ -81,9 +92,11 @@ impl Default for PlayerMovement {
             autorun: false,
             jumping: false,
             swimming: false,
+            can_fly: false,
+            flying: false,
             direction: MoveDirection::None,
             at_surface: false,
-            swim_rose: false,
+            rose: false,
             wading: false,
             previous_facing: None,
             vertical_velocity: 0.0,
@@ -109,15 +122,16 @@ fn turn_animation_id(delta: f32) -> Option<u16> {
     }
 }
 
-/// Retail `JumpOrAscendStart` / `SitStandOrDescendStart`: the held swim vertical input.
-fn swim_vertical_input(bindings: &InputBindingsData, input: &impl InputState) -> f32 {
+/// Retail `JumpOrAscendStart` / `SitStandOrDescendStart` (Bindings_Standard.xml:53-65, JUMP
+/// and SITORSTAND): the held ascend (+1) or descend (-1) of a swimmer or flyer.
+fn vertical_input(bindings: &InputBindingsData, input: &impl InputState) -> f32 {
     let ascend = bindings.is_pressed(InputAction::Jump, input);
     let descend = bindings.is_pressed(InputAction::SitOrStand, input);
     f32::from(u8::from(ascend)) - f32::from(u8::from(descend))
 }
 
 /// Tilt the forward part of `direction` by the camera `pitch` (the mouse-steered swimmer
-/// follows the view); the lateral part stays level.
+/// or flyer follows the view, `MOVEANDSTEER`); the lateral part stays level.
 fn pitch_forward(direction: Vec3, yaw: f32, pitch: f32) -> Vec3 {
     let forward = Vec3::new(yaw.sin(), 0.0, yaw.cos());
     let along = direction.dot(forward);
@@ -129,7 +143,7 @@ impl PlayerMovement {
     fn animation_id(&mut self, facing: f32) -> u16 {
         let previous = self.previous_facing.replace(facing);
         let locomotion = direction_to_anim_id(self.direction, self.running, self.swimming);
-        if self.direction != MoveDirection::None || self.jumping || self.swimming {
+        if self.direction != MoveDirection::None || self.jumping || self.swimming || self.flying {
             return locomotion;
         }
         let Some(previous) = previous else {
@@ -140,7 +154,8 @@ impl PlayerMovement {
         turn_animation_id(delta).unwrap_or(locomotion)
     }
 
-    /// `pitch` is the camera pitch, steering a swimmer moved with the right mouse button;
+    /// `pitch` is the camera pitch, steering a swimmer or flyer moved with the right mouse
+    /// button;
     /// `scripted_forward` is an IPC `ScriptedMovementForward` step.
     pub fn resolve(
         &mut self,
@@ -156,24 +171,38 @@ impl PlayerMovement {
             compute_movement_input(bindings, input, self.autorun, scripted_forward, yaw);
         self.direction = animation;
         let mut direction = Vec3::from_array(direction);
-        if self.swimming && input.mouse_pressed(BindingMouseButton::Right) {
+        if (self.swimming || self.flying) && input.mouse_pressed(BindingMouseButton::Right) {
             direction = pitch_forward(direction, yaw, pitch);
         }
+        let vertical_speed = if self.swimming {
+            SWIM_SPEED
+        } else if self.can_fly {
+            FLIGHT_SPEED
+        } else {
+            0.0
+        };
         MovementFrame {
             direction: direction.to_array(),
             speed: self.unmodified_speed() * self.speed_modifier,
-            vertical: if self.swimming {
-                swim_vertical_input(bindings, input) * SWIM_SPEED * self.speed_modifier
-            } else {
-                0.0
-            },
+            vertical: vertical_input(bindings, input) * vertical_speed * self.speed_modifier,
+        }
+    }
+
+    /// Adopt the server's `PlayerMotion::CAN_FLY`; losing it ends a flight
+    /// (`Unit::SetCanFly(false)` drops `MOVEMENTFLAG_FLYING`), and the player falls.
+    pub fn set_can_fly(&mut self, can_fly: bool) {
+        self.can_fly = can_fly;
+        if !can_fly {
+            self.flying = false;
         }
     }
 
     /// The server's speed for the current state without auras (game-server
-    /// `compute_movement_speed`): swim, run or walk base × the direction multiplier.
+    /// `compute_movement_speed`): flight, swim, run or walk base × the direction multiplier.
     fn unmodified_speed(&self) -> f32 {
-        let base = if self.swimming {
+        let base = if self.flying {
+            FLIGHT_SPEED
+        } else if self.swimming {
             SWIM_SPEED
         } else if self.running {
             RUN_SPEED
@@ -204,7 +233,7 @@ impl PlayerMovement {
         ground: &crate::ground::TerrainGround<'_>,
         delta: f32,
     ) -> Vec3 {
-        self.swim_rose = false;
+        self.rose = false;
         let steps = (delta / MAX_STEP_SECONDS).ceil().max(1.0);
         (0..steps as u32).fold(position, |position, _| {
             self.step(position, &frame, jump_pressed, ground, delta / steps)
@@ -219,11 +248,16 @@ impl PlayerMovement {
         ground: &crate::ground::TerrainGround<'_>,
         delta: f32,
     ) -> Vec3 {
-        let position = if self.swimming {
+        let position = if self.flying {
+            self.fly(position, frame, ground, delta)
+        } else if self.swimming {
             self.swim(position, frame, ground, delta)
         } else {
             self.walk(position, frame, jump_pressed, ground, delta)
         };
+        if self.flying {
+            return position;
+        }
         let was_swimming = self.swimming;
         let wading = self.wading && self.grounded;
         self.swimming = ground.swimming(position);
@@ -278,6 +312,13 @@ impl PlayerMovement {
             position = ground.validate_move(position, proposed, self.grounded && !self.jumping);
         }
         self.update_jump(position, jump_pressed, ground);
+        // `JumpOrAscendStart` in the air: a player who can fly takes off.
+        if self.can_fly && !self.grounded && frame.vertical > 0.0 {
+            self.flying = true;
+            self.jumping = false;
+            self.vertical_velocity = 0.0;
+            return position;
+        }
         let vertical = apply_gravity_and_ground_snap(
             VerticalState {
                 y: position.y,
@@ -292,6 +333,35 @@ impl PlayerMovement {
         self.grounded = vertical.grounded;
         position.y = vertical.y;
         position
+    }
+
+    /// Fly along `frame` and the held ascend/descend, no faster than the flight speed in
+    /// all, over the ground and short of WMO walls. Touching down (not ascending) lands;
+    /// reaching swimming depth ends the flight into a swim.
+    fn fly(
+        &mut self,
+        current: Vec3,
+        frame: &MovementFrame,
+        ground: &crate::ground::TerrainGround<'_>,
+        delta: f32,
+    ) -> Vec3 {
+        let direction = Vec3::from(frame.direction).normalize_or_zero();
+        let velocity = (direction * frame.speed + Vec3::Y * frame.vertical)
+            .clamp_length_max(FLIGHT_SPEED * self.speed_modifier);
+        let moved = ground.validate_swim_move(current, current + velocity * delta);
+        self.rose |= moved.y != current.y;
+        let floor = match ground.probe(moved) {
+            GroundState::Supported(height) => Some(height),
+            _ => None,
+        };
+        if frame.vertical <= 0.0 && floor.is_some_and(|floor| moved.y <= floor + LANDING_SLACK) {
+            self.flying = false;
+            self.grounded = true;
+        }
+        if ground.swimming(moved) {
+            self.flying = false;
+        }
+        moved
     }
 
     /// Swim along `frame` and the held ascend/descend, floating under the water surface.
@@ -318,7 +388,7 @@ impl PlayerMovement {
             _ => None,
         };
         let y = swim_height(moved.y, rise, surface, floor, self.at_surface);
-        self.swim_rose |= y != current.y;
+        self.rose |= y != current.y;
         self.at_surface = at_swim_surface(y, surface);
         self.grounded = floor.is_some_and(|floor| y <= floor + 0.05);
         moved.with_y(y)
@@ -353,11 +423,11 @@ impl PlayerMovement {
         epoch: u32,
     ) -> Option<PlayerInput> {
         let direction = movement_to_direction(self.direction, yaw);
-        let swimming_vertically = self.swimming && self.swim_rose;
+        let moving_vertically = (self.swimming || self.flying) && self.rose;
         let motion = ReportedMotion {
             direction,
             jumping: self.jumping,
-            swimming_vertically,
+            moving_vertically,
         };
         self.report(motion, yaw, position, epoch)
     }
@@ -372,7 +442,7 @@ impl PlayerMovement {
         let halted = ReportedMotion {
             direction: [0.0; 3],
             jumping: false,
-            swimming_vertically: false,
+            moving_vertically: false,
         };
         self.report(halted, yaw, position, epoch)
     }
@@ -387,9 +457,9 @@ impl PlayerMovement {
         let ReportedMotion {
             direction,
             jumping,
-            swimming_vertically,
+            moving_vertically,
         } = motion;
-        let moving = direction != [0.0; 3] || jumping || swimming_vertically;
+        let moving = direction != [0.0; 3] || jumping || moving_vertically;
         let turned = self.reported_yaw.is_some_and(|reported| reported != yaw);
         if !moving && !self.reported_motion && !turned {
             self.reported_yaw.get_or_insert(yaw);
@@ -404,6 +474,7 @@ impl PlayerMovement {
             running: self.running,
             jumping,
             swimming: self.swimming,
+            flying: self.flying,
             position: position.to_array(),
             epoch,
         })
@@ -432,6 +503,7 @@ impl crate::GameClient {
             animation_id,
             movement.jumping,
             movement.running && movement.direction == MoveDirection::Forward,
+            movement.flying,
         )
     }
 
@@ -523,6 +595,7 @@ impl crate::GameClient {
             .bindings
             .is_just_pressed(InputAction::Jump, &input);
         if !self.player_movement.swimming
+            && !self.player_movement.flying
             && self
                 .client_options
                 .bindings
@@ -616,15 +689,23 @@ impl crate::GameClient {
         }
     }
 
-    /// The local player's replicated `MovementSpeed`, as the aura speed multiplier.
+    /// The local player's replicated `MovementSpeed`, as the aura speed multiplier, and
+    /// whether its `PlayerMotion` lets it fly.
     fn adopt_server_speed(&mut self) {
-        if let Some(speed) = self
+        let Some(unit) = self
             .world
             .local_player_id()
-            .and_then(|id| self.replica.unit(id)?.get::<MovementSpeed>())
-        {
+            .and_then(|id| self.replica.unit(id))
+        else {
+            return;
+        };
+        if let Some(speed) = unit.get::<MovementSpeed>() {
             self.player_movement.adopt_server_speed(speed.0);
         }
+        let can_fly = unit
+            .get::<PlayerMotion>()
+            .is_some_and(|motion| motion.contains(PlayerMotion::CAN_FLY));
+        self.player_movement.set_can_fly(can_fly);
     }
 }
 
@@ -691,7 +772,7 @@ mod tests {
     };
     use game_engine_core::movement_input_data::MoveDirection;
     use glam::Vec3;
-    use shared::movement::{SWIM_SPEED, swim_top};
+    use shared::movement::{FLIGHT_SPEED, SWIM_SPEED, swim_top};
 
     use crate::ground::TerrainGround;
     use crate::terrain::streaming::StreamedTerrain;
@@ -1444,5 +1525,183 @@ mod tests {
         );
         let rate = (climbed.y - dove.y) / (12.0 * DT);
         assert!((rate - SWIM_SPEED).abs() < 0.01, "dive rate {rate}");
+    }
+
+    /// Inland from `SHORE` (yaw 0 faces +Z, away from the lake).
+    const INLAND: f32 = 0.0;
+
+    fn ground_y(terrain: &StreamedTerrain, feet: Vec3) -> f32 {
+        terrain.height_at(feet.x, feet.z).expect("ground height")
+    }
+
+    /// Press Space once on the ground (`JumpOrAscendStart` jumps), then hold it: in the air
+    /// a player who can fly takes off and climbs at `FLIGHT_SPEED`.
+    fn take_off(
+        movement: &mut PlayerMovement,
+        ground: &TerrainGround<'_>,
+        input: &mut PhysicalInput,
+        feet: Vec3,
+    ) -> Vec3 {
+        input.set_key(BindingKey::Space, true);
+        let frame = movement.resolve(&InputBindingsData::default(), input, INLAND, 0.0, false);
+        let feet = movement.predict(feet, frame, true, ground, DT);
+        assert!(movement.jumping && !movement.flying);
+        let mut feet = feet;
+        for _ in 0..30 {
+            feet = hold(movement, ground, input, feet, (INLAND, 0.0), 1);
+            if movement.flying {
+                return feet;
+            }
+        }
+        panic!("never took off: {feet}");
+    }
+
+    /// Retail `JUMP` (`JumpOrAscendStart`) and `SITORSTAND` (`SitStandOrDescendStart`),
+    /// Bindings_Standard.xml:53-65: with a flying mount held Space jumps, takes off and
+    /// climbs at flight speed, a released Space hovers without gravity, held X descends
+    /// at flight speed and touching the ground lands.
+    #[test]
+    fn a_flying_mount_takes_off_with_space_hovers_and_lands_with_x() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let mut movement = PlayerMovement::default();
+        movement.set_can_fly(true);
+        let mut input = PhysicalInput::default();
+        let airborne = take_off(&mut movement, &ground, &mut input, SHORE);
+
+        let climbed = hold(&mut movement, &ground, &input, airborne, (INLAND, 0.0), 60);
+        let rate = (climbed.y - airborne.y) / (60.0 * DT);
+        assert!((rate - FLIGHT_SPEED).abs() < 0.01, "climb rate {rate}");
+        assert_eq!((climbed.x, climbed.z), (airborne.x, airborne.z));
+        let packet = movement
+            .network_input(INLAND, climbed, 1)
+            .expect("climb input");
+        assert!(
+            packet.flying && !packet.jumping && !packet.swimming,
+            "{packet:?}"
+        );
+        assert_eq!(packet.position, climbed.to_array());
+
+        input.set_key(BindingKey::Space, false);
+        let hovering = hold(&mut movement, &ground, &input, climbed, (INLAND, 0.0), 120);
+        assert_eq!(hovering, climbed, "a flyer has no gravity");
+        assert!(movement.flying);
+        let stop = movement
+            .network_input(INLAND, hovering, 1)
+            .expect("one stop");
+        assert!(stop.flying);
+        assert!(movement.network_input(INLAND, hovering, 1).is_none());
+
+        input.set_key(BindingKey::KeyX, true);
+        let descending = hold(&mut movement, &ground, &input, hovering, (INLAND, 0.0), 12);
+        let rate = (hovering.y - descending.y) / (12.0 * DT);
+        assert!((rate - FLIGHT_SPEED).abs() < 0.01, "descend rate {rate}");
+        // Each frame reports as the client loop does: the touchdown frame sends the one
+        // stop that tells the server the flight ended on the ground.
+        let mut landed = descending;
+        let mut last = None;
+        for _ in 0..300 {
+            landed = hold(&mut movement, &ground, &input, landed, (INLAND, 0.0), 1);
+            last = movement.network_input(INLAND, landed, 1).or(last);
+            if !movement.flying {
+                break;
+            }
+        }
+        assert!(!movement.flying, "never landed: {landed}");
+        assert!(
+            (landed.y - ground_y(&terrain, landed)).abs() < 0.06,
+            "{landed}"
+        );
+        let touchdown = last.expect("landing input");
+        assert!(!touchdown.flying);
+        assert_eq!(touchdown.position, landed.to_array());
+    }
+
+    /// Mouse-steered forward flight follows the camera pitch (`MOVEANDSTEER`); keyboard
+    /// forward flies level.
+    #[test]
+    fn mouse_steered_forward_flight_follows_camera_pitch() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let mut movement = PlayerMovement::default();
+        movement.set_can_fly(true);
+        let mut input = PhysicalInput::default();
+        let airborne = take_off(&mut movement, &ground, &mut input, SHORE);
+        let high = hold(&mut movement, &ground, &input, airborne, (INLAND, 0.0), 120);
+        input.set_key(BindingKey::Space, false);
+        input.set_key(BindingKey::KeyW, true);
+        let pitch = 0.5_f32;
+        let level = hold(&mut movement, &ground, &input, high, (INLAND, pitch), 30);
+        assert!(
+            (level.y - high.y).abs() < 1e-4,
+            "keyboard forward pitched: {level}"
+        );
+        let travel = FLIGHT_SPEED * 30.0 * DT;
+        assert!(
+            (level.z - high.z - travel).abs() < 0.01,
+            "{}",
+            level.z - high.z
+        );
+
+        input.set_mouse(BindingMouseButton::Right, true);
+        let climbed = hold(&mut movement, &ground, &input, level, (INLAND, pitch), 30);
+        assert!(
+            (climbed.y - level.y - travel * pitch.sin()).abs() < 0.01,
+            "climb {}",
+            climbed.y - level.y
+        );
+        assert!(
+            (climbed.z - level.z - travel * pitch.cos()).abs() < 0.01,
+            "run {}",
+            climbed.z - level.z
+        );
+    }
+
+    /// Losing `CAN_FLY` in the air (dismounted) ends the flight and the player falls to
+    /// the ground.
+    #[test]
+    fn losing_can_fly_in_the_air_falls_to_the_ground() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let mut movement = PlayerMovement::default();
+        movement.set_can_fly(true);
+        let mut input = PhysicalInput::default();
+        let airborne = take_off(&mut movement, &ground, &mut input, SHORE);
+        let high = hold(&mut movement, &ground, &input, airborne, (INLAND, 0.0), 60);
+        input.set_key(BindingKey::Space, false);
+        movement.set_can_fly(false);
+        assert!(!movement.flying);
+        let fallen = hold(&mut movement, &ground, &input, high, (INLAND, 0.0), 180);
+        assert!(
+            (fallen.y - ground_y(&terrain, fallen)).abs() < 0.06,
+            "{fallen}"
+        );
+    }
+
+    /// Without a flying mount held Space only jumps: the player never flies.
+    #[test]
+    fn held_space_without_can_fly_only_jumps() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let mut movement = PlayerMovement::default();
+        let mut input = PhysicalInput::default();
+        input.set_key(BindingKey::Space, true);
+        let frame = movement.resolve(&InputBindingsData::default(), &input, INLAND, 0.0, false);
+        let feet = movement.predict(SHORE, frame, true, &ground, DT);
+        let landed = hold(&mut movement, &ground, &input, feet, (INLAND, 0.0), 120);
+        assert!(!movement.flying);
+        assert!((landed.y - SHORE.y).abs() < 0.06, "{landed}");
     }
 }
