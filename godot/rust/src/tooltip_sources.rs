@@ -128,7 +128,7 @@ impl GameClient {
         let (_, slot) = named_ancestor(ui.registry()?, hit.frame, |frame| {
             parse_action_button(frame.onclick.as_deref()?)
         })?;
-        let ActionRef::Spell(spell_id) = self.account.spells.slot(slot)? else {
+        let ActionRef::Spell(spell_id) = self.account.spells.slot(self.main_bar_slot(slot))? else {
             return None;
         };
         Some(HoveredTooltip::text(

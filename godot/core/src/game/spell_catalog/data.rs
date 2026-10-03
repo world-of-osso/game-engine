@@ -105,6 +105,9 @@ pub struct CatalogSpell {
     pub proc_chance: u32,
     pub powers: Box<[SpellPowerCost]>,
     pub effects: Box<[CatalogEffect]>,
+    /// `SpellShapeshiftForm.BonusActionBar` of the form its MOD_SHAPESHIFT effect
+    /// applies (Retail `GetBonusBarOffset` while the aura is up); 0 for none.
+    pub bonus_bar: u8,
 }
 
 impl CatalogSpell {

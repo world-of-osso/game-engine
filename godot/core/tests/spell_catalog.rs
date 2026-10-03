@@ -162,3 +162,20 @@ fn level_ten_arms_warrior_knows_battle_shout_and_waits_for_level_eleven() {
     // Plate Specialization 86101 (27) is SPELL_ATTR0_DO_NOT_DISPLAY.
     assert_eq!(arms_future, [(279423, 11)]);
 }
+
+/// `SpellShapeshiftForm.BonusActionBar` of the form a spell's MOD_SHAPESHIFT (36)
+/// effect applies: Cat Form 1, Bear Form 3, Moonkin Form 4. Retail's Battle Stance
+/// (386164) and Defensive Stance (386208) apply no form, so they never page the bar;
+/// the legacy Battle Stance 7165 (form 17) still does.
+#[test]
+fn shapeshift_forms_carry_their_bonus_action_bar() {
+    let data = catalog();
+    let bonus_bar = |id: u32| data.get(id).expect("spell").bonus_bar;
+    assert_eq!(bonus_bar(768), 1, "Cat Form");
+    assert_eq!(bonus_bar(5487), 3, "Bear Form");
+    assert_eq!(bonus_bar(24858), 4, "Moonkin Form");
+    assert_eq!(bonus_bar(7165), 1, "legacy Battle Stance");
+    assert_eq!(bonus_bar(386164), 0, "Battle Stance");
+    assert_eq!(bonus_bar(386208), 0, "Defensive Stance");
+    assert_eq!(bonus_bar(SLAM), 0);
+}
