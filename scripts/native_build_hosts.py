@@ -119,10 +119,14 @@ def kill_group(process, number):
         pass
 
 
-def run_owned(command, cwd, environment, monitor=False, lease=None, relay=False):
+def run_owned(
+    command, cwd, environment, monitor=False, lease=None, relay=False, stdout=None
+):
     if lease is None:
         with lifetime(monitor) as owned_lease:
-            return run_owned(command, cwd, environment, lease=owned_lease, relay=relay)
+            return run_owned(
+                command, cwd, environment, lease=owned_lease, relay=relay, stdout=stdout
+            )
     stopped, reason = lease
     if stopped.is_set():
         return 128 + reason[0]
@@ -132,6 +136,7 @@ def run_owned(command, cwd, environment, monitor=False, lease=None, relay=False)
         env=environment,
         start_new_session=True,
         stdin=subprocess.PIPE if relay else subprocess.DEVNULL,
+        stdout=stdout,
     )
     try:
         while process.poll() is None and not stopped.is_set():
@@ -206,21 +211,27 @@ def native_commands(
     if binary is None:
         raise ValueError("runtime_args requires binary")
     # Fast-build dynamic Rust dependencies remain in the native target/toolchain.
-    result = subprocess.run(
-        ["rustup", "run", TOOLCHAIN, "rustc", "--print", "sysroot"],
-        env=env,
-        cwd=project,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    with tempfile.TemporaryFile() as output:
+        status = run_owned(
+            [*prefix, "rustup", "run", TOOLCHAIN, "rustc", "--print", "sysroot"],
+            project,
+            env,
+            lease=lease,
+            stdout=output,
+        )
+        if status:
+            return status
+        output.seek(0)
+        sysroot = output.read().decode().strip()
+        if not sysroot or not Path(sysroot).is_absolute():
+            raise ValueError(f"invalid native Rust sysroot: {sysroot!r}")
     deps = target / ("release" if release else "debug") / "deps"
     env["LD_LIBRARY_PATH"] = ":".join(
         filter(
             None,
             [
                 str(deps),
-                str(Path(result.stdout.strip()) / "lib"),
+                str(Path(sysroot) / "lib"),
                 env.get("LD_LIBRARY_PATH", ""),
             ],
         )
