@@ -221,9 +221,13 @@ impl GameObjects {
         bind_visual_light(&model, self.light.as_ref());
         Ok(model)
     }
+    /// Models read the scene light (`TerrainLight::bind_scene`), so only its arrival or
+    /// removal rebinds them.
     pub fn update_lighting(&mut self, light: Option<TerrainLight>) {
-        for object in self.objects.values() {
-            bind_visual_light(&object.node, light.as_ref());
+        if self.light.is_some() != light.is_some() {
+            for object in self.objects.values() {
+                bind_visual_light(&object.node, light.as_ref());
+            }
         }
         self.light = light;
     }

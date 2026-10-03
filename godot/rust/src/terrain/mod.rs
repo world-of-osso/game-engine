@@ -73,20 +73,24 @@ impl WowTerrainLoader {
                 read_liquid_material(liquid, map_id as u32, wow_position.to_array(), minutes)
             });
         match material {
-            Ok(material) => result.set("material", &material),
+            Ok((material, scene_light)) => {
+                result.set("material", &material);
+                result.set("scene_light", &scene_light);
+            }
             Err(error) => result.set("error", error),
         }
         result
     }
 }
 
-/// `load_liquid_material`: one MH2O liquid material from local DB2/CASC, lit at a map point.
+/// `load_liquid_material`: one MH2O liquid material from local DB2/CASC, lit at a map point,
+/// and that scene light (`TerrainLight::scene_state`).
 fn read_liquid_material(
     liquid: (u16, u16),
     map_id: u32,
     wow_position: [f32; 3],
     minutes: f32,
-) -> Result<Gd<godot::classes::ShaderMaterial>, String> {
+) -> Result<(Gd<godot::classes::ShaderMaterial>, VarDictionary), String> {
     let settings = ProjectSettings::singleton();
     let data_root = std::path::PathBuf::from(settings.globalize_path("res://../data").to_string());
     let native =
@@ -98,7 +102,9 @@ fn read_liquid_material(
     )?;
     let fog = sample.fog;
     let light = crate::lighting::TerrainLight::new(sample, fog)?;
-    water::WaterMaterials::default().standalone(&native, &light)
+    light.bind_scene();
+    let material = water::WaterMaterials::default().standalone(&native, &light)?;
+    Ok((material, light.scene_state()))
 }
 
 fn tile_coordinates(row: i32, col: i32) -> Result<Option<(u32, u32)>, String> {
