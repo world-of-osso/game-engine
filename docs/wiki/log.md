@@ -1,3 +1,7 @@
+## 2026-10-02 — Scene light as global shader uniforms (settlegate)
+
+[[world-entry-stalls#scene-light-rebound-every-frame--2026-10-02]]: "World did not settle" in Stormwind was the live clock changing the light every frame and rebinding every material (400-710 ms/frame); light and fog are now global uniforms written once per change. Stormwind settle 488 s → 32 s.
+
 ## 2026-10-02 — Mounts and steady flight (flymount)
 
 [[mounts]]: Godot mount model and rider seat, flight controls after Retail JUMP/SITORSTAND, `PlayerInput.flying`; live `flying_mount_live.gd` PASS on a private server (`data/diagnostics/flymount-2026-10-02/`).
