@@ -395,7 +395,7 @@ fn forever_micro_menu_draws_c60_buttons() {
         ("ProfessionMicroButtonArt0", c60(1.0, 421.0)),
         // -Professions-Up, -SpecTalents-Up, -Questlog-Up, -GameMenu-Up
         ("ProfessionMicroButtonArt1", c60(331.0, 337.0)),
-        ("PlayerSpellsMicroButtonArt1", c60(529.0, 337.0)),
+        ("PlayerSpellsMicroButtonArt1", c60(463.0, 337.0)),
         ("QuestLogMicroButtonArt1", c60(397.0, 169.0)),
         ("MainMenuMicroButtonArt1", c60(133.0, 85.0)),
         // -Housing-Up and -Portrait-Shadow: set 0 only.
