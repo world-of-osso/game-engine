@@ -1,5 +1,7 @@
 # Authored Skybox Depth
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Authored M2 skyboxes are backgrounds, regardless of their mesh size or position relative to scene objects. Source: `src/rendering/skybox/skybox_m2_material.rs` and `assets/shaders/m2_skybox.wgsl`. See [skybox rendering](../wiki/systems/skybox.md).
 
 ## What it must do

@@ -1,5 +1,7 @@
 # UI layout invalidation
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 The shared `ui-toolkit` resolves frame geometry only when layout inputs are dirty. See [UI system](../wiki/systems/ui-system.md) for implementation context.
 
 ## What it must do

@@ -1,6 +1,8 @@
 # Native skybox debug
 
-Offline Godot `--screen skyboxdebug` must preserve the original authored-sky debug behavior in `src/scenes/skybox_debug/`, subject to the no-fallback requirement below. CLI parsing lives in `src/startup_args_data.rs`; launcher routing lives in `launcher/src/main.rs`. This is a feature contract within [Godot conversion](godot-conversion.md), not native completion evidence. See [skybox architecture](../wiki/systems/skybox.md) for source lookup and rendering boundaries.
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
+Offline Godot `--screen skyboxdebug` must preserve the original authored-sky debug behavior in `src/scenes/skybox_debug/`, subject to the no-fallback requirement below. CLI parsing lives in `godot/core/src/startup_args_data.rs`; launcher routing lives in `launcher/src/main.rs`. This is a feature contract within [Godot conversion](godot-conversion.md), not native completion evidence. See [skybox architecture](../wiki/systems/skybox.md) for source lookup and rendering boundaries.
 
 ## What it must do
 
@@ -33,7 +35,7 @@ Offline Godot `--screen skyboxdebug` must preserve the original authored-sky deb
 
 ## Implementation inventory
 
-- `src/startup_args_data.rs` — shared flat `StartupArgs` fields and explicit CLI parsing.
+- `godot/core/src/startup_args_data.rs` — shared flat `StartupArgs` fields and explicit CLI parsing.
 - `godot/core/src/skybox_debug_data.rs` — strict cached LightSkybox/LightParams reads through the original WDC5 decoder and shared flags; missing rows fail explicitly.
 - `godot/rust/src/skybox_debug/source.rs` — same-map clear-Light lookup and cached M2 selection; no other-map or hardcoded-model substitution. Existing legacy light priority uses the same shared pure function.
 - `launcher/src/main.rs` — original options routed to Godot user arguments.

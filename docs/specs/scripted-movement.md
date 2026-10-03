@@ -1,6 +1,8 @@
 # Scripted movement
 
-Timed client movement provides repeatable performance-test routes without desktop keyboard injection. Playback lives in `src/movement_control.rs`; the camera movement system consumes it. See the [performance investigation](../wiki/investigations/movement-performance.md) for measurement context.
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
+Timed client movement provides repeatable performance-test routes without desktop keyboard injection. Playback lives in `godot/network/src/movement_control.rs`; the camera movement system consumes it. See the [performance investigation](../wiki/investigations/movement-performance.md) for measurement context.
 
 ## What it must do
 
@@ -17,7 +19,7 @@ Timed client movement provides repeatable performance-test routes without deskto
 
 ## Implementation inventory
 
-- `src/movement_control.rs` — bounded playback state and time steps.
+- `godot/network/src/movement_control.rs` — bounded playback state and time steps.
 - `src/rendering/camera/camera.rs` — normal movement integration and cancellation.
 - `src/ipc/mod.rs`, `src/ipc/plugin.rs` — request protocol and dispatch.
 - `src/bin/game-engine-cli/` — `movement forward` / `movement stop` parsing and IPC transport.
@@ -27,7 +29,7 @@ Timed client movement provides repeatable performance-test routes without deskto
 - `tests/unit/movement_control_tests.rs` — duration and heading validation, clipped expiry, stop.
 - `tests/unit/camera_scripted_movement_tests.rs` — displacement, authored-doodad collision, network direction, cancellation.
 - `tests/unit/terrain_objects_collision_tests.rs` — real canopy, rotated/scaled placement, trunk-hit, and empty-authored-geometry behavior.
-- `src/bin/game-engine-cli/tests/request_world_and_equipment.rs` — command mapping and negative heading parsing.
+- `godot/cli/src/tests/request_world_and_equipment.rs` — command mapping and negative heading parsing.
 - `src/ipc/plugin.rs` — InWorld dispatch, validation, waypoint cancellation, stop response.
 
 ## Known gaps (current cycle)

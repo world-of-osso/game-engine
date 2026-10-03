@@ -1,5 +1,7 @@
 # Map transfers, WMO-only maps and dungeon difficulties (client)
 
+> `cargo test --bin game-engine` selectors below name tests deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Leaving one map for another, loading dungeons made of a single WMO, picking the dungeon difficulty and seeing saved instances. Contract: shared-protocol `protocol/transfer_messages.rs` (`NewWorld`, `WorldPortAck`, `TransferAborted`), `protocol/instance_messages.rs` (difficulty, locks). Server rules: game-server `docs/specs/instances.md`.
 
 ## What it must do

@@ -1,5 +1,7 @@
 # Doodad scenery distance
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Placed ADT doodads are drawn only near the camera and fade out before their far radius, as build 12340 `CMapObj` does (reproduced by solarityclient `crates/runtime/src/application/m2_spatial.rs` `SceneryDistance`). Distance is measured from the camera to the center of the placement's transformed M2 header render box.
 
 ## What it must do

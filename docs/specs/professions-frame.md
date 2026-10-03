@@ -1,5 +1,7 @@
 # Professions Frame
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 The Retail profession trainer, ProfessionsBook and ProfessionsFrame running against the live server. The contract is shared-protocol `profession.rs`, `protocol/trainer_messages.rs` (`TrainerList`, `TrainerBuySpell`, `TrainerBuyFailed`), `ProfessionSnapshot` and `CraftRecipe`; server rules are in game-server `docs/specs/professions.md`.
 
 References (all under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):

@@ -1,5 +1,7 @@
 # In-world chat frame
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Phase 2 of the [in-game UI plan](../plans/2026-09-23-ingame-ui.md): a Retail-style tabbed chat at the
 bottom left, with the combat log as a tab, drawn with the default look of the Chattynator addon
 (its Dark skin). Uses the existing `ChatMessage`, `EmoteIntent`, `QueryWho`, `GroupInviteIntent`
@@ -61,8 +63,8 @@ from TGA to PNG; `ChatButton`, `Copy`, `ScrollToBottom` and `Fade` PNGs as shipp
 
 ## Implementation inventory
 
-- `src/ui/chat_frame.rs` — tabs and their colours, line formatting, slash parser, combat log lines, timestamps, flash rule, scrolling, Copy Chat text, wrapping, sent history.
-- `src/ui/screens/chat_frame_component.rs` — `ChatFrame1` screen (Chattynator geometry and art) and link frame lookup.
+- `godot/ui-model/src/ui/chat_frame.rs` — tabs and their colours, line formatting, slash parser, combat log lines, timestamps, flash rule, scrolling, Copy Chat text, wrapping, sent history.
+- `godot/ui-model/src/ui/screens/chat_frame_component.rs` — `ChatFrame1` screen (Chattynator geometry and art) and link frame lookup.
 - `src/scenes/chat_frame/mod.rs` — keyboard, tab/button clicks, wheel scrolling, flash pulse, clipboard, screen sync.
 - `src/game/networking/messages_combat.rs` — combat log lines with resolved names.
 - `src/scenes/static_popup/mod.rs` — popup Enter consumes the press.
@@ -74,9 +76,9 @@ from TGA to PNG; `ChatButton`, `Copy`, `ScrollToBottom` and `Fade` PNGs as shipp
 ## Tests asserting this spec
 
 - `src/scenes/chat_frame/tests.rs` — Bevy App tests: Enter/Text mode, whisper send, W while typing, focus loss, `/` and history, R reply, unknown command, tab routing and colours, combat log names and link, popup Enter, tab click selection and alpha, flash on an unselected tab and its clearing, no flash for the selected tab, scroll-to-bottom visibility and held view, timestamps, Copy Chat and its failure line.
-- `src/ui/chat_frame_tests.rs` — parser, wording, combat lines, wrapping, history, timestamp format, flash rule, flash pulse, scroll bounds, message fit, Copy Chat text.
+- `godot/ui-model/src/ui/chat_frame_tests.rs` — parser, wording, combat lines, wrapping, history, timestamp format, flash rule, flash pulse, scroll bounds, message fit, Copy Chat text.
 - `src/rendering/hud_layout_tests.rs` — chat frame on screen, clear of the HUD, tabs 10 apart.
-- `src/ui/screens/chat_frame_component.rs` — link frame lookup.
-- `src/game/chat_data.rs` — server channel mapping and whisper reply target.
+- `godot/ui-model/src/ui/screens/chat_frame_component.rs` — link frame lookup.
+- `godot/ui-model/src/game/chat_data.rs` — server channel mapping and whisper reply target.
 - `godot/rust/src/chat_tests.rs` — Godot model: wording/colours/tabs, say/yell/whisper/emote requests, history, local command lines, R reply, flash, scroll hold, combat log tab.
 - `godot/tests/world_chat_flow.gd` — live Godot client on a private server: geometry, MOTD, edit box header, W types without moving, server echoes of `/say` `/y` `/e`, offline-whisper error, `/join` and `/help` lines, wheel scroll and Scroll to bottom, `/` prefill, Up history, Escape without the game menu, Combat Log tab.

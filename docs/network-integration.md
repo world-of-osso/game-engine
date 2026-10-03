@@ -1,5 +1,7 @@
 # Network Integration Plan: game-engine ↔ game-server
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Bridges game-engine (3D client) with game-server (headless Bevy + lightyear).
 End goal: connect → see world with other players and NPCs.
 

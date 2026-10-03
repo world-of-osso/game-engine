@@ -1,5 +1,7 @@
 # Unit Tooltip
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 The Retail `GameTooltip` for units (NPCs and players) hovered in the world, on a nameplate or on a unit frame, plus a drops and vendor section with appearance-collection marks on NPC tooltips. Server data comes over shared-protocol `protocol/tooltip_messages.rs` (`TooltipChannel`); server rules are in game-server `docs/specs/loot.md` (drop chances, junk to gold) and `docs/specs/appearance-collection.md`.
 
 References:
@@ -36,7 +38,7 @@ References:
 - `src/scenes/tooltip_frame/mod.rs`: the default anchor; each owner anchor type (right, left, bottom-left, bag slot by screen half, target aura by centre, screen clamp); merchant cells anchor right of their cell, action buttons use the default, talent nodes right of the node; the grey ID line of each kind (Frostbolt "Spell ID: 116", Linen Cloth "Item ID: 2589" in bags and merchant, a talent, an aura), none for mail.
 - `src/scenes/tooltip_frame/unit_tooltip_tests.rs`: Defias Thug's record is "Creature ID: 38", players have none.
 - `src/game/networking/unit_tooltip_tests.rs`: an entry is asked for once and its answer cached; a collection update replaces the account appearances.
-- `src/bin/game-engine-cli/tests/camera.rs`: `hover` arguments.
+- `godot/cli/src/tests/camera.rs`: `hover` arguments.
 - Live evidence: `data/diagnostics/npctooltip-20260926/` (Dermot Johns vendor, Defias Thug drops, gloves collected, Brother Danil before/after learning Scout's Arrow live, player frame; ID lines: 07 Creature ID: 38, 08 Slam Spell ID: 1464 on the action bar, 09 Thin Cloth Shoes Item ID: 2117 in the merchant window).
 
 ## Native Godot coverage
