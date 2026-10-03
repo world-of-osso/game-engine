@@ -9,6 +9,7 @@ import subprocess
 import sys
 import tarfile
 import tempfile
+import time
 import unittest
 from unittest.mock import patch
 
@@ -21,6 +22,7 @@ args = sys.argv[1:]
 name = pathlib.Path(sys.argv[0]).name
 if name == 'systemd-run':
     # Run only the explicitly installed fake Docker, not anything from the host.
+    assert '--slice=agents-build_host.slice' in args, args
     args = args[args.index('--') + 1:]
     assert args[:3] == ['ionice', '-c', '3'], args
     sys.exit(subprocess.call([str(base / 'bin/docker'), *args[4:]]))
@@ -34,6 +36,14 @@ if name == 'docker':
     assert 'JOBS=8' in opts and 'TARGET_CACHE=godot-target-' + os.environ['EXPECTED_KEY'] in opts
     if os.environ.get('FAIL_STAGE') == 'docker':
         sys.exit(7)
+    if os.environ.get('BARRIER'):
+        import time
+        (base / os.environ['BARRIER']).touch()
+        deadline = time.monotonic() + 10
+        while not (base / 'release').exists():
+            if time.monotonic() > deadline:
+                sys.exit(10)
+            time.sleep(0.01)
     output = pathlib.Path(args[args.index('--output') + 1].split('dest=', 1)[1])
     output.mkdir(parents=True, exist_ok=True)
     files = {str(p.relative_to(context)): p.read_text() for p in context.rglob('*') if p.is_file()}
@@ -194,16 +204,10 @@ class BuildHostTests(unittest.TestCase):
                 archive = self.base / "source.tar.gz"
                 with tarfile.open(archive, "w:gz") as bundle:
                     member = tarfile.TarInfo(
-                        "../escaped"
-                        if kind == "traversal"
-                        else "/escaped"
-                        if kind == "absolute"
-                        else "link"
+                        "../escaped" if kind == "traversal" else "/escaped" if kind == "absolute" else "link"
                     )
                     if kind in ("symlink", "hardlink"):
-                        member.type = (
-                            tarfile.SYMTYPE if kind == "symlink" else tarfile.LNKTYPE
-                        )
+                        member.type = tarfile.SYMTYPE if kind == "symlink" else tarfile.LNKTYPE
                         member.linkname = "../escaped"
                     bundle.addfile(member, io.BytesIO())
                 with self.assertRaises(ValueError):
@@ -215,6 +219,49 @@ class BuildHostTests(unittest.TestCase):
                         [],
                     )
                 self.assertFalse((self.base / "escaped").exists())
+
+    def test_worker_serializes_same_checkout_across_processes(self):
+        archive = self.base / "source.tar.gz"
+        self.module.pack_directory(self.context, archive)
+        script = (
+            "import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); "
+            "import build_hosts as h; h.CACHE_ROOT=Path(sys.argv[2]); "
+            "h.worker(Path(sys.argv[3]), Path(sys.argv[4]), 'checkout-a', 'fixture', [])"
+        )
+        children = []
+        try:
+            for name in ("first", "second"):
+                args = [
+                    sys.executable,
+                    "-c",
+                    script,
+                    str(SCRIPT.parent),
+                    str(self.base / "ext4"),
+                    str(archive),
+                    str(self.base / f"{name}.tar.gz"),
+                ]
+                child = subprocess.Popen(args, env={**os.environ, "BARRIER": name})
+                children.append(child)
+                if name == "first":
+                    deadline = time.monotonic() + 5
+                    while (
+                        not (self.base / name).exists()
+                        and child.poll() is None
+                        and time.monotonic() < deadline
+                    ):
+                        time.sleep(0.01)
+                    self.assertTrue((self.base / name).exists(), "first build failed to enter Docker")
+            time.sleep(0.2)
+            self.assertIsNone(children[1].poll())
+            self.assertFalse((self.base / "second").exists(), "second build overlapped first")
+        finally:
+            (self.base / "release").touch()
+            for child in children:
+                self.assertEqual(child.wait(timeout=10), 0)
+        for name in ("first", "second"):
+            self.module.extract_directory(self.base / f"{name}.tar.gz", self.base / f"{name}-result")
+            artifact = json.loads((self.base / f"{name}-result/artifact.json").read_text())
+            self.assertEqual(artifact["files"]["src/lib.rs"], "original source")
 
     def test_invalid_host_and_key_fail_before_transport(self):
         for host, key in (("depot", "checkout-a"), ("desktop", "../escape")):
