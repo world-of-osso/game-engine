@@ -2,8 +2,8 @@ use std::io::Cursor;
 use std::path::Path;
 
 use game_engine_core::minimap_data::{
-    AreaCatalog, FACTION_GROUP_ALLIANCE, FACTION_GROUP_HORDE, MISSING_TILE_COLOR, MinimapView,
-    OUTDOOR_DIAMETERS, TILE_YARDS, TileImage, ZonePvp, clock_text, compose,
+    AreaCatalog, FACTION_GROUP_ALLIANCE, FACTION_GROUP_HORDE, MISSING_TILE_COLOR, MapMask,
+    MinimapView, OUTDOOR_DIAMETERS, TILE_YARDS, TileImage, ZonePvp, clock_text, compose,
     parse_race_faction_groups, parse_vignettes, tile_path, tint_quest_areas, zoom_in, zoom_out,
 };
 use game_engine_core::terrain_height_data::bevy_to_tile_coords;
@@ -70,6 +70,40 @@ fn composite_is_north_up_with_east_on_the_right_and_a_round_mask() {
     assert_eq!(pixel(&image, size, 0, 0)[3], 0, "outside the round mask");
     let edge = pixel(&image, size, 63, 32)[3];
     assert!(edge > 0 && edge < 255, "soft mask edge alpha {edge}");
+}
+
+/// The Forever skin's square minimap: the composite fills its corners, and a blip in a
+/// corner the round mask hides is on the map.
+#[test]
+fn square_mask_fills_the_corners_and_keeps_corner_blips() {
+    const RED: [u8; 4] = [200, 0, 0, 255];
+    let red = solid(RED);
+    let round = MinimapView::new(NORTHSHIRE, 0);
+    let square = round.masked(MapMask::Square);
+    let size = 64;
+    let corners = |view: &MinimapView| {
+        let image = compose(view, size, |_| Some(&red));
+        [(0, 0), (63, 0), (0, 63), (63, 63)].map(|(x, y)| pixel(&image, size, x, y))
+    };
+    assert_eq!(corners(&square), [RED; 4]);
+    assert_eq!(corners(&round), [[0; 4]; 4]);
+    // 200 yards north and 200 east of the player on the 466.67-yard view: 0.43 of the
+    // map each way, 0.61 from the centre.
+    let corner = [NORTHSHIRE[0] + 200.0, NORTHSHIRE[1] + 200.0];
+    let offset = 200.0 / OUTDOOR_DIAMETERS[0];
+    let [right, down] = square
+        .blip_offset(corner)
+        .expect("corner blip on the square map");
+    assert!(
+        (right - offset).abs() < 1e-4 && (down + offset).abs() < 1e-4,
+        "{right}, {down} vs {offset}"
+    );
+    assert_eq!(round.blip_offset(corner), None);
+    // 240 yards east is past the square's edge too.
+    assert_eq!(
+        square.blip_offset([NORTHSHIRE[0], NORTHSHIRE[1] + 240.0]),
+        None
+    );
 }
 
 #[test]
