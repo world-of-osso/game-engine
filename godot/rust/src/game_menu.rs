@@ -89,6 +89,7 @@ impl GameClient {
             committed_bindings: file.bindings.clone(),
             binding_section: game_engine_core::input_bindings_data::BindingSection::Movement,
             binding_capture: BindingCapture::None,
+            active_layout: self.ui_layout.name.clone(),
         }
     }
 
@@ -385,6 +386,15 @@ impl GameClient {
             if self.world_map.is_open() {
                 self.sync_world_map()?;
             }
+            return Ok(true);
+        }
+        if let Some(name) = policy::parse_layout_action(action) {
+            self.select_ui_layout(name)?;
+            self.game_menu_options
+                .as_mut()
+                .expect("menu has options model")
+                .active_layout = name.to_string();
+            self.refresh_game_menu()?;
             return Ok(true);
         }
         let model = self

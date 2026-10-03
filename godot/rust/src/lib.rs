@@ -91,6 +91,7 @@ mod tooltip_units;
 mod tooltips;
 mod trade;
 mod ui;
+mod ui_layout;
 mod ui_scale;
 mod unit_menu;
 mod unit_pick;
@@ -200,6 +201,8 @@ pub struct GameClient {
     damage_meter: damage_meter::DamageMeterHud,
     group_frames: party_frames::GroupFramesHud,
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
+    /// The drawn Edit Mode layout; its skin is the one atlases resolve under.
+    ui_layout: game_engine_core::ui_layout_data::ActiveLayout,
     game_menu_drag: Option<game_menu::drag::OptionsDrag>,
     logout: game_engine_session::logout::LogoutState,
     in_rest_area: bool,
@@ -332,6 +335,7 @@ impl INode3D for GameClient {
             damage_meter: damage_meter::DamageMeterHud::default(),
             group_frames: party_frames::GroupFramesHud::default(),
             game_menu_options: None,
+            ui_layout: Default::default(),
             game_menu_drag: None,
             logout: Default::default(),
             in_rest_area: false,
@@ -2235,6 +2239,7 @@ impl GameClient {
 
     fn show_account_screen(&mut self, screen: SessionScreen) -> Result<(), String> {
         self.close_game_menu();
+        self.apply_screen_ui_layout(screen)?;
         if screen != SessionScreen::InWorld {
             self.logout.clear();
             self.sync_logout_overlay()?;
