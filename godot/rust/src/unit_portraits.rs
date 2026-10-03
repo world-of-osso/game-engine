@@ -1,7 +1,9 @@
 //! Unit frame portraits (`SetPortraitTexture`, Blizzard_UnitFrame/Mainline/UnitFrame.lua:188):
 //! the unit's model seen from its M2 portrait camera, rendered into the PlayerFrame,
 //! TargetFrame and PetFrame portrait slots over black and rounded by their masks. A portrait follows its
-//! unit and re-renders when the unit's visual appearance changes (`UNIT_PORTRAIT_UPDATE`).
+//! unit and re-renders when the unit's visual appearance changes (`UNIT_PORTRAIT_UPDATE`,
+//! UnitFrame.lua:199). Like Retail's portrait texture it is a still image: the model's first
+//! pose rendered once per change, the viewport idle in between.
 
 use std::fs;
 
@@ -11,6 +13,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{
     PET_PORTRAIT, PLAYER_PORTRAIT, PortraitSlot, TARGET_PORTRAIT,
 };
 use godot::classes::control::{LayoutPreset, MouseFilter};
+use godot::classes::node::ProcessMode;
 use godot::classes::sub_viewport::UpdateMode;
 use godot::classes::texture_rect::{ExpandMode, StretchMode};
 use godot::classes::{
@@ -167,13 +170,15 @@ impl Portrait {
         self.shown = Some(appearance.clone());
         let scene = self.scene.as_mut().expect("synced scene");
         scene.remove_model();
-        let model = loaded?;
+        let mut model = loaded?;
         // A player's weapons sheathed, as on the character sheet.
         if let Err(error) = world.place_player_weapons(&model, &appearance, SheathState::Unarmed) {
             model.free();
             return Err(error);
         }
         bind_sheet_light(&model);
+        // A still image: the model keeps the pose it was built in.
+        model.set_process_mode(ProcessMode::DISABLED);
         scene.root.add_child(&model);
         scene.model = Some(model.clone());
         if let Err(error) = frame_portrait(&mut scene.camera, &model) {
@@ -181,6 +186,7 @@ impl Portrait {
             scene.remove_model();
             return Err(format!("{} portrait: {error}", self.slot.frame));
         }
+        scene.render_once();
         Ok(())
     }
 
@@ -277,13 +283,20 @@ impl Scene {
         );
         if self.viewport.get_size() != size {
             self.viewport.set_size(size);
+            self.render_once();
         }
     }
 
     fn remove_model(&mut self) {
         if let Some(model) = self.model.take() {
             model.free();
+            self.render_once();
         }
+    }
+
+    /// Redraw the portrait on the next frame only; it then stays as drawn.
+    fn render_once(&mut self) {
+        self.viewport.set_update_mode(UpdateMode::ONCE);
     }
 }
 
@@ -293,7 +306,7 @@ fn portrait_viewport() -> (Gd<SubViewport>, Gd<Node3D>, Gd<Camera3D>) {
     viewport.set_name("PortraitViewport");
     viewport.set_use_own_world_3d(true);
     viewport.set_transparent_background(true);
-    viewport.set_update_mode(UpdateMode::WHEN_VISIBLE);
+    viewport.set_update_mode(UpdateMode::ONCE);
     let mut root = Node3D::new_alloc();
     root.set_name("PortraitSceneRoot");
     let mut camera = Camera3D::new_alloc();
