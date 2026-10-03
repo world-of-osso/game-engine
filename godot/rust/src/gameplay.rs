@@ -1679,9 +1679,10 @@ mod tests {
             let frame = movement.resolve(&InputBindingsData::default(), &input, INLAND, 0.0, false);
             position = movement.predict(position, frame, false, &ground, &mut contacts, DT);
         }
+        let outside_trunk = trunk_center.x + trunk.radius + 1.25;
         assert!(
-            position.x > high.x + 0.2,
-            "no lateral deflection: {position}"
+            position.x >= outside_trunk,
+            "flight did not slide clear of trunk: {position}, required x >= {outside_trunk}"
         );
         assert!(
             position.z > high.z + 2.0,

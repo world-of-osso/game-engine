@@ -45,7 +45,7 @@ func run_test() -> void:
 			var animation := model.get_node_or_null(name)
 			if animation != null:
 				animation.set_process(false)
-	await snapshot("rest")
+	var rest_image: Image = await snapshot("rest")
 	if not check_trunk():
 		return
 	var foliage_from := Vector3(20, 32, -15)
@@ -76,7 +76,10 @@ func run_test() -> void:
 		if branch.rotation.length() > 0.00001:
 			fail("Contact changed another placement")
 			return
-	await snapshot("impact")
+	var impact_image: Image = await snapshot("impact")
+	if rest_image != null and changed_pixels(rest_image, impact_image) < 100:
+		fail("Contact did not visibly deform the rendered tree")
+		return
 	print("TRACE thin angle=", thin_angle, " thick angle=", thick_angle)
 	# Recontact a moving limb, without resetting its current pose.
 	var before: Vector3 = controller.branch_state()[0].rotation
@@ -92,7 +95,10 @@ func run_test() -> void:
 			return
 	if not check_trunk():
 		return
-	await snapshot("recovered")
+	var recovered_image: Image = await snapshot("recovered")
+	if rest_image != null and changed_pixels(rest_image, recovered_image) > 20:
+		fail("Rendered tree did not return to its rest pose")
+		return
 	var space := tree.get_world_3d().direct_space_state
 	tree.queue_free()
 	other.queue_free()
@@ -145,16 +151,30 @@ func frames(count: int) -> void:
 		await physics_frame
 		await process_frame
 
-func snapshot(label: String) -> void:
+func snapshot(label: String) -> Image:
 	if shots == "":
-		return
+		return null
 	await RenderingServer.frame_post_draw
+	var image := root.get_texture().get_image()
 	var path := shots.path_join("elastic-tree-" + label + ".png")
-	var error := root.get_texture().get_image().save_png(path)
+	var error := image.save_png(path)
 	if error != OK:
 		fail("Screenshot failed: %s (%s)" % [path, error])
-		return
+		return null
 	print("TRACE screenshot ", path)
+	return image
+
+func changed_pixels(before: Image, after: Image) -> int:
+	before.convert(Image.FORMAT_RGBA8)
+	after.convert(Image.FORMAT_RGBA8)
+	var a := before.get_data()
+	var b := after.get_data()
+	var changed := 0
+	for index in range(0, a.size(), 4):
+		if a[index] != b[index] or a[index + 1] != b[index + 1] or a[index + 2] != b[index + 2]:
+			changed += 1
+	print("TRACE rendered changed pixels=", changed)
+	return changed
 
 func fail(message: String) -> void:
 	push_error(message)

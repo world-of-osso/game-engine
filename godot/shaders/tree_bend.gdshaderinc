@@ -1,9 +1,9 @@
-// These slots agree across all authored M2 material variants on a placement.
-instance uniform bool tree_bend_enabled : instance_index(0) = false;
-instance uniform vec3 tree_pivot_0 : instance_index(1) = vec3(0.0);
-instance uniform vec3 tree_pivot_1 : instance_index(2) = vec3(0.0);
-instance uniform vec3 tree_rotation_0 : instance_index(3) = vec3(0.0);
-instance uniform vec3 tree_rotation_1 : instance_index(4) = vec3(0.0);
+// Each M2 placement owns its batch materials; no global instance-uniform slots.
+uniform bool tree_bend_enabled = false;
+uniform vec3 tree_pivot_0 = vec3(0.0);
+uniform vec3 tree_pivot_1 = vec3(0.0);
+uniform vec3 tree_rotation_0 = vec3(0.0);
+uniform vec3 tree_rotation_1 = vec3(0.0);
 
 vec3 tree_rotate(vec3 vector, vec3 axis, float sine, float cosine) {
 	return vector * cosine + cross(axis, vector) * sine
