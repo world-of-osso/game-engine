@@ -52,6 +52,8 @@ def mapped(value):
 sys.path.insert(0, str(pathlib.Path(mapped(worker)).parent))
 h = importlib.import_module('native_build_hosts')
 h.CACHE_ROOT = base / 'cache'
+original_exists = pathlib.Path.exists
+pathlib.Path.exists = lambda path: True if str(path).startswith('/run/user/') and path.name == 'bus' else original_exists(path)
 sys.exit(h.worker(pathlib.Path(mapped(archive)), *json.loads(request)))
 """
 
@@ -70,11 +72,11 @@ if os.environ.get('SLEEP_CARGO'):
 root = pathlib.Path.cwd()
 target = pathlib.Path(os.environ['CARGO_TARGET_DIR'])
 target.mkdir(parents=True, exist_ok=True)
-(target / 'observed.json').write_text(json.dumps({'cwd': str(root), 'args': args, 'setting': os.environ.get('SETTING')}))
+(target / 'observed.json').write_text(json.dumps({'cwd': str(root), 'args': args, 'setting': os.environ.get('SETTING'), 'path': os.environ['PATH'], 'bus': os.environ.get('DBUS_SESSION_BUS_ADDRESS')}))
 profile = 'release' if '--release' in args else 'debug'
 (target / profile).mkdir(exist_ok=True)
 app = target / profile / 'fixture'
-app.write_text('#!/usr/bin/env python3\\nimport os,sys\\nprint("runtime", os.getcwd(), os.environ.get("SETTING"), flush=True)\\nsys.exit(int(sys.argv[1]))\\n')
+app.write_text("#!/usr/bin/env python3\\nimport json, os, pathlib, signal, sys, time\\nbase = pathlib.Path(os.environ['FIXTURE_ROOT'])\\n(base / 'runtime.json').write_text(json.dumps({'cwd': os.getcwd(), 'path': os.environ['PATH'], 'loader': os.environ.get('LD_LIBRARY_PATH'), 'bus': os.environ.get('DBUS_SESSION_BUS_ADDRESS')}))\\nif os.environ.get('SLEEP_RUNTIME'):\\n    signal.signal(signal.SIGTERM, signal.SIG_IGN)\\n    (base / 'runtime.pid').write_text(str(os.getpid()))\\n    time.sleep(60)\\nsys.exit(int(sys.argv[1]))\\n")
 app.chmod(0o755)
 sys.exit(int(os.environ.get('BUILD_STATUS', '0')))
 """
@@ -96,12 +98,25 @@ class NativeTests(unittest.TestCase):
         (self.context / "sibling/lib.rs").write_text("sibling")
         self.bin = self.base / "bin"
         self.bin.mkdir()
+        original_exists = Path.exists
+        patch.object(
+            Path,
+            "exists",
+            lambda path: (
+                True
+                if str(path).startswith("/run/user/") and path.name == "bus"
+                else original_exists(path)
+            ),
+        ).start()
         for name in ("ssh", "scp", "systemd-run"):
             path = self.bin / name
             path.write_text(TRANSPORT)
             path.chmod(0o755)
-        (self.bin / "rustup").write_text(RUSTUP)
-        (self.bin / "rustup").chmod(0o755)
+        self.home = self.base / "home"
+        self.cargo = self.home / ".cargo/bin"
+        self.cargo.mkdir(parents=True)
+        (self.cargo / "rustup").write_text(RUSTUP)
+        (self.cargo / "rustup").chmod(0o755)
         wrapper = self.bin / "agent-run"
         wrapper.write_text(
             '#!/usr/bin/env python3\nimport os,sys\nassert sys.argv[1] == "native-build"\nos.execvp(sys.argv[2],sys.argv[2:])\n'
@@ -115,8 +130,155 @@ class NativeTests(unittest.TestCase):
             {
                 "PATH": str(self.bin) + ":" + os.environ["PATH"],
                 "FIXTURE_ROOT": str(self.base),
+                "HOME": str(self.home),
             },
         ).start()
+
+    def test_runtime_cwd_environment_local_and_desktop(self):
+        runtime = self.base / "prepared-assets"
+        runtime.mkdir()
+        for host in ("local", "desktop"):
+            with self.subTest(host=host):
+                status = self.h.execute(
+                    self.context,
+                    "cwd",
+                    "project",
+                    ["build"],
+                    host,
+                    ["0"],
+                    "fixture",
+                    root=self.context / "project",
+                    runtime_cwd=runtime,
+                )
+                self.assertEqual(status, 0)
+                report = json.loads((self.base / "runtime.json").read_text())
+                self.assertEqual(report["cwd"], str(runtime))
+                self.assertEqual(
+                    report["path"].split(":")[0], str(Path.home() / ".cargo/bin")
+                )
+                loader = report["loader"].split(":")
+                self.assertIn(
+                    str(self.base / "lib/rustlib/x86_64-unknown-linux-gnu/lib"), loader
+                )
+                target = (
+                    self.context / "project/target"
+                    if host == "local"
+                    else self.base / "cache/cwd/target"
+                )
+                build = json.loads((target / "observed.json").read_text())
+                self.assertEqual(
+                    build["cwd"],
+                    str(
+                        self.context / "project"
+                        if host == "local"
+                        else self.base / "cache/cwd/source/project"
+                    ),
+                )
+                self.assertEqual(
+                    build["path"].split(":")[0], str(Path.home() / ".cargo/bin")
+                )
+                if host == "desktop":
+                    self.assertEqual(
+                        report["bus"], f"unix:path=/run/user/{os.getuid()}/bus"
+                    )
+                    self.assertEqual(build["bus"], report["bus"])
+
+    def test_missing_desktop_bus_fails_before_build(self):
+        archive = self.base / "snapshot.tar.gz"
+        self.h.pack_directory(self.context, archive)
+        original_exists = Path.exists
+        with patch.object(
+            Path,
+            "exists",
+            lambda path: (
+                False
+                if str(path).startswith("/run/user/") and path.name == "bus"
+                else original_exists(path)
+            ),
+        ):
+            with self.assertRaisesRegex(RuntimeError, "bus"):
+                self.h.worker(
+                    archive,
+                    "bus",
+                    "project",
+                    ["build"],
+                    None,
+                    None,
+                    False,
+                    {},
+                    monitor=False,
+                )
+        self.assertFalse((self.base / "cache/bus/target/observed.json").exists())
+
+    def test_second_build_during_runtime_and_stopped_heartbeat_cleanup(self):
+        archive = self.base / "snapshot.tar.gz"
+        self.h.pack_directory(self.context, archive)
+        code = (
+            "import sys,json,pathlib; sys.path.insert(0,sys.argv[1]); "
+            "import native_build_hosts as h; h.CACHE_ROOT=pathlib.Path(sys.argv[2]); "
+            "original=pathlib.Path.exists; "
+            "pathlib.Path.exists=lambda p: True if str(p).startswith('/run/user/') and p.name=='bus' else original(p); "
+            "sys.exit(h.worker(pathlib.Path(sys.argv[3]),*json.loads(sys.argv[4])))"
+        )
+
+        def start(runtime):
+            request = [
+                "parallel",
+                "project",
+                ["build"],
+                ["0"] if runtime else None,
+                "fixture" if runtime else None,
+                False,
+                {"SLEEP_RUNTIME": "1"} if runtime else {},
+            ]
+            return subprocess.Popen(
+                [
+                    sys.executable,
+                    "-c",
+                    code,
+                    str(SCRIPTS),
+                    str(self.base / "cache"),
+                    str(archive),
+                    json.dumps(request),
+                ],
+                stdin=subprocess.PIPE,
+            )
+
+        first = start(True)
+        second = None
+        marker = self.base / "runtime.pid"
+        try:
+            deadline = time.monotonic() + 6
+            while not marker.exists():
+                self.assertLess(time.monotonic(), deadline)
+                first.stdin.write(b".\n")
+                first.stdin.flush()
+                time.sleep(0.05)
+            pid = int(marker.read_text())
+            second = start(False)
+            second.stdin.write(b".\n")
+            second.stdin.flush()
+            self.assertEqual(
+                second.wait(timeout=5), 0, "second build blocked by active runtime"
+            )
+            self.assertIsNone(first.poll())
+            os.kill(pid, 0)
+            # Keep stdin open but stop heartbeats: exercise lease expiry, not EOF.
+            self.assertEqual(first.wait(timeout=19), 129)
+            with self.assertRaises(ProcessLookupError):
+                os.kill(pid, 0)
+        finally:
+            for process in (first, second):
+                if process is not None:
+                    if process.poll() is None:
+                        process.send_signal(signal.SIGTERM)
+                        process.wait(timeout=6)
+                    process.stdin.close()
+            if marker.exists():
+                try:
+                    os.kill(int(marker.read_text()), signal.SIGKILL)
+                except ProcessLookupError:
+                    pass
 
     def test_sync_owned_removals_runtime_preservation_and_aba(self):
         state = self.base / "state"
@@ -157,6 +319,9 @@ class NativeTests(unittest.TestCase):
             root=root,
         )
         self.assertEqual(status, 17)
+        self.assertEqual(
+            json.loads((self.base / "runtime.json").read_text())["cwd"], str(root)
+        )
         report = json.loads((root / "target/observed.json").read_text())
         self.assertEqual(report["cwd"], str(root))
         self.assertEqual(report["setting"], "native")
@@ -184,6 +349,10 @@ class NativeTests(unittest.TestCase):
                 monitor=False,
             )
             self.assertEqual(result, 13)
+            self.assertEqual(
+                json.loads((self.base / "runtime.json").read_text())["cwd"],
+                str(self.base / f"cache/{key}/source/project"),
+            )
             report = json.loads(
                 (self.base / f"cache/{key}/target/observed.json").read_text()
             )
@@ -295,7 +464,7 @@ class NativeTests(unittest.TestCase):
             "print(os.environ['FIXTURE_ROOT']); sys.exit(0)",
             "import time, signal; signal.signal(signal.SIGTERM, signal.SIG_IGN); pathlib.Path(os.environ['FIXTURE_ROOT'], 'query.pid').write_text(str(os.getpid())); time.sleep(60)",
         )
-        (self.bin / "rustup").write_text(script)
+        (self.cargo / "rustup").write_text(script)
         code = (
             "import sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); "
             "import native_build_hosts as h; h.AGENT_RUN=Path(sys.argv[2]); "

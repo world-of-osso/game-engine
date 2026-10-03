@@ -176,6 +176,87 @@ def run_owned(
         process.wait()
 
 
+def native_environment(target, environment, local):
+    env = dict(os.environ)
+    env.update(environment or {})
+    env["PATH"] = str(Path.home() / ".cargo/bin") + os.pathsep + env.get("PATH", "")
+    env["CARGO_TARGET_DIR"] = str(target)
+    if local:
+        return env, [str(AGENT_RUN), "native-build"]
+    bus = Path(f"/run/user/{os.getuid()}/bus")
+    if not bus.exists():
+        raise RuntimeError(f"native desktop requires user session bus: {bus}")
+    env.setdefault("DBUS_SESSION_BUS_ADDRESS", f"unix:path={bus}")
+    return env, [
+        "systemd-run",
+        "--user",
+        "--scope",
+        "--quiet",
+        "-p",
+        "MemoryMax=16G",
+        "-p",
+        "CPUQuota=800%",
+    ]
+
+
+def native_build(project, target, cargo_args, release, env, prefix, lease):
+    cargo = ["rustup", "run", TOOLCHAIN, "cargo", *cargo_args, "--locked", "-j8"]
+    if release and "--release" not in cargo_args:
+        cargo.append("--release")
+    print(f"native source={project} target={target} scope={prefix}", flush=True)
+    return run_owned([*prefix, *cargo], project, env, lease=lease)
+
+
+def read_sysroot(project, env, prefix, lease):
+    with tempfile.TemporaryFile() as output:
+        status = run_owned(
+            [*prefix, "rustup", "run", TOOLCHAIN, "rustc", "--print", "sysroot"],
+            project,
+            env,
+            lease=lease,
+            stdout=output,
+        )
+        if status:
+            return status, None
+        output.seek(0)
+        sysroot = output.read().decode().strip()
+        if not sysroot or not Path(sysroot).is_absolute():
+            raise ValueError(f"invalid native Rust sysroot: {sysroot!r}")
+        return 0, Path(sysroot)
+
+
+def native_runtime(
+    project, target, runtime_args, binary, release, env, prefix, lease, runtime_cwd=None
+):
+    if runtime_args is None:
+        return 0
+    if binary is None:
+        raise ValueError("runtime_args requires binary")
+    status, sysroot = read_sysroot(project, env, prefix, lease)
+    if status:
+        return status
+    profile = "release" if release else "debug"
+    env["LD_LIBRARY_PATH"] = ":".join(
+        filter(
+            None,
+            [
+                str(target / profile / "deps"),
+                str(sysroot / "lib"),
+                str(sysroot / "lib/rustlib/x86_64-unknown-linux-gnu/lib"),
+                env.get("LD_LIBRARY_PATH", ""),
+            ],
+        )
+    )
+    executable = target / profile / binary
+    print(f"native artifact={executable}", flush=True)
+    return run_owned(
+        [*prefix, str(executable), *runtime_args],
+        project if runtime_cwd is None else runtime_cwd,
+        env,
+        lease=lease,
+    )
+
+
 def native_commands(
     project,
     target,
@@ -186,65 +267,14 @@ def native_commands(
     environment,
     lease,
     local,
+    runtime_cwd=None,
 ):
-    env = dict(os.environ)
-    env.update(environment or {})
-    env["CARGO_TARGET_DIR"] = str(target)
-    cargo = ["rustup", "run", TOOLCHAIN, "cargo", *cargo_args, "--locked", "-j8"]
-    if release and "--release" not in cargo_args:
-        cargo.append("--release")
-    prefix = [str(AGENT_RUN), "native-build"] if local else []
-    bus = Path(f"/run/user/{os.getuid()}/bus")
-    if not local and bus.exists():
-        prefix = [
-            "systemd-run",
-            "--user",
-            "--scope",
-            "--quiet",
-            "-p",
-            "MemoryMax=16G",
-            "-p",
-            "CPUQuota=800%",
-        ]
-    print(
-        f"native source={project} target={target} scope={prefix or 'process-group'}",
-        flush=True,
-    )
-    status = run_owned([*prefix, *cargo], project, env, lease=lease)
-    if status or runtime_args is None:
+    env, prefix = native_environment(target, environment, local)
+    status = native_build(project, target, cargo_args, release, env, prefix, lease)
+    if status:
         return status
-    if binary is None:
-        raise ValueError("runtime_args requires binary")
-    # Fast-build dynamic Rust dependencies remain in the native target/toolchain.
-    with tempfile.TemporaryFile() as output:
-        status = run_owned(
-            [*prefix, "rustup", "run", TOOLCHAIN, "rustc", "--print", "sysroot"],
-            project,
-            env,
-            lease=lease,
-            stdout=output,
-        )
-        if status:
-            return status
-        output.seek(0)
-        sysroot = output.read().decode().strip()
-        if not sysroot or not Path(sysroot).is_absolute():
-            raise ValueError(f"invalid native Rust sysroot: {sysroot!r}")
-    deps = target / ("release" if release else "debug") / "deps"
-    env["LD_LIBRARY_PATH"] = ":".join(
-        filter(
-            None,
-            [
-                str(deps),
-                str(Path(sysroot) / "lib"),
-                env.get("LD_LIBRARY_PATH", ""),
-            ],
-        )
-    )
-    executable = target / ("release" if release else "debug") / binary
-    print(f"native artifact={executable}", flush=True)
-    return run_owned(
-        [*prefix, str(executable), *runtime_args], project, env, lease=lease
+    return native_runtime(
+        project, target, runtime_args, binary, release, env, prefix, lease, runtime_cwd
     )
 
 
@@ -258,38 +288,59 @@ def worker(
     release,
     environment,
     monitor=True,
+    runtime_cwd=None,
 ):
     validate_key(checkout_key)
     validate_key(project_name)
     state = CACHE_ROOT / checkout_key
     state.mkdir(parents=True, exist_ok=True)
-    with lifetime(monitor) as lease, (state / "lock").open("a") as lock:
-        while True:
-            try:
-                fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
-                break
-            except BlockingIOError:
-                if lease[0].wait(0.2):
-                    return 128 + lease[1][0]
-        with tempfile.TemporaryDirectory(prefix="incoming-", dir=state) as temporary:
-            snapshot = Path(temporary)
-            extract_directory(archive, snapshot)
-            sync_source(snapshot, state / "source", state / "manifest.json")
-        return native_commands(
-            state / "source" / project_name,
-            state / "target",
-            cargo_args,
+    project = state / "source" / project_name
+    target = state / "target"
+    with lifetime(monitor) as lease:
+        env, prefix = native_environment(target, environment, False)
+        with (state / "lock").open("a") as lock:
+            while True:
+                try:
+                    fcntl.flock(lock, fcntl.LOCK_EX | fcntl.LOCK_NB)
+                    break
+                except BlockingIOError:
+                    if lease[0].wait(0.2):
+                        return 128 + lease[1][0]
+            with tempfile.TemporaryDirectory(
+                prefix="incoming-", dir=state
+            ) as temporary:
+                snapshot = Path(temporary)
+                extract_directory(archive, snapshot)
+                sync_source(snapshot, state / "source", state / "manifest.json")
+            status = native_build(
+                project, target, cargo_args, release, env, prefix, lease
+            )
+        # Runtime owns its lease, not the source synchronization/build lock.
+        if status:
+            return status
+        return native_runtime(
+            project,
+            target,
             runtime_args,
             binary,
             release,
-            environment,
+            env,
+            prefix,
             lease,
-            False,
+            runtime_cwd,
         )
 
 
 def desktop(
-    context, key, project, cargo_args, runtime_args, binary, release, environment
+    context,
+    key,
+    project,
+    cargo_args,
+    runtime_args,
+    binary,
+    release,
+    environment,
+    runtime_cwd=None,
 ):
     transfer = windows_profile() / "data/build-host/transfers" / uuid.uuid4().hex
     with tempfile.TemporaryDirectory(
@@ -311,7 +362,17 @@ def desktop(
                     check=True,
                 )
             request = json.dumps(
-                [key, project, cargo_args, runtime_args, binary, release, environment]
+                [
+                    key,
+                    project,
+                    cargo_args,
+                    runtime_args,
+                    binary,
+                    release,
+                    environment,
+                    True,
+                    str(runtime_cwd) if runtime_cwd is not None else None,
+                ]
             )
             command = subprocess.list2cmdline(
                 [
@@ -347,6 +408,7 @@ def execute(
     release: bool = False,
     environment: dict[str, str] | None = None,
     root: Path | None = None,
+    runtime_cwd: Path | None = None,
 ) -> int:
     """Build and optionally run on chosen host; never export artifacts or fall back."""
     validate_key(checkout_key)
@@ -370,6 +432,7 @@ def execute(
                 environment,
                 lease,
                 True,
+                runtime_cwd,
             )
     return desktop(
         context.resolve(strict=True),
@@ -380,6 +443,7 @@ def execute(
         binary,
         release,
         environment,
+        runtime_cwd,
     )
 
 
