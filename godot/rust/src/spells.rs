@@ -108,6 +108,7 @@ struct FloatingText {
 pub(crate) struct SpellsHud {
     catalog: CatalogLoad,
     bar_ui: Option<Gd<RegistryUi>>,
+    pub(crate) vigor_ui: Option<Gd<RegistryUi>>,
     cast_ui: Option<Gd<RegistryUi>>,
     book_ui: Option<Gd<RegistryUi>>,
     book_position: Option<[f32; 2]>,
@@ -132,6 +133,7 @@ impl Default for SpellsHud {
         Self {
             catalog: CatalogLoad::Idle,
             bar_ui: None,
+            vigor_ui: None,
             cast_ui: None,
             book_ui: None,
             book_position: None,
@@ -154,7 +156,12 @@ impl SpellsHud {
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
     ) -> Result<(), String> {
-        for ui in [&mut self.bar_ui, &mut self.cast_ui, &mut self.book_ui] {
+        for ui in [
+            &mut self.bar_ui,
+            &mut self.vigor_ui,
+            &mut self.cast_ui,
+            &mut self.book_ui,
+        ] {
             if let Some(ui) = ui {
                 visit(ui)?;
             }
@@ -170,9 +177,14 @@ impl SpellsHud {
     }
 
     fn close(&mut self) {
-        for ui in [self.bar_ui.take(), self.cast_ui.take(), self.book_ui.take()]
-            .into_iter()
-            .flatten()
+        for ui in [
+            self.bar_ui.take(),
+            self.vigor_ui.take(),
+            self.cast_ui.take(),
+            self.book_ui.take(),
+        ]
+        .into_iter()
+        .flatten()
         {
             ui.free();
         }
@@ -361,6 +373,7 @@ impl GameClient {
             *pushed = (*pushed - delta).max(0.0);
         }
         self.sync_action_bar()?;
+        self.sync_vigor_bar()?;
         self.sync_cast_bar(delta)?;
         self.sync_spellbook()?;
         self.float_combat_text(delta);
@@ -394,17 +407,20 @@ impl GameClient {
         Ok(())
     }
 
-    /// Action slot shown on main bar button `index`, paged by the player's form.
-    pub(super) fn main_bar_slot(&self, index: usize) -> usize {
-        let offset = self
-            .world
+    /// The local player's `GetBonusBarOffset`, from its auras.
+    pub(super) fn bonus_bar_offset(&self) -> u8 {
+        self.world
             .local_player_id()
             .and_then(|player| self.replica.unit(player)?.get::<UnitAuras>())
             .zip(self.spells.catalog())
             .map_or(0, |(auras, catalog)| {
                 bonus_bar_offset(&auras.auras, catalog)
-            });
-        main_bar_slot(index, offset)
+            })
+    }
+
+    /// Action slot shown on main bar button `index`, paged by the player's form.
+    pub(super) fn main_bar_slot(&self, index: usize) -> usize {
+        main_bar_slot(index, self.bonus_bar_offset())
     }
 
     /// `UseAction`: a spell button casts at the current target.
@@ -502,7 +518,7 @@ impl GameClient {
 
     /// Extract the frame chrome from local CASC before the frame first draws. Art that is
     /// not there is reported by `drawable_fdid` and draws absent.
-    fn extract_art(&mut self, fdids: &[u32]) {
+    pub(super) fn extract_art(&mut self, fdids: &[u32]) {
         for &fdid in fdids {
             self.drawable_fdid(fdid);
         }
@@ -1045,6 +1061,11 @@ impl GameClient {
             })
             .collect();
         state.set("bar", &ids(&bar));
+        let vigor = self
+            .vigor_bar_state()
+            .shown
+            .map_or([0, 0], |frames| [frames.total, frames.full]);
+        state.set("vigor", &ids(&vigor.map(u32::from)));
         let cooldowns: Vec<u32> = bar
             .iter()
             .map(|&id| {

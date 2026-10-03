@@ -32,9 +32,9 @@ use shared::protocol::{
     MirrorTimerStop, NewWorld, PlayerInput, QuestChannel, QuestFailed, QuestGiverStatusMultiple,
     QuestGiverStatusQuery, QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RequestRaidInfo,
     RestStateUpdate, SetDungeonDifficulty, SetSpecialization, SetTarget, SpecializationChanged,
-    SpellCastIntent, SpellCooldownUpdate, SpellFailure, SpellGo, SpellsLearned, SpellsUnlearned,
-    StandStateIntent, StopSpellCast, TalentChannel, TransferAborted, TransferChannel, WitnessRay,
-    WorldPortAck,
+    SpellCastIntent, SpellChargesUpdate, SpellCooldownUpdate, SpellFailure, SpellGo, SpellsLearned,
+    SpellsUnlearned, StandStateIntent, StopSpellCast, TalentChannel, TransferAborted,
+    TransferChannel, WitnessRay, WorldPortAck,
 };
 use shared::protocol::{
     AppearanceCollectionUpdate, CreatureTooltip, CreatureTooltipQuery, TooltipChannel,
@@ -1265,6 +1265,7 @@ impl Account {
             || message.is::<SpecializationChanged>()
             || message.is::<ActionBarSnapshot>()
             || message.is::<SpellCooldownUpdate>()
+            || message.is::<SpellChargesUpdate>()
             || message.is::<CastFailed>()
             || message.is::<CombatLogEvent>()
             || message.is::<SpellGo>()
@@ -1292,6 +1293,8 @@ impl Account {
             spells.set_bar(&decode::<ActionBarSnapshot>(message)?.slots);
         } else if message.is::<SpellCooldownUpdate>() {
             spells.apply_cooldown(&decode(message)?);
+        } else if message.is::<SpellChargesUpdate>() {
+            spells.apply_charges(&decode(message)?);
         } else if message.is::<CastFailed>() {
             output.push(AccountEvent::CastFailed(decode(message)?));
         } else if message.is::<SpellGo>() {

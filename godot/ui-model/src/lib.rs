@@ -127,6 +127,9 @@ pub mod mirror_timer_component;
 #[path = "mirror_timer_data.rs"]
 pub mod mirror_timer_data;
 
+#[path = "ui/screens/vigor_bar_component.rs"]
+pub mod vigor_bar_component;
+
 #[path = "ui/cast_failed_text.rs"]
 pub mod cast_failed_text;
 #[path = "ui/screens/casting_bar_frame_component.rs"]
