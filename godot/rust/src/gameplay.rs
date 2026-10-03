@@ -1902,6 +1902,7 @@ mod tests {
             velocity: Vec3::new(10.0, 0.0, 12.0),
             pitch: 0.0,
             gliding: true,
+            halt_secs: 0.0,
         });
         let mut contacts = |_: Vec3, to: Vec3, _: f32| to.with_x(to.x.min(wall_x));
         let mut position = start;
