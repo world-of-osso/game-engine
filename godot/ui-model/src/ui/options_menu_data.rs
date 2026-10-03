@@ -9,10 +9,12 @@ use crate::nameplate_style_data::{NameplateStyle, StyleSlider};
 use crate::soft_target_data::{InteractKeyIcons, SoftTargetOptions};
 use crate::status_text_data::StatusTextDisplay;
 use crate::ui::screens::game_menu_component::{GameMenuView, GameMenuViewModel};
+use crate::ui::screens::options_menu_active_sections::LAYOUT_CHOICE_KEY;
 use crate::ui::screens::options_menu_component::{
     CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
     OptionsCategory, OptionsViewModel, SoundOptionsView,
 };
+use game_engine_core::ui_layout_data::SYSTEM_PRESETS;
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SliderField {
@@ -55,6 +57,8 @@ pub struct OptionsModel {
     pub committed_bindings: InputBindingsData,
     pub binding_section: BindingSection,
     pub binding_capture: BindingCapture,
+    /// Name of the character's active Edit Mode layout (`ui_layout.ron`).
+    pub active_layout: String,
 }
 
 #[derive(Debug, Clone)]
@@ -257,6 +261,7 @@ pub fn build_view_model(model: &OptionsModel) -> GameMenuViewModel {
                 model.binding_section,
                 current_capture_action(model.binding_capture),
             ),
+            active_layout: model.active_layout.clone(),
         },
     }
 }
@@ -451,6 +456,13 @@ pub fn parse_step_action(action: &str) -> Option<(&str, i32)> {
 
 pub fn parse_toggle_action(action: &str) -> Option<&str> {
     action.strip_prefix("options_toggle:")
+}
+
+/// `options_toggle:ui_layout:<index>`: a system preset chosen in the "Layout" dropdown.
+pub fn parse_layout_action(action: &str) -> Option<&'static str> {
+    let key = parse_toggle_action(action)?.strip_prefix(LAYOUT_CHOICE_KEY)?;
+    let index: usize = key.strip_prefix(':')?.parse().ok()?;
+    SYSTEM_PRESETS.get(index).map(|&(name, _)| name)
 }
 
 pub fn apply_step(key: &str, delta: i32, model: &mut OptionsModel) {

@@ -76,6 +76,7 @@ fn model() -> GameMenuViewModel {
                     can_clear: true,
                 }],
             },
+            active_layout: "Modern".into(),
         },
     }
 }
@@ -222,4 +223,33 @@ fn interface_status_text_row_offers_the_four_retail_choices() {
         registry.click_frame(hit),
         Some("options_toggle:status_text_display:2".into())
     );
+}
+
+/// The HUD "Layout" dropdown lists both system presets; the active one is lit and the
+/// other carries the action that selects it.
+#[test]
+fn hud_layout_row_offers_the_system_presets() {
+    use game_engine_ui_model::options_menu_data::parse_layout_action;
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut shared = SharedContext::new();
+    let mut view = model();
+    view.options.category = OptionsCategory::Hud;
+    view.options.active_layout = "Forever".into();
+    shared.insert(view);
+    Screen::new(game_menu_screen).sync(&shared, &mut registry);
+    assert_eq!(label(&registry, "ChoiceLabelui_layout"), "Layout");
+    let labels: Vec<String> = (0..2)
+        .map(|value| label(&registry, &format!("Choiceui_layout{value}Label")))
+        .collect();
+    assert_eq!(labels, ["Modern", "Forever"]);
+    assert!(registry.get_by_name("Choiceui_layout1Hit").is_none());
+    let hit = registry.get_by_name("Choiceui_layout0Hit").unwrap();
+    let action = registry.click_frame(hit).unwrap();
+    assert_eq!(action, "options_toggle:ui_layout:0");
+    assert_eq!(parse_layout_action(&action), Some("Modern"));
+    assert_eq!(
+        parse_layout_action("options_toggle:ui_layout:1"),
+        Some("Forever")
+    );
+    assert_eq!(parse_layout_action("options_toggle:ui_layout:2"), None);
 }

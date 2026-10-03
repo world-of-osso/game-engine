@@ -125,6 +125,16 @@ enum ScreenPostsetup {
 
 impl RegistryModel {
     fn sync(&mut self) {
+        self.sync_skin(ui_toolkit::atlas::active_skin());
+    }
+
+    /// Mirror `skin` into this canvas before syncing: a change advances the `ActiveSkin`
+    /// generation, so every Screen that read it rebuilds, and re-applies panel styles.
+    fn sync_skin(&mut self, skin: ui_toolkit::atlas::ActiveSkin) {
+        if self.shared.get::<ui_toolkit::atlas::ActiveSkin>() != Some(&skin) {
+            self.shared.insert(skin);
+            self.registry.refresh_panel_styles();
+        }
         self.screen.sync(&self.shared, &mut self.registry);
         self.apply_postsetup();
     }
@@ -1627,6 +1637,14 @@ impl RegistryUi {
         projection.sync(&mut model.registry)
     }
 
+    /// Redraw this canvas under the active skin; a canvas without a screen has nothing drawn.
+    pub(crate) fn sync_skin(&mut self) -> Result<(), String> {
+        if self.model.is_none() {
+            return Ok(());
+        }
+        self.sync_model()
+    }
+
     fn sync_model(&mut self) -> Result<(), String> {
         let Some(model) = self.model.as_mut() else {
             return Err("Login model not initialized".into());
@@ -2136,6 +2154,9 @@ mod button_style_tests;
 #[cfg(test)]
 #[path = "entrance_bar_tests.rs"]
 mod entrance_bar_tests;
+#[cfg(test)]
+#[path = "skin_sync_tests.rs"]
+mod skin_sync_tests;
 
 fn register_auction_popup_style(registry: &mut FrameRegistry) {
     const COLUMNS: [f32; 4] = [1.0 / 128.0, 17.0 / 128.0, 55.0 / 128.0, 71.0 / 128.0];

@@ -91,6 +91,8 @@ pub struct UiProjection {
     waiting: HashSet<u64>,
     /// `assets::arrived_file_textures` when the waiting frames were last redrawn.
     arrived: u64,
+    /// Skin the projected visuals were drawn under.
+    skin: atlas::ActiveSkin,
 }
 
 impl UiProjection {
@@ -108,6 +110,7 @@ impl UiProjection {
             textures: HashMap::new(),
             waiting: HashSet::new(),
             arrived: 0,
+            skin: atlas::active_skin(),
         }
     }
 
@@ -203,6 +206,11 @@ impl UiProjection {
     pub fn sync(&mut self, registry: &mut FrameRegistry) -> Result<(), String> {
         let known = self.nodes.len();
         let _span = crate::profile::span(|| format!("projection.sync {known} frames"));
+        // Atlas names keep their name across a skin switch; redraw every frame's art.
+        if self.skin != atlas::active_skin() {
+            self.skin = atlas::active_skin();
+            self.visuals.clear();
+        }
         let span = crate::profile::span(|| "projection.intrinsics".to_owned());
         let intrinsics = self.measure_intrinsics(registry)?;
         drop(span);
