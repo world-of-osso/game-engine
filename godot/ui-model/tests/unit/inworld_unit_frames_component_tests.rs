@@ -302,6 +302,7 @@ fn sample_unit_frames_context() -> SharedContext {
             ..UnitFrameState::named("Hogger")
         }],
         menu: UnitFrameMenuState::default(),
+        personal_resource: None,
     });
     shared
 }
