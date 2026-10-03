@@ -5,7 +5,12 @@
 //! button, the round map inside `ui-hud-minimap-frame`, quest-giver blips, the player
 //! arrow and the hover zoom buttons. The host composites the map image and supplies it
 //! as a dynamic texture; every position here is in cluster-local UI units.
+//!
+//! Under the Forever skin the cluster is FlareUI's square minimap (FlareUI 1.3
+//! `Modules/Minimap.lua:32-50,115-136`): see [`FOREVER_STYLE`].
 
+use game_engine_core::minimap_data::MapMask;
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
@@ -15,6 +20,11 @@ use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::widgets::texture::{DynamicTextureId, TextureData, TextureSource};
 
 use crate::hud_layout::hud_layout;
+use crate::panel_style_data::{
+    METAL_CORNERS, METAL_FRAME_NO_PORTRAIT_OUTSET, METAL_FRAME_NO_PORTRAIT_PANEL_STYLE,
+    METAL_SIDE_EDGES, METAL_TOP_BOTTOM_EDGES,
+};
+use crate::quest_art::metal_border;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -37,9 +47,9 @@ pub const ACTION_ZOOM_OUT: &str = "minimap:zoom_out";
 pub const ACTION_TOGGLE_WORLD_MAP: &str = "minimap:world_map";
 
 /// `MinimapCluster` 256×256 (`Minimap.xml:4`).
-pub const CLUSTER_SIZE: f32 = 256.0;
+const CLUSTER_SIZE: f32 = 256.0;
 /// `Minimap` 198×198 at the centre of `MinimapContainer` (215×226, TOP +10 −30).
-pub const MAP_SIZE: f32 = 198.0;
+const MAP_SIZE: f32 = 198.0;
 const MAP_LEFT: f32 = CLUSTER_SIZE / 2.0 + 10.0 - MAP_SIZE / 2.0;
 const MAP_TOP: f32 = 30.0 + (226.0 - MAP_SIZE) / 2.0;
 /// `BorderTop` 175×16 at TOP +15 −4.
@@ -50,6 +60,51 @@ const BORDER_TOP: f32 = 4.0;
 /// Engine-drawn player arrow (`Interface\Minimap\MinimapArrow`) and blip size.
 const ARROW_SIZE: f32 = 32.0;
 const BLIP_SIZE: f32 = 16.0;
+
+/// Cluster geometry of a skin, in cluster-local UI units.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ClusterStyle {
+    /// Side of the square `MinimapCluster`.
+    pub cluster_size: f32,
+    /// Top-left corner of the square map and its side.
+    pub map_origin: [f32; 2],
+    pub map_size: f32,
+    pub mask: MapMask,
+}
+
+impl ClusterStyle {
+    fn map_centre(&self) -> [f32; 2] {
+        let [left, top] = self.map_origin;
+        [left + self.map_size / 2.0, top + self.map_size / 2.0]
+    }
+}
+
+const MODERN_STYLE: ClusterStyle = ClusterStyle {
+    cluster_size: CLUSTER_SIZE,
+    map_origin: [MAP_LEFT, MAP_TOP],
+    map_size: MAP_SIZE,
+    mask: MapMask::Round,
+};
+
+/// FlareUI header height: the zone name and the clock sit on it.
+const FOREVER_HEADER_H: f32 = 17.0;
+/// Gap between the cluster's sides and the map: (260 − 244) / 2.
+const FOREVER_INSET: f32 = 8.0;
+/// FlareUI's square minimap: a 244×244 map without a mask in a 260×260 cluster. The map
+/// is centred across and hangs below the header.
+const FOREVER_STYLE: ClusterStyle = ClusterStyle {
+    cluster_size: 260.0,
+    map_origin: [FOREVER_INSET, FOREVER_HEADER_H - 1.0],
+    map_size: 244.0,
+    mask: MapMask::Square,
+};
+
+pub fn cluster_style(skin: ActiveSkin) -> ClusterStyle {
+    match skin {
+        ActiveSkin::Modern => MODERN_STYLE,
+        ActiveSkin::Forever => FOREVER_STYLE,
+    }
+}
 
 const WHITE: &str = "1.0,1.0,1.0,1.0";
 const SHADOW: &str = "0.0,0.0,0.0,1.0";
@@ -180,9 +235,17 @@ pub fn calendar_art(day: u32) -> Option<SheetArt> {
     })
 }
 
-/// Art the cluster draws, for hosts that copy textures out of local CASC on demand.
+/// Art the cluster draws under either skin, for hosts that copy textures out of local
+/// CASC on demand.
 pub fn minimap_texture_fdids(state: &MinimapClusterState) -> Vec<u32> {
-    let mut fdids = vec![FRAME.fdid, EDGE_LEFT.fdid, ARROW_FDID];
+    let mut fdids = vec![
+        FRAME.fdid,
+        EDGE_LEFT.fdid,
+        ARROW_FDID,
+        METAL_CORNERS,
+        METAL_SIDE_EDGES,
+        METAL_TOP_BOTTOM_EDGES,
+    ];
     if !state.blips.is_empty() {
         fdids.push(QUEST_AVAILABLE.fdid);
     }
@@ -229,23 +292,26 @@ pub struct MinimapClusterState {
     pub map_texture: Option<DynamicTextureId>,
 }
 
-/// Rect `[x, y, w, h]` of the round map inside the cluster.
-pub fn map_rect() -> [f32; 4] {
-    [MAP_LEFT, MAP_TOP, MAP_SIZE, MAP_SIZE]
-}
-
 pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<MinimapClusterState>()
         .expect("MinimapClusterState must be in SharedContext");
-    let mut children = map_layers(state);
-    children.extend(header(state));
-    let at = hud_layout(ctx).minimap.place((CLUSTER_SIZE, CLUSTER_SIZE));
+    let skin = *ctx
+        .get::<ActiveSkin>()
+        .expect("canvas carries the active skin");
+    let style = cluster_style(skin);
+    let mut children = map_layers(state, &style);
+    children.extend(match skin {
+        ActiveSkin::Modern => modern_chrome(state, style.map_centre()),
+        ActiveSkin::Forever => forever_chrome(state, &style),
+    });
+    let size = style.cluster_size;
+    let at = hud_layout(ctx).minimap.place((size, size));
     rsx! {
         r#frame {
             name: {DynName(MINIMAP_CLUSTER.into())},
-            width: CLUSTER_SIZE,
-            height: CLUSTER_SIZE,
+            width: size,
+            height: size,
             strata: FrameStrata::Low,
             pos_type: "absolute",
             left: {at.left.as_str()},
@@ -259,28 +325,69 @@ pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-fn map_layers(state: &MinimapClusterState) -> Element {
+/// The map composite, the blips and the player arrow.
+fn map_layers(state: &MinimapClusterState, style: &ClusterStyle) -> Element {
+    let [left, top] = style.map_origin;
     let mut elements = rsx! {
         texture {
             name: {DynName(MINIMAP_DISPLAY.into())},
-            width: MAP_SIZE,
-            height: MAP_SIZE,
+            width: {style.map_size},
+            height: {style.map_size},
             pos_type: "absolute",
-            left: MAP_LEFT,
-            top: MAP_TOP,
+            left,
+            top,
         }
     };
-    elements.extend(state.blips.iter().flat_map(blip));
-    let centre = [MAP_LEFT + MAP_SIZE / 2.0, MAP_TOP + MAP_SIZE / 2.0];
-    elements.extend(player_arrow(centre));
+    elements.extend(state.blips.iter().flat_map(|unit| blip(unit, style)));
+    elements.extend(player_arrow(style.map_centre()));
+    elements
+}
+
+/// Retail's compass ring, hover zoom buttons and header.
+fn modern_chrome(state: &MinimapClusterState, centre: [f32; 2]) -> Element {
     // MinimapCompassTexture 215×226 centred on the map (`Minimap.xml:230-235`).
-    elements.extend(art_texture(
+    let mut elements = art_texture(
         "MinimapCompassTexture".into(),
         FRAME,
         [centre[0] - 107.5, centre[1] - 113.0, 215.0, 226.0],
-    ));
+    );
     if state.zoom_buttons {
         elements.extend(zoom_buttons(state.zoom, centre));
+    }
+    elements.extend(header(state));
+    elements
+}
+
+/// FlareUI's square minimap: the `ButtonFrameTemplateNoPortrait` NineSlice around the
+/// cluster instead of the compass ring, the zone name at the header's left and the clock
+/// at its TOPRIGHT; the mail icon in the map's top-left corner.
+fn forever_chrome(state: &MinimapClusterState, style: &ClusterStyle) -> Element {
+    const CLOCK_W: f32 = 40.0;
+    let size = style.cluster_size;
+    let mut elements = metal_border(
+        MINIMAP_CLUSTER,
+        size,
+        size,
+        METAL_FRAME_NO_PORTRAIT_PANEL_STYLE,
+        METAL_FRAME_NO_PORTRAIT_OUTSET,
+    );
+    if state.zoom_buttons {
+        elements.extend(zoom_buttons(state.zoom, style.map_centre()));
+    }
+    elements.extend(zone_text(
+        state,
+        [FOREVER_INSET, (FOREVER_HEADER_H - 12.0) / 2.0],
+        size - 2.0 * FOREVER_INSET - CLOCK_W - 4.0,
+    ));
+    elements.extend(clock_text(
+        state,
+        [size - FOREVER_INSET - CLOCK_W, 0.0],
+        FOREVER_HEADER_H,
+        "RIGHT",
+    ));
+    if state.has_mail {
+        let [left, top] = style.map_origin;
+        elements.extend(mail_indicator([left + 2.0, top + 2.0]));
     }
     elements
 }
@@ -299,7 +406,7 @@ fn player_arrow([cx, cy]: [f32; 2]) -> Element {
     }
 }
 
-fn blip(blip: &MinimapBlip) -> Element {
+fn blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
     let (prefix, art) = match blip.kind {
         BlipKind::QuestAvailable => (MINIMAP_BLIP_PREFIX, QUEST_AVAILABLE),
         BlipKind::QuestTurnIn => (MINIMAP_BLIP_PREFIX, QUEST_TURN_IN),
@@ -307,8 +414,9 @@ fn blip(blip: &MinimapBlip) -> Element {
         BlipKind::Vignette { elite: true } => (MINIMAP_VIGNETTE_PREFIX, VIGNETTE_KILL_ELITE),
     };
     let [right, down] = blip.offset;
-    let x = MAP_LEFT + MAP_SIZE * (0.5 + right) - BLIP_SIZE / 2.0;
-    let y = MAP_TOP + MAP_SIZE * (0.5 + down) - BLIP_SIZE / 2.0;
+    let [left, top] = style.map_origin;
+    let x = left + style.map_size * (0.5 + right) - BLIP_SIZE / 2.0;
+    let y = top + style.map_size * (0.5 + down) - BLIP_SIZE / 2.0;
     art_texture(
         format!("{prefix}{}", blip.unit),
         art,
@@ -366,10 +474,27 @@ fn header(state: &MinimapClusterState) -> Element {
     let mut elements = border_top();
     elements.extend(tracking_button());
     if state.has_mail {
-        elements.extend(mail_indicator());
+        // `IndicatorFrame` TOPRIGHT at the Tracking button's BOTTOMRIGHT.
+        let [left, top] = tracking_origin();
+        elements.extend(mail_indicator([left + 17.0 - 20.0, top + 17.0]));
     }
-    elements.extend(zone_text(state));
-    elements.extend(clock_text(state));
+    // ZoneTextButton 135×12 at BorderTop LEFT +4; MinimapZoneText 130×12 centred, +1 up.
+    elements.extend(zone_text(
+        state,
+        [
+            BORDER_LEFT + 4.0 + 2.5,
+            BORDER_TOP + BORDER_H / 2.0 - 6.0 - 1.0,
+        ],
+        130.0,
+    ));
+    // TimeManagerClockButton 40×16 TOPRIGHT at BorderTop TOPRIGHT −4; ticker centred +3,
+    // +1 up.
+    elements.extend(clock_text(
+        state,
+        [BORDER_LEFT + BORDER_W - 4.0 - 40.0 + 3.0, BORDER_TOP - 1.0],
+        BORDER_H,
+        "CENTER",
+    ));
     // GameTimeFrame 19×18 TOPLEFT at BorderTop TOPRIGHT +1.
     if let Some(art) = state.calendar_day.and_then(calendar_art) {
         elements.extend(art_texture(
@@ -381,13 +506,14 @@ fn header(state: &MinimapClusterState) -> Element {
     elements
 }
 
-/// ZoneTextButton 135×12 at BorderTop LEFT +4; MinimapZoneText 130×12 centred, +1 up.
-fn zone_text(state: &MinimapClusterState) -> Element {
+/// `MinimapZoneText`, `width`×12 at (`left`, `top`): GameFontNormal in the zone's PvP
+/// colour; a click toggles the world map.
+fn zone_text(state: &MinimapClusterState, [left, top]: [f32; 2], width: f32) -> Element {
     let color = color_text(state.zone_color);
     rsx! {
         fontstring {
             name: {DynName(MINIMAP_ZONE_TEXT.into())},
-            width: 130.0,
+            width,
             height: 12.0,
             text: {state.zone_text.as_str()},
             font: GameFont::FrizQuadrata,
@@ -398,30 +524,34 @@ fn zone_text(state: &MinimapClusterState) -> Element {
             justify_h: "LEFT",
             onclick: ACTION_TOGGLE_WORLD_MAP,
             pos_type: "absolute",
-            left: {BORDER_LEFT + 4.0 + 2.5},
-            top: {BORDER_TOP + BORDER_H / 2.0 - 6.0 - 1.0},
+            left,
+            top,
         }
     }
 }
 
-/// TimeManagerClockButton 40×16 TOPRIGHT at BorderTop TOPRIGHT −4; ticker
-/// WhiteNormalNumberFont (FRIZQT 10) centred +3, +1 up.
-fn clock_text(state: &MinimapClusterState) -> Element {
+/// The clock ticker, 40×`height` at (`left`, `top`): WhiteNormalNumberFont (FRIZQT 10).
+fn clock_text(
+    state: &MinimapClusterState,
+    [left, top]: [f32; 2],
+    height: f32,
+    justify: &str,
+) -> Element {
     rsx! {
         fontstring {
             name: {DynName(MINIMAP_CLOCK_TEXT.into())},
             width: 40.0,
-            height: BORDER_H,
+            height,
             text: {state.clock_text.as_str()},
             font: GameFont::FrizQuadrata,
             font_size: 10.0,
             font_color: WHITE,
             shadow_color: SHADOW,
             shadow_offset: "1,-1",
-            justify_h: "CENTER",
+            justify_h: justify,
             pos_type: "absolute",
-            left: {BORDER_LEFT + BORDER_W - 4.0 - 40.0 + 3.0},
-            top: {BORDER_TOP - 1.0},
+            left,
+            top,
         }
     }
 }
@@ -491,10 +621,9 @@ fn tracking_origin() -> [f32; 2] {
     [BORDER_LEFT - 2.0 - 17.0, BORDER_TOP + BORDER_H / 2.0 - 8.5]
 }
 
-/// `IndicatorFrame` TOPRIGHT at the Tracking button's BOTTOMRIGHT holds the 20×15
-/// `MailFrame` (`Minimap.xml:82-95`); mouse-enabled for its unread-mail tooltip.
-fn mail_indicator() -> Element {
-    let [left, top] = tracking_origin();
+/// The 20×15 `MailFrame` (`Minimap.xml:82-95`) at (`left`, `top`); mouse-enabled for its
+/// unread-mail tooltip.
+fn mail_indicator([left, top]: [f32; 2]) -> Element {
     let coords = MAIL_UP.tex_coords();
     rsx! {
         r#frame {
@@ -503,8 +632,8 @@ fn mail_indicator() -> Element {
             height: 15.0,
             mouse_enabled: true,
             pos_type: "absolute",
-            left: {left + 17.0 - 20.0},
-            top: {top + 17.0},
+            left,
+            top,
             texture {
                 name: "MiniMapMailIcon",
                 width: 20.0,

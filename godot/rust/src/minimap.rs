@@ -23,7 +23,7 @@ use game_engine_ui_model::game_tooltip::hud::zone_tooltip;
 use game_engine_ui_model::minimap::{
     ACTION_TOGGLE_WORLD_MAP, ACTION_ZOOM_IN, ACTION_ZOOM_OUT, BlipKind, MINIMAP_ARROW,
     MINIMAP_BLIP_PREFIX, MINIMAP_DISPLAY, MINIMAP_VIGNETTE_PREFIX, MINIMAP_ZONE_TEXT, MinimapBlip,
-    MinimapClusterState, minimap_texture_fdids,
+    MinimapClusterState, cluster_style, minimap_texture_fdids,
 };
 use game_engine_ui_model::world_map_view_data::arrow_rotation;
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion, Time};
@@ -32,12 +32,14 @@ use godot::prelude::*;
 use osso_asset_resolver::CascListfileResolver;
 use shared::components::Position;
 use shared::protocol::QuestGiverStatus;
+use ui_toolkit::atlas::{ActiveSkin, active_skin};
 use ui_toolkit::frame::WidgetData;
 
 use crate::background_load::BackgroundLoad;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 
-/// Composite resolution: the 198-unit map at up to 1.3× UI scale without upsampling.
+/// Composite resolution: the 198-unit Modern map at up to 1.3× UI scale and the 244-unit
+/// Forever map at up to 1.05× without upsampling.
 const COMPOSITE_PX: u32 = 256;
 const DB2_DIR: &str = "db2/12.1.0.69933";
 
@@ -45,6 +47,8 @@ pub(crate) struct Minimap {
     pub(crate) ui: Option<Gd<RegistryUi>>,
     zoom: u8,
     hovered: bool,
+    /// Skin the cluster is built under: it shapes the map mask.
+    skin: ActiveSkin,
     /// `AreaTable` and `ChrRaces`, loaded from client start.
     catalogs: BackgroundLoad<Result<Catalogs, String>>,
     resolver: Option<CascListfileResolver>,
@@ -83,6 +87,7 @@ impl Minimap {
             ui: None,
             zoom: 0,
             hovered: false,
+            skin: active_skin(),
             catalogs: BackgroundLoad::start("minimap-catalogs", move || {
                 load_catalogs(&catalog_root)
             }),
@@ -110,6 +115,11 @@ impl Minimap {
     pub(crate) fn area_name(&mut self, area_id: u32) -> Option<Option<String>> {
         let catalogs = self.catalogs.poll()?.as_ref().ok();
         Some(catalogs.and_then(|catalogs| catalogs.areas.name(area_id).map(str::to_owned)))
+    }
+
+    /// The view around `position` at the current zoom, clipped to the skin's map mask.
+    fn view(&self, position: [f32; 2]) -> MinimapView {
+        MinimapView::new(position, self.zoom).masked(cluster_style(self.skin).mask)
     }
 
     fn free_ui(&mut self) {
@@ -351,7 +361,7 @@ impl GameClient {
                 .pvp(area, self.player_faction_group(catalogs))
         });
         let (hour, minute, day) = local_time();
-        let view = MinimapView::new(position, self.minimap.zoom);
+        let view = self.minimap.view(position);
         let mut blips = self.quest_blips(&view);
         if let Some(Ok(catalogs)) = self.minimap.catalogs.loaded() {
             let sightings = crate::vignettes::sightings(&self.replica, &catalogs.vignettes)?;
@@ -397,7 +407,7 @@ impl GameClient {
     /// Recomposite when the player moved half a composite pixel, zoomed, or changed map.
     fn minimap_composite(&mut self, position: [f32; 2]) -> Option<(u32, Vec<u8>)> {
         let map = self.terrain.map_name()?.to_owned();
-        let view = MinimapView::new(position, self.minimap.zoom);
+        let view = self.minimap.view(position);
         self.minimap.receive_tiles(&map, view.tiles());
         let pixel_yards = view.diameter / COMPOSITE_PX as f32;
         let areas = self.minimap_quest_areas();
@@ -447,6 +457,13 @@ impl GameClient {
         let Some((position, yaw)) = self.minimap_player() else {
             return Ok(());
         };
+        // Frames of one level draw in creation order, so another skin's cluster and its
+        // composite are built afresh instead of patched.
+        let skin = active_skin();
+        if self.minimap.skin != skin {
+            self.minimap.free_ui();
+            self.minimap.skin = skin;
+        }
         let span = crate::profile::span(|| "minimap.cluster_state".to_owned());
         let state = self.minimap_cluster_state(position, yaw)?;
         let data_root = self.data_root.clone();
@@ -473,8 +490,8 @@ impl GameClient {
         Ok(())
     }
 
-    /// The map circle in physical pixels: centre and radius.
-    fn minimap_circle(&self) -> Option<(Vector2, f32)> {
+    /// The map in physical pixels: centre and half its side (the radius of a round map).
+    fn minimap_extent(&self) -> Option<(Vector2, f32)> {
         let ui = self.minimap.ui.as_ref()?;
         let ui = ui.bind();
         let registry = ui.registry()?;
@@ -490,23 +507,28 @@ impl GameClient {
     /// Pointer over the map: hover shows the zoom buttons (`MinimapMixin:OnEnter`), and
     /// the wheel zooms instead of the camera. Returns whether `event` was consumed.
     pub(super) fn minimap_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
-        let Some((centre, radius)) = self.minimap_circle() else {
+        let Some((centre, radius)) = self.minimap_extent() else {
             return false;
         };
-        let scale = radius / (game_engine_ui_model::minimap::MAP_SIZE / 2.0);
+        let scale = self.effective_ui_scale();
+        let mask = cluster_style(self.minimap.skin).mask;
+        let on_map = |point: Vector2| {
+            let offset = (point - centre) / (2.0 * radius);
+            mask.contains(offset.x, offset.y)
+        };
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
             let point = motion.get_position();
             // ZoomHitArea 40×40 at CENTER (+77, −77) keeps the buttons while over them.
             let hit_area = centre + Vector2::new(77.0, 77.0) * scale;
             let over_buttons = (point.x - hit_area.x).abs() <= 20.0 * scale
                 && (point.y - hit_area.y).abs() <= 20.0 * scale;
-            self.minimap.hovered = point.distance_to(centre) <= radius || over_buttons;
+            self.minimap.hovered = on_map(point) || over_buttons;
             return false;
         }
         let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
             return false;
         };
-        if !button.is_pressed() || button.get_position().distance_to(centre) > radius {
+        if !button.is_pressed() || !on_map(button.get_position()) {
             return false;
         }
         match button.get_button_index() {
