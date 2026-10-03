@@ -33,10 +33,11 @@ The flying movement path now consumes manually annotated tree contact with a fix
 Model and constants: shared-protocol `src/skyriding.rs` (`Glider`, FlightCapability 11 from Retail DB2 12.1.0.69933). Server bound and the test-character switch (`game-server-admin flight-style <name> skyriding`): game-server mounts page.
 
 - The client may skyride while its replicated `PlayerMotion` has `CAN_ADV_FLY` (`set_can_adv_fly`, from the Skyriding aura 406095); losing it ends the skyride and the player falls.
-- Take off as for steady flight (Space jumps, Space held in the air): the mount launches straight up at 31.5 yd/s on top of its run and rises without lift (about 24 yards), then glides once falling with 7.5 yards of air under it.
+- Take off as for steady flight (Space jumps, Space held in the air), which is Retail's Skyward Ascent 372610 (JUMP, JUMP: Blizzard_Tutorials_RPE.lua:391-395): the client sends that cast once (`PlayerMovement::take_takeoff_request`) and keeps falling; the server spends a Skyriding Charge and its `SpellGo` (`skyriding_spell`) launches the mount straight up at 31.5 yd/s on top of its run and rises without lift (about 24 yards), then glides once falling with 7.5 yards of air under it.
 - Gliding: no thrust; lift turns the velocity toward the facing and the pitch, gravity trades height for speed (dive faster, climb slower), air friction 1.5 yd/s², gravity stops at 65 yd/s. With the right mouse button the pitch follows the camera pitch (at most 180°/s); without it the pitch stays.
 - Landing: coming down onto terrain or a WMO floor clears `flying`; swimming depth ends it into a swim. Every frame of a skyride reports (`PlayerInput.flying`); the server sets `FLYING | ADV_FLYING`.
-- Not yet: the Retail flight style toggle, banking, surface friction, the old-world 85% speed, Skyward Ascent as the real takeoff (the Space launch spends no charge).
+- Flight style: Switch Flight Style 436854 (5 s cast) swaps Steady and Skyriding on the server, saved per character; the next mount flies the new style (game-server `docs/wiki/systems/mounts.md`).
+- Not yet: banking, surface friction, the old-world 85% speed.
 
 ## Skyriding (part 2: vigor and abilities)
 
