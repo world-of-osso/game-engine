@@ -75,6 +75,7 @@ pub(crate) struct Targeting {
     health_by_level: Option<Result<CreatureHealthByLevel, String>>,
     /// The TargetFrame's level and health texts last shown, for automation.
     frame_texts: (String, String),
+    pub(crate) portraits: crate::unit_portraits::UnitPortraits,
 }
 
 struct TargetCircle {
@@ -109,6 +110,7 @@ impl Targeting {
             data_root,
             health_by_level: None,
             frame_texts: Default::default(),
+            portraits: Default::default(),
         }
     }
 
@@ -404,6 +406,7 @@ impl GameClient {
             self.targeting.target = None;
             self.targeting.sent = None;
             self.targeting.free_circle();
+            self.clear_unit_portraits();
             self.targeting.free_frame_ui();
             return Ok(());
         }
@@ -605,7 +608,8 @@ impl GameClient {
             self.targeting.frame_ui = Some(ui);
         }
         self.sync_target_aura_swipes(target_state.as_ref())?;
-        self.sync_class_bar_swipes(class_bar.as_ref())
+        self.sync_class_bar_swipes(class_bar.as_ref())?;
+        self.sync_unit_portraits()
     }
 
     /// Bevy `handle_inworld_escape`: with no window open, Escape clears the target

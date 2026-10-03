@@ -362,6 +362,8 @@ fn bind_character_skin(item: &mut Gd<Node3D>, skin: &Gd<Skin>) {
         if let Ok(mut mesh) = child.try_cast::<MeshInstance3D>() {
             mesh.set_skin(skin);
             mesh.set_skeleton_path("../../Skeleton3D");
+            // Its own header box need not hold the character's poses; derive it from the bones.
+            mesh.set_custom_aabb(Aabb::default());
         }
     }
     if let Some(animation) = item.get_node_or_null("M2Animation") {

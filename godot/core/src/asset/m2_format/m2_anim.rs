@@ -45,6 +45,7 @@ const SEQ_DURATION_OFFSET: usize = 0x04;
 const SEQ_MOVE_SPEED_OFFSET: usize = 0x08;
 const SEQ_FLAGS_OFFSET: usize = 0x0C;
 const SEQ_BLEND_TIME_OFFSET: usize = 0x1C;
+const SEQ_BOUNDS_OFFSET: usize = 0x20;
 const SEQ_VARIATION_NEXT_OFFSET: usize = 0x3C;
 
 #[derive(Clone)]
@@ -121,6 +122,9 @@ pub struct M2AnimSequence {
     pub replay: [u32; 2],
     /// Next candidate in this animation's variation list, not a temporal successor.
     pub variation_next: i16,
+    /// `M2Bounds.extent` (min, max) in WoW model-local coordinates: the box this
+    /// sequence's posed vertices stay inside.
+    pub bounds: [[f32; 3]; 2],
 }
 
 /// Parse `count` sequence entries starting at `offset` in `data`.
@@ -145,6 +149,10 @@ pub fn parse_sequences_at(
             frequency: read_i16(data, base + 0x10)?,
             replay: [read_u32(data, base + 0x14)?, read_u32(data, base + 0x18)?],
             variation_next: read_i16(data, base + SEQ_VARIATION_NEXT_OFFSET)?,
+            bounds: [
+                read_vec3(data, base + SEQ_BOUNDS_OFFSET)?,
+                read_vec3(data, base + SEQ_BOUNDS_OFFSET + 12)?,
+            ],
         });
     }
     Ok(sequences)
@@ -159,6 +167,7 @@ pub fn parse_sequences_at(
 ///   0x08 f32  movespeed
 ///   0x0C u32  flags
 ///   0x1C u16  blend_time
+///   0x20 f32[6] bounds (min, max)
 ///   0x10 i16  frequency (variation probability weight)
 ///   0x14 u32[2] replay bounds
 ///   0x3C i16  variation_next (-1 = end of candidate list)

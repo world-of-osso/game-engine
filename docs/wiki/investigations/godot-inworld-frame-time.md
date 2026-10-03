@@ -113,8 +113,30 @@ safeguards).
 
 - Draw-call volume: doodads ~4.6k, terrain ~1.9k, units ~1.1k of 7.8k draws (Stormwind, hiding each root).
   Instancing identical static doodads or merging terrain chunks would cut it.
-- Skinned M2 culling bounds: WebWowViewerCpp `M2Object::createAABB` culls by the header `bounding_box`; Godot
-  recomputes each posed skinned batch mesh's AABB from its bones every frame (`mesh_get_aabb`, 2.1 ms in
-  Stormwind idle; `custom_aabb` would match the reference).
+- Skinned M2 culling bounds (branch `skinaabb`). `9258b339` gave skinned batches the header `bounding_box`
+  as `custom_aabb` (WebWowViewerCpp `M2Object::createAABB`): `mesh_get_aabb` left the profile, but draws rose
+  3-6% because the header box is larger than the posed bounds. `ae10e313` replaces it with the playing
+  sequence's `M2Sequence.bounds` on every sequence change, as WebWowViewerCpp does (`m2Object.cpp:1216-1232`,
+  `isNeedUpdateBB`/`getAnimatinonBB`); an empty box keeps the previous one. Stormwind idle, symbolized
+  call-graph perf, `data/diagnostics/seqbounds-2026-10-02/cg{1,2}-*`:
+
+  | build | draws | shadow draws | `mesh_get_aabb` (main thread) | load |
+  |---|---|---|---|---|
+  | master | 6882 / 6918 | - / 1405 | 3.8% / 5.0% (3.0 / 2.2 ms) | 12.4 / 6.4 |
+  | header box | 7265 | 1624 | 0.02% | 4.6 |
+  | sequence bounds | 6988 / 6965 | 1453 / 1441 | absent | 5.5 / 7.3 |
+
+  The header box's first run did not settle (load 14.7). p50 is not comparable at this load (31-74 ms
+  across runs of one build). Owl.m2's posed vertices stay inside each of its 31 sequences' bounds within
+  0.004 (`m2_skinned_bounds.gd`). Crossfades switch the box at once, as in WebWowViewerCpp.
+- Global-sequence bone tracks are not played (`AnimationState::sample_sequence` reads sub-array `index`, not
+  sub-array 0 at the global sequence's time). 2171/3818 local multi-bone M2s have such tracks; boar.m2's bone 0
+  translation (+0.282 x, global sequence 1) is dropped in 16 of 17 sequences, so the boar renders 0.28 back
+  and pokes 0.2-1.1 outside its sequence bounds.
+  Fixed: `AnimationState` samples global-sequence bone tracks from timeline 0 at a model global clock advanced
+  by unscaled real time (WebWowViewerCpp animate.h `animateTrack`, animationManager.cpp `deltaTimeForGS`).
+  `m2_skinned_bounds.gd` now also holds boar.m2 inside all 17 sequence bounds (tolerance 0.03: JumpStart's
+  last key at 834 ms sits 0.028 above its box). Particle emission tracks still skip global sequences
+  (`m2_particles.rs` `set_animation`); sky tracks sample the preferred timeline, not 0 (`sky_model.rs`).
 - `Node3D::_propagate_transform_changed` 1.4 ms self, reached from extension `set_quaternion`/`set_position`
   calls during idle (callers lost at Rust frames).
