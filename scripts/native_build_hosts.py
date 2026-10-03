@@ -202,14 +202,15 @@ def native_environment(target, environment, local):
     ]
 
 
-def native_build(project, target, cargo_args, release, env, prefix, lease):
+def rust_command(binary, local):
+    return [binary] if local else ["rustup", "run", TOOLCHAIN, binary]
+
+
+def native_build(project, target, cargo_args, release, env, prefix, lease, local=False):
     if not cargo_args:
         raise ValueError("native Cargo subcommand is required")
     cargo = [
-        "rustup",
-        "run",
-        TOOLCHAIN,
-        "cargo",
+        *rust_command("cargo", local),
         cargo_args[0],
         "--locked",
         "-j8",
@@ -221,10 +222,10 @@ def native_build(project, target, cargo_args, release, env, prefix, lease):
     return run_owned([*prefix, *cargo], project, env, lease=lease)
 
 
-def read_sysroot(project, env, prefix, lease):
+def read_sysroot(project, env, prefix, lease, local=False):
     with tempfile.TemporaryFile() as output:
         status = run_owned(
-            [*prefix, "rustup", "run", TOOLCHAIN, "rustc", "--print", "sysroot"],
+            [*prefix, *rust_command("rustc", local), "--print", "sysroot"],
             project,
             env,
             lease=lease,
@@ -240,13 +241,22 @@ def read_sysroot(project, env, prefix, lease):
 
 
 def native_runtime(
-    project, target, runtime_args, binary, release, env, prefix, lease, runtime_cwd=None
+    project,
+    target,
+    runtime_args,
+    binary,
+    release,
+    env,
+    prefix,
+    lease,
+    runtime_cwd=None,
+    local=False,
 ):
     if runtime_args is None:
         return 0
     if binary is None:
         raise ValueError("runtime_args requires binary")
-    status, sysroot = read_sysroot(project, env, prefix, lease)
+    status, sysroot = read_sysroot(project, env, prefix, lease, local)
     if status:
         return status
     profile = "release" if release else "debug"
@@ -288,11 +298,22 @@ def native_commands(
 ):
     env, prefix = native_environment(target, environment, local)
     if build:
-        status = native_build(project, target, cargo_args, release, env, prefix, lease)
+        status = native_build(
+            project, target, cargo_args, release, env, prefix, lease, local
+        )
         if status:
             return status
     return native_runtime(
-        project, target, runtime_args, binary, release, env, prefix, lease, runtime_cwd
+        project,
+        target,
+        runtime_args,
+        binary,
+        release,
+        env,
+        prefix,
+        lease,
+        runtime_cwd,
+        local,
     )
 
 
