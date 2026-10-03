@@ -80,6 +80,8 @@ sys.exit(h.worker(pathlib.Path(mapped(archive)), *json.loads(request)))
 RUSTUP = """#!/usr/bin/env python3
 import json, os, pathlib, sys
 args = sys.argv[1:]
+if pathlib.Path(sys.argv[0]).name in ('cargo', 'rustc'):
+    args = ['run', '1.98.1', pathlib.Path(sys.argv[0]).name, *args]
 assert args[:2] == ['run', '1.98.1'], args
 if args[2] == 'rustc':
     print(os.environ['FIXTURE_ROOT']); sys.exit(0)
@@ -141,6 +143,10 @@ class NativeTests(unittest.TestCase):
         self.cargo.mkdir(parents=True)
         (self.cargo / "rustup").write_text(RUSTUP)
         (self.cargo / "rustup").chmod(0o755)
+        for name in ("cargo", "rustc"):
+            path = self.bin / name
+            path.write_text(RUSTUP)
+            path.chmod(0o755)
         wrapper = self.bin / "agent-run"
         wrapper.write_text(
             '#!/usr/bin/env python3\nimport os,sys\nassert sys.argv[1] == "native-build"\nos.execvp(sys.argv[2],sys.argv[2:])\n'
@@ -562,6 +568,24 @@ class NativeTests(unittest.TestCase):
         self.assertFalse(path.exists())
         self.assertEqual(
             (source / "project/runtime/cache/save").read_text(), "owned by app"
+        )
+
+    def test_local_runs_without_rustup(self):
+        (self.cargo / "rustup").unlink()
+        root = self.context / "project"
+        status = self.h.execute(
+            self.context,
+            "key",
+            "project",
+            ["build"],
+            "local",
+            ["17"],
+            "fixture",
+            root=root,
+        )
+        self.assertEqual(status, 17)
+        self.assertEqual(
+            json.loads((self.base / "runtime.json").read_text())["cwd"], str(root)
         )
 
     def test_local_original_root_build_and_runtime_status(self):
