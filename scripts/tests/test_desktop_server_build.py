@@ -22,8 +22,9 @@ files = {str(p.relative_to(context)): p.read_text() for p in context.rglob('*') 
 Path(os.environ['CAPTURE']).write_text(json.dumps(dict(files=files, context=str(context), key=key, target=target, args=json.loads(args), host=host)))
 if os.environ.get('FAIL_EXPORT') == 'transport':
     sys.exit(7)
+profile = 'release' if 'RELEASE=true' in json.loads(args) else 'new'
 for name in ('game-server', 'game-server-admin', 'game-cli'):
-    content = ('new ' + name).encode()
+    content = (profile + ' ' + name).encode()
     (output / (name + '.gz')).write_bytes(b'broken' if os.environ.get('FAIL_EXPORT') == name else gzip.compress(content))
 """
 
@@ -80,6 +81,12 @@ class DesktopServerBuildTests(unittest.TestCase):
         spec = importlib.util.spec_from_file_location("desktop_server_build", script)
         module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(module)
+        self.setting = self.base / "config/game-engine/build-host"
+        if not self.setting.exists():
+            self.put(self.base, "config/game-engine/build-host", "desktop\n")
+        setting = patch.object(module.depot, "build_host_setting", lambda: self.setting)
+        setting.start()
+        self.addCleanup(setting.stop)
         return module
 
     def execute(self, context, output, key, target, args, host):
@@ -162,6 +169,128 @@ class DesktopServerBuildTests(unittest.TestCase):
                 self.assertEqual(old.read_bytes(), b"old executable")
                 self.assertEqual(old.stat().st_mode & 0o777, 0o755)
                 self.assertEqual(list(old.parent.glob(".game-server-*")), [])
+
+    def main(self, module, *args):
+        with (
+            patch.object(sys, "argv", ["desktop-server-build.py", *args]),
+            patch.object(module, "execute", self.execute),
+        ):
+            return module.main()
+
+    def test_local_debug_uses_absolute_checkout_build_contract(self):
+        module = self.load()
+        with patch.object(module, "execute", self.execute):
+            module.build(self.root / "crates/..", host="local")
+        result = json.loads(self.capture.read_text())
+        self.assertEqual(result["host"], "local")
+        self.assertIn(f"BUILD_ROOT={self.root.resolve()}", result["args"])
+        self.assertIn(f"BUILD_PARENT={self.root.parent.resolve()}", result["args"])
+        self.assertIn("RELEASE=false", result["args"])
+        self.assertIn("SERVER_CACHE=" + result["key"], result["args"])
+        for name in module.BINARIES:
+            path = self.root / "target/debug" / name
+            self.assertEqual(path.read_bytes(), ("new " + name).encode())
+            self.assertEqual(path.stat().st_mode & 0o777, 0o755)
+        self.assertFalse((self.root / "target/release").exists())
+
+    def test_release_cli_exports_all_binaries_without_overwriting_debug(self):
+        module = self.load()
+        for name in module.BINARIES:
+            self.put(self.root, f"target/debug/{name}", "old debug")
+        self.assertEqual(
+            self.main(
+                module, "--root", str(self.root), "--build-host", "local", "--release"
+            ),
+            0,
+        )
+        result = json.loads(self.capture.read_text())
+        self.assertEqual(result["host"], "local")
+        self.assertIn("RELEASE=true", result["args"])
+        for name in module.BINARIES:
+            path = self.root / "target/release" / name
+            self.assertEqual(path.read_bytes(), ("release " + name).encode())
+            self.assertEqual(path.stat().st_mode & 0o777, 0o755)
+            self.assertEqual(
+                (self.root / "target/debug" / name).read_text(), "old debug"
+            )
+
+    def test_saved_local_host_applies_to_legacy_build_api(self):
+        module = self.load()
+        self.assertEqual(self.main(module, "--save-build-host", "local"), 0)
+        self.assertEqual(self.setting.read_text(), "local\n")
+        self.assertFalse(self.capture.exists())
+        self.assertFalse((self.root / "target/debug").exists())
+        with patch.object(module, "execute", self.execute):
+            module.build(self.root)
+        self.assertEqual(json.loads(self.capture.read_text())["host"], "local")
+        self.assertEqual(self.main(module, "--save-build-host", "desktop"), 0)
+        self.assertEqual(self.setting.read_text(), "desktop\n")
+        with patch.object(module, "execute", self.execute):
+            module.build(self.root)
+        self.assertEqual(json.loads(self.capture.read_text())["host"], "desktop")
+
+    def test_missing_or_invalid_setting_fails_without_transport(self):
+        module = self.load()
+        self.setting.unlink()
+        with patch.object(module, "execute", self.execute):
+            with self.assertRaisesRegex(ValueError, "choose --build-host"):
+                module.build(self.root)
+            self.assertFalse(self.capture.exists())
+            self.setting.write_text("unknown\n")
+            with self.assertRaisesRegex(ValueError, "invalid build-host"):
+                module.build(self.root)
+            self.assertFalse(self.capture.exists())
+            module.build(self.root, host="desktop")
+        self.assertEqual(json.loads(self.capture.read_text())["host"], "desktop")
+        self.assertEqual(self.setting.read_text(), "unknown\n")
+
+    def test_save_host_rejects_build_options_without_saving_or_building(self):
+        module = self.load()
+        for options in (("--release",), ("--build-host", "local")):
+            with self.subTest(options=options):
+                with self.assertRaises(SystemExit) as error:
+                    self.main(module, "--save-build-host", "local", *options)
+                self.assertEqual(error.exception.code, 2)
+                self.assertEqual(self.setting.read_text(), "desktop\n")
+                self.assertFalse(self.capture.exists())
+
+    def test_release_failure_preserves_old_artifacts_without_host_fallback(self):
+        module = self.load()
+        for name in module.BINARIES:
+            self.put(self.root, f"target/release/{name}", "old release")
+        for failure in ("transport", "game-server"):
+            with (
+                self.subTest(failure=failure),
+                patch.dict(os.environ, {"FAIL_EXPORT": failure}),
+            ):
+                self.assertEqual(
+                    self.main(
+                        module,
+                        "--root",
+                        str(self.root),
+                        "--build-host",
+                        "local",
+                        "--release",
+                    ),
+                    1,
+                )
+                self.assertEqual(json.loads(self.capture.read_text())["host"], "local")
+                for name in module.BINARIES:
+                    path = self.root / "target/release" / name
+                    self.assertEqual(path.read_text(), "old release")
+                    self.assertEqual(list(path.parent.glob(f".{name}-*")), [])
+        self.assertFalse((self.root / "target/debug").exists())
+
+    def test_release_target_symlink_rejected_before_export(self):
+        module = self.load()
+        outside = self.base / "outside"
+        outside.mkdir()
+        (self.root / "target/release").symlink_to(outside, target_is_directory=True)
+        with patch.object(module, "execute", self.execute):
+            with self.assertRaisesRegex(ValueError, "target symlink"):
+                module.build(self.root, host="local", release=True)
+        self.assertFalse(self.capture.exists())
+        self.assertEqual(list(outside.iterdir()), [])
 
     def test_checkout_keys_are_distinct(self):
         module = self.load()
