@@ -2,64 +2,27 @@
 
 > **CLAUDE.md is a symlink to AGENTS.md.** Edit AGENTS.md directly; git tracks AGENTS.md.
 
-Bevy 0.19 3D game engine. Renders models, terrain, and eventually the full game world. Standalone renderer with its own Bevy UI/debug tooling.
+WoW client: a Godot 4.7.2 project with a Rust GDExtension. Renders models, terrain and the game world, with native UI and debug tooling. The Bevy client is retired (2026-10-02).
 
 ## Structure
 
 ```
-src/
-├── main.rs              # Bevy App entry point, plugin registration
-├── lib.rs               # Re-exports dump + ipc + scene_tree
-├── asset/
-│   ├── mod.rs           # Re-exports format parsers + asset cache
-│   ├── blp.rs           # BLP texture → Bevy Image (image-blp)
-│   ├── m2.rs            # M2 Bevy mesh building (render batches)
-│   ├── m2_format/       # Pure M2 parser (no Bevy deps)
-│   │   ├── mod.rs       # MD21 chunk parser, read utils, vertex/material parsing
-│   │   ├── m2_anim.rs   # Bone, animation sequence, track evaluation
-│   │   ├── m2_particle.rs # Particle emitter parser (FakeAnimBlock)
-│   │   ├── m2_attach.rs # Attachment point parser
-│   │   ├── m2_light.rs  # M2 light parser
-│   │   └── m2_bone_names.rs # Bone name lookup
-│   ├── adt_format/      # Pure ADT parser (no Bevy deps)
-│   │   ├── mod.rs       # MCNK heightmaps, normals
-│   │   ├── adt_tex.rs   # Texture layer compositing
-│   │   └── adt_obj.rs   # Doodad/WMO placement (MDDF/MODF)
-│   ├── wmo_format/      # Pure WMO parser (no Bevy deps)
-│   └── asset_cache.rs   # FDID → disk cache via AssetResolver trait
-├── rendering/
-│   ├── model/           # M2 spawning, materials, animation
-│   ├── particles/       # GPU particles via bevy_hanabi
-│   ├── terrain/         # ADT terrain rendering, LOD, materials
-│   ├── skybox/          # Sky rendering, light data, sky materials
-│   ├── character/       # Character models, customization, texture compositing
-│   ├── camera/          # Camera, orbit camera, culling
-│   ├── lighting/        # Light volume lookup
-│   └── ui/              # Nameplates, health bars, minimap, action bar
-├── scenes/
-│   ├── login/           # Login screen + helpers
-│   ├── char_select/     # Character select (UI + 3D scene + warband + campsite)
-│   ├── char_create/     # Character creation
-│   ├── game_menu/       # In-game menu
-│   ├── loading/         # Loading screen
-│   ├── particle_debug/  # Particle debug scene
-│   ├── skybox_debug/    # Skybox debug scene
-│   ├── geoset_debug/    # Geoset debug scene
-│   └── selection_debug/ # Selection debug screens
-├── game/
-│   ├── networking/      # Auth, player/NPC sync, reconnect
-│   ├── equipment/       # Equipment, transmog, outfit data
-│   ├── creatures/       # Creature display info, named models
-│   ├── world_db/        # SQLite world data (outfits, zones)
-│   └── state/           # Game state, client options
-├── sound/               # Footsteps, music catalog, zone music
-├── ipc/                 # Unix socket IPC server + Bevy plugin
-└── ui/                  # UI toolkit (rsx!, screens, widgets)
+launcher/        # game-engine-launcher: `cargo run` -> Depot extension build -> pinned Godot
+tools/           # game-engine-tools: png_to_ktx2, *_cache_import (local, Bevy-free, on game-engine-core)
+godot/           # Godot project + Rust workspace (built and tested on Depot)
+├── project.godot, scenes/, shaders/, ui/
+├── tests/       # GDScript fixtures
+├── core/        # game-engine-core: M2/ADT/WMO/BLP parsers, DB2/SQLite catalogs and cache importers, camera/movement/lighting data
+├── ui-model/    # game-engine-ui-model: rsx! screen components and UI state (ui-toolkit-core)
+├── network/     # game-engine-network: headless lightyear transport, IPC wire schema, JS automation; examples/ = process fixtures
+├── session/     # game-engine-session: account and character-session decisions
+├── rust/        # game-engine-godot: the GDExtension (scenes, rendering, input, IPC server)
+└── cli/         # game-engine-cli: IPC client for a running client
 ```
 
 ## Dev
 
-- Plain root `cargo run`/`rd` builds the debug std-only `game-engine-launcher`, then uses `python3 scripts/depot-build.py --root <checkout>` to build the Godot native extension remotely before normal local Godot import/launch; `bd` is `cargo build`. The launcher uses `GODOT_BIN`, else the pinned patched Godot `4.7.2-pr123946` at `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2-pr123946/`, checking its SHA-512 on every launch and failing with build instructions when it is missing or differs (build it once with `scripts/godot/build-patched-godot.sh` (2 jobs; `--jobs N` overrides); [why](docs/wiki/investigations/godot-wayland-exit-hang.md)); runs a one-time headless `--import` when `godot/.godot/extension_list.cfg` is missing; forwards user startup flags after Godot's `--` separator. It neither starts the server nor falls back to Bevy. See `docs/remote-builds.md`.
+- Plain root `cargo run`/`rd` builds the debug std-only `game-engine-launcher`, then uses `python3 scripts/depot-build.py --root <checkout>` to build the Godot native extension remotely before normal local Godot import/launch; `bd` is `cargo build`. The launcher uses `GODOT_BIN`, else the pinned patched Godot `4.7.2-pr123946` at `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2-pr123946/`, checking its SHA-512 on every launch and failing with build instructions when it is missing or differs (build it once with `scripts/godot/build-patched-godot.sh` (2 jobs; `--jobs N` overrides); [why](docs/wiki/investigations/godot-wayland-exit-hang.md)); runs a one-time headless `--import` when `godot/.godot/extension_list.cfg` is missing; forwards user startup flags after Godot's `--` separator. It does not start the server. See `docs/remote-builds.md`.
 - `cargo run -- --screen charselect` — Authenticate with configured credentials or a saved token and open character select.
 - `cargo run -- --server dev --screen inworld --char Name` — Resolve `dev`/`prod` server aliases, authenticate, select the named roster character, and enter the world. Omit `--char` to select the default character.
 - `cargo run -- --screen charcreate` — Open standalone character creation. Add `--server <host>` to authenticate before entering it; `charcreate-customize` opens its Customize mode.
@@ -68,29 +31,29 @@ src/
 - `cargo run -- --screen particledebug` — Offline M2 particle debug scene: torch, portal and Frostbolt missile emitters with the emitter overlay; drag orbits, wheel zooms, Tab cycles models, 1-9 toggle emitters, 0 restores all, R restarts. Fixture: `GODOT_PARTICLE_SCREENSHOTS=<dir> godot --path godot -s res://tests/particle_debug_screen.gd -- --screen particledebug`.
 - `godot/project.godot` selects Godot's native Wayland display driver (`display/display_server/driver.linuxbsd`), so direct and launcher runs open a native niri window owned by Godot's PID; without a Wayland socket Godot logs `Display driver wayland failed, falling back to x11`. Override with `--display-driver x11`.
 - The launcher routes `--screen`, `--state`, `--server`, and `--char` after Godot's separator; other arguments remain native Godot arguments. Direct Godot invocation must put client flags after `--`.
-- The preserved Bevy package requires explicit `-p game-engine`/`--bin game-engine`; its distribution build remains `cargo build -p game-engine --release --no-default-features --features ipc,casc`.
-- `LOGIN_USER=alice LOGIN_PASS=secret cargo run --bin game-engine -- --server 127.0.0.1:5000 --state login --run-js-ui-script debug/login.js` — Drive the real login UI path via JS automation, wait for `CharSelect`, then dump the entity tree
-- `cargo run --bin game-engine-cli -- --socket /tmp/game-engine-<pid>.sock <command>` — IPC CLI for running instance
+- `cargo run -- --run-js-ui-script debug/login.js` — Run a JS UI automation script in the client (fixtures: `native_js_automation_fixture`, `native_js_world_fixture`).
+- `python3 scripts/depot-build.py --root "$PWD" --cli` builds `target/debug/game-engine-cli` (combinable with `--fixture`; fixtures take it as `GAME_ENGINE_CLI`). `target/debug/game-engine-cli [--socket /tmp/game-engine-<pid>.sock] <command>` — IPC CLI for a running client
   - `dump-scene` — Dump semantic scene tree (high-level: character, background, camera, lights)
   - `dump-ui-tree` — Dump UI frame registry (names, anchors, positions, widget data)
-  - `dump-tree` — Dump Bevy entity hierarchy
+  - `dump-tree` — Dump the client node tree
   - `screenshot [OUTPUT]` — Capture current frame as WebP (defaults to `screenshot.webp`)
   - `performance` — Report `fps`, `frame_time_ms`, and `focused`
   - `ping` — Check if instance is alive
   - Socket auto-discovered via `/tmp/game-engine-*.sock` glob
-- `cargo run --bin png_to_ktx2 -- input.png output.ktx2` — Convert PNG to KTX2 (RGBA8 sRGB, no mipmaps)
-- `./run-tests.sh` — root and launcher workspace tests, clippy, and format check; run Godot workspace tests separately from `godot/`.
+- `cargo run -p game-engine-tools --bin png_to_ktx2 -- input.png output.ktx2` — Convert PNG to KTX2 (RGBA8 sRGB, no mipmaps)
+- `cargo run -p game-engine-tools --bin <customization|char_texture|creature_display|outfit_links>_cache_import` — Rebuild `data/cache/*.sqlite` the client reads from the DB2 CSVs in `data/`.
+- `./run-tests.sh` — root workspace (launcher, tools) tests, clippy, and format check; Godot workspace tests run on Depot (next line).
 - `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-core [cargo test args...]` — run `godot/` workspace `cargo test --locked` on Depot (CPU only, no Godot engine) with the data files listed in `godot/depot-test-assets.txt`; exits with cargo's status. Agents use this instead of local Cargo in `godot/`.
 - Parallel-agent tooling in `scripts/agent/`:
   - `link-worktree-data.py <canonical> <worktree>` links untracked `data/` into a worktree.
   - `seed-target.sh <repo> <dir>` reflink-clones a warm `CARGO_TARGET_DIR`; never start an agent on an empty one.
-  - `headless-client.sh start|stop <target> <xdg> [args]` runs a client in a headless cage, off the user's display; `start-godot <checkout> <xdg> [godot args]` runs the Godot client (stop with `<checkout>/target`).
+  - `headless-client.sh start-godot <checkout> <xdg> [godot args]` runs the client in a headless cage, off the user's display; `stop <checkout>/target` stops it.
   - `agent-run <agent-name> <cmd...>` is mandatory for every local build, test server, client and extraction an agent starts (cargo, game-server, Godot/cage, casc-local). It runs inside the capped `agents.slice` (12 cores, 26 GB). Stop everything one agent started with `systemctl --user stop agents-<name>.slice`, everything all agents started with `systemctl --user stop agents.slice`.
   - `record-window (--pid PID | --app-id ID) [-o out.mp4] [--fps 30] [--duration S] [--no-audio]` records one niri window plus that process's PipeWire audio stream to MP4 (H.264 VAAPI + AAC) until Ctrl-C, `--duration`, or the window closes. It calls niri's own `org.gnome.Mutter.ScreenCast` `RecordWindow` (no portal dialog); `pw-video-cat/` (built on first use) reads the LINEAR DMA-BUF stream. Audio is post-mixer: a muted stream records silence.
 - `cd ../game-server && ./run-dev.sh` — Auto-restart server on code changes (for testing `--screen inworld`)
 - Game server uses **UDP** (lightyear/netcode) — check with `ss -ulnp | grep 5000`, NOT `ss -tlnp`
-- Dev profile: `[profile.dev] debug = 1, split-debuginfo = "unpacked"`; `[profile.dev.package."*"] opt-level = 2` — deps optimized in debug builds (Bevy needs this)
-- Patched crates (`bevy_render`, `bevy_pbr`, `bevy_transform`, `ktx2-rw`) live in sibling repo `../bevy-patches` (worktrees: `/home/osso/.worktrees/bevy-patches` symlink, so Bevy artifacts reuse across worktrees). Their regression tests run in that repo's workspace; commands in `../bevy-patches/README.md`.
+- Dev profile: `[profile.dev] debug = 1, split-debuginfo = "unpacked"`; `godot/Cargo.toml` adds `opt-level = 2` for dependencies and the parser/network/extension crates (unoptimized they stall the main thread).
+- Patched crates `taffy` (godot) and `ktx2-rw` (godot, tools) live in sibling repo `../bevy-patches` (worktrees: `/home/osso/.worktrees/bevy-patches` symlink). Their regression tests run in that repo's workspace; commands in `../bevy-patches/README.md`.
 - Textures loaded from `data/textures/{fdid}.blp` (named by FileDataID)
 - **NEVER download files to /tmp/** — always save to `data/` for persistence. /tmp is ephemeral.
 
@@ -120,7 +83,7 @@ src/
 - `data/casc/root.bin` + `encoding.bin` — CASC resolution tables (~250MB, from `casc-extract init`). **Never delete — expensive to regenerate.**
 - WoW install: `/syncthing/World of Warcraft/` — full install synced from Windows (CASC at `Data/`, retail at `_retail_/`)
 - **Asset extraction**: Use local CASC storage, never Blizzard CDN. See `docs/casc-extraction.md`.
-- **Gotcha: item material textures** — some item-driven textures come from `ItemDisplayInfo.ModelMaterialResourcesID_*` via `TextureFileData`, not from the same path as attached runtime M2 textures. Auto-extraction is not fully reliable for every such path yet. If an item geoset/model shows untextured, verify the resolved texture FDID exists under `data/textures/` and extract it manually with `cargo run --bin casc-local -- <fdid> -o data/textures` before assuming the render path is wrong.
+- **Gotcha: item material textures** — some item-driven textures come from `ItemDisplayInfo.ModelMaterialResourcesID_*` via `TextureFileData`, not from the same path as attached runtime M2 textures. Auto-extraction is not fully reliable for every such path yet. If an item geoset/model shows untextured, verify the resolved texture FDID exists under `data/textures/` and extract it manually with `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid> -o data/textures` before assuming the render path is wrong.
 
 ## ADT Terrain
 
@@ -132,7 +95,7 @@ src/
 
 - Animation transitions must always crossfade smoothly — never snap between poses. Use `blend_time` from M2 sequence data with a minimum of 150ms for movement transitions.
 - When re-transitioning mid-blend (e.g. quick direction changes), preserve blend progress so the outgoing pose weight is continuous. Resetting to 0 causes visible pops.
-- WoW animation IDs: see `ANIM_*` constants in `src/rendering/model/animation.rs`
+- WoW animation IDs: see `ANIM_*` constants in `godot/rust/src/animation/mod.rs`
 
 ## Wiki
 
@@ -151,7 +114,7 @@ Follow the workflow in `SCHEMA.md`: check existing pages first (update > create)
 
 ## Related
 
-- asset_resolver: `src/asset/asset_resolver.rs` — AssetResolver trait for CASC extraction via cascette-rs. Resolution tables at `data/casc/root.bin` + `encoding.bin`.
+- asset-resolver: `../asset-resolver` — CASC extraction via cascette-rs (`casc-local`, `casc_refresh`). Resolution tables at `data/casc/root.bin` + `encoding.bin`.
 - wow-ui-sim: `/syncthing/Sync/Projects/wow/wow-ui-sim/` — WoW addon UI simulator (iced + custom wgpu)
 - game-server: `../game-server/` — Bevy 0.18 headless game server (lightyear networking, redb persistence, SQLite world data from AzerothCore)
 - When comparing behavior against other WoW clients, renderers, or format libraries, reference `docs/wiki/reference/open-source-wow-clients.md`

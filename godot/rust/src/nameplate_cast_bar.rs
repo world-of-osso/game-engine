@@ -186,10 +186,10 @@ impl CastArt {
         let atlases = read_atlas_art(data_root, &[PIP, PIP_RED, SHIELD])?;
         Ok(Self {
             thick_frame: skin(include_bytes!(
-                "../../../src/rendering/ui/nameplate_skins/cast-thick.png"
+                "rendering/ui/nameplate_skins/cast-thick.png"
             ))?,
             thin_frame: skin(include_bytes!(
-                "../../../src/rendering/ui/nameplate_skins/cast-thin.png"
+                "rendering/ui/nameplate_skins/cast-thin.png"
             ))?,
             background: atlas_region(&sheet, rect(BACKGROUND_RECT)),
             fill_sheet: texture_from_rgba(&pixels, width, height)?,
