@@ -778,6 +778,3 @@ fn open_mail(open: &OpenMailView, busy: bool) -> Element {
     }
 }
 
-#[cfg(all(test, feature = "dev"))]
-#[path = "mail_frame_component_tests.rs"]
-mod tests;

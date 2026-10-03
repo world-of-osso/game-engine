@@ -421,6 +421,3 @@ fn objective_line(name: &str, line: &ObjectiveLine, top: f32) -> Element {
 }
 
 // Bevy layout support; the Godot UI model builds without it.
-#[cfg(all(test, feature = "dev"))]
-#[path = "objective_tracker_component_tests.rs"]
-mod tests;

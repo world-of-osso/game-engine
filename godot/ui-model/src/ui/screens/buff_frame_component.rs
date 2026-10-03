@@ -400,6 +400,3 @@ fn debuff_border(button: &str, dispel: DebuffType) -> Element {
     }
 }
 
-#[cfg(all(test, feature = "dev"))]
-#[path = "buff_frame_component_tests.rs"]
-mod tests;

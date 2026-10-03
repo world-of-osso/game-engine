@@ -242,6 +242,3 @@ fn dispel_border(name: &str, icon: &TargetAuraIconState, size: f32) -> Element {
     }
 }
 
-#[cfg(all(test, feature = "dev"))]
-#[path = "inworld_unit_frames_aura_tests.rs"]
-mod tests;

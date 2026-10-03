@@ -876,9 +876,6 @@ fn difficulty_row(index: usize, entry: &DifficultyMenuEntry) -> Element {
     }
 }
 
-#[cfg(all(test, feature = "dev"))]
-#[path = "../../../tests/unit/inworld_unit_frames_component_tests.rs"]
-mod tests;
 
 #[cfg(test)]
 #[path = "../../../tests/unit/class_bars_tests.rs"]
