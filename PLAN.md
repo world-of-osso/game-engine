@@ -96,3 +96,5 @@
 - [ ] Refactor `src/ui/screens/inworld_unit_frames_aura.rs`: aura_button (line 166): 45 body lines (max 30) — extract into helper functions
 - [ ] Refactor `godot/rust/src/auras.rs`: auras_snapshot (line 239): 43 body lines (max 30) — extract into helper functions
 - [ ] Refactor `godot/rust/src/auras.rs`: sync_swipe (line 334): 36 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/pet_bar.rs`: pet_bar_state (line 222): 39 body lines (max 30) — extract into helper functions
+- [ ] Refactor `godot/rust/src/pet_bar.rs`: pet_bar_snapshot (line 297): 56 body lines (max 30) — extract into helper functions
