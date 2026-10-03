@@ -18,15 +18,27 @@ Native flying mounts interact with manually annotated tree models. One real tree
 
 ## Implementation inventory
 
-Pending implementation.
+Source inventory at `0290ca95`, `7cf63c9b`, `32e9726b` (not runtime acceptance):
+
+- `godot/core/src/elastic_tree.rs`: strict annotation parsing, two-region weights, analytic capsule sweep, tangential response and bounded damped branch state.
+- `godot/rust/src/terrain/{elastic_tree,tree_contact,tree_render}.rs`: FDID cache, placement-owned bodies/states/weighted meshes, physics broadphase and instance shader bends; `assets/mod.rs` and `terrain/objects.rs` attach annotations and replace annotated doodad camera triangles.
+- `godot/rust/src/gameplay.rs`: flying movement consumer with fixed radius 1.25 / vertical offset 1.0 sphere; no separate mount-model gate.
+- `godot/shaders/{m2.gdshader,tree_bend.gdshaderinc}`: opt-in two-branch position/normal deformation.
+- `godot/trees/201394.json`: one real Barrens tree, fixed trunk plus thin/thick limbs. Manual pivots and coarse vertex regions remain provisional until screenshot inspection; no automatic recognition.
 
 ## Tests asserting this spec
 
-Pending behavioral and native integration evidence.
+Assertions inspected; execution and acceptance remain main-owned and pending:
+
+- `godot/core/tests/elastic_tree.rs`: seven tests for validation, stiffness/leverage, recontact/recovery, rigid trunk and region weights, fast/cap/oblique sweep/miss, overlap escape, and tangential response without added energy.
+- `gameplay::tests::tree_contact_deflects_flight_and_reports_corrected_position_without_losing_steering`: pure movement with injected analytic contact; corrected packet position, continued flight and reverse steering. Not Godot broadphase or live network proof.
+- `godot/tests/elastic_tree_contact.gd`: actual M2 loading, trunk/glancing/high-speed/foliage, transformed placement, thin/thick response, independent state, continuous recontact, recovery and unloaded collision. Optional `ELASTIC_TREE_SHOTS` images require inspection; numeric spring assertions do not establish visible deformation.
 
 ## Known gaps (current cycle)
 
-- [ ] Annotation, native flight/rendering integration and runtime proof pending.
+- [ ] Native build/runtime, authored mounted-flight/network integration and visual bending acceptance pending; contract bullets remain unchecked.
+- [ ] Inspect actual tree pivots/regions in rest, impact and recovered screenshots.
+- [ ] Prototype bounded to two branches, uniform placement scale and one fixed mount envelope; crowded broadphase saturation is unproved.
 
 ## Out of scope
 

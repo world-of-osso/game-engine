@@ -19,6 +19,15 @@ Animation: the rider holds Mount (91). The mount plays the rider's locomotion cl
 - `PlayerInput.flying` reports the flight; a vertical-only climb or descent reports like a swimmer's.
 - Using the mount spell while riding it sends `CancelMountAura` (dismount). `use_spell(id)` (`#[func]`) casts through that same path for fixtures.
 
+## Annotated tree contact
+
+The flying movement path now consumes manually annotated tree contact with a fixed prototype sphere, tangential deflection and per-placement damped branches. This is source inventory, not an extension of the earlier live flight proof below; native tree runtime and visual acceptance remain pending. See [[elastic-trees]] for authoring and limits.
+
+## See Also
+
+- [[elastic-trees]] — provisional manual annotations and native flight contact; runtime proof pending.
+- [[collision-system]] — terrain, WMO and camera collision boundaries.
+
 ## Proof
 
 - Depot unit tests (`gameplay::tests`): takeoff/climb at flight speed, hover without gravity, X descent and landing input, mouse-steered pitch, fall after losing `CAN_FLY`, Space without `CAN_FLY` only jumps.
