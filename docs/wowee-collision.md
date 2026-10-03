@@ -1,5 +1,7 @@
 # WoWee Collision Detection
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Reference documentation for collision detection in [WoWee](https://github.com/AridTag/WoWee) (`~/Repos/WoWee/`), a C++ WoW 3.3.5a client. Source files referenced below are relative to that repo.
 
 ## Architecture Overview

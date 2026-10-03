@@ -1,6 +1,6 @@
 # Key Bindings
 
-The Retail default key bindings in the Godot client. Actions, persisted tokens and defaults are defined in `src/input_bindings_data.rs`. Options › Keybindings lists them by section.
+The Retail default key bindings in the Godot client. Actions, persisted tokens and defaults are defined in `godot/core/src/input_bindings_data.rs`. Options › Keybindings lists them by section.
 
 Sources:
 - Binding actions: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_FrameXML/Bindings_Standard.xml`.

@@ -1,5 +1,7 @@
 # Guild Bank Frame
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 The Retail `GuildBankFrame` at a Guild Vault. The vault is a replicated server game object: it is picked with a right-click, which sends `UseGameObject`. Contract: shared-protocol `protocol/guild_bank_messages.rs` and `interaction_messages.rs` (`GameObjectInfo`, `UseGameObject`). Server rules: game-server `docs/specs/banks.md`. How it works: [banks](../wiki/systems/banks.md).
 
 References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankUI.xml` / `.lua` under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`.
@@ -54,19 +56,19 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 |---|---|
 | `src/game/networking/game_objects.rs` | `GameObjectDisplays`, vault spawn observer |
 | `src/rendering/ui/target.rs`, `src/game/networking/quests.rs` | `ServerObject` pick → `UseGameObject` |
-| `src/game/bank_data.rs` | `GuildBankState`, `GuildBankRequest`, log lines |
+| `godot/ui-model/src/game/bank_data.rs` | `GuildBankState`, `GuildBankRequest`, log lines |
 | `src/game/networking/bank.rs` | Guild bank receive/send |
 | `src/scenes/bank_frame/{mod,view,actions}.rs` | Screen, windows, clicks |
-| `src/ui/screens/guild_bank_frame_component.rs` | Retail GuildBankFrame layout |
+| `godot/ui-model/src/ui/screens/guild_bank_frame_component.rs` | Retail GuildBankFrame layout |
 
 ## Tests asserting this spec
 - `src/game/networking/game_objects.rs` (tests)
 - `src/network_runtime/replication.rs` (`game_objects_mirror_with_their_position`)
 - `src/game/networking/quests_tests.rs` (`using_a_mirrored_game_object_sends_use_game_object_and_its_role_opens_a_frame`)
-- `src/game/bank_data_tests.rs`
+- `godot/ui-model/src/game/bank_data_tests.rs`
 - `src/game/networking/bank_tests.rs`
 - `src/scenes/bank_frame/tests.rs`
-- `src/ui/screens/guild_bank_frame_component_tests.rs`
+- `godot/ui-model/src/ui/screens/guild_bank_frame_component_tests.rs`
 
 ## Known gaps (current cycle)
 - [ ] The selected tab uses the same gold marker as the bank frame, because there is no additive blending.

@@ -20,7 +20,7 @@
 #[path = "../m2_particle_defaults.rs"]
 mod defaults;
 
-use super::m2_anim::{AnimTrack, parse_f32_track, parse_u8_track};
+use super::m2_anim::{AnimTrack, parse_bytes4_track, parse_f32_track, parse_u8_track};
 use super::{
     MD20_PARTICLE_EMITTERS_COUNT_OFFSET, MD20_VERSION_OFFSET, fixed16_to_f32, unorm16_to_f32,
 };
@@ -577,13 +577,24 @@ fn fill_visual_values(em: &mut M2ParticleEmitter, md20: &[u8], data: &[u8]) {
     };
 }
 
-/// `emissionRate`, `emissionSpeed` and `enabledIn` M2Tracks that change within a
-/// sequence (spell effect bursts); `None` when every sequence holds one key, which the
-/// static field already carries.
+/// The emitter's M2Tracks that change within a sequence (spell effect bursts,
+/// growing rings); `None` when every sequence holds one key, which the static field
+/// already carries. WebWowViewerCpp animates each into `CGeneratorAniProp`
+/// (animationManager.cpp:1349-1470 `calcParticleEmitters`).
 #[derive(Debug, Clone, Default, PartialEq)]
 pub struct EmitterTracks {
-    pub emission_rate: Option<AnimTrack<f32>>,
     pub emission_speed: Option<AnimTrack<f32>>,
+    pub speed_variation: Option<AnimTrack<f32>>,
+    pub vertical_range: Option<AnimTrack<f32>>,
+    pub horizontal_range: Option<AnimTrack<f32>>,
+    /// Gravity vector in raw WoW coordinates, decoded per key like `gravity_vector`.
+    pub gravity: Option<AnimTrack<[f32; 3]>>,
+    pub lifespan: Option<AnimTrack<f32>>,
+    pub emission_rate: Option<AnimTrack<f32>>,
+    pub area_length: Option<AnimTrack<f32>>,
+    pub area_width: Option<AnimTrack<f32>>,
+    /// Cleared when the model has an EXP2 chunk, whose zSource wins.
+    pub z_source: Option<AnimTrack<f32>>,
     pub enabled: Option<AnimTrack<u8>>,
 }
 
@@ -598,11 +609,42 @@ fn keyframed<T>(track: AnimTrack<T>) -> Option<AnimTrack<T>> {
         .then_some(track)
 }
 
+/// The gravity track as WoW vectors: compressed keys (flag 0x800000) decode like the
+/// static value, float keys pull down -Z (animationManager.cpp:1400-1420).
+fn parse_gravity_track(md20: &[u8], offset: usize) -> Option<AnimTrack<[f32; 3]>> {
+    let compressed = uses_compressed_gravity(md20.get(offset..)?);
+    let raw = keyframed(parse_bytes4_track(md20, offset + EMITTER_GRAVITY_OFFSET).ok()?)?;
+    let decode = |bytes: [u8; 4]| {
+        if compressed {
+            decode_compressed_particle_gravity(bytes)
+        } else {
+            [0.0, 0.0, -f32::from_le_bytes(bytes)]
+        }
+    };
+    Some(AnimTrack {
+        interpolation_type: raw.interpolation_type,
+        global_sequence: raw.global_sequence,
+        sequences: raw
+            .sequences
+            .into_iter()
+            .map(|(times, values)| (times, values.into_iter().map(decode).collect()))
+            .collect(),
+    })
+}
+
 fn parse_emitter_tracks(md20: &[u8], offset: usize, stride: usize) -> EmitterTracks {
     let f32_track = |field| keyframed(parse_f32_track(md20, offset + field).ok()?);
     EmitterTracks {
-        emission_rate: f32_track(EMITTER_EMISSION_RATE_OFFSET),
         emission_speed: f32_track(EMITTER_EMISSION_SPEED_OFFSET),
+        speed_variation: f32_track(EMITTER_SPEED_VARIATION_OFFSET),
+        vertical_range: f32_track(EMITTER_VERTICAL_RANGE_OFFSET),
+        horizontal_range: f32_track(EMITTER_HORIZONTAL_RANGE_OFFSET),
+        gravity: parse_gravity_track(md20, offset),
+        lifespan: f32_track(EMITTER_LIFESPAN_OFFSET),
+        emission_rate: f32_track(EMITTER_EMISSION_RATE_OFFSET),
+        area_length: f32_track(EMITTER_AREA_LENGTH_OFFSET),
+        area_width: f32_track(EMITTER_AREA_WIDTH_OFFSET),
+        z_source: f32_track(EMITTER_Z_SOURCE_OFFSET),
         enabled: (stride > EMITTER_ENABLED_OFFSET)
             .then(|| keyframed(parse_u8_track(md20, offset + EMITTER_ENABLED_OFFSET).ok()?))
             .flatten(),
@@ -707,11 +749,14 @@ pub fn parse_particle_emitters(md20: &[u8]) -> Vec<M2ParticleEmitter> {
 const EXP2_RECORD_STRIDE: usize = 28;
 
 /// With an EXP2 chunk the client takes each emitter's zSource from its EXP2
-/// record, not the MD20 track (WebWowViewerCpp `animationManager.cpp`,
-/// `M2Object::initParticleEmitters`), and multiplies colour and opacity by the
+/// record, not the MD20 track, and never animates the track (WebWowViewerCpp
+/// animationManager.cpp:1460 `if (!m_hasExp2)`, `M2Object::initParticleEmitters`), and multiplies colour and opacity by the
 /// record's colorMult/alphaMult (`particleEmitter.cpp:317-318`, fragment
 /// `m2ParticleShader.frag.slang:94`). Array offsets are relative to the chunk.
 pub fn apply_exp2_z_sources(emitters: &mut [M2ParticleEmitter], exp2: &[u8]) {
+    for emitter in emitters.iter_mut() {
+        emitter.tracks.z_source = None;
+    }
     let Ok((count, offset)) = read_m2_array_header(exp2, 0) else {
         return;
     };

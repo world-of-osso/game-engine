@@ -1,5 +1,7 @@
 # Buff frame
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 This spec defines the player BuffFrame and DebuffFrame and the TargetFrame auras at their Retail defaults. Citations are to `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/` (`Blizzard_BuffFrame`, `Blizzard_EditMode`, `Blizzard_FrameXMLUtil`, `Blizzard_SharedXML`, `Blizzard_Fonts_Shared`).
 
 ## What it must do
@@ -54,11 +56,11 @@ The Retail PlayerFrame has no aura icons: `Mainline/PlayerFrame.lua` only update
 
 ## Implementation inventory
 
-- `src/game/aura_display_data.rs`: replicated views to `AuraInstance`, shared by both clients.
-- `src/ui/screens/inworld_unit_frames_aura.rs`: TargetFrame aura filters, sort and flow layout.
+- `godot/ui-model/src/game/aura_display_data.rs`: replicated views to `AuraInstance`, shared by both clients.
+- `godot/ui-model/src/ui/screens/inworld_unit_frames_aura.rs`: TargetFrame aura filters, sort and flow layout.
 - `godot/rust/src/auras.rs`: Godot BuffFrame, countdown, TargetFrame swipes.
 
-- `src/ui/screens/buff_frame_component.rs`: layout, duration text, borders, flash curve.
+- `godot/ui-model/src/ui/screens/buff_frame_component.rs`: layout, duration text, borders, flash curve.
 - `src/scenes/buff_frame/mod.rs`: mounting, flash system, right-click cancel.
 - `src/game/buff_data.rs`: `AuraInstance::timer_text`, hidden/passive filter.
 - `src/scenes/tooltip_frame/mod.rs`: aura tooltip on hover.

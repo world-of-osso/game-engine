@@ -14,7 +14,7 @@ The UI system uses Dioxus `rsx!` authoring, `SharedContext` generation tracking,
 
 **Pre-compute negations**: `!bool_expr` doesn't work inside `rsx!` — do `let hide = !visible;` before the macro.
 
-**Portable fonts and borders**: `FontRegistry::with_directory("data/fonts")` gives the engine an explicit authoritative font directory before `UiPlugin`; missing configured fonts do not select the toolkit default directory. Engine data supplies Friz Quadrata (FDID 615960) and Arial Narrow (FDID 615958). Login and character input borders resolve from `data/ui/Common-Input-Border-*.blp` (FDIDs 374201–374209), with generated login-button KTX2 assets also in `data/ui/`. See [Windows development](../../windows-development.md) for Windows proof boundaries.
+**Portable fonts and borders**: `FontRegistry::with_directory("data/fonts")` gives the engine an explicit authoritative font directory before `UiPlugin`; missing configured fonts do not select the toolkit default directory. Engine data supplies Friz Quadrata (FDID 615960) and Arial Narrow (FDID 615958). Login and character input borders resolve from `data/ui/Common-Input-Border-*.blp` (FDIDs 374201–374209), with generated login-button KTX2 assets also in `data/ui/`. See [deploy](../../deploy.md#other-platforms) for Windows status.
 
 ## Frame Hierarchy and Layout
 

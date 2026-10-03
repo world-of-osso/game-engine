@@ -21,9 +21,10 @@ WarbandScene position
 
 Relevant code:
 
-- [warband_scene.rs](/syncthing/Sync/Projects/world-of-osso/game-engine/src/warband_scene.rs)
-- [light_lookup.rs](/syncthing/Sync/Projects/world-of-osso/game-engine/src/light_lookup.rs)
-- [casc_resolver.rs](/syncthing/Sync/Projects/world-of-osso/game-engine/src/asset/casc_resolver.rs)
+- [warband_scene_data.rs](../godot/core/src/warband_scene_data.rs)
+- [light_lookup_data.rs](../godot/core/src/rendering/lighting/light_lookup_data.rs)
+- [skybox_debug/source.rs](../godot/rust/src/skybox_debug/source.rs)
+- [assets/mod.rs](../godot/rust/src/assets/mod.rs) — runtime local-CASC extraction through `asset-resolver`
 - [casc_local.rs](/syncthing/Sync/Projects/world-of-osso/asset-resolver/src/bin/casc_local.rs)
 
 ## What Works Today
@@ -40,20 +41,20 @@ LightParamsID 5615
 `skyboxdebug` can force this path directly with either:
 
 ```bash
-cargo run --bin game-engine -- --screen skyboxdebug --light-skybox-id 653
+cargo run -- --screen skyboxdebug --light-skybox-id 653
 ```
 
 or:
 
 ```bash
-cargo run --bin game-engine -- --screen skyboxdebug --skybox-fdid 5412968
+cargo run -- --screen skyboxdebug --skybox-fdid 5412968
 ```
 
-The lookup is verified, but the current renderer still outputs an effectively black frame for this authored skybox in `skyboxdebug`.
+The lookup is verified; the retired Bevy renderer output an effectively black frame for this authored skybox in `skyboxdebug`. Godot `skyboxdebug` behavior: [native skybox debug spec](specs/native-skybox-debug.md).
 
 ## Current Rendering Failure
 
-As of 2026-04-11, the black authored-skybox failure is still reproducible, but the default
+Bevy-era record (2026-04-11; the one-shot `screenshot` binary mode was retired with Bevy — with Godot, launch the screen and capture via `target/debug/game-engine-cli screenshot <path>`). The default
 warband debug path should no longer be treated as an authored control:
 
 ```bash

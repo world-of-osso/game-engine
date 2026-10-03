@@ -31,8 +31,8 @@ Native startup runs the existing synchronous JavaScript UI automation API agains
 ## Implementation inventory
 
 - `godot/rust/src/js_automation.rs` — native ordered queue, frame waits, input-event dispatch, and dedicated Node host.
-- `src/ui/js_automation.rs` — original synchronous JS compiler, environment bridge, and state aliases, exported by the native network crate.
-- `src/ui/automation_data.rs` — shared original action variants and key-chord grammar.
+- `godot/network/src/ui/js_automation.rs` — original synchronous JS compiler, environment bridge, and state aliases, exported by the native network crate.
+- `godot/network/src/ui/automation_data.rs` — shared original action variants and key-chord grammar.
 - `godot/rust/src/startup.rs` — native startup intent and script-host attachment integration.
 - `godot/rust/src/ipc.rs` — live diagnostic formatter entry points used by dump actions.
 
@@ -40,7 +40,7 @@ Native startup runs the existing synchronous JavaScript UI automation API agains
 
 - `godot/network/examples/native_js_automation_fixture.rs` — real account UDP fixture and production child-process/stdout checks.
 - `godot/tests/native_js_automation_flow.gd` — observation-only authored Login input and authoritative CharSelect checks.
-- `src/ui/js_automation.rs` tests — compiler action/key/wait semantics, not native input proof.
+- `godot/network/src/ui/js_automation.rs` tests — compiler action/key/wait semantics, not native input proof.
 
 ## Current proof and gaps
 

@@ -1,6 +1,6 @@
 # M2 particle emitters (Godot client)
 
-M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creature display models and spell visual kit models. The shared parsing and simulation live in `godot/core` (`m2_particles`, the M2 parser in `src/asset/m2_format/m2_particle.rs`). Godot drawing lives in `godot/rust/src/particles.rs` and `godot/shaders/particle.gdshader`. Behaviour follows WebWowViewerCpp `managers/particles/particleEmitter.cpp` and its generators; pool sizing follows solarityclient `particle_system2`. See [godot-conversion](../wiki/systems/godot-conversion.md#native-m2-particles).
+M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creature display models and spell visual kit models. The shared parsing and simulation live in `godot/core` (`m2_particles`, the M2 parser in `godot/core/src/asset/m2_format/m2_particle.rs`). Godot drawing lives in `godot/rust/src/particles.rs` and `godot/shaders/particle.gdshader`. Behaviour follows WebWowViewerCpp `managers/particles/particleEmitter.cpp` and its generators; pool sizing follows solarityclient `particle_system2`. See [godot-conversion](../wiki/systems/godot-conversion.md#native-m2-particles).
 
 ## What it must do
 
@@ -36,8 +36,8 @@ M2 `ParticleSystem2` emitters on placed doodads (ADT MDDF and WMO MODD), creatur
 
 ## Implementation inventory
 
-- `src/asset/m2_format/m2_particle.rs` — emitter, EXP2 and cell-key parsing (shared with the Bevy client).
-- `src/asset/m2_particle_defaults.rs` — emitter defaults.
+- `godot/core/src/asset/m2_format/m2_particle.rs` — emitter, EXP2 and cell-key parsing (shared with the Bevy client).
+- `godot/core/src/asset/m2_particle_defaults.rs` — emitter defaults.
 - `godot/core/src/m2.rs` — `Model::particle_emitters`.
 - `godot/core/src/m2_particles.rs` — random stream, spawn, update, lifetime appearance, quads, pool sizing, blend depth/alpha-test rules.
 - `godot/rust/src/particles.rs` — pools, materials, emitter frames from bones, `WowParticleProbe`.

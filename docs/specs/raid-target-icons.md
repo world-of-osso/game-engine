@@ -1,6 +1,6 @@
 # Raid Target Icons
 
-Retail raid target icons (Star, Circle, Diamond, Triangle, Moon, Square, Cross, Skull): set on a unit from the TargetFrame menu or key bindings, shown on its nameplate and the TargetFrame, shared with the group. Code: `godot/rust/src/raid_targets.rs`, `godot/rust/src/nameplates.rs`, `godot/rust/src/unit_menu.rs`, `src/ui/screens/inworld_unit_frames_component.rs` (`raid_target_icon`), `src/input_bindings_data.rs`; server `crates/server/src/group/registry.rs` (`set_raid_target`); protocol `SetRaidTarget` / `RaidTargetIcons` (shared-protocol `group_messages.rs`).
+Retail raid target icons (Star, Circle, Diamond, Triangle, Moon, Square, Cross, Skull): set on a unit from the TargetFrame menu or key bindings, shown on its nameplate and the TargetFrame, shared with the group. Code: `godot/rust/src/raid_targets.rs`, `godot/rust/src/nameplates.rs`, `godot/rust/src/unit_menu.rs`, `godot/ui-model/src/ui/screens/inworld_unit_frames_component.rs` (`raid_target_icon`), `godot/core/src/input_bindings_data.rs`; server `crates/server/src/group/registry.rs` (`set_raid_target`); protocol `SetRaidTarget` / `RaidTargetIcons` (shared-protocol `group_messages.rs`).
 
 References:
 - `Blizzard_UnitFrame/Mainline/TargetFrame.lua:672-694` (`UpdateRaidTargetIcon`, `SetRaidTargetIconTexture`, `SetRaidTargetIcon`), `TargetFrame.xml:275-279`

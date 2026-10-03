@@ -94,8 +94,8 @@ func base_inputs() -> void:
 	material.set_shader_parameter("direct", Vector3.ZERO)
 	material.set_shader_parameter("sun_direction", Vector3.DOWN)
 	material.set_shader_parameter("fog_mode", 0)
-	material.set_shader_parameter("fog_color", Vector3.ZERO)
-	material.set_shader_parameter("fog_range", Vector2.ZERO)
+	RenderingServer.global_shader_parameter_set("fog_color", Vector3.ZERO)
+	RenderingServer.global_shader_parameter_set("fog_range", Vector2.ZERO)
 	material.set_shader_parameter("fog_opacity", 0.0)
 
 # A matrix translating texture coordinates by `offset` (the shader's (u, v, 1) mat3).
@@ -132,10 +132,10 @@ func assert_unlit_without_sun() -> bool:
 	material.set_shader_parameter("render_flags", 1)
 	material.set_shader_parameter("fog_mode", 1)
 	# Half fog at the fixture distance of 2: exp(-(2 - 1) * ln 2).
-	material.set_shader_parameter("fog_range", Vector2(1.0, 100.0))
-	material.set_shader_parameter("fog_density", log(2.0))
+	RenderingServer.global_shader_parameter_set("fog_range", Vector2(1.0, 100.0))
+	RenderingServer.global_shader_parameter_set("fog_density", log(2.0))
 	material.set_shader_parameter("fog_opacity", 1.0)
-	material.set_shader_parameter("fog_color", Color(0.0, 0.0, 1.0).srgb_to_linear())
+	RenderingServer.global_shader_parameter_set("fog_color", Color(0.0, 0.0, 1.0).srgb_to_linear())
 	if not await assert_pixel("unlit fogged without sun", Color(0.2, 0.15, 0.6)):
 		return false
 	viewport.add_child(sun)
@@ -246,24 +246,24 @@ func run_cases() -> void:
 		return
 	material.set_shader_parameter("fog_mode", 1)
 	# Half fog at the fixture distance of 2: exp(-(2 - 1) * ln 2).
-	material.set_shader_parameter("fog_range", Vector2(1.0, 100.0))
-	material.set_shader_parameter("fog_density", log(2.0))
+	RenderingServer.global_shader_parameter_set("fog_range", Vector2(1.0, 100.0))
+	RenderingServer.global_shader_parameter_set("fog_density", log(2.0))
 	material.set_shader_parameter("fog_opacity", 1.0)
-	material.set_shader_parameter("fog_color", Color(0.0, 0.0, 1.0).srgb_to_linear())
+	RenderingServer.global_shader_parameter_set("fog_color", Color(0.0, 0.0, 1.0).srgb_to_linear())
 	material.set_shader_parameter("render_flags", 1)
 	if not await assert_pixel("unlit fogged", Color(0.2, 0.15, 0.6)):
 		return
 	# calculateLegacyFog end fade: 1.42857 * (1 - 2 / (2 / 0.65)) leaves half the colour.
-	material.set_shader_parameter("fog_density", 0.0)
-	material.set_shader_parameter("fog_range", Vector2(0.0, 2.0 / 0.65))
+	RenderingServer.global_shader_parameter_set("fog_density", 0.0)
+	RenderingServer.global_shader_parameter_set("fog_range", Vector2(0.0, 2.0 / 0.65))
 	if not await assert_pixel("unlit end fade", Color(0.2, 0.15, 0.6)):
 		return
 	# Fog starts at fog_range.x: nothing is fogged before it.
-	material.set_shader_parameter("fog_density", log(2.0))
-	material.set_shader_parameter("fog_range", Vector2(2.0, 100.0))
+	RenderingServer.global_shader_parameter_set("fog_density", log(2.0))
+	RenderingServer.global_shader_parameter_set("fog_range", Vector2(2.0, 100.0))
 	if not await assert_pixel("unlit before fog start", Color(0.4, 0.3, 0.2)):
 		return
-	material.set_shader_parameter("fog_range", Vector2(1.0, 100.0))
+	RenderingServer.global_shader_parameter_set("fog_range", Vector2(1.0, 100.0))
 	material.set_shader_parameter("render_flags", 2)
 	if not await assert_pixel("lit unfogged", Color(0.4, 0.3, 0.2) * 0.74):
 		return

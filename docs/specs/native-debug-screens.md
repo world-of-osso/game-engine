@@ -1,5 +1,7 @@
 # Native debug screens
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Offline `--screen` debug destinations of the Godot client, ported from the Bevy debug scenes (`src/scenes/*_debug`). None contacts a server; load failures stop startup with an error. `particledebug` is specified in [Godot conversion](godot-conversion.md).
 
 ## What it must do

@@ -78,28 +78,28 @@ func run_particle_pixels() -> bool:
 		passed = await assert_pixel("particle blend %d at fade %.1f" % [mode, FADE], faded[mode]) and passed
 	return await run_fog_pixels() and passed
 
-## The scene fog uniforms `TerrainLight::bind_scene_fog` gives every pool: white legacy
-## fog, half at the camera's distance.
+## The scene fog every pool reads once `TerrainLight::bind_scene_fog` enables it (global
+## uniforms, `TerrainLight::bind_scene`): white legacy fog, half at the camera's distance.
 func bind_half_fog() -> void:
 	var material := (particle as GeometryInstance3D).material_override as ShaderMaterial
 	material.set_shader_parameter("fog_mode", 1)
 	material.set_shader_parameter("fog_opacity", 1.0)
-	material.set_shader_parameter("fog_range", Vector2(0.0, 1000.0))
-	material.set_shader_parameter("fog_density", HALF_DENSITY)
-	material.set_shader_parameter("fog_height_density", 0.0)
-	material.set_shader_parameter("fog_height", -10000.0)
-	material.set_shader_parameter("fog_height_rate", 0.0)
-	material.set_shader_parameter("fog_z_scalar", 0.0)
-	material.set_shader_parameter("fog_legacy_scalar", 1.0)
-	material.set_shader_parameter("fog_main_range", Vector2(0.0, 0.001))
-	material.set_shader_parameter("fog_color_range", Vector2(0.0, 10000.0))
-	material.set_shader_parameter("fog_height_coefficients", Vector4(1.0, 0.0, 0.0, 0.0))
-	material.set_shader_parameter("fog_main_coefficients", Vector4.ZERO)
-	material.set_shader_parameter("fog_height_density_coefficients", Vector4.ZERO)
-	material.set_shader_parameter("fog_sun_angle", 1.0)
-	material.set_shader_parameter("fog_sun_percentage", 0.0)
+	RenderingServer.global_shader_parameter_set("fog_range", Vector2(0.0, 1000.0))
+	RenderingServer.global_shader_parameter_set("fog_density", HALF_DENSITY)
+	RenderingServer.global_shader_parameter_set("fog_height_density", 0.0)
+	RenderingServer.global_shader_parameter_set("fog_height", -10000.0)
+	RenderingServer.global_shader_parameter_set("fog_height_rate", 0.0)
+	RenderingServer.global_shader_parameter_set("fog_z_scalar", 0.0)
+	RenderingServer.global_shader_parameter_set("fog_legacy_scalar", 1.0)
+	RenderingServer.global_shader_parameter_set("fog_main_range", Vector2(0.0, 0.001))
+	RenderingServer.global_shader_parameter_set("fog_color_range", Vector2(0.0, 10000.0))
+	RenderingServer.global_shader_parameter_set("fog_height_coefficients", Vector4(1.0, 0.0, 0.0, 0.0))
+	RenderingServer.global_shader_parameter_set("fog_main_coefficients", Vector4.ZERO)
+	RenderingServer.global_shader_parameter_set("fog_height_density_coefficients", Vector4.ZERO)
+	RenderingServer.global_shader_parameter_set("fog_sun_angle", 1.0)
+	RenderingServer.global_shader_parameter_set("fog_sun_percentage", 0.0)
 	for name in ["fog_color", "fog_end_color", "fog_height_color", "fog_height_end_color", "fog_sun_color"]:
-		material.set_shader_parameter(name, Vector3.ONE)
+		RenderingServer.global_shader_parameter_set(name, Vector3.ONE)
 
 ## Alpha particles fog toward the fog colour; additive ones toward black
 ## (validateFogColor), so their contribution halves.

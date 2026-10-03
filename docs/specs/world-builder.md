@@ -1,5 +1,7 @@
 # World Builder
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 World Builder is an opt-in in-world diagnostic sidebar implemented under `src/rendering/ui/world_builder*` and `src/ui/screens/world_builder_component*`. It exposes the live Bevy scene forest for performance isolation. See [world-builder](../wiki/systems/world-builder.md) for implementation details.
 
 ## What it must do

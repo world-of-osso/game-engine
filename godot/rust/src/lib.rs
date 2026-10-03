@@ -694,6 +694,13 @@ impl GameClient {
                 .unwrap_or_default(),
         );
         state.set("terrain", &terrain::state::terrain_state(&self.terrain));
+        state.set(
+            "scene_light",
+            &self
+                .world
+                .light()
+                .map_or_else(Variant::nil, |light| light.scene_state().to_variant()),
+        );
         let area_id = local_transform.and_then(|transform| {
             self.terrain
                 .area_id_at(transform.origin.x, transform.origin.z)

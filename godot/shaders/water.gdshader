@@ -30,13 +30,7 @@ uniform vec2 flow = vec2(0.0);
 uniform int color_source = 1;
 uniform bool interior = false;
 
-// Scene light (lighting/mod.rs bind_water), authored RGB.
-uniform vec3 ambient = vec3(1.0);
-uniform vec3 horizon_ambient = vec3(1.0);
-uniform vec3 ground_ambient = vec3(1.0);
-uniform vec3 direct = vec3(0.0);
-// Godot world direction the sunlight travels.
-uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
+#include "res://shaders/scene_light.gdshaderinc"
 uniform vec3 specular_color = vec3(0.0);
 // Close/far liquid colour with shallow/deep alpha.
 uniform vec4 river_close = vec4(0.0);
@@ -172,10 +166,10 @@ void fragment() {
 	float facing = 1.0 - clamp(dot(-view_direction, normal), 0.0, 1.0);
 	float fresnel = facing * facing;  // v106
 
-	vec3 to_sun = normalize(-to_wow(sun_direction));  // v111
+	vec3 to_sun = normalize(-to_wow(light_sun_direction()));  // v111
 	// uSunAttenuation.z is 0 without LightParams sun attenuation, so v116 = 1.
 	float sun_attenuation = 1.0;
-	vec3 surface_light = direct * clamp(to_sun.z, 0.0, 1.0) * sun_attenuation + ambient;  // v126
+	vec3 surface_light = light_direct() * clamp(to_sun.z, 0.0, 1.0) * sun_attenuation + light_ambient();  // v126
 
 	vec4 close_color = river_close;
 	vec4 far_color = river_far;
@@ -222,7 +216,7 @@ void fragment() {
 	alpha = (alpha + (1.0 - alpha) * clamp(-thickness, 0.0, 1.0)) * authored_depth;
 
 	float n_dot_l = clamp(dot(to_sun, normal), 0.0, 1.0);
-	color += f9 * n_dot_l * sun_attenuation * direct * lit_water + (interior ? 0.0 : f10) * specular;
+	color += f9 * n_dot_l * sun_attenuation * light_direct() * lit_water + (interior ? 0.0 : f10) * specular;
 	color = apply_retail_fog(color, VERTEX, INV_VIEW_MATRIX);
 	ALBEDO = gamma_to_linear(max(color, vec3(0.0)));
 	ALPHA = alpha;

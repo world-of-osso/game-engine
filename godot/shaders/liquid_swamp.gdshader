@@ -34,11 +34,7 @@ uniform vec3 frame_counts_3 = vec3(1.0);
 // LiquidObject FlowSpeed and FlowDirection (degrees).
 uniform vec2 flow = vec2(0.0);
 
-// Scene light, authored RGB.
-uniform vec3 ambient = vec3(1.0);
-uniform vec3 direct = vec3(0.0);
-// Godot world direction the sunlight travels.
-uniform vec3 sun_direction = vec3(0.0, -1.0, 0.0);
+#include "res://shaders/scene_light.gdshaderinc"
 uniform vec3 specular_color = vec3(0.0);
 #include "res://shaders/retail_fog.gdshaderinc"
 
@@ -186,7 +182,7 @@ void fragment() {
 	float below_thickness = behind ? refracted_depth - water_depth : thickness;
 	// Murk absorbs the refracted scene towards the ambient-lit murk colour (v126).
 	float murk = exp(-f17 * max(below_thickness, 0.0));
-	below = below * murk + murk_color * ambient * (1.0 - murk);
+	below = below * murk + murk_color * light_ambient() * (1.0 - murk);
 
 	// Three depth-blended surface layers, distorted by the bump (v127-v136).
 	vec2 distortion = bump.xy * 0.1;
@@ -206,16 +202,16 @@ void fragment() {
 	vec3 color = surface.a * surface.rgb + (1.0 - surface.a) * below;  // v139
 
 	// v141 dots the sun with (1, 1, 1), not the normal, as the reference does.
-	vec3 to_sun = normalize(-to_wow(sun_direction));  // v140
+	vec3 to_sun = normalize(-to_wow(light_sun_direction()));  // v140
 	float flat_light = clamp(dot(to_sun, vec3(1.0)), 0.0, 1.0) * sun_attenuation;
-	color *= f12 * clamp(flat_light * direct + ambient, 0.0, 1.0);  // v142
+	color *= f12 * clamp(flat_light * light_direct() + light_ambient(), 0.0, 1.0);  // v142
 
 	vec3 halfway = normalize(to_sun - view_direction);  // v148
 	float highlight = pow(clamp(dot(halfway, normal), 0.0, 1.0), SPECULAR_POWER) * sun_attenuation
 		+ clamp(normal.z - 0.8, 0.0, 1.0);  // v150
 	vec3 specular = specular_color * highlight;  // v151
 	float n_dot_l = clamp(dot(to_sun, normal), 0.0, 1.0) * sun_attenuation;  // v155
-	color = f12 * clamp(n_dot_l * direct + ambient, 0.0, 1.0) * color + f13 * specular;  // v157
+	color = f12 * clamp(n_dot_l * light_direct() + light_ambient(), 0.0, 1.0) * color + f13 * specular;  // v157
 
 	// Alpha: opaque past the 0.04 yd shore, else fading in towards half the fog end (v158-v159).
 	float fog_fade = ramp(fog_range.x, fog_range.y * 0.5, distance_to_camera);

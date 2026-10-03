@@ -1,5 +1,7 @@
 # HUD edit mode
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Implements the accepted decision "HUD edit mode can move every HUD element, as in WoW
 Edit Mode" and open decision 1 (layouts account-wide, active layout per character) of the
 [in-game UI plan](../plans/2026-09-23-ingame-ui.md). Window movement is separate:

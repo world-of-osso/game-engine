@@ -4,13 +4,13 @@ Use the UI automation runner when you need proof that a UI flow actually works t
 
 ## Entry Points
 
-- Structured action file: `--run-ui-script <path>`
-- JavaScript file: `--run-js-ui-script <path>`
+- JavaScript file: `--run-js-ui-script <path>` ([native UI automation spec](specs/native-ui-automation.md))
+- The Bevy client's structured action file (`--run-ui-script`) has no Godot equivalent.
 
 Example:
 
 ```bash
-LOGIN_USER=alice LOGIN_PASS=secret cargo run --bin game-engine -- --server 127.0.0.1:5000 --state login --run-js-ui-script debug/login.js
+LOGIN_USER=alice LOGIN_PASS=secret cargo run -- --server 127.0.0.1:5000 --state login --run-js-ui-script debug/login.js
 ```
 
 ## JavaScript API
@@ -60,19 +60,19 @@ Current scope:
 ## Debug Checklist
 
 - Successful login script:
-  `LOGIN_USER=alice LOGIN_PASS=secret cargo run --bin game-engine -- --server 127.0.0.1:5000 --state login --run-js-ui-script debug/login.js`
+  `LOGIN_USER=alice LOGIN_PASS=secret cargo run -- --server 127.0.0.1:5000 --state login --run-js-ui-script debug/login.js`
 - Failed login script:
   Run the same command with an invalid password and confirm the state does not reach `CharSelect`
 - Reconnect script:
   Add a script that clicks `ReconnectButton` after a saved `data/auth_token` exists
 - Login UI tree dump:
   Use a script that stops after `ui.dumpUiTree()`
-- Post-login entity tree dump:
+- Post-login node tree dump:
   Use a script that waits for `CharSelect` and then calls `ui.dumpTree()`
 
 ## Character-creation draft
 
-`cargo run --bin game-engine -- --screen charcreate --run-js-ui-script debug/character-create.js`
+`cargo run -- --screen charcreate --run-js-ui-script debug/character-create.js`
 
 The script selects Human/Warrior, switches both body types, selects pointed ears and an eye color through category dropdowns, types `DraftProof`, exercises camera controls, then navigates Back/Next. It leaves the draft open without submitting a character. Inspect it with the instance-specific IPC `dump-ui-tree` and `screenshot` commands; the name should remain `DraftProof` and the Ears value should be `Point`.
 
