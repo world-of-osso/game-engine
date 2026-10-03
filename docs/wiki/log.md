@@ -1,3 +1,7 @@
+## 2026-10-03 — Skyriding part 1: physics (skyride1)
+
+[[mounts]]: skyriding momentum flight on `CAN_ADV_FLY` (shared-protocol `skyriding`, FlightCapability 11), launch/glide/dive/landing; live `skyriding_live.gd` on a private server (`data/diagnostics/skyride1-2026-10-02/`).
+
 ## 2026-10-02 — Mounts and steady flight (flymount)
 
 [[mounts]]: Godot mount model and rider seat, flight controls after Retail JUMP/SITORSTAND, `PlayerInput.flying`; live `flying_mount_live.gd` PASS on a private server (`data/diagnostics/flymount-2026-10-02/`).
