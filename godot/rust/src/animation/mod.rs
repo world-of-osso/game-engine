@@ -1471,13 +1471,18 @@ mod tests {
             authored.sequence_animated[walk],
             "authored Walk moves bones"
         );
+        // Global-sequence tracks (HD bones 186/187/210 scale over the 1518667 ms
+        // global sequence 0) play in timeline 0 during Walk too.
+        let timeline = |global: i16| if global < 0 { walk } else { 0 };
         for track in std::sync::Arc::make_mut(&mut model.bone_tracks) {
-            if let Some((times, values)) = track.rotation.sequences.get_mut(walk) {
+            let rotation = timeline(track.rotation.global_sequence);
+            if let Some((times, values)) = track.rotation.sequences.get_mut(rotation) {
                 times.truncate(1);
                 values.truncate(1);
             }
             for vec3 in [&mut track.translation, &mut track.scale] {
-                if let Some((times, values)) = vec3.sequences.get_mut(walk) {
+                let index = timeline(vec3.global_sequence);
+                if let Some((times, values)) = vec3.sequences.get_mut(index) {
                     times.truncate(1);
                     values.truncate(1);
                 }

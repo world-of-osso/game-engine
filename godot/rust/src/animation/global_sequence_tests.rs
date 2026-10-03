@@ -37,11 +37,12 @@ fn boar_root_global_translation_applies_in_every_sequence() {
 #[test]
 fn global_track_runs_on_global_clock_past_sequence_end() {
     let mut model = boar();
-    model.global_sequences = vec![2000];
+    // Global sequence 2, after the boar's own two.
+    model.global_sequences.push(2000);
     let mut tracks = model.bone_tracks.as_ref().clone();
     tracks[0].translation = m2::AnimTrack {
         interpolation_type: 1,
-        global_sequence: 0,
+        global_sequence: 2,
         sequences: vec![(vec![0, 2000], vec![[0.0; 3], [20.0, 0.0, 0.0]])],
     };
     model.bone_tracks = std::sync::Arc::new(tracks);
