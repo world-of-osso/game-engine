@@ -137,6 +137,24 @@ pub fn metal_frame_uv_rects() -> [[f32; 4]; 9] {
     })
 }
 
+/// Sheets `compose_metal_sheet` reads under the active skin, for hosts that copy textures
+/// out of local CASC on demand. An unresolved member is reported by the compose itself.
+pub fn metal_sheet_fdids(top_left: MetalTopLeft) -> Vec<u32> {
+    let skin = active_skin();
+    let mut fdids = Vec::new();
+    for blit in metal_frame_blits(top_left) {
+        if let Some(AtlasRegion {
+            source: AtlasSource::FileDataId(fdid),
+            ..
+        }) = resolve_region(blit.atlas, skin)
+            && !fdids.contains(&fdid)
+        {
+            fdids.push(fdid);
+        }
+    }
+    fdids
+}
+
 /// RGBA sheet from the blits; `source` returns `(pixels, width)` of a texture.
 pub fn compose_metal_sheet(
     top_left: MetalTopLeft,
