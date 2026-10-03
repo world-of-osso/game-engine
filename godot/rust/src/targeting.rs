@@ -666,20 +666,20 @@ impl GameClient {
         };
         let mut target =
             target_unit.map(|unit| target_frame_state(unit, viewer_level, multiplier, &texts));
+        let target_health = target_unit
+            .and_then(|unit| unit.get::<Health>())
+            .map(|health| {
+                let scaled = |value: f32| (value * multiplier).round();
+                format_value_text(scaled(health.current), scaled(health.max))
+            });
         if let (Some(state), Some(id)) = (target.as_mut(), target_id) {
             self.fill_target_auras(state, id);
             state.raid_target = self.raid_target_of(id);
         }
         let target_state = target.clone();
-        self.targeting.frame_texts = target_unit
-            .zip(target.as_ref())
-            .map(|(unit, state)| {
-                let health = unit.get::<Health>().map(|health| {
-                    let scaled = |value: f32| (value * multiplier).round();
-                    format_value_text(scaled(health.current), scaled(health.max))
-                });
-                (state.level_text.clone(), health.unwrap_or_default())
-            })
+        self.targeting.frame_texts = target
+            .as_ref()
+            .map(|state| (state.level_text.clone(), target_health.unwrap_or_default()))
             .unwrap_or_default();
         let player = self
             .world
