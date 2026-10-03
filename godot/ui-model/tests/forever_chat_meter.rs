@@ -153,9 +153,8 @@ fn modern_chat_and_meter_are_byte_identical_to_base() {
         "DamageMeter",
         &mut tree,
     );
-    if std::env::var_os("CAPTURE_FLAREPANELS_BASE").is_some() {
+    if baseline::MODERN_TREE.is_empty() || std::env::var_os("CAPTURE_FLAREPANELS_BASE").is_some() {
         println!("<<<FLAREPANELS_BASE\n{tree}FLAREPANELS_BASE>>>");
-        return;
     }
     assert_eq!(tree.as_bytes(), baseline::MODERN_TREE.as_bytes());
 }
@@ -198,6 +197,17 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
         rect(&registry, "DamageMeterSettings"),
         (369.5, 2.0, 22.0, 22.0)
     );
+    for (index, top, height) in [(0, 12.0, 6.0), (1, 8.0, 10.0), (2, 4.0, 14.0)] {
+        let name = format!("DamageMeterChartColumn{index}");
+        assert_eq!(
+            rect(&registry, &name),
+            (4.0 + index as f32 * 5.0, top, 3.0, height)
+        );
+        assert_eq!(
+            frame(&registry, &name).background_color,
+            Some([0.61, 0.48, 0.29, 1.0])
+        );
+    }
     assert_eq!(
         texture(&registry, "DamageMeterSettingsIcon").source,
         TextureSource::Atlas("common-dropdown-a-button-settings-shadowless".into())
@@ -306,6 +316,7 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
     ] {
         let text = font(&registry, name);
         assert_eq!(text.text, label);
+        assert_eq!(text.font_size, 12.0);
         assert_eq!(text.color, [1.0; 4]);
         assert_eq!(text.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
         assert_eq!(text.shadow_offset, [1.0, -1.0]);
