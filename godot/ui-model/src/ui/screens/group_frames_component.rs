@@ -1,12 +1,12 @@
 //! Raid-style party frame (`CompactPartyFrame`, the player first) and raid frames
-//! (`CompactRaidFrameContainer`, 8 groups of 5): the party at the Retail Modern preset's
-//! top-left, the raid above the central unit-frame cluster; the member right-click menu
-//! and the ready check frame.
+//! (`CompactRaidFrameContainer`, 8 groups of 5) at the active preset's anchors
+//! (`crate::hud_layout`); the member right-click menu and the ready check frame.
 
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::hud_layout::{HudAnchor, hud_layout};
 use crate::ui::screens::compact_unit_frame_component::{CompactUnitView, compact_unit_frame};
 use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
@@ -30,13 +30,6 @@ pub const RAID_GROUPS: usize = 8;
 pub const GROUP_SIZE: usize = 5;
 /// `CompactRaidGroupTemplate` title button height (CompactRaidGroup.xml).
 const TITLE_H: f32 = 14.0;
-/// Retail Modern preset: the party frame's TOPLEFT on `CompactRaidFrameManager`'s TOPRIGHT
-/// at (0, -7) (EditModePresetLayouts.lua:290-295). The 222 × 140 manager
-/// (Blizzard_CompactRaidFrameManager.xml:113) starts collapsed at UIParent TOPLEFT
-/// (-200, -140) (Blizzard_CompactRaidFrameManager.lua:93, :335), so the party frame's
-/// top-left sits 22 right and 147 down from UIParent's top-left.
-pub const PARTY_LEFT: f32 = -200.0 + 222.0;
-pub const PARTY_TOP: f32 = 140.0 + 7.0;
 /// Party column height for `members` frames; the column hangs from its top-left, so it
 /// grows downward as members join.
 pub fn party_height(members: usize) -> f32 {
@@ -53,7 +46,6 @@ pub fn raid_height(groups: &[Vec<CompactUnitView>]) -> f32 {
         .min(GROUP_SIZE);
     TITLE_H + rows as f32 * RAID_MEMBER_H
 }
-pub const RAID_BOTTOM: f32 = 215.0;
 /// `GameFontNormalSmall`.
 const TITLE_COLOR: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 
@@ -106,15 +98,16 @@ pub fn group_frames_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<GroupFramesState>()
         .expect("GroupFramesState must be in SharedContext");
+    let layout = hud_layout(ctx);
     rsx! {
-        {party_frame(&state.party)}
-        {raid_frame(&state.raid)}
+        {party_frame(&state.party, &layout.party)}
+        {raid_frame(&state.raid, &layout.raid)}
         {group_context_menu(&state.menu)}
         {ready_check_frame(&state.ready_check)}
     }
 }
 
-fn party_frame(members: &[CompactUnitView]) -> Element {
+fn party_frame(members: &[CompactUnitView], anchor: &HudAnchor) -> Element {
     let frames: Element = members
         .iter()
         .take(MAX_PARTY_MEMBERS)
@@ -128,23 +121,29 @@ fn party_frame(members: &[CompactUnitView]) -> Element {
             )
         })
         .collect();
+    let height = party_height(members.len());
+    let at = anchor.place((PARTY_MEMBER_W, height));
     rsx! {
         r#frame {
             name: {DynName(PARTY_FRAME.to_string())},
             width: PARTY_MEMBER_W,
-            height: {party_height(members.len())},
+            height,
             strata: FrameStrata::Low,
             hidden: {members.is_empty()},
             pos_type: "absolute",
-            left: PARTY_LEFT,
-            top: PARTY_TOP,
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {group_title("CompactPartyFrameTitle", "Party", 0.0, PARTY_MEMBER_W)}
             {frames}
         }
     }
 }
 
-fn raid_frame(groups: &[Vec<CompactUnitView>]) -> Element {
+fn raid_frame(groups: &[Vec<CompactUnitView>], anchor: &HudAnchor) -> Element {
     let columns: Element = groups
         .iter()
         .take(RAID_GROUPS)
@@ -152,17 +151,22 @@ fn raid_frame(groups: &[Vec<CompactUnitView>]) -> Element {
         .filter(|(_, members)| !members.is_empty())
         .flat_map(|(group, members)| raid_group(group, members))
         .collect();
+    let height = raid_height(groups);
+    let at = anchor.place((RAID_W, height));
     rsx! {
         r#frame {
             name: {DynName(RAID_FRAME.to_string())},
             width: RAID_W,
-            height: {raid_height(groups)},
+            height,
             strata: FrameStrata::Low,
             hidden: {groups.iter().all(Vec::is_empty)},
             pos_type: "absolute",
-            left: "50%",
-            margin_left: {-RAID_W / 2.0},
-            bottom: RAID_BOTTOM,
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {columns}
         }
     }

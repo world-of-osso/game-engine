@@ -28,6 +28,7 @@ fn aura(spell_id: u32, is_debuff: bool, remaining: f32) -> AuraInstance {
 fn registry(state: BuffFrameState) -> FrameRegistry {
     let mut reg = FrameRegistry::new(SCREEN_W, 1080.0);
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(state);
     Screen::new(buff_frame_screen).sync(&shared, &mut reg);
     compute_layout(&mut reg);

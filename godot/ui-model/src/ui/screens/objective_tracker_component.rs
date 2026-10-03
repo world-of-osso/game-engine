@@ -8,6 +8,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
+use crate::hud_layout::hud_layout;
 use crate::quest_runtime::QuestRuntime;
 use crate::ui::screens::quest_art::{
     DynName, POI_IN_PROGRESS, POI_NUMBER, POI_TURN_IN, TRACKER_CHECK, TRACKER_COLLAPSE_ALL,
@@ -19,9 +20,6 @@ use crate::ui::screens::quest_art::{
 pub const TRACKER_FRAME: &str = "ObjectiveTrackerFrame";
 /// `ObjectiveTrackerContainerTemplate` width.
 pub const TRACKER_W: f32 = 260.0;
-/// Retail default Edit Mode anchor: TOPRIGHT of UIParent at (-110, -275).
-pub const TRACKER_RIGHT: f32 = 110.0;
-pub const TRACKER_TOP: f32 = 275.0;
 const CONTAINER_HEADER_H: f32 = 32.0;
 /// `ObjectiveTrackerFrame.topModulePadding`.
 const TOP_MODULE_PADDING: f32 = 38.0;
@@ -167,14 +165,19 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
     if !state.collapsed && !state.quests.is_empty() {
         contents.extend(quests_module(state, &mut height));
     }
+    let at = hud_layout(ctx).objective_tracker.place((TRACKER_W, height));
     rsx! {
         r#frame {
             name: {DynName(TRACKER_FRAME.into())},
             width: TRACKER_W,
             height: {height},
             pos_type: "absolute",
-            right: TRACKER_RIGHT,
-            top: TRACKER_TOP,
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {contents}
         }
     }

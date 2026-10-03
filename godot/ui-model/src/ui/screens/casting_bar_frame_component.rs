@@ -2,13 +2,14 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::screens::inworld_unit_frames_component::{CAST_DOCK_W, CLUSTER_BOTTOM};
+use crate::hud_layout::hud_layout;
+use crate::ui::screens::inworld_unit_frames_component::CAST_DOCK_W;
 
 #[cfg(all(test, feature = "dev"))]
 #[path = "menu_character_layout_test_support.rs"]
 mod layout_test_support;
 
-/// The bar fills the cast area centred above the action bars.
+/// The bar fills the cast area.
 pub const BAR_W: f32 = CAST_DOCK_W - 8.0;
 pub const BAR_H: f32 = 20.0;
 const BORDER_W: f32 = BAR_W + 8.0;
@@ -76,6 +77,7 @@ pub fn casting_bar_frame_screen(ctx: &SharedContext) -> Element {
     let fill_w = BAR_W * state.progress.clamp(0.0, 1.0);
     let fill_color = bar_fill_color(state);
     let spark_x = fill_w - SPARK_W / 2.0;
+    let at = hud_layout(ctx).cast_bar.place((BORDER_W, BORDER_H));
     rsx! {
         r#frame {
             name: "PlayerCastingBarFrame",
@@ -84,9 +86,12 @@ pub fn casting_bar_frame_screen(ctx: &SharedContext) -> Element {
             background_color: BORDER_BG,
             hidden: hide,
             pos_type: "absolute",
-            left: "50%",
-            bottom: CLUSTER_BOTTOM,
-            translate_x: "-50%",
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {bar_background(fill_w, fill_color, spark_x, &state.spell_name, &state.timer_text)}
         }
     }
@@ -216,6 +221,7 @@ mod tests {
     fn build_registry(progress: f32) -> FrameRegistry {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
+        shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
         shared.insert(make_state(progress));
         Screen::new(casting_bar_frame_screen).sync(&shared, &mut reg);
         reg
@@ -248,6 +254,7 @@ mod tests {
     fn hidden_when_not_visible() {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
+        shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
         shared.insert(CastingBarState::default());
         Screen::new(casting_bar_frame_screen).sync(&shared, &mut reg);
         let id = reg.get_by_name("PlayerCastingBarFrame").expect("frame");
@@ -296,7 +303,7 @@ mod tests {
         let r = rect(&reg, "PlayerCastingBarFrame");
         let expected_x = (1920.0 - BORDER_W) / 2.0;
         assert!((r.x - expected_x).abs() < 1.0);
-        assert!((r.y + r.height - (1080.0 - CLUSTER_BOTTOM)).abs() < 1.0);
+        assert!((r.y + r.height - (1080.0 - 152.0)).abs() < 1.0);
         assert!((r.width - CAST_DOCK_W).abs() < 1.0);
         assert!((r.height - BORDER_H).abs() < 1.0);
     }
@@ -358,6 +365,7 @@ mod tests {
     fn build_with_state(state: CastingBarState) -> FrameRegistry {
         let mut reg = FrameRegistry::new(1920.0, 1080.0);
         let mut shared = SharedContext::new();
+        shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
         shared.insert(state);
         Screen::new(casting_bar_frame_screen).sync(&shared, &mut reg);
         reg

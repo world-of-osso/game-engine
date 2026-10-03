@@ -557,6 +557,7 @@ fn minimap_mail_icon_shows_with_unread_mail_and_names_its_senders() {
     };
     let build = |has_mail: bool| {
         let mut shared = SharedContext::new();
+        shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
         shared.insert(MinimapClusterState {
             has_mail,
             ..MinimapClusterState::default()
