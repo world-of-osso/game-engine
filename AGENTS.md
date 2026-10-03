@@ -7,9 +7,9 @@ WoW client: a Godot 4.7.2 project with a Rust GDExtension. Renders models, terra
 ## Structure
 
 ```
-launcher/        # game-engine-launcher: `cargo run` -> Depot extension build -> pinned Godot
+launcher/        # game-engine-launcher: `cargo run` -> desktop/local extension build -> pinned Godot
 tools/           # game-engine-tools: png_to_ktx2, *_cache_import (local, Bevy-free, on game-engine-core)
-godot/           # Godot project + Rust workspace (built and tested on Depot)
+godot/           # Godot project + Rust workspace (built and tested through desktop/local Docker helpers)
 ├── project.godot, scenes/, shaders/, ui/
 ├── tests/       # GDScript fixtures
 ├── core/        # game-engine-core: M2/ADT/WMO/BLP parsers, DB2/SQLite catalogs and cache importers, camera/movement/lighting data
@@ -22,16 +22,16 @@ godot/           # Godot project + Rust workspace (built and tested on Depot)
 
 ## Dev
 
-- Plain root `cargo run`/`rd` builds the debug std-only `game-engine-launcher`, then uses `python3 scripts/depot-build.py --root <checkout>` to build the Godot native extension remotely before normal local Godot import/launch; `bd` is `cargo build`. The launcher uses `GODOT_BIN`, else the pinned patched Godot `4.7.2-pr123946` at `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2-pr123946/`, checking its SHA-512 on every launch and failing with build instructions when it is missing or differs (build it once with `scripts/godot/build-patched-godot.sh` (2 jobs; `--jobs N` overrides); [why](docs/wiki/investigations/godot-wayland-exit-hang.md)); runs a one-time headless `--import` when `godot/.godot/extension_list.cfg` is missing; forwards user startup flags after Godot's `--` separator. It does not start the server. See `docs/remote-builds.md`.
+- Plain root `cargo run`/`rd` builds the debug std-only `game-engine-launcher`, then uses `python3 scripts/depot-build.py --root <checkout>` to build the Godot native extension on the selected `desktop` or `local` host before normal local Godot import/launch; `bd` is `cargo build`. The launcher uses `GODOT_BIN`, else the pinned patched Godot `4.7.2-pr123946` at `${XDG_CACHE_HOME:-~/.cache}/game-engine/godot/4.7.2-pr123946/`, checking its SHA-512 on every launch and failing with build instructions when it is missing or differs (build it once with `scripts/godot/build-patched-godot.sh` (2 jobs; `--jobs N` overrides); [why](docs/wiki/investigations/godot-wayland-exit-hang.md)); runs a one-time headless `--import` when `godot/.godot/extension_list.cfg` is missing; forwards user startup flags after Godot's `--` separator. It does not start the server. See `docs/remote-builds.md`.
 - `cargo run -- --screen charselect` — Authenticate with configured credentials or a saved token and open character select.
 - `cargo run -- --server dev --screen inworld --char Name` — Resolve `dev`/`prod` server aliases, authenticate, select the named roster character, and enter the world. Omit `--char` to select the default character.
 - `cargo run -- --screen charcreate` — Open standalone character creation. Add `--server <host>` to authenticate before entering it; `charcreate-customize` opens its Customize mode.
 - `cargo run -- --screen login` or `cargo run -- --screen loading` — Open those native screens. `--state connecting` and `--state reconnecting`, plus legacy screen destinations outside `login`, `charselect`, `charcreate`, `charcreate-customize`, `loading`, `inworld`, `particledebug`, `m2debug`, `selectiondebug`, and `debugcharacter`, fail explicitly as unconverted.
-- `cargo run -- --screen m2debug|selectiondebug|debugcharacter` — Offline debug scenes ([spec](docs/specs/native-debug-screens.md)). Process fixture: `native_debug_screen_fixture <screen>` (Depot `--fixture native_debug_screen_fixture`; needs `GODOT_BIN`, `GAME_ENGINE_CLI`).
+- `cargo run -- --screen m2debug|selectiondebug|debugcharacter` — Offline debug scenes ([spec](docs/specs/native-debug-screens.md)). Process fixture: `native_debug_screen_fixture <screen>` (helper `--fixture native_debug_screen_fixture`; needs `GODOT_BIN`, `GAME_ENGINE_CLI`).
 - `cargo run -- --screen particledebug` — Offline M2 particle debug scene: torch, portal and Frostbolt missile emitters with the emitter overlay; drag orbits, wheel zooms, Tab cycles models, 1-9 toggle emitters, 0 restores all, R restarts. Fixture: `GODOT_PARTICLE_SCREENSHOTS=<dir> godot --path godot -s res://tests/particle_debug_screen.gd -- --screen particledebug`.
 - `godot/project.godot` selects Godot's native Wayland display driver (`display/display_server/driver.linuxbsd`), so direct and launcher runs open a native niri window owned by Godot's PID; without a Wayland socket Godot logs `Display driver wayland failed, falling back to x11`. Override with `--display-driver x11`.
 - The launcher routes `--screen`, `--state`, `--server`, and `--char` after Godot's separator; other arguments remain native Godot arguments. Direct Godot invocation must put client flags after `--`.
-- `./deploy.sh [--dry-run]` — Build the release extension on Depot (`depot-build.py --release`), assemble the Linux x86_64 player bundle in `target/deploy/linux-x86_64/`, and publish it to the file server; `--dry-run` prints the publish commands instead. See [deploy](docs/deploy.md).
+- `./deploy.sh [--dry-run]` — Build the release extension on the selected host (`depot-build.py --release`), assemble the Linux x86_64 player bundle in `target/deploy/linux-x86_64/`, and publish it to the file server; `--dry-run` prints the publish commands instead. See [deploy](docs/deploy.md).
 - `cargo run -- --run-js-ui-script debug/login.js` — Run a JS UI automation script in the client (fixtures: `native_js_automation_fixture`, `native_js_world_fixture`).
 - `python3 scripts/depot-build.py --root "$PWD" --cli` builds `target/debug/game-engine-cli` (combinable with `--fixture`; fixtures take it as `GAME_ENGINE_CLI`). `target/debug/game-engine-cli [--socket /tmp/game-engine-<pid>.sock] <command>` — IPC CLI for a running client
   - `dump-scene` — Dump semantic scene tree (high-level: character, background, camera, lights)
@@ -43,8 +43,8 @@ godot/           # Godot project + Rust workspace (built and tested on Depot)
   - Socket auto-discovered via `/tmp/game-engine-*.sock` glob
 - `cargo run -p game-engine-tools --bin png_to_ktx2 -- input.png output.ktx2` — Convert PNG to KTX2 (RGBA8 sRGB, no mipmaps)
 - `cargo run -p game-engine-tools --bin <customization|char_texture|creature_display|outfit_links>_cache_import` — Rebuild `data/cache/*.sqlite` the client reads from the DB2 CSVs in `data/`.
-- `./run-tests.sh` — root workspace (launcher, tools) tests, clippy, and format check; Godot workspace tests run on Depot (next line).
-- `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-core [cargo test args...]` — run `godot/` workspace `cargo test --locked` on Depot (CPU only, no Godot engine) with the data files listed in `godot/depot-test-assets.txt`; exits with cargo's status. Agents use this instead of local Cargo in `godot/`.
+- `./run-tests.sh` — root workspace (launcher, tools) tests, clippy, and format check; Godot workspace tests use the desktop/local helper (next line).
+- `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-core [cargo test args...]` — run `godot/` workspace `cargo test --locked` on the selected desktop/local host (CPU only, no Godot engine) with the data files listed in `godot/depot-test-assets.txt`; exits with cargo's status. Agents use this instead of local Cargo in `godot/`.
 - Parallel-agent tooling in `scripts/agent/`:
   - `link-worktree-data.py <canonical> <worktree>` links untracked `data/` into a worktree.
   - `seed-target.sh <repo> <dir>` reflink-clones a warm `CARGO_TARGET_DIR`; never start an agent on an empty one.
@@ -62,7 +62,7 @@ godot/           # Godot project + Rust workspace (built and tested on Depot)
 
 - `data/` is effectively a different repo/cache tree for this project. Do not stage or commit files under `data/` from this repo unless the user explicitly asks for that exact path.
 - After `cargo fmt`, immediately check `git status --short`.
-- Agents build the Godot extension only through the Depot launcher/helper. Do not invoke local extension Cargo or recreate bulk target caches unless explicitly asked; lightweight launcher tests are allowed. See `docs/remote-builds.md`.
+- Agents build the Godot extension through the launcher/helper with `--build-host desktop|local` or the saved default (`python3 scripts/depot-build.py --save-build-host desktop|local`). Do not bypass the helper with direct extension Cargo or recreate bulk target caches unless explicitly asked; lightweight launcher tests are allowed. See `docs/remote-builds.md`.
 - Formatter changes count as your changes.
 
 ## UI Screens (rsx! + Screen pattern)

@@ -2532,3 +2532,7 @@ User decision: the Godot client is the only client. The root Bevy package `game-
 ## 2026-10-03 — Godot client deploy
 
 Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-build.py --release` builds the optimized extension, and the Linux x86_64 bundle holds the pinned patched Godot runtime, project files with a pre-imported `.godot/` cache, and an allowlisted `data/` (38 GB). It publishes through the live S3-backed file server. The removed Bevy files are `Dockerfile`, `scripts/windows-dev.ps1` and `docs/windows-development.md`. A cold `--import` that hot-loads the extension aborts at exit, so the bundle registers the extension first. See [deploy](../deploy.md).
+
+## 2026-10-03 — Desktop/local build trial contract
+
+[[build-hosts]]: replaced Depot-only guidance with approved desktop SSH/WSL and local Docker selection, saved-default/error contract, and retained snapshot/cache boundaries. Linked conversion spec and architecture; real builds/tests and desktop server/manual GPU acceptance remain pending. Historical Depot evidence preserved.
