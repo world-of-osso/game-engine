@@ -25,9 +25,9 @@ use crate::equipment_appearance_data::{
     model_attachment_id, runtime_mesh_part_allowed, slot_uses_bound_joints,
 };
 
-#[path = "../../../../src/asset/m2_format/m2_bone_names.rs"]
+#[path = "../../../core/src/asset/m2_format/m2_bone_names.rs"]
 mod bone_names;
-#[path = "../../../../src/game/equipment/equipment_transform_data.rs"]
+#[path = "../game/equipment/equipment_transform_data.rs"]
 mod transforms;
 
 struct EquipmentContext<'a> {
@@ -362,6 +362,8 @@ fn bind_character_skin(item: &mut Gd<Node3D>, skin: &Gd<Skin>) {
         if let Ok(mut mesh) = child.try_cast::<MeshInstance3D>() {
             mesh.set_skin(skin);
             mesh.set_skeleton_path("../../Skeleton3D");
+            // Its own header box need not hold the character's poses; derive it from the bones.
+            mesh.set_custom_aabb(Aabb::default());
         }
     }
     if let Some(animation) = item.get_node_or_null("M2Animation") {

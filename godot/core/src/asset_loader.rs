@@ -5,7 +5,7 @@
 //! "Async read thread", warcraft.wiki.gg Console_variables/Complete_list).
 //!
 //! Loads needed now go ahead of prefetches: a prefetch queued before a cast must not
-//! delay the cast's own assets.
+//! delay the cast's own assets. Loads the loading screen waits for go ahead of both.
 
 use std::collections::{HashMap, VecDeque};
 use std::hash::Hash;
@@ -25,6 +25,8 @@ pub enum LoadState {
 /// How soon a load is needed.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Priority {
+    /// The loading screen waits for it: ahead of every other load.
+    First,
     /// Something is waiting for it.
     Now,
     /// A prefetch: loaded when nothing needed now is queued.
@@ -96,11 +98,12 @@ where
     }
 
     /// Queue `key` unless it was requested before; `true` when newly queued. A key
-    /// waiting as a prefetch moves ahead when it is needed now.
+    /// still queued moves up to `priority`: a prefetch when it is needed now, any key
+    /// to the front when the loading screen waits for it.
     pub fn request(&mut self, key: K, priority: Priority) -> bool {
         if self.states.contains_key(&key) {
-            if priority == Priority::Now {
-                self.promote(&key);
+            if priority != Priority::Later {
+                self.promote(&key, priority);
             }
             return false;
         }
@@ -109,14 +112,20 @@ where
         true
     }
 
-    fn promote(&self, key: &K) {
+    fn promote(&self, key: &K, priority: Priority) {
         let mut queues = self.queues.0.lock().expect("asset loader queue");
-        let queued = queues
-            .later
-            .iter()
-            .position(|task| matches!(task, Task::Load(queued) if queued == key));
-        if let Some(task) = queued.and_then(|index| queues.later.remove(index)) {
-            queues.now.push_back(task);
+        let is_key = |task: &Task<K>| matches!(task, Task::Load(queued) if queued == key);
+        let task = match queues.now.iter().position(is_key) {
+            Some(index) if priority == Priority::First => queues.now.remove(index),
+            Some(_) => None,
+            None => queues
+                .later
+                .iter()
+                .position(is_key)
+                .and_then(|index| queues.later.remove(index)),
+        };
+        if let Some(task) = task {
+            enqueue(&mut queues, task, priority);
         }
     }
 
@@ -128,10 +137,7 @@ where
     fn push(&self, task: Task<K>, priority: Priority) {
         let (lock, wake) = &*self.queues;
         let mut queues = lock.lock().expect("asset loader queue");
-        match priority {
-            Priority::Now => queues.now.push_back(task),
-            Priority::Later => queues.later.push_back(task),
-        }
+        enqueue(&mut queues, task, priority);
         wake.notify_one();
     }
 
@@ -154,6 +160,14 @@ where
             .values()
             .filter(|&&state| state == LoadState::Loading)
             .count()
+    }
+}
+
+fn enqueue<K>(queues: &mut Queues<K>, task: Task<K>, priority: Priority) {
+    match priority {
+        Priority::First => queues.now.push_front(task),
+        Priority::Now => queues.now.push_back(task),
+        Priority::Later => queues.later.push_back(task),
     }
 }
 

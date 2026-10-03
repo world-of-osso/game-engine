@@ -34,11 +34,12 @@ use godot::classes::{
 };
 use godot::prelude::*;
 use shared::casting::CastState;
-use shared::components::{Health, Player, PowerType, UnitLevel, UnitPowers};
+use shared::components::{Health, Player, PowerType, UnitAuras, UnitLevel, UnitPowers};
 use shared::protocol::{ActionRef, CastFailed, CombatLogEvent, CombatLogKind};
 
 use crate::combat_text;
 use crate::frame_error::{FrameError, SessionError, report_once};
+use crate::player_spells::{bonus_bar_offset, main_bar_slot};
 use crate::{
     GameClient,
     ui::RegistryUi,
@@ -393,10 +394,23 @@ impl GameClient {
         Ok(())
     }
 
+    /// Action slot shown on main bar button `index`, paged by the player's form.
+    pub(super) fn main_bar_slot(&self, index: usize) -> usize {
+        let offset = self
+            .world
+            .local_player_id()
+            .and_then(|player| self.replica.unit(player)?.get::<UnitAuras>())
+            .zip(self.spells.catalog())
+            .map_or(0, |(auras, catalog)| {
+                bonus_bar_offset(&auras.auras, catalog)
+            });
+        main_bar_slot(index, offset)
+    }
+
     /// `UseAction`: a spell button casts at the current target.
     fn use_action_button(&mut self, index: usize) -> Result<(), SessionError> {
         self.spells.pushed[index] = PUSH_SECS;
-        match self.account.spells.slot(index) {
+        match self.account.spells.slot(self.main_bar_slot(index)) {
             Some(ActionRef::Spell(spell_id)) => self.cast_spell(spell_id),
             _ => Ok(()),
         }
@@ -485,7 +499,8 @@ impl GameClient {
     fn action_bar_state(&mut self) -> MainActionBarState {
         let mut state = MainActionBarState::default();
         for index in 0..MAIN_BAR_BUTTONS {
-            let Some(ActionRef::Spell(spell_id)) = self.account.spells.slot(index) else {
+            let slot = self.main_bar_slot(index);
+            let Some(ActionRef::Spell(spell_id)) = self.account.spells.slot(slot) else {
                 continue;
             };
             let icon = self
@@ -1005,7 +1020,7 @@ impl GameClient {
         state.set("known", &ids(spells.known()));
         state.set("spec", i64::from(spells.spec().unwrap_or(0)));
         let bar: Vec<u32> = (0..MAIN_BAR_BUTTONS)
-            .map(|slot| match spells.slot(slot) {
+            .map(|index| match spells.slot(self.main_bar_slot(index)) {
                 Some(ActionRef::Spell(id)) => id,
                 _ => 0,
             })

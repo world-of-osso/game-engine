@@ -253,6 +253,44 @@ pub fn track_is_constant<T: PartialEq>(track: &AnimTrack<T>) -> bool {
         && track.sequences.iter().all(|(_, values)| !values.is_empty())
 }
 
+/// Timeline and time a global-sequence track samples: timeline 0 at the model's
+/// global clock wrapped to its global sequence, whichever sequence plays
+/// (WebWowViewerCpp animate.h `animateTrack`, animationManager.cpp global clock).
+/// A zero-length global sequence holds time 0. `None` for a track on the playing
+/// sequence's own timeline. The track's global sequence must exist in `global_sequences`.
+pub fn global_track_time<T>(
+    track: &AnimTrack<T>,
+    global_sequences: &[u32],
+    global_ms: f64,
+) -> Option<(usize, u32)> {
+    let global = usize::try_from(track.global_sequence).ok()?;
+    let duration = f64::from(global_sequences[global]);
+    let time = if duration == 0.0 {
+        0
+    } else {
+        (global_ms % duration) as u32
+    };
+    Some((0, time))
+}
+
+/// A model's animation position: the playing sequence and its time, and the global
+/// clock its global-sequence tracks run on.
+#[derive(Clone, Copy, Debug)]
+pub struct AnimTime<'a> {
+    pub sequence: usize,
+    pub time_ms: u32,
+    pub global_ms: f64,
+    pub global_sequences: &'a [u32],
+}
+
+impl AnimTime<'_> {
+    /// Timeline and time `track` samples (`global_track_time` for a global track).
+    pub fn track_time<T>(&self, track: &AnimTrack<T>) -> (usize, u32) {
+        global_track_time(track, self.global_sequences, self.global_ms)
+            .unwrap_or((self.sequence, self.time_ms))
+    }
+}
+
 /// No bone track of `model` changes its pose over time.
 pub fn bones_are_static(model: &Model) -> bool {
     model.bone_tracks.iter().all(|bone| {

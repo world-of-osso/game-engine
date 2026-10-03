@@ -236,16 +236,16 @@ impl PlateArt {
         let fill = |bytes: &[u8]| png_texture(bytes, true);
         Ok(Self {
             thick_frame: skin(include_bytes!(
-                "../../../src/rendering/ui/nameplate_skins/health-thick.png"
+                "rendering/ui/nameplate_skins/health-thick.png"
             ))?,
             thin_frame: skin(include_bytes!(
-                "../../../src/rendering/ui/nameplate_skins/health-thin.png"
+                "rendering/ui/nameplate_skins/health-thin.png"
             ))?,
             thick_fill: fill(include_bytes!(
-                "../../../src/rendering/ui/nameplate_skins/health-fill-thick.png"
+                "rendering/ui/nameplate_skins/health-fill-thick.png"
             ))?,
             thin_fill: fill(include_bytes!(
-                "../../../src/rendering/ui/nameplate_skins/health-fill.png"
+                "rendering/ui/nameplate_skins/health-fill.png"
             ))?,
             font: crate::ui::assets::load_font(
                 ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,

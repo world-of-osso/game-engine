@@ -1,5 +1,5 @@
 //! TargetFrame classification art (`TargetFrameMixin:CheckClassification`,
-//! Blizzard_UnitFrame/Mainline/TargetFrame.lua:436-462) placed in the portrait-off art.
+//! Blizzard_UnitFrame/Mainline/TargetFrame.lua:436-462) around the portrait.
 
 use game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::{
     AtlasArt, BOSS_GOLD, BOSS_RARE_SILVER, BOSS_RARE_STAR,
@@ -68,8 +68,7 @@ fn atlas(art: &AtlasArt) -> (TextureSource, [f32; 4]) {
 }
 
 /// Timber (world.db creature_template 1132, rank 4): the rare star centred on the
-/// portrait's BOTTOM — (177, 77) of the 232×100 frame, (157, 51) of the art — and no
-/// dragon.
+/// portrait's BOTTOM, (177, 77) of the 232×100 frame, and no dragon.
 #[test]
 fn timber_shows_the_rare_star_without_a_dragon() {
     let registry = target_frames("Timber", CreatureClassification::Rare);
@@ -79,8 +78,8 @@ fn timber_shows_the_rare_star_without_a_dragon() {
     assert_eq!(
         rect(&registry, "TargetBossIcon"),
         (
-            Val::Px(147.0),
-            Val::Px(41.0),
+            Val::Px(167.0),
+            Val::Px(67.0),
             Dimension::Fixed(20.0),
             Dimension::Fixed(20.0)
         )
@@ -88,7 +87,7 @@ fn timber_shows_the_rare_star_without_a_dragon() {
 }
 
 /// Hogger (448, rank 1): the gold dragon TOPRIGHT (-11, -8) of the 232×100 frame, so
-/// 141..221 × 8..87 there and (121, -18) of the art; no star.
+/// 141..221 × 8..87; no star.
 #[test]
 fn hogger_shows_the_gold_dragon_at_its_retail_anchor() {
     let registry = target_frames("Hogger", CreatureClassification::Elite);
@@ -101,8 +100,8 @@ fn hogger_shows_the_gold_dragon_at_its_retail_anchor() {
     assert_eq!(
         rect(&registry, "TargetBossPortraitFrameTexture"),
         (
-            Val::Px(121.0),
-            Val::Px(-18.0),
+            Val::Px(141.0),
+            Val::Px(8.0),
             Dimension::Fixed(80.0),
             Dimension::Fixed(79.0)
         )

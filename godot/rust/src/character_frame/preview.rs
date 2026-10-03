@@ -28,7 +28,7 @@ pub(crate) struct ModelPreview {
     /// The appearance the shown model was built from.
     shown: Option<UnitAppearance>,
     /// Detached world request still loading, and its appearance.
-    pending: Option<(u64, UnitAppearance)>,
+    pub(super) pending: Option<(u64, UnitAppearance)>,
     /// User turn from the rotate drag, radians.
     pub(crate) yaw: f32,
 }
@@ -42,12 +42,12 @@ struct Scene {
 }
 
 impl ModelPreview {
+    /// Free the scene; a pending request stays for the closed-frame sync to cancel.
     pub(crate) fn reset(&mut self) {
         if let Some(scene) = self.scene.take() {
             scene.view.free();
         }
         self.shown = None;
-        self.pending = None;
         self.yaw = 0.0;
     }
 }
@@ -55,6 +55,9 @@ impl ModelPreview {
 impl GameClient {
     pub(super) fn sync_character_model(&mut self) -> Result<(), String> {
         if !self.character_frame.is_open() {
+            if let Some((id, _)) = self.character_frame.preview.pending.take() {
+                self.world.cancel_detached_visual(id);
+            }
             self.character_frame.preview.reset();
             return Ok(());
         }
@@ -99,6 +102,9 @@ impl GameClient {
             .or(preview.shown.as_ref());
         if current == Some(&appearance) {
             return;
+        }
+        if let Some((superseded, _)) = self.character_frame.preview.pending.take() {
+            self.world.cancel_detached_visual(superseded);
         }
         let id = self.world.request_detached_visual(&appearance);
         self.character_frame.preview.pending = Some((id, appearance));
@@ -215,7 +221,7 @@ fn model_viewport() -> (Gd<SubViewport>, Gd<Node3D>, Gd<Camera3D>) {
 }
 
 /// The scene light uniforms of every batch (`TerrainLight::bind_model`'s inputs).
-fn bind_sheet_light(visual: &Gd<Node3D>) {
+pub(crate) fn bind_sheet_light(visual: &Gd<Node3D>) {
     let meshes = visual
         .find_children_ex("*")
         .type_("MeshInstance3D")

@@ -15,7 +15,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parents[1]
 SOURCE = ROOT / "data/diagnostics/nameplate-style/reference.png"
-OUTPUT = ROOT / "src/rendering/ui/nameplate_skins"
+OUTPUT = ROOT / "godot/rust/src/rendering/ui/nameplate_skins"
 BACKGROUND = (24, 21, 20)
 # The frame bands exclude all text and status fill. Endcaps remain outside the
 # inner rectangle; no text-bearing center pixels are copied into frame skins.

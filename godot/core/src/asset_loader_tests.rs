@@ -187,3 +187,38 @@ fn loads_needed_now_go_ahead_of_prefetches_and_a_needed_prefetch_moves_up() {
     wait_for(&mut loader, 4);
     assert_eq!(ordered.try_iter().collect::<Vec<_>>(), vec![1, 4, 3, 2]);
 }
+
+/// The loading screen's center tile parses after its neighbours have queued their models:
+/// its loads, new or already queued behind theirs, run before every other queued load.
+#[test]
+fn loads_the_loading_screen_waits_for_go_ahead_of_every_queued_load() {
+    let (release, gate) = mpsc::channel::<()>();
+    let gate = Mutex::new(gate);
+    let (began, begun) = mpsc::channel();
+    let began = Mutex::new(began);
+    let (order, ordered) = mpsc::channel();
+    let mut loader = AssetLoader::new("test", 1, move |&fdid: &u32| {
+        if fdid == 1 {
+            began.lock().unwrap().send(()).unwrap();
+            gate.lock().unwrap().recv().unwrap();
+        }
+        order.send(fdid).unwrap();
+        Ok(())
+    });
+    loader.request(1, Priority::Now);
+    begun.recv_timeout(Duration::from_secs(2)).unwrap();
+    // Neighbour tiles' models, and a prefetch.
+    for fdid in [2, 3, 4] {
+        loader.request(fdid, Priority::Now);
+    }
+    loader.request(5, Priority::Later);
+    // The center tile needs model 4, already queued, and model 6, not yet requested.
+    assert!(!loader.request(4, Priority::First));
+    assert!(loader.request(6, Priority::First));
+    release.send(()).unwrap();
+    wait_for(&mut loader, 6);
+    assert_eq!(
+        ordered.try_iter().collect::<Vec<_>>(),
+        vec![1, 6, 4, 2, 3, 5]
+    );
+}

@@ -1,0 +1,805 @@
+use ui_toolkit::rsx;
+use ui_toolkit::screen::SharedContext;
+use ui_toolkit::widget_def::Element;
+
+use crate::faction_reaction::Reaction;
+use crate::ui::screens::menu_primitives::{
+    ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
+};
+use crate::ui::strata::FrameStrata;
+use shared::components::CreatureClassification;
+#[path = "class_bars/mod.rs"]
+pub mod class_bars;
+#[path = "inworld_unit_frames_art.rs"]
+pub mod inworld_unit_frames_art;
+#[path = "inworld_unit_frames_aura.rs"]
+mod inworld_unit_frames_aura;
+#[path = "inworld_unit_frames_layout.rs"]
+mod inworld_unit_frames_layout;
+#[path = "inworld_unit_frames_parts.rs"]
+mod inworld_unit_frames_parts;
+#[path = "inworld_unit_frames_power.rs"]
+mod inworld_unit_frames_power;
+use class_bars::{ClassBarView, TextureView};
+use inworld_unit_frames_art::{
+    AtlasArt, BOSS_GOLD, BOSS_RARE_SILVER, BOSS_RARE_STAR, BOSS_RARE_STAR_SIZE, COMBAT_ICON,
+    FRAME_PORTRAIT_OFF, HEALTH_BAR, PLAYER_PORTRAIT_ON, REACTION_STRIP, REST_ICON,
+    TARGET_HEALTH_BAR, TARGET_PORTRAIT_ON, power_bar_art,
+};
+use inworld_unit_frames_aura::target_auras;
+pub use inworld_unit_frames_aura::{
+    MAX_TARGET_BUFFS, MAX_TARGET_DEBUFFS, TargetAuraView, set_target_auras, target_aura_icon,
+    target_frame_auras,
+};
+pub use inworld_unit_frames_layout::*;
+use inworld_unit_frames_parts::{
+    BarSpec, art_root, art_texture, centred, portrait_slot, status_bar, tinted_art_texture,
+    unit_label,
+};
+pub use inworld_unit_frames_power::PowerBarState;
+
+pub const ACTION_UNIT_MENU_SET_FOCUS: &str = "unit_menu_set_focus";
+pub const ACTION_UNIT_MENU_CLEAR_FOCUS: &str = "unit_menu_clear_focus";
+pub const ACTION_UNIT_MENU_CLOSE: &str = "unit_menu_close";
+pub const ACTION_UNIT_MENU_INSPECT: &str = "unit_menu_inspect";
+/// `UnitPopupTradeButtonMixin`.
+pub const ACTION_UNIT_MENU_TRADE: &str = "unit_menu_trade";
+/// `UnitPopupDungeonDifficultyButtonMixin`: opens the Dungeon Difficulty submenu.
+pub const ACTION_UNIT_MENU_DUNGEON_DIFFICULTY: &str = "unit_menu_dungeon_difficulty";
+/// `UnitPopupDungeonDifficulty1..3ButtonMixin:OnClick` → `SetDungeonDifficultyID(<id>)`.
+pub const ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX: &str = "unit_menu_dungeon_difficulty:";
+pub const DIFFICULTY_MENU_W: f32 = 120.0;
+const DIFFICULTY_ROW_H: f32 = 20.0;
+const DIFFICULTY_MENU_TOP: f32 = 26.0;
+/// `common-dropdown-tickradial` / `common-dropdown-icon-radialtick-yellow` on
+/// UiTextureAtlas 2634 (FDID 5390329, 512x256), 18x18.
+const RADIO_SHEET_FDID: u32 = 5_390_329;
+const RADIO_EMPTY_COORDS: &str = "0.138671875,0.173828125,0.52734375,0.59765625";
+const RADIO_CHECKED_COORDS: &str = "0.138671875,0.173828125,0.44921875,0.51953125";
+const MENU_TEXT_ENABLED: &str = "1.0,1.0,1.0,1.0";
+const MENU_TEXT_DISABLED: &str = "0.5,0.5,0.5,1.0";
+pub const UNIT_MENU_W: f32 = 140.0;
+const UNIT_MENU_ITEMS: &[ContextMenuItem<'static>] = &[
+    ContextMenuItem {
+        name: "UnitFrameContextMenuSetFocus",
+        label: "Set Focus",
+        action: ACTION_UNIT_MENU_SET_FOCUS,
+    },
+    ContextMenuItem {
+        name: "UnitFrameContextMenuClearFocus",
+        label: "Clear Focus",
+        action: ACTION_UNIT_MENU_CLEAR_FOCUS,
+    },
+    ContextMenuItem {
+        name: "UnitFrameContextMenuClose",
+        label: "Close",
+        action: ACTION_UNIT_MENU_CLOSE,
+    },
+];
+
+/// Menu height with `player_items` extra player entries.
+pub fn unit_menu_height(player_items: usize) -> f32 {
+    menu_height_for_items(UNIT_MENU_ITEMS.len() + player_items)
+}
+
+#[derive(Clone)]
+pub(super) struct DynName(pub(super) String);
+
+pub(super) fn dyn_name(name: String) -> DynName {
+    DynName(name)
+}
+
+/// Reaction strip tint behind the unit name: Retail `TargetFrame` sets
+/// `ReputationColor:SetVertexColor(UnitSelectionColor(unit))`, which is red, yellow or green
+/// for hostile, neutral and friendly NPCs. Health bars keep their green art (`lockColor`).
+pub fn reaction_color(reaction: Reaction) -> &'static str {
+    match reaction {
+        Reaction::Hostile => "1.0,0.0,0.0,1.0",
+        Reaction::Neutral => "1.0,1.0,0.0,1.0",
+        Reaction::Friendly => "0.0,1.0,0.0,1.0",
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct UnitFrameState {
+    pub name: String,
+    pub level_text: String,
+    /// "r,g,b,a" of the level text: gold, or the target's difficulty colour.
+    pub level_color: String,
+    pub health_text: String,
+    /// Health fill fraction 0.0..=1.0.
+    pub health_fraction: f32,
+    pub reaction: Option<Reaction>,
+    /// `UnitClassification`: elite and rare art around the target portrait slot.
+    pub classification: CreatureClassification,
+    pub power: Option<PowerBarState>,
+    /// The player's class resource bar as drawn this frame ([`class_bars`]).
+    pub class_bar: Option<ClassBarView>,
+    pub show_combat_icon: bool,
+    pub show_resting_icon: bool,
+    pub target_buffs: Vec<TargetAuraIconState>,
+    pub target_debuffs: Vec<TargetAuraIconState>,
+    /// Friendly target: buffs lead the aura container, else debuffs do.
+    pub target_buffs_first: bool,
+    /// `GetRaidTargetIndex(unit)`: raid target icon 1–8.
+    pub raid_target: Option<u8>,
+}
+
+impl UnitFrameState {
+    pub fn named(name: impl Into<String>) -> Self {
+        Self {
+            name: name.into(),
+            level_text: String::new(),
+            level_color: GOLD_TEXT.to_string(),
+            health_text: String::new(),
+            health_fraction: 0.0,
+            reaction: None,
+            classification: CreatureClassification::Normal,
+            power: None,
+            class_bar: None,
+            show_combat_icon: false,
+            show_resting_icon: false,
+            target_buffs: Vec::new(),
+            target_debuffs: Vec::new(),
+            target_buffs_first: false,
+            raid_target: None,
+        }
+    }
+}
+
+/// Target-of-target and focus: name and health only.
+#[derive(Clone, Debug, PartialEq)]
+pub struct SmallUnitFrameState {
+    pub name: String,
+    pub health_fraction: f32,
+    pub reaction: Option<Reaction>,
+}
+
+impl From<&UnitFrameState> for SmallUnitFrameState {
+    fn from(unit: &UnitFrameState) -> Self {
+        Self {
+            name: unit.name.clone(),
+            health_fraction: unit.health_fraction,
+            reaction: unit.reaction,
+        }
+    }
+}
+
+#[derive(Clone, Debug, PartialEq, Default)]
+pub struct UnitFrameMenuState {
+    pub visible: bool,
+    pub title: String,
+    pub x: f32,
+    pub y: f32,
+    /// Player-unit entries (`UnitPopup` Invite / Promote / Leave … then Inspect), shown
+    /// before Close.
+    pub player_items: Vec<UnitMenuItem>,
+    /// The Dungeon Difficulty submenu, open beside the menu.
+    pub difficulty_menu: Option<DifficultyMenuState>,
+}
+
+/// `UnitPopupDungeonDifficultyButtonMixin:GetEntries`: Normal, Heroic, Mythic radios.
+#[derive(Clone, Debug, PartialEq)]
+pub struct DifficultyMenuState {
+    pub x: f32,
+    pub y: f32,
+    pub entries: Vec<DifficultyMenuEntry>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct DifficultyMenuEntry {
+    pub difficulty_id: u32,
+    /// `PLAYER_DIFFICULTY1`, `PLAYER_DIFFICULTY2`, `PLAYER_DIFFICULTY6`.
+    pub label: String,
+    /// `IsChecked`: the player's dungeon difficulty.
+    pub checked: bool,
+    /// `IsEnabled` (`DifficultyUtil.IsDungeonDifficultyEnabled`).
+    pub enabled: bool,
+}
+
+/// Height of the Dungeon Difficulty submenu with `rows` entries.
+pub fn difficulty_menu_height(rows: usize) -> f32 {
+    DIFFICULTY_MENU_TOP + rows as f32 * DIFFICULTY_ROW_H + 6.0
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct UnitMenuItem {
+    pub name: String,
+    pub label: String,
+    pub action: String,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct TargetAuraIconState {
+    pub spell_id: u32,
+    pub icon_fdid: u32,
+    pub stacks: u32,
+    /// Debuffs: the `DispelBorder` tint (`AuraUtil.SetAuraBorderColor`); buffs have none.
+    pub dispel_color: Option<String>,
+    /// Cast by the local player: `LargeAuraSize`.
+    pub large: bool,
+    /// Elapsed fraction of a timed aura, for the reverse cooldown swipe; `None` when
+    /// permanent.
+    pub elapsed: Option<f32>,
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct InWorldUnitFramesState {
+    pub show_player_frame: bool,
+    pub show_target_frame: bool,
+    pub player: UnitFrameState,
+    pub target: Option<UnitFrameState>,
+    pub target_of_target: Option<SmallUnitFrameState>,
+    pub focus: Option<SmallUnitFrameState>,
+    /// `boss1..boss5` (`INSTANCE_ENCOUNTER_ENGAGE_UNIT`), Boss1TargetFrame first.
+    pub bosses: Vec<UnitFrameState>,
+    pub menu: UnitFrameMenuState,
+}
+
+pub fn fraction(current: f32, max: f32) -> f32 {
+    if max <= 0.0 {
+        return 0.0;
+    }
+    (current / max).clamp(0.0, 1.0)
+}
+
+/// Retail hides the level of units 10 or more levels above the player behind "??".
+pub fn target_level_text(level: Option<u8>, player_level: Option<u8>) -> String {
+    match (level, player_level) {
+        (Some(level), Some(player)) if u16::from(level) >= u16::from(player) + 10 => "??".into(),
+        (Some(level), _) => level.to_string(),
+        (None, _) => String::new(),
+    }
+}
+
+pub fn format_value_text(current: f32, max: f32) -> String {
+    format!("{current:.0} / {max:.0}")
+}
+
+pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
+    let state = ctx
+        .get::<InWorldUnitFramesState>()
+        .expect("InWorldUnitFramesState must be in SharedContext");
+    rsx! {
+        r#frame {
+            name: "InWorldUnitFramesRoot",
+            width: "fill",
+            height: "fill",
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
+            strata: FrameStrata::Dialog,
+            background_color: "0.0,0.0,0.0,0.0",
+            {player_frame(&state.player, state.show_player_frame)}
+            {target_frame(state.target.as_ref(), state.show_target_frame)}
+            {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state))}
+            {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref())}
+            {boss_frames(&state.bosses)}
+            {unit_frame_menu(&state.menu)}
+            {difficulty_menu(state.menu.difficulty_menu.as_ref())}
+        }
+    }
+}
+
+fn visible_target_of(state: &InWorldUnitFramesState) -> Option<&SmallUnitFrameState> {
+    let target_shown = state.show_target_frame && state.target.is_some();
+    state.target_of_target.as_ref().filter(|_| target_shown)
+}
+
+const UNIT_FRAME_SIZE: (f32, f32) = (UNIT_FRAME_W, UNIT_FRAME_H);
+
+fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
+    let content = rsx! {
+        {unit_frame_contents("Player", state, &PLAYER_SLOTS, HEALTH_BAR)}
+        {class_bar(state.class_bar.as_ref())}
+        {status_icons(state)}
+    };
+    art_root(
+        dyn_name("PlayerFrame".into()),
+        UNIT_FRAME_SIZE,
+        (PLAYER_FRAME_LEFT, PLAYER_FRAME_BOTTOM),
+        !visible,
+        (
+            &PLAYER_PORTRAIT_ON,
+            centred(&PLAYER_PORTRAIT_ON, UNIT_FRAME_SIZE),
+        ),
+        portrait_slot(&PLAYER_PORTRAIT),
+        content,
+    )
+}
+
+fn target_frame(target: Option<&UnitFrameState>, visible: bool) -> Element {
+    let content = target.map(target_frame_contents).unwrap_or_default();
+    art_root(
+        dyn_name("TargetFrame".into()),
+        UNIT_FRAME_SIZE,
+        (TARGET_FRAME_LEFT, TARGET_FRAME_BOTTOM),
+        target.is_none() || !visible,
+        (
+            &TARGET_PORTRAIT_ON,
+            centred(&TARGET_PORTRAIT_ON, UNIT_FRAME_SIZE),
+        ),
+        portrait_slot(&TARGET_PORTRAIT),
+        content,
+    )
+}
+
+fn target_frame_contents(state: &UnitFrameState) -> Element {
+    let (strip_x, strip_y) = TARGET_REPUTATION;
+    let (strip_w, strip_h) = REACTION_STRIP.size();
+    rsx! {
+        {reaction_strip("Target", state.reaction, (strip_x, strip_y, strip_w, strip_h))}
+        {unit_frame_contents("Target", state, &TARGET_SLOTS, TARGET_HEALTH_BAR)}
+        {classification_art(state.classification)}
+        {raid_target_icon(state.raid_target)}
+        {target_auras(state, (TARGET_AURAS_LEFT, TARGET_AURAS_TOP))}
+    }
+}
+
+/// `TargetFrameMixin:CheckClassification` (TargetFrame.lua:436-445): the gold dragon for
+/// elites, the silver one for rare elites. The winged `UnitIsBossMob` dragon is not drawn.
+pub fn boss_portrait_art(classification: CreatureClassification) -> Option<AtlasArt> {
+    match classification {
+        CreatureClassification::RareElite => Some(BOSS_RARE_SILVER),
+        CreatureClassification::Elite => Some(BOSS_GOLD),
+        _ => None,
+    }
+}
+
+/// The rare star `BossIcon` (TargetFrame.lua:457-462).
+pub fn shows_rare_star(classification: CreatureClassification) -> bool {
+    matches!(
+        classification,
+        CreatureClassification::Rare | CreatureClassification::RareElite
+    )
+}
+
+/// The dragon frames the portrait, the star sits on its bottom edge.
+fn classification_art(classification: CreatureClassification) -> Element {
+    let portrait = boss_portrait_art(classification);
+    let portrait_art = portrait.unwrap_or(BOSS_GOLD);
+    let (portrait_w, portrait_h) = portrait_art.size();
+    let (portrait_x, portrait_y) = TARGET_BOSS_PORTRAIT;
+    let (star_x, star_y) = TARGET_BOSS_ICON_CENTRE;
+    let half_star = BOSS_RARE_STAR_SIZE / 2.0;
+    rsx! {
+        {art_texture(dyn_name("TargetBossPortraitFrameTexture".into()), &portrait_art, (portrait_x, portrait_y, portrait_w, portrait_h), portrait.is_none())}
+        {art_texture(dyn_name("TargetBossIcon".into()), &BOSS_RARE_STAR, (star_x - half_star, star_y - half_star, BOSS_RARE_STAR_SIZE, BOSS_RARE_STAR_SIZE), !shows_rare_star(classification))}
+    }
+}
+
+/// `Interface\TargetingFrame\UI-RaidTargetingIcons`: a 4×4 sheet whose first two rows
+/// hold Star, Circle, Diamond, Triangle, Moon, Square, Cross, Skull.
+pub const RAID_TARGET_ICONS_FDID: u32 = 137_009;
+/// Retail `RAID_TARGET_TEXTURE_ROWS` / `RAID_TARGET_TEXTURE_COLUMNS` (TargetFrame.lua:682-683).
+const RAID_TARGET_TEXTURE_CELLS: u8 = 4;
+const TARGET_RAID_TARGET_ICON_SIZE: f32 = 26.0;
+
+/// `SetRaidTargetIconTexture` → `SetSpriteSheetCell(index, 4, 4)`: left, right, top,
+/// bottom of raid target icon `index` (1–8).
+pub fn raid_target_tex_coords(index: u8) -> [f32; 4] {
+    let cell = index - 1;
+    let cells = f32::from(RAID_TARGET_TEXTURE_CELLS);
+    let column = f32::from(cell % RAID_TARGET_TEXTURE_CELLS);
+    let row = f32::from(cell / RAID_TARGET_TEXTURE_CELLS);
+    [
+        column / cells,
+        (column + 1.0) / cells,
+        row / cells,
+        (row + 1.0) / cells,
+    ]
+}
+
+/// `TargetFrameMixin:UpdateRaidTargetIcon` (TargetFrame.lua:672-680).
+fn raid_target_icon(raid_target: Option<u8>) -> Element {
+    let [left, right, top, bottom] = raid_target_tex_coords(raid_target.unwrap_or(1));
+    let coords = format!("{left},{right},{top},{bottom}");
+    let (centre_x, centre_y) = TARGET_RAID_TARGET_ICON_CENTRE;
+    let size = TARGET_RAID_TARGET_ICON_SIZE;
+    let hidden = raid_target.is_none();
+    rsx! {
+        texture {
+            name: {dyn_name("TargetRaidTargetIcon".into())},
+            width: size,
+            height: size,
+            hidden,
+            texture_fdid: RAID_TARGET_ICONS_FDID,
+            tex_coords: {coords.as_str()},
+            pos_type: "absolute",
+            pos_x: {centre_x - size / 2.0},
+            pos_y: {centre_y - size / 2.0},
+        }
+    }
+}
+
+/// Retail `MAX_BOSS_FRAMES`.
+pub const MAX_BOSS_FRAMES: usize = 5;
+/// `BossTargetFrameContainer` (Blizzard_UnitFrame/Mainline/TargetFrame.xml): a vertical
+/// right-managed stack, `spacing` 10. Its right-side slot below the minimap is placed
+/// at the reference resolution; the boss flair art is not drawn.
+const BOSS_FRAME_RIGHT: f32 = 60.0;
+const BOSS_FRAME_TOP: f32 = 300.0;
+const BOSS_FRAME_SPACING: f32 = 10.0;
+
+pub fn boss_frame_name(index: usize) -> String {
+    format!("Boss{}TargetFrame", index + 1)
+}
+
+fn boss_frames(bosses: &[UnitFrameState]) -> Element {
+    (0..MAX_BOSS_FRAMES)
+        .flat_map(|index| boss_frame(index, bosses.get(index)))
+        .collect()
+}
+
+fn boss_frame(index: usize, boss: Option<&UnitFrameState>) -> Element {
+    let name = boss_frame_name(index);
+    let prefix = format!("Boss{}", index + 1);
+    let content = boss
+        .map(|state| {
+            rsx! {
+                {reaction_strip(&prefix, state.reaction, portrait_off_strip(1.0))}
+                {unit_frame_contents(&prefix, state, &PORTRAIT_OFF_SLOTS, HEALTH_BAR)}
+            }
+        })
+        .unwrap_or_default();
+    let art = art_texture(
+        dyn_name(format!("{name}Art")),
+        &FRAME_PORTRAIT_OFF,
+        (0.0, 0.0, FRAME_W, FRAME_H),
+        false,
+    );
+    let hidden = boss.is_none();
+    let top = BOSS_FRAME_TOP + index as f32 * (FRAME_H + BOSS_FRAME_SPACING);
+    rsx! {
+        r#frame {
+            name: {dyn_name(name)},
+            width: FRAME_W,
+            height: FRAME_H,
+            hidden,
+            mouse_enabled: true,
+            pos_type: "absolute",
+            right: BOSS_FRAME_RIGHT,
+            top,
+            {art}
+            {content}
+        }
+    }
+}
+
+/// `scale` maps the authored 133×51 art slots onto smaller frames.
+fn scaled((x, y, width, height): Rect, scale: f32) -> Rect {
+    (x * scale, y * scale, width * scale, height * scale)
+}
+
+/// The reaction strip over the portrait-off name tab. Authored 18px tall: a 13px band
+/// that fades out above its transparent lower rows.
+fn portrait_off_strip(scale: f32) -> Rect {
+    scaled((BAR_X, NAME_Y, BAR_W, REACTION_STRIP.size().1), scale)
+}
+
+fn reaction_strip(prefix: &str, reaction: Option<Reaction>, rect: Rect) -> Element {
+    let Some(reaction) = reaction else {
+        return Element::default();
+    };
+    tinted_art_texture(
+        dyn_name(format!("{prefix}ReputationColor")),
+        &REACTION_STRIP,
+        rect,
+        reaction_color(reaction),
+        false,
+    )
+}
+
+fn unit_frame_contents(
+    prefix: &str,
+    state: &UnitFrameState,
+    slots: &FrameSlots,
+    health_art: AtlasArt,
+) -> Element {
+    let power_text = state.power.as_ref().map(PowerBarState::text);
+    let power_fraction = state.power.as_ref().map_or(0.0, |power| {
+        fraction(power.current as f32, power.max as f32)
+    });
+    rsx! {
+        {unit_label(dyn_name(format!("{prefix}Name")), &state.name, slots.name, (GOLD_TEXT, UNIT_FONT_SIZE), "LEFT")}
+        {unit_label(dyn_name(format!("{prefix}LevelText")), &state.level_text, slots.level, (&state.level_color, UNIT_FONT_SIZE), slots.level_justify)}
+        {status_bar(BarSpec {
+            name: format!("{prefix}HealthBar"),
+            rect: slots.health,
+            fraction: state.health_fraction,
+            art: Some(health_art),
+            text: &state.health_text,
+            font_size: UNIT_FONT_SIZE,
+            hidden: false,
+        })}
+        {status_bar(BarSpec {
+            name: format!("{prefix}ManaBar"),
+            rect: slots.power,
+            fraction: power_fraction,
+            art: state.power.as_ref().and_then(|power| power_bar_art(power.power)),
+            text: power_text.as_deref().unwrap_or_default(),
+            font_size: UNIT_FONT_SIZE - 1.0,
+            hidden: state.power.is_none(),
+        })}
+    }
+}
+
+/// Retail `VerticalLayoutMixin` places a centred child at the container top plus its
+/// `topPadding`, shifted right by half its `leftPadding` (LayoutFrame.lua:340,346-348).
+fn class_bar(view: Option<&ClassBarView>) -> Element {
+    let Some(view) = view else {
+        return Element::default();
+    };
+    let (width, height) = view.size;
+    let (top_padding, left_padding) = view.padding;
+    let textures: Element = view.textures.iter().flat_map(class_bar_texture).collect();
+    rsx! {
+        r#frame {
+            name: "PlayerSecondaryResourceRow",
+            width,
+            height,
+            pos_type: "absolute",
+            pos_x: {CLASS_BAR_CENTRE_X + left_padding / 2.0 - width / 2.0},
+            pos_y: {CLASS_BAR_TOP + top_padding},
+            {textures}
+        }
+    }
+}
+
+/// One class bar texture at its alpha; hidden while not shown or fully transparent. A
+/// Cooldown swipe is an empty frame the client fills with its radial swipe.
+fn class_bar_texture(texture: &TextureView) -> Element {
+    if texture.swipe.is_some() {
+        let (x, y, width, height) = texture.rect;
+        let hidden = !texture.shown;
+        return rsx! {
+            r#frame {
+                name: {dyn_name(texture.name.clone())},
+                width,
+                height,
+                hidden,
+                pos_type: "absolute",
+                pos_x: x,
+                pos_y: y,
+            }
+        };
+    }
+    let name = dyn_name(texture.name.clone());
+    let (x, y, width, height) = texture.rect;
+    let coords = texture.art.tex_coords(1.0);
+    let color = format!("1.0,1.0,1.0,{}", texture.alpha);
+    let hidden = !texture.shown || texture.alpha <= 0.0;
+    rsx! {
+        texture {
+            name,
+            width,
+            height,
+            hidden,
+            texture_fdid: {texture.art.fdid},
+            tex_coords: {coords.as_str()},
+            vertex_color: {color.as_str()},
+            rotation: {texture.rotation},
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+        }
+    }
+}
+
+/// Retail `AttackIcon` and the rest flipbook's first cell beside the portrait.
+fn status_icons(state: &UnitFrameState) -> Element {
+    let (combat_w, combat_h) = COMBAT_ICON.size();
+    let (combat_x, combat_y) = PLAYER_ATTACK_ICON;
+    rsx! {
+        {art_texture(dyn_name("PlayerCombatIcon".into()), &COMBAT_ICON, (combat_x, combat_y, combat_w, combat_h), !state.show_combat_icon)}
+        {art_texture(dyn_name("PlayerRestingIcon".into()), &REST_ICON, PLAYER_REST_ICON, !state.show_resting_icon)}
+    }
+}
+
+struct SmallFrameSpec {
+    root: &'static str,
+    prefix: &'static str,
+    left: f32,
+    /// Retail's focus frame is a `TargetFrameTemplate` with the reaction strip; target of
+    /// target has none.
+    reaction_strip: bool,
+}
+
+impl SmallFrameSpec {
+    const TARGET_OF_TARGET: Self = Self {
+        root: "TargetOfTargetFrame",
+        prefix: "TargetOfTarget",
+        left: TOT_LEFT,
+        reaction_strip: false,
+    };
+    const FOCUS: Self = Self {
+        root: "FocusFrame",
+        prefix: "Focus",
+        left: FOCUS_LEFT,
+        reaction_strip: true,
+    };
+}
+
+fn small_unit_frame(spec: SmallFrameSpec, state: Option<&SmallUnitFrameState>) -> Element {
+    let content = state
+        .map(|unit| small_unit_contents(&spec, unit))
+        .unwrap_or_default();
+    art_root(
+        dyn_name(spec.root.into()),
+        (TOT_W, TOT_H),
+        (spec.left, SMALL_FRAME_BOTTOM),
+        state.is_none(),
+        (&FRAME_PORTRAIT_OFF, (0.0, 0.0, TOT_W, TOT_H)),
+        Element::default(),
+        content,
+    )
+}
+
+fn small_unit_contents(spec: &SmallFrameSpec, unit: &SmallUnitFrameState) -> Element {
+    let scale = SMALL_ART_SCALE;
+    let strip = unit.reaction.filter(|_| spec.reaction_strip);
+    rsx! {
+        {reaction_strip(spec.prefix, strip, portrait_off_strip(scale))}
+        {unit_label(dyn_name(format!("{}Name", spec.prefix)), &unit.name, scaled(PORTRAIT_OFF_SLOTS.name, scale), (GOLD_TEXT, UNIT_FONT_SIZE * scale), "LEFT")}
+        {status_bar(BarSpec {
+            name: format!("{}HealthBar", spec.prefix),
+            rect: scaled(PORTRAIT_OFF_SLOTS.health, scale),
+            fraction: unit.health_fraction,
+            art: Some(HEALTH_BAR),
+            text: "",
+            font_size: UNIT_FONT_SIZE * scale,
+            hidden: false,
+        })}
+    }
+}
+
+fn unit_frame_menu(state: &UnitFrameMenuState) -> Element {
+    let (close, focus) = UNIT_MENU_ITEMS
+        .split_last()
+        .expect("unit menu ends with Close");
+    let mut items: Vec<ContextMenuItem<'_>> = focus.to_vec();
+    items.extend(state.player_items.iter().map(|item| ContextMenuItem {
+        name: &item.name,
+        label: &item.label,
+        action: &item.action,
+    }));
+    items.push(*close);
+    context_menu(ContextMenu {
+        frame_name: "UnitFrameContextMenu",
+        title_name: "UnitFrameContextMenuTitle",
+        divider_name: "UnitFrameContextMenuDivider",
+        hidden: !state.visible,
+        title: state.title.as_str(),
+        width: UNIT_MENU_W,
+        x: state.x,
+        y: state.y,
+        items: &items,
+    })
+}
+
+/// The rows the Dungeon Difficulty submenu always has (Normal, Heroic, Mythic), so they
+/// exist, laid out, before it first opens.
+const DIFFICULTY_MENU_ROWS: [u32; 3] = [1, 2, 23];
+
+/// The Dungeon Difficulty submenu (`DUNGEON_DIFFICULTY`): a radio row per difficulty,
+/// grey while disabled (its click is ignored, `unit_frames::UnitFrameClick`).
+fn difficulty_menu(state: Option<&DifficultyMenuState>) -> Element {
+    let hidden = state.is_none();
+    let (x, y) = state.map_or((0.0, 0.0), |menu| (menu.x, menu.y));
+    let height = difficulty_menu_height(DIFFICULTY_MENU_ROWS.len());
+    let rows: Element = DIFFICULTY_MENU_ROWS
+        .iter()
+        .enumerate()
+        .flat_map(|(index, &difficulty_id)| {
+            let entry = state
+                .and_then(|menu| {
+                    menu.entries
+                        .iter()
+                        .find(|entry| entry.difficulty_id == difficulty_id)
+                })
+                .cloned()
+                .unwrap_or(DifficultyMenuEntry {
+                    difficulty_id,
+                    label: String::new(),
+                    checked: false,
+                    enabled: false,
+                });
+            difficulty_row(index, &entry)
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: "UnitFrameDifficultyMenu",
+            width: {DIFFICULTY_MENU_W},
+            height: {height},
+            hidden: hidden,
+            strata: FrameStrata::Dialog,
+            frame_level: 61.0,
+            background_color: "0.03,0.03,0.03,0.96",
+            pos_type: "absolute",
+            left: {x},
+            top: {y},
+            fontstring {
+                name: "UnitFrameDifficultyMenuTitle",
+                width: {DIFFICULTY_MENU_W - 12.0},
+                height: 14.0,
+                text: "Dungeon Difficulty",
+                font_size: 10.0,
+                font_color: "1.0,0.82,0.0,1.0",
+                justify_h: "LEFT",
+                pos_type: "absolute",
+                left: 6.0,
+                top: 6.0,
+            }
+            {rows}
+        }
+    }
+}
+
+fn difficulty_row(index: usize, entry: &DifficultyMenuEntry) -> Element {
+    let row_name = dyn_name(format!("UnitFrameDifficultyMenu{}", entry.difficulty_id));
+    let radio_name = dyn_name(format!(
+        "UnitFrameDifficultyMenu{}Radio",
+        entry.difficulty_id
+    ));
+    let text_name = dyn_name(format!(
+        "UnitFrameDifficultyMenu{}Text",
+        entry.difficulty_id
+    ));
+    let top = DIFFICULTY_MENU_TOP + index as f32 * DIFFICULTY_ROW_H;
+    let coords = if entry.checked {
+        RADIO_CHECKED_COORDS
+    } else {
+        RADIO_EMPTY_COORDS
+    };
+    let color = if entry.enabled {
+        MENU_TEXT_ENABLED
+    } else {
+        MENU_TEXT_DISABLED
+    };
+    let action = format!(
+        "{ACTION_UNIT_MENU_SET_DUNGEON_DIFFICULTY_PREFIX}{}",
+        entry.difficulty_id
+    );
+    rsx! {
+        r#frame {
+            name: row_name,
+            width: {DIFFICULTY_MENU_W - 12.0},
+            height: {DIFFICULTY_ROW_H},
+            onclick: action.as_str(),
+            pos_type: "absolute",
+            left: 6.0,
+            top: {top},
+            texture {
+                name: radio_name,
+                width: 18.0,
+                height: 18.0,
+                texture_fdid: RADIO_SHEET_FDID,
+                tex_coords: coords,
+                pos_type: "absolute",
+                left: 0.0,
+                top: 1.0,
+            }
+            fontstring {
+                name: text_name,
+                width: {DIFFICULTY_MENU_W - 32.0},
+                height: 20.0,
+                text: entry.label.as_str(),
+                font_size: 10.0,
+                font_color: color,
+                justify_h: "LEFT",
+                pos_type: "absolute",
+                left: 19.0,
+                top: 0.0,
+            }
+        }
+    }
+}
+
+#[cfg(all(test, feature = "dev"))]
+#[path = "../../../tests/unit/inworld_unit_frames_component_tests.rs"]
+mod tests;
+
+#[cfg(test)]
+#[path = "../../../tests/unit/class_bars_tests.rs"]
+mod class_bars_tests;

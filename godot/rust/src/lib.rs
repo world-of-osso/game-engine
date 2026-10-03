@@ -1,6 +1,6 @@
 mod account;
 mod animation;
-#[path = "../../../src/rendering/character/appearance_options.rs"]
+#[path = "rendering/character/appearance_options.rs"]
 pub mod appearance_options;
 pub(crate) use game_engine_core::asset;
 pub use game_engine_core::{customization_data, outfit_data};
@@ -25,10 +25,10 @@ mod damage_meter;
 mod debug_character;
 mod display_options;
 mod entrance_bar;
-#[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
+#[path = "game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
 mod eula;
-#[path = "../../../src/game/faction_reaction.rs"]
+#[path = "game/faction_reaction.rs"]
 mod faction_reaction;
 mod frame_error;
 mod game_menu;
@@ -53,14 +53,14 @@ mod mirror_timers;
 mod nameplate_cast_bar;
 mod nameplate_casts;
 mod nameplates;
-#[path = "../../../src/game/creatures/npc_gear_data.rs"]
+#[path = "game/creatures/npc_gear_data.rs"]
 pub mod npc_gear_data;
 mod objective_tracker;
 mod particle_debug;
 mod particles;
 mod party_frames;
 mod player_spells;
-#[path = "../../../src/process_memory_status.rs"]
+#[path = "process_memory_status.rs"]
 mod process_memory_status;
 mod profile;
 mod quests;
@@ -93,6 +93,7 @@ mod ui;
 mod ui_scale;
 mod unit_menu;
 mod unit_pick;
+mod unit_portraits;
 mod vignettes;
 mod waypoint_path;
 mod window_stack;
