@@ -108,9 +108,14 @@ fn build_weighted_mesh(
         padding = padding.max(surface_padding);
         let lods = read_surface_lods(source, surface)
             .map_err(|error| format!("surface {surface}: {error}"))?;
+        let blend_shapes: Array<AnyArray> = source
+            .surface_get_blend_shape_arrays(surface)
+            .iter_shared()
+            .map(VarArray::upcast_any_array)
+            .collect();
         weighted
             .add_surface_from_arrays_ex(source.surface_get_primitive_type(surface), &arrays)
-            .blend_shapes(&source.surface_get_blend_shape_arrays(surface))
+            .blend_shapes(&blend_shapes)
             .lods(&lods)
             .flags(source.surface_get_format(surface) | mesh::ArrayFormat::COLOR)
             .done();
@@ -204,7 +209,7 @@ fn read_surface_lods(source: &Gd<ArrayMesh>, surface: i32) -> Result<VarDictiona
                 }
             })
             .collect();
-        result.set(distance, PackedInt32Array::from(indices.as_slice()));
+        result.set(&distance, &PackedInt32Array::from(indices.as_slice()));
     }
     Ok(result)
 }

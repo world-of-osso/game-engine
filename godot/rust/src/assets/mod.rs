@@ -14,8 +14,8 @@ use crate::animation::WowAnimationPlayer;
 use game_engine_core::{blp, m2};
 use godot::{
     classes::{
-        ArrayMesh, Image, ImageTexture, MeshInstance3D, Node3D, ProjectSettings, RefCounted,
-        ShaderMaterial, Skeleton3D, Skin, image, mesh,
+        ArrayMesh, Image, MeshInstance3D, Node3D, ProjectSettings, RefCounted, ShaderMaterial,
+        Skeleton3D, Skin, image, mesh,
     },
     prelude::*,
 };
