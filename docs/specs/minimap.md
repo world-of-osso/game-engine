@@ -28,6 +28,18 @@ Retail sources are in `~/.cache/wow-ui-sim/blizzard-ui`: `Blizzard_Minimap/Mainl
 - [x] Every mirrored NPC with `NPCFlags::QUESTGIVER` is queried once with `QuestGiverStatusQuery`. `Available` shows the `QuestNormal` blip and `Reward` the `QuestTurnin` blip from `ObjectIconsAtlas`, placed at the NPC's offset from the player. Blips outside the circle are hidden, and the other statuses draw none.
 - [x] The cluster exists only in world while `hud.show_minimap` is on.
 
+### Forever skin (FlareUI square minimap)
+
+Layout numbers are FlareUI 1.3 `Modules/Minimap.lua:32-50,115-136` as quoted in the Forever plan; the FlareUI source was not available when this was built, so the placements marked *assumed* are not verified against it. FlareUI art is not used.
+
+- [x] `MinimapCluster` is 260×260 at the Modern anchor; the map is 244×244 without a mask: the composite fills its corners and blips show anywhere on the square.
+- [x] The map is centred across (8 from each side) with its top at 16, one unit under the header (*assumed*).
+- [x] A 17-high header across the cluster's top holds the zone name from the left inset 8 (*assumed*) and the 40-wide clock with its TOPRIGHT on the header's TOPRIGHT, inset 8.
+- [x] The border is the `ButtonFrameTemplateNoPortrait` NineSlice (`metal_frame_no_portrait` panel style) around the cluster. Retail's compass ring, header bar, tracking button and calendar are not drawn.
+- [x] The mail icon sits 2 inside the map's top-left corner (*assumed*). Hover zoom buttons keep their offsets from the map centre.
+- [x] A skin switch rebuilds the cluster canvas and the composite.
+- [ ] Camelot round ring (`Blizzard_Minimap/Camelot/Skin.lua:9-18`: `UI-HUD-Minimap-Frame`, mask `ui-hud-minimap-frame-generic-mask`): not drawn, the FlareUI layout replaces it. Day/night ring (`Diel.lua`). The `uiframemetal2xc60` re-skin of the border (the panel style composes Retail's sheets by FileDataID).
+
 ### Not done
 - [ ] Indoor (WMO) minimaps, the indoor diameter table, and `rotateMinimap` 1.
 - [x] Creature vignettes: every replicated unit with `UnitVignette` whose `Vignette.csv` row lacks `DontShowOnMinimap` shows `VignetteKill`, or `VignetteKillElite` for elite/rare-elite/world-boss classifications, at its offset; the server adds and removes `UnitVignette` with the unit's 100 yd visibility and its death (`godot/rust/src/vignettes.rs`).
@@ -41,6 +53,7 @@ Retail sources are in `~/.cache/wow-ui-sim/blizzard-ui`: `Blizzard_Minimap/Mainl
 ## Tests asserting this spec
 
 - `godot/core/tests/minimap_data.rs`: Northshire tile key and path; the composite's orientation, missing-tile colour and round mask; the texel under the player; blip offsets and edge; zoom clamps; clock text; zone text and PvP colours; race faction.
+- `godot/ui-model/tests/forever_minimap.rs`: the Modern trees equal the pre-skin fixture; the Forever cluster, map, header texts, border, blips, arrow, zoom buttons and mail rects; a live skin switch. `godot/core/tests/minimap_data.rs` covers the square mask's corners and corner blips.
 - `godot/rust/src/vignettes_tests.rs`: Doomwalker (Vignette 6520, elite) draws one `VignetteKillElite` blip 50 yd north; a `DontShowOnMinimap` vignette, one past the edge and one without `UnitVignette` draw none. `godot/tests/vignettes_live.gd` (live, private server, Doomwalker forced active): screenshots in `data/diagnostics/vignettes-2026-10-02/`.
 - `godot/tests/world_minimap_quest.gd` (live, private server): the drawn tile is the player's `map32_48`, the composite centre is that tile's texel, and the zone text is "Northshire Valley". The arrow's rotation matches the facing, and the arrow points along W movement. A McBride blip shows. Hover shows the zoom buttons, the wheel zooms in and ZoomOut zooms out. Screenshots are in `data/diagnostics/minimapquest-2026-09-29/`.
 

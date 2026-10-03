@@ -50,11 +50,34 @@ pub fn tile_path(map: &str, (first, second): TileKey) -> String {
     format!("world/minimaps/{map}/map{first:02}_{second:02}.blp")
 }
 
-/// What the minimap shows: centre (engine `x`, `z`) and view diameter in yards.
+/// Shape of the `Minimap` mask: the composite and the blips are clipped to it.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum MapMask {
+    /// Retail's round map.
+    #[default]
+    Round,
+    /// The whole square map (FlareUI's square minimap under the Forever skin).
+    Square,
+}
+
+impl MapMask {
+    /// Whether a point `right`, `down` of the map centre (fractions of the map size) is
+    /// on the map.
+    pub fn contains(self, right: f32, down: f32) -> bool {
+        match self {
+            Self::Round => right.hypot(down) <= 0.5,
+            Self::Square => right.abs() <= 0.5 && down.abs() <= 0.5,
+        }
+    }
+}
+
+/// What the minimap shows: centre (engine `x`, `z`), view diameter in yards (the side of
+/// a square map) and the mask.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct MinimapView {
     pub center: [f32; 2],
     pub diameter: f32,
+    pub mask: MapMask,
 }
 
 impl MinimapView {
@@ -62,7 +85,12 @@ impl MinimapView {
         Self {
             center,
             diameter: OUTDOOR_DIAMETERS[usize::from(zoom.min(ZOOM_LEVELS - 1))],
+            mask: MapMask::Round,
         }
+    }
+
+    pub fn masked(self, mask: MapMask) -> Self {
+        Self { mask, ..self }
     }
 
     /// Tile under an engine position and the position inside it: `u` runs west to
@@ -107,16 +135,16 @@ impl MinimapView {
     }
 
     /// Offset of `point` from the minimap centre as a fraction of the minimap size
-    /// (right, down), or None outside the circle.
+    /// (right, down), or None outside the mask.
     pub fn blip_offset(&self, [x, z]: [f32; 2]) -> Option<[f32; 2]> {
         let right = (z - self.center[1]) / self.diameter;
         let down = (self.center[0] - x) / self.diameter;
-        (right.hypot(down) <= 0.5).then_some([right, down])
+        self.mask.contains(right, down).then_some([right, down])
     }
 }
 
 /// North-up composite of the view: `size`² RGBA8, bilinear within each tile, clipped to
-/// the round `Minimap` mask with a one-pixel soft edge.
+/// the view's mask (the round one with a one-pixel soft edge).
 pub fn compose<'a>(
     view: &MinimapView,
     size: u32,
@@ -128,7 +156,10 @@ pub fn compose<'a>(
         for px in 0..size {
             let dx = px as f32 + 0.5 - radius;
             let dy = py as f32 + 0.5 - radius;
-            let coverage = (radius - dx.hypot(dy)).clamp(0.0, 1.0);
+            let coverage = match view.mask {
+                MapMask::Round => (radius - dx.hypot(dy)).clamp(0.0, 1.0),
+                MapMask::Square => 1.0,
+            };
             if coverage == 0.0 {
                 continue;
             }

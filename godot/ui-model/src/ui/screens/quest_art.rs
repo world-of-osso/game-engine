@@ -246,7 +246,13 @@ fn window_background(prefix: &str, width: f32, height: f32) -> Element {
 }
 
 /// A metal panel style on a frame `outset` larger than the window.
-fn metal_border(prefix: &str, width: f32, height: f32, style: &str, outset: [f32; 4]) -> Element {
+pub(crate) fn metal_border(
+    prefix: &str,
+    width: f32,
+    height: f32,
+    style: &str,
+    outset: [f32; 4],
+) -> Element {
     let [left, top, right, bottom] = outset;
     rsx! {
         r#frame {
