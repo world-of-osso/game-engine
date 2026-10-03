@@ -31,9 +31,9 @@ fn launch() -> Result<i32, String> {
         None => pinned_godot(root)?,
     };
     validate_godot(&godot)?;
-    let args = route_arguments(env::args_os().skip(1))?;
+    let (args, build_host) = route_arguments(env::args_os().skip(1))?;
 
-    let status = build_native_extension(root)?;
+    let status = build_native_extension(root, build_host.as_deref())?;
     if !status.success() {
         return Ok(exit_code(status));
     }
@@ -72,11 +72,14 @@ fn native_library_path(root: &Path) -> OsString {
     library_path
 }
 
-fn route_arguments(args: impl IntoIterator<Item = OsString>) -> Result<Vec<OsString>, String> {
+fn route_arguments(
+    args: impl IntoIterator<Item = OsString>,
+) -> Result<(Vec<OsString>, Option<OsString>), String> {
     let mut args = args.into_iter();
     let mut engine = Vec::new();
     let mut client = Vec::new();
     let mut has_separator = false;
+    let mut build_host = None;
 
     while let Some(arg) = args.next() {
         if arg == "--" {
@@ -84,7 +87,19 @@ fn route_arguments(args: impl IntoIterator<Item = OsString>) -> Result<Vec<OsStr
             client.extend(args);
             break;
         }
-        if arg == "--skybox-verify" {
+        if arg == "--build-host" {
+            let value = args
+                .next()
+                .filter(|value| !value.as_bytes().starts_with(b"-"))
+                .ok_or("--build-host requires a value")?;
+            if !matches!(value.to_str(), Some("desktop" | "local")) {
+                return Err(format!(
+                    "invalid --build-host {:?}; expected desktop or local",
+                    value
+                ));
+            }
+            build_host = Some(value);
+        } else if arg == "--skybox-verify" {
             client.push(arg);
         } else if is_client_option(&arg) {
             let value = args
@@ -103,7 +118,7 @@ fn route_arguments(args: impl IntoIterator<Item = OsString>) -> Result<Vec<OsStr
         engine.push("--".into());
         engine.extend(client);
     }
-    Ok(engine)
+    Ok((engine, build_host))
 }
 
 fn is_client_option(argument: &OsStr) -> bool {
@@ -122,12 +137,17 @@ fn is_client_option(argument: &OsStr) -> bool {
     )
 }
 
-fn build_native_extension(root: &Path) -> Result<ExitStatus, String> {
-    Command::new("python3")
+fn build_native_extension(root: &Path, build_host: Option<&OsStr>) -> Result<ExitStatus, String> {
+    let mut command = Command::new("python3");
+    command
         .current_dir(root)
         .arg(root.join("scripts/depot-build.py"))
         .arg("--root")
-        .arg(root)
+        .arg(root);
+    if let Some(host) = build_host {
+        command.arg("--build-host").arg(host);
+    }
+    command
         .status()
         .map_err(|error| format!("cannot run Depot native build: {error}"))
 }
