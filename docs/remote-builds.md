@@ -18,6 +18,8 @@ cargo run -- --screen charselect
 python3 scripts/depot-build.py --root "$PWD"
 # Build the extension and one owned UDP fixture executable (any godot/network/examples/*.rs stem):
 python3 scripts/depot-build.py --root "$PWD" --fixture native_input_fixture
+# Also export the IPC client to target/debug/game-engine-cli (with or without --fixture):
+python3 scripts/depot-build.py --root "$PWD" --cli
 ```
 
 `--fixture` accepts every top-level `godot/network/examples/*.rs` file stem (`native_input_fixture`, `native_npc_visual_fixture`, `native_reconnect_fixture`, `native_transfer_fixture`, and any new one); the helper validates the name and the Dockerfile builds it. Fixtures locate their checkout from the installed `target/debug/examples/<name>` path.
@@ -28,7 +30,7 @@ Each worktree needs the matching sibling repositories beside it: `asset-resolver
 
 ## Build boundary
 
-The helper uploads a source-only snapshot: tracked inputs, nonignored untracked compile inputs, and matching sibling repositories. It excludes `data/`, secrets, targets, and Git metadata.
+The helper uploads a source-only snapshot: tracked inputs, nonignored untracked compile inputs under the checkout's `godot/` (the only checkout path any godot crate reads), and matching sibling repositories. It excludes `data/`, secrets, targets, and Git metadata.
 
 Remote registry and Git caches are shared. The Cargo target cache is per checkout (`godot-target-<sha256(checkout path)[:20]>`, `sharing=locked`); Cargo decides freshness by mtime, so checkout-specific target state is never reused by another worktree. Source snapshots retain original file timestamps (`copy2`); after acquiring the checkout target lock, the build refreshes staged compile-input timestamps before Cargo runs. This retains the lock-held freshness protection from the earlier A/B/A stale-artifact diagnosis without sharing target artifacts between diverging checkouts. Stable Cargo cannot use `-Zchecksum-freshness`. Worktrees never receive a target cache. By default, each worktree gets only `target/debug/libgame_engine_godot.so`, installed atomically after a lossless gzip download. `--fixture` also builds exactly one `game-engine-network` example after the lock-held source refresh and installs its decompressed executable at `target/debug/examples/<name>`; no target cache is downloaded. Run that executable from the same checkout. `native_input_fixture` modes `menu`, `sound`, `sound-click`, `sound-outcome`, `merchant-click`, `merchant-cursor`, `merchant-services`, `loot`, `settings-reload`, `footsteps`, `reset-windows`, `portal-particles-enabled`, `portal-particles-disabled`, and `portal-density` launch pinned Godot directly (or `GODOT_BIN`), with client flags after `--`. Menu intentionally routes `--screen charselect` and tests the already-built extension without invoking the root launcher or Depot inside its isolated `XDG_CONFIG_HOME`. Menu seeds owned `canonical()` keybinding defaults so inherited legacy bindings cannot change its W movement assertion; user legacy data remains untouched. Other input modes retain their root-launcher requirement, which needs a separate lightweight root launcher build if absent. The NPC visual fixture launches Godot directly.
 

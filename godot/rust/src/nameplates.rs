@@ -179,16 +179,16 @@ impl PlateArt {
         let fill = |bytes: &[u8]| png_texture(bytes, true);
         Ok(Self {
             thick_frame: skin(include_bytes!(
-                "../../../src/rendering/ui/nameplate_skins/health-thick.png"
+                "rendering/ui/nameplate_skins/health-thick.png"
             ))?,
             thin_frame: skin(include_bytes!(
-                "../../../src/rendering/ui/nameplate_skins/health-thin.png"
+                "rendering/ui/nameplate_skins/health-thin.png"
             ))?,
             thick_fill: fill(include_bytes!(
-                "../../../src/rendering/ui/nameplate_skins/health-fill-thick.png"
+                "rendering/ui/nameplate_skins/health-fill-thick.png"
             ))?,
             thin_fill: fill(include_bytes!(
-                "../../../src/rendering/ui/nameplate_skins/health-fill.png"
+                "rendering/ui/nameplate_skins/health-fill.png"
             ))?,
             font: crate::ui::assets::load_font(
                 ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
@@ -459,10 +459,12 @@ fn occluded(camera: &Gd<Camera3D>, point: Vector3) -> bool {
 /// (the centre of its pick box), once its model has loaded.
 fn unit_points(node: &Gd<Node3D>) -> Option<(Vector3, Vector3)> {
     let probe = unit_pick_shape(node)?.get_global_position();
-    Some((
-        node.get_global_transform() * Vector3::new(0.0, BAR_Y_OFFSET, 0.0),
-        probe,
-    ))
+    Some((plate_anchor(node), probe))
+}
+
+/// Where a unit's plate sits: Bevy `BAR_Y_OFFSET` above its origin.
+pub(crate) fn plate_anchor(node: &Gd<Node3D>) -> Vector3 {
+    node.get_global_transform() * Vector3::new(0.0, BAR_Y_OFFSET, 0.0)
 }
 
 /// The local player as the plate rules see it.

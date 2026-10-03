@@ -12,9 +12,9 @@ mod deps {
     pub const NAME_GEN_CSV: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/../../data/NameGen.csv");
 }
 
-#[path = "../../../src/scenes/char_create/camera_orbit.rs"]
+#[path = "scenes/char_create/camera_orbit.rs"]
 mod camera_orbit;
-#[path = "../../../src/scenes/char_create/logic.rs"]
+#[path = "scenes/char_create/logic.rs"]
 mod logic;
 
 pub use logic::*;

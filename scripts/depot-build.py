@@ -19,9 +19,10 @@ import time
 ROOT_NAME = "game-engine-godot-conversion"
 SIBLINGS = ("asset-resolver", "ui-toolkit-godot-conversion", "ui-toolkit-macros", "shared-protocol", "bevy-patches")
 SOURCE_SUFFIXES = {".rs", ".c", ".h", ".cpp", ".hpp", ".wgsl"}
-ROOT_PATHS = ("godot", "src", "tests")  # tests/unit is compiled into crates through #[path]
+ROOT_PATHS = ("godot",)
 EXCLUDED_DIRS = {".git", "target", "data", ".godot"}
 ARTIFACT = "libgame_engine_godot.so"
+CLI = "game-engine-cli"
 FIXTURE_DIR = Path("godot/network/examples")
 TEST_ASSETS = Path("godot/depot-test-assets.txt")
 TEST_LOG = Path("target/depot-test.log")
@@ -51,7 +52,7 @@ def allowed(repo_name, path, tracked):
     if path.suffix in SOURCE_SUFFIXES or path.name in {"Cargo.toml", "Cargo.lock"}:
         return True
     if tracked and repo_name == ROOT_NAME and path.suffix == ".png":
-        return parts[:4] == ("src", "rendering", "ui", "nameplate_skins")
+        return parts[:6] == ("godot", "rust", "src", "rendering", "ui", "nameplate_skins")
     return tracked and repo_name == "bevy-patches" and parts == ("taffy", "README.md")
 
 
@@ -87,14 +88,12 @@ def snapshot_repo(repo, destination, paths, name):
 def validate_sources(context):
     root = context / ROOT_NAME
     required = [root / "godot/Cargo.toml", root / "godot/Cargo.lock"]
-    required.extend(root / "godot" / member / "Cargo.toml" for member in ("core", "network", "rust", "session", "ui-model"))
+    required.extend(root / "godot" / member / "Cargo.toml" for member in ("cli", "core", "network", "rust", "session", "ui-model"))
     required.extend(context / name / "Cargo.toml" for name in SIBLINGS if name != "bevy-patches")
     required.extend(context / "bevy-patches" / name / "Cargo.toml" for name in ("taffy", "ktx2-rw"))
     for path in required:
         if not path.is_file():
             raise FileNotFoundError(f"missing build dependency: {path.relative_to(context)}")
-    if not any((root / "src").rglob("*.rs")):
-        raise FileNotFoundError("missing build dependency: game-engine-godot-conversion/src/*.rs")
 
 
 def install_artifact(compressed, destination, executable=False):
@@ -226,7 +225,7 @@ def stable_context(cache, mode, checkout_key):
         shutil.rmtree(context, ignore_errors=True)
 
 
-def build(root, fixture=None):
+def build(root, fixture=None, cli=False):
     if fixture and fixture not in fixture_names(root):
         raise ValueError(f"unknown fixture {fixture!r}; choose from {', '.join(fixture_names(root))}")
     environment = depot_environment()
@@ -246,17 +245,24 @@ def build(root, fixture=None):
             command = depot_command(context, output, checkout_key, "artifact")
             if fixture:
                 command.extend(["--build-arg", f"FIXTURE={fixture}"])
+            if cli:
+                command.extend(["--build-arg", "CLI=1"])
             subprocess.run([*command, str(context)], check=True, env=environment)
             phase("Remote build", start)
             destination = root / "target" / "debug" / ARTIFACT
             if fixture:
                 fixture_destination = root / "target" / "debug" / "examples" / fixture
                 install_artifact(output / (fixture + ".gz"), fixture_destination, executable=True)
+            if cli:
+                cli_destination = root / "target" / "debug" / CLI
+                install_artifact(output / (CLI + ".gz"), cli_destination, executable=True)
             install_artifact(output / (ARTIFACT + ".gz"), destination)
             phase("Installed", start)
             print(destination)
             if fixture:
                 print(fixture_destination)
+            if cli:
+                print(cli_destination)
 
 
 def run_tests(root, cargo_args):
@@ -302,16 +308,19 @@ def main():
     parser.add_argument("--root", type=Path, required=True, help="originating checkout")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--fixture", help=f"also export one {FIXTURE_DIR} executable, named by file stem")
+    parser.add_argument("--cli", action="store_true", help=f"also export target/debug/{CLI}")
     mode.add_argument("--test", action="store_true",
                       help="run `cargo test --locked` in godot/ with every following argument; must be last")
     argv = sys.argv[1:]
     # argparse drops `--`, which cargo needs to separate test-binary arguments.
     split = argv.index("--test") + 1 if "--test" in argv else len(argv)
     args = parser.parse_args(argv[:split])
+    if args.test and args.cli:
+        parser.error("argument --cli: not allowed with argument --test")
     try:
         if args.test:
             return run_tests(args.root.resolve(), argv[split:])
-        build(args.root.resolve(), args.fixture)
+        build(args.root.resolve(), args.fixture, args.cli)
     except (OSError, ValueError, subprocess.CalledProcessError) as error:
         print(f"Remote build failed: {error}", file=sys.stderr)
         return 1

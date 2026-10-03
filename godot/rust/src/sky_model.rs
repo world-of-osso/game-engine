@@ -329,14 +329,10 @@ fn track_sample_time<T>(
     sequences: &[u32],
     elapsed_ms: u32,
 ) -> (usize, u32) {
-    let index = preferred_index.min(track.sequences.len().saturating_sub(1));
-    if let Ok(global_index) = usize::try_from(track.global_sequence) {
-        if let Some(&duration) = sequences.get(global_index) {
-            if duration > 0 {
-                return (index, elapsed_ms % duration);
-            }
-        }
+    if let Some(global) = m2::global_track_time(track, sequences, f64::from(elapsed_ms)) {
+        return global;
     }
+    let index = preferred_index.min(track.sequences.len().saturating_sub(1));
     let end = track
         .sequences
         .get(index)

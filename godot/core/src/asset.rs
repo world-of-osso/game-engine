@@ -1,18 +1,18 @@
-#[path = "../../../src/asset/adt_format/mod.rs"]
+#[path = "asset/adt_format/mod.rs"]
 pub mod adt_format;
-#[path = "../../../src/asset/blp_format.rs"]
+#[path = "asset/blp_format.rs"]
 pub mod blp_format;
-#[path = "../../../src/asset/m2_batch_data.rs"]
+#[path = "asset/m2_batch_data.rs"]
 pub mod m2_batch_data;
-#[path = "../../../src/asset/m2_format/pure.rs"]
+#[path = "asset/m2_format/pure.rs"]
 pub mod m2_format;
-#[path = "../../../src/asset/m2_texture.rs"]
+#[path = "asset/m2_texture.rs"]
 pub mod m2_texture;
-#[path = "../../../src/asset/read_bytes.rs"]
+#[path = "asset/read_bytes.rs"]
 pub mod read_bytes;
-#[path = "../../../src/asset/wdt.rs"]
+#[path = "asset/wdt.rs"]
 pub mod wdt;
-#[path = "../../../src/asset/wmo_format/mod.rs"]
+#[path = "asset/wmo_format/mod.rs"]
 pub mod wmo_format;
 
 pub use crate::char_texture_data as char_texture;

@@ -1,0 +1,18 @@
+[package]
+name = "game-engine-cli"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+clap = { version = "4", features = ["derive"] }
+# Request/Response wire schema served by the native client's IPC socket.
+game-engine-network = { path = "../network" }
+glob = "0.3"
+peercred-ipc = { git = "https://github.com/Osso/peercred-ipc.git", tag = "v0.2.0" }
+serde = "1"
+serde_json = "1"
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
+
+[dev-dependencies]
+tokio = { version = "1", features = ["rt", "net", "macros"] }
