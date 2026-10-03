@@ -21,8 +21,8 @@ use ui_toolkit::widgets::texture::{DynamicTextureId, TextureData, TextureSource}
 
 use crate::hud_layout::hud_layout;
 use crate::panel_style_data::{
-    METAL_CORNERS, METAL_FRAME_NO_PORTRAIT_OUTSET, METAL_FRAME_NO_PORTRAIT_PANEL_STYLE,
-    METAL_SIDE_EDGES, METAL_TOP_BOTTOM_EDGES,
+    METAL_FRAME_NO_PORTRAIT_OUTSET, METAL_FRAME_NO_PORTRAIT_PANEL_STYLE, MetalTopLeft,
+    metal_sheet_fdids,
 };
 use crate::quest_art::metal_border;
 use crate::ui::strata::FrameStrata;
@@ -238,14 +238,8 @@ pub fn calendar_art(day: u32) -> Option<SheetArt> {
 /// Art the cluster draws under either skin, for hosts that copy textures out of local
 /// CASC on demand.
 pub fn minimap_texture_fdids(state: &MinimapClusterState) -> Vec<u32> {
-    let mut fdids = vec![
-        FRAME.fdid,
-        EDGE_LEFT.fdid,
-        ARROW_FDID,
-        METAL_CORNERS,
-        METAL_SIDE_EDGES,
-        METAL_TOP_BOTTOM_EDGES,
-    ];
+    let mut fdids = vec![FRAME.fdid, EDGE_LEFT.fdid, ARROW_FDID];
+    fdids.extend(metal_sheet_fdids(MetalTopLeft::Plain));
     if !state.blips.is_empty() {
         fdids.push(QUEST_AVAILABLE.fdid);
     }
