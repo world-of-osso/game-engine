@@ -25,9 +25,9 @@ use crate::equipment_appearance_data::{
     model_attachment_id, runtime_mesh_part_allowed, slot_uses_bound_joints,
 };
 
-#[path = "../../../../src/asset/m2_format/m2_bone_names.rs"]
+#[path = "../../../core/src/asset/m2_format/m2_bone_names.rs"]
 mod bone_names;
-#[path = "../../../../src/game/equipment/equipment_transform_data.rs"]
+#[path = "../game/equipment/equipment_transform_data.rs"]
 mod transforms;
 
 struct EquipmentContext<'a> {

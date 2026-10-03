@@ -58,8 +58,7 @@ class DepotBuildTests(unittest.TestCase):
         self.base = Path(self.tmp.name)
         self.root = self.base / "game-engine-godot-conversion"
         self.root.mkdir()
-        for name in ("godot", "src"):
-            (self.root / name).mkdir()
+        (self.root / "godot").mkdir()
         self._put(self.root, "godot/Cargo.toml", "[workspace]\nmembers=[]\n")
         self._put(self.root, "godot/Cargo.lock", "lock")
         for member in ("core", "network", "rust", "session", "ui-model"):
@@ -68,8 +67,9 @@ class DepotBuildTests(unittest.TestCase):
         for name in FIXTURES:
             self._put(self.root, f"godot/network/examples/{name}.rs", "fn main() {}")
         self._put(self.root, "godot/network/examples/fixture_support/mod.rs", "shared")
-        self._put(self.root, "src/asset/mod.rs", "asset")
-        self._put(self.root, "src/rendering/ui/nameplate_skins/health-fill.png", "png")
+        self._put(self.root, "godot/core/src/asset/mod.rs", "asset")
+        self._put(self.root, "godot/rust/src/rendering/ui/nameplate_skins/health-fill.png", "png")
+        self._put(self.root, "src/legacy.rs", "retired root crate")
         self._put(self.root, "data/private.rs", "private")
         self._put(self.root, "data/models/boar.m2", "boar model")
         self._put(self.root, "data/Light.csv", "light rows")
@@ -78,15 +78,15 @@ class DepotBuildTests(unittest.TestCase):
         self._put(self.root, "target/debug/hidden.rs", "private")
         self._put(self.root, ".env", "token")
         self._put(self.root, ".gitignore", "*.ignored.rs\n")
-        self._put(self.root, "src/deleted.rs", "deleted")
+        self._put(self.root, "godot/core/src/deleted.rs", "deleted")
         self._git(self.root, "init", "-q")
         self._git(self.root, "add", ".")
         self._git(self.root, "commit", "-qm", "initial")
         self._put(self.root, "godot/rust/src/lib.rs", "modified")
-        (self.root / "src/deleted.rs").unlink()
-        self._put(self.root, "src/new.rs", "untracked")
+        (self.root / "godot/core/src/deleted.rs").unlink()
+        self._put(self.root, "godot/core/src/new.rs", "untracked")
         self._put(self.root, "godot/rust/secrets.toml", "password=secret")
-        self._put(self.root, "src/skip.ignored.rs", "ignored")
+        self._put(self.root, "godot/core/src/skip.ignored.rs", "ignored")
         for name in SIBLINGS:
             repo = self.base / name
             repo.mkdir()
@@ -156,14 +156,14 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(snapshot["project"], "custom-id")
         self.assertEqual(snapshot["args"][snapshot["args"].index("--platform") + 1], "linux/amd64")
         self.assertEqual(files[prefix + "godot/rust/src/lib.rs"], "modified")
-        self.assertEqual(files[prefix + "src/new.rs"], "untracked")
-        self.assertEqual(files[prefix + "src/rendering/ui/nameplate_skins/health-fill.png"], "png")
-        self.assertNotIn(prefix + "src/deleted.rs", files)
+        self.assertEqual(files[prefix + "godot/core/src/new.rs"], "untracked")
+        self.assertEqual(files[prefix + "godot/rust/src/rendering/ui/nameplate_skins/health-fill.png"], "png")
+        self.assertNotIn(prefix + "godot/core/src/deleted.rs", files)
         self.assertEqual(files["bevy-patches/taffy/README.md"], "required compile include")
         for name in SIBLINGS:
             self.assertIn(name + "/src/lib.rs", files)
         for excluded in ("data/private.rs", "godot/.godot/imported.rs", "target/debug/hidden.rs",
-                         ".env", "src/skip.ignored.rs", "godot/rust/secrets.toml"):
+                         ".env", "godot/core/src/skip.ignored.rs", "godot/rust/secrets.toml", "src/legacy.rs"):
             self.assertNotIn(prefix + excluded, files)
         self.assertTrue(all(not key.startswith("/") for key in files))
         artifact = self.root / "target/debug/libgame_engine_godot.so"
@@ -338,9 +338,9 @@ class DepotBuildTests(unittest.TestCase):
 
     def test_source_mtimes_survive_snapshots_with_working_tree_edits(self):
         prefix = "game-engine-godot-conversion/"
-        unchanged = self.root / "src/asset/mod.rs"
+        unchanged = self.root / "godot/core/src/asset/mod.rs"
         edited = self.root / "godot/rust/src/lib.rs"
-        untracked = self.root / "src/new.rs"
+        untracked = self.root / "godot/core/src/new.rs"
         timestamps = (1_700_000_000_123_456_789, 1_700_000_001_123_456_789,
                       1_700_000_002_123_456_789)
         for source, timestamp in zip((unchanged, edited, untracked), timestamps):
@@ -353,8 +353,8 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(second.returncode, 0, second.stderr)
         snapshots = self.records()
         for index in (0, 1):
-            self.assertEqual(snapshots[index]["mtimes"][prefix + "src/asset/mod.rs"], timestamps[0])
-            self.assertEqual(snapshots[index]["mtimes"][prefix + "src/new.rs"], timestamps[2])
+            self.assertEqual(snapshots[index]["mtimes"][prefix + "godot/core/src/asset/mod.rs"], timestamps[0])
+            self.assertEqual(snapshots[index]["mtimes"][prefix + "godot/core/src/new.rs"], timestamps[2])
         self.assertEqual(snapshots[0]["mtimes"][prefix + "godot/rust/src/lib.rs"], timestamps[1])
         self.assertEqual(snapshots[1]["mtimes"][prefix + "godot/rust/src/lib.rs"], timestamps[1] + 1_000_000_000)
         self.assertEqual(snapshots[1]["files"][prefix + "godot/rust/src/lib.rs"], "edited after first snapshot")
@@ -365,10 +365,10 @@ class DepotBuildTests(unittest.TestCase):
         self.assertIn("refresh-source-mtimes.py", self.records()[0]["files"])
 
         context = self.base / "remote-context"
-        source = context / "game-engine-godot-conversion/src/asset/mod.rs"
+        source = context / "game-engine-godot-conversion/godot/core/src/asset/mod.rs"
         manifest = context / "game-engine-godot-conversion/godot/Cargo.toml"
         included = context / "bevy-patches/taffy/README.md"
-        texture = context / "game-engine-godot-conversion/src/rendering/ui/nameplate_skins/health-fill.png"
+        texture = context / "game-engine-godot-conversion/godot/rust/src/rendering/ui/nameplate_skins/health-fill.png"
         cache = context / "game-engine-godot-conversion/target/debug/libcore.rlib"
         top_cache = context / "target/debug/libcore.rlib"
         registry = context / "game-engine-godot-conversion/godot/.cache/generated.rs"
@@ -418,8 +418,8 @@ class DepotBuildTests(unittest.TestCase):
         self.assertIn("godot/core/Cargo.toml", result.stderr)
         self.assertEqual(self.records(), [])
         self._put(self.root, "godot/core/Cargo.toml", "restored")
-        (self.root / "src/new.rs").unlink()
-        (self.root / "src/new.rs").symlink_to("asset/mod.rs")
+        (self.root / "godot/core/src/new.rs").unlink()
+        (self.root / "godot/core/src/new.rs").symlink_to("asset/mod.rs")
         result = self.build()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("symlink", result.stderr.lower())

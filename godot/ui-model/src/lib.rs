@@ -42,13 +42,13 @@ pub mod ui {
 }
 
 // In-world chat frame (docs/specs/chat-frame.md).
-#[path = "../../../src/game/chat_data.rs"]
+#[path = "game/chat_data.rs"]
 pub mod chat_data;
-#[path = "../../../src/ui/chat_frame.rs"]
+#[path = "ui/chat_frame.rs"]
 pub mod chat_frame;
-#[path = "../../../src/ui/screens/chat_frame_component.rs"]
+#[path = "ui/screens/chat_frame_component.rs"]
 pub mod chat_frame_component;
-#[path = "../../../src/game/group_state.rs"]
+#[path = "game/group_state.rs"]
 pub mod group_state;
 
 // Party/raid frames, ready check and the PARTY_INVITE popup (docs/specs/group-frames.md).
@@ -56,88 +56,88 @@ pub mod group_state;
 pub mod buff_data {
     pub use crate::aura_display_data::DebuffType;
 }
-#[path = "../../../src/ui/screens/compact_unit_frame_component.rs"]
+#[path = "ui/screens/compact_unit_frame_component.rs"]
 pub mod compact_unit_frame_component;
-#[path = "../../../src/ui/screens/group_frames_component.rs"]
+#[path = "ui/screens/group_frames_component.rs"]
 pub mod group_frames_component;
-#[path = "../../../src/ui/popup.rs"]
+#[path = "ui/popup.rs"]
 pub mod popup;
-#[path = "../../../src/ui/screens/ready_check_frame_component.rs"]
+#[path = "ui/screens/ready_check_frame_component.rs"]
 pub mod ready_check_frame_component;
-#[path = "../../../src/ui/screens/static_popup_component.rs"]
+#[path = "ui/screens/static_popup_component.rs"]
 pub mod static_popup_component;
 
-#[path = "../../../src/ui/screens/char_create_component/mod.rs"]
+#[path = "ui/screens/char_create_component/mod.rs"]
 pub mod char_create_component;
-#[path = "../../../src/scenes/char_create/data.rs"]
+#[path = "scenes/char_create/data.rs"]
 pub mod char_create_data;
 
-#[path = "../../../src/ui/screens/campsite_component.rs"]
+#[path = "ui/screens/campsite_component.rs"]
 pub mod campsite_component;
-#[path = "../../../src/ui/screens/char_select_component.rs"]
+#[path = "ui/screens/char_select_component.rs"]
 pub mod char_select_component;
-#[path = "../../../src/ui/screens/char_select_delete_confirm_component.rs"]
+#[path = "ui/screens/char_select_delete_confirm_component.rs"]
 mod char_select_delete_confirm_component;
-#[path = "../../../src/ui/screens/char_select_top_nav_component.rs"]
+#[path = "ui/screens/char_select_top_nav_component.rs"]
 pub mod char_select_top_nav_component;
-#[path = "../../../src/ui/screens/default_button_atlas.rs"]
+#[path = "ui/screens/default_button_atlas.rs"]
 pub mod default_button_atlas;
 // First-login legal acceptance (`src/scenes/eula/mod.rs`).
-#[path = "../../../src/ui/screens/entrance_difficulty_component.rs"]
+#[path = "ui/screens/entrance_difficulty_component.rs"]
 pub mod entrance_difficulty_component;
-#[path = "../../../src/ui/screens/eula_component.rs"]
+#[path = "ui/screens/eula_component.rs"]
 pub mod eula_component;
-#[path = "../../../src/ui/screens/trash_button_component.rs"]
+#[path = "ui/screens/trash_button_component.rs"]
 pub mod trash_button_component;
 // `--screen selectiondebug` (src/scenes/selection_debug/mod.rs).
-#[path = "../../../src/ui/screens/selection_debug_component.rs"]
+#[path = "ui/screens/selection_debug_component.rs"]
 pub mod selection_debug_component;
 
-#[path = "../../../src/csv_util.rs"]
+#[path = "../../core/src/csv_util.rs"]
 pub mod csv_util;
-#[path = "../../../src/dungeon_entrance_data.rs"]
+#[path = "dungeon_entrance_data.rs"]
 pub mod dungeon_entrance_data;
-#[path = "../../../src/ui_map_data.rs"]
+#[path = "ui_map_data.rs"]
 pub mod ui_map_data;
-#[path = "../../../src/ui/screens/world_map_frame_art.rs"]
+#[path = "ui/screens/world_map_frame_art.rs"]
 pub mod world_map_frame_art;
-#[path = "../../../src/ui/screens/world_map_frame_component.rs"]
+#[path = "ui/screens/world_map_frame_component.rs"]
 pub mod world_map_frame_component;
-#[path = "../../../src/world_map_view_data.rs"]
+#[path = "world_map_view_data.rs"]
 pub mod world_map_view_data;
 
 /// Retail reaction colours for the unit frames, shared with the server's rules.
 pub mod faction_reaction {
     pub use shared::faction_reaction::Reaction;
 }
-#[path = "../../../src/ui/screens/inworld_unit_frames_component.rs"]
+#[path = "ui/screens/inworld_unit_frames_component.rs"]
 pub mod inworld_unit_frames_component;
-#[path = "../../../src/ui/screens/menu_primitives.rs"]
+#[path = "ui/screens/menu_primitives.rs"]
 pub mod menu_primitives;
-#[path = "../../../src/status_unit_resource_data.rs"]
+#[path = "status_unit_resource_data.rs"]
 pub mod status;
 
-#[path = "../../../src/ui/screens/damage_meter_component.rs"]
+#[path = "ui/screens/damage_meter_component.rs"]
 pub mod damage_meter_component;
-#[path = "../../../src/damage_meter_data.rs"]
+#[path = "damage_meter_data.rs"]
 pub mod damage_meter_data;
 
-#[path = "../../../src/ui/screens/mirror_timer_component.rs"]
+#[path = "ui/screens/mirror_timer_component.rs"]
 pub mod mirror_timer_component;
-#[path = "../../../src/mirror_timer_data.rs"]
+#[path = "mirror_timer_data.rs"]
 pub mod mirror_timer_data;
 
-#[path = "../../../src/ui/cast_failed_text.rs"]
+#[path = "ui/cast_failed_text.rs"]
 pub mod cast_failed_text;
-#[path = "../../../src/ui/screens/casting_bar_frame_component.rs"]
+#[path = "ui/screens/casting_bar_frame_component.rs"]
 pub mod casting_bar_frame_component;
-#[path = "../../../src/ui/screens/main_action_bar_component.rs"]
+#[path = "ui/screens/main_action_bar_component.rs"]
 pub mod main_action_bar_component;
-#[path = "../../../src/ui/screens/spellbook_frame_component.rs"]
+#[path = "ui/screens/spellbook_frame_component.rs"]
 pub mod spellbook_frame_component;
-#[path = "../../../src/ui/ui_errors_data.rs"]
+#[path = "ui/ui_errors_data.rs"]
 pub mod ui_errors_data;
-#[path = "../../../src/ui/screens/ui_errors_frame_component.rs"]
+#[path = "ui/screens/ui_errors_frame_component.rs"]
 pub mod ui_errors_frame_component;
 
 pub use game_engine_core::camera_control_data;
@@ -149,126 +149,126 @@ pub use game_engine_core::nameplate_style_data as nameplate_style;
 pub use game_engine_core::quest_area_data;
 pub use game_engine_core::soft_target_data;
 
-#[path = "../../../src/ui/screens/game_menu_component.rs"]
+#[path = "ui/screens/game_menu_component.rs"]
 pub mod game_menu_component;
-#[path = "../../../src/ui/screens/game_menu_main.rs"]
+#[path = "ui/screens/game_menu_main.rs"]
 pub mod game_menu_main;
-#[path = "../../../src/ui/screens/options_menu_active_sections.rs"]
+#[path = "ui/screens/options_menu_active_sections.rs"]
 pub mod options_menu_active_sections;
-#[path = "../../../src/ui/screens/options_menu_component.rs"]
+#[path = "ui/screens/options_menu_component.rs"]
 pub mod options_menu_component;
-#[path = "../../../src/ui/options_menu_data.rs"]
+#[path = "ui/options_menu_data.rs"]
 pub mod options_menu_data;
-#[path = "../../../src/ui/screens/options_menu_sections.rs"]
+#[path = "ui/screens/options_menu_sections.rs"]
 pub mod options_menu_sections;
-#[path = "../../../src/ui/panel_style_data.rs"]
+#[path = "ui/panel_style_data.rs"]
 pub mod panel_style_data;
 
-#[path = "../../../src/ui/screens/bank_art.rs"]
+#[path = "ui/screens/bank_art.rs"]
 pub mod bank_art;
 // Bank and guild bank (docs/specs/bank-frame.md, guild-bank-frame.md).
 pub mod bank;
-#[path = "../../../src/game/bank_data.rs"]
+#[path = "game/bank_data.rs"]
 pub mod bank_data;
-#[path = "../../../src/ui/screens/bank_frame_component.rs"]
+#[path = "ui/screens/bank_frame_component.rs"]
 pub mod bank_frame_component;
 pub mod guild_bank;
-#[path = "../../../src/ui/screens/guild_bank_frame_component.rs"]
+#[path = "ui/screens/guild_bank_frame_component.rs"]
 pub mod guild_bank_frame_component;
-#[path = "../../../src/ipc/format_shared.rs"]
+#[path = "ipc/format_shared.rs"]
 pub mod ipc_format;
 pub mod mail;
-#[path = "../../../src/ipc/mail_format.rs"]
+#[path = "ipc/mail_format.rs"]
 pub mod mail_format;
-#[path = "../../../src/ui/screens/mail_frame_component.rs"]
+#[path = "ui/screens/mail_frame_component.rs"]
 pub mod mail_frame_component;
 
 pub mod trade;
-#[path = "../../../src/ui/screens/trade_frame_component.rs"]
+#[path = "ui/screens/trade_frame_component.rs"]
 pub mod trade_frame_component;
 
 pub mod auction;
-#[path = "../../../src/ui/screens/auction_house_frame_component.rs"]
+#[path = "ui/screens/auction_house_frame_component.rs"]
 pub mod auction_house_frame_component;
 
-#[path = "../../../src/loot_data.rs"]
+#[path = "loot_data.rs"]
 pub mod loot_data;
-#[path = "../../../src/ui/screens/loot_frame_component.rs"]
+#[path = "ui/screens/loot_frame_component.rs"]
 pub mod loot_frame_component;
-#[path = "../../../src/loot_frame_data.rs"]
+#[path = "loot_frame_data.rs"]
 pub mod loot_frame_data;
 
 // Native CharacterFrame / paperdoll (docs/specs/character-frame.md).
 pub mod character_frame;
-#[path = "../../../src/ui/screens/character_frame_component.rs"]
+#[path = "ui/screens/character_frame_component.rs"]
 pub mod character_frame_component;
 pub mod micro_menu;
 
-#[path = "../../../src/game/cursor_item.rs"]
+#[path = "game/cursor_item.rs"]
 pub mod cursor_item;
-#[path = "../../../src/ui/screens/cursor_item_component.rs"]
+#[path = "ui/screens/cursor_item_component.rs"]
 pub mod cursor_item_component;
 
 // Merchant frame, backpack and stack split (docs/specs/merchant-frame.md, cursor-item.md).
-#[path = "../../../src/ui/screens/bag_frame_component.rs"]
+#[path = "ui/screens/bag_frame_component.rs"]
 pub mod bag_frame_component;
-#[path = "../../../src/ui/screens/bags_bar_art.rs"]
+#[path = "ui/screens/bags_bar_art.rs"]
 pub(crate) mod bags_bar_art;
-#[path = "../../../src/ui/screens/bags_bar_component.rs"]
+#[path = "ui/screens/bags_bar_component.rs"]
 pub mod bags_bar_component;
-#[path = "../../../src/ui/screens/merchant_frame_component.rs"]
+#[path = "ui/screens/merchant_frame_component.rs"]
 pub mod merchant_frame_component;
-#[path = "../../../src/ui/screens/quest_art.rs"]
+#[path = "ui/screens/quest_art.rs"]
 pub mod quest_art;
 
 // Quest giver frame, quest log and their shared state and actions (docs/specs/quest-ui.md).
-#[path = "../../../src/game/quest_actions.rs"]
+#[path = "game/quest_actions.rs"]
 pub mod quest_actions;
-#[path = "../../../src/ui/screens/quest_frame_component.rs"]
+#[path = "ui/screens/quest_frame_component.rs"]
 pub mod quest_frame_component;
-#[path = "../../../src/ui/screens/quest_log_frame_component.rs"]
+#[path = "ui/screens/quest_log_frame_component.rs"]
 pub mod quest_log_frame_component;
-#[path = "../../../src/game/quest_runtime.rs"]
+#[path = "game/quest_runtime.rs"]
 pub mod quest_runtime;
-#[path = "../../../src/game/quest_view.rs"]
+#[path = "game/quest_view.rs"]
 pub mod quest_view;
 
 // Minimap cluster and objective tracker (docs/specs/minimap.md, quest-ui.md).
 pub mod minimap;
-#[path = "../../../src/ui/screens/objective_tracker_component.rs"]
+#[path = "ui/screens/objective_tracker_component.rs"]
 pub mod objective_tracker_component;
-#[path = "../../../src/ui/screens/stack_split_frame_component.rs"]
+#[path = "ui/screens/stack_split_frame_component.rs"]
 pub mod stack_split_frame_component;
 
-#[path = "../../../src/game/auction_house_data.rs"]
+#[path = "game/auction_house_data.rs"]
 pub mod auction_house_data;
-#[path = "../../../src/game/bag_data.rs"]
+#[path = "game/bag_data.rs"]
 pub mod bag_data;
-#[path = "../../../src/container_layout_data.rs"]
+#[path = "container_layout_data.rs"]
 pub mod container_layout_data;
-#[path = "../../../src/game/spell_catalog/csv_records.rs"]
+#[path = "../../core/src/game/spell_catalog/csv_records.rs"]
 pub(crate) mod csv_records;
-#[path = "../../../src/game/item_catalog.rs"]
+#[path = "game/item_catalog.rs"]
 pub mod item_catalog;
-#[path = "../../../src/game/item_icons.rs"]
+#[path = "game/item_icons.rs"]
 pub mod item_icons;
-#[path = "../../../src/game/item_stats.rs"]
+#[path = "game/item_stats.rs"]
 pub mod item_stats;
-#[path = "../../../src/game/item_tooltip.rs"]
+#[path = "game/item_tooltip.rs"]
 pub mod item_tooltip;
 // Native GameTooltip content and placement (docs/specs/unit-tooltip.md).
 pub mod game_tooltip;
 pub mod merchant;
-#[path = "../../../src/game/merchant_data.rs"]
+#[path = "game/merchant_data.rs"]
 pub mod merchant_data;
 pub mod paths;
-#[path = "../../../src/game/stack_split.rs"]
+#[path = "game/stack_split.rs"]
 pub mod stack_split;
-#[path = "../../../src/ui/screens/tooltip_presentation.rs"]
+#[path = "ui/screens/tooltip_presentation.rs"]
 pub mod tooltip_presentation;
-#[path = "../../../src/window_manager/mod.rs"]
+#[path = "window_manager/mod.rs"]
 pub mod window_manager;
-#[path = "../../../src/rendering/ui/wow_cursor_data.rs"]
+#[path = "rendering/ui/wow_cursor_data.rs"]
 pub mod wow_cursor_data;
 
 /// The DB2 export build of the item tables (root `spell_catalog::SPELL_DB2_BUILD`), and
@@ -280,19 +280,19 @@ mod spell_catalog {
 }
 
 // Player BuffFrame/DebuffFrame and TargetFrame auras (docs/specs/buff-frame.md).
-#[path = "../../../src/game/aura_display_data.rs"]
+#[path = "game/aura_display_data.rs"]
 pub mod aura_display_data;
-#[path = "../../../src/ui/screens/buff_frame_component.rs"]
+#[path = "ui/screens/buff_frame_component.rs"]
 pub mod buff_frame_component;
 
-#[path = "../../../src/ui/screens/loading_component.rs"]
+#[path = "ui/screens/loading_component.rs"]
 pub mod loading_component;
-#[path = "../../../src/ui/screens/login_component.rs"]
+#[path = "ui/screens/login_component.rs"]
 pub mod login;
 #[cfg(test)]
-#[path = "../../../src/ui/screens/screen_test_helpers.rs"]
+#[path = "ui/screens/screen_test_helpers.rs"]
 mod screen_test_helpers;
-#[path = "../../../src/ui/screens/screen_title.rs"]
+#[path = "ui/screens/screen_title.rs"]
 mod screen_title;
 
 use ui_toolkit::frame::WidgetData;
