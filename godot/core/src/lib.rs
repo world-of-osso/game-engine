@@ -146,6 +146,8 @@ pub mod outfit_data;
 mod outfit_data_tests;
 #[path = "game/outfit_listfile.rs"]
 mod outfit_listfile;
+#[path = "ui/pet_autocast_shine_data.rs"]
+pub mod pet_autocast_shine_data;
 pub mod player_model_data;
 #[path = "player_physics_data.rs"]
 pub mod player_physics_data;

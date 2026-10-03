@@ -419,6 +419,7 @@ impl INode3D for GameClient {
             || self.spellbook_pointer(&event)
             || self.merchant_pointer(&event)
             || self.mailbox_pointer(&event)
+            || self.pet_bar_pointer(&event)
             || self.unit_menu_pointer(&event)
         {
             return;
