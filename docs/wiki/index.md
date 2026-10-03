@@ -39,6 +39,7 @@ Engine subsystems and how they work.
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, native Bevy projection, authored UI FileDataID resolution, layout, widgets, input, automation, unit frames, and World Builder sidebar
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
 - [unit-tooltip](systems/unit-tooltip.md) — Retail unit GameTooltip (hover by unit frame/nameplate/ray, default anchor), NPC drops/vendor sections with appearance-collection check/cross marks from server CreatureTooltip data
+- [elastic-trees](systems/elastic-trees.md) — manual Barrens FDID 201394 annotation, two-branch native flight contact/render ownership; pivots/regions provisional, runtime acceptance pending
 - [mounts](systems/mounts.md) — Mount model with the rider on MountMain (attachment 0), Mount/MountFlight clips, steady flight controls (Space take off/ascend, X descend, pitch steering, landing), recast dismount
 - [swimming](systems/swimming.md) — Godot swim path: Space/X ascend/descend, float at `SWIM_DEPTH` under the surface, pitch steering, server-adopted swim height, climb capped at `SWIM_SPEED`; server-driven MirrorTimer breath/fatigue/feign-death bars
 - [player-ground](systems/player-ground.md) — shared terrain + WMO floor rule (MOPY/BSP, 1.6 yd step reach) on client and server, lazy server tile loading, and fall tracking on repositions
