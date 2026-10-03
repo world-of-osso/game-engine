@@ -166,10 +166,11 @@ impl UnitFrameState {
     }
 }
 
-/// Target-of-target and focus: name and health only.
+/// Target-of-target and focus: name, level and health; Modern omits the level.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SmallUnitFrameState {
     pub name: String,
+    pub level: Option<(String, String)>,
     pub health_fraction: f32,
     pub reaction: Option<Reaction>,
 }
@@ -178,6 +179,7 @@ impl From<&UnitFrameState> for SmallUnitFrameState {
     fn from(unit: &UnitFrameState) -> Self {
         Self {
             name: unit.name.clone(),
+            level: Some((unit.level_text.clone(), unit.level_color.clone())),
             health_fraction: unit.health_fraction,
             reaction: unit.reaction,
         }
@@ -349,7 +351,15 @@ fn target_frame(
     skin: ActiveSkin,
 ) -> Element {
     if skin == ActiveSkin::Forever {
-        return flare_frame(&FLARE_TARGET, target.map(FlareUnit::from), !visible, anchor);
+        return flare_frame(
+            &FLARE_TARGET,
+            target.map(|state| FlareUnit {
+                aura_state: Some(state),
+                ..state.into()
+            }),
+            !visible,
+            anchor,
+        );
     }
     let content = target
         .map(|target| target_frame_contents(target, skin))
@@ -875,7 +885,6 @@ fn difficulty_row(index: usize, entry: &DifficultyMenuEntry) -> Element {
         }
     }
 }
-
 
 #[cfg(test)]
 #[path = "../../../tests/unit/class_bars_tests.rs"]

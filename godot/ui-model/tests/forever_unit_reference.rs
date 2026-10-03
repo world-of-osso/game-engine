@@ -142,6 +142,14 @@ fn text_is_player_left_and_target_tot_focus_mirrored() {
         assert_eq!(text(&r, name).text, value, "{name}");
         assert_eq!(text(&r, name).justify_h.as_str(), justify, "{name}");
     }
+    assert_eq!(
+        rect(&r, "TargetOfTargetHealthBarFill"),
+        (28.0, 0.0, 84.0, 20.0)
+    );
+    assert_eq!(
+        frame(&r, "TargetOfTargetHealthBarFill").background_color,
+        Some([0.87, 0.27, 0.27, 1.0])
+    );
 }
 #[test]
 fn pet_is_below_player_right_and_tot_right_of_target() {
@@ -186,6 +194,7 @@ fn cast_icon_name_remaining_time_and_dark_track() {
     shared.insert(CastingBarState {
         visible: true,
         spell_name: "Fireball".into(),
+        icon_fdid: Some(135812),
         timer_text: "1.5".into(),
         progress: 0.5,
         ..Default::default()
