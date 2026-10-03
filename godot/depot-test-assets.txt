@@ -1995,3 +1995,7 @@ models/900914.skel
 models/921844.m2
 models/92184400.skin
 models/921844.skel
+
+# game-engine-godot ui::flare_panel_tests: flare_bronze border and background
+textures/137057.blp
+textures/312922.blp

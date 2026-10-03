@@ -182,9 +182,23 @@ fn project_nine_slice(slice: &NineSlice, width: f32, height: f32, parts: &mut Ve
     let columns = [(0.0, left), (left, iw), (left + iw, right)];
     let rows = [(0.0, top), (top, ih), (top + ih, bottom)];
     let uv = uv_edges(slice);
-    for index in 0..9u8 {
+    // A backdrop centre (`insets`) spans under the edges, so it is drawn first.
+    let order: [u8; 9] = match slice.center_inset {
+        Some(_) => [4, 0, 1, 2, 3, 5, 6, 7, 8],
+        None => [0, 1, 2, 3, 4, 5, 6, 7, 8],
+    };
+    for index in order {
         let (x, w) = columns[usize::from(index % 3)];
         let (y, h) = rows[usize::from(index / 3)];
+        let [x, y, w, h] = match slice.center_inset {
+            Some(inset) if index == 4 => [
+                inset,
+                inset,
+                (width - 2.0 * inset).max(0.0),
+                (height - 2.0 * inset).max(0.0),
+            ],
+            _ => [x, y, w, h],
+        };
         let color = if index == 4 {
             slice.bg_color
         } else {

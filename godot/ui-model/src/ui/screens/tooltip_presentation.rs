@@ -132,6 +132,21 @@ pub struct TooltipPresentation {
     pub title: String,
     pub title_color: [f32; 4],
     pub lines: Vec<TooltipLineState>,
+    /// What the tooltip describes, for skins that colour its border by it.
+    pub border: TooltipBorder,
+}
+
+/// The subject a skin may colour a tooltip's border by.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum TooltipBorder {
+    #[default]
+    Default,
+    /// A player, by `ChrClasses` id.
+    Class(u8),
+    /// Any other unit, by its reaction to the player.
+    Reaction(shared::faction_reaction::Reaction),
+    /// An item, by `Enum.ItemQuality` id.
+    Quality(u8),
 }
 
 impl Default for TooltipPresentation {
@@ -149,6 +164,7 @@ impl TooltipPresentation {
             title: String::new(),
             title_color: TOOLTIP_TEXT_COLOR,
             lines: Vec::new(),
+            border: TooltipBorder::Default,
         }
     }
 
