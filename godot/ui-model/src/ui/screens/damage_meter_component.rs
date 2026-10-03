@@ -1,7 +1,6 @@
 //! Retail damage meter primary window (`Blizzard_DamageMeter`, spec
-//! docs/specs/damage-meter.md): `DamageMeter` anchored TOPLEFT of UIParent
-//! (DamageMeter.xml:11-15; Edit Mode preset `anchorInfo` TOPLEFT 0,0,
-//! EditModePresetLayouts.lua:857-863) at the Edit Mode default 400x140 with 16 px bars
+//! docs/specs/damage-meter.md): `DamageMeter` at the active preset's anchor
+//! (`crate::hud_layout`) at the Edit Mode default 400x140 with 16 px bars
 //! 4 px apart (preset FrameWidth 100 / FrameHeight 20 / BarHeight 1 / Padding 2 over the
 //! slider minimums, EditModeSettingDisplayInfo.lua:1127-1175), Default style, class
 //! colours, Compact numbers, 50% background.
@@ -18,6 +17,7 @@ use ui_toolkit::widget_def::Element;
 use crate::damage_meter_data::{
     DAMAGE_DONE_LABEL, DamageMeterRow, DamageMeterView, MeterSessionType,
 };
+use crate::hud_layout::hud_layout;
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
@@ -180,14 +180,19 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
     if view.menu_open {
         children.extend(session_menu(view.session));
     }
+    let at = hud_layout(ctx).damage_meter.place((WINDOW_W, WINDOW_H));
     rsx! {
         r#frame {
             name: DAMAGE_METER_ROOT,
             width: WINDOW_W,
             height: WINDOW_H,
             pos_type: "absolute",
-            left: 0.0,
-            top: 0.0,
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {children}
         }
     }

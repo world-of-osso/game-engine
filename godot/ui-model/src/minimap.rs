@@ -1,6 +1,6 @@
 //! Retail `MinimapCluster` (`Blizzard_Minimap/Mainline/Minimap.xml`, `GameTime.xml`,
-//! `Blizzard_TimeManager/Mainline/Blizzard_TimeManager.xml`) at the Modern edit-mode
-//! default, TOPRIGHT of UIParent (`EditModePresetLayouts.lua:371-384`): the zone text on
+//! `Blizzard_TimeManager/Mainline/Blizzard_TimeManager.xml`) at the active preset's anchor
+//! (`crate::hud_layout`): the zone text on
 //! the `ui-hud-minimap-button` header bar, the clock and calendar day, the tracking
 //! button, the round map inside `ui-hud-minimap-frame`, quest-giver blips, the player
 //! arrow and the hover zoom buttons. The host composites the map image and supplies it
@@ -14,6 +14,7 @@ use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::widgets::texture::{DynamicTextureId, TextureData, TextureSource};
 
+use crate::hud_layout::hud_layout;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -239,6 +240,7 @@ pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
         .expect("MinimapClusterState must be in SharedContext");
     let mut children = map_layers(state);
     children.extend(header(state));
+    let at = hud_layout(ctx).minimap.place((CLUSTER_SIZE, CLUSTER_SIZE));
     rsx! {
         r#frame {
             name: {DynName(MINIMAP_CLUSTER.into())},
@@ -246,8 +248,12 @@ pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
             height: CLUSTER_SIZE,
             strata: FrameStrata::Low,
             pos_type: "absolute",
-            right: 0.0,
-            top: 0.0,
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {children}
         }
     }

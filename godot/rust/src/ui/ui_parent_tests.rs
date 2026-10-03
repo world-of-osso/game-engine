@@ -38,6 +38,7 @@ fn unit_frame_rects<const N: usize>(
     let parent = UiParent::for_viewport(viewport.0, viewport.1);
     let mut registry = parent.registry();
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,

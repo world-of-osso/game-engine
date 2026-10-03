@@ -1,13 +1,14 @@
 //! Retail `MainActionBar` (`Blizzard_ActionBar/Mainline/MainActionBar.xml`,
 //! `ActionButtonTemplate.xml`) with the Modern Edit Mode preset
 //! (`Blizzard_EditMode/Mainline/EditModePresetLayouts.lua`): 12 buttons of 45×45,
-//! 2 px apart (`minButtonPadding`), anchored BOTTOM at y 45
-//! (`MAIN_ACTION_BAR_DEFAULT_OFFSET_Y`), gryphon end caps, keys 1..=.
+//! 2 px apart (`minButtonPadding`) at the active preset's anchor (`crate::hud_layout`),
+//! gryphon end caps, keys 1..=.
 
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::hud_layout::hud_layout;
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::strata::FrameStrata;
@@ -22,6 +23,7 @@ pub const BUTTON_SIZE: f32 = 45.0;
 pub const BUTTON_PADDING: f32 = 2.0;
 pub const BAR_W: f32 =
     MAIN_BAR_BUTTONS as f32 * BUTTON_SIZE + (MAIN_BAR_BUTTONS as f32 - 1.0) * BUTTON_PADDING;
+/// Modern `MAIN_ACTION_BAR_DEFAULT_OFFSET_Y` (Standard/EditModePresetLayoutConstants.lua:2).
 pub const BAR_BOTTOM: f32 = 45.0;
 /// `NormalTexture`/`PushedTexture`/`HighlightTexture` are 46×45 at TOPLEFT.
 const FRAME_ART_W: f32 = 46.0;
@@ -290,6 +292,7 @@ pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
         .enumerate()
         .flat_map(|(index, view)| button(index, view))
         .collect();
+    let at = hud_layout(ctx).main_action_bar.place((BAR_W, BUTTON_SIZE));
     rsx! {
         r#frame {
             name: MAIN_ACTION_BAR,
@@ -297,9 +300,12 @@ pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
             height: BUTTON_SIZE,
             strata: FrameStrata::Medium,
             pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            bottom: BAR_BOTTOM,
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {buttons}
             {end_caps()}
         }

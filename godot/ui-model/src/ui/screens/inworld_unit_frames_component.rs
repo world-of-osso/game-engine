@@ -3,6 +3,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::faction_reaction::Reaction;
+use crate::hud_layout::{HudAnchor, hud_layout};
 use crate::status_text_data::StatusBarText;
 use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
@@ -276,6 +277,7 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<InWorldUnitFramesState>()
         .expect("InWorldUnitFramesState must be in SharedContext");
+    let layout = hud_layout(ctx);
     rsx! {
         r#frame {
             name: "InWorldUnitFramesRoot",
@@ -286,11 +288,11 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             pos_y: 0.0,
             strata: FrameStrata::Dialog,
             background_color: "0.0,0.0,0.0,0.0",
-            {player_frame(&state.player, state.show_player_frame)}
-            {pet_frame(state.pet.as_ref().filter(|_| state.show_player_frame))}
-            {target_frame(state.target.as_ref(), state.show_target_frame)}
-            {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state))}
-            {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref())}
+            {player_frame(&state.player, state.show_player_frame, &layout.player)}
+            {pet_frame(state.pet.as_ref().filter(|_| state.show_player_frame), &layout.pet)}
+            {target_frame(state.target.as_ref(), state.show_target_frame, &layout.target)}
+            {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state), &layout.target_of_target)}
+            {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref(), &layout.focus)}
             {boss_frames(&state.bosses)}
             {personal_resource_display::frame(state.personal_resource.as_ref())}
             {unit_frame_menu(&state.menu)}
@@ -306,7 +308,7 @@ fn visible_target_of(state: &InWorldUnitFramesState) -> Option<&SmallUnitFrameSt
 
 const UNIT_FRAME_SIZE: (f32, f32) = (UNIT_FRAME_W, UNIT_FRAME_H);
 
-fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
+fn player_frame(state: &UnitFrameState, visible: bool, anchor: &HudAnchor) -> Element {
     let content = rsx! {
         {unit_frame_contents("Player", state, &PLAYER_SLOTS, HEALTH_BAR)}
         {class_bar(state.class_bar.as_ref())}
@@ -315,7 +317,7 @@ fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
     art_root(
         dyn_name("PlayerFrame".into()),
         UNIT_FRAME_SIZE,
-        (PLAYER_FRAME_LEFT, PLAYER_FRAME_BOTTOM),
+        anchor,
         !visible,
         (
             &PLAYER_PORTRAIT_ON,
@@ -326,12 +328,12 @@ fn player_frame(state: &UnitFrameState, visible: bool) -> Element {
     )
 }
 
-fn target_frame(target: Option<&UnitFrameState>, visible: bool) -> Element {
+fn target_frame(target: Option<&UnitFrameState>, visible: bool, anchor: &HudAnchor) -> Element {
     let content = target.map(target_frame_contents).unwrap_or_default();
     art_root(
         dyn_name("TargetFrame".into()),
         UNIT_FRAME_SIZE,
-        (TARGET_FRAME_LEFT, TARGET_FRAME_BOTTOM),
+        anchor,
         target.is_none() || !visible,
         (
             &TARGET_PORTRAIT_ON,
@@ -623,7 +625,6 @@ fn status_icons(state: &UnitFrameState) -> Element {
 struct SmallFrameSpec {
     root: &'static str,
     prefix: &'static str,
-    left: f32,
     /// Retail's focus frame is a `TargetFrameTemplate` with the reaction strip; target of
     /// target has none.
     reaction_strip: bool,
@@ -633,25 +634,27 @@ impl SmallFrameSpec {
     const TARGET_OF_TARGET: Self = Self {
         root: "TargetOfTargetFrame",
         prefix: "TargetOfTarget",
-        left: TOT_LEFT,
         reaction_strip: false,
     };
     const FOCUS: Self = Self {
         root: "FocusFrame",
         prefix: "Focus",
-        left: FOCUS_LEFT,
         reaction_strip: true,
     };
 }
 
-fn small_unit_frame(spec: SmallFrameSpec, state: Option<&SmallUnitFrameState>) -> Element {
+fn small_unit_frame(
+    spec: SmallFrameSpec,
+    state: Option<&SmallUnitFrameState>,
+    anchor: &HudAnchor,
+) -> Element {
     let content = state
         .map(|unit| small_unit_contents(&spec, unit))
         .unwrap_or_default();
     art_root(
         dyn_name(spec.root.into()),
         (TOT_W, TOT_H),
-        (spec.left, SMALL_FRAME_BOTTOM),
+        anchor,
         state.is_none(),
         (&FRAME_PORTRAIT_OFF, (0.0, 0.0, TOT_W, TOT_H)),
         Element::default(),

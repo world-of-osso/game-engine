@@ -69,6 +69,7 @@ fn hovering(
 
 fn frames(display: Option<PersonalResourceDisplayState>) -> FrameRegistry {
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,

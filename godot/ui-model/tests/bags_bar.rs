@@ -21,7 +21,9 @@ fn money_text(registry: &FrameRegistry) -> &str {
 #[test]
 fn standalone_bar_preserves_authored_buttons_art_and_geometry() {
     let mut registry = FrameRegistry::new(1280.0, 720.0);
-    Screen::new(bags_bar_screen).sync(&SharedContext::new(), &mut registry);
+    let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
+    Screen::new(bags_bar_screen).sync(&shared, &mut registry);
     let bar = frame(&registry, "BagsBar");
     // Money 160, five bag buttons 30, BagBarExpandToggle 10, backpack 48.
     assert_eq!(bar.width, Dimension::Fixed(368.0));
@@ -83,6 +85,7 @@ fn standalone_bar_preserves_authored_buttons_art_and_geometry() {
 fn money_state_sync_matches_original_updater_denominations() {
     let mut registry = FrameRegistry::new(1280.0, 720.0);
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     let mut screen = Screen::new(bags_bar_screen);
     for (money, expected) in [
         (12345, "1g 23s 45c"),
@@ -112,6 +115,7 @@ fn text_of<'a>(registry: &'a FrameRegistry, name: &str) -> &'a str {
 fn backpack_count_shows_free_slots_under_its_centre() {
     let mut registry = FrameRegistry::new(1280.0, 720.0);
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     let mut screen = Screen::new(bags_bar_screen);
     for (free_slots, expected) in [(16, "(16)"), (3, "(3)"), (0, "(0)")] {
         shared.insert(BagBarState {
@@ -145,6 +149,7 @@ fn texture_of<'a>(registry: &'a FrameRegistry, name: &str) -> &'a TextureData {
 fn equipped_bags_show_their_icon_under_the_filled_slot_art() {
     let mut registry = FrameRegistry::new(1280.0, 720.0);
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(BagBarState {
         bag_icons: [Some(133_633), None, None, Some(133_622), Some(4_549_293)],
         ..Default::default()
@@ -201,6 +206,7 @@ fn equipped_bags_show_their_icon_under_the_filled_slot_art() {
 fn expand_toggle_collapses_the_four_bag_slots() {
     let mut registry = FrameRegistry::new(1280.0, 720.0);
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     let mut screen = Screen::new(bags_bar_screen);
     shared.insert(BagBarState::default());
     screen.sync(&shared, &mut registry);
@@ -247,7 +253,9 @@ fn expand_toggle_collapses_the_four_bag_slots() {
 #[test]
 fn backpack_draws_only_its_round_art_without_a_square_button_skin() {
     let mut registry = FrameRegistry::new(1280.0, 720.0);
-    Screen::new(bags_bar_screen).sync(&SharedContext::new(), &mut registry);
+    let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
+    Screen::new(bags_bar_screen).sync(&shared, &mut registry);
     // MainMenuBarBackpackButton is an ItemButton with only the bag-main atlas; Retail
     // draws no square behind it.
     match &frame(&registry, "MainMenuBarBackpackButton").widget_data {
