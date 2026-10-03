@@ -10,91 +10,23 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+# Format check only. Cargo cannot load the root workspace here: its ktx2-rw patch
+# points at sibling ../bevy-patches, which is not published. The godot/ workspace
+# builds and tests on Depot (docs/remote-builds.md). Run ./run-tests.sh locally.
 jobs:
-  build-test-clippy:
+  rustfmt:
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout game-engine
         uses: actions/checkout@v4
-        with:
-          submodules: recursive
-
-      - name: Checkout shared-protocol
-        uses: actions/checkout@v4
-        with:
-          repository: world-of-osso/shared-protocol
-          path: deps/shared-protocol
-
-      - name: Checkout ui-toolkit
-        uses: actions/checkout@v4
-        with:
-          repository: world-of-osso/ui-toolkit
-          path: deps/ui-toolkit
-
-      - name: Checkout ui-toolkit-macros
-        uses: actions/checkout@v4
-        with:
-          repository: world-of-osso/ui-toolkit-macros
-          path: deps/ui-toolkit-macros
-
-      - name: Checkout asset-resolver
-        uses: actions/checkout@v4
-        with:
-          repository: world-of-osso/asset-resolver
-          path: deps/asset-resolver
-
-      - name: Checkout bevy-patches
-        uses: actions/checkout@v4
-        with:
-          repository: world-of-osso/bevy-patches
-          path: deps/bevy-patches
-
-      - name: Link sibling path dependencies
-        run: |
-          ln -sfn "$GITHUB_WORKSPACE/deps/shared-protocol" "$GITHUB_WORKSPACE/../shared-protocol"
-          ln -sfn "$GITHUB_WORKSPACE/deps/ui-toolkit" "$GITHUB_WORKSPACE/../ui-toolkit"
-          ln -sfn "$GITHUB_WORKSPACE/deps/ui-toolkit-macros" "$GITHUB_WORKSPACE/../ui-toolkit-macros"
-          ln -sfn "$GITHUB_WORKSPACE/deps/asset-resolver" "$GITHUB_WORKSPACE/../asset-resolver"
-          ln -sfn "$GITHUB_WORKSPACE/deps/bevy-patches" "$GITHUB_WORKSPACE/../bevy-patches"
-
-      - name: Create configured target directory
-        run: sudo mkdir -p /syncthing/Sync/Projects/world-of-osso/game-engine && sudo chown -R $USER:$USER /syncthing
-
-      - name: Install Linux build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y \
-            clang \
-            mold \
-            pkg-config \
-            libasound2-dev \
-            libfontconfig1-dev \
-            libgl1-mesa-dev \
-            libudev-dev \
-            libwayland-dev \
-            libx11-dev \
-            libx11-xcb-dev \
-            libxcursor-dev \
-            libxi-dev \
-            libxinerama-dev \
-            libxkbcommon-dev \
-            libxrandr-dev \
-            libxcb-render0-dev \
-            libxcb-shape0-dev \
-            libxcb-xfixes0-dev
 
       - name: Install Rust toolchain
-        uses: dtolnay/rust-toolchain@stable
+        uses: dtolnay/rust-toolchain@master
         with:
-          toolchain: 1.94.0
-          components: clippy, rustfmt
+          toolchain: 1.98.1
+          components: rustfmt
 
-      - name: Cache Rust build artifacts
-        uses: Swatinem/rust-cache@v2
-
-      - name: Check
-        run: cargo check --locked --workspace
-
-      - name: Rustfmt
-        run: cargo fmt --check
+      # Same files as `cargo fmt -p game-engine-launcher -p game-engine-tools --check`.
+      - name: Rustfmt launcher and tools
+        run: git ls-files -z 'launcher/*.rs' 'tools/*.rs' | xargs -0 rustfmt --check --edition 2024

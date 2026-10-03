@@ -18,17 +18,20 @@ func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 	var terrain := client.get_node("WorldTerrain")
 	var first := terrain.get_child(0).get_child(0) as MeshInstance3D
 	var material := first.get_surface_override_material(0) as ShaderMaterial
-	var ambient: Vector3 = material.get_shader_parameter("ambient")
-	var direct: Vector3 = material.get_shader_parameter("direct")
-	var direction: Vector3 = material.get_shader_parameter("sun_direction")
+	# Scene-lit materials read the scene light's global uniforms.
+	var scene: Dictionary = client.account_state().scene_light
+	var ambient: Vector3 = scene.ambient
+	var direct: Vector3 = scene.direct
+	var direction: Vector3 = scene.sun_direction
 	var cube := material.get_shader_parameter("environment_map") as Cubemap
-	if ambient.is_equal_approx(Vector3.ONE) or direct.length_squared() == 0.0 or cube == null or cube.get_width() != 32:
+	if material.get_shader_parameter("scene_light") != true or ambient.is_equal_approx(Vector3.ONE) \
+			or direct.length_squared() == 0.0 or cube == null or cube.get_width() != 32:
 		fail("Native material retained fixture defaults instead of authored light/sky inputs")
 		return false
 	if not (-sun.global_basis.z).is_equal_approx(direction):
 		fail("Native shadow sun is not aligned to Retail sun direction")
 		return false
-	var fog: Vector2 = material.get_shader_parameter("fog_range")
+	var fog: Vector2 = scene.fog_range
 	if fog.y <= fog.x or int(material.get_shader_parameter("fog_mode")) != 1:
 		fail("Native material has no authored linear fog range")
 		return false

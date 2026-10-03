@@ -1220,10 +1220,14 @@ impl WorldUnits {
             .is_some_and(|unit| unit.loading.is_none())
     }
 
+    /// Visuals read the scene light (`TerrainLight::bind_scene`), so only its arrival or
+    /// removal rebinds them.
     pub fn update_lighting(&mut self, light: Option<TerrainLight>) {
-        for unit in self.units.values() {
-            if let Some(visual) = &unit.visual {
-                bind_visual_light(visual, light.as_ref());
+        if self.light.is_some() != light.is_some() {
+            for unit in self.units.values() {
+                if let Some(visual) = &unit.visual {
+                    bind_visual_light(visual, light.as_ref());
+                }
             }
         }
         if let (Some(pools), Some(light)) = (&mut self.particles, &light) {
@@ -1541,6 +1545,11 @@ impl WorldUnits {
             .target
             .position;
         Some(Vector3::new(target.x, target.y, target.z))
+    }
+
+    /// The scene light units are lit by, once the world has one.
+    pub fn light(&self) -> Option<&TerrainLight> {
+        self.light.as_ref()
     }
 
     pub fn local_player_transform(&self) -> Option<Transform3D> {

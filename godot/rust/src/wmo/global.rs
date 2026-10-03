@@ -106,8 +106,10 @@ impl GlobalWmoScene {
         self.spawned.take()
     }
 
+    /// The WMO reads the scene light (`TerrainLight::bind_scene`), so only its arrival
+    /// rebinds it.
     pub fn update_lighting(&mut self, light: &TerrainLight) {
-        if let Some(root) = &self.root {
+        if let (Some(root), None) = (&self.root, &self.light) {
             bind_visual_light(root, Some(light));
         }
         self.light = Some(light.clone());

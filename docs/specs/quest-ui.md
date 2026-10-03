@@ -1,5 +1,7 @@
 # Quest UI
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Retail objective tracker, quest log and quest giver frame on the live server quest runtime (quest phase of the [in-game UI plan](../plans/2026-09-23-ingame-ui.md)). Contract: shared-protocol `protocol/quest_messages.rs`, `protocol/interaction_messages.rs`, `QuestLogSnapshot`; server semantics in game-server `docs/specs/quests.md`. How it works: [quest UI](../wiki/systems/quest-ui.md).
 
 ## What it must do
@@ -19,10 +21,10 @@ Retail objective tracker, quest log and quest giver frame on the live server que
 
 ## Tests asserting this spec
 
-- `src/game/quest_runtime_tests.rs` — log deltas and accept lines, quest list per NPC, reward choice bounds, turn-in lines, token substitution.
+- `godot/ui-model/src/game/quest_runtime_tests.rs` — log deltas and accept lines, quest list per NPC, reward choice bounds, turn-in lines, token substitution.
 - `src/game/networking/quests_tests.rs` — message handlers through inboxes: gossip → Hello request, turn-in + chain offer in one batch, errors, IPC status, markers.
 - `src/scenes/quest_ui/{actions,view}_tests.rs`, `tests.rs` — click actions → requests, abandon popup, track, window reconcile, view models.
-- `src/ui/screens/{objective_tracker,quest_frame,quest_log_frame}_component_tests.rs` — rendered frames, text, anchors, actions.
+- `godot/ui-model/src/ui/screens/{objective_tracker,quest_frame,quest_log_frame}_component_tests.rs` — rendered frames, text, anchors, actions.
 - `tests/unit/target_tests/world_camera.rs` — right-click ray → `NpcInteractionRequest::Interact`.
 - Live evidence: `data/diagnostics/quest-ui-20260924/` (headless client, shared dev server).
 - `godot/ui-model/tests/quest_flow.rs` — the Godot host's models: greeting → detail → accept, progress, reward choice error and lone choice, log track/abandon, markers, objective areas.

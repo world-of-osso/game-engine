@@ -209,6 +209,25 @@ Remaining character select frames, all under 80 ms idle: campsite terrain tiles 
 
 Evidence: `data/diagnostics/stalls/` (`w6-*`, `w7-*` final cold/warm logs, `w1`-`w5` earlier variants, `build-warm*.log`, `test-warm5.log`).
 
+## Scene light rebound every frame — 2026-10-02
+
+Branch `settlegate`. Stormwind perf runs reported "World did not settle" (3 of 5 at load 7-20): the readiness predicate (`world_entry_readiness.gd`: terrain, object and unit-visual pending all 0) never held within 900 s. Nothing was stuck; the object queue drained at its 8 ms per frame, but frames took ~1 s. With `GAME_PROFILE_MS`, `step=World lighting` cost 400-710 ms of every frame (growing with spawned objects), because:
+
+- the server clock advances `world_minutes` continuously, so `WorldLighting::sync`'s sample differs every frame (sun direction and LightParams interpolation; solarityclient samples band colours at whole half-minutes but the sun direction at the continuous day fraction, so the light changes per frame there too);
+- every change rebound ~27 light and fog uniforms on every material of every spawned model: 21,147 meshes took 490 ms (65 ms of it `find_children`), unit visuals 130-160 ms, terrain 45 ms (temporary spans, load ~14).
+
+`frame_benchmark.gd` fixes the time only after the world settles, so the steady-state benchmark never saw this; real play with the server clock did (Stormwind ~1-2 fps).
+
+Fix: the scene light and fog are Godot global shader uniforms (`project.godot` `[shader_globals]`, `shaders/scene_light.gdshaderinc`, `shaders/retail_fog.gdshaderinc`), written once per change by `TerrainLight::bind_scene`, as WebWowViewerCpp fills its per-scene `SceneWideParams` (`commonLightFunctions.slang:26-52`) and the Bevy client shared one `RETAIL_SCENE_LIGHT_BUFFER` ([[retail-lighting]]). `bind_model` only marks a material `scene_light` with `fog_mode` 1, so models are rebound only when the light arrives or is cleared. Character previews, character creation and quest markers keep their own light uniforms; terrain still rebinds its environment cubemap per change, and water its colours.
+
+| Run (Stormwind trade, private server) | After InWorld | Frames during settle |
+|---|---|---|
+| base `59e9791f`, load ~5 | settled 488 s; 2,836 pending at 300 s | ~1 fps |
+| fix, load ~7.4 (`GAME_PROFILE_MS=100`) | settled 31.9 s | 9-10 fps, no lighting span over 100 ms |
+| fix, 10 consecutive (`LOOP_SETTLE_S=300`), load 6.7-16.8 | 10/10 settled in 26-162 s (median 49 s) | 3-10 fps |
+
+Evidence: `data/diagnostics/settlegate-2026-10-02/` (`base-prof-1`, `diag-1`, `fix-prof-1`, `green-*`). Loading itself (~127 s at load 7) is the separate Loading gate ([world-loading](../../specs/world-loading.md)).
+
 ## Sources
 
 - `data/diagnostics/retained-performance-20261001/run1/` and `run2/` — actual `result.json` and `stdout.log`; manifests/config retained alongside them.

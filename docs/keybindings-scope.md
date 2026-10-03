@@ -1,5 +1,7 @@
 # Keybindings Scope
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](specs/godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 This document records the intentional scope boundary for the current configurable keybinding system.
 
 ## Intent

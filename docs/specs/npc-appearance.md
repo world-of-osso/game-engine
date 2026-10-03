@@ -1,5 +1,7 @@
 # Authored NPC rendering
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 Replicated NPCs render the appearance selected by their creature display data. Runtime integration lives in `src/rendering/character/npc_appearance.rs`; [character rendering](../wiki/systems/character-rendering.md#authored-npc-appearance) describes the pipeline. Cache production has a separate [importer contract](npc-appearance-importer.md).
 
 ## What it must do
@@ -23,7 +25,7 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 ## Implementation inventory
 
-- `src/game/creatures/npc_gear_data.rs` — engine-free `NpcGearData` (Bevy and Godot): pose → animation, `Emotes.csv`, virtual-item attachment policy with `Item.csv` `SheatheType`, display → `CreatureDisplayInfo.csv` Extra → `NPCModelItemSlotDisplayInfo.csv` armor (`data/db2/12.1.0.69933`, exported from local CASC by `scripts/export_db2_csv.py`).
+- `godot/rust/src/game/creatures/npc_gear_data.rs` — engine-free `NpcGearData` (Bevy and Godot): pose → animation, `Emotes.csv`, virtual-item attachment policy with `Item.csv` `SheatheType`, display → `CreatureDisplayInfo.csv` Extra → `NPCModelItemSlotDisplayInfo.csv` armor (`data/db2/12.1.0.69933`, exported from local CASC by `scripts/export_db2_csv.py`).
 - `src/game/networking/npc_gear.rs` — `NpcGear`, `sync_npc_equipment` (model `Equipment` with `slot_attachments`), `sync_npc_pose_animation` (`IdleAnim`).
 - `godot/rust/src/world_models.rs` (Godot) — creature visual keyed by display and virtual items; resolves display armor through `NpcAppearances::prepare` (geosets, hidden groups, item models) and virtual items to models with their sheath attachment; `place_virtual_items` moves them on a sheath change.
 - `godot/rust/src/assets/creature.rs`, `assets/equipment.rs` (Godot) — attach armor and virtual item models (`attach_each_equipment`, a failed item is reported, others kept), `place_equipment` (reparent to the attachment, hidden for none).
@@ -41,7 +43,7 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 - `equipment_appearance_data::tests::{rigid_waist_base_mesh_uses_authored_attachment_53,skeletal_waist_collections_keep_binding_and_group_18,rigid_root_does_not_change_other_slots_collection_binding}`; native `assets::equipment::tests::{native_waist_base_mesh_and_skeletal_collection_keep_their_parts,skeletal_waist_missing_root_joint_remains_an_error}` — bounded waist policy and required-joint errors; later genuine Zaralda native-friendly exit0 is [observed scoped visual proof](../wiki/investigations/npc-stance-gear.md#native-fixture-boundary-follow-up-evidence-date-2026-10-01), independent artifact gate116 scoped PASS; encrypted-geoset completeness unproven.
 
-- `src/game/creatures/npc_gear_data_tests.rs` — Stockade poses (guard emote 333, criminal Sleep/Sit, rifleman 214), guard sword/shield and rifleman rifle attachments per sheath state, guard display 2989 armor rows.
+- `godot/rust/src/game/creatures/npc_gear_data_tests.rs` — Stockade poses (guard emote 333, criminal Sleep/Sit, rifleman 214), guard sword/shield and rifleman rifle attachments per sheath state, guard display 2989 armor rows.
 - `src/game/networking/npc_animation_tests.rs::stockade_guard_and_criminals_hold_their_authored_poses`, `::stockade_guard_draws_and_sheathes_sword_and_shield` — real models 2989/35069: played sequence IDs and item parent bones.
 - `src/rendering/character/npc_appearance.rs::tests::npc_armor_geosets_switch_body_groups_but_not_equipment_models`; `equipment_appearance_data::tests::stockade_guard_armor_switches_glove_boot_and_tabard_geosets`.
 - `src/rendering/character/npc_appearance.rs::tests` — body pixels/error semantics, full-ID related selections, two-NPC material/geoset isolation and once-only updates; real-data Kul Tiran 140376, Worgen 31054 mixed forms, Dracthyr 110154 without hair; ignored `sweep_all_spawned_profiles` (`SWEEP_CACHE`, `SWEEP_IDS`) prepares every listed profile and reports failures.

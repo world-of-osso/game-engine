@@ -1,5 +1,7 @@
 # Empty-window baseline
 
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
 `--empty-window` isolates native window/event handling from the game runtime. Sources: `src/empty_window.rs` and the early startup branch in `src/main.rs`. Its proof is canonical in the [empty-window baseline investigation](../wiki/investigations/empty-window-baseline.md); the additive Bevy-core layer has its own [service-window baseline spec](service-window-baseline.md).
 
 ## What it must do

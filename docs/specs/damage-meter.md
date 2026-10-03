@@ -2,7 +2,7 @@
 
 Retail's built-in damage meter window (`Blizzard_DamageMeter`, 12.x) at the top left. The server computes the sessions (game-server `docs/specs/damage-meter.md`) and sends `DamageMeterSnapshot`; the client only shows them.
 
-Client: `src/damage_meter_data.rs` (session selection, rows, number formats), `src/ui/screens/damage_meter_component.rs` (window), `godot/rust/src/damage_meter.rs` (host, actions, fixture state). Fixture: `godot/tests/damage_meter.gd`.
+Client: `godot/ui-model/src/damage_meter_data.rs` (session selection, rows, number formats), `godot/ui-model/src/ui/screens/damage_meter_component.rs` (window), `godot/rust/src/damage_meter.rs` (host, actions, fixture state). Fixture: `godot/tests/damage_meter.gd`.
 
 ## What it must do
 
@@ -19,5 +19,5 @@ Client: `src/damage_meter_data.rs` (session selection, rows, number formats), `s
 
 ## Tests
 
-- `src/damage_meter_data.rs` tests: number abbreviation and clock format; Overall default with ranked class-coloured compact rows and hidden timer out of combat; Current with its timer in combat and empty before the first combat.
+- `godot/ui-model/src/damage_meter_data.rs` tests: number abbreviation and clock format; Overall default with ranked class-coloured compact rows and hidden timer out of combat; Current with its timer in combat and empty before the first combat.
 - `godot/tests/damage_meter.gd` (live, private server UDP 5090, level-10 Human mage `Fbdps` at `-8960 -138 81.6`, 10 yd from a Northshire Training Dummy): three Frostbolts at the dummy per combat; the window shows the player's damage equal to the summed combat log damage in Current and Overall; a second combat is a new session, Overall sums both; the session menu switches the view. Screenshots in `data/diagnostics/dpsmeter-2026-09-29/`. Exit 0 at game-engine `10f0ce87` + fixture `026070d8`: combat 1 logged 307 = Current 307 = Overall 307; combat 2 logged 308 = Current 308 (session 2), Overall 615.

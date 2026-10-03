@@ -1,6 +1,8 @@
 # Soft Interact
 
-Retail soft interact (`SoftTargetInteract`): the interactable NPC or game object the player faces, the cursor icon above it, and the Interact With Target key. Code: `godot/rust/src/soft_interact.rs`, `godot/rust/src/game_objects.rs`, `src/client_options_data.rs` (`SoftTargetOptions`), `src/ui/screens/options_menu_active_sections.rs` (Interact Key Icons).
+> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+
+Retail soft interact (`SoftTargetInteract`): the interactable NPC or game object the player faces, the cursor icon above it, and the Interact With Target key. Code: `godot/rust/src/soft_interact.rs`, `godot/rust/src/game_objects.rs`, `godot/core/src/client_options_data.rs` (`SoftTargetOptions`), `godot/ui-model/src/ui/screens/options_menu_active_sections.rs` (Interact Key Icons).
 
 References:
 - CVar help text: Retail `Wow.exe` strings. Defaults: wow-ui-sim `src/cvars.yaml:1309-1341`, which the Kiosk keyboard reset restores (`Blizzard_Gamepad/Core.lua:83-88`).

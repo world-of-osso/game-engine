@@ -29,3 +29,106 @@ common/max_physics_steps_per_frame=100
 renderer/rendering_method="forward_plus"
 driver/depth_prepass/enable=false
 textures/default_filters/use_nearest_mipmap_filter=false
+
+[shader_globals]
+
+fog_color={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+fog_color_range={
+"type": "vec2",
+"value": Vector2(0, 1000)
+}
+fog_density={
+"type": "float",
+"value": 0.0
+}
+fog_end_color={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+fog_height={
+"type": "float",
+"value": 0.0
+}
+fog_height_coefficients={
+"type": "vec4",
+"value": Vector4(1, 0, 0, 0)
+}
+fog_height_color={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+fog_height_density={
+"type": "float",
+"value": 0.0
+}
+fog_height_density_coefficients={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+fog_height_end_color={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+fog_height_rate={
+"type": "float",
+"value": 0.0
+}
+fog_legacy_scalar={
+"type": "float",
+"value": 1.0
+}
+fog_main_coefficients={
+"type": "vec4",
+"value": Vector4(0, 0, 0, 0)
+}
+fog_main_range={
+"type": "vec2",
+"value": Vector2(0, 0.001)
+}
+fog_range={
+"type": "vec2",
+"value": Vector2(0, 0)
+}
+fog_sun_angle={
+"type": "float",
+"value": 1.0
+}
+fog_sun_color={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+fog_sun_direction={
+"type": "vec3",
+"value": Vector3(0, 1, 0)
+}
+fog_sun_percentage={
+"type": "float",
+"value": 0.0
+}
+fog_z_scalar={
+"type": "float",
+"value": 0.0
+}
+scene_ambient={
+"type": "vec3",
+"value": Vector3(1, 1, 1)
+}
+scene_direct={
+"type": "vec3",
+"value": Vector3(0, 0, 0)
+}
+scene_ground_ambient={
+"type": "vec3",
+"value": Vector3(1, 1, 1)
+}
+scene_horizon_ambient={
+"type": "vec3",
+"value": Vector3(1, 1, 1)
+}
+scene_sun_direction={
+"type": "vec3",
+"value": Vector3(0, -1, 0)
+}
