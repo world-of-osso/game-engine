@@ -19,7 +19,7 @@ use shared::{
     components::{MovementSpeed, PlayerMotion},
     movement::{FLIGHT_SPEED, RUN_SPEED, SWIM_SPEED, WALK_SPEED, swim_top},
     protocol::PlayerInput,
-    skyriding::{Glider, SKYRIDING},
+    skyriding::{Glider, SKYRIDING, SKYWARD_ASCENT},
 };
 
 use crate::swim::{at_swim_surface, swim_height};
@@ -50,6 +50,11 @@ pub(crate) struct PlayerMovement {
     /// Skyriding (`MOVEMENTFLAG_ADV_FLYING`): a flight moved by momentum
     /// (`shared::skyriding`) instead of the flight speed.
     glider: Option<Glider>,
+    /// A skyrider's takeoff in the air asked the server for Skyward Ascent: the run it
+    /// launches with on that cast's `SpellGo` (`skyriding_spell`). Cleared on landing.
+    takeoff: Option<Vec3>,
+    /// The takeoff's Skyward Ascent cast is yet to be sent (`take_takeoff_request`).
+    takeoff_unsent: bool,
     /// The facing and, while mouse-steered, the camera pitch of the newest `resolve`.
     steering: Steering,
     direction: MoveDirection,
@@ -113,6 +118,8 @@ impl Default for PlayerMovement {
             flying: false,
             can_adv_fly: false,
             glider: None,
+            takeoff: None,
+            takeoff_unsent: false,
             steering: Steering::default(),
             direction: MoveDirection::None,
             at_surface: false,
@@ -233,9 +240,19 @@ impl PlayerMovement {
     }
 
     /// A Skyriding ability the server resolved for this player (its `SpellGo`): flap the
-    /// glider facing the newest steering (`shared::skyriding::Glider::cast`). `false` when
-    /// not skyriding or for any other spell.
+    /// glider facing the newest steering (`shared::skyriding::Glider::cast`). Skyward
+    /// Ascent off the glider is the takeoff: it launches straight up at `LAUNCH_SPEED` with
+    /// the run it was asked with (`Glider::launch`, the same upward flap). `false` when not
+    /// skyriding or for any other spell.
     pub fn skyriding_spell(&mut self, spell_id: u32) -> bool {
+        if spell_id == SKYWARD_ASCENT && self.can_adv_fly && self.glider.is_none() {
+            let run = self.takeoff.take().unwrap_or(Vec3::ZERO);
+            self.flying = true;
+            self.jumping = false;
+            self.vertical_velocity = 0.0;
+            self.glider = Some(Glider::launch(run));
+            return true;
+        }
         let yaw = self.steering.yaw;
         self.glider
             .as_mut()
@@ -366,17 +383,22 @@ impl PlayerMovement {
             position = ground.validate_move(position, proposed, self.grounded && !self.jumping);
         }
         self.update_jump(position, jump_pressed, ground);
-        // `JumpOrAscendStart` in the air: a player who can fly takes off; a skyrider
-        // launches upward with its run on (`shared::skyriding::LAUNCH_SPEED`).
+        // `JumpOrAscendStart` in the air: a player who can fly takes off. A skyrider's
+        // takeoff is Skyward Ascent (JUMP, JUMP: Blizzard_Tutorials_RPE.lua:391-395), which
+        // spends a Skyriding Charge: ask the server to cast it and keep falling until its
+        // `SpellGo` launches (`skyriding_spell`).
         if self.can_fly && !self.grounded && frame.vertical > 0.0 {
-            self.flying = true;
-            self.jumping = false;
-            self.vertical_velocity = 0.0;
-            if self.can_adv_fly {
-                let run = Vec3::from(frame.direction).with_y(0.0).normalize_or_zero();
-                self.glider = Some(Glider::launch(run * frame.speed));
+            if !self.can_adv_fly {
+                self.flying = true;
+                self.jumping = false;
+                self.vertical_velocity = 0.0;
+                return position;
             }
-            return position;
+            if self.takeoff.is_none() {
+                let run = Vec3::from(frame.direction).with_y(0.0).normalize_or_zero();
+                self.takeoff = Some(run * frame.speed);
+                self.takeoff_unsent = true;
+            }
         }
         let vertical = apply_gravity_and_ground_snap(
             VerticalState {
@@ -390,8 +412,16 @@ impl PlayerMovement {
         );
         self.vertical_velocity = vertical.vertical_velocity;
         self.grounded = vertical.grounded;
+        if self.grounded {
+            self.takeoff = None;
+        }
         position.y = vertical.y;
         position
+    }
+
+    /// Whether a takeoff awaits its Skyward Ascent cast; the caller sends it once.
+    pub fn take_takeoff_request(&mut self) -> bool {
+        std::mem::take(&mut self.takeoff_unsent) && self.takeoff.is_some()
     }
 
     /// Fly along `frame` and the held ascend/descend, no faster than the flight speed in
@@ -760,6 +790,10 @@ impl crate::GameClient {
         );
         player.set_position(Vector3::new(next.x, next.y, next.z));
         player.set_rotation(Vector3::new(0.0, yaw - std::f32::consts::FRAC_PI_2, 0.0));
+        if self.player_movement.take_takeoff_request() {
+            self.cast_spell(SKYWARD_ASCENT)
+                .map_err(|error| format!("Skyward Ascent takeoff: {error}"))?;
+        }
         Ok(())
     }
 
@@ -1683,11 +1717,57 @@ mod tests {
         let mut feet = feet;
         for _ in 0..30 {
             feet = hold(movement, ground, input, feet, (INLAND, 0.0), 1);
+            // A skyrider's takeoff flies on its Skyward Ascent `SpellGo`.
+            if movement.take_takeoff_request() {
+                assert!(movement.skyriding_spell(shared::skyriding::SKYWARD_ASCENT));
+            }
             if movement.flying {
                 return feet;
             }
         }
         panic!("never took off: {feet}");
+    }
+
+    /// A skyrider's Space in the air asks for Skyward Ascent once and keeps falling: no
+    /// `SpellGo` (no charge left) lands it back on the ground. The `SpellGo` launches it
+    /// straight up at `LAUNCH_SPEED` with its run.
+    #[test]
+    fn a_skyriding_takeoff_waits_for_the_skyward_ascent_spell_go() {
+        use shared::skyriding::{LAUNCH_SPEED, SKYWARD_ASCENT};
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let mut movement = PlayerMovement::default();
+        movement.set_can_fly(true);
+        movement.set_can_adv_fly(true);
+        let mut input = PhysicalInput::default();
+        input.set_key(BindingKey::Space, true);
+        let frame = movement.resolve(&InputBindingsData::default(), &input, INLAND, 0.0, false);
+        let mut feet = movement.predict(SHORE, frame, true, &ground, &mut |_, to, _| to, DT);
+        let mut requests = 0;
+        for _ in 0..90 {
+            feet = hold(&mut movement, &ground, &input, feet, (INLAND, 0.0), 1);
+            requests += usize::from(movement.take_takeoff_request());
+        }
+        assert_eq!(requests, 1);
+        assert!(!movement.flying && movement.glider.is_none());
+        assert!((feet.y - ground_y(&terrain, feet)).abs() < 0.06, "{feet}");
+
+        input.set_key(BindingKey::Space, false);
+        feet = hold(&mut movement, &ground, &input, feet, (INLAND, 0.0), 30);
+        input.set_key(BindingKey::Space, true);
+        let frame = movement.resolve(&InputBindingsData::default(), &input, INLAND, 0.0, false);
+        feet = movement.predict(feet, frame, true, &ground, &mut |_, to, _| to, DT);
+        while !movement.take_takeoff_request() {
+            feet = hold(&mut movement, &ground, &input, feet, (INLAND, 0.0), 1);
+            assert!(!movement.flying);
+        }
+        assert!(movement.skyriding_spell(SKYWARD_ASCENT));
+        let glider = movement.glider.expect("launched");
+        assert!(movement.flying);
+        assert_eq!(glider.velocity.y, LAUNCH_SPEED);
     }
 
     /// Retail `JUMP` (`JumpOrAscendStart`) and `SITORSTAND` (`SitStandOrDescendStart`),
