@@ -38,7 +38,7 @@ func make_m2(flags: int, blend_mode: int) -> PackedByteArray:
 	var md20 := PackedByteArray()
 	md20.resize(0x240)
 	put_magic(md20, 0, "MD20")
-	put_u32(md20, 4, 264)
+	put_u32(md20, 4, 274) # Retail MD20 version; CASC M2s are 272 or 274.
 	put_u32(md20, 0x10, 8) # Authored texture-combiner IDs.
 	put_u32(md20, 0x3c, 4)
 	put_u32(md20, 0x40, 0x140)
