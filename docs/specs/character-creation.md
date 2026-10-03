@@ -74,7 +74,7 @@ Character creation in `src/scenes/char_create/` and `godot/ui-model/src/ui/scree
 - `src/rendering/character/{customization_data,customization_cache,appearance_options,character_customization}.rs` — catalog/cache, disjoint selections and material/geoset application.
 - `src/ui/character_creation_icons.rs` — cached authored-alpha-mask composition.
 - `../shared-protocol/src/components.rs`, `../game-server/crates/server/src/character_data.rs` — appearance payload and stored-data upgrades.
-- `../ui-toolkit/src/atlas/retail.rs`, `../ui-toolkit/src/attrs.rs` — atlas identities/crops and authored hit insets.
+- `../ui-toolkit-godot-conversion/core/src/atlas.rs` (DB2 atlas tables, project art), `../ui-toolkit-godot-conversion/core/src/attrs.rs` — atlas identities/crops and authored hit insets.
 
 ## Tests asserting this spec
 
