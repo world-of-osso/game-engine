@@ -502,21 +502,40 @@ impl TerrainObjects {
         self.progress.get(tile)
     }
 
-    /// Moves `tile`'s queued placements ahead of the other tiles', once it is queued; the
-    /// loading screen waits for them.
+    /// Moves `tile`'s placements ahead of the other tiles', once it is queued: its queued
+    /// and loaded placements, and its model loads ahead of the loads the other tiles queued
+    /// before it parsed. The loading screen waits for them.
     pub fn prioritize_tile(&mut self, tile: Tile) {
         if self.prioritized.contains(&tile) || !self.queued_tiles.contains(&tile) {
             return;
         }
         self.prioritized.insert(tile);
-        let wmo_tiles = &self.wmo_tiles;
-        let (first, rest): (VecDeque<_>, VecDeque<_>) =
-            self.pending.drain(..).partition(|&pending| match pending {
-                Pending::Doodad(of, _) | Pending::Wmo(of, _) => of == tile,
-                Pending::WmoDoodad(wmo, _) => wmo_tiles.get(&wmo) == Some(&tile),
-            });
-        self.pending = first;
-        self.pending.extend(rest);
+        let pending = std::mem::take(&mut self.pending);
+        self.pending = self.tile_first(pending, tile);
+        let ready = std::mem::take(&mut self.ready);
+        self.ready = self.tile_first(ready, tile);
+        let assets: Vec<ObjectAsset> = self
+            .waiting
+            .iter()
+            .filter(|(_, placements)| {
+                placements
+                    .iter()
+                    .any(|&pending| self.tile_of(pending) == Some(tile))
+            })
+            .map(|(&asset, _)| asset)
+            .collect();
+        for asset in assets {
+            self.loader.request(asset, Priority::First);
+        }
+    }
+
+    /// `placements` with those of `tile` first, each part in its order.
+    fn tile_first(&self, placements: VecDeque<Pending>, tile: Tile) -> VecDeque<Pending> {
+        let (mut first, rest): (VecDeque<_>, VecDeque<_>) = placements
+            .into_iter()
+            .partition(|&pending| self.tile_of(pending) == Some(tile));
+        first.extend(rest);
+        first
     }
 
     /// The tile a placement counts toward; `None` for the global WMO's doodads.
@@ -619,7 +638,11 @@ impl TerrainObjects {
     }
 
     fn wait_for(&mut self, asset: ObjectAsset, pending: Pending) {
-        self.loader.request(asset, Priority::Now);
+        let priority = match self.tile_of(pending) {
+            Some(tile) if self.prioritized.contains(&tile) => Priority::First,
+            _ => Priority::Now,
+        };
+        self.loader.request(asset, priority);
         self.waiting.entry(asset).or_default().push(pending);
         self.waiting_count += 1;
     }
