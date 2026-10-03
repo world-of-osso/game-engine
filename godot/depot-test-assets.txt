@@ -30,6 +30,10 @@ models/6194303.m2
 models/619430300.skin
 models/6323400.m2
 models/632340000.skin
+models/166210.m2
+models/16621000.skin
+models/190967.m2
+models/19096700.skin
 models/199565.m2
 models/19956500.skin
 models/108121.wmo

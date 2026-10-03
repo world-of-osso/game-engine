@@ -178,17 +178,20 @@ pub fn multitexture_uv_scale(emitter: &ParticleEmitter, layer: usize) -> f32 {
 }
 
 /// Particle slots for one emitter: authored maximum rate x maximum lifetime x 1.15,
-/// capped at [`EMITTER_CAPACITY_CAP`].
+/// capped at [`EMITTER_CAPACITY_CAP`]. Keyframed rate and lifespan size the pool for
+/// their highest keys (WebWowViewerCpp M2GpuAnimData.cpp:387-391).
 pub fn pool_capacity(emitter: &ParticleEmitter) -> usize {
-    // A keyframed rate sizes the pool for its highest key.
-    let peak = emitter
-        .tracks
-        .emission_rate
-        .iter()
-        .flat_map(|track| track.sequences.iter().flat_map(|(_, values)| values))
-        .fold(emitter.emission_rate, |peak, &rate| peak.max(rate));
-    let rate = f64::from(peak) + f64::from(emitter.emission_rate_variation);
-    let life = f64::from(emitter.lifespan) + f64::from(emitter.lifespan_variation);
+    let peak = |track: &Option<m2_anim::AnimTrack<f32>>, authored: f32| {
+        track
+            .iter()
+            .flat_map(|track| track.sequences.iter().flat_map(|(_, values)| values))
+            .fold(authored, |peak, &value| peak.max(value))
+    };
+    let tracks = &emitter.tracks;
+    let rate = f64::from(peak(&tracks.emission_rate, emitter.emission_rate))
+        + f64::from(emitter.emission_rate_variation);
+    let life =
+        f64::from(peak(&tracks.lifespan, emitter.lifespan)) + f64::from(emitter.lifespan_variation);
     let estimate = (rate * life * CAPACITY_HEADROOM).ceil();
     if estimate.is_finite() && estimate > 0.0 {
         (estimate as usize).min(EMITTER_CAPACITY_CAP)
@@ -245,14 +248,15 @@ pub fn sample_keys<T: Lerp>(keys: &[(f32, T)], t: f32, default: T) -> T {
     keys[keys.len() - 1].1
 }
 
-/// A particle's lifespan: authored lifespan varied by its signed seed
-/// (`CParticleGenerator::GetLifeSpan`).
-pub fn particle_lifespan(emitter: &ParticleEmitter, seed: u16) -> f32 {
-    emitter.lifespan + f32::from(seed as i16) * SEED_SCALE * emitter.lifespan_variation
+/// A particle's lifespan: the generator's current `lifespan` varied by the particle's
+/// signed seed (`CParticleGenerator::GetLifeSpan`).
+pub fn particle_lifespan(emitter: &ParticleEmitter, lifespan: f32, seed: u16) -> f32 {
+    lifespan + f32::from(seed as i16) * SEED_SCALE * emitter.lifespan_variation
 }
 
-fn max_lifespan(emitter: &ParticleEmitter) -> f32 {
-    emitter.lifespan + emitter.lifespan_variation
+/// `CParticleGenerator::GetMaxLifeSpan` for the generator's current `lifespan`.
+fn max_lifespan(emitter: &ParticleEmitter, lifespan: f32) -> f32 {
+    lifespan + emitter.lifespan_variation
 }
 
 /// Lifetime colour, opacity, size and atlas cell of one particle.
@@ -267,9 +271,10 @@ pub struct Appearance {
 }
 
 /// `ParticleEmitter::fillTimedParticleData` at `age` seconds: ramps sampled at age over
-/// the maximum lifespan; random cell and size variation from the particle seed.
-pub fn appearance(emitter: &ParticleEmitter, age: f32, seed: u16) -> Appearance {
-    let max_life = max_lifespan(emitter);
+/// the maximum lifespan for the generator's current `lifespan`; random cell and size
+/// variation from the particle seed.
+pub fn appearance(emitter: &ParticleEmitter, lifespan: f32, age: f32, seed: u16) -> Appearance {
+    let max_life = max_lifespan(emitter, lifespan);
     let t = if max_life > 0.0 {
         (age / max_life).clamp(0.0, 1.0)
     } else {
@@ -382,25 +387,76 @@ pub struct EmitterSim {
     particles: Vec<Particle>,
     capacity: usize,
     emitter_to_world: Mat4,
-    /// Keyframed emission values at the model's playing sequence time.
-    animated: AnimatedEmission,
-}
-
-/// `emissionRate`, `emissionSpeed` and `enabledIn` evaluated from keyframed tracks;
-/// `None` keeps the emitter's static value.
-#[derive(Clone, Copy, Debug, PartialEq)]
-struct AnimatedEmission {
-    rate: Option<f32>,
-    speed: Option<f32>,
+    /// Generator values at the model's playing sequence time.
+    props: GeneratorProps,
+    /// `enabledIn` at that time.
     enabled: bool,
 }
 
-impl Default for AnimatedEmission {
-    fn default() -> Self {
+/// The generator's animated values (`CGeneratorAniProp`); gravity in WoW axes.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct GeneratorProps {
+    emission_speed: f32,
+    speed_variation: f32,
+    vertical_range: f32,
+    horizontal_range: f32,
+    gravity: [f32; 3],
+    lifespan: f32,
+    emission_rate: f32,
+    area_length: f32,
+    area_width: f32,
+    z_source: f32,
+}
+
+impl GeneratorProps {
+    /// The emitter's static values.
+    fn authored(emitter: &ParticleEmitter) -> Self {
         Self {
-            rate: None,
-            speed: None,
-            enabled: true,
+            emission_speed: emitter.emission_speed,
+            speed_variation: emitter.speed_variation,
+            vertical_range: emitter.vertical_range,
+            horizontal_range: emitter.horizontal_range,
+            gravity: emitter.gravity_vector,
+            lifespan: emitter.lifespan,
+            emission_rate: emitter.emission_rate,
+            area_length: emitter.area_length,
+            area_width: emitter.area_width,
+            z_source: emitter.z_source,
+        }
+    }
+
+    /// Each keyframed track at `time`; the static value where a track is unkeyed or
+    /// has no keys in the sampled sequence.
+    fn at(emitter: &ParticleEmitter, time: &AnimTime) -> Self {
+        let tracks = &emitter.tracks;
+        let f32_at = |track: &Option<m2_anim::AnimTrack<f32>>, authored: f32| {
+            track
+                .as_ref()
+                .and_then(|track| {
+                    let (timeline, time_ms) = time.track_time(track);
+                    m2_anim::evaluate_f32_track(track, timeline, time_ms)
+                })
+                .unwrap_or(authored)
+        };
+        let gravity = tracks
+            .gravity
+            .as_ref()
+            .and_then(|track| {
+                let (timeline, time_ms) = time.track_time(track);
+                m2_anim::evaluate_vec3_track(track, timeline, time_ms)
+            })
+            .unwrap_or(emitter.gravity_vector);
+        Self {
+            emission_speed: f32_at(&tracks.emission_speed, emitter.emission_speed),
+            speed_variation: f32_at(&tracks.speed_variation, emitter.speed_variation),
+            vertical_range: f32_at(&tracks.vertical_range, emitter.vertical_range),
+            horizontal_range: f32_at(&tracks.horizontal_range, emitter.horizontal_range),
+            gravity,
+            lifespan: f32_at(&tracks.lifespan, emitter.lifespan),
+            emission_rate: f32_at(&tracks.emission_rate, emitter.emission_rate),
+            area_length: f32_at(&tracks.area_length, emitter.area_length),
+            area_width: f32_at(&tracks.area_width, emitter.area_width),
+            z_source: f32_at(&tracks.z_source, emitter.z_source),
         }
     }
 }
@@ -414,30 +470,27 @@ impl EmitterSim {
             particles: Vec::with_capacity(capacity),
             capacity,
             emitter_to_world: Mat4::IDENTITY,
-            animated: AnimatedEmission::default(),
+            props: GeneratorProps::authored(emitter),
+            enabled: true,
         }
     }
 
-    /// Evaluate the emitter's keyframed emission tracks at the model's animation `time`
-    /// (`CParticleEmitter2::SetAnimTime`); used by the next updates.
+    /// Evaluate the emitter's keyframed tracks at the model's animation `time`; used
+    /// by the next updates. A disabled emitter keeps its last generator values
+    /// (WebWowViewerCpp animationManager.cpp:1349-1470 `calcParticleEmitters`).
     pub fn set_animation(&mut self, emitter: &ParticleEmitter, time: &AnimTime) {
-        let tracks = &emitter.tracks;
-        let f32_at = |track: &m2_anim::AnimTrack<f32>| {
-            let (timeline, time_ms) = time.track_time(track);
-            m2_anim::evaluate_f32_track(track, timeline, time_ms)
-        };
-        self.animated = AnimatedEmission {
-            rate: tracks.emission_rate.as_ref().and_then(f32_at),
-            speed: tracks.emission_speed.as_ref().and_then(f32_at),
-            enabled: tracks
-                .enabled
-                .as_ref()
-                .and_then(|track| {
-                    let (timeline, time_ms) = time.track_time(track);
-                    m2_anim::evaluate_u8_track(track, timeline, time_ms)
-                })
-                .is_none_or(|enabled| enabled != 0),
-        };
+        self.enabled = emitter
+            .tracks
+            .enabled
+            .as_ref()
+            .and_then(|track| {
+                let (timeline, time_ms) = time.track_time(track);
+                m2_anim::evaluate_u8_track(track, timeline, time_ms)
+            })
+            .is_none_or(|enabled| enabled != 0);
+        if self.enabled {
+            self.props = GeneratorProps::at(emitter, time);
+        }
     }
 
     pub fn capacity(&self) -> usize {
@@ -468,7 +521,7 @@ impl EmitterSim {
         if dt >= STEP_SECONDS {
             let whole = (dt / STEP_SECONDS).floor();
             remainder = dt - whole * STEP_SECONDS;
-            let steps = (emitter.lifespan / STEP_SECONDS)
+            let steps = (self.props.lifespan / STEP_SECONDS)
                 .floor()
                 .min(whole)
                 .max(0.0) as usize;
@@ -484,9 +537,10 @@ impl EmitterSim {
         if dt < 0.0 {
             return;
         }
+        let lifespan = self.props.lifespan;
         self.particles.retain_mut(|particle| {
             particle.age += dt;
-            particle.age <= particle_lifespan(emitter, particle.seed).max(MIN_LIFESPAN)
+            particle.age <= particle_lifespan(emitter, lifespan, particle.seed).max(MIN_LIFESPAN)
         });
         let model_space = emitter.flags & FLAG_MODEL_SPACE != 0;
         let to_sim = |vector: [f32; 3]| {
@@ -497,7 +551,7 @@ impl EmitterSim {
                 wow_to_world * vector
             }
         };
-        let gravity = to_sim(emitter.gravity_vector);
+        let gravity = to_sim(self.props.gravity);
         let wind = to_sim(emitter.wind_vector);
         self.emit(emitter, dt, density);
         let center = if model_space {
@@ -534,11 +588,12 @@ impl EmitterSim {
     /// `EmitNewParticles`: rate (+ variation) x density accumulates; each whole
     /// particle spawns while the pool has room.
     fn emit(&mut self, emitter: &ParticleEmitter, dt: f32, density: f32) {
-        if !self.animated.enabled {
+        if !self.enabled {
             return;
         }
-        let base = self.animated.rate.unwrap_or(emitter.emission_rate);
-        let rate = (base + self.rng.uniform() * emitter.emission_rate_variation) * density;
+        let rate = (self.props.emission_rate
+            + self.rng.uniform() * emitter.emission_rate_variation)
+            * density;
         self.emission += dt * rate;
         while self.emission > 1.0 {
             if self.particles.len() < self.capacity {
@@ -554,13 +609,13 @@ impl EmitterSim {
         let dvary = dt * rng.uniform_pos();
         let life = rng.uniform();
         let state = (life * 32767.0 + 0.5).trunc().clamp(-32767.0, 32767.0) as i16;
-        let lifespan = particle_lifespan(emitter, state as u16).max(MIN_LIFESPAN);
+        let props = &self.props;
+        let lifespan = particle_lifespan(emitter, props.lifespan, state as u16).max(MIN_LIFESPAN);
         let age = dvary % lifespan;
         let seed = rng.next_u32() as u16;
-        let speed = self.animated.speed.unwrap_or(emitter.emission_speed);
         let (position, velocity) = match shape(emitter) {
-            Some(ParticleShape::Plane) => spawn_plane(emitter, speed, rng),
-            _ => spawn_sphere(emitter, speed, rng),
+            Some(ParticleShape::Plane) => spawn_plane(props, rng),
+            _ => spawn_sphere(emitter, props, rng),
         };
         let (position, velocity) = if emitter.flags & FLAG_MODEL_SPACE == 0 {
             (
@@ -587,7 +642,7 @@ impl EmitterSim {
         if emitter.flags & FLAG_HEAD == 0 {
             return;
         }
-        let max_life = max_lifespan(emitter);
+        let max_life = max_lifespan(emitter, self.props.lifespan);
         out.extend(
             self.particles
                 .iter()
@@ -604,7 +659,7 @@ impl EmitterSim {
     ) -> Option<Quad> {
         let twinkle = twinkle_scale(emitter, particle.age, particle.seed)?;
         let matrix = self.emitter_to_world;
-        let look = appearance(emitter, particle.age, particle.seed);
+        let look = appearance(emitter, self.props.lifespan, particle.age, particle.seed);
         let mut scale = look.scale * twinkle;
         if emitter.flags & FLAG_INHERIT_SCALE != 0 {
             scale *= matrix.x_axis.truncate().length();
@@ -649,49 +704,48 @@ fn spawn_texture_motion(emitter: &ParticleEmitter, rng: &mut Rng) -> ([Vec2; 2],
 }
 
 /// `CPlaneGenerator::CreateParticle` in the generator frame.
-fn spawn_plane(emitter: &ParticleEmitter, emission_speed: f32, rng: &mut Rng) -> (Vec3, Vec3) {
+fn spawn_plane(props: &GeneratorProps, rng: &mut Rng) -> (Vec3, Vec3) {
     let position = Vec3::new(
-        rng.uniform() * emitter.area_length * 0.5,
-        rng.uniform() * emitter.area_width * 0.5,
+        rng.uniform() * props.area_length * 0.5,
+        rng.uniform() * props.area_width * 0.5,
         0.0,
     );
-    let speed = emission_speed * (1.0 + emitter.speed_variation * rng.uniform());
-    let velocity = if emitter.z_source < 0.001 {
-        let polar = emitter.vertical_range * rng.uniform();
-        let azimuth = emitter.horizontal_range * rng.uniform();
+    let speed = props.emission_speed * (1.0 + props.speed_variation * rng.uniform());
+    let velocity = if props.z_source < 0.001 {
+        let polar = props.vertical_range * rng.uniform();
+        let azimuth = props.horizontal_range * rng.uniform();
         Vec3::new(
             azimuth.cos() * polar.sin(),
             azimuth.sin() * polar.sin(),
             polar.cos(),
         ) * speed
     } else {
-        aim_from_z_source(position, emitter.z_source) * speed
+        aim_from_z_source(position, props.z_source) * speed
     };
     (position, velocity)
 }
 
 /// `CSphereGenerator::CreateParticle`: a shell between the authored length and width
 /// radii, launched outward (or up with flag 0x100, or from the z source).
-fn spawn_sphere(emitter: &ParticleEmitter, emission_speed: f32, rng: &mut Rng) -> (Vec3, Vec3) {
-    let radius =
-        emitter.area_length + (emitter.area_width - emitter.area_length) * rng.uniform_pos();
-    let polar = emitter.vertical_range * rng.uniform();
-    let azimuth = emitter.horizontal_range * rng.uniform();
+fn spawn_sphere(emitter: &ParticleEmitter, props: &GeneratorProps, rng: &mut Rng) -> (Vec3, Vec3) {
+    let radius = props.area_length + (props.area_width - props.area_length) * rng.uniform_pos();
+    let polar = props.vertical_range * rng.uniform();
+    let azimuth = props.horizontal_range * rng.uniform();
     let direction = Vec3::new(
         polar.cos() * azimuth.cos(),
         polar.cos() * azimuth.sin(),
         polar.sin(),
     );
     let position = direction * radius;
-    let speed = emission_speed * (1.0 + emitter.speed_variation * rng.uniform());
-    let aim = if emitter.z_source == 0.0 {
+    let speed = props.emission_speed * (1.0 + props.speed_variation * rng.uniform());
+    let aim = if props.z_source == 0.0 {
         if emitter.flags & FLAG_SPHERE_UP != 0 {
             Vec3::Z
         } else {
             direction
         }
     } else {
-        aim_from_z_source(position, emitter.z_source)
+        aim_from_z_source(position, props.z_source)
     };
     (position, aim * speed)
 }
