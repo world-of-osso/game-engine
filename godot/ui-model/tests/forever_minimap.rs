@@ -2,7 +2,7 @@
 //! built before it knew skins (master 5e9c5994). Forever is FlareUI's square minimap
 //! (FlareUI 1.3 `Modules/Minimap.lua:32-50,115-136`): a 244×244 map without a mask in a
 //! 260×260 cluster, a 17-high header with the zone name and the clock at its TOPRIGHT, and
-//! the `ButtonFrameTemplateNoPortrait` NineSlice instead of the compass ring.
+//! bronze Blizzard tooltip-border chrome instead of the compass ring.
 
 use std::fmt::Write;
 
@@ -186,20 +186,47 @@ fn forever_cluster_is_a_square_244_map_in_a_260_cluster() {
     );
 }
 
-/// The header is the cluster's top 17 units: the zone name from its left inset, the clock
-/// 40 wide with its TOPRIGHT on the header's TOPRIGHT inset.
+/// Screenshot-measured header: tracking, yellow zone, white clock, calendar.
 #[test]
 fn forever_header_holds_the_zone_name_and_the_clock_at_its_top_right() {
     let registry = build(ActiveSkin::Forever, busy_state());
-    assert_rect(&registry, MINIMAP_ZONE_TEXT, (8.0, 2.5, 200.0, 12.0));
-    assert_rect(&registry, MINIMAP_CLOCK_TEXT, (212.0, 0.0, 40.0, 17.0));
+    assert_rect(
+        &registry,
+        "MinimapClusterTrackingBackground",
+        (8.0, 0.0, 17.0, 17.0),
+    );
+    assert_rect(
+        &registry,
+        "MinimapClusterTrackingButton",
+        (10.0, 1.5, 13.0, 14.0),
+    );
+    assert_rect(&registry, MINIMAP_ZONE_TEXT, (28.0, 2.5, 157.0, 12.0));
+    assert_rect(&registry, MINIMAP_CLOCK_TEXT, (189.0, 0.0, 40.0, 17.0));
+    assert_rect(&registry, "GameTimeFrame", (233.0, 0.0, 19.0, 17.0));
+    let modern = build(ActiveSkin::Modern, busy_state());
+    for name in [
+        "MinimapClusterTrackingBackground",
+        "MinimapClusterTrackingButton",
+        "GameTimeFrame",
+    ] {
+        assert_eq!(
+            frame(&registry, name).widget_data,
+            frame(&modern, name).widget_data
+        );
+        assert_eq!(frame(&registry, name).onclick, frame(&modern, name).onclick);
+        assert_eq!(
+            frame(&registry, name).mouse_enabled,
+            frame(&modern, name).mouse_enabled
+        );
+        assert!(!frame(&registry, name).hidden);
+    }
     let text = |name: &str| match frame(&registry, name).widget_data.as_ref() {
         Some(WidgetData::FontString(text)) => text.clone(),
         other => panic!("{name}: {other:?}"),
     };
     let zone = text(MINIMAP_ZONE_TEXT);
     assert_eq!(zone.text, "Northshire Valley");
-    assert_eq!(zone.color, [1.0, 0.1, 0.1, 1.0]);
+    assert_eq!(zone.color, [1.0, 0.82, 0.0, 1.0]);
     assert_eq!(zone.justify_h, JustifyH::Left);
     assert_eq!(
         frame(&registry, MINIMAP_ZONE_TEXT).onclick.as_deref(),
@@ -208,30 +235,53 @@ fn forever_header_holds_the_zone_name_and_the_clock_at_its_top_right() {
     let clock = text(MINIMAP_CLOCK_TEXT);
     assert_eq!(clock.text, "3:07");
     assert_eq!(clock.justify_h, JustifyH::Right);
+    assert_eq!(clock.color, [1.0, 1.0, 1.0, 1.0]);
 }
 
-/// The `ButtonFrameTemplateNoPortrait` NineSlice (corner offsets 8 left, 16 up, 4 right,
-/// 3 down; NineSliceLayouts.lua) frames the cluster; Retail's compass ring, header bar,
-/// tracking button and calendar are not drawn.
+/// Reuse FlareUI bronze backdrop border cells without a centre covering the map.
 #[test]
-fn forever_border_is_the_no_portrait_metal_nine_slice_instead_of_the_ring() {
+fn forever_border_is_bronze_tooltip_art_instead_of_the_metal_frame() {
     let registry = build(ActiveSkin::Forever, busy_state());
     assert_rect(
         &registry,
-        "MinimapClusterNineSlice",
-        (-8.0, -16.0, 272.0, 279.0),
+        "MinimapClusterFlareBorder",
+        (0.0, -8.0, 260.0, 276.0),
     );
-    assert_eq!(
-        frame(&registry, "MinimapClusterNineSlice")
-            .panel_style
-            .as_deref(),
-        Some("metal_frame_no_portrait")
-    );
+    for (part, rect, rotation) in [
+        ("TopLeft", (0.0, 0.0, 16.0, 16.0), 0.0),
+        ("TopRight", (244.0, 0.0, 16.0, 16.0), 0.0),
+        ("BottomLeft", (0.0, 260.0, 16.0, 16.0), 0.0),
+        ("BottomRight", (244.0, 260.0, 16.0, 16.0), 0.0),
+        ("Left", (0.0, 16.0, 16.0, 244.0), 0.0),
+        ("Right", (244.0, 16.0, 16.0, 244.0), 0.0),
+        (
+            "Top",
+            (122.0, -106.0, 16.0, 228.0),
+            -std::f32::consts::FRAC_PI_2,
+        ),
+        (
+            "Bottom",
+            (122.0, 154.0, 16.0, 228.0),
+            -std::f32::consts::FRAC_PI_2,
+        ),
+    ] {
+        let name = format!("MinimapClusterBorder{part}");
+        assert_rect(&registry, &name, rect);
+        let Some(WidgetData::Texture(art)) = &frame(&registry, &name).widget_data else {
+            panic!("{name} is not a texture");
+        };
+        assert_eq!(
+            art.source,
+            ui_toolkit::widgets::texture::TextureSource::FileDataId(137_057)
+        );
+        assert_eq!(art.vertex_color, [0.65, 0.49, 0.27, 1.0]);
+        assert_eq!(art.rotation, rotation);
+        assert!(!frame(&registry, &name).hidden);
+    }
+    assert!(registry.get_by_name("MinimapClusterNineSlice").is_none());
     let retail_only = [
         "MinimapCompassTexture",
         "MinimapClusterBorderTopTopLeftCorner",
-        "MinimapClusterTrackingButton",
-        "GameTimeFrame",
     ];
     let modern = build(ActiveSkin::Modern, busy_state());
     for name in retail_only {
@@ -239,9 +289,9 @@ fn forever_border_is_the_no_portrait_metal_nine_slice_instead_of_the_ring() {
         assert!(modern.get_by_name(name).is_some(), "{name} under Modern");
     }
     assert!(modern.get_by_name("MinimapClusterNineSlice").is_none());
-    // The host caches the metal sheets (UiTextureAtlas 1390, 1394, 1395) with the chrome.
+    // The host also caches the reused bronze border and calendar art.
     let fdids = minimap_texture_fdids(&busy_state());
-    for fdid in [2_406_979, 2_406_984, 2_406_987] {
+    for fdid in [137_057, 4_618_663] {
         assert!(fdids.contains(&fdid), "{fdid}");
     }
 }
