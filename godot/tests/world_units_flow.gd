@@ -1,17 +1,25 @@
 extends SceneTree
 
+# Required environment inputs also apply to every inherited world flow.
+# The account must have at least two characters; these flows select card 1.
+var server: String
+var account: String
+var password: String
+
 func _initialize() -> void:
 	call_deferred("run_test")
 
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
-	var server := OS.get_environment("GODOT_TEST_SERVER")
-	if server != "127.0.0.1:5000":
-		fail("GODOT_TEST_SERVER must explicitly select 127.0.0.1:5000")
+	server = OS.get_environment("GODOT_TEST_SERVER")
+	account = OS.get_environment("GODOT_TEST_ACCOUNT")
+	password = OS.get_environment("GODOT_TEST_PASSWORD")
+	if server.is_empty() or account.is_empty() or password.is_empty():
+		fail("GODOT_TEST_SERVER, GODOT_TEST_ACCOUNT and GODOT_TEST_PASSWORD are required")
 		return
 	var client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	var error = client.connect_account(server, "admin", "admin", false)
+	var error = client.connect_account(server, account, password, false)
 	if error != "":
 		fail("Fixture connection: " + error)
 		return
@@ -70,7 +78,7 @@ func select_second_character(client: Node) -> void:
 			if updated == null or updated.get_instance_id() != instance_id:
 				fail("Unit update replaced the selected character node")
 				return
-		var reconnect_error = client.connect_account("127.0.0.1:5000", "admin", "admin", false)
+		var reconnect_error = client.connect_account(server, account, password, false)
 		if reconnect_error != "":
 			fail("Reconnect failed: " + reconnect_error)
 			return
