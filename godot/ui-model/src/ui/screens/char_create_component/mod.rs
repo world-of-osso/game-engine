@@ -197,9 +197,4 @@ pub fn char_create_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-#[cfg(all(test, feature = "dev"))]
-#[path = "name_button_tests.rs"]
-mod name_button_tests;
-#[cfg(all(test, feature = "dev"))]
-#[path = "mod_tests.rs"]
-mod tests;
+

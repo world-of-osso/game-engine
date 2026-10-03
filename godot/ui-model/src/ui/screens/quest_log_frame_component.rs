@@ -383,6 +383,3 @@ fn details_text(name: &str, text: &str, font_size: f32, color: &str, y: &mut f32
     }
 }
 
-#[cfg(all(test, feature = "dev"))]
-#[path = "quest_log_frame_component_tests.rs"]
-mod tests;

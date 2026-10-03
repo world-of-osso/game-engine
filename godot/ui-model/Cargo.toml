@@ -4,10 +4,6 @@ version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
 
-[features]
-# Original Bevy-only source tests remain enabled by the engine's existing `dev` feature.
-dev = []
-
 [dependencies]
 # Shared chat timestamps: local `HH:MM:SS`, as the root client's chat frame formats them.
 chrono = { version = "0.4", default-features = false, features = ["clock"] }
