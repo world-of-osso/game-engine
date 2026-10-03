@@ -8,7 +8,6 @@ import time
 import unittest
 from pathlib import Path
 
-
 SCRIPT = Path(__file__).resolve().parents[1] / "depot-build.py"
 REFRESH = SCRIPT.parent / "depot" / "refresh-source-mtimes.py"
 FIXTURES = (

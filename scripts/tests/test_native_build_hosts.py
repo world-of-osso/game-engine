@@ -786,7 +786,7 @@ class NativeTests(unittest.TestCase):
             "print(os.environ['FIXTURE_ROOT']); sys.exit(0)",
             "import time, signal; signal.signal(signal.SIGTERM, signal.SIG_IGN); pathlib.Path(os.environ['FIXTURE_ROOT'], 'query.pid').write_text(str(os.getpid())); time.sleep(60)",
         )
-        (self.cargo / "rustup").write_text(script)
+        (self.bin / "rustc").write_text(script)
         code = (
             "import sys; from pathlib import Path; sys.path.insert(0,sys.argv[1]); "
             "import native_build_hosts as h; h.AGENT_RUN=Path(sys.argv[2]); "
@@ -811,6 +811,7 @@ class NativeTests(unittest.TestCase):
             pid = int(marker.read_text())
             process.send_signal(signal.SIGTERM)
             self.assertEqual(process.wait(timeout=6), 143)
+            self.assertFalse((self.base / "runtime.json").exists())
             with self.assertRaises(ProcessLookupError):
                 os.kill(pid, 0)
         finally:
