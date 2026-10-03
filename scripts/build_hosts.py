@@ -6,11 +6,9 @@ also uploaded as the fixed OssoBuild worker; no network/config fallback exists.
 """
 
 import base64
-from decimal import Decimal
 import fcntl
 import json
 import os
-from pathlib import Path, PureWindowsPath
 import re
 import shutil
 import subprocess
@@ -18,6 +16,8 @@ import sys
 import tarfile
 import tempfile
 import uuid
+from decimal import Decimal
+from pathlib import Path, PureWindowsPath
 
 CACHE_ROOT = Path("/root/.cache/game-engine")
 
@@ -57,7 +57,9 @@ def pack_directory(source: Path, archive: Path) -> None:
             if path.is_symlink() or not (path.is_file() or path.is_dir()):
                 raise ValueError(f"unsupported archive source: {path}")
             member = bundle.gettarinfo(str(path), str(path.relative_to(source)))
-            member.pax_headers["mtime"] = str(Decimal(path.stat().st_mtime_ns) / Decimal(10**9))
+            member.pax_headers["mtime"] = str(
+                Decimal(path.stat().st_mtime_ns) / Decimal(10**9)
+            )
             if path.is_file():
                 with path.open("rb") as data:
                     bundle.addfile(member, data)
@@ -108,7 +110,9 @@ def worker(
             shutil.rmtree(context)
         try:
             extract_directory(archive, context)
-            with tempfile.TemporaryDirectory(prefix=f"output-{checkout_key}-", dir=CACHE_ROOT) as temporary:
+            with tempfile.TemporaryDirectory(
+                prefix=f"output-{checkout_key}-", dir=CACHE_ROOT
+            ) as temporary:
                 output = Path(temporary)
                 subprocess.run(
                     docker_command(context, output, checkout_key, target, build_args),
@@ -124,7 +128,9 @@ def worker(
 def powershell(script: str, capture=False):
     encoded = base64.b64encode(script.encode("utf-16-le")).decode("ascii")
     command = f"powershell.exe -NoProfile -NonInteractive -EncodedCommand {encoded}"
-    return subprocess.run(["ssh", "desktop", command], check=True, capture_output=capture)
+    return subprocess.run(
+        ["ssh", "desktop", command], check=True, capture_output=capture
+    )
 
 
 def windows_profile() -> PureWindowsPath:
@@ -151,12 +157,16 @@ def desktop(context, output, checkout_key, target, build_args):
     remote_worker = transfer / "worker.py"
     remote_output = transfer / "output.tar.gz"
     # Transfer scratch stays in data/, never /tmp; the caller owns the context.
-    with tempfile.TemporaryDirectory(prefix="build-host-", dir=context.parent) as temporary:
+    with tempfile.TemporaryDirectory(
+        prefix="build-host-", dir=context.parent
+    ) as temporary:
         scratch = Path(temporary)
         archive = scratch / "source.tar.gz"
         result = scratch / "output.tar.gz"
         pack_directory(context, archive)
-        powershell(f"New-Item -ItemType Directory -Path {ps_literal(transfer)} -ErrorAction Stop | Out-Null")
+        powershell(
+            f"New-Item -ItemType Directory -Path {ps_literal(transfer)} -ErrorAction Stop | Out-Null"
+        )
         try:
             for source, destination in (
                 (archive, remote_source),
@@ -184,10 +194,14 @@ def desktop(context, output, checkout_key, target, build_args):
                 ]
             )
             subprocess.run(["ssh", "desktop", command], check=True)
-            subprocess.run(["scp", f"desktop:{remote_output.as_posix()}", str(result)], check=True)
+            subprocess.run(
+                ["scp", f"desktop:{remote_output.as_posix()}", str(result)], check=True
+            )
             extract_directory(result, output)
         finally:
-            powershell(f"Remove-Item -LiteralPath {ps_literal(transfer)} -Recurse -Force -ErrorAction Stop")
+            powershell(
+                f"Remove-Item -LiteralPath {ps_literal(transfer)} -Recurse -Force -ErrorAction Stop"
+            )
 
 
 def execute(
