@@ -193,6 +193,7 @@ fn registry_with(view: ClassBarView) -> FrameRegistry {
     });
     state.player.class_bar = Some(view);
     let mut context = SharedContext::new();
+    context.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     context.insert(state);
     let mut reg = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(inworld_unit_frames_screen).sync(&context, &mut reg);

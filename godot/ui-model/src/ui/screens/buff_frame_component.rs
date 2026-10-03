@@ -5,6 +5,7 @@
 use std::fmt;
 
 use crate::aura_display_data::{AuraInstance, DebuffType};
+use crate::hud_layout::{HudAnchor, hud_layout};
 use crate::ui::anchor::FrameName;
 use crate::ui::registry::FrameRegistry;
 use ui_toolkit::rsx;
@@ -41,12 +42,6 @@ const ICON_PADDING: f32 = 5.0;
 /// The 15-wide CollapseAndExpandButton sits at BuffFrame's TOPRIGHT and the aura container
 /// hangs off its TOPLEFT (BuffFrame.xml:14-17, BuffFrame.lua:531-534), hidden or not.
 const COLLAPSE_BUTTON_W: f32 = 15.0;
-/// Edit-mode anchors: BuffFrame TOPRIGHT -255,-10; DebuffFrame TOPRIGHT -270,-155
-/// (EditModePresetLayouts.lua:425-431,443-449).
-const BUFF_FRAME_RIGHT: f32 = 255.0;
-const BUFF_FRAME_TOP: f32 = 10.0;
-const DEBUFF_FRAME_RIGHT: f32 = 270.0;
-const DEBUFF_FRAME_TOP: f32 = 155.0;
 
 /// `DebuffBorder` 40×40 centred on the icon (BuffFrameTemplates.xml:20-25).
 const DEBUFF_BORDER_SIZE: f32 = 40.0;
@@ -256,17 +251,18 @@ pub fn buff_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<BuffFrameState>()
         .expect("BuffFrameState must be in SharedContext");
+    let layout = hud_layout(ctx);
     let buffs = aura_frame(
         BUFF_FRAME,
         &AuraGrid::BUFFS,
-        (BUFF_FRAME_RIGHT, BUFF_FRAME_TOP),
+        &layout.buffs,
         &state.buffs,
         false,
     );
     let debuffs = aura_frame(
         DEBUFF_FRAME,
         &AuraGrid::DEBUFFS,
-        (DEBUFF_FRAME_RIGHT, DEBUFF_FRAME_TOP),
+        &layout.debuffs,
         &state.debuffs,
         true,
     );
@@ -276,7 +272,7 @@ pub fn buff_frame_screen(ctx: &SharedContext) -> Element {
 fn aura_frame(
     name: FrameName,
     grid: &AuraGrid,
-    (right, top): (f32, f32),
+    anchor: &HudAnchor,
     icons: &[BuffIconState],
     is_debuff: bool,
 ) -> Element {
@@ -285,14 +281,19 @@ fn aura_frame(
         .enumerate()
         .flat_map(|(i, icon)| aura_button(aura_button_name(is_debuff, i), grid.cell(i), icon))
         .collect();
+    let at = anchor.place((grid.width(), grid.height()));
     rsx! {
         r#frame {
             name: name,
             width: {grid.width()},
             height: {grid.height()},
             pos_type: "absolute",
-            right: right,
-            top: top,
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {buttons}
         }
     }

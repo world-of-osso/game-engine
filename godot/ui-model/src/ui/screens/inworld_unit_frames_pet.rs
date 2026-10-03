@@ -9,9 +9,10 @@ use super::inworld_unit_frames_parts::{
     BarSpec, art_root, centred, portrait_slot, status_bar, unit_label,
 };
 use super::{
-    GOLD_TEXT, PET_FRAME_BOTTOM, PET_FRAME_H, PET_FRAME_LEFT, PET_FRAME_W, PET_HEALTH, PET_NAME,
-    PET_PORTRAIT, PET_POWER, PowerBarState, UNIT_FONT_SIZE, dyn_name, fraction,
+    GOLD_TEXT, PET_FRAME_H, PET_FRAME_W, PET_HEALTH, PET_NAME, PET_PORTRAIT, PET_POWER,
+    PowerBarState, UNIT_FONT_SIZE, dyn_name, fraction,
 };
+use crate::hud_layout::HudAnchor;
 use crate::status_text_data::StatusBarText;
 
 /// PetFrame bar text anchors (PetFrame.xml:102-116,141-155).
@@ -30,13 +31,13 @@ pub struct PetFrameState {
 }
 
 /// `PetFrameMixin:UpdateShownState`: shown while the pet is visible.
-pub(super) fn pet_frame(pet: Option<&PetFrameState>) -> Element {
+pub(super) fn pet_frame(pet: Option<&PetFrameState>, anchor: &HudAnchor) -> Element {
     let size = (PET_FRAME_W, PET_FRAME_H);
     let content = pet.map(pet_frame_contents).unwrap_or_default();
     art_root(
         dyn_name("PetFrame".into()),
         size,
-        (PET_FRAME_LEFT, PET_FRAME_BOTTOM),
+        anchor,
         pet.is_none(),
         (&TOT_PORTRAIT_ON, centred(&TOT_PORTRAIT_ON, size)),
         portrait_slot(&PET_PORTRAIT),

@@ -1,7 +1,7 @@
 //! Retail micro menu (`Blizzard_MicroMenu/Mainline/MainMenuBarMicroButtons.xml`/`.lua`,
 //! `MicroMenuContainer.xml`, `MicroMenuContainerOverrides.lua`): `MainMenuBarMicroButton`
-//! 32×40 buttons laid out with `childXPadding=-5` at the bottom right of
-//! `MicroButtonAndBagsBar` (232×80, BOTTOMRIGHT -6,6). Each button draws its
+//! 32×40 buttons laid out with `childXPadding=-5` at the active preset's anchor
+//! (`crate::hud_layout`). Each button draws its
 //! `LoadMicroButtonTextures` atlas for its state over `Background`/`PushedBackground`.
 //! Buttons whose window exists natively toggle it; the rest take the disabled branch of
 //! their Retail `UpdateMicroButton` and say why in their tooltip.
@@ -12,6 +12,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::game_tooltip::GameTooltip;
+use crate::hud_layout::hud_layout;
 use crate::quest_art::DynName;
 use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipLineState, TooltipPresentation};
 
@@ -25,7 +26,8 @@ pub const ACTION_MAIN_MENU: &str = "micro:MainMenuMicroButton";
 const BUTTON_W: f32 = 32.0;
 const BUTTON_H: f32 = 40.0;
 const GAP: f32 = -5.0;
-const INSET: f32 = 6.0;
+/// `MicroMenuContainer` width: the buttons overlapping by `GAP`.
+pub const MICRO_MENU_W: f32 = MICRO_BUTTONS.len() as f32 * (BUTTON_W + GAP) - GAP;
 /// The 32×41 atlas art (`useAtlasSize`) is centred on the 32×40 button.
 const ART_H: f32 = 41.0;
 /// UiTextureAtlas 2136 `4708813`, 1024×512; members are 64×82 (2x).
@@ -328,18 +330,22 @@ pub fn unavailable_message(action: &str) -> Option<String> {
 
 pub fn micro_menu_screen(ctx: &SharedContext) -> Element {
     let view = ctx.get::<MicroMenuView>().cloned().unwrap_or_default();
-    let width = MICRO_BUTTONS.len() as f32 * (BUTTON_W + GAP) - GAP;
+    let at = hud_layout(ctx).micro_menu.place((MICRO_MENU_W, BUTTON_H));
     let buttons: Element = (0..MICRO_BUTTONS.len())
         .flat_map(|index| micro_button(&view, index))
         .collect();
     rsx! {
         r#frame {
             name: {DynName(MICRO_MENU.into())},
-            width,
+            width: MICRO_MENU_W,
             height: BUTTON_H,
             pos_type: "absolute",
-            right: INSET,
-            bottom: INSET,
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {buttons}
         }
     }

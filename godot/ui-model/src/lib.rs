@@ -205,6 +205,8 @@ pub mod loot_frame_data;
 pub mod character_frame;
 #[path = "ui/screens/character_frame_component.rs"]
 pub mod character_frame_component;
+#[path = "ui/hud_layout.rs"]
+pub mod hud_layout;
 pub mod micro_menu;
 
 #[path = "game/cursor_item.rs"]

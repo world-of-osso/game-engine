@@ -2143,6 +2143,9 @@ mod button_style_tests;
 #[path = "entrance_bar_tests.rs"]
 mod entrance_bar_tests;
 #[cfg(test)]
+#[path = "hud_layout_tests.rs"]
+mod hud_layout_tests;
+#[cfg(test)]
 #[path = "skin_sync_tests.rs"]
 mod skin_sync_tests;
 

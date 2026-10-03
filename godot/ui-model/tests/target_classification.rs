@@ -16,6 +16,7 @@ use ui_toolkit::widgets::texture::TextureSource;
 
 fn target_frames(name: &str, classification: CreatureClassification) -> FrameRegistry {
     let mut shared = SharedContext::new();
+    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
