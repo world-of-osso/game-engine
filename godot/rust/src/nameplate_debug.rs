@@ -186,6 +186,7 @@ impl WowNameplateDebug {
                     color,
                     name_color: Color::WHITE,
                     raid_target: None,
+                    classification: None,
                 };
                 (owner.id, view)
             })

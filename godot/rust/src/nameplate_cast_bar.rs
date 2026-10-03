@@ -144,19 +144,17 @@ fn ensure_texture(data_root: &Path, fdid: u32) -> Result<(), String> {
     {
         Ok(())
     } else {
-        Err(format!(
-            "nameplate cast texture {fdid} is not in local CASC"
-        ))
+        Err(format!("nameplate texture {fdid} is not in local CASC"))
     }
 }
 
-fn atlas_art(art: &AtlasArt, data_root: &Path) -> Result<Gd<AtlasTexture>, String> {
+pub(crate) fn atlas_art(art: &AtlasArt, data_root: &Path) -> Result<Gd<AtlasTexture>, String> {
     ensure_texture(data_root, art.fdid)?;
     let textures = data_root.join("textures");
     let textures = textures.as_path();
     let mut missing = PackedInt32Array::new();
     let texture = shared_texture(art.fdid, textures, &mut missing)?
-        .ok_or_else(|| format!("missing nameplate cast texture {}", art.fdid))?;
+        .ok_or_else(|| format!("missing nameplate texture {}", art.fdid))?;
     let (width, height) = (texture.get_width() as f32, texture.get_height() as f32);
     let [left, right, top, bottom] = art.tex_coords;
     let region = Rect2::new(
@@ -188,9 +186,7 @@ impl CastArt {
             thick_frame: skin(include_bytes!(
                 "rendering/ui/nameplate_skins/cast-thick.png"
             ))?,
-            thin_frame: skin(include_bytes!(
-                "rendering/ui/nameplate_skins/cast-thin.png"
-            ))?,
+            thin_frame: skin(include_bytes!("rendering/ui/nameplate_skins/cast-thin.png"))?,
             background: atlas_region(&sheet, rect(BACKGROUND_RECT)),
             fill_sheet: texture_from_rgba(&pixels, width, height)?,
             pip: atlas_art(&atlases[PIP], data_root)?,
