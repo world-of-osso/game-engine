@@ -187,6 +187,8 @@ impl WowNameplateDebug {
                     name_color: Color::WHITE,
                     raid_target: None,
                     classification: None,
+                    level: None,
+                    targeted: selected == Some(owner.id),
                 };
                 (owner.id, view)
             })

@@ -32,15 +32,16 @@ use godot::{
 };
 use shared::{
     casting::CastState,
-    components::{CreatureClassification, Health, Player, UnitFlags},
+    components::{CreatureClassification, Health, Player, UnitFlags, UnitLevel},
     faction_reaction::{Unit, can_attack},
     protocol::RAID_TARGET_ICON_COUNT,
 };
+use ui_toolkit::atlas::{self, ActiveSkin};
 
 use crate::{
     GameClient,
     faction_reaction::{FactionTemplateEntry, Reaction, parse_faction_template_csv, reaction},
-    nameplate_cast_bar::{CastArt, CastNodes, atlas_art, text_bbcode},
+    nameplate_cast_bar::{CastArt, CastNodes, atlas_art, place, skin_art, text_bbcode},
     nameplate_casts::{BarType, Interrupter, PlateCasts},
     replicated::UnitFields,
     targeting::{unit_classification, unit_pick_shape},
@@ -65,6 +66,12 @@ const ELITE_SILVER_ATLAS: &str = "nameplates-icon-elite-silver";
 const RARE_STAR_ATLAS: &str = "UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Star";
 /// `PixelUtil.SetPoint(RaidTargetFrame, "BOTTOM", name, "TOP", 0, 10)` on name-only plates.
 const RAID_ICON_ABOVE_NAME: f32 = 10.0;
+/// `LEVEL_INDICATOR_WIDTH`, `LARGE_`/`SMALL_LEVEL_INDICATOR_HEIGHT` and `LEVEL_FONT_HEIGHT`
+/// (Camelot/Blizzard_NamePlateConstants.lua:40,43,44,48) at `classification` scale 1.
+const LEVEL_INDICATOR_WIDTH: f32 = 28.0;
+const LARGE_LEVEL_INDICATOR_HEIGHT: f32 = 23.0;
+const SMALL_LEVEL_INDICATOR_HEIGHT: f32 = 16.0;
+const LEVEL_FONT_HEIGHT: i32 = 10;
 /// Physics layers that hide a unit from the camera.
 const OCCLUDER_MASK: u32 = TERRAIN_LAYER | WMO_LAYER;
 
@@ -107,12 +114,15 @@ struct PlateLayout {
     name_bottom: Vector2,
 }
 
-fn plate_layout(style: &NameplateStyle, fraction: f32) -> PlateLayout {
+/// `level_width` is what the skin's level frame takes off the health bars' right end
+/// (`HealthBarsContainer` BOTTOMRIGHT `xOffset = -levelFrameWidth`,
+/// Blizzard_NamePlateUnitFrame.lua:701-707); the name stays centred on the whole plate.
+fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> PlateLayout {
     let skin = health_skin(thick_preset(style));
-    let body = Vector2::new(style.health_width, style.health_height);
+    let body = Vector2::new(style.health_width - level_width, style.health_height);
     let frame_size = body + skin.frame_margin;
-    // Bevy parity: the anchor is the health body's centre.
-    let center = Vector2::ZERO;
+    // Bevy parity: the anchor is the centre of the health bars and level frame.
+    let center = Vector2::new(-level_width / 2.0, 0.0);
     let frame = Rect2::new(center + skin.frame_offset - frame_size / 2.0, frame_size);
     let fill_size = Vector2::new(body.x * fraction, body.y - skin.fill_inset);
     let fill = Rect2::new(
@@ -127,7 +137,68 @@ fn plate_layout(style: &NameplateStyle, fraction: f32) -> PlateLayout {
     PlateLayout {
         frame,
         fill,
-        name_bottom: center - Vector2::new(0.0, top + NAME_ABOVE_BAR_SPACING),
+        name_bottom: Vector2::new(0.0, -(top + NAME_ABOVE_BAR_SPACING)),
+    }
+}
+
+/// The atlases of the level frame a skin hangs on its plates.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct LevelAtlases {
+    icon: &'static str,
+    selected: &'static str,
+    skull: &'static str,
+}
+
+/// Forever plates carry Camelot's `NameplateLevelFrame`
+/// (Camelot/Blizzard_NamePlateLevelFrame.xml:10,19,25; `ShouldDisplay` is true for every
+/// unit, Camelot/Blizzard_NamePlateLevelFrame.lua:3-17). Mainline's shows only under the
+/// Plunderstorm game rule (Blizzard_NamePlateLevelFrame.lua:9), so Modern has none.
+fn level_frame_atlases(skin: ActiveSkin) -> Option<LevelAtlases> {
+    match skin {
+        ActiveSkin::Modern => None,
+        ActiveSkin::Forever => Some(LevelAtlases {
+            icon: "ui-hud-nameplates-levelindicator",
+            selected: "ui-hud-nameplates-levelindicator-selected",
+            skull: "ui-hud-nameplates-levelindicator-skull",
+        }),
+    }
+}
+
+/// Level frame part rectangles relative to the plate anchor, y down.
+#[derive(Clone, Copy, Debug, PartialEq)]
+struct LevelLayout {
+    /// The frame, which `playerLevelDiffIcon` fills and the level text centres on.
+    frame: Rect2,
+    selected: Rect2,
+    skull: Rect2,
+}
+
+/// `PlayerLevelDiffFrame`: `playerLevelDiffWidth` × `playerLevelDiffHeight`
+/// (Blizzard_NamePlateUnitFrame.lua:237; the large height on the thick health bar,
+/// `GetLevelIndicatorHeight`, Blizzard_NamePlates.lua:396-404), LEFT on the health bars'
+/// RIGHT (xml:6); `selectedBorder` 1 px wider and 2 px taller on each side (xml:21-22);
+/// `highLevelTexture` a square of the frame's height on its centre (lua:240, xml:28).
+fn level_layout(style: &NameplateStyle) -> LevelLayout {
+    let height = if thick_preset(style) {
+        LARGE_LEVEL_INDICATOR_HEIGHT
+    } else {
+        SMALL_LEVEL_INDICATOR_HEIGHT
+    };
+    let size = Vector2::new(LEVEL_INDICATOR_WIDTH, height);
+    let frame = Rect2::new(
+        Vector2::new(style.health_width / 2.0 - size.x, -height / 2.0),
+        size,
+    );
+    LevelLayout {
+        frame,
+        selected: Rect2::new(
+            frame.position - Vector2::new(1.0, 2.0),
+            size + Vector2::new(2.0, 4.0),
+        ),
+        skull: Rect2::new(
+            frame.center() - Vector2::splat(height / 2.0),
+            Vector2::splat(height),
+        ),
     }
 }
 
@@ -310,6 +381,32 @@ impl PlateArt {
     }
 }
 
+/// The level frame's crops under the skin that draws one.
+struct LevelArt {
+    icon: Gd<AtlasTexture>,
+    selected: Gd<AtlasTexture>,
+    skull: Gd<AtlasTexture>,
+}
+
+impl LevelArt {
+    fn load(atlases: LevelAtlases, skin: ActiveSkin, data_root: &Path) -> Result<Self, String> {
+        let art = |name| atlas_art(&skin_art(name, skin)?, data_root);
+        Ok(Self {
+            icon: art(atlases.icon)?,
+            selected: art(atlases.selected)?,
+            skull: art(atlases.skull)?,
+        })
+    }
+}
+
+struct LevelNodes {
+    root: Gd<Control>,
+    icon: Gd<TextureRect>,
+    selected: Gd<TextureRect>,
+    skull: Gd<TextureRect>,
+    text: Gd<Label>,
+}
+
 struct PlateNodes {
     root: Gd<Control>,
     frame: Gd<TextureRect>,
@@ -317,6 +414,8 @@ struct PlateNodes {
     name: Gd<Label>,
     raid_icon: Gd<TextureRect>,
     classification: Gd<TextureRect>,
+    /// Present under a skin with a level frame.
+    level: Option<LevelNodes>,
     cast: CastNodes,
 }
 
@@ -334,13 +433,20 @@ struct PlateView {
     raid_target: Option<u8>,
     /// `classificationIndicator`'s atlas, when shown.
     classification: Option<&'static str>,
+    /// `UnitEffectiveLevel(unit)`.
+    level: Option<u8>,
+    /// The local player's target.
+    targeted: bool,
 }
 
 pub(crate) struct Nameplates {
     cvars: NameplateCvars,
     templates: Option<Result<HashMap<u32, FactionTemplateEntry>, String>>,
     art: Option<PlateArt>,
+    /// The atlas skin `cast_art`, `level_art` and the plates were built for.
+    skin: Option<ActiveSkin>,
     cast_art: Option<CastArt>,
+    level_art: Option<LevelArt>,
     raid_icons: Option<Vec<Gd<AtlasTexture>>>,
     classification_icons: Option<HashMap<&'static str, Gd<AtlasTexture>>>,
     /// Every plate's cast bar.
@@ -356,7 +462,9 @@ impl Nameplates {
             cvars: NameplateCvars::default(),
             templates: None,
             art: None,
+            skin: None,
             cast_art: None,
+            level_art: None,
             raid_icons: None,
             classification_icons: None,
             casts: PlateCasts::default(),
@@ -417,8 +525,19 @@ impl Nameplates {
         if self.art.is_none() {
             self.art = Some(PlateArt::load()?);
         }
-        if self.cast_art.is_none() {
-            self.cast_art = Some(CastArt::load(data_root, |bytes| png_texture(bytes, false))?);
+        let skin = atlas::active_skin();
+        if self.skin != Some(skin) {
+            // Plates hold the previous skin's textures and frame tree.
+            for (_, plate) in self.plates.drain() {
+                plate.root.free();
+            }
+            self.cast_art = Some(CastArt::load(data_root, skin, |bytes| {
+                png_texture(bytes, false)
+            })?);
+            self.level_art = level_frame_atlases(skin)
+                .map(|atlases| LevelArt::load(atlases, skin, data_root))
+                .transpose()?;
+            self.skin = Some(skin);
         }
         if self.raid_icons.is_none() && views.values().any(|view| view.raid_target.is_some()) {
             self.raid_icons = Some(raid_icon_textures(data_root)?);
@@ -432,6 +551,8 @@ impl Nameplates {
         let raid_icons = self.raid_icons.as_deref().unwrap_or_default();
         let classification_icons = self.classification_icons.as_ref();
         let cast_art = self.cast_art.as_mut().expect("cast art loaded above");
+        let level_art = self.level_art.as_ref();
+        let level_width = level_art.map_or(0.0, |_| LEVEL_INDICATOR_WIDTH);
         let textures = data_root.join("textures");
         let layer = self.layer.get_or_insert_with(|| {
             let mut layer = CanvasLayer::new_alloc();
@@ -448,13 +569,13 @@ impl Nameplates {
             }
             keep
         });
-        let thick = thick_preset(style);
         for (id, view) in &views {
             let plate = self
                 .plates
                 .entry(*id)
-                .or_insert_with(|| spawn_plate(layer, art, cast_art));
-            apply_plate(plate, view, style, thick, art, show_health_bars);
+                .or_insert_with(|| spawn_plate(layer, art, cast_art, level_art));
+            apply_plate(plate, view, style, level_width, art, show_health_bars);
+            apply_level(plate, view, style, show_health_bars);
             apply_raid_icon(plate, view, style, show_health_bars, raid_icons);
             apply_classification(plate, view, style, classification_icons);
             // `ShouldShowCastBar`: no cast bar on a name-only plate.
@@ -474,7 +595,91 @@ fn ignore_mouse(control: &mut Gd<impl Inherits<Control>>) {
     control.upcast_mut().set_mouse_filter(MouseFilter::IGNORE);
 }
 
-fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt, cast_art: &CastArt) -> PlateNodes {
+fn spawn_level(
+    parent: &mut Gd<Control>,
+    art: &LevelArt,
+    font: &Gd<godot::classes::FontFile>,
+) -> LevelNodes {
+    let mut root = Control::new_alloc();
+    root.set_name("PlayerLevelDiffFrame");
+    ignore_mouse(&mut root);
+    let texture_rect = |name: &str, texture: &Gd<AtlasTexture>| {
+        let mut rect = TextureRect::new_alloc();
+        rect.set_name(name);
+        rect.set_texture(texture);
+        rect.set_expand_mode(ExpandMode::IGNORE_SIZE);
+        rect.set_stretch_mode(StretchMode::SCALE);
+        ignore_mouse(&mut rect);
+        rect
+    };
+    let icon = texture_rect("playerLevelDiffIcon", &art.icon);
+    let selected = texture_rect("selectedBorder", &art.selected);
+    let skull = texture_rect("highLevelTexture", &art.skull);
+    // `SystemFont_NamePlateLevel`: Friz Quadrata 10, outlined (GameFonts.xml:389-391).
+    let mut text = Label::new_alloc();
+    text.set_name("playerLevelDiffText");
+    ignore_mouse(&mut text);
+    text.add_theme_font_override("font", font);
+    text.add_theme_font_size_override("font_size", LEVEL_FONT_HEIGHT);
+    text.add_theme_color_override("font_color", Color::WHITE);
+    text.add_theme_color_override("font_outline_color", Color::BLACK);
+    text.add_theme_constant_override("outline_size", 1);
+    // BACKGROUND icon under the OVERLAY text, border and skull.
+    root.add_child(&icon);
+    root.add_child(&text);
+    root.add_child(&selected);
+    root.add_child(&skull);
+    parent.add_child(&root);
+    LevelNodes {
+        root,
+        icon,
+        selected,
+        skull,
+        text,
+    }
+}
+
+/// `CompactUnitFrame_UpdatePlayerLevelDiff` (CompactUnitFrame.lua:1591-1620): the level,
+/// or the skull for a level of 0 or less; `selectedBorder` on the target in white
+/// `TARGET_BORDER_COLOR` (Camelot/Blizzard_NamePlateLevelFrame.lua:55-70). Hidden with the
+/// health bars it hangs on.
+fn apply_level(
+    plate: &mut PlateNodes,
+    view: &PlateView,
+    style: &NameplateStyle,
+    show_health_bars: bool,
+) {
+    let Some(nodes) = &mut plate.level else {
+        return;
+    };
+    let Some(level) = view.level.filter(|_| show_health_bars) else {
+        nodes.root.set_visible(false);
+        return;
+    };
+    nodes.root.set_visible(true);
+    let layout = level_layout(style);
+    place(&mut nodes.icon, layout.frame);
+    place(&mut nodes.selected, layout.selected);
+    nodes.selected.set_visible(view.targeted);
+    place(&mut nodes.skull, layout.skull);
+    nodes.skull.set_visible(level == 0);
+    nodes.text.set_visible(level > 0);
+    let text = level.to_string();
+    if nodes.text.get_text().to_string() != text {
+        nodes.text.set_text(&text);
+    }
+    nodes.text.reset_size();
+    let size = nodes.text.get_minimum_size();
+    nodes.text.set_size(size);
+    nodes.text.set_position(layout.frame.center() - size / 2.0);
+}
+
+fn spawn_plate(
+    layer: &mut Gd<CanvasLayer>,
+    art: &PlateArt,
+    cast_art: &CastArt,
+    level_art: Option<&LevelArt>,
+) -> PlateNodes {
     let mut root = Control::new_alloc();
     ignore_mouse(&mut root);
     let texture_rect = || {
@@ -501,6 +706,7 @@ fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt, cast_art: &CastArt) 
     root.add_child(&name);
     root.add_child(&raid_icon);
     root.add_child(&classification);
+    let level = level_art.map(|level_art| spawn_level(&mut root, level_art, &art.font));
     let cast = CastNodes::spawn(&mut root, cast_art, &art.font);
     layer.add_child(&root);
     PlateNodes {
@@ -510,6 +716,7 @@ fn spawn_plate(layer: &mut Gd<CanvasLayer>, art: &PlateArt, cast_art: &CastArt) 
         name,
         raid_icon,
         classification,
+        level,
         cast,
     }
 }
@@ -563,11 +770,12 @@ fn apply_plate(
     plate: &mut PlateNodes,
     view: &PlateView,
     style: &NameplateStyle,
-    thick: bool,
+    level_width: f32,
     art: &PlateArt,
     show_health_bars: bool,
 ) {
-    let layout = plate_layout(style, view.fraction);
+    let thick = thick_preset(style);
+    let layout = plate_layout(style, view.fraction, level_width);
     plate.root.set_position(view.anchor);
     plate
         .root
@@ -744,6 +952,8 @@ fn project_plate(
         name_color,
         raid_target: None,
         classification: None,
+        level: unit.get::<UnitLevel>().map(|level| level.0),
+        targeted: selected,
     })
 }
 
@@ -999,6 +1209,10 @@ impl NameplateProbe {
 mod debug;
 
 #[cfg(test)]
+#[path = "nameplate_skin_tests.rs"]
+mod skin_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
@@ -1022,7 +1236,7 @@ mod tests {
     #[test]
     fn thick_plate_centres_its_body_on_the_anchor_with_the_name_two_pixels_above_the_frame() {
         let style = NameplateStyle::default();
-        let layout = plate_layout(&style, 1.0);
+        let layout = plate_layout(&style, 1.0, 0.0);
         // 188x20 body; the Thick frame adds 10x4 and sits 1px right, 0.5px up.
         assert_eq!(layout.frame.size, Vector2::new(198.0, 24.0));
         assert_eq!(layout.frame.position, Vector2::new(-98.0, -12.5));
@@ -1034,8 +1248,8 @@ mod tests {
     #[test]
     fn fill_shrinks_from_the_right_with_health() {
         let style = NameplateStyle::default();
-        let full = plate_layout(&style, 1.0).fill;
-        let half = plate_layout(&style, 0.5).fill;
+        let full = plate_layout(&style, 1.0, 0.0).fill;
+        let half = plate_layout(&style, 0.5, 0.0).fill;
         assert_eq!(half.position, full.position);
         assert_eq!(half.size.x, full.size.x / 2.0);
     }
@@ -1047,7 +1261,7 @@ mod tests {
             show_border: false,
             ..NameplateStyle::default()
         };
-        let layout = plate_layout(&style, 1.0);
+        let layout = plate_layout(&style, 1.0, 0.0);
         assert!(!thick_preset(&style));
         // 10px body centred on the anchor, name 2px above its top.
         assert_eq!(layout.name_bottom.y, -7.0);
