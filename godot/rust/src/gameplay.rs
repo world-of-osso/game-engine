@@ -1856,6 +1856,51 @@ mod tests {
     /// whose +Z edge lies 11 yards past `SHORE`.
     const ALONG_SHORE: f32 = -1.2;
 
+    #[test]
+    fn skyriding_tree_contact_preserves_tangential_travel_and_changes_momentum() {
+        let terrain = swimming_terrain();
+        let ground = TerrainGround {
+            terrain: &terrain,
+            walls: &|_, _, _| None,
+        };
+        let start = SHORE + Vec3::Y * 50.0;
+        let wall_x = start.x + 0.25;
+        let mut movement = PlayerMovement::default();
+        movement.set_can_fly(true);
+        movement.set_can_adv_fly(true);
+        movement.flying = true;
+        movement.glider = Some(shared::skyriding::Glider {
+            velocity: Vec3::new(10.0, 0.0, 12.0),
+            pitch: 0.0,
+            gliding: true,
+        });
+        let mut contacts = |_: Vec3, to: Vec3, _: f32| to.with_x(to.x.min(wall_x));
+        let mut position = start;
+        for _ in 0..60 {
+            let frame = super::MovementFrame {
+                direction: [0.0, 0.0, 1.0],
+                speed: 12.0,
+                vertical: 0.0,
+            };
+            position = movement.predict(position, frame, false, &ground, &mut contacts, DT);
+        }
+        assert!(
+            position.x <= wall_x + 0.001,
+            "skyride passed trunk: {position}"
+        );
+        assert!(
+            position.z > start.z + 1.0,
+            "tangential momentum stopped: {position}"
+        );
+        assert!(movement.flying);
+        assert!(movement.glider.expect("airborne glider").velocity.x.abs() < 0.1);
+        let reported = movement
+            .network_input(INLAND, position, 1)
+            .expect("skyride input");
+        assert!(reported.flying);
+        assert_eq!(reported.position, position.to_array());
+    }
+
     /// The skyriding mount's speed over the last frame of `feet` → `next`.
     fn frame_speed(feet: Vec3, next: Vec3) -> f32 {
         feet.distance(next) / DT
