@@ -12,6 +12,7 @@ fn sequence(id: u16, duration: u32, blend_time: u16) -> m2::Sequence {
         frequency: 1,
         replay: [0, 0],
         variation_next: -1,
+        bounds: [[0.0; 3]; 2],
     }
 }
 
@@ -48,6 +49,8 @@ fn player(with_running_landing: bool) -> AnimationState {
         action_events: vec![Vec::new(); sequences.len()],
         fired_events: Vec::new(),
         sequences,
+        global_sequences: Vec::new(),
+        global_ms: 0.0,
         tracks: vec![m2::BoneAnimTracks {
             translation,
             rotation: track(vec![

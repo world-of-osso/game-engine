@@ -45,6 +45,8 @@ artifact.write_bytes(b'bad gzip' if os.environ.get('DEPOT_CORRUPT') else gzip.co
 build_args = [args[index + 1] for index, arg in enumerate(args) if arg == '--build-arg']
 options = dict(option.split('=', 1) for option in build_args)
 assert len(options) == len(build_args), build_args
+if options.get('CLI') == '1':
+    (output / 'game-engine-cli.gz').write_bytes(gzip.compress(b'cli binary'))
 fixture = options.get('FIXTURE')
 if fixture and not os.environ.get('DEPOT_MISSING_FIXTURE'):
     (output / (fixture + '.gz')).write_bytes(b'bad gzip' if os.environ.get('DEPOT_CORRUPT_FIXTURE') else gzip.compress(os.environ.get('DEPOT_FIXTURE', 'fixture binary').encode()))
@@ -58,18 +60,18 @@ class DepotBuildTests(unittest.TestCase):
         self.base = Path(self.tmp.name)
         self.root = self.base / "game-engine-godot-conversion"
         self.root.mkdir()
-        for name in ("godot", "src"):
-            (self.root / name).mkdir()
+        (self.root / "godot").mkdir()
         self._put(self.root, "godot/Cargo.toml", "[workspace]\nmembers=[]\n")
         self._put(self.root, "godot/Cargo.lock", "lock")
-        for member in ("core", "network", "rust", "session", "ui-model"):
+        for member in ("cli", "core", "network", "rust", "session", "ui-model"):
             self._put(self.root, f"godot/{member}/Cargo.toml", "[package]\nname='fixture'\nversion='0.1.0'\n")
         self._put(self.root, "godot/rust/src/lib.rs", "original")
         for name in FIXTURES:
             self._put(self.root, f"godot/network/examples/{name}.rs", "fn main() {}")
         self._put(self.root, "godot/network/examples/fixture_support/mod.rs", "shared")
-        self._put(self.root, "src/asset/mod.rs", "asset")
-        self._put(self.root, "src/rendering/ui/nameplate_skins/health-fill.png", "png")
+        self._put(self.root, "godot/core/src/asset/mod.rs", "asset")
+        self._put(self.root, "godot/rust/src/rendering/ui/nameplate_skins/health-fill.png", "png")
+        self._put(self.root, "src/legacy.rs", "retired root crate")
         self._put(self.root, "data/private.rs", "private")
         self._put(self.root, "data/models/boar.m2", "boar model")
         self._put(self.root, "data/Light.csv", "light rows")
@@ -78,15 +80,15 @@ class DepotBuildTests(unittest.TestCase):
         self._put(self.root, "target/debug/hidden.rs", "private")
         self._put(self.root, ".env", "token")
         self._put(self.root, ".gitignore", "*.ignored.rs\n")
-        self._put(self.root, "src/deleted.rs", "deleted")
+        self._put(self.root, "godot/core/src/deleted.rs", "deleted")
         self._git(self.root, "init", "-q")
         self._git(self.root, "add", ".")
         self._git(self.root, "commit", "-qm", "initial")
         self._put(self.root, "godot/rust/src/lib.rs", "modified")
-        (self.root / "src/deleted.rs").unlink()
-        self._put(self.root, "src/new.rs", "untracked")
+        (self.root / "godot/core/src/deleted.rs").unlink()
+        self._put(self.root, "godot/core/src/new.rs", "untracked")
         self._put(self.root, "godot/rust/secrets.toml", "password=secret")
-        self._put(self.root, "src/skip.ignored.rs", "ignored")
+        self._put(self.root, "godot/core/src/skip.ignored.rs", "ignored")
         for name in SIBLINGS:
             repo = self.base / name
             repo.mkdir()
@@ -124,10 +126,12 @@ class DepotBuildTests(unittest.TestCase):
     def _git(self, root, *args):
         subprocess.run(["git", "-C", str(root), "-c", "user.name=Test", "-c", "user.email=test@example.invalid", *args], check=True, capture_output=True)
 
-    def build(self, *, fixture=None, **env):
+    def build(self, *, fixture=None, cli=False, **env):
         command = ["python3", str(SCRIPT), "--root", str(self.root)]
         if fixture is not None:
             command.extend(["--fixture", fixture])
+        if cli:
+            command.append("--cli")
         return subprocess.run(command, env={**self.env, **env}, text=True, capture_output=True)
 
     def run_test_mode(self, *cargo_args, **env):
@@ -156,14 +160,14 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(snapshot["project"], "custom-id")
         self.assertEqual(snapshot["args"][snapshot["args"].index("--platform") + 1], "linux/amd64")
         self.assertEqual(files[prefix + "godot/rust/src/lib.rs"], "modified")
-        self.assertEqual(files[prefix + "src/new.rs"], "untracked")
-        self.assertEqual(files[prefix + "src/rendering/ui/nameplate_skins/health-fill.png"], "png")
-        self.assertNotIn(prefix + "src/deleted.rs", files)
+        self.assertEqual(files[prefix + "godot/core/src/new.rs"], "untracked")
+        self.assertEqual(files[prefix + "godot/rust/src/rendering/ui/nameplate_skins/health-fill.png"], "png")
+        self.assertNotIn(prefix + "godot/core/src/deleted.rs", files)
         self.assertEqual(files["bevy-patches/taffy/README.md"], "required compile include")
         for name in SIBLINGS:
             self.assertIn(name + "/src/lib.rs", files)
         for excluded in ("data/private.rs", "godot/.godot/imported.rs", "target/debug/hidden.rs",
-                         ".env", "src/skip.ignored.rs", "godot/rust/secrets.toml"):
+                         ".env", "godot/core/src/skip.ignored.rs", "godot/rust/secrets.toml", "src/legacy.rs"):
             self.assertNotIn(prefix + excluded, files)
         self.assertTrue(all(not key.startswith("/") for key in files))
         artifact = self.root / "target/debug/libgame_engine_godot.so"
@@ -186,6 +190,28 @@ class DepotBuildTests(unittest.TestCase):
         result = self.build()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("FIXTURE", self.build_args(self.records()[-1]))
+
+    def test_cli_installs_executable_alongside_fixture_and_extension(self):
+        result = self.build(fixture="native_input_fixture", cli=True)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        cli = self.root / "target/debug/game-engine-cli"
+        self.assertEqual(cli.read_bytes(), b"cli binary")
+        self.assertTrue(os.access(cli, os.X_OK))
+        self.assertEqual((self.root / "target/debug/examples/native_input_fixture").read_bytes(), b"fixture binary")
+        self.assertEqual(self.build_args(self.records()[-1])["CLI"], "1")
+        self.assertIn(str(cli), result.stdout)
+        cli.unlink()
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertNotIn("CLI", self.build_args(self.records()[-1]))
+        self.assertFalse(cli.exists())
+
+    def test_cli_is_not_allowed_with_test_mode(self):
+        command = ["python3", str(SCRIPT), "--root", str(self.root), "--cli", "--test"]
+        result = subprocess.run(command, env=self.env, text=True, capture_output=True)
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("not allowed", result.stderr)
+        self.assertEqual(self.records(), [])
 
     def test_test_mode_forwards_cargo_args_stages_listed_assets_and_prints_log(self):
         result = self.run_test_mode("-p", "game-engine-core", "--test", "m2_events", "--", "--exact", "a b",
@@ -338,9 +364,9 @@ class DepotBuildTests(unittest.TestCase):
 
     def test_source_mtimes_survive_snapshots_with_working_tree_edits(self):
         prefix = "game-engine-godot-conversion/"
-        unchanged = self.root / "src/asset/mod.rs"
+        unchanged = self.root / "godot/core/src/asset/mod.rs"
         edited = self.root / "godot/rust/src/lib.rs"
-        untracked = self.root / "src/new.rs"
+        untracked = self.root / "godot/core/src/new.rs"
         timestamps = (1_700_000_000_123_456_789, 1_700_000_001_123_456_789,
                       1_700_000_002_123_456_789)
         for source, timestamp in zip((unchanged, edited, untracked), timestamps):
@@ -353,8 +379,8 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(second.returncode, 0, second.stderr)
         snapshots = self.records()
         for index in (0, 1):
-            self.assertEqual(snapshots[index]["mtimes"][prefix + "src/asset/mod.rs"], timestamps[0])
-            self.assertEqual(snapshots[index]["mtimes"][prefix + "src/new.rs"], timestamps[2])
+            self.assertEqual(snapshots[index]["mtimes"][prefix + "godot/core/src/asset/mod.rs"], timestamps[0])
+            self.assertEqual(snapshots[index]["mtimes"][prefix + "godot/core/src/new.rs"], timestamps[2])
         self.assertEqual(snapshots[0]["mtimes"][prefix + "godot/rust/src/lib.rs"], timestamps[1])
         self.assertEqual(snapshots[1]["mtimes"][prefix + "godot/rust/src/lib.rs"], timestamps[1] + 1_000_000_000)
         self.assertEqual(snapshots[1]["files"][prefix + "godot/rust/src/lib.rs"], "edited after first snapshot")
@@ -365,10 +391,10 @@ class DepotBuildTests(unittest.TestCase):
         self.assertIn("refresh-source-mtimes.py", self.records()[0]["files"])
 
         context = self.base / "remote-context"
-        source = context / "game-engine-godot-conversion/src/asset/mod.rs"
+        source = context / "game-engine-godot-conversion/godot/core/src/asset/mod.rs"
         manifest = context / "game-engine-godot-conversion/godot/Cargo.toml"
         included = context / "bevy-patches/taffy/README.md"
-        texture = context / "game-engine-godot-conversion/src/rendering/ui/nameplate_skins/health-fill.png"
+        texture = context / "game-engine-godot-conversion/godot/rust/src/rendering/ui/nameplate_skins/health-fill.png"
         cache = context / "game-engine-godot-conversion/target/debug/libcore.rlib"
         top_cache = context / "target/debug/libcore.rlib"
         registry = context / "game-engine-godot-conversion/godot/.cache/generated.rs"
@@ -418,8 +444,8 @@ class DepotBuildTests(unittest.TestCase):
         self.assertIn("godot/core/Cargo.toml", result.stderr)
         self.assertEqual(self.records(), [])
         self._put(self.root, "godot/core/Cargo.toml", "restored")
-        (self.root / "src/new.rs").unlink()
-        (self.root / "src/new.rs").symlink_to("asset/mod.rs")
+        (self.root / "godot/core/src/new.rs").unlink()
+        (self.root / "godot/core/src/new.rs").symlink_to("asset/mod.rs")
         result = self.build()
         self.assertNotEqual(result.returncode, 0)
         self.assertIn("symlink", result.stderr.lower())

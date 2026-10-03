@@ -10,6 +10,7 @@ COPY --exclude=test-assets . /src/
 
 FROM source AS build
 ARG FIXTURE=""
+ARG CLI=""
 RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=godot-bench-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/src/game-engine-godot-conversion/target,sharing=locked \
@@ -21,7 +22,11 @@ RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry 
       *) \
         cargo build --locked --manifest-path godot/Cargo.toml -p game-engine-network --example "$FIXTURE" -j 16 && \
         gzip -1 -c "target/debug/examples/$FIXTURE" > "/out/$FIXTURE.gz" ;; \
-    esac && du -sb target
+    esac && \
+    if [ -n "$CLI" ]; then \
+        cargo build --locked --manifest-path godot/Cargo.toml -p game-engine-cli --bin game-engine-cli -j 16 && \
+        gzip -1 -c target/debug/game-engine-cli > /out/game-engine-cli.gz; \
+    fi && du -sb target
 FROM scratch AS artifact
 COPY --from=build /out/ /
 

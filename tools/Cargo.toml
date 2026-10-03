@@ -1,0 +1,10 @@
+[package]
+name = "game-engine-tools"
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+
+[dependencies]
+game-engine-core = { path = "../godot/core" }
+image = { version = "0.25", default-features = false, features = ["png"] }
+ktx2-rw = "0.2.4"

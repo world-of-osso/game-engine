@@ -1,6 +1,6 @@
 mod account;
 mod animation;
-#[path = "../../../src/rendering/character/appearance_options.rs"]
+#[path = "rendering/character/appearance_options.rs"]
 pub mod appearance_options;
 pub(crate) use game_engine_core::asset;
 pub use game_engine_core::{customization_data, outfit_data};
@@ -25,10 +25,10 @@ mod damage_meter;
 mod debug_character;
 mod display_options;
 mod entrance_bar;
-#[path = "../../../src/game/equipment/equipment_appearance_data.rs"]
+#[path = "game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
 mod eula;
-#[path = "../../../src/game/faction_reaction.rs"]
+#[path = "game/faction_reaction.rs"]
 mod faction_reaction;
 mod frame_error;
 mod game_menu;
@@ -53,14 +53,14 @@ mod mirror_timers;
 mod nameplate_cast_bar;
 mod nameplate_casts;
 mod nameplates;
-#[path = "../../../src/game/creatures/npc_gear_data.rs"]
+#[path = "game/creatures/npc_gear_data.rs"]
 pub mod npc_gear_data;
 mod objective_tracker;
 mod particle_debug;
 mod particles;
 mod party_frames;
 mod player_spells;
-#[path = "../../../src/process_memory_status.rs"]
+#[path = "process_memory_status.rs"]
 mod process_memory_status;
 mod profile;
 mod quests;
@@ -71,6 +71,7 @@ mod selection_debug;
 mod shader_warmup;
 mod sky_model;
 mod skybox_debug;
+mod soft_interact;
 mod sound;
 mod sound_client;
 mod sound_footsteps;
@@ -91,6 +92,7 @@ mod ui;
 mod ui_scale;
 mod unit_menu;
 mod unit_pick;
+mod unit_portraits;
 mod vignettes;
 mod waypoint_path;
 mod window_stack;
@@ -246,6 +248,7 @@ pub struct GameClient {
     startup_panel: Option<startup::StartupPanel>,
     targeting: targeting::Targeting,
     nameplates: nameplates::Nameplates,
+    soft_interact: soft_interact::SoftInteract,
     spells: spells::SpellsHud,
     merchant: merchant::Merchant,
     bags: bags::Bags,
@@ -360,6 +363,7 @@ impl INode3D for GameClient {
             startup_panel: None,
             targeting: targeting::Targeting::new(data_root.clone()),
             nameplates: nameplates::Nameplates::new(),
+            soft_interact: soft_interact::SoftInteract::default(),
             spells: spells::SpellsHud::default(),
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
@@ -803,6 +807,12 @@ impl GameClient {
     #[func]
     fn aura_state(&self) -> VarDictionary {
         self.auras_snapshot()
+    }
+
+    /// The soft interact target, its icon and the icon's screen rect.
+    #[func]
+    fn soft_interact_state(&self) -> VarDictionary {
+        self.soft_interact_snapshot()
     }
 
     /// The vendor session: open vendor, its items, buyback, bag items, money, cursor.
@@ -1579,6 +1589,7 @@ impl GameClient {
             }),
             ("Bags", |c, _| c.update_bags()),
             ("Merchant", |c, _| c.update_merchant()),
+            ("Soft interact", |c, _| c.update_soft_interact()),
             ("Mailbox", |c, _| c.update_mailbox()),
             ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
@@ -1631,6 +1642,7 @@ impl GameClient {
                 Ok(())
             }),
             ("Nameplates", |c, d| Ok(c.update_nameplates(d)?)),
+            ("Soft interact icon", |c, _| c.sync_soft_interact_icon()),
             ("Tooltips", |c, _| c.update_tooltips()),
             ("Culling", |c, _| {
                 c.cull_world_objects();

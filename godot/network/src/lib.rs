@@ -1,22 +1,22 @@
 //! Headless Lightyear transport for a native Godot host. No render/UI Bevy plugins.
 //! Wire schemas and channel registration come exclusively from `shared::ProtocolPlugin`.
 
-#[path = "../../../src/ui/automation_data.rs"]
+#[path = "ui/automation_data.rs"]
 pub mod automation_data;
-#[path = "../../../src/game/state/game_state_enum.rs"]
+#[path = "game/state/game_state_enum.rs"]
 pub mod game_state_enum;
-#[path = "../../../src/input_bindings_bevy_data.rs"]
+#[path = "input_bindings_bevy_data.rs"]
 pub mod input_bindings_bevy_data;
-#[path = "../../../src/input_bindings_data.rs"]
+#[path = "../../core/src/input_bindings_data.rs"]
 pub mod input_bindings_data;
-#[path = "../../../src/ipc/wire.rs"]
+#[path = "ipc/wire.rs"]
 pub mod ipc_wire;
-#[path = "../../../src/ui/js_automation.rs"]
+#[path = "ui/js_automation.rs"]
 pub mod js_automation;
-#[path = "../../../src/movement_control.rs"]
+#[path = "movement_control.rs"]
 pub mod movement_control;
 pub mod replica;
-#[path = "../../../src/screen_arg_data.rs"]
+#[path = "../../core/src/screen_arg_data.rs"]
 pub mod screen_arg_data;
 
 use std::{

@@ -20,8 +20,8 @@ managed_repo_paths=(
 
 echo "Refreshing shared asset data in: $shared_data_dir"
 
-cargo run --features casc-tools --bin casc_refresh
-cargo run --features casc-tools --bin casc-local -- 145513 4219004 4239595 4226685 -o data/textures
+cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc_refresh
+cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- 145513 4219004 4239595 4226685 -o data/textures
 GAME_ENGINE_SHARED_DATA_DIR="$shared_data_dir" python3 scripts/generate_music_manifest.py
 
 echo
