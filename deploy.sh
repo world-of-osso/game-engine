@@ -91,9 +91,8 @@ copy_project() {
 
 # import_project: run Godot's one-time import in the bundle so players never import.
 # Isolated XDG dirs keep the import off the builder's Godot settings. The extension is
-# registered first so Godot loads it at startup: hot-loading it during the first scan
-# aborts at exit (exit 134 with Godot 4.7.2 official and pr123946, debug and release
-# extension; data/diagnostics/deploygodot-2026-10-03/).
+# registered first so Godot loads it at startup. The 134 aborts seen here were Godot's
+# ClassDB race, fixed by the pin (docs/wiki/investigations/godot-cold-import-crash.md).
 import_project() {
     local home
     mkdir -p "$BUNDLE/godot/.godot"

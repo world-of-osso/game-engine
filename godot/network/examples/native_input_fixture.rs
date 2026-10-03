@@ -518,7 +518,7 @@ fn launch_godot(
             .map(PathBuf::from)
             .unwrap_or_else(|| {
                 PathBuf::from(std::env::var_os("HOME").expect("HOME for pinned Godot"))
-                    .join(".cache/game-engine/godot/4.7.2-pr123946/godot-4.7.2-pr123946")
+                    .join(".cache/game-engine/godot/4.7.2-pr123946-pr123546/godot-4.7.2-pr123946-pr123546")
             })
     } else {
         root.join("target/debug/game-engine-launcher")

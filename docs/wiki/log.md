@@ -1,3 +1,7 @@
+## 2026-10-03 — Pinned Godot adds PR #123546: cold import crash (coldimport)
+
+[[godot-cold-import-crash]]: the launcher's and deploy.sh's cold `--import` crashed 134/139 intermittently from a Godot ClassDB race hit by threaded `.glsl` imports; the pin becomes `4.7.2-pr123946-pr123546` (upstream PR #123546 backported). Symbolized build: 0/40 cold imports vs 3/20 (`data/diagnostics/coldimport-2026-10-03/`).
+
 ## 2026-10-03 — Desktop/local trial independently accepted
 
 Independent followup at `0c8f7275` accepts the bounded [[build-hosts]] trial: refreshed launcher format/check/readability and 25 process tests; unchanged Python proof retained; server admin/UDP and authored RTX Login capture inspected. [Operational SSOT](../remote-builds.md#desktop-runtime-capability-boundary) retains Dozen, audio, full-world, shutdown and snapshot limits. Docs-only acceptance reconciliation; no broad checks rerun.
