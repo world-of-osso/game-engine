@@ -1,5 +1,5 @@
 //! Pure model-local tree contact math. Coordinates use engine axes (x, z, -y).
-use glam::{Quat, Vec3};
+use glam::{DVec3, Quat, Vec3};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -259,17 +259,39 @@ pub fn sweep_capsule(
     let closest = base + axis * axial_position.clamp(0., 1.);
     let separation = start - closest;
     if separation.length_squared() <= radius * radius {
-        let normal = separation.normalize_or_zero();
-        return (motion.dot(normal) < 0.).then(|| Contact {
-            fraction: 0.,
-            normal: normal.as_vec3(),
-            point: (closest + normal * f64::from(capsule.radius)).as_vec3(),
-        });
+        return initial_overlap_contact(separation, closest, motion, capsule.radius);
     }
+    let cylinder_fraction = sweep_cylinder_fraction(offset, motion, axis, radius);
+    let cap_fraction = sweep_endcap_fraction(start, motion, base, tip, radius);
+    let fraction = cylinder_fraction.min(cap_fraction);
+    if !fraction.is_finite() {
+        return None;
+    }
+    let center = start + motion * fraction;
+    let contact = capsule_surface_contact(center, base, axis, capsule.radius, fraction);
+    Some(contact)
+}
+
+fn initial_overlap_contact(
+    separation: DVec3,
+    closest: DVec3,
+    motion: DVec3,
+    capsule_radius: f32,
+) -> Option<Contact> {
+    let normal = separation.normalize_or_zero();
+    (motion.dot(normal) < 0.).then(|| Contact {
+        fraction: 0.,
+        normal: normal.as_vec3(),
+        point: (closest + normal * f64::from(capsule_radius)).as_vec3(),
+    })
+}
+
+fn sweep_cylinder_fraction(offset: DVec3, motion: DVec3, axis: DVec3, radius: f64) -> f64 {
+    let axis_squared = axis.length_squared();
+    let axial_position = offset.dot(axis) / axis_squared;
     let axial_motion = motion.dot(axis) / axis_squared;
     let radial_offset = offset - axis * axial_position;
     let radial_motion = motion - axis * axial_motion;
-    let mut fraction = f64::INFINITY;
     if let Some(time) = entering_root(
         radial_motion.length_squared(),
         radial_offset.dot(radial_motion),
@@ -277,9 +299,14 @@ pub fn sweep_capsule(
     ) {
         let height = axial_position + time * axial_motion;
         if (0. ..=1.).contains(&height) {
-            fraction = time;
+            return time;
         }
     }
+    f64::INFINITY
+}
+
+fn sweep_endcap_fraction(start: DVec3, motion: DVec3, base: DVec3, tip: DVec3, radius: f64) -> f64 {
+    let mut fraction = f64::INFINITY;
     for center in [base, tip] {
         let offset = start - center;
         if let Some(time) = entering_root(
@@ -290,18 +317,24 @@ pub fn sweep_capsule(
             fraction = fraction.min(time);
         }
     }
-    if !fraction.is_finite() {
-        return None;
-    }
-    let center = start + motion * fraction;
-    let height = ((center - base).dot(axis) / axis_squared).clamp(0., 1.);
+    fraction
+}
+
+fn capsule_surface_contact(
+    center: DVec3,
+    base: DVec3,
+    axis: DVec3,
+    capsule_radius: f32,
+    fraction: f64,
+) -> Contact {
+    let height = ((center - base).dot(axis) / axis.length_squared()).clamp(0., 1.);
     let closest = base + axis * height;
     let normal = (center - closest).normalize_or_zero();
-    Some(Contact {
+    Contact {
         fraction: fraction as f32,
         normal: normal.as_vec3(),
-        point: (closest + normal * f64::from(capsule.radius)).as_vec3(),
-    })
+        point: (closest + normal * f64::from(capsule_radius)).as_vec3(),
+    }
 }
 
 // Quadratic coefficients use a*t² + 2*b*t + c. Rationalized entry root avoids
