@@ -11,6 +11,7 @@ use shared::protocol::{
     COMMAND_FOLLOW, COMMAND_MOVE_TO, COMMAND_STAY, PetSpells, REACT_ASSIST, REACT_DEFENSIVE,
     REACT_PASSIVE, pet_action_button,
 };
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
@@ -68,6 +69,7 @@ fn shown(spells: &PetSpells, pet_in_combat: bool, attack_flash: bool) -> FrameRe
 fn build(state: PetActionBarState) -> FrameRegistry {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Modern);
     shared.insert(state.clone());
     Screen::new(pet_action_bar_screen).sync(&shared, &mut registry);
     apply_pet_action_bar_postsetup(&state, &mut registry);

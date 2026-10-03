@@ -8,7 +8,9 @@
 //! `EditModeManagerFrameMixin:UpdateBottomActionBarPositions` stacks it on the shown bottom
 //! bars: BOTTOMLEFT at UIParent BOTTOM + (-MainActionBar width / 2, 45 + 45 +
 //! `BOTTOM_ACTION_BARS_SPACER_Y` 5); this client shows no MultiBarBottomLeft/Right or
-//! StanceBar between them. Autocastable spells carry the `AutoCastOverlay` (31×31 at
+//! StanceBar between them. `hud_layout` supplies the active preset's stack anchor; Forever
+//! uses Camelot's main-bar BOTTOMLEFT + (30, scaled main height + 4), and FlareUI's
+//! pet-button scale 1.06. Chrome atlas names resolve per skin. Autocastable spells carry the `AutoCastOverlay` (31×31 at
 //! CENTER + (0.5, -0.5), `SmallActionButtonMixin_OnLoad`): its Corners, and while autocast is
 //! on its rotating Shine, which the host composes into `shine_texture`
 //! (`game_engine_core::pet_autocast_shine_data`).
@@ -18,6 +20,7 @@ use shared::protocol::{
     COMMAND_MOVE_TO, COMMAND_STAY, PET_ACTION_BAR_SLOTS, PetSpells, REACT_AGGRESSIVE, REACT_ASSIST,
     REACT_DEFENSIVE, REACT_PASSIVE, pet_action_button_action, pet_action_button_type,
 };
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
@@ -25,7 +28,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
-use crate::main_action_bar_component::{BAR_BOTTOM, BAR_W as MAIN_BAR_W, BUTTON_SIZE};
+use crate::hud_layout::{FOREVER_ACTION_BUTTON_SCALE, hud_layout};
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::strata::FrameStrata;
@@ -40,11 +43,6 @@ pub const PET_BUTTON_SIZE: f32 = 30.0;
 pub const PET_BUTTON_PADDING: f32 = 2.0;
 pub const PET_BAR_W: f32 =
     PET_BAR_BUTTONS as f32 * PET_BUTTON_SIZE + (PET_BAR_BUTTONS as f32 - 1.0) * PET_BUTTON_PADDING;
-/// Left edge from the screen's centre line: MainActionBar's left edge.
-pub const PET_BAR_LEFT: f32 = -MAIN_BAR_W / 2.0;
-/// `BOTTOM_ACTION_BARS_SPACER_Y` (Standard/EditModePresetLayoutConstants.lua:12).
-const BOTTOM_ACTION_BARS_SPACER_Y: f32 = 5.0;
-pub const PET_BAR_BOTTOM: f32 = BAR_BOTTOM + BUTTON_SIZE + BOTTOM_ACTION_BARS_SPACER_Y;
 /// `SmallActionButtonMixin:UpdateButtonArt`: `NormalTexture`/`PushedTexture` 35×35 at TOPLEFT.
 const FRAME_ART: f32 = 35.0;
 /// `SmallActionButtonMixin_OnLoad`: `CheckedTexture`, `HighlightTexture` and `Flash` 31.6×30.9.
@@ -80,27 +78,13 @@ pub const PET_AUTOCAST_ANTS: (u32, u32, u32, u32) = (1036, 1113, 403, 480);
 /// 2710, FDID 5550114 (32×32).
 pub const PET_AUTOCAST_MASK: u32 = 5_550_114;
 
-/// UiTextureAtlas 1979 `interface/hud/uiactionbar.blp` (FDID 4613342, 256×1024).
-const fn action_bar(rect: (f32, f32, f32, f32)) -> AtlasArt {
-    AtlasArt {
-        fdid: 4_613_342,
-        atlas: (256.0, 1024.0),
-        rect,
-    }
-}
-
-/// `UI-HUD-ActionBar-IconFrame-Background`.
-const SLOT_BACKGROUND: AtlasArt = action_bar((181.0, 227.0, 411.0, 456.0));
-/// `ui-hud-actionbar-iconframe-slot`.
-const SLOT_ART: AtlasArt = action_bar((181.0, 245.0, 136.0, 198.0));
-/// `UI-HUD-ActionBar-IconFrame`.
-const NORMAL: AtlasArt = action_bar((181.0, 227.0, 254.0, 299.0));
-/// `UI-HUD-ActionBar-IconFrame-Down`.
-const PUSHED: AtlasArt = action_bar((181.0, 227.0, 521.0, 566.0));
-/// `UI-HUD-ActionBar-IconFrame-Mouseover`: both `HighlightTexture` and `CheckedTexture`.
-const MOUSEOVER: AtlasArt = action_bar((181.0, 227.0, 643.0, 688.0));
-/// `UI-HUD-ActionBar-IconFrame-Flash` (UiTextureAtlasMember 15803).
-const FLASH: AtlasArt = action_bar((181.0, 227.0, 568.0, 613.0));
+const SLOT_BACKGROUND: &str = "UI-HUD-ActionBar-IconFrame-Background";
+const SLOT_ART: &str = "UI-HUD-ActionBar-IconFrame-Slot";
+const NORMAL: &str = "UI-HUD-ActionBar-IconFrame";
+const PUSHED: &str = "UI-HUD-ActionBar-IconFrame-Down";
+/// Both `HighlightTexture` and `CheckedTexture`.
+const MOUSEOVER: &str = "UI-HUD-ActionBar-IconFrame-Mouseover";
+const FLASH: &str = "UI-HUD-ActionBar-IconFrame-Flash";
 
 /// `PET_*_TEXTURE` (PetActionBar.lua:3-12) as FDIDs of `data/community-listfile.csv`.
 pub const PET_ATTACK_TEXTURE: u32 = 132_152; // Interface\Icons\Ability_GhoulFrenzy
@@ -310,15 +294,8 @@ pub fn parse_pet_action_button(action: &str) -> Option<usize> {
 
 struct DynName(String);
 
-fn art(
-    name: String,
-    art: &AtlasArt,
-    rect: (f32, f32, f32, f32),
-    alpha: f32,
-    hidden: bool,
-) -> Element {
+fn art(name: String, atlas: &str, rect: (f32, f32, f32, f32), alpha: f32, hidden: bool) -> Element {
     let (x, y, width, height) = rect;
-    let coords = art.tex_coords(1.0);
     let color = format!("1.0,1.0,1.0,{alpha}");
     rsx! {
         texture {
@@ -326,8 +303,7 @@ fn art(
             width,
             height,
             hidden,
-            texture_fdid: {art.fdid},
-            tex_coords: {coords.as_str()},
+            texture_atlas: atlas,
             vertex_color: {color.as_str()},
             pos_type: "absolute",
             pos_x: x,
@@ -338,42 +314,42 @@ fn art(
 
 /// The `AutoCastOverlay` frame's OVERLAY layer: Corners while autocast is allowed, the
 /// Shine (its source set by `apply_pet_action_bar_postsetup`) while it is on.
-fn autocast_overlay(name: &str, autocast: PetAutocast) -> Element {
+fn autocast_overlay(name: &str, autocast: PetAutocast, scale: f32) -> Element {
     let corners = AUTOCAST_CORNERS.tex_coords(1.0);
     let (x, y, width, height) = AUTOCAST_OVERLAY;
     let (shine_x, shine_y, shine_w, shine_h) = AUTOCAST_SHINE;
     rsx! {
         texture {
             name: {DynName(format!("{name}AutoCastShine"))},
-            width: shine_w,
-            height: shine_h,
+            width: {shine_w * scale},
+            height: {shine_h * scale},
             hidden: {autocast != PetAutocast::On},
             draw_layer: "OVERLAY",
             pos_type: "absolute",
-            pos_x: shine_x,
-            pos_y: shine_y,
+            pos_x: {shine_x * scale},
+            pos_y: {shine_y * scale},
         }
         texture {
             name: {DynName(format!("{name}AutoCastCorners"))},
-            width,
-            height,
+            width: {width * scale},
+            height: {height * scale},
             hidden: {autocast == PetAutocast::Unavailable},
             texture_fdid: {AUTOCAST_CORNERS.fdid},
             tex_coords: {corners.as_str()},
             draw_layer: "OVERLAY",
             pos_type: "absolute",
-            pos_x: x,
-            pos_y: y,
+            pos_x: {x * scale},
+            pos_y: {y * scale},
         }
     }
 }
 
-fn icon(name: String, fdid: u32) -> Element {
+fn icon(name: String, fdid: u32, size: f32) -> Element {
     rsx! {
         texture {
             name: {DynName(name)},
-            width: PET_BUTTON_SIZE,
-            height: PET_BUTTON_SIZE,
+            width: size,
+            height: size,
             hidden: {fdid == 0},
             texture_fdid: {fdid},
             pos_type: "absolute",
@@ -383,72 +359,73 @@ fn icon(name: String, fdid: u32) -> Element {
     }
 }
 
-fn hotkey(name: &str, text: &str) -> Element {
+fn hotkey(name: &str, text: &str, scale: f32) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("{name}HotKey"))},
-            width: HOTKEY_W,
-            height: HOTKEY_H,
+            width: {HOTKEY_W * scale},
+            height: {HOTKEY_H * scale},
             text,
             font: GameFont::ArialNarrow,
-            font_size: 12.0,
+            font_size: {12.0 * scale},
             font_color: HOTKEY_COLOR,
             outline: "OUTLINE",
             justify_h: "RIGHT",
             pos_type: "absolute",
-            right: HOTKEY_RIGHT,
-            pos_y: HOTKEY_TOP,
+            right: {HOTKEY_RIGHT * scale},
+            pos_y: {HOTKEY_TOP * scale},
         }
     }
 }
 
-fn button(index: usize, view: &PetActionButtonView) -> Element {
+fn button(index: usize, view: &PetActionButtonView, scale: f32) -> Element {
     let name = pet_action_button_name(index);
-    let x = index as f32 * (PET_BUTTON_SIZE + PET_BUTTON_PADDING);
-    let cell = (0.0, 0.0, PET_BUTTON_SIZE, PET_BUTTON_SIZE);
-    let frame_art = (0.0, 0.0, FRAME_ART, FRAME_ART);
-    let overlay = (0.0, 0.0, OVERLAY_W, OVERLAY_H);
+    let size = PET_BUTTON_SIZE * scale;
+    let x = index as f32 * (PET_BUTTON_SIZE + PET_BUTTON_PADDING) * scale;
+    let cell = (0.0, 0.0, size, size);
+    let frame_art = (0.0, 0.0, FRAME_ART * scale, FRAME_ART * scale);
+    let overlay = (0.0, 0.0, OVERLAY_W * scale, OVERLAY_H * scale);
     let children: Element = [
         art(
             format!("{name}SlotBackground"),
-            &SLOT_BACKGROUND,
+            SLOT_BACKGROUND,
             cell,
             1.0,
             false,
         ),
-        art(format!("{name}SlotArt"), &SLOT_ART, cell, 1.0, false),
-        icon(format!("{name}Icon"), view.icon_fdid),
-        art(format!("{name}Flash"), &FLASH, overlay, 1.0, !view.flash),
+        art(format!("{name}SlotArt"), SLOT_ART, cell, 1.0, false),
+        icon(format!("{name}Icon"), view.icon_fdid, size),
+        art(format!("{name}Flash"), FLASH, overlay, 1.0, !view.flash),
         art(
             format!("{name}NormalTexture"),
-            &NORMAL,
+            NORMAL,
             frame_art,
             1.0,
             view.pushed,
         ),
         art(
             format!("{name}PushedTexture"),
-            &PUSHED,
+            PUSHED,
             frame_art,
             1.0,
             !view.pushed,
         ),
         art(
             format!("{name}CheckedTexture"),
-            &MOUSEOVER,
+            MOUSEOVER,
             overlay,
             view.checked_alpha,
             !view.checked,
         ),
         art(
             format!("{name}HighlightTexture"),
-            &MOUSEOVER,
+            MOUSEOVER,
             overlay,
             1.0,
             !view.hovered,
         ),
-        autocast_overlay(&name, view.autocast),
-        hotkey(&name, &view.hotkey),
+        autocast_overlay(&name, view.autocast, scale),
+        hotkey(&name, &view.hotkey, scale),
     ]
     .into_iter()
     .flatten()
@@ -456,8 +433,8 @@ fn button(index: usize, view: &PetActionButtonView) -> Element {
     rsx! {
         button {
             name: {DynName(name)},
-            width: PET_BUTTON_SIZE,
-            height: PET_BUTTON_SIZE,
+            width: size,
+            height: size,
             onclick: {format!("{PET_ACTION_BUTTON_PREFIX}{index}")},
             button_default_skin: false,
             pos_type: "absolute",
@@ -472,24 +449,36 @@ pub fn pet_action_bar_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<PetActionBarState>()
         .expect("PetActionBarState must be in SharedContext");
+    let skin = *ctx
+        .get::<ActiveSkin>()
+        .expect("canvas carries the active skin");
+    let scale = match skin {
+        ActiveSkin::Modern => 1.0,
+        ActiveSkin::Forever => FOREVER_ACTION_BUTTON_SCALE,
+    };
+    let size = (PET_BAR_W * scale, PET_BUTTON_SIZE * scale);
+    let at = hud_layout(ctx).pet_action_bar.place(size);
     let buttons: Element = state
         .buttons
         .iter()
         .enumerate()
-        .flat_map(|(index, view)| button(index, view))
+        .flat_map(|(index, view)| button(index, view, scale))
         .collect();
     let hidden = !state.visible;
     rsx! {
         r#frame {
             name: PET_ACTION_BAR,
-            width: PET_BAR_W,
-            height: PET_BUTTON_SIZE,
+            width: {size.0},
+            height: {size.1},
             hidden,
             strata: FrameStrata::Medium,
             pos_type: "absolute",
-            left: "50%",
-            margin_left: PET_BAR_LEFT,
-            bottom: PET_BAR_BOTTOM,
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
             {buttons}
         }
     }
