@@ -160,6 +160,40 @@ pub(super) fn target_auras(state: &UnitFrameState, (left, top): (f32, f32)) -> E
     }
 }
 
+/// FlareUI Core.lua:292 and UnitFrames.lua:48,812,962-990: 20px icons,
+/// 2px spacing, 4px outside the frame, wrapping before its middle.
+/// The reference puts the existing selected groups above the right edge; selection is unchanged.
+pub(super) fn flare_auras(state: &UnitFrameState, width: f32) -> Element {
+    const SIZE: f32 = 20.0;
+    const SPACING: f32 = 2.0;
+    const GAP: f32 = 4.0;
+    const INSET: f32 = 4.0;
+    let line_width = (width / 2.0).floor() - INSET - 4.0;
+    let columns = ((line_width + SPACING) / (SIZE + SPACING)).floor().max(1.0) as usize;
+    let buffs = ("TargetBuff", state.target_buffs.as_slice());
+    let debuffs = ("TargetDebuff", state.target_debuffs.as_slice());
+    let groups = if state.target_buffs_first {
+        [buffs, debuffs]
+    } else {
+        [debuffs, buffs]
+    };
+    let first_rows = groups[0].1.len().div_ceil(columns);
+    groups
+        .into_iter()
+        .enumerate()
+        .flat_map(|(group, (prefix, icons))| {
+            let first_row = if group == 0 { 0 } else { first_rows };
+            icons.iter().enumerate().flat_map(move |(index, icon)| {
+                let column = (index % columns) as f32;
+                let row = (first_row + index / columns) as f32;
+                let x = width - INSET - SIZE - column * (SIZE + SPACING);
+                let y = -GAP - SIZE - row * (SIZE + SPACING);
+                aura_button_sized(prefix, index, icon, (x, y, SIZE))
+            })
+        })
+        .collect()
+}
+
 /// `TargetFrameAuraButtonTemplate` (TargetFrameAuraButton.xml:5-31): the icon fills the
 /// button; `Cooldown` is centred 1 px down and swiped by the host; debuffs add the tinted
 /// `DispelBorder`.
@@ -170,6 +204,15 @@ fn aura_button(
     (x, y): (f32, f32),
 ) -> Element {
     let size = icon_size(icon);
+    aura_button_sized(prefix, index, icon, (x, y, size))
+}
+
+fn aura_button_sized(
+    prefix: &str,
+    index: usize,
+    icon: &TargetAuraIconState,
+    (x, y, size): (f32, f32, f32),
+) -> Element {
     let name = format!("{prefix}Icon{index}");
     let count = if icon.stacks > 1 {
         icon.stacks.to_string()
@@ -241,4 +284,3 @@ fn dispel_border(name: &str, icon: &TargetAuraIconState, size: f32) -> Element {
         }
     }
 }
-

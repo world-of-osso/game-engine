@@ -193,9 +193,11 @@ const CAMELOT_MICRO_MENU: (f32, f32) = (116.5, 6.0);
 pub const FOREVER: HudLayout = HudLayout {
     player: anchor(Center, Center, -330.0, -270.0),
     target: anchor(Center, Center, 330.0, -270.0),
-    target_of_target: anchor(Bottom, Bottom, 270.0, 248.0),
+    // Reference screenshot: ToT top-aligned, measured 8px right of the target.
+    target_of_target: anchor(TopLeft, Center, 330.0 + 120.0 + 8.0, -270.0 + 30.0),
     focus: anchor(Right, Right, -453.0, -258.0),
-    pet: anchor(Bottom, Bottom, -290.0, 271.0),
+    // Reference screenshot: pet right-aligned, measured 6px below the player.
+    pet: anchor(TopRight, Center, -330.0 + 120.0, -270.0 - 30.0 - 6.0),
     // FlareUI UnitFrames.lua:1894 (keyboard default, :1900-1903).
     cast_bar: anchor(Bottom, Bottom, 0.0, 268.0),
     micro_menu: anchor(Bottom, Bottom, CAMELOT_MICRO_MENU.0, CAMELOT_MICRO_MENU.1),
