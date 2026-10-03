@@ -108,10 +108,10 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 51);
+    assert_eq!(InputAction::ALL.len(), 61);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 5, 12, 1, 13, 6]
+        [8, 6, 5, 22, 1, 13, 6]
     );
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {
@@ -307,4 +307,86 @@ fn shift_b_toggles_backpack_and_plain_b_opens_all_bags() {
     };
     assert!(bindings.is_just_pressed(InputAction::TargetPreviousEnemy, &shift_tab));
     assert!(!bindings.is_just_pressed(InputAction::TargetNearest, &shift_tab));
+}
+
+/// Retail `BONUSACTIONBUTTON1..10` (Bindings_Standard.xml:272-361, `BINDING_HEADER_ACTIONBAR`)
+/// on Ctrl-1..Ctrl-9, Ctrl-0: pressing Ctrl+N is pet button N and never main bar button N.
+#[test]
+fn bonus_action_buttons_default_to_ctrl_digits_and_shadow_the_main_bar() {
+    let bindings = InputBindingsData::default();
+    let digits = [
+        BindingKey::Digit1,
+        BindingKey::Digit2,
+        BindingKey::Digit3,
+        BindingKey::Digit4,
+        BindingKey::Digit5,
+        BindingKey::Digit6,
+        BindingKey::Digit7,
+        BindingKey::Digit8,
+        BindingKey::Digit9,
+        BindingKey::Digit0,
+    ];
+    let main_bar = [
+        InputAction::ActionSlot1,
+        InputAction::ActionSlot2,
+        InputAction::ActionSlot3,
+        InputAction::ActionSlot4,
+        InputAction::ActionSlot5,
+        InputAction::ActionSlot6,
+        InputAction::ActionSlot7,
+        InputAction::ActionSlot8,
+        InputAction::ActionSlot9,
+        InputAction::ActionSlot10,
+    ];
+    for (index, action) in InputAction::PET_ACTION_SLOTS.into_iter().enumerate() {
+        let key = digits[index];
+        assert_eq!(
+            bindings.binding(action),
+            Some(InputBinding::CtrlKeyboard(key)),
+            "{action:?}"
+        );
+        assert_eq!(action.section(), BindingSection::ActionBar);
+        assert_eq!(action.label(), format!("Pet Action Button {}", index + 1));
+        assert_eq!(action.pet_action_slot(), Some(index));
+        assert_eq!(InputAction::from_key(action.key()), Some(action));
+        let ctrl = State {
+            held: vec![key],
+            edge: vec![key],
+            ctrl: true,
+            ..Default::default()
+        };
+        assert!(bindings.is_just_pressed(action, &ctrl), "{action:?}");
+        assert!(
+            !bindings.is_just_pressed(main_bar[index], &ctrl),
+            "Ctrl+{key:?} must not press {:?}",
+            main_bar[index]
+        );
+        let plain = State {
+            held: vec![key],
+            edge: vec![key],
+            ..Default::default()
+        };
+        assert!(bindings.is_just_pressed(main_bar[index], &plain));
+        assert!(!bindings.is_just_pressed(action, &plain));
+    }
+    assert_eq!(InputAction::ActionSlot1.pet_action_slot(), None);
+}
+
+/// Action button hotkeys show `GetBindingText(key, true)`: modifiers abbreviated to
+/// `CTRL_KEY_TEXT_ABBR` "c" / `SHIFT_KEY_TEXT_ABBR` "s" (GlobalStrings).
+#[test]
+fn hotkey_text_abbreviates_modifiers() {
+    assert_eq!(
+        InputBinding::CtrlKeyboard(BindingKey::Digit1).hotkey_text(),
+        "c-1"
+    );
+    assert_eq!(
+        InputBinding::CtrlKeyboard(BindingKey::Digit0).hotkey_text(),
+        "c-0"
+    );
+    assert_eq!(
+        InputBinding::ShiftKeyboard(BindingKey::KeyB).hotkey_text(),
+        "s-B"
+    );
+    assert_eq!(InputBinding::Keyboard(BindingKey::Minus).hotkey_text(), "-");
 }
