@@ -23,29 +23,13 @@ pub fn prepare_batches(
             annotation.branches.len()
         ));
     }
-    let mut prepared = Vec::new();
-    for child in root.get_children().iter_shared() {
-        let Ok(batch) = child.try_cast::<MeshInstance3D>() else {
-            continue;
-        };
-        if !batch.get_name().to_string().starts_with("Batch") {
-            continue;
-        }
-        let context = format!("Tree {} batch {}", annotation.model_fdid, batch.get_name());
-        let material = batch_material(&batch).map_err(|error| format!("{context}: {error}"))?;
-        let source = batch
-            .get_mesh()
-            .ok_or_else(|| format!("{context}: missing mesh"))?
-            .try_cast::<ArrayMesh>()
-            .map_err(|_| format!("{context}: expected ArrayMesh"))?;
-        let (weighted, padding) = build_weighted_mesh(&source, annotation)
-            .map_err(|error| format!("{context}: {error}"))?;
-        let bounds = source
-            .get_aabb()
-            .merge(batch.get_custom_aabb())
-            .grow(padding);
-        prepared.push((batch, material, weighted, bounds));
-    }
+    let prepared = root
+        .get_children()
+        .iter_shared()
+        .filter_map(|child| child.try_cast::<MeshInstance3D>().ok())
+        .filter(|batch| batch.get_name().to_string().starts_with("Batch"))
+        .map(|batch| prepare_batch(batch, annotation))
+        .collect::<Result<Vec<_>, _>>()?;
     if prepared.is_empty() {
         return Err(format!(
             "Tree {} has no M2 Batch children",
@@ -53,23 +37,65 @@ pub fn prepare_batches(
         ));
     }
     // Do not change any live instance until every batch has been prepared.
-    let mut batches = Vec::with_capacity(prepared.len());
-    for (mut batch, mut material, weighted, bounds) in prepared {
-        batch.set_mesh(&weighted);
-        batch.set_custom_aabb(bounds);
-        batch.set_meta(BEND_BOUNDS_META, &bounds.to_variant());
-        for (index, parameter) in PIVOT_PARAMETERS.iter().enumerate() {
-            let pivot = annotation
-                .branches
-                .get(index)
-                .map_or(Vector3::ZERO, |branch| Vector3::from_array(branch.pivot));
-            material.set_shader_parameter(*parameter, &pivot.to_variant());
-        }
-        material.set_shader_parameter("tree_bend_enabled", &true.to_variant());
-        batches.push(batch);
-    }
+    let mut batches: Vec<_> = prepared
+        .into_iter()
+        .map(|batch| install_batch(batch, annotation))
+        .collect();
     update_bends(&mut batches, &[]);
     Ok(batches)
+}
+
+struct PreparedBatch {
+    batch: Gd<MeshInstance3D>,
+    material: Gd<ShaderMaterial>,
+    weighted: Gd<ArrayMesh>,
+    bounds: Aabb,
+}
+
+fn prepare_batch(
+    batch: Gd<MeshInstance3D>,
+    annotation: &TreeAnnotation,
+) -> Result<PreparedBatch, String> {
+    let context = format!("Tree {} batch {}", annotation.model_fdid, batch.get_name());
+    let material = batch_material(&batch).map_err(|error| format!("{context}: {error}"))?;
+    let source = batch
+        .get_mesh()
+        .ok_or_else(|| format!("{context}: missing mesh"))?
+        .try_cast::<ArrayMesh>()
+        .map_err(|_| format!("{context}: expected ArrayMesh"))?;
+    let (weighted, padding) =
+        build_weighted_mesh(&source, annotation).map_err(|error| format!("{context}: {error}"))?;
+    let bounds = source
+        .get_aabb()
+        .merge(batch.get_custom_aabb())
+        .grow(padding);
+    Ok(PreparedBatch {
+        batch,
+        material,
+        weighted,
+        bounds,
+    })
+}
+
+fn install_batch(prepared: PreparedBatch, annotation: &TreeAnnotation) -> Gd<MeshInstance3D> {
+    let PreparedBatch {
+        mut batch,
+        mut material,
+        weighted,
+        bounds,
+    } = prepared;
+    batch.set_mesh(&weighted);
+    batch.set_custom_aabb(bounds);
+    batch.set_meta(BEND_BOUNDS_META, &bounds.to_variant());
+    for (index, parameter) in PIVOT_PARAMETERS.iter().enumerate() {
+        let pivot = annotation
+            .branches
+            .get(index)
+            .map_or(Vector3::ZERO, |branch| Vector3::from_array(branch.pivot));
+        material.set_shader_parameter(*parameter, &pivot.to_variant());
+    }
+    material.set_shader_parameter("tree_bend_enabled", &true.to_variant());
+    batch
 }
 
 /// Upload model-local axis-angle vectors in radians; absent branches reset to rest.
@@ -115,32 +141,41 @@ fn build_weighted_mesh(
     }
     let mut padding = 0.0_f32;
     for surface in 0..source.get_surface_count() {
-        let mut arrays = source.surface_get_arrays(surface);
-        let surface_padding = weight_surface(&mut arrays, annotation)
+        let surface_padding = copy_weighted_surface(source, &mut weighted, surface, annotation)
             .map_err(|error| format!("surface {surface}: {error}"))?;
         padding = padding.max(surface_padding);
-        let lods = read_surface_lods(source, surface)
-            .map_err(|error| format!("surface {surface}: {error}"))?;
-        let blend_shapes: Array<AnyArray> = source
-            .surface_get_blend_shape_arrays(surface)
-            .iter_shared()
-            .map(VarArray::upcast_any_array)
-            .collect();
-        weighted
-            .add_surface_from_arrays_ex(source.surface_get_primitive_type(surface), &arrays)
-            .blend_shapes(&blend_shapes)
-            .lods(&lods)
-            .flags(source.surface_get_format(surface) | mesh::ArrayFormat::COLOR)
-            .done();
-        if weighted.get_surface_count() != surface + 1 {
-            return Err(format!("surface {surface}: Godot rejected weighted arrays"));
-        }
-        weighted.surface_set_name(surface, &source.surface_get_name(surface));
-        if let Some(material) = source.surface_get_material(surface) {
-            weighted.surface_set_material(surface, &material);
-        }
     }
     Ok((weighted, padding))
+}
+
+fn copy_weighted_surface(
+    source: &Gd<ArrayMesh>,
+    weighted: &mut Gd<ArrayMesh>,
+    surface: i32,
+    annotation: &TreeAnnotation,
+) -> Result<f32, String> {
+    let mut arrays = source.surface_get_arrays(surface);
+    let padding = weight_surface(&mut arrays, annotation)?;
+    let lods = read_surface_lods(source, surface)?;
+    let blend_shapes: Array<AnyArray> = source
+        .surface_get_blend_shape_arrays(surface)
+        .iter_shared()
+        .map(VarArray::upcast_any_array)
+        .collect();
+    weighted
+        .add_surface_from_arrays_ex(source.surface_get_primitive_type(surface), &arrays)
+        .blend_shapes(&blend_shapes)
+        .lods(&lods)
+        .flags(source.surface_get_format(surface) | mesh::ArrayFormat::COLOR)
+        .done();
+    if weighted.get_surface_count() != surface + 1 {
+        return Err("Godot rejected weighted arrays".into());
+    }
+    weighted.surface_set_name(surface, &source.surface_get_name(surface));
+    if let Some(material) = source.surface_get_material(surface) {
+        weighted.surface_set_material(surface, &material);
+    }
+    Ok(padding)
 }
 
 fn weight_surface(arrays: &mut VarArray, annotation: &TreeAnnotation) -> Result<f32, String> {
@@ -197,32 +232,46 @@ fn read_surface_lods(source: &Gd<ArrayMesh>, surface: i32) -> Result<VarDictiona
         .try_to::<VarArray>()
         .map_err(|error| format!("invalid LOD list: {error}"))?;
     let vertex_count = source.surface_get_array_len(surface);
-    let stride = if vertex_count > 65_536 { 4 } else { 2 };
     for value in lods.iter_shared() {
-        let lod = value
-            .try_to::<VarDictionary>()
-            .map_err(|error| format!("invalid LOD entry: {error}"))?;
-        let distance = lod.get("edge_length").ok_or("LOD missing edge length")?;
-        let bytes = lod
-            .get("index_data")
-            .ok_or("LOD missing indices")?
-            .try_to::<PackedByteArray>()
-            .map_err(|error| format!("invalid LOD indices: {error}"))?;
-        if bytes.len() % stride != 0 {
-            return Err("LOD index bytes have invalid length".into());
-        }
-        let indices: Vec<i32> = bytes
-            .as_slice()
-            .chunks_exact(stride)
-            .map(|chunk| {
-                if stride == 2 {
-                    i32::from(u16::from_le_bytes([chunk[0], chunk[1]]))
-                } else {
-                    i32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]])
-                }
-            })
-            .collect();
-        result.set(&distance, &PackedInt32Array::from(indices.as_slice()));
+        let (distance, indices) = decode_lod(value, vertex_count)?;
+        result.set(&distance, &indices);
     }
     Ok(result)
+}
+
+fn decode_lod(value: Variant, vertex_count: i32) -> Result<(Variant, PackedInt32Array), String> {
+    let lod = value
+        .try_to::<VarDictionary>()
+        .map_err(|error| format!("invalid LOD entry: {error}"))?;
+    let distance = lod.get("edge_length").ok_or("LOD missing edge length")?;
+    let bytes = lod
+        .get("index_data")
+        .ok_or("LOD missing indices")?
+        .try_to::<PackedByteArray>()
+        .map_err(|error| format!("invalid LOD indices: {error}"))?;
+    Ok((distance, decode_indices(&bytes, vertex_count)?))
+}
+
+fn decode_indices(bytes: &PackedByteArray, vertex_count: i32) -> Result<PackedInt32Array, String> {
+    const U16_INDEX_CAPACITY: i32 = 65_536;
+    let stride = if vertex_count > U16_INDEX_CAPACITY {
+        4
+    } else {
+        2
+    };
+    if bytes.len() % stride != 0 {
+        return Err("LOD index bytes have invalid length".into());
+    }
+    let indices: Vec<i32> = bytes
+        .as_slice()
+        .chunks_exact(stride)
+        .map(|chunk| {
+            if stride == 2 {
+                i32::from(u16::from_le_bytes([chunk[0], chunk[1]]))
+            } else {
+                i32::from_le_bytes([chunk[0], chunk[1], chunk[2], chunk[3]])
+            }
+        })
+        .collect();
+    Ok(PackedInt32Array::from(indices.as_slice()))
 }
