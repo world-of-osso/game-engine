@@ -64,6 +64,8 @@ assert args[:2] == ['run', '1.98.1'], args
 if args[2] == 'rustc':
     print(os.environ['FIXTURE_ROOT']); sys.exit(0)
 assert args[2] == 'cargo' and '--locked' in args and '-j8' in args, args
+with pathlib.Path(os.environ['FIXTURE_ROOT'], 'cargo.log').open('a') as log:
+    log.write(json.dumps(args) + '\\n')
 if '--' in args and any(arg in ('--locked', '-j8') for arg in args[args.index('--') + 1:]):
     print('test harness received Cargo-only flags', file=sys.stderr); sys.exit(31)
 if os.environ.get('SLEEP_CARGO'):
@@ -135,6 +137,98 @@ class NativeTests(unittest.TestCase):
                 "HOME": str(self.home),
             },
         ).start()
+
+    def test_no_build_runs_existing_profiles_and_syncs_desktop_without_cargo(self):
+        for host in ("local", "desktop"):
+            for release in (False, True):
+                with self.subTest(host=host, release=release):
+                    target = (
+                        self.context / "project/target"
+                        if host == "local"
+                        else self.base / "cache/no-build/target"
+                    )
+                    profile = "release" if release else "debug"
+                    app = target / profile / "fixture"
+                    app.parent.mkdir(parents=True, exist_ok=True)
+                    app.write_text(
+                        "#!/usr/bin/env python3\n"
+                        "import json, os, pathlib, sys\n"
+                        "pathlib.Path(os.environ['FIXTURE_ROOT'], 'runtime.json').write_text("
+                        "json.dumps(dict(args=sys.argv[1:], cwd=os.getcwd(), loader=os.environ['LD_LIBRARY_PATH'])))\n"
+                        "sys.exit(23)\n"
+                    )
+                    app.chmod(0o755)
+                    asset = self.context / "project/addon.lua"
+                    asset.write_text(profile)
+                    status = self.h.execute(
+                        self.context,
+                        "no-build",
+                        "project",
+                        ["build"],
+                        host,
+                        ["two words"],
+                        "fixture",
+                        release=release,
+                        root=self.context / "project",
+                        build=False,
+                    )
+                    self.assertEqual(status, 23)
+                    report = json.loads((self.base / "runtime.json").read_text())
+                    self.assertEqual(report["args"], ["two words"])
+                    self.assertIn(
+                        str(target / profile / "deps"), report["loader"].split(":")
+                    )
+                    self.assertIn(str(self.base / "lib"), report["loader"].split(":"))
+                    self.assertFalse((self.base / "cargo.log").exists())
+                    if host == "desktop":
+                        self.assertEqual(
+                            (
+                                self.base / "cache/no-build/source/project/addon.lua"
+                            ).read_text(),
+                            profile,
+                        )
+                        self.assertEqual(
+                            list(
+                                (
+                                    self.base / "windows/data/build-host/transfers"
+                                ).iterdir()
+                            ),
+                            [],
+                        )
+
+    def test_no_build_missing_binary_fails_without_cargo(self):
+        for host in ("local", "desktop"):
+            with self.subTest(host=host):
+                arguments = dict(
+                    runtime_args=[],
+                    binary="fixture",
+                    root=self.context / "project",
+                    build=False,
+                )
+                if host == "local":
+                    with self.assertRaisesRegex(FileNotFoundError, "fixture"):
+                        self.h.execute(
+                            self.context,
+                            "missing",
+                            "project",
+                            ["build"],
+                            host,
+                            **arguments,
+                        )
+                else:
+                    self.assertNotEqual(
+                        self.h.execute(
+                            self.context,
+                            "missing",
+                            "project",
+                            ["build"],
+                            host,
+                            **arguments,
+                        ),
+                        0,
+                    )
+                self.assertFalse((self.base / "cargo.log").exists())
+                self.assertFalse((self.base / "runtime.json").exists())
 
     def test_test_harness_receives_only_its_arguments(self):
         status = self.h.execute(
