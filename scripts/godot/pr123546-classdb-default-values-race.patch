@@ -1,0 +1,17 @@
+Upstream godotengine/godot PR #123546 "Fix ClassDB default property value race condition"
+(merge commit beb898eddbaa79fc5a4eacae6848d36669824188, fixes issue #111039), against tag
+4.7.2-stable (ed1daf0bf001b61586d9930840f2f1394092c079). Applied by build-patched-godot.sh.
+
+diff --git a/core/object/class_db.cpp b/core/object/class_db.cpp
+index f1b40e38baa4..67d53938403b 100644
+--- a/core/object/class_db.cpp
++++ b/core/object/class_db.cpp
+@@ -1875,6 +1875,8 @@ HashMap<StringName, HashMap<StringName, Variant>> ClassDB::default_values;
+ HashSet<StringName> ClassDB::default_values_cached;
+ 
+ Variant ClassDB::class_get_default_property_value(const StringName &p_class, const StringName &p_property, bool *r_valid) {
++	Locker::Lock lock(Locker::STATE_WRITE);
++
+ 	if (!default_values_cached.has(p_class)) {
+ 		if (!default_values.has(p_class)) {
+ 			default_values[p_class] = HashMap<StringName, Variant>();
