@@ -82,6 +82,12 @@ db2/12.1.0.69933/UiTextureKit.csv
 db2/12.1.0.69933/UiTextureAtlasElement.csv
 db2/12.1.0.69933/UiTextureAtlas.csv
 db2/12.1.0.69933/UiTextureAtlasMember.csv
+db2/1.60.1.69913/UiTextureAtlas.csv
+db2/1.60.1.69913/UiTextureAtlasElement.csv
+db2/1.60.1.69913/UiTextureAtlasMember.csv
+textures/8036204.blp
+textures/7948328.blp
+textures/8026705.blp
 
 # game-engine-core tests/spell_catalog.rs
 db2/12.1.0.69933/SpellName.csv

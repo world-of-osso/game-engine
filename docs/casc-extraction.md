@@ -124,3 +124,18 @@ FDID -> content key -> encoding key -> read_file_by_encoding_key()
 
 - `docs/casc-db2-keys.md` — difference between WoWDBDefs schema metadata and TACT key sources for encrypted DB2 extraction
 - `docs/skybox-authored-lookup.md` — current `Light.csv -> LightParams -> LightSkybox -> FileDataID -> .m2` lookup chain and fallback behavior
+
+## WoW Forever atlas data
+
+`python3 scripts/import_forever_atlas.py` imports Forever's `UiTextureAtlas*` tables into
+`data/db2/1.60.1.69913/` and extracts every `UiTextureAtlasSetID` 1 texture (the `c60`
+re-skins of Retail atlas names) with `WOW_PRODUCT=wow_classic_beta casc-local`.
+`scripts/forever-atlas-listfile.csv` names those textures; none is in the community listfile.
+
+Verified 2026-10-03: the installed `wow_classic_beta` build 1.60.1.70205 (build key
+`842b2e5d11f8d6fe257a5b73bd5cf6c6`) has no root in local archives (encoding key
+`fcae3917977c7fdf9f3864ed5bf96521` is in no `Data/data/*.idx`), and the 69977 keys of the
+atlas DB2s and `c60` textures are gone too. So the tables are the Wago 69913 CSVs from
+wow-ui-sim (sha256-checked), and 17 of the 211 set-1 textures came from wow-ui-sim's
+`~/.cache/wow-ui-sim/casc-extract`, each byte-identical (MD5 = content key) to the 69977 root.
+The other 194 stay missing until the Forever data is back in local CASC; rerun the script then.
