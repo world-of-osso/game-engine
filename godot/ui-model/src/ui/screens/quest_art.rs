@@ -4,6 +4,7 @@
 
 use std::fmt;
 
+use ui_toolkit::atlas::{AtlasSource, active_skin, resolve_region};
 use ui_toolkit::rsx;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
@@ -64,18 +65,18 @@ pub const GOSSIP_ACTIVE_ICON: u32 = 132_048;
 /// `SideInProgressquesticon` (26250), atlas 2733, 16×18: an incomplete quest.
 pub const GOSSIP_IN_PROGRESS_ICON: AtlasArt = art(5_666_025, (64.0, 64.0), (37.0, 53.0, 1.0, 19.0));
 
-/// `QuestBG-Parchment` (11502), atlas 1711, 299×407.
-pub const QUEST_PARCHMENT: AtlasArt = art(3_813_080, (1024.0, 1024.0), (1.0, 300.0, 1.0, 408.0));
-/// `questlog_divider` (7577), 260×37: zone header plate in the quest list.
-pub const QUEST_LOG_DIVIDER: AtlasArt =
-    art(904_010, (2048.0, 1024.0), (579.0, 839.0, 986.0, 1023.0));
+/// Retail/Forever AddOns/Blizzard_UIPanels_Game/Mainline/QuestFrameTemplates.xml:10.
+pub const QUEST_PARCHMENT: &str = "QuestBG-Parchment";
+/// Zone header plate: Retail UiTextureAtlasMember.csv:3107, Forever:3107.
+/// No XML/Lua reference in either Blizzard source export; this client's existing plate.
+pub const QUEST_LOG_DIVIDER: &str = "questlog_divider";
 
-/// `redbutton-exit` (17625), atlas 2196: the panel close button.
-pub const CLOSE_BUTTON: AtlasArt = art(5_262_907, (128.0, 64.0), (21.0, 39.0, 1.0, 20.0));
+/// Retail/Forever AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:137.
+const CLOSE_BUTTON: &str = "RedButton-Exit";
 /// `Interface\FrameGeneral\UI-Background-Rock`, tiled window background.
 const WINDOW_BACKGROUND: u32 = 374_155;
-/// `_UI-Frame-TopTileStreaks` (6977), atlas 950, 256×43.
-const TOP_TILE_STREAKS: AtlasArt = art(1_723_833, (256.0, 128.0), (0.0, 256.0, 1.0, 44.0));
+/// Retail/Forever AddOns/Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:76.
+const TOP_TILE_STREAKS: &str = "_UI-Frame-TopTileStreaks";
 
 /// `NORMAL_FONT_COLOR`.
 pub const NORMAL_FONT_COLOR: &str = "1.0,0.82,0.0,1.0";
@@ -102,6 +103,25 @@ pub fn atlas_texture(name: String, art: &AtlasArt, rect: (f32, f32, f32, f32)) -
             top: y,
         }
     }
+}
+
+/// Resolve active-skin art into the existing FDID/UV representation, retaining Modern tree bytes.
+fn read_active_atlas_art(name: &str) -> AtlasArt {
+    let skin = active_skin();
+    let region = resolve_region(name, skin)
+        .unwrap_or_else(|| panic!("atlas {name} has no member under {skin:?}"));
+    let AtlasSource::FileDataId(fdid) = region.source else {
+        panic!("atlas {name} must resolve to a DB2 FileDataID under {skin:?}")
+    };
+    art(
+        fdid,
+        (1.0, 1.0),
+        (region.left, region.right, region.top, region.bottom),
+    )
+}
+
+pub fn named_atlas_texture(name: String, atlas: &str, rect: (f32, f32, f32, f32)) -> Element {
+    atlas_texture(name, &read_active_atlas_art(atlas), rect)
 }
 
 /// Retail `ButtonFrameTemplate` chrome for a window of `width`×`height`: rock background,
@@ -237,9 +257,9 @@ fn window_background(prefix: &str, width: f32, height: f32) -> Element {
             top: 21.0,
         }
     };
-    elements.extend(atlas_texture(
+    elements.extend(named_atlas_texture(
         format!("{prefix}TopTileStreaks"),
-        &TOP_TILE_STREAKS,
+        TOP_TILE_STREAKS,
         (6.0, 21.0, width - 8.0, 43.0),
     ));
     elements
@@ -294,7 +314,8 @@ fn window_title(prefix: &str, width: f32, title: &str, left: f32) -> Element {
 
 /// `UIPanelCloseButtonDefaultAnchors`: 24×24 at TOPRIGHT (+1, 0).
 fn close_button(prefix: &str, width: f32, action: &str) -> Element {
-    let coords = CLOSE_BUTTON.tex_coords(1.0);
+    let art = read_active_atlas_art(CLOSE_BUTTON);
+    let coords = art.tex_coords(1.0);
     rsx! {
         button {
             name: {DynName(format!("{prefix}CloseButton"))},
@@ -308,7 +329,7 @@ fn close_button(prefix: &str, width: f32, action: &str) -> Element {
                 name: {DynName(format!("{prefix}CloseButtonNormal"))},
                 width: 24.0,
                 height: 24.0,
-                texture_fdid: {CLOSE_BUTTON.fdid},
+                texture_fdid: {art.fdid},
                 tex_coords: {coords.as_str()},
                 pos_type: "absolute",
                 left: 0.0,

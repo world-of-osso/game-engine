@@ -15,7 +15,9 @@ use game_engine_ui_model::panel_style_data::{MetalTopLeft, metal_frame_style};
 use game_engine_ui_model::quest_frame_component::{
     QuestFramePage, QuestFrameState, RewardView, quest_frame_screen,
 };
-use game_engine_ui_model::quest_log_frame_component::{QuestLogFrameState, quest_log_frame_screen};
+use game_engine_ui_model::quest_log_frame_component::{
+    QuestLogFrameState, QuestLogGroup, quest_log_frame_screen,
+};
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_active_skin};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -165,6 +167,87 @@ fn assert_region(name: &str, skin: ActiveSkin, fdid: u32, size: [u32; 2], rect: 
     );
 }
 
+fn assert_texture(registry: &FrameRegistry, name: &str, fdid: u32, coords: [f32; 4]) {
+    let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+    let Some(WidgetData::Texture(data)) = &frame.widget_data else {
+        panic!("expected texture {name}")
+    };
+    assert_eq!(data.source, TextureSource::FileDataId(fdid), "{name}");
+    assert_eq!(data.tex_coords, coords, "{name}");
+}
+
+fn assert_quest_chrome(skin: ActiveSkin) {
+    set_active_skin(skin);
+    let dialog = registry(QuestFrameState::default(), quest_frame_screen);
+    let log = registry(
+        QuestLogFrameState {
+            groups: vec![QuestLogGroup {
+                sort_id: 12,
+                name: "Elwynn Forest".into(),
+                collapsed: false,
+                quests: vec![],
+            }],
+            ..Default::default()
+        },
+        quest_log_frame_screen,
+    );
+    for (registry, name) in [
+        (&dialog, "QuestFrameTopTileStreaks"),
+        (&log, "QuestLogFrameTopTileStreaks"),
+    ] {
+        assert_texture(
+            registry,
+            name,
+            1_723_833,
+            [0.0, 1.0, 1.0 / 128.0, 44.0 / 128.0],
+        );
+    }
+    for (registry, name) in [
+        (&dialog, "QuestFrameParchment"),
+        (&log, "QuestLogDetailsBackground"),
+    ] {
+        assert_texture(
+            registry,
+            name,
+            3_813_080,
+            [1.0 / 1024.0, 300.0 / 1024.0, 1.0 / 1024.0, 408.0 / 1024.0],
+        );
+    }
+    assert_texture(
+        &log,
+        "QuestLogHeader12Background",
+        904_010,
+        [
+            579.0 / 2048.0,
+            839.0 / 2048.0,
+            986.0 / 1024.0,
+            1023.0 / 1024.0,
+        ],
+    );
+    for (name, fdid, size, rect) in [
+        (
+            "_UI-Frame-TopTileStreaks",
+            1_723_833,
+            [256, 128],
+            [0.0, 256.0, 1.0, 44.0],
+        ),
+        (
+            "QuestBG-Parchment",
+            3_813_080,
+            [1024, 1024],
+            [1.0, 300.0, 1.0, 408.0],
+        ),
+        (
+            "questlog_divider",
+            904_010,
+            [2048, 1024],
+            [579.0, 839.0, 986.0, 1023.0],
+        ),
+    ] {
+        assert_region(name, skin, fdid, size, rect);
+    }
+}
+
 fn assert_close_texture(skin: ActiveSkin, fdid: u32, coords: [f32; 4]) {
     set_active_skin(skin);
     for (root, registry) in [
@@ -241,5 +324,7 @@ fn quest_chrome_preserves_modern_and_resolves_forever() {
         8_107_307,
         [35.0 / 256.0, 67.0 / 256.0, 1.0 / 128.0, 33.0 / 128.0],
     );
+    assert_quest_chrome(ActiveSkin::Modern);
+    assert_quest_chrome(ActiveSkin::Forever);
     set_active_skin(ActiveSkin::Modern);
 }
