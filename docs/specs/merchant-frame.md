@@ -61,6 +61,7 @@ References:
 
 ## Godot client
 
+- Shared metal chrome resolves Blizzard atlas element names under the active skin when composing the panel sheet: Modern keeps the original Retail crops; Forever uses set-1 `uiframemetal2xc60` sheets. Window geometry and bottom-edge tiling stay unchanged. Missing sheet assets report errors; no substitute art. `forever_small_windows` covers exact member rects, composition and base-Modern merchant/mail tree parity; live switching is not proven.
 - [x] Right-click on a unit targets it; a living NPC within 5 yd gets `InteractNpc`. Hovering an NPC shows its Retail cursor (Buy for a vendor, from replicated `NpcFlags` and the reaction).
 - [x] The frame, backpack and StackSplitFrame are the shared components above, driven by the same server messages; right-click buy and sell, buyback (tab and last-sale slot), Repair All, paging, tabs, and vendor Shift-click split with its keys.
 - [x] Escape, the close button and `InteractionClosed` close the frame; the first two send `CloseInteraction`.
