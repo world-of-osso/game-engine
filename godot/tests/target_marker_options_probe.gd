@@ -71,7 +71,8 @@ func frame_snapshot(client: Node) -> Dictionary:
 	return {"visible": frame.is_visible_in_tree(), "rect": frame.get_global_rect(), "name": name.text, "name_visible": name.is_visible_in_tree(), "health": health.text, "health_visible": health.is_visible_in_tree()}
 
 func frame_present(state: Dictionary) -> bool:
-	return not state.is_empty() and state.visible and state.name_visible and state.health_visible and state.name == fixture.NAME
+	# Health text visibility follows the Status Text setting (Retail default None: hover only).
+	return not state.is_empty() and state.visible and state.name_visible and state.name == fixture.NAME
 
 func clear_selection(client: Node, player: Node3D) -> bool:
 	await tap(KEY_ESCAPE)

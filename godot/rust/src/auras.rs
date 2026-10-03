@@ -260,9 +260,10 @@ impl GameClient {
     }
 
     /// Class bar Cooldown frames (RuneFrame.xml:83-92): a `reverse` swipe fills the
-    /// spec's `-LevelBar` clockwise as the rune recharges.
+    /// spec's `-LevelBar` clockwise as the rune recharges. `prefix` names the bar's frames.
     pub(super) fn sync_class_bar_swipes(
         &mut self,
+        prefix: &str,
         view: Option<&ClassBarView>,
     ) -> Result<(), String> {
         let Some(ui) = self.targeting.frame_ui().cloned() else {
@@ -272,7 +273,10 @@ impl GameClient {
             let Some(progress) = texture.swipe else {
                 continue;
             };
-            let Some(control) = ui.bind().frame_control(&texture.name) else {
+            let Some(control) = ui
+                .bind()
+                .frame_control(&format!("{prefix}{}", texture.name))
+            else {
                 continue;
             };
             // Drawn from the frame its file has arrived.

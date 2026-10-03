@@ -150,6 +150,7 @@ pub use game_engine_core::nameplate_style_data;
 pub use game_engine_core::nameplate_style_data as nameplate_style;
 pub use game_engine_core::quest_area_data;
 pub use game_engine_core::soft_target_data;
+pub use game_engine_core::status_text_data;
 
 #[path = "ui/screens/game_menu_component.rs"]
 pub mod game_menu_component;

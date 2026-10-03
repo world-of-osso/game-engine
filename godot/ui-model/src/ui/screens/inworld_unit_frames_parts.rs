@@ -2,14 +2,17 @@ use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
 use super::inworld_unit_frames_art::AtlasArt;
+use super::inworld_unit_frames_layout::TextAnchors;
 use super::{DynName, PortraitSlot, Rect, UNIT_FONT, VALUE_TEXT, dyn_name};
+use crate::status_text_data::StatusBarText;
 
 pub(super) struct BarSpec<'a> {
     pub(super) name: String,
     pub(super) rect: Rect,
     pub(super) fraction: f32,
     pub(super) art: Option<AtlasArt>,
-    pub(super) text: &'a str,
+    pub(super) text: &'a StatusBarText,
+    pub(super) anchors: TextAnchors,
     pub(super) font_size: f32,
     pub(super) hidden: bool,
 }
@@ -120,8 +123,9 @@ pub(super) fn unit_label(
     }
 }
 
-/// Retail `StatusBar`: the bar texture revealed left to right by `fraction`, value text
-/// centred on top (`TextStatusBarText`).
+/// Retail `TextStatusBar`: the bar texture revealed left to right by `fraction`, its
+/// `TextString`, `LeftText` and `RightText` on top. The bar takes the mouse: its `OnEnter`
+/// shows the text while the status text setting hides it (TextStatusBar.xml:7).
 pub(super) fn status_bar(spec: BarSpec<'_>) -> Element {
     let (x, y, width, height) = spec.rect;
     let fill = spec
@@ -135,33 +139,72 @@ pub(super) fn status_bar(spec: BarSpec<'_>) -> Element {
             )
         })
         .unwrap_or_default();
-    let text = dyn_name(format!("{}Text", spec.name));
+    let anchors = spec.anchors;
+    let texts = bar_texts(
+        &spec.name,
+        (width, height),
+        spec.text,
+        [
+            ("CENTER", anchors.center),
+            ("LEFT", anchors.left),
+            ("RIGHT", anchors.right),
+        ],
+        spec.font_size,
+    );
     rsx! {
         r#frame {
             name: {dyn_name(spec.name.clone())},
             width,
             height,
             hidden: spec.hidden,
+            mouse_enabled: true,
             pos_type: "absolute",
             pos_x: x,
             pos_y: y,
             {fill}
+            {texts}
+        }
+    }
+}
+
+/// A bar's `TextString`, `LeftText` and `RightText` (`{bar}Text`, `TextLeft`, `TextRight`),
+/// each `(justifyH, x)` across the bar; an empty text is hidden.
+pub(super) fn bar_texts(
+    bar: &str,
+    (width, height): (f32, f32),
+    text: &StatusBarText,
+    anchors: [(&str, f32); 3],
+    font_size: f32,
+) -> Element {
+    let [center, left, right] = anchors;
+    [
+        ("Text", &text.center, center),
+        ("TextLeft", &text.left, left),
+        ("TextRight", &text.right, right),
+    ]
+    .into_iter()
+    .flat_map(|(suffix, text, (justify_h, x))| {
+        let name = dyn_name(format!("{bar}{suffix}"));
+        let hidden = text.is_empty();
+        rsx! {
             fontstring {
-                name: text,
+                name,
                 width,
                 height,
-                text: spec.text,
+                hidden,
+                text: text.as_str(),
                 font: UNIT_FONT,
-                font_size: spec.font_size,
+                font_size,
                 font_color: VALUE_TEXT,
                 outline: "OUTLINE",
-                justify_h: "CENTER",
+                justify_h,
                 pos_type: "absolute",
-                pos_x: 0.0,
+                pos_x: x,
                 pos_y: 0.0,
             }
         }
-    }
+    })
+    .collect()
 }
 
 fn bar_fill(name: String, art: &AtlasArt, (width, height): (f32, f32), fraction: f32) -> Element {

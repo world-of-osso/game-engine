@@ -14,6 +14,7 @@ use super::options_menu_component::{
 use super::options_menu_sections;
 use crate::input_bindings::BindingSection;
 use crate::soft_target_data::InteractKeyIcons;
+use crate::status_text_data::StatusTextDisplay;
 
 #[path = "options_menu_active_sections_keybindings.rs"]
 mod keybindings_section;
@@ -33,7 +34,8 @@ const OPTIONS_TRACK_BG: &str = "0.10,0.09,0.08,1.0";
 const OPTIONS_TRACK_FILL: &str = "0.43,0.31,0.10,0.92";
 const OPTIONS_TOGGLE_W: f32 = 170.0;
 const OPTIONS_TOGGLE_H: f32 = 28.0;
-const CHOICE_SEGMENT_W: f32 = 140.0;
+/// Every dropdown row is three 140-wide segments wide.
+const CHOICE_ROW_W: f32 = 420.0;
 const OPTIONS_TOGGLE_BG: &str = "0.10,0.09,0.08,1.0";
 const OPTIONS_TOGGLE_FILL: &str = "0.43,0.31,0.10,0.92";
 const OPTIONS_TOGGLE_BORDER: &str = "1px solid 0.32,0.24,0.10,0.75";
@@ -86,6 +88,7 @@ pub fn camera_body(camera: &CameraOptionsView) -> Element {
 pub fn interface_body(hud: &HudOptionsView) -> Element {
     content_stack(
         [
+            status_text_row(hud.status_text_display),
             slider_row(
                 "chat_font_size",
                 "Chat Font Size",
@@ -139,21 +142,47 @@ fn accessibility_colorblind_item(colorblind_mode: bool) -> Element {
 /// Retail Accessibility "Interact Key Icons" dropdown (Accessibility.lua:176-221), its
 /// three choices side by side.
 fn interact_key_icons_row(selected: InteractKeyIcons) -> Element {
-    let key = "interact_key_icons";
-    let choices: Element = InteractKeyIcons::ALL
-        .into_iter()
+    let choices = InteractKeyIcons::ALL.map(|choice| (choice.value(), choice.label()));
+    choice_row(
+        "interact_key_icons",
+        "Interact Key Icons",
+        &choices,
+        selected.value(),
+    )
+}
+
+/// Retail Interface → Display "Status Text" dropdown (Interface.lua:57-105), its four
+/// choices side by side.
+fn status_text_row(selected: StatusTextDisplay) -> Element {
+    let choices = StatusTextDisplay::ALL.map(|choice| (choice.value(), choice.label()));
+    choice_row(
+        "status_text_display",
+        "Status Text",
+        &choices,
+        selected.value(),
+    )
+}
+
+/// A dropdown's `(value, label)` choices as one segmented row; the selected one is lit.
+fn choice_row(key: &str, label: &str, choices: &[(u8, &str)], selected: u8) -> Element {
+    let segment_w = CHOICE_ROW_W / choices.len() as f32;
+    let segments: Element = choices
+        .iter()
         .enumerate()
-        .flat_map(|(index, choice)| choice_segment(key, index, choice, choice == selected))
+        .flat_map(|(index, &(value, text))| {
+            let left = segment_w * index as f32;
+            choice_segment(key, (left, segment_w), (value, text), value == selected)
+        })
         .collect();
     rsx! {
         r#frame {
             name: {DynName(format!("ChoiceRow{key}"))},
             width: {OPTIONS_ROW_W},
             height: 44.0,
-            {row_label(&format!("ChoiceLabel{key}"), "Interact Key Icons")}
+            {row_label(&format!("ChoiceLabel{key}"), label)}
             r#frame {
                 name: {DynName(format!("Choice{key}"))},
-                width: {CHOICE_SEGMENT_W * 3.0},
+                width: {CHOICE_ROW_W},
                 height: {OPTIONS_TOGGLE_H},
                 background_color: OPTIONS_TOGGLE_BG,
                 border: OPTIONS_TOGGLE_BORDER,
@@ -163,16 +192,21 @@ fn interact_key_icons_row(selected: InteractKeyIcons) -> Element {
                 translate_x: "-100%",
                 translate_y: "-50%",
                 margin_left: "-8",
-                {choices}
+                {segments}
             }
         }
     }
 }
 
 /// One choice: highlighted when selected, else clickable (`options_toggle:{key}:{value}`).
-fn choice_segment(key: &str, index: usize, choice: InteractKeyIcons, selected: bool) -> Element {
-    let name = format!("Choice{key}{}", choice.value());
-    let action = toggle_action(&format!("{key}:{}", choice.value()));
+fn choice_segment(
+    key: &str,
+    (left, width): (f32, f32),
+    (value, label): (u8, &str),
+    selected: bool,
+) -> Element {
+    let name = format!("Choice{key}{value}");
+    let action = toggle_action(&format!("{key}:{value}"));
     let (fill, text) = if selected {
         (OPTIONS_TOGGLE_FILL, OPTIONS_TOGGLE_TEXT_ACTIVE)
     } else {
@@ -184,7 +218,7 @@ fn choice_segment(key: &str, index: usize, choice: InteractKeyIcons, selected: b
         rsx! {
             r#frame {
                 name: {DynName(format!("{name}Hit"))},
-                width: {CHOICE_SEGMENT_W},
+                width,
                 height: {OPTIONS_TOGGLE_H},
                 onclick: {action.as_str()},
             }
@@ -193,17 +227,17 @@ fn choice_segment(key: &str, index: usize, choice: InteractKeyIcons, selected: b
     rsx! {
         r#frame {
             name: {DynName(name.clone())},
-            width: {CHOICE_SEGMENT_W},
+            width,
             height: {OPTIONS_TOGGLE_H},
             background_color: fill,
             pos_type: "absolute",
-            left: {CHOICE_SEGMENT_W * index as f32},
+            left,
             top: 0.0,
             fontstring {
                 name: {DynName(format!("{name}Label"))},
-                width: {CHOICE_SEGMENT_W},
+                width,
                 height: {OPTIONS_TOGGLE_H},
-                text: {choice.label()},
+                text: label,
                 font_size: 14.0,
                 color: text,
                 justify_h: "CENTER",
@@ -272,6 +306,12 @@ pub fn hud_body(hud: &HudOptionsView) -> Element {
                 "show_target_marker",
                 "Show Target Marker",
                 hud.show_target_marker,
+            ),
+            // `nameplateShowSelf` (Combat: Personal Resource Display, Combat.lua:14-17).
+            toggle_row(
+                "personal_resource_display",
+                "Personal Resource Display",
+                hud.personal_resource_display,
             ),
             // `autoLootDefault` (Controls: Auto Loot); Shift inverts it.
             toggle_row("auto_loot", "Auto Loot", hud.auto_loot),

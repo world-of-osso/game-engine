@@ -3,6 +3,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::faction_reaction::Reaction;
+use crate::status_text_data::StatusBarText;
 use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
 };
@@ -22,6 +23,8 @@ mod inworld_unit_frames_parts;
 mod inworld_unit_frames_pet;
 #[path = "inworld_unit_frames_power.rs"]
 mod inworld_unit_frames_power;
+#[path = "personal_resource_display.rs"]
+pub mod personal_resource_display;
 use class_bars::{ClassBarView, TextureView};
 use inworld_unit_frames_art::{
     AtlasArt, BOSS_GOLD, BOSS_RARE_SILVER, BOSS_RARE_STAR, BOSS_RARE_STAR_SIZE, COMBAT_ICON,
@@ -40,7 +43,8 @@ use inworld_unit_frames_parts::{
 };
 pub use inworld_unit_frames_pet::PetFrameState;
 use inworld_unit_frames_pet::pet_frame;
-pub use inworld_unit_frames_power::PowerBarState;
+pub use inworld_unit_frames_power::{PowerBarState, power_bar_rgb};
+use personal_resource_display::PersonalResourceDisplayState;
 
 pub const ACTION_UNIT_MENU_SET_FOCUS: &str = "unit_menu_set_focus";
 pub const ACTION_UNIT_MENU_CLEAR_FOCUS: &str = "unit_menu_clear_focus";
@@ -110,13 +114,16 @@ pub struct UnitFrameState {
     pub level_text: String,
     /// "r,g,b,a" of the level text: gold, or the target's difficulty colour.
     pub level_color: String,
-    pub health_text: String,
+    /// The health bar's status text (`TextStatusBar`).
+    pub health_text: StatusBarText,
     /// Health fill fraction 0.0..=1.0.
     pub health_fraction: f32,
     pub reaction: Option<Reaction>,
     /// `UnitClassification`: elite and rare art around the target portrait slot.
     pub classification: CreatureClassification,
     pub power: Option<PowerBarState>,
+    /// The power bar's status text.
+    pub power_text: StatusBarText,
     /// The player's class resource bar as drawn this frame ([`class_bars`]).
     pub class_bar: Option<ClassBarView>,
     pub show_combat_icon: bool,
@@ -135,11 +142,12 @@ impl UnitFrameState {
             name: name.into(),
             level_text: String::new(),
             level_color: GOLD_TEXT.to_string(),
-            health_text: String::new(),
+            health_text: StatusBarText::default(),
             health_fraction: 0.0,
             reaction: None,
             classification: CreatureClassification::Normal,
             power: None,
+            power_text: StatusBarText::default(),
             class_bar: None,
             show_combat_icon: false,
             show_resting_icon: false,
@@ -240,6 +248,8 @@ pub struct InWorldUnitFramesState {
     /// `boss1..boss5` (`INSTANCE_ENCOUNTER_ENGAGE_UNIT`), Boss1TargetFrame first.
     pub bosses: Vec<UnitFrameState>,
     pub menu: UnitFrameMenuState,
+    /// PersonalResourceDisplayFrame, when shown.
+    pub personal_resource: Option<PersonalResourceDisplayState>,
 }
 
 pub fn fraction(current: f32, max: f32) -> f32 {
@@ -282,6 +292,7 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state))}
             {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref())}
             {boss_frames(&state.bosses)}
+            {personal_resource_display::frame(state.personal_resource.as_ref())}
             {unit_frame_menu(&state.menu)}
             {difficulty_menu(state.menu.difficulty_menu.as_ref())}
         }
@@ -503,7 +514,6 @@ fn unit_frame_contents(
     slots: &FrameSlots,
     health_art: AtlasArt,
 ) -> Element {
-    let power_text = state.power.as_ref().map(PowerBarState::text);
     let power_fraction = state.power.as_ref().map_or(0.0, |power| {
         fraction(power.current as f32, power.max as f32)
     });
@@ -516,6 +526,7 @@ fn unit_frame_contents(
             fraction: state.health_fraction,
             art: Some(health_art),
             text: &state.health_text,
+            anchors: slots.health_text,
             font_size: UNIT_FONT_SIZE,
             hidden: false,
         })}
@@ -524,7 +535,8 @@ fn unit_frame_contents(
             rect: slots.power,
             fraction: power_fraction,
             art: state.power.as_ref().and_then(|power| power_bar_art(power.power)),
-            text: power_text.as_deref().unwrap_or_default(),
+            text: &state.power_text,
+            anchors: slots.power_text,
             font_size: UNIT_FONT_SIZE - 1.0,
             hidden: state.power.is_none(),
         })}
@@ -539,7 +551,11 @@ fn class_bar(view: Option<&ClassBarView>) -> Element {
     };
     let (width, height) = view.size;
     let (top_padding, left_padding) = view.padding;
-    let textures: Element = view.textures.iter().flat_map(class_bar_texture).collect();
+    let textures: Element = view
+        .textures
+        .iter()
+        .flat_map(|texture| class_bar_texture("", texture))
+        .collect();
     rsx! {
         r#frame {
             name: "PlayerSecondaryResourceRow",
@@ -553,15 +569,17 @@ fn class_bar(view: Option<&ClassBarView>) -> Element {
     }
 }
 
-/// One class bar texture at its alpha; hidden while not shown or fully transparent. A
-/// Cooldown swipe is an empty frame the client fills with its radial swipe.
-fn class_bar_texture(texture: &TextureView) -> Element {
+/// One class bar texture at its alpha, named `prefix` + its name; hidden while not shown
+/// or fully transparent. A Cooldown swipe is an empty frame the client fills with its
+/// radial swipe.
+fn class_bar_texture(prefix: &str, texture: &TextureView) -> Element {
+    let name = dyn_name(format!("{prefix}{}", texture.name));
     if texture.swipe.is_some() {
         let (x, y, width, height) = texture.rect;
         let hidden = !texture.shown;
         return rsx! {
             r#frame {
-                name: {dyn_name(texture.name.clone())},
+                name,
                 width,
                 height,
                 hidden,
@@ -571,7 +589,6 @@ fn class_bar_texture(texture: &TextureView) -> Element {
             }
         };
     }
-    let name = dyn_name(texture.name.clone());
     let (x, y, width, height) = texture.rect;
     let coords = texture.art.tex_coords(1.0);
     let color = format!("1.0,1.0,1.0,{}", texture.alpha);
@@ -653,7 +670,8 @@ fn small_unit_contents(spec: &SmallFrameSpec, unit: &SmallUnitFrameState) -> Ele
             rect: scaled(PORTRAIT_OFF_SLOTS.health, scale),
             fraction: unit.health_fraction,
             art: Some(HEALTH_BAR),
-            text: "",
+            text: &StatusBarText::default(),
+            anchors: PORTRAIT_OFF_SLOTS.health_text,
             font_size: UNIT_FONT_SIZE * scale,
             hidden: false,
         })}

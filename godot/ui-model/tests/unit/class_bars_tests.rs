@@ -184,6 +184,7 @@ fn registry_with(view: ClassBarView) -> FrameRegistry {
         pet: None,
         bosses: Vec::new(),
         menu: UnitFrameMenuState::default(),
+        personal_resource: None,
     };
     state.player.power = Some(PowerBarState {
         power: shared::components::PowerType::Mana,

@@ -91,9 +91,9 @@ Terrain layer UV animation reads Bevy's shared virtual shader clock (`globals.ti
 
 Doodad solidity uses authored M2 collision triangles, not render/visual bounds. The M2 parser reads collision bounds, u16 triangle indices, and vertices; placements share the parsed geometry. A world-space AABB narrows candidates, then a backface-inclusive triangle ray test decides a hit through the placement affine transform. Starting inside the broadphase box is not a collision by itself.
 
-Models with no authored collision indices create no solid doodad collider. There is no visual-bounds fallback. `DoodadVisualBounds` independently retains the visual extent for zone-transition/contact interactions, so non-solid doodads can still publish those bounds.
+Unannotated models with no authored collision indices create no solid doodad collider. There is no visual-bounds fallback. `DoodadVisualBounds` independently retains the visual extent for zone-transition/contact interactions, so non-solid doodads can still publish those bounds.
 
-Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowee-collision.md) remain reference material for broader collision design.
+Native annotated ADT trees instead attach fixed trunk/bendable limb capsules and skip ordinary authored-triangle camera bodies. Flying movement uses a separate swept contact path; foliage has no collider. Source integration and provisional authoring are documented in [[elastic-trees]]; runtime acceptance remains pending. Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowee-collision.md) remain reference material for broader collision design.
 
 ## Known Issues
 
@@ -120,4 +120,5 @@ Terrain and WMO collision behavior is unchanged. [WoWee collision notes](../wowe
 - [[asset-pipeline]] — CASC extraction for ADT and companion files
 - [[character-rendering]] — character models spawned from ADT doodad placement
 - [[collision-system]] — broader collision design and remaining layers
+- [[elastic-trees]] — annotated doodad collision, deformation and unload ownership
 - [[npc-motion-validation]] — bounded stream, WMO-basis, and grounded-walk evidence
