@@ -6,9 +6,9 @@ extends SceneTree
 # vertex of its sequence.
 # creature/owl/owl.m2: no bone track runs on a global sequence, so each pose is the
 # sequence's own.
-const DATA := "res://../data/models/125378.m2"
+const OWL := "res://../data/models/125378.m2"
 # owl.m2 M2Sequence bounds (min xyz, max xyz) per sequence index, WoW axes.
-const SEQUENCE_BOUNDS := [
+const OWL_BOUNDS := [
 	[-2.591072, -2.98111, 0.2193217, 1.547392, 3.062344, 6.303792],
 	[-2.591072, -2.98111, 0.2193217, 1.547392, 3.062344, 6.303792],
 	[-2.591072, -2.98111, 0.2193217, 1.547392, 3.062344, 6.303792],
@@ -41,12 +41,36 @@ const SEQUENCE_BOUNDS := [
 	[-2.036306, -3.385216, -0.1711365, 1.357963, 3.385215, 1.192325],
 	[-2.036306, -3.385216, -0.1711365, 1.357963, 3.385215, 1.192325],
 ]
-# Stand (animation 0, variation 0) is the sequence a loaded model plays.
-const STAND := 0
+# creature/boar/boar.m2: root bone 0 (pivot x -0.282) translates x +0.282 on global
+# sequence 1, keyed only in timeline 0; every sequence's bounds include it.
+const BOAR := "res://../data/models/boar.m2"
+const BOAR_BOUNDS := [
+	[-1.726403, -0.5548675, -0.03874029, 1.997907, 0.6349198, 2.177546],
+	[-1.156953, -0.452104, -0.0280929, 1.783582, 0.4520297, 2.095408],
+	[-1.40088, -0.4906308, -0.04115301, 1.798844, 0.5034214, 2.03946],
+	[-1.207575, -1.01305, -0.1516759, 2.999217, 0.5954136, 2.241199],
+	[-1.299169, -0.8180271, -0.1860881, 2.666161, 0.7006209, 2.305634],
+	[-1.699293, -1.032954, -0.02809412, 1.745816, 1.154383, 2.066858],
+	[-2.363588, -0.7746127, -0.09942739, 1.745816, 2.170983, 2.066858],
+	[-1.894735, -1.342723, -0.02809337, 1.745481, 0.8120615, 2.06389],
+	[-1.750982, -1.117696, -0.3745092, 1.943876, 1.560557, 2.168841],
+	[-1.655347, -1.327324, -0.02813705, 1.747189, 1.618923, 2.115901],
+	[-1.853935, -0.4344849, -0.4125419, 1.677978, 0.4550636, 2.444112],
+	[-1.820788, -0.491787, -0.2857573, 1.747213, 0.5221748, 2.471987],
+	[-1.933008, -0.4331515, -0.06284507, 1.370816, 0.4583513, 2.103845],
+	[-2.003383, -0.5104572, -0.2291575, 1.608948, 0.4999057, 2.038019],
+	[-1.478665, -0.5284975, -0.8087125, 1.234046, 0.5111005, 2.199663],
+	[-1.995018, -0.8537464, -1.123487, 1.078402, 0.8409551, 2.290086],
+	[-2.277039, -0.5474126, -0.9969122, 0.7471374, 0.5572421, 1.484951],
+]
+# Stand (animation 0, variation 0) is the sequence a loaded model plays: owl index 0,
+# boar index 1 (after Run).
+const OWL_STAND := 0
+const BOAR_STAND := 1
 # Past the longest (400 ms) crossfade from the previous sequence's pose.
 const SETTLE_MS := 500.0
 const STEP_MS := 100.0
-# Non-looping: 7 s covers the longest owl sequence, then holds its last frame.
+# Non-looping: 7 s covers the longest owl (and boar) sequence, then holds its last frame.
 const STEPS := 70
 # Interpolated poses pass the authored boxes by up to 0.004 (owl EmoteExclamation).
 const TOLERANCE := 0.01
@@ -98,8 +122,8 @@ func posed_vertices(batch: MeshInstance3D, skeleton: Skeleton3D) -> PackedVector
 		posed.append(position)
 	return posed
 
-func expect_box(batches: Array[MeshInstance3D], sequence: int, when: String) -> bool:
-	var expected := godot_box(SEQUENCE_BOUNDS[sequence])
+func expect_box(batches: Array[MeshInstance3D], bounds: Array, sequence: int, when: String) -> bool:
+	var expected := godot_box(bounds[sequence])
 	for batch in batches:
 		if not batch.custom_aabb.is_equal_approx(expected):
 			fail("%s: %s custom AABB %s, expected sequence %d bounds %s" % [when, batch.name, batch.custom_aabb, sequence, expected])
@@ -107,44 +131,49 @@ func expect_box(batches: Array[MeshInstance3D], sequence: int, when: String) -> 
 	return true
 
 func _initialize() -> void:
-	var loaded: Dictionary = ClassDB.instantiate("WowAssetLoader").load_m2(DATA)
+	if check_model("owl", OWL, OWL_BOUNDS, OWL_STAND) and check_model("boar", BOAR, BOAR_BOUNDS, BOAR_STAND):
+		quit(0)
+
+func check_model(label: String, path: String, bounds: Array, stand: int) -> bool:
+	var loaded: Dictionary = ClassDB.instantiate("WowAssetLoader").load_m2(path)
 	if loaded.has("error"):
-		fail("owl: " + loaded.error)
-		return
+		fail(label + ": " + loaded.error)
+		return false
 	var root: Node3D = loaded.node
 	get_root().add_child(root)
 	var skeleton := root.get_node("Skeleton3D") as Skeleton3D
 	var player := root.get_node("M2Animation")
 	var batches := skinned_batches(root)
 	if batches.is_empty():
-		fail("owl has no skinned batches")
-		return
-	if not expect_box(batches, STAND, "loaded"):
-		return
+		fail(label + " has no skinned batches")
+		return false
+	if not expect_box(batches, bounds, stand, label + " loaded"):
+		return false
 	var rest := AABB()
 	for batch in batches:
 		rest = batch.mesh.get_aabb() if rest.size == Vector3.ZERO else rest.merge(batch.mesh.get_aabb())
 	var sequences := 0
 	var beyond_rest := 0.0
 	while player.play_sequence(sequences, false):
-		if not expect_box(batches, sequences, "play_sequence(%d)" % sequences):
-			return
+		if not expect_box(batches, bounds, sequences, "%s play_sequence(%d)" % [label, sequences]):
+			return false
 		player.advance_time_ms(SETTLE_MS)
 		for step in STEPS:
 			player.advance_time_ms(STEP_MS)
-			var box := godot_box(SEQUENCE_BOUNDS[sequences]).grow(TOLERANCE)
+			var box := godot_box(bounds[sequences]).grow(TOLERANCE)
 			for batch in batches:
 				for position in posed_vertices(batch, skeleton):
 					if not box.has_point(position):
-						fail("sequence %d at %d ms: %s vertex %s outside its bounds %s" % [sequences, SETTLE_MS + (step + 1) * STEP_MS, batch.name, position, box])
-						return
+						fail("%s sequence %d at %d ms: %s vertex %s outside its bounds %s" % [label, sequences, SETTLE_MS + (step + 1) * STEP_MS, batch.name, position, box])
+						return false
 					beyond_rest = max(beyond_rest, position.distance_to(position.clamp(rest.position, rest.end)))
 		sequences += 1
-	if sequences != SEQUENCE_BOUNDS.size():
-		fail("expected %d owl sequences, played %d" % [SEQUENCE_BOUNDS.size(), sequences])
-		return
+	if sequences != bounds.size():
+		fail("expected %d %s sequences, played %d" % [bounds.size(), label, sequences])
+		return false
 	if beyond_rest < 0.05:
-		fail("owl animation never left its rest-pose AABB (max %.3f)" % beyond_rest)
-		return
-	print("PASS: %d skinned batches use each of %d sequences' bounds; posed vertices stay inside, reaching %.3f beyond the rest AABB" % [batches.size(), sequences, beyond_rest])
-	quit(0)
+		fail("%s animation never left its rest-pose AABB (max %.3f)" % [label, beyond_rest])
+		return false
+	print("PASS: %s: %d skinned batches use each of %d sequences' bounds; posed vertices stay inside, reaching %.3f beyond the rest AABB" % [label, batches.size(), sequences, beyond_rest])
+	root.free()
+	return true
