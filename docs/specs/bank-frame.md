@@ -33,6 +33,26 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
 - [x] Warband bank only: the money frame, 394×25 at BOTTOMRIGHT −3,3, with ThinGoldEdge 178×19, the stored money, and Withdraw and Deposit buttons (105×21).
 - [x] Deposit All button (256×24): `Deposit All Reagents` in the character bank, `Deposit All Warbound Items` in the Warband bank. The Warband bank also shows the "Include tradeable reagents" checkbox.
 
+### Skin art
+- Dedicated bank textures resolve Blizzard atlas element names through `ui_toolkit::atlas::resolve_region`; Modern keeps the exact pre-conversion FDIDs, UVs, geometry and frame tree.
+- Forever uses `bank-frame-background`, `bags-item-bankslot64` for character slots, `bank-frame-item-slotframe` over item icons, and the scaled `bank-divider`. Warband slot art and purchase-tab art retain their set-0 members. The tinted purchase-prompt background resolves `bags-item-slot64`.
+- Camelot art does not change the 98-slot grid, slot actions, tabs or purchase/money state. Its 88-slot page cap and uniform spacing are behavior, excluded from this art conversion.
+- Standalone container windows have solid backgrounds and dynamic item icons, no hard-coded chrome crops to convert; their Modern and Forever trees stay identical.
+
+Source roots: Retail / Forever = `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowforever}/AddOns/Blizzard_UIPanels_Game/`. M / F = `data/db2/{12.1.0.69933,1.60.1.69913}/UiTextureAtlasMember.csv`. Atlas sheet FDIDs come from those builds' `UiTextureAtlas.csv`.
+
+| Name | UI source | Member rows M / F | Modern / Forever FDID |
+|---|---|---|---|
+| `bank-frame-background` | Retail `Mainline/BankFrame.xml:677` | 11422 / 17833 | 5782252 / 8118796 |
+| `bags-item-slot64`; `bags-item-bankslot64` | Retail `Mainline/BankFrame.xml:571`, `.lua:586`; Forever `Camelot/BankFrame.xml:36` | 7767 / 18117; bankslot F:17832 | 4701874 / 8187737; Forever character slots 8118792 |
+| `warband-bank-slot` | Retail `Mainline/BankFrame.lua:582` | 11547 / 11565 (set 0) | 5782246 / 5782246 |
+| `bags-icon-addslots` | Existing purchase-tab crop, M/F member:2883 (no BankFrame XML/Lua name literal) | 2883 / 2883 | 969828 / 969828 |
+| `bank-frame-item-slotframe`; `bank-divider` | Forever `Camelot/BankFrame.xml:34`; `:76-79` (scale 0.48, BOTTOM +220) | absent / 18121; absent / 18118 | absent / 8188339 |
+
+Sheet rows M:84,1346,1772,1774; F:2616,2617,2689,2690. Forever divider's 864×32 member becomes 414.72×15.36 at (161.64,224.64) in the existing 738×460 frame.
+
+Known missing local BLPs: **8118796, 8118792, 8188339**. Resolution is not guarded or substituted when these files are absent. Ordinary slot sheet 8187737 exists.
+
 ### Actions
 - [x] Right-clicking a filled slot sends `BankWithdraw` for the shown bank and tab.
 - [x] Right-clicking a bag item while the bank is open sends `BankDeposit` into the shown bank's selected tab. Nothing is sent while the purchase prompt shows.
@@ -65,6 +85,7 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
 | `src/scenes/bag_frame/mod.rs` | Right-click deposit (`use_bag_item`) |
 
 ## Tests asserting this spec
+- `godot/ui-model/tests/forever_bank_bags.rs`: concrete Modern/Forever atlas regions, Forever divider/item chrome and unchanged slot actions, 1630-line byte-identical Modern bank/container fixture, unchanged container trees across skins.
 - `godot/ui-model/src/game/bank_data_tests.rs`
 - `src/game/networking/bank_tests.rs`
 - `src/scenes/bank_frame/tests.rs`
@@ -72,6 +93,7 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
 - `src/scenes/bag_frame/mod.rs` (`right_clicking_a_bag_item_deposits_into_the_open_bank_tab`)
 
 ## Known gaps (current cycle)
+- [ ] Camelot bank-bag template art: `bank-frame-bag-slotframe`, `bankslot-icon-lock`, `bank-frame-bag-slot-bg` (`Camelot/BankFrame.xml:5,11,14`; F members:18120,18122,18119) resolves on sheet 8188339 but is not drawn: existing `BankFrameState` has no bank-bag slots, slot-purchase/lock or cost state. BagText/BagCost labels likewise remain unimplemented. Purchased bank-page side tabs are not bank bags; inventing state or behavior is outside this art-only pass.
 - [ ] Selected-tab highlight: Retail blends `CheckButtonHilight` additively (ADD). The ui-toolkit texture renderer has no additive blending, so a gold-tinted UI-Quickslot2 marks the selected tab instead.
 - [ ] Background and edge shadows are stretched, not tiled (the ui-toolkit has no tiling attribute for FDID textures); the edge shadow atlases are not drawn.
 
