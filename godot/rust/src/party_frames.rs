@@ -15,10 +15,11 @@ use game_engine_ui_model::compact_unit_frame_component::{
 use game_engine_ui_model::damage_meter_data::class_color;
 use game_engine_ui_model::group_frames_component::{GroupFramesState, RAID_GROUPS};
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
+use game_engine_ui_model::inworld_unit_frames_component::power_bar_rgb;
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec, PopupStack};
 use game_engine_ui_model::static_popup_component::{StaticPopupState, parse_popup_action};
 use godot::prelude::*;
-use shared::components::{Player, PowerType};
+use shared::components::Player;
 use shared::death::DeathState;
 use shared::protocol::{GROUP_INVITE_TIMEOUT_SECS, GroupMemberSnapshot};
 
@@ -158,23 +159,6 @@ fn fraction(current: i64, max: i64) -> f32 {
         return 0.0;
     }
     (current as f32 / max as f32).clamp(0.0, 1.0)
-}
-
-/// `PowerBarColor` (PowerBarColorUtil.lua:18-33); others take mana's colour as Retail
-/// does for tokens without an entry (CompactUnitFrame.lua:780-786).
-fn power_bar_rgb(power: PowerType) -> [f32; 3] {
-    match power {
-        PowerType::Rage => [1.0, 0.0, 0.0],
-        PowerType::Focus => [1.0, 0.5, 0.25],
-        PowerType::Energy => [1.0, 1.0, 0.0],
-        PowerType::RunicPower => [0.0, 0.82, 1.0],
-        PowerType::LunarPower => [0.30, 0.52, 0.90],
-        PowerType::Maelstrom => [0.0, 0.5, 1.0],
-        PowerType::Insanity => [0.40, 0.0, 0.80],
-        PowerType::Fury => [0.788, 0.259, 0.992],
-        PowerType::Pain => [1.0, 156.0 / 255.0, 0.0],
-        _ => [0.0, 0.0, 1.0],
-    }
 }
 
 /// `PARTY_INVITE`: "%s invites you to a group." (`INVITATION`), Accept / Decline, 60 s.
@@ -395,7 +379,7 @@ impl GameClient {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use shared::components::{AuraView, Position, PowerEntry};
+    use shared::components::{AuraView, Position, PowerEntry, PowerType};
     use shared::protocol::{GroupMemberState, GroupRoleSnapshot, GroupRosterSnapshot};
 
     fn member(name: &str, class: u8, online: bool) -> GroupMemberSnapshot {

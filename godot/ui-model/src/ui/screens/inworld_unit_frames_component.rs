@@ -23,6 +23,8 @@ mod inworld_unit_frames_parts;
 mod inworld_unit_frames_pet;
 #[path = "inworld_unit_frames_power.rs"]
 mod inworld_unit_frames_power;
+#[path = "personal_resource_display.rs"]
+pub mod personal_resource_display;
 use class_bars::{ClassBarView, TextureView};
 use inworld_unit_frames_art::{
     AtlasArt, BOSS_GOLD, BOSS_RARE_SILVER, BOSS_RARE_STAR, BOSS_RARE_STAR_SIZE, COMBAT_ICON,
@@ -41,7 +43,8 @@ use inworld_unit_frames_parts::{
 };
 pub use inworld_unit_frames_pet::PetFrameState;
 use inworld_unit_frames_pet::pet_frame;
-pub use inworld_unit_frames_power::PowerBarState;
+pub use inworld_unit_frames_power::{PowerBarState, power_bar_rgb};
+use personal_resource_display::PersonalResourceDisplayState;
 
 pub const ACTION_UNIT_MENU_SET_FOCUS: &str = "unit_menu_set_focus";
 pub const ACTION_UNIT_MENU_CLEAR_FOCUS: &str = "unit_menu_clear_focus";
@@ -245,6 +248,8 @@ pub struct InWorldUnitFramesState {
     /// `boss1..boss5` (`INSTANCE_ENCOUNTER_ENGAGE_UNIT`), Boss1TargetFrame first.
     pub bosses: Vec<UnitFrameState>,
     pub menu: UnitFrameMenuState,
+    /// PersonalResourceDisplayFrame, when shown.
+    pub personal_resource: Option<PersonalResourceDisplayState>,
 }
 
 pub fn fraction(current: f32, max: f32) -> f32 {
@@ -287,6 +292,7 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state))}
             {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref())}
             {boss_frames(&state.bosses)}
+            {personal_resource_display::frame(state.personal_resource.as_ref())}
             {unit_frame_menu(&state.menu)}
             {difficulty_menu(state.menu.difficulty_menu.as_ref())}
         }
@@ -545,7 +551,11 @@ fn class_bar(view: Option<&ClassBarView>) -> Element {
     };
     let (width, height) = view.size;
     let (top_padding, left_padding) = view.padding;
-    let textures: Element = view.textures.iter().flat_map(class_bar_texture).collect();
+    let textures: Element = view
+        .textures
+        .iter()
+        .flat_map(|texture| class_bar_texture("", texture))
+        .collect();
     rsx! {
         r#frame {
             name: "PlayerSecondaryResourceRow",
@@ -559,15 +569,17 @@ fn class_bar(view: Option<&ClassBarView>) -> Element {
     }
 }
 
-/// One class bar texture at its alpha; hidden while not shown or fully transparent. A
-/// Cooldown swipe is an empty frame the client fills with its radial swipe.
-fn class_bar_texture(texture: &TextureView) -> Element {
+/// One class bar texture at its alpha, named `prefix` + its name; hidden while not shown
+/// or fully transparent. A Cooldown swipe is an empty frame the client fills with its
+/// radial swipe.
+fn class_bar_texture(prefix: &str, texture: &TextureView) -> Element {
+    let name = dyn_name(format!("{prefix}{}", texture.name));
     if texture.swipe.is_some() {
         let (x, y, width, height) = texture.rect;
         let hidden = !texture.shown;
         return rsx! {
             r#frame {
-                name: {dyn_name(texture.name.clone())},
+                name,
                 width,
                 height,
                 hidden,
@@ -577,7 +589,6 @@ fn class_bar_texture(texture: &TextureView) -> Element {
             }
         };
     }
-    let name = dyn_name(texture.name.clone());
     let (x, y, width, height) = texture.rect;
     let coords = texture.art.tex_coords(1.0);
     let color = format!("1.0,1.0,1.0,{}", texture.alpha);

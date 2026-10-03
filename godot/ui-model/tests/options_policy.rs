@@ -146,6 +146,21 @@ fn interact_key_icons_choice_projects_and_commits_the_icon_cvars() {
     );
 }
 
+/// Combat "Personal Resource Display" is `nameplateShowSelf`, off by default (cvars.yaml
+/// `nameplateShowSelf: '0'`); toggling it persists through Apply.
+#[test]
+fn personal_resource_display_toggle_persists() {
+    let mut m = model();
+    m.category = OptionsCategory::Hud;
+    assert!(!build_view_model(&m).options.hud.personal_resource_display);
+    assert!(apply_toggle("personal_resource_display", &mut m));
+    assert!(build_view_model(&m).options.hud.personal_resource_display);
+    let snapshot = apply_snapshot(&mut m);
+    let mut hud = HudOptionsFile::default();
+    apply_hud_file_snapshot(&mut hud, &snapshot.hud);
+    assert!(hud.personal_resource_display);
+}
+
 #[test]
 fn status_text_choice_projects_and_commits_status_text_display() {
     use game_engine_core::status_text_data::StatusTextDisplay;
