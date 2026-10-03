@@ -17,9 +17,10 @@ use game_engine_ui_model::damage_meter_data::DamageMeterView;
 use game_engine_ui_model::group_frames_component::{
     GroupFramesState, PARTY_FRAME, RAID_FRAME, group_frames_screen,
 };
+use game_engine_ui_model::inworld_unit_frames_component::class_bars::settled_view;
 use game_engine_ui_model::inworld_unit_frames_component::{
-    InWorldUnitFramesState, PetFrameState, SmallUnitFrameState, UnitFrameMenuState, UnitFrameState,
-    inworld_unit_frames_screen,
+    InWorldUnitFramesState, PetFrameState, PowerBarState, SmallUnitFrameState, UnitFrameMenuState,
+    UnitFrameState, inworld_unit_frames_screen,
 };
 use game_engine_ui_model::main_action_bar_component::{
     MAIN_ACTION_BAR, MainActionBarState, main_action_bar_screen,
@@ -29,6 +30,8 @@ use game_engine_ui_model::minimap::{MINIMAP_CLUSTER, MinimapClusterState, minima
 use game_engine_ui_model::objective_tracker_component::{
     ObjectiveTrackerState, TRACKER_FRAME, objective_tracker_screen,
 };
+use game_engine_ui_model::status::{ClassBar, ClassBarResource};
+use shared::components::PowerType;
 use shared::protocol::GroupRoleSnapshot;
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::layout::LayoutRect;
@@ -95,10 +98,7 @@ fn unit_frames() -> InWorldUnitFramesState {
 /// Every HUD canvas with each positioned frame shown.
 fn hud() -> Vec<RegistryModel> {
     // The objective tracker measures its header text.
-    game_engine_ui_model::paths::set_data_root(
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
-    )
-    .unwrap();
+    set_data_root();
     let groups = GroupFramesState {
         party: vec![member("Fbhud")],
         raid: vec![vec![member("Fbhud")]],
@@ -120,6 +120,14 @@ fn hud() -> Vec<RegistryModel> {
         model(DamageMeterView::default(), damage_meter_screen),
         model(ObjectiveTrackerState::default(), objective_tracker_screen),
     ]
+}
+
+/// Atlas tables and fonts load from the checkout's `data/`.
+fn set_data_root() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
 }
 
 fn sync(hud: &mut [RegistryModel], skin: ActiveSkin) {
@@ -219,4 +227,36 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
 
     sync(&mut hud, ActiveSkin::Modern);
     assert_modern(&hud);
+}
+
+/// Retail Arcane Charges: `PlayerFrameBottomManagedFramesContainer` top 4 px below the
+/// 124-wide mana bar (PlayerFrame.lua:716-718,758) plus the bar's `topPadding` 7
+/// (MageArcaneChargesBar.xml:134), centred 1 px left of the mana bar; four 21 px charges
+/// 10 px apart (MageArcaneChargesBar.xml:6,125).
+#[test]
+fn arcane_charges_hang_below_the_mana_bar_clear_of_its_text() {
+    set_data_root();
+    let arcane = ClassBarResource {
+        bar: ClassBar::ArcaneCharges,
+        current: 0,
+        max: 4,
+        tenths: 0,
+        dynamics: Default::default(),
+        spec: None,
+        in_combat: false,
+    };
+    let mut frames = unit_frames();
+    frames.player.power = Some(PowerBarState {
+        power: PowerType::Mana,
+        current: 1000,
+        max: 1000,
+    });
+    frames.player.class_bar = settled_view(&arcane);
+    let mut hud = [model(frames, inworld_unit_frames_screen)];
+    sync(&mut hud, ActiveSkin::Modern);
+    let mana = rect(&hud, "PlayerManaBar");
+    let row = rect(&hud, "PlayerSecondaryResourceRow");
+    assert_eq!(row.y, mana.y + mana.height + 11.0);
+    assert_eq!(row.x + row.width / 2.0, mana.x + mana.width / 2.0 - 1.0);
+    assert_eq!((row.width, row.height), (4.0 * 21.0 + 3.0 * 10.0, 21.0));
 }
