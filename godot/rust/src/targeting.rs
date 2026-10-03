@@ -634,6 +634,9 @@ impl GameClient {
                 .unwrap_or_default()
                 .as_str(),
         );
+        if let Some(icon) = target.and_then(|id| self.raid_target_of(id)) {
+            state.set("raid_target", i64::from(icon));
+        }
         state.set("level_text", self.targeting.frame_texts.0.as_str());
         state.set("health_text", self.targeting.frame_texts.1.as_str());
         state.set("sent", &optional_id(self.targeting.sent));
