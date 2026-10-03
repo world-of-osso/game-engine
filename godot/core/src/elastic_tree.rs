@@ -90,14 +90,13 @@ fn validate_branch(branch: &BranchAnnotation) -> Result<(), String> {
     if branch.name.trim().is_empty() {
         return Err("name must not be empty".into());
     }
-    if !branch.stiffness.is_finite()
-        || branch.stiffness <= 0.
-        || !branch.damping.is_finite()
-        || branch.damping < 0.
-        || !branch.max_angle.is_finite()
-        || branch.max_angle <= 0.
-        || branch.max_angle > std::f32::consts::PI
-    {
+    let valid_stiffness = branch.stiffness.is_finite() && branch.stiffness > 0.;
+    let valid_damping = branch.damping.is_finite() && branch.damping >= 0.;
+    let valid_angle = branch.max_angle > 0. && branch.max_angle <= std::f32::consts::PI;
+    let valid_settings = [valid_stiffness, valid_damping, valid_angle]
+        .into_iter()
+        .all(|valid| valid);
+    if !valid_settings {
         return Err(
             "stiffness must be positive, damping nonnegative, max_angle in (0, pi]; all finite"
                 .into(),
