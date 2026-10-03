@@ -19,7 +19,7 @@ use crate::ui::chat_frame::{
     ChatFrameState, ChatRow, ChatRun, ChatTab, CombatLogChat, local_timestamp, messages_that_fit,
     tab_entries, wrap_chat_line,
 };
-use crate::ui::widgets::font_string::{FontColor, GameFont};
+use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 pub const CHAT_FRAME: FrameName = FrameName("ChatFrame1");
 pub const CHAT_EDITBOX: FrameName = FrameName("ChatFrame1EditBox");
