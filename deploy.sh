@@ -1,36 +1,200 @@
 #!/usr/bin/env bash
+# Builds the Linux x86_64 Godot client bundle and publishes it to the world-of-osso file
+# server: files to DigitalOcean Spaces, manifest to sakuin, where game-launcher reads it.
+# See docs/deploy.md for the bundle layout and the game-launcher contract.
+#
+# Usage: ./deploy.sh [--dry-run]
+#   --dry-run  build and assemble the bundle, then print the publish commands instead of
+#              running them.
 set -euo pipefail
 
-SERVER="sakuin"
-REMOTE_DIR="/docker-volumes/file-server/data"
-SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+ROOT=$(cd "$(dirname "$0")" && pwd)
+PLATFORM=linux-x86_64
+BUNDLE=${BUNDLE_DIR:-$ROOT/target/deploy/$PLATFORM}
+FILE_SERVER_DIR=${FILE_SERVER_DIR:-$ROOT/../file-server}
+SAKUIN_REPO=${SAKUIN_REPO:-/syncthing/Sync/Projects/sakuin}
+SAKUIN_AGE_IDENTITY=${SAKUIN_AGE_IDENTITY:-$SAKUIN_REPO/docs/local/sakuin_host_ed25519}
+SERVER=${SERVER:-sakuin}
+REMOTE_MANIFEST=${REMOTE_MANIFEST:-/var/lib/private/file-server/manifest.json}
 
-echo "=== Building game-engine (release) ==="
-cargo build --release --no-default-features --features ipc,casc --manifest-path "$SCRIPT_DIR/Cargo.toml"
+# Runtime data: what the client reads from data/ that a player's WoW install cannot supply.
+# An allowlist, because data/ also holds auth tokens and gigabytes of diagnostics.
+DATA_DIRS=(cache campsite-ui db2 dbfilesclient fogs fonts glues item-models los minimap
+    models music reference sounds tactkeys terrain textures ui)
+DATA_FILE_GLOBS=('*.csv' '*.ron' local-listfile-cache.sqlite)
+# Inside those: negative-extraction markers, lock files, superseded resolver/NPC caches.
+DATA_EXCLUDES=('*.missing' '*.lock' cache/casc 'cache/pre-retail-*')
 
-PLATFORM="linux-x86_64"
-case "$(uname -s)-$(uname -m)" in
-  Linux-x86_64)   PLATFORM="linux-x86_64" ;;
-  Darwin-arm64)   PLATFORM="macos-aarch64" ;;
-  Darwin-x86_64)  PLATFORM="macos-x86_64" ;;
-  MINGW*|MSYS*|CYGWIN*)  PLATFORM="windows-x86_64" ;;
+dry_run=0
+case "${1:-}" in
+    --dry-run) dry_run=1 ;;
+    "") ;;
+    *) echo "usage: $0 [--dry-run]" >&2; exit 2 ;;
 esac
 
-echo "=== Syncing game-engine binary ($PLATFORM) ==="
-ssh "$SERVER" "rm -f $REMOTE_DIR/game-engine-${PLATFORM}*"
-scp "$SCRIPT_DIR/target/release/game-engine" "$SERVER:$REMOTE_DIR/game-engine-${PLATFORM}"
+if [ "$(uname -s)-$(uname -m)" != Linux-x86_64 ]; then
+    echo "deploy.sh builds the $PLATFORM bundle only; see docs/deploy.md for other platforms" >&2
+    exit 1
+fi
 
-echo "=== Syncing data directory ==="
-rsync -avz --delete \
-    --exclude='*.lock' \
-    --exclude='*.webp' \
-    --exclude='*.png' \
-    --exclude='screenshots/' \
-    "$SCRIPT_DIR/data/" "$SERVER:$REMOTE_DIR/data/"
+# pinned_godot: the patched Godot the launcher pins, checksum-verified.
+pinned_godot() {
+    . "$ROOT/scripts/godot/pinned.sh"
+    local expected
+    expected=$(cat "$ROOT/scripts/godot/godot-$GODOT_PINNED_VERSION.sha512")
+    if [ ! -x "$GODOT_PINNED" ] || [ "$(sha512sum "$GODOT_PINNED" | cut -d' ' -f1)" != "$expected" ]; then
+        echo "Godot $GODOT_PINNED_VERSION missing or not the pinned build at $GODOT_PINNED;" \
+            "run scripts/godot/build-patched-godot.sh" >&2
+        exit 1
+    fi
+    echo "$GODOT_PINNED"
+}
 
-echo "=== Generating manifest on server ==="
-ssh "$SERVER" "cd /repos/sakuin/ops && docker compose run --rm file-server manifest /data"
+# project_files: tracked Godot project files, without the Rust crates, tests, and the dev
+# .gdextension that points into target/.
+project_files() {
+    local crates
+    crates=$(git -C "$ROOT" ls-files 'godot/*/Cargo.toml' | sed 's|Cargo.toml$||')
+    git -C "$ROOT" ls-files godot | grep -v -F "$crates" \
+        | grep -v -E '^godot/(tests/|Cargo\.|\.gitignore$|depot-test-assets\.txt$|game_engine\.gdextension)'
+}
 
+write_launcher() {
+    cat > "$BUNDLE/game-engine-$PLATFORM" <<'EOF'
+#!/bin/sh
+# World of Osso client. Every argument is a client option (--server, --screen, --char).
+set -eu
+here=$(dirname "$(readlink -f "$0")")
+# game-launcher downloads files without their mode bits.
+chmod +x "$here/runtime/godot"
+exec "$here/runtime/godot" --path "$here/godot" -- "$@"
+EOF
+    chmod +x "$BUNDLE/game-engine-$PLATFORM"
+}
+
+write_extension_config() {
+    cat > "$BUNDLE/godot/game_engine.gdextension" <<'EOF'
+[configuration]
+entry_symbol = "gdext_rust_init"
+compatibility_minimum = "4.7"
+reloadable = false
+
+[libraries]
+linux.x86_64 = "res://../lib/libgame_engine_godot.so"
+EOF
+}
+
+copy_project() {
+    (cd "$ROOT" && project_files | xargs -d '\n' cp --parents -t "$BUNDLE")
+    write_extension_config
+}
+
+# import_project: run Godot's one-time import in the bundle so players never import.
+# Isolated XDG dirs keep the import off the builder's Godot settings. The extension is
+# registered first so Godot loads it at startup: hot-loading it during the first scan
+# aborts at exit (exit 134 with Godot 4.7.2 official and pr123946, debug and release
+# extension; data/diagnostics/deploygodot-2026-10-03/).
+import_project() {
+    local home
+    mkdir -p "$BUNDLE/godot/.godot"
+    echo res://game_engine.gdextension > "$BUNDLE/godot/.godot/extension_list.cfg"
+    home=$(mktemp -d)
+    XDG_CONFIG_HOME=$home/config XDG_DATA_HOME=$home/data XDG_CACHE_HOME=$home/cache \
+        "$BUNDLE/runtime/godot" --headless --path "$BUNDLE/godot" --import
+    rm -rf "$home" "$BUNDLE/godot/.godot/editor"
+}
+
+# copy_data: -L because a worktree's data/ links into the canonical checkout's.
+copy_data() {
+    local entry pattern
+    mkdir -p "$BUNDLE/data"
+    for entry in "${DATA_DIRS[@]}"; do
+        cp -RLp --reflink=auto "$ROOT/data/$entry" "$BUNDLE/data/"
+    done
+    shopt -s nullglob
+    for pattern in "${DATA_FILE_GLOBS[@]}"; do
+        for entry in "$ROOT"/data/$pattern; do
+            cp -Lp --reflink=auto "$entry" "$BUNDLE/data/"
+        done
+    done
+    shopt -u nullglob
+    for pattern in "${DATA_EXCLUDES[@]}"; do
+        case "$pattern" in
+            */*) rm -rf "$BUNDLE"/data/$pattern ;;
+            *) find "$BUNDLE/data" -name "$pattern" -delete ;;
+        esac
+    done
+}
+
+assemble() {
+    rm -rf "$BUNDLE"
+    mkdir -p "$BUNDLE/runtime" "$BUNDLE/lib"
+    write_launcher
+    cp "$(pinned_godot)" "$BUNDLE/runtime/godot"
+    install -m 644 "$ROOT/target/release/libgame_engine_godot.so" "$BUNDLE/lib/"
+    copy_project
+    copy_data
+    import_project
+}
+
+load_s3_env() {
+    if [ -n "${FILE_SERVER_S3_BUCKET:-}" ]; then
+        return
+    fi
+    eval "$(nix run nixpkgs#age -- -d -i "$SAKUIN_AGE_IDENTITY" "$SAKUIN_REPO/secrets/sakuin-env.age" \
+        | grep '^FILE_SERVER_S3_')"
+    export RCLONE_CONFIG_WOO_TYPE=s3
+    export RCLONE_CONFIG_WOO_PROVIDER=DigitalOcean
+    export RCLONE_CONFIG_WOO_ACCESS_KEY_ID="$FILE_SERVER_S3_ACCESS_KEY_ID"
+    export RCLONE_CONFIG_WOO_SECRET_ACCESS_KEY="$FILE_SERVER_S3_SECRET_ACCESS_KEY"
+    export RCLONE_CONFIG_WOO_ENDPOINT="${FILE_SERVER_S3_ENDPOINT#https://}"
+    export RCLONE_CONFIG_WOO_REGION="$FILE_SERVER_S3_REGION"
+}
+
+spaces_destination() {
+    local prefix=${FILE_SERVER_S3_PREFIX:-}
+    prefix=${prefix#/}
+    prefix=${prefix%/}
+    echo "woo:${FILE_SERVER_S3_BUCKET}${prefix:+/$prefix}"
+}
+
+# run: execute, or under --dry-run print the exact command.
+run() {
+    if [ "$dry_run" = 1 ]; then
+        printf '+'
+        printf ' %q' "$@"
+        printf '\n'
+    else
+        "$@"
+    fi
+}
+
+publish() {
+    if [ ! -f "$FILE_SERVER_DIR/Cargo.toml" ]; then
+        echo "file-server checkout not found at $FILE_SERVER_DIR (set FILE_SERVER_DIR)" >&2
+        exit 1
+    fi
+    local destination
+    if [ "$dry_run" = 1 ]; then
+        echo "+ load FILE_SERVER_S3_* from $SAKUIN_REPO/secrets/sakuin-env.age (age identity $SAKUIN_AGE_IDENTITY)"
+        destination="woo:\${FILE_SERVER_S3_BUCKET}\${FILE_SERVER_S3_PREFIX:+/prefix}"
+    else
+        load_s3_env
+        destination=$(spaces_destination)
+    fi
+    echo "=== Generating manifest ==="
+    run cargo run --release --quiet --manifest-path "$FILE_SERVER_DIR/Cargo.toml" -- manifest "$BUNDLE"
+    echo "=== Syncing bundle to Spaces ($destination) ==="
+    run rclone sync "$BUNDLE/" "$destination" --s3-no-check-bucket --transfers 8 --checkers 16 --progress
+    echo "=== Updating server manifest ==="
+    run scp "$BUNDLE/manifest.json" "$SERVER:$REMOTE_MANIFEST"
+    run ssh "$SERVER" "chmod 0644 '$REMOTE_MANIFEST' && systemctl is-active osso-file-server"
+}
+
+echo "=== Building native extension (release, Depot) ==="
+python3 "$ROOT/scripts/depot-build.py" --root "$ROOT" --release
+echo "=== Assembling $BUNDLE ==="
+assemble
+echo "Bundle: $(du -sh --apparent-size "$BUNDLE" | cut -f1), $(find "$BUNDLE" -type f | wc -l) files"
+publish
 echo "=== Done ==="
-echo "Files synced to $SERVER:$REMOTE_DIR"
-ssh "$SERVER" "cat $REMOTE_DIR/manifest.json | head -5"
