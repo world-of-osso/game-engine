@@ -1,6 +1,6 @@
-//! Nameplate cast bar nodes: the Bevy client's reference cast frame and authored
-//! `4505182` background/fill under the health bar (docs/specs/nameplate-style.md), with
-//! Retail's `NamePlateCastingBarTemplate` spark pip, interrupt shield, spell icon and
+//! Nameplate cast bar nodes: the Bevy client's reference cast frame and Retail's
+//! `ui-castingbar-background`/`-filling-standard` atlases under the health bar
+//! (docs/specs/nameplate-style.md), drawn from the active skin's sheet, with Retail's `NamePlateCastingBarTemplate` spark pip, interrupt shield, spell icon and
 //! spell name row (`ApplyStyleAndAnchoring`, non-classic, name below the bar), driven by
 //! `nameplate_casts::CastBar`.
 
@@ -16,6 +16,7 @@ use godot::{
     },
     prelude::*,
 };
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
 
 use crate::assets::material::{load_texture, shared_texture, texture_from_rgba};
 use crate::nameplate_casts::{BarType, CastBar, Spark};
@@ -34,21 +35,49 @@ const SPARK_WIDTH: f32 = 4.0;
 const SPARK_EXTRA_HEIGHT: f32 = 8.0;
 /// `Text` anchors LEFT to `Icon` RIGHT, 2 px over.
 const ICON_TEXT_GAP: f32 = 2.0;
-/// `interface/castingbar/uicastingbar.blp` and the Bevy client's crops of it
-/// (`ui-castingbar-background`, `ui-castingbar-filling-standard`).
-const CASTING_BAR_FDID: u32 = 4505182;
-/// `[x, y, width, height]` in pixels.
-const BACKGROUND_RECT: [f32; 4] = [57.0, 85.0, 209.0, 11.0];
-const FILL_RECT: [f32; 4] = [268.0, 124.0, 209.0, 11.0];
-
-fn rect([x, y, width, height]: [f32; 4]) -> Rect2 {
-    Rect2::new(Vector2::new(x, y), Vector2::new(width, height))
-}
+/// `NamePlateCastingBarMixin` art (Blizzard_NamePlateCastingBar.lua:88,95,101) and the
+/// standard filling (CastingBarFrame.lua:38): `uicastingbar` members under Modern,
+/// Forever's set-1 `uicastingbarc60` members of the same names.
+const BACKGROUND: &str = "ui-castingbar-background";
+const FILL: &str = "ui-castingbar-filling-standard";
+const PIP: &str = "ui-castingbar-pip";
+const SHIELD: &str = "nameplates-InterruptShield";
+/// CastingBarFrame.lua:689. Its two canvas-1 members (`-1x_red`, `-2x_red`) leave the
+/// skin resolver on the 2x one, so this stays the Retail 1x crop of `read_atlas_art`.
+const PIP_RED: &str = "ui-castingbar-pip-red";
 /// `CASTBAR_CLASSIC_RED`, the interrupted and failed fill.
 const INTERRUPTED_COLOR: [f32; 3] = [1.0, 0.0, 0.0];
-const PIP: &str = "ui-castingbar-pip";
-const PIP_RED: &str = "ui-castingbar-pip-red";
-const SHIELD: &str = "nameplates-interruptshield";
+
+/// The sheet and crop atlas `name` draws under `skin`, from the `UiTextureAtlas*` tables.
+pub(crate) fn skin_art(name: &str, skin: ActiveSkin) -> Result<AtlasArt, String> {
+    let region = resolve_region(name, skin)
+        .ok_or_else(|| format!("no UiTextureAtlas member for atlas {name} under {skin:?}"))?;
+    let AtlasSource::FileDataId(fdid) = region.source else {
+        return Err(format!("atlas {name} is not a UiTextureAtlas member"));
+    };
+    Ok(AtlasArt {
+        fdid,
+        tex_coords: [region.left, region.right, region.top, region.bottom],
+    })
+}
+
+/// The cast bar's atlas crops under one skin.
+#[derive(Debug, PartialEq)]
+pub(crate) struct CastCrops {
+    pub background: AtlasArt,
+    pub fill: AtlasArt,
+    pub pip: AtlasArt,
+    pub shield: AtlasArt,
+}
+
+pub(crate) fn cast_crops(skin: ActiveSkin) -> Result<CastCrops, String> {
+    Ok(CastCrops {
+        background: skin_art(BACKGROUND, skin)?,
+        fill: skin_art(FILL, skin)?,
+        pip: skin_art(PIP, skin)?,
+        shield: skin_art(SHIELD, skin)?,
+    })
+}
 
 /// Reference cast frame bitmap extent past the cast body and its offset (raw pixels),
 /// Bevy `cast_frame_margin`.
@@ -119,8 +148,10 @@ pub(crate) struct CastArt {
     thick_frame: Gd<ImageTexture>,
     thin_frame: Gd<ImageTexture>,
     background: Gd<AtlasTexture>,
-    /// `4505182` desaturated, so the style's cast colour tints its fill crop.
+    /// The fill's sheet desaturated, so the style's cast colour tints its fill crop.
     fill_sheet: Gd<ImageTexture>,
+    /// The fill crop on `fill_sheet`, in pixels.
+    fill_rect: Rect2,
     pip: Gd<AtlasTexture>,
     pip_red: Gd<AtlasTexture>,
     shield: Gd<AtlasTexture>,
@@ -155,43 +186,51 @@ pub(crate) fn atlas_art(art: &AtlasArt, data_root: &Path) -> Result<Gd<AtlasText
     let mut missing = PackedInt32Array::new();
     let texture = shared_texture(art.fdid, textures, &mut missing)?
         .ok_or_else(|| format!("missing nameplate texture {}", art.fdid))?;
+    Ok(atlas_region(&texture, pixel_rect(art, &texture)))
+}
+
+/// `art`'s crop of `texture`, in pixels.
+fn pixel_rect(art: &AtlasArt, texture: &Gd<ImageTexture>) -> Rect2 {
     let (width, height) = (texture.get_width() as f32, texture.get_height() as f32);
     let [left, right, top, bottom] = art.tex_coords;
-    let region = Rect2::new(
+    Rect2::new(
         Vector2::new(left * width, top * height),
         Vector2::new((right - left) * width, (bottom - top) * height),
-    );
-    Ok(atlas_region(&texture, region))
+    )
 }
 
 impl CastArt {
+    /// The art under atlas skin `active`; `skin` decodes a reference frame bitmap.
     pub fn load(
         data_root: &Path,
+        active: ActiveSkin,
         skin: impl Fn(&[u8]) -> Result<Gd<ImageTexture>, String>,
     ) -> Result<Self, String> {
-        ensure_texture(data_root, CASTING_BAR_FDID)?;
+        let crops = cast_crops(active)?;
+        ensure_texture(data_root, crops.fill.fdid)?;
         let textures = data_root.join("textures");
         let mut missing = PackedInt32Array::new();
-        let sheet = shared_texture(CASTING_BAR_FDID, &textures, &mut missing)?
-            .ok_or_else(|| format!("missing nameplate cast texture {CASTING_BAR_FDID}"))?;
-        let (mut pixels, width, height) = load_texture(CASTING_BAR_FDID, &textures, &mut missing)?
-            .ok_or_else(|| format!("missing nameplate cast texture {CASTING_BAR_FDID}"))?;
+        let (mut pixels, width, height) =
+            load_texture(crops.fill.fdid, &textures, &mut missing)?
+                .ok_or_else(|| format!("missing nameplate cast texture {}", crops.fill.fdid))?;
         // Bevy `desaturated_copy`: each pixel's HSV value.
         for pixel in pixels.chunks_exact_mut(4) {
             let value = pixel[0].max(pixel[1]).max(pixel[2]);
             pixel[..3].fill(value);
         }
-        let atlases = read_atlas_art(data_root, &[PIP, PIP_RED, SHIELD])?;
+        let fill_sheet = texture_from_rgba(&pixels, width, height)?;
+        let atlases = read_atlas_art(data_root, &[PIP_RED])?;
         Ok(Self {
             thick_frame: skin(include_bytes!(
                 "rendering/ui/nameplate_skins/cast-thick.png"
             ))?,
             thin_frame: skin(include_bytes!("rendering/ui/nameplate_skins/cast-thin.png"))?,
-            background: atlas_region(&sheet, rect(BACKGROUND_RECT)),
-            fill_sheet: texture_from_rgba(&pixels, width, height)?,
-            pip: atlas_art(&atlases[PIP], data_root)?,
+            background: atlas_art(&crops.background, data_root)?,
+            fill_rect: pixel_rect(&crops.fill, &fill_sheet),
+            fill_sheet,
+            pip: atlas_art(&crops.pip, data_root)?,
             pip_red: atlas_art(&atlases[PIP_RED], data_root)?,
-            shield: atlas_art(&atlases[SHIELD], data_root)?,
+            shield: atlas_art(&crops.shield, data_root)?,
             icons: HashMap::new(),
         })
     }
@@ -241,7 +280,7 @@ impl CastNodes {
         root.set_mouse_filter(MouseFilter::IGNORE);
         let mut background = texture_rect("Background");
         background.set_texture(&art.background);
-        let fill_region = atlas_region(&art.fill_sheet, rect(FILL_RECT));
+        let fill_region = atlas_region(&art.fill_sheet, art.fill_rect);
         let mut fill = texture_rect("Fill");
         fill.set_texture(&fill_region);
         let frame = texture_rect("Border");
@@ -314,9 +353,11 @@ impl CastNodes {
         place(&mut self.fill, layout.fill);
         self.fill.set_visible(fraction > 0.0);
         // Bevy `cast_fill_crop`: the fill shows the left `fraction` of the crop.
-        let [x, y, width, height] = FILL_RECT;
-        self.fill_region
-            .set_region(rect([x, y, width * fraction, height]));
+        let Rect2 { position, size } = art.fill_rect;
+        self.fill_region.set_region(Rect2::new(
+            position,
+            Vector2::new(size.x * fraction, size.y),
+        ));
         self.fill.set_self_modulate(fill_color(bar, style));
         place(&mut self.spark, layout.spark);
         self.spark.set_visible(bar.spark.is_some());
@@ -353,7 +394,7 @@ impl CastNodes {
     }
 }
 
-fn place(rect: &mut Gd<TextureRect>, at: Rect2) {
+pub(crate) fn place(rect: &mut Gd<TextureRect>, at: Rect2) {
     rect.set_position(at.position);
     rect.set_size(at.size);
 }
