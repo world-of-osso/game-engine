@@ -9,8 +9,8 @@ Forever-only reference chrome in `godot/ui-model/src/ui/screens/{chat_frame,dama
 - [x] Meter rows show square class icons (snapshot has no specialization), rounded bronze outlines, class-coloured horizontal-gradient fills over dark tracks and white shadowed rank/name and damage (DPS) labels.
 - [x] Chat keeps existing tabs/actions as plain text, active bright bronze and inactive dim bronze; four bronze header icons. Message rendering, input and scroll behavior remain unchanged.
 - [x] Modern serialized chat/meter trees remain byte-identical to the pre-change baseline, for all chat tabs and an open meter session menu.
-- [ ] Forever chat and meter header buttons share a 22-square hit box centred vertically in each 24-high header, entirely above the separator; their glyphs share a 13.2-square draw box and common centre. Right-side button centres retain uniform spacing.
-- [ ] Header glyph crops exclude unequal atlas-cell padding and the gear's dropdown frame; the meter uses the same gear crop as chat.
+- [x] Forever chat and meter header buttons share a 22-square hit box centred vertically in each 24-high header, entirely above the separator; their glyphs share a 13.2-square draw box and common centre. Right-side button centres retain uniform spacing.
+- [x] Header glyph crops exclude unequal atlas-cell padding and the gear's dropdown frame; the meter uses the same gear crop as chat.
 
 ## Number and colour provenance
 
@@ -63,7 +63,9 @@ Class colours remain `RAID_CLASS_COLORS` (`damage_meter_data::class_color`); no 
 
 ## Tests asserting this spec
 
-`godot/ui-model/tests/forever_chat_meter.rs`; Modern serialized fixture in `tests/fixtures/modern_chat_meter.rs` captured before production edits at `5c1e2db5` (88,806 bytes). Targeted Depot run at `423dbf7b`: 5 passed, 0 failed, exit 0. Behavioral RED at `5c1e2db5`: missing chat/meter headers and Retail row rectangle instead of reference rectangle. No live run.
+`godot/ui-model/tests/forever_chat_meter.rs`; Modern serialized fixture in `tests/fixtures/modern_chat_meter.rs` captured before production edits at `5c1e2db5` (88,806 bytes). Targeted Depot run at `423dbf7b`: 5 passed, 0 failed, exit 0. Behavioral RED at `5c1e2db5`: missing chat/meter headers and Retail row rectangle instead of reference rectangle.
+
+Icon alignment/crop regression at `20c1a505`: 3 passed, 4 failed (old chat/meter tops and untrimmed art). GREEN at `46d8af19`: 7 passed, 0 failed, exit 0, including the unchanged Modern byte fixture, exact button/glyph rectangles, common vertical centres, separator clearance, uniform spacing and per-icon UVs. Same targeted Depot command: `python3 scripts/depot-build.py --root <worktree> --test -p game-engine-ui-model --test forever_chat_meter`. No live run.
 
 ## Known gaps (current cycle)
 
