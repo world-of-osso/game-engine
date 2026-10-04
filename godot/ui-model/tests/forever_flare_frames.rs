@@ -57,6 +57,7 @@ fn small(name: &str) -> SmallUnitFrameState {
         dead: false,
         reaction: Some(Reaction::Neutral),
         class_id: None,
+        power: None,
     }
 }
 

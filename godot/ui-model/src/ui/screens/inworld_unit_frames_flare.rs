@@ -144,7 +144,7 @@ impl<'a> From<&'a SmallUnitFrameState> for FlareUnit<'a> {
             dead: unit.dead,
             reaction: unit.reaction,
             class_id: unit.class_id,
-            power: None,
+            power: unit.power.as_ref(),
             aura_state: None,
         }
     }
