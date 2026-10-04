@@ -243,6 +243,7 @@ fn colour_frames(target_reaction: Reaction, target_class: Option<u8>) -> FrameRe
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         target_of_target: Some(SmallUnitFrameState::from(&player)),
         focus: Some(SmallUnitFrameState::from(&target)),
         player,

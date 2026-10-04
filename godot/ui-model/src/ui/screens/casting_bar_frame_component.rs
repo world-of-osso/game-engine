@@ -6,7 +6,7 @@ use ui_toolkit::widget_def::Element;
 use crate::hud_layout::{Placement, hud_layout};
 use crate::ui::screens::inworld_unit_frames_component::CAST_DOCK_W;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_flare::{
-    FLARE_INSET, flare_border_frame, flare_layer,
+    FLARE_INSET, FLARE_TARGET, flare_border_frame, flare_layer,
 };
 use crate::ui::screens::inworld_unit_frames_component::{
     DynName, InWorldUnitFramesState, UNIT_FRAME_H, UNIT_FRAME_W, dyn_name,
@@ -219,7 +219,13 @@ pub(super) fn target_cast_bar_frame(
             (UNIT_FRAME_W, UNIT_FRAME_H),
             modern_target_cast_offset(units),
         ),
-        ActiveSkin::Forever => (&FOREVER_TARGET_STYLE, (240.0, 60.0), (0.0, 60.0)),
+        // `LayoutCastBar` BOTTOM: the backdrop starts at the frame's bottom edge
+        // (UnitFrames.lua:558-574).
+        ActiveSkin::Forever => (
+            &FOREVER_TARGET_STYLE,
+            FLARE_TARGET.size,
+            (0.0, FLARE_TARGET.size.1),
+        ),
     };
     let anchor = hud_layout(ctx)
         .target

@@ -12,15 +12,16 @@ use game_engine_core::{
     input_bindings_data::{BindingMouseButton, InputAction, InputState},
     target_selection_data::{next_target, opaque_to_alpha_mask, previous_target},
 };
-use game_engine_network::replica::Unit;
+use game_engine_network::replica::{Replica, Unit};
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::casting_bar_frame_component::CastingBarState;
 use game_engine_ui_model::inworld_unit_frames_component::class_bars::ClassBarAnimator;
 use game_engine_ui_model::inworld_unit_frames_component::personal_resource_display::{
     self, PersonalResourceDisplayState,
 };
 use game_engine_ui_model::inworld_unit_frames_component::{
-    InWorldUnitFramesState, PetFrameState, PowerBarState, UnitFrameMenuState, UnitFrameState,
-    format_value_text, fraction, target_level_text,
+    InWorldUnitFramesState, PetFrameState, PowerBarState, SmallUnitFrameState, UnitFrameMenuState,
+    UnitFrameState, format_value_text, fraction, target_level_text,
 };
 use game_engine_ui_model::status::{ClassBarPlayer, ClassBarResource};
 use game_engine_ui_model::status_text_data::{StatusBarText, StatusTextDisplay, TextStatusBar};
@@ -31,11 +32,13 @@ use godot::{
     },
     prelude::*,
 };
+use shared::casting::CastState;
 use shared::components::{
     CreatureClassification, Health, Npc, Player, PowerType, UnitLevel, UnitPowers, UnitRunes,
 };
 use shared::level_scaling::{LevelScaling, level_for_viewer};
 
+use crate::nameplate_casts::{BarType, PlateCasts};
 use crate::replicated::{UnitFields, is_unit, local_pet};
 
 use crate::frame_error::{FrameError, SessionError, report_once};
@@ -83,6 +86,8 @@ pub(crate) struct Targeting {
     /// The TargetFrame's level text and health values ("current / max"), for automation.
     frame_texts: (String, String),
     pub(crate) portraits: crate::unit_portraits::UnitPortraits,
+    /// The target's cast bar, on its own clock: the target need not have a nameplate.
+    target_casts: PlateCasts,
 }
 
 struct TargetCircle {
@@ -119,6 +124,7 @@ impl Targeting {
             health_by_level: None,
             frame_texts: Default::default(),
             portraits: Default::default(),
+            target_casts: PlateCasts::default(),
         }
     }
 
@@ -476,11 +482,25 @@ fn personal_resource_state(
     PersonalResourceDisplayState::for_player(enabled, &player, health, &powers, class_bar, hovered)
 }
 
+/// `TargetFrameSpellBar`: the target's replicated cast on the bar's own clock, while
+/// the server still replicates it and the bar is running.
 fn target_cast_state(
-    _target: Option<Unit>,
-    _casts: &crate::nameplate_casts::PlateCasts,
-    _icon_fdid: Option<u32>,
-) -> Option<game_engine_ui_model::casting_bar_frame_component::CastingBarState> {
+    target: Option<Unit>,
+    casts: &PlateCasts,
+    icon_fdid: Option<u32>,
+) -> Option<CastingBarState> {
+    let _ = (target, casts, icon_fdid, BarType::Standard);
+    None
+}
+
+/// `TargetOfTargetMixin:Update` (TargetFrame.lua:889-892): the target's own target, a
+/// replicated unit, unless the target is the local player or dead.
+fn target_of_target<'a>(
+    replica: &'a Replica,
+    target: Unit,
+    local_player: Option<u64>,
+) -> Option<Unit<'a>> {
+    let _ = (replica, target, local_player);
     None
 }
 
@@ -525,8 +545,9 @@ impl GameClient {
     }
 
     /// Per frame, before input edges clear: selection input, then its presentation.
-    pub(super) fn update_targeting(&mut self) -> Result<(), FrameError> {
+    pub(super) fn update_targeting(&mut self, delta: f32) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
+            self.targeting.target_casts = PlateCasts::default();
             self.targeting.target = None;
             self.targeting.sent = None;
             self.targeting.free_circle();
@@ -558,7 +579,39 @@ impl GameClient {
                 .decal
                 .set_visible(self.client_options.hud.show_target_marker);
         }
+        self.advance_target_cast(delta);
         Ok(self.sync_unit_frames()?)
+    }
+
+    /// The target's replicated cast this frame; a bar of any other unit is dropped.
+    fn advance_target_cast(&mut self, delta: f32) {
+        let target = self.targeting.target;
+        if let Some(id) = target {
+            let cast = self
+                .replica
+                .unit(id)
+                .and_then(|unit| unit.get::<CastState>());
+            self.targeting.target_casts.observe(id, cast);
+        }
+        self.targeting
+            .target_casts
+            .advance(delta, |id| Some(id) == target);
+    }
+
+    fn target_cast(&mut self) -> Option<CastingBarState> {
+        let target = self.targeting.target?;
+        let spell = self.targeting.target_casts.get(target)?.spell_id;
+        let art = self
+            .spells
+            .catalog()
+            .and_then(|catalog| catalog.get(spell))
+            .map(|spell| spell.icon_fdid);
+        let icon = art.map(|fdid| self.drawable_fdid(fdid));
+        target_cast_state(
+            self.replica.unit(target),
+            &self.targeting.target_casts,
+            icon,
+        )
     }
 
     fn apply_targeting_input(&mut self) {
@@ -718,6 +771,10 @@ impl GameClient {
             }
             None => 1.0,
         };
+        let local_player = self.world.local_player_id();
+        let target_of_target_id = target_unit
+            .and_then(|unit| target_of_target(&self.replica, unit, local_player))
+            .map(|unit| unit.server_id);
         let mut target =
             target_unit.map(|unit| target_frame_state(unit, viewer_level, multiplier, &texts));
         let target_health = target_unit
@@ -734,6 +791,16 @@ impl GameClient {
             }
             self.fill_target_auras(state, id);
             state.raid_target = self.raid_target_of(id);
+        }
+        let mut target_of_target = target_of_target_id
+            .and_then(|id| self.replica.unit(id))
+            .map(|unit| {
+                SmallUnitFrameState::from(&target_frame_state(unit, viewer_level, 1.0, &texts))
+            });
+        if let (Some(state), Some(id)) = (target_of_target.as_mut(), target_of_target_id)
+            && ui_toolkit::atlas::active_skin() == ui_toolkit::atlas::ActiveSkin::Forever
+        {
+            state.reaction = Some(self.reaction_to(id));
         }
         let target_state = target.clone();
         self.targeting.frame_texts = target
@@ -788,6 +855,8 @@ impl GameClient {
             pet,
             self.client_options.hud.show_health_bars,
         );
+        state.target_cast = self.target_cast();
+        state.target_of_target = target_of_target;
         state.menu = self.unit_menu.state.clone();
         state.personal_resource = personal_resource;
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
