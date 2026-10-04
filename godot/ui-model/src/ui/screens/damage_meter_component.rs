@@ -23,7 +23,7 @@ use crate::flare_panel::{
     FLARE_HEADER_ICON_INSET, FLARE_HEADER_ICON_SIZE, FLARE_ICON_COLOR, FLARE_INACTIVE_TEXT,
     flare_header, flare_icon, flare_panel, flare_text,
 };
-use crate::hud_layout::hud_layout;
+use crate::hud_layout::{FOREVER_CHAT_PANEL_SIZE, hud_layout};
 use crate::inworld_unit_frames_component::inworld_unit_frames_flare::flare_border_with_edge;
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
@@ -94,8 +94,8 @@ const FLARE_PADDING: f32 = 2.0;
 const FLARE_SKIN_RECT: (f32, f32, f32, f32) = (
     -FLARE_PADDING,
     -FLARE_PADDING,
-    WINDOW_W + 2.0 * FLARE_PADDING,
-    WINDOW_H + 2.0 * FLARE_PADDING,
+    FOREVER_CHAT_PANEL_SIZE.0 + 2.0 * FLARE_PADDING,
+    FOREVER_CHAT_PANEL_SIZE.1 + 2.0 * FLARE_PADDING,
 );
 /// Session menu under the session dropdown: one radio row per session type.
 const MENU_W: f32 = 150.0;
@@ -220,12 +220,14 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
     if view.menu_open {
         children.extend(session_menu(view.session));
     }
-    let at = hud_layout(ctx).damage_meter.place((WINDOW_W, WINDOW_H));
+    let layout = hud_layout(ctx);
+    let (width, height) = layout.damage_meter_size;
+    let at = layout.damage_meter.place((width, height));
     rsx! {
         r#frame {
             name: DAMAGE_METER_ROOT,
-            width: WINDOW_W,
-            height: WINDOW_H,
+            width,
+            height,
             pos_type: "absolute",
             left: {at.left.as_str()},
             right: {at.right.as_str()},
@@ -242,7 +244,7 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
 // docs/specs/forever-chat-meter-chrome.md. Existing Modern constants stay untouched.
 const FOREVER_ROWS_LEFT: f32 = 4.0;
 const FOREVER_ROWS_TOP: f32 = 32.0;
-const FOREVER_ROW_W: f32 = WINDOW_W - 2.0 * FOREVER_ROWS_LEFT;
+const FOREVER_ROW_W: f32 = FOREVER_CHAT_PANEL_SIZE.0 - 2.0 * FOREVER_ROWS_LEFT;
 const FOREVER_ICON_SIZE: f32 = BAR_H;
 const FOREVER_BAR_LEFT: f32 = FOREVER_ICON_SIZE + BAR_SPACING;
 const FOREVER_BAR_W: f32 = FOREVER_ROW_W - FOREVER_BAR_LEFT;
@@ -250,8 +252,8 @@ const FOREVER_FILL_W: f32 = FOREVER_BAR_W - 2.0;
 const FOREVER_BAR_EDGE: f32 = 8.0;
 const FOREVER_BUTTON_TOP: f32 =
     FLARE_SKIN_RECT.1 + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
-const FOREVER_CHART_LEFT: f32 = 348.5;
-const FOREVER_GEAR_LEFT: f32 = 369.5;
+const FOREVER_CHART_LEFT: f32 = FOREVER_CHAT_PANEL_SIZE.0 - 51.5;
+const FOREVER_GEAR_LEFT: f32 = FOREVER_CHAT_PANEL_SIZE.0 - 30.5;
 const FOREVER_CHART_COLUMN_W: f32 = 2.2;
 
 fn forever_header() -> Element {

@@ -15,6 +15,7 @@ use crate::flare_panel::{
     FLARE_HEADER_BUTTON_SIZE, FLARE_HEADER_HEIGHT, FLARE_INACTIVE_TEXT, FLARE_SOCIAL_ART,
     FLARE_VOLUME_ART, flare_header, flare_icon, flare_panel, flare_text,
 };
+use crate::hud_layout::{FOREVER_CHAT_PANEL_SIZE, hud_layout};
 use crate::ui::anchor::FrameName;
 use crate::ui::chat_frame::{
     ChatFrameState, ChatRow, ChatRun, ChatTab, CombatLogChat, local_timestamp, messages_that_fit,
@@ -36,7 +37,6 @@ pub const SCROLL_TO_BOTTOM_ACTION: &str = "chat:scroll_to_bottom";
 /// Default window: 500x280 at BOTTOMLEFT (0, 40) (Core/Config.lua:28-29).
 const FRAME_W: f32 = 500.0;
 const FRAME_H: f32 = 280.0;
-const FRAME_BOTTOM: f32 = 40.0;
 /// Tab bar at TOPLEFT (32, 0), 22 high (Display/Main.lua:50-52).
 const TABS_LEFT: f32 = 32.0;
 const TAB_H: f32 = 22.0;
@@ -77,8 +77,8 @@ const FLARE_HEADER_H: f32 = 24.0;
 const FLARE_SKIN_RECT: (f32, f32, f32, f32) = (
     MESSAGES_LEFT - FLARE_PADDING,
     MESSAGES_TOP - FLARE_PADDING - FLARE_HEADER_H,
-    MESSAGES_W + 2.0 * FLARE_PADDING,
-    MESSAGES_H + 2.0 * FLARE_PADDING + FLARE_HEADER_H,
+    FOREVER_CHAT_PANEL_SIZE.0,
+    FOREVER_CHAT_PANEL_SIZE.1,
 );
 const TAB_LEFT_TEXTURE: &str = "data/textures/ui/chattynator/ChatTabLeft.png";
 const TAB_MIDDLE_TEXTURE: &str = "data/textures/ui/chattynator/ChatTabMiddle.png";
@@ -99,8 +99,6 @@ const BUTTON_ICON_COLOR: &str = "0.8,0.8,0.8,1";
 const BUTTONS_TOP: f32 = MESSAGES_TOP - 20.0;
 const BUTTONS_LEFT: f32 = MESSAGES_LEFT - 5.0 - BUTTON_W;
 /// Scroll to bottom sits at the messages' BOTTOMRIGHT (-2, 5) (Display/Buttons.lua:307).
-const SCROLL_BUTTON_LEFT: f32 = MESSAGES_LEFT + MESSAGES_W - 2.0 - BUTTON_W;
-const SCROLL_BUTTON_TOP: f32 = MESSAGES_TOP + MESSAGES_H - 5.0 - BUTTON_H;
 /// Blizzard's ChatFrame1EditBox (32 high) across the frame bottom, its art replaced by a
 /// 0.1 grey fill at alpha 0.8 (Display/Main.lua:203-207, Skins/Dark.lua:185-194).
 const INPUT_H: f32 = 32.0;
@@ -263,6 +261,10 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
     let skin = *ctx
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
+    let layout = hud_layout(ctx);
+    let (width, height) = layout.chat_size;
+    let messages_width = width - MESSAGES_LEFT - 5.0;
+    let messages_height = height - MESSAGES_TOP - 38.0;
     let background = match skin {
         ActiveSkin::Modern => chattynator_background(view.tab),
         ActiveSkin::Forever => forever_background(),
@@ -290,40 +292,40 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame {
             name: CHAT_FRAME,
-            width: FRAME_W,
-            height: FRAME_H,
+            width,
+            height,
             pos_type: "absolute",
-            left: 0.0,
-            bottom: FRAME_BOTTOM,
+            left: {layout.chat.x},
+            bottom: {layout.chat.y},
             {background}
             {tab_parts}
             r#frame {
                 name: {DynName(CHAT_MESSAGES.to_string())},
-                width: MESSAGES_W,
-                height: MESSAGES_H,
+                width: messages_width,
+                height: messages_height,
                 pos_type: "absolute",
                 left: MESSAGES_LEFT,
                 top: MESSAGES_TOP,
-                {messages(view)}
+                {messages(view, messages_height)}
             }
             {copy_button}
             {chat_button(
                 CHAT_SCROLL_TO_BOTTOM_BUTTON,
                 SCROLL_TO_BOTTOM_ACTION,
                 SCROLL_TO_BOTTOM_ICON,
-                SCROLL_BUTTON_LEFT,
-                SCROLL_BUTTON_TOP,
+                MESSAGES_LEFT + messages_width - 2.0 - BUTTON_W,
+                MESSAGES_TOP + messages_height - 5.0 - BUTTON_H,
                 hide_scroll_button,
             )}
             r#frame {
                 name: CHAT_EDITBOX_BACKGROUND,
-                width: FRAME_W,
+                width,
                 height: INPUT_H,
                 background_color: INPUT_BACKGROUND,
                 hidden: hide_input,
                 pos_type: "absolute",
                 left: 0.0,
-                top: {FRAME_H - INPUT_H},
+                top: {height - INPUT_H},
             }
             fontstring {
                 name: CHAT_EDITBOX_HEADER,
@@ -337,11 +339,11 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
                 hidden: hide_input,
                 pos_type: "absolute",
                 left: INPUT_HEADER_LEFT,
-                top: {FRAME_H - (INPUT_H + CHAT_LINE_H) / 2.0},
+                top: {height - (INPUT_H + CHAT_LINE_H) / 2.0},
             }
             editbox {
                 name: CHAT_EDITBOX,
-                width: FRAME_W,
+                width,
                 height: INPUT_H,
                 font: CHAT_FONT,
                 font_size: CHAT_FONT_SIZE,
@@ -350,7 +352,7 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
                 hidden: hide_input,
                 pos_type: "absolute",
                 left: 0.0,
-                top: {FRAME_H - INPUT_H},
+                top: {height - INPUT_H},
             }
         }
     }
@@ -360,7 +362,7 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
 // docs/specs/forever-chat-meter-chrome.md. No message/input/scroll changes.
 const FOREVER_TAB_PADDING: f32 = 14.0;
 const FOREVER_TAB_GAP: f32 = 4.0;
-const FOREVER_BUTTON_LEFT: f32 = 352.0;
+const FOREVER_BUTTON_LEFT: f32 = FOREVER_CHAT_PANEL_SIZE.0 - 129.0;
 const FOREVER_BUTTON_GAP: f32 = 35.0;
 const FOREVER_BUTTON_TOP: f32 =
     FLARE_SKIN_RECT.1 + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
@@ -616,10 +618,10 @@ fn chat_button(name: &str, action: &str, icon: &str, x: f32, y: f32, hidden: boo
 
 /// Messages stacked up from the bottom, newest last (Display/ScrollingMessages.lua:219-270).
 /// Rows are numbered top to bottom as `ChatFrame1MessagesRow{n}`.
-fn messages(view: &ChatFrameView) -> Element {
+fn messages(view: &ChatFrameView, height: f32) -> Element {
     let area = chat_text_area(view.tab);
     let mut tops = Vec::with_capacity(view.messages.len());
-    let mut bottom = MESSAGES_H - MESSAGES_BOTTOM_PAD;
+    let mut bottom = height - MESSAGES_BOTTOM_PAD;
     for message in view.messages.iter().rev() {
         let top = bottom - message.rows.len() as f32 * CHAT_LINE_H;
         tops.push(top);

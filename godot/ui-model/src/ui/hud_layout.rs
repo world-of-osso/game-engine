@@ -127,6 +127,9 @@ pub struct HudLayout {
     pub party: HudAnchor,
     pub raid: HudAnchor,
     pub damage_meter: HudAnchor,
+    pub damage_meter_size: (f32, f32),
+    pub chat: HudAnchor,
+    pub chat_size: (f32, f32),
     pub objective_tracker: HudAnchor,
 }
 
@@ -188,6 +191,10 @@ pub const MODERN: HudLayout = HudLayout {
     raid: anchor(Bottom, Bottom, 0.0, 215.0),
     // EditModePresetLayouts.lua:857-863.
     damage_meter: anchor(TopLeft, TopLeft, 0.0, 0.0),
+    damage_meter_size: (400.0, 140.0),
+    // Chattynator Core/Config.lua:28-29; preserve Modern's existing output.
+    chat: anchor(BottomLeft, BottomLeft, 0.0, 40.0),
+    chat_size: (500.0, 280.0),
     // `ObjectiveTrackerFrame` Edit Mode default.
     objective_tracker: anchor(TopRight, TopRight, -110.0, -275.0),
 };
@@ -203,9 +210,13 @@ const CAMELOT_MAIN_ACTION_BAR: HudAnchor = anchor(
 /// FlareUI Core.lua:102-107,218; ActionBars.lua:43,179-190 includes pet buttons.
 pub const FOREVER_ACTION_BUTTON_SCALE: f32 = 1.06;
 
+/// Chat messages: Mainline/EditModePresetLayouts.lua:490-503, Camelot constants:66.
+/// FlareUI Chat.lua:1515-1520 adds padding 10 and header 24; DamageMeter.lua:1150-1159
+/// matches that skin's size. The reference mirrors the meter to the right.
+pub const FOREVER_CHAT_PANEL_SIZE: (f32, f32) = (450.0, 214.0);
+
 /// Forever loads the shared Mainline preset file with Camelot constants
-/// (`Blizzard_EditMode.toc:9`): its minimap, aura, group, meter and tracker anchors are
-/// Modern's.
+/// (`Blizzard_EditMode.toc:9`); FlareUI/reference overrides chat and meter geometry.
 pub const FOREVER: HudLayout = HudLayout {
     player: anchor(Center, Center, -330.0, -270.0),
     target: anchor(Center, Center, 330.0, -270.0),
@@ -236,6 +247,13 @@ pub const FOREVER: HudLayout = HudLayout {
         CAMELOT_MICRO_MENU.0 + MICRO_MENU_W / 2.0 + 7.0,
         CAMELOT_MICRO_MENU.1 - 4.0,
     ),
+    // Mirror the chat skin's 25-unit inset and 135-unit baseline.
+    damage_meter: anchor(BottomRight, BottomRight, -25.0, 135.0),
+    damage_meter_size: FOREVER_CHAT_PANEL_SIZE,
+    // Chat canvas messages begin at (34,27) and end 38 above the canvas bottom.
+    // Place the source's 430x170 messages at BOTTOMLEFT(35,145).
+    chat: anchor(BottomLeft, BottomLeft, 1.0, 107.0),
+    chat_size: (469.0, 235.0),
     ..MODERN
 };
 
