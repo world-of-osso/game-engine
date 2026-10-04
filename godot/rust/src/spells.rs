@@ -1,7 +1,8 @@
 //! Spellbook, main action bar and casting (docs/specs/spellbook-action-bar.md).
 //!
-//! The server owns known spells, the action bar and every cast: keys 1..= or a click on
-//! a main bar button (or a known spell in the spellbook) send `SpellCastIntent` with
+//! The server owns known spells, the action bar and every cast: a bar button's bound key
+//! (`ACTIONBUTTON1..12` on 1..=, Action Bar 2/3 unbound by default) or a click on
+//! a bar button (or a known spell in the spellbook) send `SpellCastIntent` with
 //! the current target; `CastFailed` shows in UIErrorsFrame, `SpellCooldownUpdate`
 //! sweeps the buttons, the local player's replicated `CastState` fills the cast bar,
 //! and the caster's `CombatLogEvent` damage floats over the target.
@@ -22,7 +23,7 @@ use game_engine_ui_model::cast_failed_text::cast_failed_text;
 use game_engine_ui_model::casting_bar_frame_component::CastingBarState;
 use game_engine_ui_model::main_action_bar_component::{
     ACTION_BAR_ART_FDIDS, ActionBar, ActionButtonView, MAIN_BAR_BUTTONS, MainActionBarState,
-    parse_action_button,
+    parse_action_button, pressed_action_buttons,
 };
 use game_engine_ui_model::spellbook_frame_component::{
     ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE, ACTION_SPELLBOOK_NEXT_PAGE,
@@ -49,21 +50,6 @@ use crate::{
 use game_engine_ui_model::spellbook_frame_component::{FRAME_H, FRAME_W, frame_layout};
 use godot::global::MouseButton;
 
-/// Retail action bar keys, button 1..12.
-const ACTION_SLOT_KEYS: [InputAction; MAIN_BAR_BUTTONS] = [
-    InputAction::ActionSlot1,
-    InputAction::ActionSlot2,
-    InputAction::ActionSlot3,
-    InputAction::ActionSlot4,
-    InputAction::ActionSlot5,
-    InputAction::ActionSlot6,
-    InputAction::ActionSlot7,
-    InputAction::ActionSlot8,
-    InputAction::ActionSlot9,
-    InputAction::ActionSlot10,
-    InputAction::ActionSlot11,
-    InputAction::ActionSlot12,
-];
 /// `CooldownFrameTemplate` numbers show for cooldowns of at least this long (the GCD
 /// sweeps without numbers).
 const COUNTDOWN_MIN_SECS: f32 = 2.0;
@@ -394,17 +380,12 @@ impl GameClient {
         let input = self.physical_input.gameplay_state(self.keyboard_free());
         let bindings = &self.client_options.bindings;
         let toggle = bindings.is_just_pressed(InputAction::ToggleSpellbook, &input);
-        let pressed: Vec<usize> = ACTION_SLOT_KEYS
-            .iter()
-            .enumerate()
-            .filter(|(_, action)| bindings.is_just_pressed(**action, &input))
-            .map(|(index, _)| index)
-            .collect();
+        let pressed = pressed_action_buttons(bindings, &input);
         if toggle {
             self.toggle_spellbook()?;
         }
-        for index in pressed {
-            self.use_action_button(ActionBar::Main, index)?;
+        for (bar, index) in pressed {
+            self.use_action_button(bar, index)?;
         }
         Ok(())
     }
@@ -583,6 +564,7 @@ impl GameClient {
                 state.bar_mut(bar)[index] = self.action_button_view(bar, index);
             }
         }
+        state.set_hotkeys(&self.client_options.bindings);
         if let Some((name, _)) = self
             .spells
             .bar_ui
