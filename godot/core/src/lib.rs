@@ -78,6 +78,7 @@ pub mod lighting_assets;
 pub mod liquid_data;
 #[path = "game/state/loading_readiness.rs"]
 pub mod loading_readiness;
+pub mod map_catalog;
 pub mod m2;
 pub mod m2_billboard;
 pub mod m2_lights;
