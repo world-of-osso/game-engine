@@ -14,7 +14,7 @@ use game_engine_core::ui_layout_data::{LayoutSettings, LayoutSkin, SYSTEM_PRESET
 
 #[path = "options_menu_scroll.rs"]
 mod scroll;
-pub use scroll::{OPTIONS_CONTENT_SCROLL, OptionsPage};
+pub use scroll::{OPTIONS_CONTENT_SCROLL, OptionsPage, back_stepper_name, forward_stepper_name};
 
 struct DynName(String);
 
@@ -333,9 +333,9 @@ pub fn keybinding_button_name(action: InputAction) -> String {
     format!("KeybindingButton{}", action.key())
 }
 
-/// The Options panel, its content scrolled to `first_item` (the [`OPTIONS_CONTENT_SCROLL`]
-/// position).
-pub fn options_view(model: &OptionsViewModel, first_item: usize) -> Element {
+/// The Options panel, its content scrolled down `offset` pixels (the
+/// [`OPTIONS_CONTENT_SCROLL`] position).
+pub fn options_view(model: &OptionsViewModel, offset: usize) -> Element {
     rsx! {
         panel {
             name: OPTIONS_ROOT,
@@ -367,7 +367,7 @@ pub fn options_view(model: &OptionsViewModel, first_item: usize) -> Element {
                 width: {OPTIONS_W},
                 height: {OPTIONS_HEADER_H + OPTIONS_HEADER_GAP},
             }
-            {build_body(model, first_item)}
+            {build_body(model, offset)}
             r#frame {
                 name: "OptionsFooterClearance",
                 width: {OPTIONS_W},
@@ -388,7 +388,7 @@ fn title() -> Element {
     )
 }
 
-fn build_body(model: &OptionsViewModel, first_item: usize) -> Element {
+fn build_body(model: &OptionsViewModel, offset: usize) -> Element {
     rsx! {
         r#frame {
             name: "OptionsBody",
@@ -400,7 +400,7 @@ fn build_body(model: &OptionsViewModel, first_item: usize) -> Element {
             pos_type: "relative",
             margin_left: {OPTIONS_BODY_INSET_X},
             {build_tabs(model)}
-            {build_content(model, first_item)}
+            {build_content(model, offset)}
         }
     }
 }
@@ -528,7 +528,7 @@ fn tab_accent(name: &str) -> Element {
 
 /// The content area is as tall as the category list, as Retail's settings container is
 /// anchored to it (`Blizzard_SettingsPanel.xml:59-74`); a taller page scrolls.
-fn build_content(model: &OptionsViewModel, first_item: usize) -> Element {
+fn build_content(model: &OptionsViewModel, offset: usize) -> Element {
     rsx! {
         panel {
             name: OPTIONS_CONTENT_PANEL,
@@ -538,7 +538,7 @@ fn build_content(model: &OptionsViewModel, first_item: usize) -> Element {
             layout: "flex-column",
             pos_type: "relative",
             {content_header(model.category)}
-            {content_body(model, first_item)}
+            {content_body(model, offset)}
         }
     }
 }
@@ -560,6 +560,16 @@ fn content_header(category: OptionsCategory) -> Element {
             margin_top: {18.0},
         }
     }
+}
+
+/// Pixels the Options content scrolls per stepper click on `model`'s page.
+pub fn options_pan_extent(model: &OptionsViewModel) -> usize {
+    category_body(model).pan_extent()
+}
+
+/// Pixels the Options content scrolls per wheel notch on `model`'s page.
+pub fn options_wheel_extent(model: &OptionsViewModel) -> usize {
+    category_body(model).wheel_extent()
 }
 
 fn category_body(model: &OptionsViewModel) -> OptionsPage {
@@ -584,7 +594,7 @@ fn category_body(model: &OptionsViewModel) -> OptionsPage {
     }
 }
 
-fn content_body(model: &OptionsViewModel, first_item: usize) -> Element {
+fn content_body(model: &OptionsViewModel, offset: usize) -> Element {
     let area = scroll::ScrollArea {
         row_width: OPTIONS_CONTENT_W - OPTIONS_CONTENT_INSET_X * 2.0,
         width: OPTIONS_CONTENT_W - OPTIONS_CONTENT_INSET_X,
@@ -598,7 +608,7 @@ fn content_body(model: &OptionsViewModel, first_item: usize) -> Element {
             pos_type: "relative",
             margin_left: {OPTIONS_CONTENT_INSET_X},
             margin_top: {OPTIONS_CONTENT_INSET_TOP},
-            {scroll::scroll_area(category_body(model), &area, first_item)}
+            {scroll::scroll_area(category_body(model), &area, offset)}
         }
     }
 }

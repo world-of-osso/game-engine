@@ -1,16 +1,23 @@
 //! Mouse input for the ui-toolkit scroll lists a canvas draws (`FrameRegistry::scroll_lists`):
-//! the Godot side of the toolkit's Bevy `scroll_input.rs`. The wheel over a list scrolls it a
-//! row per notch, up to earlier rows (`ScrollControllerMixin:OnMouseWheel`,
-//! `Blizzard_SharedXML/Shared/Scroll/ScrollController.lua:93-99`); a press on its thumb drags
-//! it until release. A changed position rebuilds the Screens that read it.
+//! the Godot side of the toolkit's Bevy `scroll_input.rs`. The wheel over a list scrolls it
+//! (`ScrollControllerMixin:OnMouseWheel`, `Blizzard_SharedXML/Shared/Scroll/ScrollController.lua:93-99`):
+//! a row per notch for a row list, two pan extents of pixels for the Options content. A press
+//! on a Back / Forward stepper scrolls one pan extent (`ScrollBarMixin:OnStepperMouseDown`,
+//! `ScrollBar.lua:307-311`); a press on its thumb drags it until release. A changed position
+//! rebuilds the Screens that read it.
 
+use game_engine_ui_model::game_menu_component::GameMenuViewModel;
+use game_engine_ui_model::options_menu_component::{
+    OPTIONS_CONTENT_SCROLL, back_stepper_name, forward_stepper_name, options_pan_extent,
+    options_wheel_extent,
+};
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
 use godot::prelude::*;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::scroll_list::{thumb_name, track_name};
 
-use super::RegistryUi;
+use super::{RegistryModel, RegistryUi};
 
 /// The scroll list frame `id` is, or is inside.
 pub(super) fn list_containing(registry: &FrameRegistry, mut id: u64) -> Option<String> {
@@ -25,11 +32,49 @@ pub(super) fn list_containing(registry: &FrameRegistry, mut id: u64) -> Option<S
     }
 }
 
+/// How far `list` scrolls per wheel notch and per stepper press, in its scroll units.
+fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
+    let options = (list == OPTIONS_CONTENT_SCROLL)
+        .then(|| model.shared.get::<GameMenuViewModel>())
+        .flatten();
+    match options {
+        Some(view) => (
+            options_wheel_extent(&view.options),
+            options_pan_extent(&view.options),
+        ),
+        None => (1, 1),
+    }
+}
+
 /// One wheel notch over `list`; returns whether it moved.
-pub(super) fn wheel(registry: &mut FrameRegistry, list: &str, up: bool) -> bool {
-    registry
+pub(super) fn wheel(model: &mut RegistryModel, list: &str, up: bool) -> bool {
+    let (step, _) = scroll_steps(model, list);
+    let step = step as isize;
+    model
+        .registry
         .scroll_lists
-        .scroll_by(list, if up { -1 } else { 1 })
+        .scroll_by(list, if up { -step } else { step })
+}
+
+/// A press on frame `hit` steps its list when `hit` is a Back or Forward stepper; returns
+/// whether it was one. A stepper at its end of the list is disabled and does nothing
+/// (`ScrollBarMixin:Update`, `ScrollBar.lua:237-239`).
+pub(super) fn press_stepper(model: &mut RegistryModel, hit: u64) -> bool {
+    let Some(list) = list_containing(&model.registry, hit) else {
+        return false;
+    };
+    let name = model.registry.get(hit).and_then(|frame| frame.name.clone());
+    let direction = match name {
+        Some(name) if name == back_stepper_name(&list) => -1,
+        Some(name) if name == forward_stepper_name(&list) => 1,
+        _ => return false,
+    };
+    let (_, step) = scroll_steps(model, &list);
+    model
+        .registry
+        .scroll_lists
+        .scroll_by(&list, direction * step as isize);
+    true
 }
 
 /// A press on frame `hit` at UI-unit height `y` grabs its list's thumb when `hit` is the thumb.
@@ -58,8 +103,17 @@ pub(super) fn drag_thumbs(registry: &mut FrameRegistry, y: f32) -> bool {
         .dragging()
         .filter_map(|(name, state)| {
             let track = registry.get(registry.get_by_name(&track_name(name))?)?;
-            let thumb_top = y - state.drag_grab? - track.layout_rect.as_ref()?.y;
-            Some((name.to_string(), state.geometry.row_at_thumb_top(thumb_top)))
+            let thumb = registry.get(registry.get_by_name(&thumb_name(name))?)?;
+            let track = track.layout_rect.as_ref()?;
+            let travel = track.height - thumb.layout_rect.as_ref()?.height;
+            let thumb_top = y - state.drag_grab? - track.y;
+            let fraction = if travel > 0.0 {
+                (thumb_top / travel).clamp(0.0, 1.0)
+            } else {
+                0.0
+            };
+            let row = (fraction * state.geometry.max_first_row() as f32).round() as usize;
+            Some((name.to_string(), row))
         })
         .collect();
     let grabbed = !targets.is_empty();
@@ -108,22 +162,21 @@ impl RegistryUi {
         let Some(model) = self.model.as_mut() else {
             return false;
         };
-        let registry = &mut model.registry;
-        let y = at.y / registry.ui_scale;
+        let y = at.y / model.registry.ui_scale;
         match button.get_button_index() {
             index @ (MouseButton::WHEEL_UP | MouseButton::WHEEL_DOWN) => {
-                let Some(list) = hit.and_then(|hit| list_containing(registry, hit)) else {
+                let Some(list) = hit.and_then(|hit| list_containing(&model.registry, hit)) else {
                     return false;
                 };
                 if button.is_pressed() {
-                    wheel(registry, &list, index == MouseButton::WHEEL_UP);
+                    wheel(model, &list, index == MouseButton::WHEEL_UP);
                 }
                 true
             }
-            MouseButton::LEFT if button.is_pressed() => {
-                hit.is_some_and(|hit| press_thumb(registry, hit, y))
-            }
-            MouseButton::LEFT => release_thumbs(registry),
+            MouseButton::LEFT if button.is_pressed() => hit.is_some_and(|hit| {
+                press_stepper(model, hit) || press_thumb(&mut model.registry, hit, y)
+            }),
+            MouseButton::LEFT => release_thumbs(&mut model.registry),
             _ => false,
         }
     }

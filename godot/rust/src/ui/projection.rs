@@ -154,7 +154,7 @@ impl UiProjection {
             at.x >= rect.position.x + left && at.x <= rect.position.x + rect.size.x - right;
         let inside_y =
             at.y >= rect.position.y + top && at.y <= rect.position.y + rect.size.y - bottom;
-        inside_x && inside_y
+        inside_x && inside_y && !clipped_out(node, at)
     }
 
     pub fn grab_focus(&self, id: u64) {
@@ -474,6 +474,14 @@ impl UiProjection {
         node.set_position(whole);
         node.set_size(Vector2::new(rect.width, rect.height));
         node.set_visible(frame.visible);
+        // A scroll list is a ScrollBox, which clips its children
+        // (`Blizzard_SharedXML/Shared/Scroll/ScrollBox.xml:20`): rows cut by its edges.
+        node.set_clip_contents(
+            frame
+                .name
+                .as_ref()
+                .is_some_and(|name| registry.scroll_lists.get(name).is_some()),
+        );
         node.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, frame.alpha));
         node.set_z_as_relative(false);
         node.set_z_index(
@@ -742,6 +750,22 @@ fn fit_multiline_label_spacing(
     );
     node.add_theme_constant_override("line_spacing", spacing);
     Ok(())
+}
+
+/// Whether `at` falls outside an ancestor of `node` that clips its children: the clipped
+/// part of a frame takes no pointer input, as Godot's own picking skips it.
+fn clipped_out(node: &Gd<Control>, at: Vector2) -> bool {
+    let mut parent = node.get_parent();
+    while let Some(next) = parent {
+        if let Ok(control) = next.clone().try_cast::<Control>()
+            && control.is_clipping_contents()
+            && !control.get_global_rect().contains_point(at)
+        {
+            return true;
+        }
+        parent = next.get_parent();
+    }
+    false
 }
 
 fn shadow_reserved_height(justify: JustifyV, native_shadow_y: f32) -> f32 {
