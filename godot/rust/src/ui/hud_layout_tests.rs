@@ -84,6 +84,7 @@ fn unit_frames() -> InWorldUnitFramesState {
     InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         player: UnitFrameState::named("Fbhud"),
         target_of_target: Some(SmallUnitFrameState::from(&target)),
         focus: Some(SmallUnitFrameState::from(&target)),
@@ -476,4 +477,33 @@ fn arcane_charges_hang_below_the_mana_bar_clear_of_its_text() {
     assert_eq!(row.y, mana.y + mana.height + 11.0);
     assert_eq!(row.x + row.width / 2.0, mana.x + mana.width / 2.0 - 1.0);
     assert_eq!((row.width, row.height), (4.0 * 21.0 + 3.0 * 10.0, 21.0));
+}
+
+#[test]
+fn target_cast_follows_target_rect_and_switches_preset_without_moving_player_cast() {
+    set_data_root();
+    let mut state = unit_frames();
+    state.target_of_target = None;
+    state.focus = None;
+    state.target_cast = Some(CastingBarState {
+        visible: true,
+        spell_name: "Frostbolt".into(),
+        icon_fdid: Some(135846),
+        timer_text: "1.5".into(),
+        progress: 0.25,
+        ..Default::default()
+    });
+    let mut hud = vec![model(state, inworld_unit_frames_screen)];
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, "TargetFrameSpellBar", (1026.0, 513.0, 150.0, 10.0));
+    assert_rect(&hud, "TargetCastingBarIcon", (1004.0, 513.0, 20.0, 20.0));
+    sync(&mut hud, ActiveSkin::Forever);
+    assert_rect(&hud, "TargetFrameSpellBar", (893.0, 684.0, 240.0, 24.0));
+    assert_rect(
+        &hud,
+        "TargetCastingBarBackground",
+        (913.0, 688.0, 216.0, 16.0),
+    );
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, "TargetFrameSpellBar", (1026.0, 513.0, 150.0, 10.0));
 }

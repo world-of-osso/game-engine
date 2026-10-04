@@ -74,6 +74,7 @@ fn frames(display: Option<PersonalResourceDisplayState>) -> FrameRegistry {
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         player: UnitFrameState::named("Fbprd"),
         target: None,
         target_of_target: None,
