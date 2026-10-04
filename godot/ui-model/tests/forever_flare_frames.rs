@@ -21,7 +21,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{
 };
 use shared::components::{CreatureClassification, PowerType};
 use ui_toolkit::atlas::ActiveSkin;
-use ui_toolkit::frame::{Dimension, Frame, WidgetData};
+use ui_toolkit::frame::{Dimension, Frame, WidgetData, WidgetType};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::TextureSource;
@@ -317,6 +317,76 @@ fn forever_cast_bar_is_flareui_steel_blue_292_by_26_bar() {
     let channel = cast_bar(ActiveSkin::Forever, casting(true));
     let fill = frame(&channel, "CastingBarFill");
     assert_eq!(fill.background_color, Some([0.50, 0.75, 0.88, 1.0]));
+}
+
+/// `root`'s visible frames in the order the client paints them: a frame's z is its strata,
+/// frame level and draw layer (godot/rust/src/ui/projection.rs `update_node`), and Godot
+/// paints equal z in tree order.
+fn paint_order<'a>(registry: &'a FrameRegistry, root: &str) -> Vec<&'a Frame> {
+    fn visit<'a>(registry: &'a FrameRegistry, id: u64, out: &mut Vec<&'a Frame>) {
+        let f = registry.get(id).unwrap();
+        if f.visible {
+            out.push(f);
+        }
+        for child in &f.children {
+            visit(registry, *child, out);
+        }
+    }
+    let mut frames = Vec::new();
+    visit(
+        registry,
+        registry.get_by_name(root).expect(root),
+        &mut frames,
+    );
+    frames.sort_by_key(|f| {
+        i32::from(f.strata as u8) * 100 + f.frame_level + i32::from(f.draw_layer as u8)
+    });
+    frames
+}
+
+/// Asserts `root` paints its bar fills, then its bronze border, then its texts.
+fn assert_fills_under_border_under_texts(registry: &FrameRegistry, root: &str) {
+    let order = paint_order(registry, root);
+    let name = |f: &Frame| f.name.clone().unwrap_or_default();
+    let indices = |pick: &dyn Fn(&Frame) -> bool| -> Vec<usize> {
+        (0..order.len()).filter(|&at| pick(order[at])).collect()
+    };
+    let fills = indices(&|f| name(f).ends_with("Fill"));
+    let border = indices(&|f| f.widget_type == WidgetType::Texture && name(f).contains("Border"));
+    let texts = indices(&|f| f.widget_type == WidgetType::FontString);
+    let painted: Vec<String> = order.iter().map(|f| name(f)).collect();
+    assert!(!fills.is_empty(), "{root} has no fill: {painted:?}");
+    // Edges a short frame has no room for are hidden; the four corners always show.
+    assert!(border.len() >= 4, "{root} border pieces: {painted:?}");
+    assert!(!texts.is_empty(), "{root} has no text: {painted:?}");
+    assert!(
+        fills.last() < border.first(),
+        "{root} paints a fill over its border: {painted:?}"
+    );
+    assert!(
+        border.last() < texts.first(),
+        "{root} paints its border over a text: {painted:?}"
+    );
+}
+
+/// FlareUI raises a unit frame's border and texts above its bars: bars at level +1, the
+/// `Border` frame at +4, the `Overlay` frame holding the texts at +5
+/// (UnitFrames.lua:2084-2106); a cast bar's `Border` at +2 and text overlay at +3
+/// (UnitFrames.lua:495-509).
+#[test]
+fn forever_frames_paint_fills_under_the_border_under_the_texts() {
+    let registry = unit_frames(ActiveSkin::Forever);
+    for root in [
+        "PlayerFrame",
+        "TargetFrame",
+        "TargetOfTargetFrame",
+        "FocusFrame",
+        "PetFrame",
+    ] {
+        assert_fills_under_border_under_texts(&registry, root);
+    }
+    let cast = cast_bar(ActiveSkin::Forever, casting(false));
+    assert_fills_under_border_under_texts(&cast, "PlayerCastingBarFrame");
 }
 
 /// `UI-HUD-UnitFrame-SmallCircle` has only a Forever set-1 member (UiTextureAtlasMember,
