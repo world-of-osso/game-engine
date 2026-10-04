@@ -214,11 +214,11 @@ mod tests {
     }
 
     #[test]
-    fn retail_wdt_keeps_active_tiles_and_declared_maid_ids() {
+    fn zephras_reader_coordinates_also_address_retail_maid_ids() {
         let data = std::fs::read("data/terrain/775971.wdt").unwrap();
         let tiles = parse_wdt_tiles(&data).unwrap();
         assert!(tiles.active.contains(&(32, 48)));
-        assert_ne!(tiles.file_ids(32, 48).unwrap().root, 0);
+        assert_eq!(tiles.file_ids(32, 48).unwrap().root, 778027);
     }
 
     #[test]
