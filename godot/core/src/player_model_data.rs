@@ -7,8 +7,34 @@ use std::path::Path;
 
 use crate::csv_util::read_numeric_rows;
 
-/// (race, sex) → body model FDID.
+/// Forever 1.60.1.70205 ChrRaces: High Order Skyborne / Windshaper Skyborne.
+/// Retail defines only TBD NPC Race placeholders for these IDs.
+pub(crate) const FOREVER_RACES: [u8; 2] = [95, 96];
+pub(crate) const FOREVER_DB2_DIR: &str = "db2/1.60.1.70205";
+
+/// (race, sex) → body model FDID, with the explicit Skyborne-only Forever overlay.
 pub fn player_model_fdids(db2_dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
+    let mut models = read_model_chain(db2_dir)?;
+    let forever_dir = db2_dir
+        .parent()
+        .ok_or("DB2 directory has no parent")?
+        .join("1.60.1.70205");
+    let forever = read_model_chain(&forever_dir)?;
+    for race in FOREVER_RACES {
+        for sex in [0, 1] {
+            let fdid = forever.get(&(race, sex)).ok_or_else(|| {
+                format!(
+                    "missing Forever body model for race {race} sex {sex} in {}",
+                    forever_dir.display()
+                )
+            })?;
+            models.insert((race, sex), *fdid);
+        }
+    }
+    Ok(models)
+}
+
+fn read_model_chain(db2_dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
     let table = |name: &str| db2_dir.join(format!("{name}.csv"));
     let mut model_files = HashMap::new();
     read_numeric_rows(
@@ -80,11 +106,42 @@ mod tests {
         ] {
             std::fs::write(dir.join(format!("{table}.csv")), csv).unwrap();
         }
-        let result = player_model_fdids(&dir);
+        let retail = dir.join("12.1.0.69933");
+        let forever = dir.join("1.60.1.70205");
+        std::fs::create_dir(&retail).unwrap();
+        std::fs::rename(&dir.join("ChrRaceXChrModel.csv"), dir.join("links.csv")).unwrap();
+        std::fs::create_dir(&forever).unwrap();
+        for table in ["ChrModel", "CreatureDisplayInfo", "CreatureModelData"] {
+            std::fs::rename(
+                dir.join(format!("{table}.csv")),
+                forever.join(format!("{table}.csv")),
+            )
+            .unwrap();
+        }
+        std::fs::rename(dir.join("links.csv"), forever.join("ChrRaceXChrModel.csv")).unwrap();
+        for (table, csv) in [
+            (
+                "ChrRaceXChrModel",
+                "ChrRacesID,ChrModelID,Sex\n1,1,0\n95,1,0\n96,1,0\n",
+            ),
+            ("ChrModel", "ID,DisplayID\n1,10\n"),
+            ("CreatureDisplayInfo", "ID,ModelID\n10,20\n"),
+            ("CreatureModelData", "ID,FileDataID\n20,1011653\n"),
+        ] {
+            std::fs::write(retail.join(format!("{table}.csv")), csv).unwrap();
+        }
+        // A Forever retail-race row must never override Retail's Human.
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(forever.join("ChrRaceXChrModel.csv"))
+            .and_then(|mut file| std::io::Write::write_all(&mut file, b"5,1,218,0\n"))
+            .unwrap();
+        let result = player_model_fdids(&retail);
         std::fs::remove_dir_all(&dir).unwrap();
         assert_eq!(
             result.unwrap(),
             HashMap::from([
+                ((1, 0), 1_011_653),
                 ((95, 0), 7_478_487),
                 ((95, 1), 7_478_494),
                 ((96, 0), 7_478_487),

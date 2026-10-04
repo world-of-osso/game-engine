@@ -78,6 +78,128 @@ impl Drop for CatalogFixture {
 }
 
 #[test]
+fn skyborne_compositor_uses_forever_layouts_without_replacing_retail() {
+    let fixture = CatalogFixture::new();
+    let forever = fixture.root.join("db2/1.60.1.70205");
+    std::fs::create_dir_all(&forever).unwrap();
+    for (dir, ids) in [(&fixture.root, &[1][..]), (&forever, &[1, 201, 202][..])] {
+        let mut layouts = String::from("ID,Width,Height\n");
+        let mut sections =
+            String::from("CharComponentTextureLayoutID,SectionType,X,Y,Width,Height\n");
+        let mut layers = String::from(
+            "TextureType,Layer,BlendMode,TextureSectionTypeBitMask,ChrModelTextureTargetID_0,CharComponentTextureLayoutsID\n",
+        );
+        let mut sizes = String::from("CharComponentTextureLayoutsID,TextureType,Width,Height\n");
+        for id in ids {
+            let width = if *id == 1 { 2 } else { 2048 };
+            let height = if *id == 1 { 1 } else { 1024 };
+            layouts.push_str(&format!("{id},{width},{height}\n"));
+            sections.push_str(&format!("{id},0,0,0,{width},{height}\n"));
+            layers.push_str(&format!("1,0,0,1,6,{id}\n"));
+            sizes.push_str(&format!("{id},1,{width},{height}\n"));
+        }
+        for (name, csv) in [
+            ("CharComponentTextureLayouts", layouts),
+            ("CharComponentTextureSections", sections),
+            ("ChrModelTextureLayer", layers),
+            ("ChrModelMaterial", sizes),
+        ] {
+            std::fs::write(dir.join(format!("{name}.csv")), csv).unwrap();
+        }
+    }
+    crate::char_texture_cache::import_char_texture_cache(&fixture.root).unwrap();
+    let compositor = crate::npc_appearance_assets::load_compositor(&fixture.root).unwrap();
+    for (id, dimensions) in [(1, (2, 1)), (201, (2048, 1024)), (202, (2048, 1024))] {
+        let (pixels, width, height) = compositor
+            .composite_with(&[(6, 99)], id, |_| Some((vec![9, 18, 27, 255], 1, 1)))
+            .unwrap();
+        assert_eq!((width, height), dimensions);
+        assert!(
+            pixels
+                .chunks_exact(4)
+                .all(|pixel| pixel == [9, 18, 27, 255])
+        );
+    }
+}
+
+#[test]
+fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
+    let retail = CatalogFixture::new();
+    let source = CatalogFixture::new();
+    let forever = retail.root.join("db2/1.60.1.70205");
+    std::fs::create_dir_all(&forever).unwrap();
+    for entry in std::fs::read_dir(&source.root).unwrap() {
+        let entry = entry.unwrap();
+        std::fs::copy(entry.path(), forever.join(entry.file_name())).unwrap();
+    }
+    for (name, contents) in [
+        (
+            "ChrModel",
+            "ID,CharComponentTextureLayoutID,CustomizeScale,CameraDistanceOffset\n218,201,1,0\n219,202,1,0\n",
+        ),
+        (
+            "ChrRaceXChrModel",
+            "ChrRacesID,ChrModelID,Sex\n95,218,0\n95,219,1\n96,218,0\n96,219,1\n1,218,0\n",
+        ),
+        ("ChrRaces", "ID,UnalteredVisualRaceID\n95,0\n96,0\n"),
+        (
+            "ChrCustomizationOption",
+            "Name_lang,ID,ChrModelID,ChrCustomizationCategoryID,OrderIndex,OptionType,Requirement\nSkin Color,500,218,3,0,0,12\nSkin Color,501,219,3,0,0,12\n",
+        ),
+        (
+            "ChrCustomizationChoice",
+            "Name_lang,ID,ChrCustomizationOptionID,ChrCustomizationReqID,OrderIndex,ChrCustomizationVisReqID,SwatchColor_0,SwatchColor_1\nBlue,95000,500,19,0,0,0,0\nBlue,95001,501,19,0,0,0,0\n",
+        ),
+        (
+            "ChrCustomizationElement",
+            "ChrCustomizationChoiceID,RelatedChrCustomizationChoiceID,ChrCustomizationGeosetID,ChrCustomizationMaterialID,ChrCustomizationSkinnedModelID,ChrCustomizationBoneSetID,ChrCustomizationCondModelID,ChrCustomizationDisplayInfoID,ChrCustItemGeoModifyID,ChrCustomizationVoiceID,AnimKitID,ParticleColorID,ChrCustGeoComponentLinkID\n95000,0,1,1,0,0,0,0,0,0,0,0,0\n95001,0,1,1,0,0,0,0,0,0,0,0,0\n",
+        ),
+        (
+            "CharHairGeosets",
+            "RaceID,SexID,GeosetType,GeosetID,Showscalp\n95,0,0,7,1\n",
+        ),
+    ] {
+        std::fs::write(forever.join(format!("{name}.csv")), contents).unwrap();
+    }
+    let header = "ID,ReqType,ClassMask,RaceMasks_0,RaceMasks_1,ReqAchievementID,ReqQuestID,ReqItemModifiedAppearanceID\n";
+    std::fs::write(
+        retail.root.join("ChrCustomizationReq.csv"),
+        format!("{header}12,1,0,1,0,0,0,0\n19,2,0,0,0,0,0,0\n"),
+    )
+    .unwrap();
+    std::fs::write(
+        forever.join("ChrCustomizationReq.csv"),
+        format!("{header}12,1,0,0,3,0,0,0\n19,1,0,0,3,0,0,0\n"),
+    )
+    .unwrap();
+    for dir in [&retail.root, &forever] {
+        std::fs::write(
+            dir.join("ChrCustomizationReqChoice.csv"),
+            "ChrCustomizationReqID,ChrCustomizationChoiceID\n",
+        )
+        .unwrap();
+    }
+    import_customization_cache(&retail.root).unwrap();
+    let db = crate::npc_appearance_assets::load_customization_db(&retail.root).unwrap();
+    assert_eq!(db.chr_model_id(1, 0), Some(1));
+    assert_eq!(db.options_for(1, 0).unwrap()[0].id, 890);
+    for (race, sex, model, layout, option) in [
+        (95, 0, 218, 201, 500),
+        (95, 1, 219, 202, 501),
+        (96, 0, 218, 201, 500),
+        (96, 1, 219, 202, 501),
+    ] {
+        assert_eq!(db.chr_model_id(race, sex), Some(model));
+        assert_eq!(db.layout_id(race, sex), Some(layout));
+        let choices = db.offered_choices(race, sex, 8, option);
+        assert_eq!(choices.len(), 1);
+        assert_eq!(choices[0].materials[0].1, 1020001);
+        assert_eq!(choices[0].geosets[0], (32, 2));
+    }
+    assert!(db.offered_choices(1, 0, 8, 890).len() > 0);
+}
+
+#[test]
 fn catalog_cache_roundtrip_retains_original_metadata_and_effect_support() {
     let fixture = CatalogFixture::new();
     let cache = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap();
