@@ -126,8 +126,16 @@ impl BuffFrameState {
 }
 
 /// Textures the host must copy from local CASC before drawing the buff frame.
-pub fn buff_frame_texture_fdids(_state: &BuffFrameState) -> Vec<u32> {
-    Vec::new()
+pub fn buff_frame_texture_fdids(state: &BuffFrameState) -> Vec<u32> {
+    state
+        .buffs
+        .iter()
+        .chain(&state.debuffs)
+        .flat_map(|icon| {
+            let border = icon.dispel.map(|_| DEBUFF_BORDER_ATLAS_FDID);
+            std::iter::once(icon.icon_fdid).chain(border)
+        })
+        .collect()
 }
 
 /// enUS `DEBUFF_SYMBOL_*` global strings; `None` has no abbreviation (AuraUtil.lua:5-10).
@@ -404,4 +412,3 @@ fn debuff_border(button: &str, dispel: DebuffType) -> Element {
         }
     }
 }
-
