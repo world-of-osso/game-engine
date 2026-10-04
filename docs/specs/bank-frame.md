@@ -37,7 +37,7 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
 - Dedicated bank textures resolve Blizzard atlas element names through `ui_toolkit::atlas::resolve_region`; Modern keeps the exact pre-conversion FDIDs, UVs, geometry and frame tree.
 - Forever uses `bank-frame-background`, `bags-item-bankslot64` for character slots, `bank-frame-item-slotframe` over item icons, and the scaled `bank-divider`. Warband slot art and purchase-tab art retain their set-0 members. The tinted purchase-prompt background resolves `bags-item-slot64`.
 - Camelot art does not change the 98-slot grid, slot actions, tabs or purchase/money state. Its 88-slot page cap and uniform spacing are behavior, excluded from this art conversion.
-- Standalone container windows have solid backgrounds and dynamic item icons, no hard-coded chrome crops to convert; their Modern and Forever trees stay identical.
+- Standalone container windows are Retail `ContainerFrameTemplate` (Retail/Forever Mainline ContainerFrame.xml:218-265, ContainerFrame.lua:9-12,779-874): 178 wide, 37×37 slots 5 apart in a `BottomRightToTopLeft` grid from BOTTOMRIGHT (-7, 9), `PortraitFrameFlatTemplate` chrome (flat background, portrait metal border, title at left 35, close button that closes only that bag), `bags-item-slot64` under every slot through the active skin. Not drawn: portrait icon (no texture masks in rsx), backpack search box/sort button/money frame rows.
 
 Source roots: Retail / Forever = `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowforever}/AddOns/Blizzard_UIPanels_Game/`. M / F = `data/db2/{12.1.0.69933,1.60.1.69913}/UiTextureAtlasMember.csv`. Atlas sheet FDIDs come from those builds' `UiTextureAtlas.csv`.
 
@@ -85,7 +85,8 @@ Known missing local BLPs: **8118796, 8118792, 8188339**. Resolution is not guard
 | `src/scenes/bag_frame/mod.rs` | Right-click deposit (`use_bag_item`) |
 
 ## Tests asserting this spec
-- `godot/ui-model/tests/forever_bank_bags.rs`: concrete Modern/Forever atlas regions, Forever divider/item chrome and unchanged slot actions, 1630-line byte-identical Modern bank/container fixture, unchanged container trees across skins.
+- `godot/ui-model/tests/forever_bank_bags.rs`: concrete Modern/Forever atlas regions, Forever divider/item chrome and unchanged slot actions, 1596-line byte-identical Modern bank fixture.
+- `godot/ui-model/tests/bag_window.rs`: under both skins the open backpack has its border, title, a close button that closes it, and one art-backed slot background per slot inside the window; Forever slot art differs from Modern.
 - `godot/ui-model/src/game/bank_data_tests.rs`
 - `src/game/networking/bank_tests.rs`
 - `src/scenes/bank_frame/tests.rs`

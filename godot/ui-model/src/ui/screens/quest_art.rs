@@ -180,7 +180,7 @@ pub fn flat_panel_chrome(
     title: &str,
     close_action: &str,
 ) -> Element {
-    let mut elements = flat_background(prefix, width, height);
+    let mut elements = flat_background(prefix, (6.0, 20.0, width - 2.0, height - 2.0));
     elements.extend(metal_border(
         prefix,
         width,
@@ -193,8 +193,31 @@ pub fn flat_panel_chrome(
     elements
 }
 
-fn flat_background(prefix: &str, width: f32, height: f32) -> Element {
-    let (left, top, right, bottom) = (6.0, 20.0, width - 2.0, height - 2.0);
+/// Retail `PortraitFrameFlatTemplate` (SharedUIPanelTemplates.xml:618-627,643-647): the
+/// `FlatPanelBackgroundTemplate` at TOPLEFT 2,-20 / BOTTOMRIGHT -2,3, the portrait metal
+/// border, `TitleContainer` from `title_left` (`SetTitleOffsets`) and the close button.
+pub fn portrait_flat_chrome(
+    prefix: &str,
+    (width, height): (f32, f32),
+    (title, title_left): (&str, f32),
+    close_action: &str,
+) -> Element {
+    let mut elements = flat_background(prefix, (2.0, 20.0, width - 2.0, height - 3.0));
+    elements.extend(metal_border(
+        prefix,
+        width,
+        height,
+        METAL_FRAME_PANEL_STYLE,
+        METAL_FRAME_OUTSET,
+    ));
+    elements.extend(window_title(prefix, width, title, title_left));
+    elements.extend(close_button(prefix, width, close_action));
+    elements
+}
+
+/// `FlatPanelBackgroundTemplate` (SharedUIPanelTemplates.xml:404-436) over the window
+/// rect `(left, top, right, bottom)`.
+fn flat_background(prefix: &str, (left, top, right, bottom): (f32, f32, f32, f32)) -> Element {
     let corner = 16.0;
     let fill = |name: &str, rect: (f32, f32, f32, f32)| {
         let (x, y, w, h) = rect;

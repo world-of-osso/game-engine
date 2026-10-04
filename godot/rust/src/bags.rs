@@ -2,7 +2,7 @@
 
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::bag_frame_component::{
-    ACTION_BAG_TOGGLE_PREFIX, BagFrameState, bag_frame_screen,
+    ACTION_BAG_TOGGLE_PREFIX, BagFrameState, bag_frame_screen, parse_bag_close_action,
 };
 use game_engine_ui_model::bags_bar_component::{
     ACTION_BAG_BAR_EXPAND_TOGGLE, BagBarState, bags_bar_screen,
@@ -351,6 +351,11 @@ impl GameClient {
                 return Ok(handled?);
             }
             self.bag_cursor_click(action, click)
+        } else if let Some(bag) = parse_bag_close_action(action) {
+            // `ContainerFrameMixin:OnCloseClicked` -> `CloseBag_Individual` hides only
+            // this bag (ContainerFrame.lua:308-317, 739-741).
+            self.bags.windows.close(WindowId::Bag(bag));
+            Ok(())
         } else if action == ACTION_BAG_BAR_EXPAND_TOGGLE {
             self.bags.bar_collapsed = !self.bags.bar_collapsed;
             Ok(())
