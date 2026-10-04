@@ -1121,13 +1121,18 @@ impl InputBindingsData {
             || (state.ctrl_held() && owned(InputBinding::CtrlKeyboard(key)))
     }
 
-    pub fn assign(&mut self, action: InputAction, binding: InputBinding) {
+    /// Binds `binding` to `action`, unbinding it from whichever action held it; returns that
+    /// action (Retail `KeybindListener:UnbindKey`, `Blizzard_Keybindings.lua:121-139`).
+    pub fn assign(&mut self, action: InputAction, binding: InputBinding) -> Option<InputAction> {
+        let mut unbound = None;
         for existing in InputAction::ALL {
             if existing != action && self.binding(existing) == Some(binding) {
                 self.bindings.insert(existing, None);
+                unbound = Some(existing);
             }
         }
         self.bindings.insert(action, Some(binding));
+        unbound
     }
 
     pub fn clear(&mut self, action: InputAction) {

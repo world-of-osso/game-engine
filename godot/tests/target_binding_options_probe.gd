@@ -59,9 +59,9 @@ func capture_binding(client: Node, key: Key, before: String, after: String, toke
 		return false
 	if not expect_label(client, before):
 		return false
-	if not await click_binding_control(client, "KeybindingRebindtarget_self"):
+	if not await click_binding_control(client, "KeybindingButtontarget_self"):
 		return false
-	if not expect_label(client, "Press a key or mouse button..."):
+	if not expect_label(client, "Press a key\u2026"):
 		return false
 	await tap(key)
 	if not expect_label(client, after) or not expect_saved_binding(token):
@@ -102,7 +102,7 @@ func expect_saved_binding(token: String) -> bool:
 	return true
 
 func expect_label(client: Node, expected: String) -> bool:
-	var label := binding_control(client, "KeybindingValuetarget_self") as Label
+	var label := binding_control(client, "KeybindingButtonTexttarget_self") as Label
 	if label == null or not label.is_visible_in_tree() or label.text != expected:
 		return reject("Authored TargetSelf label expected '%s', got '%s'" % [expected, label.text if label != null else "<missing>"])
 	return true

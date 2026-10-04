@@ -2,6 +2,7 @@ pub(crate) mod assets;
 mod icon_masks;
 pub(crate) mod input_queue;
 mod layout;
+mod options_keybindings;
 mod parts;
 mod projection;
 mod scroll_lists;
@@ -1323,6 +1324,16 @@ impl RegistryUi {
     pub fn frame_control(&self, name: &str) -> Option<Gd<Control>> {
         let id = self.model.as_ref()?.registry.get_by_name(name)?;
         self.projection.as_ref()?.node(id)
+    }
+
+    /// The Key Bindings action whose shown binding button contains `point` (canvas UI units).
+    pub fn keybinding_button_at(
+        &self,
+        section: game_engine_core::input_bindings_data::BindingSection,
+        point: [f32; 2],
+    ) -> Option<game_engine_core::input_bindings_data::InputAction> {
+        let model = self.model.as_ref()?;
+        options_keybindings::keybinding_button_at(&model.registry, section, point)
     }
 
     /// Screen rect `[x, y, w, h]` of frame `name` as last laid out (UIParent units times

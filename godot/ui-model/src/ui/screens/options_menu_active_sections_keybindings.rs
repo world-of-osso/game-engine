@@ -4,7 +4,7 @@ pub(super) fn keybindings_body(bindings: &KeybindingsView) -> OptionsPage {
     content_stack(
         [
             keybinding_section_tabs(bindings.section),
-            spacer("KeybindingsSpacer", 6.0),
+            keybinding_output(bindings),
             keybinding_rows(bindings),
         ]
         .into_iter()
@@ -159,6 +159,26 @@ fn keybinding_section_tab_label(
     }
 }
 
+fn keybinding_output(bindings: &KeybindingsView) -> Element {
+    let (text, color) = match &bindings.output {
+        Some(output) if output.error => (output.text.as_str(), BINDING_OUTPUT_ERROR_COLOR),
+        Some(output) => (output.text.as_str(), BINDING_OUTPUT_COLOR),
+        None => ("", BINDING_OUTPUT_COLOR),
+    };
+    rsx! {
+        fontstring {
+            name: "KeybindingOutput",
+            width: {OPTIONS_ROW_W},
+            height: BINDING_OUTPUT_H,
+            text: {text},
+            font: "FrizQuadrata",
+            font_size: 13.0,
+            font_color: color,
+            justify_h: "CENTER",
+        }
+    }
+}
+
 fn keybinding_rows(bindings: &KeybindingsView) -> Element {
     bindings.rows.iter().flat_map(keybinding_row).collect()
 }
@@ -170,98 +190,65 @@ fn keybinding_row(row: &KeybindingRowView) -> Element {
             width: {OPTIONS_ROW_W},
             height: 34.0,
             {row_label(&format!("KeybindingLabel{}", row.action.key()), &row.label)}
-            {keybinding_value(row)}
-            {keybinding_clear_button(row)}
-            {keybinding_rebind_button(row)}
+            {keybinding_button(row)}
         }
     }
 }
 
-fn keybinding_value(row: &KeybindingRowView) -> Element {
-    let text = if row.capturing {
-        "Press a key or mouse button...".to_string()
+/// The one binding button: its key, gray `NOT_BOUND` "Not Bound" at 0.8 alpha when unbound
+/// (`BindingButtonTemplate_SetupBindingButton`, `Blizzard_SharedXML/BindingUtil.lua:217-232`),
+/// pressed while listening. One key per action is the user's design choice; Retail shows a
+/// primary and a secondary button (`Blizzard_Keybindings.xml:65-82`). Retail's button sits
+/// 80 left of the row centre, 160 wide (:69-72).
+fn keybinding_button(row: &KeybindingRowView) -> Element {
+    let button_name = DynName(keybinding_button_name(row.action));
+    let text_name = DynName(format!("KeybindingButtonText{}", row.action.key()));
+    let action = keybinding_rebind_action(row.action);
+    let (text, color) = match (&row.binding_text, row.capturing) {
+        (_, true) => ("Press a key\u{2026}", BINDING_TEXT_COLOR),
+        (Some(text), false) => (text.as_str(), BINDING_TEXT_COLOR),
+        (None, false) => ("Not Bound", BINDING_NOT_BOUND_COLOR),
+    };
+    let atlas_up = if row.capturing {
+        "defaultbutton-nineslice-pressed"
     } else {
-        row.binding_text.clone()
+        "defaultbutton-nineslice-up"
     };
     rsx! {
-        fontstring {
-            name: {DynName(format!("KeybindingValue{}", row.action.key()))},
-            width: {BINDING_VALUE_W},
-            height: 20.0,
-            text: {&text},
-            font_size: 14.0,
-            color: "0.95,0.90,0.74,1.0",
-            justify_h: "RIGHT",
+        r#frame {
+            name: {DynName(format!("KeybindingButtonFrame{}", row.action.key()))},
+            width: BINDING_BUTTON_W,
+            height: BINDING_BUTTON_H,
             pos_type: "absolute",
-            right: 176.0,
+            left: {OPTIONS_ROW_W / 2.0 - 80.0},
             top: "50%",
             translate_y: "-50%",
-        }
-    }
-}
-
-fn keybinding_clear_button(row: &KeybindingRowView) -> Element {
-    let clear_name = DynName(format!("KeybindingClear{}", row.action.key()));
-    if row.can_clear {
-        let action = keybinding_clear_action(row.action);
-        rsx! {
             button {
-                name: {clear_name},
-                width: 72.0,
-                height: 28.0,
-                text: "Clear",
+                name: {button_name},
+                stretch: true,
+                text: "",
                 font_size: 13.0,
                 onclick: {&action},
-                button_atlas_up: "defaultbutton-nineslice-up",
+                button_atlas_up: atlas_up,
                 button_atlas_pressed: "defaultbutton-nineslice-pressed",
                 button_atlas_highlight: "defaultbutton-nineslice-highlight",
                 button_atlas_disabled: "defaultbutton-nineslice-disabled",
-                pos_type: "absolute",
-                right: 84.0,
-                top: "50%",
-                translate_y: "-50%",
             }
-        }
-    } else {
-        rsx! {
-            button {
-                name: {clear_name},
-                width: 72.0,
-                height: 28.0,
-                text: "Clear",
+            fontstring {
+                name: {text_name},
+                width: {BINDING_BUTTON_W - 10.0},
+                height: BINDING_BUTTON_H,
+                text: {text},
+                font: "FrizQuadrata",
                 font_size: 13.0,
-                disabled: true,
-                button_atlas_up: "defaultbutton-nineslice-up",
-                button_atlas_pressed: "defaultbutton-nineslice-pressed",
-                button_atlas_highlight: "defaultbutton-nineslice-highlight",
-                button_atlas_disabled: "defaultbutton-nineslice-disabled",
+                font_color: color,
+                justify_h: "CENTER",
                 pos_type: "absolute",
-                right: 84.0,
+                left: "50%",
+                translate_x: "-50%",
                 top: "50%",
                 translate_y: "-50%",
             }
-        }
-    }
-}
-
-fn keybinding_rebind_button(row: &KeybindingRowView) -> Element {
-    let action = keybinding_rebind_action(row.action);
-    rsx! {
-        button {
-            name: {DynName(format!("KeybindingRebind{}", row.action.key()))},
-            width: 72.0,
-            height: 28.0,
-            text: "Rebind",
-            font_size: 13.0,
-            onclick: {&action},
-            button_atlas_up: "defaultbutton-nineslice-up",
-            button_atlas_pressed: "defaultbutton-nineslice-pressed",
-            button_atlas_highlight: "defaultbutton-nineslice-highlight",
-            button_atlas_disabled: "defaultbutton-nineslice-disabled",
-            pos_type: "absolute",
-            right: -0.0,
-            top: "50%",
-            translate_y: "-50%",
         }
     }
 }

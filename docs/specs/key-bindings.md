@@ -1,6 +1,6 @@
 # Key Bindings
 
-The Retail default key bindings in the Godot client. Actions, persisted tokens and defaults are defined in `godot/core/src/input_bindings_data.rs`. Options › Keybindings lists them by section.
+The Retail default key bindings in the Godot client. Actions, persisted tokens and defaults are defined in `godot/core/src/input_bindings_data.rs`. Options › Keybindings lists them by section, one binding button per action.
 
 Sources:
 - Binding actions: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_FrameXML/Bindings_Standard.xml`.
@@ -28,6 +28,15 @@ Sources:
   - Shift-B `TOGGLEBACKPACK`;
   - F8–F11 `TOGGLEBAG1-4`, which call `ToggleBag(4..1)`.
 - [x] Minimap: Num Pad + `MINIMAPZOOMIN` and Num Pad − `MINIMAPZOOMOUT` (:1378-1383).
+
+### Binding buttons
+- [x] Each Key Bindings row is the action's name and one button showing its key (Retail key text, unabbreviated), or gray "Not Bound" at 0.8 alpha when unbound (`NOT_BOUND`, `BindingButtonTemplate_SetupBindingButton`, `Blizzard_SharedXML/BindingUtil.lua:217-232`). The button sits where Retail's first one does: 160 wide, 80 left of the row centre (`Blizzard_Settings_Shared/Blizzard_Keybindings.xml:65-72`).
+- [x] One key per action is the user's design choice ("one button displaying the keybind and often right click to unbind"), a departure from Retail's primary and secondary buttons (`Blizzard_Keybindings.xml:65-82`). The data model already holds one key per action; the options file has no second binding to load.
+- [x] Left-click listens: the button reads "Press a key…" and is drawn pressed, and the page's output line reads `SETTINGS_BIND_KEY_TO_COMMAND_OR_CANCEL` with `GetBindingText("ESCAPE")`: `Assign Binding for "<action>" or Press Escape to Cancel` (`Blizzard_Keybindings.lua:425-433`, `Blizzard_SettingsPanel.lua:966`). The next key, Shift- or Ctrl-key, or mouse button binds the action and is saved; modifier keys alone keep listening. Escape stops listening and changes nothing (`KeybindListener:ProcessInput`, `Blizzard_Keybindings.lua:89-92`).
+- [x] Right-click unbinds the action, saves, and clears the output line (`Blizzard_Keybindings.lua:434-440`).
+- [x] A key another action holds moves: that action becomes unbound and the output line names it in red, `KEY_UNBOUND_ERROR` "Action <action> is Now Unbound!" (`KeybindListener:UnbindKey`, `Blizzard_Keybindings.lua:121-139`; `SettingsPanelMixin:OnKeybindUnbindFailed`, `Blizzard_SettingsPanel.lua:971-974`). A free key reads `KEY_BOUND` "Key Bound Successfully" (:980-982). Retail's `PRIMARY_KEY_UNBOUND_ERROR` applies only when the other action keeps a second key, which one key per action cannot have.
+- Ours, not Retail's: the output line sits under the section tabs, not at the panel's bottom (`Blizzard_SettingsPanel.xml:18-22`), and another section clears it. Left and right mouse buttons can be bound while listening; Retail binds only keys, the wheel and other mouse buttons there.
+- Code: `godot/ui-model/src/ui/screens/options_menu_active_sections_keybindings.rs` (rows), `options_menu_data.rs` (`listen_for_binding`, `capture_binding`, `cancel_binding_capture`, `unbind_action`), `godot/rust/src/ui/options_keybindings.rs` (right-click hit test: Godot buttons press on the left button only), `godot/rust/src/game_menu.rs`.
 
 ### Options list scrolls
 - [x] Options pages scroll, as Retail's settings list does: a `WowScrollBoxList` with a `MinimalScrollBar` beside it (`Blizzard_Settings_Shared/Blizzard_SettingsList.xml:48-58`), the Key Bindings list included. The content area is as tall as the category list (`Blizzard_SettingsPanel.xml:59-74`), so the Options panel no longer grows with its page and fits a 768-unit canvas with its Done button.
@@ -67,6 +76,7 @@ These are not changed here:
 - J is `TOGGLEGUILDTAB` in Retail, with the Adventure Guide on Shift-J. The table puts the Adventure Guide on J.
 
 ## Tests
+- `godot/rust/src/ui/options_keybindings_tests.rs`: left-click then Q binds Action Bar 2 Button 1 and the button reads "Q"; right-click at a button unbinds that action and a click on the label does nothing; Escape cancels listening with the bindings unchanged; S on Move Forward moves it from Move Backward, which reads "Not Bound", with "Action Move Backward is Now Unbound!"; the page's edits survive saving and reloading the options file.
 - `godot/rust/src/ui/scroll_lists_tests.rs`: Action Bar 2's last button scrolls into the area by wheel and its first out, the wheel stops at both ends; dragging the thumb to the bottom shows the last row; another page starts at its top; Sound has no scroll bar; on every page and section the shown rows stay inside the area at every position and the panel fits the canvas.
 - `godot/core/tests/input_bindings_data.rs`: the inventory, sections and defaults, the token grammar (including `NumpadAdd`/`NumpadSubtract`), Shift shadowing, Action Bar 2/3 actions unbound and persisted through the options file, and Retail hotkey text.
 - `godot/ui-model/tests/forever_action_bars.rs` (`extra_bar_bindings_press_their_slot_and_label_their_button`): a key on `MULTIACTIONBAR1BUTTON3` presses slot 63 and labels `MultiBarBottomLeftButton3`; Shift-1 and middle mouse on Action Bar 3; unbound buttons blank; 0 still presses main bar button 10 under Forever.

@@ -24,12 +24,16 @@ use crate::ui::{RegistryModel, ScreenPostsetup};
 /// A 1080p window: a canvas 768 UI units tall.
 const VIEWPORT: (f32, f32) = (1920.0, 1080.0);
 
-fn view(category: OptionsCategory, section: BindingSection) -> GameMenuViewModel {
+/// The Options model with default settings on `category` and binding `section`.
+pub(crate) fn options_model(
+    category: OptionsCategory,
+    section: BindingSection,
+) -> policy::OptionsModel {
     let graphics = policy::graphics_draft_from_file(&GraphicsOptionsFile::default());
     let sound = policy::sound_draft_from_file(&SoundOptionsFile::default());
     let camera = policy::camera_draft_from_file(&CameraOptionsFile::default());
     let hud = policy::hud_draft_from_file(&HudOptionsFile::default());
-    policy::build_view_model(&policy::OptionsModel {
+    policy::OptionsModel {
         logged_in: true,
         view: GameMenuView::Options,
         category,
@@ -47,10 +51,14 @@ fn view(category: OptionsCategory, section: BindingSection) -> GameMenuViewModel
         binding_section: section,
         binding_capture: policy::BindingCapture::None,
         layout: Default::default(),
-    })
+    }
 }
 
-fn menu(view: GameMenuViewModel) -> RegistryModel {
+fn view(category: OptionsCategory, section: BindingSection) -> GameMenuViewModel {
+    policy::build_view_model(&options_model(category, section))
+}
+
+pub(crate) fn menu(view: GameMenuViewModel) -> RegistryModel {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -69,7 +77,7 @@ fn menu(view: GameMenuViewModel) -> RegistryModel {
 }
 
 /// Rebuild what changed and lay the canvas out, as the projection does.
-fn rebuild(model: &mut RegistryModel) {
+pub(crate) fn rebuild(model: &mut RegistryModel) {
     model.screen.sync(&model.shared, &mut model.registry);
     let bounds = compute_layout_with_intrinsics(&model.registry, &HashMap::new()).unwrap();
     for (id, rect) in bounds {
@@ -77,7 +85,7 @@ fn rebuild(model: &mut RegistryModel) {
     }
 }
 
-fn show(model: &mut RegistryModel, view: GameMenuViewModel) {
+pub(crate) fn show(model: &mut RegistryModel, view: GameMenuViewModel) {
     model.reset_options_scroll_for(&view);
     model.shared.insert(view);
     rebuild(model);
