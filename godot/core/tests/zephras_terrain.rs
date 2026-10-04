@@ -6,7 +6,7 @@ fn zephras_sample_parses_authored_terrain_textures_and_placements() {
     let tex_bytes = std::fs::read("data/terrain/7200002.adt").unwrap();
     let obj_bytes = std::fs::read("data/terrain/7200000.adt").unwrap();
     let wdt_bytes = std::fs::read("data/terrain/7198644.wdt").unwrap();
-    let root = adt::parse_root_for_tile(&root_bytes, 26, 29, Some(&tex_bytes)).unwrap();
+    let root = adt::parse_root_for_tile(&root_bytes, 29, 26, Some(&tex_bytes)).unwrap();
     assert_eq!(root.chunks.len(), 256);
     assert_eq!(root.height_grids.len(), 256);
     assert!(root.chunks.iter().all(|chunk| chunk.has_vertex_colors));

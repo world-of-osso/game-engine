@@ -201,7 +201,7 @@ mod tests {
         let data = std::fs::read("data/terrain/7198644.wdt").unwrap();
         let tiles = parse_wdt_tiles(&data).unwrap();
         assert_eq!(tiles.active.len(), 72);
-        let sample = tiles.file_ids(26, 29).unwrap();
+        let sample = tiles.file_ids(29, 26).unwrap();
         assert_eq!(sample.root, 7199999);
         assert_eq!(sample.obj0, 7200000);
         assert_eq!(sample.obj1, 7200001);

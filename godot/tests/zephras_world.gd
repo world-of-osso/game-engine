@@ -2,8 +2,8 @@ extends SceneTree
 
 # Offline integration of the production map reader, stream, meshes and object loaders.
 # Asset failures remain visible: the local Forever installation is not a complete archive.
-const TILE := Vector2i(26, 29)
-const CENTER := Vector3(1333.3333, 0.0, -2933.3333)
+# WDT inventory labels slot 26×64+29 as (26,29); native filename coordinates are (29,26).
+const CENTER := Vector3(2933.3333, 0.0, -1333.3333)
 const OUTPUT := "res://../data/diagnostics/zephras-world.png"
 var client: Node3D
 
@@ -44,7 +44,7 @@ func run_test() -> void:
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
-		var tile := client.get_node_or_null("WorldTerrain/Tile26_29")
+		var tile := client.get_node_or_null("WorldTerrain/Tile29_26")
 		var doodads := client.find_children("Doodad*", "Node3D", true, false)
 		var wmos := client.find_children("Wmo*", "Node3D", true, false)
 		if tile == null or doodads.is_empty() or wmos.is_empty():
