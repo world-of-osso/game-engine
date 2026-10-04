@@ -118,6 +118,25 @@ $noninline,relation$Parent<32>
             ],
         )
 
+    def test_version_one_bone_chunks(self):
+        from scripts import import_forever_skyborne as importer
+
+        raw = struct.pack("<I4sI2H", 1, b"BIDA", 4, 58, 59)
+        importer.validate_magic(raw, "bone")
+        with self.assertRaisesRegex(ValueError, "truncated"):
+            importer.validate_magic(raw[:-1], "bone")
+
+    def test_raw_afid_animation_requires_content_identity(self):
+        import hashlib
+        from scripts import import_forever_skyborne as importer
+
+        raw = struct.pack("<4I", 0, 34, 67, 100)
+        importer.validate_magic(raw, "anim", hashlib.md5(raw).hexdigest())
+        with self.assertRaisesRegex(ValueError, "content"):
+            importer.validate_magic(raw, "anim", "0" * 32)
+        with self.assertRaisesRegex(ValueError, "content"):
+            importer.validate_magic(raw, "anim")
+
     def test_chunk_closure(self):
         from scripts import import_forever_skyborne as importer
 
