@@ -7,8 +7,7 @@ pub mod ui {
 
     pub mod panel_styles {
         pub use crate::panel_style_data::{
-            METAL_FRAME_NO_PORTRAIT_OUTSET, METAL_FRAME_NO_PORTRAIT_PANEL_STYLE,
-            METAL_FRAME_OUTSET, METAL_FRAME_PANEL_STYLE,
+            METAL_FRAME_NO_PORTRAIT_PANEL_STYLE, METAL_FRAME_PANEL_STYLE,
         };
     }
 

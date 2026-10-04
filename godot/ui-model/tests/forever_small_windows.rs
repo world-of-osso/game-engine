@@ -3,6 +3,12 @@
 mod fixture;
 use std::fmt::Write;
 use std::path::PathBuf;
+use std::sync::Mutex;
+
+use game_engine_ui_model::character_frame::{
+    CharacterFrameView, PaperDollSlotView, character_frame_screen,
+};
+use game_engine_ui_model::quest_log_frame_component::{QuestLogFrameState, quest_log_frame_screen};
 
 use game_engine_ui_model::mail_frame_component::{
     MailFrameState, MailFrameTab, OpenMailView, mail_frame_screen,
@@ -12,6 +18,8 @@ use game_engine_ui_model::panel_style_data::{
     MetalGeometry, MetalTopLeft, compose_metal_sheet, metal_frame_style,
 };
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_active_skin};
+use ui_toolkit::frame::{Dimension, WidgetData};
+use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widget_def::Element;
@@ -281,8 +289,12 @@ fn assert_composed_members(corner: MetalTopLeft, skin: ActiveSkin) {
     }
 }
 
+/// The tests switch the process-wide skin.
+static SKIN: Mutex<()> = Mutex::new(());
+
 #[test]
 fn small_window_chrome_preserves_modern_and_draws_forever_members() {
+    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -307,6 +319,136 @@ fn small_window_chrome_preserves_modern_and_draws_forever_members() {
         for corner in [MetalTopLeft::Portrait, MetalTopLeft::Plain] {
             assert_composed_members(corner, skin);
         }
+    }
+    set_active_skin(ActiveSkin::Modern);
+}
+
+/// The member texture from `data/textures`.
+fn texture_file(fdid: u32) -> Result<(Vec<u8>, u32), String> {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("../../data/textures/{fdid}.blp"));
+    let bytes = std::fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let image = game_engine_core::blp::decode_rgba(&bytes)?;
+    Ok((image.pixels, image.width))
+}
+
+/// Display rows, from the top of the border frame, between the two bright rules of the
+/// composed top edge: the band the window title sits in.
+fn title_bar_band(geometry: MetalGeometry) -> (f32, f32) {
+    let sheet = compose_metal_sheet(MetalTopLeft::Portrait, geometry, texture_file).unwrap();
+    let (sheet_w, _) = geometry.sheet_size();
+    let x = geometry.columns[0] + geometry.columns[1] / 2;
+    let bright: Vec<u32> = (0..geometry.rows[0])
+        .filter(|y| {
+            let at = ((y * sheet_w + x) * 4) as usize;
+            let [r, g, b, a] = [0, 1, 2, 3].map(|i| u32::from(sheet[at + i]));
+            a > 128 && (r + g + b) / 3 > 80
+        })
+        .collect();
+    // Runs of consecutive bright rows: (first, last).
+    let mut runs: Vec<(u32, u32)> = Vec::new();
+    for y in bright {
+        match runs.last_mut() {
+            Some(run) if run.1 + 1 == y => run.1 = y,
+            _ => runs.push((y, y)),
+        }
+    }
+    assert!(runs.len() >= 2, "top edge rules {runs:?}");
+    let (upper, lower) = (runs[0], runs[runs.len() - 1]);
+    ((upper.1 + 1) as f32 / 2.0, lower.0 as f32 / 2.0)
+}
+
+fn px(value: Val) -> f32 {
+    let Val::Px(v) = value else {
+        panic!("{value:?}")
+    };
+    v
+}
+
+fn fixed(value: Dimension) -> f32 {
+    let Dimension::Fixed(v) = value else {
+        panic!("{value:?}")
+    };
+    v
+}
+
+fn forever_window<T: 'static>(state: T, screen: fn(&SharedContext) -> Element) -> FrameRegistry {
+    let mut ctx = SharedContext::new();
+    ctx.insert(state);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(screen).sync(&ctx, &mut registry);
+    registry
+}
+
+#[test]
+fn forever_window_titles_sit_inside_the_title_bar_band() {
+    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_active_skin(ActiveSkin::Forever);
+    let (band_top, band_bottom) = title_bar_band(MetalGeometry::active().unwrap());
+    let windows = [
+        (
+            forever_window(
+                MerchantFrameState {
+                    visible: true,
+                    title: "Brother Danil".into(),
+                    ..Default::default()
+                },
+                merchant_frame_screen,
+            ),
+            "MerchantFrame",
+        ),
+        (
+            forever_window(
+                QuestLogFrameState {
+                    visible: true,
+                    ..Default::default()
+                },
+                quest_log_frame_screen,
+            ),
+            "QuestLogFrame",
+        ),
+        (
+            forever_window(
+                CharacterFrameView {
+                    visible: true,
+                    title: "Shot".into(),
+                    slots: vec![PaperDollSlotView::default(); 18],
+                    race_id: 1,
+                    class_id: 2,
+                    ..Default::default()
+                },
+                character_frame_screen,
+            ),
+            "CharacterFrame",
+        ),
+    ];
+    for (registry, window) in &windows {
+        let frame = |suffix: &str| {
+            let name = format!("{window}{suffix}");
+            registry
+                .get(
+                    registry
+                        .get_by_name(&name)
+                        .unwrap_or_else(|| panic!("missing {name}")),
+                )
+                .unwrap()
+        };
+        let border_top = px(frame("NineSlice").position.top);
+        let title = frame("TitleText");
+        let Some(WidgetData::FontString(_)) = &title.widget_data else {
+            panic!("{window}TitleText is not text")
+        };
+        let title_top = px(title.position.top);
+        let title_bottom = title_top + fixed(title.height);
+        let (top, bottom) = (border_top + band_top, border_top + band_bottom);
+        assert!(
+            top <= title_top && title_bottom <= bottom,
+            "{window}: title {title_top}..{title_bottom} outside the title bar {top}..{bottom}"
+        );
     }
     set_active_skin(ActiveSkin::Modern);
 }
