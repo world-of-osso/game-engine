@@ -10,7 +10,7 @@ use std::sync::RwLock;
 
 use game_engine_core::ui_layout_data::{
     CHAT_HEIGHT_RANGE, CHAT_WIDTH_RANGE, DAMAGE_METER_HEIGHT_RANGE, DAMAGE_METER_WIDTH_RANGE,
-    FrameSizeSettings, LayoutSettings, SettingRange,
+    FrameSizeSettings, LayoutSettings, LayoutSkin, SettingRange,
 };
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::screen::SharedContext;
@@ -449,6 +449,16 @@ fn layout_of(skin: ActiveSkin, settings: &LayoutSettings) -> HudLayout {
         ActiveSkin::Forever => FOREVER,
     }
     .with_settings(settings)
+}
+
+/// The HUD layout of a layout with `skin` and `settings`, for the Options controls that
+/// show a layout's effective values.
+pub fn layout_with(skin: LayoutSkin, settings: &LayoutSettings) -> HudLayout {
+    let skin = match skin {
+        LayoutSkin::Modern => ActiveSkin::Modern,
+        LayoutSkin::Forever => ActiveSkin::Forever,
+    };
+    layout_of(skin, settings)
 }
 
 /// The settings of the layout the client draws (`None` until one is applied: the preset's

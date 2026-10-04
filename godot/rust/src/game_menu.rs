@@ -5,6 +5,7 @@ pub(crate) mod drag;
 use game_engine_core::{
     client_options_data::{load_options_file_with_legacy, options_path, save_options_file_to_path},
     input_bindings_data::{InputAction, InputBinding},
+    ui_layout_data::LayoutSettings,
 };
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::{
@@ -16,7 +17,7 @@ use game_engine_ui_model::{
         ACTION_OPTIONS_DEFAULTS, ACTION_OPTIONS_OKAY, ACTION_RESET_WINDOW_POSITIONS,
         OPTIONS_DRAG_HANDLE, OptionsCategory,
     },
-    options_menu_data::{self as policy, BindingCapture, OptionsModel},
+    options_menu_data::{self as policy, BindingCapture, LayoutAction, OptionsModel, SliderField},
 };
 use godot::{
     classes::{Control, InputEvent, InputEventKey, InputEventMouseButton, InputEventMouseMotion},
@@ -45,7 +46,13 @@ impl GameClient {
         ui.set_name("GameMenuUI");
         ui.set_layer(10);
         self.base_mut().add_child(&ui);
-        let model = self.new_game_menu_model();
+        let model = match self.new_game_menu_model() {
+            Ok(model) => model,
+            Err(error) => {
+                ui.free();
+                return Err(error);
+            }
+        };
         let result = ui
             .bind_mut()
             .show_game_menu_view(policy::build_view_model(&model));
@@ -62,13 +69,14 @@ impl GameClient {
         Ok(())
     }
 
-    fn new_game_menu_model(&self) -> OptionsModel {
+    fn new_game_menu_model(&self) -> Result<OptionsModel, String> {
+        let layout = self.ui_layout_options(Default::default())?;
         let file = &self.client_options;
         let graphics = policy::graphics_draft_from_file(&file.graphics);
         let sound = policy::sound_draft_from_file(&file.sound);
         let camera = policy::camera_draft_from_file(&file.camera);
         let hud = policy::hud_draft_from_file(&file.hud);
-        OptionsModel {
+        Ok(OptionsModel {
             logged_in: self.base().get_node_or_null("SkyboxDebug").is_none(),
             view: GameMenuView::MainMenu,
             category: OptionsCategory::Sound,
@@ -89,8 +97,8 @@ impl GameClient {
             committed_bindings: file.bindings.clone(),
             binding_section: game_engine_core::input_bindings_data::BindingSection::Movement,
             binding_capture: BindingCapture::None,
-            active_layout: self.ui_layout.name.clone(),
-        }
+            layout,
+        })
     }
 
     pub(super) fn close_game_menu(&mut self) {
@@ -375,6 +383,25 @@ impl GameClient {
         Ok(())
     }
 
+    /// Save the menu's layout settings when they differ from `before` (the drawn ones),
+    /// then show the layout the client now draws: its name, the layout list and values.
+    fn save_game_menu_layout_settings(&mut self, before: LayoutSettings) -> Result<(), String> {
+        let layout = &self
+            .game_menu_options
+            .as_ref()
+            .expect("menu has options model")
+            .layout;
+        let (settings, system) = (layout.settings, layout.system);
+        if settings != before {
+            self.save_ui_layout_settings(settings)?;
+        }
+        self.game_menu_options
+            .as_mut()
+            .expect("menu has options model")
+            .layout = self.ui_layout_options(system)?;
+        Ok(())
+    }
+
     fn dispatch_options_action(&mut self, action: &str) -> Result<bool, String> {
         if action == ACTION_RESET_WINDOW_POSITIONS {
             let path = options_path().with_file_name("ui_layout.ron");
@@ -388,12 +415,23 @@ impl GameClient {
             }
             return Ok(true);
         }
-        if let Some(name) = policy::parse_layout_action(action) {
-            self.select_ui_layout(name)?;
-            self.game_menu_options
+        if let Some(layout_action) = policy::parse_layout_action(action) {
+            let layout = &mut self
+                .game_menu_options
                 .as_mut()
                 .expect("menu has options model")
-                .active_layout = name.to_string();
+                .layout;
+            let before = layout.settings;
+            policy::apply_layout_action(layout_action, layout);
+            if let LayoutAction::Select(index) = layout_action {
+                let name = layout
+                    .names
+                    .get(index)
+                    .ok_or_else(|| format!("Unknown layout choice {index}"))?
+                    .clone();
+                self.select_ui_layout(&name)?;
+            }
+            self.save_game_menu_layout_settings(before)?;
             self.refresh_game_menu()?;
             return Ok(true);
         }
@@ -450,14 +488,17 @@ impl GameClient {
         let sliders = ui.bind_mut().drain_slider_events();
         for slider in sliders {
             if let Some(field) = policy::parse_slider_action(&slider.action) {
-                policy::apply_slider_value(
-                    field,
-                    slider.value,
-                    self.game_menu_options
-                        .as_mut()
-                        .expect("menu has options model"),
-                );
-                self.commit_game_menu_options()?;
+                let model = self
+                    .game_menu_options
+                    .as_mut()
+                    .expect("menu has options model");
+                let layout_before = model.layout.settings;
+                policy::apply_slider_value(field, slider.value, model);
+                if matches!(field, SliderField::Layout(_)) {
+                    self.save_game_menu_layout_settings(layout_before)?;
+                } else {
+                    self.commit_game_menu_options()?;
+                }
                 self.refresh_game_menu()?;
             }
         }

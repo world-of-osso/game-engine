@@ -90,7 +90,7 @@ fn options_model() -> OptionsModel {
         committed_bindings: InputBindingsData::default(),
         binding_section: BindingSection::Movement,
         binding_capture: BindingCapture::None,
-        active_layout: "Modern".into(),
+        layout: Default::default(),
     }
 }
 

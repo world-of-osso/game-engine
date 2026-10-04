@@ -111,6 +111,9 @@ impl NativeJsAutomation {
             UiAutomationAction::ClickFrame(name) => {
                 click_events(client, &name, MouseButton::LEFT, false)
             }
+            UiAutomationAction::ClickFrameAt(name, across) => {
+                click_at_events(client, &name, across)
+            }
             UiAutomationAction::RightClickFrame(name) => right_click_events(client, state, &name),
             UiAutomationAction::ShiftClickFrame(name) => shift_click_events(client, state, &name),
             UiAutomationAction::TypeText(text) => focused_text_events(client, &text),
@@ -184,6 +187,29 @@ fn visible_control(client: &Gd<Node>, name: &str) -> Option<Gd<Control>> {
         nodes.extend(node.get_children().iter_shared());
     }
     None
+}
+
+/// A left click at `across` (0..=1) of the frame's width, at mid-height.
+fn click_at_events(
+    client: &Gd<Node>,
+    name: &str,
+    across: f32,
+) -> Result<VecDeque<Gd<InputEvent>>, String> {
+    if !(0.0..=1.0).contains(&across) {
+        return Err(format!(
+            "native JS automation: clickAt '{name}' needs a fraction in 0..=1, got {across}"
+        ));
+    }
+    let control = visible_control(client, name)
+        .ok_or_else(|| format!("native JS automation: no visible mounted frame '{name}'"))?;
+    let size = control.get_size();
+    let point =
+        control.get_global_transform_with_canvas() * Vector2::new(size.x * across, size.y * 0.5);
+    let mut events = VecDeque::from([mouse_motion_event(point, false)]);
+    for pressed in [true, false] {
+        events.push_back(mouse_button_event(point, MouseButton::LEFT, pressed, false));
+    }
+    Ok(events)
 }
 
 fn click_events(
