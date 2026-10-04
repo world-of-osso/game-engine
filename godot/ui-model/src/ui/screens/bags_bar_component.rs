@@ -155,7 +155,6 @@ fn bag_bar(synced: Option<BagBarState>, layout: &HudLayout) -> Element {
             name: "BagsBar",
             width: {total_w},
             height: {BAGS_BAR_H},
-            hidden: {layout.hide_utility_bars},
             pos_type: "absolute",
             left: {at.left.as_str()},
             right: {at.right.as_str()},

@@ -293,7 +293,6 @@ pub fn micro_menu_screen(ctx: &SharedContext) -> Element {
             name: {DynName(MICRO_MENU.into())},
             width: MICRO_MENU_W,
             height: BUTTON_H,
-            hidden: {layout.hide_utility_bars},
             pos_type: "absolute",
             left: {at.left.as_str()},
             right: {at.right.as_str()},
