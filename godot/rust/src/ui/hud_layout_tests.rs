@@ -240,6 +240,8 @@ fn assert_modern(hud: &[RegistryModel]) {
         (467.0, 657.0, 26.0, 28.0),
     );
     assert_modern_edit_mode_systems(hud);
+    // Mainline/EditModePresetLayouts.lua:549-554: TOPRIGHT (-110, -275).
+    assert_eq!(top_right(hud, TRACKER_FRAME), (1256.0, 275.0));
 }
 
 /// Systems whose anchors the Forever preset shares with Modern.
@@ -250,7 +252,6 @@ fn assert_modern_edit_mode_systems(hud: &[RegistryModel]) {
     assert_eq!(top_left(hud, PARTY_FRAME), (22.0, 147.0));
     let raid = rect(hud, RAID_FRAME);
     assert_eq!((raid.x, raid.y + raid.height), (395.0, 553.0));
-    assert_eq!(top_right(hud, TRACKER_FRAME), (1256.0, 275.0));
 }
 
 #[test]
@@ -310,7 +311,6 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
         "ChatFrame1ScrollToBottomButton",
         (437.0, 590.0, 26.0, 28.0),
     );
-    // FlareUI changes tracker scale, not the shared Mainline anchor.
     assert_modern_edit_mode_systems(&hud);
 
     sync(&mut hud, ActiveSkin::Modern);
@@ -328,7 +328,9 @@ fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
     let map = rect(&hud, MINIMAP_CLUSTER);
     let tracker = rect(&hud, TRACKER_FRAME);
     let header = rect(&hud, "ObjectiveTrackerFrameHeaderBackground");
-    // Minimap.lua:366-405: 288 visible pixels of the 300-pixel atlas line.
+    // FlareUI Modules/Minimap.lua:371-379,401-406: SetScale(frame outer width / 288), the
+    // 288 visible pixels of the 300-pixel header line; here 260 / 288. SetScale also scales
+    // the Mainline TOPRIGHT (-110, -275) offsets: right edge 1366 - 99.306, top 248.264.
     let actual = [
         tracker.x,
         tracker.y,
@@ -336,14 +338,11 @@ fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
         tracker.height,
         header.width,
     ];
-    let expected = [1021.2778, 275.0, 234.72223, 28.88889, 270.83334];
+    let expected = [1031.9722, 248.26389, 234.72223, 28.88889, 270.83334];
     for (actual, expected) in actual.into_iter().zip(expected) {
         assert!((actual - expected).abs() < 0.001, "{actual} != {expected}");
     }
     assert!((header.width * 288.0 / 300.0 - map.width).abs() < 0.001);
-    // Mainline/EditModePresetLayouts.lua:549-554 retains TOPRIGHT (-110,-275).
-    assert_eq!(tracker.x + tracker.width, map.x + map.width - 110.0);
-    assert_eq!(tracker.y, map.y + map.height + 15.0);
     sync(&mut hud, ActiveSkin::Modern);
     assert_rect(&hud, TRACKER_FRAME, (996.0, 275.0, 260.0, 32.0));
     assert_eq!(
