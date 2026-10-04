@@ -892,7 +892,7 @@ fn plate_rule_input(
     viewer: &Viewer,
     unit: ReplicatedUnit,
     template: Option<&FactionTemplateEntry>,
-    node: &Gd<Node3D>,
+    distance: f32,
 ) -> PlateUnit {
     let flags = UnitFlags(unit.unit_flags().unwrap_or_default());
     let is_player = unit.has::<Player>();
@@ -919,7 +919,7 @@ fn plate_rule_input(
             unit.threat_list(),
             viewer.id,
         ),
-        distance: node.get_global_position().distance_to(viewer.position),
+        distance,
     }
 }
 
@@ -1043,7 +1043,8 @@ impl GameClient {
             .filter_map(|unit| {
                 let node = self.world.unit_node(unit.server_id)?;
                 let template = unit.faction_template().and_then(|id| templates.get(&id));
-                let rules = plate_rule_input(&viewer, unit, template, &node);
+                let distance = node.get_global_position().distance_to(viewer.position);
+                let rules = plate_rule_input(&viewer, unit, template, distance);
                 if !node.is_visible_in_tree() || !plate_shown(&cvars, &rules) {
                     return None;
                 }
@@ -1093,7 +1094,8 @@ impl GameClient {
             return Ok(state);
         };
         let template = unit.faction_template().and_then(|id| templates.get(&id));
-        let rules = plate_rule_input(&viewer, unit, template, &node);
+        let distance = node.get_global_position().distance_to(viewer.position);
+        let rules = plate_rule_input(&viewer, unit, template, distance);
         state.set("enemy", rules.enemy);
         state.set("selectable", rules.selectable);
         state.set("alive", rules.alive);
@@ -1215,6 +1217,75 @@ mod skin_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use shared::components::{CombatStatus, Npc, UnitFactionTemplate, UnitThreatList};
+
+    const SHOT: u64 = 30;
+    const GUARD: u64 = 41;
+    const KOBOLD: u64 = 42;
+    /// FactionTemplate.csv (build 12.1.0.69933) rows 1 (Human player), 11 (Stormwind
+    /// guard, Faction 72) and 26 (Kobold Vermin's creature_template faction 25).
+    const TEMPLATES: &str = "\
+ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies_2,Enemies_3,Enemies_4,Enemies_5,Enemies_6,Enemies_7,Friend_0,Friend_1,Friend_2,Friend_3,Friend_4,Friend_5,Friend_6,Friend_7
+1,1,72,3,2,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+11,72,2081,3,2,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+26,25,1,8,0,1,0,0,0,0,0,0,0,0,25,0,0,0,0,0,0,0
+";
+
+    fn npc(replica: &mut Replica, id: u64, name: &str, template: u32) {
+        replica.insert(
+            id,
+            Npc {
+                template_id: 6,
+                name: name.into(),
+            },
+        );
+        replica.insert(id, UnitFactionTemplate(template));
+        replica.insert(
+            id,
+            Health {
+                current: 55.0,
+                max: 55.0,
+            },
+        );
+    }
+
+    /// Whether unit `id`, 10 yd away, has a plate under the Retail default CVars while
+    /// the Human player targets `target`.
+    fn shown(replica: &Replica, id: u64, target: Option<u64>) -> bool {
+        let templates = parse_faction_template_csv(TEMPLATES).unwrap();
+        let viewer = Viewer {
+            id: SHOT,
+            target,
+            position: Vector3::ZERO,
+            template: templates.get(&1),
+        };
+        let unit = replica.unit(id).unwrap();
+        let template = unit.faction_template().and_then(|id| templates.get(&id));
+        let rules = plate_rule_input(&viewer, unit, template, 10.0);
+        plate_shown(&NameplateCvars::default(), &rules)
+    }
+
+    /// `nameplateShowFriendlyNpcs = 0` (cvars.yaml:1004): the targeted Stormwind guard has
+    /// no plate, as the Stormwind Army Registrar in shot3-2026-10-03/forever-target.webp.
+    #[test]
+    fn a_targeted_friendly_npc_has_no_plate_under_the_default_cvars() {
+        let mut replica = Replica::for_tests();
+        npc(&mut replica, GUARD, "Stormwind Guard", 11);
+        assert!(!shown(&replica, GUARD, Some(GUARD)));
+    }
+
+    /// `nameplateShowEnemies = 1`, `nameplateShowAll = 0`: a Kobold Vermin has a plate
+    /// while it is the target or has the player on its threat list, and none otherwise.
+    #[test]
+    fn a_hostile_npc_has_a_plate_while_targeted_or_fighting_the_player() {
+        let mut replica = Replica::for_tests();
+        npc(&mut replica, KOBOLD, "Kobold Vermin", 26);
+        assert!(!shown(&replica, KOBOLD, None));
+        assert!(shown(&replica, KOBOLD, Some(KOBOLD)));
+        replica.insert(KOBOLD, CombatStatus(true));
+        replica.insert(KOBOLD, UnitThreatList(vec![SHOT]));
+        assert!(shown(&replica, KOBOLD, None));
+    }
 
     #[test]
     fn colorblind_mode_changes_player_and_npc_labels_but_not_health_fill() {
