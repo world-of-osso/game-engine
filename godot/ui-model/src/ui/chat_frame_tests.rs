@@ -268,7 +268,7 @@ fn the_players_swing_reads_your_melee_hit_in_the_players_grey() {
 
 #[test]
 fn the_players_spell_damage_names_the_spell_and_its_results() {
-    let mut strike = event(CombatLogKind::Damage, Some(35395), 1, 1_534);
+    let mut strike = event(CombatLogKind::Damage, Some(35395), 1, 1_234);
     strike.overflow = 300;
     strike.crit = true;
     assert_eq!(
@@ -438,6 +438,25 @@ fn wrapping_breaks_between_words_and_keeps_links_whole() {
     assert_eq!(link.color, MINE_GREY);
     assert_eq!((link.x, link.width), (0.0, 90.0));
     assert_eq!(rows[1].runs[1].x, 90.0);
+}
+
+/// A measure with 4 units of padding per measured string, as a shaped text has: a run
+/// starts where the text before it ends, not at the sum of its words' own measures.
+#[test]
+fn a_coloured_run_starts_where_the_text_before_it_ends() {
+    let padded = |value: &str| match value.len() {
+        0 => 0.0,
+        count => count as f32 * 10.0 + 4.0,
+    };
+    let line = ChatLine {
+        color: WHITE,
+        spans: vec![text("Your Melee hit You "), colored(MINE_GREY, "8")],
+    };
+    let rows = wrap_chat_line(&line, |_| String::new(), 1_000.0, padded);
+    let runs = &rows[0].runs;
+    assert_eq!(runs[0].text, "Your Melee hit You ");
+    assert_eq!(runs[0].width, 194.0);
+    assert_eq!((runs[1].text.as_str(), runs[1].x), ("8", 194.0));
 }
 
 #[test]

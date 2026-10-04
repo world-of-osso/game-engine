@@ -28,6 +28,7 @@ use crate::frame_error::FrameError;
 use crate::replicated::UnitFields;
 use crate::ui::RegistryUi;
 use game_engine_ui_model::group_state::GroupCommand;
+use game_engine_ui_model::hud_layout::skin_hud_layout;
 
 /// The root client's line when `/who` has no who state.
 const WHO_UNAVAILABLE_TEXT: &str = "Who is unavailable.";
@@ -210,8 +211,9 @@ impl ChatModel {
         self.seen_combat = self.combat.received;
     }
 
-    pub fn view(&self, spell_name: impl Fn(u32) -> String) -> ChatFrameView {
-        chat_frame_view(&self.state, &self.log, &self.combat, spell_name)
+    /// The frame's content for a chat frame of `chat_size`.
+    pub fn view(&self, chat_size: (f32, f32), spell_name: impl Fn(u32) -> String) -> ChatFrameView {
+        chat_frame_view(&self.state, &self.log, &self.combat, chat_size, spell_name)
     }
 
     /// Leaving the world closes the edit box, clears the combat log and stops flashing.
@@ -262,6 +264,11 @@ pub(crate) struct Chat {
     flash_elapsed: f32,
 }
 
+/// The chat frame's size in the active HUD preset.
+fn chat_size() -> (f32, f32) {
+    skin_hud_layout(ui_toolkit::atlas::active_skin()).chat_size
+}
+
 /// Spell link names from the catalog; `Spell #id` until it loads (root `spell_namer`).
 fn spell_namer(catalog: Option<&SpellCatalogData>) -> impl Fn(u32) -> String + '_ {
     move |id| match catalog.and_then(|catalog| catalog.get(id)) {
@@ -276,7 +283,10 @@ impl crate::GameClient {
             return Ok(());
         }
         self.extract_art(&FOREVER_CHAT_HEADER_FDIDS);
-        let view = self.chat.model.view(spell_namer(self.spells.catalog()));
+        let view = self
+            .chat
+            .model
+            .view(chat_size(), spell_namer(self.spells.catalog()));
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("ChatFrameUI");
         self.base_mut().add_child(&ui);
@@ -328,7 +338,10 @@ impl crate::GameClient {
             self.close_chat_input()?;
         }
         self.chat.model.absorb_new_lines();
-        let view = self.chat.model.view(spell_namer(self.spells.catalog()));
+        let view = self
+            .chat
+            .model
+            .view(chat_size(), spell_namer(self.spells.catalog()));
         let mut ui = self.chat.ui.clone().expect("chat UI attached");
         ui.bind_mut().set_state(view)?;
         self.pulse_chat_flashes(delta)
@@ -429,7 +442,10 @@ impl crate::GameClient {
     pub(crate) fn open_chat_input(&mut self, prefill: &str) -> Result<(), String> {
         let mut ui = self.chat.ui.clone().ok_or("Chat frame is not shown")?;
         self.chat.model.open();
-        let view = self.chat.model.view(spell_namer(self.spells.catalog()));
+        let view = self
+            .chat
+            .model
+            .view(chat_size(), spell_namer(self.spells.catalog()));
         let mut bound = ui.bind_mut();
         bound.set_state(view)?;
         bound.set_editbox_text(CHAT_EDITBOX.0, prefill)?;
@@ -442,7 +458,10 @@ impl crate::GameClient {
         let mut bound = ui.bind_mut();
         bound.set_editbox_text(CHAT_EDITBOX.0, "")?;
         bound.release_focus_named(CHAT_EDITBOX.0);
-        let view = self.chat.model.view(spell_namer(self.spells.catalog()));
+        let view = self
+            .chat
+            .model
+            .view(chat_size(), spell_namer(self.spells.catalog()));
         bound.set_state(view)
     }
 
