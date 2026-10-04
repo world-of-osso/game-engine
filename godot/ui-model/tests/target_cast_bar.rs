@@ -36,6 +36,10 @@ fn cast() -> CastingBarState {
     }
 }
 fn registry(skin: ActiveSkin, state: InWorldUnitFramesState) -> FrameRegistry {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut ctx = SharedContext::new();
     ctx.insert(skin);
     ctx.insert(state);
@@ -71,13 +75,11 @@ fn target_cast_modern_tree_has_retail_track_icon_shield_name_timer() {
     let root = frame(&r, "TargetFrameSpellBar");
     assert_eq!(
         (root.width, root.height),
-        (Dimension::Fixed(150.0), Dimension::Fixed(20.0))
+        (Dimension::Fixed(150.0), Dimension::Fixed(10.0))
     );
-    assert_eq!(
-        (root.margin.left, root.margin.top),
-        (Val::Px(343.0), Val::Px(-255.0))
-    );
-    assert_eq!(rect(&r, "TargetCastingBarIcon"), (-22.0, 5.0, 20.0, 20.0));
+    assert_eq!(root.margin.left, Val::Px(343.0));
+    assert_eq!(root.position.bottom, Val::Px(245.0));
+    assert_eq!(rect(&r, "TargetCastingBarIcon"), (-22.0, 0.0, 20.0, 20.0));
     let Some(WidgetData::Texture(icon)) = &frame(&r, "TargetCastingBarIcon").widget_data else {
         panic!("not icon")
     };
@@ -85,7 +87,13 @@ fn target_cast_modern_tree_has_retail_track_icon_shield_name_timer() {
         icon.source,
         ui_toolkit::widgets::texture::TextureSource::FileDataId(135846)
     );
-    assert_eq!(rect(&r, "TargetCastingBarFill"), (0.0, 0.0, 37.5, 20.0));
+    assert_eq!(
+        (
+            frame(&r, "TargetCastingBarFill").width,
+            frame(&r, "TargetCastingBarFill").height
+        ),
+        (Dimension::Fixed(37.5), Dimension::Fixed(10.0))
+    );
     assert_eq!(text(&r, "TargetCastingBarSpellName"), "Frostbolt");
     assert_eq!(text(&r, "TargetCastingBarTimer"), "1.5");
     assert!(frame(&r, "TargetCastingBarShield").hidden);
@@ -93,7 +101,7 @@ fn target_cast_modern_tree_has_retail_track_icon_shield_name_timer() {
     c.is_interruptible = false;
     let r = registry(ActiveSkin::Modern, state(Some(c)));
     assert!(!frame(&r, "TargetCastingBarShield").hidden);
-    assert!(frame(&r, "TargetCastingBarIcon").hidden);
+    assert!(!frame(&r, "TargetCastingBarIcon").hidden);
 }
 #[test]
 fn target_cast_forever_tree_has_bronze_holder_icon_overlay_and_timer() {

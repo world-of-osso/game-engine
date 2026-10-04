@@ -474,7 +474,7 @@ fn personal_resource_state(
 }
 
 fn target_cast_state(
-    _target: Option<u64>,
+    _target: Option<Unit>,
     _casts: &crate::nameplate_casts::PlateCasts,
     _icon_fdid: Option<u32>,
 ) -> Option<game_engine_ui_model::casting_bar_frame_component::CastingBarState> {
