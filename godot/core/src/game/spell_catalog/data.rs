@@ -83,6 +83,8 @@ pub struct CatalogSpell {
     /// Raw `Spell.Description_lang`; see [`SpellCatalog::render_description`].
     pub description: Box<str>,
     pub aura_description: Box<str>,
+    /// Raw `SpellDescriptionVariables.Variables`: `$name=...` lines for `$<name>` tokens.
+    pub description_variables: Box<str>,
     pub icon_fdid: u32,
     /// Raw DB value; one row holds -1.
     pub active_icon_fdid: i32,

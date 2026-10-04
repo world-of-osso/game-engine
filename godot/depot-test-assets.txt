@@ -104,6 +104,8 @@ db2/12.1.0.69933/SpellCategories.csv
 db2/12.1.0.69933/SpellCategory.csv
 db2/12.1.0.69933/SpellAuraOptions.csv
 db2/12.1.0.69933/SpellShapeshiftForm.csv
+db2/12.1.0.69933/SpellDescriptionVariables.csv
+db2/12.1.0.69933/SpellXDescriptionVariables.csv
 db2/12.1.0.69933/SpellLevels.csv
 db2/12.1.0.69933/ChrRaces.csv
 db2/12.1.0.69933/ChrClasses.csv
