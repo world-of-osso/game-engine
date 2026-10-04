@@ -61,7 +61,7 @@ import struct
 import sys
 
 # (layout hash, [(CSV column, source)]); source is "id", "parent", a field index,
-# ("string", field index) for an inline string field of a single-section table,
+# ("string", field index) for an inline string field,
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
@@ -611,9 +611,28 @@ def read_wdc5(data, layout, id_field=0):
 
 
 def read_string(data, record_offset, field, value):
-    """Inline string fields hold the string's offset from the field's own byte position."""
-    start = record_offset + field[0] // 8 + value
-    return data[start : data.index(b"\0", start)].decode("utf-8")
+    """Resolve offsets in the global record/string sequence, not physical file offsets."""
+    total, _, record_size = struct.unpack_from("<3I", data, 136)
+    sections = struct.unpack_from("<I", data, 200)[0]
+    headers = [struct.unpack_from("<Q8I", data, 204 + i * 40) for i in range(sections)]
+    preceding = 0
+    for _, start, count, *_ in headers:
+        if start <= record_offset < start + count * record_size:
+            index = preceding + (record_offset - start) // record_size
+            break
+        preceding += count
+    else:
+        raise ValueError(f"string record offset {record_offset} outside all sections")
+    logical = (index - total) * record_size + field[0] // 8 + value
+    for key, start, count, size, *_ in headers:
+        if 0 <= logical < size:
+            if key:
+                raise ValueError(f"string offset lands in encrypted section {key:016X}")
+            offset = start + count * record_size + logical
+            end = data.index(b"\0", offset, start + count * record_size + size)
+            return data[offset:end].decode("utf-8")
+        logical -= size
+    raise ValueError("string offset outside concatenated section string blocks")
 
 
 def main():
@@ -621,8 +640,6 @@ def main():
     layout, columns = TABLES[table]
     data = open(db2_path, "rb").read()
     rows, dropped, fields, sections = read_wdc5(data, layout, INLINE_ID_FIELD.get(table, 0))
-    if sections != 1 and any(isinstance(s, tuple) and s[0] == "string" for _, s in columns):
-        raise ValueError(f"string columns need a single-section table, got {sections} sections")
     with open(out_path, "w", newline="") as handle:
         out = csv.writer(handle)
         out.writerow([name for name, _ in columns])
