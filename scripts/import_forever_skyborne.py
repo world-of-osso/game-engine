@@ -178,12 +178,17 @@ def decode_rows(data, layout, columns, id_field):
     return output, dropped
 
 
-def encode_csv(header, columns, rows):
+def encode_csv(header, columns, rows, table=None):
     names = (
         next(csv.reader(io.StringIO(header.decode("utf-8-sig"))))
         if header
         else [c[0] for c in columns]
     )
+    if not header and table == "Map":
+        leading = ["ID", "Directory", "MapName_lang", "WdtFileDataID"]
+        if any(name not in names for name in leading):
+            raise ValueError("Map layout lacks required identity columns")
+        names = leading + [name for name in names if name not in leading]
     known = {name for name, _ in columns}
     missing = [name for name in names if name not in known]
     stream = io.StringIO(newline="")
@@ -260,7 +265,7 @@ def import_tables(data, staging):
                 else data / f"{table}.csv"
             )
             header = b"" if table in NEW_TABLES else header_path.open("rb").readline()
-            encoded, missing = encode_csv(header, columns, rows)
+            encoded, missing = encode_csv(header, columns, rows, table=table)
             (out / f"{table}.csv").write_bytes(encoded)
             tables[table] = rows
             record = connection.execute(
