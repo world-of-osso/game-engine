@@ -1,9 +1,11 @@
 use game_engine_ui_model::spellbook_frame_component::{
-    ACTION_SPELLBOOK_CAST, COLUMNS, HEADER_H, ITEM_H, Placement, SPELLBOOK_FRAME,
+    ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE, COLUMNS, HEADER_H, ITEM_H, Placement, SPELLBOOK_FRAME,
     SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
     apply_spellbook_postsetup, frame_layout, paginate, spell_item_name, spellbook_frame_screen,
 };
+use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
 use ui_toolkit::frame::WidgetData;
+use ui_toolkit::widgets::texture::TextureSource;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -114,10 +116,15 @@ fn state(categories: Vec<SpellbookCategory>) -> SpellbookFrameState {
         categories,
         selected: 0,
         page: 0,
+        portrait_fdid: 132355,
     }
 }
 
 fn build(state: &SpellbookFrameState) -> FrameRegistry {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut registry = FrameRegistry::new(1280.0, 720.0);
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
@@ -186,10 +193,40 @@ fn known_spells_cast_and_future_spells_show_their_level_greyed() {
     assert!(icon(100));
 }
 
+/// `PlayerSpellsFrame` is a `PortraitFrameTemplate` titled SPELLBOOK with the spec icon
+/// as its portrait (Blizzard_PlayerSpellsFrame.xml:5, .lua:139, :332-342), in both skins.
+#[test]
+fn the_book_window_has_title_spec_portrait_and_close_button() {
+    let book = state(vec![SpellbookCategory {
+        name: "Warrior".into(),
+        groups: vec![group("Warrior", 1)],
+    }]);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_active_skin(skin);
+        let registry = build(&book);
+        assert_eq!(text(&registry, "SpellBookTitleText"), "Spellbook", "{skin:?}");
+        let portrait = registry
+            .get(registry.get_by_name("SpellBookPortrait").expect("portrait"))
+            .unwrap();
+        match portrait.widget_data.as_ref() {
+            Some(WidgetData::Texture(texture)) => {
+                assert_eq!(texture.source, TextureSource::FileDataId(132355), "{skin:?}")
+            }
+            other => panic!("portrait is not a texture: {other:?}"),
+        }
+        let close = registry
+            .get(registry.get_by_name("SpellBookCloseButton").expect("close"))
+            .unwrap();
+        assert_eq!(close.onclick.as_deref(), Some(ACTION_SPELLBOOK_CLOSE));
+    }
+    set_active_skin(ActiveSkin::Modern);
+}
+
 #[test]
 fn the_book_scales_to_fit_the_viewport() {
+    // The 1618x883 PlayerSpellsFrame window.
     let (scale, origin) = frame_layout([1280.0, 720.0]);
-    assert!((scale - (1280.0 - 32.0) / 1612.0).abs() < 1e-6);
-    assert_eq!(origin[0], ((1280.0 - 1612.0 * scale) / 2.0).round());
+    assert!((scale - (1280.0 - 32.0) / 1618.0).abs() < 1e-6);
+    assert_eq!(origin[0], ((1280.0 - 1618.0 * scale) / 2.0).round());
     assert_eq!(frame_layout([3840.0, 2160.0]).0, 1.0);
 }

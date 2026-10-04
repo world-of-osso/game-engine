@@ -185,6 +185,7 @@ impl RegistryModel {
                 if let Some(state) = self.shared.get::<SpellbookFrameState>() {
                     apply_spellbook_postsetup(state, &mut self.registry);
                 }
+                self.icon_masks.apply(&mut self.registry);
             }
             ScreenPostsetup::EntranceBar => {
                 if let Some(state) = self.shared.get::<EntranceBarState>() {
@@ -883,8 +884,21 @@ impl RegistryUi {
     }
 
     /// Initialize a dedicated RegistryUi instance for the Retail spellbook.
+    /// The spellbook in its `PlayerSpellsFrame` portrait `metal_frame` window.
     pub fn show_spellbook(&mut self, state: SpellbookFrameState) -> Result<(), String> {
-        self.show_viewport_screen(state, spellbook_frame_screen, ScreenPostsetup::Spellbook)
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            spellbook_frame_screen,
+            ScreenPostsetup::Spellbook,
+            registry,
+            parent,
+        )
     }
 
     /// Initialize a dedicated RegistryUi instance for the MinimapCluster, with an empty
