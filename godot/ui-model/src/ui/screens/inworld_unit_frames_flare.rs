@@ -444,9 +444,14 @@ pub fn flare_border(root: &str, size: (f32, f32)) -> Element {
 
 /// Same Blizzard border with a caller-specified corner extent (meter rows are thinner).
 pub fn flare_border_with_edge(root: &str, size: (f32, f32), edge: f32) -> Element {
+    flare_border_tinted(root, size, edge, BORDER_COLOR)
+}
+
+/// Same Blizzard border in a module's own `SetBackdropBorderColor` (XPBar.lua:32,150).
+pub fn flare_border_tinted(root: &str, size: (f32, f32), edge: f32, color: &str) -> Element {
     border_pieces(size, edge)
         .into_iter()
-        .flat_map(|piece| border_piece(root, piece))
+        .flat_map(|piece| border_piece(root, piece, color))
         .collect()
 }
 
@@ -488,6 +493,7 @@ fn border_pieces((width, height): (f32, f32), edge: f32) -> [BorderPiece; 8] {
 fn border_piece(
     root: &str,
     (piece, cell, (x, y, width, height), rotation): BorderPiece,
+    color: &str,
 ) -> Element {
     let left = f32::from(cell) * 16.0;
     let coords = format!(
@@ -504,7 +510,7 @@ fn border_piece(
             hidden,
             texture_fdid: BORDER_FDID,
             tex_coords: {coords.as_str()},
-            vertex_color: BORDER_COLOR,
+            vertex_color: color,
             rotation,
             pos_type: "absolute",
             pos_x: x,
