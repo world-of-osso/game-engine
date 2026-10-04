@@ -41,9 +41,10 @@ fn zephras_sample_parses_authored_terrain_textures_and_placements() {
             .iter()
             .filter(|d| d.flags & 0x40 != 0 && d.fdid.is_some())
             .count(),
-        102
+        218
     );
-    assert_eq!(obj.doodads.iter().filter(|d| d.path.is_some()).count(), 116);
+    assert_eq!(obj.doodads.iter().filter(|d| d.flags == 0x240).count(), 9);
+    assert!(obj.doodads.iter().all(|d| d.path.is_none()));
     assert_eq!(
         obj.wmos.iter().map(|w| w.fdid.unwrap()).collect::<Vec<_>>(),
         [333477, 7704156, 7749471, 7704158]
