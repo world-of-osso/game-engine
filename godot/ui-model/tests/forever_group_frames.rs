@@ -1,5 +1,9 @@
-//! Compact party/raid frames keep Blizzard's shared art under both skins.
-//! The c60 party portrait members belong to PartyMemberFrameTemplate, not these frames.
+//! Compact party/raid frames are Blizzard's shared `CompactUnitFrame` under both skins
+//! (Forever `Blizzard_UnitFrame.toc` loads `Shared\\CompactUnitFrame`, no Camelot override).
+//! FlareUI only hides the party title (`Core.lua:392`, `Modules/Tweaks.lua:869-874`).
+
+#[path = "fixtures/modern_group_frames.rs"]
+mod fixture;
 
 use std::fmt::Write;
 use std::path::PathBuf;
@@ -11,11 +15,10 @@ use game_engine_ui_model::compact_unit_frame_component::{
 use game_engine_ui_model::group_frames_component::{GroupFramesState, group_frames_screen};
 use game_engine_ui_model::group_state::ReadyMark;
 use shared::protocol::GroupRoleSnapshot;
-use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
-use ui_toolkit::frame::{Frame, WidgetData};
+use ui_toolkit::atlas::ActiveSkin;
+use ui_toolkit::frame::{Frame, WidgetData, WidgetType};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
-use ui_toolkit::widgets::texture::TextureSource;
 
 fn load_atlas_tables() {
     game_engine_ui_model::paths::set_data_root(
@@ -69,7 +72,7 @@ fn group_frames(skin: ActiveSkin) -> FrameRegistry {
     shared.insert(skin);
     shared.insert(GroupFramesState {
         party: members(),
-        raid: vec![members(), vec![], members()],
+        raid: vec![members()[..2].to_vec(), vec![], members()[2..].to_vec()],
         ..Default::default()
     });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
@@ -130,167 +133,114 @@ fn trees(skin: ActiveSkin) -> String {
 }
 
 #[test]
-fn capture_base_modern_party_and_raid_trees() {
-    println!(
-        "<<<MODERN_TREES\n{}MODERN_TREES>>>",
-        trees(ActiveSkin::Modern)
-    );
+fn modern_party_and_raid_trees_are_unchanged() {
+    assert_eq!(trees(ActiveSkin::Modern), fixture::MODERN_GROUP_TREES);
 }
 
-fn assert_region(name: &str, skin: ActiveSkin, fdid: u32, sheet: [f32; 2], rect: [f32; 4]) {
-    let region = resolve_region(name, skin).unwrap_or_else(|| panic!("{name} under {skin:?}"));
-    assert_eq!(
-        region.source,
-        AtlasSource::FileDataId(fdid),
-        "{name} under {skin:?}"
-    );
-    assert_eq!(
-        [
-            region.left * sheet[0],
-            region.top * sheet[1],
-            region.right * sheet[0],
-            region.bottom * sheet[1],
-        ],
-        rect,
-        "{name} under {skin:?}"
-    );
-}
-
+/// FlareUI's `hidePartyTitle` default hides `CompactPartyFrameTitle` and nothing else:
+/// raid group titles, members, art and positions are Blizzard's.
 #[test]
-fn compact_party_and_raid_draw_shared_names_and_regions_under_both_skins() {
-    let pieces = [
-        (
-            "Background",
-            "raidframe-hp-bg-white",
-            7_658_229,
-            [32.0, 32.0],
-            [0.0, 0.0, 32.0, 32.0],
-        ),
-        (
-            "HealthBar",
-            "RaidFrame-Hp-Fill",
-            7_539_072,
-            [32.0, 32.0],
-            [0.0, 0.0, 32.0, 32.0],
-        ),
-        (
-            "PowerBarBackground",
-            "_RaidFrame-Resource-Background",
-            7_539_067,
-            [16.0, 64.0],
-            [0.0, 43.0, 16.0, 49.0],
-        ),
-        (
-            "PowerBar",
-            "_RaidFrame-Resource-Fill",
-            7_539_067,
-            [16.0, 64.0],
-            [0.0, 51.0, 16.0, 57.0],
-        ),
-        (
-            "SelectionHighlight",
-            "RaidFrame-TargetFrame",
-            7_526_019,
-            [256.0, 128.0],
-            [145.0, 1.0, 215.0, 35.0],
-        ),
-    ];
-    let icons = [
-        (
-            1,
-            "RoleIcon",
-            "UI-LFG-RoleIcon-Tank-Micro-GroupFinder",
-            [2026.0, 47.0, 2047.0, 68.0],
-        ),
-        (
-            2,
-            "RoleIcon",
-            "UI-LFG-RoleIcon-Healer-Micro-GroupFinder",
-            [2003.0, 24.0, 2024.0, 45.0],
-        ),
-        (
-            3,
-            "RoleIcon",
-            "UI-LFG-RoleIcon-DPS-Micro-GroupFinder",
-            [2003.0, 1.0, 2024.0, 22.0],
-        ),
-        (
-            1,
-            "ReadyCheckIcon",
-            "UI-LFG-ReadyMark-Raid",
-            [1947.0, 391.0, 2011.0, 455.0],
-        ),
-        (
-            2,
-            "ReadyCheckIcon",
-            "UI-LFG-PendingMark-Raid",
-            [1947.0, 325.0, 2011.0, 389.0],
-        ),
-        (
-            3,
-            "ReadyCheckIcon",
-            "UI-LFG-DeclineMark-Raid",
-            [1947.0, 259.0, 2011.0, 323.0],
-        ),
-    ];
+fn forever_differs_from_modern_only_by_the_hidden_party_title() {
+    let modern = trees(ActiveSkin::Modern);
+    let forever = trees(ActiveSkin::Forever);
+    let changed: Vec<(&str, &str)> = modern
+        .lines()
+        .zip(forever.lines())
+        .filter(|(m, f)| m != f)
+        .collect();
+    assert_eq!(modern.lines().count(), forever.lines().count());
+    assert_eq!(changed.len(), 1, "{changed:#?}");
+    let (was, now) = changed[0];
+    assert_eq!(
+        now.replace("hidden=true", "hidden=false"),
+        was,
+        "only the visibility changes"
+    );
+    for (skin, hidden) in [(ActiveSkin::Modern, false), (ActiveSkin::Forever, true)] {
+        let registry = group_frames(skin);
+        assert_eq!(frame(&registry, "CompactPartyFrameTitle").hidden, hidden);
+        assert!(!frame(&registry, "CompactRaidGroup1Title").hidden);
+        assert!(!frame(&registry, "CompactRaidGroup3Title").hidden);
+    }
+}
+
+fn art(registry: &FrameRegistry, name: &str) -> String {
+    let Some(WidgetData::Texture(texture)) = &frame(registry, name).widget_data else {
+        panic!("{name} is not a texture");
+    };
+    format!("{:?}", texture.source)
+}
+
+/// Members 1-3 are tank, healer and damage with ready, waiting and not-ready marks;
+/// members 4 and 5 have no ready mark and member 4 no role.
+#[test]
+fn role_and_ready_indicators_follow_member_state_under_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = group_frames(skin);
-        for root in [
-            "CompactPartyFrameMember1",
-            "CompactRaidGroup1Member1",
-            "CompactRaidGroup3Member1",
-        ] {
-            for (suffix, name, fdid, sheet, rect) in pieces {
-                let f = frame(&registry, &format!("{root}{suffix}"));
-                let Some(WidgetData::Texture(texture)) = &f.widget_data else {
-                    panic!("{} not a texture", f.name.as_deref().unwrap());
-                };
-                assert_eq!(texture.source, TextureSource::Atlas(name.into()));
-                assert_region(name, skin, fdid, sheet, rect);
-            }
+        let member = |n: usize| format!("CompactPartyFrameMember{n}");
+        let shown = |suffix: &str| -> Vec<bool> {
+            (1..=5)
+                .map(|n| !frame(&registry, &format!("{}{suffix}", member(n))).hidden)
+                .collect()
+        };
+        assert_eq!(
+            shown("RoleIcon"),
+            [true, true, true, false, true],
+            "{skin:?}"
+        );
+        assert_eq!(
+            shown("ReadyCheckIcon"),
+            [true, true, true, false, false],
+            "{skin:?}"
+        );
+        assert_eq!(shown("StatusText"), [false, false, false, true, true]);
+        assert_eq!(
+            shown("SelectionHighlight"),
+            [true, false, false, false, false]
+        );
+        for suffix in ["RoleIcon", "ReadyCheckIcon"] {
+            let drawn: Vec<String> = (1..=3)
+                .map(|n| art(&registry, &format!("{}{suffix}", member(n))))
+                .collect();
+            assert!(
+                drawn[0] != drawn[1] && drawn[1] != drawn[2] && drawn[0] != drawn[2],
+                "{suffix} states share art under {skin:?}: {drawn:?}"
+            );
         }
-        for root in [
-            "CompactPartyFrameMember",
-            "CompactRaidGroup1Member",
-            "CompactRaidGroup3Member",
-        ] {
-            for (member, suffix, name, rect) in icons {
-                let f = frame(&registry, &format!("{root}{member}{suffix}"));
-                let Some(WidgetData::Texture(texture)) = &f.widget_data else {
-                    panic!("not a texture");
-                };
-                assert_eq!(texture.source, TextureSource::Atlas(name.into()));
-                assert_region(name, skin, 5_171_843, [2048.0, 2048.0], rect);
-            }
-        }
+        // Raid group 3 holds members 3-5 of the same roster.
+        assert!(!frame(&registry, "CompactRaidGroup3Member1ReadyCheckIcon").hidden);
+        assert!(frame(&registry, "CompactRaidGroup3Member2RoleIcon").hidden);
     }
 }
 
-/// Forever DB2 members 39017/39018 on atlas 4019, vs Retail 17762/17761 on 2087.
-/// Blizzard_UnitFrame/Mainline/PartyFrameTemplates.xml:106,111 uses these two names.
+/// A member's name and status text paint after its background and bar fills: z is strata,
+/// frame level and draw layer (godot/rust/src/ui/projection.rs), ties in tree order.
 #[test]
-fn c60_party_portraits_are_distinct_from_compact_frame_art() {
-    load_atlas_tables();
-    for (name, modern, forever) in [
-        (
-            "UI-HUD-UnitFrame-Party-PortraitOn",
-            [123.0, 57.0, 243.0, 106.0],
-            [1.0, 53.0, 121.0, 102.0],
-        ),
-        (
-            "UI-HUD-UnitFrame-Party-PortraitOn-Vehicle",
-            [133.0, 1.0, 254.0, 51.0],
-            [1.0, 1.0, 122.0, 51.0],
-        ),
-    ] {
-        assert_region(name, ActiveSkin::Modern, 4_681_512, [256.0, 256.0], modern);
-        assert_region(
-            name,
-            ActiveSkin::Forever,
-            8_116_745,
-            [128.0, 128.0],
-            forever,
-        );
+fn member_texts_paint_over_the_bars_under_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = group_frames(skin);
+        for root in ["CompactPartyFrameMember5", "CompactRaidGroup3Member2"] {
+            let member = frame(&registry, root);
+            let mut order: Vec<&Frame> = member
+                .children
+                .iter()
+                .map(|id| registry.get(*id).unwrap())
+                .collect();
+            order.sort_by_key(|f| {
+                i32::from(f.strata as u8) * 100 + f.frame_level + i32::from(f.draw_layer as u8)
+            });
+            let at = |pick: &dyn Fn(&Frame) -> bool| -> Vec<usize> {
+                (0..order.len()).filter(|&i| pick(order[i])).collect()
+            };
+            let name = |f: &Frame| f.name.clone().unwrap_or_default();
+            let bars = at(&|f| {
+                ["Background", "HealthBar", "PowerBar"]
+                    .iter()
+                    .any(|suffix| name(f) == format!("{root}{suffix}"))
+            });
+            let texts = at(&|f| f.widget_type == WidgetType::FontString);
+            assert_eq!((bars.len(), texts.len()), (3, 2), "{root}");
+            assert!(bars.last() < texts.first(), "{root} under {skin:?}");
+        }
     }
-    assert_eq!(trees(ActiveSkin::Forever), trees(ActiveSkin::Modern));
 }
