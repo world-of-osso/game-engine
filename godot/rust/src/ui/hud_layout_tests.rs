@@ -274,11 +274,45 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
         "ChatFrame1ScrollToBottomButton",
         (437.0, 590.0, 26.0, 28.0),
     );
-    // Other Mainline anchors remain shared.
+    // FlareUI changes tracker scale, not the shared Mainline anchor.
     assert_modern_edit_mode_systems(&hud);
 
     sync(&mut hud, ActiveSkin::Modern);
     assert_modern(&hud);
+}
+
+#[test]
+fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
+    let mut hud = hud();
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, TRACKER_FRAME, (996.0, 275.0, 260.0, 32.0));
+    let modern_header = rect(&hud, "ObjectiveTrackerFrameHeaderBackground");
+    sync(&mut hud, ActiveSkin::Forever);
+    let map = rect(&hud, MINIMAP_CLUSTER);
+    let tracker = rect(&hud, TRACKER_FRAME);
+    let header = rect(&hud, "ObjectiveTrackerFrameHeaderBackground");
+    // Minimap.lua:366-405: 288 visible pixels of the 300-pixel atlas line.
+    let actual = [
+        tracker.x,
+        tracker.y,
+        tracker.width,
+        tracker.height,
+        header.width,
+    ];
+    let expected = [1021.2778, 275.0, 234.72223, 28.88889, 270.83334];
+    for (actual, expected) in actual.into_iter().zip(expected) {
+        assert!((actual - expected).abs() < 0.001, "{actual} != {expected}");
+    }
+    assert!((header.width * 288.0 / 300.0 - map.width).abs() < 0.001);
+    // Mainline/EditModePresetLayouts.lua:549-554 retains TOPRIGHT (-110,-275).
+    assert_eq!(tracker.x + tracker.width, map.x + map.width - 110.0);
+    assert_eq!(tracker.y, map.y + map.height + 15.0);
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, TRACKER_FRAME, (996.0, 275.0, 260.0, 32.0));
+    assert_eq!(
+        rect(&hud, "ObjectiveTrackerFrameHeaderBackground"),
+        modern_header
+    );
 }
 
 /// Retail Arcane Charges: `PlayerFrameBottomManagedFramesContainer` top 4 px below the
