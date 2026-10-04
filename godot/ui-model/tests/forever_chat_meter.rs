@@ -625,9 +625,8 @@ fn the_type_menu_lists_every_type_in_both_skins() {
 
     // Modern: the type dropdown opens it; the session menu stays closed.
     let view = DamageMeterView {
-        meter_type: MeterType::Interrupts,
         type_menu_open: true,
-        ..Default::default()
+        ..typed_view(MeterType::Interrupts, false)
     };
     let modern = canvas(ActiveSkin::Modern, view, damage_meter_screen);
     assert_eq!(
@@ -648,6 +647,12 @@ fn the_type_menu_lists_every_type_in_both_skins() {
             .starts_with('\u{2022}')
     );
     assert!(modern.get_by_name("DamageMeterSessionMenu").is_none());
+    // The menu is drawn over the row it covers: a higher strata.
+    let strata = |name: &str| format!("{:?}", frame(&modern, name).strata);
+    assert_eq!(
+        (strata("DamageMeterTypeMenu"), strata("DamageMeterEntry1")),
+        ("Dialog".to_string(), "Medium".to_string())
+    );
 
     // Forever: the chart button's one menu lists the types beside the sessions.
     let view = DamageMeterView {

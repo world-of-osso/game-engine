@@ -32,6 +32,7 @@ use crate::hud_layout::{FOREVER_CHAT_PANEL_SIZE, hud_layout};
 use crate::inworld_unit_frames_component::inworld_unit_frames_flare::flare_border_with_edge;
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
+use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 pub const DAMAGE_METER_ROOT: FrameName = FrameName("DamageMeter");
@@ -681,7 +682,7 @@ fn type_menu(selected: MeterType, left: f32) -> Element {
     menu("DamageMeterTypeMenu", left, MeterType::ALL.len(), rows)
 }
 
-/// A dark panel of `count` radio rows under the header.
+/// A dark panel of `count` radio rows under the header, drawn over the rows it covers.
 fn menu(name: &str, left: f32, count: usize, rows: Element) -> Element {
     let height = MENU_PAD * 2.0 + MENU_ROW_H * count as f32;
     rsx! {
@@ -689,6 +690,7 @@ fn menu(name: &str, left: f32, count: usize, rows: Element) -> Element {
             name: {DynName(name.to_owned())},
             width: MENU_W,
             height,
+            strata: FrameStrata::Dialog,
             background_color: "0.05,0.05,0.05,0.92",
             pos_type: "absolute",
             left,
