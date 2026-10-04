@@ -13,6 +13,7 @@ use Point::*;
 
 use crate::main_action_bar_component::{BAR_BOTTOM, BAR_W, BUTTON_SIZE};
 use crate::micro_menu::MICRO_MENU_W;
+use crate::minimap::FOREVER_CLUSTER_SIZE;
 use crate::ui::screens::inworld_unit_frames_component::{
     PET_FRAME_H, PET_FRAME_W, SMALL_FRAME_GAP, TOT_H, TOT_W, UNIT_FRAME_H, UNIT_FRAME_W,
 };
@@ -209,6 +210,11 @@ const CAMELOT_MICRO_MENU: (f32, f32) = (116.5, 6.0);
 const FOREVER_MAIN_ACTION_BAR: HudAnchor = anchor(Bottom, Bottom, 0.0, 2.0);
 /// FlareUI Core.lua:102-107,218; ActionBars.lua:43,179-190 includes pet buttons.
 pub const FOREVER_ACTION_BUTTON_SCALE: f32 = 1.06;
+
+/// FlareUI Modules/Minimap.lua:366-379,401-406 ("Match Objective Tracker Width", default on,
+/// Core.lua:262): `ObjectiveTrackerFrame:SetScale(minimap frame outer width / 288)`, 288
+/// being the visible line of the 300-wide header art. The frame here is the cluster border.
+pub const FOREVER_TRACKER_SCALE: f32 = FOREVER_CLUSTER_SIZE / 288.0;
 
 /// Chat messages: Mainline/EditModePresetLayouts.lua:490-503, Camelot constants:66.
 /// FlareUI Chat.lua:1515-1520 adds padding 10 and header 24; DamageMeter.lua:1150-1159
