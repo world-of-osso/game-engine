@@ -436,7 +436,16 @@ impl UiProjection {
         let mut node = self.nodes[&frame.id].clone();
         let parent = frame.parent_id.and_then(|id| bounds.get(&id));
         let origin = parent.map_or(Vector2::ZERO, |rect| Vector2::new(rect.x, rect.y));
-        node.set_position(Vector2::new(rect.x, rect.y) - origin);
+        // Godot snaps every control to whole pixels on its own. A turned texture's rect
+        // lies between pixels when its sides differ by an odd amount, so its node takes
+        // the whole part and the turned image the rest: the image is snapped once, as drawn.
+        let position = Vector2::new(rect.x, rect.y) - origin;
+        let whole = if layout::is_turned(frame) {
+            position.floor()
+        } else {
+            position
+        };
+        node.set_position(whole);
         node.set_size(Vector2::new(rect.width, rect.height));
         node.set_visible(frame.visible);
         node.set_modulate(Color::from_rgba(1.0, 1.0, 1.0, frame.alpha));
@@ -446,10 +455,14 @@ impl UiProjection {
                 + frame.frame_level
                 + i32::from(frame.draw_layer as u8),
         );
-        let visual = FrameVisual {
+        let mut visual = FrameVisual {
             images: parts::project_images(frame, rect.width, rect.height),
             text: parts::project_button_text(frame),
         };
+        for part in &mut visual.images {
+            part.rect[0] += position.x - whole.x;
+            part.rect[1] += position.y - whole.y;
+        }
         // A dynamic texture keeps its source when its pixels change; the registry marks
         // the frames that draw it dirty, so re-read those.
         let dynamic_redraw = registry.render_dirty.contains(&frame.id)

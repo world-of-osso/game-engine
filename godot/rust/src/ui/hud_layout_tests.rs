@@ -213,20 +213,6 @@ fn assert_rect(hud: &[RegistryModel], name: &str, expected: (f32, f32, f32, f32)
     }
 }
 
-fn assert_utility_visibility(hud: &[RegistryModel], hidden: bool) {
-    for name in [MICRO_MENU, "BagsBar"] {
-        let model = hud
-            .iter()
-            .find(|m| m.registry.get_by_name(name).is_some())
-            .unwrap();
-        let frame = model
-            .registry
-            .get(model.registry.get_by_name(name).unwrap())
-            .unwrap();
-        assert_eq!(frame.hidden, hidden, "{name}");
-    }
-}
-
 fn assert_modern(hud: &[RegistryModel]) {
     // Centre x 683, bottom 768. PlayerFrame BOTTOMRIGHT and TargetFrame BOTTOMLEFT at BOTTOM
     // (∓300, 250), 232×100.
@@ -249,7 +235,6 @@ fn assert_modern(hud: &[RegistryModel]) {
     assert_rect(hud, MICRO_MENU, (1031.0, 722.0, 329.0, 40.0));
     assert_rect(hud, "BagsBar", (992.0, 672.0, 368.0, 47.0));
     assert_rect(hud, "PetActionBar", (402.0, 643.0, 318.0, 30.0));
-    assert_utility_visibility(hud, false);
     assert_rect(hud, DAMAGE_METER_ROOT.0, (0.0, 0.0, 400.0, 140.0));
     assert_rect(hud, CHAT_FRAME.0, (0.0, 448.0, 500.0, 280.0));
     assert_rect(hud, "ChatFrame1EditBox", (0.0, 696.0, 500.0, 32.0));
@@ -340,6 +325,47 @@ fn assert_forever_action_bars(hud: &[RegistryModel]) {
     assert!(pet.y + pet.height <= bars[2].y);
 }
 
+/// Micro menu and bags bar are shown inside the 1366×768 canvas, clear of each other and
+/// of the meter, the chat panel, the action bars, their end caps and the pet bar.
+fn assert_forever_utility_bars(hud: &[RegistryModel]) {
+    let others = [
+        DAMAGE_METER_ROOT.0,
+        CHAT_FRAME.0,
+        CHAT_FLARE_SKIN,
+        MAIN_ACTION_BAR.0,
+        "MultiBarBottomLeft",
+        "MultiBarBottomRight",
+        "MainActionBarLeftEndCap",
+        "MainActionBarRightEndCap",
+        "PetActionBar",
+    ];
+    let utility = [MICRO_MENU, "BagsBar"].map(|name| (name, rect(hud, name)));
+    for (name, bar) in &utility {
+        let model = hud
+            .iter()
+            .find(|model| model.registry.get_by_name(name).is_some())
+            .unwrap();
+        let id = model.registry.get_by_name(name).unwrap();
+        assert!(model.registry.get(id).unwrap().visible, "{name} not shown");
+        assert!(bar.width > 0.0 && bar.height > 0.0, "{name} is empty");
+        assert!(
+            bar.x >= 0.0
+                && bar.y >= 0.0
+                && bar.x + bar.width <= 1366.0
+                && bar.y + bar.height <= 768.0,
+            "{name} leaves the canvas: {bar:?}"
+        );
+        for other in others {
+            let other_rect = rect(hud, other);
+            assert!(
+                !intersects(bar, &other_rect),
+                "{name} {bar:?} overlaps {other} {other_rect:?}"
+            );
+        }
+    }
+    assert!(!intersects(&utility[0].1, &utility[1].1));
+}
+
 #[test]
 fn forever_preset_moves_the_hud_and_modern_restores_it() {
     let mut hud = hud();
@@ -362,10 +388,7 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
         (550.0, 470.0, 292.0, 26.0)
     );
     assert_forever_action_bars(&hud);
-    // Hidden roots and descendants take no layout space (Display::None).
-    assert_rect(&hud, MICRO_MENU, (0.0, 0.0, 0.0, 0.0));
-    assert_rect(&hud, "BagsBar", (0.0, 0.0, 0.0, 0.0));
-    assert_utility_visibility(&hud, true);
+    assert_forever_utility_bars(&hud);
     // FlareUI matches the meter root to the chat skin; mirror it across UIParent.
     assert_rect(&hud, DAMAGE_METER_ROOT.0, (891.0, 419.0, 450.0, 214.0));
     // Forever chat messages 430x170 at BOTTOMLEFT(35,145), padding 10 + header 24.
@@ -611,3 +634,6 @@ fn group_members_do_not_overlap_and_keep_their_place_without_the_party_title() {
     }
     assert_eq!(rects[0], rects[1]);
 }
+
+#[path = "hud_layout_settings_tests.rs"]
+mod settings;

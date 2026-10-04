@@ -8,6 +8,7 @@ pub(crate) mod ui_parent;
 
 use std::collections::VecDeque;
 
+use game_engine_core::ui_layout_data::LayoutSettings;
 use game_engine_ui_model::bag_frame_component::BagFrameState;
 use game_engine_ui_model::buff_frame_component::{BuffFrameState, buff_frame_screen};
 use game_engine_ui_model::casting_bar_frame_component::{
@@ -124,7 +125,13 @@ enum ScreenPostsetup {
 }
 
 impl RegistryModel {
+    /// Mirror the active layout's settings, then its skin: a change of either rebuilds the
+    /// Screens that read the HUD layout.
     fn sync(&mut self) {
+        let settings = game_engine_ui_model::hud_layout::active_layout_settings();
+        if self.shared.get::<LayoutSettings>() != Some(&settings) {
+            self.shared.insert(settings);
+        }
         self.sync_skin(ui_toolkit::atlas::active_skin());
     }
 

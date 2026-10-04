@@ -10,19 +10,20 @@ use game_engine_ui_model::chat_data::{
     WhisperState, now_timestamp, runtime_chat_channel,
 };
 use game_engine_ui_model::chat_frame::{
-    ChatCommand, ChatFrameState, ChatTab, CombatLogChat, UNKNOWN_NAME, add_system_line,
-    combat_log_line, flash_alpha, hold_scroll_position, local_copy_chat_text, new_chat_messages,
-    parse_chat_input, tab_entries, tab_len, tabs_to_flash,
+    ChatCommand, ChatFrameState, ChatTab, CombatLogActor, CombatLogChat, CombatLogUnit,
+    UNKNOWN_NAME, add_system_line, combat_log_line, flash_alpha, hold_scroll_position,
+    local_copy_chat_text, new_chat_messages, parse_chat_input, tab_entries, tab_len, tabs_to_flash,
 };
 use game_engine_ui_model::chat_frame_component::{
-    CHAT_EDITBOX, CHAT_MESSAGES, COPY_CHAT_ACTION, ChatFrameView, SCROLL_TO_BOTTOM_ACTION,
-    chat_frame_view, tab_flash_name,
+    CHAT_EDITBOX, CHAT_MESSAGES, COPY_CHAT_ACTION, ChatFrameView, FOREVER_CHAT_HEADER_FDIDS,
+    SCROLL_TO_BOTTOM_ACTION, chat_frame_view, tab_flash_name,
 };
 use godot::classes::{DisplayServer, InputEvent, InputEventKey, InputEventMouseButton};
 use godot::global::{Key, MouseButton};
 use godot::prelude::*;
 use shared::protocol::{ChatMessage, ChatType, CombatLogEvent, EmoteIntent, EmoteKind};
 
+use crate::faction_reaction::Reaction;
 use crate::frame_error::FrameError;
 use crate::replicated::UnitFields;
 use crate::ui::RegistryUi;
@@ -91,10 +92,17 @@ impl ChatModel {
         });
     }
 
-    /// A combat log line with names already resolved.
-    pub fn receive_combat(&mut self, event: &CombatLogEvent, source: &str, target: &str) {
-        self.combat
-            .push(now_timestamp(), combat_log_line(event, source, target));
+    /// A combat event with its units already resolved: a Combat Log line when Retail's
+    /// default filters list it.
+    pub fn receive_combat(
+        &mut self,
+        event: &CombatLogEvent,
+        source: CombatLogActor,
+        target: CombatLogActor,
+    ) {
+        if let Some(line) = combat_log_line(event, source, target) {
+            self.combat.push(now_timestamp(), line);
+        }
     }
 
     /// Edit box prefill for an opening key, or None when the key does not open chat.
@@ -162,7 +170,7 @@ impl ChatModel {
         if let Some(tab) = ChatTab::from_action(action) {
             self.state.select_tab(tab);
         } else if action == SCROLL_TO_BOTTOM_ACTION {
-            self.state.scroll = 0;
+            self.state.scroll_to_bottom();
         } else if action == COPY_CHAT_ACTION {
             let entries = tab_entries(self.state.tab, &self.log, &self.combat);
             return Some(local_copy_chat_text(&entries, spell_name));
@@ -203,13 +211,14 @@ impl ChatModel {
     }
 
     pub fn view(&self, spell_name: impl Fn(u32) -> String) -> ChatFrameView {
-        chat_frame_view(&self.state, &self.log, &self.combat, spell_name)
+        let chat_size = game_engine_ui_model::hud_layout::active_hud_layout().chat_size;
+        chat_frame_view(&self.state, &self.log, &self.combat, spell_name, chat_size)
     }
 
     /// Leaving the world closes the edit box, clears the combat log and stops flashing.
     pub fn leave_world(&mut self) {
         self.close();
-        self.state.scroll = 0;
+        self.state.scrolls = Default::default();
         self.state.flashing.clear();
         self.combat = CombatLogChat::default();
         self.seen_combat = 0;
@@ -267,6 +276,7 @@ impl crate::GameClient {
         if self.chat.ui.is_some() {
             return Ok(());
         }
+        self.extract_art(&FOREVER_CHAT_HEADER_FDIDS);
         let view = self.chat.model.view(spell_namer(self.spells.catalog()));
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("ChatFrameUI");
@@ -332,9 +342,31 @@ impl crate::GameClient {
         let skip = self.account.combat_log.len() - fresh as usize;
         let events: Vec<_> = self.account.combat_log.iter().skip(skip).cloned().collect();
         for event in events {
-            let source = self.unit_display_name(event.source);
-            let target = self.unit_display_name(event.target);
-            self.chat.model.receive_combat(&event, &source, &target);
+            let source_name = self.unit_display_name(event.source);
+            let target_name = self.unit_display_name(event.target);
+            let source = CombatLogActor {
+                name: &source_name,
+                unit: self.combat_log_unit(event.source),
+            };
+            let target = CombatLogActor {
+                name: &target_name,
+                unit: self.combat_log_unit(event.target),
+            };
+            self.chat.model.receive_combat(&event, source, target);
+        }
+    }
+
+    /// What a combat log unit is to the local player.
+    fn combat_log_unit(&mut self, id: Option<u64>) -> CombatLogUnit {
+        if id.is_some() && id == self.world.local_player_id() {
+            return CombatLogUnit::Mine;
+        }
+        let Some(id) = id.filter(|id| self.replica.unit(*id).is_some()) else {
+            return CombatLogUnit::Unknown;
+        };
+        match self.reaction_to(id) {
+            Reaction::Friendly => CombatLogUnit::Friendly,
+            Reaction::Neutral | Reaction::Hostile => CombatLogUnit::Hostile,
         }
     }
 

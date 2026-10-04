@@ -11,11 +11,12 @@ use ui_toolkit::widget_def::Element;
 
 use crate::chat_data::ChatState;
 use crate::flare_panel::{
-    FLARE_ACTIVE_TEXT, FLARE_CHANNEL_ART, FLARE_FONT_SIZE, FLARE_GEAR_ART,
-    FLARE_HEADER_BUTTON_SIZE, FLARE_HEADER_HEIGHT, FLARE_INACTIVE_TEXT, FLARE_SOCIAL_ART,
-    FLARE_VOLUME_ART, flare_header, flare_icon, flare_panel, flare_text,
+    FLARE_ACTIVE_TEXT, FLARE_FONT_SIZE, FLARE_HEADER_BUTTON_SIZE, FLARE_HEADER_HEIGHT,
+    FLARE_HEADER_ICON_INSET, FLARE_HEADER_ICON_SIZE, FLARE_ICON_COLOR, FLARE_INACTIVE_TEXT,
+    FLARE_MENU_ART, FLARE_SOCIAL_ART, FLARE_VOLUME_ART, flare_header, flare_icon, flare_panel,
+    flare_text,
 };
-use crate::hud_layout::{FOREVER_CHAT_PANEL_SIZE, hud_layout};
+use crate::hud_layout::hud_layout;
 use crate::ui::anchor::FrameName;
 use crate::ui::chat_frame::{
     ChatFrameState, ChatRow, ChatRun, ChatTab, CombatLogChat, local_timestamp, messages_that_fit,
@@ -34,9 +35,6 @@ pub const CHAT_SCROLL_TO_BOTTOM_BUTTON: &str = "ChatFrame1ScrollToBottomButton";
 pub const COPY_CHAT_ACTION: &str = "chat:copy";
 pub const SCROLL_TO_BOTTOM_ACTION: &str = "chat:scroll_to_bottom";
 
-/// Default window: 500x280 at BOTTOMLEFT (0, 40) (Core/Config.lua:28-29).
-const FRAME_W: f32 = 500.0;
-const FRAME_H: f32 = 280.0;
 /// Tab bar at TOPLEFT (32, 0), 22 high (Display/Main.lua:50-52).
 const TABS_LEFT: f32 = 32.0;
 const TAB_H: f32 = 22.0;
@@ -59,12 +57,14 @@ const TAB_TEXT_COLOR: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 /// right edge (Display/Main.lua:26,30-31; 38 = 6 + the 32 high edit box, Main.lua:205).
 const MESSAGES_LEFT: f32 = 34.0;
 const MESSAGES_TOP: f32 = 27.0;
-const MESSAGES_W: f32 = FRAME_W - MESSAGES_LEFT - 5.0;
-const MESSAGES_H: f32 = FRAME_H - MESSAGES_TOP - 38.0;
+/// The message area of a chat frame of `size` (the active layout's `chat_size`; Modern's
+/// default window is 500x280 at BOTTOMLEFT (0, 40), Core/Config.lua:28-29).
+fn messages_size((width, height): (f32, f32)) -> (f32, f32) {
+    (width - MESSAGES_LEFT - 5.0, height - MESSAGES_TOP - 38.0)
+}
 /// Background spans from the frame's left edge to 5 beyond the wrapper above and below
 /// (Skins/Dark.lua:155-157), at alpha 1 - `chat_transparency` 0.2 (Dark.lua:152,474).
 const BACKGROUND_TOP: f32 = MESSAGES_TOP - 5.0;
-const BACKGROUND_H: f32 = MESSAGES_H + 10.0;
 const BACKGROUND_ALPHA: f32 = 0.8;
 /// `Assets/ChatBackground.tga`, stored flipped vertically because the skin draws it with
 /// `SetTexCoord(0, 1, 1, 0)` (Skins/Dark.lua:168-169).
@@ -74,12 +74,20 @@ const BACKGROUND_TEXTURE: &str = "data/textures/ui/chattynator/ChatBackground.pn
 pub const CHAT_FLARE_SKIN: &str = "ChatFrame1FlareSkin";
 const FLARE_PADDING: f32 = 10.0;
 const FLARE_HEADER_H: f32 = 24.0;
-const FLARE_SKIN_RECT: (f32, f32, f32, f32) = (
+const FLARE_SKIN_ORIGIN: (f32, f32) = (
     MESSAGES_LEFT - FLARE_PADDING,
     MESSAGES_TOP - FLARE_PADDING - FLARE_HEADER_H,
-    FOREVER_CHAT_PANEL_SIZE.0,
-    FOREVER_CHAT_PANEL_SIZE.1,
 );
+
+/// The skin around a `messages`-sized message area: 450x214 around Forever's 430x170.
+fn flare_skin_rect((width, height): (f32, f32)) -> (f32, f32, f32, f32) {
+    (
+        FLARE_SKIN_ORIGIN.0,
+        FLARE_SKIN_ORIGIN.1,
+        width + 2.0 * FLARE_PADDING,
+        height + 2.0 * FLARE_PADDING + FLARE_HEADER_H,
+    )
+}
 const TAB_LEFT_TEXTURE: &str = "data/textures/ui/chattynator/ChatTabLeft.png";
 const TAB_MIDDLE_TEXTURE: &str = "data/textures/ui/chattynator/ChatTabMiddle.png";
 const TAB_RIGHT_TEXTURE: &str = "data/textures/ui/chattynator/ChatTabRight.png";
@@ -119,8 +127,6 @@ pub const CHAT_LINE_H: f32 = 14.0;
 const MESSAGE_SPACING: f32 = 5.0;
 /// The newest message sits 2 above the bottom (Display/ScrollingMessages.lua:228).
 const MESSAGES_BOTTOM_PAD: f32 = 2.0;
-/// Height the shown messages may fill.
-pub const CHAT_MESSAGES_AVAILABLE_H: f32 = MESSAGES_H - MESSAGES_BOTTOM_PAD;
 /// Timestamps are grey (Display/ScrollingMessages.lua:247).
 const TIMESTAMP_COLOR: FontColor = FontColor::new(0.6, 0.6, 0.6, 1.0);
 /// ChatTypeInfo SAY, the edit box's default chat type.
@@ -161,18 +167,19 @@ pub struct ChatTextArea {
 
 /// Text starts `inset + 3` in and ends 1 short of the right (Display/ScrollingMessages.lua:
 /// 226-227); the inset is the width of `00:00:00` plus 8 (Core/Messages.lua:367-384).
-pub fn chat_text_area(tab: ChatTab) -> ChatTextArea {
+/// `messages_width` is the message area's width.
+pub fn chat_text_area(tab: ChatTab, messages_width: f32) -> ChatTextArea {
     if tab.is_combat_log() {
         return ChatTextArea {
             left: 0.0,
-            width: MESSAGES_W - COMBAT_LOG_RIGHT_INSET,
+            width: messages_width - COMBAT_LOG_RIGHT_INSET,
             spacing: 0.0,
         };
     }
     let left = timestamp_inset() + 3.0;
     ChatTextArea {
         left,
-        width: MESSAGES_W - left - 1.0,
+        width: messages_width - left - 1.0,
         spacing: MESSAGE_SPACING,
     }
 }
@@ -185,21 +192,25 @@ fn text_width(value: &str, font: GameFont, size: f32) -> f32 {
     measure_text(value, font, size).map_or(0.0, |(width, _)| width)
 }
 
-/// The messages that fit, counting up from the newest past the scrolled-over ones.
+/// The messages that fit a chat frame of `chat_size`, wrapped to its width, counting up
+/// from the newest past the scrolled-over ones.
 pub fn chat_frame_view(
     state: &ChatFrameState,
     chat: &ChatState,
     combat: &CombatLogChat,
     spell_name: impl Fn(u32) -> String,
+    chat_size: (f32, f32),
 ) -> ChatFrameView {
-    let area = chat_text_area(state.tab);
+    let (messages_width, messages_height) = messages_size(chat_size);
+    let available_height = messages_height - MESSAGES_BOTTOM_PAD;
+    let area = chat_text_area(state.tab, messages_width);
     let entries = tab_entries(state.tab, chat, combat);
     let mut messages = Vec::new();
     let mut heights = Vec::new();
-    for entry in entries.iter().rev().skip(state.scroll) {
+    for entry in entries.iter().rev().skip(state.scroll()) {
         let rows = wrap_chat_line(&entry.line, &spell_name, area.width, measure_chat_text);
         heights.push(rows.len() as f32 * CHAT_LINE_H);
-        if messages_that_fit(&heights, CHAT_MESSAGES_AVAILABLE_H, area.spacing) < heights.len() {
+        if messages_that_fit(&heights, available_height, area.spacing) < heights.len() {
             break;
         }
         messages.push(ChatMessageView {
@@ -213,7 +224,7 @@ pub fn chat_frame_view(
         messages,
         input_open: state.input_open,
         flashing: state.flashing.clone(),
-        scrolled_up: state.scroll > 0,
+        scrolled_up: state.scroll() > 0,
     }
 }
 
@@ -236,13 +247,13 @@ fn tab_width(tab: ChatTab) -> f32 {
     (text_width(tab.label(), TAB_FONT, TAB_FONT_SIZE).max(MIN_TAB_TEXT_W) + TAB_PADDING).ceil()
 }
 
-fn chattynator_background(tab: ChatTab) -> Element {
+fn chattynator_background(tab: ChatTab, width: f32, messages_height: f32) -> Element {
     let [r, g, b] = tab.background();
     rsx! {
         texture {
             name: CHAT_BACKGROUND,
-            width: FRAME_W,
-            height: BACKGROUND_H,
+            width,
+            height: {messages_height + 10.0},
             texture_file: BACKGROUND_TEXTURE,
             vertex_color: {format!("{r},{g},{b},{BACKGROUND_ALPHA}")},
             pos_type: "absolute",
@@ -263,11 +274,12 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
         .expect("canvas carries the active skin");
     let layout = hud_layout(ctx);
     let (width, height) = layout.chat_size;
-    let messages_width = width - MESSAGES_LEFT - 5.0;
-    let messages_height = height - MESSAGES_TOP - 38.0;
+    let (messages_width, messages_height) = messages_size((width, height));
     let background = match skin {
-        ActiveSkin::Modern => chattynator_background(view.tab),
-        ActiveSkin::Forever => forever_background(),
+        ActiveSkin::Modern => chattynator_background(view.tab, width, messages_height),
+        ActiveSkin::Forever => {
+            forever_background(flare_skin_rect((messages_width, messages_height)))
+        }
     };
     let tab_parts = match skin {
         ActiveSkin::Modern => tabs(view),
@@ -306,7 +318,7 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
                 pos_type: "absolute",
                 left: MESSAGES_LEFT,
                 top: MESSAGES_TOP,
-                {messages(view, messages_height)}
+                {messages(view, (messages_width, messages_height))}
             }
             {copy_button}
             {chat_button(
@@ -362,40 +374,117 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
 // docs/specs/forever-chat-meter-chrome.md. No message/input/scroll changes.
 const FOREVER_TAB_PADDING: f32 = 14.0;
 const FOREVER_TAB_GAP: f32 = 4.0;
-const FOREVER_BUTTON_LEFT: f32 = FOREVER_CHAT_PANEL_SIZE.0 - 129.0;
+/// The channel button's left edge, from the skin's right edge.
+const FOREVER_BUTTONS_W: f32 = 129.0;
 const FOREVER_BUTTON_GAP: f32 = 35.0;
 const FOREVER_BUTTON_TOP: f32 =
-    FLARE_SKIN_RECT.1 + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
+    FLARE_SKIN_ORIGIN.1 + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
 
-fn forever_background() -> Element {
-    let mut parts = flare_panel(CHAT_FLARE_SKIN, FLARE_SKIN_RECT);
-    parts.extend(flare_header("ChatFrame1Flare", FLARE_SKIN_RECT));
-    for (index, (suffix, art, action)) in [
-        ("Channel", FLARE_CHANNEL_ART, None),
-        ("Menu", FLARE_GEAR_ART, Some(COPY_CHAT_ACTION)),
-        ("Social", FLARE_SOCIAL_ART, None),
-        ("Volume", FLARE_VOLUME_ART, None),
+/// Header glyphs after the channel page, left to right: FlareUI packs `HEADER_ORDER`
+/// volume, social, menu, channel from the right edge (Chat.lua:471-487).
+const FOREVER_HEADER_GLYPHS: [(&str, (u32, [f32; 4]), Option<&str>); 3] = [
+    ("Menu", FLARE_MENU_ART, Some(COPY_CHAT_ACTION)),
+    ("Social", FLARE_SOCIAL_ART, None),
+    ("Volume", FLARE_VOLUME_ART, None),
+];
+
+/// Textures the host must copy from local CASC before drawing the Forever chat header.
+pub const FOREVER_CHAT_HEADER_FDIDS: [u32; 3] =
+    [FLARE_MENU_ART.0, FLARE_SOCIAL_ART.0, FLARE_VOLUME_ART.0];
+
+fn forever_header_button(index: usize, skin_width: f32) -> [f32; 4] {
+    [
+        skin_width - FOREVER_BUTTONS_W + FOREVER_BUTTON_GAP * index as f32,
+        FOREVER_BUTTON_TOP,
+        FLARE_HEADER_BUTTON_SIZE,
+        FLARE_HEADER_BUTTON_SIZE,
     ]
-    .into_iter()
-    .enumerate()
-    {
+}
+
+fn forever_background(skin_rect: (f32, f32, f32, f32)) -> Element {
+    let skin_width = skin_rect.2;
+    let mut parts = flare_panel(CHAT_FLARE_SKIN, skin_rect);
+    parts.extend(flare_header("ChatFrame1Flare", skin_rect));
+    parts.extend(forever_channel_button(forever_header_button(0, skin_width)));
+    for (index, (suffix, art, action)) in FOREVER_HEADER_GLYPHS.into_iter().enumerate() {
         parts.extend(flare_icon(
             &format!("ChatFrame1Flare{suffix}"),
             art,
-            [
-                FOREVER_BUTTON_LEFT + FOREVER_BUTTON_GAP * index as f32,
-                FOREVER_BUTTON_TOP,
-                FLARE_HEADER_BUTTON_SIZE,
-                FLARE_HEADER_BUTTON_SIZE,
-            ],
+            forever_header_button(index + 1, skin_width),
             action,
         ));
     }
     parts
 }
 
+/// Page and its text lines inside the 13.2-square glyph box: `(x, y, width, height)`.
+const CHANNEL_PAGE: (f32, f32, f32, f32) = (1.65, 0.0, 9.9, 13.2);
+const CHANNEL_LINES: [(f32, f32, f32, f32); 3] = [
+    (3.85, 3.3, 5.5, 1.1),
+    (3.85, 6.05, 5.5, 1.1),
+    (3.85, 8.8, 5.5, 1.1),
+];
+const CHANNEL_LINE_COLOR: &str = "0.05,0.06,0.05,1";
+
+/// FlareUI's channel button (`ChatFrameChannelButton`, Chat.lua:59,610) shows a page of
+/// text lines from its own Media. Blizzard's icon for that button is the voice chat
+/// speaker (ChannelFrameButtonMixin.lua:24), which would repeat the volume glyph, so the
+/// page is drawn from solid frames, as the meter's chart is.
+fn forever_channel_button([x, y, width, height]: [f32; 4]) -> Element {
+    let page = solid_frame(
+        "ChatFrame1FlareChannelPage".into(),
+        CHANNEL_PAGE,
+        FLARE_ICON_COLOR,
+    );
+    let lines: Element = CHANNEL_LINES
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, line)| {
+            solid_frame(
+                format!("ChatFrame1FlareChannelLine{index}"),
+                line,
+                CHANNEL_LINE_COLOR,
+            )
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: "ChatFrame1FlareChannel",
+            width,
+            height,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+            r#frame {
+                name: "ChatFrame1FlareChannelIcon",
+                width: FLARE_HEADER_ICON_SIZE,
+                height: FLARE_HEADER_ICON_SIZE,
+                pos_type: "absolute",
+                left: FLARE_HEADER_ICON_INSET,
+                top: FLARE_HEADER_ICON_INSET,
+                {page}
+                {lines}
+            }
+        }
+    }
+}
+
+fn solid_frame(name: String, (x, y, width, height): (f32, f32, f32, f32), color: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: {DynName(name)},
+            width,
+            height,
+            background_color: color,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    }
+}
+
 fn forever_tabs(view: &ChatFrameView) -> Element {
-    let mut x = FLARE_SKIN_RECT.0 + FLARE_PADDING;
+    let mut x = FLARE_SKIN_ORIGIN.0 + FLARE_PADDING;
     let mut parts = Element::new();
     for (index, tab) in ChatTab::ALL.into_iter().enumerate() {
         let width = text_width(tab.label(), TAB_FONT, FLARE_FONT_SIZE).ceil() + FOREVER_TAB_PADDING;
@@ -435,7 +524,7 @@ fn forever_tab_button(index: usize, tab: ChatTab, x: f32, width: f32, selected: 
             onclick: {tab.action()},
             pos_type: "absolute",
             left: x,
-            top: {FLARE_SKIN_RECT.1},
+            top: {FLARE_SKIN_ORIGIN.1},
             {label}
         }
     }
@@ -460,7 +549,7 @@ fn forever_tab_flash(index: usize, tab: ChatTab, x: f32, width: f32, flashing: b
             hidden,
             pos_type: "absolute",
             left: x,
-            top: {FLARE_SKIN_RECT.1},
+            top: {FLARE_SKIN_ORIGIN.1},
             {label}
         }
     }
@@ -618,8 +707,8 @@ fn chat_button(name: &str, action: &str, icon: &str, x: f32, y: f32, hidden: boo
 
 /// Messages stacked up from the bottom, newest last (Display/ScrollingMessages.lua:219-270).
 /// Rows are numbered top to bottom as `ChatFrame1MessagesRow{n}`.
-fn messages(view: &ChatFrameView, height: f32) -> Element {
-    let area = chat_text_area(view.tab);
+fn messages(view: &ChatFrameView, (width, height): (f32, f32)) -> Element {
+    let area = chat_text_area(view.tab, width);
     let mut tops = Vec::with_capacity(view.messages.len());
     let mut bottom = height - MESSAGES_BOTTOM_PAD;
     for message in view.messages.iter().rev() {
@@ -749,7 +838,7 @@ pub fn chat_spell_link_at(registry: &FrameRegistry, mut frame_id: u64) -> Option
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ui::chat_frame::SPELL_LINK_COLOR;
+    use crate::ui::chat_frame::LINK_COLOR;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
     use ui_toolkit::screen::Screen;
 
@@ -757,7 +846,7 @@ mod tests {
         ChatRun {
             text: text.to_string(),
             color: if spell_id.is_some() {
-                SPELL_LINK_COLOR
+                LINK_COLOR
             } else {
                 [1.0; 4]
             },
@@ -786,15 +875,12 @@ mod tests {
     #[test]
     fn link_runs_resolve_to_their_spell_and_text_runs_do_not() {
         let reg = build(vec![ChatRow {
-            runs: vec![
-                run("Alice's ", 0.0, None),
-                run("[Fireball]", 60.0, Some(133)),
-            ],
+            runs: vec![run("Alice's ", 0.0, None), run("Fireball", 60.0, Some(133))],
         }]);
         let link = reg
             .get_by_name("ChatFrame1Link0_1_133")
             .expect("link frame");
-        assert_eq!(fontstring_text(&reg, "ChatFrame1Link0_1_133"), "[Fireball]");
+        assert_eq!(fontstring_text(&reg, "ChatFrame1Link0_1_133"), "Fireball");
         assert_eq!(chat_spell_link_at(&reg, link), Some(133));
         let text = reg
             .get_by_name("ChatFrame1MessagesRow0Run0")

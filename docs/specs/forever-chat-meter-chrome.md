@@ -7,10 +7,10 @@ Forever-only reference chrome in `godot/ui-model/src/ui/screens/{chat_frame,dama
 - [x] Both panels retain dark translucent Blizzard dialog backgrounds, bronze tooltip borders, a header band and separator.
 - [x] Meter header shows DPS and HPS tabs (Damage Done and Healing Done; [types](damage-meter.md)), chart and gear icons; no Retail timer, arrow, minimize or dropdown background.
 - [x] Meter rows show square class icons (snapshot has no specialization), rounded bronze outlines, class-coloured horizontal-gradient fills over dark tracks and white shadowed rank/name and damage (DPS) labels.
-- [x] Chat keeps existing tabs/actions as plain text, active bright bronze and inactive dim bronze; four bronze header icons. Message rendering, input and scroll behavior remain unchanged.
+- [x] Chat keeps existing tabs/actions as plain text, active bright bronze and inactive dim bronze; four bronze header icons, left to right channel (page of text lines), menu (speech bubble), social (figure), volume (speaker). Message rendering, input and scroll behavior remain unchanged.
 - [x] Modern serialized chat/meter trees remain byte-identical to the pre-change baseline, for all chat tabs and an open meter session menu.
 - [x] Forever chat and meter header buttons share a 22-square hit box centred vertically in each 24-high header, entirely above the separator; their glyphs share a 13.2-square draw box and common centre. Right-side button centres retain uniform spacing.
-- [x] Header glyph crops exclude unequal atlas-cell padding and the gear's dropdown frame; the meter uses the same gear crop as chat.
+- [x] Header glyph crops exclude atlas-cell padding and button or dropdown frames.
 
 ## Number and colour provenance
 
@@ -34,18 +34,20 @@ Rectangles use top-left parent-local coordinates. Chat skin (24,-7) is relative 
 
 Chart columns inside the centred 13.2-square glyph box: x=0,5.5,11; y=7.7,4.4,0; width=2.2; heights=5.5,8.8,13.2. Proportions **measured** from the damage-meter reference and adapted to the shared glyph size, drawn geometrically rather than copying FlareUI Media. Zero-based column index and unit alpha are structural values, not screenshot claims.
 
-Header art uses existing Blizzard sheets directly, with explicit normalized `[left,right,top,bottom]` crops below. These are **measured from decoded Blizzard pixels**, not FlareUI art or screenshot dimensions. Social/volume use the nonzero-alpha glyph bounds; gear uses the gold cog only (removes the surrounding dropdown frame); channel uses the central coin without its diffuse outer shadow. Each crop maps into the same 13.2-square draw box, rather than stretching the differently padded cells.
+Header order is FlareUI's `HEADER_ORDER` volume, social, menu, channel packed from the right edge (`Modules/Chat.lua:471-487`), so left to right channel, menu, social, volume. FlareUI draws its own Media art on Blizzard's buttons (`Modules/Chat.lua:54-61,609-611,1396-1426`); that art is not reusable, so each glyph is cut from the Blizzard art of the button it restyles, with explicit normalized `[left,right,top,bottom]` crops **measured from decoded Blizzard pixels**. Each crop maps into the same 13.2-square draw box. The host copies the three sheets from local CASC before the chat frame first draws (`FOREVER_CHAT_HEADER_FDIDS`).
 
-| Glyph | FDID / sheet size | Original cell pixels (left,right,top,bottom) | Corrected glyph pixels | Normalized tex-coords |
+| Glyph | FlareUI button | Blizzard art | FDID / size | Glyph pixels (left,right,top,bottom) |
 | --- | --- | --- | --- | --- |
-| Channel | 1121272 / 1024x1024 | (423,455,764,796), 32x32 | (427,451,768,792) | (427/1024,451/1024,768/1024,792/1024) |
-| Menu / meter gear | 7518377 / 128x64 | (59,86,30,57), 27x27; cog is (8,20,5,17) inside cell | (67,79,35,47) | (67/128,79/128,35/64,47/64) |
-| Social | 8200846 / 1024x512 | (265,329,85,167), 64x82; visible bounds (11,53,13,72) | (276,318,98,157) | (276/1024,318/1024,98/512,157/512) |
-| Volume | 5390329 / 512x256 | (386,403,29,46), 17x17; visible bounds (2,13,2,16) | (388,399,31,45) | (388/512,399/512,31/256,45/256) |
+| Menu | `ChatFrameMenuButton` (`Chat.lua:611`) | NormalTexture `Interface\ChatFrame\UI-ChatIcon-Chat-Up` (`FloatingChatFrame.xml:670`): the speech bubble inside the button frame | 130949 / 32x32 | (8,22,9,23) |
+| Social | `QuickJoinToastButton` (`Chat.lua:609`) | `FriendsButton` atlas `quickjoin-button-friendslist-up` (`QuickJoinToast.xml:42`), cell (338,370,1,33): the figure inside the button frame | 1537274 / 512x64 | (346,360,7,21) |
+| Volume | FlareUI's own button (`Chat.lua:1396-1426`) | `common-dropdown-icon-sound-on`, cell (386,403,29,46), without padding | 5390329 / 512x256 | (388,399,31,45) |
+| Meter gear | settings (`DamageMeter.lua:50-57`) | `common-dropdown-a-button-settings-shadowless`, cell (59,86,30,57): the cog without its dropdown frame | 7518377 / 128x64 | (67,79,35,47) |
+
+Channel (`ChatFrameChannelButton`, `Chat.lua:59,610`) is a page of text lines in FlareUI. Blizzard's icon for that button is the voice chat speaker `chatframe-button-icon-voicechat` (`ChannelFrameButtonMixin.lua:24`), which would repeat the volume glyph, so the page is drawn from solid frames inside the 13.2-square glyph box, as the chart is: page (1.65,0,9.9,13.2) in the icon bronze, three dark lines 5.5x1.1 at x=3.85, y=3.3,6.05,8.8. Proportions **measured** from the chat-box reference.
 
 Captured tree (`shot2-2026-10-03/forever-target-tree2.log:790-813,933-953`) had identical 22-square chat rectangles at y=759, bottom781, but separator777; meter buttons y=2, bottom24, separator22. Separator level1 and glyph level2: layering did not cause the overlap. Unequal apparent sizes/baselines came from padded cells and the off-centre cog; geometry separately put both rows across their separators.
 
-Class colours remain `RAID_CLASS_COLORS` (`damage_meter_data::class_color`); no changes to amounts, ordering or formatting. Header substitutions are explicit cropped Blizzard art choices from chatballon, settings-shadowless, UI-HUD-MicroMenu-GuildCommunities-Up (Forever set-1 sheet) and sound-on, not missing-texture fallbacks; classicon-* rows still resolve by atlas. Chart is drawn as three bronze columns because FlareUI's chart artwork is not reusable.
+Class colours remain `RAID_CLASS_COLORS` (`damage_meter_data::class_color`); no changes to amounts, ordering or formatting. Header glyphs are explicit cropped Blizzard art, not missing-texture fallbacks; classicon-* rows still resolve by atlas. Chart and channel page are drawn from solid frames because FlareUI's artwork is not reusable.
 
 ## How it works
 
@@ -65,7 +67,7 @@ Class colours remain `RAID_CLASS_COLORS` (`damage_meter_data::class_color`); no 
 
 `godot/ui-model/tests/forever_chat_meter.rs`; Modern serialized fixture in `tests/fixtures/modern_chat_meter.rs` captured before production edits at `5c1e2db5` (88,806 bytes). Targeted Depot run at `423dbf7b`: 5 passed, 0 failed, exit 0. Behavioral RED at `5c1e2db5`: missing chat/meter headers and Retail row rectangle instead of reference rectangle.
 
-Icon alignment/crop regression at `20c1a505`: 3 passed, 4 failed (old chat/meter tops and untrimmed art). GREEN at `46d8af19`: 7 passed, 0 failed, exit 0, including the unchanged Modern byte fixture, exact button/glyph rectangles, common vertical centres, separator clearance, uniform spacing and per-icon UVs. Same targeted Depot command: `python3 scripts/depot-build.py --root <worktree> --test -p game-engine-ui-model --test forever_chat_meter`. No live run.
+Icon alignment/crop regression at `20c1a505`: 3 passed, 4 failed (old chat/meter tops and untrimmed art). GREEN at `46d8af19`: 7 passed, 0 failed, exit 0, including the unchanged Modern byte fixture, exact button/glyph rectangles, common vertical centres, separator clearance and uniform spacing. Which sheet and crop a glyph uses is not asserted (2026-10-04); live capture `data/diagnostics/hudfixes-2026-10-04/` shows them. Same targeted Depot command: `python3 scripts/depot-build.py --root <worktree> --test -p game-engine-ui-model --test forever_chat_meter`. No live run.
 
 ## Known gaps (current cycle)
 

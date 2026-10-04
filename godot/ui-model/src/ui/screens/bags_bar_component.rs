@@ -81,7 +81,7 @@ pub fn bags_bar_width() -> f32 {
 }
 
 pub fn bags_bar_screen(ctx: &SharedContext) -> Element {
-    bag_bar(ctx.get::<BagBarState>().copied(), hud_layout(ctx))
+    bag_bar(ctx.get::<BagBarState>().copied(), &hud_layout(ctx))
 }
 
 // Same leading-denomination omission as auction_house_data::Money::display.
@@ -155,7 +155,6 @@ fn bag_bar(synced: Option<BagBarState>, layout: &HudLayout) -> Element {
             name: "BagsBar",
             width: {total_w},
             height: {BAGS_BAR_H},
-            hidden: {layout.hide_utility_bars},
             pos_type: "absolute",
             left: {at.left.as_str()},
             right: {at.right.as_str()},
