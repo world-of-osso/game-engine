@@ -150,12 +150,15 @@ fn art(name: String, atlas: &str, (x, y, width, height): Rect, hidden: bool) -> 
 }
 
 fn icon(name: String, fdid: u32, size: f32) -> Element {
+    // Retail ActionButton.lua:620-628 draws an icon only when the action has a texture.
+    if fdid == 0 {
+        return Vec::new();
+    }
     rsx! {
         texture {
             name: {DynName(name)},
             width: size,
             height: size,
-            hidden: {fdid == 0},
             texture_fdid: {fdid},
             pos_type: "absolute",
             pos_x: 0.0,
