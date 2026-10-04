@@ -808,3 +808,62 @@ fn an_icon_arriving_on_a_built_bar_is_painted_inside_and_under_the_border() {
         }
     }
 }
+
+/// Every frame under `roots`, depth first in sibling order: what the projection paints
+/// and stacks in that order.
+fn frame_order(registry: &FrameRegistry, roots: &[u64]) -> Vec<String> {
+    fn walk(registry: &FrameRegistry, id: u64, out: &mut Vec<String>) {
+        let f = frame_by_id(registry, id);
+        out.push(
+            f.name
+                .clone()
+                .unwrap_or_else(|| format!("{:?}", f.widget_type)),
+        );
+        for &child in &f.children {
+            walk(registry, child, out);
+        }
+    }
+    let mut out = Vec::new();
+    for &root in roots {
+        walk(registry, root, &mut out);
+    }
+    out
+}
+
+fn frame_by_id(registry: &FrameRegistry, id: u64) -> &Frame {
+    registry.get(id).expect("frame exists")
+}
+
+/// Icons arriving on a built bar insert regions among each button's existing ones; the
+/// rebuilt bar has the frame order a bar built with those icons from the start has.
+#[test]
+fn a_bar_rebuilt_with_arriving_icons_keeps_fresh_build_frame_order() {
+    load_atlas_tables();
+    let mut state = MainActionBarState::default();
+    for bar in ActionBar::ALL {
+        state.bar_mut(bar)[0].icon_fdid = 135_891;
+    }
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(MainActionBarState::default());
+        let mut rebuilt = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(main_action_bar_screen);
+        screen.sync(&shared, &mut rebuilt);
+        shared.insert(state.clone());
+        screen.sync(&shared, &mut rebuilt);
+
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(state.clone());
+        let mut fresh = FrameRegistry::new(1920.0, 1080.0);
+        let mut fresh_screen = Screen::new(main_action_bar_screen);
+        fresh_screen.sync(&shared, &mut fresh);
+
+        assert_eq!(
+            frame_order(&rebuilt, screen.all_frame_ids()),
+            frame_order(&fresh, fresh_screen.all_frame_ids()),
+            "{skin:?}"
+        );
+    }
+}
