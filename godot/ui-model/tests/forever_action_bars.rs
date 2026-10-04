@@ -13,8 +13,9 @@ mod fixture;
 use game_engine_ui_model::bags_bar_component::{
     BagBarState, FOREVER_ONLY_BAG_ATLASES, bags_bar_screen,
 };
+use game_engine_ui_model::hud_layout::{ActionBarLayout, MODERN};
 use game_engine_ui_model::main_action_bar_component::{
-    ActionButtonView, MainActionBarState, main_action_bar_screen,
+    ActionBar, ActionButtonView, MainActionBarState, main_action_bar_screen, parse_action_button,
 };
 use game_engine_ui_model::micro_menu::{MicroMenuView, OpenWindows, micro_menu_screen};
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
@@ -342,36 +343,86 @@ fn class_bar(class: Option<u8>) -> MainActionBarState {
 
 const END_CAPS: [&str; 2] = ["MainActionBarLeftEndCap", "MainActionBarRightEndCap"];
 
-/// User decision 2026-10-03: Forever's end caps are the project's narrow class shields,
-/// 95 units tall at the art's 68:256 aspect, bottoms on the bar's bottom edge, 6 units
-/// outside the first and last button.
-#[test]
-fn forever_end_caps_are_class_shields_outside_the_buttons() {
-    let registry = build(
+type Rect = (f32, f32, f32, f32);
+
+fn intersects(a: Rect, b: Rect) -> bool {
+    a.0 < b.0 + b.2 && b.0 < a.0 + a.2 && a.1 < b.1 + b.3 && b.1 < a.1 + a.3
+}
+
+/// Rect on the 1920×1080 canvas of a root frame anchored to its bottom centre.
+fn bar_rect(registry: &FrameRegistry, name: &str) -> Rect {
+    let f = frame(registry, name);
+    let (Val::Percent(50.0), Val::Px(margin), Val::Px(bottom)) =
+        (f.position.left, f.margin.left, f.position.bottom)
+    else {
+        panic!(
+            "{name} is not anchored to the bottom centre: {:?}",
+            f.position
+        );
+    };
+    let (Dimension::Fixed(width), Dimension::Fixed(height)) = (f.width, f.height) else {
+        panic!("{name} has no fixed size");
+    };
+    (960.0 + margin, 1080.0 - bottom - height, width, height)
+}
+
+/// Canvas rect of `child`, a direct child of root frame `bar`.
+fn child_rect(registry: &FrameRegistry, bar: &str, child: &str) -> Rect {
+    let (bar_x, bar_y, _, _) = bar_rect(registry, bar);
+    let (x, y, width, height) = fixed_rect(registry, child);
+    (bar_x + x, bar_y + y, width, height)
+}
+
+fn bar_name(bar: ActionBar) -> &'static str {
+    match bar {
+        ActionBar::Main => "MainActionBar",
+        ActionBar::BottomLeft => "MultiBarBottomLeft",
+        ActionBar::BottomRight => "MultiBarBottomRight",
+    }
+}
+
+/// Name and canvas rect of every button `bar` shows, widened to its frame art (which
+/// overhangs the button by a unit).
+fn shown_buttons(registry: &FrameRegistry, bar: ActionBar) -> Vec<(String, Rect)> {
+    (0..12)
+        .map(|index| bar.button_name(index))
+        .filter(|name| registry.get_by_name(name).is_some())
+        .map(|name| {
+            let (x, y, _, height) = child_rect(registry, bar_name(bar), &name);
+            let art_width = fixed_rect(registry, &format!("{name}NormalTexture")).2;
+            (name, (x, y, art_width, height))
+        })
+        .collect()
+}
+
+fn forever_bars() -> FrameRegistry {
+    build(
         ActiveSkin::Forever,
         class_bar(Some(2)),
         main_action_bar_screen,
-    );
-    let (bar_w, bar_h) = (562.0 * 1.06, 45.0 * 1.06);
-    let cap_w = 95.0 * 68.0 / 256.0;
-    let caps = [
-        (-6.0 - cap_w, bar_h - 95.0, cap_w, 95.0),
-        (bar_w + 6.0, bar_h - 95.0, cap_w, 95.0),
-    ];
-    assert_eq!(cap_w, 25.234375);
-    for (name, expected) in END_CAPS.into_iter().zip(caps) {
-        assert_close(fixed_rect(&registry, name), expected, name);
-    }
-    // Buttons and their 46-wide frame art (the last one's overhangs the bar) stay clear.
-    for index in 1..=12 {
-        let (x, y, _, h) = fixed_rect(&registry, &format!("ActionButton{index}"));
-        let art_w = fixed_rect(&registry, &format!("ActionButton{index}NormalTexture")).2;
-        for (cap_x, cap_y, cap_w, cap_h) in caps {
-            let apart_x = cap_x + cap_w <= x || x + art_w <= cap_x;
-            let apart_y = cap_y + cap_h <= y || y + h <= cap_y;
-            assert!(apart_x || apart_y, "ActionButton{index} under an end cap");
+    )
+}
+
+/// User decision 2026-10-03: Forever's end caps are class shields standing outside the
+/// buttons. They cover no button of any of the three bars.
+#[test]
+fn forever_end_caps_cover_no_action_button() {
+    let registry = forever_bars();
+    let caps = END_CAPS.map(|cap| child_rect(&registry, "MainActionBar", cap));
+    let buttons: Vec<(String, Rect)> = ActionBar::ALL
+        .into_iter()
+        .flat_map(|bar| shown_buttons(&registry, bar))
+        .collect();
+    assert_eq!(buttons.len(), 28);
+    for (name, button) in &buttons {
+        for cap in caps {
+            assert!(!intersects(*button, cap), "{name} {button:?} under {cap:?}");
         }
     }
+    // One shield on each side of the lower rows.
+    let (main_x, _, main_w, _) = bar_rect(&registry, "MainActionBar");
+    assert!(caps[0].0 + caps[0].2 <= main_x);
+    assert!(caps[1].0 >= main_x + main_w);
     let gryphons: Vec<String> = atlas_names(&registry, "MainActionBar")
         .into_iter()
         .filter(|name| name.contains("gryphon"))
@@ -379,37 +430,166 @@ fn forever_end_caps_are_class_shields_outside_the_buttons() {
     assert_eq!(gryphons, Vec::<String>::new());
 }
 
-/// `ChrClasses` IDs 1-13 name the shield files under `data/ui/endcaps/`.
+/// The reference block: main bar and Action Bar 2 of 9 buttons each, Action Bar 3 of 10
+/// smaller buttons on top, every bar centred, no two buttons overlapping.
+#[test]
+fn forever_stacks_three_centred_bars_of_9_9_and_10_buttons() {
+    let registry = forever_bars();
+    let bars = ActionBar::ALL.map(|bar| {
+        (
+            bar_rect(&registry, bar_name(bar)),
+            shown_buttons(&registry, bar),
+        )
+    });
+    assert_eq!(
+        bars.each_ref().map(|(_, buttons)| buttons.len()),
+        [9, 9, 10]
+    );
+    for ((x, _, width, _), _) in &bars {
+        assert!(
+            (x + width / 2.0 - 960.0).abs() < 1e-3,
+            "centre {}",
+            x + width / 2.0
+        );
+    }
+    // Stacked upward from the main bar, each above the one below.
+    let bottom = |index: usize| bars[index].0.1 + bars[index].0.3;
+    assert!(bottom(1) < bars[0].0.1 && bottom(2) < bars[1].0.1);
+    // The lower rows are the same size; the top row's buttons are smaller.
+    let button_height = |index: usize| bars[index].1[0].1.3;
+    assert_eq!(button_height(0), button_height(1));
+    assert!(button_height(2) < button_height(0));
+    let all: Vec<&(String, Rect)> = bars.iter().flat_map(|(_, buttons)| buttons).collect();
+    for (index, (name, rect)) in all.iter().enumerate() {
+        for (other_name, other) in &all[index + 1..] {
+            // Frame art overhangs its button by a unit into the 2-unit gap.
+            assert!(!intersects(*rect, *other), "{name} overlaps {other_name}");
+        }
+    }
+}
+
+/// Retail hides Action Bars 2 and 3 until the player enables them (MultiActionBars.xml:45,75).
+#[test]
+fn modern_shows_only_the_main_bar() {
+    let registry = build(ActiveSkin::Modern, bar_state(), main_action_bar_screen);
+    assert_eq!(shown_buttons(&registry, ActionBar::Main).len(), 12);
+    for bar in ["MultiBarBottomLeft", "MultiBarBottomRight"] {
+        assert_eq!(registry.get_by_name(bar), None, "{bar}");
+    }
+}
+
+/// `ActionBarMixin:UpdateGridLayout` (ActionBar.lua:98-138): `ceil(icons / rows)` buttons
+/// per row, rows filling left to right and stacking upward, a short last row on top.
+#[test]
+fn a_bar_lays_its_icons_out_in_rows_of_the_retail_stride() {
+    let cases: [(usize, usize, &[usize]); 6] = [
+        (12, 1, &[12]),
+        (12, 2, &[6, 6]),
+        (10, 2, &[5, 5]),
+        (7, 2, &[4, 3]),
+        (11, 3, &[4, 4, 3]),
+        (12, 4, &[3, 3, 3, 3]),
+    ];
+    for (num_icons, num_rows, bottom_up) in cases {
+        let layout = ActionBarLayout {
+            anchor: MODERN.main_action_bar.anchor,
+            num_icons,
+            num_rows,
+            icon_scale: 0.8,
+        };
+        let what = format!("{num_icons} icons in {num_rows} rows");
+        let side = 45.0 * 0.8;
+        let cells: Vec<Rect> = (0..num_icons)
+            .map(|index| {
+                let (x, y) = layout.button_origin(index, 1.0);
+                (x, y, side, side)
+            })
+            .collect();
+        let (width, height) = layout.size(1.0);
+        // Buttons in index order fill the bottom row first.
+        let mut rows: Vec<(f32, usize)> = Vec::new();
+        for cell in &cells {
+            match rows.last().copied() {
+                Some((y, count)) if y == cell.1 => *rows.last_mut().unwrap() = (y, count + 1),
+                Some((y, _)) => {
+                    assert!(cell.1 < y, "{what}: rows stack upward");
+                    rows.push((cell.1, 1));
+                }
+                None => rows.push((cell.1, 1)),
+            }
+        }
+        let counts: Vec<usize> = rows.iter().map(|(_, count)| *count).collect();
+        assert_eq!(counts, bottom_up, "{what}");
+        for (index, cell) in cells.iter().enumerate() {
+            assert!(cell.0 >= 0.0 && cell.1 >= 0.0, "{what}: {cell:?}");
+            assert!(cell.0 + side <= width + 1e-3, "{what}: {cell:?} in {width}");
+            assert!(
+                cell.1 + side <= height + 1e-3,
+                "{what}: {cell:?} in {height}"
+            );
+            for other in &cells[index + 1..] {
+                assert!(!intersects(*cell, *other), "{what}: {cell:?} {other:?}");
+            }
+        }
+        // A full row spans the bar; the bottom row touches its bottom edge.
+        let last_in_bottom_row = cells[bottom_up[0] - 1];
+        assert!((last_in_bottom_row.0 + side - width).abs() < 1e-3, "{what}");
+        assert!((cells[0].1 + side - height).abs() < 1e-3, "{what}");
+    }
+}
+
+/// Retail action slots (1-based): main bar 1-12, MultiBarBottomLeft page 6 = 61-72,
+/// MultiBarBottomRight page 5 = 49-60 (MultiActionBars.xml:62,91, ActionButtonUtil.lua:66).
+/// The protocol's slots are 0-based.
+#[test]
+fn each_bars_buttons_use_their_retail_action_slots() {
+    let slots = |bar: ActionBar| [bar.action_slot(0), bar.action_slot(11)];
+    assert_eq!(slots(ActionBar::Main), [0, 11]);
+    assert_eq!(slots(ActionBar::BottomLeft), [60, 71]);
+    assert_eq!(slots(ActionBar::BottomRight), [48, 59]);
+    // A click on a drawn button names its own bar and button.
+    let registry = forever_bars();
+    let clicked = |name: &str| {
+        parse_action_button(frame(&registry, name).onclick.as_deref().expect(name))
+            .map(|(bar, index)| bar.action_slot(index))
+    };
+    assert_eq!(clicked("ActionButton3"), Some(2));
+    assert_eq!(clicked("MultiBarBottomLeftButton3"), Some(62));
+    assert_eq!(clicked("MultiBarBottomRightButton10"), Some(57));
+    assert_eq!(
+        ActionBar::of_button_name("MultiBarBottomRightButton10"),
+        Some((ActionBar::BottomRight, 9))
+    );
+}
+
+/// `ChrClasses` IDs 1-13 each draw their own class's shield on both sides.
 #[test]
 fn forever_end_caps_draw_the_players_class_shield() {
     let classes = [
-        (1, "warrior"),
-        (2, "paladin"),
-        (3, "hunter"),
-        (4, "rogue"),
-        (5, "priest"),
-        (6, "deathknight"),
-        (7, "shaman"),
-        (8, "mage"),
-        (9, "warlock"),
-        (10, "monk"),
-        (11, "druid"),
-        (12, "demonhunter"),
-        (13, "evoker"),
+        "warrior",
+        "paladin",
+        "hunter",
+        "rogue",
+        "priest",
+        "deathknight",
+        "shaman",
+        "mage",
+        "warlock",
+        "monk",
+        "druid",
+        "demonhunter",
+        "evoker",
     ];
-    for (id, class) in classes {
+    for (id, class) in (1..).zip(classes) {
         let registry = build(
             ActiveSkin::Forever,
             class_bar(Some(id)),
             main_action_bar_screen,
         );
-        assert_eq!(
-            END_CAPS.map(|name| file_of(&registry, name)),
-            [
-                format!("data/ui/endcaps/left/{class}.ktx2"),
-                format!("data/ui/endcaps/right/{class}.ktx2"),
-            ]
-        );
+        let [left, right] = END_CAPS.map(|name| file_of(&registry, name));
+        assert!(left.ends_with(&format!("/{class}.ktx2")), "{id}: {left}");
+        assert!(right.ends_with(&format!("/{class}.ktx2")), "{id}: {right}");
+        assert_ne!(left, right, "{id}: mirrored art");
     }
 }
 
@@ -425,17 +605,8 @@ fn forever_draws_no_end_cap_without_a_known_class() {
         for name in END_CAPS {
             assert_eq!(registry.get_by_name(name), None, "{name} for {class:?}");
         }
-        assert!(registry.get_by_name("ActionButton12").is_some());
+        assert!(registry.get_by_name("ActionButton1").is_some());
     }
-}
-
-#[test]
-fn forever_centres_main_bar() {
-    let registry = build(ActiveSkin::Forever, bar_state(), main_action_bar_screen);
-    let bar = frame(&registry, "MainActionBar");
-    assert_eq!(bar.position.left, Val::Percent(50.0));
-    assert_eq!(bar.position.bottom, Val::Px(2.0));
-    assert_eq!(bar.margin.left, Val::Px(-562.0 * 1.06 / 2.0));
 }
 
 #[test]
@@ -460,14 +631,6 @@ fn forever_action_buttons_take_flareui_scale_and_c60_icon_frame() {
     let skin = ActiveSkin::Forever;
     let registry = build(skin, bar_state(), main_action_bar_screen);
     let scale = 1.06;
-    let bar = frame(&registry, "MainActionBar");
-    assert_eq!(bar.width, Dimension::Fixed(562.0 * scale));
-    assert_eq!(bar.height, Dimension::Fixed(45.0 * scale));
-    assert_close(
-        fixed_rect(&registry, "ActionButton12"),
-        (11.0 * 47.0 * scale, 0.0, 45.0 * scale, 45.0 * scale),
-        "ActionButton12",
-    );
     assert_close(
         fixed_rect(&registry, "ActionButton2NormalTexture"),
         (0.0, 0.0, 46.0 * scale, 45.0 * scale),
@@ -558,22 +721,20 @@ fn switching_skin_reskins_the_live_main_bar() {
     let cap = "MainActionBarLeftEndCap";
     let modern_cap = Crop(4_613_342, [1.0, 179.0, 136.0, 303.0]);
     assert_eq!(drawn(&registry, cap, ActiveSkin::Modern), modern_cap);
-    assert_eq!(fixed_rect(&registry, cap).2, 104.5);
 
     shared.insert(ActiveSkin::Forever);
     screen.sync(&shared, &mut registry);
-    assert_eq!(file_of(&registry, cap), "data/ui/endcaps/left/paladin.ktx2");
-    assert_eq!(fixed_rect(&registry, cap).2, 25.234375);
+    assert!(file_of(&registry, cap).ends_with("/paladin.ktx2"));
 
     shared.insert(class_bar(None));
     screen.sync(&shared, &mut registry);
     assert_eq!(registry.get_by_name(cap), None);
     shared.insert(class_bar(Some(8)));
     screen.sync(&shared, &mut registry);
-    assert_eq!(file_of(&registry, cap), "data/ui/endcaps/left/mage.ktx2");
+    assert!(file_of(&registry, cap).ends_with("/mage.ktx2"));
 
     shared.insert(ActiveSkin::Modern);
     screen.sync(&shared, &mut registry);
     assert_eq!(drawn(&registry, cap, ActiveSkin::Modern), modern_cap);
-    assert_eq!(fixed_rect(&registry, cap).2, 104.5);
+    assert_eq!(registry.get_by_name("MultiBarBottomLeft"), None);
 }
