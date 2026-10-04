@@ -1,3 +1,7 @@
+## 2026-10-03 — Replica acknowledgment test capture (replicaflake)
+
+[[godot-replication]] records the deterministic Connecting → Connected reproduction: the old Tap paired buffered arrival with an acknowledgment from a different consumption boundary. Capture now brackets replicon's Connected PreUpdate and OnEnter receive calls; product worker and exact byte comparison unchanged. Regression RED reproduces `[b"\0\0"]` versus `[]`; GREEN proof tracked in the agent handoff.
+
 ## 2026-10-03 — Pinned Godot adds PR #123546: cold import crash (coldimport)
 
 [[godot-cold-import-crash]]: the launcher's and deploy.sh's cold `--import` crashed 134/139 intermittently from a Godot ClassDB race hit by threaded `.glsl` imports; the pin becomes `4.7.2-pr123946-pr123546` (upstream PR #123546 backported). Symbolized build: 0/40 cold imports vs 3/20 (`data/diagnostics/coldimport-2026-10-03/`).
