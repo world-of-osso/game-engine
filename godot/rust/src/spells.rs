@@ -21,7 +21,8 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::cast_failed_text::cast_failed_text;
 use game_engine_ui_model::casting_bar_frame_component::CastingBarState;
 use game_engine_ui_model::main_action_bar_component::{
-    ACTION_BAR_ART_FDIDS, MAIN_BAR_BUTTONS, MainActionBarState, parse_action_button,
+    ACTION_BAR_ART_FDIDS, ActionBar, ActionButtonView, MAIN_BAR_BUTTONS, MainActionBarState,
+    parse_action_button,
 };
 use game_engine_ui_model::spellbook_frame_component::{
     ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE, ACTION_SPELLBOOK_NEXT_PAGE,
@@ -117,7 +118,8 @@ pub(crate) struct SpellsHud {
     /// FDID → whether `data/textures/{fdid}.blp` exists or was copied from local CASC.
     textures: HashMap<u32, bool>,
     cast: Option<LocalCast>,
-    pushed: [f32; MAIN_BAR_BUTTONS],
+    /// Seconds each button stays pushed, by `ActionBar` then button.
+    pushed: [[f32; MAIN_BAR_BUTTONS]; ActionBar::ALL.len()],
     combat_seen: u64,
     floating: Vec<FloatingText>,
     /// Numbers floated so far, indexing each one's start offset.
@@ -141,7 +143,7 @@ impl Default for SpellsHud {
             book: SpellbookFrameState::default(),
             textures: HashMap::new(),
             cast: None,
-            pushed: [0.0; MAIN_BAR_BUTTONS],
+            pushed: Default::default(),
             combat_seen: 0,
             floating: Vec::new(),
             floats_spawned: 0,
@@ -369,7 +371,7 @@ impl GameClient {
         }
         self.poll_action_bar_clicks()?;
         self.poll_spellbook_actions()?;
-        for pushed in &mut self.spells.pushed {
+        for pushed in self.spells.pushed.iter_mut().flatten() {
             *pushed = (*pushed - delta).max(0.0);
         }
         self.sync_action_bar()?;
@@ -402,7 +404,7 @@ impl GameClient {
             self.toggle_spellbook()?;
         }
         for index in pressed {
-            self.use_action_button(index)?;
+            self.use_action_button(ActionBar::Main, index)?;
         }
         Ok(())
     }
@@ -423,10 +425,18 @@ impl GameClient {
         main_bar_slot(index, self.bonus_bar_offset())
     }
 
+    /// Action slot shown on `bar`'s button `index`: only the main bar is paged.
+    pub(super) fn bar_slot(&self, bar: ActionBar, index: usize) -> usize {
+        match bar {
+            ActionBar::Main => self.main_bar_slot(index),
+            ActionBar::BottomLeft | ActionBar::BottomRight => bar.action_slot(index),
+        }
+    }
+
     /// `UseAction`: a spell button casts at the current target.
-    fn use_action_button(&mut self, index: usize) -> Result<(), SessionError> {
-        self.spells.pushed[index] = PUSH_SECS;
-        match self.account.spells.slot(self.main_bar_slot(index)) {
+    fn use_action_button(&mut self, bar: ActionBar, index: usize) -> Result<(), SessionError> {
+        self.spells.pushed[bar as usize][index] = PUSH_SECS;
+        match self.account.spells.slot(self.bar_slot(bar, index)) {
             Some(ActionRef::Spell(spell_id)) => self.cast_spell(spell_id),
             _ => Ok(()),
         }
@@ -490,7 +500,7 @@ impl GameClient {
         };
         let action = ui.bind_mut().pop_action().to_string();
         match parse_action_button(&action) {
-            Some(index) => Ok(self.use_action_button(index)?),
+            Some((bar, index)) => Ok(self.use_action_button(bar, index)?),
             None if action.is_empty() => Ok(()),
             None => Err(format!("Unknown action bar action: {action}").into()),
         }
@@ -536,47 +546,51 @@ impl GameClient {
         Some(unit.get::<Player>()?.class)
     }
 
+    /// `bar`'s button `index`: its slot's spell icon and cooldown, and whether it is pushed.
+    fn action_button_view(&mut self, bar: ActionBar, index: usize) -> ActionButtonView {
+        let mut button = ActionButtonView {
+            pushed: self.spells.pushed[bar as usize][index] > 0.0,
+            ..Default::default()
+        };
+        let slot = self.bar_slot(bar, index);
+        let Some(ActionRef::Spell(spell_id)) = self.account.spells.slot(slot) else {
+            return button;
+        };
+        let icon = self
+            .spells
+            .catalog()
+            .and_then(|data| data.get(spell_id))
+            .map_or(0, |spell| spell.icon_fdid);
+        let on_gcd = self.spell_triggers_gcd(spell_id);
+        let cooldown = self.account.spells.button_cooldown(spell_id, on_gcd);
+        button.icon_fdid = self.drawable_fdid(icon);
+        if let Some(timer) = cooldown.filter(|timer| timer.duration > 0.0) {
+            button.cooldown_fraction = timer.remaining / timer.duration;
+            if timer.duration >= COUNTDOWN_MIN_SECS {
+                button.cooldown_text = cooldown_text(timer.remaining);
+            }
+        }
+        button
+    }
+
     fn action_bar_state(&mut self) -> MainActionBarState {
         let mut state = MainActionBarState {
             player_class: self.local_player_class(),
             ..Default::default()
         };
-        for index in 0..MAIN_BAR_BUTTONS {
-            let slot = self.main_bar_slot(index);
-            let Some(ActionRef::Spell(spell_id)) = self.account.spells.slot(slot) else {
-                continue;
-            };
-            let icon = self
-                .spells
-                .catalog()
-                .and_then(|data| data.get(spell_id))
-                .map_or(0, |spell| spell.icon_fdid);
-            let on_gcd = self.spell_triggers_gcd(spell_id);
-            let cooldown = self.account.spells.button_cooldown(spell_id, on_gcd);
-            let button = &mut state.buttons[index];
-            button.icon_fdid = self.drawable_fdid(icon);
-            if let Some(timer) = cooldown.filter(|timer| timer.duration > 0.0) {
-                button.cooldown_fraction = timer.remaining / timer.duration;
-                if timer.duration >= COUNTDOWN_MIN_SECS {
-                    button.cooldown_text = cooldown_text(timer.remaining);
-                }
+        for bar in ActionBar::ALL {
+            for index in 0..MAIN_BAR_BUTTONS {
+                state.bar_mut(bar)[index] = self.action_button_view(bar, index);
             }
-        }
-        for (index, button) in state.buttons.iter_mut().enumerate() {
-            button.pushed = self.spells.pushed[index] > 0.0;
         }
         if let Some((name, _)) = self
             .spells
             .bar_ui
             .as_ref()
             .and_then(|ui| ui.bind().hovered_button())
-            && let Some(index) = name
-                .strip_prefix("ActionButton")
-                .and_then(|index| index.parse::<usize>().ok())
-                .and_then(|index| index.checked_sub(1))
-            && let Some(button) = state.buttons.get_mut(index)
+            && let Some((bar, index)) = ActionBar::of_button_name(&name)
         {
-            button.hovered = true;
+            state.bar_mut(bar)[index].hovered = true;
         }
         state
     }

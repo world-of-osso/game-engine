@@ -1,5 +1,5 @@
 use game_engine_ui_model::main_action_bar_component::{
-    ActionButtonView, MAIN_ACTION_BAR, MainActionBarState, main_action_bar_screen,
+    ActionBar, ActionButtonView, MAIN_ACTION_BAR, MainActionBarState, main_action_bar_screen,
     parse_action_button,
 };
 use ui_toolkit::frame::{Dimension, WidgetData};
@@ -136,8 +136,14 @@ fn empty_action_slots_have_no_texture_source() {
 
 #[test]
 fn clicks_name_their_button() {
-    assert_eq!(parse_action_button("action_button:0"), Some(0));
-    assert_eq!(parse_action_button("action_button:11"), Some(11));
+    assert_eq!(
+        parse_action_button("action_button:0"),
+        Some((ActionBar::Main, 0))
+    );
+    assert_eq!(
+        parse_action_button("action_button:11"),
+        Some((ActionBar::Main, 11))
+    );
     assert_eq!(parse_action_button("action_button:12"), None);
     assert_eq!(parse_action_button("spellbook_tab:1"), None);
 }

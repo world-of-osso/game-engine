@@ -26,7 +26,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{
     UnitFrameState, inworld_unit_frames_screen,
 };
 use game_engine_ui_model::main_action_bar_component::{
-    MAIN_ACTION_BAR, MainActionBarState, main_action_bar_screen,
+    ActionBar, MAIN_ACTION_BAR, MainActionBarState, main_action_bar_screen,
 };
 use game_engine_ui_model::micro_menu::{MICRO_MENU, MicroMenuView, micro_menu_screen};
 use game_engine_ui_model::minimap::{MINIMAP_CLUSTER, MinimapClusterState, minimap_cluster_screen};
@@ -269,6 +269,55 @@ fn modern_preset_keeps_the_retail_modern_hud_positions() {
     assert_modern(&hud);
 }
 
+fn intersects(a: &LayoutRect, b: &LayoutRect) -> bool {
+    a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
+}
+
+/// The reference block as the layout engine places it: three bars of 9, 9 and 10 buttons
+/// centred on the 1366-wide canvas and stacked upward, class shields beside the lower rows
+/// covering no button, the pet bar above all of it.
+fn assert_forever_action_bars(hud: &[RegistryModel]) {
+    let bar_names = [
+        MAIN_ACTION_BAR.0,
+        "MultiBarBottomLeft",
+        "MultiBarBottomRight",
+    ];
+    let bars = bar_names.map(|name| rect(hud, name));
+    for (name, bar) in bar_names.iter().zip(&bars) {
+        assert!((bar.x + bar.width / 2.0 - 683.0).abs() < 0.001, "{name}");
+    }
+    assert!(bars[1].y + bars[1].height < bars[0].y);
+    assert!(bars[2].y + bars[2].height < bars[1].y);
+    let model = hud
+        .iter()
+        .find(|model| model.registry.get_by_name(MAIN_ACTION_BAR.0).is_some())
+        .unwrap();
+    let buttons: Vec<(String, LayoutRect)> = ActionBar::ALL
+        .into_iter()
+        .flat_map(|bar| (0..12).map(move |index| bar.button_name(index)))
+        .filter(|name| model.registry.get_by_name(name).is_some())
+        .map(|name| {
+            let button = rect(hud, &name);
+            (name, button)
+        })
+        .collect();
+    assert_eq!(buttons.len(), 9 + 9 + 10);
+    let caps = ["MainActionBarLeftEndCap", "MainActionBarRightEndCap"].map(|cap| rect(hud, cap));
+    assert!(caps[0].x + caps[0].width <= bars[0].x);
+    assert!(caps[1].x >= bars[0].x + bars[0].width);
+    let pet = rect(hud, "PetActionBar");
+    for (index, (name, button)) in buttons.iter().enumerate() {
+        for cap in &caps {
+            assert!(!intersects(button, cap), "{name} under an end cap");
+        }
+        assert!(!intersects(button, &pet), "{name} under the pet bar");
+        for (other_name, other) in &buttons[index + 1..] {
+            assert!(!intersects(button, other), "{name} overlaps {other_name}");
+        }
+    }
+    assert!(pet.y + pet.height <= bars[2].y);
+}
+
 #[test]
 fn forever_preset_moves_the_hud_and_modern_restores_it() {
     let mut hud = hud();
@@ -290,23 +339,10 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
         (bar.x, bar.y, bar.width, bar.height),
         (550.0, 470.0, 292.0, 26.0)
     );
-    // Reference: centred main bar, no attached utility bars. 25.234×95 class shields stand
-    // 6 units outside its ends, bottoms on its bottom edge (766).
-    assert_rect(&hud, MAIN_ACTION_BAR.0, (385.14, 718.3, 595.72, 47.7));
-    assert_rect(
-        &hud,
-        "MainActionBarLeftEndCap",
-        (353.906, 671.0, 25.234, 95.0),
-    );
-    assert_rect(
-        &hud,
-        "MainActionBarRightEndCap",
-        (986.86, 671.0, 25.234, 95.0),
-    );
+    assert_forever_action_bars(&hud);
     // Hidden roots and descendants take no layout space (Display::None).
     assert_rect(&hud, MICRO_MENU, (0.0, 0.0, 0.0, 0.0));
     assert_rect(&hud, "BagsBar", (0.0, 0.0, 0.0, 0.0));
-    assert_rect(&hud, "PetActionBar", (415.14, 682.5, 337.08, 31.8));
     assert_utility_visibility(&hud, true);
     // FlareUI matches the meter root to the chat skin; mirror it across UIParent.
     assert_rect(&hud, DAMAGE_METER_ROOT.0, (891.0, 419.0, 450.0, 214.0));
