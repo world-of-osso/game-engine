@@ -1,3 +1,7 @@
+## 2026-10-04 — Canonical toolkit integration and retained Skyborn blocker
+
+[Build guidance](../remote-builds.md) and active source links now use canonical `ui-toolkit/core` after toolkit merge `96dbda4`; historical branch-path proof remains attributed to its original revision. [[character-creation]] records unmerged Skyborn partial support, inferred server masks and current build-70205 local-CASC root-initialization failure from the retained main probe. No builds/tests rerun; native Skyborn support remains unverified.
+
 ## 2026-10-03 — Replica acknowledgment test capture (replicaflake)
 
 [[godot-replication]] records the deterministic Connecting → Connected reproduction: the old Tap paired buffered arrival with an acknowledgment from a different consumption boundary. Capture now brackets replicon's Connected PreUpdate and OnEnter receive calls; product worker and exact byte comparison unchanged. Regression RED reproduces `[b"\0\0"]` versus `[]`; unchanged test GREEN 1/1 and full network library 58/58 at `5ae0e4e7`, with natural one-minute loads 35.05/36.38. Exact proof and revisions in [[godot-replication]].
@@ -465,7 +469,7 @@ One missing cursor BLP disconnected the Godot client: every frame-step error sto
 
 ## [2026-09-29] investigation | Optional Depot fixture export
 
-At `be6aeedb`, `scripts/depot-build.py --root <checkout> --fixture native_input_fixture` completed on Depot project `003c4ttwqh`, build `5nqxfxrzpt`, in 206.042 s. It exported the default library and installed `target/debug/examples/native_input_fixture` beneath the originating checkout. The directly launched downloaded fixture then passed local owned-UDP `sound-click` in 30.787 s. Default builds remain library-only; allowlisted `native_npc_visual_fixture` was not remotely built or run. Verifier 963 is pending. This is bounded build/export and fixture proof, not a performance or parity claim. Evidence: `/home/osso/.worktrees/.game-engine-options-depot-20260929/{fixture-build,exported-fixture-runtime}.log`.
+At `be6aeedb`, `scripts/depot-build.py --root <checkout> --fixture native_input_fixture` completed on Depot project `003c4ttwqh`, build `5nqxfxrzpt`, in 206.042 s. It exported the default library and installed `target/debug/examples/native_input_fixture` beneath the originating checkout. The directly launched downloaded fixture then passed local owned-UDP `sound-click` in 30.787 s. Default builds remain library-only; allowlisted `native_npc_visual_fixture` was not remotely built or run. Verifier 963 is pending. This is bounded build/export and fixture proof, not a performance or parity claim. Evidence: `data/diagnostics/options-depot-20260929/{fixture-build,exported-fixture-runtime}.log`.
 
 Updated [Remote Godot builds](../remote-builds.md), [[godot-conversion]], and [[depot-cross-worktree-freshness]].
 

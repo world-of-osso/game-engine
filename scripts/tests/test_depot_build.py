@@ -18,7 +18,7 @@ FIXTURES = (
 )
 SIBLINGS = (
     "asset-resolver",
-    "ui-toolkit-godot-conversion",
+    "ui-toolkit",
     "ui-toolkit-macros",
     "shared-protocol",
 )
@@ -307,6 +307,39 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(artifact.read_bytes(), b"new binary")
         self.assertIn(str(artifact), result.stdout)
         self.assertFalse(Path(snapshot["context"]).exists())
+
+    def test_ui_toolkit_snapshot_uses_canonical_sibling(self):
+        self._put(self.base / "ui-toolkit", "core/Cargo.toml", "[package]\n")
+        self._put(self.base / "ui-toolkit", "core/src/lib.rs", "portable core")
+        result = self.build()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        files = self.records()[0]["files"]
+        self.assertEqual(files["ui-toolkit/src/lib.rs"], "ui-toolkit")
+        self.assertEqual(files["ui-toolkit/core/Cargo.toml"], "[package]\n")
+        self.assertEqual(files["ui-toolkit/core/src/lib.rs"], "portable core")
+        self.assertFalse(
+            any(key.startswith("ui-toolkit-godot-conversion/") for key in files)
+        )
+
+    def test_ui_toolkit_snapshot_uses_canonical_override(self):
+        override = self.base / "toolkit-branch"
+        (self.base / "ui-toolkit").rename(override)
+        self._put(override, "src/lib.rs", "override toolkit")
+        result = self.build(DEPOT_SIBLING_UI_TOOLKIT=str(override))
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(
+            self.records()[0]["files"]["ui-toolkit/src/lib.rs"], "override toolkit"
+        )
+
+    def test_ui_toolkit_snapshot_rejects_legacy_override(self):
+        legacy = self.base / "ui-toolkit-godot-conversion"
+        (self.base / "ui-toolkit").rename(legacy)
+        result = self.build(DEPOT_SIBLING_UI_TOOLKIT_GODOT_CONVERSION=str(legacy))
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(
+            f"missing build dependency: {self.base / 'ui-toolkit'}", result.stderr
+        )
+        self.assertEqual(self.records(), [])
 
     def test_requested_fixture_installs_only_named_executable_and_extension(self):
         for name in FIXTURES:
