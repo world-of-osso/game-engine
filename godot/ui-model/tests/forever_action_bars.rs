@@ -22,12 +22,14 @@ use game_engine_ui_model::main_action_bar_component::{
     pressed_action_buttons,
 };
 use game_engine_ui_model::micro_menu::{MicroMenuView, OpenWindows, micro_menu_screen};
+use game_engine_ui_model::pet_action_bar_component::{PetActionBarState, pet_action_bar_screen};
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::{FontStringData, GameFont};
 use ui_toolkit::widgets::texture::{TextureData, TextureSource};
 
 fn load_atlas_tables() {
@@ -978,5 +980,201 @@ fn a_bar_rebuilt_with_arriving_icons_keeps_fresh_build_frame_order() {
             frame_order(&fresh, fresh_screen.all_frame_ids()),
             "{skin:?}"
         );
+    }
+}
+
+fn font_string<'a>(registry: &'a FrameRegistry, name: &str) -> &'a FontStringData {
+    match frame(registry, name).widget_data.as_ref() {
+        Some(WidgetData::FontString(text)) => text,
+        other => panic!("{name} is not a FontString: {other:?}"),
+    }
+}
+
+/// Bars with mouse buttons 4-5 on main bar buttons 2-3, "Middle Mouse" and "Backspace" on
+/// Action Bar 3 buttons 1-2 (shown under Forever), and the pet bar with "Middle Mouse" on button 1.
+fn long_key_bars(skin: ActiveSkin) -> (FrameRegistry, FrameRegistry) {
+    let mut bindings = InputBindingsData::default();
+    bindings.assign(
+        InputAction::MultiActionBar2Button1,
+        InputBinding::Mouse(BindingMouseButton::Middle),
+    );
+    bindings.assign(
+        InputAction::MultiActionBar2Button2,
+        InputBinding::Keyboard(BindingKey::Backspace),
+    );
+    bindings.assign(
+        InputAction::ActionSlot2,
+        InputBinding::Mouse(BindingMouseButton::Back),
+    );
+    bindings.assign(
+        InputAction::ActionSlot3,
+        InputBinding::Mouse(BindingMouseButton::Forward),
+    );
+    let mut state = class_bar(Some(2));
+    state.set_hotkeys(&bindings);
+    let mut pet = PetActionBarState {
+        visible: true,
+        ..Default::default()
+    };
+    pet.buttons[0].hotkey = "Middle Mouse".into();
+    (
+        build(skin, state, main_action_bar_screen),
+        build(skin, pet, pet_action_bar_screen),
+    )
+}
+
+/// Retail's `HotKey` is 32×10 (`ActionButtonTemplate.xml:85-91`): a key name wider than
+/// that is cut on its one line, right-aligned, inside the button, never wrapped below it.
+/// A fixed FontString shows the lines its height holds, so the label must hold exactly one.
+#[test]
+fn long_key_names_stay_on_one_line_inside_their_button() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let (bars, pet) = long_key_bars(skin);
+        let mut labels = vec![
+            (&bars, "ActionButton2", "Mouse Button 4"),
+            (&bars, "ActionButton3", "Mouse Button 5"),
+            (&pet, "PetActionButton1", "Middle Mouse"),
+        ];
+        if skin == ActiveSkin::Forever {
+            labels.push((&bars, "MultiBarBottomRightButton1", "Middle Mouse"));
+            labels.push((&bars, "MultiBarBottomRightButton2", "Backspace"));
+        }
+        for (registry, button, key) in labels {
+            let label = format!("{button}HotKey");
+            let text = font_string(registry, &label);
+            assert_eq!(text.text, key, "{skin:?} {label}");
+            assert_eq!(
+                text.justify_h,
+                ui_toolkit::widgets::font_string::JustifyH::Right
+            );
+            let (button_w, (right, width, height)) =
+                (button_width(registry, button), label_box(registry, &label));
+            // Retail keeps the 32-wide label on a 30-wide small (pet) button, overhanging
+            // its left edge, where the right-aligned key is cut.
+            let max_w = if button.starts_with("Pet") {
+                32.0 * (button_w / base_size(button))
+            } else {
+                button_w - right
+            };
+            assert!(
+                right >= 0.0 && width <= max_w + 1e-3,
+                "{skin:?} {label}: {width} wide at right {right} spills out of {button_w}"
+            );
+            assert!(
+                height >= text.font_size * 0.8 && height < 2.0 * text.font_size,
+                "{skin:?} {label}: height {height} must hold one line of {} and no second",
+                text.font_size
+            );
+        }
+    }
+}
+
+/// Unscaled width of `button`: 30 for a small (pet) button, else 45.
+fn base_size(button: &str) -> f32 {
+    if button.starts_with("Pet") {
+        30.0
+    } else {
+        45.0
+    }
+}
+
+fn button_width(registry: &FrameRegistry, button: &str) -> f32 {
+    match frame(registry, button).width {
+        Dimension::Fixed(px) => px,
+        other => panic!("{button}: {other:?} is not fixed"),
+    }
+}
+
+/// `(right offset, width, height)` of a label anchored to its button's right edge.
+fn label_box(registry: &FrameRegistry, label: &str) -> (f32, f32, f32) {
+    let f = frame(registry, label);
+    let fixed = |d: Dimension| match d {
+        Dimension::Fixed(px) => px,
+        other => panic!("{label}: {other:?} is not fixed"),
+    };
+    let Val::Px(right) = f.position.right else {
+        panic!("{label} is not right-anchored: {:?}", f.position.right);
+    };
+    (right, fixed(f.width), fixed(f.height))
+}
+
+/// Button 1's key is painted over its spell icon, on a bar built empty that the action
+/// snapshot fills afterwards (`HotKey` is an `OVERLAY` FontString over the `BACKGROUND`
+/// icon, `ActionButtonTemplate.xml:22-33,84-85`).
+#[test]
+fn button_ones_hotkey_is_painted_above_its_icon() {
+    load_atlas_tables();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(class_bar(Some(2)));
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(main_action_bar_screen);
+        screen.sync(&shared, &mut registry);
+        let mut state = class_bar(Some(2));
+        state.buttons[0].icon_fdid = 135_891;
+        shared.insert(state);
+        screen.sync(&shared, &mut registry);
+
+        assert_eq!(hotkey_text(&registry, "ActionButton1"), "1", "{skin:?}");
+        assert!(frame(&registry, "ActionButton1HotKey").visible, "{skin:?}");
+        assert!(
+            paint_order(&registry, "ActionButton1", "ActionButton1Icon")
+                < paint_order(&registry, "ActionButton1", "ActionButton1HotKey"),
+            "{skin:?}: key under the icon"
+        );
+    }
+}
+
+/// Forever draws FlareUI's `hotkeyFont` (Core.lua:224): Arial Narrow 12 OUTLINE with a
+/// black 1,-1 shadow, at TOPRIGHT -4,-4, in the 210/255 grey-white the reference capture
+/// shows; Modern keeps Retail's `NumberFontNormalSmallGray` 0.6 grey without shadow.
+/// Every action bar and the pet bar share it.
+#[test]
+fn forever_hotkeys_use_flareui_font_and_modern_keeps_retail_grey() {
+    for (skin, color, shadow, anchor) in [
+        (ActiveSkin::Modern, [0.6, 0.6, 0.6, 1.0], None, None),
+        (
+            ActiveSkin::Forever,
+            [0.82, 0.82, 0.82, 1.0],
+            Some(([0.0, 0.0, 0.0, 1.0], [1.0, -1.0])),
+            Some(4.0),
+        ),
+    ] {
+        let (bars, pet) = long_key_bars(skin);
+        let mut buttons = vec![(&bars, "ActionButton1"), (&pet, "PetActionButton1")];
+        if skin == ActiveSkin::Forever {
+            buttons.push((&bars, "MultiBarBottomRightButton1"));
+        }
+        for (registry, button) in buttons {
+            let label = &format!("{button}HotKey");
+            let text = font_string(registry, label);
+            // The button's scale: FlareUI's 1.06 times the bar's Edit Mode icon size.
+            let scale = button_width(registry, button) / base_size(button);
+            assert_eq!(text.font, GameFont::ArialNarrow, "{skin:?} {label}");
+            assert!(
+                (text.font_size - 12.0 * scale).abs() < 1e-4,
+                "{skin:?} {label}: size {} at scale {scale}",
+                text.font_size
+            );
+            assert_eq!(text.color, color, "{skin:?} {label}");
+            assert_eq!(
+                text.shadow_color.map(|c| (c, text.shadow_offset)),
+                shadow,
+                "{skin:?} {label}"
+            );
+            if let Some(offset) = anchor {
+                let (right, _, _) = label_box(registry, label);
+                let Val::Px(top) = frame(registry, label).position.top else {
+                    panic!("{label} is not top-anchored");
+                };
+                for edge in [right, top] {
+                    assert!(
+                        (edge - offset * scale).abs() < 1e-3,
+                        "{skin:?} {label}: TOPRIGHT offset {edge} != {offset} x {scale}"
+                    );
+                }
+            }
+        }
     }
 }

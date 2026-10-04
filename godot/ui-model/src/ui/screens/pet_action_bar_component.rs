@@ -29,10 +29,10 @@ use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
 use crate::hud_layout::{FOREVER_ACTION_BUTTON_SCALE, hud_layout};
+use crate::main_action_bar_component::hotkey;
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::strata::FrameStrata;
-use crate::ui::widgets::font_string::GameFont;
 
 pub const PET_ACTION_BAR: FrameName = FrameName("PetActionBar");
 pub const PET_BAR_BUTTONS: usize = PET_ACTION_BAR_SLOTS;
@@ -48,12 +48,8 @@ const FRAME_ART: f32 = 35.0;
 /// `SmallActionButtonMixin_OnLoad`: `CheckedTexture`, `HighlightTexture` and `Flash` 31.6×30.9.
 const OVERLAY_W: f32 = 31.6;
 const OVERLAY_H: f32 = 30.9;
-/// `HotKey` 32×10 at TOPRIGHT (`hotkeyX` -3, `hotkeyY` -4), `NumberFontNormalSmallGray`.
-const HOTKEY_W: f32 = 32.0;
-const HOTKEY_H: f32 = 10.0;
-const HOTKEY_RIGHT: f32 = 3.0;
-const HOTKEY_TOP: f32 = 4.0;
-const HOTKEY_COLOR: &str = "0.6,0.6,0.6,1.0";
+/// `HotKey` at TOPRIGHT (`hotkeyX` -3, `hotkeyY` -4) of a small button.
+const HOTKEY_ANCHOR: (f32, f32) = (3.0, 4.0);
 /// `ATTACK_BUTTON_FLASH_TIME` (Shared/ActionButton.lua:1).
 pub const ATTACK_BUTTON_FLASH_TIME: f32 = 0.4;
 /// "the checked texture looks a little confusing at full alpha" (PetActionBar.lua:168-169).
@@ -359,26 +355,7 @@ fn icon(name: String, fdid: u32, size: f32) -> Element {
     }
 }
 
-fn hotkey(name: &str, text: &str, scale: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: {DynName(format!("{name}HotKey"))},
-            width: {HOTKEY_W * scale},
-            height: {HOTKEY_H * scale},
-            text,
-            font: GameFont::ArialNarrow,
-            font_size: {12.0 * scale},
-            font_color: HOTKEY_COLOR,
-            outline: "OUTLINE",
-            justify_h: "RIGHT",
-            pos_type: "absolute",
-            right: {HOTKEY_RIGHT * scale},
-            pos_y: {HOTKEY_TOP * scale},
-        }
-    }
-}
-
-fn button(index: usize, view: &PetActionButtonView, scale: f32) -> Element {
+fn button(index: usize, view: &PetActionButtonView, skin: ActiveSkin, scale: f32) -> Element {
     let name = pet_action_button_name(index);
     let size = PET_BUTTON_SIZE * scale;
     let x = index as f32 * (PET_BUTTON_SIZE + PET_BUTTON_PADDING) * scale;
@@ -425,7 +402,7 @@ fn button(index: usize, view: &PetActionButtonView, scale: f32) -> Element {
             !view.hovered,
         ),
         autocast_overlay(&name, view.autocast, scale),
-        hotkey(&name, &view.hotkey, scale),
+        hotkey(&name, &view.hotkey, skin, scale, HOTKEY_ANCHOR),
     ]
     .into_iter()
     .flatten()
@@ -462,7 +439,7 @@ pub fn pet_action_bar_screen(ctx: &SharedContext) -> Element {
         .buttons
         .iter()
         .enumerate()
-        .flat_map(|(index, view)| button(index, view, scale))
+        .flat_map(|(index, view)| button(index, view, skin, scale))
         .collect();
     let hidden = !state.visible;
     rsx! {
