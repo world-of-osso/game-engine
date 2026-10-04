@@ -301,9 +301,8 @@ fn modern_bars_draw_exactly_what_their_hand_copied_crops_drew() {
     assert_eq!(trees.lines().count(), fixture::MODERN_TREES.lines().count());
 }
 
-/// Camelot end caps (MainMenuBarEndCaps.xml:12,23): 154×95, the left one's RIGHT on the
-/// main bar's LEFT (30, 5), the right one's LEFT on the BagsBar's RIGHT (-30, 5)
-/// (EditModePresetLayouts.lua:616-640), drawing set 1's `uiactionbarc60` gryphons.
+/// Reference correction: Camelot 154×95 gryphons flank the main bar itself,
+/// retaining the 30-unit overlap and 5-unit lift on both sides.
 #[test]
 fn forever_gryphons_are_camelot_end_caps_on_c60_art() {
     let skin = ActiveSkin::Forever;
@@ -324,19 +323,30 @@ fn forever_gryphons_are_camelot_end_caps_on_c60_art() {
         (30.0 - 154.0, centre_top(bar_h / 2.0), 154.0, 95.0),
         "left end cap",
     );
-    // BagsBar (368×47) BOTTOMLEFT 4.5 + 329 + 7 right of the bar's BOTTOMRIGHT, bottoms level.
     let bar_w = 562.0 * 1.06;
-    let bags_right = bar_w + 4.5 + 329.0 + 7.0 + 368.0;
     assert_close(
         fixed_rect(&registry, "MainActionBarRightEndCap"),
-        (
-            bags_right - 30.0,
-            centre_top(bar_h - 47.0 / 2.0),
-            154.0,
-            95.0,
-        ),
+        (bar_w - 30.0, centre_top(bar_h / 2.0), 154.0, 95.0),
         "right end cap",
     );
+}
+
+#[test]
+fn forever_centres_main_bar_and_hides_reference_utility_bars() {
+    let registry = build(ActiveSkin::Forever, bar_state(), main_action_bar_screen);
+    let bar = frame(&registry, "MainActionBar");
+    assert_eq!(bar.position.left, Val::Percent(50.0));
+    assert_eq!(bar.position.bottom, Val::Px(2.0));
+    assert_eq!(bar.margin.left, Val::Px(-562.0 * 1.06 / 2.0));
+    for skin in [ActiveSkin::Forever, ActiveSkin::Modern] {
+        let micro = build(skin, MicroMenuView::default(), micro_menu_screen);
+        let bags = build(skin, BagBarState::default(), bags_bar_screen);
+        assert_eq!(
+            frame(&micro, "MicroMenuContainer").hidden,
+            skin == ActiveSkin::Forever
+        );
+        assert_eq!(frame(&bags, "BagsBar").hidden, skin == ActiveSkin::Forever);
+    }
 }
 
 /// FlareUI (Core.lua:207,218; ActionBars.lua:141-157,186): buttons at scale 1.06, the
