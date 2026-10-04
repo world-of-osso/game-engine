@@ -73,7 +73,10 @@ fn unit_frame_rows(frame: UnitFrameSettings) -> Element {
         percent(LayoutSlider::FrameSize, "Frame Size", frame.frame_size),
         percent(LayoutSlider::TextSize, "Text Size", frame.text_size),
     );
-    [sizes, font_row(frame.font)].into_iter().flatten().collect()
+    [sizes, font_row(frame.font)]
+        .into_iter()
+        .flatten()
+        .collect()
 }
 
 /// The two faces the client ships; an unset font is the authored Friz Quadrata.

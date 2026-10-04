@@ -6,15 +6,15 @@ use game_engine_core::ui_layout_data::{
     self, CHAT_WIDTH_RANGE, FrameSizeSettings, LayoutFont, LayoutSettings, LayoutSkin,
     UnitFrameSettings,
 };
+use game_engine_ui_model::chat_frame::add_system_line;
+use game_engine_ui_model::chat_frame_component::{CHAT_MESSAGES, chat_frame_view};
+use game_engine_ui_model::damage_meter_component::damage_meter_row_name;
+use game_engine_ui_model::damage_meter_data::{DamageMeterRow, MeterType};
 use game_engine_ui_model::options_menu_component::{LayoutOptionsView, LayoutSystem};
 use game_engine_ui_model::options_menu_data::{
     LayoutAction, SliderField, apply_layout_action, apply_layout_slider, parse_layout_action,
     parse_slider_action,
 };
-use game_engine_ui_model::chat_frame::add_system_line;
-use game_engine_ui_model::chat_frame_component::{CHAT_MESSAGES, chat_frame_view};
-use game_engine_ui_model::damage_meter_component::damage_meter_row_name;
-use game_engine_ui_model::damage_meter_data::{DamageMeterRow, MeterType};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::widgets::font_string::{FontStringData, GameFont};
 
@@ -493,8 +493,7 @@ fn save_and_draw(
     hud: &mut [RegistryModel],
     layout: &mut LayoutOptionsView,
 ) {
-    let saved =
-        ui_layout_data::save_layout_settings(path, CHARACTER, layout.settings).unwrap();
+    let saved = ui_layout_data::save_layout_settings(path, CHARACTER, layout.settings).unwrap();
     *layout = shown(path, saved, layout.system);
     draw(hud, layout);
 }
@@ -603,7 +602,10 @@ fn options_layout_controls_save_a_player_layout_and_redraw_the_hud() {
         assert_eq!(reloaded.name, "Layout 1");
         assert_eq!(reloaded.settings, layout.settings);
         let mut restarted = self::hud();
-        draw(&mut restarted, &shown(&path, reloaded, LayoutSystem::PlayerFrame));
+        draw(
+            &mut restarted,
+            &shown(&path, reloaded, LayoutSystem::PlayerFrame),
+        );
         assert_eq!(drawn(&restarted), custom);
 
         // The Layout dropdown: back to the preset and its values, then to the layout's.
@@ -622,7 +624,12 @@ fn options_layout_controls_save_a_player_layout_and_redraw_the_hud() {
         assert_eq!(drawn(&hud), custom);
 
         // Reset to Preset clears the layout's settings; it stays the active layout.
-        click(&path, &mut hud, &mut layout, "options_reset_layout_settings");
+        click(
+            &path,
+            &mut hud,
+            &mut layout,
+            "options_reset_layout_settings",
+        );
         assert_eq!(layout.active, "Layout 1");
         assert_eq!(layout.settings, LayoutSettings::default());
         assert_eq!(drawn(&hud), preset_hud);

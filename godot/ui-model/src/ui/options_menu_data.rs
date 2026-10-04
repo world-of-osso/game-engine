@@ -581,7 +581,10 @@ pub fn parse_layout_action(action: &str) -> Option<LayoutAction> {
     let index: usize = index.parse().ok()?;
     match key {
         LAYOUT_CHOICE_KEY => Some(LayoutAction::Select(index)),
-        LAYOUT_SYSTEM_KEY => LayoutSystem::ALL.get(index).copied().map(LayoutAction::System),
+        LAYOUT_SYSTEM_KEY => LayoutSystem::ALL
+            .get(index)
+            .copied()
+            .map(LayoutAction::System),
         LAYOUT_FONT_KEY => LAYOUT_FONTS.get(index).copied().map(LayoutAction::Font),
         _ => None,
     }

@@ -551,9 +551,7 @@ fn category_body(model: &OptionsViewModel) -> Element {
         OptionsCategory::Sound => options_menu_active_sections::sound_body(&model.sound),
         OptionsCategory::Camera => options_menu_active_sections::camera_body(&model.camera),
         OptionsCategory::Interface => options_menu_active_sections::interface_body(&model.hud),
-        OptionsCategory::Hud => {
-            options_menu_active_sections::hud_body(&model.hud, &model.layout)
-        }
+        OptionsCategory::Hud => options_menu_active_sections::hud_body(&model.hud, &model.layout),
         OptionsCategory::Nameplates => options_menu_active_sections::nameplates_body(&model.hud),
         OptionsCategory::Controls => options_menu_sections::controls_body(),
         OptionsCategory::Accessibility => {
