@@ -665,8 +665,7 @@ mod tests {
 
         let assets = cached_assets();
         let root_path = test_data_root().join("terrain/azeroth_32_48.adt");
-        let mut root =
-            adt::parse_root_for_tile(&fs::read(root_path).unwrap(), 32, 48, None).unwrap();
+        let root = adt::parse_root_for_tile(&fs::read(root_path).unwrap(), 32, 48, None).unwrap();
         let layer = |effect_id| TextureLayer {
             texture_index: 0,
             flags: MclyFlags::default(),
@@ -721,8 +720,7 @@ mod tests {
             .ok()
             .unwrap();
         let root_path = test_data_root().join("terrain/azeroth_32_48.adt");
-        let mut root =
-            adt::parse_root_for_tile(&fs::read(root_path).unwrap(), 32, 48, None).unwrap();
+        let root = adt::parse_root_for_tile(&fs::read(root_path).unwrap(), 32, 48, None).unwrap();
         let tex = adt::AdtTexData {
             map_flags: wdt::MphdFlags::default(),
             texture_amplifier: None,

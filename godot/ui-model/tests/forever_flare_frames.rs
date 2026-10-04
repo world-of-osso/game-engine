@@ -55,6 +55,7 @@ fn small(name: &str) -> SmallUnitFrameState {
         level: None,
         health_fraction: 0.5,
         reaction: Some(Reaction::Neutral),
+        class_id: None,
     }
 }
 
@@ -76,6 +77,7 @@ fn unit_frames(skin: ActiveSkin) -> FrameRegistry {
         pet: Some(PetFrameState {
             name: "Wolf".into(),
             health_fraction: 1.0,
+            reaction: None,
             health_text: Default::default(),
             power: Some(PowerBarState {
                 power: PowerType::Focus,
@@ -226,6 +228,141 @@ fn fixed_rect(registry: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
 /// `Interface\Tooltips\UI-Tooltip-Border` in FlareUI's fixed bronze `ns.BORDER_COLOR`
 /// #A67D45 (`Core.lua:8`).
 const BRONZE_BORDER: (u32, [f32; 4]) = (137_057, [0.65, 0.49, 0.27, 1.0]);
+
+fn colour_frames(target_reaction: Reaction, target_class: Option<u8>) -> FrameRegistry {
+    load_atlas_tables();
+    let mut player = unit("Shot", PowerType::Mana);
+    player.class_id = Some(2);
+    player.level_text = "1".into();
+    player.power.as_mut().unwrap().current = 78;
+    let mut target = unit("Stormwind Army Registrar", PowerType::Rage);
+    target.reaction = Some(target_reaction);
+    target.class_id = target_class;
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Forever);
+    shared.insert(InWorldUnitFramesState {
+        show_player_frame: true,
+        show_target_frame: true,
+        target_of_target: Some(SmallUnitFrameState::from(&player)),
+        focus: Some(SmallUnitFrameState::from(&target)),
+        player,
+        target: Some(target),
+        pet: Some(PetFrameState {
+            name: "Wolf".into(),
+            health_fraction: 0.5,
+            reaction: Some(target_reaction),
+            health_text: Default::default(),
+            power: None,
+            power_text: Default::default(),
+        }),
+        bosses: vec![],
+        menu: UnitFrameMenuState::default(),
+        personal_resource: None,
+    });
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(inworld_unit_frames_screen).sync(&shared, &mut registry);
+    registry
+}
+
+fn label<'a>(
+    registry: &'a FrameRegistry,
+    name: &str,
+) -> &'a ui_toolkit::widgets::font_string::FontStringData {
+    let Some(WidgetData::FontString(text)) = frame(registry, name).widget_data.as_ref() else {
+        panic!("{name} is not a FontString");
+    };
+    text
+}
+
+#[test]
+fn forever_players_use_unmodified_retail_class_colours() {
+    let registry = colour_frames(Reaction::Hostile, Some(8));
+    // GetHealthColor returns C_ClassColor:GetRGB directly, no multiplier (:254-261).
+    for (name, rgb) in [
+        ("PlayerHealthBarFill", [0.96, 0.55, 0.73, 1.0]),
+        ("TargetOfTargetHealthBarFill", [0.96, 0.55, 0.73, 1.0]),
+        ("TargetHealthBarFill", [0.25, 0.78, 0.92, 1.0]),
+        ("FocusHealthBarFill", [0.25, 0.78, 0.92, 1.0]),
+    ] {
+        assert_eq!(frame(&registry, name).background_color, Some(rgb), "{name}");
+    }
+}
+
+#[test]
+fn forever_npcs_use_flareui_reaction_colours_not_saturated_selection_colours() {
+    // UnitFrames.lua:63-72,254-266: NPCs, including pets, use reaction, not owner class.
+    for (reaction, rgb) in [
+        (Reaction::Friendly, [0.30, 0.78, 0.30, 1.0]),
+        (Reaction::Hostile, [0.87, 0.27, 0.27, 1.0]),
+        (Reaction::Neutral, [0.93, 0.78, 0.25, 1.0]),
+    ] {
+        let registry = colour_frames(reaction, None);
+        for name in [
+            "TargetHealthBarFill",
+            "FocusHealthBarFill",
+            "PetFrameHealthBarFill",
+        ] {
+            assert_eq!(frame(&registry, name).background_color, Some(rgb), "{name}");
+        }
+    }
+}
+
+#[test]
+fn forever_names_and_percentages_are_white_with_outline_and_black_shadow() {
+    let registry = colour_frames(Reaction::Friendly, None);
+    for (name, content, rgb) in [
+        ("PlayerName", "Shot", [1.0, 1.0, 1.0, 1.0]),
+        ("PlayerHealthBarText", "75%", [1.0, 1.0, 1.0, 1.0]),
+        ("PlayerLevelText", "1", [1.0, 0.82, 0.0, 1.0]),
+        (
+            "TargetName",
+            "Stormwind Army Registrar",
+            [1.0, 1.0, 1.0, 1.0],
+        ),
+        ("TargetHealthBarText", "75%", [1.0, 1.0, 1.0, 1.0]),
+        ("TargetLevelText", "60", [1.0, 0.82, 0.0, 1.0]),
+    ] {
+        let text = label(&registry, name);
+        assert_eq!(text.text, content, "{name}");
+        assert_eq!(text.color, rgb, "{name}");
+        assert_eq!(text.font_size, 12.0, "{name}");
+        assert_eq!(format!("{:?}", text.outline), "Outline", "{name}");
+        assert_eq!(text.shadow_color, Some([0.0, 0.0, 0.0, 1.0]), "{name}");
+        assert_eq!(text.shadow_offset, [1.0, -1.0], "{name}");
+    }
+}
+
+#[test]
+fn forever_player_power_shows_current_value_in_white_on_the_right() {
+    let registry = colour_frames(Reaction::Friendly, None);
+    let text = label(&registry, "PlayerManaBarText");
+    assert_eq!(text.text, "78");
+    assert_eq!(text.color, [1.0, 1.0, 1.0, 1.0]);
+    assert_eq!(text.font_size, 10.0);
+    assert_eq!(format!("{:?}", text.justify_h), "Right");
+    assert_eq!(format!("{:?}", text.outline), "Outline");
+    assert_eq!(text.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
+    assert_eq!(text.shadow_offset, [1.0, -1.0]);
+    assert!(!frame(&registry, "PlayerManaBarText").hidden);
+    assert!(registry.get_by_name("TargetManaBarText").is_none());
+}
+
+#[test]
+fn forever_partial_bars_show_dark_background_without_an_opaque_frame_backdrop() {
+    let registry = colour_frames(Reaction::Friendly, None);
+    // bar.bg (:240); outer backdrop BG_OPACITY=0 (:42,1768).
+    for name in ["PlayerHealthBar", "PlayerManaBar", "TargetHealthBar"] {
+        assert_eq!(
+            frame(&registry, name).background_color,
+            Some([0.15, 0.15, 0.15, 0.9])
+        );
+    }
+    assert_eq!(fixed_rect(&registry, "PlayerHealthBarFill").2, 174.0);
+    assert_eq!(fixed_rect(&registry, "TargetHealthBarFill").0, 58.0);
+    for name in ["PlayerFrameBackground", "TargetFrameBackground"] {
+        assert_eq!(texture_source(&registry, name).1, [0.0, 0.0, 0.0, 0.0]);
+    }
+}
 
 #[test]
 fn forever_player_frame_is_flareui_thin_frame_with_bronze_border() {
