@@ -76,6 +76,21 @@ class ClosureTests(unittest.TestCase):
             set(refs), {(fdid, f"textures/{fdid}.blp") for fdid in range(80, 89)}
         )
 
+    def test_placements_resolve_legacy_paths_and_fdid_bits_with_extra_flags(self):
+        placements = bytearray(72)
+        struct.pack_into("<I", placements, 0, 101)
+        struct.pack_into("<H", placements, 34, 0x240)
+        path = b"World/Thing.mdx\0"
+        data = (
+            chunk(b"FDDM", placements)
+            + chunk(b"XDMM", path)
+            + chunk(b"DIMM", struct.pack("<I", 0))
+        )
+        refs = module.asset_references(
+            data, 1, "terrain/1.adt", {}, {"world/thing.m2": 102}
+        )
+        self.assertEqual(refs, [(101, "models/101.m2"), (102, "models/102.m2")])
+
     def test_wrong_magic_is_not_published(self):
         with self.assertRaises(ValueError):
             module.validate_asset(b"WDC5garbage", "models/10.m2")
