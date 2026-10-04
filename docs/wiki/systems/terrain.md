@@ -19,7 +19,25 @@ Each tile is three files:
 - `_tex0.adt` — texture layer compositing (MDID/MHID for diffuse/height FDIDs); decoding and the shader blend mode follow the map WDT's MPHD flags ([terrain-blend-steps](../investigations/terrain-blend-steps.md))
 - `_obj0.adt` — MDDF doodad placements and MODF WMO placements
 
-The engine loads all three. Finding companion files uses the community listfile (path-based sibling lookup).
+The engine loads all three. When the WDT has MAID, the native reader uses its active tile's root/tex0/obj0 FileDataIDs. WDTs without MAID retain community-listfile sibling lookup. A declared nonzero MAID ID that cannot be cached is an error, not a switch to a named sibling.
+
+## Forever Zephras (map 2991)
+
+Verified: 2026-10-04. Contract: [Zephras world map](../../specs/zephras-world-map.md).
+
+`map_catalog::MapCatalog` reads both `db2/12.1.0.69933/Map.csv` and `db2/1.60.1.70205/Map.csv`; both are required, and malformed/missing inputs fail explicitly. Retail identities win ID/directory conflicts. `account::read_map_id` and transfer display names use this catalog; `NativeTerrainAssets` caches it and reads the declared WDT FDID. Zephras directory `2991` resolves to map ID 2991, WDT 7198644, without a listfile map path. The existing stream worker/request/transfer interfaces still pass a directory; identity and tile descriptors are resolved at the reader boundary.
+
+MAIN/MAID indexing uses **second native filename coordinate × 64 + first**. The original readiness inventory labels slot 1693 as `(26,29)` by quotient/remainder. Native terrain coordinates for that slot are **(29,26)**: root 7199999 has authored WoW origin `(3200,1600,752.71844)`, consistent with engine tile-center `(2933.3333,-1333.3333)` in X/Z. Retail `azeroth_32_48` resolves slot `48×64+32` to root 778027. Do not transpose the terrain to match inventory labels.
+
+`scripts/import_forever_zephras.py --data <data>` walks active WDT root/tex0/obj0 slots, terrain textures, FDID/legacy placements, primary M2 skin aliases, skeletons/animations/textures, WMO GFID groups/material textures/MODI or MODN doodads. It extracts only local `wow_classic_beta` CASC. Magic determines validation before publishing unnamed `.dat` outputs to `terrain/<FDID>.{wdt,adt}`, `models/<FDID>.{m2,wmo,anim}`, `models/<model>00.skin`, `models/<model>.skel`, and `textures/<FDID>.blp`. MOMT shaders 22/23 bind pixel shaders 19/20's extra texture slots. The runtime resolver remains retail; provision Forever files before launch.
+
+Current closure inventory: `data/forever-1.60.1.70205/metadata/Zephras-closure.json`, **1,675 files / 123,817,247 bytes / 169 failures**, `/tmp/zephras-closure-run.log`. The initial run provisioned 1,668 files; the shader-slot correction added seven files and one additional unavailable texture. Rescan retained permanent missing-archive failures without retry. Direct terrain coverage is 48/72 roots, 63/72 obj0, 57/72 tex0, with **35 complete terrain triples**. Missing parents prevent discovery of their deeper dependencies; this is not a complete all-map closure. No CDN was used.
+
+Real-byte acceptance caught existing MFBO defects: the parser matched `OFBM` instead of reversed `MFBO` (`OBFM`) and labelled the first plane as minimum. Actual bytes plus Noggit `MapTile.cpp:225-227` put maximum first, then minimum; the sample is max 1500/min 500. Parser and synthetic fixture now use the authored tag/order.
+
+No map-level WDL FDID is available for Zephras in the exports/local listfile. Native `read_map_wdl` returns `None`: explicit no-horizon, not a per-tile LOD substitution. obj1/LOD/maptexture/mapnormal/minimap are not read by these terrain/object loaders. Lighting remains a separate Forever-table task; the offline fixture uses explicit neutral lighting.
+
+Proof: native reader RED reported missing `world/maps/2991/2991.wdt`; GREEN 1/1 at `81af8eb0` loaded the real unnamed WDT and sample paths/counts, rejected an inactive tile and returned no WDL (`/tmp/zephras-reader-{red,green}.log`). Map catalog tests passed 2/2; full sample acceptance was initially RED on missing flight bounds (`/tmp/zephras-core-green-axes.log`). Importer tests passed 5/5 at `3f633fb8` (`/tmp/zephras-import-extra-green.log`). Corrected MFBO/retail WDT tests and rendered runtime fixture are pending; ledger `target/zephras-proof-ledger.md`. Offline fixture: `godot/tests/zephras_world.gd`, using `GameClient.preview_world_map` and production stream/material/object paths; normal auth/gameplay/transfer not asserted here.
 
 ## Layer textures and specular mask (Godot)
 
@@ -101,6 +119,9 @@ Native annotated ADT trees instead attach fixed trunk/bendable limb capsules and
 - **Terrain normals and campsite floor**: `510b44a5` corrects MCNR decoding from `[b2, b1, -b0]` to `[b0, b2, -b1]`. The verified `2703_31_37.adt` geometric alignment is `0.997198` for the corrected mapping versus `0.089730` before it. Parser RED/GREEN is recorded. `a20f6b84` removes the separate character-select `StandardMaterial` grass overlay; its regression confirms ADT terrain and a height at the campsite focus remain while no character-select `StandardMaterial` floor exists. Cross-map and rendered regression proof remains pending. See [character-select ground patch](../investigations/charselect-ground-patch-dark-terrain.md).
 
 ## Sources
+
+- [Zephras contract](../../specs/zephras-world-map.md), [map catalog](../../../godot/core/src/map_catalog.rs), [WDT parser](../../../godot/core/src/asset/wdt.rs), [native terrain reader](../../../godot/rust/src/terrain/assets.rs), [local-CASC closure importer](../../../scripts/import_forever_zephras.py) — Forever identity, MAID acquisition and provisioning.
+- [real Zephras parser fixtures](../../../godot/core/tests/zephras_terrain.rs), [offline native map fixture](../../../godot/tests/zephras_world.gd) — concrete acceptance boundaries.
 
 - [terrain surface selection](../../../src/rendering/terrain/terrain_surface_data.rs) — shared effect, texture, and surface decisions
 - [terrain heightmap](../../../src/rendering/terrain/terrain_heightmap.rs) — Bevy GroundEffect adapter and FDID path lookup

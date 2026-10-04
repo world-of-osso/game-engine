@@ -6,7 +6,7 @@ WoW Forever map 2991 must load through the Godot world's terrain and object load
 
 ### Map and terrain
 
-- [ ] Resolve directory `2991` to map ID 2991 and WDT FileDataID 7198644 from the Forever build-70205 Map export; merge only identities absent in retail, with retail winning conflicts. Missing or malformed required exports fail explicitly.
+- [x] Resolve directory `2991` to map ID 2991 and WDT FileDataID 7198644 from the Forever build-70205 Map export; merge only identities absent in retail, with retail winning conflicts. Missing or malformed required exports fail explicitly.
 - [ ] Decode real Zephras and retail WDT MAIN/MAID bytes. MAID addresses active root/tex0/obj0 files by FDID; maps without MAID retain named companion lookup. Declared nonzero files must not silently switch to another source when unavailable.
 - [ ] Parse the real Zephras root/tex0/obj0 sample: terrain, water, flight bounds, vertex colours, textures and FDID/legacy placements.
 - [ ] Use only a declared map-level WDL FDID for a horizon. Zephras has none in available data, so has no WDL horizon; per-tile MAID LOD/maptexture slots are not a WDL.

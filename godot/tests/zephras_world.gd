@@ -46,7 +46,7 @@ func run_test() -> void:
 		var state: Dictionary = client.account_state()
 		var tile := client.get_node_or_null("WorldTerrain/Tile29_26")
 		var doodads := client.find_children("Doodad*", "Node3D", true, false)
-		var wmos := client.find_children("Wmo*", "Node3D", true, false)
+		var wmos := client.find_children("Wmo*", "Node3D", true, false).filter(func(node): return node.has_meta("wmo_model"))
 		if tile == null or doodads.is_empty() or wmos.is_empty():
 			continue
 		var height = client.terrain_height_at(CENTER.x, CENTER.z)
