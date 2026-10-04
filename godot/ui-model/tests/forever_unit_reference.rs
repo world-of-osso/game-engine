@@ -150,7 +150,13 @@ fn text_is_player_left_and_target_tot_focus_mirrored() {
     );
     assert_eq!(
         frame(&r, "TargetOfTargetHealthBarFill").background_color,
-        Some([0.87, 0.27, 0.27, 1.0])
+        // hostile REACTION 0.87,0.27,0.27 times the Flat bar texture's 143/255 grey
+        Some([
+            0.87 * (143.0 / 255.0),
+            0.27 * (143.0 / 255.0),
+            0.27 * (143.0 / 255.0),
+            1.0
+        ])
     );
 }
 #[test]
