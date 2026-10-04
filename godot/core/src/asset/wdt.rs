@@ -1,6 +1,8 @@
 //! WDT MPHD header flags that select how a map's `_tex0` terrain textures are stored and blended,
 //! and the single WMO of a map made of one (a WMO-only dungeon such as the Stockade).
 
+use std::collections::{BTreeMap, BTreeSet};
+
 use crate::asset::read_bytes::read_u32;
 
 use super::adt::ChunkIter;
@@ -61,6 +63,85 @@ pub fn parse_wdt_global_wmo(data: &[u8]) -> Result<Option<WmoPlacement>, String>
     Err("global-WMO WDT has no MODF".to_string())
 }
 
+/// FileDataIDs in one MAID slot, indexed in MAIN order (second tile coordinate × 64 + first).
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq)]
+pub struct TileFileIds {
+    pub root: u32,
+    pub obj0: u32,
+    pub obj1: u32,
+    pub tex0: u32,
+    pub lod: u32,
+    pub map_texture: u32,
+    pub map_normal: u32,
+    pub minimap: u32,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct WdtTiles {
+    pub active: BTreeSet<(u32, u32)>,
+    /// None means this WDT uses named listfile companions, not MAID.
+    pub maid: Option<BTreeMap<(u32, u32), TileFileIds>>,
+}
+
+impl WdtTiles {
+    pub fn file_ids(&self, first: u32, second: u32) -> Option<&TileFileIds> {
+        self.maid.as_ref()?.get(&(first, second))
+    }
+}
+
+pub fn parse_wdt_tiles(data: &[u8]) -> Result<WdtTiles, String> {
+    let mut main = None;
+    let mut maid = None;
+    for chunk in ChunkIter::new(data) {
+        let (tag, payload) = chunk?;
+        match tag {
+            b"NIAM" => main = Some(payload),
+            b"DIAM" => maid = Some(payload),
+            _ => {}
+        }
+    }
+    let main = main.ok_or("WDT missing MAIN chunk")?;
+    if main.len() != 4096 * 8 {
+        return Err(format!("WDT MAIN has {} bytes, expected 32768", main.len()));
+    }
+    if let Some(maid) = maid
+        && maid.len() != 4096 * 32
+    {
+        return Err(format!(
+            "WDT MAID has {} bytes, expected 131072",
+            maid.len()
+        ));
+    }
+    let mut tiles = WdtTiles {
+        active: BTreeSet::new(),
+        maid: maid.map(|_| BTreeMap::new()),
+    };
+    for index in 0..4096 {
+        if read_u32(main, index * 8)? & 1 == 0 {
+            continue;
+        }
+        let tile = ((index % 64) as u32, (index / 64) as u32);
+        tiles.active.insert(tile);
+        if let (Some(payload), Some(ids)) = (maid, tiles.maid.as_mut()) {
+            let offset = index * 32;
+            ids.insert(
+                tile,
+                TileFileIds {
+                    root: read_u32(payload, offset)?,
+                    obj0: read_u32(payload, offset + 4)?,
+                    obj1: read_u32(payload, offset + 8)?,
+                    tex0: read_u32(payload, offset + 12)?,
+                    lod: read_u32(payload, offset + 16)?,
+                    map_texture: read_u32(payload, offset + 20)?,
+                    map_normal: read_u32(payload, offset + 24)?,
+                    minimap: read_u32(payload, offset + 28)?,
+                },
+            );
+        }
+    }
+    Ok(tiles)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -113,6 +194,31 @@ mod tests {
     fn eastern_kingdoms_wdt_has_no_global_wmo() {
         let data = std::fs::read("data/terrain/775971.wdt").expect("azeroth WDT in data/terrain");
         assert!(parse_wdt_global_wmo(&data).expect("parses").is_none());
+    }
+
+    #[test]
+    fn zephras_maid_identifies_all_active_tiles_and_sample_companions() {
+        let data = std::fs::read("data/terrain/7198644.wdt").unwrap();
+        let tiles = parse_wdt_tiles(&data).unwrap();
+        assert_eq!(tiles.active.len(), 72);
+        let sample = tiles.file_ids(26, 29).unwrap();
+        assert_eq!(sample.root, 7199999);
+        assert_eq!(sample.obj0, 7200000);
+        assert_eq!(sample.obj1, 7200001);
+        assert_eq!(sample.tex0, 7200002);
+        assert_eq!(sample.lod, 7200003);
+        assert_eq!(sample.map_texture, 7199321);
+        assert_eq!(sample.map_normal, 7199345);
+        assert_eq!(sample.minimap, 7199297);
+        assert!(tiles.file_ids(0, 0).is_none());
+    }
+
+    #[test]
+    fn retail_wdt_keeps_active_tiles_and_declared_maid_ids() {
+        let data = std::fs::read("data/terrain/775971.wdt").unwrap();
+        let tiles = parse_wdt_tiles(&data).unwrap();
+        assert!(tiles.active.contains(&(32, 48)));
+        assert_ne!(tiles.file_ids(32, 48).unwrap().root, 0);
     }
 
     #[test]
