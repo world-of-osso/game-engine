@@ -64,7 +64,10 @@ fn main_bar_uses_retail_geometry_and_default_keys() {
         source(&registry, "ActionButton1NormalTexture"),
         TextureSource::Atlas("UI-HUD-ActionBar-IconFrame".into())
     );
-    assert!(frame(&registry, "ActionButton1Icon").hidden, "empty slot");
+    assert!(
+        registry.get_by_name("ActionButton1Icon").is_none(),
+        "empty slot"
+    );
     assert!(frame(&registry, "ActionButton1PushedTexture").hidden);
 }
 
@@ -114,15 +117,13 @@ fn empty_action_slots_have_no_texture_source() {
         );
         for index in 2..=12 {
             let name = format!("ActionButton{index}Icon");
-            assert!(frame(&registry, &name).hidden);
-            assert_eq!(source(&registry, &name), TextureSource::None);
+            assert!(registry.get_by_name(&name).is_none(), "{name} is empty");
         }
 
         // A previously occupied slot must also clear its source when emptied.
         shared.insert(MainActionBarState::default());
         screen.sync(&shared, &mut registry);
-        assert!(frame(&registry, "ActionButton1Icon").hidden);
-        assert_eq!(source(&registry, "ActionButton1Icon"), TextureSource::None);
+        assert!(registry.get_by_name("ActionButton1Icon").is_none());
         assert!(registry.frames_iter().all(|frame| {
             !matches!(
                 frame.widget_data.as_ref(),
