@@ -62,6 +62,20 @@ class ClosureTests(unittest.TestCase):
         self.assertIn((81, "textures/81.blp"), refs)
         self.assertIn((91, "models/91.m2"), refs)
 
+    def test_wmo_shader_23_collects_all_nine_runtime_textures(self):
+        header = bytearray(64)
+        material = bytearray(64)
+        struct.pack_into("<I", material, 4, 23)
+        struct.pack_into("<I", material, 12, 80)
+        struct.pack_into("<I", material, 24, 81)
+        struct.pack_into("<I", material, 36, 82)
+        struct.pack_into("<6I", material, 40, *range(83, 89))
+        data = chunk(b"DHOM", header) + chunk(b"TMOM", material)
+        refs = module.asset_references(data, 60, "models/60.wmo", {}, {})
+        self.assertEqual(
+            set(refs), {(fdid, f"textures/{fdid}.blp") for fdid in range(80, 89)}
+        )
+
     def test_wrong_magic_is_not_published(self):
         with self.assertRaises(ValueError):
             module.validate_asset(b"WDC5garbage", "models/10.m2")

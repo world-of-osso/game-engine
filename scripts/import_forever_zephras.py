@@ -133,9 +133,9 @@ def wmo_references(parts, fdid, names, paths):
         shader = struct.unpack_from("<I", materials, offset + 4)[0]
         fields = [12, 24, 36] + (
             [40, 44, 48]
-            if shader == 19
+            if shader == 22
             else list(range(40, 64, 4))
-            if shader == 20
+            if shader == 23
             else []
         )
         for field in fields:
