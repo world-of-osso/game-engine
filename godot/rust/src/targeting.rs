@@ -489,8 +489,25 @@ fn target_cast_state(
     casts: &PlateCasts,
     icon_fdid: Option<u32>,
 ) -> Option<CastingBarState> {
-    let _ = (target, casts, icon_fdid, BarType::Standard);
-    None
+    let unit = target.filter(|unit| unit.has::<CastState>())?;
+    let bar = casts
+        .get(unit.server_id)
+        .filter(|bar| bar.casting || bar.channeling)?;
+    let remaining = if bar.channeling {
+        bar.value
+    } else {
+        bar.max_value - bar.value
+    };
+    Some(CastingBarState {
+        visible: true,
+        spell_name: bar.text.text.clone(),
+        icon_fdid,
+        timer_text: format!("{:.1}", remaining.max(0.0)),
+        progress: bar.fraction(),
+        is_channel: bar.channeling,
+        is_interruptible: bar.bar_type != BarType::Uninterruptable,
+        is_interrupted: false,
+    })
 }
 
 /// `TargetOfTargetMixin:Update` (TargetFrame.lua:889-892): the target's own target, a
@@ -500,8 +517,15 @@ fn target_of_target<'a>(
     target: Unit,
     local_player: Option<u64>,
 ) -> Option<Unit<'a>> {
-    let _ = (replica, target, local_player);
-    None
+    let alive = target
+        .get::<Health>()
+        .is_some_and(|health| health.current > 0.0);
+    if local_player == Some(target.server_id) || !alive {
+        return None;
+    }
+    replica
+        .unit(target.unit_target()?)
+        .filter(|unit| is_unit(*unit))
 }
 
 #[cfg(test)]
