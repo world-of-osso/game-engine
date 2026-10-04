@@ -80,17 +80,23 @@ fn tap_sent(messages: Res<ClientMessages>, mut tap: ResMut<Tap>) {
 
 fn add_tap(app: &mut App) {
     app.init_resource::<Tap>();
+    // Observe consumption, not arrival: Connecting packets remain queued until OnEnter.
     app.add_systems(
         PreUpdate,
-        tap_received
-            .after(ClientSystems::ReceivePackets)
-            .before(ClientSystems::Receive),
+        (
+            tap_received
+                .after(ClientSystems::ReceivePackets)
+                .before(ClientSystems::Receive),
+            tap_sent.after(ClientSystems::Receive),
+        )
+            .run_if(in_state(ClientState::Connected)),
     );
     app.add_systems(
-        PostUpdate,
-        tap_sent
-            .after(ClientSystems::Send)
-            .before(ClientSystems::SendPackets),
+        OnEnter(ClientState::Connected),
+        (
+            tap_received.before(ClientSystems::Receive),
+            tap_sent.after(ClientSystems::Receive),
+        ),
     );
 }
 
@@ -133,13 +139,9 @@ fn replay_client() -> App {
     app.add_plugins(shared::ProtocolPlugin);
     add_tap(&mut app);
     // No transport drains replicon's outgoing acknowledgments.
-    app.add_systems(
-        PostUpdate,
-        (|mut messages: ResMut<ClientMessages>| {
-            messages.drain_sent().for_each(drop);
-        })
-        .after(tap_sent),
-    );
+    app.add_systems(PostUpdate, |mut messages: ResMut<ClientMessages>| {
+        messages.drain_sent().for_each(drop);
+    });
     app.finish();
     app.cleanup();
     app.world_mut()
