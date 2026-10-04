@@ -1,14 +1,16 @@
 //! Retail damage meter window at the top left (docs/specs/damage-meter.md). The server
-//! computes the sessions (`DamageMeterSnapshot`); the window shows the selected one, and
-//! its session dropdown switches between `Current Segment` and `Overall`.
+//! computes the damage sessions (`DamageMeterSnapshot`); the window shows the selected
+//! one, and its session dropdown switches between `Current Segment` and `Overall`. The
+//! other types (healing, interrupts, dispels, deaths) are counted from the combat log
+//! lines this client receives.
 
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::damage_meter_component::{
-    ACTION_DAMAGE_METER_CURRENT, ACTION_DAMAGE_METER_MENU, ACTION_DAMAGE_METER_OVERALL,
+use game_engine_ui_model::damage_meter_data::{
+    DamageMeterWindow, MELEE_LABEL, MeterEvent, MeterUnit,
 };
-use game_engine_ui_model::damage_meter_data::{DamageMeterWindow, MeterSessionType};
-use godot::classes::FontFile;
+use godot::classes::{FontFile, Time};
 use godot::prelude::*;
+use shared::components::Player;
 use shared::protocol::{CombatLogKind, DamageMeterSession};
 use ui_toolkit::widgets::font_string::GameFont;
 
@@ -22,6 +24,8 @@ pub(crate) struct DamageMeterHud {
     window: DamageMeterWindow,
     ui: Option<Gd<RegistryUi>>,
     font: Option<Gd<FontFile>>,
+    /// `Account::combat_log_seq` already counted into the window's log.
+    combat_seen: u64,
 }
 
 impl DamageMeterHud {
@@ -58,23 +62,6 @@ impl DamageMeterHud {
             .x
             .ceil())
     }
-
-    fn apply_action(&mut self, action: &str) -> Result<(), String> {
-        let window = &mut self.window;
-        match action {
-            ACTION_DAMAGE_METER_MENU => window.menu_open = !window.menu_open,
-            ACTION_DAMAGE_METER_CURRENT => {
-                window.session = MeterSessionType::Current;
-                window.menu_open = false;
-            }
-            ACTION_DAMAGE_METER_OVERALL => {
-                window.session = MeterSessionType::Overall;
-                window.menu_open = false;
-            }
-            other => return Err(format!("Unknown damage meter action: {other}")),
-        }
-        Ok(())
-    }
 }
 
 impl GameClient {
@@ -84,7 +71,11 @@ impl GameClient {
             return Ok(());
         }
         self.poll_damage_meter_actions()?;
-        self.damage_meter.window.snapshot = self.account.damage_meter.clone();
+        let now = Time::singleton().get_ticks_msec() as f64 / 1000.0;
+        self.count_combat_log(now);
+        self.damage_meter
+            .window
+            .set_snapshot(now, self.account.damage_meter.clone());
         let in_combat = self
             .world
             .local_player_id()
@@ -117,7 +108,44 @@ impl GameClient {
         if action.is_empty() {
             return Ok(());
         }
-        Ok(self.damage_meter.apply_action(&action)?)
+        Ok(self.damage_meter.window.click(&action)?)
+    }
+
+    /// Add the combat log lines received since the last frame to the window's log.
+    fn count_combat_log(&mut self, now: f64) {
+        let seq = self.account.combat_log_seq;
+        let log = &self.account.combat_log;
+        let fresh = (seq - self.damage_meter.combat_seen).min(log.len() as u64) as usize;
+        self.damage_meter.combat_seen = seq;
+        let spell_name = crate::chat::spell_namer(self.spells.catalog());
+        let events: Vec<MeterEvent> = log
+            .iter()
+            .skip(log.len() - fresh)
+            .filter_map(|event| {
+                let name = event
+                    .spell_id
+                    .map_or_else(|| MELEE_LABEL.to_owned(), &spell_name);
+                let (source, target) =
+                    (self.meter_unit(event.source), self.meter_unit(event.target));
+                MeterEvent::from_combat_log(now, event, source, target, name)
+            })
+            .collect();
+        for event in events {
+            self.damage_meter.window.log.push(event);
+        }
+    }
+
+    fn meter_unit(&self, id: Option<u64>) -> MeterUnit {
+        let class_id = id
+            .and_then(|id| self.replica.unit(id))
+            .and_then(|unit| unit.get::<Player>())
+            .map_or(0, |player| player.class);
+        MeterUnit {
+            unit: id.unwrap_or(0),
+            name: self.unit_display_name(id),
+            class_id,
+            is_local_player: id.is_some() && id == self.world.local_player_id(),
+        }
     }
 }
 
@@ -157,6 +185,8 @@ impl GameClient {
         let window = &self.damage_meter.window;
         result.set("open", self.damage_meter.ui.is_some());
         result.set("session", window.session.short_name());
+        result.set("type", window.meter_type.label());
+        result.set("recap", window.recap.is_some());
         result.set("menu_open", window.menu_open);
         if let Some(snapshot) = &self.account.damage_meter {
             result.set("overall", &session_dictionary(&snapshot.overall));

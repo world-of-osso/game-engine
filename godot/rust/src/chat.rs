@@ -255,7 +255,7 @@ pub(crate) struct Chat {
 }
 
 /// Spell link names from the catalog; `Spell #id` until it loads (root `spell_namer`).
-fn spell_namer(catalog: Option<&SpellCatalogData>) -> impl Fn(u32) -> String + '_ {
+pub(crate) fn spell_namer(catalog: Option<&SpellCatalogData>) -> impl Fn(u32) -> String + '_ {
     move |id| match catalog.and_then(|catalog| catalog.get(id)) {
         Some(spell) => spell.name.to_string(),
         None => format!("Spell #{id}"),
@@ -339,7 +339,7 @@ impl crate::GameClient {
     }
 
     /// Replicated NPC name, then player name, else `Unknown`.
-    fn unit_display_name(&self, id: Option<u64>) -> String {
+    pub(crate) fn unit_display_name(&self, id: Option<u64>) -> String {
         id.and_then(|id| self.replica.unit(id))
             .and_then(|unit| Some(unit.name()?.to_owned()))
             .unwrap_or_else(|| UNKNOWN_NAME.to_string())

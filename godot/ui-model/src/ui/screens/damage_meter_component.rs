@@ -5,10 +5,13 @@
 //! slider minimums, EditModeSettingDisplayInfo.lua:1127-1175), Default style, class
 //! colours, Compact numbers, 50% background.
 //!
-//! Header (`DamageMeterSessionWindowTemplate`): the session timer, the "Damage Done" type
-//! dropdown and, on the right, the session ("C"/"O"), settings and minimize buttons.
+//! Header (`DamageMeterSessionWindowTemplate`): the session timer, the type dropdown
+//! ("Damage Done" by default; its menu lists the types) and, on the right, the session
+//! ("C"/"O"), settings and minimize buttons. Forever: "DPS" and "HPS" tabs (Damage Done
+//! and Healing Done) and one chart button whose menu lists the types and the sessions.
 //! Rows (`DamageMeterSourceEntryTemplate`, Default style): a class-coloured StatusBar with
-//! "N. Name" on the left and "damage (dps)" on the right.
+//! "N. Name" on the left and "damage (dps)" on the right. Death rows and a death recap's
+//! rows are clickable.
 
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
@@ -16,7 +19,9 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::damage_meter_data::{
-    DAMAGE_DONE_LABEL, DamageMeterRow, DamageMeterView, MeterSessionType,
+    ACTION_DAMAGE_METER_CURRENT, ACTION_DAMAGE_METER_MENU, ACTION_DAMAGE_METER_OVERALL,
+    ACTION_DAMAGE_METER_ROW, ACTION_DAMAGE_METER_TYPE_MENU, DamageMeterRow, DamageMeterView,
+    MeterSessionType, MeterType,
 };
 use crate::flare_panel::{
     FLARE_ACTIVE_TEXT, FLARE_GEAR_ART, FLARE_HEADER_BUTTON_SIZE, FLARE_HEADER_HEIGHT,
@@ -30,11 +35,6 @@ use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 
 pub const DAMAGE_METER_ROOT: FrameName = FrameName("DamageMeter");
-/// Session dropdown click: open or close the session menu.
-pub const ACTION_DAMAGE_METER_MENU: &str = "damage_meter:menu";
-/// Session menu radio clicks.
-pub const ACTION_DAMAGE_METER_CURRENT: &str = "damage_meter:current";
-pub const ACTION_DAMAGE_METER_OVERALL: &str = "damage_meter:overall";
 
 const WINDOW_W: f32 = 400.0;
 const WINDOW_H: f32 = 140.0;
@@ -101,6 +101,8 @@ const FLARE_SKIN_RECT: (f32, f32, f32, f32) = (
 const MENU_W: f32 = 150.0;
 const MENU_ROW_H: f32 = 20.0;
 const MENU_PAD: f32 = 6.0;
+/// Between Forever's type and session menus.
+const MENU_GAP: f32 = 4.0;
 
 /// UiTextureAtlas 3658 `interface/hud/uidamagemeters.blp` (FDID 7499559, 512x256).
 const fn damage_meters(rect: (f32, f32, f32, f32)) -> AtlasArt {
@@ -203,22 +205,30 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
         ActiveSkin::Modern => blizzard_background(),
         ActiveSkin::Forever => flare_panel(DAMAGE_METER_FLARE_SKIN, FLARE_SKIN_RECT),
     };
-    match skin {
+    let clickable = view.rows_clickable();
+    let session_menu_left = session_left() + SESSION_SIZE - MENU_W;
+    let (type_menu_open, type_menu_left) = match skin {
         ActiveSkin::Modern => {
             children.extend(header(view));
             for (index, row) in view.rows.iter().take(VISIBLE_ROWS).enumerate() {
-                children.extend(entry(index, row));
+                children.extend(entry(index, row, clickable));
             }
+            (view.type_menu_open, TIMER_X + view.timer_width)
         }
+        // Forever has one menu button: its menu lists the types beside the sessions.
         ActiveSkin::Forever => {
-            children.extend(forever_header());
+            children.extend(forever_header(view));
             for (index, row) in view.rows.iter().take(VISIBLE_ROWS).enumerate() {
-                children.extend(forever_entry(index, row));
+                children.extend(forever_entry(index, row, clickable));
             }
+            (view.menu_open, session_menu_left - MENU_GAP - MENU_W)
         }
-    }
+    };
     if view.menu_open {
-        children.extend(session_menu(view.session));
+        children.extend(session_menu(view.session, session_menu_left));
+    }
+    if type_menu_open {
+        children.extend(type_menu(view.meter_type, type_menu_left));
     }
     let layout = hud_layout(ctx);
     let (width, height) = layout.damage_meter_size;
@@ -255,24 +265,72 @@ const FOREVER_BUTTON_TOP: f32 =
 const FOREVER_CHART_LEFT: f32 = FOREVER_CHAT_PANEL_SIZE.0 - 51.5;
 const FOREVER_GEAR_LEFT: f32 = FOREVER_CHAT_PANEL_SIZE.0 - 30.5;
 const FOREVER_CHART_COLUMN_W: f32 = 2.2;
+/// Tab hit boxes: the 49 px between the two tab labels, starting 4 px before each.
+const FOREVER_TAB_W: f32 = 49.0;
+const FOREVER_TAB_PAD: f32 = 4.0;
+/// A third label one tab width after "HPS".
+const FOREVER_OTHER_TYPE_LEFT: f32 = 64.0 + FOREVER_TAB_W;
 
-fn forever_header() -> Element {
+/// "DPS" and "HPS" tabs select Damage Done and Healing Done; another type, or an open
+/// death recap, shows its name as a third, active label.
+fn forever_header(view: &DamageMeterView) -> Element {
     let mut parts = flare_header("DamageMeterFlare", FLARE_SKIN_RECT);
-    parts.extend(flare_text(
-        "DamageMeterTypeName",
-        "DPS",
-        [15.0, 7.0, 90.0, 12.0],
-        FLARE_ACTIVE_TEXT,
-        JustifyH::Left,
-    ));
-    // DamageMeterSnapshot contains no threat stream: label only, no invented action/data.
-    parts.extend(flare_text(
-        "DamageMeterThreatTab",
-        "Threat",
-        [64.0, 7.0, 60.0, 12.0],
-        FLARE_INACTIVE_TEXT,
-        JustifyH::Left,
-    ));
+    let tab_selected = !view.recap_open
+        && matches!(
+            view.meter_type,
+            MeterType::DamageDone | MeterType::HealingDone
+        );
+    let tabs = [
+        (
+            "DamageMeterTypeName",
+            "DamageMeterDpsTab",
+            "DPS",
+            15.0,
+            90.0,
+            MeterType::DamageDone,
+        ),
+        (
+            "DamageMeterHpsTabName",
+            "DamageMeterHpsTab",
+            "HPS",
+            64.0,
+            60.0,
+            MeterType::HealingDone,
+        ),
+    ];
+    for (text_name, button_name, label, left, width, meter_type) in tabs {
+        let color = if tab_selected && view.meter_type == meter_type {
+            FLARE_ACTIVE_TEXT
+        } else {
+            FLARE_INACTIVE_TEXT
+        };
+        parts.extend(flare_text(
+            text_name,
+            label,
+            [left, 7.0, width, 12.0],
+            color,
+            JustifyH::Left,
+        ));
+        parts.extend(click_target(
+            button_name,
+            [
+                left - FOREVER_TAB_PAD,
+                FOREVER_BUTTON_TOP,
+                FOREVER_TAB_W,
+                FLARE_HEADER_BUTTON_SIZE,
+            ],
+            meter_type.action(),
+        ));
+    }
+    if !tab_selected {
+        parts.extend(flare_text(
+            "DamageMeterOtherTypeName",
+            view.type_label(),
+            [FOREVER_OTHER_TYPE_LEFT, 7.0, 160.0, 12.0],
+            FLARE_ACTIVE_TEXT,
+            JustifyH::Left,
+        ));
+    }
     parts.extend(forever_chart_button());
     parts.extend(flare_icon(
         "DamageMeterSettings",
@@ -329,8 +387,10 @@ fn forever_chart_button() -> Element {
     }
 }
 
-fn class_icon(class_id: u8) -> &'static str {
-    match class_id {
+/// The class icon; none for class 0, a row that is not a player (a recap line).
+fn class_icon(class_id: u8) -> Option<&'static str> {
+    Some(match class_id {
+        0 => return None,
         1 => "classicon-warrior",
         2 => "classicon-paladin",
         3 => "classicon-hunter",
@@ -345,35 +405,70 @@ fn class_icon(class_id: u8) -> &'static str {
         12 => "classicon-demonhunter",
         13 => "classicon-evoker",
         _ => panic!("damage meter source has unsupported class {class_id}"),
-    }
+    })
 }
 
-fn forever_entry(index: usize, row: &DamageMeterRow) -> Element {
+fn forever_entry(index: usize, row: &DamageMeterRow, clickable: bool) -> Element {
     let name = damage_meter_row_name(index);
-    let icon = class_icon(row.class_id);
-    let bar = forever_bar(&name, row);
+    let mut parts = match class_icon(row.class_id) {
+        Some(icon) => forever_icon(&name, icon),
+        None => Vec::new(),
+    };
+    parts.extend(forever_bar(&name, row));
+    if clickable {
+        parts.extend(row_click_target(&name, index, FOREVER_ROW_W));
+    }
     rsx! {
         r#frame {
-            name: {DynName(name.clone())},
+            name: {DynName(name)},
             width: FOREVER_ROW_W,
             height: BAR_H,
             pos_type: "absolute",
             left: FOREVER_ROWS_LEFT,
             top: {FOREVER_ROWS_TOP + (BAR_H + BAR_SPACING) * index as f32},
-            texture {
-                name: {DynName(format!("{name}Icon"))},
-                width: FOREVER_ICON_SIZE,
-                height: FOREVER_ICON_SIZE,
-                texture_atlas: icon,
-                pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
-            }
-            {bar}
+            {parts}
         }
     }
 }
 
+fn forever_icon(name: &str, icon: &str) -> Element {
+    rsx! {
+        texture {
+            name: {DynName(format!("{name}Icon"))},
+            width: FOREVER_ICON_SIZE,
+            height: FOREVER_ICON_SIZE,
+            texture_atlas: icon,
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
+        }
+    }
+}
+
+/// An invisible button over `[x, y, width, height]`.
+fn click_target(name: &str, [x, y, width, height]: [f32; 4], action: &str) -> Element {
+    rsx! {
+        button {
+            name: {DynName(name.to_owned())},
+            width,
+            height,
+            onclick: action,
+            button_default_skin: false,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    }
+}
+
+/// A click target over the whole row `name`.
+fn row_click_target(name: &str, index: usize, width: f32) -> Element {
+    click_target(
+        &format!("{name}Button"),
+        [0.0, 0.0, width, BAR_H],
+        &format!("{ACTION_DAMAGE_METER_ROW}{index}"),
+    )
+}
 fn forever_bar(name: &str, row: &DamageMeterRow) -> Element {
     let value_left = FOREVER_BAR_W - VALUE_RIGHT - VALUE_W;
     let mut parts = forever_fill(name, row);
@@ -452,7 +547,7 @@ fn header(view: &DamageMeterView) -> Element {
         GOLD,
         JustifyH::Left,
     );
-    parts.extend(type_dropdown(TIMER_X + view.timer_width));
+    parts.extend(type_dropdown(TIMER_X + view.timer_width, view.type_label()));
     parts.extend(session_button(
         view.session,
         session_left(),
@@ -482,8 +577,8 @@ fn header(view: &DamageMeterView) -> Element {
 }
 
 /// `DamageMeterTypeDropdown` at `left`: its arrow and the gold type name, which runs to
-/// the session dropdown -15.
-fn type_dropdown(left: f32) -> Element {
+/// the session dropdown -15; clicking it opens the type menu.
+fn type_dropdown(left: f32, label: &str) -> Element {
     let top = TIMER_Y - 6.0;
     let arrow_left = left + (TYPE_DROPDOWN_SIZE - TYPE_ARROW_SIZE) / 2.0;
     let arrow_top = top + (TYPE_DROPDOWN_SIZE - TYPE_ARROW_SIZE) / 2.0 + 2.0;
@@ -496,7 +591,7 @@ fn type_dropdown(left: f32) -> Element {
     );
     parts.extend(text(
         "DamageMeterTypeName",
-        DAMAGE_DONE_LABEL,
+        label,
         [
             name_left,
             name_center - HEADER_TEXT_H / 2.0,
@@ -505,6 +600,11 @@ fn type_dropdown(left: f32) -> Element {
         ],
         GOLD,
         JustifyH::Left,
+    ));
+    parts.extend(click_target(
+        "DamageMeterTypeDropdown",
+        [left, top, TYPE_DROPDOWN_SIZE, TYPE_DROPDOWN_SIZE],
+        ACTION_DAMAGE_METER_TYPE_MENU,
     ));
     parts
 }
@@ -545,7 +645,7 @@ fn session_button(session: MeterSessionType, left: f32, top: f32) -> Element {
 
 /// The session menu's `Current Segment` and `Overall` radios (the past-session radios
 /// above its divider are not listed; the snapshot carries only these two sessions).
-fn session_menu(selected: MeterSessionType) -> Element {
+fn session_menu(selected: MeterSessionType, left: f32) -> Element {
     let options = [
         (MeterSessionType::Current, ACTION_DAMAGE_METER_CURRENT),
         (MeterSessionType::Overall, ACTION_DAMAGE_METER_OVERALL),
@@ -554,30 +654,56 @@ fn session_menu(selected: MeterSessionType) -> Element {
         .into_iter()
         .enumerate()
         .flat_map(|(index, (session, action))| {
-            menu_row(index, session, action, session == selected)
+            let name = "DamageMeterSessionMenu";
+            menu_row(name, index, session.label(), action, session == selected)
         })
         .collect();
-    let height = MENU_PAD * 2.0 + MENU_ROW_H * options.len() as f32;
+    menu("DamageMeterSessionMenu", left, options.len(), rows)
+}
+
+/// The type dropdown's radios (`InitializeDamageMeterTypeDropdown`,
+/// DamageMeterSessionWindow.lua:371-394), in one list instead of category submenus.
+fn type_menu(selected: MeterType, left: f32) -> Element {
+    let rows: Element = MeterType::ALL
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, meter_type)| {
+            let (label, action) = (meter_type.label(), meter_type.action());
+            menu_row(
+                "DamageMeterTypeMenu",
+                index,
+                label,
+                action,
+                meter_type == selected,
+            )
+        })
+        .collect();
+    menu("DamageMeterTypeMenu", left, MeterType::ALL.len(), rows)
+}
+
+/// A dark panel of `count` radio rows under the header.
+fn menu(name: &str, left: f32, count: usize, rows: Element) -> Element {
+    let height = MENU_PAD * 2.0 + MENU_ROW_H * count as f32;
     rsx! {
         r#frame {
-            name: "DamageMeterSessionMenu",
+            name: {DynName(name.to_owned())},
             width: MENU_W,
             height,
             background_color: "0.05,0.05,0.05,0.92",
             pos_type: "absolute",
-            left: {session_left() + SESSION_SIZE - MENU_W},
+            left,
             top: HEADER_H,
             {rows}
         }
     }
 }
 
-fn menu_row(index: usize, session: MeterSessionType, action: &str, checked: bool) -> Element {
+fn menu_row(menu: &str, index: usize, label: &str, action: &str, checked: bool) -> Element {
     let mark = if checked { "\u{2022} " } else { "   " };
-    let label = format!("{mark}{}", session.label());
+    let label = format!("{mark}{label}");
     let color = if checked { WHITE } else { GOLD };
     let text = text(
-        &format!("DamageMeterSessionMenuText{}", index + 1),
+        &format!("{menu}Text{}", index + 1),
         &label,
         [8.0, 0.0, MENU_W - 16.0, MENU_ROW_H],
         color,
@@ -585,7 +711,7 @@ fn menu_row(index: usize, session: MeterSessionType, action: &str, checked: bool
     );
     rsx! {
         button {
-            name: {DynName(format!("DamageMeterSessionMenuOption{}", index + 1))},
+            name: {DynName(format!("{menu}Option{}", index + 1))},
             width: MENU_W,
             height: MENU_ROW_H,
             onclick: action,
@@ -599,7 +725,7 @@ fn menu_row(index: usize, session: MeterSessionType, action: &str, checked: bool
 }
 
 /// One `DamageMeterSourceEntryTemplate` in the Default style.
-fn entry(index: usize, row: &DamageMeterRow) -> Element {
+fn entry(index: usize, row: &DamageMeterRow, clickable: bool) -> Element {
     let name = damage_meter_row_name(index);
     let value_left = STATUS_BAR_W - VALUE_RIGHT - VALUE_W;
     let mut parts = status_bar(&name, row);
@@ -617,6 +743,9 @@ fn entry(index: usize, row: &DamageMeterRow) -> Element {
         VALUE_W,
         JustifyH::Right,
     ));
+    if clickable {
+        parts.extend(row_click_target(&name, index, ROW_W));
+    }
     rsx! {
         r#frame {
             name: {DynName(name)},
