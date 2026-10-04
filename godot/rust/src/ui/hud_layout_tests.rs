@@ -33,6 +33,7 @@ use game_engine_ui_model::minimap::{MINIMAP_CLUSTER, MinimapClusterState, minima
 use game_engine_ui_model::objective_tracker_component::{
     ObjectiveTrackerState, TRACKER_FRAME, objective_tracker_screen,
 };
+use game_engine_ui_model::pet_action_bar_component::{PetActionBarState, pet_action_bar_screen};
 use game_engine_ui_model::status::{ClassBar, ClassBarResource};
 use game_engine_ui_model::xp_bar_component::{XpBarState, xp_bar_screen};
 use shared::components::PowerType;
@@ -116,6 +117,13 @@ fn hud() -> Vec<RegistryModel> {
         model(unit_frames(), inworld_unit_frames_screen),
         model(cast, casting_bar_frame_screen),
         model(MainActionBarState::default(), main_action_bar_screen),
+        model(
+            PetActionBarState {
+                visible: true,
+                ..Default::default()
+            },
+            pet_action_bar_screen,
+        ),
         model(MicroMenuView::default(), micro_menu_screen),
         // The bag bar as the client mounts it: inside the bags canvas's composed screen.
         model(
@@ -183,6 +191,33 @@ fn top_right(hud: &[RegistryModel], name: &str) -> (f32, f32) {
     (rect.x + rect.width, rect.y)
 }
 
+fn assert_rect(hud: &[RegistryModel], name: &str, expected: (f32, f32, f32, f32)) {
+    let r = rect(hud, name);
+    let actual = (r.x, r.y, r.width, r.height);
+    for (a, b) in [
+        (actual.0, expected.0),
+        (actual.1, expected.1),
+        (actual.2, expected.2),
+        (actual.3, expected.3),
+    ] {
+        assert!((a - b).abs() < 0.001, "{name}: {actual:?} != {expected:?}");
+    }
+}
+
+fn assert_utility_visibility(hud: &[RegistryModel], hidden: bool) {
+    for name in [MICRO_MENU, "BagsBar"] {
+        let model = hud
+            .iter()
+            .find(|m| m.registry.get_by_name(name).is_some())
+            .unwrap();
+        let frame = model
+            .registry
+            .get(model.registry.get_by_name(name).unwrap())
+            .unwrap();
+        assert_eq!(frame.hidden, hidden, "{name}");
+    }
+}
+
 fn assert_modern(hud: &[RegistryModel]) {
     // Centre x 683, bottom 768. PlayerFrame BOTTOMRIGHT and TargetFrame BOTTOMLEFT at BOTTOM
     // (∓300, 250), 232×100.
@@ -199,6 +234,13 @@ fn assert_modern(hud: &[RegistryModel]) {
     // 329×40 micro menu BOTTOMRIGHT (-6, 6); 368×47 bags bar TOPRIGHT (-6, 96).
     assert_eq!(top_left(hud, MICRO_MENU), (1031.0, 722.0));
     assert_eq!(top_right(hud, "BagsBar"), (1360.0, 672.0));
+    assert_rect(hud, MAIN_ACTION_BAR.0, (402.0, 678.0, 562.0, 45.0));
+    assert_rect(hud, "MainActionBarLeftEndCap", (306.5, 647.0, 104.5, 98.0));
+    assert_rect(hud, "MainActionBarRightEndCap", (956.0, 647.0, 104.5, 98.0));
+    assert_rect(hud, MICRO_MENU, (1031.0, 722.0, 329.0, 40.0));
+    assert_rect(hud, "BagsBar", (992.0, 672.0, 368.0, 47.0));
+    assert_rect(hud, "PetActionBar", (402.0, 643.0, 318.0, 30.0));
+    assert_utility_visibility(hud, false);
     assert_rect(hud, DAMAGE_METER_ROOT.0, (0.0, 0.0, 400.0, 140.0));
     assert_rect(hud, CHAT_FRAME.0, (0.0, 448.0, 500.0, 280.0));
     assert_rect(hud, "ChatFrame1EditBox", (0.0, 696.0, 500.0, 32.0));
@@ -219,15 +261,6 @@ fn assert_modern_edit_mode_systems(hud: &[RegistryModel]) {
     let raid = rect(hud, RAID_FRAME);
     assert_eq!((raid.x, raid.y + raid.height), (395.0, 553.0));
     assert_eq!(top_right(hud, TRACKER_FRAME), (1256.0, 275.0));
-}
-
-fn assert_rect(hud: &[RegistryModel], name: &str, expected: (f32, f32, f32, f32)) {
-    let rect = rect(hud, name);
-    assert_eq!(
-        (rect.x, rect.y, rect.width, rect.height),
-        expected,
-        "{name}"
-    );
 }
 
 #[test]
@@ -269,21 +302,23 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
         (bar.x, bar.y, bar.width, bar.height),
         (550.0, 470.0, 292.0, 26.0)
     );
-    // Camelot: micro menu BOTTOM (116.5, 6); main bar BOTTOMRIGHT on its BOTTOMLEFT
-    // (-4.5, -4); bags bar BOTTOMLEFT on its BOTTOMRIGHT (7, -4).
-    assert_eq!(top_left(&hud, MICRO_MENU), (635.0, 722.0));
-    // The main bar's buttons take FlareUI's scale 1.06: 562×45 grows to 595.72×47.7.
-    let bar = rect(&hud, MAIN_ACTION_BAR.0);
-    let edges = [bar.x, bar.y, bar.x + bar.width, bar.y + bar.height];
-    let expected = [630.5 - 562.0 * 1.06, 766.0 - 45.0 * 1.06, 630.5, 766.0];
-    assert!(
-        edges
-            .iter()
-            .zip(expected)
-            .all(|(a, b)| (a - b).abs() < 1e-3),
-        "MainActionBar {edges:?} != {expected:?}"
+    // Reference: centred main bar, gryphons on its ends, no attached utility bars.
+    assert_rect(&hud, MAIN_ACTION_BAR.0, (385.14, 718.3, 595.72, 47.7));
+    assert_rect(
+        &hud,
+        "MainActionBarLeftEndCap",
+        (261.14, 689.65, 154.0, 95.0),
     );
-    assert_eq!(top_left(&hud, "BagsBar"), (971.0, 719.0));
+    assert_rect(
+        &hud,
+        "MainActionBarRightEndCap",
+        (950.86, 689.65, 154.0, 95.0),
+    );
+    // Hidden roots and descendants take no layout space (Display::None).
+    assert_rect(&hud, MICRO_MENU, (0.0, 0.0, 0.0, 0.0));
+    assert_rect(&hud, "BagsBar", (0.0, 0.0, 0.0, 0.0));
+    assert_rect(&hud, "PetActionBar", (415.14, 682.5, 337.08, 31.8));
+    assert_utility_visibility(&hud, true);
     // FlareUI matches the meter root to the chat skin; mirror it across UIParent.
     assert_rect(&hud, DAMAGE_METER_ROOT.0, (891.0, 419.0, 450.0, 214.0));
     // Forever chat messages 430x170 at BOTTOMLEFT(35,145), padding 10 + header 24.
