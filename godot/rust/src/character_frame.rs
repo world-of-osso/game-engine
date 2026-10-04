@@ -17,8 +17,8 @@ use game_engine_ui_model::damage_meter_data::class_color;
 use game_engine_ui_model::item_catalog::item_catalog_entry;
 use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::micro_menu::{
-    ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_PLAYER_SPELLS, ACTION_QUEST_LOG, MICRO_BUTTONS,
-    MicroMenuView, OpenWindows, micro_button_index, unavailable_message,
+    ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_PLAYER_SPELLS, ACTION_QUEST_LOG, CHARACTER_PORTRAIT,
+    MICRO_BUTTONS, MicroMenuView, OpenWindows, micro_button_index, unavailable_message,
 };
 use godot::prelude::*;
 use shared::components::{CombatRatings, DerivedStats, Player, UnitLevel, UnitStats};
@@ -65,6 +65,11 @@ impl CharacterFrame {
             visit(ui)?;
         }
         Ok(())
+    }
+
+    /// The micro menu canvas, once shown.
+    pub(crate) fn micro_ui(&self) -> Option<&Gd<RegistryUi>> {
+        self.micro_ui.as_ref()
     }
 
     pub(crate) fn is_open(&self) -> bool {
@@ -235,6 +240,7 @@ impl GameClient {
             return host.set_state(view);
         }
         self.drawable_fdid(4_708_813);
+        self.drawable_fdid(CHARACTER_PORTRAIT.mask_fdid);
         let mut ui = RegistryUi::new_alloc();
         ui.set_name(MICRO_UI);
         self.base_mut().add_child(&ui);

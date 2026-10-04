@@ -12,6 +12,7 @@ use game_engine_core::creation_scene_data::vertical_fov;
 use game_engine_ui_model::inworld_unit_frames_component::{
     PET_PORTRAIT, PLAYER_PORTRAIT, PortraitSlot, TARGET_PORTRAIT,
 };
+use game_engine_ui_model::micro_menu::CHARACTER_PORTRAIT;
 use godot::classes::control::{LayoutPreset, MouseFilter};
 use godot::classes::node::ProcessMode;
 use godot::classes::sub_viewport::UpdateMode;
@@ -33,8 +34,9 @@ use crate::world_models::UnitAppearance;
 const MASK_SHADER: &str = "shader_type canvas_item;
 uniform sampler2D mask_texture : filter_linear;
 uniform vec4 mask_rect;
+uniform vec4 tex_rect = vec4(0.0, 0.0, 1.0, 1.0);
 void fragment() {
-    vec4 model = texture(TEXTURE, UV);
+    vec4 model = texture(TEXTURE, tex_rect.xy + UV * tex_rect.zw);
     vec2 mask_uv = (UV - mask_rect.xy) / mask_rect.zw;
     bool inside = all(greaterThanEqual(mask_uv, vec2(0.0))) && all(lessThanEqual(mask_uv, vec2(1.0)));
     float keep = inside ? texture(mask_texture, mask_uv).a : 0.0;
@@ -46,6 +48,8 @@ pub(crate) struct UnitPortraits {
     player: Portrait,
     target: Portrait,
     pet: Portrait,
+    /// The CharacterMicroButton's player portrait.
+    micro: Portrait,
 }
 
 impl Default for UnitPortraits {
@@ -54,6 +58,7 @@ impl Default for UnitPortraits {
             player: Portrait::new(PLAYER_PORTRAIT),
             target: Portrait::new(TARGET_PORTRAIT),
             pet: Portrait::new(PET_PORTRAIT),
+            micro: Portrait::new(CHARACTER_PORTRAIT),
         }
     }
 }
@@ -119,8 +124,9 @@ impl Portrait {
         };
         let slot = self.slot;
         let scene = self.scene_in(host);
+        set_slot_rects(&mut scene.material, &slot);
         scene.load_mask(&slot)?;
-        scene.fit_viewport();
+        scene.fit_viewport(slot.tex_coords);
         let Some(appearance) = appearance else {
             scene.remove_model();
             self.cancel_pending(world);
@@ -275,11 +281,12 @@ impl Scene {
     }
 
     /// Render at the slot's physical pixel size.
-    fn fit_viewport(&mut self) {
+    /// The whole portrait image at the pixel density the slot shows its crop at.
+    fn fit_viewport(&mut self, [left, right, top, bottom]: [f32; 4]) {
         let size = self.view.get_global_rect().size;
         let size = Vector2i::new(
-            size.x.round().max(1.0) as i32,
-            size.y.round().max(1.0) as i32,
+            (size.x / (right - left)).round().max(1.0) as i32,
+            (size.y / (bottom - top)).round().max(1.0) as i32,
         );
         if self.viewport.get_size() != size {
             self.viewport.set_size(size);
@@ -320,12 +327,21 @@ fn portrait_viewport() -> (Gd<SubViewport>, Gd<Node3D>, Gd<Camera3D>) {
     (viewport, root, camera)
 }
 
-/// `MASK_SHADER` with the slot's mask rect in portrait UVs; the mask texture follows.
+/// `MASK_SHADER` with the slot's rects; the mask texture follows.
 fn mask_material(slot: &PortraitSlot) -> Gd<ShaderMaterial> {
     let mut shader = Shader::new_gd();
     shader.set_code(MASK_SHADER);
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&shader);
+    set_slot_rects(&mut material, slot);
+    material
+}
+
+/// The slot's mask rect in view UVs and its `SetTexCoord` crop of the portrait image.
+fn set_slot_rects(material: &mut Gd<ShaderMaterial>, slot: &PortraitSlot) {
+    let [left, right, top, bottom] = slot.tex_coords;
+    let tex_rect = Vector4::new(left, top, right - left, bottom - top);
+    material.set_shader_parameter("tex_rect", &tex_rect.to_variant());
     let (x, y, width, height) = slot.rect;
     let (mask_x, mask_y, mask_w, mask_h) = slot.mask_rect;
     let mask_rect = Vector4::new(
@@ -335,7 +351,6 @@ fn mask_material(slot: &PortraitSlot) -> Gd<ShaderMaterial> {
         mask_h / height,
     );
     material.set_shader_parameter("mask_rect", &mask_rect.to_variant());
-    material
 }
 
 /// The visual's M2 model root: the visual itself or its model child (creature visuals
@@ -410,11 +425,23 @@ impl GameClient {
             .local_pet_id()
             .and_then(|id| self.world.unit_appearance(id))
             .cloned();
+        let micro_slot = self.micro_menu_view().character_portrait();
+        let micro_host = self
+            .character_frame
+            .micro_ui()
+            .and_then(|ui| ui.bind().frame_control(micro_slot.frame));
         let portraits = &mut self.targeting.portraits;
-        let player_result = portraits.player.sync(&mut self.world, player_host, player);
+        portraits.micro.slot = micro_slot;
+        let player_result = portraits
+            .player
+            .sync(&mut self.world, player_host, player.clone());
         let target_result = portraits.target.sync(&mut self.world, target_host, target);
         let pet_result = portraits.pet.sync(&mut self.world, pet_host, pet);
-        player_result.and(target_result).and(pet_result)
+        let micro_result = portraits.micro.sync(&mut self.world, micro_host, player);
+        player_result
+            .and(target_result)
+            .and(pet_result)
+            .and(micro_result)
     }
 
     pub(super) fn clear_unit_portraits(&mut self) {
@@ -422,21 +449,27 @@ impl GameClient {
         portraits.player.clear(&mut self.world);
         portraits.target.clear(&mut self.world);
         portraits.pet.clear(&mut self.world);
+        portraits.micro.clear(&mut self.world);
     }
 }
 
 #[godot_api(secondary)]
 impl GameClient {
-    /// Portrait state for automation: `frame` is `PlayerPortrait`, `TargetFramePortrait` or
-    /// `PetPortrait`.
+    /// Portrait state for automation: `frame` is `PlayerPortrait`, `TargetFramePortrait`,
+    /// `PetPortrait` or `CharacterMicroButtonPortrait`.
     #[func]
     fn unit_portrait_state(&self, frame: GString) -> VarDictionary {
         let portraits = &self.targeting.portraits;
         let frame = frame.to_string();
-        [&portraits.player, &portraits.target, &portraits.pet]
-            .into_iter()
-            .find(|portrait| portrait.slot.frame == frame)
-            .map(Portrait::snapshot)
-            .unwrap_or_default()
+        [
+            &portraits.player,
+            &portraits.target,
+            &portraits.pet,
+            &portraits.micro,
+        ]
+        .into_iter()
+        .find(|portrait| portrait.slot.frame == frame)
+        .map(Portrait::snapshot)
+        .unwrap_or_default()
     }
 }
