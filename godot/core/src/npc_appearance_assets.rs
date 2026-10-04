@@ -9,7 +9,10 @@ use crate::{
         char_texture_cache_file, query_char_texture_data, query_model_material_sizes,
     },
     customization_data::{CustomizationDb, RaceModels},
-    customization_query_data::{customization_cache_file, query_customization_raw_data},
+    customization_query_data::{
+        customization_cache_file, query_customization_raw_data,
+        query_skyborne_customization_raw_data,
+    },
 };
 
 fn open_catalog(data_root: &Path, name: &str) -> Result<Connection, String> {
@@ -23,11 +26,11 @@ fn open_catalog(data_root: &Path, name: &str) -> Result<Connection, String> {
 }
 
 pub fn load_customization_db(data_root: &Path) -> Result<CustomizationDb, String> {
-    let mut db = read_customization_db(data_root)?;
+    let mut db = read_customization_db(data_root, false)?;
     let forever = data_root.join(crate::player_model_data::FOREVER_DB2_DIR);
     if needs_forever(data_root, &forever)? {
         crate::customization_cache::import_customization_cache(&forever)?;
-        db.overlay_forever(read_customization_db(&forever)?)?;
+        db.overlay_forever(read_customization_db(&forever, true)?)?;
     }
     Ok(db)
 }
@@ -49,10 +52,14 @@ fn needs_forever(data_root: &Path, forever: &Path) -> Result<bool, String> {
     Ok(false)
 }
 
-fn read_customization_db(data_root: &Path) -> Result<CustomizationDb, String> {
+fn read_customization_db(data_root: &Path, skyborne_only: bool) -> Result<CustomizationDb, String> {
     let connection = open_catalog(data_root, &customization_cache_file())?;
     let races = RaceModels::load(data_root)?;
-    let raw = query_customization_raw_data(&connection, races)?;
+    let raw = if skyborne_only {
+        query_skyborne_customization_raw_data(&connection, races)?
+    } else {
+        query_customization_raw_data(&connection, races)?
+    };
     let mut db = CustomizationDb::from_raw(&raw);
     db.load_requirements(data_root)?;
     Ok(db)

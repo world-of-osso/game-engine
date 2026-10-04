@@ -21,6 +21,38 @@ pub(crate) fn query_customization_raw_data(
     conn: &Connection,
     race_models: RaceModels,
 ) -> Result<RawData, String> {
+    query_customization_rows(
+        conn,
+        race_models,
+        "SELECT id, collection_fdid, geoset_type, geoset_id FROM skinned_models",
+    )
+}
+
+/// Only Skyborne collection rows are interpreted by the Forever overlay. Other
+/// Forever models may use GeosetID representations outside this renderer's u16 IDs.
+/// Keep those original values in the source cache; never truncate a selected row.
+pub(crate) fn query_skyborne_customization_raw_data(
+    conn: &Connection,
+    race_models: RaceModels,
+) -> Result<RawData, String> {
+    query_customization_rows(
+        conn,
+        race_models,
+        "SELECT id, collection_fdid, geoset_type, geoset_id FROM skinned_models
+         WHERE id IN (
+             SELECT e.skinned_model_id FROM elements e
+             JOIN choices c ON c.id = e.choice_id
+             JOIN options o ON o.id = c.option_id
+             WHERE o.chr_model_id IN (218, 219)
+         )",
+    )
+}
+
+fn query_customization_rows(
+    conn: &Connection,
+    race_models: RaceModels,
+    skinned_model_sql: &str,
+) -> Result<RawData, String> {
     Ok(RawData {
         chr_models: load_chr_models(conn)?,
         options: load_options(conn)?,
@@ -29,7 +61,7 @@ pub(crate) fn query_customization_raw_data(
         elements: load_elements(conn)?,
         materials: load_materials(conn)?,
         geosets: load_geosets(conn)?,
-        skinned_models: load_skinned_models(conn)?,
+        skinned_models: load_skinned_models(conn, skinned_model_sql)?,
         hair_geosets: load_hair_geosets(conn)?,
         texture_fdids: load_texture_fdids(conn)?,
         race_models,
@@ -174,9 +206,12 @@ fn load_geosets(conn: &Connection) -> Result<HashMap<u32, RawGeoset>, String> {
         .map_err(|err| format!("read geosets row: {err}"))
 }
 
-fn load_skinned_models(conn: &Connection) -> Result<HashMap<u32, RawSkinnedModel>, String> {
+fn load_skinned_models(
+    conn: &Connection,
+    sql: &str,
+) -> Result<HashMap<u32, RawSkinnedModel>, String> {
     let mut stmt = conn
-        .prepare("SELECT id, collection_fdid, geoset_type, geoset_id FROM skinned_models")
+        .prepare(sql)
         .map_err(|err| format!("prepare skinned_models lookup: {err}"))?;
     stmt.query_map([], |row| {
         Ok((
