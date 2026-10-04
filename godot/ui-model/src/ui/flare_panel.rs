@@ -137,6 +137,35 @@ pub const FLARE_INACTIVE_TEXT: [f32; 4] = [0.56, 0.51, 0.46, 1.0];
 pub const FLARE_ICON_COLOR: &str = "0.61,0.48,0.29,1";
 pub const FLARE_HEADER_HEIGHT: f32 = 24.0;
 pub const FLARE_FONT_SIZE: f32 = 12.0;
+/// Chat.lua:531; Core.lua:161,166,171,176 scales the 22px icons to 0.6.
+/// Keep the hit box separate from the glyph, shared with the meter.
+pub const FLARE_HEADER_BUTTON_SIZE: f32 = 22.0;
+pub const FLARE_HEADER_ICON_SIZE: f32 = 13.2;
+pub const FLARE_HEADER_ICON_INSET: f32 = 4.4;
+
+/// Existing Blizzard glyph crops, excluding cell padding and the gear's dropdown frame.
+/// Pixel measurements, sheets and provenance: docs/specs/forever-chat-meter-chrome.md.
+pub const FLARE_CHANNEL_ART: (u32, [f32; 4]) = (
+    1_121_272,
+    [
+        427.0 / 1024.0,
+        451.0 / 1024.0,
+        768.0 / 1024.0,
+        792.0 / 1024.0,
+    ],
+);
+pub const FLARE_GEAR_ART: (u32, [f32; 4]) = (
+    7_518_377,
+    [67.0 / 128.0, 79.0 / 128.0, 35.0 / 64.0, 47.0 / 64.0],
+);
+pub const FLARE_SOCIAL_ART: (u32, [f32; 4]) = (
+    8_200_846,
+    [276.0 / 1024.0, 318.0 / 1024.0, 98.0 / 512.0, 157.0 / 512.0],
+);
+pub const FLARE_VOLUME_ART: (u32, [f32; 4]) = (
+    5_390_329,
+    [388.0 / 512.0, 399.0 / 512.0, 31.0 / 256.0, 45.0 / 256.0],
+);
 
 /// Header and measured thin solid separator, siblings in the panel's parent.
 /// Measurements and all derived rectangles: docs/specs/forever-chat-meter-chrome.md.
@@ -189,13 +218,15 @@ pub fn flare_text(
     }
 }
 
-/// Existing Blizzard icon, bronze tinted. Only supported actions get a hit target.
+/// Existing Blizzard glyph, bronze tinted and centred inside its hit box.
+/// Only supported actions get a hit target.
 pub fn flare_icon(
     name: &str,
-    atlas: &str,
+    (fdid, [left, right, top, bottom]): (u32, [f32; 4]),
     [x, y, width, height]: [f32; 4],
     action: Option<&str>,
 ) -> Element {
+    let tex_coords = format!("{left},{right},{top},{bottom}");
     let mut icon = rsx! {
         r#frame {
             name: {DynName(name.to_owned())},
@@ -206,13 +237,14 @@ pub fn flare_icon(
             top: y,
             texture {
                 name: {DynName(format!("{name}Icon"))},
-                width,
-                height,
-                texture_atlas: atlas,
+                width: FLARE_HEADER_ICON_SIZE,
+                height: FLARE_HEADER_ICON_SIZE,
+                texture_fdid: fdid,
+                tex_coords: {tex_coords.as_str()},
                 vertex_color: FLARE_ICON_COLOR,
                 pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
+                left: FLARE_HEADER_ICON_INSET,
+                top: FLARE_HEADER_ICON_INSET,
             }
         }
     };
