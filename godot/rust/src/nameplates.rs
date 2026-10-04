@@ -92,19 +92,36 @@ struct HealthSkin {
     fill_y: f32,
     frame_margin: Vector2,
     frame_offset: Vector2,
+    /// Transparent columns at the frame bitmap's left and right ends: the drawn border
+    /// starts and ends this far inside the bitmap (health-thick.png: ink in columns
+    /// 4..386 of 396; health-thin.png: 3..387).
+    frame_blank: (f32, f32),
 }
 
 fn health_skin(thick: bool) -> HealthSkin {
-    let (fill_inset, fill_y, margin, offset) = if thick {
-        (2.0, 0.0, Vector2::new(20.0, 8.0), Vector2::new(2.0, -1.0))
+    let (fill_inset, fill_y, margin, offset, blank) = if thick {
+        (
+            2.0,
+            0.0,
+            Vector2::new(20.0, 8.0),
+            Vector2::new(2.0, -1.0),
+            (4.0, 10.0),
+        )
     } else {
-        (1.0, 0.5, Vector2::new(20.0, 10.0), Vector2::new(2.0, 0.0))
+        (
+            1.0,
+            0.5,
+            Vector2::new(20.0, 10.0),
+            Vector2::new(2.0, 0.0),
+            (3.0, 9.0),
+        )
     };
     HealthSkin {
         fill_inset: fill_inset * NAMEPLATE_SCALE,
         fill_y: fill_y * NAMEPLATE_SCALE,
         frame_margin: margin * NAMEPLATE_SCALE,
         frame_offset: offset * NAMEPLATE_SCALE,
+        frame_blank: (blank.0 * NAMEPLATE_SCALE, blank.1 * NAMEPLATE_SCALE),
     }
 }
 
@@ -124,6 +141,10 @@ struct PlateLayout {
     /// The y of the plate's highest part (the frame, the body without one, or the name
     /// above it), which the aura icons stand over.
     top: f32,
+    /// The health row's visible left and right edge: the frame's drawn border (the body
+    /// without one), and on the right the level frame's end under a skin with one. The
+    /// cast row sits on the same span.
+    span: (f32, f32),
 }
 
 /// Where a plate's texts sit, relative to the anchor.
@@ -175,11 +196,25 @@ fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> Plat
             name_bottom.y - style.name_font_size,
         )
     };
+    let (left, right) = if style.show_border {
+        (
+            frame.position.x + skin.frame_blank.0,
+            frame.end().x - skin.frame_blank.1,
+        )
+    } else {
+        (center.x - body.x / 2.0, center.x + body.x / 2.0)
+    };
+    let right = if level_width > 0.0 {
+        style.health_width / 2.0
+    } else {
+        right
+    };
     PlateLayout {
         frame,
         fill,
         text,
         top,
+        span: (left, right),
     }
 }
 
@@ -656,7 +691,10 @@ impl Nameplates {
                 Some(&fdid) => cast_art.icon(fdid, &textures)?,
                 None => None,
             };
-            plate.cast.apply(bar, icon.as_ref(), style, cast_art);
+            let layout = plate_layout(style, view.fraction, level_width);
+            plate
+                .cast
+                .apply(bar, icon.as_ref(), (style, layout.span), cast_art);
             // Bevy: aura icons show with the health bars.
             let auras = if show_health_bars {
                 view.auras.as_slice()
@@ -667,8 +705,7 @@ impl Nameplates {
                 .iter()
                 .map(|aura| cast_art.icon(aura.icon_fdid, &textures))
                 .collect::<Result<Vec<_>, _>>()?;
-            let top = plate_layout(style, view.fraction, level_width).top;
-            apply_auras(plate, auras, &aura_icons, style, top, &art.font);
+            apply_auras(plate, auras, &aura_icons, style, layout.top, &art.font);
         }
         self.views = views;
         Ok(())
@@ -1552,6 +1589,47 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
                 health_right: Vector2::new(92.0, 0.0),
             }
         );
+    }
+
+    /// The health and cast rows form one block: the cast track and its icon start on the
+    /// health frame's drawn left edge and the track ends on the plate's right edge (the
+    /// frame's drawn right edge, or the level frame's end under Forever), for the Thick
+    /// and Thin presets, with and without the border.
+    #[test]
+    fn cast_row_is_flush_with_the_health_row_at_both_ends() {
+        use crate::nameplate_cast_bar::cast_layout;
+        use game_engine_core::nameplate_style_data::NameplateBarThickness::{Thick, Thin};
+        for (health, cast) in [(Thick, Thick), (Thin, Thin), (Thick, Thin), (Thin, Thick)] {
+            for show_border in [true, false] {
+                let style = NameplateStyle {
+                    show_border,
+                    ..NameplateStyle::from_presets(health, cast)
+                };
+                for level_width in [0.0, LEVEL_INDICATOR_WIDTH] {
+                    let case =
+                        format!("{health:?}/{cast:?} border {show_border} level {level_width}");
+                    let plate = plate_layout(&style, 1.0, level_width);
+                    let row = cast_layout(&style, 1.0, plate.span);
+                    assert_eq!(row.background.position.x, plate.span.0, "{case}");
+                    assert_eq!(row.background.end().x, plate.span.1, "{case}");
+                    assert_eq!(row.icon.position.x, plate.span.0, "{case}");
+                    // The left edge is the frame's border, drawn inside its bitmap and
+                    // outside the fill; borderless, the fill's own edge.
+                    assert!(plate.span.0 >= plate.frame.position.x, "{case}");
+                    assert!(plate.span.0 <= plate.fill.position.x, "{case}");
+                    if !show_border {
+                        assert_eq!(plate.span.0, plate.fill.position.x, "{case}");
+                    }
+                    if level_width > 0.0 {
+                        let level = level_layout(&style).frame;
+                        assert_eq!(plate.span.1, level.end().x, "{case}");
+                    } else {
+                        assert!(plate.span.1 <= plate.frame.end().x, "{case}");
+                        assert!(plate.span.1 >= plate.fill.end().x, "{case}");
+                    }
+                }
+            }
+        }
     }
 
     /// By default the plate's health text is the percent alone, which Retail rounds up
