@@ -4,7 +4,8 @@
 //! collision dims plates of units behind world geometry (`nameplateOccludedAlphaMult`).
 //! Look and layout follow docs/specs/nameplate-style.md: the reference-derived health
 //! frame and fill skins of the Bevy client, the fill tinted by the unit's reaction to the
-//! local player, and the white Friz name 2px above the plate.
+//! local player, and on the Thick bar the white outlined Friz name at its left with the
+//! health value and percent at its right (the user's reference of 2026-10-04).
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -16,6 +17,7 @@ use game_engine_core::nameplate_visibility_data::{
     NameplateCvars, PlateUnit, in_combat_with_player, nameplate_alpha, plate_alpha, plate_shown,
     selection_in_combat_is_hostile,
 };
+use game_engine_core::status_text_data::{abbreviate_large_numbers, percent};
 use game_engine_core::warband_scene_data::read_atlas_art;
 use game_engine_network::replica::{Replica, Unit as ReplicatedUnit};
 use game_engine_session::SessionScreen;
@@ -24,9 +26,9 @@ use game_engine_ui_model::inworld_unit_frames_component::{
 };
 use godot::{
     classes::{
-        AtlasTexture, Camera3D, CanvasLayer, Control, Image, ImageTexture, Label,
-        PhysicsRayQueryParameters3D, TextureRect, control::MouseFilter, texture_rect::ExpandMode,
-        texture_rect::StretchMode,
+        AtlasTexture, Camera3D, CanvasLayer, ColorRect, Control, Image, ImageTexture, Label,
+        PhysicsRayQueryParameters3D, TextureRect, control::MouseFilter,
+        text_server::OverrunBehavior, texture_rect::ExpandMode, texture_rect::StretchMode,
     },
     prelude::*,
 };
@@ -41,6 +43,7 @@ use ui_toolkit::atlas::{self, ActiveSkin};
 use crate::{
     GameClient,
     faction_reaction::{FactionTemplateEntry, Reaction, parse_faction_template_csv, reaction},
+    nameplate_auras::{self, PlateAura, aura_icon_rect, plate_auras},
     nameplate_cast_bar::{CastArt, CastNodes, atlas_art, place, skin_art, text_bbcode},
     nameplate_casts::{BarType, Interrupter, PlateCasts},
     replicated::UnitFields,
@@ -52,6 +55,11 @@ const LAYER_NAME: &str = "Nameplates";
 const FACTION_TEMPLATE_CSV: &str = "db2/12.1.0.69933/FactionTemplate.csv";
 /// Retail `HEALTH_BAR_TO_NAME_ABOVE_SPACING` (Blizzard_NamePlateConstants.lua:33).
 const NAME_ABOVE_BAR_SPACING: f32 = 2.0;
+/// The texts inside the Thick bar start and end this far from the body's ends
+/// (data/diagnostics/forever-reference/user-nameplate-reference-2026-10-04.png).
+const TEXT_INSET: f32 = 2.0;
+/// The least space between the name and the health text; a longer name is trimmed.
+const NAME_HEALTH_GAP: f32 = 6.0;
 /// Bevy `NAMEPLATE_SCALE`: the skins are unscaled reference-screenshot pixels.
 const NAMEPLATE_SCALE: f32 = 0.5;
 /// Bevy `BAR_Y_OFFSET` (health_bar.rs): the health body centre above the unit origin, in
@@ -72,6 +80,8 @@ const LEVEL_INDICATOR_WIDTH: f32 = 28.0;
 const LARGE_LEVEL_INDICATOR_HEIGHT: f32 = 23.0;
 const SMALL_LEVEL_INDICATOR_HEIGHT: f32 = 16.0;
 const LEVEL_FONT_HEIGHT: i32 = 10;
+/// Outline of the plate's texts, in pixels.
+const TEXT_OUTLINE: i32 = 2;
 /// Physics layers that hide a unit from the camera.
 const OCCLUDER_MASK: u32 = TERRAIN_LAYER | WMO_LAYER;
 
@@ -82,19 +92,36 @@ struct HealthSkin {
     fill_y: f32,
     frame_margin: Vector2,
     frame_offset: Vector2,
+    /// Transparent columns at the frame bitmap's left and right ends: the drawn border
+    /// starts and ends this far inside the bitmap (health-thick.png: ink in columns
+    /// 4..386 of 396; health-thin.png: 3..387).
+    frame_blank: (f32, f32),
 }
 
 fn health_skin(thick: bool) -> HealthSkin {
-    let (fill_inset, fill_y, margin, offset) = if thick {
-        (2.0, 0.0, Vector2::new(20.0, 8.0), Vector2::new(2.0, -1.0))
+    let (fill_inset, fill_y, margin, offset, blank) = if thick {
+        (
+            2.0,
+            0.0,
+            Vector2::new(20.0, 8.0),
+            Vector2::new(2.0, -1.0),
+            (4.0, 10.0),
+        )
     } else {
-        (1.0, 0.5, Vector2::new(20.0, 10.0), Vector2::new(2.0, 0.0))
+        (
+            1.0,
+            0.5,
+            Vector2::new(20.0, 10.0),
+            Vector2::new(2.0, 0.0),
+            (3.0, 9.0),
+        )
     };
     HealthSkin {
         fill_inset: fill_inset * NAMEPLATE_SCALE,
         fill_y: fill_y * NAMEPLATE_SCALE,
         frame_margin: margin * NAMEPLATE_SCALE,
         frame_offset: offset * NAMEPLATE_SCALE,
+        frame_blank: (blank.0 * NAMEPLATE_SCALE, blank.1 * NAMEPLATE_SCALE),
     }
 }
 
@@ -110,13 +137,33 @@ fn thick_preset(style: &NameplateStyle) -> bool {
 struct PlateLayout {
     frame: Rect2,
     fill: Rect2,
-    /// Bottom centre of the name label.
-    name_bottom: Vector2,
+    text: PlateText,
+    /// The y of the plate's highest part (the frame, the body without one, or the name
+    /// above it), which the aura icons stand over.
+    top: f32,
+    /// The health row's visible left and right edge: the frame's drawn border (the body
+    /// without one), and on the right the level frame's end under a skin with one. The
+    /// cast row sits on the same span.
+    span: (f32, f32),
+}
+
+/// Where a plate's texts sit, relative to the anchor.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum PlateText {
+    /// Thick bar (the user's reference): the name's left middle and the health text's
+    /// right middle, both inside the body.
+    Inside {
+        name_left: Vector2,
+        health_right: Vector2,
+    },
+    /// Thin bar, lower than a text line: the name's bottom centre above the plate
+    /// (Retail `CenteredAboveHealthBar`), and no health text.
+    Above { name_bottom: Vector2 },
 }
 
 /// `level_width` is what the skin's level frame takes off the health bars' right end
 /// (`HealthBarsContainer` BOTTOMRIGHT `xOffset = -levelFrameWidth`,
-/// Blizzard_NamePlateUnitFrame.lua:701-707); the name stays centred on the whole plate.
+/// Blizzard_NamePlateUnitFrame.lua:701-707); a name above stays centred on the whole plate.
 fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> PlateLayout {
     let skin = health_skin(thick_preset(style));
     let body = Vector2::new(style.health_width - level_width, style.health_height);
@@ -129,16 +176,64 @@ fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> Plat
         center + Vector2::new(-body.x / 2.0, skin.fill_y - fill_size.y / 2.0),
         fill_size,
     );
-    let top = if style.show_border {
-        frame_size.y / 2.0 - skin.frame_offset.y
+    let plate_top = if style.show_border {
+        frame.position.y
     } else {
-        body.y / 2.0
+        -body.y / 2.0
+    };
+    let (text, top) = if thick_preset(style) {
+        let left = center.x - body.x / 2.0;
+        let text = PlateText::Inside {
+            name_left: Vector2::new(left + TEXT_INSET, 0.0),
+            health_right: Vector2::new(left + body.x - TEXT_INSET, 0.0),
+        };
+        (text, plate_top)
+    } else {
+        let name_bottom = Vector2::new(0.0, plate_top - NAME_ABOVE_BAR_SPACING);
+        // Bevy `name_clearance`: the name line is as high as its font size.
+        (
+            PlateText::Above { name_bottom },
+            name_bottom.y - style.name_font_size,
+        )
+    };
+    let (left, right) = if style.show_border {
+        (
+            frame.position.x + skin.frame_blank.0,
+            frame.end().x - skin.frame_blank.1,
+        )
+    } else {
+        (center.x - body.x / 2.0, center.x + body.x / 2.0)
+    };
+    let right = if level_width > 0.0 {
+        style.health_width / 2.0
+    } else {
+        right
     };
     PlateLayout {
         frame,
         fill,
-        name_bottom: Vector2::new(0.0, -(top + NAME_ABOVE_BAR_SPACING)),
+        text,
+        top,
+        span: (left, right),
     }
+}
+
+/// The text at the bar's right: the percent of `UnitHealthMax` ("100%"), after
+/// `AbbreviateLargeNumbers(UnitHealth)` when the style shows the value (the reference's
+/// "425 K  100%").
+fn health_text(health: &Health, show_value: bool) -> String {
+    let (current, max) = (health.current.round() as i64, health.max.round() as i64);
+    let percent = percent(current, max);
+    if show_value {
+        format!("{}  {percent}%", abbreviate_large_numbers(current))
+    } else {
+        format!("{percent}%")
+    }
+}
+
+/// The name's width on the Thick bar: its own, or what the health text leaves it.
+fn name_width_inside(name: f32, health: f32, name_left: f32, health_right: f32) -> f32 {
+    name.min((health_right - health - NAME_HEALTH_GAP - name_left).max(0.0))
 }
 
 /// The atlases of the level frame a skin hangs on its plates.
@@ -412,11 +507,20 @@ struct PlateNodes {
     frame: Gd<TextureRect>,
     fill: Gd<TextureRect>,
     name: Gd<Label>,
+    health: Gd<Label>,
     raid_icon: Gd<TextureRect>,
     classification: Gd<TextureRect>,
     /// Present under a skin with a level frame.
     level: Option<LevelNodes>,
     cast: CastNodes,
+    /// Aura icon slots, grown to the most auras the plate has shown.
+    auras: Vec<AuraNodes>,
+}
+
+struct AuraNodes {
+    border: Gd<ColorRect>,
+    icon: Gd<TextureRect>,
+    timer: Gd<Label>,
 }
 
 /// One unit's plate this frame, also reported to automation.
@@ -427,6 +531,8 @@ struct PlateView {
     occluded: bool,
     anchor: Vector2,
     fraction: f32,
+    /// `health_text` of the unit's health; empty without one.
+    health_text: String,
     color: Color,
     name_color: Color,
     /// `GetRaidTargetIndex(unit)`.
@@ -437,6 +543,9 @@ struct PlateView {
     level: Option<u8>,
     /// The local player's target.
     targeted: bool,
+    /// The player can attack the unit: its plate shows the player's debuffs.
+    enemy: bool,
+    auras: Vec<PlateAura>,
 }
 
 pub(crate) struct Nameplates {
@@ -531,9 +640,7 @@ impl Nameplates {
             for (_, plate) in self.plates.drain() {
                 plate.root.free();
             }
-            self.cast_art = Some(CastArt::load(data_root, skin, |bytes| {
-                png_texture(bytes, false)
-            })?);
+            self.cast_art = Some(CastArt::load(data_root, skin)?);
             self.level_art = level_frame_atlases(skin)
                 .map(|atlases| LevelArt::load(atlases, skin, data_root))
                 .transpose()?;
@@ -584,7 +691,21 @@ impl Nameplates {
                 Some(&fdid) => cast_art.icon(fdid, &textures)?,
                 None => None,
             };
-            plate.cast.apply(bar, icon.as_ref(), style, cast_art);
+            let layout = plate_layout(style, view.fraction, level_width);
+            plate
+                .cast
+                .apply(bar, icon.as_ref(), (style, layout.span), cast_art);
+            // Bevy: aura icons show with the health bars.
+            let auras = if show_health_bars {
+                view.auras.as_slice()
+            } else {
+                &[]
+            };
+            let aura_icons = auras
+                .iter()
+                .map(|aura| cast_art.icon(aura.icon_fdid, &textures))
+                .collect::<Result<Vec<_>, _>>()?;
+            apply_auras(plate, auras, &aura_icons, style, layout.top, &art.font);
         }
         self.views = views;
         Ok(())
@@ -693,17 +814,25 @@ fn spawn_plate(
     let frame = texture_rect();
     let raid_icon = texture_rect();
     let classification = texture_rect();
-    let mut name = Label::new_alloc();
-    ignore_mouse(&mut name);
-    name.add_theme_font_override("font", &art.font);
-    name.add_theme_color_override("font_color", Color::WHITE);
-    name.add_theme_color_override("font_shadow_color", Color::BLACK);
-    name.add_theme_constant_override("shadow_offset_x", 1);
-    name.add_theme_constant_override("shadow_offset_y", 1);
+    // White Friz with a black outline, as the reference's texts.
+    let label = || {
+        let mut label = Label::new_alloc();
+        ignore_mouse(&mut label);
+        label.add_theme_font_override("font", &art.font);
+        label.add_theme_color_override("font_color", Color::WHITE);
+        label.add_theme_color_override("font_outline_color", Color::BLACK);
+        label.add_theme_constant_override("outline_size", TEXT_OUTLINE);
+        label
+    };
+    let mut name = label();
+    // A name longer than its room on the bar ends in an ellipsis.
+    name.set_text_overrun_behavior(OverrunBehavior::TRIM_ELLIPSIS);
+    let health = label();
     // Fill under the frame, whose interior is transparent.
     root.add_child(&fill);
     root.add_child(&frame);
     root.add_child(&name);
+    root.add_child(&health);
     root.add_child(&raid_icon);
     root.add_child(&classification);
     let level = level_art.map(|level_art| spawn_level(&mut root, level_art, &art.font));
@@ -714,10 +843,83 @@ fn spawn_plate(
         frame,
         fill,
         name,
+        health,
         raid_icon,
         classification,
         level,
         cast,
+        auras: Vec::new(),
+    }
+}
+
+/// Bevy `spawn_slot`: a black border square under the icon and its countdown, white 9px
+/// Friz with a black shadow, on the icon's centre.
+fn spawn_aura(root: &mut Gd<Control>, font: &Gd<godot::classes::FontFile>) -> AuraNodes {
+    let mut border = ColorRect::new_alloc();
+    border.set_color(Color::from_rgba(0.0, 0.0, 0.0, 0.9));
+    ignore_mouse(&mut border);
+    let mut icon = TextureRect::new_alloc();
+    icon.set_expand_mode(ExpandMode::IGNORE_SIZE);
+    icon.set_stretch_mode(StretchMode::SCALE);
+    ignore_mouse(&mut icon);
+    let mut timer = Label::new_alloc();
+    ignore_mouse(&mut timer);
+    timer.add_theme_font_override("font", font);
+    timer.add_theme_font_size_override("font_size", nameplate_auras::TIMER_FONT_SIZE);
+    timer.add_theme_color_override("font_color", Color::WHITE);
+    timer.add_theme_color_override("font_shadow_color", Color::BLACK);
+    timer.add_theme_constant_override("shadow_offset_x", 1);
+    timer.add_theme_constant_override("shadow_offset_y", 1);
+    root.add_child(&border);
+    root.add_child(&icon);
+    root.add_child(&timer);
+    AuraNodes {
+        border,
+        icon,
+        timer,
+    }
+}
+
+/// One slot per aura in `auras`, the rest hidden.
+fn apply_auras(
+    plate: &mut PlateNodes,
+    auras: &[PlateAura],
+    icons: &[Option<Gd<godot::classes::Texture2D>>],
+    style: &NameplateStyle,
+    top: f32,
+    font: &Gd<godot::classes::FontFile>,
+) {
+    while plate.auras.len() < auras.len() {
+        let nodes = spawn_aura(&mut plate.root, font);
+        plate.auras.push(nodes);
+    }
+    for (slot, nodes) in plate.auras.iter_mut().enumerate() {
+        let Some(aura) = auras.get(slot) else {
+            nodes.border.set_visible(false);
+            nodes.icon.set_visible(false);
+            nodes.timer.set_visible(false);
+            continue;
+        };
+        let rect = aura_icon_rect(style, slot, top);
+        let border = Vector2::splat(nameplate_auras::BORDER);
+        nodes.border.set_position(rect.position - border);
+        nodes.border.set_size(rect.size + border * 2.0);
+        nodes.border.set_visible(true);
+        place(&mut nodes.icon, rect);
+        if let Some(Some(texture)) = icons.get(slot) {
+            nodes.icon.set_texture(texture);
+        }
+        nodes
+            .icon
+            .set_visible(matches!(icons.get(slot), Some(Some(_))));
+        if nodes.timer.get_text().to_string() != aura.timer {
+            nodes.timer.set_text(&aura.timer);
+        }
+        nodes.timer.reset_size();
+        let size = nodes.timer.get_minimum_size();
+        nodes.timer.set_size(size);
+        nodes.timer.set_position(rect.center() - size / 2.0);
+        nodes.timer.set_visible(true);
     }
 }
 
@@ -801,23 +1003,58 @@ fn apply_plate(
     plate.fill.set_self_modulate(view.color);
     plate.fill.set_position(layout.fill.position);
     plate.fill.set_size(layout.fill.size);
-    if plate.name.get_text().to_string() != view.name {
-        plate.name.set_text(&view.name);
+    let font_size = style.name_font_size.round() as i32;
+    let text_size = |text: &str| {
+        art.font
+            .get_string_size_ex(text)
+            .font_size(font_size)
+            .done()
+    };
+    for (label, text) in [
+        (&mut plate.name, &view.name),
+        (&mut plate.health, &view.health_text),
+    ] {
+        if label.get_text().to_string() != *text {
+            label.set_text(text);
+        }
+        label.add_theme_font_size_override("font_size", font_size);
     }
     plate
         .name
         .add_theme_color_override("font_color", view.name_color);
-    plate
-        .name
-        .add_theme_font_size_override("font_size", style.name_font_size.round() as i32);
-    plate.name.reset_size();
-    let size = plate.name.get_minimum_size();
-    plate.name.set_size(size);
-    plate.name.set_position(if show_health_bars {
-        layout.name_bottom - Vector2::new(size.x / 2.0, size.y)
-    } else {
-        -size / 2.0
-    });
+    let name = text_size(&view.name);
+    let inside = match layout.text {
+        PlateText::Inside {
+            name_left,
+            health_right,
+        } if show_health_bars => {
+            let health = text_size(&view.health_text);
+            plate.health.set_size(health);
+            plate
+                .health
+                .set_position(health_right - Vector2::new(health.x, health.y / 2.0));
+            let width = name_width_inside(name.x, health.x, name_left.x, health_right.x);
+            plate.name.set_size(Vector2::new(width, name.y));
+            plate
+                .name
+                .set_position(name_left - Vector2::new(0.0, name.y / 2.0));
+            true
+        }
+        PlateText::Above { name_bottom } if show_health_bars => {
+            plate.name.set_size(name);
+            plate
+                .name
+                .set_position(name_bottom - Vector2::new(name.x / 2.0, name.y));
+            false
+        }
+        // Name-only plate: the name on the anchor.
+        _ => {
+            plate.name.set_size(name);
+            plate.name.set_position(-name / 2.0);
+            false
+        }
+    };
+    plate.health.set_visible(inside);
 }
 
 fn unit_name(unit: ReplicatedUnit) -> String {
@@ -892,7 +1129,7 @@ fn plate_rule_input(
     viewer: &Viewer,
     unit: ReplicatedUnit,
     template: Option<&FactionTemplateEntry>,
-    node: &Gd<Node3D>,
+    distance: f32,
 ) -> PlateUnit {
     let flags = UnitFlags(unit.unit_flags().unwrap_or_default());
     let is_player = unit.has::<Player>();
@@ -919,7 +1156,7 @@ fn plate_rule_input(
             unit.threat_list(),
             viewer.id,
         ),
-        distance: node.get_global_position().distance_to(viewer.position),
+        distance,
     }
 }
 
@@ -948,12 +1185,15 @@ fn project_plate(
         occluded: is_occluded,
         anchor: camera.unproject_position(top),
         fraction: health_fraction(unit),
+        health_text: String::new(),
         color,
         name_color,
         raid_target: None,
         classification: None,
         level: unit.get::<UnitLevel>().map(|level| level.0),
         targeted: selected,
+        enemy: false,
+        auras: Vec::new(),
     })
 }
 
@@ -970,7 +1210,13 @@ impl GameClient {
             self.nameplates.clear();
             return Ok(());
         };
-        let views = self.nameplate_views(&camera)?;
+        let mut views = self.nameplate_views(&camera)?;
+        for (id, view) in &mut views {
+            view.auras = plate_auras(&self.unit_auras(*id), view.enemy);
+            for aura in &mut view.auras {
+                aura.icon_fdid = self.drawable_fdid(aura.icon_fdid);
+            }
+        }
         for id in views.keys() {
             let cast = self
                 .replica
@@ -1043,7 +1289,8 @@ impl GameClient {
             .filter_map(|unit| {
                 let node = self.world.unit_node(unit.server_id)?;
                 let template = unit.faction_template().and_then(|id| templates.get(&id));
-                let rules = plate_rule_input(&viewer, unit, template, &node);
+                let distance = node.get_global_position().distance_to(viewer.position);
+                let rules = plate_rule_input(&viewer, unit, template, distance);
                 if !node.is_visible_in_tree() || !plate_shown(&cvars, &rules) {
                     return None;
                 }
@@ -1066,6 +1313,12 @@ impl GameClient {
                     fade_far,
                     rules.targeted,
                 )?;
+                view.health_text = unit
+                    .get::<Health>()
+                    .filter(|health| health.max > 0.0)
+                    .map(|health| health_text(health, style.show_health_value))
+                    .unwrap_or_default();
+                view.enemy = rules.enemy;
                 view.raid_target = self.account.raid_targets.icon_of(unit.server_id);
                 view.classification = classification_atlas(
                     unit_classification(unit),
@@ -1093,7 +1346,8 @@ impl GameClient {
             return Ok(state);
         };
         let template = unit.faction_template().and_then(|id| templates.get(&id));
-        let rules = plate_rule_input(&viewer, unit, template, &node);
+        let distance = node.get_global_position().distance_to(viewer.position);
+        let rules = plate_rule_input(&viewer, unit, template, distance);
         state.set("enemy", rules.enemy);
         state.set("selectable", rules.selectable);
         state.set("alive", rules.alive);
@@ -1122,6 +1376,7 @@ impl GameClient {
             entry.set("occluded", view.occluded);
             entry.set("anchor", view.anchor);
             entry.set("fraction", view.fraction);
+            entry.set("health_text", view.health_text.as_str());
             entry.set("color", view.color);
             if let Some(index) = view.raid_target {
                 entry.set("raid_target", i64::from(index));
@@ -1129,6 +1384,9 @@ impl GameClient {
             if let Some(plate) = self.nameplates.plates.get(id) {
                 entry.set("frame_rect", plate.frame.get_global_rect());
                 entry.set("name_rect", plate.name.get_global_rect());
+                if plate.health.is_visible() {
+                    entry.set("health_rect", plate.health.get_global_rect());
+                }
                 if plate.raid_icon.is_visible() {
                     entry.set("raid_icon_rect", plate.raid_icon.get_global_rect());
                 }
@@ -1146,6 +1404,17 @@ impl GameClient {
             if let Some(bar) = self.nameplates.casts.get(*id) {
                 entry.set("cast", &cast_snapshot(bar, self.nameplates.plates.get(id)));
             }
+            let auras: VarArray = view
+                .auras
+                .iter()
+                .map(|aura| {
+                    let mut entry = VarDictionary::new();
+                    entry.set("icon_fdid", i64::from(aura.icon_fdid));
+                    entry.set("timer", aura.timer.as_str());
+                    entry.to_variant()
+                })
+                .collect();
+            entry.set("auras", &auras);
             plates.set(*id as i64, &entry);
         }
         plates
@@ -1215,6 +1484,75 @@ mod skin_tests;
 #[cfg(test)]
 mod tests {
     use super::*;
+    use shared::components::{CombatStatus, Npc, UnitFactionTemplate, UnitThreatList};
+
+    const SHOT: u64 = 30;
+    const GUARD: u64 = 41;
+    const KOBOLD: u64 = 42;
+    /// FactionTemplate.csv (build 12.1.0.69933) rows 1 (Human player), 11 (Stormwind
+    /// guard, Faction 72) and 26 (Kobold Vermin's creature_template faction 25).
+    const TEMPLATES: &str = "\
+ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies_2,Enemies_3,Enemies_4,Enemies_5,Enemies_6,Enemies_7,Friend_0,Friend_1,Friend_2,Friend_3,Friend_4,Friend_5,Friend_6,Friend_7
+1,1,72,3,2,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+11,72,2081,3,2,12,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
+26,25,1,8,0,1,0,0,0,0,0,0,0,0,25,0,0,0,0,0,0,0
+";
+
+    fn npc(replica: &mut Replica, id: u64, name: &str, template: u32) {
+        replica.insert(
+            id,
+            Npc {
+                template_id: 6,
+                name: name.into(),
+            },
+        );
+        replica.insert(id, UnitFactionTemplate(template));
+        replica.insert(
+            id,
+            Health {
+                current: 55.0,
+                max: 55.0,
+            },
+        );
+    }
+
+    /// Whether unit `id`, 10 yd away, has a plate under the Retail default CVars while
+    /// the Human player targets `target`.
+    fn shown(replica: &Replica, id: u64, target: Option<u64>) -> bool {
+        let templates = parse_faction_template_csv(TEMPLATES).unwrap();
+        let viewer = Viewer {
+            id: SHOT,
+            target,
+            position: Vector3::ZERO,
+            template: templates.get(&1),
+        };
+        let unit = replica.unit(id).unwrap();
+        let template = unit.faction_template().and_then(|id| templates.get(&id));
+        let rules = plate_rule_input(&viewer, unit, template, 10.0);
+        plate_shown(&NameplateCvars::default(), &rules)
+    }
+
+    /// `nameplateShowFriendlyNpcs = 0` (cvars.yaml:1004): the targeted Stormwind guard has
+    /// no plate, as the Stormwind Army Registrar in shot3-2026-10-03/forever-target.webp.
+    #[test]
+    fn a_targeted_friendly_npc_has_no_plate_under_the_default_cvars() {
+        let mut replica = Replica::for_tests();
+        npc(&mut replica, GUARD, "Stormwind Guard", 11);
+        assert!(!shown(&replica, GUARD, Some(GUARD)));
+    }
+
+    /// `nameplateShowEnemies = 1`, `nameplateShowAll = 0`: a Kobold Vermin has a plate
+    /// while it is the target or has the player on its threat list, and none otherwise.
+    #[test]
+    fn a_hostile_npc_has_a_plate_while_targeted_or_fighting_the_player() {
+        let mut replica = Replica::for_tests();
+        npc(&mut replica, KOBOLD, "Kobold Vermin", 26);
+        assert!(!shown(&replica, KOBOLD, None));
+        assert!(shown(&replica, KOBOLD, Some(KOBOLD)));
+        replica.insert(KOBOLD, CombatStatus(true));
+        replica.insert(KOBOLD, UnitThreatList(vec![SHOT]));
+        assert!(shown(&replica, KOBOLD, None));
+    }
 
     #[test]
     fn colorblind_mode_changes_player_and_npc_labels_but_not_health_fill() {
@@ -1234,7 +1572,7 @@ mod tests {
     }
 
     #[test]
-    fn thick_plate_centres_its_body_on_the_anchor_with_the_name_two_pixels_above_the_frame() {
+    fn thick_plate_centres_its_body_on_the_anchor_with_the_texts_inside_its_ends() {
         let style = NameplateStyle::default();
         let layout = plate_layout(&style, 1.0, 0.0);
         // 188x20 body; the Thick frame adds 10x4 and sits 1px right, 0.5px up.
@@ -1242,7 +1580,87 @@ mod tests {
         assert_eq!(layout.frame.position, Vector2::new(-98.0, -12.5));
         assert_eq!(layout.fill.size, Vector2::new(188.0, 19.0));
         assert_eq!(layout.fill.position, Vector2::new(-94.0, -9.5));
-        assert_eq!(layout.name_bottom, Vector2::new(0.0, -14.5));
+        // The reference: the name 2px inside the body's left end, the health text 2px
+        // inside its right end, both on the bar's middle line.
+        assert_eq!(
+            layout.text,
+            PlateText::Inside {
+                name_left: Vector2::new(-92.0, 0.0),
+                health_right: Vector2::new(92.0, 0.0),
+            }
+        );
+    }
+
+    /// The health and cast rows form one block: the cast track and its icon start on the
+    /// health frame's drawn left edge and the track ends on the plate's right edge (the
+    /// frame's drawn right edge, or the level frame's end under Forever), for the Thick
+    /// and Thin presets, with and without the border.
+    #[test]
+    fn cast_row_is_flush_with_the_health_row_at_both_ends() {
+        use crate::nameplate_cast_bar::cast_layout;
+        use game_engine_core::nameplate_style_data::NameplateBarThickness::{Thick, Thin};
+        for (health, cast) in [(Thick, Thick), (Thin, Thin), (Thick, Thin), (Thin, Thick)] {
+            for show_border in [true, false] {
+                let style = NameplateStyle {
+                    show_border,
+                    ..NameplateStyle::from_presets(health, cast)
+                };
+                for level_width in [0.0, LEVEL_INDICATOR_WIDTH] {
+                    let case =
+                        format!("{health:?}/{cast:?} border {show_border} level {level_width}");
+                    let plate = plate_layout(&style, 1.0, level_width);
+                    let row = cast_layout(&style, 1.0, plate.span);
+                    assert_eq!(row.background.position.x, plate.span.0, "{case}");
+                    assert_eq!(row.background.end().x, plate.span.1, "{case}");
+                    assert_eq!(row.icon.position.x, plate.span.0, "{case}");
+                    // The left edge is the frame's border, drawn inside its bitmap and
+                    // outside the fill; borderless, the fill's own edge.
+                    assert!(plate.span.0 >= plate.frame.position.x, "{case}");
+                    assert!(plate.span.0 <= plate.fill.position.x, "{case}");
+                    if !show_border {
+                        assert_eq!(plate.span.0, plate.fill.position.x, "{case}");
+                    }
+                    if level_width > 0.0 {
+                        let level = level_layout(&style).frame;
+                        assert_eq!(plate.span.1, level.end().x, "{case}");
+                    } else {
+                        assert!(plate.span.1 <= plate.frame.end().x, "{case}");
+                        assert!(plate.span.1 >= plate.fill.end().x, "{case}");
+                    }
+                }
+            }
+        }
+    }
+
+    /// By default the plate's health text is the percent alone, which Retail rounds up
+    /// (`math.ceil`).
+    #[test]
+    fn health_text_is_the_percent_alone_by_default() {
+        let show_value = NameplateStyle::default().show_health_value;
+        let text = |current, max| health_text(&Health { current, max }, show_value);
+        assert_eq!(text(425_000.0, 425_000.0), "100%");
+        assert_eq!(text(324_275.0, 425_000.0), "77%");
+        assert_eq!(text(42.0, 55.0), "77%");
+    }
+
+    /// With the style's health value on, the reference's "425 K  100%":
+    /// `AbbreviateLargeNumbers` then the percent.
+    #[test]
+    fn health_text_leads_with_the_abbreviated_value_when_the_style_shows_it() {
+        let text = |current, max| health_text(&Health { current, max }, true);
+        assert_eq!(text(425_000.0, 425_000.0), "425 K  100%");
+        assert_eq!(text(42.0, 55.0), "42  77%");
+        assert_eq!(text(12_345.0, 20_000.0), "12,345  62%");
+        assert_eq!(text(3_500_000_000.0, 4_000_000_000.0), "3500 M  88%");
+    }
+
+    /// On the 188px bar the texts span -92..92: "Stormwind Army Registrar" (150px wide)
+    /// next to a 70px health text keeps 184 - 70 - 6 = 108px; "Kobold Vermin" (80px)
+    /// keeps its own width.
+    #[test]
+    fn a_long_name_is_trimmed_to_leave_the_health_text_its_room() {
+        assert_eq!(name_width_inside(150.0, 70.0, -92.0, 92.0), 108.0);
+        assert_eq!(name_width_inside(80.0, 70.0, -92.0, 92.0), 80.0);
     }
 
     #[test]
@@ -1264,7 +1682,18 @@ mod tests {
         let layout = plate_layout(&style, 1.0, 0.0);
         assert!(!thick_preset(&style));
         // 10px body centred on the anchor, name 2px above its top.
-        assert_eq!(layout.name_bottom.y, -7.0);
+        assert_eq!(
+            layout.text,
+            PlateText::Above {
+                name_bottom: Vector2::new(0.0, -7.0)
+            }
+        );
+        // The aura icons clear the 13px name line; on the Thick plate, the frame's top.
+        assert_eq!(layout.top, -20.0);
+        assert_eq!(
+            plate_layout(&NameplateStyle::default(), 1.0, 0.0).top,
+            -12.5
+        );
     }
 
     /// Retail `RaidTargetFrame` (22×22) hangs RIGHT on the health bars' LEFT: the

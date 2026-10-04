@@ -132,7 +132,7 @@ impl TextStatusBar {
 }
 
 /// `math.ceil((value / valueMax) * 100)` in the same double arithmetic, so 7 / 100 is 8.
-fn percent(value: i64, max: i64) -> i64 {
+pub fn percent(value: i64, max: i64) -> i64 {
     ((value as f64 / max as f64) * 100.0).ceil() as i64
 }
 

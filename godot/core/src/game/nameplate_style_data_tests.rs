@@ -4,13 +4,13 @@ use NameplateBarThickness::{Thick, Thin};
 #[test]
 fn presets_keep_independent_heights_and_choose_nearest_at_midpoint() {
     let mut style = NameplateStyle::default();
-    assert_eq!((style.health_height, style.cast_height), (20.0, 6.0));
-    assert_eq!((style.health_preset(), style.cast_preset()), (Thick, Thin));
+    assert_eq!((style.health_height, style.cast_height), (20.0, 15.0));
+    assert_eq!((style.health_preset(), style.cast_preset()), (Thick, Thick));
     assert_eq!(
         NameplateStyle::from_presets(Thin, Thick).health_height,
         10.0
     );
-    assert_eq!(NameplateStyle::from_presets(Thin, Thick).cast_height, 10.0);
+    assert_eq!(NameplateStyle::from_presets(Thin, Thick).cast_height, 15.0);
     style.health_width = 150.0;
     style.apply_health_preset(Thin);
     assert_eq!((style.health_width, style.health_height), (150.0, 10.0));
@@ -18,9 +18,9 @@ fn presets_keep_independent_heights_and_choose_nearest_at_midpoint() {
     assert_eq!(style.health_preset(), Thin);
     style.health_height = 15.0;
     assert_eq!(style.health_preset(), Thick);
-    style.cast_height = 7.0;
+    style.cast_height = 10.0;
     assert_eq!(style.cast_preset(), Thin);
-    style.cast_height = 8.0;
+    style.cast_height = 11.0;
     assert_eq!(style.cast_preset(), Thick);
     assert_eq!(Thin.toggled(), Thick);
     assert_eq!(Thick.toggled(), Thin);

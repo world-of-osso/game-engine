@@ -1,8 +1,9 @@
-//! Nameplate cast bar nodes: the Bevy client's reference cast frame and Retail's
-//! `ui-castingbar-background`/`-filling-standard` atlases under the health bar
-//! (docs/specs/nameplate-style.md), drawn from the active skin's sheet, with Retail's `NamePlateCastingBarTemplate` spark pip, interrupt shield, spell icon and
-//! spell name row (`ApplyStyleAndAnchoring`, non-classic, name below the bar), driven by
-//! `nameplate_casts::CastBar`.
+//! Nameplate cast bar nodes: Retail's `ui-castingbar-background`/`-filling-standard`
+//! atlases under the health bar (docs/specs/nameplate-style.md), drawn from the active
+//! skin's sheet, with Retail's `NamePlateCastingBarTemplate` spark pip, interrupt shield,
+//! spell icon and spell name row, driven by `nameplate_casts::CastBar`. The Thick bar
+//! follows the user's reference of 2026-10-04: as wide as the health frame, the icon at
+//! its left end and the name inside.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -79,21 +80,10 @@ pub(crate) fn cast_crops(skin: ActiveSkin) -> Result<CastCrops, String> {
     })
 }
 
-/// Reference cast frame bitmap extent past the cast body and its offset (raw pixels),
-/// Bevy `cast_frame_margin`.
-fn frame_margin(preset: NameplateBarThickness) -> (Vector2, Vector2) {
-    let (offset, margin) = match preset {
-        NameplateBarThickness::Thick => (Vector2::new(1.0, -1.5), Vector2::new(58.0, 9.0)),
-        NameplateBarThickness::Thin => (Vector2::new(2.0, 0.0), Vector2::new(56.0, 10.0)),
-    };
-    (offset * NAMEPLATE_SCALE, margin * NAMEPLATE_SCALE)
-}
-
 /// Cast bar part rectangles relative to the plate anchor (the health body's centre),
 /// y down.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub(crate) struct CastLayout {
-    pub frame: Rect2,
     pub background: Rect2,
     pub fill: Rect2,
     pub spark: Rect2,
@@ -103,15 +93,20 @@ pub(crate) struct CastLayout {
     pub text_left: Vector2,
 }
 
-pub(crate) fn cast_layout(style: &NameplateStyle, fraction: f32) -> CastLayout {
-    let body = Vector2::new(style.cast_width, style.cast_height);
+/// `plate` is the left and right edge of the health row (`PlateLayout::span`): the cast
+/// row, icon included, sits on the same span, wider or narrower by what the style's cast
+/// width differs from its health width (nothing by default).
+pub(crate) fn cast_layout(style: &NameplateStyle, fraction: f32, plate: (f32, f32)) -> CastLayout {
+    let (left, right) = plate;
+    let body = Vector2::new(
+        right - left + style.cast_width - style.health_width,
+        style.cast_height,
+    );
     let center = Vector2::new(
-        0.0,
+        (left + right) / 2.0,
         style.health_height / 2.0 + HEALTH_CAST_GAP + body.y / 2.0,
     );
     let left = center.x - body.x / 2.0;
-    let (offset, margin) = frame_margin(style.cast_preset());
-    let frame_size = body + margin;
     let background = Rect2::new(center - body / 2.0, body);
     let fill = Rect2::new(background.position, Vector2::new(body.x * fraction, body.y));
     let spark_size = Vector2::new(SPARK_WIDTH, body.y + SPARK_EXTRA_HEIGHT);
@@ -133,7 +128,6 @@ pub(crate) fn cast_layout(style: &NameplateStyle, fraction: f32) -> CastLayout {
         SHIELD_SIZE,
     );
     CastLayout {
-        frame: Rect2::new(center + offset - frame_size / 2.0, frame_size),
         background,
         fill,
         spark,
@@ -145,8 +139,6 @@ pub(crate) fn cast_layout(style: &NameplateStyle, fraction: f32) -> CastLayout {
 
 /// Cast bar artwork shared by every plate.
 pub(crate) struct CastArt {
-    thick_frame: Gd<ImageTexture>,
-    thin_frame: Gd<ImageTexture>,
     background: Gd<AtlasTexture>,
     /// The fill's sheet desaturated, so the style's cast colour tints its fill crop.
     fill_sheet: Gd<ImageTexture>,
@@ -200,12 +192,8 @@ fn pixel_rect(art: &AtlasArt, texture: &Gd<ImageTexture>) -> Rect2 {
 }
 
 impl CastArt {
-    /// The art under atlas skin `active`; `skin` decodes a reference frame bitmap.
-    pub fn load(
-        data_root: &Path,
-        active: ActiveSkin,
-        skin: impl Fn(&[u8]) -> Result<Gd<ImageTexture>, String>,
-    ) -> Result<Self, String> {
+    /// The art under atlas skin `active`.
+    pub fn load(data_root: &Path, active: ActiveSkin) -> Result<Self, String> {
         let crops = cast_crops(active)?;
         ensure_texture(data_root, crops.fill.fdid)?;
         let textures = data_root.join("textures");
@@ -221,10 +209,6 @@ impl CastArt {
         let fill_sheet = texture_from_rgba(&pixels, width, height)?;
         let atlases = read_atlas_art(data_root, &[PIP_RED])?;
         Ok(Self {
-            thick_frame: skin(include_bytes!(
-                "rendering/ui/nameplate_skins/cast-thick.png"
-            ))?,
-            thin_frame: skin(include_bytes!("rendering/ui/nameplate_skins/cast-thin.png"))?,
             background: atlas_art(&crops.background, data_root)?,
             fill_rect: pixel_rect(&crops.fill, &fill_sheet),
             fill_sheet,
@@ -254,7 +238,6 @@ impl CastArt {
 /// One plate's cast bar nodes, under the plate root.
 pub(crate) struct CastNodes {
     pub root: Gd<Control>,
-    frame: Gd<TextureRect>,
     background: Gd<TextureRect>,
     fill: Gd<TextureRect>,
     fill_region: Gd<AtlasTexture>,
@@ -283,7 +266,6 @@ impl CastNodes {
         let fill_region = atlas_region(&art.fill_sheet, art.fill_rect);
         let mut fill = texture_rect("Fill");
         fill.set_texture(&fill_region);
-        let frame = texture_rect("Border");
         let spark = texture_rect("Spark");
         let icon = texture_rect("Icon");
         let mut shield = texture_rect("BorderShield");
@@ -297,14 +279,13 @@ impl CastNodes {
         text.set_scroll_active(false);
         text.add_theme_font_override("normal_font", font);
         text.add_theme_color_override("default_color", Color::WHITE);
-        text.add_theme_color_override("font_shadow_color", Color::from_rgba(0.0, 0.0, 0.0, 0.85));
-        text.add_theme_constant_override("shadow_offset_x", 1);
-        text.add_theme_constant_override("shadow_offset_y", 1);
-        // Fill above its background, frame over both, spark and icon row on top.
+        // Outlined like the plate's name (the user's reference of 2026-10-04).
+        text.add_theme_color_override("font_outline_color", Color::BLACK);
+        text.add_theme_constant_override("outline_size", 2);
+        // Fill above its background, spark and icon row on top.
         for node in [
             background.clone().upcast::<Control>(),
             fill.clone().upcast(),
-            frame.clone().upcast(),
             spark.clone().upcast(),
             icon.clone().upcast(),
             shield.clone().upcast(),
@@ -315,7 +296,6 @@ impl CastNodes {
         parent.add_child(&root);
         Self {
             root,
-            frame,
             background,
             fill,
             fill_region,
@@ -326,12 +306,13 @@ impl CastNodes {
         }
     }
 
-    /// Show `bar` (or nothing) under a plate drawn in `style`.
+    /// Show `bar` (or nothing) under a plate drawn in `style` whose health row spans
+    /// `plate`.
     pub fn apply(
         &mut self,
         bar: Option<&CastBar>,
         icon: Option<&Gd<Texture2D>>,
-        style: &NameplateStyle,
+        (style, plate): (&NameplateStyle, (f32, f32)),
         art: &CastArt,
     ) {
         let Some(bar) = bar else {
@@ -342,13 +323,7 @@ impl CastNodes {
         self.root
             .set_modulate(Color::from_rgba(1.0, 1.0, 1.0, bar.alpha()));
         let fraction = bar.fraction();
-        let layout = cast_layout(style, fraction);
-        place(&mut self.frame, layout.frame);
-        self.frame.set_visible(style.show_border);
-        self.frame.set_texture(match style.cast_preset() {
-            NameplateBarThickness::Thick => &art.thick_frame,
-            NameplateBarThickness::Thin => &art.thin_frame,
-        });
+        let layout = cast_layout(style, fraction, plate);
         place(&mut self.background, layout.background);
         place(&mut self.fill, layout.fill);
         self.fill.set_visible(fraction > 0.0);
