@@ -91,11 +91,12 @@ mod tests {
             gate.recv().expect("released");
             vec![2589_u32, 4865]
         });
+        // Taken before the releaser starts its sleep, so the wait below is at least 50 ms.
+        let started = Instant::now();
         let releaser = std::thread::spawn(move || {
             std::thread::sleep(Duration::from_millis(50));
             release.send(()).expect("thread waiting");
         });
-        let started = Instant::now();
         assert_eq!(table.wait(), &vec![2589, 4865]);
         assert!(started.elapsed() >= Duration::from_millis(50));
         releaser.join().expect("releaser");
