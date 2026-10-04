@@ -28,8 +28,6 @@ const FILL_CAST: &str = "1.0,0.7,0.0,1.0";
 const FILL_CHANNEL: &str = "0.0,0.64,0.0,1.0";
 const FILL_UNINTERRUPTIBLE: &str = "0.63,0.63,0.63,1.0";
 const FILL_INTERRUPTED: &str = "1.0,0.0,0.0,1.0";
-/// Retail GlobalStrings `INTERRUPTED`.
-pub const INTERRUPTED_TEXT: &str = "Interrupted";
 const SPARK_COLOR: &str = "1.0,1.0,1.0,0.8";
 /// How a skin draws the player cast bar: bar size, the holder's inset around it, the
 /// holder's background and the fill colours.
@@ -159,6 +157,8 @@ pub struct CastingBarState {
     pub is_channel: bool,
     pub is_interruptible: bool,
     pub is_interrupted: bool,
+    /// `FadeOutAnim` / `HoldFadeOutAnim` on the whole bar.
+    pub alpha: f32,
 }
 
 impl Default for CastingBarState {
@@ -172,19 +172,7 @@ impl Default for CastingBarState {
             is_channel: false,
             is_interruptible: true,
             is_interrupted: false,
-        }
-    }
-}
-
-impl CastingBarState {
-    /// Full red bar with "Interrupted", as Retail `CastingBarFrame` shows it.
-    pub fn interrupted() -> Self {
-        Self {
-            visible: true,
-            spell_name: INTERRUPTED_TEXT.into(),
-            progress: 1.0,
-            is_interrupted: true,
-            ..Self::default()
+            alpha: 1.0,
         }
     }
 }
@@ -269,6 +257,7 @@ fn cast_bar_frame(state: &CastingBarState, style: &CastBarStyle, at: &Placement)
             height: {holder.1},
             background_color: style.holder_background,
             hidden: hide,
+            alpha: {state.alpha},
             pos_type: "absolute",
             left: {at.left.as_str()},
             right: {at.right.as_str()},

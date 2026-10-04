@@ -267,6 +267,21 @@ fn damage_meter_type_menu_and_clickable_death_rows_fit_the_window_at_any_size() 
                 menu.0 >= window.0 - 0.001 && menu.1 <= window.1 + 0.001,
                 "{skin:?} {width}x{height}: type menu {menu:?} outside {window:?}"
             );
+            // Retail menus may hang past their window but stay on screen
+            // (`FlipPositionIfOffscreen`, `SetClampedToScreen`: Menu.lua:1522-1530).
+            let screen = (hud[0].registry.screen_width, hud[0].registry.screen_height);
+            let menus: &[&str] = match skin {
+                ActiveSkin::Modern => &["DamageMeterTypeMenu"],
+                ActiveSkin::Forever => &["DamageMeterTypeMenu", "DamageMeterSessionMenu"],
+            };
+            for name in menus {
+                let (x, y, w, h) = at(&hud, name);
+                assert!(
+                    x >= 0.0 && y >= 0.0 && x + w <= screen.0 && y + h <= screen.1,
+                    "{skin:?} {width}x{height}: {name} {:?} off the {screen:?} screen",
+                    (x, y, w, h)
+                );
+            }
             if skin == ActiveSkin::Forever {
                 assert_inside(&hud, "DamageMeterOtherTypeName", DAMAGE_METER_ROOT.0);
                 let (types, sessions) = (
