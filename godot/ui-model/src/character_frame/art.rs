@@ -168,7 +168,9 @@ pub(super) fn inset_backgrounds(class_id: u8) -> Element {
     children
 }
 
-/// Camelot CharacterFrame.xml:408-454; stats class art starts below the 85px stone cap.
+/// Camelot CharacterFrame.xml:408-454. The stats class art is the `ClassBackground` of
+/// `CharacterStatsPaneScrollBox`, whose top is the stone cap's bottom (20 + 85), at
+/// TOPLEFT (0, 5) of it (:463-475).
 fn forever_pane_backgrounds(class_id: u8) -> Element {
     let mut children = Element::default();
     for (node, name, rect) in [
@@ -200,7 +202,7 @@ fn forever_pane_backgrounds(class_id: u8) -> Element {
         children.extend(atlas(
             "CharacterStatsPaneClassBackground".into(),
             &art,
-            (398.0, 110.0, w, h),
+            (398.0, 20.0 + 85.0 - 5.0, w, h),
             WHITE,
         ));
     }
