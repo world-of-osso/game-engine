@@ -11,7 +11,7 @@ use game_engine_ui_model::game_menu_component::{GameMenuView, game_menu_screen};
 use game_engine_ui_model::input_bindings_data::{BindingSection, InputBindingsData};
 use game_engine_ui_model::options_menu_component::OptionsCategory;
 use game_engine_ui_model::options_menu_data::*;
-use game_engine_ui_model::panel_style_data::{MetalTopLeft, metal_frame_style};
+use game_engine_ui_model::panel_style_data::{MetalGeometry, MetalTopLeft, metal_frame_style};
 use game_engine_ui_model::quest_frame_component::{
     QuestFramePage, QuestFrameState, RewardView, quest_frame_screen,
 };
@@ -54,7 +54,10 @@ fn registry<T: 'static>(state: T, screen: fn(&SharedContext) -> Element) -> Fram
     for corner in [MetalTopLeft::Portrait, MetalTopLeft::Plain] {
         registry.register_panel_style(
             corner.style_name(),
-            metal_frame_style(TextureSource::Dynamic(DynamicTextureId(1))),
+            metal_frame_style(
+                TextureSource::Dynamic(DynamicTextureId(1)),
+                MetalGeometry::active().unwrap(),
+            ),
         );
     }
     Screen::new(screen).sync(&ctx, &mut registry);

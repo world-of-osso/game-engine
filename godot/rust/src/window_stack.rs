@@ -117,7 +117,18 @@ impl GameClient {
             .filter(|peer| peer.bind().is_toplevel())
             .map(stack_key)
             .collect();
-        if let Some(index) = raised_index(stack_key(ui), &peers) {
+        self.move_above(ui, &peers)
+    }
+
+    /// Retail `Frame:Raise` on show: the frame moves to the top of its strata, above
+    /// every canvas on its layer, HUD panels included.
+    pub(super) fn raise_above_layer(&mut self, ui: &Gd<RegistryUi>) -> Result<(), String> {
+        let peers: Vec<_> = self.registry_uis()?.iter().map(stack_key).collect();
+        self.move_above(ui, &peers)
+    }
+
+    fn move_above(&mut self, ui: &Gd<RegistryUi>, peers: &[StackKey]) -> Result<(), String> {
+        if let Some(index) = raised_index(stack_key(ui), peers) {
             self.base_mut().move_child(ui, index);
             // Workaround: Godot 4.7 restacks the moved canvas's drawing but keeps its
             // GUI pick order until `set_layer` marks the viewport's root order dirty
@@ -233,6 +244,18 @@ mod tests {
             (key(1, 51), Some("MerchantFrame")),
         ]);
         assert_eq!(hit, Some("ContainerFrame1Slot0"));
+    }
+
+    #[test]
+    fn a_raised_container_canvas_draws_over_a_later_hud_canvas() {
+        // BagsUI mounted before the damage meter's canvas, both on layer 1.
+        let (bags, meter) = (key(1, 40), key(1, 47));
+        let index = raised_index(bags, &[bags, meter, key(1, 12)]).expect("meter covers bags");
+        let hit = topmost_hit([
+            (key(1, index), Some("ContainerFrame0Slot0")),
+            (meter, Some("DamageMeterEntry1")),
+        ]);
+        assert_eq!(hit, Some("ContainerFrame0Slot0"));
     }
 
     #[test]

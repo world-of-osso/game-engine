@@ -3,9 +3,10 @@
 use std::path::PathBuf;
 
 use game_engine_ui_model::bag_frame_component::{
-    BagContainerState, BagFrameState, BagSlotState, bag_frame_screen, parse_bag_close_action,
+    BACKPACK_PORTRAIT, BagContainerState, BagFrameState, BagSlotState, bag_frame_screen,
+    parse_bag_close_action,
 };
-use game_engine_ui_model::panel_style_data::{MetalTopLeft, metal_frame_style};
+use game_engine_ui_model::panel_style_data::{MetalGeometry, MetalTopLeft, metal_frame_style};
 use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
@@ -20,6 +21,7 @@ fn backpack() -> BagFrameState {
         bags: vec![BagContainerState {
             bag_index: 0,
             title: "Backpack".into(),
+            portrait_fdid: BACKPACK_PORTRAIT,
             visible: true,
             slots: (0..SLOTS)
                 .map(|i| BagSlotState {
@@ -39,7 +41,10 @@ fn mount() -> FrameRegistry {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     registry.register_panel_style(
         MetalTopLeft::Portrait.style_name(),
-        metal_frame_style(TextureSource::Dynamic(DynamicTextureId(1))),
+        metal_frame_style(
+            TextureSource::Dynamic(DynamicTextureId(1)),
+            MetalGeometry::active().unwrap(),
+        ),
     );
     Screen::new(bag_frame_screen).sync(&ctx, &mut registry);
     registry
@@ -96,6 +101,24 @@ fn assert_backpack_window(skin: ActiveSkin) -> Vec<TextureSource> {
     assert!(
         border_rect[0] < 0.0 && border_rect[2] > bounds[2],
         "{skin:?}: border surrounds the window"
+    );
+
+    // The skin's border pieces fit the window: corners and edges meet without overlap.
+    let [left, top, right, bottom] = MetalGeometry::active().unwrap().edge_sizes();
+    assert!(
+        left + right <= border_rect[2] && top + bottom <= border_rect[3],
+        "{skin:?}: border pieces fit {border_rect:?}"
+    );
+
+    let portrait = frame(&registry, "ContainerFrame0Portrait");
+    assert!(
+        matches!(texture_source(portrait), TextureSource::FileDataId(fdid) if fdid != 0),
+        "{skin:?}: portrait shows the bag icon"
+    );
+    let portrait_rect = rect(portrait);
+    assert!(
+        portrait_rect[0] <= 0.0 && portrait_rect[1] <= 0.0,
+        "{skin:?}: portrait in the top-left ring"
     );
 
     let title = frame(&registry, "ContainerFrame0TitleText");
