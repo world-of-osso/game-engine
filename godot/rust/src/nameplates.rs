@@ -183,15 +183,17 @@ fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> Plat
     }
 }
 
-/// The text at the bar's right: `AbbreviateLargeNumbers(UnitHealth)` and the percent of
-/// `UnitHealthMax`, as the reference's "425 K  100%".
-fn health_text(health: &Health) -> String {
+/// The text at the bar's right: the percent of `UnitHealthMax` ("100%"), after
+/// `AbbreviateLargeNumbers(UnitHealth)` when the style shows the value (the reference's
+/// "425 K  100%").
+fn health_text(health: &Health, show_value: bool) -> String {
     let (current, max) = (health.current.round() as i64, health.max.round() as i64);
-    format!(
-        "{}  {}%",
-        abbreviate_large_numbers(current),
-        percent(current, max)
-    )
+    let percent = percent(current, max);
+    if show_value {
+        format!("{}  {percent}%", abbreviate_large_numbers(current))
+    } else {
+        format!("{percent}%")
+    }
 }
 
 /// The name's width on the Thick bar: its own, or what the health text leaves it.
@@ -1146,11 +1148,7 @@ fn project_plate(
         occluded: is_occluded,
         anchor: camera.unproject_position(top),
         fraction: health_fraction(unit),
-        health_text: unit
-            .get::<Health>()
-            .filter(|health| health.max > 0.0)
-            .map(health_text)
-            .unwrap_or_default(),
+        health_text: String::new(),
         color,
         name_color,
         raid_target: None,
@@ -1278,6 +1276,11 @@ impl GameClient {
                     fade_far,
                     rules.targeted,
                 )?;
+                view.health_text = unit
+                    .get::<Health>()
+                    .filter(|health| health.max > 0.0)
+                    .map(|health| health_text(health, style.show_health_value))
+                    .unwrap_or_default();
                 view.enemy = rules.enemy;
                 view.raid_target = self.account.raid_targets.icon_of(unit.server_id);
                 view.classification = classification_atlas(
@@ -1551,11 +1554,22 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
         );
     }
 
-    /// The reference's "425 K  100%": `AbbreviateLargeNumbers` then the percent, which
-    /// Retail rounds up (`math.ceil`).
+    /// By default the plate's health text is the percent alone, which Retail rounds up
+    /// (`math.ceil`).
     #[test]
-    fn health_text_is_the_abbreviated_value_then_the_percent() {
-        let text = |current, max| health_text(&Health { current, max });
+    fn health_text_is_the_percent_alone_by_default() {
+        let show_value = NameplateStyle::default().show_health_value;
+        let text = |current, max| health_text(&Health { current, max }, show_value);
+        assert_eq!(text(425_000.0, 425_000.0), "100%");
+        assert_eq!(text(324_275.0, 425_000.0), "77%");
+        assert_eq!(text(42.0, 55.0), "77%");
+    }
+
+    /// With the style's health value on, the reference's "425 K  100%":
+    /// `AbbreviateLargeNumbers` then the percent.
+    #[test]
+    fn health_text_leads_with_the_abbreviated_value_when_the_style_shows_it() {
+        let text = |current, max| health_text(&Health { current, max }, true);
         assert_eq!(text(425_000.0, 425_000.0), "425 K  100%");
         assert_eq!(text(42.0, 55.0), "42  77%");
         assert_eq!(text(12_345.0, 20_000.0), "12,345  62%");

@@ -191,6 +191,7 @@ impl WowNameplateDebug {
         let paused = self.paused;
         let selected = self.selected;
         let icons = &self.icons;
+        let show_value = self.style.show_health_value;
         let cvars = self.plates.cvars;
         self.owners
             .iter_mut()
@@ -203,10 +204,13 @@ impl WowNameplateDebug {
                     occluded: false,
                     anchor: camera.unproject_position(top),
                     fraction: owner.health / 100.0,
-                    health_text: health_text(&Health {
-                        current: MAX_HEALTH * owner.health / 100.0,
-                        max: MAX_HEALTH,
-                    }),
+                    health_text: health_text(
+                        &Health {
+                            current: MAX_HEALTH * owner.health / 100.0,
+                            max: MAX_HEALTH,
+                        },
+                        show_value,
+                    ),
                     color,
                     name_color: Color::WHITE,
                     raid_target: None,
