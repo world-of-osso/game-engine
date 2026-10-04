@@ -149,6 +149,11 @@ pub const FLARE_HEADER_ICON_INSET: f32 = 4.4;
 /// Blizzard art of the button it restyles.
 /// Pixel measurements and provenance: docs/specs/forever-chat-meter-chrome.md.
 ///
+/// `ChatFrameChannelButton` (Chat.lua:59,610) shows a page of text lines. Blizzard's icon
+/// for that button is a second speaker (`chatframe-button-icon-voicechat`,
+/// ChannelFrameButtonMixin.lua:24), so the page is Retail's friend-note glyph
+/// `Interface/FriendsFrame/UI-FriendsFrame-Note`, a tinted mask (FriendsFrame.xml:1140-1146).
+pub const FLARE_CHANNEL_ART: (u32, [f32; 4]) = (131_129, [0.0, 1.0, 0.0, 1.0]);
 /// `ChatFrameMenuButton` (Chat.lua:611): the speech bubble of its NormalTexture
 /// `Interface\ChatFrame\UI-ChatIcon-Chat-Up` (FloatingChatFrame.xml:670).
 pub const FLARE_MENU_ART: (u32, [f32; 4]) =
