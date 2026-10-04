@@ -50,6 +50,10 @@ pub const ACTION_BAR_ART_FDIDS: [u32; 1] = [4_613_342];
 const SLOT_BACKGROUND: &str = "UI-HUD-ActionBar-IconFrame-Background";
 const SLOT_ART: &str = "UI-HUD-ActionBar-IconFrame-Slot";
 const NORMAL: &str = "UI-HUD-ActionBar-IconFrame";
+/// `SlotBackground`, `SlotArt` and the icon are the button's `BACKGROUND` layer
+/// (`ActionButtonTemplate.xml:22-33`), under its `NormalTexture`/`PushedTexture` border
+/// whenever the icon is created.
+const SLOT_LAYER: &str = "BACKGROUND";
 const PUSHED: &str = "UI-HUD-ActionBar-IconFrame-Down";
 const HIGHLIGHT: &str = "UI-HUD-ActionBar-IconFrame-Mouseover";
 const GRYPHON_LEFT: &str = "ui-hud-actionbar-gryphon-left";
@@ -248,7 +252,18 @@ struct DynName(String);
 /// `(x, y, width, height)` inside the parent.
 type Rect = (f32, f32, f32, f32);
 
-fn art(name: String, atlas: &str, (x, y, width, height): Rect, hidden: bool) -> Element {
+/// A button's border art, in the default `ARTWORK` layer.
+fn art(name: String, atlas: &str, rect: Rect, hidden: bool) -> Element {
+    layered_art(name, atlas, rect, hidden, "ARTWORK")
+}
+
+fn layered_art(
+    name: String,
+    atlas: &str,
+    (x, y, width, height): Rect,
+    hidden: bool,
+    layer: &str,
+) -> Element {
     rsx! {
         texture {
             name: {DynName(name)},
@@ -256,6 +271,7 @@ fn art(name: String, atlas: &str, (x, y, width, height): Rect, hidden: bool) -> 
             height,
             hidden,
             texture_atlas: atlas,
+            draw_layer: layer,
             pos_type: "absolute",
             pos_x: x,
             pos_y: y,
@@ -274,6 +290,7 @@ fn icon(name: String, fdid: u32, size: f32) -> Element {
             width: size,
             height: size,
             texture_fdid: {fdid},
+            draw_layer: SLOT_LAYER,
             pos_type: "absolute",
             pos_x: 0.0,
             pos_y: 0.0,
@@ -349,13 +366,14 @@ fn button(
     let frame_art = (0.0, 0.0, FRAME_ART_W * scale, size);
     let cell = (0.0, 0.0, size, size);
     let children: Element = [
-        art(
+        layered_art(
             format!("{name}SlotBackground"),
             SLOT_BACKGROUND,
             cell,
             !slot_background,
+            SLOT_LAYER,
         ),
-        art(format!("{name}SlotArt"), SLOT_ART, cell, false),
+        layered_art(format!("{name}SlotArt"), SLOT_ART, cell, false, SLOT_LAYER),
         icon(format!("{name}Icon"), view.icon_fdid, size),
         cooldown(&name, view, scale),
         art(
