@@ -244,7 +244,7 @@ fn flare_contents(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
         {flare_bar(format!("{}HealthBar", spec.prefix), health, unit.health_fraction, &health_rgb(unit), spec.mirror)}
         {power_bar.unwrap_or_default()}
         {flare_border_frame(spec.root, spec.size)}
-        {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), [flare_texts(spec, unit, health), flare_power_text(spec, unit)].into_iter().collect())}
+        {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), [flare_texts(spec, unit, health), flare_power_text(spec, unit)].into_iter().flatten().collect())}
         {unit.aura_state.map(|state| super::inworld_unit_frames_aura::flare_auras(state, width)).unwrap_or_default()}
     }
 }
