@@ -276,11 +276,13 @@ impl SessionSpan {
     }
 }
 
-/// The counted combat log lines since world entry and the sessions they fall in.
+/// The counted combat log lines since world entry, which is what `Overall` shows (the
+/// server's `Overall` likewise counts every damage line), and when the server's `Current`
+/// session ran.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct MeterLog {
     events: Vec<MeterEvent>,
-    spans: Vec<SessionSpan>,
+    current: Option<SessionSpan>,
 }
 
 impl MeterLog {
@@ -292,17 +294,19 @@ impl MeterLog {
     /// when it stopped being active.
     fn observe(&mut self, now: f64, current: &DamageMeterSession) {
         match self
-            .spans
-            .iter_mut()
-            .find(|span| span.id == current.session_id)
+            .current
+            .as_mut()
+            .filter(|span| span.id == current.session_id)
         {
             Some(span) if current.active => span.end = None,
             Some(span) => span.end = span.end.or(Some(now)),
-            None => self.spans.push(SessionSpan {
-                id: current.session_id,
-                start: now - f64::from(current.duration_secs),
-                end: (!current.active).then_some(now),
-            }),
+            None => {
+                self.current = Some(SessionSpan {
+                    id: current.session_id,
+                    start: now - f64::from(current.duration_secs),
+                    end: (!current.active).then_some(now),
+                })
+            }
         }
     }
 }
@@ -399,23 +403,17 @@ impl DamageMeterWindow {
         self.snapshot = snapshot;
     }
 
-    /// The `Current` session's span; none before the first combat.
-    fn current_span(&self) -> Option<&SessionSpan> {
-        let id = self.snapshot.as_ref()?.current.as_ref()?.session_id;
-        self.log.spans.iter().find(|span| span.id == id)
-    }
-
-    /// The log's lines in the selected session, with their indices.
+    /// The log's lines in the selected session, with their indices: all of them for
+    /// `Overall`, those that arrived while the `Current` session ran for `Current`.
     fn session_events(&self) -> impl Iterator<Item = (usize, &MeterEvent)> {
-        let current = self.current_span();
+        let current = self.log.current.as_ref();
         let session = self.session;
-        let spans = &self.log.spans;
         self.log
             .events
             .iter()
             .enumerate()
             .filter(move |(_, event)| match session {
-                MeterSessionType::Overall => spans.iter().any(|span| span.contains(event.time)),
+                MeterSessionType::Overall => true,
                 MeterSessionType::Current => current.is_some_and(|span| span.contains(event.time)),
             })
     }
@@ -493,7 +491,7 @@ impl DamageMeterWindow {
     /// without a rank, a full bar and the time into the session, which `Overall` lacks.
     fn death_rows(&self) -> Vec<DamageMeterRow> {
         let start = match self.session {
-            MeterSessionType::Current => self.current_span().map(|span| span.start),
+            MeterSessionType::Current => self.log.current.as_ref().map(|span| span.start),
             MeterSessionType::Overall => None,
         };
         self.deaths()
