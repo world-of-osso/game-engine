@@ -3,6 +3,8 @@ use std::fmt;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
+use super::options_menu_component::OptionsPage;
+
 const OPTIONS_CONTENT_W: f32 = 716.0;
 const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
 const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
@@ -17,7 +19,7 @@ impl fmt::Display for DynName {
     }
 }
 
-pub fn controls_body() -> Element {
+pub fn controls_body() -> OptionsPage {
     section_stack(
         [
             info_row(
@@ -37,7 +39,7 @@ pub fn controls_body() -> Element {
     )
 }
 
-pub fn macros_body() -> Element {
+pub fn macros_body() -> OptionsPage {
     section_stack(
         [
             ghost_button_row(
@@ -62,7 +64,7 @@ pub fn macros_body() -> Element {
     )
 }
 
-pub fn social_addons_body() -> Element {
+pub fn social_addons_body() -> OptionsPage {
     section_stack(
         [
             info_row(
@@ -87,7 +89,7 @@ pub fn social_addons_body() -> Element {
     )
 }
 
-pub fn support_body() -> Element {
+pub fn support_body() -> OptionsPage {
     section_stack(
         [
             info_row(
@@ -174,16 +176,8 @@ pub fn action_button_row(
     }
 }
 
-fn section_stack(rows: Element) -> Element {
-    rsx! {
-        r#frame {
-            width: {OPTIONS_CONTENT_W - 30.0},
-            height: "auto",
-            layout: "flex-column",
-            gap: 12.0,
-            {rows}
-        }
-    }
+fn section_stack(items: Element) -> OptionsPage {
+    OptionsPage { items, gap: 12.0 }
 }
 
 fn row_label(key: &str, text: &str) -> Element {

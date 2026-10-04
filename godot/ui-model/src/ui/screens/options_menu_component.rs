@@ -12,6 +12,10 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
 use game_engine_core::ui_layout_data::{LayoutSettings, LayoutSkin, SYSTEM_PRESETS};
 
+#[path = "options_menu_scroll.rs"]
+mod scroll;
+pub use scroll::{OPTIONS_CONTENT_SCROLL, OptionsPage};
+
 struct DynName(String);
 
 impl fmt::Display for DynName {
@@ -27,7 +31,6 @@ const OPTIONS_TITLE_LABEL: FrameName = FrameName("OptionsTitleLabel");
 const OPTIONS_TAB_PANEL: FrameName = FrameName("OptionsTabPanel");
 const OPTIONS_TAB_INNER: FrameName = FrameName("OptionsTabInner");
 const OPTIONS_CONTENT_PANEL: FrameName = FrameName("OptionsContentPanel");
-const OPTIONS_CONTENT_INNER: FrameName = FrameName("OptionsContentInner");
 const OPTIONS_FOOTER: FrameName = FrameName("OptionsFooter");
 
 const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
@@ -320,7 +323,9 @@ pub fn keybinding_clear_action(action: InputAction) -> String {
     format!("options_binding_clear:{}", action.key())
 }
 
-pub fn options_view(model: &OptionsViewModel) -> Element {
+/// The Options panel, its content scrolled to `first_item` (the [`OPTIONS_CONTENT_SCROLL`]
+/// position).
+pub fn options_view(model: &OptionsViewModel, first_item: usize) -> Element {
     rsx! {
         panel {
             name: OPTIONS_ROOT,
@@ -352,7 +357,7 @@ pub fn options_view(model: &OptionsViewModel) -> Element {
                 width: {OPTIONS_W},
                 height: {OPTIONS_HEADER_H + OPTIONS_HEADER_GAP},
             }
-            {build_body(model)}
+            {build_body(model, first_item)}
             r#frame {
                 name: "OptionsFooterClearance",
                 width: {OPTIONS_W},
@@ -373,7 +378,7 @@ fn title() -> Element {
     )
 }
 
-fn build_body(model: &OptionsViewModel) -> Element {
+fn build_body(model: &OptionsViewModel, first_item: usize) -> Element {
     rsx! {
         r#frame {
             name: "OptionsBody",
@@ -385,7 +390,7 @@ fn build_body(model: &OptionsViewModel) -> Element {
             pos_type: "relative",
             margin_left: {OPTIONS_BODY_INSET_X},
             {build_tabs(model)}
-            {build_content(model)}
+            {build_content(model, first_item)}
         }
     }
 }
@@ -511,17 +516,19 @@ fn tab_accent(name: &str) -> Element {
     }
 }
 
-fn build_content(model: &OptionsViewModel) -> Element {
+/// The content area is as tall as the category list, as Retail's settings container is
+/// anchored to it (`Blizzard_SettingsPanel.xml:59-74`); a taller page scrolls.
+fn build_content(model: &OptionsViewModel, first_item: usize) -> Element {
     rsx! {
         panel {
             name: OPTIONS_CONTENT_PANEL,
             style: "inner_plain",
             width: {OPTIONS_CONTENT_W},
-            height: "auto",
+            height: {OPTIONS_CONTENT_H},
             layout: "flex-column",
             pos_type: "relative",
             {content_header(model.category)}
-            {content_body(model)}
+            {content_body(model, first_item)}
         }
     }
 }
@@ -545,7 +552,7 @@ fn content_header(category: OptionsCategory) -> Element {
     }
 }
 
-fn category_body(model: &OptionsViewModel) -> Element {
+fn category_body(model: &OptionsViewModel) -> OptionsPage {
     match model.category {
         OptionsCategory::Graphics => options_menu_active_sections::graphics_body(&model.graphics),
         OptionsCategory::Sound => options_menu_active_sections::sound_body(&model.sound),
@@ -567,19 +574,21 @@ fn category_body(model: &OptionsViewModel) -> Element {
     }
 }
 
-fn content_body(model: &OptionsViewModel) -> Element {
+fn content_body(model: &OptionsViewModel, first_item: usize) -> Element {
+    let area = scroll::ScrollArea {
+        row_width: OPTIONS_CONTENT_W - OPTIONS_CONTENT_INSET_X * 2.0,
+        width: OPTIONS_CONTENT_W - OPTIONS_CONTENT_INSET_X,
+        height: OPTIONS_CONTENT_H - OPTIONS_CONTENT_INSET_TOP - OPTIONS_CONTENT_INSET_BOTTOM,
+    };
     rsx! {
         r#frame {
-            name: OPTIONS_CONTENT_INNER,
-            width: {OPTIONS_CONTENT_W - OPTIONS_CONTENT_INSET_X * 2.0},
-            height: "auto",
-            layout: "flex-column",
-            gap: 12.0,
+            name: "OptionsContentArea",
+            width: {area.width},
+            height: {area.height},
             pos_type: "relative",
             margin_left: {OPTIONS_CONTENT_INSET_X},
             margin_top: {OPTIONS_CONTENT_INSET_TOP},
-            margin_bottom: {OPTIONS_CONTENT_INSET_BOTTOM},
-            {category_body(model)}
+            {scroll::scroll_area(category_body(model), &area, first_item)}
         }
     }
 }

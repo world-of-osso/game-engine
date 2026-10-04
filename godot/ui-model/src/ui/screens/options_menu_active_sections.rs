@@ -9,7 +9,8 @@ use ui_toolkit::widgets::toggle::{ToggleWidget, toggle_widget};
 
 use super::options_menu_component::{
     CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
-    LayoutOptionsView, SoundOptionsView, keybinding_clear_action, keybinding_rebind_action, keybinding_section_action,
+    LayoutOptionsView, OptionsPage, SoundOptionsView, keybinding_clear_action,
+    keybinding_rebind_action, keybinding_section_action,
 };
 use super::options_menu_sections;
 use crate::input_bindings::BindingSection;
@@ -81,19 +82,19 @@ impl fmt::Display for DynName {
     }
 }
 
-pub fn sound_body(sound: &SoundOptionsView) -> Element {
+pub fn sound_body(sound: &SoundOptionsView) -> OptionsPage {
     content_stack(sound_items(sound))
 }
 
-pub fn graphics_body(graphics: &GraphicsOptionsView) -> Element {
+pub fn graphics_body(graphics: &GraphicsOptionsView) -> OptionsPage {
     content_stack(graphics_items(graphics))
 }
 
-pub fn camera_body(camera: &CameraOptionsView) -> Element {
+pub fn camera_body(camera: &CameraOptionsView) -> OptionsPage {
     content_stack(camera_items(camera))
 }
 
-pub fn interface_body(hud: &HudOptionsView) -> Element {
+pub fn interface_body(hud: &HudOptionsView) -> OptionsPage {
     content_stack(
         [
             status_text_row(hud.status_text_display),
@@ -123,7 +124,7 @@ pub fn interface_body(hud: &HudOptionsView) -> Element {
     )
 }
 
-pub fn accessibility_body(graphics: &GraphicsOptionsView, hud: &HudOptionsView) -> Element {
+pub fn accessibility_body(graphics: &GraphicsOptionsView, hud: &HudOptionsView) -> OptionsPage {
     content_stack(accessibility_items(graphics, hud))
 }
 
@@ -300,7 +301,7 @@ fn accessibility_info_rows() -> Element {
     .collect()
 }
 
-pub fn hud_body(hud: &HudOptionsView, layout: &LayoutOptionsView) -> Element {
+pub fn hud_body(hud: &HudOptionsView, layout: &LayoutOptionsView) -> OptionsPage {
     content_stack(
         [
             layout_row(layout),
@@ -352,11 +353,11 @@ pub fn hud_body(hud: &HudOptionsView, layout: &LayoutOptionsView) -> Element {
     )
 }
 
-pub fn nameplates_body(hud: &HudOptionsView) -> Element {
+pub fn nameplates_body(hud: &HudOptionsView) -> OptionsPage {
     nameplates_section::nameplates_body(hud)
 }
 
-pub fn advanced_body(hud: &HudOptionsView) -> Element {
+pub fn advanced_body(hud: &HudOptionsView) -> OptionsPage {
     content_stack(
         [
             toggle_row("show_fps_overlay", "Show FPS Overlay", hud.show_fps_overlay),
@@ -382,20 +383,12 @@ pub fn advanced_body(hud: &HudOptionsView) -> Element {
     )
 }
 
-pub fn keybindings_body(bindings: &KeybindingsView) -> Element {
+pub fn keybindings_body(bindings: &KeybindingsView) -> OptionsPage {
     keybindings_section::keybindings_body(bindings)
 }
 
-fn content_stack(children: Element) -> Element {
-    rsx! {
-        r#frame {
-            width: {OPTIONS_CONTENT_W - 30.0},
-            height: "auto",
-            layout: "flex-column",
-            gap: 14.0,
-            {children}
-        }
-    }
+fn content_stack(items: Element) -> OptionsPage {
+    OptionsPage { items, gap: 14.0 }
 }
 
 fn sound_items(sound: &SoundOptionsView) -> Element {

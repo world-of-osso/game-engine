@@ -104,7 +104,8 @@ fn options_categories_emit_original_actions_and_replace_visible_section() {
     let mut screen = Screen::new(game_menu_screen);
     let mut view = model();
     let categories = [
-        (OptionsCategory::Graphics, "Particle Density"),
+        // The page's first row: Particle Density is below the scrolled area.
+        (OptionsCategory::Graphics, "Vertical Sync"),
         (OptionsCategory::Sound, "Master Volume"),
         (OptionsCategory::Camera, "Mouse Sensitivity"),
         (OptionsCategory::Interface, "Chat Font Size"),

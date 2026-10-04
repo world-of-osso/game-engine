@@ -4,6 +4,7 @@ pub(crate) mod input_queue;
 mod layout;
 mod parts;
 mod projection;
+mod scroll_lists;
 pub(crate) mod ui_parent;
 
 use std::collections::VecDeque;
@@ -125,6 +126,23 @@ enum ScreenPostsetup {
 }
 
 impl RegistryModel {
+    /// A view of another Options page shows it from its top, as Retail's settings list
+    /// scrolls to the beginning when it gets a category's elements
+    /// (`Blizzard_SettingsList.lua:140`, `ScrollBoxListMixin:SetDataProvider`,
+    /// `Blizzard_SharedXML/Shared/Scroll/ScrollBox.lua:703-713`).
+    fn reset_options_scroll_for(&mut self, view: &GameMenuViewModel) {
+        let other_page = self
+            .shared
+            .get::<GameMenuViewModel>()
+            .is_some_and(|shown| shown.options_page() != view.options_page());
+        if other_page {
+            self.registry.scroll_lists.scroll_to(
+                game_engine_ui_model::options_menu_component::OPTIONS_CONTENT_SCROLL,
+                0,
+            );
+        }
+    }
+
     /// Mirror the active layout's settings, then its skin: a change of either rebuilds the
     /// Screens that read the HUD layout.
     fn sync(&mut self) {
@@ -572,6 +590,9 @@ impl RegistryUi {
             .is_none()
         {
             return Err("Full game menu view not initialized".into());
+        }
+        if let Some(model) = self.model.as_mut() {
+            model.reset_options_scroll_for(&view);
         }
         self.set_state(view)
     }

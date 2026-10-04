@@ -16,7 +16,7 @@ const CHANNEL_FILLS: [&str; 3] = [
     "0.18,0.34,0.76,0.92",
 ];
 
-pub(super) fn nameplates_body(hud: &HudOptionsView) -> Element {
+pub(super) fn nameplates_body(hud: &HudOptionsView) -> OptionsPage {
     let style = &hud.nameplate_style;
     let sizes = StyleSlider::SIZES.map(|slider| size_cell(slider, style));
     let [health_w, health_h, cast_w, cast_h, name_font, cast_font] = sizes;
