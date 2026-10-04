@@ -80,17 +80,23 @@ fn tap_sent(messages: Res<ClientMessages>, mut tap: ResMut<Tap>) {
 
 fn add_tap(app: &mut App) {
     app.init_resource::<Tap>();
+    // Observe consumption, not arrival: Connecting packets remain queued until OnEnter.
     app.add_systems(
         PreUpdate,
-        tap_received
-            .after(ClientSystems::ReceivePackets)
-            .before(ClientSystems::Receive),
+        (
+            tap_received
+                .after(ClientSystems::ReceivePackets)
+                .before(ClientSystems::Receive),
+            tap_sent.after(ClientSystems::Receive),
+        )
+            .run_if(in_state(ClientState::Connected)),
     );
     app.add_systems(
-        PostUpdate,
-        tap_sent
-            .after(ClientSystems::Send)
-            .before(ClientSystems::SendPackets),
+        OnEnter(ClientState::Connected),
+        (
+            tap_received.before(ClientSystems::Receive),
+            tap_sent.after(ClientSystems::Receive),
+        ),
     );
 }
 
@@ -133,13 +139,9 @@ fn replay_client() -> App {
     app.add_plugins(shared::ProtocolPlugin);
     add_tap(&mut app);
     // No transport drains replicon's outgoing acknowledgments.
-    app.add_systems(
-        PostUpdate,
-        (|mut messages: ResMut<ClientMessages>| {
-            messages.drain_sent().for_each(drop);
-        })
-        .after(tap_sent),
-    );
+    app.add_systems(PostUpdate, |mut messages: ResMut<ClientMessages>| {
+        messages.drain_sent().for_each(drop);
+    });
     app.finish();
     app.cleanup();
     app.world_mut()
@@ -158,6 +160,49 @@ fn replay(app: &mut App, frame: &Frame) {
         messages.insert_received(ServerChannel::Mutations, mutation.clone());
     }
     app.update();
+}
+
+/// Replicon buffers packets received before its Connected state transition.
+#[test]
+fn acknowledgment_capture_follows_connection_transition_consumption() {
+    let mut stock = replay_client();
+    stock
+        .world_mut()
+        .resource_mut::<NextState<ClientState>>()
+        .set(ClientState::Connecting);
+    stock.update();
+
+    // update tick 0, mutation tick 0, one message, mutation index 0 (fixed u16).
+    let mutation = Bytes::from_static(&[0, 0, 1, 0, 0]);
+    replay(
+        &mut stock,
+        &Frame {
+            mutations: vec![mutation.clone()],
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        stock
+            .world()
+            .resource::<ClientMessages>()
+            .received_count(ServerChannel::Mutations),
+        1,
+        "Connecting leaves the mutation queued for replicon"
+    );
+
+    stock
+        .world_mut()
+        .resource_mut::<NextState<ClientState>>()
+        .set(ClientState::Connected);
+    stock.update();
+    let frames = &stock.world().resource::<Tap>().frames;
+    assert_eq!(
+        vec![acknowledgments(&[mutation.clone()]).expect("parse mutate header")],
+        frames[0].acks,
+        "worker acknowledgments equal replicon's"
+    );
+    assert_eq!(frames.len(), 1, "capture exactly one consumption");
+    assert_eq!(frames[0].mutations, vec![mutation]);
 }
 
 fn schema_of(app: &App) -> std::sync::Arc<Schema> {
