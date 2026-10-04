@@ -612,6 +612,8 @@ def read_wdc5(data, layout, id_field=0):
 
 def read_string(data, record_offset, field, value):
     """Resolve offsets in the global record/string sequence, not physical file offsets."""
+    if value == 0:
+        return ""
     total, _, record_size = struct.unpack_from("<3I", data, 136)
     sections = struct.unpack_from("<I", data, 200)[0]
     headers = [struct.unpack_from("<Q8I", data, 204 + i * 40) for i in range(sections)]

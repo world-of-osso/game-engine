@@ -38,6 +38,18 @@ class StringTests(unittest.TestCase):
             ["AB", "C"],
         )
 
+    def test_null_string_offset_is_empty(self):
+        data = string_fixture()
+        _, _, fields, _ = export.read_wdc5(data, 123)
+        self.assertEqual(export.read_string(data, 320, fields[0], 0), "")
+
+    def test_zero_filled_encrypted_records_are_dropped(self):
+        data = bytearray(string_fixture(True))
+        data[350:354] = bytes(4)
+        rows, dropped, _, _ = export.read_wdc5(bytes(data), 123)
+        self.assertEqual(list(rows), [10])
+        self.assertEqual(dropped, 1)
+
     def test_encrypted_string_block_rejected(self):
         data = string_fixture(True)
         rows, _, fields, _ = export.read_wdc5(data, 123)
@@ -46,6 +58,36 @@ class StringTests(unittest.TestCase):
 
 
 class ImportTests(unittest.TestCase):
+    def test_local_golden_races_and_zephras_identity(self):
+        from pathlib import Path
+        from scripts import import_forever_skyborne as importer
+
+        data = Path(__file__).resolve().parents[2] / "data"
+        staging = data / "cache/forever-skyborne-extract"
+        if not (staging / "1305311.db2").is_file():
+            self.skipTest("local CASC fixtures unavailable")
+        decoded = {}
+        for table in ("ChrRaces", "Map"):
+            raw = importer.extracted_path(staging, importer.TABLES[table]).read_bytes()
+            layout = struct.unpack_from("<I", raw, 156)[0]
+            columns, id_field, _ = importer.parse_definition(
+                importer.find_definition(data, table).read_text(), layout
+            )
+            rows, _ = importer.decode_rows(raw, layout, columns, id_field)
+            decoded[table] = {int(row["ID"]): row for row in rows}
+        with (data / "forever-1.60.1.70205/metadata/ChrRaces-95-96.csv").open(
+            newline=""
+        ) as handle:
+            for golden in csv.DictReader(handle):
+                actual = decoded["ChrRaces"][int(golden["ID"])]
+                self.assertEqual({key: str(actual[key]) for key in golden}, golden)
+        zephras = decoded["Map"][2991]
+        self.assertEqual(
+            (zephras["Directory"], zephras["MapName_lang"], zephras["WdtFileDataID"]),
+            ("2991", "Zephras Isle", 7198644),
+        )
+        self.assertEqual(decoded["Map"][0]["Directory"], "Azeroth")
+
     def test_dbd_inline_id_arrays_and_relation(self):
         from scripts import import_forever_skyborne as importer
 

@@ -270,7 +270,7 @@ def import_tables(data, staging):
                 raise ValueError("missing CASC resolution provenance")
             content_key, encoding_key = (bytes(v).hex() for v in record)
             digest = hashlib.md5(raw).hexdigest()
-            if content_key != digest:
+            if content_key != digest and not dropped:
                 raise ValueError(f"content-key MD5 mismatch {content_key} != {digest}")
             sections = struct.unpack_from("<I", raw, 200)[0]
             unknown = []
@@ -284,6 +284,12 @@ def import_tables(data, staging):
                 "content_key": content_key,
                 "encoding_key": encoding_key,
                 "md5": digest,
+                "content_key_matches_extracted_md5": content_key == digest,
+                "content_key_mismatch_reason": (
+                    "local CASC zero-filled unknown encrypted chunks"
+                    if content_key != digest
+                    else None
+                ),
                 "sha256": hashlib.sha256(raw).hexdigest(),
                 "TableHash": f"{table_hash:08X}",
                 "LayoutHash": f"{layout:08X}",
