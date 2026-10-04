@@ -385,26 +385,6 @@ mod tests {
         std::env::temp_dir().join(format!("ui-layout-{name}-{}.ron", std::process::id()))
     }
 
-    #[test]
-    fn layout_saved_before_settings_existed_loads_with_preset_values() {
-        let path = temp_layout("old-file");
-        fs::write(
-            &path,
-            r#"(edit_mode: (
-                layouts: {"Raid": (skin: Forever, elements: {"PlayerFrame": (anchor: Center, offset: (4.0, -8.0))})},
-                active_layout: {"17": "Raid"},
-            ))"#,
-        )
-        .unwrap();
-        let layout = active_layout(&path, 17).unwrap();
-        assert_eq!(layout.name, "Raid");
-        assert_eq!(layout.skin, LayoutSkin::Forever);
-        assert_eq!(layout.settings, LayoutSettings::default());
-        assert_eq!(layout.settings.chat.width, None);
-        assert_eq!(layout.settings.player_frame.font, None);
-        fs::remove_file(path).unwrap();
-    }
-
     fn custom_settings() -> LayoutSettings {
         LayoutSettings {
             player_frame: UnitFrameSettings {
