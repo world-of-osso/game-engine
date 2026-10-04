@@ -4,7 +4,7 @@
 use std::{fs, path::PathBuf};
 
 use game_engine_core::ui_layout_data::{
-    ActiveLayout, LayoutSkin, active_layout, set_active_layout, window_position,
+    ActiveLayout, LayoutSettings, LayoutSkin, active_layout, set_active_layout, window_position,
 };
 
 fn layout_path(test: &str) -> PathBuf {
@@ -19,6 +19,7 @@ fn layout(name: &str, skin: LayoutSkin) -> ActiveLayout {
     ActiveLayout {
         name: name.to_string(),
         skin,
+        settings: LayoutSettings::default(),
     }
 }
 
@@ -27,11 +28,11 @@ fn preset_choice_persists_per_character_across_reload() {
     let path = layout_path("persist");
     assert_eq!(
         set_active_layout(&path, 17, "Forever").unwrap(),
-        LayoutSkin::Forever
+        layout("Forever", LayoutSkin::Forever)
     );
     assert_eq!(
         set_active_layout(&path, 18, "Modern").unwrap(),
-        LayoutSkin::Modern
+        layout("Modern", LayoutSkin::Modern)
     );
 
     let saved = fs::read_to_string(&path).unwrap();
@@ -57,8 +58,8 @@ fn preset_choice_persists_per_character_across_reload() {
     fs::remove_file(path).unwrap();
 }
 
-/// A file written before layouts carried a skin: its custom layout and every character
-/// load as Modern, and its window positions survive a preset save.
+/// A file written before layouts carried a skin or settings: its custom layout and every
+/// character load as Modern with the preset's values, and its window positions survive a preset save.
 #[test]
 fn old_layout_file_loads_as_modern() {
     let path = layout_path("old");

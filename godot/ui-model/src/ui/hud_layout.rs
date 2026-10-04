@@ -6,6 +6,12 @@
 //! the reference's three centred action bars. A screen
 //! reads its preset through the canvas's `ActiveSkin`, so a preset switch rebuilds it.
 
+use std::sync::RwLock;
+
+use game_engine_core::ui_layout_data::{
+    CHAT_HEIGHT_RANGE, CHAT_WIDTH_RANGE, DAMAGE_METER_HEIGHT_RANGE, DAMAGE_METER_WIDTH_RANGE,
+    FrameSizeSettings, LayoutSettings, SettingRange,
+};
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::screen::SharedContext;
 
@@ -16,6 +22,7 @@ use crate::minimap::FOREVER_CLUSTER_SIZE;
 use crate::ui::screens::inworld_unit_frames_component::{
     PET_FRAME_H, PET_FRAME_W, SMALL_FRAME_GAP, TOT_H, TOT_W, UNIT_FRAME_H, UNIT_FRAME_W,
 };
+use crate::unit_frame_style::UnitFrameStyle;
 
 /// A point of a rect: `SetPoint`'s `point` and `relativePoint`.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -179,6 +186,11 @@ pub struct HudLayout {
     pub target_of_target: HudAnchor,
     pub focus: HudAnchor,
     pub pet: HudAnchor,
+    /// Size and text of the player, target (with its target-of-target), focus and pet frames.
+    pub player_style: UnitFrameStyle,
+    pub target_style: UnitFrameStyle,
+    pub focus_style: UnitFrameStyle,
+    pub pet_style: UnitFrameStyle,
     pub cast_bar: HudAnchor,
     pub main_action_bar: ActionBarLayout,
     /// `MultiBarBottomLeft` (Action Bar 2) and `MultiBarBottomRight` (Action Bar 3); `None`
@@ -234,6 +246,10 @@ pub const MODERN: HudLayout = HudLayout {
         -300.0 - UNIT_FRAME_W / 2.0 + 30.0 + 15.0 / 2.0 - PET_FRAME_W / 2.0,
         250.0 + 25.0 - PET_FRAME_H,
     ),
+    player_style: UnitFrameStyle::AUTHORED,
+    target_style: UnitFrameStyle::AUTHORED,
+    focus_style: UnitFrameStyle::AUTHORED,
+    pet_style: UnitFrameStyle::AUTHORED,
     // Centred above two action bar rows.
     cast_bar: anchor(Bottom, Bottom, 0.0, 152.0),
     // `MAIN_ACTION_BAR_DEFAULT_OFFSET_Y` (Standard/EditModePresetLayoutConstants.lua:2);
@@ -369,13 +385,98 @@ pub const FOREVER: HudLayout = HudLayout {
     ..MODERN
 };
 
-/// The HUD layout of the canvas's preset; every canvas mirrors the active skin.
-pub fn hud_layout(ctx: &SharedContext) -> &'static HudLayout {
-    match ctx
-        .get::<ActiveSkin>()
-        .expect("canvas carries the active skin")
-    {
-        ActiveSkin::Modern => &MODERN,
-        ActiveSkin::Forever => &FOREVER,
+/// A dimension's setting within its Edit Mode range, else the preset's `default`.
+fn sized(default: f32, setting: Option<u16>, range: SettingRange) -> f32 {
+    setting.map_or(default, |value| f32::from(range.clamp(value)))
+}
+
+fn frame_size(
+    (width, height): (f32, f32),
+    setting: FrameSizeSettings,
+    (width_range, height_range): (SettingRange, SettingRange),
+) -> (f32, f32) {
+    (
+        sized(width, setting.width, width_range),
+        sized(height, setting.height, height_range),
+    )
+}
+
+/// A frame drawn inside `parent`'s scaled space: its anchor point keeps its place in the
+/// parent's own units, as a child of a Retail frame does under `SetScale`.
+fn child_anchor(child: HudAnchor, parent: &HudAnchor, scale: f32) -> HudAnchor {
+    if scale == 1.0 {
+        return child;
     }
+    assert_eq!(
+        child.relative, parent.relative,
+        "a child frame anchors to its parent's screen point"
+    );
+    HudAnchor {
+        x: parent.x + (child.x - parent.x) * scale,
+        y: parent.y + (child.y - parent.y) * scale,
+        ..child
+    }
+}
+
+impl HudLayout {
+    /// The preset with a layout's settings applied (docs/specs/hud-edit-mode.md
+    /// "Customisable layout settings").
+    fn with_settings(mut self, settings: &LayoutSettings) -> Self {
+        self.chat_size = frame_size(
+            self.chat_size,
+            settings.chat,
+            (CHAT_WIDTH_RANGE, CHAT_HEIGHT_RANGE),
+        );
+        self.damage_meter_size = frame_size(
+            self.damage_meter_size,
+            settings.damage_meter,
+            (DAMAGE_METER_WIDTH_RANGE, DAMAGE_METER_HEIGHT_RANGE),
+        );
+        self.player_style = UnitFrameStyle::of(settings.player_frame);
+        self.target_style = UnitFrameStyle::of(settings.target_frame);
+        self.focus_style = UnitFrameStyle::of(settings.focus_frame);
+        self.pet_style = UnitFrameStyle::of(settings.pet_frame);
+        self.target_of_target =
+            child_anchor(self.target_of_target, &self.target, self.target_style.scale);
+        self.pet = child_anchor(self.pet, &self.player, self.player_style.scale);
+        self
+    }
+}
+
+fn layout_of(skin: ActiveSkin, settings: &LayoutSettings) -> HudLayout {
+    match skin {
+        ActiveSkin::Modern => MODERN,
+        ActiveSkin::Forever => FOREVER,
+    }
+    .with_settings(settings)
+}
+
+/// The settings of the layout the client draws (`None` until one is applied: the preset's
+/// own values); every canvas mirrors them into its `SharedContext` beside the active skin.
+static ACTIVE_SETTINGS: RwLock<Option<LayoutSettings>> = RwLock::new(None);
+
+pub fn active_layout_settings() -> LayoutSettings {
+    ACTIVE_SETTINGS
+        .read()
+        .expect("layout settings lock")
+        .unwrap_or_default()
+}
+
+pub fn set_active_layout_settings(settings: LayoutSettings) {
+    *ACTIVE_SETTINGS.write().expect("layout settings lock") = Some(settings);
+}
+
+/// The HUD layout the client draws, for state built outside a canvas.
+pub fn active_hud_layout() -> HudLayout {
+    layout_of(ui_toolkit::atlas::active_skin(), &active_layout_settings())
+}
+
+/// The canvas's HUD layout: its preset (every canvas mirrors the active skin) with the
+/// active layout's settings, the preset's own values on a canvas that carries none.
+pub fn hud_layout(ctx: &SharedContext) -> HudLayout {
+    let skin = *ctx
+        .get::<ActiveSkin>()
+        .expect("canvas carries the active skin");
+    let settings = ctx.get::<LayoutSettings>().copied().unwrap_or_default();
+    layout_of(skin, &settings)
 }
