@@ -191,18 +191,16 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
     assert!(frame(&registry, "DamageMeterThreatTab").onclick.is_none());
     assert_eq!(
         rect(&registry, "DamageMeterSessionDropdown"),
-        (348.5, 2.0, 22.0, 22.0)
+        (348.5, -1.0, 22.0, 22.0)
     );
     assert_eq!(
         rect(&registry, "DamageMeterSettings"),
-        (369.5, 2.0, 22.0, 22.0)
+        (369.5, -1.0, 22.0, 22.0)
     );
-    for (index, top, height) in [(0, 12.0, 6.0), (1, 8.0, 10.0), (2, 4.0, 14.0)] {
+    for (index, left, top, height) in [(0, 0.0, 7.7, 5.5), (1, 5.5, 4.4, 8.8), (2, 11.0, 0.0, 13.2)]
+    {
         let name = format!("DamageMeterChartColumn{index}");
-        assert_eq!(
-            rect(&registry, &name),
-            (4.0 + index as f32 * 5.0, top, 3.0, height)
-        );
+        assert_eq!(rect(&registry, &name), (left, top, 2.2, height));
         assert_eq!(
             frame(&registry, &name).background_color,
             Some([0.61, 0.48, 0.29, 1.0])
@@ -210,7 +208,7 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
     }
     assert_eq!(
         texture(&registry, "DamageMeterSettingsIcon").source,
-        TextureSource::Atlas("common-dropdown-a-button-settings-shadowless".into())
+        TextureSource::FileDataId(7_518_377)
     );
     assert_eq!(
         texture(&registry, "DamageMeterSettingsIcon").vertex_color,
@@ -362,26 +360,131 @@ fn forever_chat_has_plain_text_tabs_separator_and_four_header_icons() {
         );
         assert!(registry.get_by_name(&format!("{name}Left")).is_none());
     }
-    for (name, x, atlas) in [
-        ("Channel", 352.0, "chatballon"),
-        (
-            "Menu",
-            387.0,
-            "common-dropdown-a-button-settings-shadowless",
-        ),
-        ("Social", 422.0, "UI-HUD-MicroMenu-GuildCommunities-Up"),
-        ("Volume", 457.0, "common-dropdown-icon-sound-on"),
+    for (name, x, fdid) in [
+        ("Channel", 352.0, 1_121_272),
+        ("Menu", 387.0, 7_518_377),
+        ("Social", 422.0, 8_200_846),
+        ("Volume", 457.0, 5_390_329),
     ] {
         let name = format!("ChatFrame1Flare{name}");
-        assert_eq!(rect(&registry, &name), (x, -1.0, 22.0, 22.0));
+        assert_eq!(rect(&registry, &name), (x, -6.0, 22.0, 22.0));
         let icon = texture(&registry, &format!("{name}Icon"));
-        assert_eq!(icon.source, TextureSource::Atlas(atlas.into()));
+        assert_eq!(icon.source, TextureSource::FileDataId(fdid));
         assert_eq!(icon.vertex_color, [0.61, 0.48, 0.29, 1.0]);
     }
     assert!(registry.get_by_name("ChatFrame1CopyButton").is_none());
     assert_eq!(
         rect(&registry, "ChatFrame1Messages"),
         (34.0, 27.0, 461.0, 215.0)
+    );
+}
+
+fn assert_header_icons(
+    registry: &FrameRegistry,
+    header: &str,
+    separator: &str,
+    icons: &[(&str, f32)],
+    button_top: f32,
+    spacing: f32,
+) {
+    let (_, header_top, _, header_height) = rect(registry, header);
+    let (_, separator_top, _, _) = rect(registry, separator);
+    let center = header_top + header_height / 2.0;
+    for (index, &(name, left)) in icons.iter().enumerate() {
+        let button = rect(registry, name);
+        assert_eq!(button, (left, button_top, 22.0, 22.0), "{name}");
+        assert_eq!(button.1 + button.3 / 2.0, center, "{name}: button centre");
+        assert!(
+            button.1 + button.3 < separator_top,
+            "{name}: separator overlap"
+        );
+        let icon_name = format!("{name}Icon");
+        let icon = rect(registry, &icon_name);
+        assert_eq!(icon, (4.4, 4.4, 13.2, 13.2), "{icon_name}");
+        assert!((button.1 + icon.1 + icon.3 / 2.0 - center).abs() < 0.00001);
+        assert!(button.1 + icon.1 + icon.3 < separator_top);
+        if index > 0 {
+            assert_eq!(left - icons[index - 1].1, spacing);
+        }
+    }
+}
+
+#[test]
+fn forever_header_icons_are_centred_equal_sized_and_clear_of_separator() {
+    let chat = canvas(
+        ActiveSkin::Forever,
+        ChatFrameView::default(),
+        chat_frame_screen,
+    );
+    assert_header_icons(
+        &chat,
+        "ChatFrame1FlareHeader",
+        "ChatFrame1FlareSeparator",
+        &[
+            ("ChatFrame1FlareChannel", 352.0),
+            ("ChatFrame1FlareMenu", 387.0),
+            ("ChatFrame1FlareSocial", 422.0),
+            ("ChatFrame1FlareVolume", 457.0),
+        ],
+        -6.0,
+        35.0,
+    );
+    let meter = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
+    assert_header_icons(
+        &meter,
+        "DamageMeterFlareHeader",
+        "DamageMeterFlareSeparator",
+        &[
+            ("DamageMeterSessionDropdown", 348.5),
+            ("DamageMeterSettings", 369.5),
+        ],
+        -1.0,
+        21.0,
+    );
+}
+
+#[test]
+fn forever_header_glyph_crops_remove_cell_padding_and_dropdown_frame() {
+    let chat = canvas(
+        ActiveSkin::Forever,
+        ChatFrameView::default(),
+        chat_frame_screen,
+    );
+    for (name, fdid, coords) in [
+        (
+            "Channel",
+            1_121_272,
+            [
+                427.0 / 1024.0,
+                451.0 / 1024.0,
+                768.0 / 1024.0,
+                792.0 / 1024.0,
+            ],
+        ),
+        (
+            "Menu",
+            7_518_377,
+            [67.0 / 128.0, 79.0 / 128.0, 35.0 / 64.0, 47.0 / 64.0],
+        ),
+        (
+            "Social",
+            8_200_846,
+            [276.0 / 1024.0, 318.0 / 1024.0, 98.0 / 512.0, 157.0 / 512.0],
+        ),
+        (
+            "Volume",
+            5_390_329,
+            [388.0 / 512.0, 399.0 / 512.0, 31.0 / 256.0, 45.0 / 256.0],
+        ),
+    ] {
+        let icon = texture(&chat, &format!("ChatFrame1Flare{name}Icon"));
+        assert_eq!(icon.source, TextureSource::FileDataId(fdid));
+        assert_eq!(icon.tex_coords, coords, "{name}");
+    }
+    let meter = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
+    assert_eq!(
+        texture(&meter, "DamageMeterSettingsIcon").tex_coords,
+        texture(&chat, "ChatFrame1FlareMenuIcon").tex_coords,
     );
 }
 

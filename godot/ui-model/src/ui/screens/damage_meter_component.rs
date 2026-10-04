@@ -19,8 +19,9 @@ use crate::damage_meter_data::{
     DAMAGE_DONE_LABEL, DamageMeterRow, DamageMeterView, MeterSessionType,
 };
 use crate::flare_panel::{
-    FLARE_ACTIVE_TEXT, FLARE_ICON_COLOR, FLARE_INACTIVE_TEXT, flare_header, flare_icon,
-    flare_panel, flare_text,
+    FLARE_ACTIVE_TEXT, FLARE_GEAR_ART, FLARE_HEADER_BUTTON_SIZE, FLARE_HEADER_HEIGHT,
+    FLARE_HEADER_ICON_INSET, FLARE_HEADER_ICON_SIZE, FLARE_ICON_COLOR, FLARE_INACTIVE_TEXT,
+    flare_header, flare_icon, flare_panel, flare_text,
 };
 use crate::hud_layout::hud_layout;
 use crate::inworld_unit_frames_component::inworld_unit_frames_flare::flare_border_with_edge;
@@ -247,9 +248,11 @@ const FOREVER_BAR_LEFT: f32 = FOREVER_ICON_SIZE + BAR_SPACING;
 const FOREVER_BAR_W: f32 = FOREVER_ROW_W - FOREVER_BAR_LEFT;
 const FOREVER_FILL_W: f32 = FOREVER_BAR_W - 2.0;
 const FOREVER_BAR_EDGE: f32 = 8.0;
-const FOREVER_BUTTON_SIZE: f32 = 22.0;
+const FOREVER_BUTTON_TOP: f32 =
+    FLARE_SKIN_RECT.1 + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
 const FOREVER_CHART_LEFT: f32 = 348.5;
 const FOREVER_GEAR_LEFT: f32 = 369.5;
+const FOREVER_CHART_COLUMN_W: f32 = 2.2;
 
 fn forever_header() -> Element {
     let mut parts = flare_header("DamageMeterFlare", FLARE_SKIN_RECT);
@@ -271,12 +274,12 @@ fn forever_header() -> Element {
     parts.extend(forever_chart_button());
     parts.extend(flare_icon(
         "DamageMeterSettings",
-        "common-dropdown-a-button-settings-shadowless",
+        FLARE_GEAR_ART,
         [
             FOREVER_GEAR_LEFT,
-            2.0,
-            FOREVER_BUTTON_SIZE,
-            FOREVER_BUTTON_SIZE,
+            FOREVER_BUTTON_TOP,
+            FLARE_HEADER_BUTTON_SIZE,
+            FLARE_HEADER_BUTTON_SIZE,
         ],
         None,
     ));
@@ -284,18 +287,18 @@ fn forever_header() -> Element {
 }
 
 fn forever_chart_button() -> Element {
-    let columns: Element = [(12.0, 6.0), (8.0, 10.0), (4.0, 14.0)]
+    let columns: Element = [(7.7, 5.5), (4.4, 8.8), (0.0, 13.2)]
         .into_iter()
         .enumerate()
         .flat_map(|(index, (top, height))| {
             rsx! {
                 r#frame {
                     name: {DynName(format!("DamageMeterChartColumn{index}"))},
-                    width: 3.0,
+                    width: FOREVER_CHART_COLUMN_W,
                     height,
                     background_color: FLARE_ICON_COLOR,
                     pos_type: "absolute",
-                    left: {4.0 + index as f32 * 5.0},
+                    left: {index as f32 * 5.5},
                     top,
                 }
             }
@@ -304,14 +307,22 @@ fn forever_chart_button() -> Element {
     rsx! {
         button {
             name: "DamageMeterSessionDropdown",
-            width: FOREVER_BUTTON_SIZE,
-            height: FOREVER_BUTTON_SIZE,
+            width: FLARE_HEADER_BUTTON_SIZE,
+            height: FLARE_HEADER_BUTTON_SIZE,
             onclick: ACTION_DAMAGE_METER_MENU,
             button_default_skin: false,
             pos_type: "absolute",
             left: FOREVER_CHART_LEFT,
-            top: 2.0,
-            {columns}
+            top: FOREVER_BUTTON_TOP,
+            r#frame {
+                name: "DamageMeterSessionDropdownIcon",
+                width: FLARE_HEADER_ICON_SIZE,
+                height: FLARE_HEADER_ICON_SIZE,
+                pos_type: "absolute",
+                left: FLARE_HEADER_ICON_INSET,
+                top: FLARE_HEADER_ICON_INSET,
+                {columns}
+            }
         }
     }
 }
