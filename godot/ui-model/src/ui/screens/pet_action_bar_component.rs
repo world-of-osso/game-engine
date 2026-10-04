@@ -341,12 +341,16 @@ fn autocast_overlay(name: &str, autocast: PetAutocast, scale: f32) -> Element {
 }
 
 fn icon(name: String, fdid: u32, size: f32) -> Element {
+    // PetActionBar.lua:156-165 shows the icon only when the action has a texture; a pet
+    // spell whose icon is not known yet (FDID 0) has none.
+    if fdid == 0 {
+        return Element::default();
+    }
     rsx! {
         texture {
             name: {DynName(name)},
             width: size,
             height: size,
-            hidden: {fdid == 0},
             texture_fdid: {fdid},
             pos_type: "absolute",
             pos_x: 0.0,

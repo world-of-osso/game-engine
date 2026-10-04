@@ -241,6 +241,9 @@ fn aura_button_sized(
     (x, y, size): (f32, f32, f32),
 ) -> Element {
     let name = format!("{prefix}Icon{index}");
+    let icon_texture: Element = resolved_icon(icon)
+        .map(|fdid| aura_icon_texture(&name, fdid, size))
+        .unwrap_or_default();
     let count = if icon.stacks > 1 {
         icon.stacks.to_string()
     } else {
@@ -255,15 +258,7 @@ fn aura_button_sized(
             pos_type: "absolute",
             left: x,
             top: y,
-            texture {
-                name: {dyn_name(format!("{name}Texture"))},
-                width: size,
-                height: size,
-                texture_fdid: {icon.icon_fdid},
-                pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
-            }
+            {icon_texture}
             r#frame {
                 name: {dyn_name(format!("{name}Cooldown"))},
                 width: size,
@@ -288,6 +283,26 @@ fn aura_button_sized(
                 right: -1.0,
                 bottom: 0.0,
             }
+        }
+    }
+}
+
+/// The aura's icon once its spell is known: auras replicate before the spell catalog has
+/// loaded, and until then `aura_instance` carries `icon_fdid` 0, which is no texture.
+fn resolved_icon(icon: &TargetAuraIconState) -> Option<u32> {
+    (icon.icon_fdid != 0).then_some(icon.icon_fdid)
+}
+
+fn aura_icon_texture(name: &str, fdid: u32, size: f32) -> Element {
+    rsx! {
+        texture {
+            name: {dyn_name(format!("{name}Texture"))},
+            width: size,
+            height: size,
+            texture_fdid: fdid,
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
         }
     }
 }
