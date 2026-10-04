@@ -64,7 +64,7 @@ fn parse_maps(text: &str, source: &str) -> Result<Vec<MapIdentity>, String> {
         .skip(1)
         .filter(|row| row.len() > 1)
         .map(|row| {
-            let field = |index| {
+            let field = |index: usize| -> Result<&String, String> {
                 row.get(index)
                     .ok_or_else(|| format!("{source}: incomplete row {row:?}"))
             };
