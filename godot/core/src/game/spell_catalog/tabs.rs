@@ -49,6 +49,8 @@ pub struct SpecTabInfo {
     pub spells: HashSet<u32>,
     /// `ChrSpecialization.PrimaryStatPriority`; see [`SpecTabInfo::primary_stat`].
     pub primary_stat_priority: u32,
+    /// `ChrSpecialization.SpellIconFileID`.
+    pub icon_fdid: u32,
 }
 
 /// The stat a specialization's gear and character sheet favour.
@@ -273,6 +275,7 @@ fn load_specs(dir: &Path) -> Result<HashMap<u32, SpecTabInfo>, String> {
         "MasterySpellID_0",
         "MasterySpellID_1",
         "PrimaryStatPriority",
+        "SpellIconFileID",
     ];
     let mut specs = HashMap::new();
     for_each_record(dir, "ChrSpecialization", &columns, |row| {
@@ -286,6 +289,7 @@ fn load_specs(dir: &Path) -> Result<HashMap<u32, SpecTabInfo>, String> {
             initial: order_index == INITIAL_SPEC_ORDER,
             spells: mastery.into_iter().filter(|&id| id != 0).collect(),
             primary_stat_priority: parse_u32(table, row[6])?,
+            icon_fdid: parse_u32(table, row[7])?,
         };
         specs.insert(parse_u32(table, row[0])?, spec);
         Ok(())

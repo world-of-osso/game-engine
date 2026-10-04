@@ -378,12 +378,14 @@ pub fn options_view(model: &OptionsViewModel, first_item: usize) -> Element {
     }
 }
 
+/// Retail SettingsPanel title: `SETTINGS_TITLE` "Options" (Blizzard_SettingsPanel.lua:54,
+/// GlobalStrings `SETTINGS_TITLE`).
 fn title() -> Element {
     framed_title(
         OPTIONS_TITLE_FRAME,
         OPTIONS_TITLE_LABEL,
         300.0,
-        "Game Menu",
+        "Options",
         -18.0,
     )
 }

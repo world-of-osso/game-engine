@@ -113,7 +113,7 @@ fn opens_quest_frame(kind: &InteractionKind, quest_giver: bool) -> bool {
 }
 
 /// Every FileDataID texture the screen `build` draws for `state`.
-fn screen_texture_fdids<T: 'static>(
+pub(crate) fn screen_texture_fdids<T: 'static>(
     state: T,
     build: fn(&SharedContext) -> ui_toolkit::widget_def::Element,
 ) -> Vec<u32> {
