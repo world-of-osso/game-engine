@@ -1,6 +1,6 @@
-//! Each playable race and sex's body model, from the build-pinned DB2 exports: Retail's
-//! `ChrRaceXChrModel` → `ChrModel.DisplayID` → `CreatureDisplayInfo.ModelID` →
-//! `CreatureModelData.FileDataID` chain, so every race the client knows has its model.
+//! Each playable race and sex's body model from build-pinned Retail and Forever DB2
+//! exports: `ChrRaceXChrModel` → `ChrModel.DisplayID` → `CreatureDisplayInfo.ModelID` →
+//! `CreatureModelData.FileDataID`, with a Skyborne-only Forever overlay.
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -77,7 +77,7 @@ fn read_model_chain(db2_dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
 mod tests {
     use super::*;
 
-    /// Known WoW Forever 70058 Skyborne rows, not the full current catalog.
+    /// Forever 1.60.1.70205 Skyborne rows override Retail placeholders, not Human.
     #[test]
     fn skyborne_known_forever_models_follow_db2_chain() {
         let nonce = std::time::SystemTime::now()
