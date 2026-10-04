@@ -252,15 +252,6 @@ fn assert_modern_edit_mode_systems(hud: &[RegistryModel]) {
     assert_eq!(top_right(hud, TRACKER_FRAME), (1256.0, 275.0));
 }
 
-fn assert_rect(hud: &[RegistryModel], name: &str, expected: (f32, f32, f32, f32)) {
-    let rect = rect(hud, name);
-    assert_eq!(
-        (rect.x, rect.y, rect.width, rect.height),
-        expected,
-        "{name}"
-    );
-}
-
 #[test]
 fn modern_preset_keeps_the_retail_modern_hud_positions() {
     let mut hud = hud();
