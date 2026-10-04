@@ -266,7 +266,7 @@ fn colour_frames(target_reaction: Reaction, target_class: Option<u8>) -> FrameRe
 fn label<'a>(
     registry: &'a FrameRegistry,
     name: &str,
-) -> &'a ui_toolkit::widgets::fontstring::FontStringData {
+) -> &'a ui_toolkit::widgets::font_string::FontStringData {
     let Some(WidgetData::FontString(text)) = frame(registry, name).widget_data.as_ref() else {
         panic!("{name} is not a FontString");
     };
