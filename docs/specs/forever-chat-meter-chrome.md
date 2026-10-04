@@ -38,9 +38,9 @@ Header order is FlareUI's `HEADER_ORDER` volume, social, menu, channel packed fr
 
 | Glyph | FlareUI button | Blizzard art | FDID / size | Glyph pixels (left,right,top,bottom) |
 | --- | --- | --- | --- | --- |
-| Channel | `ChatFrameChannelButton` (`Chat.lua:59,610`) | Retail's friend-note glyph `Interface/FriendsFrame/UI-FriendsFrame-Note`, drawn tinted (`<Color>`) as a mask (`Blizzard_FriendsFrame/Mainline/FriendsFrame.xml:1140-1146`) | 131129 | whole file |
+| Channel | `ChatFrameChannelButton` (`Chat.lua:59,610`) | Retail's friend-note glyph `Interface/FriendsFrame/UI-FriendsFrame-Note`, drawn tinted (`<Color>`) as a mask (`Blizzard_FriendsFrame/Mainline/FriendsFrame.xml:1140-1146`) | 131129 / 8x8 | (0,6,0,8) |
 | Menu | `ChatFrameMenuButton` (`Chat.lua:611`) | NormalTexture `Interface\ChatFrame\UI-ChatIcon-Chat-Up` (`FloatingChatFrame.xml:670`): the speech bubble inside the button frame | 130949 / 32x32 | (8,22,9,23) |
-| Social | `QuickJoinToastButton` (`Chat.lua:609`) | `FriendsButton` atlas `quickjoin-button-friendslist-up` (`QuickJoinToast.xml:42`), cell (338,370,1,33): the figure inside the button frame | 1537274 / 512x64 | (346,360,7,21) |
+| Social | `QuickJoinToastButton` (`Chat.lua:609`) | Its `FriendsButton` art (`quickjoin-button-friendslist-up`, `QuickJoinToast.xml:42`) has an opaque dark face behind the figure, so Retail's standalone friend glyph `groupfinder-icon-friend` (`Blizzard_GroupFinder/Mainline/LFGList.xml:203`) | 985877 / 2048x1024 | (303,323,361,380) |
 | Volume | FlareUI's own button (`Chat.lua:1396-1426`) | `common-dropdown-icon-sound-on`, cell (386,403,29,46), without padding | 5390329 / 512x256 | (388,399,31,45) |
 | Meter gear | settings (`DamageMeter.lua:50-57`) | `common-dropdown-a-button-settings-shadowless`, cell (59,86,30,57): the cog without its dropdown frame | 7518377 / 128x64 | (67,79,35,47) |
 

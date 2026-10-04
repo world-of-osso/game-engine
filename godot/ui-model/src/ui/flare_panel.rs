@@ -153,7 +153,8 @@ pub const FLARE_HEADER_ICON_INSET: f32 = 4.4;
 /// for that button is a second speaker (`chatframe-button-icon-voicechat`,
 /// ChannelFrameButtonMixin.lua:24), so the page is Retail's friend-note glyph
 /// `Interface/FriendsFrame/UI-FriendsFrame-Note`, a tinted mask (FriendsFrame.xml:1140-1146).
-pub const FLARE_CHANNEL_ART: (u32, [f32; 4]) = (131_129, [0.0, 1.0, 0.0, 1.0]);
+/// The 8x8 file's page occupies columns 0-5.
+pub const FLARE_CHANNEL_ART: (u32, [f32; 4]) = (131_129, [0.0, 6.0 / 8.0, 0.0, 1.0]);
 /// `ChatFrameMenuButton` (Chat.lua:611): the speech bubble of its NormalTexture
 /// `Interface\ChatFrame\UI-ChatIcon-Chat-Up` (FloatingChatFrame.xml:670).
 pub const FLARE_MENU_ART: (u32, [f32; 4]) =
@@ -163,11 +164,18 @@ pub const FLARE_GEAR_ART: (u32, [f32; 4]) = (
     7_518_377,
     [67.0 / 128.0, 79.0 / 128.0, 35.0 / 64.0, 47.0 / 64.0],
 );
-/// `QuickJoinToastButton` (Chat.lua:609): the figure of its `FriendsButton` atlas
-/// `quickjoin-button-friendslist-up` (QuickJoinToast.xml:42).
+/// `QuickJoinToastButton` (Chat.lua:609): its `FriendsButton` art
+/// `quickjoin-button-friendslist-up` (QuickJoinToast.xml:42) draws the figure on an opaque
+/// dark button face, so the figure is Retail's standalone friend glyph
+/// `groupfinder-icon-friend` (LFGList.xml:203; atlas 236, cell 303-323 x 361-380).
 pub const FLARE_SOCIAL_ART: (u32, [f32; 4]) = (
-    1_537_274,
-    [346.0 / 512.0, 360.0 / 512.0, 7.0 / 64.0, 21.0 / 64.0],
+    985_877,
+    [
+        303.0 / 2048.0,
+        323.0 / 2048.0,
+        361.0 / 1024.0,
+        380.0 / 1024.0,
+    ],
 );
 pub const FLARE_VOLUME_ART: (u32, [f32; 4]) = (
     5_390_329,
