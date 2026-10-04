@@ -179,7 +179,7 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
         ),
         (
             "ChrCustomizationElement",
-            "ChrCustomizationChoiceID,RelatedChrCustomizationChoiceID,ChrCustomizationGeosetID,ChrCustomizationMaterialID,ChrCustomizationSkinnedModelID,ChrCustomizationBoneSetID,ChrCustomizationCondModelID,ChrCustomizationDisplayInfoID,ChrCustItemGeoModifyID,ChrCustomizationVoiceID,AnimKitID,ParticleColorID,ChrCustGeoComponentLinkID\n95000,0,1,1,0,0,0,0,0,0,0,0,0\n95001,0,1,1,0,0,0,0,0,0,0,0,0\n",
+            "ChrCustomizationChoiceID,RelatedChrCustomizationChoiceID,ChrCustomizationGeosetID,ChrCustomizationMaterialID,ChrCustomizationSkinnedModelID,ChrCustomizationBoneSetID,ChrCustomizationCondModelID,ChrCustomizationDisplayInfoID,ChrCustItemGeoModifyID,ChrCustomizationVoiceID,AnimKitID,ParticleColorID,ChrCustGeoComponentLinkID\n95000,0,1,1,7,0,0,0,0,0,0,0,0\n95001,0,1,1,0,0,0,0,0,0,0,0,0\n",
         ),
         (
             "CharHairGeosets",
@@ -188,6 +188,15 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
     ] {
         std::fs::write(forever.join(format!("{name}.csv")), contents).unwrap();
     }
+    // The real Forever export has this wide GeosetID on unrelated collection rows.
+    // It must be retained, but not interpreted as a Skyborne submesh ID.
+    std::fs::OpenOptions::new()
+        .append(true)
+        .open(forever.join("ChrCustomizationSkinnedModel.csv"))
+        .and_then(|mut file| {
+            std::io::Write::write_all(&mut file, b"833,5792408,44,1684631414,-1,0\n")
+        })
+        .unwrap();
     let header = "ID,ReqType,ClassMask,RaceMasks_0,RaceMasks_1,ReqAchievementID,ReqQuestID,ReqItemModifiedAppearanceID\n";
     std::fs::write(
         retail.root.join("ChrCustomizationReq.csv"),
@@ -236,10 +245,30 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
             assert_eq!(required.len(), 1);
             assert_eq!(required[0].option_id, 502);
             assert_eq!(required[0].choice_ids, [95002]);
+            assert_eq!(choices[0].skinned_models[0].collection_fdid, 7760205);
         }
     }
     assert!(db.offered_choices(1, 0, 8, 500).is_empty());
     assert!(!db.offered_choices(1, 0, 8, 890).is_empty());
+    let cache = import_customization_cache(&forever).unwrap();
+    let conn = Connection::open(&cache).unwrap();
+    assert_eq!(
+        conn.query_row(
+            "SELECT geoset_id FROM skinned_models WHERE id = 833",
+            [],
+            |row| row.get::<_, u32>(0)
+        )
+        .unwrap(),
+        1684631414
+    );
+    conn.execute(
+        "UPDATE skinned_models SET geoset_id = 1684631414 WHERE id = 7",
+        [],
+    )
+    .unwrap();
+    drop(conn);
+    let error = crate::npc_appearance_assets::load_customization_db(&retail.root).unwrap_err();
+    assert!(error.contains("read skinned_models row"), "{error}");
 }
 
 #[test]
