@@ -51,6 +51,28 @@ models/949470.m2
 models/94947000.skin
 models/949470.skel
 
+# Forever Skyborne catalogs: isolated cache import plus Retail-overlay regression tests.
+db2/1.60.1.70205/ChrRaces.csv
+db2/1.60.1.70205/ChrRaceXChrModel.csv
+db2/1.60.1.70205/ChrModel.csv
+db2/1.60.1.70205/CreatureDisplayInfo.csv
+db2/1.60.1.70205/CreatureModelData.csv
+db2/1.60.1.70205/ChrCustomizationOption.csv
+db2/1.60.1.70205/ChrCustomizationChoice.csv
+db2/1.60.1.70205/ChrCustomizationElement.csv
+db2/1.60.1.70205/ChrCustomizationMaterial.csv
+db2/1.60.1.70205/ChrCustomizationGeoset.csv
+db2/1.60.1.70205/ChrCustomizationCategory.csv
+db2/1.60.1.70205/ChrCustomizationSkinnedModel.csv
+db2/1.60.1.70205/ChrCustomizationReq.csv
+db2/1.60.1.70205/ChrCustomizationReqChoice.csv
+db2/1.60.1.70205/CharHairGeosets.csv
+db2/1.60.1.70205/TextureFileData.csv
+db2/1.60.1.70205/ChrModelTextureLayer.csv
+db2/1.60.1.70205/ChrModelMaterial.csv
+db2/1.60.1.70205/CharComponentTextureLayouts.csv
+db2/1.60.1.70205/CharComponentTextureSections.csv
+
 # game-engine-core tests/: models
 models/boar.m2
 models/boar00.skin
@@ -107,6 +129,11 @@ terrain/azeroth_32_48.adt
 terrain/azeroth_32_48_tex0.adt
 terrain/azeroth_32_48_obj0.adt
 terrain/775971.wdt
+terrain/7198644.wdt
+terrain/7199999.adt
+terrain/7200002.adt
+terrain/7200000.adt
+db2/1.60.1.70205/Map.csv
 terrain/777828.adt
 terrain/2847_31_37_obj0.adt
 
