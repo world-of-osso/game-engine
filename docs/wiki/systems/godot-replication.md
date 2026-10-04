@@ -41,6 +41,8 @@ The old test Tap captured `ClientMessages` unconditionally in `PreUpdate` and pa
 
 `acknowledgment_capture_follows_connection_transition_consumption` queues the concrete empty mutation `[0, 0, 1, 0, 0]` while Connecting and then enters Connected. The original Tap deterministically fails with expected `[b"\0\0"]`, captured `[]`. Capture now brackets both actual consumption schedules and follows the same Connected condition; the byte-equality assertion, worker, sleeps and deadlines are unchanged.
 
+Proof: deterministic RED at `4878e8e6` (exit 101), unchanged regression GREEN at `5ae0e4e7` (1/1), then one full `--test -p game-engine-network --lib` run at `5ae0e4e7` (58/58, including both originally intermittent cases). No artificial contention; observed one-minute load at GREEN/full completion was 35.05/36.38. Logs: `/tmp/claude/replicaflake-{2,3,4}.out`. Shared protocol was clean at `3ddb960d` before the full run.
+
 ## Measured cost (2026-09-30)
 
 Northshire start, about 93 replicated players/creatures, standing still, debug extension, 10 s windows after world load (median across windows), master `c92480ba` vs this branch, both with the same temporary probe (not committed): worker thread CPU from `/proc/self/task`, allocations counted by a global allocator on the worker thread and inside the host's unit handling (old: `UnitUpdated`/`UnitRemoved` arms; new: `apply_replication`), time of that handling per frame. The machine was shared with other agents' clients (load 15-27), so absolute numbers vary between runs; the allocation rates were stable.

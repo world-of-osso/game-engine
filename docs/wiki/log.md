@@ -1,6 +1,6 @@
 ## 2026-10-03 — Replica acknowledgment test capture (replicaflake)
 
-[[godot-replication]] records the deterministic Connecting → Connected reproduction: the old Tap paired buffered arrival with an acknowledgment from a different consumption boundary. Capture now brackets replicon's Connected PreUpdate and OnEnter receive calls; product worker and exact byte comparison unchanged. Regression RED reproduces `[b"\0\0"]` versus `[]`; GREEN proof tracked in the agent handoff.
+[[godot-replication]] records the deterministic Connecting → Connected reproduction: the old Tap paired buffered arrival with an acknowledgment from a different consumption boundary. Capture now brackets replicon's Connected PreUpdate and OnEnter receive calls; product worker and exact byte comparison unchanged. Regression RED reproduces `[b"\0\0"]` versus `[]`; unchanged test GREEN 1/1 and full network library 58/58 at `5ae0e4e7`, with natural one-minute loads 35.05/36.38. Exact proof and revisions in [[godot-replication]].
 
 ## 2026-10-03 — Pinned Godot adds PR #123546: cold import crash (coldimport)
 
