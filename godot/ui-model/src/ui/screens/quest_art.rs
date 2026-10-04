@@ -14,6 +14,7 @@ use crate::ui::panel_styles::{
     METAL_FRAME_NO_PORTRAIT_OUTSET, METAL_FRAME_NO_PORTRAIT_PANEL_STYLE, METAL_FRAME_OUTSET,
     METAL_FRAME_PANEL_STYLE,
 };
+use crate::ui::screens::inworld_unit_frames_component::PortraitSlot;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::strata::FrameStrata;
 
@@ -161,6 +162,35 @@ pub fn portrait_border(
     elements.extend(window_title(prefix, width, title, PORTRAIT_TITLE_LEFT));
     elements.extend(close_button(prefix, width, close_action));
     elements
+}
+
+/// `PortraitFrameBaseTemplate` `PortraitContainer.portrait` (SharedUIPanelTemplates.xml:
+/// 551-572): 62×62 at TOPLEFT (-5, 7), rounded by `CircleMask` (`TempPortraitAlphaMask`,
+/// FileDataID 130924) from the portrait's TOPLEFT (2, 0) to its BOTTOMRIGHT (-2, 4).
+pub const fn window_portrait_slot(frame: &'static str) -> PortraitSlot {
+    PortraitSlot {
+        frame,
+        rect: (-5.0, -7.0, 62.0, 62.0),
+        mask_fdid: 130_924,
+        mask_rect: (-3.0, -7.0, 58.0, 58.0),
+    }
+}
+
+/// The slot the host renders `SetPortraitTexture(portrait, unit)` into, at the
+/// `PortraitContainer`'s frameLevel 400 above the metal ring.
+pub fn window_portrait(slot: &PortraitSlot) -> Element {
+    let (x, y, width, height) = slot.rect;
+    rsx! {
+        r#frame {
+            name: {DynName(slot.frame.into())},
+            width,
+            height,
+            frame_level: 400.0,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    }
 }
 
 /// `PANEL_BACKGROUND_COLOR` (GlobalColor 191, ARGB 0xCC1F1E21).
