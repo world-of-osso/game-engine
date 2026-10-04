@@ -11,6 +11,9 @@ use game_engine_ui_model::buff_frame_component::{
 use game_engine_ui_model::casting_bar_frame_component::{
     CastingBarState, casting_bar_frame_screen,
 };
+use game_engine_ui_model::chat_frame_component::{
+    CHAT_FLARE_SKIN, CHAT_FRAME, ChatFrameView, chat_frame_screen,
+};
 use game_engine_ui_model::compact_unit_frame_component::{CompactUnitView, UnitStatus};
 use game_engine_ui_model::damage_meter_component::{DAMAGE_METER_ROOT, damage_meter_screen};
 use game_engine_ui_model::damage_meter_data::DamageMeterView;
@@ -122,6 +125,7 @@ fn hud() -> Vec<RegistryModel> {
         model(MinimapClusterState::default(), minimap_cluster_screen),
         model(groups, group_frames_screen),
         model(DamageMeterView::default(), damage_meter_screen),
+        model(ChatFrameView::default(), chat_frame_screen),
         model(ObjectiveTrackerState::default(), objective_tracker_screen),
     ]
 }
@@ -177,6 +181,8 @@ fn assert_modern(hud: &[RegistryModel]) {
     // 329×40 micro menu BOTTOMRIGHT (-6, 6); 368×47 bags bar TOPRIGHT (-6, 96).
     assert_eq!(top_left(hud, MICRO_MENU), (1031.0, 722.0));
     assert_eq!(top_right(hud, "BagsBar"), (1360.0, 672.0));
+    assert_rect(hud, DAMAGE_METER_ROOT.0, (0.0, 0.0, 400.0, 140.0));
+    assert_rect(hud, CHAT_FRAME.0, (0.0, 448.0, 500.0, 280.0));
     assert_modern_edit_mode_systems(hud);
 }
 
@@ -188,8 +194,12 @@ fn assert_modern_edit_mode_systems(hud: &[RegistryModel]) {
     assert_eq!(top_left(hud, PARTY_FRAME), (22.0, 147.0));
     let raid = rect(hud, RAID_FRAME);
     assert_eq!((raid.x, raid.y + raid.height), (395.0, 553.0));
-    assert_eq!(top_left(hud, DAMAGE_METER_ROOT.0), (0.0, 0.0));
     assert_eq!(top_right(hud, TRACKER_FRAME), (1256.0, 275.0));
+}
+
+fn assert_rect(hud: &[RegistryModel], name: &str, expected: (f32, f32, f32, f32)) {
+    let rect = rect(hud, name);
+    assert_eq!((rect.x, rect.y, rect.width, rect.height), expected, "{name}");
 }
 
 #[test]
@@ -235,8 +245,13 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
         "MainActionBar {edges:?} != {expected:?}"
     );
     assert_eq!(top_left(&hud, "BagsBar"), (971.0, 719.0));
-    // Forever's Mainline preset keeps Modern's minimap, aura, group, meter and tracker
-    // anchors.
+    // FlareUI matches the meter root to the chat skin; mirror it across UIParent.
+    assert_rect(&hud, DAMAGE_METER_ROOT.0, (891.0, 419.0, 450.0, 214.0));
+    // Forever chat messages 430x170 at BOTTOMLEFT(35,145), padding 10 + header 24.
+    assert_rect(&hud, CHAT_FRAME.0, (1.0, 426.0, 469.0, 235.0));
+    assert_rect(&hud, CHAT_FLARE_SKIN, (25.0, 419.0, 450.0, 214.0));
+    assert_rect(&hud, "ChatFrame1Messages", (35.0, 453.0, 430.0, 170.0));
+    // Other Mainline anchors remain shared.
     assert_modern_edit_mode_systems(&hud);
 
     sync(&mut hud, ActiveSkin::Modern);
