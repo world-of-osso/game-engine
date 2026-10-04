@@ -108,10 +108,10 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 70);
+    assert_eq!(InputAction::ALL.len(), 94);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 14, 22, 1, 13, 6]
+        [8, 6, 14, 22, 12, 12, 1, 13, 6]
     );
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {
@@ -389,4 +389,91 @@ fn hotkey_text_abbreviates_modifiers() {
         "s-B"
     );
     assert_eq!(InputBinding::Keyboard(BindingKey::Minus).hotkey_text(), "-");
+}
+
+/// Retail `MULTIACTIONBAR1BUTTONn` / `MULTIACTIONBAR2BUTTONn`: "Action Bar 2 Button n" /
+/// "Action Bar 3 Button n" under the Action Bar 2 / 3 headers, shipped unbound.
+#[test]
+fn extra_action_bar_buttons_are_listed_unbound_under_their_bar() {
+    let bindings = InputBindingsData::default();
+    for (bar, actions, section) in [
+        (
+            2,
+            InputAction::MULTI_ACTION_BAR_1,
+            BindingSection::ActionBar2,
+        ),
+        (
+            3,
+            InputAction::MULTI_ACTION_BAR_2,
+            BindingSection::ActionBar3,
+        ),
+    ] {
+        assert_eq!(actions_for_section(section), actions);
+        assert_eq!(section.title(), format!("Action Bar {bar}"));
+        for (index, action) in actions.into_iter().enumerate() {
+            assert_eq!(bindings.binding(action), None, "{action:?}");
+            assert_eq!(
+                action.label(),
+                format!("Action Bar {bar} Button {}", index + 1)
+            );
+            assert_eq!(action.section(), section);
+            assert_eq!(InputAction::from_key(action.key()), Some(action));
+        }
+    }
+}
+
+/// A key bound to `MULTIACTIONBAR1BUTTON3` survives the options file's save and load; a
+/// file saved before the extra bars existed loads them unbound.
+#[test]
+fn extra_action_bar_binding_persists_in_the_options_file() {
+    use game_engine_core::client_options_data::{
+        ClientOptionsFile, load_options_file_from_path, save_options_file_to_path,
+    };
+    let dir = std::env::temp_dir().join(format!("binds-options-{}", std::process::id()));
+    let path = dir.join("options.ron");
+    let mut file = ClientOptionsFile::default();
+    file.bindings.assign(
+        InputAction::MultiActionBar1Button3,
+        InputBinding::Keyboard(BindingKey::KeyQ),
+    );
+    save_options_file_to_path(&path, &file).unwrap();
+    let loaded = load_options_file_from_path(&path);
+    std::fs::remove_dir_all(&dir).unwrap();
+    assert_eq!(
+        loaded.bindings.binding(InputAction::MultiActionBar1Button3),
+        Some(InputBinding::Keyboard(BindingKey::KeyQ))
+    );
+    assert_eq!(
+        loaded.bindings.binding(InputAction::MultiActionBar1Button4),
+        None
+    );
+
+    let old: InputBindingsData =
+        serde_json::from_str(r#"{"bindings":{"ActionSlot1":"key:Digit1"}}"#).unwrap();
+    assert_eq!(old.binding(InputAction::MultiActionBar2Button12), None);
+}
+
+/// `GetBindingText(key, 1)`: `s-`/`c-` modifiers, the key's own `KEY_` text
+/// (`KEY_SPACE` "Spacebar", `KEY_BACKSPACE` "Backspace", `KEY_BUTTON3` "Middle Mouse",
+/// `KEY_BUTTON4` "Mouse Button 4").
+#[test]
+fn hotkey_text_uses_retail_key_names() {
+    let cases = [
+        (InputBinding::ShiftKeyboard(BindingKey::Digit1), "s-1"),
+        (InputBinding::ShiftKeyboard(BindingKey::BracketLeft), "s-["),
+        (
+            InputBinding::Mouse(BindingMouseButton::Middle),
+            "Middle Mouse",
+        ),
+        (
+            InputBinding::Mouse(BindingMouseButton::Back),
+            "Mouse Button 4",
+        ),
+        (InputBinding::Keyboard(BindingKey::Space), "Spacebar"),
+        (InputBinding::Keyboard(BindingKey::Backspace), "Backspace"),
+        (InputBinding::Keyboard(BindingKey::KeyQ), "Q"),
+    ];
+    for (binding, text) in cases {
+        assert_eq!(binding.hotkey_text(), text, "{binding:?}");
+    }
 }

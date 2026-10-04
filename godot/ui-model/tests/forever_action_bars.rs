@@ -14,8 +14,12 @@ use game_engine_ui_model::bags_bar_component::{
     BagBarState, FOREVER_ONLY_BAG_ATLASES, bags_bar_screen,
 };
 use game_engine_ui_model::hud_layout::{ActionBarLayout, MODERN};
+use game_engine_ui_model::input_bindings::{
+    BindingKey, BindingMouseButton, InputAction, InputBinding, InputBindingsData, InputState,
+};
 use game_engine_ui_model::main_action_bar_component::{
     ActionBar, ActionButtonView, MainActionBarState, main_action_bar_screen, parse_action_button,
+    pressed_action_buttons,
 };
 use game_engine_ui_model::micro_menu::{MicroMenuView, OpenWindows, micro_menu_screen};
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
@@ -221,10 +225,12 @@ fn bar_state() -> MainActionBarState {
         cooldown_text: "3".into(),
         pushed: true,
         hovered: false,
+        ..Default::default()
     };
     state.buttons[1].hovered = true;
     // A paladin: Modern's gryphons do not depend on the class.
     state.player_class = Some(2);
+    state.set_hotkeys(&InputBindingsData::default());
     state
 }
 
@@ -807,4 +813,111 @@ fn an_icon_arriving_on_a_built_bar_is_painted_inside_and_under_the_border() {
             );
         }
     }
+}
+
+/// One frame's key and mouse edges.
+#[derive(Default)]
+struct Pressed {
+    keys: Vec<BindingKey>,
+    mouse: Vec<BindingMouseButton>,
+    shift: bool,
+}
+
+impl InputState for Pressed {
+    fn key_pressed(&self, key: BindingKey) -> bool {
+        self.keys.contains(&key)
+    }
+    fn key_just_pressed(&self, key: BindingKey) -> bool {
+        self.keys.contains(&key)
+    }
+    fn mouse_pressed(&self, button: BindingMouseButton) -> bool {
+        self.mouse.contains(&button)
+    }
+    fn mouse_just_pressed(&self, button: BindingMouseButton) -> bool {
+        self.mouse.contains(&button)
+    }
+    fn shift_held(&self) -> bool {
+        self.shift
+    }
+    fn ctrl_held(&self) -> bool {
+        false
+    }
+}
+
+fn hotkey_text(registry: &FrameRegistry, button: &str) -> String {
+    let name = format!("{button}HotKey");
+    match frame(registry, &name).widget_data.as_ref() {
+        Some(WidgetData::FontString(text)) => text.text.clone(),
+        other => panic!("{name} is not a FontString: {other:?}"),
+    }
+}
+
+/// Retail `MULTIACTIONBAR1BUTTON3` (Action Bar 2 button 3) bound to Q: Q uses slot 63,
+/// the button shows "Q"; Shift-1 and Middle Mouse on Action Bar 3 show `s-1` and
+/// `Middle Mouse`; unbound buttons show nothing, and the main bar keeps 1..= even where
+/// Forever hides its last three buttons.
+#[test]
+fn extra_bar_bindings_press_their_slot_and_label_their_button() {
+    let mut bindings = InputBindingsData::default();
+    bindings.assign(
+        InputAction::MultiActionBar1Button3,
+        InputBinding::Keyboard(BindingKey::KeyQ),
+    );
+    bindings.assign(
+        InputAction::MultiActionBar2Button1,
+        InputBinding::ShiftKeyboard(BindingKey::Digit1),
+    );
+    bindings.assign(
+        InputAction::MultiActionBar2Button2,
+        InputBinding::Mouse(BindingMouseButton::Middle),
+    );
+
+    let q = Pressed {
+        keys: vec![BindingKey::KeyQ],
+        ..Default::default()
+    };
+    let pressed = pressed_action_buttons(&bindings, &q);
+    assert_eq!(pressed, [(ActionBar::BottomLeft, 2)]);
+    let (bar, index) = pressed[0];
+    assert_eq!(bar.action_slot(index) + 1, 63, "Retail slot 63");
+    let shift_1 = Pressed {
+        keys: vec![BindingKey::Digit1],
+        shift: true,
+        ..Default::default()
+    };
+    assert_eq!(
+        pressed_action_buttons(&bindings, &shift_1),
+        [(ActionBar::BottomRight, 0)]
+    );
+    let middle = Pressed {
+        mouse: vec![BindingMouseButton::Middle],
+        ..Default::default()
+    };
+    assert_eq!(
+        pressed_action_buttons(&bindings, &middle),
+        [(ActionBar::BottomRight, 1)]
+    );
+    let zero = Pressed {
+        keys: vec![BindingKey::Digit0],
+        ..Default::default()
+    };
+    assert_eq!(
+        pressed_action_buttons(&bindings, &zero),
+        [(ActionBar::Main, 9)]
+    );
+
+    let mut state = class_bar(Some(2));
+    state.set_hotkeys(&bindings);
+    let registry = build(ActiveSkin::Forever, state, main_action_bar_screen);
+    assert_eq!(hotkey_text(&registry, "MultiBarBottomLeftButton3"), "Q");
+    assert_eq!(hotkey_text(&registry, "MultiBarBottomRightButton1"), "s-1");
+    assert_eq!(
+        hotkey_text(&registry, "MultiBarBottomRightButton2"),
+        "Middle Mouse"
+    );
+    for unbound in ["MultiBarBottomLeftButton1", "MultiBarBottomRightButton3"] {
+        assert_eq!(hotkey_text(&registry, unbound), "", "{unbound}");
+    }
+    assert_eq!(hotkey_text(&registry, "ActionButton9"), "9");
+    assert!(registry.get_by_name("ActionButton10").is_none());
 }
