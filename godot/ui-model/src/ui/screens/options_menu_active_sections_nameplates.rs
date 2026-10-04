@@ -46,7 +46,7 @@ pub(super) fn nameplates_body(hud: &HudOptionsView) -> Element {
     )
 }
 
-fn cell_row(name: &str, left: Element, right: Element) -> Element {
+pub(super) fn cell_row(name: &str, left: Element, right: Element) -> Element {
     rsx! {
         r#frame {
             name: {DynName(name.to_string())},
@@ -60,7 +60,7 @@ fn cell_row(name: &str, left: Element, right: Element) -> Element {
     }
 }
 
-fn cell(key: &str, label: &str, content: Element) -> Element {
+pub(super) fn cell(key: &str, label: &str, content: Element) -> Element {
     rsx! {
         r#frame {
             name: {DynName(format!("NameplateCell{key}"))},
@@ -91,11 +91,24 @@ fn cell_label(key: &str, text: &str) -> Element {
 }
 
 fn size_cell(slider: StyleSlider, style: &NameplateStyle) -> Element {
-    let key = slider.key();
-    let (min, max) = slider.bounds();
     let value = slider.get(style);
+    slider_cell(
+        &slider.key(),
+        slider.label(),
+        (value, slider.bounds()),
+        &format!("{value:.0}"),
+    )
+}
+
+/// A labelled half-row slider with its value printed at the cell's right edge.
+pub(super) fn slider_cell(
+    key: &str,
+    label: &str,
+    (value, (min, max)): (f32, (f32, f32)),
+    value_text: &str,
+) -> Element {
     let track = compact_slider(
-        &key,
+        key,
         value,
         min,
         max,
@@ -108,7 +121,7 @@ fn size_cell(slider: StyleSlider, style: &NameplateStyle) -> Element {
             name: {DynName(format!("SliderValue{key}"))},
             width: 44.0,
             height: 20.0,
-            text: {format!("{value:.0}")},
+            text: {value_text},
             font_size: 14.0,
             color: "0.95,0.90,0.74,1.0",
             justify_h: "RIGHT",
@@ -119,8 +132,8 @@ fn size_cell(slider: StyleSlider, style: &NameplateStyle) -> Element {
         }
     };
     cell(
-        &key,
-        slider.label(),
+        key,
+        label,
         [track, value_text].into_iter().flatten().collect(),
     )
 }

@@ -51,6 +51,11 @@ fn register_action_callbacks(ctx: &Context) -> Result<(), String> {
         true
     })
     .map_err(|err| format!("failed to register click callback: {err}"))?;
+    ctx.add_callback("__clickAt", |name: String, across: f64| -> bool {
+        push_action(UiAutomationAction::ClickFrameAt(name, across as f32));
+        true
+    })
+    .map_err(|err| format!("failed to register clickAt callback: {err}"))?;
     ctx.add_callback("__rightClick", |name: String| -> bool {
         push_action(UiAutomationAction::RightClickFrame(name));
         true
@@ -161,6 +166,7 @@ fn parse_wait_args(args: Arguments) -> Result<(String, f32), String> {
 const PRELUDE: &str = r#"
 globalThis.ui = {
   click: (name) => __click(name),
+  clickAt: (name, across) => __clickAt(name, Number(across)),
   rightClick: (name) => __rightClick(name),
   shiftClick: (name) => __shiftClick(name),
   type: (text) => __type(text),
@@ -263,6 +269,7 @@ mod tests {
             ui.type("secret");
             ui.rightClick("BuffButton0");
             ui.shiftClick("ContainerFrame0Slot3");
+            ui.clickAt("Sliderlayout_text_size", 0.8);
         "#;
         let actions = run_js_to_actions(script).expect("JS actions should parse");
         assert_eq!(
@@ -274,6 +281,7 @@ mod tests {
                 UiAutomationAction::TypeText("secret".into()),
                 UiAutomationAction::RightClickFrame("BuffButton0".into()),
                 UiAutomationAction::ShiftClickFrame("ContainerFrame0Slot3".into()),
+                UiAutomationAction::ClickFrameAt("Sliderlayout_text_size".into(), 0.8),
             ]
         );
     }
