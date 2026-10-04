@@ -1,6 +1,7 @@
 //! Unit frame portraits (`SetPortraitTexture`, Blizzard_UnitFrame/Mainline/UnitFrame.lua:188):
 //! the unit's model seen from its M2 portrait camera, rendered into the PlayerFrame,
-//! TargetFrame and PetFrame portrait slots over black and rounded by their masks. A portrait follows its
+//! TargetFrame and PetFrame portrait slots, and the interacting NPC's into the
+//! MerchantFrame and QuestFrame portrait rings, over black and rounded by their masks. A portrait follows its
 //! unit and re-renders when the unit's visual appearance changes (`UNIT_PORTRAIT_UPDATE`,
 //! UnitFrame.lua:199). Like Retail's portrait texture it is a still image: the model's first
 //! pose rendered once per change, the viewport idle in between.
@@ -12,6 +13,8 @@ use game_engine_core::creation_scene_data::vertical_fov;
 use game_engine_ui_model::inworld_unit_frames_component::{
     PET_PORTRAIT, PLAYER_PORTRAIT, PortraitSlot, TARGET_PORTRAIT,
 };
+use game_engine_ui_model::merchant_frame_component::PORTRAIT as MERCHANT_PORTRAIT;
+use game_engine_ui_model::quest_frame_component::PORTRAIT as QUEST_PORTRAIT;
 use godot::classes::control::{LayoutPreset, MouseFilter};
 use godot::classes::node::ProcessMode;
 use godot::classes::sub_viewport::UpdateMode;
@@ -46,6 +49,10 @@ pub(crate) struct UnitPortraits {
     player: Portrait,
     target: Portrait,
     pet: Portrait,
+    /// The open vendor in MerchantFrame (`SetPortraitToUnit("npc")`).
+    merchant: Portrait,
+    /// The quest giver or gossip NPC in QuestFrame (`SetPortraitTexture(.., "questnpc")`).
+    quest: Portrait,
 }
 
 impl Default for UnitPortraits {
@@ -54,6 +61,8 @@ impl Default for UnitPortraits {
             player: Portrait::new(PLAYER_PORTRAIT),
             target: Portrait::new(TARGET_PORTRAIT),
             pet: Portrait::new(PET_PORTRAIT),
+            merchant: Portrait::new(MERCHANT_PORTRAIT),
+            quest: Portrait::new(QUEST_PORTRAIT),
         }
     }
 }
@@ -410,11 +419,41 @@ impl GameClient {
             .local_pet_id()
             .and_then(|id| self.world.unit_appearance(id))
             .cloned();
+        let (merchant_host, merchant) = self.npc_portrait(
+            self.merchant.ui.as_ref(),
+            &MERCHANT_PORTRAIT,
+            self.merchant.session.portrait_unit(),
+        );
+        let quest_npc = self.account.quests.dialog.as_ref().map(|dialog| dialog.npc);
+        let (quest_host, quest) =
+            self.npc_portrait(self.quests.frame_ui(), &QUEST_PORTRAIT, quest_npc);
         let portraits = &mut self.targeting.portraits;
         let player_result = portraits.player.sync(&mut self.world, player_host, player);
         let target_result = portraits.target.sync(&mut self.world, target_host, target);
         let pet_result = portraits.pet.sync(&mut self.world, pet_host, pet);
-        player_result.and(target_result).and(pet_result)
+        let merchant_result = portraits
+            .merchant
+            .sync(&mut self.world, merchant_host, merchant);
+        let quest_result = portraits.quest.sync(&mut self.world, quest_host, quest);
+        player_result
+            .and(target_result)
+            .and(pet_result)
+            .and(merchant_result)
+            .and(quest_result)
+    }
+
+    /// The window's portrait slot and `npc`'s appearance while the window shows that NPC.
+    fn npc_portrait(
+        &self,
+        ui: Option<&Gd<crate::ui::RegistryUi>>,
+        slot: &PortraitSlot,
+        npc: Option<u64>,
+    ) -> (Option<Gd<Control>>, Option<UnitAppearance>) {
+        let Some(npc) = npc else {
+            return (None, None);
+        };
+        let host = ui.and_then(|ui| ui.bind().frame_control(slot.frame));
+        (host, self.world.unit_appearance(npc).cloned())
     }
 
     pub(super) fn clear_unit_portraits(&mut self) {
@@ -422,21 +461,29 @@ impl GameClient {
         portraits.player.clear(&mut self.world);
         portraits.target.clear(&mut self.world);
         portraits.pet.clear(&mut self.world);
+        portraits.merchant.clear(&mut self.world);
+        portraits.quest.clear(&mut self.world);
     }
 }
 
 #[godot_api(secondary)]
 impl GameClient {
-    /// Portrait state for automation: `frame` is `PlayerPortrait`, `TargetFramePortrait` or
-    /// `PetPortrait`.
+    /// Portrait state for automation: `frame` is `PlayerPortrait`, `TargetFramePortrait`,
+    /// `PetPortrait`, `MerchantFramePortrait` or `QuestFramePortrait`.
     #[func]
     fn unit_portrait_state(&self, frame: GString) -> VarDictionary {
         let portraits = &self.targeting.portraits;
         let frame = frame.to_string();
-        [&portraits.player, &portraits.target, &portraits.pet]
-            .into_iter()
-            .find(|portrait| portrait.slot.frame == frame)
-            .map(Portrait::snapshot)
-            .unwrap_or_default()
+        [
+            &portraits.player,
+            &portraits.target,
+            &portraits.pet,
+            &portraits.merchant,
+            &portraits.quest,
+        ]
+        .into_iter()
+        .find(|portrait| portrait.slot.frame == frame)
+        .map(Portrait::snapshot)
+        .unwrap_or_default()
     }
 }

@@ -8,7 +8,7 @@ use game_engine_ui_model::merchant::{Click, MerchantEffect, MerchantSession, Spl
 use game_engine_ui_model::merchant_data::{MerchantRequest, MerchantTab};
 use game_engine_ui_model::merchant_frame_component::{
     ACTION_BUYBACK_LAST, ACTION_CLOSE, ACTION_ITEM_PREFIX, ACTION_TAB_BUYBACK, ACTION_TAB_MERCHANT,
-    CellTint,
+    CellTint, PORTRAIT,
 };
 use game_engine_ui_model::stack_split_frame_component::{ACTION_OKAY, ACTION_RIGHT};
 use shared::protocol::{
@@ -357,6 +357,30 @@ fn close_button_ends_the_interaction_and_the_server_close_sends_nothing() {
     session.receive_interaction_closed(GODRIC);
     assert!(!session.is_open());
     assert_eq!(session.click_frame(&cell(0), Click::RIGHT), None);
+}
+
+/// `MerchantFrame:SetPortraitToUnit("npc")` (MerchantFrame.lua:269): the portrait ring is a
+/// slot of the frame bound to the vendor being talked to, and follows a vendor switch.
+#[test]
+fn the_portrait_ring_shows_the_vendor_being_talked_to() {
+    let mut session = session(danil(), "Brother Danil", 0);
+    assert_eq!(session.portrait_unit(), Some(DANIL));
+    let registry = render(&session);
+    let slot = registry
+        .get_by_name(PORTRAIT.frame)
+        .expect("MerchantFrame has a portrait slot");
+    let frame = registry.get_by_name("MerchantFrame").unwrap();
+    assert_eq!(registry.get(slot).unwrap().parent_id, Some(frame));
+    // The ring sits over the frame's top-left corner, rounded by its mask.
+    let (x, y, width, height) = PORTRAIT.rect;
+    assert!(x < 0.0 && y < 0.0 && x + width > 0.0 && y + height > 0.0);
+    let (mx, my, mw, mh) = PORTRAIT.mask_rect;
+    assert!(mx >= x && my >= y && mx + mw <= x + width && my + mh <= y + height);
+
+    session.receive_inventory(godric(), "Godric Rothgar".into());
+    assert_eq!(session.portrait_unit(), Some(GODRIC));
+    session.receive_interaction_closed(GODRIC);
+    assert_eq!(session.portrait_unit(), None, "a closed frame shows no NPC");
 }
 
 #[test]
