@@ -10,6 +10,7 @@ use crate::input_bindings::{BindingSection, InputAction};
 use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont, JustifyH};
+use game_engine_core::ui_layout_data::{LayoutSettings, LayoutSkin, SYSTEM_PRESETS};
 
 struct DynName(String);
 
@@ -64,6 +65,7 @@ const TAB_DIVIDER_COLOR: &str = "0.22,0.18,0.10,0.45";
 pub const ACTION_OPTIONS_OKAY: &str = "options_okay";
 pub const ACTION_OPTIONS_DEFAULTS: &str = "options_defaults";
 pub const ACTION_RESET_WINDOW_POSITIONS: &str = "options_reset_window_positions";
+pub const ACTION_RESET_LAYOUT_SETTINGS: &str = "options_reset_layout_settings";
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum OptionsCategory {
@@ -207,6 +209,77 @@ pub struct KeybindingsView {
     pub rows: Vec<KeybindingRowView>,
 }
 
+/// An Edit Mode system with layout settings; the HUD page shows one system's settings at a
+/// time, as Retail's settings dialog shows the selected system's
+/// (`Blizzard_EditMode/Shared/EditModeDialogs.lua:537-540,598`).
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq)]
+pub enum LayoutSystem {
+    #[default]
+    PlayerFrame,
+    TargetFrame,
+    FocusFrame,
+    PetFrame,
+    ChatFrame,
+    DamageMeter,
+}
+
+impl LayoutSystem {
+    pub const ALL: [Self; 6] = [
+        Self::PlayerFrame,
+        Self::TargetFrame,
+        Self::FocusFrame,
+        Self::PetFrame,
+        Self::ChatFrame,
+        Self::DamageMeter,
+    ];
+
+    /// Retail's system names (`HUD_EDIT_MODE_PLAYER_FRAME_LABEL` "Player Frame", …,
+    /// `HUD_EDIT_MODE_DAMAGE_METER_LABEL` "Damage Meter") without "Frame"/"Damage", to fit
+    /// six choices in one row.
+    pub fn label(self) -> &'static str {
+        match self {
+            Self::PlayerFrame => "Player",
+            Self::TargetFrame => "Target",
+            Self::FocusFrame => "Focus",
+            Self::PetFrame => "Pet",
+            Self::ChatFrame => "Chat",
+            Self::DamageMeter => "Meter",
+        }
+    }
+}
+
+/// The character's Edit Mode layout as the HUD page shows and edits it (`ui_layout.ron`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct LayoutOptionsView {
+    /// Name of the active layout.
+    pub active: String,
+    /// Every selectable layout: the system presets, then the saved player layouts.
+    pub names: Vec<String>,
+    /// The active layout's preset.
+    pub skin: LayoutSkin,
+    /// The active layout's settings over that preset.
+    pub settings: LayoutSettings,
+    /// The system whose settings show.
+    pub system: LayoutSystem,
+}
+
+/// The Modern preset with no saved layouts.
+impl Default for LayoutOptionsView {
+    fn default() -> Self {
+        let (name, skin) = SYSTEM_PRESETS[0];
+        Self {
+            active: name.to_string(),
+            names: SYSTEM_PRESETS
+                .iter()
+                .map(|&(name, _)| name.to_string())
+                .collect(),
+            skin,
+            settings: LayoutSettings::default(),
+            system: LayoutSystem::default(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct OptionsViewModel {
     pub category: OptionsCategory,
@@ -216,8 +289,7 @@ pub struct OptionsViewModel {
     pub camera: CameraOptionsView,
     pub hud: HudOptionsView,
     pub bindings: KeybindingsView,
-    /// Name of the character's active Edit Mode layout.
-    pub active_layout: String,
+    pub layout: LayoutOptionsView,
 }
 
 pub fn cat_action(category: OptionsCategory) -> String {
@@ -480,7 +552,7 @@ fn category_body(model: &OptionsViewModel) -> Element {
         OptionsCategory::Camera => options_menu_active_sections::camera_body(&model.camera),
         OptionsCategory::Interface => options_menu_active_sections::interface_body(&model.hud),
         OptionsCategory::Hud => {
-            options_menu_active_sections::hud_body(&model.hud, &model.active_layout)
+            options_menu_active_sections::hud_body(&model.hud, &model.layout)
         }
         OptionsCategory::Nameplates => options_menu_active_sections::nameplates_body(&model.hud),
         OptionsCategory::Controls => options_menu_sections::controls_body(),

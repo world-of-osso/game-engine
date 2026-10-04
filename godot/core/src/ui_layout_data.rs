@@ -46,6 +46,13 @@ impl SettingRange {
     pub fn clamp(&self, value: u16) -> u16 {
         value.clamp(self.min, self.max)
     }
+
+    /// A slider position as the nearest step inside the range.
+    pub fn snap(&self, value: f32) -> u16 {
+        let (min, step) = (f32::from(self.min), f32::from(self.step));
+        let steps = ((value - min) / step).round().max(0.0);
+        self.clamp((min + steps * step) as u16)
+    }
 }
 
 /// `EditModeUnitFrameSetting.FrameSize`, percent (:357-362).
@@ -237,6 +244,14 @@ pub fn set_active_layout(
         .insert(character_id.to_string(), name.to_string());
     write_layout(path, &file)?;
     Ok(layout)
+}
+
+/// Every layout a character can select: the system presets, then the saved player layouts
+/// (Retail's Layout dropdown, `EditModeManager.lua:1277-1310`).
+pub fn layout_names(path: &Path) -> Result<Vec<String>, String> {
+    let presets = SYSTEM_PRESETS.iter().map(|&(name, _)| name.to_string());
+    let saved = read_layout(path)?.edit_mode.layouts.into_keys();
+    Ok(presets.chain(saved).collect())
 }
 
 /// The first "Layout N" no saved layout uses.
@@ -442,6 +457,36 @@ mod tests {
         assert_eq!(second.name, "Layout 2");
         assert_eq!(active_layout(&path, 17).unwrap().settings, changed);
         fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn layout_names_list_the_presets_then_each_saved_player_layout() {
+        let path = temp_layout("names");
+        assert_eq!(layout_names(&path).unwrap(), ["Modern", "Forever"]);
+        set_active_layout(&path, 17, "Forever").unwrap();
+        save_layout_settings(&path, 17, custom_settings()).unwrap();
+        save_layout_settings(&path, 18, LayoutSettings::default()).unwrap();
+        assert_eq!(
+            layout_names(&path).unwrap(),
+            ["Modern", "Forever", "Layout 1", "Layout 2"]
+        );
+        // Clearing a player layout's settings keeps the layout, drawn as its preset.
+        let reset = save_layout_settings(&path, 17, LayoutSettings::default()).unwrap();
+        assert_eq!(reset.name, "Layout 1");
+        assert_eq!(reset.skin, LayoutSkin::Forever);
+        assert_eq!(active_layout(&path, 17).unwrap(), reset);
+        assert_eq!(layout_names(&path).unwrap().len(), 4);
+        fs::remove_file(path).unwrap();
+    }
+
+    #[test]
+    fn slider_positions_snap_to_the_nearest_step_inside_the_range() {
+        assert_eq!(UNIT_FRAME_SIZE_RANGE.snap(148.0), 150);
+        assert_eq!(UNIT_FRAME_SIZE_RANGE.snap(147.4), 145);
+        assert_eq!(UNIT_FRAME_SIZE_RANGE.snap(40.0), 100);
+        assert_eq!(UNIT_FRAME_SIZE_RANGE.snap(900.0), 200);
+        assert_eq!(UNIT_FRAME_TEXT_SIZE_RANGE.snap(126.0), 130);
+        assert_eq!(CHAT_WIDTH_RANGE.snap(600.4), 600);
     }
 
     #[test]
