@@ -137,6 +137,16 @@ mod tests {
             .and_then(|mut file| std::io::Write::write_all(&mut file, b"5,1,218,0\n"))
             .unwrap();
         let result = player_model_fdids(&retail);
+        std::fs::write(
+            forever.join("ChrRaceXChrModel.csv"),
+            "ChrRacesID,ChrModelID,Sex\n95,218,0\n",
+        )
+        .unwrap();
+        let incomplete = player_model_fdids(&retail).unwrap_err();
+        assert!(incomplete.contains("race 95 sex 1"), "{incomplete}");
+        std::fs::remove_dir_all(&forever).unwrap();
+        let missing = player_model_fdids(&retail).unwrap_err();
+        assert!(missing.contains("1.60.1.70205"), "{missing}");
         std::fs::remove_dir_all(&dir).unwrap();
         assert_eq!(
             result.unwrap(),
@@ -168,6 +178,10 @@ mod tests {
             (52, 1, 4_207_724),
             (76, 1, 4_220_448),
             (84, 0, 5_548_261),
+            (95, 0, 7_478_487),
+            (95, 1, 7_478_494),
+            (96, 0, 7_478_487),
+            (96, 1, 7_478_494),
         ] {
             assert_eq!(
                 models.get(&(race, sex)),

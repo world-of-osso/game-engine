@@ -78,6 +78,28 @@ impl Drop for CatalogFixture {
 }
 
 #[test]
+fn skyborne_imported_forever_catalog_and_retail_share_the_player_path() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let db = crate::npc_appearance_assets::load_customization_db(&root).unwrap();
+    let compositor = crate::npc_appearance_assets::load_compositor(&root).unwrap();
+    assert_eq!(db.chr_model_id(1, 0), Some(1));
+    assert_eq!(db.layout_id(1, 0), Some(103));
+    for race in [95, 96] {
+        for (sex, model, layout, count, skin) in [(0, 218, 201, 18, 9021), (1, 219, 202, 19, 9034)]
+        {
+            assert_eq!(db.chr_model_id(race, sex), Some(model));
+            assert_eq!(db.layout_id(race, sex), Some(layout));
+            assert_eq!(db.options_for(race, sex).unwrap().len(), count);
+            let choices = db.offered_choices(race, sex, 8, skin);
+            assert!(!choices.is_empty(), "race {race} sex {sex} skin choices");
+            assert!(choices.iter().any(|choice| !choice.materials.is_empty()));
+            let canvas = compositor.layout(layout).unwrap();
+            assert_eq!((canvas.width, canvas.height), (2048, 1024));
+        }
+    }
+}
+
+#[test]
 fn skyborne_compositor_uses_forever_layouts_without_replacing_retail() {
     let fixture = CatalogFixture::new();
     let forever = fixture.root.join("db2/1.60.1.70205");
@@ -91,7 +113,11 @@ fn skyborne_compositor_uses_forever_layouts_without_replacing_retail() {
         );
         let mut sizes = String::from("CharComponentTextureLayoutsID,TextureType,Width,Height\n");
         for id in ids {
-            let width = if *id == 1 { 2 } else { 2048 };
+            let width = if *id == 1 {
+                if dir == &forever { 4 } else { 2 }
+            } else {
+                2048
+            };
             let height = if *id == 1 { 1 } else { 1024 };
             layouts.push_str(&format!("{id},{width},{height}\n"));
             sections.push_str(&format!("{id},0,0,0,{width},{height}\n"));
@@ -144,11 +170,11 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
         ("ChrRaces", "ID,UnalteredVisualRaceID\n95,0\n96,0\n"),
         (
             "ChrCustomizationOption",
-            "Name_lang,ID,ChrModelID,ChrCustomizationCategoryID,OrderIndex,OptionType,Requirement\nSkin Color,500,218,3,0,0,12\nSkin Color,501,219,3,0,0,12\n",
+            "Name_lang,ID,ChrModelID,ChrCustomizationCategoryID,OrderIndex,OptionType,Requirement\nSkin Color,500,218,3,0,0,12\nSkin Color,501,219,3,0,0,12\nHair Style,502,218,3,1,0,0\n",
         ),
         (
             "ChrCustomizationChoice",
-            "Name_lang,ID,ChrCustomizationOptionID,ChrCustomizationReqID,OrderIndex,ChrCustomizationVisReqID,SwatchColor_0,SwatchColor_1\nBlue,95000,500,19,0,0,0,0\nBlue,95001,501,19,0,0,0,0\n",
+            "Name_lang,ID,ChrCustomizationOptionID,ChrCustomizationReqID,OrderIndex,ChrCustomizationVisReqID,SwatchColor_0,SwatchColor_1\nBlue,95000,500,19,0,0,0,0\nBlue,95001,501,20,0,0,0,0\nLong,95002,502,0,0,0,0,0\n",
         ),
         (
             "ChrCustomizationElement",
@@ -169,7 +195,7 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
     .unwrap();
     std::fs::write(
         forever.join("ChrCustomizationReq.csv"),
-        format!("{header}12,1,0,0,3,0,0,0\n19,1,0,0,3,0,0,0\n"),
+        format!("{header}12,1,0,0,3,0,0,0\n19,1,128,0,3,0,0,0\n20,1,128,0,3,0,0,0\n"),
     )
     .unwrap();
     for dir in [&retail.root, &forever] {
@@ -179,6 +205,11 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
         )
         .unwrap();
     }
+    std::fs::write(
+        forever.join("ChrCustomizationReqChoice.csv"),
+        "ChrCustomizationReqID,ChrCustomizationChoiceID\n19,95002\n",
+    )
+    .unwrap();
     import_customization_cache(&retail.root).unwrap();
     let db = crate::npc_appearance_assets::load_customization_db(&retail.root).unwrap();
     assert_eq!(db.chr_model_id(1, 0), Some(1));
@@ -195,8 +226,19 @@ fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
         assert_eq!(choices.len(), 1);
         assert_eq!(choices[0].materials[0].1, 1020001);
         assert_eq!(choices[0].geosets[0], (32, 2));
+        assert!(
+            db.offered_choices(race, sex, 1, option).is_empty(),
+            "Mage-only fixture requirement"
+        );
+        if sex == 0 {
+            let required = db.required_choices(choices[0]);
+            assert_eq!(required.len(), 1);
+            assert_eq!(required[0].option_id, 502);
+            assert_eq!(required[0].choice_ids, [95002]);
+        }
     }
-    assert!(db.offered_choices(1, 0, 8, 890).len() > 0);
+    assert!(db.offered_choices(1, 0, 8, 500).is_empty());
+    assert!(!db.offered_choices(1, 0, 8, 890).is_empty());
 }
 
 #[test]
