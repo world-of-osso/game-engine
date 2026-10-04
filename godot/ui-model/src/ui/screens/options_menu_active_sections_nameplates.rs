@@ -36,6 +36,13 @@ pub(super) fn nameplates_body(hud: &HudOptionsView) -> OptionsPage {
                     style.class_colored_players,
                 ),
             ),
+            // `NameplateStyle.show_health_value`: "425 K  100%" instead of "100%" in the
+            // Thick bar; off by default (user 2026-10-04).
+            toggle_row(
+                "nameplate_show_health_value",
+                "Show Health Value",
+                style.show_health_value,
+            ),
             cell_row("NameplateReactionColors", hostile, neutral),
             cell_row("NameplateFriendlyCastColors", friendly, cast),
             cell_row("NameplateChannelColors", channel, uninterruptible),
