@@ -158,7 +158,7 @@ fn pet_bar_icons_follow_the_server_buttons() {
                 assert!(!frame(&registry, &name).hidden, "{name}");
                 assert_eq!(texture(&registry, &name).0, TextureSource::FileDataId(fdid));
             }
-            None => assert!(frame(&registry, &name).hidden, "{name}"),
+            None => assert!(registry.get_by_name(&name).is_none(), "{name}"),
         }
     }
     assert_eq!(
@@ -166,6 +166,49 @@ fn pet_bar_icons_follow_the_server_buttons() {
         PetActionSlot::Spell(17_253)
     );
     assert_eq!(PetActionSlot::from_packed(0), PetActionSlot::Empty);
+}
+
+/// The bar replicates before the async spell catalog has loaded: a pet spell's icon is then
+/// unknown (0) and its button has no icon texture; once the catalog supplies the icon the
+/// same button draws it (PetActionBar.lua:156-165).
+#[test]
+fn pet_spell_without_a_known_icon_builds_no_icon_texture() {
+    let spells = wolf_bar(COMMAND_FOLLOW, REACT_ASSIST);
+    let state = |icon: fn(u32) -> u32| PetActionBarState {
+        visible: true,
+        buttons: pet_bar_buttons(&spells, false, false, icon, &hotkeys()),
+        shine_texture: None,
+    };
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Modern);
+    shared.insert(state(|_| 0));
+    let mut screen = Screen::new(pet_action_bar_screen);
+    screen.sync(&shared, &mut registry);
+    assert!(!drawn_fdids(&registry).contains(&0));
+    assert!(registry.get_by_name("PetActionButton4").is_some());
+    assert!(registry.get_by_name("PetActionButton4Icon").is_none());
+
+    shared.insert(state(spell_icon));
+    screen.sync(&shared, &mut registry);
+    assert!(!drawn_fdids(&registry).contains(&0));
+    assert_eq!(
+        texture(&registry, "PetActionButton4Icon").0,
+        TextureSource::FileDataId(DASH_ICON)
+    );
+}
+
+fn drawn_fdids(registry: &FrameRegistry) -> Vec<u32> {
+    registry
+        .frames_iter()
+        .filter_map(|frame| match frame.widget_data.as_ref()? {
+            WidgetData::Texture(texture) => match texture.source {
+                TextureSource::FileDataId(fdid) => Some(fdid),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect()
 }
 
 /// `GetPetActionInfo` isActive: the command matching `CommandState`, the reaction

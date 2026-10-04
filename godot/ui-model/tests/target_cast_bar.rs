@@ -8,6 +8,7 @@ use ui_toolkit::{
     layout_values::Val,
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
+    widgets::texture::TextureSource,
 };
 
 fn state(cast: Option<CastingBarState>) -> InWorldUnitFramesState {
@@ -182,4 +183,66 @@ fn modern_target_cast_moves_below_auras_or_tot_as_retail_does() {
         frame(&r, "TargetFrameSpellBar").position.bottom,
         Val::Px(234.5)
     );
+}
+
+fn target_aura_state(icon_fdid: u32) -> InWorldUnitFramesState {
+    let mut units = state(None);
+    units.target.as_mut().unwrap().target_buffs = vec![
+        game_engine_ui_model::inworld_unit_frames_component::TargetAuraIconState {
+            spell_id: 1_459,
+            icon_fdid,
+            stacks: 1,
+            dispel_color: None,
+            large: false,
+            elapsed: None,
+        },
+    ];
+    units
+}
+
+fn drawn_fdids(r: &FrameRegistry) -> Vec<u32> {
+    r.frames_iter()
+        .filter_map(|frame| match frame.widget_data.as_ref()? {
+            WidgetData::Texture(texture) => match texture.source {
+                TextureSource::FileDataId(fdid) => Some(fdid),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect()
+}
+
+/// A target aura replicated before the spell catalog has loaded has no icon yet
+/// (`icon_fdid` 0, `aura_instance`): its button builds no icon texture under either skin;
+/// once the catalog supplies the icon the same button draws it.
+#[test]
+fn target_aura_without_a_known_icon_builds_no_icon_texture() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut ctx = SharedContext::new();
+        ctx.insert(skin);
+        ctx.insert(target_aura_state(0));
+        let mut r = registry(skin, state(None));
+        let mut screen = Screen::new(inworld_unit_frames_screen);
+        screen.sync(&ctx, &mut r);
+        assert!(!drawn_fdids(&r).contains(&0), "{skin:?}");
+        assert!(r.get_by_name("TargetBuffIcon0").is_some(), "{skin:?}");
+        assert!(
+            r.get_by_name("TargetBuffIcon0Texture").is_none(),
+            "{skin:?}"
+        );
+
+        ctx.insert(target_aura_state(135_932));
+        screen.sync(&ctx, &mut r);
+        assert!(!drawn_fdids(&r).contains(&0), "{skin:?}");
+        match frame(&r, "TargetBuffIcon0Texture").widget_data.as_ref() {
+            Some(WidgetData::Texture(texture)) => {
+                assert_eq!(
+                    texture.source,
+                    TextureSource::FileDataId(135_932),
+                    "{skin:?}"
+                )
+            }
+            other => panic!("{skin:?} aura icon is not a texture: {other:?}"),
+        }
+    }
 }
