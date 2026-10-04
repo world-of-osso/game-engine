@@ -1,14 +1,16 @@
-//! TargetFrame right-click menu (Retail `UnitPopup`; Bevy `rendering/ui/unit_frames.rs`
-//! `UnitFrameClick`): right-clicking the target frame opens the authored
-//! `UnitFrameContextMenu`. For a player it has the group entries and, for another player,
+//! TargetFrame and FocusFrame right-click menu (Retail `UnitPopup`; Bevy
+//! `rendering/ui/unit_frames.rs` `UnitFrameClick`): right-clicking either frame opens the
+//! authored `UnitFrameContextMenu`. It leads with Set Focus (`FocusUnit(unit)`), or Clear
+//! Focus (`ClearFocus()`) when opened from FocusFrame (the `FOCUS` menu). The focus is
+//! client-local, as in Retail. For a player it has the group entries and, for another player,
 //! Trade (`UnitPopupTradeButtonMixin:OnClick` → `InitiateTrade(unit)`); every unit gets the
 //! raid target icons (`UnitPopupRaidTargetButtonMixin`), listed inline rather than in a
 //! submenu. An entry's click runs it and closes the menu; a click outside closes it.
-//! Set/Clear Focus are not converted.
 use game_engine_ui_model::group_state::{GroupMenuEntry, group_menu_entries};
 use game_engine_ui_model::inworld_unit_frames_component::{
     ACTION_UNIT_MENU_CLEAR_FOCUS, ACTION_UNIT_MENU_CLOSE, ACTION_UNIT_MENU_SET_FOCUS,
-    ACTION_UNIT_MENU_TRADE, UNIT_MENU_W, UnitFrameMenuState, UnitMenuItem, unit_menu_height,
+    ACTION_UNIT_MENU_TRADE, UNIT_MENU_W, UnitFrameMenuState, UnitMenuItem, focus_menu_item,
+    unit_menu_height,
 };
 use godot::classes::{InputEvent, InputEventMouseButton};
 use godot::global::MouseButton;
@@ -79,6 +81,40 @@ pub(crate) fn player_items(
     items
 }
 
+/// The unit a right-click on the unit frames opens the menu for, and whether it came from
+/// FocusFrame (`FocusFrame_OpenMenu`, TargetFrame.lua:1131-1138). FocusFrame is shown only
+/// while the focus unit is replicated, so `focus` is that replicated unit.
+fn menu_unit(
+    on_target_frame: bool,
+    on_focus_frame: bool,
+    target: Option<u64>,
+    focus: Option<u64>,
+) -> Option<(u64, bool)> {
+    if on_focus_frame {
+        return focus.map(|unit| (unit, true));
+    }
+    target.filter(|_| on_target_frame).map(|unit| (unit, false))
+}
+
+/// The open menu's entries: the focus entry, the player entries, the raid target icons.
+fn menu_items(from_focus_frame: bool, player_items: Vec<UnitMenuItem>) -> Vec<UnitMenuItem> {
+    std::iter::once(focus_menu_item(from_focus_frame))
+        .chain(player_items)
+        .chain(raid_target_items())
+        .collect()
+}
+
+/// The focus after a focus entry's click on `unit`'s menu
+/// (`UnitPopupSetFocusButtonMixin:OnClick` → `FocusUnit(unit)`,
+/// `UnitPopupClearFocusButtonMixin:OnClick` → `ClearFocus()`).
+fn focus_after(action: &str, unit: u64, focus: Option<u64>) -> Option<u64> {
+    match action {
+        ACTION_UNIT_MENU_SET_FOCUS => Some(unit),
+        ACTION_UNIT_MENU_CLEAR_FOCUS => None,
+        _ => focus,
+    }
+}
+
 fn inside([x, y, w, h]: [f32; 4], point: Vector2) -> bool {
     point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h
 }
@@ -107,36 +143,55 @@ impl GameClient {
 
     fn open_unit_menu(&mut self, point: Vector2) -> bool {
         self.unit_menu = UnitMenu::default();
-        let on_target_frame = self
-            .targeting
-            .frame_ui()
-            .and_then(|ui| ui.bind().frame_rect("TargetFrame"))
-            .is_some_and(|(rect, _)| inside(rect, point));
-        let (Some(unit), Some(local)) = (
+        let on_frame = |name: &str| {
+            self.targeting
+                .frame_ui()
+                .and_then(|ui| ui.bind().frame_rect(name))
+                .is_some_and(|(rect, _)| inside(rect, point))
+        };
+        let (on_target_frame, on_focus_frame) = (on_frame("TargetFrame"), on_frame("FocusFrame"));
+        let focus = self.targeting.focus.filter(|&id| {
+            self.replica
+                .unit(id)
+                .is_some_and(crate::replicated::is_unit)
+        });
+        let Some((unit, from_focus_frame)) = menu_unit(
+            on_target_frame,
+            on_focus_frame,
             self.targeting_target(),
-            self.account.session.selected_character_name.clone(),
+            focus,
         ) else {
+            return false;
+        };
+        let Some(local) = self.account.session.selected_character_name.clone() else {
             return false;
         };
         let Some(name) = self.replica.unit(unit).and_then(|unit| unit.name()) else {
             return false;
         };
-        if !on_target_frame {
-            return false;
-        }
         let title = name.to_owned();
         let player = self.target_player_name(unit);
-        let mut items = match &player {
+        let player_items = match &player {
             Some(player) => player_items(&self.account.group, &local, player),
             None => Vec::new(),
         };
-        items.extend(raid_target_items());
+        let items = menu_items(from_focus_frame, player_items);
         self.unit_menu = UnitMenu {
             state: self.unit_menu_state(title, items, point),
             unit: Some(unit),
             player,
         };
         true
+    }
+
+    /// The menu closes once its unit is neither the target nor the focus.
+    pub(super) fn close_unit_menu_without_unit(&mut self) {
+        let Some(unit) = self.unit_menu.unit else {
+            return;
+        };
+        if Some(unit) != self.targeting_target() && Some(unit) != self.targeting.focus {
+            self.unit_menu = UnitMenu::default();
+        }
     }
 
     fn target_player_name(&self, unit: u64) -> Option<String> {
@@ -226,14 +281,17 @@ impl GameClient {
                 None => Ok(()),
             };
         }
+        if let (ACTION_UNIT_MENU_SET_FOCUS | ACTION_UNIT_MENU_CLEAR_FOCUS, Some(unit)) =
+            (action, menu.unit)
+        {
+            self.targeting.focus = focus_after(action, unit, self.targeting.focus);
+            return Ok(());
+        }
         let Some(unit) = menu.player else {
             return Ok(());
         };
         match action {
             ACTION_UNIT_MENU_TRADE => self.initiate_trade(unit),
-            ACTION_UNIT_MENU_SET_FOCUS | ACTION_UNIT_MENU_CLEAR_FOCUS => self
-                .add_world_error("Focus is not converted to the native client.")
-                .map_err(SessionError),
             ACTION_UNIT_MENU_CLOSE => Ok(()),
             action => match GroupMenuEntry::from_action(action) {
                 Some(entry) => self.account.send_group(entry.command(&unit)),
@@ -242,5 +300,54 @@ impl GameClient {
                 ))),
             },
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    const HOGGER: u64 = 42;
+    const WOLF: u64 = 77;
+
+    fn labels(items: &[UnitMenuItem]) -> Vec<&str> {
+        items.iter().map(|item| item.label.as_str()).collect()
+    }
+
+    /// Retail `TARGET` lists Set Focus; `FOCUS`, opened from FocusFrame, Clear Focus.
+    #[test]
+    fn clear_focus_is_offered_only_on_the_focus_units_menu() {
+        let target_menu = menu_unit(true, false, Some(HOGGER), Some(WOLF));
+        assert_eq!(target_menu, Some((HOGGER, false)));
+        let focus_menu = menu_unit(false, true, Some(HOGGER), Some(WOLF));
+        assert_eq!(focus_menu, Some((WOLF, true)));
+        assert_eq!(menu_unit(false, true, Some(HOGGER), None), None, "no focus");
+        assert_eq!(menu_unit(false, false, Some(HOGGER), Some(WOLF)), None);
+
+        let target_items = menu_items(false, Vec::new());
+        assert_eq!(labels(&target_items)[0], "Set Focus");
+        assert!(!labels(&target_items).contains(&"Clear Focus"));
+        let focus_items = menu_items(true, Vec::new());
+        assert_eq!(labels(&focus_items)[0], "Clear Focus");
+        assert!(!labels(&focus_items).contains(&"Set Focus"));
+        assert!(labels(&focus_items).contains(&"Skull"), "raid targets stay");
+    }
+
+    #[test]
+    fn set_focus_takes_the_menus_unit_and_clear_focus_drops_it() {
+        let focused = focus_after(ACTION_UNIT_MENU_SET_FOCUS, HOGGER, None);
+        assert_eq!(focused, Some(HOGGER));
+        assert_eq!(
+            focus_after(ACTION_UNIT_MENU_SET_FOCUS, WOLF, focused),
+            Some(WOLF)
+        );
+        assert_eq!(
+            focus_after(ACTION_UNIT_MENU_CLEAR_FOCUS, HOGGER, focused),
+            None
+        );
+        assert_eq!(
+            focus_after(ACTION_UNIT_MENU_CLOSE, HOGGER, focused),
+            focused
+        );
     }
 }

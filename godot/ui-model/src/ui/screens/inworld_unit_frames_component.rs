@@ -75,27 +75,31 @@ const RADIO_CHECKED_COORDS: &str = "0.138671875,0.173828125,0.44921875,0.5195312
 const MENU_TEXT_ENABLED: &str = "1.0,1.0,1.0,1.0";
 const MENU_TEXT_DISABLED: &str = "0.5,0.5,0.5,1.0";
 pub const UNIT_MENU_W: f32 = 140.0;
-const UNIT_MENU_ITEMS: &[ContextMenuItem<'static>] = &[
-    ContextMenuItem {
-        name: "UnitFrameContextMenuSetFocus",
-        label: "Set Focus",
-        action: ACTION_UNIT_MENU_SET_FOCUS,
-    },
-    ContextMenuItem {
-        name: "UnitFrameContextMenuClearFocus",
-        label: "Clear Focus",
-        action: ACTION_UNIT_MENU_CLEAR_FOCUS,
-    },
-    ContextMenuItem {
-        name: "UnitFrameContextMenuClose",
-        label: "Close",
-        action: ACTION_UNIT_MENU_CLOSE,
-    },
-];
+const UNIT_MENU_CLOSE: ContextMenuItem<'static> = ContextMenuItem {
+    name: "UnitFrameContextMenuClose",
+    label: "Close",
+    action: ACTION_UNIT_MENU_CLOSE,
+};
 
-/// Menu height with `player_items` extra player entries.
-pub fn unit_menu_height(player_items: usize) -> f32 {
-    menu_height_for_items(UNIT_MENU_ITEMS.len() + player_items)
+/// Menu height with `items` entries before Close.
+pub fn unit_menu_height(items: usize) -> f32 {
+    menu_height_for_items(items + 1)
+}
+
+/// The menu's focus entry: `UnitPopupMenuFocus` (opened from FocusFrame) lists
+/// `UnitPopupClearFocusButtonMixin`, every other unit menu `UnitPopupSetFocusButtonMixin`
+/// (UnitPopupSharedMenus.lua:346-352, 316; UnitPopupSharedButtonMixins.lua:2169-2186).
+pub fn focus_menu_item(from_focus_frame: bool) -> UnitMenuItem {
+    let (name, label, action) = if from_focus_frame {
+        ("ClearFocus", "Clear Focus", ACTION_UNIT_MENU_CLEAR_FOCUS)
+    } else {
+        ("SetFocus", "Set Focus", ACTION_UNIT_MENU_SET_FOCUS)
+    };
+    UnitMenuItem {
+        name: format!("UnitFrameContextMenu{name}"),
+        label: label.into(),
+        action: action.into(),
+    }
 }
 
 #[derive(Clone)]
@@ -170,7 +174,8 @@ impl UnitFrameState {
     }
 }
 
-/// Target-of-target and focus: name, level and health; Modern omits the level.
+/// Target-of-target and focus: name, level and health; under Modern target of target
+/// omits the level, and focus adds its power bar.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SmallUnitFrameState {
     pub name: String,
@@ -178,6 +183,8 @@ pub struct SmallUnitFrameState {
     pub health_fraction: f32,
     pub reaction: Option<Reaction>,
     pub class_id: Option<u8>,
+    /// The focus frame's `ManaBar` (`TargetFrameTemplate`); target of target shows none.
+    pub power: Option<PowerBarState>,
 }
 
 impl From<&UnitFrameState> for SmallUnitFrameState {
@@ -188,6 +195,7 @@ impl From<&UnitFrameState> for SmallUnitFrameState {
             health_fraction: unit.health_fraction,
             reaction: unit.reaction,
             class_id: unit.class_id,
+            power: unit.power.clone(),
         }
     }
 }
@@ -198,8 +206,8 @@ pub struct UnitFrameMenuState {
     pub title: String,
     pub x: f32,
     pub y: f32,
-    /// Player-unit entries (`UnitPopup` Invite / Promote / Leave … then Inspect), shown
-    /// before Close.
+    /// The entries before Close: the focus entry, player-unit entries (`UnitPopup` Invite /
+    /// Promote / Leave … then Trade) and the raid target icons.
     pub player_items: Vec<UnitMenuItem>,
     /// The Dungeon Difficulty submenu, open beside the menu.
     pub difficulty_menu: Option<DifficultyMenuState>,
@@ -719,6 +727,9 @@ struct SmallFrameSpec {
     /// Retail's focus frame is a `TargetFrameTemplate` with the reaction strip; target of
     /// target has none.
     reaction_strip: bool,
+    /// `TargetFrameTemplate`'s `LevelText` and `ManaBar`, which FocusFrame keeps at its
+    /// small size (`FocusFrameMixin:SetSmallSize`, TargetFrame.lua:1148-1176).
+    level_and_power: bool,
 }
 
 impl SmallFrameSpec {
@@ -727,12 +738,14 @@ impl SmallFrameSpec {
         root: "TargetOfTargetFrame",
         prefix: "TargetOfTarget",
         reaction_strip: false,
+        level_and_power: false,
     };
     const FOCUS: Self = Self {
         flare: &FLARE_FOCUS,
         root: "FocusFrame",
         prefix: "Focus",
         reaction_strip: true,
+        level_and_power: true,
     };
 }
 
@@ -774,6 +787,7 @@ fn small_unit_contents(
     rsx! {
         {reaction_strip(spec.prefix, strip, skin, portrait_off_strip(scale))}
         {unit_label(dyn_name(format!("{}Name", spec.prefix)), &unit.name, scaled(PORTRAIT_OFF_SLOTS.name, scale), (GOLD_TEXT, UNIT_FONT_SIZE * scale), "LEFT")}
+        {small_level_and_power(spec, unit, scale)}
         {status_bar(BarSpec {
             name: format!("{}HealthBar", spec.prefix),
             rect: scaled(PORTRAIT_OFF_SLOTS.health, scale),
@@ -787,17 +801,44 @@ fn small_unit_contents(
     }
 }
 
+/// FocusFrame's level text and mana bar on the portrait-off art, scaled like the rest.
+fn small_level_and_power(spec: &SmallFrameSpec, unit: &SmallUnitFrameState, scale: f32) -> Element {
+    if !spec.level_and_power {
+        return Element::default();
+    }
+    let (level, color) = unit
+        .level
+        .as_ref()
+        .map_or(("", GOLD_TEXT), |(text, color)| {
+            (text.as_str(), color.as_str())
+        });
+    let power = unit.power.as_ref();
+    rsx! {
+        {unit_label(dyn_name(format!("{}LevelText", spec.prefix)), level, scaled(PORTRAIT_OFF_SLOTS.level, scale), (color, UNIT_FONT_SIZE * scale), PORTRAIT_OFF_SLOTS.level_justify)}
+        {status_bar(BarSpec {
+            name: format!("{}ManaBar", spec.prefix),
+            rect: scaled(PORTRAIT_OFF_SLOTS.power, scale),
+            fraction: power.map_or(0.0, |power| fraction(power.current as f32, power.max as f32)),
+            art: power.and_then(|power| power_bar_atlas(power.power)),
+            text: &StatusBarText::default(),
+            anchors: PORTRAIT_OFF_SLOTS.power_text,
+            font_size: (UNIT_FONT_SIZE - 1.0) * scale,
+            hidden: power.is_none(),
+        })}
+    }
+}
+
 fn unit_frame_menu(state: &UnitFrameMenuState) -> Element {
-    let (close, focus) = UNIT_MENU_ITEMS
-        .split_last()
-        .expect("unit menu ends with Close");
-    let mut items: Vec<ContextMenuItem<'_>> = focus.to_vec();
-    items.extend(state.player_items.iter().map(|item| ContextMenuItem {
-        name: &item.name,
-        label: &item.label,
-        action: &item.action,
-    }));
-    items.push(*close);
+    let mut items: Vec<ContextMenuItem<'_>> = state
+        .player_items
+        .iter()
+        .map(|item| ContextMenuItem {
+            name: &item.name,
+            label: &item.label,
+            action: &item.action,
+        })
+        .collect();
+    items.push(UNIT_MENU_CLOSE);
     context_menu(ContextMenu {
         frame_name: "UnitFrameContextMenu",
         title_name: "UnitFrameContextMenuTitle",

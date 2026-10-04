@@ -63,6 +63,8 @@ const EXPECTED_STAT_CSV: &str = "db2/12.1.0.69933/ExpectedStat.csv";
 
 pub(crate) struct Targeting {
     target: Option<u64>,
+    /// The focus unit: client-local, like Retail's `FocusUnit` / `ClearFocus`.
+    pub(crate) focus: Option<u64>,
     /// The target last sent in `SetTarget`.
     sent: Option<u64>,
     /// The ring on the target, sized for the pick box (visual) it was spawned for.
@@ -107,6 +109,7 @@ impl Targeting {
     pub fn new(data_root: PathBuf) -> Self {
         Self {
             target: None,
+            focus: None,
             sent: None,
             circle: None,
             ring: None,
@@ -498,6 +501,27 @@ fn target_of_target<'a>(
 #[path = "target_cast_binding_tests.rs"]
 mod target_cast_binding_tests;
 
+/// FocusFrame (`PLAYER_FOCUS_CHANGED` / `UNIT_HEALTH`, TargetFrame.lua:239-247): the focus
+/// unit's name, level, health and power while it is replicated (`UnitExists("focus")`).
+fn focus_frame_state(
+    replica: &Replica,
+    focus: Option<u64>,
+    viewer_level: Option<u8>,
+    texts: &BarTexts,
+) -> Option<SmallUnitFrameState> {
+    let unit = replica.unit(focus?).filter(|unit| is_unit(*unit))?;
+    Some(SmallUnitFrameState::from(&target_frame_state(
+        unit,
+        viewer_level,
+        1.0,
+        texts,
+    )))
+}
+
+#[cfg(test)]
+#[path = "focus_frame_tests.rs"]
+mod focus_frame_tests;
+
 fn unit_frames_state(
     player: Option<UnitFrameState>,
     target: Option<UnitFrameState>,
@@ -538,6 +562,7 @@ impl GameClient {
     pub(super) fn update_targeting(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.targeting.target = None;
+            self.targeting.focus = None;
             self.targeting.sent = None;
             self.targeting.free_circle();
             self.clear_unit_portraits();
@@ -554,9 +579,7 @@ impl GameClient {
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.apply_targeting_input();
         }
-        if self.targeting.target.is_none() {
-            self.unit_menu = crate::unit_menu::UnitMenu::default();
-        }
+        self.close_unit_menu_without_unit();
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.poll_unit_menu_actions()?;
         }
@@ -759,6 +782,13 @@ impl GameClient {
         {
             state.reaction = Some(self.reaction_to(id));
         }
+        let mut focus =
+            focus_frame_state(&self.replica, self.targeting.focus, viewer_level, &texts);
+        if let (Some(state), Some(id)) = (focus.as_mut(), self.targeting.focus)
+            && ui_toolkit::atlas::active_skin() == ui_toolkit::atlas::ActiveSkin::Forever
+        {
+            state.reaction = Some(self.reaction_to(id));
+        }
         let target_state = target.clone();
         self.targeting.frame_texts = target
             .as_ref()
@@ -814,6 +844,7 @@ impl GameClient {
         );
         state.target_cast = self.targeting.target.and_then(|id| self.hud_cast_bar(id));
         state.target_of_target = target_of_target;
+        state.focus = focus;
         state.menu = self.unit_menu.state.clone();
         state.personal_resource = personal_resource;
         if let Some(ui) = self.targeting.frame_ui.as_mut() {
