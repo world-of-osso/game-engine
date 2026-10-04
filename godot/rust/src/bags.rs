@@ -12,6 +12,7 @@ use game_engine_ui_model::cursor_item::CursorTarget;
 use game_engine_ui_model::window_manager::{WindowId, WindowManager};
 use godot::prelude::*;
 use shared::protocol::{EquipmentSlot, ItemLocation};
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
@@ -59,6 +60,11 @@ pub(crate) fn bags_screen(ctx: &SharedContext) -> Element {
         .get::<BagsView>()
         .expect("BagsView must be in SharedContext");
     let mut shared = SharedContext::new();
+    // The bag bar takes its anchor from the canvas's preset (`hud_layout`).
+    shared.insert(
+        *ctx.get::<ActiveSkin>()
+            .expect("canvas carries the active skin"),
+    );
     shared.insert(view.containers.clone());
     shared.insert(view.bar);
     let mut elements = bags_bar_screen(&shared);
