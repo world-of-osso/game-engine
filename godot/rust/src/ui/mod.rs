@@ -928,6 +928,18 @@ impl RegistryUi {
         self.show_viewport_screen(state, objective_tracker_screen, ScreenPostsetup::None)
     }
 
+    /// Initialize a dedicated RegistryUi instance for the experience bar.
+    pub fn show_xp_bar(
+        &mut self,
+        state: game_engine_ui_model::xp_bar_component::XpBarState,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::xp_bar_component::xp_bar_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     fn show_viewport_screen<T: 'static>(
         &mut self,
         state: T,

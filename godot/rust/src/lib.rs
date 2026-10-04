@@ -200,6 +200,7 @@ pub struct GameClient {
     quests: quests::QuestHud,
     entrance_bar: entrance_bar::EntranceBar,
     damage_meter: damage_meter::DamageMeterHud,
+    xp_bar: xp_bar::XpBarHud,
     group_frames: party_frames::GroupFramesHud,
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
     /// The drawn Edit Mode layout; its skin is the one atlases resolve under.
@@ -334,6 +335,7 @@ impl INode3D for GameClient {
             quests: quests::QuestHud::default(),
             entrance_bar: entrance_bar::EntranceBar::new(&data_root),
             damage_meter: damage_meter::DamageMeterHud::default(),
+            xp_bar: xp_bar::XpBarHud::default(),
             group_frames: party_frames::GroupFramesHud::default(),
             game_menu_options: None,
             ui_layout: Default::default(),
@@ -1153,6 +1155,7 @@ impl GameClient {
         self.quests.visit_uis(&mut visit)?;
         self.auras.visit_uis(&mut visit)?;
         self.damage_meter.visit_uis(&mut visit)?;
+        self.xp_bar.visit_uis(&mut visit)?;
         self.group_frames.visit_uis(&mut visit)?;
         self.entrance_bar.visit_uis(&mut visit)
     }
@@ -1648,6 +1651,7 @@ impl GameClient {
             ("Objective tracker", |c, _| c.update_objective_tracker()),
             ("Entrance bar", |c, d| c.update_entrance_bar(d)),
             ("Damage meter", |c, _| c.update_damage_meter()),
+            ("XP bar", |c, _| c.update_xp_bar()),
             ("Group frames", |c, d| c.update_group_frames(d)),
             ("World units", |c, d| {
                 c.world.advance(d);
