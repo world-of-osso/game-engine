@@ -86,7 +86,17 @@ Proof boundaries: [Skyborne ledger](../../target/skyborne-proof-ledger.md); data
 - `../shared-protocol/src/components.rs`, `../game-server/crates/server/src/character_data.rs` — appearance payload and stored-data upgrades.
 - `../ui-toolkit/core/src/atlas.rs` (DB2 atlas tables, project art), `../ui-toolkit/core/src/attrs.rs` — atlas identities/crops and authored hit insets.
 
+## Offline Skyborne acceptance
+
+- [ ] High Order Skyborne (95, Alliance, default Mage) and Windshaper Skyborne (96, Horde, default Shaman) render both body types without authentication.
+- [ ] Preview bodies resolve to M2 FDIDs 7478487/7478494, with visible geosets/materials and composed layout 201/202 body canvases at their catalog dimensions.
+- [ ] Creation offers 18 male / 19 female catalog options; enabled class buttons are Warrior, Hunter, Rogue, Mage/Shaman, Druid with the faction's default selected. Race portraits use the cropped atlas FDID 8200220.
+- [ ] Native idle poses change over time; four inspected screenshots show textured, non-T-pose bodies. Preview-only hide/restore pixel controls distinguish each body from its backdrop, and the fixture shuts down normally.
+
 ## Tests asserting this spec
+
+- `godot/tests/charcreate_skyborne_flow.gd` — four offline native variants, exact imported catalog option IDs, body/material/canvas checks, independent atlas RGB crop, live bone motion and preview-only pixel controls.
+- `scripts/tests/charcreate_skyborne.py` — offscreen cage runner with saved actual Godot exit code and captures under `data/diagnostics/skyborne-charcreate/`; run through `scripts/agent/agent-run skyborne-charcreate` after the desktop helper exports the native extension.
 
 - `godot/ui-model/src/scenes/char_create/data.rs` — Skyborne roster, factions, defaults, class lists and icon atlas.
 - `godot/core/src/player_model_data.rs` — Skyborne fixture and real imported body chains.
