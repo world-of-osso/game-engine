@@ -248,6 +248,7 @@ pub struct TargetAuraIconState {
 pub struct InWorldUnitFramesState {
     pub show_player_frame: bool,
     pub show_target_frame: bool,
+    pub target_cast: Option<crate::casting_bar_frame_component::CastingBarState>,
     pub player: UnitFrameState,
     pub target: Option<UnitFrameState>,
     pub target_of_target: Option<SmallUnitFrameState>,

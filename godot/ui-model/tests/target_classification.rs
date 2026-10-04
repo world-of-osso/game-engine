@@ -21,6 +21,7 @@ fn target_frames(name: &str, classification: CreatureClassification) -> FrameReg
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         player: UnitFrameState::named("Fbunitrank"),
         target: Some(UnitFrameState {
             level_text: "10".into(),

@@ -81,6 +81,7 @@ fn unit_frames() -> InWorldUnitFramesState {
     InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         player: UnitFrameState::named("Fbhud"),
         target_of_target: Some(SmallUnitFrameState::from(&target)),
         focus: Some(SmallUnitFrameState::from(&target)),

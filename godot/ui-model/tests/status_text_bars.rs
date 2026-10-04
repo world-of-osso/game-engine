@@ -19,6 +19,7 @@ fn frames(player: UnitFrameState, pet: Option<PetFrameState>) -> FrameRegistry {
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         player,
         target: None,
         target_of_target: None,

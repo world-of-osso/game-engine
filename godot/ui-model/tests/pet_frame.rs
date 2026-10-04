@@ -18,6 +18,7 @@ fn frames(pet: Option<PetFrameState>) -> FrameRegistry {
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         player: UnitFrameState::named("Fbpetbar"),
         target: None,
         target_of_target: None,
