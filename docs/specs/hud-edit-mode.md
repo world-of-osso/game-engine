@@ -42,6 +42,32 @@ Edit Mode" and open decision 1 (layouts account-wide, active layout per characte
 - Test: `godot/rust/src/ui/flare_panel_tests.rs`, `godot/rust/src/ui/modern_panel_snapshot_tests.rs` (Modern chat/meter/tooltip canvases pinned to their forever6 hashes).
 - Not drawn under Forever yet: native/localized large-power abbreviation (`AbbreviateNumbers`, `UnitFrames.lua:412`; Retail exposes a native API, not a Lua algorithm; snapshots carry only current/max integers, so values such as 78 render as integers without substituting Classic's `AbbreviateLargeNumbers`), offline/dead/ghost text and power suppression, offline/tap-denied grey health (frame snapshots carry none of these flags), health/power separator, player/ToT aura population, indicators and the ToT cast bar; class bars and status icons are not shown on the Forever player frame. The tooltip centre multiplies the dark dialog background, so it shows black at 0.78 alpha where FlareUI's recoloured Blizzard centre is 0.05/0.05/0.06 at 0.9. `ANCHOR_CURSOR_RIGHT` is taken as the tooltip's BOTTOMLEFT on the cursor: no local Blizzard source defines it.
 
+### Customisable layout settings
+
+Retail keeps per-system settings in each layout (`Blizzard_EditMode/Shared/EditModeSettingDisplayInfo.lua`); presets are `Enum.EditModeLayoutType.Preset` and cannot be saved, renamed or deleted (`EditModeManager.lua:1452-1455,1499,1516`); saving while one is active makes a new Account/Character layout copied from it (`SaveLayoutChanges`, `MakeNewLayout`, `EditModeManager.lua:1473-1490,1568-1574`). No settings UI and no dragging yet: values come from `ui_layout.ron`.
+
+- [x] A layout carries `settings` beside `skin` and `elements`. Every setting is optional: unset means the value of the layout's preset (Modern or Forever, by `skin`), so both presets and every file saved before a setting existed draw exactly as before. A player layout therefore stores its preset plus the changed values, not Retail's full copy.
+- [x] Modern and Forever are never written. `save_layout_settings` on a character whose active layout is a preset creates "Layout N" (first unused N) with that preset's skin, stores the settings there and makes it the character's active layout; on a player layout it updates that layout. Other characters and the preset keep their values.
+- [x] A stored value outside its range is clamped when applied (`ClampValue`, `EditModeSettingDisplayInfo.lua:1435-1437`); steps are for the settings UI.
+
+| Setting (`settings.`) | Range, step | Default | Changes | Source |
+|---|---|---|---|---|
+| `player_frame.frame_size`, `target_frame.`, `focus_frame.`, `pet_frame.` | 100-200 %, 5 | 100 | The frame's `SetScale`: every length and text inside it; its anchor point stays in place | `EditModeUnitFrameSetting.FrameSize`, `EditModeSettingDisplayInfo.lua:357-362`; `EditModeSystemTemplates.lua:117-129,1547-1558` |
+| `<frame>.font` | `FrizQuadrata`, `ArialNarrow` | each text's authored face (Friz Quadrata) | Face of every text in the frame: name, level, health, power | ours |
+| `<frame>.text_size` | 50-150 %, 10 | 100 | Size of every text in the frame, on top of `frame_size` | ours; range of the meter's `TextSize`, `:1357-1362` |
+| `chat.width` | 250-800, 1 | Modern 500, Forever 469 | Chat frame width; messages wrap to it | `EditModeChatFrameSetting.Width*`, `:560-576`; `EditModeSystemTemplates.lua:2160-2175` |
+| `chat.height` | 120-800, 1 | Modern 280, Forever 235 | Chat frame height; as many messages as fit show | `Height*`, `:578-591`; `:2177-2192` |
+| `damage_meter.width` | 200-600, 1 | Modern 400, Forever 450 | Window, header and row width | `EditModeDamageMeterSetting.FrameWidth`, `:1278-1283`; `:3499-3502` |
+| `damage_meter.height` | 120-400, 1 | Modern 140, Forever 214 | Window height; as many rows as fit show | `FrameHeight`, `:1292-1297`; `:3504-3507` |
+
+- [x] Unit frames follow Retail's systems: player, target, focus and pet each have their own settings. Target of target and the target cast bar are children of the target frame: they take `target_frame`'s settings and keep their place in the target's scaled space. The pet frame keeps its own size and hangs from the scaled player frame (`UpdatePetFrameScale`, `EditModeSystemTemplates.lua:2609-2620`). Boss and party frames have no settings.
+- [x] Ours, not Retail's: `font` and `text_size` (Retail unit frames have no text settings), one face and one size per frame for all its texts. The offered faces are the two the client ships (`data/fonts/FRIZQT__.TTF`, `ARIALN.ttf`; `GameFont`). Chat `width`/`height` size this client's whole chat frame (tabs, messages and edit box), where Retail's size its message frame.
+- [x] The chat frame grows from its bottom-left corner, the meter and unit frames from their preset anchor point. A larger frame can cover its neighbours until frames can be moved, as in Retail.
+- Changed under Forever at preset values: chat lines wrap to, and fill, the Forever message area (430×170) instead of Modern's (461×215), which overflowed the panel; the meter shows the rows its 214-high window fits (9) instead of Modern's 5.
+- Not done: the settings UI; per-text font or size (name, health and power separately); Retail's other meter settings (`BarHeight` 15-40, `Padding`, `TextSize`, transparency, style, `:1306-1362`); unit frame settings other than size; chat and meter text size.
+- Code: `godot/core/src/ui_layout_data.rs` (`LayoutSettings`, ranges, persistence), `godot/ui-model/src/ui/hud_layout.rs` (`hud_layout` = preset + settings), `godot/ui-model/src/ui/unit_frame_style.rs` (`styled_frame`), `godot/rust/src/ui_layout.rs` (`apply_ui_layout`).
+- Tests: `godot/core/src/ui_layout_data.rs` (old file loads with preset values; save, reload, preset untouched), `godot/rust/src/ui/hud_layout_settings_tests.rs` (each setting changes the built frames under both presets; parts stay inside; clamping).
+
 ### Action bars
 
 - [x] Three action bars are instances of one bar component (`main_action_bar_component.rs`): `MainActionBar`, `MultiBarBottomLeft` (Action Bar 2) and `MultiBarBottomRight` (Action Bar 3) (`Blizzard_ActionBar/Shared/MultiActionBars.xml:45-102`). Each has 12 buttons named `ActionButton<n>` / `<bar>Button<n>` (`Shared/ActionBar.lua:19-28`).
@@ -90,4 +116,4 @@ The unit-frame reference fixtures prove geometry/text with populated ToT/focus s
 
 - No chat frame exists, so chat is not registered. The objective-tracker frame is registered but not mounted in world yet; it becomes movable once a frame with that name is mounted. `BuffFrame` and `DebuffFrame` are mounted ([buff frame](buff-frame.md)).
 - Exiting with unsaved edits discards them without a confirmation prompt.
-- No per-element settings (size, orientation, padding) as in Retail.
+- Per-element settings exist only for unit frames, chat and the damage meter ([Customisable layout settings](#customisable-layout-settings)), without a settings UI.

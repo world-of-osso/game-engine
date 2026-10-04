@@ -203,7 +203,8 @@ impl ChatModel {
     }
 
     pub fn view(&self, spell_name: impl Fn(u32) -> String) -> ChatFrameView {
-        chat_frame_view(&self.state, &self.log, &self.combat, spell_name)
+        let chat_size = game_engine_ui_model::hud_layout::active_hud_layout().chat_size;
+        chat_frame_view(&self.state, &self.log, &self.combat, spell_name, chat_size)
     }
 
     /// Leaving the world closes the edit box, clears the combat log and stops flashing.

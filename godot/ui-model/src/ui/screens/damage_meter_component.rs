@@ -1,9 +1,10 @@
 //! Retail damage meter primary window (`Blizzard_DamageMeter`, spec
 //! docs/specs/damage-meter.md): `DamageMeter` at the active preset's anchor
-//! (`crate::hud_layout`) at the Edit Mode default 400x140 with 16 px bars
-//! 4 px apart (preset FrameWidth 100 / FrameHeight 20 / BarHeight 1 / Padding 2 over the
-//! slider minimums, EditModeSettingDisplayInfo.lua:1127-1175), Default style, class
-//! colours, Compact numbers, 50% background.
+//! (`crate::hud_layout`) at the active layout's size (`damage_meter_size`: the Edit Mode
+//! default is 400x140) with 16 px bars 4 px apart (preset FrameWidth 100 / FrameHeight 20 /
+//! BarHeight 1 / Padding 2 over the slider minimums,
+//! EditModeSettingDisplayInfo.lua:1278-1325), Default style, class colours, Compact
+//! numbers, 50% background.
 //!
 //! Header (`DamageMeterSessionWindowTemplate`): the session timer, the "Damage Done" type
 //! dropdown and, on the right, the session ("C"/"O"), settings and minimize buttons.
@@ -23,7 +24,7 @@ use crate::flare_panel::{
     FLARE_HEADER_ICON_INSET, FLARE_HEADER_ICON_SIZE, FLARE_ICON_COLOR, FLARE_INACTIVE_TEXT,
     flare_header, flare_icon, flare_panel, flare_text,
 };
-use crate::hud_layout::{FOREVER_CHAT_PANEL_SIZE, hud_layout};
+use crate::hud_layout::hud_layout;
 use crate::inworld_unit_frames_component::inworld_unit_frames_flare::flare_border_with_edge;
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
@@ -36,8 +37,6 @@ pub const ACTION_DAMAGE_METER_MENU: &str = "damage_meter:menu";
 pub const ACTION_DAMAGE_METER_CURRENT: &str = "damage_meter:current";
 pub const ACTION_DAMAGE_METER_OVERALL: &str = "damage_meter:overall";
 
-const WINDOW_W: f32 = 400.0;
-const WINDOW_H: f32 = 140.0;
 /// `Header` `Size y=32`, spanning the window.
 const HEADER_H: f32 = 32.0;
 /// `SessionTimer` TOPLEFT of the header +15,-9 (`GameFontNormalMed1`: FRIZQT 13, gold).
@@ -66,15 +65,15 @@ const ROWS_LEFT: f32 = 17.0;
 const ROWS_TOP: f32 = HEADER_H + 5.0;
 const ROWS_RIGHT: f32 = 15.0;
 const ROWS_BOTTOM: f32 = 6.0;
-const ROW_W: f32 = WINDOW_W - ROWS_LEFT - ROWS_RIGHT;
 const BAR_H: f32 = 16.0;
 const BAR_SPACING: f32 = 4.0;
-/// Rows the scroll box shows without scrolling.
-pub const VISIBLE_ROWS: usize =
-    ((WINDOW_H - ROWS_BOTTOM - ROWS_TOP + BAR_SPACING) / (BAR_H + BAR_SPACING)) as usize;
 /// Default style StatusBar: TOP -1, BOTTOMRIGHT -4,+1; `Name` LEFT +5, `Value` RIGHT -8.
-const STATUS_BAR_W: f32 = ROW_W - 4.0;
 const STATUS_BAR_H: f32 = BAR_H - 2.0;
+
+/// Rows a window `height` high shows below `rows_top` without scrolling.
+fn visible_rows(height: f32, rows_top: f32) -> usize {
+    ((height - ROWS_BOTTOM - rows_top + BAR_SPACING) / (BAR_H + BAR_SPACING)).max(0.0) as usize
+}
 const NAME_X: f32 = 5.0;
 const VALUE_RIGHT: f32 = 8.0;
 /// Name RIGHT at the value's LEFT -25; the value is right-justified in what is left.
@@ -91,12 +90,14 @@ const BACKGROUND_ALPHA: f32 = 0.5;
 /// Core.lua:249).
 pub const DAMAGE_METER_FLARE_SKIN: &str = "DamageMeterFlareSkin";
 const FLARE_PADDING: f32 = 2.0;
-const FLARE_SKIN_RECT: (f32, f32, f32, f32) = (
-    -FLARE_PADDING,
-    -FLARE_PADDING,
-    FOREVER_CHAT_PANEL_SIZE.0 + 2.0 * FLARE_PADDING,
-    FOREVER_CHAT_PANEL_SIZE.1 + 2.0 * FLARE_PADDING,
-);
+fn flare_skin_rect((width, height): (f32, f32)) -> (f32, f32, f32, f32) {
+    (
+        -FLARE_PADDING,
+        -FLARE_PADDING,
+        width + 2.0 * FLARE_PADDING,
+        height + 2.0 * FLARE_PADDING,
+    )
+}
 /// Session menu under the session dropdown: one radio row per session type.
 const MENU_W: f32 = 150.0;
 const MENU_ROW_H: f32 = 20.0;
@@ -155,39 +156,39 @@ pub fn damage_meter_row_name(index: usize) -> String {
     format!("DamageMeterEntry{}", index + 1)
 }
 
-/// Header right side, from the window's right edge.
-fn minimize_left() -> f32 {
-    WINDOW_W - MINIMIZE_RIGHT - MINIMIZE_SIZE.0
+/// Header right side, from the right edge of a window `width` wide.
+fn minimize_left(width: f32) -> f32 {
+    width - MINIMIZE_RIGHT - MINIMIZE_SIZE.0
 }
 
-fn settings_left() -> f32 {
-    minimize_left() - 5.0 - SETTINGS_SIZE
+fn settings_left(width: f32) -> f32 {
+    minimize_left(width) - 5.0 - SETTINGS_SIZE
 }
 
-fn session_left() -> f32 {
-    settings_left() - 7.0 - SESSION_SIZE
+fn session_left(width: f32) -> f32 {
+    settings_left(width) - 7.0 - SESSION_SIZE
 }
 
 /// Vertical centre of the minimize button, which the dropdowns chain from.
 const MINIMIZE_CENTER_Y: f32 = MINIMIZE_TOP + 19.0 / 2.0;
 
 /// Retail's `Background` and `Header` art.
-fn blizzard_background() -> Element {
+fn blizzard_background((width, height): (f32, f32)) -> Element {
     let mut children = art_alpha(
         "DamageMeterBackground",
         &BACKGROUND,
         [
             BACKGROUND_INSET,
             0.0,
-            WINDOW_W - 2.0 * BACKGROUND_INSET,
-            WINDOW_H,
+            width - 2.0 * BACKGROUND_INSET,
+            height,
         ],
         BACKGROUND_ALPHA,
     );
     children.extend(art(
         "DamageMeterHeader",
         &HEADER,
-        [0.0, 0.0, WINDOW_W, HEADER_H],
+        [0.0, 0.0, width, HEADER_H],
     ));
     children
 }
@@ -199,29 +200,33 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
     let skin = *ctx
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
+    let layout = hud_layout(ctx);
+    let (width, height) = layout.damage_meter_size;
     let mut children = match skin {
-        ActiveSkin::Modern => blizzard_background(),
-        ActiveSkin::Forever => flare_panel(DAMAGE_METER_FLARE_SKIN, FLARE_SKIN_RECT),
+        ActiveSkin::Modern => blizzard_background((width, height)),
+        ActiveSkin::Forever => {
+            flare_panel(DAMAGE_METER_FLARE_SKIN, flare_skin_rect((width, height)))
+        }
     };
     match skin {
         ActiveSkin::Modern => {
-            children.extend(header(view));
-            for (index, row) in view.rows.iter().take(VISIBLE_ROWS).enumerate() {
-                children.extend(entry(index, row));
+            children.extend(header(view, width));
+            let rows = visible_rows(height, ROWS_TOP);
+            for (index, row) in view.rows.iter().take(rows).enumerate() {
+                children.extend(entry(index, row, width));
             }
         }
         ActiveSkin::Forever => {
-            children.extend(forever_header());
-            for (index, row) in view.rows.iter().take(VISIBLE_ROWS).enumerate() {
-                children.extend(forever_entry(index, row));
+            children.extend(forever_header((width, height)));
+            let rows = visible_rows(height, FOREVER_ROWS_TOP);
+            for (index, row) in view.rows.iter().take(rows).enumerate() {
+                children.extend(forever_entry(index, row, width));
             }
         }
     }
     if view.menu_open {
-        children.extend(session_menu(view.session));
+        children.extend(session_menu(view.session, width));
     }
-    let layout = hud_layout(ctx);
-    let (width, height) = layout.damage_meter_size;
     let at = layout.damage_meter.place((width, height));
     rsx! {
         r#frame {
@@ -244,20 +249,28 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
 // docs/specs/forever-chat-meter-chrome.md. Existing Modern constants stay untouched.
 const FOREVER_ROWS_LEFT: f32 = 4.0;
 const FOREVER_ROWS_TOP: f32 = 32.0;
-const FOREVER_ROW_W: f32 = FOREVER_CHAT_PANEL_SIZE.0 - 2.0 * FOREVER_ROWS_LEFT;
 const FOREVER_ICON_SIZE: f32 = BAR_H;
 const FOREVER_BAR_LEFT: f32 = FOREVER_ICON_SIZE + BAR_SPACING;
-const FOREVER_BAR_W: f32 = FOREVER_ROW_W - FOREVER_BAR_LEFT;
-const FOREVER_FILL_W: f32 = FOREVER_BAR_W - 2.0;
 const FOREVER_BAR_EDGE: f32 = 8.0;
 const FOREVER_BUTTON_TOP: f32 =
-    FLARE_SKIN_RECT.1 + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
-const FOREVER_CHART_LEFT: f32 = FOREVER_CHAT_PANEL_SIZE.0 - 51.5;
-const FOREVER_GEAR_LEFT: f32 = FOREVER_CHAT_PANEL_SIZE.0 - 30.5;
+    -FLARE_PADDING + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
+/// The chart and gear buttons' left edges, from the window's right edge.
+const FOREVER_CHART_RIGHT: f32 = 51.5;
+const FOREVER_GEAR_RIGHT: f32 = 30.5;
 const FOREVER_CHART_COLUMN_W: f32 = 2.2;
 
-fn forever_header() -> Element {
-    let mut parts = flare_header("DamageMeterFlare", FLARE_SKIN_RECT);
+/// A row of a window `width` wide, and the bar right of its class icon.
+fn forever_row_width(width: f32) -> f32 {
+    width - 2.0 * FOREVER_ROWS_LEFT
+}
+
+fn forever_bar_width(width: f32) -> f32 {
+    forever_row_width(width) - FOREVER_BAR_LEFT
+}
+
+fn forever_header(size: (f32, f32)) -> Element {
+    let width = size.0;
+    let mut parts = flare_header("DamageMeterFlare", flare_skin_rect(size));
     parts.extend(flare_text(
         "DamageMeterTypeName",
         "DPS",
@@ -273,12 +286,12 @@ fn forever_header() -> Element {
         FLARE_INACTIVE_TEXT,
         JustifyH::Left,
     ));
-    parts.extend(forever_chart_button());
+    parts.extend(forever_chart_button(width - FOREVER_CHART_RIGHT));
     parts.extend(flare_icon(
         "DamageMeterSettings",
         FLARE_GEAR_ART,
         [
-            FOREVER_GEAR_LEFT,
+            width - FOREVER_GEAR_RIGHT,
             FOREVER_BUTTON_TOP,
             FLARE_HEADER_BUTTON_SIZE,
             FLARE_HEADER_BUTTON_SIZE,
@@ -288,7 +301,7 @@ fn forever_header() -> Element {
     parts
 }
 
-fn forever_chart_button() -> Element {
+fn forever_chart_button(left: f32) -> Element {
     let columns: Element = [(7.7, 5.5), (4.4, 8.8), (0.0, 13.2)]
         .into_iter()
         .enumerate()
@@ -314,7 +327,7 @@ fn forever_chart_button() -> Element {
             onclick: ACTION_DAMAGE_METER_MENU,
             button_default_skin: false,
             pos_type: "absolute",
-            left: FOREVER_CHART_LEFT,
+            left,
             top: FOREVER_BUTTON_TOP,
             r#frame {
                 name: "DamageMeterSessionDropdownIcon",
@@ -348,14 +361,14 @@ fn class_icon(class_id: u8) -> &'static str {
     }
 }
 
-fn forever_entry(index: usize, row: &DamageMeterRow) -> Element {
+fn forever_entry(index: usize, row: &DamageMeterRow, window_width: f32) -> Element {
     let name = damage_meter_row_name(index);
     let icon = class_icon(row.class_id);
-    let bar = forever_bar(&name, row);
+    let bar = forever_bar(&name, row, forever_bar_width(window_width));
     rsx! {
         r#frame {
             name: {DynName(name.clone())},
-            width: FOREVER_ROW_W,
+            width: {forever_row_width(window_width)},
             height: BAR_H,
             pos_type: "absolute",
             left: FOREVER_ROWS_LEFT,
@@ -374,12 +387,12 @@ fn forever_entry(index: usize, row: &DamageMeterRow) -> Element {
     }
 }
 
-fn forever_bar(name: &str, row: &DamageMeterRow) -> Element {
-    let value_left = FOREVER_BAR_W - VALUE_RIGHT - VALUE_W;
-    let mut parts = forever_fill(name, row);
+fn forever_bar(name: &str, row: &DamageMeterRow, bar_width: f32) -> Element {
+    let value_left = bar_width - VALUE_RIGHT - VALUE_W;
+    let mut parts = forever_fill(name, row, bar_width - 2.0);
     parts.extend(flare_border_with_edge(
         &format!("{name}Bar"),
-        (FOREVER_BAR_W, BAR_H),
+        (bar_width, BAR_H),
         FOREVER_BAR_EDGE,
     ));
     parts.extend(flare_text(
@@ -399,7 +412,7 @@ fn forever_bar(name: &str, row: &DamageMeterRow) -> Element {
     rsx! {
         r#frame {
             name: {DynName(format!("{name}Bar"))},
-            width: FOREVER_BAR_W,
+            width: bar_width,
             height: BAR_H,
             background_color: "0.1,0.1,0.1,0.9",
             pos_type: "absolute",
@@ -410,9 +423,9 @@ fn forever_bar(name: &str, row: &DamageMeterRow) -> Element {
     }
 }
 
-fn forever_fill(name: &str, row: &DamageMeterRow) -> Element {
+fn forever_fill(name: &str, row: &DamageMeterRow, fill_width: f32) -> Element {
     let fraction = row.fraction.clamp(0.0, 1.0);
-    let width = FOREVER_FILL_W * fraction;
+    let width = fill_width * fraction;
     let [r, g, b] = row.color;
     let coords = BAR_FILL.tex_coords(fraction);
     let hidden = width <= 0.0;
@@ -444,7 +457,7 @@ fn forever_fill(name: &str, row: &DamageMeterRow) -> Element {
     }
 }
 
-fn header(view: &DamageMeterView) -> Element {
+fn header(view: &DamageMeterView, width: f32) -> Element {
     let mut parts = text(
         "DamageMeterSessionTimer",
         &view.timer_text,
@@ -452,17 +465,20 @@ fn header(view: &DamageMeterView) -> Element {
         GOLD,
         JustifyH::Left,
     );
-    parts.extend(type_dropdown(TIMER_X + view.timer_width));
+    parts.extend(type_dropdown(
+        TIMER_X + view.timer_width,
+        session_left(width),
+    ));
     parts.extend(session_button(
         view.session,
-        session_left(),
+        session_left(width),
         MINIMIZE_CENTER_Y + 1.0 - 3.0 - SESSION_SIZE / 2.0,
     ));
     parts.extend(art(
         "DamageMeterSettings",
         &SETTINGS,
         [
-            settings_left(),
+            settings_left(width),
             MINIMIZE_CENTER_Y + 1.0 - SETTINGS_SIZE / 2.0,
             SETTINGS_SIZE,
             SETTINGS_SIZE,
@@ -472,7 +488,7 @@ fn header(view: &DamageMeterView) -> Element {
         "DamageMeterMinimize",
         &MINIMIZE,
         [
-            minimize_left(),
+            minimize_left(width),
             MINIMIZE_TOP,
             MINIMIZE_SIZE.0,
             MINIMIZE_SIZE.1,
@@ -482,8 +498,8 @@ fn header(view: &DamageMeterView) -> Element {
 }
 
 /// `DamageMeterTypeDropdown` at `left`: its arrow and the gold type name, which runs to
-/// the session dropdown -15.
-fn type_dropdown(left: f32) -> Element {
+/// the session dropdown (at `session_left`) -15.
+fn type_dropdown(left: f32, session_left: f32) -> Element {
     let top = TIMER_Y - 6.0;
     let arrow_left = left + (TYPE_DROPDOWN_SIZE - TYPE_ARROW_SIZE) / 2.0;
     let arrow_top = top + (TYPE_DROPDOWN_SIZE - TYPE_ARROW_SIZE) / 2.0 + 2.0;
@@ -500,7 +516,7 @@ fn type_dropdown(left: f32) -> Element {
         [
             name_left,
             name_center - HEADER_TEXT_H / 2.0,
-            (session_left() - 15.0 - name_left).max(0.0),
+            (session_left - 15.0 - name_left).max(0.0),
             HEADER_TEXT_H,
         ],
         GOLD,
@@ -545,7 +561,7 @@ fn session_button(session: MeterSessionType, left: f32, top: f32) -> Element {
 
 /// The session menu's `Current Segment` and `Overall` radios (the past-session radios
 /// above its divider are not listed; the snapshot carries only these two sessions).
-fn session_menu(selected: MeterSessionType) -> Element {
+fn session_menu(selected: MeterSessionType, window_width: f32) -> Element {
     let options = [
         (MeterSessionType::Current, ACTION_DAMAGE_METER_CURRENT),
         (MeterSessionType::Overall, ACTION_DAMAGE_METER_OVERALL),
@@ -565,7 +581,7 @@ fn session_menu(selected: MeterSessionType) -> Element {
             height,
             background_color: "0.05,0.05,0.05,0.92",
             pos_type: "absolute",
-            left: {session_left() + SESSION_SIZE - MENU_W},
+            left: {session_left(window_width) + SESSION_SIZE - MENU_W},
             top: HEADER_H,
             {rows}
         }
@@ -599,10 +615,12 @@ fn menu_row(index: usize, session: MeterSessionType, action: &str, checked: bool
 }
 
 /// One `DamageMeterSourceEntryTemplate` in the Default style.
-fn entry(index: usize, row: &DamageMeterRow) -> Element {
+fn entry(index: usize, row: &DamageMeterRow, window_width: f32) -> Element {
     let name = damage_meter_row_name(index);
-    let value_left = STATUS_BAR_W - VALUE_RIGHT - VALUE_W;
-    let mut parts = status_bar(&name, row);
+    let row_width = window_width - ROWS_LEFT - ROWS_RIGHT;
+    let bar_width = row_width - 4.0;
+    let value_left = bar_width - VALUE_RIGHT - VALUE_W;
+    let mut parts = status_bar(&name, row, bar_width);
     parts.extend(row_text(
         format!("{name}Name"),
         &row.name_text,
@@ -620,7 +638,7 @@ fn entry(index: usize, row: &DamageMeterRow) -> Element {
     rsx! {
         r#frame {
             name: {DynName(name)},
-            width: ROW_W,
+            width: row_width,
             height: BAR_H,
             pos_type: "absolute",
             left: ROWS_LEFT,
@@ -632,15 +650,15 @@ fn entry(index: usize, row: &DamageMeterRow) -> Element {
 
 /// The shadow background and edge 2 px around the StatusBar, then its class-coloured
 /// fill revealing the leftmost `fraction` of the bar texture.
-fn status_bar(name: &str, row: &DamageMeterRow) -> Element {
-    let shadow = [-2.0, -1.0, STATUS_BAR_W + 4.0, STATUS_BAR_H + 4.0];
+fn status_bar(name: &str, row: &DamageMeterRow, bar_width: f32) -> Element {
+    let shadow = [-2.0, -1.0, bar_width + 4.0, STATUS_BAR_H + 4.0];
     let mut parts = art(&format!("{name}Background"), &BAR_SHADOW_BG, shadow);
     parts.extend(art(
         &format!("{name}BackgroundEdge"),
         &BAR_SHADOW_EDGE,
         shadow,
     ));
-    let fill_w = STATUS_BAR_W * row.fraction.clamp(0.0, 1.0);
+    let fill_w = bar_width * row.fraction.clamp(0.0, 1.0);
     let fill_coords = BAR_FILL.tex_coords(row.fraction);
     let [r, g, b] = row.color;
     let fill_color = format!("{r},{g},{b},1.0");
