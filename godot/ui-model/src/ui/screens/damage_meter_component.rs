@@ -27,7 +27,7 @@ use crate::damage_meter_data::{
 use crate::flare_panel::{
     FLARE_ACTIVE_TEXT, FLARE_GEAR_ART, FLARE_HEADER_BUTTON_SIZE, FLARE_HEADER_HEIGHT,
     FLARE_HEADER_ICON_INSET, FLARE_HEADER_ICON_SIZE, FLARE_ICON_COLOR, FLARE_INACTIVE_TEXT,
-    flare_header, flare_icon, flare_panel, flare_text,
+    flare_header, flare_icon, flare_panel, flare_text, flare_text_sized,
 };
 use crate::hud_layout::hud_layout;
 use crate::inworld_unit_frames_component::inworld_unit_frames_flare::flare_border_with_edge;
@@ -72,8 +72,9 @@ const BAR_SPACING: f32 = 4.0;
 const STATUS_BAR_H: f32 = BAR_H - 2.0;
 
 /// Rows a window `height` high shows below `rows_top` without scrolling.
-fn visible_rows(height: f32, rows_top: f32) -> usize {
-    ((height - ROWS_BOTTOM - rows_top + BAR_SPACING) / (BAR_H + BAR_SPACING)).max(0.0) as usize
+/// How many `row_h` rows `gap` apart fit between `rows_top` and the window's bottom inset.
+fn visible_rows(height: f32, rows_top: f32, row_h: f32, gap: f32) -> usize {
+    ((height - ROWS_BOTTOM - rows_top + gap) / (row_h + gap)).max(0.0) as usize
 }
 const NAME_X: f32 = 5.0;
 const VALUE_RIGHT: f32 = 8.0;
@@ -217,7 +218,7 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
     let (type_menu_open, type_menu_at) = match skin {
         ActiveSkin::Modern => {
             children.extend(header(view, width));
-            let rows = visible_rows(height, ROWS_TOP);
+            let rows = visible_rows(height, ROWS_TOP, BAR_H, BAR_SPACING);
             for (index, row) in view.rows.iter().take(rows).enumerate() {
                 children.extend(entry(index, row, width, clickable));
             }
@@ -227,7 +228,7 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
         // Forever has one menu button: its menu lists the types beside the sessions.
         ActiveSkin::Forever => {
             children.extend(forever_header(view, (width, height)));
-            let rows = visible_rows(height, FOREVER_ROWS_TOP);
+            let rows = visible_rows(height, FOREVER_ROWS_TOP, FOREVER_ROW_H, FOREVER_ROW_GAP);
             for (index, row) in view.rows.iter().take(rows).enumerate() {
                 children.extend(forever_entry(index, row, width, clickable));
             }
@@ -270,8 +271,15 @@ pub fn damage_meter_screen(ctx: &SharedContext) -> Element {
 // docs/specs/forever-chat-meter-chrome.md. Existing Modern constants stay untouched.
 const FOREVER_ROWS_LEFT: f32 = 4.0;
 const FOREVER_ROWS_TOP: f32 = 32.0;
-const FOREVER_ICON_SIZE: f32 = BAR_H;
-const FOREVER_BAR_LEFT: f32 = FOREVER_ICON_SIZE + BAR_SPACING;
+/// FlareUI draws Retail's entry at the window's bar height and spacing; the reference's
+/// rows are 30 tall, 4 apart, with Retail's 24-square icon centred in them.
+const FOREVER_ROW_H: f32 = 30.0;
+const FOREVER_ROW_GAP: f32 = 4.0;
+const FOREVER_ICON_SIZE: f32 = 24.0;
+const FOREVER_ICON_TOP: f32 = (FOREVER_ROW_H - FOREVER_ICON_SIZE) / 2.0;
+const FOREVER_BAR_LEFT: f32 = FOREVER_ICON_SIZE + FOREVER_ROW_GAP;
+const FOREVER_FILL_H: f32 = FOREVER_ROW_H - 2.0;
+const FOREVER_ROW_FONT_SIZE: f32 = 16.0;
 const FOREVER_BAR_EDGE: f32 = 8.0;
 const FOREVER_BUTTON_TOP: f32 =
     -FLARE_PADDING + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
@@ -451,16 +459,16 @@ fn forever_entry(
     };
     parts.extend(forever_bar(&name, row, forever_bar_width(window_width)));
     if clickable {
-        parts.extend(row_click_target(&name, index, row_width));
+        parts.extend(row_click_target(&name, index, row_width, FOREVER_ROW_H));
     }
     rsx! {
         r#frame {
             name: {DynName(name)},
             width: row_width,
-            height: BAR_H,
+            height: FOREVER_ROW_H,
             pos_type: "absolute",
             left: FOREVER_ROWS_LEFT,
-            top: {FOREVER_ROWS_TOP + (BAR_H + BAR_SPACING) * index as f32},
+            top: {FOREVER_ROWS_TOP + (FOREVER_ROW_H + FOREVER_ROW_GAP) * index as f32},
             {parts}
         }
     }
@@ -475,7 +483,7 @@ fn forever_icon(name: &str, icon: &str) -> Element {
             texture_atlas: icon,
             pos_type: "absolute",
             left: 0.0,
-            top: 0.0,
+            top: FOREVER_ICON_TOP,
         }
     }
 }
@@ -497,10 +505,10 @@ fn click_target(name: &str, [x, y, width, height]: [f32; 4], action: &str) -> El
 }
 
 /// A click target over the whole row `name`.
-fn row_click_target(name: &str, index: usize, width: f32) -> Element {
+fn row_click_target(name: &str, index: usize, width: f32, height: f32) -> Element {
     click_target(
         &format!("{name}Button"),
-        [0.0, 0.0, width, BAR_H],
+        [0.0, 0.0, width, height],
         &format!("{ACTION_DAMAGE_METER_ROW}{index}"),
     )
 }
@@ -510,28 +518,30 @@ fn forever_bar(name: &str, row: &DamageMeterRow, bar_width: f32) -> Element {
     let mut parts = forever_fill(name, row, bar_width - 2.0);
     parts.extend(flare_border_with_edge(
         &format!("{name}Bar"),
-        (bar_width, BAR_H),
+        (bar_width, FOREVER_ROW_H),
         FOREVER_BAR_EDGE,
     ));
-    parts.extend(flare_text(
+    parts.extend(flare_text_sized(
         &format!("{name}Name"),
         &row.name_text,
-        [NAME_X, 0.0, value_left - 5.0 - NAME_X, BAR_H],
+        [NAME_X, 0.0, value_left - 5.0 - NAME_X, FOREVER_ROW_H],
         [1.0; 4],
         JustifyH::Left,
+        FOREVER_ROW_FONT_SIZE,
     ));
-    parts.extend(flare_text(
+    parts.extend(flare_text_sized(
         &format!("{name}Value"),
         &row.value_text,
-        [value_left, 0.0, VALUE_W, BAR_H],
+        [value_left, 0.0, VALUE_W, FOREVER_ROW_H],
         [1.0; 4],
         JustifyH::Right,
+        FOREVER_ROW_FONT_SIZE,
     ));
     rsx! {
         r#frame {
             name: {DynName(format!("{name}Bar"))},
             width: bar_width,
-            height: BAR_H,
+            height: FOREVER_ROW_H,
             background_color: "0.1,0.1,0.1,0.9",
             pos_type: "absolute",
             left: FOREVER_BAR_LEFT,
@@ -551,7 +561,7 @@ fn forever_fill(name: &str, row: &DamageMeterRow, fill_width: f32) -> Element {
         texture {
             name: {DynName(format!("{name}StatusBar"))},
             width,
-            height: STATUS_BAR_H,
+            height: FOREVER_FILL_H,
             hidden,
             texture_fdid: {BAR_FILL.fdid},
             tex_coords: {coords.as_str()},
@@ -563,7 +573,7 @@ fn forever_fill(name: &str, row: &DamageMeterRow, fill_width: f32) -> Element {
         texture {
             name: {DynName(format!("{name}Gradient"))},
             width,
-            height: STATUS_BAR_H,
+            height: FOREVER_FILL_H,
             hidden,
             texture_file: "data/textures/ui/chattynator/Fade.png",
             tex_coords: "1,0,0,1",
@@ -792,7 +802,7 @@ fn entry(index: usize, row: &DamageMeterRow, window_width: f32, clickable: bool)
         JustifyH::Right,
     ));
     if clickable {
-        parts.extend(row_click_target(&name, index, row_width));
+        parts.extend(row_click_target(&name, index, row_width, BAR_H));
     }
     rsx! {
         r#frame {

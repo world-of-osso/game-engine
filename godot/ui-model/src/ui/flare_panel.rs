@@ -197,9 +197,21 @@ pub fn flare_header(root: &str, (x, y, width, _): (f32, f32, f32, f32)) -> Eleme
 pub fn flare_text(
     name: &str,
     label: &str,
+    rect: [f32; 4],
+    color: [f32; 4],
+    justify: JustifyH,
+) -> Element {
+    flare_text_sized(name, label, rect, color, justify, FLARE_FONT_SIZE)
+}
+
+/// [`flare_text`] at `font_size`.
+pub fn flare_text_sized(
+    name: &str,
+    label: &str,
     [x, y, width, height]: [f32; 4],
     [r, g, b, a]: [f32; 4],
     justify: JustifyH,
+    font_size: f32,
 ) -> Element {
     rsx! {
         fontstring {
@@ -208,7 +220,7 @@ pub fn flare_text(
             height,
             text: label,
             font: GameFont::FrizQuadrata,
-            font_size: FLARE_FONT_SIZE,
+            font_size,
             font_color: {FontColor::new(r, g, b, a)},
             shadow_color: "0,0,0,1",
             shadow_offset: "1,-1",
