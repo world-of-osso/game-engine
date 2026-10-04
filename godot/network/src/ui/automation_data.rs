@@ -6,6 +6,9 @@ use crate::game_state_enum::GameState;
 #[derive(Debug, Clone, PartialEq)]
 pub enum UiAutomationAction {
     ClickFrame(String),
+    /// Left click at a fraction (0..=1) of the frame's width, at mid-height, e.g. a slider
+    /// position.
+    ClickFrameAt(String, f32),
     /// Right mouse button on a frame; InWorld only.
     RightClickFrame(String),
     /// Left click with Shift held (Retail `SPLITSTACK`); InWorld only.
@@ -86,6 +89,7 @@ impl UiAutomationAction {
         matches!(
             self,
             Self::ClickFrame(_)
+                | Self::ClickFrameAt(..)
                 | Self::RightClickFrame(_)
                 | Self::ShiftClickFrame(_)
                 | Self::TypeText(_)
