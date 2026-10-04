@@ -83,15 +83,16 @@ impl IconMasks {
 }
 
 /// `Race_*_Icon` / `Class_*_Icon` / `Form_*_Icon`, the bag bar's
-/// `CharacterBag{n}SlotIconTexture` / `CharacterReagentBag0SlotIconTexture`, and a
-/// container's `ContainerFrame{n}Portrait` (`PortraitFrameBaseTemplate` `CircleMask`,
-/// SharedUIPanelTemplates.xml:564-572).
+/// `CharacterBag{n}SlotIconTexture` / `CharacterReagentBag0SlotIconTexture`, and the
+/// `ContainerFrame{n}Portrait` / `SpellBookPortrait` window portraits
+/// (`PortraitFrameBaseTemplate` `CircleMask`, SharedUIPanelTemplates.xml:564-572).
 fn is_round_icon(name: &str) -> bool {
     let creation = name.ends_with("_Icon")
         && (name.starts_with("Race_") || name.starts_with("Class_") || name.starts_with("Form_"));
     let bag = name.ends_with("SlotIconTexture")
         && (name.starts_with("CharacterBag") || name.starts_with("CharacterReagentBag"));
-    let portrait = name.starts_with("ContainerFrame") && name.ends_with("Portrait");
+    let portrait = (name.starts_with("ContainerFrame") && name.ends_with("Portrait"))
+        || name == "SpellBookPortrait";
     creation || bag || portrait
 }
 

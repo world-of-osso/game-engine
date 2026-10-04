@@ -147,6 +147,7 @@ mod tests {
                     initial: false,
                     spells: [76671].into(),
                     primary_stat_priority: 5,
+                    icon_fdid: 236264,
                 },
             )]
             .into(),
