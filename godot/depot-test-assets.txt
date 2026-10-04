@@ -2010,3 +2010,7 @@ textures/1662186.blp
 textures/8200846.blp
 textures/6704514.blp
 textures/ui/chattynator/Fade.png
+
+# godot rust ui::icon_masks tests: backpack portrait and its round mask
+textures/133633.blp
+textures/130924.blp
