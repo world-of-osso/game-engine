@@ -40,6 +40,7 @@ Engine subsystems and how they work.
 - [quest-ui](systems/quest-ui.md) — client quest runtime, objective tracker, quest log (L), quest giver frame and talktome markers on the server quest/interaction protocol
 - [spell-catalog](systems/spell-catalog.md) — background-loaded 12.1.0.69933 spell DB2 catalog, bincode cache under `data/cache/`, static description token rendering and its limits
 - [talents-ui](systems/talents-ui.md) — Retail trait-tree window `PlayerSpellsFrame`: CSV tree load, mirrored server rules, local pending config, Apply/Reset/spec, authored `talents-*` atlas art
+- [xp-bar](systems/xp-bar.md) — [XP HUD spec](../specs/xp-bar.md), existing owner-only state, Modern named atlases and Forever flat palette/top-centre placement
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, native Bevy projection, authored UI FileDataID resolution, layout, widgets, input, automation, unit frames, and World Builder sidebar
 - [world-builder](systems/world-builder.md) — opt-in InWorld scene inventory, subtree render/processing isolation, bounded live property editing
 - [unit-tooltip](systems/unit-tooltip.md) — Retail unit GameTooltip (hover by unit frame/nameplate/ray, default anchor), NPC drops/vendor sections with appearance-collection check/cross marks from server CreatureTooltip data
