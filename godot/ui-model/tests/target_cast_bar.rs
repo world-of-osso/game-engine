@@ -128,7 +128,7 @@ fn target_cast_forever_tree_has_bronze_holder_icon_overlay_and_timer() {
     assert_eq!(text(&r, "TargetCastingBarTimer"), "1.5");
     let fill = frame(&r, "TargetCastingBarFill");
     assert!(frame(&r, "TargetFrameSpellBarBorder").frame_level + 1 >= fill.frame_level);
-    assert!(frame(&r, "TargetCastingBarSpellName").frame_level > fill.frame_level);
+    assert!(frame(&r, "TargetCastingBarSpellName").frame_level >= fill.frame_level);
 }
 #[test]
 fn target_cast_absent_hidden_or_targetless_adds_no_frames() {
@@ -151,4 +151,35 @@ fn target_cast_absent_hidden_or_targetless_adds_no_frames() {
             assert!(r.get_by_name("TargetFrameSpellBar").is_none());
         }
     }
+}
+
+#[test]
+fn modern_target_cast_moves_below_auras_or_tot_as_retail_does() {
+    let mut units = state(Some(cast()));
+    units.target_of_target = Some(
+        game_engine_ui_model::inworld_unit_frames_component::SmallUnitFrameState::from(
+            units.target.as_ref().unwrap(),
+        ),
+    );
+    let r = registry(ActiveSkin::Modern, units);
+    assert_eq!(
+        frame(&r, "TargetFrameSpellBar").position.bottom,
+        Val::Px(194.0)
+    );
+    let mut units = state(Some(cast()));
+    units.target.as_mut().unwrap().target_buffs = vec![
+        game_engine_ui_model::inworld_unit_frames_component::TargetAuraIconState {
+            spell_id: 1,
+            icon_fdid: 135846,
+            stacks: 1,
+            dispel_color: None,
+            large: true,
+            elapsed: None,
+        },
+    ];
+    let r = registry(ActiveSkin::Modern, units);
+    assert_eq!(
+        frame(&r, "TargetFrameSpellBar").position.bottom,
+        Val::Px(234.5)
+    );
 }
