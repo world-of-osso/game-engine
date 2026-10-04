@@ -10,6 +10,7 @@ mod art;
 use game_engine_core::spell_catalog::PrimaryStat;
 use shared::components::{CombatRatings, DerivedStats, UnitStats};
 use shared::protocol::{EquipmentSlot, ItemLocation};
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, active_skin, resolve_region};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
@@ -17,6 +18,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
+use ui_toolkit::widgets::texture::TextureSource;
 
 use art::{FULL, WHITE, WHITE_ICON_FRAME, atlas, texture};
 pub use art::{class_background, race_background, race_overlay_alpha};
@@ -24,7 +26,9 @@ pub use art::{class_background, race_background, race_overlay_alpha};
 use crate::bag_data::InventoryState;
 pub use crate::character_frame_component::{equipment_slot_action, parse_equipment_slot_action};
 use crate::merchant_frame_component::{tab, tab_width};
-use crate::quest_art::{DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, window_chrome};
+use crate::quest_art::{
+    DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, portrait_border, window_chrome,
+};
 use crate::ui::strata::FrameStrata;
 
 pub const FRAME_NAME: &str = "CharacterFrame";
@@ -71,6 +75,43 @@ const OFF_HAND_X: f32 = MAIN_HAND.0 + SLOT + 5.0;
 
 /// `CharacterModelScene` 231×320 at TOPLEFT 52,-66.
 const MODEL: (f32, f32, f32, f32) = (52.0, 66.0, 231.0, 320.0);
+
+#[derive(Clone, Copy)]
+struct CharacterLayout {
+    size: (f32, f32),
+    model: (f32, f32, f32, f32),
+    stats: (f32, f32, f32),
+    columns: (f32, f32, f32, f32),
+    main_hand: (f32, f32),
+    off_hand_x: f32,
+}
+
+fn read_character_layout() -> CharacterLayout {
+    character_layout(active_skin())
+}
+
+/// Camelot CharacterFrameConstants.lua:4-5; CharacterFrame.xml:408-482;
+/// PaperDollFrame.xml:607-609,773-850; PaperDollFrame.lua:1880 (existing two-hand row).
+fn character_layout(skin: ActiveSkin) -> CharacterLayout {
+    match skin {
+        ActiveSkin::Modern => CharacterLayout {
+            size: (FRAME_W, FRAME_H),
+            model: MODEL,
+            stats: (STATS.0, STATS.1, STATS_W),
+            columns: (LEFT_COLUMN, RIGHT_COLUMN, COLUMN_TOP, SLOT_STEP),
+            main_hand: MAIN_HAND,
+            off_hand_x: OFF_HAND_X,
+        },
+        ActiveSkin::Forever => CharacterLayout {
+            size: (631.0, 484.0),
+            model: (0.0, 20.0, 398.0, 464.0),
+            stats: (398.0, 105.0, 233.0),
+            columns: (20.0, 398.0 - 20.0 - SLOT, 80.0, SLOT + 6.0),
+            main_hand: (398.0 / 2.0 - 40.0 - SLOT / 2.0, 484.0 - 30.0 - SLOT),
+            off_hand_x: 398.0 / 2.0 - 40.0 + SLOT / 2.0 + 6.0,
+        },
+    }
+}
 
 /// One paperdoll button: its Retail name, `<SLOT>SLOT` label, empty texture and column.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -194,11 +235,13 @@ impl PaperDollButton {
     /// Top-left of the button in CharacterFrame space.
     pub fn origin(&self) -> (f32, f32) {
         let row = f32::from(self.row);
+        let layout = read_character_layout();
+        let (left, right, top, step) = layout.columns;
         match self.column {
-            Column::Left => (LEFT_COLUMN, COLUMN_TOP + row * SLOT_STEP),
-            Column::Right => (RIGHT_COLUMN, COLUMN_TOP + row * SLOT_STEP),
-            Column::Bottom if self.row == 0 => MAIN_HAND,
-            Column::Bottom => (OFF_HAND_X, MAIN_HAND.1),
+            Column::Left => (left, top + row * step),
+            Column::Right => (right, top + row * step),
+            Column::Bottom if self.row == 0 => layout.main_hand,
+            Column::Bottom => (layout.off_hand_x, layout.main_hand.1),
         }
     }
 }
@@ -414,7 +457,14 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
         .get::<CharacterFrameView>()
         .expect("CharacterFrameView must be in SharedContext");
     let hide = !view.visible;
-    let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), &view.title, ACTION_CLOSE);
+    let (width, height) = read_character_layout().size;
+    let mut children = match active_skin() {
+        ActiveSkin::Modern => window_chrome(FRAME_NAME, (width, height), &view.title, ACTION_CLOSE),
+        // Camelot CharacterFrame.xml:403 uses PortraitFrameBaseTemplate, not the rock fill.
+        ActiveSkin::Forever => {
+            portrait_border(FRAME_NAME, (width, height), &view.title, ACTION_CLOSE)
+        }
+    };
     children.extend(art::inset_backgrounds(view.class_id));
     children.extend(art::race_backdrop(view.race_id));
     children.extend(art::inner_border());
@@ -430,8 +480,8 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame {
             name: {DynName(FRAME_NAME.into())},
-            width: FRAME_W,
-            height: FRAME_H,
+            width,
+            height,
             strata: FrameStrata::Medium,
             hidden: hide,
             mouse_enabled: true,
@@ -448,6 +498,7 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
 /// (`characterFrameDisplayInfo.Default.titleColor`) and the desaturated race backdrop
 /// (`PaperDollBgDesaturate(true)`).
 pub fn apply_character_frame_postsetup(registry: &mut FrameRegistry) {
+    apply_named_chrome(registry);
     let title = format!("{FRAME_NAME}TitleText");
     if let Some(WidgetData::FontString(text)) = widget_mut(registry, &title) {
         text.color = [1.0, 1.0, 1.0, 1.0];
@@ -457,6 +508,45 @@ pub fn apply_character_frame_postsetup(registry: &mut FrameRegistry) {
             texture.desaturated = true;
         }
     }
+}
+
+/// Name the art emitted by shared helpers without changing other windows.
+fn apply_named_chrome(registry: &mut FrameRegistry) {
+    apply_named_texture(
+        registry,
+        "CharacterFrameCloseButtonNormal",
+        "RedButton-Exit",
+    );
+    if active_skin() == ActiveSkin::Modern {
+        apply_named_texture(
+            registry,
+            "CharacterFrameTopTileStreaks",
+            "_UI-Frame-TopTileStreaks",
+        );
+        for (tab, prefix) in [(1, "uiframe-activetab"), (2, "uiframe-tab")] {
+            for (part, suffix) in [("Left", "left"), ("Middle", "center"), ("Right", "right")] {
+                let tile = if part == "Middle" { "_" } else { "" };
+                apply_named_texture(
+                    registry,
+                    &format!("CharacterFrameTab{tab}{part}"),
+                    &format!("{tile}{prefix}-{suffix}"),
+                );
+            }
+        }
+    }
+}
+
+fn apply_named_texture(registry: &mut FrameRegistry, node: &str, atlas: &str) {
+    let region = resolve_region(atlas, active_skin())
+        .unwrap_or_else(|| panic!("CharacterFrame atlas missing: {atlas}"));
+    let AtlasSource::FileDataId(fdid) = region.source else {
+        panic!("CharacterFrame chrome is not a DB2 sheet: {atlas}");
+    };
+    let Some(WidgetData::Texture(texture)) = widget_mut(registry, node) else {
+        panic!("CharacterFrame texture missing: {node}");
+    };
+    texture.source = TextureSource::FileDataId(fdid);
+    texture.tex_coords = [region.left, region.right, region.top, region.bottom];
 }
 
 fn widget_mut<'a>(registry: &'a mut FrameRegistry, name: &str) -> Option<&'a mut WidgetData> {
@@ -493,7 +583,7 @@ fn text(
 
 /// The scene frame the host renders the model into; it takes the rotate drag.
 fn model_scene_frame() -> Element {
-    let (x, y, width, height) = MODEL;
+    let (x, y, width, height) = read_character_layout().model;
     rsx! {
         r#frame {
             name: {DynName(MODEL_SCENE.into())},
@@ -511,25 +601,44 @@ fn model_scene_frame() -> Element {
 /// `CharacterLevelText` 220×24 CENTER at PaperDollFrame TOP 0,-42 (PDF.lua:476),
 /// `GameFontNormalSmall2`; the class part in its class colour.
 fn level_text(line: &LevelLine) -> Element {
-    const SIZE: f32 = 12.0;
+    let (size, center, top) = match active_skin() {
+        ActiveSkin::Modern => (12.0, FRAME_W / 2.0, 42.0 - 12.0),
+        // PaperDollFrame.xml:431,455,467: level line below the right-pane sidebar tabs.
+        ActiveSkin::Forever => (16.0, 398.0 + 233.0 / 2.0, 54.0),
+    };
     let measure = |text: &str| {
-        measure_text(text, GameFont::FrizQuadrata, SIZE).map_or(0.0, |(width, _)| width)
+        measure_text(text, GameFont::FrizQuadrata, size).map_or(0.0, |(width, _)| width)
     };
     let (level_w, class_w) = (measure(&line.level), measure(&line.class_text));
-    let start = FRAME_W / 2.0 - (level_w + class_w) / 2.0;
-    let top = 42.0 - 12.0;
-    let mut children = text(
+    let start = center - (level_w + class_w) / 2.0;
+    let (line_h, mut children) = match active_skin() {
+        ActiveSkin::Modern => (24.0, Element::default()),
+        ActiveSkin::Forever => {
+            let art = art::resolve_art("UI-Character-Info-ItemLevel-Bounce");
+            let width = art.size().0;
+            (
+                20.0,
+                atlas(
+                    "CharacterLevelTextBackground".into(),
+                    &art,
+                    (center - width / 2.0, top, width, 20.0),
+                    WHITE,
+                ),
+            )
+        }
+    };
+    children.extend(text(
         "CharacterLevelText".into(),
         &line.level,
-        (start, top, level_w + 1.0, 24.0),
-        (SIZE, NORMAL_FONT_COLOR),
+        (start, top, level_w + 1.0, line_h),
+        (size, NORMAL_FONT_COLOR),
         "LEFT",
-    );
+    ));
     children.extend(text(
         "CharacterLevelTextClass".into(),
         &line.class_text,
-        (start + level_w, top, class_w + 1.0, 24.0),
-        (SIZE, &line.class_color),
+        (start + level_w, top, class_w + 1.0, line_h),
+        (size, &line.class_color),
         "LEFT",
     ));
     children
@@ -547,7 +656,8 @@ fn stats_pane(
     attributes: &[StatLine],
     enhancements: &[StatLine],
 ) -> Element {
-    let y = STATS.1 + 2.0;
+    let (stats_x, stats_y, stats_w) = read_character_layout().stats;
+    let y = stats_y + 2.0;
     let mut children = Element::default();
     let (mut category_y, stat_gap, category_gap) = match item_level {
         Some(item_level) => {
@@ -575,7 +685,7 @@ fn stats_pane(
         children.extend(category(
             name,
             title,
-            STATS.0 + (STATS_W - 197.0) / 2.0,
+            stats_x + (stats_w - 197.0) / 2.0,
             category_y,
         ));
         let top = category_y + 40.0 + 2.0;
@@ -588,19 +698,31 @@ fn stats_pane(
 }
 
 fn item_level_frames(item_level: &str, y: f32) -> Element {
+    let (stats_x, _, stats_w) = read_character_layout().stats;
+    let art = art::resolve_art("UI-Character-Info-ItemLevel-Bounce");
+    let (w, h) = art.size();
     let mut children = category(
         "CharacterStatsPaneItemLevelCategory",
         "Item Level",
-        STATS.0 + (STATS_W - 197.0) / 2.0,
+        stats_x + (stats_w - 197.0) / 2.0,
         y,
     );
-    let frame_x = STATS.0 + (STATS_W - 187.0) / 2.0;
+    let frame_x = stats_x + (stats_w - 187.0) / 2.0;
     let frame_y = y + 40.0;
+    let color = match active_skin() {
+        ActiveSkin::Modern => "1.0,1.0,1.0,0.3",
+        ActiveSkin::Forever => WHITE, // Camelot CharacterFrame.xml:507 has no alpha override.
+    };
     children.extend(atlas(
         "CharacterStatsPaneItemLevelFrameBackground".into(),
-        &art::ITEM_LEVEL_BOUNCE,
-        (frame_x + (187.0 - 162.0) / 2.0, frame_y, 162.0, 29.0),
-        "1.0,1.0,1.0,0.3",
+        &art,
+        (
+            frame_x + (187.0 - w) / 2.0,
+            frame_y + (29.0 - h) / 2.0,
+            w,
+            h,
+        ),
+        color,
     ));
     children.extend(text(
         "CharacterStatsPaneItemLevelFrameValue".into(),
@@ -616,8 +738,18 @@ fn item_level_frames(item_level: &str, y: f32) -> Element {
 /// (`GameFontNormalSmall`) LEFT 11, `Value` (`GameFontHighlightSmall`) RIGHT -8, and the
 /// `UI-Character-Info-Line-Bounce` band (alpha 0.3) behind every second line.
 fn stat_lines(lines: &[StatLine], first: usize, top: f32, gap: f32) -> Element {
-    const SIZE: f32 = 10.0;
-    let x = STATS.0 + (STATS_W - 187.0) / 2.0;
+    let size = match active_skin() {
+        ActiveSkin::Modern => 10.0,
+        ActiveSkin::Forever => 12.0, // Camelot CharacterFrame.xml:112,117; shared Fonts.xml:277.
+    };
+    let (stats_x, _, stats_w) = read_character_layout().stats;
+    let x = stats_x + (stats_w - 187.0) / 2.0;
+    let art = art::resolve_art("UI-Character-Info-Line-Bounce");
+    let (w, h) = art.size();
+    let color = match active_skin() {
+        ActiveSkin::Modern => "1.0,1.0,1.0,0.3",
+        ActiveSkin::Forever => WHITE, // Camelot CharacterFrame.xml:105 has no alpha override.
+    };
     let mut children = Element::default();
     for (index, line) in lines.iter().enumerate() {
         let y = top + index as f32 * (15.0 + gap);
@@ -625,23 +757,23 @@ fn stat_lines(lines: &[StatLine], first: usize, top: f32, gap: f32) -> Element {
         if index % 2 == 1 {
             children.extend(atlas(
                 format!("{name}Background"),
-                &art::LINE_BOUNCE,
-                (x + (187.0 - 157.0) / 2.0, y - 2.0, 157.0, 19.0),
-                "1.0,1.0,1.0,0.3",
+                &art,
+                (x + (187.0 - w) / 2.0, y + (15.0 - h) / 2.0, w, h),
+                color,
             ));
         }
         children.extend(text(
             format!("{name}Label"),
             line.label,
             (x + 11.0, y, 187.0 - 19.0, 15.0),
-            (SIZE, NORMAL_FONT_COLOR),
+            (size, NORMAL_FONT_COLOR),
             "LEFT",
         ));
         children.extend(text(
             format!("{name}Value"),
             &line.value,
             (x + 11.0, y, 187.0 - 19.0, 15.0),
-            (SIZE, HIGHLIGHT_FONT_COLOR),
+            (size, HIGHLIGHT_FONT_COLOR),
             "RIGHT",
         ));
     }
@@ -651,17 +783,26 @@ fn stat_lines(lines: &[StatLine], first: usize, top: f32, gap: f32) -> Element {
 /// `CharacterStatFrameCategoryTemplate` 197×40: `UI-Character-Info-Title` and its
 /// `GameFontHighlight` title CENTER 0,1.
 fn category(name: &str, title: &str, x: f32, y: f32) -> Element {
+    let art = art::resolve_art("UI-Character-Info-Title");
+    let width = match active_skin() {
+        ActiveSkin::Modern => 196.0,
+        ActiveSkin::Forever => 197.0, // Camelot CharacterFrame.xml:83-90, both anchors.
+    };
     let mut children = atlas(
         format!("{name}Background"),
-        &art::CATEGORY_TITLE,
-        (x, y, 196.0, 40.0),
+        &art,
+        (x, y, width, 40.0),
         WHITE,
     );
+    let font_size = match active_skin() {
+        ActiveSkin::Modern => 13.0,
+        ActiveSkin::Forever => 12.0, // GameFontHighlight, shared Fonts.xml:277.
+    };
     children.extend(text(
         format!("{name}Title"),
         title,
         (x, y - 1.0, 197.0, 40.0),
-        (13.0, HIGHLIGHT_FONT_COLOR),
+        (font_size, HIGHLIGHT_FONT_COLOR),
         "CENTER",
     ));
     children
@@ -746,6 +887,9 @@ fn slot_icon(button: &PaperDollButton, view: &PaperDollSlotView) -> Element {
 /// `CharacterFrameTab1` TOPLEFT at BOTTOMLEFT 11,2; Tab2 at Tab1 TOPRIGHT +1. The
 /// Currency tab stays hidden (CF.xml).
 fn tabs() -> Element {
+    if active_skin() == ActiveSkin::Forever {
+        return forever_tabs();
+    }
     let top = FRAME_H - 2.0;
     let (character_w, reputation_w) = (tab_width("Character"), tab_width("Reputation"));
     let reputation = tab(
@@ -764,4 +908,58 @@ fn tabs() -> Element {
     );
     // The selected tab draws over its neighbour.
     reputation.into_iter().chain(character).collect()
+}
+
+/// Existing Character/Reputation actions, with Camelot's vertical mode-tab chrome.
+/// CharacterFrame.xml:569-589; CharacterFrame.lua:207; SharedUIPanelTemplates.lua:313.
+/// Keep existing labels: this view has no player-portrait texture for Camelot's icon.
+fn forever_tabs() -> Element {
+    let background = art::resolve_art("common-sidetab");
+    let (w, art_h) = background.size();
+    let h = art_h - 5.0;
+    let x = read_character_layout().size.0;
+    [
+        (1, "Character", ACTION_TAB_CHARACTER),
+        (2, "Reputation", ACTION_TAB_REPUTATION),
+    ]
+    .into_iter()
+    .flat_map(|(index, label, action)| {
+        let name = format!("CharacterFrameTab{index}");
+        let y = 30.0 + (index - 1) as f32 * (h + 2.0);
+        let mut children = atlas(
+            format!("{name}Background"),
+            &background,
+            (0.0, (h - art_h) / 2.0, w, art_h),
+            WHITE,
+        );
+        if index == 1 {
+            children.extend(atlas(
+                format!("{name}Selected"),
+                &art::resolve_art("common-sidetab-selected"),
+                (0.0, (h - art_h) / 2.0, w, art_h),
+                WHITE,
+            ));
+        }
+        children.extend(text(
+            format!("{name}Text"),
+            label,
+            (0.0, 0.0, w, h),
+            (10.0, HIGHLIGHT_FONT_COLOR),
+            "CENTER",
+        ));
+        rsx! {
+            r#frame {
+                name: {DynName(name)},
+                width: w,
+                height: h,
+                mouse_enabled: true,
+                onclick: action,
+                pos_type: "absolute",
+                left: x,
+                top: y,
+                {children}
+            }
+        }
+    })
+    .collect()
 }
