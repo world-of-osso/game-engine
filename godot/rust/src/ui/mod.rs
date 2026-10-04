@@ -199,9 +199,15 @@ impl RegistryModel {
                 self.icon_masks.apply(&mut self.registry);
             }
             ScreenPostsetup::CharacterFrame => {
-                game_engine_ui_model::character_frame::apply_character_frame_postsetup(
-                    &mut self.registry,
-                )
+                if let Some(view) =
+                    self.shared
+                        .get::<game_engine_ui_model::character_frame::CharacterFrameView>()
+                {
+                    game_engine_ui_model::character_frame::apply_character_frame_postsetup(
+                        &mut self.registry,
+                        view.tab,
+                    );
+                }
             }
             ScreenPostsetup::Login => apply_login_focus_visual(&mut self.registry),
             ScreenPostsetup::CharacterSelect => apply_char_select_postsetup(&mut self.registry),
@@ -2273,17 +2279,17 @@ mod button_style_tests;
 #[path = "entrance_bar_tests.rs"]
 mod entrance_bar_tests;
 #[cfg(test)]
+#[path = "flare_panel_tests.rs"]
+mod flare_panel_tests;
+#[cfg(test)]
 #[path = "hud_layout_tests.rs"]
 mod hud_layout_tests;
-#[cfg(test)]
-#[path = "skin_sync_tests.rs"]
-mod skin_sync_tests;
 #[cfg(test)]
 #[path = "modern_panel_snapshot_tests.rs"]
 mod modern_panel_snapshot_tests;
 #[cfg(test)]
-#[path = "flare_panel_tests.rs"]
-mod flare_panel_tests;
+#[path = "skin_sync_tests.rs"]
+mod skin_sync_tests;
 
 fn register_auction_popup_style(registry: &mut FrameRegistry) {
     const COLUMNS: [f32; 4] = [1.0 / 128.0, 17.0 / 128.0, 55.0 / 128.0, 71.0 / 128.0];

@@ -2,10 +2,12 @@
 //! CharacterFrame.xml / .lua cited as CF.xml / CF.lua, PaperDollFrame.xml / .lua as
 //! PDF.xml / PDF.lua): the expanded 540×424 `ButtonFrameTemplate` window with the 18
 //! paperdoll item buttons, the character model scene, the level line, the
-//! `CharacterStatsPane` and the Character / Reputation tabs. Positions are top-left
+//! `CharacterStatsPane` and the Character / Reputation tabs; the Reputation tab swaps the
+//! PaperDollFrame for the `ReputationFrame` ([`reputation`]). Positions are top-left
 //! offsets in frame space converted from the XML anchors. docs/specs/character-frame.md.
 
 mod art;
+mod reputation;
 
 use game_engine_core::spell_catalog::PrimaryStat;
 use shared::components::{CombatRatings, DerivedStats, UnitStats};
@@ -22,6 +24,7 @@ use ui_toolkit::widgets::texture::TextureSource;
 
 use art::{FULL, WHITE, WHITE_ICON_FRAME, atlas, texture};
 pub use art::{class_background, race_background, race_overlay_alpha};
+pub use reputation::{ReputationRow, reputation_art_fdids, reputation_rows};
 
 use crate::bag_data::InventoryState;
 pub use crate::character_frame_component::{equipment_slot_action, parse_equipment_slot_action};
@@ -278,9 +281,34 @@ pub fn level_line(level: u8, spec: Option<&str>, class: &str, rgb: [f32; 3]) -> 
     }
 }
 
+/// The CharacterFrame subframe its tabs select (`CHARACTERFRAME_SUBFRAMES`,
+/// Mainline/CharacterFrame.lua:1; `CharacterFrameTabButtonMixin:OnClick`, :394-406).
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub enum CharacterTab {
+    /// `PaperDollFrame`, `CharacterFrameTab1`.
+    #[default]
+    PaperDoll,
+    /// `ReputationFrame`, `CharacterFrameTab2`.
+    Reputation,
+}
+
+impl CharacterTab {
+    /// The tab a `character_tab:*` click selects.
+    pub fn from_action(action: &str) -> Option<Self> {
+        match action {
+            ACTION_TAB_CHARACTER => Some(Self::PaperDoll),
+            ACTION_TAB_REPUTATION => Some(Self::Reputation),
+            _ => None,
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct CharacterFrameView {
     pub visible: bool,
+    pub tab: CharacterTab,
+    /// The ReputationFrame entries; shown only on [`CharacterTab::Reputation`].
+    pub reputation: Vec<ReputationRow>,
     /// `UnitPVPName("player")`.
     pub title: String,
     pub level: LevelLine,
@@ -457,26 +485,29 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
         .get::<CharacterFrameView>()
         .expect("CharacterFrameView must be in SharedContext");
     let hide = !view.visible;
-    let (width, height) = read_character_layout().size;
-    let mut children = match active_skin() {
-        ActiveSkin::Modern => window_chrome(FRAME_NAME, (width, height), &view.title, ACTION_CLOSE),
-        // Camelot CharacterFrame.xml:403 uses PortraitFrameBaseTemplate, not the rock fill.
-        ActiveSkin::Forever => {
-            portrait_border(FRAME_NAME, (width, height), &view.title, ACTION_CLOSE)
-        }
+    let paperdoll = view.tab == CharacterTab::PaperDoll;
+    let (width, height) = match paperdoll {
+        true => read_character_layout().size,
+        false => reputation::frame_size(read_character_layout().size),
     };
-    children.extend(art::inset_backgrounds(view.class_id));
-    children.extend(art::race_backdrop(view.race_id));
-    children.extend(art::inner_border());
-    children.extend(model_scene_frame());
-    children.extend(level_text(&view.level));
-    children.extend(stats_pane(
-        view.item_level.as_deref(),
-        &view.attributes,
-        &view.enhancements,
-    ));
-    children.extend(slots(&view.slots));
-    children.extend(tabs());
+    // `UpdateTitle` (CharacterFrame.lua:117-121): the player's name or `REPUTATION`.
+    let title = if paperdoll {
+        &view.title
+    } else {
+        reputation::TITLE
+    };
+    let mut children = match active_skin() {
+        ActiveSkin::Modern => window_chrome(FRAME_NAME, (width, height), title, ACTION_CLOSE),
+        // Camelot CharacterFrame.xml:403 uses PortraitFrameBaseTemplate, not the rock fill.
+        ActiveSkin::Forever => portrait_border(FRAME_NAME, (width, height), title, ACTION_CLOSE),
+    };
+    if paperdoll {
+        children.extend(paperdoll_frame(view));
+    } else {
+        children.extend(reputation::backgrounds(view.class_id));
+        children.extend(reputation::entries(&view.reputation));
+    }
+    children.extend(tabs(view.tab));
     rsx! {
         r#frame {
             name: {DynName(FRAME_NAME.into())},
@@ -494,11 +525,31 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-/// Styles RSX attributes do not express: the white title
-/// (`characterFrameDisplayInfo.Default.titleColor`) and the desaturated race backdrop
-/// (`PaperDollBgDesaturate(true)`).
-pub fn apply_character_frame_postsetup(registry: &mut FrameRegistry) {
-    apply_named_chrome(registry);
+/// The `PaperDollFrame`: pane backgrounds, race backdrop, model scene, level line, stats
+/// pane and the paperdoll item buttons.
+fn paperdoll_frame(view: &CharacterFrameView) -> Element {
+    let mut children = art::inset_backgrounds(view.class_id);
+    children.extend(art::race_backdrop(view.race_id));
+    children.extend(art::inner_border());
+    children.extend(model_scene_frame());
+    children.extend(level_text(&view.level));
+    children.extend(stats_pane(
+        view.item_level.as_deref(),
+        &view.attributes,
+        &view.enhancements,
+    ));
+    children.extend(slots(&view.slots));
+    children
+}
+
+/// Styles RSX attributes do not express: the selected tab's art, the paper doll's white
+/// title (`characterFrameDisplayInfo.Default.titleColor`; Reputation keeps
+/// `NORMAL_FONT_COLOR`) and the desaturated race backdrop (`PaperDollBgDesaturate(true)`).
+pub fn apply_character_frame_postsetup(registry: &mut FrameRegistry, tab: CharacterTab) {
+    apply_named_chrome(registry, tab);
+    if tab != CharacterTab::PaperDoll {
+        return;
+    }
     let title = format!("{FRAME_NAME}TitleText");
     if let Some(WidgetData::FontString(text)) = widget_mut(registry, &title) {
         text.color = [1.0, 1.0, 1.0, 1.0];
@@ -511,7 +562,7 @@ pub fn apply_character_frame_postsetup(registry: &mut FrameRegistry) {
 }
 
 /// Name the art emitted by shared helpers without changing other windows.
-fn apply_named_chrome(registry: &mut FrameRegistry) {
+fn apply_named_chrome(registry: &mut FrameRegistry, tab: CharacterTab) {
     apply_named_texture(
         registry,
         "CharacterFrameCloseButtonNormal",
@@ -523,12 +574,17 @@ fn apply_named_chrome(registry: &mut FrameRegistry) {
             "CharacterFrameTopTileStreaks",
             "_UI-Frame-TopTileStreaks",
         );
-        for (tab, prefix) in [(1, "uiframe-activetab"), (2, "uiframe-tab")] {
+        for (index, tab_of) in [(1, CharacterTab::PaperDoll), (2, CharacterTab::Reputation)] {
+            let prefix = if tab_of == tab {
+                "uiframe-activetab"
+            } else {
+                "uiframe-tab"
+            };
             for (part, suffix) in [("Left", "left"), ("Middle", "center"), ("Right", "right")] {
                 let tile = if part == "Middle" { "_" } else { "" };
                 apply_named_texture(
                     registry,
-                    &format!("CharacterFrameTab{tab}{part}"),
+                    &format!("CharacterFrameTab{index}{part}"),
                     &format!("{tile}{prefix}-{suffix}"),
                 );
             }
@@ -885,10 +941,11 @@ fn slot_icon(button: &PaperDollButton, view: &PaperDollSlotView) -> Element {
 }
 
 /// `CharacterFrameTab1` TOPLEFT at BOTTOMLEFT 11,2; Tab2 at Tab1 TOPRIGHT +1. The
-/// Currency tab stays hidden (CF.xml).
-fn tabs() -> Element {
+/// Currency tab stays hidden (CF.xml): `ToggleTokenFrame` opens nothing while
+/// `C_CurrencyInfo.GetCurrencyListSize() <= 0` (CharacterFrame.lua:67-73).
+fn tabs(selected: CharacterTab) -> Element {
     if active_skin() == ActiveSkin::Forever {
-        return forever_tabs();
+        return forever_tabs(selected);
     }
     let top = FRAME_H - 2.0;
     let (character_w, reputation_w) = (tab_width("Character"), tab_width("Reputation"));
@@ -896,34 +953,47 @@ fn tabs() -> Element {
         "CharacterFrameTab2",
         "Reputation",
         (11.0 + character_w + 1.0, top, reputation_w),
-        false,
+        selected == CharacterTab::Reputation,
         ACTION_TAB_REPUTATION,
     );
     let character = tab(
         "CharacterFrameTab1",
         "Character",
         (11.0, top, character_w),
-        true,
+        selected == CharacterTab::PaperDoll,
         ACTION_TAB_CHARACTER,
     );
     // The selected tab draws over its neighbour.
-    reputation.into_iter().chain(character).collect()
+    match selected {
+        CharacterTab::PaperDoll => reputation.into_iter().chain(character).collect(),
+        CharacterTab::Reputation => character.into_iter().chain(reputation).collect(),
+    }
 }
 
 /// Existing Character/Reputation actions, with Camelot's vertical mode-tab chrome.
 /// CharacterFrame.xml:569-589; CharacterFrame.lua:207; SharedUIPanelTemplates.lua:313.
 /// Keep existing labels: this view has no player-portrait texture for Camelot's icon.
-fn forever_tabs() -> Element {
+fn forever_tabs(selected: CharacterTab) -> Element {
     let background = art::resolve_art("common-sidetab");
     let (w, art_h) = background.size();
     let h = art_h - 5.0;
     let x = read_character_layout().size.0;
     [
-        (1, "Character", ACTION_TAB_CHARACTER),
-        (2, "Reputation", ACTION_TAB_REPUTATION),
+        (
+            1,
+            "Character",
+            CharacterTab::PaperDoll,
+            ACTION_TAB_CHARACTER,
+        ),
+        (
+            2,
+            "Reputation",
+            CharacterTab::Reputation,
+            ACTION_TAB_REPUTATION,
+        ),
     ]
     .into_iter()
-    .flat_map(|(index, label, action)| {
+    .flat_map(|(index, label, tab, action)| {
         let name = format!("CharacterFrameTab{index}");
         let y = 30.0 + (index - 1) as f32 * (h + 2.0);
         let mut children = atlas(
@@ -932,7 +1002,7 @@ fn forever_tabs() -> Element {
             (0.0, (h - art_h) / 2.0, w, art_h),
             WHITE,
         );
-        if index == 1 {
+        if tab == selected {
             children.extend(atlas(
                 format!("{name}Selected"),
                 &art::resolve_art("common-sidetab-selected"),

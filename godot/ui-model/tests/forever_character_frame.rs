@@ -41,6 +41,7 @@ fn view(populated: bool) -> CharacterFrameView {
         enhancements: Vec::new(),
         race_id: 1,
         class_id: 1,
+        ..CharacterFrameView::default()
     };
     if populated {
         view.slots[0] = PaperDollSlotView {
@@ -79,10 +80,11 @@ fn view(populated: bool) -> CharacterFrameView {
 
 fn build(view: CharacterFrameView) -> FrameRegistry {
     let mut shared = SharedContext::new();
+    let tab = view.tab;
     shared.insert(view);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(character_frame_screen).sync(&shared, &mut registry);
-    apply_character_frame_postsetup(&mut registry);
+    apply_character_frame_postsetup(&mut registry, tab);
     registry
 }
 

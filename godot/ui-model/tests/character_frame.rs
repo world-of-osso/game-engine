@@ -66,9 +66,10 @@ fn build(view: CharacterFrameView) -> FrameRegistry {
     data_root();
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
+    let tab = view.tab;
     shared.insert(view);
     Screen::new(character_frame_screen).sync(&shared, &mut registry);
-    apply_character_frame_postsetup(&mut registry);
+    apply_character_frame_postsetup(&mut registry, tab);
     registry
 }
 
@@ -83,6 +84,7 @@ fn view(inventory: &InventoryState, cursor: Option<ItemLocation>) -> CharacterFr
         enhancements: Vec::new(),
         race_id: 1,
         class_id: 1,
+        ..CharacterFrameView::default()
     }
 }
 
