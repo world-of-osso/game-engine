@@ -96,6 +96,44 @@ fn spell_button_shows_icon_cooldown_swipe_and_countdown() {
 }
 
 #[test]
+fn empty_action_slots_have_no_texture_source() {
+    use ui_toolkit::atlas::ActiveSkin;
+
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut state = MainActionBarState::default();
+        state.buttons[0].icon_fdid = SLAM_ICON;
+        shared.insert(skin);
+        shared.insert(state);
+        let mut screen = Screen::new(main_action_bar_screen);
+        screen.sync(&shared, &mut registry);
+        assert_eq!(
+            source(&registry, "ActionButton1Icon"),
+            TextureSource::FileDataId(SLAM_ICON)
+        );
+        for index in 2..=12 {
+            let name = format!("ActionButton{index}Icon");
+            assert!(frame(&registry, &name).hidden);
+            assert_eq!(source(&registry, &name), TextureSource::None);
+        }
+
+        // A previously occupied slot must also clear its source when emptied.
+        shared.insert(MainActionBarState::default());
+        screen.sync(&shared, &mut registry);
+        assert!(frame(&registry, "ActionButton1Icon").hidden);
+        assert_eq!(source(&registry, "ActionButton1Icon"), TextureSource::None);
+        assert!(registry.frames_iter().all(|frame| {
+            !matches!(
+                frame.widget_data.as_ref(),
+                Some(WidgetData::Texture(texture))
+                    if texture.source == TextureSource::FileDataId(0)
+            )
+        }));
+    }
+}
+
+#[test]
 fn clicks_name_their_button() {
     assert_eq!(parse_action_button("action_button:0"), Some(0));
     assert_eq!(parse_action_button("action_button:11"), Some(11));
