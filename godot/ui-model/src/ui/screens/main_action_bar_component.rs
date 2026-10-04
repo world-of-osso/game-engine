@@ -11,8 +11,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::bags_bar_component::{BAGS_BAR_H, bags_bar_width};
-use crate::hud_layout::{FOREVER, hud_layout};
+use crate::hud_layout::{FOREVER_ACTION_BUTTON_SCALE, hud_layout};
 use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::GameFont;
@@ -73,7 +72,7 @@ fn bar_style(skin: ActiveSkin) -> BarStyle {
             slot_background: true,
         },
         ActiveSkin::Forever => BarStyle {
-            scale: 1.06,
+            scale: FOREVER_ACTION_BUTTON_SCALE,
             slot_background: false,
         },
     }
@@ -287,24 +286,15 @@ fn end_cap_rects(skin: ActiveSkin, (width, height): (f32, f32)) -> [Rect; 2] {
                 (width - 8.0, top, cap_w, cap_h),
             ]
         }
-        // Camelot MainMenuBarEndCaps.xml:12,23: 154×95 Edit Mode systems, the left cap's
-        // RIGHT on the bar's LEFT (30, 5) and the right cap's LEFT on the BagsBar's RIGHT
-        // (-30, 5) (EditModePresetLayouts.lua:616-640). The BagsBar's BOTTOMLEFT sits
-        // right of the bar's BOTTOMRIGHT across the micro menu, bottoms level
-        // (`hud_layout::FOREVER`).
+        // Camelot MainMenuBarEndCaps.xml:9,20 supplies 154×95 caps. The reference's
+        // Edit Mode arrangement puts both on the main bar, retaining the left cap's
+        // 30-unit overlap and 5-unit lift symmetrically on the right.
         ActiveSkin::Forever => {
             let (cap_w, cap_h) = (154.0, 95.0);
-            let top_at = |centre_y: f32| centre_y - 5.0 - cap_h / 2.0;
-            let gap = FOREVER.bags_bar.x - FOREVER.main_action_bar.x;
-            let bags_right = width + gap + bags_bar_width();
+            let top = height / 2.0 - 5.0 - cap_h / 2.0;
             [
-                (30.0 - cap_w, top_at(height / 2.0), cap_w, cap_h),
-                (
-                    bags_right - 30.0,
-                    top_at(height - BAGS_BAR_H / 2.0),
-                    cap_w,
-                    cap_h,
-                ),
+                (30.0 - cap_w, top, cap_w, cap_h),
+                (width - 30.0, top, cap_w, cap_h),
             ]
         }
     }
