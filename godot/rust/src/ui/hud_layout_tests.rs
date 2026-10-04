@@ -125,7 +125,14 @@ fn hud() -> Vec<RegistryModel> {
         model(MinimapClusterState::default(), minimap_cluster_screen),
         model(groups, group_frames_screen),
         model(DamageMeterView::default(), damage_meter_screen),
-        model(ChatFrameView::default(), chat_frame_screen),
+        model(
+            ChatFrameView {
+                input_open: true,
+                scrolled_up: true,
+                ..Default::default()
+            },
+            chat_frame_screen,
+        ),
         model(ObjectiveTrackerState::default(), objective_tracker_screen),
     ]
 }
@@ -183,6 +190,12 @@ fn assert_modern(hud: &[RegistryModel]) {
     assert_eq!(top_right(hud, "BagsBar"), (1360.0, 672.0));
     assert_rect(hud, DAMAGE_METER_ROOT.0, (0.0, 0.0, 400.0, 140.0));
     assert_rect(hud, CHAT_FRAME.0, (0.0, 448.0, 500.0, 280.0));
+    assert_rect(hud, "ChatFrame1EditBox", (0.0, 696.0, 500.0, 32.0));
+    assert_rect(
+        hud,
+        "ChatFrame1ScrollToBottomButton",
+        (465.0, 657.0, 26.0, 28.0),
+    );
     assert_modern_edit_mode_systems(hud);
 }
 
@@ -255,6 +268,12 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
     assert_rect(&hud, CHAT_FRAME.0, (1.0, 426.0, 469.0, 235.0));
     assert_rect(&hud, CHAT_FLARE_SKIN, (25.0, 419.0, 450.0, 214.0));
     assert_rect(&hud, "ChatFrame1Messages", (35.0, 453.0, 430.0, 170.0));
+    assert_rect(&hud, "ChatFrame1EditBox", (1.0, 629.0, 469.0, 32.0));
+    assert_rect(
+        &hud,
+        "ChatFrame1ScrollToBottomButton",
+        (437.0, 590.0, 26.0, 28.0),
+    );
     // Other Mainline anchors remain shared.
     assert_modern_edit_mode_systems(&hud);
 
