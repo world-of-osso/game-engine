@@ -75,6 +75,31 @@ pub enum SpellAutoAttack {
     PostCast,
 }
 
+/// When the spellbook lists a spell, from its `SpellMisc` attributes (TrinityCore
+/// a352b1fa SharedDefines.h:443, :599, :711, :745; all client-side rules).
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq, Serialize, Deserialize)]
+pub enum SpellbookListing {
+    #[default]
+    Always,
+    /// SPELL_ATTR0_DO_NOT_DISPLAY_SPELLBOOK_AURA_ICON_COMBAT_LOG or SPELL_ATTR4_NOT_IN_SPELLBOOK.
+    Never,
+    /// SPELL_ATTR7_ONLY_IN_SPELLBOOK_UNTIL_LEARNED: listed only as a future spell.
+    UntilLearned,
+    /// SPELL_ATTR8_NOT_IN_SPELLBOOK_UNTIL_LEARNED: listed only once known.
+    OnceLearned,
+}
+
+impl SpellbookListing {
+    pub fn lists(self, known: bool) -> bool {
+        match self {
+            Self::Always => true,
+            Self::Never => false,
+            Self::UntilLearned => !known,
+            Self::OnceLearned => known,
+        }
+    }
+}
+
 #[derive(Clone, Debug, Default, PartialEq, Serialize, Deserialize)]
 pub struct CatalogSpell {
     pub id: u32,
@@ -91,8 +116,7 @@ pub struct CatalogSpell {
     pub school_mask: u32,
     /// `SpellMisc.Attributes_0 & 0x40`.
     pub passive: bool,
-    /// `SpellMisc.Attributes_0 & 0x80` (SPELL_ATTR0_DO_NOT_DISPLAY).
-    pub hidden: bool,
+    pub spellbook: SpellbookListing,
     pub auto_attack: SpellAutoAttack,
     pub cast_time_ms: i32,
     pub range: SpellRange,

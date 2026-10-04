@@ -10,7 +10,7 @@ use std::str::FromStr;
 use super::csv_records::CsvTable;
 use super::{
     CatalogEffect, CatalogSpell, SpellAutoAttack, SpellCharges, SpellCooldown, SpellPowerCost,
-    SpellRange,
+    SpellRange, SpellbookListing,
 };
 
 /// Source CSVs, also the cache key inputs.
@@ -49,6 +49,12 @@ const SPELL_ATTR0_PASSIVE: i64 = 0x40;
 /// `SpellMisc.Attributes_0` SPELL_ATTR0_DO_NOT_DISPLAY: hidden in the spellbook,
 /// aura icons and combat log.
 const SPELL_ATTR0_DO_NOT_DISPLAY: i64 = 0x80;
+/// `SpellMisc.Attributes_4` SPELL_ATTR4_NOT_IN_SPELLBOOK.
+const SPELL_ATTR4_NOT_IN_SPELLBOOK: i64 = 0x8000;
+/// `SpellMisc.Attributes_7` SPELL_ATTR7_ONLY_IN_SPELLBOOK_UNTIL_LEARNED.
+const SPELL_ATTR7_ONLY_IN_SPELLBOOK_UNTIL_LEARNED: i64 = 0x0001_0000;
+/// `SpellMisc.Attributes_8` SPELL_ATTR8_NOT_IN_SPELLBOOK_UNTIL_LEARNED.
+const SPELL_ATTR8_NOT_IN_SPELLBOOK_UNTIL_LEARNED: i64 = 0x2000;
 /// `SpellMisc.Attributes_1` SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK.
 const SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK: i64 = 0x200;
 /// `SpellMisc.Attributes_2` SPELL_ATTR2_INITIATE_COMBAT_POST_CAST_ENABLES_AUTO_ATTACK.
@@ -220,6 +226,9 @@ fn apply_misc(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         "Attributes_0",
         "Attributes_1",
         "Attributes_2",
+        "Attributes_4",
+        "Attributes_7",
+        "Attributes_8",
     ];
     for_each_row(dir, "SpellMisc", &columns, |row| {
         if !row.is_base_difficulty(1)? {
@@ -237,10 +246,32 @@ fn apply_misc(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         spell.active_icon_fdid = row.get(7)?;
         let attributes = row.get::<i64>(8)?;
         spell.passive = attributes & SPELL_ATTR0_PASSIVE != 0;
-        spell.hidden = attributes & SPELL_ATTR0_DO_NOT_DISPLAY != 0;
+        spell.spellbook = spellbook_listing(attributes, row.get(11)?, row.get(12)?, row.get(13)?);
         spell.auto_attack = auto_attack(row.get(9)?, row.get(10)?);
         Ok(())
     })
+}
+
+fn spellbook_listing(
+    attributes_0: i64,
+    attributes_4: i64,
+    attributes_7: i64,
+    attributes_8: i64,
+) -> SpellbookListing {
+    let until_learned = attributes_7 & SPELL_ATTR7_ONLY_IN_SPELLBOOK_UNTIL_LEARNED != 0;
+    let once_learned = attributes_8 & SPELL_ATTR8_NOT_IN_SPELLBOOK_UNTIL_LEARNED != 0;
+    if attributes_0 & SPELL_ATTR0_DO_NOT_DISPLAY != 0
+        || attributes_4 & SPELL_ATTR4_NOT_IN_SPELLBOOK != 0
+        || (until_learned && once_learned)
+    {
+        SpellbookListing::Never
+    } else if until_learned {
+        SpellbookListing::UntilLearned
+    } else if once_learned {
+        SpellbookListing::OnceLearned
+    } else {
+        SpellbookListing::Always
+    }
 }
 
 fn auto_attack(attributes_1: i64, attributes_2: i64) -> SpellAutoAttack {
