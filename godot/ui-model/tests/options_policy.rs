@@ -122,6 +122,96 @@ fn sound_and_bindings_actions_project_reset_and_commit() {
 }
 
 #[test]
+fn nameplate_thickness_toggles_are_independent_and_commit_on_apply() {
+    use game_engine_core::nameplate_style_data::NameplateBarThickness::{Thick, Thin};
+    use game_engine_core::nameplate_style_data::NameplateStyle;
+    let presets = |style: &NameplateStyle| (style.health_preset(), style.cast_preset());
+    let mut m = model();
+    m.category = OptionsCategory::Nameplates;
+    assert_eq!(presets(&m.draft_hud.nameplate_style), (Thick, Thick));
+    assert!(apply_toggle("nameplate_health_thickness", &mut m));
+    assert_eq!(presets(&m.draft_hud.nameplate_style), (Thin, Thick));
+    assert_eq!(m.draft_hud.nameplate_style.health_height, 10.0);
+    assert_eq!(presets(&m.committed_hud.nameplate_style), (Thick, Thick));
+    assert!(apply_toggle("nameplate_spellbar_thickness", &mut m));
+    assert_eq!(
+        presets(&build_view_model(&m).options.hud.nameplate_style),
+        (Thin, Thin)
+    );
+    let snapshot = apply_snapshot(&mut m);
+    let mut hud = HudOptionsFile::default();
+    apply_hud_file_snapshot(&mut hud, &snapshot.hud);
+    assert_eq!(presets(&hud.nameplate_style), (Thin, Thin));
+    assert_eq!(hud.nameplate_style.cast_height, 6.0);
+    reset_category_defaults(&mut m);
+    assert_eq!(presets(&m.draft_hud.nameplate_style), (Thick, Thick));
+}
+
+#[test]
+fn frame_pacing_toggles_flip_their_fields_and_commit_to_the_file() {
+    let mut m = model();
+    assert!(m.draft_graphics.vsync_enabled);
+    assert!(!m.draft_graphics.frame_rate_limit_enabled);
+    assert!(apply_toggle("vsync_enabled", &mut m));
+    assert!(apply_toggle("frame_rate_limit_enabled", &mut m));
+    let view = build_view_model(&m);
+    assert!(!view.options.graphics.vsync_enabled);
+    assert!(view.options.graphics.frame_rate_limit_enabled);
+    assert!(m.committed_graphics.vsync_enabled);
+    let snapshot = apply_snapshot(&mut m);
+    let mut output = GraphicsOptionsFile::default();
+    apply_graphics_file_snapshot(&mut output, &snapshot.graphics);
+    assert!(!output.vsync_enabled);
+    assert!(output.frame_rate_limit_enabled);
+    assert!(!apply_toggle("bogus_toggle", &mut m));
+}
+
+#[test]
+fn every_slider_action_round_trips_its_key_and_has_a_valid_range() {
+    let keys = [
+        "mouse_sensitivity",
+        "fov_degrees",
+        "particle_density",
+        "frame_rate_limit",
+        "render_scale",
+        "ui_scale",
+        "nameplate_distance",
+        "chat_font_size",
+        "bloom_intensity",
+        "master_volume",
+        "music_volume",
+        "ambient_volume",
+        "effects_volume",
+        "look_sensitivity",
+        "zoom_speed",
+        "follow_speed",
+        "min_distance",
+        "max_distance",
+        "nameplate_health_width",
+        "nameplate_neutral_g",
+    ];
+    for key in keys {
+        let field = parse_slider_action(&format!("options_slider:{key}"))
+            .unwrap_or_else(|| panic!("{key} does not parse"));
+        assert_eq!(slider_key(field), key);
+        let (min, max) = slider_bounds(field);
+        assert!(min < max, "{key} has invalid bounds: {min} >= {max}");
+    }
+    assert_eq!(parse_slider_action("options_slider:bogus"), None);
+    assert_eq!(parse_slider_action("master_volume"), None);
+}
+
+#[test]
+fn category_actions_resolve_every_category_and_reject_unknown() {
+    for category in OptionsCategory::ALL {
+        let action = format!("options_category:{}", category.key());
+        assert_eq!(parse_category_action(&action), Some(category), "{action}");
+    }
+    assert_eq!(parse_category_action("options_category:bogus"), None);
+    assert_eq!(parse_category_action("graphics"), None);
+}
+
+#[test]
 fn interact_key_icons_choice_projects_and_commits_the_icon_cvars() {
     use game_engine_core::soft_target_data::InteractKeyIcons;
     let mut m = model();
