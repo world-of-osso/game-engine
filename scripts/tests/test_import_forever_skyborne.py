@@ -88,6 +88,61 @@ class ImportTests(unittest.TestCase):
         )
         self.assertEqual(decoded["Map"][0]["Directory"], "Azeroth")
 
+    def test_forever_lighting_tables_registered_and_real_zephras_rows(self):
+        from pathlib import Path
+        from scripts import import_forever_skyborne as importer
+
+        expected = {
+            "Light": 1375579,
+            "LightData": 1375580,
+            "LightParams": 1334669,
+            "LightSkybox": 1308501,
+            "ZoneLight": 1310253,
+            "ZoneLightPoint": 1310256,
+        }
+        self.assertEqual(
+            {name: importer.TABLES.get(name) for name in expected}, expected
+        )
+        data = Path(__file__).resolve().parents[2] / "data"
+        staging = data / "cache/forever-skyborne-extract"
+        if not (staging / "1375579.db2").exists():
+            self.skipTest("local lighting DB2 unavailable")
+        raw = importer.extracted_path(staging, 1375579).read_bytes()
+        layout = struct.unpack_from("<I", raw, 156)[0]
+        columns, index, _ = importer.parse_definition(
+            importer.find_definition(data, "Light").read_text(), layout
+        )
+        rows, dropped = importer.decode_rows(raw, layout, columns, index)
+        zephras = [row for row in rows if row["ContinentID"] == 2991]
+        self.assertEqual(len(zephras), 6)
+        self.assertEqual(dropped, 0)
+        self.assertIn(7455, {row["LightParamsID_0"] for row in zephras})
+
+    def test_lighting_assets_follow_only_forever_maps_and_all_slots(self):
+        from scripts import import_forever_skyborne as importer
+
+        tables = {
+            "Map": [{"ID": 0}, {"ID": 2991}],
+            "Light": [
+                {"ContinentID": 0, "LightParamsID_0": 12},
+                {"ContinentID": 2991, "LightParamsID_0": 7455, "LightParamsID_1": 9},
+            ],
+            "LightParams": [
+                {"ID": 12, "LightSkyboxID": 1},
+                {"ID": 7455, "LightSkyboxID": 683},
+                {"ID": 9, "LightSkyboxID": 0},
+            ],
+            "LightSkybox": [
+                {"ID": 1, "SkyboxFileDataID": 100, "CelestialSkyboxFileDataID": 0},
+                {
+                    "ID": 683,
+                    "SkyboxFileDataID": 7345733,
+                    "CelestialSkyboxFileDataID": 101,
+                },
+            ],
+        }
+        self.assertEqual(importer.lighting_assets(tables, {0}), {7345733, 101})
+
     def test_dbd_inline_id_arrays_and_relation(self):
         from scripts import import_forever_skyborne as importer
 

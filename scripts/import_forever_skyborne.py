@@ -70,6 +70,16 @@ TABLES = dict(
         strict=True,
     )
 )
+TABLES.update(
+    {
+        "Light": 1375579,
+        "LightData": 1375580,
+        "LightParams": 1334669,
+        "LightSkybox": 1308501,
+        "ZoneLight": 1310253,
+        "ZoneLightPoint": 1310256,
+    }
+)
 NEW_TABLES = {
     "CharBaseInfo",
     "ChrRacesCreateScreenIcon",
@@ -78,7 +88,13 @@ NEW_TABLES = {
     "UiTextureAtlasMember",
     "Map",
 }
-RETAIL_TABLES = {"ChrRaces", "CreatureDisplayInfo", "CreatureModelData"}
+RETAIL_TABLES = {
+    "ChrRaces",
+    "CreatureDisplayInfo",
+    "CreatureModelData",
+    "LightParams",
+    "LightSkybox",
+}
 
 
 def parse_definition(text, layout):
@@ -394,6 +410,30 @@ def customization_assets(tables):
     return textures - {0}, models - {0}
 
 
+def lighting_assets(tables, retail_map_ids):
+    """Authored sky models reachable from slots of Forever-only maps."""
+    maps = {int(row["ID"]) for row in tables["Map"]} - retail_map_ids
+    params = {
+        int(value)
+        for row in tables["Light"]
+        if int(row["ContinentID"]) in maps
+        for name, value in row.items()
+        if name.startswith("LightParamsID_") and int(value)
+    }
+    skies = {
+        int(row["LightSkyboxID"])
+        for row in tables["LightParams"]
+        if int(row["ID"]) in params and int(row["LightSkyboxID"])
+    }
+    return {
+        int(row[column])
+        for row in tables["LightSkybox"]
+        if int(row["ID"]) in skies
+        for column in ("SkyboxFileDataID", "CelestialSkyboxFileDataID")
+        if int(row[column])
+    }
+
+
 def validate_magic(raw, extension, content_key=None):
     # Forever BFID payloads start with version 1, then BIDA/BOMT chunks.
     if extension == "bone" and raw[:8] == b"\x01\0\0\0BIDA":
@@ -420,7 +460,10 @@ def validate_magic(raw, extension, content_key=None):
 def import_assets(data, staging, tables):
     textures, collections = customization_assets(tables)
     pending = {(fdid, "blp") for fdid in textures | {8200220, 8199012}}
-    pending |= {(fdid, "m2") for fdid in collections | {7478487, 7478494}}
+    with (data / "db2/12.1.0.69933/Map.csv").open(newline="") as handle:
+        retail_maps = {int(row["ID"]) for row in csv.DictReader(handle)}
+    skies = lighting_assets(tables, retail_maps)
+    pending |= {(fdid, "m2") for fdid in collections | skies | {7478487, 7478494}}
     connection = sqlite3.connect(
         f"file:{CACHE / 'resolution.sqlite'}?mode=ro", uri=True
     )
@@ -517,6 +560,10 @@ def main():
         "ChrCustomizationMaterial",
         "TextureFileData",
         "ChrCustomizationSkinnedModel",
+        "Map",
+        "Light",
+        "LightParams",
+        "LightSkybox",
     }
     if required <= tables.keys():
         failures.extend(import_assets(args.data, staging, tables))
