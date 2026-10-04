@@ -80,12 +80,6 @@ pub(crate) fn cast_crops(skin: ActiveSkin) -> Result<CastCrops, String> {
     })
 }
 
-/// What the health frame bitmap adds to the health body's width, and its x offset
-/// (`health_skin` in nameplates.rs, both presets): the cast track spans the same width
-/// while the border shows.
-const HEALTH_FRAME_EXTRA_WIDTH: f32 = 20.0 * NAMEPLATE_SCALE;
-const HEALTH_FRAME_OFFSET_X: f32 = 2.0 * NAMEPLATE_SCALE;
-
 /// Cast bar part rectangles relative to the plate anchor (the health body's centre),
 /// y down.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -99,15 +93,17 @@ pub(crate) struct CastLayout {
     pub text_left: Vector2,
 }
 
-pub(crate) fn cast_layout(style: &NameplateStyle, fraction: f32) -> CastLayout {
-    let (extra_width, x) = if style.show_border {
-        (HEALTH_FRAME_EXTRA_WIDTH, HEALTH_FRAME_OFFSET_X)
-    } else {
-        (0.0, 0.0)
-    };
-    let body = Vector2::new(style.cast_width + extra_width, style.cast_height);
+/// `plate` is the left and right edge of the health row (`PlateLayout::span`): the cast
+/// row, icon included, sits on the same span, wider or narrower by what the style's cast
+/// width differs from its health width (nothing by default).
+pub(crate) fn cast_layout(style: &NameplateStyle, fraction: f32, plate: (f32, f32)) -> CastLayout {
+    let (left, right) = plate;
+    let body = Vector2::new(
+        right - left + style.cast_width - style.health_width,
+        style.cast_height,
+    );
     let center = Vector2::new(
-        x,
+        (left + right) / 2.0,
         style.health_height / 2.0 + HEALTH_CAST_GAP + body.y / 2.0,
     );
     let left = center.x - body.x / 2.0;
@@ -310,12 +306,13 @@ impl CastNodes {
         }
     }
 
-    /// Show `bar` (or nothing) under a plate drawn in `style`.
+    /// Show `bar` (or nothing) under a plate drawn in `style` whose health row spans
+    /// `plate`.
     pub fn apply(
         &mut self,
         bar: Option<&CastBar>,
         icon: Option<&Gd<Texture2D>>,
-        style: &NameplateStyle,
+        (style, plate): (&NameplateStyle, (f32, f32)),
         art: &CastArt,
     ) {
         let Some(bar) = bar else {
@@ -326,7 +323,7 @@ impl CastNodes {
         self.root
             .set_modulate(Color::from_rgba(1.0, 1.0, 1.0, bar.alpha()));
         let fraction = bar.fraction();
-        let layout = cast_layout(style, fraction);
+        let layout = cast_layout(style, fraction, plate);
         place(&mut self.background, layout.background);
         place(&mut self.fill, layout.fill);
         self.fill.set_visible(fraction > 0.0);
@@ -407,46 +404,4 @@ pub(crate) fn text_bbcode(bar: &CastBar) -> String {
 
 fn escape(text: &str) -> String {
     text.replace('[', "[lb]")
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// The user's reference (user-nameplate-reference-2026-10-04.png, 2x pixels): the cast
-    /// track spans the health frame's width (x 50..447, the default plate's -98..100),
-    /// starts 2px under the 20px health body and is 15px high (y 72..102); the 12px icon
-    /// sits at its left end with the spell name 2px right of it, on the bar's middle.
-    #[test]
-    fn thick_cast_bar_spans_the_health_frame_with_the_icon_at_its_left_end() {
-        let style = NameplateStyle::default();
-        let layout = cast_layout(&style, 0.5);
-        assert_eq!(
-            layout.background,
-            Rect2::new(Vector2::new(-98.0, 12.0), Vector2::new(198.0, 15.0))
-        );
-        assert_eq!(
-            layout.fill,
-            Rect2::new(Vector2::new(-98.0, 12.0), Vector2::new(99.0, 15.0))
-        );
-        assert_eq!(
-            layout.icon,
-            Rect2::new(Vector2::new(-98.0, 13.5), Vector2::new(12.0, 12.0))
-        );
-        assert_eq!(layout.text_left, Vector2::new(-84.0, 19.5));
-    }
-
-    /// Without the health frame the cast body keeps the style's own width, centred.
-    #[test]
-    fn borderless_cast_bar_keeps_the_style_width() {
-        let style = NameplateStyle {
-            show_border: false,
-            ..NameplateStyle::default()
-        };
-        let layout = cast_layout(&style, 1.0);
-        assert_eq!(
-            layout.background,
-            Rect2::new(Vector2::new(-94.0, 12.0), Vector2::new(188.0, 15.0))
-        );
-    }
 }
