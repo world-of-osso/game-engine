@@ -12,5 +12,5 @@ game-engine-core = { path = "../core" }
 # Shared unit-resource snapshots derive serialization for native unit-frame state.
 serde = { version = "1", features = ["derive"] }
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
-ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit-godot-conversion/core" }
+ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
 
