@@ -197,7 +197,7 @@ pub fn chat_frame_view(
     let entries = tab_entries(state.tab, chat, combat);
     let mut messages = Vec::new();
     let mut heights = Vec::new();
-    for entry in entries.iter().rev().skip(state.scroll) {
+    for entry in entries.iter().rev().skip(state.scroll()) {
         let rows = wrap_chat_line(&entry.line, &spell_name, area.width, measure_chat_text);
         heights.push(rows.len() as f32 * CHAT_LINE_H);
         if messages_that_fit(&heights, CHAT_MESSAGES_AVAILABLE_H, area.spacing) < heights.len() {
@@ -214,7 +214,7 @@ pub fn chat_frame_view(
         messages,
         input_open: state.input_open,
         flashing: state.flashing.clone(),
-        scrolled_up: state.scroll > 0,
+        scrolled_up: state.scroll() > 0,
     }
 }
 
@@ -825,7 +825,7 @@ pub fn chat_spell_link_at(registry: &FrameRegistry, mut frame_id: u64) -> Option
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::ui::chat_frame::SPELL_LINK_COLOR;
+    use crate::ui::chat_frame::LINK_COLOR;
     use crate::ui::screens::screen_test_helpers::fontstring_text;
     use ui_toolkit::screen::Screen;
 
@@ -833,7 +833,7 @@ mod tests {
         ChatRun {
             text: text.to_string(),
             color: if spell_id.is_some() {
-                SPELL_LINK_COLOR
+                LINK_COLOR
             } else {
                 [1.0; 4]
             },
@@ -862,15 +862,12 @@ mod tests {
     #[test]
     fn link_runs_resolve_to_their_spell_and_text_runs_do_not() {
         let reg = build(vec![ChatRow {
-            runs: vec![
-                run("Alice's ", 0.0, None),
-                run("[Fireball]", 60.0, Some(133)),
-            ],
+            runs: vec![run("Alice's ", 0.0, None), run("Fireball", 60.0, Some(133))],
         }]);
         let link = reg
             .get_by_name("ChatFrame1Link0_1_133")
             .expect("link frame");
-        assert_eq!(fontstring_text(&reg, "ChatFrame1Link0_1_133"), "[Fireball]");
+        assert_eq!(fontstring_text(&reg, "ChatFrame1Link0_1_133"), "Fireball");
         assert_eq!(chat_spell_link_at(&reg, link), Some(133));
         let text = reg
             .get_by_name("ChatFrame1MessagesRow0Run0")

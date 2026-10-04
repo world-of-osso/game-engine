@@ -3,8 +3,9 @@
 //! scrolling and word wrapping. Chattynator references are to its Lua source.
 
 use chrono::TimeZone;
-use shared::protocol::{ChatType, CombatLogEvent, CombatLogKind, EmoteKind, MissKind};
+use shared::protocol::{ChatType, CombatLogEvent, CombatLogKind, EmoteKind};
 
+use crate::character_frame::break_up_large_numbers;
 use crate::chat_data::{ChatChannelType, ChatMessage, ChatState, now_timestamp};
 use crate::group_state::GroupCommand;
 
@@ -14,9 +15,8 @@ pub const MAX_SENT_HISTORY: usize = 32;
 /// Retail `HELP_TEXT_SIMPLE`.
 pub const UNKNOWN_COMMAND_TEXT: &str = "Type '/help' for a listing of a few commands.";
 pub const UNKNOWN_NAME: &str = "Unknown";
-/// Retail spell link colour `|cff71d5ff`.
-pub const SPELL_LINK_COLOR: [f32; 4] = [0.443, 0.835, 1.0, 1.0];
-pub const COMBAT_LOG_COLOR: [f32; 4] = [1.0, 1.0, 1.0, 1.0];
+/// Retail hyperlink colour `|cff71d5ff` (`DEATH_RECAP_LINK`, GlobalStrings 25485).
+pub const LINK_COLOR: [f32; 4] = [0.443, 0.835, 1.0, 1.0];
 /// Chattynator copies at most 200 lines (Display/CopyChat.lua:96).
 pub const MAX_COPY_LINES: usize = 200;
 
@@ -103,15 +103,23 @@ impl ChatTab {
     }
 }
 
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq)]
 pub enum ChatSpan {
+    /// Text in the line's colour.
     Text(String),
-    /// Rendered as `[Spell Name]`; the name is resolved when the line is laid out.
-    SpellLink(u32),
+    /// Text in its own colour (`|cffrrggbb...|r`).
+    Colored([f32; 4], String),
+    /// A spell hyperlink shown as the bare spell name (`TEXT_MODE_A_STRING_SPELL`, no
+    /// braces: `spellBraces = false`); the name is resolved when the line is laid out.
+    SpellLink { id: u32, color: [f32; 4] },
 }
 
 fn text(value: impl Into<String>) -> ChatSpan {
     ChatSpan::Text(value.into())
+}
+
+fn colored(color: [f32; 4], value: impl Into<String>) -> ChatSpan {
+    ChatSpan::Colored(color, value.into())
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -128,13 +136,13 @@ impl ChatLine {
         }
     }
 
-    /// Text with spell links shown as `[id]`; for tests and dumps.
+    /// The line without colours, spell links as their names.
     pub fn plain_text(&self, spell_name: impl Fn(u32) -> String) -> String {
         self.spans
             .iter()
             .map(|span| match span {
-                ChatSpan::Text(value) => value.clone(),
-                ChatSpan::SpellLink(id) => format!("[{}]", spell_name(*id)),
+                ChatSpan::Text(value) | ChatSpan::Colored(_, value) => value.clone(),
+                ChatSpan::SpellLink { id, .. } => spell_name(*id),
             })
             .collect()
     }
@@ -171,14 +179,16 @@ impl CombatLogChat {
     }
 }
 
-/// Selected tab, flashing tabs, scroll position, edit box visibility and sent-line history.
+/// Selected tab, flashing tabs, scroll positions, edit box visibility and sent-line history.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct ChatFrameState {
     pub tab: ChatTab,
     /// Unselected tabs with unseen messages.
     pub flashing: Vec<ChatTab>,
-    /// Messages scrolled up from the newest; 0 is at the bottom.
-    pub scroll: usize,
+    /// Per tab ([`ChatTab::index`]), messages scrolled up from the newest; 0 is at the
+    /// bottom. Retail's tabs are separate scrolling frames (the combat log is ChatFrame2,
+    /// Blizzard_CombatLog.lua:22), so each keeps its own position.
+    pub scrolls: [usize; ChatTab::ALL.len()],
     pub input_open: bool,
     /// Sent lines, oldest first.
     pub sent: Vec<String>,
@@ -188,18 +198,33 @@ pub struct ChatFrameState {
 
 impl ChatFrameState {
     /// Clicking a tab deselects, and so stops flashing, every tab (Display/Tabs.lua:170-173,
-    /// 299-302) and resets the scroll to the newest message (Display/ScrollingMessages.lua:47-50).
+    /// 299-302). Each tab keeps its scroll position.
     pub fn select_tab(&mut self, tab: ChatTab) {
         self.tab = tab;
         self.flashing.clear();
-        self.scroll = 0;
     }
 
-    /// Scroll `amount` messages up (negative: down), between the newest message and the
-    /// oldest of `total`.
+    /// The selected tab's scroll position.
+    pub fn scroll(&self) -> usize {
+        self.scrolls[self.tab.index()]
+    }
+
+    /// The selected tab returns to its newest message.
+    pub fn scroll_to_bottom(&mut self) {
+        self.scrolls[self.tab.index()] = 0;
+    }
+
+    /// Scroll the selected tab `amount` messages up (negative: down), between the newest
+    /// message and the oldest of `total`.
     pub fn scroll_by(&mut self, amount: isize, total: usize) {
-        let max = total.saturating_sub(1);
-        self.scroll = self.scroll.saturating_add_signed(amount).min(max);
+        self.scroll_tab_by(self.tab, amount, total);
+    }
+
+    fn scroll_tab_by(&mut self, tab: ChatTab, amount: isize, total: usize) {
+        let scroll = &mut self.scrolls[tab.index()];
+        *scroll = scroll
+            .saturating_add_signed(amount)
+            .min(total.saturating_sub(1));
     }
 
     pub fn start_flashing(&mut self, tabs: impl IntoIterator<Item = ChatTab>) {
@@ -359,7 +384,7 @@ pub fn new_chat_messages(chat: &ChatState, seen: u64) -> &[ChatMessage] {
     &chat.messages[chat.messages.len() - new..]
 }
 
-/// While scrolled up, new lines in the shown tab do not move the view.
+/// New lines do not move the view of a tab that is scrolled up, selected or not.
 pub fn hold_scroll_position(
     state: &mut ChatFrameState,
     new_chat: &[ChatMessage],
@@ -367,16 +392,15 @@ pub fn hold_scroll_position(
     chat: &ChatState,
     combat: &CombatLogChat,
 ) {
-    if state.scroll == 0 {
-        return;
-    }
-    let tab = state.tab;
-    let arrived = match tab {
-        ChatTab::CombatLog => new_combat,
-        tab => new_chat.iter().filter(|msg| tab.shows(msg)).count(),
-    };
-    if arrived > 0 {
-        state.scroll_by(arrived as isize, tab_len(tab, chat, combat));
+    for tab in ChatTab::ALL {
+        if state.scrolls[tab.index()] == 0 {
+            continue;
+        }
+        let arrived = match tab {
+            ChatTab::CombatLog => new_combat,
+            tab => new_chat.iter().filter(|msg| tab.shows(msg)).count(),
+        };
+        state.scroll_tab_by(tab, arrived as isize, tab_len(tab, chat, combat));
     }
 }
 
@@ -519,166 +543,196 @@ fn emote_command(command: &str) -> Option<EmoteKind> {
     }
 }
 
-/// Retail-style combat log line. `source`/`target` are resolved display names.
-pub fn combat_log_line(event: &CombatLogEvent, source: &str, target: &str) -> ChatLine {
-    let spans = match event.kind {
-        CombatLogKind::Damage => damage_spans(event, source, target),
-        CombatLogKind::Heal => heal_spans(event, source, target),
-        CombatLogKind::Energize => {
-            let mut spans = vec![text(format!("{target} gains {} from ", event.amount))];
-            spans.extend(actor(source, event.spell_id));
-            spans.push(text("."));
-            spans
+/// What a combat log unit is to the local player (`COMBATLOG_FILTER_*`,
+/// Blizzard_CombatLogBase/Shared/CombatLogFilters.lua).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum CombatLogUnit {
+    /// The local player (`COMBATLOG_FILTER_MINE`).
+    Mine,
+    Friendly,
+    /// Hostile and neutral units share a colour.
+    Hostile,
+    /// Not replicated (`COMBATLOG_FILTER_UNKNOWN_UNITS`).
+    Unknown,
+}
+
+impl CombatLogUnit {
+    /// `COMBATLOG_DEFAULT_COLORS.unitColoring` (Mainline/CombatLogColors.lua:3-11).
+    pub fn color(self) -> [f32; 4] {
+        match self {
+            Self::Mine => [0.70, 0.70, 0.70, 1.0],
+            Self::Friendly => [0.34, 0.64, 1.00, 1.0],
+            Self::Hostile => [0.75, 0.05, 0.05, 1.0],
+            Self::Unknown => [0.75, 0.75, 0.75, 1.0],
         }
-        CombatLogKind::Miss(miss) => miss_spans(event, miss, source, target),
-        CombatLogKind::AuraApplied => spell_sentence(event, &format!("{target} gains "), "."),
-        CombatLogKind::AuraRemoved => spell_sentence(event, "", &format!(" fades from {target}.")),
-        CombatLogKind::AuraRefreshed => {
-            spell_sentence(event, &format!("{target}'s "), " is refreshed.")
-        }
-        CombatLogKind::Interrupt => {
-            spell_sentence(event, &format!("{source} interrupts {target}'s "), ".")
-        }
-        CombatLogKind::Dispel => {
-            spell_sentence(event, &format!("{source} dispels {target}'s "), ".")
-        }
-        CombatLogKind::CastStart => {
-            spell_sentence(event, &format!("{source} begins to cast "), ".")
-        }
-        CombatLogKind::CastSuccess => {
-            let suffix = match event.target {
-                Some(_) => format!(" on {target}."),
-                None => ".".to_string(),
-            };
-            spell_sentence(event, &format!("{source} casts "), &suffix)
-        }
-        CombatLogKind::Death => vec![text(format!("{target} dies."))],
-    };
-    ChatLine {
-        color: COMBAT_LOG_COLOR,
-        spans,
     }
 }
 
-/// "Bob" for melee, "Bob's [Fireball]" for spells.
-fn actor(source: &str, spell_id: Option<u32>) -> Vec<ChatSpan> {
-    match spell_id {
-        Some(id) => vec![text(format!("{source}'s ")), ChatSpan::SpellLink(id)],
-        None => vec![text(source)],
-    }
+/// A combat log event's source or target: its display name and what it is to the player.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CombatLogActor<'a> {
+    pub name: &'a str,
+    pub unit: CombatLogUnit,
 }
 
-fn spell_sentence(event: &CombatLogEvent, before: &str, after: &str) -> Vec<ChatSpan> {
-    let mut spans = vec![text(before)];
-    match event.spell_id {
-        Some(id) => spans.push(ChatSpan::SpellLink(id)),
-        None => spans.push(text("an ability")),
-    }
-    spans.push(text(after));
-    spans
-}
+/// The action word of events other than damage (`missColoring`,
+/// Blizzard_CombatLogProcessor.lua:1185-1200; `GetColorByEventType`'s default,
+/// CombatLogUtil.lua:14-18).
+const COMBAT_ACTION_COLOR: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
 
-fn damage_spans(event: &CombatLogEvent, source: &str, target: &str) -> Vec<ChatSpan> {
-    let amount = event.amount;
-    let mut spans = if event.periodic {
-        let mut spans = vec![text(format!("{target} suffers {amount} damage from "))];
-        spans.extend(actor(source, event.spell_id));
-        spans
-    } else {
-        let verb = if event.crit { "crits" } else { "hits" };
-        let mut spans = actor(source, event.spell_id);
-        spans.push(text(format!(" {verb} {target} for {amount}")));
-        spans
-    };
-    spans.push(text(format!("{}.", damage_details(event))));
-    spans
-}
-
-fn damage_details(event: &CombatLogEvent) -> String {
+/// `CombatLogUtil.HighlightColor` (CombatLogUtil.lua:39-51): spell name, amount and school
+/// (`abilityHighlighting`, `amountHighlighting`, `schoolNameHighlighting`).
+fn highlight([r, g, b, a]: [f32; 4]) -> [f32; 4] {
     [
-        (event.absorbed, "Absorbed"),
+        (r * 1.5).min(1.0),
+        (g * 1.5).min(1.0),
+        (b * 1.5).min(1.0),
+        a,
+    ]
+}
+
+/// Retail's combat log line for an event, or None when the default filters do not list
+/// it. `CombatLogProcessor:GenerateMessage` (Blizzard_CombatLogProcessor.lua:196-1417)
+/// with `COMBATLOG_DEFAULT_SETTINGS` (Blizzard_CombatLog.lua:27-66): not full text, so
+/// `TEXT_MODE_A_STRING_1` "source spell action dest value. result" with the player as
+/// You/Your, no timestamp, the line in its source's unit colour.
+///
+/// Listed, from the two default quick filters (Blizzard_CombatLog.lua:229-410; there is
+/// no filter bar, so both apply): "My actions" - the player's damage, heals and kills;
+/// "What happened to me?" - damage and heals on the player and the player's death.
+/// Neither lists misses, energizes, interrupts, dispels or casts, and auras are dropped by
+/// `hideBuffs`/`hideDebuffs` (Processor.lua:689-698).
+pub fn combat_log_line(
+    event: &CombatLogEvent,
+    source: CombatLogActor,
+    target: CombatLogActor,
+) -> Option<ChatLine> {
+    let by_me = source.unit == CombatLogUnit::Mine;
+    let to_me = target.unit == CombatLogUnit::Mine;
+    match event.kind {
+        CombatLogKind::Damage | CombatLogKind::Heal if by_me || to_me => {
+            Some(amount_line(event, source, target))
+        }
+        CombatLogKind::Death if to_me => Some(death_recap_line()),
+        CombatLogKind::Death if by_me => Some(kill_line(target.name)),
+        _ => None,
+    }
+}
+
+/// SWING_DAMAGE, SPELL_DAMAGE, SPELL_PERIODIC_DAMAGE, SPELL_HEAL and SPELL_PERIODIC_HEAL:
+/// "Your Melee hit Kobold Vermin 12 Physical. (Critical)".
+fn amount_line(event: &CombatLogEvent, source: CombatLogActor, target: CombatLogActor) -> ChatLine {
+    let color = source.unit.color();
+    let bright = highlight(color);
+    let heal = event.kind == CombatLogKind::Heal;
+    // `ACTION_SWING` "Melee" (GlobalStrings 17851) stands in for a swing's spell.
+    let spell = match event.spell_id {
+        Some(id) => Some(ChatSpan::SpellLink { id, color: bright }),
+        None if heal => None,
+        None => Some(colored(bright, "Melee")),
+    };
+    // `UNIT_YOU_SOURCE` "You" / `UNIT_YOU_SOURCE_POSSESSIVE` "Your" (17848, 18492): the
+    // possessive needs a spell name; other units keep their bare name (Processor.lua:1011-1024).
+    let source_name = match (source.unit, &spell) {
+        (CombatLogUnit::Mine, Some(_)) => "Your",
+        (CombatLogUnit::Mine, None) => "You",
+        _ => source.name,
+    };
+    // `UNIT_YOU_DEST` "You" (17849).
+    let target_name = match target.unit {
+        CombatLogUnit::Mine => "You",
+        _ => target.name,
+    };
+    let mut spans = vec![text(format!("{source_name} "))];
+    if let Some(spell) = spell {
+        spans.extend([spell, text(" ")]);
+    }
+    // `ACTION_SPELL_HEAL` / `ACTION_SPELL_PERIODIC_HEAL` "healed" (17872, 17889),
+    // `ACTION_SPELL_PERIODIC_DAMAGE` "damaged" (17879), `ACTION_SWING_DAMAGE` /
+    // `ACTION_SPELL_DAMAGE` "hit" (17853, 17862).
+    spans.push(match (heal, event.periodic) {
+        (true, _) => colored(COMBAT_ACTION_COLOR, "healed"),
+        (false, true) => text("damaged"),
+        (false, false) => text("hit"),
+    });
+    // The shown amount leaves out overkill and overhealing (Processor.lua:300-302, 389);
+    // `TEXT_MODE_A_STRING_VALUE_SCHOOL` "%s %s" (17836).
+    let amount = i64::from(event.amount - event.overflow.max(0));
+    spans.extend([
+        text(format!(" {target_name} ")),
+        colored(bright, break_up_large_numbers(amount)),
+        text(" "),
+        colored(bright, school_name(event.school_mask)),
+        text(format!(".{}", amount_results(event))),
+    ]);
+    ChatLine { color, spans }
+}
+
+/// `CombatLogUtil.GenerateDamageResultString` (CombatLogUtil.lua:176-226), in its order:
+/// `TEXT_MODE_A_STRING_RESULT_RESIST`, `_BLOCK`, `_ABSORB`, `_GLANCING`, `_OVERHEALING`,
+/// `_OVERKILLING`, `_CRITICAL` (GlobalStrings 17840-17844, 18618, 19426).
+fn amount_results(event: &CombatLogEvent) -> String {
+    let overflow = match event.kind {
+        CombatLogKind::Heal => "Overhealed",
+        _ => "Overkill",
+    };
+    let amounts = [
         (event.resisted, "Resisted"),
         (event.blocked, "Blocked"),
-        (event.overflow, "Overkill"),
-    ]
-    .into_iter()
-    .filter(|(value, _)| *value > 0)
-    .map(|(value, label)| format!(" ({value} {label})"))
-    .collect()
-}
-
-fn heal_spans(event: &CombatLogEvent, source: &str, target: &str) -> Vec<ChatSpan> {
-    let amount = event.amount;
-    let mut spans = if event.periodic {
-        let mut spans = vec![text(format!("{target} gains {amount} health from "))];
-        spans.extend(actor(source, event.spell_id));
-        spans
-    } else {
-        let verb = if event.crit {
-            "critically heals"
-        } else {
-            "heals"
-        };
-        let mut spans = actor(source, event.spell_id);
-        spans.push(text(format!(" {verb} {target} for {amount}")));
-        spans
-    };
-    let overheal = match event.overflow {
-        0 => String::new(),
-        value => format!(" ({value} Overhealed)"),
-    };
-    spans.push(text(format!("{overheal}.")));
-    spans
-}
-
-fn miss_spans(event: &CombatLogEvent, miss: MissKind, source: &str, target: &str) -> Vec<ChatSpan> {
-    if event.spell_id.is_none() {
-        return vec![text(melee_miss_text(miss, source, target))];
+        (event.absorbed, "Absorbed"),
+    ];
+    let mut results: Vec<String> = amounts
+        .into_iter()
+        .filter(|(value, _)| *value > 0)
+        .map(|(value, label)| format!("({} {label})", break_up_large_numbers(value.into())))
+        .collect();
+    if event.glancing {
+        results.push("(Glancing)".into());
     }
-    let mut spans = actor(source, event.spell_id);
-    spans.push(text(match miss {
-        MissKind::Miss => format!(" missed {target}."),
-        MissKind::Immune => format!(" failed. {target} is immune."),
-        _ => format!(" was {} by {target}.", miss_past_tense(miss)),
-    }));
-    spans
+    if event.overflow > 0 {
+        let value = break_up_large_numbers(event.overflow.into());
+        results.push(format!("({value} {overflow})"));
+    }
+    if event.crit {
+        results.push("(Critical)".into());
+    }
+    results.iter().map(|result| format!(" {result}")).collect()
 }
 
-fn melee_miss_text(miss: MissKind, source: &str, target: &str) -> String {
-    match miss {
-        MissKind::Miss => format!("{source} misses {target}."),
-        MissKind::Immune => format!("{source} attacks but {target} is immune."),
-        _ => format!("{source} attacks. {target} {}.", miss_present_tense(miss)),
+/// `STRING_SCHOOL_*` (GlobalStrings 18106-18113, 18330) of a single-school mask;
+/// `STRING_SCHOOL_UNKNOWN` otherwise (CombatLogUtil.lua:127-134).
+fn school_name(mask: u32) -> &'static str {
+    match mask {
+        1 => "Physical",
+        2 => "Holy",
+        4 => "Fire",
+        8 => "Nature",
+        16 => "Frost",
+        32 => "Shadow",
+        64 => "Arcane",
+        _ => "Unknown",
     }
 }
 
-fn miss_past_tense(miss: MissKind) -> &'static str {
-    match miss {
-        MissKind::Miss => "missed",
-        MissKind::Dodge => "dodged",
-        MissKind::Parry => "parried",
-        MissKind::Block => "blocked",
-        MissKind::Resist => "resisted",
-        MissKind::Immune => "ignored",
-        MissKind::Evade => "evaded",
-        MissKind::Absorb => "absorbed",
-        MissKind::Deflect => "deflected",
-        MissKind::Reflect => "reflected",
+/// PARTY_KILL: "You killed Kobold Vermin." (`ACTION_PARTY_KILL` "killed", GlobalStrings
+/// 18080, not possessive 18274), a highlighted event (CombatLogColors.lua:33-35).
+fn kill_line(target: &str) -> ChatLine {
+    ChatLine {
+        color: highlight(CombatLogUnit::Mine.color()),
+        spans: vec![
+            text("You "),
+            colored(COMBAT_ACTION_COLOR, "killed"),
+            text(format!(" {target}.")),
+        ],
     }
 }
 
-fn miss_present_tense(miss: MissKind) -> &'static str {
-    match miss {
-        MissKind::Miss => "is missed",
-        MissKind::Dodge => "dodges",
-        MissKind::Parry => "parries",
-        MissKind::Block => "blocks",
-        MissKind::Resist => "resists",
-        MissKind::Immune => "is immune",
-        MissKind::Evade => "evades",
-        MissKind::Absorb => "absorbs",
-        MissKind::Deflect => "deflects",
-        MissKind::Reflect => "reflects",
+/// The player's UNIT_DIED is the death recap link `DEATH_RECAP_LINK` "[You died.]"
+/// (GlobalStrings 25485; Processor.lua:847-854).
+fn death_recap_line() -> ChatLine {
+    ChatLine {
+        color: CombatLogUnit::Mine.color(),
+        spans: vec![colored(LINK_COLOR, "[You died.]")],
     }
 }
 
@@ -706,20 +760,15 @@ pub fn wrap_chat_line(
 ) -> Vec<ChatRow> {
     let mut rows = vec![ChatRow::default()];
     let mut x = 0.0;
-    for (token, spell_id) in line_tokens(line, &spell_name) {
+    for (token, color, spell_id) in line_tokens(line, &spell_name) {
         let width = measure(&token);
         if x > 0.0 && x + width > max_width && !token.trim().is_empty() {
             rows.push(ChatRow::default());
             x = 0.0;
         }
         let row = rows.last_mut().expect("rows start non-empty");
-        let color = if spell_id.is_some() {
-            SPELL_LINK_COLOR
-        } else {
-            line.color
-        };
         match row.runs.last_mut() {
-            Some(run) if run.spell_id.is_none() && spell_id.is_none() => {
+            Some(run) if run.spell_id.is_none() && spell_id.is_none() && run.color == color => {
                 run.text.push_str(&token);
                 run.width += width;
             }
@@ -736,17 +785,24 @@ pub fn wrap_chat_line(
     rows
 }
 
-/// Words keep their trailing whitespace; a link is one token.
-fn line_tokens(line: &ChatLine, spell_name: &impl Fn(u32) -> String) -> Vec<(String, Option<u32>)> {
+/// `(text, colour, spell id)` pieces: words keep their trailing whitespace; a link is one
+/// token.
+fn line_tokens(
+    line: &ChatLine,
+    spell_name: &impl Fn(u32) -> String,
+) -> Vec<(String, [f32; 4], Option<u32>)> {
+    let words = |value: &str, color: [f32; 4]| {
+        value
+            .split_inclusive(char::is_whitespace)
+            .map(|word| (word.to_string(), color, None))
+            .collect::<Vec<_>>()
+    };
     let mut tokens = Vec::new();
     for span in &line.spans {
         match span {
-            ChatSpan::SpellLink(id) => tokens.push((format!("[{}]", spell_name(*id)), Some(*id))),
-            ChatSpan::Text(value) => tokens.extend(
-                value
-                    .split_inclusive(char::is_whitespace)
-                    .map(|word| (word.to_string(), None)),
-            ),
+            ChatSpan::SpellLink { id, color } => tokens.push((spell_name(*id), *color, Some(*id))),
+            ChatSpan::Text(value) => tokens.extend(words(value, line.color)),
+            ChatSpan::Colored(color, value) => tokens.extend(words(value, *color)),
         }
     }
     tokens
