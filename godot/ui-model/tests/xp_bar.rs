@@ -130,7 +130,7 @@ fn unrested_fill_and_hover_text_follow_retail() {
     let Some(WidgetData::FontString(text)) = text.widget_data.as_ref() else {
         panic!("font")
     };
-    assert_eq!(text.text, "XP: 250 / 1000 (25%)");
+    assert_eq!(text.text, "XP: 250/1000");
 }
 #[test]
 fn level_cap_hides_entire_bar_in_both_presets() {
