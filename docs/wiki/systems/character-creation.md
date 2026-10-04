@@ -44,13 +44,13 @@ Backdrop ambient uses the authored type-0 M2 light color at time/sequence zero, 
 
 Focused RED/GREEN evidence covers removal of the extra directional light and unused procedural map, authored ambient conversion, backdrop diffuse material settings, presentation scale/distance application, and neutral loader-only GPU capture. See `data/diagnostics/charcreate-authored-scenes-20260923/`, including `neutral-diffuse-lighting-gpu.log`. The name-entry font is now Arial Narrow at 20 logical pixels; its focused glyph test passes at `24fce090`, while a native runtime dump confirms `Donagh` with cursor position 6 in the unchanged 300×38 field. A new GUI capture under the revised lighting and complete three-backdrop visual acceptance remain pending; unreliable visual-helper output is not acceptance or defect evidence, and this does not claim exact Retail parity.
 
-## Skyborn abandoned branch — blocked, not integrated (2026-10-04)
+## Skyborne branch — native consumers implemented, preview unproved (2026-10-04)
 
-Engine `36062772` added partial Skyborn FDID support, mostly in the retired Bevy client; the feature is not merged. Server `dc2e4d2` class lists were grounded in Forever build 70058, but masks 32/33 were inferred from Retail placeholders, not established Forever race masks. Preserve these partial branches; neither establishes native support or race/faction UI policy. Current `godot/core/src/player_model_data.rs` uses Retail's `ChrRaceXChrModel` → `ChrModel.DisplayID` → `CreatureDisplayInfo.ModelID` → `CreatureModelData.FileDataID` chain.
+The historical Bevy patch `36062772` is no longer the support boundary. Since `d5fdcae21`, the `skyborn` branch has a local Forever importer, native core model/customization overlay (`e4abfa89`), creation roster (`9dd52bc8`) and scoped collection lookup (`2d82554a`). The supplied branch history establishes implementation on this branch, not a merge into master.
 
-The old Skyborn worktree's `data/forever-1.60.1.70058` lacks ChrRaces/customization data, male skin0 skins `7479268`/`7479270`, and skeletons `4690403`/`4690402`. On October 4, main probed FDID `7479268` with the current compiled `../asset-resolver/target/debug/casc-local`, `WOW_PRODUCT=wow_classic_beta`, through `scripts/agent/agent-run`, targeting `data/forever-1.60.1.70205/skyborne-probe`. Active `.build.info` build 70205 has build key `842b2e5d11f8d6fe257a5b73bd5cf6c6`. The retained [probe log](../../../target/skyborn-current-local-casc-probe.log) exits 1: root encoding key `fcae3917977c7fdf9f3864ed5bf96521` is absent from local archive indexes; 0 extracted, 1 failed. This is a root-initialization blocker, not proof that the requested skin is absent from the product.
+Forever 70205 establishes races 95/96 and PlayableRaceBit 32/33 directly; the earlier Retail-placeholder inference and missing-root initialization blocker are superseded. [Forever data overlay](forever-data.md) owns source recovery, data layout, encrypted-record limits and remaining acquisition gaps. [Skyborne contract](../../specs/character-creation.md#skyborne-forever-160170205) records exact roster/model requirements.
 
-Installed `~/.cargo/bin/casc-local` is a March artifact; its earlier missing-root-entry result is not current-product evidence. Native model loading/rendering, complete Forever customization data and authoritative race masks remain unverified. No extraction or runtime tests were rerun for this docs audit.
+The [proof ledger](../../../target/skyborne-proof-ledger.md) records 17 distinct passing core/body-chain/UI/layout tests. Native Skyborne rendering, create/save/reload and world-entry acceptance remain unproved; preview work is in progress. No builds/tests were rerun for this documentation update.
 
 ## Known limits
 
@@ -75,6 +75,8 @@ Installed `~/.cargo/bin/casc-local` is a March artifact; its earlier missing-roo
 - [Retail atlas contract](../../../ui-toolkit/docs/specs/character-creation-atlases.md) — bounded atlas metadata
 
 ## See Also
+
+- [[forever-data]] — Skyborne overlay provenance and bounded proof
 
 - [[ui-system]] — authored controls and native projection
 - [[character-rendering]] — effective choice application
