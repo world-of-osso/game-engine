@@ -283,7 +283,8 @@ pub fn unavailable_message(action: &str) -> Option<String> {
 
 pub fn micro_menu_screen(ctx: &SharedContext) -> Element {
     let view = ctx.get::<MicroMenuView>().cloned().unwrap_or_default();
-    let at = hud_layout(ctx).micro_menu.place((MICRO_MENU_W, BUTTON_H));
+    let layout = hud_layout(ctx);
+    let at = layout.micro_menu.place((MICRO_MENU_W, BUTTON_H));
     let buttons: Element = (0..MICRO_BUTTONS.len())
         .flat_map(|index| micro_button(&view, index))
         .collect();
@@ -292,6 +293,7 @@ pub fn micro_menu_screen(ctx: &SharedContext) -> Element {
             name: {DynName(MICRO_MENU.into())},
             width: MICRO_MENU_W,
             height: BUTTON_H,
+            hidden: {layout.hide_utility_bars},
             pos_type: "absolute",
             left: {at.left.as_str()},
             right: {at.right.as_str()},
