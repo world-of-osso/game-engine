@@ -1,7 +1,8 @@
-//! Main action bar, gryphon end caps, micro menu and bags bar name Blizzard atlas elements.
+//! Main action bar, end caps, micro menu and bags bar name Blizzard atlas elements.
 //! Under Modern every frame is exactly what the components built from hand-copied crops
 //! before (forever7 base, master 9343e578); under Forever the names Forever re-skins draw
-//! their set-1 `c60` members and the main bar takes FlareUI's button scale and art.
+//! their set-1 `c60` members, the main bar takes FlareUI's button scale and art, and the
+//! end caps are the project's class shields.
 
 use std::fmt::Write;
 use std::path::PathBuf;
@@ -221,6 +222,8 @@ fn bar_state() -> MainActionBarState {
         hovered: false,
     };
     state.buttons[1].hovered = true;
+    // A paladin: Modern's gryphons do not depend on the class.
+    state.player_class = Some(2);
     state
 }
 
@@ -301,34 +304,127 @@ fn modern_bars_draw_exactly_what_their_hand_copied_crops_drew() {
     assert_eq!(trees.lines().count(), fixture::MODERN_TREES.lines().count());
 }
 
-/// Reference correction: Camelot 154×95 gryphons flank the main bar itself,
-/// retaining the 30-unit overlap and 5-unit lift on both sides.
+/// The texture file a frame draws.
+fn file_of(registry: &FrameRegistry, name: &str) -> String {
+    match frame(registry, name).widget_data.as_ref() {
+        Some(WidgetData::Texture(TextureData {
+            source: TextureSource::File(path),
+            ..
+        })) => path.clone(),
+        other => panic!("{name} draws no file: {other:?}"),
+    }
+}
+
+/// Names of the atlas elements `root` and its descendants draw.
+fn atlas_names(registry: &FrameRegistry, root: &str) -> Vec<String> {
+    let mut names = Vec::new();
+    let mut pending = vec![registry.get_by_name(root).expect(root)];
+    while let Some(id) = pending.pop() {
+        let f = registry.get(id).unwrap();
+        if let Some(WidgetData::Texture(TextureData {
+            source: TextureSource::Atlas(name),
+            ..
+        })) = f.widget_data.as_ref()
+        {
+            names.push(name.clone());
+        }
+        pending.extend(&f.children);
+    }
+    names
+}
+
+fn class_bar(class: Option<u8>) -> MainActionBarState {
+    MainActionBarState {
+        player_class: class,
+        ..bar_state()
+    }
+}
+
+const END_CAPS: [&str; 2] = ["MainActionBarLeftEndCap", "MainActionBarRightEndCap"];
+
+/// User decision 2026-10-03: Forever's end caps are the project's wide class shields,
+/// 95 units tall at the art's 119:190 aspect, bottoms on the bar's bottom edge, 6 units
+/// outside the first and last button.
 #[test]
-fn forever_gryphons_are_camelot_end_caps_on_c60_art() {
-    let skin = ActiveSkin::Forever;
-    let registry = build(skin, bar_state(), main_action_bar_screen);
-    let bar_h = 45.0 * 1.06;
-    // ui-hud-actionbar-gryphon-left / -right, set 1 members 36748 / 36749.
-    assert_eq!(
-        drawn(&registry, "MainActionBarLeftEndCap", skin),
-        Crop(7_948_328, [1.0, 241.0, 1.0, 141.0])
+fn forever_end_caps_are_class_shields_outside_the_buttons() {
+    let registry = build(
+        ActiveSkin::Forever,
+        class_bar(Some(2)),
+        main_action_bar_screen,
     );
-    assert_eq!(
-        drawn(&registry, "MainActionBarRightEndCap", skin),
-        Crop(7_948_328, [243.0, 483.0, 1.0, 141.0])
-    );
-    let centre_top = |centre: f32| centre - 5.0 - 95.0 / 2.0;
-    assert_close(
-        fixed_rect(&registry, "MainActionBarLeftEndCap"),
-        (30.0 - 154.0, centre_top(bar_h / 2.0), 154.0, 95.0),
-        "left end cap",
-    );
-    let bar_w = 562.0 * 1.06;
-    assert_close(
-        fixed_rect(&registry, "MainActionBarRightEndCap"),
-        (bar_w - 30.0, centre_top(bar_h / 2.0), 154.0, 95.0),
-        "right end cap",
-    );
+    let (bar_w, bar_h) = (562.0 * 1.06, 45.0 * 1.06);
+    let caps = [
+        (-6.0 - 59.5, bar_h - 95.0, 59.5, 95.0),
+        (bar_w + 6.0, bar_h - 95.0, 59.5, 95.0),
+    ];
+    for (name, expected) in END_CAPS.into_iter().zip(caps) {
+        assert_close(fixed_rect(&registry, name), expected, name);
+    }
+    // Buttons and their 46-wide frame art (the last one's overhangs the bar) stay clear.
+    for index in 1..=12 {
+        let (x, y, _, h) = fixed_rect(&registry, &format!("ActionButton{index}"));
+        let art_w = fixed_rect(&registry, &format!("ActionButton{index}NormalTexture")).2;
+        for (cap_x, cap_y, cap_w, cap_h) in caps {
+            let apart_x = cap_x + cap_w <= x || x + art_w <= cap_x;
+            let apart_y = cap_y + cap_h <= y || y + h <= cap_y;
+            assert!(apart_x || apart_y, "ActionButton{index} under an end cap");
+        }
+    }
+    let gryphons: Vec<String> = atlas_names(&registry, "MainActionBar")
+        .into_iter()
+        .filter(|name| name.contains("gryphon"))
+        .collect();
+    assert_eq!(gryphons, Vec::<String>::new());
+}
+
+/// `ChrClasses` IDs 1-13 name the shield files under `data/ui/endcaps/wide/`.
+#[test]
+fn forever_end_caps_draw_the_players_class_shield() {
+    let classes = [
+        (1, "warrior"),
+        (2, "paladin"),
+        (3, "hunter"),
+        (4, "rogue"),
+        (5, "priest"),
+        (6, "deathknight"),
+        (7, "shaman"),
+        (8, "mage"),
+        (9, "warlock"),
+        (10, "monk"),
+        (11, "druid"),
+        (12, "demonhunter"),
+        (13, "evoker"),
+    ];
+    for (id, class) in classes {
+        let registry = build(
+            ActiveSkin::Forever,
+            class_bar(Some(id)),
+            main_action_bar_screen,
+        );
+        assert_eq!(
+            END_CAPS.map(|name| file_of(&registry, name)),
+            [
+                format!("data/ui/endcaps/wide/left/{class}.ktx2"),
+                format!("data/ui/endcaps/wide/right/{class}.ktx2"),
+            ]
+        );
+    }
+}
+
+/// No shield stands in for a class the client does not know (yet) or has no art for.
+#[test]
+fn forever_draws_no_end_cap_without_a_known_class() {
+    for class in [None, Some(0), Some(14)] {
+        let registry = build(
+            ActiveSkin::Forever,
+            class_bar(class),
+            main_action_bar_screen,
+        );
+        for name in END_CAPS {
+            assert_eq!(registry.get_by_name(name), None, "{name} for {class:?}");
+        }
+        assert!(registry.get_by_name("ActionButton12").is_some());
+    }
 }
 
 #[test]
@@ -446,8 +542,8 @@ fn forever_bags_keep_retail_art_and_camelot_bag_atlases_are_forever_only() {
     }
 }
 
-/// One Screen re-synced with the other skin rebuilds the bar: Camelot end caps on c60
-/// art, then Modern's again.
+/// One Screen re-synced with the other skin rebuilds the bar: the paladin shield on
+/// Forever, then Modern's gryphon again; the class arriving late adds the shields.
 #[test]
 fn switching_skin_reskins_the_live_main_bar() {
     load_atlas_tables();
@@ -465,10 +561,20 @@ fn switching_skin_reskins_the_live_main_bar() {
     shared.insert(ActiveSkin::Forever);
     screen.sync(&shared, &mut registry);
     assert_eq!(
-        drawn(&registry, cap, ActiveSkin::Forever),
-        Crop(7_948_328, [1.0, 241.0, 1.0, 141.0])
+        file_of(&registry, cap),
+        "data/ui/endcaps/wide/left/paladin.ktx2"
     );
-    assert_eq!(fixed_rect(&registry, cap).2, 154.0);
+    assert_eq!(fixed_rect(&registry, cap).2, 59.5);
+
+    shared.insert(class_bar(None));
+    screen.sync(&shared, &mut registry);
+    assert_eq!(registry.get_by_name(cap), None);
+    shared.insert(class_bar(Some(8)));
+    screen.sync(&shared, &mut registry);
+    assert_eq!(
+        file_of(&registry, cap),
+        "data/ui/endcaps/wide/left/mage.ktx2"
+    );
 
     shared.insert(ActiveSkin::Modern);
     screen.sync(&shared, &mut registry);

@@ -96,12 +96,15 @@ pub struct ActionButtonView {
 #[derive(Clone, Debug, PartialEq)]
 pub struct MainActionBarState {
     pub buttons: [ActionButtonView; MAIN_BAR_BUTTONS],
+    /// The player's `ChrClasses` ID; `None` until the player's unit has replicated.
+    pub player_class: Option<u8>,
 }
 
 impl Default for MainActionBarState {
     fn default() -> Self {
         Self {
             buttons: std::array::from_fn(|_| ActionButtonView::default()),
+            player_class: None,
         }
     }
 }
