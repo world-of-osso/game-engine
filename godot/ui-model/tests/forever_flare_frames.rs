@@ -54,6 +54,7 @@ fn small(name: &str) -> SmallUnitFrameState {
         name: name.into(),
         level: None,
         health_fraction: 0.5,
+        dead: false,
         reaction: Some(Reaction::Neutral),
         class_id: None,
     }
