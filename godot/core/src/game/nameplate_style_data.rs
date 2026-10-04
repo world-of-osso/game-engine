@@ -3,7 +3,8 @@ use serde::{Deserialize, Serialize};
 pub const DEFAULT_BAR_WIDTH: f32 = 188.0;
 pub const THICK_HEALTH_HEIGHT: f32 = 20.0;
 pub const THIN_HEALTH_HEIGHT: f32 = 10.0;
-pub const THICK_CAST_HEIGHT: f32 = 10.0;
+/// The cast track of the user's reference of 2026-10-04 (31 px at 2x).
+pub const THICK_CAST_HEIGHT: f32 = 15.0;
 pub const THIN_CAST_HEIGHT: f32 = 6.0;
 pub const MIN_BAR_WIDTH: f32 = 80.0;
 pub const MAX_BAR_WIDTH: f32 = 320.0;
@@ -42,6 +43,8 @@ pub struct NameplateStyle {
     pub cast_height: f32,
     pub cast_colors: CastColors,
     pub show_border: bool,
+    /// The abbreviated health value before the percent inside the Thick bar.
+    pub show_health_value: bool,
     pub name_font_size: f32,
     pub cast_font_size: f32,
 }
@@ -58,13 +61,14 @@ impl Default for NameplateStyle {
             },
             class_colored_players: true,
             cast_width: DEFAULT_BAR_WIDTH,
-            cast_height: THIN_CAST_HEIGHT,
+            cast_height: THICK_CAST_HEIGHT,
             cast_colors: CastColors {
                 normal: [1.0, 0.7, 0.0],
                 channel: [0.0, 1.0, 0.0],
                 uninterruptible: [0.7, 0.7, 0.7],
             },
             show_border: true,
+            show_health_value: false,
             name_font_size: 13.0,
             cast_font_size: 10.0,
         }

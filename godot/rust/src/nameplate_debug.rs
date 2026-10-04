@@ -19,7 +19,10 @@ use godot::{
 };
 use shared::casting::CastState;
 
-use super::{BAR_Y_OFFSET, Nameplates, PlateView, plate_alpha, reaction, reaction_color};
+use super::{
+    BAR_Y_OFFSET, Health, Nameplates, PlateAura, PlateView, health_text, plate_alpha, reaction,
+    reaction_color,
+};
 use crate::GameClient;
 
 /// The original owners: x position, name, health percent, channel instead of cast.
@@ -28,6 +31,8 @@ const OWNERS: [(f32, &str, f32, bool); 3] = [
     (0.0, "Channeling Adept", 45.0, true),
     (3.8, "Training Guardian", 100.0, false),
 ];
+/// Every owner's maximum health: the "425 K" of the user's nameplate reference.
+const MAX_HEALTH: f32 = 425_000.0;
 /// The original camera: (0, 2.5, 12) looking at (0, 2.5, 0).
 const EYE: Vector3 = Vector3::new(0.0, 2.5, 12.0);
 const LOOK: Vector3 = Vector3::new(0.0, 2.5, 0.0);
@@ -55,6 +60,20 @@ pub(crate) fn advance_demo_cast(cast: &mut CastState, delta: f32, paused: bool) 
     if !paused {
         cast.elapsed = (cast.elapsed + delta) % cast.duration;
     }
+}
+
+/// The preview's nameplate auras: the Zolramus Sorcerer carries two of the player's
+/// debuffs (its own spell's icon once the catalog has it), 12 s and 2 m left.
+pub(crate) fn demo_auras(owner: &str, icon: Option<&u32>) -> Vec<PlateAura> {
+    let (Some(&icon_fdid), "Zolramus Sorcerer") = (icon, owner) else {
+        return Vec::new();
+    };
+    ["12 s", "2 m"]
+        .map(|timer| PlateAura {
+            icon_fdid,
+            timer: timer.into(),
+        })
+        .into()
 }
 
 /// The original caption.
@@ -171,6 +190,8 @@ impl WowNameplateDebug {
         let color = reaction_color(&self.style, reaction(None, None));
         let paused = self.paused;
         let selected = self.selected;
+        let icons = &self.icons;
+        let show_value = self.style.show_health_value;
         let cvars = self.plates.cvars;
         self.owners
             .iter_mut()
@@ -183,12 +204,21 @@ impl WowNameplateDebug {
                     occluded: false,
                     anchor: camera.unproject_position(top),
                     fraction: owner.health / 100.0,
+                    health_text: health_text(
+                        &Health {
+                            current: MAX_HEALTH * owner.health / 100.0,
+                            max: MAX_HEALTH,
+                        },
+                        show_value,
+                    ),
                     color,
                     name_color: Color::WHITE,
                     raid_target: None,
                     classification: None,
                     level: None,
                     targeted: selected == Some(owner.id),
+                    enemy: false,
+                    auras: demo_auras(owner.name, icons.get(&owner.cast.spell_id)),
                 };
                 (owner.id, view)
             })
@@ -238,6 +268,7 @@ impl WowNameplateDebug {
             if let Some(plate) = self.plates.plates.get(&owner.id) {
                 entry.set("frame_rect", plate.frame.get_global_rect());
                 entry.set("name", &plate.name.get_text());
+                entry.set("health", &plate.health.get_text());
             }
             plates.set(owner.name, &entry);
         }
