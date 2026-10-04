@@ -230,10 +230,38 @@ fn flare_contents(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
         }
         {flare_bar(format!("{}HealthBar", spec.prefix), health, unit.health_fraction, health_rgb(unit.reaction), spec.mirror)}
         {power_bar.unwrap_or_default()}
-        {flare_border(spec.root, spec.size)}
-        {flare_texts(spec, unit, health)}
+        {flare_border_frame(spec.root, spec.size)}
+        {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), flare_texts(spec, unit, health))}
         {unit.aura_state.map(|state| super::inworld_unit_frames_aura::flare_auras(state, width)).unwrap_or_default()}
     }
+}
+
+/// A child frame over `rect` of its parent holding `content`. FlareUI keeps a frame's
+/// border and its texts in a `Border` and an `Overlay` frame raised above the bars
+/// (levels +4 and +5 over bars at +1, UnitFrames.lua:2084-2106; a cast bar's at +2 and
+/// +3, :495-509): a bar is a child frame and would cover its parent's own regions. Placed
+/// after the bars, a layer's content is as deep as their fills and draws over them.
+pub fn flare_layer(name: String, (x, y, width, height): Rect, content: Element) -> Element {
+    rsx! {
+        r#frame {
+            name: {dyn_name(name)},
+            width,
+            height,
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+            {content}
+        }
+    }
+}
+
+/// `{root}Border`: the `Border` frame over a `size` frame, holding [`flare_border`].
+pub fn flare_border_frame(root: &str, size: (f32, f32)) -> Element {
+    flare_layer(
+        format!("{root}Border"),
+        (0.0, 0.0, size.0, size.1),
+        flare_border(root, size),
+    )
 }
 
 /// A `StatusBar` over its dark `bg`, filled with `color` from the left, or from the right
