@@ -273,3 +273,36 @@ fn status_text_choice_projects_and_commits_status_text_display() {
     apply_hud_file_snapshot(&mut output, &snapshot.hud);
     assert_eq!(output.status_text_display, StatusTextDisplay::Percent);
 }
+
+/// Options > Nameplates "Show Health Value" starts off, flips the draft's
+/// `show_health_value`, and the committed value survives a save and a fresh load.
+#[test]
+fn nameplate_health_value_toggle_defaults_off_and_persists() {
+    use game_engine_core::client_options_data::{
+        ClientOptionsFile, load_options_file_from_path, save_options_file_to_path,
+    };
+    let mut m = model();
+    m.category = OptionsCategory::Nameplates;
+    assert!(!m.committed_hud.nameplate_style.show_health_value);
+    assert!(apply_toggle("nameplate_show_health_value", &mut m));
+    assert!(
+        build_view_model(&m)
+            .options
+            .hud
+            .nameplate_style
+            .show_health_value
+    );
+    let snapshot = apply_snapshot(&mut m);
+    let mut file = ClientOptionsFile::default();
+    apply_hud_file_snapshot(&mut file.hud, &snapshot.hud);
+    let path = std::env::temp_dir().join(format!("healthopt-options-{}.ron", std::process::id()));
+    save_options_file_to_path(&path, &file).unwrap();
+    let loaded = load_options_file_from_path(&path);
+    std::fs::remove_file(&path).unwrap();
+    assert!(loaded.hud.nameplate_style.show_health_value);
+    let mut reloaded = model();
+    reloaded.committed_hud = hud_draft_from_file(&loaded.hud);
+    reloaded.draft_hud = reloaded.committed_hud.clone();
+    assert!(apply_toggle("nameplate_show_health_value", &mut reloaded));
+    assert!(!reloaded.draft_hud.nameplate_style.show_health_value);
+}
