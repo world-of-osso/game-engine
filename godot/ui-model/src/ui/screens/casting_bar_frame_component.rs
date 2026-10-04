@@ -6,7 +6,7 @@ use ui_toolkit::widget_def::Element;
 use crate::hud_layout::hud_layout;
 use crate::ui::screens::inworld_unit_frames_component::CAST_DOCK_W;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_flare::{
-    FLARE_INSET, flare_border,
+    FLARE_INSET, flare_border_frame, flare_layer,
 };
 
 /// The bar fills the cast area.
@@ -148,7 +148,12 @@ pub fn casting_bar_frame_screen(ctx: &SharedContext) -> Element {
     let fill_w = bar_w * state.progress.clamp(0.0, 1.0);
     let at = hud_layout(ctx).cast_bar.place(holder);
     let border = if style.border {
-        flare_border("PlayerCastingBarFrame", holder)
+        flare_border_frame("PlayerCastingBarFrame", holder)
+    } else {
+        Element::default()
+    };
+    let labels = if style.icon {
+        forever_cast_labels(style, state)
     } else {
         Element::default()
     };
@@ -169,6 +174,7 @@ pub fn casting_bar_frame_screen(ctx: &SharedContext) -> Element {
             {bar_background(style, fill_w, bar_fill_color(state, style), state)}
             {icon}
             {border}
+            {labels}
         }
     }
 }
@@ -193,7 +199,7 @@ fn bar_background(
 ) -> Element {
     let (bar_w, bar_h) = style.bar;
     if style.icon {
-        return forever_bar_background(style, fill_w, color, state);
+        return forever_bar_background(style, fill_w, color);
     }
     let spark = if style.spark {
         spark(fill_w - SPARK_W / 2.0, bar_h)
@@ -233,17 +239,8 @@ fn spell_icon(fdid: u32, size: f32, inset: f32) -> Element {
     }
 }
 
-fn forever_bar_background(
-    style: &CastBarStyle,
-    fill_w: f32,
-    color: &str,
-    state: &CastingBarState,
-) -> Element {
+fn forever_bar_background(style: &CastBarStyle, fill_w: f32, color: &str) -> Element {
     let (width, height) = style.bar;
-    // UnitFrames.lua:49,588-596: 4px text inset and 4px before the timer.
-    const TEXT_INSET: f32 = 4.0;
-    let timer_x = width - TEXT_INSET - TIMER_W;
-    let name_width = timer_x - 2.0 * TEXT_INSET;
     rsx! {
         r#frame {
             name: "CastingBarBackground",
@@ -254,10 +251,26 @@ fn forever_bar_background(
             pos_x: {style.inset + height},
             pos_y: style.inset,
             {fill_bar(fill_w, height, color)}
-            {forever_cast_label("CastingBarSpellName", &state.spell_name, (TEXT_INSET, name_width, height), "LEFT")}
-            {forever_cast_label("CastingBarTimer", &state.timer_text, (timer_x, TIMER_W, height), "RIGHT")}
         }
     }
+}
+
+/// `CastingBarOverlay`: spell name and remaining time over the bar, above its border.
+fn forever_cast_labels(style: &CastBarStyle, state: &CastingBarState) -> Element {
+    let (width, height) = style.bar;
+    // UnitFrames.lua:49,588-596: 4px text inset and 4px before the timer.
+    const TEXT_INSET: f32 = 4.0;
+    let timer_x = width - TEXT_INSET - TIMER_W;
+    let name_width = timer_x - 2.0 * TEXT_INSET;
+    let labels = rsx! {
+        {forever_cast_label("CastingBarSpellName", &state.spell_name, (TEXT_INSET, name_width, height), "LEFT")}
+        {forever_cast_label("CastingBarTimer", &state.timer_text, (timer_x, TIMER_W, height), "RIGHT")}
+    };
+    flare_layer(
+        "CastingBarOverlay".into(),
+        (style.inset + height, style.inset, width, height),
+        labels,
+    )
 }
 
 fn forever_cast_label(
