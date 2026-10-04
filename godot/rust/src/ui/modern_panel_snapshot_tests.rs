@@ -127,9 +127,10 @@ fn modern_chat_meter_and_tooltip_canvases_are_unchanged() {
     assert_eq!(hashes, MODERN_CANVAS_HASHES);
 }
 
-/// Captured from forever6 (0c9f5dff) with this test.
+/// Captured from forever6 (0c9f5dff) with this test; the meter's again at meter2
+/// (9a8e9715), which adds the clickable `DamageMeterTypeDropdown` (was 9780770820284619226).
 const MODERN_CANVAS_HASHES: [u64; 3] = [
     16430831331836887543,
-    9780770820284619226,
+    7363416174316962923,
     17854536772600002908,
 ];
