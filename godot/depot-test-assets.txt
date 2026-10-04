@@ -133,6 +133,16 @@ terrain/7198644.wdt
 terrain/7199999.adt
 terrain/7200002.adt
 terrain/7200000.adt
+textures/186823.blp
+textures/188574.blp
+textures/187911.blp
+textures/186967.blp
+textures/186825.blp
+textures/186975.blp
+textures/186985.blp
+textures/186819.blp
+textures/186983.blp
+textures/186821.blp
 db2/1.60.1.70205/Map.csv
 terrain/777828.adt
 terrain/2847_31_37_obj0.adt
