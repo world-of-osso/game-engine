@@ -110,6 +110,7 @@ fn pet_bars_show_their_status_text() {
     let pet = PetFrameState {
         name: "Wolf".into(),
         health_fraction: 0.5,
+        reaction: None,
         health_text: TextStatusBar::HEALTH.text(
             1_234_567,
             2_469_134,
