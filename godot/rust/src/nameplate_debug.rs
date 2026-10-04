@@ -20,7 +20,8 @@ use godot::{
 use shared::casting::CastState;
 
 use super::{
-    BAR_Y_OFFSET, Health, Nameplates, PlateView, health_text, plate_alpha, reaction, reaction_color,
+    BAR_Y_OFFSET, Health, Nameplates, PlateAura, PlateView, health_text, plate_alpha, reaction,
+    reaction_color,
 };
 use crate::GameClient;
 
@@ -59,6 +60,20 @@ pub(crate) fn advance_demo_cast(cast: &mut CastState, delta: f32, paused: bool) 
     if !paused {
         cast.elapsed = (cast.elapsed + delta) % cast.duration;
     }
+}
+
+/// The preview's nameplate auras: the Zolramus Sorcerer carries two of the player's
+/// debuffs (its own spell's icon once the catalog has it), 12 s and 2 m left.
+pub(crate) fn demo_auras(owner: &str, icon: Option<&u32>) -> Vec<PlateAura> {
+    let (Some(&icon_fdid), "Zolramus Sorcerer") = (icon, owner) else {
+        return Vec::new();
+    };
+    ["12 s", "2 m"]
+        .map(|timer| PlateAura {
+            icon_fdid,
+            timer: timer.into(),
+        })
+        .into()
 }
 
 /// The original caption.
@@ -175,6 +190,7 @@ impl WowNameplateDebug {
         let color = reaction_color(&self.style, reaction(None, None));
         let paused = self.paused;
         let selected = self.selected;
+        let icons = &self.icons;
         let cvars = self.plates.cvars;
         self.owners
             .iter_mut()
@@ -197,6 +213,8 @@ impl WowNameplateDebug {
                     classification: None,
                     level: None,
                     targeted: selected == Some(owner.id),
+                    enemy: false,
+                    auras: demo_auras(owner.name, icons.get(&owner.cast.spell_id)),
                 };
                 (owner.id, view)
             })

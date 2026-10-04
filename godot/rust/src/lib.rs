@@ -50,6 +50,7 @@ mod merchant;
 mod merchant_window;
 mod minimap;
 mod mirror_timers;
+mod nameplate_auras;
 mod nameplate_cast_bar;
 mod nameplate_casts;
 mod nameplates;
