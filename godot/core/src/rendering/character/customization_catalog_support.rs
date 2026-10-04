@@ -42,6 +42,9 @@ pub(super) fn race_mask_bit(race: u8) -> Option<u32> {
         85 => Some(18),
         86 => Some(20),
         91 => Some(19),
+        // Forever 1.60.1.70205 ChrRaces.PlayableRaceBit, not Retail placeholders.
+        95 => Some(32),
+        96 => Some(33),
         _ => None,
     }
 }
