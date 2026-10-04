@@ -29,9 +29,11 @@ fn authored_helmet_rules_group_every_row_by_visibility_id() {
     let data_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
     let started = std::time::Instant::now();
     let rules = load_helmet_geoset_rules(&data_root).unwrap();
-    // Loaded for every character preview; the quadratic parser took ~4 s.
+    // Loaded for every character preview; the quadratic parser took ~4 s. The bound
+    // catches that regression with room for a loaded machine running the whole suite in
+    // parallel (a linear parse measured 545 ms there against a 500 ms bound).
     let elapsed = started.elapsed();
-    assert!(elapsed.as_millis() < 500, "helmet rules took {elapsed:?}");
+    assert!(elapsed.as_millis() < 2000, "helmet rules took {elapsed:?}");
     assert_eq!(rules.len(), 122);
     assert_eq!(rules.values().map(Vec::len).sum::<usize>(), 18302);
     assert_eq!(
