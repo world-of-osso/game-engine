@@ -56,6 +56,11 @@ fn register_action_callbacks(ctx: &Context) -> Result<(), String> {
         true
     })
     .map_err(|err| format!("failed to register clickAt callback: {err}"))?;
+    ctx.add_callback("__wheel", |name: String, notches: i32| -> bool {
+        push_action(UiAutomationAction::WheelFrame(name, notches));
+        true
+    })
+    .map_err(|err| format!("failed to register wheel callback: {err}"))?;
     ctx.add_callback("__rightClick", |name: String| -> bool {
         push_action(UiAutomationAction::RightClickFrame(name));
         true
@@ -167,6 +172,7 @@ const PRELUDE: &str = r#"
 globalThis.ui = {
   click: (name) => __click(name),
   clickAt: (name, across) => __clickAt(name, Number(across)),
+  wheel: (name, notches) => __wheel(name, Math.trunc(Number(notches))),
   rightClick: (name) => __rightClick(name),
   shiftClick: (name) => __shiftClick(name),
   type: (text) => __type(text),
@@ -270,6 +276,8 @@ mod tests {
             ui.rightClick("BuffButton0");
             ui.shiftClick("ContainerFrame0Slot3");
             ui.clickAt("Sliderlayout_text_size", 0.8);
+            ui.wheel("OptionsContentScroll", 3);
+            ui.wheel("OptionsContentScroll", -1);
         "#;
         let actions = run_js_to_actions(script).expect("JS actions should parse");
         assert_eq!(
@@ -282,6 +290,8 @@ mod tests {
                 UiAutomationAction::RightClickFrame("BuffButton0".into()),
                 UiAutomationAction::ShiftClickFrame("ContainerFrame0Slot3".into()),
                 UiAutomationAction::ClickFrameAt("Sliderlayout_text_size".into(), 0.8),
+                UiAutomationAction::WheelFrame("OptionsContentScroll".into(), 3),
+                UiAutomationAction::WheelFrame("OptionsContentScroll".into(), -1),
             ]
         );
     }

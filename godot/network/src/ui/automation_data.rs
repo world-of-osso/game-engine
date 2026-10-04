@@ -11,6 +11,8 @@ pub enum UiAutomationAction {
     ClickFrameAt(String, f32),
     /// Right mouse button on a frame; InWorld only.
     RightClickFrame(String),
+    /// Mouse wheel notches over a frame's centre: positive scrolls down, negative up.
+    WheelFrame(String, i32),
     /// Left click with Shift held (Retail `SPLITSTACK`); InWorld only.
     ShiftClickFrame(String),
     TypeText(String),
@@ -91,6 +93,7 @@ impl UiAutomationAction {
             Self::ClickFrame(_)
                 | Self::ClickFrameAt(..)
                 | Self::RightClickFrame(_)
+                | Self::WheelFrame(..)
                 | Self::ShiftClickFrame(_)
                 | Self::TypeText(_)
                 | Self::PressKey(_)
