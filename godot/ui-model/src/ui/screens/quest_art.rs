@@ -10,10 +10,7 @@ use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
-use crate::ui::panel_styles::{
-    METAL_FRAME_NO_PORTRAIT_OUTSET, METAL_FRAME_NO_PORTRAIT_PANEL_STYLE, METAL_FRAME_OUTSET,
-    METAL_FRAME_PANEL_STYLE,
-};
+use crate::panel_style_data::MetalTopLeft;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::strata::FrameStrata;
 
@@ -151,13 +148,7 @@ pub fn portrait_border(
     title: &str,
     close_action: &str,
 ) -> Element {
-    let mut elements = metal_border(
-        prefix,
-        width,
-        height,
-        METAL_FRAME_PANEL_STYLE,
-        METAL_FRAME_OUTSET,
-    );
+    let mut elements = metal_border(prefix, width, height, MetalTopLeft::Portrait);
     elements.extend(window_title(prefix, width, title, PORTRAIT_TITLE_LEFT));
     elements.extend(close_button(prefix, width, close_action));
     elements
@@ -181,13 +172,7 @@ pub fn flat_panel_chrome(
     close_action: &str,
 ) -> Element {
     let mut elements = flat_background(prefix, (6.0, 20.0, width - 2.0, height - 2.0));
-    elements.extend(metal_border(
-        prefix,
-        width,
-        height,
-        METAL_FRAME_NO_PORTRAIT_PANEL_STYLE,
-        METAL_FRAME_NO_PORTRAIT_OUTSET,
-    ));
+    elements.extend(metal_border(prefix, width, height, MetalTopLeft::Plain));
     elements.extend(window_title(prefix, width, title, FLAT_TITLE_LEFT));
     elements.extend(close_button(prefix, width, close_action));
     elements
@@ -203,13 +188,7 @@ pub fn portrait_flat_chrome(
     close_action: &str,
 ) -> Element {
     let mut elements = flat_background(prefix, (2.0, 20.0, width - 2.0, height - 3.0));
-    elements.extend(metal_border(
-        prefix,
-        width,
-        height,
-        METAL_FRAME_PANEL_STYLE,
-        METAL_FRAME_OUTSET,
-    ));
+    elements.extend(metal_border(prefix, width, height, MetalTopLeft::Portrait));
     elements.extend(window_title(prefix, width, title, title_left));
     elements.extend(close_button(prefix, width, close_action));
     elements
@@ -288,21 +267,15 @@ fn window_background(prefix: &str, width: f32, height: f32) -> Element {
     elements
 }
 
-/// A metal panel style on a frame `outset` larger than the window.
-pub(crate) fn metal_border(
-    prefix: &str,
-    width: f32,
-    height: f32,
-    style: &str,
-    outset: [f32; 4],
-) -> Element {
-    let [left, top, right, bottom] = outset;
+/// The `layout` metal border on a frame [`MetalTopLeft::outset`] larger than the window.
+pub(crate) fn metal_border(prefix: &str, width: f32, height: f32, layout: MetalTopLeft) -> Element {
+    let [left, top, right, bottom] = layout.outset();
     rsx! {
         r#frame {
             name: {DynName(format!("{prefix}NineSlice"))},
             width: {width + left + right},
             height: {height + top + bottom},
-            style: style,
+            style: {layout.style_name()},
             pos_type: "absolute",
             left: {-left},
             top: {-top},
