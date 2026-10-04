@@ -195,6 +195,44 @@ fn compact_party_and_raid_draw_shared_names_and_regions_under_both_skins() {
             [145.0, 1.0, 215.0, 35.0],
         ),
     ];
+    let icons = [
+        (
+            1,
+            "RoleIcon",
+            "UI-LFG-RoleIcon-Tank-Micro-GroupFinder",
+            [2026.0, 47.0, 2047.0, 68.0],
+        ),
+        (
+            2,
+            "RoleIcon",
+            "UI-LFG-RoleIcon-Healer-Micro-GroupFinder",
+            [2003.0, 24.0, 2024.0, 45.0],
+        ),
+        (
+            3,
+            "RoleIcon",
+            "UI-LFG-RoleIcon-DPS-Micro-GroupFinder",
+            [2003.0, 1.0, 2024.0, 22.0],
+        ),
+        (
+            1,
+            "ReadyCheckIcon",
+            "UI-LFG-ReadyMark-Raid",
+            [1947.0, 391.0, 2011.0, 455.0],
+        ),
+        (
+            2,
+            "ReadyCheckIcon",
+            "UI-LFG-PendingMark-Raid",
+            [1947.0, 325.0, 2011.0, 389.0],
+        ),
+        (
+            3,
+            "ReadyCheckIcon",
+            "UI-LFG-DeclineMark-Raid",
+            [1947.0, 259.0, 2011.0, 323.0],
+        ),
+    ];
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = group_frames(skin);
         for root in [
@@ -209,6 +247,20 @@ fn compact_party_and_raid_draw_shared_names_and_regions_under_both_skins() {
                 };
                 assert_eq!(texture.source, TextureSource::Atlas(name.into()));
                 assert_region(name, skin, fdid, sheet, rect);
+            }
+        }
+        for root in [
+            "CompactPartyFrameMember",
+            "CompactRaidGroup1Member",
+            "CompactRaidGroup3Member",
+        ] {
+            for (member, suffix, name, rect) in icons {
+                let f = frame(&registry, &format!("{root}{member}{suffix}"));
+                let Some(WidgetData::Texture(texture)) = &f.widget_data else {
+                    panic!("not a texture");
+                };
+                assert_eq!(texture.source, TextureSource::Atlas(name.into()));
+                assert_region(name, skin, 5_171_843, [2048.0, 2048.0], rect);
             }
         }
     }
