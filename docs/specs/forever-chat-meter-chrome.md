@@ -5,7 +5,7 @@ Forever-only reference chrome in `godot/ui-model/src/ui/screens/{chat_frame,dama
 ## What it must do
 
 - [x] Both panels retain dark translucent Blizzard dialog backgrounds, bronze tooltip borders, a header band and separator.
-- [x] Meter header shows DPS and a display-only Threat tab, chart and gear icons; no Retail timer, arrow, minimize or dropdown background.
+- [x] Meter header shows DPS and HPS tabs (Damage Done and Healing Done; [types](damage-meter.md)), chart and gear icons; no Retail timer, arrow, minimize or dropdown background.
 - [x] Meter rows show square class icons (snapshot has no specialization), rounded bronze outlines, class-coloured horizontal-gradient fills over dark tracks and white shadowed rank/name and damage (DPS) labels.
 - [x] Chat keeps existing tabs/actions as plain text, active bright bronze and inactive dim bronze; four bronze header icons. Message rendering, input and scroll behavior remain unchanged.
 - [x] Modern serialized chat/meter trees remain byte-identical to the pre-change baseline, for all chat tabs and an open meter session menu.
@@ -23,7 +23,7 @@ Rectangles use top-left parent-local coordinates. Chat skin (24,-7) is relative 
 | Active title RGB (0.80,0.60,0.34), icon RGB (0.61,0.48,0.29), inactive RGB (0.56,0.51,0.46), alpha 1 | `Modules/DamageMeter.lua:60-61,705`; `Core.lua:148,162,194` |
 | Header/row font 12; black shadow alpha 1 and offset (1,-1); row text white | `Modules/DamageMeter.lua:548,103-104`; `Core.lua:251`; white retained from Retail `NumberFontNormal` (existing damage-meter spec) |
 | Header buttons 22 square; visible glyphs 13.2 square, inset 4.4 | `Modules/Chat.lua:531`; `Core.lua:161,166,171,176` scales all four chat buttons to 0.6 (22*0.6=13.2). Meter hit box/draw box are the same-size adaptation, not the source's per-icon Media sizing (`Modules/DamageMeter.lua:50-57`). Inset derived (22-13.2)/2=4.4 |
-| Meter title x=15, y=7 (90x12); Threat x=64 (60x12); gear x=419.5, chart x=398.5, y=-1 | Title x derived from padding -2 + `TITLE_LEFT` 17 (`Modules/DamageMeter.lua:49`); y derived from skin top -2 + centre 15 minus font half 6 (`:48,548`); icon centres derived from `ICON_RIGHT` 15, `ICON_SIZE` 13, `ICON_SPACING` 21 (`:50,58-59`); button x derives from root width 450 minus 30.5 (gear) or 51.5 (chart); label boxes/Threat x measured from damage-meter screenshot, adapted to the 450-wide root |
+| Meter title x=15, y=7 (90x12); HPS x=64 (60x12); tab hit boxes 49x22 from 4 before each label; third type label x=113 (160x12); gear x=419.5, chart x=398.5, y=-1 | Title x derived from padding -2 + `TITLE_LEFT` 17 (`Modules/DamageMeter.lua:49`); y derived from skin top -2 + centre 15 minus font half 6 (`:48,548`); icon centres derived from `ICON_RIGHT` 15, `ICON_SIZE` 13, `ICON_SPACING` 21 (`:50,58-59`); button x derives from root width 450 minus 30.5 (gear) or 51.5 (chart); label boxes/second tab x measured from damage-meter screenshot, adapted to the 450-wide root; hit boxes and third label derived from the 49 between the tab labels |
 | Meter rows x=4, y=32 + index*20, width 442, height 16; square icon 16; gap 4; bar x=20, width 422 | Measured from damage-meter screenshot, adapted to the 450×214 root; height 16 and spacing 4 retained from existing Retail layout (damage-meter spec); y derived from skin top -2 + `CONTENT_TOP` 34 (`Modules/DamageMeter.lua:47`) |
 | Track RGBA (0.1,0.1,0.1,0.9); fill inset 1; border corner extent 8; gradient black alpha 0.6, transparent left to dark right | **Measured** from damage-meter screenshot, adapted to retained row height. Existing Blizzard cooldown-manager fill art (FDID 6704514); existing Chattynator Fade.png supplies gradient, not FlareUI art |
 | Row name x=5,width=264; value x=274,width=140; text height 16 | Name x=5/value width 140 retained from Retail component; right inset 8 retained, width 422 gives value x=274; measured name gap 5 gives width 264 |
@@ -69,7 +69,6 @@ Icon alignment/crop regression at `20c1a505`: 3 passed, 4 failed (old chat/meter
 
 ## Known gaps (current cycle)
 
-- [ ] Threat tab only: the client meter snapshot carries damage sessions, not threat; no threat numbers invented.
 - [ ] Chat header channel/menu/social/volume icons are presentation only where the client has no corresponding action; existing copy action remains available on the menu icon, scrolling control preserved.
 - [ ] CPU tree proof only; no live/pixel rendering proof requested.
 
