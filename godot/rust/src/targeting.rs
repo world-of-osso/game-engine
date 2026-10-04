@@ -311,6 +311,7 @@ fn target_frame_state(
     texts: &BarTexts,
 ) -> UnitFrameState {
     let mut state = UnitFrameState::named(unit_name(unit));
+    state.class_id = unit.get::<Player>().map(|player| player.class);
     let level = unit.get::<UnitLevel>().map(|&level| {
         level_for_viewer(
             level,
@@ -401,6 +402,7 @@ fn player_frame_state(unit: Unit, in_rest_area: bool, texts: &BarTexts) -> UnitF
         .get::<UnitLevel>()
         .map(|level| level.0.to_string())
         .unwrap_or_default();
+    state.class_id = unit.get::<Player>().map(|player| player.class);
     state.show_combat_icon = unit.in_combat();
     state.show_resting_icon = in_rest_area;
     if let Some(health) = unit.get::<Health>() {
@@ -423,6 +425,7 @@ fn pet_frame_state(unit: Unit, texts: &BarTexts) -> PetFrameState {
     let power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
     PetFrameState {
         name: unit_name(unit),
+        reaction: None,
         health_fraction: health.map_or(0.0, |health| fraction(health.current, health.max)),
         health_text: health
             .map(|health| {
@@ -711,6 +714,11 @@ impl GameClient {
                 format_value_text(scaled(health.current), scaled(health.max))
             });
         if let (Some(state), Some(id)) = (target.as_mut(), target_id) {
+            // Preserve Modern's existing reaction strip; Forever reuses the same
+            // faction-template lookup already used for the target aura view.
+            if ui_toolkit::atlas::active_skin() == ui_toolkit::atlas::ActiveSkin::Forever {
+                state.reaction = Some(self.reaction_to(id));
+            }
             self.fill_target_auras(state, id);
             state.raid_target = self.raid_target_of(id);
         }
@@ -753,10 +761,14 @@ impl GameClient {
         let personal_class_bar = personal_resource
             .as_ref()
             .and_then(|display| display.class_frame.as_ref()?.bar.clone());
-        let pet = self
-            .local_pet_id()
+        let pet_id = self.local_pet_id();
+        let pet_reaction = pet_id.map(|id| self.reaction_to(id));
+        let mut pet = pet_id
             .and_then(|id| self.replica.unit(id))
             .map(|unit| pet_frame_state(unit, &texts));
+        if let Some(pet) = pet.as_mut() {
+            pet.reaction = pet_reaction;
+        }
         let mut state = unit_frames_state(
             player,
             target,
