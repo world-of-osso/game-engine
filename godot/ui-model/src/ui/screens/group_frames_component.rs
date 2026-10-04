@@ -2,6 +2,7 @@
 //! (`CompactRaidFrameContainer`, 8 groups of 5) at the active preset's anchors
 //! (`crate::hud_layout`); the member right-click menu and the ready check frame.
 
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
@@ -99,15 +100,27 @@ pub fn group_frames_screen(ctx: &SharedContext) -> Element {
         .get::<GroupFramesState>()
         .expect("GroupFramesState must be in SharedContext");
     let layout = hud_layout(ctx);
+    let skin = *ctx
+        .get::<ActiveSkin>()
+        .expect("canvas carries the active skin");
     rsx! {
-        {party_frame(&state.party, &layout.party)}
+        {party_frame(&state.party, &layout.party, party_title_hidden(skin))}
         {raid_frame(&state.raid, &layout.raid)}
         {group_context_menu(&state.menu)}
         {ready_check_frame(&state.ready_check)}
     }
 }
 
-fn party_frame(members: &[CompactUnitView], anchor: &HudAnchor) -> Element {
+/// FlareUI hides `CompactPartyFrameTitle` by default (`Core.lua:392` `hidePartyTitle`,
+/// `Modules/Tweaks.lua:869-874`); `Hide()` leaves the members where they are.
+fn party_title_hidden(skin: ActiveSkin) -> bool {
+    match skin {
+        ActiveSkin::Modern => false,
+        ActiveSkin::Forever => true,
+    }
+}
+
+fn party_frame(members: &[CompactUnitView], anchor: &HudAnchor, title_hidden: bool) -> Element {
     let frames: Element = members
         .iter()
         .take(MAX_PARTY_MEMBERS)
@@ -137,7 +150,7 @@ fn party_frame(members: &[CompactUnitView], anchor: &HudAnchor) -> Element {
             bottom: {at.bottom.as_str()},
             margin_left: {at.margin_left},
             margin_top: {at.margin_top},
-            {group_title("CompactPartyFrameTitle", "Party", 0.0, PARTY_MEMBER_W)}
+            {group_title("CompactPartyFrameTitle", "Party", (0.0, PARTY_MEMBER_W), title_hidden)}
             {frames}
         }
     }
@@ -178,8 +191,8 @@ fn raid_group(group: usize, members: &[CompactUnitView]) -> Element {
     let mut column = group_title(
         &format!("CompactRaidGroup{}Title", group + 1),
         &format!("Group {}", group + 1),
-        x,
-        RAID_MEMBER_W,
+        (x, RAID_MEMBER_W),
+        false,
     );
     column.extend(
         members
@@ -198,13 +211,14 @@ fn raid_group(group: usize, members: &[CompactUnitView]) -> Element {
     column
 }
 
-fn group_title(name: &str, text: &str, x: f32, width: f32) -> Element {
+fn group_title(name: &str, text: &str, (x, width): (f32, f32), hidden: bool) -> Element {
     rsx! {
         fontstring {
             name: {DynName(name.to_string())},
             width,
             height: TITLE_H,
             text,
+            hidden,
             font: GameFont::FrizQuadrata,
             font_size: 10.0,
             font_color: TITLE_COLOR,
