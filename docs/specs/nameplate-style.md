@@ -45,6 +45,13 @@ Retail `NamePlateCastingBarMixin` over `CastingBarMixin` (`Blizzard_NamePlates/B
 - [x] `SpellFailure` turns the bar red with `ui-castingbar-pip-red`, reads `Interrupted: <interrupter>` in the interrupter's class colour for a kick, `Interrupted` without an interrupter, `Failed` for a failure on completion, holds 1.0 s and fades 0.3 s (`HoldFadeOutAnim`).
 - [x] A removed cast keeps running until its `SpellGo` or `SpellFailure`; the same cast still replicated after either does not restart the bar, and a new cast of the same spell after a replication gap does.
 
+### Auras (Godot client)
+
+Ported from the Bevy client's `nameplate_auras.rs`. Retail's debuff list takes harmful auras (`AuraUtil.AuraFilters.Harmful`, `Blizzard_NamePlates/Blizzard_NamePlateAuras.lua:85`) cast by the local player (`requireSourceIsLocalPlayer`, :292).
+
+- [x] A plate of a unit the player can attack shows the first six debuffs the local player cast on it, in replicated order: 18px spell icons on a 1px black border, 22px apart from the health body's left end, their bottoms 4px above the plate (above the name on the Thin bar), each with its `SecondsToTimeAbbrev` countdown ("12 s", "2 m") in white 9px Friz on the icon's centre. Hidden with the health bars.
+- [ ] Retail shows only debuffs whose spell has `nameplateShowPersonal` (Blizzard_NamePlateAuras.lua:210, unless `nameplateShowAllPersonalAuras`): the client holds no such flag (not in `AuraView` nor the spell catalog), so every debuff of the player's shows. Retail's 25px item size (`AURA_ITEM_HEIGHT`), cooldown swipe, stack count, crowd-control and buff lists are not drawn.
+
 ### Skins (Godot client)
 
 - [x] Cast bar background, fill, pip and interrupt shield are drawn by atlas name (`ui-castingbar-background`, `ui-castingbar-filling-standard`, `ui-castingbar-pip`, `nameplates-InterruptShield`) from the active skin's `UiTextureAtlas` members: Retail `uicastingbar` under Modern, Forever's set-1 `uicastingbarc60` under Forever. A skin switch rebuilds the plates.
@@ -82,7 +89,8 @@ Retail `NamePlateCastingBarMixin` over `CastingBarMixin` (`Blizzard_NamePlates/B
 - `godot/rust/src/nameplates.rs` — Godot plates: rule inputs from snapshots, occlusion ray, CanvasLayer nodes, `nameplate_state()`/`nameplate_rules(id)` automation, `NameplateProbe`.
 - `godot/rust/src/replicated.rs` — `faction_template`, `unit_flags`, `in_combat` from the host `Replica`.
 - `godot/rust/src/nameplate_casts.rs` — engine-free cast bar state from `CastState`, `SpellGo` and `SpellFailure`.
-- `godot/rust/src/nameplate_cast_bar.rs` — cast bar nodes: frame, fill, pip, shield, icon and name row.
+- `godot/rust/src/nameplate_cast_bar.rs` — cast bar nodes: track, fill, pip, shield, icon and name row.
+- `godot/rust/src/nameplate_auras.rs` — which auras a plate shows and where their icons sit.
 
 ## Tests asserting this spec
 
@@ -98,6 +106,7 @@ Retail `NamePlateCastingBarMixin` over `CastingBarMixin` (`Blizzard_NamePlates/B
 - `godot/core/src/nameplate_visibility_data_tests.rs` — CVar defaults; target/combat/show-all rules; enemy vs friendly player/NPC switches; local, unselectable, dead and far units; occluded alpha; the target's plate opaque at any camera distance.
 - `godot/network/src/wire_tests.rs` `native_bridge_receives_faction_flags_and_combat_status` — the rule inputs over loopback UDP, including a combat drop.
 - `godot/rust/src/nameplates.rs` tests — plate layout around the anchor (Thick with the texts inside, borderless Thin, health fill), health text for 425,000/425,000, 42/55, 12,345/20,000 and 3.5e9/4e9, name trimming, and the rule inputs of a targeted friendly NPC (no plate) and a targeted or fighting hostile NPC (plate).
+- `godot/rust/src/nameplate_auras.rs` tests — only the local player's debuffs on an enemy plate with their countdown, the six-aura cap, icon rects.
 - `godot/rust/src/nameplate_cast_bar.rs` tests — Thick cast track, fill, icon and name rects with and without the border.
 - `godot/tests/nameplate_occlusion.gd` — the occlusion ray on real Godot physics.
 - `godot/tests/world_nameplate_flow.gd` — in world on the dev server.

@@ -26,7 +26,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{
 };
 use godot::{
     classes::{
-        AtlasTexture, Camera3D, CanvasLayer, Control, Image, ImageTexture, Label,
+        AtlasTexture, Camera3D, CanvasLayer, ColorRect, Control, Image, ImageTexture, Label,
         PhysicsRayQueryParameters3D, TextureRect, control::MouseFilter,
         text_server::OverrunBehavior, texture_rect::ExpandMode, texture_rect::StretchMode,
     },
@@ -43,6 +43,7 @@ use ui_toolkit::atlas::{self, ActiveSkin};
 use crate::{
     GameClient,
     faction_reaction::{FactionTemplateEntry, Reaction, parse_faction_template_csv, reaction},
+    nameplate_auras::{self, PlateAura, aura_icon_rect, plate_auras},
     nameplate_cast_bar::{CastArt, CastNodes, atlas_art, place, skin_art, text_bbcode},
     nameplate_casts::{BarType, Interrupter, PlateCasts},
     replicated::UnitFields,
@@ -120,6 +121,9 @@ struct PlateLayout {
     frame: Rect2,
     fill: Rect2,
     text: PlateText,
+    /// The y of the plate's highest part (the frame, the body without one, or the name
+    /// above it), which the aura icons stand over.
+    top: f32,
 }
 
 /// Where a plate's texts sit, relative to the anchor.
@@ -151,23 +155,32 @@ fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> Plat
         center + Vector2::new(-body.x / 2.0, skin.fill_y - fill_size.y / 2.0),
         fill_size,
     );
-    let text = if thick_preset(style) {
+    let plate_top = if style.show_border {
+        frame.position.y
+    } else {
+        -body.y / 2.0
+    };
+    let (text, top) = if thick_preset(style) {
         let left = center.x - body.x / 2.0;
-        PlateText::Inside {
+        let text = PlateText::Inside {
             name_left: Vector2::new(left + TEXT_INSET, 0.0),
             health_right: Vector2::new(left + body.x - TEXT_INSET, 0.0),
-        }
-    } else {
-        let top = if style.show_border {
-            frame_size.y / 2.0 - skin.frame_offset.y
-        } else {
-            body.y / 2.0
         };
-        PlateText::Above {
-            name_bottom: Vector2::new(0.0, -(top + NAME_ABOVE_BAR_SPACING)),
-        }
+        (text, plate_top)
+    } else {
+        let name_bottom = Vector2::new(0.0, plate_top - NAME_ABOVE_BAR_SPACING);
+        // Bevy `name_clearance`: the name line is as high as its font size.
+        (
+            PlateText::Above { name_bottom },
+            name_bottom.y - style.name_font_size,
+        )
     };
-    PlateLayout { frame, fill, text }
+    PlateLayout {
+        frame,
+        fill,
+        text,
+        top,
+    }
 }
 
 /// The text at the bar's right: `AbbreviateLargeNumbers(UnitHealth)` and the percent of
@@ -463,6 +476,14 @@ struct PlateNodes {
     /// Present under a skin with a level frame.
     level: Option<LevelNodes>,
     cast: CastNodes,
+    /// Aura icon slots, grown to the most auras the plate has shown.
+    auras: Vec<AuraNodes>,
+}
+
+struct AuraNodes {
+    border: Gd<ColorRect>,
+    icon: Gd<TextureRect>,
+    timer: Gd<Label>,
 }
 
 /// One unit's plate this frame, also reported to automation.
@@ -485,6 +506,9 @@ struct PlateView {
     level: Option<u8>,
     /// The local player's target.
     targeted: bool,
+    /// The player can attack the unit: its plate shows the player's debuffs.
+    enemy: bool,
+    auras: Vec<PlateAura>,
 }
 
 pub(crate) struct Nameplates {
@@ -631,6 +655,18 @@ impl Nameplates {
                 None => None,
             };
             plate.cast.apply(bar, icon.as_ref(), style, cast_art);
+            // Bevy: aura icons show with the health bars.
+            let auras = if show_health_bars {
+                view.auras.as_slice()
+            } else {
+                &[]
+            };
+            let aura_icons = auras
+                .iter()
+                .map(|aura| cast_art.icon(aura.icon_fdid, &textures))
+                .collect::<Result<Vec<_>, _>>()?;
+            let top = plate_layout(style, view.fraction, level_width).top;
+            apply_auras(plate, auras, &aura_icons, style, top, &art.font);
         }
         self.views = views;
         Ok(())
@@ -773,6 +809,78 @@ fn spawn_plate(
         classification,
         level,
         cast,
+        auras: Vec::new(),
+    }
+}
+
+/// Bevy `spawn_slot`: a black border square under the icon and its countdown, white 9px
+/// Friz with a black shadow, on the icon's centre.
+fn spawn_aura(root: &mut Gd<Control>, font: &Gd<godot::classes::FontFile>) -> AuraNodes {
+    let mut border = ColorRect::new_alloc();
+    border.set_color(Color::from_rgba(0.0, 0.0, 0.0, 0.9));
+    ignore_mouse(&mut border);
+    let mut icon = TextureRect::new_alloc();
+    icon.set_expand_mode(ExpandMode::IGNORE_SIZE);
+    icon.set_stretch_mode(StretchMode::SCALE);
+    ignore_mouse(&mut icon);
+    let mut timer = Label::new_alloc();
+    ignore_mouse(&mut timer);
+    timer.add_theme_font_override("font", font);
+    timer.add_theme_font_size_override("font_size", nameplate_auras::TIMER_FONT_SIZE);
+    timer.add_theme_color_override("font_color", Color::WHITE);
+    timer.add_theme_color_override("font_shadow_color", Color::BLACK);
+    timer.add_theme_constant_override("shadow_offset_x", 1);
+    timer.add_theme_constant_override("shadow_offset_y", 1);
+    root.add_child(&border);
+    root.add_child(&icon);
+    root.add_child(&timer);
+    AuraNodes {
+        border,
+        icon,
+        timer,
+    }
+}
+
+/// One slot per aura in `auras`, the rest hidden.
+fn apply_auras(
+    plate: &mut PlateNodes,
+    auras: &[PlateAura],
+    icons: &[Option<Gd<godot::classes::Texture2D>>],
+    style: &NameplateStyle,
+    top: f32,
+    font: &Gd<godot::classes::FontFile>,
+) {
+    while plate.auras.len() < auras.len() {
+        let nodes = spawn_aura(&mut plate.root, font);
+        plate.auras.push(nodes);
+    }
+    for (slot, nodes) in plate.auras.iter_mut().enumerate() {
+        let Some(aura) = auras.get(slot) else {
+            nodes.border.set_visible(false);
+            nodes.icon.set_visible(false);
+            nodes.timer.set_visible(false);
+            continue;
+        };
+        let rect = aura_icon_rect(style, slot, top);
+        let border = Vector2::splat(nameplate_auras::BORDER);
+        nodes.border.set_position(rect.position - border);
+        nodes.border.set_size(rect.size + border * 2.0);
+        nodes.border.set_visible(true);
+        place(&mut nodes.icon, rect);
+        if let Some(Some(texture)) = icons.get(slot) {
+            nodes.icon.set_texture(texture);
+        }
+        nodes
+            .icon
+            .set_visible(matches!(icons.get(slot), Some(Some(_))));
+        if nodes.timer.get_text().to_string() != aura.timer {
+            nodes.timer.set_text(&aura.timer);
+        }
+        nodes.timer.reset_size();
+        let size = nodes.timer.get_minimum_size();
+        nodes.timer.set_size(size);
+        nodes.timer.set_position(rect.center() - size / 2.0);
+        nodes.timer.set_visible(true);
     }
 }
 
@@ -1049,6 +1157,8 @@ fn project_plate(
         classification: None,
         level: unit.get::<UnitLevel>().map(|level| level.0),
         targeted: selected,
+        enemy: false,
+        auras: Vec::new(),
     })
 }
 
@@ -1065,7 +1175,13 @@ impl GameClient {
             self.nameplates.clear();
             return Ok(());
         };
-        let views = self.nameplate_views(&camera)?;
+        let mut views = self.nameplate_views(&camera)?;
+        for (id, view) in &mut views {
+            view.auras = plate_auras(&self.unit_auras(*id), view.enemy);
+            for aura in &mut view.auras {
+                aura.icon_fdid = self.drawable_fdid(aura.icon_fdid);
+            }
+        }
         for id in views.keys() {
             let cast = self
                 .replica
@@ -1162,6 +1278,7 @@ impl GameClient {
                     fade_far,
                     rules.targeted,
                 )?;
+                view.enemy = rules.enemy;
                 view.raid_target = self.account.raid_targets.icon_of(unit.server_id);
                 view.classification = classification_atlas(
                     unit_classification(unit),
@@ -1247,6 +1364,17 @@ impl GameClient {
             if let Some(bar) = self.nameplates.casts.get(*id) {
                 entry.set("cast", &cast_snapshot(bar, self.nameplates.plates.get(id)));
             }
+            let auras: VarArray = view
+                .auras
+                .iter()
+                .map(|aura| {
+                    let mut entry = VarDictionary::new();
+                    entry.set("icon_fdid", i64::from(aura.icon_fdid));
+                    entry.set("timer", aura.timer.as_str());
+                    entry.to_variant()
+                })
+                .collect();
+            entry.set("auras", &auras);
             plates.set(*id as i64, &entry);
         }
         plates
@@ -1467,6 +1595,12 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
             PlateText::Above {
                 name_bottom: Vector2::new(0.0, -7.0)
             }
+        );
+        // The aura icons clear the 13px name line; on the Thick plate, the frame's top.
+        assert_eq!(layout.top, -20.0);
+        assert_eq!(
+            plate_layout(&NameplateStyle::default(), 1.0, 0.0).top,
+            -12.5
         );
     }
 
