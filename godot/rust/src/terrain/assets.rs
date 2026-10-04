@@ -693,6 +693,38 @@ mod tests {
     }
 
     #[test]
+    fn zephras_maid_reader_preserves_named_companions_without_maid() {
+        let assets = cached_assets();
+        let tiles = wdt::WdtTiles {
+            active: std::collections::BTreeSet::from([(32, 48)]),
+            maid: None,
+        };
+        let ((root_path, bytes), tex, obj) =
+            assets.read_tile_files("azeroth", 32, 48, &tiles).unwrap();
+        assert_eq!(root_path.file_name().unwrap(), "778027.adt");
+        assert_eq!(adt::parse_root(&bytes).unwrap().chunks.len(), 256);
+        assert_eq!(tex.unwrap().0.file_name().unwrap(), "778030.adt");
+        assert_eq!(obj.unwrap().0.file_name().unwrap(), "778028.adt");
+    }
+
+    #[test]
+    fn zephras_declared_maid_does_not_switch_to_named_files_on_missing_root() {
+        let assets = cached_assets();
+        let tiles = wdt::WdtTiles {
+            active: std::collections::BTreeSet::from([(32, 48)]),
+            maid: Some(std::collections::BTreeMap::from([(
+                (32, 48),
+                wdt::TileFileIds::default(),
+            )])),
+        };
+        let error = assets
+            .read_tile_files("azeroth", 32, 48, &tiles)
+            .err()
+            .unwrap();
+        assert!(error.contains("zero FileDataID"), "{error}");
+    }
+
+    #[test]
     fn reads_cached_map_flags_and_global_wmo_placement() {
         let assets = cached_assets();
         let azeroth = assets.read_map_wdt("azeroth").expect("cached Azeroth WDT");
