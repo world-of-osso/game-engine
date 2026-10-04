@@ -389,7 +389,17 @@ def customization_assets(tables):
     return textures - {0}, models - {0}
 
 
-def validate_magic(raw, extension):
+def validate_magic(raw, extension, content_key=None):
+    # Forever BFID payloads start with version 1, then BIDA/BOMT chunks.
+    if extension == "bone" and raw[:8] == b"\x01\0\0\0BIDA":
+        asset_references(raw[4:])  # Validate every chunk's bounds.
+        return
+    # Observed Skyborne AFID files are raw timestamp/keyframe streams: no magic.
+    # Their extension comes from AFID, and exact CASC content identity is required.
+    if extension == "anim" and raw[:4] not in (b"AFM2", b"AFSA", b"AFSB"):
+        if not raw or content_key != hashlib.md5(raw).hexdigest():
+            raise ValueError("raw AFID animation requires matching CASC content key")
+        return
     magics = {
         "m2": (b"MD21", b"MD20"),
         "skin": (b"SKIN",),
@@ -406,6 +416,9 @@ def import_assets(data, staging, tables):
     textures, collections = customization_assets(tables)
     pending = {(fdid, "blp") for fdid in textures | {8200220, 8199012}}
     pending |= {(fdid, "m2") for fdid in collections | {7478487, 7478494}}
+    connection = sqlite3.connect(
+        f"file:{CACHE / 'resolution.sqlite'}?mode=ro", uri=True
+    )
     aliases = []
     visited, failures, counts = set(), [], {"present": 0, "extracted": 0}
     while pending:
@@ -430,7 +443,14 @@ def import_assets(data, staging, tables):
                 present = path.is_file()
                 source = path if present else extracted_path(staging, fdid)
                 raw = source.read_bytes()
-                validate_magic(raw, ext)
+                content_key = None
+                if ext == "anim":
+                    record = connection.execute(
+                        "select content_key from resolution where fdid=?", (fdid,)
+                    ).fetchone()
+                    if record:
+                        content_key = bytes(record[0]).hex()
+                validate_magic(raw, ext, content_key)
                 if not present:
                     path.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(source, path)
@@ -455,6 +475,7 @@ def import_assets(data, staging, tables):
             except (ValueError, OSError, struct.error) as error:
                 failures.append(f"asset {fdid}.{ext}: {error}")
                 print(f"FAILED {failures[-1]}", flush=True)
+    connection.close()
     for fdid, ext, alias in aliases:
         source = data / "models" / f"{fdid}.{ext}"
         if source.is_file() and not alias.is_file():
