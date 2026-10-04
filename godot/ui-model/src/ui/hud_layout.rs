@@ -135,6 +135,7 @@ pub struct HudLayout {
     pub chat: HudAnchor,
     pub chat_size: (f32, f32),
     pub objective_tracker: HudAnchor,
+    pub xp_bar: HudAnchor,
 }
 
 /// Target of target and focus sit right of the whole TargetFrame, tops level with its
@@ -202,6 +203,8 @@ pub const MODERN: HudLayout = HudLayout {
     chat_size: (500.0, 280.0),
     // `ObjectiveTrackerFrame` Edit Mode default.
     objective_tracker: anchor(TopRight, TopRight, -110.0, -275.0),
+    // Status bar 1: EditModePresetLayouts.lua:582-594, `STATUS_BAR_1_ANCHOR_OFFSET_Y` 0.
+    xp_bar: anchor(Bottom, Bottom, 0.0, 0.0),
 };
 
 /// Camelot `MICRO_MENU_ANCHOR_*` BOTTOM (116.5, 6) (EditModePresetLayoutConstants.lua:38-42).
@@ -262,6 +265,8 @@ pub const FOREVER: HudLayout = HudLayout {
     // Place the source's 430x170 messages at BOTTOMLEFT(35,145).
     chat: anchor(BottomLeft, BottomLeft, 1.0, 107.0),
     chat_size: (469.0, 235.0),
+    // Reference screenshot: top centre, bar art beginning 7 units below the screen edge.
+    xp_bar: anchor(Top, Top, 0.0, -6.0),
     ..MODERN
 };
 

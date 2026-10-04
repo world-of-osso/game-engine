@@ -36,6 +36,7 @@ use game_engine_ui_model::objective_tracker_component::{
 };
 use game_engine_ui_model::pet_action_bar_component::{PetActionBarState, pet_action_bar_screen};
 use game_engine_ui_model::status::{ClassBar, ClassBarResource};
+use game_engine_ui_model::xp_bar_component::{XpBarState, xp_bar_screen};
 use shared::components::PowerType;
 use shared::protocol::GroupRoleSnapshot;
 use ui_toolkit::atlas::ActiveSkin;
@@ -144,6 +145,15 @@ fn hud() -> Vec<RegistryModel> {
             chat_frame_screen,
         ),
         model(ObjectiveTrackerState::default(), objective_tracker_screen),
+        model(
+            XpBarState {
+                xp: 250,
+                next_level_xp: 1000,
+                rested_xp: 400,
+                hovered: false,
+            },
+            xp_bar_screen,
+        ),
     ]
 }
 
@@ -253,6 +263,17 @@ fn assert_modern_edit_mode_systems(hud: &[RegistryModel]) {
     assert_eq!(top_left(hud, PARTY_FRAME), (22.0, 147.0));
     let raid = rect(hud, RAID_FRAME);
     assert_eq!((raid.x, raid.y + raid.height), (395.0, 553.0));
+}
+
+#[test]
+fn xp_bar_canvas_mirrors_skin_and_repositions_with_the_hud() {
+    let mut hud = hud();
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, "ExperienceBar", (397.5, 751.0, 571.0, 17.0));
+    sync(&mut hud, ActiveSkin::Forever);
+    assert_rect(&hud, "ExperienceBar", (385.0, 6.0, 596.0, 17.0));
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, "ExperienceBar", (397.5, 751.0, 571.0, 17.0));
 }
 
 #[test]
