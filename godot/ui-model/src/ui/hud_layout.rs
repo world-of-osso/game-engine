@@ -2,7 +2,8 @@
 //! preset (`Blizzard_EditMode/Mainline/EditModePresetLayouts.lua`); Forever takes FlareUI's
 //! unit-frame and cast-bar positions (FlareUI 1.3 `Modules/UnitFrames.lua:1888-1894`) and
 //! Forever's own Edit Mode preset, the Mainline layouts with Camelot constants
-//! (`Blizzard_EditMode/Camelot/EditModePresetLayoutConstants.lua`), for the rest. A screen
+//! (`Blizzard_EditMode/Camelot/EditModePresetLayoutConstants.lua`), for the rest, except
+//! the reference-centred main bar and hidden utility bars. A screen
 //! reads its preset through the canvas's `ActiveSkin`, so a preset switch rebuilds it.
 
 use ui_toolkit::atlas::ActiveSkin;
@@ -12,6 +13,7 @@ use Point::*;
 
 use crate::main_action_bar_component::{BAR_BOTTOM, BAR_W, BUTTON_SIZE};
 use crate::micro_menu::MICRO_MENU_W;
+use crate::minimap::FOREVER_CLUSTER_SIZE;
 use crate::ui::screens::inworld_unit_frames_component::{
     PET_FRAME_H, PET_FRAME_W, SMALL_FRAME_GAP, TOT_H, TOT_W, UNIT_FRAME_H, UNIT_FRAME_W,
 };
@@ -121,6 +123,8 @@ pub struct HudLayout {
     pub pet_action_bar: HudAnchor,
     pub micro_menu: HudAnchor,
     pub bags_bar: HudAnchor,
+    /// The supplied Forever reference shows neither utility bar; FlareUI supports hiding them.
+    pub hide_utility_bars: bool,
     pub buffs: HudAnchor,
     pub debuffs: HudAnchor,
     pub minimap: HudAnchor,
@@ -131,6 +135,7 @@ pub struct HudLayout {
     pub chat: HudAnchor,
     pub chat_size: (f32, f32),
     pub objective_tracker: HudAnchor,
+    pub xp_bar: HudAnchor,
 }
 
 /// Target of target and focus sit right of the whole TargetFrame, tops level with its
@@ -179,6 +184,7 @@ pub const MODERN: HudLayout = HudLayout {
         MICRO_BAGS_BAR.0,
         MICRO_BAGS_BAR.1 + 10.0,
     ),
+    hide_utility_bars: false,
     // EditModePresetLayouts.lua:425-431,443-449.
     buffs: anchor(TopRight, TopRight, -255.0, -10.0),
     debuffs: anchor(TopRight, TopRight, -270.0, -155.0),
@@ -197,18 +203,21 @@ pub const MODERN: HudLayout = HudLayout {
     chat_size: (500.0, 280.0),
     // `ObjectiveTrackerFrame` Edit Mode default.
     objective_tracker: anchor(TopRight, TopRight, -110.0, -275.0),
+    // Status bar 1: EditModePresetLayouts.lua:582-594, `STATUS_BAR_1_ANCHOR_OFFSET_Y` 0.
+    xp_bar: anchor(Bottom, Bottom, 0.0, 0.0),
 };
 
 /// Camelot `MICRO_MENU_ANCHOR_*` BOTTOM (116.5, 6) (EditModePresetLayoutConstants.lua:38-42).
 const CAMELOT_MICRO_MENU: (f32, f32) = (116.5, 6.0);
-const CAMELOT_MAIN_ACTION_BAR: HudAnchor = anchor(
-    BottomRight,
-    Bottom,
-    CAMELOT_MICRO_MENU.0 - MICRO_MENU_W / 2.0 - 4.5,
-    CAMELOT_MICRO_MENU.1 - 4.0,
-);
+/// Reference correction: centre the existing bar, retaining Camelot's bottom inset.
+const FOREVER_MAIN_ACTION_BAR: HudAnchor = anchor(Bottom, Bottom, 0.0, 2.0);
 /// FlareUI Core.lua:102-107,218; ActionBars.lua:43,179-190 includes pet buttons.
 pub const FOREVER_ACTION_BUTTON_SCALE: f32 = 1.06;
+
+/// FlareUI Modules/Minimap.lua:366-379,401-406 ("Match Objective Tracker Width", default on,
+/// Core.lua:262): `ObjectiveTrackerFrame:SetScale(minimap frame outer width / 288)`, 288
+/// being the visible line of the 300-wide header art. The frame here is the cluster border.
+pub const FOREVER_TRACKER_SCALE: f32 = FOREVER_CLUSTER_SIZE / 288.0;
 
 /// Chat messages: Mainline/EditModePresetLayouts.lua:490-503, Camelot constants:66.
 /// FlareUI Chat.lua:1515-1520 adds padding 10 and header 24; DamageMeter.lua:1150-1159
@@ -228,17 +237,19 @@ pub const FOREVER: HudLayout = HudLayout {
     // FlareUI UnitFrames.lua:1894 (keyboard default, :1900-1903).
     cast_bar: anchor(Bottom, Bottom, 0.0, 268.0),
     micro_menu: anchor(Bottom, Bottom, CAMELOT_MICRO_MENU.0, CAMELOT_MICRO_MENU.1),
-    // `MAIN_ACTION_BAR_*`: BOTTOMRIGHT on the micro menu's BOTTOMLEFT at (-4.5, -4)
-    // (EditModePresetLayoutConstants.lua:6-10).
-    main_action_bar: CAMELOT_MAIN_ACTION_BAR,
+    // The reference uses the player's Edit Mode layout, not Camelot's combined strip.
+    main_action_bar: FOREVER_MAIN_ACTION_BAR,
+    // FlareUI Visibility.lua:317-344 supports permanent hiding. Reference profile's
+    // exact hide/fade settings are unknown; this preset matches its visible result.
+    hide_utility_bars: true,
     // Mainline/EditModePresetLayouts.lua:183-198; Camelot constants :3,31,35.
     // Shared/EditModeManager.lua:664-672,703-718: BOTTOMLEFT on the base bar's
     // BOTTOMLEFT, above its scaled height + 4, indented 30.
     pet_action_bar: anchor(
         BottomLeft,
         Bottom,
-        CAMELOT_MAIN_ACTION_BAR.x - BAR_W * FOREVER_ACTION_BUTTON_SCALE + 30.0,
-        CAMELOT_MAIN_ACTION_BAR.y + BUTTON_SIZE * FOREVER_ACTION_BUTTON_SCALE + 4.0,
+        FOREVER_MAIN_ACTION_BAR.x - BAR_W * FOREVER_ACTION_BUTTON_SCALE / 2.0 + 30.0,
+        FOREVER_MAIN_ACTION_BAR.y + BUTTON_SIZE * FOREVER_ACTION_BUTTON_SCALE + 4.0,
     ),
     // `BAGS_ANCHOR_*`: BOTTOMLEFT on the micro menu's BOTTOMRIGHT at (7, -4) (:45-49).
     bags_bar: anchor(
@@ -254,6 +265,8 @@ pub const FOREVER: HudLayout = HudLayout {
     // Place the source's 430x170 messages at BOTTOMLEFT(35,145).
     chat: anchor(BottomLeft, BottomLeft, 1.0, 107.0),
     chat_size: (469.0, 235.0),
+    // Reference screenshot: top centre, bar art beginning 7 units below the screen edge.
+    xp_bar: anchor(Top, Top, 0.0, -6.0),
     ..MODERN
 };
 

@@ -9,11 +9,12 @@ use std::f32::consts::FRAC_PI_2;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::inworld_unit_frames_parts::unit_label;
+use super::inworld_unit_frames_parts::WHITE;
 use super::{
-    GOLD_TEXT, PetFrameState, PowerBarState, Rect, SmallUnitFrameState, UNIT_FONT, UnitFrameState,
-    VALUE_TEXT, dyn_name, fraction, power_bar_rgb,
+    DynName, PetFrameState, PowerBarState, Rect, SmallUnitFrameState, UNIT_FONT, UnitFrameState,
+    dyn_name, fraction, power_bar_rgb,
 };
+use crate::damage_meter_data::class_color;
 use crate::faction_reaction::Reaction;
 use crate::hud_layout::HudAnchor;
 
@@ -104,6 +105,7 @@ pub struct FlareUnit<'a> {
     pub level: Option<(&'a str, &'a str)>,
     pub health_fraction: f32,
     pub reaction: Option<Reaction>,
+    pub class_id: Option<u8>,
     pub power: Option<&'a PowerBarState>,
     pub aura_state: Option<&'a UnitFrameState>,
 }
@@ -115,6 +117,7 @@ impl<'a> From<&'a UnitFrameState> for FlareUnit<'a> {
             level: Some((unit.level_text.as_str(), unit.level_color.as_str())),
             health_fraction: unit.health_fraction,
             reaction: unit.reaction,
+            class_id: unit.class_id,
             power: unit.power.as_ref(),
             aura_state: None,
         }
@@ -131,6 +134,7 @@ impl<'a> From<&'a SmallUnitFrameState> for FlareUnit<'a> {
                 .map(|(text, color)| (text.as_str(), color.as_str())),
             health_fraction: unit.health_fraction,
             reaction: unit.reaction,
+            class_id: unit.class_id,
             power: None,
             aura_state: None,
         }
@@ -143,21 +147,28 @@ impl<'a> From<&'a PetFrameState> for FlareUnit<'a> {
             name: &pet.name,
             level: None,
             health_fraction: pet.health_fraction,
-            reaction: None,
+            reaction: pet.reaction,
+            class_id: None,
             power: pet.power.as_ref(),
             aura_state: None,
         }
     }
 }
 
-/// `GetHealthColor`'s reaction colours (UnitFrames.lua:60-69); no reaction reads as
-/// friendly (`REACTION[5]`).
-fn health_rgb(reaction: Option<Reaction>) -> &'static str {
-    match reaction {
+/// `GetHealthColor` returns raw class RGB for players, raw REACTION RGB for NPCs:
+/// no darkening multiplier (UnitFrames.lua:63-72,254-266). Pets use their own reaction,
+/// not their owner's class. The source uses REACTION[5] when reaction is absent.
+fn health_rgb(unit: &FlareUnit<'_>) -> String {
+    if let Some(class_id) = unit.class_id {
+        let [r, g, b] = class_color(class_id);
+        return format!("{r},{g},{b},1.0");
+    }
+    match unit.reaction {
         Some(Reaction::Hostile) => "0.87,0.27,0.27,1.0",
         Some(Reaction::Neutral) => "0.93,0.78,0.25,1.0",
         Some(Reaction::Friendly) | None => "0.30,0.78,0.30,1.0",
     }
+    .to_owned()
 }
 
 /// `spec`'s frame at its preset `anchor`: dark background, bars, bronze border, texts.
@@ -224,14 +235,16 @@ fn flare_contents(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
             width: inner_w,
             height: {height - 2.0 * FLARE_INSET},
             texture_fdid: BACKGROUND_FDID,
+            // BG_OPACITY=0, SetBackdropColor(0,0,0,0) (:42,1768).
+            vertex_color: "0.0,0.0,0.0,0.0",
             pos_type: "absolute",
             pos_x: FLARE_INSET,
             pos_y: FLARE_INSET,
         }
-        {flare_bar(format!("{}HealthBar", spec.prefix), health, unit.health_fraction, health_rgb(unit.reaction), spec.mirror)}
+        {flare_bar(format!("{}HealthBar", spec.prefix), health, unit.health_fraction, &health_rgb(unit), spec.mirror)}
         {power_bar.unwrap_or_default()}
         {flare_border_frame(spec.root, spec.size)}
-        {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), flare_texts(spec, unit, health))}
+        {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), [flare_texts(spec, unit, health), flare_power_text(spec, unit)].into_iter().flatten().collect())}
         {unit.aura_state.map(|state| super::inworld_unit_frames_aura::flare_auras(state, width)).unwrap_or_default()}
     }
 }
@@ -331,7 +344,7 @@ fn flare_texts(spec: &FlareFrame, unit: &FlareUnit<'_>, (x, y, width, height): R
     };
     let level_text = level
         .map(|(text, color)| {
-            unit_label(
+            flare_label(
                 dyn_name(format!("{}LevelText", spec.prefix)),
                 text,
                 (level_x, y, LEVEL_W, height),
@@ -345,7 +358,7 @@ fn flare_texts(spec: &FlareFrame, unit: &FlareUnit<'_>, (x, y, width, height): R
     let percent_hidden = !spec.health_percent;
     rsx! {
         {level_text}
-        {unit_label(dyn_name(format!("{}Name", spec.prefix)), unit.name, (name_x, y, name_w, height), (GOLD_TEXT, FONT_SIZE), far)}
+        {flare_label(dyn_name(format!("{}Name", spec.prefix)), unit.name, (name_x, y, name_w, height), (WHITE, FONT_SIZE), far)}
         fontstring {
             name: percent_name,
             width: HEALTH_TEXT_W,
@@ -354,14 +367,70 @@ fn flare_texts(spec: &FlareFrame, unit: &FlareUnit<'_>, (x, y, width, height): R
             text: percent.as_str(),
             font: UNIT_FONT,
             font_size: FONT_SIZE,
-            font_color: VALUE_TEXT,
+            font_color: WHITE,
             outline: "OUTLINE",
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
             justify_h: near,
             pos_type: "absolute",
             pos_x: percent_x,
             pos_y: y,
         }
     }
+}
+
+/// Plain FontStrings default white (:2099-2107); level alone overrides its colour
+/// with GetQuestDifficultyColor (:365-373). Core.lua:275-277,447-451 specifies OUTLINE
+/// plus an opaque black shadow at (1,-1); Modern's unit_label stays unchanged.
+fn flare_label(
+    name: DynName,
+    text: &str,
+    (x, y, width, height): Rect,
+    (color, font_size): (&str, f32),
+    justify_h: &str,
+) -> Element {
+    rsx! {
+        fontstring {
+            name,
+            width,
+            height,
+            text,
+            font: UNIT_FONT,
+            font_size,
+            font_color: color,
+            outline: "OUTLINE",
+            shadow_color: "0.0,0.0,0.0,1.0",
+            shadow_offset: "1,-1",
+            justify_h,
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+        }
+    }
+}
+
+/// Player power text, right-inset4 (:1824), font10 (Core.lua:276). UpdatePower
+/// passes the current displayed power to Retail's native AbbreviateNumbers (:412).
+/// Frame snapshots have no native/localized abbreviation text: integer values are
+/// shown here; large-value abbreviation and offline/dead suppression remain unbound.
+fn flare_power_text(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
+    let Some(power) = unit.power.filter(|_| spec.power_height >= 10.0) else {
+        return Element::default();
+    };
+    let (width, height) = spec.size;
+    let rect = (
+        FLARE_INSET + TEXT_INSET,
+        height - FLARE_INSET - spec.power_height,
+        width - 2.0 * (FLARE_INSET + TEXT_INSET),
+        spec.power_height,
+    );
+    flare_label(
+        dyn_name(format!("{}ManaBarText", spec.prefix)),
+        &power.current.to_string(),
+        rect,
+        (WHITE, 10.0),
+        if spec.mirror { "LEFT" } else { "RIGHT" },
+    )
 }
 
 /// `{root}Border*`: a `Backdrop` `edgeFile` of `UI-Tooltip-Border` with a 16-px edge over
@@ -375,9 +444,14 @@ pub fn flare_border(root: &str, size: (f32, f32)) -> Element {
 
 /// Same Blizzard border with a caller-specified corner extent (meter rows are thinner).
 pub fn flare_border_with_edge(root: &str, size: (f32, f32), edge: f32) -> Element {
+    flare_border_tinted(root, size, edge, BORDER_COLOR)
+}
+
+/// Same Blizzard border in a module's own `SetBackdropBorderColor` (XPBar.lua:32,150).
+pub fn flare_border_tinted(root: &str, size: (f32, f32), edge: f32, color: &str) -> Element {
     border_pieces(size, edge)
         .into_iter()
-        .flat_map(|piece| border_piece(root, piece))
+        .flat_map(|piece| border_piece(root, piece, color))
         .collect()
 }
 
@@ -419,6 +493,7 @@ fn border_pieces((width, height): (f32, f32), edge: f32) -> [BorderPiece; 8] {
 fn border_piece(
     root: &str,
     (piece, cell, (x, y, width, height), rotation): BorderPiece,
+    color: &str,
 ) -> Element {
     let left = f32::from(cell) * 16.0;
     let coords = format!(
@@ -435,7 +510,7 @@ fn border_piece(
             hidden,
             texture_fdid: BORDER_FDID,
             tex_coords: {coords.as_str()},
-            vertex_color: BORDER_COLOR,
+            vertex_color: color,
             rotation,
             pos_type: "absolute",
             pos_x: x,

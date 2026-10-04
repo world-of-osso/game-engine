@@ -31,9 +31,12 @@ use game_engine_ui_model::main_action_bar_component::{
 use game_engine_ui_model::micro_menu::{MICRO_MENU, MicroMenuView, micro_menu_screen};
 use game_engine_ui_model::minimap::{MINIMAP_CLUSTER, MinimapClusterState, minimap_cluster_screen};
 use game_engine_ui_model::objective_tracker_component::{
-    ObjectiveTrackerState, TRACKER_FRAME, objective_tracker_screen,
+    ObjectiveLine, ObjectiveLineStyle, ObjectiveTrackerState, TRACKER_FRAME, TrackedQuest,
+    objective_tracker_screen,
 };
+use game_engine_ui_model::pet_action_bar_component::{PetActionBarState, pet_action_bar_screen};
 use game_engine_ui_model::status::{ClassBar, ClassBarResource};
+use game_engine_ui_model::xp_bar_component::{XpBarState, xp_bar_screen};
 use shared::components::PowerType;
 use shared::protocol::GroupRoleSnapshot;
 use ui_toolkit::atlas::ActiveSkin;
@@ -88,6 +91,7 @@ fn unit_frames() -> InWorldUnitFramesState {
         pet: Some(PetFrameState {
             name: "Wolf".into(),
             health_fraction: 1.0,
+            reaction: None,
             health_text: Default::default(),
             power: None,
             power_text: Default::default(),
@@ -115,6 +119,13 @@ fn hud() -> Vec<RegistryModel> {
         model(unit_frames(), inworld_unit_frames_screen),
         model(cast, casting_bar_frame_screen),
         model(MainActionBarState::default(), main_action_bar_screen),
+        model(
+            PetActionBarState {
+                visible: true,
+                ..Default::default()
+            },
+            pet_action_bar_screen,
+        ),
         model(MicroMenuView::default(), micro_menu_screen),
         // The bag bar as the client mounts it: inside the bags canvas's composed screen.
         model(
@@ -134,6 +145,15 @@ fn hud() -> Vec<RegistryModel> {
             chat_frame_screen,
         ),
         model(ObjectiveTrackerState::default(), objective_tracker_screen),
+        model(
+            XpBarState {
+                xp: 250,
+                next_level_xp: 1000,
+                rested_xp: 400,
+                hovered: false,
+            },
+            xp_bar_screen,
+        ),
     ]
 }
 
@@ -172,6 +192,33 @@ fn top_right(hud: &[RegistryModel], name: &str) -> (f32, f32) {
     (rect.x + rect.width, rect.y)
 }
 
+fn assert_rect(hud: &[RegistryModel], name: &str, expected: (f32, f32, f32, f32)) {
+    let r = rect(hud, name);
+    let actual = (r.x, r.y, r.width, r.height);
+    for (a, b) in [
+        (actual.0, expected.0),
+        (actual.1, expected.1),
+        (actual.2, expected.2),
+        (actual.3, expected.3),
+    ] {
+        assert!((a - b).abs() < 0.001, "{name}: {actual:?} != {expected:?}");
+    }
+}
+
+fn assert_utility_visibility(hud: &[RegistryModel], hidden: bool) {
+    for name in [MICRO_MENU, "BagsBar"] {
+        let model = hud
+            .iter()
+            .find(|m| m.registry.get_by_name(name).is_some())
+            .unwrap();
+        let frame = model
+            .registry
+            .get(model.registry.get_by_name(name).unwrap())
+            .unwrap();
+        assert_eq!(frame.hidden, hidden, "{name}");
+    }
+}
+
 fn assert_modern(hud: &[RegistryModel]) {
     // Centre x 683, bottom 768. PlayerFrame BOTTOMRIGHT and TargetFrame BOTTOMLEFT at BOTTOM
     // (∓300, 250), 232×100.
@@ -188,6 +235,13 @@ fn assert_modern(hud: &[RegistryModel]) {
     // 329×40 micro menu BOTTOMRIGHT (-6, 6); 368×47 bags bar TOPRIGHT (-6, 96).
     assert_eq!(top_left(hud, MICRO_MENU), (1031.0, 722.0));
     assert_eq!(top_right(hud, "BagsBar"), (1360.0, 672.0));
+    assert_rect(hud, MAIN_ACTION_BAR.0, (402.0, 678.0, 562.0, 45.0));
+    assert_rect(hud, "MainActionBarLeftEndCap", (306.5, 647.0, 104.5, 98.0));
+    assert_rect(hud, "MainActionBarRightEndCap", (956.0, 647.0, 104.5, 98.0));
+    assert_rect(hud, MICRO_MENU, (1031.0, 722.0, 329.0, 40.0));
+    assert_rect(hud, "BagsBar", (992.0, 672.0, 368.0, 47.0));
+    assert_rect(hud, "PetActionBar", (402.0, 643.0, 318.0, 30.0));
+    assert_utility_visibility(hud, false);
     assert_rect(hud, DAMAGE_METER_ROOT.0, (0.0, 0.0, 400.0, 140.0));
     assert_rect(hud, CHAT_FRAME.0, (0.0, 448.0, 500.0, 280.0));
     assert_rect(hud, "ChatFrame1EditBox", (0.0, 696.0, 500.0, 32.0));
@@ -197,6 +251,8 @@ fn assert_modern(hud: &[RegistryModel]) {
         (467.0, 657.0, 26.0, 28.0),
     );
     assert_modern_edit_mode_systems(hud);
+    // Mainline/EditModePresetLayouts.lua:549-554: TOPRIGHT (-110, -275).
+    assert_eq!(top_right(hud, TRACKER_FRAME), (1256.0, 275.0));
 }
 
 /// Systems whose anchors the Forever preset shares with Modern.
@@ -207,16 +263,17 @@ fn assert_modern_edit_mode_systems(hud: &[RegistryModel]) {
     assert_eq!(top_left(hud, PARTY_FRAME), (22.0, 147.0));
     let raid = rect(hud, RAID_FRAME);
     assert_eq!((raid.x, raid.y + raid.height), (395.0, 553.0));
-    assert_eq!(top_right(hud, TRACKER_FRAME), (1256.0, 275.0));
 }
 
-fn assert_rect(hud: &[RegistryModel], name: &str, expected: (f32, f32, f32, f32)) {
-    let rect = rect(hud, name);
-    assert_eq!(
-        (rect.x, rect.y, rect.width, rect.height),
-        expected,
-        "{name}"
-    );
+#[test]
+fn xp_bar_canvas_mirrors_skin_and_repositions_with_the_hud() {
+    let mut hud = hud();
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, "ExperienceBar", (397.5, 751.0, 571.0, 17.0));
+    sync(&mut hud, ActiveSkin::Forever);
+    assert_rect(&hud, "ExperienceBar", (385.0, 6.0, 596.0, 17.0));
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, "ExperienceBar", (397.5, 751.0, 571.0, 17.0));
 }
 
 #[test]
@@ -247,21 +304,23 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
         (bar.x, bar.y, bar.width, bar.height),
         (550.0, 470.0, 292.0, 26.0)
     );
-    // Camelot: micro menu BOTTOM (116.5, 6); main bar BOTTOMRIGHT on its BOTTOMLEFT
-    // (-4.5, -4); bags bar BOTTOMLEFT on its BOTTOMRIGHT (7, -4).
-    assert_eq!(top_left(&hud, MICRO_MENU), (635.0, 722.0));
-    // The main bar's buttons take FlareUI's scale 1.06: 562×45 grows to 595.72×47.7.
-    let bar = rect(&hud, MAIN_ACTION_BAR.0);
-    let edges = [bar.x, bar.y, bar.x + bar.width, bar.y + bar.height];
-    let expected = [630.5 - 562.0 * 1.06, 766.0 - 45.0 * 1.06, 630.5, 766.0];
-    assert!(
-        edges
-            .iter()
-            .zip(expected)
-            .all(|(a, b)| (a - b).abs() < 1e-3),
-        "MainActionBar {edges:?} != {expected:?}"
+    // Reference: centred main bar, gryphons on its ends, no attached utility bars.
+    assert_rect(&hud, MAIN_ACTION_BAR.0, (385.14, 718.3, 595.72, 47.7));
+    assert_rect(
+        &hud,
+        "MainActionBarLeftEndCap",
+        (261.14, 689.65, 154.0, 95.0),
     );
-    assert_eq!(top_left(&hud, "BagsBar"), (971.0, 719.0));
+    assert_rect(
+        &hud,
+        "MainActionBarRightEndCap",
+        (950.86, 689.65, 154.0, 95.0),
+    );
+    // Hidden roots and descendants take no layout space (Display::None).
+    assert_rect(&hud, MICRO_MENU, (0.0, 0.0, 0.0, 0.0));
+    assert_rect(&hud, "BagsBar", (0.0, 0.0, 0.0, 0.0));
+    assert_rect(&hud, "PetActionBar", (415.14, 682.5, 337.08, 31.8));
+    assert_utility_visibility(&hud, true);
     // FlareUI matches the meter root to the chat skin; mirror it across UIParent.
     assert_rect(&hud, DAMAGE_METER_ROOT.0, (891.0, 419.0, 450.0, 214.0));
     // Forever chat messages 430x170 at BOTTOMLEFT(35,145), padding 10 + header 24.
@@ -274,11 +333,117 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
         "ChatFrame1ScrollToBottomButton",
         (437.0, 590.0, 26.0, 28.0),
     );
-    // Other Mainline anchors remain shared.
     assert_modern_edit_mode_systems(&hud);
 
     sync(&mut hud, ActiveSkin::Modern);
     assert_modern(&hud);
+}
+
+#[test]
+fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
+    let mut hud = hud();
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, TRACKER_FRAME, (996.0, 275.0, 260.0, 32.0));
+    let modern_header = rect(&hud, "ObjectiveTrackerFrameHeaderBackground");
+    println!("MODERN_TRACKER_EMPTY_HASH {}", tracker_canvas_hash(&hud));
+    sync(&mut hud, ActiveSkin::Forever);
+    let map = rect(&hud, MINIMAP_CLUSTER);
+    let tracker = rect(&hud, TRACKER_FRAME);
+    let header = rect(&hud, "ObjectiveTrackerFrameHeaderBackground");
+    // FlareUI Modules/Minimap.lua:371-379,401-406: SetScale(frame outer width / 288), the
+    // 288 visible pixels of the 300-pixel header line; here 260 / 288. SetScale also scales
+    // the Mainline TOPRIGHT (-110, -275) offsets: right edge 1366 - 99.306, top 248.264.
+    let actual = [
+        tracker.x,
+        tracker.y,
+        tracker.width,
+        tracker.height,
+        header.width,
+    ];
+    let expected = [1031.9722, 248.26389, 234.72223, 28.88889, 270.83334];
+    for (actual, expected) in actual.into_iter().zip(expected) {
+        assert!((actual - expected).abs() < 0.001, "{actual} != {expected}");
+    }
+    assert!((header.width * 288.0 / 300.0 - map.width).abs() < 0.001);
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, TRACKER_FRAME, (996.0, 275.0, 260.0, 32.0));
+    assert_eq!(
+        rect(&hud, "ObjectiveTrackerFrameHeaderBackground"),
+        modern_header
+    );
+}
+
+/// Snapshot the external frame data and computed bounds, not the RSX construction.
+fn tracker_canvas_hash(hud: &[RegistryModel]) -> u64 {
+    use std::hash::{DefaultHasher, Hash, Hasher};
+    let registry = &hud.last().unwrap().registry;
+    let rects = compute_layout_with_intrinsics(registry, &HashMap::new()).unwrap();
+    let mut frames: Vec<_> = registry.frames_iter().collect();
+    frames.sort_by_key(|frame| frame.id);
+    let mut hash = DefaultHasher::new();
+    for frame in frames {
+        format!(
+            "{:?} {:?} {:?} {} {} {:?} {:?} {:?} {:?}",
+            frame.name,
+            frame.parent_id,
+            rects[&frame.id],
+            frame.visible,
+            frame.alpha,
+            frame.background_color,
+            frame.widget_data,
+            frame.strata,
+            frame.onclick,
+        )
+        .hash(&mut hash);
+    }
+    hash.finish()
+}
+
+#[test]
+fn forever_tracker_scales_quest_text_art_and_hit_rects_without_changing_modern() {
+    set_data_root();
+    let state = ObjectiveTrackerState {
+        quests: vec![TrackedQuest {
+            quest_id: 783,
+            title: "A Threat Within".into(),
+            complete: false,
+            lines: vec![
+                ObjectiveLine {
+                    text: "2/8 Defias slain".into(),
+                    style: ObjectiveLineStyle::InProgress,
+                },
+                ObjectiveLine {
+                    text: "Marshal McBride found".into(),
+                    style: ObjectiveLineStyle::Completed,
+                },
+            ],
+        }],
+        ..Default::default()
+    };
+    let mut hud = [model(state, objective_tracker_screen)];
+    sync(&mut hud, ActiveSkin::Modern);
+    let modern = tracker_canvas_hash(&hud);
+    println!("MODERN_TRACKER_POPULATED_HASH {modern}");
+    sync(&mut hud, ActiveSkin::Forever);
+    let registry = &hud[0].registry;
+    for (name, expected) in [
+        ("ObjectiveTrackerFrameHeaderText", 12.638889),
+        ("QuestBlock783HeaderText", 10.833333),
+        ("QuestBlock783Line0Text", 10.833333),
+    ] {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Some(ui_toolkit::frame::WidgetData::FontString(font)) = &frame.widget_data else {
+            panic!("{name} is not text");
+        };
+        assert!((font.font_size - expected).abs() < 0.001, "{name}");
+    }
+    let hit = rect(&hud, "QuestBlock783POIButton");
+    assert!((hit.width - 18.055555).abs() < 0.001);
+    assert!((hit.height - 18.055555).abs() < 0.001);
+    let check = rect(&hud, "QuestBlock783Line1Check");
+    assert!((check.width - 14.444445).abs() < 0.001);
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_eq!(tracker_canvas_hash(&hud), modern);
 }
 
 /// Retail Arcane Charges: `PlayerFrameBottomManagedFramesContainer` top 4 px below the
