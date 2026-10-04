@@ -257,6 +257,9 @@ pub struct GameClient {
     startup_panel: Option<startup::StartupPanel>,
     targeting: targeting::Targeting,
     nameplates: nameplates::Nameplates,
+    /// The local player's and the target's cast bars, on their own clocks: neither
+    /// needs a nameplate.
+    cast_bars: nameplate_casts::PlateCasts,
     soft_interact: soft_interact::SoftInteract,
     spells: spells::SpellsHud,
     pet_bar: pet_bar::PetBarHud,
@@ -375,6 +378,7 @@ impl INode3D for GameClient {
             startup_panel: None,
             targeting: targeting::Targeting::new(data_root.clone()),
             nameplates: nameplates::Nameplates::new(),
+            cast_bars: nameplate_casts::PlateCasts::default(),
             soft_interact: soft_interact::SoftInteract::default(),
             spells: spells::SpellsHud::default(),
             pet_bar: pet_bar::PetBarHud::default(),
@@ -1628,7 +1632,8 @@ impl GameClient {
             ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
             ("Player input", |c, d| Ok(c.update_player_input(d)?)),
             ("Pet bar", |c, d| c.update_pet_bar(d)),
-            ("Targeting", |c, d| c.update_targeting(d)),
+            ("Cast bars", |c, d| c.update_cast_bars(d)),
+            ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
             ("Character frame", |c, _| c.update_character_frame()),

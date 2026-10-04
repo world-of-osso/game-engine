@@ -1,7 +1,7 @@
 use shared::casting::CastState;
 use shared::spell_data::CastFailReason;
 
-use super::{BarType, Interrupter, PlateCasts, Spark};
+use super::{BarType, Interrupter, PlateCasts, Spark, casting_bar_state};
 
 const UNIT: u64 = 42;
 const BOLT: u32 = 133;
@@ -217,4 +217,95 @@ fn a_finished_cast_still_replicated_does_not_restart() {
     casts.observe(UNIT, Some(&bolt(1.9, true)));
     let bar = casts.get(UNIT).unwrap();
     assert!(!bar.casting && bar.full);
+}
+
+/// The HUD bar of `UNIT` after `seconds` more of the bar's clock, if it still shows.
+fn hud_after(
+    casts: &mut PlateCasts,
+    seconds: f32,
+) -> Option<game_engine_ui_model::casting_bar_frame_component::CastingBarState> {
+    run(casts, seconds);
+    casts
+        .get(UNIT)
+        .map(|bar| casting_bar_state(bar, Some(135846)))
+}
+
+/// `HandleInterruptOrSpellFailed` then `HoldFadeOutAnim` (1.0 s hold, 0.3 s fade,
+/// CastingBarFrameTemplates.xml:11-13), with the replicated cast already removed.
+#[test]
+fn hud_cast_bar_interrupted_holds_then_fades_out_and_hides() {
+    let mut casts = PlateCasts::default();
+    casts.observe(UNIT, Some(&bolt(0.5, true)));
+    let s = hud_after(&mut casts, 0.5).expect("casting");
+    assert_eq!(
+        (s.spell_name.as_str(), s.timer_text.as_str()),
+        ("Necrotic Bolt", "1.0")
+    );
+    assert!(!s.is_interrupted);
+    casts.observe(UNIT, None);
+    casts.spell_failure(UNIT, BOLT, CastFailReason::Interrupted, None);
+    let s = hud_after(&mut casts, 0.0).expect("interrupted");
+    assert!(s.visible && s.is_interrupted);
+    assert_eq!(s.spell_name, "Interrupted");
+    assert_eq!(s.timer_text, "", "no cast time once the cast has ended");
+    assert_eq!(s.alpha, 1.0);
+    let s = hud_after(&mut casts, 0.95).expect("still held");
+    assert_eq!((s.spell_name.as_str(), s.alpha), ("Interrupted", 1.0));
+    let s = hud_after(&mut casts, 0.2).expect("fading");
+    assert!(s.alpha > 0.0 && s.alpha < 1.0, "fading, alpha {}", s.alpha);
+    assert!(
+        hud_after(&mut casts, 0.2).is_none(),
+        "hidden after the fade"
+    );
+}
+
+#[test]
+fn hud_cast_bar_interrupter_and_failure_texts() {
+    let mut casts = PlateCasts::default();
+    casts.observe(UNIT, Some(&bolt(0.2, true)));
+    let kicker = Interrupter {
+        name: "Thrall".into(),
+        color: None,
+    };
+    casts.spell_failure(UNIT, BOLT, CastFailReason::Interrupted, Some(kicker));
+    assert_eq!(
+        hud_after(&mut casts, 0.0).unwrap().spell_name,
+        "Interrupted: Thrall"
+    );
+    let mut casts = PlateCasts::default();
+    casts.observe(UNIT, Some(&bolt(0.2, true)));
+    casts.spell_failure(UNIT, BOLT, CastFailReason::OutOfRange, None);
+    let s = hud_after(&mut casts, 0.0).expect("failed");
+    assert!(s.is_interrupted, "failed and interrupted share the bar art");
+    assert_eq!(s.spell_name, "Failed");
+    assert!(hud_after(&mut casts, 1.4).is_none());
+}
+
+/// `FinishSpell` then `FadeOutAnim` (0.2 s delay, 0.3 s fade,
+/// CastingBarFrameTemplates.xml:5-6): a completed cast fills and fades, never red.
+#[test]
+fn hud_cast_bar_completed_cast_fills_then_fades_out() {
+    let mut casts = PlateCasts::default();
+    casts.observe(UNIT, Some(&bolt(1.5, true)));
+    casts.observe(UNIT, None);
+    casts.spell_go(UNIT, BOLT);
+    let s = hud_after(&mut casts, 0.0).expect("finished");
+    assert_eq!((s.progress, s.alpha), (1.0, 1.0));
+    assert_eq!(s.spell_name, "Necrotic Bolt");
+    assert!(!s.is_interrupted);
+    let s = hud_after(&mut casts, 0.35).expect("fading");
+    assert!(s.alpha > 0.0 && s.alpha < 1.0);
+    assert!(hud_after(&mut casts, 0.2).is_none());
+}
+
+#[test]
+fn hud_cast_bar_channel_drains_and_keeps_uninterruptible() {
+    let mut casts = PlateCasts::default();
+    let mut cast = missiles(1.0);
+    cast.interruptible = false;
+    casts.observe(UNIT, Some(&cast));
+    let s = hud_after(&mut casts, 0.0).expect("channel");
+    assert!(s.is_channel && !s.is_interruptible);
+    assert!((s.progress - 2.0 / 3.0).abs() < 1e-6);
+    assert_eq!(s.timer_text, "2.0");
 }

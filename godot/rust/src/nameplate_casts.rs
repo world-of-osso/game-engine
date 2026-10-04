@@ -11,6 +11,7 @@
 
 use std::collections::HashMap;
 
+use game_engine_ui_model::casting_bar_frame_component::CastingBarState;
 use shared::casting::{CastState, CastType};
 use shared::spell_data::CastFailReason;
 
@@ -225,6 +226,34 @@ impl CastBar {
                 *t < HOLD_SECS + FADE_SECS
             }
         }
+    }
+}
+
+/// A HUD bar (`PlayerCastingBarFrame`, `TargetFrameSpellBar`) drawn from `bar`, from
+/// its start through the finish or interrupt fade. `CAST_BAR_CAST_TIME` shows only while
+/// casting or channeling (`UpdateCastTimeTextShown`, CastingBarFrame.lua:840-850).
+pub(crate) fn casting_bar_state(bar: &CastBar, icon_fdid: Option<u32>) -> CastingBarState {
+    let timer_text = if bar.casting {
+        format!("{:.1}", (bar.max_value - bar.value).max(0.0))
+    } else if bar.channeling {
+        format!("{:.1}", bar.value.max(0.0))
+    } else {
+        String::new()
+    };
+    let spell_name = match &bar.text.name {
+        Some(name) => format!("{}{}", bar.text.text, name.name),
+        None => bar.text.text.clone(),
+    };
+    CastingBarState {
+        visible: true,
+        spell_name,
+        icon_fdid,
+        timer_text,
+        progress: bar.fraction(),
+        is_channel: bar.channel,
+        is_interruptible: bar.bar_type != BarType::Uninterruptable,
+        is_interrupted: bar.bar_type == BarType::Interrupted,
+        alpha: bar.alpha(),
     }
 }
 

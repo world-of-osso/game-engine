@@ -41,6 +41,7 @@ use shared::protocol::{ActionRef, CastFailed, CombatLogEvent, CombatLogKind};
 
 use crate::combat_text;
 use crate::frame_error::{FrameError, SessionError, report_once};
+use crate::nameplate_casts::{PlateCasts, casting_bar_state};
 use crate::player_spells::{bonus_bar_offset, main_bar_slot};
 use crate::{
     GameClient,
@@ -74,17 +75,6 @@ enum CatalogLoad {
     Failed,
 }
 
-/// The local cast bar, advanced locally between replicated `CastState` updates.
-#[derive(Clone, Copy, PartialEq)]
-struct LocalCast {
-    spell_id: u32,
-    duration: f32,
-    elapsed: f32,
-    /// Last replicated `elapsed`, to spot server resyncs.
-    server_elapsed: f32,
-    channel: bool,
-}
-
 struct FloatingText {
     node: Gd<Label3D>,
     age: f32,
@@ -103,7 +93,6 @@ pub(crate) struct SpellsHud {
     book: SpellbookFrameState,
     /// FDID → whether `data/textures/{fdid}.blp` exists or was copied from local CASC.
     textures: HashMap<u32, bool>,
-    cast: Option<LocalCast>,
     /// Seconds each button stays pushed, by `ActionBar` then button.
     pushed: [[f32; MAIN_BAR_BUTTONS]; ActionBar::ALL.len()],
     combat_seen: u64,
@@ -128,7 +117,6 @@ impl Default for SpellsHud {
             book_drag: None,
             book: SpellbookFrameState::default(),
             textures: HashMap::new(),
-            cast: None,
             pushed: Default::default(),
             combat_seen: 0,
             floating: Vec::new(),
@@ -181,7 +169,6 @@ impl SpellsHud {
                 text.node.free();
             }
         }
-        self.cast = None;
         self.book_position = None;
         self.book_drag = None;
         self.book = SpellbookFrameState::default();
@@ -362,7 +349,7 @@ impl GameClient {
         }
         self.sync_action_bar()?;
         self.sync_vigor_bar()?;
-        self.sync_cast_bar(delta)?;
+        self.sync_cast_bar()?;
         self.sync_spellbook()?;
         self.float_combat_text(delta);
         Ok(())
@@ -598,64 +585,45 @@ impl GameClient {
         Ok(())
     }
 
-    fn local_cast_state(&mut self, delta: f32) -> Option<LocalCast> {
-        let player = self.world.local_player_id()?;
-        let replicated = self.replica.unit(player)?.get::<CastState>()?;
-        let channel = replicated.cast_type == shared::casting::CastType::Channel;
-        let cast = match self.spells.cast {
-            Some(local)
-                if local.spell_id == replicated.spell_id
-                    && local.server_elapsed == replicated.elapsed =>
-            {
-                LocalCast {
-                    elapsed: (local.elapsed + delta).min(local.duration),
-                    ..local
-                }
-            }
-            _ => LocalCast {
-                spell_id: replicated.spell_id,
-                duration: replicated.duration,
-                elapsed: replicated.elapsed,
-                server_elapsed: replicated.elapsed,
-                channel,
-            },
-        };
-        Some(cast)
+    /// The HUD cast bars' clocks this frame (`PlayerCastingBarFrame`,
+    /// `TargetFrameSpellBar`): the local player's and the target's replicated casts;
+    /// bars of other units are dropped.
+    pub(super) fn update_cast_bars(&mut self, delta: f32) -> Result<(), FrameError> {
+        if self.account.session.screen != SessionScreen::InWorld {
+            self.cast_bars = PlateCasts::default();
+            return Ok(());
+        }
+        let units = [self.world.local_player_id(), self.targeting_target()];
+        for id in units.into_iter().flatten() {
+            let cast = self
+                .replica
+                .unit(id)
+                .and_then(|unit| unit.get::<CastState>());
+            self.cast_bars.observe(id, cast);
+        }
+        self.cast_bars
+            .advance(delta, |id| units.contains(&Some(id)));
+        Ok(())
     }
 
-    fn sync_cast_bar(&mut self, delta: f32) -> Result<(), String> {
-        self.spells.cast = self.local_cast_state(delta);
-        let state = match self.spells.cast {
-            Some(cast) => {
-                let spell = self
-                    .spells
-                    .catalog()
-                    .and_then(|data| data.get(cast.spell_id));
-                let name = spell
-                    .map(|spell| spell.name.to_string())
-                    .unwrap_or_default();
-                let icon_fdid = spell.map(|spell| spell.icon_fdid);
-                let fraction = if cast.duration > 0.0 {
-                    cast.elapsed / cast.duration
-                } else {
-                    1.0
-                };
-                CastingBarState {
-                    visible: true,
-                    spell_name: name,
-                    icon_fdid,
-                    timer_text: format!("{:.1}", (cast.duration - cast.elapsed).max(0.0)),
-                    progress: if cast.channel {
-                        1.0 - fraction
-                    } else {
-                        fraction
-                    },
-                    is_channel: cast.channel,
-                    ..CastingBarState::default()
-                }
-            }
-            None => CastingBarState::default(),
-        };
+    /// `unit`'s HUD cast bar with its spell art, while it has one.
+    pub(super) fn hud_cast_bar(&mut self, unit: u64) -> Option<CastingBarState> {
+        let spell = self.cast_bars.get(unit)?.spell_id;
+        let art = self
+            .spells
+            .catalog()
+            .and_then(|catalog| catalog.get(spell))
+            .map(|spell| spell.icon_fdid);
+        let icon = art.map(|fdid| self.drawable_fdid(fdid));
+        Some(casting_bar_state(self.cast_bars.get(unit)?, icon))
+    }
+
+    fn sync_cast_bar(&mut self) -> Result<(), String> {
+        let state = self
+            .world
+            .local_player_id()
+            .and_then(|player| self.hud_cast_bar(player))
+            .unwrap_or_default();
         if let Some(ui) = self.spells.cast_ui.as_mut() {
             return ui.bind_mut().set_state(state);
         }
@@ -1099,7 +1067,11 @@ impl GameClient {
         state.set("errors", &errors);
         state.set(
             "casting",
-            self.spells.cast.map_or(0, |cast| i64::from(cast.spell_id)),
+            self.world
+                .local_player_id()
+                .and_then(|player| self.cast_bars.get(player))
+                .filter(|bar| bar.casting || bar.channeling)
+                .map_or(0, |bar| i64::from(bar.spell_id)),
         );
         let damage: Vec<u32> = self
             .account

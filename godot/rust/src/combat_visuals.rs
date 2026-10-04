@@ -27,6 +27,7 @@ impl GameClient {
                     self.player_movement.skyriding_spell(go.spell_id);
                 }
                 self.nameplates.casts.spell_go(go.caster, go.spell_id);
+                self.cast_bars.spell_go(go.caster, go.spell_id);
                 self.auto_attack_post_cast(&go)?;
                 let started = Instant::now();
                 let shown = self
@@ -39,12 +40,14 @@ impl GameClient {
                 let interrupter = failure
                     .failed_by
                     .and_then(|unit| self.cast_interrupter(unit));
-                self.nameplates.casts.spell_failure(
-                    failure.caster,
-                    failure.spell_id,
-                    failure.reason,
-                    interrupter,
-                );
+                for casts in [&mut self.nameplates.casts, &mut self.cast_bars] {
+                    casts.spell_failure(
+                        failure.caster,
+                        failure.spell_id,
+                        failure.reason,
+                        interrupter.clone(),
+                    );
+                }
                 Ok(())
             }
             CombatMessage::AttackStart(start) => {
