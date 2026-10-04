@@ -501,8 +501,12 @@ fn check_position(registry: &FrameRegistry, node: &str, x: f32, y: f32) {
     );
 }
 
+/// The tests switch the process-wide skin.
+static SKIN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 #[test]
 fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
+    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -625,7 +629,7 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
         check_position(&registry, "CharacterMainHandSlot", 140.5, 417.0);
         check_position(&registry, "CharacterSecondaryHandSlot", 183.5, 417.0);
         check_position(&registry, "CharacterModelScene", 0.0, 20.0);
-        check_position(&registry, "CharacterStatsPaneClassBackground", 398.0, 110.0);
+        check_position(&registry, "CharacterStatsPaneClassBackground", 398.0, 100.0);
         check_position(&registry, "CharacterFrameTab1", 631.0, 30.0);
         check_position(&registry, "CharacterFrameTab2", 631.0, 87.0);
         assert!(
@@ -684,6 +688,37 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
             };
             assert_eq!(texture.vertex_color, [1.0; 4], "{node}");
         }
+    }
+    set_active_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn forever_stats_class_art_stays_inside_the_character_frame() {
+    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_active_skin(ActiveSkin::Forever);
+    let size = |frame: &ui_toolkit::frame::Frame| match (frame.width, frame.height) {
+        (Dimension::Fixed(w), Dimension::Fixed(h)) => (w, h),
+        other => panic!("{other:?}"),
+    };
+    for class_id in 1..=12 {
+        let mut data = view(true);
+        data.class_id = class_id;
+        let registry = build(data);
+        let get = |name: &str| registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let (frame_w, frame_h) = size(get("CharacterFrame"));
+        let art = get("CharacterStatsPaneClassBackground");
+        let (w, h) = size(art);
+        let (Val::Px(x), Val::Px(y)) = (art.position.left, art.position.top) else {
+            panic!("{:?}", art.position)
+        };
+        assert!(
+            x >= 0.0 && y >= 0.0 && x + w <= frame_w && y + h <= frame_h,
+            "class {class_id}: art {x},{y} {w}x{h} outside the {frame_w}x{frame_h} frame"
+        );
     }
     set_active_skin(ActiveSkin::Modern);
 }
