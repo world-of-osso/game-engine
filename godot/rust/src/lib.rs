@@ -634,6 +634,25 @@ impl GameClient {
         );
     }
 
+    /// Offline integration fixture: stream an authored map at an engine-space position.
+    /// Uses the production map identity, terrain and object paths; does not authenticate.
+    #[func]
+    fn preview_world_map(&mut self, directory: GString, position: Vector3) -> GString {
+        let directory = directory.to_string();
+        let result = (|| {
+            let map_id = account::read_map_id(&self.data_root, &directory)?;
+            self.reset_world()?;
+            self.world_map_id = Some(map_id);
+            let tile =
+                game_engine_core::terrain_height_data::bevy_to_tile_coords(position.x, position.z);
+            self.terrain.request_map(directory, tile)
+        })();
+        match result {
+            Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
     /// Main-thread time of the last `process`, in milliseconds.
     #[func]
     fn process_ms(&self) -> f64 {
