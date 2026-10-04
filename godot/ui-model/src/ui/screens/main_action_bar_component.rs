@@ -35,12 +35,19 @@ const FRAME_ART_W: f32 = 46.0;
 const COOLDOWN_INSET: f32 = 3.0;
 /// Cooldown `SwipeTexture` colour 0,0,0,0.8.
 const COOLDOWN_SWIPE: &str = "0.0,0.0,0.0,0.8";
-/// `HotKey`: 32×10 at TOPRIGHT -4,-5 (`hotkeyTextKeyboardX/Y`), `NumberFontNormalSmallGray`.
+/// `HotKey` at TOPRIGHT -4,-5 (`hotkeyTextKeyboardX/Y`).
+const HOTKEY_ANCHOR: (f32, f32) = (4.0, 5.0);
+/// `HotKey` (`ActionButtonTemplate.xml:85-91`): 32×10, `justifyH="RIGHT"`, one line (its
+/// height holds no second), `NumberFontNormalSmallGray` grey (`GameFontStyles.xml:21-23`).
 const HOTKEY_W: f32 = 32.0;
 const HOTKEY_H: f32 = 10.0;
-const HOTKEY_RIGHT: f32 = 4.0;
-const HOTKEY_TOP: f32 = 5.0;
 const HOTKEY_COLOR: &str = "0.6,0.6,0.6,1.0";
+/// FlareUI `hotkeyFont` (Core.lua:224): Arial Narrow 12 OUTLINE at TOPRIGHT -4,-4 with a
+/// black 1,-1 shadow (Modules/ActionBars.lua:263,274-275; Core.lua:447-451) on every
+/// button. FlareUI sets no colour, so Forever's runtime `ACTIONBAR_HOTKEY_FONT_COLOR`
+/// (`ActionButton.lua:1258`) shows: 210/255 grey-white in the user's reference capture.
+const FOREVER_HOTKEY_ANCHOR: (f32, f32) = (4.0, 4.0);
+const FOREVER_HOTKEY_COLOR: &str = "0.82,0.82,0.82,1.0";
 /// `CooldownFrameTemplate` countdown numbers.
 const COOLDOWN_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
 
@@ -71,6 +78,7 @@ const CLASS_SHIELD_GAP: f32 = 6.0;
 
 /// How a skin draws the bar.
 struct BarStyle {
+    skin: ActiveSkin,
     /// Every button's `SetScale`.
     scale: f32,
     /// Whether `SlotBackground` shows under the icon.
@@ -83,10 +91,12 @@ struct BarStyle {
 fn bar_style(skin: ActiveSkin) -> BarStyle {
     match skin {
         ActiveSkin::Modern => BarStyle {
+            skin,
             scale: 1.0,
             slot_background: true,
         },
         ActiveSkin::Forever => BarStyle {
+            skin,
             scale: FOREVER_ACTION_BUTTON_SCALE,
             slot_background: false,
         },
@@ -367,22 +377,52 @@ fn cooldown(name: &str, view: &ActionButtonView, scale: f32) -> Element {
     }
 }
 
-fn hotkey(name: &str, label: &str, scale: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: {DynName(format!("{name}HotKey"))},
-            width: {HOTKEY_W * scale},
-            height: {HOTKEY_H * scale},
-            text: label,
-            font: GameFont::ArialNarrow,
-            font_size: {12.0 * scale},
-            font_color: HOTKEY_COLOR,
-            outline: "OUTLINE",
-            justify_h: "RIGHT",
-            pos_type: "absolute",
-            right: {HOTKEY_RIGHT * scale},
-            pos_y: {HOTKEY_TOP * scale},
-        }
+/// Button `name`'s `HotKey` showing `label`, at the skin's anchor or the template's
+/// `retail_anchor` (right, top).
+pub(crate) fn hotkey(
+    name: &str,
+    label: &str,
+    skin: ActiveSkin,
+    scale: f32,
+    retail_anchor: (f32, f32),
+) -> Element {
+    let name = DynName(format!("{name}HotKey"));
+    let (width, height, font_size) = (HOTKEY_W * scale, HOTKEY_H * scale, 12.0 * scale);
+    match skin {
+        ActiveSkin::Modern => rsx! {
+            fontstring {
+                name,
+                width,
+                height,
+                text: label,
+                font: GameFont::ArialNarrow,
+                font_size,
+                font_color: HOTKEY_COLOR,
+                outline: "OUTLINE",
+                justify_h: "RIGHT",
+                pos_type: "absolute",
+                right: {retail_anchor.0 * scale},
+                pos_y: {retail_anchor.1 * scale},
+            }
+        },
+        ActiveSkin::Forever => rsx! {
+            fontstring {
+                name,
+                width,
+                height,
+                text: label,
+                font: GameFont::ArialNarrow,
+                font_size,
+                font_color: FOREVER_HOTKEY_COLOR,
+                outline: "OUTLINE",
+                shadow_color: "0.0,0.0,0.0,1.0",
+                shadow_offset: "1,-1",
+                justify_h: "RIGHT",
+                pos_type: "absolute",
+                right: {FOREVER_HOTKEY_ANCHOR.0 * scale},
+                pos_y: {FOREVER_HOTKEY_ANCHOR.1 * scale},
+            }
+        },
     }
 }
 
@@ -392,7 +432,7 @@ fn button(
     view: &ActionButtonView,
     (x, y): (f32, f32),
     scale: f32,
-    slot_background: bool,
+    style: &BarStyle,
 ) -> Element {
     let name = bar.button_name(index);
     let size = BUTTON_SIZE * scale;
@@ -403,7 +443,7 @@ fn button(
             format!("{name}SlotBackground"),
             SLOT_BACKGROUND,
             cell,
-            !slot_background,
+            !style.slot_background,
             SLOT_LAYER,
         ),
         layered_art(format!("{name}SlotArt"), SLOT_ART, cell, false, SLOT_LAYER),
@@ -427,7 +467,7 @@ fn button(
             frame_art,
             !view.hovered,
         ),
-        hotkey(&name, &view.hotkey, scale),
+        hotkey(&name, &view.hotkey, style.skin, scale, HOTKEY_ANCHOR),
     ]
     .into_iter()
     .flatten()
@@ -539,7 +579,7 @@ fn action_bar(
         .enumerate()
         .flat_map(|(index, view)| {
             let origin = layout.button_origin(index, style.scale);
-            button((bar, index), view, origin, scale, style.slot_background)
+            button((bar, index), view, origin, scale, style)
         })
         .collect();
     let size = layout.size(style.scale);

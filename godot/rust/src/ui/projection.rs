@@ -2,6 +2,7 @@ use std::cell::RefCell;
 use std::collections::{HashMap, HashSet};
 use std::rc::Rc;
 
+use godot::classes::text_server::{AutowrapMode, OverrunBehavior};
 use godot::classes::{
     Button, ColorRect, Control, InputEvent, InputEventMouseButton, InputEventMouseMotion, Label,
     LineEdit, StyleBoxEmpty, Texture2D, TextureRect,
@@ -692,7 +693,17 @@ impl UiProjection {
             shadow: data.shadow_color.map(|color| (color, data.shadow_offset)),
         };
         self.style_label(&mut node, &text)?;
-        node.set_autowrap_mode(godot::classes::text_server::AutowrapMode::WORD);
+        // A fixed FontString whose height holds no second line stays on one line and cuts
+        // the rest with an ellipsis, as WoW does: Retail's 32×10 action button `HotKey`
+        // (`ActionButtonTemplate.xml:85-91`) draws "Middle Mouse" on one truncated line.
+        let one_line = fixed_rectangle && !fit_multiline && rect.height < 2.0 * data.font_size;
+        let (wrap, overrun) = if one_line {
+            (AutowrapMode::OFF, OverrunBehavior::TRIM_ELLIPSIS)
+        } else {
+            (AutowrapMode::WORD, OverrunBehavior::NO_TRIMMING)
+        };
+        node.set_autowrap_mode(wrap);
+        node.set_text_overrun_behavior(overrun);
         if fit_multiline {
             fit_multiline_label_spacing(&mut node, data, rect.height)?;
         }
