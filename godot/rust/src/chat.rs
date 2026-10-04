@@ -15,8 +15,8 @@ use game_engine_ui_model::chat_frame::{
     parse_chat_input, tab_entries, tab_len, tabs_to_flash,
 };
 use game_engine_ui_model::chat_frame_component::{
-    CHAT_EDITBOX, CHAT_MESSAGES, COPY_CHAT_ACTION, ChatFrameView, SCROLL_TO_BOTTOM_ACTION,
-    chat_frame_view, tab_flash_name,
+    CHAT_EDITBOX, CHAT_MESSAGES, COPY_CHAT_ACTION, ChatFrameView, FOREVER_CHAT_HEADER_FDIDS,
+    SCROLL_TO_BOTTOM_ACTION, chat_frame_view, tab_flash_name,
 };
 use godot::classes::{DisplayServer, InputEvent, InputEventKey, InputEventMouseButton};
 use godot::global::{Key, MouseButton};
@@ -267,6 +267,7 @@ impl crate::GameClient {
         if self.chat.ui.is_some() {
             return Ok(());
         }
+        self.extract_art(&FOREVER_CHAT_HEADER_FDIDS);
         let view = self.chat.model.view(spell_namer(self.spells.catalog()));
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("ChatFrameUI");
