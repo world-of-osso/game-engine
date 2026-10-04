@@ -985,7 +985,7 @@ mod tests {
         let group = asset
             .groups
             .iter()
-            .find(|group| group.fdid == 892_930)
+            .find(|group| asset.root.group_file_data_ids[group.index as usize] == 892_930)
             .unwrap();
         let batch = batches
             .iter()

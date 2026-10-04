@@ -75,7 +75,6 @@ impl ShadowGroups {
 
 pub(crate) struct NativeWmoGroup {
     pub index: u32,
-    pub fdid: u32,
     pub group: wmo::Group,
     pub batches: Vec<wmo::WmoMeshBatch>,
     pub collision: Arc<WmoGroupCollision>,
@@ -177,7 +176,6 @@ fn read_group(
     let batches = group.batches(Some(root));
     Ok(NativeWmoGroup {
         index: index as u32,
-        fdid,
         group,
         batches,
         collision,
@@ -239,7 +237,7 @@ mod tests {
     use game_engine_core::adt::WmoPlacement;
     use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
 
-    use super::read_placement;
+    use super::{read_placement, resolve_group_fdids};
 
     fn placement(fdid: Option<u32>, path: Option<&str>) -> WmoPlacement {
         WmoPlacement {
@@ -298,7 +296,6 @@ mod tests {
         assert_eq!(asset.groups.len(), 13);
         for (index, group) in asset.groups.iter().enumerate() {
             assert_eq!(group.index as usize, index);
-            assert_eq!(group.fdid, 107_075 + index as u32);
             assert!(!group.group.geometry.vertices.is_empty());
             assert!(!group.batches.is_empty());
             assert!(group.batches.iter().any(|batch| !batch.indices.is_empty()));
@@ -320,11 +317,10 @@ mod tests {
         assert_eq!(asset.groups.len(), 27);
         for (index, group) in asset.groups.iter().enumerate() {
             assert_eq!(group.index as usize, index);
-            assert_eq!(group.fdid, asset.root.group_file_data_ids[index]);
             assert!(!group.group.geometry.vertices.is_empty());
             assert!(!group.batches.is_empty());
         }
-        assert_eq!(asset.groups[26].fdid, 2_058_163);
+        assert_eq!(asset.root.group_file_data_ids[26], 2_058_163);
     }
 
     #[test]
@@ -352,7 +348,10 @@ mod tests {
         let asset = read_placement(&resolver(&temp), &temp, &placement(Some(107_074), None))
             .expect("legacy authored group names");
         assert_eq!(asset.groups.len(), 13);
-        assert_eq!(asset.groups[12].fdid, 107_087);
+        assert_eq!(
+            resolve_group_fdids(&resolver(&temp), 107_074, &asset.root).unwrap(),
+            (107_075..=107_087).collect::<Vec<_>>()
+        );
         fs::remove_dir_all(temp).unwrap();
     }
 

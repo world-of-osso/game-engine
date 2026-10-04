@@ -6,8 +6,6 @@ pub(crate) use char_texture_blit::{
     BlitLayerInput, BlitScaledInput, FULL_TEXTURE_SECTION_MASK, blit_layer, blit_scaled,
     blit_section, runtime_texture_for_section, runtime_textures_from_layout,
 };
-#[cfg(test)]
-pub(crate) use char_texture_blit::{blend_pixel, scaled_section};
 /// A texture layer definition from ChrModelTextureLayer.csv.
 #[derive(Debug, Clone)]
 pub struct TextureLayer {
