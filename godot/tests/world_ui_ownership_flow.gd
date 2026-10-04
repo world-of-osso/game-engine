@@ -269,7 +269,7 @@ func uo_target_cases(client: Node) -> void:
 	await uo_end("T5_CLICK_BAGSUI_BAG1_THEN_CLICK_MERCHANT", client, "held_after_first_click=%s expect exactly 1 SellItem" % held)
 
 	await uo_begin("T6_BAG_RAISE_ON_CLICK")
-	var free := uo_center(client, UO_BAGS, uo_bag1_free) if not uo_bag1_free.is_empty() else uo_center(client, UO_BAGS, "ContainerFrame1Title")
+	var free := uo_center(client, UO_BAGS, uo_bag1_free) if not uo_bag1_free.is_empty() else uo_center(client, UO_BAGS, "ContainerFrame1TitleText")
 	await uo_click(free)
 	await uo_settle(300)
 	var hovered := uo_hover_path(uo_merchant_over_bag)

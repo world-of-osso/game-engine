@@ -1,7 +1,7 @@
 //! Original cursor-item policy projected for standalone bag slots and stack splits.
 
 use game_engine_ui_model::bag_data::InventoryRequest;
-use game_engine_ui_model::bag_frame_component::parse_bag_slot_action;
+use game_engine_ui_model::bag_frame_component::{parse_bag_close_action, parse_bag_slot_action};
 use game_engine_ui_model::character_frame::parse_equipment_slot_action;
 use game_engine_ui_model::cursor_item::{CursorEffect, CursorItem, CursorTarget};
 use game_engine_ui_model::cursor_item_component::{CursorItemFrameState, cursor_item_screen};
@@ -116,7 +116,10 @@ impl GameClient {
         self.bags.cursor.picked_at = None;
         let was_empty = self.bags.cursor.item.is_empty();
         let target = cursor_action_target(action)?;
-        if self.merchant_input_owner(owner) {
+        if parse_bag_close_action(action).is_some() {
+            // A container close button, also on a backpack an NPC canvas draws.
+            self.dispatch_bag_action(action, click)?;
+        } else if self.merchant_input_owner(owner) {
             self.merchant_cursor_click(action, click)?;
         } else if self.trade_input_owner(owner) {
             self.trade_cursor_click(action, target)?;

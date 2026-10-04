@@ -1,31 +1,39 @@
-use std::fmt;
+//! Retail `ContainerFrameTemplate` (AddOns/Blizzard_UIPanels_Game/Mainline/ContainerFrame.xml:218-265):
+//! a `PortraitFrameFlatTemplate` window with the bag name as title, a close button and one
+//! `ContainerFrameItemButtonTemplate` (:77-159) per slot over its `bags-item-slot64`
+//! empty background. Forever's Mainline ContainerFrame.xml uses the same templates; its
+//! art comes from the active skin's atlas set.
 
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
+use crate::ui::screens::quest_art::{DynName, named_atlas_texture, portrait_flat_chrome};
 use crate::ui::strata::FrameStrata;
 
-struct DynName(String);
-
-impl fmt::Display for DynName {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.write_str(&self.0)
-    }
-}
-
-const TITLE_H: f32 = 24.0;
-const SLOT_SIZE: f32 = 36.0;
-const SLOT_GAP: f32 = 4.0;
+/// ContainerFrame.lua:9 `CONTAINER_WIDTH`.
+const CONTAINER_WIDTH: f32 = 178.0;
+/// `ContainerFrameItemButtonTemplate` size (ContainerFrame.xml:78).
+const SLOT_SIZE: f32 = 37.0;
+/// ContainerFrame.lua:11-12 `ITEM_SPACING_X` / `ITEM_SPACING_Y`.
+const SLOT_GAP: f32 = 5.0;
+/// ContainerFrame.lua:783-789 `GetColumns` for a single bag.
 const GRID_COLS: usize = 4;
-const INSET: f32 = 8.0;
-
-const FRAME_BG: &str = "0.06,0.05,0.04,0.92";
-const TITLE_COLOR: &str = "1.0,0.82,0.0,1.0";
-const SLOT_BG: &str = "0.08,0.07,0.06,0.88";
+/// ContainerFrame.lua:779-781 `GetFirstButtonOffsetY`, and the slot grid's right inset
+/// (`GetInitialItemAnchor`, :872-874).
+const FIRST_BUTTON_OFFSET_Y: f32 = 9.0;
+const GRID_RIGHT: f32 = 7.0;
+/// ContainerFrame.lua:853-856 `GetPaddingHeight`: the title bar and attic above the grid.
+const ATTIC: f32 = 48.0;
+/// ContainerFrame.lua:683 `SetTitleOffsets(35)`.
+const TITLE_LEFT: f32 = 35.0;
+/// ContainerFrame.xml:80 `emptyBackgroundAtlas`.
+const SLOT_BACKGROUND: &str = "bags-item-slot64";
 /// The dimmed icon of a slot whose item is on the cursor.
 pub const LOCKED_ICON: &str = "0.5,0.5,0.5,1.0";
 
+/// `bag_close:<bag>` on a container's close button (`CloseBag`, ContainerFrame.lua:739-741).
+pub const ACTION_BAG_CLOSE_PREFIX: &str = "bag_close:";
 pub const ACTION_BAG_TOGGLE_PREFIX: &str = "bag_toggle:";
 /// `bag_slot:<bag>:<slot>` on every bag slot.
 pub const ACTION_BAG_SLOT_PREFIX: &str = "bag_slot:";
@@ -65,16 +73,13 @@ pub struct BagFrameState {
 }
 
 impl BagFrameState {
-    /// Compute frame dimensions for a bag based on slot count.
+    /// `ContainerFrameMixin:CalculateWidth`/`CalculateHeight` (ContainerFrame.lua:838-847).
+    /// The backpack's search box and money frame rows (:2517-2523) are not drawn, so it
+    /// takes the plain bag size.
     pub fn bag_dimensions(slot_count: usize) -> (f32, f32) {
         let rows = slot_count.div_ceil(GRID_COLS);
-        let w = 2.0 * INSET + GRID_COLS as f32 * SLOT_SIZE + (GRID_COLS - 1) as f32 * SLOT_GAP;
-        let h = TITLE_H
-            + INSET
-            + rows as f32 * SLOT_SIZE
-            + (rows.saturating_sub(1)) as f32 * SLOT_GAP
-            + INSET;
-        (w, h)
+        let grid = rows as f32 * SLOT_SIZE + rows.saturating_sub(1) as f32 * SLOT_GAP;
+        (CONTAINER_WIDTH, grid + FIRST_BUTTON_OFFSET_Y + ATTIC)
     }
 }
 
@@ -85,58 +90,53 @@ pub fn bag_frame_screen(ctx: &SharedContext) -> Element {
     state.bags.iter().flat_map(bag_container).collect()
 }
 
+pub fn parse_bag_close_action(action: &str) -> Option<usize> {
+    action.strip_prefix(ACTION_BAG_CLOSE_PREFIX)?.parse().ok()
+}
+
 fn bag_container(bag: &BagContainerState) -> Element {
-    let slot_count = bag.slots.len();
-    let (frame_w, frame_h) = BagFrameState::bag_dimensions(slot_count);
+    let size = BagFrameState::bag_dimensions(bag.slots.len());
     let hide = !bag.visible;
-    let frame_name = DynName(format!("ContainerFrame{}", bag.bag_index));
-    let title_name = DynName(format!("ContainerFrame{}Title", bag.bag_index));
+    let prefix = format!("ContainerFrame{}", bag.bag_index);
+    let close = format!("{ACTION_BAG_CLOSE_PREFIX}{}", bag.bag_index);
+    let mut children = portrait_flat_chrome(&prefix, size, (&bag.title, TITLE_LEFT), &close);
+    children.extend(bag_slot_grid(bag.bag_index, &bag.slots, size));
     let x_offset = 300.0 + bag.bag_index as f32 * 20.0;
     rsx! {
         r#frame {
-            name: frame_name,
-            width: {frame_w},
-            height: {frame_h},
+            name: {DynName(prefix)},
+            width: {size.0},
+            height: {size.1},
             strata: FrameStrata::Dialog,
             hidden: hide,
-            background_color: FRAME_BG,
             pos_type: "absolute",
             left: {x_offset},
             top: 100.0,
-            {bag_title(title_name, &bag.title, frame_w)}
-            {bag_slot_grid(bag.bag_index, &bag.slots)}
+            {children}
         }
     }
 }
 
-fn bag_title(id: DynName, text: &str, w: f32) -> Element {
-    rsx! {
-        fontstring {
-            name: id,
-            width: {w},
-            height: {TITLE_H},
-            text: text,
-            font_size: 13.0,
-            font_color: TITLE_COLOR,
-            justify_h: "CENTER",
-            pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: -0.0,
-        }
-    }
+/// `AnchorUtil.GridLayout` `BottomRightToTopLeft` from BOTTOMRIGHT (-7, 9) over the items
+/// in reverse slot order (ContainerFrame.lua:868-874, 918-949): the last slot sits
+/// bottom-right and slot 1 top-left, so a partial row leaves its gap top-left.
+fn slot_position(index: usize, slot_count: usize, (width, height): (f32, f32)) -> (f32, f32) {
+    let from_end = slot_count - 1 - index;
+    let col = (from_end % GRID_COLS) as f32;
+    let row = (from_end / GRID_COLS) as f32;
+    let step = SLOT_SIZE + SLOT_GAP;
+    (
+        width - GRID_RIGHT - SLOT_SIZE - col * step,
+        height - FIRST_BUTTON_OFFSET_Y - SLOT_SIZE - row * step,
+    )
 }
 
-fn bag_slot_grid(bag_index: usize, slots: &[BagSlotState]) -> Element {
+fn bag_slot_grid(bag_index: usize, slots: &[BagSlotState], size: (f32, f32)) -> Element {
     slots
         .iter()
         .enumerate()
         .flat_map(|(i, slot)| {
-            let col = i % GRID_COLS;
-            let row = i / GRID_COLS;
-            let x = INSET + col as f32 * (SLOT_SIZE + SLOT_GAP);
-            let y = -(TITLE_H + INSET + row as f32 * (SLOT_SIZE + SLOT_GAP));
-            bag_slot_frame(bag_index, i, slot, (x, y))
+            bag_slot_frame(bag_index, i, slot, slot_position(i, slots.len(), size))
         })
         .collect()
 }
@@ -149,23 +149,25 @@ fn bag_slot_frame(
 ) -> Element {
     let prefix = format!("ContainerFrame{bag_index}Slot{slot_index}");
     let action = format!("{ACTION_BAG_SLOT_PREFIX}{bag_index}:{slot_index}");
-    let contents = if slot.icon_fdid == 0 {
-        Element::default()
-    } else {
-        slot_contents(&prefix, slot)
-    };
+    let mut children = named_atlas_texture(
+        format!("{prefix}Background"),
+        SLOT_BACKGROUND,
+        (0.0, 0.0, SLOT_SIZE, SLOT_SIZE),
+    );
+    if slot.icon_fdid != 0 {
+        children.extend(slot_contents(&prefix, slot));
+    }
     rsx! {
         r#frame {
             name: {DynName(prefix)},
             width: {SLOT_SIZE},
             height: {SLOT_SIZE},
-            background_color: SLOT_BG,
             onclick: {action.as_str()},
             mouse_enabled: true,
             pos_type: "absolute",
             left: {x},
-            top: {-(y)},
-            {contents}
+            top: {y},
+            {children}
         }
     }
 }
