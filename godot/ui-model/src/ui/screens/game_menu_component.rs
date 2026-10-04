@@ -51,8 +51,8 @@ pub fn game_menu_screen(shared: &SharedContext) -> Element {
     }
 }
 
-fn options_menu_overlay(options: &OptionsViewModel, first_item: usize) -> Element {
-    let options = options_view(options, first_item);
+fn options_menu_overlay(options: &OptionsViewModel, offset: usize) -> Element {
+    let options = options_view(options, offset);
     rsx! {
         r#frame {
             name: GAME_MENU_ROOT,

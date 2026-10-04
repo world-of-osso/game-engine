@@ -825,8 +825,9 @@ fn spawn_plate(
         label
     };
     let mut name = label();
-    // A name longer than its room on the bar ends in an ellipsis.
-    name.set_text_overrun_behavior(OverrunBehavior::TRIM_ELLIPSIS);
+    // A name longer than its room on the bar ends in an ellipsis, however little of it fits
+    // (plain `TRIM_ELLIPSIS` drops the ellipsis under six remaining characters).
+    name.set_text_overrun_behavior(OverrunBehavior::TRIM_ELLIPSIS_FORCE);
     let health = label();
     // Fill under the frame, whose interior is transparent.
     root.add_child(&fill);
