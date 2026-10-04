@@ -36,7 +36,7 @@ pub(super) fn layout_settings_rows(layout: &LayoutOptionsView) -> Element {
     };
     [
         system_row(layout.system),
-        system_rows,
+        system_settings(system_rows),
         options_menu_sections::action_button_row(
             "reset_layout_settings",
             "Reset to Preset",
@@ -48,6 +48,24 @@ pub(super) fn layout_settings_rows(layout: &LayoutOptionsView) -> Element {
     .into_iter()
     .flatten()
     .collect()
+}
+
+/// The shown system's controls in one container, as Retail's dialog keeps them in its
+/// `Settings` frame (`EditModeDialogs.xml:286`). It also keeps the controls under the selector
+/// when the system changes: the Screen diff appends new frames after the siblings it keeps
+/// (ui-toolkit-core `widget_def_diff.rs` `diff_roots`), so the rows must not be siblings of
+/// the rows around them.
+fn system_settings(rows: Element) -> Element {
+    rsx! {
+        r#frame {
+            name: "LayoutSystemSettings",
+            width: {OPTIONS_ROW_W},
+            height: "auto",
+            layout: "flex-column",
+            gap: 14.0,
+            {rows}
+        }
+    }
 }
 
 fn system_row(selected: LayoutSystem) -> Element {
