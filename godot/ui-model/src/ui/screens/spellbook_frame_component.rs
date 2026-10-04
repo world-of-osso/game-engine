@@ -837,8 +837,11 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
                 {view(state, views.get(page * 2 + 1), 1, s)}
                 {paging(state, s)}
             }
+            // `PortraitContainer` frameLevel 400, above the book's 100
+            // (SharedUIPanelTemplates.xml:551, Blizzard_PlayerSpellsFrame.xml:49).
             texture {
                 name: "SpellBookPortrait",
+                frame_level: 400.0,
                 width: {portrait_w * s},
                 height: {portrait_h * s},
                 texture_fdid: {state.portrait_fdid},
