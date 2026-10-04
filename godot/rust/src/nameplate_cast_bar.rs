@@ -12,8 +12,9 @@ use game_engine_core::nameplate_style_data::{NameplateBarThickness, NameplateSty
 use game_engine_core::warband_scene_data::{AtlasArt, read_atlas_art};
 use godot::{
     classes::{
-        AtlasTexture, Control, FontFile, ImageTexture, RichTextLabel, Texture2D, TextureRect,
-        control::MouseFilter, texture_rect::ExpandMode, texture_rect::StretchMode,
+        AtlasTexture, CanvasItemMaterial, Control, FontFile, ImageTexture, RichTextLabel,
+        Texture2D, TextureRect, canvas_item_material::BlendMode, control::MouseFilter,
+        texture_rect::ExpandMode, texture_rect::StretchMode,
     },
     prelude::*,
 };
@@ -266,7 +267,12 @@ impl CastNodes {
         let fill_region = atlas_region(&art.fill_sheet, art.fill_rect);
         let mut fill = texture_rect("Fill");
         fill.set_texture(&fill_region);
-        let spark = texture_rect("Spark");
+        let mut spark = texture_rect("Spark");
+        // `Spark` is `alphaMode="ADD"` (Blizzard_NamePlateCastingBar.xml:52): the pip
+        // brightens the fill and track under it, and its black edge columns add nothing.
+        let mut additive = CanvasItemMaterial::new_gd();
+        additive.set_blend_mode(BlendMode::ADD);
+        spark.set_material(&additive);
         let icon = texture_rect("Icon");
         let mut shield = texture_rect("BorderShield");
         shield.set_texture(&art.shield);
