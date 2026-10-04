@@ -43,6 +43,17 @@ pub(crate) struct BagsView {
     bar: BagBarState,
 }
 
+#[cfg(test)]
+impl BagsView {
+    /// The bag bar with no container window open.
+    pub(crate) fn closed(bar: BagBarState) -> Self {
+        Self {
+            containers: BagFrameState { bags: Vec::new() },
+            bar,
+        }
+    }
+}
+
 pub(crate) fn bags_screen(ctx: &SharedContext) -> Element {
     let view = ctx
         .get::<BagsView>()
