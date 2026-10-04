@@ -30,10 +30,18 @@ The Godot client receives bevy_replicon 0.41.1 replication without replicon's cl
 
 ## Proof
 
-- `replica::tests` (Depot `--test -p game-engine-network`): a real lightyear/replicon server replicates to a stock lightyear client over loopback UDP; a tap records every payload the stock client receives and every ack it sends. `Replica` applies the same frames and must hold byte-identical values of every registered component for the same server entities after each frame: spawn, insert, 10 mutations, removal, visibility loss, despawn. Reordered replays (all mutations before any update; mutations newest first, one per frame) run through replicon's own `ClientPlugin` and `Replica` side by side. Acks equal replicon's bytes.
+- `replica::tests` (Depot `--test -p game-engine-network`): a real lightyear/replicon server replicates to a stock lightyear client over loopback UDP; a tap brackets stock replicon's receive calls in Connected `PreUpdate` and `OnEnter(Connected)`, recording the consumed payloads and their acknowledgments. `Replica` applies the same frames and must hold byte-identical values of every registered component for the same server entities after each frame: spawn, insert, 10 mutations, removal, visibility loss, despawn. Reordered replays (all mutations before any update; mutations newest first, one per frame) run through replicon's own `ClientPlugin` and `Replica` side by side. Acks equal replicon's bytes.
 - `replica::coverage` tests: fingerprint with layout hashes, missing codec, malformed flags, unknown `FnsId`, truncated data, real signature mappings, visibility regain before a drain, slot reuse after despawn, packet-split same-tick mutations, malformed mutate headers not acknowledged.
 - `wire_tests`: the bridge's own worker against a real server, including the server receiving `MutationAcks`.
 - Live on a private server (UDP 5095, game-server `a6a704f`, shared-protocol `2acb8a9`, engine `448c9339`): `world_chat_flow`, `auras_live`, `polymorph_mob` and `spellcast_anim` exit 0. `world_target_flow` passes selection, server echo, Escape and Tab; it fails only its TargetFrame geometry check (frame 88.7×34 at UI scale 0.667 vs expected 124.7×47.8), which fails identically on master `c92480ba`.
+
+### Connection-transition acknowledgment capture
+
+The old test Tap captured `ClientMessages` unconditionally in `PreUpdate` and paired them with outgoing acknowledgments in `PostUpdate`. Replicon's `ClientPlugin` only consumes in Connected `PreUpdate`, plus `OnEnter(Connected)`. A packet arriving while Connecting therefore produced a captured mutation with no acknowledgment, and could be captured repeatedly before the transition consumed it. Scheduling delays made this ordering intermittent in UDP tests; it was a harness defect, not a worker acknowledgment defect.
+
+`acknowledgment_capture_follows_connection_transition_consumption` queues the concrete empty mutation `[0, 0, 1, 0, 0]` while Connecting and then enters Connected. The original Tap deterministically fails with expected `[b"\0\0"]`, captured `[]`. Capture now brackets both actual consumption schedules and follows the same Connected condition; the byte-equality assertion, worker, sleeps and deadlines are unchanged.
+
+Proof: deterministic RED at `4878e8e6` (exit 101), unchanged regression GREEN at `5ae0e4e7` (1/1), then one full `--test -p game-engine-network --lib` run at `5ae0e4e7` (58/58, including both originally intermittent cases). No artificial contention; observed one-minute load at GREEN/full completion was 35.05/36.38. Logs: `/tmp/claude/replicaflake-{2,3,4}.out`. Shared protocol was clean at `3ddb960d` before the full run.
 
 ## Measured cost (2026-09-30)
 
