@@ -160,6 +160,49 @@ fn replay(app: &mut App, frame: &Frame) {
     app.update();
 }
 
+/// Replicon buffers packets received before its Connected state transition.
+#[test]
+fn acknowledgment_capture_follows_connection_transition_consumption() {
+    let mut stock = replay_client();
+    stock
+        .world_mut()
+        .resource_mut::<NextState<ClientState>>()
+        .set(ClientState::Connecting);
+    stock.update();
+
+    // update tick 0, mutation tick 0, one message, mutation index 0 (fixed u16).
+    let mutation = Bytes::from_static(&[0, 0, 1, 0, 0]);
+    replay(
+        &mut stock,
+        &Frame {
+            mutations: vec![mutation.clone()],
+            ..Default::default()
+        },
+    );
+    assert_eq!(
+        stock
+            .world()
+            .resource::<ClientMessages>()
+            .received_count(ServerChannel::Mutations),
+        1,
+        "Connecting leaves the mutation queued for replicon"
+    );
+
+    stock
+        .world_mut()
+        .resource_mut::<NextState<ClientState>>()
+        .set(ClientState::Connected);
+    stock.update();
+    let frames = &stock.world().resource::<Tap>().frames;
+    assert_eq!(frames.len(), 1, "capture exactly one consumption");
+    assert_eq!(frames[0].mutations, vec![mutation.clone()]);
+    assert_eq!(
+        frames[0].acks,
+        vec![acknowledgments(&[mutation]).expect("parse mutate header")],
+        "worker acknowledgments equal replicon's"
+    );
+}
+
 fn schema_of(app: &App) -> std::sync::Arc<Schema> {
     Schema::from_world(app.world()).expect("every replicated type has a codec")
 }
