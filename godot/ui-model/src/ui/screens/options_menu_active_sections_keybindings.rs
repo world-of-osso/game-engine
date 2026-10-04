@@ -1,6 +1,6 @@
 use super::*;
 
-pub(super) fn keybindings_body(bindings: &KeybindingsView) -> Element {
+pub(super) fn keybindings_body(bindings: &KeybindingsView) -> OptionsPage {
     content_stack(
         [
             keybinding_section_tabs(bindings.section),

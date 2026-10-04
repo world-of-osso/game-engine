@@ -268,6 +268,10 @@ impl GameClient {
             self.game_menu_drag = None;
             return Ok(false);
         }
+        let menu = self.game_menu_ui.as_mut().expect("menu has UI");
+        if menu.bind_mut().scroll_list_input(event)? {
+            return Ok(true);
+        }
         if let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() {
             return self.handle_options_drag_button(&button);
         }

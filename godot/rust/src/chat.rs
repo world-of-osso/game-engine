@@ -533,6 +533,10 @@ impl crate::GameClient {
             MouseButton::WHEEL_DOWN => -1,
             _ => return false,
         };
+        // The game menu covers the chat.
+        if self.game_menu_ui.is_some() {
+            return false;
+        }
         let Some(ui) = self.chat.ui.as_ref().filter(|ui| ui.is_visible()) else {
             return false;
         };
