@@ -73,12 +73,12 @@ fn model() -> GameMenuViewModel {
             bindings: KeybindingsView {
                 section: BindingSection::Movement,
                 capture_action: None,
+                output: None,
                 rows: vec![KeybindingRowView {
                     action: InputAction::MoveForward,
                     label: "Move Forward".into(),
-                    binding_text: "W".into(),
+                    binding_text: Some("W".into()),
                     capturing: false,
-                    can_clear: true,
                 }],
             },
             layout: Default::default(),

@@ -4,7 +4,7 @@ pub(crate) mod drag;
 
 use game_engine_core::{
     client_options_data::{load_options_file_with_legacy, options_path, save_options_file_to_path},
-    input_bindings_data::{InputAction, InputBinding},
+    input_bindings_data::InputBinding,
     ui_layout_data::LayoutSettings,
 };
 use game_engine_session::SessionScreen;
@@ -117,8 +117,7 @@ impl GameClient {
                     .game_menu_options
                     .as_mut()
                     .expect("menu has options model");
-                if model.binding_capture != BindingCapture::None {
-                    model.binding_capture = BindingCapture::None;
+                if policy::cancel_binding_capture(model) {
                     self.refresh_game_menu()?;
                 } else if model.view == GameMenuView::Options {
                     self.game_menu_drag = None;
@@ -147,7 +146,7 @@ impl GameClient {
         let Some(model) = self.game_menu_options.as_ref() else {
             return false;
         };
-        let BindingCapture::Listening(action) = model.binding_capture else {
+        let BindingCapture::Listening(_) = model.binding_capture else {
             return false;
         };
         if let Ok(key) = event.clone().try_cast::<InputEventKey>() {
@@ -158,7 +157,7 @@ impl GameClient {
                 return false;
             }
             if let Some(binding) = keyboard_binding(&key) {
-                self.assign_captured_game_menu_binding(action, binding);
+                self.assign_captured_game_menu_binding(binding);
             }
             return true;
         }
@@ -167,20 +166,19 @@ impl GameClient {
                 && let Some(binding) =
                     crate::input_keys::binding_mouse_button(button.get_button_index())
             {
-                self.assign_captured_game_menu_binding(action, InputBinding::Mouse(binding));
+                self.assign_captured_game_menu_binding(InputBinding::Mouse(binding));
             }
             return true;
         }
         false
     }
 
-    fn assign_captured_game_menu_binding(&mut self, action: InputAction, binding: InputBinding) {
+    fn assign_captured_game_menu_binding(&mut self, binding: InputBinding) {
         let model = self
             .game_menu_options
             .as_mut()
             .expect("menu has options model");
-        model.draft_bindings.assign(action, binding);
-        model.binding_capture = BindingCapture::None;
+        policy::capture_binding(model, binding);
         if let Err(error) = self
             .commit_game_menu_options()
             .and_then(|()| self.refresh_game_menu())
@@ -273,12 +271,47 @@ impl GameClient {
             return Ok(true);
         }
         if let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() {
+            if self.unbind_right_clicked_binding(&button)? {
+                return Ok(true);
+            }
             return self.handle_options_drag_button(&button);
         }
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
             return self.handle_options_drag_motion(&motion);
         }
         Ok(false)
+    }
+
+    /// A right-click on a Key Bindings button unbinds its action
+    /// (`Blizzard_Keybindings.lua:434-440`). Godot buttons press on the left button only, so
+    /// the click is hit-tested here, as the pet bar's autocast right-click is.
+    fn unbind_right_clicked_binding(
+        &mut self,
+        button: &InputEventMouseButton,
+    ) -> Result<bool, String> {
+        if !button.is_pressed() || button.get_button_index() != godot::global::MouseButton::RIGHT {
+            return Ok(false);
+        }
+        let model = self.game_menu_options.as_ref().expect("Options model");
+        if model.category != OptionsCategory::Keybindings {
+            return Ok(false);
+        }
+        let section = model.binding_section;
+        let (cursor, _) = self.drag_pointer_position(button.get_position())?;
+        let menu = self.game_menu_ui.as_ref().expect("menu has UI");
+        let Some(action) = menu
+            .bind()
+            .keybinding_button_at(section, [cursor.x, cursor.y])
+        else {
+            return Ok(false);
+        };
+        policy::unbind_action(
+            self.game_menu_options.as_mut().expect("Options model"),
+            action,
+        );
+        self.commit_game_menu_options()?;
+        self.refresh_game_menu()?;
+        Ok(true)
     }
 
     fn handle_options_drag_button(
@@ -453,13 +486,8 @@ impl GameClient {
             model.binding_capture = BindingCapture::None;
             changed = true;
         } else if let Some(binding) = policy::parse_binding_rebind_action(action) {
-            model.binding_capture = BindingCapture::Listening(binding);
+            policy::listen_for_binding(model, binding);
             changed = true;
-        } else if let Some(binding) = policy::parse_binding_clear_action(action) {
-            model.draft_bindings.clear(binding);
-            model.binding_capture = BindingCapture::None;
-            changed = true;
-            committed = true;
         } else if let Some((field, delta)) = policy::parse_step_action(action) {
             policy::apply_step(field, delta, model);
             changed = true;

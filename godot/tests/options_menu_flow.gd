@@ -89,11 +89,11 @@ func exercise_options(client: Node, path: String, legacy_path: String, legacy_by
 		fail("Outside slider drag/release did not persist clamped FPS value")
 		return
 	await click_option(client, "OptionsTabkeybindings")
-	if option_control(client, "KeybindingRebindmove_forward") == null:
+	if option_control(client, "KeybindingButtonmove_forward") == null:
 		fail("Slider outside release swallowed subsequent keybinding tab click")
 		return
 	var previous_binding := binding_value(client)
-	await click_option(client, "KeybindingRebindmove_forward")
+	await click_option(client, "KeybindingButtonmove_forward")
 	if not binding_value(client).contains("Press a key"):
 		fail("Keybinding did not arm on click/release")
 		return
@@ -104,7 +104,7 @@ func exercise_options(client: Node, path: String, legacy_path: String, legacy_by
 	if binding_value(client) != previous_binding or not option_control(client, "OptionsDoneButton"):
 		fail("Escape did not cancel capture while preserving Options")
 		return
-	await click_option(client, "KeybindingRebindmove_forward")
+	await click_option(client, "KeybindingButtonmove_forward")
 	push_key(KEY_R, true)
 	await process_frame
 	push_key(KEY_R, false)
@@ -112,7 +112,7 @@ func exercise_options(client: Node, path: String, legacy_path: String, legacy_by
 	if not binding_value(client).contains("R"):
 		fail("Captured key did not replace binding")
 		return
-	await click_option(client, "KeybindingRebindmove_forward")
+	await click_option(client, "KeybindingButtonmove_forward")
 	await click_option(client, "OptionsDoneButton")
 	if not option_control(client, "OptionsDoneButton") or not binding_value(client).contains("Mouse"):
 		fail("Captured mouse click fell through to Done or failed binding")
@@ -167,7 +167,7 @@ func exercise_options(client: Node, path: String, legacy_path: String, legacy_by
 
 func exercise_modified_capture(client: Node, path: String) -> bool:
 	await click_option(client, "OptionsTabkeybindings")
-	await click_option(client, "KeybindingRebindmove_forward")
+	await click_option(client, "KeybindingButtonmove_forward")
 	push_modified_key(KEY_CTRL, true, true, false)
 	await process_frame
 	if not binding_value(client).contains("Press a key"):
@@ -184,7 +184,7 @@ func exercise_modified_capture(client: Node, path: String) -> bool:
 	if not FileAccess.get_file_as_string(path).contains("MoveForward: Some(\"ctrl+key:KeyR\")"):
 		fail("Captured Ctrl+R not persisted to canonical options")
 		return false
-	await click_option(client, "KeybindingRebindmove_forward")
+	await click_option(client, "KeybindingButtonmove_forward")
 	push_modified_key(KEY_SHIFT, true, false, true)
 	await process_frame
 	if not binding_value(client).contains("Press a key"):
@@ -217,7 +217,7 @@ func option_control(client: Node, name: String) -> Control:
 	return menu.find_child(name, true, false) as Control if menu != null else null
 
 func binding_value(client: Node) -> String:
-	var label := option_control(client, "KeybindingValuemove_forward") as Label
+	var label := option_control(client, "KeybindingButtonTextmove_forward") as Label
 	return label.text if label != null else ""
 
 func click_option(client: Node, name: String) -> void:
