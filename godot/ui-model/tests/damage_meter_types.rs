@@ -2,8 +2,9 @@
 //! interrupts, dispels, deaths and the death recap (docs/specs/damage-meter.md).
 
 use game_engine_ui_model::damage_meter_data::{
-    ACTION_DAMAGE_METER_MENU, ACTION_DAMAGE_METER_OVERALL, ACTION_DAMAGE_METER_TYPE_MENU,
-    DamageMeterWindow, MeterEvent, MeterSessionType, MeterType, MeterUnit,
+    ACTION_DAMAGE_METER_CURRENT, ACTION_DAMAGE_METER_MENU, ACTION_DAMAGE_METER_OVERALL,
+    ACTION_DAMAGE_METER_TYPE_MENU, DamageMeterWindow, MeterEvent, MeterSessionType, MeterType,
+    MeterUnit,
 };
 use shared::protocol::{
     CombatLogEvent, CombatLogKind, DamageMeterSession, DamageMeterSnapshot, DamageMeterSource,
@@ -153,7 +154,7 @@ fn healing_rows_rank_players_by_effective_healing_with_per_second_of_the_session
         (40, 0),
     );
     snapshot(&mut window, 110.0, session(1, 10.0, false), 10.0);
-    // Healing after the combat belongs to no session.
+    // Healing after the combat is not in the Current session.
     receive(
         &mut window,
         120.0,
@@ -174,7 +175,8 @@ fn healing_rows_rank_players_by_effective_healing_with_per_second_of_the_session
     assert_eq!((rows[0].class_id, rows[1].class_id), (2, 5));
     assert!(rows[0].is_local_player && !rows[1].is_local_player);
 
-    // Combat 2 runs from 200 to 205; Overall is both combats over their 15 seconds.
+    // Combat 2 runs from 200 to 205; Overall is every heal since world entry over the
+    // 15 seconds of both combats.
     snapshot(&mut window, 200.0, session(2, 0.0, true), 10.0);
     receive(
         &mut window,
@@ -189,7 +191,7 @@ fn healing_rows_rank_players_by_effective_healing_with_per_second_of_the_session
     window.click(ACTION_DAMAGE_METER_OVERALL).unwrap();
     assert_eq!(
         shown(&window),
-        pairs(&[("1. Shot", "380 (25)"), ("2. Fbpriest", "60 (4)")])
+        pairs(&[("1. Shot", "880 (58)"), ("2. Fbpriest", "60 (4)")])
     );
 }
 
@@ -359,6 +361,12 @@ fn deaths_list_player_deaths_newest_first_with_the_time_into_the_current_session
     // Overall has no death times.
     window.click(ACTION_DAMAGE_METER_OVERALL).unwrap();
     assert_eq!(shown(&window), pairs(&[("Shot", ""), ("Shot", "")]));
+    // A death after the combat is listed in Overall only.
+    let death = CombatLogKind::Death;
+    receive(&mut window, 500.0, death, (SHOT, SHOT), "Melee", (0, 0));
+    assert_eq!(shown(&window).len(), 3);
+    window.click(ACTION_DAMAGE_METER_CURRENT).unwrap();
+    assert_eq!(shown(&window), pairs(&[("Shot", "30s"), ("Shot", "12s")]));
 }
 
 #[test]
