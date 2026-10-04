@@ -183,3 +183,27 @@ fn modern_target_cast_moves_below_auras_or_tot_as_retail_does() {
         Val::Px(234.5)
     );
 }
+
+#[test]
+fn target_cast_interrupted_fading_bar_shows_its_text_at_its_alpha_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let interrupted = CastingBarState {
+            spell_name: "Interrupted".into(),
+            timer_text: String::new(),
+            is_interrupted: true,
+            alpha: 0.4,
+            ..cast()
+        };
+        let r = registry(skin, state(Some(interrupted)));
+        let root = frame(&r, "TargetFrameSpellBar");
+        assert!(!root.hidden);
+        assert_eq!(root.alpha, 0.4);
+        assert_eq!(text(&r, "TargetCastingBarSpellName"), "Interrupted");
+        let normal = registry(skin, state(Some(cast())));
+        assert_ne!(
+            frame(&r, "TargetCastingBarFill").background_color,
+            frame(&normal, "TargetCastingBarFill").background_color,
+            "interrupted bars use the failed colour"
+        );
+    }
+}
