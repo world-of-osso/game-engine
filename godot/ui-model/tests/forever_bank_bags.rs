@@ -8,7 +8,7 @@ use game_engine_ui_model::bank_art::SlotItem;
 use game_engine_ui_model::bank_frame_component::{
     BankFrameState, BankPromptView, MoneyFrameView, PurchasePromptView, SideTab, bank_frame_screen,
 };
-use game_engine_ui_model::panel_style_data::{MetalTopLeft, metal_frame_style};
+use game_engine_ui_model::panel_style_data::{MetalGeometry, MetalTopLeft, metal_frame_style};
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_active_skin};
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
@@ -39,7 +39,10 @@ fn mount<T: 'static>(state: T, screen: fn(&SharedContext) -> Element) -> FrameRe
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     registry.register_panel_style(
         MetalTopLeft::Portrait.style_name(),
-        metal_frame_style(TextureSource::Dynamic(DynamicTextureId(1))),
+        metal_frame_style(
+            TextureSource::Dynamic(DynamicTextureId(1)),
+            MetalGeometry::active().unwrap(),
+        ),
     );
     Screen::new(screen).sync(&ctx, &mut registry);
     registry
