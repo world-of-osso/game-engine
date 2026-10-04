@@ -20,7 +20,7 @@ from build_hosts import execute
 ROOT_NAME = "game-engine-godot-conversion"
 SIBLINGS = (
     "asset-resolver",
-    "ui-toolkit-godot-conversion",
+    "ui-toolkit",
     "ui-toolkit-macros",
     "shared-protocol",
 )
@@ -194,7 +194,7 @@ def link_or_copy(source, target):
 
 def sibling_repo(root, name):
     """`root`'s sibling checkout `name`, or `DEPOT_SIBLING_<NAME>` (for example
-    DEPOT_SIBLING_SHARED_PROTOCOL for a protocol branch worktree)."""
+    DEPOT_SIBLING_UI_TOOLKIT for a toolkit branch worktree)."""
     override = os.environ.get("DEPOT_SIBLING_" + name.upper().replace("-", "_"))
     return Path(override).resolve() if override else root.parent / name
 
