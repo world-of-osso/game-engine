@@ -116,7 +116,17 @@ class ImportTests(unittest.TestCase):
         zephras = [row for row in rows if row["ContinentID"] == 2991]
         self.assertEqual(len(zephras), 6)
         self.assertEqual(dropped, 15)
-        self.assertIn(7455, {row["LightParamsID_0"] for row in zephras})
+        self.assertEqual(
+            {row["ID"]: row["LightParamsID_0"] for row in zephras},
+            {
+                15617: 7588,
+                15969: 6989,
+                15972: 7214,
+                15973: 6989,
+                16806: 7214,
+                16854: 7601,
+            },
+        )
 
     def test_lighting_assets_follow_only_forever_maps_and_all_slots(self):
         from scripts import import_forever_skyborne as importer
