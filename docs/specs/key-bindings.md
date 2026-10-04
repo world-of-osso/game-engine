@@ -16,6 +16,8 @@ Sources:
   - F `ASSISTTARGET` (`AssistUnit("target")`, :1174);
   - F1 `TARGETSELF`.
 - [x] Action bar: 1–0, −, = for `ACTIONBUTTON1-12`.
+- [x] Action Bar 2 and 3: `MULTIACTIONBAR1BUTTON1-12` ("Action Bar 2 Button n", `MultiActionButtonDown("MultiBarBottomLeft", n)`) and `MULTIACTIONBAR2BUTTON1-12` ("Action Bar 3 Button n", `MultiBarBottomRight`) (:397-563), each in its own section, Retail's `BINDING_HEADER_ACTIONBAR2`/`3` "Action Bar 2"/"Action Bar 3". Unbound by default: the bindings XML carries no keys. A bound key uses that bar's button through the main bar's path (slots 61-72 and 49-60), whether or not the preset shows the button. Persisted in the options file with the other bindings; files saved before these actions load them unbound.
+- [x] Button hotkey text is `GetBindingText(key, 1)` (`Shared/ActionButton.lua:488-495`), on every bar from the live bindings; an unbound button shows none. Modifiers abbreviate to `s-`/`c-` (`SHIFT_KEY_TEXT_ABBR`, `CTRL_KEY_TEXT_ABBR`); the key keeps its `KEY_` text because Retail defines `KEY_ABBR_*` only for gamepad buttons (`Blizzard_SharedXML/SharedConstants.lua:56-90`): Space "Spacebar", Backspace "Backspace", middle mouse "Middle Mouse", mouse 4/5 "Mouse Button 4/5". Addon abbreviations such as "Sp", "BS", "B3" or "S" for Shift are not Retail. The options list shows the same names unabbreviated.
 - [x] Pet bar: Ctrl-1..Ctrl-0 for `BONUSACTIONBUTTON1-10` (DefaultBindings.wtf:53-62, `BINDING_HEADER_ACTIONBAR`), listed in the Action Bar section; they press pet bar buttons only while it is shown, and Ctrl-N never presses `ACTIONBUTTONn` (Ctrl shadowing). Hotkeys show `c-1`..`c-0` (`CTRL_KEY_TEXT_ABBR`).
 - [x] Frames:
   - C character, P spellbook, L quest log, M world map;
@@ -57,7 +59,8 @@ These are not changed here:
 - J is `TOGGLEGUILDTAB` in Retail, with the Adventure Guide on Shift-J. The table puts the Adventure Guide on J.
 
 ## Tests
-- `godot/core/tests/input_bindings_data.rs`: the inventory, sections and defaults, the token grammar (including `NumpadAdd`/`NumpadSubtract`), and Shift shadowing.
+- `godot/core/tests/input_bindings_data.rs`: the inventory, sections and defaults, the token grammar (including `NumpadAdd`/`NumpadSubtract`), Shift shadowing, Action Bar 2/3 actions unbound and persisted through the options file, and Retail hotkey text.
+- `godot/ui-model/tests/forever_action_bars.rs` (`extra_bar_bindings_press_their_slot_and_label_their_button`): a key on `MULTIACTIONBAR1BUTTON3` presses slot 63 and labels `MultiBarBottomLeftButton3`; Shift-1 and middle mouse on Action Bar 3; unbound buttons blank; 0 still presses main bar button 10 under Forever.
 - `godot/tests/world_keybinds_flow.gd` (`native_input_fixture keybinds`, owned UDP) presses real keys:
   - B, Shift-B and F8–F11 against bags 0/1/2/4;
   - Tab, Shift-Tab and F against the vendor, wolf and remote player;
