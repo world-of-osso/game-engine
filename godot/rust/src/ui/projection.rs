@@ -695,10 +695,13 @@ impl UiProjection {
         self.style_label(&mut node, &text)?;
         // A fixed FontString whose height holds no second line stays on one line and cuts
         // the rest with an ellipsis, as WoW does: Retail's 32×10 action button `HotKey`
-        // (`ActionButtonTemplate.xml:85-91`) draws "Middle Mouse" on one truncated line.
+        // (`ActionButtonTemplate.xml:85-91`) draws "Middle Mouse" on one truncated line
+        // ending in "…". Godot's plain `TRIM_ELLIPSIS` drops the ellipsis when fewer than six
+        // characters would remain, which in a 32-wide hotkey is always; the `_FORCE` mode
+        // adds it however short the rest.
         let one_line = fixed_rectangle && !fit_multiline && rect.height < 2.0 * data.font_size;
         let (wrap, overrun) = if one_line {
-            (AutowrapMode::OFF, OverrunBehavior::TRIM_ELLIPSIS)
+            (AutowrapMode::OFF, OverrunBehavior::TRIM_ELLIPSIS_FORCE)
         } else {
             (AutowrapMode::WORD, OverrunBehavior::NO_TRIMMING)
         };
