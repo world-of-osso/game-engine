@@ -15,7 +15,10 @@ fn zephras_sample_parses_authored_terrain_textures_and_placements() {
             .iter()
             .all(|chunk| chunk.vertex_lighting.is_none())
     );
-    assert!(root.flight_bounds.is_some());
+    let bounds = root.flight_bounds.unwrap();
+    assert_eq!(bounds.min_heights, [500; 9]);
+    assert_eq!(bounds.max_heights, [1500; 9]);
+    assert_eq!(root.chunk_positions[0], [1600.0, 3200.0, 752.71844]);
     assert!(root.water.is_some());
     assert!(root.water_error.is_none(), "{:?}", root.water_error);
     let tex = adt::parse_tex(
@@ -43,7 +46,7 @@ fn zephras_sample_parses_authored_terrain_textures_and_placements() {
     assert_eq!(obj.doodads.iter().filter(|d| d.path.is_some()).count(), 116);
     assert_eq!(
         obj.wmos.iter().map(|w| w.fdid.unwrap()).collect::<Vec<_>>(),
-        [333477, 7704156, 7704158, 7749471]
+        [333477, 7704156, 7749471, 7704158]
     );
     assert!(obj.wmos.iter().all(|w| w.flags & 8 != 0));
 }

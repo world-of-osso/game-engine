@@ -24,7 +24,7 @@ pub(super) fn adt_file_payload(include_blend_mesh: bool) -> Vec<u8> {
         b"KNCM",
         mcnk_payload(false, false, false, true, false),
     );
-    append_subchunk(&mut payload, b"OFBM", mfbo_payload());
+    append_subchunk(&mut payload, b"OBFM", mfbo_payload());
     if include_blend_mesh {
         append_subchunk(
             &mut payload,
@@ -66,10 +66,10 @@ pub(super) fn set_shadow_map_payload_bit(
 
 fn mfbo_payload() -> Vec<u8> {
     let mut payload = Vec::new();
-    for value in [-10i16, -9, -8, -7, -6, -5, -4, -3, -2] {
+    for value in [20i16, 21, 22, 23, 24, 25, 26, 27, 28] {
         payload.extend_from_slice(&value.to_le_bytes());
     }
-    for value in [20i16, 21, 22, 23, 24, 25, 26, 27, 28] {
+    for value in [-10i16, -9, -8, -7, -6, -5, -4, -3, -2] {
         payload.extend_from_slice(&value.to_le_bytes());
     }
     payload
