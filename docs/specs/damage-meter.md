@@ -25,7 +25,7 @@ Client: `godot/ui-model/src/damage_meter_data.rs` (session selection, rows, numb
 - [ ] The dropdown menus' art is a plain dark panel, not `MenuStyle2`; past sessions ("Combat N"), the settings menu, minimize, resize and moving are not implemented.
 - [ ] Modern spec icons (`ShowSpecIcon` 1) are not drawn: the snapshot has no spec. Modern rows start at the bar's left edge as with icons off. Forever uses the supplied class identity; [reference chrome and provenance](forever-chat-meter-chrome.md).
 - [ ] Retail's C `AbbreviateLargeNumbers` may format differently from the old Lua one.
-- [ ] Only the first 5 rows fit; the scroll box, scroll bar and pinned local-player row (`AlwaysShowsLocalPlayer`) are not implemented.
+- [ ] Only the rows that fit the window's height are shown (Forever: 5 at the preset size, [geometry](forever-chat-meter-chrome.md)); the scroll box, scroll bar and pinned local-player row (`AlwaysShowsLocalPlayer`) are not implemented.
 - [ ] The per-spell breakdown window (`DamageMeterSourceWindow`, opened by clicking a row) is not implemented; the snapshot already carries each source's spells. A recap longer than the visible rows cannot happen (5 rows).
 
 ## Tests
