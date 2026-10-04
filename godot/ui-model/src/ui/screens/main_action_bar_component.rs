@@ -14,6 +14,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::hud_layout::{ActionBarLayout, FOREVER_ACTION_BUTTON_SCALE, HudLayout, hud_layout};
+use crate::input_bindings::{InputAction, InputBinding, InputBindingsData, InputState};
 use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::GameFont;
@@ -105,6 +106,8 @@ pub struct ActionButtonView {
     pub pushed: bool,
     /// Pointer over the button: `HighlightTexture`.
     pub hovered: bool,
+    /// `HotKey` text: the button's binding abbreviated, empty when unbound.
+    pub hotkey: String,
 }
 
 /// The action bars this client draws.
@@ -176,6 +179,18 @@ impl ActionBar {
         (self.page() - 1) * MAIN_BAR_BUTTONS + index
     }
 
+    /// The binding each button runs: `ACTIONBUTTONn` on the main bar,
+    /// `MULTIACTIONBAR1BUTTONn` / `MULTIACTIONBAR2BUTTONn` on Action Bar 2 / 3
+    /// (`ActionBarActionButtonMixin:UpdateHotkeys`, `ActionButton.lua:470-486`;
+    /// `MultiActionBars.xml` `buttonType`).
+    pub const fn binding_actions(self) -> [InputAction; MAIN_BAR_BUTTONS] {
+        match self {
+            Self::Main => InputAction::ACTION_BAR_BUTTONS,
+            Self::BottomLeft => InputAction::MULTI_ACTION_BAR_1,
+            Self::BottomRight => InputAction::MULTI_ACTION_BAR_2,
+        }
+    }
+
     /// The bar's Edit Mode settings under `layout`; `None` when the preset does not show it.
     fn layout(self, layout: &HudLayout) -> Option<&ActionBarLayout> {
         match self {
@@ -224,19 +239,37 @@ impl MainActionBarState {
             ActionBar::BottomRight => &mut self.multi_bars[1],
         }
     }
+
+    /// `UpdateHotkeys` on every button: `GetBindingText(GetBindingKey(bindingAction), 1)`,
+    /// empty for an unbound button (`ActionButton.lua:488-495`).
+    pub fn set_hotkeys(&mut self, bindings: &InputBindingsData) {
+        for bar in ActionBar::ALL {
+            for (view, action) in self.bar_mut(bar).iter_mut().zip(bar.binding_actions()) {
+                view.hotkey = bindings
+                    .binding(action)
+                    .map(InputBinding::hotkey_text)
+                    .unwrap_or_default();
+            }
+        }
+    }
 }
 
-/// Key label of button `index`: the main bar's `ACTIONBUTTON1..12` default bindings. The
-/// client binds no key to `MULTIACTIONBAR1BUTTON<n>` / `MULTIACTIONBAR2BUTTON<n>`, and an
-/// unbound button shows no key (`ActionButton.lua:470-493`).
-pub fn hotkey_label(bar: ActionBar, index: usize) -> &'static str {
-    match bar {
-        ActionBar::Main => ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
-            .get(index)
-            .copied()
-            .unwrap_or(""),
-        ActionBar::BottomLeft | ActionBar::BottomRight => "",
-    }
+/// Buttons whose binding went down this frame, on every bar (`ActionButtonDown`,
+/// `MultiActionButtonDown`).
+pub fn pressed_action_buttons(
+    bindings: &InputBindingsData,
+    input: &impl InputState,
+) -> Vec<(ActionBar, usize)> {
+    ActionBar::ALL
+        .into_iter()
+        .flat_map(|bar| {
+            bar.binding_actions()
+                .into_iter()
+                .enumerate()
+                .filter(|(_, action)| bindings.is_just_pressed(*action, input))
+                .map(move |(index, _)| (bar, index))
+        })
+        .collect()
 }
 
 /// Bar and button index of an action this screen emitted.
@@ -394,7 +427,7 @@ fn button(
             frame_art,
             !view.hovered,
         ),
-        hotkey(&name, hotkey_label(bar, index), scale),
+        hotkey(&name, &view.hotkey, scale),
     ]
     .into_iter()
     .flatten()
