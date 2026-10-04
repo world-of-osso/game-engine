@@ -8,6 +8,7 @@ use ui_toolkit::frame::WidgetData;
 use ui_toolkit::widgets::texture::TextureSource;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
+use ui_toolkit::widgets::texture::TextureSource;
 
 fn spell(spell_id: u32, name: &str, available_at: Option<u32>) -> SpellbookItemView {
     SpellbookItemView {
@@ -229,4 +230,56 @@ fn the_book_scales_to_fit_the_viewport() {
     assert!((scale - (1280.0 - 32.0) / 1618.0).abs() < 1e-6);
     assert_eq!(origin[0], ((1280.0 - 1618.0 * scale) / 2.0).round());
     assert_eq!(frame_layout([3840.0, 2160.0]).0, 1.0);
+}
+
+fn drawn_fdids(registry: &FrameRegistry) -> Vec<u32> {
+    registry
+        .frames_iter()
+        .filter_map(|frame| match frame.widget_data.as_ref()? {
+            WidgetData::Texture(texture) => match texture.source {
+                TextureSource::FileDataId(fdid) => Some(fdid),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect()
+}
+
+/// A spell whose icon is not drawable yet (FDID 0) has no icon texture; once the icon is
+/// known the same entry draws it.
+#[test]
+fn spell_without_a_known_icon_builds_no_icon_texture() {
+    let book = |icon_fdid| {
+        state(vec![SpellbookCategory {
+            name: "Warrior".into(),
+            groups: vec![SpellbookGroup {
+                name: "Warrior".into(),
+                items: vec![SpellbookItemView {
+                    icon_fdid,
+                    ..spell(1464, "Slam", None)
+                }],
+            }],
+        }])
+    };
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut shared = SharedContext::new();
+    let mut screen = Screen::new(spellbook_frame_screen);
+    shared.insert(book(0));
+    screen.sync(&shared, &mut registry);
+    assert!(!drawn_fdids(&registry).contains(&0));
+    assert!(registry.get_by_name("SpellBookItem1464Button").is_some());
+    assert!(registry.get_by_name("SpellBookItem1464Icon").is_none());
+
+    shared.insert(book(132_375));
+    screen.sync(&shared, &mut registry);
+    assert!(!drawn_fdids(&registry).contains(&0));
+    let icon = registry
+        .get(registry.get_by_name("SpellBookItem1464Icon").unwrap())
+        .unwrap();
+    match icon.widget_data.as_ref() {
+        Some(WidgetData::Texture(texture)) => {
+            assert_eq!(texture.source, TextureSource::FileDataId(132_375))
+        }
+        other => panic!("icon is not a texture: {other:?}"),
+    }
 }

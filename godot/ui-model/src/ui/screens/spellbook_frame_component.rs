@@ -619,17 +619,21 @@ fn item(item: &SpellbookItemView, rect: [f32; 2], s: f32) -> Element {
     let castable = !item.passive && item.available_at.is_none();
     let onclick = castable.then(|| format!("{ACTION_SPELLBOOK_CAST}{}", item.spell_id));
     let icon_name = format!("{name}Icon");
-    let icon = rsx! {
-        texture {
-            name: {DynName(icon_name)},
-            width: {ICON_SIZE * s},
-            height: {ICON_SIZE * s},
-            hidden: {item.icon_fdid == 0},
-            texture_fdid: {item.icon_fdid},
-            vertex_color: tint,
-            pos_type: "absolute",
-            pos_x: {icon_left * s},
-            pos_y: {icon_top * s},
+    // A spell whose icon is not drawable yet (FDID 0) has no icon texture.
+    let icon: Element = if item.icon_fdid == 0 {
+        Element::default()
+    } else {
+        rsx! {
+            texture {
+                name: {DynName(icon_name)},
+                width: {ICON_SIZE * s},
+                height: {ICON_SIZE * s},
+                texture_fdid: {item.icon_fdid},
+                vertex_color: tint,
+                pos_type: "absolute",
+                pos_x: {icon_left * s},
+                pos_y: {icon_top * s},
+            }
         }
     };
     let children: Element = [
