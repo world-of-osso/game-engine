@@ -5,9 +5,9 @@ use game_engine_ui_model::spellbook_frame_component::{
 };
 use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
 use ui_toolkit::frame::WidgetData;
-use ui_toolkit::widgets::texture::TextureSource;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
+use ui_toolkit::widgets::texture::TextureSource;
 
 fn spell(spell_id: u32, name: &str, available_at: Option<u32>) -> SpellbookItemView {
     SpellbookItemView {
@@ -120,11 +120,15 @@ fn state(categories: Vec<SpellbookCategory>) -> SpellbookFrameState {
     }
 }
 
-fn build(state: &SpellbookFrameState) -> FrameRegistry {
+fn use_repo_data_root() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
+}
+
+fn build(state: &SpellbookFrameState) -> FrameRegistry {
+    use_repo_data_root();
     let mut registry = FrameRegistry::new(1280.0, 720.0);
     let mut shared = SharedContext::new();
     shared.insert(state.clone());
@@ -260,6 +264,7 @@ fn spell_without_a_known_icon_builds_no_icon_texture() {
             }],
         }])
     };
+    use_repo_data_root();
     let mut registry = FrameRegistry::new(1280.0, 720.0);
     let mut shared = SharedContext::new();
     let mut screen = Screen::new(spellbook_frame_screen);
