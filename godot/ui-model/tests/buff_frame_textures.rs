@@ -53,3 +53,39 @@ fn buff_frame_cache_requests_cover_static_flight_and_drawn_debuff_art() {
     }
     assert!(buff_frame_texture_fdids(&BuffFrameState::default()).is_empty());
 }
+
+/// An aura replicated before the spell catalog has loaded has no icon yet (`icon_fdid` 0,
+/// `aura_instance`): its button is built without an icon texture and nothing is requested.
+#[test]
+fn aura_without_a_resolved_icon_builds_no_icon_texture() {
+    let state = BuffFrameState {
+        buffs: vec![icon(0, None), icon(STATIC_FLIGHT_ICON, None)],
+        debuffs: vec![icon(0, Some(DebuffType::Magic))],
+    };
+    assert_eq!(
+        buff_frame_texture_fdids(&state),
+        vec![STATIC_FLIGHT_ICON, 7_553_349]
+    );
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Forever);
+    shared.insert(state);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(buff_frame_screen).sync(&shared, &mut registry);
+    let drawn: Vec<u32> = registry
+        .frames_iter()
+        .filter_map(|frame| match frame.widget_data.as_ref()? {
+            WidgetData::Texture(texture) => match texture.source {
+                TextureSource::FileDataId(fdid) => Some(fdid),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect();
+    assert!(!drawn.contains(&0), "drawn textures: {drawn:?}");
+    assert!(drawn.contains(&STATIC_FLIGHT_ICON));
+    for button in ["BuffButton0", "BuffButton1", "DebuffButton0"] {
+        assert!(registry.get_by_name(button).is_some(), "{button} missing");
+    }
+    assert!(registry.get_by_name("BuffButton0Icon").is_none());
+    assert!(registry.get_by_name("BuffButton1Icon").is_some());
+}
