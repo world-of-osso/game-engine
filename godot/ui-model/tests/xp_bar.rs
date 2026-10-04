@@ -25,6 +25,10 @@ fn setup(skin: ActiveSkin, state: XpBarState) -> FrameRegistry {
     shared.insert(skin);
     shared.insert(state);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    registry.register_panel_style(
+        game_engine_ui_model::flare_panel::FLARE_BRONZE_PANEL_STYLE,
+        game_engine_ui_model::flare_panel::flare_bronze_style(TextureSource::SolidColor([1.0; 4])),
+    );
     Screen::new(xp_bar_screen).sync(&shared, &mut registry);
     apply_xp_bar_postsetup(&mut registry);
     registry
