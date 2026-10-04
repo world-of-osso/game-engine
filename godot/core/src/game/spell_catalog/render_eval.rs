@@ -8,6 +8,8 @@ use super::render::{Renderer, Unresolved, ValueToken, parse_value_token};
 pub(super) enum Expr {
     Number(f64),
     Value(ValueToken),
+    /// `$<name>`: a `SpellDescriptionVariables` definition.
+    Variable(String),
     Neg(Box<Expr>),
     Binary(char, Box<Expr>, Box<Expr>),
     Call(Function, Vec<Expr>),
@@ -68,14 +70,21 @@ impl Function {
     }
 }
 
+/// A leaf of an [`Expr`] whose value the renderer supplies.
+pub(super) enum Operand<'e> {
+    Token(&'e ValueToken),
+    Variable(&'e str),
+}
+
 impl Expr {
     pub(super) fn eval(
         &self,
-        value: &dyn Fn(&ValueToken) -> Result<f64, Unresolved>,
+        value: &dyn Fn(Operand) -> Result<f64, Unresolved>,
     ) -> Result<f64, Unresolved> {
         Ok(match self {
             Self::Number(number) => *number,
-            Self::Value(token) => value(token)?,
+            Self::Value(token) => value(Operand::Token(token))?,
+            Self::Variable(name) => value(Operand::Variable(name))?,
             Self::Neg(inner) => -inner.eval(value)?,
             Self::Binary(op, lhs, rhs) => {
                 let (lhs, rhs) = (lhs.eval(value)?, rhs.eval(value)?);
@@ -96,6 +105,17 @@ impl Expr {
             }
         })
     }
+}
+
+/// The name of a `$<name>` token, given the text after its `<`.
+pub(super) fn variable_name(body: &str) -> Option<&str> {
+    let end = body.find('>')?;
+    let name = &body[..end];
+    let valid = !name.is_empty()
+        && name
+            .bytes()
+            .all(|byte| byte.is_ascii_alphanumeric() || byte == b'_');
+    valid.then_some(name)
 }
 
 pub(super) fn parse_expr(text: &str) -> Result<Expr, Unresolved> {
@@ -214,8 +234,13 @@ impl Parser<'_> {
         Ok(number)
     }
 
-    /// After a `$` inside an expression: a function call or a value token.
+    /// After a `$` inside an expression: a function call, a `<variable>` or a value token.
     fn dollar(&mut self) -> Result<Expr, Unresolved> {
+        if let Some(body) = self.rest().strip_prefix('<') {
+            let name = variable_name(body).ok_or(Unresolved)?.to_string();
+            self.pos += name.len() + 2;
+            return Ok(Expr::Variable(name));
+        }
         let name_len = self
             .rest()
             .bytes()

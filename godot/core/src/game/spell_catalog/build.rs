@@ -29,6 +29,8 @@ pub(super) const SOURCE_TABLES: &[&str] = &[
     "SpellCategory",
     "SpellAuraOptions",
     "SpellShapeshiftForm",
+    "SpellDescriptionVariables",
+    "SpellXDescriptionVariables",
 ];
 
 type SpellMap = HashMap<u32, CatalogSpell>;
@@ -55,6 +57,7 @@ const SPELL_ATTR2_INITIATE_COMBAT_POST_CAST_ENABLES_AUTO_ATTACK: i64 = 0x0010_00
 pub(super) fn build_spells(dir: &Path) -> Result<Vec<CatalogSpell>, String> {
     let mut spells = load_names(dir)?;
     apply_text(dir, &mut spells)?;
+    apply_description_variables(dir, &mut spells)?;
     apply_misc(dir, &mut spells)?;
     apply_effects(dir, &mut spells)?;
     apply_powers(dir, &mut spells)?;
@@ -147,6 +150,30 @@ fn apply_text(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
             spell.subtext = row.text(1)?.into();
             spell.description = row.text(2)?.into();
             spell.aura_description = row.text(3)?.into();
+        }
+        Ok(())
+    })
+}
+
+/// The `SpellDescriptionVariables.Variables` text a `SpellXDescriptionVariables` row
+/// links to the spell: the `$name=...` definitions its `$<name>` tokens read. Build
+/// 12.1.0.69933 links spell 66109 to row 1, which the client table does not have.
+fn apply_description_variables(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
+    let variables = load_id_map(
+        dir,
+        "SpellDescriptionVariables",
+        &["ID", "Variables"],
+        |row| Ok(Box::<str>::from(row.text(1)?)),
+    )?;
+    let columns = ["SpellID", "SpellDescriptionVariablesID"];
+    for_each_row(dir, "SpellXDescriptionVariables", &columns, |row| {
+        let (spell_id, variables_id): (u32, u32) = (row.get(0)?, row.get(1)?);
+        let Some(text) = variables.get(&variables_id) else {
+            log::warn!("spell {spell_id} links missing SpellDescriptionVariables {variables_id}");
+            return Ok(());
+        };
+        if let Some(spell) = spells.get_mut(&spell_id) {
+            spell.description_variables = text.clone();
         }
         Ok(())
     })

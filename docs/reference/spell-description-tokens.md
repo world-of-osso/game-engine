@@ -46,6 +46,7 @@ points, `$t` aura period, `$u` max stacks, `$v` max target level, `$x` chain tar
 | `$@spellname123` | spell name |
 | `$s1` etc. of a spell/attack power scaled effect | base points + trunc(`EffectBonusCoefficient` × spell power) + trunc(`BonusCoefficientFromAP` × attack power), from the owner-only `DerivedStats` (TrinityCore `Unit::SpellDamageBonusDone`); no crit, versatility or aura percentages |
 | `$SP` `$sp` `$AP` `$ap` | the player's spell / attack power |
+| `$<name>` | the spell's `SpellDescriptionVariables.Variables` definition `$name=...` (linked by `SpellXDescriptionVariables`; local CASC FDIDs 1140004 / 1724949, `scripts/export_db2_csv.py`): rendered as text in the description, its number inside `${...}` and conditions. A definition is `${expr}`, a `$?` chain of definitions, or a bare expression; a trailing unmatched `}` (Crusader Strike's `$pvp`) is ignored |
 
 ## Unresolved
 
@@ -55,8 +56,8 @@ Rendered as `{?<token>}` and logged once per spell and token (`warn!`):
   has no ExpectedStat data), and spell/attack power scaled points (`EffectBonusCoefficient`
   or `BonusCoefficientFromAP` non-zero on a SCHOOL_DAMAGE / HEAL effect or PERIODIC_DAMAGE /
   PERIODIC_HEAL aura, or with 0 stored points) before `DerivedStats` arrives.
-- Other caster stats (`$MHP`, `$pri`, `$PL`, `$SPH`, `$RAP`, ...), `$<var>` (no
-  SpellDescriptionVariables table locally), `$g` gender forms, `$@spellicon`,
+- Other caster stats (`$MHP`, `$pri`, `$PL`, `$pl`, `$SPH`, `$RAP`, `$@versadmg`, ...),
+  and `$<var>` definitions that read them, `$g` gender forms, `$@spellicon`,
   `$@versadmg`, `$@switch`, garrison / loot-spec references, `$j`, `$e`, `$i`, `$p`, `$q`.
 - Conditions other than `s`/`a`/`c`/comparisons (`diff`, `pc`, `j1g`, ...).
 - `$d` of a spell without a positive duration.
