@@ -252,6 +252,7 @@ const FOREVER_BUTTON_TOP: f32 =
     FLARE_SKIN_RECT.1 + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
 const FOREVER_CHART_LEFT: f32 = 348.5;
 const FOREVER_GEAR_LEFT: f32 = 369.5;
+const FOREVER_CHART_COLUMN_W: f32 = 2.2;
 
 fn forever_header() -> Element {
     let mut parts = flare_header("DamageMeterFlare", FLARE_SKIN_RECT);
@@ -293,7 +294,7 @@ fn forever_chart_button() -> Element {
             rsx! {
                 r#frame {
                     name: {DynName(format!("DamageMeterChartColumn{index}"))},
-                    width: 2.2,
+                    width: FOREVER_CHART_COLUMN_W,
                     height,
                     background_color: FLARE_ICON_COLOR,
                     pos_type: "absolute",
