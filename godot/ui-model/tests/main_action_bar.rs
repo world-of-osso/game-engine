@@ -64,7 +64,10 @@ fn main_bar_uses_retail_geometry_and_default_keys() {
         source(&registry, "ActionButton1NormalTexture"),
         TextureSource::Atlas("UI-HUD-ActionBar-IconFrame".into())
     );
-    assert!(frame(&registry, "ActionButton1Icon").hidden, "empty slot");
+    assert!(
+        registry.get_by_name("ActionButton1Icon").is_none(),
+        "empty slot"
+    );
     assert!(frame(&registry, "ActionButton1PushedTexture").hidden);
 }
 
@@ -93,6 +96,42 @@ fn spell_button_shows_icon_cooldown_swipe_and_countdown() {
     assert!(!frame(&registry, "ActionButton1PushedTexture").hidden);
     assert!(frame(&registry, "ActionButton1NormalTexture").hidden);
     assert!(frame(&registry, "ActionButton2Cooldown").hidden);
+}
+
+#[test]
+fn empty_action_slots_have_no_texture_source() {
+    use ui_toolkit::atlas::ActiveSkin;
+
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        let mut state = MainActionBarState::default();
+        state.buttons[0].icon_fdid = SLAM_ICON;
+        shared.insert(skin);
+        shared.insert(state);
+        let mut screen = Screen::new(main_action_bar_screen);
+        screen.sync(&shared, &mut registry);
+        assert_eq!(
+            source(&registry, "ActionButton1Icon"),
+            TextureSource::FileDataId(SLAM_ICON)
+        );
+        for index in 2..=12 {
+            let name = format!("ActionButton{index}Icon");
+            assert!(registry.get_by_name(&name).is_none(), "{name} is empty");
+        }
+
+        // A previously occupied slot must also clear its source when emptied.
+        shared.insert(MainActionBarState::default());
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("ActionButton1Icon").is_none());
+        assert!(registry.frames_iter().all(|frame| {
+            !matches!(
+                frame.widget_data.as_ref(),
+                Some(WidgetData::Texture(texture))
+                    if texture.source == TextureSource::FileDataId(0)
+            )
+        }));
+    }
 }
 
 #[test]
