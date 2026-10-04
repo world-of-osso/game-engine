@@ -11,9 +11,10 @@ use ui_toolkit::widget_def::Element;
 
 use crate::chat_data::ChatState;
 use crate::flare_panel::{
-    FLARE_ACTIVE_TEXT, FLARE_CHANNEL_ART, FLARE_FONT_SIZE, FLARE_GEAR_ART,
-    FLARE_HEADER_BUTTON_SIZE, FLARE_HEADER_HEIGHT, FLARE_INACTIVE_TEXT, FLARE_SOCIAL_ART,
-    FLARE_VOLUME_ART, flare_header, flare_icon, flare_panel, flare_text,
+    FLARE_ACTIVE_TEXT, FLARE_FONT_SIZE, FLARE_HEADER_BUTTON_SIZE, FLARE_HEADER_HEIGHT,
+    FLARE_HEADER_ICON_INSET, FLARE_HEADER_ICON_SIZE, FLARE_ICON_COLOR, FLARE_INACTIVE_TEXT,
+    FLARE_MENU_ART, FLARE_SOCIAL_ART, FLARE_VOLUME_ART, flare_header, flare_icon, flare_panel,
+    flare_text,
 };
 use crate::hud_layout::{FOREVER_CHAT_PANEL_SIZE, hud_layout};
 use crate::ui::anchor::FrameName;
@@ -367,31 +368,106 @@ const FOREVER_BUTTON_GAP: f32 = 35.0;
 const FOREVER_BUTTON_TOP: f32 =
     FLARE_SKIN_RECT.1 + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
 
+/// Header glyphs after the channel page, left to right: FlareUI packs `HEADER_ORDER`
+/// volume, social, menu, channel from the right edge (Chat.lua:471-487).
+const FOREVER_HEADER_GLYPHS: [(&str, (u32, [f32; 4]), Option<&str>); 3] = [
+    ("Menu", FLARE_MENU_ART, Some(COPY_CHAT_ACTION)),
+    ("Social", FLARE_SOCIAL_ART, None),
+    ("Volume", FLARE_VOLUME_ART, None),
+];
+
+/// Textures the host must copy from local CASC before drawing the Forever chat header.
+pub const FOREVER_CHAT_HEADER_FDIDS: [u32; 3] =
+    [FLARE_MENU_ART.0, FLARE_SOCIAL_ART.0, FLARE_VOLUME_ART.0];
+
+fn forever_header_button(index: usize) -> [f32; 4] {
+    [
+        FOREVER_BUTTON_LEFT + FOREVER_BUTTON_GAP * index as f32,
+        FOREVER_BUTTON_TOP,
+        FLARE_HEADER_BUTTON_SIZE,
+        FLARE_HEADER_BUTTON_SIZE,
+    ]
+}
+
 fn forever_background() -> Element {
     let mut parts = flare_panel(CHAT_FLARE_SKIN, FLARE_SKIN_RECT);
     parts.extend(flare_header("ChatFrame1Flare", FLARE_SKIN_RECT));
-    for (index, (suffix, art, action)) in [
-        ("Channel", FLARE_CHANNEL_ART, None),
-        ("Menu", FLARE_GEAR_ART, Some(COPY_CHAT_ACTION)),
-        ("Social", FLARE_SOCIAL_ART, None),
-        ("Volume", FLARE_VOLUME_ART, None),
-    ]
-    .into_iter()
-    .enumerate()
-    {
+    parts.extend(forever_channel_button(forever_header_button(0)));
+    for (index, (suffix, art, action)) in FOREVER_HEADER_GLYPHS.into_iter().enumerate() {
         parts.extend(flare_icon(
             &format!("ChatFrame1Flare{suffix}"),
             art,
-            [
-                FOREVER_BUTTON_LEFT + FOREVER_BUTTON_GAP * index as f32,
-                FOREVER_BUTTON_TOP,
-                FLARE_HEADER_BUTTON_SIZE,
-                FLARE_HEADER_BUTTON_SIZE,
-            ],
+            forever_header_button(index + 1),
             action,
         ));
     }
     parts
+}
+
+/// Page and its text lines inside the 13.2-square glyph box: `(x, y, width, height)`.
+const CHANNEL_PAGE: (f32, f32, f32, f32) = (1.65, 0.0, 9.9, 13.2);
+const CHANNEL_LINES: [(f32, f32, f32, f32); 3] = [
+    (3.85, 3.3, 5.5, 1.1),
+    (3.85, 6.05, 5.5, 1.1),
+    (3.85, 8.8, 5.5, 1.1),
+];
+const CHANNEL_LINE_COLOR: &str = "0.05,0.06,0.05,1";
+
+/// FlareUI's channel button (`ChatFrameChannelButton`, Chat.lua:59,610) shows a page of
+/// text lines from its own Media. Blizzard's icon for that button is the voice chat
+/// speaker (ChannelFrameButtonMixin.lua:24), which would repeat the volume glyph, so the
+/// page is drawn from solid frames, as the meter's chart is.
+fn forever_channel_button([x, y, width, height]: [f32; 4]) -> Element {
+    let page = solid_frame(
+        "ChatFrame1FlareChannelPage".into(),
+        CHANNEL_PAGE,
+        FLARE_ICON_COLOR,
+    );
+    let lines: Element = CHANNEL_LINES
+        .into_iter()
+        .enumerate()
+        .flat_map(|(index, line)| {
+            solid_frame(
+                format!("ChatFrame1FlareChannelLine{index}"),
+                line,
+                CHANNEL_LINE_COLOR,
+            )
+        })
+        .collect();
+    rsx! {
+        r#frame {
+            name: "ChatFrame1FlareChannel",
+            width,
+            height,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+            r#frame {
+                name: "ChatFrame1FlareChannelIcon",
+                width: FLARE_HEADER_ICON_SIZE,
+                height: FLARE_HEADER_ICON_SIZE,
+                pos_type: "absolute",
+                left: FLARE_HEADER_ICON_INSET,
+                top: FLARE_HEADER_ICON_INSET,
+                {page}
+                {lines}
+            }
+        }
+    }
+}
+
+fn solid_frame(name: String, (x, y, width, height): (f32, f32, f32, f32), color: &str) -> Element {
+    rsx! {
+        r#frame {
+            name: {DynName(name)},
+            width,
+            height,
+            background_color: color,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    }
 }
 
 fn forever_tabs(view: &ChatFrameView) -> Element {

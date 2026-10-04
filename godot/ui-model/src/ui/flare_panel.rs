@@ -143,24 +143,26 @@ pub const FLARE_HEADER_BUTTON_SIZE: f32 = 22.0;
 pub const FLARE_HEADER_ICON_SIZE: f32 = 13.2;
 pub const FLARE_HEADER_ICON_INSET: f32 = 4.4;
 
-/// Existing Blizzard glyph crops, excluding cell padding and the gear's dropdown frame.
-/// Pixel measurements, sheets and provenance: docs/specs/forever-chat-meter-chrome.md.
-pub const FLARE_CHANNEL_ART: (u32, [f32; 4]) = (
-    1_121_272,
-    [
-        427.0 / 1024.0,
-        451.0 / 1024.0,
-        768.0 / 1024.0,
-        792.0 / 1024.0,
-    ],
-);
+/// Blizzard glyph crops `(FileDataID, [left, right, top, bottom])`, without cell padding
+/// and button frames. FlareUI draws its own Media art on Blizzard's chat buttons
+/// (Chat.lua:54-61,609-611); that art is not reusable, so each glyph is cut from the
+/// Blizzard art of the button it restyles.
+/// Pixel measurements and provenance: docs/specs/forever-chat-meter-chrome.md.
+///
+/// `ChatFrameMenuButton` (Chat.lua:611): the speech bubble of its NormalTexture
+/// `Interface\ChatFrame\UI-ChatIcon-Chat-Up` (FloatingChatFrame.xml:670).
+pub const FLARE_MENU_ART: (u32, [f32; 4]) =
+    (130_949, [8.0 / 32.0, 22.0 / 32.0, 9.0 / 32.0, 23.0 / 32.0]);
+/// The meter's settings cog without its dropdown frame.
 pub const FLARE_GEAR_ART: (u32, [f32; 4]) = (
     7_518_377,
     [67.0 / 128.0, 79.0 / 128.0, 35.0 / 64.0, 47.0 / 64.0],
 );
+/// `QuickJoinToastButton` (Chat.lua:609): the figure of its `FriendsButton` atlas
+/// `quickjoin-button-friendslist-up` (QuickJoinToast.xml:42).
 pub const FLARE_SOCIAL_ART: (u32, [f32; 4]) = (
-    8_200_846,
-    [276.0 / 1024.0, 318.0 / 1024.0, 98.0 / 512.0, 157.0 / 512.0],
+    1_537_274,
+    [346.0 / 512.0, 360.0 / 512.0, 7.0 / 64.0, 21.0 / 64.0],
 );
 pub const FLARE_VOLUME_ART: (u32, [f32; 4]) = (
     5_390_329,

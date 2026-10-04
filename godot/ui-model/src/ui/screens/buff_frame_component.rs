@@ -133,7 +133,7 @@ pub fn buff_frame_texture_fdids(state: &BuffFrameState) -> Vec<u32> {
         .chain(&state.debuffs)
         .flat_map(|icon| {
             let border = icon.dispel.map(|_| DEBUFF_BORDER_ATLAS_FDID);
-            std::iter::once(icon.icon_fdid).chain(border)
+            resolved_icon(icon).into_iter().chain(border)
         })
         .collect()
 }
@@ -312,6 +312,26 @@ fn aura_frame(
     }
 }
 
+/// The aura's icon once its spell is known: auras replicate before the spell catalog has
+/// loaded, and until then `aura_instance` carries `icon_fdid` 0, which is no texture.
+fn resolved_icon(icon: &BuffIconState) -> Option<u32> {
+    (icon.icon_fdid != 0).then_some(icon.icon_fdid)
+}
+
+fn aura_icon(name: &str, fdid: u32) -> Element {
+    rsx! {
+        texture {
+            name: {DynName(format!("{name}Icon"))},
+            width: ICON_SIZE,
+            height: ICON_SIZE,
+            texture_fdid: fdid,
+            pos_type: "absolute",
+            left: 0.0,
+            top: 0.0,
+        }
+    }
+}
+
 fn aura_button(name: String, (right, top): (f32, f32), icon: &BuffIconState) -> Element {
     let count = if icon.stacks > 1 {
         icon.stacks.to_string()
@@ -327,6 +347,9 @@ fn aura_button(name: String, (right, top): (f32, f32), icon: &BuffIconState) -> 
         .dispel
         .map(|dispel| debuff_border(&name, dispel))
         .unwrap_or_default();
+    let icon_texture: Element = resolved_icon(icon)
+        .map(|fdid| aura_icon(&name, fdid))
+        .unwrap_or_default();
     rsx! {
         r#frame {
             name: {DynName(name.clone())},
@@ -336,15 +359,7 @@ fn aura_button(name: String, (right, top): (f32, f32), icon: &BuffIconState) -> 
             pos_type: "absolute",
             right: right,
             top: top,
-            texture {
-                name: {DynName(format!("{name}Icon"))},
-                width: ICON_SIZE,
-                height: ICON_SIZE,
-                texture_fdid: {icon.icon_fdid},
-                pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
-            }
+            {icon_texture}
             {border}
             // `Symbol` TOPLEFT 2,-2 (BuffFrameTemplates.xml:32-36).
             fontstring {
