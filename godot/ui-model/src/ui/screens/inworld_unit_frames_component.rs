@@ -10,6 +10,7 @@ use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
 };
 use crate::ui::strata::FrameStrata;
+use crate::unit_frame_style::styled_frame;
 use shared::components::CreatureClassification;
 #[path = "class_bars/mod.rs"]
 pub mod class_bars;
@@ -295,6 +296,30 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
     let skin = *ctx
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
+    let player = player_frame(&state.player, state.show_player_frame, &layout.player, skin);
+    let pet = pet_frame(
+        state.pet.as_ref().filter(|_| state.show_player_frame),
+        &layout.pet,
+        skin,
+    );
+    let target = target_frame(
+        state.target.as_ref(),
+        state.show_target_frame,
+        &layout.target,
+        skin,
+    );
+    let target_of_target = small_unit_frame(
+        SmallFrameSpec::TARGET_OF_TARGET,
+        visible_target_of(state),
+        &layout.target_of_target,
+        skin,
+    );
+    let focus = small_unit_frame(
+        SmallFrameSpec::FOCUS,
+        state.focus.as_ref(),
+        &layout.focus,
+        skin,
+    );
     rsx! {
         r#frame {
             name: "InWorldUnitFramesRoot",
@@ -305,12 +330,12 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             pos_y: 0.0,
             strata: FrameStrata::Dialog,
             background_color: "0.0,0.0,0.0,0.0",
-            {player_frame(&state.player, state.show_player_frame, &layout.player, skin)}
-            {pet_frame(state.pet.as_ref().filter(|_| state.show_player_frame), &layout.pet, skin)}
-            {target_frame(state.target.as_ref(), state.show_target_frame, &layout.target, skin)}
+            {styled_frame(player, &layout.player_style, &layout.player)}
+            {styled_frame(pet, &layout.pet_style, &layout.pet)}
+            {styled_frame(target, &layout.target_style, &layout.target)}
             {crate::casting_bar_frame_component::target_cast_bar_frame(ctx, state)}
-            {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state), &layout.target_of_target, skin)}
-            {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref(), &layout.focus, skin)}
+            {styled_frame(target_of_target, &layout.target_style, &layout.target_of_target)}
+            {styled_frame(focus, &layout.focus_style, &layout.focus)}
             {boss_frames(&state.bosses, skin)}
             {personal_resource_display::frame(state.personal_resource.as_ref())}
             {unit_frame_menu(&state.menu)}

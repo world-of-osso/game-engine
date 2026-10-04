@@ -541,7 +541,7 @@ pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
     let hud = hud_layout(ctx);
     ActionBar::ALL
         .into_iter()
-        .filter_map(|bar| Some((bar, bar.layout(hud)?)))
+        .filter_map(|bar| Some((bar, bar.layout(&hud)?)))
         .flat_map(|(bar, layout)| {
             let size = layout.size(style.scale);
             let end_caps = match (bar, skin) {

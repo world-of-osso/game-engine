@@ -12,6 +12,7 @@ use crate::ui::screens::inworld_unit_frames_component::{
     DynName, InWorldUnitFramesState, UNIT_FRAME_H, UNIT_FRAME_W, dyn_name,
     modern_target_cast_offset,
 };
+use crate::unit_frame_style::styled_frame;
 
 /// The bar fills the cast area.
 pub const BAR_W: f32 = CAST_DOCK_W - 8.0;
@@ -227,10 +228,15 @@ pub(super) fn target_cast_bar_frame(
             (0.0, FLARE_TARGET.size.1),
         ),
     };
-    let anchor = hud_layout(ctx)
-        .target
-        .offset_from_top_left(parent_size, offset);
-    cast_bar_frame(state, style, &anchor.place(style.holder_size()))
+    // A child of the target frame: it takes the target's size and text settings.
+    let layout = hud_layout(ctx);
+    let scale = layout.target_style.scale;
+    let anchor = layout.target.offset_from_top_left(
+        (parent_size.0 * scale, parent_size.1 * scale),
+        (offset.0 * scale, offset.1 * scale),
+    );
+    let bar = cast_bar_frame(state, style, &anchor.place(style.holder_size()));
+    styled_frame(bar, &layout.target_style, &anchor)
 }
 
 fn cast_bar_frame(state: &CastingBarState, style: &CastBarStyle, at: &Placement) -> Element {

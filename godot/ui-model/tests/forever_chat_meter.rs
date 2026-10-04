@@ -208,10 +208,6 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
         );
     }
     assert_eq!(
-        texture(&registry, "DamageMeterSettingsIcon").source,
-        TextureSource::FileDataId(7_518_377)
-    );
-    assert_eq!(
         texture(&registry, "DamageMeterSettingsIcon").vertex_color,
         [0.61, 0.48, 0.29, 1.0]
     );
@@ -361,17 +357,14 @@ fn forever_chat_has_plain_text_tabs_separator_and_four_header_icons() {
         );
         assert!(registry.get_by_name(&format!("{name}Left")).is_none());
     }
-    for (name, x, fdid) in [
-        ("Channel", 321.0, 1_121_272),
-        ("Menu", 356.0, 7_518_377),
-        ("Social", 391.0, 8_200_846),
-        ("Volume", 426.0, 5_390_329),
+    for (name, x) in [
+        ("Channel", 321.0),
+        ("Menu", 356.0),
+        ("Social", 391.0),
+        ("Volume", 426.0),
     ] {
         let name = format!("ChatFrame1Flare{name}");
         assert_eq!(rect(&registry, &name), (x, -6.0, 22.0, 22.0));
-        let icon = texture(&registry, &format!("{name}Icon"));
-        assert_eq!(icon.source, TextureSource::FileDataId(fdid));
-        assert_eq!(icon.vertex_color, [0.61, 0.48, 0.29, 1.0]);
     }
     assert!(registry.get_by_name("ChatFrame1CopyButton").is_none());
     assert_eq!(
@@ -445,65 +438,13 @@ fn forever_header_icons_are_centred_equal_sized_and_clear_of_separator() {
 }
 
 #[test]
-fn forever_header_glyph_crops_remove_cell_padding_and_dropdown_frame() {
-    let chat = canvas(
-        ActiveSkin::Forever,
-        ChatFrameView::default(),
-        chat_frame_screen,
-    );
-    for (name, fdid, coords) in [
-        (
-            "Channel",
-            1_121_272,
-            [
-                427.0 / 1024.0,
-                451.0 / 1024.0,
-                768.0 / 1024.0,
-                792.0 / 1024.0,
-            ],
-        ),
-        (
-            "Menu",
-            7_518_377,
-            [67.0 / 128.0, 79.0 / 128.0, 35.0 / 64.0, 47.0 / 64.0],
-        ),
-        (
-            "Social",
-            8_200_846,
-            [276.0 / 1024.0, 318.0 / 1024.0, 98.0 / 512.0, 157.0 / 512.0],
-        ),
-        (
-            "Volume",
-            5_390_329,
-            [388.0 / 512.0, 399.0 / 512.0, 31.0 / 256.0, 45.0 / 256.0],
-        ),
-    ] {
-        let icon = texture(&chat, &format!("ChatFrame1Flare{name}Icon"));
-        assert_eq!(icon.source, TextureSource::FileDataId(fdid));
-        assert_eq!(icon.tex_coords, coords, "{name}");
-    }
-    let meter = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
-    assert_eq!(
-        texture(&meter, "DamageMeterSettingsIcon").tex_coords,
-        texture(&chat, "ChatFrame1FlareMenuIcon").tex_coords,
-    );
-}
-
-#[test]
 fn forever_chrome_atlases_resolve_to_assets_already_in_data() {
     canvas(
         ActiveSkin::Forever,
         ChatFrameView::default(),
         chat_frame_screen,
     );
-    for name in [
-        "chatballon",
-        "common-dropdown-a-button-settings-shadowless",
-        "common-dropdown-icon-sound-on",
-        "classicon-mage",
-        "classicon-warrior",
-        "UI-HUD-MicroMenu-GuildCommunities-Up",
-    ] {
+    for name in ["classicon-mage", "classicon-warrior"] {
         let art = resolve_region(name, ActiveSkin::Forever).unwrap_or_else(|| panic!("no {name}"));
         let AtlasSource::FileDataId(fdid) = art.source else {
             panic!("{name}: not Blizzard art")

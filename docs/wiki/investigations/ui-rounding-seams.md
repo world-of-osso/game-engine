@@ -12,3 +12,11 @@
 - `bevy-patches/taffy/tests/rounding_gaps.rs` lays out the Buy tab's three pieces at physical coordinates. RED: left cap ends at 22, middle starts at 23. GREEN with the fix.
 - A live capture shows every tab edge contiguous (Tab1 613.5/621.0, Tab2 667.5/675.0, Tab3 721.5/742.5) and no seams.
 - Evidence: `data/diagnostics/ahtabs-20260926/` (`buy.webp` before, `buy-taffy.webp` after).
+
+## Turned textures (2026-10-04)
+
+Symptom: the Forever XP bar's top and bottom border edges sat 1 px right of and below the corner pieces.
+
+`TextureData.rotation` turns a texture about its centre. The `UI-Tooltip-Border` top and bottom edges are such textures (`inworld_unit_frames_flare.rs` `border_pieces`): the XP bar's is 16×569 at (292.5, −276.5), a half-pixel origin whenever the frame width minus the edge is odd. Layout rounded that rect to pixels (+0.5, +0.5), then Godot snapped the turned `TextureRect` (it rounds a control's transform origin at quarter turns) another +0.5 on each axis.
+
+Fix: `layout.rs` keeps the unrounded rect of a turned texture (`is_turned`), and `projection.rs` puts its node on whole pixels and adds the remainder to the turned image, so the image is snapped once, as drawn. Borders with an even difference (player frame 240 wide) were never affected. Test: `ui::layout::tests::flare_border_edges_meet_their_corners`.
