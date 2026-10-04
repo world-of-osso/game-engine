@@ -1643,62 +1643,20 @@ fn validate_startup_name(response: &LoginResponse, name: Option<&str>) -> Result
 }
 
 fn read_transfer_map_name(data_root: &Path, map_id: u32) -> Result<String, String> {
-    find_map_field(data_root, "ID", &map_id.to_string(), "MapName_lang")
-        .map_err(|error| format!("{error} (map {map_id})"))
+    let catalog = game_engine_core::map_catalog::MapCatalog::read(data_root)?;
+    catalog
+        .by_id(map_id)
+        .map(|map| map.name.clone())
+        .ok_or_else(|| format!("Map.csv: no map ID {map_id}"))
 }
 
 /// The `Map.db2` ID of the map whose `Directory` is `directory` (`stormwindjail` is 34).
 pub(crate) fn read_map_id(data_root: &Path, directory: &str) -> Result<u32, String> {
-    let id = find_map_field(data_root, "Directory", directory, "ID")?;
-    id.parse()
-        .map_err(|error| format!("Map.csv: invalid ID {id:?} for {directory}: {error}"))
-}
-
-/// The non-empty `value_column` of the first `Map.csv` row whose `key_column` equals `key`,
-/// ignoring ASCII case.
-fn find_map_field(
-    data_root: &Path,
-    key_column: &str,
-    key: &str,
-    value_column: &str,
-) -> Result<String, String> {
-    use game_engine_core::csv_util::header_index;
-
-    let path = data_root.join("db2/12.1.0.69933/Map.csv");
-    let read_error = |error: &dyn std::fmt::Display| format!("Read {}: {error}", path.display());
-    let file = fs::File::open(&path).map_err(|error| read_error(&error))?;
-    let mut reader = csv::Reader::from_reader(file);
-    let headers: Vec<String> = reader
-        .headers()
-        .map_err(|error| read_error(&error))?
-        .iter()
-        .map(str::to_owned)
-        .collect();
-    if headers.is_empty() {
-        return Err(format!("{} is empty", path.display()));
-    }
-    let key_index = header_index(&headers, key_column, &path)?;
-    let value_index = header_index(&headers, value_column, &path)?;
-    for record in reader.records() {
-        let fields = record.map_err(|error| read_error(&error))?;
-        if !fields
-            .get(key_index)
-            .is_some_and(|field| field.eq_ignore_ascii_case(key))
-        {
-            continue;
-        }
-        return fields
-            .get(value_index)
-            .filter(|value| !value.is_empty())
-            .map(str::to_owned)
-            .ok_or_else(|| {
-                format!(
-                    "{}: {key_column} {key} has no {value_column}",
-                    path.display()
-                )
-            });
-    }
-    Err(format!("{}: no {key_column} {key}", path.display()))
+    let catalog = game_engine_core::map_catalog::MapCatalog::read(data_root)?;
+    catalog
+        .by_directory(directory)
+        .map(|map| map.id)
+        .ok_or_else(|| format!("Map.csv: no Directory {directory}"))
 }
 
 /// The quest giver dialog message, or the message back (`QuestChannel`).
