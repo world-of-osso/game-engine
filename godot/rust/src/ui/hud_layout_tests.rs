@@ -199,7 +199,11 @@ fn assert_modern_edit_mode_systems(hud: &[RegistryModel]) {
 
 fn assert_rect(hud: &[RegistryModel], name: &str, expected: (f32, f32, f32, f32)) {
     let rect = rect(hud, name);
-    assert_eq!((rect.x, rect.y, rect.width, rect.height), expected, "{name}");
+    assert_eq!(
+        (rect.x, rect.y, rect.width, rect.height),
+        expected,
+        "{name}"
+    );
 }
 
 #[test]

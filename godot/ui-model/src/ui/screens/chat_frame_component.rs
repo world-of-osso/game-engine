@@ -14,6 +14,7 @@ use crate::flare_panel::{
     FLARE_ACTIVE_TEXT, FLARE_FONT_SIZE, FLARE_HEADER_HEIGHT, FLARE_INACTIVE_TEXT, flare_header,
     flare_icon, flare_panel, flare_text,
 };
+use crate::hud_layout::{FOREVER_CHAT_PANEL_SIZE, hud_layout};
 use crate::ui::anchor::FrameName;
 use crate::ui::chat_frame::{
     ChatFrameState, ChatRow, ChatRun, ChatTab, CombatLogChat, local_timestamp, messages_that_fit,
@@ -35,7 +36,6 @@ pub const SCROLL_TO_BOTTOM_ACTION: &str = "chat:scroll_to_bottom";
 /// Default window: 500x280 at BOTTOMLEFT (0, 40) (Core/Config.lua:28-29).
 const FRAME_W: f32 = 500.0;
 const FRAME_H: f32 = 280.0;
-const FRAME_BOTTOM: f32 = 40.0;
 /// Tab bar at TOPLEFT (32, 0), 22 high (Display/Main.lua:50-52).
 const TABS_LEFT: f32 = 32.0;
 const TAB_H: f32 = 22.0;
@@ -76,8 +76,8 @@ const FLARE_HEADER_H: f32 = 24.0;
 const FLARE_SKIN_RECT: (f32, f32, f32, f32) = (
     MESSAGES_LEFT - FLARE_PADDING,
     MESSAGES_TOP - FLARE_PADDING - FLARE_HEADER_H,
-    MESSAGES_W + 2.0 * FLARE_PADDING,
-    MESSAGES_H + 2.0 * FLARE_PADDING + FLARE_HEADER_H,
+    FOREVER_CHAT_PANEL_SIZE.0,
+    FOREVER_CHAT_PANEL_SIZE.1,
 );
 const TAB_LEFT_TEXTURE: &str = "data/textures/ui/chattynator/ChatTabLeft.png";
 const TAB_MIDDLE_TEXTURE: &str = "data/textures/ui/chattynator/ChatTabMiddle.png";
@@ -262,6 +262,11 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
     let skin = *ctx
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
+    let layout = hud_layout(ctx);
+    let (width, height) = layout.chat_size;
+    let at = layout.chat.place((width, height));
+    let messages_width = width - MESSAGES_LEFT - 5.0;
+    let messages_height = height - MESSAGES_TOP - 38.0;
     let background = match skin {
         ActiveSkin::Modern => chattynator_background(view.tab),
         ActiveSkin::Forever => forever_background(),
@@ -289,17 +294,19 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame {
             name: CHAT_FRAME,
-            width: FRAME_W,
-            height: FRAME_H,
+            width,
+            height,
             pos_type: "absolute",
-            left: 0.0,
-            bottom: FRAME_BOTTOM,
+            left: {at.left.as_str()},
+            right: {at.right.as_str()},
+            top: {at.top.as_str()},
+            bottom: {at.bottom.as_str()},
             {background}
             {tab_parts}
             r#frame {
                 name: {DynName(CHAT_MESSAGES.to_string())},
-                width: MESSAGES_W,
-                height: MESSAGES_H,
+                width: messages_width,
+                height: messages_height,
                 pos_type: "absolute",
                 left: MESSAGES_LEFT,
                 top: MESSAGES_TOP,
