@@ -164,11 +164,11 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
     let registry = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
     assert_eq!(
         rect(&registry, "DamageMeterFlareHeader"),
-        (-2.0, -2.0, 404.0, 24.0)
+        (-2.0, -2.0, 454.0, 24.0)
     );
     assert_eq!(
         rect(&registry, "DamageMeterFlareSeparator"),
-        (1.0, 22.0, 398.0, 1.0)
+        (1.0, 22.0, 448.0, 1.0)
     );
     assert_eq!(
         frame(&registry, "DamageMeterFlareSeparator").background_color,
@@ -191,11 +191,11 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
     assert!(frame(&registry, "DamageMeterThreatTab").onclick.is_none());
     assert_eq!(
         rect(&registry, "DamageMeterSessionDropdown"),
-        (348.5, 2.0, 22.0, 22.0)
+        (398.5, 2.0, 22.0, 22.0)
     );
     assert_eq!(
         rect(&registry, "DamageMeterSettings"),
-        (369.5, 2.0, 22.0, 22.0)
+        (419.5, 2.0, 22.0, 22.0)
     );
     for (index, top, height) in [(0, 12.0, 6.0), (1, 8.0, 10.0), (2, 4.0, 14.0)] {
         let name = format!("DamageMeterChartColumn{index}");
@@ -227,7 +227,7 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
     let panel = frame(&registry, "DamageMeterFlareSkin");
     assert_eq!(
         rect(&registry, "DamageMeterFlareSkin"),
-        (-2.0, -2.0, 404.0, 144.0)
+        (-2.0, -2.0, 454.0, 218.0)
     );
     assert_eq!(panel.panel_style.as_deref(), Some("flare_bronze"));
     assert_eq!(
@@ -241,11 +241,11 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
     let registry = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
     assert_eq!(
         rect(&registry, "DamageMeterEntry1"),
-        (4.0, 32.0, 392.0, 16.0)
+        (4.0, 32.0, 442.0, 16.0)
     );
     assert_eq!(
         rect(&registry, "DamageMeterEntry2"),
-        (4.0, 52.0, 392.0, 16.0)
+        (4.0, 52.0, 442.0, 16.0)
     );
     assert_eq!(
         rect(&registry, "DamageMeterEntry1Icon"),
@@ -261,7 +261,7 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
     );
     assert_eq!(
         rect(&registry, "DamageMeterEntry1Bar"),
-        (20.0, 0.0, 372.0, 16.0)
+        (20.0, 0.0, 422.0, 16.0)
     );
     assert_eq!(
         frame(&registry, "DamageMeterEntry1Bar").background_color,
@@ -269,11 +269,11 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
     );
     assert_eq!(
         rect(&registry, "DamageMeterEntry1StatusBar"),
-        (1.0, 1.0, 370.0, 14.0)
+        (1.0, 1.0, 420.0, 14.0)
     );
     assert_eq!(
         rect(&registry, "DamageMeterEntry2StatusBar"),
-        (1.0, 1.0, 185.0, 14.0)
+        (1.0, 1.0, 210.0, 14.0)
     );
     assert_eq!(
         texture(&registry, "DamageMeterEntry1StatusBar").source,
@@ -304,11 +304,11 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
     );
     assert_eq!(
         rect(&registry, "DamageMeterEntry1Name"),
-        (5.0, 0.0, 214.0, 16.0)
+        (5.0, 0.0, 264.0, 16.0)
     );
     assert_eq!(
         rect(&registry, "DamageMeterEntry1Value"),
-        (224.0, 0.0, 140.0, 16.0)
+        (274.0, 0.0, 140.0, 16.0)
     );
     for (name, label, justify) in [
         ("DamageMeterEntry1Name", "1. Fbmage", JustifyH::Left),
@@ -333,15 +333,15 @@ fn forever_chat_has_plain_text_tabs_separator_and_four_header_icons() {
     );
     assert_eq!(
         rect(&registry, "ChatFrame1FlareSkin"),
-        (24.0, -7.0, 481.0, 259.0)
+        (24.0, -7.0, 450.0, 214.0)
     );
     assert_eq!(
         rect(&registry, "ChatFrame1FlareHeader"),
-        (24.0, -7.0, 481.0, 24.0)
+        (24.0, -7.0, 450.0, 24.0)
     );
     assert_eq!(
         rect(&registry, "ChatFrame1FlareSeparator"),
-        (27.0, 17.0, 475.0, 1.0)
+        (27.0, 17.0, 444.0, 1.0)
     );
     for index in 0..3 {
         let name = format!("ChatFrame1TabsTab{index}");
@@ -363,14 +363,14 @@ fn forever_chat_has_plain_text_tabs_separator_and_four_header_icons() {
         assert!(registry.get_by_name(&format!("{name}Left")).is_none());
     }
     for (name, x, atlas) in [
-        ("Channel", 352.0, "chatballon"),
+        ("Channel", 321.0, "chatballon"),
         (
             "Menu",
-            387.0,
+            356.0,
             "common-dropdown-a-button-settings-shadowless",
         ),
-        ("Social", 422.0, "UI-HUD-MicroMenu-GuildCommunities-Up"),
-        ("Volume", 457.0, "common-dropdown-icon-sound-on"),
+        ("Social", 391.0, "UI-HUD-MicroMenu-GuildCommunities-Up"),
+        ("Volume", 426.0, "common-dropdown-icon-sound-on"),
     ] {
         let name = format!("ChatFrame1Flare{name}");
         assert_eq!(rect(&registry, &name), (x, -1.0, 22.0, 22.0));
@@ -381,7 +381,7 @@ fn forever_chat_has_plain_text_tabs_separator_and_four_header_icons() {
     assert!(registry.get_by_name("ChatFrame1CopyButton").is_none());
     assert_eq!(
         rect(&registry, "ChatFrame1Messages"),
-        (34.0, 27.0, 461.0, 215.0)
+        (34.0, 27.0, 430.0, 170.0)
     );
 }
 
