@@ -99,8 +99,10 @@ const CALENDAR_SIZE: [f32; 2] = [19.0, 18.0];
 /// FlareUI Modules/Minimap.lua:33: gap between the cluster's sides and map.
 const FOREVER_INSET: f32 = 8.0;
 /// FlareUI Modules/Minimap.lua:32-34,301-303: square map centred in the cluster.
+/// Outer side of the bordered Forever cluster: map 244 plus `FRAME_PAD` 8 each side.
+pub const FOREVER_CLUSTER_SIZE: f32 = 260.0;
 const FOREVER_STYLE: ClusterStyle = ClusterStyle {
-    cluster_size: 260.0,
+    cluster_size: FOREVER_CLUSTER_SIZE,
     map_origin: [FOREVER_INSET, FOREVER_INSET],
     map_size: 244.0,
     mask: MapMask::Square,
