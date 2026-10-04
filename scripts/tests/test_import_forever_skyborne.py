@@ -180,6 +180,27 @@ $noninline,relation$Parent<32>
         }
         self.assertEqual(importer.customization_assets(tables), ({60}, {70}))
 
+    def test_map_identity_columns_lead_new_header(self):
+        from scripts import import_forever_skyborne as importer
+
+        columns = [
+            (name, "id")
+            for name in ("ID", "Directory", "MapName_lang", "Flags", "WdtFileDataID")
+        ]
+        row = {
+            "ID": 2991,
+            "Directory": "2991",
+            "MapName_lang": "Zephras Isle",
+            "Flags": 1,
+            "WdtFileDataID": 7198644,
+        }
+        output, missing = importer.encode_csv(b"", columns, [row], table="Map")
+        self.assertEqual(
+            output,
+            b"ID,Directory,MapName_lang,WdtFileDataID,Flags\r\n2991,2991,Zephras Isle,7198644,1\r\n",
+        )
+        self.assertEqual(missing, [])
+
     def test_retail_header_preserved_and_missing_column_reported(self):
         from scripts import import_forever_skyborne as importer
 
