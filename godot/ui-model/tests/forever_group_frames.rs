@@ -19,6 +19,7 @@ use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::frame::{Frame, WidgetData, WidgetType};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
+use ui_toolkit::widgets::texture::TextureSource;
 
 fn load_atlas_tables() {
     game_engine_ui_model::paths::set_data_root(
@@ -242,5 +243,64 @@ fn member_texts_paint_over_the_bars_under_both_skins() {
             assert_eq!((bars.len(), texts.len()), (3, 2), "{root}");
             assert!(bars.last() < texts.first(), "{root} under {skin:?}");
         }
+    }
+}
+
+fn party_with_debuff_icon(icon_fdid: u32) -> GroupFramesState {
+    let mut party = members();
+    party[0].debuffs = vec![CompactDebuffView {
+        icon_fdid,
+        dispel: DebuffType::Magic,
+    }];
+    GroupFramesState {
+        party,
+        ..Default::default()
+    }
+}
+
+fn drawn_fdids(registry: &FrameRegistry) -> Vec<u32> {
+    registry
+        .frames_iter()
+        .filter_map(|frame| match frame.widget_data.as_ref()? {
+            WidgetData::Texture(texture) => match texture.source {
+                TextureSource::FileDataId(fdid) => Some(fdid),
+                _ => None,
+            },
+            _ => None,
+        })
+        .collect()
+}
+
+/// A debuff replicated before the spell catalog has loaded has no icon yet (FDID 0): its
+/// slot keeps the dispel border but builds no icon texture; once the catalog supplies the
+/// icon the same slot draws it (`CompactUnitFrame_UtilSetDebuff` `icon:SetTexture`).
+#[test]
+fn debuff_without_a_known_icon_builds_no_icon_texture() {
+    load_atlas_tables();
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Modern);
+    shared.insert(party_with_debuff_icon(0));
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut screen = Screen::new(group_frames_screen);
+    screen.sync(&shared, &mut registry);
+    assert!(!drawn_fdids(&registry).contains(&0));
+    assert!(
+        registry
+            .get_by_name("CompactPartyFrameMember1Debuff1")
+            .is_none()
+    );
+    assert!(!frame(&registry, "CompactPartyFrameMember1Debuff1Border").hidden);
+
+    shared.insert(party_with_debuff_icon(136_116));
+    screen.sync(&shared, &mut registry);
+    assert!(!drawn_fdids(&registry).contains(&0));
+    match frame(&registry, "CompactPartyFrameMember1Debuff1")
+        .widget_data
+        .as_ref()
+    {
+        Some(WidgetData::Texture(texture)) => {
+            assert_eq!(texture.source, TextureSource::FileDataId(136_116))
+        }
+        other => panic!("debuff icon is not a texture: {other:?}"),
     }
 }

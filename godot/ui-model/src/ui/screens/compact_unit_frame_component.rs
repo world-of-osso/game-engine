@@ -286,16 +286,8 @@ fn debuffs(name: &str, debuffs: &[CompactDebuffView], height: f32) -> Element {
 
 fn debuff_icon(name: &str, debuff: &CompactDebuffView, (x, y): (f32, f32)) -> Element {
     let border_color = rgba(debuff_border_rgb(debuff.dispel));
-    rsx! {
-        texture {
-            name: {DynName(name.to_string())},
-            width: AURA_SIZE,
-            height: AURA_SIZE,
-            texture_fdid: {debuff.icon_fdid},
-            pos_type: "absolute",
-            pos_x: x,
-            pos_y: y,
-        }
+    let mut icon = debuff_icon_texture(name, debuff, (x, y));
+    icon.extend(rsx! {
         texture {
             name: {DynName(format!("{name}Border"))},
             width: AURA_SIZE,
@@ -303,6 +295,26 @@ fn debuff_icon(name: &str, debuff: &CompactDebuffView, (x, y): (f32, f32)) -> El
             texture_fdid: DEBUFF_BORDER_FDID,
             tex_coords: DEBUFF_BORDER_COORDS,
             vertex_color: {border_color.as_str()},
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: y,
+        }
+    });
+    icon
+}
+
+/// The debuff's icon once its spell is known: auras replicate before the spell catalog has
+/// loaded, and until then the icon FDID is 0, which is no texture.
+fn debuff_icon_texture(name: &str, debuff: &CompactDebuffView, (x, y): (f32, f32)) -> Element {
+    if debuff.icon_fdid == 0 {
+        return Element::default();
+    }
+    rsx! {
+        texture {
+            name: {DynName(name.to_string())},
+            width: AURA_SIZE,
+            height: AURA_SIZE,
+            texture_fdid: {debuff.icon_fdid},
             pos_type: "absolute",
             pos_x: x,
             pos_y: y,
