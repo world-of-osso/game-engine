@@ -8,7 +8,6 @@ use ui_toolkit::frame::WidgetData;
 use ui_toolkit::widgets::texture::TextureSource;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
-use ui_toolkit::widgets::texture::TextureSource;
 
 fn spell(spell_id: u32, name: &str, available_at: Option<u32>) -> SpellbookItemView {
     SpellbookItemView {
