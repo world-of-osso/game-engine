@@ -9,15 +9,90 @@ use crate::nameplate_style_data::{NameplateStyle, StyleSlider};
 use crate::soft_target_data::{InteractKeyIcons, SoftTargetOptions};
 use crate::status_text_data::StatusTextDisplay;
 use crate::ui::screens::game_menu_component::{GameMenuView, GameMenuViewModel};
-use crate::ui::screens::options_menu_active_sections::LAYOUT_CHOICE_KEY;
-use crate::ui::screens::options_menu_component::{
-    CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
-    OptionsCategory, OptionsViewModel, SoundOptionsView,
+use crate::ui::screens::options_menu_active_sections::{
+    LAYOUT_CHOICE_KEY, LAYOUT_FONT_KEY, LAYOUT_SYSTEM_KEY,
 };
-use game_engine_core::ui_layout_data::SYSTEM_PRESETS;
+use crate::ui::screens::options_menu_component::{
+    ACTION_RESET_LAYOUT_SETTINGS, CameraOptionsView, GraphicsOptionsView, HudOptionsView,
+    KeybindingRowView, KeybindingsView, LayoutOptionsView, LayoutSystem, OptionsCategory,
+    OptionsViewModel, SoundOptionsView,
+};
+use game_engine_core::ui_layout_data::{
+    CHAT_HEIGHT_RANGE, CHAT_WIDTH_RANGE, DAMAGE_METER_HEIGHT_RANGE, DAMAGE_METER_WIDTH_RANGE,
+    LayoutFont, LayoutSettings, SettingRange, UNIT_FRAME_SIZE_RANGE, UNIT_FRAME_TEXT_SIZE_RANGE,
+    UnitFrameSettings,
+};
+
+/// A slider of the HUD page's "Layout Settings" group. `FrameSize` and `TextSize` edit the
+/// selected unit frame.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayoutSlider {
+    FrameSize,
+    TextSize,
+    ChatWidth,
+    ChatHeight,
+    MeterWidth,
+    MeterHeight,
+}
+
+impl LayoutSlider {
+    pub fn range(self) -> SettingRange {
+        match self {
+            Self::FrameSize => UNIT_FRAME_SIZE_RANGE,
+            Self::TextSize => UNIT_FRAME_TEXT_SIZE_RANGE,
+            Self::ChatWidth => CHAT_WIDTH_RANGE,
+            Self::ChatHeight => CHAT_HEIGHT_RANGE,
+            Self::MeterWidth => DAMAGE_METER_WIDTH_RANGE,
+            Self::MeterHeight => DAMAGE_METER_HEIGHT_RANGE,
+        }
+    }
+
+    /// The setting this slider writes; none for a unit-frame slider while the selected
+    /// system is not a unit frame.
+    fn setting(self, layout: &mut LayoutOptionsView) -> Option<&mut Option<u16>> {
+        let settings = &mut layout.settings;
+        Some(match self {
+            Self::FrameSize => &mut unit_frame_settings(settings, layout.system)?.frame_size,
+            Self::TextSize => &mut unit_frame_settings(settings, layout.system)?.text_size,
+            Self::ChatWidth => &mut settings.chat.width,
+            Self::ChatHeight => &mut settings.chat.height,
+            Self::MeterWidth => &mut settings.damage_meter.width,
+            Self::MeterHeight => &mut settings.damage_meter.height,
+        })
+    }
+}
+
+/// `system`'s unit-frame settings; none for the chat frame and the damage meter.
+pub fn unit_frame_settings(
+    settings: &mut LayoutSettings,
+    system: LayoutSystem,
+) -> Option<&mut UnitFrameSettings> {
+    match system {
+        LayoutSystem::PlayerFrame => Some(&mut settings.player_frame),
+        LayoutSystem::TargetFrame => Some(&mut settings.target_frame),
+        LayoutSystem::FocusFrame => Some(&mut settings.focus_frame),
+        LayoutSystem::PetFrame => Some(&mut settings.pet_frame),
+        LayoutSystem::ChatFrame | LayoutSystem::DamageMeter => None,
+    }
+}
+
+/// The fonts the "Font" dropdown offers, in its order.
+pub const LAYOUT_FONTS: [LayoutFont; 2] = [LayoutFont::FrizQuadrata, LayoutFont::ArialNarrow];
+
+/// What an Options action does to the character's Edit Mode layout.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum LayoutAction {
+    /// The "Layout" dropdown's choice, an index into [`LayoutOptionsView::names`].
+    Select(usize),
+    System(LayoutSystem),
+    Font(LayoutFont),
+    /// "Reset to Preset": clear every setting of the layout.
+    Reset,
+}
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SliderField {
+    Layout(LayoutSlider),
     MouseSensitivity,
     FovDegrees,
     ParticleDensity,
@@ -57,8 +132,9 @@ pub struct OptionsModel {
     pub committed_bindings: InputBindingsData,
     pub binding_section: BindingSection,
     pub binding_capture: BindingCapture,
-    /// Name of the character's active Edit Mode layout (`ui_layout.ron`).
-    pub active_layout: String,
+    /// The character's Edit Mode layout. Its settings are saved to `ui_layout.ron` by the
+    /// host on every change, not drafted with the options file.
+    pub layout: LayoutOptionsView,
 }
 
 #[derive(Debug, Clone)]
@@ -261,7 +337,7 @@ pub fn build_view_model(model: &OptionsModel) -> GameMenuViewModel {
                 model.binding_section,
                 current_capture_action(model.binding_capture),
             ),
-            active_layout: model.active_layout.clone(),
+            layout: model.layout.clone(),
         },
     }
 }
@@ -316,6 +392,30 @@ const SLIDER_ACTION_FIELDS: &[(&str, SliderField)] = &[
     ("follow_speed", SliderField::FollowSpeed),
     ("min_distance", SliderField::MinDistance),
     ("max_distance", SliderField::MaxDistance),
+    (
+        "layout_frame_size",
+        SliderField::Layout(LayoutSlider::FrameSize),
+    ),
+    (
+        "layout_text_size",
+        SliderField::Layout(LayoutSlider::TextSize),
+    ),
+    (
+        "layout_chat_width",
+        SliderField::Layout(LayoutSlider::ChatWidth),
+    ),
+    (
+        "layout_chat_height",
+        SliderField::Layout(LayoutSlider::ChatHeight),
+    ),
+    (
+        "layout_meter_width",
+        SliderField::Layout(LayoutSlider::MeterWidth),
+    ),
+    (
+        "layout_meter_height",
+        SliderField::Layout(LayoutSlider::MeterHeight),
+    ),
 ];
 
 fn slider_field_from_key(key: &str) -> Option<SliderField> {
@@ -359,6 +459,10 @@ pub fn slider_bounds(field: SliderField) -> (f32, f32) {
         SliderField::MinDistance => (1.0, 10.0),
         SliderField::MaxDistance => (10.0, 60.0),
         SliderField::Nameplate(slider) => slider.bounds(),
+        SliderField::Layout(slider) => {
+            let range = slider.range();
+            (f32::from(range.min), f32::from(range.max))
+        }
     }
 }
 
@@ -424,6 +528,14 @@ pub fn apply_slider_value(field: SliderField, value: f32, model: &mut OptionsMod
             normalize_camera_limits(&mut model.draft_camera);
         }
         SliderField::Nameplate(slider) => slider.set(&mut model.draft_hud.nameplate_style, value),
+        SliderField::Layout(slider) => apply_layout_slider(slider, value, &mut model.layout),
+    }
+}
+
+/// Store a layout slider's position, snapped to the setting's step.
+pub fn apply_layout_slider(slider: LayoutSlider, value: f32, layout: &mut LayoutOptionsView) {
+    if let Some(setting) = slider.setting(layout) {
+        *setting = Some(slider.range().snap(value));
     }
 }
 
@@ -458,11 +570,36 @@ pub fn parse_toggle_action(action: &str) -> Option<&str> {
     action.strip_prefix("options_toggle:")
 }
 
-/// `options_toggle:ui_layout:<index>`: a system preset chosen in the "Layout" dropdown.
-pub fn parse_layout_action(action: &str) -> Option<&'static str> {
-    let key = parse_toggle_action(action)?.strip_prefix(LAYOUT_CHOICE_KEY)?;
-    let index: usize = key.strip_prefix(':')?.parse().ok()?;
-    SYSTEM_PRESETS.get(index).map(|&(name, _)| name)
+/// The HUD page's layout actions: `options_toggle:ui_layout:<index>` (the "Layout"
+/// dropdown), `options_toggle:layout_system:<index>`, `options_toggle:layout_font:<index>`
+/// and the "Reset to Preset" button.
+pub fn parse_layout_action(action: &str) -> Option<LayoutAction> {
+    if action == ACTION_RESET_LAYOUT_SETTINGS {
+        return Some(LayoutAction::Reset);
+    }
+    let (key, index) = parse_toggle_action(action)?.rsplit_once(':')?;
+    let index: usize = index.parse().ok()?;
+    match key {
+        LAYOUT_CHOICE_KEY => Some(LayoutAction::Select(index)),
+        LAYOUT_SYSTEM_KEY => LayoutSystem::ALL.get(index).copied().map(LayoutAction::System),
+        LAYOUT_FONT_KEY => LAYOUT_FONTS.get(index).copied().map(LayoutAction::Font),
+        _ => None,
+    }
+}
+
+/// Apply a layout action to the shown layout. `Select` changes nothing here: the host
+/// loads the chosen layout. `Font` sets the selected unit frame's face.
+pub fn apply_layout_action(action: LayoutAction, layout: &mut LayoutOptionsView) {
+    match action {
+        LayoutAction::Select(_) => {}
+        LayoutAction::System(system) => layout.system = system,
+        LayoutAction::Font(font) => {
+            if let Some(frame) = unit_frame_settings(&mut layout.settings, layout.system) {
+                frame.font = Some(font);
+            }
+        }
+        LayoutAction::Reset => layout.settings = LayoutSettings::default(),
+    }
 }
 
 pub fn apply_step(key: &str, delta: i32, model: &mut OptionsModel) {

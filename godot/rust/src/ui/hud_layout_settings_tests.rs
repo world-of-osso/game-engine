@@ -3,7 +3,13 @@
 //! canvas takes them from its SharedContext, where `RegistryModel::sync` mirrors them.
 
 use game_engine_core::ui_layout_data::{
-    CHAT_WIDTH_RANGE, FrameSizeSettings, LayoutFont, LayoutSettings, UnitFrameSettings,
+    self, CHAT_WIDTH_RANGE, FrameSizeSettings, LayoutFont, LayoutSettings, LayoutSkin,
+    UnitFrameSettings,
+};
+use game_engine_ui_model::options_menu_component::{LayoutOptionsView, LayoutSystem};
+use game_engine_ui_model::options_menu_data::{
+    LayoutAction, SliderField, apply_layout_action, apply_layout_slider, parse_layout_action,
+    parse_slider_action,
 };
 use game_engine_ui_model::chat_frame::add_system_line;
 use game_engine_ui_model::chat_frame_component::{CHAT_MESSAGES, chat_frame_view};
@@ -369,5 +375,204 @@ fn unit_frame_font_settings_restyle_that_frame_text_only() {
         sync_settings(&mut hud, skin, settings);
         assert!(text(&hud, "PlayerName").font_size < player_name.font_size);
         assert_eq!(text(&hud, "PlayerName").font, GameFont::FrizQuadrata);
+    }
+}
+
+const CHARACTER: u64 = 17;
+
+/// The menu's layout after the host saved or selected `layout`, as
+/// `GameClient::ui_layout_options` builds it.
+fn shown(
+    path: &std::path::Path,
+    layout: ui_layout_data::ActiveLayout,
+    system: LayoutSystem,
+) -> LayoutOptionsView {
+    LayoutOptionsView {
+        active: layout.name,
+        names: ui_layout_data::layout_names(path).unwrap(),
+        skin: layout.skin,
+        settings: layout.settings,
+        system,
+    }
+}
+
+/// A slider event of the Options HUD page: store the value, save the layout, draw it.
+fn slide(
+    path: &std::path::Path,
+    hud: &mut [RegistryModel],
+    layout: &mut LayoutOptionsView,
+    (action, value): (&str, f32),
+) {
+    let Some(SliderField::Layout(slider)) = parse_slider_action(action) else {
+        panic!("{action} is not a layout slider");
+    };
+    apply_layout_slider(slider, value, layout);
+    save_and_draw(path, hud, layout);
+}
+
+/// A click of the Options HUD page's layout controls.
+fn click(
+    path: &std::path::Path,
+    hud: &mut [RegistryModel],
+    layout: &mut LayoutOptionsView,
+    action: &str,
+) {
+    let action = parse_layout_action(action).unwrap_or_else(|| panic!("{action}"));
+    apply_layout_action(action, layout);
+    if let LayoutAction::Select(index) = action {
+        let name = layout.names[index].clone();
+        let selected = ui_layout_data::set_active_layout(path, CHARACTER, &name).unwrap();
+        *layout = shown(path, selected, layout.system);
+        draw(hud, layout);
+    } else {
+        save_and_draw(path, hud, layout);
+    }
+}
+
+fn save_and_draw(
+    path: &std::path::Path,
+    hud: &mut [RegistryModel],
+    layout: &mut LayoutOptionsView,
+) {
+    let saved =
+        ui_layout_data::save_layout_settings(path, CHARACTER, layout.settings).unwrap();
+    *layout = shown(path, saved, layout.system);
+    draw(hud, layout);
+}
+
+fn draw(hud: &mut [RegistryModel], layout: &LayoutOptionsView) {
+    let skin = match layout.skin {
+        LayoutSkin::Modern => ActiveSkin::Modern,
+        LayoutSkin::Forever => ActiveSkin::Forever,
+    };
+    sync_settings(hud, skin, layout.settings);
+}
+
+/// What the settings change on the HUD: frame sizes and the player name's text.
+#[derive(Debug, PartialEq)]
+struct Drawn {
+    player: (f32, f32),
+    name_size: f32,
+    name_font: GameFont,
+    chat: (f32, f32),
+    meter: (f32, f32),
+}
+
+fn drawn(hud: &[RegistryModel]) -> Drawn {
+    let size = |name| {
+        let rect = rect(hud, name);
+        (rect.width, rect.height)
+    };
+    let name = text(hud, "PlayerName");
+    Drawn {
+        player: size("PlayerFrame"),
+        name_size: name.font_size,
+        name_font: name.font,
+        chat: size(CHAT_FRAME.0),
+        meter: size(DAMAGE_METER_ROOT.0),
+    }
+}
+
+/// The Options HUD controls end to end under both presets: each control's action stores
+/// its setting, the first change of a preset saves "Layout 1" and switches to it, the HUD
+/// redraws larger, the file brings the values back, the Layout dropdown switches between
+/// the preset and the player layout, and "Reset to Preset" clears the settings.
+#[test]
+fn options_layout_controls_save_a_player_layout_and_redraw_the_hud() {
+    for (preset, skin) in ui_layout_data::SYSTEM_PRESETS {
+        let path = std::env::temp_dir().join(format!(
+            "ui-layout-options-{preset}-{}.ron",
+            std::process::id()
+        ));
+        let _ = std::fs::remove_file(&path);
+        let active = ui_layout_data::set_active_layout(&path, CHARACTER, preset).unwrap();
+        let mut layout = shown(&path, active, LayoutSystem::PlayerFrame);
+        assert_eq!(layout.names, ["Modern", "Forever"]);
+        let mut hud = hud();
+        draw(&mut hud, &layout);
+        let preset_hud = drawn(&hud);
+        assert_eq!(preset_hud.name_font, GameFont::FrizQuadrata);
+
+        // Frame Size 150 %: the preset is left alone, "Layout 1" is saved and active.
+        slide(
+            &path,
+            &mut hud,
+            &mut layout,
+            ("options_slider:layout_frame_size", 150.0),
+        );
+        assert_eq!(layout.active, "Layout 1");
+        assert_eq!(layout.skin, skin);
+        assert_eq!(layout.names, ["Modern", "Forever", "Layout 1"]);
+        assert_eq!(layout.settings.player_frame.frame_size, Some(150));
+        let sized = drawn(&hud);
+        assert!(sized.player.0 > preset_hud.player.0 && sized.player.1 > preset_hud.player.1);
+        assert!(sized.name_size > preset_hud.name_size);
+
+        // Text Size 130 % and Arial Narrow change the text, not the frame.
+        slide(
+            &path,
+            &mut hud,
+            &mut layout,
+            ("options_slider:layout_text_size", 130.0),
+        );
+        click(&path, &mut hud, &mut layout, "options_toggle:layout_font:1");
+        let styled = drawn(&hud);
+        assert!(styled.name_size > sized.name_size);
+        assert_eq!(styled.name_font, GameFont::ArialNarrow);
+        assert_eq!(styled.player, sized.player);
+
+        // Chat 600x300 and meter 550x300, each larger than either preset's.
+        for (action, value) in [
+            ("options_slider:layout_chat_width", 600.0),
+            ("options_slider:layout_chat_height", 300.0),
+            ("options_slider:layout_meter_width", 550.0),
+            ("options_slider:layout_meter_height", 300.0),
+        ] {
+            slide(&path, &mut hud, &mut layout, (action, value));
+        }
+        let custom = drawn(&hud);
+        assert_eq!(custom.chat, (600.0, 300.0));
+        assert_eq!(custom.meter, (550.0, 300.0));
+        assert!(custom.chat.0 > preset_hud.chat.0 && custom.chat.1 > preset_hud.chat.1);
+        assert!(custom.meter.0 > preset_hud.meter.0 && custom.meter.1 > preset_hud.meter.1);
+        // Every change after the first went to the same player layout.
+        assert_eq!(layout.active, "Layout 1");
+        assert_eq!(layout.names.len(), 3);
+
+        // Restart: the file gives the character the same layout and the same HUD.
+        let reloaded = ui_layout_data::active_layout(&path, CHARACTER).unwrap();
+        assert_eq!(reloaded.name, "Layout 1");
+        assert_eq!(reloaded.settings, layout.settings);
+        let mut restarted = self::hud();
+        draw(&mut restarted, &shown(&path, reloaded, LayoutSystem::PlayerFrame));
+        assert_eq!(drawn(&restarted), custom);
+
+        // The Layout dropdown: back to the preset and its values, then to the layout's.
+        let preset_index = layout.names.iter().position(|name| name == preset).unwrap();
+        click(
+            &path,
+            &mut hud,
+            &mut layout,
+            &format!("options_toggle:ui_layout:{preset_index}"),
+        );
+        assert_eq!(layout.active, preset);
+        assert_eq!(layout.settings, LayoutSettings::default());
+        assert_eq!(drawn(&hud), preset_hud);
+        click(&path, &mut hud, &mut layout, "options_toggle:ui_layout:2");
+        assert_eq!(layout.active, "Layout 1");
+        assert_eq!(drawn(&hud), custom);
+
+        // Reset to Preset clears the layout's settings; it stays the active layout.
+        click(&path, &mut hud, &mut layout, "options_reset_layout_settings");
+        assert_eq!(layout.active, "Layout 1");
+        assert_eq!(layout.settings, LayoutSettings::default());
+        assert_eq!(drawn(&hud), preset_hud);
+        assert_eq!(
+            ui_layout_data::active_layout(&path, CHARACTER)
+                .unwrap()
+                .settings,
+            LayoutSettings::default()
+        );
+        std::fs::remove_file(&path).unwrap();
     }
 }

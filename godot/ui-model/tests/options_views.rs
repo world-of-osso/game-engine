@@ -4,9 +4,16 @@ use game_engine_ui_model::game_menu_component::{
 };
 use game_engine_ui_model::input_bindings::{BindingSection, InputAction};
 use game_engine_ui_model::nameplate_style::NameplateStyle;
+use game_engine_core::ui_layout_data::{
+    LayoutFont, LayoutSettings, LayoutSkin, UnitFrameSettings,
+};
 use game_engine_ui_model::options_menu_component::{
     CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
-    OptionsCategory, OptionsViewModel, SoundOptionsView,
+    LayoutOptionsView, LayoutSystem, OptionsCategory, OptionsViewModel, SoundOptionsView,
+};
+use game_engine_ui_model::options_menu_data::{
+    LayoutAction, SliderField, apply_layout_action, apply_layout_slider, parse_layout_action,
+    parse_slider_action,
 };
 use ui_toolkit::frame::{Dimension, WidgetData};
 use ui_toolkit::registry::FrameRegistry;
@@ -76,7 +83,7 @@ fn model() -> GameMenuViewModel {
                     can_clear: true,
                 }],
             },
-            active_layout: "Modern".into(),
+            layout: Default::default(),
         },
     }
 }
@@ -225,31 +232,144 @@ fn interface_status_text_row_offers_the_four_retail_choices() {
     );
 }
 
-/// The HUD "Layout" dropdown lists both system presets; the active one is lit and the
-/// other carries the action that selects it.
-#[test]
-fn hud_layout_row_offers_the_system_presets() {
-    use game_engine_ui_model::options_menu_data::parse_layout_action;
-    let mut registry = FrameRegistry::new(1280.0, 720.0);
+fn hud_registry(layout: &LayoutOptionsView) -> FrameRegistry {
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
     let mut view = model();
     view.options.category = OptionsCategory::Hud;
-    view.options.active_layout = "Forever".into();
+    view.options.layout = layout.clone();
     shared.insert(view);
     Screen::new(game_menu_screen).sync(&shared, &mut registry);
+    registry
+}
+
+/// The action a click on `name` emits.
+fn click(registry: &mut FrameRegistry, name: &str) -> String {
+    let id = registry.get_by_name(name).expect(name);
+    registry.click_frame(id).expect(name)
+}
+
+/// The HUD "Layout" dropdown lists the system presets and then the player layouts; the
+/// active one is lit and each other carries the action that selects it.
+#[test]
+fn hud_layout_row_offers_the_presets_and_the_player_layouts() {
+    let layout = LayoutOptionsView {
+        active: "Layout 1".into(),
+        names: ["Modern", "Forever", "Layout 1", "Layout 2"]
+            .map(String::from)
+            .to_vec(),
+        ..Default::default()
+    };
+    let mut registry = hud_registry(&layout);
     assert_eq!(label(&registry, "ChoiceLabelui_layout"), "Layout");
-    let labels: Vec<String> = (0..2)
+    let labels: Vec<String> = (0..4)
         .map(|value| label(&registry, &format!("Choiceui_layout{value}Label")))
         .collect();
-    assert_eq!(labels, ["Modern", "Forever"]);
-    assert!(registry.get_by_name("Choiceui_layout1Hit").is_none());
-    let hit = registry.get_by_name("Choiceui_layout0Hit").unwrap();
-    let action = registry.click_frame(hit).unwrap();
-    assert_eq!(action, "options_toggle:ui_layout:0");
-    assert_eq!(parse_layout_action(&action), Some("Modern"));
+    assert_eq!(labels, layout.names);
+    assert!(registry.get_by_name("Choiceui_layout2Hit").is_none());
+    for (index, name) in [(0, "Modern"), (1, "Forever"), (3, "Layout 2")] {
+        let action = click(&mut registry, &format!("Choiceui_layout{index}Hit"));
+        assert_eq!(parse_layout_action(&action), Some(LayoutAction::Select(index)));
+        assert_eq!(layout.names[index], name);
+    }
+    assert_eq!(parse_layout_action("options_toggle:ui_layout:x"), None);
+}
+
+/// "Layout Settings": the selector shows one system's controls; each control emits the
+/// action that writes its setting, and the page then shows the stored value.
+#[test]
+fn hud_layout_settings_controls_edit_the_selected_system() {
+    let mut layout = LayoutOptionsView::default();
+    let mut registry = hud_registry(&layout);
+    assert_eq!(label(&registry, "ChoiceLabellayout_system"), "Layout Settings");
+    let systems: Vec<String> = (0..6)
+        .map(|value| label(&registry, &format!("Choicelayout_system{value}Label")))
+        .collect();
+    assert_eq!(systems, ["Player", "Target", "Focus", "Pet", "Chat", "Meter"]);
+    // The player frame shows first: Frame Size and Text Size at 100 %, Friz Quadrata lit.
+    assert_eq!(label(&registry, "NameplateLabellayout_frame_size"), "Frame Size");
+    assert_eq!(label(&registry, "SliderValuelayout_frame_size"), "100%");
+    assert_eq!(label(&registry, "SliderValuelayout_text_size"), "100%");
+    assert_eq!(label(&registry, "Choicelayout_font0Label"), "Friz Quadrata");
+    assert!(registry.get_by_name("Choicelayout_font0Hit").is_none());
+    assert!(registry.get_by_name("Sliderlayout_chat_width").is_none());
+
+    // Target frame: size 148 snaps to the 5 % step, text 126 to the 10 % step, Arial Narrow.
+    let action = click(&mut registry, "Choicelayout_system1Hit");
+    apply_layout_action(parse_layout_action(&action).unwrap(), &mut layout);
+    assert_eq!(layout.system, LayoutSystem::TargetFrame);
+    let mut registry = hud_registry(&layout);
+    for (slider, value) in [("Sliderlayout_frame_size", 148.0), ("Sliderlayout_text_size", 126.0)]
+    {
+        let action = click(&mut registry, slider);
+        let Some(SliderField::Layout(slider)) = parse_slider_action(&action) else {
+            panic!("{action} is not a layout slider");
+        };
+        apply_layout_slider(slider, value, &mut layout);
+    }
+    let action = click(&mut registry, "Choicelayout_font1Hit");
+    apply_layout_action(parse_layout_action(&action).unwrap(), &mut layout);
+    let target = UnitFrameSettings {
+        frame_size: Some(150),
+        font: Some(LayoutFont::ArialNarrow),
+        text_size: Some(130),
+    };
+    let expected = LayoutSettings {
+        target_frame: target,
+        ..Default::default()
+    };
+    assert_eq!(layout.settings, expected);
+    let registry = hud_registry(&layout);
+    assert_eq!(label(&registry, "SliderValuelayout_frame_size"), "150%");
+    assert_eq!(label(&registry, "SliderValuelayout_text_size"), "130%");
+    assert!(registry.get_by_name("Choicelayout_font1Hit").is_none());
+    // The player frame still shows its own, unchanged values.
+    layout.system = LayoutSystem::PlayerFrame;
     assert_eq!(
-        parse_layout_action("options_toggle:ui_layout:1"),
-        Some("Forever")
+        label(&hud_registry(&layout), "SliderValuelayout_frame_size"),
+        "100%"
     );
-    assert_eq!(parse_layout_action("options_toggle:ui_layout:2"), None);
+
+    // Chat and meter show their preset size until changed; Forever's differs from Modern's.
+    for (system, keys, sizes) in [
+        (LayoutSystem::ChatFrame, ["chat_width", "chat_height"], [640.0, 360.0]),
+        (LayoutSystem::DamageMeter, ["meter_width", "meter_height"], [550.0, 300.0]),
+    ] {
+        layout.system = system;
+        let mut registry = hud_registry(&layout);
+        let preset = label(&registry, &format!("SliderValuelayout_{}", keys[0]));
+        layout.skin = LayoutSkin::Forever;
+        assert_ne!(
+            label(&hud_registry(&layout), &format!("SliderValuelayout_{}", keys[0])),
+            preset
+        );
+        layout.skin = LayoutSkin::Modern;
+        assert!(registry.get_by_name("Sliderlayout_frame_size").is_none());
+        assert!(registry.get_by_name("Choicelayout_font").is_none());
+        for (key, size) in keys.into_iter().zip(sizes) {
+            let action = click(&mut registry, &format!("Sliderlayout_{key}"));
+            let Some(SliderField::Layout(slider)) = parse_slider_action(&action) else {
+                panic!("{action} is not a layout slider");
+            };
+            apply_layout_slider(slider, size, &mut layout);
+            assert_eq!(
+                label(&hud_registry(&layout), &format!("SliderValuelayout_{key}")),
+                format!("{size:.0}")
+            );
+        }
+    }
+    assert_eq!(layout.settings.chat.width, Some(640));
+    assert_eq!(layout.settings.chat.height, Some(360));
+    assert_eq!(layout.settings.damage_meter.width, Some(550));
+    assert_eq!(layout.settings.damage_meter.height, Some(300));
+    assert_eq!(layout.settings.target_frame, target);
+
+    // "Reset to Preset" clears every setting and keeps the shown system.
+    let mut registry = hud_registry(&layout);
+    assert_eq!(label(&registry, "RowLabelreset_layout_settings"), "Reset to Preset");
+    let action = click(&mut registry, "ActionButtonreset_layout_settings");
+    assert_eq!(parse_layout_action(&action), Some(LayoutAction::Reset));
+    apply_layout_action(LayoutAction::Reset, &mut layout);
+    assert_eq!(layout.settings, LayoutSettings::default());
+    assert_eq!(layout.system, LayoutSystem::DamageMeter);
 }
