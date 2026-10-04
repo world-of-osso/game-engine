@@ -89,6 +89,7 @@ fn unit_frames() -> InWorldUnitFramesState {
         pet: Some(PetFrameState {
             name: "Wolf".into(),
             health_fraction: 1.0,
+            reaction: None,
             health_text: Default::default(),
             power: None,
             power_text: Default::default(),
