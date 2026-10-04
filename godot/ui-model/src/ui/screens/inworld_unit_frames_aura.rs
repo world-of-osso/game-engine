@@ -125,6 +125,33 @@ fn flow_positions(groups: [&[TargetAuraIconState]; 2]) -> [Vec<(f32, f32)>; 2] {
     })
 }
 
+/// Visible row count and bottom of the actual icon flow, for the target cast anchor.
+pub(super) fn target_aura_rows(state: &UnitFrameState) -> (usize, f32) {
+    let buffs = state.target_buffs.as_slice();
+    let debuffs = state.target_debuffs.as_slice();
+    let groups = if state.target_buffs_first {
+        [buffs, debuffs]
+    } else {
+        [debuffs, buffs]
+    };
+    let positions = flow_positions(groups);
+    let bounds: Vec<(f32, f32)> = groups
+        .into_iter()
+        .zip(positions)
+        .flat_map(|(icons, positions)| {
+            icons
+                .iter()
+                .zip(positions)
+                .map(|(icon, (_, top))| (top, top + icon_size(icon)))
+        })
+        .collect();
+    let mut tops: Vec<f32> = bounds.iter().map(|(top, _)| *top).collect();
+    tops.sort_by(f32::total_cmp);
+    tops.dedup();
+    let bottom = bounds.iter().map(|(_, bottom)| *bottom).fold(0.0, f32::max);
+    (tops.len(), bottom)
+}
+
 /// The aura container with its TOPLEFT at `(left, top)` of the frame.
 pub(super) fn target_auras(state: &UnitFrameState, (left, top): (f32, f32)) -> Element {
     let buffs = ("TargetBuff", state.target_buffs.as_slice());

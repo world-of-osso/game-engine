@@ -91,6 +91,17 @@ fn axis(relative: f32, point: f32, offset: f32, size: f32) -> (String, String, f
 }
 
 impl HudAnchor {
+    /// A child TOPLEFT offset in the parent's rect (x right, y down), retaining its screen anchor.
+    pub fn offset_from_top_left(&self, size: (f32, f32), offset: (f32, f32)) -> Self {
+        let (point_x, point_y) = self.point.fractions();
+        Self {
+            point: TopLeft,
+            relative: self.relative,
+            x: self.x - point_x * size.0 + offset.0,
+            y: self.y + point_y * size.1 - offset.1,
+        }
+    }
+
     /// Attributes placing a `width`×`height` frame at this anchor on its full-screen parent.
     pub fn place(&self, (width, height): (f32, f32)) -> Placement {
         let (point_x, point_y) = self.point.fractions();
