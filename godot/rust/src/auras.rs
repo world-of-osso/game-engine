@@ -15,7 +15,7 @@ use std::time::Instant;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::aura_display_data::{AuraCasterLookup, AuraInstance, aura_instances};
 use game_engine_ui_model::buff_frame_component::{
-    BuffFrameState, aura_button_name, aura_warning_alpha,
+    BuffFrameState, aura_button_name, aura_warning_alpha, buff_frame_texture_fdids,
 };
 use game_engine_ui_model::inworld_unit_frames_component::class_bars::ClassBarView;
 use game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
@@ -309,6 +309,7 @@ impl GameClient {
         let auras = self.unit_auras(local);
         let state =
             BuffFrameState::from_auras(&auras, self.client_options.graphics.colorblind_mode);
+        self.extract_art(&buff_frame_texture_fdids(&state));
         let ui = match self.auras.buff_ui.as_mut() {
             Some(ui) => {
                 ui.bind_mut().set_state(state)?;
