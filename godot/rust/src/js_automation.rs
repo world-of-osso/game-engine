@@ -114,6 +114,7 @@ impl NativeJsAutomation {
             UiAutomationAction::ClickFrameAt(name, across) => {
                 click_at_events(client, &name, across)
             }
+            UiAutomationAction::WheelFrame(name, notches) => wheel_events(client, &name, notches),
             UiAutomationAction::RightClickFrame(name) => right_click_events(client, state, &name),
             UiAutomationAction::ShiftClickFrame(name) => shift_click_events(client, state, &name),
             UiAutomationAction::TypeText(text) => focused_text_events(client, &text),
@@ -208,6 +209,29 @@ fn click_at_events(
     let mut events = VecDeque::from([mouse_motion_event(point, false)]);
     for pressed in [true, false] {
         events.push_back(mouse_button_event(point, MouseButton::LEFT, pressed, false));
+    }
+    Ok(events)
+}
+
+/// One press and release of the wheel button per notch over the frame's centre.
+fn wheel_events(
+    client: &Gd<Node>,
+    name: &str,
+    notches: i32,
+) -> Result<VecDeque<Gd<InputEvent>>, String> {
+    let control = visible_control(client, name)
+        .ok_or_else(|| format!("native JS automation: no visible mounted frame '{name}'"))?;
+    let point = control.get_global_transform_with_canvas() * (control.get_size() * 0.5);
+    let button = if notches < 0 {
+        MouseButton::WHEEL_UP
+    } else {
+        MouseButton::WHEEL_DOWN
+    };
+    let mut events = VecDeque::from([mouse_motion_event(point, false)]);
+    for _ in 0..notches.unsigned_abs() {
+        for pressed in [true, false] {
+            events.push_back(mouse_button_event(point, button, pressed, false));
+        }
     }
     Ok(events)
 }

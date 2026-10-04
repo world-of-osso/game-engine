@@ -29,6 +29,14 @@ Sources:
   - F8–F11 `TOGGLEBAG1-4`, which call `ToggleBag(4..1)`.
 - [x] Minimap: Num Pad + `MINIMAPZOOMIN` and Num Pad − `MINIMAPZOOMOUT` (:1378-1383).
 
+### Options list scrolls
+- [x] Options pages scroll, as Retail's settings list does: a `WowScrollBoxList` with a `MinimalScrollBar` beside it (`Blizzard_Settings_Shared/Blizzard_SettingsList.xml:48-58`), the Key Bindings list included. The content area is as tall as the category list (`Blizzard_SettingsPanel.xml:59-74`), so the Options panel no longer grows with its page and fits a 768-unit canvas with its Done button.
+- [x] A page taller than the area shows the rows that fit and a scroll bar; a page that fits has none (`ScrollUtil.AddManagedScrollBarVisibilityBehavior`, `Blizzard_SettingsList.lua:71-76`). Every Action Bar 2/3 button and pet bar row can be scrolled to and bound.
+- [x] The mouse wheel over the area moves one row per notch, up to earlier rows (`ScrollControllerMixin:OnMouseWheel`, `Blizzard_SharedXML/Shared/Scroll/ScrollController.lua:93-99`), stopping at the first and last rows; dragging the thumb scrolls in proportion. While a binding listens for a key the wheel is bound, not scrolled (`KeybindListener:OnForwardMouseWheel` first, `Blizzard_SettingsPanel.lua:87-91`).
+- [x] Another category or binding section starts at its top (`SetDataProvider` without `retainScrollPosition`, `Blizzard_SettingsList.lua:140`, `ScrollBox.lua:703-713`).
+- Ours, not Retail's: rows snap (the ui-toolkit scroll list is row-snapped; Retail scrolls by pixels). The track and thumb are the toolkit list's plain colours, not the `MinimalScrollBar` art; it has no step arrows.
+- Code: `godot/ui-model/src/ui/screens/options_menu_scroll.rs` (the area as a ui-toolkit scroll list, position in `FrameRegistry::scroll_lists`), `godot/rust/src/ui/scroll_lists.rs` (wheel and thumb input), `RegistryModel::reset_options_scroll_for` (`godot/rust/src/ui/mod.rs`).
+
 ### Blocked: no native frame
 These defaults are in the table, or Retail has them, but the Godot client has no frame for them yet:
 - `TOGGLETALENTS` N, `TOGGLEACHIEVEMENT` Y, `TOGGLESTATISTICS` Shift-Y, `TOGGLEPROFESSIONBOOK` K.
@@ -59,6 +67,7 @@ These are not changed here:
 - J is `TOGGLEGUILDTAB` in Retail, with the Adventure Guide on Shift-J. The table puts the Adventure Guide on J.
 
 ## Tests
+- `godot/rust/src/ui/scroll_lists_tests.rs`: Action Bar 2's last button scrolls into the area by wheel and its first out, the wheel stops at both ends; dragging the thumb to the bottom shows the last row; another page starts at its top; Sound has no scroll bar; on every page and section the shown rows stay inside the area at every position and the panel fits the canvas.
 - `godot/core/tests/input_bindings_data.rs`: the inventory, sections and defaults, the token grammar (including `NumpadAdd`/`NumpadSubtract`), Shift shadowing, Action Bar 2/3 actions unbound and persisted through the options file, and Retail hotkey text.
 - `godot/ui-model/tests/forever_action_bars.rs` (`extra_bar_bindings_press_their_slot_and_label_their_button`): a key on `MULTIACTIONBAR1BUTTON3` presses slot 63 and labels `MultiBarBottomLeftButton3`; Shift-1 and middle mouse on Action Bar 3; unbound buttons blank; 0 still presses main bar button 10 under Forever.
 - `godot/tests/world_keybinds_flow.gd` (`native_input_fixture keybinds`, owned UDP) presses real keys:

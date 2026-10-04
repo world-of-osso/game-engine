@@ -2,7 +2,10 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::ui::screens::options_menu_component::{OptionsViewModel, options_view};
+use crate::input_bindings::BindingSection;
+use crate::ui::screens::options_menu_component::{
+    OPTIONS_CONTENT_SCROLL, OptionsCategory, OptionsViewModel, options_view,
+};
 use crate::ui::strata::FrameStrata;
 
 #[path = "game_menu_main.rs"]
@@ -26,18 +29,30 @@ pub struct GameMenuViewModel {
     pub options: OptionsViewModel,
 }
 
+impl GameMenuViewModel {
+    /// What the Options content area shows: the view, the category and, on Keybindings, the
+    /// section.
+    pub fn options_page(&self) -> (GameMenuView, OptionsCategory, BindingSection) {
+        let options = &self.options;
+        (self.view, options.category, options.bindings.section)
+    }
+}
+
 pub fn game_menu_screen(shared: &SharedContext) -> Element {
     let Some(model) = shared.get::<GameMenuViewModel>() else {
         return Vec::new();
     };
     match model.view {
         GameMenuView::MainMenu => main_menu_view(model.logged_in),
-        GameMenuView::Options => options_menu_overlay(&model.options),
+        GameMenuView::Options => options_menu_overlay(
+            &model.options,
+            shared.scroll_first_row(OPTIONS_CONTENT_SCROLL),
+        ),
     }
 }
 
-fn options_menu_overlay(options: &OptionsViewModel) -> Element {
-    let options = options_view(options);
+fn options_menu_overlay(options: &OptionsViewModel, first_item: usize) -> Element {
+    let options = options_view(options, first_item);
     rsx! {
         r#frame {
             name: GAME_MENU_ROOT,
