@@ -5,6 +5,7 @@ use game_engine_core::{
     ui_layout_data::{self, ActiveLayout, LayoutSkin},
 };
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::hud_layout;
 use ui_toolkit::atlas::{self, ActiveSkin};
 
 use crate::GameClient;
@@ -40,25 +41,25 @@ impl GameClient {
             .session
             .selected_character_id
             .ok_or("Layout requires a selected server character ID")?;
-        let skin = ui_layout_data::set_active_layout(&layout_path(), id, name)?;
-        self.apply_ui_layout(ActiveLayout {
-            name: name.to_string(),
-            skin,
-        })
+        let layout = ui_layout_data::set_active_layout(&layout_path(), id, name)?;
+        self.apply_ui_layout(layout)
     }
 
-    /// Resolve atlases under the layout's skin and resync every canvas, each of which
-    /// mirrors the skin into its SharedContext so the Screens that read it rebuild.
+    /// Resolve atlases under the layout's skin, publish its settings and resync every
+    /// canvas, each of which mirrors both into its SharedContext so the Screens that read
+    /// them rebuild.
     fn apply_ui_layout(&mut self, layout: ActiveLayout) -> Result<(), String> {
         let skin = match layout.skin {
             LayoutSkin::Modern => ActiveSkin::Modern,
             LayoutSkin::Forever => ActiveSkin::Forever,
         };
+        let settings = layout.settings;
         self.ui_layout = layout;
-        if atlas::active_skin() == skin {
+        if atlas::active_skin() == skin && hud_layout::active_layout_settings() == settings {
             return Ok(());
         }
         atlas::set_active_skin(skin);
+        hud_layout::set_active_layout_settings(settings);
         self.for_each_registry_ui(|ui| ui.bind_mut().sync_skin())
     }
 }

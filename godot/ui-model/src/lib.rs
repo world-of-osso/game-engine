@@ -213,6 +213,8 @@ pub mod character_frame_component;
 pub mod flare_panel;
 #[path = "ui/hud_layout.rs"]
 pub mod hud_layout;
+#[path = "ui/unit_frame_style.rs"]
+pub mod unit_frame_style;
 pub mod micro_menu;
 
 #[path = "game/cursor_item.rs"]

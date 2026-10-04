@@ -634,3 +634,6 @@ fn group_members_do_not_overlap_and_keep_their_place_without_the_party_title() {
     }
     assert_eq!(rects[0], rects[1]);
 }
+
+#[path = "hud_layout_settings_tests.rs"]
+mod settings;
