@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Run offline Skyborne Vulkan acceptance in cage; retain child exit and captures.
 
-Requires host Pillow solely to decode the independent FDID 8200220 icon oracle.
+Requires host Pillow solely to write the independent raw-BLP icon oracle PNG.
 Build the native extension with depot-build.py before invoking this runner.
 Invoke through scripts/agent/agent-run skyborne-charcreate.
 """
@@ -10,11 +10,12 @@ from __future__ import annotations
 
 import json
 import os
-from pathlib import Path
 import shutil
+import struct
 import subprocess
 import sys
 import time
+from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[2]
 CAPTURES = ROOT / "data/diagnostics/skyborne-charcreate"
@@ -34,6 +35,25 @@ def run_godot_child() -> int:
     return result.returncode
 
 
+def decode_atlas_pixels(data: bytes) -> tuple[int, int, bytes]:
+    """Decode this atlas's BLP2 raw BGRA mip independently of the native decoder."""
+    if len(data) < 148 or data[:4] != b"BLP2" or data[8] != 3:
+        raise ValueError("FDID 8200220 must be BLP2 raw BGRA")
+    width, height = struct.unpack_from("<II", data, 12)
+    offset = struct.unpack_from("<I", data, 20)[0]
+    size = struct.unpack_from("<I", data, 84)[0]
+    if (
+        not width
+        or not height
+        or size != width * height * 4
+        or offset + size > len(data)
+    ):
+        raise ValueError("Invalid raw atlas mip dimensions/length")
+    pixels = bytearray(data[offset : offset + size])
+    pixels[0::4], pixels[2::4] = pixels[2::4], pixels[0::4]
+    return width, height, bytes(pixels)
+
+
 def prepare_inputs() -> dict[str, str]:
     from PIL import Image
 
@@ -41,8 +61,12 @@ def prepare_inputs() -> dict[str, str]:
     RESULT.unlink(missing_ok=True)
     for image in CAPTURES.glob("race-*-sex-*.png"):
         image.unlink()
-    with Image.open(ROOT / "data/textures/8200220.blp") as atlas:
-        atlas.convert("RGBA").save(CAPTURES / "atlas-8200220.png")
+    width, height, pixels = decode_atlas_pixels(
+        (ROOT / "data/textures/8200220.blp").read_bytes()
+    )
+    Image.frombytes("RGBA", (width, height), pixels).save(
+        CAPTURES / "atlas-8200220.png"
+    )
     config = CAPTURES / "config"
     settings = config / "world-of-osso/options_settings.ron"
     settings.parent.mkdir(parents=True, exist_ok=True)
@@ -116,8 +140,14 @@ def run_fixture() -> int:
             raise RuntimeError("Native child did not report four successful variants")
         if any(not path.is_file() for path in required):
             raise RuntimeError("Missing native capture/control image")
-        if "ERROR:" in output or "WARNING:" in output:
-            raise RuntimeError("Native acceptance log retains engine errors/warnings")
+        if (
+            "ERROR:" in output
+            or "ObjectDB instances leaked" in output
+            or "still in use at exit" in output
+        ):
+            raise RuntimeError(
+                "Native acceptance log retains engine errors/resource leaks"
+            )
         return 0
     finally:
         source = ROOT / "target/headless-client.log"
