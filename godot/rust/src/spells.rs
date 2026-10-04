@@ -531,8 +531,16 @@ impl GameClient {
             .is_none_or(|spell| spell.cooldown.gcd_ms > 0)
     }
 
+    fn local_player_class(&self) -> Option<u8> {
+        let unit = self.replica.unit(self.world.local_player_id()?)?;
+        Some(unit.get::<Player>()?.class)
+    }
+
     fn action_bar_state(&mut self) -> MainActionBarState {
-        let mut state = MainActionBarState::default();
+        let mut state = MainActionBarState {
+            player_class: self.local_player_class(),
+            ..Default::default()
+        };
         for index in 0..MAIN_BAR_BUTTONS {
             let slot = self.main_bar_slot(index);
             let Some(ActionRef::Spell(spell_id)) = self.account.spells.slot(slot) else {

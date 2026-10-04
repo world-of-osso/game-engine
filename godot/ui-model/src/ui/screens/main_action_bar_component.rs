@@ -4,7 +4,7 @@
 //! 2 px apart (`minButtonPadding`) at the active preset's anchor (`crate::hud_layout`),
 //! gryphon end caps, keys 1..=. Art names Blizzard atlas elements, which the active skin
 //! resolves; under Forever the buttons take FlareUI's scale and art and the end caps are
-//! Camelot's.
+//! the project's class shields.
 
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
@@ -53,6 +53,15 @@ const PUSHED: &str = "UI-HUD-ActionBar-IconFrame-Down";
 const HIGHLIGHT: &str = "UI-HUD-ActionBar-IconFrame-Mouseover";
 const GRYPHON_LEFT: &str = "ui-hud-actionbar-gryphon-left";
 const GRYPHON_RIGHT: &str = "ui-hud-actionbar-gryphon-right";
+const LEFT_END_CAP: &str = "MainActionBarLeftEndCap";
+const RIGHT_END_CAP: &str = "MainActionBarRightEndCap";
+/// Project art (`data/ui/endcaps/wide/README.md`): `left/<class>.ktx2` and its mirror
+/// `right/<class>.ktx2`, 119×190 px, drawn at half size.
+const CLASS_SHIELD_DIR: &str = "data/ui/endcaps/wide";
+const CLASS_SHIELD_W: f32 = 59.5;
+const CLASS_SHIELD_H: f32 = 95.0;
+/// Space between a shield and the nearest button.
+const CLASS_SHIELD_GAP: f32 = 6.0;
 
 /// How a skin draws the bar.
 struct BarStyle {
@@ -279,43 +288,77 @@ fn button(index: usize, view: &ActionButtonView, style: &BarStyle) -> Element {
     }
 }
 
-/// End cap rects inside a `width`×`height` bar, left then right.
-fn end_cap_rects(skin: ActiveSkin, (width, height): (f32, f32)) -> [Rect; 2] {
-    match skin {
-        // Mainline MainMenuBarEndCaps.xml: 104.5×98, BOTTOMRIGHT of the left cap at the
-        // bar's BOTTOMLEFT +9,-22; the right cap's BOTTOMLEFT at its BOTTOMRIGHT -8,-22.
-        ActiveSkin::Modern => {
-            let (cap_w, cap_h) = (104.5, 98.0);
-            let top = height + 22.0 - cap_h;
-            [
-                (9.0 - cap_w, top, cap_w, cap_h),
-                (width - 8.0, top, cap_w, cap_h),
-            ]
-        }
-        // Camelot MainMenuBarEndCaps.xml:9,20 supplies 154×95 caps. The reference's
-        // Edit Mode arrangement puts both on the main bar, retaining the left cap's
-        // 30-unit overlap and 5-unit lift symmetrically on the right.
-        ActiveSkin::Forever => {
-            let (cap_w, cap_h) = (154.0, 95.0);
-            let top = height / 2.0 - 5.0 - cap_h / 2.0;
-            [
-                (30.0 - cap_w, top, cap_w, cap_h),
-                (width - 30.0, top, cap_w, cap_h),
-            ]
+/// Mainline MainMenuBarEndCaps.xml: 104.5×98 gryphons, BOTTOMRIGHT of the left one at the
+/// bar's BOTTOMLEFT +9,-22; the right one's BOTTOMLEFT at its BOTTOMRIGHT -8,-22.
+fn gryphons((width, height): (f32, f32)) -> Element {
+    let (cap_w, cap_h) = (104.5, 98.0);
+    let top = height + 22.0 - cap_h;
+    [
+        art(
+            LEFT_END_CAP.into(),
+            GRYPHON_LEFT,
+            (9.0 - cap_w, top, cap_w, cap_h),
+            false,
+        ),
+        art(
+            RIGHT_END_CAP.into(),
+            GRYPHON_RIGHT,
+            (width - 8.0, top, cap_w, cap_h),
+            false,
+        ),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+/// File name of `ChrClasses` ID `class`'s shield.
+fn class_shield_name(class: u8) -> Option<&'static str> {
+    let names = [
+        "warrior",
+        "paladin",
+        "hunter",
+        "rogue",
+        "priest",
+        "deathknight",
+        "shaman",
+        "mage",
+        "warlock",
+        "monk",
+        "druid",
+        "demonhunter",
+        "evoker",
+    ];
+    names.get(usize::from(class).checked_sub(1)?).copied()
+}
+
+fn class_shield(name: &str, side: &str, class: &str, x: f32, bar_height: f32) -> Element {
+    let file = format!("{CLASS_SHIELD_DIR}/{side}/{class}.ktx2");
+    rsx! {
+        texture {
+            name: {DynName(name.into())},
+            width: CLASS_SHIELD_W,
+            height: CLASS_SHIELD_H,
+            texture_file: {file.as_str()},
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: {bar_height - CLASS_SHIELD_H},
         }
     }
 }
 
-fn end_caps(skin: ActiveSkin, size: (f32, f32)) -> Element {
-    let [left, right] = end_cap_rects(skin, size);
+/// Forever's end caps (user decision 2026-10-03): the project's shields carrying the
+/// player's class emblem, bottoms on the bar's bottom edge, outside the first and last
+/// button. None while the class is unknown or has no shield.
+fn class_shields((width, height): (f32, f32), class: Option<u8>) -> Element {
+    let Some(class) = class.and_then(class_shield_name) else {
+        return Vec::new();
+    };
+    let left = -CLASS_SHIELD_GAP - CLASS_SHIELD_W;
+    let right = width + CLASS_SHIELD_GAP;
     [
-        art("MainActionBarLeftEndCap".into(), GRYPHON_LEFT, left, false),
-        art(
-            "MainActionBarRightEndCap".into(),
-            GRYPHON_RIGHT,
-            right,
-            false,
-        ),
+        class_shield(LEFT_END_CAP, "left", class, left, height),
+        class_shield(RIGHT_END_CAP, "right", class, right, height),
     ]
     .into_iter()
     .flatten()
@@ -338,6 +381,10 @@ pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
         .collect();
     let size = (BAR_W * style.scale, BUTTON_SIZE * style.scale);
     let at = hud_layout(ctx).main_action_bar.place(size);
+    let end_caps = match skin {
+        ActiveSkin::Modern => gryphons(size),
+        ActiveSkin::Forever => class_shields(size, state.player_class),
+    };
     rsx! {
         r#frame {
             name: MAIN_ACTION_BAR,
@@ -352,7 +399,7 @@ pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
             margin_left: {at.margin_left},
             margin_top: {at.margin_top},
             {buttons}
-            {end_caps(skin, size)}
+            {end_caps}
         }
     }
 }
