@@ -109,6 +109,8 @@ pub struct FlareUnit<'a> {
     pub name: &'a str,
     pub level: Option<(&'a str, &'a str)>,
     pub health_fraction: f32,
+    /// `UnitIsDeadOrGhost`: `DEAD_TEXT` replaces the health text (UnitFrames.lua:390-391).
+    pub dead: bool,
     pub reaction: Option<Reaction>,
     pub class_id: Option<u8>,
     pub power: Option<&'a PowerBarState>,
@@ -121,6 +123,7 @@ impl<'a> From<&'a UnitFrameState> for FlareUnit<'a> {
             name: &unit.name,
             level: Some((unit.level_text.as_str(), unit.level_color.as_str())),
             health_fraction: unit.health_fraction,
+            dead: unit.dead,
             reaction: unit.reaction,
             class_id: unit.class_id,
             power: unit.power.as_ref(),
@@ -138,6 +141,7 @@ impl<'a> From<&'a SmallUnitFrameState> for FlareUnit<'a> {
                 .as_ref()
                 .map(|(text, color)| (text.as_str(), color.as_str())),
             health_fraction: unit.health_fraction,
+            dead: unit.dead,
             reaction: unit.reaction,
             class_id: unit.class_id,
             power: None,
@@ -152,6 +156,7 @@ impl<'a> From<&'a PetFrameState> for FlareUnit<'a> {
             name: &pet.name,
             level: None,
             health_fraction: pet.health_fraction,
+            dead: false,
             reaction: pet.reaction,
             class_id: None,
             power: pet.power.as_ref(),
@@ -318,12 +323,14 @@ fn flare_bar(
     }
 }
 
-/// Level, name and health percentage across the health bar, mirrored frames reading
-/// [health][name][level] (UnitFrames.lua:1795-1825).
+/// Level, name and health text across the health bar, mirrored frames reading
+/// [health][name][level] (UnitFrames.lua:1795-1825). The health text is the percentage,
+/// or `DEAD_TEXT` for a dead unit whatever its `healthText` mode (UnitFrames.lua:386-393).
 fn flare_texts(spec: &FlareFrame, unit: &FlareUnit<'_>, (x, y, width, height): Rect) -> Element {
     let level = unit.level.filter(|_| spec.show_level);
     let level_w = if level.is_some() { LEVEL_W + 3.0 } else { 0.0 };
-    let percent_w = if spec.health_percent {
+    let health_text_shown = spec.health_percent || unit.dead;
+    let percent_w = if health_text_shown {
         HEALTH_TEXT_W + 4.0
     } else {
         0.0
@@ -359,9 +366,13 @@ fn flare_texts(spec: &FlareFrame, unit: &FlareUnit<'_>, (x, y, width, height): R
             )
         })
         .unwrap_or_default();
-    let percent = format!("{:.0}%", unit.health_fraction.clamp(0.0, 1.0) * 100.0);
+    let percent = if unit.dead {
+        "Dead".to_owned()
+    } else {
+        format!("{:.0}%", unit.health_fraction.clamp(0.0, 1.0) * 100.0)
+    };
     let percent_name = dyn_name(format!("{}HealthBarText", spec.prefix));
-    let percent_hidden = !spec.health_percent;
+    let percent_hidden = !health_text_shown;
     rsx! {
         {level_text}
         {flare_label(dyn_name(format!("{}Name", spec.prefix)), unit.name, (name_x, y, name_w, height), (WHITE, FONT_SIZE), far)}
@@ -418,9 +429,13 @@ fn flare_label(
 /// Player power text, right-inset4 (:1824), font10 (Core.lua:276). UpdatePower
 /// passes the current displayed power to Retail's native AbbreviateNumbers (:412).
 /// Frame snapshots have no native/localized abbreviation text: integer values are
-/// shown here; large-value abbreviation and offline/dead suppression remain unbound.
+/// shown here; large-value abbreviation and offline suppression remain unbound. A dead
+/// unit shows none (`not UnitIsDeadOrGhost(unit)`, :411).
 fn flare_power_text(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
-    let Some(power) = unit.power.filter(|_| spec.power_height >= 10.0) else {
+    let Some(power) = unit
+        .power
+        .filter(|_| spec.power_height >= 10.0 && !unit.dead)
+    else {
         return Element::default();
     };
     let (width, height) = spec.size;
