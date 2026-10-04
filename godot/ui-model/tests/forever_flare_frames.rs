@@ -275,28 +275,55 @@ fn label<'a>(
     text
 }
 
+/// FlareUI's default `Flat` bar texture is a uniform 143/255 grey that `SetStatusBarColor`
+/// and the bg's `SetVertexColor` multiply (UnitFrames.lua:45,240,384,410,1775-1778).
+fn through_flat_texture([r, g, b]: [f32; 3], alpha: f32) -> [f32; 4] {
+    let grey = 143.0 / 255.0;
+    [r * grey, g * grey, b * grey, alpha]
+}
+
 #[test]
-fn forever_players_use_unmodified_retail_class_colours() {
+fn forever_player_fills_are_retail_class_colours_through_the_flat_bar_texture() {
     let registry = colour_frames(Reaction::Hostile, Some(8));
-    // GetHealthColor returns C_ClassColor:GetRGB directly, no multiplier (:254-261).
+    // GetHealthColor returns C_ClassColor:GetRGB (:254-261).
     for (name, rgb) in [
-        ("PlayerHealthBarFill", [0.96, 0.55, 0.73, 1.0]),
-        ("TargetOfTargetHealthBarFill", [0.96, 0.55, 0.73, 1.0]),
-        ("TargetHealthBarFill", [0.25, 0.78, 0.92, 1.0]),
-        ("FocusHealthBarFill", [0.25, 0.78, 0.92, 1.0]),
+        ("PlayerHealthBarFill", [0.96, 0.55, 0.73]),
+        ("TargetOfTargetHealthBarFill", [0.96, 0.55, 0.73]),
+        ("TargetHealthBarFill", [0.25, 0.78, 0.92]),
+        ("FocusHealthBarFill", [0.25, 0.78, 0.92]),
     ] {
-        assert_eq!(frame(&registry, name).background_color, Some(rgb), "{name}");
+        assert_eq!(
+            frame(&registry, name).background_color,
+            Some(through_flat_texture(rgb, 1.0)),
+            "{name}"
+        );
     }
+    // Paladin pink 0.96,0.55,0.73 lands at the reference's (137,74,102) within rounding.
+    let [r, g, b, _] = frame(&registry, "PlayerHealthBarFill")
+        .background_color
+        .unwrap();
+    assert_eq!([r, g, b].map(|c| (c * 255.0).round() as u8), [137, 79, 104]);
+}
+
+#[test]
+fn forever_power_fills_are_power_colours_through_the_flat_bar_texture() {
+    let registry = colour_frames(Reaction::Friendly, None);
+    // GetPowerColor: PowerBarColor MANA 0,0,1 (:268-276).
+    assert_eq!(
+        frame(&registry, "PlayerManaBarFill").background_color,
+        Some(through_flat_texture([0.0, 0.0, 1.0], 1.0))
+    );
 }
 
 #[test]
 fn forever_npcs_use_flareui_reaction_colours_not_saturated_selection_colours() {
     // UnitFrames.lua:63-72,254-266: NPCs, including pets, use reaction, not owner class.
     for (reaction, rgb) in [
-        (Reaction::Friendly, [0.30, 0.78, 0.30, 1.0]),
-        (Reaction::Hostile, [0.87, 0.27, 0.27, 1.0]),
-        (Reaction::Neutral, [0.93, 0.78, 0.25, 1.0]),
+        (Reaction::Friendly, [0.30, 0.78, 0.30]),
+        (Reaction::Hostile, [0.87, 0.27, 0.27]),
+        (Reaction::Neutral, [0.93, 0.78, 0.25]),
     ] {
+        let rgb = through_flat_texture(rgb, 1.0);
         let registry = colour_frames(reaction, None);
         for name in [
             "TargetHealthBarFill",
@@ -351,11 +378,12 @@ fn forever_player_power_shows_current_value_in_white_on_the_right() {
 #[test]
 fn forever_partial_bars_show_dark_background_without_an_opaque_frame_backdrop() {
     let registry = colour_frames(Reaction::Friendly, None);
-    // bar.bg (:240); outer backdrop BG_OPACITY=0 (:42,1768).
+    // bar.bg 0.15,0.15,0.15,0.9 on the same texture (:240,1777-1778); outer backdrop
+    // BG_OPACITY=0 (:42,1768).
     for name in ["PlayerHealthBar", "PlayerManaBar", "TargetHealthBar"] {
         assert_eq!(
             frame(&registry, name).background_color,
-            Some([0.15, 0.15, 0.15, 0.9])
+            Some(through_flat_texture([0.15; 3], 0.9))
         );
     }
     assert_eq!(fixed_rect(&registry, "PlayerHealthBarFill").2, 174.0);

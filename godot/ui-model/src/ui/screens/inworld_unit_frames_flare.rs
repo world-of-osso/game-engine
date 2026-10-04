@@ -30,6 +30,11 @@ const BORDER_COLOR: &str = "0.65,0.49,0.27,1.0";
 const BACKGROUND_FDID: u32 = 312_922;
 /// A bar's `bg` (UnitFrames.lua:240).
 pub const BAR_BACKGROUND: &str = "0.15,0.15,0.15,0.9";
+/// Unit frame bars and their `bg` draw FlareUI's default `Flat` statusbar texture
+/// (UnitFrames.lua:45,1775-1778), a uniform grey of 143/255. `SetStatusBarColor` and the
+/// bg's `SetVertexColor` multiply that texture (UnitFrames.lua:240,384,410), so both show at
+/// this fraction of their colour.
+pub const FLAT_TEXTURE_GREY: f32 = 143.0 / 255.0;
 /// `TEXT_INSET` (UnitFrames.lua:49).
 const TEXT_INSET: f32 = 4.0;
 /// `db.font` Friz Quadrata 12 OUTLINE (Core.lua:275).
@@ -155,20 +160,18 @@ impl<'a> From<&'a PetFrameState> for FlareUnit<'a> {
     }
 }
 
-/// `GetHealthColor` returns raw class RGB for players, raw REACTION RGB for NPCs:
-/// no darkening multiplier (UnitFrames.lua:63-72,254-266). Pets use their own reaction,
-/// not their owner's class. The source uses REACTION[5] when reaction is absent.
-fn health_rgb(unit: &FlareUnit<'_>) -> String {
+/// `GetHealthColor`: class RGB for players, REACTION RGB for NPCs (UnitFrames.lua:63-72,
+/// 254-266); the bar texture darkens it ([`FLAT_TEXTURE_GREY`]). Pets use their own
+/// reaction, not their owner's class. The source uses REACTION[5] when reaction is absent.
+fn health_rgb(unit: &FlareUnit<'_>) -> [f32; 3] {
     if let Some(class_id) = unit.class_id {
-        let [r, g, b] = class_color(class_id);
-        return format!("{r},{g},{b},1.0");
+        return class_color(class_id);
     }
     match unit.reaction {
-        Some(Reaction::Hostile) => "0.87,0.27,0.27,1.0",
-        Some(Reaction::Neutral) => "0.93,0.78,0.25,1.0",
-        Some(Reaction::Friendly) | None => "0.30,0.78,0.30,1.0",
+        Some(Reaction::Hostile) => [0.87, 0.27, 0.27],
+        Some(Reaction::Neutral) => [0.93, 0.78, 0.25],
+        Some(Reaction::Friendly) | None => [0.30, 0.78, 0.30],
     }
-    .to_owned()
 }
 
 /// `spec`'s frame at its preset `anchor`: dark background, bars, bronze border, texts.
@@ -213,7 +216,6 @@ fn flare_contents(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
         height - 2.0 * FLARE_INSET - spec.power_height,
     );
     let power_bar = unit.power.filter(|_| spec.power_height > 0.0).map(|power| {
-        let [r, g, b] = power_bar_rgb(power.power);
         let rect = (
             FLARE_INSET,
             height - FLARE_INSET - spec.power_height,
@@ -225,7 +227,7 @@ fn flare_contents(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
             format!("{}ManaBar", spec.prefix),
             rect,
             fill,
-            &format!("{r},{g},{b},1.0"),
+            power_bar_rgb(power.power),
             spec.mirror,
         )
     });
@@ -241,7 +243,7 @@ fn flare_contents(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
             pos_x: FLARE_INSET,
             pos_y: FLARE_INSET,
         }
-        {flare_bar(format!("{}HealthBar", spec.prefix), health, unit.health_fraction, &health_rgb(unit), spec.mirror)}
+        {flare_bar(format!("{}HealthBar", spec.prefix), health, unit.health_fraction, health_rgb(unit), spec.mirror)}
         {power_bar.unwrap_or_default()}
         {flare_border_frame(spec.root, spec.size)}
         {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), [flare_texts(spec, unit, health), flare_power_text(spec, unit)].into_iter().flatten().collect())}
@@ -277,24 +279,28 @@ pub fn flare_border_frame(root: &str, size: (f32, f32)) -> Element {
     )
 }
 
-/// A `StatusBar` over its dark `bg`, filled with `color` from the left, or from the right
-/// when `mirror`ed (`SetReverseFill`).
+/// A `StatusBar` over its dark `bg`, filled with `rgb` from the left, or from the right
+/// when `mirror`ed (`SetReverseFill`); both through the `Flat` texture.
 fn flare_bar(
     name: String,
     (x, y, width, height): Rect,
     fill: f32,
-    color: &str,
+    rgb: [f32; 3],
     mirror: bool,
 ) -> Element {
     let fill_w = width * fill.clamp(0.0, 1.0);
     let fill_x = if mirror { width - fill_w } else { 0.0 };
+    let [r, g, b] = rgb.map(|channel| channel * FLAT_TEXTURE_GREY);
+    let color = format!("{r},{g},{b},1.0");
+    let bg = 0.15 * FLAT_TEXTURE_GREY;
+    let background = format!("{bg},{bg},{bg},0.9");
     rsx! {
         r#frame {
             name: {dyn_name(name.clone())},
             width,
             height,
             mouse_enabled: true,
-            background_color: BAR_BACKGROUND,
+            background_color: {background.as_str()},
             pos_type: "absolute",
             pos_x: x,
             pos_y: y,
@@ -303,7 +309,7 @@ fn flare_bar(
                 width: fill_w,
                 height,
                 hidden: {fill_w <= 0.0},
-                background_color: color,
+                background_color: {color.as_str()},
                 pos_type: "absolute",
                 pos_x: fill_x,
                 pos_y: 0.0,
