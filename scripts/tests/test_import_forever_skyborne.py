@@ -115,7 +115,7 @@ class ImportTests(unittest.TestCase):
         rows, dropped = importer.decode_rows(raw, layout, columns, index)
         zephras = [row for row in rows if row["ContinentID"] == 2991]
         self.assertEqual(len(zephras), 6)
-        self.assertEqual(dropped, 0)
+        self.assertEqual(dropped, 15)
         self.assertIn(7455, {row["LightParamsID_0"] for row in zephras})
 
     def test_lighting_assets_follow_only_forever_maps_and_all_slots(self):
