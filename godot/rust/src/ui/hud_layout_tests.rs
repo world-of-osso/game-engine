@@ -274,8 +274,9 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
         "MainActionBarRightEndCap",
         (950.86, 689.65, 154.0, 95.0),
     );
-    assert_rect(&hud, MICRO_MENU, (635.0, 722.0, 329.0, 40.0));
-    assert_rect(&hud, "BagsBar", (971.0, 719.0, 368.0, 47.0));
+    // Hidden roots and descendants take no layout space (Display::None).
+    assert_rect(&hud, MICRO_MENU, (0.0, 0.0, 0.0, 0.0));
+    assert_rect(&hud, "BagsBar", (0.0, 0.0, 0.0, 0.0));
     assert_rect(&hud, "PetActionBar", (415.14, 682.5, 337.08, 31.8));
     assert_utility_visibility(&hud, true);
     // Forever's Mainline preset keeps Modern's minimap, aura, group, meter and tracker
