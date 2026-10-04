@@ -194,13 +194,13 @@ fn acknowledgment_capture_follows_connection_transition_consumption() {
         .set(ClientState::Connected);
     stock.update();
     let frames = &stock.world().resource::<Tap>().frames;
-    assert_eq!(frames.len(), 1, "capture exactly one consumption");
-    assert_eq!(frames[0].mutations, vec![mutation.clone()]);
     assert_eq!(
+        vec![acknowledgments(&[mutation.clone()]).expect("parse mutate header")],
         frames[0].acks,
-        vec![acknowledgments(&[mutation]).expect("parse mutate header")],
         "worker acknowledgments equal replicon's"
     );
+    assert_eq!(frames.len(), 1, "capture exactly one consumption");
+    assert_eq!(frames[0].mutations, vec![mutation]);
 }
 
 fn schema_of(app: &App) -> std::sync::Arc<Schema> {
