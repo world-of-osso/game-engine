@@ -8,7 +8,7 @@ use game_engine_ui_model::chat_frame::ChatTab;
 use game_engine_ui_model::chat_frame_component::{ChatFrameView, chat_frame_screen};
 use game_engine_ui_model::damage_meter_component::damage_meter_screen;
 use game_engine_ui_model::damage_meter_data::{
-    DamageMeterView, DamageMeterWindow, MeterSessionType,
+    DamageMeterRow, DamageMeterView, DamageMeterWindow, MeterSessionType, MeterType,
 };
 use game_engine_ui_model::flare_panel::{FLARE_BRONZE_PANEL_STYLE, flare_bronze_style};
 use shared::protocol::{DamageMeterSession, DamageMeterSnapshot, DamageMeterSource};
@@ -76,6 +76,7 @@ fn meter_view() -> DamageMeterView {
         }),
         session: MeterSessionType::Current,
         menu_open: true,
+        ..Default::default()
     }
     .view(true, 45.0)
 }
@@ -183,12 +184,12 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
         font(&registry, "DamageMeterTypeName").color,
         [0.80, 0.60, 0.34, 1.0]
     );
-    assert_eq!(font(&registry, "DamageMeterThreatTab").text, "Threat");
+    assert_eq!(font(&registry, "DamageMeterHpsTabName").text, "HPS");
     assert_eq!(
-        font(&registry, "DamageMeterThreatTab").color,
+        font(&registry, "DamageMeterHpsTabName").color,
         [0.56, 0.51, 0.46, 1.0]
     );
-    assert!(frame(&registry, "DamageMeterThreatTab").onclick.is_none());
+    assert!(registry.get_by_name("DamageMeterThreatTab").is_none());
     assert_eq!(
         rect(&registry, "DamageMeterSessionDropdown"),
         (398.5, -1.0, 22.0, 22.0)
@@ -514,4 +515,156 @@ fn forever_chrome_atlases_resolve_to_assets_already_in_data() {
             "missing {name}: {fdid}"
         );
     }
+}
+
+/// One row of `meter_type`: a paladin, or a recap line (no class) while a recap is open.
+fn typed_view(meter_type: MeterType, recap_open: bool) -> DamageMeterView {
+    DamageMeterView {
+        meter_type,
+        recap_open,
+        rows: vec![DamageMeterRow {
+            name_text: "Shot".into(),
+            value_text: "12s".into(),
+            fraction: 1.0,
+            color: [0.96, 0.55, 0.73],
+            class_id: if recap_open { 0 } else { 2 },
+            is_local_player: !recap_open,
+        }],
+        ..Default::default()
+    }
+}
+
+fn click(registry: &FrameRegistry, name: &str) -> Option<String> {
+    frame(registry, name).onclick.clone()
+}
+
+const ACTIVE: [f32; 4] = [0.80, 0.60, 0.34, 1.0];
+const INACTIVE: [f32; 4] = [0.56, 0.51, 0.46, 1.0];
+
+#[test]
+fn forever_dps_and_hps_tabs_select_damage_and_healing() {
+    let view = typed_view(MeterType::HealingDone, false);
+    let registry = canvas(ActiveSkin::Forever, view, damage_meter_screen);
+    assert_eq!(font(&registry, "DamageMeterTypeName").color, INACTIVE);
+    assert_eq!(font(&registry, "DamageMeterHpsTabName").color, ACTIVE);
+    assert_eq!(
+        click(&registry, "DamageMeterDpsTab").as_deref(),
+        Some(MeterType::DamageDone.action())
+    );
+    assert_eq!(
+        click(&registry, "DamageMeterHpsTab").as_deref(),
+        Some(MeterType::HealingDone.action())
+    );
+    assert!(registry.get_by_name("DamageMeterOtherTypeName").is_none());
+    // Healing rows look like damage rows and are not clickable.
+    assert_eq!(font(&registry, "DamageMeterEntry1Name").text, "Shot");
+    assert_eq!(
+        texture(&registry, "DamageMeterEntry1Icon").source,
+        TextureSource::Atlas("classicon-paladin".into())
+    );
+    assert!(registry.get_by_name("DamageMeterEntry1Button").is_none());
+}
+
+#[test]
+fn forever_other_types_get_their_own_label_and_death_rows_are_clickable() {
+    let view = typed_view(MeterType::Deaths, false);
+    let registry = canvas(ActiveSkin::Forever, view, damage_meter_screen);
+    assert_eq!(font(&registry, "DamageMeterTypeName").color, INACTIVE);
+    assert_eq!(font(&registry, "DamageMeterHpsTabName").color, INACTIVE);
+    assert_eq!(font(&registry, "DamageMeterOtherTypeName").text, "Deaths");
+    assert_eq!(font(&registry, "DamageMeterOtherTypeName").color, ACTIVE);
+    assert_eq!(
+        click(&registry, "DamageMeterEntry1Button").as_deref(),
+        Some("damage_meter:row:0")
+    );
+
+    // A recap line has no class icon and closes the recap when clicked.
+    let view = typed_view(MeterType::Deaths, true);
+    let registry = canvas(ActiveSkin::Forever, view, damage_meter_screen);
+    assert_eq!(
+        font(&registry, "DamageMeterOtherTypeName").text,
+        "Death Recap"
+    );
+    assert!(registry.get_by_name("DamageMeterEntry1Icon").is_none());
+    assert_eq!(font(&registry, "DamageMeterEntry1Value").text, "12s");
+    assert_eq!(
+        click(&registry, "DamageMeterEntry1Button").as_deref(),
+        Some("damage_meter:row:0")
+    );
+}
+
+#[test]
+fn the_type_menu_lists_every_type_in_both_skins() {
+    let options = |registry: &FrameRegistry| -> Vec<(Option<String>, String)> {
+        (1..=MeterType::ALL.len())
+            .map(|index| {
+                (
+                    click(registry, &format!("DamageMeterTypeMenuOption{index}")),
+                    font(registry, &format!("DamageMeterTypeMenuText{index}"))
+                        .text
+                        .trim_start_matches(['\u{2022}', ' '])
+                        .to_string(),
+                )
+            })
+            .collect()
+    };
+    let expected: Vec<_> = MeterType::ALL
+        .into_iter()
+        .map(|t| (Some(t.action().to_string()), t.label().to_string()))
+        .collect();
+    assert_eq!(
+        expected.iter().map(|(_, l)| l.as_str()).collect::<Vec<_>>(),
+        [
+            "Damage Done",
+            "Healing Done",
+            "Interrupts",
+            "Dispels",
+            "Deaths"
+        ]
+    );
+
+    // Modern: the type dropdown opens it; the session menu stays closed.
+    let view = DamageMeterView {
+        meter_type: MeterType::Interrupts,
+        type_menu_open: true,
+        ..Default::default()
+    };
+    let modern = canvas(ActiveSkin::Modern, view, damage_meter_screen);
+    assert_eq!(
+        click(&modern, "DamageMeterTypeDropdown").as_deref(),
+        Some("damage_meter:type_menu")
+    );
+    assert_eq!(font(&modern, "DamageMeterTypeName").text, "Interrupts");
+    assert_eq!(options(&modern), expected);
+    // The selected type is the marked one.
+    assert!(
+        font(&modern, "DamageMeterTypeMenuText3")
+            .text
+            .starts_with('\u{2022}')
+    );
+    assert!(
+        !font(&modern, "DamageMeterTypeMenuText1")
+            .text
+            .starts_with('\u{2022}')
+    );
+    assert!(modern.get_by_name("DamageMeterSessionMenu").is_none());
+
+    // Forever: the chart button's one menu lists the types beside the sessions.
+    let view = DamageMeterView {
+        menu_open: true,
+        ..Default::default()
+    };
+    let forever = canvas(ActiveSkin::Forever, view, damage_meter_screen);
+    assert_eq!(options(&forever), expected);
+    assert_eq!(
+        click(&forever, "DamageMeterSessionMenuOption2").as_deref(),
+        Some("damage_meter:overall")
+    );
+    let closed = canvas(
+        ActiveSkin::Forever,
+        DamageMeterView::default(),
+        damage_meter_screen,
+    );
+    assert!(closed.get_by_name("DamageMeterTypeMenu").is_none());
+    assert!(closed.get_by_name("DamageMeterSessionMenu").is_none());
 }
