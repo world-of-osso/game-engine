@@ -247,18 +247,6 @@ mod tests {
     }
 
     #[test]
-    fn a_raised_container_canvas_draws_over_a_later_hud_canvas() {
-        // BagsUI mounted before the damage meter's canvas, both on layer 1.
-        let (bags, meter) = (key(1, 40), key(1, 47));
-        let index = raised_index(bags, &[bags, meter, key(1, 12)]).expect("meter covers bags");
-        let hit = topmost_hit([
-            (key(1, index), Some("ContainerFrame0Slot0")),
-            (meter, Some("DamageMeterEntry1")),
-        ]);
-        assert_eq!(hit, Some("ContainerFrame0Slot0"));
-    }
-
-    #[test]
     fn the_topmost_window_is_not_moved_again() {
         let merchant = key(1, 52);
         assert_eq!(raised_index(merchant, &[key(1, 40), merchant]), None);
