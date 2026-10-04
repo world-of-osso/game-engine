@@ -1,3 +1,7 @@
+## 2026-10-04 — Canonical toolkit integration and retained Skyborn blocker
+
+[Build guidance](../remote-builds.md) and active source links now use canonical `ui-toolkit/core` after toolkit merge `96dbda4`; historical branch-path proof remains attributed to its original revision. [[character-creation]] records unmerged Skyborn partial support, inferred server masks and current build-70205 local-CASC root-initialization failure from the retained main probe. No builds/tests rerun; native Skyborn support remains unverified.
+
 ## 2026-10-03 — Replica acknowledgment test capture (replicaflake)
 
 [[godot-replication]] records the deterministic Connecting → Connected reproduction: the old Tap paired buffered arrival with an acknowledgment from a different consumption boundary. Capture now brackets replicon's Connected PreUpdate and OnEnter receive calls; product worker and exact byte comparison unchanged. Regression RED reproduces `[b"\0\0"]` versus `[]`; unchanged test GREEN 1/1 and full network library 58/58 at `5ae0e4e7`, with natural one-minute loads 35.05/36.38. Exact proof and revisions in [[godot-replication]].

@@ -853,7 +853,7 @@ Not handled: animated emitter tracks and `enabledIn` (first key only), tails (0x
 - [Actual-loader M2 UV fixture](../../godot/tests/m2_uv_pixels.gd) — ordinary/effect pixel contract.
 - [Model-scene script](../../godot/tests/model_scene.gd) — `ac02b9a0` canvas-occlusion RED; `5ca2dc8d` correction awaits rebuild.
 - [M2-assets script](../../godot/tests/m2_assets.gd) — agent39-reported GREEN on the `ac02b9a0` native library after `97d97af1`/`5297d394`.
-- [Sibling UI core registry](../../../../ui-toolkit-godot-conversion/core/src/registry.rs) — extracted frame/model registry boundary.
+- [Sibling UI core registry](../../../../ui-toolkit/core/src/registry.rs) — extracted frame/model registry boundary.
 
 ## Native camera Options boundary
 
