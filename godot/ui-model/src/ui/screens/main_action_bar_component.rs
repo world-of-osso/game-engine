@@ -4,27 +4,28 @@
 //! 2 px apart (`minButtonPadding`) at the active preset's anchor (`crate::hud_layout`),
 //! gryphon end caps, keys 1..=. Art names Blizzard atlas elements, which the active skin
 //! resolves; under Forever the buttons take FlareUI's scale and art and the end caps are
-//! Camelot's.
+//! the project's class shields. `MultiBarBottomLeft` and `MultiBarBottomRight`
+//! (`Shared/MultiActionBars.xml`) are further instances of the same bar, shown where the
+//! preset enables them.
 
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::hud_layout::{FOREVER_ACTION_BUTTON_SCALE, hud_layout};
+use crate::hud_layout::{ActionBarLayout, FOREVER_ACTION_BUTTON_SCALE, HudLayout, hud_layout};
 use crate::ui::anchor::FrameName;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::GameFont;
 
 pub const MAIN_ACTION_BAR: FrameName = FrameName("MainActionBar");
+/// Buttons of every action bar (`NUM_ACTIONBAR_BUTTONS`, `numButtons`).
 pub const MAIN_BAR_BUTTONS: usize = 12;
-/// Clicking button `n` (0-based) emits `"{ACTION_BUTTON_PREFIX}{n}"`.
+/// Clicking main bar button `n` (0-based) emits `"{ACTION_BUTTON_PREFIX}{n}"`.
 pub const ACTION_BUTTON_PREFIX: &str = "action_button:";
 
 pub const BUTTON_SIZE: f32 = 45.0;
 pub const BUTTON_PADDING: f32 = 2.0;
-pub const BAR_W: f32 =
-    MAIN_BAR_BUTTONS as f32 * BUTTON_SIZE + (MAIN_BAR_BUTTONS as f32 - 1.0) * BUTTON_PADDING;
 /// Modern `MAIN_ACTION_BAR_DEFAULT_OFFSET_Y` (Standard/EditModePresetLayoutConstants.lua:2).
 pub const BAR_BOTTOM: f32 = 45.0;
 /// `NormalTexture`/`PushedTexture`/`HighlightTexture` are 46×45 at TOPLEFT.
@@ -53,6 +54,15 @@ const PUSHED: &str = "UI-HUD-ActionBar-IconFrame-Down";
 const HIGHLIGHT: &str = "UI-HUD-ActionBar-IconFrame-Mouseover";
 const GRYPHON_LEFT: &str = "ui-hud-actionbar-gryphon-left";
 const GRYPHON_RIGHT: &str = "ui-hud-actionbar-gryphon-right";
+const LEFT_END_CAP: &str = "MainActionBarLeftEndCap";
+const RIGHT_END_CAP: &str = "MainActionBarRightEndCap";
+/// Project art (`data/ui/endcaps/README.md`): `left/<class>.ktx2` and its mirror
+/// `right/<class>.ktx2`, 68×256 px, drawn 95 units tall.
+const CLASS_SHIELD_DIR: &str = "data/ui/endcaps";
+const CLASS_SHIELD_H: f32 = 95.0;
+const CLASS_SHIELD_W: f32 = CLASS_SHIELD_H * 68.0 / 256.0;
+/// Space between a shield and the nearest button.
+const CLASS_SHIELD_GAP: f32 = 6.0;
 
 /// How a skin draws the bar.
 struct BarStyle {
@@ -93,39 +103,144 @@ pub struct ActionButtonView {
     pub hovered: bool,
 }
 
+/// The action bars this client draws.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum ActionBar {
+    Main,
+    /// Action Bar 2.
+    BottomLeft,
+    /// Action Bar 3.
+    BottomRight,
+}
+
+impl ActionBar {
+    pub const ALL: [Self; 3] = [Self::Main, Self::BottomLeft, Self::BottomRight];
+
+    fn frame_name(self) -> &'static str {
+        match self {
+            Self::Main => MAIN_ACTION_BAR.0,
+            Self::BottomLeft => "MultiBarBottomLeft",
+            Self::BottomRight => "MultiBarBottomRight",
+        }
+    }
+
+    /// `ActionButton<n>` on the main bar, `<bar>Button<n>` elsewhere (`ActionBar.lua:19-28`).
+    fn button_prefix(self) -> &'static str {
+        match self {
+            Self::Main => "ActionButton",
+            Self::BottomLeft => "MultiBarBottomLeftButton",
+            Self::BottomRight => "MultiBarBottomRightButton",
+        }
+    }
+
+    /// Retail name of button `index` (0-based).
+    pub fn button_name(self, index: usize) -> String {
+        format!("{}{}", self.button_prefix(), index + 1)
+    }
+
+    /// The bar and 0-based index of the button named `name`.
+    pub fn of_button_name(name: &str) -> Option<(Self, usize)> {
+        Self::ALL.into_iter().find_map(|bar| {
+            let number: usize = name.strip_prefix(bar.button_prefix())?.parse().ok()?;
+            Some((bar, number.checked_sub(1)?)).filter(|&(_, index)| index < MAIN_BAR_BUTTONS)
+        })
+    }
+
+    fn click_prefix(self) -> &'static str {
+        match self {
+            Self::Main => ACTION_BUTTON_PREFIX,
+            Self::BottomLeft => "multi_bar_1_button:",
+            Self::BottomRight => "multi_bar_2_button:",
+        }
+    }
+
+    /// The bar's `actionpage`: the main bar's first page (which the player's form re-pages),
+    /// `BOTTOMLEFT_ACTIONBAR_PAGE` 6, `BOTTOMRIGHT_ACTIONBAR_PAGE` 5
+    /// (`MultiActionBars.xml:62,91`, `MultiActionBars.lua:3-4`).
+    const fn page(self) -> usize {
+        match self {
+            Self::Main => 1,
+            Self::BottomLeft => 6,
+            Self::BottomRight => 5,
+        }
+    }
+
+    /// 0-based action slot of button `index` on the bar's own page:
+    /// `(page - 1) * NUM_ACTIONBAR_BUTTONS + id` (`ActionButtonUtil.lua:3,66`), so Retail's
+    /// slots 1-12, 61-72 and 49-60.
+    pub const fn action_slot(self, index: usize) -> usize {
+        (self.page() - 1) * MAIN_BAR_BUTTONS + index
+    }
+
+    /// The bar's Edit Mode settings under `layout`; `None` when the preset does not show it.
+    fn layout(self, layout: &HudLayout) -> Option<&ActionBarLayout> {
+        match self {
+            Self::Main => Some(&layout.main_action_bar),
+            Self::BottomLeft => layout.action_bar_2.as_ref(),
+            Self::BottomRight => layout.action_bar_3.as_ref(),
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq)]
 pub struct MainActionBarState {
+    /// The main bar's buttons.
     pub buttons: [ActionButtonView; MAIN_BAR_BUTTONS],
+    /// `MultiBarBottomLeft`'s and `MultiBarBottomRight`'s buttons.
+    pub multi_bars: [[ActionButtonView; MAIN_BAR_BUTTONS]; 2],
+    /// The player's `ChrClasses` ID; `None` until the player's unit has replicated.
+    pub player_class: Option<u8>,
 }
 
 impl Default for MainActionBarState {
     fn default() -> Self {
         Self {
             buttons: std::array::from_fn(|_| ActionButtonView::default()),
+            multi_bars: std::array::from_fn(|_| {
+                std::array::from_fn(|_| ActionButtonView::default())
+            }),
+            player_class: None,
         }
     }
 }
 
-/// Retail `ActionButton<n>` name of button `index` (0-based).
-pub fn action_button_name(index: usize) -> String {
-    format!("ActionButton{}", index + 1)
+impl MainActionBarState {
+    pub fn bar(&self, bar: ActionBar) -> &[ActionButtonView; MAIN_BAR_BUTTONS] {
+        match bar {
+            ActionBar::Main => &self.buttons,
+            ActionBar::BottomLeft => &self.multi_bars[0],
+            ActionBar::BottomRight => &self.multi_bars[1],
+        }
+    }
+
+    pub fn bar_mut(&mut self, bar: ActionBar) -> &mut [ActionButtonView; MAIN_BAR_BUTTONS] {
+        match bar {
+            ActionBar::Main => &mut self.buttons,
+            ActionBar::BottomLeft => &mut self.multi_bars[0],
+            ActionBar::BottomRight => &mut self.multi_bars[1],
+        }
+    }
 }
 
-/// Key label of button `index` (`ACTIONBUTTON1..12` default bindings).
-pub fn hotkey_label(index: usize) -> &'static str {
-    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
-        .get(index)
-        .copied()
-        .unwrap_or("")
+/// Key label of button `index`: the main bar's `ACTIONBUTTON1..12` default bindings. The
+/// client binds no key to `MULTIACTIONBAR1BUTTON<n>` / `MULTIACTIONBAR2BUTTON<n>`, and an
+/// unbound button shows no key (`ActionButton.lua:470-493`).
+pub fn hotkey_label(bar: ActionBar, index: usize) -> &'static str {
+    match bar {
+        ActionBar::Main => ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0", "-", "="]
+            .get(index)
+            .copied()
+            .unwrap_or(""),
+        ActionBar::BottomLeft | ActionBar::BottomRight => "",
+    }
 }
 
-/// Button index of an action this screen emitted.
-pub fn parse_action_button(action: &str) -> Option<usize> {
-    action
-        .strip_prefix(ACTION_BUTTON_PREFIX)?
-        .parse()
-        .ok()
-        .filter(|&index| index < MAIN_BAR_BUTTONS)
+/// Bar and button index of an action this screen emitted.
+pub fn parse_action_button(action: &str) -> Option<(ActionBar, usize)> {
+    ActionBar::ALL.into_iter().find_map(|bar| {
+        let index: usize = action.strip_prefix(bar.click_prefix())?.parse().ok()?;
+        (index < MAIN_BAR_BUTTONS).then_some((bar, index))
+    })
 }
 
 struct DynName(String);
@@ -202,13 +317,13 @@ fn cooldown(name: &str, view: &ActionButtonView, scale: f32) -> Element {
     }
 }
 
-fn hotkey(name: &str, index: usize, scale: f32) -> Element {
+fn hotkey(name: &str, label: &str, scale: f32) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("{name}HotKey"))},
             width: {HOTKEY_W * scale},
             height: {HOTKEY_H * scale},
-            text: {hotkey_label(index)},
+            text: label,
             font: GameFont::ArialNarrow,
             font_size: {12.0 * scale},
             font_color: HOTKEY_COLOR,
@@ -221,11 +336,16 @@ fn hotkey(name: &str, index: usize, scale: f32) -> Element {
     }
 }
 
-fn button(index: usize, view: &ActionButtonView, style: &BarStyle) -> Element {
-    let name = action_button_name(index);
-    let scale = style.scale;
+/// Button `index` of `bar` at `(x, y)` inside it, drawn at `scale`.
+fn button(
+    (bar, index): (ActionBar, usize),
+    view: &ActionButtonView,
+    (x, y): (f32, f32),
+    scale: f32,
+    slot_background: bool,
+) -> Element {
+    let name = bar.button_name(index);
     let size = BUTTON_SIZE * scale;
-    let x = index as f32 * (BUTTON_SIZE + BUTTON_PADDING) * scale;
     let frame_art = (0.0, 0.0, FRAME_ART_W * scale, size);
     let cell = (0.0, 0.0, size, size);
     let children: Element = [
@@ -233,7 +353,7 @@ fn button(index: usize, view: &ActionButtonView, style: &BarStyle) -> Element {
             format!("{name}SlotBackground"),
             SLOT_BACKGROUND,
             cell,
-            !style.slot_background,
+            !slot_background,
         ),
         art(format!("{name}SlotArt"), SLOT_ART, cell, false),
         icon(format!("{name}Icon"), view.icon_fdid, size),
@@ -256,7 +376,7 @@ fn button(index: usize, view: &ActionButtonView, style: &BarStyle) -> Element {
             frame_art,
             !view.hovered,
         ),
-        hotkey(&name, index, scale),
+        hotkey(&name, hotkey_label(bar, index), scale),
     ]
     .into_iter()
     .flatten()
@@ -266,51 +386,32 @@ fn button(index: usize, view: &ActionButtonView, style: &BarStyle) -> Element {
             name: {DynName(name)},
             width: size,
             height: size,
-            onclick: {format!("{ACTION_BUTTON_PREFIX}{index}")},
+            onclick: {format!("{}{index}", bar.click_prefix())},
             button_default_skin: false,
             pos_type: "absolute",
             pos_x: x,
-            pos_y: 0.0,
+            pos_y: y,
             {children}
         }
     }
 }
 
-/// End cap rects inside a `width`×`height` bar, left then right.
-fn end_cap_rects(skin: ActiveSkin, (width, height): (f32, f32)) -> [Rect; 2] {
-    match skin {
-        // Mainline MainMenuBarEndCaps.xml: 104.5×98, BOTTOMRIGHT of the left cap at the
-        // bar's BOTTOMLEFT +9,-22; the right cap's BOTTOMLEFT at its BOTTOMRIGHT -8,-22.
-        ActiveSkin::Modern => {
-            let (cap_w, cap_h) = (104.5, 98.0);
-            let top = height + 22.0 - cap_h;
-            [
-                (9.0 - cap_w, top, cap_w, cap_h),
-                (width - 8.0, top, cap_w, cap_h),
-            ]
-        }
-        // Camelot MainMenuBarEndCaps.xml:9,20 supplies 154×95 caps. The reference's
-        // Edit Mode arrangement puts both on the main bar, retaining the left cap's
-        // 30-unit overlap and 5-unit lift symmetrically on the right.
-        ActiveSkin::Forever => {
-            let (cap_w, cap_h) = (154.0, 95.0);
-            let top = height / 2.0 - 5.0 - cap_h / 2.0;
-            [
-                (30.0 - cap_w, top, cap_w, cap_h),
-                (width - 30.0, top, cap_w, cap_h),
-            ]
-        }
-    }
-}
-
-fn end_caps(skin: ActiveSkin, size: (f32, f32)) -> Element {
-    let [left, right] = end_cap_rects(skin, size);
+/// Mainline MainMenuBarEndCaps.xml: 104.5×98 gryphons, BOTTOMRIGHT of the left one at the
+/// bar's BOTTOMLEFT +9,-22; the right one's BOTTOMLEFT at its BOTTOMRIGHT -8,-22.
+fn gryphons((width, height): (f32, f32)) -> Element {
+    let (cap_w, cap_h) = (104.5, 98.0);
+    let top = height + 22.0 - cap_h;
     [
-        art("MainActionBarLeftEndCap".into(), GRYPHON_LEFT, left, false),
         art(
-            "MainActionBarRightEndCap".into(),
+            LEFT_END_CAP.into(),
+            GRYPHON_LEFT,
+            (9.0 - cap_w, top, cap_w, cap_h),
+            false,
+        ),
+        art(
+            RIGHT_END_CAP.into(),
             GRYPHON_RIGHT,
-            right,
+            (width - 8.0, top, cap_w, cap_h),
             false,
         ),
     ]
@@ -319,25 +420,82 @@ fn end_caps(skin: ActiveSkin, size: (f32, f32)) -> Element {
     .collect()
 }
 
-pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
-    let state = ctx
-        .get::<MainActionBarState>()
-        .expect("MainActionBarState must be in SharedContext");
-    let skin = *ctx
-        .get::<ActiveSkin>()
-        .expect("canvas carries the active skin");
-    let style = bar_style(skin);
-    let buttons: Element = state
-        .buttons
+/// File name of `ChrClasses` ID `class`'s shield.
+fn class_shield_name(class: u8) -> Option<&'static str> {
+    let names = [
+        "warrior",
+        "paladin",
+        "hunter",
+        "rogue",
+        "priest",
+        "deathknight",
+        "shaman",
+        "mage",
+        "warlock",
+        "monk",
+        "druid",
+        "demonhunter",
+        "evoker",
+    ];
+    names.get(usize::from(class).checked_sub(1)?).copied()
+}
+
+fn class_shield(name: &str, side: &str, class: &str, x: f32, bar_height: f32) -> Element {
+    let file = format!("{CLASS_SHIELD_DIR}/{side}/{class}.ktx2");
+    rsx! {
+        texture {
+            name: {DynName(name.into())},
+            width: CLASS_SHIELD_W,
+            height: CLASS_SHIELD_H,
+            texture_file: {file.as_str()},
+            pos_type: "absolute",
+            pos_x: x,
+            pos_y: {bar_height - CLASS_SHIELD_H},
+        }
+    }
+}
+
+/// Forever's end caps (user decision 2026-10-03): the project's narrow shields carrying the
+/// player's class emblem, bottoms on the bar's bottom edge, outside the first and last
+/// button. None while the class is unknown or has no shield.
+fn class_shields((width, height): (f32, f32), class: Option<u8>) -> Element {
+    let Some(class) = class.and_then(class_shield_name) else {
+        return Vec::new();
+    };
+    let left = -CLASS_SHIELD_GAP - CLASS_SHIELD_W;
+    let right = width + CLASS_SHIELD_GAP;
+    [
+        class_shield(LEFT_END_CAP, "left", class, left, height),
+        class_shield(RIGHT_END_CAP, "right", class, right, height),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+/// One bar: its `NumIcons` first buttons in the layout's grid, at the layout's anchor.
+fn action_bar(
+    bar: ActionBar,
+    views: &[ActionButtonView],
+    layout: &ActionBarLayout,
+    style: &BarStyle,
+    end_caps: Element,
+) -> Element {
+    let scale = style.scale * layout.icon_scale;
+    let buttons: Element = views
         .iter()
+        .take(layout.num_icons)
         .enumerate()
-        .flat_map(|(index, view)| button(index, view, &style))
+        .flat_map(|(index, view)| {
+            let origin = layout.button_origin(index, style.scale);
+            button((bar, index), view, origin, scale, style.slot_background)
+        })
         .collect();
-    let size = (BAR_W * style.scale, BUTTON_SIZE * style.scale);
-    let at = hud_layout(ctx).main_action_bar.place(size);
+    let size = layout.size(style.scale);
+    let at = layout.anchor.place(size);
     rsx! {
         r#frame {
-            name: MAIN_ACTION_BAR,
+            name: {DynName(bar.frame_name().into())},
             width: {size.0},
             height: {size.1},
             strata: FrameStrata::Medium,
@@ -349,7 +507,31 @@ pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
             margin_left: {at.margin_left},
             margin_top: {at.margin_top},
             {buttons}
-            {end_caps(skin, size)}
+            {end_caps}
         }
     }
+}
+
+pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
+    let state = ctx
+        .get::<MainActionBarState>()
+        .expect("MainActionBarState must be in SharedContext");
+    let skin = *ctx
+        .get::<ActiveSkin>()
+        .expect("canvas carries the active skin");
+    let style = bar_style(skin);
+    let hud = hud_layout(ctx);
+    ActionBar::ALL
+        .into_iter()
+        .filter_map(|bar| Some((bar, bar.layout(hud)?)))
+        .flat_map(|(bar, layout)| {
+            let size = layout.size(style.scale);
+            let end_caps = match (bar, skin) {
+                (ActionBar::Main, ActiveSkin::Modern) => gryphons(size),
+                (ActionBar::Main, ActiveSkin::Forever) => class_shields(size, state.player_class),
+                _ => Vec::new(),
+            };
+            action_bar(bar, state.bar(bar), layout, &style, end_caps)
+        })
+        .collect()
 }

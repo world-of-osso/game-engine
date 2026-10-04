@@ -7,10 +7,10 @@
 //! PetActionBar `BOTTOM` at `MAIN_ACTION_BAR_DEFAULT_OFFSET_Y`, automatic positioning on)
 //! `EditModeManagerFrameMixin:UpdateBottomActionBarPositions` stacks it on the shown bottom
 //! bars: BOTTOMLEFT at UIParent BOTTOM + (-MainActionBar width / 2, 45 + 45 +
-//! `BOTTOM_ACTION_BARS_SPACER_Y` 5); this client shows no MultiBarBottomLeft/Right or
+//! `BOTTOM_ACTION_BARS_SPACER_Y` 5); Modern shows no MultiBarBottomLeft/Right or
 //! StanceBar between them. `hud_layout` supplies the active preset's stack anchor; Forever
-//! uses Camelot's main-bar BOTTOMLEFT + (30, scaled main height + 4), and FlareUI's
-//! pet-button scale 1.06. Chrome atlas names resolve per skin. Autocastable spells carry the `AutoCastOverlay` (31×31 at
+//! uses Camelot's main-bar BOTTOMLEFT + 30 across, 4 above its topmost action bar, and
+//! FlareUI's pet-button scale 1.06. Chrome atlas names resolve per skin. Autocastable spells carry the `AutoCastOverlay` (31×31 at
 //! CENTER + (0.5, -0.5), `SmallActionButtonMixin_OnLoad`): its Corners, and while autocast is
 //! on its rotating Shine, which the host composes into `shine_texture`
 //! (`game_engine_core::pet_autocast_shine_data`).
