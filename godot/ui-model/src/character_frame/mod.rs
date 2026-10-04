@@ -711,7 +711,7 @@ fn item_level_frames(item_level: &str, y: f32) -> Element {
     let frame_y = y + 40.0;
     let color = match active_skin() {
         ActiveSkin::Modern => "1.0,1.0,1.0,0.3",
-        ActiveSkin::Forever => WHITE, // Camelot CharacterFrame.xml:517 has no alpha override.
+        ActiveSkin::Forever => WHITE, // Camelot CharacterFrame.xml:507 has no alpha override.
     };
     children.extend(atlas(
         "CharacterStatsPaneItemLevelFrameBackground".into(),
@@ -740,7 +740,7 @@ fn item_level_frames(item_level: &str, y: f32) -> Element {
 fn stat_lines(lines: &[StatLine], first: usize, top: f32, gap: f32) -> Element {
     let size = match active_skin() {
         ActiveSkin::Modern => 10.0,
-        ActiveSkin::Forever => 13.0, // Camelot CharacterFrame.xml:123,128.
+        ActiveSkin::Forever => 12.0, // Camelot CharacterFrame.xml:112,117; shared Fonts.xml:277.
     };
     let (stats_x, _, stats_w) = read_character_layout().stats;
     let x = stats_x + (stats_w - 187.0) / 2.0;
@@ -748,7 +748,7 @@ fn stat_lines(lines: &[StatLine], first: usize, top: f32, gap: f32) -> Element {
     let (w, h) = art.size();
     let color = match active_skin() {
         ActiveSkin::Modern => "1.0,1.0,1.0,0.3",
-        ActiveSkin::Forever => WHITE, // Camelot CharacterFrame.xml:115 has no alpha override.
+        ActiveSkin::Forever => WHITE, // Camelot CharacterFrame.xml:105 has no alpha override.
     };
     let mut children = Element::default();
     for (index, line) in lines.iter().enumerate() {
@@ -794,11 +794,15 @@ fn category(name: &str, title: &str, x: f32, y: f32) -> Element {
         (x, y, width, 40.0),
         WHITE,
     );
+    let font_size = match active_skin() {
+        ActiveSkin::Modern => 13.0,
+        ActiveSkin::Forever => 12.0, // GameFontHighlight, shared Fonts.xml:277.
+    };
     children.extend(text(
         format!("{name}Title"),
         title,
         (x, y - 1.0, 197.0, 40.0),
-        (13.0, HIGHLIGHT_FONT_COLOR),
+        (font_size, HIGHLIGHT_FONT_COLOR),
         "CENTER",
     ));
     children
