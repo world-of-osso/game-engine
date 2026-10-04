@@ -3,6 +3,7 @@ use taffy::prelude::*;
 use ui_toolkit::anchor::AnchorTarget;
 use ui_toolkit::frame::{
     Dimension as FrameDimension, FlexAlign, FlexDirection as FrameDirection, FlexJustify, Frame,
+    WidgetData,
 };
 use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::layout_values::{PositionType as FramePosition, UiRect, Val, Val2};
@@ -128,6 +129,11 @@ fn translate(value: Val, size: f32) -> f32 {
     }
 }
 
+/// A texture frame drawn turned about its centre.
+pub(super) fn is_turned(frame: &Frame) -> bool {
+    matches!(&frame.widget_data, Some(WidgetData::Texture(texture)) if texture.rotation != 0.0)
+}
+
 fn collect_bounds(
     tree: &TaffyTree<(f32, f32)>,
     registry: &FrameRegistry,
@@ -139,9 +145,14 @@ fn collect_bounds(
     let frame = registry
         .get(id)
         .ok_or_else(|| format!("Missing frame {id}"))?;
-    let layout = tree
-        .layout(nodes[&id])
-        .map_err(|error| format!("Read layout {id}: {error}"))?;
+    // A turned texture pivots on its centre: rounding its own rect to pixels would move
+    // the centre half a pixel whenever its sides differ by an odd amount.
+    let layout = if is_turned(frame) {
+        tree.unrounded_layout(nodes[&id])
+    } else {
+        tree.layout(nodes[&id])
+            .map_err(|error| format!("Read layout {id}: {error}"))?
+    };
     let Val2 {
         x: translate_x,
         y: translate_y,
@@ -313,5 +324,56 @@ mod tests {
         let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
         assert_eq!((bounds[&form].x, bounds[&form].y), (480.0, 193.0));
         assert_eq!((bounds[&button].x, bounds[&button].y), (515.0, 327.0));
+    }
+
+    /// Screen `[left, top, right, bottom]` a frame's texture covers: a quarter-turned one
+    /// swaps its sides about its centre.
+    fn drawn(registry: &FrameRegistry, bounds: &HashMap<u64, LayoutRect>, name: &str) -> [f32; 4] {
+        let id = registry.get_by_name(name).expect(name);
+        let rect = &bounds[&id];
+        let (half_w, half_h) = if is_turned(registry.get(id).unwrap()) {
+            (rect.height / 2.0, rect.width / 2.0)
+        } else {
+            (rect.width / 2.0, rect.height / 2.0)
+        };
+        let (x, y) = (rect.x + rect.width / 2.0, rect.y + rect.height / 2.0);
+        [x - half_w, y - half_h, x + half_w, y + half_h]
+    }
+
+    /// The Forever experience bar's border (601x22: no room for side edges) and a tall
+    /// one: every edge piece starts and ends exactly where its two corners do.
+    #[test]
+    fn flare_border_edges_meet_their_corners() {
+        use game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_flare::flare_border_frame;
+        use ui_toolkit::screen::{Screen, SharedContext};
+
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(|_| {
+            let mut borders = flare_border_frame("Short", (601.0, 22.0));
+            borders.extend(flare_border_frame("Tall", (233.0, 60.0)));
+            borders
+        })
+        .sync(&SharedContext::new(), &mut registry);
+        let bounds = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+        let piece =
+            |root: &str, piece: &str| drawn(&registry, &bounds, &format!("{root}Border{piece}"));
+        for root in ["Short", "Tall"] {
+            let [tl, tr, bl, br] = ["TopLeft", "TopRight", "BottomLeft", "BottomRight"]
+                .map(|corner| piece(root, corner));
+            assert_eq!(
+                piece(root, "Top"),
+                [tl[2], tl[1], tr[0], tl[3]],
+                "{root} top"
+            );
+            assert_eq!(
+                piece(root, "Bottom"),
+                [bl[2], bl[1], br[0], bl[3]],
+                "{root} bottom"
+            );
+        }
+        let [tl, tr, bl, br] = ["TopLeft", "TopRight", "BottomLeft", "BottomRight"]
+            .map(|corner| piece("Tall", corner));
+        assert_eq!(piece("Tall", "Left"), [tl[0], tl[3], tl[2], bl[1]]);
+        assert_eq!(piece("Tall", "Right"), [tr[0], tr[3], tr[2], br[1]]);
     }
 }
