@@ -253,11 +253,36 @@ impl UiProjection {
                 .map_err(str::to_owned)?;
         }
         drop(nodes_span);
+        self.order_child_nodes(registry);
         registry.resolve_pending_writes();
+        registry.child_order_dirty.clear();
         registry.render_dirty.clear();
         registry.rect_dirty.clear();
         registry.drain_removed_frames();
         Ok(())
+    }
+
+    /// Nodes are appended as frames are created; a rebuild can insert or reorder
+    /// frames among existing siblings, so put reordered parents' frame nodes in
+    /// registry order. Other children (parts, overlays hosts add) keep their places.
+    fn order_child_nodes(&self, registry: &FrameRegistry) {
+        for &parent in &registry.child_order_dirty {
+            // A parent removed after its children were reordered has no node left.
+            let Some(frame) = registry.get(parent) else {
+                continue;
+            };
+            let mut node = self.nodes[&parent].clone();
+            let mut last = -1;
+            for child in &frame.children {
+                let child = &self.nodes[child];
+                let index = child.get_index();
+                if index > last {
+                    last = index;
+                } else {
+                    node.move_child(child, last);
+                }
+            }
+        }
     }
 
     fn measure_intrinsics(
