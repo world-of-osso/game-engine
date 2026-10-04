@@ -194,7 +194,7 @@ fn assert_modern(hud: &[RegistryModel]) {
     assert_rect(
         hud,
         "ChatFrame1ScrollToBottomButton",
-        (465.0, 657.0, 26.0, 28.0),
+        (467.0, 657.0, 26.0, 28.0),
     );
     assert_modern_edit_mode_systems(hud);
 }
