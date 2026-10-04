@@ -4,8 +4,8 @@ use NameplateBarThickness::{Thick, Thin};
 #[test]
 fn presets_keep_independent_heights_and_choose_nearest_at_midpoint() {
     let mut style = NameplateStyle::default();
-    assert_eq!((style.health_height, style.cast_height), (20.0, 6.0));
-    assert_eq!((style.health_preset(), style.cast_preset()), (Thick, Thin));
+    assert_eq!((style.health_height, style.cast_height), (20.0, 10.0));
+    assert_eq!((style.health_preset(), style.cast_preset()), (Thick, Thick));
     assert_eq!(
         NameplateStyle::from_presets(Thin, Thick).health_height,
         10.0

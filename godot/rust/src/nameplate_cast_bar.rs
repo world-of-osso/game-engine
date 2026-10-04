@@ -297,9 +297,9 @@ impl CastNodes {
         text.set_scroll_active(false);
         text.add_theme_font_override("normal_font", font);
         text.add_theme_color_override("default_color", Color::WHITE);
-        text.add_theme_color_override("font_shadow_color", Color::from_rgba(0.0, 0.0, 0.0, 0.85));
-        text.add_theme_constant_override("shadow_offset_x", 1);
-        text.add_theme_constant_override("shadow_offset_y", 1);
+        // Outlined like the plate's name (the user's reference of 2026-10-04).
+        text.add_theme_color_override("font_outline_color", Color::BLACK);
+        text.add_theme_constant_override("outline_size", 2);
         // Fill above its background, frame over both, spark and icon row on top.
         for node in [
             background.clone().upcast::<Control>(),

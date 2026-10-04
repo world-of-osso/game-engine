@@ -4,7 +4,8 @@
 //! collision dims plates of units behind world geometry (`nameplateOccludedAlphaMult`).
 //! Look and layout follow docs/specs/nameplate-style.md: the reference-derived health
 //! frame and fill skins of the Bevy client, the fill tinted by the unit's reaction to the
-//! local player, and the white Friz name 2px above the plate.
+//! local player, and on the Thick bar the white outlined Friz name at its left with the
+//! health value and percent at its right (the user's reference of 2026-10-04).
 
 use std::collections::HashMap;
 use std::path::Path;
@@ -16,6 +17,7 @@ use game_engine_core::nameplate_visibility_data::{
     NameplateCvars, PlateUnit, in_combat_with_player, nameplate_alpha, plate_alpha, plate_shown,
     selection_in_combat_is_hostile,
 };
+use game_engine_core::status_text_data::{abbreviate_large_numbers, percent};
 use game_engine_core::warband_scene_data::read_atlas_art;
 use game_engine_network::replica::{Replica, Unit as ReplicatedUnit};
 use game_engine_session::SessionScreen;
@@ -25,8 +27,8 @@ use game_engine_ui_model::inworld_unit_frames_component::{
 use godot::{
     classes::{
         AtlasTexture, Camera3D, CanvasLayer, Control, Image, ImageTexture, Label,
-        PhysicsRayQueryParameters3D, TextureRect, control::MouseFilter, texture_rect::ExpandMode,
-        texture_rect::StretchMode,
+        PhysicsRayQueryParameters3D, TextureRect, control::MouseFilter,
+        text_server::OverrunBehavior, texture_rect::ExpandMode, texture_rect::StretchMode,
     },
     prelude::*,
 };
@@ -52,6 +54,11 @@ const LAYER_NAME: &str = "Nameplates";
 const FACTION_TEMPLATE_CSV: &str = "db2/12.1.0.69933/FactionTemplate.csv";
 /// Retail `HEALTH_BAR_TO_NAME_ABOVE_SPACING` (Blizzard_NamePlateConstants.lua:33).
 const NAME_ABOVE_BAR_SPACING: f32 = 2.0;
+/// The texts inside the Thick bar start and end this far from the body's ends
+/// (data/diagnostics/forever-reference/user-nameplate-reference-2026-10-04.png).
+const TEXT_INSET: f32 = 3.0;
+/// The least space between the name and the health text; a longer name is trimmed.
+const NAME_HEALTH_GAP: f32 = 6.0;
 /// Bevy `NAMEPLATE_SCALE`: the skins are unscaled reference-screenshot pixels.
 const NAMEPLATE_SCALE: f32 = 0.5;
 /// Bevy `BAR_Y_OFFSET` (health_bar.rs): the health body centre above the unit origin, in
@@ -72,6 +79,8 @@ const LEVEL_INDICATOR_WIDTH: f32 = 28.0;
 const LARGE_LEVEL_INDICATOR_HEIGHT: f32 = 23.0;
 const SMALL_LEVEL_INDICATOR_HEIGHT: f32 = 16.0;
 const LEVEL_FONT_HEIGHT: i32 = 10;
+/// Outline of the plate's texts, in pixels.
+const TEXT_OUTLINE: i32 = 2;
 /// Physics layers that hide a unit from the camera.
 const OCCLUDER_MASK: u32 = TERRAIN_LAYER | WMO_LAYER;
 
@@ -110,13 +119,26 @@ fn thick_preset(style: &NameplateStyle) -> bool {
 struct PlateLayout {
     frame: Rect2,
     fill: Rect2,
-    /// Bottom centre of the name label.
-    name_bottom: Vector2,
+    text: PlateText,
+}
+
+/// Where a plate's texts sit, relative to the anchor.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum PlateText {
+    /// Thick bar (the user's reference): the name's left middle and the health text's
+    /// right middle, both inside the body.
+    Inside {
+        name_left: Vector2,
+        health_right: Vector2,
+    },
+    /// Thin bar, lower than a text line: the name's bottom centre above the plate
+    /// (Retail `CenteredAboveHealthBar`), and no health text.
+    Above { name_bottom: Vector2 },
 }
 
 /// `level_width` is what the skin's level frame takes off the health bars' right end
 /// (`HealthBarsContainer` BOTTOMRIGHT `xOffset = -levelFrameWidth`,
-/// Blizzard_NamePlateUnitFrame.lua:701-707); the name stays centred on the whole plate.
+/// Blizzard_NamePlateUnitFrame.lua:701-707); a name above stays centred on the whole plate.
 fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> PlateLayout {
     let skin = health_skin(thick_preset(style));
     let body = Vector2::new(style.health_width - level_width, style.health_height);
@@ -129,16 +151,39 @@ fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> Plat
         center + Vector2::new(-body.x / 2.0, skin.fill_y - fill_size.y / 2.0),
         fill_size,
     );
-    let top = if style.show_border {
-        frame_size.y / 2.0 - skin.frame_offset.y
+    let text = if thick_preset(style) {
+        let left = center.x - body.x / 2.0;
+        PlateText::Inside {
+            name_left: Vector2::new(left + TEXT_INSET, 0.0),
+            health_right: Vector2::new(left + body.x - TEXT_INSET, 0.0),
+        }
     } else {
-        body.y / 2.0
+        let top = if style.show_border {
+            frame_size.y / 2.0 - skin.frame_offset.y
+        } else {
+            body.y / 2.0
+        };
+        PlateText::Above {
+            name_bottom: Vector2::new(0.0, -(top + NAME_ABOVE_BAR_SPACING)),
+        }
     };
-    PlateLayout {
-        frame,
-        fill,
-        name_bottom: Vector2::new(0.0, -(top + NAME_ABOVE_BAR_SPACING)),
-    }
+    PlateLayout { frame, fill, text }
+}
+
+/// The text at the bar's right: `AbbreviateLargeNumbers(UnitHealth)` and the percent of
+/// `UnitHealthMax`, as the reference's "425 K  100%".
+fn health_text(health: &Health) -> String {
+    let (current, max) = (health.current.round() as i64, health.max.round() as i64);
+    format!(
+        "{}  {}%",
+        abbreviate_large_numbers(current),
+        percent(current, max)
+    )
+}
+
+/// The name's width on the Thick bar: its own, or what the health text leaves it.
+fn name_width_inside(name: f32, health: f32, name_left: f32, health_right: f32) -> f32 {
+    name.min((health_right - health - NAME_HEALTH_GAP - name_left).max(0.0))
 }
 
 /// The atlases of the level frame a skin hangs on its plates.
@@ -412,6 +457,7 @@ struct PlateNodes {
     frame: Gd<TextureRect>,
     fill: Gd<TextureRect>,
     name: Gd<Label>,
+    health: Gd<Label>,
     raid_icon: Gd<TextureRect>,
     classification: Gd<TextureRect>,
     /// Present under a skin with a level frame.
@@ -427,6 +473,8 @@ struct PlateView {
     occluded: bool,
     anchor: Vector2,
     fraction: f32,
+    /// `health_text` of the unit's health; empty without one.
+    health_text: String,
     color: Color,
     name_color: Color,
     /// `GetRaidTargetIndex(unit)`.
@@ -693,17 +741,25 @@ fn spawn_plate(
     let frame = texture_rect();
     let raid_icon = texture_rect();
     let classification = texture_rect();
-    let mut name = Label::new_alloc();
-    ignore_mouse(&mut name);
-    name.add_theme_font_override("font", &art.font);
-    name.add_theme_color_override("font_color", Color::WHITE);
-    name.add_theme_color_override("font_shadow_color", Color::BLACK);
-    name.add_theme_constant_override("shadow_offset_x", 1);
-    name.add_theme_constant_override("shadow_offset_y", 1);
+    // White Friz with a black outline, as the reference's texts.
+    let label = || {
+        let mut label = Label::new_alloc();
+        ignore_mouse(&mut label);
+        label.add_theme_font_override("font", &art.font);
+        label.add_theme_color_override("font_color", Color::WHITE);
+        label.add_theme_color_override("font_outline_color", Color::BLACK);
+        label.add_theme_constant_override("outline_size", TEXT_OUTLINE);
+        label
+    };
+    let mut name = label();
+    // A name longer than its room on the bar ends in an ellipsis.
+    name.set_text_overrun_behavior(OverrunBehavior::TRIM_ELLIPSIS);
+    let health = label();
     // Fill under the frame, whose interior is transparent.
     root.add_child(&fill);
     root.add_child(&frame);
     root.add_child(&name);
+    root.add_child(&health);
     root.add_child(&raid_icon);
     root.add_child(&classification);
     let level = level_art.map(|level_art| spawn_level(&mut root, level_art, &art.font));
@@ -714,6 +770,7 @@ fn spawn_plate(
         frame,
         fill,
         name,
+        health,
         raid_icon,
         classification,
         level,
@@ -801,23 +858,58 @@ fn apply_plate(
     plate.fill.set_self_modulate(view.color);
     plate.fill.set_position(layout.fill.position);
     plate.fill.set_size(layout.fill.size);
-    if plate.name.get_text().to_string() != view.name {
-        plate.name.set_text(&view.name);
+    let font_size = style.name_font_size.round() as i32;
+    let text_size = |text: &str| {
+        art.font
+            .get_string_size_ex(text)
+            .font_size(font_size)
+            .done()
+    };
+    for (label, text) in [
+        (&mut plate.name, &view.name),
+        (&mut plate.health, &view.health_text),
+    ] {
+        if label.get_text().to_string() != *text {
+            label.set_text(text);
+        }
+        label.add_theme_font_size_override("font_size", font_size);
     }
     plate
         .name
         .add_theme_color_override("font_color", view.name_color);
-    plate
-        .name
-        .add_theme_font_size_override("font_size", style.name_font_size.round() as i32);
-    plate.name.reset_size();
-    let size = plate.name.get_minimum_size();
-    plate.name.set_size(size);
-    plate.name.set_position(if show_health_bars {
-        layout.name_bottom - Vector2::new(size.x / 2.0, size.y)
-    } else {
-        -size / 2.0
-    });
+    let name = text_size(&view.name);
+    let inside = match layout.text {
+        PlateText::Inside {
+            name_left,
+            health_right,
+        } if show_health_bars => {
+            let health = text_size(&view.health_text);
+            plate.health.set_size(health);
+            plate
+                .health
+                .set_position(health_right - Vector2::new(health.x, health.y / 2.0));
+            let width = name_width_inside(name.x, health.x, name_left.x, health_right.x);
+            plate.name.set_size(Vector2::new(width, name.y));
+            plate
+                .name
+                .set_position(name_left - Vector2::new(0.0, name.y / 2.0));
+            true
+        }
+        PlateText::Above { name_bottom } if show_health_bars => {
+            plate.name.set_size(name);
+            plate
+                .name
+                .set_position(name_bottom - Vector2::new(name.x / 2.0, name.y));
+            false
+        }
+        // Name-only plate: the name on the anchor.
+        _ => {
+            plate.name.set_size(name);
+            plate.name.set_position(-name / 2.0);
+            false
+        }
+    };
+    plate.health.set_visible(inside);
 }
 
 fn unit_name(unit: ReplicatedUnit) -> String {
@@ -948,6 +1040,11 @@ fn project_plate(
         occluded: is_occluded,
         anchor: camera.unproject_position(top),
         fraction: health_fraction(unit),
+        health_text: unit
+            .get::<Health>()
+            .filter(|health| health.max > 0.0)
+            .map(health_text)
+            .unwrap_or_default(),
         color,
         name_color,
         raid_target: None,
@@ -1124,6 +1221,7 @@ impl GameClient {
             entry.set("occluded", view.occluded);
             entry.set("anchor", view.anchor);
             entry.set("fraction", view.fraction);
+            entry.set("health_text", view.health_text.as_str());
             entry.set("color", view.color);
             if let Some(index) = view.raid_target {
                 entry.set("raid_target", i64::from(index));
@@ -1131,6 +1229,9 @@ impl GameClient {
             if let Some(plate) = self.nameplates.plates.get(id) {
                 entry.set("frame_rect", plate.frame.get_global_rect());
                 entry.set("name_rect", plate.name.get_global_rect());
+                if plate.health.is_visible() {
+                    entry.set("health_rect", plate.health.get_global_rect());
+                }
                 if plate.raid_icon.is_visible() {
                     entry.set("raid_icon_rect", plate.raid_icon.get_global_rect());
                 }
@@ -1305,7 +1406,7 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
     }
 
     #[test]
-    fn thick_plate_centres_its_body_on_the_anchor_with_the_name_two_pixels_above_the_frame() {
+    fn thick_plate_centres_its_body_on_the_anchor_with_the_texts_inside_its_ends() {
         let style = NameplateStyle::default();
         let layout = plate_layout(&style, 1.0, 0.0);
         // 188x20 body; the Thick frame adds 10x4 and sits 1px right, 0.5px up.
@@ -1313,7 +1414,35 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
         assert_eq!(layout.frame.position, Vector2::new(-98.0, -12.5));
         assert_eq!(layout.fill.size, Vector2::new(188.0, 19.0));
         assert_eq!(layout.fill.position, Vector2::new(-94.0, -9.5));
-        assert_eq!(layout.name_bottom, Vector2::new(0.0, -14.5));
+        // The reference: the name 3px inside the body's left end, the health text 3px
+        // inside its right end, both on the bar's middle line.
+        assert_eq!(
+            layout.text,
+            PlateText::Inside {
+                name_left: Vector2::new(-91.0, 0.0),
+                health_right: Vector2::new(91.0, 0.0),
+            }
+        );
+    }
+
+    /// The reference's "425 K  100%": `AbbreviateLargeNumbers` then the percent, which
+    /// Retail rounds up (`math.ceil`).
+    #[test]
+    fn health_text_is_the_abbreviated_value_then_the_percent() {
+        let text = |current, max| health_text(&Health { current, max });
+        assert_eq!(text(425_000.0, 425_000.0), "425 K  100%");
+        assert_eq!(text(42.0, 55.0), "42  77%");
+        assert_eq!(text(12_345.0, 20_000.0), "12,345  62%");
+        assert_eq!(text(3_500_000_000.0, 4_000_000_000.0), "3500 M  88%");
+    }
+
+    /// On the 188px bar the texts span -91..91: "Stormwind Army Registrar" (150px wide)
+    /// next to a 70px health text keeps 182 - 70 - 6 = 106px; "Kobold Vermin" (80px)
+    /// keeps its own width.
+    #[test]
+    fn a_long_name_is_trimmed_to_leave_the_health_text_its_room() {
+        assert_eq!(name_width_inside(150.0, 70.0, -91.0, 91.0), 106.0);
+        assert_eq!(name_width_inside(80.0, 70.0, -91.0, 91.0), 80.0);
     }
 
     #[test]
@@ -1335,7 +1464,12 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
         let layout = plate_layout(&style, 1.0, 0.0);
         assert!(!thick_preset(&style));
         // 10px body centred on the anchor, name 2px above its top.
-        assert_eq!(layout.name_bottom.y, -7.0);
+        assert_eq!(
+            layout.text,
+            PlateText::Above {
+                name_bottom: Vector2::new(0.0, -7.0)
+            }
+        );
     }
 
     /// Retail `RaidTargetFrame` (22×22) hangs RIGHT on the health bars' LEFT: the
