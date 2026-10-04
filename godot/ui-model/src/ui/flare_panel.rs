@@ -164,18 +164,11 @@ pub const FLARE_GEAR_ART: (u32, [f32; 4]) = (
     7_518_377,
     [67.0 / 128.0, 79.0 / 128.0, 35.0 / 64.0, 47.0 / 64.0],
 );
-/// `QuickJoinToastButton` (Chat.lua:609): its `FriendsButton` art
-/// `quickjoin-button-friendslist-up` (QuickJoinToast.xml:42) draws the figure on an opaque
-/// dark button face, so the figure is Retail's standalone friend glyph
-/// `groupfinder-icon-friend` (LFGList.xml:203; atlas 236, cell 303-323 x 361-380).
+/// `QuickJoinToastButton` (Chat.lua:609): the figure of its `FriendsButton` atlas
+/// `quickjoin-button-friendslist-up` (QuickJoinToast.xml:42).
 pub const FLARE_SOCIAL_ART: (u32, [f32; 4]) = (
-    985_877,
-    [
-        303.0 / 2048.0,
-        323.0 / 2048.0,
-        361.0 / 1024.0,
-        380.0 / 1024.0,
-    ],
+    1_537_274,
+    [346.0 / 512.0, 360.0 / 512.0, 7.0 / 64.0, 21.0 / 64.0],
 );
 pub const FLARE_VOLUME_ART: (u32, [f32; 4]) = (
     5_390_329,
