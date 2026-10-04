@@ -126,6 +126,9 @@ pub struct UnitFrameState {
     pub health_text: StatusBarText,
     /// Health fill fraction 0.0..=1.0.
     pub health_fraction: f32,
+    /// `UnitHealth(unit) <= 0`: the bar's `DeadText` (`TargetFrameMixin:CheckDead`,
+    /// TargetFrame.lua:467-480).
+    pub dead: bool,
     pub reaction: Option<Reaction>,
     /// Replicated `Player.class` for FlareUI's player-only class tint.
     pub class_id: Option<u8>,
@@ -154,6 +157,7 @@ impl UnitFrameState {
             level_color: GOLD_TEXT.to_string(),
             health_text: StatusBarText::default(),
             health_fraction: 0.0,
+            dead: false,
             reaction: None,
             class_id: None,
             classification: CreatureClassification::Normal,
@@ -176,6 +180,8 @@ pub struct SmallUnitFrameState {
     pub name: String,
     pub level: Option<(String, String)>,
     pub health_fraction: f32,
+    /// `UnitHealth(unit) <= 0` (`TargetOfTargetMixin:CheckDead`, TargetFrame.lua:915-924).
+    pub dead: bool,
     pub reaction: Option<Reaction>,
     pub class_id: Option<u8>,
 }
@@ -186,6 +192,7 @@ impl From<&UnitFrameState> for SmallUnitFrameState {
             name: unit.name.clone(),
             level: Some((unit.level_text.clone(), unit.level_color.clone())),
             health_fraction: unit.health_fraction,
+            dead: unit.dead,
             reaction: unit.reaction,
             class_id: unit.class_id,
         }
@@ -425,6 +432,7 @@ fn target_frame_contents(state: &UnitFrameState, skin: ActiveSkin) -> Element {
     rsx! {
         {reaction_strip("Target", state.reaction, skin, strip)}
         {unit_frame_contents("Target", state, &TARGET_SLOTS, TARGET_HEALTH_BAR)}
+        {dead_text("Target", TARGET_SLOTS.health, UNIT_FONT_SIZE, state.dead)}
         {classification_art(state.classification, skin)}
         {raid_target_icon(state.raid_target)}
         {target_auras(state, (TARGET_AURAS_LEFT, TARGET_AURAS_TOP))}
@@ -532,6 +540,7 @@ fn boss_frame(index: usize, boss: Option<&UnitFrameState>, skin: ActiveSkin) -> 
             rsx! {
                 {reaction_strip(&prefix, state.reaction, skin, portrait_off_strip(1.0))}
                 {unit_frame_contents(&prefix, state, &PORTRAIT_OFF_SLOTS, HEALTH_BAR)}
+                {dead_text(&prefix, PORTRAIT_OFF_SLOTS.health, UNIT_FONT_SIZE, state.dead)}
             }
         })
         .unwrap_or_default();
@@ -784,7 +793,23 @@ fn small_unit_contents(
             font_size: UNIT_FONT_SIZE * scale,
             hidden: false,
         })}
+        {dead_text(spec.prefix, scaled(PORTRAIT_OFF_SLOTS.health, scale), UNIT_FONT_SIZE * scale, unit.dead)}
     }
+}
+
+/// `{prefix}DeadText`: `DEAD` in `GameFontNormalSmall`, centred on the health bar, while
+/// the unit is dead (TargetFrame.xml:182-186, 441-445). The player frame has none.
+fn dead_text(prefix: &str, rect: Rect, font_size: f32, dead: bool) -> Element {
+    if !dead {
+        return Element::default();
+    }
+    unit_label(
+        dyn_name(format!("{prefix}DeadText")),
+        "Dead",
+        rect,
+        (GOLD_TEXT, font_size),
+        "CENTER",
+    )
 }
 
 fn unit_frame_menu(state: &UnitFrameMenuState) -> Element {
