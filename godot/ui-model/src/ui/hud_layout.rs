@@ -3,7 +3,7 @@
 //! unit-frame and cast-bar positions (FlareUI 1.3 `Modules/UnitFrames.lua:1888-1894`) and
 //! Forever's own Edit Mode preset, the Mainline layouts with Camelot constants
 //! (`Blizzard_EditMode/Camelot/EditModePresetLayoutConstants.lua`), for the rest, except
-//! the reference's three centred action bars and hidden utility bars. A screen
+//! the reference's three centred action bars. A screen
 //! reads its preset through the canvas's `ActiveSkin`, so a preset switch rebuilds it.
 
 use ui_toolkit::atlas::ActiveSkin;
@@ -12,7 +12,6 @@ use ui_toolkit::screen::SharedContext;
 use Point::*;
 
 use crate::main_action_bar_component::{BAR_BOTTOM, BUTTON_PADDING, BUTTON_SIZE};
-use crate::micro_menu::MICRO_MENU_W;
 use crate::minimap::FOREVER_CLUSTER_SIZE;
 use crate::ui::screens::inworld_unit_frames_component::{
     PET_FRAME_H, PET_FRAME_W, SMALL_FRAME_GAP, TOT_H, TOT_W, UNIT_FRAME_H, UNIT_FRAME_W,
@@ -189,8 +188,6 @@ pub struct HudLayout {
     pub pet_action_bar: HudAnchor,
     pub micro_menu: HudAnchor,
     pub bags_bar: HudAnchor,
-    /// The supplied Forever reference shows neither utility bar; FlareUI supports hiding them.
-    pub hide_utility_bars: bool,
     pub buffs: HudAnchor,
     pub debuffs: HudAnchor,
     pub minimap: HudAnchor,
@@ -263,7 +260,6 @@ pub const MODERN: HudLayout = HudLayout {
         MICRO_BAGS_BAR.0,
         MICRO_BAGS_BAR.1 + 10.0,
     ),
-    hide_utility_bars: false,
     // EditModePresetLayouts.lua:425-431,443-449.
     buffs: anchor(TopRight, TopRight, -255.0, -10.0),
     debuffs: anchor(TopRight, TopRight, -270.0, -155.0),
@@ -286,8 +282,6 @@ pub const MODERN: HudLayout = HudLayout {
     xp_bar: anchor(Bottom, Bottom, 0.0, 0.0),
 };
 
-/// Camelot `MICRO_MENU_ANCHOR_*` BOTTOM (116.5, 6) (EditModePresetLayoutConstants.lua:38-42).
-const CAMELOT_MICRO_MENU: (f32, f32) = (116.5, 6.0);
 /// FlareUI Core.lua:102-107,218; ActionBars.lua:43,179-190 includes pet buttons.
 pub const FOREVER_ACTION_BUTTON_SCALE: f32 = 1.06;
 
@@ -347,14 +341,13 @@ pub const FOREVER: HudLayout = HudLayout {
     pet: anchor(TopRight, Center, -330.0 + 120.0, -270.0 - 30.0 - 6.0),
     // FlareUI UnitFrames.lua:1894 (keyboard default, :1900-1903).
     cast_bar: anchor(Bottom, Bottom, 0.0, 268.0),
-    micro_menu: anchor(Bottom, Bottom, CAMELOT_MICRO_MENU.0, CAMELOT_MICRO_MENU.1),
     // The reference uses the player's Edit Mode layout, not Camelot's combined strip.
     main_action_bar: FOREVER_MAIN_ACTION_BAR,
     action_bar_2: Some(FOREVER_ACTION_BAR_2),
     action_bar_3: Some(FOREVER_ACTION_BAR_3),
-    // FlareUI Visibility.lua:317-344 supports permanent hiding. Reference profile's
-    // exact hide/fade settings are unknown; this preset matches its visible result.
-    hide_utility_bars: true,
+    // Micro menu and bags bar keep Modern's bottom-right corner: Camelot's strip beside
+    // the main bar is gone, and FlareUI neither moves nor, by default, hides them
+    // (Core.lua:82-99,317-324, Modules/Visibility.lua:317-375).
     // Mainline/EditModePresetLayouts.lua:183-198; Camelot constants :3,31,35.
     // Shared/EditModeManager.lua:664-672,703-718: BOTTOMLEFT on the base bar's
     // BOTTOMLEFT, indented 30, 4 above the topmost bar of the bottom stack.
@@ -363,13 +356,6 @@ pub const FOREVER: HudLayout = HudLayout {
         Bottom,
         -FOREVER_MAIN_ACTION_BAR.size(FOREVER_ACTION_BUTTON_SCALE).0 / 2.0 + 30.0,
         forever_bar_top(&FOREVER_ACTION_BAR_3) + 4.0,
-    ),
-    // `BAGS_ANCHOR_*`: BOTTOMLEFT on the micro menu's BOTTOMRIGHT at (7, -4) (:45-49).
-    bags_bar: anchor(
-        BottomLeft,
-        Bottom,
-        CAMELOT_MICRO_MENU.0 + MICRO_MENU_W / 2.0 + 7.0,
-        CAMELOT_MICRO_MENU.1 - 4.0,
     ),
     // Mirror the chat skin's 25-unit inset and 135-unit baseline.
     damage_meter: anchor(BottomRight, BottomRight, -25.0, 135.0),
