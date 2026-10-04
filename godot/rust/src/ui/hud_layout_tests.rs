@@ -115,7 +115,14 @@ fn hud() -> Vec<RegistryModel> {
     vec![
         model(unit_frames(), inworld_unit_frames_screen),
         model(cast, casting_bar_frame_screen),
-        model(MainActionBarState::default(), main_action_bar_screen),
+        // A paladin's bar.
+        model(
+            MainActionBarState {
+                player_class: Some(2),
+                ..Default::default()
+            },
+            main_action_bar_screen,
+        ),
         model(
             PetActionBarState {
                 visible: true,
@@ -280,17 +287,14 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
         (bar.x, bar.y, bar.width, bar.height),
         (550.0, 470.0, 292.0, 26.0)
     );
-    // Reference: centred main bar, gryphons on its ends, no attached utility bars.
+    // Reference: centred main bar, no attached utility bars. 59.5×95 class shields stand
+    // 6 units outside its ends, bottoms on its bottom edge (766).
     assert_rect(&hud, MAIN_ACTION_BAR.0, (385.14, 718.3, 595.72, 47.7));
-    assert_rect(
-        &hud,
-        "MainActionBarLeftEndCap",
-        (261.14, 689.65, 154.0, 95.0),
-    );
+    assert_rect(&hud, "MainActionBarLeftEndCap", (319.64, 671.0, 59.5, 95.0));
     assert_rect(
         &hud,
         "MainActionBarRightEndCap",
-        (950.86, 689.65, 154.0, 95.0),
+        (986.86, 671.0, 59.5, 95.0),
     );
     // Hidden roots and descendants take no layout space (Display::None).
     assert_rect(&hud, MICRO_MENU, (0.0, 0.0, 0.0, 0.0));
