@@ -32,6 +32,16 @@ Character creation in `src/scenes/char_create/` and `godot/ui-model/src/ui/scree
 - [x] Offer the Demon Hunter horn, tattoo and blindfold choices (ChrCustomizationReq ClassMask 2048) and the Dracthyr dragon-form options.
 - [x] Render `ChrCustomizationSkinnedModel` choices. A selected choice's collection M2 (`CollectionsFileDataID`) shows only submesh `GeosetType * 100 + GeosetID`. It is skinned to the character skeleton, with collection bones matched to character joints by `M2CompBone.boneNameCRC`, then by key-bone name. Its replaceable textures use the body skin (type 1, and type 8 by fallback) plus the raw material textures of the layout's other texture types, such as the Demon Hunter blindfold's type 9. This follows wow.export `update_skinned_models`, `buildBoneRemapTable` and `resolve_replaceable_textures`. Verified live in the creation preview: Night Elf Demon Hunter horns and blindfold (7760205), Dracthyr horns and armor pieces (4375631, 4489412), Mechagnome arm upgrade (2628212).
 
+### Skyborne (Forever 1.60.1.70205)
+
+- [x] Offer race 95 High Order Skyborne (Alliance), default Mage (8), classes 1,3,4,8,11; race 96 Windshaper Skyborne (Horde), default Shaman (7), classes 1,3,4,7,11. Use icon atlas FDID 8200220. Test: `skyborne_roster_uses_forever_names_classes_and_atlas` (UI data 9/9 passing).
+- [x] Resolve both races through ChrModel 218/219 to body FDIDs 7478487/7478494, overriding Retail placeholders only for 95/96. Tests: `skyborne_known_forever_models_follow_db2_chain`, `every_race_reaches_its_chr_model_body`.
+- [x] Use layouts 201/202 (2048×1024) and imported customization options/default-class skins without replacing Retail catalogs. Interpret only Skyborne-referenced Forever collection rows; reject invalid selected rows. Tests: `skyborne_imported_forever_catalog_and_retail_share_the_player_path`, `skyborne_catalog_overlays_models_effects_and_colliding_requirements`, `skyborne_compositor_uses_forever_layouts_without_replacing_retail` (targeted core 4/4 passing at `2d82554a`).
+- [ ] Accept the native rendered preview for both races/body types, including customization and authored backdrop; in progress, not covered by CPU/layout tests.
+- [ ] Verify native create/save/reload and world entry for Skyborne.
+
+Proof boundaries: [Skyborne ledger](../../target/skyborne-proof-ledger.md); data provenance and implementation: [Forever overlay](../wiki/systems/forever-data.md). These checks do not establish rendered acceptance.
+
 ### Authored creation scenes
 
 - [x] Resolve creation-scene FileDataIDs from `ChrRaces.CreateScreenFileDataID`, including Alliance, Horde and neutral Pandaren; keep the selectable roster unchanged.
@@ -77,6 +87,10 @@ Character creation in `src/scenes/char_create/` and `godot/ui-model/src/ui/scree
 - `../ui-toolkit/core/src/atlas.rs` (DB2 atlas tables, project art), `../ui-toolkit/core/src/attrs.rs` — atlas identities/crops and authored hit insets.
 
 ## Tests asserting this spec
+
+- `godot/ui-model/src/scenes/char_create/data.rs` — Skyborne roster, factions, defaults, class lists and icon atlas.
+- `godot/core/src/player_model_data.rs` — Skyborne fixture and real imported body chains.
+- `godot/core/tests/unit/customization_catalog_cache_tests.rs` — Forever catalog/layout/compositor and selected collection-row validation.
 
 - `godot/ui-model/src/ui/screens/char_create_component/mod_tests.rs` — reference geometry, popup insets, content-dependent columns, swatch/outline placement, dropdown nine-slice projection, hit areas, choice identity, disabled controls and popup/name stability.
 - `tests/unit/charcreate_button_background_tests.rs` — child-art controls project no default root image; Mirror icon tab projects authored pixels without a permanent caption; circular hover artwork has native geometry/pixel regressions.
