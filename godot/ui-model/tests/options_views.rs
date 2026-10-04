@@ -400,3 +400,24 @@ fn hud_layout_settings_controls_edit_the_selected_system() {
     assert_eq!(layout.settings, LayoutSettings::default());
     assert_eq!(layout.system, LayoutSystem::DamageMeter);
 }
+
+/// Retail's settings panel is titled SETTINGS_TITLE "Options"
+/// (Blizzard_Settings_Shared/Blizzard_SettingsPanel.lua:54); the main menu keeps "Game Menu".
+#[test]
+fn options_view_is_titled_options_and_main_menu_game_menu() {
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut shared = SharedContext::new();
+    let mut screen = Screen::new(game_menu_screen);
+    shared.insert(model());
+    screen.sync(&shared, &mut registry);
+    assert_eq!(label(&registry, "OptionsTitleLabel"), "Options");
+
+    let mut main = model();
+    main.view = GameMenuView::MainMenu;
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut shared = SharedContext::new();
+    let mut screen = Screen::new(game_menu_screen);
+    shared.insert(main);
+    screen.sync(&shared, &mut registry);
+    assert_eq!(label(&registry, "GameMenuTitleLabel"), "Game Menu");
+}
