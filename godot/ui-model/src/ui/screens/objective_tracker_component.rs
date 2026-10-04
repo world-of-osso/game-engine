@@ -3,12 +3,13 @@
 //! its POI button, title and objective lines.
 
 use shared::protocol::QuestEntrySnapshot;
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
-use crate::hud_layout::hud_layout;
+use crate::hud_layout::{FOREVER_TRACKER_SCALE, HudAnchor, hud_layout};
 use crate::quest_runtime::QuestRuntime;
 use crate::ui::screens::quest_art::{
     DynName, POI_IN_PROGRESS, POI_NUMBER, POI_TURN_IN, TRACKER_CHECK, TRACKER_COLLAPSE_ALL,
@@ -160,17 +161,32 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
         .expect("ObjectiveTrackerState must be in SharedContext");
     // Retail hides an empty container outside Edit Mode (Blizzard_ObjectiveTrackerContainer.lua:99-107);
     // here the "All Objectives" header always shows, as Retail's Edit Mode draws it with nothing tracked.
+    let scale = match ctx
+        .get::<ActiveSkin>()
+        .expect("canvas carries the active skin")
+    {
+        ActiveSkin::Modern => 1.0,
+        ActiveSkin::Forever => FOREVER_TRACKER_SCALE,
+    };
+    // Layout runs in the tracker's own units; every emitted length takes `scale`.
     let mut height = CONTAINER_HEADER_H;
-    let mut contents = container_header(state.collapsed);
+    let mut contents = container_header(state.collapsed, scale);
     if !state.collapsed && !state.quests.is_empty() {
-        contents.extend(quests_module(state, &mut height));
+        contents.extend(quests_module(state, &mut height, scale));
     }
-    let at = hud_layout(ctx).objective_tracker.place((TRACKER_W, height));
+    // `SetScale` also scales the frame's own `SetPoint` offsets.
+    let anchor = hud_layout(ctx).objective_tracker;
+    let at = HudAnchor {
+        x: anchor.x * scale,
+        y: anchor.y * scale,
+        ..anchor
+    }
+    .place((TRACKER_W * scale, height * scale));
     rsx! {
         r#frame {
             name: {DynName(TRACKER_FRAME.into())},
-            width: TRACKER_W,
-            height: {height},
+            width: {TRACKER_W * scale},
+            height: {height * scale},
             pos_type: "absolute",
             left: {at.left.as_str()},
             right: {at.right.as_str()},
@@ -183,7 +199,11 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-fn container_header(collapsed: bool) -> Element {
+fn scaled((x, y, width, height): (f32, f32, f32, f32), scale: f32) -> (f32, f32, f32, f32) {
+    (x * scale, y * scale, width * scale, height * scale)
+}
+
+fn container_header(collapsed: bool, scale: f32) -> Element {
     let button_art = if collapsed {
         TRACKER_EXPAND_ALL
     } else {
@@ -192,28 +212,32 @@ fn container_header(collapsed: bool) -> Element {
     let mut elements = atlas_texture(
         "ObjectiveTrackerFrameHeaderBackground".into(),
         &TRACKER_PRIMARY_HEADER,
-        (-20.0, -4.0, 300.0, 40.0),
+        scaled((-20.0, -4.0, 300.0, 40.0), scale),
     );
     elements.extend(header_text(
         "ObjectiveTrackerFrameHeaderText",
         "All Objectives",
         (CONTAINER_HEADER_H - line_height(HEADER_FONT)) / 2.0,
+        scale,
     ));
     elements.extend(header_button(
         "ObjectiveTrackerFrameHeaderMinimizeButton",
         &button_art,
         TOGGLE_ACTION,
-        (
-            TRACKER_W - 1.0 - 18.0,
-            (CONTAINER_HEADER_H - 19.0) / 2.0,
-            18.0,
-            19.0,
+        scaled(
+            (
+                TRACKER_W - 1.0 - 18.0,
+                (CONTAINER_HEADER_H - 19.0) / 2.0,
+                18.0,
+                19.0,
+            ),
+            scale,
         ),
     ));
     elements
 }
 
-fn quests_module(state: &ObjectiveTrackerState, height: &mut f32) -> Element {
+fn quests_module(state: &ObjectiveTrackerState, height: &mut f32, scale: f32) -> Element {
     let top = TOP_MODULE_PADDING;
     let button_art = if state.quests_collapsed {
         TRACKER_SECONDARY_EXPAND
@@ -223,18 +247,19 @@ fn quests_module(state: &ObjectiveTrackerState, height: &mut f32) -> Element {
     let mut elements = atlas_texture(
         "QuestObjectiveTrackerHeaderBackground".into(),
         &TRACKER_SECONDARY_HEADER,
-        (-20.0, top - 2.0, 300.0, 30.0),
+        scaled((-20.0, top - 2.0, 300.0, 30.0), scale),
     );
     elements.extend(header_text(
         "QuestObjectiveTrackerHeaderText",
         "Quests",
         top + (MODULE_HEADER_H - line_height(HEADER_FONT)) / 2.0,
+        scale,
     ));
     elements.extend(header_button(
         "QuestObjectiveTrackerHeaderMinimizeButton",
         &button_art,
         TOGGLE_QUESTS_ACTION,
-        (TRACKER_W + 1.0 - 16.0, top + 5.0, 16.0, 16.0),
+        scaled((TRACKER_W + 1.0 - 16.0, top + 5.0, 16.0, 16.0), scale),
     ));
     *height = top + MODULE_HEADER_H;
     if state.quests_collapsed {
@@ -242,29 +267,29 @@ fn quests_module(state: &ObjectiveTrackerState, height: &mut f32) -> Element {
     }
     let mut y = top + MODULE_HEADER_HEIGHT + FROM_HEADER_OFFSET_Y;
     for quest in &state.quests {
-        elements.extend(quest_block(quest, &mut y));
+        elements.extend(quest_block(quest, &mut y, scale));
         *height = y;
         y += FROM_BLOCK_OFFSET_Y;
     }
     elements
 }
 
-fn header_text(name: &str, text: &str, top: f32) -> Element {
+fn header_text(name: &str, text: &str, top: f32, scale: f32) -> Element {
     rsx! {
         fontstring {
             name: {DynName(name.into())},
-            width: 208.0,
-            height: {line_height(HEADER_FONT)},
+            width: {208.0 * scale},
+            height: {line_height(HEADER_FONT) * scale},
             text,
             font: GameFont::FrizQuadrata,
-            font_size: HEADER_FONT,
+            font_size: {HEADER_FONT * scale},
             font_color: HEADER_COLOR,
             shadow_color: SHADOW,
             shadow_offset: "1,-1",
             justify_h: "LEFT",
             pos_type: "absolute",
-            left: 7.0,
-            top,
+            left: {7.0 * scale},
+            top: {top * scale},
         }
     }
 }
@@ -291,17 +316,22 @@ fn header_button(
     }
 }
 
-fn quest_block(quest: &TrackedQuest, y: &mut f32) -> Element {
+fn quest_block(quest: &TrackedQuest, y: &mut f32, scale: f32) -> Element {
     let block = format!("QuestBlock{}", quest.quest_id);
     let action = format!("{OPEN_QUEST_PREFIX}{}", quest.quest_id);
     let block_top = *y;
     let title_h = wrapped_text_height(&quest.title, BLOCK_W, LINE_FONT);
-    let mut elements = poi_button(&block, quest.complete, &action, block_top);
-    elements.extend(block_title(&block, &quest.title, &action, block_top));
+    let mut elements = poi_button(&block, quest.complete, &action, block_top, scale);
+    elements.extend(block_title(&block, &quest.title, &action, block_top, scale));
     *y += title_h;
     for (index, line) in quest.lines.iter().enumerate() {
         *y += LINE_SPACING;
-        elements.extend(objective_line(&format!("{block}Line{index}"), line, *y));
+        elements.extend(objective_line(
+            &format!("{block}Line{index}"),
+            line,
+            *y,
+            scale,
+        ));
         *y += wrapped_text_height(&line.text, BLOCK_W - DASH_W, LINE_FONT);
     }
     elements
@@ -309,15 +339,18 @@ fn quest_block(quest: &TrackedQuest, y: &mut f32) -> Element {
 
 /// `POIButton` (20×20) TOPRIGHT at the header's TOPLEFT (-7, +5): in-progress icon on
 /// the quest number plate, or the turn-in icon for a finished quest.
-fn poi_button(block: &str, complete: bool, action: &str, top: f32) -> Element {
+fn poi_button(block: &str, complete: bool, action: &str, top: f32, scale: f32) -> Element {
     let x = BLOCK_OFFSET_X - 7.0 - POI_SIZE;
     let y = top - 5.0;
     let centre = |size: f32| {
-        (
-            x + (POI_SIZE - size) / 2.0,
-            y + (POI_SIZE - size) / 2.0,
-            size,
-            size,
+        scaled(
+            (
+                x + (POI_SIZE - size) / 2.0,
+                y + (POI_SIZE - size) / 2.0,
+                size,
+                size,
+            ),
+            scale,
         )
     };
     let mut elements = if complete {
@@ -339,39 +372,39 @@ fn poi_button(block: &str, complete: bool, action: &str, top: f32) -> Element {
     elements.extend(rsx! {
         r#frame {
             name: hit,
-            width: POI_SIZE,
-            height: POI_SIZE,
+            width: {POI_SIZE * scale},
+            height: {POI_SIZE * scale},
             onclick: action,
             pos_type: "absolute",
-            left: x,
-            top: y,
+            left: {x * scale},
+            top: {y * scale},
         }
     });
     elements
 }
 
-fn block_title(block: &str, title: &str, action: &str, top: f32) -> Element {
+fn block_title(block: &str, title: &str, action: &str, top: f32, scale: f32) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("{block}HeaderText"))},
-            width: BLOCK_W,
-            height: {line_height(LINE_FONT)},
+            width: {BLOCK_W * scale},
+            height: {line_height(LINE_FONT) * scale},
             text: title,
             font: GameFont::FrizQuadrata,
-            font_size: LINE_FONT,
+            font_size: {LINE_FONT * scale},
             font_color: BLOCK_HEADER_COLOR,
             shadow_color: SHADOW,
             shadow_offset: "1,-1",
             justify_h: "LEFT",
             onclick: action,
             pos_type: "absolute",
-            left: BLOCK_OFFSET_X,
-            top,
+            left: {BLOCK_OFFSET_X * scale},
+            top: {top * scale},
         }
     }
 }
 
-fn objective_line(name: &str, line: &ObjectiveLine, top: f32) -> Element {
+fn objective_line(name: &str, line: &ObjectiveLine, top: f32, scale: f32) -> Element {
     let (color, dash) = match line.style {
         ObjectiveLineStyle::InProgress => (NORMAL_COLOR, "- "),
         ObjectiveLineStyle::Completed => (COMPLETE_COLOR, ""),
@@ -380,33 +413,33 @@ fn objective_line(name: &str, line: &ObjectiveLine, top: f32) -> Element {
     let mut elements = rsx! {
         fontstring {
             name: {DynName(format!("{name}Dash"))},
-            width: DASH_W,
-            height: {line_height(LINE_FONT)},
+            width: {DASH_W * scale},
+            height: {line_height(LINE_FONT) * scale},
             text: dash,
             font: GameFont::FrizQuadrata,
-            font_size: LINE_FONT,
+            font_size: {LINE_FONT * scale},
             font_color: color,
             shadow_color: SHADOW,
             shadow_offset: "1,-1",
             justify_h: "LEFT",
             pos_type: "absolute",
-            left: BLOCK_OFFSET_X,
-            top: {top - 1.0},
+            left: {BLOCK_OFFSET_X * scale},
+            top: {(top - 1.0) * scale},
         }
         fontstring {
             name: {DynName(format!("{name}Text"))},
-            width: {BLOCK_W - DASH_W},
-            height: {line_height(LINE_FONT)},
+            width: {(BLOCK_W - DASH_W) * scale},
+            height: {line_height(LINE_FONT) * scale},
             text: {line.text.as_str()},
             font: GameFont::FrizQuadrata,
-            font_size: LINE_FONT,
+            font_size: {LINE_FONT * scale},
             font_color: color,
             shadow_color: SHADOW,
             shadow_offset: "1,-1",
             justify_h: "LEFT",
             pos_type: "absolute",
-            left: {BLOCK_OFFSET_X + DASH_W},
-            top,
+            left: {(BLOCK_OFFSET_X + DASH_W) * scale},
+            top: {top * scale},
         }
     };
     if line.style == ObjectiveLineStyle::Completed {
@@ -414,7 +447,7 @@ fn objective_line(name: &str, line: &ObjectiveLine, top: f32) -> Element {
         elements.extend(atlas_texture(
             format!("{name}Check"),
             &TRACKER_CHECK,
-            (BLOCK_OFFSET_X - 10.0, top - 2.0, 16.0, 16.0),
+            scaled((BLOCK_OFFSET_X - 10.0, top - 2.0, 16.0, 16.0), scale),
         ));
     }
     elements
