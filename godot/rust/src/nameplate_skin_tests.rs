@@ -121,12 +121,12 @@ fn forever_level_frame_hangs_on_the_shortened_health_bars_right_end() {
     assert_eq!(plate.frame.position, Vector2::new(-98.0, -12.5));
     assert_eq!(plate.frame.size, Vector2::new(170.0, 24.0));
     assert_eq!(plate.fill.end().x, level_layout(&style).frame.position.x);
-    // The texts keep to the shortened body: the health text ends 3px left of the frame.
+    // The texts keep to the shortened body: the health text ends 2px left of the frame.
     assert_eq!(
         plate.text,
         PlateText::Inside {
-            name_left: Vector2::new(-91.0, 0.0),
-            health_right: Vector2::new(63.0, 0.0),
+            name_left: Vector2::new(-92.0, 0.0),
+            health_right: Vector2::new(64.0, 0.0),
         }
     );
 
@@ -162,8 +162,8 @@ fn modern_plate_has_no_level_frame() {
     assert_eq!(
         plate.text,
         PlateText::Inside {
-            name_left: Vector2::new(-91.0, 0.0),
-            health_right: Vector2::new(91.0, 0.0),
+            name_left: Vector2::new(-92.0, 0.0),
+            health_right: Vector2::new(92.0, 0.0),
         }
     );
 }
