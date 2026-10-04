@@ -423,6 +423,7 @@ fn pet_frame_state(unit: Unit, texts: &BarTexts) -> PetFrameState {
     let power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
     PetFrameState {
         name: unit_name(unit),
+        reaction: None,
         health_fraction: health.map_or(0.0, |health| fraction(health.current, health.max)),
         health_text: health
             .map(|health| {
