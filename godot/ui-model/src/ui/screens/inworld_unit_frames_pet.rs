@@ -27,6 +27,7 @@ pub struct PetFrameState {
     pub name: String,
     /// Health fill fraction 0.0..=1.0.
     pub health_fraction: f32,
+    pub reaction: Option<crate::faction_reaction::Reaction>,
     pub health_text: StatusBarText,
     pub power: Option<PowerBarState>,
     pub power_text: StatusBarText,
