@@ -158,7 +158,7 @@ fn forever_top_rect_flat_palette_and_bronze_border() {
     assert_eq!(size(frame(&r, "ExperienceBarFill")), (297.25, 14.0));
     assert_eq!(
         texture(&r, "ExperienceBarFill").source,
-        TextureSource::SolidColor
+        TextureSource::SolidColor([1.0; 4])
     );
     assert_eq!(
         texture(&r, "ExperienceBarFill").vertex_color,

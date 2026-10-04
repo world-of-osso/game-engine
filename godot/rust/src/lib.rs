@@ -104,6 +104,7 @@ mod wmo;
 mod world;
 mod world_map;
 mod world_models;
+mod xp_bar;
 
 use std::{collections::HashMap, path::PathBuf, time::Instant};
 
