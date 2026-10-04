@@ -149,7 +149,6 @@ fn hud() -> Vec<RegistryModel> {
                 xp: 250,
                 next_level_xp: 1000,
                 rested_xp: 400,
-                level: 12,
                 hovered: false,
             },
             xp_bar_screen,
@@ -270,7 +269,7 @@ fn xp_bar_canvas_mirrors_skin_and_repositions_with_the_hud() {
     sync(&mut hud, ActiveSkin::Modern);
     assert_rect(&hud, "ExperienceBar", (397.5, 751.0, 571.0, 17.0));
     sync(&mut hud, ActiveSkin::Forever);
-    assert_rect(&hud, "ExperienceBar", (87.0, 0.0, 1192.0, 17.0));
+    assert_rect(&hud, "ExperienceBar", (385.0, 6.0, 596.0, 17.0));
     sync(&mut hud, ActiveSkin::Modern);
     assert_rect(&hud, "ExperienceBar", (397.5, 751.0, 571.0, 17.0));
 }
