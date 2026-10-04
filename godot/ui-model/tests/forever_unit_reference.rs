@@ -60,6 +60,7 @@ fn units(reaction: Reaction) -> FrameRegistry {
         pet: Some(PetFrameState {
             name: "Wolf".into(),
             health_fraction: 0.5,
+            reaction: None,
             health_text: Default::default(),
             power: None,
             power_text: Default::default(),

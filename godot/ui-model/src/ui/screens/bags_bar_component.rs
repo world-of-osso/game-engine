@@ -3,7 +3,7 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::hud_layout::{HudAnchor, hud_layout};
+use crate::hud_layout::{HudLayout, hud_layout};
 use crate::ui::screens::bag_frame_component::bag_toggle_action;
 
 struct DynName(String);
@@ -81,7 +81,7 @@ pub fn bags_bar_width() -> f32 {
 }
 
 pub fn bags_bar_screen(ctx: &SharedContext) -> Element {
-    bag_bar(ctx.get::<BagBarState>().copied(), &hud_layout(ctx).bags_bar)
+    bag_bar(ctx.get::<BagBarState>().copied(), hud_layout(ctx))
 }
 
 // Same leading-denomination omission as auction_house_data::Money::display.
@@ -103,7 +103,7 @@ fn format_money(money: u64) -> String {
 /// on the backpack. Collapsed, the four bag slots hide and the reagent slot, which stays
 /// shown, chains on from the toggle (BagsBar.lua:62-107, MainMenuBarBagButtons.lua:259,
 /// 391). Money (not part of the Retail bar) sits left of the bags.
-fn bag_bar(synced: Option<BagBarState>, anchor: &HudAnchor) -> Element {
+fn bag_bar(synced: Option<BagBarState>, layout: &HudLayout) -> Element {
     let state = synced.unwrap_or_default();
     let total_w = bags_bar_width();
     let backpack_x = total_w - BACKPACK_SIZE;
@@ -149,12 +149,13 @@ fn bag_bar(synced: Option<BagBarState>, anchor: &HudAnchor) -> Element {
         icon: None,
     };
     let count = synced.map_or_else(Vec::new, |s| backpack_count(s.free_slots));
-    let at = anchor.place((total_w, BAGS_BAR_H));
+    let at = layout.bags_bar.place((total_w, BAGS_BAR_H));
     rsx! {
         r#frame {
             name: "BagsBar",
             width: {total_w},
             height: {BAGS_BAR_H},
+            hidden: {layout.hide_utility_bars},
             pos_type: "absolute",
             left: {at.left.as_str()},
             right: {at.right.as_str()},

@@ -116,6 +116,7 @@ fn small(name: &str) -> SmallUnitFrameState {
         level: None,
         health_fraction: 1.0,
         reaction: Some(Reaction::Hostile),
+        class_id: None,
     }
 }
 
@@ -123,6 +124,7 @@ fn pet(power: PowerType) -> PetFrameState {
     PetFrameState {
         name: "Wolf".into(),
         health_fraction: 1.0,
+        reaction: None,
         health_text: Default::default(),
         power: Some(PowerBarState {
             power,

@@ -126,6 +126,8 @@ pub struct UnitFrameState {
     /// Health fill fraction 0.0..=1.0.
     pub health_fraction: f32,
     pub reaction: Option<Reaction>,
+    /// Replicated `Player.class` for FlareUI's player-only class tint.
+    pub class_id: Option<u8>,
     /// `UnitClassification`: elite and rare art around the target portrait slot.
     pub classification: CreatureClassification,
     pub power: Option<PowerBarState>,
@@ -152,6 +154,7 @@ impl UnitFrameState {
             health_text: StatusBarText::default(),
             health_fraction: 0.0,
             reaction: None,
+            class_id: None,
             classification: CreatureClassification::Normal,
             power: None,
             power_text: StatusBarText::default(),
@@ -173,6 +176,7 @@ pub struct SmallUnitFrameState {
     pub level: Option<(String, String)>,
     pub health_fraction: f32,
     pub reaction: Option<Reaction>,
+    pub class_id: Option<u8>,
 }
 
 impl From<&UnitFrameState> for SmallUnitFrameState {
@@ -182,6 +186,7 @@ impl From<&UnitFrameState> for SmallUnitFrameState {
             level: Some((unit.level_text.clone(), unit.level_color.clone())),
             health_fraction: unit.health_fraction,
             reaction: unit.reaction,
+            class_id: unit.class_id,
         }
     }
 }
