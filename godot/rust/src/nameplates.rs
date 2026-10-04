@@ -56,7 +56,7 @@ const FACTION_TEMPLATE_CSV: &str = "db2/12.1.0.69933/FactionTemplate.csv";
 const NAME_ABOVE_BAR_SPACING: f32 = 2.0;
 /// The texts inside the Thick bar start and end this far from the body's ends
 /// (data/diagnostics/forever-reference/user-nameplate-reference-2026-10-04.png).
-const TEXT_INSET: f32 = 3.0;
+const TEXT_INSET: f32 = 2.0;
 /// The least space between the name and the health text; a longer name is trimmed.
 const NAME_HEALTH_GAP: f32 = 6.0;
 /// Bevy `NAMEPLATE_SCALE`: the skins are unscaled reference-screenshot pixels.
@@ -579,9 +579,7 @@ impl Nameplates {
             for (_, plate) in self.plates.drain() {
                 plate.root.free();
             }
-            self.cast_art = Some(CastArt::load(data_root, skin, |bytes| {
-                png_texture(bytes, false)
-            })?);
+            self.cast_art = Some(CastArt::load(data_root, skin)?);
             self.level_art = level_frame_atlases(skin)
                 .map(|atlases| LevelArt::load(atlases, skin, data_root))
                 .transpose()?;
@@ -1414,13 +1412,13 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
         assert_eq!(layout.frame.position, Vector2::new(-98.0, -12.5));
         assert_eq!(layout.fill.size, Vector2::new(188.0, 19.0));
         assert_eq!(layout.fill.position, Vector2::new(-94.0, -9.5));
-        // The reference: the name 3px inside the body's left end, the health text 3px
+        // The reference: the name 2px inside the body's left end, the health text 2px
         // inside its right end, both on the bar's middle line.
         assert_eq!(
             layout.text,
             PlateText::Inside {
-                name_left: Vector2::new(-91.0, 0.0),
-                health_right: Vector2::new(91.0, 0.0),
+                name_left: Vector2::new(-92.0, 0.0),
+                health_right: Vector2::new(92.0, 0.0),
             }
         );
     }
@@ -1436,13 +1434,13 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
         assert_eq!(text(3_500_000_000.0, 4_000_000_000.0), "3500 M  88%");
     }
 
-    /// On the 188px bar the texts span -91..91: "Stormwind Army Registrar" (150px wide)
-    /// next to a 70px health text keeps 182 - 70 - 6 = 106px; "Kobold Vermin" (80px)
+    /// On the 188px bar the texts span -92..92: "Stormwind Army Registrar" (150px wide)
+    /// next to a 70px health text keeps 184 - 70 - 6 = 108px; "Kobold Vermin" (80px)
     /// keeps its own width.
     #[test]
     fn a_long_name_is_trimmed_to_leave_the_health_text_its_room() {
-        assert_eq!(name_width_inside(150.0, 70.0, -91.0, 91.0), 106.0);
-        assert_eq!(name_width_inside(80.0, 70.0, -91.0, 91.0), 80.0);
+        assert_eq!(name_width_inside(150.0, 70.0, -92.0, 92.0), 108.0);
+        assert_eq!(name_width_inside(80.0, 70.0, -92.0, 92.0), 80.0);
     }
 
     #[test]

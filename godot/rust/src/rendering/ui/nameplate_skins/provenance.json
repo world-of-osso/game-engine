@@ -12,7 +12,7 @@
     20
   ],
   "alpha_method": "linear RGB minimal valid alpha; black shadow alpha; <=3 sRGB matte noise removed; transparent RGB edge bleed",
-  "limitations": "Original alpha is not uniquely recoverable. Textured background and screenshot resampling remain uncertain. Health bottom rows overlapping cast glow are removed. Thick cast rail x61:240/y294:296 is reconstructed from clean x350 to remove glyph fringes. GPU comparison required.",
+  "limitations": "Original alpha is not uniquely recoverable. Textured background and screenshot resampling remain uncertain. Health bottom rows overlapping cast glow are removed. GPU comparison required.",
   "frames": {
     "health-thick": {
       "crop": [
@@ -47,42 +47,6 @@
         8,
         6,
         384,
-        25
-      ]
-    },
-    "cast-thin": {
-      "crop": [
-        32,
-        92,
-        464,
-        114
-      ],
-      "size": [
-        432,
-        22
-      ],
-      "transparent_interior": [
-        28,
-        6,
-        400,
-        17
-      ]
-    },
-    "cast-thick": {
-      "crop": [
-        32,
-        289,
-        466,
-        318
-      ],
-      "size": [
-        434,
-        29
-      ],
-      "transparent_interior": [
-        29,
-        7,
-        401,
         25
       ]
     }
