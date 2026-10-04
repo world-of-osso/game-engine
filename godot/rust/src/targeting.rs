@@ -473,6 +473,18 @@ fn personal_resource_state(
     PersonalResourceDisplayState::for_player(enabled, &player, health, &powers, class_bar, hovered)
 }
 
+fn target_cast_state(
+    _target: Option<u64>,
+    _casts: &crate::nameplate_casts::PlateCasts,
+    _icon_fdid: Option<u32>,
+) -> Option<game_engine_ui_model::casting_bar_frame_component::CastingBarState> {
+    None
+}
+
+#[cfg(test)]
+#[path = "target_cast_binding_tests.rs"]
+mod target_cast_binding_tests;
+
 fn unit_frames_state(
     player: Option<UnitFrameState>,
     target: Option<UnitFrameState>,
@@ -482,6 +494,7 @@ fn unit_frames_state(
     InWorldUnitFramesState {
         show_player_frame: show_health_bars && player.is_some(),
         show_target_frame: show_health_bars,
+        target_cast: None,
         player: player.unwrap_or_else(|| UnitFrameState::named("")),
         target,
         target_of_target: None,

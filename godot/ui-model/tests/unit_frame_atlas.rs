@@ -146,6 +146,7 @@ fn unit_frames(
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         player: unit("Fbatlas", power),
         target: Some(UnitFrameState {
             classification,

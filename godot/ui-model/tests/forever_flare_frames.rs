@@ -65,6 +65,7 @@ fn unit_frames(skin: ActiveSkin) -> FrameRegistry {
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         player: unit("Fbflare", PowerType::Mana),
         target: Some(UnitFrameState {
             classification: CreatureClassification::Elite,

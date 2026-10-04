@@ -170,6 +170,7 @@ fn registry_with(view: ClassBarView) -> FrameRegistry {
     let mut state = InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: false,
+        target_cast: None,
         player: UnitFrameState::named("Player"),
         target: None,
         target_of_target: None,

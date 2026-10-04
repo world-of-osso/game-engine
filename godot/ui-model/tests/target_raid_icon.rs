@@ -19,6 +19,7 @@ fn target_frames(raid_target: Option<u8>) -> FrameRegistry {
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         player: UnitFrameState::named("Fbraidicons"),
         target: Some(UnitFrameState {
             raid_target,
