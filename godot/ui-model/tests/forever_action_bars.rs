@@ -738,3 +738,76 @@ fn switching_skin_reskins_the_live_main_bar() {
     assert_eq!(drawn(&registry, cap, ActiveSkin::Modern), modern_cap);
     assert_eq!(registry.get_by_name("MultiBarBottomLeft"), None);
 }
+
+/// Where the projection paints a button's region among its siblings: strata, then frame
+/// level plus draw layer, then sibling order.
+fn paint_order(registry: &FrameRegistry, button: &str, region: &str) -> (u8, i32, usize) {
+    let f = frame(registry, region);
+    let sibling = frame(registry, button)
+        .children
+        .iter()
+        .position(|&id| id == f.id)
+        .unwrap_or_else(|| panic!("{region} is not a region of {button}"));
+    (
+        f.strata as u8,
+        f.frame_level + i32::from(f.draw_layer as u8),
+        sibling,
+    )
+}
+
+/// The bar is built empty and the server's action snapshot fills it afterwards. The icon
+/// that arrives is the button's `BACKGROUND` layer (`ActionButtonTemplate.xml:22-33`): the
+/// slot art stays under it and the border (`NormalTexture`, 46×45 over the 45×45 icon,
+/// `:146-151`) frames it, on every bar and skin.
+#[test]
+fn an_icon_arriving_on_a_built_bar_is_painted_inside_and_under_the_border() {
+    load_atlas_tables();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(MainActionBarState::default());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(main_action_bar_screen);
+        screen.sync(&shared, &mut registry);
+
+        let mut state = MainActionBarState::default();
+        for bar in ActionBar::ALL {
+            state.bar_mut(bar)[0].icon_fdid = 135_891;
+        }
+        shared.insert(state);
+        screen.sync(&shared, &mut registry);
+
+        for bar in ActionBar::ALL {
+            let button = bar.button_name(0);
+            if registry.get_by_name(&button).is_none() {
+                continue;
+            }
+            let order =
+                |region: &str| paint_order(&registry, &button, &format!("{button}{region}"));
+            let icon = order("Icon");
+            assert!(
+                order("SlotArt") < icon,
+                "{skin:?} {button}: slot under icon"
+            );
+            assert!(
+                icon < order("NormalTexture"),
+                "{skin:?} {button}: border over icon"
+            );
+            assert!(
+                icon < order("PushedTexture"),
+                "{skin:?} {button}: pushed border over icon"
+            );
+
+            let (x, y, width, height) = fixed_rect(&registry, &format!("{button}Icon"));
+            let border = fixed_rect(&registry, &format!("{button}NormalTexture"));
+            assert!(
+                x >= border.0
+                    && y >= border.1
+                    && x + width <= border.0 + border.2
+                    && y + height <= border.1 + border.3,
+                "{skin:?} {button}: icon {:?} outside border {border:?}",
+                (x, y, width, height)
+            );
+        }
+    }
+}
