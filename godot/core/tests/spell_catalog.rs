@@ -81,7 +81,8 @@ fn level_one_warrior_spellbook_lists_known_spells_then_later_levels() {
     let names: Vec<_> = tabs.iter().map(|tab| tab.name.as_str()).collect();
     // Retail shows no empty category; the server grants no General spells yet.
     assert_eq!(names, ["Warrior"]);
-    // SPELL_ATTR0_DO_NOT_DISPLAY hides Warrior 137047, Block 123829 and Initial Warrior 325446.
+    // SPELL_ATTR0_DO_NOT_DISPLAY hides Warrior 137047, Block 123829 and Initial Warrior 325446;
+    // SPELL_ATTR4_NOT_IN_SPELLBOOK hides Attack 88163 and Parry 3127.
     let entries: Vec<_> = tabs[0]
         .spells
         .iter()
@@ -91,8 +92,6 @@ fn level_one_warrior_spellbook_lists_known_spells_then_later_levels() {
         entries,
         [
             (SLAM, None),
-            (ATTACK, None),
-            (PARRY, None),
             (CHARGE, Some(2)),
             (23922, Some(3)),
             (1715, Some(4)),
@@ -178,4 +177,63 @@ fn shapeshift_forms_carry_their_bonus_action_bar() {
     assert_eq!(bonus_bar(386164), 0, "Battle Stance");
     assert_eq!(bonus_bar(386208), 0, "Defensive Stance");
     assert_eq!(bonus_bar(SLAM), 0);
+}
+
+/// Known-spell IDs from a human paladin's server snapshot (windows capture 2026-10-04).
+/// Retail lists a spell only by its spellbook attributes (TrinityCore a352b1fa
+/// SharedDefines.h:443 DO_NOT_DISPLAY, :599 SPELL_ATTR4_NOT_IN_SPELLBOOK, :711
+/// SPELL_ATTR7_ONLY_IN_SPELLBOOK_UNTIL_LEARNED).
+#[test]
+fn spellbook_omits_known_spells_flagged_not_in_spellbook() {
+    let known = [
+        6603,    // Auto Attack
+        81,      // Dodge: ATTR4_NOT_IN_SPELLBOOK
+        107,     // Block: ATTR4_NOT_IN_SPELLBOOK
+        45927,   // Summon Friend: ATTR4_NOT_IN_SPELLBOOK
+        1215078, // Boost: ATTR4_NOT_IN_SPELLBOOK
+        1270311, // Return from Home: ATTR4_NOT_IN_SPELLBOOK
+        1231411, // Recuperate
+        20598,   // The Human Spirit (passive)
+        20271,   // Judgment
+        327977,  // Judgment "Rank 2": ATTR7_ONLY_IN_SPELLBOOK_UNTIL_LEARNED
+    ];
+    let tabs = build_spellbook_tabs(&known, None, Some(catalog()), None);
+    let listed: Vec<(&str, Vec<u32>)> = tabs
+        .iter()
+        .map(|tab| {
+            let ids = tab.spells.iter().map(|spell| spell.id).collect();
+            (tab.name.as_str(), ids)
+        })
+        .collect();
+    assert_eq!(
+        listed,
+        [
+            ("General", vec![6603, 1231411, 20598]),
+            ("Paladin", vec![20271]),
+        ]
+    );
+}
+
+/// SPELL_ATTR8_NOT_IN_SPELLBOOK_UNTIL_LEARNED (SharedDefines.h:745) hides an
+/// auto-learned spell until it is known: Teleport: Stormwind 3561 (mage level 21).
+#[test]
+fn not_in_spellbook_until_learned_spell_appears_once_known() {
+    const TELEPORT_STORMWIND: u32 = 3561;
+    let human_mage = |level| {
+        Some(SpellbookPlayer {
+            class_id: 8,
+            race_id: 1,
+            level,
+        })
+    };
+    let ids = |known: &[u32], level| -> Vec<u32> {
+        build_spellbook_tabs(known, None, Some(catalog()), human_mage(level))
+            .iter()
+            .flat_map(|tab| tab.spells.iter().map(|spell| spell.id))
+            .collect()
+    };
+    let level_20 = ids(&[], 20);
+    assert!(!level_20.is_empty());
+    assert!(!level_20.contains(&TELEPORT_STORMWIND));
+    assert!(ids(&[TELEPORT_STORMWIND], 21).contains(&TELEPORT_STORMWIND));
 }

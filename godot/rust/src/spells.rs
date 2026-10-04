@@ -27,7 +27,7 @@ use game_engine_ui_model::main_action_bar_component::{
 };
 use game_engine_ui_model::spellbook_frame_component::{
     ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE, ACTION_SPELLBOOK_NEXT_PAGE,
-    ACTION_SPELLBOOK_PREV_PAGE, ACTION_SPELLBOOK_TAB, SPELLBOOK_ART_FDIDS, SpellbookCategory,
+    ACTION_SPELLBOOK_PREV_PAGE, ACTION_SPELLBOOK_TAB, SpellbookCategory,
     SpellbookFrameState, SpellbookGroup, SpellbookItemView,
 };
 use godot::classes::{
@@ -741,6 +741,10 @@ impl GameClient {
             .zip(player)
             .and_then(|(data, player)| data.tabs.class_names.get(&player.class_id).cloned());
         let mut categories = spellbook_categories(tabs, class_name.as_deref());
+        let spec_icon = catalog
+            .zip(spells.spec())
+            .and_then(|(data, spec)| data.tabs.specs.get(&spec))
+            .map_or(0, |spec| spec.icon_fdid);
         for item in categories
             .iter_mut()
             .flat_map(|category| category.groups.iter_mut())
@@ -760,6 +764,7 @@ impl GameClient {
             categories,
             selected: self.spells.book.selected,
             page: self.spells.book.page,
+            portrait_fdid: self.drawable_fdid(spec_icon),
         };
         state.selected = state.selected.min(state.categories.len().saturating_sub(1));
         state.page = state.page.min(state.page_count() - 1);
@@ -785,7 +790,10 @@ impl GameClient {
             return self.place_spellbook();
         }
         let scale = self.effective_ui_scale();
-        self.extract_art(&SPELLBOOK_ART_FDIDS);
+        self.extract_art(&crate::quests::screen_texture_fdids(
+            state.clone(),
+            game_engine_ui_model::spellbook_frame_component::spellbook_frame_screen,
+        ));
         let ui = self.spells.book_ui.as_mut().expect("spellbook open");
         let mut book = ui.bind_mut();
         let shown = book

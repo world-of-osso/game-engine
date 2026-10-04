@@ -29,8 +29,8 @@ pub struct SpellbookTab {
 }
 
 /// General, class and (for an active non-Initial spec) spec tabs, without the
-/// empty ones: Retail lists no empty category. Spells flagged
-/// SPELL_ATTR0_DO_NOT_DISPLAY are not listed. Actives come before passives,
+/// empty ones: Retail lists no empty category. A spell is listed only when its
+/// [`crate::spell_catalog::SpellbookListing`] allows it, known or not. Actives come before passives,
 /// each in learn order, then (with `player`) the spells learned at later levels by level.
 pub fn build_spellbook_tabs(
     known: &[u32],
@@ -46,10 +46,10 @@ pub fn build_spellbook_tabs(
     if let Some(name) = spec_name {
         tabs.push(tab(name));
     }
-    let hidden = |id| {
+    let listed = |id, known| {
         catalog
             .and_then(|data| data.get(id))
-            .is_some_and(|spell| spell.hidden)
+            .is_none_or(|spell| spell.spellbook.lists(known))
     };
     let future = match (catalog, player) {
         (Some(data), Some(player)) => {
@@ -65,7 +65,7 @@ pub fn build_spellbook_tabs(
         .map(|spell| (spell.spell_id, Some(spell.level)));
     for (id, available_at) in known_entries
         .chain(future_entries)
-        .filter(|&(id, _)| !hidden(id))
+        .filter(|&(id, available_at)| listed(id, available_at.is_none()))
     {
         let kind = catalog.map_or(SpellbookTabKind::General, |data| {
             data.tabs.classify(id, spec_id)
@@ -147,6 +147,7 @@ mod tests {
                     initial: false,
                     spells: [76671].into(),
                     primary_stat_priority: 5,
+                    icon_fdid: 236264,
                 },
             )]
             .into(),

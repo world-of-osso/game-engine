@@ -2,8 +2,9 @@
 //! (1612×856 open book, evergreen art, category tabs, two 680×650 page views, paging
 //! controls), `SpellBookHeaderTemplate` and `SpellBookItemTemplate`, laid out by
 //! `PagedCondensedVerticalGridContentFrameTemplate` (3 columns filled column-first,
-//! `viewsPerPage` 2, `spacerSize` 20, `xPadding` 15, `yPadding` 10). The frame scales
-//! down to fit the viewport.
+//! `viewsPerPage` 2, `spacerSize` 20, `xPadding` 15, `yPadding` 10), inside the
+//! `PlayerSpellsFrame` `PortraitFrameTemplate` window (title, spec portrait, close
+//! button). The frame scales down to fit the viewport.
 
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -13,7 +14,7 @@ use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
-use crate::ui::screens::world_map_frame_art::CLOSE_BUTTON;
+use crate::ui::screens::quest_art::window_chrome;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::GameFont;
 
@@ -26,9 +27,20 @@ pub const ACTION_SPELLBOOK_PREV_PAGE: &str = "spellbook_page:prev";
 pub const ACTION_SPELLBOOK_NEXT_PAGE: &str = "spellbook_page:next";
 pub const ACTION_SPELLBOOK_CLOSE: &str = "spellbook_close";
 
-/// `SpellBookFrameTemplate` content size (`PlayerSpellsFrame` 1612×856 tab page).
-pub const FRAME_W: f32 = 1612.0;
-pub const FRAME_H: f32 = 856.0;
+/// `PlayerSpellsFrame` (`PortraitFrameTemplate`, Blizzard_PlayerSpellsFrame.xml:5-10):
+/// the window holding the book, its title, portrait and close button.
+pub const FRAME_W: f32 = 1618.0;
+pub const FRAME_H: f32 = 883.0;
+/// `SpellBookFrameTemplate` content size (`PlayerSpellsFrame` 1612×856 tab page),
+/// anchored BOTTOMLEFT 0,4 (Blizzard_PlayerSpellsFrame.xml:49-57).
+const BOOK_W: f32 = 1612.0;
+const BOOK_H: f32 = 856.0;
+const BOOK_Y: f32 = FRAME_H - 4.0 - BOOK_H;
+/// `SetTitle(SPELLBOOK)` (Blizzard_PlayerSpellsFrame.lua:139), GlobalStrings `SPELLBOOK`.
+const TITLE: &str = "Spellbook";
+/// `PortraitFrameBaseTemplate` portrait: 62×62 at TOPLEFT -5,7
+/// (SharedUIPanelTemplates.xml:558-562).
+const PORTRAIT: [f32; 4] = [-5.0, -7.0, 62.0, 62.0];
 const SCREEN_MARGIN: f32 = 16.0;
 /// `TopBar` 1612×54; the book halves start 51 below the top.
 const TOP_BAR_H: f32 = 54.0;
@@ -38,7 +50,7 @@ pub const VIEW_W: f32 = 680.0;
 pub const VIEW_H: f32 = 650.0;
 const VIEW_TOP: f32 = 50.0 + 65.0;
 const VIEW1_LEFT: f32 = 85.0;
-const VIEW2_LEFT: f32 = FRAME_W - 50.0 - VIEW_W;
+const VIEW2_LEFT: f32 = BOOK_W - 50.0 - VIEW_W;
 /// Grid: 3 columns, `xPadding` 15, `yPadding` 10, `spacerSize` 20.
 pub const COLUMNS: usize = 3;
 const X_PADDING: f32 = 15.0;
@@ -79,12 +91,11 @@ const TAB_SPACING: f32 = 1.0;
 const TAB_GLYPH_W: f32 = 6.5;
 /// `PagingControls` BOTTOMRIGHT -75,40 of `PagedSpellsFrame`: page text, then 32×32
 /// previous and next buttons, 8 apart.
-const PAGING_RIGHT: f32 = FRAME_W - 75.0;
-const PAGING_BOTTOM: f32 = FRAME_H - 40.0;
+const PAGING_RIGHT: f32 = BOOK_W - 75.0;
+const PAGING_BOTTOM: f32 = BOOK_H - 40.0;
 const PAGE_BUTTON: f32 = 32.0;
 const PAGING_SPACING: f32 = 8.0;
 const PAGE_TEXT_W: f32 = 90.0;
-const CLOSE_SIZE: f32 = 24.0;
 /// `SPELLBOOK_AVAILABLE_AT` and `PAGE_NUMBER_WITH_MAX` (GlobalStrings).
 const AVAILABLE_AT: &str = "Level ";
 
@@ -145,19 +156,6 @@ const PREV_PAGE_DISABLED: u32 = 130_867;
 const NEXT_PAGE_UP: u32 = 130_866;
 const NEXT_PAGE_DISABLED: u32 = 130_864;
 
-/// Every chrome texture the frame draws, for hosts that copy art out of local CASC.
-pub const SPELLBOOK_ART_FDIDS: [u32; 9] = [
-    5_834_697,
-    5_506_565,
-    4_707_839,
-    4_556_093,
-    PREV_PAGE_UP,
-    PREV_PAGE_DISABLED,
-    NEXT_PAGE_UP,
-    NEXT_PAGE_DISABLED,
-    CLOSE_BUTTON.fdid,
-];
-
 /// One spell entry of a category.
 #[derive(Clone, Debug, PartialEq)]
 pub struct SpellbookItemView {
@@ -190,6 +188,9 @@ pub struct SpellbookFrameState {
     pub selected: usize,
     /// 0-based page of the selected category.
     pub page: usize,
+    /// The active specialization's icon (`PlayerSpellsFrameMixin:UpdatePortrait`,
+    /// Blizzard_PlayerSpellsFrame.lua:332-342); 0 draws an empty ring.
+    pub portrait_fdid: u32,
 }
 
 impl SpellbookFrameState {
@@ -378,31 +379,31 @@ fn background(s: f32) -> Element {
         art(
             "SpellBookBookBGLeft".into(),
             &BOOK_LEFT,
-            [0.0, BOOK_TOP, FRAME_W / 2.0, FRAME_H - BOOK_TOP],
+            [0.0, BOOK_TOP, BOOK_W / 2.0, BOOK_H - BOOK_TOP],
             s,
         ),
         art(
             "SpellBookBookBGRight".into(),
             &BOOK_RIGHT,
-            [FRAME_W / 2.0, BOOK_TOP, FRAME_W / 2.0, FRAME_H - BOOK_TOP],
+            [BOOK_W / 2.0, BOOK_TOP, BOOK_W / 2.0, BOOK_H - BOOK_TOP],
             s,
         ),
         art(
             "SpellBookTopBar".into(),
             &TOP_BAR,
-            [0.0, 0.0, FRAME_W - 2.0, TOP_BAR_H],
+            [0.0, 0.0, BOOK_W - 2.0, TOP_BAR_H],
             s,
         ),
         art(
             "SpellBookBookmark".into(),
             &BOOKMARK,
-            [FRAME_W / 2.0 + 62.0 - 102.0, BOOK_TOP, 102.0, 557.0],
+            [BOOK_W / 2.0 + 62.0 - 102.0, BOOK_TOP, 102.0, 557.0],
             s,
         ),
         art(
             "SpellBookCorner".into(),
             &CORNER,
-            [FRAME_W - 15.0 - 150.0, FRAME_H - 6.0 - 155.0, 150.0, 155.0],
+            [BOOK_W - 15.0 - 150.0, BOOK_H - 6.0 - 155.0, 150.0, 155.0],
             s,
         ),
     ]
@@ -795,32 +796,6 @@ fn paging(state: &SpellbookFrameState, s: f32) -> Element {
     out
 }
 
-fn close_button(s: f32) -> Element {
-    let size = CLOSE_SIZE * s;
-    let coords = {
-        let [left, right, top, bottom] = CLOSE_BUTTON.tex_coords();
-        format!("{left},{right},{top},{bottom}")
-    };
-    rsx! {
-        r#frame {
-            name: "SpellBookCloseButton",
-            width: size,
-            height: size,
-            onclick: ACTION_SPELLBOOK_CLOSE,
-            pos_type: "absolute",
-            pos_x: {(FRAME_W - CLOSE_SIZE - 6.0) * s},
-            pos_y: {6.0 * s},
-            texture {
-                name: "SpellBookCloseButtonIcon",
-                width: size,
-                height: size,
-                texture_fdid: {CLOSE_BUTTON.fdid},
-                tex_coords: {coords.as_str()},
-            }
-        }
-    }
-}
-
 pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<SpellbookFrameState>()
@@ -831,6 +806,13 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
         .map(|category| paginate(&category.groups))
         .unwrap_or_default();
     let page = state.page.min(state.page_count() - 1);
+    let chrome = window_chrome(
+        "SpellBook",
+        (FRAME_W * s, FRAME_H * s),
+        TITLE,
+        ACTION_SPELLBOOK_CLOSE,
+    );
+    let [portrait_x, portrait_y, portrait_w, portrait_h] = PORTRAIT;
     rsx! {
         r#frame {
             name: SPELLBOOK_FRAME,
@@ -841,12 +823,32 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
             pos_type: "absolute",
             left: x,
             top: y,
-            {background(s)}
-            {category_tabs(state, s)}
-            {view(state, views.get(page * 2), 0, s)}
-            {view(state, views.get(page * 2 + 1), 1, s)}
-            {paging(state, s)}
-            {close_button(s)}
+            {chrome}
+            r#frame {
+                name: "SpellBookFrame",
+                width: {BOOK_W * s},
+                height: {BOOK_H * s},
+                pos_type: "absolute",
+                pos_x: 0.0,
+                pos_y: {BOOK_Y * s},
+                {background(s)}
+                {category_tabs(state, s)}
+                {view(state, views.get(page * 2), 0, s)}
+                {view(state, views.get(page * 2 + 1), 1, s)}
+                {paging(state, s)}
+            }
+            // `PortraitContainer` frameLevel 400, above the book's 100
+            // (SharedUIPanelTemplates.xml:551, Blizzard_PlayerSpellsFrame.xml:49).
+            texture {
+                name: "SpellBookPortrait",
+                frame_level: 400.0,
+                width: {portrait_w * s},
+                height: {portrait_h * s},
+                texture_fdid: {state.portrait_fdid},
+                pos_type: "absolute",
+                pos_x: {portrait_x * s},
+                pos_y: {portrait_y * s},
+            }
         }
     }
 }
