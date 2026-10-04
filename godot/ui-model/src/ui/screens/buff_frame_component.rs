@@ -125,6 +125,11 @@ impl BuffFrameState {
     }
 }
 
+/// Textures the host must copy from local CASC before drawing the buff frame.
+pub fn buff_frame_texture_fdids(_state: &BuffFrameState) -> Vec<u32> {
+    Vec::new()
+}
+
 /// enUS `DEBUFF_SYMBOL_*` global strings; `None` has no abbreviation (AuraUtil.lua:5-10).
 fn dispel_symbol(dispel: DebuffType) -> &'static str {
     match dispel {
