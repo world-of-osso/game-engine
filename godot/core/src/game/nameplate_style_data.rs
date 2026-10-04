@@ -58,7 +58,7 @@ impl Default for NameplateStyle {
             },
             class_colored_players: true,
             cast_width: DEFAULT_BAR_WIDTH,
-            cast_height: THIN_CAST_HEIGHT,
+            cast_height: THICK_CAST_HEIGHT,
             cast_colors: CastColors {
                 normal: [1.0, 0.7, 0.0],
                 channel: [0.0, 1.0, 0.0],

@@ -19,7 +19,9 @@ use godot::{
 };
 use shared::casting::CastState;
 
-use super::{BAR_Y_OFFSET, Nameplates, PlateView, plate_alpha, reaction, reaction_color};
+use super::{
+    BAR_Y_OFFSET, Health, Nameplates, PlateView, health_text, plate_alpha, reaction, reaction_color,
+};
 use crate::GameClient;
 
 /// The original owners: x position, name, health percent, channel instead of cast.
@@ -28,6 +30,8 @@ const OWNERS: [(f32, &str, f32, bool); 3] = [
     (0.0, "Channeling Adept", 45.0, true),
     (3.8, "Training Guardian", 100.0, false),
 ];
+/// Every owner's maximum health: the "425 K" of the user's nameplate reference.
+const MAX_HEALTH: f32 = 425_000.0;
 /// The original camera: (0, 2.5, 12) looking at (0, 2.5, 0).
 const EYE: Vector3 = Vector3::new(0.0, 2.5, 12.0);
 const LOOK: Vector3 = Vector3::new(0.0, 2.5, 0.0);
@@ -183,6 +187,10 @@ impl WowNameplateDebug {
                     occluded: false,
                     anchor: camera.unproject_position(top),
                     fraction: owner.health / 100.0,
+                    health_text: health_text(&Health {
+                        current: MAX_HEALTH * owner.health / 100.0,
+                        max: MAX_HEALTH,
+                    }),
                     color,
                     name_color: Color::WHITE,
                     raid_target: None,
@@ -238,6 +246,7 @@ impl WowNameplateDebug {
             if let Some(plate) = self.plates.plates.get(&owner.id) {
                 entry.set("frame_rect", plate.frame.get_global_rect());
                 entry.set("name", &plate.name.get_text());
+                entry.set("health", &plate.health.get_text());
             }
             plates.set(owner.name, &entry);
         }
