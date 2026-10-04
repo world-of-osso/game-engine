@@ -10,7 +10,10 @@ use game_engine_core::input_bindings_data::BindingSection;
 use game_engine_ui_model::game_menu_component::{
     GameMenuView, GameMenuViewModel, game_menu_screen,
 };
-use game_engine_ui_model::options_menu_component::{OPTIONS_CONTENT_SCROLL, OptionsCategory};
+use game_engine_ui_model::options_menu_component::{
+    OPTIONS_CONTENT_SCROLL, OptionsCategory, back_stepper_name, forward_stepper_name,
+    options_pan_extent, options_wheel_extent,
+};
 use game_engine_ui_model::options_menu_data as policy;
 use ui_toolkit::layout::LayoutRect;
 use ui_toolkit::screen::{Screen, SharedContext};
@@ -125,11 +128,12 @@ fn rows(model: &RegistryModel) -> Vec<(String, LayoutRect)> {
         .collect()
 }
 
+/// Every row the area draws reaches into it; one cut by an edge is clipped there.
 fn assert_rows_inside_area(model: &RegistryModel, context: &str) {
     let area = rect(model, OPTIONS_CONTENT_SCROLL).unwrap();
     for (name, row) in rows(model) {
         assert!(
-            row.y >= area.y - 0.01 && row.y + row.height <= area.y + area.height + 0.01,
+            row.y < area.y + area.height && row.y + row.height > area.y,
             "{context}: {name} y {}..{} outside the area {}..{}",
             row.y,
             row.y + row.height,
@@ -141,7 +145,7 @@ fn assert_rows_inside_area(model: &RegistryModel, context: &str) {
 
 fn wheel_to_end(model: &mut RegistryModel, up: bool) -> usize {
     let mut notches = 0;
-    while wheel(&mut model.registry, OPTIONS_CONTENT_SCROLL, up) {
+    while wheel(model, OPTIONS_CONTENT_SCROLL, up) {
         rebuild(model);
         notches += 1;
         assert!(notches < 100, "the wheel never stops");
@@ -169,7 +173,7 @@ fn action_bar_2_bindings_scroll_their_last_buttons_into_view_by_wheel() {
     assert!(shown(&model, &track_name(OPTIONS_CONTENT_SCROLL)));
     assert_rows_inside_area(&model, "top");
     // Already at the top: the wheel up does nothing.
-    assert!(!wheel(&mut model.registry, OPTIONS_CONTENT_SCROLL, true));
+    assert!(!wheel(&mut model, OPTIONS_CONTENT_SCROLL, true));
 
     let down = wheel_to_end(&mut model, false);
     assert!(down > 0);
@@ -224,7 +228,7 @@ fn another_page_starts_at_its_top() {
 fn a_page_that_fits_has_no_scroll_bar() {
     let mut model = menu(view(OptionsCategory::Sound, BindingSection::Movement));
     assert!(!shown(&model, &track_name(OPTIONS_CONTENT_SCROLL)));
-    assert!(!wheel(&mut model.registry, OPTIONS_CONTENT_SCROLL, false));
+    assert!(!wheel(&mut model, OPTIONS_CONTENT_SCROLL, false));
 }
 
 /// Every page's rows stay inside the content area at every position, and the whole panel,
@@ -246,11 +250,105 @@ fn every_page_scrolls_inside_a_panel_that_fits_the_screen() {
             assert!(done.y + done.height <= panel.y + panel.height, "{context}");
             loop {
                 assert_rows_inside_area(&model, &context);
-                if !wheel(&mut model.registry, OPTIONS_CONTENT_SCROLL, false) {
+                if !wheel(&mut model, OPTIONS_CONTENT_SCROLL, false) {
                     break;
                 }
                 rebuild(&mut model);
             }
         }
     }
+}
+
+/// Screen top of row `name`.
+fn row_top(model: &RegistryModel, name: &str) -> f32 {
+    rect(model, name)
+        .unwrap_or_else(|| panic!("{name} drawn"))
+        .y
+}
+
+fn press(model: &mut RegistryModel, name: &str) -> bool {
+    let id = model.registry.get_by_name(name).unwrap();
+    let pressed = press_stepper(model, id);
+    rebuild(model);
+    pressed
+}
+
+/// The wheel pans two pan extents of pixels (`ScrollController.lua:93-99,152-154`), not a
+/// row: Action Bar 2's first binding row moves up by exactly that, and a later notch leaves
+/// a row cut by the area's top edge.
+#[test]
+fn the_wheel_scrolls_by_pixels_and_clips_a_partial_row() {
+    let view = view(OptionsCategory::Keybindings, BindingSection::ActionBar2);
+    let step = options_wheel_extent(&view.options) as f32;
+    assert!(step > 0.0);
+    let first = binding_row(&view, 0);
+    let mut model = menu(view);
+    let area = rect(&model, OPTIONS_CONTENT_SCROLL).unwrap();
+    let before = row_top(&model, &first);
+
+    assert!(wheel(&mut model, OPTIONS_CONTENT_SCROLL, false));
+    rebuild(&mut model);
+    assert!((before - row_top(&model, &first) - step).abs() < 0.01);
+
+    let mut partial = None;
+    for _ in 0..100 {
+        partial = rows(&model)
+            .into_iter()
+            .find(|(_, row)| row.y < area.y - 0.01 && row.y + row.height > area.y + 0.01);
+        if partial.is_some() || !wheel(&mut model, OPTIONS_CONTENT_SCROLL, false) {
+            break;
+        }
+        rebuild(&mut model);
+    }
+    let (name, _) = partial.expect("a row cut by the area's top edge");
+    assert!(shown(&model, &name), "{name} is drawn, clipped, not hidden");
+}
+
+/// The Back and Forward steppers pan one pan extent (`ScrollBar.lua:117-119,307-311`) and
+/// do nothing at their end of the list (`ScrollBar.lua:237-239`).
+#[test]
+fn the_steppers_step_the_list_and_stop_at_its_ends() {
+    let view = view(OptionsCategory::Keybindings, BindingSection::ActionBar2);
+    let step = options_pan_extent(&view.options) as f32;
+    let (first, last) = (binding_row(&view, 0), binding_row(&view, usize::MAX));
+    let mut model = menu(view);
+    let back = back_stepper_name(OPTIONS_CONTENT_SCROLL);
+    let forward = forward_stepper_name(OPTIONS_CONTENT_SCROLL);
+    assert!(shown(&model, &back) && shown(&model, &forward));
+    let top = row_top(&model, &first);
+
+    assert!(press(&mut model, &back), "a press on Back is taken");
+    assert_eq!(row_top(&model, &first), top, "Back is disabled at the top");
+
+    assert!(press(&mut model, &forward));
+    assert!((top - row_top(&model, &first) - step).abs() < 0.01);
+    assert!(press(&mut model, &back));
+    assert!((row_top(&model, &first) - top).abs() < 0.01);
+
+    let drawn = |model: &RegistryModel| -> Vec<(String, f32)> {
+        rows(model)
+            .into_iter()
+            .map(|(name, row)| (name, row.y))
+            .collect()
+    };
+    let mut presses = 0;
+    loop {
+        let before = drawn(&model);
+        assert!(press(&mut model, &forward));
+        if drawn(&model) == before {
+            break;
+        }
+        presses += 1;
+        assert!(presses < 200, "Forward never reaches the end");
+    }
+    let area = rect(&model, OPTIONS_CONTENT_SCROLL).unwrap();
+    let last_row = rect(&model, &last).expect("the last row at the end");
+    assert!((last_row.y + last_row.height - (area.y + area.height)).abs() < 1.0);
+    let end = row_top(&model, &last);
+    assert!(press(&mut model, &forward));
+    assert_eq!(
+        row_top(&model, &last),
+        end,
+        "Forward is disabled at the end"
+    );
 }
