@@ -1,7 +1,7 @@
 //! Authored panel skins shared by the Bevy and Godot registry hosts: the default slate
 //! panel and the Retail metal window borders composed from their atlas members.
 
-use ui_toolkit::atlas::{AtlasRegion, AtlasSource, active_skin, resolve_region};
+use ui_toolkit::atlas::{ActiveSkin, AtlasRegion, AtlasSource, active_skin, resolve_region};
 use ui_toolkit::frame::NineSlice;
 use ui_toolkit::widgets::texture::TextureSource;
 
@@ -19,18 +19,10 @@ pub fn default_panel_style() -> NineSlice {
 }
 
 /// `PortraitFrameTemplate` metal border (Retail `ButtonFrameTemplate` windows). Put it
-/// on a frame [`METAL_FRAME_OUTSET`] larger than the window.
+/// on a frame [`MetalTopLeft::outset`] larger than the window.
 pub const METAL_FRAME_PANEL_STYLE: &str = "metal_frame";
-/// `ButtonFrameTemplateNoPortrait` metal border (flat panels such as `LootFrame`). Put
-/// it on a frame [`METAL_FRAME_NO_PORTRAIT_OUTSET`] larger than the window.
+/// `ButtonFrameTemplateNoPortrait` metal border (flat panels such as `LootFrame`).
 pub const METAL_FRAME_NO_PORTRAIT_PANEL_STYLE: &str = "metal_frame_no_portrait";
-
-/// `NineSliceLayouts.PortraitFrameTemplate` corner offsets from the window edges
-/// (display units): `[left, top, right, bottom]` outward. The styled frame sits at
-/// `(-left, -top)` and is `left + right` wider and `top + bottom` taller than the window.
-pub const METAL_FRAME_OUTSET: [f32; 4] = [13.0, 16.0, 4.0, 3.0];
-/// `NineSliceLayouts.ButtonFrameTemplateNoPortrait` corner offsets, same convention.
-pub const METAL_FRAME_NO_PORTRAIT_OUTSET: [f32; 4] = [8.0, 16.0, 4.0, 3.0];
 
 /// The top-left corner that tells the two metal layouts apart.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -46,6 +38,23 @@ impl MetalTopLeft {
         match self {
             Self::Portrait => "UI-Frame-PortraitMetal-CornerTopLeft",
             Self::Plain => "UI-Frame-Metal-CornerTopLeft",
+        }
+    }
+
+    /// `NineSliceLayouts.PortraitFrameTemplate` / `.ButtonFrameTemplateNoPortrait` corner
+    /// offsets from the window edges (display units), `[left, top, right, bottom]`
+    /// outward: the styled frame sits at `(-left, -top)` and is `left + right` wider and
+    /// `top + bottom` taller than the window. Forever's c60 art is larger than Retail's,
+    /// so Camelot moves the right corners 2 in and the bottom corners to y = -8
+    /// (`Blizzard_SharedXML/Camelot/NineSliceLayoutOverrides.lua:2-25`).
+    pub fn outset(self) -> [f32; 4] {
+        let left = match self {
+            Self::Portrait => 13.0,
+            Self::Plain => 8.0,
+        };
+        match active_skin() {
+            ActiveSkin::Modern => [left, 16.0, 4.0, 3.0],
+            ActiveSkin::Forever => [left, 16.0, 2.0, 8.0],
         }
     }
 
