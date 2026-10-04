@@ -1,6 +1,6 @@
 //! Round icon masking with `TempPortraitAlphaMask`: character-creation race/class icons
 //! (`src/scenes/char_create/icon_masks.rs`) and the bag bar's `CircularItemButtonTemplate`
-//! bag icons (`CircleMask`, ItemButtonTemplate.xml:5-21).
+//! bag icons (`CircleMask`, ItemButtonTemplate.xml:5-21) and container portraits.
 
 use std::collections::HashMap;
 
@@ -82,14 +82,17 @@ impl IconMasks {
     }
 }
 
-/// `Race_*_Icon` / `Class_*_Icon` / `Form_*_Icon`, and the bag bar's
-/// `CharacterBag{n}SlotIconTexture` / `CharacterReagentBag0SlotIconTexture`.
+/// `Race_*_Icon` / `Class_*_Icon` / `Form_*_Icon`, the bag bar's
+/// `CharacterBag{n}SlotIconTexture` / `CharacterReagentBag0SlotIconTexture`, and a
+/// container's `ContainerFrame{n}Portrait` (`PortraitFrameBaseTemplate` `CircleMask`,
+/// SharedUIPanelTemplates.xml:564-572).
 fn is_round_icon(name: &str) -> bool {
     let creation = name.ends_with("_Icon")
         && (name.starts_with("Race_") || name.starts_with("Class_") || name.starts_with("Form_"));
     let bag = name.ends_with("SlotIconTexture")
         && (name.starts_with("CharacterBag") || name.starts_with("CharacterReagentBag"));
-    creation || bag
+    let portrait = name.starts_with("ContainerFrame") && name.ends_with("Portrait");
+    creation || bag || portrait
 }
 
 /// The (left, right, top, bottom) normalized region of `image`.
@@ -113,4 +116,67 @@ fn load_rgba(fdid: u32, role: &str) -> Result<RgbaImage, String> {
     }
     RgbaImage::from_raw(rgba.width, rgba.height, rgba.pixels)
         .ok_or_else(|| format!("round {role} FDID {fdid} has invalid RGBA size"))
+}
+
+#[cfg(test)]
+mod tests {
+    use game_engine_core::character_creation_icon_mask_data::{
+        PORTRAIT_MASK_FDID, compose_masked_icon, mask_alpha,
+    };
+    use game_engine_ui_model::bag_frame_component::{
+        BACKPACK_PORTRAIT, BagContainerState, BagFrameState, bag_frame_screen,
+    };
+    use image::RgbaImage;
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::registry::FrameRegistry;
+    use ui_toolkit::screen::{Screen, SharedContext};
+    use ui_toolkit::widgets::texture::TextureSource;
+
+    use super::is_round_icon;
+
+    fn texture(fdid: u32) -> RgbaImage {
+        let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join(format!("../../data/textures/{fdid}.blp"));
+        let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{path:?}: {error}"));
+        let image = game_engine_core::blp::decode_rgba(&bytes).unwrap();
+        RgbaImage::from_raw(image.width, image.height, image.pixels).unwrap()
+    }
+
+    /// The open backpack's portrait is its bag icon, rounded by `TempPortraitAlphaMask`:
+    /// transparent in the corners, opaque in the middle.
+    #[test]
+    fn container_portrait_is_the_bag_icon_masked_round() {
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        let mut ctx = SharedContext::new();
+        ctx.insert(BagFrameState {
+            bags: vec![BagContainerState {
+                bag_index: 0,
+                title: "Backpack".into(),
+                portrait_fdid: BACKPACK_PORTRAIT,
+                slots: Vec::new(),
+                visible: true,
+            }],
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(bag_frame_screen).sync(&ctx, &mut registry);
+        let round: Vec<_> = registry
+            .frames_iter()
+            .filter(|frame| frame.name.as_deref().is_some_and(is_round_icon))
+            .collect();
+        assert_eq!(round.len(), 1, "one round icon: the portrait");
+        let Some(WidgetData::Texture(portrait)) = &round[0].widget_data else {
+            panic!("portrait is not a texture");
+        };
+        let TextureSource::FileDataId(fdid) = portrait.source else {
+            panic!("portrait has no icon");
+        };
+        let masked = compose_masked_icon(texture(fdid), &mask_alpha(&texture(PORTRAIT_MASK_FDID)));
+        let (w, h) = masked.dimensions();
+        assert_eq!(masked.get_pixel(0, 0)[3], 0, "corner cut away");
+        assert_eq!(masked.get_pixel(w - 1, h - 1)[3], 0, "corner cut away");
+        assert!(masked.get_pixel(w / 2, h / 2)[3] > 200, "centre kept");
+    }
 }

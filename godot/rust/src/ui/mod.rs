@@ -119,7 +119,7 @@ enum ScreenPostsetup {
     Spellbook,
     Minimap,
     CharacterFrame,
-    /// Bag bar icons get their round `CircleMask`.
+    /// Bag bar icons and container portraits get their round `CircleMask`.
     Bags,
     /// Autocast Shines draw the host's composite.
     PetActionBar,
@@ -192,7 +192,9 @@ impl RegistryModel {
                 }
             }
             ScreenPostsetup::Merchant => {
-                game_engine_ui_model::merchant::place_merchant_windows(&mut self.registry)
+                game_engine_ui_model::merchant::place_merchant_windows(&mut self.registry);
+                // The NPC canvas's own backpack portrait.
+                self.icon_masks.apply(&mut self.registry);
             }
             ScreenPostsetup::CharacterFrame => {
                 game_engine_ui_model::character_frame::apply_character_frame_postsetup(
@@ -2143,19 +2145,20 @@ fn register_metal_frame_style(
     top_left: game_engine_ui_model::panel_style_data::MetalTopLeft,
 ) -> Result<(), String> {
     use game_engine_ui_model::panel_style_data::{
-        METAL_SHEET, compose_metal_sheet, metal_frame_style,
+        MetalGeometry, compose_metal_sheet, metal_frame_style,
     };
-    let pixels = compose_metal_sheet(top_left, |fdid| {
+    let geometry = MetalGeometry::active()?;
+    let pixels = compose_metal_sheet(top_left, geometry, |fdid| {
         let image = assets::decode_blp(&format!("data/textures/{fdid}.blp"))?;
         Ok((image.pixels, image.width))
     })?;
-    let (width, height) = METAL_SHEET;
+    let (width, height) = geometry.sheet_size();
     let sheet = registry
         .create_dynamic_texture(width, height, pixels)
         .map_err(|error| format!("Metal frame sheet: {error}"))?;
     registry.register_panel_style(
         top_left.style_name(),
-        metal_frame_style(TextureSource::Dynamic(sheet)),
+        metal_frame_style(TextureSource::Dynamic(sheet), geometry),
     );
     Ok(())
 }

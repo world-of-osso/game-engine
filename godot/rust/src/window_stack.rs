@@ -117,7 +117,18 @@ impl GameClient {
             .filter(|peer| peer.bind().is_toplevel())
             .map(stack_key)
             .collect();
-        if let Some(index) = raised_index(stack_key(ui), &peers) {
+        self.move_above(ui, &peers)
+    }
+
+    /// Retail `Frame:Raise` on show: the frame moves to the top of its strata, above
+    /// every canvas on its layer, HUD panels included.
+    pub(super) fn raise_above_layer(&mut self, ui: &Gd<RegistryUi>) -> Result<(), String> {
+        let peers: Vec<_> = self.registry_uis()?.iter().map(stack_key).collect();
+        self.move_above(ui, &peers)
+    }
+
+    fn move_above(&mut self, ui: &Gd<RegistryUi>, peers: &[StackKey]) -> Result<(), String> {
+        if let Some(index) = raised_index(stack_key(ui), peers) {
             self.base_mut().move_child(ui, index);
             // Workaround: Godot 4.7 restacks the moved canvas's drawing but keeps its
             // GUI pick order until `set_layer` marks the viewport's root order dirty

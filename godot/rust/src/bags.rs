@@ -36,6 +36,8 @@ pub(crate) struct Bags {
     bags_opener: Option<WindowId>,
     /// `MainMenuBarBagManager:ToggleExpandBar` collapsed the four bag slots.
     bar_collapsed: bool,
+    /// Bags open at the last raise check, to raise the canvas when one opens.
+    shown: Vec<WindowId>,
 }
 
 #[derive(Clone, PartialEq)]
@@ -81,6 +83,22 @@ impl Bags {
         self.cursor.reset();
         self.npc_windows.clear();
         self.bags_opener = None;
+        self.shown.clear();
+    }
+
+    /// Whether a bag opened since the last call: Retail `ContainerFrame_GenerateFrame`
+    /// shows then `Raise`s each opened container (ContainerFrame.lua:1139-1141).
+    fn take_newly_opened(&mut self) -> bool {
+        let open: Vec<WindowId> = self
+            .windows
+            .open_windows()
+            .iter()
+            .copied()
+            .filter(|id| matches!(id, WindowId::Bag(_)))
+            .collect();
+        let opened = open.iter().any(|id| !self.shown.contains(id));
+        self.shown = open;
+        opened
     }
 
     fn any_bag_open(&self) -> bool {
@@ -200,6 +218,11 @@ impl GameClient {
         ui.bind_mut().set_ui_scale(scale)?;
         ui.bind_mut().set_state(view)?;
         self.place_bags(&mut ui)?;
+        if self.bags.take_newly_opened() {
+            // Both are MEDIUM in Retail (ContainerFrame.xml:218; DamageMeter.xml:11 under
+            // UIParent): the raised container draws above the meter and other HUD panels.
+            self.raise_above_layer(&ui)?;
+        }
         Ok(self.sync_bag_cursor()?)
     }
 
@@ -484,6 +507,21 @@ mod tests {
         bags.toggle_backpack();
         bags.toggle_backpack();
         assert!(open_bags(&bags).is_empty());
+    }
+
+    #[test]
+    fn each_newly_opened_bag_raises_the_containers_once() {
+        let mut bags = Bags::default();
+        assert!(!bags.take_newly_opened());
+        bags.toggle_backpack();
+        assert!(bags.take_newly_opened());
+        assert!(!bags.take_newly_opened(), "an open bag raises once");
+        bags.toggle_bag(1, &[0, 1]);
+        assert!(bags.take_newly_opened());
+        bags.toggle_bag(1, &[0, 1]);
+        assert!(!bags.take_newly_opened(), "closing raises nothing");
+        bags.toggle_bag(1, &[0, 1]);
+        assert!(bags.take_newly_opened(), "reopening raises again");
     }
 
     #[test]

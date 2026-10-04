@@ -29,6 +29,12 @@ const ATTIC: f32 = 48.0;
 const TITLE_LEFT: f32 = 35.0;
 /// ContainerFrame.xml:80 `emptyBackgroundAtlas`.
 const SLOT_BACKGROUND: &str = "bags-item-slot64";
+/// `Interface/Icons/Inv_misc_bag_08` (ContainerFrame.lua:825).
+pub const BACKPACK_PORTRAIT: u32 = 133_633;
+/// `SetPortraitTextureSizeAndOffset(36, -4, 1)` (ContainerFrame.lua:682): 36×36 at
+/// TOPLEFT (-4, 1); the host rounds it with `TempPortraitAlphaMask`
+/// (SharedUIPanelTemplates.xml:564-572 `CircleMask`).
+const PORTRAIT: (f32, f32, f32) = (-4.0, -1.0, 36.0);
 /// The dimmed icon of a slot whose item is on the cursor.
 pub const LOCKED_ICON: &str = "0.5,0.5,0.5,1.0";
 
@@ -63,6 +69,9 @@ pub struct BagSlotState {
 pub struct BagContainerState {
     pub bag_index: usize,
     pub title: String,
+    /// `UpdateMiscellaneousFrames` (ContainerFrame.lua:823-829): the backpack's
+    /// [`BACKPACK_PORTRAIT`], another bag's item icon (`SetPortraitToBag`).
+    pub portrait_fdid: u32,
     pub slots: Vec<BagSlotState>,
     pub visible: bool,
 }
@@ -100,6 +109,7 @@ fn bag_container(bag: &BagContainerState) -> Element {
     let prefix = format!("ContainerFrame{}", bag.bag_index);
     let close = format!("{ACTION_BAG_CLOSE_PREFIX}{}", bag.bag_index);
     let mut children = portrait_flat_chrome(&prefix, size, (&bag.title, TITLE_LEFT), &close);
+    children.extend(portrait(&prefix, bag.portrait_fdid));
     children.extend(bag_slot_grid(bag.bag_index, &bag.slots, size));
     let x_offset = 300.0 + bag.bag_index as f32 * 20.0;
     rsx! {
@@ -113,6 +123,22 @@ fn bag_container(bag: &BagContainerState) -> Element {
             left: {x_offset},
             top: 100.0,
             {children}
+        }
+    }
+}
+
+/// `<prefix>Portrait`: the bag's round portrait over the metal ring.
+fn portrait(prefix: &str, fdid: u32) -> Element {
+    let (x, y, size) = PORTRAIT;
+    rsx! {
+        texture {
+            name: {DynName(format!("{prefix}Portrait"))},
+            width: size,
+            height: size,
+            texture_fdid: fdid,
+            pos_type: "absolute",
+            left: x,
+            top: y,
         }
     }
 }
