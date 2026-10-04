@@ -42,7 +42,9 @@ fn source(registry: &FrameRegistry, name: &str) -> TextureSource {
 /// Modern preset: 12 × 45 px buttons 2 px apart, BOTTOM y 45, keys 1..=.
 #[test]
 fn main_bar_uses_retail_geometry_and_default_keys() {
-    let registry = build(MainActionBarState::default());
+    let mut state = MainActionBarState::default();
+    state.set_hotkeys(&game_engine_ui_model::input_bindings::InputBindingsData::default());
+    let registry = build(state);
     let bar = frame(&registry, MAIN_ACTION_BAR.0);
     assert_eq!(bar.width, Dimension::Fixed(562.0));
     assert_eq!(bar.height, Dimension::Fixed(45.0));
@@ -80,6 +82,7 @@ fn spell_button_shows_icon_cooldown_swipe_and_countdown() {
         cooldown_text: "3".into(),
         pushed: true,
         hovered: false,
+        ..Default::default()
     };
     let registry = build(state);
     assert!(!frame(&registry, "ActionButton1Icon").hidden);
