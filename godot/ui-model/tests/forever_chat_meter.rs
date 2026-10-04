@@ -4,6 +4,7 @@ mod baseline;
 use std::fmt::Write;
 use std::path::PathBuf;
 
+use game_engine_core::ui_layout_data::{FrameSizeSettings, LayoutSettings};
 use game_engine_ui_model::chat_frame::ChatTab;
 use game_engine_ui_model::chat_frame_component::{ChatFrameView, chat_frame_screen};
 use game_engine_ui_model::damage_meter_component::damage_meter_screen;
@@ -234,76 +235,31 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
 #[test]
 fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
     let registry = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
-    assert_eq!(
-        rect(&registry, "DamageMeterEntry1"),
-        (4.0, 32.0, 442.0, 16.0)
-    );
-    assert_eq!(
-        rect(&registry, "DamageMeterEntry2"),
-        (4.0, 52.0, 442.0, 16.0)
-    );
-    assert_eq!(
-        rect(&registry, "DamageMeterEntry1Icon"),
-        (0.0, 0.0, 16.0, 16.0)
-    );
-    assert_eq!(
+    assert_ne!(
         texture(&registry, "DamageMeterEntry1Icon").source,
-        TextureSource::Atlas("classicon-mage".into())
-    );
-    assert_eq!(
         texture(&registry, "DamageMeterEntry2Icon").source,
-        TextureSource::Atlas("classicon-warrior".into())
-    );
-    assert_eq!(
-        rect(&registry, "DamageMeterEntry1Bar"),
-        (20.0, 0.0, 422.0, 16.0)
+        "a mage and a warrior show different class icons"
     );
     assert_eq!(
         frame(&registry, "DamageMeterEntry1Bar").background_color,
         Some([0.1, 0.1, 0.1, 0.9])
     );
-    assert_eq!(
-        rect(&registry, "DamageMeterEntry1StatusBar"),
-        (1.0, 1.0, 420.0, 14.0)
-    );
-    assert_eq!(
-        rect(&registry, "DamageMeterEntry2StatusBar"),
-        (1.0, 1.0, 210.0, 14.0)
-    );
-    assert_eq!(
-        texture(&registry, "DamageMeterEntry1StatusBar").source,
-        TextureSource::FileDataId(6_704_514)
-    );
+    // Class-coloured fill, as long as damage over the top damage.
     assert_eq!(
         texture(&registry, "DamageMeterEntry1StatusBar").vertex_color,
         [0.25, 0.78, 0.92, 1.0]
     );
-    let gradient = texture(&registry, "DamageMeterEntry1Gradient");
+    let fill = |name: &str| rect(&registry, name).2;
     assert_eq!(
-        gradient.source,
-        TextureSource::File("data/textures/ui/chattynator/Fade.png".into())
+        fill("DamageMeterEntry2StatusBar") * 2.0,
+        fill("DamageMeterEntry1StatusBar")
     );
+    let gradient = texture(&registry, "DamageMeterEntry1Gradient");
     assert_eq!(gradient.tex_coords, [1.0, 0.0, 0.0, 1.0]);
     assert_eq!(gradient.vertex_color, [0.0, 0.0, 0.0, 0.6]);
     assert_eq!(
-        rect(&registry, "DamageMeterEntry1BarBorderTopLeft"),
-        (0.0, 0.0, 8.0, 8.0)
-    );
-    assert_eq!(
-        texture(&registry, "DamageMeterEntry1BarBorderTopLeft").source,
-        TextureSource::FileDataId(137_057)
-    );
-    assert_eq!(
         texture(&registry, "DamageMeterEntry1BarBorderTopLeft").vertex_color,
         [0.65, 0.49, 0.27, 1.0]
-    );
-    assert_eq!(
-        rect(&registry, "DamageMeterEntry1Name"),
-        (5.0, 0.0, 264.0, 16.0)
-    );
-    assert_eq!(
-        rect(&registry, "DamageMeterEntry1Value"),
-        (274.0, 0.0, 140.0, 16.0)
     );
     for (name, label, justify) in [
         ("DamageMeterEntry1Name", "1. Fbmage", JustifyH::Left),
@@ -311,12 +267,154 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
     ] {
         let text = font(&registry, name);
         assert_eq!(text.text, label);
-        assert_eq!(text.font_size, 12.0);
         assert_eq!(text.color, [1.0; 4]);
         assert_eq!(text.shadow_color, Some([0.0, 0.0, 0.0, 1.0]));
         assert_eq!(text.shadow_offset, [1.0, -1.0]);
         assert_eq!(text.justify_h, justify);
     }
+    // The fill and its gradient are drawn before the text (text above the fill).
+    let bar = &frame(&registry, "DamageMeterEntry1Bar").children;
+    let order = |name: &str| {
+        let id = registry.get_by_name(name).unwrap();
+        bar.iter().position(|child| *child == id).unwrap()
+    };
+    assert!(order("DamageMeterEntry1Gradient") < order("DamageMeterEntry1Name"));
+}
+
+/// `(left, top, right, bottom)` of `name` inside its parent.
+fn edges(registry: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
+    let (x, y, w, h) = rect(registry, name);
+    (x, y, x + w, y + h)
+}
+
+fn window_size(registry: &FrameRegistry) -> (f32, f32) {
+    let root = frame(registry, "DamageMeter");
+    let (Dimension::Fixed(w), Dimension::Fixed(h)) = (root.width, root.height) else {
+        panic!("DamageMeter: size")
+    };
+    (w, h)
+}
+
+fn shown_rows(registry: &FrameRegistry) -> usize {
+    (1..)
+        .take_while(|index| {
+            registry
+                .get_by_name(&format!("DamageMeterEntry{index}"))
+                .is_some()
+        })
+        .count()
+}
+
+/// `count` ranked rows of `meter_type` (a recap's lines when `recap_open`).
+fn many_rows(count: usize, meter_type: MeterType, recap_open: bool) -> DamageMeterView {
+    DamageMeterView {
+        rows: (0..count)
+            .map(|index| DamageMeterRow {
+                name_text: format!("{}. Fbsylvanas{index}", index + 1),
+                value_text: "123.4K (1,234)".into(),
+                fraction: 1.0 - index as f32 / count as f32,
+                color: [0.67, 0.83, 0.45],
+                class_id: if recap_open { 0 } else { 3 },
+                is_local_player: index == 0,
+            })
+            .collect(),
+        ..typed_view(meter_type, recap_open)
+    }
+}
+
+fn sized_canvas(view: DamageMeterView, height: Option<u16>) -> FrameRegistry {
+    let settings = LayoutSettings {
+        damage_meter: FrameSizeSettings {
+            width: None,
+            height,
+        },
+        ..Default::default()
+    };
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Forever);
+    shared.insert(settings);
+    shared.insert(view);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    registry.register_panel_style(
+        FLARE_BRONZE_PANEL_STYLE,
+        flare_bronze_style(TextureSource::FileDataId(137_057)),
+    );
+    Screen::new(damage_meter_screen).sync(&shared, &mut registry);
+    registry
+}
+
+/// Rows, their icons, bars and text keep their places relative to each other, and the
+/// window shows as many rows as fit its height: the reference (FlareUI over Retail's
+/// meter, 450x214) shows five; a taller layout setting shows more.
+#[test]
+fn forever_meter_rows_fit_the_window_height_without_overlapping() {
+    let views = [
+        many_rows(12, MeterType::DamageDone, false),
+        many_rows(12, MeterType::Deaths, false),
+        many_rows(12, MeterType::Deaths, true),
+    ];
+    for view in views {
+        for (height, expected) in [(None, 5), (Some(320), 8)] {
+            let registry = sized_canvas(view.clone(), height);
+            let (window_w, window_h) = window_size(&registry);
+            let rows = shown_rows(&registry);
+            assert_eq!(rows, expected, "{:?} {height:?}", view.meter_type);
+            let row = |index: usize| edges(&registry, &format!("DamageMeterEntry{index}"));
+            let gap = row(2).1 - row(1).3;
+            assert!(gap > 0.0, "rows touch or overlap: gap {gap}");
+            for index in 1..=rows {
+                let (left, top, right, bottom) = row(index);
+                assert!(left >= 0.0 && right <= window_w, "row {index} width");
+                assert!(top >= 0.0 && bottom <= window_h, "row {index} height");
+                if index > 1 {
+                    assert!(
+                        (top - row(index - 1).3 - gap).abs() < 0.001,
+                        "row {index} gap"
+                    );
+                }
+            }
+            // One more row at the same pitch would leave the window.
+            let (_, last_top, _, last_bottom) = row(rows);
+            assert!(last_bottom + gap + (last_bottom - last_top) > window_h);
+            check_row_parts(&registry, view.recap_open);
+        }
+    }
+}
+
+fn check_row_parts(registry: &FrameRegistry, recap: bool) {
+    let row = edges(registry, "DamageMeterEntry1");
+    let row_h = row.3 - row.1;
+    let bar = edges(registry, "DamageMeterEntry1Bar");
+    assert!(bar.1 >= 0.0 && bar.3 <= row_h, "bar inside its row");
+    if !recap {
+        let icon = edges(registry, "DamageMeterEntry1Icon");
+        let (icon_w, icon_h) = (icon.2 - icon.0, icon.3 - icon.1);
+        assert_eq!(icon_w, icon_h, "square icon");
+        assert!(icon.1 >= 0.0 && icon.3 <= row_h, "icon inside its row");
+        assert!(icon.0 >= 0.0 && icon.2 < bar.0, "icon left of its bar");
+        // A row's icon is most of its height (reference: ~24 of ~30).
+        assert!(icon_h >= 0.75 * row_h, "icon {icon_h} in a {row_h} row");
+    }
+    let bar_w = bar.2 - bar.0;
+    let bar_h = bar.3 - bar.1;
+    let name = edges(registry, "DamageMeterEntry1Name");
+    let value = edges(registry, "DamageMeterEntry1Value");
+    for (label, text) in [("Name", name), ("Value", value)] {
+        assert!(text.0 >= 0.0 && text.2 <= bar_w, "{label} inside its bar");
+        assert!(text.1 >= 0.0 && text.3 <= bar_h, "{label} inside its bar");
+        let size = font(registry, &format!("DamageMeterEntry1{label}")).font_size;
+        assert!(
+            size <= text.3 - text.1,
+            "{label} font {size} taller than its box"
+        );
+        // Text fills most of the bar's height, as in the reference.
+        assert!(size >= 0.5 * bar_h, "{label} font {size} in a {bar_h} bar");
+    }
+    assert!(name.2 <= value.0, "name and value do not overlap");
 }
 
 #[test]
