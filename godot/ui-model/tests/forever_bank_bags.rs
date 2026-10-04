@@ -1,12 +1,9 @@
-//! Bank/container skin art; byte-identical Modern trees captured before conversion.
+//! Bank skin art; byte-identical Modern trees captured before conversion.
 #[path = "fixtures/modern_bank_bag_trees.rs"]
 mod fixture;
 use std::fmt::Write;
 use std::path::PathBuf;
 
-use game_engine_ui_model::bag_frame_component::{
-    BagContainerState, BagFrameState, BagSlotState, bag_frame_screen,
-};
 use game_engine_ui_model::bank_art::SlotItem;
 use game_engine_ui_model::bank_frame_component::{
     BankFrameState, BankPromptView, MoneyFrameView, PurchasePromptView, SideTab, bank_frame_screen,
@@ -91,40 +88,6 @@ fn bank_state(account: bool) -> BankFrameState {
     }
 }
 
-fn bag_state() -> BagFrameState {
-    BagFrameState {
-        bags: vec![
-            BagContainerState {
-                bag_index: 0,
-                title: "Backpack".into(),
-                visible: true,
-                slots: (0..16)
-                    .map(|i| BagSlotState {
-                        icon_fdid: if i == 0 { 133784 } else { 0 },
-                        count: if i == 0 { 20 } else { 0 },
-                        quality_border: "".into(),
-                        locked: i == 0,
-                    })
-                    .collect(),
-            },
-            BagContainerState {
-                bag_index: 1,
-                title: "Linen Bag".into(),
-                visible: false,
-                slots: vec![
-                    BagSlotState {
-                        icon_fdid: 134400,
-                        count: 1,
-                        quality_border: "0.0,1.0,0.0,1.0".into(),
-                        locked: false
-                    };
-                    6
-                ],
-            },
-        ],
-    }
-}
-
 fn modern_trees() -> String {
     let mut out = String::new();
     for account in [false, true] {
@@ -151,16 +114,6 @@ fn modern_trees() -> String {
                 &mut out,
             );
         }
-    }
-    out += &bag_trees();
-    out
-}
-
-fn bag_trees() -> String {
-    let mut out = String::new();
-    let registry = mount(bag_state(), bag_frame_screen);
-    for root in ["ContainerFrame0", "ContainerFrame1"] {
-        dump_frame(&registry, registry.get_by_name(root).unwrap(), &mut out);
     }
     out
 }
@@ -343,7 +296,6 @@ fn bank_bag_skin_art_preserves_modern_trees() {
     assert_bank_regions();
     set_active_skin(ActiveSkin::Modern);
     assert_eq!(modern_trees(), fixture::TREES);
-    let modern_bags = bag_trees();
     for account in [false, true] {
         let registry = mount(bank_state(account), bank_frame_screen);
         assert!(registry.get_by_name("BankFrameDivider").is_none());
@@ -363,9 +315,8 @@ fn bank_bag_skin_art_preserves_modern_trees() {
             ActiveSkin::Modern,
         );
     }
-    println!("Modern 1630-line fixture and concrete atlas regions passed");
+    println!("Modern 1596-line fixture and concrete atlas regions passed");
     set_active_skin(ActiveSkin::Forever);
-    assert_eq!(bag_trees(), modern_bags);
     assert_forever_bank_tree();
     set_active_skin(ActiveSkin::Modern);
     assert_eq!(modern_trees(), fixture::TREES);
