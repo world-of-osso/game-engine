@@ -135,6 +135,8 @@ pub mod cast_failed_text;
 pub mod casting_bar_frame_component;
 #[path = "ui/screens/main_action_bar_component.rs"]
 pub mod main_action_bar_component;
+#[path = "ui/screens/xp_bar_component.rs"]
+pub mod xp_bar_component;
 #[path = "ui/screens/pet_action_bar_component.rs"]
 pub mod pet_action_bar_component;
 #[path = "ui/screens/spellbook_frame_component.rs"]

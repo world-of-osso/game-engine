@@ -170,10 +170,10 @@ fn modern_pet_bar_matches_base_fixture() {
 #[test]
 fn forever_pet_bar_follows_main_bar_bottom_left_with_camelot_indent_and_gap() {
     let (_, _, registry) = setup(ActiveSkin::Forever);
-    // Main BOTTOMRIGHT = (907.5,1078), width 595.72, height 47.7;
+    // Main BOTTOMLEFT = (662.14,1078), width 595.72, height 47.7;
     // pet BOTTOMLEFT on main BOTTOMLEFT +(30,51.7), per Camelot's stack.
     // FlareUI Core.lua:102-107,218 and ActionBars.lua:43,179-190 scale pet by 1.06.
-    assert_rect(&registry, (341.78, 994.5, 337.08, 31.8));
+    assert_rect(&registry, (692.14, 994.5, 337.08, 31.8));
 }
 
 #[test]
@@ -182,7 +182,7 @@ fn switching_preset_moves_the_mounted_pet_bar_and_restores_modern() {
     assert_rect(&registry, (679.0, 955.0, 318.0, 30.0));
     shared.insert(ActiveSkin::Forever);
     screen.sync(&shared, &mut registry);
-    assert_rect(&registry, (341.78, 994.5, 337.08, 31.8));
+    assert_rect(&registry, (692.14, 994.5, 337.08, 31.8));
     shared.insert(ActiveSkin::Modern);
     screen.sync(&shared, &mut registry);
     assert_rect(&registry, (679.0, 955.0, 318.0, 30.0));

@@ -2552,3 +2552,7 @@ Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-b
 ## 2026-10-03 — Desktop/local build trial contract
 
 [[build-hosts]]: replaced Depot-only guidance with approved desktop SSH/WSL and local Docker selection, saved-default/error contract, and retained snapshot/cache boundaries. Linked conversion spec and architecture; real builds/tests and desktop server/manual GPU acceptance remain pending. Historical Depot evidence preserved.
+
+## 2026-10-04 — XP HUD
+
+[[xp-bar]]: Retail experience bar screen for both presets, mounted from the owner-only `PlayerXpUpdate`. Forever geometry measured from the reference screenshot (596×17 gamepad container at the top centre); no protocol change. CPU tests only, no live capture.
