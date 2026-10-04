@@ -4,7 +4,7 @@
 
 use std::collections::HashMap;
 
-use game_engine_ui_model::bags_bar_component::{BagBarState, bags_bar_screen};
+use game_engine_ui_model::bags_bar_component::BagBarState;
 use game_engine_ui_model::buff_frame_component::{
     BUFF_FRAME, BuffFrameState, DEBUFF_FRAME, buff_frame_screen,
 };
@@ -113,7 +113,11 @@ fn hud() -> Vec<RegistryModel> {
         model(cast, casting_bar_frame_screen),
         model(MainActionBarState::default(), main_action_bar_screen),
         model(MicroMenuView::default(), micro_menu_screen),
-        model(BagBarState::default(), bags_bar_screen),
+        // The bag bar as the client mounts it: inside the bags canvas's composed screen.
+        model(
+            crate::bags::BagsView::closed(BagBarState::default()),
+            crate::bags::bags_screen,
+        ),
         model(BuffFrameState::default(), buff_frame_screen),
         model(MinimapClusterState::default(), minimap_cluster_screen),
         model(groups, group_frames_screen),
