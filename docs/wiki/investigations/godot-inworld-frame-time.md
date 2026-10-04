@@ -96,8 +96,28 @@ safeguards).
 
   Self time by object: Godot 62%, the extension 19% (8 ms), `libvulkan_radeon` 12% (5 ms). Draw submission
   (`_render_list` + graph replay + driver) is about 19 ms for 6.9k draws, about 2.8 us per draw, so it is
-  proportional to draws; the 8% and 12% draw cuts (`doodadinst-unmerged-ref`, `terrainmerge-unmerged-ref`)
-  predict 1.5-2.5 ms, below the run-to-run spread of p50 (35-46 ms).
+  proportional to draws; the 8% and 12% draw cuts of the two rejected experiments below predict
+  1.5-2.5 ms, below the run-to-run spread of p50 (35-46 ms).
+- **Static doodad instancing (measured, no gain; not merged, 2026-10-02).** Static M2 doodads (constant
+  bones, no material animation, particles or M2 lights) drawn through one `MultiMeshInstance3D` per batch per
+  ADT tile or WMO, scenery fade in `INSTANCE_CUSTOM.x`. Stormwind has 14.7k static of 16.7k spawned doodads,
+  but only ~1.2k within scenery distance and diverse: ~426 batch nodes (4 placements per node on ADT tiles);
+  interior WMO doodads barely group (5,206 groups for 6,246 placements, light differs per group/MOLT).
+  A/B (`data/diagnostics/doodadinst/ab{1,2}-*`, host load 4-8):
+
+  | scene (idle) | draws base -> inst | p50 base -> inst | p95 base -> inst |
+  |---|---|---|---|
+  | Stormwind | 7.7-7.8k -> 7.1k | 40.0-40.7 -> 40.1-41.8 ms | 48.8-50.0 -> 45.1-51.7 ms |
+  | Northshire | 5.3-5.5k -> 4.5k | 27.8-30.2 -> 26.3-37.0 ms | 36.3-40.2 -> 32.0-47.2 ms |
+
+  Each draw repeats in the depth and shadow-cascade passes, per-object frustum culling already removed most
+  off-screen placements, and a tile-wide MultiMesh is drawn whole when any instance is visible (Stormwind GPU
+  16-17 -> 19-20 ms).
+- **Terrain chunk merging (measured, no gain; not merged, 2026-10-02).** Chunks sharing a material merged into
+  one mesh per tile quadrant with a per-tile 1024x1024 MCAL atlas (chunk cell in UV2; Northshire tile 32_48:
+  256 -> 69 draws). Total draws fell SW 8.1k -> 7.2k, NS 5.7k -> 4.9-5.1k, but p50 did not move beyond
+  host-load noise (load 6-10; NS idle 32.4 vs 31.6/28.1 ms, SW idle 50.8 vs 52.2 ms). Logs:
+  `data/diagnostics/terrainmerge/ab{1,2}-*.log`.
 - **Liquid texture rewrites (fixed, `godotprof`).** `LiquidSurface::set_time` wrote every texture slot each
   frame. In Godot a texture parameter write marks the material's textures dirty
   (`MaterialStorage::material_set_param`), so `update_parameters_uniform_set` rebuilds the uniform set and
@@ -113,7 +133,7 @@ safeguards).
 ## Remaining leads
 
 - Draw-call volume: doodads ~4.6k, terrain ~1.9k, units ~1.1k of 7.8k draws (Stormwind, hiding each root).
-  Instancing identical static doodads or merging terrain chunks would cut it.
+  Doodad instancing and terrain chunk merging cut draws 8-12% without a measurable frame-time gain (above).
 - Skinned M2 culling bounds (branch `skinaabb`). `9258b339` gave skinned batches the header `bounding_box`
   as `custom_aabb` (WebWowViewerCpp `M2Object::createAABB`): `mesh_get_aabb` left the profile, but draws rose
   3-6% because the header box is larger than the posed bounds. `ae10e313` replaces it with the playing
