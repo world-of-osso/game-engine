@@ -31,7 +31,8 @@ use game_engine_ui_model::main_action_bar_component::{
 use game_engine_ui_model::micro_menu::{MICRO_MENU, MicroMenuView, micro_menu_screen};
 use game_engine_ui_model::minimap::{MINIMAP_CLUSTER, MinimapClusterState, minimap_cluster_screen};
 use game_engine_ui_model::objective_tracker_component::{
-    ObjectiveTrackerState, TRACKER_FRAME, objective_tracker_screen,
+    ObjectiveLine, ObjectiveLineStyle, ObjectiveTrackerState, TRACKER_FRAME, TrackedQuest,
+    objective_tracker_screen,
 };
 use game_engine_ui_model::pet_action_bar_component::{PetActionBarState, pet_action_bar_screen};
 use game_engine_ui_model::status::{ClassBar, ClassBarResource};
@@ -240,6 +241,8 @@ fn assert_modern(hud: &[RegistryModel]) {
         (467.0, 657.0, 26.0, 28.0),
     );
     assert_modern_edit_mode_systems(hud);
+    // Mainline/EditModePresetLayouts.lua:549-554: TOPRIGHT (-110, -275).
+    assert_eq!(top_right(hud, TRACKER_FRAME), (1256.0, 275.0));
 }
 
 /// Systems whose anchors the Forever preset shares with Modern.
@@ -250,7 +253,6 @@ fn assert_modern_edit_mode_systems(hud: &[RegistryModel]) {
     assert_eq!(top_left(hud, PARTY_FRAME), (22.0, 147.0));
     let raid = rect(hud, RAID_FRAME);
     assert_eq!((raid.x, raid.y + raid.height), (395.0, 553.0));
-    assert_eq!(top_right(hud, TRACKER_FRAME), (1256.0, 275.0));
 }
 
 #[test]
@@ -310,11 +312,117 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
         "ChatFrame1ScrollToBottomButton",
         (437.0, 590.0, 26.0, 28.0),
     );
-    // Other Mainline anchors remain shared.
     assert_modern_edit_mode_systems(&hud);
 
     sync(&mut hud, ActiveSkin::Modern);
     assert_modern(&hud);
+}
+
+#[test]
+fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
+    let mut hud = hud();
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, TRACKER_FRAME, (996.0, 275.0, 260.0, 32.0));
+    let modern_header = rect(&hud, "ObjectiveTrackerFrameHeaderBackground");
+    println!("MODERN_TRACKER_EMPTY_HASH {}", tracker_canvas_hash(&hud));
+    sync(&mut hud, ActiveSkin::Forever);
+    let map = rect(&hud, MINIMAP_CLUSTER);
+    let tracker = rect(&hud, TRACKER_FRAME);
+    let header = rect(&hud, "ObjectiveTrackerFrameHeaderBackground");
+    // FlareUI Modules/Minimap.lua:371-379,401-406: SetScale(frame outer width / 288), the
+    // 288 visible pixels of the 300-pixel header line; here 260 / 288. SetScale also scales
+    // the Mainline TOPRIGHT (-110, -275) offsets: right edge 1366 - 99.306, top 248.264.
+    let actual = [
+        tracker.x,
+        tracker.y,
+        tracker.width,
+        tracker.height,
+        header.width,
+    ];
+    let expected = [1031.9722, 248.26389, 234.72223, 28.88889, 270.83334];
+    for (actual, expected) in actual.into_iter().zip(expected) {
+        assert!((actual - expected).abs() < 0.001, "{actual} != {expected}");
+    }
+    assert!((header.width * 288.0 / 300.0 - map.width).abs() < 0.001);
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_rect(&hud, TRACKER_FRAME, (996.0, 275.0, 260.0, 32.0));
+    assert_eq!(
+        rect(&hud, "ObjectiveTrackerFrameHeaderBackground"),
+        modern_header
+    );
+}
+
+/// Snapshot the external frame data and computed bounds, not the RSX construction.
+fn tracker_canvas_hash(hud: &[RegistryModel]) -> u64 {
+    use std::hash::{DefaultHasher, Hash, Hasher};
+    let registry = &hud.last().unwrap().registry;
+    let rects = compute_layout_with_intrinsics(registry, &HashMap::new()).unwrap();
+    let mut frames: Vec<_> = registry.frames_iter().collect();
+    frames.sort_by_key(|frame| frame.id);
+    let mut hash = DefaultHasher::new();
+    for frame in frames {
+        format!(
+            "{:?} {:?} {:?} {} {} {:?} {:?} {:?} {:?}",
+            frame.name,
+            frame.parent_id,
+            rects[&frame.id],
+            frame.visible,
+            frame.alpha,
+            frame.background_color,
+            frame.widget_data,
+            frame.strata,
+            frame.onclick,
+        )
+        .hash(&mut hash);
+    }
+    hash.finish()
+}
+
+#[test]
+fn forever_tracker_scales_quest_text_art_and_hit_rects_without_changing_modern() {
+    set_data_root();
+    let state = ObjectiveTrackerState {
+        quests: vec![TrackedQuest {
+            quest_id: 783,
+            title: "A Threat Within".into(),
+            complete: false,
+            lines: vec![
+                ObjectiveLine {
+                    text: "2/8 Defias slain".into(),
+                    style: ObjectiveLineStyle::InProgress,
+                },
+                ObjectiveLine {
+                    text: "Marshal McBride found".into(),
+                    style: ObjectiveLineStyle::Completed,
+                },
+            ],
+        }],
+        ..Default::default()
+    };
+    let mut hud = [model(state, objective_tracker_screen)];
+    sync(&mut hud, ActiveSkin::Modern);
+    let modern = tracker_canvas_hash(&hud);
+    println!("MODERN_TRACKER_POPULATED_HASH {modern}");
+    sync(&mut hud, ActiveSkin::Forever);
+    let registry = &hud[0].registry;
+    for (name, expected) in [
+        ("ObjectiveTrackerFrameHeaderText", 12.638889),
+        ("QuestBlock783HeaderText", 10.833333),
+        ("QuestBlock783Line0Text", 10.833333),
+    ] {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Some(ui_toolkit::frame::WidgetData::FontString(font)) = &frame.widget_data else {
+            panic!("{name} is not text");
+        };
+        assert!((font.font_size - expected).abs() < 0.001, "{name}");
+    }
+    let hit = rect(&hud, "QuestBlock783POIButton");
+    assert!((hit.width - 18.055555).abs() < 0.001);
+    assert!((hit.height - 18.055555).abs() < 0.001);
+    let check = rect(&hud, "QuestBlock783Line1Check");
+    assert!((check.width - 14.444445).abs() < 0.001);
+    sync(&mut hud, ActiveSkin::Modern);
+    assert_eq!(tracker_canvas_hash(&hud), modern);
 }
 
 /// Retail Arcane Charges: `PlayerFrameBottomManagedFramesContainer` top 4 px below the
