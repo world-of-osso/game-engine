@@ -131,4 +131,4 @@ impl RegistryUi {
 
 #[cfg(test)]
 #[path = "scroll_lists_tests.rs"]
-mod tests;
+pub(super) mod tests;

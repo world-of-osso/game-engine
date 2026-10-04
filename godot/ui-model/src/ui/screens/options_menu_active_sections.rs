@@ -9,7 +9,7 @@ use ui_toolkit::widgets::toggle::{ToggleWidget, toggle_widget};
 
 use super::options_menu_component::{
     CameraOptionsView, GraphicsOptionsView, HudOptionsView, KeybindingRowView, KeybindingsView,
-    LayoutOptionsView, OptionsPage, SoundOptionsView, keybinding_clear_action,
+    LayoutOptionsView, OptionsPage, SoundOptionsView, keybinding_button_name,
     keybinding_rebind_action, keybinding_section_action,
 };
 use super::options_menu_sections;
@@ -62,7 +62,16 @@ const NAMEPLATE_DISTANCE_MIN: f32 = 20.0;
 const NAMEPLATE_DISTANCE_MAX: f32 = 80.0;
 const CHAT_FONT_SIZE_MIN: f32 = 8.0;
 const CHAT_FONT_SIZE_MAX: f32 = 16.0;
-const BINDING_VALUE_W: f32 = 180.0;
+const BINDING_BUTTON_W: f32 = 160.0;
+const BINDING_BUTTON_H: f32 = 28.0;
+const BINDING_OUTPUT_H: f32 = 18.0;
+/// `GameFontHighlightSmall` white; `GRAY_FONT_COLOR` at the button's 0.8 alpha.
+const BINDING_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
+const BINDING_NOT_BOUND_COLOR: &str = "0.5,0.5,0.5,0.8";
+/// `OutputText` is `GameFontWhite` (`Blizzard_SettingsPanel.xml:18`); `KEY_UNBOUND_ERROR`
+/// is wrapped in `|cffff0000`.
+const BINDING_OUTPUT_COLOR: &str = "1.0,1.0,1.0,1.0";
+const BINDING_OUTPUT_ERROR_COLOR: &str = "1.0,0.0,0.0,1.0";
 const KEYBINDING_TAB_LEAD_X: f32 = 11.0;
 const KEYBINDING_TAB_H: f32 = 32.0;
 const KEYBINDING_TAB_GAP: f32 = 1.0;

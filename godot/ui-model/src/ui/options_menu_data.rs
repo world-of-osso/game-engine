@@ -13,9 +13,9 @@ use crate::ui::screens::options_menu_active_sections::{
     LAYOUT_CHOICE_KEY, LAYOUT_FONT_KEY, LAYOUT_SYSTEM_KEY,
 };
 use crate::ui::screens::options_menu_component::{
-    ACTION_RESET_LAYOUT_SETTINGS, CameraOptionsView, GraphicsOptionsView, HudOptionsView,
-    KeybindingRowView, KeybindingsView, LayoutOptionsView, LayoutSystem, OptionsCategory,
-    OptionsViewModel, SoundOptionsView,
+    ACTION_RESET_LAYOUT_SETTINGS, BindingOutputView, CameraOptionsView, GraphicsOptionsView,
+    HudOptionsView, KeybindingRowView, KeybindingsView, LayoutOptionsView, LayoutSystem,
+    OptionsCategory, OptionsViewModel, SoundOptionsView,
 };
 use game_engine_core::ui_layout_data::{
     CHAT_HEIGHT_RANGE, CHAT_WIDTH_RANGE, DAMAGE_METER_HEIGHT_RANGE, DAMAGE_METER_WIDTH_RANGE,
@@ -200,11 +200,56 @@ pub struct ApplySnapshot {
     pub modal_position: [f32; 2],
 }
 
+/// Key Bindings page state: listening for a key, or the result of the last capture, which
+/// Retail shows as the settings panel's output text (`SettingsPanelMixin:OnKeybind*`,
+/// `Blizzard_Settings_Shared/Blizzard_SettingsPanel.lua:944-982`).
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum BindingCapture {
     None,
-    Armed(InputAction),
+    /// The next key or mouse button binds this action; Escape cancels.
     Listening(InputAction),
+    /// The captured key was free (`KEY_BOUND`).
+    Bound,
+    /// The captured key was taken from this action, which is now unbound
+    /// (`KEY_UNBOUND_ERROR`).
+    Unbound(InputAction),
+}
+
+/// Left-click on an action's binding button: listen for its key
+/// (`Blizzard_Keybindings.lua:425-433`).
+pub fn listen_for_binding(model: &mut OptionsModel, action: InputAction) {
+    model.binding_capture = BindingCapture::Listening(action);
+}
+
+/// Bind the captured key to the listening action, moving it from the action that held it
+/// (`KeybindListener:ProcessInput`, `Blizzard_Keybindings.lua:76-119`). Returns false when
+/// nothing listens.
+pub fn capture_binding(model: &mut OptionsModel, binding: InputBinding) -> bool {
+    let BindingCapture::Listening(action) = model.binding_capture else {
+        return false;
+    };
+    model.binding_capture = match model.draft_bindings.assign(action, binding) {
+        Some(unbound) => BindingCapture::Unbound(unbound),
+        None => BindingCapture::Bound,
+    };
+    true
+}
+
+/// Escape while listening stops listening and changes nothing (`ProcessInput`,
+/// `Blizzard_Keybindings.lua:89-92`). Returns false when nothing listens.
+pub fn cancel_binding_capture(model: &mut OptionsModel) -> bool {
+    if !matches!(model.binding_capture, BindingCapture::Listening(_)) {
+        return false;
+    }
+    model.binding_capture = BindingCapture::None;
+    true
+}
+
+/// Right-click on an action's binding button unbinds it and clears the output text
+/// (`Blizzard_Keybindings.lua:434-440`).
+pub fn unbind_action(model: &mut OptionsModel, action: InputAction) {
+    model.draft_bindings.clear(action);
+    model.binding_capture = BindingCapture::None;
 }
 
 pub fn sound_draft_from_file(s: &SoundOptionsFile) -> SoundDraft {
@@ -335,7 +380,7 @@ pub fn build_view_model(model: &OptionsModel) -> GameMenuViewModel {
             bindings: bindings_view(
                 &model.draft_bindings,
                 model.binding_section,
-                current_capture_action(model.binding_capture),
+                model.binding_capture,
             ),
             layout: model.layout.clone(),
         },
@@ -345,26 +390,46 @@ pub fn build_view_model(model: &OptionsModel) -> GameMenuViewModel {
 fn bindings_view(
     bindings: &InputBindingsData,
     section: BindingSection,
-    capture_action: Option<InputAction>,
+    capture: BindingCapture,
 ) -> KeybindingsView {
+    let capture_action = current_capture_action(capture);
     let rows = actions_for_section(section)
         .iter()
         .map(|action| KeybindingRowView {
             action: *action,
             label: action.label().to_string(),
-            binding_text: bindings
-                .binding(*action)
-                .map(InputBinding::display)
-                .unwrap_or_else(|| "Unbound".to_string()),
+            binding_text: bindings.binding(*action).map(InputBinding::display),
             capturing: capture_action == Some(*action),
-            can_clear: bindings.binding(*action).is_some(),
         })
         .collect();
     KeybindingsView {
         section,
         capture_action,
+        output: binding_output(capture),
         rows,
     }
+}
+
+/// Retail's output text for the binding state: `SETTINGS_BIND_KEY_TO_COMMAND_OR_CANCEL`
+/// with `GetBindingText("ESCAPE")` while listening, `KEY_BOUND` after a free key, and the
+/// red `KEY_UNBOUND_ERROR` naming the action a moved key came from
+/// (`Blizzard_SettingsPanel.lua:966,971-982`; GlobalStrings 49041, 15521, 10748, 12026).
+fn binding_output(capture: BindingCapture) -> Option<BindingOutputView> {
+    let (text, error) = match capture {
+        BindingCapture::None => return None,
+        BindingCapture::Listening(action) => (
+            format!(
+                "Assign Binding for \"{}\" or Press Escape to Cancel",
+                action.label()
+            ),
+            false,
+        ),
+        BindingCapture::Bound => ("Key Bound Successfully".to_string(), false),
+        BindingCapture::Unbound(action) => {
+            (format!("Action {} is Now Unbound!", action.label()), true)
+        }
+    };
+    Some(BindingOutputView { text, error })
 }
 
 pub fn parse_slider_action(action: &str) -> Option<SliderField> {
@@ -553,10 +618,6 @@ pub fn parse_binding_section_action(action: &str) -> Option<BindingSection> {
 
 pub fn parse_binding_rebind_action(action: &str) -> Option<InputAction> {
     InputAction::from_key(action.strip_prefix("options_binding_rebind:")?)
-}
-
-pub fn parse_binding_clear_action(action: &str) -> Option<InputAction> {
-    InputAction::from_key(action.strip_prefix("options_binding_clear:")?)
 }
 
 pub fn parse_step_action(action: &str) -> Option<(&str, i32)> {
@@ -917,8 +978,8 @@ pub fn apply_hud_file_snapshot(h: &mut HudOptionsFile, d: &HudDraft) {
 
 pub fn current_capture_action(capture: BindingCapture) -> Option<InputAction> {
     match capture {
-        BindingCapture::None => None,
-        BindingCapture::Armed(action) | BindingCapture::Listening(action) => Some(action),
+        BindingCapture::Listening(action) => Some(action),
+        BindingCapture::None | BindingCapture::Bound | BindingCapture::Unbound(_) => None,
     }
 }
 
