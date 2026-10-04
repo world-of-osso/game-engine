@@ -63,7 +63,7 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 
 ## 2026-10-04 — Zephras FDID terrain and real-byte MFBO defects
 
-[[terrain#Forever Zephras (map 2991)]] records merged retail/Forever map identities, WDT MAIN/MAID streaming, corrected sample coordinate ordering, local-CASC recursive cache provisioning and 169 missing-archive failures. Native reader 1/1 and importer 5/5 passed; real sample acceptance exposed MFBO tag/plane-order bugs. Corrected parser and rendered runtime proof pending. [Contract](../specs/zephras-world-map.md).
+[[terrain#Forever Zephras (map 2991)]] records merged retail/Forever map identities, WDT MAIN/MAID streaming, corrected sample coordinate ordering, local-CASC recursive cache provisioning and 169 missing-archive failures. Map/WDT 4/4, corrected sample 1/1, native reader 3/3 and importer 6/6 passed; real sample exposed MFBO tag/plane-order bugs and disproved the readiness report's legacy-placement split. Offscreen capture shows 256 terrain meshes, 250 doodads and five WMO roots. Full closure, settled readiness and clean-resource lifetime remain unproved; named-companion compatibility and no-fallback tests passed. [Contract](../specs/zephras-world-map.md).
 
 ## 2026-10-04 — Canonical toolkit integration and retained Skyborn blocker
 

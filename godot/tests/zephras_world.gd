@@ -65,7 +65,7 @@ func run_test() -> void:
 			fail("Cannot capture rendered map")
 			return
 		var meshes := tile.find_children("*", "MeshInstance3D", true, false)
-		print("ZEPHRAS_PROOF chunks=%d doodad_nodes=%d wmo_nodes=%d height=%s terrain=%s objects=%s screenshot=%s lighting=fixture-retail-default" % [meshes.size(), doodads.size(), wmos.size(), height, state.terrain, state.world_objects, OUTPUT])
+		print("ZEPHRAS_PROOF chunks=%d doodad_nodes=%d wmo_nodes=%d height=%s terrain=%s objects=%s screenshot=%s lighting=fixture-neutral" % [meshes.size(), doodads.size(), wmos.size(), height, state.terrain, state.world_objects, OUTPUT])
 		if meshes.size() < 256:
 			fail("Expected 256 terrain meshes")
 			return
