@@ -507,3 +507,63 @@ fn target_cast_follows_target_rect_and_switches_preset_without_moving_player_cas
     sync(&mut hud, ActiveSkin::Modern);
     assert_rect(&hud, "TargetFrameSpellBar", (1026.0, 513.0, 150.0, 10.0));
 }
+
+/// Party and raid members stack without overlapping inside their group frame under both
+/// presets. FlareUI's hidden party title (`Core.lua:392`, `Modules/Tweaks.lua:869-874`) is a
+/// `Hide()`: the members stay where Modern has them.
+#[test]
+fn group_members_do_not_overlap_and_keep_their_place_without_the_party_title() {
+    set_data_root();
+    let five = || {
+        (1..=5)
+            .map(|n| member(&format!("Fbhud{n}")))
+            .collect::<Vec<_>>()
+    };
+    let groups = GroupFramesState {
+        party: five(),
+        raid: vec![five(), five()],
+        ..Default::default()
+    };
+    let mut hud = [model(groups, group_frames_screen)];
+    let members: Vec<String> = (1..=5)
+        .flat_map(|n| {
+            [
+                format!("CompactPartyFrameMember{n}"),
+                format!("CompactRaidGroup1Member{n}"),
+                format!("CompactRaidGroup2Member{n}"),
+            ]
+        })
+        .collect();
+    let mut rects = Vec::new();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        sync(&mut hud, skin);
+        let placed: Vec<_> = members.iter().map(|name| rect(&hud, name)).collect();
+        for (at, a) in placed.iter().enumerate() {
+            for (other, b) in placed.iter().enumerate().skip(at + 1) {
+                // The party and the raid are separate frames, never shown together.
+                if members[at].contains("Party") != members[other].contains("Party") {
+                    continue;
+                }
+                let apart = a.x + a.width <= b.x
+                    || b.x + b.width <= a.x
+                    || a.y + a.height <= b.y
+                    || b.y + b.height <= a.y;
+                assert!(
+                    apart,
+                    "{} overlaps {} under {skin:?}",
+                    members[at], members[other]
+                );
+            }
+        }
+        let party = rect(&hud, "CompactPartyFrame");
+        let last = rect(&hud, "CompactPartyFrameMember5");
+        assert_eq!(last.y + last.height, party.y + party.height, "{skin:?}");
+        rects.push(
+            placed
+                .iter()
+                .map(|r| (r.x, r.y, r.width, r.height))
+                .collect::<Vec<_>>(),
+        );
+    }
+    assert_eq!(rects[0], rects[1]);
+}
