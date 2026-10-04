@@ -34,7 +34,7 @@ game-engine-session = { path = "../session" }
 # Authoritative wire message types; engine scheduling stays inside the network worker.
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 game-engine-ui-model = { path = "../ui-model" }
-ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit-godot-conversion/core" }
+ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
 # Preserve the authored registry layout semantics and local rounding fix.
 taffy = "0.10.1"
 # Decode the existing authored KTX2 UI assets without converting their source files.
