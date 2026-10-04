@@ -2556,3 +2556,7 @@ Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-b
 ## 2026-10-04 — XP HUD
 
 [[xp-bar]]: Retail experience bar screen for both presets, mounted from the owner-only `PlayerXpUpdate`. Forever geometry measured from the reference screenshot (596×17 gamepad container at the top centre); no protocol change. CPU tests only, no live capture.
+
+## 2026-10-04 — Turned UI textures
+
+[[ui-rounding-seams]]: a texture turned about its centre keeps its exact rect through layout; fixes the 1 px step between the Forever XP bar's border edges and corners. Live capture `data/diagnostics/xpborder-2026-10-04/`.
