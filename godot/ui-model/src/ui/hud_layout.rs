@@ -3,7 +3,7 @@
 //! unit-frame and cast-bar positions (FlareUI 1.3 `Modules/UnitFrames.lua:1888-1894`) and
 //! Forever's own Edit Mode preset, the Mainline layouts with Camelot constants
 //! (`Blizzard_EditMode/Camelot/EditModePresetLayoutConstants.lua`), for the rest, except
-//! the reference-centred main bar and hidden utility bars. A screen
+//! the reference's three centred action bars and hidden utility bars. A screen
 //! reads its preset through the canvas's `ActiveSkin`, so a preset switch rebuilds it.
 
 use ui_toolkit::atlas::ActiveSkin;
@@ -11,7 +11,7 @@ use ui_toolkit::screen::SharedContext;
 
 use Point::*;
 
-use crate::main_action_bar_component::{BAR_BOTTOM, BAR_W, BUTTON_SIZE};
+use crate::main_action_bar_component::{BAR_BOTTOM, BUTTON_PADDING, BUTTON_SIZE};
 use crate::micro_menu::MICRO_MENU_W;
 use crate::minimap::FOREVER_CLUSTER_SIZE;
 use crate::ui::screens::inworld_unit_frames_component::{
@@ -121,6 +121,57 @@ impl HudAnchor {
     }
 }
 
+/// One action bar's Edit Mode settings (`EditModePresetLayouts.lua:11-27`,
+/// `Shared/EditModeSettingDisplayInfo.lua:50-79`).
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct ActionBarLayout {
+    pub anchor: HudAnchor,
+    /// `NumIcons` (6..=12): the first buttons of the bar's 12 that show.
+    pub num_icons: usize,
+    /// `NumRows` (1..=4).
+    pub num_rows: usize,
+    /// `IconSize` / 100 (50 % to 200 %): the button containers' `SetScale`, which scales
+    /// the padding between them too (`EditModeSystemTemplates.lua:1077-1088`).
+    pub icon_scale: f32,
+}
+
+impl ActionBarLayout {
+    /// Buttons per row: `math.ceil(#shownButtonContainers / numRows)` (`ActionBar.lua:100`).
+    pub const fn stride(&self) -> usize {
+        self.num_icons.div_ceil(self.num_rows)
+    }
+
+    /// Rows the buttons fill at that stride.
+    pub const fn rows(&self) -> usize {
+        self.num_icons.div_ceil(self.stride())
+    }
+
+    /// Distance between neighbouring buttons' origins when the skin scales buttons by `scale`.
+    const fn pitch(&self, scale: f32) -> f32 {
+        (BUTTON_SIZE + BUTTON_PADDING) * scale * self.icon_scale
+    }
+
+    /// The bar's width and height.
+    pub const fn size(&self, scale: f32) -> (f32, f32) {
+        let padding = BUTTON_PADDING * scale * self.icon_scale;
+        (
+            self.stride() as f32 * self.pitch(scale) - padding,
+            self.rows() as f32 * self.pitch(scale) - padding,
+        )
+    }
+
+    /// Button `index`'s top-left inside the bar: rows fill left to right and stack upward
+    /// from the bottom-left (`addButtonsToRight`/`addButtonsToTop`, `MainActionBar.xml:41`,
+    /// `MultiActionBars.xml:53-54`, `ActionBar.lua:108-138`).
+    pub const fn button_origin(&self, index: usize, scale: f32) -> (f32, f32) {
+        let row_from_top = self.rows() - 1 - index / self.stride();
+        (
+            (index % self.stride()) as f32 * self.pitch(scale),
+            row_from_top as f32 * self.pitch(scale),
+        )
+    }
+}
+
 /// Where a preset puts each HUD frame.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct HudLayout {
@@ -130,7 +181,11 @@ pub struct HudLayout {
     pub focus: HudAnchor,
     pub pet: HudAnchor,
     pub cast_bar: HudAnchor,
-    pub main_action_bar: HudAnchor,
+    pub main_action_bar: ActionBarLayout,
+    /// `MultiBarBottomLeft` (Action Bar 2) and `MultiBarBottomRight` (Action Bar 3); `None`
+    /// while the bar is not enabled.
+    pub action_bar_2: Option<ActionBarLayout>,
+    pub action_bar_3: Option<ActionBarLayout>,
     pub pet_action_bar: HudAnchor,
     pub micro_menu: HudAnchor,
     pub bags_bar: HudAnchor,
@@ -156,6 +211,13 @@ const TOT_LEFT: f32 = 300.0 + UNIT_FRAME_W + SMALL_FRAME_GAP;
 /// `MicroButtonAndBagsBar` 232×80 at BOTTOMRIGHT (-6, 6).
 const MICRO_BAGS_BAR: (f32, f32) = (-6.0, 6.0 + 80.0);
 
+const MODERN_MAIN_ACTION_BAR: ActionBarLayout = ActionBarLayout {
+    anchor: anchor(Bottom, Bottom, 0.0, BAR_BOTTOM),
+    num_icons: 12,
+    num_rows: 1,
+    icon_scale: 1.0,
+};
+
 pub const MODERN: HudLayout = HudLayout {
     // EditModePresetLayouts.lua:231-257.
     player: anchor(BottomRight, Bottom, -300.0, 250.0),
@@ -177,13 +239,19 @@ pub const MODERN: HudLayout = HudLayout {
     ),
     // Centred above two action bar rows.
     cast_bar: anchor(Bottom, Bottom, 0.0, 152.0),
-    // `MAIN_ACTION_BAR_DEFAULT_OFFSET_Y` (Standard/EditModePresetLayoutConstants.lua:2).
-    main_action_bar: anchor(Bottom, Bottom, 0.0, BAR_BOTTOM),
+    // `MAIN_ACTION_BAR_DEFAULT_OFFSET_Y` (Standard/EditModePresetLayoutConstants.lua:2);
+    // settings EditModePresetLayouts.lua:11-19.
+    main_action_bar: MODERN_MAIN_ACTION_BAR,
+    // Both frames are `hidden="true"` (MultiActionBars.xml:45,75) until the player ticks
+    // "Action Bar 2/3" (`GetActionBarToggles`, MultiActionBars.lua:17-33,79-91,
+    // Blizzard_SettingsDefinitions_Frame/ActionBars.lua:9,29-30); no such toggle exists here.
+    action_bar_2: None,
+    action_bar_3: None,
     // Standard constants :2,12 and EditModeManager.lua's fixed bottom stack.
     pet_action_bar: anchor(
         BottomLeft,
         Bottom,
-        -BAR_W / 2.0,
+        -MODERN_MAIN_ACTION_BAR.size(1.0).0 / 2.0,
         BAR_BOTTOM + BUTTON_SIZE + 5.0,
     ),
     // Micro menu BOTTOMRIGHT and bags TOPRIGHT (0, 10) of `MicroButtonAndBagsBar`
@@ -220,10 +288,42 @@ pub const MODERN: HudLayout = HudLayout {
 
 /// Camelot `MICRO_MENU_ANCHOR_*` BOTTOM (116.5, 6) (EditModePresetLayoutConstants.lua:38-42).
 const CAMELOT_MICRO_MENU: (f32, f32) = (116.5, 6.0);
-/// Reference correction: centre the existing bar, retaining Camelot's bottom inset.
-const FOREVER_MAIN_ACTION_BAR: HudAnchor = anchor(Bottom, Bottom, 0.0, 2.0);
 /// FlareUI Core.lua:102-107,218; ActionBars.lua:43,179-190 includes pet buttons.
 pub const FOREVER_ACTION_BUTTON_SCALE: f32 = 1.06;
+
+/// The reference player's Edit Mode layout, measured on
+/// `user-flareui-reddit-e6wzfwkui5th1.png`: three centred bars stacked from Camelot's
+/// bottom inset 2, the lower two of 9 buttons (pitch 76 px), the top one of 10 smaller
+/// buttons (pitch 59 px, so 59/76 of the lower rows' size), rows 3-5 px apart, which is the
+/// button padding. Which bars and `IconSize` steps the player uses is not recoverable.
+const FOREVER_BAR_GAP: f32 = BUTTON_PADDING * FOREVER_ACTION_BUTTON_SCALE;
+const FOREVER_SMALL_ICON_SCALE: f32 = 0.78;
+
+const fn forever_bar(bottom: f32, num_icons: usize, icon_scale: f32) -> ActionBarLayout {
+    ActionBarLayout {
+        anchor: anchor(Bottom, Bottom, 0.0, bottom),
+        num_icons,
+        num_rows: 1,
+        icon_scale,
+    }
+}
+
+/// The offset of a bar's top edge above UIParent's bottom.
+const fn forever_bar_top(bar: &ActionBarLayout) -> f32 {
+    bar.anchor.y + bar.size(FOREVER_ACTION_BUTTON_SCALE).1
+}
+
+const FOREVER_MAIN_ACTION_BAR: ActionBarLayout = forever_bar(2.0, 9, 1.0);
+const FOREVER_ACTION_BAR_2: ActionBarLayout = forever_bar(
+    forever_bar_top(&FOREVER_MAIN_ACTION_BAR) + FOREVER_BAR_GAP,
+    9,
+    1.0,
+);
+const FOREVER_ACTION_BAR_3: ActionBarLayout = forever_bar(
+    forever_bar_top(&FOREVER_ACTION_BAR_2) + FOREVER_BAR_GAP,
+    10,
+    FOREVER_SMALL_ICON_SCALE,
+);
 
 /// FlareUI Modules/Minimap.lua:366-379,401-406 ("Match Objective Tracker Width", default on,
 /// Core.lua:262): `ObjectiveTrackerFrame:SetScale(minimap frame outer width / 288)`, 288
@@ -250,17 +350,19 @@ pub const FOREVER: HudLayout = HudLayout {
     micro_menu: anchor(Bottom, Bottom, CAMELOT_MICRO_MENU.0, CAMELOT_MICRO_MENU.1),
     // The reference uses the player's Edit Mode layout, not Camelot's combined strip.
     main_action_bar: FOREVER_MAIN_ACTION_BAR,
+    action_bar_2: Some(FOREVER_ACTION_BAR_2),
+    action_bar_3: Some(FOREVER_ACTION_BAR_3),
     // FlareUI Visibility.lua:317-344 supports permanent hiding. Reference profile's
     // exact hide/fade settings are unknown; this preset matches its visible result.
     hide_utility_bars: true,
     // Mainline/EditModePresetLayouts.lua:183-198; Camelot constants :3,31,35.
     // Shared/EditModeManager.lua:664-672,703-718: BOTTOMLEFT on the base bar's
-    // BOTTOMLEFT, above its scaled height + 4, indented 30.
+    // BOTTOMLEFT, indented 30, 4 above the topmost bar of the bottom stack.
     pet_action_bar: anchor(
         BottomLeft,
         Bottom,
-        FOREVER_MAIN_ACTION_BAR.x - BAR_W * FOREVER_ACTION_BUTTON_SCALE / 2.0 + 30.0,
-        FOREVER_MAIN_ACTION_BAR.y + BUTTON_SIZE * FOREVER_ACTION_BUTTON_SCALE + 4.0,
+        -FOREVER_MAIN_ACTION_BAR.size(FOREVER_ACTION_BUTTON_SCALE).0 / 2.0 + 30.0,
+        forever_bar_top(&FOREVER_ACTION_BAR_3) + 4.0,
     ),
     // `BAGS_ANCHOR_*`: BOTTOMLEFT on the micro menu's BOTTOMRIGHT at (7, -4) (:45-49).
     bags_bar: anchor(

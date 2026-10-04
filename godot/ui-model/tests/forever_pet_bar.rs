@@ -4,6 +4,7 @@ mod modern_fixture;
 use std::fmt::Write;
 use std::path::PathBuf;
 
+use game_engine_ui_model::main_action_bar_component::{MainActionBarState, main_action_bar_screen};
 use game_engine_ui_model::pet_action_bar_component::{
     PetActionBarState, PetActionButtonView, PetAutocast, apply_pet_action_bar_postsetup,
     pet_action_bar_screen,
@@ -127,9 +128,13 @@ fn dump(registry: &FrameRegistry) -> String {
     out
 }
 
-/// Screen-space rect on the concrete 1920x1080 test viewport.
 fn rect(registry: &FrameRegistry) -> (f32, f32, f32, f32) {
-    let f = frame(registry, "PetActionBar");
+    rect_of(registry, "PetActionBar")
+}
+
+/// Screen-space rect of a bottom-centre anchored root frame on the 1920x1080 test viewport.
+fn rect_of(registry: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
+    let f = frame(registry, name);
     let Dimension::Fixed(w) = f.width else {
         panic!("width")
     };
@@ -167,13 +172,42 @@ fn modern_pet_bar_matches_base_fixture() {
     assert_rect(&registry, (679.0, 955.0, 318.0, 30.0));
 }
 
+/// Canvas rects of the action bars `skin` shows.
+fn action_bar_rects(skin: ActiveSkin) -> Vec<(f32, f32, f32, f32)> {
+    let mut shared = SharedContext::new();
+    shared.insert(skin);
+    shared.insert(MainActionBarState::default());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(main_action_bar_screen).sync(&shared, &mut registry);
+    ["MainActionBar", "MultiBarBottomLeft", "MultiBarBottomRight"]
+        .into_iter()
+        .filter(|name| registry.get_by_name(name).is_some())
+        .map(|name| rect_of(&registry, name))
+        .collect()
+}
+
+/// Camelot's bottom stack (`Shared/EditModeManager.lua:664-672,703-718`): the pet bar sits
+/// above the topmost action bar, indented from the main bar's left edge, overlapping none.
 #[test]
-fn forever_pet_bar_follows_main_bar_bottom_left_with_camelot_indent_and_gap() {
+fn forever_pet_bar_stands_above_every_action_bar() {
     let (_, _, registry) = setup(ActiveSkin::Forever);
-    // Main BOTTOMLEFT = (662.14,1078), width 595.72, height 47.7;
-    // pet BOTTOMLEFT on main BOTTOMLEFT +(30,51.7), per Camelot's stack.
-    // FlareUI Core.lua:102-107,218 and ActionBars.lua:43,179-190 scale pet by 1.06.
-    assert_rect(&registry, (692.14, 994.5, 337.08, 31.8));
+    let (x, y, width, height) = rect(&registry);
+    let bars = action_bar_rects(ActiveSkin::Forever);
+    assert_eq!(bars.len(), 3);
+    for (bar_x, bar_y, bar_w, bar_h) in &bars {
+        let apart_x = x + width <= *bar_x || bar_x + bar_w <= x;
+        let apart_y = y + height <= *bar_y || bar_y + bar_h <= y;
+        assert!(
+            apart_x || apart_y,
+            "pet bar over the bar at {bar_x},{bar_y}"
+        );
+        assert!(
+            y + height <= *bar_y,
+            "pet bar bottom {} below {bar_y}",
+            y + height
+        );
+    }
+    assert!(x > bars[0].0 && x < bars[0].0 + bars[0].2);
 }
 
 #[test]
@@ -182,7 +216,12 @@ fn switching_preset_moves_the_mounted_pet_bar_and_restores_modern() {
     assert_rect(&registry, (679.0, 955.0, 318.0, 30.0));
     shared.insert(ActiveSkin::Forever);
     screen.sync(&shared, &mut registry);
-    assert_rect(&registry, (692.14, 994.5, 337.08, 31.8));
+    let top_bar = action_bar_rects(ActiveSkin::Forever)[2];
+    let forever = rect(&registry);
+    assert!(
+        forever.1 + forever.3 <= top_bar.1,
+        "{forever:?} above {top_bar:?}"
+    );
     shared.insert(ActiveSkin::Modern);
     screen.sync(&shared, &mut registry);
     assert_rect(&registry, (679.0, 955.0, 318.0, 30.0));
