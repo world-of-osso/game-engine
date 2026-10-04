@@ -455,15 +455,6 @@ fn forever_chat_has_plain_text_tabs_separator_and_four_header_icons() {
         );
         assert!(registry.get_by_name(&format!("{name}Left")).is_none());
     }
-    for (name, x) in [
-        ("Channel", 321.0),
-        ("Menu", 356.0),
-        ("Social", 391.0),
-        ("Volume", 426.0),
-    ] {
-        let name = format!("ChatFrame1Flare{name}");
-        assert_eq!(rect(&registry, &name), (x, -6.0, 22.0, 22.0));
-    }
     assert!(registry.get_by_name("ChatFrame1CopyButton").is_none());
     assert_eq!(
         rect(&registry, "ChatFrame1Messages"),
@@ -482,9 +473,16 @@ fn assert_header_icons(
     let (_, header_top, _, header_height) = rect(registry, header);
     let (_, separator_top, _, _) = rect(registry, separator);
     let center = header_top + header_height / 2.0;
-    for (index, &(name, left)) in icons.iter().enumerate() {
+    let near = |a: f32, b: f32| (a - b).abs() < 0.001;
+    let mut previous_left = None;
+    for &(name, left) in icons {
         let button = rect(registry, name);
-        assert_eq!(button, (left, button_top, 22.0, 22.0), "{name}");
+        assert!(near(button.0, left), "{name}: left {} vs {left}", button.0);
+        assert_eq!(
+            (button.1, button.2, button.3),
+            (button_top, 22.0, 22.0),
+            "{name}"
+        );
         assert_eq!(button.1 + button.3 / 2.0, center, "{name}: button centre");
         assert!(
             button.1 + button.3 < separator_top,
@@ -495,10 +493,50 @@ fn assert_header_icons(
         assert_eq!(icon, (4.4, 4.4, 13.2, 13.2), "{icon_name}");
         assert!((button.1 + icon.1 + icon.3 / 2.0 - center).abs() < 0.00001);
         assert!(button.1 + icon.1 + icon.3 < separator_top);
-        if index > 0 {
-            assert_eq!(left - icons[index - 1].1, spacing);
+        if let Some(previous) = previous_left {
+            assert!(near(button.0 - previous, spacing), "{name}: pitch");
         }
+        previous_left = Some(button.0);
     }
+}
+
+/// FlareUI's header buttons are scaled 0.6 (Core.lua:161-176), so its `HEADER_STEP` 35 and
+/// `HEADER_FIRST_X` 25 (Chat.lua:472) are 21 and 15 units on the skin.
+const FLARE_HEADER_STEP: f32 = 21.0;
+const FLARE_HEADER_RIGHT: f32 = 15.0;
+
+/// The chat header buttons left to right, each placed from the skin's right edge: the last
+/// glyph (centred in its 22-unit button) ends `FLARE_HEADER_RIGHT` inside it.
+fn chat_header_icons(registry: &FrameRegistry) -> [(&'static str, f32); 4] {
+    let (skin_x, _, skin_width, _) = rect(registry, "ChatFrame1FlareSkin");
+    let last = skin_x + skin_width - FLARE_HEADER_RIGHT - 13.2 - 4.4;
+    let names = [
+        "ChatFrame1FlareChannel",
+        "ChatFrame1FlareMenu",
+        "ChatFrame1FlareSocial",
+        "ChatFrame1FlareVolume",
+    ];
+    std::array::from_fn(|index| (names[index], last - FLARE_HEADER_STEP * (3 - index) as f32))
+}
+
+#[test]
+fn forever_chat_header_icons_share_one_look() {
+    let chat = canvas(
+        ActiveSkin::Forever,
+        ChatFrameView::default(),
+        chat_frame_screen,
+    );
+    let looks: Vec<_> = chat_header_icons(&chat)
+        .iter()
+        .map(|(name, _)| {
+            let icon = texture(&chat, &format!("{name}Icon"));
+            (rect(&chat, &format!("{name}Icon")), icon.vertex_color)
+        })
+        .collect();
+    assert!(
+        looks.iter().all(|look| *look == looks[0]),
+        "every chat header glyph is one tinted texture of one size: {looks:?}"
+    );
 }
 
 #[test]
@@ -512,14 +550,9 @@ fn forever_header_icons_are_centred_equal_sized_and_clear_of_separator() {
         &chat,
         "ChatFrame1FlareHeader",
         "ChatFrame1FlareSeparator",
-        &[
-            ("ChatFrame1FlareChannel", 321.0),
-            ("ChatFrame1FlareMenu", 356.0),
-            ("ChatFrame1FlareSocial", 391.0),
-            ("ChatFrame1FlareVolume", 426.0),
-        ],
+        &chat_header_icons(&chat),
         -6.0,
-        35.0,
+        FLARE_HEADER_STEP,
     );
     let meter = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
     assert_header_icons(
