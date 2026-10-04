@@ -13,6 +13,8 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   JournalInstanceEntrance      FDID 5228481
   NPCModelItemSlotDisplayInfo  FDID 1340661
   UiTextureKit                 FDID 939159
+  SpellDescriptionVariables    FDID 1140004
+  SpellXDescriptionVariables   FDID 1724949
   ZoneLight                    FDID 1310253
   ZoneLightPoint               FDID 1310256
   AnimationData                FDID 1375431
@@ -107,6 +109,13 @@ TABLES = {
         [("ID", "id"), ("NpcModelID", "parent"), ("ItemDisplayInfoID", 0), ("ItemSlot", 1)],
     ),
     "UiTextureKit": (0x4740638A, [("ID", "id"), ("KitPrefix", ("string", 0))]),
+    # Spell description `$<name>` variables: SpellXDescriptionVariables links a spell to
+    # one SpellDescriptionVariables row whose Variables text defines `$name=...` lines.
+    "SpellDescriptionVariables": (0x33868CFD, [("ID", "id"), ("Variables", ("string", 0))]),
+    "SpellXDescriptionVariables": (
+        0x23F4E51E,
+        [("ID", "id"), ("SpellID", 0), ("SpellDescriptionVariablesID", 1)],
+    ),
     "ZoneLight": (
         0x94CE95E0,
         [

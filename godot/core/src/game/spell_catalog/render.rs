@@ -11,9 +11,11 @@
 //! `$lsingular:plural;`; `$@spelldesc`/`$@spelltooltip`/`$@spellaura`/
 //! `$@auradesc`/`$@spellname` references.
 //!
+//! `$<name>` reads the spell's `SpellDescriptionVariables` definition `$name=...`:
+//! rendered as text in the description, evaluated as a number inside `${...}`.
+//!
 //! Anything else (other caster stats such as `$pri`, level scaled effect points,
-//! power scaled points before the powers arrive, `$<var>` description variables, `$g`
-//! gender forms, inline icons) renders as the visible marker `{?<token>}` and logs one
+//! power scaled points before the powers arrive, `$g` gender forms, inline icons) renders as the visible marker `{?<token>}` and logs one
 //! warning per spell and token.
 
 use std::collections::HashSet;
@@ -21,11 +23,12 @@ use std::sync::{Mutex, OnceLock};
 
 use log::warn;
 
-use super::render_eval::{Expr, eval_condition, parse_expr};
+use super::render_eval::{Expr, Operand, eval_condition, parse_expr, variable_name};
 use super::{CatalogSpell, SpellCatalogData, SpellTextContext};
 
-/// `$@spelldesc` nesting beyond this renders a marker (reference cycles exist).
-const MAX_REFERENCE_DEPTH: u8 = 4;
+/// `$@spelldesc` and `$<name>` nesting beyond this renders a marker (reference cycles
+/// exist). Crusader Strike's `$<damage>` alone nests three variables deep.
+const MAX_REFERENCE_DEPTH: u8 = 8;
 
 pub(super) fn render_spell_text(
     text: &str,
@@ -85,11 +88,7 @@ impl Renderer<'_> {
             Some('?') => self.render_conditional(text, spell, out),
             Some('{') => self.render_expression(text, spell, out),
             Some('@') => self.render_reference(text, spell, out),
-            Some('<') => {
-                let len = body.find('>').map_or(text.len(), |end| end + 2);
-                self.unresolved(spell, &text[..len], out);
-                len
-            }
+            Some('<') => self.render_variable(text, spell, out),
             Some(op @ ('/' | '*')) => self.render_scaled(text, op, spell, out),
             _ => self.render_simple(text, spell, out),
         }
@@ -170,25 +169,91 @@ impl Renderer<'_> {
             self.unresolved(spell, "$?", out);
             return 2;
         }
-        let mut chosen = None;
-        for arm in &chain.arms {
-            match eval_condition(arm.condition, self, spell) {
-                Ok(true) => {
-                    chosen = Some(arm.branch);
-                    break;
-                }
-                Ok(false) => {}
-                Err(Unresolved) => {
-                    let raw = format!("$?{}", arm.condition.trim());
-                    self.unresolved(spell, &raw, out);
-                    return chain.len;
-                }
+        match self.choose_branch(&chain, spell) {
+            Ok(Some(branch)) => self.render_into(branch, spell, out),
+            Ok(None) => {}
+            Err(condition) => {
+                let raw = format!("$?{}", condition.trim());
+                self.unresolved(spell, &raw, out);
             }
         }
-        if let Some(branch) = chosen.or(chain.otherwise) {
-            self.render_into(branch, spell, out);
-        }
         chain.len
+    }
+
+    /// The branch the first true condition picks, else the `[else]` branch; `Err` holds
+    /// the first condition that cannot be evaluated.
+    fn choose_branch<'t>(
+        &self,
+        chain: &ConditionalChain<'t>,
+        spell: &CatalogSpell,
+    ) -> Result<Option<&'t str>, &'t str> {
+        for arm in &chain.arms {
+            match eval_condition(arm.condition, self, spell) {
+                Ok(true) => return Ok(Some(arm.branch)),
+                Ok(false) => {}
+                Err(Unresolved) => return Err(arm.condition),
+            }
+        }
+        Ok(chain.otherwise)
+    }
+
+    /// `$<name>` in description text: the definition rendered in place.
+    fn render_variable(&self, text: &str, spell: &CatalogSpell, out: &mut Out) -> usize {
+        let Some(name) = variable_name(&text[2..]) else {
+            out.text.push('$');
+            return 1;
+        };
+        let len = name.len() + 3;
+        match (
+            self.nested(),
+            variable_definition(&spell.description_variables, name),
+        ) {
+            (Some(nested), Some(definition)) => nested.render_into(definition, spell, out),
+            _ => self.unresolved(spell, &text[..len], out),
+        }
+        len
+    }
+
+    /// `$<name>` inside `${...}` or a condition: the definition's number.
+    fn variable_value(&self, name: &str, spell: &CatalogSpell) -> Result<f64, Unresolved> {
+        let definition =
+            variable_definition(&spell.description_variables, name).ok_or(Unresolved)?;
+        self.nested()
+            .ok_or(Unresolved)?
+            .definition_value(definition, spell)
+    }
+
+    /// A definition is one number form: `${expr}`, a `$?` chain whose branches are
+    /// definitions, or a bare expression (`$s1`). A trailing unmatched `}` is ignored:
+    /// Retail data has them (Crusader Strike's `$pvp=$?a134735[${1.3}][${1}]}`).
+    fn definition_value(&self, text: &str, spell: &CatalogSpell) -> Result<f64, Unresolved> {
+        let text = text.trim();
+        let (value, rest) = if text.starts_with("$?") {
+            let chain = parse_conditional_chain(text);
+            let branch = self.choose_branch(&chain, spell).map_err(|_| Unresolved)?;
+            let value = self.definition_value(branch.ok_or(Unresolved)?, spell)?;
+            (value, &text[chain.len..])
+        } else if text.starts_with("${") {
+            let len = 1 + braced_len(&text[1..], '{', '}');
+            let inner = text.get(2..len - 1).ok_or(Unresolved)?;
+            let value = self.evaluate(&parse_expr(inner)?, spell)?;
+            let precision = usize::from(decimal_suffix(&text[len..]).is_some()) * 2;
+            (value, &text[len + precision..])
+        } else {
+            (self.evaluate(&parse_expr(text)?, spell)?, "")
+        };
+        match rest.trim_end_matches('}').trim() {
+            "" => Ok(value),
+            _ => Err(Unresolved),
+        }
+    }
+
+    fn nested(&self) -> Option<Renderer<'_>> {
+        (self.depth < MAX_REFERENCE_DEPTH).then(|| Renderer {
+            catalog: self.catalog,
+            ctx: self.ctx,
+            depth: self.depth + 1,
+        })
     }
 
     fn render_reference(&self, text: &str, spell: &CatalogSpell, out: &mut Out) -> usize {
@@ -225,15 +290,9 @@ impl Renderer<'_> {
         spell: &CatalogSpell,
         out: &mut Out,
     ) {
-        let target = self.catalog.get(id);
-        let (Some(target), true) = (target, self.depth < MAX_REFERENCE_DEPTH) else {
+        let (Some(target), Some(nested)) = (self.catalog.get(id), self.nested()) else {
             self.unresolved(spell, raw, out);
             return;
-        };
-        let nested = Renderer {
-            catalog: self.catalog,
-            ctx: self.ctx,
-            depth: self.depth + 1,
         };
         let text = if aura {
             &target.aura_description
@@ -278,7 +337,10 @@ impl Renderer<'_> {
     }
 
     pub(super) fn evaluate(&self, expr: &Expr, spell: &CatalogSpell) -> Result<f64, Unresolved> {
-        expr.eval(&|token| self.value(token, spell))
+        expr.eval(&|operand| match operand {
+            Operand::Token(token) => self.value(token, spell),
+            Operand::Variable(name) => self.variable_value(name, spell),
+        })
     }
 
     fn unresolved(&self, spell: &CatalogSpell, raw: &str, out: &mut Out) {
@@ -422,7 +484,8 @@ fn effect_points(effect: &super::CatalogEffect, power: Option<super::CasterPower
         return Some(base);
     }
     let power = power?;
-    let bonus = |coefficient: f32, power: f32| (f64::from(coefficient) * f64::from(power)).trunc();
+    // f32 like the server and TrinityCore: 1.4f × 100 is 140, in f64 139.99999.
+    let bonus = |coefficient: f32, power: f32| f64::from((coefficient * power).trunc());
     Some(
         base + bonus(effect.attack_power_coefficient, power.attack_power)
             + bonus(effect.spell_power_coefficient, power.spell_power),
@@ -449,6 +512,42 @@ fn periodic_total(spell: &CatalogSpell, effect: &super::CatalogEffect, points: f
 
 fn duration_text(spell: &CatalogSpell) -> Option<String> {
     positive(spell.duration_ms).map(format_duration)
+}
+
+/// The text of definition `$name=...` in `SpellDescriptionVariables.Variables`. A
+/// definition runs until the next line that starts another one.
+fn variable_definition<'v>(variables: &'v str, name: &str) -> Option<&'v str> {
+    let start = definition_starts(variables)
+        .find(|(_, defined)| *defined == name)?
+        .0;
+    let body_start = start + name.len() + 2;
+    let end = definition_starts(variables)
+        .map(|(offset, _)| offset)
+        .find(|offset| *offset > start)
+        .unwrap_or(variables.len());
+    Some(variables[body_start..end].trim())
+}
+
+/// `(offset of the `$`, name)` of each line that starts a `$name=` definition.
+fn definition_starts(variables: &str) -> impl Iterator<Item = (usize, &str)> {
+    let mut offset = 0;
+    variables.split_inclusive('\n').filter_map(move |line| {
+        let line_start = offset;
+        offset += line.len();
+        let trimmed = line.trim_start();
+        let body = trimmed.strip_prefix('$')?;
+        let name_len = body
+            .bytes()
+            .take_while(|byte| byte.is_ascii_alphanumeric() || *byte == b'_')
+            .count();
+        body[name_len..]
+            .starts_with('=')
+            .then(|| {
+                let dollar = line_start + line.len() - trimmed.len();
+                (dollar, &body[..name_len])
+            })
+            .filter(|(_, name)| !name.is_empty())
+    })
 }
 
 /// `{`...`}` length including nested groups; unterminated groups run to the end.
