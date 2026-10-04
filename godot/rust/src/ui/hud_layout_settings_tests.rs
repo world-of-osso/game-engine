@@ -14,7 +14,7 @@ use game_engine_ui_model::options_menu_data::{
 use game_engine_ui_model::chat_frame::add_system_line;
 use game_engine_ui_model::chat_frame_component::{CHAT_MESSAGES, chat_frame_view};
 use game_engine_ui_model::damage_meter_component::damage_meter_row_name;
-use game_engine_ui_model::damage_meter_data::DamageMeterRow;
+use game_engine_ui_model::damage_meter_data::{DamageMeterRow, MeterType};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::widgets::font_string::{FontStringData, GameFont};
 
@@ -226,6 +226,65 @@ fn damage_meter_size_setting_resizes_the_window_its_rows_and_how_many_fit() {
         for index in 0..rows {
             assert_inside(&hud, &damage_meter_row_name(index), DAMAGE_METER_ROOT.0);
         }
+    }
+}
+
+/// Left and right edges of `name`.
+fn span(hud: &[RegistryModel], name: &str) -> (f32, f32) {
+    let rect = rect(hud, name);
+    (rect.x, rect.x + rect.width)
+}
+
+#[test]
+fn damage_meter_type_menu_and_clickable_death_rows_fit_the_window_at_any_size() {
+    set_data_root();
+    for skin in SKINS {
+        // Modern opens the type menu alone; Forever's one menu lists types and sessions.
+        let view = DamageMeterView {
+            meter_type: MeterType::Deaths,
+            type_menu_open: skin == ActiveSkin::Modern,
+            menu_open: skin == ActiveSkin::Forever,
+            ..meter_rows(30)
+        };
+        let mut hud = vec![model(view, damage_meter_screen)];
+        for (width, height) in [(600, 400), (200, 120)] {
+            let settings = LayoutSettings {
+                damage_meter: size(width, height),
+                ..Default::default()
+            };
+            sync_settings(&mut hud, skin, settings);
+            let window = span(&hud, DAMAGE_METER_ROOT.0);
+            let rows = shown_meter_rows(&hud);
+            assert!(rows >= 1, "{skin:?} {width}x{height}");
+            for index in 0..rows {
+                let row = damage_meter_row_name(index);
+                assert_inside(&hud, &row, DAMAGE_METER_ROOT.0);
+                // The click target covers its row.
+                assert_eq!(at(&hud, &format!("{row}Button")), at(&hud, &row));
+            }
+            let menu = span(&hud, "DamageMeterTypeMenu");
+            assert!(
+                menu.0 >= window.0 - 0.001 && menu.1 <= window.1 + 0.001,
+                "{skin:?} {width}x{height}: type menu {menu:?} outside {window:?}"
+            );
+            if skin == ActiveSkin::Forever {
+                assert_inside(&hud, "DamageMeterOtherTypeName", DAMAGE_METER_ROOT.0);
+                let (types, sessions) = (
+                    rect(&hud, "DamageMeterTypeMenu"),
+                    rect(&hud, "DamageMeterSessionMenu"),
+                );
+                let apart =
+                    types.x + types.width <= sessions.x || sessions.y + sessions.height <= types.y;
+                assert!(apart, "{width}x{height}: the menus overlap");
+            }
+        }
+        // In the roomy window the whole menu is inside it.
+        let settings = LayoutSettings {
+            damage_meter: size(600, 400),
+            ..Default::default()
+        };
+        sync_settings(&mut hud, skin, settings);
+        assert_inside(&hud, "DamageMeterTypeMenu", DAMAGE_METER_ROOT.0);
     }
 }
 
