@@ -200,15 +200,24 @@ pub struct HudOptionsView {
 pub struct KeybindingRowView {
     pub action: InputAction,
     pub label: String,
-    pub binding_text: String,
+    /// The bound key's text; `None` when unbound.
+    pub binding_text: Option<String>,
     pub capturing: bool,
-    pub can_clear: bool,
+}
+
+/// The Key Bindings page's status line (Retail `SettingsPanel.OutputText`).
+#[derive(Debug, Clone, PartialEq)]
+pub struct BindingOutputView {
+    pub text: String,
+    /// Shown red, as `KEY_UNBOUND_ERROR`'s `|cffff0000` colour code.
+    pub error: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct KeybindingsView {
     pub section: BindingSection,
     pub capture_action: Option<InputAction>,
+    pub output: Option<BindingOutputView>,
     pub rows: Vec<KeybindingRowView>,
 }
 
@@ -319,8 +328,9 @@ pub fn keybinding_rebind_action(action: InputAction) -> String {
     format!("options_binding_rebind:{}", action.key())
 }
 
-pub fn keybinding_clear_action(action: InputAction) -> String {
-    format!("options_binding_clear:{}", action.key())
+/// The binding button of `action`'s row: left-click listens, right-click unbinds.
+pub fn keybinding_button_name(action: InputAction) -> String {
+    format!("KeybindingButton{}", action.key())
 }
 
 /// The Options panel, its content scrolled to `first_item` (the [`OPTIONS_CONTENT_SCROLL`]

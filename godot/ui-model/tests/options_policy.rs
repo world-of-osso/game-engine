@@ -107,7 +107,7 @@ fn sound_and_bindings_actions_project_reset_and_commit() {
             .bindings
             .rows
             .iter()
-            .any(|row| row.action == InputAction::MoveForward && row.binding_text == "Unbound")
+            .any(|row| row.action == InputAction::MoveForward && row.binding_text.is_none())
     );
     reset_category_defaults(&mut m);
     assert_eq!(
