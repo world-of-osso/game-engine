@@ -332,12 +332,16 @@ fn forever_gryphons_are_camelot_end_caps_on_c60_art() {
 }
 
 #[test]
-fn forever_centres_main_bar_and_hides_reference_utility_bars() {
+fn forever_centres_main_bar() {
     let registry = build(ActiveSkin::Forever, bar_state(), main_action_bar_screen);
     let bar = frame(&registry, "MainActionBar");
     assert_eq!(bar.position.left, Val::Percent(50.0));
     assert_eq!(bar.position.bottom, Val::Px(2.0));
     assert_eq!(bar.margin.left, Val::Px(-562.0 * 1.06 / 2.0));
+}
+
+#[test]
+fn forever_hides_reference_utility_bars() {
     for skin in [ActiveSkin::Forever, ActiveSkin::Modern] {
         let micro = build(skin, MicroMenuView::default(), micro_menu_screen);
         let bags = build(skin, BagBarState::default(), bags_bar_screen);
