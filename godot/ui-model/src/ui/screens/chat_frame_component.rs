@@ -11,8 +11,9 @@ use ui_toolkit::widget_def::Element;
 
 use crate::chat_data::ChatState;
 use crate::flare_panel::{
-    FLARE_ACTIVE_TEXT, FLARE_FONT_SIZE, FLARE_HEADER_HEIGHT, FLARE_INACTIVE_TEXT, flare_header,
-    flare_icon, flare_panel, flare_text,
+    FLARE_ACTIVE_TEXT, FLARE_CHANNEL_ART, FLARE_FONT_SIZE, FLARE_GEAR_ART,
+    FLARE_HEADER_BUTTON_SIZE, FLARE_HEADER_HEIGHT, FLARE_INACTIVE_TEXT, FLARE_SOCIAL_ART,
+    FLARE_VOLUME_ART, flare_header, flare_icon, flare_panel, flare_text,
 };
 use crate::ui::anchor::FrameName;
 use crate::ui::chat_frame::{
@@ -359,35 +360,31 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
 // docs/specs/forever-chat-meter-chrome.md. No message/input/scroll changes.
 const FOREVER_TAB_PADDING: f32 = 14.0;
 const FOREVER_TAB_GAP: f32 = 4.0;
-const FOREVER_BUTTON_SIZE: f32 = 22.0;
 const FOREVER_BUTTON_LEFT: f32 = 352.0;
 const FOREVER_BUTTON_GAP: f32 = 35.0;
-const FOREVER_BUTTON_TOP: f32 = -1.0;
+const FOREVER_BUTTON_TOP: f32 =
+    FLARE_SKIN_RECT.1 + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
 
 fn forever_background() -> Element {
     let mut parts = flare_panel(CHAT_FLARE_SKIN, FLARE_SKIN_RECT);
     parts.extend(flare_header("ChatFrame1Flare", FLARE_SKIN_RECT));
-    for (index, (suffix, atlas, action)) in [
-        ("Channel", "chatballon", None),
-        (
-            "Menu",
-            "common-dropdown-a-button-settings-shadowless",
-            Some(COPY_CHAT_ACTION),
-        ),
-        ("Social", "UI-HUD-MicroMenu-GuildCommunities-Up", None),
-        ("Volume", "common-dropdown-icon-sound-on", None),
+    for (index, (suffix, art, action)) in [
+        ("Channel", FLARE_CHANNEL_ART, None),
+        ("Menu", FLARE_GEAR_ART, Some(COPY_CHAT_ACTION)),
+        ("Social", FLARE_SOCIAL_ART, None),
+        ("Volume", FLARE_VOLUME_ART, None),
     ]
     .into_iter()
     .enumerate()
     {
         parts.extend(flare_icon(
             &format!("ChatFrame1Flare{suffix}"),
-            atlas,
+            art,
             [
                 FOREVER_BUTTON_LEFT + FOREVER_BUTTON_GAP * index as f32,
                 FOREVER_BUTTON_TOP,
-                FOREVER_BUTTON_SIZE,
-                FOREVER_BUTTON_SIZE,
+                FLARE_HEADER_BUTTON_SIZE,
+                FLARE_HEADER_BUTTON_SIZE,
             ],
             action,
         ));
