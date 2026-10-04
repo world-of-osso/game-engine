@@ -676,8 +676,28 @@ impl RegistryUi {
     }
 
     /// Initialize the authored bag strip and standalone containers.
+    /// Containers draw the `PortraitFrameFlatTemplate` metal border (ContainerFrame.xml:218).
     pub(crate) fn show_bags(&mut self, view: crate::bags::BagsView) -> Result<(), String> {
-        self.show_viewport_screen(view, crate::bags::bags_screen, ScreenPostsetup::Bags)?;
+        if self.model.is_some() {
+            return Err("RegistryUi already has a screen".into());
+        }
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_flare_bronze_style(&mut registry, |fdid| {
+            let image = assets::decode_blp(&format!("data/textures/{fdid}.blp"))?;
+            Ok((image.pixels, image.width))
+        })?;
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            view,
+            crate::bags::bags_screen,
+            ScreenPostsetup::Bags,
+            registry,
+            parent,
+        )?;
         self.enable_cursor_inputs();
         // ContainerFrame.xml:216: every bag lives in toplevel `ContainerFrameContainer`.
         self.toplevel = true;
