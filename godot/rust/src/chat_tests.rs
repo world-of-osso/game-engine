@@ -1,6 +1,7 @@
 use super::*;
 use game_engine_ui_model::chat_frame::{HELP_LINES, UNKNOWN_COMMAND_TEXT};
 use shared::protocol::{CombatLogKind, MissKind};
+use ui_toolkit::atlas::ActiveSkin;
 
 const LOCAL: Option<&str> = Some("Fbchat");
 
@@ -257,10 +258,18 @@ fn combat(
     }
 }
 
-/// The text of each message the frame shows, oldest first.
+fn preset_chat_size(skin: ActiveSkin) -> (f32, f32) {
+    skin_hud_layout(skin).chat_size
+}
+
+/// The text of each message the Modern frame shows, oldest first.
 fn shown(model: &ChatModel) -> Vec<String> {
+    shown_in(model, ActiveSkin::Modern)
+}
+
+fn shown_in(model: &ChatModel, skin: ActiveSkin) -> Vec<String> {
     model
-        .view(|id| format!("Spell {id}"))
+        .view(preset_chat_size(skin), |id| format!("Spell {id}"))
         .messages
         .iter()
         .map(|message| {
@@ -346,7 +355,8 @@ fn clicking_a_tab_shows_its_stream_and_keeps_each_tabs_scroll_position() {
     assert_eq!(shown(&model).last().unwrap(), "[Bob] says: chat 3");
 
     model.click(ChatTab::CombatLog.action(), |_| String::new());
-    assert_eq!(model.view(|_| String::new()).tab, ChatTab::CombatLog);
+    let view = model.view(preset_chat_size(ActiveSkin::Modern), |_| String::new());
+    assert_eq!(view.tab, ChatTab::CombatLog);
     assert_eq!(
         shown(&model).last().unwrap(),
         "Your Melee hit Kobold Vermin 6 Physical.",
@@ -379,4 +389,30 @@ fn clicking_a_tab_shows_its_stream_and_keeps_each_tabs_scroll_position() {
         shown(&model).last().unwrap(),
         "Your Melee hit Kobold Vermin 7 Physical."
     );
+}
+
+/// The Forever preset's chat frame is lower than Modern's: it shows the newest lines that
+/// fit its own message area, not Modern's count (which drew lines over the tab header).
+#[test]
+fn the_combat_log_shows_the_lines_that_fit_the_presets_frame() {
+    let mut model = ChatModel::default();
+    for amount in 1..=20 {
+        model.receive_combat(
+            &combat(CombatLogKind::Damage, None, 1, amount),
+            SHOT,
+            KOBOLD,
+        );
+    }
+    model.click(ChatTab::CombatLog.action(), |_| String::new());
+    let modern = shown_in(&model, ActiveSkin::Modern);
+    let forever = shown_in(&model, ActiveSkin::Forever);
+    assert_eq!(modern.len(), 15);
+    assert_eq!(forever.len(), 12);
+    for lines in [&modern, &forever] {
+        assert_eq!(
+            lines.last().unwrap(),
+            "Your Melee hit Kobold Vermin 20 Physical."
+        );
+    }
+    assert_eq!(forever[0], "Your Melee hit Kobold Vermin 9 Physical.");
 }

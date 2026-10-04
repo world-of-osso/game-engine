@@ -371,10 +371,15 @@ pub const FOREVER: HudLayout = HudLayout {
 
 /// The HUD layout of the canvas's preset; every canvas mirrors the active skin.
 pub fn hud_layout(ctx: &SharedContext) -> &'static HudLayout {
-    match ctx
-        .get::<ActiveSkin>()
-        .expect("canvas carries the active skin")
-    {
+    skin_hud_layout(
+        *ctx.get::<ActiveSkin>()
+            .expect("canvas carries the active skin"),
+    )
+}
+
+/// The HUD layout of a skin's preset.
+pub fn skin_hud_layout(skin: ActiveSkin) -> &'static HudLayout {
+    match skin {
         ActiveSkin::Modern => &MODERN,
         ActiveSkin::Forever => &FOREVER,
     }

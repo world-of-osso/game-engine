@@ -655,9 +655,16 @@ fn amount_line(event: &CombatLogEvent, source: CombatLogActor, target: CombatLog
         (false, true) => text("damaged"),
         (false, false) => text("hit"),
     });
-    // The shown amount leaves out overkill and overhealing (Processor.lua:300-302, 389);
+    // The shown heal leaves out overhealing (Processor.lua:389). Retail also takes overkill
+    // off damage (Processor.lua:300-302), but the server reports overkill in the target's
+    // level-scaled health units and the amount in the attacker's (game-server combat.rs:
+    // 844-846, spell_cast/effects.rs:520), so damage is shown as received.
     // `TEXT_MODE_A_STRING_VALUE_SCHOOL` "%s %s" (17836).
-    let amount = i64::from(event.amount - event.overflow.max(0));
+    let amount = i64::from(if heal {
+        event.amount - event.overflow.max(0)
+    } else {
+        event.amount
+    });
     spans.extend([
         text(format!(" {target_name} ")),
         colored(bright, break_up_large_numbers(amount)),
@@ -759,28 +766,31 @@ pub fn wrap_chat_line(
     measure: impl Fn(&str) -> f32,
 ) -> Vec<ChatRow> {
     let mut rows = vec![ChatRow::default()];
-    let mut x = 0.0;
+    // Positions come from measuring the row's text so far as one string: summing each
+    // word's own measure drifts from where the text really ends.
+    let mut row_text = String::new();
     for (token, color, spell_id) in line_tokens(line, &spell_name) {
-        let width = measure(&token);
-        if x > 0.0 && x + width > max_width && !token.trim().is_empty() {
+        let fits = measure(&format!("{row_text}{token}")) <= max_width;
+        if !row_text.is_empty() && !fits && !token.trim().is_empty() {
             rows.push(ChatRow::default());
-            x = 0.0;
+            row_text.clear();
         }
+        let x = measure(&row_text);
+        row_text.push_str(&token);
         let row = rows.last_mut().expect("rows start non-empty");
         match row.runs.last_mut() {
             Some(run) if run.spell_id.is_none() && spell_id.is_none() && run.color == color => {
                 run.text.push_str(&token);
-                run.width += width;
+                run.width = measure(&run.text);
             }
             _ => row.runs.push(ChatRun {
+                width: measure(&token),
                 text: token,
                 color,
                 x,
-                width,
                 spell_id,
             }),
         }
-        x += width;
     }
     rows
 }

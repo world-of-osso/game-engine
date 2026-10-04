@@ -60,8 +60,13 @@ const TAB_TEXT_COLOR: FontColor = FontColor::new(1.0, 0.82, 0.0, 1.0);
 /// right edge (Display/Main.lua:26,30-31; 38 = 6 + the 32 high edit box, Main.lua:205).
 const MESSAGES_LEFT: f32 = 34.0;
 const MESSAGES_TOP: f32 = 27.0;
-const MESSAGES_W: f32 = FRAME_W - MESSAGES_LEFT - 5.0;
 const MESSAGES_H: f32 = FRAME_H - MESSAGES_TOP - 38.0;
+
+/// The message area `(width, height)` inside a chat frame of `chat_size` (the preset's
+/// [`crate::hud_layout::HudLayout::chat_size`]).
+fn messages_size((width, height): (f32, f32)) -> (f32, f32) {
+    (width - MESSAGES_LEFT - 5.0, height - MESSAGES_TOP - 38.0)
+}
 /// Background spans from the frame's left edge to 5 beyond the wrapper above and below
 /// (Skins/Dark.lua:155-157), at alpha 1 - `chat_transparency` 0.2 (Dark.lua:152,474).
 const BACKGROUND_TOP: f32 = MESSAGES_TOP - 5.0;
@@ -120,8 +125,6 @@ pub const CHAT_LINE_H: f32 = 14.0;
 const MESSAGE_SPACING: f32 = 5.0;
 /// The newest message sits 2 above the bottom (Display/ScrollingMessages.lua:228).
 const MESSAGES_BOTTOM_PAD: f32 = 2.0;
-/// Height the shown messages may fill.
-pub const CHAT_MESSAGES_AVAILABLE_H: f32 = MESSAGES_H - MESSAGES_BOTTOM_PAD;
 /// Timestamps are grey (Display/ScrollingMessages.lua:247).
 const TIMESTAMP_COLOR: FontColor = FontColor::new(0.6, 0.6, 0.6, 1.0);
 /// ChatTypeInfo SAY, the edit box's default chat type.
@@ -162,18 +165,19 @@ pub struct ChatTextArea {
 
 /// Text starts `inset + 3` in and ends 1 short of the right (Display/ScrollingMessages.lua:
 /// 226-227); the inset is the width of `00:00:00` plus 8 (Core/Messages.lua:367-384).
-pub fn chat_text_area(tab: ChatTab) -> ChatTextArea {
+/// `messages_width` is the message area's width.
+pub fn chat_text_area(tab: ChatTab, messages_width: f32) -> ChatTextArea {
     if tab.is_combat_log() {
         return ChatTextArea {
             left: 0.0,
-            width: MESSAGES_W - COMBAT_LOG_RIGHT_INSET,
+            width: messages_width - COMBAT_LOG_RIGHT_INSET,
             spacing: 0.0,
         };
     }
     let left = timestamp_inset() + 3.0;
     ChatTextArea {
         left,
-        width: MESSAGES_W - left - 1.0,
+        width: messages_width - left - 1.0,
         spacing: MESSAGE_SPACING,
     }
 }
@@ -186,21 +190,25 @@ fn text_width(value: &str, font: GameFont, size: f32) -> f32 {
     measure_text(value, font, size).map_or(0.0, |(width, _)| width)
 }
 
-/// The messages that fit, counting up from the newest past the scrolled-over ones.
+/// The messages that fit a chat frame of `chat_size` (the active preset's), counting up
+/// from the newest past the scrolled-over ones.
 pub fn chat_frame_view(
     state: &ChatFrameState,
     chat: &ChatState,
     combat: &CombatLogChat,
+    chat_size: (f32, f32),
     spell_name: impl Fn(u32) -> String,
 ) -> ChatFrameView {
-    let area = chat_text_area(state.tab);
+    let (messages_width, messages_height) = messages_size(chat_size);
+    let available = messages_height - MESSAGES_BOTTOM_PAD;
+    let area = chat_text_area(state.tab, messages_width);
     let entries = tab_entries(state.tab, chat, combat);
     let mut messages = Vec::new();
     let mut heights = Vec::new();
     for entry in entries.iter().rev().skip(state.scroll()) {
         let rows = wrap_chat_line(&entry.line, &spell_name, area.width, measure_chat_text);
         heights.push(rows.len() as f32 * CHAT_LINE_H);
-        if messages_that_fit(&heights, CHAT_MESSAGES_AVAILABLE_H, area.spacing) < heights.len() {
+        if messages_that_fit(&heights, available, area.spacing) < heights.len() {
             break;
         }
         messages.push(ChatMessageView {
@@ -264,8 +272,7 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
         .expect("canvas carries the active skin");
     let layout = hud_layout(ctx);
     let (width, height) = layout.chat_size;
-    let messages_width = width - MESSAGES_LEFT - 5.0;
-    let messages_height = height - MESSAGES_TOP - 38.0;
+    let (messages_width, messages_height) = messages_size(layout.chat_size);
     let background = match skin {
         ActiveSkin::Modern => chattynator_background(view.tab),
         ActiveSkin::Forever => forever_background(),
@@ -307,7 +314,7 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
                 pos_type: "absolute",
                 left: MESSAGES_LEFT,
                 top: MESSAGES_TOP,
-                {messages(view, messages_height)}
+                {messages(view, messages_width, messages_height)}
             }
             {copy_button}
             {chat_button(
@@ -694,8 +701,8 @@ fn chat_button(name: &str, action: &str, icon: &str, x: f32, y: f32, hidden: boo
 
 /// Messages stacked up from the bottom, newest last (Display/ScrollingMessages.lua:219-270).
 /// Rows are numbered top to bottom as `ChatFrame1MessagesRow{n}`.
-fn messages(view: &ChatFrameView, height: f32) -> Element {
-    let area = chat_text_area(view.tab);
+fn messages(view: &ChatFrameView, width: f32, height: f32) -> Element {
+    let area = chat_text_area(view.tab, width);
     let mut tops = Vec::with_capacity(view.messages.len());
     let mut bottom = height - MESSAGES_BOTTOM_PAD;
     for message in view.messages.iter().rev() {
