@@ -342,8 +342,8 @@ fn class_bar(class: Option<u8>) -> MainActionBarState {
 
 const END_CAPS: [&str; 2] = ["MainActionBarLeftEndCap", "MainActionBarRightEndCap"];
 
-/// User decision 2026-10-03: Forever's end caps are the project's wide class shields,
-/// 95 units tall at the art's 119:190 aspect, bottoms on the bar's bottom edge, 6 units
+/// User decision 2026-10-03: Forever's end caps are the project's narrow class shields,
+/// 95 units tall at the art's 68:256 aspect, bottoms on the bar's bottom edge, 6 units
 /// outside the first and last button.
 #[test]
 fn forever_end_caps_are_class_shields_outside_the_buttons() {
@@ -353,10 +353,12 @@ fn forever_end_caps_are_class_shields_outside_the_buttons() {
         main_action_bar_screen,
     );
     let (bar_w, bar_h) = (562.0 * 1.06, 45.0 * 1.06);
+    let cap_w = 95.0 * 68.0 / 256.0;
     let caps = [
-        (-6.0 - 59.5, bar_h - 95.0, 59.5, 95.0),
-        (bar_w + 6.0, bar_h - 95.0, 59.5, 95.0),
+        (-6.0 - cap_w, bar_h - 95.0, cap_w, 95.0),
+        (bar_w + 6.0, bar_h - 95.0, cap_w, 95.0),
     ];
+    assert_eq!(cap_w, 25.234375);
     for (name, expected) in END_CAPS.into_iter().zip(caps) {
         assert_close(fixed_rect(&registry, name), expected, name);
     }
@@ -377,7 +379,7 @@ fn forever_end_caps_are_class_shields_outside_the_buttons() {
     assert_eq!(gryphons, Vec::<String>::new());
 }
 
-/// `ChrClasses` IDs 1-13 name the shield files under `data/ui/endcaps/wide/`.
+/// `ChrClasses` IDs 1-13 name the shield files under `data/ui/endcaps/`.
 #[test]
 fn forever_end_caps_draw_the_players_class_shield() {
     let classes = [
@@ -404,8 +406,8 @@ fn forever_end_caps_draw_the_players_class_shield() {
         assert_eq!(
             END_CAPS.map(|name| file_of(&registry, name)),
             [
-                format!("data/ui/endcaps/wide/left/{class}.ktx2"),
-                format!("data/ui/endcaps/wide/right/{class}.ktx2"),
+                format!("data/ui/endcaps/left/{class}.ktx2"),
+                format!("data/ui/endcaps/right/{class}.ktx2"),
             ]
         );
     }
@@ -560,21 +562,15 @@ fn switching_skin_reskins_the_live_main_bar() {
 
     shared.insert(ActiveSkin::Forever);
     screen.sync(&shared, &mut registry);
-    assert_eq!(
-        file_of(&registry, cap),
-        "data/ui/endcaps/wide/left/paladin.ktx2"
-    );
-    assert_eq!(fixed_rect(&registry, cap).2, 59.5);
+    assert_eq!(file_of(&registry, cap), "data/ui/endcaps/left/paladin.ktx2");
+    assert_eq!(fixed_rect(&registry, cap).2, 25.234375);
 
     shared.insert(class_bar(None));
     screen.sync(&shared, &mut registry);
     assert_eq!(registry.get_by_name(cap), None);
     shared.insert(class_bar(Some(8)));
     screen.sync(&shared, &mut registry);
-    assert_eq!(
-        file_of(&registry, cap),
-        "data/ui/endcaps/wide/left/mage.ktx2"
-    );
+    assert_eq!(file_of(&registry, cap), "data/ui/endcaps/left/mage.ktx2");
 
     shared.insert(ActiveSkin::Modern);
     screen.sync(&shared, &mut registry);

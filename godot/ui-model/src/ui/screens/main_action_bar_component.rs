@@ -55,11 +55,11 @@ const GRYPHON_LEFT: &str = "ui-hud-actionbar-gryphon-left";
 const GRYPHON_RIGHT: &str = "ui-hud-actionbar-gryphon-right";
 const LEFT_END_CAP: &str = "MainActionBarLeftEndCap";
 const RIGHT_END_CAP: &str = "MainActionBarRightEndCap";
-/// Project art (`data/ui/endcaps/wide/README.md`): `left/<class>.ktx2` and its mirror
-/// `right/<class>.ktx2`, 119×190 px, drawn at half size.
-const CLASS_SHIELD_DIR: &str = "data/ui/endcaps/wide";
-const CLASS_SHIELD_W: f32 = 59.5;
+/// Project art (`data/ui/endcaps/README.md`): `left/<class>.ktx2` and its mirror
+/// `right/<class>.ktx2`, 68×256 px, drawn 95 units tall.
+const CLASS_SHIELD_DIR: &str = "data/ui/endcaps";
 const CLASS_SHIELD_H: f32 = 95.0;
+const CLASS_SHIELD_W: f32 = CLASS_SHIELD_H * 68.0 / 256.0;
 /// Space between a shield and the nearest button.
 const CLASS_SHIELD_GAP: f32 = 6.0;
 
@@ -347,7 +347,7 @@ fn class_shield(name: &str, side: &str, class: &str, x: f32, bar_height: f32) ->
     }
 }
 
-/// Forever's end caps (user decision 2026-10-03): the project's shields carrying the
+/// Forever's end caps (user decision 2026-10-03): the project's narrow shields carrying the
 /// player's class emblem, bottoms on the bar's bottom edge, outside the first and last
 /// button. None while the class is unknown or has no shield.
 fn class_shields((width, height): (f32, f32), class: Option<u8>) -> Element {
