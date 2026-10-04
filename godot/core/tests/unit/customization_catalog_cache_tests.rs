@@ -85,12 +85,13 @@ fn skyborne_imported_forever_catalog_and_retail_share_the_player_path() {
     assert_eq!(db.chr_model_id(1, 0), Some(1));
     assert_eq!(db.layout_id(1, 0), Some(103));
     for race in [95, 96] {
+        let class = if race == 95 { 8 } else { 7 };
         for (sex, model, layout, count, skin) in [(0, 218, 201, 18, 9021), (1, 219, 202, 19, 9034)]
         {
             assert_eq!(db.chr_model_id(race, sex), Some(model));
             assert_eq!(db.layout_id(race, sex), Some(layout));
             assert_eq!(db.options_for(race, sex).unwrap().len(), count);
-            let choices = db.offered_choices(race, sex, 8, skin);
+            let choices = db.offered_choices(race, sex, class, skin);
             assert!(!choices.is_empty(), "race {race} sex {sex} skin choices");
             assert!(choices.iter().any(|choice| !choice.materials.is_empty()));
             let canvas = compositor.layout(layout).unwrap();
