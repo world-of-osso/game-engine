@@ -74,13 +74,18 @@ pub(crate) struct NativeTerrainAssets {
     lighting: RefCell<Option<Arc<LightingCatalog>>>,
     surface_catalog: OnceLock<Result<SurfaceCatalog, String>>,
     liquids: OnceLock<Result<LiquidCatalog, String>>,
+    maps: OnceLock<Result<game_engine_core::map_catalog::MapCatalog, String>>,
     /// Parsed group floors and root-wide material surface, keyed by root FDID.
     wmo_groups: RefCell<HashMap<u32, (Vec<Arc<WmoGroupCollision>>, Option<FootstepSurface>)>>,
 }
 
+type CachedFile = (PathBuf, Vec<u8>);
+type TileFiles = (CachedFile, Option<CachedFile>, Option<CachedFile>);
+
 pub(crate) struct NativeMapWdt {
     pub path: PathBuf,
     pub flags: wdt::MphdFlags,
+    pub tiles: wdt::WdtTiles,
     pub global_wmo: Option<PlacedWmo>,
     pub lighting: Arc<LightingCatalog>,
 }
@@ -127,13 +132,16 @@ impl NativeTerrainAssets {
             lighting: RefCell::new(None),
             surface_catalog: OnceLock::new(),
             liquids: OnceLock::new(),
+            maps: OnceLock::new(),
             wmo_groups: RefCell::new(HashMap::new()),
         }
     }
 
     pub fn read_map_wdt(&self, map: &str) -> Result<NativeMapWdt, String> {
-        let wow_path = format!("world/maps/{map}/{map}.wdt");
-        let (path, bytes) = self.read_declared_file(&wow_path, "wdt")?;
+        let identity = self.map_identity(map)?;
+        let (path, bytes) = self.read_fdid_file(identity.wdt_fdid, "wdt")?;
+        let tiles =
+            wdt::parse_wdt_tiles(&bytes).map_err(|error| format!("{}: {error}", path.display()))?;
         let flags = wdt::parse_wdt_mphd_flags(&bytes)
             .map_err(|error| format!("{}: {error}", path.display()))?;
         let global_wmo = wdt::parse_wdt_global_wmo(&bytes)
@@ -151,6 +159,7 @@ impl NativeTerrainAssets {
         Ok(NativeMapWdt {
             path,
             flags,
+            tiles,
             global_wmo,
             lighting: self.read_lighting_catalog()?,
         })
@@ -172,10 +181,8 @@ impl NativeTerrainAssets {
         tile_x: u32,
     ) -> Result<NativeTerrainTile, String> {
         let wdt = self.read_map_wdt(map)?;
-        let stem = format!("world/maps/{map}/{map}_{tile_y}_{tile_x}");
-        let (root_path, root_bytes) = self.read_declared_file(&format!("{stem}.adt"), "adt")?;
-        let tex_file = self.read_optional_companion(&format!("{stem}_tex0.adt"))?;
-        let obj_file = self.read_optional_companion(&format!("{stem}_obj0.adt"))?;
+        let ((root_path, root_bytes), tex_file, obj_file) =
+            self.read_tile_files(map, tile_y, tile_x, &wdt.tiles)?;
         let mut root = parse_tile_root(&root_path, &root_bytes, (tile_y, tile_x), &tex_file)?;
         let tex = parse_tile_textures(&tex_file, wdt.flags, &root)?;
         let obj = parse_tile_objects(&obj_file)?;
@@ -396,7 +403,58 @@ impl NativeTerrainAssets {
         Ok(result)
     }
 
-    /// The map's `.wdl` low-detail heights, `None` when the listfile has none.
+    fn map_identity(
+        &self,
+        directory: &str,
+    ) -> Result<&game_engine_core::map_catalog::MapIdentity, String> {
+        let maps = self
+            .maps
+            .get_or_init(|| game_engine_core::map_catalog::MapCatalog::read(&self.data_root))
+            .as_ref()
+            .map_err(Clone::clone)?;
+        maps.by_directory(directory)
+            .ok_or_else(|| format!("Map.csv: no Directory {directory}"))
+    }
+
+    fn read_tile_files(
+        &self,
+        map: &str,
+        first: u32,
+        second: u32,
+        tiles: &wdt::WdtTiles,
+    ) -> Result<TileFiles, String> {
+        if !tiles.active.contains(&(first, second)) {
+            return Err(format!(
+                "Map {map} tile ({first}, {second}) is inactive in WDT MAIN"
+            ));
+        }
+        if tiles.maid.is_some() {
+            let ids = tiles
+                .file_ids(first, second)
+                .ok_or_else(|| format!("Map {map} active tile ({first}, {second}) missing MAID"))?;
+            return Ok((
+                self.read_fdid_file(ids.root, "adt")?,
+                self.read_optional_fdid(ids.tex0)?,
+                self.read_optional_fdid(ids.obj0)?,
+            ));
+        }
+        let stem = format!("world/maps/{map}/{map}_{first}_{second}");
+        Ok((
+            self.read_declared_file(&format!("{stem}.adt"), "adt")?,
+            self.read_optional_companion(&format!("{stem}_tex0.adt"))?,
+            self.read_optional_companion(&format!("{stem}_obj0.adt"))?,
+        ))
+    }
+
+    fn read_optional_fdid(&self, fdid: u32) -> Result<Option<CachedFile>, String> {
+        if fdid == 0 {
+            return Ok(None);
+        }
+        self.read_fdid_file(fdid, "adt").map(Some)
+    }
+
+    /// The map-level WDL FDID from the local listfile; no declared FDID means no horizon.
+    /// MAID's per-tile LOD/maptexture IDs are not a map-level WDL.
     pub fn read_map_wdl(&self, map: &str) -> Result<Option<Vec<u8>>, String> {
         let path = format!("world/maps/{map}/{map}.wdl");
         if self.resolver.lookup_path(&path).is_none() {
@@ -425,13 +483,20 @@ impl NativeTerrainAssets {
             .resolver
             .lookup_path(wow_path)
             .ok_or_else(|| format!("{wow_path} not in listfile"))?;
+        self.read_fdid_file(fdid, extension)
+    }
+
+    fn read_fdid_file(&self, fdid: u32, extension: &str) -> Result<CachedFile, String> {
+        if fdid == 0 {
+            return Err(format!("Required terrain {extension} has zero FileDataID"));
+        }
         let cache_path = self.terrain_dir.join(format!("{fdid}.{extension}"));
         let path = self
             .resolver
             .ensure_cached(fdid, &cache_path)
             .ok_or_else(|| {
                 format!(
-                    "Failed to cache local CASC {wow_path} (FDID {fdid}) at {}",
+                    "Failed to cache local CASC terrain FDID {fdid} at {}",
                     cache_path.display()
                 )
             })?;
@@ -605,6 +670,27 @@ pub(crate) fn wmo_surface_bounds(placement: &adt::WmoPlacement, global: bool) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn zephras_reads_unnamed_wdt_and_maid_tile_from_fdid_cache() {
+        let assets = cached_assets();
+        let map = assets.read_map_wdt("2991").unwrap();
+        assert_eq!(map.path.file_name().unwrap(), "7198644.wdt");
+        let tile = assets.read_tile("2991", 29, 26).unwrap();
+        assert_eq!(tile.root_path.file_name().unwrap(), "7199999.adt");
+        assert_eq!(tile.tex_path.unwrap().file_name().unwrap(), "7200002.adt");
+        assert_eq!(tile.obj_path.unwrap().file_name().unwrap(), "7200000.adt");
+        assert_eq!(tile.root.chunks.len(), 256);
+        assert_eq!(tile.obj.unwrap().doodads.len(), 218);
+        assert!(assets.read_map_wdl("2991").unwrap().is_none());
+        assert!(
+            assets
+                .read_tile("2991", 0, 0)
+                .err()
+                .unwrap()
+                .contains("inactive")
+        );
+    }
 
     #[test]
     fn reads_cached_map_flags_and_global_wmo_placement() {
