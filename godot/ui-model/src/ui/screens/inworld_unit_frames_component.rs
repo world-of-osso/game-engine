@@ -253,6 +253,7 @@ pub struct TargetAuraIconState {
 pub struct InWorldUnitFramesState {
     pub show_player_frame: bool,
     pub show_target_frame: bool,
+    pub target_cast: Option<crate::casting_bar_frame_component::CastingBarState>,
     pub player: UnitFrameState,
     pub target: Option<UnitFrameState>,
     pub target_of_target: Option<SmallUnitFrameState>,
@@ -307,6 +308,7 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             {player_frame(&state.player, state.show_player_frame, &layout.player, skin)}
             {pet_frame(state.pet.as_ref().filter(|_| state.show_player_frame), &layout.pet, skin)}
             {target_frame(state.target.as_ref(), state.show_target_frame, &layout.target, skin)}
+            {crate::casting_bar_frame_component::target_cast_bar_frame(ctx, state)}
             {small_unit_frame(SmallFrameSpec::TARGET_OF_TARGET, visible_target_of(state), &layout.target_of_target, skin)}
             {small_unit_frame(SmallFrameSpec::FOCUS, state.focus.as_ref(), &layout.focus, skin)}
             {boss_frames(&state.bosses, skin)}
@@ -315,6 +317,18 @@ pub fn inworld_unit_frames_screen(ctx: &SharedContext) -> Element {
             {difficulty_menu(state.menu.difficulty_menu.as_ref())}
         }
     }
+}
+
+pub(super) fn modern_target_cast_offset(units: &InWorldUnitFramesState) -> (f32, f32) {
+    // TargetFrame.lua:556-573,819-838: >0 aura rows without ToT, >2 with ToT.
+    let have_tot = units.target_of_target.is_some();
+    let (rows, bottom) =
+        inworld_unit_frames_aura::target_aura_rows(units.target.as_ref().expect("shown target"));
+    let anchor_to_auras = rows > if have_tot { 2 } else { 0 };
+    if anchor_to_auras {
+        return (TARGET_AURAS_LEFT + 18.0, TARGET_AURAS_TOP + bottom + 10.0);
+    }
+    (43.0, UNIT_FRAME_H + if have_tot { 46.0 } else { -5.0 })
 }
 
 fn visible_target_of(state: &InWorldUnitFramesState) -> Option<&SmallUnitFrameState> {

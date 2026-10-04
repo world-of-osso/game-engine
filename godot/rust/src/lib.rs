@@ -1627,7 +1627,7 @@ impl GameClient {
             ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
             ("Player input", |c, d| Ok(c.update_player_input(d)?)),
             ("Pet bar", |c, d| c.update_pet_bar(d)),
-            ("Targeting", |c, _| c.update_targeting()),
+            ("Targeting", |c, d| c.update_targeting(d)),
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
             ("Character frame", |c, _| c.update_character_frame()),

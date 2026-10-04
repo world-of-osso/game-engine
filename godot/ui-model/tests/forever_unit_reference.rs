@@ -52,6 +52,7 @@ fn units(reaction: Reaction) -> FrameRegistry {
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         player,
         target_of_target: Some(SmallUnitFrameState::from(&target)),
         focus: Some(SmallUnitFrameState::from(&target)),

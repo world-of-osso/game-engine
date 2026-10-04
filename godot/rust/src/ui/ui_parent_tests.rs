@@ -43,6 +43,7 @@ fn unit_frame_rects<const N: usize>(
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
         show_target_frame: true,
+        target_cast: None,
         player: UnitFrameState::named("Fbportrait"),
         target_of_target: Some(SmallUnitFrameState::from(&UnitFrameState::named(
             "Fbportrait",
