@@ -110,7 +110,12 @@ pub struct PortraitSlot {
     /// clear (`CLAMPTOBLACKADDITIVE`).
     pub mask_fdid: u32,
     pub mask_rect: Rect,
+    /// `SetTexCoord` of the square portrait image: `[left, right, top, bottom]`.
+    pub tex_coords: [f32; 4],
 }
+
+/// The whole portrait image: unit frames set no texture coordinates.
+pub const FULL_PORTRAIT: [f32; 4] = [0.0, 1.0, 0.0, 1.0];
 
 /// `PlayerPortrait` 60×60 TOPLEFT (24, -19) under `PlayerPortraitMask`
 /// (`UI-HUD-UnitFrame-Player-Portrait-Mask`, atlas 2088
@@ -121,6 +126,7 @@ pub const PLAYER_PORTRAIT: PortraitSlot = PortraitSlot {
     rect: (24.0, 19.0, 60.0, 60.0),
     mask_fdid: 4_682_541,
     mask_rect: (24.0, 19.0, 60.0, 60.0),
+    tex_coords: FULL_PORTRAIT,
 };
 
 /// TargetFrame `Portrait` 58×58 TOPRIGHT (-26, -19) under `PortraitMask` (`CircleMask`,
@@ -131,6 +137,7 @@ pub const TARGET_PORTRAIT: PortraitSlot = PortraitSlot {
     rect: (UNIT_FRAME_W - 26.0 - 58.0, 19.0, 58.0, 58.0),
     mask_fdid: 3_528_314,
     mask_rect: (UNIT_FRAME_W - 26.0 - 58.0, 20.0, 57.0, 57.0),
+    tex_coords: FULL_PORTRAIT,
 };
 
 pub const SMALL_FRAME_GAP: f32 = 8.0;
@@ -187,6 +194,7 @@ pub const PET_PORTRAIT: PortraitSlot = PortraitSlot {
     rect: (5.0, 5.0, 37.0, 37.0),
     mask_fdid: 3_528_314,
     mask_rect: (5.0, 5.0, 37.0, 37.0),
+    tex_coords: FULL_PORTRAIT,
 };
 
 /// `PetName` 68×10 TOPLEFT at `PetPortrait` TOPRIGHT + (2, 0); `PetFrameHealthBar` 70×10

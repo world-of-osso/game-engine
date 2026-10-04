@@ -13,6 +13,7 @@ use ui_toolkit::widget_def::Element;
 
 use crate::game_tooltip::GameTooltip;
 use crate::hud_layout::hud_layout;
+use crate::inworld_unit_frames_component::PortraitSlot;
 use crate::quest_art::DynName;
 use crate::tooltip_presentation::{TOOLTIP_WHITE, TooltipLineState, TooltipPresentation};
 
@@ -38,6 +39,37 @@ const BACKGROUND_DOWN: &str = "UI-HUD-MicroMenu-ButtonBG-Down";
 /// The CharacterMicroButton's `Shadow` and `PushedShadow`.
 const PORTRAIT_SHADOW: &str = "UI-HUD-MicroMenu-Portrait-Shadow";
 const PORTRAIT_DOWN: &str = "UI-HUD-MicroMenu-Portrait-Down";
+
+/// The CharacterMicroButton's `Portrait` (`SetPortraitTexture(self.Portrait, "player")`,
+/// Mainline/MainMenuBarMicroButtons.lua:553-563): TOPLEFT (7, -7) to BOTTOMRIGHT (-7, 7),
+/// TexCoords (0.2, 0.8, 0.0666, 0.9), under the 35×65 `PortraitMask`
+/// (`UI-HUD-MicroMenu-Portrait-Mask`, atlas 2519 FileDataID 5228950) at the button's
+/// CENTER (MainMenuBarMicroButtons.xml:67-84; `SetNormal`, .lua:602-615).
+pub const CHARACTER_PORTRAIT: PortraitSlot = PortraitSlot {
+    frame: "CharacterMicroButtonPortrait",
+    rect: (7.0, 7.0, BUTTON_W - 14.0, BUTTON_H - 14.0),
+    mask_fdid: 5_228_950,
+    mask_rect: (
+        (BUTTON_W - PORTRAIT_MASK.0) / 2.0,
+        (BUTTON_H - PORTRAIT_MASK.1) / 2.0,
+        PORTRAIT_MASK.0,
+        PORTRAIT_MASK.1,
+    ),
+    tex_coords: [0.2, 0.8, 0.0666, 0.9],
+};
+/// Pushed (`SetPushed`, .lua:589-600): the portrait's BOTTOMRIGHT at (-6, 5) and the mask
+/// at CENTER (2, -2).
+pub const CHARACTER_PORTRAIT_PUSHED: PortraitSlot = PortraitSlot {
+    rect: (7.0, 7.0, BUTTON_W - 13.0, BUTTON_H - 12.0),
+    mask_rect: (
+        (BUTTON_W - PORTRAIT_MASK.0) / 2.0 + 2.0,
+        (BUTTON_H - PORTRAIT_MASK.1) / 2.0 + 2.0,
+        PORTRAIT_MASK.0,
+        PORTRAIT_MASK.1,
+    ),
+    ..CHARACTER_PORTRAIT
+};
+const PORTRAIT_MASK: (f32, f32) = (35.0, 65.0);
 
 /// Why a button without a native window is disabled: its Retail tooltip line.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
@@ -224,6 +256,15 @@ impl MicroMenuView {
         }
     }
 
+    /// The CharacterMicroButton portrait's slot in its current state.
+    pub fn character_portrait(&self) -> PortraitSlot {
+        if self.shows_pushed(CHARACTER) {
+            CHARACTER_PORTRAIT_PUSHED
+        } else {
+            CHARACTER_PORTRAIT
+        }
+    }
+
     fn shows_pushed(&self, index: usize) -> bool {
         match self.state(index) {
             MicroButtonState::Pushed => true,
@@ -307,11 +348,20 @@ pub fn micro_menu_screen(ctx: &SharedContext) -> Element {
 
 fn micro_button(view: &MicroMenuView, index: usize) -> Element {
     let button = &MICRO_BUTTONS[index];
-    let layers: Element = button_layers(view, index)
-        .into_iter()
-        .enumerate()
-        .flat_map(|(layer, (atlas, offset))| art_layer(button.name, layer, &atlas, offset))
-        .collect();
+    // `Portrait` (ARTWORK) over `Background` and `Shadow`, under `PushedShadow`.
+    let mut portrait = button.art.is_none().then(|| view.character_portrait());
+    let mut layers = Element::new();
+    for (layer, (atlas, offset)) in button_layers(view, index).into_iter().enumerate() {
+        if layer == 2
+            && let Some(slot) = portrait.take()
+        {
+            layers.extend(portrait_frame(&slot));
+        }
+        layers.extend(art_layer(button.name, layer, &atlas, offset));
+    }
+    if let Some(slot) = portrait {
+        layers.extend(portrait_frame(&slot));
+    }
     let state = view.state(index);
     let disabled = state == MicroButtonState::Disabled;
     let alpha = if disabled { DISABLED_ALPHA } else { 1.0 };
@@ -363,6 +413,21 @@ fn button_layers(view: &MicroMenuView, index: usize) -> Vec<(String, [f32; 2])> 
         }
     }
     layers
+}
+
+/// The empty slot the client fills with the player's rendered portrait.
+fn portrait_frame(slot: &PortraitSlot) -> Element {
+    let (x, y, width, height) = slot.rect;
+    rsx! {
+        r#frame {
+            name: {DynName(slot.frame.into())},
+            width,
+            height,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    }
 }
 
 fn art_layer(button: &str, layer: usize, atlas: &str, [dx, dy]: [f32; 2]) -> Element {

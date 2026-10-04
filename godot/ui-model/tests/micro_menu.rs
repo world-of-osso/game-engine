@@ -3,8 +3,8 @@
 //! its `UI-HUD-MicroMenu-*` atlas member.
 
 use game_engine_ui_model::micro_menu::{
-    ACTION_CHARACTER, MICRO_BUTTONS, MicroButtonState, MicroMenuView, OpenWindows,
-    micro_button_index, micro_button_tooltip, micro_menu_screen, unavailable_message,
+    ACTION_CHARACTER, CHARACTER_PORTRAIT, MICRO_BUTTONS, MicroButtonState, MicroMenuView,
+    OpenWindows, micro_button_index, micro_button_tooltip, micro_menu_screen, unavailable_message,
 };
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
 use ui_toolkit::frame::WidgetData;
@@ -167,6 +167,64 @@ fn the_character_button_draws_the_portrait_shadow_and_pushed_shadow_when_open() 
     assert_eq!(crop(&open, "CharacterMicroButtonArt0"), (67.0, 169.0));
     // UI-HUD-MicroMenu-Portrait-Down.
     assert_eq!(crop(&open, "CharacterMicroButtonArt2"), (331.0, 421.0));
+}
+
+/// Children of `parent`, by name, in draw order.
+fn child_names(registry: &FrameRegistry, parent: &str) -> Vec<String> {
+    let frame = registry
+        .get(registry.get_by_name(parent).expect(parent))
+        .unwrap();
+    frame
+        .children
+        .iter()
+        .filter_map(|id| registry.get(*id)?.name.clone())
+        .collect()
+}
+
+#[test]
+fn the_character_button_holds_the_player_portrait_slot_under_its_mask() {
+    let open_view = MicroMenuView {
+        open: OpenWindows {
+            character: true,
+            ..OpenWindows::default()
+        },
+        ..MicroMenuView::default()
+    };
+    for (view, over) in [
+        (MicroMenuView::default(), None),
+        (open_view.clone(), Some("CharacterMicroButtonArt2")),
+    ] {
+        let registry = build(view.clone());
+        let slot = view.character_portrait();
+        let children = child_names(&registry, "CharacterMicroButton");
+        let at = |name: &str| children.iter().position(|child| child == name);
+        let portrait = at(slot.frame).expect("the character button has a portrait slot");
+        // Over `Background` and `Shadow`, under `PushedShadow`.
+        assert!(at("CharacterMicroButtonArt1").unwrap() < portrait);
+        if let Some(over) = over {
+            assert!(
+                portrait < at(over).unwrap(),
+                "{over} draws over the portrait"
+            );
+        }
+        let (x, y, width, height) = slot.rect;
+        assert!(x > 0.0 && y > 0.0 && x + width < 32.0 && y + height < 40.0);
+        let (mx, my, mw, mh) = slot.mask_rect;
+        assert!(mx <= x && my <= y && mx + mw >= x + width && my + mh >= y + height);
+        assert_ne!(slot.mask_fdid, 0);
+    }
+    // Pushed moves the portrait and its mask (`SetPushed`).
+    assert_ne!(open_view.character_portrait(), CHARACTER_PORTRAIT);
+    let registry = build(MicroMenuView::default());
+    for button in MICRO_BUTTONS.iter().skip(1) {
+        assert!(
+            !child_names(&registry, button.name)
+                .iter()
+                .any(|child| child.contains("Portrait")),
+            "{} has no portrait",
+            button.name
+        );
+    }
 }
 
 #[test]
