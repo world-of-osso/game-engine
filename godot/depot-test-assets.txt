@@ -2014,3 +2014,8 @@ textures/ui/chattynator/Fade.png
 # godot rust ui::icon_masks tests: backpack portrait and its round mask
 textures/133633.blp
 textures/130924.blp
+
+# ui-model tests/forever_small_windows.rs: Forever c60 metal border members
+textures/8069114.blp
+textures/8069116.blp
+textures/8069118.blp

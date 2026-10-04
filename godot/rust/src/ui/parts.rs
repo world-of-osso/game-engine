@@ -3,6 +3,7 @@
 //! `render_three_slice.rs`, `render_text.rs`). Geometry is local to the frame origin;
 //! inherited frame alpha is applied by the Godot node tree, not here.
 
+use ui_toolkit::atlas::{ActiveSkin, active_skin};
 use ui_toolkit::frame::{Frame, NineSlice, ThreeSlice, WidgetData};
 use ui_toolkit::widgets::button::{ButtonData, ButtonState};
 use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV, Outline};
@@ -68,7 +69,8 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
         if frame.background_color.is_some() {
             project_sliced_background(frame, slice, width, height, &mut parts);
         }
-        project_nine_slice(slice, width, height, &mut parts);
+        let crop_overlap = active_skin() == ActiveSkin::Forever;
+        project_nine_slice(slice, width, height, crop_overlap, &mut parts);
     } else if frame.three_slice.is_none() || frame.background_color.is_some() {
         parts.extend(base_image(frame, width, height));
     }
@@ -175,13 +177,30 @@ fn frame_color(frame: &Frame) -> [f32; 4] {
         .unwrap_or(WHITE)
 }
 
-fn project_nine_slice(slice: &NineSlice, width: f32, height: f32, parts: &mut Vec<ImagePart>) {
+/// Nine-slice parts. With `crop_overlap`, a slice shorter than its top and bottom edges
+/// keeps its top row and crops the top off its bottom row so it ends at the frame's
+/// bottom (Forever `NineSliceUtil.UpdateCornerCropping`, Blizzard_SharedXML/NineSlice.lua:
+/// 238-298); otherwise the bottom row starts below the top row.
+fn project_nine_slice(
+    slice: &NineSlice,
+    width: f32,
+    height: f32,
+    crop_overlap: bool,
+    parts: &mut Vec<ImagePart>,
+) {
     let [left, top, right, bottom] = layout_edges(slice);
     let iw = (width - left - right).max(0.0);
     let ih = (height - top - bottom).max(0.0);
+    let shown = if crop_overlap {
+        bottom.min((height - top).max(0.0))
+    } else {
+        bottom
+    };
+    let kept = if shown < bottom { shown / bottom } else { 1.0 };
     let columns = [(0.0, left), (left, iw), (left + iw, right)];
-    let rows = [(0.0, top), (top, ih), (top + ih, bottom)];
-    let uv = uv_edges(slice);
+    let rows = [(0.0, top), (top, ih), (top + ih, shown)];
+    let mut uv = uv_edges(slice);
+    uv[3] *= kept;
     // A backdrop centre (`insets`) spans under the edges, so it is drawn first.
     let order: [u8; 9] = match slice.center_inset {
         Some(_) => [4, 0, 1, 2, 3, 5, 6, 7, 8],
@@ -213,17 +232,33 @@ fn project_nine_slice(slice: &NineSlice, width: f32, height: f32, parts: &mut Ve
         let part = match source {
             None => solid([x, y, w, h], color),
             Some(source) => {
-                let crop = if slice.part_textures.is_some() {
-                    Crop::Full
-                } else if let Some(rects) = &slice.uv_rects {
-                    Crop::SliceRect(rects[usize::from(index)])
-                } else {
-                    Crop::SliceEdges { index, edges: uv }
-                };
+                let kept = if index >= 6 { kept } else { 1.0 };
+                let crop = slice_part_crop(slice, index, uv, kept);
                 textured([x, y, w, h], source.clone(), crop, color)
             }
         };
         parts.push(part);
+    }
+}
+
+/// Source crop of part `index`, keeping the bottom `kept` fraction of its source
+/// (`uv` edges already carry the cropped bottom edge).
+fn slice_part_crop(slice: &NineSlice, index: u8, uv: [f32; 4], kept: f32) -> Crop {
+    if slice.part_textures.is_some() {
+        return if kept < 1.0 {
+            Crop::Normalized([0.0, 1.0, 1.0 - kept, 1.0])
+        } else {
+            Crop::Full
+        };
+    }
+    let Some(rects) = &slice.uv_rects else {
+        return Crop::SliceEdges { index, edges: uv };
+    };
+    let [left, right, top, bottom] = rects[usize::from(index)];
+    if kept < 1.0 {
+        Crop::SliceRect([left, right, bottom - (bottom - top) * kept, bottom])
+    } else {
+        Crop::SliceRect([left, right, top, bottom])
     }
 }
 

@@ -225,3 +225,49 @@ fn additive_texture_blend_reaches_its_image_part() {
     }));
     assert!(project_images(&frame, 64.0, 64.0)[0].additive);
 }
+
+/// Forever's c60 metal border on a one-row `LootFrame`: the window is 92 tall and the
+/// border frame 16 above and 8 below it (116), while its top edge is 95 and its bottom
+/// edge 100 tall.
+#[test]
+fn forever_short_nine_slice_keeps_its_bottom_row_inside_the_frame() {
+    let cuts = [0.0, 0.3, 0.7, 1.0];
+    let uv_rects = std::array::from_fn(|part| {
+        let (col, row) = (part % 3, part / 3);
+        [cuts[col], cuts[col + 1], cuts[row], cuts[row + 1]]
+    });
+    let slice = NineSlice {
+        edge_size: 95.0,
+        edge_sizes: Some([95.0, 95.0, 95.0, 100.0]),
+        texture: Some(TextureSource::File("data/ui/metal.ktx2".into())),
+        uv_rects: Some(uv_rects),
+        ..Default::default()
+    };
+    let height = 116.0;
+    let mut parts = Vec::new();
+    project_nine_slice(&slice, 232.0, height, true, &mut parts);
+    let visible: Vec<_> = parts.iter().filter(|part| part.rect[3] > 0.0).collect();
+    for part in &visible {
+        assert!(
+            part.rect[1] >= 0.0 && part.rect[1] + part.rect[3] <= height,
+            "{part:?}"
+        );
+    }
+    let [top_row, bottom_row] = [0, 6].map(|first| &parts[first..first + 3]);
+    for (upper, lower) in top_row.iter().zip(bottom_row) {
+        assert!(
+            upper.rect[1] + upper.rect[3] <= lower.rect[1],
+            "{upper:?} over {lower:?}"
+        );
+        assert_eq!(lower.rect[1] + lower.rect[3], height);
+        // The kept part is the bottom of the source: the frame's bottom rule.
+        let Crop::SliceRect([_, _, top, bottom]) = lower.crop else {
+            panic!("{lower:?}")
+        };
+        assert_eq!(bottom, 1.0);
+        assert!(
+            (top - (1.0 - 0.3 * lower.rect[3] / 100.0)).abs() < 1e-6,
+            "{top}"
+        );
+    }
+}
