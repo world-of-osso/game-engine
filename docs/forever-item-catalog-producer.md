@@ -23,13 +23,15 @@ Four item tables contain only the 30 distinct items referenced by loadouts 2373�
 | Item.csv | ID, ClassID, SubclassID, IconFileDataID, SheatheType |
 | ItemSparse.csv | ID, Display_lang, OverallQualityID, Stackable, SellPrice, Bonding, RequiredLevel, InventoryType, ItemLevel, MaxCount, Description_lang, ContainerSlots, ExpansionID, ItemDelay, DmgVariance, Flags_1, StatModifier_bonusStat_0…9, StatPercentEditor_0…9 |
 | ItemSubClass.csv | ClassID, SubClassID, DisplayName_lang |
-| ItemAppearance.csv | ID, DefaultIconFileDataID |
+| ItemAppearance.csv | ID, DefaultIconFileDataID, ItemDisplayInfoID |
 | ItemModifiedAppearance.csv | ItemID, ItemAppearanceID, OrderIndex |
 | ItemArmorQuality.csv | ID, Qualitymod_0…6 |
 | ItemArmorTotal.csv | ItemLevel, Cloth, Leather, Mail, Plate |
 | ArmorLocation.csv | ID, Clothmodifier, Leathermodifier, Chainmodifier, Platemodifier |
 | ItemArmorShield.csv; ItemDamageOneHand.csv; ItemDamageOneHandCaster.csv; ItemDamageTwoHand.csv; ItemDamageTwoHandCaster.csv | ItemLevel, Quality_0…6 |
 | RandPropPoints.csv | ID, GoodF_0…4, SuperiorF_0…4, EpicF_0…4 |
+
+`ItemDisplayInfoID` is the source-authored render link (appearance 63224 → display 472; 57187 → 21328). Older two-column exports cannot resolve owned equipment; Main must regenerate them. This column does not change the icon consumer.
 
 Array ranges expand ascending with an underscore before the index, matching the existing Rust consumer and decoded source column names. No aliases or compatibility headers are emitted.
 

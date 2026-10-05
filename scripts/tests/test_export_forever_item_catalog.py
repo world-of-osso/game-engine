@@ -140,6 +140,13 @@ class ForeverItemExportTests(unittest.TestCase):
             {(int(r["ClassID"]), int(r["SubclassID"])) for r in items.values()},
         )
 
+    def test_exports_authored_display_info_link(self):
+        result = self.export()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        appearances = {int(row["ID"]): row for row in self.rows("ItemAppearance")}
+        self.assertEqual(appearances[63224].get("ItemDisplayInfoID"), "472")
+        self.assertEqual(appearances[57187].get("ItemDisplayInfoID"), "21328")
+
     def test_complete_scaling_authored_values_and_deterministic_provenance(self):
         result = self.export()
         self.assertEqual(result.returncode, 0, result.stderr)
