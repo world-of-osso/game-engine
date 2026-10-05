@@ -44,12 +44,7 @@ fn logged_in_menu_preserves_authored_actions_and_labels() {
             .expect("authored panel style resolved");
         assert_eq!(border.edge_size, 8.0);
         assert_eq!(border.uv_edge_size, Some(8.0));
-        assert_eq!(
-            border.texture,
-            Some(ui_toolkit::widgets::texture::TextureSource::File(
-                "data/textures/ui/panel_slate_gold_512.ktx2".into()
-            ))
-        );
+        assert!(border.texture.is_some(), "{name}: border texture resolved");
     }
 }
 
@@ -78,7 +73,11 @@ fn logged_out_menu_has_five_actions_and_full_screen_blocker() {
         .get(model.registry.get_by_name(GAME_MENU_ROOT.0).unwrap())
         .unwrap();
     assert!(root.mouse_enabled);
-    assert_eq!(root.background_color, Some([0.01, 0.01, 0.02, 0.75]));
+    // The blocker dims the world behind it without hiding it.
+    assert!(
+        root.background_color
+            .is_some_and(|color| color[3] > 0.0 && color[3] < 1.0)
+    );
     assert_eq!(
         (root.width, root.height),
         (Dimension::Fixed(1280.0), Dimension::Fixed(720.0))

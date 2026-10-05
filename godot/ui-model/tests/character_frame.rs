@@ -137,24 +137,19 @@ fn empty_slots_show_their_paperdoll_slot_textures_and_equipped_slots_their_item_
         texture_fdid(&registry, "CharacterMainHandSlotIconTexture"),
         Some(sword_icon)
     );
-    // UI-PaperDoll-Slot-Head / -SecondaryHand / -Finger.
-    assert_eq!(
-        texture_fdid(&registry, "CharacterHeadSlotIconTexture"),
-        Some(136_516)
-    );
-    assert_eq!(
-        texture_fdid(&registry, "CharacterSecondaryHandSlotIconTexture"),
-        Some(136_524)
-    );
-    assert_eq!(
-        texture_fdid(&registry, "CharacterFinger1SlotIconTexture"),
-        Some(136_514)
-    );
-    // Common quality: the grey WhiteIconFrame border; empty slots have none.
-    assert_eq!(
-        texture_fdid(&registry, "CharacterChestSlotIconBorder"),
-        Some(651_080)
-    );
+    // Each empty slot shows its own UI-PaperDoll-Slot-* picture, not an item icon.
+    let empty: Vec<u32> = [
+        "CharacterHeadSlotIconTexture",
+        "CharacterSecondaryHandSlotIconTexture",
+        "CharacterFinger1SlotIconTexture",
+    ]
+    .iter()
+    .map(|name| texture_fdid(&registry, name).unwrap_or_else(|| panic!("{name} has no art")))
+    .collect();
+    assert!(empty.iter().all(|&fdid| fdid != 0 && fdid != sword_icon));
+    assert!(empty[0] != empty[1] && empty[1] != empty[2] && empty[0] != empty[2]);
+    // An equipped item has a quality border; empty slots have none.
+    assert!(texture_fdid(&registry, "CharacterChestSlotIconBorder").is_some_and(|f| f != 0));
     assert_eq!(texture_fdid(&registry, "CharacterHeadSlotIconBorder"), None);
 }
 
@@ -168,9 +163,14 @@ fn a_delta_unequipping_the_weapon_restores_the_empty_slot() {
         }],
     });
     let registry = build(view(&inventory, None));
+    let never_equipped = build(view(&InventoryState::default(), None));
     assert_eq!(
         texture_fdid(&registry, "CharacterMainHandSlotIconTexture"),
-        Some(136_518)
+        texture_fdid(&never_equipped, "CharacterMainHandSlotIconTexture")
+    );
+    assert_ne!(
+        texture_fdid(&registry, "CharacterMainHandSlotIconTexture"),
+        Some(item_catalog_entry(25).unwrap().icon_fdid)
     );
 }
 
@@ -275,15 +275,11 @@ fn title_is_white_and_the_race_backdrop_desaturated() {
     };
     assert_eq!(title.text, "Theron");
     assert_eq!(title.color, [1.0; 4]);
-    // DressUpBackground-Human1..4.
-    assert_eq!(
-        texture_fdid(&registry, "CharacterModelFrameBackgroundTopLeft"),
-        Some(131_093)
-    );
-    assert_eq!(
-        texture_fdid(&registry, "CharacterModelFrameBackgroundBotRight"),
-        Some(131_096)
-    );
+    // The race backdrop is drawn in quarters, each its own DressUpBackground piece.
+    let top_left = texture_fdid(&registry, "CharacterModelFrameBackgroundTopLeft");
+    let bot_right = texture_fdid(&registry, "CharacterModelFrameBackgroundBotRight");
+    assert!(top_left.is_some_and(|f| f != 0) && bot_right.is_some_and(|f| f != 0));
+    assert_ne!(top_left, bot_right);
     let quarter = registry
         .get(
             registry

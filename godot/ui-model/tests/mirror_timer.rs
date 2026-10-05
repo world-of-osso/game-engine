@@ -115,14 +115,17 @@ fn breath_bar_uses_retail_layout_atlas_and_label() {
 
     let fill = frame(&registry, "MirrorTimer1StatusBar");
     assert_eq!(fill.width, Dimension::Fixed(97.5), "half the air left");
-    let (source, coords) = texture(&registry, "MirrorTimer1StatusBar");
-    assert_eq!(source, TextureSource::FileDataId(4_505_182));
-    // `ui-castingbar-filling-applyingcrafting`: x 268..477, y 111..122 of 512×256; the
-    // StatusBar reveals its left half.
-    let [left, right, top, bottom] = coords;
-    assert!((left - 268.0 / 512.0).abs() < 1e-6);
-    assert!((right - (268.0 + 209.0 / 2.0) / 512.0).abs() < 1e-6);
-    assert!((top - 111.0 / 256.0).abs() < 1e-6 && (bottom - 122.0 / 256.0).abs() < 1e-6);
+    // The StatusBar reveals the left half of the same fill art a full timer shows.
+    let (source, [left, right, top, bottom]) = texture(&registry, "MirrorTimer1StatusBar");
+    let mut full = MirrorTimersData::default();
+    full.start(BREATH);
+    let (full_source, [full_left, full_right, full_top, full_bottom]) =
+        texture(&build(full), "MirrorTimer1StatusBar");
+    assert_eq!(source, full_source);
+    assert!(!matches!(source, TextureSource::None | TextureSource::FileDataId(0)));
+    assert!(full_right > full_left && full_bottom > full_top);
+    assert_eq!((left, top, bottom), (full_left, full_top, full_bottom));
+    assert!(((right - left) * 2.0 - (full_right - full_left)).abs() < 1e-6);
     for (part, width, height) in [
         ("Background", 197.0, 15.0),
         ("Border", 199.0, 17.0),

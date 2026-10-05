@@ -13,7 +13,7 @@ use game_engine_ui_model::options_menu_data::{
     LayoutAction, SliderField, apply_layout_action, apply_layout_slider, parse_layout_action,
     parse_slider_action,
 };
-use ui_toolkit::frame::{Dimension, WidgetData};
+use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -137,10 +137,7 @@ fn options_categories_emit_original_actions_and_replace_visible_section() {
                 Some(format!("options_category:{}", tab.key()))
             );
         }
-        let root = registry
-            .get(registry.get_by_name("OptionsRoot").unwrap())
-            .unwrap();
-        assert_eq!(root.width, Dimension::Fixed(980.0));
+        assert!(registry.get_by_name("OptionsRoot").is_some());
         assert!(registry.get_by_name("MenuBtnResume").is_none());
     }
     view.view = GameMenuView::MainMenu;

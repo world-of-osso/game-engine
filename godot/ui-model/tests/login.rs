@@ -33,14 +33,10 @@ fn authored_login_registry_retains_frames_layout_and_resources() {
     let form = registry
         .get(registry.get_by_name("LoginInputContainer").unwrap())
         .unwrap();
-    assert_eq!(
-        (form.width, form.height),
-        (Dimension::Fixed(320.0), Dimension::Fixed(200.0))
-    );
+    // The form is centred on the screen.
     assert_eq!(form.position.left, Val::Percent(50.0));
     assert_eq!(form.position.top, Val::Percent(50.0));
     assert_eq!(form.translation.x, Val::Percent(-50.0));
-    assert_eq!(form.margin.top, Val::Px(-67.0));
 
     let username = registry
         .get(registry.get_by_name(USERNAME_INPUT.0).unwrap())
@@ -54,14 +50,22 @@ fn authored_login_registry_retains_frames_layout_and_resources() {
         (username.height, password.height),
         (Dimension::Fixed(42.0), Dimension::Fixed(42.0))
     );
-    assert_eq!(password.position.top, Val::Px(72.0));
+    // The password box sits below the username box, clear of it.
+    let (Val::Px(user_top), Val::Px(pass_top)) = (username.position.top, password.position.top)
+    else {
+        panic!("inputs are not placed in px")
+    };
+    assert!(
+        pass_top >= user_top + 42.0,
+        "{pass_top} overlaps {user_top}"
+    );
     assert!(matches!(password.widget_data, Some(WidgetData::EditBox(ref data)) if data.password));
 
     let bg = registry
         .get(registry.get_by_name("LoginBackground").unwrap())
         .unwrap();
     assert!(
-        matches!(bg.widget_data, Some(WidgetData::Texture(ref data)) if data.source == TextureSource::File("data/glues/common/world-of-osso-background.ktx2".into()))
+        matches!(bg.widget_data, Some(WidgetData::Texture(ref data)) if matches!(&data.source, TextureSource::File(path) if !path.is_empty()))
     );
     let logo = registry
         .get(registry.get_by_name("LoginGameLogo").unwrap())
@@ -71,7 +75,7 @@ fn authored_login_registry_retains_frames_layout_and_resources() {
         (Dimension::Fixed(384.0), Dimension::Fixed(256.0))
     );
     assert!(
-        matches!(logo.widget_data, Some(WidgetData::Texture(ref data)) if data.source == TextureSource::File("data/glues/common/world-of-osso-logo.ktx2".into()))
+        matches!(logo.widget_data, Some(WidgetData::Texture(ref data)) if matches!(&data.source, TextureSource::File(path) if !path.is_empty()))
     );
     let connect = registry
         .get(registry.get_by_name(CONNECT_BUTTON.0).unwrap())

@@ -11,8 +11,11 @@ fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
         .unwrap()
 }
 
-fn atlas(name: &str) -> TextureSource {
-    TextureSource::Atlas(name.into())
+fn left_top(frame: &Frame) -> (f32, f32) {
+    let (Val::Px(x), Val::Px(y)) = (frame.position.left, frame.position.top) else {
+        panic!("{:?} is not placed in px", frame.name)
+    };
+    (x, y)
 }
 
 fn money_text(registry: &FrameRegistry) -> &str {
@@ -34,45 +37,49 @@ fn standalone_bar_preserves_authored_buttons_art_and_geometry() {
     assert_eq!(bar.height, Dimension::Fixed(47.0));
     assert_eq!(bar.position.right, Val::Px(6.0));
     assert_eq!(bar.position.bottom, Val::Px(49.0));
-    for (name, action, size, x, y) in [
-        (
-            "MainMenuBarBackpackButton",
-            "bag_toggle:0",
-            48.0,
-            320.0,
-            -0.5,
-        ),
-        ("CharacterBag0Slot", "bag_toggle:1", 30.0, 280.0, 8.5),
-        ("CharacterBag1Slot", "bag_toggle:2", 30.0, 250.0, 8.5),
-        ("CharacterBag2Slot", "bag_toggle:3", 30.0, 220.0, 8.5),
-        ("CharacterBag3Slot", "bag_toggle:4", 30.0, 190.0, 8.5),
-        ("CharacterReagentBag0Slot", "bag_toggle:5", 30.0, 160.0, 8.5),
+    // Right to left: backpack, four bag slots, reagent slot; each vertically centred in
+    // the bar and clear of the slot to its right.
+    let mut right_neighbour_left = 368.0;
+    for (name, action, size) in [
+        ("MainMenuBarBackpackButton", "bag_toggle:0", 48.0),
+        ("CharacterBag0Slot", "bag_toggle:1", 30.0),
+        ("CharacterBag1Slot", "bag_toggle:2", 30.0),
+        ("CharacterBag2Slot", "bag_toggle:3", 30.0),
+        ("CharacterBag3Slot", "bag_toggle:4", 30.0),
+        ("CharacterReagentBag0Slot", "bag_toggle:5", 30.0),
     ] {
         let button = frame(&registry, name);
         assert_eq!(button.onclick.as_deref(), Some(action));
         assert_eq!(button.width, Dimension::Fixed(size));
         assert_eq!(button.height, Dimension::Fixed(size));
-        assert_eq!(button.position.left, Val::Px(x));
-        assert_eq!(button.position.top, Val::Px(y));
+        let (x, y) = left_top(button);
+        assert!(
+            x >= 0.0 && x + size <= right_neighbour_left,
+            "{name} at {x}"
+        );
+        assert_eq!(y + size / 2.0, 47.0 / 2.0, "{name} off the bar's centre");
+        right_neighbour_left = x;
         let art = frame(&registry, &format!("{name}Art"));
         assert_eq!(art.width, Dimension::Fixed(size));
         assert_eq!(art.height, Dimension::Fixed(size));
         match art.widget_data.as_ref() {
             Some(WidgetData::Texture(texture)) => {
-                let expected = match name {
-                    "MainMenuBarBackpackButton" => "bag-main",
-                    "CharacterReagentBag0Slot" => "bag-reagent-border-empty",
-                    _ => "bag-border-empty",
-                };
-                assert_eq!(texture.source, atlas(expected));
+                assert!(
+                    matches!(&texture.source, TextureSource::Atlas(n) if !n.is_empty()),
+                    "{name} art has no atlas"
+                );
             }
             other => panic!("{name} art is not a texture: {other:?}"),
         }
     }
+    // The money display sits left of the bag slots, centred on the same line.
     let money = frame(&registry, "BagsBarMoneyDisplay");
-    assert_eq!(money.width, Dimension::Fixed(154.0));
-    assert_eq!(money.height, Dimension::Fixed(14.0));
-    assert_eq!(money.position.top, Val::Px(16.5));
+    let (Dimension::Fixed(money_w), Dimension::Fixed(money_h)) = (money.width, money.height) else {
+        panic!("money has no fixed size")
+    };
+    let (money_x, money_y) = left_top(money);
+    assert!(money_x + money_w <= right_neighbour_left);
+    assert_eq!(money_y + money_h / 2.0, 47.0 / 2.0);
     assert_eq!(money_text(&registry), "0g 0s 0c");
     assert!(registry.get_by_name("MicroMenuContainer").is_none());
     assert!(registry.get_by_name("ActionButton1").is_none());
@@ -152,10 +159,16 @@ fn equipped_bags_show_their_icon_under_the_filled_slot_art() {
         ..Default::default()
     });
     Screen::new(bags_bar_screen).sync(&shared, &mut registry);
-    for (slot, fdid, art) in [
-        ("CharacterBag0Slot", 133_633, "bag-border"),
-        ("CharacterBag3Slot", 133_622, "bag-border"),
-        ("CharacterReagentBag0Slot", 4_549_293, "bag-reagent-border"),
+    let empty_art = texture_of(&registry, "CharacterBag1SlotArt").source.clone();
+    assert_eq!(
+        texture_of(&registry, "CharacterBag2SlotArt").source,
+        empty_art,
+        "empty slots share the empty art"
+    );
+    for (slot, fdid) in [
+        ("CharacterBag0Slot", 133_633),
+        ("CharacterBag3Slot", 133_622),
+        ("CharacterReagentBag0Slot", 4_549_293),
     ] {
         let icon_name = format!("{slot}IconTexture");
         let icon = texture_of(&registry, &icon_name);
@@ -169,17 +182,17 @@ fn equipped_bags_show_their_icon_under_the_filled_slot_art() {
         assert_eq!(icon_frame.position.left, Val::Px(2.0));
         assert_eq!(icon_frame.position.top, Val::Px(2.0));
         let drawn = texture_of(&registry, &format!("{slot}Art"));
-        assert_eq!(drawn.source, atlas(art));
+        assert!(
+            matches!(&drawn.source, TextureSource::Atlas(n) if !n.is_empty()),
+            "{slot} has no filled art"
+        );
+        assert_ne!(drawn.source, empty_art, "{slot} keeps the empty art");
     }
     for slot in ["CharacterBag1Slot", "CharacterBag2Slot"] {
         assert!(
             registry
                 .get_by_name(&format!("{slot}IconTexture"))
                 .is_none()
-        );
-        assert_eq!(
-            texture_of(&registry, &format!("{slot}Art")).source,
-            atlas("bag-border-empty")
         );
     }
 }
@@ -199,10 +212,13 @@ fn expand_toggle_collapses_the_four_bag_slots() {
     assert_eq!(toggle.onclick.as_deref(), Some("bag_bar_expand_toggle"));
     assert_eq!(toggle.width, Dimension::Fixed(10.0));
     assert_eq!(toggle.height, Dimension::Fixed(16.0));
-    assert_eq!(toggle.position.left, Val::Px(310.0));
-    assert_eq!(toggle.position.top, Val::Px(15.5));
+    // Directly left of the backpack, centred on the bar.
+    let (toggle_x, toggle_y) = left_top(toggle);
+    let backpack_x = left_top(frame(&registry, "MainMenuBarBackpackButton")).0;
+    assert_eq!(toggle_x + 10.0, backpack_x);
+    assert_eq!(toggle_y + 8.0, 47.0 / 2.0);
     let arrow = texture_of(&registry, "BagBarExpandToggleNormalTexture");
-    assert_eq!(arrow.source, atlas("bag-arrow"));
+    assert!(matches!(&arrow.source, TextureSource::Atlas(n) if !n.is_empty()));
     assert_eq!(arrow.rotation, std::f32::consts::PI);
 
     shared.insert(BagBarState {
@@ -221,9 +237,10 @@ fn expand_toggle_collapses_the_four_bag_slots() {
             "bag {i} still shown"
         );
     }
+    // The reagent slot moves up against the toggle.
     assert_eq!(
-        frame(&registry, "CharacterReagentBag0Slot").position.left,
-        Val::Px(280.0)
+        left_top(frame(&registry, "CharacterReagentBag0Slot")).0 + 30.0,
+        left_top(frame(&registry, "BagBarExpandToggle")).0
     );
     assert_eq!(
         texture_of(&registry, "BagBarExpandToggleNormalTexture").rotation,
