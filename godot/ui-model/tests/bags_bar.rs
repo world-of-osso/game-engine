@@ -18,10 +18,22 @@ fn left_top(frame: &Frame) -> (f32, f32) {
     (x, y)
 }
 
-fn money_text(registry: &FrameRegistry) -> &str {
-    match frame(registry, "BagsBarMoneyDisplay").widget_data.as_ref() {
-        Some(WidgetData::FontString(text)) => &text.text,
-        other => panic!("money is not a font string: {other:?}"),
+#[test]
+fn bags_bar_has_no_money_in_either_preset() {
+    for skin in [
+        ui_toolkit::atlas::ActiveSkin::Modern,
+        ui_toolkit::atlas::ActiveSkin::Forever,
+    ] {
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(BagBarState::default());
+        Screen::new(bags_bar_screen).sync(&shared, &mut registry);
+        assert!(
+            registry.get_by_name("BagsBarMoneyDisplay").is_none(),
+            "{skin:?}"
+        );
+        assert_eq!(frame(&registry, "BagsBar").width, Dimension::Fixed(208.0));
     }
 }
 
@@ -32,14 +44,14 @@ fn standalone_bar_preserves_authored_buttons_art_and_geometry() {
     shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
     Screen::new(bags_bar_screen).sync(&shared, &mut registry);
     let bar = frame(&registry, "BagsBar");
-    // Money 160, five bag buttons 30, BagBarExpandToggle 10, backpack 48.
-    assert_eq!(bar.width, Dimension::Fixed(368.0));
+    // Five bag buttons 30, BagBarExpandToggle 10, backpack 48.
+    assert_eq!(bar.width, Dimension::Fixed(208.0));
     assert_eq!(bar.height, Dimension::Fixed(47.0));
     assert_eq!(bar.position.right, Val::Px(6.0));
     assert_eq!(bar.position.bottom, Val::Px(49.0));
     // Right to left: backpack, four bag slots, reagent slot; each vertically centred in
     // the bar and clear of the slot to its right.
-    let mut right_neighbour_left = 368.0;
+    let mut right_neighbour_left = 208.0;
     for (name, action, size) in [
         ("MainMenuBarBackpackButton", "bag_toggle:0", 48.0),
         ("CharacterBag0Slot", "bag_toggle:1", 30.0),
@@ -72,38 +84,8 @@ fn standalone_bar_preserves_authored_buttons_art_and_geometry() {
             other => panic!("{name} art is not a texture: {other:?}"),
         }
     }
-    // The money display sits left of the bag slots, centred on the same line.
-    let money = frame(&registry, "BagsBarMoneyDisplay");
-    let (Dimension::Fixed(money_w), Dimension::Fixed(money_h)) = (money.width, money.height) else {
-        panic!("money has no fixed size")
-    };
-    let (money_x, money_y) = left_top(money);
-    assert!(money_x + money_w <= right_neighbour_left);
-    assert_eq!(money_y + money_h / 2.0, 47.0 / 2.0);
-    assert_eq!(money_text(&registry), "0g 0s 0c");
     assert!(registry.get_by_name("MicroMenuContainer").is_none());
     assert!(registry.get_by_name("ActionButton1").is_none());
-}
-
-#[test]
-fn money_state_sync_matches_original_updater_denominations() {
-    let mut registry = FrameRegistry::new(1280.0, 720.0);
-    let mut shared = SharedContext::new();
-    shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
-    let mut screen = Screen::new(bags_bar_screen);
-    for (money, expected) in [
-        (12345, "1g 23s 45c"),
-        (345, "3s 45c"),
-        (45, "45c"),
-        (0, "0c"),
-    ] {
-        shared.insert(BagBarState {
-            money,
-            ..Default::default()
-        });
-        screen.sync(&shared, &mut registry);
-        assert_eq!(money_text(&registry), expected);
-    }
 }
 
 fn text_of<'a>(registry: &'a FrameRegistry, name: &str) -> &'a str {

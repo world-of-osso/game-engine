@@ -355,7 +355,6 @@ impl GameClient {
         BagsView {
             containers,
             bar: BagBarState {
-                money: self.merchant.session.money,
                 free_slots: inventory.total_free_slots(),
                 bag_icons: EquipmentSlot::BAGS
                     .map(|slot| inventory.equipped(slot).map(|bag| bag.icon_fdid)),
