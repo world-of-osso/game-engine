@@ -67,6 +67,9 @@ fn outfit_cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<boo
         let (source, mtime) = row.map_err(|err| format!("read source_files row: {err}"))?;
         recorded.insert(source, mtime);
     }
+    if recorded.len() != csv_paths.len() {
+        return Ok(false);
+    }
     for path in csv_paths {
         let key = outfit_csv_source_key(path)?;
         if recorded.get(&key).copied() != Some(csv_mtime(path)?) {

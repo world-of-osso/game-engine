@@ -2,6 +2,56 @@ use std::path::Path;
 
 use crate::outfit_data::OutfitData;
 
+#[test]
+fn forever_npc_gear_resolves_zephras_shoulders_and_preserves_retail() {
+    let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let forever = data.join("db2/1.60.1.70205");
+    let mut extra = 0;
+    crate::csv_util::read_numeric_rows(
+        &forever.join("CreatureDisplayInfo.csv"),
+        ["ID", "ExtendedDisplayInfoID"],
+        |[id, value]| {
+            if id == 136967 {
+                extra = value;
+            }
+        },
+    )
+    .unwrap();
+    assert_eq!(extra, 162977);
+    let mut shoulder = 0;
+    crate::csv_util::read_numeric_rows(
+        &forever.join("NPCModelItemSlotDisplayInfo.csv"),
+        ["NpcModelID", "ItemSlot", "ItemDisplayInfoID"],
+        |[id, slot, value]| {
+            if id == extra && slot == 1 {
+                shoulder = value;
+            }
+        },
+    )
+    .unwrap();
+    assert_eq!(shoulder, 734891);
+    let outfit = OutfitData::load(&data);
+    let resolved = outfit
+        .try_resolve_display_info(shoulder as u32, 4, 0)
+        .unwrap();
+    assert!(resolved.is_some(), "Forever shoulder display missing");
+    let resolved = resolved.unwrap();
+    assert!(resolved.model_fdids.contains(&(84883, 7579617)));
+    assert_eq!(
+        outfit.display_material_texture_fdids(shoulder as u32, 4, 0),
+        [7731197]
+    );
+    assert_eq!(
+        outfit.resolve_shoulder_runtime_model(shoulder as u32, 0, 4, 0),
+        Some((7579617, [7731197, 0, 0]))
+    );
+    assert_eq!(
+        outfit.resolve_shoulder_runtime_model(shoulder as u32, 1, 4, 0),
+        Some((7579618, [7731197, 0, 0]))
+    );
+    selected_human_warrior_items_resolve_original_displays_and_resources();
+}
+
 fn catalog() -> OutfitData {
     let data_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
     OutfitData::load(&data_root)
