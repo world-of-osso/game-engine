@@ -1,6 +1,7 @@
 //! Retail PetActionBar (Blizzard_ActionBar/Mainline/PetActionBar.xml, Shared/PetActionBar.lua)
 //! with the hunter bar the server sends.
 
+use game_engine_ui_model::input_bindings::{InputAction, InputBinding, InputBindingsData};
 use game_engine_ui_model::pet_action_bar_component::{
     PET_ACTION_BAR, PetActionBarState, PetActionSlot, PetAutocast, apply_pet_action_bar_postsetup,
     attack_flash_shown, parse_pet_action_button, pet_action_bar_screen, pet_autocast_toggle,
@@ -53,8 +54,9 @@ fn spell_icon(spell_id: u32) -> u32 {
     }
 }
 
-fn hotkeys() -> [String; 10] {
-    ["1", "2", "3", "4", "5", "6", "7", "8", "9", "0"].map(|key| format!("c-{key}"))
+/// Retail's default `BONUSACTIONBUTTONn` keys, Ctrl-1 .. Ctrl-0.
+fn hotkeys() -> [Option<InputBinding>; 10] {
+    InputAction::PET_ACTION_SLOTS.map(|action| InputBindingsData::default().binding(action))
 }
 
 fn shown(spells: &PetSpells, pet_in_combat: bool, attack_flash: bool) -> FrameRegistry {
@@ -125,7 +127,7 @@ fn pet_bar_uses_retail_small_button_geometry_above_the_main_bar() {
         );
         assert_eq!(
             text(&registry, &format!("PetActionButton{index}HotKey")),
-            hotkeys()[index - 1]
+            format!("c-{}", index % 10)
         );
         assert_eq!(
             parse_pet_action_button(button.onclick.as_deref().unwrap()),

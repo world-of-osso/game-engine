@@ -4,6 +4,7 @@ mod modern_fixture;
 use std::fmt::Write;
 use std::path::PathBuf;
 
+use game_engine_ui_model::input_bindings::{InputAction, InputBindingsData};
 use game_engine_ui_model::main_action_bar_component::{MainActionBarState, main_action_bar_screen};
 use game_engine_ui_model::pet_action_bar_component::{
     PetActionBarState, PetActionButtonView, PetAutocast, apply_pet_action_bar_postsetup,
@@ -24,7 +25,9 @@ fn state() -> PetActionBarState {
             checked: i == 0,
             checked_alpha: 0.5,
             flash: i == 0,
-            hotkey: format!("c-{}", i + 1),
+            hotkey: InputAction::PET_ACTION_SLOTS
+                .get(i)
+                .and_then(|action| InputBindingsData::default().binding(*action)),
             pushed: i == 1,
             hovered: i == 2,
             autocast: if i == 3 {

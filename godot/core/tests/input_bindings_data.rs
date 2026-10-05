@@ -391,6 +391,44 @@ fn hotkey_text_abbreviates_modifiers() {
     assert_eq!(InputBinding::Keyboard(BindingKey::Minus).hotkey_text(), "-");
 }
 
+/// Forever labels a binding with FlareUI's `ShortenKey` over the raw `GetBindingKey` string
+/// (`Modules/ActionBars.lua:201-222`): "BUTTONn" -> "Bn", then `KEY_SHORT` in order; Modern
+/// keeps `GetBindingText(key, 1)`.
+#[test]
+fn forever_hotkey_text_follows_flareui_shorten_key() {
+    use BindingKey::*;
+    use BindingMouseButton::*;
+    use InputBinding::{CtrlKeyboard, Keyboard, Mouse, ShiftKeyboard};
+    let table = [
+        (CtrlKeyboard(Digit1), "CTRL-1", "C1", "c-1"),
+        (ShiftKeyboard(Digit3), "SHIFT-3", "S3", "s-3"),
+        (ShiftKeyboard(BracketRight), "SHIFT-]", "S]", "s-]"),
+        (Keyboard(KeyQ), "Q", "Q", "Q"),
+        (Keyboard(Space), "SPACE", "Sp", "Spacebar"),
+        (CtrlKeyboard(Space), "CTRL-SPACE", "CSp", "c-Spacebar"),
+        (Keyboard(Backspace), "BACKSPACE", "BS", "Backspace"),
+        (Keyboard(Tab), "TAB", "Tb", "Tab"),
+        (Keyboard(NumpadAdd), "NUMPADPLUS", "N+", "Num Pad +"),
+        (Keyboard(NumpadSubtract), "NUMPADMINUS", "N-", "Num Pad -"),
+        (Keyboard(NumLock), "NUMLOCK", "NL", "Num Lock"),
+        (Keyboard(PageDown), "PAGEDOWN", "PD", "Page Down"),
+        (Keyboard(Delete), "DELETE", "Del", "Delete"),
+        (Keyboard(Insert), "INSERT", "Ins", "Insert"),
+        (Keyboard(Home), "HOME", "Hm", "Home"),
+        (Keyboard(End), "END", "En", "End"),
+        (Keyboard(F5), "F5", "F5", "F5"),
+        (Keyboard(Minus), "-", "-", "-"),
+        (Mouse(Middle), "BUTTON3", "B3", "Middle Mouse"),
+        (Mouse(Back), "BUTTON4", "B4", "Mouse Button 4"),
+        (Mouse(Other(10)), "BUTTON10", "B10", "Mouse Button 10"),
+    ];
+    for (binding, key, forever, modern) in table {
+        assert_eq!(binding.binding_key_name(), key, "{binding:?}");
+        assert_eq!(binding.flare_hotkey_text(), forever, "{binding:?}");
+        assert_eq!(binding.hotkey_text(), modern, "{binding:?}");
+    }
+}
+
 /// Retail `MULTIACTIONBAR1BUTTONn` / `MULTIACTIONBAR2BUTTONn`: "Action Bar 2 Button n" /
 /// "Action Bar 3 Button n" under the Action Bar 2 / 3 headers, shipped unbound.
 #[test]

@@ -116,8 +116,8 @@ pub struct ActionButtonView {
     pub pushed: bool,
     /// Pointer over the button: `HighlightTexture`.
     pub hovered: bool,
-    /// `HotKey` text: the button's binding abbreviated, empty when unbound.
-    pub hotkey: String,
+    /// The button's binding; its `HotKey` shows it abbreviated per skin, nothing when unbound.
+    pub hotkey: Option<InputBinding>,
 }
 
 /// The action bars this client draws.
@@ -255,10 +255,7 @@ impl MainActionBarState {
     pub fn set_hotkeys(&mut self, bindings: &InputBindingsData) {
         for bar in ActionBar::ALL {
             for (view, action) in self.bar_mut(bar).iter_mut().zip(bar.binding_actions()) {
-                view.hotkey = bindings
-                    .binding(action)
-                    .map(InputBinding::hotkey_text)
-                    .unwrap_or_default();
+                view.hotkey = bindings.binding(action);
             }
         }
     }
@@ -377,15 +374,21 @@ fn cooldown(name: &str, view: &ActionButtonView, scale: f32) -> Element {
     }
 }
 
-/// Button `name`'s `HotKey` showing `label`, at the skin's anchor or the template's
-/// `retail_anchor` (right, top).
+/// Button `name`'s `HotKey` showing `binding`, at the skin's anchor or the template's
+/// `retail_anchor` (right, top). Modern labels it `GetBindingText(key, 1)` ("c-1"); Forever
+/// with FlareUI's `ShortenKey` ("C1", `Modules/ActionBars.lua:259`).
 pub(crate) fn hotkey(
     name: &str,
-    label: &str,
+    binding: Option<InputBinding>,
     skin: ActiveSkin,
     scale: f32,
     retail_anchor: (f32, f32),
 ) -> Element {
+    let label = binding.map_or_else(String::new, |binding| match skin {
+        ActiveSkin::Modern => binding.hotkey_text(),
+        ActiveSkin::Forever => binding.flare_hotkey_text(),
+    });
+    let label = label.as_str();
     let name = DynName(format!("{name}HotKey"));
     let (width, height, font_size) = (HOTKEY_W * scale, HOTKEY_H * scale, 12.0 * scale);
     match skin {
@@ -467,7 +470,7 @@ fn button(
             frame_art,
             !view.hovered,
         ),
-        hotkey(&name, &view.hotkey, style.skin, scale, HOTKEY_ANCHOR),
+        hotkey(&name, view.hotkey, style.skin, scale, HOTKEY_ANCHOR),
     ]
     .into_iter()
     .flatten()
