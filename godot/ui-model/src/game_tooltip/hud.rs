@@ -187,10 +187,7 @@ pub fn xp_tooltip(xp: u32, next_level_xp: u32, rested_xp: u32) -> GameTooltip {
         vec![
             TooltipLineState::colored(String::new(), TOOLTIP_WHITE),
             TooltipLineState::colored(state, NORMAL),
-            TooltipLineState::colored(
-                format!("{multiplier}% of normal experience"),
-                TOOLTIP_WHITE,
-            ),
+            TooltipLineState::colored(format!("{multiplier}% of normal experience"), TOOLTIP_WHITE),
             TooltipLineState::colored("gained from monsters.", TOOLTIP_WHITE),
         ],
     )
@@ -231,7 +228,10 @@ mod tests {
         // `math.ceil`: 1 XP of 250 reads 1%; a rested pool doubles monster XP.
         let rested = xp_tooltip(1, 250, 300);
         assert_eq!(rows(&rested)[0], ("1 / 250  ( 1% )", ""));
-        assert_eq!(rows(&rested)[2..4], [("Rested", ""), ("200% of normal experience", "")]);
+        assert_eq!(
+            rows(&rested)[2..4],
+            [("Rested", ""), ("200% of normal experience", "")]
+        );
     }
 
     #[test]
