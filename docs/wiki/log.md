@@ -65,6 +65,10 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 
 [[forever-data#Unnamed Skyborne NPC bodies — FDID profile repair]] records authored HD-material selection by body FDID without invented paths, the single import's before/after profile counts and exact-current-root TextureFileData re-extraction. Both requested NPCs author female body 7478494. Importer 42 passed/3 skipped and desktop profile integration 2/2 prove Ventaari composition/gear and Ailee's explicit source-resource failure, not full Ailee/native acceptance. [Contract](../specs/npc-appearance.md#forever-display-overlay) and [ledger](../../target/skyborne-npc-profiles-proof/ledger.md) retain the open visual boundary.
 
+## Zephras liquid catalogs — import and bounded CPU proof
+
+[[terrain#Forever liquid catalogs — bounded CPU proof]] records hash-matched four-table exports, packed-string-array decoding, map-product isolation, six new verified textures and preserved199 Retail type results. Python27/27 and desktop core15/15 pass. Strengthened old-binary fixture fails on absent water; local native build/capture remains pending after desktop connectivity failed. [Contract](../specs/zephras-world-map.md#liquids), [ledger](../../target/zephras-liquid-proof-ledger.md).
+
 ## 2026-10-05 — Forever NPC gear overlay and bounded resource proof
 
 [[forever-data#Gear overlay — bounded CPU proof (2026-10-05)]] records 884/884 gear rows, whole Retail resource-group preservation/removal, product-scoped Extra joins and concrete Zephras shoulder model/texture FDIDs. Python 42 passed/3 skipped; desktop outfit 7/7, helmet 2/2 and native collision 1/1. Local import recovered Extra/geoset/helmet tables and 482 assets, but exited 1. Five texture resources affect 28 items; root asset and body-path gaps remain. No NPC screenshot/full appearance acceptance. [Contract](../specs/npc-appearance.md#forever-display-overlay).
