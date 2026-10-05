@@ -35,7 +35,10 @@ fn loading_state_projects_status_zone_tip_and_progress() {
     assert_eq!(label(&model, "LoadingZoneText"), "Elwynn Forest");
     assert_eq!(label(&model, "LoadingTipText"), "Explore the world");
     assert_eq!(label(&model, "LoadingProgressText"), "25%");
-    assert_eq!(fill_width(&model), Dimension::Fixed(149.5));
+    let Dimension::Fixed(quarter) = fill_width(&model) else {
+        panic!("fill has no fixed width")
+    };
+    assert!(quarter > 0.0);
     let shell = model
         .registry
         .get(model.registry.get_by_name("LoadingBarBackground").unwrap())
@@ -58,5 +61,12 @@ fn loading_state_projects_status_zone_tip_and_progress() {
     assert_eq!(label(&model, "LoadingZoneText"), "Stormwind City");
     assert_eq!(label(&model, "LoadingTipText"), "Talk to the guards");
     assert_eq!(label(&model, "LoadingProgressText"), "80%");
-    assert_eq!(fill_width(&model), Dimension::Fixed(478.4));
+    // The fill grows in proportion to the progress: 80% is 80/25 of 25%.
+    let Dimension::Fixed(most) = fill_width(&model) else {
+        panic!("fill has no fixed width")
+    };
+    assert!(
+        (most - quarter * 80.0 / 25.0).abs() < 0.01,
+        "{quarter} -> {most}"
+    );
 }

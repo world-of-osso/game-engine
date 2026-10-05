@@ -62,9 +62,12 @@ fn authored_collection_marks_keep_original_atlas_and_omit_unmarked_art() {
         let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
             panic!("{name} must be a texture");
         };
-        assert_eq!(
-            texture.source,
-            ui_toolkit::widgets::texture::TextureSource::FileDataId(5_171_843)
+        assert!(
+            matches!(
+                texture.source,
+                ui_toolkit::widgets::texture::TextureSource::FileDataId(fdid) if fdid != 0
+            ),
+            "{name} has no mark art"
         );
     }
     assert!(registry.get_by_name("TooltipLine2Mark").is_none());

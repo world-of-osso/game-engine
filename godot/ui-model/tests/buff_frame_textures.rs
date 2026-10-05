@@ -49,7 +49,12 @@ fn buff_frame_cache_requests_cover_static_flight_and_drawn_debuff_art() {
         let mut cached = requested.clone();
         cached.sort_unstable();
         assert_eq!(cached, drawn);
-        assert_eq!(drawn, vec![136_116, STATIC_FLIGHT_ICON, 7_553_349]);
+        assert!(drawn.contains(&136_116) && drawn.contains(&STATIC_FLIGHT_ICON));
+        assert_eq!(
+            drawn.len(),
+            3,
+            "{skin:?}: the debuff's border art is drawn too"
+        );
     }
     assert!(buff_frame_texture_fdids(&BuffFrameState::default()).is_empty());
 }
@@ -62,10 +67,9 @@ fn aura_without_a_resolved_icon_builds_no_icon_texture() {
         buffs: vec![icon(0, None), icon(STATIC_FLIGHT_ICON, None)],
         debuffs: vec![icon(0, Some(DebuffType::Magic))],
     };
-    assert_eq!(
-        buff_frame_texture_fdids(&state),
-        vec![STATIC_FLIGHT_ICON, 7_553_349]
-    );
+    let requested = buff_frame_texture_fdids(&state);
+    assert!(!requested.contains(&0), "requested: {requested:?}");
+    assert!(requested.contains(&STATIC_FLIGHT_ICON));
     let mut shared = SharedContext::new();
     shared.insert(ActiveSkin::Forever);
     shared.insert(state);

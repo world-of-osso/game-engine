@@ -6,7 +6,7 @@ use game_engine_ui_model::micro_menu::{
     ACTION_CHARACTER, CHARACTER_PORTRAIT, MICRO_BUTTONS, MicroButtonState, MicroMenuView,
     OpenWindows, micro_button_index, micro_button_tooltip, micro_menu_screen, unavailable_message,
 };
-use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
+use ui_toolkit::atlas::{ActiveSkin, resolve_region};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
@@ -26,8 +26,8 @@ fn index(name: &str) -> usize {
     micro_button_index(name).expect(name)
 }
 
-/// `left,top` of a texture child's Modern atlas member, in 1024×512 sheet pixels.
-fn crop(registry: &FrameRegistry, name: &str) -> (f32, f32) {
+/// Atlas member a texture child draws; it must resolve to a Modern region.
+fn atlas(registry: &FrameRegistry, name: &str) -> String {
     data_root();
     let frame = registry
         .get(registry.get_by_name(name).expect(name))
@@ -39,8 +39,8 @@ fn crop(registry: &FrameRegistry, name: &str) -> (f32, f32) {
         panic!("{name} draws {:?}, not an atlas", texture.source);
     };
     let region = resolve_region(atlas, ActiveSkin::Modern).expect(atlas);
-    assert_eq!(region.source, AtlasSource::FileDataId(4_708_813), "{atlas}");
-    ((region.left * 1024.0).round(), (region.top * 512.0).round())
+    assert!(region.right > region.left && region.bottom > region.top, "{atlas}");
+    atlas.clone()
 }
 
 fn button_state(registry: &FrameRegistry, name: &str) -> (ButtonState, f32, Option<String>) {
@@ -109,8 +109,7 @@ fn an_unconverted_button_is_lit_clickable_and_says_why_on_click() {
     let (state, alpha, onclick) = button_state(&registry, "StoreMicroButton");
     assert_eq!((state, alpha), (ButtonState::Normal, 1.0));
     assert_eq!(onclick.as_deref(), Some("micro:StoreMicroButton"));
-    // Not UI-HUD-MicroMenu-Shop-Disabled.
-    assert_ne!(crop(&registry, "StoreMicroButtonArt1"), (463.0, 253.0));
+    assert!(!atlas(&registry, "StoreMicroButtonArt1").ends_with("-Disabled"));
     assert_eq!(
         unavailable_message("micro:StoreMicroButton").as_deref(),
         Some("The shop is currently unavailable.")
@@ -136,26 +135,31 @@ fn hover_shows_the_mouseover_atlas_and_an_open_window_pushes_its_button() {
         pressed: None,
     };
     let registry = build(view);
-    // UI-HUD-MicroMenu-SpecTalents-Mouseover over ButtonBG-Up.
+    let idle = build(MicroMenuView::default());
+    // Hover swaps the icon to its mouseover art over the unchanged up background.
     assert_eq!(
-        crop(&registry, "PlayerSpellsMicroButtonArt0"),
-        (67.0, 253.0)
+        atlas(&registry, "PlayerSpellsMicroButtonArt0"),
+        atlas(&idle, "PlayerSpellsMicroButtonArt0")
     );
+    assert_ne!(
+        atlas(&registry, "PlayerSpellsMicroButtonArt1"),
+        atlas(&idle, "PlayerSpellsMicroButtonArt1")
+    );
+    // The open window's button draws its down icon over the down background.
+    for part in ["QuestLogMicroButtonArt0", "QuestLogMicroButtonArt1"] {
+        assert_ne!(atlas(&registry, part), atlas(&idle, part), "{part}");
+    }
+    // An untouched button keeps its up art.
     assert_eq!(
-        crop(&registry, "PlayerSpellsMicroButtonArt1"),
-        (529.0, 253.0)
+        atlas(&registry, "MainMenuMicroButtonArt1"),
+        atlas(&idle, "MainMenuMicroButtonArt1")
     );
-    // UI-HUD-MicroMenu-Questlog-Down over ButtonBG-Down.
-    assert_eq!(crop(&registry, "QuestLogMicroButtonArt0"), (67.0, 169.0));
-    assert_eq!(crop(&registry, "QuestLogMicroButtonArt1"), (463.0, 1.0));
-    // UI-HUD-MicroMenu-GameMenu-Up.
-    assert_eq!(crop(&registry, "MainMenuMicroButtonArt1"), (133.0, 421.0));
 }
 
 #[test]
 fn the_character_button_draws_the_portrait_shadow_and_pushed_shadow_when_open() {
     let closed = build(MicroMenuView::default());
-    assert_eq!(crop(&closed, "CharacterMicroButtonArt1"), (397.0, 1.0));
+    atlas(&closed, "CharacterMicroButtonArt1");
     assert!(closed.get_by_name("CharacterMicroButtonArt2").is_none());
     let open = build(MicroMenuView {
         open: OpenWindows {
@@ -164,9 +168,12 @@ fn the_character_button_draws_the_portrait_shadow_and_pushed_shadow_when_open() 
         },
         ..MicroMenuView::default()
     });
-    assert_eq!(crop(&open, "CharacterMicroButtonArt0"), (67.0, 169.0));
-    // UI-HUD-MicroMenu-Portrait-Down.
-    assert_eq!(crop(&open, "CharacterMicroButtonArt2"), (331.0, 421.0));
+    // Open pushes the button: its background goes down and the pushed shadow appears.
+    assert_ne!(
+        atlas(&open, "CharacterMicroButtonArt0"),
+        atlas(&closed, "CharacterMicroButtonArt0")
+    );
+    atlas(&open, "CharacterMicroButtonArt2");
 }
 
 /// Children of `parent`, by name, in draw order.

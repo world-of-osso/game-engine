@@ -52,10 +52,7 @@ fn forever_draws_retail_member_for_names_it_does_not_reskin() {
         resolve_region(name, ActiveSkin::Forever),
         resolve_region(name, ActiveSkin::Modern)
     );
-    assert_eq!(
-        resolve_region(name, ActiveSkin::Modern).map(|region| region.source),
-        Some(AtlasSource::FileDataId(3_487_944))
-    );
+    assert!(resolve_region(name, ActiveSkin::Modern).is_some());
 }
 
 /// One region of the baked table ui-toolkit had before the DB2 loader

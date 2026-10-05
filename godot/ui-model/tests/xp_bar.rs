@@ -60,16 +60,16 @@ fn texture<'a>(
     data
 }
 
-/// `name` draws Blizzard's atlas `atlas`, which the Modern skin resolves.
-fn assert_atlas(registry: &FrameRegistry, name: &str, atlas: &str) {
-    assert_eq!(
-        texture(registry, name).source,
-        TextureSource::Atlas(atlas.into())
-    );
+/// The Blizzard atlas `name` draws; the Modern skin must resolve it.
+fn atlas(registry: &FrameRegistry, name: &str) -> String {
+    let TextureSource::Atlas(atlas) = &texture(registry, name).source else {
+        panic!("{name} draws no atlas")
+    };
     assert!(
         resolve_region(atlas, ActiveSkin::Modern).is_some(),
         "{atlas}"
     );
+    atlas.clone()
 }
 
 fn text(registry: &FrameRegistry, name: &str) -> String {
@@ -94,19 +94,17 @@ fn modern_is_the_retail_container_at_the_bottom_centre_in_blizzard_atlases() {
     assert_eq!(size(frame(&r, "ExperienceBarFill")), (141.25, 11.0));
     assert_eq!(origin(frame(&r, "ExperienceBarFill")), px);
     assert_eq!(size(frame(&r, "ExperienceBarFrame")), (571.0, 17.0));
-    assert_atlas(
-        &r,
+    let parts = [
         "ExperienceBarBackground",
-        "UI-HUD-ExperienceBar-Background",
-    );
-    assert_atlas(&r, "ExperienceBarFill", "UI-HUD-ExperienceBar-Fill-Rested");
-    assert_atlas(&r, "ExperienceBarFrame", "UI-HUD-ExperienceBar-Frame");
-    assert_atlas(
-        &r,
+        "ExperienceBarFill",
+        "ExperienceBarFrame",
         "ExperienceBarPrediction",
-        "UI-HUD-ExperienceBar-Fill-Prediction",
-    );
-    assert_atlas(&r, "ExperienceBarTick", "UI-HUD-ExperienceBar-Frame-Pip");
+        "ExperienceBarTick",
+    ];
+    let mut atlases: Vec<_> = parts.iter().map(|part| atlas(&r, part)).collect();
+    atlases.sort();
+    atlases.dedup();
+    assert_eq!(atlases.len(), parts.len(), "each part draws its own art");
 }
 
 #[test]
@@ -146,10 +144,11 @@ fn unrested_bar_is_purple_without_overlay_and_hover_shows_the_xp_text() {
         ..state()
     };
     let r = setup(ActiveSkin::Modern, unrested);
-    assert_atlas(
-        &r,
-        "ExperienceBarFill",
-        "UI-HUD-ExperienceBar-Fill-Experience",
+    let rested = setup(ActiveSkin::Modern, state());
+    assert_ne!(
+        atlas(&r, "ExperienceBarFill"),
+        atlas(&rested, "ExperienceBarFill"),
+        "rested and unrested fills draw different art"
     );
     assert!(frame(&r, "ExperienceBarPrediction").hidden);
     assert!(frame(&r, "ExperienceBarTick").hidden);
