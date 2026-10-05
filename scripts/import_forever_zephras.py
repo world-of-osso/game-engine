@@ -21,6 +21,11 @@ CASC_LOCAL = Path(
 )
 BUILD = "1.60.1.70205"
 
+try:
+    from scripts import forever_liquids
+except ModuleNotFoundError:
+    import forever_liquids
+
 
 def chunks(data):
     offset = 0
@@ -152,8 +157,8 @@ def wmo_references(parts, fdid, names, paths):
     return refs
 
 
-def asset_references(data, fdid, destination, names, paths):
-    if destination.endswith((".blp", ".skin", ".anim")):
+def asset_references(data, fdid, destination, names, paths, liquids=None):
+    if destination.endswith((".blp", ".skin", ".anim", ".blob")):
         return []
     parts = dict(chunks(data))
     if destination.endswith(".wdt"):
@@ -171,6 +176,8 @@ def asset_references(data, fdid, destination, names, paths):
         refs += placement_references(
             parts, b"FDOM", 64, 56, 0x8, b"OMWM", b"DIWM", "wmo", paths
         )
+        if liquids is not None:
+            refs += forever_liquids.asset_references(data, liquids)
         return refs
     if destination.endswith((".m2", ".skel")):
         return model_references(parts, fdid, destination, paths)
@@ -192,6 +199,8 @@ def validate_asset(data, destination):
     }
     if not data or (ext in allowed and data[:4] not in allowed[ext]):
         raise ValueError(f"{destination}: unexpected magic {data[:4]!r}")
+    if ext == ".blob" and len(data) != 128 * 128 * 16 * 4:
+        raise ValueError(f"{destination}: invalid magma noise volume size")
     if ext in (".wdt", ".adt", ".wmo"):
         parts = dict(chunks(data))
         required = {
@@ -219,6 +228,7 @@ def import_closure(data):
         row = next(row for row in csv.DictReader(handle) if row["ID"] == "2991")
     wdt = int(row["WdtFileDataID"])
     names, paths = read_listfile(data)
+    liquids = forever_liquids.read_tables(data, BUILD)
     staging = data / "cache/forever-zephras-extract"
     staging.mkdir(parents=True, exist_ok=True)
     pending = {(wdt, f"terrain/{wdt}.wdt")}
@@ -269,7 +279,7 @@ def import_closure(data):
                     )
                 raw = source.read_bytes()
                 validate_asset(raw, destination)
-                refs = asset_references(raw, fdid, destination, names, paths)
+                refs = asset_references(raw, fdid, destination, names, paths, liquids)
                 if source != target:
                     target.parent.mkdir(parents=True, exist_ok=True)
                     shutil.copyfile(source, target)
