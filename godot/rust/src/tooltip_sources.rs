@@ -64,7 +64,7 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 17] = [
+        const SOURCES: [Source; 18] = [
             GameClient::action_button_tooltip,
             GameClient::spellbook_tooltip,
             GameClient::chat_link_tooltip,
@@ -81,6 +81,7 @@ impl GameClient {
             GameClient::micro_menu_tooltip,
             GameClient::player_aura_tooltip,
             GameClient::target_aura_tooltip,
+            GameClient::xp_bar_tooltip,
             GameClient::hud_frame_tooltip,
         ];
         SOURCES.iter().find_map(|source| source(self, hit))
