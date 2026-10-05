@@ -2742,3 +2742,7 @@ Reconciled [[forever-data#Owned item definition namespaces]], item-source spec a
 ## 2026-10-05 — Serialized current-WDT/client-items evidence reconciliation
 
 [[forever-data#Current scoped capability matrix]] owns current `fdf5bb42` build/native receipts, both-race assertion sentinels and four main-inspected captures. [[character-select-waterfall-loading]] and [quest contract](../specs/quest-ui.md#bounded-skyborne-native-acceptance-fixture) link that bounded proof without NPC/quest or parity credit. Server independent five-test replacements compose 1447 distinct scoped passes, not a fresh whole-suite pass. Native runtime revisions remain receipt-scoped; OS exit uncaptured, race96 ObjectDB/platform/liquid warnings and upstream tooltip/readability findings retained. Authored health/class, source-less records, auction filters, Classic/thrown stats, scripts/phasing and PBR remain explicit gaps. Docs-only; no tests/builds/runtime/data operations.
+
+## [2026-10-05] systems | Record estimated-stat startup and bounded native evidence
+
+[Forever data](systems/forever-data.md#current-scoped-capability-matrix) owns estimated-stat race95 native92460 acceptance, race96 visible Ventaari, receipt-scoped unchanged binary and Main-inspected captures. Initial UnitPick failure, uncaptured OS exits, withheld Ailee/other appearances and missing authored shoulders preserved. Quest contract/index link bounded evidence; no reward/script/parity or full-goal readiness claim. Independent native artifact gate pending.
