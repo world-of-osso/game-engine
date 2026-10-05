@@ -28,6 +28,10 @@ const CELL_GAP: f32 = 8.0;
 const GRID_TOP: f32 = 90.0;
 const ICON_W: f32 = 64.0;
 const ICON_H: f32 = 80.0;
+const WORLD_MAP_ICON_FDID: u32 = 130_816;
+const OPTIONS_ICON_FDID: u32 = 134_063;
+// UiTextureAtlasMember10556's override dimensions.
+const KEYBOARD_ASPECT_RATIO: f32 = 169.0 / 480.0;
 
 /// Same CharacterMicroButton portrait and mask, displayed at twice its normal size.
 pub const CHARACTER_ICON: PortraitSlot = PortraitSlot {
@@ -38,11 +42,17 @@ pub const CHARACTER_ICON: PortraitSlot = PortraitSlot {
 };
 
 #[derive(Clone, Debug, PartialEq, Eq)]
+pub enum LauncherIcon {
+    Atlas(String),
+    FileDataId(u32),
+}
+
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct LauncherEntry {
     pub id: String,
     pub label: String,
     pub action: String,
-    pub icon: Option<String>,
+    pub icon: Option<LauncherIcon>,
 }
 
 pub fn entries() -> Vec<LauncherEntry> {
@@ -52,38 +62,43 @@ pub fn entries() -> Vec<LauncherEntry> {
             id: micro.name.into(),
             label: micro.title.into(),
             action: format!("{ACTION_PREFIX}{}", micro.name),
-            icon: micro.icon_atlas(),
+            icon: micro.icon_atlas().map(LauncherIcon::Atlas),
         })
         .collect();
     // Retail MainMenuBarMicroButtons.lua:1773-1788 loads GameMenu art for both
     // Help and MainMenu. Its red question mark is authored micro art, not a fallback.
-    // Other shortcut art: local UiTextureAtlasMember 14849 (tracking map), 4702
-    // (Gear), and 10556 (tutorial keyboard).
+    // Other shortcut art: local listfile FDID130816 (WorldMapMicroButton),
+    // FDID134063 (INV_Misc_Gear_01), and UiTextureAtlasMember10556 (keyboard).
     let shortcuts = [
         (
             "Help",
             "Help",
             crate::game_menu_main::ACTION_SUPPORT,
-            "UI-HUD-MicroMenu-GameMenu-Up",
+            LauncherIcon::Atlas("UI-HUD-MicroMenu-GameMenu-Up".into()),
         ),
-        ("Bags", "Bags", "bag_toggle:0", "bag-main"),
+        (
+            "Bags",
+            "Bags",
+            "bag_toggle:0",
+            LauncherIcon::Atlas("bag-main".into()),
+        ),
         (
             "WorldMap",
             "World Map",
             crate::minimap::ACTION_TOGGLE_WORLD_MAP,
-            "UI-HUD-Minimap-Tracking-Up",
+            LauncherIcon::FileDataId(WORLD_MAP_ICON_FDID),
         ),
         (
             "Options",
             "Options",
             crate::game_menu_main::ACTION_OPTIONS,
-            "Gear",
+            LauncherIcon::FileDataId(OPTIONS_ICON_FDID),
         ),
         (
             "KeyBindings",
             "Key Bindings",
             ACTION_KEY_BINDINGS,
-            "newplayertutorial-keyboard",
+            LauncherIcon::Atlas("newplayertutorial-keyboard".into()),
         ),
     ];
     entries.extend(
@@ -93,7 +108,7 @@ pub fn entries() -> Vec<LauncherEntry> {
                 id: id.into(),
                 label: label.into(),
                 action: action.into(),
-                icon: Some(icon.into()),
+                icon: Some(icon),
             }),
     );
     entries
@@ -322,21 +337,39 @@ fn entry_button(index: usize, entry: &LauncherEntry, selected: bool) -> Element 
 }
 
 fn entry_icon(entry: &LauncherEntry) -> Element {
-    if let Some(atlas) = &entry.icon {
-        let height = match atlas.as_str() {
-            // UiTextureAtlasMember 10556 overrides the keyboard's size to 480×169.
-            "newplayertutorial-keyboard" => ICON_W * 169.0 / 480.0,
-            "Gear" | "UI-HUD-Minimap-Tracking-Up" => ICON_W,
-            _ => ICON_H,
-        };
-        return rsx! { texture { name: {DynName(format!("LauncherArt{}", entry.id))}, width: ICON_W, height,
-        texture_atlas: atlas.as_str(), pos_type: "absolute", left: 0.0, top: {(ICON_H - height) / 2.0} } };
+    if let Some(icon) = &entry.icon {
+        return icon_texture(entry, icon);
     }
     rsx! {
         texture { name: "LauncherCharacterShadow", width: ICON_W, height: ICON_H,
             texture_atlas: "UI-HUD-MicroMenu-Portrait-Shadow", pos_type: "absolute", left: 0.0, top: 0.0 }
         r#frame { name: {DynName(CHARACTER_ICON.frame.into())}, width: {CHARACTER_ICON.rect.2}, height: {CHARACTER_ICON.rect.3},
             pos_type: "absolute", left: {CHARACTER_ICON.rect.0}, top: {CHARACTER_ICON.rect.1} }
+    }
+}
+
+fn icon_texture(entry: &LauncherEntry, icon: &LauncherIcon) -> Element {
+    let name = DynName(format!("LauncherArt{}", entry.id));
+    match icon {
+        LauncherIcon::Atlas(atlas) => {
+            // UiTextureAtlasMember 10556 overrides the keyboard's size to 480×169.
+            let height = if atlas == "newplayertutorial-keyboard" {
+                ICON_W * KEYBOARD_ASPECT_RATIO
+            } else {
+                ICON_H
+            };
+            rsx! { texture { name, width: ICON_W, height,
+            texture_atlas: atlas.as_str(), pos_type: "absolute", left: 0.0, top: {(ICON_H - height) / 2.0} } }
+        }
+        LauncherIcon::FileDataId(fdid) => {
+            let height = if *fdid == WORLD_MAP_ICON_FDID {
+                ICON_H
+            } else {
+                ICON_W
+            };
+            rsx! { texture { name, width: ICON_W, height,
+            texture_fdid: {*fdid}, pos_type: "absolute", left: 0.0, top: {(ICON_H - height) / 2.0} } }
+        }
     }
 }
 

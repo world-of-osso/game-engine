@@ -91,7 +91,8 @@ textures/8026705.blp
 
 # game-engine-ui-model tests/launcher.rs: all entry icons under both skins
 textures/1065418.blp
-textures/4618651.blp
+textures/130816.blp
+textures/134063.blp
 textures/4691255.blp
 textures/4708813.blp
 
