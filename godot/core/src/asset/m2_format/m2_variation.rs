@@ -36,6 +36,22 @@ impl VariationFamily {
             total: 0,
             shortest_ms: u32::MAX,
         };
+        family.read_linked_variations(sequences, base, id)?;
+        if family.linked > 1 && family.total == 0 {
+            return Err(format!(
+                "M2 animation {id} has {} variations but none is weighted with a positive duration",
+                family.linked
+            ));
+        }
+        Ok(family)
+    }
+
+    fn read_linked_variations(
+        &mut self,
+        sequences: &[M2AnimSequence],
+        base: usize,
+        id: u16,
+    ) -> Result<(), String> {
         let mut seen = std::collections::HashSet::new();
         let mut next = Some(base);
         while let Some(index) = next {
@@ -45,7 +61,7 @@ impl VariationFamily {
             let sequence = sequences
                 .get(index)
                 .ok_or_else(|| format!("M2 animation {id} links absent variation {index}"))?;
-            family.append(index, sequence, id)?;
+            self.append(index, sequence, id)?;
             next = match sequence.variation_next {
                 -1 => None,
                 index if index >= 0 => Some(index as usize),
@@ -56,13 +72,7 @@ impl VariationFamily {
                 }
             };
         }
-        if family.linked > 1 && family.total == 0 {
-            return Err(format!(
-                "M2 animation {id} has {} variations but none is weighted with a positive duration",
-                family.linked
-            ));
-        }
-        Ok(family)
+        Ok(())
     }
 
     fn append(&mut self, index: usize, sequence: &M2AnimSequence, id: u16) -> Result<(), String> {
