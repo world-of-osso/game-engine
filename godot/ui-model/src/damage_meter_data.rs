@@ -39,17 +39,20 @@ pub enum MeterType {
     Interrupts,
     Dispels,
     Deaths,
+    /// Details-like current-target threat; not an Enum.DamageMeterType value.
+    Threat,
 }
 
 impl MeterType {
     /// In the type dropdown's order (`DAMAGE_METER_CATEGORIES`,
     /// DamageMeterSessionWindow.lua:1-5).
-    pub const ALL: [Self; 5] = [
+    pub const ALL: [Self; 6] = [
         Self::DamageDone,
         Self::HealingDone,
         Self::Interrupts,
         Self::Dispels,
         Self::Deaths,
+        Self::Threat,
     ];
 
     /// `DAMAGE_METER_TYPE_DAMAGE_DONE`, `_HEALING_DONE`, `_INTERRUPTS`, `_DISPELS`,
@@ -61,6 +64,7 @@ impl MeterType {
             Self::Interrupts => "Interrupts",
             Self::Dispels => "Dispels",
             Self::Deaths => "Deaths",
+            Self::Threat => "Threat",
         }
     }
 
@@ -72,6 +76,7 @@ impl MeterType {
             Self::Interrupts => "damage_meter:type:interrupts",
             Self::Dispels => "damage_meter:type:dispels",
             Self::Deaths => "damage_meter:type:deaths",
+            Self::Threat => "damage_meter:threat",
         }
     }
 }
@@ -391,6 +396,9 @@ pub struct DamageMeterWindow {
     pub session: MeterSessionType,
     pub meter_type: MeterType,
     pub snapshot: Option<DamageMeterSnapshot>,
+    pub threat_tables: std::collections::BTreeMap<u64, shared::protocol::ThreatUpdate>,
+    pub threat_target: Option<u64>,
+    pub local_unit: Option<u64>,
     pub log: MeterLog,
     pub menu_open: bool,
     pub type_menu_open: bool,
@@ -401,6 +409,58 @@ pub struct DamageMeterWindow {
 }
 
 impl DamageMeterWindow {
+    pub fn receive_threat(&mut self, update: shared::protocol::ThreatUpdate) {
+        if update.entries.is_empty() {
+            self.threat_tables.remove(&update.creature);
+        } else {
+            self.threat_tables.insert(update.creature, update);
+        }
+    }
+
+    pub fn select_threat_target(
+        &mut self,
+        target: Option<u64>,
+        local: Option<u64>,
+        in_combat: bool,
+    ) {
+        self.local_unit = local;
+        self.threat_target = target;
+        if !in_combat {
+            self.threat_tables.clear();
+        }
+    }
+
+    fn threat_rows(&self) -> Vec<DamageMeterRow> {
+        let Some(table) = self
+            .threat_target
+            .and_then(|target| self.threat_tables.get(&target))
+        else {
+            return Vec::new();
+        };
+        let max = table
+            .entries
+            .iter()
+            .map(|entry| entry.raw_threat)
+            .fold(0.0_f32, f32::max);
+        table
+            .entries
+            .iter()
+            .enumerate()
+            .map(|(index, entry)| DamageMeterRow {
+                name_text: format!("{}. {}", index + 1, entry.name),
+                value_text: format!("{:.1}%", entry.raw_percent),
+                fraction: if max > 0.0 {
+                    entry.raw_threat / max
+                } else {
+                    0.0
+                },
+                color: class_color(entry.class_id),
+                class_id: entry.class_id,
+                is_local_player: self.local_unit == Some(entry.unit),
+            })
+            .collect()
+    }
+
     /// The selected session: none before the first combat for `Current`.
     pub fn session_data(&self) -> Option<&DamageMeterSession> {
         let snapshot = self.snapshot.as_ref()?;
@@ -495,6 +555,7 @@ impl DamageMeterWindow {
                 counted_rows(&self.source_totals(kind), None)
             }
             MeterType::Deaths => self.death_rows(),
+            MeterType::Threat => self.threat_rows(),
         }
     }
 

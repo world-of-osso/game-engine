@@ -28,7 +28,17 @@ Client: `godot/ui-model/src/damage_meter_data.rs` (session selection, rows, numb
 - [ ] Only the rows that fit the window's height are shown (Forever: 5 at the preset size, [geometry](forever-chat-meter-chrome.md)); the scroll box, scroll bar and pinned local-player row (`AlwaysShowsLocalPlayer`) are not implemented.
 - [ ] The per-spell breakdown of Damage Done and Healing Done (`DamageMeterSourceWindow`) is not implemented; the snapshot already carries each source's damage spells. A recap longer than the visible rows cannot happen (5 rows).
 
+## Current-target threat (2026-10-05)
+
+- Threat is offered in the type menu (Forever shows its existing third-type label). This is a requested Details-like extension: Retail `Blizzard_DamageMeter` has no threat category. Threat follows the selected target, not Current/Overall damage sessions.
+- `ThreatUpdate` supplies every unit on an engaged creature's table, descending raw threat, names/classes, raw threat, status and raw/scaled percentages. Rows show raw percentage relative to the current victim and a class-coloured bar relative to the highest threat. The local player's row retains its local identity.
+- Empty updates remove the creature's table. Combat end and world exit clear cached threat; changing target selects its table or an empty list immediately.
+- Retail threat API/indicator reference: cached `Blizzard_UnitFrame/Mainline/UnitFrame.lua:998-1045`, `TargetFrame.lua:488`, `TargetFrame.xml:325-345`. The native target-frame state has no threat indicator, so this task adds none.
+- Server mechanics and transmission: game-server [creature-aggro spec](../../../game-server/docs/specs/creature-aggro.md), TrinityCore a352b1fa `ThreatManager.cpp:733-760,829-875` (`ThreatUpdate` / `ThreatClear`).
+
 ## Tests
+
+- `godot/ui-model/tests/threat_meter.rs`: a received table fills current-target rows, target switches isolate tables, an empty update clears rows, combat end discards caches before the next combat.
 
 - `godot/ui-model/src/damage_meter_data.rs` tests: number abbreviation and clock format; Overall default with ranked class-coloured compact rows and hidden timer out of combat; Current with its timer in combat and empty before the first combat.
 - `godot/ui-model/tests/damage_meter_types.rs`: healing totals and per-second from concrete heal lines over two combats (overheal, creature heals and out-of-combat heals excluded; Current vs Overall); interrupt and dispel counts per player; an Interrupts row's breakdown by interrupted spell and a Dispels row's by removed aura; recap seconds from server timestamps when lines arrive in one burst; deaths newest first with session times; a recap's order, 5-line cap, 10 s window, damage and healing, nothing after the death; type switching, menus and empty types.
