@@ -1,6 +1,7 @@
 use game_engine_core::input_bindings_data::{BindingKey, InputBindingsData};
 use game_engine_ui_model::launcher::{
-    ACTION_CLOSE, ACTION_OPEN, LauncherKey, LauncherView, SEARCH_FIELD, entries, launcher_screen,
+    ACTION_CLOSE, ACTION_OPEN, LauncherIcon, LauncherKey, LauncherView, SEARCH_FIELD, entries,
+    launcher_screen,
 };
 use game_engine_ui_model::micro_menu::{ACTION_PLAYER_SPELLS, MICRO_BUTTONS};
 use game_engine_ui_model::minimap::{MinimapClusterState, minimap_cluster_screen};
@@ -32,13 +33,20 @@ fn launcher_entries_resolve_to_non_fallback_icon_textures() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         for entry in entries() {
             // Portrait entries draw a runtime player portrait over this authored shadow.
-            let atlas = entry
+            let icon = entry
                 .icon
-                .as_deref()
-                .unwrap_or("UI-HUD-MicroMenu-Portrait-Shadow");
-            let region = resolve_region(atlas, skin)
-                .unwrap_or_else(|| panic!("{}: missing {atlas} under {skin:?}", entry.label));
-            let AtlasSource::FileDataId(fdid) = region.source else {
+                .unwrap_or_else(|| LauncherIcon::Atlas("UI-HUD-MicroMenu-Portrait-Shadow".into()));
+            let source = match icon {
+                LauncherIcon::Atlas(atlas) => {
+                    resolve_region(&atlas, skin)
+                        .unwrap_or_else(|| {
+                            panic!("{}: missing {atlas} under {skin:?}", entry.label)
+                        })
+                        .source
+                }
+                LauncherIcon::FileDataId(fdid) => AtlasSource::FileDataId(fdid),
+            };
+            let AtlasSource::FileDataId(fdid) = source else {
                 panic!("{}: icon must use local Blizzard data", entry.label);
             };
             assert_ne!(fdid, QUESTION_MARK_FDID, "{}: fallback icon", entry.label);
@@ -47,32 +55,33 @@ fn launcher_entries_resolve_to_non_fallback_icon_textures() {
                 .unwrap_or_else(|error| panic!("{}: {}: {error}", entry.label, path.display()));
             let image = game_engine_core::blp::decode_rgba(&bytes).unwrap();
             assert!(image.width > 0 && image.height > 0, "{}", entry.label);
-            assert!(
-                region.right > region.left && region.bottom > region.top,
-                "{}",
-                entry.label
-            );
         }
     }
 }
 
 #[test]
 fn launcher_shortcuts_draw_settings_keyboard_and_map_art() {
-    use ui_toolkit::atlas::resolve_region;
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::widgets::texture::TextureSource;
 
     load_icon_tables();
-    let list = entries();
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        for (label, atlas) in [
-            ("Options", "Gear"),
-            ("Key Bindings", "newplayertutorial-keyboard"),
-            ("World Map", "UI-HUD-Minimap-Tracking-Up"),
-        ] {
-            let entry = list.iter().find(|entry| entry.label == label).unwrap();
-            let actual = resolve_region(entry.icon.as_deref().unwrap(), skin).unwrap();
-            let expected = resolve_region(atlas, skin).unwrap();
-            assert_eq!(actual, expected, "{label} under {skin:?}");
-        }
+    let registry = build(LauncherView {
+        open: true,
+        ..LauncherView::default()
+    });
+    for (name, expected) in [
+        ("LauncherArtOptions", TextureSource::FileDataId(134_063)),
+        (
+            "LauncherArtKeyBindings",
+            TextureSource::Atlas("newplayertutorial-keyboard".into()),
+        ),
+        ("LauncherArtWorldMap", TextureSource::FileDataId(130_816)),
+    ] {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+            panic!("{name}: missing icon texture");
+        };
+        assert_eq!(texture.source, expected, "{name}");
     }
 }
 
