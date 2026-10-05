@@ -187,21 +187,22 @@ impl TerrainMaterials {
             chunks: Vec::new(),
             next: 0,
         });
-        let Some(build) = self.build_tile_chunks(build, parsed, tex, &shader, started)? else {
+        let Some(build) = self.build_tile_chunks(tile, build, parsed, tex, &shader, started)?
+        else {
             return Ok(None);
         };
-        self.spawn_tile(parsed, build).map(Some)
+        self.spawn_tile(tile, parsed, build).map(Some)
     }
 
     fn build_tile_chunks(
         &mut self,
+        tile: Tile,
         mut build: TileBuild,
         parsed: &NativeTerrainTile,
         tex: &adt::AdtTexData,
         shader: &Gd<Shader>,
         started: Instant,
     ) -> Result<Option<TileBuild>, String> {
-        let tile = build.tile;
         // Texture chunks are stored by encounter order, not by root chunk coordinates.
         let chunks = parsed.root.chunks.iter().zip(&tex.chunk_layers);
         for (chunk, layers) in chunks.skip(build.next) {
@@ -229,10 +230,10 @@ impl TerrainMaterials {
 
     fn spawn_tile(
         &mut self,
+        tile: Tile,
         parsed: &NativeTerrainTile,
         build: TileBuild,
     ) -> Result<Gd<Node3D>, String> {
-        let tile = build.tile;
         let span = crate::profile::span(|| "terrain.water".to_owned());
         let water = self.water.build(&parsed.root, &parsed.liquid_materials)?;
         drop(span);
