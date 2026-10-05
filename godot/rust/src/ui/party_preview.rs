@@ -5,6 +5,7 @@ use game_engine_ui_model::portrait_party_frame_component::{
     PortraitPartyFrameState, PortraitPartyMemberView,
 };
 use godot::classes::ProjectSettings;
+use godot::obj::Singleton;
 
 pub(super) fn load_data_root() -> Result<(), String> {
     let path = ProjectSettings::singleton().globalize_path("res://../data");
