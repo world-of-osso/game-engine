@@ -132,7 +132,9 @@ func check_start() -> bool:
 	return true
 
 func inspect_kit() -> bool:
-	if not await wait_frames(func(): return not client.merchant_state().equipment.is_empty() and not client.merchant_state().bags.is_empty(), "authoritative starter inventory"):
+	if not await wait_frames(func():
+		var state: Dictionary = client.merchant_state()
+		return state.item_catalog_loaded and not state.equipment.is_empty() and not state.bags.is_empty(), "source catalogs and authoritative starter inventory", 60000):
 		return false
 	var inventory: Dictionary = client.merchant_state()
 	var actual := []
