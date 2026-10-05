@@ -456,7 +456,7 @@ fn the_type_menu_switches_the_rows_and_types_without_lines_are_empty() {
     window.click(MeterType::DamageDone.action()).unwrap();
     assert_eq!(shown(&window), pairs(&[("1. Shot", "300 (30)")]));
     assert!(window.click("damage_meter:row:0").is_err());
-    assert!(window.click("damage_meter:threat").is_err());
+    assert!(window.click("damage_meter:threat").is_ok());
 }
 
 /// An interrupt or dispel line naming its extra spell (`SPELL_INTERRUPT` / `SPELL_DISPEL`

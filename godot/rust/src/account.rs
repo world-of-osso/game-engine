@@ -122,6 +122,8 @@ pub struct Account {
     pub combat_log_seq: u64,
     /// The server's newest damage meter sessions.
     pub damage_meter: Option<DamageMeterSnapshot>,
+    /// Threat changes awaiting the HUD; drained each frame, not historical sessions.
+    pub threat_updates: Vec<shared::protocol::ThreatUpdate>,
     /// The newest `PlayerXpUpdate`: XP into the level and the level's requirement.
     pub xp: Option<shared::protocol::PlayerXpUpdate>,
     /// Party/raid roster, live member states, the ready check and the pending invite.
@@ -282,6 +284,7 @@ impl Account {
             combat_log: std::collections::VecDeque::new(),
             combat_log_seq: 0,
             damage_meter: None,
+            threat_updates: Vec::new(),
             xp: None,
             group: GroupState::default(),
             pet_bar: None,
@@ -329,6 +332,7 @@ impl Account {
         self.spells.clear();
         self.combat_log.clear();
         self.damage_meter = None;
+        self.threat_updates.clear();
         self.xp = None;
         self.group = GroupState::default();
         self.pet_bar = None;
@@ -1056,6 +1060,7 @@ impl Account {
             || message.is::<DungeonDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<DamageMeterSnapshot>()
+            || message.is::<shared::protocol::ThreatUpdate>()
             || message.is::<shared::protocol::PlayerXpUpdate>()
     }
 
@@ -1085,6 +1090,10 @@ impl Account {
         }
         if message.is::<shared::protocol::PlayerXpUpdate>() {
             self.xp = Some(decode(message)?);
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ThreatUpdate>() {
+            self.threat_updates.push(decode(message)?);
             return Ok(());
         }
         if message.is::<DamageMeterSnapshot>() {
