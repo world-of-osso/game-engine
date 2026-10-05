@@ -8,6 +8,14 @@
 
 mod art;
 mod reputation;
+mod reputation_catalog;
+mod reputation_detail;
+
+pub use reputation_catalog::enrich_reputation_rows;
+pub use reputation_detail::{
+    ACTION_REPUTATION_DETAIL_CLOSE, REPUTATION_DESCRIPTION_SCROLL,
+    reputation_description_pan_extent, reputation_selection,
+};
 
 use game_engine_core::spell_catalog::PrimaryStat;
 use shared::components::{CombatRatings, DerivedStats, UnitStats};
@@ -312,6 +320,8 @@ pub struct CharacterFrameView {
     pub tab: CharacterTab,
     /// The ReputationFrame entries; shown only on [`CharacterTab::Reputation`].
     pub reputation: Vec<ReputationRow>,
+    /// Selected faction ID, not its position in a mutable snapshot.
+    pub selected_reputation: Option<u32>,
     /// `UnitPVPName("player")`.
     pub title: String,
     pub level: LevelLine,
@@ -512,6 +522,11 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
             &view.reputation,
             ctx.scroll_first_row(reputation::REPUTATION_SCROLL),
         ));
+        let selected = view
+            .reputation
+            .iter()
+            .find(|row| Some(row.faction_id) == view.selected_reputation);
+        children.extend(reputation_detail::detail(selected, ctx));
     }
     children.extend(tabs(view.tab));
     rsx! {

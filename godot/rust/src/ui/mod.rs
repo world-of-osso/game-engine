@@ -632,6 +632,15 @@ impl RegistryUi {
 
     /// Before QuestFrame shows `state`: back to the top of its scroll frame when its panel
     /// changed.
+    pub(crate) fn reset_reputation_description_scroll(&mut self) {
+        if let Some(model) = self.model.as_mut() {
+            model.registry.scroll_lists.scroll_to(
+                game_engine_ui_model::character_frame::REPUTATION_DESCRIPTION_SCROLL,
+                0,
+            );
+        }
+    }
+
     pub fn reset_quest_scroll_for(
         &mut self,
         state: &game_engine_ui_model::quest_frame_component::QuestFrameState,
