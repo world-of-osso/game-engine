@@ -108,7 +108,7 @@ CONTRACT = {
     + [f"StatModifier_bonusStat_{i}" for i in range(10)]
     + [f"StatPercentEditor_{i}" for i in range(10)],
     "ItemSubClass": "ClassID SubClassID DisplayName_lang".split(),
-    "ItemAppearance": "ID DefaultIconFileDataID".split(),
+    "ItemAppearance": "ID DefaultIconFileDataID ItemDisplayInfoID".split(),
     "ItemModifiedAppearance": "ItemID ItemAppearanceID OrderIndex".split(),
     "ItemArmorQuality": ["ID"] + [f"Qualitymod_{i}" for i in range(7)],
     "ItemArmorTotal": "ItemLevel Cloth Leather Mail Plate".split(),
