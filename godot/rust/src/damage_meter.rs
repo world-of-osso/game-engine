@@ -5,9 +5,7 @@
 //! lines this client receives.
 
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::damage_meter_data::{
-    DamageMeterWindow, MELEE_LABEL, MeterEvent, MeterUnit,
-};
+use game_engine_ui_model::damage_meter_data::{DamageMeterWindow, MeterEvent, MeterUnit};
 use godot::classes::{FontFile, Time};
 use godot::prelude::*;
 use shared::components::Player;
@@ -122,12 +120,9 @@ impl GameClient {
             .iter()
             .skip(log.len() - fresh)
             .filter_map(|event| {
-                let name = event
-                    .spell_id
-                    .map_or_else(|| MELEE_LABEL.to_owned(), &spell_name);
                 let (source, target) =
                     (self.meter_unit(event.source), self.meter_unit(event.target));
-                MeterEvent::from_combat_log(now, event, source, target, name)
+                MeterEvent::from_combat_log(now, event, source, target, &spell_name)
             })
             .collect();
         for event in events {

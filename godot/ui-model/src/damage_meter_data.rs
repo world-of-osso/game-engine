@@ -15,6 +15,8 @@ use shared::protocol::{
     CombatLogEvent, CombatLogKind, DamageMeterSession, DamageMeterSnapshot, DamageMeterSource,
 };
 
+use crate::ui::chat_frame::environmental_name;
+
 /// Session dropdown click: open or close the session menu.
 pub const ACTION_DAMAGE_METER_MENU: &str = "damage_meter:menu";
 /// Session menu radio clicks.
@@ -222,11 +224,16 @@ pub enum MeterEventKind {
 #[derive(Clone, Debug, PartialEq)]
 pub struct MeterEvent {
     pub time: f64,
+    /// When the server logged it, Unix seconds (CLEU `timestamp`).
+    pub logged_at: f64,
     pub kind: MeterEventKind,
     pub source: MeterUnit,
     pub target: MeterUnit,
-    /// The damaging or healing spell's name, [`MELEE_LABEL`] for a swing.
+    /// The damaging or healing spell's name, [`MELEE_LABEL`] for a swing, the type's name
+    /// for environmental damage (`ACTION_ENVIRONMENTAL_DAMAGE_*`).
     pub spell_name: String,
+    /// CLEU `extraSpellName`: the interrupted spell, the dispelled aura.
+    pub extra_spell_name: Option<String>,
     /// Damage dealt, healing without overheal, or 1 for an interrupt, a dispelled aura
     /// or a death.
     pub amount: u64,
@@ -240,22 +247,31 @@ impl MeterEvent {
         event: &CombatLogEvent,
         source: MeterUnit,
         target: MeterUnit,
-        spell_name: String,
+        spell_name: impl Fn(u32) -> String,
     ) -> Option<Self> {
         let (kind, amount) = match event.kind {
-            CombatLogKind::Damage if target.is_player() => (MeterEventKind::Damage, event.amount),
+            CombatLogKind::Damage | CombatLogKind::Environmental(_) if target.is_player() => {
+                (MeterEventKind::Damage, event.amount)
+            }
             CombatLogKind::Heal => (MeterEventKind::Heal, event.amount - event.overflow),
             CombatLogKind::Interrupt => (MeterEventKind::Interrupt, 1),
             CombatLogKind::Dispel => (MeterEventKind::Dispel, 1),
             CombatLogKind::Death if target.is_player() => (MeterEventKind::Death, 1),
             _ => return None,
         };
+        let name = match (event.kind, event.spell_id) {
+            (CombatLogKind::Environmental(kind), _) => environmental_name(kind).to_owned(),
+            (_, Some(id)) => spell_name(id),
+            (_, None) => MELEE_LABEL.to_owned(),
+        };
         (amount > 0).then(|| Self {
             time,
+            logged_at: event.timestamp_unix_ms as f64 / 1000.0,
             kind,
             source,
             target,
-            spell_name,
+            spell_name: name,
+            extra_spell_name: event.extra_spell_id.map(&spell_name),
             amount: amount as u64,
         })
     }
@@ -343,6 +359,8 @@ pub struct DamageMeterView {
     pub type_menu_open: bool,
     /// The rows are a death's recap.
     pub recap_open: bool,
+    /// The rows are an Interrupts or Dispels source's spell breakdown.
+    pub breakdown_open: bool,
 }
 
 impl DamageMeterView {
@@ -355,9 +373,15 @@ impl DamageMeterView {
         }
     }
 
-    /// Death rows open their recap and recap rows close it.
+    /// Death rows open their recap, Interrupts and Dispels rows their breakdown; recap and
+    /// breakdown rows close them.
     pub fn rows_clickable(&self) -> bool {
-        self.recap_open || self.meter_type == MeterType::Deaths
+        self.recap_open
+            || self.breakdown_open
+            || matches!(
+                self.meter_type,
+                MeterType::Deaths | MeterType::Interrupts | MeterType::Dispels
+            )
     }
 }
 
@@ -372,6 +396,8 @@ pub struct DamageMeterWindow {
     pub type_menu_open: bool,
     /// The death whose recap is shown: its index in the log.
     pub recap: Option<usize>,
+    /// The Interrupts or Dispels source whose spell breakdown is shown: its unit.
+    pub breakdown: Option<u64>,
 }
 
 impl DamageMeterWindow {
@@ -455,18 +481,64 @@ impl DamageMeterWindow {
         if let Some(death) = self.recap {
             return self.recap_rows(death);
         }
+        if let (Some(unit), Some(kind)) = (self.breakdown, self.counted_kind()) {
+            return self.breakdown_rows(unit, kind);
+        }
         match self.meter_type {
             MeterType::DamageDone => self.damage_rows(),
             MeterType::HealingDone => {
                 let duration = self.session_data().map_or(0.0, |s| s.duration_secs);
                 counted_rows(&self.source_totals(MeterEventKind::Heal), Some(duration))
             }
-            MeterType::Interrupts => {
-                counted_rows(&self.source_totals(MeterEventKind::Interrupt), None)
+            MeterType::Interrupts | MeterType::Dispels => {
+                let kind = self.counted_kind().expect("a counted type");
+                counted_rows(&self.source_totals(kind), None)
             }
-            MeterType::Dispels => counted_rows(&self.source_totals(MeterEventKind::Dispel), None),
             MeterType::Deaths => self.death_rows(),
         }
+    }
+
+    /// The count each Interrupts or Dispels row ranks by.
+    fn counted_kind(&self) -> Option<MeterEventKind> {
+        match self.meter_type {
+            MeterType::Interrupts => Some(MeterEventKind::Interrupt),
+            MeterType::Dispels => Some(MeterEventKind::Dispel),
+            _ => None,
+        }
+    }
+
+    /// `DamageMeterSourceWindow`'s spell rows for one source (DamageMeterSourceWindow.lua
+    /// 175-194, `DamageMeterSpellEntryMixin:GetNameText` DamageMeterEntry.lua:706-711): the
+    /// interrupted spells or dispelled auras by count, most first, in the source's class
+    /// colour, the bare count as the type suppresses per second.
+    fn breakdown_rows(&self, unit: u64, kind: MeterEventKind) -> Vec<DamageMeterRow> {
+        let mut spells: Vec<(&MeterEvent, u64)> = Vec::new();
+        for (_, event) in self.session_events() {
+            if event.kind != kind || event.source.unit != unit {
+                continue;
+            }
+            match spells
+                .iter_mut()
+                .find(|(seen, _)| seen.extra_spell_name == event.extra_spell_name)
+            {
+                Some((_, count)) => *count += event.amount,
+                None => spells.push((event, event.amount)),
+            }
+        }
+        spells.sort_by(|a, b| b.1.cmp(&a.1));
+        let max = spells.first().map_or(0, |(_, count)| *count);
+        spells
+            .into_iter()
+            .map(|(event, count)| DamageMeterRow {
+                // No spell id, no name text (`GetNameText` returns nil).
+                name_text: event.extra_spell_name.clone().unwrap_or_default(),
+                value_text: abbreviate_large_number(count),
+                fraction: count as f32 / max as f32,
+                color: class_color(event.source.class_id),
+                class_id: event.source.class_id,
+                is_local_player: event.source.is_local_player,
+            })
+            .collect()
     }
 
     fn damage_rows(&self) -> Vec<DamageMeterRow> {
@@ -519,7 +591,7 @@ impl DamageMeterWindow {
         let events: Vec<&MeterEvent> = self.log.events[..death_index]
             .iter()
             .rev()
-            .take_while(|event| death.time - event.time <= RECAP_WINDOW_SECS)
+            .take_while(|event| death.logged_at - event.logged_at <= RECAP_WINDOW_SECS)
             .filter(|event| {
                 event.target.unit == death.target.unit
                     && matches!(event.kind, MeterEventKind::Damage | MeterEventKind::Heal)
@@ -539,7 +611,7 @@ impl DamageMeterWindow {
                     value_text: format!(
                         "{sign}{} ({:.1}s)",
                         break_up_large_number(event.amount),
-                        death.time - event.time
+                        death.logged_at - event.logged_at
                     ),
                     fraction: event.amount as f32 / max as f32,
                     color,
@@ -589,12 +661,22 @@ impl DamageMeterWindow {
         self.menu_open = false;
         self.type_menu_open = false;
         self.recap = None;
+        self.breakdown = None;
     }
 
-    /// A death row opens its recap (`ShowSourceWindow`, DamageMeterSessionWindow.lua
-    /// 967-972); a recap row closes it.
+    /// `ShowSourceWindow` (DamageMeterSessionWindow.lua:967-979): a death row opens its
+    /// recap, an Interrupts or Dispels row its source's spell breakdown; a recap or
+    /// breakdown row closes it.
     fn click_row(&mut self, index: usize) -> Result<(), String> {
-        if self.recap.take().is_some() {
+        if self.recap.take().is_some() || self.breakdown.take().is_some() {
+            return Ok(());
+        }
+        if let Some(kind) = self.counted_kind() {
+            let source = self
+                .source_totals(kind)
+                .get(index)
+                .map(|(unit, _)| unit.unit);
+            self.breakdown = Some(source.ok_or_else(|| format!("No source row {index}"))?);
             return Ok(());
         }
         if self.meter_type != MeterType::Deaths {
@@ -615,6 +697,7 @@ impl DamageMeterWindow {
             menu_open: self.menu_open,
             type_menu_open: self.type_menu_open,
             recap_open: self.recap.is_some(),
+            breakdown_open: self.breakdown.is_some(),
         }
     }
 }

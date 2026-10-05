@@ -3,7 +3,7 @@
 //! scrolling and word wrapping. Chattynator references are to its Lua source.
 
 use chrono::TimeZone;
-use shared::protocol::{ChatType, CombatLogEvent, CombatLogKind, EmoteKind};
+use shared::protocol::{ChatType, CombatLogEvent, CombatLogKind, EmoteKind, EnvironmentalKind};
 
 use crate::character_frame::break_up_large_numbers;
 use crate::chat_data::{ChatChannelType, ChatMessage, ChatState, now_timestamp};
@@ -599,8 +599,8 @@ fn highlight([r, g, b, a]: [f32; 4]) -> [f32; 4] {
 ///
 /// Listed, from the two default quick filters (Blizzard_CombatLog.lua:229-410; there is
 /// no filter bar, so both apply): "My actions" - the player's damage, heals and kills;
-/// "What happened to me?" - damage and heals on the player and the player's death.
-/// Neither lists misses, energizes, interrupts, dispels or casts, and auras are dropped by
+/// "What happened to me?" - damage (environmental too) and heals on the player and the
+/// player's death. Neither lists misses, energizes, interrupts, dispels or casts, and auras are dropped by
 /// `hideBuffs`/`hideDebuffs` (Processor.lua:689-698).
 pub fn combat_log_line(
     event: &CombatLogEvent,
@@ -612,6 +612,9 @@ pub fn combat_log_line(
     match event.kind {
         CombatLogKind::Damage | CombatLogKind::Heal if by_me || to_me => {
             Some(amount_line(event, source, target))
+        }
+        CombatLogKind::Environmental(kind) if to_me => {
+            Some(environmental_line(event, kind, target))
         }
         CombatLogKind::Death if to_me => Some(death_recap_line()),
         CombatLogKind::Death if by_me => Some(kill_line(target.name)),
@@ -675,6 +678,50 @@ fn amount_line(event: &CombatLogEvent, source: CombatLogActor, target: CombatLog
     ChatLine { color, spans }
 }
 
+/// ENVIRONMENTAL_DAMAGE (Processor.lua:867-895): "Unknown Falling damaged You 120 Physical.".
+/// There is no source, so `UNKNOWN` "Unknown" stands in (Processor.lua:1383-1385) and the
+/// line takes the unknown unit's colour (:1070-1075); the type's name is the spell
+/// (`nameIsNotSpell`), "damaged" (`ACTION_ENVIRONMENTAL_DAMAGE`, GlobalStrings 18092) is in
+/// the action colour (`missColoring`, :1185-1199), and the amount leaves out overkill
+/// (:892-894; the server reports both in the player's health).
+fn environmental_line(
+    event: &CombatLogEvent,
+    kind: EnvironmentalKind,
+    target: CombatLogActor,
+) -> ChatLine {
+    let color = CombatLogUnit::Unknown.color();
+    let bright = highlight(color);
+    let target_name = match target.unit {
+        CombatLogUnit::Mine => "You",
+        _ => target.name,
+    };
+    let amount = i64::from(event.amount - event.overflow.max(0));
+    ChatLine {
+        color,
+        spans: vec![
+            text(format!("{UNKNOWN_NAME} ")),
+            colored(bright, environmental_name(kind)),
+            text(" "),
+            colored(COMBAT_ACTION_COLOR, "damaged"),
+            text(format!(" {target_name} ")),
+            colored(bright, break_up_large_numbers(amount)),
+            text(" "),
+            colored(bright, school_name(event.school_mask)),
+            text(format!(".{}", amount_results(event))),
+        ],
+    }
+}
+
+/// `ACTION_ENVIRONMENTAL_DAMAGE_*` (GlobalStrings 18094, 18096, 18098), the name the combat
+/// log and the death recap (Blizzard_DeathRecap.lua:116-119) give the type.
+pub fn environmental_name(kind: EnvironmentalKind) -> &'static str {
+    match kind {
+        EnvironmentalKind::Drowning => "Drowning",
+        EnvironmentalKind::Fatigue => "Fatigue",
+        EnvironmentalKind::Falling => "Falling",
+    }
+}
+
 /// `CombatLogUtil.GenerateDamageResultString` (CombatLogUtil.lua:176-226), in its order:
 /// `TEXT_MODE_A_STRING_RESULT_RESIST`, `_BLOCK`, `_ABSORB`, `_GLANCING`, `_OVERHEALING`,
 /// `_OVERKILLING`, `_CRITICAL` (GlobalStrings 17840-17844, 18618, 19426).
@@ -706,17 +753,48 @@ fn amount_results(event: &CombatLogEvent) -> String {
     results.iter().map(|result| format!(" {result}")).collect()
 }
 
-/// `STRING_SCHOOL_*` (GlobalStrings 18106-18113, 18330) of a single-school mask;
-/// `STRING_SCHOOL_UNKNOWN` otherwise (CombatLogUtil.lua:127-134).
+/// `CombatLogUtil.GetSpellSchoolString` (CombatLogUtil.lua:127-134): `C_Spell.GetSchoolString`
+/// of the mask, `STRING_SCHOOL_UNKNOWN` (18113) for none or a mask without a name. The
+/// engine's mask table is not in the UI files; each `STRING_SCHOOL_*` tag names its schools
+/// (GlobalStrings 18106-18113, 18330, 18654, 19034-19065, 32210, 44146). The colour is not
+/// the school's: `schoolNameColoring` is off by default (Blizzard_CombatLog.lua:49), and
+/// `COMBATLOG_DEFAULT_COLORS.schoolColoring` lists single schools only
+/// (Mainline/CombatLogColors.lua:13-22).
 fn school_name(mask: u32) -> &'static str {
     match mask {
-        1 => "Physical",
-        2 => "Holy",
-        4 => "Fire",
-        8 => "Nature",
-        16 => "Frost",
-        32 => "Shadow",
-        64 => "Arcane",
+        0x01 => "Physical",
+        0x02 => "Holy",
+        0x04 => "Fire",
+        0x08 => "Nature",
+        0x10 => "Frost",
+        0x20 => "Shadow",
+        0x40 => "Arcane",
+        0x03 => "Holystrike",
+        0x05 => "Flamestrike",
+        0x06 => "Radiant",
+        0x09 => "Stormstrike",
+        0x0a => "Holystorm",
+        0x0c => "Volcanic",
+        0x11 => "Froststrike",
+        0x12 => "Holyfrost",
+        0x14 => "Frostfire",
+        0x18 => "Froststorm",
+        0x1c => "Elemental",
+        0x21 => "Shadowstrike",
+        0x22 => "Twilight",
+        0x24 => "Shadowflame",
+        0x28 => "Plague",
+        0x30 => "Shadowfrost",
+        0x41 => "Spellstrike",
+        0x42 => "Divine",
+        0x44 => "Spellfire",
+        0x48 => "Astral",
+        0x50 => "Spellfrost",
+        0x60 => "Spellshadow",
+        0x6a => "Cosmic",
+        0x7c => "Chromatic",
+        0x7e => "Magic",
+        0x7f => "Chaos",
         _ => "Unknown",
     }
 }
