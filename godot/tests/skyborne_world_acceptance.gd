@@ -66,20 +66,17 @@ func run_test() -> void:
 		client.free()
 		quit(0)
 		return
-	var giver := await locate(GIVERS[race])
-	if giver.is_empty():
-		return
-	var unit := unit_by_id(giver.id) as Node3D
+	var unit := await locate_logical_giver(GIVERS[race])
 	if unit == null or unit.global_position.distance_to(player_position()) > 8.0:
 		fail("Replicated giver not within 8 yards of actual start")
 		return
-	print("SKYBORNE GIVER name=", GIVERS[race], " entity=", giver.id, " position=", unit.global_position)
+	print("SKYBORNE GIVER name=", GIVERS[race], " position=", unit.global_position)
 	if race == 95:
 		if unit.get_node_or_null("NpcVisualRoot") != null:
 			fail("Ailee136968 visual must remain withheld")
 			return
 		print("SKYBORNE GAP Ailee136968 visual withheld; replicated interaction only")
-		if not await accept_native_quest(giver.id):
+		if not await accept_native_quest():
 			return
 	else:
 		if not await wait_frames(func(): return visible_body(unit), "Ventaari native visible meshes", 60000):
@@ -171,7 +168,17 @@ func inspect_kit() -> bool:
 	print("SKYBORNE SOURCE_KIT Forever70205 IDs=", actual, "; GAP snapshots do not expose GUID-level source")
 	return true
 
-func accept_native_quest(giver_id: int) -> bool:
+func locate_logical_giver(name: String) -> Node3D:
+	var deadline := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < deadline:
+		for unit in units_named(name):
+			if unit is Node3D:
+				return unit
+		await process_frame
+	fail("Replicated logical giver unavailable: " + name)
+	return null
+
+func accept_native_quest() -> bool:
 	if in_log(client.quest_state(), SKY_QUEST):
 		fail("Prepared Skymage already has92460; fresh native acceptance required")
 		return false
@@ -179,9 +186,13 @@ func accept_native_quest(giver_id: int) -> bool:
 	if reply.strip_edges() != "interact " + GIVERS[race]:
 		fail("CLI giver interaction failed: " + reply)
 		return false
-	if not await wait_quest(func(s): return s.frame_open and s.get("npc") == giver_id and s.get("page") in ["Greeting", "Detail"], "replicated giver native QuestFrame"):
+	if not await wait_quest(func(s): return s.frame_open and s.get("npc_name") == GIVERS[race] and s.get("page") in ["Greeting", "Detail"], "replicated giver native QuestFrame"):
 		return false
 	var state: Dictionary = client.quest_state()
+	var giver_id := int(state.npc)
+	if giver_id <= 0 or not client.unit_alive(giver_id):
+		fail("Quest dialog lacks a living replicated giver")
+		return false
 	if state.page == "Greeting":
 		var index := Array(state.greeting_quests).find(SKY_TITLE)
 		if index < 0:
