@@ -1,7 +1,8 @@
 extends SceneTree
 
 # Renders one authored RegistryUi screen standalone for visual comparison.
-# GODOT_CAPTURE_SCREEN: character_select | character_create | portrait_party; GODOT_CAPTURE_PATH: PNG output.
+# GODOT_CAPTURE_SCREEN: character_select | character_create | portrait_party | forever_portrait_party.
+# GODOT_CAPTURE_PATH: PNG output.
 
 func _initialize() -> void:
 	call_deferred("_run")
