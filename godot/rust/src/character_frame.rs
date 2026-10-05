@@ -9,7 +9,7 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::bag_data::InventoryRequest;
 use game_engine_ui_model::character_frame::{
     ACTION_CLOSE, ACTION_MODEL, CharacterFrameView, CharacterTab, MIN_LEVEL_FOR_ITEM_LEVEL,
-    PAPERDOLL_BUTTONS, attribute_lines, average_equipped_item_level, class_background,
+    PAPERDOLL_BUTTONS, PORTRAIT, attribute_lines, average_equipped_item_level, class_background,
     enhancement_lines, level_line, paperdoll_slots, parse_equipment_slot_action, race_background,
     reputation_art_fdids, reputation_rows,
 };
@@ -71,6 +71,11 @@ impl CharacterFrame {
             visit(ui)?;
         }
         Ok(())
+    }
+
+    /// The character window canvas, once created.
+    pub(crate) fn frame_ui(&self) -> Option<&Gd<RegistryUi>> {
+        self.ui.as_ref()
     }
 
     /// The micro menu canvas, once shown.
@@ -336,6 +341,7 @@ impl GameClient {
         for fdid in FRAME_ART {
             self.drawable_fdid(fdid);
         }
+        self.drawable_fdid(PORTRAIT.mask_fdid);
         let mut ui = RegistryUi::new_alloc();
         ui.set_name(FRAME_UI);
         self.base_mut().add_child(&ui);
