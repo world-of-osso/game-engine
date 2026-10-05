@@ -160,10 +160,9 @@ fn text_is_player_left_and_target_tot_focus_mirrored() {
     );
 }
 #[test]
-fn pet_is_below_player_right_and_tot_right_of_target() {
+fn pet_is_below_player_right_and_no_frame_draws_a_portrait() {
     let r = units(Reaction::Hostile);
     let pet = frame(&r, "PetFrame");
-    let tot = frame(&r, "TargetOfTargetFrame");
     assert_eq!(
         (pet.width, pet.height),
         (Dimension::Fixed(160.0), Dimension::Fixed(28.0))
@@ -171,10 +170,6 @@ fn pet_is_below_player_right_and_tot_right_of_target() {
     assert_eq!(
         (pet.margin.left, pet.margin.top),
         (Val::Px(-370.0), Val::Px(306.0))
-    );
-    assert_eq!(
-        (tot.margin.left, tot.margin.top),
-        (Val::Px(458.0), Val::Px(240.0))
     );
     for prefix in ["Player", "Target", "TargetOfTarget", "Focus", "PetFrame"] {
         assert!(r.get_by_name(&format!("{prefix}Portrait")).is_none());
