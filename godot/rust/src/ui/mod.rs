@@ -1900,7 +1900,7 @@ impl RegistryUi {
         };
         let size = viewport.get_visible_rect().size;
         if let Err(error) = party_preview::load_data_root() {
-            return error.into();
+            return GString::from(error.as_str());
         }
         ui_toolkit::atlas::set_active_skin(skin);
         let mut shared = SharedContext::new();
@@ -1913,10 +1913,12 @@ impl RegistryUi {
             postsetup: ScreenPostsetup::None,
         };
         model.sync();
-        self.initialize_model(model, size.x, size.y)
-            .err()
-            .unwrap_or_default()
-            .into()
+        GString::from(
+            self.initialize_model(model, size.x, size.y)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
     }
 
     #[func]
