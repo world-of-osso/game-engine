@@ -249,6 +249,112 @@ fn character_reputation_overflow_registers_a_scrollable_list_and_clickable_facti
 }
 
 #[test]
+fn character_reputation_selected_faction_shows_name_standing_description_and_disabled_war() {
+    let _skin = SKIN.lock().unwrap();
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_active_skin(skin);
+        let mut state = view(CharacterTab::Reputation, &human_standings());
+        state.reputation[2].description = "The humans of Stormwind.".into();
+        let mut registry = build(state.clone());
+        let row = registry.get_by_name("ReputationEntry3").unwrap();
+        let action = registry.click_frame(row).expect("faction click");
+        state.selected_reputation = game_engine_ui_model::character_frame::reputation_selection(
+            &action,
+            &state.reputation,
+            None,
+        );
+        assert_eq!(state.selected_reputation, Some(72));
+        let registry = build(state.clone());
+        assert_eq!(text(&registry, "ReputationDetailFrameTitle"), "Stormwind");
+        assert_eq!(text(&registry, "ReputationDetailFrameStanding"), "Friendly");
+        assert_eq!(
+            text(&registry, "ReputationDetailFrameDescription"),
+            "The humans of Stormwind."
+        );
+        assert!(
+            registry
+                .get_by_name("ReputationDetailFrameAtWarCheckbox")
+                .is_none()
+        );
+        state.reputation[2].allows_at_war = true;
+        let registry = build(state.clone());
+        let toggle = registry
+            .get(
+                registry
+                    .get_by_name("ReputationDetailFrameAtWarCheckbox")
+                    .unwrap(),
+            )
+            .unwrap();
+        assert!(
+            matches!(toggle.widget_data.as_ref(), Some(WidgetData::Button(button)) if !button.enabled)
+        );
+        assert!(onclick(&registry, "ReputationDetailFrameAtWarCheckbox").is_none());
+        state.selected_reputation = Some(47);
+        assert_eq!(
+            text(&build(state.clone()), "ReputationDetailFrameTitle"),
+            "Ironforge"
+        );
+        state.selected_reputation = game_engine_ui_model::character_frame::reputation_selection(
+            &game_engine_ui_model::character_frame::reputation_row_action(47),
+            &state.reputation,
+            state.selected_reputation,
+        );
+        assert!(
+            build(state.clone())
+                .get_by_name("ReputationDetailFrame")
+                .is_none()
+        );
+        state.selected_reputation = Some(72);
+        state.selected_reputation = game_engine_ui_model::character_frame::reputation_selection(
+            game_engine_ui_model::character_frame::ACTION_REPUTATION_DETAIL_CLOSE,
+            &state.reputation,
+            state.selected_reputation,
+        );
+        assert!(
+            build(state.clone())
+                .get_by_name("ReputationDetailFrame")
+                .is_none()
+        );
+        state.selected_reputation = Some(9999);
+        assert!(build(state).get_by_name("ReputationDetailFrame").is_none());
+    }
+    set_active_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn character_reputation_local_db2_descriptions_and_war_eligibility_follow_the_player() {
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut rows = reputation_rows(&[
+        entry(72, "Stormwind", "Friendly", 24_000),
+        entry(21, "Booty Bay", "Neutral", 18_000),
+        entry(9_999_999, "Unknown faction", "Neutral", 18_000),
+    ]);
+    game_engine_ui_model::character_frame::enrich_reputation_rows(&mut rows, 1, 2).unwrap();
+    assert!(rows[0].description.contains("Anduin Wrynn"));
+    assert!(!rows[0].allows_at_war, "human capital is peaceful");
+    assert!(rows[1].description.contains("Baron Revilgaz"));
+    assert!(rows[1].allows_at_war, "Booty Bay allows war declarations");
+    assert!(rows[2].description.is_empty());
+    assert!(
+        !rows[2].allows_at_war,
+        "unknown faction eligibility is not invented"
+    );
+    game_engine_ui_model::character_frame::enrich_reputation_rows(&mut rows, 2, 1).unwrap();
+    assert!(
+        !rows[0].allows_at_war,
+        "opposing hidden capital has no user war toggle"
+    );
+    assert!(rows[1].allows_at_war);
+}
+
+#[test]
 fn capped_and_hated_standings_use_retail_bar_values() {
     let rows = reputation_rows(&[
         entry(72, "Stormwind", "Exalted", 83_999),

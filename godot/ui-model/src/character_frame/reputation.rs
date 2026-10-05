@@ -4,7 +4,7 @@
 //! `ReputationEntryTemplate` per faction the server reports, in its order, with the
 //! faction name and a `ReputationBarTemplate` showing the standing label over the progress
 //! through the current standing. The server sends no faction headers, so every entry is
-//! a top-level row; the list has no scroll bar yet and ends at the scroll box bottom.
+//! a top-level row, clipped and scrolled through the ScrollBox.
 
 use shared::protocol_snapshots::ReputationEntrySnapshot;
 use shared::reputation::{Standing, standing_for_value, tier_progress};
@@ -56,6 +56,10 @@ const SKILLS_BAR: u32 = 136_570;
 pub struct ReputationRow {
     pub faction_id: u32,
     pub name: String,
+    /// Faction.db2 Description_lang, when available locally.
+    pub description: String,
+    /// The player's DB2 reputation flags allow changing war; wire support is separate.
+    pub allows_at_war: bool,
     /// `FACTION_STANDING_LABEL<reaction>`, the bar text.
     pub standing: &'static str,
     /// `FACTION_BAR_COLORS[reaction]`.
@@ -82,6 +86,8 @@ pub fn reputation_rows(entries: &[ReputationEntrySnapshot]) -> Vec<ReputationRow
             ReputationRow {
                 faction_id: entry.faction_id,
                 name: entry.faction_name.clone(),
+                description: String::new(),
+                allows_at_war: false,
                 standing: STANDING_LABELS[reaction],
                 color: FACTION_BAR_COLORS[reaction],
                 fill,
@@ -244,7 +250,11 @@ pub(super) fn entries(rows: &[ReputationRow], offset: usize) -> Element {
 /// frame halves and the `GameFontHighlightSmall` standing text (RF.xml:76-127); Forever's
 /// `ColoredProgressBarTemplate` `common-stat-bar-BG`, the 15-tall `common-stat-bar-white`
 /// fill and `GameFontHighlight` text (Camelot ColoredProgressBar.xml:3-33).
-fn reputation_bar(entry: &str, row: &ReputationRow, rect: (f32, f32, f32, f32)) -> Element {
+pub(super) fn reputation_bar(
+    entry: &str,
+    row: &ReputationRow,
+    rect: (f32, f32, f32, f32),
+) -> Element {
     let (x, y, width, height) = rect;
     let name = format!("{entry}ReputationBar");
     let fill_w = width * row.fill;
@@ -316,10 +326,22 @@ fn reputation_bar(entry: &str, row: &ReputationRow, rect: (f32, f32, f32, f32)) 
 /// Art the pane draws, for the host to make drawable before it shows.
 pub fn reputation_art_fdids() -> Vec<u32> {
     match active_skin() {
-        ActiveSkin::Modern => vec![REPUTATION_BAR_FRAME, SKILLS_BAR],
-        ActiveSkin::Forever => ["common-stat-bar-BG", "common-stat-bar-white"]
-            .into_iter()
-            .map(|name| resolve_art(name).fdid)
-            .collect(),
+        ActiveSkin::Modern => vec![
+            REPUTATION_BAR_FRAME,
+            SKILLS_BAR,
+            131_071,
+            131_074,
+            136_565,
+            130_755,
+        ],
+        ActiveSkin::Forever => [
+            "common-stat-bar-BG",
+            "common-stat-bar-white",
+            "UI-Character-Info-ScrollLine",
+            "checkbox-minimal",
+        ]
+        .into_iter()
+        .map(|name| resolve_art(name).fdid)
+        .collect(),
     }
 }
