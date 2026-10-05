@@ -504,7 +504,7 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
     if paperdoll {
         children.extend(paperdoll_frame(view));
     } else {
-        children.extend(reputation::backgrounds(view.class_id));
+        children.extend(reputation::backgrounds());
         children.extend(reputation::entries(&view.reputation));
     }
     children.extend(tabs(view.tab));

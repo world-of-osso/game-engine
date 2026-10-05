@@ -39,6 +39,12 @@ pub const FLAT_TEXTURE_GREY: f32 = 143.0 / 255.0;
 const TEXT_INSET: f32 = 4.0;
 /// `db.font` Friz Quadrata 12 OUTLINE (Core.lua:275).
 const FONT_SIZE: f32 = 12.0;
+/// The name is one line, cut where it meets the percentage (`Name:SetWordWrap(false)`,
+/// UnitFrames.lua:2101), centred on the health bar (`SetPoint("LEFT", ...)`): a rect one
+/// line high, the font size plus Retail's 2px line room (`Name` 90×12 for the 10pt
+/// `GameFontNormalSmall`, TargetFrame.xml:113-114), so a long name truncates instead of
+/// wrapping below the frame.
+const NAME_LINE_H: f32 = FONT_SIZE + 2.0;
 /// Room for the level text the name follows (`Name:SetPoint("LEFT", Level, "RIGHT", 3, 0)`).
 const LEVEL_W: f32 = 20.0;
 /// Room for the percentage the name stops at (`Name:SetPoint("RIGHT", HealthText, "LEFT", -4, 0)`).
@@ -375,7 +381,7 @@ fn flare_texts(spec: &FlareFrame, unit: &FlareUnit<'_>, (x, y, width, height): R
     let percent_hidden = !health_text_shown;
     rsx! {
         {level_text}
-        {flare_label(dyn_name(format!("{}Name", spec.prefix)), unit.name, (name_x, y, name_w, height), (WHITE, FONT_SIZE), far)}
+        {flare_label(dyn_name(format!("{}Name", spec.prefix)), unit.name, (name_x, y + (height - NAME_LINE_H) / 2.0, name_w, NAME_LINE_H), (WHITE, FONT_SIZE), far)}
         fontstring {
             name: percent_name,
             width: HEALTH_TEXT_W,

@@ -452,3 +452,54 @@ fn forever_window_titles_sit_inside_the_title_bar_band() {
     }
     set_active_skin(ActiveSkin::Modern);
 }
+
+/// The close button's TOPRIGHT offset: Retail overhangs the window's right edge by 1 at its
+/// top (+1, 0) (Mainline/SharedUIPanelTemplates.lua:139-141); Forever tucks it inside the
+/// right edge and lifts it above the top (-2, +1) (Camelot/SharedUIPanelTemplates.lua:3-5).
+#[test]
+fn forever_close_button_sits_inside_the_right_edge_and_above_the_top() {
+    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let close_button = |skin: ActiveSkin| {
+        set_active_skin(skin);
+        let registry = forever_window(
+            MerchantFrameState {
+                visible: true,
+                title: "Brother Danil".into(),
+                ..Default::default()
+            },
+            merchant_frame_screen,
+        );
+        let frame = |name: &str| {
+            registry
+                .get(
+                    registry
+                        .get_by_name(name)
+                        .unwrap_or_else(|| panic!("missing {name}")),
+                )
+                .unwrap()
+        };
+        let window_w = fixed(frame("MerchantFrame").width);
+        let button = frame("MerchantFrameCloseButton");
+        let right = px(button.position.left) + fixed(button.width);
+        (right - window_w, px(button.position.top))
+    };
+    let (modern_overhang, modern_top) = close_button(ActiveSkin::Modern);
+    let (forever_overhang, forever_top) = close_button(ActiveSkin::Forever);
+    set_active_skin(ActiveSkin::Modern);
+    assert!(
+        modern_overhang > 0.0 && modern_top == 0.0,
+        "Modern {modern_overhang},{modern_top}"
+    );
+    assert!(
+        forever_overhang < 0.0,
+        "Forever right edge {forever_overhang} past the window"
+    );
+    assert!(
+        forever_top < modern_top,
+        "Forever top {forever_top} not above Modern {modern_top}"
+    );
+}
