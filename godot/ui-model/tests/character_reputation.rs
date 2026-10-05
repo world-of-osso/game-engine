@@ -290,7 +290,7 @@ fn character_reputation_selected_faction_shows_name_standing_description_and_dis
             )
             .unwrap();
         assert!(
-            matches!(toggle.widget_data.as_ref(), Some(WidgetData::Button(button)) if !button.enabled)
+            matches!(toggle.widget_data.as_ref(), Some(WidgetData::Button(button)) if button.state == ui_toolkit::widgets::button::ButtonState::Disabled)
         );
         assert!(onclick(&registry, "ReputationDetailFrameAtWarCheckbox").is_none());
         state.selected_reputation = Some(47);
