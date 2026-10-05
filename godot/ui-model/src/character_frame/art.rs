@@ -139,7 +139,7 @@ pub(super) fn atlas(
 /// with the class background of the stats pane.
 pub(super) fn inset_backgrounds(class_id: u8) -> Element {
     if active_skin() == ActiveSkin::Forever {
-        return forever_pane_backgrounds(Some(class_id));
+        return forever_pane_backgrounds(class_id);
     }
     let (left, top, right, bottom) = INSET;
     let mut children = atlas(
@@ -170,14 +170,10 @@ pub(super) fn inset_backgrounds(class_id: u8) -> Element {
 
 /// Camelot CharacterFrame.xml:408-454. The stats class art is the `ClassBackground` of
 /// `CharacterStatsPaneScrollBox`, whose top is the stone cap's bottom (20 + 85), at
-/// TOPLEFT (0, 5) of it (:463-475). `paperdoll_class` is the class while the paper doll
-/// shows; off it the stone cap hides (`UpdateRightPaneHeader`, Camelot/CharacterFrame.lua:
-/// 370-372) and so does the stats pane with its class art (`PaperDollFrame_OnHide` ->
-/// `Collapse`, Camelot/PaperDollFrame.lua:1528, CharacterFrame.lua:798-805), leaving the
-/// right pane's `Stat-BG`.
-pub(super) fn forever_pane_backgrounds(paperdoll_class: Option<u8>) -> Element {
+/// TOPLEFT (0, 5) of it (:463-475).
+fn forever_pane_backgrounds(class_id: u8) -> Element {
     let mut children = Element::default();
-    let panes = [
+    for (node, name, rect) in [
         (
             "CharacterFrameBackground",
             "UI-Character-Info-General-BG",
@@ -198,14 +194,10 @@ pub(super) fn forever_pane_backgrounds(paperdoll_class: Option<u8>) -> Element {
             "common-framedivider",
             (392.0, 21.0, 11.0, 463.0),
         ),
-    ];
-    for (node, name, rect) in panes {
-        if node == "CharacterFrameStoneBg" && paperdoll_class.is_none() {
-            continue;
-        }
+    ] {
         children.extend(atlas(node.into(), &resolve_art(name), rect, WHITE));
     }
-    if let Some(art) = paperdoll_class.and_then(class_background) {
+    if let Some(art) = class_background(class_id) {
         let (w, h) = art.size();
         children.extend(atlas(
             "CharacterStatsPaneClassBackground".into(),

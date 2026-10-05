@@ -4,7 +4,6 @@
 //! 3000 of the 9000 to Honored), in the server's name order.
 
 use std::path::PathBuf;
-use std::sync::Mutex;
 
 use game_engine_ui_model::character_frame::{
     ACTION_TAB_CHARACTER, ACTION_TAB_REPUTATION, CharacterFrameView, CharacterTab, MODEL_SCENE,
@@ -16,9 +15,6 @@ use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
 use ui_toolkit::frame::{Dimension, WidgetData};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
-
-/// Serializes the tests that switch the process-wide active skin.
-static SKIN: Mutex<()> = Mutex::new(());
 
 fn entry(
     faction_id: u32,
@@ -120,7 +116,6 @@ fn shows_paperdoll(registry: &FrameRegistry) -> bool {
 
 #[test]
 fn the_reputation_tab_swaps_the_paper_doll_for_the_faction_standings_in_both_presets() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -224,34 +219,4 @@ fn capped_and_hated_standings_use_retail_bar_values() {
     assert_eq!(rows[1].color, "0.8,0.13,0.13,1.0");
     assert_eq!(rows[0].color, rows[2].color);
     assert_ne!(rows[0].color, rows[1].color);
-}
-
-/// Off the paper doll Forever hides the right pane's stone cap (`UpdateRightPaneHeader`,
-/// Camelot/CharacterFrame.lua:370-372) and the stats pane with its class art
-/// (`PaperDollFrame_OnHide` -> `Collapse`, Camelot/PaperDollFrame.lua:1528,
-/// CharacterFrame.lua:798-805); the paper doll shows both.
-#[test]
-fn forever_reputation_tab_hides_the_stats_pane_and_its_stone_cap() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
-    game_engine_ui_model::paths::set_data_root(
-        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
-    )
-    .unwrap();
-    set_active_skin(ActiveSkin::Forever);
-    let standings = human_standings();
-    let stats_pane = ["CharacterFrameStoneBg", "CharacterStatsPaneClassBackground"];
-    let paperdoll = build(view(CharacterTab::PaperDoll, &standings));
-    let reputation = build(view(CharacterTab::Reputation, &standings));
-    set_active_skin(ActiveSkin::Modern);
-    for name in stats_pane {
-        assert!(
-            paperdoll.get_by_name(name).is_some(),
-            "paper doll lacks {name}"
-        );
-        assert!(
-            reputation.get_by_name(name).is_none(),
-            "reputation shows {name}"
-        );
-    }
-    assert!(!shows_paperdoll(&reputation));
 }
