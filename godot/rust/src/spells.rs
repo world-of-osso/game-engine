@@ -363,6 +363,9 @@ impl GameClient {
     }
 
     pub(super) fn keyboard_free(&self) -> bool {
+        if self.launcher.view.open {
+            return false;
+        }
         self.base().get_viewport().is_some_and(|viewport| {
             !viewport
                 .gui_get_focus_owner()

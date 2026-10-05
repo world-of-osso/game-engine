@@ -241,7 +241,7 @@ impl GameClient {
 
     /// A micro-menu button toggles its native window; a button whose window is not
     /// converted yet shows its Retail unavailable line in the error frame.
-    fn micro_button_click(&mut self, action: &str) -> Result<(), FrameError> {
+    pub(super) fn micro_button_click(&mut self, action: &str) -> Result<(), FrameError> {
         if let Some(tab) = player_spells_micro_tab(action) {
             if self.spellbook_open() {
                 self.close_spellbook();

@@ -89,6 +89,13 @@ textures/8036204.blp
 textures/7948328.blp
 textures/8026705.blp
 
+# game-engine-ui-model tests/launcher.rs: all entry icons under both skins
+textures/1065418.blp
+textures/130816.blp
+textures/134063.blp
+textures/4691255.blp
+textures/4708813.blp
+
 # game-engine-core tests/spell_catalog.rs
 db2/12.1.0.69933/SpellName.csv
 db2/12.1.0.69933/Spell.csv

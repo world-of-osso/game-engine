@@ -98,6 +98,13 @@ pub struct MicroButton {
     pub unavailable: Option<Unavailable>,
 }
 
+impl MicroButton {
+    /// Share the existing normal micro-menu icon with the launcher; Character uses its portrait.
+    pub fn icon_atlas(&self) -> Option<String> {
+        self.art.map(|name| format!("UI-HUD-MicroMenu-{name}-Up"))
+    }
+}
+
 /// `MicroMenuMixin:GenerateButtonInfos` order; `HelpMicroButton` stays hidden outside CN.
 pub const MICRO_BUTTONS: [MicroButton; 12] = [
     MicroButton {
