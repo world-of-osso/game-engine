@@ -12,21 +12,18 @@ use rusqlite::{Connection, OpenFlags};
 
 fn read_armor_ids(data: &Path, extra: u32) -> Vec<u32> {
     let path = data.join("db2/1.60.1.70205/NPCModelItemSlotDisplayInfo.csv");
-    let mut reader = csv::Reader::from_path(path).unwrap();
-    let header = reader.headers().unwrap().clone();
-    let column = |name| header.iter().position(|value| value == name).unwrap();
-    let parent = column("NpcModelID");
-    let slot = column("ItemSlot");
-    let item = column("ItemDisplayInfoID");
-    reader
-        .records()
-        .map(Result::unwrap)
-        .filter_map(|row| {
-            let npc: u32 = row[parent].parse().unwrap();
-            let slot: u8 = row[slot].parse().unwrap();
-            (npc == extra && slot != 11).then(|| row[item].parse().unwrap())
-        })
-        .collect()
+    let mut items = Vec::new();
+    game_engine_core::csv_util::read_numeric_rows(
+        &path,
+        ["NpcModelID", "ItemSlot", "ItemDisplayInfoID"],
+        |[npc, slot, item]| {
+            if npc == i64::from(extra) && slot != 11 {
+                items.push(u32::try_from(item).unwrap());
+            }
+        },
+    )
+    .unwrap();
+    items
 }
 
 #[test]
