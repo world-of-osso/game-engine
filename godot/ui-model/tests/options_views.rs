@@ -274,6 +274,24 @@ fn hud_layout_row_offers_the_presets_and_the_player_layouts() {
     assert_eq!(parse_layout_action("options_toggle:ui_layout:x"), None);
 }
 
+#[test]
+fn hud_layout_offers_show_micro_menu_off_by_default_and_applies_its_click() {
+    let mut layout = LayoutOptionsView::default();
+    for skin in [LayoutSkin::Modern, LayoutSkin::Forever] {
+        layout.skin = skin;
+        for _ in 0..2 {
+            let mut registry = hud_registry(&layout);
+            assert_eq!(
+                label(&registry, "ToggleLabellayout_show_micro_menu"),
+                "Show Micro Menu"
+            );
+            let action = click(&mut registry, "ToggleSwitchlayout_show_micro_menu");
+            let parsed = parse_layout_action(&action).expect("layout toggle action");
+            apply_layout_action(parsed, &mut layout);
+        }
+    }
+}
+
 /// "Layout Settings": the selector shows one system's controls; each control emits the
 /// action that writes its setting, and the page then shows the stored value.
 #[test]
