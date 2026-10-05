@@ -60,12 +60,9 @@ fn warrior_spells_carry_retail_names_icons_and_rendered_descriptions() {
     assert!(shout.ends_with(" for 1 hour."), "{shout}");
     assert!(!shout.contains('$') && !shout.contains("{?"), "{shout}");
     // Slam's $s1 scales with attack power, which the client does not know: the shared
-    // renderer marks it instead of showing base points.
+    // renderer omits it instead of showing base points.
     let slam_text = data.render_description(SLAM, &ctx).unwrap();
-    assert_eq!(
-        slam_text,
-        "Slams an opponent, causing {?$s1} Physical damage."
-    );
+    assert_eq!(slam_text, "Slams an opponent, causing Physical damage.");
 }
 
 #[test]
