@@ -484,9 +484,21 @@ impl GameClient {
             &self.quests.details,
             &tokens,
             &mut |sort_id| names.get(&sort_id).cloned().unwrap_or_default(),
+            self.player_level().map_or(1, i32::from),
             self.quests.log_open(),
         );
         (frame, log)
+    }
+
+    /// The quest log for the world map's docked quest panel. The panel opens a
+    /// quest's details on click instead of marking a selected row.
+    pub(crate) fn quest_map_log(&mut self) -> QuestLogFrameState {
+        let mut log = self.quest_window_states().1;
+        log.visible = true;
+        for row in log.groups.iter_mut().flat_map(|group| &mut group.quests) {
+            row.selected = false;
+        }
+        log
     }
 
     fn sync_quest_windows(&mut self) -> Result<(), String> {

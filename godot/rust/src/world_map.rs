@@ -4,14 +4,15 @@
 //! cursor, breadcrumbs jump up the hierarchy, and Escape or M closes it. Keyboard
 //! movement keeps working while it is open, like the Retail windowed map.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 
 use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::quest_area_data::quest_area_overlay;
 use game_engine_ui_model::world_map_frame_component::{
-    ACTION_WORLD_MAP_CLOSE, ACTION_WORLD_MAP_NAV_PREFIX, QUEST_AREA_TEXTURE_SIZE,
-    WorldMapFrameState, WorldMapLayout, world_map_texture_fdids,
+    PANEL_SLOT, QUEST_AREA_TEXTURE_SIZE, QuestMapPanel, WORLD_MAP_CLOSE_BUTTON,
+    WORLD_MAP_MAXIMIZE_BUTTON, WorldMapClick, WorldMapDisplay, WorldMapFrameState, WorldMapLayout,
+    world_map_frame_screen, world_map_texture_fdids,
 };
 use game_engine_ui_model::world_map_view_data::{
     MapVignette, WorldMapData, WorldMapPlayer, WorldMapRequest, engine_to_world, player_map,
@@ -21,6 +22,7 @@ use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
 use godot::prelude::*;
 
+use crate::frame_error::FrameError;
 use crate::{GameClient, ui::RegistryUi};
 
 const DB2_DIR: &str = "db2/12.1.0.69933";
@@ -43,6 +45,11 @@ pub(crate) struct WorldMap {
     drag: Option<WindowDrag>,
     /// Objective area polygons last drawn into the overlay texture.
     drawn_areas: Option<Vec<Vec<[f32; 2]>>>,
+    /// Maximized or windowed (like Retail's `miniWorldMap` CVar it survives closing
+    /// the map, this session only) and the quest panel's page.
+    display: WorldMapDisplay,
+    /// Quest panel textures already looked up in local CASC.
+    panel_textures: HashSet<u32>,
 }
 
 impl WorldMap {
@@ -60,11 +67,19 @@ impl WorldMap {
     }
 }
 
-fn placed_map_layout(viewport: [f32; 2], saved: Option<[f32; 2]>) -> WorldMapLayout {
-    let mut layout = WorldMapLayout::for_viewport(viewport);
+/// The windowed frame at its saved top-left, else the left panel slot, clamped on
+/// screen; the maximized frame is centred and does not move.
+fn placed_map_layout(
+    viewport: [f32; 2],
+    saved: Option<[f32; 2]>,
+    maximized: bool,
+) -> WorldMapLayout {
+    let mut layout = WorldMapLayout::new(viewport, maximized, !maximized);
+    if maximized {
+        return layout;
+    }
     let [_, _, width, height] = layout.frame_rect();
-    let slot = [(viewport[0] - width) * 0.5, 104.0];
-    let [x, y] = saved.unwrap_or(slot);
+    let [x, y] = saved.unwrap_or(PANEL_SLOT);
     layout.origin = [
         x.clamp(0.0, (viewport[0] - width).max(0.0)),
         y.clamp(0.0, (viewport[1] - height).max(0.0)),
@@ -133,10 +148,17 @@ fn inside([x, y, w, h]: [f32; 4], point: Vector2) -> bool {
     point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h
 }
 
-fn map_pointer(layout: &WorldMapLayout, physical: Vector2, scale: f32) -> (bool, Option<[f32; 2]>) {
+/// Whether the pointer is over the map (anywhere while maximized: the `BlackoutFrame`
+/// takes the mouse, Blizzard_WorldMap.xml:30) and its canvas UV.
+fn map_pointer(
+    layout: &WorldMapLayout,
+    physical: Vector2,
+    scale: f32,
+    maximized: bool,
+) -> (bool, Option<[f32; 2]>) {
     let logical = physical / scale;
     (
-        inside(layout.frame_rect(), logical),
+        maximized || inside(layout.frame_rect(), logical),
         canvas_uv(layout, logical),
     )
 }
@@ -148,10 +170,9 @@ mod pointer_tests {
     #[test]
     fn map_title_drag_clamps_at_effective_scale_without_grabbing_buttons_or_canvas() {
         let viewport = [1280.0, 720.0];
-        let layout = placed_map_layout(viewport, None);
+        let layout = placed_map_layout(viewport, None, false);
         let [x, y, width, height] = layout.frame_rect();
-        assert_eq!(x, (viewport[0] - width) * 0.5);
-        assert_eq!(y, 104.0_f32.min(viewport[1] - height));
+        assert_eq!([x, y], PANEL_SLOT);
         let scale = 1.25;
         let title = Vector2::new(x + 100.0, y + 12.0);
         let button = [x + 90.0, y + 3.0, 40.0, 20.0];
@@ -172,7 +193,7 @@ mod pointer_tests {
         let drag = WindowDrag::begin(title, layout.origin);
         let moved = drag.position(Vector2::new(4000.0, 4000.0), viewport, [width, height]);
         assert_eq!(moved, [viewport[0] - width, viewport[1] - height]);
-        let smaller = placed_map_layout([900.0, 600.0], Some(moved));
+        let smaller = placed_map_layout([900.0, 600.0], Some(moved), false);
         let [sx, sy, sw, sh] = smaller.frame_rect();
         assert_eq!([sx, sy], [(900.0 - sw).max(0.0), (600.0 - sh).max(0.0)]);
     }
@@ -183,25 +204,50 @@ mod pointer_tests {
         map.position = Some([15.0, 20.0]);
         let viewport = [1280.0, 720.0];
         assert_ne!(
-            placed_map_layout(viewport, map.position).origin,
-            placed_map_layout(viewport, None).origin
+            placed_map_layout(viewport, map.position, false).origin,
+            placed_map_layout(viewport, None, false).origin
         );
         map.reset_position();
         assert_eq!(
-            placed_map_layout(viewport, map.position).origin,
-            placed_map_layout(viewport, None).origin
+            placed_map_layout(viewport, map.position, false).origin,
+            placed_map_layout(viewport, None, false).origin
         );
     }
 
     #[test]
     fn scaled_physical_map_pointer_hits_logical_canvas_and_frame() {
-        let layout = WorldMapLayout::for_viewport([2560.0, 1440.0]);
+        let layout = WorldMapLayout::new([2560.0, 1440.0], false, true);
         let [x, y, w, h] = layout.canvas_rect();
         let center = Vector2::new(x + w * 0.5, y + h * 0.5);
-        let (inside_frame, uv) = map_pointer(&layout, center * 0.5, 0.5);
+        let (inside_frame, uv) = map_pointer(&layout, center * 0.5, 0.5, false);
         assert!(inside_frame);
         assert_eq!(uv, Some([0.5, 0.5]));
-        assert_eq!(map_pointer(&layout, Vector2::ZERO, 0.5), (false, None));
+        assert_eq!(
+            map_pointer(&layout, Vector2::ZERO, 0.5, false),
+            (false, None)
+        );
+        // The maximized map's blackout covers the screen.
+        let maximized = WorldMapLayout::new([2560.0, 1440.0], true, false);
+        assert_eq!(
+            map_pointer(&maximized, Vector2::ZERO, 0.5, true),
+            (true, None)
+        );
+    }
+
+    /// Retail windowed sizes (Blizzard_WorldMap.lua:95-97, QuestLogOwnerMixin.lua:166):
+    /// 702×534, 333 wider with the quest log; maximized keeps the windowed map aspect
+    /// at the viewport height (Blizzard_WorldMap.lua:438-451).
+    #[test]
+    fn windowed_map_has_retail_size_and_maximize_fills_the_height() {
+        let viewport = [1920.0, 1080.0];
+        let windowed = placed_map_layout(viewport, None, false);
+        assert_eq!(windowed.frame_rect(), [16.0, 116.0, 1035.0, 534.0]);
+        let maximized = placed_map_layout(viewport, None, true);
+        let [x, y, width, height] = maximized.frame_rect();
+        assert_eq!([width, height], [1522.0, 1080.0]);
+        assert_eq!([x, y], [199.0, 0.0]);
+        let [_, _, canvas_w, canvas_h] = maximized.canvas_rect();
+        assert_eq!([canvas_w, canvas_h], [1517.0, 1011.0]);
     }
 }
 
@@ -296,11 +342,45 @@ impl GameClient {
         }
     }
 
+    /// Copy the quest panel's textures (quest log art) out of local CASC; a missing one
+    /// is reported and left undrawn, like the Quest Log window.
+    fn cache_quest_panel_textures(&mut self, state: &WorldMapFrameState) {
+        if state.quest_panel.is_none() {
+            return;
+        }
+        let panel_only = WorldMapFrameState {
+            tiles: Vec::new(),
+            highlight: None,
+            ..state.clone()
+        };
+        let chrome = world_map_texture_fdids(&panel_only);
+        let new: Vec<u32> = crate::quests::screen_texture_fdids(panel_only, world_map_frame_screen)
+            .into_iter()
+            .filter(|fdid| !chrome.contains(fdid) && self.world_map.panel_textures.insert(*fdid))
+            .collect();
+        if new.is_empty() {
+            return;
+        }
+        let resolver = crate::assets::creature::local_resolver(&self.data_root);
+        for fdid in new {
+            let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
+            if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {
+                godot_warn!("Quest panel texture FDID {fdid} is not in local CASC");
+            }
+        }
+    }
+
     /// The view model restricted to textures on disk: art missing from the local
     /// install stays black instead of failing the frame.
     fn drawable_world_map(&mut self) -> Result<WorldMapFrameState, String> {
         let mut state = self.world_map_view().ok_or("World map data not loaded")?;
+        state.maximized = self.world_map.display.maximized;
+        state.quest_panel = (!state.maximized).then(|| QuestMapPanel {
+            log: self.quest_map_log(),
+            details: self.world_map.display.quest_details,
+        });
         self.cache_world_map_textures(&state);
+        self.cache_quest_panel_textures(&state);
         let available = |fdid: &u32| self.world_map.available.get(fdid) == Some(&true);
         let tiles = state.tiles.len();
         state.tiles.retain(|tile| available(&tile.fdid));
@@ -369,6 +449,7 @@ impl GameClient {
         self.world_map.position = None;
         self.world_map.drag = None;
         self.world_map.drawn_areas = None;
+        self.world_map.display.quest_details = false;
     }
 
     fn world_map_toggle_pressed(&self) -> bool {
@@ -385,47 +466,58 @@ impl GameClient {
     }
 
     /// Per frame: the toggle binding, frame actions, and the live view model. A map
-    /// failure is reported and closes the map; it does not end the session.
-    pub(super) fn update_world_map(&mut self) -> Result<(), String> {
-        if let Err(error) = self.drive_world_map() {
-            godot_error!("World map: {error}");
-            self.close_world_map();
+    /// failure is reported and closes the map; it does not end the session. Quest
+    /// panel actions go through the quest log reducer, whose send failures do.
+    pub(super) fn update_world_map(&mut self) -> Result<(), FrameError> {
+        match self.drive_world_map() {
+            Ok(Some(action)) => self.apply_quest_action(&action)?,
+            Ok(None) => {}
+            Err(error) => {
+                godot_error!("World map: {error}");
+                self.close_world_map();
+            }
         }
         Ok(())
     }
 
-    fn drive_world_map(&mut self) -> Result<(), String> {
+    fn drive_world_map(&mut self) -> Result<Option<String>, String> {
         let in_world = self.account.session.screen == SessionScreen::InWorld;
         if !in_world {
             self.close_world_map();
-            return Ok(());
+            return Ok(None);
         }
         if self.game_menu_ui.is_some() {
-            return Ok(());
+            return Ok(None);
         }
         if self.world_map_toggle_pressed() {
             self.toggle_world_map()?;
         }
-        self.poll_world_map_actions()?;
-        self.sync_world_map()
+        let quest_action = self.poll_world_map_actions()?;
+        self.sync_world_map()?;
+        Ok(quest_action)
     }
 
-    fn poll_world_map_actions(&mut self) -> Result<(), String> {
+    /// Frame actions; returns a quest log action for the quest reducer.
+    fn poll_world_map_actions(&mut self) -> Result<Option<String>, String> {
         let Some(ui) = self.world_map.ui.as_mut() else {
-            return Ok(());
+            return Ok(None);
         };
         let action = ui.bind_mut().pop_action().to_string();
-        if action == ACTION_WORLD_MAP_CLOSE {
-            self.close_world_map();
-        } else if let Some(id) = action.strip_prefix(ACTION_WORLD_MAP_NAV_PREFIX) {
-            self.world_map.map_id = id
-                .parse()
-                .map_err(|_| format!("Bad world map breadcrumb action {action}"))?;
-            self.world_map.hovered = None;
-        } else if !action.is_empty() {
-            return Err(format!("Unknown world map action: {action}"));
+        let maximized = self.world_map.display.maximized;
+        match self.world_map.display.click(&action)? {
+            WorldMapClick::None => {}
+            WorldMapClick::Close => self.close_world_map(),
+            WorldMapClick::Navigate(id) => {
+                self.world_map.map_id = id;
+                self.world_map.hovered = None;
+            }
+            WorldMapClick::QuestLog(action) => return Ok(Some(action.to_owned())),
         }
-        Ok(())
+        if maximized != self.world_map.display.maximized {
+            self.world_map.drag = None;
+            self.world_map.hovered = None;
+        }
+        Ok(None)
     }
 
     pub(super) fn sync_world_map(&mut self) -> Result<(), String> {
@@ -434,7 +526,11 @@ impl GameClient {
         }
         let state = self.drawable_world_map()?;
         let scale = self.effective_ui_scale();
-        let layout = placed_map_layout(self.world_map_viewport(), self.world_map.position);
+        let layout = placed_map_layout(
+            self.world_map_viewport(),
+            self.world_map.position,
+            self.world_map.display.maximized,
+        );
         let overlay = (self.world_map.drawn_areas.as_ref() != Some(&state.quest_areas))
             .then(|| quest_area_pixels(&state.quest_areas));
         self.world_map.drawn_areas = Some(state.quest_areas.clone());
@@ -459,7 +555,11 @@ impl GameClient {
             return false;
         }
         let viewport = self.world_map_viewport();
-        let layout = placed_map_layout(viewport, self.world_map.position);
+        let layout = placed_map_layout(
+            viewport,
+            self.world_map.position,
+            self.world_map.display.maximized,
+        );
         let scale = self.effective_ui_scale();
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
             return self.world_map_motion(&motion, &layout, viewport, scale);
@@ -486,7 +586,12 @@ impl GameClient {
             }
             return true;
         }
-        let (inside_frame, uv) = map_pointer(layout, motion.get_position(), scale);
+        let (inside_frame, uv) = map_pointer(
+            layout,
+            motion.get_position(),
+            scale,
+            self.world_map.display.maximized,
+        );
         self.world_map.hovered = uv;
         inside_frame
     }
@@ -502,7 +607,7 @@ impl GameClient {
                 self.persist_world_map_position();
                 return true;
             }
-            if button.is_pressed() {
+            if button.is_pressed() && !self.world_map.display.maximized {
                 let buttons = self.world_map_title_buttons(scale);
                 if title_hit(layout.frame_rect(), button.get_position(), scale, &buttons) {
                     self.world_map.drag = Some(WindowDrag::begin(
@@ -540,7 +645,12 @@ impl GameClient {
         layout: &WorldMapLayout,
         scale: f32,
     ) -> bool {
-        let (inside_frame, uv) = map_pointer(layout, button.get_position(), scale);
+        let (inside_frame, uv) = map_pointer(
+            layout,
+            button.get_position(),
+            scale,
+            self.world_map.display.maximized,
+        );
         // Releases always reach gameplay input so a drag begun outside cannot stick.
         if !button.is_pressed() || !inside_frame {
             return false;
@@ -556,7 +666,7 @@ impl GameClient {
             return Vec::new();
         };
         let mut buttons = Vec::new();
-        for name in ["WorldMapCloseButton", "WorldMapClose"] {
+        for name in [WORLD_MAP_CLOSE_BUTTON, WORLD_MAP_MAXIMIZE_BUTTON] {
             if let Some(node) = ui.find_child_ex(name).owned(false).done()
                 && let Ok(control) = node.try_cast::<godot::classes::Control>()
             {
@@ -650,6 +760,15 @@ impl GameClient {
         result.set("pins", &pins);
         result.set("tile_count", state.tiles.len() as i64);
         result.set("missing_tiles", self.world_map.missing_tiles as i64);
+        result.set("maximized", self.world_map.display.maximized);
+        let layout = placed_map_layout(
+            self.world_map_viewport(),
+            self.world_map.position,
+            self.world_map.display.maximized,
+        );
+        let [_, _, width, height] = layout.frame_rect();
+        result.set("frame_size", Vector2::new(width, height));
+        result.set("quest_details", self.world_map.display.quest_details);
         result
     }
 }
