@@ -160,8 +160,9 @@ const WORLD_OBJECT_BUDGET: std::time::Duration = std::time::Duration::from_milli
 #[gdextension]
 unsafe impl ExtensionLibrary for GameEngineExtension {
     fn on_stage_deinit(stage: godot::init::InitStage) {
-        // Release cached shaders before Godot tears down its rendering storage.
+        // Release cached resources before Godot tears down its rendering storage.
         if stage == godot::init::InitStage::MainLoop {
+            ui::assets::clear_shared_resources();
             assets::material::clear_shared_shaders();
             shader_warmup::clear();
             assets::clear_shared_meshes();
