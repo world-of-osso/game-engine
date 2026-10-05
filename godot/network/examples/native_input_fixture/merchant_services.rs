@@ -430,6 +430,7 @@ fn send_junk_authority(app: &mut App, selected: Entity) {
         app,
         BuybackList {
             items: vec![BuybackItem {
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
                 slot: 0,
                 item_id: 4865,
                 name: "Ruined Pelt".into(),

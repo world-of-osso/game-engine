@@ -72,18 +72,19 @@ pub(crate) fn confirm_purchase(key: &str, text: &str, cost: u64) -> PopupSpec {
 /// (`item_icons::item_icon_fdid`); the portable default reads no data and shows
 /// Retail's `INV_Misc_QuestionMark`, as Retail does for an item it can't resolve.
 #[derive(Clone, Copy, Debug)]
-pub struct ItemIcons(pub fn(u32) -> Option<u32>);
+pub struct ItemIcons(pub fn(shared::item_data::ItemDefinitionSource, u32) -> Option<u32>);
 
 impl Default for ItemIcons {
     fn default() -> Self {
-        Self(|_| None)
+        Self(|_, _| None)
     }
 }
 
 impl ItemIcons {
     pub fn slot_item(self, stack: &ItemStack) -> SlotItem {
         SlotItem {
-            icon_fdid: (self.0)(stack.item_id).unwrap_or(crate::bank_art::UNKNOWN_ICON),
+            icon_fdid: (self.0)(stack.definition_source, stack.item_id)
+                .unwrap_or(crate::bank_art::UNKNOWN_ICON),
             count: stack.count,
             quality_border: "1.0,1.0,1.0,1.0".into(),
         }

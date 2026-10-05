@@ -496,12 +496,12 @@ const TWO_HANDED: [u8; 3] = [17, 15, 26];
 /// `(item_level, inventory_type)` of an item id.
 pub fn average_equipped_item_level(
     inventory: &InventoryState,
-    item: impl Fn(u32) -> Option<(u16, u8)>,
+    item: impl Fn(&crate::bag_data::InventorySlot) -> Option<(u16, u8)>,
 ) -> f32 {
     let level = |slot| {
         inventory
             .item_at(ItemLocation::Equipment(slot))
-            .and_then(|slot| item(slot.item_id))
+            .and_then(&item)
     };
     let mut total: u32 = ITEM_LEVEL_SLOTS
         .iter()

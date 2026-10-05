@@ -1052,6 +1052,7 @@ fn send_buyback_seed(app: &mut App) {
         app,
         BuybackList {
             items: vec![BuybackItem {
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
                 slot: 0,
                 item_id: 2589,
                 name: "Linen Cloth".into(),
@@ -1078,6 +1079,7 @@ fn send_buyback_commit(app: &mut App, selected: Entity) {
 
 fn first_last_buyback_entry() -> BuybackItem {
     BuybackItem {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         slot: 0,
         item_id: 2589,
         name: "Linen Cloth".into(),
@@ -1094,6 +1096,7 @@ fn send_last_buyback_seed(app: &mut App) {
             items: vec![
                 first_last_buyback_entry(),
                 BuybackItem {
+                    definition_source: shared::item_data::ItemDefinitionSource::Retail,
                     slot: 1,
                     item_id: 2589,
                     name: "Linen Cloth".into(),

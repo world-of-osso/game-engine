@@ -59,8 +59,9 @@ fn equipped(items: &[(EquipmentSlot, u32)]) -> InventoryState {
     inventory
 }
 
-fn catalog_level(item_id: u32) -> Option<(u16, u8)> {
-    item_catalog_entry(item_id).map(|entry| (entry.item_level, entry.inventory_type))
+fn catalog_level(item: &game_engine_ui_model::bag_data::InventorySlot) -> Option<(u16, u8)> {
+    game_engine_ui_model::item_catalog::item_catalog_entry_for(item.definition_source, item.item_id)
+        .map(|entry| (entry.item_level, entry.inventory_type))
 }
 
 fn build(view: CharacterFrameView) -> FrameRegistry {

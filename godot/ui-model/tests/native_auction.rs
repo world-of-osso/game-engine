@@ -33,6 +33,7 @@ fn native_auction_accepts_server_selected_house_but_rejects_stale_filters() {
         query: server_query.clone(),
         total_results: 1,
         items: vec![AuctionBrowseItem {
+            definition_source: shared::item_data::ItemDefinitionSource::Retail,
             item_id: 2589,
             name: "Linen Cloth".into(),
             quality: 1,
@@ -170,6 +171,7 @@ fn listing(id: u64) -> AuctionListingSummary {
 }
 fn browse_item(id: u32) -> AuctionBrowseItem {
     AuctionBrowseItem {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_id: id,
         name: format!("item{id}"),
         quality: 2,

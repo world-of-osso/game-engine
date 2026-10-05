@@ -93,7 +93,10 @@ pub struct ViewInputs<'a> {
     pub net: &'a AuctionHouseState,
     pub ui: &'a AuctionHouseUi,
     pub texts: &'a InputTexts,
-    pub catalog: &'a dyn Fn(u32) -> Option<&'static ItemCatalogEntry>,
+    pub catalog: &'a dyn Fn(
+        shared::item_data::ItemDefinitionSource,
+        u32,
+    ) -> Option<&'static ItemCatalogEntry>,
     pub visible: bool,
 }
 
@@ -102,7 +105,8 @@ impl ViewInputs<'_> {
         ItemLine {
             name: item.name.clone(),
             quality: item.quality,
-            icon_fdid: (self.catalog)(item.item_id).map_or(0, |entry| entry.icon_fdid),
+            icon_fdid: (self.catalog)(item.definition_source, item.item_id)
+                .map_or(0, |entry| entry.icon_fdid),
         }
     }
 
@@ -164,7 +168,8 @@ fn browse_rows(inputs: &ViewInputs) -> Vec<BrowseRow> {
             item: ItemLine {
                 name: item.name.clone(),
                 quality: item.quality,
-                icon_fdid: (inputs.catalog)(item.item_id).map_or(0, |entry| entry.icon_fdid),
+                icon_fdid: (inputs.catalog)(item.definition_source, item.item_id)
+                    .map_or(0, |entry| entry.icon_fdid),
             },
             price: item.lowest_unit_price,
             available: item.total_quantity,

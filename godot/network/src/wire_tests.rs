@@ -1581,6 +1581,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
             query: browse_query,
             total_results: 103,
             items: vec![AuctionBrowseItem {
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
                 item_id: 2589,
                 name: "Linen Cloth".into(),
                 quality: 1,

@@ -76,12 +76,44 @@ fn inspect_query_command_maps_to_request() {
 
 #[test]
 fn item_info_command_maps_to_request() {
-    let request = item_request(ItemCmd::Info { item_id: 2589 }).expect("valid item command");
+    let request = item_request(ItemCmd::Info {
+        item_id: 2589,
+        source: "retail".into(),
+    })
+    .expect("valid item command");
     assert_eq!(
         request,
         Request::ItemInfo {
-            query: ItemInfoQuery { item_id: 2589 }
+            query: ItemInfoQuery {
+                item_id: 2589,
+                definition_source: shared::item_data::ItemDefinitionSource::Retail
+            }
         }
+    );
+}
+
+#[test]
+fn item_info_preserves_forever_source_and_rejects_unknown_source() {
+    let request = item_request(ItemCmd::Info {
+        item_id: 2947,
+        source: "forever70205".into(),
+    })
+    .unwrap();
+    assert_eq!(
+        request,
+        Request::ItemInfo {
+            query: ItemInfoQuery {
+                item_id: 2947,
+                definition_source: shared::item_data::ItemDefinitionSource::Forever70205
+            }
+        }
+    );
+    assert!(
+        item_request(ItemCmd::Info {
+            item_id: 2947,
+            source: "unknown".into()
+        })
+        .is_err()
     );
 }
 

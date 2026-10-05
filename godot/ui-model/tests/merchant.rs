@@ -310,6 +310,7 @@ fn a_sale_shows_in_buyback_and_either_slot_buys_it_back() {
     });
     session.receive_buyback(BuybackList {
         items: vec![BuybackItem {
+            definition_source: shared::item_data::ItemDefinitionSource::Retail,
             slot: 0,
             item_id: 2589,
             name: "Linen Cloth".into(),
