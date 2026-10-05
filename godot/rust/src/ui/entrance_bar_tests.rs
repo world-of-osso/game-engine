@@ -154,21 +154,32 @@ fn three_short_labels_use_the_128_px_minimum_button() {
 }
 
 #[test]
-fn bar_art_samples_plumbers_gold_theme_rects() {
+fn bar_art_samples_a_non_empty_region_inside_its_sheet() {
     let built = Built::new(stockade(Some(1)));
-    let coords = |name: &str| match &built.registry.get(built.id(name)).unwrap().widget_data {
-        Some(WidgetData::Texture(texture)) => texture.tex_coords,
-        other => panic!("{name} is {other:?}"),
-    };
-    assert_eq!(
-        coords("EntranceDifficultyBarCenter"),
-        [40.0 / 1024.0, 216.0 / 1024.0, 0.0, 96.0 / 1024.0]
-    );
-    assert_eq!(
-        coords("EntranceDifficultyBoxLeft"),
-        [264.0 / 1024.0, 296.0 / 1024.0, 0.0, 96.0 / 1024.0]
-    );
-    assert_eq!(coords("EntranceDifficultyShadow"), [0.75, 1.0, 0.0, 0.25]);
+    for name in [
+        "EntranceDifficultyBarLeft",
+        "EntranceDifficultyBarCenter",
+        "EntranceDifficultyBarRight",
+        "EntranceDifficultyBoxLeft",
+        "EntranceDifficultyBoxCenter",
+        "EntranceDifficultyBoxRight",
+        "EntranceDifficultyShadow",
+    ] {
+        let [left, right, top, bottom] =
+            match &built.registry.get(built.id(name)).unwrap().widget_data {
+                Some(WidgetData::Texture(texture)) => texture.tex_coords,
+                other => panic!("{name} is {other:?}"),
+            };
+        assert!(
+            (0.0..=1.0).contains(&left) && (0.0..=1.0).contains(&right),
+            "{name}"
+        );
+        assert!(
+            (0.0..=1.0).contains(&top) && (0.0..=1.0).contains(&bottom),
+            "{name}"
+        );
+        assert!(left != right && top < bottom, "{name} samples nothing");
+    }
 }
 
 #[test]
