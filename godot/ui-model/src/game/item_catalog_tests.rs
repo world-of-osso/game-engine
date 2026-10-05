@@ -24,9 +24,9 @@ fn collision_catalogs_preserve_source_and_never_borrow_missing_rows() {
     let mut retail = catalog();
     let mut forever = catalog();
     for (id, name, class, kind, icon, stackable) in [
-        (2947, "Small Throwing Knife", 2, 25, 135641, 200),
+        (2947, "Small Throwing Knife", 2, 25, 135426, 1),
         (2512, "Rough Arrow", 6, 24, 132382, 200),
-        (2101, "Light Quiver", 11, 27, 134409, 1),
+        (2101, "Light Quiver", 11, 18, 134409, 1),
     ] {
         retail.items.insert(
             id,
@@ -54,9 +54,9 @@ fn collision_catalogs_preserve_source_and_never_borrow_missing_rows() {
     let sources = SourceItemCatalogs::new(retail.clone(), Ok(forever));
     assert_eq!(sources.catalog(Retail).unwrap(), &retail);
     for (id, name, kind, stackable) in [
-        (2947, "Small Throwing Knife", 25, 200),
+        (2947, "Small Throwing Knife", 25, 1),
         (2512, "Rough Arrow", 24, 200),
-        (2101, "Light Quiver", 27, 1),
+        (2101, "Light Quiver", 18, 1),
     ] {
         let entry = sources.catalog(Forever70205).unwrap().get(id).unwrap();
         assert_eq!(
@@ -158,6 +158,136 @@ fn collision_catalogs_preserve_source_and_never_borrow_missing_rows() {
     assert!(missing.catalog(Retail).unwrap().get(2589).is_some());
     let error = missing.entry(Forever70205, 2947).unwrap_err();
     assert!(error.contains("Forever70205 item 2947"), "{error}");
+}
+
+#[test]
+fn authored_forever_source_survives_mixed_snapshot_tooltips_and_equipped_levels() {
+    use shared::item_data::ItemDefinitionSource::{Forever70205, Retail};
+    use shared::protocol::{BagContents, BagSlotItem, EquipmentSlot, InventorySnapshot, ItemStack};
+    wait_for_item_catalog();
+    let catalogs = item_catalogs().unwrap();
+    let forever = catalogs
+        .catalog(Forever70205)
+        .expect("provisioned selected Forever kit");
+    assert_eq!(forever.len(), 30);
+    let pairs = [
+        (Retail, 2947),
+        (Forever70205, 2947),
+        (Retail, 2512),
+        (Forever70205, 2512),
+        (Retail, 2101),
+        (Forever70205, 2101),
+    ];
+    let items = pairs
+        .into_iter()
+        .enumerate()
+        .map(|(slot, (source, id))| BagSlotItem {
+            slot: slot as u8,
+            item: ItemStack {
+                item_guid: slot as u64 + 1,
+                item_id: id,
+                definition_source: source,
+                count: 1,
+                durability: None,
+                soulbound: false,
+            },
+        })
+        .collect();
+    let mut inventory = crate::bag_data::InventoryState::default();
+    inventory.apply_snapshot(&InventorySnapshot {
+        bags: vec![BagContents {
+            bag: 0,
+            size: 16,
+            items,
+        }],
+    });
+    assert_eq!(
+        inventory.slot(0, 0).unwrap().name,
+        "Broken Small Throwing Knife"
+    );
+    assert_eq!(inventory.slot(0, 1).unwrap().name, "Small Throwing Knife");
+    for (index, (source, id)) in pairs.into_iter().enumerate() {
+        let slot = inventory.slot(0, index).unwrap();
+        let entry = catalogs.entry(source, id).unwrap();
+        assert_eq!(slot.definition_source, source);
+        assert_eq!(
+            slot.icon_fdid,
+            catalogs.catalog(source).unwrap().icon_fdid(id).unwrap()
+        );
+        let tooltip = crate::item_tooltip::item_tooltip(slot, Some(10));
+        assert_eq!(tooltip.title, entry.name);
+        assert_eq!(slot.name, entry.name);
+    }
+    assert_eq!(
+        (
+            catalogs.entry(Retail, 2947).unwrap().class_id,
+            catalogs.entry(Forever70205, 2947).unwrap().class_id
+        ),
+        (15, 2)
+    );
+    assert_eq!(
+        (
+            catalogs.entry(Retail, 2512).unwrap().stackable,
+            catalogs.entry(Forever70205, 2512).unwrap().stackable
+        ),
+        (1000, 200)
+    );
+    assert_eq!(
+        (
+            catalogs.entry(Retail, 2101).unwrap().class_id,
+            catalogs.entry(Forever70205, 2101).unwrap().class_id
+        ),
+        (1, 11)
+    );
+    let arrow = crate::item_tooltip::item_tooltip(inventory.slot(0, 3).unwrap(), Some(10));
+    assert!(
+        arrow
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Ammo" && line.right_text == "Arrow")
+    );
+    let quiver = crate::item_tooltip::item_tooltip(inventory.slot(0, 5).unwrap(), Some(10));
+    assert!(
+        quiver
+            .lines
+            .iter()
+            .any(|line| line.left_text == "6 Slot Quiver")
+    );
+    inventory.equipment.insert(
+        EquipmentSlot::MainHand,
+        inventory.slot(0, 0).unwrap().clone(),
+    );
+    let comparisons =
+        crate::game_tooltip::item::comparisons(inventory.slot(0, 1).unwrap(), &inventory, Some(10));
+    assert_eq!(comparisons.len(), 1);
+    assert_eq!(comparisons[0].tooltip.title, "Broken Small Throwing Knife");
+    let level = crate::character_frame::average_equipped_item_level(&inventory, |slot| {
+        catalogs
+            .entry(slot.definition_source, slot.item_id)
+            .ok()
+            .map(|item| (item.item_level, item.inventory_type))
+    });
+    assert_eq!(level, 2.0 / 16.0);
+    inventory.equipment.insert(
+        EquipmentSlot::MainHand,
+        inventory.slot(0, 1).unwrap().clone(),
+    );
+    let level = crate::character_frame::average_equipped_item_level(&inventory, |slot| {
+        catalogs
+            .entry(slot.definition_source, slot.item_id)
+            .ok()
+            .map(|item| (item.item_level, item.inventory_type))
+    });
+    assert_eq!(level, 3.0 / 16.0);
+    assert!(catalogs.entry(Forever70205, 2589).is_err());
+    assert!(catalogs.entry(Retail, 2589).is_ok());
+    let staff = catalogs.entry(Forever70205, 35).unwrap();
+    let damage = crate::item_stats::weapon_damage_for(Forever70205, staff).unwrap();
+    assert!((damage.dps - 1.3212558).abs() < 0.00001, "{damage:?}");
+    assert_ne!(
+        damage,
+        crate::item_stats::weapon_damage_for(Retail, staff).unwrap()
+    );
 }
 
 fn catalog() -> ItemCatalog {

@@ -51,6 +51,9 @@ models/949470.m2
 models/94947000.skin
 models/949470.skel
 
+# Source-local selected Forever kit definitions, appearance/class metadata and scaling.
+db2/1.60.1.70205/items/
+
 # Forever Skyborne catalogs: isolated cache import plus Retail-overlay regression tests.
 db2/1.60.1.70205/ChrRaces.csv
 db2/1.60.1.70205/ChrRaceXChrModel.csv
