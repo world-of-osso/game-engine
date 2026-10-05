@@ -16,6 +16,51 @@ fn data() -> &'static NpcGearData {
     })
 }
 
+#[test]
+fn forever_npc_gear_keeps_retail_displays_and_scopes_extra_collisions() {
+    let fixture = std::env::temp_dir().join(format!("forever-gear-{}", std::process::id()));
+    let retail = fixture.join("12.1.0.69933");
+    let forever = fixture.join("1.60.1.70205");
+    std::fs::create_dir_all(&retail).unwrap();
+    std::fs::create_dir_all(&forever).unwrap();
+    for (name, contents) in [
+        ("Emotes", "ID,AnimID\n"),
+        ("Item", "ID,SheatheType,ClassID,SubclassID\n"),
+        (
+            "CreatureDisplayInfo",
+            "ID,ExtendedDisplayInfoID\n10,20\n12,0\n",
+        ),
+        (
+            "NPCModelItemSlotDisplayInfo",
+            "NpcModelID,ItemSlot,ItemDisplayInfoID\n20,1,60\n",
+        ),
+    ] {
+        std::fs::write(retail.join(format!("{name}.csv")), contents).unwrap();
+    }
+    std::fs::write(
+        forever.join("CreatureDisplayInfo.csv"),
+        "ID,ExtendedDisplayInfoID\n10,30\n11,20\n12,20\n13,40\n",
+    )
+    .unwrap();
+    std::fs::write(
+        forever.join("NPCModelItemSlotDisplayInfo.csv"),
+        "NpcModelID,ItemSlot,ItemDisplayInfoID\n20,1,99\n30,1,100\n",
+    )
+    .unwrap();
+    let gear = NpcGearData::load(&retail).unwrap();
+    assert_eq!(
+        gear.display_armor(10).unwrap().entries[0].display_info_id,
+        Some(60)
+    );
+    assert_eq!(
+        gear.display_armor(11).unwrap().entries[0].display_info_id,
+        Some(99)
+    );
+    assert!(gear.display_armor(12).unwrap().entries.is_empty());
+    assert!(gear.display_armor(13).unwrap_err().contains("40"));
+    std::fs::remove_dir_all(fixture).unwrap();
+}
+
 fn emote_anim_id(emote: u32) -> Option<u16> {
     data().emote_anim_id(emote)
 }
