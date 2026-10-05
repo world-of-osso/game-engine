@@ -160,6 +160,92 @@ fn forever_entry(slot: EquipmentVisualSlot) -> EquippedAppearanceEntry {
 }
 
 #[test]
+fn published_30_item_kit_has_exact_source_local_display_links_and_resource_closure() {
+    let catalog = OutfitData::load(&data_dir());
+    let forever = catalog.load_owned_forever_70205().unwrap();
+    for (item, display) in [
+        (35, 472),
+        (876, 1680),
+        (2092, 2704),
+        (2101, 21328),
+        (2504, 8104),
+        (2512, 737993),
+        (2947, 16754),
+        (3661, 5010),
+        (271655, 746654),
+        (271658, 735341),
+        (271659, 735343),
+        (271661, 735345),
+        (271662, 735348),
+        (271663, 741962),
+        (271665, 736800),
+        (271666, 735350),
+        (271668, 741946),
+        (271669, 747883),
+        (271671, 735353),
+        (271672, 748219),
+        (271673, 735355),
+        (271674, 748124),
+        (271675, 741960),
+        (280399, 745574),
+        (280400, 1839),
+    ] {
+        assert_eq!(
+            forever.resolve_item_display_id(item).unwrap(),
+            display,
+            "item {item}"
+        );
+        for race in [95, 96] {
+            for sex in [0, 1] {
+                assert!(
+                    forever
+                        .try_resolve_display_info(display, race, sex)
+                        .unwrap()
+                        .is_some(),
+                    "item {item}"
+                );
+            }
+        }
+    }
+    for item in [117, 159, 4536, 4540, 6948] {
+        assert!(
+            forever.resolve_item_display_id(item).is_err(),
+            "item {item} invented a display"
+        );
+    }
+    let retail = catalog.load_owned_retail().unwrap();
+    for (item, display) in [
+        (25, 1542),
+        (38, 5729),
+        (39, 6050),
+        (40, 6051),
+        (2362, 18730),
+    ] {
+        assert_eq!(retail.resolve_item_display_id(item).unwrap(), display);
+    }
+    assert_eq!(
+        retail.try_resolve_runtime_model(1542, 1, 0).unwrap(),
+        Some((148132, [148134, 0, 0]))
+    );
+    assert_eq!(
+        retail
+            .try_resolve_display_info(6050, 1, 0)
+            .unwrap()
+            .unwrap()
+            .item_textures,
+        [(5, 157713), (6, 155104)]
+    );
+    assert_eq!(
+        retail
+            .try_resolve_display_info(6050, 1, 1)
+            .unwrap()
+            .unwrap()
+            .item_textures,
+        [(5, 157712), (6, 155103)]
+    );
+}
+
+#[test]
 fn owned_sources_resolve_distinct_displays_and_colliding_resource_groups() {
     let root = source_fixture("collision");
     let catalog = OutfitData::load(&root);
@@ -190,6 +276,10 @@ fn owned_sources_resolve_distinct_displays_and_colliding_resource_groups() {
     });
     assert_eq!(explicit.runtime_models, forever.runtime_models);
     assert_eq!(explicit.outfit.item_textures, forever.outfit.item_textures);
+    assert!(
+        !root.join("cache").exists(),
+        "owned lookup wrote the NPC cache"
+    );
     std::fs::remove_dir_all(root).unwrap();
 }
 

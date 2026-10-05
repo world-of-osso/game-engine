@@ -17,6 +17,42 @@ mod outfit_links_cache;
 mod outfit_query;
 #[path = "world_db/outfit_resolve.rs"]
 mod outfit_resolve;
+pub(crate) use outfit_query::{
+    query_display_info, query_material_texture_fdids, query_model_fdids,
+};
+
+/// An owned-item namespace read from client CSVs; never writes the shared NPC cache.
+pub(crate) fn load_owned_outfit_connection(
+    items_dir: &Path,
+    gear_dir: &Path,
+) -> Result<Connection, String> {
+    let conn = Connection::open_in_memory()
+        .map_err(|err| format!("open owned outfit namespace: {err}"))?;
+    outfit_links_cache::init_schema(&conn)?;
+    populate_item_modified_appearance_map(&conn, &items_dir.join("ItemModifiedAppearance.csv"))?;
+    populate_item_appearance_map(&conn, &items_dir.join("ItemAppearance.csv"))?;
+    populate_display_info(&conn, &gear_dir.join("ItemDisplayInfo.csv"))?;
+    material_links::populate_material_textures(&conn, &gear_dir.join("TextureFileData.csv"))?;
+    material_links::populate_declared_display_materials(
+        &conn,
+        &gear_dir.join("ItemDisplayInfoMaterialRes.csv"),
+    )?;
+    populate_model_to_fdid(&conn, &gear_dir.join("ModelFileData.csv"))?;
+    Ok(conn)
+}
+
+pub(crate) fn query_item_display_id(conn: &Connection, item_id: u32) -> Result<u32, String> {
+    conn.query_row(
+        "SELECT iam.display_info_id
+         FROM item_modified_appearance_map ima
+         JOIN item_appearance_map iam ON iam.appearance_id = ima.appearance_id
+         WHERE ima.item_id = ?1",
+        [item_id],
+        |row| row.get(0),
+    )
+    .map_err(|err| format!("resolve item {item_id} display: {err}"))
+}
+
 type OutfitKey = (u8, u8, u8);
 type StarterOutfits = HashMap<OutfitKey, Vec<u32>>;
 /// Versioned by schema: checkouts with an older schema keep reading their own file.

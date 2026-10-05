@@ -40,8 +40,18 @@ impl ComponentFileData {
     /// `ComponentTextureFileData`, `ComponentModelFileData` and `ChrRaces` from one DB2
     /// export directory.
     pub fn load(db2_dir: &Path) -> Result<Self, String> {
+        let mut data = Self::load_source(db2_dir)?;
+        let forever = db2_dir.parent().map(|dir| dir.join("1.60.1.70205"));
+        if let Some(dir) = forever.filter(|dir| dir.join("ItemDisplayInfo.csv").is_file()) {
+            data.import_missing_owners(&dir)?;
+        }
+        Ok(data)
+    }
+
+    /// Read only this product's owners and authored race relations, without NPC overlays.
+    pub fn load_source(db2_dir: &Path) -> Result<Self, String> {
         let (texture_fallbacks, model_fallbacks) = load_race_fallbacks(db2_dir)?;
-        let mut data = Self {
+        Ok(Self {
             textures: load_owners(
                 &db2_dir.join("ComponentTextureFileData.csv"),
                 ["ID", "GenderIndex", "ClassID", "RaceID", "ClassID"],
@@ -54,12 +64,7 @@ impl ComponentFileData {
             )?,
             texture_fallbacks,
             model_fallbacks,
-        };
-        let forever = db2_dir.parent().map(|dir| dir.join("1.60.1.70205"));
-        if let Some(dir) = forever.filter(|dir| dir.join("ItemDisplayInfo.csv").is_file()) {
-            data.import_missing_owners(&dir)?;
-        }
-        Ok(data)
+        })
     }
 
     fn import_missing_owners(&mut self, dir: &Path) -> Result<(), String> {

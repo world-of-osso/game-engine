@@ -98,14 +98,34 @@ pub fn resolve_equipment_appearance_with_errors(
         if entry.hidden {
             continue;
         }
+        let entry_data = match entry.definition_source {
+            Some(shared::item_data::ItemDefinitionSource::Retail) => {
+                outfit_data.load_owned_retail()
+            }
+            Some(shared::item_data::ItemDefinitionSource::Forever70205) => {
+                outfit_data.load_owned_forever_70205()
+            }
+            None if entry.item_id.is_none() => Ok(outfit_data),
+            None => Err("owned item missing definition source".to_string()),
+        };
+        let entry_data = match entry_data {
+            Ok(data) => data,
+            Err(error) => {
+                report_error(format!(
+                    "Equipment {:?} source {:?}: {error}",
+                    entry.slot, entry.definition_source
+                ));
+                continue;
+            }
+        };
         let display_info_id = match (entry.display_info_id, entry.item_id) {
             (Some(display_id), _) => display_id,
-            (None, Some(item_id)) => match outfit_data.resolve_item_display_id(item_id) {
+            (None, Some(item_id)) => match entry_data.resolve_item_display_id(item_id) {
                 Ok(display_id) => display_id,
                 Err(error) => {
                     report_error(format!(
-                        "Equipment {:?} item {item_id}: {error}",
-                        entry.slot
+                        "Equipment {:?} source {:?} item {item_id}: {error}",
+                        entry.slot, entry.definition_source
                     ));
                     continue;
                 }
@@ -116,46 +136,52 @@ pub fn resolve_equipment_appearance_with_errors(
             &mut resolved,
             entry.slot,
             display_info_id,
-            outfit_data,
+            entry_data,
             race,
             sex,
         ) {
-            Ok(textures) => body.record(entry.slot, display_info_id, textures),
+            Ok(textures) => body.record(entry.slot, display_info_id, entry_data, textures),
             Err(error) => report_error(format!(
-                "Equipment {:?} display {display_info_id}: {error}",
-                entry.slot
+                "Equipment {:?} source {:?} display {display_info_id}: {error}",
+                entry.slot, entry.definition_source
             )),
         }
     }
-    apply_body_geosets(&mut resolved, &body, outfit_data);
-    layer_item_textures(&mut resolved, &body, outfit_data);
+    apply_body_geosets(&mut resolved, &body);
+    layer_item_textures(&mut resolved, &body);
     resolved
 }
 
 /// The displays of the slots whose items paint the body and pick its sleeve, robe and
 /// leg geosets.
 #[derive(Default)]
-struct BodyDisplays {
+struct BodyDisplays<'a> {
     /// Texture-bearing `CCharacterComponent` slot rows (see [`ITEM_PRIORITIES`]) with
     /// their displays and body textures, in equip order.
-    painted: Vec<(usize, u32, Vec<(u8, u32)>)>,
-    shirt: Option<u32>,
-    chest: Option<u32>,
-    legs: Option<u32>,
-    hands: Option<u32>,
+    painted: Vec<(usize, u32, &'a OutfitData, Vec<(u8, u32)>)>,
+    shirt: Option<(u32, &'a OutfitData)>,
+    chest: Option<(u32, &'a OutfitData)>,
+    legs: Option<(u32, &'a OutfitData)>,
+    hands: Option<(u32, &'a OutfitData)>,
 }
 
-impl BodyDisplays {
-    fn record(&mut self, slot: EquipmentVisualSlot, display_id: u32, textures: Vec<(u8, u32)>) {
+impl<'a> BodyDisplays<'a> {
+    fn record(
+        &mut self,
+        slot: EquipmentVisualSlot,
+        display_id: u32,
+        data: &'a OutfitData,
+        textures: Vec<(u8, u32)>,
+    ) {
         match slot {
-            EquipmentVisualSlot::Shirt => self.shirt = Some(display_id),
-            EquipmentVisualSlot::Chest => self.chest = Some(display_id),
-            EquipmentVisualSlot::Legs => self.legs = Some(display_id),
-            EquipmentVisualSlot::Hands => self.hands = Some(display_id),
+            EquipmentVisualSlot::Shirt => self.shirt = Some((display_id, data)),
+            EquipmentVisualSlot::Chest => self.chest = Some((display_id, data)),
+            EquipmentVisualSlot::Legs => self.legs = Some((display_id, data)),
+            EquipmentVisualSlot::Hands => self.hands = Some((display_id, data)),
             _ => {}
         }
         if let Some(row) = component_slot_row(slot) {
-            self.painted.push((row, display_id, textures));
+            self.painted.push((row, display_id, data, textures));
         }
     }
 }
@@ -167,13 +193,9 @@ impl BodyDisplays {
 /// and their GeosetGroup[1] the undershirt 1001+n (wowdev.wiki DB/ItemDisplayInfo); a
 /// chest robe (GeosetGroup[2], inventory type 20), else a legs one, hides boots 5xx,
 /// kneepads 902-999 and pants 11xx and shows skirt 1301+n in place of the pants' trousers.
-fn apply_body_geosets(
-    resolved: &mut ResolvedEquipmentAppearance,
-    body: &BodyDisplays,
-    data: &OutfitData,
-) {
-    let group = |display: Option<u32>, index| {
-        display.and_then(|display| data.display_geoset_variant(display, index))
+fn apply_body_geosets(resolved: &mut ResolvedEquipmentAppearance, body: &BodyDisplays<'_>) {
+    let group = |display: Option<(u32, &OutfitData)>, index| {
+        display.and_then(|(display, data)| data.display_geoset_variant(display, index))
     };
     let overrides = &mut resolved.outfit.geoset_overrides;
     let mut set = |geoset: u16, variant: u16| {
@@ -258,17 +280,13 @@ fn item_texture_priority(
 
 /// Order the body item textures by paste priority, whatever the equip order, so a robe
 /// paints over the shirt and the pants: the compositor pastes them in list order.
-fn layer_item_textures(
-    resolved: &mut ResolvedEquipmentAppearance,
-    body: &BodyDisplays,
-    data: &OutfitData,
-) {
+fn layer_item_textures(resolved: &mut ResolvedEquipmentAppearance, body: &BodyDisplays<'_>) {
     let priority = |texture: &(u8, u32)| {
         body.painted
             .iter()
             .rev()
-            .find(|(_, _, textures)| textures.contains(texture))
-            .and_then(|&(row, display, _)| {
+            .find(|(_, _, _, textures)| textures.contains(texture))
+            .and_then(|&(row, display, data, _)| {
                 item_texture_priority(row, usize::from(texture.0), display, data)
             })
             .unwrap_or(i8::MAX)
