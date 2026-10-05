@@ -1,10 +1,6 @@
-//! The client's item catalog, one entry per item ID from the build-pinned Retail
-//! DB2 exports: `Item.csv` (class, subclass, icon) joined with `ItemSparse.csv`
-//! (name, quality, stack size, sell price, binding, level, inventory type), and the
-//! subclass names of `ItemSubClass.csv`. The
-//! server sends item IDs and counts only, so bags, the auction house and item
-//! tooltips resolve everything else here, as Retail's client resolves item data
-//! from its DB2 cache (`C_Item.GetItemInfo`).
+//! Independent Retail and Forever70205 item catalogs, keyed by authored item ID
+//! within each source. Item/ItemSparse, appearance icons and subclass names come
+//! from source-local CSVs. Owned stacks carry source and ID; no race-based lookup.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
