@@ -22,6 +22,69 @@ fn build(view: MicroMenuView) -> FrameRegistry {
     registry
 }
 
+#[test]
+fn both_presets_hide_the_micro_menu_without_destroying_its_buttons() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        Screen::new(micro_menu_screen).sync(&shared, &mut registry);
+        let menu = registry.get_by_name("MicroMenuContainer").unwrap();
+        assert!(
+            registry.get(menu).unwrap().hidden,
+            "{skin:?} must hide the micro menu"
+        );
+        for button in MICRO_BUTTONS {
+            assert!(registry.get_by_name(button.name).is_some());
+        }
+    }
+}
+
+#[test]
+fn an_older_custom_layout_loads_with_the_micro_menu_hidden() {
+    use game_engine_core::ui_layout_data::active_layout;
+    let path = std::env::temp_dir().join(format!("micro-menu-old-{}.ron", std::process::id()));
+    std::fs::write(&path, r#"(edit_mode: (layouts: {"Old": (skin: Forever, settings: (chat: (width: Some(600))))}, active_layout: {"17": "Old"}))"#).unwrap();
+    let layout = active_layout(&path, 17).unwrap();
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Forever);
+    shared.insert(layout.settings);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(micro_menu_screen).sync(&shared, &mut registry);
+    let menu = registry
+        .get(registry.get_by_name("MicroMenuContainer").unwrap())
+        .unwrap();
+    assert!(!menu.visible);
+    assert_eq!(layout.settings.chat.width, Some(600));
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn hiding_and_showing_again_keeps_the_menu_and_portrait_slot_mounted() {
+    use game_engine_core::ui_layout_data::LayoutSettings;
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Modern);
+    let mut screen = Screen::new(micro_menu_screen);
+    screen.sync(&shared, &mut registry);
+    let menu = registry.get_by_name("MicroMenuContainer").unwrap();
+    let portrait = registry.get_by_name(CHARACTER_PORTRAIT.frame).unwrap();
+    for visible in [true, false, true] {
+        shared.insert(LayoutSettings {
+            show_micro_menu: Some(visible),
+            ..Default::default()
+        });
+        screen.sync(&shared, &mut registry);
+        assert_eq!(registry.get_by_name("MicroMenuContainer"), Some(menu));
+        assert_eq!(
+            registry.get_by_name(CHARACTER_PORTRAIT.frame),
+            Some(portrait)
+        );
+        assert_eq!(registry.get(menu).unwrap().visible, visible);
+        assert_eq!(registry.get(portrait).unwrap().visible, visible);
+    }
+}
+
 fn index(name: &str) -> usize {
     micro_button_index(name).expect(name)
 }
