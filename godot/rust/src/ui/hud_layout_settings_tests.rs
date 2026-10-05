@@ -396,9 +396,18 @@ fn target_of_target_and_the_target_cast_bar_follow_the_target_frame_size() {
         assert!((big_tot.width - tot.width * 2.0).abs() < 0.001);
         assert!((big_tot.height - tot.height * 2.0).abs() < 0.001);
         assert!((big_cast.width - cast.width * 2.0).abs() < 0.001);
-        // Target of target stays beside the target, the cast bar the same side of it.
+        // Target of target keeps its side of the target and the cast bar, the cast bar
+        // the same side of the target.
         assert_eq!(intersects(&big, &big_tot), intersects(&target, &tot));
-        assert!(big_tot.x >= big.x + big.width - 0.001 || intersects(&target, &tot));
+        assert_eq!(intersects(&big_cast, &big_tot), intersects(&cast, &tot));
+        assert_eq!(
+            big_tot.x >= big.x + big.width - 0.001,
+            tot.x >= target.x + target.width - 0.001
+        );
+        assert_eq!(
+            big_tot.y >= big.y + big.height - 0.001,
+            tot.y >= target.y + target.height - 0.001
+        );
         assert_eq!(
             big_cast.y >= big.y + big.height - 0.001,
             cast.y >= target.y + target.height - 0.001

@@ -1,6 +1,6 @@
 # Forever chat and meter chrome
 
-Forever-only reference chrome in `godot/ui-model/src/ui/screens/{chat_frame,damage_meter}_component.rs`, sharing `ui/flare_panel.rs`. Modern trees and HUD frame positions/sizes remain unchanged. Forever panel positions/sizes follow [HUD presets](hud-edit-mode.md#godot-client-presets). References: `data/diagnostics/forever-reference/user-{chat-box,damage-meter,flareui-hud}-2026-10-03.png`. FlareUI 1.3 source below means `data/reference/flareui`; only MIT layout numbers/colours, never its Media art.
+Forever-only reference chrome in `godot/ui-model/src/ui/screens/{chat_frame,damage_meter}_component.rs`, sharing `ui/flare_panel.rs`. Modern trees and HUD frame positions/sizes remain unchanged. Forever panel positions/sizes follow [HUD presets](hud-edit-mode.md#godot-client-presets). Damage meter defaults to top-left under both skins, mirroring minimap margins (user choice 2026-10-05, not Retail's default-position contract); saved placements, panel sizes and chrome remain unchanged. References: `data/diagnostics/forever-reference/user-{chat-box,damage-meter,flareui-hud}-2026-10-03.png`. FlareUI 1.3 source below means `data/reference/flareui`; only MIT layout numbers/colours, never its Media art.
 
 ## What it must do
 
