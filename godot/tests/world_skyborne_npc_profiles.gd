@@ -56,30 +56,20 @@ func capture_authored_visual(visual: Node3D) -> bool:
 	DirAccess.make_dir_recursive_absolute(output)
 	viewport = SubViewport.new()
 	viewport.size = Vector2i(1024, 1024)
-	viewport.own_world_3d = true
+	viewport.world_3d = visual.get_world_3d()
 	viewport.render_target_update_mode = SubViewport.UPDATE_ALWAYS
 	root.add_child(viewport)
-	var studio := Node3D.new()
-	viewport.add_child(studio)
-	visual.reparent(studio)
-	visual.transform = Transform3D.IDENTITY
-	var environment := WorldEnvironment.new()
-	environment.environment = Environment.new()
-	environment.environment.background_mode = Environment.BG_COLOR
-	environment.environment.background_color = Color(0.12, 0.14, 0.17)
-	environment.environment.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	environment.environment.ambient_light_color = Color.WHITE
-	environment.environment.ambient_light_energy = 0.8
-	studio.add_child(environment)
 	var camera := Camera3D.new()
 	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
 	camera.size = 3.4
-	studio.add_child(camera)
+	viewport.add_child(camera)
 	camera.make_current()
+	var origin := visual.global_position
+	print("FIXTURE CAPTURE_ORIGIN ", origin)
 	for view in ["front", "back"]:
 		var direction := 1.0 if view == "front" else -1.0
-		camera.position = Vector3(4.0 * direction, 1.35, 5.0 * direction)
-		camera.look_at(Vector3(0.0, 1.0, 0.0))
+		camera.position = origin + Vector3(4.0 * direction, 1.35, 5.0 * direction)
+		camera.look_at(origin + Vector3(0.0, 1.0, 0.0))
 		for frame in 8:
 			await process_frame
 		await RenderingServer.frame_post_draw
