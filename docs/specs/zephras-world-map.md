@@ -19,7 +19,7 @@ WoW Forever map 2991 must load through the Godot world's terrain and object load
 
 ### Lighting
 
-- [x] Import Light, LightData, LightParams, LightSkybox, ZoneLight and ZoneLightPoint from build 1.60.1.70205 using hash-matched DBD layouts; preserve retail CSV headers and report encrypted drops and local archive failures.
+- [ ] Import Light, LightData, LightParams, LightSkybox, ZoneLight and ZoneLightPoint from build 1.60.1.70205 using hash-matched DBD layouts; preserve retail CSV headers and report encrypted drops and local archive failures.
 - [x] Add authored sky models reachable from Forever-only maps' LightParams slots to the importer's recursive skin/texture asset closure.
 - [ ] Select Forever lighting only for maps absent from retail, without allowing colliding LightParams IDs to modify retail samples. Missing Forever inputs must fail explicitly rather than sample retail defaults.
 - [ ] Sample actual Zephras position/time through native production lighting and capture inspected rendered pixels without fixture-neutral lighting.
