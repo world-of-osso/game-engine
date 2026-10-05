@@ -101,6 +101,12 @@ impl MerchantSession {
         self.merchant.is_open()
     }
 
+    /// `MerchantFrame:SetPortraitToUnit("npc")` (MerchantFrame.lua:269): the open vendor,
+    /// whose portrait fills `MerchantFramePortrait`.
+    pub fn portrait_unit(&self) -> Option<u64> {
+        self.merchant.npc.filter(|_| self.is_open())
+    }
+
     /// `VendorInventory`: opens the frame (and the backpack) or refreshes its stock.
     pub fn receive_inventory(&mut self, inventory: VendorInventory, vendor_name: String) {
         self.merchant.apply_inventory(inventory, vendor_name);

@@ -8,9 +8,10 @@ use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::bag_data::InventoryRequest;
 use game_engine_ui_model::character_frame::{
-    ACTION_CLOSE, ACTION_MODEL, CharacterFrameView, MIN_LEVEL_FOR_ITEM_LEVEL, PAPERDOLL_BUTTONS,
-    attribute_lines, average_equipped_item_level, class_background, enhancement_lines, level_line,
-    paperdoll_slots, parse_equipment_slot_action, race_background,
+    ACTION_CLOSE, ACTION_MODEL, CharacterFrameView, CharacterTab, MIN_LEVEL_FOR_ITEM_LEVEL,
+    PAPERDOLL_BUTTONS, attribute_lines, average_equipped_item_level, class_background,
+    enhancement_lines, level_line, paperdoll_slots, parse_equipment_slot_action, race_background,
+    reputation_art_fdids, reputation_rows,
 };
 use game_engine_ui_model::cursor_item::{CursorItem, CursorTarget};
 use game_engine_ui_model::damage_meter_data::class_color;
@@ -40,6 +41,8 @@ const FRAME_ART: [u32; 8] = [
 #[derive(Default)]
 pub(crate) struct CharacterFrame {
     open: bool,
+    /// The shown subframe.
+    tab: CharacterTab,
     ui: Option<Gd<RegistryUi>>,
     micro_ui: Option<Gd<RegistryUi>>,
     /// Left button went down on the model scene and has not been released.
@@ -54,6 +57,7 @@ impl CharacterFrame {
         }
         self.preview.reset();
         self.open = false;
+        self.tab = CharacterTab::PaperDoll;
         self.rotating = false;
     }
 
@@ -72,8 +76,9 @@ impl CharacterFrame {
         self.micro_ui.as_ref()
     }
 
-    pub(crate) fn is_open(&self) -> bool {
-        self.open
+    /// The PaperDollFrame shows: the frame is open on its Character tab.
+    pub(crate) fn paperdoll_shown(&self) -> bool {
+        self.open && self.tab == CharacterTab::PaperDoll
     }
 }
 
@@ -105,10 +110,31 @@ impl GameClient {
         Ok(self.sync_character_model()?)
     }
 
-    /// `ToggleCharacter("PaperDollFrame")`.
+    /// `ToggleCharacter("PaperDollFrame")` (Mainline/CharacterFrame.lua:24-48): opens the
+    /// frame on the paper doll, switches a frame shown on another tab to it, and hides
+    /// a frame showing it.
     pub(crate) fn toggle_character_frame(&mut self) {
+        if self.character_frame.open && self.character_frame.tab != CharacterTab::PaperDoll {
+            self.show_character_tab(CharacterTab::PaperDoll);
+            return;
+        }
+        self.character_frame.tab = CharacterTab::PaperDoll;
         self.character_frame.open = !self.character_frame.open;
         self.character_frame.rotating = false;
+    }
+
+    /// `CharacterFrame:ShowSubFrame` (CharacterFrame.lua:75-88) for a tab click: hiding
+    /// the PaperDollFrame drops its model scene.
+    fn show_character_tab(&mut self, tab: CharacterTab) {
+        if self.character_frame.tab == tab {
+            return;
+        }
+        if let Some((id, _)) = self.character_frame.preview.pending.take() {
+            self.world.cancel_detached_visual(id);
+        }
+        self.character_frame.preview.reset();
+        self.character_frame.rotating = false;
+        self.character_frame.tab = tab;
     }
 
     /// `CloseAllWindows` step: hides the frame. Returns whether it was open.
@@ -146,6 +172,10 @@ impl GameClient {
             }
             let target = CursorTarget::Location(location);
             return self.send_cursor_click(target);
+        }
+        if let Some(tab) = CharacterTab::from_action(action) {
+            self.show_character_tab(tab);
+            return Ok(());
         }
         match action {
             ACTION_CLOSE => self.character_frame.open = false,
@@ -316,8 +346,20 @@ impl GameClient {
             slot.icon_fdid = self.drawable_fdid(slot.icon_fdid);
         }
         self.draw_character_backdrops(race_id, class_id);
+        let tab = self.character_frame.tab;
+        let reputation = match (tab, &self.reputation) {
+            (CharacterTab::Reputation, Some(snapshot)) => reputation_rows(&snapshot.entries),
+            _ => Vec::new(),
+        };
+        if tab == CharacterTab::Reputation {
+            for fdid in reputation_art_fdids() {
+                self.drawable_fdid(fdid);
+            }
+        }
         CharacterFrameView {
             visible: true,
+            tab,
+            reputation,
             title,
             level: self.character_level_line(level, class_id),
             slots,
@@ -387,6 +429,7 @@ impl GameClient {
     pub(super) fn character_frame_snapshot(&self) -> VarDictionary {
         let mut state = VarDictionary::new();
         state.set("open", self.character_frame.open);
+        state.set("tab", format!("{:?}", self.character_frame.tab).as_str());
         let view = self.micro_menu_view();
         let mut micro = VarDictionary::new();
         for (index, button) in MICRO_BUTTONS.iter().enumerate() {

@@ -211,6 +211,8 @@ pub struct GameClient {
     in_rest_area: bool,
     /// The server's last rest state (IPC `status character-stats`).
     rest: Option<shared::protocol::RestSnapshot>,
+    /// The server's last faction standings, for the Reputation pane.
+    reputation: Option<shared::protocol_snapshots::ReputationSnapshot>,
     account: Account,
     sound: Option<Gd<sound::NativeSound>>,
     /// Zone parents for the zone music; `None` until the sound data has loaded.
@@ -347,6 +349,7 @@ impl INode3D for GameClient {
             logout: Default::default(),
             in_rest_area: false,
             rest: None,
+            reputation: None,
             account: Account::new(data_root.clone()),
             sound: None,
             area_parents: None,
@@ -1776,6 +1779,21 @@ impl GameClient {
                     .is_some_and(|rest| rest.in_rest_area);
                 self.rest = update.snapshot;
             }
+            AccountEvent::Reputation(update) => {
+                if let Some(snapshot) = update.snapshot {
+                    self.reputation = Some(snapshot);
+                }
+                // `CHAT_MSG_COMBAT_FACTION_CHANGE`: the standing change as a chat line.
+                if let Some(message) = update.message {
+                    game_engine_ui_model::chat_frame::add_system_line(
+                        &mut self.chat.model.log,
+                        &message,
+                    );
+                }
+                if let Some(error) = update.error {
+                    self.add_world_error(&error)?;
+                }
+            }
             AccountEvent::GameTime(time) => {
                 self.world_clock = Some((time.second_of_day(), time.new_speed, Instant::now()));
             }
@@ -2161,6 +2179,7 @@ impl GameClient {
         self.trade.reset();
         self.in_rest_area = false;
         self.rest = None;
+        self.reputation = None;
         self.character_preview.reset();
         self.creation_scene.reset();
         self.physical_input.clear();

@@ -255,6 +255,8 @@ impl NetworkBridge {
             .receive::<InventoryError>()
             .receive::<DurabilityStateUpdate>()
             .receive::<RestStateUpdate>()
+            // Faction standings for the Reputation pane, after enter world and every change.
+            .receive::<protocol::ReputationStateUpdate>()
             // Unit tooltip data and the account's appearance collection (unit-tooltip.md).
             .receive::<protocol::CreatureTooltip>()
             .receive::<protocol::AppearanceCollectionUpdate>()

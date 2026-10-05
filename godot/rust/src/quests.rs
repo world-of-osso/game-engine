@@ -89,6 +89,11 @@ impl QuestHud {
         Ok(())
     }
 
+    /// The QuestFrame canvas, while a dialog shows.
+    pub(crate) fn frame_ui(&self) -> Option<&Gd<RegistryUi>> {
+        self.frame_ui.as_ref()
+    }
+
     pub(crate) fn log_open(&self) -> bool {
         self.windows.is_open(WindowId::QuestLog)
     }

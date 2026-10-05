@@ -17,7 +17,8 @@ Retail objective tracker, quest log and quest giver frame on the live server que
 - [ ] Negative `QuestSortID` headers (class/profession sorts) show "Unknown": no `QuestSort` table in `data/`.
 - [x] Objective areas: watched quests' unfinished objectives' `QuestPOI` polygons drawn gold (brighter rim) on the minimap and the world map canvas; the world map pins each objective (`QuestObjective`).
 - [ ] Godot Edit Mode: Retail shows the empty tracker while Edit Mode is active (`Blizzard_ObjectiveTrackerContainer.lua:104-105`); the Godot client has no Edit Mode.
-- [ ] NPC portrait in the frame's portrait ring; scroll frames for texts taller than the parchment; super-tracking.
+- [x] NPC portrait in the frame's portrait ring: `QuestFramePortrait` renders the dialog NPC (`SetPortraitTexture(QuestFramePortrait, "questnpc")`, QuestFrame.lua:111-117; the gossip greeting `SetPortraitToUnit("npc")`, GossipFrameShared.lua:286-291) through the unit-frame portrait path, in the same 62×62 ring slot as the MerchantFrame.
+- [ ] Scroll frames for texts taller than the parchment; super-tracking.
 
 ## Skin-resolved quest chrome
 

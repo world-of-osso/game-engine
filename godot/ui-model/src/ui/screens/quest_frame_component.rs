@@ -7,14 +7,21 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
+use crate::ui::screens::inworld_unit_frames_component::PortraitSlot;
 use crate::ui::screens::quest_art::{
     DynName, GOSSIP_ACTIVE_ICON, GOSSIP_AVAILABLE_ICON, GOSSIP_IN_PROGRESS_ICON,
     HIGHLIGHT_FONT_COLOR, QUEST_PARCHMENT, QUEST_SMALL_HEADER_COLOR, QUEST_TEXT_COLOR,
-    atlas_texture, named_atlas_texture, panel_button, window_chrome, wrapped_text_height,
+    atlas_texture, named_atlas_texture, panel_button, window_chrome, window_portrait,
+    window_portrait_slot, wrapped_text_height,
 };
 use crate::ui::strata::FrameStrata;
 
 pub const QUEST_FRAME: &str = "QuestFrame";
+/// `QuestFramePortrait`: `SetPortraitTexture(QuestFramePortrait, "questnpc")`
+/// (Mainline/QuestFrame.lua:111-117); the gossip greeting shares the frame
+/// (`GossipFrame:SetPortraitToUnit("npc")`, Shared/GossipFrameShared.lua:286-291). The
+/// host renders the dialog NPC's portrait into it.
+pub const PORTRAIT: PortraitSlot = window_portrait_slot("QuestFramePortrait");
 pub const FRAME_W: f32 = 338.0;
 pub const FRAME_H: f32 = 496.0;
 /// `QuestFramePanelTemplate` Bg: `QuestBG-Parchment` at (7, -62).
@@ -152,12 +159,13 @@ pub fn quest_frame_screen(ctx: &SharedContext) -> Element {
         .get::<QuestFrameState>()
         .expect("QuestFrameState must be in SharedContext");
     let hide = !state.visible;
-    let chrome = window_chrome(
+    let mut chrome = window_chrome(
         QUEST_FRAME,
         (FRAME_W, FRAME_H),
         &state.npc_name,
         CLOSE_ACTION,
     );
+    chrome.extend(window_portrait(&PORTRAIT));
     let parchment = named_atlas_texture(
         "QuestFrameParchment".into(),
         QUEST_PARCHMENT,
