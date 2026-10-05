@@ -4,7 +4,7 @@ extends SceneTree
 # Asset failures remain visible: the local Forever installation is not a complete archive.
 # WDT inventory labels slot 26×64+29 as (26,29); native filename coordinates are (29,26).
 const CENTER := Vector3(2933.3333, 0.0, -1333.3333)
-const OUTPUT := "res://../data/diagnostics/zephras-world.png"
+const OUTPUT := "res://../data/diagnostics/zephras-world-production-lighting.png"
 var client: Node3D
 
 func _initialize() -> void:
@@ -24,18 +24,10 @@ func run_test() -> void:
 	if error != "":
 		fail(error)
 		return
-	var environment := WorldEnvironment.new()
-	var settings := Environment.new()
-	settings.background_mode = Environment.BG_COLOR
-	settings.background_color = Color(0.3, 0.4, 0.5)
-	settings.ambient_light_source = Environment.AMBIENT_SOURCE_COLOR
-	settings.ambient_light_color = Color.WHITE
-	settings.ambient_light_energy = 0.7
-	environment.environment = settings
-	root.add_child(environment)
-	var light := DirectionalLight3D.new()
-	light.rotation_degrees = Vector3(-55.0, -30.0, 0.0)
-	root.add_child(light)
+	if not client.has_method("preview_world_lighting"):
+		fail("GameClient has no production world-lighting preview")
+		return
+	client.set_world_minutes(1440.0)
 	var camera := Camera3D.new()
 	camera.far = 3000.0
 	root.add_child(camera)
@@ -56,6 +48,10 @@ func run_test() -> void:
 		var surface := Vector3(CENTER.x, float(height), CENTER.z)
 		camera.position = surface + Vector3(350.0, 400.0, 350.0)
 		camera.look_at(surface)
+		var lighting_error: String = client.preview_world_lighting(surface, camera.position)
+		if lighting_error != "":
+			fail(lighting_error)
+			return
 		hide_ui(client)
 		for frame in 30:
 			await process_frame
@@ -65,7 +61,7 @@ func run_test() -> void:
 			fail("Cannot capture rendered map")
 			return
 		var meshes := tile.find_children("*", "MeshInstance3D", true, false)
-		print("ZEPHRAS_PROOF chunks=%d doodad_nodes=%d wmo_nodes=%d height=%s terrain=%s objects=%s screenshot=%s lighting=fixture-neutral" % [meshes.size(), doodads.size(), wmos.size(), height, state.terrain, state.world_objects, OUTPUT])
+		print("ZEPHRAS_PROOF chunks=%d doodad_nodes=%d wmo_nodes=%d height=%s terrain=%s objects=%s screenshot=%s lighting=production-forever" % [meshes.size(), doodads.size(), wmos.size(), height, state.terrain, state.world_objects, OUTPUT])
 		if meshes.size() < 256:
 			fail("Expected 256 terrain meshes")
 			return
