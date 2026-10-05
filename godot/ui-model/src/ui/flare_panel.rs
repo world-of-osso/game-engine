@@ -238,6 +238,27 @@ pub fn flare_text_sized(
     }
 }
 
+/// HSV value at or below which a header glyph pixel is shadow or backdrop, and from which it
+/// is glyph face. Measured on the chat header crops: the drop shadows behind the bubble and
+/// speaker and the dark face behind the figure are value <= 0.31, the gold faces >= 0.55,
+/// anti-aliased edges between.
+const GLYPH_SHADOW_VALUE: f32 = 0.3;
+const GLYPH_FACE_VALUE: f32 = 0.55;
+
+/// RGBA `pixels` of a Blizzard glyph crop as a white mask whose alpha is its coverage: source
+/// alpha times how bright the pixel is, so shadows and opaque dark faces drop out and the
+/// vertex colour alone colours it. FlareUI tints its white icons the same way
+/// (`SetVertexColor`, Chat.lua:547), as Retail tints mask textures (FriendsFrame.xml:1140-1146).
+pub fn flare_glyph_mask(pixels: &mut [u8]) {
+    for pixel in pixels.chunks_exact_mut(4) {
+        let value = f32::from(pixel[0].max(pixel[1]).max(pixel[2])) / 255.0;
+        let coverage = ((value - GLYPH_SHADOW_VALUE) / (GLYPH_FACE_VALUE - GLYPH_SHADOW_VALUE))
+            .clamp(0.0, 1.0);
+        let alpha = (f32::from(pixel[3]) * coverage).round() as u8;
+        pixel.copy_from_slice(&[255, 255, 255, alpha]);
+    }
+}
+
 /// Existing Blizzard glyph, bronze tinted and centred inside its hit box.
 /// Only supported actions get a hit target.
 pub fn flare_icon(
