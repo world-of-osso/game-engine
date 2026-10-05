@@ -828,6 +828,9 @@ fn apply_hud_toggle(key: &str, hud: &mut HudDraft) -> bool {
         "nameplate_show_border" => {
             hud.nameplate_style.show_border = !hud.nameplate_style.show_border
         }
+        "nameplate_show_health_value" => {
+            hud.nameplate_style.show_health_value = !hud.nameplate_style.show_health_value
+        }
         "nameplate_class_colors" => {
             hud.nameplate_style.class_colored_players = !hud.nameplate_style.class_colored_players
         }

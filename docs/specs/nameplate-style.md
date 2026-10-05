@@ -124,7 +124,7 @@ Ported from the Bevy client's `nameplate_auras.rs`. Retail's debuff list takes h
 - [ ] The owned fixture does not render a live player label, so player cyan label runtime proof is pending; verifier874 is pending.
 
 - [ ] Reaction is template-only: reputation (forced ranks, at-war, Faction reputation bases) is not consulted, on client or server. Diseased Timber/Young Wolves (FactionTemplate 32) therefore read neutral although Retail shows them hostile.
-- [ ] `show_health_value` has no Options control: it is set in the persisted client options only.
+- [x] Options > Nameplates "Show Health Value" (Off/On row like the page's other toggles, off by default) edits `show_health_value`; Done saves it with the client options and the visible plates switch between "77%" and "324 K  77%" without a restart. Tests: `godot/ui-model/tests/options_views.rs` `nameplates_page_offers_show_health_value_off_by_default`, `options_policy.rs` `nameplate_health_value_toggle_defaults_off_and_persists`.
 - [ ] Health frame art: the skin's border ring is 4px wide where the 2026-10-04 reference shows a 1px light border with the fill reaching it; the cast fill is the tinted Retail atlas, flatter than the reference's gold.
 - [ ] Fills are the reference crops desaturated to their HSV value and tinted, so the default hostile body is (195, 0, 0) where the reference shows (195, 43, 41), and the cast fill loses its white highlights. The pixel-match item above is unaffected in status (still open).
 
