@@ -21,17 +21,17 @@ Four item tables contain only the 30 distinct items referenced by loadouts 2373�
 | File | Exact header, in order |
 |---|---|
 | Item.csv | ID, ClassID, SubclassID, IconFileDataID, SheatheType |
-| ItemSparse.csv | ID, Display_lang, OverallQualityID, Stackable, SellPrice, Bonding, RequiredLevel, InventoryType, ItemLevel, MaxCount, Description_lang, ContainerSlots, ExpansionID, ItemDelay, DmgVariance, Flags_1, StatModifier_bonusStat0…9, StatPercentEditor0…9 |
+| ItemSparse.csv | ID, Display_lang, OverallQualityID, Stackable, SellPrice, Bonding, RequiredLevel, InventoryType, ItemLevel, MaxCount, Description_lang, ContainerSlots, ExpansionID, ItemDelay, DmgVariance, Flags_1, StatModifier_bonusStat_0…9, StatPercentEditor_0…9 |
 | ItemSubClass.csv | ClassID, SubClassID, DisplayName_lang |
 | ItemAppearance.csv | ID, DefaultIconFileDataID |
 | ItemModifiedAppearance.csv | ItemID, ItemAppearanceID, OrderIndex |
-| ItemArmorQuality.csv | ID, Qualitymod0…6 |
+| ItemArmorQuality.csv | ID, Qualitymod_0…6 |
 | ItemArmorTotal.csv | ItemLevel, Cloth, Leather, Mail, Plate |
 | ArmorLocation.csv | ID, Clothmodifier, Leathermodifier, Chainmodifier, Platemodifier |
-| ItemArmorShield.csv; ItemDamageOneHand.csv; ItemDamageOneHandCaster.csv; ItemDamageTwoHand.csv; ItemDamageTwoHandCaster.csv | ItemLevel, Quality0…6 |
-| RandPropPoints.csv | ID, GoodF0…4, SuperiorF0…4, EpicF0…4 |
+| ItemArmorShield.csv; ItemDamageOneHand.csv; ItemDamageOneHandCaster.csv; ItemDamageTwoHand.csv; ItemDamageTwoHandCaster.csv | ItemLevel, Quality_0…6 |
+| RandPropPoints.csv | ID, GoodF_0…4, SuperiorF_0…4, EpicF_0…4 |
 
-Array ranges expand ascending, literally without an underscore before the index, matching the supplied producer contract. **Integration discrepancy:** current `godot/ui-model/src/game/item_catalog.rs` and `item_stats.rs` read underscored names (`StatModifier_bonusStat_0`, `StatPercentEditor_0`, `Qualitymod_0`, `Quality_0`, `GoodF_0`, etc.). Main must resolve that contract discrepancy before consumer acceptance; this producer does not edit Rust or add compatibility/fallback headers.
+Array ranges expand ascending with an underscore before the index, matching the existing Rust consumer and decoded source column names. No aliases or compatibility headers are emitted.
 
 Nine scaling tables export every available clear source row: 100 each for armor quality/total/shield and four damage tables, 23 ArmorLocation rows, 300 RandPropPoints rows. Required selected scaling levels are 1/2; source-authored item levels remain 1/2/3/5, recorded separately. Only cloth/leather/mail/plate require ArmorLocation; robes use the chest location, as the existing consumer does. Nothing is synthesized when a field/reference is missing. All requested fields are available; no optional-field omission is needed.
 

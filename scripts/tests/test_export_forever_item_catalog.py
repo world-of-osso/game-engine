@@ -108,7 +108,7 @@ class ForeverItemExportTests(unittest.TestCase):
         self.assertEqual(sparse[2512]["Display_lang"], "Rough Arrow")
         self.assertEqual(sparse[2947]["ItemDelay"], "2000")
         self.assertEqual(sparse[2947]["ItemLevel"], "3")
-        self.assertEqual(sparse[2947]["StatModifier_bonusStat0"], "-1")
+        self.assertEqual(sparse[2947]["StatModifier_bonusStat_0"], "-1")
         self.assertAlmostEqual(float(sparse[2947]["DmgVariance"]), 0.6000000238418579)
         self.assertEqual(sparse[2512]["ItemLevel"], "5")
         self.assertEqual(sparse[2512]["ItemDelay"], "3000")
@@ -117,8 +117,8 @@ class ForeverItemExportTests(unittest.TestCase):
         self.assertEqual(
             list(sparse[2947]),
             "ID Display_lang OverallQualityID Stackable SellPrice Bonding RequiredLevel InventoryType ItemLevel MaxCount Description_lang ContainerSlots ExpansionID ItemDelay DmgVariance Flags_1".split()
-            + [f"StatModifier_bonusStat{i}" for i in range(10)]
-            + [f"StatPercentEditor{i}" for i in range(10)],
+            + [f"StatModifier_bonusStat_{i}" for i in range(10)]
+            + [f"StatPercentEditor_{i}" for i in range(10)],
         )
         self.assertEqual((self.retail / "ItemSparse.csv").read_bytes(), self.before)
         appearances = {int(r["ID"]) for r in self.rows("ItemAppearance")}
@@ -157,17 +157,17 @@ class ForeverItemExportTests(unittest.TestCase):
         self.assertEqual(total[1]["Cloth"], "18.5200005")
         self.assertEqual(total[2]["Leather"], "137.970001")
         quality = {int(r["ID"]): r for r in self.rows("ItemArmorQuality")}
-        self.assertEqual(quality[1]["Qualitymod0"], "0.899999976")
+        self.assertEqual(quality[1]["Qualitymod_0"], "0.899999976")
         points = {int(r["ID"]): r for r in self.rows("RandPropPoints")}
-        self.assertEqual([points[2][f"GoodF{i}"] for i in range(5)], ["1"] * 5)
+        self.assertEqual([points[2][f"GoodF_{i}"] for i in range(5)], ["1"] * 5)
         self.assertEqual(len(self.rows("RandPropPoints")), 300)
         self.assertEqual(len(self.rows("ArmorLocation")), 23)
         damage = {int(r["ItemLevel"]): r for r in self.rows("ItemDamageOneHand")}
-        self.assertEqual(damage[1]["Quality0"], "0.761455715")
-        self.assertEqual(damage[2]["Quality1"], "1.01635063")
+        self.assertEqual(damage[1]["Quality_0"], "0.761455715")
+        self.assertEqual(damage[2]["Quality_1"], "1.01635063")
         shield = {int(r["ItemLevel"]): r for r in self.rows("ItemArmorShield")}
-        self.assertEqual(shield[1]["Quality1"], "10")
-        self.assertEqual(shield[2]["Quality1"], "18")
+        self.assertEqual(shield[1]["Quality_1"], "10")
+        self.assertEqual(shield[2]["Quality_1"], "18")
         manifest = json.loads((self.output / "manifest.json").read_text())
         self.assertEqual(manifest["build"], "1.60.1.70205")
         self.assertEqual(len(manifest["selected_item_ids"]), 30)
