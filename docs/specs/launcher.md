@@ -39,7 +39,7 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 
 - `godot/ui-model/tests/launcher.rs` — toggle, filtering, selection, activation, Escape, minimap click, inventory, rendered shortcut texture identities, and entry-agnostic non-fallback texture resolution/BLP decoding under both skins.
 - `godot/core/tests/input_bindings_data.rs` — binding label, section and Ctrl+Space matching.
-- `godot/ui-model/tests/micro_menu.rs` — unchanged micro-menu behavior.
+- `godot/ui-model/tests/micro_menu.rs` — retained button behavior, default-hidden presets, older-layout compatibility and portrait-slot retention across visibility changes.
 
 ## Verification — 2026-10-05
 
