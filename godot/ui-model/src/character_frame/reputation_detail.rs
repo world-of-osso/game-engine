@@ -90,7 +90,7 @@ pub(super) fn detail(row: Option<&ReputationRow>, ctx: &SharedContext) -> Elemen
     children.extend(text(
         "ReputationDetailFrameTitle".into(),
         &row.name,
-        (title_x, title_y, title_w, line_height(font)),
+        (title_x, title_y, title_w, title_h),
         (font, NORMAL_FONT_COLOR),
         if forever { "CENTER" } else { "LEFT" },
     ));
@@ -206,7 +206,7 @@ fn description(
     let content = text(
         "ReputationDetailFrameDescription".into(),
         &row.description,
-        (0.0, -(offset as f32), width, line_height(12.0)),
+        (0.0, -(offset as f32), width, content_h),
         (12.0, HIGHLIGHT_FONT_COLOR),
         "LEFT",
     );
