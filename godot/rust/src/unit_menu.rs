@@ -1,5 +1,5 @@
-//! TargetFrame and FocusFrame right-click menu (Retail `UnitPopup`; Bevy
-//! `rendering/ui/unit_frames.rs` `UnitFrameClick`): right-clicking either frame opens the
+//! TargetFrame, FocusFrame and PetFrame right-click menu (Retail `UnitPopup`; Bevy
+//! `rendering/ui/unit_frames.rs` `UnitFrameClick`): right-clicking any frame opens the
 //! authored `UnitFrameContextMenu`. It leads with Set Focus (`FocusUnit(unit)`), or Clear
 //! Focus (`ClearFocus()`) when opened from FocusFrame (the `FOCUS` menu). The focus is
 //! client-local, as in Retail. For a player it has the group entries and, for another player,
@@ -161,7 +161,7 @@ fn inside([x, y, w, h]: [f32; 4], point: Vector2) -> bool {
 }
 
 impl GameClient {
-    /// Right-click on a player's TargetFrame opens the menu and any other right-click
+    /// Right-click on TargetFrame, FocusFrame or the local PetFrame opens the menu; other right-clicks
     /// closes it; a left press outside the open menu closes it. Clicks on its entries
     /// reach the authored buttons. Returns whether the event opened the menu.
     pub(super) fn unit_menu_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
@@ -245,7 +245,7 @@ impl GameClient {
         true
     }
 
-    /// The menu closes once its unit is neither the target nor the focus.
+    /// The menu closes once its unit is neither target, focus nor the local pet.
     pub(super) fn close_unit_menu_without_unit(&mut self) {
         let Some(unit) = self.unit_menu.unit else {
             return;
