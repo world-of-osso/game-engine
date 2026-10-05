@@ -4,6 +4,7 @@ import hashlib
 import sqlite3
 import tempfile
 import unittest
+from contextlib import closing
 from pathlib import Path
 
 from scripts import import_forever_skyborne as importer
@@ -20,7 +21,7 @@ class VerifiedProbeTests(unittest.TestCase):
             probe.write_bytes(raw)
             staging = root / "staging"
             staging.mkdir()
-            with sqlite3.connect(":memory:") as connection:
+            with closing(sqlite3.connect(":memory:")) as connection:
                 connection.execute(
                     "create table resolution(fdid integer,content_key blob)"
                 )
@@ -29,7 +30,7 @@ class VerifiedProbeTests(unittest.TestCase):
                     (8035354, hashlib.md5(raw).digest()),
                 )
                 provenance = importer.stage_verified_probes(
-                    root / "data", staging, [8035354], connection
+                    probe_dir, staging, [8035354], connection
                 )
                 self.assertEqual((staging / "8035354.dat").read_bytes(), raw)
                 self.assertEqual(
@@ -42,7 +43,7 @@ class VerifiedProbeTests(unittest.TestCase):
                 connection.execute("update resolution set content_key=?", (bytes(16),))
                 with self.assertRaisesRegex(ValueError, "content key mismatch"):
                     importer.stage_verified_probes(
-                        root / "data", staging, [8035354], connection
+                        probe_dir, staging, [8035354], connection
                     )
 
 

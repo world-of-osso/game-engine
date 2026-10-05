@@ -289,6 +289,7 @@ class CreationSceneAssetTests(unittest.TestCase):
         import json
         import sqlite3
         import tempfile
+        from contextlib import closing
         from pathlib import Path
         from unittest.mock import patch
 
@@ -346,11 +347,14 @@ class CreationSceneAssetTests(unittest.TestCase):
             (data / "db2/12.1.0.69933/Map.csv").write_text("ID\n0\n")
             for name, raw in sources.items():
                 (staging / name).write_bytes(raw)
-            with sqlite3.connect(cache / "resolution.sqlite") as connection:
+            with closing(sqlite3.connect(cache / "resolution.sqlite")) as connection:
                 connection.execute(
                     "create table resolution(fdid integer,content_key blob)"
                 )
-            with patch.object(importer, "CACHE", cache):
+            with (
+                patch.object(importer, "CACHE", cache),
+                patch.object(importer, "PROBE_DIRECTORY", root / "probes"),
+            ):
                 failures = importer.import_assets(data, staging, tables)
             self.assertEqual(failures, [])
             self.assertEqual((data / "models/8035354.m2").read_bytes(), scene)
