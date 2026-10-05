@@ -2,13 +2,23 @@
 
 Verified: 2026-09-12. Waterfall visibility is confirmed by the user after the loading, UV/timing, particle and placement corrections. Overall scene darkness remains different from Retail; [[character-select-lighting-overwrite]] records the separate, read-only source-level directional-light overwrite finding without claiming a Retail setting or fix.
 
-Adventurer's Rest loads primary terrain `2703_31_37` and supplemental tile `2703_31_36`. The waterfall in the campsite view belongs to the primary tile: 14 waterfall/ripple placements lie about 264–350 units from the character. The neighboring tile contains another 42 placements, over 500 units away. All supplemental root, `_tex0`, and `_obj0` files exist locally.
+## Current-WDT preview policy (2026-10-05)
+
+Native previews request only the authored primary tile; they do not resurrect cached tiles absent from the current WDT. Map 2703 resolves through current `Map.csv` to WDT FDID `5493025`: `(31,37)` has MAIN bit 1 and MAID root/obj0/tex0 `5493438/5493439/5493441`; `(31,36)` has MAIN bit 0 and all-zero MAID. Cached named aliases do not authorize the old neighbor. The obsolete scene-1 supplemental-coordinate helper is removed; `Background::load` requests the primary alone. Playable-world WDT validation and generic object selection remain unchanged; no compatibility fallback.
+
+`current_wdt_background_loads_primary_with_all_waterfall_placements` exercises actual `Background::load`, its asynchronous terrain worker and current cached WDT/MAID files. It requires only `(31,37)` to parse, no background map/tile failures, and all 14 primary waterfall/ripple placements to remain admitted by the existing primary selection predicate. These placements lie about 264–350 units from the character; the old neighbor's 42 cached placements are over 500 units away and no longer requested.
+
+Development RED on `380b8aab` plus test/manifest additions failed exactly with `Map 2703 tile (31, 36) is inactive in WDT MAIN` (1 failed test, 548 filtered out). Evidence: `target/skyborn-source-items/preview-wdt-red2-cargo.log`; the same failure is in `native95-client-items.log`. The first test attempt failed compilation on a private test-module import, not a behavioral RED. The manifest adds only existing current-WDT/primary-companion files and their MDID/MHID textures, preserving all prior entries. The fixture also logs an existing missing Forever `Light.csv`; this is not a lighting fix. GREEN and native image acceptance are separate gates: no native image PASS until main captures and inspects the scene.
+
+## Historical split-shadow and renderer investigation
+
+Earlier clients requested primary terrain `2703_31_37` and supplemental `2703_31_36`; all old supplemental root, `_tex0`, and `_obj0` files existed locally. That historical file presence does not override the current-WDT policy above.
 
 The supplemental root contains 227 chunks with the shadow-present flag but no `HSCM` payloads. Their matching 227 shadow payloads reside in `_tex0`, as split-file data. Root-only validation previously returned `MCNK flagged with MCSH but missing HSCM sub-chunk`, aborting the whole tile. `159b2b6f` supplies companion shadows before validation, retaining all maps and strict standalone validation.
 
 `scene_tree::spawn_warband_terrain_tile` previously swallowed that error with `.ok()`, so the supplemental loop skipped its 42 placements. `8e0495a2` reports the path and failure. This explained primary-only loading, but did not by itself restore the visible waterfall.
 
-Native inspection after the parser fix exposed the second blocker: the primary object pass applied a 75-unit prop radius to its own waterfall backdrop. `17b77d68` reuses the existing waterfall/ripple predicate to admit the 14 authored primary-tile effects while keeping ordinary props radius-limited. The real-spawn regression changes from 62 props with no waterfall04 model to 76 placements, including that model. The neighboring tile's 42 placements remain supplemental coverage, not the only waterfall source.
+Native inspection after the parser fix exposed the second blocker: the primary object pass applied a 75-unit prop radius to its own waterfall backdrop. `17b77d68` reuses the existing waterfall/ripple predicate to admit the 14 authored primary-tile effects while keeping ordinary props radius-limited. The real-spawn regression changes from 62 props with no waterfall04 model to 76 placements, including that model. The neighboring tile's 42 placements were supplemental coverage at that revision, not the only waterfall source.
 
 Modern waterfall batches also encode their modulation coordinate in the shader-selected second UV set rather than the legacy coordinate lookup. `458868e9`, with named selector bits from `81417de0`, decodes that second UV source while preserving the authored alpha combine.
 
@@ -47,6 +57,10 @@ Fable CLI successfully inspects the Retail reference and native image pixels whe
 Do not discard shadow flags/data, broadly expand prop loading, replace alpha combination, or use a shared/global animation period as substitutes for these corrections. RED/GREEN evidence is under `verification`, `primary-verification`, and `uv-verification`.
 
 ## Evidence and sources
+
+- `godot/rust/src/character_select/background.rs` — current primary-only request and actual loader-boundary regression.
+- `godot/rust/src/terrain/assets.rs` — authoritative WDT MAIN/MAID validation, unchanged by the preview fix.
+- `godot/depot-test-assets.txt` — explicit cached fixture files for host-isolated CPU tests.
 
 - `data/diagnostics/waterfall-missing-20260911/particle-raw-parser/report.md` — actual field values and parser RED/GREEN.
 - `data/diagnostics/waterfall-missing-20260911/particle-raw-flags/{red2,green}/` — six raw-flag behavioral regressions.
