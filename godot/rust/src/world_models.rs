@@ -688,6 +688,7 @@ mod tests {
             display_info_id: None,
             inventory_type,
             hidden: false,
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
         };
         let mage = EquipmentAppearance {
             entries: vec![
@@ -724,6 +725,7 @@ mod tests {
             display_info_id: None,
             inventory_type,
             hidden: false,
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
         };
         let guard = EquipmentAppearance {
             entries: vec![

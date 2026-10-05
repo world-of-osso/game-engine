@@ -113,6 +113,19 @@ impl SourceItemCatalogs {
             ItemDefinitionSource::Forever70205 => self.forever.as_ref().map_err(String::as_str),
         }
     }
+
+    pub fn entry(
+        &self,
+        source: ItemDefinitionSource,
+        item_id: u32,
+    ) -> Result<&ItemCatalogEntry, String> {
+        let catalog = self
+            .catalog(source)
+            .map_err(|error| format!("{source:?} item {item_id}: {error}"))?;
+        catalog
+            .get(item_id)
+            .ok_or_else(|| format!("{source:?} item {item_id}: definition absent"))
+    }
 }
 
 static CATALOG: OnceLock<SourceItemCatalogs> = OnceLock::new();
@@ -149,12 +162,7 @@ pub fn require_item_catalog_entry(
     let catalogs = CATALOG
         .get()
         .ok_or_else(|| format!("{source:?} item {item_id}: catalog still loading"))?;
-    let catalog = catalogs
-        .catalog(source)
-        .map_err(|error| format!("{source:?} item {item_id}: {error}"))?;
-    catalog
-        .get(item_id)
-        .ok_or_else(|| format!("{source:?} item {item_id}: definition absent"))
+    catalogs.entry(source, item_id)
 }
 
 /// Catalog entry of `item_id`; `None` while the catalog loads.
