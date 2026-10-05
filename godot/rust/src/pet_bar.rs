@@ -302,14 +302,8 @@ impl GameClient {
     }
 
     /// `PetActionButtonMixin:SetHotkeys`: each button's `BONUSACTIONBUTTONn` key.
-    fn pet_bar_hotkeys(&self) -> [String; PET_BAR_BUTTONS] {
-        InputAction::PET_ACTION_SLOTS.map(|action| {
-            self.client_options
-                .bindings
-                .binding(action)
-                .map(InputBinding::hotkey_text)
-                .unwrap_or_default()
-        })
+    fn pet_bar_hotkeys(&self) -> [Option<InputBinding>; PET_BAR_BUTTONS] {
+        InputAction::PET_ACTION_SLOTS.map(|action| self.client_options.bindings.binding(action))
     }
 
     fn hovered_pet_button(&self) -> Option<usize> {
