@@ -168,31 +168,40 @@ pub(super) fn inset_backgrounds(class_id: u8) -> Element {
     children
 }
 
+/// Camelot `LeftPaneHost` (398 wide, TOPLEFT 0,-20 to the bottom) with its
+/// `UI-Character-Info-General-BG` (CharacterFrame.xml:407-422).
+const FOREVER_LEFT_PANE: (f32, f32, f32, f32) = (0.0, 20.0, 398.0, 464.0);
+/// Camelot `RightPaneHost`, 233 wide beside the left pane down to its bottom (:424-430).
+const FOREVER_RIGHT_PANE: (f32, f32, f32, f32) = (398.0, 20.0, 233.0, 464.0);
+/// The `common-framedivider` along the right pane's left edge (:441-454).
+const FOREVER_DIVIDER: (f32, f32, f32, f32) = (392.0, 21.0, 11.0, 463.0);
+
 /// Camelot CharacterFrame.xml:408-454. The stats class art is the `ClassBackground` of
 /// `CharacterStatsPaneScrollBox`, whose top is the stone cap's bottom (20 + 85), at
 /// TOPLEFT (0, 5) of it (:463-475).
 fn forever_pane_backgrounds(class_id: u8) -> Element {
+    let (_, top, _, _) = FOREVER_RIGHT_PANE;
     let mut children = Element::default();
     for (node, name, rect) in [
         (
             "CharacterFrameBackground",
             "UI-Character-Info-General-BG",
-            (0.0, 20.0, 398.0, 464.0),
+            FOREVER_LEFT_PANE,
         ),
         (
             "CharacterFrameInsetRightBg",
             "UI-Character-Info-Stat-BG",
-            (398.0, 20.0, 233.0, 383.0),
+            (398.0, top, 233.0, 383.0),
         ),
         (
             "CharacterFrameStoneBg",
             "UI-Character-Info-Stat-StoneBG",
-            (398.0, 20.0, 233.0, 85.0),
+            (398.0, top, 233.0, 85.0),
         ),
         (
             "CharacterFrameDivider",
             "common-framedivider",
-            (392.0, 21.0, 11.0, 463.0),
+            FOREVER_DIVIDER,
         ),
     ] {
         children.extend(atlas(node.into(), &resolve_art(name), rect, WHITE));
@@ -202,10 +211,40 @@ fn forever_pane_backgrounds(class_id: u8) -> Element {
         children.extend(atlas(
             "CharacterStatsPaneClassBackground".into(),
             &art,
-            (398.0, 20.0 + 85.0 - 5.0, w, h),
+            (398.0, top + 85.0 - 5.0, w, h),
             WHITE,
         ));
     }
+    children
+}
+
+/// Forever's panes off the paper doll. Camelot keeps the frame 631 wide on every tab
+/// (`UpdateSize` takes only the right-pane collapse setting, Camelot/CharacterFrame.lua:
+/// 260-263) and keeps `RightPaneHost` shown (`RefreshRightPane`, :306-309) for the tab's
+/// side pane (ReputationFrame.xml:251 `ReputationDetailFrame`). The stone cap hides
+/// (`UpdateRightPaneHeader`, :370-372) and the stats pane with its class art
+/// (`PaperDollFrame_OnHide` -> `Collapse`, PaperDollFrame.lua:1528, CharacterFrame.lua:
+/// 798-805). The class art is what covers the right pane below the 383-tall `Stat-BG` on
+/// the paper doll, so here `Stat-BG` fills the whole right pane: the window keeps no gap.
+pub(super) fn forever_side_pane_backgrounds() -> Element {
+    let mut children = atlas(
+        "CharacterFrameBackground".into(),
+        &resolve_art("UI-Character-Info-General-BG"),
+        FOREVER_LEFT_PANE,
+        WHITE,
+    );
+    children.extend(atlas(
+        "CharacterFrameInsetRightBg".into(),
+        &resolve_art("UI-Character-Info-Stat-BG"),
+        FOREVER_RIGHT_PANE,
+        WHITE,
+    ));
+    children.extend(atlas(
+        "CharacterFrameDivider".into(),
+        &resolve_art("common-framedivider"),
+        FOREVER_DIVIDER,
+        WHITE,
+    ));
     children
 }
 
