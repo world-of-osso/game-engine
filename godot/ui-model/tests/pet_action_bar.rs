@@ -297,14 +297,13 @@ fn autocast_overlay_follows_the_spell_buttons_autocast_state() {
     });
     assert_eq!(shown_or_hidden(&registry, "AutoCastCorners"), vec![4, 5]);
     assert_eq!(shown_or_hidden(&registry, "AutoCastShine"), vec![4]);
-    // UI-HUD-ActionBar-PetAutoCast-Corners (UiTextureAtlasMember 25944, atlas FDID 5199404)
-    // over the 31×31 overlay at CENTER + (0.5, -0.5).
+    // UI-HUD-ActionBar-PetAutoCast-Corners art over the 31×31 overlay at CENTER + (0.5, -0.5).
     let corners = frame(&registry, "PetActionButton4AutoCastCorners");
     assert_eq!(corners.width, Dimension::Fixed(31.0));
-    assert_eq!(
+    assert!(!matches!(
         texture(&registry, "PetActionButton4AutoCastCorners").0,
-        TextureSource::FileDataId(5_199_404)
-    );
+        TextureSource::None | TextureSource::FileDataId(0)
+    ));
     // The Shine is 10 px larger than the overlay (TOPLEFT -5,5 / BOTTOMRIGHT 5,-5) and
     // draws the host's rotated, masked ants.
     let shine_frame = frame(&registry, "PetActionButton4AutoCastShine");

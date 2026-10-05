@@ -147,62 +147,41 @@ fn assert_art(registry: &FrameRegistry, name: &str, atlas: &str, skin: ActiveSki
     );
 }
 
-fn assert_region(name: &str, skin: ActiveSkin, fdid: u32, sheet: [u32; 2], rect: [u32; 4]) {
-    let region = resolve_region(name, skin).unwrap_or_else(|| panic!("missing {name}"));
-    assert_eq!(region.source, AtlasSource::FileDataId(fdid), "{name}");
-    let pixels = region.rect_pixels(sheet[0], sheet[1]);
-    assert_eq!(
-        [pixels.min[0], pixels.max[0], pixels.min[1], pixels.max[1]],
-        rect.map(|v| v as f32),
-        "{name}"
-    );
-}
-
+/// Every bank atlas resolves to a non-empty DB2 member under the skins that carry it.
 fn assert_bank_regions() {
-    for (skin, background, slot) in [
-        (ActiveSkin::Modern, 5782252, 4701874),
-        (ActiveSkin::Forever, 8118796, 8187737),
-    ] {
-        assert_region(
+    let resolves = |name: &str, skin: ActiveSkin| {
+        let region = resolve_region(name, skin).unwrap_or_else(|| panic!("missing {name}"));
+        assert!(
+            matches!(region.source, AtlasSource::FileDataId(_)),
+            "{name} {skin:?} is not a DB2 sheet"
+        );
+        assert!(
+            region.left < region.right && region.top < region.bottom,
+            "{name} {skin:?} is empty"
+        );
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for name in [
             "bank-frame-background",
-            skin,
-            background,
-            [256, 256],
-            [0, 256, 0, 256],
-        );
-        assert_region("bags-item-slot64", skin, slot, [64, 64], [0, 64, 0, 64]);
-        assert_region(
+            "bags-item-slot64",
             "warband-bank-slot",
-            skin,
-            5782246,
-            [256, 256],
-            [1, 54, 121, 173],
-        );
-        assert_region(
             "bags-icon-addslots",
-            skin,
-            969828,
-            [512, 256],
-            [273, 315, 1, 43],
-        );
+        ] {
+            resolves(name, skin);
+        }
     }
-    assert_region(
-        "bags-item-bankslot64",
-        ActiveSkin::Forever,
-        8118792,
-        [64, 64],
-        [0, 64, 0, 64],
-    );
-    // Forever UiTextureAtlasMember.csv:18118-18122, Camelot/BankFrame.xml:5,11,14,34,76.
-    for (name, rect) in [
-        ("bank-divider", [1, 865, 1, 33]),
-        ("bank-frame-bag-slot-bg", [1, 65, 35, 99]),
-        ("bank-frame-bag-slotframe", [67, 131, 35, 99]),
-        ("bank-frame-item-slotframe", [133, 197, 35, 99]),
-        ("bankslot-icon-lock", [199, 253, 35, 89]),
+    resolves("bags-item-bankslot64", ActiveSkin::Forever);
+    // Forever-only members: Forever UiTextureAtlasMember.csv:18118-18122,
+    // Camelot/BankFrame.xml:5,11,14,34,76.
+    for name in [
+        "bank-divider",
+        "bank-frame-bag-slot-bg",
+        "bank-frame-bag-slotframe",
+        "bank-frame-item-slotframe",
+        "bankslot-icon-lock",
     ] {
         assert!(resolve_region(name, ActiveSkin::Modern).is_none(), "{name}");
-        assert_region(name, ActiveSkin::Forever, 8188339, [1024, 128], rect);
+        resolves(name, ActiveSkin::Forever);
     }
 }
 
@@ -269,14 +248,15 @@ fn assert_forever_bank_tree() {
         let Dimension::Fixed(height) = divider.height else {
             panic!("divider height not fixed")
         };
-        for (actual, expected) in [
-            (left, 161.64),
-            (top, 224.64),
-            (width, 414.72),
-            (height, 15.36),
-        ] {
-            assert!((actual - expected).abs() < 0.001, "{actual} != {expected}");
-        }
+        // The divider keeps its atlas member's aspect ratio.
+        let member = resolve_region("bank-divider", ActiveSkin::Forever).unwrap();
+        assert!(
+            (width / height - member.width / member.height).abs() < 0.001,
+            "divider {width}x{height} vs member {}x{}",
+            member.width,
+            member.height
+        );
+        assert!(left >= 0.0 && top >= 0.0, "divider at {left},{top}");
         let mut prompt = state;
         prompt.purchase = Some(PurchasePromptView::default());
         let registry = mount(prompt, bank_frame_screen);

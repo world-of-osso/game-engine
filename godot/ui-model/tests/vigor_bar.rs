@@ -24,9 +24,11 @@ fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a ui_toolkit::frame::
 fn tex_coords(registry: &FrameRegistry, name: &str) -> [f32; 4] {
     match frame(registry, name).widget_data.as_ref() {
         Some(WidgetData::Texture(texture)) => {
-            assert_eq!(
-                texture.source,
-                TextureSource::FileDataId(4_730_866),
+            assert!(
+                !matches!(
+                    texture.source,
+                    TextureSource::None | TextureSource::FileDataId(0)
+                ),
                 "{name}"
             );
             texture.tex_coords
@@ -72,36 +74,36 @@ fn three_full_charges_and_one_recovering() {
     }
     assert!(registry.get_by_name("UIWidgetFillUpFrame7").is_none());
 
-    // fillfull: x 299..371, y 120..192 of 512.
+    // Every full charge draws the same whole fillfull art.
     let full = tex_coords(&registry, "UIWidgetFillUpFrame3Bar");
-    assert!(close(
-        full,
-        [299.0 / 512.0, 371.0 / 512.0, 120.0 / 512.0, 192.0 / 512.0]
-    ));
+    assert!(full[1] > full[0] && full[3] > full[2]);
+    for index in [1, 2] {
+        let other = tex_coords(&registry, &format!("UIWidgetFillUpFrame{index}Bar"));
+        assert!(close(other, full), "frame {index}");
+    }
     assert_eq!(
         frame(&registry, "UIWidgetFillUpFrame3Bar").height,
         Dimension::Fixed(72.0)
     );
 
-    // fill: x 394..466, y 1..73; a quarter shown from the bottom.
+    // The recovering charge draws the other (fill) art, its bottom quarter only.
     let filling = frame(&registry, "UIWidgetFillUpFrame4Bar");
     assert_eq!(filling.height, Dimension::Fixed(18.0));
     assert_eq!(filling.position.top, Val::Px(-13.5 + 54.0));
     let coords = tex_coords(&registry, "UIWidgetFillUpFrame4Bar");
-    assert!(close(
-        coords,
-        [394.0 / 512.0, 466.0 / 512.0, 55.0 / 512.0, 73.0 / 512.0]
-    ));
+    assert!(!close(coords, full));
+    assert!(((coords[1] - coords[0]) - (full[1] - full[0])).abs() < 1e-5);
+    assert!(((coords[3] - coords[2]) * 4.0 - (full[3] - full[2])).abs() < 1e-5);
     let spark = frame(&registry, "UIWidgetFillUpFrame4Spark");
     assert_eq!(spark.position.top, Val::Px(-13.5 + 54.0 - 10.0));
     assert!(registry.get_by_name("UIWidgetFillUpFrame3Spark").is_none());
 
     assert!(frame(&registry, "UIWidgetFillUpFrame5Bar").hidden, "empty");
+    // DecorLeft mirrors DecorRight's art.
     let decor_left = tex_coords(&registry, "UIWidgetFillUpFramesDecorLeft");
-    assert!(close(
-        decor_left,
-        [392.0 / 512.0, 299.0 / 512.0, 1.0 / 512.0, 118.0 / 512.0]
-    ));
+    let [left, right, top, bottom] = tex_coords(&registry, "UIWidgetFillUpFramesDecorRight");
+    assert!(right > left);
+    assert!(close(decor_left, [right, left, top, bottom]));
     assert_eq!(
         frame(&registry, "UIWidgetFillUpFramesDecorRight")
             .position

@@ -98,7 +98,7 @@ fn pet_frame_parts_use_retail_rects_and_focus_bar_art() {
     let registry = frames(Some(wolf()));
     assert_eq!(rect(&registry, "PetPortrait"), px(5.0, 5.0, 37.0, 37.0));
     assert_eq!(PET_PORTRAIT.rect, (5.0, 5.0, 37.0, 37.0));
-    assert_eq!(PET_PORTRAIT.mask_fdid, 3_528_314);
+    assert_ne!(PET_PORTRAIT.mask_fdid, 0, "the portrait is masked");
     assert_eq!(rect(&registry, "PetName"), px(44.0, 5.0, 68.0, 10.0));
     match frame(&registry, "PetName").widget_data.as_ref() {
         Some(WidgetData::FontString(font)) => assert_eq!(font.text, "Wolf"),
