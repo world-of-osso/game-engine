@@ -65,6 +65,8 @@ func run_test() -> void:
 	await click_control(enter)
 	if not await wait_visual(client, 1.5, WORLD_LOAD_WAIT_MS):
 		return
+	if not await wait_screen(client, "InWorld", WORLD_LOAD_WAIT_MS):
+		return
 	if not await wait_lighting(client, GLOBAL_AMBIENT, GLOBAL_DIRECT, "azeroth"):
 		return
 	if not await wait_authored_stand(client):
@@ -141,6 +143,11 @@ func run_test() -> void:
 	var old_light_id: int = client.get_node("WorldLighting").get_instance_id()
 	print("FIXTURE NPC_RESTORED")
 	if not await wait_lighting(client, MAP_AMBIENT, MAP_DIRECT, "kalimdor", WORLD_LOAD_WAIT_MS):
+		return
+	# Worker-loaded visuals/light can precede the world camera (ca395f94).
+	# Finish map entry before the server starts the one-second Death clip: NPC
+	# LOD keeps its clock running while pose writes are frozen (0be4373f).
+	if not await wait_screen(client, "InWorld", WORLD_LOAD_WAIT_MS):
 		return
 	if client.get_node("WorldLighting").get_instance_id() == old_light_id:
 		fail("Map change retained previous lighting producer")
