@@ -12,6 +12,31 @@ pub struct ItemInfoQuery {
     pub definition_source: shared::item_data::ItemDefinitionSource,
 }
 
+#[cfg(test)]
+mod item_info_query_tests {
+    use super::ItemInfoQuery;
+    use shared::item_data::ItemDefinitionSource::{Forever70205, Retail};
+
+    #[test]
+    fn item_info_query_roundtrips_each_explicit_source() {
+        for source in [Retail, Forever70205] {
+            let query = ItemInfoQuery {
+                item_id: 2947,
+                definition_source: source,
+            };
+            let encoded = serde_json::to_string(&query).unwrap();
+            let decoded: ItemInfoQuery = serde_json::from_str(&encoded).unwrap();
+            assert_eq!(decoded, query);
+        }
+    }
+
+    #[test]
+    fn item_info_query_rejects_ambiguous_missing_source() {
+        let error = serde_json::from_str::<ItemInfoQuery>(r#"{"item_id":2947}"#).unwrap_err();
+        assert!(error.to_string().contains("definition_source"), "{error}");
+    }
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub enum GroupRole {
     Tank,
