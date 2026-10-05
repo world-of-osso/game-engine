@@ -58,6 +58,8 @@ def texture_references(keys, tables):
         raise ValueError(
             f"Forever LiquidType textures missing: {sorted(selected - mapped)}"
         )
+    if any(int(types[type_id]["MaterialID"]) == 130 for type_id in selected):
+        textures.update(borrowed_water_textures(tables, types))
     refs = {(fdid, f"textures/{fdid}.blp") for fdid in textures}
     material_ids = {int(types[type_id]["MaterialID"]) for type_id in selected}
     if material_ids & {2, 4}:
@@ -65,6 +67,31 @@ def texture_references(keys, tables):
     if 18 in material_ids:
         refs.update((fdid, f"textures/{fdid}.blp") for fdid in (1797551, 1844666))
     return sorted(refs)
+
+
+def borrowed_water_textures(tables, types):
+    # Explicitly borrowed compatibility inputs, not the client-authored PBR contract.
+    legacy = types.get(5)
+    if legacy is None or int(legacy["MaterialID"]) != 1:
+        raise ValueError(
+            "Material130 requires borrowed LiquidType5 legacy Water inputs"
+        )
+    counts = [max(1, int(legacy[f"FrameCountTexture_{i}"])) for i in range(6)]
+    rows = sorted(
+        (row for row in tables["LiquidTypeXTexture"] if int(row["LiquidTypeID"]) == 5),
+        key=lambda row: int(row["OrderIndex"]),
+    )
+    start, end = sum(counts[:2]), sum(counts[:4])
+    if len(rows) < end:
+        raise ValueError(
+            "Material130 borrowed LiquidType5 lacks required texture slots2/3"
+        )
+    textures = {int(row["FileDataID"]) for row in rows[start:end]}
+    if 0 in textures:
+        raise ValueError(
+            "Material130 borrowed LiquidType5 has a procedural/missing normal or foam"
+        )
+    return textures
 
 
 def asset_references(raw, tables):
