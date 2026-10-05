@@ -384,6 +384,31 @@ fn the_portrait_ring_shows_the_vendor_being_talked_to() {
 }
 
 #[test]
+fn merchant_buyback_portrait_replaces_the_npc_source_and_restores_it_on_return() {
+    let mut session = session(danil(), "Brother Danil", 0);
+    assert_eq!(session.portrait_unit(), Some(DANIL));
+    session.click_frame(ACTION_TAB_BUYBACK, Click::LEFT);
+    assert_eq!(session.portrait_unit(), None);
+    let registry = render(&session);
+    let icon = registry
+        .get(
+            registry
+                .get_by_name("MerchantBuybackPortraitIcon")
+                .expect("buyback icon"),
+        )
+        .unwrap();
+    assert!(matches!(icon.widget_data, Some(WidgetData::Texture(_))));
+    assert!(registry.get_by_name(PORTRAIT.frame).is_none());
+    session.click_frame(ACTION_TAB_MERCHANT, Click::LEFT);
+    assert_eq!(session.portrait_unit(), Some(DANIL));
+    assert!(
+        render(&session)
+            .get_by_name("MerchantBuybackPortraitIcon")
+            .is_none()
+    );
+}
+
+#[test]
 fn the_backpack_shows_catalog_items_only_while_the_vendor_is_open() {
     let mut session = session(danil(), "Brother Danil", 0);
     let bags = session.bag_state();

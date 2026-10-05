@@ -265,11 +265,13 @@ pub enum InputAction {
     PetActionSlot9,
     PetActionSlot10,
     ToggleMute,
+    ToggleLauncher,
     ToggleCharacter,
     ToggleSpellbook,
     ToggleProfessions,
     ToggleAchievements,
     ToggleTalents,
+    ToggleSpecialization,
     ToggleEncounterJournal,
     ToggleSocial,
     ToggleLootRules,
@@ -349,7 +351,7 @@ impl InputAction {
         Self::MultiActionBar2Button12,
     ];
 
-    pub const ALL: [Self; 94] = [
+    pub const ALL: [Self; 96] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -425,11 +427,13 @@ impl InputAction {
         Self::PetActionSlot9,
         Self::PetActionSlot10,
         Self::ToggleMute,
+        Self::ToggleLauncher,
         Self::ToggleCharacter,
         Self::ToggleSpellbook,
         Self::ToggleProfessions,
         Self::ToggleAchievements,
         Self::ToggleTalents,
+        Self::ToggleSpecialization,
         Self::ToggleEncounterJournal,
         Self::ToggleSocial,
         Self::ToggleLootRules,
@@ -518,6 +522,11 @@ impl InputAction {
 
     fn interface_meta(self) -> Option<InputActionMeta> {
         let (key, label, binding) = match self {
+            Self::ToggleLauncher => (
+                "toggle_launcher",
+                "Toggle Launcher",
+                Some(InputBinding::CtrlKeyboard(BindingKey::Space)),
+            ),
             Self::ToggleCharacter => (
                 "toggle_character",
                 "Character Info",
@@ -543,6 +552,8 @@ impl InputAction {
                 "Talents",
                 Some(keyboard(BindingKey::KeyN)),
             ),
+            // Retail has no separate specialization default (Bindings_Standard.xml:1244).
+            Self::ToggleSpecialization => ("toggle_specialization", "Specialization", None),
             Self::ToggleEncounterJournal => (
                 "toggle_encounter_journal",
                 "Adventure Guide",
@@ -686,11 +697,13 @@ impl InputAction {
                 BindingSection::Audio,
                 Some(InputBinding::CtrlKeyboard(BindingKey::KeyS)),
             ),
-            Self::ToggleCharacter
+            Self::ToggleLauncher
+            | Self::ToggleCharacter
             | Self::ToggleSpellbook
             | Self::ToggleProfessions
             | Self::ToggleAchievements
             | Self::ToggleTalents
+            | Self::ToggleSpecialization
             | Self::ToggleEncounterJournal
             | Self::ToggleSocial
             | Self::ToggleLootRules
@@ -1321,11 +1334,13 @@ fn pet_action_slot_from_key(key: &str) -> Option<InputAction> {
 
 fn interface_action_from_key(key: &str) -> Option<InputAction> {
     Some(match key {
+        "toggle_launcher" => InputAction::ToggleLauncher,
         "toggle_character" => InputAction::ToggleCharacter,
         "toggle_spellbook" => InputAction::ToggleSpellbook,
         "toggle_professions" => InputAction::ToggleProfessions,
         "toggle_achievements" => InputAction::ToggleAchievements,
         "toggle_talents" => InputAction::ToggleTalents,
+        "toggle_specialization" => InputAction::ToggleSpecialization,
         "toggle_encounter_journal" => InputAction::ToggleEncounterJournal,
         "toggle_social" => InputAction::ToggleSocial,
         "toggle_loot_rules" => InputAction::ToggleLootRules,
@@ -1472,11 +1487,13 @@ fn audio_section_actions() -> &'static [InputAction] {
 
 fn interface_section_actions() -> &'static [InputAction] {
     &[
+        InputAction::ToggleLauncher,
         InputAction::ToggleCharacter,
         InputAction::ToggleSpellbook,
         InputAction::ToggleProfessions,
         InputAction::ToggleAchievements,
         InputAction::ToggleTalents,
+        InputAction::ToggleSpecialization,
         InputAction::ToggleEncounterJournal,
         InputAction::ToggleSocial,
         InputAction::ToggleLootRules,

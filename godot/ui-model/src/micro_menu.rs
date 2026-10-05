@@ -98,6 +98,13 @@ pub struct MicroButton {
     pub unavailable: Option<Unavailable>,
 }
 
+impl MicroButton {
+    /// Share the existing normal micro-menu icon with the launcher; Character uses its portrait.
+    pub fn icon_atlas(&self) -> Option<String> {
+        self.art.map(|name| format!("UI-HUD-MicroMenu-{name}-Up"))
+    }
+}
+
 /// `MicroMenuMixin:GenerateButtonInfos` order; `HelpMicroButton` stays hidden outside CN.
 pub const MICRO_BUTTONS: [MicroButton; 12] = [
     MicroButton {
@@ -200,6 +207,16 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         unavailable: None,
     },
 ];
+
+/// Retail has one combined PlayerSpellsMicroButton, not a separate spec button.
+/// With no native talent system its default available page is Specialization
+/// (PlayerSpellsFrame.lua:108-114; PlayerSpellsUtil.lua:106-133).
+pub fn player_spells_micro_tab(
+    action: &str,
+) -> Option<crate::spellbook_frame_component::PlayerSpellsTab> {
+    (action == ACTION_PLAYER_SPELLS)
+        .then_some(crate::spellbook_frame_component::PlayerSpellsTab::Specialization)
+}
 
 const CHARACTER: usize = 0;
 const PLAYER_SPELLS: usize = 2;

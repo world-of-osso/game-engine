@@ -39,6 +39,7 @@ mod input;
 mod input_keys;
 mod ipc;
 mod js_automation;
+mod launcher;
 mod lighting;
 mod line_of_sight;
 mod loading;
@@ -245,8 +246,6 @@ pub struct GameClient {
     /// IPC `MapWaypointAdd`: the map waypoint (world x, z).
     map_waypoint: Option<(f32, f32)>,
     waypoint_path: waypoint_path::WaypointPath,
-    /// The newest received `CombatEvent`s (IPC `combat log|recap`).
-    ipc_combat_events: std::collections::VecDeque<shared::protocol::CombatEvent>,
     /// The last area (and its zone) found under the local player; kept where no tile
     /// answers, as the original's `CurrentZone`.
     current_zone: Option<(u32, u32)>,
@@ -268,6 +267,7 @@ pub struct GameClient {
     merchant: merchant::Merchant,
     bags: bags::Bags,
     character_frame: character_frame::CharacterFrame,
+    launcher: launcher::Launcher,
     tooltips: tooltips::Tooltips,
     mailbox: mail::Mailbox,
     trade: trade::Trade,
@@ -372,7 +372,6 @@ impl INode3D for GameClient {
             scripted_movement: Default::default(),
             map_waypoint: None,
             waypoint_path: Default::default(),
-            ipc_combat_events: std::collections::VecDeque::new(),
             current_zone: None,
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
@@ -388,6 +387,7 @@ impl INode3D for GameClient {
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
             character_frame: character_frame::CharacterFrame::default(),
+            launcher: launcher::Launcher::default(),
             tooltips: tooltips::Tooltips::default(),
             mailbox: mail::Mailbox::default(),
             trade: trade::Trade::default(),
@@ -446,7 +446,7 @@ impl INode3D for GameClient {
                 .clone()
                 .try_cast::<godot::classes::InputEventKey>()
                 .is_ok();
-        if self.game_menu_ui.is_none() && !split_key_event {
+        if self.game_menu_ui.is_none() && !split_key_event && !self.launcher.view.open {
             self.physical_input.capture(&event);
         }
     }
@@ -1070,6 +1070,14 @@ impl GameClient {
             self.mark_viewport_input_handled();
             return true;
         }
+        let launcher_used = self.launcher_input(event).unwrap_or_else(|error| {
+            self.handle_frame_error("Launcher input", error);
+            true
+        });
+        if launcher_used {
+            self.mark_viewport_input_handled();
+            return true;
+        }
         if self.capture_game_menu_binding(event) {
             self.mark_viewport_input_handled();
             return true;
@@ -1130,6 +1138,7 @@ impl GameClient {
             &mut self.mirror_timer_ui,
             &mut self.chat.ui,
             &mut self.game_menu_ui,
+            &mut self.launcher.ui,
             &mut self.world_map.ui,
         ] {
             if let Some(ui) = ui {
@@ -1640,6 +1649,7 @@ impl GameClient {
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
             ("Auras", |c, _| c.update_auras()),
+            ("Launcher", |c, _| c.update_launcher()),
             ("Character frame", |c, _| c.update_character_frame()),
             ("Framerate toggle", |c, _| {
                 c.update_framerate_toggle();

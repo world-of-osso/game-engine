@@ -1,7 +1,7 @@
 # Spell description tokens
 
 `Spell.Description_lang` / `AuraDescription_lang` (DB2 12.1.0.69933) are templates. The
-client renders them in `src/game/spell_catalog/render.rs` + `render_eval.rs`.
+client renders them in `godot/core/src/game/spell_catalog/render.rs` + `render_eval.rs`.
 
 ## Sources
 
@@ -50,7 +50,12 @@ points, `$t` aura period, `$u` max stacks, `$v` max target level, `$x` chain tar
 
 ## Unresolved
 
-Rendered as `{?<token>}` and logged once per spell and token (`warn!`):
+Omitted and logged once per spell and token (`warn!`). Local doubled spaces, empty
+parentheses/brackets, percent suffixes and dangling separators left by an omission are
+removed; existing spacing in fully resolved text and paragraph breaks are preserved.
+Conditional branch evaluation is unchanged.
+
+Unresolved values:
 
 - Effect points that scale with level (`ScalingClass` with a `Coefficient`; the client
   has no ExpectedStat data), and spell/attack power scaled points (`EffectBonusCoefficient`

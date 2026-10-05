@@ -41,9 +41,9 @@ Retail `NamePlateCastingBarMixin` over `CastingBarMixin` (`Blizzard_NamePlates/B
 
 - [x] A cast fills and a channel drains under the health bar with the spell name and icon; an uninterruptible cast shows `nameplates-InterruptShield` instead of the icon and the uninterruptible fill colour.
 - [x] The health and cast rows form one block: the cast track starts on the health frame's drawn left edge and ends on the plate's right edge (the frame's drawn right edge, or the level frame's end under Forever; the body's ends without the border), under the Thick and Thin presets. The frame bitmaps carry transparent end columns, so the drawn edge is inside the bitmap's rect. A cast width edited away from the health width widens or narrows the track evenly. The track sits 2px under the health body; on the Thick preset the 12px icon sits at its left end with the outlined spell name 2px right of it inside the bar (user reference 2026-10-04). The Bevy glow frame bitmaps are gone: the reference has none.
-- [x] The spark pip at the fill's leading edge blends additively (`Spark` `alphaMode="ADD"`, `Blizzard_NamePlateCastingBar.xml:52`) under both skins: it brightens the fill and track under it and its dark edge columns add nothing. Capture `data/diagnostics/shine-2026-10-04/before-after.png`.
+- [x] Nameplate pip matches approved `data/ui/nameplate-pip-previews/B-4x.png` (user, 2026-10-05): a warm white-gold soft radial glow centered on the fill edge, sigma approximately 0.9×2.25 UI units, cropped within the bar's height. Both Modern/Forever skins and Thin/Thick bars use the same glow; additive blending remains Retail's (`Blizzard_NamePlateCastingBar.xml:52`). Fill, text, icon and border are unchanged.
 - [x] `SpellGo` fills the bar and fades it (`FadeOutAnim`, 0.2 s then 0.3 s). A replicated channel that ends fades the same way.
-- [x] `SpellFailure` turns the bar red with `ui-castingbar-pip-red`, reads `Interrupted: <interrupter>` in the interrupter's class colour for a kick, `Interrupted` without an interrupter, `Failed` for a failure on completion, holds 1.0 s and fades 0.3 s (`HoldFadeOutAnim`).
+- [x] `SpellFailure` turns the bar and soft glow red, reads `Interrupted: <interrupter>` in the interrupter's class colour for a kick, `Interrupted` without an interrupter, `Failed` for a failure on completion, holds 1.0 s and fades 0.3 s (`HoldFadeOutAnim`).
 - [x] A removed cast keeps running until its `SpellGo` or `SpellFailure`; the same cast still replicated after either does not restart the bar, and a new cast of the same spell after a replication gap does.
 
 ### Auras (Godot client)
@@ -55,10 +55,10 @@ Ported from the Bevy client's `nameplate_auras.rs`. Retail's debuff list takes h
 
 ### Skins (Godot client)
 
-- [x] Cast bar background, fill, pip and interrupt shield are drawn by atlas name (`ui-castingbar-background`, `ui-castingbar-filling-standard`, `ui-castingbar-pip`, `nameplates-InterruptShield`) from the active skin's `UiTextureAtlas` members: Retail `uicastingbar` under Modern, Forever's set-1 `uicastingbarc60` under Forever. A skin switch rebuilds the plates.
+- [x] Cast bar background, fill and interrupt shield are drawn by atlas name (`ui-castingbar-background`, `ui-castingbar-filling-standard`, `nameplates-InterruptShield`) from the active skin's `UiTextureAtlas` members: Retail `uicastingbar` under Modern, Forever's set-1 `uicastingbarc60` under Forever. A skin switch rebuilds the plates.
 - [x] Forever plates carry Camelot's `NameplateLevelFrame` (`Blizzard_NamePlates/Camelot/Blizzard_NamePlateLevelFrame.xml`): 28 wide, 23 high on the Thick health bar and 16 on the Thin one, taking the right end of the health bars; `ui-hud-nameplates-levelindicator` behind the unit's level, `-skull` for level 0, `-selected` on the target. Modern plates have none.
 - [ ] Level text difficulty colour (`GetDifficultyColor`, `C_QuestLog.GetTrivialRange`): no data source; the text is white.
-- [ ] `ui-castingbar-pip-red` stays the Retail 1x crop under both skins: its two canvas-1 members resolve to the 2x one in the skin resolver.
+- [x] Both skins tint Blizzard's white radial `OBJFX_Glow` (FDID 959719) gold/red instead of selecting opaque pip atlas crops; no FlareUI Media art.
 - [ ] Focus colour of the level frame's selected border, and Camelot's hidden classification indicator (`Camelot/Blizzard_NamePlateFrameOptionsOverrides.lua:1`).
 
 ## How it works

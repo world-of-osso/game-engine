@@ -82,14 +82,28 @@ fn arcane_blast_tooltip_shows_spell_power_damage_instead_of_the_token() {
 }
 
 #[test]
-fn power_scaled_points_stay_marked_until_the_powers_arrive() {
-    let description = catalog()
+fn power_scaled_points_are_hidden_until_the_powers_arrive() {
+    game_engine_ui_model::paths::set_data_root(data_dir()).unwrap();
+    let data = catalog();
+    let description = data
         .render_description(ARCANE_BLAST, &SpellTextContext::default())
         .unwrap();
     assert!(
-        description.starts_with("Blasts the target with energy, dealing {?$30451s1} Arcane"),
+        description.starts_with("Blasts the target with energy, dealing Arcane damage."),
         "{description}"
     );
+    let tooltip = spell_tooltip(
+        data.get(ARCANE_BLAST).unwrap(),
+        &SpellTooltipInput {
+            description,
+            ..Default::default()
+        },
+    );
+    for line in &tooltip.content.lines {
+        assert!(!line.left_text.contains("{?"), "{line:?}");
+        assert!(!line.left_text.contains('$'), "{line:?}");
+        assert!(!line.left_text.contains("  "), "{line:?}");
+    }
 }
 
 #[test]

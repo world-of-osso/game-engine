@@ -355,7 +355,6 @@ impl GameClient {
         BagsView {
             containers,
             bar: BagBarState {
-                money: self.merchant.session.money,
                 free_slots: inventory.total_free_slots(),
                 bag_icons: EquipmentSlot::BAGS
                     .map(|slot| inventory.equipped(slot).map(|bag| bag.icon_fdid)),
@@ -412,7 +411,7 @@ impl GameClient {
         }
     }
 
-    fn toggle_bag_action(&mut self, action: &str) -> Result<(), String> {
+    pub(super) fn toggle_bag_action(&mut self, action: &str) -> Result<(), String> {
         let Some(index) = action.strip_prefix(ACTION_BAG_TOGGLE_PREFIX) else {
             return Err(format!("Standalone bag action not converted: {action}"));
         };

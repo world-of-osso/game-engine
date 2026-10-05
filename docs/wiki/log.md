@@ -2564,3 +2564,7 @@ Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-b
 ## 2026-10-04 — Turned UI textures
 
 [[ui-rounding-seams]]: a texture turned about its centre keeps its exact rect through layout; fixes the 1 px step between the Forever XP bar's border edges and corners. Live capture `data/diagnostics/xpborder-2026-10-04/`.
+
+## 2026-10-05 — In-world launcher
+
+[[launcher]]: added user's centred search grid, shared micro actions/icons, Toggle Launcher binding and minimap opener. Micro menu retained. Targeted tests and live proof pending; Support remains a placeholder.
