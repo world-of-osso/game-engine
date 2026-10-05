@@ -235,6 +235,28 @@ def npc_asset_roots(tables, requested, retail_ids, model_paths):
     return assets, failures
 
 
+GEAR_KEYS = {
+    "ItemDisplayInfo": "ID",
+    "ItemDisplayInfoMaterialRes": "ItemDisplayInfoID",
+    "ModelFileData": "ModelResourcesID",
+    "TextureFileData": "MaterialResourcesID",
+}
+
+
+def overlay_gear_tables(forever, retail):
+    merged = dict(forever)
+    retail_displays = {int(row["ID"]) for row in retail.get("ItemDisplayInfo", [])}
+    for table, key in GEAR_KEYS.items():
+        base = retail.get(table, [])
+        blocked = {int(row[key]) for row in base}
+        if table == "ItemDisplayInfoMaterialRes":
+            blocked = retail_displays
+        merged[table] = base + [
+            row for row in forever.get(table, []) if int(row[key]) not in blocked
+        ]
+    return merged
+
+
 def read_npc_import_inputs(data, requested, tables):
     with (data / "db2/12.1.0.69933/CreatureDisplayInfo.csv").open(newline="") as handle:
         retail_ids = {int(row["ID"]) for row in csv.DictReader(handle)}
@@ -246,7 +268,12 @@ def read_npc_import_inputs(data, requested, tables):
             for fdid, path in csv.reader(handle, delimiter=";")
             if int(fdid) in needed
         }
-    roots, errors = npc_asset_roots(tables, requested, retail_ids, paths)
+    retail_gear = {}
+    for table in GEAR_KEYS:
+        with (data / f"{table}.csv").open(newline="") as handle:
+            retail_gear[table] = list(csv.DictReader(handle))
+    merged = overlay_gear_tables(tables, retail_gear)
+    roots, errors = npc_asset_roots(merged, requested, retail_ids, paths)
     return roots, errors, retail_ids, paths
 
 

@@ -143,6 +143,29 @@ class ForeverNpcDisplayTests(unittest.TestCase):
         self.assertIn((7478494, "m2"), assets[136968])
         self.assertIn("405", "; ".join(failures.get(136968, [])))
 
+    def test_gear_overlay_keeps_whole_retail_resource_groups(self):
+        forever = self.tables()
+        retail = {
+            "ItemDisplayInfo": [
+                {"ID": 60, "ModelResourcesID_0": 501, "ModelMaterialResourcesID_0": 406}
+            ],
+            "ModelFileData": [{"ModelResourcesID": 501, "FileDataID": 710}],
+            "TextureFileData": [{"MaterialResourcesID": 406, "FileDataID": 810}],
+            "ItemDisplayInfoMaterialRes": [],
+        }
+        forever["ModelFileData"].append({"ModelResourcesID": 501, "FileDataID": 999})
+        forever["TextureFileData"].append(
+            {"MaterialResourcesID": 406, "FileDataID": 998}
+        )
+        merged = importer.npc.overlay_gear_tables(forever, retail)
+        assets = importer.npc.collect_item_assets(
+            {60},
+            merged,
+            importer.npc.group_rows(merged, "TextureFileData", "MaterialResourcesID"),
+        )
+        self.assertEqual(assets, {(710, "m2"), (810, "blp")})
+        self.assertEqual(forever["ItemDisplayInfo"][0]["ModelResourcesID_0"], 500)
+
     def test_declared_item_model_resource_missing_is_reported(self):
         tables = self.tables()
         tables["ModelFileData"] = []

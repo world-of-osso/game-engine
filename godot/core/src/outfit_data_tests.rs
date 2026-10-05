@@ -39,7 +39,7 @@ fn forever_npc_gear_resolves_zephras_shoulders_and_preserves_retail() {
     assert!(resolved.model_fdids.contains(&(84883, 7579617)));
     assert_eq!(
         outfit.display_material_texture_fdids(shoulder as u32, 4, 0),
-        [7731197]
+        [7731197, 7731197]
     );
     assert_eq!(
         outfit.resolve_shoulder_runtime_model(shoulder as u32, 0, 4, 0),
