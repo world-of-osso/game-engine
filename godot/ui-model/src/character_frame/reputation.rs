@@ -140,10 +140,11 @@ const ENTRY_SPACING: f32 = 3.0;
 const ENTRY_INDENT: f32 = 2.0;
 
 /// The pane behind the list: Modern's Inset `character-panel-background` widened to the
-/// frame (CharacterFrame.lua:136-139); Forever keeps its pane backgrounds.
-pub(super) fn backgrounds(class_id: u8) -> Element {
+/// frame (CharacterFrame.lua:136-139); Forever keeps its pane backgrounds without the
+/// paper doll's stone cap and stats pane.
+pub(super) fn backgrounds() -> Element {
     if active_skin() == ActiveSkin::Forever {
-        return super::art::inset_backgrounds(class_id);
+        return super::art::forever_pane_backgrounds(None);
     }
     atlas(
         "CharacterFrameBackground".into(),
