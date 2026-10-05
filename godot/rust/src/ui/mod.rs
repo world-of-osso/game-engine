@@ -86,6 +86,7 @@ pub struct RegistryUi {
     /// HUDs use UIParent scaling until an explicit options scale is set.
     ui_parent: bool,
     ui_scale: Option<f32>,
+    scroll_stepper: Option<scroll_lists::StepperHold>,
 }
 
 /// Raw authored-slider input; the host applies its own policy and passes back a view.
@@ -317,7 +318,16 @@ impl RegistryModel {
         if disabled {
             return None;
         }
-        self.registry.click_frame(id)
+        let action = self.registry.click_frame(id)?;
+        if action == game_engine_ui_model::bag_frame_component::ACTION_SEARCH_CLEAR {
+            let search = self
+                .registry
+                .get_by_name(game_engine_ui_model::bag_frame_component::SEARCH_BOX)?;
+            self.edit_text(search, String::new());
+            self.blur_frame(search);
+            return None;
+        }
+        Some(action)
     }
 
     fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
@@ -479,7 +489,10 @@ impl RegistryModel {
 #[godot_api]
 impl ICanvasLayer for RegistryUi {
     /// Frames drawn without art whose file was still loading show it once it arrives.
-    fn process(&mut self, _delta: f64) {
+    fn process(&mut self, delta: f64) {
+        if let Err(error) = self.advance_scroll_stepper(delta) {
+            crate::frame_error::report_once(&format!("UI scroll repeat: {error}"));
+        }
         let (Some(model), Some(projection)) = (self.model.as_mut(), self.projection.as_mut())
         else {
             return;
@@ -492,6 +505,13 @@ impl ICanvasLayer for RegistryUi {
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
         if let Some(projection) = self.projection.as_mut() {
             projection.handle_pointer(&event);
+        }
+        // A global release also ends repeat when the screen was hidden while held.
+        if let Ok(button) = event.try_cast::<godot::classes::InputEventMouseButton>() {
+            if button.get_button_index() == godot::global::MouseButton::LEFT && !button.is_pressed()
+            {
+                self.scroll_stepper = None;
+            }
         }
     }
 
@@ -511,6 +531,7 @@ impl ICanvasLayer for RegistryUi {
             loading_displayed_percent: 0.0,
             ui_parent: false,
             ui_scale: None,
+            scroll_stepper: None,
         }
     }
 }
@@ -1978,7 +1999,25 @@ impl RegistryUi {
         Ok(true)
     }
 
+    fn release_search_clear_focus(&mut self, event: &UiInput) {
+        use game_engine_ui_model::bag_frame_component::{ACTION_SEARCH_CLEAR, SEARCH_BOX};
+        let (UiInput::Click(id) | UiInput::FrameClick { id, .. }) = event else {
+            return;
+        };
+        let Some(model) = self.model.as_ref() else {
+            return;
+        };
+        let action = model
+            .registry
+            .get(*id)
+            .and_then(|frame| frame.onclick.as_deref());
+        if action == Some(ACTION_SEARCH_CLEAR) {
+            self.release_focus_named(SEARCH_BOX);
+        }
+    }
+
     fn dispatch_ui_input(&mut self, arrival: u64, event: UiInput) -> Result<(), String> {
+        self.release_search_clear_focus(&event);
         if self.toplevel && matches!(event, UiInput::PointerDown(_)) {
             self.raise_request = Some(arrival);
         }

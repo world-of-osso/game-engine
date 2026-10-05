@@ -37,6 +37,8 @@ pub struct ImagePart {
     pub rotation: f32,
     /// `BlendMode::Additive` textures add to what is beneath them.
     pub additive: bool,
+    /// Retail MinimalScrollBar disabled-arrow art loses texture saturation, not brightness.
+    pub desaturated: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -432,6 +434,7 @@ fn solid(rect: [f32; 4], color: [f32; 4]) -> ImagePart {
         overlay: false,
         rotation: 0.0,
         additive: false,
+        desaturated: false,
     }
 }
 
@@ -444,6 +447,7 @@ fn textured(rect: [f32; 4], source: TextureSource, crop: Crop, color: [f32; 4]) 
         overlay: false,
         rotation: 0.0,
         additive: false,
+        desaturated: false,
     }
 }
 

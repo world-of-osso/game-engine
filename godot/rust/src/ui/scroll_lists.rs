@@ -16,7 +16,9 @@ use game_engine_ui_model::quest_frame_component::{QUEST_SCROLL_FRAMES, SCROLL_PA
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
 use godot::prelude::*;
+use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::scroll_list::{thumb_name, track_name};
 
 use super::{RegistryModel, RegistryUi};
@@ -99,6 +101,9 @@ pub(super) fn press_thumb(registry: &mut FrameRegistry, hit: u64, y: f32) -> boo
     let Some(list) = list_containing(registry, hit) else {
         return false;
     };
+    if registry.get_by_name(&track_name(&list)) == Some(hit) {
+        return page_track(registry, &list, y);
+    }
     if registry.get_by_name(&thumb_name(&list)) != Some(hit) {
         return false;
     }
@@ -111,6 +116,83 @@ pub(super) fn press_thumb(registry: &mut FrameRegistry, hit: u64, y: f32) -> boo
     };
     registry.scroll_lists.set_drag(&list, Some(y - top));
     true
+}
+
+/// Retail ScrollBar.lua:122-132 pages .95 of the visible extent, not the track height.
+fn page_track(registry: &mut FrameRegistry, list: &str, y: f32) -> bool {
+    let Some(thumb) = registry
+        .get_by_name(&thumb_name(list))
+        .and_then(|id| registry.get(id))
+        .and_then(|frame| frame.layout_rect.as_ref())
+    else {
+        return false;
+    };
+    let direction = if y < thumb.y {
+        -1
+    } else if y > thumb.y + thumb.height {
+        1
+    } else {
+        return true;
+    };
+    let visible = registry
+        .scroll_lists
+        .get(list)
+        .unwrap()
+        .geometry
+        .visible_rows;
+    let page = (visible as f32 * 0.95).round() as isize;
+    registry.scroll_lists.scroll_by(list, direction * page);
+    true
+}
+
+/// Retail ScrollBar.lua:307-340, ScrollBar.xml:16-17: one immediate step, then a
+/// strict >0.5s delay and >0.1s intervals. Leaving pauses elapsed time; no catch-up steps.
+pub(super) struct StepperHold {
+    name: String,
+    elapsed: f64,
+    delay: f64,
+    over: bool,
+}
+
+impl StepperHold {
+    fn press(model: &mut RegistryModel, hit: u64) -> (bool, Option<Self>) {
+        if !press_stepper(model, hit) {
+            return (false, None);
+        }
+        let frame = model.registry.get(hit).unwrap();
+        let disabled = matches!(&frame.widget_data,
+            Some(WidgetData::Button(button)) if button.state == ButtonState::Disabled);
+        if disabled {
+            return (true, None);
+        }
+        let held = Self {
+            name: frame.name.clone().unwrap(),
+            elapsed: 0.0,
+            delay: 0.5,
+            over: true,
+        };
+        (true, Some(held))
+    }
+
+    fn advance(&mut self, model: &mut RegistryModel, delta: f64) -> bool {
+        let Some(hit) = model.registry.get_by_name(&self.name) else {
+            return false;
+        };
+        let frame = model.registry.get(hit).unwrap();
+        if !self.over || !frame.visible {
+            return false;
+        }
+        self.elapsed += delta;
+        if self.elapsed <= self.delay {
+            return false;
+        }
+        self.elapsed = 0.0;
+        self.delay = 0.1;
+        let list = list_containing(&model.registry, hit).unwrap();
+        let before = model.registry.scroll_lists.get(&list).unwrap().first_row;
+        press_stepper(model, hit);
+        model.registry.scroll_lists.get(&list).unwrap().first_row != before
+    }
 }
 
 /// Move grabbed thumbs to UI-unit height `y`; returns whether a thumb is grabbed.
@@ -154,6 +236,17 @@ pub(super) fn release_thumbs(registry: &mut FrameRegistry) -> bool {
 }
 
 impl RegistryUi {
+    pub(super) fn advance_scroll_stepper(&mut self, delta: f64) -> Result<(), String> {
+        let changed = match (self.model.as_mut(), self.scroll_stepper.as_mut()) {
+            (Some(model), Some(held)) => held.advance(model, delta),
+            _ => false,
+        };
+        if changed {
+            self.sync_model()?;
+        }
+        Ok(())
+    }
+
     /// Scroll-list wheel and thumb input; returns whether the event was taken.
     pub(crate) fn scroll_list_input(&mut self, event: &Gd<InputEvent>) -> Result<bool, String> {
         let taken = self.apply_scroll_list_input(event);
@@ -165,6 +258,10 @@ impl RegistryUi {
 
     fn apply_scroll_list_input(&mut self, event: &Gd<InputEvent>) -> bool {
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
+            let hit = self.pointer_frame_at(motion.get_position());
+            if let (Some(model), Some(held)) = (self.model.as_ref(), self.scroll_stepper.as_mut()) {
+                held.over = hit == model.registry.get_by_name(&held.name);
+            }
             let Some(model) = self.model.as_mut() else {
                 return false;
             };
@@ -191,9 +288,14 @@ impl RegistryUi {
                 true
             }
             MouseButton::LEFT if button.is_pressed() => hit.is_some_and(|hit| {
-                press_stepper(model, hit) || press_thumb(&mut model.registry, hit, y)
+                let (taken, held) = StepperHold::press(model, hit);
+                self.scroll_stepper = held;
+                taken || press_thumb(&mut model.registry, hit, y)
             }),
-            MouseButton::LEFT => release_thumbs(&mut model.registry),
+            MouseButton::LEFT => {
+                let held = self.scroll_stepper.take().is_some();
+                release_thumbs(&mut model.registry) || held
+            }
             _ => false,
         }
     }

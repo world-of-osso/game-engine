@@ -110,7 +110,7 @@ impl MinimalScrollBar<'_> {
                 left: {self.left},
                 top: {self.top},
                 hidden: {hide_bar},
-                {stepper(back_stepper_name(list), "minimal-scrollbar-arrow-top", stepper_left, 0.0)}
+                {stepper(back_stepper_name(list), "minimal-scrollbar-arrow-top", (stepper_left, 0.0), self.offset == 0)}
                 r#frame {
                     name: DynName(track_name(list)),
                     width: BAR_W,
@@ -137,16 +137,18 @@ impl MinimalScrollBar<'_> {
                         {art("minimal-scrollbar-small-thumb-bottom", thumb_height - CAP, CAP, None)}
                     }
                 }
-                {stepper(forward_stepper_name(list), "minimal-scrollbar-arrow-bottom", stepper_left, self.height - STEPPER_H)}
+                {stepper(forward_stepper_name(list), "minimal-scrollbar-arrow-bottom", (stepper_left, self.height - STEPPER_H), self.offset >= self.geometry.max_first_row())}
             }
         }
     }
 }
 
 /// A Back or Forward stepper: its arrow art, pressed by the scroll-list input.
-fn stepper(name: String, atlas: &str, left: f32, top: f32) -> Element {
+// Retail ScrollBar.lua:237-239 disables the ends; MinimalScrollBar.lua:3-25 keeps
+// normal art and desaturates disabled steppers (ButtonStateBehavior.lua:111-127).
+fn stepper(name: String, atlas: &str, (left, top): (f32, f32), disabled: bool) -> Element {
     rsx! {
-        r#frame {
+        button {
             name: DynName(name),
             width: STEPPER_W,
             height: STEPPER_H,
@@ -154,6 +156,8 @@ fn stepper(name: String, atlas: &str, left: f32, top: f32) -> Element {
             left,
             top,
             mouse_enabled: true,
+            disabled,
+            button_default_skin: false,
             texture {
                 width: STEPPER_W,
                 height: STEPPER_H,
