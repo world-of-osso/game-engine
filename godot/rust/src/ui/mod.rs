@@ -4,6 +4,7 @@ pub(crate) mod input_queue;
 mod layout;
 mod options_keybindings;
 mod parts;
+mod party_preview;
 mod projection;
 mod scroll_lists;
 pub(crate) mod ui_parent;
@@ -1876,6 +1877,36 @@ impl RegistryUi {
                 .unwrap_or_default()
                 .as_str(),
         )
+    }
+
+    /// Offline authored party preview for capture_ui_screen.gd; no group/network state.
+    #[func]
+    pub fn show_portrait_party(&mut self) -> GString {
+        use game_engine_ui_model::portrait_party_frame_component::portrait_party_frame_screen;
+        if self.model.is_some() {
+            return "RegistryUi already has a screen".into();
+        }
+        let Some(viewport) = self.base().get_viewport() else {
+            return "RegistryUi has no viewport".into();
+        };
+        let size = viewport.get_visible_rect().size;
+        if let Err(error) = party_preview::load_data_root() {
+            return error.into();
+        }
+        let mut shared = SharedContext::new();
+        shared.insert(party_preview::state());
+        let mut model = RegistryModel {
+            screen: Screen::new(portrait_party_frame_screen),
+            shared,
+            registry: FrameRegistry::new(size.x, size.y),
+            icon_masks: Default::default(),
+            postsetup: ScreenPostsetup::None,
+        };
+        model.sync();
+        self.initialize_model(model, size.x, size.y)
+            .err()
+            .unwrap_or_default()
+            .into()
     }
 
     #[func]
