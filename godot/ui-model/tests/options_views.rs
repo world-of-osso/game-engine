@@ -421,3 +421,47 @@ fn options_view_is_titled_options_and_main_menu_game_menu() {
     screen.sync(&shared, &mut registry);
     assert_eq!(label(&registry, "GameMenuTitleLabel"), "Game Menu");
 }
+
+/// Options > Nameplates has a "Show Health Value" row, off by default: only its On side is
+/// clickable; with the value shown only its Off side is.
+#[test]
+fn nameplates_page_offers_show_health_value_off_by_default() {
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = SharedContext::new();
+    let mut screen = Screen::new(game_menu_screen);
+    let mut view = model();
+    view.options.category = OptionsCategory::Nameplates;
+    shared.insert(view.clone());
+    screen.sync(&shared, &mut registry);
+    assert_eq!(
+        label(&registry, "ToggleLabelnameplate_show_health_value"),
+        "Show Health Value"
+    );
+    assert!(
+        registry
+            .get_by_name("ToggleSwitchnameplate_show_health_valueLeftHit")
+            .is_none()
+    );
+    assert_eq!(
+        click(
+            &mut registry,
+            "ToggleSwitchnameplate_show_health_valueRightHit"
+        ),
+        "options_toggle:nameplate_show_health_value"
+    );
+    view.options.hud.nameplate_style.show_health_value = true;
+    shared.insert(view);
+    screen.sync(&shared, &mut registry);
+    assert!(
+        registry
+            .get_by_name("ToggleSwitchnameplate_show_health_valueRightHit")
+            .is_none()
+    );
+    assert_eq!(
+        click(
+            &mut registry,
+            "ToggleSwitchnameplate_show_health_valueLeftHit"
+        ),
+        "options_toggle:nameplate_show_health_value"
+    );
+}
