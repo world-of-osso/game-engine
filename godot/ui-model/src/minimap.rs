@@ -248,6 +248,12 @@ pub fn calendar_art(day: u32) -> Option<SheetArt> {
 /// CASC on demand.
 pub fn minimap_texture_fdids(state: &MinimapClusterState) -> Vec<u32> {
     let mut fdids = vec![FRAME.fdid, EDGE_LEFT.fdid, ARROW_FDID];
+    let search = ui_toolkit::atlas::get_region(crate::launcher::SEARCH_ICON_ATLAS)
+        .expect("launcher magnifier atlas exists in local DB2");
+    let ui_toolkit::atlas::AtlasSource::FileDataId(search_fdid) = search.source else {
+        panic!("launcher magnifier must resolve to a FileDataID");
+    };
+    fdids.push(search_fdid);
     fdids.extend(metal_sheet_fdids(MetalTopLeft::Plain));
     fdids.push(BORDER_FDID);
     if !state.blips.is_empty() {
