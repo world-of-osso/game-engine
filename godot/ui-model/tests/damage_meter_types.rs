@@ -31,7 +31,11 @@ fn unit(id: u64) -> MeterUnit {
     }
 }
 
-/// A combat log line arriving at client time `time`.
+/// Spell ids of the test lines: the line's spell and its extra spell.
+const SPELL: u32 = 1;
+const EXTRA_SPELL: u32 = 2;
+
+/// A combat log line arriving at client time `time`, logged by the server at the same time.
 fn receive(
     window: &mut DamageMeterWindow,
     time: f64,
@@ -43,7 +47,7 @@ fn receive(
     let line = CombatLogEvent {
         source: Some(source),
         target: Some(target),
-        spell_id: None,
+        spell_id: (spell != "Melee").then_some(SPELL),
         school_mask: 1,
         amount,
         overflow,
@@ -53,10 +57,28 @@ fn receive(
         crit: false,
         glancing: false,
         periodic: false,
+        extra_spell_id: None,
+        timestamp_unix_ms: (time * 1000.0) as u64,
         kind,
     };
-    let event = MeterEvent::from_combat_log(time, &line, unit(source), unit(target), spell.into());
-    if let Some(event) = event {
+    receive_line(window, time, &line, spell, "");
+}
+
+/// `line` arriving at client time `time`, its spell named `spell`, its extra spell `extra`.
+fn receive_line(
+    window: &mut DamageMeterWindow,
+    time: f64,
+    line: &CombatLogEvent,
+    spell: &str,
+    extra: &str,
+) {
+    let name = |id| match id {
+        SPELL => spell.to_string(),
+        EXTRA_SPELL => extra.to_string(),
+        other => panic!("no spell {other}"),
+    };
+    let (source, target) = (unit(line.source.unwrap()), unit(line.target.unwrap()));
+    if let Some(event) = MeterEvent::from_combat_log(time, line, source, target, name) {
         window.log.push(event);
     }
 }
@@ -435,4 +457,155 @@ fn the_type_menu_switches_the_rows_and_types_without_lines_are_empty() {
     assert_eq!(shown(&window), pairs(&[("1. Shot", "300 (30)")]));
     assert!(window.click("damage_meter:row:0").is_err());
     assert!(window.click("damage_meter:threat").is_err());
+}
+
+/// An interrupt or dispel line naming its extra spell (`SPELL_INTERRUPT` / `SPELL_DISPEL`
+/// `extraSpellId`), arriving and logged at `time`.
+fn receive_extra(
+    window: &mut DamageMeterWindow,
+    time: f64,
+    kind: CombatLogKind,
+    (source, target): (u64, u64),
+    (spell, extra): (&str, &str),
+) {
+    let line = CombatLogEvent {
+        source: Some(source),
+        target: Some(target),
+        spell_id: Some(SPELL),
+        school_mask: 1,
+        amount: 0,
+        overflow: 0,
+        absorbed: 0,
+        resisted: 0,
+        blocked: 0,
+        crit: false,
+        glancing: false,
+        periodic: false,
+        extra_spell_id: Some(EXTRA_SPELL),
+        timestamp_unix_ms: (time * 1000.0) as u64,
+        kind,
+    };
+    receive_line(window, time, &line, spell, extra);
+}
+
+#[test]
+fn an_interrupts_row_opens_its_breakdown_by_interrupted_spell() {
+    let mut window = DamageMeterWindow::default();
+    snapshot(&mut window, 50.0, session(1, 0.0, true), 0.0);
+    let interrupt = CombatLogKind::Interrupt;
+    let kicks = [
+        (51.0, (SHOT, GEOMANCER), ("Rebuke", "Fireball")),
+        (52.0, (SHOT, GEOMANCER), ("Rebuke", "Frost Nova")),
+        (53.0, (SHOT, GEOMANCER), ("Rebuke", "Fireball")),
+        (54.0, (GEOMANCER, SHOT), ("Counterspell", "Flash of Light")),
+        (55.0, (PRIEST, GEOMANCER), ("Silence", "Fireball")),
+    ];
+    for (time, units, spells) in kicks {
+        receive_extra(&mut window, time, interrupt, units, spells);
+    }
+    snapshot(&mut window, 60.0, session(1, 10.0, false), 10.0);
+    window.click(MeterType::Interrupts.action()).unwrap();
+    assert_eq!(
+        shown(&window),
+        pairs(&[("1. Shot", "3"), ("2. Fbpriest", "1")])
+    );
+    assert!(window.view(false, 0.0).rows_clickable());
+
+    // Shot's row: the spells Shot interrupted, most first, in Shot's class colour.
+    window.click("damage_meter:row:0").unwrap();
+    let view = window.view(false, 0.0);
+    assert!(view.breakdown_open && view.rows_clickable());
+    assert_eq!(view.type_label(), "Interrupts");
+    assert_eq!(
+        shown(&window),
+        pairs(&[("Fireball", "2"), ("Frost Nova", "1")])
+    );
+    let rows = window.rows();
+    assert_eq!((rows[0].fraction, rows[1].fraction), (1.0, 0.5));
+    assert_eq!(rows[0].color, [0.96, 0.55, 0.73]);
+
+    // A breakdown row closes it; Fbpriest's breakdown is its own.
+    window.click("damage_meter:row:0").unwrap();
+    window.click("damage_meter:row:1").unwrap();
+    assert_eq!(shown(&window), pairs(&[("Fireball", "1")]));
+    // Choosing a type leaves it.
+    window.click(MeterType::Interrupts.action()).unwrap();
+    assert_eq!(shown(&window).len(), 2);
+}
+
+#[test]
+fn a_dispels_breakdown_lists_the_removed_auras() {
+    let mut window = DamageMeterWindow::default();
+    snapshot(&mut window, 50.0, session(1, 0.0, true), 0.0);
+    let dispel = CombatLogKind::Dispel;
+    receive_extra(
+        &mut window,
+        51.0,
+        dispel,
+        (SHOT, SHOT),
+        ("Cleanse", "Poison"),
+    );
+    receive_extra(
+        &mut window,
+        52.0,
+        dispel,
+        (SHOT, PRIEST),
+        ("Cleanse", "Slow"),
+    );
+    receive_extra(
+        &mut window,
+        53.0,
+        dispel,
+        (SHOT, PRIEST),
+        ("Cleanse", "Slow"),
+    );
+    window.click(MeterType::Dispels.action()).unwrap();
+    window.click("damage_meter:row:0").unwrap();
+    assert_eq!(shown(&window), pairs(&[("Slow", "2"), ("Poison", "1")]));
+}
+
+/// The recap's seconds come from the server's timestamps: lines that reach the client in
+/// one burst keep the spacing the server logged them with.
+#[test]
+fn a_death_recap_times_lines_by_the_server_timestamp() {
+    let mut window = DamageMeterWindow {
+        session: MeterSessionType::Current,
+        ..Default::default()
+    };
+    snapshot(&mut window, 100.0, session(1, 0.0, true), 0.0);
+    let line = |kind, amount, logged_at: f64| CombatLogEvent {
+        source: Some(GEOMANCER),
+        target: Some(SHOT),
+        spell_id: Some(SPELL),
+        school_mask: 4,
+        amount,
+        overflow: 0,
+        absorbed: 0,
+        resisted: 0,
+        blocked: 0,
+        crit: false,
+        glancing: false,
+        periodic: false,
+        extra_spell_id: None,
+        timestamp_unix_ms: (logged_at * 1000.0) as u64,
+        kind,
+    };
+    // Logged 3.5 s and 1.2 s before the death; all three arrive at client time 105.
+    let lines = [
+        line(CombatLogKind::Damage, 400, 1_791_100_796.5),
+        line(CombatLogKind::Damage, 600, 1_791_100_798.8),
+        line(CombatLogKind::Death, 0, 1_791_100_800.0),
+    ];
+    for line in &lines {
+        receive_line(&mut window, 105.0, line, "Fireball", "");
+    }
+    window.click(MeterType::Deaths.action()).unwrap();
+    window.click("damage_meter:row:0").unwrap();
+    assert_eq!(
+        shown(&window),
+        pairs(&[
+            ("Fireball by Kobold Geomancer", "-600 (1.2s)"),
+            ("Fireball by Kobold Geomancer", "-400 (3.5s)"),
+        ])
+    );
 }
