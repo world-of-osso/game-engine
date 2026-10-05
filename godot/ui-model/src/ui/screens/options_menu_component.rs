@@ -14,7 +14,8 @@ use game_engine_core::ui_layout_data::{LayoutSettings, LayoutSkin, SYSTEM_PRESET
 
 #[path = "options_menu_scroll.rs"]
 mod scroll;
-pub use scroll::{OPTIONS_CONTENT_SCROLL, OptionsPage, back_stepper_name, forward_stepper_name};
+pub use crate::minimal_scroll_bar::{back_stepper_name, forward_stepper_name};
+pub use scroll::{OPTIONS_CONTENT_SCROLL, OptionsPage};
 
 struct DynName(String);
 

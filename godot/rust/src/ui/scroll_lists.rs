@@ -1,7 +1,8 @@
 //! Mouse input for the ui-toolkit scroll lists a canvas draws (`FrameRegistry::scroll_lists`):
 //! the Godot side of the toolkit's Bevy `scroll_input.rs`. The wheel over a list scrolls it
 //! (`ScrollControllerMixin:OnMouseWheel`, `Blizzard_SharedXML/Shared/Scroll/ScrollController.lua:93-99`):
-//! a row per notch for a row list, two pan extents of pixels for the Options content. A press
+//! a row per notch for a row list, two pan extents of pixels for the Options content, one
+//! 30-pixel pan extent for a QuestFrame scroll frame (`ScrollUtil.lua:235-238,260-262`). A press
 //! on a Back / Forward stepper scrolls one pan extent (`ScrollBarMixin:OnStepperMouseDown`,
 //! `ScrollBar.lua:307-311`); a press on its thumb drags it until release. A changed position
 //! rebuilds the Screens that read it.
@@ -11,6 +12,7 @@ use game_engine_ui_model::options_menu_component::{
     OPTIONS_CONTENT_SCROLL, back_stepper_name, forward_stepper_name, options_pan_extent,
     options_wheel_extent,
 };
+use game_engine_ui_model::quest_frame_component::{QUEST_SCROLL_FRAMES, SCROLL_PAN_EXTENT};
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
 use godot::prelude::*;
@@ -34,6 +36,9 @@ pub(super) fn list_containing(registry: &FrameRegistry, mut id: u64) -> Option<S
 
 /// How far `list` scrolls per wheel notch and per stepper press, in its scroll units.
 fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
+    if QUEST_SCROLL_FRAMES.contains(&list) {
+        return (SCROLL_PAN_EXTENT, SCROLL_PAN_EXTENT);
+    }
     let options = (list == OPTIONS_CONTENT_SCROLL)
         .then(|| model.shared.get::<GameMenuViewModel>())
         .flatten();
@@ -185,3 +190,7 @@ impl RegistryUi {
 #[cfg(test)]
 #[path = "scroll_lists_tests.rs"]
 pub(super) mod tests;
+
+#[cfg(test)]
+#[path = "quest_scroll_tests.rs"]
+mod quest_tests;

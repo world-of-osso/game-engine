@@ -33,7 +33,7 @@ use game_engine_ui_model::quest_view::{
     QuestDetailsCache, frame_reward_item, log_reward_item, quest_frame_state, quest_log_state,
 };
 use game_engine_ui_model::window_manager::{WindowId, WindowManager};
-use godot::classes::Node3D;
+use godot::classes::{InputEvent, Node3D};
 use godot::prelude::*;
 use shared::components::{Npc, Player};
 use shared::protocol::{InteractionKind, NpcFlags, NpcRole};
@@ -293,6 +293,31 @@ impl GameClient {
         self.quests.windows.toggle(WindowId::QuestLog);
     }
 
+    /// Wheel, stepper and thumb input of the QuestFrame scroll frames; returns whether the
+    /// event was taken.
+    pub(super) fn quest_frame_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+        if self.game_menu_ui.is_some() {
+            return false;
+        }
+        let Some(ui) = self.quests.frame_ui.as_mut() else {
+            return false;
+        };
+        let taken = ui.bind_mut().scroll_list_input(event);
+        match taken {
+            Ok(false) => false,
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                true
+            }
+            Err(error) => {
+                godot_error!("QuestFrame scroll: {error}");
+                true
+            }
+        }
+    }
+
     fn poll_quest_actions(&mut self) -> Result<(), FrameError> {
         let mut actions = Vec::new();
         for ui in [&mut self.quests.frame_ui, &mut self.quests.log_ui]
@@ -463,6 +488,9 @@ impl GameClient {
         let frame_open = frame.visible;
         let log_open = log.visible;
         self.cache_quest_textures(frame.clone(), log.clone());
+        if let Some(ui) = self.quests.frame_ui.as_mut() {
+            ui.bind_mut().reset_quest_scroll_for(&frame);
+        }
         let scale = self.effective_ui_scale();
         let positions = self.quest_window_positions();
         sync_window(
