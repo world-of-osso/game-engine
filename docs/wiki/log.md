@@ -61,6 +61,10 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 
 [[portrait-party-frames]] adds source-cited Retail/Camelot member/pet geometry and distinguishes both verified c60 mappings: conditional CharacterFrameOnParty element 33561 → set-1 member 38477 → atlas 3960 shares Camelot's player sheet; ordinary Party element 21081 → member 39017 → atlas 4019 uses uipartyframec60. Static state-only component, behavioral tests, registry-golden capture and offline preview; no roster/portrait-runtime/settings/live acceptance. Compact remains default. Targeted registry/source tests pass 12/12 and extension builds, but owned native captures expose missing Retail sheet 4681512 and a mismatched 69913-vs-69933 base sheet at shared FDID 4631591. Static raster acceptance is blocked; do not wire as complete. Source-record equality is not physical-texture proof.
 
+## 2026-10-04 — Forever Zephras lighting exports and local-archive blockers
+
+[[retail-lighting#Forever Zephras lighting (2026-10-04)]] records five extracted lighting tables, six map-2991 Light rows, explicit encrypted drops and recursive sky asset closure. Importer 14/14 passed; LightData FDID 1375580 and sky primary skin 7345742 are unavailable locally. Production-lighting fixture removes neutral lighting; native catalog/build proof remains pending behind the shared desktop build lock. No production-lit screenshot or visual acceptance claimed. [Contract](../specs/zephras-world-map.md#lighting).
+
 ## 2026-10-04 — Skyborne overlay and bounded consumer proof
 
 [[forever-data]] records recovered Forever 70205 sources, encrypted drops, raw animation/bone validation and scoped collection queries. Updated [[character-creation]] and [contract](../specs/character-creation.md): 17 distinct passing CPU/UI/layout tests in the supplied ledger; native preview and create/world acceptance unchecked. Replaced historical missing-root/Bevy-only status. Desktop disk/Syncthing blocker and 21-file subset are explicitly user-reported, not ledger-verified. Documentation-only audit; no builds/tests rerun.

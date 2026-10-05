@@ -17,6 +17,13 @@ WoW Forever map 2991 must load through the Godot world's terrain and object load
 - [ ] Provision the whole reachable closure from local `wow_classic_beta` CASC into the exact FDID cache destinations Godot consumes; record file counts, bytes and every failure. Never use CDN.
 - [x] An offline Godot fixture loads a tile-center position, observes terrain/doodad/WMO nodes, and captures rendered pixels. Asset failures must remain reported, not hidden by fixture success.
 
+### Lighting
+
+- [x] Import Light, LightData, LightParams, LightSkybox, ZoneLight and ZoneLightPoint from build 1.60.1.70205 using hash-matched DBD layouts; preserve retail CSV headers and report encrypted drops and local archive failures.
+- [x] Add authored sky models reachable from Forever-only maps' LightParams slots to the importer's recursive skin/texture asset closure.
+- [ ] Select Forever lighting only for maps absent from retail, without allowing colliding LightParams IDs to modify retail samples. Missing Forever inputs must fail explicitly rather than sample retail defaults.
+- [ ] Sample actual Zephras position/time through native production lighting and capture inspected rendered pixels without fixture-neutral lighting.
+
 ## How it works
 
 - [Terrain: Forever Zephras](../wiki/systems/terrain.md#forever-zephras-map-2991).
@@ -44,6 +51,5 @@ WoW Forever map 2991 must load through the Godot world's terrain and object load
 
 ## Out of scope
 
-- Forever lighting/sky tables: separate work; fixture uses an explicit neutral directional/ambient environment.
 - Server spawn/gameplay, ground/LOS and playable starting-zone content: not client map-rendering work.
 - obj1, per-tile LOD, maptexture/mapnormal/minimap assets: not consumed by these world terrain/object loaders.

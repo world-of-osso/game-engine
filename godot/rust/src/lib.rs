@@ -656,32 +656,7 @@ impl GameClient {
     /// Offline fixture: run production lighting without an authenticated local player.
     #[func]
     fn preview_world_lighting(&mut self, position: Vector3, camera: Vector3) -> GString {
-        let result = (|| {
-            let catalog = self
-                .terrain
-                .map_wdt
-                .as_ref()
-                .ok_or("Preview lighting requires a loaded WDT")?
-                .lighting
-                .clone();
-            let map_id = self
-                .world_map_id
-                .ok_or("Preview lighting requires a map ID")?;
-            let mut parent = self.to_gd().upcast::<Node3D>();
-            let wmo_fog = self.world_objects.camera_fog(camera);
-            if let Some(light) = self.world_lighting.sync(
-                &mut parent,
-                &catalog,
-                map_id,
-                position,
-                self.world_minutes,
-                wmo_fog.as_ref(),
-            )? {
-                self.apply_world_lighting(light);
-            }
-            self.world_lighting.place_sky(camera, 0);
-            Ok::<(), String>(())
-        })();
+        let result = self.sync_preview_world_lighting(position, camera);
         match result {
             Ok(()) => GString::new(),
             Err(error) => GString::from(error.as_str()),
@@ -2124,6 +2099,37 @@ impl GameClient {
         )? {
             self.apply_world_lighting(light);
         }
+        Ok(())
+    }
+
+    fn sync_preview_world_lighting(
+        &mut self,
+        position: Vector3,
+        camera: Vector3,
+    ) -> Result<(), String> {
+        let catalog = self
+            .terrain
+            .map_wdt
+            .as_ref()
+            .ok_or("Preview lighting requires a loaded WDT")?
+            .lighting
+            .clone();
+        let map_id = self
+            .world_map_id
+            .ok_or("Preview lighting requires a map ID")?;
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        let wmo_fog = self.world_objects.camera_fog(camera);
+        if let Some(light) = self.world_lighting.sync(
+            &mut parent,
+            &catalog,
+            map_id,
+            position,
+            self.world_minutes,
+            wmo_fog.as_ref(),
+        )? {
+            self.apply_world_lighting(light);
+        }
+        self.world_lighting.place_sky(camera, 0);
         Ok(())
     }
 
