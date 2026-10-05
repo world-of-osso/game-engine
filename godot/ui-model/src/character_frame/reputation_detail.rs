@@ -6,8 +6,9 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use super::art::{WHITE, atlas, resolve_art, text, texture};
+use super::art::{WHITE, atlas, resolve_art, texture};
 use super::reputation::{ReputationRow, reputation_bar};
+use super::text;
 use crate::minimal_scroll_bar::{
     BAR_W, MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
 };
