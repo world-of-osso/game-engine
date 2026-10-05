@@ -12,6 +12,7 @@ const BOX: u64 = 517;
 
 fn stack(guid: u64, item_id: u32, count: u32) -> ItemStack {
     ItemStack {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid: guid,
         item_id,
         count,

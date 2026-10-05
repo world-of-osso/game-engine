@@ -21,6 +21,7 @@ fn contents(object: u64) -> GuildBankContents {
             remaining_withdrawals: Some(2),
             text: "Raid supplies".into(),
             slots: vec![Some(ItemStack {
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
                 item_guid: 71,
                 item_id: 2589,
                 count: 20,
@@ -86,6 +87,7 @@ fn item_money_requests_leave_inventory_and_guild_money_authoritative() {
             items: vec![BagSlotItem {
                 slot: 0,
                 item: ItemStack {
+                    definition_source: shared::item_data::ItemDefinitionSource::Retail,
                     item_guid: 91,
                     item_id: 2589,
                     count: 3,
@@ -241,6 +243,7 @@ fn authoritative_inventory_delta_and_tab_purchase_replace_only_server_state() {
         changes: vec![InventorySlotChange {
             location: ItemLocation::Bag { bag: 0, slot: 2 },
             item: Some(ItemStack {
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
                 item_guid: 81,
                 item_id: 2589,
                 count: 9,

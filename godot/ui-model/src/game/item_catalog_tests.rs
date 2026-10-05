@@ -18,6 +18,67 @@ fn table(name: &str, text: &str) -> CsvTable {
     CsvTable::parse(Path::new(name), text).unwrap()
 }
 
+#[test]
+fn collision_catalogs_preserve_source_and_never_borrow_missing_rows() {
+    use shared::item_data::ItemDefinitionSource::{Forever70205, Retail};
+    let mut retail = catalog();
+    let mut forever = catalog();
+    for (id, name, class, kind, icon, stackable) in [
+        (2947, "Small Throwing Knife", 2, 25, 135641, 200),
+        (2512, "Rough Arrow", 6, 24, 132382, 200),
+        (2101, "Light Quiver", 11, 27, 134409, 1),
+    ] {
+        retail.items.insert(
+            id,
+            ItemCatalogEntry {
+                name: format!("Retail {id}"),
+                class_id: 15,
+                icon_fdid: 134400,
+                stackable: 1,
+                ..Default::default()
+            },
+        );
+        forever.items.insert(
+            id,
+            ItemCatalogEntry {
+                name: name.into(),
+                class_id: class,
+                inventory_type: kind,
+                icon_fdid: icon,
+                stackable,
+                ..Default::default()
+            },
+        );
+    }
+    forever.items.remove(&2589);
+    let sources = SourceItemCatalogs::new(retail.clone(), Ok(forever));
+    assert_eq!(sources.catalog(Retail).unwrap(), &retail);
+    for (id, name, kind, stackable) in [
+        (2947, "Small Throwing Knife", 25, 200),
+        (2512, "Rough Arrow", 24, 200),
+        (2101, "Light Quiver", 27, 1),
+    ] {
+        let entry = sources.catalog(Forever70205).unwrap().get(id).unwrap();
+        assert_eq!(
+            (entry.name.as_str(), entry.inventory_type, entry.stackable),
+            (name, kind, stackable)
+        );
+        assert_ne!(
+            entry.icon_fdid,
+            sources.catalog(Retail).unwrap().icon_fdid(id).unwrap()
+        );
+    }
+    assert!(sources.catalog(Forever70205).unwrap().get(2589).is_none());
+    let missing = SourceItemCatalogs::new(retail, Err("Forever70205: missing Item.csv".into()));
+    assert!(
+        missing
+            .catalog(Forever70205)
+            .unwrap_err()
+            .contains("Forever70205")
+    );
+    assert!(missing.catalog(Retail).unwrap().get(2589).is_some());
+}
+
 fn catalog() -> ItemCatalog {
     let mut catalog = parse_item_catalog(&table("Item.csv", ITEM_CSV)).unwrap();
     apply_item_sparse(&mut catalog, &table("ItemSparse.csv", SPARSE_CSV)).unwrap();

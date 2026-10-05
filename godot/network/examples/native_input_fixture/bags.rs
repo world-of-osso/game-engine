@@ -28,6 +28,7 @@ fn send_inventory(app: &mut App) {
                         BagSlotItem {
                             slot: 1,
                             item: ItemStack {
+                                definition_source: shared::item_data::ItemDefinitionSource::Retail,
                                 item_guid: 9_180_001,
                                 item_id: 2589,
                                 count: 3,
@@ -38,6 +39,7 @@ fn send_inventory(app: &mut App) {
                         BagSlotItem {
                             slot: 2,
                             item: ItemStack {
+                                definition_source: shared::item_data::ItemDefinitionSource::Retail,
                                 item_guid: 9_180_002,
                                 item_id: 4865,
                                 count: 1,

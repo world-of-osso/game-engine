@@ -221,6 +221,7 @@ fn guard_virtual_items_resolve_their_sheath_position_from_item_db2() {
     assert_eq!(data().sheathe_type(5305), Some(3));
     assert_eq!(data().sheathe_type(1984), Some(4));
     let item = |slot, item_id, inventory_type| EquippedAppearanceEntry {
+        definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
         slot,
         item_id: Some(item_id),
         display_info_id: None,

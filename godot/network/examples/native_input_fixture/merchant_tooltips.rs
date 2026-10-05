@@ -280,6 +280,7 @@ fn send_vendor(app: &mut App, npc: u64) {
                 items: vec![BagSlotItem {
                     slot: 0,
                     item: ItemStack {
+                        definition_source: shared::item_data::ItemDefinitionSource::Retail,
                         item_guid: 9_190_4865,
                         item_id: 4865,
                         count: 2,

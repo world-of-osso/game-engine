@@ -25,6 +25,7 @@ fn stack(slot: u8) -> ItemStack {
         _ => panic!("unknown bags-actions fixture slot {slot}"),
     };
     ItemStack {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid: 9_170_000 + u64::from(slot),
         item_id,
         count: 1,
@@ -320,6 +321,7 @@ fn send_snapshot(app: &mut App) {
             items: vec![EquippedItem {
                 slot: EquipmentSlot::MainHand,
                 item: ItemStack {
+                    definition_source: shared::item_data::ItemDefinitionSource::Retail,
                     item_guid: STARTUP_SWORD_GUID,
                     ..stack(SWORD_SLOT)
                 },

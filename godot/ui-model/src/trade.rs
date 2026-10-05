@@ -280,6 +280,7 @@ fn item_view(item: &TradeItemSnapshot) -> TradeItemView {
     let slot = stack_slot(&ItemStack {
         item_guid: item.item_guid,
         item_id: item.item_id,
+        definition_source: item.definition_source,
         count: item.stack_count,
         durability: None,
         soulbound: false,

@@ -1,3 +1,4 @@
+use shared::item_data::ItemDefinitionSource;
 use std::collections::BTreeMap;
 
 use shared::protocol::{
@@ -88,7 +89,7 @@ impl ItemQuality {
 }
 
 /// Contents of a single inventory slot.
-#[derive(Clone, Debug, PartialEq, Default)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct InventorySlot {
     /// Icon texture FDID (0 = empty slot).
     pub icon_fdid: u32,
@@ -101,8 +102,25 @@ pub struct InventorySlot {
     /// Server item instance (0 = none); what selling sends.
     pub item_guid: u64,
     pub item_id: u32,
+    pub definition_source: ItemDefinitionSource,
     pub soulbound: bool,
     pub durability: Option<ItemDurability>,
+}
+
+impl Default for InventorySlot {
+    fn default() -> Self {
+        Self {
+            icon_fdid: 0,
+            count: 0,
+            quality: ItemQuality::default(),
+            name: String::new(),
+            item_guid: 0,
+            item_id: 0,
+            definition_source: ItemDefinitionSource::Retail,
+            soulbound: false,
+            durability: None,
+        }
+    }
 }
 
 impl InventorySlot {
@@ -118,6 +136,7 @@ pub fn stack_slot(stack: &ItemStack) -> InventorySlot {
         count: stack.count,
         item_guid: stack.item_guid,
         item_id: stack.item_id,
+        definition_source: stack.definition_source,
         soulbound: stack.soulbound,
         durability: stack.durability,
         ..Default::default()
@@ -127,9 +146,19 @@ pub fn stack_slot(stack: &ItemStack) -> InventorySlot {
 /// `slot` with its item's icon, quality and name. While the catalog loads, the item
 /// has `INV_Misc_QuestionMark` and no name until `InventoryState::refresh_item_data`.
 fn with_item_data(slot: InventorySlot) -> InventorySlot {
-    let entry = crate::item_catalog::item_catalog_entry(slot.item_id);
+    let catalog = crate::item_catalog::item_catalog_for(slot.definition_source);
+    with_catalog_item_data(slot, catalog)
+}
+
+pub fn with_catalog_item_data(
+    slot: InventorySlot,
+    catalog: Option<&crate::item_catalog::ItemCatalog>,
+) -> InventorySlot {
+    let entry = catalog.and_then(|catalog| catalog.get(slot.item_id));
     InventorySlot {
-        icon_fdid: crate::item_icons::item_icon_fdid(slot.item_id).unwrap_or(UNKNOWN_ICON_FDID),
+        icon_fdid: catalog
+            .and_then(|catalog| catalog.icon_fdid(slot.item_id))
+            .unwrap_or(UNKNOWN_ICON_FDID),
         quality: entry.map_or(ItemQuality::Common, |entry| {
             ItemQuality::from_id(entry.quality)
         }),

@@ -276,6 +276,7 @@ impl NpcGearData {
                     format!("display {display_id} Extra {extra}: unknown ItemSlot {item_slot}")
                 })?;
                 Ok(EquippedAppearanceEntry {
+                    definition_source: None,
                     slot,
                     item_id: None,
                     display_info_id: Some(display_info_id),

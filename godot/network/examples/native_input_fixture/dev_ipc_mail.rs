@@ -39,6 +39,7 @@ fn inbox(object: u64) -> MailboxContents {
             attachments: vec![MailAttachment {
                 slot: 0,
                 item: ItemStack {
+                    definition_source: shared::item_data::ItemDefinitionSource::Retail,
                     item_guid: 90,
                     item_id: 2589,
                     count: 20,

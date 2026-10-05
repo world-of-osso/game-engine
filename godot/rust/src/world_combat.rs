@@ -383,6 +383,7 @@ mod tests {
     fn main_hand(inventory_type: u8, item_id: u32) -> EquipmentAppearance {
         EquipmentAppearance {
             entries: vec![EquippedAppearanceEntry {
+                definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
                 slot: EquipmentVisualSlot::MainHand,
                 item_id: Some(item_id),
                 display_info_id: Some(1),

@@ -21,6 +21,7 @@ const LOOT_MONEY: u64 = 10_502;
 
 pub(super) fn candle_stack(count: u32) -> ItemStack {
     ItemStack {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid: 755_001,
         item_id: 755,
         count,

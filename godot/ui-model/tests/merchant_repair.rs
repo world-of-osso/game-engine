@@ -82,6 +82,7 @@ fn stack(
     durability: Option<ItemDurability>,
 ) -> ItemStack {
     ItemStack {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid,
         item_id,
         count,

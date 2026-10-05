@@ -606,6 +606,7 @@ mod tests {
 
     fn entry(slot: EquipmentVisualSlot, item_id: u32) -> EquippedAppearanceEntry {
         EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
             slot,
             item_id: Some(item_id),
             display_info_id: None,
@@ -638,6 +639,7 @@ mod tests {
             let display = data.resolve_item_display_id(item_id).unwrap();
             let actual = resolve(vec![item.clone()]);
             let expected = resolve(vec![EquippedAppearanceEntry {
+                definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
                 display_info_id: Some(display),
                 ..item
             }]);
@@ -849,6 +851,7 @@ mod tests {
     #[test]
     fn stockade_guard_armor_switches_glove_boot_and_tabard_geosets() {
         let display = |slot, id| EquippedAppearanceEntry {
+            definition_source: None,
             display_info_id: Some(id),
             item_id: None,
             ..entry(slot, 0)
@@ -997,6 +1000,7 @@ mod tests {
     #[test]
     fn shoulders_helm_and_cloak_keep_authored_decisions() {
         let shoulders = resolve(vec![EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
             display_info_id: Some(7004),
             ..entry(EquipmentVisualSlot::Shoulder, 1)
         }]);
@@ -1006,12 +1010,14 @@ mod tests {
             shoulders.runtime_models[1].fdid
         );
         let helm = resolve(vec![EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
             display_info_id: Some(1128),
             ..entry(EquipmentVisualSlot::Head, 1)
         }]);
         assert_eq!(helm.runtime_models.len(), 1);
         assert!(helm.hidden_character_geoset_groups.contains(&0));
         let cloak = resolve(vec![EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
             display_info_id: Some(192786),
             ..entry(EquipmentVisualSlot::Back, 188846)
         }]);
