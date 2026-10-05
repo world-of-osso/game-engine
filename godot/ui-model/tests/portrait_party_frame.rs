@@ -368,3 +368,104 @@ fn forever_mana_uses_the_player_fill_named_by_the_camelot_override() {
         .unwrap()
     );
 }
+
+fn source_row(file: &str, column: &str, value: &str) -> std::collections::HashMap<String, String> {
+    use game_engine_ui_model::csv_util::parse_csv_records;
+    let path = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+        .join("../../data/db2/1.60.1.69913")
+        .join(file);
+    let records = parse_csv_records(&std::fs::read_to_string(path).unwrap());
+    let headers = &records[0];
+    let index = headers.iter().position(|h| h == column).unwrap();
+    let row = records.iter().skip(1).find(|r| r[index] == value).unwrap();
+    headers.iter().cloned().zip(row.iter().cloned()).collect()
+}
+
+fn source_crop(name: &str) -> (u32, [f32; 4]) {
+    let member = source_row("UiTextureAtlasMember.csv", "CommittedName", name);
+    let atlas = source_row("UiTextureAtlas.csv", "ID", &member["UiTextureAtlasID"]);
+    let w = atlas["AtlasWidth"].parse::<f32>().unwrap();
+    let h = atlas["AtlasHeight"].parse::<f32>().unwrap();
+    let number = |key: &str| member[key].parse::<f32>().unwrap();
+    (
+        atlas["FileDataID"].parse().unwrap(),
+        [
+            number("CommittedLeft") / w,
+            number("CommittedRight") / w,
+            number("CommittedTop") / h,
+            number("CommittedBottom") / h,
+        ],
+    )
+}
+
+fn drawn_crop(registry: &FrameRegistry, name: &str, skin: ActiveSkin) -> (u32, [f32; 4]) {
+    use ui_toolkit::atlas::AtlasSource;
+    let Some(WidgetData::Texture(data)) = &frame(registry, name).widget_data else {
+        panic!("{name}");
+    };
+    let (fdid, bounds) = match &data.source {
+        TextureSource::FileDataId(fdid) => (*fdid, [0.0, 1.0, 0.0, 1.0]),
+        TextureSource::Atlas(atlas) => {
+            let region = resolve_region(atlas, skin).expect(atlas);
+            let AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("{atlas}");
+            };
+            (fdid, [region.left, region.right, region.top, region.bottom])
+        }
+        other => panic!("{other:?}"),
+    };
+    let [l, r, t, b] = bounds;
+    let [u0, u1, v0, v1] = data.tex_coords;
+    (
+        fdid,
+        [
+            l + (r - l) * u0,
+            l + (r - l) * u1,
+            t + (b - t) * v0,
+            t + (b - t) * v1,
+        ],
+    )
+}
+
+#[test]
+fn forever_character_bar_crops_match_the_lua_named_source_records() {
+    use shared::components::PowerType;
+    for (power_type, power_name) in [
+        (PowerType::Rage, "rage"),
+        (PowerType::Focus, "focus"),
+        (PowerType::Energy, "energy"),
+        (PowerType::RunicPower, "runicpower"),
+    ] {
+        let view = PortraitPartyMemberView {
+            power_type,
+            health_fraction: 1.0,
+            power_fraction: 1.0,
+            ..PortraitPartyMemberView::named("Source art")
+        };
+        let registry = render_state(
+            ActiveSkin::Forever,
+            PortraitPartyFrameState {
+                members: vec![view],
+                show_pets: false,
+            },
+        );
+        assert_eq!(
+            drawn_crop(
+                &registry,
+                "PartyMemberFrame1HealthBarFill",
+                ActiveSkin::Forever
+            ),
+            source_crop("ui-hud-unitframe-characterframeonparty-portraiton-bar-health")
+        );
+        assert_eq!(
+            drawn_crop(
+                &registry,
+                "PartyMemberFrame1ManaBarFill",
+                ActiveSkin::Forever
+            ),
+            source_crop(&format!(
+                "ui-hud-unitframe-characterframeonparty-portraiton-bar-{power_name}"
+            ))
+        );
+    }
+}
