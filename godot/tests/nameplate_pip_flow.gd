@@ -65,7 +65,14 @@ func run_test() -> void:
 		if material == null or material.blend_mode != CanvasItemMaterial.BLEND_MODE_ADD:
 			fail("Glow does not blend additively")
 			return
-		var pixels := spark.texture.get_image()
+		# AtlasTexture.get_image() cannot crop compressed BLP pixels; inspect the source.
+		var texture: Texture2D = spark.texture
+		while texture is AtlasTexture:
+			texture = (texture as AtlasTexture).atlas
+		var pixels := texture.get_image()
+		if pixels.is_compressed() and pixels.decompress() != OK:
+			fail("Cannot decompress glow source for pixel assertion")
+			return
 		var middle := Vector2i(pixels.get_width() / 2, pixels.get_height() / 2)
 		if pixels.get_pixelv(middle).a <= pixels.get_pixel(0, middle.y).a:
 			fail("Glow lacks bright center and soft falloff")
