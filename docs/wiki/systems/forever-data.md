@@ -26,6 +26,27 @@ The [Zephras inventory](terrain.md#forever-zephras-map-2991) retains 169 archive
 
 [Skyborne proof ledger](../../../target/skyborne-proof-ledger.md): targeted core 4/4 at `2d82554a`, retained real body-chain 1/1, UI roster 9/9 and creation/layout 3/3 (17 distinct passing tests). Earlier compile blockers and imported-catalog failure are historical, superseded by the scoped query fix. Native rendered preview, create/save/reload and world entry remain unproved. Zephras rendering evidence is separate and does not establish Skyborne character acceptance.
 
+## Zephras NPC displays — bounded, incomplete
+
+`creature_display_cache` imports Forever CDI rows absent from the base catalog using the Forever CMD table, independently of colliding ModelIDs. Both CSV pairs participate in cache freshness; removing the overlay removes its cached rows. Native `VisualCatalogs` still reads `data/cache/creature_display.sqlite`; it does not rebuild it. The importer adds selected Forever-only rows to that cache without replacing existing rows.
+
+[`forever_npc_displays.py`](../../../scripts/forever_npc_displays.py) follows display variation textures, readable Extra/option/geoset relationships, customization materials/collections and armor ItemDisplayInfo resources. The hash-matched table exports retain provenance and cleartext encrypted-ID metadata. Run the existing importer with `--display-ids <id-file> --spawn-report <server-report>`; grounded-spawn dependency closure precedes deferred displays. New ordinary coverage is published, but required profiles with missing metadata are withheld. Declared missing material mappings and cached bytes differing from the current CASC root are errors; failed assets are not copied into new companion aliases.
+
+Bounded proof at `31f44743` ([ledger](../../../target/zephras-npc-display-proof/ledger.md), [per-display audit](../../../target/zephras-npc-display-proof/per-display.tsv)):
+
+| Boundary | Evidence | Still missing |
+|---|---|---|
+| Display → model | 235/235 requested, 174/174 grounded; Ailee 136968 and Ventaari 139694 → 7478494 | Native visual acceptance |
+| Retail preservation | All 118,499 pre-existing display rows and all pre-existing appearance/choice/geoset/preferred-skin rows unchanged | General multi-product asset isolation |
+| Required profiles | 62 new ordinary coverage rows; 0 required profiles added | Extra FDID 1264997 and geoset FDID 1720141 unavailable; 162 displays blocked (125 grounded) |
+| Known assets | 3,354 current-root-matched/format-accepted, 32 mismatched cached files retained, 319 unavailable | Dependencies below unavailable/mismatched parents and unknown baked materials are not complete |
+
+The single full import at `189b32b1` exited 1 (`/tmp/zephras-npc-display-import.log`). Its earlier magic-only manifest counted 3,385 assets available and 320 failed; the separate current-policy audit above supersedes that availability count, not the import's provenance. The corrected importer was not rerun against unavailable archives. Twenty of 224 Forever-only displays have no known asset failure (15 of 171 grounded); this is not appearance readiness. All 235 requested IDs are readable CDI rows: none overlap the 17 encrypted IDs recorded in `npc-displays.json`/`provenance.json`.
+
+Native humanoid support remains **incomplete**, not merely unverified: `NpcGearData` and the outfit consumer are still Retail-only; 876 of 884 referenced armor display IDs are absent from Retail. Five referenced item texture resources are absent from the decoded Forever TextureFileData. Existing customization overlays remain Skyborne-scoped. No two-display native fixture or screenshot was attempted: rendering unprofiled bare bodies would bypass the required-appearance contract. Source recovery alone does not finish these remaining consumers.
+
+Verification: importer tests 38 passed/3 skipped; desktop core 2/2 (synthetic collision/cache-removal and real exports with every Retail cache row compared); Ruff and touched Rust formatting pass. The core test build retains the pre-existing unused `blend_pixel`/`scaled_section` warning. No line-coverage or rendered-pixel claim.
+
 ## Sources
 
 - [Recovery ledger](../../../target/skyborn-ledger.md) — root/archive recovery and grounded race/model identities.
