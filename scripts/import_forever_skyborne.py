@@ -457,6 +457,44 @@ def validate_magic(raw, extension, content_key=None):
         raise ValueError(f"expected {extension} magic, got {raw[:4]!r}")
 
 
+def stage_verified_probes(data, staging, fdids, connection):
+    """Reuse original local-CASC extraction bytes only under the current root key."""
+    provenance = {}
+    for fdid in sorted(set(fdids)):
+        probe = data / ("forever-" + BUILD) / "skyborne-probe" / f"{fdid}.dat"
+        if not probe.is_file():
+            continue
+        record = connection.execute(
+            "select content_key from resolution where fdid=?", (fdid,)
+        ).fetchone()
+        if not record:
+            raise ValueError(f"probe FDID {fdid}: missing current root content key")
+        expected = bytes(record[0]).hex()
+        raw = probe.read_bytes()
+        digest = hashlib.md5(raw).hexdigest()
+        if digest != expected:
+            raise ValueError(
+                f"probe FDID {fdid}: content key mismatch {digest} != {expected}"
+            )
+        existing = sorted(staging.glob(f"{fdid}.*"))
+        if len(existing) > 1:
+            raise ValueError(f"probe FDID {fdid}: multiple staging files {existing}")
+        if existing:
+            if hashlib.md5(existing[0].read_bytes()).hexdigest() != expected:
+                raise ValueError(f"staged FDID {fdid}: content key mismatch")
+        else:
+            shutil.copyfile(probe, staging / f"{fdid}.dat")
+        provenance[str(fdid)] = {
+            "source": str(probe),
+            "origin": "original local CASC extraction",
+            "content_key": expected,
+            "md5": digest,
+            "content_key_matches": True,
+            "bytes": len(raw),
+        }
+    return provenance
+
+
 def creation_scene_assets(tables):
     """Authored Skyborne creation models; the importer follows their asset closure."""
     return {
@@ -480,6 +518,7 @@ def import_assets(data, staging, tables):
         f"file:{CACHE / 'resolution.sqlite'}?mode=ro", uri=True
     )
     aliases = []
+    probe_sources = {}
     visited, failures, counts = set(), [], {"present": 0, "extracted": 0}
     while pending:
         batch = sorted(pending - visited)
@@ -492,6 +531,11 @@ def import_assets(data, staging, tables):
             / f"{fdid}.{ext}"
             for fdid, ext in batch
         }
+        probe_sources.update(
+            stage_verified_probes(
+                data, staging, [fdid for fdid, _ in batch], connection
+            )
+        )
         extract_missing(
             staging,
             [fdid for (fdid, ext), path in destinations.items() if not path.is_file()],
@@ -548,6 +592,7 @@ def import_assets(data, staging, tables):
                 "counts": counts,
                 "assets": sorted(f"{fdid}.{ext}" for fdid, ext in visited),
                 "failures": failures,
+                "verified_probe_sources": probe_sources,
             },
             indent=2,
         )
