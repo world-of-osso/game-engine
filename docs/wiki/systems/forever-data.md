@@ -10,6 +10,14 @@ Forever `1.60.1.70205` supplies Skyborne character data alongside Retail, not as
 
 At `2d82554a`, the collection query interprets only Forever skinned-model rows referenced by options on models 218/219. Eight unrelated rows have GeosetID values outside u16; raw source/cache values are retained, unrelated rows are not interpreted, and a selected invalid row still errors. This is not general support for those wide representations.
 
+## Authored Skyborne names
+
+Retail NameGen has no race 95/96 rows. Forever FDID 1122117, layout `584300FA`, decodes 2,741 rows with zero encrypted drops; its four raw race/body-type groups include surnames. Runtime `NameCatalog::load` requires the separate Forever CSV, merges only race 95/96 `NameType=0` candidates into Retail, and keeps existing 2–12 ASCII-letter validation/deduplication. Accepted unique counts are 51/47 for race 95 body types 0/1 and 51/41 for race 96. No new race alias or synthesized name is added; a missing/invalid source fails explicitly.
+
+The maintained importer registers NameGen as a full five-column table rather than borrowing Retail's four-column header. [`export_forever_names.py`](../../../scripts/export_forever_names.py) exports only this table, using shared WDC5/DBD decoding, and records source/DBD/CSV hashes, schema, build, table/layout hashes and dropped-row count in `NameGen.provenance.json`. It validates pinned DB2 SHA256 `3e9a6f3e8d0cd5d2976ee63f5b4fc10aa2960497efa3fe623249f533b34321ae` and DBD SHA256 `03b91a2a5d0d316f138c1aad9cf736256f5a84adcefba5cef4a851d838729393` before writing. [Provision command and test boundary](../../test-assets.md#authored-character-names); [contract](../../specs/character-creation.md#creation-flow).
+
+Development proof: names-only exporter tests 2/2 pass against pinned local bytes in temporary fixtures; pure runtime-catalog fixtures 3/3 pass after observed missing-group/missing-export RED. Desktop Docker connection and local Docker lease failures prevented helper compilation. Main still owns actual data provisioning, the full selectable-race invariant and native UI acceptance.
+
 ## Liquid exports
 
 The importer exports hash-matched LiquidType, LiquidMaterial, LiquidObject and LiquidTypeXTexture. Only Forever LiquidType expands to all38 DBD-named Float columns; Retail inputs/other headers stay unchanged. **Material130 drawn with LiquidType5 legacy inputs; PBR parity unsupported.** This is an explicitly borrowed fallback, not client-authored PBR data; source floats/foam textures remain intact. [Terrain: Forever liquid catalogs](terrain.md#forever-liquid-catalogs--bounded-cpu-proof) owns isolation/closure; [near-white water cause and captures](../investigations/northshire-pale-water.md#zephras-material130--explicit-borrowed-legacy-fallback) owns the rendering boundary.
