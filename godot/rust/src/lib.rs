@@ -246,7 +246,6 @@ pub struct GameClient {
     /// IPC `MapWaypointAdd`: the map waypoint (world x, z).
     map_waypoint: Option<(f32, f32)>,
     waypoint_path: waypoint_path::WaypointPath,
-    /// The newest received `CombatEvent`s (IPC `combat log|recap`).
     /// The last area (and its zone) found under the local player; kept where no tile
     /// answers, as the original's `CurrentZone`.
     current_zone: Option<(u32, u32)>,
