@@ -192,7 +192,7 @@ pub fn game_tooltip_screen(ctx: &SharedContext) -> Element {
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
     let mut elements = retail_tooltip(&view.main, "Tooltip", skin);
-    elements.extend(health_bar(&view.main, view.health));
+    elements.extend(health_bar(&view.main, view.health, skin));
     for (index, shopping) in view.shopping.iter().enumerate() {
         let prefix = format!("ShoppingTooltip{}", index + 1);
         elements.extend(compare_header(&prefix, shopping));
@@ -201,9 +201,12 @@ pub fn game_tooltip_screen(ctx: &SharedContext) -> Element {
     elements
 }
 
-fn health_bar(main: &TooltipPresentation, health: Option<f32>) -> Element {
+/// Forever hides the bar: FlareUI's `hideHealthBar = true` default (Core.lua:336) hides
+/// `GameTooltipStatusBar` on every unit and plain tooltip (`HideHealthBar`, Tooltips.lua:165-171,
+/// called from `OnTooltipSetUnit` :360 and `OnTooltipShow` :405).
+fn health_bar(main: &TooltipPresentation, health: Option<f32>, skin: ActiveSkin) -> Element {
     let fraction = health.unwrap_or(0.0).clamp(0.0, 1.0);
-    let hidden = !main.visible || health.is_none();
+    let hidden = !main.visible || health.is_none() || skin == ActiveSkin::Forever;
     let [main_w, main_h] = tooltip_size(main);
     let width = main_w - 2.0 * HEALTH_BAR_INSET;
     let (x, y) = (main.x + HEALTH_BAR_INSET, main.y + main_h + 1.0);
@@ -510,6 +513,35 @@ mod tests {
     }
 
     #[test]
+    fn forever_cursor_tooltips_stay_on_screen_at_the_right_edge() {
+        let tooltip = five_lines().for_skin(ActiveSkin::Forever);
+        let height = tooltip_size(&tooltip.content)[1];
+        let inside = |placed: &TooltipPresentation| {
+            placed.x >= 0.0
+                && placed.y >= 0.0
+                && placed.x + w() <= 1920.0
+                && placed.y + height <= 1080.0
+        };
+        // Bottom right: pushed left onto the screen edge, still ending on the cursor's row.
+        let bottom_right = TooltipScreen {
+            cursor: [1915.0, 1078.0],
+            ..SCREEN
+        };
+        let placed = place(tooltip.clone(), bottom_right);
+        assert!(inside(&placed));
+        assert_eq!(placed.x + w(), 1920.0);
+        assert_eq!(placed.y + height, 1078.0);
+        // Top right: a tooltip taller than the space above the cursor drops to the top edge.
+        let top_right = TooltipScreen {
+            cursor: [1915.0, 5.0],
+            ..SCREEN
+        };
+        let placed = place(tooltip, top_right);
+        assert!(inside(&placed));
+        assert_eq!((placed.x + w(), placed.y), (1920.0, 0.0));
+    }
+
+    #[test]
     fn tooltips_clamp_to_every_screen_edge() {
         let (x, y, _) = beside(1900.0, 10.0, OwnerSide::Right);
         assert_eq!((x, y), (1920.0 - w(), 0.0));
@@ -606,6 +638,41 @@ mod tests {
             frame("TooltipStatusBarFill").width,
             ui_toolkit::frame::Dimension::Fixed((main_w - 4.0) * 0.25)
         );
+    }
+
+    /// Whether `TooltipStatusBar` shows under a Defias Thug tooltip at half health.
+    fn status_bar_shown(skin: ActiveSkin) -> bool {
+        set_test_data_root();
+        use ui_toolkit::registry::FrameRegistry;
+        use ui_toolkit::screen::Screen;
+        let view = GameTooltipView {
+            main: TooltipPresentation {
+                visible: true,
+                title: "Defias Thug".into(),
+                x: 900.0,
+                y: 500.0,
+                ..five_lines().content
+            },
+            shopping: [ShoppingTooltip::hidden(), ShoppingTooltip::hidden()],
+            health: Some(0.5),
+        };
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(view);
+        shared.insert(skin);
+        Screen::new(game_tooltip_screen).sync(&shared, &mut registry);
+        let bar = registry
+            .get_by_name("TooltipStatusBar")
+            .expect("TooltipStatusBar");
+        !registry.get(bar).unwrap().hidden
+    }
+
+    /// Modern keeps Retail's `GameTooltipStatusBar`; Forever hides it like FlareUI's
+    /// default `hideHealthBar = true` (Core.lua:336, `HideHealthBar` Tooltips.lua:165-171).
+    #[test]
+    fn forever_unit_tooltips_hide_the_health_bar_and_modern_keeps_it() {
+        assert!(status_bar_shown(ActiveSkin::Modern));
+        assert!(!status_bar_shown(ActiveSkin::Forever));
     }
 
     #[test]
