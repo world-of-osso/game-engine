@@ -325,7 +325,7 @@ pub(super) fn reputation_bar(
 
 /// Art the pane draws, for the host to make drawable before it shows.
 pub fn reputation_art_fdids() -> Vec<u32> {
-    match active_skin() {
+    let mut fdids = match active_skin() {
         ActiveSkin::Modern => vec![
             REPUTATION_BAR_FRAME,
             SKILLS_BAR,
@@ -333,6 +333,7 @@ pub fn reputation_art_fdids() -> Vec<u32> {
             131_074,
             136_565,
             130_755,
+            6_795_680, // Dialog border, shared native static_popup sheet.
         ],
         ActiveSkin::Forever => [
             "common-stat-bar-BG",
@@ -343,5 +344,25 @@ pub fn reputation_art_fdids() -> Vec<u32> {
         .into_iter()
         .map(|name| resolve_art(name).fdid)
         .collect(),
-    }
+    };
+    // MinimalScrollBar.xml:15-139. Native projection reads authored sheets directly;
+    // the host's drawable_fdid path must make the active skin's sheets available first.
+    fdids.extend(
+        [
+            "minimal-scrollbar-arrow-top",
+            "minimal-scrollbar-arrow-bottom",
+            "minimal-scrollbar-track-top",
+            "!minimal-scrollbar-track-middle",
+            "minimal-scrollbar-track-bottom",
+            "minimal-scrollbar-small-thumb-top",
+            "minimal-scrollbar-small-thumb-middle",
+            "minimal-scrollbar-small-thumb-bottom",
+            "common-icon-redx",
+        ]
+        .into_iter()
+        .map(|name| resolve_art(name).fdid),
+    );
+    fdids.sort_unstable();
+    fdids.dedup();
+    fdids
 }

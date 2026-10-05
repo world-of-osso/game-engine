@@ -154,11 +154,7 @@ pub(super) fn detail(row: Option<&ReputationRow>, ctx: &SharedContext) -> Elemen
     if row.allows_at_war {
         children.extend(at_war(forever, war_x, war_y));
     }
-    let style = if forever {
-        ""
-    } else {
-        crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE
-    };
+
     if !forever {
         // RF.xml:321-324: UIPanelCloseButton at TOPRIGHT -2,-2.
         children.extend(rsx! {
@@ -169,13 +165,24 @@ pub(super) fn detail(row: Option<&ReputationRow>, ctx: &SharedContext) -> Elemen
             }
         });
     }
-    rsx! {
+    let mut element = rsx! {
         r#frame {
-            name: "ReputationDetailFrame", width, height, style,
+            name: "ReputationDetailFrame", width, height,
             frame_level: 100.0, mouse_enabled: true, pos_type: "absolute", left, top,
             {children}
         }
+    };
+    // An absent style is not an empty style name: Forever uses its existing side pane.
+    if !forever {
+        let ui_toolkit::widget_def::WidgetChild::Widget(frame) = &mut element[0] else {
+            unreachable!("detail emits one frame");
+        };
+        frame.attrs.push(ui_toolkit::widget_def::Attr::new_static(
+            "style",
+            crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE.into(),
+        ));
     }
+    element
 }
 
 fn description(
