@@ -9,7 +9,7 @@ fn tab_cycles_nearest_first_and_wraps() {
     assert_eq!(next_target(&sorted, Some(9)), Some(7));
     // A current target outside the candidate list restarts at the nearest.
     assert_eq!(next_target(&sorted, Some(42)), Some(7));
-    assert_eq!(next_target::<u64>(&[], Some(7)), None);
+    assert_eq!(next_target::<u64>(&[], Some(7)), Some(7));
 }
 
 #[test]
@@ -31,5 +31,5 @@ fn shift_tab_walks_the_tab_cycle_backwards_from_the_farthest() {
     assert_eq!(previous_target(&sorted, Some(3)), Some(7));
     assert_eq!(previous_target(&sorted, Some(7)), Some(9));
     assert_eq!(previous_target(&sorted, Some(42)), Some(9));
-    assert_eq!(previous_target::<u64>(&[], Some(7)), None);
+    assert_eq!(previous_target::<u64>(&[], Some(7)), Some(7));
 }

@@ -1,9 +1,12 @@
 //! Engine-free unit selection rules shared by the Bevy and Godot clients.
 
 /// Tab targeting: the target after `current` in the nearest-first `sorted` list,
-/// wrapping; the nearest when nothing (or an unlisted unit) is targeted.
+/// wrapping; the nearest when nothing (or an unlisted unit) is targeted. With no
+/// candidate, Retail's `TargetNearestEnemy` finds nothing and the target stays.
 pub fn next_target<T: Copy + PartialEq>(sorted: &[T], current: Option<T>) -> Option<T> {
-    let first = *sorted.first()?;
+    let Some(&first) = sorted.first() else {
+        return current;
+    };
     let Some(current) = current else {
         return Some(first);
     };

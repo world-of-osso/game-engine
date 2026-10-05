@@ -1,9 +1,10 @@
 //! Unit selection, ported from the Bevy client's `rendering/ui/target.rs`: left-click
 //! on a unit selects it through a camera ray against the unit's drawn triangles that
-//! world geometry occludes (`unit_pick`), Tab cycles selectable NPCs nearest first, F1 targets the local
+//! world geometry occludes (`unit_pick`), Tab cycles attackable units nearest first, F1 targets the local
 //! player, Escape clears the target before the game menu opens. The server learns
 //! each change through `SetTarget`; the TargetFrame and the selection ring show it.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
 use std::time::Instant;
 
@@ -32,10 +33,12 @@ use godot::{
     prelude::*,
 };
 use shared::components::{
-    CreatureClassification, Health, Npc, Player, PowerType, UnitLevel, UnitPowers, UnitRunes,
+    CreatureClassification, Health, Player, PowerType, UnitLevel, UnitPowers, UnitRunes,
 };
+use shared::faction_reaction::FactionTemplateEntry;
 use shared::level_scaling::{LevelScaling, level_for_viewer};
 
+use crate::auto_attack::player_can_attack;
 use crate::replicated::{UnitFields, is_unit, local_pet};
 
 use crate::frame_error::{FrameError, SessionError, report_once};
@@ -397,6 +400,29 @@ fn target_health_multiplier(
     }
 }
 
+/// Tab's cycle: the units in `replica` that `player` can attack
+/// (`player_can_attack`: living, attackable, not friendly, so never the player's own
+/// or another friendly pet), ordered by `shown_distance`, which is `None` for a unit
+/// that is not drawn.
+fn enemies_nearest_first(
+    replica: &Replica,
+    player: u64,
+    templates: &HashMap<u32, FactionTemplateEntry>,
+    shown_distance: impl Fn(u64) -> Option<f32>,
+) -> Vec<u64> {
+    let mut enemies: Vec<(u64, f32)> = replica
+        .units()
+        .filter(|unit| player_can_attack(replica, player, unit.server_id, templates))
+        .filter_map(|unit| Some((unit.server_id, shown_distance(unit.server_id)?)))
+        .collect();
+    enemies.sort_by(|a, b| a.1.total_cmp(&b.1));
+    enemies.into_iter().map(|(id, _)| id).collect()
+}
+
+#[cfg(test)]
+#[path = "tab_target_tests.rs"]
+mod tab_target_tests;
+
 #[cfg(test)]
 #[path = "unit_frame_dead_tests.rs"]
 mod unit_frame_dead_tests;
@@ -604,10 +630,10 @@ impl GameClient {
         let bindings = &self.client_options.bindings;
         let input = self.physical_input.gameplay_state(true);
         if bindings.is_just_pressed(InputAction::TargetNearest, &input) {
-            let sorted = self.selectable_npcs_nearest_first();
+            let sorted = self.enemies_nearest_first();
             self.targeting.target = next_target(&sorted, self.targeting.target);
         } else if bindings.is_just_pressed(InputAction::TargetPreviousEnemy, &input) {
-            let sorted = self.selectable_npcs_nearest_first();
+            let sorted = self.enemies_nearest_first();
             self.targeting.target = previous_target(&sorted, self.targeting.target);
         } else if bindings.is_just_pressed(InputAction::AssistTarget, &input) {
             // `AssistUnit("target")`: take the target's own target; none keeps ours.
@@ -645,26 +671,30 @@ impl GameClient {
             .filter(|id| self.replica.unit(*id).is_some_and(is_unit))
     }
 
-    /// Bevy `sorted_targets_by_distance`: visible NPCs by distance from the player.
-    fn selectable_npcs_nearest_first(&self) -> Vec<u64> {
-        let Some(player) = self.world.local_player_transform() else {
+    /// `TargetNearestEnemy` candidates (Bindings_Standard.xml:990-1000): the shown units
+    /// the player can attack, nearest first.
+    fn enemies_nearest_first(&mut self) -> Vec<u64> {
+        let (Some(player), Some(origin)) = (
+            self.world.local_player_id(),
+            self.world
+                .local_player_transform()
+                .map(|transform| transform.origin),
+        ) else {
             return Vec::new();
         };
-        let mut npcs: Vec<(u64, f32)> = self
-            .replica
-            .units()
-            .filter(|unit| unit.has::<Npc>())
-            .filter_map(|unit| {
-                let node = self.world.unit_node(unit.server_id)?;
-                let distance = node
-                    .get_global_position()
-                    .distance_squared_to(player.origin);
-                node.is_visible_in_tree()
-                    .then_some((unit.server_id, distance))
-            })
-            .collect();
-        npcs.sort_by(|a, b| a.1.total_cmp(&b.1));
-        npcs.into_iter().map(|(id, _)| id).collect()
+        let templates = match self.nameplates.templates(&self.data_root) {
+            Ok(templates) => templates,
+            Err(error) => {
+                report_once(&error);
+                return Vec::new();
+            }
+        };
+        let world = &self.world;
+        enemies_nearest_first(&self.replica, player, templates, |id| {
+            let node = world.unit_node(id)?;
+            node.is_visible_in_tree()
+                .then(|| node.get_global_position().distance_squared_to(origin))
+        })
     }
 
     fn send_target(&mut self) -> Result<(), SessionError> {
