@@ -259,7 +259,7 @@ fn at_war(forever: bool, left: f32, top: f32) -> Element {
     rsx! {
         button {
             name: "ReputationDetailFrameAtWarCheckbox", width: 26.0, height: 26.0,
-            enabled: false, pos_type: "absolute", left, top,
+            disabled: true, pos_type: "absolute", left, top,
             {art}
         }
     }
