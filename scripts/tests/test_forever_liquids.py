@@ -107,6 +107,50 @@ class ForeverLiquidTests(unittest.TestCase):
         with self.assertRaisesRegex(ValueError, "LiquidType 999"):
             liquids.asset_references(raw, tables)
 
+    def test_pbr_closure_includes_borrowed_required_slots_and_rejects_missing_inputs(
+        self,
+    ):
+        from scripts import forever_liquids as liquids
+
+        legacy = {
+            "ID": "5",
+            "MaterialID": "1",
+            **{f"FrameCountTexture_{i}": "0" for i in range(6)},
+        }
+        tables = {
+            "LiquidType": [{"ID": "1251", "MaterialID": "130"}, legacy],
+            "LiquidMaterial": [{"ID": "130", "LVF": "0"}, {"ID": "1", "LVF": "0"}],
+            "LiquidObject": [],
+            "LiquidTypeXTexture": [
+                {
+                    "ID": "1",
+                    "LiquidTypeID": "1251",
+                    "FileDataID": "777",
+                    "OrderIndex": "0",
+                },
+                *[
+                    {
+                        "ID": str(10 + i),
+                        "LiquidTypeID": "5",
+                        "FileDataID": str(fdid),
+                        "OrderIndex": str(i),
+                    }
+                    for i, fdid in enumerate([111, 0, 555, 556])
+                ],
+            ],
+        }
+        self.assertEqual(
+            liquids.texture_references({(1251, 0)}, tables),
+            [
+                (555, "textures/555.blp"),
+                (556, "textures/556.blp"),
+                (777, "textures/777.blp"),
+            ],
+        )
+        tables["LiquidTypeXTexture"].pop()
+        with self.assertRaisesRegex(ValueError, "borrowed LiquidType5"):
+            liquids.texture_references({(1251, 0)}, tables)
+
     def test_adt_closure_includes_liquid_textures(self):
         payload = bytearray(256 * 12)
         struct.pack_into("<II", payload, 0, len(payload), 1)
