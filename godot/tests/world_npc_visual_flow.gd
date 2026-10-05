@@ -65,6 +65,8 @@ func run_test() -> void:
 	await click_control(enter)
 	if not await wait_visual(client, 1.5, WORLD_LOAD_WAIT_MS):
 		return
+	if not await wait_npc_sampling_camera(client):
+		return
 	if not await wait_lighting(client, GLOBAL_AMBIENT, GLOBAL_DIRECT, "azeroth"):
 		return
 	if not await wait_authored_stand(client):
@@ -141,6 +143,11 @@ func run_test() -> void:
 	var old_light_id: int = client.get_node("WorldLighting").get_instance_id()
 	print("FIXTURE NPC_RESTORED")
 	if not await wait_lighting(client, MAP_AMBIENT, MAP_DIRECT, "kalimdor", WORLD_LOAD_WAIT_MS):
+		return
+	# Worker-loaded visuals/light can precede the world camera (ca395f94).
+	# Make the NPC sampleable before the server starts the one-second Death clip:
+	# LOD keeps its clock running while pose writes are frozen (0be4373f).
+	if not await wait_npc_sampling_camera(client):
 		return
 	if client.get_node("WorldLighting").get_instance_id() == old_light_id:
 		fail("Map change retained previous lighting producer")
@@ -258,6 +265,22 @@ func lighting_matches(client: Node, ambient: Vector3, direct: Vector3, map: Stri
 		and direction is Vector3 and (direction as Vector3).is_equal_approx(-sun.global_basis.z) \
 		and fog is Vector2 and (fog as Vector2).is_equal_approx(RETAIL_FOG_RANGE) \
 		and int(material.get_shader_parameter("fog_mode")) == 1
+
+# NPC LOD samples every frame inside the camera frustum and within 30 yards.
+# This visual-only fixture does not supply the full player/world loading contract,
+# so wait for the sampling dependency, not the session's InWorld screen.
+func wait_npc_sampling_camera(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + WORLD_LOAD_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var camera := client.get_node_or_null("WorldCamera") as Camera3D
+		var model := client.get_node_or_null("WorldUnits/" + NPC + "/NpcVisualRoot/NpcModel") as Node3D
+		if camera != null and model != null \
+			and camera.is_position_in_frustum(model.global_position) \
+			and camera.global_position.distance_to(model.global_position) < 30.0:
+			return true
+	fail("NPC animation camera never reached the full sampling range")
+	return false
 
 func wait_authored_stand(client: Node) -> bool:
 	var npc := client.get_node_or_null("WorldUnits/" + NPC)
