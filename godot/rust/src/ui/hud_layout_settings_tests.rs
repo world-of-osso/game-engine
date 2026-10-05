@@ -555,6 +555,51 @@ fn drawn(hud: &[RegistryModel]) -> Drawn {
     }
 }
 
+fn micro_menu_visible(hud: &[RegistryModel]) -> bool {
+    hud.iter()
+        .find_map(|model| {
+            let id = model.registry.get_by_name("MicroMenuContainer")?;
+            Some(model.registry.get(id).unwrap().visible)
+        })
+        .expect("micro menu stays mounted")
+}
+
+#[test]
+fn options_micro_menu_toggle_redraws_persists_and_keeps_bags_in_place() {
+    for (preset, _) in ui_layout_data::SYSTEM_PRESETS {
+        let path = std::env::temp_dir().join(format!(
+            "ui-layout-micro-menu-{preset}-{}.ron",
+            std::process::id()
+        ));
+        let active = ui_layout_data::set_active_layout(&path, CHARACTER, preset).unwrap();
+        let mut layout = shown(&path, active, LayoutSystem::PlayerFrame);
+        let mut hud = hud();
+        draw(&mut hud, &layout);
+        assert!(!micro_menu_visible(&hud));
+        let bags = at(&hud, "BagsBar");
+        for visible in [true, false, true] {
+            click(
+                &path,
+                &mut hud,
+                &mut layout,
+                "options_toggle:layout_show_micro_menu",
+            );
+            assert_eq!(micro_menu_visible(&hud), visible);
+            assert_eq!(at(&hud, "BagsBar"), bags);
+            assert_eq!(layout.active, "Layout 1");
+            let reloaded = ui_layout_data::active_layout(&path, CHARACTER).unwrap();
+            let mut restarted = self::hud();
+            draw(
+                &mut restarted,
+                &shown(&path, reloaded, LayoutSystem::PlayerFrame),
+            );
+            assert_eq!(micro_menu_visible(&restarted), visible);
+            assert_eq!(at(&restarted, "BagsBar"), bags);
+        }
+        std::fs::remove_file(path).unwrap();
+    }
+}
+
 /// The Options HUD controls end to end under both presets: each control's action stores
 /// its setting, the first change of a preset saves "Layout 1" and switches to it, the HUD
 /// redraws larger, the file brings the values back, the Layout dropdown switches between

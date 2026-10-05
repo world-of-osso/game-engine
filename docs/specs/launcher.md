@@ -16,7 +16,7 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 
 ### Inventory and appearance
 - [x] Include every existing micro entry: Character, Professions, Talents & Spellbook, Achievements, Quest Log, Housing Dashboard, Guild & Communities, Group Finder, Collections, Adventure Guide, Shop and Game Menu; also Help, Bags (backpack), World Map, Options and Key Bindings.
-- [x] Micro entries reuse existing micro-menu icons and host actions, including unavailable-window messages. Existing micro menu is unchanged.
+- [x] Micro entries reuse existing micro-menu icons and host actions, including unavailable-window messages. Launcher is the default entry point: the micro menu stays mounted but hidden in both presets. Options > HUD Layout's per-layout **Show Micro Menu** setting restores it live (off by default); its keybinds remain available while hidden.
 - [x] Help uses Retail HelpMicroButton art; Options uses a gear, Key Bindings a keyboard, and World Map a map icon. Every entry resolves to a cached Blizzard texture, never unknown-icon FDID134400. Retail's authored GameMenu question mark is not that fallback.
 - [x] Centre panel containing search above large icons with labels below. Use existing Forever metal frame or Modern dialog artwork; no new artwork.
 
@@ -39,7 +39,7 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 
 - `godot/ui-model/tests/launcher.rs` — toggle, filtering, selection, activation, Escape, minimap click, inventory, rendered shortcut texture identities, and entry-agnostic non-fallback texture resolution/BLP decoding under both skins.
 - `godot/core/tests/input_bindings_data.rs` — binding label, section and Ctrl+Space matching.
-- `godot/ui-model/tests/micro_menu.rs` — unchanged micro-menu behavior.
+- `godot/ui-model/tests/micro_menu.rs` — retained button behavior, default-hidden presets, older-layout compatibility and portrait-slot retention across visibility changes.
 
 ## Verification — 2026-10-05
 
@@ -61,6 +61,5 @@ Evidence: `data/diagnostics/launcher-2026-10-05/launchericons-{red2,green2,build
 
 ## Out of scope
 
-- Replacing or hiding the micro menu: user reviews launcher first.
 - Implementing missing destination windows: retain micro-menu unavailable behavior.
 - Top-edge hover opening, new artwork and external launcher integration.

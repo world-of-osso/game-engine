@@ -627,11 +627,11 @@ fn forever_draws_no_end_cap_without_a_known_class() {
 }
 
 #[test]
-fn both_presets_show_the_micro_menu_and_bags_bar() {
+fn both_presets_hide_the_micro_menu_and_show_the_bags_bar() {
     for skin in [ActiveSkin::Forever, ActiveSkin::Modern] {
         let micro = build(skin, MicroMenuView::default(), micro_menu_screen);
         let bags = build(skin, BagBarState::default(), bags_bar_screen);
-        assert!(!frame(&micro, "MicroMenuContainer").hidden, "{skin:?}");
+        assert!(frame(&micro, "MicroMenuContainer").hidden, "{skin:?}");
         assert!(!frame(&bags, "BagsBar").hidden, "{skin:?}");
     }
 }

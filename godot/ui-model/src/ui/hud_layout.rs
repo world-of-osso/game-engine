@@ -199,6 +199,7 @@ pub struct HudLayout {
     pub action_bar_3: Option<ActionBarLayout>,
     pub pet_action_bar: HudAnchor,
     pub micro_menu: HudAnchor,
+    pub show_micro_menu: bool,
     pub bags_bar: HudAnchor,
     pub buffs: HudAnchor,
     pub debuffs: HudAnchor,
@@ -255,6 +256,7 @@ pub const MODERN: HudLayout = HudLayout {
     // `MAIN_ACTION_BAR_DEFAULT_OFFSET_Y` (Standard/EditModePresetLayoutConstants.lua:2);
     // settings EditModePresetLayouts.lua:11-19.
     main_action_bar: MODERN_MAIN_ACTION_BAR,
+    show_micro_menu: false,
     // Both frames are `hidden="true"` (MultiActionBars.xml:45,75) until the player ticks
     // "Action Bar 2/3" (`GetActionBarToggles`, MultiActionBars.lua:17-33,79-91,
     // Blizzard_SettingsDefinitions_Frame/ActionBars.lua:9,29-30); no such toggle exists here.
@@ -368,8 +370,8 @@ pub const FOREVER: HudLayout = HudLayout {
     action_bar_2: Some(FOREVER_ACTION_BAR_2),
     action_bar_3: Some(FOREVER_ACTION_BAR_3),
     // Micro menu and bags bar keep Modern's bottom-right corner: Camelot's strip beside
-    // the main bar is gone, and FlareUI neither moves nor, by default, hides them
-    // (Core.lua:82-99,317-324, Modules/Visibility.lua:317-375).
+    // the main bar is gone. User decision 2026-10-05 hides only the micro menu by default;
+    // both independently anchored frames keep their authored positions.
     // Mainline/EditModePresetLayouts.lua:183-198; Camelot constants :3,31,35.
     // Shared/EditModeManager.lua:664-672,703-718: BOTTOMLEFT on the base bar's
     // BOTTOMLEFT, indented 30, 4 above the topmost bar of the bottom stack.
@@ -429,6 +431,7 @@ impl HudLayout {
     /// The preset with a layout's settings applied (docs/specs/hud-edit-mode.md
     /// "Customisable layout settings").
     fn with_settings(mut self, settings: &LayoutSettings) -> Self {
+        self.show_micro_menu = settings.show_micro_menu.unwrap_or(self.show_micro_menu);
         self.chat_size = frame_size(
             self.chat_size,
             settings.chat,
