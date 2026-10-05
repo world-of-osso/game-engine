@@ -375,10 +375,7 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
     // 240×60 player/target CENTER (∓330, -270); centre y 384.
     assert_eq!(top_left(&hud, "PlayerFrame"), (233.0, 624.0));
     assert_eq!(top_left(&hud, "TargetFrame"), (893.0, 624.0));
-    // Reference: ToT top-aligned 8px right of target; pet 6px below player, right-aligned.
-    // Source sizes remain 120×28 ToT, 160×28 pet, 160×36 focus (RIGHT -453,-258).
-    assert_eq!(top_left(&hud, "TargetOfTargetFrame"), (1141.0, 624.0));
-    assert_eq!(top_left(&hud, "FocusFrame"), (753.0, 624.0));
+    // Reference: pet 6px below player, right-aligned. ToT and focus: the next test.
     assert_eq!(top_left(&hud, "PetFrame"), (313.0, 690.0));
     // The 292×26 cast bar plus flush 26px icon inside its 326×34 holder at BOTTOM (0,268).
     assert_eq!(top_left(&hud, "PlayerCastingBarFrame"), (520.0, 466.0));
@@ -573,6 +570,63 @@ fn target_cast_follows_target_rect_and_switches_preset_without_moving_player_cas
     );
     sync(&mut hud, ActiveSkin::Modern);
     assert_rect(&hud, "TargetFrameSpellBar", (1026.0, 513.0, 150.0, 10.0));
+}
+
+/// FlareUI's focus frame sits right of the target, top-aligned 10 units apart, and its
+/// target of target left-aligned under the target's cast bar (the relations its edge-pinned
+/// defaults, UnitFrames.lua:1890-1892, give on its own canvas), so on the 1080p canvas and
+/// on the 1366x768 UIParent none of the four frames covers another.
+#[test]
+fn forever_focus_right_of_target_and_tot_under_its_cast_bar_overlap_nothing() {
+    set_data_root();
+    let mut state = unit_frames();
+    state.target_cast = Some(CastingBarState {
+        visible: true,
+        spell_name: "Frostbolt".into(),
+        icon_fdid: Some(135846),
+        timer_text: "1.5".into(),
+        progress: 0.25,
+        ..Default::default()
+    });
+    for (width, height) in [(1920.0, 1080.0), (1366.0, 768.0)] {
+        let mut hud = vec![model(state.clone(), inworld_unit_frames_screen)];
+        hud[0].registry = ui_toolkit::registry::FrameRegistry::new(width, height);
+        sync(&mut hud, ActiveSkin::Forever);
+        let names = [
+            "TargetFrame",
+            "FocusFrame",
+            "TargetOfTargetFrame",
+            "TargetFrameSpellBar",
+        ];
+        let [target, focus, tot, cast] = names.map(|name| rect(&hud, name));
+        assert_eq!(
+            focus.y, target.y,
+            "{width}: focus top-aligned with the target"
+        );
+        assert_eq!(
+            focus.x - (target.x + target.width),
+            10.0,
+            "{width}: focus 10 right of the target"
+        );
+        assert_eq!(tot.x, target.x, "{width}: ToT left-aligned with the target");
+        assert!(
+            tot.y >= cast.y + cast.height,
+            "{width}: ToT at {} above the cast bar's bottom {}",
+            tot.y,
+            cast.y + cast.height
+        );
+        let rects = [&target, &focus, &tot, &cast];
+        for (i, a) in rects.iter().enumerate() {
+            for (j, b) in rects.iter().enumerate().skip(i + 1) {
+                assert!(
+                    !intersects(a, b),
+                    "{width}: {} {a:?} intersects {} {b:?}",
+                    names[i],
+                    names[j]
+                );
+            }
+        }
+    }
 }
 
 /// Party and raid members stack without overlapping inside their group frame under both

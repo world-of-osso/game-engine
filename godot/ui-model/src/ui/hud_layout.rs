@@ -350,9 +350,14 @@ pub const FOREVER_CHAT_PANEL_SIZE: (f32, f32) = (450.0, 214.0);
 pub const FOREVER: HudLayout = HudLayout {
     player: anchor(Center, Center, -330.0, -270.0),
     target: anchor(Center, Center, 330.0, -270.0),
-    // Reference screenshot: ToT top-aligned, measured 8px right of the target.
-    target_of_target: anchor(TopLeft, Center, 330.0 + 120.0 + 8.0, -270.0 + 30.0),
-    focus: anchor(Right, Right, -453.0, -258.0),
+    // FlareUI UnitFrames.lua:1890-1892 pins ToT to UIParent's BOTTOM (270, 248) and focus to
+    // its RIGHT (-453, -258), laid out on a UIParent of about 2146x1207 units: the focus
+    // frame right of the target in `user-unit-frames-2026-10-03.png` measures a 9-10 unit
+    // gap, 2146/2 - 453 - 160 - 450. Edge pins drift onto the target on other canvases, so
+    // both keep that layout's relation to the target instead: ToT left-aligned with it, 28
+    // below (4 under its 24-tall cast bar); focus top-aligned, 10 right of it.
+    target_of_target: anchor(TopLeft, Center, 330.0 - 120.0, -270.0 - 30.0 - 28.0),
+    focus: anchor(TopLeft, Center, 330.0 + 120.0 + 10.0, -270.0 + 30.0),
     // Reference screenshot: pet right-aligned, measured 6px below the player.
     pet: anchor(TopRight, Center, -330.0 + 120.0, -270.0 - 30.0 - 6.0),
     // FlareUI UnitFrames.lua:1894 (keyboard default, :1900-1903).
