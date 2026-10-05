@@ -531,6 +531,7 @@ impl GameClient {
             self.banks.free_guild_ui();
             return Ok(());
         }
+        self.read_bag_search(self.banks.guild_ui.clone());
         let mut bags = self.merchant.session.bag_state();
         for bag in &mut bags.bags {
             bag.visible = bag.bag_index == 0;

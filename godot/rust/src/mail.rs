@@ -177,6 +177,7 @@ impl GameClient {
         Ok(self.sync_mailbox_ui()?)
     }
     fn sync_mailbox_ui(&mut self) -> Result<(), String> {
+        self.read_bag_search(self.mailbox.ui.clone());
         let view = self.mailbox_view();
         let scale = self.effective_ui_scale();
         if self.mailbox.ui.is_none() {

@@ -483,7 +483,7 @@ fn native_mailbox_authored_ui_has_both_tabs_and_disables_actions_while_pending()
         let mut shared = SharedContext::new();
         shared.insert(NativeMailView {
             frame: session.view(77, &InventoryState::default(), &MailTexts::new()),
-            bags: BagFrameState { bags: vec![] },
+            bags: BagFrameState::default(),
         });
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(native_mail_screen).sync(&shared, &mut registry);
