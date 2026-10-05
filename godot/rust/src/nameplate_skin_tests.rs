@@ -71,6 +71,23 @@ fn forever_cast_bar_draws_the_c60_sheet() {
     );
 }
 
+/// The glow stays on the moving fill edge without extending above or below the track.
+#[test]
+fn nameplate_glow_stays_inside_both_cast_presets_at_the_fill_edge() {
+    use crate::nameplate_cast_bar::cast_layout;
+    use game_engine_core::nameplate_style_data::NameplateBarThickness;
+
+    for preset in [NameplateBarThickness::Thin, NameplateBarThickness::Thick] {
+        let style = NameplateStyle::from_presets(preset, preset);
+        for fraction in [0.0, 0.25, 0.5, 1.0] {
+            let layout = cast_layout(&style, fraction, (-94.0, 94.0));
+            assert!(layout.spark.position.y >= layout.background.position.y);
+            assert!(layout.spark.end().y <= layout.background.end().y);
+            assert!((layout.spark.center().x - layout.fill.end().x).abs() < 1e-5);
+        }
+    }
+}
+
 /// The Camelot frame's three atlases, members 39470-39472 of atlas 4083 (8165538, 64×64).
 #[test]
 fn forever_plate_level_frame_draws_the_camelot_level_indicator_atlases() {
