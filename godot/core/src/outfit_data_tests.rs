@@ -194,6 +194,13 @@ fn forever_npc_gear_cache_keeps_all_retail_rows_and_removes_absent_overlay() {
     let merged = snapshot(&cache);
     for (retail, merged) in retail.iter().zip(&merged) {
         assert!(retail.is_subset(merged));
+        let retail_keys = retail.iter().map(|row| row[0]).collect::<HashSet<_>>();
+        for row in merged.iter().filter(|row| retail_keys.contains(&row[0])) {
+            assert!(
+                retail.contains(row),
+                "collision changed a Retail resource group"
+            );
+        }
     }
     assert!(merged[0].len() > retail[0].len());
     std::fs::remove_file(overlay).unwrap();

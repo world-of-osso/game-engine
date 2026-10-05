@@ -175,27 +175,26 @@ fn import_forever_gear_rows(conn: &Connection, paths: &[PathBuf]) -> Result<(), 
     copy_missing_gear_groups(
         conn,
         &overlay,
-        "display_materials",
-        "display_info",
-        "id",
-        "display_info_id",
-    )?;
-    copy_missing_gear_groups(conn, &overlay, "display_info", "display_info", "id", "id")?;
-    copy_missing_gear_groups(
-        conn,
-        &overlay,
-        "material_textures",
-        "material_textures",
-        "material_resource_id",
-        "material_resource_id",
+        ("display_info", "id"),
+        ("display_materials", "display_info_id"),
     )?;
     copy_missing_gear_groups(
         conn,
         &overlay,
-        "model_to_fdid",
-        "model_to_fdid",
-        "model_resource_id",
-        "model_resource_id",
+        ("display_info", "id"),
+        ("display_info", "id"),
+    )?;
+    copy_missing_gear_groups(
+        conn,
+        &overlay,
+        ("material_textures", "material_resource_id"),
+        ("material_textures", "material_resource_id"),
+    )?;
+    copy_missing_gear_groups(
+        conn,
+        &overlay,
+        ("model_to_fdid", "model_resource_id"),
+        ("model_to_fdid", "model_resource_id"),
     )?;
     Ok(())
 }
@@ -203,20 +202,11 @@ fn import_forever_gear_rows(conn: &Connection, paths: &[PathBuf]) -> Result<(), 
 fn copy_missing_gear_groups(
     retail: &Connection,
     overlay: &Connection,
-    table: &str,
-    retail_table: &str,
-    retail_key: &str,
-    overlay_key: &str,
+    retail_group: (&str, &str),
+    overlay_group: (&str, &str),
 ) -> Result<(), String> {
-    use std::collections::HashSet;
-    let mut keys = retail
-        .prepare(&format!("SELECT DISTINCT {retail_key} FROM {retail_table}"))
-        .map_err(|err| format!("read Retail {retail_table} keys: {err}"))?;
-    let blocked = keys
-        .query_map([], |row| row.get::<_, i64>(0))
-        .map_err(|err| format!("query Retail gear keys: {err}"))?
-        .collect::<Result<HashSet<_>, _>>()
-        .map_err(|err| format!("read Retail gear key: {err}"))?;
+    let (table, overlay_key) = overlay_group;
+    let blocked = load_retail_gear_keys(retail, retail_group.0, retail_group.1)?;
     let mut source = overlay
         .prepare(&format!("SELECT * FROM {table}"))
         .map_err(|err| format!("read Forever {table}: {err}"))?;
@@ -244,6 +234,20 @@ fn copy_missing_gear_groups(
         }
     }
     Ok(())
+}
+
+fn load_retail_gear_keys(
+    conn: &Connection,
+    table: &str,
+    key: &str,
+) -> Result<std::collections::HashSet<i64>, String> {
+    let mut keys = conn
+        .prepare(&format!("SELECT DISTINCT {key} FROM {table}"))
+        .map_err(|err| format!("read Retail {table} keys: {err}"))?;
+    keys.query_map([], |row| row.get::<_, i64>(0))
+        .map_err(|err| format!("query Retail gear keys: {err}"))?
+        .collect::<Result<_, _>>()
+        .map_err(|err| format!("read Retail gear key: {err}"))
 }
 
 #[cfg(test)]
