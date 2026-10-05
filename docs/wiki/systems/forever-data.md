@@ -12,7 +12,7 @@ At `2d82554a`, the collection query interprets only Forever skinned-model rows r
 
 ## Liquid exports
 
-The existing importer also exports hash-matched LiquidType, LiquidMaterial, LiquidObject and LiquidTypeXTexture with exact Retail headers. [Terrain: Forever liquid catalogs](terrain.md#forever-liquid-catalogs--bounded-cpu-proof) owns their IDs, native product isolation, texture closure and proof boundary.
+The importer exports hash-matched LiquidType, LiquidMaterial, LiquidObject and LiquidTypeXTexture. Only Forever LiquidType expands to all38 DBD-named Float columns; Retail inputs/other headers stay unchanged. **Material130 drawn with LiquidType5 legacy inputs; PBR parity unsupported.** This is an explicitly borrowed fallback, not client-authored PBR data; source floats/foam textures remain intact. [Terrain: Forever liquid catalogs](terrain.md#forever-liquid-catalogs--bounded-cpu-proof) owns isolation/closure; [near-white water cause and captures](../investigations/northshire-pale-water.md#zephras-material130--explicit-borrowed-legacy-fallback) owns the rendering boundary.
 
 ## Source limitations
 
