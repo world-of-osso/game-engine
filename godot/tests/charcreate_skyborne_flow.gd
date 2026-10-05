@@ -82,13 +82,7 @@ func run() -> void:
 		return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	for frame in range(8):
-		await process_frame
-	ui = client.get_node_or_null("CharacterCreateUI")
-	if expect(
-		ui != null and client.account_state().screen == "CharacterCreate",
-		"Offline --screen charcreate startup"
-	):
+	if await wait_for_creation():
 		for race in [95, 96]:
 			await press("Race_%d" % race)
 			for sex in [0, 1]:
@@ -112,6 +106,22 @@ func run() -> void:
 		)
 	)
 	quit(1 if failed or passed != 4 else 0)
+
+
+func wait_for_creation() -> bool:
+	# Native startup polls an asset worker before initialize_startup mounts screens.
+	var deadline := Time.get_ticks_msec() + 60000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		ui = client.get_node_or_null("CharacterCreateUI")
+		if (
+			ui != null
+			and client.account_state().screen == "CharacterCreate"
+			and client.get_node_or_null("CharacterCreateScene/Camera") != null
+			and client.get_node_or_null("CharacterCreateScene/CreationCharacter") != null
+		):
+			return true
+	return expect(false, "Creation startup timed out: " + str(client.account_state()))
 
 
 func check_variant(race: int, sex: int) -> void:
