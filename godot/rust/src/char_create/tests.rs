@@ -16,6 +16,30 @@ use shared::components::CharacterAppearance;
 
 use super::{CharCreateState, build_ui_state, reduce};
 
+#[test]
+fn skyborne_race_selection_uses_default_class_and_only_player_options() {
+    for (race, class) in [(95, 8), (96, 7)] {
+        for sex in [0, 1] {
+            let mut selected = state_with_race(HUMAN, sex, WARRIOR);
+            super::apply_race_change_with_seed(&mut selected, race, db(), 1);
+            assert_eq!(selected.selected_class, class);
+            let raw = db().options_for(race, sex).unwrap();
+            assert_eq!(raw.len(), 18 + usize::from(sex));
+            let eye_style = raw
+                .iter()
+                .find(|option| option.display_name == "Eye Style")
+                .unwrap();
+            assert!(
+                db().offered_choices(race, sex, class, eye_style.id)
+                    .is_empty()
+            );
+            let rows = offered_rows(&selected);
+            assert!(!rows.iter().any(|row| row.id == eye_style.id));
+            assert_eq!(rows.len(), raw.len() - 1);
+        }
+    }
+}
+
 const HUMAN: u8 = 1;
 const WARRIOR: u8 = 1;
 const DEATH_KNIGHT: u8 = 6;
