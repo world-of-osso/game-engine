@@ -13,8 +13,8 @@ use game_engine_core::creation_scene_data::vertical_fov;
 use game_engine_ui_model::inworld_unit_frames_component::{
     PET_PORTRAIT, PLAYER_PORTRAIT, PortraitSlot, TARGET_PORTRAIT,
 };
-use game_engine_ui_model::micro_menu::CHARACTER_PORTRAIT;
 use game_engine_ui_model::merchant_frame_component::PORTRAIT as MERCHANT_PORTRAIT;
+use game_engine_ui_model::micro_menu::CHARACTER_PORTRAIT;
 use game_engine_ui_model::quest_frame_component::PORTRAIT as QUEST_PORTRAIT;
 use godot::classes::control::{LayoutPreset, MouseFilter};
 use godot::classes::node::ProcessMode;
@@ -53,6 +53,7 @@ pub(crate) struct UnitPortraits {
     pet: Portrait,
     /// The CharacterMicroButton's player portrait.
     micro: Portrait,
+    launcher: Portrait,
     /// The open vendor in MerchantFrame (`SetPortraitToUnit("npc")`).
     merchant: Portrait,
     /// The quest giver or gossip NPC in QuestFrame (`SetPortraitTexture(.., "questnpc")`).
@@ -66,6 +67,7 @@ impl Default for UnitPortraits {
             target: Portrait::new(TARGET_PORTRAIT),
             pet: Portrait::new(PET_PORTRAIT),
             micro: Portrait::new(CHARACTER_PORTRAIT),
+            launcher: Portrait::new(game_engine_ui_model::launcher::CHARACTER_ICON),
             merchant: Portrait::new(MERCHANT_PORTRAIT),
             quest: Portrait::new(QUEST_PORTRAIT),
         }
@@ -439,6 +441,10 @@ impl GameClient {
             .character_frame
             .micro_ui()
             .and_then(|ui| ui.bind().frame_control(micro_slot.frame));
+        let launcher_host = self.launcher.ui.as_ref().and_then(|ui| {
+            ui.bind()
+                .frame_control(game_engine_ui_model::launcher::CHARACTER_ICON.frame)
+        });
         let (merchant_host, merchant) = self.npc_portrait(
             self.merchant.ui.as_ref(),
             &MERCHANT_PORTRAIT,
@@ -454,7 +460,12 @@ impl GameClient {
             .sync(&mut self.world, player_host, player.clone());
         let target_result = portraits.target.sync(&mut self.world, target_host, target);
         let pet_result = portraits.pet.sync(&mut self.world, pet_host, pet);
-        let micro_result = portraits.micro.sync(&mut self.world, micro_host, player);
+        let micro_result = portraits
+            .micro
+            .sync(&mut self.world, micro_host, player.clone());
+        let launcher_result = portraits
+            .launcher
+            .sync(&mut self.world, launcher_host, player);
         let merchant_result = portraits
             .merchant
             .sync(&mut self.world, merchant_host, merchant);
@@ -463,6 +474,7 @@ impl GameClient {
             .and(target_result)
             .and(pet_result)
             .and(micro_result)
+            .and(launcher_result)
             .and(merchant_result)
             .and(quest_result)
     }
@@ -487,6 +499,7 @@ impl GameClient {
         portraits.target.clear(&mut self.world);
         portraits.pet.clear(&mut self.world);
         portraits.micro.clear(&mut self.world);
+        portraits.launcher.clear(&mut self.world);
         portraits.merchant.clear(&mut self.world);
         portraits.quest.clear(&mut self.world);
     }
@@ -506,6 +519,7 @@ impl GameClient {
             &portraits.target,
             &portraits.pet,
             &portraits.micro,
+            &portraits.launcher,
             &portraits.merchant,
             &portraits.quest,
         ]

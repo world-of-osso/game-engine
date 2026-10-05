@@ -34,6 +34,25 @@ impl InputState for State {
 }
 
 #[test]
+fn launcher_binding_is_listed_and_matches_ctrl_space_only() {
+    let action = InputAction::from_key("toggle_launcher").expect("Toggle Launcher binding");
+    assert_eq!(action.label(), "Toggle Launcher");
+    assert!(actions_for_section(BindingSection::Interface).contains(&action));
+    let bindings = InputBindingsData::default();
+    assert_eq!(
+        bindings.binding(action),
+        Some(InputBinding::CtrlKeyboard(BindingKey::Space))
+    );
+    let mut state = State {
+        edge: vec![BindingKey::Space],
+        ..State::default()
+    };
+    assert!(!bindings.is_just_pressed(action, &state));
+    state.ctrl = true;
+    assert!(bindings.is_just_pressed(action, &state));
+}
+
+#[test]
 fn complete_token_grammar_round_trips_and_rejects_unsupported() {
     let keys: Vec<_> = ('A'..='Z')
         .map(|c| format!("Key{c}"))
@@ -108,10 +127,10 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 94);
+    assert_eq!(InputAction::ALL.len(), 95);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 14, 22, 12, 12, 1, 13, 6]
+        [8, 6, 14, 22, 12, 12, 1, 14, 6]
     );
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {

@@ -38,6 +38,10 @@ fn keyboard_binding(key: &InputEventKey) -> Option<InputBinding> {
 }
 
 impl GameClient {
+    pub(super) fn show_support(&mut self) {
+        godot_print!("menu_support: placeholder");
+    }
+
     pub(super) fn open_game_menu(&mut self) -> Result<(), String> {
         if self.game_menu_ui.is_some() {
             return Ok(());
@@ -562,7 +566,7 @@ impl GameClient {
                     break;
                 }
                 ACTION_EXIT => self.base().get_tree().quit(),
-                ACTION_SUPPORT => godot_print!("menu_support: placeholder"),
+                ACTION_SUPPORT => self.show_support(),
                 ACTION_LOGOUT => {
                     self.request_logout()?;
                     break;

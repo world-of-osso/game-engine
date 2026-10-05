@@ -274,6 +274,7 @@ impl GameClient {
         let action = ui.bind_mut().pop_action().to_string();
         match action.as_str() {
             "" => {}
+            game_engine_ui_model::launcher::ACTION_OPEN => self.open_launcher()?,
             ACTION_ZOOM_IN => self.minimap.zoom = zoom_in(self.minimap.zoom),
             ACTION_ZOOM_OUT => self.minimap.zoom = zoom_out(self.minimap.zoom),
             ACTION_TOGGLE_WORLD_MAP => {
