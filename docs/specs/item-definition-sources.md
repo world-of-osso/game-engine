@@ -9,7 +9,7 @@ Owned item metadata pairs the unchanged authored item ID with `shared::item_data
 - [x] Keep colliding IDs 2947, 2512 and 2101 distinct in mixed-source bags, tooltips, comparisons and cursor state. Preserve equal names/icons when both products author equal values.
 - [x] Missing Forever files or rows must not select Retail definitions or scaling; lookup errors identify source and ID.
 - [ ] Preserve immutable GUID provenance across transfer/reload through owned inventory, equipment, bank, trade and auction-inventory consumers; recipient race must not select a definition.
-- [ ] Item-info IPC requires explicit query source. CLI defaults deliberately to Retail.
+- [x] Item-info IPC requires explicit query source. CLI defaults deliberately to Retail; `--source forever70205` explicitly selects Forever.
 
 ## How it works
 
@@ -29,6 +29,7 @@ Owned item metadata pairs the unchanged authored item ID with `shared::item_data
 
 - `godot/ui-model/src/game/item_catalog_tests.rs`
 - `godot/ui-model/src/game/cursor_item_tests.rs`
+- `godot/cli/src/tests/request_actions.rs`
 
 ## Known gaps (current cycle)
 
