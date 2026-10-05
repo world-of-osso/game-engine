@@ -265,6 +265,7 @@ pub enum InputAction {
     PetActionSlot9,
     PetActionSlot10,
     ToggleMute,
+    ToggleLauncher,
     ToggleCharacter,
     ToggleSpellbook,
     ToggleProfessions,
@@ -349,7 +350,7 @@ impl InputAction {
         Self::MultiActionBar2Button12,
     ];
 
-    pub const ALL: [Self; 94] = [
+    pub const ALL: [Self; 95] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -425,6 +426,7 @@ impl InputAction {
         Self::PetActionSlot9,
         Self::PetActionSlot10,
         Self::ToggleMute,
+        Self::ToggleLauncher,
         Self::ToggleCharacter,
         Self::ToggleSpellbook,
         Self::ToggleProfessions,
@@ -518,6 +520,11 @@ impl InputAction {
 
     fn interface_meta(self) -> Option<InputActionMeta> {
         let (key, label, binding) = match self {
+            Self::ToggleLauncher => (
+                "toggle_launcher",
+                "Toggle Launcher",
+                Some(InputBinding::CtrlKeyboard(BindingKey::Space)),
+            ),
             Self::ToggleCharacter => (
                 "toggle_character",
                 "Character Info",
@@ -686,7 +693,8 @@ impl InputAction {
                 BindingSection::Audio,
                 Some(InputBinding::CtrlKeyboard(BindingKey::KeyS)),
             ),
-            Self::ToggleCharacter
+            Self::ToggleLauncher
+            | Self::ToggleCharacter
             | Self::ToggleSpellbook
             | Self::ToggleProfessions
             | Self::ToggleAchievements
@@ -1321,6 +1329,7 @@ fn pet_action_slot_from_key(key: &str) -> Option<InputAction> {
 
 fn interface_action_from_key(key: &str) -> Option<InputAction> {
     Some(match key {
+        "toggle_launcher" => InputAction::ToggleLauncher,
         "toggle_character" => InputAction::ToggleCharacter,
         "toggle_spellbook" => InputAction::ToggleSpellbook,
         "toggle_professions" => InputAction::ToggleProfessions,
@@ -1472,6 +1481,7 @@ fn audio_section_actions() -> &'static [InputAction] {
 
 fn interface_section_actions() -> &'static [InputAction] {
     &[
+        InputAction::ToggleLauncher,
         InputAction::ToggleCharacter,
         InputAction::ToggleSpellbook,
         InputAction::ToggleProfessions,

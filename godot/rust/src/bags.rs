@@ -412,7 +412,7 @@ impl GameClient {
         }
     }
 
-    fn toggle_bag_action(&mut self, action: &str) -> Result<(), String> {
+    pub(super) fn toggle_bag_action(&mut self, action: &str) -> Result<(), String> {
         let Some(index) = action.strip_prefix(ACTION_BAG_TOGGLE_PREFIX) else {
             return Err(format!("Standalone bag action not converted: {action}"));
         };
