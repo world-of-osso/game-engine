@@ -37,7 +37,7 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 
 ## Tests asserting this spec
 
-- `godot/ui-model/tests/launcher.rs` — toggle, filtering, selection, activation, Escape, minimap click, inventory, shortcut atlas crops, and entry-agnostic non-fallback texture resolution/BLP decoding under both skins.
+- `godot/ui-model/tests/launcher.rs` — toggle, filtering, selection, activation, Escape, minimap click, inventory, rendered shortcut texture identities, and entry-agnostic non-fallback texture resolution/BLP decoding under both skins.
 - `godot/core/tests/input_bindings_data.rs` — binding label, section and Ctrl+Space matching.
 - `godot/ui-model/tests/micro_menu.rs` — unchanged micro-menu behavior.
 
@@ -48,9 +48,16 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 
 Evidence: `data/diagnostics/launcher-2026-10-05/launcher4-build-retry.log`, `launcher4-targeted.log`, `launcher4-live2.js`, `launcher4-capture2.log`, `launcher4-modern-capture.log`, and `{forever,modern}-{minimap,open,spe,spellbook}.webp`. No golden fixtures changed. First build compiled but timed out during export; warm-cache retry installed both artifacts. First live script used a wrong wait-frame name; corrected second run had no automation errors. Unrelated server world-data/spell-visual errors remain outside this launcher scope.
 
+## Icon verification — 2026-10-05
+
+- [x] `b4b2001b`: targeted launcher9 + micro_menu7 passed (16 total); extension and CLI rebuilt without compiler warnings. Every entry's source resolves and its local BLP decodes under both skins; none uses unknown-icon FDID134400.
+- [x] `forever-open-icons.webp` and matching tree recaptured on private UDP5262 with copied newest `game.redb.bak-20261005-c98e83f`, fresh `fb_launchericons_092738`/`fbtest`, and Iconproof. Screenshot inspected: gear, keyboard and globe art; Game Menu/Help retain Retail's authored red question mark, not fallback art. All owned PIDs stopped/reaped and `agents-launchericons.slice` stopped.
+
+Evidence: `data/diagnostics/launcher-2026-10-05/launchericons-{red2,green2,build2,client2}.log`, `launchericons-capture2.txt`, `launchericons-cleanup.txt`, and `forever-open-icons.{webp,tree.txt}`. First icon capture exposed a stale Gear atlas crop and binocular tracking art; final icons use inspected standalone gear/world micro files. [Art identities and Retail citations](../wiki/systems/launcher.md#art-and-sources). No global atlas/data mapping changes, CDN downloads or golden fixture updates.
+
 ## Known gaps (current cycle)
 
-- [ ] Help uses existing Support placeholder; no native Help window exists.
+- [ ] Help invokes the existing Support unavailable message; no native Help window exists.
 
 ## Out of scope
 
