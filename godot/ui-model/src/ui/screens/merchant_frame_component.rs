@@ -179,13 +179,34 @@ pub struct MerchantFrameState {
     pub has_junk: bool,
 }
 
+/// Retail MF.lua:508 `SetPortraitToAsset("Interface\\MerchantFrame\\UI-BuyBack-Icon")`.
+/// Keep the approved portrait slot geometry (SharedUIPanelTemplates.xml:551-572).
+fn merchant_portrait(buyback: bool) -> Element {
+    if !buyback {
+        return window_portrait(&PORTRAIT);
+    }
+    let (left, top, width, height) = PORTRAIT.rect;
+    rsx! {
+        texture {
+            name: "MerchantBuybackPortraitIcon",
+            width,
+            height,
+            frame_level: 400.0,
+            texture_fdid: 136_417u32,
+            pos_type: "absolute",
+            left,
+            top,
+        }
+    }
+}
+
 pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<MerchantFrameState>()
         .expect("MerchantFrameState must be in SharedContext");
     let hide = !state.visible;
     let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), &state.title, ACTION_CLOSE);
-    children.extend(window_portrait(&PORTRAIT));
+    children.extend(merchant_portrait(state.buyback_tab));
     children.extend(inset());
     children.extend(cells(state));
     if !state.buyback_tab {
