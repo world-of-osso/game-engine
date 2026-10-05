@@ -419,6 +419,50 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
     assert_modern(&hud);
 }
 
+fn default_canvas_hud() -> Vec<RegistryModel> {
+    let mut canvases = hud();
+    for canvas in &mut canvases {
+        canvas.registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
+    }
+    canvases
+}
+
+#[test]
+fn launcher_clears_buff_area_on_default_1920x1080_canvas() {
+    let mut canvases = default_canvas_hud();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        sync(&mut canvases, skin);
+        let launcher = rect(&canvases, "MinimapLauncherButton");
+        let buffs = rect(&canvases, BUFF_FRAME.0);
+        assert_eq!((launcher.width, launcher.height), (30.0, 30.0));
+        assert!(
+            !intersects(&launcher, &buffs),
+            "{skin:?}: {launcher:?} overlaps {buffs:?}"
+        );
+    }
+}
+
+#[test]
+fn tracker_clears_minimap_on_default_1920x1080_canvas() {
+    let mut canvases = default_canvas_hud();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        sync(&mut canvases, skin);
+        let minimap = rect(&canvases, MINIMAP_CLUSTER);
+        let launcher = rect(&canvases, "MinimapLauncherButton");
+        for name in [TRACKER_FRAME, "ObjectiveTrackerFrameHeaderBackground"] {
+            let tracker = rect(&canvases, name);
+            assert!(
+                !intersects(&tracker, &minimap),
+                "{skin:?}: {name} {tracker:?} overlaps {minimap:?}"
+            );
+            assert!(
+                !intersects(&tracker, &launcher),
+                "{skin:?}: {name} {tracker:?} overlaps {launcher:?}"
+            );
+        }
+    }
+}
+
 #[test]
 fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
     let mut hud = hud();
@@ -432,7 +476,7 @@ fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
     let header = rect(&hud, "ObjectiveTrackerFrameHeaderBackground");
     // FlareUI Modules/Minimap.lua:371-379,401-406: SetScale(frame outer width / 288), the
     // 288 visible pixels of the 300-pixel header line; here 260 / 288. SetScale also scales
-    // the Mainline TOPRIGHT (-110, -275) offsets: right edge 1366 - 99.306, top 248.264.
+    // the Forever TOPRIGHT (-110, -300) offsets: right edge 1366 - 99.306, top 270.833.
     let actual = [
         tracker.x,
         tracker.y,
@@ -440,7 +484,7 @@ fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
         tracker.height,
         header.width,
     ];
-    let expected = [1031.9722, 248.26389, 234.72223, 28.88889, 270.83334];
+    let expected = [1031.9722, 270.83334, 234.72223, 28.88889, 270.83334];
     for (actual, expected) in actual.into_iter().zip(expected) {
         assert!((actual - expected).abs() < 0.001, "{actual} != {expected}");
     }
