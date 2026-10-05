@@ -85,10 +85,9 @@ pub struct NpcTooltipInput<'a> {
     pub data: Option<&'a CreatureTooltip>,
 }
 
-/// Name in its reaction colour, subname, `UNIT_TYPE_LEVEL_TEMPLATE` "Level %d %s" (or
-/// `UNIT_LEVEL_TEMPLATE` without a known type), the reputation faction, then the Drops and
-/// Sells sections. `GameTooltip:SetWorldCursor` and `UnitFrame_UpdateTooltip` use the
-/// default anchor.
+/// Name in its reaction colour, subname, the level line, the creature type on its own line,
+/// the reputation faction, then the Drops and Sells sections. `GameTooltip:SetWorldCursor`
+/// and `UnitFrame_UpdateTooltip` use the default anchor.
 pub fn npc_tooltip(input: &NpcTooltipInput, collection: &AppearanceCollection) -> GameTooltip {
     let mut lines = npc_identity_lines(input);
     if let Some(data) = input.data {
@@ -106,16 +105,13 @@ pub fn npc_tooltip(input: &NpcTooltipInput, collection: &AppearanceCollection) -
     )
 }
 
-/// `UNIT_TYPE_LEVEL_TEMPLATE` "Level %d %s", for elites `UNIT_TYPE_PLUS_LEVEL_TEMPLATE`
-/// "Level %d Elite %s", for world bosses `UNIT_TYPE_LETHAL_LEVEL_TEMPLATE` "Level ?? %s"
-/// (GlobalStrings 10997-10999; without a type `UNIT_LEVEL_TEMPLATE`,
-/// `UNIT_PLUS_LEVEL_TEMPLATE`, `UNIT_LETHAL_LEVEL_TEMPLATE`, 10253-10255). Rares put
-/// `MAP_LEGEND_RARE` "Rare" or `MAP_LEGEND_RAREELITE` "Rare Elite" where elites put "Elite".
-pub fn npc_level_text(
-    level: u8,
-    classification: CreatureClassification,
-    kind: Option<&str>,
-) -> String {
+/// `UNIT_LEVEL_TEMPLATE` "Level %d", for elites `UNIT_PLUS_LEVEL_TEMPLATE` "Level %d Elite",
+/// for world bosses `UNIT_LETHAL_LEVEL_TEMPLATE` "Level ??" (GlobalStrings 10253-10255).
+/// Rares put `MAP_LEGEND_RARE` "Rare" or `MAP_LEGEND_RAREELITE` "Rare Elite" where elites
+/// put "Elite". The creature type is not on this line: Retail 12 shows it on the next line
+/// (the user's Retail capture `tooltipanchor-2026-10-04/reference-hud-tooltip-crop-2x.png`:
+/// "Level 1" then "Beast"; FlareUI only recolours the level line, Tooltips.lua:231-247).
+pub fn npc_level_text(level: u8, classification: CreatureClassification) -> String {
     let level = match classification {
         CreatureClassification::WorldBoss => "??".to_owned(),
         _ => level.to_string(),
@@ -129,7 +125,6 @@ pub fn npc_level_text(
     ["Level", &level]
         .into_iter()
         .chain(rank)
-        .chain(kind)
         .collect::<Vec<_>>()
         .join(" ")
 }
@@ -143,11 +138,14 @@ fn npc_identity_lines(input: &NpcTooltipInput) -> Vec<TooltipLineState> {
         lines.push(TooltipLineState::colored(subname, TOOLTIP_WHITE));
     }
     if let Some(level) = input.level {
-        let kind = input
-            .data
-            .and_then(|data| creature_type_name(data.creature_type));
-        let text = npc_level_text(level, input.classification, kind);
+        let text = npc_level_text(level, input.classification);
         lines.push(TooltipLineState::colored(text, TOOLTIP_WHITE));
+    }
+    if let Some(kind) = input
+        .data
+        .and_then(|data| creature_type_name(data.creature_type))
+    {
+        lines.push(TooltipLineState::colored(kind, TOOLTIP_WHITE));
     }
     if let Some(faction) = input.faction {
         lines.push(TooltipLineState::colored(faction, TOOLTIP_WHITE));
@@ -424,7 +422,7 @@ mod tests {
 
     /// Timber (world.db creature_template 1132: level 10, rank 4, type 1 Beast).
     #[test]
-    fn timber_reads_level_10_rare_beast() {
+    fn timber_reads_level_10_rare_then_beast() {
         super::super::set_test_data_root();
         let data = CreatureTooltip {
             entry: 1_132,
@@ -443,24 +441,47 @@ mod tests {
             data: Some(&data),
         };
         let tooltip = npc_tooltip(&input, &AppearanceCollection::default());
-        assert_eq!(rows(&tooltip), [(None, "Level 10 Rare Beast", "")]);
+        assert_eq!(
+            rows(&tooltip),
+            [(None, "Level 10 Rare", ""), (None, "Beast", "")]
+        );
+    }
+
+    /// Plainstrider (world.db creature_template 2955: level 1, type 1 Beast), as the user's
+    /// Retail 12 capture shows it: "Level 1", then "Beast" on its own line.
+    #[test]
+    fn a_beast_shows_its_type_on_the_line_below_the_level() {
+        super::super::set_test_data_root();
+        let data = CreatureTooltip {
+            entry: 2_955,
+            subname: String::new(),
+            creature_type: 1,
+            drops: Vec::new(),
+            vendor_items: Vec::new(),
+        };
+        let input = NpcTooltipInput {
+            entry: 2_955,
+            name: "Plainstrider",
+            reaction: Reaction::Neutral,
+            level: Some(1),
+            classification: CreatureClassification::Normal,
+            faction: None,
+            data: Some(&data),
+        };
+        let tooltip = npc_tooltip(&input, &AppearanceCollection::default());
+        assert_eq!(rows(&tooltip), [(None, "Level 1", ""), (None, "Beast", "")]);
+        assert_eq!(tooltip.content.lines[1].left_color, TOOLTIP_WHITE);
     }
 
     #[test]
     fn elite_rare_elite_and_world_boss_level_lines() {
         use CreatureClassification::{Elite, RareElite, WorldBoss};
-        // Hogger (448): level 11 elite humanoid.
-        assert_eq!(
-            npc_level_text(11, Elite, Some("Humanoid")),
-            "Level 11 Elite Humanoid"
-        );
-        // Bruegal Ironknuckle (1720): level 25 rare elite, before the type arrives.
-        assert_eq!(npc_level_text(25, RareElite, None), "Level 25 Rare Elite");
-        // Azuregos (6109): level 63 dragonkin, rank 3.
-        assert_eq!(
-            npc_level_text(63, WorldBoss, Some("Dragonkin")),
-            "Level ?? Dragonkin"
-        );
+        // Hogger (448): level 11 elite.
+        assert_eq!(npc_level_text(11, Elite), "Level 11 Elite");
+        // Bruegal Ironknuckle (1720): level 25 rare elite.
+        assert_eq!(npc_level_text(25, RareElite), "Level 25 Rare Elite");
+        // Azuregos (6109): level 63, rank 3.
+        assert_eq!(npc_level_text(63, WorldBoss), "Level ??");
     }
 
     #[test]
@@ -475,7 +496,8 @@ mod tests {
         assert_eq!(
             rows(&tooltip),
             [
-                (None, "Level 3 Humanoid", ""),
+                (None, "Level 3", ""),
+                (None, "Humanoid", ""),
                 (None, "Drops", ""),
                 (Some(Uncollected), "Pitted Defias Shortsword", "2%"),
                 (Some(Unmarked), "Red Burlap Bandana", "60%"),
@@ -485,9 +507,9 @@ mod tests {
                 (None, "+4 more", ""),
             ]
         );
-        assert_eq!(tooltip.content.lines[3].left_color, TOOLTIP_WHITE);
+        assert_eq!(tooltip.content.lines[4].left_color, TOOLTIP_WHITE);
         assert_eq!(
-            tooltip.content.lines[2].left_color,
+            tooltip.content.lines[3].left_color,
             parse_rgba(quality_color(2))
         );
     }
@@ -501,14 +523,14 @@ mod tests {
         let tooltip = npc_tooltip(&thug_input(&data), &collection);
         let rows = rows(&tooltip);
         assert_eq!(
-            rows[2],
+            rows[3],
             (Some(ItemMark::Unmarked), "Red Burlap Bandana", "60%")
         );
         assert_eq!(
-            rows[5],
+            rows[6],
             (Some(ItemMark::Collected), "Pitted Defias Shortsword", "2%")
         );
-        assert_eq!(rows[7], (None, "+4 more", ""));
+        assert_eq!(rows[8], (None, "+4 more", ""));
     }
 
     #[test]
@@ -558,7 +580,8 @@ mod tests {
             rows(&tooltip),
             [
                 (None, "Armorer", ""),
-                (None, "Level 10 Humanoid", ""),
+                (None, "Level 10", ""),
+                (None, "Humanoid", ""),
                 (None, "Stormwind", ""),
                 (None, "Sells", ""),
                 (Some(ItemMark::Uncollected), "Thin Cloth Shoes", ""),
