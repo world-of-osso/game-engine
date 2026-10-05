@@ -61,6 +61,15 @@ def group_rows(tables, name, column):
 
 
 def collect_material_assets(resources, texture_rows):
+    missing = {
+        resource
+        for resource in resources - {0}
+        if not any(int(row["FileDataID"]) for row in texture_rows.get(resource, []))
+    }
+    if missing:
+        raise ValueError(
+            f"missing TextureFileData material resources {sorted(missing)}"
+        )
     return {
         (int(row["FileDataID"]), "blp")
         for resource in resources - {0}
@@ -189,7 +198,10 @@ def npc_asset_roots(tables, requested, retail_ids, model_paths):
                 int(option["ChrCustomizationChoiceID"])
                 for option in options.get(extra_id, [])
             }
-            roots.update(collect_choice_assets(tables, choices, textures))
+            try:
+                roots.update(collect_choice_assets(tables, choices, textures))
+            except ValueError as error:
+                errors.append(str(error))
             item_ids = {
                 int(item["ItemDisplayInfoID"])
                 for item in items.get(extra_id, [])
