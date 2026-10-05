@@ -23,11 +23,11 @@ pub mod ui {
             cursor_item_component, default_button_atlas, game_menu_component,
             group_frames_component, guild_bank_frame_component, inworld_unit_frames_component,
             loot_frame_component, mail_frame_component, menu_primitives, merchant_frame_component,
-            objective_tracker_component, options_menu_active_sections, options_menu_component,
-            options_menu_sections, quest_art, quest_frame_component, quest_log_frame_component,
-            ready_check_frame_component, selection_debug_component, stack_split_frame_component,
-            static_popup_component, trash_button_component, world_map_frame_art,
-            world_map_frame_component,
+            minimal_scroll_bar, objective_tracker_component, options_menu_active_sections,
+            options_menu_component, options_menu_sections, quest_art, quest_frame_component,
+            quest_log_frame_component, ready_check_frame_component, selection_debug_component,
+            stack_split_frame_component, static_popup_component, trash_button_component,
+            world_map_frame_art, world_map_frame_component,
         };
 
         #[cfg(test)]
@@ -228,6 +228,8 @@ pub mod bag_frame_component;
 pub mod bags_bar_component;
 #[path = "ui/screens/merchant_frame_component.rs"]
 pub mod merchant_frame_component;
+#[path = "ui/screens/minimal_scroll_bar.rs"]
+pub mod minimal_scroll_bar;
 #[path = "ui/screens/quest_art.rs"]
 pub mod quest_art;
 

@@ -146,6 +146,25 @@ impl RegistryModel {
         }
     }
 
+    /// A QuestFrame panel shown anew starts at its top: every panel's `OnShow`, and a
+    /// `QUEST_ITEM_UPDATE` that refills it, calls `ScrollBar:ScrollToBegin`
+    /// (`Mainline/QuestFrame.lua:73-83,128,299,558`).
+    fn reset_quest_scroll_for(
+        &mut self,
+        state: &game_engine_ui_model::quest_frame_component::QuestFrameState,
+    ) {
+        use game_engine_ui_model::quest_frame_component::{QUEST_SCROLL_FRAMES, QuestFrameState};
+        let other_page = self
+            .shared
+            .get::<QuestFrameState>()
+            .is_some_and(|shown| shown.page != state.page);
+        if other_page {
+            for list in QUEST_SCROLL_FRAMES {
+                self.registry.scroll_lists.scroll_to(list, 0);
+            }
+        }
+    }
+
     /// Mirror the active layout's settings, then its skin: a change of either rebuilds the
     /// Screens that read the HUD layout.
     fn sync(&mut self) {
@@ -609,6 +628,17 @@ impl RegistryUi {
             model.reset_options_scroll_for(&view);
         }
         self.set_state(view)
+    }
+
+    /// Before QuestFrame shows `state`: back to the top of its scroll frame when its panel
+    /// changed.
+    pub fn reset_quest_scroll_for(
+        &mut self,
+        state: &game_engine_ui_model::quest_frame_component::QuestFrameState,
+    ) {
+        if let Some(model) = self.model.as_mut() {
+            model.reset_quest_scroll_for(state);
+        }
     }
 
     /// Drain input after processing Godot events with `sync_input`.

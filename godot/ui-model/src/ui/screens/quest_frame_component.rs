@@ -1,12 +1,17 @@
 //! Retail quest giver frame (`QuestFrame`, `ButtonFrameTemplate` 338×496): greeting with
 //! gossip options and the giver's quests, then the detail (Accept/Decline), progress
-//! (Continue/Cancel) and reward (Complete Quest) panels on quest parchment.
+//! (Continue/Cancel) and reward (Complete Quest) panels on quest parchment. The detail,
+//! progress and reward panels show their text in a `QuestScrollFrameTemplate` scroll frame
+//! (`QuestFrame.xml:76-82,108-184,211-217`) that clips it and scrolls when it overflows.
 
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
+use crate::minimal_scroll_bar::{
+    BAR_W, MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+};
 use crate::ui::screens::inworld_unit_frames_component::PortraitSlot;
 use crate::ui::screens::quest_art::{
     DynName, GOSSIP_ACTIVE_ICON, GOSSIP_AVAILABLE_ICON, GOSSIP_IN_PROGRESS_ICON,
@@ -33,6 +38,35 @@ const PARCHMENT_H: f32 = 407.0;
 const CONTENT_X: f32 = PARCHMENT_X + 10.0;
 const CONTENT_TOP: f32 = PARCHMENT_Y + 10.0;
 const CONTENT_W: f32 = 280.0;
+/// `QuestScrollFrameTemplate` (`QuestFrameTemplates.xml:158-167`): 300×403 at (5, -65) in
+/// QuestFrame, its `MinimalScrollBar` (`ScrollFrame_OnLoad`, `SecureUIPanelTemplates.lua:1-31`;
+/// `SCROLL_FRAME_SCROLL_BAR_TEMPLATE`, `Mainline/ScrollDefine.lua:1`) 9 right of its right
+/// edge, 2 below its top (`scrollBarX`, `scrollBarTopY`) and 5 above its bottom
+/// (`SCROLL_FRAME_SCROLL_BAR_OFFSET_BOTTOM`, `ScrollDefine.lua:4`).
+const SCROLL_X: f32 = 5.0;
+const SCROLL_Y: f32 = 65.0;
+const SCROLL_W: f32 = 300.0;
+const SCROLL_H: f32 = 403.0;
+const SCROLL_BAR_X: f32 = 9.0;
+const SCROLL_BAR_TOP: f32 = 2.0;
+const SCROLL_BAR_BOTTOM: f32 = 5.0;
+/// Pixels a wheel notch or stepper press scrolls a scroll frame: `ScrollFrame:SetPanExtent(30)`,
+/// panned by `ScrollBarMixin:ScrollStepInDirection` from both `OnMouseWheel` and the steppers
+/// (`ScrollUtil.lua:235-238,260-262`; `ScrollBar.lua:117-119,307-311`).
+pub const SCROLL_PAN_EXTENT: usize = 30;
+pub const QUEST_DETAIL_SCROLL: &str = "QuestDetailScrollFrame";
+pub const QUEST_PROGRESS_SCROLL: &str = "QuestProgressScrollFrame";
+pub const QUEST_REWARD_SCROLL: &str = "QuestRewardScrollFrame";
+pub const QUEST_SCROLL_FRAMES: [&str; 3] = [
+    QUEST_DETAIL_SCROLL,
+    QUEST_PROGRESS_SCROLL,
+    QUEST_REWARD_SCROLL,
+];
+/// `QuestInfo_ShowSpacer` (5 tall, `QuestInfo.lua:396-399`) ends the detail page 20 below
+/// the rewards and the reward page 10 below them (`QUEST_TEMPLATE_DETAIL` /
+/// `QUEST_TEMPLATE_REWARD`, `QuestInfo.lua:1122,1150`).
+const DETAIL_TAIL: f32 = 20.0 + 5.0;
+const REWARD_TAIL: f32 = 10.0 + 5.0;
 /// `QuestTitleFont` (Morpheus 18 in Retail) and `QuestFont` (13).
 const TITLE_FONT: f32 = 18.0;
 const BODY_FONT: f32 = 13.0;
@@ -171,7 +205,7 @@ pub fn quest_frame_screen(ctx: &SharedContext) -> Element {
         QUEST_PARCHMENT,
         (PARCHMENT_X, PARCHMENT_Y, PARCHMENT_W, PARCHMENT_H),
     );
-    let page = page_elements(&state.page);
+    let page = page_elements(&state.page, ctx);
     rsx! {
         r#frame {
             name: {DynName(QUEST_FRAME.into())},
@@ -190,7 +224,8 @@ pub fn quest_frame_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-fn page_elements(page: &QuestFramePage) -> Element {
+fn page_elements(page: &QuestFramePage, ctx: &SharedContext) -> Element {
+    let offset = |list| ctx.scroll_first_row(list);
     match page {
         QuestFramePage::Greeting {
             text,
@@ -202,18 +237,30 @@ fn page_elements(page: &QuestFramePage) -> Element {
             description,
             objectives_text,
             rewards,
-        } => detail_panel(title, description, objectives_text, rewards),
+        } => detail_panel(
+            title,
+            description,
+            objectives_text,
+            rewards,
+            offset(QUEST_DETAIL_SCROLL),
+        ),
         QuestFramePage::Progress {
             title,
             text,
             required,
             can_complete,
-        } => progress_panel(title, text, required, *can_complete),
+        } => progress_panel(
+            title,
+            text,
+            required,
+            *can_complete,
+            offset(QUEST_PROGRESS_SCROLL),
+        ),
         QuestFramePage::Reward {
             title,
             text,
             rewards,
-        } => reward_panel(title, text, rewards),
+        } => reward_panel(title, text, rewards, offset(QUEST_REWARD_SCROLL)),
     }
 }
 
@@ -405,49 +452,102 @@ fn list_row(name: String, text: &str, action: &str, top: f32) -> Element {
     }
 }
 
+/// The scroll child's text column: the panels' content inset, in scroll-frame coordinates.
+const SCROLL_CONTENT: Column = Column {
+    x: CONTENT_X - SCROLL_X,
+    width: CONTENT_W,
+};
+const SCROLL_CONTENT_TOP: f32 = CONTENT_TOP - SCROLL_Y;
+
+/// Scroll frame `list` scrolled down `offset` pixels: it clips `content` (laid out from its
+/// top, `height` tall) to its 300×403 and scrolls it when taller. Its bar keeps its track
+/// while nothing overflows and shows no thumb: `QuestScrollFrameTemplate` leaves
+/// `scrollBarHideIfUnscrollable` unset (`QuestFrameTemplates.xml:158-167`,
+/// `ScrollBar.lua:252-264`).
+fn scroll_frame(list: &str, content: Element, height: f32, offset: usize) -> Element {
+    let bar_height = SCROLL_H - SCROLL_BAR_TOP - SCROLL_BAR_BOTTOM;
+    let geometry = pixel_geometry(SCROLL_H, height, bar_height);
+    let offset = geometry.clamp(offset);
+    let config = scroll_list_attr(&geometry);
+    let bar = MinimalScrollBar {
+        list,
+        left: SCROLL_W + SCROLL_BAR_X,
+        top: SCROLL_BAR_TOP,
+        height: bar_height,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideThumb,
+    };
+    let child = list.replace("ScrollFrame", "ScrollChildFrame");
+    rsx! {
+        r#frame {
+            name: {DynName(list.into())},
+            width: {SCROLL_W + SCROLL_BAR_X + BAR_W},
+            height: SCROLL_H,
+            mouse_enabled: true,
+            scroll_list: {config},
+            pos_type: "absolute",
+            left: SCROLL_X,
+            top: SCROLL_Y,
+            r#frame {
+                name: {DynName(child)},
+                width: SCROLL_W,
+                height: {height.max(SCROLL_H)},
+                pos_type: "absolute",
+                left: 0,
+                top: {-(offset as f32)},
+                {content}
+            }
+            {bar.element()}
+        }
+    }
+}
+
 fn detail_panel(
     title: &str,
     description: &str,
     objectives_text: &str,
     rewards: &RewardView,
+    offset: usize,
 ) -> Element {
-    let mut y = CONTENT_TOP;
-    let mut elements = text_block(
+    let mut y = SCROLL_CONTENT_TOP;
+    let mut content = text_block(
         "QuestInfoTitleHeader".into(),
         title,
         TITLE_FONT,
         QUEST_TEXT_COLOR,
-        CONTENT,
+        SCROLL_CONTENT,
         &mut y,
     );
     y += TITLE_GAP;
-    elements.extend(text_block(
+    content.extend(text_block(
         "QuestInfoDescriptionText".into(),
         description,
         BODY_FONT,
         QUEST_TEXT_COLOR,
-        CONTENT,
+        SCROLL_CONTENT,
         &mut y,
     ));
     y += SECTION_GAP;
-    elements.extend(text_block(
+    content.extend(text_block(
         "QuestInfoObjectivesHeader".into(),
         "Quest Objectives",
         TITLE_FONT,
         QUEST_TEXT_COLOR,
-        CONTENT,
+        SCROLL_CONTENT,
         &mut y,
     ));
     y += TITLE_GAP;
-    elements.extend(text_block(
+    content.extend(text_block(
         "QuestInfoObjectivesText".into(),
         objectives_text,
         BODY_FONT,
         QUEST_TEXT_COLOR,
-        CONTENT,
+        SCROLL_CONTENT,
         &mut y,
     ));
-    elements.extend(rewards_section(rewards, false, CONTENT, &mut y));
+    content.extend(rewards_section(rewards, false, SCROLL_CONTENT, &mut y));
+    let mut elements = scroll_frame(QUEST_DETAIL_SCROLL, content, y + DETAIL_TAIL, offset);
     elements.extend(left_button(
         "QuestFrameAcceptButton",
         "Accept",
@@ -468,45 +568,47 @@ fn progress_panel(
     text: &str,
     required: &[RewardItemView],
     can_complete: bool,
+    offset: usize,
 ) -> Element {
-    let mut y = CONTENT_TOP;
-    let mut elements = text_block(
+    let mut y = SCROLL_CONTENT_TOP;
+    let mut content = text_block(
         "QuestProgressTitleText".into(),
         title,
         TITLE_FONT,
         QUEST_TEXT_COLOR,
-        CONTENT,
+        SCROLL_CONTENT,
         &mut y,
     );
     y += TITLE_GAP;
-    elements.extend(text_block(
+    content.extend(text_block(
         "QuestProgressText".into(),
         text,
         BODY_FONT,
         QUEST_TEXT_COLOR,
-        CONTENT,
+        SCROLL_CONTENT,
         &mut y,
     ));
     if !required.is_empty() {
         y += SECTION_GAP;
-        elements.extend(text_block(
+        content.extend(text_block(
             "QuestProgressRequiredItemsText".into(),
             "Required items:",
             TITLE_FONT,
             QUEST_TEXT_COLOR,
-            CONTENT,
+            SCROLL_CONTENT,
             &mut y,
         ));
         y += TITLE_GAP;
-        elements.extend(item_grid(
+        content.extend(item_grid(
             "QuestProgressItem",
             required,
             None,
             false,
-            CONTENT,
+            SCROLL_CONTENT,
             &mut y,
         ));
     }
+    let mut elements = scroll_frame(QUEST_PROGRESS_SCROLL, content, y, offset);
     elements.extend(left_button(
         "QuestFrameCompleteButton",
         "Continue",
@@ -522,26 +624,27 @@ fn progress_panel(
     elements
 }
 
-fn reward_panel(title: &str, text: &str, rewards: &RewardView) -> Element {
-    let mut y = CONTENT_TOP;
-    let mut elements = text_block(
+fn reward_panel(title: &str, text: &str, rewards: &RewardView, offset: usize) -> Element {
+    let mut y = SCROLL_CONTENT_TOP;
+    let mut content = text_block(
         "QuestInfoTitleHeader".into(),
         title,
         TITLE_FONT,
         QUEST_TEXT_COLOR,
-        CONTENT,
+        SCROLL_CONTENT,
         &mut y,
     );
     y += TITLE_GAP;
-    elements.extend(text_block(
+    content.extend(text_block(
         "QuestInfoRewardText".into(),
         text,
         BODY_FONT,
         QUEST_TEXT_COLOR,
-        CONTENT,
+        SCROLL_CONTENT,
         &mut y,
     ));
-    elements.extend(rewards_section(rewards, true, CONTENT, &mut y));
+    content.extend(rewards_section(rewards, true, SCROLL_CONTENT, &mut y));
+    let mut elements = scroll_frame(QUEST_REWARD_SCROLL, content, y + REWARD_TAIL, offset);
     // Always enabled; QuestRewardCompleteButton_OnClick reports a missing choice.
     elements.extend(left_button(
         "QuestFrameCompleteQuestButton",
