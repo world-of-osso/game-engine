@@ -57,8 +57,12 @@ Verified October 5, 2026 with buildx 0.30.1 and BuildKit 0.33.1, using the
   0.30 seconds. The log reported `#11 CANCELED` and `Canceled: context canceled`;
   build ref `rriz5sbucra7w3hc2pnzlb0xl` ended without killing container processes
   manually. Graceful client cancellation was sufficient for this installed builder.
-- A normal session-test compile/export completed with exit 0 in 106 seconds
-  (ref `u972aous6a4lqhh5tylpmem05`); a core-test compile/export also completed.
+- The default extension build compiled ui-model/GDExtension, exported and installed
+  `target/debug/libgame_engine_godot.so` in 40.3 seconds (completed ref
+  `ideq6k0ta7tfzzbibzb5d0xqe`; installed ELF x86-64, SHA-256
+  `d921b85b630d5c00ab2c52c7392eacf9af7949981e66a6f5d1906cca4263d053`).
+  Session-test compile/export also completed with exit 0 in 106 seconds
+  (ref `u972aous6a4lqhh5tylpmem05`); core-test compile/export completed too.
 - The cancellation build waited on the unchanged shared lock from 13:22 to 13:41
   CDT. History records bracket its solve: preceding locked build ended at
   18:41:19.986 UTC, this solve ran 18:41:21.294–18:41:36.635 UTC, and the next
