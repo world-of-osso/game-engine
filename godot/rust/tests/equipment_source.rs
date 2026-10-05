@@ -124,6 +124,26 @@ fn source_fixture(name: &str) -> PathBuf {
             "ID,MaleTextureFallbackRaceID,MaleTextureFallbackSex,FemaleTextureFallbackRaceID,FemaleTextureFallbackSex,MaleModelFallbackRaceID,MaleModelFallbackSex,FemaleModelFallbackRaceID,FemaleModelFallbackSex\n",
         );
     }
+    write(
+        &retail,
+        "ComponentModelFileData",
+        "ID,GenderIndex,ClassID,RaceID,PositionIndex\n211,1,0,1,-1\n",
+    );
+    write(
+        &retail,
+        "ComponentTextureFileData",
+        "ID,GenderIndex,ClassID,RaceID\n212,1,0,1\n",
+    );
+    write(
+        &forever,
+        "ComponentModelFileData",
+        "ID,GenderIndex,ClassID,RaceID,PositionIndex\n211,0,0,1,-1\n",
+    );
+    write(
+        &forever,
+        "ComponentTextureFileData",
+        "ID,GenderIndex,ClassID,RaceID\n212,0,0,1\n",
+    );
     std::fs::copy(
         data_dir().join("db2/HelmetGeosetData.db2"),
         root.join("db2/HelmetGeosetData.db2"),
