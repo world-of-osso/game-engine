@@ -41,7 +41,7 @@ The stale root CSVs/community listfile miss these set-1 relations; the project s
 
 `godot/ui-model/tests/portrait_party_frame.rs` tests four names, supplied bar fractions, Offline/Dead and leader visibility under both skins, and Forever's relationship to Camelot/player art. `capture_modern_portrait_party_fixture` generates the Modern semantic registry golden; normal golden test compares the resulting external registry tree. It does not prove raster parity or live wiring.
 
-Standalone offline preview: `GODOT_CAPTURE_SCREEN=portrait_party GODOT_CAPTURE_PATH=<png>` with `res://tests/capture_ui_screen.gd`. `RegistryUi.show_portrait_party` installs deterministic four-member data without connecting a server. Portrait slots are intentionally empty until runtime binding work.
+Standalone offline preview: `GODOT_CAPTURE_SCREEN=portrait_party` (Modern) or `forever_portrait_party`, `GODOT_CAPTURE_PATH=<png>`, with `res://tests/capture_ui_screen.gd`. `RegistryUi.show_portrait_party` / `show_forever_portrait_party` install deterministic four-member data without connecting a server or changing saved settings. Portrait slots are intentionally empty until runtime binding work.
 
 ## Sources
 

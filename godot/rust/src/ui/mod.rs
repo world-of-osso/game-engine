@@ -1882,6 +1882,15 @@ impl RegistryUi {
     /// Offline authored party preview for capture_ui_screen.gd; no group/network state.
     #[func]
     pub fn show_portrait_party(&mut self) -> GString {
+        self.show_portrait_party_skin(ui_toolkit::atlas::ActiveSkin::Modern)
+    }
+
+    #[func]
+    pub fn show_forever_portrait_party(&mut self) -> GString {
+        self.show_portrait_party_skin(ui_toolkit::atlas::ActiveSkin::Forever)
+    }
+
+    fn show_portrait_party_skin(&mut self, skin: ui_toolkit::atlas::ActiveSkin) -> GString {
         use game_engine_ui_model::portrait_party_frame_component::portrait_party_frame_screen;
         if self.model.is_some() {
             return "RegistryUi already has a screen".into();
@@ -1893,6 +1902,7 @@ impl RegistryUi {
         if let Err(error) = party_preview::load_data_root() {
             return error.into();
         }
+        ui_toolkit::atlas::set_active_skin(skin);
         let mut shared = SharedContext::new();
         shared.insert(party_preview::state());
         let mut model = RegistryModel {
