@@ -76,7 +76,7 @@ Proof boundaries: [Skyborne ledger](../../target/skyborne-proof-ledger.md); data
 - [ ] Render name-entry text at the Retail `NumberFont_Shadow_Large` Roman size: Arial Narrow, 20 logical pixels. Keep allowed 12-letter names within the unchanged field and preserve input/caret behavior.
 
 - [x] Preserve typed names through category/popup updates and Back/Next navigation; retain focus and error presentation where applicable.
-- [x] Place a distinct Randomize Name dice control immediately left of the name editbox. Load the build-pinned authored NameGen catalog once; select only names for the selected race and body type, mapping Pandaren faction IDs 25/26 to neutral ID 24. Exclude names rejected by the existing 2–12 ASCII-letter creation validation, never truncate or synthesize. Repeated clicks change the name where another candidate exists, updating both draft and editbox without altering appearance, category, popup, navigation or submitting a character. Missing/invalid catalog or empty race/body-type group disables the control; forced selection reports an error.
+- [x] Place a distinct Randomize Name dice control immediately left of the name editbox. Load the build-pinned authored NameGen catalog once; preserve Retail rows and add only Forever 1.60.1.70205 race 95/96 first-name rows (`NameType=0`) for each authored body type. Never offer surnames (`NameType=1`) or borrow names from another Skyborne race/body type. The maintained export must retain NameType and source/layout/schema provenance; both Retail and Forever CSVs are required. Select only names for the selected race and body type, mapping existing Pandaren faction IDs 25/26 to neutral ID 24. Exclude names rejected by the existing 2–12 ASCII-letter creation validation, never truncate or synthesize. Repeated clicks change the name where another candidate exists, updating both draft and editbox without altering appearance, category, popup, navigation or submitting a character. Missing/invalid catalog or empty race/body-type group disables the control; forced selection reports an error.
 - [x] Transmit the complete supported appearance through the existing creation path and preserve it after server storage/reopen and roster loading.
 
 ## How it works
@@ -95,6 +95,9 @@ Proof boundaries: [Skyborne ledger](../../target/skyborne-proof-ledger.md); data
 - `../ui-toolkit/core/src/atlas.rs` (DB2 atlas tables, project art), `../ui-toolkit/core/src/attrs.rs` — atlas identities/crops and authored hit insets.
 
 ## Tests asserting this spec
+
+- `godot/rust/src/scenes/char_create/name_catalog_fixture_tests.rs` — all four Forever race/body-type groups, first-name-only selection, unchanged Retail/Pandaren candidates, existing validation, no fabricated results and explicit missing/malformed overlay errors.
+- `scripts/tests/test_export_forever_names.py` — pinned local WDC5 NameGen decoding, complete five-column export, source/DBD/CSV provenance, Retail preservation and corrupt-source rejection. [Provisioning](../test-assets.md#authored-character-names).
 
 - `godot/tests/charcreate_skyborne_flow.gd` — four offline native variants, exact offered catalog option IDs with NPC Eye Style excluded, raw 18/19 coverage, body/material/canvas checks, independent atlas RGB crop, live bone motion and preview-only pixel controls.
 - `scripts/tests/charcreate_skyborne.py` — offscreen cage runner with saved actual Godot exit code and captures under `data/diagnostics/skyborne-charcreate/`; run through `scripts/agent/agent-run skyborne-charcreate` after the desktop helper exports the native extension.

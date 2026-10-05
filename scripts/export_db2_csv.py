@@ -74,6 +74,17 @@ TABLES = {
         [("ID", "id"), ("MaterialResourcesID", 0), ("TextureType", 1),
          ("ModelIndex", 2), ("ItemDisplayInfoID", "parent")],
     ),
+    # Forever 1.60.1.70205: non-inline ID, first name (0) or surname (1).
+    "NameGen": (
+        0x584300FA,
+        [
+            ("ID", "id"),
+            ("Name", ("string", 0)),
+            ("RaceID", ("i8", 1, 0)),
+            ("Sex", ("i8", 2, 0)),
+            ("NameType", ("u8", 3, 0)),
+        ],
+    ),
     "Light": (
         0x5F16BC84,
         [

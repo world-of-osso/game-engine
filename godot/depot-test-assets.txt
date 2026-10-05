@@ -1127,6 +1127,7 @@ models/920688.wmo
 models/948620.wmo
 models/948622.wmo
 NameGen.csv
+db2/1.60.1.70205/NameGen.csv
 tactkeys/WoW.txt
 terrain/6252613.wdt
 terrain/6252663.adt

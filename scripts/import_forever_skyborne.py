@@ -106,6 +106,7 @@ TABLES = dict(
 )
 TABLES.update(
     {
+        "NameGen": 1122117,
         "Light": 1375579,
         "LightData": 1375580,
         "LightParams": 1334669,
@@ -117,6 +118,7 @@ TABLES.update(
 TABLES.update(npc.TABLES)
 TABLES.update(liquids.TABLES)
 NEW_TABLES = set(npc.TABLES) | {
+    "NameGen",
     "CharBaseInfo",
     "ChrRacesCreateScreenIcon",
     "UiTextureAtlas",
