@@ -317,6 +317,7 @@ fn stage_npc_appearance(data: &Path) -> Result<(), String> {
         CREATE TABLE layouts (id INTEGER PRIMARY KEY, width INTEGER NOT NULL, height INTEGER NOT NULL);
         CREATE TABLE model_materials (layout_id INTEGER NOT NULL, texture_type INTEGER NOT NULL, width INTEGER NOT NULL, height INTEGER NOT NULL, PRIMARY KEY (layout_id, texture_type));
         INSERT INTO layouts VALUES (910041,2,2),(910043,2048,1024);
+        INSERT INTO model_materials VALUES (910041,19,2,2);
         INSERT INTO layers VALUES (1,0,0,-1,1,910041),(1,1,0,-1,2,910041),
             (1,0,0,-1,1,910043),(1,1,0,-1,2,910043),
             (19,2,0,-1,11,910041),(6,2,0,-1,10,910041),
