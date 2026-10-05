@@ -55,7 +55,10 @@ pub fn entries() -> Vec<LauncherEntry> {
             icon: micro.icon_atlas(),
         })
         .collect();
-    // HelpMicroButtonMixin:OnLoad uses GameMenu art (Retail MainMenuBarMicroButtons.lua:1773).
+    // Retail MainMenuBarMicroButtons.lua:1773-1788 loads GameMenu art for both
+    // Help and MainMenu. Its red question mark is authored micro art, not a fallback.
+    // Other shortcut art: local UiTextureAtlasMember 14849 (tracking map), 4702
+    // (Gear), and 10556 (tutorial keyboard).
     let shortcuts = [
         (
             "Help",
@@ -68,19 +71,19 @@ pub fn entries() -> Vec<LauncherEntry> {
             "WorldMap",
             "World Map",
             crate::minimap::ACTION_TOGGLE_WORLD_MAP,
-            "UI-HUD-MicroMenu-Questlog-Up",
+            "UI-HUD-Minimap-Tracking-Up",
         ),
         (
             "Options",
             "Options",
             crate::game_menu_main::ACTION_OPTIONS,
-            "UI-HUD-MicroMenu-GameMenu-Up",
+            "Gear",
         ),
         (
             "KeyBindings",
             "Key Bindings",
             ACTION_KEY_BINDINGS,
-            "UI-HUD-MicroMenu-GameMenu-Up",
+            "newplayertutorial-keyboard",
         ),
     ];
     entries.extend(
@@ -320,8 +323,14 @@ fn entry_button(index: usize, entry: &LauncherEntry, selected: bool) -> Element 
 
 fn entry_icon(entry: &LauncherEntry) -> Element {
     if let Some(atlas) = &entry.icon {
-        return rsx! { texture { name: {DynName(format!("LauncherArt{}", entry.id))}, width: ICON_W, height: ICON_H,
-        texture_atlas: atlas.as_str(), pos_type: "absolute", left: 0.0, top: 0.0 } };
+        let height = match atlas.as_str() {
+            // UiTextureAtlasMember 10556 overrides the keyboard's size to 480×169.
+            "newplayertutorial-keyboard" => ICON_W * 169.0 / 480.0,
+            "Gear" | "UI-HUD-Minimap-Tracking-Up" => ICON_W,
+            _ => ICON_H,
+        };
+        return rsx! { texture { name: {DynName(format!("LauncherArt{}", entry.id))}, width: ICON_W, height,
+        texture_atlas: atlas.as_str(), pos_type: "absolute", left: 0.0, top: {(ICON_H - height) / 2.0} } };
     }
     rsx! {
         texture { name: "LauncherCharacterShadow", width: ICON_W, height: ICON_H,

@@ -16,7 +16,8 @@ Micro entries derive labels, actions and normal icons from `MICRO_BUTTONS`. Char
 - Modern: existing `static_popup` diamond-dialog border (FDID 6795680), existing dark dialog background atlas.
 - Search: `common-search-magnifyingglass`, local Retail/Forever DB2 member34111, atlas3172, FDID6725697 (1x canvas selected by the existing atlas resolver). The older canvas0 member9809/atlas1541 is FDID3281887. No downloads.
 - Micro icons/actions: `godot/ui-model/src/micro_menu.rs`; host `godot/rust/src/character_frame.rs`.
-- Help icon: Retail `AddOns/Blizzard_MicroMenu/Mainline/MainMenuBarMicroButtons.lua:1773-1774`, `LoadMicroButtonTextures(self, "GameMenu")`.
+- Game Menu and Help: local Retail `AddOns/Blizzard_MicroMenu/Mainline/MainMenuBarMicroButtons.xml` declares `MainMenuMicroButton`/`HelpMicroButton` with their corresponding mixins; `.lua:1773-1788` loads `GameMenu` for both. `UI-HUD-MicroMenu-GameMenu-Up` resolves to Retail FDID4708813/member17183 or Forever FDID8200846/member39848. Both crops contain Blizzard's authored red question mark, not the unknown-icon FDID134400. Keep required micro art rather than substitute an unrelated icon.
+- Options: `Gear`, member4702, Retail FDID1121272. Key Bindings: `newplayertutorial-keyboard`, member10556, FDID1065418, extracted from local CASC; preserve its 480×169 aspect ratio. World Map: `UI-HUD-Minimap-Tracking-Up`, member14849, FDID4618651 (Retail's folded-map tracking button). Options/Key Bindings previously reused GameMenu; World Map incorrectly reused Questlog. These were wrong assignments, not failed texture resolution.
 - Launcher lifecycle/filter/navigation are the user's October 5, 2026 design, not Retail behavior.
 
 ## Sources

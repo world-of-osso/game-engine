@@ -17,6 +17,7 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 ### Inventory and appearance
 - [x] Include every existing micro entry: Character, Professions, Talents & Spellbook, Achievements, Quest Log, Housing Dashboard, Guild & Communities, Group Finder, Collections, Adventure Guide, Shop and Game Menu; also Help, Bags (backpack), World Map, Options and Key Bindings.
 - [x] Micro entries reuse existing micro-menu icons and host actions, including unavailable-window messages. Existing micro menu is unchanged.
+- [x] Help uses Retail HelpMicroButton art; Options uses a gear, Key Bindings a keyboard, and World Map a map icon. Every entry resolves to a cached Blizzard texture, never unknown-icon FDID134400. Retail's authored GameMenu question mark is not that fallback.
 - [x] Centre panel containing search above large icons with labels below. Use existing Forever metal frame or Modern dialog artwork; no new artwork.
 
 ## How it works
@@ -36,7 +37,7 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 
 ## Tests asserting this spec
 
-- `godot/ui-model/tests/launcher.rs` — toggle, filtering, selection, activation, Escape, minimap click and inventory.
+- `godot/ui-model/tests/launcher.rs` — toggle, filtering, selection, activation, Escape, minimap click, inventory, shortcut atlas crops, and entry-agnostic non-fallback texture resolution/BLP decoding under both skins.
 - `godot/core/tests/input_bindings_data.rs` — binding label, section and Ctrl+Space matching.
 - `godot/ui-model/tests/micro_menu.rs` — unchanged micro-menu behavior.
 
