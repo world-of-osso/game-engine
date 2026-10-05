@@ -1,6 +1,8 @@
 //! Native scene-light resources sampled from authored map-position/time data.
 
 pub(crate) mod assets;
+#[cfg(test)]
+mod assets_tests;
 mod fog_cone;
 mod planets;
 
