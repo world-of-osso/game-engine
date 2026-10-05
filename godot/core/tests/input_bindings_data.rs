@@ -108,10 +108,10 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 94);
+    assert_eq!(InputAction::ALL.len(), 95);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 14, 22, 12, 12, 1, 13, 6]
+        [8, 6, 14, 22, 12, 12, 1, 14, 6]
     );
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {
@@ -206,6 +206,34 @@ fn inventory_defaults_and_sections_are_exact() {
         "{ron}"
     );
     let restored: InputBindingsData = ron::from_str(&ron).unwrap();
+    assert_eq!(restored, bindings);
+}
+
+#[test]
+fn player_spells_bindings_are_listed_under_interface_without_invented_spec_default() {
+    let bindings = InputBindingsData::default();
+    for (action, label, binding) in [
+        (
+            InputAction::ToggleSpellbook,
+            "Spellbook",
+            Some(InputBinding::Keyboard(BindingKey::KeyP)),
+        ),
+        (
+            InputAction::ToggleTalents,
+            "Talents",
+            Some(InputBinding::Keyboard(BindingKey::KeyN)),
+        ),
+        (InputAction::ToggleSpecialization, "Specialization", None),
+    ] {
+        assert_eq!(action.label(), label);
+        assert_eq!(action.section(), BindingSection::Interface);
+        assert_eq!(bindings.binding(action), binding);
+        assert!(
+            game_engine_core::input_bindings_data::actions_for_section(BindingSection::Interface)
+                .contains(&action)
+        );
+    }
+    let restored: InputBindingsData = ron::from_str(&ron::to_string(&bindings).unwrap()).unwrap();
     assert_eq!(restored, bindings);
 }
 

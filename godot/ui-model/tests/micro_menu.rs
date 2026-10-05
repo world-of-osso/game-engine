@@ -39,7 +39,10 @@ fn atlas(registry: &FrameRegistry, name: &str) -> String {
         panic!("{name} draws {:?}, not an atlas", texture.source);
     };
     let region = resolve_region(atlas, ActiveSkin::Modern).expect(atlas);
-    assert!(region.right > region.left && region.bottom > region.top, "{atlas}");
+    assert!(
+        region.right > region.left && region.bottom > region.top,
+        "{atlas}"
+    );
     atlas.clone()
 }
 
@@ -75,6 +78,23 @@ fn tooltip_rows(view: &MicroMenuView, name: &str, key: Option<&str>) -> Option<V
             )
             .collect(),
     )
+}
+
+#[test]
+fn combined_player_spells_micro_button_opens_specialization_when_talents_are_absent() {
+    use game_engine_ui_model::micro_menu::player_spells_micro_tab;
+    use game_engine_ui_model::spellbook_frame_component::{PlayerSpellsTab, SpellbookFrameState};
+    let registry = build(MicroMenuView::default());
+    let (_, _, action) = button_state(&registry, "PlayerSpellsMicroButton");
+    let tab = player_spells_micro_tab(action.as_deref().unwrap()).unwrap();
+    let mut book = SpellbookFrameState::default();
+    assert!(book.toggle_tab(false, tab));
+    assert_eq!(book.tab, PlayerSpellsTab::Specialization);
+    assert_eq!(
+        MICRO_BUTTONS[index("PlayerSpellsMicroButton")].binding,
+        Some(game_engine_core::input_bindings_data::InputAction::ToggleTalents)
+    );
+    assert!(player_spells_micro_tab(ACTION_CHARACTER).is_none());
 }
 
 #[test]
