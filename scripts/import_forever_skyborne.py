@@ -29,6 +29,12 @@ DEFINITIONS = Path("/home/osso/Repos/wowless/vendor/dbdefs/definitions")
 CACHE = (
     Path.home() / ".cache/asset-resolver/casc/wow_classic_beta" / BUILD_KEY / "schema-2"
 )
+# Original extraction retained before the canonical checkout's local idx sync changed.
+PROBE_DIRECTORY = (
+    Path("/syncthing/Sync/Projects/world-of-osso/game-engine/data")
+    / ("forever-" + BUILD)
+    / "skyborne-probe"
+)
 TABLES = dict(
     zip(
         (
@@ -457,11 +463,11 @@ def validate_magic(raw, extension, content_key=None):
         raise ValueError(f"expected {extension} magic, got {raw[:4]!r}")
 
 
-def stage_verified_probes(data, staging, fdids, connection):
+def stage_verified_probes(probe_directory, staging, fdids, connection):
     """Reuse original local-CASC extraction bytes only under the current root key."""
     provenance = {}
     for fdid in sorted(set(fdids)):
-        probe = data / ("forever-" + BUILD) / "skyborne-probe" / f"{fdid}.dat"
+        probe = probe_directory / f"{fdid}.dat"
         if not probe.is_file():
             continue
         record = connection.execute(
@@ -533,7 +539,10 @@ def import_assets(data, staging, tables):
         }
         probe_sources.update(
             stage_verified_probes(
-                data, staging, [fdid for fdid, _ in batch], connection
+                PROBE_DIRECTORY,
+                staging,
+                scenes & {fdid for fdid, _ in batch},
+                connection,
             )
         )
         extract_missing(
