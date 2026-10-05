@@ -235,6 +235,7 @@ mod tests {
             items: vec![EquippedItem {
                 slot: EquipmentSlot::MainHand,
                 item: ItemStack {
+                    definition_source: shared::item_data::ItemDefinitionSource::Retail,
                     item_guid: 9,
                     item_id: 25,
                     count: 1,

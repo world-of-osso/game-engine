@@ -758,6 +758,7 @@ fn starter_equipment() -> EquipmentAppearance {
         ]
         .into_iter()
         .map(|(slot, item_id, inventory_type)| EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
             slot,
             item_id: Some(item_id),
             display_info_id: None,
@@ -806,6 +807,7 @@ fn respond_to_login(app: &mut App, screen: StartupScreen) -> Result<(), String> 
         name: COLLECTION_NAME.into(),
         equipment_appearance: EquipmentAppearance {
             entries: vec![EquippedAppearanceEntry {
+                definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
                 slot: EquipmentVisualSlot::Chest,
                 item_id: Some(1),
                 display_info_id: Some(175942),

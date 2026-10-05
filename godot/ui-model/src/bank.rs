@@ -136,6 +136,7 @@ impl BagStacks {
                     ItemStack {
                         item_guid: item.item_guid,
                         item_id: item.item_id,
+                        definition_source: item.definition_source,
                         count: item.count,
                         durability: item.durability,
                         soulbound: item.soulbound,

@@ -14,9 +14,20 @@ pub fn item_icon_fdid(item_id: u32) -> Option<u32> {
     crate::item_catalog::item_catalog()?.icon_fdid(item_id)
 }
 
+pub fn item_icon_fdid_for(
+    source: shared::item_data::ItemDefinitionSource,
+    item_id: u32,
+) -> Option<u32> {
+    crate::item_catalog::item_catalog_for(source)?.icon_fdid(item_id)
+}
+
 pub(crate) fn load_item_icons() -> Result<HashMap<u32, u32>, String> {
+    load_item_icons_from(&crate::paths::resolve_data_path(""))
+}
+
+pub(crate) fn load_item_icons_from(dir: &Path) -> Result<HashMap<u32, u32>, String> {
     let appearance_icons = read_columns(
-        &crate::paths::resolve_data_path("ItemAppearance.csv"),
+        &dir.join("ItemAppearance.csv"),
         ["ID", "DefaultIconFileDataID", "ID"],
     )?;
     let appearance_icon: HashMap<u32, u32> = appearance_icons
@@ -24,7 +35,7 @@ pub(crate) fn load_item_icons() -> Result<HashMap<u32, u32>, String> {
         .map(|[id, icon, _]| (id, icon))
         .collect();
     let modified = read_columns(
-        &crate::paths::resolve_data_path("ItemModifiedAppearance.csv"),
+        &dir.join("ItemModifiedAppearance.csv"),
         ["ItemID", "ItemAppearanceID", "OrderIndex"],
     )?;
     Ok(item_icons(modified, &appearance_icon))

@@ -346,6 +346,7 @@ fn bag_item(slot: u8, item_id: u32, count: u32) -> BagSlotItem {
     BagSlotItem {
         slot,
         item: ItemStack {
+            definition_source: shared::item_data::ItemDefinitionSource::Retail,
             item_guid: 9_180_000 + u64::from(item_id),
             item_id,
             count,

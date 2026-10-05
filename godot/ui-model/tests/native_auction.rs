@@ -113,6 +113,7 @@ fn native_auction_all_rows_are_reachable() {
         gold: 1000,
         items: (1..=43)
             .map(|i| AuctionInventoryItem {
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
                 item_guid: i,
                 item_id: i as u32,
                 name: format!("item{i}"),
@@ -144,6 +145,7 @@ use game_engine_ui_model::auction_house_frame_component::{
 };
 fn item(guid: u64) -> AuctionInventoryItem {
     AuctionInventoryItem {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid: guid,
         item_id: 2589,
         name: "Linen Cloth".into(),

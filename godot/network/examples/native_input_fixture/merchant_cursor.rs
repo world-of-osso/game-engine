@@ -1027,6 +1027,7 @@ fn send_split_stack(app: &mut App, count: u32) {
             changes: vec![InventorySlotChange {
                 location: DESTINATION,
                 item: Some(ItemStack {
+                    definition_source: shared::item_data::ItemDefinitionSource::Retail,
                     item_guid: 9_182_590,
                     item_id: 2589,
                     count,
@@ -1171,6 +1172,7 @@ fn send_purchase(app: &mut App, selected: Entity) {
             changes: vec![InventorySlotChange {
                 location: DESTINATION,
                 item: Some(ItemStack {
+                    definition_source: shared::item_data::ItemDefinitionSource::Retail,
                     item_guid: 9_182_589,
                     item_id: 2589,
                     count: 1,

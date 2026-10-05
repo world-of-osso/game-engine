@@ -10,6 +10,7 @@ use std::time::Duration;
 
 fn stack(guid: u64, count: u32) -> ItemStack {
     ItemStack {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid: guid,
         item_id: 2589,
         count,
@@ -34,6 +35,7 @@ fn snapshot(phase: TradePhase) -> TradeSnapshot {
 }
 fn item(guid: u64) -> TradeItemSnapshot {
     TradeItemSnapshot {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid: guid,
         item_id: 2589,
         name: "Linen Cloth".into(),

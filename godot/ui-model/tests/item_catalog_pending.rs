@@ -20,6 +20,7 @@ const QUESTION_MARK_FDID: u32 = 134_400;
 
 fn stack(item_guid: u64, item_id: u32, count: u32) -> ItemStack {
     ItemStack {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid,
         item_id,
         count,
