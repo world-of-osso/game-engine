@@ -320,14 +320,15 @@ fn entry_button(index: usize, entry: &LauncherEntry, selected: bool) -> Element 
     } else {
         "2px solid 0.0,0.0,0.0,0.0"
     };
+    let icon_width = entry_icon_width(entry);
     rsx! {
         button { name: {DynName(format!("LauncherEntry{}", entry.id))}, width: CELL_W, height: CELL_H,
             button_default_skin: false, text: "", background_color: color, border,
             onclick: {entry.action.as_str()}, pos_type: "absolute",
             left: {14.0 + (index % COLUMNS) as f32 * (CELL_W + CELL_GAP)},
             top: {GRID_TOP + (index / COLUMNS) as f32 * (CELL_H + CELL_GAP)},
-            r#frame { name: {DynName(format!("LauncherIcon{}", entry.id))}, width: ICON_W, height: ICON_H,
-                pos_type: "absolute", left: {(CELL_W - ICON_W) / 2.0}, top: 0.0,
+            r#frame { name: {DynName(format!("LauncherIcon{}", entry.id))}, width: icon_width, height: ICON_H,
+                pos_type: "absolute", left: {(CELL_W - icon_width) / 2.0}, top: 0.0,
                 {entry_icon(entry)} }
             fontstring { name: {DynName(format!("LauncherLabel{}", entry.id))}, text: {entry.label.as_str()},
                 width: CELL_W, height: 28.0, font_size: 12.0, font_color: "1.0,1.0,1.0,1.0",
@@ -348,17 +349,26 @@ fn entry_icon(entry: &LauncherEntry) -> Element {
     }
 }
 
+fn entry_icon_width(entry: &LauncherEntry) -> f32 {
+    match &entry.icon {
+        // Wide tutorial art needs the tile's width, not the narrow micro-button width.
+        Some(LauncherIcon::Atlas(atlas)) if atlas == "newplayertutorial-keyboard" => CELL_W - 16.0,
+        _ => ICON_W,
+    }
+}
+
 fn icon_texture(entry: &LauncherEntry, icon: &LauncherIcon) -> Element {
     let name = DynName(format!("LauncherArt{}", entry.id));
+    let width = entry_icon_width(entry);
     match icon {
         LauncherIcon::Atlas(atlas) => {
             // UiTextureAtlasMember 10556 overrides the keyboard's size to 480×169.
             let height = if atlas == "newplayertutorial-keyboard" {
-                ICON_W * KEYBOARD_ASPECT_RATIO
+                width * KEYBOARD_ASPECT_RATIO
             } else {
                 ICON_H
             };
-            rsx! { texture { name, width: ICON_W, height,
+            rsx! { texture { name, width, height,
             texture_atlas: atlas.as_str(), pos_type: "absolute", left: 0.0, top: {(ICON_H - height) / 2.0} } }
         }
         LauncherIcon::FileDataId(fdid) => {

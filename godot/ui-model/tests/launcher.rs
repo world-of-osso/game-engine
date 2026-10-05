@@ -10,9 +10,13 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 fn build(view: LauncherView) -> FrameRegistry {
+    build_skin(view, ActiveSkin::Modern)
+}
+
+fn build_skin(view: LauncherView, skin: ActiveSkin) -> FrameRegistry {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
-    shared.insert(ActiveSkin::Modern);
+    shared.insert(skin);
     shared.insert(view);
     Screen::new(launcher_screen).sync(&shared, &mut registry);
     registry
@@ -83,6 +87,66 @@ fn launcher_shortcuts_draw_settings_keyboard_and_map_art() {
         };
         assert_eq!(texture.source, expected, "{name}");
     }
+}
+
+fn icon_size(registry: &FrameRegistry, name: &str) -> (f32, f32) {
+    use ui_toolkit::frame::Dimension;
+
+    let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+    let (Dimension::Fixed(width), Dimension::Fixed(height)) = (frame.width, frame.height) else {
+        panic!("{name}: icon needs fixed drawing bounds");
+    };
+    (width, height)
+}
+
+#[test]
+fn launcher_icons_have_comparable_drawing_area_inside_their_tiles() {
+    load_icon_tables();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = build_skin(
+            LauncherView {
+                open: true,
+                ..LauncherView::default()
+            },
+            skin,
+        );
+        let (reference_w, reference_h) = icon_size(&registry, "LauncherArtOptions");
+        let reference_area = reference_w * reference_h;
+        for entry in entries() {
+            let name = if entry.icon.is_some() {
+                format!("LauncherArt{}", entry.id)
+            } else {
+                "LauncherCharacterShadow".into()
+            };
+            let (width, height) = icon_size(&registry, &name);
+            let (tile_w, tile_h) = icon_size(&registry, &format!("LauncherEntry{}", entry.id));
+            let relative_area = width * height / reference_area;
+            assert!(
+                (0.95..=1.3).contains(&relative_area),
+                "{}: relative area {relative_area} under {skin:?}",
+                entry.label
+            );
+            assert!(
+                width < tile_w && height < tile_h,
+                "{}: artwork exceeds tile",
+                entry.label
+            );
+        }
+    }
+}
+
+#[test]
+fn launcher_keyboard_preserves_its_authored_atlas_aspect_ratio() {
+    use ui_toolkit::atlas::resolve_region;
+
+    load_icon_tables();
+    let registry = build(LauncherView {
+        open: true,
+        ..LauncherView::default()
+    });
+    let (width, height) = icon_size(&registry, "LauncherArtKeyBindings");
+    let region = resolve_region("newplayertutorial-keyboard", ActiveSkin::Modern).unwrap();
+    assert!((width / height - region.width / region.height).abs() < 0.001);
 }
 
 #[test]
