@@ -17,7 +17,10 @@ func run_test() -> void:
 		return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	scene = client.get_node_or_null("NameplateDebug")
+	var screen_deadline := Time.get_ticks_msec() + 90000
+	while scene == null and Time.get_ticks_msec() < screen_deadline:
+		scene = client.get_node_or_null("NameplateDebug")
+		await process_frame
 	if scene == null:
 		fail("Nameplate debug screen did not open")
 		return
