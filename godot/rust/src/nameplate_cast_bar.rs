@@ -44,7 +44,7 @@ const ICON_TEXT_GAP: f32 = 2.0;
 const BACKGROUND: &str = "ui-castingbar-background";
 const FILL: &str = "ui-castingbar-filling-standard";
 /// Blizzard's soft white radial alpha (FDID 959719), shared by both skins.
-const GLOW: &str = "OBJFX_Glow";
+const GLOW: &str = "objfx_glow";
 const SHIELD: &str = "nameplates-InterruptShield";
 /// `CASTBAR_CLASSIC_RED`, the interrupted and failed fill.
 const INTERRUPTED_COLOR: [f32; 3] = [1.0, 0.0, 0.0];
