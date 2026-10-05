@@ -10,7 +10,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - [x] Preserve shadow bytes and existing per-chunk edge-fix flags.
 - [x] Keep standalone/monolithic shadow validation strict when no companion supplies required data.
 - [x] Reject mismatched root/companion chunk counts and conflicting shadow payloads explicitly.
-- [x] Load Adventurer's Rest's supplemental waterfall tile and its waterfall/ripple placements.
+- [x] Preview backdrops use only their authored primary tile through the current WDT; Adventurer's Rest retains `(31,37)` and does not request obsolete `(31,36)`. Cached aliases must not override inactive MAIN or empty MAID; playable-world validation stays strict.
 - [x] Include the 14 authored waterfall/ripple backdrops on the primary tile beyond the nearby-prop radius; keep ordinary props radius-limited.
 - [x] Report failed terrain loads with the affected path and error rather than silently skipping scenery.
 - [x] Use the shader-encoded second UV set for modern waterfall modulation textures when the legacy coordinate lookup is absent; preserve authored alpha combination.
@@ -46,6 +46,8 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 
 ## Tests asserting this spec
 
+- `godot/rust/src/character_select/background.rs` — actual authored `Background::load` and terrain-worker regression against current Map 2703 WDT/MAID, primary-only parsed output, and all 14 primary waterfall/ripple placement admissions.
+
 - `godot/core/src/asset/adt_format/adt_tests/mcnk.rs`
 - `src/rendering/terrain/terrain_spawn/tests.rs`
 - `src/rendering/model/m2_spawn_material_tests.rs` — actual waterfall model sampled across multiple global periods.
@@ -54,6 +56,8 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 - `src/scenes/char_select/scene/tests/supplemental_waterfall_tests.rs` — actual primary-ripple authored-height regression and ordinary-prop grounding control.
 
 ## Known gaps (current cycle)
+
+- Current-WDT preview change has no native image PASS until main captures and inspects it; CPU loader/selection proof is not rendered-waterfall acceptance.
 
 - User confirmed waterfall visibility on 2026-09-12 after the native fixes; this supersedes the earlier model-only absence assessment. Overall scene darkness still differs from Retail. Component regressions alone remain insufficient evidence of visual parity.
 - [ ] Do not infer or implement refraction material selection from the remaining appearance gap without direct Retail selection evidence; proven parser and geometry defects need no such assumption.

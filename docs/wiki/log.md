@@ -2734,3 +2734,7 @@ Reconciled [[forever-data#Owned item definition namespaces]], item-source spec a
 ## 2026-10-05 — Bounded Skyborne source-gap audit
 
 [[forever-data#Native world acceptance boundary (2026-10-05)]] records Main-reported entry and the server authored health/class blocker; explicit client-items/full fixture scopes preserve blocked full assertions. Owned equipment section supersedes the ten-file absence with local-CASC extraction, SFID skins/TXID166265 and stale installed resolver diagnosis; no native parse/render/capture credit. [[quest-ui]] corrects stale absent-frame claims from current native quests.rs source only.
+
+## 2026-10-05 — Current-WDT preview backdrop
+
+[[character-select-waterfall-loading]] and [split-shadow spec](../specs/split-adt-shadows.md) now require primary-only current-WDT previews. Actual `Background::load` worker RED rejects obsolete Map 2703 `(31,36)` at MAIN; `(31,37)` and its 14 waterfall/ripple placements remain required. Removed scene-specific supplemental-coordinate helper; preserved playable-world validation and generic object selection. Cached fixture manifest additions are grounded in current WDT MAID and primary MDID/MHID. CPU GREEN pending at commit; native image acceptance waits for main capture.

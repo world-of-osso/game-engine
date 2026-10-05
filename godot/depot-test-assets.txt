@@ -247,6 +247,37 @@ db2/12.1.0.69933/LiquidTypeXTexture.csv
 terrain/778417.adt
 terrain/5493433.adt
 terrain/5493438.adt
+# Current Map 2703 WDT and primary (31,37) MAID companions for Background::load.
+terrain/5493025.wdt
+terrain/5493439.adt
+terrain/5493441.adt
+# Primary _tex0 MDID/MHID terrain layers, already cached locally.
+textures/3619400.blp
+textures/3856521.blp
+textures/3850534.blp
+textures/4074560.blp
+textures/3891067.blp
+textures/1592975.blp
+textures/4045695.blp
+textures/3937820.blp
+textures/3922691.blp
+textures/1594664.blp
+textures/2400980.blp
+textures/1524608.blp
+textures/3893150.blp
+textures/3619399.blp
+textures/3856520.blp
+textures/3850533.blp
+textures/4074559.blp
+textures/3891066.blp
+textures/1592974.blp
+textures/4045694.blp
+textures/3937819.blp
+textures/3922690.blp
+textures/1594663.blp
+textures/2400979.blp
+textures/1524607.blp
+textures/3893149.blp
 terrain/1422588.adt
 
 # game-engine-core tests/spell_visual.rs

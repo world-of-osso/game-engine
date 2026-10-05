@@ -4,7 +4,6 @@ use std::path::PathBuf;
 
 use game_engine_core::warband_scene_data::{
     WarbandSceneEntry, WarbandScenePlacement, read_authored_catalog,
-    supplemental_terrain_tile_coords,
 };
 use godot::{classes::Node3D, prelude::*};
 
@@ -67,11 +66,7 @@ impl Background {
             wow_position(placement.position),
         );
         let mut terrain = StreamedTerrain::new(data_root.clone());
-        terrain.request_map_tiles(
-            scene.map_name(),
-            scene.tile_coords(),
-            &supplemental_terrain_tile_coords(&scene),
-        )?;
+        terrain.request_map_tiles(scene.map_name(), scene.tile_coords(), &[])?;
         Ok(Self {
             scene,
             placement,
@@ -258,4 +253,102 @@ impl Background {
 
 pub(super) fn wow_position(position: [f32; 3]) -> Vector3 {
     Vector3::new(position[0], position[2], -position[1])
+}
+
+#[cfg(test)]
+mod tests {
+    use std::time::{Duration, Instant};
+
+    use game_engine_core::campsite_object_data::is_primary_campsite_doodad;
+    use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
+
+    use super::*;
+
+    #[test]
+    fn current_wdt_background_loads_primary_with_all_waterfall_placements() {
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut background =
+            Background::load(data_root.clone(), None).expect("authored background");
+        assert_eq!(background.scene.id, 1);
+        assert_eq!(background.scene.map_id, 2703);
+        assert_eq!(background.scene.tile_coords(), (31, 37));
+
+        let deadline = Instant::now() + Duration::from_secs(30);
+        loop {
+            background.terrain.poll().expect("background worker");
+            let state = background.terrain.state();
+            assert!(state.map_error.is_none(), "{:?}", state.map_error);
+            assert!(
+                state.failures.is_empty(),
+                "{:?}",
+                state
+                    .failures
+                    .iter()
+                    .map(|failure| (&failure.tile, &failure.error))
+                    .collect::<Vec<_>>()
+            );
+            if !state.pending_map && state.pending_tiles.is_empty() {
+                break;
+            }
+            assert!(Instant::now() < deadline, "background load timed out");
+            std::thread::sleep(Duration::from_millis(10));
+        }
+
+        let wdt = background.terrain.map_wdt.as_ref().expect("current WDT");
+        assert_eq!(wdt.path.file_name().unwrap(), "5493025.wdt");
+        assert!(wdt.tiles.active.contains(&(31, 37)));
+        assert!(!wdt.tiles.active.contains(&(31, 36)));
+        assert_eq!(
+            background
+                .terrain
+                .parsed_tiles
+                .keys()
+                .copied()
+                .collect::<Vec<_>>(),
+            [(31, 37)]
+        );
+        let tile = &background.terrain.parsed_tiles[&(31, 37)];
+        assert_eq!(tile.root_path.file_name().unwrap(), "5493438.adt");
+        assert_eq!(
+            tile.obj_path.as_ref().unwrap().file_name().unwrap(),
+            "5493439.adt"
+        );
+        assert_eq!(
+            tile.tex_path.as_ref().unwrap().file_name().unwrap(),
+            "5493441.adt"
+        );
+        let resolver = CascListfileResolver::new(
+            AssetResolverConfig::new()
+                .with_data_root(&data_root)
+                .with_shared_data_root(&data_root),
+        );
+        let focus = glam::Vec3::from_array(wow_position(background.placement.position).to_array());
+        let waterfalls = tile
+            .obj
+            .as_ref()
+            .expect("primary objects")
+            .doodads
+            .iter()
+            .filter(|doodad| {
+                matches!(
+                    doodad.fdid,
+                    Some(4661357 | 4661358 | 4661361 | 1028937 | 2904370)
+                )
+            })
+            .collect::<Vec<_>>();
+        assert_eq!(waterfalls.len(), 14);
+        for doodad in waterfalls {
+            let model = resolver
+                .resolve_path(doodad.fdid.unwrap())
+                .expect("waterfall model name");
+            assert!(is_primary_campsite_doodad(
+                doodad,
+                Some(&model),
+                31,
+                37,
+                focus,
+                75.0
+            ));
+        }
+    }
 }
