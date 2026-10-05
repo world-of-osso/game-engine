@@ -266,6 +266,168 @@ fn row_top(model: &RegistryModel, name: &str) -> f32 {
         .y
 }
 
+fn long_bindings_view() -> GameMenuViewModel {
+    let mut bindings = view(OptionsCategory::Keybindings, BindingSection::ActionBar2);
+    bindings.options.bindings.rows = BindingSection::ALL
+        .into_iter()
+        .flat_map(|section| {
+            view(OptionsCategory::Keybindings, section)
+                .options
+                .bindings
+                .rows
+        })
+        .collect();
+    bindings
+}
+
+#[test]
+fn track_click_pages_retail_visible_height_in_both_directions() {
+    let mut model = menu(long_bindings_view());
+    let list = OPTIONS_CONTENT_SCROLL;
+    let track = model.registry.get_by_name(&track_name(list)).unwrap();
+    let bottom = rect(&model, &track_name(list)).unwrap();
+    // Retail ScrollBar.lua:122-132: magnitude .95 of the visible extent.
+    let page = (model
+        .registry
+        .scroll_lists
+        .get(list)
+        .unwrap()
+        .geometry
+        .visible_rows as f32
+        * 0.95)
+        .round() as usize;
+    assert!(
+        model
+            .registry
+            .scroll_lists
+            .get(list)
+            .unwrap()
+            .geometry
+            .max_first_row()
+            > page
+    );
+    assert!(press_thumb(
+        &mut model.registry,
+        track,
+        bottom.y + bottom.height - 1.0
+    ));
+    assert_eq!(
+        model.registry.scroll_lists.get(list).unwrap().first_row,
+        page
+    );
+    rebuild(&mut model);
+    let track = model.registry.get_by_name(&track_name(list)).unwrap();
+    assert!(press_thumb(&mut model.registry, track, bottom.y + 1.0));
+    assert_eq!(model.registry.scroll_lists.get(list).unwrap().first_row, 0);
+    assert!(model.registry.scroll_lists.dragging().next().is_none());
+}
+
+#[test]
+fn holding_a_stepper_uses_retail_delay_and_interval_and_pauses_outside() {
+    let mut model = menu(long_bindings_view());
+    let list = OPTIONS_CONTENT_SCROLL;
+    let forward = model
+        .registry
+        .get_by_name(&forward_stepper_name(list))
+        .unwrap();
+    let step = scroll_steps(&model, list).1;
+    let mut held = StepperHold::press(&mut model, forward).1.unwrap();
+    assert_eq!(
+        model.registry.scroll_lists.get(list).unwrap().first_row,
+        step
+    );
+    assert!(!held.advance(&mut model, 0.5));
+    assert!(held.advance(&mut model, 0.001));
+    assert_eq!(
+        model.registry.scroll_lists.get(list).unwrap().first_row,
+        step * 2
+    );
+    held.over = false;
+    assert!(!held.advance(&mut model, 2.0));
+    held.over = true;
+    assert!(!held.advance(&mut model, 0.1));
+    assert!(held.advance(&mut model, 0.001));
+    assert_eq!(
+        model.registry.scroll_lists.get(list).unwrap().first_row,
+        step * 3
+    );
+    wheel_to_end(&mut model, false);
+    assert!(!held.advance(&mut model, 1.0));
+}
+
+#[test]
+fn a_press_on_a_disabled_arrow_does_not_start_repeating_when_content_changes() {
+    let mut model = menu(long_bindings_view());
+    let list = OPTIONS_CONTENT_SCROLL;
+    let back = model
+        .registry
+        .get_by_name(&back_stepper_name(list))
+        .unwrap();
+    let (taken, mut held) = StepperHold::press(&mut model, back);
+    assert!(
+        taken,
+        "disabled arrow consumes its press without acquiring a timer"
+    );
+    model.registry.scroll_lists.scroll_to(list, 150);
+    rebuild(&mut model);
+    let repeated = held
+        .as_mut()
+        .is_some_and(|held| held.advance(&mut model, 1.0));
+    assert!(
+        !repeated,
+        "a disabled press must not acquire a repeat timer"
+    );
+    assert_eq!(
+        model.registry.scroll_lists.get(list).unwrap().first_row,
+        150
+    );
+}
+
+#[test]
+fn backpack_clear_click_clears_text_and_focus_in_both_presets() {
+    use game_engine_ui_model::bag_frame_component::{
+        BagContainerState, BagFrameState, bag_frame_screen,
+    };
+    for skin in [
+        ui_toolkit::atlas::ActiveSkin::Modern,
+        ui_toolkit::atlas::ActiveSkin::Forever,
+    ] {
+        let mut model = menu(view(OptionsCategory::Sound, BindingSection::Movement));
+        model.shared.insert(skin);
+        model.shared.insert(BagFrameState {
+            search: "Linen".into(),
+            bags: vec![BagContainerState {
+                bag_index: 0,
+                title: "Backpack".into(),
+                portrait_fdid: 133633,
+                visible: true,
+                slots: vec![],
+            }],
+            ..Default::default()
+        });
+        model.screen = Screen::new(bag_frame_screen);
+        rebuild(&mut model);
+        let search = model.registry.get_by_name("BagItemSearchBox").unwrap();
+        let clear = model
+            .registry
+            .get_by_name("BagItemSearchBoxClearButton")
+            .unwrap();
+        model.focus_frame(search);
+        assert!(
+            model.click_action(clear).is_none(),
+            "clear is a local search operation"
+        );
+        let Some(ui_toolkit::frame::WidgetData::EditBox(edit)) =
+            model.registry.get(search).unwrap().widget_data.as_ref()
+        else {
+            panic!("search edit box")
+        };
+        assert_eq!(edit.text, "");
+        assert_eq!(edit.cursor_position, 0);
+        assert_eq!(model.registry.focused_frame, None);
+    }
+}
+
 fn press(model: &mut RegistryModel, name: &str) -> bool {
     let id = model.registry.get_by_name(name).unwrap();
     let pressed = press_stepper(model, id);
@@ -304,6 +466,19 @@ fn the_wheel_scrolls_by_pixels_and_clips_a_partial_row() {
     assert!(shown(&model, &name), "{name} is drawn, clipped, not hidden");
 }
 
+fn assert_disabled_arrow(model: &RegistryModel, name: &str) {
+    let id = model.registry.get_by_name(name).unwrap();
+    assert_eq!(
+        ui_toolkit::attrs::read_attribute(&model.registry, id, "disabled").as_deref(),
+        Some("true")
+    );
+    let arrow = model.registry.children_of(id).into_iter().find_map(|id| {
+        let frame = model.registry.get(id)?;
+        super::super::projection::stepper_art_is_disabled(frame, &model.registry).then_some(frame)
+    });
+    assert!(arrow.is_some(), "{name} draws desaturated arrow art");
+}
+
 /// The Back and Forward steppers pan one pan extent (`ScrollBar.lua:117-119,307-311`) and
 /// do nothing at their end of the list (`ScrollBar.lua:237-239`).
 #[test]
@@ -316,6 +491,7 @@ fn the_steppers_step_the_list_and_stop_at_its_ends() {
     let forward = forward_stepper_name(OPTIONS_CONTENT_SCROLL);
     assert!(shown(&model, &back) && shown(&model, &forward));
     let top = row_top(&model, &first);
+    assert_disabled_arrow(&model, &back);
 
     assert!(press(&mut model, &back), "a press on Back is taken");
     assert_eq!(row_top(&model, &first), top, "Back is disabled at the top");
@@ -345,6 +521,7 @@ fn the_steppers_step_the_list_and_stop_at_its_ends() {
     let last_row = rect(&model, &last).expect("the last row at the end");
     assert!((last_row.y + last_row.height - (area.y + area.height)).abs() < 1.0);
     let end = row_top(&model, &last);
+    assert_disabled_arrow(&model, &forward);
     assert!(press(&mut model, &forward));
     assert_eq!(
         row_top(&model, &last),

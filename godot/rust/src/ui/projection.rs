@@ -27,6 +27,21 @@ use crate::frame_error::report_once;
 const OVERLAY_Z: i32 = 4000;
 const PARTS_NODE: &str = "Parts";
 
+/// MinimalScrollBar.lua:3-25 desaturates its texture hierarchy when disabled.
+pub(super) fn stepper_art_is_disabled(frame: &Frame, registry: &FrameRegistry) -> bool {
+    let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+        return false;
+    };
+    let is_arrow = matches!(&texture.source, TextureSource::Atlas(name)
+        if matches!(name.as_str(), "minimal-scrollbar-arrow-top" | "minimal-scrollbar-arrow-bottom"));
+    let parent = frame.parent_id.and_then(|id| registry.get(id));
+    let disabled = parent.is_some_and(|parent| {
+        matches!(&parent.widget_data,
+        Some(WidgetData::Button(button)) if button.state == ButtonState::Disabled)
+    });
+    is_arrow && disabled
+}
+
 #[derive(Clone)]
 pub enum UiInput {
     Click(u64),
@@ -493,7 +508,9 @@ impl UiProjection {
             images: parts::project_images(frame, rect.width, rect.height),
             text: parts::project_button_text(frame),
         };
+        let disabled_stepper = stepper_art_is_disabled(frame, registry);
         for part in &mut visual.images {
+            part.desaturated = disabled_stepper;
             part.rect[0] += position.x - whole.x;
             part.rect[1] += position.y - whole.y;
         }
@@ -597,6 +614,15 @@ impl UiProjection {
         rect.set_expand_mode(godot::classes::texture_rect::ExpandMode::IGNORE_SIZE);
         rect.set_stretch_mode(godot::classes::texture_rect::StretchMode::SCALE);
         rect.set_self_modulate(color(part.color));
+        if part.desaturated {
+            // MinimalScrollBar.lua:10 / ButtonStateBehavior.lua:111-127 desaturates
+            // the sampled arrow image. A grey vertex tint would leave its hue intact.
+            let mut shader = godot::classes::Shader::new_gd();
+            shader.set_code("shader_type canvas_item; void fragment() { COLOR.rgb = vec3(dot(COLOR.rgb, vec3(0.299, 0.587, 0.114))); }");
+            let mut material = godot::classes::ShaderMaterial::new_gd();
+            material.set_shader(&shader);
+            rect.set_material(&material);
+        }
         // Missing art, and art still loading, leaves the part empty.
         let art = self.source(source, registry);
         if let Art::Ready((image, region)) = &art {

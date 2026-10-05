@@ -267,11 +267,17 @@ fn search_box_dims_items_that_do_not_match_and_clearing_restores_them() {
     let registry = mount_state(session.bag_state());
     assert_eq!(text(&registry, "BagItemSearchBox"), "");
     assert_eq!(text(&registry, "BagItemSearchBoxInstructions"), "Search");
+    assert!(
+        registry
+            .get_by_name("BagItemSearchBoxClearButton")
+            .is_none()
+    );
     assert!(dimmed_slots(&registry).is_empty(), "no search dims nothing");
 
     session.bag_search = "LINEN".into();
     let registry = mount_state(session.bag_state());
     assert_eq!(text(&registry, "BagItemSearchBox"), "LINEN");
+    assert!(frame(&registry, "BagItemSearchBoxClearButton").mouse_enabled);
     assert_eq!(
         dimmed_slots(&registry),
         [1],
@@ -289,6 +295,33 @@ fn search_box_dims_items_that_do_not_match_and_clearing_restores_them() {
 
     session.bag_search.clear();
     assert!(dimmed_slots(&mount_state(session.bag_state())).is_empty());
+}
+
+#[test]
+fn search_clear_button_visibility_and_art_follow_text_in_both_presets() {
+    set_data_root();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_active_skin(skin);
+        let mut state = backpack();
+        assert!(
+            mount_state(state.clone())
+                .get_by_name("BagItemSearchBoxClearButton")
+                .is_none()
+        );
+        state.search = "Linen".into();
+        let registry = mount_state(state);
+        let clear = frame(&registry, "BagItemSearchBoxClearButton");
+        let search = rect(frame(&registry, "BagItemSearchBox"));
+        assert_eq!(
+            rect(clear),
+            [search[0] + search[2] - 20.0, search[1] + 0.5, 17.0, 17.0]
+        );
+        assert!(clear.mouse_enabled);
+        let icon = registry.children_of(clear.id).into_iter().map(|id| registry.get(id).unwrap()).find(|frame| matches!(texture_source(frame), TextureSource::Atlas(ref name) if name == "common-search-clearbutton")).unwrap();
+        assert_eq!(rect(icon), [3.0, 3.0, 10.0, 10.0]);
+        assert_eq!(icon.alpha, 0.5);
+    }
+    set_active_skin(ActiveSkin::Modern);
 }
 
 /// The search box sits in the backpack's attic, between the title bar and the slots;

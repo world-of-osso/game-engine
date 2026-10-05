@@ -46,6 +46,7 @@ const SEARCH_ATTIC: f32 = 30.0;
 /// `BagItemSearchBox` 96×18 (ContainerFrame.xml:308-310) at TOPLEFT (42, -37)
 /// (`SetSearchBoxPoint`, ContainerFrame.lua:964-967; Forever's ContainerFrame.lua:1109-1111).
 pub const SEARCH_BOX: &str = "BagItemSearchBox";
+pub const ACTION_SEARCH_CLEAR: &str = "bag_search_clear";
 const SEARCH_RECT: (f32, f32, f32, f32) = (42.0, 37.0, 96.0, 18.0);
 /// `GameFontDisable`, the `SearchBoxTemplate` instructions (InputBoxTemplates.xml:206-245).
 const DISABLED_FONT_COLOR: &str = "0.5,0.5,0.5,1.0";
@@ -264,6 +265,31 @@ fn search_box(search: &str) -> Element {
             top: y,
         }
     });
+    // SearchBoxTemplate XML:221-244 and Lua:192-210: 17x17 clear hit target,
+    // 10x10 normal art at half alpha. This client's contract is text-only visibility.
+    if !search.is_empty() {
+        children.extend(rsx! {
+            button {
+                name: DynName(format!("{SEARCH_BOX}ClearButton")),
+                width: 17,
+                height: 17,
+                pos_type: "absolute",
+                left: {x + w - 20.0},
+                top: {y + (h - 17.0) / 2.0},
+                button_default_skin: false,
+                onclick: ACTION_SEARCH_CLEAR,
+                texture {
+                    width: 10,
+                    height: 10,
+                    texture_atlas: "common-search-clearbutton",
+                    alpha: {0.5},
+                    pos_type: "absolute",
+                    left: 3,
+                    top: 3,
+                }
+            }
+        });
+    }
     if search.is_empty() {
         children.extend(rsx! {
             fontstring {
