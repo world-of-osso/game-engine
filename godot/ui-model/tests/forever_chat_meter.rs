@@ -765,7 +765,8 @@ fn the_type_menu_lists_every_type_in_both_skins() {
             "Healing Done",
             "Interrupts",
             "Dispels",
-            "Deaths"
+            "Deaths",
+            "Threat"
         ]
     );
 
