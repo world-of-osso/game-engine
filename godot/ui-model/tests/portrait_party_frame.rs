@@ -351,3 +351,20 @@ fn spec_power_fills_reuse_the_existing_unit_frame_art() {
         }
     }
 }
+
+#[test]
+fn forever_mana_uses_the_player_fill_named_by_the_camelot_override() {
+    let registry = render(ActiveSkin::Forever);
+    assert_eq!(
+        region(
+            &registry,
+            "PartyMemberFrame1ManaBarFill",
+            ActiveSkin::Forever
+        ),
+        resolve_region(
+            "UI-HUD-UnitFrame-Player-PortraitOn-Bar-Mana",
+            ActiveSkin::Forever
+        )
+        .unwrap()
+    );
+}
