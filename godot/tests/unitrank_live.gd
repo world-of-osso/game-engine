@@ -6,7 +6,7 @@ extends SceneTree
 ##   UNITRANK_ACCOUNT / UNITRANK_CHARACTER  account (password fbtest) and a character
 ##                           standing in sight of the creature
 ##   UNITRANK_CREATURE       creature name (default Timber, world.db 1132, rank 4 rare)
-##   UNITRANK_LEVEL_LINE     its expected tooltip level line (default "Level 10 Rare Beast")
+##   UNITRANK_LEVEL_LINE     its expected tooltip level line (default "Level 10 Rare")
 ##   UNITRANK_SHOTS          screenshot directory
 ## Hovers the creature in the world (tooltip level line), left-clicks it to target it, checks
 ## the TargetFrame's rare star, hovers the TargetFrame and captures both.
@@ -17,7 +17,7 @@ var client: Node
 var shots := "/tmp/claude/unitrank-live/"
 var character := ""
 var creature := "Timber"
-var level_line := "Level 10 Rare Beast"
+var level_line := "Level 10 Rare"
 
 func _initialize() -> void:
 	Engine.max_fps = 60
