@@ -15,8 +15,8 @@
 //! rendered as text in the description, evaluated as a number inside `${...}`.
 //!
 //! Anything else (other caster stats such as `$pri`, level scaled effect points,
-//! power scaled points before the powers arrive, `$g` gender forms, inline icons) renders as the visible marker `{?<token>}` and logs one
-//! warning per spell and token.
+//! power scaled points before the powers arrive, `$g` gender forms, inline icons) is omitted,
+//! with local spacing/punctuation cleanup and one warning per spell and token.
 
 use std::collections::HashSet;
 use std::sync::{Mutex, OnceLock};
@@ -26,9 +26,11 @@ use log::warn;
 use super::render_eval::{Expr, Operand, eval_condition, parse_expr, variable_name};
 use super::{CatalogSpell, SpellCatalogData, SpellTextContext};
 
-/// `$@spelldesc` and `$<name>` nesting beyond this renders a marker (reference cycles
+/// `$@spelldesc` and `$<name>` nesting beyond this is omitted (reference cycles
 /// exist). Crusader Strike's `$<damage>` alone nests three variables deep.
 const MAX_REFERENCE_DEPTH: u8 = 8;
+/// Internal boundary retained through nested rendering; never returned to the tooltip.
+const OMITTED_TOKEN: char = '\0';
 
 pub(super) fn render_spell_text(
     text: &str,
@@ -41,7 +43,7 @@ pub(super) fn render_spell_text(
         ctx,
         depth: 0,
     };
-    renderer.render(text, spell)
+    collapse_omitted_tokens(renderer.render(text, spell))
 }
 
 pub(super) struct Renderer<'a> {
@@ -345,11 +347,51 @@ impl Renderer<'_> {
 
     fn unresolved(&self, spell: &CatalogSpell, raw: &str, out: &mut Out) {
         warn_unresolved(spell.id, raw);
-        out.text.push_str("{?");
-        out.text.push_str(raw.trim());
-        out.text.push('}');
+        out.text.push(OMITTED_TOKEN);
         out.last_number = None;
     }
+}
+
+/// Only boundaries left by missing tokens are normalized; resolved text is untouched.
+fn collapse_omitted_tokens(text: String) -> String {
+    if !text.contains(OMITTED_TOKEN) {
+        return text;
+    }
+    let mut pieces = text.split(OMITTED_TOKEN);
+    let mut result = pieces.next().unwrap_or_default().to_string();
+    for piece in pieces {
+        append_after_omission(&mut result, piece);
+    }
+    result
+}
+
+fn append_after_omission(out: &mut String, mut rest: &str) {
+    let mut separated = out.ends_with([' ', '\t']) || rest.starts_with([' ', '\t']);
+    out.truncate(out.trim_end_matches([' ', '\t']).len());
+    rest = rest.trim_start_matches([' ', '\t', '%']);
+    // Empty wrappers and percent suffixes no longer describe a value.
+    while (out.ends_with('(') && rest.starts_with(')'))
+        || (out.ends_with('[') && rest.starts_with(']'))
+    {
+        out.pop();
+        rest = &rest[1..];
+        separated |= out.ends_with([' ', '\t']) || rest.starts_with([' ', '\t']);
+        out.truncate(out.trim_end_matches([' ', '\t']).len());
+        rest = rest.trim_start_matches([' ', '\t', '%']);
+    }
+    out.truncate(out.trim_end_matches([' ', '\t', ':', ';', ',']).len());
+    if out.is_empty() || out.ends_with(['\r', '\n']) {
+        rest = rest.trim_start_matches([' ', '\t', '.', ',', ':', ';', '!', '?']);
+    }
+    let join_words = separated
+        && !out.is_empty()
+        && !rest.is_empty()
+        && !out.ends_with(['\r', '\n', '(', '['])
+        && !rest.starts_with(['\r', '\n', '.', ',', ':', ';', '!', '?', ')', ']']);
+    if join_words {
+        out.push(' ');
+    }
+    out.push_str(rest);
 }
 
 fn warn_unresolved(spell_id: u32, raw: &str) {

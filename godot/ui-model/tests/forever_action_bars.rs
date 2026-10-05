@@ -268,7 +268,6 @@ fn micro_views() -> Vec<MicroMenuView> {
 fn bag_states() -> Vec<BagBarState> {
     vec![
         BagBarState {
-            money: 1_234_567,
             free_slots: 12,
             bag_icons: [Some(133_633), None, Some(133_634), None, Some(4_549_254)],
             collapsed: false,
@@ -311,6 +310,16 @@ fn modern_bars_draw_exactly_what_their_hand_copied_crops_drew() {
         assert_eq!(actual, expected, "line {}", line + 1);
     }
     assert_eq!(trees.lines().count(), fixture::MODERN_TREES.lines().count());
+}
+
+/// Capture from the actual components, independently of the golden comparison.
+#[test]
+#[ignore = "fixture capture; run with --ignored --nocapture"]
+fn capture_modern_action_bar_trees() {
+    println!(
+        "<<<MODERN_TREES\n{}MODERN_TREES>>>",
+        trees(ActiveSkin::Modern)
+    );
 }
 
 /// The texture file a frame draws.
