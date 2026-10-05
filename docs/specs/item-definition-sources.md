@@ -5,9 +5,9 @@ Owned item metadata pairs the unchanged authored item ID with `shared::item_data
 ## What it must do
 
 - [ ] Preserve Retail catalog data and byte semantics; source selection must not depend on race.
-- [ ] Resolve Forever70205 only from `data/db2/1.60.1.70205/items/`, containing the actual selected 30 kit definitions and source-local class, appearance and scaling metadata.
-- [ ] Keep colliding IDs 2947, 2512 and 2101 distinct in mixed-source bags, tooltips, comparisons and cursor state.
-- [ ] Missing Forever files or rows must not select Retail definitions or scaling; item-info errors identify source and ID.
+- [x] Resolve Forever70205 only from `data/db2/1.60.1.70205/items/`, containing the actual selected 30 kit definitions and source-local class, appearance and scaling metadata.
+- [x] Keep colliding IDs 2947, 2512 and 2101 distinct in mixed-source bags, tooltips, comparisons and cursor state. Preserve equal names/icons when both products author equal values.
+- [x] Missing Forever files or rows must not select Retail definitions or scaling; lookup errors identify source and ID.
 - [ ] Preserve source through owned inventory, equipment, bank, trade and auction-inventory consumers.
 - [ ] Item-info IPC requires explicit query source. CLI defaults deliberately to Retail.
 
@@ -32,8 +32,9 @@ Owned item metadata pairs the unchanged authored item ID with `shared::item_data
 
 ## Known gaps (current cycle)
 
-- [ ] Main-owned export/provenance provisioning and native acceptance.
-- [ ] Bare vendor, buyback, auction listing/browse, quest and loot summaries lack definition source; do not infer source.
+- [ ] Main-owned native acceptance and final integration gates.
+- [ ] VendorItem, QuestRewardItem and loot summary tuples lack definition source; do not infer source.
+- [ ] AuctionSearchQuery and browse action/grouping still filter by bare item ID; source-aware result metadata does not prove mixed-product auction selection.
 
 ## Out of scope
 
