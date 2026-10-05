@@ -597,6 +597,15 @@ impl UiProjection {
         rect.set_expand_mode(godot::classes::texture_rect::ExpandMode::IGNORE_SIZE);
         rect.set_stretch_mode(godot::classes::texture_rect::StretchMode::SCALE);
         rect.set_self_modulate(color(part.color));
+        if part.desaturated {
+            // MinimalScrollBar.lua:10 / ButtonStateBehavior.lua:111-127 desaturates
+            // the sampled arrow image. A grey vertex tint would leave its hue intact.
+            let mut shader = godot::classes::Shader::new_gd();
+            shader.set_code("shader_type canvas_item; void fragment() { COLOR.rgb = vec3(dot(COLOR.rgb, vec3(0.299, 0.587, 0.114))); }");
+            let mut material = godot::classes::ShaderMaterial::new_gd();
+            material.set_shader(&shader);
+            rect.set_material(&material);
+        }
         // Missing art, and art still loading, leaves the part empty.
         let art = self.source(source, registry);
         if let Art::Ready((image, region)) = &art {

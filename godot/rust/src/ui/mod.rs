@@ -86,6 +86,7 @@ pub struct RegistryUi {
     /// HUDs use UIParent scaling until an explicit options scale is set.
     ui_parent: bool,
     ui_scale: Option<f32>,
+    scroll_stepper: Option<scroll_lists::StepperHold>,
 }
 
 /// Raw authored-slider input; the host applies its own policy and passes back a view.
@@ -317,7 +318,16 @@ impl RegistryModel {
         if disabled {
             return None;
         }
-        self.registry.click_frame(id)
+        let action = self.registry.click_frame(id)?;
+        if action == game_engine_ui_model::bag_frame_component::ACTION_SEARCH_CLEAR {
+            let search = self
+                .registry
+                .get_by_name(game_engine_ui_model::bag_frame_component::SEARCH_BOX)?;
+            self.edit_text(search, String::new());
+            self.blur_frame(search);
+            return None;
+        }
+        Some(action)
     }
 
     fn queue_click_action(&mut self, actions: &mut VecDeque<String>, id: u64) {
@@ -479,7 +489,10 @@ impl RegistryModel {
 #[godot_api]
 impl ICanvasLayer for RegistryUi {
     /// Frames drawn without art whose file was still loading show it once it arrives.
-    fn process(&mut self, _delta: f64) {
+    fn process(&mut self, delta: f64) {
+        if let Err(error) = self.advance_scroll_stepper(delta) {
+            crate::frame_error::report_once(&format!("UI scroll repeat: {error}"));
+        }
         let (Some(model), Some(projection)) = (self.model.as_mut(), self.projection.as_mut())
         else {
             return;
@@ -511,6 +524,7 @@ impl ICanvasLayer for RegistryUi {
             loading_displayed_percent: 0.0,
             ui_parent: false,
             ui_scale: None,
+            scroll_stepper: None,
         }
     }
 }
