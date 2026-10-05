@@ -178,7 +178,7 @@ def parse_definition(text, layout):
             if "id" in flags:
                 source = "id"
             elif kind in ("string", "locstring"):
-                source = ("string", index, element)
+                source = ("string", index, element) if count > 1 else ("string", index)
             elif kind == "float":
                 source = ("float", index, element)
             elif kind == "int" and width in ("8", "16", "32", "64"):
