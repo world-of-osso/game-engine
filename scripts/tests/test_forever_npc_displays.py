@@ -52,7 +52,7 @@ class ForeverNpcDisplayTests(unittest.TestCase):
                     "DisplayClassID": 1,
                     "Flags": 0,
                     "BakeMaterialResourcesID": 402,
-                    "HDBakeMaterialResourcesID": 0,
+                    "HDBakeMaterialResourcesID": 402,
                 },
             ],
             "CreatureDisplayInfoOption": [
@@ -97,6 +97,26 @@ class ForeverNpcDisplayTests(unittest.TestCase):
             "ChrCustomizationSkinnedModel": [{"ID": 91, "CollectionsFileDataID": 701}],
         }
 
+    def test_unnamed_skyborne_bodies_use_authored_hd_bakes(self):
+        for fdid in (7478487, 7478494):
+            with self.subTest(fdid=fdid):
+                tables = self.tables()
+                tables["CreatureModelData"][0]["FileDataID"] = fdid
+                tables["CreatureDisplayInfoExtra"][1]["HDBakeMaterialResourcesID"] = 402
+                assets, failures = importer.npc_asset_roots(
+                    tables, {136968, 139694}, set(), {}
+                )
+                self.assertEqual(failures, {})
+                self.assertIn((801, "blp"), assets[136968])
+                self.assertNotIn((800, "blp"), assets[136968])
+                self.assertIn((fdid, "m2"), assets[139694])
+                rows = importer.npc.npc_appearance_rows(tables, {136968, 139694}, {})
+                self.assertEqual(
+                    rows[0], [(136968, 95, 1, 1, 801), (139694, 95, 1, 1, 802)]
+                )
+                self.assertEqual(rows[1], [(136968, 50)])
+                self.assertEqual(rows[2], [(136968, 2, 3)])
+
     def test_npc_assets_follow_display_body_bake_customization_and_items(self):
         assets, failures = importer.npc_asset_roots(
             self.tables(),
@@ -111,7 +131,7 @@ class ForeverNpcDisplayTests(unittest.TestCase):
             {
                 (7478494, "m2"),
                 (301, "blp"),
-                (800, "blp"),
+                (801, "blp"),
                 (803, "blp"),
                 (804, "blp"),
                 (805, "blp"),
@@ -197,7 +217,7 @@ class ForeverNpcDisplayTests(unittest.TestCase):
         rows = importer.npc.npc_appearance_rows(
             self.tables(), {136968, 139694}, {7478494: "skybornefemale.m2"}
         )
-        self.assertEqual(rows[0], [(136968, 95, 1, 1, 800), (139694, 95, 1, 1, 802)])
+        self.assertEqual(rows[0], [(136968, 95, 1, 1, 801), (139694, 95, 1, 1, 802)])
         self.assertEqual(rows[1], [(136968, 50)])
         self.assertEqual(rows[2], [(136968, 2, 3)])
         self.assertEqual(rows[3], [(136968, 1), (139694, 1)])
@@ -261,7 +281,7 @@ class ForeverNpcDisplayTests(unittest.TestCase):
                     conn.execute(
                         "select * from appearances where display_id=136968"
                     ).fetchone(),
-                    (136968, 95, 1, 1, 800),
+                    (136968, 95, 1, 1, 801),
                 )
                 self.assertEqual(
                     conn.execute(
