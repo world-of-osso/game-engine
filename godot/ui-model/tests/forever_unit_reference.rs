@@ -140,7 +140,17 @@ fn text_is_player_left_and_target_tot_focus_mirrored() {
         ),
         ("FocusLevelText", (132.0, 4.0, 20.0, 28.0), "60", "RIGHT"),
     ] {
-        assert_eq!(rect(&r, name), expected, "{name}");
+        if name.ends_with("Name") {
+            // Names are one line (no word wrap, FlareUI UnitFrames.lua:2101), centred on
+            // the text band the level and health texts span.
+            let (x, y, w, h) = rect(&r, name);
+            let (ex, ey, ew, eh) = expected;
+            assert_eq!((x, w), (ex, ew), "{name}");
+            assert!(h < 20.0, "{name} is taller than one line: {h}");
+            assert_eq!(y + h / 2.0, ey + eh / 2.0, "{name} is off the band's centre");
+        } else {
+            assert_eq!(rect(&r, name), expected, "{name}");
+        }
         assert_eq!(text(&r, name).text, value, "{name}");
         assert_eq!(text(&r, name).justify_h.as_str(), justify, "{name}");
     }
