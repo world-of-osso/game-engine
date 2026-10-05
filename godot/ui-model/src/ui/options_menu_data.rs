@@ -86,6 +86,7 @@ pub enum LayoutAction {
     Select(usize),
     System(LayoutSystem),
     Font(LayoutFont),
+    ToggleMicroMenu,
     /// "Reset to Preset": clear every setting of the layout.
     Reset,
 }
@@ -635,6 +636,9 @@ pub fn parse_toggle_action(action: &str) -> Option<&str> {
 /// dropdown), `options_toggle:layout_system:<index>`, `options_toggle:layout_font:<index>`
 /// and the "Reset to Preset" button.
 pub fn parse_layout_action(action: &str) -> Option<LayoutAction> {
+    if action == "options_toggle:layout_show_micro_menu" {
+        return Some(LayoutAction::ToggleMicroMenu);
+    }
     if action == ACTION_RESET_LAYOUT_SETTINGS {
         return Some(LayoutAction::Reset);
     }
@@ -661,6 +665,10 @@ pub fn apply_layout_action(action: LayoutAction, layout: &mut LayoutOptionsView)
             if let Some(frame) = unit_frame_settings(&mut layout.settings, layout.system) {
                 frame.font = Some(font);
             }
+        }
+        LayoutAction::ToggleMicroMenu => {
+            layout.settings.show_micro_menu =
+                Some(!layout.settings.show_micro_menu.unwrap_or(false));
         }
         LayoutAction::Reset => layout.settings = LayoutSettings::default(),
     }

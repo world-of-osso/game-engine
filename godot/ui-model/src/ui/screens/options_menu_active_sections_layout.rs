@@ -35,12 +35,17 @@ pub(super) fn layout_settings_rows(layout: &LayoutOptionsView) -> Element {
         }
     };
     [
+        toggle_row(
+            "layout_show_micro_menu",
+            "Show Micro Menu",
+            settings.show_micro_menu.unwrap_or(false),
+        ),
         system_row(layout.system),
         system_settings(system_rows),
         options_menu_sections::action_button_row(
             "reset_layout_settings",
             "Reset to Preset",
-            "Clears this layout's sizes and fonts",
+            "Clears this layout's settings",
             "Reset",
             ACTION_RESET_LAYOUT_SETTINGS,
         ),

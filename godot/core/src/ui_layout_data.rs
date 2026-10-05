@@ -99,6 +99,8 @@ pub struct FrameSizeSettings {
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(default)]
 pub struct LayoutSettings {
+    /// User decision 2026-10-05: both presets hide the mounted micro menu by default.
+    pub show_micro_menu: Option<bool>,
     pub player_frame: UnitFrameSettings,
     /// Also the target-of-target frame, a child of Retail's TargetFrame.
     pub target_frame: UnitFrameSettings,

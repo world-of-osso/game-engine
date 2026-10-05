@@ -103,7 +103,18 @@ fn unit_frames() -> InWorldUnitFramesState {
     }
 }
 
-/// Every HUD canvas with each positioned frame shown.
+fn shown_micro_menu() -> RegistryModel {
+    let mut model = model(MicroMenuView::default(), micro_menu_screen);
+    model
+        .shared
+        .insert(game_engine_core::ui_layout_data::LayoutSettings {
+            show_micro_menu: Some(true),
+            ..Default::default()
+        });
+    model
+}
+
+/// Every HUD canvas with each positioned frame shown (micro menu explicitly opted in).
 fn hud() -> Vec<RegistryModel> {
     // The objective tracker measures its header text.
     set_data_root();
@@ -134,7 +145,7 @@ fn hud() -> Vec<RegistryModel> {
             },
             pet_action_bar_screen,
         ),
-        model(MicroMenuView::default(), micro_menu_screen),
+        shown_micro_menu(),
         // The bag bar as the client mounts it: inside the bags canvas's composed screen.
         model(
             crate::bags::BagsView::closed(BagBarState::default()),
