@@ -4,7 +4,7 @@
 
 use std::fmt;
 
-use ui_toolkit::atlas::{AtlasSource, active_skin, resolve_region};
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, active_skin, resolve_region};
 use ui_toolkit::rsx;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
@@ -339,10 +339,21 @@ fn window_title(prefix: &str, width: f32, title: &str, left: f32) -> Element {
     }
 }
 
-/// `UIPanelCloseButtonDefaultAnchors`: 24×24 at TOPRIGHT (+1, 0).
+/// `UIPanelCloseButtonDefaultAnchors` TOPRIGHT offset as (right, down): Retail `(1, 0)`
+/// (Mainline/SharedUIPanelTemplates.lua:139-141), Forever `(-2, 1)` with WoW's y up, so
+/// one pixel above the top (wowforever Camelot/SharedUIPanelTemplates.lua:3-5).
+fn close_button_offset() -> (f32, f32) {
+    match active_skin() {
+        ActiveSkin::Forever => (-2.0, -1.0),
+        ActiveSkin::Modern => (1.0, 0.0),
+    }
+}
+
+/// `UIPanelCloseButtonDefaultAnchors`: 24×24 at the skin's TOPRIGHT offset.
 fn close_button(prefix: &str, width: f32, action: &str) -> Element {
     let art = read_active_atlas_art(CLOSE_BUTTON);
     let coords = art.tex_coords(1.0);
+    let (offset_x, offset_top) = close_button_offset();
     rsx! {
         button {
             name: {DynName(format!("{prefix}CloseButton"))},
@@ -350,8 +361,8 @@ fn close_button(prefix: &str, width: f32, action: &str) -> Element {
             height: 24.0,
             onclick: action,
             pos_type: "absolute",
-            left: {width + 1.0 - 24.0},
-            top: 0.0,
+            left: {width + offset_x - 24.0},
+            top: offset_top,
             texture {
                 name: {DynName(format!("{prefix}CloseButtonNormal"))},
                 width: 24.0,
