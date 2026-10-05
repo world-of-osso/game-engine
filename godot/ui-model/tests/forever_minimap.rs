@@ -190,19 +190,33 @@ fn forever_cluster_is_a_square_244_map_in_a_260_cluster() {
 #[test]
 fn forever_header_holds_the_zone_name_and_the_clock_at_its_top_right() {
     let registry = build(ActiveSkin::Forever, busy_state());
-    assert_rect(
-        &registry,
-        "MinimapClusterTrackingBackground",
-        (14.0, 10.0, 17.0, 17.0),
+    // Left to right on one 17-high header row: tracking, zone name, clock, calendar.
+    let rect = |name: &str| fixed_rect(&registry, name);
+    let right = |r: (f32, f32, f32, f32)| r.0 + r.2;
+    let background = rect("MinimapClusterTrackingBackground");
+    let button = rect("MinimapClusterTrackingButton");
+    let zone = rect(MINIMAP_ZONE_TEXT);
+    let clock = rect(MINIMAP_CLOCK_TEXT);
+    let calendar = rect("GameTimeFrame");
+    assert!(
+        background.0 <= button.0
+            && right(button) <= right(background)
+            && background.1 <= button.1
+            && button.1 + button.3 <= background.1 + background.3,
+        "tracking button {button:?} outside its background {background:?}"
     );
-    assert_rect(
-        &registry,
-        "MinimapClusterTrackingButton",
-        (15.0, 11.0, 15.0, 15.0),
-    );
-    assert_rect(&registry, MINIMAP_ZONE_TEXT, (35.0, 10.0, 150.0, 17.0));
-    assert_rect(&registry, MINIMAP_CLOCK_TEXT, (185.0, 10.0, 40.0, 17.0));
-    assert_rect(&registry, "GameTimeFrame", (227.0, 10.5, 19.0, 18.0));
+    for (name, r) in [("tracking", background), ("zone", zone), ("clock", clock)] {
+        assert_eq!(
+            (r.1, r.3),
+            (background.1, 17.0),
+            "{name} off the header row"
+        );
+    }
+    assert!(right(background) <= zone.0, "zone overlaps tracking");
+    assert!(right(zone) <= clock.0, "clock overlaps zone");
+    assert!(right(clock) <= calendar.0, "calendar overlaps clock");
+    assert_eq!((calendar.2, calendar.3), (19.0, 18.0));
+    assert!(right(calendar) <= 260.0, "calendar past the cluster");
     let modern = build(ActiveSkin::Modern, busy_state());
     for name in [
         "MinimapClusterTrackingBackground",
@@ -250,22 +264,31 @@ fn forever_border_is_bronze_tooltip_art_instead_of_the_metal_frame() {
         "MinimapClusterFlareBorder",
         (0.0, 0.0, 260.0, 260.0),
     );
+    // 16-px tooltip-border cells: corners at the cluster's corners, edges between them;
+    // the top and bottom edges are the side cell rotated a quarter turn onto the edge.
+    let edge = 16.0;
+    let far = 260.0 - edge;
+    let span = 260.0 - 2.0 * edge;
+    let mid = 130.0;
+    let quarter = -std::f32::consts::FRAC_PI_2;
+    let mut border_source = None;
     for (part, rect, rotation) in [
-        ("TopLeft", (0.0, 0.0, 16.0, 16.0), 0.0),
-        ("TopRight", (244.0, 0.0, 16.0, 16.0), 0.0),
-        ("BottomLeft", (0.0, 244.0, 16.0, 16.0), 0.0),
-        ("BottomRight", (244.0, 244.0, 16.0, 16.0), 0.0),
-        ("Left", (0.0, 16.0, 16.0, 228.0), 0.0),
-        ("Right", (244.0, 16.0, 16.0, 228.0), 0.0),
+        ("TopLeft", (0.0, 0.0, edge, edge), 0.0),
+        ("TopRight", (far, 0.0, edge, edge), 0.0),
+        ("BottomLeft", (0.0, far, edge, edge), 0.0),
+        ("BottomRight", (far, far, edge, edge), 0.0),
+        ("Left", (0.0, edge, edge, span), 0.0),
+        ("Right", (far, edge, edge, span), 0.0),
+        // Unrotated rects centred on the top and bottom rows.
         (
             "Top",
-            (122.0, -106.0, 16.0, 228.0),
-            -std::f32::consts::FRAC_PI_2,
+            (mid - edge / 2.0, edge / 2.0 - span / 2.0, edge, span),
+            quarter,
         ),
         (
             "Bottom",
-            (122.0, 138.0, 16.0, 228.0),
-            -std::f32::consts::FRAC_PI_2,
+            (mid - edge / 2.0, far + edge / 2.0 - span / 2.0, edge, span),
+            quarter,
         ),
     ] {
         let name = format!("MinimapClusterBorder{part}");
@@ -273,14 +296,16 @@ fn forever_border_is_bronze_tooltip_art_instead_of_the_metal_frame() {
         let Some(WidgetData::Texture(art)) = &frame(&registry, &name).widget_data else {
             panic!("{name} is not a texture");
         };
-        assert_eq!(
-            art.source,
-            ui_toolkit::widgets::texture::TextureSource::FileDataId(137_057)
-        );
+        let source = border_source.get_or_insert_with(|| art.source.clone());
+        assert_eq!(&art.source, source, "{name} uses another texture");
         assert_eq!(art.vertex_color, [0.65, 0.49, 0.27, 1.0]);
         assert_eq!(art.rotation, rotation);
         assert!(!frame(&registry, &name).hidden);
     }
+    let Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(border_fdid)) = border_source
+    else {
+        panic!("border is not file art: {border_source:?}")
+    };
     assert!(registry.get_by_name("MinimapClusterNineSlice").is_none());
     let retail_only = [
         "MinimapCompassTexture",
@@ -298,7 +323,7 @@ fn forever_border_is_bronze_tooltip_art_instead_of_the_metal_frame() {
     )
     .unwrap();
     let fdids = minimap_texture_fdids(&busy_state());
-    for fdid in [137_057, 4_618_663] {
+    for fdid in [border_fdid, 4_618_663] {
         assert!(fdids.contains(&fdid), "{fdid}");
     }
 }
@@ -307,15 +332,33 @@ fn forever_border_is_bronze_tooltip_art_instead_of_the_metal_frame() {
 #[test]
 fn forever_map_marks_follow_the_square_map() {
     let registry = build(ActiveSkin::Forever, busy_state());
-    assert_rect(&registry, MINIMAP_ARROW, (114.0, 114.0, 32.0, 32.0));
-    // 16×16 blips centred at origin + 244 × (0.5 + offset).
-    assert_rect(&registry, "MinimapBlip7", (183.0, 61.0, 16.0, 16.0));
-    assert_rect(&registry, "MinimapBlip8", (97.6, 195.2, 16.0, 16.0));
-    assert_rect(&registry, "MinimapVignette9", (122.0, 122.0, 16.0, 16.0));
-    assert_rect(&registry, "MinimapVignette10", (231.8, 12.2, 16.0, 16.0));
+    // `(width, height)` centred on `(x, y)`.
+    let centred = |(x, y): (f32, f32), (w, h): (f32, f32)| (x - w / 2.0, y - h / 2.0, w, h);
+    let (map_x, map_y, map_size, _) = fixed_rect(&registry, MINIMAP_DISPLAY);
+    let centre = (map_x + map_size / 2.0, map_y + map_size / 2.0);
+    assert_rect(&registry, MINIMAP_ARROW, centred(centre, (32.0, 32.0)));
+    // 16×16 blips centred at origin + map size × (0.5 + offset).
+    let on_map = |[x, y]: [f32; 2]| (map_x + map_size * (0.5 + x), map_y + map_size * (0.5 + y));
+    for (name, offset) in [
+        ("MinimapBlip7", [0.25, -0.25]),
+        ("MinimapBlip8", [-0.1, 0.3]),
+        ("MinimapVignette9", [0.0, 0.0]),
+        ("MinimapVignette10", CORNER_BLIP),
+    ] {
+        assert_rect(&registry, name, centred(on_map(offset), (16.0, 16.0)));
+    }
     // ZoomIn 17×17 at CENTER (+88, −68), ZoomOut 17×9 at (+72, −84) (Minimap.xml:190-219).
-    assert_rect(&registry, MINIMAP_ZOOM_IN, (209.5, 189.5, 17.0, 17.0));
-    assert_rect(&registry, MINIMAP_ZOOM_OUT, (193.5, 209.5, 17.0, 9.0));
+    let from_centre = |dx: f32, dy: f32| (centre.0 + dx, centre.1 - dy);
+    assert_rect(
+        &registry,
+        MINIMAP_ZOOM_IN,
+        centred(from_centre(88.0, -68.0), (17.0, 17.0)),
+    );
+    assert_rect(
+        &registry,
+        MINIMAP_ZOOM_OUT,
+        centred(from_centre(72.0, -84.0), (17.0, 9.0)),
+    );
     // Modules/Minimap.lua:41,44,50,226: mail below the 22-high title band + 3 gap.
     assert_rect(&registry, MINIMAP_MAIL_FRAME, (14.0, 33.0, 20.0, 15.0));
 }

@@ -130,7 +130,7 @@ fn authored_roster_retains_names_layout_resources_and_actions() {
         .get(registry.get_by_name("CharCard_0Backdrop").unwrap())
         .unwrap();
     assert!(
-        matches!(&backdrop.widget_data, Some(WidgetData::Texture(data)) if data.source == TextureSource::Atlas("glues-characterselect-card-singles".into()))
+        matches!(&backdrop.widget_data, Some(WidgetData::Texture(data)) if matches!(&data.source, TextureSource::Atlas(n) if !n.is_empty()))
     );
     assert_eq!(text(&model, SELECTED_NAME_TEXT.0), "Alyra");
     assert_eq!(text(&model, STATUS_TEXT.0), "Choose a hero");

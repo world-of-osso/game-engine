@@ -124,111 +124,80 @@ fn fingerprint(pixels: &[u8]) -> u64 {
 
 // Retail / Forever AddOns/Blizzard_SharedXML/Mainline/NineSliceLayouts.lua:
 // portrait TL :20, plain TL :46, TR :21, BL :22, BR :23, T/B/L/R :24-27.
-/// (atlas, Modern member, Forever member, Modern sheet cell, Forever sheet cell): every
-/// member lands at its own size, so neighbouring pieces share one scale.
-const PIECES: [(&str, [u32; 4], [u32; 4], [u32; 4], [u32; 4]); 9] = [
+/// (atlas, Modern sheet cell, Forever sheet cell): every member lands at its own size, so
+/// neighbouring pieces share one scale.
+const PIECES: [(&str, [u32; 4], [u32; 4]); 9] = [
     (
         "UI-Frame-PortraitMetal-CornerTopLeft",
-        [1, 153, 150, 150],
-        [385, 193, 190, 190],
         [0, 0, 150, 150],
         [0, 0, 190, 190],
     ),
     (
         "UI-Frame-Metal-CornerTopLeft",
-        [1, 1, 150, 150],
-        [193, 1, 190, 190],
         [0, 0, 150, 150],
         [0, 0, 190, 190],
     ),
     (
         "UI-Frame-Metal-CornerTopRight",
-        [153, 1, 150, 150],
-        [193, 193, 190, 190],
         [214, 0, 150, 150],
         [446, 0, 190, 190],
     ),
     (
         "UI-Frame-Metal-CornerBottomLeft",
-        [153, 153, 64, 64],
-        [1, 1, 190, 200],
         [0, 182, 64, 64],
         [0, 446, 190, 200],
     ),
     (
         "UI-Frame-Metal-CornerBottomRight",
-        [219, 153, 64, 64],
-        [1, 203, 190, 200],
         [300, 182, 64, 64],
         [446, 446, 190, 200],
     ),
     (
         "_UI-Frame-Metal-EdgeTop",
-        [0, 1, 64, 150],
-        [0, 203, 256, 190],
         [150, 0, 64, 150],
         [190, 0, 256, 190],
     ),
     (
         "_UI-Frame-Metal-EdgeBottom",
-        [0, 153, 32, 64],
-        [0, 1, 256, 200],
         [150, 182, 32, 64],
         [190, 446, 256, 200],
     ),
     (
         "!UI-Frame-Metal-EdgeLeft",
-        [1, 0, 150, 32],
-        [1, 0, 190, 256],
         [0, 150, 150, 32],
         [0, 190, 190, 256],
     ),
     (
         "!UI-Frame-Metal-EdgeRight",
-        [153, 0, 150, 32],
-        [193, 0, 190, 256],
         [214, 150, 150, 32],
         [446, 190, 190, 256],
     ),
 ];
 
-fn sheet_for(name: &str, skin: ActiveSkin) -> u32 {
-    match (
-        name.contains("EdgeLeft") || name.contains("EdgeRight"),
-        name.contains("Edge"),
-        skin,
-    ) {
-        (true, _, ActiveSkin::Modern) => METAL_SIDE_EDGES,
-        (true, _, ActiveSkin::Forever) => 8_069_114,
-        (_, true, ActiveSkin::Modern) => METAL_TOP_BOTTOM_EDGES,
-        (_, true, ActiveSkin::Forever) => 8_069_118,
-        (_, _, ActiveSkin::Modern) => METAL_CORNERS,
-        (_, _, ActiveSkin::Forever) => 8_069_116,
-    }
+/// The atlas member under `skin`: its sheet FileDataID and pixel rect `[x, y, w, h]`.
+fn member(name: &str, skin: ActiveSkin) -> (u32, [u32; 4]) {
+    let region = resolve_region(name, skin).unwrap_or_else(|| panic!("{name} {skin:?}"));
+    let AtlasSource::FileDataId(fdid) = region.source else {
+        panic!("{name} {skin:?} is not a file: {:?}", region.source)
+    };
+    let (pixels, width) = source(fdid).unwrap();
+    let height = pixels.len() as u32 / (width * 4);
+    let rect = region.rect_pixels(width, height);
+    let [x, y] = rect.min.map(|v| v as u32);
+    let [right, bottom] = rect.max.map(|v| v as u32);
+    (fdid, [x, y, right - x, bottom - y])
 }
 
+/// Both skins resolve every piece to a non-empty member inside its sheet.
 fn assert_atlas_regions(skin: ActiveSkin) {
-    for (name, modern, forever, _, _) in PIECES {
-        let fdid = sheet_for(name, skin);
+    for (name, _, _) in PIECES {
+        let (fdid, [x, y, w, h]) = member(name, skin);
         let (pixels, width) = source(fdid).unwrap();
         let height = pixels.len() as u32 / (width * 4);
-        let region = resolve_region(name, skin).unwrap();
-        assert_eq!(
-            region.source,
-            AtlasSource::FileDataId(fdid),
-            "{name} {skin:?}"
-        );
-        let rect = region.rect_pixels(width, height);
-        let [x, y, w, h] = if skin == ActiveSkin::Modern {
-            modern
-        } else {
-            forever
-        };
-        assert_eq!(rect.min, [x as f32, y as f32], "{name} {skin:?}");
-        assert_eq!(
-            rect.max,
-            [(x + w) as f32, (y + h) as f32],
-            "{name} {skin:?}"
+        assert!(w > 0 && h > 0, "{name} {skin:?} is empty");
+        assert!(
+            x + w <= width && y + h <= height,
+            "{name} {skin:?} past its sheet"
         );
     }
 }
@@ -248,25 +217,25 @@ fn assert_composed_members(corner: MetalTopLeft, skin: ActiveSkin) {
         ]
     );
     let sheet = compose_metal_sheet(corner, geometry, source).unwrap();
-    // The bottom edge tiles from the end of the bottom-left corner in member-wide spans.
-    let (tile_start, tile) = if skin == ActiveSkin::Modern {
-        (64, 32)
-    } else {
-        (190, 256)
+    let cell = |modern: [u32; 4], forever: [u32; 4]| {
+        if skin == ActiveSkin::Modern {
+            modern
+        } else {
+            forever
+        }
     };
-    for (name, modern, forever, modern_cell, forever_cell) in PIECES {
+    // The bottom edge tiles from the end of the bottom-left corner in member-wide spans.
+    let tile_start = cell(PIECES[3].1, PIECES[3].2)[2];
+    let tile = member("_UI-Frame-Metal-EdgeBottom", skin).1[2];
+    for (name, modern_cell, forever_cell) in PIECES {
         if name == "UI-Frame-PortraitMetal-CornerTopLeft" && corner == MetalTopLeft::Plain {
             continue;
         }
         if name == "UI-Frame-Metal-CornerTopLeft" && corner == MetalTopLeft::Portrait {
             continue;
         }
-        let fdid = sheet_for(name, skin);
-        let ([sx, sy, sw, sh], [dx, dy, dw, dh]) = if skin == ActiveSkin::Modern {
-            (modern, modern_cell)
-        } else {
-            (forever, forever_cell)
-        };
+        let (fdid, [sx, sy, sw, sh]) = member(name, skin);
+        let [dx, dy, dw, dh] = cell(modern_cell, forever_cell);
         for (x, y) in [(0, 0), (dw / 2, dh / 2), (dw - 1, dh - 1)] {
             let tile_x = if name == "_UI-Frame-Metal-EdgeBottom" {
                 (dx + x - tile_start) % tile

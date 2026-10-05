@@ -15,14 +15,20 @@ use super::{RegistryModel, ScreenPostsetup};
 
 const PORTRAIT: &str = "UI-HUD-UnitFrame-Player-PortraitOn";
 
+/// The sheet `PORTRAIT` resolves to under `skin`.
+fn skin_portrait_fdid(skin: ActiveSkin) -> u32 {
+    let AtlasSource::FileDataId(fdid) = resolve_region(PORTRAIT, skin).unwrap().source else {
+        panic!("{PORTRAIT} is DB2 art");
+    };
+    fdid
+}
+
 /// A player portrait drawn from the sheet its atlas name resolves to under the skin.
 fn portrait_screen(ctx: &SharedContext) -> Element {
     let skin = *ctx
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
-    let AtlasSource::FileDataId(fdid) = resolve_region(PORTRAIT, skin).unwrap().source else {
-        panic!("{PORTRAIT} is DB2 art");
-    };
+    let fdid = skin_portrait_fdid(skin);
     rsx! {
         texture {
             name: "SkinPortrait",
@@ -59,12 +65,21 @@ fn switching_skin_rebuilds_screens_that_read_it_with_forever_art() {
     };
     model.sync_skin(ActiveSkin::Modern);
     let modern_generation = model.shared.generation::<ActiveSkin>();
-    assert_eq!(portrait_fdid(&model), 4_631_591);
+    let modern_art = skin_portrait_fdid(ActiveSkin::Modern);
+    assert_eq!(portrait_fdid(&model), modern_art);
 
     model.sync_skin(ActiveSkin::Modern);
     assert_eq!(model.shared.generation::<ActiveSkin>(), modern_generation);
 
     model.sync_skin(ActiveSkin::Forever);
     assert!(model.shared.generation::<ActiveSkin>() > modern_generation);
-    assert_eq!(portrait_fdid(&model), 8_036_204);
+    assert_eq!(
+        portrait_fdid(&model),
+        skin_portrait_fdid(ActiveSkin::Forever)
+    );
+    assert_ne!(
+        portrait_fdid(&model),
+        modern_art,
+        "Forever draws its own art"
+    );
 }

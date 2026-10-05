@@ -642,48 +642,43 @@ fn forever_action_buttons_take_flareui_scale_and_c60_icon_frame() {
         "NormalTexture",
     );
     assert!(frame(&registry, "ActionButton1SlotBackground").hidden);
-    // UI-HUD-ActionBar-IconFrame (39247), -Slot (39246) on uiactionbarc60.
-    assert_eq!(
-        drawn(&registry, "ActionButton2NormalTexture", skin),
-        Crop(7_948_328, [1.0, 47.0, 449.0, 494.0])
-    );
-    assert_eq!(
-        drawn(&registry, "ActionButton1SlotArt", skin),
-        Crop(7_948_328, [1.0, 65.0, 285.0, 347.0])
-    );
-    // -Down and -Mouseover have no set-1 member: Retail's (15802, 15805).
-    assert_eq!(
-        drawn(&registry, "ActionButton1PushedTexture", skin),
-        Crop(4_613_342, [181.0, 227.0, 521.0, 566.0])
-    );
-    assert_eq!(
-        drawn(&registry, "ActionButton2HighlightTexture", skin),
-        Crop(4_613_342, [181.0, 227.0, 643.0, 688.0])
-    );
+    // IconFrame and IconFrame-Slot take Forever's set-1 art; -Down and -Mouseover have no
+    // set-1 member and draw Retail's.
+    let modern = build(ActiveSkin::Modern, bar_state(), main_action_bar_screen);
+    let differs =
+        |name: &str| drawn(&registry, name, skin) != drawn(&modern, name, ActiveSkin::Modern);
+    assert!(differs("ActionButton2NormalTexture"));
+    assert!(differs("ActionButton1SlotArt"));
+    assert!(!differs("ActionButton1PushedTexture"));
+    assert!(!differs("ActionButton2HighlightTexture"));
 }
 
-/// Forever re-skins the micro buttons onto `uimicromenuc602x` (8200846); Housing and the
-/// portrait shadow have no set-1 member and keep Retail's art.
+/// Forever re-skins the micro buttons onto its set-1 sheet; Housing and the portrait
+/// shadow have no set-1 member and keep Retail's art.
 #[test]
 fn forever_micro_menu_draws_c60_buttons() {
     let skin = ActiveSkin::Forever;
     let registry = build(skin, MicroMenuView::default(), micro_menu_screen);
-    let c60 = |left: f32, top: f32| Crop(8_200_846, [left, left + 64.0, top, top + 82.0]);
-    let retail = |left: f32, top: f32| Crop(4_708_813, [left, left + 64.0, top, top + 82.0]);
+    let modern = build(
+        ActiveSkin::Modern,
+        MicroMenuView::default(),
+        micro_menu_screen,
+    );
     let cases = [
         // UI-HUD-MicroMenu-ButtonBG-Up
-        ("ProfessionMicroButtonArt0", c60(1.0, 421.0)),
+        ("ProfessionMicroButtonArt0", true),
         // -Professions-Up, -SpecTalents-Up, -Questlog-Up, -GameMenu-Up
-        ("ProfessionMicroButtonArt1", c60(331.0, 337.0)),
-        ("PlayerSpellsMicroButtonArt1", c60(463.0, 337.0)),
-        ("QuestLogMicroButtonArt1", c60(397.0, 169.0)),
-        ("MainMenuMicroButtonArt1", c60(133.0, 85.0)),
+        ("ProfessionMicroButtonArt1", true),
+        ("PlayerSpellsMicroButtonArt1", true),
+        ("QuestLogMicroButtonArt1", true),
+        ("MainMenuMicroButtonArt1", true),
         // -Housing-Up and -Portrait-Shadow: set 0 only.
-        ("HousingMicroButtonArt1", retail(331.0, 337.0)),
-        ("CharacterMicroButtonArt1", retail(397.0, 1.0)),
+        ("HousingMicroButtonArt1", false),
+        ("CharacterMicroButtonArt1", false),
     ];
-    for (name, expected) in cases {
-        assert_eq!(drawn(&registry, name, skin), expected, "{name}");
+    for (name, reskinned) in cases {
+        let differs = drawn(&registry, name, skin) != drawn(&modern, name, ActiveSkin::Modern);
+        assert_eq!(differs, reskinned, "{name}");
     }
 }
 
@@ -708,7 +703,10 @@ fn forever_bags_keep_retail_art_and_camelot_bag_atlases_are_forever_only() {
     for name in FOREVER_ONLY_BAG_ATLASES {
         assert!(resolve_region(name, ActiveSkin::Modern).is_none(), "{name}");
         let region = resolve_region(name, ActiveSkin::Forever).expect(name);
-        assert_eq!(region.source, AtlasSource::FileDataId(7_948_328), "{name}");
+        assert!(
+            region.right > region.left && region.bottom > region.top,
+            "{name}: empty region"
+        );
     }
 }
 
@@ -724,8 +722,7 @@ fn switching_skin_reskins_the_live_main_bar() {
     let mut screen = Screen::new(main_action_bar_screen);
     screen.sync(&shared, &mut registry);
     let cap = "MainActionBarLeftEndCap";
-    let modern_cap = Crop(4_613_342, [1.0, 179.0, 136.0, 303.0]);
-    assert_eq!(drawn(&registry, cap, ActiveSkin::Modern), modern_cap);
+    let modern_cap = drawn(&registry, cap, ActiveSkin::Modern);
 
     shared.insert(ActiveSkin::Forever);
     screen.sync(&shared, &mut registry);

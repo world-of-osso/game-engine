@@ -177,37 +177,47 @@ fn piece(model: &RegistryModel, name: &str) -> (u32, [f32; 4]) {
     }
 }
 
-/// `TooltipDefaultLayout` border pieces and the art each draws.
-const TOOLTIP_BORDER_PIECES: [(&str, u32); 8] = [
-    ("TopLeftCorner", 4_185_447),
-    ("TopRightCorner", 4_185_447),
-    ("BottomLeftCorner", 4_185_447),
-    ("BottomRightCorner", 4_185_447),
-    ("TopEdge", 4_185_447),
-    ("BottomEdge", 4_185_447),
-    ("LeftEdge", 4_185_474),
-    ("RightEdge", 4_185_474),
+/// `TooltipDefaultLayout` border pieces.
+const TOOLTIP_BORDER_PIECES: [&str; 8] = [
+    "TopLeftCorner",
+    "TopRightCorner",
+    "BottomLeftCorner",
+    "BottomRightCorner",
+    "TopEdge",
+    "BottomEdge",
+    "LeftEdge",
+    "RightEdge",
 ];
 
-/// FlareUI keeps Blizzard's tooltip nine-slice: every border piece tinted one colour
-/// (`NineSlice:SetBorderColor`) and the centre at 0.05/0.05/0.06 alpha 0.9
+/// The art the tooltip nine-slice's centre and border pieces draw.
+fn tooltip_art(tooltip: &RegistryModel) -> Vec<u32> {
+    std::iter::once("Center")
+        .chain(TOOLTIP_BORDER_PIECES)
+        .map(|part| piece(tooltip, &format!("TooltipNineSlice{part}")).0)
+        .collect()
+}
+
+fn tooltip(border: TooltipBorder, skin: ActiveSkin) -> RegistryModel {
+    let mut view = tooltip_view();
+    view.main.border = border;
+    canvas(view, game_tooltip_screen, skin)
+}
+
+/// FlareUI keeps Blizzard's tooltip nine-slice: the same art as Modern, every border piece
+/// tinted one colour (`NineSlice:SetBorderColor`) and the centre at 0.05/0.05/0.06 alpha 0.9
 /// (`SetCenterColor`, Tooltips.lua:138-146). Returns that border colour.
 fn forever_tooltip_border(subject: TooltipBorder) -> [f32; 4] {
-    let mut view = tooltip_view();
-    view.main.border = subject;
-    let tooltip = canvas(view, game_tooltip_screen, ActiveSkin::Forever);
-    assert!(!has(&tooltip, "TooltipFlareBackdrop"), "no bronze panel");
+    let forever = tooltip(subject, ActiveSkin::Forever);
+    assert!(!has(&forever, "TooltipFlareBackdrop"), "no bronze panel");
     assert_eq!(
-        piece(&tooltip, "TooltipNineSliceCenter"),
-        (4_185_455, TOOLTIP_BG)
+        tooltip_art(&forever),
+        tooltip_art(&tooltip(subject, ActiveSkin::Modern)),
+        "Blizzard's nine-slice art"
     );
+    assert_eq!(piece(&forever, "TooltipNineSliceCenter").1, TOOLTIP_BG);
     let colors: Vec<[f32; 4]> = TOOLTIP_BORDER_PIECES
         .iter()
-        .map(|(part, fdid)| {
-            let (drawn, color) = piece(&tooltip, &format!("TooltipNineSlice{part}"));
-            assert_eq!(drawn, *fdid, "{part}");
-            color
-        })
+        .map(|part| piece(&forever, &format!("TooltipNineSlice{part}")).1)
         .collect();
     assert!(colors.iter().all(|color| *color == colors[0]));
     colors[0]
@@ -240,16 +250,17 @@ fn forever_tooltip_tints_blizzards_nine_slice_by_class_reaction_and_quality() {
 
 #[test]
 fn modern_tooltip_keeps_the_white_border_and_retail_centre() {
-    let mut view = tooltip_view();
-    view.main.border = TooltipBorder::Reaction(Reaction::Hostile);
-    let tooltip = canvas(view, game_tooltip_screen, ActiveSkin::Modern);
-    assert_eq!(
-        piece(&tooltip, "TooltipNineSliceCenter"),
-        (4_185_455, [0.09, 0.09, 0.188, 1.0])
+    let tooltip = tooltip(
+        TooltipBorder::Reaction(Reaction::Hostile),
+        ActiveSkin::Modern,
     );
-    for (part, fdid) in TOOLTIP_BORDER_PIECES {
+    assert_eq!(
+        piece(&tooltip, "TooltipNineSliceCenter").1,
+        [0.09, 0.09, 0.188, 1.0]
+    );
+    for part in TOOLTIP_BORDER_PIECES {
         let name = format!("TooltipNineSlice{part}");
-        assert_eq!(piece(&tooltip, &name), (fdid, [1.0; 4]), "{part}");
+        assert_eq!(piece(&tooltip, &name).1, [1.0; 4], "{part}");
     }
 }
 

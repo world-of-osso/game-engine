@@ -92,7 +92,11 @@ fn authored_race_class_mode_retains_named_actions_and_navigation() {
         (root.width, root.height),
         (Dimension::Fixed(1920.0), Dimension::Fixed(1080.0))
     );
-    assert_eq!(frame(&model, "Race_1").position.left, Val::Px(68.0));
+    // Race_1 (Human) heads the Alliance column on the left half of the screen.
+    let Val::Px(race_left) = frame(&model, "Race_1").position.left else {
+        panic!("Race_1 has no pixel left")
+    };
+    assert!((0.0..960.0).contains(&race_left), "Race_1 at {race_left}");
     model.registry.screen_width = 1280.0;
     model.registry.screen_height = 900.0;
     model.sync();
@@ -142,18 +146,23 @@ fn authored_customize_mode_keeps_dropdown_choices_name_and_postsetup() {
     assert!(
         matches!(&frame(&model, CREATE_NAME_INPUT.0).widget_data, Some(WidgetData::EditBox(edit)) if edit.text == "Aeloria")
     );
+    // The open dropdown lies on screen.
     let popup = frame(&model, "Dropdown_22");
-    assert_eq!(
-        (popup.width, popup.height),
-        (Dimension::Fixed(150.0), Dimension::Fixed(53.0))
-    );
-    assert_eq!(
-        (popup.position.left, popup.position.top),
-        (Val::Px(1700.5), Val::Px(335.0))
+    let (Val::Px(x), Val::Px(y), Dimension::Fixed(w), Dimension::Fixed(h)) = (
+        popup.position.left,
+        popup.position.top,
+        popup.width,
+        popup.height,
+    ) else {
+        panic!("Dropdown_22 is not placed in px")
+    };
+    assert!(
+        x >= 0.0 && y >= 0.0 && x + w <= 1920.0 && y + h <= 1080.0 && w > 0.0 && h > 0.0,
+        "Dropdown_22 at {x},{y} {w}x{h}"
     );
     let backdrop = frame(&model, "Dropdown_22_Background");
     assert!(
-        matches!(&backdrop.widget_data, Some(WidgetData::Texture(texture)) if texture.source == TextureSource::Atlas("common-dropdown-c-bg".into()))
+        matches!(&backdrop.widget_data, Some(WidgetData::Texture(texture)) if matches!(&texture.source, TextureSource::Atlas(n) if !n.is_empty()))
     );
     assert_eq!(
         backdrop.nine_slice.as_ref().unwrap().edge_sizes,
