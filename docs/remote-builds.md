@@ -36,6 +36,18 @@ python3 scripts/depot-build.py --root "$PWD" --cli
 
 `--fixture`, `--cli`, `--release`, and `--test` retain their arguments and source/assets behavior on both hosts. For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host desktop --test -p game-engine-core` (substitute `local` as needed). Host selection does not make GDScript or GPU tests part of `--test`.
 
+## Build cancellation
+
+Local Docker clients inherit the helper's cgroup instead of entering a separate
+`agents-build_host.slice`. Start agent builds through `scripts/agent/agent-run <name>`
+so stopping `agents-<name>.slice` reaches both the helper and its buildx client.
+The shared transport used by engine and server builds also starts a Linux guardian:
+parent death (including SIGKILL), SIGTERM, or SIGINT requests SIGINT cancellation
+of the owned client process group. The guardian waits up to 20 seconds before
+killing an unresponsive client group; it never restarts or kills the shared builder.
+The uploaded desktop worker uses the same guardian, but this does not establish
+that an SSH disconnect terminates the remote worker.
+
 ## Native server/simulator acceptance boundary
 
 The server and simulator normal development paths use the shared native runner, not the Docker extension builder described above; see the [server guide](../../game-server/docs/remote-builds.md) and [simulator guide](../../../wow/wow-ui-sim/docs/remote-builds.md).
