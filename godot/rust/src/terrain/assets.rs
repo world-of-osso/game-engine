@@ -620,7 +620,7 @@ impl LiquidSource<'_> {
             .get_or_init(|| MapLiquidCatalog::read(self.data_root))
             .as_ref()
             .map_err(Clone::clone)?;
-        catalog.liquid_material(self.map_id, liquid_type, liquid_object)
+        catalog.render_material(self.map_id, liquid_type, liquid_object)
     }
 
     fn read_frames(&self, fdids: &[u32]) -> Result<Vec<LiquidFrame>, String> {
