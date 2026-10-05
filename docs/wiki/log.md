@@ -61,6 +61,10 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 
 [[portrait-party-frames]] adds source-cited Retail/Camelot member/pet geometry and distinguishes both verified c60 mappings: conditional CharacterFrameOnParty element 33561 → set-1 member 38477 → atlas 3960 shares Camelot's player sheet; ordinary Party element 21081 → member 39017 → atlas 4019 uses uipartyframec60. Static state-only component, behavioral tests, registry-golden capture and offline preview; no roster/portrait-runtime/settings/live acceptance. Compact remains default. Targeted registry/source tests pass 12/12 and extension builds, but owned native captures expose missing Retail sheet 4681512 and a mismatched 69913-vs-69933 base sheet at shared FDID 4631591. Static raster acceptance is blocked; do not wire as complete. Source-record equality is not physical-texture proof.
 
+## 2026-10-05 — Owned equipment display namespaces
+
+[[forever-data#Owned equipment display lookup — bounded CPU proof]] records `6c5c56b1` independent in-memory Retail/Forever item/display/resource/component/helmet lookup, source-retaining body postprocessing, missing-source errors and unchanged legacy display-only/NPC policy. Dedicated public renderer target observed RED 0/7 then GREEN 8/8, including actual30 catalog links/resource closure and preserved Retail model/sex-specific textures. Published-row read-only probe retains four missing M2s/six missing textures; no extraction, content-root or native/Classic/PBR acceptance.
+
 ## 2026-10-05 — Owned item definition namespaces
 
 [[forever-data#Owned item definition namespaces]] records per-stack Retail/Forever70205 catalog selection, source-preserving metadata/cursor/tooltips/comparisons/equipped-average and explicit item-info query source. Capped helper source tests at `00663840` pass 5/5, including the actual 30-row catalog and mixed collision snapshots. Equal authored names/icons stay equal; no Retail substitution for absent Forever data. Bare vendor/quest/loot and auction query/grouping boundaries remain explicit; full stats/native acceptance remain main-owned.
