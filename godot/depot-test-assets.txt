@@ -216,6 +216,12 @@ db2/12.1.0.69933/SpecializationSpells.csv
 db2/12.1.0.69933/SkillLine.csv
 db2/12.1.0.69933/SkillLineAbility.csv
 
+# Forever product-isolated liquid materials.
+db2/1.60.1.70205/LiquidType.csv
+db2/1.60.1.70205/LiquidObject.csv
+db2/1.60.1.70205/LiquidMaterial.csv
+db2/1.60.1.70205/LiquidTypeXTexture.csv
+
 # game-engine-core tests/liquid_water.rs
 db2/12.1.0.69933/LiquidType.csv
 db2/12.1.0.69933/LiquidObject.csv

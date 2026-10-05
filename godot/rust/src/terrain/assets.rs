@@ -13,7 +13,7 @@ use game_engine_core::{
     footstep_data::FootstepSurface,
     ground_effect_data,
     liquid_data::{
-        FIRST_LIQUID_OBJECT, LiquidCatalog, LiquidMaterial, MAGMA_NOISE_FDID, MAGMA_NOISE_SIZE,
+        FIRST_LIQUID_OBJECT, LiquidMaterial, MAGMA_NOISE_FDID, MAGMA_NOISE_SIZE, MapLiquidCatalog,
         TEXTURE_SLOTS,
     },
     terrain_surface_data, wdt,
@@ -73,7 +73,7 @@ pub(crate) struct NativeTerrainAssets {
     textures: RefCell<TerrainTextureCache>,
     lighting: RefCell<Option<Arc<LightingCatalog>>>,
     surface_catalog: OnceLock<Result<SurfaceCatalog, String>>,
-    liquids: OnceLock<Result<LiquidCatalog, String>>,
+    liquids: OnceLock<Result<MapLiquidCatalog, String>>,
     maps: OnceLock<Result<game_engine_core::map_catalog::MapCatalog, String>>,
     /// Parsed group floors and root-wide material surface, keyed by root FDID.
     wmo_groups: RefCell<HashMap<u32, (Vec<Arc<WmoGroupCollision>>, Option<FootstepSurface>)>>,
@@ -83,6 +83,7 @@ type CachedFile = (PathBuf, Vec<u8>);
 type TileFiles = (CachedFile, Option<CachedFile>, Option<CachedFile>);
 
 pub(crate) struct NativeMapWdt {
+    pub map_id: u32,
     pub path: PathBuf,
     pub flags: wdt::MphdFlags,
     pub tiles: wdt::WdtTiles,
@@ -157,6 +158,7 @@ impl NativeTerrainAssets {
             })
             .transpose()?;
         Ok(NativeMapWdt {
+            map_id: identity.id,
             path,
             flags,
             tiles,
@@ -188,7 +190,7 @@ impl NativeTerrainAssets {
         let obj = parse_tile_objects(&obj_file)?;
         let chunk_surfaces = self.classify_tile_surfaces(&root, tex.as_ref());
         let textures = self.load_tile_textures(tex.as_ref())?;
-        let liquid_materials = self.read_liquid_materials(&mut root)?;
+        let liquid_materials = self.read_liquid_materials(wdt.map_id, &mut root)?;
         let (wmo_floors, wmo_surfaces) = obj
             .as_ref()
             .map(|obj| self.read_wmo_floors(&obj.wmos, (tile_y, tile_x)))
@@ -225,6 +227,7 @@ impl NativeTerrainAssets {
     /// Resolves each layer's material, then reads LiquidObject vertices in its LVF.
     fn read_liquid_materials(
         &self,
+        map_id: u32,
         root: &mut adt::Root,
     ) -> Result<BTreeMap<(u16, u16), Result<Arc<NativeLiquidMaterial>, String>>, String> {
         let mut materials = BTreeMap::new();
@@ -236,7 +239,7 @@ impl NativeTerrainAssets {
         for layer in layers {
             let key = (layer.liquid_type, layer.liquid_object);
             if !materials.contains_key(&key) {
-                let source = self.liquid_source();
+                let source = self.liquid_source(map_id);
                 let material = match source.resolve(key) {
                     Ok(params) => Ok(Arc::new(source.read_textures(params)?)),
                     Err(error) => Err(error),
@@ -262,12 +265,17 @@ impl NativeTerrainAssets {
 
     /// The liquid material of one MH2O `(liquid_type, liquid_object)`; texture read failures
     /// are errors of the whole tile, material resolution failures only of its layers.
-    pub fn read_liquid_material(&self, key: (u16, u16)) -> Result<NativeLiquidMaterial, String> {
-        self.liquid_source().read_material(key)
+    pub fn read_liquid_material(
+        &self,
+        map_id: u32,
+        key: (u16, u16),
+    ) -> Result<NativeLiquidMaterial, String> {
+        self.liquid_source(map_id).read_material(key)
     }
 
-    fn liquid_source(&self) -> LiquidSource<'_> {
+    fn liquid_source(&self, map_id: u32) -> LiquidSource<'_> {
         LiquidSource {
+            map_id,
             resolver: &self.resolver,
             data_root: &self.data_root,
             textures: &self.textures,
@@ -538,10 +546,11 @@ fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
 /// Liquid materials read through one resolver: the terrain reader's for MH2O layers,
 /// the object spawner's for WMO group liquids.
 pub(crate) struct LiquidSource<'a> {
+    pub map_id: u32,
     pub resolver: &'a CascListfileResolver,
     pub data_root: &'a Path,
     pub textures: &'a RefCell<TerrainTextureCache>,
-    pub catalog: &'a OnceLock<Result<LiquidCatalog, String>>,
+    pub catalog: &'a OnceLock<Result<MapLiquidCatalog, String>>,
 }
 
 impl LiquidSource<'_> {
@@ -550,6 +559,7 @@ impl LiquidSource<'_> {
     }
 
     fn read_textures(&self, params: LiquidMaterial) -> Result<NativeLiquidMaterial, String> {
+        self.require_forever_texture_cache(&params)?;
         let mut slots: [Vec<LiquidFrame>; TEXTURE_SLOTS] = Default::default();
         for &slot in params.shader.texture_slots() {
             slots[slot] = self.read_frames(&params.texture_slots[slot])?;
@@ -567,13 +577,50 @@ impl LiquidSource<'_> {
         })
     }
 
+    fn require_forever_texture_cache(&self, params: &LiquidMaterial) -> Result<(), String> {
+        let catalog = self
+            .catalog
+            .get()
+            .ok_or("Liquid catalog not initialized")?
+            .as_ref()
+            .map_err(Clone::clone)?;
+        if !catalog.uses_forever(self.map_id) {
+            return Ok(());
+        }
+        let sampled = params
+            .shader
+            .texture_slots()
+            .iter()
+            .flat_map(|&slot| &params.texture_slots[slot]);
+        let globals = params.shader.global_textures().iter().map(|(_, fdid)| fdid);
+        for &fdid in sampled.chain(globals).filter(|&&fdid| fdid != 0) {
+            let extension = if fdid == MAGMA_NOISE_FDID {
+                "blob"
+            } else {
+                "blp"
+            };
+            let path = self
+                .data_root
+                .join("textures")
+                .join(format!("{fdid}.{extension}"));
+            if !path.is_file() {
+                return Err(format!(
+                    "Forever map {} liquid texture FDID {fdid} missing at {}",
+                    self.map_id,
+                    path.display()
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn resolve(&self, (liquid_type, liquid_object): (u16, u16)) -> Result<LiquidMaterial, String> {
         let catalog = self
             .catalog
-            .get_or_init(|| LiquidCatalog::read(&self.data_root.join("db2/12.1.0.69933")))
+            .get_or_init(|| MapLiquidCatalog::read(self.data_root))
             .as_ref()
             .map_err(Clone::clone)?;
-        catalog.liquid_material(liquid_type, liquid_object)
+        catalog.liquid_material(self.map_id, liquid_type, liquid_object)
     }
 
     fn read_frames(&self, fdids: &[u32]) -> Result<Vec<LiquidFrame>, String> {
