@@ -279,13 +279,20 @@ fn hud_layout_offers_show_micro_menu_off_by_default_and_applies_its_click() {
     let mut layout = LayoutOptionsView::default();
     for skin in [LayoutSkin::Modern, LayoutSkin::Forever] {
         layout.skin = skin;
-        for _ in 0..2 {
+        for side in ["Right", "Left"] {
             let mut registry = hud_registry(&layout);
+            assert_eq!(
+                layout.settings.show_micro_menu.unwrap_or(false),
+                side == "Left"
+            );
             assert_eq!(
                 label(&registry, "ToggleLabellayout_show_micro_menu"),
                 "Show Micro Menu"
             );
-            let action = click(&mut registry, "ToggleSwitchlayout_show_micro_menu");
+            let action = click(
+                &mut registry,
+                &format!("ToggleSwitchlayout_show_micro_menu{side}Hit"),
+            );
             let parsed = parse_layout_action(&action).expect("layout toggle action");
             apply_layout_action(parsed, &mut layout);
         }

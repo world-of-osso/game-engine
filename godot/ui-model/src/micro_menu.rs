@@ -343,12 +343,14 @@ pub fn micro_menu_screen(ctx: &SharedContext) -> Element {
     let view = ctx.get::<MicroMenuView>().cloned().unwrap_or_default();
     let layout = hud_layout(ctx);
     let at = layout.micro_menu.place((MICRO_MENU_W, BUTTON_H));
+    let hidden = !layout.show_micro_menu;
     let buttons: Element = (0..MICRO_BUTTONS.len())
         .flat_map(|index| micro_button(&view, index))
         .collect();
     rsx! {
         r#frame {
             name: {DynName(MICRO_MENU.into())},
+            hidden,
             width: MICRO_MENU_W,
             height: BUTTON_H,
             pos_type: "absolute",
