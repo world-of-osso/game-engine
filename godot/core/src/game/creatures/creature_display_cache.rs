@@ -59,22 +59,31 @@ pub fn import_creature_display_cache(data_dir: &Path) -> Result<PathBuf, String>
     let conn = Connection::open(&cache_path)
         .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
     rebuild_cache(&conn, &di, &md)?;
-    if forever.exists() {
-        let models = parse_model_data(&forever.join("CreatureModelData.csv"))?;
-        let mut retail_ids = HashSet::new();
-        crate::csv_util::read_numeric_rows(&di, ["ID"], |[id]| {
-            retail_ids.insert(id as u32);
-        })?;
-        import_display_rows(
-            &conn,
-            &forever.join("CreatureDisplayInfo.csv"),
-            &models,
-            &retail_ids,
-        )?;
-    }
+    import_forever_display_rows(&conn, &forever, &di)?;
     build_preferred_skins(&conn)?;
     record_source_files(&conn, &source_paths)?;
     Ok(cache_path)
+}
+
+fn import_forever_display_rows(
+    conn: &Connection,
+    forever: &Path,
+    retail_display_info: &Path,
+) -> Result<(), String> {
+    if !forever.exists() {
+        return Ok(());
+    }
+    let models = parse_model_data(&forever.join("CreatureModelData.csv"))?;
+    let mut retail_ids = HashSet::new();
+    crate::csv_util::read_numeric_rows(retail_display_info, ["ID"], |[id]| {
+        retail_ids.insert(id as u32);
+    })?;
+    import_display_rows(
+        conn,
+        &forever.join("CreatureDisplayInfo.csv"),
+        &models,
+        &retail_ids,
+    )
 }
 
 fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, String> {
