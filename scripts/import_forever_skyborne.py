@@ -570,7 +570,7 @@ def import_assets(data, staging, tables, npc_roots=None, priority_displays=froze
         batch = sorted(pending - visited)
         pending.clear()
         if not batch:
-            break
+            continue
         destinations = {
             (fdid, ext): data
             / ("textures" if ext == "blp" else "models")

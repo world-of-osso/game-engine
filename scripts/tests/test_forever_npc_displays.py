@@ -231,6 +231,66 @@ class ForeverNpcDisplayTests(unittest.TestCase):
             },
         )
 
+    def test_priority_closure_finishes_before_deferred_displays_even_with_shared_children(
+        self,
+    ):
+        from unittest.mock import patch
+
+        def chunk(tag, payload):
+            return tag + struct.pack("<I", len(payload)) + payload
+
+        tables = {
+            name: []
+            for name in (
+                "ChrCustomizationOption",
+                "ChrCustomizationChoice",
+                "ChrCustomizationElement",
+                "ChrCustomizationMaterial",
+                "TextureFileData",
+                "ChrCustomizationSkinnedModel",
+                "Map",
+                "Light",
+                "LightParams",
+                "LightSkybox",
+                "ChrRaces",
+            )
+        }
+        with tempfile.TemporaryDirectory() as directory:
+            data = Path(directory)
+            staging = data / "staging"
+            staging.mkdir()
+            (data / "db2/12.1.0.69933").mkdir(parents=True)
+            (data / "db2" / importer.BUILD).mkdir(parents=True)
+            (data / "db2/12.1.0.69933/Map.csv").write_text("ID\n0\n")
+            for name, raw in {
+                "7478487.m2": chunk(b"MD21", b""),
+                "7478494.m2": chunk(b"MD21", b"")
+                + chunk(b"TXID", struct.pack("<I", 8200220)),
+                "8200220.blp": b"BLP2",
+                "8199012.blp": b"BLP2",
+                "9001.m2": chunk(b"MD21", b"")
+                + chunk(b"SFID", struct.pack("<I", 9002)),
+                "9002.skin": b"SKIN",
+            }.items():
+                (staging / name).write_bytes(raw)
+            with closing(sqlite3.connect(data / "resolution.sqlite")) as conn:
+                conn.execute("create table resolution(fdid integer, content_key blob)")
+            with (
+                patch.object(importer, "CACHE", data),
+                patch.object(importer, "PROBE_DIRECTORY", data / "probes"),
+            ):
+                self.assertEqual(
+                    importer.import_assets(
+                        data,
+                        staging,
+                        tables,
+                        {1: {(7478494, "m2")}, 2: {(9001, "m2")}},
+                        {1},
+                    ),
+                    [],
+                )
+            self.assertEqual((data / "models/900100.skin").read_bytes(), b"SKIN")
+
     def test_probe_reuse_never_accepts_wrong_current_root_identity(self):
         with tempfile.TemporaryDirectory() as directory:
             directory = Path(directory)
