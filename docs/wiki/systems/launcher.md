@@ -14,7 +14,7 @@ Micro entries derive labels, actions and normal icons from `MICRO_BUTTONS`. Char
 
 - Forever: existing `metal_frame_no_portrait` style, composed by the registry host.
 - Modern: existing `static_popup` diamond-dialog border (FDID 6795680), existing dark dialog background atlas.
-- Search: `common-search-magnifyingglass`, Retail `UiTextureAtlasMember.csv` member 9809, atlas1541, FDID3281887. Existing local DB2 records; no downloads.
+- Search: `common-search-magnifyingglass`, local Retail/Forever DB2 member34111, atlas3172, FDID6725697 (1x canvas selected by the existing atlas resolver). The older canvas0 member9809/atlas1541 is FDID3281887. No downloads.
 - Micro icons/actions: `godot/ui-model/src/micro_menu.rs`; host `godot/rust/src/character_frame.rs`.
 - Help icon: Retail `AddOns/Blizzard_MicroMenu/Mainline/MainMenuBarMicroButtons.lua:1773-1774`, `LoadMicroButtonTextures(self, "GameMenu")`.
 - Launcher lifecycle/filter/navigation are the user's October 5, 2026 design, not Retail behavior.
