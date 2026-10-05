@@ -210,6 +210,34 @@ fn inventory_defaults_and_sections_are_exact() {
 }
 
 #[test]
+fn player_spells_bindings_are_listed_under_interface_without_invented_spec_default() {
+    let bindings = InputBindingsData::default();
+    for (action, label, binding) in [
+        (
+            InputAction::ToggleSpellbook,
+            "Spellbook",
+            Some(InputBinding::Keyboard(BindingKey::KeyP)),
+        ),
+        (
+            InputAction::ToggleTalents,
+            "Talents",
+            Some(InputBinding::Keyboard(BindingKey::KeyN)),
+        ),
+        (InputAction::ToggleSpecialization, "Specialization", None),
+    ] {
+        assert_eq!(action.label(), label);
+        assert_eq!(action.section(), BindingSection::Interface);
+        assert_eq!(bindings.binding(action), binding);
+        assert!(
+            game_engine_core::input_bindings_data::actions_for_section(BindingSection::Interface)
+                .contains(&action)
+        );
+    }
+    let restored: InputBindingsData = ron::from_str(&ron::to_string(&bindings).unwrap()).unwrap();
+    assert_eq!(restored, bindings);
+}
+
+#[test]
 fn migration_null_missing_and_explicit_owner_survive_serde() {
     let saved = r#"{"bindings":{"ToggleMute":"key:KeyM","Jump":"key:KeyN","MoveForward":null,"TargetSelf":"ctrl+key:KeyS"}}"#;
     let bindings: InputBindingsData = serde_json::from_str(saved).unwrap();
