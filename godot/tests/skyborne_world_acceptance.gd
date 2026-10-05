@@ -62,7 +62,7 @@ func run_test() -> void:
 		return
 	if scope == "client-items":
 		print("SKYBORNE CLIENT_ITEMS_DONE race=", race, " character=", CHARACTERS[race])
-		print("SKYBORNE BLOCKED NPC/giver/quest acceptance: missing authored health/class data; no substitute")
+		print("SKYBORNE UNTESTED NPC/giver/quest acceptance in client-items scope; server NPC stats are explicitly estimated")
 		client.free()
 		quit(0)
 		return
