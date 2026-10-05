@@ -65,6 +65,10 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 
 [[character-creation#Skyborne branch — bounded native creation acceptance (2026-10-05)]] records four actual offscreen variants, exact model/canvas/catalog/class/icon checks, live inline-rig pose motion, inspected captures and normal exit 0 without engine errors/resource leaks. Fixed Retail-only creation-scene lookup, preserved-Warrior defaults, primary API registration and missing UI-cache shutdown cleanup. Original scene probe is content-key verified; two backdrop textures and unused fourth skin remain explicit local-archive gaps. Core targeted 5/5, native creation rules 1/1 and importer probe/closure 2/2 pass; icon decoder 3/3 proof retained. Exact scope and artifacts are in the native ledger. No create/save/reload or world-entry acceptance.
 
+## 2026-10-04 — Zephras NPC display import and explicit appearance blockers
+
+[[forever-data#Zephras NPC displays — bounded, incomplete]] records 235/235 model resolutions (174 grounded), exact preservation of existing caches, one local import, current-root asset audits and explicit encrypted-ID omissions. Importer 38 passed/3 skipped; desktop core 2/2. Required Extra/geoset sources, armor consumers and native screenshots remain incomplete; no appearance-readiness claim. [Contract](../specs/npc-appearance.md#forever-display-overlay).
+
 ## 2026-10-04 — Forever Zephras lighting exports and local-archive blockers
 
 [[retail-lighting#Forever Zephras lighting (2026-10-04)]] records five extracted lighting tables, six map-2991 Light rows, explicit encrypted drops and recursive sky asset closure. Importer 14/14 passed; LightData FDID 1375580 and sky primary skin 7345742 are unavailable locally. Production-lighting fixture removes neutral lighting; native catalog/build proof remains pending behind the shared desktop build lock. No production-lit screenshot or visual acceptance claimed. [Contract](../specs/zephras-world-map.md#lighting).

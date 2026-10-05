@@ -20,9 +20,9 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 ## Forever display overlay
 
-- [ ] Resolve display IDs absent from Retail using Forever 1.60.1.70205 CDI → CMD, with the Forever model table even when ModelID collides. Keep every Retail display row unchanged.
+- [x] Resolve display IDs absent from Retail using Forever 1.60.1.70205 CDI → CMD, with the Forever model table even when ModelID collides. Keep every Retail display row unchanged.
 - [ ] Import those displays' reachable models, companions, variation textures, baked body textures, customization collections/materials and armor item assets from local CASC; report per-display dependency failures and encrypted CDI IDs explicitly.
-- [ ] Missing Extra/geoset tables must block required appearance coverage, not publish an ordinary-creature substitute. Existing Retail appearance rows remain unchanged.
+- [x] Missing Extra/geoset tables must block required appearance coverage, not publish an ordinary-creature substitute. Existing Retail appearance rows remain unchanged.
 - [ ] Native Ailee Farheart (136968) and Ventaari Brightwish (139694) require authored appearance and inspected offscreen visual proof; model-ID resolution alone is insufficient.
 
 ## How it works
