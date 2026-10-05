@@ -182,11 +182,26 @@ impl TerrainMaterials {
             ));
         }
         let shader = self.shader()?;
-        let mut build = self.building.take().unwrap_or(TileBuild {
+        let build = self.building.take().unwrap_or(TileBuild {
             tile,
             chunks: Vec::new(),
             next: 0,
         });
+        let Some(build) = self.build_tile_chunks(build, parsed, tex, &shader, started)? else {
+            return Ok(None);
+        };
+        self.spawn_tile(parsed, build).map(Some)
+    }
+
+    fn build_tile_chunks(
+        &mut self,
+        mut build: TileBuild,
+        parsed: &NativeTerrainTile,
+        tex: &adt::AdtTexData,
+        shader: &Gd<Shader>,
+        started: Instant,
+    ) -> Result<Option<TileBuild>, String> {
+        let tile = build.tile;
         // Texture chunks are stored by encounter order, not by root chunk coordinates.
         let chunks = parsed.root.chunks.iter().zip(&tex.chunk_layers);
         for (chunk, layers) in chunks.skip(build.next) {
@@ -199,7 +214,7 @@ impl TerrainMaterials {
             if geometry.indices.is_empty() {
                 continue;
             }
-            let material = self.build_material(parsed, &layers.layers, &shader)?;
+            let material = self.build_material(parsed, &layers.layers, shader)?;
             let collision = collision_from_geometry(&geometry);
             let mesh = super::build_mesh(geometry, &chunk.vertex_colors);
             build.chunks.push((
@@ -209,6 +224,15 @@ impl TerrainMaterials {
                 collision,
             ));
         }
+        Ok(Some(build))
+    }
+
+    fn spawn_tile(
+        &mut self,
+        parsed: &NativeTerrainTile,
+        build: TileBuild,
+    ) -> Result<Gd<Node3D>, String> {
+        let tile = build.tile;
         let span = crate::profile::span(|| "terrain.water".to_owned());
         let water = self.water.build(&parsed.root, &parsed.liquid_materials)?;
         drop(span);
@@ -222,7 +246,7 @@ impl TerrainMaterials {
             root.add_child(&spawn_chunk(&name, &mesh, &material, &collision));
             self.materials.push(material);
         }
-        Ok(Some(root))
+        Ok(root)
     }
 
     fn build_material(

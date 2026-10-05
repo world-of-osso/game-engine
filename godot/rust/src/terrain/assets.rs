@@ -26,6 +26,46 @@ use super::textures::{TerrainLayerTextures, TerrainTextureCache};
 use crate::lighting::assets::LightingCatalog;
 use crate::wmo::placement::PlacedWmo;
 
+fn parse_tile_root(
+    path: &Path,
+    bytes: &[u8],
+    tile: (u32, u32),
+    tex_file: &Option<(PathBuf, Vec<u8>)>,
+) -> Result<adt::Root, String> {
+    adt::parse_root_for_tile(
+        bytes,
+        tile.0,
+        tile.1,
+        tex_file.as_ref().map(|(_, bytes)| bytes.as_slice()),
+    )
+    .map_err(|error| format!("{}: {error}", path.display()))
+}
+
+fn parse_tile_textures(
+    tex_file: &Option<(PathBuf, Vec<u8>)>,
+    flags: wdt::MphdFlags,
+    root: &adt::Root,
+) -> Result<Option<adt::AdtTexData>, String> {
+    tex_file
+        .as_ref()
+        .map(|(path, bytes)| {
+            adt::parse_tex(bytes, flags, root)
+                .map_err(|error| format!("{}: {error}", path.display()))
+        })
+        .transpose()
+}
+
+fn parse_tile_objects(
+    obj_file: &Option<(PathBuf, Vec<u8>)>,
+) -> Result<Option<adt::AdtObjData>, String> {
+    obj_file
+        .as_ref()
+        .map(|(path, bytes)| {
+            adt::parse_obj(bytes).map_err(|error| format!("{}: {error}", path.display()))
+        })
+        .transpose()
+}
+
 pub(crate) struct NativeTerrainAssets {
     resolver: CascListfileResolver,
     terrain_dir: PathBuf,
@@ -136,35 +176,11 @@ impl NativeTerrainAssets {
         let (root_path, root_bytes) = self.read_declared_file(&format!("{stem}.adt"), "adt")?;
         let tex_file = self.read_optional_companion(&format!("{stem}_tex0.adt"))?;
         let obj_file = self.read_optional_companion(&format!("{stem}_obj0.adt"))?;
-        let mut root = adt::parse_root_for_tile(
-            &root_bytes,
-            tile_y,
-            tile_x,
-            tex_file.as_ref().map(|(_, bytes)| bytes.as_slice()),
-        )
-        .map_err(|error| format!("{}: {error}", root_path.display()))?;
-        let tex = tex_file
-            .as_ref()
-            .map(|(path, bytes)| {
-                adt::parse_tex(bytes, wdt.flags, &root)
-                    .map_err(|error| format!("{}: {error}", path.display()))
-            })
-            .transpose()?;
-        let obj = obj_file
-            .as_ref()
-            .map(|(path, bytes)| {
-                adt::parse_obj(bytes).map_err(|error| format!("{}: {error}", path.display()))
-            })
-            .transpose()?;
+        let mut root = parse_tile_root(&root_path, &root_bytes, (tile_y, tile_x), &tex_file)?;
+        let tex = parse_tile_textures(&tex_file, wdt.flags, &root)?;
+        let obj = parse_tile_objects(&obj_file)?;
         let chunk_surfaces = self.classify_tile_surfaces(&root, tex.as_ref());
-        let textures = match &tex {
-            Some(tex) => {
-                self.textures
-                    .borrow_mut()
-                    .load_for_tile(&self.resolver, &self.data_root, tex)?
-            }
-            None => BTreeMap::new(),
-        };
+        let textures = self.load_tile_textures(tex.as_ref())?;
         let liquid_materials = self.read_liquid_materials(&mut root)?;
         let (wmo_floors, wmo_surfaces) = obj
             .as_ref()
@@ -183,6 +199,20 @@ impl NativeTerrainAssets {
             wmo_surfaces,
             liquid_materials,
         })
+    }
+
+    fn load_tile_textures(
+        &self,
+        tex: Option<&adt::AdtTexData>,
+    ) -> Result<BTreeMap<u32, TerrainLayerTextures>, String> {
+        match tex {
+            Some(tex) => {
+                self.textures
+                    .borrow_mut()
+                    .load_for_tile(&self.resolver, &self.data_root, tex)
+            }
+            None => Ok(BTreeMap::new()),
+        }
     }
 
     /// Resolves each layer's material, then reads LiquidObject vertices in its LVF.
