@@ -506,6 +506,13 @@ impl ICanvasLayer for RegistryUi {
         if let Some(projection) = self.projection.as_mut() {
             projection.handle_pointer(&event);
         }
+        // A global release also ends repeat when the screen was hidden while held.
+        if let Ok(button) = event.try_cast::<godot::classes::InputEventMouseButton>() {
+            if button.get_button_index() == godot::global::MouseButton::LEFT && !button.is_pressed()
+            {
+                self.scroll_stepper = None;
+            }
+        }
     }
 
     fn init(base: Base<CanvasLayer>) -> Self {
