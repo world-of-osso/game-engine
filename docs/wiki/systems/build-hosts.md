@@ -23,3 +23,6 @@ October 3, 2026: main observed real extension export from both hosts, desktop CL
 ## See Also
 
 - [[godot-conversion]] — native client and retained historical evidence.
+
+## Builder GC policy (2026-10-05)
+The shared `game-engine` buildx builder runs with `scripts/depot/buildkitd.toml`; recreate it with `~/.worktrees/build-lock.sh scripts/setup-builder.sh` (keeps the cache volume). BuildKit's default policy capped cache mounts at ~488 MiB and the builder at ~93 GiB while it held ~102 GiB, so GC evicted the per-slot Cargo target caches between runs: cargo fingerprints reported ENOENT and every gate rebuilt ~484 crates (gates 30-34). The config keeps cache mounts 30 days up to 250 GB, the builder up to 320 GB, and at least 100 GB disk free.
