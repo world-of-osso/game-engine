@@ -719,6 +719,43 @@ mod tests {
     use super::*;
 
     #[test]
+    fn zephras_missing_forever_liquid_texture_is_explicit_without_retail_extraction() {
+        let data = test_data_root();
+        let scratch =
+            std::env::temp_dir().join(format!("native-forever-liquid-{}", std::process::id()));
+        for build in ["12.1.0.69933", "1.60.1.70205"] {
+            let destination = scratch.join("db2").join(build);
+            fs::create_dir_all(&destination).unwrap();
+            for table in [
+                "Map",
+                "LiquidType",
+                "LiquidObject",
+                "LiquidMaterial",
+                "LiquidTypeXTexture",
+            ] {
+                let name = format!("{table}.csv");
+                fs::copy(
+                    data.join("db2").join(build).join(&name),
+                    destination.join(name),
+                )
+                .unwrap();
+            }
+        }
+        let assets = NativeTerrainAssets::new(scratch.clone());
+        let error = assets
+            .read_liquid_material(2991, (1251, 18420))
+            .err()
+            .unwrap();
+        assert!(
+            error.contains("Forever map 2991 liquid texture FDID"),
+            "{error}"
+        );
+        assert!(error.contains("missing at"), "{error}");
+        assert!(!scratch.join("textures").exists());
+        fs::remove_dir_all(scratch).unwrap();
+    }
+
+    #[test]
     fn zephras_reads_unnamed_wdt_and_maid_tile_from_fdid_cache() {
         let assets = cached_assets();
         let map = assets.read_map_wdt("2991").unwrap();
