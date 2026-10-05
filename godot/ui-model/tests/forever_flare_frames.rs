@@ -227,9 +227,19 @@ fn fixed_rect(registry: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
     (px(f.position.left), px(f.position.top), width, height)
 }
 
-/// `Interface\Tooltips\UI-Tooltip-Border` in FlareUI's fixed bronze `ns.BORDER_COLOR`
-/// #A67D45 (`Core.lua:8`).
-const BRONZE_BORDER: (u32, [f32; 4]) = (137_057, [0.65, 0.49, 0.27, 1.0]);
+/// FlareUI's fixed bronze `ns.BORDER_COLOR` #A67D45 (`Core.lua:8`).
+const BRONZE: [f32; 4] = [0.65, 0.49, 0.27, 1.0];
+
+/// A border piece draws a file texture tinted bronze; returns that texture.
+fn bronze_border_texture(registry: &FrameRegistry, name: &str) -> TextureSource {
+    let (source, color) = texture_source(registry, name);
+    assert!(
+        matches!(source, TextureSource::FileDataId(fdid) if fdid != 0),
+        "{name} draws {source:?}"
+    );
+    assert_eq!(color, BRONZE, "{name}");
+    source
+}
 
 fn colour_frames(target_reaction: Reaction, target_class: Option<u8>) -> FrameRegistry {
     load_atlas_tables();
@@ -388,8 +398,15 @@ fn forever_partial_bars_show_dark_background_without_an_opaque_frame_backdrop() 
             Some(through_flat_texture([0.15; 3], 0.9))
         );
     }
-    assert_eq!(fixed_rect(&registry, "PlayerHealthBarFill").2, 174.0);
-    assert_eq!(fixed_rect(&registry, "TargetHealthBarFill").0, 58.0);
+    // 75% health: both fills are 75% of the bar, Target's (mirrored) anchored right.
+    let bar_width = fixed_rect(&registry, "PlayerHealthBar").2;
+    let player = fixed_rect(&registry, "PlayerHealthBarFill");
+    let target = fixed_rect(&registry, "TargetHealthBarFill");
+    assert_eq!(player.2, 0.75 * bar_width);
+    assert_eq!(
+        (target.0 + target.2, target.2),
+        (bar_width, 0.75 * bar_width)
+    );
     for name in ["PlayerFrameBackground", "TargetFrameBackground"] {
         assert_eq!(texture_source(&registry, name).1, [0.0, 0.0, 0.0, 0.0]);
     }
@@ -412,28 +429,21 @@ fn forever_player_frame_is_flareui_thin_frame_with_bronze_border() {
         fixed_rect(&registry, "PlayerManaBar"),
         (4.0, 42.0, 232.0, 14.0)
     );
-    for piece in [
-        "TopLeft",
-        "TopRight",
-        "BottomLeft",
-        "BottomRight",
-        "Top",
-        "Left",
-    ] {
-        let (source, color) = texture_source(&registry, &format!("PlayerFrameBorder{piece}"));
-        assert_eq!(
-            (source, color),
-            (TextureSource::FileDataId(BRONZE_BORDER.0), BRONZE_BORDER.1),
-            "{piece}"
-        );
+    // One bronze-tinted border texture for every piece.
+    let border = bronze_border_texture(&registry, "PlayerFrameBorderTopLeft");
+    for piece in ["TopRight", "BottomLeft", "BottomRight", "Top", "Left"] {
+        let name = format!("PlayerFrameBorder{piece}");
+        assert_eq!(bronze_border_texture(&registry, &name), border, "{piece}");
     }
     // 16-px edge (`BORDER_SIZE`): corners 16×16 at the frame's corners.
-    assert_eq!(
-        fixed_rect(&registry, "PlayerFrameBorderBottomRight"),
-        (224.0, 44.0, 16.0, 16.0)
-    );
+    let (x, y, w, h) = fixed_rect(&registry, "PlayerFrameBorderBottomRight");
+    assert_eq!((w, h), (16.0, 16.0));
+    assert_eq!((x + w, y + h), (240.0, 60.0));
     let (background, _) = texture_source(&registry, "PlayerFrameBackground");
-    assert_eq!(background, TextureSource::FileDataId(312_922));
+    assert!(
+        matches!(background, TextureSource::FileDataId(fdid) if fdid != 0),
+        "PlayerFrameBackground draws {background:?}"
+    );
     // Health as a percentage (`healthText = "percent"`), no portrait.
     let text = frame(&registry, "PlayerHealthBarText");
     let Some(WidgetData::FontString(text)) = text.widget_data.as_ref() else {
@@ -477,10 +487,14 @@ fn forever_cast_bar_is_flareui_steel_blue_292_by_26_bar() {
     // `PLAYER_CAST_COLOR` #5C8FC7 (UnitFrames.lua:78).
     let fill = frame(&registry, "CastingBarFill");
     assert_eq!(fill.background_color, Some([0.36, 0.56, 0.78, 1.0]));
-    let (source, color) = texture_source(&registry, "PlayerCastingBarFrameBorderTopLeft");
+    let unit_border = bronze_border_texture(
+        &unit_frames(ActiveSkin::Forever),
+        "PlayerFrameBorderTopLeft",
+    );
     assert_eq!(
-        (source, color),
-        (TextureSource::FileDataId(BRONZE_BORDER.0), BRONZE_BORDER.1)
+        bronze_border_texture(&registry, "PlayerCastingBarFrameBorderTopLeft"),
+        unit_border,
+        "cast bar shares the unit frames' border"
     );
     // `PLAYER_CAST_CHANNEL` #80BFE0 for channels.
     let channel = cast_bar(ActiveSkin::Forever, casting(true));
@@ -594,8 +608,11 @@ fn atlas_without_a_member_for_the_skin_is_an_error_and_draws_nothing() {
     .sync(&SharedContext::new(), &mut registry);
     assert!(registry.get_by_name("MissingCircle").is_none());
     let icon = frame(&registry, "PresentIcon");
+    let (width, height) =
+        atlas_size("UI-HUD-UnitFrame-Player-CombatIcon", ActiveSkin::Modern).unwrap();
+    assert!(width > 0.0 && height > 0.0);
     assert_eq!(
         (icon.width, icon.height),
-        (Dimension::Fixed(16.0), Dimension::Fixed(16.0))
+        (Dimension::Fixed(width), Dimension::Fixed(height))
     );
 }

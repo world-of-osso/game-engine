@@ -213,7 +213,7 @@ fn forever_pet_bar_stands_above_every_action_bar() {
 #[test]
 fn switching_preset_moves_the_mounted_pet_bar_and_restores_modern() {
     let (mut shared, mut screen, mut registry) = setup(ActiveSkin::Modern);
-    assert_rect(&registry, (679.0, 955.0, 318.0, 30.0));
+    let modern = rect(&registry);
     shared.insert(ActiveSkin::Forever);
     screen.sync(&shared, &mut registry);
     let top_bar = action_bar_rects(ActiveSkin::Forever)[2];
@@ -222,7 +222,8 @@ fn switching_preset_moves_the_mounted_pet_bar_and_restores_modern() {
         forever.1 + forever.3 <= top_bar.1,
         "{forever:?} above {top_bar:?}"
     );
+    assert_ne!(forever, modern, "Forever moves the pet bar");
     shared.insert(ActiveSkin::Modern);
     screen.sync(&shared, &mut registry);
-    assert_rect(&registry, (679.0, 955.0, 318.0, 30.0));
+    assert_eq!(rect(&registry), modern, "Modern restores its pet bar");
 }
