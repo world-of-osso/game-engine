@@ -7,6 +7,8 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
+use ui_toolkit::atlas::{ActiveSkin, active_skin};
+
 use crate::ui::screens::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, POI_IN_PROGRESS, POI_TURN_IN,
     QUEST_LOG_DIVIDER, QUEST_PARCHMENT, QUEST_TEXT_COLOR, TRACKER_CHECK, atlas_texture,
@@ -44,10 +46,58 @@ pub const TRACK_ACTION: &str = "quest_log:track";
 pub const SELECT_PREFIX: &str = "quest_log:select:";
 pub const HEADER_PREFIX: &str = "quest_log:header:";
 
+/// `Enum.RelativeContentDifficulty` of a quest for the player, picked like
+/// `DifficultyUtil.GetRelativeDifficultyColor` (Blizzard_FrameXMLUtil/Mainline/
+/// DifficultyUtil.lua:33-46) and coloured with `QuestDifficultyColors`
+/// (Blizzard_FrameXMLBase/Constants.lua:210-218).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum QuestDifficulty {
+    Impossible,
+    VeryDifficult,
+    Difficult,
+    Standard,
+    Trivial,
+}
+
+/// `UnitQuestTrivialLevelRange`: the server greys quests more than
+/// `CONFIG_QUEST_LOW_LEVEL_HIDE_DIFF` (4) levels below the player
+/// (game-server quest_rules.rs:13-14, 365), so the log agrees with the `!` markers.
+pub const QUEST_TRIVIAL_LEVEL_RANGE: i32 = 4;
+
+impl QuestDifficulty {
+    pub fn relative(player_level: i32, quest_level: i32) -> Self {
+        let diff = quest_level - player_level;
+        if diff >= 5 {
+            Self::Impossible
+        } else if diff >= 3 {
+            Self::VeryDifficult
+        } else if diff >= -4 {
+            Self::Difficult
+        } else if -diff <= QUEST_TRIVIAL_LEVEL_RANGE {
+            Self::Standard
+        } else {
+            Self::Trivial
+        }
+    }
+
+    pub fn color(self) -> &'static str {
+        match self {
+            Self::Impossible => "1.0,0.1,0.1,1.0",
+            Self::VeryDifficult => "1.0,0.5,0.25,1.0",
+            Self::Difficult => "1.0,0.82,0.0,1.0",
+            Self::Standard => "0.25,0.75,0.25,1.0",
+            Self::Trivial => "0.5,0.5,0.5,1.0",
+        }
+    }
+}
+
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct QuestLogRow {
     pub quest_id: u32,
     pub title: String,
+    /// Displayed quest level (`difficultyLevel`): scaling quests show the player's.
+    pub level: i32,
+    pub difficulty: QuestDifficulty,
     pub complete: bool,
     pub watched: bool,
     pub selected: bool,
@@ -88,6 +138,20 @@ pub struct QuestLogFrameState {
     pub details: Option<QuestLogDetails>,
 }
 
+/// Where a quest list or details column sits inside its window.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct QuestPane {
+    pub x: f32,
+    pub y: f32,
+    pub width: f32,
+}
+
+const LIST_PANE: QuestPane = QuestPane {
+    x: LIST_X,
+    y: PANE_TOP,
+    width: LIST_W,
+};
+
 pub fn quest_log_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<QuestLogFrameState>()
@@ -99,7 +163,7 @@ pub fn quest_log_frame_screen(ctx: &SharedContext) -> Element {
         "Quest Log",
         CLOSE_ACTION,
     );
-    let list = quest_list(state);
+    let list = quest_list(state, LIST_PANE);
     let details = details_pane(state.details.as_ref());
     let count_text = format!("Quests: {}/{}", state.quest_count, state.max_quests);
     rsx! {
@@ -142,12 +206,13 @@ pub fn quest_log_frame_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-fn quest_list(state: &QuestLogFrameState) -> Element {
+/// The zone headers and quest titles of `state`, from the top of `pane`.
+pub fn quest_list(state: &QuestLogFrameState, pane: QuestPane) -> Element {
     if state.groups.is_empty() {
         return rsx! {
             fontstring {
                 name: "QuestLogNoQuestsText",
-                width: LIST_W,
+                width: {pane.width},
                 height: 60.0,
                 text: "No quests available\n\nAccept quests by talking to characters with a ! above their head.",
                 font: GameFont::FrizQuadrata,
@@ -155,21 +220,21 @@ fn quest_list(state: &QuestLogFrameState) -> Element {
                 font_color: NORMAL_FONT_COLOR,
                 justify_h: "CENTER",
                 pos_type: "absolute",
-                left: LIST_X,
-                top: {PANE_TOP + 40.0},
+                left: {pane.x},
+                top: {pane.y + 40.0},
             }
         };
     }
-    let mut y = PANE_TOP;
+    let mut y = pane.y;
     let mut elements = Vec::new();
     for group in &state.groups {
-        elements.extend(group_header(group, y));
+        elements.extend(group_header(group, pane, y));
         y += HEADER_H;
         if group.collapsed {
             continue;
         }
         for row in &group.quests {
-            elements.extend(quest_row(row, y));
+            elements.extend(quest_row(row, pane, y));
             y += ROW_H;
         }
     }
@@ -177,14 +242,19 @@ fn quest_list(state: &QuestLogFrameState) -> Element {
 }
 
 /// Zone header on the `questlog_divider` plate with a +/- collapse marker.
-fn group_header(group: &QuestLogGroup, y: f32) -> Element {
+fn group_header(group: &QuestLogGroup, pane: QuestPane, y: f32) -> Element {
+    let QuestPane {
+        x: list_x,
+        width: list_w,
+        ..
+    } = pane;
     let name = format!("QuestLogHeader{}", group.sort_id);
     let action = format!("{HEADER_PREFIX}{}", group.sort_id);
     let marker = if group.collapsed { "+" } else { "-" };
     let mut elements = named_atlas_texture(
         format!("{name}Background"),
         QUEST_LOG_DIVIDER,
-        (LIST_X, y - 5.0, LIST_W, 37.0),
+        (list_x, y - 5.0, list_w, 37.0),
     );
     elements.extend(rsx! {
         fontstring {
@@ -197,12 +267,12 @@ fn group_header(group: &QuestLogGroup, y: f32) -> Element {
             font_color: NORMAL_FONT_COLOR,
             justify_h: "CENTER",
             pos_type: "absolute",
-            left: {LIST_X + 8.0},
+            left: {list_x + 8.0},
             top: y,
         }
         fontstring {
             name: {DynName(format!("{name}Text"))},
-            width: {LIST_W - 30.0},
+            width: {list_w - 30.0},
             height: HEADER_H,
             text: {group.name.as_str()},
             font: GameFont::FrizQuadrata,
@@ -213,14 +283,22 @@ fn group_header(group: &QuestLogGroup, y: f32) -> Element {
             justify_h: "LEFT",
             onclick: {action.as_str()},
             pos_type: "absolute",
-            left: {LIST_X + 26.0},
+            left: {list_x + 26.0},
             top: y,
         }
     });
     elements
 }
 
-fn quest_row(row: &QuestLogRow, y: f32) -> Element {
+/// A quest title in its `QuestDifficultyColors` colour (QuestMapFrame.lua:1750-1751);
+/// Forever prefixes `[level] ` (Camelot/QuestMapFrameOverrides.lua:13-16, used at
+/// Forever Mainline/QuestMapFrame.lua:1631).
+fn quest_row(row: &QuestLogRow, pane: QuestPane, y: f32) -> Element {
+    let QuestPane {
+        x: list_x,
+        width: list_w,
+        ..
+    } = pane;
     let name = format!("QuestLogTitle{}", row.quest_id);
     let action = format!("{SELECT_PREFIX}{}", row.quest_id);
     let icon = if row.complete {
@@ -228,21 +306,21 @@ fn quest_row(row: &QuestLogRow, y: f32) -> Element {
     } else {
         POI_IN_PROGRESS
     };
-    let color = if row.selected {
-        HIGHLIGHT_FONT_COLOR
-    } else {
-        NORMAL_FONT_COLOR
+    let color = row.difficulty.color();
+    let title = match active_skin() {
+        ActiveSkin::Forever => format!("[{}] {}", row.level, row.title),
+        ActiveSkin::Modern => row.title.clone(),
     };
     let mut elements = Vec::new();
     if row.selected {
         elements.extend(rsx! {
             r#frame {
                 name: {DynName(format!("{name}Selected"))},
-                width: LIST_W,
+                width: list_w,
                 height: ROW_H,
                 background_color: "1.0,0.82,0.0,0.2",
                 pos_type: "absolute",
-                left: LIST_X,
+                left: list_x,
                 top: y,
             }
         });
@@ -250,21 +328,21 @@ fn quest_row(row: &QuestLogRow, y: f32) -> Element {
     elements.extend(atlas_texture(
         format!("{name}Icon"),
         &icon,
-        (LIST_X + 22.0, y + 1.0, 16.0, 16.0),
+        (list_x + 22.0, y + 1.0, 16.0, 16.0),
     ));
     elements.extend(rsx! {
         fontstring {
             name: {DynName(format!("{name}Text"))},
-            width: {LIST_W - 64.0},
+            width: {list_w - 64.0},
             height: ROW_H,
-            text: {row.title.as_str()},
+            text: {title.as_str()},
             font: GameFont::FrizQuadrata,
             font_size: ROW_FONT,
             font_color: color,
             justify_h: "LEFT",
             onclick: {action.as_str()},
             pos_type: "absolute",
-            left: {LIST_X + 42.0},
+            left: {list_x + 42.0},
             top: {y + 2.0},
         }
     });
@@ -272,11 +350,17 @@ fn quest_row(row: &QuestLogRow, y: f32) -> Element {
         elements.extend(atlas_texture(
             format!("{name}Check"),
             &TRACKER_CHECK,
-            (LIST_X + LIST_W - 20.0, y + 1.0, 16.0, 16.0),
+            (list_x + list_w - 20.0, y + 1.0, 16.0, 16.0),
         ));
     }
     elements
 }
+
+const DETAILS_TEXT_PANE: QuestPane = QuestPane {
+    x: DETAILS_X + DETAILS_INSET,
+    y: PANE_TOP + DETAILS_INSET,
+    width: DETAILS_TEXT_W,
+};
 
 fn details_pane(details: Option<&QuestLogDetails>) -> Element {
     let mut elements = named_atlas_texture(
@@ -287,62 +371,7 @@ fn details_pane(details: Option<&QuestLogDetails>) -> Element {
     let Some(details) = details else {
         return elements;
     };
-    let mut y = PANE_TOP + DETAILS_INSET;
-    elements.extend(details_text(
-        "QuestLogDetailsTitle",
-        &details.title,
-        TITLE_FONT,
-        QUEST_TEXT_COLOR,
-        &mut y,
-    ));
-    y += GAP;
-    elements.extend(details_text(
-        "QuestLogDetailsObjectivesText",
-        &details.objectives_text,
-        BODY_FONT,
-        QUEST_TEXT_COLOR,
-        &mut y,
-    ));
-    for (index, objective) in details.objectives.iter().enumerate() {
-        let color = if objective.done {
-            DONE_OBJECTIVE_COLOR
-        } else {
-            QUEST_TEXT_COLOR
-        };
-        y += 2.0;
-        elements.extend(details_text(
-            &format!("QuestLogDetailsObjective{index}"),
-            &format!("- {}", objective.text),
-            BODY_FONT,
-            color,
-            &mut y,
-        ));
-    }
-    if let Some(description) = &details.description {
-        y += GAP * 2.0;
-        elements.extend(details_text(
-            "QuestLogDetailsDescriptionHeader",
-            "Description",
-            TITLE_FONT,
-            QUEST_TEXT_COLOR,
-            &mut y,
-        ));
-        y += GAP;
-        elements.extend(details_text(
-            "QuestLogDetailsDescription",
-            description,
-            BODY_FONT,
-            QUEST_TEXT_COLOR,
-            &mut y,
-        ));
-    }
-    if let Some(rewards) = &details.rewards {
-        let column = Column {
-            x: DETAILS_X + DETAILS_INSET,
-            width: DETAILS_TEXT_W,
-        };
-        elements.extend(rewards_section(rewards, false, column, &mut y));
-    }
+    elements.extend(quest_details_text(details, DETAILS_TEXT_PANE));
     let track_label = if details.watched { "Untrack" } else { "Track" };
     let button_y = FRAME_H - 4.0 - 22.0;
     elements.extend(panel_button(
@@ -362,14 +391,87 @@ fn details_pane(details: Option<&QuestLogDetails>) -> Element {
     elements
 }
 
-fn details_text(name: &str, text: &str, font_size: f32, color: &str, y: &mut f32) -> Element {
+/// The quest's title, objectives, description and rewards, top-down in `pane`.
+pub fn quest_details_text(details: &QuestLogDetails, pane: QuestPane) -> Element {
+    let mut y = pane.y;
+    let mut elements = details_text(
+        pane,
+        "QuestLogDetailsTitle",
+        &details.title,
+        TITLE_FONT,
+        QUEST_TEXT_COLOR,
+        &mut y,
+    );
+    y += GAP;
+    elements.extend(details_text(
+        pane,
+        "QuestLogDetailsObjectivesText",
+        &details.objectives_text,
+        BODY_FONT,
+        QUEST_TEXT_COLOR,
+        &mut y,
+    ));
+    for (index, objective) in details.objectives.iter().enumerate() {
+        let color = if objective.done {
+            DONE_OBJECTIVE_COLOR
+        } else {
+            QUEST_TEXT_COLOR
+        };
+        y += 2.0;
+        elements.extend(details_text(
+            pane,
+            &format!("QuestLogDetailsObjective{index}"),
+            &format!("- {}", objective.text),
+            BODY_FONT,
+            color,
+            &mut y,
+        ));
+    }
+    if let Some(description) = &details.description {
+        y += GAP * 2.0;
+        elements.extend(details_text(
+            pane,
+            "QuestLogDetailsDescriptionHeader",
+            "Description",
+            TITLE_FONT,
+            QUEST_TEXT_COLOR,
+            &mut y,
+        ));
+        y += GAP;
+        elements.extend(details_text(
+            pane,
+            "QuestLogDetailsDescription",
+            description,
+            BODY_FONT,
+            QUEST_TEXT_COLOR,
+            &mut y,
+        ));
+    }
+    if let Some(rewards) = &details.rewards {
+        let column = Column {
+            x: pane.x,
+            width: pane.width,
+        };
+        elements.extend(rewards_section(rewards, false, column, &mut y));
+    }
+    elements
+}
+
+fn details_text(
+    pane: QuestPane,
+    name: &str,
+    text: &str,
+    font_size: f32,
+    color: &str,
+    y: &mut f32,
+) -> Element {
     let top = *y;
-    let height = wrapped_text_height(text, DETAILS_TEXT_W, font_size);
+    let height = wrapped_text_height(text, pane.width, font_size);
     *y += height;
     rsx! {
         fontstring {
             name: {DynName(name.into())},
-            width: DETAILS_TEXT_W,
+            width: {pane.width},
             height,
             text,
             font: GameFont::FrizQuadrata,
@@ -377,7 +479,7 @@ fn details_text(name: &str, text: &str, font_size: f32, color: &str, y: &mut f32
             font_color: color,
             justify_h: "LEFT",
             pos_type: "absolute",
-            left: {DETAILS_X + DETAILS_INSET},
+            left: {pane.x},
             top,
         }
     }

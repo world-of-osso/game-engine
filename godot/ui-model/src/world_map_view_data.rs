@@ -148,6 +148,8 @@ pub fn world_map_frame_state(data: &WorldMapData, request: WorldMapRequest) -> W
     WorldMapFrameState {
         visible: request.visible,
         viewport: request.viewport,
+        maximized: false,
+        quest_panel: None,
         map_id,
         map_name: catalog
             .map(map_id)

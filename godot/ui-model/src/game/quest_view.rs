@@ -13,7 +13,8 @@ use crate::ui::screens::quest_frame_component::{
     RewardItemView, RewardView,
 };
 use crate::ui::screens::quest_log_frame_component::{
-    QuestLogDetails, QuestLogFrameState, QuestLogGroup, QuestLogObjectiveLine, QuestLogRow,
+    QuestDifficulty, QuestLogDetails, QuestLogFrameState, QuestLogGroup, QuestLogObjectiveLine,
+    QuestLogRow,
 };
 use shared::protocol::{
     MAX_QUEST_LOG_SIZE, QuestEntrySnapshot, QuestGiverQuestDetails, QuestGiverQuestState,
@@ -142,20 +143,31 @@ pub fn selected_quest(runtime: &QuestRuntime, ui: &QuestUiState) -> Option<u32> 
         .or_else(|| runtime.log.first().map(|entry| entry.quest_id))
 }
 
+/// The quest log for a player of `player_level`: quest rows carry their displayed
+/// level and difficulty against it.
 pub fn quest_log_state(
     runtime: &QuestRuntime,
     ui: &QuestUiState,
     cache: &QuestDetailsCache,
     tokens: &QuestTextTokens,
     header_name: &mut dyn FnMut(i32) -> String,
+    player_level: i32,
     visible: bool,
 ) -> QuestLogFrameState {
     let selected = selected_quest(runtime, ui);
     let mut groups: Vec<QuestLogGroup> = Vec::new();
     for entry in &runtime.log {
+        // Level -1 scales to the player (`QuestEntrySnapshot::level`).
+        let level = if entry.level < 0 {
+            player_level
+        } else {
+            entry.level
+        };
         let row = QuestLogRow {
             quest_id: entry.quest_id,
             title: entry.title.clone(),
+            level,
+            difficulty: QuestDifficulty::relative(player_level, level),
             complete: entry.completed,
             watched: runtime.is_watched(entry.quest_id),
             selected: selected == Some(entry.quest_id),
