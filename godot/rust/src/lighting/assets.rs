@@ -4,7 +4,6 @@ use std::{
     collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
-    sync::OnceLock,
 };
 
 use game_engine_core::{
@@ -43,7 +42,7 @@ pub(crate) struct LightingCatalog {
     pub stars_path: PathBuf,
     // Product-local LightParams IDs can collide; never merge their keyed rows.
     forever_maps: HashSet<u32>,
-    forever_catalog: OnceLock<Result<Box<Self>, String>>,
+    forever_catalog: Option<Result<Box<Self>, String>>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -86,6 +85,14 @@ impl LightingCatalog {
         let db2 = data_root.join("db2/12.1.0.69933");
         let mut catalog = Self::read_tables(data_root, data_root, &db2)?;
         catalog.forever_maps = read_forever_map_ids(data_root)?;
+        if !catalog.forever_maps.is_empty() {
+            let tables = data_root.join("db2/1.60.1.70205");
+            let forever = Self::read_tables(data_root, &tables, &tables).map(Box::new);
+            if let Err(error) = &forever {
+                eprintln!("Failed to read Forever lighting: {error}");
+            }
+            catalog.forever_catalog = Some(forever);
+        }
         Ok(catalog)
     }
 
@@ -116,7 +123,7 @@ impl LightingCatalog {
             data_root: data_root.to_path_buf(),
             stars_path,
             forever_maps: HashSet::new(),
-            forever_catalog: OnceLock::new(),
+            forever_catalog: None,
         })
     }
 
@@ -127,10 +134,10 @@ impl LightingCatalog {
         minutes: f32,
     ) -> Result<LightingSample, String> {
         if self.forever_maps.contains(&map_id) {
-            let catalog = self.forever_catalog.get_or_init(|| {
-                let tables = self.data_root.join("db2/1.60.1.70205");
-                Self::read_tables(&self.data_root, &tables, &tables).map(Box::new)
-            });
+            let catalog = self
+                .forever_catalog
+                .as_ref()
+                .ok_or_else(|| format!("Forever map {map_id} has no lighting catalog"))?;
             return catalog
                 .as_ref()
                 .map_err(|error| format!("Forever map {map_id}: {error}"))?
