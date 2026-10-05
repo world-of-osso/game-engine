@@ -67,7 +67,7 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 
 ## 2026-10-05 — Owned item definition namespaces
 
-[[forever-data#Owned item definition namespaces]] records per-stack Retail/Forever70205 catalog selection, source-preserving metadata/cursor/tooltips/comparisons/equipped-average and explicit item-info query source. Capped helper source tests at `00663840` pass 5/5, including the actual 30-row catalog and mixed collision snapshots. Equal authored names/icons stay equal; no Retail substitution for absent Forever data. Bare vendor/quest/loot and auction query/grouping boundaries remain explicit; full stats/native acceptance remain main-owned.
+[[forever-data#Owned item definition namespaces]] records per-stack Retail/Forever70205 catalog selection, source-preserving metadata/cursor/tooltips/comparisons/equipped-average and explicit item-info query source. Capped helper source tests at `00663840` pass 5/5, including the actual 30-row catalog and mixed collision snapshots. Equal authored names/icons stay equal; no Retail substitution for absent Forever data. CLI/source-query batch at `19034461` passes5/5, including deliberate parser default and missing-source rejection; failed network JSON placement remains separately recorded in the source ledger. Bare vendor/quest/loot and auction query/grouping boundaries remain explicit; full stats/native acceptance remain main-owned.
 
 ## 2026-10-05 — Authored Skyborne NameGen overlay
 
