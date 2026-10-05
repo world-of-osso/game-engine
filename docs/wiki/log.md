@@ -2730,3 +2730,7 @@ Local-CASC ItemDisplayInfoModelMatRes4050937 establishes type3 material822338/te
 ## 2026-10-05 — Preserve Retail / isolate Forever documentation audit
 
 Reconciled [[forever-data#Owned item definition namespaces]], item-source spec and producer documentation against the source-items handoff and tracked consumer/export tests. Records actual 30-item/six-loadout/45-membership catalog, nine local scaling exports, immutable server GUID provenance, explicit shared wire fields and frozen character disk ABI. Retains unowned vendor/quest/loot, bare-ID auction selection, thrown DPS/Classic slots, renderer acceptance and final paired native E2E gaps. Docs-only; no new test, build, operation or parity acceptance.
+
+## 2026-10-05 — Bounded Skyborne source-gap audit
+
+[[forever-data#Native world acceptance boundary (2026-10-05)]] records Main-reported entry and the server authored health/class blocker; explicit client-items/full fixture scopes preserve blocked full assertions. Owned equipment section supersedes the ten-file absence with local-CASC extraction, SFID skins/TXID166265 and stale installed resolver diagnosis; no native parse/render/capture credit. [[quest-ui]] corrects stale absent-frame claims from current native quests.rs source only.

@@ -27,11 +27,12 @@ Markers: `nameplate.rs` spawns the talktome M2 with its animation; `indicator_fa
 
 ## Godot client
 
-`godot/rust/src/quests.rs` reconciles the native quest giver frame, quest log and markers through the shared `quest_runtime`, `quest_view` and `quest_actions` models. Right-click sends normal interaction requests; greeting, detail, progress and reward pages follow server replies. L opens the log; abandon uses the confirmation popup. Tracker titles and POI buttons open the selected quest in the log.
+`godot/rust/src/quests.rs` reconciles the native quest giver frame, quest log and markers through the shared `quest_runtime`, `quest_view` and `quest_actions` models. Right-click sends normal interaction requests; greeting, detail, progress and reward pages follow server replies. L opens the log; abandon uses the confirmation popup. Tracker titles and POI buttons open the selected quest in the log. Source implementation is not Skyborne native quest acceptance.
 
 - `godot/rust/src/objective_tracker.rs` feeds the shared `objective_tracker_component` through `ObjectiveTrackerState::from_watched`, using `Account.quest_log` entries in `Account.quest_watched` order.
 - The two minimize buttons toggle `collapsed` and `quests_collapsed` locally.
 - `godot/tests/world_quest_flow.gd` drives real NPC picks, clicks, combat, exploration, item use and inventory assertions on a private server. Admin supplies travel, revival and the eight gnoll armbands, never objective completion.
+- `skyborne_world_acceptance.gd` retains real Greeting/Detail/Accept control assertions in explicit `SKYBORNE_SCOPE=full`; `client-items` proves none of those interactions. Full Skyborne NPC/giver/quest acceptance is blocked by missing authored server health/class, not absence of QuestFrame. See [[forever-data#Native world acceptance boundary (2026-10-05)]].
 - Tracker placement and polygons: [[minimap]].
 - Legibility: title `OBJECTIVE_TRACKER_COLOR.Header` = `OBJECTIVE_TRACKER_BLOCK_HEADER_COLOR` (GlobalColor 241, 0xBF9C00 = 0.75, 0.61, 0) and lines `Normal` 0.8 grey, both `ObjectiveTrackerLineFont` FRIZQT 12 with a black (1, −1) shadow (`Blizzard_ObjectiveTrackerFonts.xml:202-209`). Native labels drew no FontString shadow until the projection mapped `shadow_color`/`shadow_offset` to Godot's `font_shadow_color`/`shadow_offset_*` (y flipped), so the dark-gold title vanished on bright grass. Hover highlight (`HeaderHighlight`/`NormalHighlight`) is not implemented in either client.
 
