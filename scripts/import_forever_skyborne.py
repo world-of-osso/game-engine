@@ -17,12 +17,12 @@ from pathlib import Path
 
 try:
     from scripts import export_db2_csv as export
-    from scripts import forever_npc_displays as npc
     from scripts import forever_liquids as liquids
+    from scripts import forever_npc_displays as npc
 except ModuleNotFoundError:
     import export_db2_csv as export
-    import forever_npc_displays as npc
     import forever_liquids as liquids
+    import forever_npc_displays as npc
 
 # Public importer helpers also exercised by the bounded NPC tests.
 npc_asset_roots = npc.npc_asset_roots
