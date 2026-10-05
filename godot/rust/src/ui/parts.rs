@@ -37,6 +37,8 @@ pub struct ImagePart {
     pub rotation: f32,
     /// `BlendMode::Additive` textures add to what is beneath them.
     pub additive: bool,
+    /// Retail MinimalScrollBar disabled-arrow art loses texture saturation, not brightness.
+    pub desaturated: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -135,7 +137,14 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
     let rect = [0.0, 0.0, width, height];
     match &frame.widget_data {
         Some(WidgetData::Button(button)) => match select_button_texture_source(button) {
-            Some(source) => Some(textured(rect, source.clone(), Crop::Full, WHITE)),
+            Some(source) => {
+                let mut part = textured(rect, source.clone(), Crop::Full, WHITE);
+                part.desaturated = !button.enabled
+                    && matches!(source,
+                    TextureSource::Atlas(name) if matches!(name.as_str(),
+                        "minimal-scrollbar-arrow-top" | "minimal-scrollbar-arrow-bottom"));
+                Some(part)
+            }
             None => frame.background_color.map(|color| solid(rect, color)),
         },
         Some(WidgetData::Texture(texture)) => {
@@ -432,6 +441,7 @@ fn solid(rect: [f32; 4], color: [f32; 4]) -> ImagePart {
         overlay: false,
         rotation: 0.0,
         additive: false,
+        desaturated: false,
     }
 }
 
@@ -444,6 +454,7 @@ fn textured(rect: [f32; 4], source: TextureSource, crop: Crop, color: [f32; 4]) 
         overlay: false,
         rotation: 0.0,
         additive: false,
+        desaturated: false,
     }
 }
 
