@@ -653,6 +653,41 @@ impl GameClient {
         }
     }
 
+    /// Offline fixture: run production lighting without an authenticated local player.
+    #[func]
+    fn preview_world_lighting(&mut self, position: Vector3, camera: Vector3) -> GString {
+        let result = (|| {
+            let catalog = self
+                .terrain
+                .map_wdt
+                .as_ref()
+                .ok_or("Preview lighting requires a loaded WDT")?
+                .lighting
+                .clone();
+            let map_id = self
+                .world_map_id
+                .ok_or("Preview lighting requires a map ID")?;
+            let mut parent = self.to_gd().upcast::<Node3D>();
+            let wmo_fog = self.world_objects.camera_fog(camera);
+            if let Some(light) = self.world_lighting.sync(
+                &mut parent,
+                &catalog,
+                map_id,
+                position,
+                self.world_minutes,
+                wmo_fog.as_ref(),
+            )? {
+                self.apply_world_lighting(light);
+            }
+            self.world_lighting.place_sky(camera, 0);
+            Ok::<(), String>(())
+        })();
+        match result {
+            Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
     /// Main-thread time of the last `process`, in milliseconds.
     #[func]
     fn process_ms(&self) -> f64 {
@@ -2087,15 +2122,19 @@ impl GameClient {
             self.world_minutes,
             wmo_fog.as_ref(),
         )? {
-            self.world.update_lighting(Some(light.clone()));
-            self.game_objects.update_lighting(Some(light.clone()));
-            self.world_objects.update_lighting(&light);
-            self.ground_detail.update_lighting(&light);
-            self.horizon.update_lighting(&light);
-            self.global_wmo.update_lighting(&light);
-            self.terrain_materials.update_lighting(light);
+            self.apply_world_lighting(light);
         }
         Ok(())
+    }
+
+    fn apply_world_lighting(&mut self, light: lighting::TerrainLight) {
+        self.world.update_lighting(Some(light.clone()));
+        self.game_objects.update_lighting(Some(light.clone()));
+        self.world_objects.update_lighting(&light);
+        self.ground_detail.update_lighting(&light);
+        self.horizon.update_lighting(&light);
+        self.global_wmo.update_lighting(&light);
+        self.terrain_materials.update_lighting(light);
     }
 
     /// Sky models follow the camera after it moved this frame.
