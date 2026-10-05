@@ -245,6 +245,17 @@ def encode_csv(header, columns, rows, table=None):
         if header
         else [c[0] for c in columns]
     )
+    if header and table == "LiquidType":
+        # Forever PBR water requires the full DBD array, not Retail's legacy 18 floats.
+        floats = [name for name, _ in columns if name.startswith("Float_")]
+        if len(floats) != 38:
+            raise ValueError(
+                f"Forever LiquidType requires 38 Float fields, found {len(floats)}"
+            )
+        first_float = names.index("Float_0")
+        names = [name for name in names if not name.startswith("Float_")]
+        names[first_float:first_float] = floats
+        header = b""
     if not header and table == "Map":
         leading = ["ID", "Directory", "MapName_lang", "WdtFileDataID"]
         if any(name not in names for name in leading):
@@ -368,6 +379,7 @@ def import_tables(data, staging):
                 "encrypted_record_ids": encrypted_record_ids(raw),
                 "unknown_tact_key_ids": unknown,
                 "absent_forever_columns": missing,
+                **({"export_float_columns": 38} if table == "LiquidType" else {}),
             }
             print(
                 f"{table}: {len(rows)} rows, {dropped} encrypted dropped; absent columns: {missing}",

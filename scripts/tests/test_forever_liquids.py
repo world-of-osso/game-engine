@@ -51,12 +51,32 @@ class ForeverLiquidTests(unittest.TestCase):
                 .splitlines(keepends=True)[0]
             )
             encoded, missing = importer.encode_csv(header, columns, rows, table=table)
-            self.assertEqual(encoded.splitlines()[0], header.strip())
+            if table == "LiquidType":
+                actual_header = next(csv.reader(io.StringIO(encoded.decode())))
+                original_header = next(csv.reader(io.StringIO(header.decode())))
+                self.assertEqual(
+                    [name for name in actual_header if not name.startswith("Float_")],
+                    [name for name in original_header if not name.startswith("Float_")],
+                )
+                self.assertEqual(
+                    [name for name in actual_header if name.startswith("Float_")],
+                    [f"Float_{index}" for index in range(38)],
+                )
+            else:
+                self.assertEqual(encoded.splitlines()[0], header.strip())
             self.assertEqual(missing, [])
             exported = list(csv.DictReader(io.StringIO(encoded.decode())))
             ids = {int(row["ID"]) for row in exported}
             if table == "LiquidType":
                 self.assertTrue({1251, 1279} <= ids)
+                lake = next(row for row in exported if row["ID"] == "1251")
+                self.assertAlmostEqual(float(lake["Float_23"]), -0.146, places=6)
+                self.assertEqual(lake["Float_37"], "0")
+                self.assertEqual(
+                    [lake[f"Int_{index}"] for index in range(4)], ["0"] * 4
+                )
+                self.assertAlmostEqual(float(lake["Coefficient_0"]), 0.00625801086)
+                self.assertEqual(lake["MaterialID"], "130")
             if table == "LiquidObject":
                 self.assertTrue({18420, 18563, 18615, 21229} <= ids)
 
