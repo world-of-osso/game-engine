@@ -375,11 +375,19 @@ impl GameClient {
     }
 
     /// Switches the open game menu to its Options panel.
+    /// Its art (the MinimalScrollBar atlases among it) is copied out of local CASC first, as
+    /// the quest windows and spellbook do.
     pub(super) fn show_game_menu_options(&mut self) -> Result<(), String> {
-        self.game_menu_options
+        let model = self
+            .game_menu_options
             .as_mut()
-            .ok_or("Options needs an open game menu")?
-            .view = GameMenuView::Options;
+            .ok_or("Options needs an open game menu")?;
+        model.view = GameMenuView::Options;
+        let view = policy::build_view_model(model);
+        self.extract_art(&crate::quests::screen_texture_fdids(
+            view,
+            game_engine_ui_model::game_menu_component::game_menu_screen,
+        ));
         self.refresh_game_menu()
     }
 
