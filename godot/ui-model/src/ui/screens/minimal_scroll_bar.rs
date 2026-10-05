@@ -158,8 +158,14 @@ fn stepper(name: String, atlas: &str, (left, top): (f32, f32), disabled: bool) -
             mouse_enabled: true,
             disabled,
             button_default_skin: false,
-            button_atlas_up: atlas,
-            button_atlas_disabled: atlas,
+            texture {
+                width: STEPPER_W,
+                height: STEPPER_H,
+                texture_atlas: atlas,
+                pos_type: "absolute",
+                left: 0,
+                top: 0,
+            }
         }
     }
 }

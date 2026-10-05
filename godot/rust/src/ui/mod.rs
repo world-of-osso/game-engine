@@ -1992,7 +1992,25 @@ impl RegistryUi {
         Ok(true)
     }
 
+    fn release_search_clear_focus(&mut self, event: &UiInput) {
+        use game_engine_ui_model::bag_frame_component::{ACTION_SEARCH_CLEAR, SEARCH_BOX};
+        let (UiInput::Click(id) | UiInput::FrameClick { id, .. }) = event else {
+            return;
+        };
+        let Some(model) = self.model.as_ref() else {
+            return;
+        };
+        let action = model
+            .registry
+            .get(*id)
+            .and_then(|frame| frame.onclick.as_deref());
+        if action == Some(ACTION_SEARCH_CLEAR) {
+            self.release_focus_named(SEARCH_BOX);
+        }
+    }
+
     fn dispatch_ui_input(&mut self, arrival: u64, event: UiInput) -> Result<(), String> {
+        self.release_search_clear_focus(&event);
         if self.toplevel && matches!(event, UiInput::PointerDown(_)) {
             self.raise_request = Some(arrival);
         }

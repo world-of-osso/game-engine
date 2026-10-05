@@ -27,6 +27,21 @@ use crate::frame_error::report_once;
 const OVERLAY_Z: i32 = 4000;
 const PARTS_NODE: &str = "Parts";
 
+/// MinimalScrollBar.lua:3-25 desaturates its texture hierarchy when disabled.
+pub(super) fn stepper_art_is_disabled(frame: &Frame, registry: &FrameRegistry) -> bool {
+    let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+        return false;
+    };
+    let is_arrow = matches!(&texture.source, TextureSource::Atlas(name)
+        if matches!(name.as_str(), "minimal-scrollbar-arrow-top" | "minimal-scrollbar-arrow-bottom"));
+    let parent = frame.parent_id.and_then(|id| registry.get(id));
+    let disabled = parent.is_some_and(|parent| {
+        matches!(&parent.widget_data,
+        Some(WidgetData::Button(button)) if button.state == ButtonState::Disabled)
+    });
+    is_arrow && disabled
+}
+
 #[derive(Clone)]
 pub enum UiInput {
     Click(u64),
@@ -493,7 +508,9 @@ impl UiProjection {
             images: parts::project_images(frame, rect.width, rect.height),
             text: parts::project_button_text(frame),
         };
+        let disabled_stepper = stepper_art_is_disabled(frame, registry);
         for part in &mut visual.images {
+            part.desaturated = disabled_stepper;
             part.rect[0] += position.x - whole.x;
             part.rect[1] += position.y - whole.y;
         }
