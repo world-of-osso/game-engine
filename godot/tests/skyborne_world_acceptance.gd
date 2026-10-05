@@ -109,6 +109,17 @@ func enter_named_world() -> bool:
 	await click_control(card)
 	# Roster selection sets selected_index; the session name arrives on world entry.
 	await process_frame
+	if not await wait_frames(func():
+		var preview := client.get_node_or_null("CharacterSelectScene")
+		if preview == null:
+			return false
+		var tile := preview.find_child("Tile31_37", true, false)
+		var selected := preview.get_node_or_null("SelectedCharacter")
+		return tile != null and not tile.find_children("*", "MeshInstance3D", true, false).is_empty() and selected != null and not selected.find_children("*", "MeshInstance3D", true, false).is_empty(), "current-WDT preview terrain and selected body", 60000):
+		return false
+	if not await save_capture("00-character-select-current-wdt.png"):
+		return false
+	print("SKYBORNE CURRENT_WDT_PREVIEW_READY race=", race)
 	await click_control(ui.find_child("EnterWorld", true, false))
 	return await wait_frames(func():
 		var state: Dictionary = client.account_state()
