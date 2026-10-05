@@ -136,7 +136,17 @@ def collect_item_assets(item_ids, tables, texture_rows):
     return assets
 
 
-def collect_baked_asset(extra, model_path, textures):
+def select_body_material(values, model_fdid, model_paths):
+    # Forever 70205 ChrModel 218/219 → CDI → CMD identifies these HD bodies.
+    # Their FDIDs have no listfile names; HD bake selection must not require one.
+    if model_fdid in (7478487, 7478494):
+        return values[6]
+    if model_fdid not in model_paths:
+        raise ValueError(f"missing model path for body FDID {model_fdid}")
+    return import_npc_appearance.select_material(values, model_paths[model_fdid])
+
+
+def collect_baked_asset(extra, model_fdid, model_paths, textures):
     values = tuple(
         int(extra[name])
         for name in (
@@ -149,7 +159,7 @@ def collect_baked_asset(extra, model_path, textures):
             "HDBakeMaterialResourcesID",
         )
     )
-    material = import_npc_appearance.select_material(values, model_path)
+    material = select_body_material(values, model_fdid, model_paths)
     if not material:
         return set()
     fdids = {
@@ -200,7 +210,7 @@ def npc_asset_roots(tables, requested, retail_ids, model_paths):
             else:
                 try:
                     roots.update(
-                        collect_baked_asset(extra, model_paths[fdid], textures)
+                        collect_baked_asset(extra, fdid, model_paths, textures)
                     )
                 except (ValueError, KeyError) as error:
                     errors.append(str(error))
@@ -346,18 +356,16 @@ def npc_appearance_rows(tables, selected, model_paths):
     chosen = {
         display: int(displays[display]["ExtendedDisplayInfoID"]) for display in selected
     }
-    paths = {
-        display: model_paths[
-            int(models[int(displays[display]["ModelID"])]["FileDataID"])
-        ]
-        for display in selected
-        if chosen[display]
-    }
-    materials = {
-        import_npc_appearance.select_material(extras[extra][0], paths[display])
+    body_materials = {
+        display: select_body_material(
+            extras[extra][0],
+            int(models[int(displays[display]["ModelID"])]["FileDataID"]),
+            model_paths,
+        )
         for display, extra in chosen.items()
         if extra
     }
+    materials = set(body_materials.values())
     textures = {}
     for row in tables.get("TextureFileData", []):
         material, fdid = int(row["MaterialResourcesID"]), int(row["FileDataID"])
@@ -366,8 +374,8 @@ def npc_appearance_rows(tables, selected, model_paths):
         if material in textures and textures[material] != fdid:
             raise ValueError(f"ambiguous baked material {material}")
         textures[material] = fdid
-    return import_npc_appearance.join_appearances(
-        chosen, extras, options, geosets, paths, textures
+    return import_npc_appearance.join_appearance_materials(
+        chosen, extras, options, geosets, body_materials, textures
     )
 
 
