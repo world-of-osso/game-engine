@@ -7,6 +7,7 @@ References (`~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`): `Blizzard_UnitFra
 ## What it must do
 
 - [x] The local player's pet is the replicated unit whose `UnitSummonedBy` is the local player's server entity.
+- [x] Right-click PetFrame opens its unit menu with "Dismiss Pet". Summoned pets send `PetAction` command 3 without a target/position; hunters instead cast learned 2641 (the entry is hidden before learning it), because command 3 abandons/deletes hunter pets. The menu closes when its pet disappears. Retail: `UnitPopupSharedMenus.lua` pet menu's `UnitPopupPetDismissButtonMixin`, `UnitPopupSharedButtonMixins.lua:1037-1056` (`PET_DISMISS`, `CanShow`, `OnClick`).
 - [x] PetFrame (120×49, TargetofTarget art) hangs under PlayerFrame as the first `PlayerBottomManagedFrameContainer` child: TOP at PlayerFrame BOTTOM + (30 + 7.5, 25), i.e. left edge 438.5 left of the screen centre, bottom 226. Portrait 37×37 at (5, 5) in a circle mask, gold name 68×10 at (44, 5), health bar 70×10 at (44, 17), power bar 74×7 at (40, 28) with the `TargetofTarget-PortraitOn-Bar-<power>` fill (Focus for hunter pets). Retail PetFrame has no level text; none is drawn.
 - [x] PetActionBar shows while a `PetSpells` bar exists and its pet is replicated; `PetClearSpells` hides it. `PetSpells`/`PetClearSpells` keep their channel order.
 - [x] Ten 30×30 small buttons 2 px apart (318×30 after `UpdateGridLayout`; the XML 509×43 is pre-layout), BOTTOMLEFT at screen BOTTOM + (−281, 95): stacked on MainActionBar with `BOTTOM_ACTION_BARS_SPACER_Y` 5.
@@ -27,3 +28,4 @@ References (`~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`): `Blizzard_UnitFra
 - `godot/ui-model/tests/pet_frame.rs`, `godot/ui-model/tests/pet_action_bar.rs`: geometry, art, icons, checked and flash state, hidden without a pet, autocast overlay per state, right-click toggle targets.
 - `godot/core/tests/pet_autocast_shine.rs`: the Shine shows only through the ring and turns clockwise.
 - `godot/rust/src/replicated.rs`: local pet lookup; `account.rs`: PetSpells/PetClearSpells dispatch; `pet_bar.rs`: Move To position inverse.
+- `godot/rust/src/unit_menu.rs`: pet dismissal entry, command-3 payload/ownership, hunter learned-spell restriction.
