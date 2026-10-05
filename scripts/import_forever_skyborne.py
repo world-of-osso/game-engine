@@ -17,8 +17,14 @@ from pathlib import Path
 
 try:
     from scripts import export_db2_csv as export
+    from scripts import forever_npc_displays as npc
 except ModuleNotFoundError:
     import export_db2_csv as export
+    import forever_npc_displays as npc
+
+# Public importer helpers also exercised by the bounded NPC tests.
+npc_asset_roots = npc.npc_asset_roots
+encrypted_record_ids = npc.encrypted_record_ids
 
 BUILD = "1.60.1.70205"
 BUILD_KEY = "842b2e5d11f8d6fe257a5b73bd5cf6c6"
@@ -37,7 +43,34 @@ PROBE_DIRECTORY = (
 )
 TABLES = dict(
     zip(
-        ["ChrRaces", "CharBaseInfo", "ChrRaceXChrModel", "ChrModel", "CreatureDisplayInfo", "CreatureModelData", "ChrCustomizationOption", "ChrCustomizationChoice", "ChrCustomizationElement", "ChrCustomizationReq", "ChrCustomizationReqChoice", "ChrCustomizationMaterial", "ChrCustomizationSkinnedModel", "ChrModelTextureLayer", "ChrModelMaterial", "ChrCustomizationCategory", "ChrCustomizationGeoset", "CharHairGeosets", "CharComponentTextureLayouts", "CharComponentTextureSections", "TextureFileData", "ChrRacesCreateScreenIcon", "UiTextureAtlasElement", "UiTextureAtlasMember", "UiTextureAtlas", "Map"],
+        [
+            "ChrRaces",
+            "CharBaseInfo",
+            "ChrRaceXChrModel",
+            "ChrModel",
+            "CreatureDisplayInfo",
+            "CreatureModelData",
+            "ChrCustomizationOption",
+            "ChrCustomizationChoice",
+            "ChrCustomizationElement",
+            "ChrCustomizationReq",
+            "ChrCustomizationReqChoice",
+            "ChrCustomizationMaterial",
+            "ChrCustomizationSkinnedModel",
+            "ChrModelTextureLayer",
+            "ChrModelMaterial",
+            "ChrCustomizationCategory",
+            "ChrCustomizationGeoset",
+            "CharHairGeosets",
+            "CharComponentTextureLayouts",
+            "CharComponentTextureSections",
+            "TextureFileData",
+            "ChrRacesCreateScreenIcon",
+            "UiTextureAtlasElement",
+            "UiTextureAtlasMember",
+            "UiTextureAtlas",
+            "Map",
+        ],
         (
             1305311,
             1343386,
@@ -79,7 +112,8 @@ TABLES.update(
         "ZoneLightPoint": 1310256,
     }
 )
-NEW_TABLES = {
+TABLES.update(npc.TABLES)
+NEW_TABLES = set(npc.TABLES) | {
     "CharBaseInfo",
     "ChrRacesCreateScreenIcon",
     "UiTextureAtlas",
@@ -319,6 +353,7 @@ def import_tables(data, staging):
                 "layout_match": "explicit-build" if explicit else "hash-match",
                 "rows_decoded": len(rows),
                 "encrypted_rows_dropped": dropped,
+                "encrypted_record_ids": encrypted_record_ids(raw),
                 "unknown_tact_key_ids": unknown,
                 "absent_forever_columns": missing,
             }
@@ -503,7 +538,7 @@ def creation_scene_assets(tables):
     }
 
 
-def import_assets(data, staging, tables):
+def import_assets(data, staging, tables, npc_roots=None, priority_displays=frozenset()):
     textures, collections = customization_assets(tables)
     pending = {(fdid, "blp") for fdid in textures | {8200220, 8199012}}
     with (data / "db2/12.1.0.69933/Map.csv").open(newline="") as handle:
@@ -513,13 +548,25 @@ def import_assets(data, staging, tables):
     pending |= {
         (fdid, "m2") for fdid in collections | skies | scenes | {7478487, 7478494}
     }
+    npc_roots = npc_roots or {}
+    primary = {
+        asset
+        for display, roots in npc_roots.items()
+        if display in priority_displays
+        for asset in roots
+    }
+    deferred = {asset for roots in npc_roots.values() for asset in roots} - primary
+    pending.update(primary)
     connection = sqlite3.connect(
         f"file:{CACHE / 'resolution.sqlite'}?mode=ro", uri=True
     )
+    graph, failed_assets = {}, set()
     aliases = []
     probe_sources = {}
     visited, failures, counts = set(), [], {"present": 0, "extracted": 0}
-    while pending:
+    while pending or deferred:
+        if not pending:
+            pending, deferred = deferred, set()
         batch = sorted(pending - visited)
         pending.clear()
         if not batch:
@@ -534,7 +581,7 @@ def import_assets(data, staging, tables):
             stage_verified_probes(
                 PROBE_DIRECTORY,
                 staging,
-                scenes & {fdid for fdid, _ in batch},
+                {fdid for fdid, _ in batch},
                 connection,
             )
         )
@@ -563,11 +610,13 @@ def import_assets(data, staging, tables):
                 counts["present" if present else "extracted"] += 1
                 if ext in ("m2", "skel"):
                     refs = asset_references(raw)
-                    pending.update(
+                    children = {
                         (child, kind)
                         for kind, children in refs.items()
                         for child in children
-                    )
+                    }
+                    graph[fdid, ext] = children
+                    pending.update(children)
                     if ext == "m2":
                         for index, child in enumerate(refs.get("skin", [])):
                             alias = data / "models" / f"{fdid}{index:02}.skin"
@@ -579,6 +628,7 @@ def import_assets(data, staging, tables):
                                 (child, "skel", data / "models" / f"{fdid}.skel")
                             )
             except (ValueError, OSError, struct.error) as error:
+                failed_assets.add((fdid, ext))
                 failures.append(f"asset {fdid}.{ext}: {error}")
                 print(f"FAILED {failures[-1]}", flush=True)
     connection.close()
@@ -595,6 +645,9 @@ def import_assets(data, staging, tables):
                 "assets": sorted(f"{fdid}.{ext}" for fdid, ext in visited),
                 "failures": failures,
                 "verified_probe_sources": probe_sources,
+                "npc_displays": npc.summarize_asset_closures(
+                    npc_roots, graph, visited, failed_assets
+                ),
             },
             indent=2,
         )
@@ -608,10 +661,52 @@ def main():
     parser.add_argument(
         "--data", type=Path, default=Path(__file__).resolve().parent.parent / "data"
     )
+    parser.add_argument(
+        "--display-ids", type=Path, help="Forever NPC display IDs, one integer per line"
+    )
+    parser.add_argument(
+        "--spawn-report",
+        type=Path,
+        help="Server import report containing priority spawn_display_ids",
+    )
     args = parser.parse_args()
+    priority = (
+        set(json.loads(args.spawn_report.read_text())["spawn_display_ids"])
+        if args.spawn_report
+        else set()
+    )
     staging = args.data / "cache/forever-skyborne-extract"
     staging.mkdir(parents=True, exist_ok=True)
     tables, failures = import_tables(args.data, staging)
+    npc_roots, npc_errors, retail_ids = {}, {}, set()
+    if args.display_ids:
+        requested = {int(value) for value in args.display_ids.read_text().split()}
+        npc_roots, npc_errors, retail_ids, model_paths = npc.read_npc_import_inputs(
+            args.data, requested, tables
+        )
+        published = npc.publish_display_rows(args.data, tables, requested, retail_ids)
+        eligible = npc_roots.keys() - npc_errors.keys()
+        profiles = npc.npc_appearance_rows(tables, eligible, model_paths)
+        npc.publish_appearance_rows(args.data, profiles)
+        report = {
+            "requested": sorted(requested),
+            "retail_preserved": sorted(requested & retail_ids),
+            "display_rows_published": published,
+            "priority_spawn_ids": sorted(priority & requested),
+            "appearance_rows": len(profiles[0]),
+            "ordinary_coverage_rows": sum(not row[1] for row in profiles[3]),
+            "metadata_failures": npc_errors,
+            "encrypted_cdi_ids": encrypted_record_ids(
+                extracted_path(staging, TABLES["CreatureDisplayInfo"]).read_bytes()
+            ),
+        }
+        (args.data / "db2" / BUILD / "npc-displays.json").write_text(
+            json.dumps(report, indent=2) + "\n"
+        )
+        failures.extend(
+            f"NPC display {display}: {'; '.join(errors)}"
+            for display, errors in npc_errors.items()
+        )
     required = {
         "ChrCustomizationOption",
         "ChrCustomizationChoice",
@@ -625,7 +720,7 @@ def main():
         "LightSkybox",
     }
     if required <= tables.keys():
-        failures.extend(import_assets(args.data, staging, tables))
+        failures.extend(import_assets(args.data, staging, tables, npc_roots, priority))
     else:
         failures.append(
             f"asset closure blocked by tables: {sorted(required - tables.keys())}"

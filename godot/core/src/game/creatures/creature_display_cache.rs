@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
@@ -41,7 +41,14 @@ pub fn import_creature_display_cache(data_dir: &Path) -> Result<PathBuf, String>
             .map_err(|err| format!("create {}: {err}", parent.display()))?;
     }
 
-    let source_paths = [di.clone(), md.clone()];
+    let forever = data_dir.join(crate::player_model_data::FOREVER_DB2_DIR);
+    let mut source_paths = vec![di.clone(), md.clone()];
+    if forever.exists() {
+        source_paths.extend([
+            forever.join("CreatureDisplayInfo.csv"),
+            forever.join("CreatureModelData.csv"),
+        ]);
+    }
     if cache_path.exists() {
         let conn = open_read_only(&cache_path)?;
         if cache_is_fresh(&conn, &source_paths)? {
@@ -52,6 +59,19 @@ pub fn import_creature_display_cache(data_dir: &Path) -> Result<PathBuf, String>
     let conn = Connection::open(&cache_path)
         .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
     rebuild_cache(&conn, &di, &md)?;
+    if forever.exists() {
+        let models = parse_model_data(&forever.join("CreatureModelData.csv"))?;
+        let mut retail_ids = HashSet::new();
+        crate::csv_util::read_numeric_rows(&di, ["ID"], |[id]| {
+            retail_ids.insert(id as u32);
+        })?;
+        import_display_rows(
+            &conn,
+            &forever.join("CreatureDisplayInfo.csv"),
+            &models,
+            &retail_ids,
+        )?;
+    }
     build_preferred_skins(&conn)?;
     record_source_files(&conn, &source_paths)?;
     Ok(cache_path)
@@ -82,6 +102,9 @@ fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, S
         let (path, mtime) = row.map_err(|err| format!("read source_files row: {err}"))?;
         recorded.insert(path, mtime);
     }
+    if recorded.len() != source_paths.len() {
+        return Ok(false);
+    }
     for path in source_paths {
         let key = path.to_string_lossy().to_string();
         if recorded.get(&key).copied() != Some(csv_mtime(path)?) {
@@ -98,7 +121,7 @@ fn rebuild_cache(
 ) -> Result<(), String> {
     init_cache_schema(conn)?;
     let model_data = parse_model_data(model_data_path)?;
-    import_display_rows(conn, display_info_path, &model_data)?;
+    import_display_rows(conn, display_info_path, &model_data, &HashSet::new())?;
     Ok(())
 }
 
@@ -177,6 +200,7 @@ fn import_display_rows(
     conn: &Connection,
     display_info_path: &Path,
     model_data: &HashMap<u32, CreatureModelData>,
+    excluded_ids: &HashSet<u32>,
 ) -> Result<(), String> {
     let mut reader = open_reader(display_info_path)?;
     let cols = read_display_columns(&mut reader, display_info_path)?;
@@ -196,6 +220,7 @@ fn import_display_rows(
             line.trim_end_matches(['\r', '\n']),
             &cols,
             model_data,
+            excluded_ids,
         )?;
     }
     Ok(())
@@ -215,7 +240,7 @@ fn read_display_columns(
 
 fn prepare_display_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
     conn.prepare(
-        "INSERT OR REPLACE INTO creature_displays
+        "INSERT OR IGNORE INTO creature_displays
          (display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, scale_milli)
          VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
     )
@@ -227,10 +252,14 @@ fn insert_display_row(
     line: &str,
     cols: &DisplayInfoColumns,
     model_data: &HashMap<u32, CreatureModelData>,
+    excluded_ids: &HashSet<u32>,
 ) -> Result<(), String> {
     let Some((display_id, entry)) = parse_display_entry(line, cols, model_data) else {
         return Ok(());
     };
+    if excluded_ids.contains(&display_id) {
+        return Ok(());
+    }
     insert
         .execute((
             display_id,
@@ -378,6 +407,62 @@ fn header_index(headers: &[&str], column: &str, path: &Path) -> Result<usize, St
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn forever_npc_displays_keep_retail_collisions_and_product_model_chain() {
+        let dir = std::env::temp_dir().join(format!("forever-npc-displays-{}", std::process::id()));
+        let forever = dir.join("db2/1.60.1.70205");
+        std::fs::create_dir_all(&forever).unwrap();
+        let header = "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2\n";
+        std::fs::write(
+            dir.join("CreatureDisplayInfo.csv"),
+            format!("{header}10,1,1,11,0,0\n"),
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("CreatureModelData.csv"),
+            "ID,FileDataID,ModelScale\n1,1011653,1.25\n",
+        )
+        .unwrap();
+        std::fs::write(
+            forever.join("CreatureDisplayInfo.csv"),
+            format!("{header}10,1,2,999,0,0\n136968,1,1,0,0,0\n139694,1,1,0,0,0\n"),
+        )
+        .unwrap();
+        std::fs::write(
+            forever.join("CreatureModelData.csv"),
+            "ID,FileDataID,ModelScale\n1,7478494,1\n",
+        )
+        .unwrap();
+        let cache = import_creature_display_cache(&dir).unwrap();
+        let conn = open_read_only(&cache).unwrap();
+        let retail = crate::creature_display_data::query_display(&conn, 10)
+            .unwrap()
+            .unwrap();
+        assert_eq!(retail.model_fdid, 1011653);
+        assert_eq!(retail.skin_fdids, [11, 0, 0]);
+        assert_eq!(retail.scale_milli, 1250);
+        for id in [136968, 139694] {
+            assert_eq!(
+                crate::creature_display_data::query_display(&conn, id)
+                    .unwrap()
+                    .unwrap()
+                    .model_fdid,
+                7478494
+            );
+        }
+        drop(conn);
+        // Removing an overlay invalidates the old cache rather than retaining its rows.
+        std::fs::remove_dir_all(&forever).unwrap();
+        let cache = import_creature_display_cache(&dir).unwrap();
+        let conn = open_read_only(&cache).unwrap();
+        assert_eq!(
+            crate::creature_display_data::query_display(&conn, 136968).unwrap(),
+            None
+        );
+        drop(conn);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
 
     #[test]
     fn import_and_query_creature_display() {

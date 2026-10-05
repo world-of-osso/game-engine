@@ -18,6 +18,13 @@ Replicated NPCs render the appearance selected by their creature display data. R
 - [x] Render replicated creature virtual items (`EquipmentAppearance` MainHand, OffHand, Ranged) as item models: main and off hand drawn with `SheathState::Melee` (right palm, left palm, shield on the left wrist), ranged with `SheathState::Ranged` (bow left palm, else right palm); otherwise at the item's `Item.SheatheType` position (WMVx `sheathTypeAttachmentPosition`: 1 → 27, 2 → 30, 3 → 32 main / 33 off hand, 4 → 28). A hand item without a sheath position stays in the hand; a ranged item without one is not shown.
 - [x] Hold the replicated `UnitPose` while the creature does not move: stand state Sit 97, Sleep 100, SitLow/Medium/HighChair 102/103/104, Dead 6, Kneel 115, Submerged 202 (AnimationData IDs); standing, the `Emotes.AnimID` of its emote state (333 → Ready1H 26, 214 → ReadyRifle 48). A model without the pose's animation plays the first clip of its `AnimationData.Fallback` chain it has (Dead 6 → Death 1, which plays once and holds its last frame; Stand when the chain ends), as the combat stance does. Stand state SitChair (2) and an emote missing from `Emotes.csv` are errors.
 
+## Forever display overlay
+
+- [ ] Resolve display IDs absent from Retail using Forever 1.60.1.70205 CDI → CMD, with the Forever model table even when ModelID collides. Keep every Retail display row unchanged.
+- [ ] Import those displays' reachable models, companions, variation textures, baked body textures, customization collections/materials and armor item assets from local CASC; report per-display dependency failures and encrypted CDI IDs explicitly.
+- [ ] Missing Extra/geoset tables must block required appearance coverage, not publish an ordinary-creature substitute. Existing Retail appearance rows remain unchanged.
+- [ ] Native Ailee Farheart (136968) and Ventaari Brightwish (139694) require authored appearance and inspected offscreen visual proof; model-ID resolution alone is insufficient.
+
 ## How it works
 
 - [Authored NPC appearance](../wiki/systems/character-rendering.md#authored-npc-appearance)
