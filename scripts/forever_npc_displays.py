@@ -22,6 +22,7 @@ TABLES = {
     "ModelFileData": 1337833,
     "ComponentModelFileData": 1349053,
     "ComponentTextureFileData": 1278239,
+    "HelmetGeosetData": 2821752,
 }
 
 
@@ -117,11 +118,20 @@ def collect_item_assets(item_ids, tables, texture_rows):
         for row in tables.get("ItemDisplayInfoMaterialRes", [])
         if int(row["ItemDisplayInfoID"]) in item_ids
     )
+    model_rows = group_rows(tables, "ModelFileData", "ModelResourcesID")
+    missing = {
+        model
+        for model in models - {0}
+        if not any(int(row["FileDataID"]) for row in model_rows.get(model, []))
+    }
+    if missing:
+        raise ValueError(f"missing ModelFileData model resources {sorted(missing)}")
     assets = collect_material_assets(resources, texture_rows)
     assets.update(
         (int(row["FileDataID"]), "m2")
-        for row in tables.get("ModelFileData", [])
-        if int(row["ModelResourcesID"]) in models - {0} and int(row["FileDataID"])
+        for model in models - {0}
+        for row in model_rows[model]
+        if int(row["FileDataID"])
     )
     return assets
 
@@ -207,10 +217,11 @@ def npc_asset_roots(tables, requested, retail_ids, model_paths):
                 for item in items.get(extra_id, [])
                 if int(item["ItemSlot"]) != 11
             }
-            try:
-                roots.update(collect_item_assets(item_ids, tables, textures))
-            except ValueError as error:
-                errors.append(str(error))
+            for item_id in sorted(item_ids):
+                try:
+                    roots.update(collect_item_assets({item_id}, tables, textures))
+                except ValueError as error:
+                    errors.append(str(error))
             for table in (
                 "CreatureDisplayInfoOption",
                 "CreatureDisplayInfoGeosetData",

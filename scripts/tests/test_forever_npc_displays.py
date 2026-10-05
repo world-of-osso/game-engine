@@ -143,6 +143,26 @@ class ForeverNpcDisplayTests(unittest.TestCase):
         self.assertIn((7478494, "m2"), assets[136968])
         self.assertIn("405", "; ".join(failures.get(136968, [])))
 
+    def test_declared_item_model_resource_missing_is_reported(self):
+        tables = self.tables()
+        tables["ModelFileData"] = []
+        _, failures = importer.npc_asset_roots(
+            tables, {136968}, set(), {7478494: "skybornefemale.m2"}
+        )
+        self.assertIn("500", "; ".join(failures.get(136968, [])))
+
+    def test_one_missing_item_does_not_hide_other_items_assets(self):
+        tables = self.tables()
+        tables["NPCModelItemSlotDisplayInfo"].append(
+            {"NpcModelID": 20, "ItemDisplayInfoID": 999, "ItemSlot": 3}
+        )
+        assets, failures = importer.npc_asset_roots(
+            tables, {136968}, set(), {7478494: "skybornefemale.m2"}
+        )
+        self.assertIn("999", "; ".join(failures[136968]))
+        self.assertIn((700, "m2"), assets[136968])
+        self.assertIn((803, "blp"), assets[136968])
+
     def test_missing_model_and_requested_display_fail_explicitly(self):
         tables = self.tables()
         tables["CreatureModelData"] = []
