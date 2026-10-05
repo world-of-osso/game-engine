@@ -319,3 +319,35 @@ fn portrait_party_hides_empty_and_limits_population_to_four() {
     assert!(!frame(&registry, "PartyFrame").hidden);
     assert!(registry.get_by_name("PartyMemberFrame5").is_none());
 }
+
+#[test]
+fn spec_power_fills_reuse_the_existing_unit_frame_art() {
+    use game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::power_bar_atlas;
+    use shared::components::PowerType;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for power_type in [
+            PowerType::LunarPower,
+            PowerType::Maelstrom,
+            PowerType::Insanity,
+            PowerType::Fury,
+            PowerType::Pain,
+        ] {
+            let view = PortraitPartyMemberView {
+                power_type,
+                power_fraction: 0.5,
+                ..PortraitPartyMemberView::named("Spec power")
+            };
+            let registry = render_state(
+                skin,
+                PortraitPartyFrameState {
+                    members: vec![view],
+                    show_pets: false,
+                },
+            );
+            assert_eq!(
+                region(&registry, "PartyMemberFrame1ManaBarFill", skin),
+                resolve_region(power_bar_atlas(power_type).unwrap(), skin).unwrap()
+            );
+        }
+    }
+}
