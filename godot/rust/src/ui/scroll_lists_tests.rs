@@ -266,6 +266,23 @@ fn row_top(model: &RegistryModel, name: &str) -> f32 {
         .y
 }
 
+#[test]
+fn track_click_pages_one_visible_height_in_both_directions() {
+    let mut model = menu(view(OptionsCategory::Keybindings, BindingSection::ActionBar2));
+    let list = OPTIONS_CONTENT_SCROLL;
+    let track = model.registry.get_by_name(&track_name(list)).unwrap();
+    let bottom = rect(&model, &track_name(list)).unwrap();
+    let page = model.registry.scroll_lists.get(list).unwrap().geometry.visible_rows;
+    assert!(model.registry.scroll_lists.get(list).unwrap().geometry.max_first_row() > page * 2);
+    assert!(press_thumb(&mut model.registry, track, bottom.y + bottom.height - 1.0));
+    assert_eq!(model.registry.scroll_lists.get(list).unwrap().first_row, page);
+    rebuild(&mut model);
+    let track = model.registry.get_by_name(&track_name(list)).unwrap();
+    assert!(press_thumb(&mut model.registry, track, bottom.y + 1.0));
+    assert_eq!(model.registry.scroll_lists.get(list).unwrap().first_row, 0);
+    assert!(!model.registry.scroll_lists.dragging().next().is_some());
+}
+
 fn press(model: &mut RegistryModel, name: &str) -> bool {
     let id = model.registry.get_by_name(name).unwrap();
     let pressed = press_stepper(model, id);
@@ -316,6 +333,8 @@ fn the_steppers_step_the_list_and_stop_at_its_ends() {
     let forward = forward_stepper_name(OPTIONS_CONTENT_SCROLL);
     assert!(shown(&model, &back) && shown(&model, &forward));
     let top = row_top(&model, &first);
+    assert!(matches!(model.registry.get(model.registry.get_by_name(&back).unwrap()).unwrap().widget_data,
+        Some(ui_toolkit::frame::WidgetData::Button(ref button)) if !button.enabled));
 
     assert!(press(&mut model, &back), "a press on Back is taken");
     assert_eq!(row_top(&model, &first), top, "Back is disabled at the top");
@@ -345,6 +364,8 @@ fn the_steppers_step_the_list_and_stop_at_its_ends() {
     let last_row = rect(&model, &last).expect("the last row at the end");
     assert!((last_row.y + last_row.height - (area.y + area.height)).abs() < 1.0);
     let end = row_top(&model, &last);
+    assert!(matches!(model.registry.get(model.registry.get_by_name(&forward).unwrap()).unwrap().widget_data,
+        Some(ui_toolkit::frame::WidgetData::Button(ref button)) if !button.enabled));
     assert!(press(&mut model, &forward));
     assert_eq!(
         row_top(&model, &last),

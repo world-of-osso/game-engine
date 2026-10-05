@@ -267,11 +267,13 @@ fn search_box_dims_items_that_do_not_match_and_clearing_restores_them() {
     let registry = mount_state(session.bag_state());
     assert_eq!(text(&registry, "BagItemSearchBox"), "");
     assert_eq!(text(&registry, "BagItemSearchBoxInstructions"), "Search");
+    assert!(registry.get_by_name("BagItemSearchBoxClearButton").is_none());
     assert!(dimmed_slots(&registry).is_empty(), "no search dims nothing");
 
     session.bag_search = "LINEN".into();
     let registry = mount_state(session.bag_state());
     assert_eq!(text(&registry, "BagItemSearchBox"), "LINEN");
+    assert!(frame(&registry, "BagItemSearchBoxClearButton").mouse_enabled);
     assert_eq!(
         dimmed_slots(&registry),
         [1],
