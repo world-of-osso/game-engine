@@ -8,10 +8,13 @@
 //! other selection sends `AttackStop`. The server's `AttackStart` / `AttackStopped`
 //! echoes keep the victim in step with server-side stops (death, evade, refusals).
 
+use std::collections::HashMap;
+
 use game_engine_core::spell_catalog::SpellAutoAttack;
+use game_engine_network::replica::Replica;
 use game_engine_session::SessionScreen;
 use shared::components::{Health, Player, UnitFlags};
-use shared::faction_reaction::{Unit, can_attack};
+use shared::faction_reaction::{FactionTemplateEntry, Unit, can_attack};
 use shared::protocol::{AttackStart, AttackStopped, SpellGo};
 
 use crate::GameClient;
@@ -27,40 +30,49 @@ pub(crate) struct AutoAttack {
     victim: Option<u64>,
 }
 
+/// `UnitCanAttack(player, unit)`: a living, selectable, attackable unit other than the
+/// player whose faction the player may attack (TrinityCore
+/// `WorldObject::IsValidAttackTarget`: no dead, `UNIT_FLAG_NON_ATTACKABLE_2` or
+/// friendly-reaction target), through the same FactionTemplate rows as the server.
+pub(crate) fn player_can_attack(
+    replica: &Replica,
+    player: u64,
+    id: u64,
+    templates: &HashMap<u32, FactionTemplateEntry>,
+) -> bool {
+    let (Some(me), Some(unit)) = (replica.unit(player), replica.unit(id)) else {
+        return false;
+    };
+    let alive = unit
+        .get::<Health>()
+        .is_none_or(|health| health.current > 0.0);
+    let flags = UnitFlags(unit.unit_flags().unwrap_or_default());
+    if id == player || !alive || !flags.is_selectable() || !flags.is_attackable() {
+        return false;
+    }
+    let template = |id: Option<u32>| id.and_then(|id| templates.get(&id));
+    can_attack(
+        Unit {
+            template: template(me.faction_template()),
+            is_player: true,
+        },
+        Unit {
+            template: template(unit.faction_template()),
+            is_player: unit.has::<Player>(),
+        },
+    )
+}
+
 impl GameClient {
-    /// `UnitCanAttack("player", unit)` as the server decides it: a living, selectable
-    /// unit other than the player whose faction the player may attack.
+    /// `UnitCanAttack("player", unit)` as the server decides it.
     pub(super) fn can_auto_attack(&mut self, id: u64) -> bool {
         let Some(player) = self.world.local_player_id() else {
             return false;
         };
-        let (Some(me), Some(unit)) = (self.replica.unit(player), self.replica.unit(id)) else {
-            return false;
-        };
-        let alive = unit
-            .get::<Health>()
-            .is_none_or(|health| health.current > 0.0);
-        let selectable = unit
-            .unit_flags()
-            .is_none_or(|flags| UnitFlags(flags).is_selectable());
-        if id == player || !alive || !selectable {
-            return false;
-        }
-        let (own, other) = (me.faction_template(), unit.faction_template());
-        let other_is_player = unit.has::<Player>();
         let Ok(templates) = self.nameplates.templates(&self.data_root) else {
             return false;
         };
-        can_attack(
-            Unit {
-                template: own.and_then(|id| templates.get(&id)),
-                is_player: true,
-            },
-            Unit {
-                template: other.and_then(|id| templates.get(&id)),
-                is_player: other_is_player,
-            },
-        )
+        player_can_attack(&self.replica, player, id, templates)
     }
 
     /// `AttackTarget`: request auto-attack on an attackable `target`, once per victim.
