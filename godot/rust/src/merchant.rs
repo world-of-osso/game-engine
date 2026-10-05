@@ -181,12 +181,6 @@ impl GameClient {
             self.set_world_cursor(None);
             return Ok(());
         }
-        let money = self
-            .world
-            .local_player_id()
-            .and_then(|id| self.replica.unit(id)?.gold())
-            .unwrap_or(0);
-        self.merchant.session.money = money;
         let interactive =
             self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed();
         if interactive {
@@ -513,6 +507,9 @@ impl GameClient {
 
     fn sync_merchant_ui(&mut self) -> Result<(), String> {
         self.load_merchant_position()?;
+        if self.merchant.session.is_open() {
+            self.read_bag_search(self.merchant.ui.clone());
+        }
         let states = self.merchant_states();
         self.cache_merchant_icons(&states);
         let scale = self.effective_ui_scale();

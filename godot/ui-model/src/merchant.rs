@@ -94,6 +94,8 @@ pub struct MerchantSession {
     pub split: Option<StackSplitState>,
     /// `InRepairMode()`: `MerchantRepairItemButton` shows the repair cursor (MF.xml:305-313).
     pub repair_mode: bool,
+    /// `C_Container.SetItemSearch` text from the last edited `BagItemSearchBox`.
+    pub bag_search: String,
 }
 
 impl MerchantSession {
@@ -362,11 +364,14 @@ impl MerchantSession {
                             count: slot.count,
                             quality_border: slot.quality.border_color().into(),
                             locked: false,
+                            name: slot.name.clone(),
                         })
                         .collect(),
                     visible: open && bag.index == 0,
                 })
                 .collect(),
+            search: self.bag_search.clone(),
+            money: self.money,
         }
     }
 
