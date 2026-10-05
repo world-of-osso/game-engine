@@ -57,7 +57,7 @@ Terrain loading combines root geometry with shadow payloads from its `_tex0.adt`
 
 ## Known gaps (current cycle)
 
-- Current-WDT preview change has no native image PASS until main captures and inspects it; CPU loader/selection proof is not rendered-waterfall acceptance.
+- Current-WDT character-preview captures now have bounded native acceptance; see the [scoped capability matrix](../wiki/systems/forever-data.md#current-scoped-capability-matrix). This does not establish Retail pixel parity, settled-world rendering or NPC/quest acceptance.
 
 - User confirmed waterfall visibility on 2026-09-12 after the native fixes; this supersedes the earlier model-only absence assessment. Overall scene darkness still differs from Retail. Component regressions alone remain insufficient evidence of visual parity.
 - [ ] Do not infer or implement refraction material selection from the remaining appearance gap without direct Retail selection evidence; proven parser and geometry defects need no such assumption.
