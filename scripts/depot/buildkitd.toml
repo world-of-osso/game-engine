@@ -1,0 +1,24 @@
+# BuildKit daemon config for the shared `game-engine` builder (scripts/setup-builder.sh).
+# The default policy capped cache mounts at ~488 MiB and the builder at ~93 GiB, so GC
+# evicted the per-slot Cargo target caches between runs and every gate rebuilt ~484 crates
+# (2026-10-05, cargo fingerprints reported ENOENT). Keep the target caches.
+[worker.oci]
+  gc = true
+
+  [[worker.oci.gcpolicy]]
+    # Cargo target / registry caches (RUN --mount=type=cache).
+    filters = ["type==exec.cachemount"]
+    keepDuration = "720h"
+    maxUsedSpace = "250GB"
+
+  [[worker.oci.gcpolicy]]
+    # Everything else: layers, local sources, git checkouts.
+    keepDuration = "720h"
+    reservedSpace = "10GB"
+    maxUsedSpace = "70GB"
+
+  [[worker.oci.gcpolicy]]
+    all = true
+    reservedSpace = "10GB"
+    maxUsedSpace = "320GB"
+    minFreeSpace = "100GB"
