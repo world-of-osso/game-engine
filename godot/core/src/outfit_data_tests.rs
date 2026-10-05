@@ -52,6 +52,156 @@ fn forever_npc_gear_resolves_zephras_shoulders_and_preserves_retail() {
     selected_human_warrior_items_resolve_original_displays_and_resources();
 }
 
+#[test]
+fn forever_npc_gear_reports_declared_missing_resources() {
+    let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../data")
+        .canonicalize()
+        .unwrap();
+    let fixture = source
+        .parent()
+        .unwrap()
+        .join("target")
+        .join(format!("forever-missing-resources-{}", std::process::id()));
+    if fixture.exists() {
+        std::fs::remove_dir_all(&fixture).unwrap();
+    }
+    std::fs::create_dir_all(fixture.join("db2/1.60.1.70205")).unwrap();
+    for name in [
+        "CharStartOutfit",
+        "ItemModifiedAppearance",
+        "ItemAppearance",
+        "ItemDisplayInfo",
+        "TextureFileData",
+        "ItemDisplayInfoMaterialRes",
+        "ModelFileData",
+    ] {
+        std::os::unix::fs::symlink(
+            source.join(format!("{name}.csv")),
+            fixture.join(format!("{name}.csv")),
+        )
+        .unwrap();
+    }
+    std::os::unix::fs::symlink(
+        source.join("db2/12.1.0.69933"),
+        fixture.join("db2/12.1.0.69933"),
+    )
+    .unwrap();
+    std::os::unix::fs::symlink(
+        source.join("db2/HelmetGeosetData.db2"),
+        fixture.join("db2/HelmetGeosetData.db2"),
+    )
+    .unwrap();
+    let dir = fixture.join("db2/1.60.1.70205");
+    for name in [
+        "ChrRaces",
+        "ComponentModelFileData",
+        "ComponentTextureFileData",
+    ] {
+        std::os::unix::fs::symlink(
+            source.join("db2/1.60.1.70205").join(format!("{name}.csv")),
+            dir.join(format!("{name}.csv")),
+        )
+        .unwrap();
+    }
+    let header = "ID,ModelResourcesID_0,ModelResourcesID_1,ModelMaterialResourcesID_0,ModelMaterialResourcesID_1,GeosetGroup_0,GeosetGroup_1,GeosetGroup_2,GeosetGroup_3,GeosetGroup_4,GeosetGroup_5,HelmetGeosetVis_0,HelmetGeosetVis_1\n";
+    std::fs::write(dir.join("ItemDisplayInfo.csv"), format!("{header}2000000000,2000000001,0,0,0,0,0,0,0,0,0,0,0\n2000000002,0,0,2000000003,0,0,0,0,0,0,0,0,0\n2000000004,0,0,0,0,0,0,0,0,0,0,0,0\n")).unwrap();
+    std::fs::write(
+        dir.join("ModelFileData.csv"),
+        "FileDataID,ModelResourcesID\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("TextureFileData.csv"),
+        "FileDataID,UsageType,MaterialResourcesID\n",
+    )
+    .unwrap();
+    std::fs::write(
+        dir.join("ItemDisplayInfoMaterialRes.csv"),
+        "ItemDisplayInfoID,ComponentSection,MaterialResourcesID\n2000000004,5,2000000005\n",
+    )
+    .unwrap();
+    let outfit = OutfitData::load(&fixture);
+    for (display, resource) in [
+        (2000000000, "2000000001"),
+        (2000000002, "2000000003"),
+        (2000000004, "2000000005"),
+    ] {
+        let error = outfit.try_resolve_display_info(display, 4, 0).unwrap_err();
+        assert!(error.contains(resource), "{error}");
+    }
+    std::fs::remove_dir_all(fixture).unwrap();
+}
+
+#[test]
+fn forever_npc_gear_cache_keeps_all_retail_rows_and_removes_absent_overlay() {
+    use rusqlite::Connection;
+    use std::collections::HashSet;
+    let source = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../data")
+        .canonicalize()
+        .unwrap();
+    let fixture = source
+        .parent()
+        .unwrap()
+        .join("target")
+        .join(format!("forever-cache-preservation-{}", std::process::id()));
+    if fixture.exists() {
+        std::fs::remove_dir_all(&fixture).unwrap();
+    }
+    std::fs::create_dir_all(fixture.join("db2")).unwrap();
+    for name in [
+        "CharStartOutfit",
+        "ItemModifiedAppearance",
+        "ItemAppearance",
+        "ItemDisplayInfo",
+        "TextureFileData",
+        "ItemDisplayInfoMaterialRes",
+        "ModelFileData",
+    ] {
+        std::os::unix::fs::symlink(
+            source.join(format!("{name}.csv")),
+            fixture.join(format!("{name}.csv")),
+        )
+        .unwrap();
+    }
+    let snapshot = |path: &Path| {
+        let conn = Connection::open(path).unwrap();
+        [
+            "display_info",
+            "display_materials",
+            "material_textures",
+            "model_to_fdid",
+        ]
+        .map(|table| {
+            let mut stmt = conn.prepare(&format!("SELECT * FROM {table}")).unwrap();
+            let columns = stmt.column_count();
+            stmt.query_map([], |row| {
+                (0..columns)
+                    .map(|i| row.get::<_, i64>(i))
+                    .collect::<Result<Vec<_>, _>>()
+            })
+            .unwrap()
+            .collect::<Result<HashSet<_>, _>>()
+            .unwrap()
+        })
+    };
+    let cache = crate::outfit_catalog_db::import_outfit_links_cache(&fixture).unwrap();
+    let retail = snapshot(&cache);
+    let overlay = fixture.join("db2/1.60.1.70205");
+    std::os::unix::fs::symlink(source.join("db2/1.60.1.70205"), &overlay).unwrap();
+    crate::outfit_catalog_db::import_outfit_links_cache(&fixture).unwrap();
+    let merged = snapshot(&cache);
+    for (retail, merged) in retail.iter().zip(&merged) {
+        assert!(retail.is_subset(merged));
+    }
+    assert!(merged[0].len() > retail[0].len());
+    std::fs::remove_file(overlay).unwrap();
+    crate::outfit_catalog_db::import_outfit_links_cache(&fixture).unwrap();
+    assert_eq!(snapshot(&cache), retail);
+    std::fs::remove_dir_all(fixture).unwrap();
+}
+
 fn catalog() -> OutfitData {
     let data_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
     OutfitData::load(&data_root)
