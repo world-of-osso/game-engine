@@ -5,6 +5,9 @@ extends SceneTree
 # WDT inventory labels slot 26×64+29 as (26,29); native filename coordinates are (29,26).
 const CENTER := Vector3(2933.3333, 0.0, -1333.3333)
 const OUTPUT := "res://../data/diagnostics/zephras-world-production-lighting.png"
+const COAST_OUTPUT := "res://../data/diagnostics/zephras-liquid-coast.png"
+# Authored lake shore on tile29_26; LiquidType1251 surface is Y=756.58972.
+const COAST := Vector3(3065.0, 756.58972, -1380.0)
 var client: Node3D
 
 func _initialize() -> void:
@@ -39,8 +42,12 @@ func run_test() -> void:
 		var tile := client.get_node_or_null("WorldTerrain/Tile29_26")
 		var doodads := client.find_children("Doodad*", "Node3D", true, false)
 		var wmos := client.find_children("Wmo*", "Node3D", true, false).filter(func(node): return node.has_meta("wmo_model"))
-		if tile == null or doodads.is_empty() or wmos.is_empty():
+		if tile == null or doodads.is_empty() or wmos.is_empty() or state.terrain.pending_count != 0:
 			continue
+		var water := tile.get_node_or_null("Water")
+		if water == null or water.get_child_count() == 0:
+			fail("Authored tile29_26 MH2O water has no rendered surfaces")
+			return
 		var height = client.terrain_height_at(CENTER.x, CENTER.z)
 		if height == null:
 			fail("Loaded terrain lacks tile-center height")
@@ -65,8 +72,22 @@ func run_test() -> void:
 		if meshes.size() < 256:
 			fail("Expected 256 terrain meshes")
 			return
+		camera.position = COAST + Vector3(110.0, 120.0, 110.0)
+		camera.look_at(COAST)
+		lighting_error = client.preview_world_lighting(COAST, camera.position)
+		if lighting_error != "":
+			fail(lighting_error)
+			return
+		for frame in 30:
+			await process_frame
+		await RenderingServer.frame_post_draw
+		image = root.get_texture().get_image()
+		if image == null or image.is_empty() or image.save_png(COAST_OUTPUT) != OK:
+			fail("Cannot capture authored lake shore")
+			return
+		print("ZEPHRAS_LIQUID_PROOF water_surfaces=%d coast=%s screenshot=%s" % [water.get_child_count(), COAST, COAST_OUTPUT])
 		client.free()
-		print("PASS: Zephras terrain, doodads and WMO nodes rendered through native stream")
+		print("PASS: Zephras terrain, doodads, WMO nodes and authored water rendered through native stream")
 		quit(0)
 		return
 	fail("Timed out waiting for authored terrain/doodad/WMO nodes: " + str(client.account_state()))
