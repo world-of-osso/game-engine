@@ -6,6 +6,7 @@ use game_engine_core::loading_readiness::GlobalWmoState;
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
 
+use super::{placement::PlacedWmo, scene::WmoNode};
 use crate::{
     lighting::TerrainLight,
     terrain::{objects::CulledWmo, streaming::StreamedTerrain},
@@ -58,9 +59,14 @@ impl GlobalWmoScene {
             };
             return self.state;
         };
+        self.state = self.spawn_global_wmo(parent, placed);
+        self.state
+    }
+
+    fn spawn_global_wmo(&mut self, parent: &mut Gd<Node3D>, placed: &PlacedWmo) -> GlobalWmoState {
         // A WDT MODF has no MWDS: `$DefaultGlobal` and its doodad set.
         let doodad_sets = [0, placed.placement.doodad_set];
-        self.state = match crate::wmo::scene::build_wmo_node(
+        match crate::wmo::scene::build_wmo_node(
             &placed.asset,
             &self.resolver,
             &self.data_root,
@@ -68,37 +74,46 @@ impl GlobalWmoScene {
             self.light.as_ref(),
         ) {
             Ok(wmo) => {
-                for error in &wmo.batch_errors {
-                    godot_error!("Global WMO {}: {error}", placed.asset.root_fdid);
-                }
-                let mut node = wmo.node;
-                let (scale, rotation, translation) =
-                    placed.world_from_local.to_scale_rotation_translation();
-                node.set_name(&format!("GlobalWmo{}", placed.asset.root_fdid));
-                node.set_position(Vector3::from_array(translation.to_array()));
-                node.set_quaternion(Quaternion::new(
-                    rotation.x, rotation.y, rotation.z, rotation.w,
-                ));
-                node.set_scale(Vector3::from_array(scale.to_array()));
-                let mut root = Node3D::new_alloc();
-                root.set_name("WorldWmos");
-                root.add_child(&node);
-                parent.add_child(&root);
-                self.spawned = Some(SpawnedGlobalWmo {
-                    unique_id: placed.placement.unique_id,
-                    culled: CulledWmo::new(&placed.asset, placed.world_from_local, &node),
-                    doodads: placed.asset.doodads(&doodad_sets),
-                    node,
-                });
-                self.root = Some(root);
+                self.attach_global_wmo(parent, placed, wmo, &doodad_sets);
                 GlobalWmoState::Spawned
             }
             Err(error) => {
                 godot_error!("Global WMO {}: {error}", placed.asset.root_fdid);
                 GlobalWmoState::Failed
             }
-        };
-        self.state
+        }
+    }
+
+    fn attach_global_wmo(
+        &mut self,
+        parent: &mut Gd<Node3D>,
+        placed: &PlacedWmo,
+        wmo: WmoNode,
+        doodad_sets: &[u16],
+    ) {
+        for error in &wmo.batch_errors {
+            godot_error!("Global WMO {}: {error}", placed.asset.root_fdid);
+        }
+        let mut node = wmo.node;
+        let (scale, rotation, translation) =
+            placed.world_from_local.to_scale_rotation_translation();
+        node.set_name(&format!("GlobalWmo{}", placed.asset.root_fdid));
+        node.set_position(Vector3::from_array(translation.to_array()));
+        node.set_quaternion(Quaternion::new(
+            rotation.x, rotation.y, rotation.z, rotation.w,
+        ));
+        node.set_scale(Vector3::from_array(scale.to_array()));
+        let mut root = Node3D::new_alloc();
+        root.set_name("WorldWmos");
+        root.add_child(&node);
+        parent.add_child(&root);
+        self.spawned = Some(SpawnedGlobalWmo {
+            unique_id: placed.placement.unique_id,
+            culled: CulledWmo::new(&placed.asset, placed.world_from_local, &node),
+            doodads: placed.asset.doodads(doodad_sets),
+            node,
+        });
+        self.root = Some(root);
     }
 
     /// The just-spawned global WMO, once, for `TerrainObjects::adopt_wmo`.

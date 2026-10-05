@@ -225,16 +225,7 @@ fn load_backdrop(data_root: &Path, fdid: u32) -> Result<Backdrop, String> {
         godot_warn!("Creation scene {fdid} missing authored texture FDIDs: {missing:?}");
     }
     node.set_name(&format!("CharCreateBackdrop_{fdid}"));
-    let rotation = normalized.rotation.to_array();
-    node.set_transform(Transform3D::new(
-        Basis::from_quaternion(Quaternion::new(
-            rotation[0],
-            rotation[1],
-            rotation[2],
-            rotation[3],
-        )),
-        Vector3::from_array(normalized.translation.to_array()),
-    ));
+    place_backdrop(&mut node, normalized.rotation, normalized.translation);
     // Retail lights a standalone model scene with the model's own ambient.
     bind_scene_ambient(&node, ambient);
     Ok(Backdrop {
@@ -243,6 +234,19 @@ fn load_backdrop(data_root: &Path, fdid: u32) -> Result<Backdrop, String> {
         framing: normalized.framing,
         ambient,
     })
+}
+
+fn place_backdrop(node: &mut Gd<Node3D>, rotation: glam::Quat, translation: glam::Vec3) {
+    let rotation = rotation.to_array();
+    node.set_transform(Transform3D::new(
+        Basis::from_quaternion(Quaternion::new(
+            rotation[0],
+            rotation[1],
+            rotation[2],
+            rotation[3],
+        )),
+        Vector3::from_array(translation.to_array()),
+    ));
 }
 
 /// `RetailSceneLight::m2_scene`: uniform ambient, no direct light or fog.
