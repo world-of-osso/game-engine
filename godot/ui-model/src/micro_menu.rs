@@ -201,6 +201,16 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
     },
 ];
 
+/// Retail has one combined PlayerSpellsMicroButton, not a separate spec button.
+/// With no native talent system its default available page is Specialization
+/// (PlayerSpellsFrame.lua:108-114; PlayerSpellsUtil.lua:106-133).
+pub fn player_spells_micro_tab(
+    action: &str,
+) -> Option<crate::spellbook_frame_component::PlayerSpellsTab> {
+    (action == ACTION_PLAYER_SPELLS)
+        .then_some(crate::spellbook_frame_component::PlayerSpellsTab::Specialization)
+}
+
 const CHARACTER: usize = 0;
 const PLAYER_SPELLS: usize = 2;
 const QUEST_LOG: usize = 4;
