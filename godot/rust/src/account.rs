@@ -88,7 +88,8 @@ use shared::protocol::{
 };
 
 /// Combat log lines kept for automation and the cast result readout.
-const COMBAT_LOG_KEEP: usize = 64;
+// Shared by chat, meter and IPC captures; preserve the IPC's newest 200 events.
+const COMBAT_LOG_KEEP: usize = 200;
 
 #[derive(Default)]
 pub(crate) struct StartupLoginOptions {
@@ -1591,6 +1592,47 @@ mod tests {
 
     use shared::components::{CharacterAppearance, EquipmentAppearance};
     use shared::protocol::{CharacterListEntry, TransferAbortReason};
+
+    #[test]
+    fn combatipc_receives_pet_and_owner_logs_without_observer_events() {
+        use shared::protocol::CombatLogKind;
+
+        let mut account = Account::new(PathBuf::new());
+        let mut output = Vec::new();
+        let pet = CombatLogEvent {
+            source: Some(42),
+            target: Some(99),
+            spell_id: Some(3110),
+            school_mask: 4,
+            amount: 12,
+            overflow: 0,
+            absorbed: 0,
+            resisted: 0,
+            blocked: 0,
+            crit: false,
+            glancing: false,
+            periodic: false,
+            extra_spell_id: None,
+            timestamp_unix_ms: 1791210000123,
+            kind: CombatLogKind::Damage,
+        };
+        let owner = CombatLogEvent {
+            source: Some(1),
+            spell_id: Some(686),
+            ..pet.clone()
+        };
+        for event in [&pet, &owner] {
+            account
+                .dispatch_message(ProtocolMessage::for_tests(event.clone()), &mut output)
+                .unwrap();
+        }
+        assert_eq!(
+            account.combat_log,
+            std::collections::VecDeque::from([pet, owner])
+        );
+        assert_eq!(account.combat_log_seq, 2);
+        assert!(output.is_empty());
+    }
 
     #[test]
     fn startup_name_must_match_authenticated_roster_without_fallback() {

@@ -247,7 +247,6 @@ pub struct GameClient {
     map_waypoint: Option<(f32, f32)>,
     waypoint_path: waypoint_path::WaypointPath,
     /// The newest received `CombatEvent`s (IPC `combat log|recap`).
-    ipc_combat_events: std::collections::VecDeque<shared::protocol::CombatEvent>,
     /// The last area (and its zone) found under the local player; kept where no tile
     /// answers, as the original's `CurrentZone`.
     current_zone: Option<(u32, u32)>,
@@ -374,7 +373,6 @@ impl INode3D for GameClient {
             scripted_movement: Default::default(),
             map_waypoint: None,
             waypoint_path: Default::default(),
-            ipc_combat_events: std::collections::VecDeque::new(),
             current_zone: None,
             // Preserve the original GameTime default: noon, with time advancement stopped.
             world_minutes: 1440.0,
