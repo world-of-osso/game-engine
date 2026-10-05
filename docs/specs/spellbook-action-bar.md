@@ -47,6 +47,12 @@ Source exports under `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowforever}/AddOns
 - `Blizzard_FrameXML/Bindings_Standard.xml:1235-1246`: SpellBook versus ClassTalentOrSpec toggle routes; `Blizzard_FrameXMLUtil/Mainline/PlayerSpellsUtil.lua:106-133,164-168`: same-page toggling and spec route. P/N defaults already exist in client binding data; XML declares routes, not default keys.
 - `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:722-726`: MagicButton inherits the panel button used by native Activate.
 
+## PlayerSpells continuation evidence (2026-10-05)
+
+- `18e3f1e4` targeted helper run: input_bindings_data 12/12, micro_menu 8/8, spellbook_frame 10/10; `a4dd5e3f` changed documentation only. Saved proof: `data/diagnostics/spelltabs-2026-10-05/green3.log`.
+- Native routes exist in `godot/rust/src/spells.rs:373-383` (bound page keys), `character_frame.rs:217-224` (combined micro), and `spells.rs:934-938` (existing SetSpecialization sender). Source inspection is not runtime acceptance.
+- Extension compilation completed during the detached extension+CLI helper retry, but CLI compilation stalled under sustained host load 39–50. Owned helper and descendants were terminated; `build2.log` records cancellation. Required load-below-24 gate blocked the requested test rerun and live captures. No screenshots or runtime activation proof obtained; unchecked runtime requirements above remain open.
+
 ## Assumptions
 
 - Icons missing from the local CASC install show an empty slot (no substitute icon). Several Arms spells' icons (132306, 132400, 970853, 6718291) are not in the local archives.
