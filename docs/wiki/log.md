@@ -63,7 +63,7 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 
 ## 2026-10-05 — Four-variant native Skyborne creation acceptance
 
-[[character-creation#Skyborne branch — bounded native creation acceptance (2026-10-05)]] records four actual offscreen variants, exact model/canvas/catalog/class/icon checks, live inline-rig pose motion, inspected captures and normal exit 0 without engine errors/resource leaks. Fixed Retail-only creation-scene lookup, preserved-Warrior defaults, primary API registration and missing UI-cache shutdown cleanup. Original scene probe is content-key verified; two backdrop textures and unused fourth skin remain explicit local-archive gaps. Core targeted 5/5 and importer probe/closure 2/2 pass; exact proof scope and artifacts are in the native ledger. No create/save/reload or world-entry acceptance.
+[[character-creation#Skyborne branch — bounded native creation acceptance (2026-10-05)]] records four actual offscreen variants, exact model/canvas/catalog/class/icon checks, live inline-rig pose motion, inspected captures and normal exit 0 without engine errors/resource leaks. Fixed Retail-only creation-scene lookup, preserved-Warrior defaults, primary API registration and missing UI-cache shutdown cleanup. Original scene probe is content-key verified; two backdrop textures and unused fourth skin remain explicit local-archive gaps. Core targeted 5/5, native creation rules 1/1 and importer probe/closure 2/2 pass; icon decoder 3/3 proof retained. Exact scope and artifacts are in the native ledger. No create/save/reload or world-entry acceptance.
 
 ## 2026-10-04 — Forever Zephras lighting exports and local-archive blockers
 
