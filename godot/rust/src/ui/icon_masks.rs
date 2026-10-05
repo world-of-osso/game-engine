@@ -1,12 +1,15 @@
 //! Round icon masking with `TempPortraitAlphaMask`: character-creation race/class icons
 //! (`src/scenes/char_create/icon_masks.rs`) and the bag bar's `CircularItemButtonTemplate`
-//! bag icons (`CircleMask`, ItemButtonTemplate.xml:5-21) and container portraits.
+//! bag icons (`CircleMask`, ItemButtonTemplate.xml:5-21) and container portraits; and
+//! the Forever chat header glyphs, drawn as white masks the vertex colour tints.
 
 use std::collections::HashMap;
 
 use game_engine_core::character_creation_icon_mask_data::{
     PORTRAIT_MASK_FDID, compose_masked_icon, mask_alpha,
 };
+use game_engine_ui_model::chat_frame_component::FOREVER_CHAT_HEADER_ICONS;
+use game_engine_ui_model::flare_panel::flare_glyph_mask;
 use godot::global::godot_error;
 use image::{GrayImage, RgbaImage};
 use ui_toolkit::frame::WidgetData;
@@ -15,37 +18,41 @@ use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
 use super::assets;
 
+#[derive(Clone, Copy, PartialEq, Eq, Hash)]
+enum Mask {
+    Round,
+    Glyph,
+}
+
 #[derive(Default)]
 pub struct IconMasks {
-    /// Keyed by FDID and the bits of its normalized crop.
-    icons: HashMap<(u32, [u32; 4]), DynamicTextureId>,
+    /// Keyed by mask, FDID and the bits of its normalized crop.
+    icons: HashMap<(Mask, u32, [u32; 4]), DynamicTextureId>,
     mask_alpha: Option<GrayImage>,
 }
 
 impl IconMasks {
-    /// Swap every round icon's FDID source (`is_round_icon`) for its masked image.
-    /// Failures never fall back to the unmasked square icon.
+    /// Swap every round icon's (`is_round_icon`) and header glyph's FDID source for its
+    /// masked image. Failures never fall back to the unmasked art.
     pub fn apply(&mut self, registry: &mut FrameRegistry) {
         let pending: Vec<_> = registry
             .frames_iter()
             .filter_map(|frame| {
-                if !is_round_icon(frame.name.as_deref()?) {
-                    return None;
-                }
+                let mask = mask_of(frame.name.as_deref()?)?;
                 let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
                     return None;
                 };
                 let TextureSource::FileDataId(fdid) = texture.source else {
                     return None;
                 };
-                Some((frame.id, fdid, texture.tex_coords))
+                Some((frame.id, mask, fdid, texture.tex_coords))
             })
             .collect();
-        for (id, fdid, crop) in pending {
-            let source = match self.masked(fdid, crop, registry) {
+        for (id, mask, fdid, crop) in pending {
+            let source = match self.masked(mask, fdid, crop, registry) {
                 Ok(texture) => TextureSource::Dynamic(texture),
                 Err(error) => {
-                    godot_error!("Round icon {fdid} cannot be masked: {error}");
+                    godot_error!("Icon {fdid} cannot be masked: {error}");
                     TextureSource::None
                 }
             };
@@ -61,20 +68,29 @@ impl IconMasks {
 
     fn masked(
         &mut self,
+        mask: Mask,
         fdid: u32,
         crop: [f32; 4],
         registry: &mut FrameRegistry,
     ) -> Result<DynamicTextureId, String> {
-        let key = (fdid, crop.map(f32::to_bits));
+        let key = (mask, fdid, crop.map(f32::to_bits));
         if let Some(id) = self.icons.get(&key) {
             return Ok(*id);
         }
-        let source = crop_normalized(load_rgba(fdid, "icon")?, crop);
-        let mask = match &mut self.mask_alpha {
-            Some(mask) => mask,
-            empty => empty.insert(mask_alpha(&load_rgba(PORTRAIT_MASK_FDID, "mask")?)),
+        let mut source = crop_normalized(load_rgba(fdid, "icon")?, crop);
+        let masked = match mask {
+            Mask::Glyph => {
+                flare_glyph_mask(&mut source);
+                source
+            }
+            Mask::Round => {
+                let round = match &mut self.mask_alpha {
+                    Some(round) => round,
+                    empty => empty.insert(mask_alpha(&load_rgba(PORTRAIT_MASK_FDID, "mask")?)),
+                };
+                compose_masked_icon(source, round)
+            }
         };
-        let masked = compose_masked_icon(source, mask);
         let id =
             registry.create_dynamic_texture(masked.width(), masked.height(), masked.into_raw())?;
         self.icons.insert(key, id);
@@ -96,6 +112,16 @@ fn is_round_icon(name: &str) -> bool {
     creation || bag || portrait
 }
 
+fn mask_of(name: &str) -> Option<Mask> {
+    if is_round_icon(name) {
+        Some(Mask::Round)
+    } else if FOREVER_CHAT_HEADER_ICONS.contains(&name) {
+        Some(Mask::Glyph)
+    } else {
+        None
+    }
+}
+
 /// The (left, right, top, bottom) normalized region of `image`.
 fn crop_normalized(image: RgbaImage, crop: [f32; 4]) -> RgbaImage {
     if crop == [0.0, 1.0, 0.0, 1.0] {
@@ -111,12 +137,12 @@ fn crop_normalized(image: RgbaImage, crop: [f32; 4]) -> RgbaImage {
 
 fn load_rgba(fdid: u32, role: &str) -> Result<RgbaImage, String> {
     let rgba = assets::decode_blp(&format!("data/textures/{fdid}.blp"))
-        .map_err(|error| format!("round {role} FDID {fdid}: {error}"))?;
+        .map_err(|error| format!("{role} FDID {fdid}: {error}"))?;
     if rgba.width == 0 || rgba.height == 0 {
-        return Err(format!("round {role} FDID {fdid} has zero dimensions"));
+        return Err(format!("{role} FDID {fdid} has zero dimensions"));
     }
     RgbaImage::from_raw(rgba.width, rgba.height, rgba.pixels)
-        .ok_or_else(|| format!("round {role} FDID {fdid} has invalid RGBA size"))
+        .ok_or_else(|| format!("{role} FDID {fdid} has invalid RGBA size"))
 }
 
 #[cfg(test)]

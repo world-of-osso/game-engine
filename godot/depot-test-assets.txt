@@ -2019,3 +2019,8 @@ textures/130924.blp
 textures/8069114.blp
 textures/8069116.blp
 textures/8069118.blp
+
+# ui-model tests/forever_chat_meter.rs: Forever chat header glyphs (and 5390329 above)
+textures/131129.blp
+textures/130949.blp
+textures/1537274.blp
