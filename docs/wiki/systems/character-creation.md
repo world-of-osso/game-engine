@@ -44,13 +44,32 @@ Backdrop ambient uses the authored type-0 M2 light color at time/sequence zero, 
 
 Focused RED/GREEN evidence covers removal of the extra directional light and unused procedural map, authored ambient conversion, backdrop diffuse material settings, presentation scale/distance application, and neutral loader-only GPU capture. See `data/diagnostics/charcreate-authored-scenes-20260923/`, including `neutral-diffuse-lighting-gpu.log`. The name-entry font is now Arial Narrow at 20 logical pixels; its focused glyph test passes at `24fce090`, while a native runtime dump confirms `Donagh` with cursor position 6 in the unchanged 300×38 field. A new GUI capture under the revised lighting and complete three-backdrop visual acceptance remain pending; unreliable visual-helper output is not acceptance or defect evidence, and this does not claim exact Retail parity.
 
-## Skyborne branch — native consumers implemented, preview unproved (2026-10-04)
+## Skyborne branch — bounded native creation acceptance (2026-10-05)
 
 The historical Bevy patch `36062772` is no longer the support boundary. Since `d5fdcae21`, the `skyborn` branch has a local Forever importer, native core model/customization overlay (`e4abfa89`), creation roster (`9dd52bc8`) and scoped collection lookup (`2d82554a`). The supplied branch history establishes implementation on this branch, not a merge into master.
 
 Forever 70205 establishes races 95/96 and PlayableRaceBit 32/33 directly; the earlier Retail-placeholder inference and missing-root initialization blocker are superseded. [Forever data overlay](forever-data.md) owns source recovery, data layout, encrypted-record limits and remaining acquisition gaps. [Skyborne contract](../../specs/character-creation.md#skyborne-forever-160170205) records exact roster/model requirements.
 
-The [proof ledger](../../../target/skyborne-proof-ledger.md) records 17 distinct passing core/body-chain/UI/layout tests. Native Skyborne rendering, create/save/reload and world-entry acceptance remain unproved; preview work is in progress. No builds/tests were rerun for this documentation update.
+The original [consumer ledger](../../../target/skyborne-proof-ledger.md) retains its 17 distinct core/body-chain/UI/layout proofs. The new [native ledger](../../../target/skyborne-charcreate-proof-ledger.md) records the offscreen acceptance at `61cbc456`: four race/body-type variants, child exit 0, engine errors 0 and no shutdown resource leaks. This is offline creation-preview proof, not create/save/reload, world entry or Retail image parity.
+
+`godot/tests/charcreate_skyborne_flow.gd`, run by `scripts/tests/charcreate_skyborne.py`, clicks the actual race/body-type controls and checks the live body source, visible geosets/materials, composed 2048×1024 body canvases, active catalog query, class selection and masked portrait RGB against atlas FDID 8200220. NPC-only Eye Style remains excluded: raw 18/19 options produce offered/UI counts 17/18. The native default-class reducer now selects Mage/Shaman on Skyborne race clicks (`023ba295`); catalog diagnostics register in the existing primary GameClient API block (`0e880545`).
+
+| Race/body type | Visible geosets/materials | Live bones/changed poses | Attributed preview pixels |
+|---|---|---|---|
+| 95 male | 15/16 | 250/127 | 28586 |
+| 95 female | 17/18 | 245/119 | 18158 |
+| 96 male | 15/16 | 250/127 | 28062 |
+| 96 female | 17/18 | 245/119 | 17942 |
+
+All hide/restore controls had zero varying pixels. Four `race-{95,96}-sex-{0,1}.png` captures under `data/diagnostics/skyborne-charcreate/` were inspected: textured elf-like male/female bodies, visible hair/skin/undergarments and relaxed arms, not T-poses; faction selection and Mage/Shaman rings are visible against the authored camp backdrop. Gray/white scenery areas remain; two backdrop texture misses are logged. No player-body texture miss is logged.
+
+### Skeleton, backdrop and shutdown boundaries
+
+These body M2s contain MD21 inline bones/sequences, AFID/BFID and no SKID. `assets/player.rs` loads through `assets/creature.rs` and `assets/mod.rs`; `core::m2::parse_model_with_skeleton` uses the body's inline rig when no separate skeleton exists. It does not load ChrModel's 4690403/4690402 model references as SKEL. Live palette counts match body headers, and actual bone poses advance over 400 ms. This proves idle motion, not every external AFID clip or BFID behavior.
+
+The original runtime RED retained a Human because the backdrop catalog read only Retail ChrRaces. `94d3b534` overlays only Forever races 95/96, both authored scene 8035354, while retaining Retail scene identities; its fixture also rejects a missing Forever race. The importer now follows that scene's recursive references. `fb7ad030`/`2f3071b1` reuse original local-CASC probe bytes only after matching the active build's root content key and record provenance in `data/db2/1.60.1.70205/assets.json`. Root plus 23 dependencies are cached; textures 8026862/8026864 and unused fourth skin 8035745 remain unavailable in local archives. No substitute or CDN retrieval was added; complete backdrop closure is unproved.
+
+Shutdown RED logged 35 ObjectDB instances and 39 texture RIDs after the UI had loaded. UI font/file-texture thread-local caches were not in the MainLoop deinit hook, unlike M2 shaders/meshes. `61cbc456` clears those UI caches and closes texture workers before renderer shutdown; the four-variant process exits normally without resource-leak diagnostics. Cage protocol/V-Sync/GVFS warnings and an inherited unused WMO-group FDID compile warning remain, outside this bounded rendering proof.
 
 ## Known limits
 
