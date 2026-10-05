@@ -270,6 +270,20 @@ func check_animation(character: Node3D) -> void:
 		"Bound native skeleton and animation player"
 	):
 		return
+	# MD21 wraps MD20 at byte 8; the inline bone M2Array starts at 0x2c.
+	# Assert the live palette against the body, not ChrModel's unrelated MD21 FDID.
+	var source := str(character.get_meta("m2_source_path"))
+	var file := FileAccess.open(source, FileAccess.READ)
+	if not expect(file != null, "Read loaded body header for skeleton oracle"):
+		return
+	var header := file.get_buffer(64)
+	if not expect(
+		header.size() == 64 and header.slice(0, 4).get_string_from_ascii() == "MD21",
+		"Body MD21 header"
+	):
+		return
+	var authored_bones := header.decode_u32(8 + 0x2c)
+	expect(skeleton.get_bone_count() == authored_bones, "Live palette matches inline body bones")
 	var poses := []
 	for bone in range(skeleton.get_bone_count()):
 		poses.append(skeleton.get_bone_pose(bone))
