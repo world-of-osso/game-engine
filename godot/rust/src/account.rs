@@ -122,6 +122,8 @@ pub struct Account {
     pub combat_log_seq: u64,
     /// The server's newest damage meter sessions.
     pub damage_meter: Option<DamageMeterSnapshot>,
+    /// Threat changes awaiting the HUD; drained each frame, not historical sessions.
+    pub threat_updates: Vec<shared::protocol::ThreatUpdate>,
     /// The newest `PlayerXpUpdate`: XP into the level and the level's requirement.
     pub xp: Option<shared::protocol::PlayerXpUpdate>,
     /// Party/raid roster, live member states, the ready check and the pending invite.
@@ -282,6 +284,7 @@ impl Account {
             combat_log: std::collections::VecDeque::new(),
             combat_log_seq: 0,
             damage_meter: None,
+            threat_updates: Vec::new(),
             xp: None,
             group: GroupState::default(),
             pet_bar: None,
@@ -329,6 +332,7 @@ impl Account {
         self.spells.clear();
         self.combat_log.clear();
         self.damage_meter = None;
+        self.threat_updates.clear();
         self.xp = None;
         self.group = GroupState::default();
         self.pet_bar = None;
@@ -1056,6 +1060,7 @@ impl Account {
             || message.is::<DungeonDifficultySet>()
             || message.is::<InstanceInfo>()
             || message.is::<DamageMeterSnapshot>()
+            || message.is::<shared::protocol::ThreatUpdate>()
             || message.is::<shared::protocol::PlayerXpUpdate>()
     }
 
@@ -1085,6 +1090,10 @@ impl Account {
         }
         if message.is::<shared::protocol::PlayerXpUpdate>() {
             self.xp = Some(decode(message)?);
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ThreatUpdate>() {
+            self.threat_updates.push(decode(message)?);
             return Ok(());
         }
         if message.is::<DamageMeterSnapshot>() {
@@ -1592,6 +1601,47 @@ mod tests {
 
     use shared::components::{CharacterAppearance, EquipmentAppearance};
     use shared::protocol::{CharacterListEntry, TransferAbortReason};
+
+    #[test]
+    fn threat_wire_update_fills_meter_and_combat_end_clears() {
+        use game_engine_ui_model::damage_meter_data::DamageMeterWindow;
+        use shared::protocol::{ThreatUnit, ThreatUpdate};
+        let mut account = Account::new(PathBuf::new());
+        let mut output = Vec::new();
+        let update = ThreatUpdate {
+            creature: 99,
+            victim: Some(42),
+            entries: vec![ThreatUnit {
+                unit: 42,
+                name: "Tank".into(),
+                class_id: 2,
+                raw_threat: 200.0,
+                status: 3,
+                raw_percent: 100.0,
+                scaled_percent: 100.0,
+            }],
+        };
+        account
+            .dispatch_message(ProtocolMessage::for_tests(update), &mut output)
+            .unwrap();
+        let mut window = DamageMeterWindow::default();
+        window.click("damage_meter:threat").unwrap();
+        for update in std::mem::take(&mut account.threat_updates) {
+            window.receive_threat(update);
+        }
+        // Threat message arrived before the next frame's combat-status replica.
+        window.select_threat_target(Some(99), Some(42), false);
+        assert!(window.rows().is_empty());
+        window.select_threat_target(Some(99), Some(42), true);
+        assert_eq!(window.rows()[0].value_text, "100.0%");
+        assert_eq!(window.rows()[0].name_text, "1. Tank");
+        assert_eq!(window.rows()[0].fraction, 1.0);
+        assert!(window.rows()[0].is_local_player);
+        window.select_threat_target(Some(99), Some(42), false);
+        assert!(window.rows().is_empty());
+        assert!(output.is_empty());
+        assert!(account.threat_updates.is_empty());
+    }
 
     #[test]
     fn combatipc_receives_pet_and_owner_logs_without_observer_events() {

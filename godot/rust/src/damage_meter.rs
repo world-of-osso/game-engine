@@ -79,7 +79,13 @@ impl GameClient {
             .local_player_id()
             .and_then(|id| self.replica.unit(id))
             .is_some_and(UnitFields::in_combat);
+        let target = self.targeting_target();
+        let local = self.world.local_player_id();
         let hud = &mut self.damage_meter;
+        for update in std::mem::take(&mut self.account.threat_updates) {
+            hud.window.receive_threat(update);
+        }
+        hud.window.select_threat_target(target, local, in_combat);
         let timer_text = hud.window.timer_text(in_combat);
         let timer_width = hud.timer_width(&timer_text)?;
         let view = hud.window.view(in_combat, timer_width);
