@@ -184,6 +184,11 @@ const BOB: CombatLogActor = CombatLogActor {
     name: "Bob",
     unit: CombatLogUnit::Friendly,
 };
+/// A unit the client does not replicate, or none (environmental damage).
+const UNKNOWN: CombatLogActor = CombatLogActor {
+    name: "Unknown",
+    unit: CombatLogUnit::Unknown,
+};
 const WHITE: [f32; 4] = [1.0; 4];
 const MINE_GREY: [f32; 4] = [0.7, 0.7, 0.7, 1.0];
 const ACTION_GREY: [f32; 4] = [0.5, 0.5, 0.5, 1.0];
@@ -219,6 +224,8 @@ fn event(
         crit: false,
         glancing: false,
         periodic: false,
+        extra_spell_id: None,
+        timestamp_unix_ms: 0,
         kind,
     }
 }
@@ -585,4 +592,65 @@ fn copied_chat_lists_timestamped_lines_oldest_first() {
 fn tab_flash_bounces_between_hidden_and_full_every_half_second() {
     let samples = [0.0, 0.25, 0.5, 0.75, 1.0].map(flash_alpha);
     assert_eq!(samples, [0.0, 0.5, 1.0, 0.5, 0.0]);
+}
+
+/// `C_Spell.GetSchoolString` names a multi-school mask: Fire + Frost is `STRING_SCHOOL_FROSTFIRE`
+/// "Frostfire", Physical + Holy `STRING_SCHOOL_HOLYSTRIKE` "Holystrike".
+#[test]
+fn multi_school_damage_names_the_combined_school() {
+    let frostfire = event(CombatLogKind::Damage, Some(35395), 0x14, 640);
+    assert_eq!(
+        combat_text(&frostfire, ME, KOBOLD).unwrap(),
+        "Your Crusader Strike hit Kobold Vermin 640 Frostfire."
+    );
+    let holystrike = event(CombatLogKind::Damage, Some(35395), 0x03, 75);
+    assert_eq!(
+        combat_text(&holystrike, KOBOLD, ME).unwrap(),
+        "Kobold Vermin Crusader Strike hit You 75 Holystrike."
+    );
+}
+
+/// ENVIRONMENTAL_DAMAGE on the player: no source ("Unknown", unknown-unit grey), the type as
+/// the spell, "damaged" in the action colour, the amount without its overkill.
+#[test]
+fn falling_damage_on_the_player_reads_unknown_falling_damaged_you() {
+    let mut fall = event(
+        CombatLogKind::Environmental(EnvironmentalKind::Falling),
+        None,
+        1,
+        1_500,
+    );
+    fall.source = None;
+    fall.overflow = 300;
+    let line = combat_log_line(&fall, UNKNOWN, ME).expect("damage on the player is listed");
+    assert_eq!(
+        line.plain_text(spell_name),
+        "Unknown Falling damaged You 1,200 Physical. (300 Overkill)"
+    );
+    let grey = [0.75, 0.75, 0.75, 1.0];
+    let bright = [1.0, 1.0, 1.0, 1.0];
+    assert_eq!(
+        colored_runs(&line),
+        [
+            piece("Unknown ", grey),
+            piece("Falling", bright),
+            piece(" ", grey),
+            piece("damaged", ACTION_GREY),
+            piece(" You ", grey),
+            piece("1,200", bright),
+            piece(" ", grey),
+            piece("Physical", bright),
+            piece(". (300 Overkill)", grey),
+        ]
+    );
+    let drowning = event(
+        CombatLogKind::Environmental(EnvironmentalKind::Drowning),
+        None,
+        1,
+        210,
+    );
+    assert_eq!(
+        combat_text(&drowning, UNKNOWN, ME).unwrap(),
+        "Unknown Drowning damaged You 210 Physical."
+    );
 }

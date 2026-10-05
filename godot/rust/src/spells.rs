@@ -27,8 +27,8 @@ use game_engine_ui_model::main_action_bar_component::{
 };
 use game_engine_ui_model::spellbook_frame_component::{
     ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE, ACTION_SPELLBOOK_NEXT_PAGE,
-    ACTION_SPELLBOOK_PREV_PAGE, ACTION_SPELLBOOK_TAB, SpellbookCategory,
-    SpellbookFrameState, SpellbookGroup, SpellbookItemView,
+    ACTION_SPELLBOOK_PREV_PAGE, ACTION_SPELLBOOK_TAB, SpellbookCategory, SpellbookFrameState,
+    SpellbookGroup, SpellbookItemView,
 };
 use godot::classes::{
     InputEvent, InputEventMouseButton, InputEventMouseMotion, Label3D, ProjectSettings,
@@ -1161,6 +1161,8 @@ mod tests {
             crit: false,
             glancing: false,
             periodic: false,
+            extra_spell_id: None,
+            timestamp_unix_ms: 0,
             kind: CombatLogKind::Damage,
         };
         let crit = CombatLogEvent {
