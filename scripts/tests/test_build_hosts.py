@@ -5,13 +5,13 @@ import io
 import json
 import os
 import signal
-from pathlib import Path
 import subprocess
 import sys
 import tarfile
 import tempfile
 import time
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / "build_hosts.py"
