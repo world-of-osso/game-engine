@@ -118,6 +118,15 @@ fn four_members_draw_state_bars_names_status_and_only_the_leader() {
                 ui_toolkit::frame::Dimension::Fixed(power_width * view.power_fraction)
             );
             assert!(registry.get_by_name(&format!("{root}Portrait")).is_some());
+            let Some(WidgetData::FontString(name)) =
+                &frame(&registry, &format!("{root}Name")).widget_data
+            else {
+                panic!("name");
+            };
+            assert_eq!(
+                name.color,
+                [view.class_rgb[0], view.class_rgb[1], view.class_rgb[2], 1.0]
+            );
         }
         assert!(registry.get_by_name("PartyMemberFrame5").is_none());
     }
@@ -193,4 +202,96 @@ fn capture_modern_portrait_party_fixture() {
 #[test]
 fn modern_portrait_party_matches_captured_golden() {
     assert_eq!(modern_capture(), fixture::MODERN_PORTRAIT_PARTY);
+}
+
+#[test]
+fn guide_roles_and_optional_pets_follow_view_state() {
+    use game_engine_ui_model::portrait_party_frame_component::PortraitPartyPetView;
+    use shared::protocol::GroupRoleSnapshot;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut views = members();
+        for (view, role) in views.iter_mut().zip([
+            GroupRoleSnapshot::Tank,
+            GroupRoleSnapshot::Healer,
+            GroupRoleSnapshot::Damage,
+            GroupRoleSnapshot::None,
+        ]) {
+            view.role = role;
+            view.pet = Some(PortraitPartyPetView {
+                health_fraction: 0.5,
+                dead: false,
+            });
+        }
+        views[1].guide = true;
+        let with_pets = render_state(
+            skin,
+            PortraitPartyFrameState {
+                members: views.clone(),
+                show_pets: true,
+            },
+        );
+        assert!(frame(&with_pets, "PartyMemberFrame2LeaderIcon").hidden);
+        assert!(!frame(&with_pets, "PartyMemberFrame2GuideIcon").hidden);
+        for index in 1..=3 {
+            assert!(
+                resolve_region(
+                    match index {
+                        1 => "roleicon-tiny-tank",
+                        2 => "roleicon-tiny-healer",
+                        _ => "roleicon-tiny-dps",
+                    },
+                    skin
+                )
+                .is_some()
+            );
+            assert!(!frame(&with_pets, &format!("PartyMemberFrame{index}RoleIcon")).hidden);
+        }
+        assert!(with_pets.get_by_name("PartyMemberFrame4RoleIcon").is_none());
+        assert!(
+            with_pets.get_by_name("PartyMemberFrame3Pet").is_none(),
+            "offline pet is hidden"
+        );
+        assert_eq!(
+            frame(&with_pets, "PartyMemberFrame1PetHealthBarFill").width,
+            ui_toolkit::frame::Dimension::Fixed(17.75)
+        );
+        assert!(
+            with_pets
+                .get_by_name("PartyMemberFrame1PetManaBar")
+                .is_none()
+        );
+        let without_pets = render_state(
+            skin,
+            PortraitPartyFrameState {
+                members: views,
+                show_pets: false,
+            },
+        );
+        assert!(without_pets.get_by_name("PartyMemberFrame1Pet").is_none());
+        assert_eq!(
+            frame(&without_pets, "PartyFrame").height,
+            ui_toolkit::frame::Dimension::Fixed(242.0)
+        );
+        assert_eq!(
+            frame(&with_pets, "PartyFrame").height,
+            ui_toolkit::frame::Dimension::Fixed(290.0)
+        );
+    }
+}
+
+#[test]
+fn portrait_party_hides_empty_and_limits_population_to_four() {
+    let registry = render_state(ActiveSkin::Modern, PortraitPartyFrameState::default());
+    assert!(frame(&registry, "PartyFrame").hidden);
+    let mut views = members();
+    views.push(PortraitPartyMemberView::named("Fifth"));
+    let registry = render_state(
+        ActiveSkin::Modern,
+        PortraitPartyFrameState {
+            members: views,
+            show_pets: false,
+        },
+    );
+    assert!(!frame(&registry, "PartyFrame").hidden);
+    assert!(registry.get_by_name("PartyMemberFrame5").is_none());
 }
