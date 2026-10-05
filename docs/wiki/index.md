@@ -20,7 +20,7 @@ Single MainHand startup native `5a3ebf7b` and original15-second merchant regress
 Engine subsystems and how they work.
 
 - [death-flow](systems/death-flow.md) — owner death snapshots, release/corpse/healer and resurrection-offer dialogs; stable viewer-relative taps and both-skin health greying.
-- [forever-data](systems/forever-data.md) — Forever 70205 Skyborne/display/gear overlays; 884 gear IDs, Retail resource-group preservation and concrete shoulder CPU proof; required appearance resources/full asset closure and native NPC acceptance incomplete
+- [forever-data](systems/forever-data.md) — Forever 70205 Skyborne/display/gear overlays; unnamed body FDID profile repair, Retail resource-group preservation and concrete appearance/gear CPU proof; missing authored texture mappings and full native NPC acceptance remain open
 - [build-hosts](systems/build-hosts.md) — desktop SSH/WSL and local Docker build trial; saved selection, aggregate GC budget, cache boundaries, independently accepted bounded build/server/CPU/GPU-login capability.
 
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering (Godot retail batch materials), live InWorld camera-direction CLI, optional-distance-fog shader specialization, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; native fog verification and original-video pixel equivalence remain unproven

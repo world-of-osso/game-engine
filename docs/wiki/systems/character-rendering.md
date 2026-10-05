@@ -115,7 +115,7 @@ Some helm models appear with `HelmetGeosetVis = 0,0` (e.g. display 1128), meanin
 
 ## Authored NPC Appearance
 
-Forever-only Zephras display import, cache preservation and unresolved profile/armor boundaries are tracked in [Forever data](forever-data.md#zephras-npc-displays--bounded-incomplete); model-ID resolution is not native appearance acceptance.
+Forever-only Zephras display import, cache preservation and unnamed Skyborne body FDID profile joining are tracked in [Forever data](forever-data.md#unnamed-skyborne-npc-bodies--fdid-profile-repair); missing authored texture mappings and full native NPC acceptance remain explicit boundaries.
 
 Replicated humanoid NPCs load display-specific appearance rows from `cache/npc_appearance.sqlite` and queue a one-shot render request on their visual root after M2 creation. Full customization choice IDs select both direct and related materials/geosets; player UI indices are not used. The compositor supplies head/hair and eye textures. An authored baked body texture replaces the body atlas without clothing-erasing customization overlays; only an authored absence of a bake uses the composited body.
 
