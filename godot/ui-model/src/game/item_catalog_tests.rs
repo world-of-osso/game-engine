@@ -131,6 +131,8 @@ fn collision_catalogs_preserve_source_and_never_borrow_missing_rows() {
         .is_empty()
     );
     assert!(sources.catalog(Forever70205).unwrap().get(2589).is_none());
+    let error = sources.entry(Forever70205, 2589).unwrap_err();
+    assert!(error.contains("Forever70205 item 2589"), "{error}");
     let absent = shared::protocol::ItemStack {
         item_guid: 20,
         item_id: 2589,
@@ -154,6 +156,8 @@ fn collision_catalogs_preserve_source_and_never_borrow_missing_rows() {
             .contains("Forever70205")
     );
     assert!(missing.catalog(Retail).unwrap().get(2589).is_some());
+    let error = missing.entry(Forever70205, 2947).unwrap_err();
+    assert!(error.contains("Forever70205 item 2947"), "{error}");
 }
 
 fn catalog() -> ItemCatalog {
