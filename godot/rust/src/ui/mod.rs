@@ -830,6 +830,26 @@ impl RegistryUi {
         )
     }
 
+    pub(crate) fn show_launcher(
+        &mut self,
+        view: game_engine_ui_model::launcher::LauncherView,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
+        register_auction_popup_style(&mut registry);
+        self.show_viewport_screen_in(
+            view,
+            game_engine_ui_model::launcher::launcher_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail main action bar.
     pub fn show_main_action_bar(&mut self, state: MainActionBarState) -> Result<(), String> {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)
