@@ -52,7 +52,21 @@ models/94947000.skin
 models/949470.skel
 
 # Source-local selected Forever kit definitions, appearance/class metadata and scaling.
-db2/1.60.1.70205/items/
+db2/1.60.1.70205/items/Item.csv
+db2/1.60.1.70205/items/ItemSparse.csv
+db2/1.60.1.70205/items/ItemSubClass.csv
+db2/1.60.1.70205/items/ItemAppearance.csv
+db2/1.60.1.70205/items/ItemModifiedAppearance.csv
+db2/1.60.1.70205/items/ItemArmorQuality.csv
+db2/1.60.1.70205/items/ItemArmorTotal.csv
+db2/1.60.1.70205/items/ArmorLocation.csv
+db2/1.60.1.70205/items/ItemArmorShield.csv
+db2/1.60.1.70205/items/ItemDamageOneHand.csv
+db2/1.60.1.70205/items/ItemDamageOneHandCaster.csv
+db2/1.60.1.70205/items/ItemDamageTwoHand.csv
+db2/1.60.1.70205/items/ItemDamageTwoHandCaster.csv
+db2/1.60.1.70205/items/RandPropPoints.csv
+db2/1.60.1.70205/items/manifest.json
 
 # Forever Skyborne catalogs: isolated cache import plus Retail-overlay regression tests.
 db2/1.60.1.70205/ChrRaces.csv
