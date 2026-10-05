@@ -75,12 +75,12 @@ fn launcher_arrows_move_in_grid_and_click_dispatches_same_action() {
     view.key(LauncherKey::Left);
     view.key(LauncherKey::Up);
     assert_eq!(view.selected, 0);
-    let registry = build(view.clone());
+    let mut registry = build(view.clone());
     let id = registry
         .get_by_name("LauncherEntryPlayerSpellsMicroButton")
         .unwrap();
-    let action = registry.get(id).unwrap().onclick.as_deref().unwrap();
-    assert_eq!(view.action(action).as_deref(), Some(ACTION_PLAYER_SPELLS));
+    let action = registry.click_frame(id).unwrap();
+    assert_eq!(view.action(&action).as_deref(), Some(ACTION_PLAYER_SPELLS));
     assert!(!view.open);
 }
 
@@ -109,7 +109,7 @@ fn launcher_minimap_search_button_opens_and_close_action_dismisses() {
     Screen::new(minimap_cluster_screen).sync(&shared, &mut registry);
     let id = registry.get_by_name("MinimapLauncherButton").unwrap();
     let mut view = LauncherView::default();
-    view.action(registry.get(id).unwrap().onclick.as_deref().unwrap());
+    view.action(&registry.click_frame(id).unwrap());
     assert!(view.open);
     view.action(ACTION_CLOSE);
     assert!(!view.open);
