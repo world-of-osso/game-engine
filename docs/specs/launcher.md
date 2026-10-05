@@ -18,6 +18,7 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 - [x] Include every existing micro entry: Character, Professions, Talents & Spellbook, Achievements, Quest Log, Housing Dashboard, Guild & Communities, Group Finder, Collections, Adventure Guide, Shop and Game Menu; also Help, Bags (backpack), World Map, Options and Key Bindings.
 - [x] Micro entries reuse existing micro-menu icons and host actions, including unavailable-window messages. Launcher is the default entry point: the micro menu stays mounted but hidden in both presets. Options > HUD Layout's per-layout **Show Micro Menu** setting restores it live (off by default); its keybinds remain available while hidden.
 - [x] Help uses Retail HelpMicroButton art; Options uses a gear, Key Bindings a keyboard, and World Map a map icon. Every entry resolves to a cached Blizzard texture, never unknown-icon FDID134400. Retail's authored GameMenu question mark is not that fallback.
+- [x] Every icon has comparable drawing area within its tile; wide keyboard art preserves its authored aspect ratio while using the tile width, not the narrow micro-button width.
 - [x] Centre panel containing search above large icons with labels below. Use existing Forever metal frame or Modern dialog artwork; no new artwork.
 
 ## How it works
@@ -54,6 +55,13 @@ Evidence: `data/diagnostics/launcher-2026-10-05/launcher4-build-retry.log`, `lau
 - [x] `forever-open-icons.webp` and matching tree recaptured on private UDP5262 with copied newest `game.redb.bak-20261005-c98e83f`, fresh `fb_launchericons_092738`/`fbtest`, and Iconproof. Screenshot inspected: gear, keyboard and globe art; Game Menu/Help retain Retail's authored red question mark, not fallback art. All owned PIDs stopped/reaped and `agents-launchericons.slice` stopped.
 
 Evidence: `data/diagnostics/launcher-2026-10-05/launchericons-{red2,green2,build2,client2}.log`, `launchericons-capture2.txt`, `launchericons-cleanup.txt`, and `forever-open-icons.{webp,tree.txt}`. First icon capture exposed a stale Gear atlas crop and binocular tracking art; final icons use inspected standalone gear/world micro files. [Art identities and Retail citations](../wiki/systems/launcher.md#art-and-sources). No global atlas/data mapping changes, CDN downloads or golden fixture updates.
+
+## Keyboard fit verification — 2026-10-05
+
+- [x] `1f0bf6cd`: behavioral RED reproduced keyboard drawing area at 0.352 of the gear's; aspect-ratio test already passed. GREEN launcher11 + micro_menu8 passed (19 total); all entries have comparable drawing area inside their tiles under both skins, keyboard keeps authored aspect ratio. Locked helper extension+CLI build exited0 without compiler warnings. No golden fixtures changed.
+- [x] `forever-open-icons2.webp` and matching tree recaptured on private UDP5270 from newest `game.redb.bak-20261005-3ad34cb`, fresh `fb_launcherpolish_154503`/`fbtest`, character Launchpolish. Live tree shows widened keyboard art; screenshot inspected. Mainline Retail still authors identical Menu/Help atlas art, so both remain unchanged ([citations](../wiki/systems/launcher.md#art-and-sources)).
+
+Evidence: `data/diagnostics/launcher-2026-10-05/launcherpolish-{red,green,build,client2}.log`, `launcherpolish-capture.txt`, `launcherpolish-cleanup.txt`, and `forever-open-icons2.{webp,tree.txt}`. First owned Weston failed because its socket pathname exceeded108 bytes; stopped the first client, shortened owned runtime path, and captured with the second Weston/client. All owned processes and `agents-launcherpolish.slice` stopped; no shared server changes.
 
 ## Known gaps (current cycle)
 
