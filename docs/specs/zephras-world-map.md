@@ -42,7 +42,7 @@ WoW Forever map 2991 must load through the Godot world's terrain and object load
 - `godot/core/tests/zephras_map.rs`, `zephras_terrain.rs`; WDT tests in `asset/wdt.rs`.
 - `godot/rust/src/terrain/assets.rs` `zephras_reads_unnamed_wdt_and_maid_tile_from_fdid_cache`.
 - `scripts/tests/test_import_forever_zephras.py`: active MAID selection, model aliases/references, WMO groups/doodads/material slots, wrong-magic rejection.
-- `godot/tests/zephras_world.gd`: actual native stream, terrain meshes and authored objects; screenshot `data/diagnostics/zephras-world.png`.
+- `godot/tests/zephras_world.gd`: actual native stream, terrain meshes, authored objects and production lighting; intended screenshot `data/diagnostics/zephras-world-production-lighting.png`. Capture is blocked by unavailable Forever lighting/sky assets. Earlier neutral-lighting proof remains `data/diagnostics/zephras-world.png`, not production-lighting acceptance.
 
 ## Known gaps (current cycle)
 
