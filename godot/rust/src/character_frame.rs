@@ -18,8 +18,8 @@ use game_engine_ui_model::damage_meter_data::class_color;
 use game_engine_ui_model::item_catalog::item_catalog_entry;
 use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::micro_menu::{
-    ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_PLAYER_SPELLS, ACTION_QUEST_LOG, CHARACTER_PORTRAIT,
-    MICRO_BUTTONS, MicroMenuView, OpenWindows, micro_button_index, unavailable_message,
+    ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_QUEST_LOG, CHARACTER_PORTRAIT, MICRO_BUTTONS,
+    MicroMenuView, OpenWindows, micro_button_index, player_spells_micro_tab, unavailable_message,
 };
 use godot::prelude::*;
 use shared::components::{CombatRatings, DerivedStats, Player, UnitLevel, UnitStats};
@@ -43,6 +43,7 @@ pub(crate) struct CharacterFrame {
     open: bool,
     /// The shown subframe.
     tab: CharacterTab,
+    selected_reputation: Option<u32>,
     ui: Option<Gd<RegistryUi>>,
     micro_ui: Option<Gd<RegistryUi>>,
     /// Left button went down on the model scene and has not been released.
@@ -58,6 +59,7 @@ impl CharacterFrame {
         self.preview.reset();
         self.open = false;
         self.tab = CharacterTab::PaperDoll;
+        self.selected_reputation = None;
         self.rotating = false;
     }
 
@@ -119,6 +121,7 @@ impl GameClient {
             return;
         }
         self.character_frame.tab = CharacterTab::PaperDoll;
+        self.character_frame.selected_reputation = None;
         self.character_frame.open = !self.character_frame.open;
         self.character_frame.rotating = false;
     }
@@ -135,12 +138,14 @@ impl GameClient {
         self.character_frame.preview.reset();
         self.character_frame.rotating = false;
         self.character_frame.tab = tab;
+        self.character_frame.selected_reputation = None;
     }
 
     /// `CloseAllWindows` step: hides the frame. Returns whether it was open.
     pub(super) fn close_character_window(&mut self) -> bool {
         let open = self.character_frame.open;
         self.character_frame.open = false;
+        self.character_frame.selected_reputation = None;
         self.character_frame.rotating = false;
         open
     }
@@ -177,8 +182,31 @@ impl GameClient {
             self.show_character_tab(tab);
             return Ok(());
         }
+        if !click.right
+            && (action.starts_with("reputation_faction:")
+                || action == game_engine_ui_model::character_frame::ACTION_REPUTATION_DETAIL_CLOSE)
+        {
+            let rows = self
+                .reputation
+                .as_ref()
+                .map(|snapshot| reputation_rows(&snapshot.entries))
+                .unwrap_or_default();
+            self.character_frame.selected_reputation =
+                game_engine_ui_model::character_frame::reputation_selection(
+                    action,
+                    &rows,
+                    self.character_frame.selected_reputation,
+                );
+            if let Some(ui) = self.character_frame.ui.as_mut() {
+                ui.bind_mut().reset_reputation_description_scroll();
+            }
+            return Ok(());
+        }
         match action {
-            ACTION_CLOSE => self.character_frame.open = false,
+            ACTION_CLOSE => {
+                self.character_frame.open = false;
+                self.character_frame.selected_reputation = None;
+            }
             ACTION_MODEL if !click.right && !click.shift => self.press_character_model()?,
             _ => {}
         }
@@ -213,10 +241,17 @@ impl GameClient {
 
     /// A micro-menu button toggles its native window; a button whose window is not
     /// converted yet shows its Retail unavailable line in the error frame.
-    fn micro_button_click(&mut self, action: &str) -> Result<(), FrameError> {
+    pub(super) fn micro_button_click(&mut self, action: &str) -> Result<(), FrameError> {
+        if let Some(tab) = player_spells_micro_tab(action) {
+            if self.spellbook_open() {
+                self.close_spellbook();
+            } else {
+                self.toggle_player_spells(tab)?;
+            }
+            return Ok(());
+        }
         match action {
             ACTION_CHARACTER => self.toggle_character_frame(),
-            ACTION_PLAYER_SPELLS => self.toggle_spellbook()?,
             ACTION_QUEST_LOG => self.toggle_quest_log(),
             ACTION_MAIN_MENU => self.toggle_game_menu_from_micro_button()?,
             _ => match unavailable_message(action) {
@@ -288,7 +323,7 @@ impl GameClient {
     }
 
     fn sync_character_frame_ui(&mut self) -> Result<(), String> {
-        let view = self.character_frame_view();
+        let view = self.character_frame_view()?;
         let scale = self.effective_ui_scale();
         if let Some(ui) = self.character_frame.ui.as_mut() {
             let mut host = ui.bind_mut();
@@ -317,9 +352,9 @@ impl GameClient {
         Ok(())
     }
 
-    fn character_frame_view(&mut self) -> CharacterFrameView {
+    fn character_frame_view(&mut self) -> Result<CharacterFrameView, String> {
         if !self.character_frame.open {
-            return CharacterFrameView::default();
+            return Ok(CharacterFrameView::default());
         }
         let unit = self
             .world
@@ -347,19 +382,25 @@ impl GameClient {
         }
         self.draw_character_backdrops(race_id, class_id);
         let tab = self.character_frame.tab;
-        let reputation = match (tab, &self.reputation) {
+        let mut reputation = match (tab, &self.reputation) {
             (CharacterTab::Reputation, Some(snapshot)) => reputation_rows(&snapshot.entries),
             _ => Vec::new(),
         };
         if tab == CharacterTab::Reputation {
+            game_engine_ui_model::character_frame::enrich_reputation_rows(
+                &mut reputation,
+                race_id,
+                class_id,
+            )?;
             for fdid in reputation_art_fdids() {
                 self.drawable_fdid(fdid);
             }
         }
-        CharacterFrameView {
+        Ok(CharacterFrameView {
             visible: true,
             tab,
             reputation,
+            selected_reputation: self.character_frame.selected_reputation,
             title,
             level: self.character_level_line(level, class_id),
             slots,
@@ -369,7 +410,7 @@ impl GameClient {
             enhancements,
             race_id,
             class_id,
-        }
+        })
     }
 
     /// `PaperDollFrame_SetLevel`: the spec and class names from the spell catalog.

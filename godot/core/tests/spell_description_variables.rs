@@ -49,6 +49,80 @@ fn plain(description: &str) -> String {
 }
 
 #[test]
+fn unresolved_tokens_leave_readable_surrounding_text() {
+    for token in [
+        "$pl",
+        "$@versadmg",
+        "$MHP",
+        "$pri",
+        "$g",
+        "$gmale:female;",
+        "$<missing>",
+        "${$MHP*2}",
+    ] {
+        assert_eq!(
+            plain(&format!("Deals {token} damage.")),
+            "Deals damage.",
+            "{token}"
+        );
+        assert_eq!(
+            plain(&format!("Deals ({token}) damage.")),
+            "Deals damage.",
+            "{token}"
+        );
+        assert_eq!(
+            plain(&format!("Deals {token}% damage.")),
+            "Deals damage.",
+            "{token}"
+        );
+        assert_eq!(
+            plain(&format!("Damage: {token}. Next.")),
+            "Damage. Next.",
+            "{token}"
+        );
+    }
+    assert_eq!(
+        plain("First\r\n\r\nDeals $pri damage."),
+        "First\r\n\r\nDeals damage."
+    );
+    assert_eq!(
+        plain("Deals $?s12345[$pri][$s1] damage."),
+        "Deals 5 damage."
+    );
+    assert_eq!(plain("Deals $?s12345[$s1][$pri] damage."), "Deals damage.");
+    assert_eq!(plain("Deals $s1 damage  now."), "Deals 5 damage  now.");
+    assert_eq!(plain("Deals $pri $MHP damage."), "Deals damage.");
+    assert_eq!(plain("$pri damage."), "damage.");
+    assert_eq!(plain("Damage ($pri)."), "Damage.");
+    assert_eq!(plain("$pri."), "");
+    assert_eq!(plain("Damage: $pri\r\nNext."), "Damage\r\nNext.");
+}
+
+#[test]
+fn level_scaled_points_are_hidden_without_changing_resolved_points() {
+    let spell = CatalogSpell {
+        id: SPELL,
+        description: "Deals $s1 damage, then $s2 damage.".into(),
+        effects: vec![
+            CatalogEffect {
+                level_scaled: true,
+                ..effect(0, 10.0)
+            },
+            effect(1, 3.0),
+        ]
+        .into(),
+        ..CatalogSpell::default()
+    };
+    let catalog = SpellCatalogData::from_parts(vec![spell], SpellbookTabIndex::default());
+    assert_eq!(
+        catalog
+            .render_description(SPELL, &SpellTextContext::default())
+            .unwrap(),
+        "Deals damage, then 3 damage."
+    );
+}
+
+#[test]
 fn effect_points_replace_s_and_m_tokens() {
     assert_eq!(
         plain("Strike the target for $s1 Physical damage."),

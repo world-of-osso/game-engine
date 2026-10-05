@@ -1,15 +1,18 @@
 #!/usr/bin/env python3
-"""Make staged compile inputs newer than a shared Cargo target after acquiring its lock."""
+"""Restore content-aware source timestamps under the locked Cargo target cache."""
 
+import hashlib
+import json
 import os
 from pathlib import Path
 import sys
+import time
 
 
 EXCLUDED_DIRS = {".git", ".godot", "data", "target"}
 
 
-def refresh_sources(context):
+def refresh_sources(context, target):
     inputs = []
     for repo in context.iterdir():
         if not repo.is_dir() or repo.name in EXCLUDED_DIRS or repo.name.startswith("."):
@@ -28,12 +31,30 @@ def refresh_sources(context):
                 if path.is_symlink():
                     raise ValueError(f"unsupported source symlink: {path}")
                 inputs.append(path)
+    state = target / "source-mtimes.json"
+    previous = json.loads(state.read_text()) if state.exists() else {}
+    # Restaged files may have older mtimes even when their contents changed.
+    # Remember both content and timestamp so unchanged layers remain Cargo-fresh.
+    changed_mtime = max(
+        time.time_ns(),
+        max((item[1] for item in previous.values()), default=0) + 1,
+    )
+    current = {}
     for path in inputs:
-        os.utime(path, None, follow_symlinks=False)
+        key = str(path.relative_to(context))
+        digest = hashlib.sha256(path.read_bytes()).hexdigest()
+        saved = previous.get(key)
+        mtime = saved[1] if saved is not None and saved[0] == digest else changed_mtime
+        os.utime(path, ns=(mtime, mtime), follow_symlinks=False)
+        current[key] = [digest, mtime]
+    target.mkdir(parents=True, exist_ok=True)
+    temporary = state.with_suffix(".tmp")
+    temporary.write_text(json.dumps(current, sort_keys=True))
+    temporary.replace(state)
 
 
 if __name__ == "__main__":
     try:
-        refresh_sources(Path(sys.argv[1]))
+        refresh_sources(Path(sys.argv[1]), Path(sys.argv[2]))
     except (OSError, ValueError) as error:
         sys.exit(str(error))

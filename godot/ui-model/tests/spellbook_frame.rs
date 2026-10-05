@@ -1,6 +1,6 @@
 use game_engine_ui_model::spellbook_frame_component::{
-    ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE, COLUMNS, HEADER_H, ITEM_H, Placement, SPELLBOOK_FRAME,
-    SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
+    ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE, COLUMNS, HEADER_H, ITEM_H, Placement,
+    SPELLBOOK_FRAME, SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
     apply_spellbook_postsetup, frame_layout, paginate, spell_item_name, spellbook_frame_screen,
 };
 use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
@@ -117,6 +117,7 @@ fn state(categories: Vec<SpellbookCategory>) -> SpellbookFrameState {
         selected: 0,
         page: 0,
         portrait_fdid: 132355,
+        ..Default::default()
     }
 }
 
@@ -208,13 +209,21 @@ fn the_book_window_has_title_spec_portrait_and_close_button() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_active_skin(skin);
         let registry = build(&book);
-        assert_eq!(text(&registry, "SpellBookTitleText"), "Spellbook", "{skin:?}");
+        assert_eq!(
+            text(&registry, "SpellBookTitleText"),
+            "Spellbook",
+            "{skin:?}"
+        );
         let portrait = registry
             .get(registry.get_by_name("SpellBookPortrait").expect("portrait"))
             .unwrap();
         match portrait.widget_data.as_ref() {
             Some(WidgetData::Texture(texture)) => {
-                assert_eq!(texture.source, TextureSource::FileDataId(132355), "{skin:?}")
+                assert_eq!(
+                    texture.source,
+                    TextureSource::FileDataId(132355),
+                    "{skin:?}"
+                )
             }
             other => panic!("portrait is not a texture: {other:?}"),
         }
@@ -227,11 +236,176 @@ fn the_book_window_has_title_spec_portrait_and_close_button() {
 }
 
 #[test]
+fn player_spells_has_three_bottom_tabs() {
+    let registry = build(&state(Vec::new()));
+    for (index, title) in ["Specialization", "Talents", "Spellbook"]
+        .iter()
+        .enumerate()
+    {
+        assert_eq!(
+            text(&registry, &format!("PlayerSpellsTab{}Text", index + 1)),
+            *title
+        );
+    }
+}
+
+#[test]
+fn clicking_bottom_tabs_switches_content_in_both_skins() {
+    use game_engine_ui_model::spellbook_frame_component::PlayerSpellsTab;
+    let mut book = state(vec![SpellbookCategory {
+        name: "Warrior".into(),
+        groups: vec![group("Warrior", 1)],
+    }]);
+    for skin in [ActiveSkin::Forever, ActiveSkin::Modern] {
+        set_active_skin(skin);
+        for (index, title, content) in [
+            (1, "Specialization", "ClassSpecFrame"),
+            (2, "Talents", "ClassTalentsFrame"),
+            (3, "Spellbook", "SpellBookFrame"),
+        ] {
+            let registry = build(&book);
+            let action = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("PlayerSpellsTab{index}"))
+                        .unwrap(),
+                )
+                .unwrap()
+                .onclick
+                .clone()
+                .unwrap();
+            assert!(book.select_frame_tab(&action).unwrap());
+            let registry = build(&book);
+            assert_eq!(text(&registry, "SpellBookTitleText"), title);
+            assert!(registry.get_by_name(content).is_some());
+            for other in ["ClassSpecFrame", "ClassTalentsFrame", "SpellBookFrame"] {
+                assert_eq!(registry.get_by_name(other).is_some(), other == content);
+            }
+        }
+    }
+    assert_eq!(book.tab, PlayerSpellsTab::Spellbook);
+    set_active_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn n_and_p_open_their_page_and_only_same_page_toggle_closes() {
+    use game_engine_core::input_bindings_data::{BindingKey, InputBindingsData, InputState};
+    use game_engine_ui_model::spellbook_frame_component::{
+        PlayerSpellsTab, pressed_player_spells_tab,
+    };
+    struct Key(BindingKey);
+    impl InputState for Key {
+        fn key_pressed(&self, key: BindingKey) -> bool {
+            self.0 == key
+        }
+        fn key_just_pressed(&self, key: BindingKey) -> bool {
+            self.0 == key
+        }
+        fn mouse_pressed(
+            &self,
+            _: game_engine_core::input_bindings_data::BindingMouseButton,
+        ) -> bool {
+            false
+        }
+        fn mouse_just_pressed(
+            &self,
+            _: game_engine_core::input_bindings_data::BindingMouseButton,
+        ) -> bool {
+            false
+        }
+        fn shift_held(&self) -> bool {
+            false
+        }
+        fn ctrl_held(&self) -> bool {
+            false
+        }
+    }
+    let bindings = InputBindingsData::default();
+    let mut book = state(Vec::new());
+    let talents = pressed_player_spells_tab(&bindings, &Key(BindingKey::KeyN)).unwrap();
+    assert_eq!(talents, PlayerSpellsTab::Talents);
+    assert!(book.toggle_tab(false, talents));
+    assert_eq!(book.tab, talents);
+    let spells = pressed_player_spells_tab(&bindings, &Key(BindingKey::KeyP)).unwrap();
+    assert_eq!(spells, PlayerSpellsTab::Spellbook);
+    assert!(
+        book.toggle_tab(true, spells),
+        "switch the shown page instead of closing"
+    );
+    assert_eq!(book.tab, spells);
+    assert!(!book.toggle_tab(true, spells), "same page closes");
+}
+
+#[test]
+fn specialization_page_uses_class_data_and_marks_only_server_active_spec() {
+    use game_engine_core::spell_catalog::{SpellCatalogPaths, load_spell_catalog};
+    use game_engine_ui_model::spellbook_frame_component::{
+        PlayerSpellsTab, specialization_choices,
+    };
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../core/data");
+    let mut paths = SpellCatalogPaths::for_data_dir(&root);
+    paths.cache_path = std::env::temp_dir().join(format!("spelltabs-{}.bin", std::process::id()));
+    let catalog = load_spell_catalog(&paths).unwrap();
+    std::fs::remove_file(paths.cache_path).unwrap();
+    let mut book = state(Vec::new());
+    book.tab = PlayerSpellsTab::Specialization;
+    book.specializations = specialization_choices(&catalog.tabs, 2, Some(66));
+    book.can_activate_spec = true;
+    assert_eq!(
+        book.specializations
+            .iter()
+            .map(|spec| spec.id)
+            .collect::<Vec<_>>(),
+        [65, 66, 70]
+    );
+    let registry = build(&book);
+    for (id, name, role, icon) in [
+        (65, "Holy", "Healer", 135920),
+        (66, "Protection", "Tank", 236264),
+        (70, "Retribution", "Damage", 135873),
+    ] {
+        assert_eq!(text(&registry, &format!("ClassSpec{id}Name")), name);
+        assert_eq!(text(&registry, &format!("ClassSpec{id}Role")), role);
+        assert!(!text(&registry, &format!("ClassSpec{id}Description")).is_empty());
+        let frame = registry
+            .get(registry.get_by_name(&format!("ClassSpec{id}Icon")).unwrap())
+            .unwrap();
+        assert!(
+            matches!(frame.widget_data.as_ref(), Some(WidgetData::Texture(t)) if t.source == TextureSource::FileDataId(icon))
+        );
+        assert_eq!(
+            registry
+                .get_by_name(&format!("ClassSpec{id}Active"))
+                .is_some(),
+            id == 66
+        );
+    }
+    let activate = registry
+        .get(registry.get_by_name("ClassSpec65Activate").unwrap())
+        .unwrap();
+    assert_eq!(
+        activate.onclick.as_deref(),
+        Some("player_spells_activate:65")
+    );
+    assert!(registry.get_by_name("ClassSpec66Activate").is_none());
+    book.can_activate_spec = false;
+    let registry = build(&book);
+    let activate = registry
+        .get(registry.get_by_name("ClassSpec65Activate").unwrap())
+        .unwrap();
+    assert!(
+        matches!(activate.widget_data.as_ref(), Some(WidgetData::Button(b)) if b.state == ui_toolkit::widgets::button::ButtonState::Disabled)
+    );
+}
+
+#[test]
 fn the_book_scales_to_fit_the_viewport() {
     // The 1618x883 PlayerSpellsFrame window.
     let (scale, origin) = frame_layout([1280.0, 720.0]);
-    assert!((scale - (1280.0 - 32.0) / 1618.0).abs() < 1e-6);
+    let expected = ((1280.0_f32 - 32.0) / 1618.0).min((720.0 - 32.0) / 919.0);
+    assert!((scale - expected).abs() < 1e-6);
     assert_eq!(origin[0], ((1280.0 - 1618.0 * scale) / 2.0).round());
+    assert!(origin[1] + 919.0 * scale <= 720.0, "bottom tabs fit too");
     assert_eq!(frame_layout([3840.0, 2160.0]).0, 1.0);
 }
 

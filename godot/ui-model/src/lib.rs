@@ -134,8 +134,6 @@ pub mod cast_failed_text;
 pub mod casting_bar_frame_component;
 #[path = "ui/screens/main_action_bar_component.rs"]
 pub mod main_action_bar_component;
-#[path = "ui/screens/xp_bar_component.rs"]
-pub mod xp_bar_component;
 #[path = "ui/screens/pet_action_bar_component.rs"]
 pub mod pet_action_bar_component;
 #[path = "ui/screens/spellbook_frame_component.rs"]
@@ -144,6 +142,8 @@ pub mod spellbook_frame_component;
 pub mod ui_errors_data;
 #[path = "ui/screens/ui_errors_frame_component.rs"]
 pub mod ui_errors_frame_component;
+#[path = "ui/screens/xp_bar_component.rs"]
+pub mod xp_bar_component;
 
 pub use game_engine_core::camera_control_data;
 pub use game_engine_core::client_options_data;
@@ -212,9 +212,10 @@ pub mod character_frame_component;
 pub mod flare_panel;
 #[path = "ui/hud_layout.rs"]
 pub mod hud_layout;
+pub mod launcher;
+pub mod micro_menu;
 #[path = "ui/unit_frame_style.rs"]
 pub mod unit_frame_style;
-pub mod micro_menu;
 
 #[path = "game/cursor_item.rs"]
 pub mod cursor_item;

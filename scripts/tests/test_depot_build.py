@@ -694,7 +694,7 @@ class DepotBuildTests(unittest.TestCase):
         os.utime(outside, ns=(old, old))
         (source.parent / "link.rs").symlink_to(outside)
         failed = subprocess.run(
-            ["python3", str(REFRESH), str(context)],
+            ["python3", str(REFRESH), str(context), str(cache.parents[1])],
             capture_output=True,
             text=True,
             check=False,
@@ -704,7 +704,7 @@ class DepotBuildTests(unittest.TestCase):
         self.assertEqual(outside.stat().st_mtime_ns, old)
         (source.parent / "link.rs").unlink()
         refreshed = subprocess.run(
-            ["python3", str(REFRESH), str(context)],
+            ["python3", str(REFRESH), str(context), str(cache.parents[1])],
             capture_output=True,
             text=True,
             check=False,

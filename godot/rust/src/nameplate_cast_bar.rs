@@ -1,6 +1,6 @@
 //! Nameplate cast bar nodes: Retail's `ui-castingbar-background`/`-filling-standard`
 //! atlases under the health bar (docs/specs/nameplate-style.md), drawn from the active
-//! skin's sheet, with Retail's `NamePlateCastingBarTemplate` spark pip, interrupt shield,
+//! skin's sheet, with the approved B soft leading-edge glow, Retail's interrupt shield,
 //! spell icon and spell name row, driven by `nameplate_casts::CastBar`. The Thick bar
 //! follows the user's reference of 2026-10-04: as wide as the health frame, the icon at
 //! its left end and the name inside.
@@ -32,9 +32,10 @@ const THIN_LABEL_DROP: f32 = 14.0 * NAMEPLATE_SCALE;
 /// `NamePlateSetupOptions` at scale 1: `castIconWidth/Height`, `castBarShieldWidth/Height`.
 const ICON_SIZE: f32 = 12.0;
 const SHIELD_SIZE: Vector2 = Vector2::new(10.0, 12.0);
-/// `Spark:SetSize(4, 12)` then `castBarHeight + CAST_BAR_SPARK_EXTRA_HEIGHT` (8).
-const SPARK_WIDTH: f32 = 4.0;
-const SPARK_EXTRA_HEIGHT: f32 = 8.0;
+/// B's sigma ≈ 0.9 × 2.25 UI units. OBJFX_Glow's 64px radial alpha has a fitted
+/// sigma ≈ 10.7px, so this extent preserves the approved narrow, soft falloff.
+const SPARK_SIZE: Vector2 = Vector2::new(5.4, 13.5);
+const SPARK_GOLD: [f32; 3] = [1.0, 0.92, 0.65];
 /// `Text` anchors LEFT to `Icon` RIGHT, 2 px over.
 const ICON_TEXT_GAP: f32 = 2.0;
 /// `NamePlateCastingBarMixin` art (Blizzard_NamePlateCastingBar.lua:88,95,101) and the
@@ -42,11 +43,9 @@ const ICON_TEXT_GAP: f32 = 2.0;
 /// Forever's set-1 `uicastingbarc60` members of the same names.
 const BACKGROUND: &str = "ui-castingbar-background";
 const FILL: &str = "ui-castingbar-filling-standard";
-const PIP: &str = "ui-castingbar-pip";
+/// Blizzard's soft white radial alpha (FDID 959719), shared by both skins.
+const GLOW: &str = "objfx_glow";
 const SHIELD: &str = "nameplates-InterruptShield";
-/// CastingBarFrame.lua:689. Its two canvas-1 members (`-1x_red`, `-2x_red`) leave the
-/// skin resolver on the 2x one, so this stays the Retail 1x crop of `read_atlas_art`.
-const PIP_RED: &str = "ui-castingbar-pip-red";
 /// `CASTBAR_CLASSIC_RED`, the interrupted and failed fill.
 const INTERRUPTED_COLOR: [f32; 3] = [1.0, 0.0, 0.0];
 
@@ -68,7 +67,6 @@ pub(crate) fn skin_art(name: &str, skin: ActiveSkin) -> Result<AtlasArt, String>
 pub(crate) struct CastCrops {
     pub background: AtlasArt,
     pub fill: AtlasArt,
-    pub pip: AtlasArt,
     pub shield: AtlasArt,
 }
 
@@ -76,7 +74,6 @@ pub(crate) fn cast_crops(skin: ActiveSkin) -> Result<CastCrops, String> {
     Ok(CastCrops {
         background: skin_art(BACKGROUND, skin)?,
         fill: skin_art(FILL, skin)?,
-        pip: skin_art(PIP, skin)?,
         shield: skin_art(SHIELD, skin)?,
     })
 }
@@ -110,7 +107,7 @@ pub(crate) fn cast_layout(style: &NameplateStyle, fraction: f32, plate: (f32, f3
     let left = center.x - body.x / 2.0;
     let background = Rect2::new(center - body / 2.0, body);
     let fill = Rect2::new(background.position, Vector2::new(body.x * fraction, body.y));
-    let spark_size = Vector2::new(SPARK_WIDTH, body.y + SPARK_EXTRA_HEIGHT);
+    let spark_size = Vector2::new(SPARK_SIZE.x, body.y.min(SPARK_SIZE.y));
     let spark = Rect2::new(
         Vector2::new(left + body.x * fraction, center.y) - spark_size / 2.0,
         spark_size,
@@ -146,7 +143,6 @@ pub(crate) struct CastArt {
     /// The fill crop on `fill_sheet`, in pixels.
     fill_rect: Rect2,
     pip: Gd<AtlasTexture>,
-    pip_red: Gd<AtlasTexture>,
     shield: Gd<AtlasTexture>,
     icons: HashMap<u32, Option<Gd<Texture2D>>>,
 }
@@ -208,13 +204,12 @@ impl CastArt {
             pixel[..3].fill(value);
         }
         let fill_sheet = texture_from_rgba(&pixels, width, height)?;
-        let atlases = read_atlas_art(data_root, &[PIP_RED])?;
+        let atlases = read_atlas_art(data_root, &[GLOW])?;
         Ok(Self {
             background: atlas_art(&crops.background, data_root)?,
             fill_rect: pixel_rect(&crops.fill, &fill_sheet),
             fill_sheet,
-            pip: atlas_art(&crops.pip, data_root)?,
-            pip_red: atlas_art(&atlases[PIP_RED], data_root)?,
+            pip: atlas_art(&atlases[GLOW], data_root)?,
             shield: atlas_art(&crops.shield, data_root)?,
             icons: HashMap::new(),
         })
@@ -243,6 +238,7 @@ pub(crate) struct CastNodes {
     fill: Gd<TextureRect>,
     fill_region: Gd<AtlasTexture>,
     spark: Gd<TextureRect>,
+    spark_region: Gd<AtlasTexture>,
     pub icon: Gd<TextureRect>,
     pub shield: Gd<TextureRect>,
     pub text: Gd<RichTextLabel>,
@@ -268,8 +264,11 @@ impl CastNodes {
         let mut fill = texture_rect("Fill");
         fill.set_texture(&fill_region);
         let mut spark = texture_rect("Spark");
-        // `Spark` is `alphaMode="ADD"` (Blizzard_NamePlateCastingBar.xml:52): the pip
-        // brightens the fill and track under it, and its black edge columns add nothing.
+        let mut spark_region = AtlasTexture::new_gd();
+        spark_region.set_atlas(&art.pip);
+        spark.set_texture(&spark_region);
+        // Keep Retail's additive spark blend (Blizzard_NamePlateCastingBar.xml:52).
+        // The radial alpha brightens the track without an opaque core.
         let mut additive = CanvasItemMaterial::new_gd();
         additive.set_blend_mode(BlendMode::ADD);
         spark.set_material(&additive);
@@ -306,6 +305,7 @@ impl CastNodes {
             fill,
             fill_region,
             spark,
+            spark_region,
             icon,
             shield,
             text,
@@ -342,11 +342,15 @@ impl CastNodes {
         self.fill.set_self_modulate(fill_color(bar, style));
         place(&mut self.spark, layout.spark);
         self.spark.set_visible(bar.spark.is_some());
+        // Crop the shared glow vertically instead of squashing it on Thin bars.
+        let source_size = Vector2::new(art.pip.get_width() as f32, art.pip.get_height() as f32);
+        let crop_height = source_size.y * layout.spark.size.y / SPARK_SIZE.y;
+        self.spark_region.set_region(Rect2::new(
+            Vector2::new(0.0, (source_size.y - crop_height) / 2.0),
+            Vector2::new(source_size.x, crop_height),
+        ));
         if let Some(spark) = bar.spark {
-            self.spark.set_texture(match spark {
-                Spark::Pip => &art.pip,
-                Spark::PipRed => &art.pip_red,
-            });
+            self.spark.set_self_modulate(spark_color(spark));
         }
         place(&mut self.icon, layout.icon);
         self.icon.set_visible(bar.icon_shown && icon.is_some());
@@ -380,6 +384,15 @@ pub(crate) fn place(rect: &mut Gd<TextureRect>, at: Rect2) {
     rect.set_size(at.size);
 }
 
+/// `ShowSpark` retains its normal/interrupted choice; B changes only the artwork.
+fn spark_color(spark: Spark) -> Color {
+    let [r, g, b] = match spark {
+        Spark::Pip => SPARK_GOLD,
+        Spark::PipRed => INTERRUPTED_COLOR,
+    };
+    Color::from_rgb(r, g, b)
+}
+
 /// The style's cast colours by bar type (Retail `CastingBar` classic fill colours by
 /// default), red once interrupted or failed.
 fn fill_color(bar: &CastBar, style: &NameplateStyle) -> Color {
@@ -410,4 +423,28 @@ pub(crate) fn text_bbcode(bar: &CastBar) -> String {
 
 fn escape(text: &str) -> String {
     text.replace('[', "[lb]")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::nameplate_casts::PlateCasts;
+    use shared::{casting::CastState, spell_data::CastFailReason};
+
+    #[test]
+    fn nameplate_interrupted_and_failed_glows_tint_red_instead_of_gold() {
+        for reason in [CastFailReason::Interrupted, CastFailReason::OutOfRange] {
+            let mut casts = PlateCasts::default();
+            let mut cast = CastState::normal(133, 0, 2.0, true);
+            cast.elapsed = 1.0;
+            casts.observe(42, Some(&cast));
+            let normal = spark_color(casts.get(42).unwrap().spark.unwrap());
+            assert!(normal.r >= normal.g && normal.g > normal.b);
+            casts.observe(42, None);
+            casts.spell_failure(42, 133, reason, None);
+            let interrupted = spark_color(casts.get(42).unwrap().spark.unwrap());
+            assert!(interrupted.r > 0.9);
+            assert!(interrupted.g < 0.05 && interrupted.b < 0.05);
+        }
+    }
 }

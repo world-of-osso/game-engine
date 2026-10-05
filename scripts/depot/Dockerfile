@@ -16,7 +16,7 @@ ARG RELEASE=""
 RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=godot-bench-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/src/game-engine-godot-conversion/target,sharing=locked \
-    python3 /src/refresh-source-mtimes.py /src && \
+    python3 /src/refresh-source-mtimes.py /src "$CARGO_TARGET_DIR" && \
     if [ -n "$RELEASE" ]; then profile=release; else profile=debug; fi && \
     cargo build --locked --manifest-path godot/Cargo.toml -p game-engine-godot --lib -j "$JOBS" ${RELEASE:+--release} && \
     mkdir -p /out && gzip -1 -c "target/$profile/libgame_engine_godot.so" > /out/libgame_engine_godot.so.gz && \
@@ -43,7 +43,7 @@ RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry 
     --mount=type=cache,id=godot-bench-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/src/game-engine-godot-conversion/target,sharing=locked \
     --mount=type=bind,source=test-assets,target=/test-assets \
-    python3 /src/refresh-source-mtimes.py /src && \
+    python3 /src/refresh-source-mtimes.py /src "$CARGO_TARGET_DIR" && \
     rm -rf data && cp -a /test-assets data && \
     ln -sfn ../../data godot/core/data && mkdir -p /out && echo "test run $TEST_RUN" && \
     eval "set -- $TEST_ARGS" && \
