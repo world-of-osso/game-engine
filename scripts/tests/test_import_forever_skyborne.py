@@ -347,9 +347,21 @@ class CreationSceneAssetTests(unittest.TestCase):
             (data / "db2/12.1.0.69933/Map.csv").write_text("ID\n0\n")
             for name, raw in sources.items():
                 (staging / name).write_bytes(raw)
-            with closing(sqlite3.connect(cache / "resolution.sqlite")) as connection:
+            with (
+                closing(sqlite3.connect(cache / "resolution.sqlite")) as connection,
+                connection,
+            ):
                 connection.execute(
                     "create table resolution(fdid integer,content_key blob)"
+                )
+                import hashlib
+
+                connection.executemany(
+                    "insert into resolution values (?, ?)",
+                    [
+                        (int(name.split(".")[0]), hashlib.md5(raw).digest())
+                        for name, raw in sources.items()
+                    ],
                 )
             with (
                 patch.object(importer, "CACHE", cache),

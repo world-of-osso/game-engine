@@ -469,6 +469,8 @@ def lighting_assets(tables, retail_map_ids):
 
 
 def validate_magic(raw, extension, content_key=None):
+    if content_key is not None and hashlib.md5(raw).hexdigest() != content_key:
+        raise ValueError("asset bytes differ from current CASC content-key MD5")
     # Forever BFID payloads start with version 1, then BIDA/BOMT chunks.
     if extension == "bone" and raw[:8] == b"\x01\0\0\0BIDA":
         asset_references(raw[4:])  # Validate every chunk's bounds.
@@ -596,13 +598,12 @@ def import_assets(data, staging, tables, npc_roots=None, priority_displays=froze
                 present = path.is_file()
                 source = path if present else extracted_path(staging, fdid)
                 raw = source.read_bytes()
-                content_key = None
-                if ext == "anim":
-                    record = connection.execute(
-                        "select content_key from resolution where fdid=?", (fdid,)
-                    ).fetchone()
-                    if record:
-                        content_key = bytes(record[0]).hex()
+                record = connection.execute(
+                    "select content_key from resolution where fdid=?", (fdid,)
+                ).fetchone()
+                if not record:
+                    raise ValueError("missing current CASC root content key")
+                content_key = bytes(record[0]).hex()
                 validate_magic(raw, ext, content_key)
                 if not present:
                     path.parent.mkdir(parents=True, exist_ok=True)
@@ -634,7 +635,11 @@ def import_assets(data, staging, tables, npc_roots=None, priority_displays=froze
     connection.close()
     for fdid, ext, alias in aliases:
         source = data / "models" / f"{fdid}.{ext}"
-        if source.is_file() and not alias.is_file():
+        if (
+            (fdid, ext) not in failed_assets
+            and source.is_file()
+            and not alias.is_file()
+        ):
             shutil.copyfile(source, alias)
     counts.update(total=len(visited), failures=len(failures))
     print(f"assets: {json.dumps(counts)}", flush=True)

@@ -273,8 +273,15 @@ class ForeverNpcDisplayTests(unittest.TestCase):
                 "9002.skin": b"SKIN",
             }.items():
                 (staging / name).write_bytes(raw)
-            with closing(sqlite3.connect(data / "resolution.sqlite")) as conn:
+            with closing(sqlite3.connect(data / "resolution.sqlite")) as conn, conn:
                 conn.execute("create table resolution(fdid integer, content_key blob)")
+                conn.executemany(
+                    "insert into resolution values (?, ?)",
+                    [
+                        (int(path.stem), hashlib.md5(path.read_bytes()).digest())
+                        for path in staging.iterdir()
+                    ],
+                )
             with (
                 patch.object(importer, "CACHE", data),
                 patch.object(importer, "PROBE_DIRECTORY", data / "probes"),
@@ -290,6 +297,12 @@ class ForeverNpcDisplayTests(unittest.TestCase):
                     [],
                 )
             self.assertEqual((data / "models/900100.skin").read_bytes(), b"SKIN")
+
+    def test_cached_model_must_match_forever_content_key_not_just_magic(self):
+        raw = b"MD21" + bytes(4)
+        importer.validate_magic(raw, "m2", hashlib.md5(raw).hexdigest())
+        with self.assertRaisesRegex(ValueError, "content.key"):
+            importer.validate_magic(raw, "m2", "0" * 32)
 
     def test_probe_reuse_never_accepts_wrong_current_root_identity(self):
         with tempfile.TemporaryDirectory() as directory:
