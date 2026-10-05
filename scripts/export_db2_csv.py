@@ -820,7 +820,8 @@ def read_string(data, record_offset, field, value):
 def main():
     table, db2_path, out_path = sys.argv[1:4]
     layout, columns = TABLES[table]
-    data = open(db2_path, "rb").read()
+    with open(db2_path, "rb") as handle:
+        data = handle.read()
     rows, dropped, fields, sections = read_wdc5(
         data, layout, INLINE_ID_FIELD.get(table, 0)
     )
@@ -833,7 +834,13 @@ def main():
             def column(s):
                 if isinstance(s, tuple) and s[0] in NARROW:
                     signed, width = NARROW[s[0]]
-                    value = values[s[1]][s[2]] if len(s) == 3 else values[s[1]]
+                    value = values[s[1]]
+                    if len(s) == 3:
+                        value = (
+                            value[s[2]]
+                            if isinstance(value, tuple)
+                            else value >> (width * s[2])
+                        )
                     value &= (1 << width) - 1
                     return (
                         value - (1 << width)
