@@ -29,7 +29,7 @@ WoW Forever map 2991 must load through the Godot world's terrain and object load
 - [x] Import LiquidType, LiquidMaterial, LiquidObject and LiquidTypeXTexture using build-70205 hash-matched layouts, exact Retail headers and CASC provenance.
 - [x] Select a separate Forever liquid catalog only for maps absent by ID and directory in Retail. Colliding rows must not alter Retail liquid materials. Missing Forever tables, objects, types, materials or sampled textures fail explicitly.
 - [x] Extend local-CASC closure with textures referenced by authored MH2O instances and their LiquidObject type mappings.
-- [ ] Zephras native world fixture reports zero missing-liquid-type diagnostics and captures inspected coastal water.
+- [x] Zephras native world fixture reports zero missing-liquid-type diagnostics and captures inspected coastal water; PBR shader parity remains unproved.
 
 ## How it works
 

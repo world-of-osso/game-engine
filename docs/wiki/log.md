@@ -67,7 +67,7 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 
 ## Zephras liquid catalogs — import and bounded CPU proof
 
-[[terrain#Forever liquid catalogs — bounded CPU proof]] records hash-matched four-table exports, packed-string-array decoding, map-product isolation, six new verified textures and preserved199 Retail type results. Python27/27 and desktop core15/15 pass. Strengthened old-binary fixture fails on absent water; local native build/capture remains pending after desktop connectivity failed. [Contract](../specs/zephras-world-map.md#liquids), [ledger](../../target/zephras-liquid-proof-ledger.md).
+[[terrain#Forever liquid catalogs — bounded CPU proof]] records hash-matched four-table exports, packed-string-array decoding, map-product isolation, six new verified textures and preserved199 Retail type results. Python27/27 and desktop core15/15 pass. Strengthened old-binary fixture fails on absent water. Main-authorized local native build passes after desktop connectivity fails; fresh world capture exits0 with170 water surfaces,zero missing-liquid diagnostics/engine errors. Inspected coast shows blown-out white/cyan lake around a rocky grassy island; no PBR parity or settled-world claim. [Contract](../specs/zephras-world-map.md#liquids), [ledger](../../target/zephras-liquid-proof-ledger.md).
 
 ## 2026-10-05 — Forever NPC gear overlay and bounded resource proof
 
