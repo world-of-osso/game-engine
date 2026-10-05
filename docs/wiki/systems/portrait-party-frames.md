@@ -23,7 +23,7 @@ Forever paths are relative to `~/.cache/wow-ui-sim/blizzard-ui/wowforever/AddOns
 
 `Blizzard_UnitFrame/Mainline/PartyMemberFrame.lua:13,71-118` explicitly adds the conditional `CharacterFrameOn` art branch. Portrait mask becomes the player portrait mask; frame/health use `CharacterFrameOnParty` atlases; mana moves to (46,−30), width 69. Component deliberately selects this approved branch for Forever; the cached standard template does **not** prove automatic activation. Power fills select the corresponding named CharacterFrameOnParty regions (not hard-coded crops); Modern selects Party regions.
 
-`uipartyframec60` is not the verified mapping. The actual DB2 relation in `data/db2/1.60.1.69913/` is:
+The conditional CharacterFrameOnParty DB2 relation in `data/db2/1.60.1.69913/` is:
 
 | Source | Relation |
 |---|---|
@@ -31,7 +31,11 @@ Forever paths are relative to `~/.cache/wow-ui-sim/blizzard-ui/wowforever/AddOns
 | `UiTextureAtlasMember.csv:17334` | set-1 member 38477, `...portraiton-c60`, element 33561 → atlas 3960; crop (1,457)–(121,506), 120×49 |
 | `UiTextureAtlas.csv:2562` | atlas 3960 → FDID 8036204, set 1, 256×512 |
 
-This is the **same sheet as Forever's player portrait-on**, verified by the relation test rather than pinned FDIDs/UVs. The stale root CSVs/listfile miss this set-1 relation; use the versioned DB2 directories the atlas loader actually reads. No new asset mapping or fallback added.
+This is the **same sheet as Forever's player portrait-on** (`scripts/forever-atlas-listfile.csv:7`, `interface/hud/uiunitframec60.blp`), verified by a relation test rather than pinned FDIDs/UVs. The local raw-BGRA BLP is 256×512; its 120×49 crop was inspected and saved as `data/diagnostics/party1-2026-10-05/camelot-party-art.png`.
+
+**`uipartyframec60` also exists, but is a different branch.** `scripts/forever-atlas-listfile.csv:49` maps `interface/hud/uipartyframec60.blp` to 8116745. Versioned `UiTextureAtlas.csv:2616` maps it to set-1 atlas 4019 (128×128); `UiTextureAtlasMember.csv:17817` maps member 39017 to element 21081 (`UI-HUD-UnitFrame-Party-PortraitOn`), crop (1,53)–(121,102), 120×49. `:17818` maps member 39018 to the vehicle variant. Thus ordinary Party art (and half-scale pet art) resolves to uipartyframec60 under Forever; the requested conditional CharacterFrameOnParty frame resolves to uiunitframec60. Do not conflate them.
+
+The stale root CSVs/community listfile miss these set-1 relations; the project supplement and versioned DB2 directories the atlas loader actually reads establish them. No new asset mapping or fallback added.
 
 ### Proof and capture
 
