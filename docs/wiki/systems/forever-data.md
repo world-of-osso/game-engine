@@ -10,6 +10,10 @@ Forever `1.60.1.70205` supplies Skyborne character data alongside Retail, not as
 
 At `2d82554a`, the collection query interprets only Forever skinned-model rows referenced by options on models 218/219. Eight unrelated rows have GeosetID values outside u16; raw source/cache values are retained, unrelated rows are not interpreted, and a selected invalid row still errors. This is not general support for those wide representations.
 
+## Liquid exports
+
+The existing importer also exports hash-matched LiquidType, LiquidMaterial, LiquidObject and LiquidTypeXTexture with exact Retail headers. [Terrain: Forever liquid catalogs](terrain.md#forever-liquid-catalogs--bounded-cpu-proof) owns their IDs, native product isolation, texture closure and proof boundary.
+
 ## Source limitations
 
 Importer provenance records **17 CreatureDisplayInfo and 8 Map records dropped** from zero-filled encrypted sections. CDI's extracted MD5 differs from its CASC content key because local CASC zero-filled unknown encrypted chunks, not because the content key identifies the decoded zero-filled bytes. Skyborne CDI rows are in the readable key-0 section. Drops are explicit; encrypted records are not reconstructed.
@@ -20,7 +24,7 @@ Observed AFID assets are untagged timestamp/keyframe streams: importer acceptanc
 
 The initial root encoding key `fcae3917977c7fdf9f3864ed5bf96521` was absent from local indexes. On **2026-10-04**, Battle.net's `wow_classic_beta` update completed at 18:55 UTC; scoped Syncthing sender rescans corrected stale advertised archive sizes for data.207/209/210. Root initialization then succeeded (1,436,183 entries), allowing the tables and body/skin/icon assets to be recovered.
 
-The [Zephras inventory](terrain.md#forever-zephras-map-2991) retains 169 archive failures, with 48/72 roots available: **24 root tiles remain unavailable**. The earlier user-reported disk-full/Syncthing blocker was followed by resumed synchronization. The gear import below recovered previously unavailable NPC metadata and assets. Neither the earlier 21-file subset nor NPC recovery proves the terrain closure complete.
+The historical initial [Zephras inventory](terrain.md#forever-zephras-map-2991) lacked24 roots and recorded169 archive failures. [Post-sync recovery](../../../target/forever-resync/ledger.md) supersedes that availability gap; the [current liquid closure](terrain.md#forever-liquid-catalogs--bounded-cpu-proof) includes its six new textures. NPC metadata limitations below remain separate from terrain asset availability.
 
 ## Proof boundary
 
