@@ -401,6 +401,16 @@ pub const FOREVER_CHAT_HEADER_FDIDS: [u32; 4] = [
     FLARE_VOLUME_ART.0,
 ];
 
+/// The header glyph textures. FlareUI tints white icons with `SetVertexColor` (Chat.lua:547,
+/// colours Core.lua:162-177), so the host draws each Blizzard crop as a white mask and the
+/// vertex colour is the glyph's colour.
+pub const FOREVER_CHAT_HEADER_ICONS: [&str; 4] = [
+    "ChatFrame1FlareChannelIcon",
+    "ChatFrame1FlareMenuIcon",
+    "ChatFrame1FlareSocialIcon",
+    "ChatFrame1FlareVolumeIcon",
+];
+
 /// Hit box of header glyph `index` (left to right) on a skin at `skin_x` `skin_width` wide.
 fn forever_header_button(index: usize, skin_x: f32, skin_width: f32) -> [f32; 4] {
     let from_right = (FOREVER_HEADER_GLYPHS.len() - 1 - index) as f32;
