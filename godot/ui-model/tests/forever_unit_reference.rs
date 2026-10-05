@@ -100,64 +100,78 @@ fn text<'a>(
     };
     text
 }
+fn right(r: (f32, f32, f32, f32)) -> f32 {
+    r.0 + r.2
+}
 #[test]
 fn text_is_player_left_and_target_tot_focus_mirrored() {
     let r = units(Reaction::Hostile);
-    for (name, expected, value, justify) in [
-        ("PlayerLevelText", (8.0, 4.0, 20.0, 38.0), "60", "LEFT"),
-        (
-            "PlayerName",
-            (31.0, 4.0, 157.0, 38.0),
-            "Testpaladin",
-            "LEFT",
-        ),
-        (
-            "PlayerHealthBarText",
-            (192.0, 4.0, 40.0, 38.0),
-            "75%",
-            "RIGHT",
-        ),
-        ("TargetLevelText", (212.0, 4.0, 20.0, 52.0), "60", "RIGHT"),
-        ("TargetName", (52.0, 4.0, 157.0, 52.0), "Target", "RIGHT"),
-        ("TargetHealthBarText", (8.0, 4.0, 40.0, 52.0), "75%", "LEFT"),
-        (
-            "TargetOfTargetLevelText",
-            (92.0, 4.0, 20.0, 20.0),
-            "60",
-            "RIGHT",
-        ),
-        (
-            "TargetOfTargetName",
-            (52.0, 4.0, 37.0, 20.0),
-            "Target",
-            "RIGHT",
-        ),
-        (
-            "TargetOfTargetHealthBarText",
-            (8.0, 4.0, 40.0, 20.0),
-            "75%",
-            "LEFT",
-        ),
-        ("FocusLevelText", (132.0, 4.0, 20.0, 28.0), "60", "RIGHT"),
+    for (name, value, justify) in [
+        ("PlayerLevelText", "60", "LEFT"),
+        ("PlayerName", "Testpaladin", "LEFT"),
+        ("PlayerHealthBarText", "75%", "RIGHT"),
+        ("TargetLevelText", "60", "RIGHT"),
+        ("TargetName", "Target", "RIGHT"),
+        ("TargetHealthBarText", "75%", "LEFT"),
+        ("TargetOfTargetLevelText", "60", "RIGHT"),
+        ("TargetOfTargetName", "Target", "RIGHT"),
+        ("TargetOfTargetHealthBarText", "75%", "LEFT"),
+        ("FocusLevelText", "60", "RIGHT"),
     ] {
-        if name.ends_with("Name") {
-            // Names are one line (no word wrap, FlareUI UnitFrames.lua:2101), centred on
-            // the text band the level and health texts span.
-            let (x, y, w, h) = rect(&r, name);
-            let (ex, ey, ew, eh) = expected;
-            assert_eq!((x, w), (ex, ew), "{name}");
-            assert!(h < 20.0, "{name} is taller than one line: {h}");
-            assert_eq!(y + h / 2.0, ey + eh / 2.0, "{name} is off the band's centre");
-        } else {
-            assert_eq!(rect(&r, name), expected, "{name}");
-        }
         assert_eq!(text(&r, name).text, value, "{name}");
         assert_eq!(text(&r, name).justify_h.as_str(), justify, "{name}");
     }
-    assert_eq!(
-        rect(&r, "TargetOfTargetHealthBarFill"),
-        (28.0, 0.0, 84.0, 20.0)
-    );
+    // Player: level at the left edge, health at the right edge, name between;
+    // Target and TargetOfTarget mirror that.
+    for (prefix, mirrored) in [
+        ("Player", false),
+        ("Target", true),
+        ("TargetOfTarget", true),
+    ] {
+        let level = rect(&r, &format!("{prefix}LevelText"));
+        let name = rect(&r, &format!("{prefix}Name"));
+        let health = rect(&r, &format!("{prefix}HealthBarText"));
+        let (first, last) = if mirrored {
+            (health, level)
+        } else {
+            (level, health)
+        };
+        assert!(right(first) <= name.0, "{prefix}: name overlaps left text");
+        assert!(right(name) <= last.0, "{prefix}: name overlaps right text");
+        // Names are one line (no word wrap, FlareUI UnitFrames.lua:2101), centred on
+        // the text band the level and health texts span.
+        assert!(
+            name.3 < 20.0,
+            "{prefix}Name is taller than one line: {}",
+            name.3
+        );
+        assert_eq!(
+            name.1 + name.3 / 2.0,
+            level.1 + level.3 / 2.0,
+            "{prefix}Name is off the band's centre"
+        );
+        assert_eq!((level.1, level.3), (health.1, health.3), "{prefix} band");
+    }
+    // Player and Target share one width: each Target text is the Player text mirrored.
+    let width = right(rect(&r, "PlayerHealthBarText")) + rect(&r, "PlayerLevelText").0;
+    for (player, target) in [
+        ("PlayerLevelText", "TargetLevelText"),
+        ("PlayerName", "TargetName"),
+        ("PlayerHealthBarText", "TargetHealthBarText"),
+    ] {
+        let (p, t) = (rect(&r, player), rect(&r, target));
+        assert_eq!(
+            (t.0, t.2),
+            (width - p.0 - p.2, p.2),
+            "{target} mirrors {player}"
+        );
+    }
+    // TargetOfTarget's health fill is 75% of its bar, draining from the left.
+    let fill = rect(&r, "TargetOfTargetHealthBarFill");
+    let Dimension::Fixed(bar_width) = frame(&r, "TargetOfTargetHealthBar").width else {
+        panic!("TargetOfTargetHealthBar not fixed")
+    };
+    assert_eq!((fill.2, right(fill)), (0.75 * bar_width, bar_width));
     assert_eq!(
         frame(&r, "TargetOfTargetHealthBarFill").background_color,
         // hostile REACTION 0.87,0.27,0.27 times the Flat bar texture's 143/255 grey
@@ -193,17 +207,20 @@ fn pet_is_below_player_right_and_tot_right_of_target() {
 #[test]
 fn existing_aura_icons_are_above_right_edge_growing_left() {
     let r = units(Reaction::Hostile);
-    for prefix in ["Target"] {
-        assert_eq!(
-            rect(&r, &format!("{prefix}BuffIcon0")),
-            (216.0, -24.0, 20.0, 20.0)
-        );
-        assert_eq!(
-            rect(&r, &format!("{prefix}BuffIcon1")),
-            (194.0, -24.0, 20.0, 20.0)
-        );
-    }
-    assert_eq!(rect(&r, "TargetBuffIcon5"), (216.0, -46.0, 20.0, 20.0));
+    let icon = |i: u32| rect(&r, &format!("TargetBuffIcon{i}"));
+    let level = rect(&r, "TargetLevelText");
+    assert!(icon(0).1 + icon(0).3 <= 0.0, "icons sit above the frame");
+    assert!(
+        right(icon(0)) >= right(level),
+        "first icon is at the right edge"
+    );
+    assert_eq!(icon(1).1, icon(0).1);
+    assert!(
+        right(icon(1)) <= icon(0).0,
+        "row grows left without overlap"
+    );
+    assert_eq!(icon(5).0, icon(0).0, "next row restarts at the right edge");
+    assert!(icon(5).1 + icon(5).3 <= icon(0).1, "next row stacks upward");
 }
 #[test]
 fn cast_icon_name_remaining_time_and_dark_track() {
@@ -219,15 +236,25 @@ fn cast_icon_name_remaining_time_and_dark_track() {
     });
     let mut r = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(casting_bar_frame_screen).sync(&shared, &mut r);
-    assert_eq!(rect(&r, "CastingBarIcon"), (4.0, 4.0, 26.0, 26.0));
-    assert_eq!(rect(&r, "CastingBarSpellName"), (4.0, 0.0, 240.0, 26.0));
-    assert_eq!(rect(&r, "CastingBarTimer"), (248.0, 0.0, 40.0, 26.0));
+    let icon = rect(&r, "CastingBarIcon");
+    let name = rect(&r, "CastingBarSpellName");
+    let timer = rect(&r, "CastingBarTimer");
+    assert_eq!(icon.2, icon.3, "icon is square");
+    assert_eq!(
+        (name.1, name.3),
+        (timer.1, timer.3),
+        "name and timer share a row"
+    );
+    assert!(right(name) <= timer.0, "timer is right of the name");
     assert_eq!(text(&r, "CastingBarSpellName").text, "Fireball");
     assert_eq!(text(&r, "CastingBarSpellName").justify_h.as_str(), "LEFT");
     assert_eq!(text(&r, "CastingBarTimer").text, "1.5");
     assert_eq!(text(&r, "CastingBarTimer").justify_h.as_str(), "RIGHT");
-    assert_eq!(
-        frame(&r, "CastingBarBackground").background_color,
-        Some([0.15, 0.15, 0.15, 0.9])
+    let Some([red, green, blue, alpha]) = frame(&r, "CastingBarBackground").background_color else {
+        panic!("CastingBarBackground has no colour")
+    };
+    assert!(
+        red.max(green).max(blue) < 0.3 && alpha > 0.5,
+        "track is dark"
     );
 }

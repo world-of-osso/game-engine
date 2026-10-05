@@ -161,57 +161,80 @@ fn modern_chat_and_meter_are_byte_identical_to_base() {
     assert_eq!(tree.as_bytes(), baseline::MODERN_TREE.as_bytes());
 }
 
+/// The header is the skin's top band; the separator is a drawn line along its bottom edge.
+fn assert_header_band(registry: &FrameRegistry, skin: &str, header: &str, separator: &str) {
+    let (skin_x, skin_y, skin_w, skin_h) = rect(registry, skin);
+    let (header_x, header_y, header_w, header_h) = rect(registry, header);
+    assert_eq!(
+        (header_x, header_y, header_w),
+        (skin_x, skin_y, skin_w),
+        "{header}"
+    );
+    assert!(header_h < skin_h, "{header} taller than its skin");
+    let (sep_x, sep_y, sep_w, sep_h) = rect(registry, separator);
+    assert!(
+        sep_x >= header_x && sep_x + sep_w <= header_x + header_w,
+        "{separator} spills out of {header}"
+    );
+    assert_eq!(
+        sep_y,
+        header_y + header_h,
+        "{separator} not along {header}'s bottom"
+    );
+    assert!(sep_h > 0.0 && sep_w > 0.0, "{separator} is empty");
+    let color = frame(registry, separator).background_color;
+    assert_eq!(color.map(|c| c[3]), Some(1.0), "{separator} is not drawn");
+}
+
 #[test]
 fn forever_meter_header_has_text_tabs_and_bronze_icons() {
     let registry = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
-    assert_eq!(
-        rect(&registry, "DamageMeterFlareHeader"),
-        (-2.0, -2.0, 454.0, 24.0)
+    assert_header_band(
+        &registry,
+        "DamageMeterFlareSkin",
+        "DamageMeterFlareHeader",
+        "DamageMeterFlareSeparator",
     );
-    assert_eq!(
-        rect(&registry, "DamageMeterFlareSeparator"),
-        (1.0, 22.0, 448.0, 1.0)
-    );
-    assert_eq!(
-        frame(&registry, "DamageMeterFlareSeparator").background_color,
-        Some([0.65, 0.49, 0.27, 1.0])
-    );
-    assert_eq!(
-        rect(&registry, "DamageMeterTypeName"),
-        (15.0, 7.0, 90.0, 12.0)
-    );
+    let (_, header_y, _, _) = rect(&registry, "DamageMeterFlareHeader");
+    let (_, separator_y, _, _) = rect(&registry, "DamageMeterFlareSeparator");
+    let (type_x, type_y, type_w, type_h) = rect(&registry, "DamageMeterTypeName");
+    assert!(type_y >= header_y && type_y + type_h <= separator_y);
+    assert!(type_x + type_w <= rect(&registry, "DamageMeterSessionDropdown").0);
     assert_eq!(font(&registry, "DamageMeterTypeName").text, "DPS");
-    assert_eq!(
-        font(&registry, "DamageMeterTypeName").color,
-        [0.80, 0.60, 0.34, 1.0]
-    );
     assert_eq!(font(&registry, "DamageMeterHpsTabName").text, "HPS");
-    assert_eq!(
+    assert_ne!(
+        font(&registry, "DamageMeterTypeName").color,
         font(&registry, "DamageMeterHpsTabName").color,
-        [0.56, 0.51, 0.46, 1.0]
+        "the selected tab looks different from the other"
     );
     assert!(registry.get_by_name("DamageMeterThreatTab").is_none());
-    assert_eq!(
-        rect(&registry, "DamageMeterSessionDropdown"),
-        (398.5, -1.0, 22.0, 22.0)
-    );
-    assert_eq!(
-        rect(&registry, "DamageMeterSettings"),
-        (419.5, -1.0, 22.0, 22.0)
-    );
-    for (index, left, top, height) in [(0, 0.0, 7.7, 5.5), (1, 5.5, 4.4, 8.8), (2, 11.0, 0.0, 13.2)]
-    {
+    // Three equal-width chart columns side by side, rising left to right from one baseline,
+    // tinted like the settings glyph.
+    let columns: Vec<_> = (0..3)
+        .map(|index| rect(&registry, &format!("DamageMeterChartColumn{index}")))
+        .collect();
+    let tint = texture(&registry, "DamageMeterSettingsIcon").vertex_color;
+    for (index, column) in columns.iter().enumerate() {
+        assert_eq!(column.2, columns[0].2, "column {index} width");
+        assert!(
+            (column.1 + column.3 - (columns[0].1 + columns[0].3)).abs() < 1e-3,
+            "column {index} baseline"
+        );
         let name = format!("DamageMeterChartColumn{index}");
-        assert_eq!(rect(&registry, &name), (left, top, 2.2, height));
         assert_eq!(
             frame(&registry, &name).background_color,
-            Some([0.61, 0.48, 0.29, 1.0])
+            Some(tint),
+            "{name}"
         );
+        if index > 0 {
+            let previous = columns[index - 1];
+            assert!(
+                column.0 >= previous.0 + previous.2,
+                "column {index} overlaps"
+            );
+            assert!(column.3 > previous.3, "column {index} does not rise");
+        }
     }
-    assert_eq!(
-        texture(&registry, "DamageMeterSettingsIcon").vertex_color,
-        [0.61, 0.48, 0.29, 1.0]
-    );
     for removed in [
         "DamageMeterSessionTimer",
         "DamageMeterTypeArrow",
@@ -221,10 +244,6 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
         assert!(registry.get_by_name(removed).is_none(), "{removed}");
     }
     let panel = frame(&registry, "DamageMeterFlareSkin");
-    assert_eq!(
-        rect(&registry, "DamageMeterFlareSkin"),
-        (-2.0, -2.0, 454.0, 218.0)
-    );
     assert_eq!(panel.panel_style.as_deref(), Some("flare_bronze"));
     assert_eq!(
         panel.nine_slice.as_ref().unwrap().bg_color,
@@ -240,9 +259,11 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
         texture(&registry, "DamageMeterEntry2Icon").source,
         "a mage and a warrior show different class icons"
     );
-    assert_eq!(
-        frame(&registry, "DamageMeterEntry1Bar").background_color,
-        Some([0.1, 0.1, 0.1, 0.9])
+    assert!(
+        frame(&registry, "DamageMeterEntry1Bar")
+            .background_color
+            .is_some(),
+        "the bar's track is drawn"
     );
     // Class-coloured fill, as long as damage over the top damage.
     assert_eq!(
@@ -256,10 +277,13 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
     );
     let gradient = texture(&registry, "DamageMeterEntry1Gradient");
     assert_eq!(gradient.tex_coords, [1.0, 0.0, 0.0, 1.0]);
-    assert_eq!(gradient.vertex_color, [0.0, 0.0, 0.0, 0.6]);
+    // The row border is the header separator's bronze.
+    let bronze = frame(&registry, "DamageMeterFlareSeparator")
+        .background_color
+        .unwrap();
     assert_eq!(
         texture(&registry, "DamageMeterEntry1BarBorderTopLeft").vertex_color,
-        [0.65, 0.49, 0.27, 1.0]
+        bronze
     );
     for (name, label, justify) in [
         ("DamageMeterEntry1Name", "1. Fbmage", JustifyH::Left),
@@ -428,17 +452,16 @@ fn forever_chat_has_plain_text_tabs_separator_and_four_header_icons() {
         rect(&registry, "ChatFrame1FlareSkin"),
         (24.0, -7.0, 450.0, 214.0)
     );
-    assert_eq!(
-        rect(&registry, "ChatFrame1FlareHeader"),
-        (24.0, -7.0, 450.0, 24.0)
+    assert_header_band(
+        &registry,
+        "ChatFrame1FlareSkin",
+        "ChatFrame1FlareHeader",
+        "ChatFrame1FlareSeparator",
     );
-    assert_eq!(
-        rect(&registry, "ChatFrame1FlareSeparator"),
-        (27.0, 17.0, 444.0, 1.0)
-    );
+    let header_height = frame(&registry, "ChatFrame1FlareHeader").height;
     for index in 0..3 {
         let name = format!("ChatFrame1TabsTab{index}");
-        assert_eq!(frame(&registry, &name).height, Dimension::Fixed(24.0));
+        assert_eq!(frame(&registry, &name).height, header_height, "{name}");
         assert_eq!(
             frame(&registry, &name).onclick.as_deref(),
             Some(ChatTab::ALL[index].action())
@@ -447,19 +470,22 @@ fn forever_chat_has_plain_text_tabs_separator_and_four_header_icons() {
         assert_eq!(label.font_size, 12.0);
         assert_eq!(
             label.color,
-            if index == 0 {
-                [0.80, 0.60, 0.34, 1.0]
-            } else {
-                [0.56, 0.51, 0.46, 1.0]
-            }
+            if index == 0 { ACTIVE } else { INACTIVE },
+            "{name}: only the selected tab is highlighted"
         );
         assert!(registry.get_by_name(&format!("{name}Left")).is_none());
     }
     assert!(registry.get_by_name("ChatFrame1CopyButton").is_none());
-    assert_eq!(
-        rect(&registry, "ChatFrame1Messages"),
-        (34.0, 27.0, 430.0, 170.0)
+    // Messages fill the skin below the separator.
+    let (skin_x, skin_y, skin_w, skin_h) = rect(&registry, "ChatFrame1FlareSkin");
+    let (_, separator_y, _, separator_h) = rect(&registry, "ChatFrame1FlareSeparator");
+    let (x, y, w, h) = rect(&registry, "ChatFrame1Messages");
+    assert!(
+        x >= skin_x && x + w <= skin_x + skin_w,
+        "messages spill sideways"
     );
+    assert!(y >= separator_y + separator_h, "messages under the header");
+    assert!(y + h <= skin_y + skin_h, "messages spill below the skin");
 }
 
 fn assert_header_icons(

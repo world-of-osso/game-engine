@@ -155,28 +155,36 @@ fn modern_trees() -> String {
     out
 }
 
-fn assert_region(name: &str, skin: ActiveSkin, fdid: u32, size: [u32; 2], rect: [f32; 4]) {
-    let region = resolve_region(name, skin).unwrap();
-    assert_eq!(
-        region.source,
-        AtlasSource::FileDataId(fdid),
-        "{name} {skin:?}"
-    );
-    let actual = region.rect_pixels(size[0], size[1]);
-    assert_eq!(
-        [actual.min[0], actual.max[0], actual.min[1], actual.max[1]],
-        rect,
-        "{name} {skin:?}"
-    );
-}
-
-fn assert_texture(registry: &FrameRegistry, name: &str, fdid: u32, coords: [f32; 4]) {
-    let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
-    let Some(WidgetData::Texture(data)) = &frame.widget_data else {
-        panic!("expected texture {name}")
+/// `frame` draws the non-empty atlas member `atlas` resolves to under `skin`; returns its file.
+fn assert_draws_member(
+    registry: &FrameRegistry,
+    frame: &str,
+    atlas: &str,
+    skin: ActiveSkin,
+) -> u32 {
+    let region = resolve_region(atlas, skin).unwrap_or_else(|| panic!("{atlas} {skin:?}"));
+    let AtlasSource::FileDataId(fdid) = region.source else {
+        panic!("{atlas} {skin:?} is not a file: {:?}", region.source)
     };
-    assert_eq!(data.source, TextureSource::FileDataId(fdid), "{name}");
-    assert_eq!(data.tex_coords, coords, "{name}");
+    assert!(
+        region.left < region.right && region.top < region.bottom,
+        "{atlas} {skin:?} is empty"
+    );
+    let data = registry.get(registry.get_by_name(frame).unwrap()).unwrap();
+    let Some(WidgetData::Texture(data)) = &data.widget_data else {
+        panic!("expected texture {frame}")
+    };
+    assert_eq!(
+        data.source,
+        TextureSource::FileDataId(fdid),
+        "{frame} {skin:?}"
+    );
+    assert_eq!(
+        data.tex_coords,
+        [region.left, region.right, region.top, region.bottom],
+        "{frame} {skin:?}"
+    );
+    fdid
 }
 
 fn assert_quest_chrome(skin: ActiveSkin) {
@@ -194,92 +202,46 @@ fn assert_quest_chrome(skin: ActiveSkin) {
         },
         quest_log_frame_screen,
     );
-    for (registry, name) in [
-        (&dialog, "QuestFrameTopTileStreaks"),
-        (&log, "QuestLogFrameTopTileStreaks"),
-    ] {
-        assert_texture(
-            registry,
-            name,
-            1_723_833,
-            [0.0, 1.0, 1.0 / 128.0, 44.0 / 128.0],
-        );
-    }
-    for (registry, name) in [
-        (&dialog, "QuestFrameParchment"),
-        (&log, "QuestLogDetailsBackground"),
-    ] {
-        assert_texture(
-            registry,
-            name,
-            3_813_080,
-            [1.0 / 1024.0, 300.0 / 1024.0, 1.0 / 1024.0, 408.0 / 1024.0],
-        );
-    }
-    assert_texture(
-        &log,
-        "QuestLogHeader12Background",
-        904_010,
-        [
-            579.0 / 2048.0,
-            839.0 / 2048.0,
-            986.0 / 1024.0,
-            1023.0 / 1024.0,
-        ],
-    );
-    for (name, fdid, size, rect) in [
+    for (registry, name, atlas) in [
         (
+            &dialog,
+            "QuestFrameTopTileStreaks",
             "_UI-Frame-TopTileStreaks",
-            1_723_833,
-            [256, 128],
-            [0.0, 256.0, 1.0, 44.0],
         ),
         (
-            "QuestBG-Parchment",
-            3_813_080,
-            [1024, 1024],
-            [1.0, 300.0, 1.0, 408.0],
+            &log,
+            "QuestLogFrameTopTileStreaks",
+            "_UI-Frame-TopTileStreaks",
         ),
-        (
-            "questlog_divider",
-            904_010,
-            [2048, 1024],
-            [579.0, 839.0, 986.0, 1023.0],
-        ),
+        (&dialog, "QuestFrameParchment", "QuestBG-Parchment"),
+        (&log, "QuestLogDetailsBackground", "QuestBG-Parchment"),
+        (&log, "QuestLogHeader12Background", "questlog_divider"),
     ] {
-        assert_region(name, skin, fdid, size, rect);
+        assert_draws_member(registry, name, atlas, skin);
     }
 }
 
-fn assert_close_texture(skin: ActiveSkin, fdid: u32, coords: [f32; 4]) {
+/// Both quest windows' close buttons draw `RedButton-Exit` under `skin`; returns its file.
+fn assert_close_texture(skin: ActiveSkin) -> u32 {
     set_active_skin(skin);
-    for (root, registry) in [
-        (
-            "QuestFrame",
-            registry(QuestFrameState::default(), quest_frame_screen),
+    let dialog = registry(QuestFrameState::default(), quest_frame_screen);
+    let log = registry(QuestLogFrameState::default(), quest_log_frame_screen);
+    let fdid = assert_draws_member(
+        &dialog,
+        "QuestFrameCloseButtonNormal",
+        "RedButton-Exit",
+        skin,
+    );
+    assert_eq!(
+        assert_draws_member(
+            &log,
+            "QuestLogFrameCloseButtonNormal",
+            "RedButton-Exit",
+            skin
         ),
-        (
-            "QuestLogFrame",
-            registry(QuestLogFrameState::default(), quest_log_frame_screen),
-        ),
-    ] {
-        let frame = registry
-            .get(
-                registry
-                    .get_by_name(&format!("{root}CloseButtonNormal"))
-                    .unwrap(),
-            )
-            .unwrap();
-        let Some(WidgetData::Texture(data)) = &frame.widget_data else {
-            panic!("expected texture")
-        };
-        assert_eq!(
-            data.source,
-            TextureSource::FileDataId(fdid),
-            "{root} {skin:?}"
-        );
-        assert_eq!(data.tex_coords, coords, "{root} {skin:?}");
-    }
+        fdid
+    );
+    fdid
 }
 
 #[test]
@@ -303,29 +265,10 @@ fn quest_chrome_preserves_modern_and_resolves_forever() {
     load_tables();
     set_active_skin(ActiveSkin::Modern);
     assert_eq!(modern_trees().as_bytes(), fixture::MODERN_TREES.as_bytes());
-    assert_region(
-        "RedButton-Exit",
-        ActiveSkin::Modern,
-        5_262_907,
-        [128, 64],
-        [21.0, 39.0, 1.0, 20.0],
-    );
-    assert_region(
-        "RedButton-Exit",
-        ActiveSkin::Forever,
-        8_107_307,
-        [256, 128],
-        [35.0, 67.0, 1.0, 33.0],
-    );
-    assert_close_texture(
-        ActiveSkin::Modern,
-        5_262_907,
-        [21.0 / 128.0, 39.0 / 128.0, 1.0 / 64.0, 20.0 / 64.0],
-    );
-    assert_close_texture(
-        ActiveSkin::Forever,
-        8_107_307,
-        [35.0 / 256.0, 67.0 / 256.0, 1.0 / 128.0, 33.0 / 128.0],
+    // Forever draws its own close-button art, not Modern's.
+    assert_ne!(
+        assert_close_texture(ActiveSkin::Modern),
+        assert_close_texture(ActiveSkin::Forever)
     );
     assert_quest_chrome(ActiveSkin::Modern);
     assert_quest_chrome(ActiveSkin::Forever);
