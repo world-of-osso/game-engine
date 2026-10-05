@@ -18,10 +18,11 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 - [x] Pages: two 680×650 views (View1 TOPLEFT 85,-65, View2 TOPRIGHT -50,-65), headers take a row, items fill 3 columns column-first with the fewest rows (PCG.lua), `xPadding` 15, `yPadding` 10, `spacerSize` 20; a group that runs out of height continues in the next view; "Page %d/%d" (`PAGE_NUMBER_WITH_MAX`) with previous/next buttons.
 - [x] Items (SBI.xml, 60 high): 36 px icon in a square (active) or circle (passive) border, name in `SystemFont_Large` and `SPELLBOOK_FONT_COLOR`, "Passive" subtext for passives. Spells flagged `SPELL_ATTR0_DO_NOT_DISPLAY` (Attributes_0 0x80) or `SPELL_ATTR4_NOT_IN_SPELLBOOK` (Attributes_4 0x8000) are not listed; `SPELL_ATTR7_ONLY_IN_SPELLBOOK_UNTIL_LEARNED` (Attributes_7 0x10000) spells only as future spells, `SPELL_ATTR8_NOT_IN_SPELLBOOK_UNTIL_LEARNED` (Attributes_8 0x2000) only once known.
 - [x] Window: the book sits in a 1618×883 `PlayerSpellsFrame` `PortraitFrameTemplate` (rock background, portrait metal frame, the active spec's icon as the round portrait, close button).
-- [ ] Bottom Specialization / Talents / Spellbook tabs select exclusive pages and update the title in both presets; window fit includes the bottom tabs. Same-page key toggles close, different-page keys select without closing.
+- [x] Bottom Specialization / Talents / Spellbook tabs select exclusive pages and update the title in both presets; window fit includes the bottom tabs. Same-page key toggles close, different-page keys select without closing.
 - [ ] P opens Spellbook; N opens Talents. Interface key-binding data includes both and an initially unbound Specialization action (Retail has no separate specialization default). Retail's single combined PlayerSpells micro button opens Specialization while the native talent system is absent, and closes a shown window.
-- [ ] Specialization lists the class's non-Initial ChrSpecialization rows in OrderIndex order: name, icon, role and description, equal-width columns and server-active marker. Activate sends the existing SetSpecialization message, is disabled below level 10, and never marks a spec active optimistically.
-- [ ] Talents remains an empty page with its tab present: no native talent system/tree. Retail hides an unavailable Talents tab rather than showing an unavailable-content page; retaining the empty tab is the explicit requested deviation.
+- [x] Specialization lists the class's non-Initial ChrSpecialization rows in OrderIndex order: name, icon, role and description, equal-width columns and server-active marker; Activate is disabled below level 10.
+- [ ] Native Activate sends the existing SetSpecialization message and never marks a spec active optimistically (model action/active marker tested; actual sender integration not yet proven).
+- [x] Talents remains an empty page with its tab present: no native talent system/tree. Retail hides an unavailable Talents tab rather than showing an unavailable-content page; retaining the empty tab is the explicit requested deviation.
 - [x] Spells learned at later levels (the class line's and the active spec's, race-masked) follow the known ones in level order, greyed (`unlearnedTextAlpha` 0.6, icon desaturated and tinted `SPELLBOOK_UNLEARNED_TINT_COLOR`, inactive border) with "Level %d" (`SPELLBOOK_AVAILABLE_AT`); they cannot be cast.
 - [x] Clicking a known active spell's icon casts it.
 - [x] Authored left-pointer-down on a known active spellbook icon or main action-bar button starts the owned native Effects click before mouse-up at `master × effects × 0.55`; release, right pointer input, keyboard casts, and spellbook reopening do not replay it.
@@ -54,7 +55,9 @@ Source exports under `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowforever}/AddOns
 ## Tests asserting this spec
 
 - `godot/core/tests/spell_catalog.rs`: warrior names/icons, rendered Battle Shout description; level 1 and level 10 Arms spellbook lists with future spells by level.
-- `godot/ui-model/tests/spellbook_frame.rs`: column-first grid (PCG.lua examples), view continuation, Level N and cast actions, desaturation, fit scale.
+- `godot/ui-model/tests/spellbook_frame.rs`: column-first grid (PCG.lua examples), view continuation, Level N and cast actions, desaturation, fit including bottom tabs, exclusive page selection in both presets, N/P model routes, pinned paladin spec metadata, active marker and Activate enabled/disabled actions.
+- `godot/core/tests/input_bindings_data.rs`: P/N defaults, unbound specialization action in Interface and persisted binding inventory.
+- `godot/ui-model/tests/micro_menu.rs`: combined PlayerSpells button routes to Specialization while talents are absent.
 - `godot/ui-model/tests/main_action_bar.rs`: bar geometry, keys, icon, cooldown swipe/countdown, click actions.
 - `godot/ui-model/tests/spell_tooltip.rs`: line order, colours, height.
 - `godot/rust/src/spell_tooltip.rs` tests: Slam "20 Rage | Melee Range", "Instant"; Charge "8-25 yd range", cast/cooldown formats; word wrap and colour escapes.
