@@ -22,45 +22,5 @@ pub use logic::*;
 mod scene;
 pub(crate) use scene::CreationScene;
 
-use crate::GameClient;
-use godot::prelude::*;
-
-#[godot_api]
-impl GameClient {
-    /// Read-only active creation catalog for native diagnostics and automation.
-    #[func]
-    fn character_creation_catalog(&self) -> VarDictionary {
-        let mut result = VarDictionary::new();
-        let (Some(state), Some(db)) = (self.creation.as_ref(), self.creation_catalog.as_ref())
-        else {
-            result.set("error", "Character creation is not active");
-            return result;
-        };
-        let Some(options) = db.options_for(state.customization_race(), state.selected_sex) else {
-            result.set(
-                "error",
-                "No catalog options for the active creation race/body type",
-            );
-            return result;
-        };
-        result.set("race", i64::from(state.selected_race));
-        result.set("sex", i64::from(state.selected_sex));
-        result.set("class", i64::from(state.selected_class));
-        result.set(
-            "raw_option_ids",
-            &Array::<i64>::from_iter(options.iter().map(|option| i64::from(option.id))),
-        );
-        result.set(
-            "offered_option_ids",
-            &Array::<i64>::from_iter(
-                customization_view::offered_options(state, db)
-                    .iter()
-                    .map(|option| i64::from(option.id)),
-            ),
-        );
-        result
-    }
-}
-
 #[cfg(test)]
 mod tests;
