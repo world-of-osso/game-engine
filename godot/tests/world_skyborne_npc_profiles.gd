@@ -5,6 +5,11 @@ const VENTAARI := "Ventaari Brightwish"
 
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
+	var blank := Image.create(1024, 1024, false, Image.FORMAT_RGBA8)
+	blank.fill(Color(0.12, 0.14, 0.17))
+	if capture_has_visible_pixels(blank):
+		fail("NPC capture guard accepted a blank frame")
+		return
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	if not server.begins_with("127.0.0.1:") or server.ends_with(":0"):
 		fail("Skyborne fixture requires owned loopback endpoint")
@@ -74,9 +79,23 @@ func capture_authored_visual(visual: Node3D) -> bool:
 			await process_frame
 		await RenderingServer.frame_post_draw
 		var path := output.path_join("ventaari-139694-" + view + ".png")
-		var result := viewport.get_texture().get_image().save_png(path)
+		var image := viewport.get_texture().get_image()
+		if not capture_has_visible_pixels(image):
+			fail("NPC capture has no visible body: " + path)
+			return false
+		var result := image.save_png(path)
 		if result != OK:
 			fail("Cannot save " + path + ": " + str(result))
 			return false
 		print("FIXTURE SCREENSHOT ", path)
 	return true
+
+func capture_has_visible_pixels(image: Image) -> bool:
+	var background := image.get_pixel(0, 0)
+	var changed_samples := 0
+	for y in range(0, image.get_height(), 16):
+		for x in range(0, image.get_width(), 16):
+			if image.get_pixel(x, y) != background:
+				changed_samples += 1
+	print("FIXTURE CAPTURE_CHANGED_SAMPLES ", changed_samples)
+	return changed_samples >= 64
