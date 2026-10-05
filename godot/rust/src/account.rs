@@ -144,6 +144,8 @@ pub enum AccountEvent {
     Feedback,
     WorldReset,
     RestState(RestStateUpdate),
+    /// `ReputationStateUpdate`: faction standings (`UPDATE_FACTION`) or a refusal.
+    Reputation(shared::protocol::ReputationStateUpdate),
     /// The realm's game time (`SMSG_LOGIN_SET_TIME_SPEED`).
     GameTime(shared::protocol::LoginSetTimeSpeed),
     LoadTerrain(LoadTerrain),
@@ -1014,6 +1016,10 @@ impl Account {
         }
         if message.is::<RestStateUpdate>() {
             output.push(AccountEvent::RestState(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ReputationStateUpdate>() {
+            output.push(AccountEvent::Reputation(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::LoginSetTimeSpeed>() {

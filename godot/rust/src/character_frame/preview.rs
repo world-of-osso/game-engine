@@ -54,7 +54,7 @@ impl ModelPreview {
 
 impl GameClient {
     pub(super) fn sync_character_model(&mut self) -> Result<(), String> {
-        if !self.character_frame.is_open() {
+        if !self.character_frame.paperdoll_shown() {
             if let Some((id, _)) = self.character_frame.preview.pending.take() {
                 self.world.cancel_detached_visual(id);
             }

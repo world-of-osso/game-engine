@@ -10,14 +10,21 @@ use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
+use crate::ui::screens::inworld_unit_frames_component::PortraitSlot;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
-use crate::ui::screens::quest_art::{DynName, NORMAL_FONT_COLOR, atlas_texture, window_chrome};
+use crate::ui::screens::quest_art::{
+    DynName, NORMAL_FONT_COLOR, atlas_texture, window_chrome, window_portrait, window_portrait_slot,
+};
 use crate::ui::strata::FrameStrata;
 
 pub const FRAME_NAME: &str = "MerchantFrame";
 /// MF.xml:92 `<Size x="336" y="444"/>`.
 pub const FRAME_W: f32 = 336.0;
 pub const FRAME_H: f32 = 444.0;
+
+/// `MerchantFramePortrait`: `MerchantFrame:SetPortraitToUnit("npc")` (MF.lua:269); the
+/// host renders the vendor's portrait (`MerchantSession::portrait_unit`) into it.
+pub const PORTRAIT: PortraitSlot = window_portrait_slot("MerchantFramePortrait");
 
 pub const ACTION_CLOSE: &str = "merchant_close";
 pub const ACTION_PAGE_PREV: &str = "merchant_page_prev";
@@ -178,6 +185,7 @@ pub fn merchant_frame_screen(ctx: &SharedContext) -> Element {
         .expect("MerchantFrameState must be in SharedContext");
     let hide = !state.visible;
     let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), &state.title, ACTION_CLOSE);
+    children.extend(window_portrait(&PORTRAIT));
     children.extend(inset());
     children.extend(cells(state));
     if !state.buyback_tab {
@@ -980,4 +988,3 @@ pub(crate) fn tab(
         }
     }
 }
-
