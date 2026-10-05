@@ -105,16 +105,16 @@ SCHEMA_SHA256 = {
 CONTRACT = {
     "Item": "ID ClassID SubclassID IconFileDataID SheatheType".split(),
     "ItemSparse": "ID Display_lang OverallQualityID Stackable SellPrice Bonding RequiredLevel InventoryType ItemLevel MaxCount Description_lang ContainerSlots ExpansionID ItemDelay DmgVariance Flags_1".split()
-    + [f"StatModifier_bonusStat{i}" for i in range(10)]
-    + [f"StatPercentEditor{i}" for i in range(10)],
+    + [f"StatModifier_bonusStat_{i}" for i in range(10)]
+    + [f"StatPercentEditor_{i}" for i in range(10)],
     "ItemSubClass": "ClassID SubClassID DisplayName_lang".split(),
     "ItemAppearance": "ID DefaultIconFileDataID".split(),
     "ItemModifiedAppearance": "ItemID ItemAppearanceID OrderIndex".split(),
-    "ItemArmorQuality": ["ID"] + [f"Qualitymod{i}" for i in range(7)],
+    "ItemArmorQuality": ["ID"] + [f"Qualitymod_{i}" for i in range(7)],
     "ItemArmorTotal": "ItemLevel Cloth Leather Mail Plate".split(),
     "ArmorLocation": "ID Clothmodifier Leathermodifier Chainmodifier Platemodifier".split(),
     "RandPropPoints": ["ID"]
-    + [f"{kind}F{i}" for kind in ("Good", "Superior", "Epic") for i in range(5)],
+    + [f"{kind}F_{i}" for kind in ("Good", "Superior", "Epic") for i in range(5)],
 }
 for _name in (
     "ItemArmorShield",
@@ -123,19 +123,7 @@ for _name in (
     "ItemDamageTwoHand",
     "ItemDamageTwoHandCaster",
 ):
-    CONTRACT[_name] = ["ItemLevel"] + [f"Quality{i}" for i in range(7)]
-# Only spelling changes, not synthesized values or semantic conversions.
-ALIASES = {
-    **{f"StatModifier_bonusStat{i}": f"StatModifier_bonusStat_{i}" for i in range(10)},
-    **{f"StatPercentEditor{i}": f"StatPercentEditor_{i}" for i in range(10)},
-    **{f"Qualitymod{i}": f"Qualitymod_{i}" for i in range(7)},
-    **{f"Quality{i}": f"Quality_{i}" for i in range(7)},
-    **{
-        f"{kind}F{i}": f"{kind}F_{i}"
-        for kind in ("Good", "Superior", "Epic")
-        for i in range(5)
-    },
-}
+    CONTRACT[_name] = ["ItemLevel"] + [f"Quality_{i}" for i in range(7)]
 
 
 def hash_bytes(content):
@@ -218,16 +206,13 @@ def encode_contract(name, rows):
     writer.writerow(columns)
     for row in sorted(rows, key=lambda r: r["ID"]):
         missing = [
-            column
-            for column in columns
-            if ALIASES.get(column, column) not in row
-            or row[ALIASES.get(column, column)] is None
+            column for column in columns if column not in row or row[column] is None
         ]
         if missing:
             raise ValueError(
                 f"{name} row {row['ID']}: missing critical fields {missing}"
             )
-        writer.writerow([row[ALIASES.get(column, column)] for column in columns])
+        writer.writerow([row[column] for column in columns])
     return stream.getvalue().encode()
 
 
