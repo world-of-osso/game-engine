@@ -36,6 +36,11 @@ pub(super) fn list_containing(registry: &FrameRegistry, mut id: u64) -> Option<S
 
 /// How far `list` scrolls per wheel notch and per stepper press, in its scroll units.
 fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
+    use game_engine_ui_model::character_frame::{REPUTATION_SCROLL, reputation_pan_extent};
+    if list == REPUTATION_SCROLL {
+        let pan = reputation_pan_extent();
+        return (pan * 2, pan);
+    }
     if QUEST_SCROLL_FRAMES.contains(&list) {
         return (SCROLL_PAN_EXTENT, SCROLL_PAN_EXTENT);
     }
@@ -194,3 +199,7 @@ pub(super) mod tests;
 #[cfg(test)]
 #[path = "quest_scroll_tests.rs"]
 mod quest_tests;
+
+#[cfg(test)]
+#[path = "character_reputation_scroll_lists_tests.rs"]
+mod character_reputation_tests;
