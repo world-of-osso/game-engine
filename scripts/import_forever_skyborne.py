@@ -18,9 +18,11 @@ from pathlib import Path
 try:
     from scripts import export_db2_csv as export
     from scripts import forever_npc_displays as npc
+    from scripts import forever_liquids as liquids
 except ModuleNotFoundError:
     import export_db2_csv as export
     import forever_npc_displays as npc
+    import forever_liquids as liquids
 
 # Public importer helpers also exercised by the bounded NPC tests.
 npc_asset_roots = npc.npc_asset_roots
@@ -113,6 +115,7 @@ TABLES.update(
     }
 )
 TABLES.update(npc.TABLES)
+TABLES.update(liquids.TABLES)
 NEW_TABLES = set(npc.TABLES) | {
     "CharBaseInfo",
     "ChrRacesCreateScreenIcon",
@@ -127,6 +130,7 @@ RETAIL_TABLES = {
     "CreatureModelData",
     "LightParams",
     "LightSkybox",
+    *liquids.TABLES,
 }
 
 
@@ -174,7 +178,7 @@ def parse_definition(text, layout):
             if "id" in flags:
                 source = "id"
             elif kind in ("string", "locstring"):
-                source = ("string", index)
+                source = ("string", index, element)
             elif kind == "float":
                 source = ("float", index, element)
             elif kind == "int" and width in ("8", "16", "32", "64"):
@@ -202,7 +206,15 @@ def decode_rows(data, layout, columns, id_field):
                 kind, index, *elements = source
                 value = values[index]
                 if kind == "string":
-                    value = export.read_string(data, offset, fields[index], value)
+                    element = elements[0] if elements else 0
+                    bits = (
+                        value[element]
+                        if isinstance(value, tuple)
+                        else value >> (32 * element)
+                    )
+                    field = list(fields[index])
+                    field[0] += 32 * element
+                    value = export.read_string(data, offset, field, bits & 0xFFFFFFFF)
                 else:
                     width = 32 if kind == "float" else int(kind[1:])
                     element = elements[0]
