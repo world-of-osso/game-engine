@@ -4,13 +4,14 @@ import importlib.util
 import io
 import json
 import os
-from pathlib import Path
+import signal
 import subprocess
 import sys
 import tarfile
 import tempfile
 import time
 import unittest
+from pathlib import Path
 from unittest.mock import patch
 
 SCRIPT = Path(__file__).resolve().parents[1] / "build_hosts.py"
@@ -37,7 +38,12 @@ if name == 'docker':
     if os.environ.get('FAIL_STAGE') == 'docker':
         sys.exit(7)
     if os.environ.get('BARRIER'):
-        import time
+        import signal, time
+        (base / (os.environ['BARRIER'] + '.pid')).write_text(str(os.getpid()))
+        def cancel(signum, frame):
+            (base / 'cancelled').write_text(str(signum))
+            sys.exit(130)
+        signal.signal(signal.SIGINT, cancel)
         (base / os.environ['BARRIER']).touch()
         deadline = time.monotonic() + 10
         while not (base / 'release').exists():
@@ -204,10 +210,16 @@ class BuildHostTests(unittest.TestCase):
                 archive = self.base / "source.tar.gz"
                 with tarfile.open(archive, "w:gz") as bundle:
                     member = tarfile.TarInfo(
-                        "../escaped" if kind == "traversal" else "/escaped" if kind == "absolute" else "link"
+                        "../escaped"
+                        if kind == "traversal"
+                        else "/escaped"
+                        if kind == "absolute"
+                        else "link"
                     )
                     if kind in ("symlink", "hardlink"):
-                        member.type = tarfile.SYMTYPE if kind == "symlink" else tarfile.LNKTYPE
+                        member.type = (
+                            tarfile.SYMTYPE if kind == "symlink" else tarfile.LNKTYPE
+                        )
                         member.linkname = "../escaped"
                     bundle.addfile(member, io.BytesIO())
                 with self.assertRaises(ValueError):
@@ -250,18 +262,70 @@ class BuildHostTests(unittest.TestCase):
                         and time.monotonic() < deadline
                     ):
                         time.sleep(0.01)
-                    self.assertTrue((self.base / name).exists(), "first build failed to enter Docker")
+                    self.assertTrue(
+                        (self.base / name).exists(),
+                        "first build failed to enter Docker",
+                    )
             time.sleep(0.2)
             self.assertIsNone(children[1].poll())
-            self.assertFalse((self.base / "second").exists(), "second build overlapped first")
+            self.assertFalse(
+                (self.base / "second").exists(), "second build overlapped first"
+            )
         finally:
             (self.base / "release").touch()
             for child in children:
                 self.assertEqual(child.wait(timeout=10), 0)
         for name in ("first", "second"):
-            self.module.extract_directory(self.base / f"{name}.tar.gz", self.base / f"{name}-result")
-            artifact = json.loads((self.base / f"{name}-result/artifact.json").read_text())
+            self.module.extract_directory(
+                self.base / f"{name}.tar.gz", self.base / f"{name}-result"
+            )
+            artifact = json.loads(
+                (self.base / f"{name}-result/artifact.json").read_text()
+            )
             self.assertEqual(artifact["files"]["src/lib.rs"], "original source")
+
+    def test_local_build_is_cancelled_when_helper_dies(self):
+        script = (
+            "import sys; from pathlib import Path; sys.path.insert(0, sys.argv[1]); "
+            "import build_hosts as h; "
+            "h.execute(Path(sys.argv[2]), Path(sys.argv[3]), 'checkout-a', 'fixture', [], 'local')"
+        )
+        for death_signal in (signal.SIGTERM, signal.SIGKILL):
+            with self.subTest(signal=death_signal):
+                ready = self.base / "dying"
+                cancelled = self.base / "cancelled"
+                ready.unlink(missing_ok=True)
+                cancelled.unlink(missing_ok=True)
+                child = subprocess.Popen(
+                    [
+                        sys.executable,
+                        "-c",
+                        script,
+                        str(SCRIPT.parent),
+                        str(self.context),
+                        str(self.output),
+                    ],
+                    env={**os.environ, "BARRIER": "dying"},
+                )
+                try:
+                    deadline = time.monotonic() + 5
+                    while not ready.exists() and time.monotonic() < deadline:
+                        time.sleep(0.01)
+                    self.assertTrue(ready.exists(), "build did not start")
+                    child.send_signal(death_signal)
+                    child.wait(timeout=5)
+                    deadline = time.monotonic() + 3
+                    while not cancelled.exists() and time.monotonic() < deadline:
+                        time.sleep(0.01)
+                    self.assertTrue(cancelled.exists(), "build survived helper death")
+                    self.assertEqual(cancelled.read_text(), str(signal.SIGINT))
+                finally:
+                    (self.base / "release").touch()
+                    if child.poll() is None:
+                        child.kill()
+                    child.wait(timeout=5)
+                    time.sleep(0.1)
+                    (self.base / "release").unlink(missing_ok=True)
 
     def test_invalid_host_and_key_fail_before_transport(self):
         for host, key in (("depot", "checkout-a"), ("desktop", "../escape")):

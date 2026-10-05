@@ -6,11 +6,13 @@ also uploaded as the fixed OssoBuild worker; no network/config fallback exists.
 """
 
 import base64
+import ctypes
 import fcntl
 import json
 import os
 import re
 import shutil
+import signal
 import subprocess
 import sys
 import tarfile
@@ -49,6 +51,59 @@ def docker_command(context, output, checkout_key, target, build_args):
         *build_args,
         str(context),
     ]
+
+
+def run_build_command(command: list[str]) -> None:
+    """Keep the client in the caller's cgroup, watched even after SIGKILL."""
+    subprocess.run(
+        [
+            sys.executable,
+            str(Path(__file__).resolve()),
+            "--owned-build",
+            str(os.getpid()),
+            json.dumps(command),
+        ],
+        check=True,
+    )
+
+
+def watch_build(parent_pid: int, command: list[str]) -> int:
+    """Linux guardian: parent death/termination requests a graceful solve cancel."""
+    cancelled = False
+
+    def request_cancel(signum, frame):
+        nonlocal cancelled
+        cancelled = True
+
+    for signum in (signal.SIGTERM, signal.SIGINT):
+        signal.signal(signum, request_cancel)
+    libc = ctypes.CDLL(None, use_errno=True)
+    if libc.prctl(1, signal.SIGTERM, 0, 0, 0) != 0:  # PR_SET_PDEATHSIG
+        error = ctypes.get_errno()
+        raise OSError(error, os.strerror(error))
+    # Parent may have died before prctl armed the notification.
+    if os.getppid() != parent_pid or cancelled:
+        return 130
+    with subprocess.Popen(command, start_new_session=True) as client:
+        while not cancelled:
+            try:
+                return client.wait(timeout=0.1)
+            except subprocess.TimeoutExpired:
+                continue
+        try:
+            os.killpg(client.pid, signal.SIGINT)
+        except ProcessLookupError:
+            return client.wait()
+        try:
+            client.wait(timeout=20)
+        except subprocess.TimeoutExpired:
+            print(
+                "build client ignored cancellation for 20s; killing owned group",
+                file=sys.stderr,
+            )
+            os.killpg(client.pid, signal.SIGKILL)
+            client.wait()
+        return 130
 
 
 def pack_directory(source: Path, archive: Path) -> None:
@@ -114,9 +169,8 @@ def worker(
                 prefix=f"output-{checkout_key}-", dir=CACHE_ROOT
             ) as temporary:
                 output = Path(temporary)
-                subprocess.run(
-                    docker_command(context, output, checkout_key, target, build_args),
-                    check=True,
+                run_build_command(
+                    docker_command(context, output, checkout_key, target, build_args)
                 )
                 pack_directory(output, output_archive)
         finally:
@@ -218,19 +272,16 @@ def execute(
         raise ValueError(f"unsupported build host: {host!r}")
     context, output = context.resolve(), output.resolve()
     if host == "local":
-        wrapper = Path(__file__).resolve().parent / "agent/agent-run"
-        subprocess.run(
-            [
-                str(wrapper),
-                "build-host",
-                *docker_command(context, output, checkout_key, target, build_args),
-            ],
-            check=True,
+        run_build_command(
+            docker_command(context, output, checkout_key, target, build_args)
         )
     else:
         desktop(context, output, checkout_key, target, build_args)
 
 
 if __name__ == "__main__":
+    if sys.argv[1] == "--owned-build":
+        status = watch_build(int(sys.argv[2]), json.loads(sys.argv[3]))
+        sys.exit(status if status >= 0 else 128 - status)
     archive, output, key, target, arguments = sys.argv[1:]
     worker(Path(archive), Path(output), key, target, json.loads(arguments))

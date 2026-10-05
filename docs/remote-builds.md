@@ -36,6 +36,42 @@ python3 scripts/depot-build.py --root "$PWD" --cli
 
 `--fixture`, `--cli`, `--release`, and `--test` retain their arguments and source/assets behavior on both hosts. For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host desktop --test -p game-engine-core` (substitute `local` as needed). Host selection does not make GDScript or GPU tests part of `--test`.
 
+## Build cancellation
+
+Local Docker clients inherit the helper's cgroup instead of entering a separate
+`agents-build_host.slice`. Start agent builds through `scripts/agent/agent-run <name>`
+so stopping `agents-<name>.slice` reaches both the helper and its buildx client.
+The shared transport used by engine and server builds also starts a Linux guardian:
+parent death (including SIGKILL), SIGTERM, or SIGINT requests SIGINT cancellation
+of the owned client process group. The guardian waits up to 20 seconds before
+killing an unresponsive client group; it never restarts or kills the shared builder.
+The uploaded desktop worker uses the same guardian, but this does not establish
+that an SSH disconnect terminates the remote worker.
+
+Verified October 5, 2026 with buildx 0.30.1 and BuildKit 0.33.1, using the
+`buildorphan` slot (`TARGET_CACHE=godot-target-f0047e41ce8fae69428c`):
+
+- During network-test compilation, clients 866594/866614 belonged to
+  `agents-buildorphan.slice`; container cargo 786962 and rustc 786975 were active.
+  Stopping that slice left neither client nor any container cargo/rustc within
+  0.30 seconds. The log reported `#11 CANCELED` and `Canceled: context canceled`;
+  build ref `rriz5sbucra7w3hc2pnzlb0xl` ended without killing container processes
+  manually. Graceful client cancellation was sufficient for this installed builder.
+- The default extension build compiled ui-model/GDExtension, exported and installed
+  `target/debug/libgame_engine_godot.so` in 40.3 seconds (completed ref
+  `ideq6k0ta7tfzzbibzb5d0xqe`; installed ELF x86-64, SHA-256
+  `d921b85b630d5c00ab2c52c7392eacf9af7949981e66a6f5d1906cca4263d053`).
+  Session-test compile/export also completed with exit 0 in 106 seconds
+  (ref `u972aous6a4lqhh5tylpmem05`); core-test compile/export completed too.
+- The cancellation build waited on the unchanged shared lock from 13:22 to 13:41
+  CDT. History records bracket its solve: preceding locked build ended at
+  18:41:19.986 UTC, this solve ran 18:41:21.294–18:41:36.635 UTC, and the next
+  locked server solve began 18:41:37.640 UTC. No overlap between these solves.
+
+Proof logs/process listings: the slot's `target/buildorphan-proof/`. Regression
+fixtures in `scripts/tests/test_build_hosts.py` reproduce helper SIGTERM and
+SIGKILL with real child processes (both failed before the fix).
+
 ## Native server/simulator acceptance boundary
 
 The server and simulator normal development paths use the shared native runner, not the Docker extension builder described above; see the [server guide](../../game-server/docs/remote-builds.md) and [simulator guide](../../../wow/wow-ui-sim/docs/remote-builds.md).
