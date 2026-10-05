@@ -9,7 +9,8 @@
     # Cargo target / registry caches (RUN --mount=type=cache).
     filters = ["type==exec.cachemount"]
     keepDuration = "720h"
-    maxUsedSpace = "250GB"
+    # 6 client slots (up to ~50 GB each) + 3 server slots (~25 GB) must all stay warm.
+    maxUsedSpace = "400GB"
 
   [[worker.oci.gcpolicy]]
     # Everything else: layers, local sources, git checkouts.
@@ -20,5 +21,5 @@
   [[worker.oci.gcpolicy]]
     all = true
     reservedSpace = "10GB"
-    maxUsedSpace = "320GB"
-    minFreeSpace = "100GB"
+    maxUsedSpace = "450GB"
+    minFreeSpace = "80GB"
