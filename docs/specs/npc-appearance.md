@@ -25,7 +25,8 @@ Replicated NPCs render the appearance selected by their creature display data. R
 - [x] Missing Extra/geoset tables must block required appearance coverage, not publish an ordinary-creature substitute. Existing Retail appearance rows remain unchanged.
 - [x] Resolve armor for Forever-only display IDs through Forever NPCModelItemSlotDisplayInfo, keeping Extra joins product-scoped on collisions. Outfit ItemDisplayInfo, material/model resource groups, component FDID ownership and helmet visibility groups use Forever only when absent from Retail. Checked outfit resolution reports declared missing model/texture mappings rather than dropping the gear. Cache freshness includes added/removed Forever gear sources.
 - [x] Resolve unnamed Skyborne body FDIDs 7478487/7478494 without invented listfile paths; select their authored HD bake resources. Named non-Skyborne bodies retain their authored SD/HD path classification.
-- [ ] Native Ailee Farheart (136968) and Ventaari Brightwish (139694) require authored appearance and inspected offscreen visual proof; model-ID resolution alone is insufficient. Both authored CDI/CMD chains use female body 7478494.
+- [x] Native Ventaari Brightwish (139694) resolves authored female body 7478494, baked clothing, composed head/hair and armor; inspect opposite-view offscreen captures through the replicated NPC path.
+- [ ] Native Ailee Farheart (136968) still requires authored appearance and inspected offscreen visual proof. Both authored CDI/CMD chains use female body 7478494; Ailee's required texture resource 1102747 has no current TextureFileData mapping. Spawn must report missing coverage and withhold its visual, not substitute a bare or Retail body.
 
 ## How it works
 
