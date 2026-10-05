@@ -23,6 +23,10 @@ use crate::replicated::UnitFields;
 
 /// `UnitPopupRaidTarget<n>ButtonMixin:OnClick` → `SetRaidTargetIcon(unit, n)`.
 const ACTION_UNIT_MENU_RAID_TARGET_PREFIX: &str = "unit_menu_raid_target:";
+const ACTION_DISMISS_PET: &str = "unit_menu_dismiss_pet";
+const ACTION_DISMISS_HUNTER_PET: &str = "unit_menu_dismiss_hunter_pet";
+const DISMISS_PET_SPELL: u32 = 2641;
+const HUNTER_CLASS: u8 = 3;
 /// `UnitPopupRaidTargetButtonMixin:GetEntries` order with `RAID_TARGET_8..1` and
 /// `RAID_TARGET_NONE` (GlobalStrings).
 const RAID_TARGET_ENTRIES: [(u8, &str); 9] = [
@@ -115,6 +119,43 @@ fn focus_after(action: &str, unit: u64, focus: Option<u64>) -> Option<u64> {
     }
 }
 
+/// Retail UnitPopupSharedButtonMixins.lua:1037-1056: PET_DISMISS calls
+/// PetDismiss for summoned pets, but casts learned 2641 for hunter pets.
+fn pet_menu_items(hunter: bool, knows_dismiss: bool) -> Vec<UnitMenuItem> {
+    if hunter && !knows_dismiss {
+        return Vec::new();
+    }
+    let action = if hunter {
+        ACTION_DISMISS_HUNTER_PET
+    } else {
+        ACTION_DISMISS_PET
+    };
+    vec![UnitMenuItem {
+        name: "UnitFrameContextMenuDismissPet".into(),
+        label: "Dismiss Pet".into(),
+        action: action.into(),
+    }]
+}
+
+fn dismiss_pet_action(
+    action: &str,
+    unit: u64,
+    pet: Option<u64>,
+) -> Option<shared::protocol::PetAction> {
+    if action != ACTION_DISMISS_PET || Some(unit) != pet {
+        return None;
+    }
+    Some(shared::protocol::PetAction {
+        pet: unit,
+        action: shared::protocol::pet_action_button(
+            shared::protocol::COMMAND_ABANDON,
+            shared::protocol::ACT_COMMAND,
+        ),
+        target: None,
+        position: None,
+    })
+}
+
 fn inside([x, y, w, h]: [f32; 4], point: Vector2) -> bool {
     point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h
 }
@@ -155,12 +196,17 @@ impl GameClient {
                 .unit(id)
                 .is_some_and(crate::replicated::is_unit)
         });
-        let Some((unit, from_focus_frame)) = menu_unit(
-            on_target_frame,
-            on_focus_frame,
-            self.targeting_target(),
-            focus,
-        ) else {
+        let selected = if on_frame("PetFrame") {
+            self.local_pet_id().map(|pet| (pet, false))
+        } else {
+            menu_unit(
+                on_target_frame,
+                on_focus_frame,
+                self.targeting_target(),
+                focus,
+            )
+        };
+        let Some((unit, from_focus_frame)) = selected else {
             return false;
         };
         let Some(local) = self.account.session.selected_character_name.clone() else {
@@ -175,7 +221,22 @@ impl GameClient {
             Some(player) => player_items(&self.account.group, &local, player),
             None => Vec::new(),
         };
-        let items = menu_items(from_focus_frame, player_items);
+        let pet_items = if Some(unit) == self.local_pet_id() {
+            let hunter = self
+                .world
+                .local_player_id()
+                .and_then(|id| self.replica.unit(id))
+                .and_then(|unit| unit.get::<Player>())
+                .is_some_and(|player| player.class == HUNTER_CLASS);
+            let knows_dismiss = self.account.spells.known().contains(&DISMISS_PET_SPELL);
+            pet_menu_items(hunter, knows_dismiss)
+        } else {
+            Vec::new()
+        };
+        let items = menu_items(
+            from_focus_frame,
+            player_items.into_iter().chain(pet_items).collect(),
+        );
         self.unit_menu = UnitMenu {
             state: self.unit_menu_state(title, items, point),
             unit: Some(unit),
@@ -189,7 +250,13 @@ impl GameClient {
         let Some(unit) = self.unit_menu.unit else {
             return;
         };
-        if Some(unit) != self.targeting_target() && Some(unit) != self.targeting.focus {
+        let still_available = [
+            self.targeting_target(),
+            self.targeting.focus,
+            self.local_pet_id(),
+        ]
+        .contains(&Some(unit));
+        if !still_available {
             self.unit_menu = UnitMenu::default();
         }
     }
@@ -272,6 +339,15 @@ impl GameClient {
         if !menu.state.visible {
             return Ok(());
         }
+        if let Some(unit) = menu.unit {
+            let pet = self.local_pet_id();
+            if let Some(message) = dismiss_pet_action(action, unit, pet) {
+                return self.send_pet_action(message);
+            }
+            if action == ACTION_DISMISS_HUNTER_PET && Some(unit) == pet {
+                return self.cast_spell(DISMISS_PET_SPELL);
+            }
+        }
         if let Some(index) = action.strip_prefix(ACTION_UNIT_MENU_RAID_TARGET_PREFIX) {
             let index = index
                 .parse()
@@ -312,6 +388,38 @@ mod tests {
 
     fn labels(items: &[UnitMenuItem]) -> Vec<&str> {
         items.iter().map(|item| item.label.as_str()).collect()
+    }
+
+    #[test]
+    fn pet_dismiss_menu_entry_sends_command_three_only_for_own_pet() {
+        let items = menu_items(false, pet_menu_items(false, false));
+        let entry = items
+            .iter()
+            .find(|item| item.label == "Dismiss Pet")
+            .expect("PET_DISMISS on the pet menu");
+        let message = dismiss_pet_action(&entry.action, WOLF, Some(WOLF)).unwrap();
+        assert_eq!(message.pet, WOLF);
+        assert_eq!(
+            shared::protocol::pet_action_button_action(message.action),
+            3
+        );
+        assert_eq!(
+            shared::protocol::pet_action_button_type(message.action),
+            shared::protocol::ACT_COMMAND
+        );
+        assert_eq!(message.target, None);
+        assert_eq!(message.position, None);
+        assert!(dismiss_pet_action(&entry.action, HOGGER, Some(WOLF)).is_none());
+        assert!(dismiss_pet_action(&entry.action, WOLF, None).is_none());
+        assert!(dismiss_pet_action(ACTION_UNIT_MENU_CLOSE, WOLF, Some(WOLF)).is_none());
+    }
+
+    #[test]
+    fn hunter_pet_dismiss_requires_the_learned_spell_not_abandon_command() {
+        assert!(pet_menu_items(true, false).is_empty());
+        let items = pet_menu_items(true, true);
+        assert_eq!(labels(&items), ["Dismiss Pet"]);
+        assert!(dismiss_pet_action(&items[0].action, WOLF, Some(WOLF)).is_none());
     }
 
     /// Retail `TARGET` lists Set Focus; `FOCUS`, opened from FocusFrame, Clear Focus.

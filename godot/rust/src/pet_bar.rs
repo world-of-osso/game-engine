@@ -211,7 +211,7 @@ impl GameClient {
         })
     }
 
-    fn send_pet_action(&mut self, action: PetAction) -> Result<(), SessionError> {
+    pub(super) fn send_pet_action(&mut self, action: PetAction) -> Result<(), SessionError> {
         self.account.send_pet_action(action)?;
         self.pet_bar.sent.push(action);
         Ok(())
