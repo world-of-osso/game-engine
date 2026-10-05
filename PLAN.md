@@ -16,22 +16,6 @@
 - **Polish**: 0.75s fade-in, vsync disabled
 - **Tests**: UI fixtures pass (login, character select, character create actions)
 
-## Textfit: three UI defects
-
-Scope: spellbook name fitting, character side-tab fitting, character portrait binding. Preserve approved art; no other UI changes, fixture hand edits, server changes, merge or push. Completion: concrete registry regressions pass for Modern and Forever through local build-lock + agent-run; changed Rust formatted and committed on textfit.
-
-- [x] Fit long spell names on one line above subtext/level: measure the name against its scaled fixed bounds; retain full text and subtext/level positions.
-- [x] Fit Character/Reputation captions inside side tabs: replace the Forever 55px multiline caption box with a centered 13px line, using existing native ellipsis behavior.
-- [x] Bind the player portrait inside the character window ring: add the shared masked portrait host and connect it to the existing player appearance renderer.
-
-Proof at `2baf7116` (documentation-only follow-up does not invalidate it):
-- Local detached build-lock + agent-run helper, `--test -p game-engine-godot -p game-engine-ui-model --no-fail-fast textfit -- --nocapture --test-threads=1`: 3/3 pass, exit 0. RED logs reproduce missing portrait host, 221px spell name in 166.7px bounds, and Forever's 55px caption for a 13px line. Both skins; spellbook at 1920×1080 and 1280×720; both character tabs.
-- Same helper, `--test -p game-engine-ui-model --test forever_character_frame --test spellbook_frame -- --nocapture --test-threads=1`: 12/12 pass, exit 0. Recorded fixture unchanged; frozen chrome comparison excludes the new live portrait host, whose geometry has its own registry regression.
-- Changed-file cargo fmt completed; changed-file rustfmt check passed through build-lock + agent-run. Formatter-only changes to unrelated tests reverted. No warnings in targeted logs.
-- Logs: `/tmp/claude/textfit-{red2,tab-red,green,frames,fmt,fmt-check}.out`; complete regression output in `/tmp/claude/textfit-green-test.log`.
-
-Limits: no local Blizzard SpellBook XML/Lua found in this worktree or `~/Repos`; existing layout/template references retained. Registry and native compilation prove binding geometry/wiring, not live portrait pixels; GUI proof remains blocked by the documented host compositor failure. Pre-existing formatting drift in mirror_timer, personal_resource_display, target_cast_bar and unit_frame_atlas tests left unchanged.
-
 ## In Progress
 - [x] Reconcile bounded startup CLI proof: six destinations remain proven; post-`f015f651` native fmt passes, while the `bd8282c7` terrain-object fmt failure remains historical. Loading clipping follows shared legacy layout and is not a confirmed Godot regression.
 - [x] Prove selected-roster gear replacement/removal and one cached bound chest's rendered pose response.
