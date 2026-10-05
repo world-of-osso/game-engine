@@ -286,7 +286,8 @@ pub const MODERN: HudLayout = HudLayout {
     party: anchor(TopLeft, TopLeft, -200.0 + 222.0, -140.0 - 7.0),
     // Above the central unit-frame cluster.
     raid: anchor(Bottom, Bottom, 0.0, 215.0),
-    // EditModePresetLayouts.lua:857-863.
+    // User choice 2026-10-05: top-left, mirroring the minimap's top-right margins.
+    // Modern already used this anchor (EditModePresetLayouts.lua:857-863).
     damage_meter: anchor(TopLeft, TopLeft, 0.0, 0.0),
     damage_meter_size: (400.0, 140.0),
     // Chattynator Core/Config.lua:28-29; preserve Modern's existing output.
@@ -342,7 +343,7 @@ pub const FOREVER_TRACKER_SCALE: f32 = FOREVER_CLUSTER_SIZE / 288.0;
 
 /// Chat messages: Mainline/EditModePresetLayouts.lua:490-503, Camelot constants:66.
 /// FlareUI Chat.lua:1515-1520 adds padding 10 and header 24; DamageMeter.lua:1150-1159
-/// matches that skin's size. The reference mirrors the meter to the right.
+/// matches that skin's size; meter placement follows the user's top-left choice.
 pub const FOREVER_CHAT_PANEL_SIZE: (f32, f32) = (450.0, 214.0);
 
 /// Forever loads the shared Mainline preset file with Camelot constants
@@ -350,9 +351,14 @@ pub const FOREVER_CHAT_PANEL_SIZE: (f32, f32) = (450.0, 214.0);
 pub const FOREVER: HudLayout = HudLayout {
     player: anchor(Center, Center, -330.0, -270.0),
     target: anchor(Center, Center, 330.0, -270.0),
-    // Reference screenshot: ToT top-aligned, measured 8px right of the target.
-    target_of_target: anchor(TopLeft, Center, 330.0 + 120.0 + 8.0, -270.0 + 30.0),
-    focus: anchor(Right, Right, -453.0, -258.0),
+    // FlareUI UnitFrames.lua:1890-1892 pins ToT to UIParent's BOTTOM (270, 248) and focus to
+    // its RIGHT (-453, -258), laid out on a UIParent of about 2146x1207 units: the focus
+    // frame right of the target in `user-unit-frames-2026-10-03.png` measures a 9-10 unit
+    // gap, 2146/2 - 453 - 160 - 450. Edge pins drift onto the target on other canvases, so
+    // both keep that layout's relation to the target instead: ToT left-aligned with it, 28
+    // below (4 under its 24-tall cast bar); focus top-aligned, 10 right of it.
+    target_of_target: anchor(TopLeft, Center, 330.0 - 120.0, -270.0 - 30.0 - 28.0),
+    focus: anchor(TopLeft, Center, 330.0 + 120.0 + 10.0, -270.0 + 30.0),
     // Reference screenshot: pet right-aligned, measured 6px below the player.
     pet: anchor(TopRight, Center, -330.0 + 120.0, -270.0 - 30.0 - 6.0),
     // FlareUI UnitFrames.lua:1894 (keyboard default, :1900-1903).
@@ -373,8 +379,9 @@ pub const FOREVER: HudLayout = HudLayout {
         -FOREVER_MAIN_ACTION_BAR.size(FOREVER_ACTION_BUTTON_SCALE).0 / 2.0 + 30.0,
         forever_bar_top(&FOREVER_ACTION_BAR_3) + 4.0,
     ),
-    // Mirror the chat skin's 25-unit inset and 135-unit baseline.
-    damage_meter: anchor(BottomRight, BottomRight, -25.0, 135.0),
+    // User choice 2026-10-05: inherit Modern's top-left meter anchor, matching the
+    // inherited minimap's mirrored margins. Saved custom placements remain untouched.
+    damage_meter: MODERN.damage_meter,
     damage_meter_size: FOREVER_CHAT_PANEL_SIZE,
     // Chat canvas messages begin at (34,27) and end 38 above the canvas bottom.
     // Place the source's 430x170 messages at BOTTOMLEFT(35,145).
