@@ -137,14 +137,7 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
     let rect = [0.0, 0.0, width, height];
     match &frame.widget_data {
         Some(WidgetData::Button(button)) => match select_button_texture_source(button) {
-            Some(source) => {
-                let mut part = textured(rect, source.clone(), Crop::Full, WHITE);
-                part.desaturated = !button.enabled
-                    && matches!(source,
-                    TextureSource::Atlas(name) if matches!(name.as_str(),
-                        "minimal-scrollbar-arrow-top" | "minimal-scrollbar-arrow-bottom"));
-                Some(part)
-            }
+            Some(source) => Some(textured(rect, source.clone(), Crop::Full, WHITE)),
             None => frame.background_color.map(|color| solid(rect, color)),
         },
         Some(WidgetData::Texture(texture)) => {

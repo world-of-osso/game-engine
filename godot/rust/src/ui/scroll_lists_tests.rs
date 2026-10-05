@@ -438,6 +438,19 @@ fn the_wheel_scrolls_by_pixels_and_clips_a_partial_row() {
     assert!(shown(&model, &name), "{name} is drawn, clipped, not hidden");
 }
 
+fn assert_disabled_arrow(model: &RegistryModel, name: &str) {
+    let id = model.registry.get_by_name(name).unwrap();
+    assert_eq!(
+        ui_toolkit::attrs::read_attribute(&model.registry, id, "disabled").as_deref(),
+        Some("true")
+    );
+    let arrow = model.registry.children_of(id).into_iter().find_map(|id| {
+        let frame = model.registry.get(id)?;
+        super::super::projection::stepper_art_is_disabled(frame, &model.registry).then_some(frame)
+    });
+    assert!(arrow.is_some(), "{name} draws desaturated arrow art");
+}
+
 /// The Back and Forward steppers pan one pan extent (`ScrollBar.lua:117-119,307-311`) and
 /// do nothing at their end of the list (`ScrollBar.lua:237-239`).
 #[test]
@@ -450,10 +463,7 @@ fn the_steppers_step_the_list_and_stop_at_its_ends() {
     let forward = forward_stepper_name(OPTIONS_CONTENT_SCROLL);
     assert!(shown(&model, &back) && shown(&model, &forward));
     let top = row_top(&model, &first);
-    assert!(
-        matches!(model.registry.get(model.registry.get_by_name(&back).unwrap()).unwrap().widget_data,
-        Some(ui_toolkit::frame::WidgetData::Button(ref button)) if !button.enabled)
-    );
+    assert_disabled_arrow(&model, &back);
 
     assert!(press(&mut model, &back), "a press on Back is taken");
     assert_eq!(row_top(&model, &first), top, "Back is disabled at the top");
@@ -483,10 +493,7 @@ fn the_steppers_step_the_list_and_stop_at_its_ends() {
     let last_row = rect(&model, &last).expect("the last row at the end");
     assert!((last_row.y + last_row.height - (area.y + area.height)).abs() < 1.0);
     let end = row_top(&model, &last);
-    assert!(
-        matches!(model.registry.get(model.registry.get_by_name(&forward).unwrap()).unwrap().widget_data,
-        Some(ui_toolkit::frame::WidgetData::Button(ref button)) if !button.enabled)
-    );
+    assert_disabled_arrow(&model, &forward);
     assert!(press(&mut model, &forward));
     assert_eq!(
         row_top(&model, &last),
