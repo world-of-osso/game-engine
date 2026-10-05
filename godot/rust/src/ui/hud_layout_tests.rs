@@ -713,6 +713,7 @@ fn preset_meter_mirrors_minimap_and_clears_hud_at_both_resolutions() {
             sync(&mut canvases, skin);
             let meter = rect(&canvases, DAMAGE_METER_ROOT.0);
             let minimap = rect(&canvases, MINIMAP_CLUSTER);
+            println!("HUD_RECT {skin:?} {width} {height} DamageMeter {meter:?}");
             let map_right_margin = width - minimap.x - minimap.width;
             assert_eq!(
                 meter.x, map_right_margin,
@@ -735,6 +736,7 @@ fn preset_meter_mirrors_minimap_and_clears_hud_at_both_resolutions() {
                 "MinimapLauncherButton",
             ] {
                 let other = rect(&canvases, name);
+                println!("HUD_RECT {skin:?} {width} {height} {name} {other:?}");
                 assert!(
                     !intersects(&meter, &other),
                     "{skin:?} {width}x{height}: meter {meter:?} overlaps {name} {other:?}"
