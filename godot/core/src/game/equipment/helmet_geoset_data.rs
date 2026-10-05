@@ -13,9 +13,7 @@ pub(crate) struct HelmetGeosetRule {
 pub(crate) fn load_helmet_geoset_rules(
     data_dir: &Path,
 ) -> Result<HashMap<u32, Vec<HelmetGeosetRule>>, String> {
-    let path = data_dir.join("db2/HelmetGeosetData.db2");
-    let bytes = std::fs::read(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
-    let mut rules = ParsedHelmetGeosetDb2::parse(&bytes)?.rules_by_vis_id();
+    let mut rules = load_retail_helmet_rules(data_dir)?;
     let forever = data_dir.join("db2/1.60.1.70205/HelmetGeosetData.csv");
     if forever.is_file() {
         let overlay = load_forever_helmet_rules(&forever)?;
@@ -26,7 +24,17 @@ pub(crate) fn load_helmet_geoset_rules(
     Ok(rules)
 }
 
-fn load_forever_helmet_rules(path: &Path) -> Result<HashMap<u32, Vec<HelmetGeosetRule>>, String> {
+pub(crate) fn load_retail_helmet_rules(
+    data_dir: &Path,
+) -> Result<HashMap<u32, Vec<HelmetGeosetRule>>, String> {
+    let path = data_dir.join("db2/HelmetGeosetData.db2");
+    let bytes = std::fs::read(&path).map_err(|e| format!("read {}: {e}", path.display()))?;
+    Ok(ParsedHelmetGeosetDb2::parse(&bytes)?.rules_by_vis_id())
+}
+
+pub(crate) fn load_forever_helmet_rules(
+    path: &Path,
+) -> Result<HashMap<u32, Vec<HelmetGeosetRule>>, String> {
     let mut rules: HashMap<u32, Vec<HelmetGeosetRule>> = HashMap::new();
     crate::csv_util::read_numeric_rows(
         path,

@@ -109,7 +109,7 @@ pub(super) fn imported_outfit_links_cache_path(data_dir: &Path) -> Result<PathBu
     Ok(cache_path)
 }
 
-fn init_schema(conn: &Connection) -> Result<(), String> {
+pub(super) fn init_schema(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(OUTFIT_LINKS_SCHEMA_SQL)
         .map_err(|err| format!("init outfit_links cache: {err}"))
 }
