@@ -6,10 +6,13 @@
 
 use std::collections::VecDeque;
 
-use game_engine_core::asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume};
+use game_engine_core::{
+    asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume},
+    wmo,
+};
 use glam::{Affine3A, Vec3};
 
-use super::assets::NativeWmoAsset;
+use super::assets::{NativeWmoAsset, NativeWmoGroup};
 
 /// Distance from a portal's plane within which the portal counts as visible whatever
 /// the frustum says (WebWowViewerCpp `dotepsilon`, 1.5², as the original client).
@@ -58,60 +61,9 @@ impl WmoPortals {
             .groups
             .iter()
             .filter(|group| !group.group.header.group_flags.antiportal)
-            .map(|group| {
-                let (bbox_min, bbox_max) = root
-                    .group_infos
-                    .get(group.index as usize)
-                    .map(|info| {
-                        let (a, b) = (engine_axes(info.bbox_min), engine_axes(info.bbox_max));
-                        (a.min(b), a.max(b))
-                    })
-                    .unwrap_or((Vec3::splat(f32::MIN), Vec3::splat(f32::MAX)));
-                let exterior = group.group.header.group_flags.exterior;
-                let floor = if exterior {
-                    Vec::new()
-                } else {
-                    group
-                        .batches
-                        .iter()
-                        .flat_map(|batch| {
-                            batch.indices.chunks_exact(3).map(|triangle| {
-                                [0, 1, 2].map(|corner| {
-                                    Vec3::from(batch.positions[triangle[corner] as usize])
-                                })
-                            })
-                        })
-                        .collect()
-                };
-                PortalGroup {
-                    index: group.index as u16,
-                    bbox_min,
-                    bbox_max,
-                    exterior,
-                    floor,
-                }
-            })
+            .map(|group| build_portal_group(root, group))
             .collect();
-        let mut groups_by_portal = vec![Vec::new(); root.portals.len()];
-        for portal_ref in &root.portal_refs {
-            if let Some(groups) = groups_by_portal.get_mut(portal_ref.portal_index as usize) {
-                groups.push(portal_ref.group_index);
-            }
-        }
-        let mut adjacency = vec![Vec::new(); root.n_groups as usize];
-        for (portal, groups) in groups_by_portal.iter().enumerate() {
-            for &source in groups {
-                let Some(neighbors) = adjacency.get_mut(source as usize) else {
-                    continue;
-                };
-                neighbors.extend(
-                    groups
-                        .iter()
-                        .filter(|&&destination| destination != source)
-                        .map(|&destination| (portal, destination)),
-                );
-            }
-        }
+        let adjacency = build_portal_adjacency(root);
         let portal_vertices = root
             .portals
             .iter()
@@ -239,6 +191,66 @@ impl WmoPortals {
             .max_by(|a, b| a.1.total_cmp(&b.1))
             .map(|(index, _)| index)
     }
+}
+
+fn build_portal_group(root: &wmo::WmoRootData, group: &NativeWmoGroup) -> PortalGroup {
+    let (bbox_min, bbox_max) = root
+        .group_infos
+        .get(group.index as usize)
+        .map(|info| {
+            let (a, b) = (engine_axes(info.bbox_min), engine_axes(info.bbox_max));
+            (a.min(b), a.max(b))
+        })
+        .unwrap_or((Vec3::splat(f32::MIN), Vec3::splat(f32::MAX)));
+    let exterior = group.group.header.group_flags.exterior;
+    let floor = if exterior {
+        Vec::new()
+    } else {
+        collect_group_floor(group)
+    };
+    PortalGroup {
+        index: group.index as u16,
+        bbox_min,
+        bbox_max,
+        exterior,
+        floor,
+    }
+}
+
+fn collect_group_floor(group: &NativeWmoGroup) -> Vec<[Vec3; 3]> {
+    group
+        .batches
+        .iter()
+        .flat_map(|batch| {
+            batch.indices.chunks_exact(3).map(|triangle| {
+                [0, 1, 2].map(|corner| Vec3::from(batch.positions[triangle[corner] as usize]))
+            })
+        })
+        .collect()
+}
+
+fn build_portal_adjacency(root: &wmo::WmoRootData) -> Vec<Vec<(usize, u16)>> {
+    let mut groups_by_portal = vec![Vec::new(); root.portals.len()];
+    for portal_ref in &root.portal_refs {
+        if let Some(groups) = groups_by_portal.get_mut(portal_ref.portal_index as usize) {
+            groups.push(portal_ref.group_index);
+        }
+    }
+    let mut adjacency = vec![Vec::new(); root.n_groups as usize];
+    for (portal, groups) in groups_by_portal.iter().enumerate() {
+        for &source in groups {
+            let Some(neighbors) = adjacency.get_mut(source as usize) else {
+                continue;
+            };
+            neighbors.extend(
+                groups
+                    .iter()
+                    .filter(|&&destination| destination != source)
+                    .map(|&destination| (portal, destination)),
+            );
+        }
+    }
+    adjacency
 }
 
 fn camera_near_plane(polygon: &[Vec3], camera: Vec3) -> bool {
