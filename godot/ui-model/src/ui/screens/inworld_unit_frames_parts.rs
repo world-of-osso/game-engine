@@ -2,7 +2,7 @@ use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
-use super::inworld_unit_frames_art::sized_atlas_texture;
+use super::inworld_unit_frames_art::{AtlasArt, sized_atlas_texture};
 use super::inworld_unit_frames_layout::TextAnchors;
 use super::{DynName, PortraitSlot, Rect, UNIT_FONT, VALUE_TEXT, dyn_name};
 use crate::hud_layout::HudAnchor;
@@ -144,7 +144,7 @@ pub(super) fn unit_label(
 /// `TextString`, `LeftText` and `RightText` on top. The bar takes the mouse: its `OnEnter`
 /// shows the text while the status text setting hides it (TextStatusBar.xml:7).
 pub(super) fn status_bar(spec: BarSpec<'_>) -> Element {
-    let (x, y, width, height) = spec.rect;
+    let (_, _, width, height) = spec.rect;
     let fill = spec
         .art
         .map(|art| {
@@ -156,6 +156,27 @@ pub(super) fn status_bar(spec: BarSpec<'_>) -> Element {
             )
         })
         .unwrap_or_default();
+    render_status_bar(spec, fill)
+}
+
+/// A source DB2 crop on its sheet; used for Forever-only base names the shared atlas
+/// table does not ingest. Text, slot placement and fractional reveal match named bars.
+pub(super) fn cropped_status_bar(spec: BarSpec<'_>, art: AtlasArt) -> Element {
+    let (_, _, width, height) = spec.rect;
+    let fraction = spec.fraction.clamp(0.0, 1.0);
+    let fill_w = width * fraction;
+    let coords = art.tex_coords(fraction);
+    let fill = rsx! { texture {
+        name: {dyn_name(format!("{}Fill", spec.name))},
+        width: fill_w, height, hidden: {fill_w <= 0.0},
+        texture_fdid: {art.fdid}, tex_coords: {coords.as_str()},
+        pos_type: "absolute", pos_x: 0.0, pos_y: 0.0,
+    } };
+    render_status_bar(spec, fill)
+}
+
+fn render_status_bar(spec: BarSpec<'_>, fill: Element) -> Element {
+    let (x, y, width, height) = spec.rect;
     let anchors = spec.anchors;
     let texts = bar_texts(
         &spec.name,
