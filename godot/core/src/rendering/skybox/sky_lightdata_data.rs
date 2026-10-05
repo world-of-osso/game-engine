@@ -200,42 +200,53 @@ pub fn lerp_color_sets<C: Copy, F: Fn(C, C, f32) -> C>(
     t: f32,
     lerp_color: F,
 ) -> SkyColorSet<C> {
+    let mut colors = lerp_color_channels(a, b, t, &lerp_color);
+    colors.fog_end = lerp_scalar(a.fog_end, b.fog_end, t);
+    colors.fog_start = lerp_scalar(a.fog_start, b.fog_start, t);
+    colors.fog_scaler = lerp_scalar(a.fog_scaler, b.fog_scaler, t);
+    colors.fog_density = lerp_scalar(a.fog_density, b.fog_density, t);
+    colors.glow = lerp_scalar(a.glow, b.glow, t);
+    colors.cloud_density = lerp_scalar(a.cloud_density, b.cloud_density, t);
+    colors.unk1 = lerp_scalar(a.unk1, b.unk1, t);
+    colors.unk2 = lerp_scalar(a.unk2, b.unk2, t);
+    colors
+}
+
+fn lerp_color_channels<C: Copy, F: Fn(C, C, f32) -> C>(
+    a: &SkyColorSet<C>,
+    b: &SkyColorSet<C>,
+    t: f32,
+    lerp_color: &F,
+) -> SkyColorSet<C> {
+    let mix = |a, b| lerp_color(a, b, t);
     SkyColorSet {
-        sky_top: lerp_color(a.sky_top, b.sky_top, t),
-        sky_middle: lerp_color(a.sky_middle, b.sky_middle, t),
-        sky_band1: lerp_color(a.sky_band1, b.sky_band1, t),
-        sky_band2: lerp_color(a.sky_band2, b.sky_band2, t),
-        sky_smog: lerp_color(a.sky_smog, b.sky_smog, t),
-        direct_color: lerp_color(a.direct_color, b.direct_color, t),
-        ambient_color: lerp_color(a.ambient_color, b.ambient_color, t),
-        fog_color: lerp_color(a.fog_color, b.fog_color, t),
-        sun_color: lerp_color(a.sun_color, b.sun_color, t),
-        sun_halo_color: lerp_color(a.sun_halo_color, b.sun_halo_color, t),
-        cloud_emissive_color: lerp_color(a.cloud_emissive_color, b.cloud_emissive_color, t),
-        cloud_layer1_ambient_color: lerp_color(
-            a.cloud_layer1_ambient_color,
-            b.cloud_layer1_ambient_color,
-            t,
-        ),
-        cloud_layer2_ambient_color: lerp_color(
-            a.cloud_layer2_ambient_color,
-            b.cloud_layer2_ambient_color,
-            t,
-        ),
-        ocean_close_color: lerp_color(a.ocean_close_color, b.ocean_close_color, t),
-        ocean_far_color: lerp_color(a.ocean_far_color, b.ocean_far_color, t),
-        river_close_color: lerp_color(a.river_close_color, b.river_close_color, t),
-        river_far_color: lerp_color(a.river_far_color, b.river_far_color, t),
-        horizon_ambient_color: lerp_color(a.horizon_ambient_color, b.horizon_ambient_color, t),
-        ground_ambient_color: lerp_color(a.ground_ambient_color, b.ground_ambient_color, t),
-        fog_end: lerp_scalar(a.fog_end, b.fog_end, t),
-        fog_start: lerp_scalar(a.fog_start, b.fog_start, t),
-        fog_scaler: lerp_scalar(a.fog_scaler, b.fog_scaler, t),
-        fog_density: lerp_scalar(a.fog_density, b.fog_density, t),
-        glow: lerp_scalar(a.glow, b.glow, t),
-        cloud_density: lerp_scalar(a.cloud_density, b.cloud_density, t),
-        unk1: lerp_scalar(a.unk1, b.unk1, t),
-        unk2: lerp_scalar(a.unk2, b.unk2, t),
+        sky_top: mix(a.sky_top, b.sky_top),
+        sky_middle: mix(a.sky_middle, b.sky_middle),
+        sky_band1: mix(a.sky_band1, b.sky_band1),
+        sky_band2: mix(a.sky_band2, b.sky_band2),
+        sky_smog: mix(a.sky_smog, b.sky_smog),
+        direct_color: mix(a.direct_color, b.direct_color),
+        ambient_color: mix(a.ambient_color, b.ambient_color),
+        fog_color: mix(a.fog_color, b.fog_color),
+        sun_color: mix(a.sun_color, b.sun_color),
+        sun_halo_color: mix(a.sun_halo_color, b.sun_halo_color),
+        cloud_emissive_color: mix(a.cloud_emissive_color, b.cloud_emissive_color),
+        cloud_layer1_ambient_color: mix(a.cloud_layer1_ambient_color, b.cloud_layer1_ambient_color),
+        cloud_layer2_ambient_color: mix(a.cloud_layer2_ambient_color, b.cloud_layer2_ambient_color),
+        ocean_close_color: mix(a.ocean_close_color, b.ocean_close_color),
+        ocean_far_color: mix(a.ocean_far_color, b.ocean_far_color),
+        river_close_color: mix(a.river_close_color, b.river_close_color),
+        river_far_color: mix(a.river_far_color, b.river_far_color),
+        horizon_ambient_color: mix(a.horizon_ambient_color, b.horizon_ambient_color),
+        ground_ambient_color: mix(a.ground_ambient_color, b.ground_ambient_color),
+        fog_end: a.fog_end,
+        fog_start: a.fog_start,
+        fog_scaler: a.fog_scaler,
+        fog_density: a.fog_density,
+        glow: a.glow,
+        cloud_density: a.cloud_density,
+        unk1: a.unk1,
+        unk2: a.unk2,
     }
 }
 
