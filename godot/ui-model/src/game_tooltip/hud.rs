@@ -6,6 +6,7 @@
 use game_engine_core::minimap_data::ZonePvp;
 
 use super::GameTooltip;
+use crate::damage_meter_data::break_up_large_number;
 use crate::tooltip_presentation::{
     TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipLineState, TooltipPresentation,
     description_lines,
@@ -162,6 +163,39 @@ pub fn unread_mail_tooltip(senders: &[String]) -> GameTooltip {
     text_tooltip(header, TOOLTIP_WHITE, lines)
 }
 
+/// `ExpBarMixin:OnEnter` → `ExhaustionTickMixin:ExhaustionToolTipText` (ExpBar.lua:72-88,
+/// ExpBarOverrides.lua:20-36) at the default anchor: `XP_TEXT` "%s / %s  ( %d%% )\n\n" in
+/// white with `BreakUpLargeNumbers` and `math.ceil` percent, then `EXHAUST_TOOLTIP1`: the
+/// `GetRestState` name in gold and "%d%% of normal experience\ngained from monsters." in
+/// white (GlobalStrings 19675, 11839). `GetRestState` is 1 "Rested" ×2 with a rested pool,
+/// 2 "Normal" ×1 without; `EXHAUST_TOOLTIP2` belongs to states 4-5, which Retail never sets.
+pub fn xp_tooltip(xp: u32, next_level_xp: u32, rested_xp: u32) -> GameTooltip {
+    let percent = (u64::from(xp) * 100).div_ceil(u64::from(next_level_xp));
+    let (state, multiplier) = if rested_xp > 0 {
+        ("Rested", 200)
+    } else {
+        ("Normal", 100)
+    };
+    let title = format!(
+        "{} / {}  ( {percent}% )",
+        break_up_large_number(xp.into()),
+        break_up_large_number(next_level_xp.into())
+    );
+    text_tooltip(
+        title,
+        TOOLTIP_WHITE,
+        vec![
+            TooltipLineState::colored(String::new(), TOOLTIP_WHITE),
+            TooltipLineState::colored(state, NORMAL),
+            TooltipLineState::colored(
+                format!("{multiplier}% of normal experience"),
+                TOOLTIP_WHITE,
+            ),
+            TooltipLineState::colored("gained from monsters.", TOOLTIP_WHITE),
+        ],
+    )
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -176,6 +210,28 @@ mod tests {
                     .map(|line| (line.left_text.as_str(), line.right_text.as_str())),
             )
             .collect()
+    }
+
+    #[test]
+    fn the_xp_bar_shows_progress_and_the_rest_state() {
+        let normal = xp_tooltip(1234, 5000, 0);
+        assert_eq!(
+            rows(&normal),
+            [
+                ("1,234 / 5,000  ( 25% )", ""),
+                ("", ""),
+                ("Normal", ""),
+                ("100% of normal experience", ""),
+                ("gained from monsters.", ""),
+            ]
+        );
+        assert_eq!(normal.content.title_color, TOOLTIP_WHITE);
+        assert_eq!(normal.content.lines[1].left_color, NORMAL);
+        assert_eq!(normal.content.lines[2].left_color, TOOLTIP_WHITE);
+        // `math.ceil`: 1 XP of 250 reads 1%; a rested pool doubles monster XP.
+        let rested = xp_tooltip(1, 250, 300);
+        assert_eq!(rows(&rested)[0], ("1 / 250  ( 1% )", ""));
+        assert_eq!(rows(&rested)[2..4], [("Rested", ""), ("200% of normal experience", "")]);
     }
 
     #[test]

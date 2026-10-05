@@ -2,10 +2,12 @@
 //! the newest owner-only `PlayerXpUpdate`, with the XP text while the pointer is over it.
 
 use game_engine_session::SessionScreen;
+use game_engine_ui_model::game_tooltip::hud::xp_tooltip;
 use game_engine_ui_model::xp_bar_component::XpBarState;
 use godot::prelude::*;
 use shared::protocol::PlayerXpUpdate;
 
+use crate::tooltips::{HoveredFrame, HoveredTooltip};
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 
 #[derive(Default)]
@@ -52,6 +54,19 @@ impl GameClient {
             .hovered_ui_frame()?
             .is_some_and(|hit| self.xp_bar.ui.as_ref() == Some(&hit.ui));
         Ok(self.sync_xp_bar(xp_bar_state(update, hovered))?)
+    }
+
+    /// The exhaustion tooltip while the pointer is anywhere over the bar.
+    pub(crate) fn xp_bar_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        if self.xp_bar.ui.as_ref() != Some(&hit.ui) {
+            return None;
+        }
+        let update = self.account.xp?;
+        Some(HoveredTooltip::text(xp_tooltip(
+            update.xp,
+            update.next_level_xp,
+            update.rested_xp,
+        )))
     }
 
     fn sync_xp_bar(&mut self, state: XpBarState) -> Result<(), String> {
