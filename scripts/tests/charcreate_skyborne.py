@@ -142,7 +142,7 @@ def run_fixture() -> int:
             raise RuntimeError("Missing native capture/control image")
         if (
             "ERROR:" in output
-            or "ObjectDB instances leaked" in output
+            or "were leaked" in output
             or "still in use at exit" in output
         ):
             raise RuntimeError(

@@ -9,6 +9,7 @@ const ErrorObserver = preload("res://tests/bloom_lifecycle_pixels.gd").ErrorObse
 var client: Node
 var ui: Node
 var failed := false
+var failures := 0
 var passed := 0
 var observer := ErrorObserver.new()
 var directory: String
@@ -23,6 +24,7 @@ func _initialize() -> void:
 func expect(condition: bool, message: String) -> bool:
 	if not condition:
 		failed = true
+		failures += 1
 		printerr("SKYBORNE FAIL: ", message)
 	return condition
 
@@ -87,10 +89,6 @@ func run() -> void:
 			await press("Race_%d" % race)
 			for sex in [0, 1]:
 				await check_variant(race, sex)
-				if failed:
-					break
-			if failed:
-				break
 	Engine.time_scale = 1.0
 	client.queue_free()
 	for frame in range(8):
@@ -125,6 +123,7 @@ func wait_for_creation() -> bool:
 
 
 func check_variant(race: int, sex: int) -> void:
+	var previous_failures := failures
 	Engine.time_scale = 1.0
 	await press("CharCreateSex_%d" % sex)
 	var character := client.get_node_or_null("CharacterCreateScene/CreationCharacter") as Node3D
@@ -135,6 +134,10 @@ func check_variant(race: int, sex: int) -> void:
 	expect(
 		str(character.get_meta("m2_source_path", "")).get_file() == "%d.m2" % fdid,
 		"Body FDID %d" % fdid
+	)
+	expect(
+		client.get_node_or_null("CharacterCreateScene/CharCreateBackdrop_8035354") != null,
+		"Authored Skyborne creation backdrop 8035354"
 	)
 	expect(
 		shown("Race_%d_Selected" % race) and shown("CharCreateSex_%d_Selected" % sex),
@@ -162,12 +165,18 @@ func check_variant(race: int, sex: int) -> void:
 	var restored := await capture(stem + "-restored.png")
 	check_pixels(visible, control, hidden, restored, race, sex)
 	Engine.time_scale = 1.0
-	if not failed:
+	if failures == previous_failures:
 		passed += 1
 		print(
 			(
-				"SKYBORNE PASS race=%d sex=%d body=%d layout=%d options=%d"
-				% [race, sex, fdid, 201 + sex, 18 + sex]
+				"SKYBORNE PASS race=%d sex=%d body=%d layout=%d offered_options=%d"
+				% [
+					race,
+					sex,
+					fdid,
+					201 + sex,
+					client.character_creation_catalog().offered_option_ids.size()
+				]
 			)
 		)
 
@@ -197,7 +206,8 @@ func check_classes(race: int) -> void:
 
 
 func check_icon(race: int) -> void:
-	var icon := ui.find_child("Race_%d_Icon" % race, true, false) as TextureRect
+	var frame := ui.find_child("Race_%d_Icon" % race, true, false)
+	var icon := frame.get_node_or_null("Parts/Part0") as TextureRect if frame != null else null
 	if not expect(icon != null and icon.texture != null, "Native race icon texture"):
 		return
 	var actual := icon.texture.get_image()
@@ -307,11 +317,27 @@ func check_animation(character: Node3D) -> void:
 
 
 func check_options(model_id: int, sex: int) -> void:
-	var expected := []
+	var catalog: Dictionary = client.character_creation_catalog()
+	if not expect(not catalog.has("error"), "Active creation catalog query: " + str(catalog)):
+		return
+	var raw := []
+	var npc_eye_style := []
 	for row in rows("ChrCustomizationOption"):
 		if int(row.ChrModelID) == model_id:
-			expected.append(int(row.ID))
+			raw.append(int(row.ID))
+			if row.Name_lang == "Eye Style":
+				npc_eye_style.append(int(row.ID))
+	raw.sort()
+	var native_raw := Array(catalog.raw_option_ids)
+	native_raw.sort()
+	expect(
+		raw.size() == 18 + sex and native_raw == raw,
+		"Raw catalog model options match imported 18/19"
+	)
+	var expected := Array(catalog.offered_option_ids)
 	expected.sort()
+	for id in npc_eye_style:
+		expect(not expected.has(id), "Catalog excludes NPC-only Eye Style")
 	var categories := []
 	for node in ui.find_children("Category_*", "Button", true, false):
 		if node.is_visible_in_tree():
@@ -326,8 +352,16 @@ func check_options(model_id: int, sex: int) -> void:
 	var actual := seen.keys()
 	actual.sort()
 	expect(
-		expected.size() == 18 + sex and actual == expected,
-		"Native option IDs match catalog: actual=%s expected=%s" % [actual, expected]
+		actual == expected,
+		"Native option IDs match offered catalog: actual=%s expected=%s" % [actual, expected]
+	)
+	for id in npc_eye_style:
+		expect(not actual.has(id), "NPC-only Eye Style absent from native UI")
+	print(
+		(
+			"SKYBORNE OPTIONS model=%d raw=%d offered=%d ui=%d"
+			% [model_id, raw.size(), expected.size(), actual.size()]
+		)
 	)
 
 
