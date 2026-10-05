@@ -399,6 +399,7 @@ pub struct DamageMeterWindow {
     pub threat_tables: std::collections::BTreeMap<u64, shared::protocol::ThreatUpdate>,
     pub threat_target: Option<u64>,
     pub local_unit: Option<u64>,
+    pub threat_in_combat: bool,
     pub log: MeterLog,
     pub menu_open: bool,
     pub type_menu_open: bool,
@@ -425,12 +426,16 @@ impl DamageMeterWindow {
     ) {
         self.local_unit = local;
         self.threat_target = target;
-        if !in_combat {
+        if self.threat_in_combat && !in_combat {
             self.threat_tables.clear();
         }
+        self.threat_in_combat = in_combat;
     }
 
     fn threat_rows(&self) -> Vec<DamageMeterRow> {
+        if !self.threat_in_combat {
+            return Vec::new();
+        }
         let Some(table) = self
             .threat_target
             .and_then(|target| self.threat_tables.get(&target))

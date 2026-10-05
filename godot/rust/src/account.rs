@@ -1629,6 +1629,9 @@ mod tests {
         for update in std::mem::take(&mut account.threat_updates) {
             window.receive_threat(update);
         }
+        // Threat message arrived before the next frame's combat-status replica.
+        window.select_threat_target(Some(99), Some(42), false);
+        assert!(window.rows().is_empty());
         window.select_threat_target(Some(99), Some(42), true);
         assert_eq!(window.rows()[0].value_text, "100.0%");
         assert_eq!(window.rows()[0].name_text, "1. Tank");
