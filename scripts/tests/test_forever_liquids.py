@@ -15,7 +15,7 @@ class ForeverLiquidTests(unittest.TestCase):
         struct.pack_into("<6I", raw, 136, 1, 1, 8, 5, 0, 123)
         struct.pack_into("<HH7I", raw, 172, 4, 0, 1, 0, 24, 0, 0, 0, 1)
         struct.pack_into("<Q8I", raw, 204, 0, 300, 1, 5, 308, 4, 0, 0, 0)
-        struct.pack_into("<HH5I", raw, 244, 0, 64, 0, 0, 0, 0, 0)
+        struct.pack_into("<HH5I", raw, 248, 0, 64, 0, 0, 0, 0, 0)
         struct.pack_into("<II", raw, 300, 8, 7)
         raw[308:313] = b"AB\0C\0"
         struct.pack_into("<I", raw, 313, 10)
