@@ -386,8 +386,12 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
     );
     assert_forever_action_bars(&hud);
     assert_forever_utility_bars(&hud);
-    // FlareUI matches the meter root to the chat skin; mirror it across UIParent.
-    assert_rect(&hud, DAMAGE_METER_ROOT.0, (891.0, 419.0, 450.0, 214.0));
+    // Size still matches the chat skin; placement follows the user's top-left choice.
+    let meter = rect(&hud, DAMAGE_METER_ROOT.0);
+    let minimap = rect(&hud, MINIMAP_CLUSTER);
+    assert_eq!(meter.x, 1366.0 - minimap.x - minimap.width);
+    assert_eq!(meter.y, minimap.y);
+    assert_eq!((meter.width, meter.height), (450.0, 214.0));
     // Forever chat messages 430x170 at BOTTOMLEFT(35,145), padding 10 + header 24.
     assert_rect(&hud, CHAT_FRAME.0, (1.0, 426.0, 469.0, 235.0));
     assert_rect(&hud, CHAT_FLARE_SKIN, (25.0, 419.0, 450.0, 214.0));
@@ -687,6 +691,87 @@ fn group_members_do_not_overlap_and_keep_their_place_without_the_party_title() {
         );
     }
     assert_eq!(rects[0], rects[1]);
+}
+
+/// Preset defaults mirror the minimap's corner margins without covering other HUD frames.
+#[test]
+fn preset_meter_mirrors_minimap_and_clears_hud_at_both_resolutions() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (width, height) in [(1920.0, 1080.0), (1366.0, 768.0)] {
+            let mut canvases = hud();
+            let mut units = unit_frames();
+            units.target_cast = Some(CastingBarState {
+                visible: true,
+                spell_name: "Frostbolt".into(),
+                progress: 0.25,
+                ..Default::default()
+            });
+            canvases[0].shared.insert(units);
+            for canvas in &mut canvases {
+                canvas.registry = ui_toolkit::registry::FrameRegistry::new(width, height);
+            }
+            sync(&mut canvases, skin);
+            let meter = rect(&canvases, DAMAGE_METER_ROOT.0);
+            let minimap = rect(&canvases, MINIMAP_CLUSTER);
+            let map_right_margin = width - minimap.x - minimap.width;
+            assert_eq!(
+                meter.x, map_right_margin,
+                "{skin:?} {width}: mirrored margin"
+            );
+            assert_eq!(meter.y, minimap.y, "{skin:?} {width}: top margin");
+            for name in [
+                MINIMAP_CLUSTER,
+                TRACKER_FRAME,
+                BUFF_FRAME.0,
+                DEBUFF_FRAME.0,
+                CHAT_FRAME.0,
+                "PlayerFrame",
+                "TargetFrame",
+                "FocusFrame",
+                "TargetOfTargetFrame",
+                "TargetFrameSpellBar",
+                MICRO_MENU,
+                "BagsBar",
+                "MinimapLauncherButton",
+            ] {
+                let other = rect(&canvases, name);
+                assert!(
+                    !intersects(&meter, &other),
+                    "{skin:?} {width}x{height}: meter {meter:?} overlaps {name} {other:?}"
+                );
+            }
+        }
+    }
+}
+
+#[test]
+fn preset_meter_menus_open_below_header_and_stay_on_screen() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (width, height) in [(1920.0, 1080.0), (1366.0, 768.0)] {
+            let view = DamageMeterView {
+                menu_open: true,
+                type_menu_open: true,
+                ..Default::default()
+            };
+            let mut canvases = [model(view, damage_meter_screen)];
+            canvases[0].registry = ui_toolkit::registry::FrameRegistry::new(width, height);
+            sync(&mut canvases, skin);
+            let meter = rect(&canvases, DAMAGE_METER_ROOT.0);
+            for name in ["DamageMeterTypeMenu", "DamageMeterSessionMenu"] {
+                let menu = rect(&canvases, name);
+                assert!(menu.x >= 0.0, "{skin:?} {width}: {name} left");
+                assert!(menu.y > meter.y, "{skin:?} {width}: {name} opens down");
+                assert!(
+                    menu.x + menu.width <= width,
+                    "{skin:?} {width}: {name} right"
+                );
+                assert!(
+                    menu.y + menu.height <= height,
+                    "{skin:?} {width}: {name} bottom"
+                );
+            }
+        }
+    }
 }
 
 #[path = "hud_layout_settings_tests.rs"]
