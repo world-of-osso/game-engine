@@ -5,19 +5,19 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 ## What it must do
 
 ### Opening and dismissal
-- [ ] Ctrl+Space toggles the launcher by default; Options > Key Bindings lists the rebindable action as **Toggle Launcher**.
-- [ ] A buff-sized magnifying-glass button next to the minimap opens it. No top-edge hover trigger.
-- [ ] Search receives keyboard focus on opening. Escape or the toggle binding closes it without opening Game Menu.
-- [ ] Enter activates the selected entry; clicking activates that entry. Activation closes the launcher.
+- [x] Ctrl+Space toggles the launcher by default; Options > Key Bindings lists the rebindable action as **Toggle Launcher**.
+- [x] A buff-sized magnifying-glass button next to the minimap opens it. No top-edge hover trigger.
+- [x] Search receives keyboard focus on opening. Escape or the toggle binding closes it without opening Game Menu.
+- [x] Enter activates the selected entry; clicking activates that entry. Activation closes the launcher.
 
 ### Search and navigation
-- [ ] Typing filters labels case-insensitively by any word prefix: `spe` shows Talents & Spellbook, not unrelated entries.
-- [ ] Arrow keys move selection through the visible grid. Filtering resets selection; empty results never dispatch an action.
+- [x] Typing filters labels case-insensitively by any word prefix: `spe` shows Talents & Spellbook, not unrelated entries.
+- [x] Arrow keys move selection through the visible grid. Filtering resets selection; empty results never dispatch an action.
 
 ### Inventory and appearance
-- [ ] Include every existing micro entry: Character, Professions, Talents & Spellbook, Achievements, Quest Log, Housing Dashboard, Guild & Communities, Group Finder, Collections, Adventure Guide, Shop and Game Menu; also Help, Bags (backpack), World Map, Options and Key Bindings.
-- [ ] Micro entries reuse existing micro-menu icons and host actions, including unavailable-window messages. Existing micro menu is unchanged.
-- [ ] Centre panel containing search above large icons with labels below. Use existing Forever metal frame or Modern dialog artwork; no new artwork.
+- [x] Include every existing micro entry: Character, Professions, Talents & Spellbook, Achievements, Quest Log, Housing Dashboard, Guild & Communities, Group Finder, Collections, Adventure Guide, Shop and Game Menu; also Help, Bags (backpack), World Map, Options and Key Bindings.
+- [x] Micro entries reuse existing micro-menu icons and host actions, including unavailable-window messages. Existing micro menu is unchanged.
+- [x] Centre panel containing search above large icons with labels below. Use existing Forever metal frame or Modern dialog artwork; no new artwork.
 
 ## How it works
 
@@ -40,9 +40,15 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 - `godot/core/tests/input_bindings_data.rs` — binding label, section and Ctrl+Space matching.
 - `godot/ui-model/tests/micro_menu.rs` — unchanged micro-menu behavior.
 
+## Verification — 2026-10-05
+
+- [x] Extension and CLI built without compiler warnings; targeted tests passed on `8c527168`: launcher 7, micro_menu 7, input_bindings_data 12 (26 total).
+- [x] Forever live captures: minimap opener, full launcher, `spe` filter and Spellbook after Enter. Native startup script exercises Ctrl+Space toggle, Escape dismissal and minimap opening with real input.
+
+Evidence: `data/diagnostics/launcher-2026-10-05/launcher4-build-retry.log`, `launcher4-targeted.log`, `launcher4-live2.js`, `launcher4-capture2.log`, and `forever-{minimap,open,spe,spellbook}.webp`. No golden fixtures changed. First build compiled but timed out during export; warm-cache retry installed both artifacts. First live script used a wrong wait-frame name; corrected second run had no automation errors. Unrelated server world-data/spell-visual errors remain outside this launcher scope.
+
 ## Known gaps (current cycle)
 
-- [ ] Targeted tests and live Forever captures pending.
 - [ ] Help uses existing Support placeholder; no native Help window exists.
 
 ## Out of scope
