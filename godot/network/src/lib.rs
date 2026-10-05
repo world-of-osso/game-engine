@@ -50,8 +50,8 @@ use shared::protocol::{
     KnownSpellsSnapshot, LoadTerrain, LoginResponse, MerchantFailed, MirrorTimerPause,
     MirrorTimerStart, MirrorTimerStop, NewWorld, QuestFailed, QuestGiverStatusMultiple,
     QuestLogSnapshot, QuestLogUpdate, RegisterResponse, RestStateUpdate, SpecializationChanged,
-    SpellCooldownUpdate, SpellFailure, SpellGo, SpellsLearned, SpellsUnlearned, TransferAborted,
-    VendorInventory,
+    SpellCooldownUpdate, SpellFailure, SpellGo, SpellsLearned, SpellsUnlearned, ThreatUpdate,
+    TransferAborted, VendorInventory,
 };
 
 /// Trait bound for decoding messages carried by this transport boundary.
@@ -227,6 +227,7 @@ impl NetworkBridge {
             .receive::<CombatLogEvent>()
             // Server-computed damage meter sessions.
             .receive::<DamageMeterSnapshot>()
+            .receive::<ThreatUpdate>()
             // The XP bar values after enter world, every gain and every level-up.
             .receive::<protocol::PlayerXpUpdate>()
             // Melee swing outcomes and resolved casts of every replicated unit, for
