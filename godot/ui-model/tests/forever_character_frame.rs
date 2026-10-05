@@ -13,6 +13,11 @@ use ui_toolkit::screen::{Screen, SharedContext};
 
 fn dump_frame(registry: &FrameRegistry, id: u64, out: &mut String) {
     let f = registry.get(id).unwrap();
+    // Freeze approved chrome, not the newly bound live portrait host. Its geometry is
+    // covered separately by textfit_character_portrait_has_a_foreground_render_slot_in_both_skins.
+    if f.name.as_deref() == Some("CharacterFramePortrait") {
+        return;
+    }
     writeln!(out, "{:?} {:?} size={:?},{:?} pos={:?},{:?} anchor={:?} translate={:?} margin={:?} layout={:?} visibility={},{} alpha={},{} scale={},{} strata={:?} level={} raise={} layer={:?},{} input={},{},{:?} bg={:?} backdrop={:?} nine={:?} three={:?} border={:?} style={:?},{:?} behavior={},{},{} click={:?} flex={:?} data={:?}",
         f.name, f.widget_type, f.width, f.height, f.position, f.position_type, f.anchor,
         f.translation, f.margin, f.layout_rect, f.hidden, f.visible, f.alpha, f.effective_alpha,

@@ -6,10 +6,11 @@
 //! `PlayerSpellsFrame` `PortraitFrameTemplate` window (title, spec portrait, close
 //! button). The frame scales down to fit the viewport.
 
-use ui_toolkit::frame::WidgetData;
+use ui_toolkit::frame::{Dimension, WidgetData};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
+use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 
 use crate::ui::anchor::FrameName;
@@ -989,6 +990,26 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
     }
 }
 
+/// Fit only the name into its reserved line; subtext and level retain their layout.
+fn fit_item_name(registry: &mut FrameRegistry, name: &str) {
+    let Some(id) = registry.get_by_name(name) else {
+        return;
+    };
+    let frame = registry.get_mut(id).expect("registered spell name");
+    let (Dimension::Fixed(width), Dimension::Fixed(height)) = (frame.width, frame.height) else {
+        panic!("spell name must have fixed bounds: {name}");
+    };
+    let Some(WidgetData::FontString(text)) = frame.widget_data.as_mut() else {
+        panic!("spell name must be a FontString: {name}");
+    };
+    let (text_width, text_height) = measure_text(&text.text, text.font, text.font_size)
+        .expect("spell name font must be available");
+    let fit = (width.floor() / text_width)
+        .min(height.floor() / text_height)
+        .min(1.0);
+    text.font_size *= fit;
+}
+
 /// Retail desaturates the icons of spells not learned yet (`SetDesaturated`).
 pub fn apply_spellbook_postsetup(state: &SpellbookFrameState, registry: &mut FrameRegistry) {
     for spec in &state.specializations {
@@ -1004,6 +1025,7 @@ pub fn apply_spellbook_postsetup(state: &SpellbookFrameState, registry: &mut Fra
         return;
     };
     for item in category.groups.iter().flat_map(|group| &group.items) {
+        fit_item_name(registry, &format!("{}Name", spell_item_name(item.spell_id)));
         let name = format!("{}Icon", spell_item_name(item.spell_id));
         if let Some(id) = registry.get_by_name(&name)
             && let Some(frame) = registry.get_mut(id)

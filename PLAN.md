@@ -16,6 +16,14 @@
 - **Polish**: 0.75s fade-in, vsync disabled
 - **Tests**: UI fixtures pass (login, character select, character create actions)
 
+## Textfit: three UI defects
+
+Scope: spellbook name fitting, character side-tab fitting, character portrait binding. Preserve approved art; no other UI changes, fixture hand edits, server changes, merge or push. Completion: concrete registry regressions pass for Modern and Forever through local build-lock + agent-run; changed Rust formatted and committed on textfit.
+
+- [ ] Fit long spell names on one line above subtext/level.
+- [ ] Fit Character/Reputation captions inside side tabs.
+- [ ] Bind the player portrait inside the character window ring.
+
 ## In Progress
 - [x] Reconcile bounded startup CLI proof: six destinations remain proven; post-`f015f651` native fmt passes, while the `bd8282c7` terrain-object fmt failure remains historical. Loading clipping follows shared legacy layout and is not a confirmed Godot regression.
 - [x] Prove selected-roster gear replacement/removal and one cached bound chest's rendered pose response.
