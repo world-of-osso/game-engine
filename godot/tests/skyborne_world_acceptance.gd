@@ -107,8 +107,8 @@ func enter_named_world() -> bool:
 		fail("Prepared roster lacks named character " + CHARACTERS[race])
 		return false
 	await click_control(card)
-	if not await wait_frames(func(): return client.account_state().selected_character_name == CHARACTERS[race], "named selection"):
-		return false
+	# Roster selection sets selected_index; the session name arrives on world entry.
+	await process_frame false
 	await click_control(ui.find_child("EnterWorld", true, false))
 	return await wait_frames(func():
 		var state: Dictionary = client.account_state()
