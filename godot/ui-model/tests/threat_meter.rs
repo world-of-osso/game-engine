@@ -29,6 +29,22 @@ fn table(creature: u64) -> ThreatUpdate {
 }
 
 #[test]
+fn threat_update_before_combat_replication_survives_until_combat_starts() {
+    let mut window = DamageMeterWindow::default();
+    window.click("damage_meter:threat").unwrap();
+    window.receive_threat(table(100));
+    // Threat channel arrives one frame before CombatStatus(true) replication.
+    window.select_threat_target(Some(100), Some(20), false);
+    assert!(window.rows().is_empty());
+    window.select_threat_target(Some(100), Some(20), true);
+    assert_eq!(window.rows().len(), 2);
+    window.select_threat_target(Some(100), Some(20), false);
+    assert!(window.rows().is_empty());
+    window.select_threat_target(Some(100), Some(20), true);
+    assert!(window.rows().is_empty());
+}
+
+#[test]
 fn threat_update_fills_current_target_rows_and_combat_end_clears() {
     let mut window = DamageMeterWindow::default();
     window.click("damage_meter:threat").unwrap();
