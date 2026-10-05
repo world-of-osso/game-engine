@@ -248,19 +248,20 @@ fn guide_roles_and_optional_pets_follow_view_state() {
         );
         assert!(frame(&with_pets, "PartyMemberFrame2LeaderIcon").hidden);
         assert!(!frame(&with_pets, "PartyMemberFrame2GuideIcon").hidden);
-        for index in 1..=3 {
-            assert!(
-                resolve_region(
-                    match index {
-                        1 => "roleicon-tiny-tank",
-                        2 => "roleicon-tiny-healer",
-                        _ => "roleicon-tiny-dps",
-                    },
-                    skin
-                )
-                .is_some()
+        for (index, atlas) in [
+            "roleicon-tiny-tank",
+            "roleicon-tiny-healer",
+            "roleicon-tiny-dps",
+        ]
+        .into_iter()
+        .enumerate()
+        {
+            let name = format!("PartyMemberFrame{}RoleIcon", index + 1);
+            assert_eq!(
+                region(&with_pets, &name, skin),
+                resolve_region(atlas, skin).unwrap()
             );
-            assert!(!frame(&with_pets, &format!("PartyMemberFrame{index}RoleIcon")).hidden);
+            assert!(!frame(&with_pets, &name).hidden);
         }
         assert!(with_pets.get_by_name("PartyMemberFrame4RoleIcon").is_none());
         assert!(
