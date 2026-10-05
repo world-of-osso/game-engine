@@ -68,7 +68,84 @@ fn collision_catalogs_preserve_source_and_never_borrow_missing_rows() {
             sources.catalog(Retail).unwrap().icon_fdid(id).unwrap()
         );
     }
+    let mut inventory = crate::bag_data::InventoryState::default();
+    for (index, (source, id)) in [
+        (Retail, 2947),
+        (Forever70205, 2947),
+        (Retail, 2512),
+        (Forever70205, 2512),
+        (Retail, 2101),
+        (Forever70205, 2101),
+    ]
+    .into_iter()
+    .enumerate()
+    {
+        let stack = shared::protocol::ItemStack {
+            item_guid: index as u64 + 1,
+            item_id: id,
+            definition_source: source,
+            count: 1,
+            durability: None,
+            soulbound: false,
+        };
+        let slot = crate::bag_data::stack_slot_in_catalog(&stack, sources.catalog(source).ok());
+        let tooltip = crate::item_tooltip::item_tooltip_in_catalog(
+            &slot,
+            Some(10),
+            sources.catalog(source).ok(),
+        );
+        assert_eq!(
+            tooltip.title,
+            sources.catalog(source).unwrap().get(id).unwrap().name
+        );
+        assert_eq!(slot.definition_source, source);
+        inventory.set_item(0, index, slot);
+    }
+    assert_ne!(
+        inventory.slot(0, 0).unwrap().name,
+        inventory.slot(0, 1).unwrap().name
+    );
+    assert_ne!(
+        inventory.slot(0, 2).unwrap().icon_fdid,
+        inventory.slot(0, 3).unwrap().icon_fdid
+    );
+    inventory.equipment.insert(
+        shared::protocol::EquipmentSlot::MainHand,
+        inventory.slot(0, 0).unwrap().clone(),
+    );
+    let comparisons = crate::game_tooltip::item::comparisons_in_catalogs(
+        inventory.slot(0, 1).unwrap(),
+        &inventory,
+        Some(10),
+        &sources,
+    );
+    assert_eq!(comparisons.len(), 1);
+    assert_eq!(comparisons[0].tooltip.title, "Retail 2947");
+    assert!(
+        crate::game_tooltip::item::comparisons_in_catalogs(
+            inventory.slot(0, 0).unwrap(),
+            &inventory,
+            Some(10),
+            &sources
+        )
+        .is_empty()
+    );
     assert!(sources.catalog(Forever70205).unwrap().get(2589).is_none());
+    let absent = shared::protocol::ItemStack {
+        item_guid: 20,
+        item_id: 2589,
+        definition_source: Forever70205,
+        count: 1,
+        durability: None,
+        soulbound: false,
+    };
+    let absent_slot =
+        crate::bag_data::stack_slot_in_catalog(&absent, sources.catalog(Forever70205).ok());
+    assert!(absent_slot.name.is_empty());
+    assert_ne!(
+        absent_slot.icon_fdid,
+        sources.catalog(Retail).unwrap().icon_fdid(2589).unwrap()
+    );
     let missing = SourceItemCatalogs::new(retail, Err("Forever70205: missing Item.csv".into()));
     assert!(
         missing

@@ -6,7 +6,8 @@
 //! inventory query; the native client lists the live bags. The guild vault and Warband
 //! bank list the last contents the server sent, with no item names, as the original.
 use game_engine_network::ipc_wire::{Request, Response};
-use game_engine_ui_model::item_catalog::item_catalog_entry;
+use game_engine_ui_model::item_catalog::require_item_catalog_entry;
+use shared::item_data::ItemDefinitionSource;
 use shared::{
     components::PresenceStatus,
     protocol::{ItemStack, QuestEntrySnapshot, QuestRepeatability},
@@ -48,7 +49,7 @@ impl crate::GameClient {
                 &self.guild_vault_items(),
             )),
             Request::WarbankStatus => Ok(format_storage_list("warbank", &self.warbank_items())),
-            Request::ItemInfo { query } => self.item_info(query.item_id),
+            Request::ItemInfo { query } => self.item_info(query.definition_source, query.item_id),
             Request::PresenceStatus => Ok(self.presence_status()),
             request => return self.combat_request(request),
         };
@@ -73,9 +74,9 @@ impl crate::GameClient {
             .iter()
             .enumerate()
             .map(|(slot, item)| {
-                let required_level = item_catalog_entry(item.item_id)
-                    .map(|entry| entry.required_level)
-                    .ok_or_else(|| format!("item {} is not in the item catalog", item.item_id))?;
+                let required_level =
+                    require_item_catalog_entry(item.definition_source, item.item_id)?
+                        .required_level;
                 Ok(format!(
                     "{slot} {} {} x{} q{} lvl{required_level}",
                     item.item_guid, item.name, item.count, item.quality as u8
@@ -147,15 +148,17 @@ impl crate::GameClient {
     /// The item's DB2 entry (`ItemSparse`); the appearance is known when the item is in
     /// the bags or equipped. The original read a generated item table whose multi-line
     /// entries its line parser never matched.
-    fn item_info(&self, item_id: u32) -> Result<String, String> {
-        let item =
-            item_catalog_entry(item_id).ok_or_else(|| format!("item {item_id} not found"))?;
+    fn item_info(&self, source: ItemDefinitionSource, item_id: u32) -> Result<String, String> {
+        let item = require_item_catalog_entry(source, item_id)?;
         let inventory = &self.merchant.session.inventory;
-        let appearance_known = self.bag_items().iter().any(|slot| slot.item_id == item_id)
+        let appearance_known = self
+            .bag_items()
+            .iter()
+            .any(|slot| slot.item_id == item_id && slot.definition_source == source)
             || inventory
                 .equipment
                 .values()
-                .any(|slot| slot.item_id == item_id);
+                .any(|slot| slot.item_id == item_id && slot.definition_source == source);
         Ok(format!(
             "item_id: {item_id}\nname: {}\nquality: {}\nitem_level: {}\nrequired_level: {}\ninventory_type: {}\nsell_price: {}\nstackable: {}\nbonding: {}\nexpansion_id: {}\nappearance_known: {appearance_known}",
             item.name,

@@ -125,9 +125,13 @@ pub fn item_catalog() -> Option<&'static ItemCatalog> {
     item_catalog_for(ItemDefinitionSource::Retail)
 }
 
-pub fn item_catalog_for(source: ItemDefinitionSource) -> Option<&'static ItemCatalog> {
+pub fn item_catalogs() -> Option<&'static SourceItemCatalogs> {
     warm_item_catalog();
-    CATALOG.get()?.catalog(source).ok()
+    CATALOG.get()
+}
+
+pub fn item_catalog_for(source: ItemDefinitionSource) -> Option<&'static ItemCatalog> {
+    item_catalogs()?.catalog(source).ok()
 }
 
 pub fn item_catalog_entry_for(

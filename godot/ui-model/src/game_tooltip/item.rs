@@ -11,7 +11,9 @@ use crate::auction_house_frame_component::{
     ACTION_BROWSE_ITEM_PREFIX, ACTION_SELECT_AUCTION_PREFIX, ACTION_SELL_ITEM_PREFIX,
 };
 use crate::bag_data::{InventorySlot, InventoryState, ItemQuality};
-use crate::item_catalog::{ItemCatalogEntry, item_catalog_entry, item_catalog_entry_for};
+use crate::item_catalog::{
+    ItemCatalogEntry, SourceItemCatalogs, item_catalog_entry, item_catalogs,
+};
 use crate::item_stats::{item_armor_for, item_stats_for, weapon_damage_for};
 use crate::item_tooltip::{GREEN_FONT_COLOR, RED_FONT_COLOR, item_tooltip, stat_name, stat_text};
 use crate::tooltip_presentation::{
@@ -80,7 +82,14 @@ pub fn auction_row_item(action: &str, net: &AuctionHouseState) -> Option<Invento
             .browse_results
             .iter()
             .find(|item| item.item_id == item_id)?;
-        return Some(named_item(item.item_id, &item.name, item.quality, 1));
+        return Some(named_item_for(
+            item.definition_source,
+            item.item_id,
+            &item.name,
+            item.quality,
+            1,
+            0,
+        ));
     }
     if let Some(auction_id) = action.strip_prefix(ACTION_SELECT_AUCTION_PREFIX) {
         let auction_id: u64 = auction_id.parse().ok()?;
@@ -89,11 +98,13 @@ pub fn auction_row_item(action: &str, net: &AuctionHouseState) -> Option<Invento
             .flatten()
             .find(|listing| listing.auction_id == auction_id)?;
         let item = &listing.item;
-        return Some(named_item(
+        return Some(named_item_for(
+            item.definition_source,
             item.item_id,
             &item.name,
             item.quality,
             listing.stack_count,
+            item.item_guid,
         ));
     }
     let guid: u64 = action.strip_prefix(ACTION_SELL_ITEM_PREFIX)?.parse().ok()?;
@@ -165,7 +176,23 @@ pub fn comparisons(
     inventory: &InventoryState,
     player_level: Option<u16>,
 ) -> Vec<ShoppingTooltip> {
-    let Some(new) = item_catalog_entry_for(hovered.definition_source, hovered.item_id) else {
+    let Some(catalogs) = item_catalogs() else {
+        return Vec::new();
+    };
+    comparisons_in_catalogs(hovered, inventory, player_level, catalogs)
+}
+
+pub fn comparisons_in_catalogs(
+    hovered: &InventorySlot,
+    inventory: &InventoryState,
+    player_level: Option<u16>,
+    catalogs: &SourceItemCatalogs,
+) -> Vec<ShoppingTooltip> {
+    let Some(new) = catalogs
+        .catalog(hovered.definition_source)
+        .ok()
+        .and_then(|catalog| catalog.get(hovered.item_id))
+    else {
         return Vec::new();
     };
     comparison_slots(new.inventory_type)
@@ -173,7 +200,15 @@ pub fn comparisons(
         .filter_map(|slot| inventory.equipped(*slot))
         .filter(|equipped| !equipped.is_empty() && equipped.item_guid != hovered.item_guid)
         .take(2)
-        .map(|equipped| shopping_tooltip(equipped, new, hovered.definition_source, player_level))
+        .map(|equipped| {
+            shopping_tooltip(
+                equipped,
+                new,
+                hovered.definition_source,
+                player_level,
+                catalogs,
+            )
+        })
         .collect()
 }
 
@@ -182,10 +217,13 @@ fn shopping_tooltip(
     new: &ItemCatalogEntry,
     source: ItemDefinitionSource,
     player_level: Option<u16>,
+    catalogs: &SourceItemCatalogs,
 ) -> ShoppingTooltip {
-    let mut tooltip = item_tooltip(equipped, player_level);
+    let catalog = catalogs.catalog(equipped.definition_source).ok();
+    let mut tooltip = crate::item_tooltip::item_tooltip_in_catalog(equipped, player_level, catalog);
     tooltip.lines.push(item_id_line(equipped.item_id));
-    let deltas = item_catalog_entry_for(equipped.definition_source, equipped.item_id)
+    let deltas = catalog
+        .and_then(|catalog| catalog.get(equipped.item_id))
         .map(|old| stat_deltas_for(source, new, equipped.definition_source, old))
         .unwrap_or_default();
     if !deltas.is_empty() {
@@ -372,6 +410,7 @@ mod tests {
         use shared::protocol::{AuctionBrowseItem, AuctionInventoryItem, AuctionInventorySnapshot};
         let net = AuctionHouseState {
             browse_results: vec![AuctionBrowseItem {
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
                 item_id: 2589,
                 name: "Linen Cloth".into(),
                 quality: 1,

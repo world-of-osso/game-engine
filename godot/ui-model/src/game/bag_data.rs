@@ -132,15 +132,28 @@ impl InventorySlot {
 /// A server stack shown in a bag or equipment slot. The server sends ids and
 /// counts only; name and quality come from the item catalog.
 pub fn stack_slot(stack: &ItemStack) -> InventorySlot {
-    with_item_data(InventorySlot {
-        count: stack.count,
-        item_guid: stack.item_guid,
-        item_id: stack.item_id,
-        definition_source: stack.definition_source,
-        soulbound: stack.soulbound,
-        durability: stack.durability,
-        ..Default::default()
-    })
+    stack_slot_in_catalog(
+        stack,
+        crate::item_catalog::item_catalog_for(stack.definition_source),
+    )
+}
+
+pub fn stack_slot_in_catalog(
+    stack: &ItemStack,
+    catalog: Option<&crate::item_catalog::ItemCatalog>,
+) -> InventorySlot {
+    with_catalog_item_data(
+        InventorySlot {
+            count: stack.count,
+            item_guid: stack.item_guid,
+            item_id: stack.item_id,
+            definition_source: stack.definition_source,
+            soulbound: stack.soulbound,
+            durability: stack.durability,
+            ..Default::default()
+        },
+        catalog,
+    )
 }
 
 /// `slot` with its item's icon, quality and name. While the catalog loads, the item

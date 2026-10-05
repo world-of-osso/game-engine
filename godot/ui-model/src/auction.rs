@@ -310,7 +310,7 @@ impl AuctionSession {
             net: &self.net,
             ui: &self.ui,
             texts,
-            catalog: &crate::item_catalog::item_catalog_entry,
+            catalog: &crate::item_catalog::item_catalog_entry_for,
             visible: self.net.is_open,
         })
     }

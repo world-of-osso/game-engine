@@ -3,6 +3,22 @@ use shared::protocol::{VendorInventory, VendorItem};
 use super::*;
 use crate::bag_data::InventorySlot;
 
+#[test]
+fn cursor_rejects_same_id_replaced_by_a_different_definition_source() {
+    use shared::item_data::ItemDefinitionSource::{Forever70205, Retail};
+    let mut inventory = InventoryState::default();
+    let mut throwing = item(81, 2947, 20, ItemQuality::Common, "Small Throwing Knife");
+    throwing.definition_source = Forever70205;
+    inventory.set_item(0, 0, throwing.clone());
+    let mut cursor = CursorItem::split_from(&inventory, bag(0), 7);
+    assert_eq!(cursor.definition_source(), Some(Forever70205));
+    assert_eq!(cursor.icon_fdid(), Some(throwing.icon_fdid));
+    throwing.definition_source = Retail;
+    inventory.set_item(0, 0, throwing);
+    cursor.clear_if_stale(&inventory, &vendor());
+    assert!(cursor.is_empty());
+}
+
 const LINEN: u32 = 2589;
 const SWORD: u32 = 25;
 const PELT: u32 = 4865;
