@@ -160,6 +160,7 @@ mod tests {
                 slots: Vec::new(),
                 visible: true,
             }],
+            ..Default::default()
         });
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(bag_frame_screen).sync(&ctx, &mut registry);

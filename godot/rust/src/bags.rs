@@ -2,7 +2,7 @@
 
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::bag_frame_component::{
-    ACTION_BAG_TOGGLE_PREFIX, BagFrameState, bag_frame_screen, parse_bag_close_action,
+    ACTION_BAG_TOGGLE_PREFIX, BagFrameState, SEARCH_BOX, bag_frame_screen, parse_bag_close_action,
 };
 use game_engine_ui_model::bags_bar_component::{
     ACTION_BAG_BAR_EXPAND_TOGGLE, BagBarState, bags_bar_screen,
@@ -51,7 +51,7 @@ impl BagsView {
     /// The bag bar with no container window open.
     pub(crate) fn closed(bar: BagBarState) -> Self {
         Self {
-            containers: BagFrameState { bags: Vec::new() },
+            containers: BagFrameState::default(),
             bar,
         }
     }
@@ -203,11 +203,26 @@ impl GameClient {
             self.bags.reset();
             return Ok(());
         }
+        // Every canvas drawing the backpack's money this frame reads it from here.
+        self.merchant.session.money = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id)?.gold())
+            .unwrap_or(0);
         self.sync_npc_bags();
         self.clear_stale_bag_cursor();
         if self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed() {
             self.apply_bag_bindings();
             self.poll_window_inputs()?;
+        }
+        let standalone_backpack =
+            self.bags.windows.is_open(WindowId::Bag(0)) && !self.npc_backpack_embedded();
+        if standalone_backpack {
+            self.read_bag_search(self.bags.ui.clone());
+        } else if !self.npc_backpack_embedded() {
+            // `BagSearch_OnHide` clears the search once no search box is shown
+            // (UIPanelTemplatesShared.lua:7-19).
+            self.merchant.session.bag_search.clear();
         }
         let view = self.bags_view();
         let scale = self.effective_ui_scale();
@@ -224,6 +239,15 @@ impl GameClient {
             self.raise_above_layer(&ui)?;
         }
         Ok(self.sync_bag_cursor()?)
+    }
+
+    /// `BagSearch_OnTextChanged` (UIPanelTemplatesShared.lua:21-31): what the player typed
+    /// in the shown `BagItemSearchBox` becomes the item search every bag canvas filters by.
+    pub(crate) fn read_bag_search(&mut self, ui: Option<Gd<RegistryUi>>) {
+        if let Some(mut ui) = ui {
+            let text = ui.bind_mut().frame_text(SEARCH_BOX.into()).to_string();
+            self.merchant.session.bag_search = text;
+        }
     }
 
     /// Retail `OPENALLBAGS`, `TOGGLEBACKPACK` and `TOGGLEBAG1-4` (Bindings_Standard.xml:1203-1223).
@@ -327,16 +351,11 @@ impl GameClient {
                     || (guid != 0 && self.mailbox.session.is_attached(guid));
             }
         }
-        let money = self
-            .world
-            .local_player_id()
-            .and_then(|id| self.replica.unit(id)?.gold())
-            .unwrap_or(0);
         let inventory = &self.merchant.session.inventory;
         BagsView {
             containers,
             bar: BagBarState {
-                money,
+                money: self.merchant.session.money,
                 free_slots: inventory.total_free_slots(),
                 bag_icons: EquipmentSlot::BAGS
                     .map(|slot| inventory.equipped(slot).map(|bag| bag.icon_fdid)),
@@ -431,7 +450,7 @@ impl GameClient {
                 self.bags.windows.is_open(WindowId::Bag(bag.index)) || (embedded && bag.index == 0)
             })
             .map(|bag| {
-                let (w, h) = BagFrameState::bag_dimensions(bag.size);
+                let (w, h) = BagFrameState::bag_dimensions(bag.index, bag.size);
                 (bag.index, [w, h])
             })
             .collect();
