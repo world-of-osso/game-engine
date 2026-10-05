@@ -27,7 +27,7 @@ func run_test() -> void:
 		if visual != null and not visual.find_children("Batch*", "MeshInstance3D", true, false).is_empty():
 			break
 		await process_frame
-	if visual == null:
+	if visual == null or visual.find_children("Batch*", "MeshInstance3D", true, false).is_empty():
 		fail("Ventaari authored NPC visual was not allocated")
 		return
 	var ailee = client.get_node_or_null("WorldUnits/" + AILEE)
@@ -77,7 +77,8 @@ func capture_authored_visual(visual: Node3D) -> bool:
 	studio.add_child(camera)
 	camera.make_current()
 	for view in ["front", "back"]:
-		camera.position = Vector3(4.0 if view == "front" else -4.0, 1.35, 5.0)
+		var direction := 1.0 if view == "front" else -1.0
+		camera.position = Vector3(4.0 * direction, 1.35, 5.0 * direction)
 		camera.look_at(Vector3(0.0, 1.0, 0.0))
 		for frame in 8:
 			await process_frame
