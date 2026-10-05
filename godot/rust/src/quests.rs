@@ -117,7 +117,9 @@ fn opens_quest_frame(kind: &InteractionKind, quest_giver: bool) -> bool {
     }
 }
 
-/// Every FileDataID texture the screen `build` draws for `state`.
+/// Every FileDataID texture the screen `build` draws for `state`: its FileDataID textures
+/// and the files its atlas textures resolve to under the active skin, which the projection
+/// loads from the same `data/textures/<fdid>.blp` (`ui::assets::load_source`).
 pub(crate) fn screen_texture_fdids<T: 'static>(
     state: T,
     build: fn(&SharedContext) -> ui_toolkit::widget_def::Element,
@@ -129,8 +131,12 @@ pub(crate) fn screen_texture_fdids<T: 'static>(
     registry
         .frames_iter()
         .filter_map(|frame| match frame.widget_data.as_ref()? {
-            WidgetData::Texture(texture) => match texture.source {
-                TextureSource::FileDataId(fdid) => Some(fdid),
+            WidgetData::Texture(texture) => match &texture.source {
+                TextureSource::FileDataId(fdid) => Some(*fdid),
+                TextureSource::Atlas(name) => match ui_toolkit::atlas::get_region(name)?.source {
+                    ui_toolkit::atlas::AtlasSource::FileDataId(fdid) => Some(fdid),
+                    ui_toolkit::atlas::AtlasSource::File(_) => None,
+                },
                 _ => None,
             },
             _ => None,

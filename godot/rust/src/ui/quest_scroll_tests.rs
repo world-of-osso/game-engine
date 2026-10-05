@@ -181,3 +181,40 @@ fn a_short_quest_shows_the_track_without_a_thumb_and_does_not_scroll() {
     rebuild(&mut model);
     assert_eq!(top(&model, "QuestInfoTitleHeader"), title);
 }
+
+/// The QuestFrame's texture list, which the client copies out of local CASC before the window
+/// shows, holds the files the Modern MinimalScrollBar atlases resolve to: the bar's track,
+/// thumb and arrows load like the window's FileDataID art.
+#[test]
+fn a_modern_scroll_bar_atlas_resolves_to_a_cached_texture() {
+    use ui_toolkit::atlas::{ActiveSkin, AtlasSource, active_skin, resolve_region};
+    let model = quest_frame(mcbride_detail("Beating Them Back!"));
+    assert_eq!(active_skin(), ActiveSkin::Modern);
+    let cached = crate::quests::screen_texture_fdids(
+        mcbride_detail("Beating Them Back!"),
+        quest_frame_screen,
+    );
+    let bar = model
+        .registry
+        .get_by_name(&format!("{QUEST_DETAIL_SCROLL}ScrollBar"))
+        .unwrap();
+    let mut atlases = Vec::new();
+    let mut stack = vec![bar];
+    while let Some(id) = stack.pop() {
+        let frame = model.registry.get(id).unwrap();
+        stack.extend(frame.children.iter().copied());
+        if let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = &frame.widget_data
+            && let TextureSource::Atlas(name) = &texture.source
+        {
+            atlases.push(name.clone());
+        }
+    }
+    assert_eq!(atlases.len(), 8, "arrows, track and thumb art: {atlases:?}");
+    for name in atlases {
+        let region = resolve_region(&name, ActiveSkin::Modern).unwrap();
+        let AtlasSource::FileDataId(fdid) = region.source else {
+            panic!("{name} is DB2 art");
+        };
+        assert!(cached.contains(&fdid), "{name} file {fdid} is cached");
+    }
+}
