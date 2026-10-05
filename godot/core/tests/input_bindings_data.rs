@@ -130,7 +130,7 @@ fn inventory_defaults_and_sections_are_exact() {
     assert_eq!(InputAction::ALL.len(), 96);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 14, 22, 12, 12, 1, 14, 6]
+        [8, 6, 14, 22, 12, 12, 1, 15, 6]
     );
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {
