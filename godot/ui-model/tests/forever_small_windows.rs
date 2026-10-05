@@ -262,6 +262,18 @@ fn assert_composed_members(corner: MetalTopLeft, skin: ActiveSkin) {
 static SKIN: Mutex<()> = Mutex::new(());
 
 #[test]
+#[ignore = "base fixture capture only"]
+fn capture_base_trees() {
+    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_active_skin(ActiveSkin::Modern);
+    println!("BEGIN_BASE_TREES\n{}END_BASE_TREES", modern_trees());
+}
+
+#[test]
 fn small_window_chrome_preserves_modern_and_draws_forever_members() {
     let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
