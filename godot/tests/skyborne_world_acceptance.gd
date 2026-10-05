@@ -108,7 +108,7 @@ func enter_named_world() -> bool:
 		return false
 	await click_control(card)
 	# Roster selection sets selected_index; the session name arrives on world entry.
-	await process_frame false
+	await process_frame
 	await click_control(ui.find_child("EnterWorld", true, false))
 	return await wait_frames(func():
 		var state: Dictionary = client.account_state()
