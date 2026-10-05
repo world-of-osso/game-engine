@@ -39,9 +39,6 @@ const REAGENT_BAG: usize = 5;
 const ICON_INSET: f32 = 2.0;
 const ICON_SIZE: f32 = BAG_SLOT_SIZE - 6.0;
 pub const ACTION_BAG_BAR_EXPAND_TOGGLE: &str = "bag_bar_expand_toggle";
-const MONEY_DISPLAY_W: f32 = 160.0;
-const MONEY_DISPLAY_H: f32 = 14.0;
-const MONEY_TEXT_COLOR: &str = "1.0,0.82,0.0,1.0";
 /// Backpack `Count`: `NumberFontNormal` (ARIALN 14 outline, white), CENTER 0,-10
 /// (ItemButtonTemplate.xml:59, MainMenuBarBagButtons.lua:239-240).
 const COUNT_FONT_SIZE: f32 = 14.0;
@@ -49,13 +46,11 @@ const COUNT_H: f32 = 14.0;
 const COUNT_BELOW_CENTRE: f32 = 10.0;
 const WHITE: &str = "1.0,1.0,1.0,1.0";
 
-/// Player money in total copper, matching the original money updater, the free slots
-/// over every bag (`C_Container.CalculateTotalNumberOfFreeBagSlots`), the icon of the bag
+/// Free slots over every bag (`C_Container.CalculateTotalNumberOfFreeBagSlots`), the icon of the bag
 /// equipped in each bag slot (bags 1-4, then the reagent bag) and whether
 /// `BagBarExpandToggle` collapsed the four bag slots.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub struct BagBarState {
-    pub money: u64,
     pub free_slots: usize,
     pub bag_icons: [Option<u32>; 5],
     pub collapsed: bool,
@@ -73,36 +68,22 @@ pub const FOREVER_ONLY_BAG_ATLASES: [&str; 4] = [
     "UI-HUD-ActionBar-Keyring-Small",
 ];
 
-/// The bar's width: money, the five bag slots, the toggle and the backpack. Like
+/// The bar's width: the five bag slots, the toggle and the backpack. Like
 /// `GetBagBarLength`, it counts hidden bag buttons too: the bar keeps its length.
 pub fn bags_bar_width() -> f32 {
     let bags_w = (BAG_COUNT + 1) as f32 * (BAG_SLOT_SIZE + BAG_SLOT_GAP);
-    MONEY_DISPLAY_W + bags_w + EXPAND_TOGGLE_W + BACKPACK_SIZE
+    bags_w + EXPAND_TOGGLE_W + BACKPACK_SIZE
 }
 
 pub fn bags_bar_screen(ctx: &SharedContext) -> Element {
     bag_bar(ctx.get::<BagBarState>().copied(), &hud_layout(ctx))
 }
 
-// Same leading-denomination omission as auction_house_data::Money::display.
-fn format_money(money: u64) -> String {
-    let gold = money / 10_000;
-    let silver = (money % 10_000) / 100;
-    let copper = money % 100;
-    if gold > 0 {
-        format!("{gold}g {silver}s {copper}c")
-    } else if silver > 0 {
-        format!("{silver}s {copper}c")
-    } else {
-        format!("{copper}c")
-    }
-}
-
 /// `BagsBarMixin:Layout` with `Enum.BagsDirection.Left`: the backpack at the right, then
 /// `BagBarExpandToggle`, then every shown bag button chained leftward, vertically centred
 /// on the backpack. Collapsed, the four bag slots hide and the reagent slot, which stays
 /// shown, chains on from the toggle (BagsBar.lua:62-107, MainMenuBarBagButtons.lua:259,
-/// 391). Money (not part of the Retail bar) sits left of the bags.
+/// 391). Money belongs to the backpack window, not the Retail bar.
 fn bag_bar(synced: Option<BagBarState>, layout: &HudLayout) -> Element {
     let state = synced.unwrap_or_default();
     let total_w = bags_bar_width();
@@ -166,7 +147,6 @@ fn bag_bar(synced: Option<BagBarState>, layout: &HudLayout) -> Element {
             {expand_toggle(toggle_x, centre_y(EXPAND_TOGGLE_H), state.collapsed)}
             {bags}
             {bag_slot(reagent, slot_x(shown_bags), centre_y(BAG_SLOT_SIZE), Vec::new())}
-            {money_display(centre_y(MONEY_DISPLAY_H), synced.map(|s| s.money))}
         }
     }
 }
@@ -196,25 +176,6 @@ fn expand_toggle(x: f32, y: f32, collapsed: bool) -> Element {
                 left: 0.0,
                 top: 0.0,
             }
-        }
-    }
-}
-
-fn money_display(y: f32, money: Option<u64>) -> Element {
-    let text = money.map(format_money).unwrap_or_else(|| "0g 0s 0c".into());
-    rsx! {
-        fontstring {
-            name: "BagsBarMoneyDisplay",
-            width: {MONEY_DISPLAY_W - 6.0},
-            height: {MONEY_DISPLAY_H},
-            text: text.as_str(),
-            font: "ArialNarrow",
-            font_size: 11.0,
-            font_color: MONEY_TEXT_COLOR,
-            justify_h: "RIGHT",
-            pos_type: "absolute",
-            left: 0.0,
-            pos_y: y,
         }
     }
 }

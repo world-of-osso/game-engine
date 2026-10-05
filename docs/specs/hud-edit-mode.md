@@ -93,7 +93,7 @@ This client has no Edit Mode overlay, so the controls sit on Options > HUD under
 - [x] `HotKey` text stays on one line inside its 32×10 label, right-aligned, cut with an ellipsis when longer ("Middle Mouse", "Backspace"): Retail's label height holds one line (`ActionButtonTemplate.xml:85-91`), and every fixed FontString shows only the lines its height holds. Applies to all three bars and the pet bar.
 - [x] Hotkey font: Modern keeps Retail's `NumberFontNormalSmallGray` 0.6 grey; Forever uses FlareUI's `hotkeyFont` (Core.lua:224: Arial Narrow 12 OUTLINE, black 1,-1 shadow, TOPRIGHT -4,-4) in the 210/255 grey-white of the reference capture (FlareUI keeps Blizzard's runtime `ACTIONBAR_HOTKEY_FONT_COLOR`, `ActionButton.lua:1258`), so keys read over bright icons.
 - Not implemented: the other Retail bars (`MultiBarRight`, `MultiBarLeft`, `MultiBar5-7`, pages 3, 4, 13-15), vertical orientation, icon padding, per-bar visibility conditions and "always show buttons".
-- Micro menu and bags bar have the same anchors, dimensions and visibility under both presets.
+- Micro menu and bags bar have the same anchors, dimensions and visibility under both presets. The Retail bags bar is 208 units wide, with no money frame; the backpack window retains its money row.
 - Tests: `godot/ui-model/tests/forever_action_bars.rs` (no end cap covers a button, 9/9/10 centred non-overlapping buttons, grid rows for icon/row counts, action slots per bar, class shields, unchanged Modern dump), `forever_pet_bar.rs` (pet bar above every action bar), `godot/rust/src/ui/hud_layout_tests.rs` (the same through the layout engine on a 1366×768 canvas).
 
 ### Target cast bar and replicated unit relationships
