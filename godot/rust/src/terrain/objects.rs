@@ -876,6 +876,11 @@ impl TerrainObjects {
         let mut wmo_node = spawn.build.finish();
         let liquid_errors = self.liquids.add(
             &spawn.asset,
+            terrain
+                .map_wdt
+                .as_ref()
+                .expect("loaded tile has WDT")
+                .map_id,
             &mut wmo_node.node,
             &self.resolver,
             &self.data_root,

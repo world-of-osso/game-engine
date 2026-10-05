@@ -5,7 +5,7 @@
 //! (`getLiquidMaterial`, `createLiquidMaterial`, `assignLiquidTextures`) and the per-material
 //! `create*LiquidData` packing (`LiquidWater.cpp` wave periods).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::csv_util::parse_csv_records;
@@ -158,6 +158,72 @@ pub struct LiquidCatalog {
     objects: HashMap<u32, LiquidObjectRow>,
     material_lvf: HashMap<u32, u8>,
     textures: HashMap<u32, Vec<TextureRow>>,
+}
+
+/// Separate product catalogs: only maps absent by ID and directory in Retail use Forever.
+/// A broken Forever export is retained as an error without disabling Retail materials.
+pub struct MapLiquidCatalog {
+    retail: LiquidCatalog,
+    forever_maps: HashSet<u32>,
+    forever: Result<LiquidCatalog, String>,
+}
+
+impl MapLiquidCatalog {
+    pub fn read(data: &Path) -> Result<Self, String> {
+        let retail_dir = data.join("db2/12.1.0.69933");
+        let forever_dir = data.join("db2/1.60.1.70205");
+        let retail_text = std::fs::read_to_string(retail_dir.join("Map.csv"))
+            .map_err(|error| format!("Retail Map.csv: {error}"))?;
+        let retail_maps = crate::map_catalog::MapCatalog::parse(&retail_text, &retail_text)?;
+        let merged_maps = crate::map_catalog::MapCatalog::read(data)?;
+        let forever_maps = read_table(&forever_dir, "Map", |_| Ok(()))?
+            .into_keys()
+            .filter(|id| retail_maps.by_id(*id).is_none() && merged_maps.by_id(*id).is_some())
+            .collect();
+        Ok(Self {
+            retail: LiquidCatalog::read(&retail_dir)?,
+            forever_maps,
+            forever: LiquidCatalog::read(&forever_dir),
+        })
+    }
+
+    pub fn uses_forever(&self, map_id: u32) -> bool {
+        self.forever_maps.contains(&map_id)
+    }
+
+    pub fn liquid_material(
+        &self,
+        map_id: u32,
+        liquid_type: u16,
+        liquid_object: u16,
+    ) -> Result<LiquidMaterial, String> {
+        if !self.uses_forever(map_id) {
+            return self.retail.liquid_material(liquid_type, liquid_object);
+        }
+        let catalog = self
+            .forever
+            .as_ref()
+            .map_err(|error| format!("Forever map {map_id}: {error}"))?;
+        if liquid_object >= FIRST_LIQUID_OBJECT
+            && !catalog.objects.contains_key(&u32::from(liquid_object))
+        {
+            return Err(format!(
+                "Forever LiquidObject {liquid_object} has no DB2 row"
+            ));
+        }
+        let material = catalog
+            .liquid_material(liquid_type, liquid_object)
+            .map_err(|error| format!("Forever map {map_id}: {error}"))?;
+        for &slot in material.shader.texture_slots() {
+            if material.texture_slots[slot].is_empty() {
+                return Err(format!(
+                    "Forever LiquidType {} has no textures for slot {slot}",
+                    material.liquid_type
+                ));
+            }
+        }
+        Ok(material)
+    }
 }
 
 impl LiquidCatalog {

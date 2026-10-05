@@ -24,6 +24,13 @@ WoW Forever map 2991 must load through the Godot world's terrain and object load
 - [ ] Select Forever lighting only for maps absent from retail, without allowing colliding LightParams IDs to modify retail samples. Missing Forever inputs must fail explicitly rather than sample retail defaults.
 - [ ] Sample actual Zephras position/time through native production lighting and capture inspected rendered pixels without fixture-neutral lighting.
 
+### Liquids
+
+- [x] Import LiquidType, LiquidMaterial, LiquidObject and LiquidTypeXTexture using build-70205 hash-matched layouts, exact Retail headers and CASC provenance.
+- [x] Select a separate Forever liquid catalog only for maps absent by ID and directory in Retail. Colliding rows must not alter Retail liquid materials. Missing Forever tables, objects, types, materials or sampled textures fail explicitly.
+- [x] Extend local-CASC closure with textures referenced by authored MH2O instances and their LiquidObject type mappings.
+- [ ] Zephras native world fixture reports zero missing-liquid-type diagnostics and captures inspected coastal water.
+
 ## How it works
 
 - [Terrain: Forever Zephras](../wiki/systems/terrain.md#forever-zephras-map-2991).
