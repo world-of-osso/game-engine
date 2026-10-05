@@ -2,7 +2,8 @@ extends "res://tests/world_quest_flow.gd"
 
 # Main supplies prepared credentials and launches twice under maintained cage/agent-run.
 # Required: GODOT_TEST_SERVER, SKYBORNE_RACE (95|96), SKYBORNE_USERNAME,
-# SKYBORNE_PASSWORD, SKYBORNE_SHOTS (absolute path under persistent data/), GAME_ENGINE_CLI.
+# SKYBORNE_PASSWORD, SKYBORNE_SHOTS (absolute path under persistent data/), GAME_ENGINE_CLI,
+# SKYBORNE_SCOPE (client-items|full). client-items proves no NPC/giver/quest behavior.
 # godot --path godot -s res://tests/skyborne_world_acceptance.gd
 # No admin travel/completion, direct quest acceptance or race96 quest invention.
 const SKY_QUEST := 92460
@@ -22,6 +23,10 @@ func run_test() -> void:
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	var port := server.trim_prefix("127.0.0.1:")
 	race = OS.get_environment("SKYBORNE_RACE").to_int()
+	var scope := OS.get_environment("SKYBORNE_SCOPE")
+	if scope not in ["client-items", "full"]:
+		fail("Require explicit SKYBORNE_SCOPE=client-items|full")
+		return
 	var username := OS.get_environment("SKYBORNE_USERNAME")
 	var password := OS.get_environment("SKYBORNE_PASSWORD")
 	shots = OS.get_environment("SKYBORNE_SHOTS").simplify_path()
@@ -54,6 +59,12 @@ func run_test() -> void:
 	if not await enter_named_world() or not check_start():
 		return
 	if not await save_capture("01-world-start.png") or not await inspect_kit():
+		return
+	if scope == "client-items":
+		print("SKYBORNE CLIENT_ITEMS_DONE race=", race, " character=", CHARACTERS[race])
+		print("SKYBORNE BLOCKED NPC/giver/quest acceptance: missing authored health/class data; no substitute")
+		client.free()
+		quit(0)
 		return
 	var giver := await locate(GIVERS[race])
 	if giver.is_empty():
