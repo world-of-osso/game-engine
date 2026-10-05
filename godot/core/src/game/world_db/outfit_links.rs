@@ -169,7 +169,7 @@ fn import_forever_gear_rows(conn: &Connection, paths: &[PathBuf]) -> Result<(), 
     init_schema(&overlay)?;
     super::populate_display_info(&overlay, &paths[0])?;
     super::material_links::populate_material_textures(&overlay, &paths[1])?;
-    super::material_links::populate_display_materials(&overlay, &paths[2])?;
+    super::material_links::populate_declared_display_materials(&overlay, &paths[2])?;
     super::populate_model_to_fdid(&overlay, &paths[3])?;
     // Retail resource collisions keep the entire Retail candidate group.
     copy_missing_gear_groups(

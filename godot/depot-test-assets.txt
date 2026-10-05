@@ -64,6 +64,7 @@ db2/1.60.1.70205/ItemDisplayInfoMaterialRes.csv
 db2/1.60.1.70205/ModelFileData.csv
 db2/1.60.1.70205/ComponentModelFileData.csv
 db2/1.60.1.70205/ComponentTextureFileData.csv
+db2/1.60.1.70205/HelmetGeosetData.csv
 db2/1.60.1.70205/ChrCustomizationOption.csv
 db2/1.60.1.70205/ChrCustomizationChoice.csv
 db2/1.60.1.70205/ChrCustomizationElement.csv

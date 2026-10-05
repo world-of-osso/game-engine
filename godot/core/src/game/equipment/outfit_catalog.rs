@@ -173,7 +173,22 @@ impl OutfitData {
 
     fn check_model_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {
         for &id in &display.model_resource_ids {
-            crate::outfit_catalog_db::load_cached_model_fdids(&self.data_dir, id)?;
+            let fdids = crate::outfit_catalog_db::load_cached_model_fdids(&self.data_dir, id)?;
+            if fdids.is_empty() {
+                return Err(format!("missing ModelFileData model resource {id}"));
+            }
+        }
+        let materials = display
+            .model_material_resource_ids
+            .iter()
+            .copied()
+            .chain(display.item_materials.iter().map(|&(_, id)| id));
+        for id in materials {
+            let fdids =
+                crate::outfit_catalog_db::load_cached_material_texture_fdids(&self.data_dir, id)?;
+            if fdids.is_empty() {
+                return Err(format!("missing TextureFileData material resource {id}"));
+            }
         }
         Ok(())
     }
