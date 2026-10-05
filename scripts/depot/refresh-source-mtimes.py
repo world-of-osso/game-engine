@@ -30,7 +30,7 @@ def refresh_sources(context, target):
                 path = base / name
                 if path.is_symlink():
                     raise ValueError(f"unsupported source symlink: {path}")
-                inputs.append(path)
+                inputs.append((repo, path))
     state = target / "source-mtimes.json"
     previous = json.loads(state.read_text()) if state.exists() else {}
     # Restaged files may have older mtimes even when their contents changed.
@@ -40,8 +40,10 @@ def refresh_sources(context, target):
         max((item[1] for item in previous.values()), default=0) + 1,
     )
     current = {}
-    for path in inputs:
-        key = str(path.relative_to(context))
+    for repo, path in inputs:
+        # Relative to the repo's parent: the same keys as relative to a single context
+        # root, and also valid when the caller lists repos individually (desktop-server).
+        key = str(path.relative_to(repo.parent))
         digest = hashlib.sha256(path.read_bytes()).hexdigest()
         saved = previous.get(key)
         mtime = saved[1] if saved is not None and saved[0] == digest else changed_mtime

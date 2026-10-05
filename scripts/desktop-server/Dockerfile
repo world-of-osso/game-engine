@@ -21,7 +21,7 @@ FROM source AS build
 RUN --mount=type=cache,id=server-registry-${SERVER_CACHE},target=/usr/local/cargo/registry \
     --mount=type=cache,id=server-git-${SERVER_CACHE},target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/build-target,sharing=locked \
-    python3 -c 'import runpy, sys; from pathlib import Path; from types import SimpleNamespace; refresh = runpy.run_path(sys.argv[1])["refresh_sources"]; refresh(SimpleNamespace(iterdir=lambda: [Path(path) for path in sys.argv[2:]]))' \
+    python3 -c 'import os, runpy, sys; from pathlib import Path; from types import SimpleNamespace; refresh = runpy.run_path(sys.argv[1])["refresh_sources"]; refresh(SimpleNamespace(iterdir=lambda: [Path(path) for path in sys.argv[2:]]), Path(os.environ["CARGO_TARGET_DIR"]))' \
         "$BUILD_PARENT/refresh-source-mtimes.py" "$BUILD_ROOT" "$BUILD_PARENT/shared-protocol" && \
     case "$BINARY" in \
         "") binaries="game-server game-server-admin game-cli"; set -- -p server --bin game-server --bin game-server-admin -p client --bin game-cli ;; \
@@ -50,7 +50,7 @@ RUN --mount=type=cache,id=server-registry-${SERVER_CACHE},target=/usr/local/carg
     --mount=type=cache,id=server-git-${SERVER_CACHE},target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/build-target,sharing=locked \
     --mount=type=bind,from=test-data,target=/test-data \
-    python3 -c 'import runpy, sys; from pathlib import Path; from types import SimpleNamespace; refresh = runpy.run_path(sys.argv[1])["refresh_sources"]; refresh(SimpleNamespace(iterdir=lambda: [Path(path) for path in sys.argv[2:]]))' \
+    python3 -c 'import os, runpy, sys; from pathlib import Path; from types import SimpleNamespace; refresh = runpy.run_path(sys.argv[1])["refresh_sources"]; refresh(SimpleNamespace(iterdir=lambda: [Path(path) for path in sys.argv[2:]]), Path(os.environ["CARGO_TARGET_DIR"]))' \
         "$BUILD_PARENT/refresh-source-mtimes.py" "$BUILD_ROOT" "$BUILD_PARENT/shared-protocol" && \
     rm -rf data && cp -a /test-data/game-server data && \
     mkdir -p "$BUILD_PARENT/game-engine" && ln -sfn /test-data/game-engine "$BUILD_PARENT/game-engine/data" && \
