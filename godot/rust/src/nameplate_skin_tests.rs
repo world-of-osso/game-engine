@@ -1,5 +1,5 @@
-//! Nameplate art by atlas name under each skin: the cast bar keeps Retail's `uicastingbar`
-//! crops under Modern and takes Forever's set-1 `uicastingbarc60` members, and Forever
+//! Nameplate background/fill art by skin: Retail's `uicastingbar` under Modern and
+//! Forever's set-1 `uicastingbarc60` members; the soft glow is skin-independent. Forever
 //! plates carry Camelot's level frame (Blizzard_NamePlates/Camelot/
 //! Blizzard_NamePlateLevelFrame.xml) where Modern plates have none.
 
@@ -38,7 +38,7 @@ fn shield() -> AtlasArt {
 }
 
 /// `uicastingbar.blp` (4505182, 512×256): the background and fill are the crops the client
-/// hard-coded before (`[57, 85, 209, 11]` and `[268, 124, 209, 11]`), the pip member 14243.
+/// hard-coded before (`[57, 85, 209, 11]` and `[268, 124, 209, 11]`).
 #[test]
 fn modern_cast_bar_draws_the_retail_uicastingbar_crops() {
     load_atlas_tables();
@@ -48,14 +48,13 @@ fn modern_cast_bar_draws_the_retail_uicastingbar_crops() {
         CastCrops {
             background: crop(4_505_182, sheet, [57.0, 266.0, 85.0, 96.0]),
             fill: crop(4_505_182, sheet, [268.0, 477.0, 124.0, 135.0]),
-            pip: crop(4_505_182, sheet, [1.0, 7.0, 151.0, 181.0]),
             shield: shield(),
         }
     );
 }
 
 /// `uicastingbarc60.blp` (8311977, 512×256), UiTextureAtlasMember 42438, 42447 and 42460
-/// of atlas 4246 (set 1): a 211×13 background, the 209×11 fill and the 6×30 pip.
+/// of atlas 4246 (set 1): a 211×13 background and the 209×11 fill.
 #[test]
 fn forever_cast_bar_draws_the_c60_sheet() {
     load_atlas_tables();
@@ -65,7 +64,6 @@ fn forever_cast_bar_draws_the_c60_sheet() {
         CastCrops {
             background: crop(8_311_977, sheet, [271.0, 482.0, 100.0, 113.0]),
             fill: crop(8_311_977, sheet, [268.0, 477.0, 157.0, 168.0]),
-            pip: crop(8_311_977, sheet, [1.0, 7.0, 98.0, 128.0]),
             shield: shield(),
         }
     );
