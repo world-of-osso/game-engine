@@ -42,6 +42,14 @@ Character creation in `src/scenes/char_create/` and `godot/ui-model/src/ui/scree
 
 Proof boundaries: [Skyborne ledger](../../target/skyborne-proof-ledger.md); data provenance and implementation: [Forever overlay](../wiki/systems/forever-data.md). These checks do not establish rendered acceptance.
 
+### Offline Skyborne acceptance
+
+- [x] High Order Skyborne (95, Alliance, default Mage) and Windshaper Skyborne (96, Horde, default Shaman) render both body types without authentication.
+- [x] Preview bodies resolve to M2 FDIDs 7478487/7478494, with visible geosets/materials and composed layout 201/202 body canvases at their catalog dimensions.
+- [x] Creation offers exactly the catalog options having at least one choice selectable by a new character of the selected race/class; exclude NPC-only Eye Style. Raw Skyborne catalogs contain 18 male / 19 female options. Enabled class buttons are Warrior, Hunter, Rogue, Mage/Shaman, Druid with the faction's default selected on race selection. Race portraits use the cropped atlas FDID 8200220.
+- [ ] Both races use their Forever-authored creation scene FDID 8035354; import its complete recursive M2/skin/texture/animation closure from local CASC. Native root/primary-skin rendering passes; textures 8026862/8026864 and fourth skin 8035745 remain unavailable locally.
+- [x] Native idle poses change over time; four inspected screenshots show textured, non-T-pose bodies. Preview-only hide/restore pixel controls distinguish each body from its backdrop, and the fixture shuts down normally.
+
 ### Authored creation scenes
 
 - [x] Resolve creation-scene FileDataIDs from `ChrRaces.CreateScreenFileDataID`, including Alliance, Horde and neutral Pandaren; keep the selectable roster unchanged.
@@ -86,17 +94,9 @@ Proof boundaries: [Skyborne ledger](../../target/skyborne-proof-ledger.md); data
 - `../shared-protocol/src/components.rs`, `../game-server/crates/server/src/character_data.rs` — appearance payload and stored-data upgrades.
 - `../ui-toolkit/core/src/atlas.rs` (DB2 atlas tables, project art), `../ui-toolkit/core/src/attrs.rs` — atlas identities/crops and authored hit insets.
 
-## Offline Skyborne acceptance
-
-- [ ] High Order Skyborne (95, Alliance, default Mage) and Windshaper Skyborne (96, Horde, default Shaman) render both body types without authentication.
-- [ ] Preview bodies resolve to M2 FDIDs 7478487/7478494, with visible geosets/materials and composed layout 201/202 body canvases at their catalog dimensions.
-- [ ] Creation offers exactly the catalog options having at least one choice selectable by a new character of the selected race/class; exclude NPC-only Eye Style. Raw Skyborne catalogs contain 18 male / 19 female options. Enabled class buttons are Warrior, Hunter, Rogue, Mage/Shaman, Druid with the faction's default selected on race selection. Race portraits use the cropped atlas FDID 8200220.
-- [ ] Both races use their Forever-authored creation scene FDID 8035354; import its recursive M2/skin/texture/animation closure from local CASC.
-- [ ] Native idle poses change over time; four inspected screenshots show textured, non-T-pose bodies. Preview-only hide/restore pixel controls distinguish each body from its backdrop, and the fixture shuts down normally.
-
 ## Tests asserting this spec
 
-- `godot/tests/charcreate_skyborne_flow.gd` — four offline native variants, exact imported catalog option IDs, body/material/canvas checks, independent atlas RGB crop, live bone motion and preview-only pixel controls.
+- `godot/tests/charcreate_skyborne_flow.gd` — four offline native variants, exact offered catalog option IDs with NPC Eye Style excluded, raw 18/19 coverage, body/material/canvas checks, independent atlas RGB crop, live bone motion and preview-only pixel controls.
 - `scripts/tests/charcreate_skyborne.py` — offscreen cage runner with saved actual Godot exit code and captures under `data/diagnostics/skyborne-charcreate/`; run through `scripts/agent/agent-run skyborne-charcreate` after the desktop helper exports the native extension.
 
 - `godot/ui-model/src/scenes/char_create/data.rs` — Skyborne roster, factions, defaults, class lists and icon atlas.
