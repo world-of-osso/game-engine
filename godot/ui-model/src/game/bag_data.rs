@@ -129,8 +129,8 @@ impl InventorySlot {
     }
 }
 
-/// A server stack shown in a bag or equipment slot. The server sends ids and
-/// counts only; name and quality come from the item catalog.
+/// A server stack shown in a bag or equipment slot. Source and ID select the
+/// local definition; name, quality and icon never cross catalog namespaces.
 pub fn stack_slot(stack: &ItemStack) -> InventorySlot {
     stack_slot_in_catalog(
         stack,

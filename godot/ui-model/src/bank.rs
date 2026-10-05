@@ -69,7 +69,7 @@ pub(crate) fn confirm_purchase(key: &str, text: &str, cost: u64) -> PopupSpec {
 }
 
 /// Icon FileDataID of an item. The host injects the item-table lookup
-/// (`item_icons::item_icon_fdid`); the portable default reads no data and shows
+/// (`item_icons::item_icon_fdid_for`); the portable default reads no data and shows
 /// Retail's `INV_Misc_QuestionMark`, as Retail does for an item it can't resolve.
 #[derive(Clone, Copy, Debug)]
 pub struct ItemIcons(pub fn(shared::item_data::ItemDefinitionSource, u32) -> Option<u32>);

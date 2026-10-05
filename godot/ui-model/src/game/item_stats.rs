@@ -1,4 +1,4 @@
-//! Item armor, weapon damage and stat values from the build-pinned Retail DB2 exports, as
+//! Item armor, weapon damage and stat values from source-local DB2 exports, as
 //! TrinityCore `ItemTemplate::GetArmor` / `GetDPS` / `GetDamage` and
 //! `Item::GetItemStatValue` with `GetRandomPropertyPoints` compute them (TrinityCore
 //! a352b1fa, ItemTemplate.cpp:147-269, Item.cpp:2385-2408, ItemEnchantmentMgr.cpp:107-175).
