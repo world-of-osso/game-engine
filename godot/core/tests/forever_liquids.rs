@@ -47,6 +47,33 @@ fn forever_liquids_resolve_observed_objects_and_preserve_every_retail_material()
 }
 
 #[test]
+fn pbr_source_floats_survive_and_legacy_render_borrows_only_forever_slow_water_inputs() {
+    let data = data_root();
+    let maps = MapLiquidCatalog::read(&data).unwrap();
+    let forever = LiquidCatalog::read(&data.join("db2/1.60.1.70205")).unwrap();
+    let legacy = forever.liquid_material(5, 0).unwrap();
+    for (kind, object) in [(1251, 18420), (1279, 21229)] {
+        let source = maps.liquid_material(2991, kind, object).unwrap();
+        assert_eq!(source.floats.len(), 38);
+        assert!((source.floats[23] + 0.146).abs() < 0.000_001);
+        let rendered = maps.render_material(2991, kind, object).unwrap();
+        assert_eq!(rendered.liquid_type, u32::from(kind));
+        assert_eq!(rendered.material_id, 130);
+        assert_eq!(rendered.lvf, source.lvf);
+        assert_eq!(rendered.flow_speed, source.flow_speed);
+        assert_eq!(rendered.flow_direction, source.flow_direction);
+        assert_eq!(rendered.floats, legacy.floats);
+        assert_eq!(rendered.depth_coefficients, legacy.depth_coefficients);
+        assert_eq!(rendered.color_source, legacy.color_source);
+        assert_eq!(rendered.texture_slots[2], [463849]);
+        assert_eq!(rendered.texture_slots[3], [317230]);
+        assert_eq!(rendered.texture_slots, legacy.texture_slots);
+    }
+    let retail = maps.liquid_material(0, 947, 42).unwrap();
+    assert_eq!(maps.render_material(0, 947, 42).unwrap(), retail);
+}
+
+#[test]
 fn forever_liquids_are_isolated_from_colliding_retail_ids_and_missing_tables() {
     let data = data_root();
     let scratch = std::env::temp_dir().join(format!("forever-liquids-{}", std::process::id()));
