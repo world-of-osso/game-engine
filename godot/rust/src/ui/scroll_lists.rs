@@ -16,7 +16,9 @@ use game_engine_ui_model::quest_frame_component::{QUEST_SCROLL_FRAMES, SCROLL_PA
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::MouseButton;
 use godot::prelude::*;
+use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::widgets::button::ButtonState;
 use ui_toolkit::widgets::scroll_list::{thumb_name, track_name};
 
 use super::{RegistryModel, RegistryUi};
@@ -153,16 +155,23 @@ pub(super) struct StepperHold {
 }
 
 impl StepperHold {
-    fn press(model: &mut RegistryModel, hit: u64) -> Option<Self> {
+    fn press(model: &mut RegistryModel, hit: u64) -> (bool, Option<Self>) {
         if !press_stepper(model, hit) {
-            return None;
+            return (false, None);
         }
-        Some(Self {
-            name: model.registry.get(hit)?.name.clone()?,
+        let frame = model.registry.get(hit).unwrap();
+        let disabled = matches!(&frame.widget_data,
+            Some(WidgetData::Button(button)) if button.state == ButtonState::Disabled);
+        if disabled {
+            return (true, None);
+        }
+        let held = Self {
+            name: frame.name.clone().unwrap(),
             elapsed: 0.0,
             delay: 0.5,
             over: true,
-        })
+        };
+        (true, Some(held))
     }
 
     fn advance(&mut self, model: &mut RegistryModel, delta: f64) -> bool {
@@ -279,8 +288,9 @@ impl RegistryUi {
                 true
             }
             MouseButton::LEFT if button.is_pressed() => hit.is_some_and(|hit| {
-                self.scroll_stepper = StepperHold::press(model, hit);
-                self.scroll_stepper.is_some() || press_thumb(&mut model.registry, hit, y)
+                let (taken, held) = StepperHold::press(model, hit);
+                self.scroll_stepper = held;
+                taken || press_thumb(&mut model.registry, hit, y)
             }),
             MouseButton::LEFT => {
                 let held = self.scroll_stepper.take().is_some();

@@ -331,7 +331,7 @@ fn holding_a_stepper_uses_retail_delay_and_interval_and_pauses_outside() {
         .get_by_name(&forward_stepper_name(list))
         .unwrap();
     let step = scroll_steps(&model, list).1;
-    let mut held = StepperHold::press(&mut model, forward).unwrap();
+    let mut held = StepperHold::press(&mut model, forward).1.unwrap();
     assert_eq!(
         model.registry.scroll_lists.get(list).unwrap().first_row,
         step
@@ -353,6 +353,34 @@ fn holding_a_stepper_uses_retail_delay_and_interval_and_pauses_outside() {
     );
     wheel_to_end(&mut model, false);
     assert!(!held.advance(&mut model, 1.0));
+}
+
+#[test]
+fn a_press_on_a_disabled_arrow_does_not_start_repeating_when_content_changes() {
+    let mut model = menu(long_bindings_view());
+    let list = OPTIONS_CONTENT_SCROLL;
+    let back = model
+        .registry
+        .get_by_name(&back_stepper_name(list))
+        .unwrap();
+    let (taken, mut held) = StepperHold::press(&mut model, back);
+    assert!(
+        taken,
+        "disabled arrow consumes its press without acquiring a timer"
+    );
+    model.registry.scroll_lists.scroll_to(list, 150);
+    rebuild(&mut model);
+    let repeated = held
+        .as_mut()
+        .is_some_and(|held| held.advance(&mut model, 1.0));
+    assert!(
+        !repeated,
+        "a disabled press must not acquire a repeat timer"
+    );
+    assert_eq!(
+        model.registry.scroll_lists.get(list).unwrap().first_row,
+        150
+    );
 }
 
 #[test]
