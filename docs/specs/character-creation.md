@@ -90,7 +90,8 @@ Proof boundaries: [Skyborne ledger](../../target/skyborne-proof-ledger.md); data
 
 - [ ] High Order Skyborne (95, Alliance, default Mage) and Windshaper Skyborne (96, Horde, default Shaman) render both body types without authentication.
 - [ ] Preview bodies resolve to M2 FDIDs 7478487/7478494, with visible geosets/materials and composed layout 201/202 body canvases at their catalog dimensions.
-- [ ] Creation offers 18 male / 19 female catalog options; enabled class buttons are Warrior, Hunter, Rogue, Mage/Shaman, Druid with the faction's default selected. Race portraits use the cropped atlas FDID 8200220.
+- [ ] Creation offers exactly the catalog options having at least one choice selectable by a new character of the selected race/class; exclude NPC-only Eye Style. Raw Skyborne catalogs contain 18 male / 19 female options. Enabled class buttons are Warrior, Hunter, Rogue, Mage/Shaman, Druid with the faction's default selected on race selection. Race portraits use the cropped atlas FDID 8200220.
+- [ ] Both races use their Forever-authored creation scene FDID 8035354; import its recursive M2/skin/texture/animation closure from local CASC.
 - [ ] Native idle poses change over time; four inspected screenshots show textured, non-T-pose bodies. Preview-only hide/restore pixel controls distinguish each body from its backdrop, and the fixture shuts down normally.
 
 ## Tests asserting this spec

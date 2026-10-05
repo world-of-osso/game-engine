@@ -60,6 +60,7 @@ class StringTests(unittest.TestCase):
 class ImportTests(unittest.TestCase):
     def test_local_golden_races_and_zephras_identity(self):
         from pathlib import Path
+
         from scripts import import_forever_skyborne as importer
 
         data = Path(__file__).resolve().parents[2] / "data"
@@ -90,6 +91,7 @@ class ImportTests(unittest.TestCase):
 
     def test_forever_lighting_tables_registered_and_real_zephras_rows(self):
         from pathlib import Path
+
         from scripts import import_forever_skyborne as importer
 
         expected = {
@@ -193,6 +195,7 @@ $noninline,relation$Parent<32>
 
     def test_raw_afid_animation_requires_content_identity(self):
         import hashlib
+
         from scripts import import_forever_skyborne as importer
 
         raw = struct.pack("<4I", 0, 34, 67, 100)
@@ -279,6 +282,88 @@ $noninline,relation$Parent<32>
             list(csv.DictReader(io.StringIO(output.decode()))),
             [{"ID": "95", "Name": "Skyborne", "Absent": ""}],
         )
+
+
+class CreationSceneAssetTests(unittest.TestCase):
+    def test_skyborne_scene_imports_recursive_files_and_skin_alias(self):
+        import json
+        import sqlite3
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from scripts import import_forever_skyborne as importer
+
+        def chunk(tag, payload):
+            return tag + struct.pack("<I", len(payload)) + payload
+
+        tables = {
+            name: []
+            for name in (
+                "ChrCustomizationOption",
+                "ChrCustomizationChoice",
+                "ChrCustomizationElement",
+                "ChrCustomizationMaterial",
+                "TextureFileData",
+                "ChrCustomizationSkinnedModel",
+                "Map",
+                "Light",
+                "LightParams",
+                "LightSkybox",
+            )
+        }
+        tables["ChrRaces"] = [
+            {"ID": 95, "CreateScreenFileDataID": 8035354},
+            {"ID": 96, "CreateScreenFileDataID": 8035354},
+            {"ID": 1, "CreateScreenFileDataID": 666},
+        ]
+        model = chunk(b"MD21", b"")
+        scene = model + chunk(b"SFID", struct.pack("<I", 7501))
+        scene += chunk(b"TXID", struct.pack("<I", 7502))
+        scene += chunk(b"AFID", struct.pack("<HHI", 0, 0, 7503))
+        sources = {
+            "8035354.m2": scene,
+            "7501.skin": b"SKIN",
+            "7502.blp": b"BLP2",
+            "7503.anim": chunk(b"AFM2", b""),
+            "7478487.m2": model,
+            "7478494.m2": model,
+            "8200220.blp": b"BLP2",
+            "8199012.blp": b"BLP2",
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data, staging, cache = (
+                root / name for name in ("data", "staging", "cache")
+            )
+            for directory in (
+                staging,
+                cache,
+                data / "db2" / importer.BUILD,
+                data / "db2/12.1.0.69933",
+            ):
+                directory.mkdir(parents=True, exist_ok=True)
+            (data / "db2/12.1.0.69933/Map.csv").write_text("ID\n0\n")
+            for name, raw in sources.items():
+                (staging / name).write_bytes(raw)
+            with sqlite3.connect(cache / "resolution.sqlite") as connection:
+                connection.execute(
+                    "create table resolution(fdid integer,content_key blob)"
+                )
+            with patch.object(importer, "CACHE", cache):
+                failures = importer.import_assets(data, staging, tables)
+            self.assertEqual(failures, [])
+            self.assertEqual((data / "models/8035354.m2").read_bytes(), scene)
+            self.assertEqual((data / "models/803535400.skin").read_bytes(), b"SKIN")
+            self.assertEqual((data / "textures/7502.blp").read_bytes(), b"BLP2")
+            self.assertEqual(
+                (data / "models/7503.anim").read_bytes(), sources["7503.anim"]
+            )
+            manifest = json.loads(
+                (data / "db2" / importer.BUILD / "assets.json").read_text()
+            )
+            self.assertEqual(manifest["counts"]["total"], 8)
+            self.assertNotIn("666.m2", manifest["assets"])
 
 
 if __name__ == "__main__":

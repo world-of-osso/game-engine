@@ -7,13 +7,13 @@ import hashlib
 import io
 import json
 import os
-from pathlib import Path
 import re
 import shutil
 import sqlite3
 import struct
 import subprocess
 import sys
+from pathlib import Path
 
 try:
     from scripts import export_db2_csv as export
@@ -457,13 +457,25 @@ def validate_magic(raw, extension, content_key=None):
         raise ValueError(f"expected {extension} magic, got {raw[:4]!r}")
 
 
+def creation_scene_assets(tables):
+    """Authored Skyborne creation models; the importer follows their asset closure."""
+    return {
+        int(row["CreateScreenFileDataID"])
+        for row in tables["ChrRaces"]
+        if int(row["ID"]) in (95, 96) and int(row["CreateScreenFileDataID"])
+    }
+
+
 def import_assets(data, staging, tables):
     textures, collections = customization_assets(tables)
     pending = {(fdid, "blp") for fdid in textures | {8200220, 8199012}}
     with (data / "db2/12.1.0.69933/Map.csv").open(newline="") as handle:
         retail_maps = {int(row["ID"]) for row in csv.DictReader(handle)}
     skies = lighting_assets(tables, retail_maps)
-    pending |= {(fdid, "m2") for fdid in collections | skies | {7478487, 7478494}}
+    scenes = creation_scene_assets(tables)
+    pending |= {
+        (fdid, "m2") for fdid in collections | skies | scenes | {7478487, 7478494}
+    }
     connection = sqlite3.connect(
         f"file:{CACHE / 'resolution.sqlite'}?mode=ro", uri=True
     )
