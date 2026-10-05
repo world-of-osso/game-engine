@@ -148,6 +148,8 @@ mod tests {
                     spells: [76671].into(),
                     primary_stat_priority: 5,
                     icon_fdid: 236264,
+                    role: 0,
+                    description: String::new(),
                 },
             )]
             .into(),

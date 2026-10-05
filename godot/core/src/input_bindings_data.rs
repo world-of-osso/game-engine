@@ -270,6 +270,7 @@ pub enum InputAction {
     ToggleProfessions,
     ToggleAchievements,
     ToggleTalents,
+    ToggleSpecialization,
     ToggleEncounterJournal,
     ToggleSocial,
     ToggleLootRules,
@@ -349,7 +350,7 @@ impl InputAction {
         Self::MultiActionBar2Button12,
     ];
 
-    pub const ALL: [Self; 94] = [
+    pub const ALL: [Self; 95] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -430,6 +431,7 @@ impl InputAction {
         Self::ToggleProfessions,
         Self::ToggleAchievements,
         Self::ToggleTalents,
+        Self::ToggleSpecialization,
         Self::ToggleEncounterJournal,
         Self::ToggleSocial,
         Self::ToggleLootRules,
@@ -543,6 +545,8 @@ impl InputAction {
                 "Talents",
                 Some(keyboard(BindingKey::KeyN)),
             ),
+            // Retail has no separate specialization default (Bindings_Standard.xml:1244).
+            Self::ToggleSpecialization => ("toggle_specialization", "Specialization", None),
             Self::ToggleEncounterJournal => (
                 "toggle_encounter_journal",
                 "Adventure Guide",
@@ -691,6 +695,7 @@ impl InputAction {
             | Self::ToggleProfessions
             | Self::ToggleAchievements
             | Self::ToggleTalents
+            | Self::ToggleSpecialization
             | Self::ToggleEncounterJournal
             | Self::ToggleSocial
             | Self::ToggleLootRules
@@ -1326,6 +1331,7 @@ fn interface_action_from_key(key: &str) -> Option<InputAction> {
         "toggle_professions" => InputAction::ToggleProfessions,
         "toggle_achievements" => InputAction::ToggleAchievements,
         "toggle_talents" => InputAction::ToggleTalents,
+        "toggle_specialization" => InputAction::ToggleSpecialization,
         "toggle_encounter_journal" => InputAction::ToggleEncounterJournal,
         "toggle_social" => InputAction::ToggleSocial,
         "toggle_loot_rules" => InputAction::ToggleLootRules,
@@ -1477,6 +1483,7 @@ fn interface_section_actions() -> &'static [InputAction] {
         InputAction::ToggleProfessions,
         InputAction::ToggleAchievements,
         InputAction::ToggleTalents,
+        InputAction::ToggleSpecialization,
         InputAction::ToggleEncounterJournal,
         InputAction::ToggleSocial,
         InputAction::ToggleLootRules,

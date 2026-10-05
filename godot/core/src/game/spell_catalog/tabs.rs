@@ -51,6 +51,9 @@ pub struct SpecTabInfo {
     pub primary_stat_priority: u32,
     /// `ChrSpecialization.SpellIconFileID`.
     pub icon_fdid: u32,
+    /// `ChrSpecialization.Role`: tank 0, healer 1, damage 2.
+    pub role: u32,
+    pub description: String,
 }
 
 /// The stat a specialization's gear and character sheet favour.
@@ -276,6 +279,8 @@ fn load_specs(dir: &Path) -> Result<HashMap<u32, SpecTabInfo>, String> {
         "MasterySpellID_1",
         "PrimaryStatPriority",
         "SpellIconFileID",
+        "Role",
+        "Description_lang",
     ];
     let mut specs = HashMap::new();
     for_each_record(dir, "ChrSpecialization", &columns, |row| {
@@ -290,6 +295,8 @@ fn load_specs(dir: &Path) -> Result<HashMap<u32, SpecTabInfo>, String> {
             spells: mastery.into_iter().filter(|&id| id != 0).collect(),
             primary_stat_priority: parse_u32(table, row[6])?,
             icon_fdid: parse_u32(table, row[7])?,
+            role: parse_u32(table, row[8])?,
+            description: row[9].to_string(),
         };
         specs.insert(parse_u32(table, row[0])?, spec);
         Ok(())

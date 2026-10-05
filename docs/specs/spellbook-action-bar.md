@@ -17,7 +17,12 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 - [x] Spellbook (P toggles, Escape closes, close button): 1612×856 evergreen book scaled to fit the viewport (SBF.xml), category tabs at TOPLEFT 70,-19 (TST.xml art, tab on top). Categories: the class (its class line and active spec line as headed groups) then General; an empty category is not shown.
 - [x] Pages: two 680×650 views (View1 TOPLEFT 85,-65, View2 TOPRIGHT -50,-65), headers take a row, items fill 3 columns column-first with the fewest rows (PCG.lua), `xPadding` 15, `yPadding` 10, `spacerSize` 20; a group that runs out of height continues in the next view; "Page %d/%d" (`PAGE_NUMBER_WITH_MAX`) with previous/next buttons.
 - [x] Items (SBI.xml, 60 high): 36 px icon in a square (active) or circle (passive) border, name in `SystemFont_Large` and `SPELLBOOK_FONT_COLOR`, "Passive" subtext for passives. Spells flagged `SPELL_ATTR0_DO_NOT_DISPLAY` (Attributes_0 0x80) or `SPELL_ATTR4_NOT_IN_SPELLBOOK` (Attributes_4 0x8000) are not listed; `SPELL_ATTR7_ONLY_IN_SPELLBOOK_UNTIL_LEARNED` (Attributes_7 0x10000) spells only as future spells, `SPELL_ATTR8_NOT_IN_SPELLBOOK_UNTIL_LEARNED` (Attributes_8 0x2000) only once known.
-- [x] Window: the book sits in a 1618×883 `PlayerSpellsFrame` `PortraitFrameTemplate` (rock background, portrait metal frame, title "Spellbook", the active spec's icon as the round portrait, close button). No bottom Specialization/Talents/Spellbook tab bar yet.
+- [x] Window: the book sits in a 1618×883 `PlayerSpellsFrame` `PortraitFrameTemplate` (rock background, portrait metal frame, the active spec's icon as the round portrait, close button).
+- [x] Bottom Specialization / Talents / Spellbook tabs select exclusive pages and update the title in both presets; window fit includes the bottom tabs. Same-page key toggles close, different-page keys select without closing.
+- [ ] P opens Spellbook; N opens Talents. Interface key-binding data includes both and an initially unbound Specialization action (Retail has no separate specialization default). Retail's single combined PlayerSpells micro button opens Specialization while the native talent system is absent, and closes a shown window.
+- [x] Specialization lists the class's non-Initial ChrSpecialization rows in OrderIndex order: name, icon, role and description, equal-width columns and server-active marker; Activate is disabled below level 10.
+- [ ] Native Activate sends the existing SetSpecialization message and never marks a spec active optimistically (model action/active marker tested; actual sender integration not yet proven).
+- [x] Talents remains an empty page with its tab present: no native talent system/tree. Retail hides an unavailable Talents tab rather than showing an unavailable-content page; retaining the empty tab is the explicit requested deviation.
 - [x] Spells learned at later levels (the class line's and the active spec's, race-masked) follow the known ones in level order, greyed (`unlearnedTextAlpha` 0.6, icon desaturated and tinted `SPELLBOOK_UNLEARNED_TINT_COLOR`, inactive border) with "Level %d" (`SPELLBOOK_AVAILABLE_AT`); they cannot be cast.
 - [x] Clicking a known active spell's icon casts it.
 - [x] Authored left-pointer-down on a known active spellbook icon or main action-bar button starts the owned native Effects click before mouse-up at `master × effects × 0.55`; release, right pointer input, keyboard casts, and spellbook reopening do not replay it.
@@ -33,6 +38,21 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 - [ ] Description values that scale with attack/spell power stay the renderer's `{?$s1}` marker (the client has no player stats).
 - [ ] Not built: drag to/from the bar, other action bars and paging, range/usable/power tinting, charges, the interrupted bar, spellbook search, the settings dropdown, flyouts, pet spells and the minimized book; icon masks (`spellbook-item-spellicon-mask`, `UI-HUD-ActionBar-IconFrame-Mask`); the Retail cast bar art (the shared Bevy bar uses flat colours).
 
+## PlayerSpells page references
+
+Source exports under `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowforever}/AddOns/`:
+- `Blizzard_PlayerSpells/Blizzard_PlayerSpellsFrame.xml:20-47`: bottom TabSystem anchor (22,2), Specialization/Talents content size; `.lua:14-16,89-114,127-139`: page order, unavailable-tab hiding, default page and titles. Both exports retain these Retail mechanics.
+- `Blizzard_PlayerSpells/ClassSpecializations/Blizzard_ClassSpecializationsFrame.xml:54-165,311-315` and `.lua:161-177,326-411`: equal-width columns, specialization metadata, active marker and Activate. Native uses the ChrSpecialization icon plus the corresponding Retail thumbnail atlas.
+- `Blizzard_PlayerSpells/ClassTalents/Blizzard_ClassTalentsFrame.lua:1217-1222`: valid config/tree requirement; `.xml:37-56`: tree frame definition, not an unavailable-system message.
+- `Blizzard_FrameXML/Bindings_Standard.xml:1235-1246`: SpellBook versus ClassTalentOrSpec toggle routes; `Blizzard_FrameXMLUtil/Mainline/PlayerSpellsUtil.lua:106-133,164-168`: same-page toggling and spec route. P/N defaults already exist in client binding data; XML declares routes, not default keys.
+- `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:722-726`: MagicButton inherits the panel button used by native Activate.
+
+## PlayerSpells continuation evidence (2026-10-05)
+
+- `18e3f1e4` targeted helper run: input_bindings_data 12/12, micro_menu 8/8, spellbook_frame 10/10; `a4dd5e3f` changed documentation only. Saved proof: `data/diagnostics/spelltabs-2026-10-05/green3.log`.
+- Native routes exist in `godot/rust/src/spells.rs:373-383` (bound page keys), `character_frame.rs:217-224` (combined micro), and `spells.rs:934-938` (existing SetSpecialization sender). Source inspection is not runtime acceptance.
+- Extension compilation completed during the detached extension+CLI helper retry, but CLI compilation stalled under sustained host load 39–50. Owned helper and descendants were terminated; `build2.log` records cancellation. Required load-below-24 gate blocked the requested test rerun and live captures. No screenshots or runtime activation proof obtained; unchecked runtime requirements above remain open.
+
 ## Assumptions
 
 - Icons missing from the local CASC install show an empty slot (no substitute icon). Several Arms spells' icons (132306, 132400, 970853, 6718291) are not in the local archives.
@@ -41,7 +61,9 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 ## Tests asserting this spec
 
 - `godot/core/tests/spell_catalog.rs`: warrior names/icons, rendered Battle Shout description; level 1 and level 10 Arms spellbook lists with future spells by level.
-- `godot/ui-model/tests/spellbook_frame.rs`: column-first grid (PCG.lua examples), view continuation, Level N and cast actions, desaturation, fit scale.
+- `godot/ui-model/tests/spellbook_frame.rs`: column-first grid (PCG.lua examples), view continuation, Level N and cast actions, desaturation, fit including bottom tabs, exclusive page selection in both presets, N/P model routes, pinned paladin spec metadata, active marker and Activate enabled/disabled actions.
+- `godot/core/tests/input_bindings_data.rs`: P/N defaults, unbound specialization action in Interface and persisted binding inventory.
+- `godot/ui-model/tests/micro_menu.rs`: combined PlayerSpells button routes to Specialization while talents are absent.
 - `godot/ui-model/tests/main_action_bar.rs`: bar geometry, keys, icon, cooldown swipe/countdown, click actions.
 - `godot/ui-model/tests/spell_tooltip.rs`: line order, colours, height.
 - `godot/rust/src/spell_tooltip.rs` tests: Slam "20 Rage | Melee Range", "Instant"; Charge "8-25 yd range", cast/cooldown formats; word wrap and colour escapes.

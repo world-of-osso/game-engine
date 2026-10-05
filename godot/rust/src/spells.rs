@@ -11,7 +11,6 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
-use game_engine_core::input_bindings_data::InputAction;
 use game_engine_core::spell_catalog::{
     SPELL_DB2_BUILD, SpellCatalogData, SpellCatalogPaths, load_spell_catalog,
 };
@@ -26,9 +25,10 @@ use game_engine_ui_model::main_action_bar_component::{
     parse_action_button, pressed_action_buttons,
 };
 use game_engine_ui_model::spellbook_frame_component::{
-    ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE, ACTION_SPELLBOOK_NEXT_PAGE,
-    ACTION_SPELLBOOK_PREV_PAGE, ACTION_SPELLBOOK_TAB, SpellbookCategory, SpellbookFrameState,
-    SpellbookGroup, SpellbookItemView,
+    ACTION_ACTIVATE_SPEC, ACTION_SPELLBOOK_CAST, ACTION_SPELLBOOK_CLOSE,
+    ACTION_SPELLBOOK_NEXT_PAGE, ACTION_SPELLBOOK_PREV_PAGE, ACTION_SPELLBOOK_TAB, PlayerSpellsTab,
+    SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
+    pressed_player_spells_tab, specialization_choices,
 };
 use godot::classes::{
     InputEvent, InputEventMouseButton, InputEventMouseMotion, Label3D, ProjectSettings,
@@ -48,7 +48,7 @@ use crate::{
     ui::RegistryUi,
     world_map::{WindowDrag, title_hit},
 };
-use game_engine_ui_model::spellbook_frame_component::{FRAME_H, FRAME_W, frame_layout};
+use game_engine_ui_model::spellbook_frame_component::{FRAME_W, frame_layout};
 use godot::global::MouseButton;
 
 /// `CooldownFrameTemplate` numbers show for cooldowns of at least this long (the GCD
@@ -91,6 +91,8 @@ pub(crate) struct SpellsHud {
     book_position: Option<[f32; 2]>,
     book_drag: Option<WindowDrag>,
     book: SpellbookFrameState,
+    /// Last page whose textures were resolved; input mutates `book` before sync.
+    book_art_state: Option<SpellbookFrameState>,
     /// FDID → whether `data/textures/{fdid}.blp` exists or was copied from local CASC.
     textures: HashMap<u32, bool>,
     /// Seconds each button stays pushed, by `ActionBar` then button.
@@ -116,6 +118,7 @@ impl Default for SpellsHud {
             book_position: None,
             book_drag: None,
             book: SpellbookFrameState::default(),
+            book_art_state: None,
             textures: HashMap::new(),
             pushed: Default::default(),
             combat_seen: 0,
@@ -172,6 +175,7 @@ impl SpellsHud {
         self.book_position = None;
         self.book_drag = None;
         self.book = SpellbookFrameState::default();
+        self.book_art_state = None;
     }
 
     /// Start the catalog build on a worker thread; poll it each frame.
@@ -279,7 +283,10 @@ fn cooldown_text(remaining: f32) -> String {
 /// Root position and physical-independent size in logical UI units.
 fn placed_book_rect(viewport: [f32; 2], saved: Option<[f32; 2]>) -> [f32; 4] {
     let (fit, _) = frame_layout(viewport);
-    let size = [FRAME_W * fit, FRAME_H * fit];
+    let size = [
+        FRAME_W * fit,
+        game_engine_ui_model::spellbook_frame_component::FRAME_TOTAL_H * fit,
+    ];
     let [x, y] = saved.unwrap_or([16.0, 104.0]);
     [
         x.clamp(0.0, (viewport[0] - size[0]).max(0.0)),
@@ -366,10 +373,10 @@ impl GameClient {
     fn apply_spell_keys(&mut self) -> Result<(), FrameError> {
         let input = self.physical_input.gameplay_state(self.keyboard_free());
         let bindings = &self.client_options.bindings;
-        let toggle = bindings.is_just_pressed(InputAction::ToggleSpellbook, &input);
+        let tab = pressed_player_spells_tab(bindings, &input);
         let pressed = pressed_action_buttons(bindings, &input);
-        if toggle {
-            self.toggle_spellbook()?;
+        if let Some(tab) = tab {
+            self.toggle_player_spells(tab)?;
         }
         for (bar, index) in pressed {
             self.use_action_button(bar, index)?;
@@ -663,12 +670,14 @@ impl GameClient {
         }
         self.spells.book_position = None;
         self.spells.book_drag = None;
+        self.spells.book_art_state = None;
     }
 
-    pub(super) fn toggle_spellbook(&mut self) -> Result<(), String> {
-        if self.spellbook_open() {
+    pub(super) fn toggle_player_spells(&mut self, tab: PlayerSpellsTab) -> Result<(), String> {
+        let open = self.spellbook_open();
+        if !self.spells.book.toggle_tab(open, tab) {
             self.close_spellbook();
-        } else {
+        } else if !open {
             let id = self
                 .account
                 .session
@@ -708,11 +717,17 @@ impl GameClient {
         let class_name = catalog
             .zip(player)
             .and_then(|(data, player)| data.tabs.class_names.get(&player.class_id).cloned());
+        let mut specializations = catalog.zip(player).map_or_else(Vec::new, |(data, player)| {
+            specialization_choices(&data.tabs, player.class_id, spells.spec())
+        });
         let mut categories = spellbook_categories(tabs, class_name.as_deref());
         let spec_icon = catalog
             .zip(spells.spec())
             .and_then(|(data, spec)| data.tabs.specs.get(&spec))
             .map_or(0, |spec| spec.icon_fdid);
+        for spec in &mut specializations {
+            spec.icon_fdid = self.drawable_fdid(spec.icon_fdid);
+        }
         for item in categories
             .iter_mut()
             .flat_map(|category| category.groups.iter_mut())
@@ -733,6 +748,9 @@ impl GameClient {
             selected: self.spells.book.selected,
             page: self.spells.book.page,
             portrait_fdid: self.drawable_fdid(spec_icon),
+            tab: self.spells.book.tab,
+            specializations,
+            can_activate_spec: player.is_some_and(|player| player.level >= 10),
         };
         state.selected = state.selected.min(state.categories.len().saturating_sub(1));
         state.page = state.page.min(state.page_count() - 1);
@@ -745,6 +763,14 @@ impl GameClient {
         }
         let state = self.spellbook_state();
         self.spells.book = state.clone();
+        // New pages/specs introduce art not present when the window first opened.
+        if self.spells.book_art_state.as_ref() != Some(&state) {
+            self.extract_art(&crate::quests::screen_texture_fdids(
+                state.clone(),
+                game_engine_ui_model::spellbook_frame_component::spellbook_frame_screen,
+            ));
+            self.spells.book_art_state = Some(state.clone());
+        }
         if self
             .spells
             .book_ui
@@ -758,10 +784,6 @@ impl GameClient {
             return self.place_spellbook();
         }
         let scale = self.effective_ui_scale();
-        self.extract_art(&crate::quests::screen_texture_fdids(
-            state.clone(),
-            game_engine_ui_model::spellbook_frame_component::spellbook_frame_screen,
-        ));
         let ui = self.spells.book_ui.as_mut().expect("spellbook open");
         let mut book = ui.bind_mut();
         let shown = book
@@ -907,6 +929,13 @@ impl GameClient {
         if action.is_empty() {
         } else if action == ACTION_SPELLBOOK_CLOSE {
             self.close_spellbook();
+        } else if book.select_frame_tab(&action)? {
+            // The next sync replaces the selected page; book category/page stay intact.
+        } else if let Some(raw) = action.strip_prefix(ACTION_ACTIVATE_SPEC) {
+            let spec_id = raw
+                .parse()
+                .map_err(|_| format!("Bad specialization: {action}"))?;
+            self.account.send_set_specialization(spec_id)?;
         } else if action == ACTION_SPELLBOOK_PREV_PAGE {
             book.page = book.page.saturating_sub(1);
         } else if action == ACTION_SPELLBOOK_NEXT_PAGE {

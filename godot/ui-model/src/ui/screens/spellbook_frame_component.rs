@@ -15,6 +15,9 @@ use ui_toolkit::widget_def::Element;
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::screens::quest_art::window_chrome;
+
+#[path = "spellbook_frame_component/player_spells_pages.rs"]
+mod player_spells_pages;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::GameFont;
 
@@ -26,18 +29,112 @@ pub const ACTION_SPELLBOOK_CAST: &str = "spellbook_cast:";
 pub const ACTION_SPELLBOOK_PREV_PAGE: &str = "spellbook_page:prev";
 pub const ACTION_SPELLBOOK_NEXT_PAGE: &str = "spellbook_page:next";
 pub const ACTION_SPELLBOOK_CLOSE: &str = "spellbook_close";
+pub const ACTION_PLAYER_SPELLS_TAB: &str = "player_spells_tab:";
+pub const ACTION_ACTIVATE_SPEC: &str = "player_spells_activate:";
+
+/// Blizzard_PlayerSpellsFrame.lua:14-16: independent pages, in this order.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum PlayerSpellsTab {
+    Specialization,
+    Talents,
+    #[default]
+    Spellbook,
+}
+
+impl PlayerSpellsTab {
+    pub const ALL: [Self; 3] = [Self::Specialization, Self::Talents, Self::Spellbook];
+
+    pub fn title(self) -> &'static str {
+        match self {
+            Self::Specialization => "Specialization",
+            Self::Talents => "Talents",
+            Self::Spellbook => "Spellbook",
+        }
+    }
+}
+
+pub fn pressed_player_spells_tab(
+    bindings: &game_engine_core::input_bindings_data::InputBindingsData,
+    input: &impl game_engine_core::input_bindings_data::InputState,
+) -> Option<PlayerSpellsTab> {
+    use game_engine_core::input_bindings_data::InputAction;
+    [
+        (InputAction::ToggleSpellbook, PlayerSpellsTab::Spellbook),
+        (InputAction::ToggleTalents, PlayerSpellsTab::Talents),
+        (
+            InputAction::ToggleSpecialization,
+            PlayerSpellsTab::Specialization,
+        ),
+    ]
+    .into_iter()
+    .find_map(|(action, tab)| bindings.is_just_pressed(action, input).then_some(tab))
+}
+
+#[derive(Clone, Debug, PartialEq)]
+pub struct SpecializationChoice {
+    pub id: u32,
+    pub name: String,
+    pub icon_fdid: u32,
+    pub role: String,
+    pub description: String,
+    pub thumbnail: String,
+    pub active: bool,
+}
+
+pub fn specialization_choices(
+    data: &game_engine_core::spell_catalog::SpellbookTabIndex,
+    class_id: u32,
+    active_spec: Option<u32>,
+) -> Vec<SpecializationChoice> {
+    let mut specs: Vec<_> = data
+        .specs
+        .iter()
+        .filter(|(_, spec)| spec.class_id == class_id && !spec.initial)
+        .collect();
+    specs.sort_by_key(|(id, spec)| (spec.order_index, **id));
+    let class = data
+        .class_names
+        .get(&class_id)
+        .map(String::as_str)
+        .unwrap_or("")
+        .to_lowercase()
+        .replace(' ', "");
+    specs
+        .into_iter()
+        .map(|(&id, spec)| SpecializationChoice {
+            id,
+            name: spec.name.clone(),
+            icon_fdid: spec.icon_fdid,
+            role: match spec.role {
+                0 => "Tank",
+                1 => "Healer",
+                2 => "Damage",
+                role => panic!("Unsupported ChrSpecialization role {role} for spec {id}"),
+            }
+            .into(),
+            description: spec.description.clone(),
+            // Blizzard_ClassSpecializationsFrame.lua:13-54, SPEC_FORMAT_STRINGS.
+            thumbnail: format!(
+                "spec-thumbnail-{class}-{}",
+                spec.name.to_lowercase().replace(' ', "")
+            ),
+            active: active_spec == Some(id),
+        })
+        .collect()
+}
 
 /// `PlayerSpellsFrame` (`PortraitFrameTemplate`, Blizzard_PlayerSpellsFrame.xml:5-10):
 /// the window holding the book, its title, portrait and close button.
 pub const FRAME_W: f32 = 1618.0;
 pub const FRAME_H: f32 = 883.0;
+/// Bottom tabs extend beyond the portrait window (PlayerSpellsFrame.xml:27).
+pub const FRAME_TOTAL_H: f32 = FRAME_H + 36.0;
 /// `SpellBookFrameTemplate` content size (`PlayerSpellsFrame` 1612×856 tab page),
 /// anchored BOTTOMLEFT 0,4 (Blizzard_PlayerSpellsFrame.xml:49-57).
 const BOOK_W: f32 = 1612.0;
 const BOOK_H: f32 = 856.0;
 const BOOK_Y: f32 = FRAME_H - 4.0 - BOOK_H;
 /// `SetTitle(SPELLBOOK)` (Blizzard_PlayerSpellsFrame.lua:139), GlobalStrings `SPELLBOOK`.
-const TITLE: &str = "Spellbook";
 /// `PortraitFrameBaseTemplate` portrait: 62×62 at TOPLEFT -5,7
 /// (SharedUIPanelTemplates.xml:558-562).
 const PORTRAIT: [f32; 4] = [-5.0, -7.0, 62.0, 62.0];
@@ -191,9 +288,32 @@ pub struct SpellbookFrameState {
     /// The active specialization's icon (`PlayerSpellsFrameMixin:UpdatePortrait`,
     /// Blizzard_PlayerSpellsFrame.lua:332-342); 0 draws an empty ring.
     pub portrait_fdid: u32,
+    pub tab: PlayerSpellsTab,
+    pub specializations: Vec<SpecializationChoice>,
+    pub can_activate_spec: bool,
 }
 
 impl SpellbookFrameState {
+    /// PlayerSpellsUtil.lua:119-130: same page closes, another page selects and shows.
+    pub fn toggle_tab(&mut self, open: bool, tab: PlayerSpellsTab) -> bool {
+        let shown = !open || self.tab != tab;
+        self.tab = tab;
+        shown
+    }
+
+    pub fn select_frame_tab(&mut self, action: &str) -> Result<bool, String> {
+        let Some(raw) = action.strip_prefix(ACTION_PLAYER_SPELLS_TAB) else {
+            return Ok(false);
+        };
+        let index: usize = raw
+            .parse()
+            .map_err(|_| format!("Bad PlayerSpells tab: {action}"))?;
+        self.tab = *PlayerSpellsTab::ALL
+            .get(index)
+            .ok_or_else(|| format!("Unknown PlayerSpells tab: {index}"))?;
+        Ok(true)
+    }
+
     pub fn selected_category(&self) -> Option<&SpellbookCategory> {
         self.categories.get(self.selected)
     }
@@ -280,11 +400,11 @@ pub fn paginate(groups: &[SpellbookGroup]) -> Vec<Vec<Placement>> {
 pub fn frame_layout(viewport: [f32; 2]) -> (f32, [f32; 2]) {
     let [width, height] = viewport;
     let fit_w = (width - 2.0 * SCREEN_MARGIN) / FRAME_W;
-    let fit_h = (height - 2.0 * SCREEN_MARGIN) / FRAME_H;
+    let fit_h = (height - 2.0 * SCREEN_MARGIN) / FRAME_TOTAL_H;
     let scale = fit_w.min(fit_h).clamp(0.1, 1.0);
     let origin = [
         ((width - FRAME_W * scale) / 2.0).round(),
-        ((height - FRAME_H * scale) / 2.0).round(),
+        ((height - FRAME_TOTAL_H * scale) / 2.0).round(),
     ];
     (scale, origin)
 }
@@ -813,9 +933,32 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
     let chrome = window_chrome(
         "SpellBook",
         (FRAME_W * s, FRAME_H * s),
-        TITLE,
+        state.tab.title(),
         ACTION_SPELLBOOK_CLOSE,
     );
+    let content = match state.tab {
+        PlayerSpellsTab::Spellbook => rsx! {
+            r#frame {
+                name: "SpellBookFrame",
+                width: {BOOK_W * s}, height: {BOOK_H * s},
+                pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * s},
+                {background(s)}
+                {category_tabs(state, s)}
+                {view(state, views.get(page * 2), 0, s)}
+                {view(state, views.get(page * 2 + 1), 1, s)}
+                {paging(state, s)}
+            }
+        },
+        PlayerSpellsTab::Specialization => player_spells_pages::specializations(state, s),
+        // Retail hides an unavailable Talents tab (PlayerSpellsFrame.lua:95-99),
+        // rather than providing an unavailable page. Keep the requested empty page.
+        PlayerSpellsTab::Talents => rsx! {
+            r#frame {
+                name: "ClassTalentsFrame", width: {BOOK_W * s}, height: {BOOK_H * s},
+                pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * s},
+            }
+        },
+    };
     let [portrait_x, portrait_y, portrait_w, portrait_h] = PORTRAIT;
     rsx! {
         r#frame {
@@ -828,19 +971,8 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
             left: x,
             top: y,
             {chrome}
-            r#frame {
-                name: "SpellBookFrame",
-                width: {BOOK_W * s},
-                height: {BOOK_H * s},
-                pos_type: "absolute",
-                pos_x: 0.0,
-                pos_y: {BOOK_Y * s},
-                {background(s)}
-                {category_tabs(state, s)}
-                {view(state, views.get(page * 2), 0, s)}
-                {view(state, views.get(page * 2 + 1), 1, s)}
-                {paging(state, s)}
-            }
+            {content}
+            {player_spells_pages::bottom_tabs(state, s)}
             // `PortraitContainer` frameLevel 400, above the book's 100
             // (SharedUIPanelTemplates.xml:551, Blizzard_PlayerSpellsFrame.xml:49).
             texture {
@@ -859,6 +991,15 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
 
 /// Retail desaturates the icons of spells not learned yet (`SetDesaturated`).
 pub fn apply_spellbook_postsetup(state: &SpellbookFrameState, registry: &mut FrameRegistry) {
+    for spec in &state.specializations {
+        let name = format!("ClassSpec{}Description", spec.id);
+        if let Some(id) = registry.get_by_name(&name)
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::FontString(text)) = frame.widget_data.as_mut()
+        {
+            text.word_wrap = true;
+        }
+    }
     let Some(category) = state.selected_category() else {
         return;
     };
