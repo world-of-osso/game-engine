@@ -351,7 +351,7 @@ impl InputAction {
         Self::MultiActionBar2Button12,
     ];
 
-    pub const ALL: [Self; 95] = [
+    pub const ALL: [Self; 96] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
