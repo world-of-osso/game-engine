@@ -17,6 +17,65 @@ fn build(view: LauncherView) -> FrameRegistry {
     registry
 }
 
+fn load_icon_tables() -> std::path::PathBuf {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    data
+}
+
+#[test]
+fn launcher_entries_resolve_to_non_fallback_icon_textures() {
+    use ui_toolkit::atlas::{AtlasSource, resolve_region};
+
+    const QUESTION_MARK_FDID: u32 = 134_400;
+    let data = load_icon_tables();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for entry in entries() {
+            // Portrait entries draw a runtime player portrait over this authored shadow.
+            let atlas = entry
+                .icon
+                .as_deref()
+                .unwrap_or("UI-HUD-MicroMenu-Portrait-Shadow");
+            let region = resolve_region(atlas, skin)
+                .unwrap_or_else(|| panic!("{}: missing {atlas} under {skin:?}", entry.label));
+            let AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("{}: icon must use local Blizzard data", entry.label);
+            };
+            assert_ne!(fdid, QUESTION_MARK_FDID, "{}: fallback icon", entry.label);
+            let path = data.join(format!("textures/{fdid}.blp"));
+            let bytes = std::fs::read(&path)
+                .unwrap_or_else(|error| panic!("{}: {}: {error}", entry.label, path.display()));
+            let image = game_engine_core::blp::decode_rgba(&bytes).unwrap();
+            assert!(image.width > 0 && image.height > 0, "{}", entry.label);
+            assert!(
+                region.right > region.left && region.bottom > region.top,
+                "{}",
+                entry.label
+            );
+        }
+    }
+}
+
+#[test]
+fn launcher_shortcuts_draw_settings_keyboard_and_map_art() {
+    use ui_toolkit::atlas::resolve_region;
+
+    load_icon_tables();
+    let list = entries();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (label, atlas) in [
+            ("Options", "Gear"),
+            ("Key Bindings", "newplayertutorial-keyboard"),
+            ("World Map", "UI-HUD-Minimap-Tracking-Up"),
+        ] {
+            let entry = list.iter().find(|entry| entry.label == label).unwrap();
+            let actual = resolve_region(entry.icon.as_deref().unwrap(), skin).unwrap();
+            let expected = resolve_region(atlas, skin).unwrap();
+            assert_eq!(actual, expected, "{label} under {skin:?}");
+        }
+    }
+}
+
 #[test]
 fn launcher_ctrl_space_toggles_and_escape_closes() {
     let bindings = InputBindingsData::default();
