@@ -10,6 +10,7 @@ use std::fs;
 
 use game_engine_core::asset::m2_format::m2_camera::parse_portrait_camera;
 use game_engine_core::creation_scene_data::vertical_fov;
+use game_engine_ui_model::character_frame::PORTRAIT as CHARACTER_FRAME_PORTRAIT;
 use game_engine_ui_model::inworld_unit_frames_component::{
     PET_PORTRAIT, PLAYER_PORTRAIT, PortraitSlot, TARGET_PORTRAIT,
 };
@@ -53,6 +54,7 @@ pub(crate) struct UnitPortraits {
     pet: Portrait,
     /// The CharacterMicroButton's player portrait.
     micro: Portrait,
+    character: Portrait,
     launcher: Portrait,
     /// The open vendor in MerchantFrame (`SetPortraitToUnit("npc")`).
     merchant: Portrait,
@@ -67,6 +69,7 @@ impl Default for UnitPortraits {
             target: Portrait::new(TARGET_PORTRAIT),
             pet: Portrait::new(PET_PORTRAIT),
             micro: Portrait::new(CHARACTER_PORTRAIT),
+            character: Portrait::new(CHARACTER_FRAME_PORTRAIT),
             launcher: Portrait::new(game_engine_ui_model::launcher::CHARACTER_ICON),
             merchant: Portrait::new(MERCHANT_PORTRAIT),
             quest: Portrait::new(QUEST_PORTRAIT),
@@ -441,6 +444,10 @@ impl GameClient {
             .character_frame
             .micro_ui()
             .and_then(|ui| ui.bind().frame_control(micro_slot.frame));
+        let character_host = self
+            .character_frame
+            .frame_ui()
+            .and_then(|ui| ui.bind().frame_control(CHARACTER_FRAME_PORTRAIT.frame));
         let launcher_host = self.launcher.ui.as_ref().and_then(|ui| {
             ui.bind()
                 .frame_control(game_engine_ui_model::launcher::CHARACTER_ICON.frame)
@@ -463,6 +470,10 @@ impl GameClient {
         let micro_result = portraits
             .micro
             .sync(&mut self.world, micro_host, player.clone());
+        let character_result =
+            portraits
+                .character
+                .sync(&mut self.world, character_host, player.clone());
         let launcher_result = portraits
             .launcher
             .sync(&mut self.world, launcher_host, player);
@@ -474,6 +485,7 @@ impl GameClient {
             .and(target_result)
             .and(pet_result)
             .and(micro_result)
+            .and(character_result)
             .and(launcher_result)
             .and(merchant_result)
             .and(quest_result)
@@ -499,6 +511,7 @@ impl GameClient {
         portraits.target.clear(&mut self.world);
         portraits.pet.clear(&mut self.world);
         portraits.micro.clear(&mut self.world);
+        portraits.character.clear(&mut self.world);
         portraits.launcher.clear(&mut self.world);
         portraits.merchant.clear(&mut self.world);
         portraits.quest.clear(&mut self.world);
@@ -509,7 +522,7 @@ impl GameClient {
 impl GameClient {
     /// Portrait state for automation: `frame` is `PlayerPortrait`, `TargetFramePortrait`,
     /// `PetPortrait`, `CharacterMicroButtonPortrait`, `MerchantFramePortrait` or
-    /// `QuestFramePortrait`.
+    /// `QuestFramePortrait` or `CharacterFramePortrait`.
     #[func]
     fn unit_portrait_state(&self, frame: GString) -> VarDictionary {
         let portraits = &self.targeting.portraits;
@@ -519,6 +532,7 @@ impl GameClient {
             &portraits.target,
             &portraits.pet,
             &portraits.micro,
+            &portraits.character,
             &portraits.launcher,
             &portraits.merchant,
             &portraits.quest,

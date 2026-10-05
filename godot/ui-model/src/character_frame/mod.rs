@@ -42,10 +42,14 @@ pub use crate::character_frame_component::{equipment_slot_action, parse_equipmen
 use crate::merchant_frame_component::{tab, tab_width};
 use crate::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, portrait_border, window_chrome,
+    window_portrait, window_portrait_slot,
 };
 use crate::ui::strata::FrameStrata;
 
 pub const FRAME_NAME: &str = "CharacterFrame";
+/// Player head rendered by the native unit-portrait host in either skin.
+pub const PORTRAIT: crate::inworld_unit_frames_component::PortraitSlot =
+    window_portrait_slot("CharacterFramePortrait");
 /// `CHARACTERFRAME_EXPANDED_WIDTH` (CF.lua:2): PaperDollFrame_OnShow expands the frame.
 pub const FRAME_W: f32 = 540.0;
 /// `PANEL_DEFAULT_WIDTH` (Constants.lua:299): the PaperDollFrame inset keeps this width.
@@ -514,6 +518,7 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
         // Camelot CharacterFrame.xml:403 uses PortraitFrameBaseTemplate, not the rock fill.
         ActiveSkin::Forever => portrait_border(FRAME_NAME, (width, height), title, ACTION_CLOSE),
     };
+    children.extend(window_portrait(&PORTRAIT));
     if paperdoll {
         children.extend(paperdoll_frame(view));
     } else {
@@ -993,7 +998,7 @@ fn tabs(selected: CharacterTab) -> Element {
 
 /// Existing Character/Reputation actions, with Camelot's vertical mode-tab chrome.
 /// CharacterFrame.xml:569-589; CharacterFrame.lua:207; SharedUIPanelTemplates.lua:313.
-/// Keep existing labels: this view has no player-portrait texture for Camelot's icon.
+/// Keep the existing Character/Reputation labels and approved tab art.
 fn forever_tabs(selected: CharacterTab) -> Element {
     let background = art::resolve_art("common-sidetab");
     let (w, art_h) = background.size();
@@ -1031,10 +1036,13 @@ fn forever_tabs(selected: CharacterTab) -> Element {
                 WHITE,
             ));
         }
+        // A full-height caption opts into native wrapping. Reserve only one line,
+        // centered on the same tab, so longer native glyph runs are ellipsized.
+        let caption_h = 13.0;
         children.extend(text(
             format!("{name}Text"),
             label,
-            (0.0, 0.0, w, h),
+            (0.0, (h - caption_h) / 2.0, w, caption_h),
             (10.0, HIGHLIGHT_FONT_COLOR),
             "CENTER",
         ));
