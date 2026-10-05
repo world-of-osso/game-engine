@@ -10,8 +10,9 @@ The in-world XP HUD shows the player's progress to the next level and the rested
 - [x] Rested overlay runs from the bar's left to (XP + rested) / next-level XP, under the fill; hidden without a pool or when the pool ends past the bar. Modern's pip is centred on that end, 2 above the bar's centre, hidden within 1% of either edge.
 - [x] Hidden at the level cap (`next_level_xp == 0`) and absent before the first `PlayerXpUpdate` and outside the world.
 - [x] Hovering the bar shows "XP: <xp>/<next>" (`XP_STATUS_BAR_TEXT`), drawn over fill and border; leaving hides it.
+- [x] Hovering the bar also shows the exhaustion tooltip (`ExhaustionToolTipText`): white "<xp> / <next>  ( <ceil %>% )" with thousands separators, a blank line, the rest state in gold ("Rested" with a rested pool, else "Normal") and "<200|100>% of normal experience" / "gained from monsters." in white, at the default anchor (Forever: FlareUI's cursor anchor).
 - [x] The canvas mirrors the active skin and UI scale like every HUD canvas: a preset switch moves and reskins the mounted bar.
-- [ ] Live rendered proof (pixels, hover through Godot input) not captured.
+- [x] Live rendered proof: fill from real kill XP and the hover tooltip (data/diagnostics/xplive-2026-10-04/xp-tooltip-xp-2x.png). The rested overlay is not live-proven: the server never accumulates rested XP.
 
 ## How it works
 
@@ -30,8 +31,9 @@ The in-world XP HUD shows the player's progress to the next level and the rested
 
 - `godot/ui-model/tests/xp_bar.rs` — geometry, fill, rested overlay and pip, cap, hover text, atlas names, Forever colours and border.
 - `godot/rust/src/xp_bar.rs` — state mapping.
+- `godot/ui-model/src/game_tooltip/hud.rs` — exhaustion tooltip text, colours and rest state.
 - `godot/rust/src/ui/hud_layout_tests.rs` — mounted rect per preset through the skin mirror.
 
 ## Out of scope
 
-- Reputation, honor and the other status bars; the second container; trial/banked XP; the disabled-XP toggle; gain and level-up animations; the `xpBarText` always-on option; the exhaustion tooltip; Edit Mode moving or resizing of the bar; the overlay's texcoord crop.
+- Reputation, honor and the other status bars; the second container; trial/banked XP; the disabled-XP toggle; gain and level-up animations; the `xpBarText` always-on option; Edit Mode moving or resizing of the bar; the overlay's texcoord crop.
