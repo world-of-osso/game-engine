@@ -66,7 +66,7 @@ CREATE INDEX idx_model_to_fdid_file_data_id ON model_to_fdid(file_data_id);";
 
 pub(super) fn import_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, String> {
     let cache_path = super::outfit_links_cache_path(data_dir);
-    let csv_paths = super::required_outfit_csv_paths(data_dir);
+    let csv_paths = outfit_source_paths(data_dir)?;
     if let Some(parent) = cache_path.parent() {
         std::fs::create_dir_all(parent)
             .map_err(|err| format!("create {}: {err}", parent.display()))?;
@@ -98,7 +98,7 @@ pub(super) fn imported_outfit_links_cache_path(data_dir: &Path) -> Result<PathBu
             cache_path.display()
         ));
     }
-    let csv_paths = super::required_outfit_csv_paths(data_dir);
+    let csv_paths = outfit_source_paths(data_dir)?;
     let conn = super::open_read_only(&cache_path)?;
     if !super::outfit_cache_is_fresh(&conn, &csv_paths)? {
         return Err(format!(
@@ -128,7 +128,7 @@ fn record_source_files(conn: &Connection, csv_paths: &[PathBuf]) -> Result<(), S
     Ok(())
 }
 
-fn import_rows(conn: &Connection, csv_paths: &[PathBuf; 7]) -> Result<(), String> {
+fn import_rows(conn: &Connection, csv_paths: &[PathBuf]) -> Result<(), String> {
     super::populate_starter_outfits(conn, &csv_paths[0])?;
     super::populate_item_modified_appearance_map(conn, &csv_paths[1])?;
     super::populate_item_appearance_map(conn, &csv_paths[2])?;
@@ -136,6 +136,113 @@ fn import_rows(conn: &Connection, csv_paths: &[PathBuf; 7]) -> Result<(), String
     super::material_links::populate_material_textures(conn, &csv_paths[4])?;
     super::material_links::populate_display_materials(conn, &csv_paths[5])?;
     super::populate_model_to_fdid(conn, &csv_paths[6])?;
+    if csv_paths.len() > 7 {
+        import_forever_gear_rows(conn, &csv_paths[7..])?;
+    }
+    Ok(())
+}
+
+fn outfit_source_paths(data_dir: &Path) -> Result<Vec<PathBuf>, String> {
+    let mut paths = super::required_outfit_csv_paths(data_dir).to_vec();
+    let dir = data_dir.join("db2/1.60.1.70205");
+    if !dir.join("ItemDisplayInfo.csv").exists() {
+        return Ok(paths);
+    }
+    for name in [
+        "ItemDisplayInfo",
+        "TextureFileData",
+        "ItemDisplayInfoMaterialRes",
+        "ModelFileData",
+    ] {
+        let path = dir.join(format!("{name}.csv"));
+        if !path.is_file() {
+            return Err(format!("Forever gear table missing: {}", path.display()));
+        }
+        paths.push(path);
+    }
+    Ok(paths)
+}
+
+fn import_forever_gear_rows(conn: &Connection, paths: &[PathBuf]) -> Result<(), String> {
+    let overlay =
+        Connection::open_in_memory().map_err(|err| format!("open Forever gear staging: {err}"))?;
+    init_schema(&overlay)?;
+    super::populate_display_info(&overlay, &paths[0])?;
+    super::material_links::populate_material_textures(&overlay, &paths[1])?;
+    super::material_links::populate_display_materials(&overlay, &paths[2])?;
+    super::populate_model_to_fdid(&overlay, &paths[3])?;
+    // Retail resource collisions keep the entire Retail candidate group.
+    copy_missing_gear_groups(
+        conn,
+        &overlay,
+        "display_materials",
+        "display_info",
+        "id",
+        "display_info_id",
+    )?;
+    copy_missing_gear_groups(conn, &overlay, "display_info", "display_info", "id", "id")?;
+    copy_missing_gear_groups(
+        conn,
+        &overlay,
+        "material_textures",
+        "material_textures",
+        "material_resource_id",
+        "material_resource_id",
+    )?;
+    copy_missing_gear_groups(
+        conn,
+        &overlay,
+        "model_to_fdid",
+        "model_to_fdid",
+        "model_resource_id",
+        "model_resource_id",
+    )?;
+    Ok(())
+}
+
+fn copy_missing_gear_groups(
+    retail: &Connection,
+    overlay: &Connection,
+    table: &str,
+    retail_table: &str,
+    retail_key: &str,
+    overlay_key: &str,
+) -> Result<(), String> {
+    use std::collections::HashSet;
+    let mut keys = retail
+        .prepare(&format!("SELECT DISTINCT {retail_key} FROM {retail_table}"))
+        .map_err(|err| format!("read Retail {retail_table} keys: {err}"))?;
+    let blocked = keys
+        .query_map([], |row| row.get::<_, i64>(0))
+        .map_err(|err| format!("query Retail gear keys: {err}"))?
+        .collect::<Result<HashSet<_>, _>>()
+        .map_err(|err| format!("read Retail gear key: {err}"))?;
+    let mut source = overlay
+        .prepare(&format!("SELECT * FROM {table}"))
+        .map_err(|err| format!("read Forever {table}: {err}"))?;
+    let key_index = source
+        .column_index(overlay_key)
+        .map_err(|err| format!("Forever {table} key: {err}"))?;
+    let count = source.column_count();
+    let placeholders = vec!["?"; count].join(",");
+    let mut insert = retail
+        .prepare(&format!("INSERT INTO {table} VALUES ({placeholders})"))
+        .map_err(|err| format!("prepare Forever {table} insert: {err}"))?;
+    let rows = source
+        .query_map([], |row| {
+            (0..count)
+                .map(|i| row.get::<_, i64>(i))
+                .collect::<Result<Vec<_>, _>>()
+        })
+        .map_err(|err| format!("query Forever {table}: {err}"))?;
+    for row in rows {
+        let row = row.map_err(|err| format!("read Forever {table} row: {err}"))?;
+        if !blocked.contains(&row[key_index]) {
+            insert
+                .execute(rusqlite::params_from_iter(row))
+                .map_err(|err| format!("insert Forever {table}: {err}"))?;
+        }
+    }
     Ok(())
 }
 

@@ -57,6 +57,13 @@ db2/1.60.1.70205/ChrRaceXChrModel.csv
 db2/1.60.1.70205/ChrModel.csv
 db2/1.60.1.70205/CreatureDisplayInfo.csv
 db2/1.60.1.70205/CreatureModelData.csv
+# Forever NPC gear resources and component ownership.
+db2/1.60.1.70205/NPCModelItemSlotDisplayInfo.csv
+db2/1.60.1.70205/ItemDisplayInfo.csv
+db2/1.60.1.70205/ItemDisplayInfoMaterialRes.csv
+db2/1.60.1.70205/ModelFileData.csv
+db2/1.60.1.70205/ComponentModelFileData.csv
+db2/1.60.1.70205/ComponentTextureFileData.csv
 db2/1.60.1.70205/ChrCustomizationOption.csv
 db2/1.60.1.70205/ChrCustomizationChoice.csv
 db2/1.60.1.70205/ChrCustomizationElement.csv

@@ -41,7 +41,7 @@ impl ComponentFileData {
     /// export directory.
     pub fn load(db2_dir: &Path) -> Result<Self, String> {
         let (texture_fallbacks, model_fallbacks) = load_race_fallbacks(db2_dir)?;
-        Ok(Self {
+        let mut data = Self {
             textures: load_owners(
                 &db2_dir.join("ComponentTextureFileData.csv"),
                 ["ID", "GenderIndex", "ClassID", "RaceID", "ClassID"],
@@ -54,7 +54,39 @@ impl ComponentFileData {
             )?,
             texture_fallbacks,
             model_fallbacks,
-        })
+        };
+        let forever = db2_dir.parent().map(|dir| dir.join("1.60.1.70205"));
+        if let Some(dir) = forever.filter(|dir| dir.join("ItemDisplayInfo.csv").is_file()) {
+            data.import_missing_owners(&dir)?;
+        }
+        Ok(data)
+    }
+
+    fn import_missing_owners(&mut self, dir: &Path) -> Result<(), String> {
+        let textures = load_owners(
+            &dir.join("ComponentTextureFileData.csv"),
+            ["ID", "GenderIndex", "ClassID", "RaceID", "ClassID"],
+            false,
+        )?;
+        let models = load_owners(
+            &dir.join("ComponentModelFileData.csv"),
+            ["ID", "GenderIndex", "ClassID", "RaceID", "PositionIndex"],
+            true,
+        )?;
+        for (id, owner) in textures {
+            self.textures.entry(id).or_insert(owner);
+        }
+        for (id, owner) in models {
+            self.models.entry(id).or_insert(owner);
+        }
+        let (textures, models) = load_race_fallbacks(dir)?;
+        for (id, row) in textures {
+            self.texture_fallbacks.entry(id).or_insert(row);
+        }
+        for (id, row) in models {
+            self.model_fallbacks.entry(id).or_insert(row);
+        }
+        Ok(())
     }
 
     /// The texture of `candidates` (a material's files) that race `race`/sex `sex` wears.
