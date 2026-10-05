@@ -394,8 +394,8 @@ def light_data_fixture():
 
 class ExportLightingTests(unittest.TestCase):
     def export_rows(self, table, raw):
-        from pathlib import Path
         import tempfile
+        from pathlib import Path
         from unittest.mock import patch
 
         with tempfile.TemporaryDirectory() as directory:

@@ -37,14 +37,7 @@ PROBE_DIRECTORY = (
 )
 TABLES = dict(
     zip(
-        (
-            "ChrRaces CharBaseInfo ChrRaceXChrModel ChrModel CreatureDisplayInfo CreatureModelData "
-            "ChrCustomizationOption ChrCustomizationChoice ChrCustomizationElement ChrCustomizationReq "
-            "ChrCustomizationReqChoice ChrCustomizationMaterial ChrCustomizationSkinnedModel "
-            "ChrModelTextureLayer ChrModelMaterial ChrCustomizationCategory ChrCustomizationGeoset "
-            "CharHairGeosets CharComponentTextureLayouts CharComponentTextureSections TextureFileData "
-            "ChrRacesCreateScreenIcon UiTextureAtlasElement UiTextureAtlasMember UiTextureAtlas Map"
-        ).split(),
+        ["ChrRaces", "CharBaseInfo", "ChrRaceXChrModel", "ChrModel", "CreatureDisplayInfo", "CreatureModelData", "ChrCustomizationOption", "ChrCustomizationChoice", "ChrCustomizationElement", "ChrCustomizationReq", "ChrCustomizationReqChoice", "ChrCustomizationMaterial", "ChrCustomizationSkinnedModel", "ChrModelTextureLayer", "ChrModelMaterial", "ChrCustomizationCategory", "ChrCustomizationGeoset", "CharHairGeosets", "CharComponentTextureLayouts", "CharComponentTextureSections", "TextureFileData", "ChrRacesCreateScreenIcon", "UiTextureAtlasElement", "UiTextureAtlasMember", "UiTextureAtlas", "Map"],
         (
             1305311,
             1343386,
@@ -113,7 +106,7 @@ def parse_definition(text, layout):
     matches = [
         b
         for b in blocks[1:]
-        if re.search(r"^LAYOUT .*\b" + f"{layout:08X}" + r"\b", b, re.M)
+        if re.search(r"^LAYOUT .*\b" + f"{layout:08X}" + r"\b", b, re.MULTILINE)
     ]
     if len(matches) != 1:
         raise ValueError(f"expected one DBD layout {layout:08X}, found {len(matches)}")
