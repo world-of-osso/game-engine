@@ -540,6 +540,26 @@ def creation_scene_assets(tables):
     }
 
 
+def read_current_asset(path, staging, fdid, ext, content_key):
+    """Replace stale cached bytes only after validating the current local CASC file."""
+    if path.is_file():
+        raw = path.read_bytes()
+        if hashlib.md5(raw).hexdigest() == content_key:
+            validate_magic(raw, ext, content_key)
+            return raw, True
+        print(f"Refreshing stale content: {path}", flush=True)
+    for source in staging.glob(f"{fdid}.*"):
+        if hashlib.md5(source.read_bytes()).hexdigest() != content_key:
+            source.unlink()
+    extract_missing(staging, [fdid])
+    source = extracted_path(staging, fdid)
+    raw = source.read_bytes()
+    validate_magic(raw, ext, content_key)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    shutil.copyfile(source, path)
+    return raw, False
+
+
 def import_assets(data, staging, tables, npc_roots=None, priority_displays=frozenset()):
     textures, collections = customization_assets(tables)
     pending = {(fdid, "blp") for fdid in textures | {8200220, 8199012}}
@@ -595,19 +615,13 @@ def import_assets(data, staging, tables, npc_roots=None, priority_displays=froze
             visited.add((fdid, ext))
             path = destinations[fdid, ext]
             try:
-                present = path.is_file()
-                source = path if present else extracted_path(staging, fdid)
-                raw = source.read_bytes()
                 record = connection.execute(
                     "select content_key from resolution where fdid=?", (fdid,)
                 ).fetchone()
                 if not record:
                     raise ValueError("missing current CASC root content key")
                 content_key = bytes(record[0]).hex()
-                validate_magic(raw, ext, content_key)
-                if not present:
-                    path.parent.mkdir(parents=True, exist_ok=True)
-                    shutil.copyfile(source, path)
+                raw, present = read_current_asset(path, staging, fdid, ext, content_key)
                 counts["present" if present else "extracted"] += 1
                 if ext in ("m2", "skel"):
                     refs = asset_references(raw)
@@ -638,7 +652,7 @@ def import_assets(data, staging, tables, npc_roots=None, priority_displays=froze
         if (
             (fdid, ext) not in failed_assets
             and source.is_file()
-            and not alias.is_file()
+            and (not alias.is_file() or alias.read_bytes() != source.read_bytes())
         ):
             shutil.copyfile(source, alias)
     counts.update(total=len(visited), failures=len(failures))
