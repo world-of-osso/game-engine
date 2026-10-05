@@ -510,6 +510,35 @@ mod tests {
     }
 
     #[test]
+    fn forever_cursor_tooltips_stay_on_screen_at_the_right_edge() {
+        let tooltip = five_lines().for_skin(ActiveSkin::Forever);
+        let height = tooltip_size(&tooltip.content)[1];
+        let inside = |placed: &TooltipPresentation| {
+            placed.x >= 0.0
+                && placed.y >= 0.0
+                && placed.x + w() <= 1920.0
+                && placed.y + height <= 1080.0
+        };
+        // Bottom right: pushed left onto the screen edge, still ending on the cursor's row.
+        let bottom_right = TooltipScreen {
+            cursor: [1915.0, 1078.0],
+            ..SCREEN
+        };
+        let placed = place(tooltip.clone(), bottom_right);
+        assert!(inside(&placed));
+        assert_eq!(placed.x + w(), 1920.0);
+        assert_eq!(placed.y + height, 1078.0);
+        // Top right: a tooltip taller than the space above the cursor drops to the top edge.
+        let top_right = TooltipScreen {
+            cursor: [1915.0, 5.0],
+            ..SCREEN
+        };
+        let placed = place(tooltip, top_right);
+        assert!(inside(&placed));
+        assert_eq!((placed.x + w(), placed.y), (1920.0, 0.0));
+    }
+
+    #[test]
     fn tooltips_clamp_to_every_screen_edge() {
         let (x, y, _) = beside(1900.0, 10.0, OwnerSide::Right);
         assert_eq!((x, y), (1920.0 - w(), 0.0));
