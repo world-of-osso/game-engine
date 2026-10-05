@@ -196,6 +196,82 @@ fn owned_mixed_sources_keep_body_geosets_in_each_display_namespace() {
 }
 
 #[test]
+fn owned_forever_missing_source_never_substitutes_retail() {
+    let root = source_fixture("missing-source");
+    std::fs::remove_dir_all(root.join("db2/1.60.1.70205")).unwrap();
+    let result = resolve_equipment_appearance(
+        &EquipmentAppearance {
+            entries: vec![forever_entry(EquipmentVisualSlot::MainHand)],
+        },
+        &OutfitData::load(&root),
+        1,
+        0,
+    );
+    let error = result.unwrap_err();
+    assert!(error.contains("1.60.1.70205"), "{error}");
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn owned_item_requires_paired_definition_source_but_display_only_remains_legacy() {
+    let root = source_fixture("pairing");
+    let catalog = OutfitData::load(&root);
+    let unpaired = EquippedAppearanceEntry {
+        definition_source: None,
+        ..entry(EquipmentVisualSlot::Legs, 25)
+    };
+    let error = resolve_equipment_appearance(
+        &EquipmentAppearance {
+            entries: vec![unpaired],
+        },
+        &catalog,
+        1,
+        0,
+    )
+    .unwrap_err();
+    assert!(error.contains("definition source"), "{error}");
+    let display_only = EquippedAppearanceEntry {
+        definition_source: None,
+        item_id: None,
+        display_info_id: Some(1542),
+        ..entry(EquipmentVisualSlot::Legs, 25)
+    };
+    let result = resolve_equipment_appearance(
+        &EquipmentAppearance {
+            entries: vec![display_only],
+        },
+        &catalog,
+        1,
+        0,
+    )
+    .unwrap();
+    assert_eq!(result.runtime_models[0].fdid, 111);
+    assert_eq!(result.outfit.item_textures, [(5, 112)]);
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
+fn owned_retail_missing_material_never_borrows_forever_group() {
+    let root = source_fixture("missing-retail-material");
+    std::fs::write(
+        root.join("TextureFileData.csv"),
+        "FileDataID,UsageType,MaterialResourcesID\n",
+    )
+    .unwrap();
+    let result = resolve_equipment_appearance(
+        &EquipmentAppearance {
+            entries: vec![entry(EquipmentVisualSlot::Legs, 25)],
+        },
+        &OutfitData::load(&root),
+        1,
+        0,
+    );
+    let error = result.unwrap_err();
+    assert!(error.contains("material resource 8"), "{error}");
+    std::fs::remove_dir_all(root).unwrap();
+}
+
+#[test]
 fn owned_forever_missing_item_never_substitutes_retail() {
     let root = source_fixture("missing-item");
     std::fs::write(
