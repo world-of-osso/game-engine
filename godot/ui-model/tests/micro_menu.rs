@@ -59,6 +59,32 @@ fn an_older_custom_layout_loads_with_the_micro_menu_hidden() {
     std::fs::remove_file(path).unwrap();
 }
 
+#[test]
+fn hiding_and_showing_again_keeps_the_menu_and_portrait_slot_mounted() {
+    use game_engine_core::ui_layout_data::LayoutSettings;
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Modern);
+    let mut screen = Screen::new(micro_menu_screen);
+    screen.sync(&shared, &mut registry);
+    let menu = registry.get_by_name("MicroMenuContainer").unwrap();
+    let portrait = registry.get_by_name(CHARACTER_PORTRAIT.frame).unwrap();
+    for visible in [true, false, true] {
+        shared.insert(LayoutSettings {
+            show_micro_menu: Some(visible),
+            ..Default::default()
+        });
+        screen.sync(&shared, &mut registry);
+        assert_eq!(registry.get_by_name("MicroMenuContainer"), Some(menu));
+        assert_eq!(
+            registry.get_by_name(CHARACTER_PORTRAIT.frame),
+            Some(portrait)
+        );
+        assert_eq!(registry.get(menu).unwrap().visible, visible);
+        assert_eq!(registry.get(portrait).unwrap().visible, visible);
+    }
+}
+
 fn index(name: &str) -> usize {
     micro_button_index(name).expect(name)
 }
