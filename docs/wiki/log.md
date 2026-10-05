@@ -2722,3 +2722,7 @@ Local-CASC ItemDisplayInfoModelMatRes4050937 establishes type3 material822338/te
 ## 2026-10-06 — Desktop disk recovery and GC reconciliation
 
 [[desktop-disk-exhaustion]] records main-observed exhaustion, completed prune/trim/offline compaction and separate host/guest capacity measurements; SIGBUS causality remains unproven. [[build-hosts#Builder GC policy]] owns the approved aggregate budget superseding warm-every-slot retention; persistent configuration applied and inspected; sustained behavior unverified. Build guide now links instead of duplicating policy or retaining transient recovery status.
+
+## 2026-10-05 — Preserve Retail / isolate Forever documentation audit
+
+Reconciled [[forever-data#Owned item definition namespaces]], item-source spec and producer documentation against the source-items handoff and tracked consumer/export tests. Records actual 30-item/six-loadout/45-membership catalog, nine local scaling exports, immutable server GUID provenance, explicit shared wire fields and frozen character disk ABI. Retains unowned vendor/quest/loot, bare-ID auction selection, thrown DPS/Classic slots, renderer acceptance and final paired native E2E gaps. Docs-only; no new test, build, operation or parity acceptance.
