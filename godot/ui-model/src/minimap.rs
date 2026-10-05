@@ -315,7 +315,7 @@ pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
         ActiveSkin::Modern => modern_chrome(state, style.map_centre()),
         ActiveSkin::Forever => forever_chrome(state, &style),
     });
-    children.extend(launcher_button());
+    children.extend(launcher_button(style.cluster_size));
     let size = style.cluster_size;
     let at = hud_layout(ctx).minimap.place((size, size));
     rsx! {
@@ -336,15 +336,19 @@ pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-/// BuffFrame icons are 30 UI units; launcher opener sits beside either minimap preset.
-fn launcher_button() -> Element {
+/// Buff-icon-sized opener, below the cluster's right edge to clear buffs and tracker.
+fn launcher_button(cluster_size: f32) -> Element {
+    const ICON_SIZE: f32 = 30.0;
+    const GAP: f32 = 6.0;
+    let left = cluster_size - ICON_SIZE;
+    let top = cluster_size + GAP;
     rsx! {
         button {
-            name: "MinimapLauncherButton", width: 30.0, height: 30.0,
+            name: "MinimapLauncherButton", width: ICON_SIZE, height: ICON_SIZE,
             text: "", button_default_skin: false, onclick: crate::launcher::ACTION_OPEN,
-            pos_type: "absolute", left: -36.0, top: 32.0,
+            pos_type: "absolute", left, top,
             texture {
-                name: "MinimapLauncherIcon", width: 30.0, height: 30.0,
+                name: "MinimapLauncherIcon", width: ICON_SIZE, height: ICON_SIZE,
                 texture_atlas: crate::launcher::SEARCH_ICON_ATLAS,
                 pos_type: "absolute", left: 0.0, top: 0.0,
             }

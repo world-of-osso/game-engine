@@ -389,6 +389,9 @@ pub const FOREVER: HudLayout = HudLayout {
     // Place the source's 430x170 messages at BOTTOMLEFT(35,145).
     chat: anchor(BottomLeft, BottomLeft, 1.0, 107.0),
     chat_size: (469.0, 235.0),
+    // The scaled tracker header begins four local units above its frame; clear the
+    // 260-unit minimap on the default 1080-unit canvas without moving other frames.
+    objective_tracker: anchor(TopRight, TopRight, -110.0, -300.0),
     // Reference screenshot: top centre, bar art beginning 7 units below the screen edge.
     xp_bar: anchor(Top, Top, 0.0, -6.0),
     ..MODERN
