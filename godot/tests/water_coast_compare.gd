@@ -27,7 +27,7 @@ func run() -> void:
 	camera.far = 3000.0
 	root.add_child(camera)
 	camera.current = true
-	camera.position = point + Vector3(110, 100, 110)
+	camera.position = point + Vector3(110, 120, 110)
 	camera.look_at(point)
 	var deadline := Time.get_ticks_msec() + 240000
 	while Time.get_ticks_msec() < deadline:
