@@ -19,7 +19,7 @@ use game_engine_ui_model::game_tooltip::hud::{
     unread_mail_tooltip, zoom_tooltip,
 };
 use game_engine_ui_model::game_tooltip::item::{
-    auction_row_item, item_game_tooltip, named_item, without_sell_price,
+    auction_row_item, item_game_tooltip, named_item, named_item_for, without_sell_price,
 };
 use game_engine_ui_model::game_tooltip::merchant::{
     buyback_item, guild_repair_tooltip, merchant_cell_item, repair_all_tooltip,
@@ -550,11 +550,13 @@ fn attachment_item(attachment: &MailAttachment) -> InventorySlot {
         durability: stack.durability,
         soulbound: stack.soulbound,
         item_guid: stack.item_guid,
-        ..named_item(
+        ..named_item_for(
+            stack.definition_source,
             stack.item_id,
             &attachment.name,
             attachment.quality,
             stack.count,
+            stack.item_guid,
         )
     }
 }
