@@ -1009,6 +1009,34 @@ impl InputBinding {
         }
     }
 
+    /// The Retail binding key `GetBindingKey` returns: uppercase, never localised,
+    /// modifier first ("CTRL-1", "SHIFT-]", "BUTTON3", "SPACE").
+    pub fn binding_key_name(self) -> String {
+        match self {
+            Self::Keyboard(key) => key_binding_name(key),
+            Self::ShiftKeyboard(key) => format!("SHIFT-{}", key_binding_name(key)),
+            Self::CtrlKeyboard(key) => format!("CTRL-{}", key_binding_name(key)),
+            Self::Mouse(button) => mouse_button_binding_name(button),
+        }
+    }
+
+    /// FlareUI's clean keybind label (`ShortenKey`, FlareUI `Modules/ActionBars.lua:201-222`):
+    /// the raw binding key with `BUTTONn` -> `Bn`, then `KEY_SHORT`'s replacements in order
+    /// ("CTRL-1" -> "C1", "SHIFT-BUTTON3" -> "SB3", "BACKSPACE" -> "BS").
+    pub fn flare_hotkey_text(self) -> String {
+        let name = self.binding_key_name();
+        let mut text = match name.split_once("BUTTON") {
+            Some((head, digits)) if digits.chars().all(|c| c.is_ascii_digit()) => {
+                format!("{head}B{digits}")
+            }
+            _ => name,
+        };
+        for (long, short) in FLARE_KEY_SHORT {
+            text = text.replace(long, short);
+        }
+        text
+    }
+
     pub fn display(self) -> String {
         match self {
             Self::Keyboard(key) => key_display(key),
@@ -1491,6 +1519,87 @@ pub fn parse_binding_token(token: &str) -> Result<InputBinding, String> {
             .ok_or_else(|| format!("unsupported mouse binding token '{token}'"));
     }
     Err(format!("invalid binding token '{token}'"))
+}
+
+/// FlareUI `KEY_SHORT` (`Modules/ActionBars.lua:201-212`), applied in this order.
+const FLARE_KEY_SHORT: [(&str, &str); 29] = [
+    ("ALT-", "A"),
+    ("CTRL-", "C"),
+    ("SHIFT-", "S"),
+    ("META-", "M"),
+    ("NUMPAD", "N"),
+    ("PLUS", "+"),
+    ("MINUS", "-"),
+    ("MULTIPLY", "*"),
+    ("DIVIDE", "/"),
+    ("BACKSPACE", "BS"),
+    ("CAPSLOCK", "Cp"),
+    ("CLEAR", "Cl"),
+    ("DELETE", "Del"),
+    ("MOUSEWHEELDOWN", "WD"),
+    ("MOUSEWHEELUP", "WU"),
+    ("NUMLOCK", "NL"),
+    ("PAGEDOWN", "PD"),
+    ("PAGEUP", "PU"),
+    ("SCROLLLOCK", "SL"),
+    ("SPACEBAR", "Sp"),
+    ("SPACE", "Sp"),
+    ("TAB", "Tb"),
+    ("DOWNARROW", "Dn"),
+    ("LEFTARROW", "Lf"),
+    ("RIGHTARROW", "Rt"),
+    ("UPARROW", "Up"),
+    ("INSERT", "Ins"),
+    ("HOME", "Hm"),
+    ("END", "En"),
+];
+
+/// Retail binding key name of `key` (`GetBindingKey` spelling).
+fn key_binding_name(key: BindingKey) -> String {
+    let name = match key {
+        BindingKey::Space => "SPACE",
+        BindingKey::Tab => "TAB",
+        BindingKey::Escape => "ESCAPE",
+        BindingKey::Minus => "-",
+        BindingKey::Equal => "=",
+        BindingKey::BracketLeft => "[",
+        BindingKey::BracketRight => "]",
+        BindingKey::ArrowLeft => "LEFT",
+        BindingKey::ArrowRight => "RIGHT",
+        BindingKey::ArrowUp => "UP",
+        BindingKey::ArrowDown => "DOWN",
+        BindingKey::PageUp => "PAGEUP",
+        BindingKey::PageDown => "PAGEDOWN",
+        BindingKey::NumLock => "NUMLOCK",
+        BindingKey::Home => "HOME",
+        BindingKey::End => "END",
+        BindingKey::Insert => "INSERT",
+        BindingKey::Delete => "DELETE",
+        BindingKey::Backspace => "BACKSPACE",
+        BindingKey::Enter => "ENTER",
+        BindingKey::NumpadAdd => "NUMPADPLUS",
+        BindingKey::NumpadSubtract => "NUMPADMINUS",
+        // Letters and digits as labelled; F1..F12 as their variant name.
+        _ => {
+            return key_alpha_numeric_label(key)
+                .map(str::to_string)
+                .unwrap_or_else(|| format!("{key:?}"));
+        }
+    };
+    name.to_string()
+}
+
+/// Retail mouse binding key: `BUTTON1` left .. `BUTTON5` forward.
+fn mouse_button_binding_name(button: BindingMouseButton) -> String {
+    let number = match button {
+        BindingMouseButton::Left => 1,
+        BindingMouseButton::Right => 2,
+        BindingMouseButton::Middle => 3,
+        BindingMouseButton::Back => 4,
+        BindingMouseButton::Forward => 5,
+        BindingMouseButton::Other(id) => id,
+    };
+    format!("BUTTON{number}")
 }
 
 pub fn key_display(key: BindingKey) -> String {
