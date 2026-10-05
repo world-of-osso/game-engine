@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Export the columns the client reads from local-CASC WDC5 tables to data/db2 CSVs.
 
-Only the layouts listed in TABLES (build 12.1.0.69933) are accepted. Sections whose
+Only the layouts listed in TABLES are accepted: pinned retail layouts, plus
+Forever build 1.60.1.70205 LightData layout 360DA016. Sections whose
 TACT key is unknown arrive zero-filled from casc-local; their records are dropped and
 counted on stderr.
 
@@ -44,6 +45,8 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   ChrCustomizationMaterial     FDID 3459652
   ChrCustomizationSkinnedModel FDID 3460183
   ChrModelTextureLayer         FDID 3548976
+  Light                        FDID 1375579
+  LightData                    FDID 1375580 (Forever 70205 layout)
   LightParams                  FDID 1334669
   LightSkybox                  FDID 1308501
   LiquidType                   FDID 1371380
@@ -71,6 +74,73 @@ TABLES = {
         [("ID", "id"), ("MaterialResourcesID", 0), ("TextureType", 1),
          ("ModelIndex", 2), ("ItemDisplayInfoID", "parent")],
     ),
+    "Light": (
+        0x5F16BC84,
+        [
+            ("ID", "id"),
+            ("GameCoords_0", ("float", 0, 0)),
+            ("GameCoords_1", ("float", 0, 1)),
+            ("GameCoords_2", ("float", 0, 2)),
+            ("GameFalloffStart", ("float", 1, 0)),
+            ("GameFalloffEnd", ("float", 2, 0)),
+            ("ContinentID", ("i16", 3)),
+            *[(f"LightParamsID_{slot}", ("u16", 4, slot)) for slot in range(8)],
+        ],
+    ),
+    # Forever 70205 layout 360DA016 inserts fifteen fields before coefficients 60-62.
+    "LightData": (
+        0x360DA016,
+        [
+            ("ID", "id"),
+            ("LightParamID", ("u16", 1)),
+            ("Time", ("u16", 2)),
+            ("DirectColor", ("int", 3, 0)),
+            ("AmbientColor", ("int", 4, 0)),
+            ("SkyTopColor", ("int", 5, 0)),
+            ("SkyMiddleColor", ("int", 6, 0)),
+            ("SkyBand1Color", ("int", 7, 0)),
+            ("SkyBand2Color", ("int", 8, 0)),
+            ("SkySmogColor", ("int", 9, 0)),
+            ("SkyFogColor", ("int", 10, 0)),
+            ("SunColor", ("int", 11, 0)),
+            ("CloudSunColor", ("int", 12, 0)),
+            ("CloudEmissiveColor", ("int", 13, 0)),
+            ("CloudLayer1AmbientColor", ("int", 14, 0)),
+            ("CloudLayer2AmbientColor", ("int", 15, 0)),
+            ("OceanCloseColor", ("int", 16, 0)),
+            ("OceanFarColor", ("int", 17, 0)),
+            ("RiverCloseColor", ("int", 18, 0)),
+            ("RiverFarColor", ("int", 19, 0)),
+            ("ShadowOpacity", ("int", 20, 0)),
+            ("FogEnd", ("float", 21, 0)),
+            ("FogScaler", ("float", 22, 0)),
+            ("FogDensity", ("float", 23, 0)),
+            ("FogHeight", ("float", 24, 0)),
+            ("FogHeightScaler", ("float", 25, 0)),
+            ("FogHeightDensity", ("float", 26, 0)),
+            ("FogZScalar", ("float", 27, 0)),
+            ("MainFogStartDist", ("float", 28, 0)),
+            ("MainFogEndDist", ("float", 29, 0)),
+            ("SunFogAngle", ("float", 30, 0)),
+            ("CloudDensity", ("float", 31, 0)),
+            ("ColorGradingFileDataID", 32),
+            ("DarkerColorGradingFileDataID", 33),
+            ("HorizonAmbientColor", ("int", 34, 0)),
+            ("GroundAmbientColor", ("int", 35, 0)),
+            ("EndFogColor", ("int", 36, 0)),
+            ("EndFogColorDistance", ("float", 37, 0)),
+            ("FogStartOffset", ("float", 38, 0)),
+            ("SunFogColor", ("int", 39, 0)),
+            ("SunFogStrength", ("float", 40, 0)),
+            ("FogHeightColor", ("int", 41, 0)),
+            ("EndFogHeightColor", ("int", 42, 0)),
+            ("Field_10_0_0_44649_042", ("int", 43, 0)),
+            ("Field_12_0_0_63854_043", ("float", 44, 0)),
+            *[(f"FogHeightCoefficients_{i}", ("float", 60, i)) for i in range(4)],
+            *[(f"MainFogCoefficients_{i}", ("float", 61, i)) for i in range(4)],
+            *[(f"HeightDensityFogCoeff_{i}", ("float", 62, i)) for i in range(4)],
+        ],
+    ),
     # WoWDBDefs layout CA154412: ReqSource_lang (field 0) is not exported.
     "ChrCustomizationReq": (
         0xCA154412,
@@ -90,12 +160,22 @@ TABLES = {
     # WoWDBDefs layout F925BC6F: the requirement is the relation (parent) column.
     "ChrCustomizationReqChoice": (
         0xF925BC6F,
-        [("ID", "id"), ("ChrCustomizationChoiceID", 0), ("ChrCustomizationReqID", "parent")],
+        [
+            ("ID", "id"),
+            ("ChrCustomizationChoiceID", 0),
+            ("ChrCustomizationReqID", "parent"),
+        ],
     ),
     "Emotes": (0x0A598B68, [("ID", "id"), ("AnimID", 1)]),
     "JournalInstance": (
         0x6C5ED7F2,
-        [("ID", "id"), ("Name_lang", ("string", 0)), ("MapID", 2), ("Flags", 7), ("AreaID", 8)],
+        [
+            ("ID", "id"),
+            ("Name_lang", ("string", 0)),
+            ("MapID", 2),
+            ("Flags", 7),
+            ("AreaID", 8),
+        ],
     ),
     "JournalInstanceEntrance": (
         0x874E7CC2,
@@ -112,7 +192,12 @@ TABLES = {
     ),
     "NPCModelItemSlotDisplayInfo": (
         0xC2057F5B,
-        [("ID", "id"), ("NpcModelID", "parent"), ("ItemDisplayInfoID", 0), ("ItemSlot", 1)],
+        [
+            ("ID", "id"),
+            ("NpcModelID", "parent"),
+            ("ItemDisplayInfoID", 0),
+            ("ItemSlot", 1),
+        ],
     ),
     "UiTextureKit": (0x4740638A, [("ID", "id"), ("KitPrefix", ("string", 0))]),
     # Spell description `$<name>` variables: SpellXDescriptionVariables links a spell to
@@ -148,7 +233,16 @@ TABLES = {
     ),
     # Spell visuals (WoWDBDefs layouts of build 12.1.0.69933). Floats are exported as
     # ("float", field, element); `<8>` fields are signed, so AttachmentID -1 stays -1.
-    "AnimationData": (0xBBF66A3C, [("ID", "id"), ("Fallback", ("u16", 0)), ("BehaviorTier", ("i8", 1)), ("BehaviorID", ("i16", 2)), ("Flags_0", ("int", 3, 0))]),
+    "AnimationData": (
+        0xBBF66A3C,
+        [
+            ("ID", "id"),
+            ("Fallback", ("u16", 0)),
+            ("BehaviorTier", ("i8", 1)),
+            ("BehaviorID", ("i16", 2)),
+            ("Flags_0", ("int", 3, 0)),
+        ],
+    ),
     "SpellVisual": (
         0x4B85C90F,
         [
@@ -165,7 +259,15 @@ TABLES = {
             ("SpellVisualMissileSetID", ("u16", 12)),
         ],
     ),
-    "SpellVisualAnim": (0xF233613A, [("ID", "id"), ("InitialAnimID", ("i16", 0)), ("LoopAnimID", ("i16", 1)), ("AnimKitID", ("u16", 2))]),
+    "SpellVisualAnim": (
+        0xF233613A,
+        [
+            ("ID", "id"),
+            ("InitialAnimID", ("i16", 0)),
+            ("LoopAnimID", ("i16", 1)),
+            ("AnimKitID", ("u16", 2)),
+        ],
+    ),
     "SpellVisualEffectName": (
         0x2245CEE6,
         [
@@ -199,11 +301,22 @@ TABLES = {
     ),
     "SpellVisualKit": (
         0xC069D9C4,
-        [("ID", "id"), ("FallbackSpellVisualKitID", ("int", 1, 0)), ("DelayMin", ("u16", 2)), ("DelayMax", ("u16", 3)), ("Flags_0", ("int", 8, 0))],
+        [
+            ("ID", "id"),
+            ("FallbackSpellVisualKitID", ("int", 1, 0)),
+            ("DelayMin", ("u16", 2)),
+            ("DelayMax", ("u16", 3)),
+            ("Flags_0", ("int", 8, 0)),
+        ],
     ),
     "SpellVisualKitEffect": (
         0xE3206CA2,
-        [("ID", "id"), ("EffectType", ("int", 0, 0)), ("Effect", ("int", 1, 0)), ("ParentSpellVisualKitID", "parent")],
+        [
+            ("ID", "id"),
+            ("EffectType", ("int", 0, 0)),
+            ("Effect", ("int", 1, 0)),
+            ("ParentSpellVisualKitID", "parent"),
+        ],
     ),
     "SpellVisualKitModelAttach": (
         0x02CF8554,
@@ -290,11 +403,22 @@ TABLES = {
     "AnimKitConfig": (0x140718EF, [("ID", "id"), ("ConfigFlags", ("int", 0, 0))]),
     "AnimKitConfigBoneSet": (
         0x482E3ED3,
-        [("ID", "id"), ("AnimKitBoneSetID", ("u8", 0)), ("AnimKitPriorityID", ("u16", 1)), ("ParentAnimKitConfigID", "parent")],
+        [
+            ("ID", "id"),
+            ("AnimKitBoneSetID", ("u8", 0)),
+            ("AnimKitPriorityID", ("u16", 1)),
+            ("ParentAnimKitConfigID", "parent"),
+        ],
     ),
     "AnimKitBoneSet": (
         0x43E7736F,
-        [("ID", "id"), ("BoneDataID", ("int", 1, 0)), ("ParentAnimKitBoneSetID", ("i8", 2)), ("AltAnimKitBoneSetID", ("i8", 3)), ("AltBoneDataID", ("int", 4, 0))],
+        [
+            ("ID", "id"),
+            ("BoneDataID", ("int", 1, 0)),
+            ("ParentAnimKitBoneSetID", ("i8", 2)),
+            ("AltAnimKitBoneSetID", ("i8", 3)),
+            ("AltBoneDataID", ("int", 4, 0)),
+        ],
     ),
     "AnimKitPriority": (0xCCF889D8, [("ID", "id"), ("Priority", ("u8", 0))]),
     "SoundKit": (
@@ -338,7 +462,12 @@ TABLES = {
     # WoWDBDefs layout A77CBD9D (non-inline ID); the four sound arrays have 11 elements.
     "WeaponImpactSounds": (
         0xA77CBD9D,
-        [("ID", "id"), ("WeaponSubClassID", ("u8", 0)), ("ParrySoundType", ("u8", 1)), ("ImpactSource", ("u8", 2))]
+        [
+            ("ID", "id"),
+            ("WeaponSubClassID", ("u8", 0)),
+            ("ParrySoundType", ("u8", 1)),
+            ("ImpactSource", ("u8", 2)),
+        ]
         + [
             (f"{name}_{element}", ("int", field, element))
             for field, name in (
@@ -354,7 +483,12 @@ TABLES = {
     "ChrModel": (0x03FAB755, [("ID", "id"), ("Sex", ("u8", 3)), ("DisplayID", 4)]),
     "ChrRaceXChrModel": (
         0xA203BC29,
-        [("ID", "id"), ("ChrRacesID", ("u8", 0)), ("ChrModelID", 1), ("Sex", ("u8", 2))],
+        [
+            ("ID", "id"),
+            ("ChrRacesID", ("u8", 0)),
+            ("ChrModelID", 1),
+            ("Sex", ("u8", 2)),
+        ],
     ),
     "ChrCustomizationElement": (
         0x6483C37E,
@@ -382,7 +516,11 @@ TABLES = {
     ),
     "ChrCustomizationMaterial": (
         0xBE9767E9,
-        [("ID", "id"), ("ChrModelTextureTargetID", ("int", 0, 0)), ("MaterialResourcesID", ("int", 1, 0))],
+        [
+            ("ID", "id"),
+            ("ChrModelTextureTargetID", ("int", 0, 0)),
+            ("MaterialResourcesID", ("int", 1, 0)),
+        ],
     ),
     "ChrCustomizationSkinnedModel": (
         0x4C32AA8A,
@@ -452,20 +590,33 @@ TABLES = {
     # WoWDBDefs layout 9D4956FF: Name, Flags, SkyboxFileDataID, CelestialSkyboxFileDataID.
     "LightSkybox": (
         0x9D4956FF,
-        [("ID", "id"), ("Flags", 1), ("SkyboxFileDataID", 2), ("CelestialSkyboxFileDataID", 3)],
+        [
+            ("ID", "id"),
+            ("Flags", 1),
+            ("SkyboxFileDataID", 2),
+            ("CelestialSkyboxFileDataID", 3),
+        ],
     ),
     # WoWDBDefs layout D1ECEEC9. WebWowViewerCpp reads Color[0..1], Float[0..17], Int[0..3] and
     # Coefficient[0..3].
     "LiquidType": (
         0xD1ECEEC9,
-        [("ID", "id"), ("Name", ("string", 0)), ("Flags", ("int", 2, 0)), ("MaterialID", ("u8", 14))]
+        [
+            ("ID", "id"),
+            ("Name", ("string", 0)),
+            ("Flags", ("int", 2, 0)),
+            ("MaterialID", ("u8", 14)),
+        ]
         + [(f"FrameCountTexture_{i}", ("u8", 16, i)) for i in range(6)]
         + [(f"Color_{i}", ("int", 17, i)) for i in range(3)]
         + [(f"Float_{i}", ("float", 18, i)) for i in range(18)]
         + [(f"Int_{i}", ("int", 19, i)) for i in range(4)]
         + [(f"Coefficient_{i}", ("float", 20, i)) for i in range(4)],
     ),
-    "LiquidMaterial": (0x98E5D7AA, [("ID", "id"), ("Flags", ("int", 0, 0)), ("LVF", ("u8", 1))]),
+    "LiquidMaterial": (
+        0x98E5D7AA,
+        [("ID", "id"), ("Flags", ("int", 0, 0)), ("LVF", ("u8", 1))],
+    ),
     "LiquidObject": (
         0xCB0D39E8,
         [
@@ -490,7 +641,12 @@ TABLES = {
     # `FileDataGameDatabase::findByMaterialResId`/`findByModelResId`).
     "ComponentTextureFileData": (
         0xB32B030A,
-        [("ID", "id"), ("GenderIndex", ("u8", 0)), ("ClassID", ("u8", 1)), ("RaceID", ("u8", 2))],
+        [
+            ("ID", "id"),
+            ("GenderIndex", ("u8", 0)),
+            ("ClassID", ("u8", 1)),
+            ("RaceID", ("u8", 2)),
+        ],
     ),
     "ComponentModelFileData": (
         0xAD90D87A,
@@ -527,7 +683,9 @@ INLINE_ID_FIELD = {"SpellVisualMissile": 2, "ChrModel": 2}
 
 def read_fields(data, field_count, sections):
     start = 204 + sections * 40 + field_count * 4
-    fields = [struct.unpack_from("<HH5I", data, start + i * 24) for i in range(field_count)]
+    fields = [
+        struct.unpack_from("<HH5I", data, start + i * 24) for i in range(field_count)
+    ]
     # Pallet (3, 4) and common (2) fields each index their own block, in field order.
     palette_offsets, offset = [], 0
     for field in fields:
@@ -554,7 +712,9 @@ def decode_field(raw, field, palette, palette_offset):
     if storage == 3:
         return struct.unpack_from("<I", palette, palette_offset + value * 4)[0]
     if storage == 4:
-        return struct.unpack_from(f"<{array_count}I", palette, palette_offset + value * 4 * array_count)
+        return struct.unpack_from(
+            f"<{array_count}I", palette, palette_offset + value * 4 * array_count
+        )
     if storage == 5 and width and value & (1 << (width - 1)):
         return value - (1 << width)
     if storage == 2:
@@ -568,14 +728,23 @@ def read_relations(data, offset, size):
     if not size:
         return {}
     entries = struct.unpack_from("<I", data, offset)[0]
-    return {index: parent for parent, index in struct.iter_unpack("<II", data[offset + 12 : offset + 12 + entries * 8])}
+    return {
+        index: parent
+        for parent, index in struct.iter_unpack(
+            "<II", data[offset + 12 : offset + 12 + entries * 8]
+        )
+    }
 
 
 def read_wdc5(data, layout, id_field=0):
     if data[:4] != b"WDC5":
         raise ValueError("not a WDC5 file")
-    _, field_count, record_size, _, _, actual_layout = struct.unpack_from("<6I", data, 136)
-    flags, _, _, _, _, _, common_size, palette_size, sections = struct.unpack_from("<HH7I", data, 172)
+    _, field_count, record_size, _, _, actual_layout = struct.unpack_from(
+        "<6I", data, 136
+    )
+    flags, _, _, _, _, _, common_size, palette_size, sections = struct.unpack_from(
+        "<HH7I", data, 172
+    )
     if actual_layout != layout:
         raise ValueError(f"layout {actual_layout:08X}, expected {layout:08X}")
     if flags & ~0x4:
@@ -587,8 +756,8 @@ def read_wdc5(data, layout, id_field=0):
         raise ValueError("common data size mismatch")
     rows, dropped = {}, 0
     for section in range(sections):
-        key, start, count, string_size, _, id_size, relation_size, _, copies = struct.unpack_from(
-            "<Q8I", data, 204 + section * 40
+        key, start, count, string_size, _, id_size, relation_size, _, copies = (
+            struct.unpack_from("<Q8I", data, 204 + section * 40)
         )
         payload = data[start : start + count * record_size]
         if key and count and not any(payload):
@@ -598,14 +767,25 @@ def read_wdc5(data, layout, id_field=0):
         copy_start = id_start + id_size
         relations = read_relations(data, copy_start + copies * 8, relation_size)
         for i in range(count):
-            raw = int.from_bytes(payload[i * record_size : (i + 1) * record_size], "little")
-            values = [decode_field(raw, f, palette, o) for f, o in zip(fields, palette_offsets)]
-            row_id = struct.unpack_from("<I", data, id_start + i * 4)[0] if id_size else values[id_field]
+            raw = int.from_bytes(
+                payload[i * record_size : (i + 1) * record_size], "little"
+            )
+            values = [
+                decode_field(raw, f, palette, o)
+                for f, o in zip(fields, palette_offsets)
+            ]
+            row_id = (
+                struct.unpack_from("<I", data, id_start + i * 4)[0]
+                if id_size
+                else values[id_field]
+            )
             for index, defaults in enumerate(common):
                 if defaults is not None:
                     values[index] = defaults.get(row_id, fields[index][4])
             rows[row_id] = (values, relations.get(i), start + i * record_size)
-        for new_id, source in struct.iter_unpack("<II", data[copy_start : copy_start + copies * 8]):
+        for new_id, source in struct.iter_unpack(
+            "<II", data[copy_start : copy_start + copies * 8]
+        ):
             rows[new_id] = rows[source]
     return rows, dropped, fields, sections
 
@@ -641,7 +821,9 @@ def main():
     table, db2_path, out_path = sys.argv[1:4]
     layout, columns = TABLES[table]
     data = open(db2_path, "rb").read()
-    rows, dropped, fields, sections = read_wdc5(data, layout, INLINE_ID_FIELD.get(table, 0))
+    rows, dropped, fields, sections = read_wdc5(
+        data, layout, INLINE_ID_FIELD.get(table, 0)
+    )
     with open(out_path, "w", newline="") as handle:
         out = csv.writer(handle)
         out.writerow([name for name, _ in columns])
@@ -653,20 +835,35 @@ def main():
                     signed, width = NARROW[s[0]]
                     value = values[s[1]][s[2]] if len(s) == 3 else values[s[1]]
                     value &= (1 << width) - 1
-                    return value - (1 << width) if signed and value >> (width - 1) else value
+                    return (
+                        value - (1 << width)
+                        if signed and value >> (width - 1)
+                        else value
+                    )
                 if isinstance(s, tuple) and s[0] in ("float", "int"):
                     value = values[s[1]]
-                    bits = value[s[2]] if isinstance(value, tuple) else (value >> (32 * s[2])) & 0xFFFFFFFF
+                    bits = (
+                        value[s[2]]
+                        if isinstance(value, tuple)
+                        else (value >> (32 * s[2])) & 0xFFFFFFFF
+                    )
                     bits &= 0xFFFFFFFF
                     if s[0] == "int":
                         return struct.unpack("<i", struct.pack("<I", bits))[0]
                     return "%.9g" % struct.unpack("<f", struct.pack("<I", bits))[0]
                 if isinstance(s, tuple):
                     return read_string(data, record_offset, fields[s[1]], values[s[1]])
-                return {"id": row_id, "parent": parent}[s] if isinstance(s, str) else values[s]
+                return (
+                    {"id": row_id, "parent": parent}[s]
+                    if isinstance(s, str)
+                    else values[s]
+                )
 
             out.writerow([column(s) for _, s in columns])
-    print(f"{table}: {len(rows)} rows, {dropped} encrypted records dropped", file=sys.stderr)
+    print(
+        f"{table}: {len(rows)} rows, {dropped} encrypted records dropped",
+        file=sys.stderr,
+    )
 
 
 if __name__ == "__main__":
