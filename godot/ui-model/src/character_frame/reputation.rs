@@ -54,6 +54,7 @@ const SKILLS_BAR: u32 = 136_570;
 /// One faction entry as the list shows it.
 #[derive(Clone, Debug, PartialEq)]
 pub struct ReputationRow {
+    pub faction_id: u32,
     pub name: String,
     /// `FACTION_STANDING_LABEL<reaction>`, the bar text.
     pub standing: &'static str,
@@ -79,6 +80,7 @@ pub fn reputation_rows(entries: &[ReputationEntrySnapshot]) -> Vec<ReputationRow
                 current as f32 / size as f32
             };
             ReputationRow {
+                faction_id: entry.faction_id,
                 name: entry.faction_name.clone(),
                 standing: STANDING_LABELS[reaction],
                 color: FACTION_BAR_COLORS[reaction],
@@ -154,19 +156,59 @@ pub(super) fn backgrounds() -> Element {
     )
 }
 
-/// `ReputationEntry<n>` rows from the scroll box top, as many as fit.
-pub(super) fn entries(rows: &[ReputationRow]) -> Element {
+/// RF.xml:256-267 / CRF.xml:205-248, with RF.lua:67-69 / CRF.lua:70-72 padding.
+pub const REPUTATION_SCROLL: &str = "ReputationScrollBox";
+/// ScrollBoxListView.lua:637-661: first entry extent plus spacing. Wheel doubles it
+/// (ScrollController.lua:77-81,152-154); steppers use one (ScrollBar.lua:117-119).
+pub fn reputation_pan_extent() -> usize {
+    (list_layout().entry_h + ENTRY_SPACING) as usize
+}
+
+pub fn reputation_row_action(faction_id: u32) -> String {
+    format!("reputation_faction:{faction_id}")
+}
+
+/// Rows intersecting the ScrollBox survive; its scroll-list projection clips their edges
+/// (Blizzard_SharedXML/Shared/Scroll/ScrollBox.xml:20). Pixel offset preserves partial rows.
+pub(super) fn entries(rows: &[ReputationRow], offset: usize) -> Element {
+    use crate::minimal_scroll_bar::{
+        BAR_W, MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+    };
     let layout = list_layout();
     let (left, top, right, bottom) = layout.rect;
-    let x = left + ENTRY_INDENT;
-    let width = right - x;
+    let (box_w, box_h) = (right - left + 20.0, bottom - top + 20.0);
+    let content_h = 20.0
+        + rows.len() as f32 * layout.entry_h
+        + rows.len().saturating_sub(1) as f32 * ENTRY_SPACING;
+    let geometry = pixel_geometry(box_h, content_h, box_h - 6.0);
+    let offset = geometry.clamp(offset);
+    let config = scroll_list_attr(&geometry);
+    let bar = MinimalScrollBar {
+        list: REPUTATION_SCROLL,
+        left: box_w + 5.0,
+        top: 2.0,
+        height: box_h - 6.0,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideThumb,
+    };
+    let x = 10.0 + ENTRY_INDENT;
+    let width = box_w - 10.0 - x;
     let mut children = Element::default();
     for (index, row) in rows.iter().enumerate() {
-        let y = top + index as f32 * (layout.entry_h + ENTRY_SPACING);
-        if y + layout.entry_h > bottom {
-            break;
+        let y = 10.0 + index as f32 * (layout.entry_h + ENTRY_SPACING) - offset as f32;
+        if y + layout.entry_h <= 0.0 || y >= box_h {
+            continue;
         }
         let name = format!("ReputationEntry{}", index + 1);
+        let action = reputation_row_action(row.faction_id);
+        children.extend(rsx! {
+            r#frame {
+                name: {DynName(name.clone())},
+                width, height: {layout.entry_h}, mouse_enabled: true, onclick: {action},
+                pos_type: "absolute", left: x, top: y,
+            }
+        });
         let (bar_w, bar_h) = layout.bar;
         // Bar RIGHT -3; Name from the hidden 23-wide `AccountWideIcon` (LEFT 2) to 10
         // left of the bar, `GameFontHighlight` (RF.xml:136-140,213-229,236-244).
@@ -185,7 +227,16 @@ pub(super) fn entries(rows: &[ReputationRow]) -> Element {
         ));
         children.extend(reputation_bar(&name, row, (bar.0, bar.1, bar_w, bar_h)));
     }
-    children
+    rsx! {
+        r#frame {
+            name: {DynName(REPUTATION_SCROLL.into())},
+            width: {box_w + 5.0 + BAR_W}, height: box_h,
+            mouse_enabled: true, scroll_list: {config},
+            pos_type: "absolute", left: {left - 10.0}, top: {top - 10.0},
+            {children}
+            {bar.element()}
+        }
+    }
 }
 
 /// `ReputationBarTemplate`: Modern's black `Background`, the `UI-Character-Skills-Bar`

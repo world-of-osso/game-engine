@@ -24,7 +24,10 @@ use ui_toolkit::widgets::texture::TextureSource;
 
 use art::{FULL, WHITE, WHITE_ICON_FRAME, atlas, texture};
 pub use art::{class_background, race_background, race_overlay_alpha};
-pub use reputation::{ReputationRow, reputation_art_fdids, reputation_rows};
+pub use reputation::{
+    REPUTATION_SCROLL, ReputationRow, reputation_art_fdids, reputation_pan_extent,
+    reputation_row_action, reputation_rows,
+};
 
 use crate::bag_data::InventoryState;
 pub use crate::character_frame_component::{equipment_slot_action, parse_equipment_slot_action};
@@ -505,7 +508,10 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
         children.extend(paperdoll_frame(view));
     } else {
         children.extend(reputation::backgrounds());
-        children.extend(reputation::entries(&view.reputation));
+        children.extend(reputation::entries(
+            &view.reputation,
+            ctx.scroll_first_row(reputation::REPUTATION_SCROLL),
+        ));
     }
     children.extend(tabs(view.tab));
     rsx! {

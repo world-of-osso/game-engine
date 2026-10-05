@@ -208,6 +208,47 @@ fn the_reputation_tab_swaps_the_paper_doll_for_the_faction_standings_in_both_pre
 }
 
 #[test]
+fn character_reputation_overflow_registers_a_scrollable_list_and_clickable_factions() {
+    let _skin = SKIN.lock().unwrap();
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_active_skin(skin);
+        let standings: Vec<_> = (0..40)
+            .map(|i| entry(100 + i, &format!("Faction {i}"), "Friendly", 24_000))
+            .collect();
+        let mut registry = build(view(CharacterTab::Reputation, &standings));
+        let list = "ReputationScrollBox";
+        let state = registry
+            .scroll_lists
+            .get(list)
+            .expect("overflow needs a ScrollBox");
+        assert!(state.geometry.max_first_row() > 0);
+        let action = onclick(&registry, "ReputationEntry1").expect("faction rows open details");
+        assert!(!action.is_empty());
+        assert!(registry.scroll_lists.scroll_by(list, 10_000));
+        let mut shared = SharedContext::new();
+        shared.insert(view(CharacterTab::Reputation, &standings));
+        Screen::new(character_frame_screen).sync(&shared, &mut registry);
+        assert_eq!(text(&registry, "ReputationEntry40Name"), "Faction 39");
+        let area = registry.get(registry.get_by_name(list).unwrap()).unwrap();
+        let last = registry
+            .get(registry.get_by_name("ReputationEntry40").unwrap())
+            .unwrap();
+        let root = registry.get_by_name("CharacterFrame").unwrap();
+        let (_, top, _, height) = rect_in(&registry, area, root).unwrap();
+        let (_, y, _, h) = rect_in(&registry, last, root).unwrap();
+        assert!(
+            y >= top && y + h <= top + height,
+            "last faction must fit fully"
+        );
+    }
+    set_active_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn capped_and_hated_standings_use_retail_bar_values() {
     let rows = reputation_rows(&[
         entry(72, "Stormwind", "Exalted", 83_999),
