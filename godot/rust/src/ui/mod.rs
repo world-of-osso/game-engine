@@ -122,6 +122,8 @@ enum ScreenPostsetup {
     CharacterFrame,
     /// Bag bar icons and container portraits get their round `CircleMask`.
     Bags,
+    /// Header glyphs become tinted masks (`IconMasks`).
+    ChatFrame,
     /// Autocast Shines draw the host's composite.
     PetActionBar,
 }
@@ -215,7 +217,9 @@ impl RegistryModel {
                 apply_character_create_postsetup(&self.shared, &mut self.registry);
                 self.icon_masks.apply(&mut self.registry);
             }
-            ScreenPostsetup::Bags => self.icon_masks.apply(&mut self.registry),
+            ScreenPostsetup::Bags | ScreenPostsetup::ChatFrame => {
+                self.icon_masks.apply(&mut self.registry)
+            }
             ScreenPostsetup::PetActionBar => {
                 if let Some(state) = self.shared.get::<PetActionBarState>() {
                     game_engine_ui_model::pet_action_bar_component::apply_pet_action_bar_postsetup(
@@ -1421,7 +1425,7 @@ impl RegistryUi {
 
     /// Initialize a dedicated RegistryUi instance for the chat frame `ChatFrame1`.
     pub fn show_chat_frame(&mut self, view: ChatFrameView) -> Result<(), String> {
-        self.show_viewport_screen(view, chat_frame_screen, ScreenPostsetup::None)
+        self.show_viewport_screen(view, chat_frame_screen, ScreenPostsetup::ChatFrame)
     }
 
     /// Replace an edit box's text with the caret at its end.

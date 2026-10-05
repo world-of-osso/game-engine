@@ -6,12 +6,16 @@ use std::path::PathBuf;
 
 use game_engine_core::ui_layout_data::{FrameSizeSettings, LayoutSettings};
 use game_engine_ui_model::chat_frame::ChatTab;
-use game_engine_ui_model::chat_frame_component::{ChatFrameView, chat_frame_screen};
+use game_engine_ui_model::chat_frame_component::{
+    ChatFrameView, FOREVER_CHAT_HEADER_ICONS, chat_frame_screen,
+};
 use game_engine_ui_model::damage_meter_component::damage_meter_screen;
 use game_engine_ui_model::damage_meter_data::{
     DamageMeterRow, DamageMeterView, DamageMeterWindow, MeterSessionType, MeterType,
 };
-use game_engine_ui_model::flare_panel::{FLARE_BRONZE_PANEL_STYLE, flare_bronze_style};
+use game_engine_ui_model::flare_panel::{
+    FLARE_BRONZE_PANEL_STYLE, flare_bronze_style, flare_glyph_mask,
+};
 use shared::protocol::{DamageMeterSession, DamageMeterSnapshot, DamageMeterSource};
 use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region};
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
@@ -519,6 +523,33 @@ fn chat_header_icons(registry: &FrameRegistry) -> [(&'static str, f32); 4] {
     std::array::from_fn(|index| (names[index], last - FLARE_HEADER_STEP * (3 - index) as f32))
 }
 
+/// The `[left, right, top, bottom]` crop of `data/textures/{fdid}.blp` as the header draws it:
+/// a [`flare_glyph_mask`] of the cropped pixels, `(rgba, width, height)`.
+fn drawn_glyph(fdid: u32, [left, right, top, bottom]: [f32; 4]) -> (Vec<u8>, usize, usize) {
+    let path =
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join(format!("../../data/textures/{fdid}.blp"));
+    let bytes = std::fs::read(&path).unwrap_or_else(|error| panic!("{path:?}: {error}"));
+    let image = game_engine_core::blp::decode_rgba(&bytes).unwrap();
+    let (width, height) = (image.width as f32, image.height as f32);
+    let (x0, x1) = (
+        (left * width).round() as usize,
+        (right * width).round() as usize,
+    );
+    let (y0, y1) = (
+        (top * height).round() as usize,
+        (bottom * height).round() as usize,
+    );
+    let row = image.width as usize * 4;
+    let mut pixels: Vec<u8> = (y0..y1)
+        .flat_map(|y| image.pixels[y * row + x0 * 4..y * row + x1 * 4].to_vec())
+        .collect();
+    flare_glyph_mask(&mut pixels);
+    (pixels, x1 - x0, y1 - y0)
+}
+
+/// Under Forever the four chat header glyphs are one look: one draw size and vertex colour,
+/// and each a white shape on a clear ground, so that colour is all that shows: not the
+/// bubble's dark drop shadow, nor the figure's opaque dark square.
 #[test]
 fn forever_chat_header_icons_share_one_look() {
     let chat = canvas(
@@ -526,11 +557,28 @@ fn forever_chat_header_icons_share_one_look() {
         ChatFrameView::default(),
         chat_frame_screen,
     );
-    let looks: Vec<_> = chat_header_icons(&chat)
+    let looks: Vec<_> = FOREVER_CHAT_HEADER_ICONS
         .iter()
-        .map(|(name, _)| {
-            let icon = texture(&chat, &format!("{name}Icon"));
-            (rect(&chat, &format!("{name}Icon")), icon.vertex_color)
+        .map(|name| {
+            let icon = texture(&chat, name);
+            let TextureSource::FileDataId(fdid) = icon.source else {
+                panic!("{name} draws no Blizzard art: {:?}", icon.source)
+            };
+            let (pixels, width, height) = drawn_glyph(fdid, icon.tex_coords);
+            let rgba: Vec<_> = pixels.chunks_exact(4).collect();
+            assert!(
+                rgba.iter()
+                    .filter(|pixel| pixel[3] > 0)
+                    .all(|pixel| pixel[..3] == [255, 255, 255]),
+                "{name}: the vertex colour alone colours it"
+            );
+            let solid = rgba.iter().filter(|pixel| pixel[3] >= 128).count();
+            let coverage = solid as f32 / (width * height) as f32;
+            assert!(
+                (0.25..0.75).contains(&coverage),
+                "{name}: a glyph shape, neither a square nor a halo: coverage {coverage}"
+            );
+            (rect(&chat, name), icon.vertex_color)
         })
         .collect();
     assert!(
