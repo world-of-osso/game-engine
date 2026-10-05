@@ -35,7 +35,7 @@ pub(crate) enum BarType {
     Interrupted,
 }
 
-/// `CastingBarMixin:ShowSpark`: `ui-castingbar-pip`, or `-pip-red` once interrupted.
+/// `CastingBarMixin:ShowSpark` normal/interrupted tint choice; nameplates draw B's soft glow.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum Spark {
     Pip,
