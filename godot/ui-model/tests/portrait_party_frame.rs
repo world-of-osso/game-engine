@@ -147,6 +147,22 @@ fn forever_party_draws_camelot_character_art_not_retail_party_art() {
         party,
         region(&modern, "PartyMemberFrame1Art", ActiveSkin::Modern)
     );
+    let ordinary_forever =
+        resolve_region("UI-HUD-UnitFrame-Party-PortraitOn", ActiveSkin::Forever).unwrap();
+    assert_ne!(
+        party.source, ordinary_forever.source,
+        "conditional character art is not ordinary uipartyframec60"
+    );
+    assert_ne!(
+        ordinary_forever.source,
+        resolve_region("UI-HUD-UnitFrame-Party-PortraitOn", ActiveSkin::Modern)
+            .unwrap()
+            .source
+    );
+    assert_eq!(
+        (party.width, party.height),
+        (ordinary_forever.width, ordinary_forever.height)
+    );
     assert_eq!(
         party.source,
         resolve_region("UI-HUD-UnitFrame-Player-PortraitOn", ActiveSkin::Forever)
