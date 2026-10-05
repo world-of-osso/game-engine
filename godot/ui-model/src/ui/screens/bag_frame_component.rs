@@ -282,7 +282,7 @@ fn search_box(search: &str) -> Element {
                     width: 10,
                     height: 10,
                     texture_atlas: "common-search-clearbutton",
-                    alpha: 0.5,
+                    alpha: {0.5},
                     pos_type: "absolute",
                     left: 3,
                     top: 3,
