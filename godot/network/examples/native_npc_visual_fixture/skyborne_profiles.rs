@@ -94,14 +94,7 @@ pub(super) fn run(
                 reader.join().map_err(|_| "Godot reader panicked")?;
             }
         }
-        for line in lines.try_iter() {
-            if line.contains("SCRIPT ERROR") {
-                return Err(format!("Native Skyborne script: {line}"));
-            }
-            if line.trim() == "FIXTURE SKYBORNE_DONE" {
-                completed = true;
-            }
-        }
+        completed |= read_skyborne_completion(&lines)?;
         if let Some(status) = status {
             return if status.success() && completed {
                 Ok(())
@@ -114,4 +107,15 @@ pub(super) fn run(
         thread::sleep(TICK);
     }
     Err("Timed out waiting for native Skyborne fixture".into())
+}
+
+fn read_skyborne_completion(lines: &Receiver<String>) -> Result<bool, String> {
+    let mut completed = false;
+    for line in lines.try_iter() {
+        if line.contains("SCRIPT ERROR") {
+            return Err(format!("Native Skyborne script: {line}"));
+        }
+        completed |= line.trim() == "FIXTURE SKYBORNE_DONE";
+    }
+    Ok(completed)
 }
