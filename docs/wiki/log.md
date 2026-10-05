@@ -61,6 +61,10 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 
 [[portrait-party-frames]] adds source-cited Retail/Camelot member/pet geometry and distinguishes both verified c60 mappings: conditional CharacterFrameOnParty element 33561 → set-1 member 38477 → atlas 3960 shares Camelot's player sheet; ordinary Party element 21081 → member 39017 → atlas 4019 uses uipartyframec60. Static state-only component, behavioral tests, registry-golden capture and offline preview; no roster/portrait-runtime/settings/live acceptance. Compact remains default. Targeted registry/source tests pass 12/12 and extension builds, but owned native captures expose missing Retail sheet 4681512 and a mismatched 69913-vs-69933 base sheet at shared FDID 4631591. Static raster acceptance is blocked; do not wire as complete. Source-record equality is not physical-texture proof.
 
+## 2026-10-05 — Owned item definition namespaces
+
+[[forever-data#Owned item definition namespaces]] records per-stack Retail/Forever70205 catalog selection, source-preserving metadata/cursor/tooltips/comparisons/equipped-average and explicit item-info query source. Capped helper source tests at `00663840` pass 5/5, including the actual 30-row catalog and mixed collision snapshots. Equal authored names/icons stay equal; no Retail substitution for absent Forever data. Bare vendor/quest/loot and auction query/grouping boundaries remain explicit; full stats/native acceptance remain main-owned.
+
 ## 2026-10-05 — Authored Skyborne NameGen overlay
 
 [[forever-data#Authored Skyborne names]] records the pinned five-column names-only export, separate source/schema provenance and runtime first-name-only race95/96 merge without replacing Retail names. Exporter development tests 2/2 and pure NameCatalog fixtures 3/3 pass; helper compilation was blocked by desktop Docker connection/local lease failures. Actual export provisioning, selectable-race invariant and native name-control acceptance remain Main-owned.

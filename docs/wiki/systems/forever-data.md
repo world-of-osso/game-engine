@@ -90,8 +90,19 @@ Bounded CPU proof: importer Python 42 passed/3 unavailable fixtures skipped at `
 
 The first isolated-World3D capture produced blank PNGs despite successful native allocation. Capturing the original World3D without reparenting the visual fixed the observed boundary. The fixture now rejects blank frames (negative sample count 0; final two views 269 changed samples each); no shader/body fallback or production rendering change was added. The captured shared executable predates the `47c5a844` log-parser readability refactor. A separately authorized local fixture build at `06d2d192` compiles the current helper and exits 0; it retains one existing unused-WMO-field warning. No extra native run was requested, so the earlier captures are not relabeled as runtime proof for that later build. Both build receipts and the full compile log are retained in the profile ledger.
 
+## Owned item definition namespaces
+
+The [item-source contract](../../specs/item-definition-sources.md) preserves authored IDs and selects catalogs by the stack's `ItemDefinitionSource`, not race. `SourceItemCatalogs` keeps the Retail catalog separate from the fallible Forever70205 catalog at `data/db2/1.60.1.70205/items/`. The main-owned producer supplies only the selected 30 kit definitions, source-local class/appearance/scaling CSVs and provenance manifest. No client reads the server database or merges colliding item rows.
+
+Owned bag/equipment slots retain source through cursor state, local metadata, tooltips/comparisons, equipped-average level, bank/mail/trade and auction-inventory views. Item-info IPC requires source; CLI `--source retail|forever70205` defaults deliberately to Retail. Missing source files/rows never select Retail; contextual lookup errors include source and authored ID. Forever stat helpers use their own scaling tables, not Retail's.
+
+At `00663840`, capped desktop-helper targeted source tests pass 5/5 (three new source behaviors), including actual mixed-source snapshots for 2947/2512/2101, Quiver capacity/class, source-preserving comparisons/equipped level, selected 30-row catalog and independently pinned source-local staff DPS. The collision icons are authored equal in both products; 2512/2101 names are equal too. 2947 is Retail `Broken Small Throwing Knife` versus Forever `Small Throwing Knife`; 2512 stack limits are 1000 versus 200; 2101 classes are bag versus quiver. Synthetic fixtures separately prove distinct authored icons and missing-source/row errors. Proof: `target/item-source-authored-green.log`; native UI acceptance and final integration remain main-owned.
+
+VendorItem, QuestRewardItem and loot summary tuples still lack source. Auction result/owned rows carry source, but exact query filtering and browse action/grouping remain bare-ID boundaries; metadata isolation alone does not prove mixed-product auction selection. Full Forever damage/stat parity, including thrown weapons, remains unproved.
+
 ## Sources
 
+- [Item source contract](../../specs/item-definition-sources.md), [client catalog](../../../godot/ui-model/src/game/item_catalog.rs), [source tests](../../../godot/ui-model/src/game/item_catalog_tests.rs) — owned definition identity, isolated input contract and bounded CPU proof.
 - [Recovery ledger](../../../target/skyborn-ledger.md) — root/archive recovery and grounded race/model identities.
 - [Skyborne proof ledger](../../../target/skyborne-proof-ledger.md), [Zephras proof ledger](../../../target/zephras-proof-ledger.md) — bounded results and exclusions.
 - [Importer](../../../scripts/import_forever_skyborne.py), `data/db2/1.60.1.70205/provenance.json` — decoding, encrypted drops and content-key mismatch reason.
