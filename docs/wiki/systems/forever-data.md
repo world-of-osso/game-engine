@@ -20,7 +20,7 @@ Observed AFID assets are untagged timestamp/keyframe streams: importer acceptanc
 
 The initial root encoding key `fcae3917977c7fdf9f3864ed5bf96521` was absent from local indexes. On **2026-10-04**, Battle.net's `wow_classic_beta` update completed at 18:55 UTC; scoped Syncthing sender rescans corrected stale advertised archive sizes for data.207/209/210. Root initialization then succeeded (1,436,183 entries), allowing the tables and body/skin/icon assets to be recovered.
 
-The [Zephras inventory](terrain.md#forever-zephras-map-2991) retains 169 archive failures, with 48/72 roots available: **24 root tiles remain unavailable**. User-reported current blocker: desktop C: full, Syncthing stopped, with 21 other files unavailable locally. The disk/Syncthing state and that 21-file subset are not established by the supplied ledgers/metadata; they must not be treated as a replacement for the measured 169-failure closure or as proof of complete dependencies below missing parents.
+The [Zephras inventory](terrain.md#forever-zephras-map-2991) retains 169 archive failures, with 48/72 roots available: **24 root tiles remain unavailable**. The earlier user-reported disk-full/Syncthing blocker was followed by resumed synchronization. The gear import below recovered previously unavailable NPC metadata and assets. Neither the earlier 21-file subset nor NPC recovery proves the terrain closure complete.
 
 ## Proof boundary
 
@@ -43,9 +43,28 @@ Bounded proof at `31f44743` ([ledger](../../../target/zephras-npc-display-proof/
 
 The single full import at `189b32b1` exited 1 (`/tmp/zephras-npc-display-import.log`). Its earlier magic-only manifest counted 3,385 assets available and 320 failed; the separate current-policy audit above supersedes that availability count, not the import's provenance. The corrected importer was not rerun against unavailable archives. Twenty of 224 Forever-only displays have no known asset failure (15 of 171 grounded); this is not appearance readiness. All 235 requested IDs are readable CDI rows: none overlap the 17 encrypted IDs recorded in `npc-displays.json`/`provenance.json`.
 
-Native humanoid support remains **incomplete**, not merely unverified: `NpcGearData` and the outfit consumer are still Retail-only; 876 of 884 referenced armor display IDs are absent from Retail. Five referenced item texture resources are absent from the decoded Forever TextureFileData. Existing customization overlays remain Skyborne-scoped. No two-display native fixture or screenshot was attempted: rendering unprofiled bare bodies would bypass the required-appearance contract. Source recovery alone does not finish these remaining consumers.
+At `31f44743`, native gear consumers were Retail-only: 876 of 884 referenced armor display IDs were absent there. The gear consumer gap is addressed below; complete humanoid appearance and native acceptance remain open. Existing customization overlays remain Skyborne-scoped. No two-display native fixture or screenshot was attempted in that display-import cycle.
 
 Verification: importer tests 38 passed/3 skipped; desktop core 2/2 (synthetic collision/cache-removal and real exports with every Retail cache row compared); Ruff and touched Rust formatting pass. The core test build retains the pre-existing unused `blend_pixel`/`scaled_section` warning. No line-coverage or rendered-pixel claim.
+
+## Gear overlay — bounded CPU proof (2026-10-05)
+
+At `10f802aa`, `NpcGearData::load` keeps Retail display IDs (including ordinary displays with Extra 0) and joins Forever-only displays to a separate Forever Extra/armor map. `OutfitData` imports absent ItemDisplayInfo IDs and whole absent model/material resource groups into its existing cache. Component ownership is overlaid by FDID; helmet rules by visibility group. Retail collisions retain every Retail row/candidate. Cache source tracking detects overlay addition/removal. Declared missing model/texture mappings remain errors, including body materials that the old importer would have dropped.
+
+Hash-matched exports include ItemDisplayInfo, ItemDisplayInfoMaterialRes, ModelFileData, TextureFileData, both component tables and HelmetGeosetData; the latter is FDID 2821752, layout 103B3B37, 16,909 readable rows, exact content-key MD5. The existing importer acquires them through `forever_npc_displays.TABLES`; no separate decoding path or CDN.
+
+[Gear ledger](../../../target/forever-npc-gear-proof/ledger.md) and [coverage snapshot](../../../target/forever-npc-gear-proof/gear-coverage.json):
+
+| Boundary | Evidence | Remaining gap |
+|---|---|---|
+| Gear IDs | 884/884 rows resolve: 8 Retail, 876 Forever | Not full appearance readiness |
+| Required resources | 856 fully mapped; 849 have validated known root assets | 28 items reference five missing texture resources; 7 other items have root-asset failures; companions are separate |
+| Concrete resolution | Display 136967 → Extra 162977 → shoulder 734891 → models 7579617/7579618, texture 7731197 | That NPC's other gear references missing resource 1102747 |
+| Preservation | Every Retail row and whole candidate group in four outfit cache tables unchanged; removal restores baseline | General product-isolated asset storage |
+
+The single gear import ran at `a87685d1`, before the concurrent asset-refresh policy `a3d37affe`: `/tmp/forever-npc-gear-import.log`, exit 1, 482 extracted and 3,712 accepted of 3,725 known assets; 13 stale cached assets rejected. Extra and geoset sources recovered; seven required profiles were published, 155 displays still had metadata errors. Missing body paths in the local listfile and the five missing texture resources block the requested Skyborne NPCs. Later shared manifests may be replaced by other import runs; the log/ledger retain this run's boundary.
+
+Verification: integrated Python 42 passed/3 skipped; desktop core outfit 7/7 and helmet 2/2; native product-scoped Extra/collision test 1/1. Scoped rustfmt and Ruff pass. Workspace `cargo fmt --check` is blocked by missing local sibling `ui-toolkit/core`; desktop tests compile the affected crates. Existing core-test unused-import warning retained. No screenshot, full asset-closure, line-coverage or native visual claim.
 
 ## Sources
 
