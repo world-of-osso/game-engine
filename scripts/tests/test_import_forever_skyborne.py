@@ -370,5 +370,89 @@ class CreationSceneAssetTests(unittest.TestCase):
             self.assertNotIn("666.m2", manifest["assets"])
 
 
+def light_data_fixture():
+    widths = [32] * 60 + [128] * 3
+    record_size = sum(widths) // 8
+    start = 244 + len(widths) * 28
+    raw = bytearray(start + record_size)
+    raw[:4] = b"WDC5"
+    struct.pack_into("<6I", raw, 136, 1, 63, record_size, 0, 0, 0x360DA016)
+    struct.pack_into("<HH7I", raw, 172, 0, 0, 63, 0, 63 * 24, 0, 0, 0, 1)
+    struct.pack_into("<Q8I", raw, 204, 0, start, 1, 0, start + record_size, 0, 0, 0, 0)
+    offset = 0
+    for index, width in enumerate(widths):
+        struct.pack_into(
+            "<HH5I", raw, 244 + 63 * 4 + index * 24, offset, width, 0, 0, 0, 0, 0
+        )
+        offset += width
+    struct.pack_into("<3I", raw, start, 42, 7588, 1440)
+    struct.pack_into("<I", raw, start + 5 * 4, 0x00112233)
+    struct.pack_into("<4f", raw, start + 60 * 4, 1.0, -2.0, 3.25, 4.0)
+    struct.pack_into("<4f", raw, start + 60 * 4 + 16, 0.0, 0.0, 0.0, 1.0)
+    return bytes(raw)
+
+
+class ExportLightingTests(unittest.TestCase):
+    def export_rows(self, table, raw):
+        from pathlib import Path
+        import tempfile
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.db2"
+            output = Path(directory) / "output.csv"
+            source.write_bytes(raw)
+            with patch.object(
+                export.sys,
+                "argv",
+                ["export_db2_csv.py", table, str(source), str(output)],
+            ):
+                export.main()
+            text = output.read_text()
+            return text, list(csv.DictReader(io.StringIO(text)))
+
+    def test_export_real_forever_light_slots_and_coordinates(self):
+        from pathlib import Path
+
+        data = Path(__file__).resolve().parents[2] / "data"
+        source = data / "cache/forever-skyborne-extract/1375579.db2"
+        if not source.exists():
+            self.skipTest("local Forever Light fixture unavailable")
+        text, rows = self.export_rows("Light", source.read_bytes())
+        self.assertEqual(len(rows), 626)
+        zephras = {int(row["ID"]): row for row in rows if row["ContinentID"] == "2991"}
+        self.assertEqual(len(zephras), 6)
+        default = zephras[15617]
+        self.assertEqual([default[f"GameCoords_{i}"] for i in range(3)], ["0"] * 3)
+        self.assertEqual(
+            [default[f"LightParamsID_{i}"] for i in (0, 1, 4)], ["7588", "7455", "7570"]
+        )
+        self.assertEqual(
+            text.splitlines()[0], (data / "Light.csv").read_text().splitlines()[0]
+        )
+
+    def test_export_forever_light_data_inline_relation_and_late_coefficients(self):
+        from pathlib import Path
+
+        text, rows = self.export_rows("LightData", light_data_fixture())
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            (rows[0]["ID"], rows[0]["LightParamID"], rows[0]["Time"]),
+            ("42", "7588", "1440"),
+        )
+        self.assertEqual(rows[0]["SkyTopColor"], str(0x00112233))
+        self.assertEqual(
+            [float(rows[0][f"FogHeightCoefficients_{i}"]) for i in range(4)],
+            [1.0, -2.0, 3.25, 4.0],
+        )
+        self.assertEqual(
+            [float(rows[0][f"MainFogCoefficients_{i}"]) for i in range(4)],
+            [0.0, 0.0, 0.0, 1.0],
+        )
+        header = Path(__file__).resolve().parents[2] / "data/LightData.csv"
+        if header.exists():
+            self.assertEqual(text.splitlines()[0], header.read_text().splitlines()[0])
+
+
 if __name__ == "__main__":
     unittest.main()
