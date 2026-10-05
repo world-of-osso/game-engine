@@ -148,7 +148,7 @@ impl OutfitData {
         else {
             return Ok(None);
         };
-        self.check_model_resources(&display)?;
+        self.check_display_resources(&display)?;
         let mut result = OutfitResult::default();
         self.merge_display_into_result(&mut result, data, &display, race, sex);
         Ok(Some(result))
@@ -165,13 +165,13 @@ impl OutfitData {
         for id in ids {
             let display = crate::outfit_catalog_db::load_cached_display_info(&self.data_dir, id)?
                 .ok_or_else(|| format!("outfit display {id} missing"))?;
-            self.check_model_resources(&display)?;
+            self.check_display_resources(&display)?;
             self.merge_display_into_result(&mut result, data, &display, race, sex);
         }
         Ok(result)
     }
 
-    fn check_model_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {
+    fn check_display_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {
         for &id in &display.model_resource_ids {
             let fdids = crate::outfit_catalog_db::load_cached_model_fdids(&self.data_dir, id)?;
             if fdids.is_empty() {
@@ -265,7 +265,7 @@ impl OutfitData {
         else {
             return Ok(None);
         };
-        self.check_model_resources(&display)?;
+        self.check_display_resources(&display)?;
         for &id in &display.model_material_resource_ids {
             crate::outfit_catalog_db::load_cached_material_texture_fdids(&self.data_dir, id)?;
         }
@@ -316,7 +316,7 @@ impl OutfitData {
         else {
             return Ok(Vec::new());
         };
-        self.check_model_resources(&display)?;
+        self.check_display_resources(&display)?;
         let columns = display
             .model_resource_columns
             .iter()
