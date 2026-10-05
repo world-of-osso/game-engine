@@ -852,8 +852,8 @@ fn hotkey_text(registry: &FrameRegistry, button: &str) -> String {
 }
 
 /// Retail `MULTIACTIONBAR1BUTTON3` (Action Bar 2 button 3) bound to Q: Q uses slot 63,
-/// the button shows "Q"; Shift-1 and Middle Mouse on Action Bar 3 show `s-1` and
-/// `Middle Mouse`; unbound buttons show nothing, and the main bar keeps 1..= even where
+/// the button shows "Q"; Shift-1 and Middle Mouse on Action Bar 3 show FlareUI's `S1` and
+/// `B3` (`ShortenKey`, `Modules/ActionBars.lua:214-222`); unbound buttons show nothing, and the main bar keeps 1..= even where
 /// Forever hides its last three buttons.
 #[test]
 fn extra_bar_bindings_press_their_slot_and_label_their_button() {
@@ -909,16 +909,43 @@ fn extra_bar_bindings_press_their_slot_and_label_their_button() {
     state.set_hotkeys(&bindings);
     let registry = build(ActiveSkin::Forever, state, main_action_bar_screen);
     assert_eq!(hotkey_text(&registry, "MultiBarBottomLeftButton3"), "Q");
-    assert_eq!(hotkey_text(&registry, "MultiBarBottomRightButton1"), "s-1");
-    assert_eq!(
-        hotkey_text(&registry, "MultiBarBottomRightButton2"),
-        "Middle Mouse"
-    );
+    assert_eq!(hotkey_text(&registry, "MultiBarBottomRightButton1"), "S1");
+    assert_eq!(hotkey_text(&registry, "MultiBarBottomRightButton2"), "B3");
     for unbound in ["MultiBarBottomLeftButton1", "MultiBarBottomRightButton3"] {
         assert_eq!(hotkey_text(&registry, unbound), "", "{unbound}");
     }
     assert_eq!(hotkey_text(&registry, "ActionButton9"), "9");
     assert!(registry.get_by_name("ActionButton10").is_none());
+}
+
+/// Ctrl-1 on main bar button 1, and on pet button 1 by default: Forever shows FlareUI's
+/// "C1" (`ShortenKey`, `Modules/ActionBars.lua:259`), Modern Retail's "c-1"
+/// (`GetBindingText(key, 1)`, `ActionButton.lua:491`).
+#[test]
+fn ctrl_hotkeys_read_c1_under_forever_and_c_dash_1_under_modern() {
+    let mut bindings = InputBindingsData::default();
+    bindings.assign(
+        InputAction::ActionSlot1,
+        InputBinding::CtrlKeyboard(BindingKey::Digit1),
+    );
+    let mut pet = PetActionBarState {
+        visible: true,
+        ..Default::default()
+    };
+    // Assigning Ctrl-1 to the main bar took it from the pet bar; the pet keeps its default.
+    pet.buttons[0].hotkey = InputBindingsData::default().binding(InputAction::PET_ACTION_SLOTS[0]);
+    for (skin, expected) in [(ActiveSkin::Forever, "C1"), (ActiveSkin::Modern, "c-1")] {
+        let mut state = class_bar(Some(2));
+        state.set_hotkeys(&bindings);
+        let bars = build(skin, state, main_action_bar_screen);
+        let pet_bar = build(skin, pet.clone(), pet_action_bar_screen);
+        assert_eq!(hotkey_text(&bars, "ActionButton1"), expected, "{skin:?}");
+        assert_eq!(
+            hotkey_text(&pet_bar, "PetActionButton1"),
+            expected,
+            "{skin:?}"
+        );
+    }
 }
 
 /// Every frame under `roots`, depth first in sibling order: what the projection paints
@@ -1013,7 +1040,7 @@ fn long_key_bars(skin: ActiveSkin) -> (FrameRegistry, FrameRegistry) {
         visible: true,
         ..Default::default()
     };
-    pet.buttons[0].hotkey = "Middle Mouse".into();
+    pet.buttons[0].hotkey = Some(InputBinding::Mouse(BindingMouseButton::Middle));
     (
         build(skin, state, main_action_bar_screen),
         build(skin, pet, pet_action_bar_screen),
@@ -1027,14 +1054,22 @@ fn long_key_bars(skin: ActiveSkin) -> (FrameRegistry, FrameRegistry) {
 fn long_key_names_stay_on_one_line_inside_their_button() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let (bars, pet) = long_key_bars(skin);
-        let mut labels = vec![
-            (&bars, "ActionButton2", "Mouse Button 4"),
-            (&bars, "ActionButton3", "Mouse Button 5"),
-            (&pet, "PetActionButton1", "Middle Mouse"),
-        ];
+        // Modern shows Retail's key names; Forever FlareUI's short form.
+        let mut labels = match skin {
+            ActiveSkin::Modern => vec![
+                (&bars, "ActionButton2", "Mouse Button 4"),
+                (&bars, "ActionButton3", "Mouse Button 5"),
+                (&pet, "PetActionButton1", "Middle Mouse"),
+            ],
+            ActiveSkin::Forever => vec![
+                (&bars, "ActionButton2", "B4"),
+                (&bars, "ActionButton3", "B5"),
+                (&pet, "PetActionButton1", "B3"),
+            ],
+        };
         if skin == ActiveSkin::Forever {
-            labels.push((&bars, "MultiBarBottomRightButton1", "Middle Mouse"));
-            labels.push((&bars, "MultiBarBottomRightButton2", "Backspace"));
+            labels.push((&bars, "MultiBarBottomRightButton1", "B3"));
+            labels.push((&bars, "MultiBarBottomRightButton2", "BS"));
         }
         for (registry, button, key) in labels {
             let label = format!("{button}HotKey");

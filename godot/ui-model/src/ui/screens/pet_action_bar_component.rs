@@ -29,6 +29,7 @@ use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
 use crate::hud_layout::{FOREVER_ACTION_BUTTON_SCALE, hud_layout};
+use crate::input_bindings::InputBinding;
 use crate::main_action_bar_component::hotkey;
 use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
@@ -207,8 +208,8 @@ pub struct PetActionButtonView {
     pub checked_alpha: f32,
     /// The `Flash` texture is in its shown phase.
     pub flash: bool,
-    /// `SetHotkeys`: the abbreviated `BONUSACTIONBUTTONn` binding.
-    pub hotkey: String,
+    /// `SetHotkeys`: the `BONUSACTIONBUTTONn` binding, labelled per skin.
+    pub hotkey: Option<InputBinding>,
     /// Key held or button pressed: `PushedTexture` replaces `NormalTexture`.
     pub pushed: bool,
     /// Pointer over the button: `HighlightTexture`.
@@ -233,7 +234,7 @@ pub fn pet_bar_buttons(
     pet_in_combat: bool,
     attack_flash: bool,
     spell_icon: impl Fn(u32) -> u32,
-    hotkeys: &[String; PET_BAR_BUTTONS],
+    hotkeys: &[Option<InputBinding>; PET_BAR_BUTTONS],
 ) -> [PetActionButtonView; PET_BAR_BUTTONS] {
     std::array::from_fn(|index| {
         let slot = PetActionSlot::from_packed(spells.action_buttons[index]);
@@ -248,7 +249,7 @@ pub fn pet_bar_buttons(
             checked,
             checked_alpha: if attack { ATTACK_CHECKED_ALPHA } else { 1.0 },
             flash: attack && attack_flash,
-            hotkey: hotkeys[index].clone(),
+            hotkey: hotkeys[index],
             pushed: false,
             hovered: false,
             autocast: PetAutocast::from_packed(spells.action_buttons[index]),
@@ -406,7 +407,7 @@ fn button(index: usize, view: &PetActionButtonView, skin: ActiveSkin, scale: f32
             !view.hovered,
         ),
         autocast_overlay(&name, view.autocast, scale),
-        hotkey(&name, &view.hotkey, skin, scale, HOTKEY_ANCHOR),
+        hotkey(&name, view.hotkey, skin, scale, HOTKEY_ANCHOR),
     ]
     .into_iter()
     .flatten()
