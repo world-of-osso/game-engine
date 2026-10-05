@@ -68,6 +68,10 @@ At `dd6c0453`, the unchanged native fixture crosses `BAKED_READY` → `COMPOSED_
 
 The network example now rejects `Parameter "material" is null` from either Godot output stream, including output drained after child exit. The intentional missing-type-6 diagnostic remains allowed. Full native-fixture acceptance remains blocked by the type-19 failure; zero material-null lines alone are not an exit-0 claim.
 
+### Type-19 fixture canvas (2026-10-05)
+
+`d2a82a32` intentionally switched NPC eyes from one replacement FDID to all selected layers composited on the `ChrModelMaterial` canvas (`assets/appearance.rs::compose_replacement_textures`, using `CharTextureData::composite_texture_type`). The synthetic cache declared `model_materials` but omitted its type-19 canvas; composition therefore returned `None`, retaining ordinary base RGBA `(102,76,51,255)` instead of `(185,45,215,255)`. Stage `(layout_id=910041, texture_type=19, width=2, height=2)`. Keep the existing ordinary and two-texture pixel assertions unchanged; this repairs fixture data, not production behavior. The historical effect-mode expectation predates the retail shader batch binding rewrite; current fixture asserts replacement type-19 in slot 0 and original slot 1.
+
 ## Out of scope
 
 - Player equipment replication and creature model redesign; authored NPC data is applied through the existing M2 and character paths.
