@@ -2,6 +2,8 @@
 
 - [Player cast feedback](systems/player-cast-feedback.md) — Retail animation sources, player-only sampling, skin geometry and offline captures.
 
+[Current Skyborne acceptance boundary](systems/forever-data.md#native-world-acceptance-boundary-2026-10-05): entry reported; NPC/giver/quest blocked on authored server stats. Local item-asset extraction is not native parse/render proof; [native QuestFrame/QuestLogFrame source](systems/quest-ui.md#godot-client) exists without Skyborne acceptance.
+
 Knowledge base for the game-engine project, organized across five categories.
 Last updated: 2026-10-06.
 
