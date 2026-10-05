@@ -16,6 +16,7 @@ use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::screens::quest_art::window_chrome;
 
+#[path = "spellbook_frame_component/player_spells_pages.rs"]
 mod player_spells_pages;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::GameFont;
