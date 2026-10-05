@@ -200,7 +200,7 @@ pub fn lerp_color_sets<C: Copy, F: Fn(C, C, f32) -> C>(
     t: f32,
     lerp_color: F,
 ) -> SkyColorSet<C> {
-    let mut colors = lerp_color_channels(a, b, t, lerp_color);
+    let mut colors = lerp_color_channels(a, b, t, &lerp_color);
     colors.fog_end = lerp_scalar(a.fog_end, b.fog_end, t);
     colors.fog_start = lerp_scalar(a.fog_start, b.fog_start, t);
     colors.fog_scaler = lerp_scalar(a.fog_scaler, b.fog_scaler, t);
@@ -216,7 +216,7 @@ fn lerp_color_channels<C: Copy, F: Fn(C, C, f32) -> C>(
     a: &SkyColorSet<C>,
     b: &SkyColorSet<C>,
     t: f32,
-    lerp_color: F,
+    lerp_color: &F,
 ) -> SkyColorSet<C> {
     let mix = |a, b| lerp_color(a, b, t);
     SkyColorSet {
