@@ -42,6 +42,12 @@ fn render(skin: ActiveSkin) -> FrameRegistry {
 }
 
 fn render_state(skin: ActiveSkin, state: PortraitPartyFrameState) -> FrameRegistry {
+    // Production mirrors the global active atlas skin into each SharedContext.
+    // Serialize switches so concurrent test cases cannot resolve another skin's art.
+    static SKIN_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+    let _skin_lock = SKIN_LOCK.lock().unwrap();
+    let previous_skin = ui_toolkit::atlas::active_skin();
+    ui_toolkit::atlas::set_active_skin(skin);
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -51,6 +57,7 @@ fn render_state(skin: ActiveSkin, state: PortraitPartyFrameState) -> FrameRegist
     shared.insert(state);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(portrait_party_frame_screen).sync(&shared, &mut registry);
+    ui_toolkit::atlas::set_active_skin(previous_skin);
     registry
 }
 
