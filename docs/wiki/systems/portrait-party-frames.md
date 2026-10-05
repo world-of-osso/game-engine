@@ -21,7 +21,9 @@ Paths below are relative to `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/` (lo
 
 Forever paths are relative to `~/.cache/wow-ui-sim/blizzard-ui/wowforever/AddOns/`.
 
-`Blizzard_UnitFrame/Mainline/PartyMemberFrame.lua:13,71-118` explicitly adds the conditional `CharacterFrameOn` art branch. Portrait mask becomes the player portrait mask; frame/health use `CharacterFrameOnParty` atlases; mana moves to (46,−30), width 69. Component deliberately selects this approved branch for Forever; the cached standard template does **not** prove automatic activation. Power fills select the corresponding named CharacterFrameOnParty regions (not hard-coded crops); Modern selects Party regions.
+`Blizzard_UnitFrame/Mainline/PartyMemberFrame.lua:13,71-118` explicitly adds the conditional `CharacterFrameOn` art branch. Portrait mask becomes the player portrait mask; frame/health use `CharacterFrameOnParty` atlases; mana moves to (46,−30), width 69. Component deliberately selects this approved branch for Forever; the cached standard template does **not** prove automatic activation. Mana uses the explicit player fill from `:106`; Modern selects Party fills. Spec powers reuse the existing unit-frame art (`Mainline/UnitFrame.lua:539-541`, `info.atlas`).
+
+**Resolver boundary:** `ui-toolkit/core/src/atlas/db2.rs:77-80` imports Retail set 0 and Forever set 1 only. Conditional CharacterFrameOnParty health and non-mana basic fills exist solely in Forever set 0, so their names do not resolve. Component draws those exact source crops through the existing `AtlasArt` representation and shared status-bar body; it never tries alternate art. `UiTextureAtlasMember.csv:16607-16614` supplies the health/Energy/Focus/Rage/RunicPower crops on atlas 2060, FDID 4631591 (1024×512). Behavioral tests join the versioned source CSVs and compare actual drawn sheet/UVs, not fixed expected pins. This bounded workaround applies to the frozen 69913 geometry; retire the explicit crops when the shared resolver supports these Forever-only base names. No sibling toolkit changes are part of this task.
 
 The conditional CharacterFrameOnParty DB2 relation in `data/db2/1.60.1.69913/` is:
 

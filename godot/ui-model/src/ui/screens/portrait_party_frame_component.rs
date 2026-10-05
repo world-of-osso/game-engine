@@ -9,9 +9,11 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use super::inworld_unit_frames_art::sized_atlas_texture;
+use super::inworld_unit_frames_art::{AtlasArt, art, power_bar_atlas, sized_atlas_texture};
 use super::inworld_unit_frames_layout::TextAnchors;
-use super::inworld_unit_frames_parts::{BarSpec, WHITE, portrait_slot, status_bar, unit_label};
+use super::inworld_unit_frames_parts::{
+    BarSpec, WHITE, cropped_status_bar, portrait_slot, status_bar, unit_label,
+};
 use super::{FULL_PORTRAIT, PortraitSlot, dyn_name};
 use crate::hud_layout::{HudAnchor, hud_layout};
 use crate::status_text_data::StatusBarText;
@@ -23,7 +25,15 @@ pub const MAX_MEMBERS: usize = 4;
 const RETAIL_ART: &str = "UI-HUD-UnitFrame-Party-PortraitOn";
 const CAMELOT_ART: &str = "UI-HUD-UnitFrame-CharacterFrameOnParty-PortraitOn";
 const RETAIL_HEALTH: &str = "UI-HUD-UnitFrame-Party-PortraitOn-Bar-Health";
-const CAMELOT_HEALTH: &str = "UI-HUD-UnitFrame-CharacterFrameOnParty-PortraitOn-Bar-Health";
+// Forever-only set-0 records are not ingested by the shared atlas-name loader.
+// Exact 1x source crops, not replacement art; provenance and retirement in the wiki.
+const CHARACTER_SHEET: u32 = 4_631_591;
+const CHARACTER_SHEET_SIZE: (f32, f32) = (1024.0, 512.0);
+const CAMELOT_HEALTH: AtlasArt = art(
+    CHARACTER_SHEET,
+    CHARACTER_SHEET_SIZE,
+    (195.0, 266.0, 340.0, 350.0),
+);
 const PORTRAIT_NAMES: [&str; MAX_MEMBERS] = [
     "PartyMemberFrame1Portrait",
     "PartyMemberFrame2Portrait",
@@ -189,35 +199,63 @@ fn member_bars(root: &str, view: &PortraitPartyMemberView, skin: ActiveSkin) -> 
         center: status.into(),
         ..Default::default()
     };
-    let health_art = match skin {
-        ActiveSkin::Modern => RETAIL_HEALTH,
-        ActiveSkin::Forever => CAMELOT_HEALTH,
-    };
-    let mut bars = status_bar(BarSpec {
+    let mut bars = member_health_bar(root, view.health_fraction, &text, skin);
+    bars.extend(member_power_bar(root, view, skin));
+    bars
+}
+
+fn member_health_bar(root: &str, fraction: f32, text: &StatusBarText, skin: ActiveSkin) -> Element {
+    let spec = BarSpec {
         name: format!("{root}HealthBar"),
         rect: (45.0, 19.0, 70.0, 10.0),
-        fraction: view.health_fraction,
-        art: Some(health_art),
-        text: &text,
+        fraction,
+        art: (skin == ActiveSkin::Modern).then_some(RETAIL_HEALTH),
+        text,
         anchors: TextAnchors::new(0.0, 0.0, 0.0),
         font_size: 10.0,
         hidden: false,
-    });
-    let power_rect = match skin {
+    };
+    match skin {
+        ActiveSkin::Modern => status_bar(spec),
+        ActiveSkin::Forever => cropped_status_bar(spec, CAMELOT_HEALTH),
+    }
+}
+
+fn member_power_bar(root: &str, view: &PortraitPartyMemberView, skin: ActiveSkin) -> Element {
+    let rect = match skin {
         ActiveSkin::Modern => (41.0, 30.0, 74.0, 7.0),
         ActiveSkin::Forever => (46.0, 30.0, 69.0, 7.0),
     };
-    bars.extend(status_bar(BarSpec {
+    let text = StatusBarText::default();
+    let spec = BarSpec {
         name: format!("{root}ManaBar"),
-        rect: power_rect,
+        rect,
         fraction: view.power_fraction,
         art: party_power_atlas(view.power_type, skin),
-        text: &StatusBarText::default(),
+        text: &text,
         anchors: TextAnchors::new(2.0, 4.0, 0.0),
         font_size: 10.0,
         hidden: false,
-    }));
-    bars
+    };
+    match (skin, character_power_art(view.power_type)) {
+        (ActiveSkin::Forever, Some(art)) => cropped_status_bar(spec, art),
+        _ => status_bar(spec),
+    }
+}
+
+fn character_power_art(power: PowerType) -> Option<AtlasArt> {
+    let (top, bottom) = match power {
+        PowerType::Energy => (436.0, 443.0),
+        PowerType::Focus => (445.0, 452.0),
+        PowerType::Rage => (472.0, 479.0),
+        PowerType::RunicPower => (481.0, 488.0),
+        _ => return None,
+    };
+    Some(art(
+        CHARACTER_SHEET,
+        CHARACTER_SHEET_SIZE,
+        (195.0, 265.0, top, bottom),
+    ))
 }
 
 fn party_power_atlas(power: PowerType, skin: ActiveSkin) -> Option<&'static str> {
@@ -230,21 +268,10 @@ fn party_power_atlas(power: PowerType, skin: ActiveSkin) -> Option<&'static str>
         (ActiveSkin::Modern, RunicPower) => {
             Some("UI-HUD-UnitFrame-Party-PortraitOn-Bar-RunicPower")
         }
-        (ActiveSkin::Forever, Mana) => {
-            Some("UI-HUD-UnitFrame-CharacterFrameOnParty-PortraitOn-Bar-Mana")
-        }
-        (ActiveSkin::Forever, Rage) => {
-            Some("UI-HUD-UnitFrame-CharacterFrameOnParty-PortraitOn-Bar-Rage")
-        }
-        (ActiveSkin::Forever, Focus) => {
-            Some("UI-HUD-UnitFrame-CharacterFrameOnParty-PortraitOn-Bar-Focus")
-        }
-        (ActiveSkin::Forever, Energy) => {
-            Some("UI-HUD-UnitFrame-CharacterFrameOnParty-PortraitOn-Bar-Energy")
-        }
-        (ActiveSkin::Forever, RunicPower) => {
-            Some("UI-HUD-UnitFrame-CharacterFrameOnParty-PortraitOn-Bar-RunicPower")
-        }
+        // ToCharacterStyleArt:106 explicitly selects the player mana fill.
+        (ActiveSkin::Forever, Mana) => power_bar_atlas(Mana),
+        // UnitFrameManaBar_UpdateType uses info.atlas for these spec powers.
+        (_, LunarPower | Maelstrom | Insanity | Fury | Pain) => power_bar_atlas(power),
         _ => None,
     }
 }
