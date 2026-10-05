@@ -130,6 +130,19 @@ class ForeverNpcDisplayTests(unittest.TestCase):
         self.assertTrue({(7478494, "m2"), (301, "blp")} <= assets[136968])
         self.assertIn("CreatureDisplayInfoExtra", failures[136968][0])
 
+    def test_missing_referenced_material_is_reported_for_its_display(self):
+        tables = self.tables()
+        tables["TextureFileData"] = [
+            row
+            for row in tables["TextureFileData"]
+            if row["MaterialResourcesID"] != 405
+        ]
+        assets, failures = importer.npc_asset_roots(
+            tables, {136968}, set(), {7478494: "skybornefemale.m2"}
+        )
+        self.assertIn((7478494, "m2"), assets[136968])
+        self.assertIn("405", "; ".join(failures.get(136968, [])))
+
     def test_missing_model_and_requested_display_fail_explicitly(self):
         tables = self.tables()
         tables["CreatureModelData"] = []
