@@ -357,7 +357,7 @@ pub fn reputation_art_fdids() -> Vec<u32> {
             "minimal-scrollbar-small-thumb-top",
             "minimal-scrollbar-small-thumb-middle",
             "minimal-scrollbar-small-thumb-bottom",
-            "common-icon-redx",
+            "RedButton-Exit",
         ]
         .into_iter()
         .map(|name| resolve_art(name).fdid),

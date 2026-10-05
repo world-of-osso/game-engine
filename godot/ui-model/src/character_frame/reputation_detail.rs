@@ -161,7 +161,7 @@ pub(super) fn detail(row: Option<&ReputationRow>, ctx: &SharedContext) -> Elemen
             button {
                 name: "ReputationDetailFrameCloseButton", width: 24.0, height: 24.0,
                 onclick: ACTION_REPUTATION_DETAIL_CLOSE, pos_type: "absolute", right: 2.0, top: 2.0,
-                texture { width: 24.0, height: 24.0, texture_atlas: "common-icon-redx", }
+                texture { width: 24.0, height: 24.0, texture_atlas: "RedButton-Exit", }
             }
         });
     }
@@ -191,7 +191,7 @@ fn description(
     (left, top, width, height): (f32, f32, f32, f32),
 ) -> Element {
     let content_h = wrapped_text_height(&row.description, width, 12.0);
-    let geometry = pixel_geometry(height, content_h, height);
+    let geometry = pixel_geometry(height, content_h, height - 2.0);
     let offset = geometry.clamp(ctx.scroll_first_row(REPUTATION_DESCRIPTION_SCROLL));
     let config = scroll_list_attr(&geometry);
     let bar = MinimalScrollBar {
