@@ -684,6 +684,33 @@ fn spawn_named_npc(app: &mut App, display_id: u32, name: &str) -> Entity {
         .id()
 }
 
+fn reject_material_error(line: &str) -> Result<(), String> {
+    if line.contains("Parameter \"material\" is null") {
+        return Err(format!(
+            "Native NPC fixture logged a material error: {line}"
+        ));
+    }
+    Ok(())
+}
+
+#[cfg(test)]
+mod material_error_tests {
+    use super::reject_material_error;
+
+    #[test]
+    fn material_null_diagnostic_fails_the_fixture() {
+        let line = "ERROR: Parameter \"material\" is null.";
+        let error = reject_material_error(line).expect_err("material-null must fail the fixture");
+        assert!(error.contains(line));
+    }
+
+    #[test]
+    fn expected_missing_npc_texture_is_not_a_material_null_error() {
+        let line = "ERROR: NPC 4294966974 display 910014: missing NPC replacement texture type 6 for batch 0";
+        assert_eq!(reject_material_error(line), Ok(()));
+    }
+}
+
 fn run_fixture(
     app: &mut App,
     child: &mut Child,
@@ -709,6 +736,7 @@ fn run_fixture(
             }
         }
         for line in lines.try_iter() {
+            reject_material_error(&line)?;
             if line.contains("display 910014:")
                 && line.contains("missing NPC replacement texture type 6")
             {
