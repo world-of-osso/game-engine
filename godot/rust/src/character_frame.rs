@@ -449,6 +449,35 @@ impl GameClient {
         }
     }
 
+    /// Reputation uses the same Retail ScrollBar input as Options and QuestFrame.
+    pub(super) fn character_reputation_pointer(
+        &mut self,
+        event: &Gd<godot::classes::InputEvent>,
+    ) -> bool {
+        let reputation_open =
+            self.character_frame.open && self.character_frame.tab == CharacterTab::Reputation;
+        if self.game_menu_ui.is_some() || !reputation_open {
+            return false;
+        }
+        let Some(ui) = self.character_frame.ui.as_mut() else {
+            return false;
+        };
+        let taken = ui.bind_mut().scroll_list_input(event);
+        match taken {
+            Ok(false) => false,
+            Ok(true) => {
+                if let Some(mut viewport) = self.base().get_viewport() {
+                    viewport.set_input_as_handled();
+                }
+                true
+            }
+            Err(error) => {
+                godot_error!("Reputation scroll: {error}");
+                true
+            }
+        }
+    }
+
     /// Left-drag on the model scene turns it (`OrbitCameraMixin:OnUpdate`).
     /// The frame's pointer release ends a model drag: a press the frame consumed never
     /// holds the gameplay Left button.
