@@ -226,14 +226,14 @@ fn assert_modern(hud: &[RegistryModel]) {
     // 264×28 cast bar BOTTOM 152; 562×45 main bar BOTTOM 45.
     assert_eq!(top_left(hud, "PlayerCastingBarFrame"), (551.0, 588.0));
     assert_eq!(top_left(hud, MAIN_ACTION_BAR.0), (402.0, 678.0));
-    // 329×40 micro menu BOTTOMRIGHT (-6, 6); 368×47 bags bar TOPRIGHT (-6, 96).
+    // 329×40 micro menu BOTTOMRIGHT (-6, 6); 208×47 bags bar TOPRIGHT (-6, 96).
     assert_eq!(top_left(hud, MICRO_MENU), (1031.0, 722.0));
     assert_eq!(top_right(hud, "BagsBar"), (1360.0, 672.0));
     assert_rect(hud, MAIN_ACTION_BAR.0, (402.0, 678.0, 562.0, 45.0));
     assert_rect(hud, "MainActionBarLeftEndCap", (306.5, 647.0, 104.5, 98.0));
     assert_rect(hud, "MainActionBarRightEndCap", (956.0, 647.0, 104.5, 98.0));
     assert_rect(hud, MICRO_MENU, (1031.0, 722.0, 329.0, 40.0));
-    assert_rect(hud, "BagsBar", (992.0, 672.0, 368.0, 47.0));
+    assert_rect(hud, "BagsBar", (1152.0, 672.0, 208.0, 47.0));
     assert_rect(hud, "PetActionBar", (402.0, 643.0, 318.0, 30.0));
     assert_rect(hud, DAMAGE_METER_ROOT.0, (0.0, 0.0, 400.0, 140.0));
     assert_rect(hud, CHAT_FRAME.0, (0.0, 448.0, 500.0, 280.0));
