@@ -1,3 +1,7 @@
+## 2026-10-05 — Static portrait party family (party1)
+
+[[portrait-party-frames]] adds source-cited Retail/Camelot member/pet geometry and corrects the assumed uipartyframec60 mapping: versioned Forever element 33561 → set-1 member 38477 → atlas 3960, the same sheet as Camelot's player frame. Static state-only component, behavioral tests, registry-golden capture and offline preview; no roster/portrait-runtime/settings/live acceptance. Compact remains default.
+
 ## 2026-10-04 — Canonical toolkit integration and retained Skyborn blocker
 
 [Build guidance](../remote-builds.md) and active source links now use canonical `ui-toolkit/core` after toolkit merge `96dbda4`; historical branch-path proof remains attributed to its original revision. [[character-creation]] records unmerged Skyborn partial support, inferred server masks and current build-70205 local-CASC root-initialization failure from the retained main probe. No builds/tests rerun; native Skyborn support remains unverified.

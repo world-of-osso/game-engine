@@ -38,5 +38,6 @@ Party and raid play runs through one client resource, `GroupState` (`src/game/gr
 
 ## See Also
 
+- [[portrait-party-frames]] — unwired native portrait family and verified Camelot art relation; compact remains default
 - [[ui-system]] — rsx screens, SharedContext
 - [[networking]] — message routing through the network worker
