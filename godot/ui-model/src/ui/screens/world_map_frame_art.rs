@@ -46,6 +46,8 @@ const QUEST_POI: (u32, (f32, f32)) = (5_320_914, (256.0, 128.0));
 
 /// `ui-frame-portraitmetal-cornertopleft-2x` (8504).
 pub const PORTRAIT_CORNER_TOP_LEFT: MapArt = art(METAL.0, METAL.1, (1.0, 151.0, 153.0, 303.0));
+/// `ui-frame-metal-cornertopleft-2x` (8501), the portrait-less corner.
+pub const CORNER_TOP_LEFT: MapArt = art(METAL.0, METAL.1, (1.0, 151.0, 1.0, 151.0));
 /// `ui-frame-metal-cornertopright-2x` (8502).
 pub const CORNER_TOP_RIGHT: MapArt = art(METAL.0, METAL.1, (153.0, 303.0, 1.0, 151.0));
 /// `ui-frame-metal-cornerbottomleft-2x` (8499).
@@ -74,8 +76,11 @@ pub const EDGE_BOTTOM: MapArt = art(
 );
 /// `redbutton-exit-2x` (16908).
 pub const CLOSE_BUTTON: MapArt = art(RED_BUTTONS.0, RED_BUTTONS.1, (39.0, 75.0, 1.0, 39.0));
-/// `interface/worldmap/worldmap-icon.blp`, the portrait.
-pub const PORTRAIT: MapArt = whole(137_195, 64.0);
+/// `redbutton-expand-2x` (16912) and `redbutton-condense-2x` (16904).
+pub const EXPAND_BUTTON: MapArt = art(RED_BUTTONS.0, RED_BUTTONS.1, (77.0, 113.0, 1.0, 39.0));
+pub const CONDENSE_BUTTON: MapArt = art(RED_BUTTONS.0, RED_BUTTONS.1, (1.0, 37.0, 1.0, 39.0));
+/// `Interface\QuestFrame\UI-QuestLog-BookIcon`, the windowed portrait.
+pub const BOOK_ICON: u32 = 136_797;
 /// `interface/framegeneral/ui-background-rock.blp`, the frame background.
 pub const BACKGROUND: MapArt = whole(374_155, 256.0);
 /// `interface/worldmap/worldmaparrow.blp`, the player pin (`UnitPositionFrame`).
@@ -101,7 +106,7 @@ pub const CHROME_FDIDS: [u32; 9] = [
     METAL_VERTICAL.0,
     METAL_HORIZONTAL.0,
     RED_BUTTONS.0,
-    137_195,
+    BOOK_ICON,
     374_155,
     803_894,
     OBJECT_ICONS.0,

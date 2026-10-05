@@ -173,7 +173,7 @@ fn log_groups_by_sort_id_and_uses_cached_giver_text() {
         other => format!("Area {other}"),
     };
 
-    let state = quest_log_state(&runtime, &ui, &cache, &theron(), &mut names, true);
+    let state = quest_log_state(&runtime, &ui, &cache, &theron(), &mut names, 5, true);
 
     assert_eq!(state.quest_count, 3);
     assert_eq!(state.max_quests, 35);
@@ -197,8 +197,53 @@ fn log_groups_by_sort_id_and_uses_cached_giver_text() {
         log_selected: Some(60),
         ..QuestUiState::default()
     };
-    let state = quest_log_state(&runtime, &selected, &cache, &theron(), &mut names, true);
+    let state = quest_log_state(&runtime, &selected, &cache, &theron(), &mut names, 5, true);
     let details = state.details.unwrap();
     assert_eq!(details.quest_id, 60);
     assert_eq!(details.description, None, "no giver text seen this session");
+}
+
+/// `GetRelativeDifficultyColor` bands for a level 12 player: a scaling quest (-1)
+/// shows the player's level in the difficult colour.
+#[test]
+fn log_rows_carry_level_and_relative_difficulty() {
+    let levelled = |quest_id, level| QuestEntrySnapshot {
+        level,
+        ..entry(quest_id, "Quest", 12)
+    };
+    let mut runtime = QuestRuntime::default();
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![
+            levelled(1, 17),
+            levelled(2, 15),
+            levelled(3, 8),
+            levelled(4, 7),
+            levelled(5, -1),
+        ],
+        watched_quest_ids: vec![],
+    });
+    let state = quest_log_state(
+        &runtime,
+        &QuestUiState::default(),
+        &QuestDetailsCache::new(),
+        &theron(),
+        &mut |_| "Elwynn Forest".into(),
+        12,
+        true,
+    );
+    let rows: Vec<_> = state.groups[0]
+        .quests
+        .iter()
+        .map(|row| (row.level, row.difficulty))
+        .collect();
+    assert_eq!(
+        rows,
+        vec![
+            (17, QuestDifficulty::Impossible),
+            (15, QuestDifficulty::VeryDifficult),
+            (8, QuestDifficulty::Difficult),
+            (7, QuestDifficulty::Trivial),
+            (12, QuestDifficulty::Difficult),
+        ]
+    );
 }

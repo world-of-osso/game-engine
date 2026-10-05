@@ -1655,7 +1655,7 @@ impl GameClient {
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
-            ("World map", |c, _| Ok(c.update_world_map()?)),
+            ("World map", |c, _| c.update_world_map()),
             ("Minimap", |c, _| c.update_minimap()),
             ("Quests", |c, _| c.update_quests()),
             ("Objective tracker", |c, _| c.update_objective_tracker()),

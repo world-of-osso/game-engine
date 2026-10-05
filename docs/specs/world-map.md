@@ -18,10 +18,13 @@ Bevy hosts. How it works: [world-map system](../wiki/systems/world-map.md).
 - [x] Map art is the phase-0 `UiMapArt` layer-0 tile grid, with tiles past the layer edge trimmed (Elwynn 12 tiles over 1002×668, continents 150).
 
 ### Frame
-- [x] The frame is a metal portrait window titled "World Map" with a breadcrumb bar from the root map to the displayed map and a close button; it fits the viewport keeping the 1002×668 canvas aspect.
+- [x] Windowed, the frame is Retail's "Map & Quest Log": 702×534 plus the 333-wide docked quest panel (1035×534), book portrait, at the left panel slot (16, 116); the canvas fills the window left of the panel (697×465) (`Blizzard_WorldMap.lua:8,31-49,95-97`, `QuestLogOwnerMixin.lua:162-172`, `UIPanelLayoutFrame.lua:3-4`). Proof: `ui-model/tests/world_map_quest_panel.rs`, `rust/src/world_map.rs` `windowed_map_has_retail_size_and_maximize_fills_the_height`.
+- [x] The maximize button left of the close button switches to the portrait-less "World Map" (quest panel hidden, black screen behind, centred, the windowed map aspect at the viewport height: 1522×1080 on 1920×1080, `UpdateMaximizedSize`); the condense button restores the windowed frame. The choice lasts for the session.
+- [x] The docked `QuestMapFrame` lists the quest log under zone headers, titles in their `QuestDifficultyColors` colour (trivial range 4, matching the server's quest markers) with the tracked check; Forever prefixes `[level] ` (`Camelot/QuestMapFrameOverrides.lua:13-16`). Clicking a title shows its details (objectives, description, rewards) with Back, Abandon, Share (disabled: no groups) and Track/Untrack; Back returns to the list (`QuestMapFrame.xml:383-831`).
+- [x] The frame has a breadcrumb bar from the root map to the displayed map and a close button.
 - [x] Breadcrumbs navigate to their map; the close button closes the frame.
 - [x] Pressing the toggle binding in world opens the frame on the player's map (Godot: Stormwind City for a character standing in Stormwind); pressing it again, or Escape, closes it. Escape closing the map does not open the game menu.
-- [x] Godot: dragging the title's top 24 logical units, excluding the close button, moves and clamps `WorldMapFrame`; release saves its top-left for the selected server character in canonical `ui_layout.ron`. Reopen and a fresh process restore that position; Reset Window Positions restores the Wide slot for that character only.
+- [x] Godot: dragging the windowed frame's title's top 24 logical units, excluding the close and maximize buttons, moves and clamps `WorldMapFrame`; release saves its top-left for the selected server character in canonical `ui_layout.ron`. Reopen and a fresh process restore that position; Reset Window Positions restores the Wide slot for that character only.
 - [x] Right-click (or wheel down) on the canvas zooms out one level; left-click (or wheel up) zooms into the child map under the cursor; hovering a child map highlights it with its `UiMapArt` highlight texture (additive) and names it.
 - [x] Keyboard movement continues while the frame is open; mouse input over the frame does not drive the camera.
 - [x] Art tiles missing from the local CASC install are left undrawn and reported (warning per FDID); a missing texture never ends the session.
@@ -33,6 +36,7 @@ Bevy hosts. How it works: [world-map system](../wiki/systems/world-map.md).
 - [x] Creature vignettes with `ShowOnMap` (`VignetteInfo.onWorldMap`) the server shows near the player pin `VignetteKill`/`VignetteKillElite` (32×32, the atlas size) on zone maps, and on continent maps unless `HideOnContinentMaps` (`VignetteDataProvider.lua`). Proof: `doomwalkers_vignette_pins_tanaris_and_kalimdor`, `godot/tests/vignettes_live.gd`.
 - [ ] Vignette pin tooltips, unique-vignette selection, fog of war and supertracking.
 - [ ] Quest pins appear in the Godot client from the live server quest log (subscription wired; no runtime proof with a character holding POI quests).
+- [ ] Quest panel: search box, Quests/Events/Map Legend tabs, the side-panel toggle, campaign/story headers, objective lines under titles, list and details scrolling, quest POI buttons in the list; the windowed/maximized choice is not saved across sessions.
 
 ## How it works
 - [world-map system](../wiki/systems/world-map.md)
@@ -40,7 +44,8 @@ Bevy hosts. How it works: [world-map system](../wiki/systems/world-map.md).
 ## Implementation inventory
 - `godot/ui-model/src/ui_map_data.rs` — Bevy-free `UiMap` catalog: hierarchy, assignments, art tiles, best map, map positions, child lookup.
 - `godot/ui-model/src/world_map_view_data.rs` — shared view model: navigation, breadcrumbs, tiles, highlight, player arrow, flight and quest pins; `TaxiNodes`/`ChrRaces` readers.
-- `godot/ui-model/src/ui/screens/world_map_frame_component.rs` — shared `rsx!` frame, layout, postsetup (arrow rotation, additive highlight), texture list.
+- `godot/ui-model/src/ui/screens/world_map_frame_component.rs` — shared `rsx!` frame, windowed/maximized layout, docked quest panel, `WorldMapDisplay` click model, postsetup (arrow rotation, additive highlight), texture list.
+- `godot/ui-model/src/ui/screens/quest_log_frame_component.rs` — quest list and details builders shared by the Quest Log window and the map's quest panel.
 - `godot/ui-model/src/ui/screens/world_map_frame_art.rs` — Retail atlas crops and textures for chrome and pins.
 - `godot/rust/src/world_map.rs` — Godot host: binding, pointer navigation, CASC texture caching, `world_map_state()` fixture query.
 - `godot/rust/src/ui/{parts,projection}.rs` — texture rotation and additive blend projection.
@@ -50,7 +55,7 @@ Bevy hosts. How it works: [world-map system](../wiki/systems/world-map.md).
 ## Tests asserting this spec
 - `godot/ui-model/src/ui_map_data_tests.rs`
 - `godot/ui-model/src/world_map_view_data_tests.rs`
-- `godot/ui-model/src/ui/screens/world_map_frame_component_tests.rs`
+- `godot/ui-model/tests/world_map_quest_panel.rs`
 - `godot/tests/world_map_flow.gd` (dev server `127.0.0.1:5000`, run under the shared dev-server lock)
 - `godot/rust/src/world_map.rs` pointer and open-reset state tests; `/tmp/claude/world-map-owned-fixture-ac44cc2e.log` proves scaled drag/release, character-scoped save/reset retention, reopen at the Wide slot, and a second-process read without a live server.
 - `godot/rust/src/ui/parts_tests.rs` (rotation and additive parts), `godot/rust/src/account.rs` (quest log merge)

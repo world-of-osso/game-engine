@@ -99,6 +99,7 @@ fn render_log(runtime: &QuestRuntime, ui: &QuestUiState) -> FrameRegistry {
         &QuestDetailsCache::new(),
         &aldric(),
         &mut |_| "Northshire".into(),
+        1,
         true,
     );
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
