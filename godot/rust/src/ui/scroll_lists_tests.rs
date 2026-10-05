@@ -94,12 +94,12 @@ pub(crate) fn show(model: &mut RegistryModel, view: GameMenuViewModel) {
     rebuild(model);
 }
 
-fn rect(model: &RegistryModel, name: &str) -> Option<LayoutRect> {
+pub(crate) fn rect(model: &RegistryModel, name: &str) -> Option<LayoutRect> {
     let id = model.registry.get_by_name(name)?;
     model.registry.get(id)?.layout_rect.clone()
 }
 
-fn shown(model: &RegistryModel, name: &str) -> bool {
+pub(crate) fn shown(model: &RegistryModel, name: &str) -> bool {
     let Some(id) = model.registry.get_by_name(name) else {
         return false;
     };
