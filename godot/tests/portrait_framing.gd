@@ -69,7 +69,7 @@ func project_head(host: Node, camera: Camera3D, head: int) -> Rect2:
 			for influence in range(4):
 				var slot := index * 4 + influence
 				var bind := bones[slot]
-				var bone := mesh.skin.get_bind_bone(bind)
+				var bone: int = mesh.skin.get_bind_bone(bind)
 				var weight := weights[slot]
 				var ancestor := bone
 				while ancestor >= 0 and ancestor != head:
