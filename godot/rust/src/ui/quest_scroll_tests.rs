@@ -100,6 +100,13 @@ fn short_detail() -> QuestFrameState {
 }
 
 fn quest_frame(state: QuestFrameState) -> RegistryModel {
+    quest_model(state, quest_frame_screen)
+}
+
+fn quest_model<T: 'static>(
+    state: T,
+    build: fn(&SharedContext) -> ui_toolkit::widget_def::Element,
+) -> RegistryModel {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -115,7 +122,7 @@ fn quest_frame(state: QuestFrameState) -> RegistryModel {
         ),
     );
     let mut model = RegistryModel {
-        screen: Screen::new(quest_frame_screen),
+        screen: Screen::new(build),
         shared,
         registry,
         icon_masks: Default::default(),
@@ -271,16 +278,19 @@ fn questoverflow_long_log_scrolls_to_its_last_reward_in_both_skins() {
     const LIST: &str = "QuestLogDetailsScrollFrame";
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
-        let mut model = quest_frame(short_detail());
-        model.shared.insert(long_log());
-        model.screen = Screen::new(quest_log_frame_screen);
-        rebuild(&mut model);
+        let mut model = quest_model(long_log(), quest_log_frame_screen);
         let scroll = model
             .registry
             .scroll_lists
             .get(LIST)
             .expect("details must scroll");
-        assert!(scroll.geometry.max_first_row() > 1000, "{skin:?}");
+        assert!(
+            scroll.geometry.max_first_row() > 1000,
+            "{skin:?} range={:?}, child={:?}, paragraph={:?}",
+            scroll.geometry,
+            rect(&model, "QuestLogDetailsScrollChildFrame"),
+            rect(&model, "QuestLogDetailsDescription")
+        );
         assert!(shown(&model, &thumb_name(LIST)));
         let start = top(&model, "QuestLogDetailsContent");
         assert!(wheel(&mut model, LIST, false));
