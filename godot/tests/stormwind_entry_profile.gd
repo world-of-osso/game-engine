@@ -87,7 +87,7 @@ func click_control(control: Control) -> void:
 func pipeline_counts() -> Dictionary:
 	var counts := {}
 	for kind in ["CANVAS", "MESH", "SURFACE", "DRAW", "SPECIALIZATION"]:
-		var name := "RENDERING_INFO_PIPELINE_COMPILATIONS_" + kind
+		var name: String = "RENDERING_INFO_PIPELINE_COMPILATIONS_" + kind
 		if ClassDB.class_has_integer_constant("RenderingServer", name):
 			counts[kind] = RenderingServer.get_rendering_info(ClassDB.class_get_integer_constant("RenderingServer", name))
 	return counts
