@@ -229,6 +229,50 @@ mod tests {
     use super::*;
 
     #[test]
+    fn uifixes_quest_counter_flows_below_measured_wine_ticket_paragraph() {
+        use game_engine_ui_model::quest_log_frame_component::{
+            QuestLogDetails, QuestLogFrameState, QuestLogObjectiveLine, quest_log_frame_screen,
+        };
+        use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
+        use ui_toolkit::screen::{Screen, SharedContext};
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_active_skin(skin);
+            let mut shared = SharedContext::new();
+            shared.insert(QuestLogFrameState {
+                visible: true,
+                details: Some(QuestLogDetails {
+                    quest_id: 332,
+                    title: "Wine Shop Advert".into(),
+                    objectives_text: "Go to the Gallina Winery, and bring Suzetta Gallina the Wine Ticket for a free bottle of wine.".into(),
+                    objectives: vec![QuestLogObjectiveLine { text: "1/1 Wine Ticket".into(), done: true }],
+                    description: None, rewards: None, watched: false,
+                }),
+                ..Default::default()
+            });
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(quest_log_frame_screen).sync(&shared, &mut registry);
+            let paragraph = registry
+                .get_by_name("QuestLogDetailsObjectivesText")
+                .unwrap();
+            let counter = registry.get_by_name("QuestLogDetailsObjective0").unwrap();
+            // Native audit measured this three-line paragraph at 57px, not the model's 48px.
+            let intrinsics = HashMap::from([(paragraph, (263.0, 57.0)), (counter, (263.0, 17.0))]);
+            let rects = compute_layout_with_intrinsics(&registry, &intrinsics).unwrap();
+            assert!(
+                rects[&counter].y >= rects[&paragraph].y + 57.0,
+                "{skin:?}: paragraph {:?}, counter {:?}",
+                rects[&paragraph],
+                rects[&counter]
+            );
+        }
+        set_active_skin(ActiveSkin::Modern);
+    }
+
+    #[test]
     fn character_select_root_and_enter_world_follow_original_viewport_bounds() {
         use game_engine_ui_model::CharacterSelectModel;
 
