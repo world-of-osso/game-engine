@@ -2624,3 +2624,6 @@ Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-b
 ## 2026-10-05 — Guild rank settings model
 
 Added portable authoritative rank controls and Officer chat parsing/classification. [Guild ranks spec](../specs/guild-ranks.md) records pending native transport, settings widgets in both skins and member menus. No native guild-settings rendering or live proof claimed. Five targeted model tests pass at `61e129e4`; Godot/UI-model/network test compilation succeeds. The additional hidden-tab RED reproduced loss of independent deposit/stack settings; GREEN preserves them.
+## Live quest rerun — questrun
+
+[[quest-ui]]: reconciled the stale tracker-only Godot description with the native dialogue/log host. Recorded private Modern/Forever gameplay proof, prior Jasperlode ground fixes, living-walk/death recovery, and six successful Milly interest returns without claiming the historical mirror cause. Documented real slow-frame input regressions and opaque post-draw error capture. Evidence: `data/diagnostics/questrun-2026-10-05/`; long-text overflow remains outside this repair.

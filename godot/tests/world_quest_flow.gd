@@ -19,7 +19,7 @@ extends SceneTree
 ## while facing each fire (Spray Water's cone credits the fire's SmartAI), and both reward
 ## items land in the bags. No objective is completed by admin. Travel between NPCs uses
 ## the admin `teleport`, the fixture's stand-in for the walk; short distances are walked
-## with W and the turn keys.
+## with W and right-drag mouse look (frame-independent steering at low frame rates).
 ## Environment:
 ##   GODOT_TEST_SERVER  a private test server (never the shared :5000)
 ##   QF_ACCOUNT         account (password fbtest) with one Human warrior who has not
@@ -101,7 +101,8 @@ func _initialize() -> void:
 	call_deferred("run_test")
 
 func run_test() -> void:
-	root.size = Vector2i(1280, 720)
+	# Native HUD layouts use a 1920-wide canvas; keep the tracker in captured frames.
+	root.size = Vector2i(1920, 1080)
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	if server == "" or server.ends_with(":5000"):
 		fail("GODOT_TEST_SERVER must name a private server, not :5000")
@@ -117,7 +118,7 @@ func run_test() -> void:
 		return
 	if not await enter_world():
 		return
-	var steps := [check_pickup, check_map_objectives, check_kills, check_turn_in, check_abandon, check_reward_choice, check_fixed_reward]
+	var steps := [check_pickup, check_progress, check_map_objectives, check_kills, check_turn_in, check_abandon, check_exploration, check_reward_choice, check_fixed_reward]
 	# QF_STEPS (comma-separated method names) reruns a subset on a prepared character.
 	if OS.get_environment("QF_STEPS") != "":
 		steps = Array(OS.get_environment("QF_STEPS").split(",")).map(func(name): return Callable(self, name))
@@ -178,6 +179,15 @@ func check_pickup() -> bool:
 	await capture("04-accepted.png")
 	print("FIXTURE ACCEPTED ", log_entry(client.quest_state(), QUEST))
 	return true
+
+func check_progress() -> bool:
+	if not await open_quest(GIVER_AT, GIVER, QUEST_TITLE):
+		return false
+	if not await wait_quest(func(s): return s.get("page") == "Progress" and s.quest_id == QUEST, "incomplete quest progress page"):
+		return false
+	await capture("04b-progress.png")
+	await tap(KEY_ESCAPE)
+	return await wait_quest(func(s): return not s.frame_open, "progress page closed")
 
 func check_map_objectives() -> bool:
 	await tap(KEY_M)
@@ -310,24 +320,26 @@ func check_abandon() -> bool:
 	print("FIXTURE ABANDONED ", NEXT_QUEST, " log ", client.quest_state().log)
 	return true
 
-func check_reward_choice() -> bool:
-	# 239 needs The Jasperlode Mine (76) turned in, which follows The Fargodeep Mine
-	# (62); both are Dughan's exploration quests, done by walking into the mine's trigger.
-	if not await take_quest(DUGHAN_AT, DUGHAN, FARGODEEP, "The Fargodeep Mine"):
-		return false
-	if not await explore(FARGODEEP, FARGODEEP_OUTSIDE_AT, FARGODEEP_ROUTE, 9.0):
-		return false
-	if not await turn_in(DUGHAN_AT, DUGHAN, FARGODEEP, "The Fargodeep Mine"):
-		return false
-	if not await wait_quest(func(s): return s.get("page") == "Detail" and s.quest_id == JASPERLODE, "The Jasperlode Mine offered as the follow-up"):
-		return false
-	await click_control(quest_control("QuestFrameUI", "QuestFrameAcceptButton"))
-	if not await wait_quest(func(s): return in_log(s, JASPERLODE), "The Jasperlode Mine accepted"):
-		return false
+func check_exploration() -> bool:
+	# A prepared rerun can resume quest 76 without retaking the completed quest 62.
+	if not in_log(client.quest_state(), JASPERLODE):
+		if not await take_quest(DUGHAN_AT, DUGHAN, FARGODEEP, "The Fargodeep Mine"):
+			return false
+		if not await explore(FARGODEEP, FARGODEEP_OUTSIDE_AT, FARGODEEP_ROUTE, 9.0):
+			return false
+		if not await turn_in(DUGHAN_AT, DUGHAN, FARGODEEP, "The Fargodeep Mine"):
+			return false
+		if not await wait_quest(func(s): return s.get("page") == "Detail" and s.quest_id == JASPERLODE, "The Jasperlode Mine offered as the follow-up"):
+			return false
+		await click_control(quest_control("QuestFrameUI", "QuestFrameAcceptButton"))
+		if not await wait_quest(func(s): return in_log(s, JASPERLODE), "The Jasperlode Mine accepted"):
+			return false
 	if not await explore(JASPERLODE, JASPERLODE_OUTSIDE_AT, JASPERLODE_ROUTE, 30.0):
 		return false
-	if not await turn_in(DUGHAN_AT, DUGHAN, JASPERLODE, "The Jasperlode Mine"):
-		return false
+	return await turn_in(DUGHAN_AT, DUGHAN, JASPERLODE, "The Jasperlode Mine")
+
+func check_reward_choice() -> bool:
+	# 239 needs the exploration chain completed first.
 	if not await take_quest(DUGHAN_AT, DUGHAN, GARRISON_QUEST, GARRISON_TITLE):
 		return false
 	if not await open_quest(RAINER_AT, RAINER, GARRISON_TITLE):
@@ -360,13 +372,18 @@ func check_reward_choice() -> bool:
 		return false
 	await capture("15b-reward-tooltip.png")
 	var pants_before := bag_count(URCHINS_PANTS)
-	await click_control(quest_control("QuestFrameUI", "QuestFrameCompleteQuestButton"))
-	if not await wait_frames(func(): return error_shown(MUST_CHOOSE), "'" + MUST_CHOOSE + "'"):
+	# The error holds for only three seconds. Do not spend three extra slow frames
+	# settling the click before waiting for and capturing the transient line.
+	var complete := quest_control("QuestFrameUI", "QuestFrameCompleteQuestButton")
+	if complete == null:
+		fail("No Complete Quest button")
+		return false
+	await click(complete.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, 0)
+	if not await capture_error(MUST_CHOOSE, "16-must-choose.png"):
 		return false
 	if not in_log(client.quest_state(), CHOICE_QUEST) or client.quest_state().get("page") != "Reward":
 		fail("Complete Quest turned in without a choice: " + str(client.quest_state()))
 		return false
-	await capture("16-must-choose.png")
 	await click_control(quest_control("QuestFrameUI", "QuestInfoRewardsFrameQuestInfoItem2"))
 	if not await wait_quest(func(s): return s.get("choice") == 1, "second reward chosen"):
 		return false
@@ -422,17 +439,33 @@ func explore(quest_id: int, outside: Array, route: Array, radius: float) -> bool
 	if log_entry(client.quest_state(), quest_id).get("completed", false):
 		fail("%d completed before entering its trigger: %s" % [quest_id, log_entry(client.quest_state(), quest_id)])
 		return false
-	for index in route.size():
+	var index := 0
+	var deaths := 0
+	while index < route.size():
 		var point: Array = route[index]
 		# walk_to steers on the WoW (x, y) of the point.
 		var target := Vector3(point[0], 0.0, -point[1])
 		if not await walk_to(target, radius * 0.5 if index == route.size() - 1 else 2.0):
+			if player_dead() and deaths < 3:
+				deaths += 1
+				var recovery: Vector3 = client.account_state().local_server_position
+				var center := Vector2(route[-1][0], -route[-1][1])
+				# The route ends within four yards of the DB2 trigger centre. Never revive
+				# inside its sphere: that could credit exploration without a living walk.
+				if Vector2(recovery.x, recovery.z).distance_to(center) <= radius + 4.0:
+					fail("Cannot revive inside exploration trigger %d at %s" % [quest_id, recovery])
+					return false
+				print("FIXTURE EXPLORATION_DEATH ", quest_id, " recovery ", deaths, " outside trigger at ", recovery)
+				if not await teleport([recovery.x, -recovery.z, recovery.y]):
+					return false
+				continue
 			await capture("stuck-%d.png" % quest_id)
 			fail("Could not walk to %s on the way into the trigger of %d from %s" % [point, quest_id, player_position()])
 			return false
 		print("FIXTURE LEG ", point, " at ", player_position(), " fps ", Engine.get_frames_per_second())
 		if log_entry(client.quest_state(), quest_id).get("completed", false):
 			break
+		index += 1
 	print("FIXTURE IN_TRIGGER? ", quest_id, " player ", player_position(), " center ", route[-1])
 	if not await wait_quest(func(s): return log_entry(s, quest_id).get("completed", false), "%d explored" % quest_id):
 		return false
@@ -581,7 +614,7 @@ func error_shown(text: String) -> bool:
 	if ui == null:
 		return false
 	for label in ui.find_children("*", "Label", true, false):
-		if label.text == text and label.is_visible_in_tree():
+		if label.text == text and label.is_visible_in_tree() and label.get_theme_color("font_color").a >= 0.9:
 			return true
 	return false
 
@@ -609,7 +642,15 @@ func teleport(at: Array) -> bool:
 	if not admin(["teleport", character_name(), "0", str(at[0]), str(at[1]), str(at[2])]):
 		return false
 	var want := Vector3(at[0], at[2], -at[1])
-	return await wait_frames(func(): return player_position().distance_to(want) < 4.0, "teleport to " + str(at), 30000)
+	if not await wait_frames(func(): return player_position().distance_to(want) < 4.0, "teleport to " + str(at), 30000):
+		return false
+	# Travel destinations are outside exploration triggers. Revive only after arriving,
+	# so recovery cannot award an exploration objective at the death location.
+	if player_dead():
+		if not admin(["revive", character_name()]):
+			return false
+		return await wait_frames(func(): return not player_dead(), "alive after travel setup")
+	return true
 
 # --- quest helpers -------------------------------------------------------------
 
@@ -814,22 +855,13 @@ func nearest_living(name: String) -> Dictionary:
 func yaw() -> float:
 	return client.minimap_state().facing_yaw
 
-## Turn with the turn keys until facing unit `id` (forward is (sin yaw, cos yaw)).
+## Face unit `id` with real mouse look (forward is (sin yaw, cos yaw)).
 func face_unit(id: int) -> void:
-	for attempt in range(120):
-		var unit := unit_by_id(id)
-		if unit == null:
-			return
-		var to: Vector3 = (unit as Node3D).global_position - player_position()
-		var want := atan2(to.x, to.z)
-		var diff := wrapf(want - yaw(), -PI, PI)
-		if abs(diff) < 0.15:
-			return
-		var key := KEY_LEFT if diff > 0.0 else KEY_RIGHT
-		push_key(key, true)
-		await frames(1 if abs(diff) < 0.5 else 3)
-		push_key(key, false)
-		await frames(1)
+	var unit := unit_by_id(id)
+	if unit == null:
+		return
+	var to: Vector3 = (unit as Node3D).global_position - player_position()
+	await face_direction(atan2(to.x, to.z))
 
 ## Walk to within `yards` of the engine point `target`.
 func walk_to(target: Vector3, yards: float) -> bool:
@@ -838,13 +870,16 @@ func walk_to(target: Vector3, yards: float) -> bool:
 	var from := player_position()
 	var frame := 0
 	while Time.get_ticks_msec() < deadline:
+		if player_dead():
+			push_key(KEY_W, false)
+			return false
 		var here := player_position()
 		# A slow frame covers several yards: the point is reached when the frame's path
 		# passed within `yards` of it.
 		var path := Geometry2D.get_closest_point_to_segment(target_2d, Vector2(from.x, from.z), Vector2(here.x, here.z))
 		if path.distance_to(target_2d) <= yards:
 			push_key(KEY_W, false)
-			await frames(5)
+			await process_frame
 			return true
 		from = here
 		# Stop to turn: a slow frame turns far past the heading, and walking on while the
@@ -864,32 +899,72 @@ func walk_to(target: Vector3, yards: float) -> bool:
 	return false
 
 func face_direction(want: float) -> void:
-	for attempt in range(120):
-		var diff := wrapf(want - yaw(), -PI, PI)
-		if abs(diff) < 0.15:
+	if abs(wrapf(want - yaw(), -PI, PI)) < 0.15:
+		return
+	# Key turning is 2.5 rad/s: one slow frame can already exceed the tolerance.
+	# Calibrate real right-drag input from the camera's observed one-pixel response.
+	var point := Vector2(root.size.x * 0.7, root.size.y * 0.1)
+	for attempt in range(3):
+		# Settle hover first; a native frame closing this tick can consume the press.
+		await drag_turn(point, 0.0)
+		var button := InputEventMouseButton.new()
+		button.position = point
+		button.global_position = point
+		button.button_index = MOUSE_BUTTON_RIGHT
+		button.button_mask = MOUSE_BUTTON_MASK_RIGHT
+		button.pressed = true
+		root.push_input(button, true)
+		var before: float = client.account_state().camera_yaw
+		await drag_turn(point, 1.0)
+		var after: float = client.account_state().camera_yaw
+		var sensitivity := wrapf(before - after, -PI, PI)
+		if abs(sensitivity) > 0.000001:
+			await drag_turn(point, -wrapf(want - (after + PI), -PI, PI) / sensitivity)
+		button = button.duplicate() as InputEventMouseButton
+		button.pressed = false
+		button.button_mask = 0
+		root.push_input(button, true)
+		await frames(2)
+		if abs(sensitivity) > 0.000001 and abs(wrapf(want - yaw(), -PI, PI)) < 0.15:
 			return
-		var key := KEY_LEFT if diff > 0.0 else KEY_RIGHT
-		push_key(key, true)
-		await frames(1 if abs(diff) < 0.5 else 3)
-		push_key(key, false)
-		await frames(1)
+		print("FIXTURE TURN_INPUT_RETRY ", attempt, " sensitivity=", sensitivity, " want=", want, " facing=", yaw())
+	fail("Mouse steering failed after three presses: want=%s facing=%s" % [want, yaw()])
+
+func drag_turn(point: Vector2, pixels: float) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	motion.relative = Vector2(pixels, 0.0)
+	motion.button_mask = MOUSE_BUTTON_MASK_RIGHT
+	root.push_input(motion, true)
+	await frames(2)
 
 ## Walk to within `yards` of unit `id`.
 func approach(id: int, yards: float) -> bool:
 	var deadline := Time.get_ticks_msec() + 45000
+	var from := player_position()
 	while Time.get_ticks_msec() < deadline:
 		var unit := unit_by_id(id)
 		if unit == null:
+			push_key(KEY_W, false)
 			print("FIXTURE APPROACH_LOST ", id)
 			return false
-		var to: Vector3 = (unit as Node3D).global_position - player_position()
-		if Vector2(to.x, to.z).length() <= yards:
+		var here := player_position()
+		var target: Vector3 = (unit as Node3D).global_position
+		var path := Geometry2D.get_closest_point_to_segment(Vector2(target.x, target.z), Vector2(from.x, from.z), Vector2(here.x, here.z))
+		if path.distance_to(Vector2(target.x, target.z)) <= yards:
 			push_key(KEY_W, false)
 			await frames(5)
 			return true
-		await face_unit(id)
+		from = here
+		var to := target - here
+		var want := atan2(to.x, to.z)
+		if abs(wrapf(want - yaw(), -PI, PI)) >= 0.15:
+			push_key(KEY_W, false)
+			await face_direction(want)
+			from = player_position()
 		push_key(KEY_W, true)
-		await frames(6)
+		await process_frame
 	push_key(KEY_W, false)
 	var unit := unit_by_id(id)
 	print("FIXTURE APPROACH_TIMEOUT ", id, " player ", player_position(), " unit ", (unit as Node3D).global_position if unit != null else null)
@@ -926,7 +1001,7 @@ func frames(count: int) -> void:
 	for frame in range(count):
 		await process_frame
 
-func click(point: Vector2, button: MouseButton) -> void:
+func click(point: Vector2, button: MouseButton, settle_frames := 3) -> void:
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
 	motion.global_position = point
@@ -941,7 +1016,7 @@ func click(point: Vector2, button: MouseButton) -> void:
 		event.pressed = pressed
 		root.push_input(event, true)
 		await process_frame
-	await frames(3)
+	await frames(settle_frames)
 
 func click_control(control: Control) -> void:
 	if control == null:
@@ -949,12 +1024,30 @@ func click_control(control: Control) -> void:
 		return
 	await click(control.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
 
+func capture_error(text: String, file: String) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await RenderingServer.frame_post_draw
+		if error_shown(text):
+			return save_capture(file)
+	fail("Timed out capturing an opaque rendered error: " + text)
+	return false
+
 func capture(file: String) -> void:
 	await RenderingServer.frame_post_draw
+	save_capture(file)
+
+func save_capture(file: String) -> bool:
+	var tracker: Dictionary = client.objective_tracker_state()
+	if tracker.get("visible", false) and not Rect2(Vector2.ZERO, Vector2(root.size)).encloses(tracker.rect):
+		fail("Tracker lies outside screenshot viewport: %s in %s" % [tracker.rect, root.size])
+		return false
 	var image := root.get_texture().get_image()
 	var error := image.save_png(shots + file)
 	if error != OK:
 		fail("Could not save " + file + ": " + str(error))
+		return false
+	return true
 
 func tap(code: Key) -> void:
 	push_key(code, true)
