@@ -97,6 +97,64 @@ fn click_accept(stack: &mut PopupStack, label: &str) {
 }
 
 #[test]
+fn rezrtap_udp_offer_popup_account_accept_both_skins() {
+    for (index, skin) in [ActiveSkin::Modern, ActiveSkin::Forever]
+        .into_iter()
+        .enumerate()
+    {
+        set_thread_skin(skin);
+        let mut server = DeathServerFixture::start();
+        let mut account = Account::new(PathBuf::from("/unused-death-data"));
+        account.bridge =
+            Some(NetworkBridge::connect(server.address(), 49001 + index as u64).unwrap());
+        await_connection(&mut account, &mut server);
+        let mut flow = DeathFlow::default();
+        let mut stack = PopupStack::default();
+        server.send(snapshot(DeathStateSnapshot::Dead));
+        flow.receive(await_snapshot(&mut account, &mut server));
+        let offer = shared::protocol::ResurrectionOffer {
+            caster: 42,
+            caster_name: "Alicia".into(),
+            spell_id: 7328,
+            time_left_ms: 60_000,
+        };
+        server.send_offer(offer.clone());
+        let deadline = Instant::now() + Duration::from_secs(10);
+        let received = loop {
+            assert!(Instant::now() < deadline, "resurrection offer timeout");
+            server.step();
+            if let Some(offer) = account.poll().unwrap().into_iter().find_map(|event| {
+                if let AccountEvent::Resurrection(offer) = event {
+                    Some(offer)
+                } else {
+                    None
+                }
+            }) {
+                break offer;
+            }
+            std::thread::sleep(Duration::from_millis(5));
+        };
+        assert_eq!(received, offer);
+        flow.receive_offer(received);
+        flow.sync_popups(&mut stack, Some(&position(12.0)), 60);
+        assert!(stack.contains("RESURRECT"));
+        click_accept(&mut stack, "Accept");
+        account
+            .send_death(flow.popup_results(&stack.drain_results()).unwrap())
+            .unwrap();
+        assert_eq!(
+            await_request(&mut server),
+            vec![ReceivedDeathRequest::Resurrection {
+                caster: 42,
+                spell_id: 7328,
+                accept: true,
+            }]
+        );
+        account.stop().unwrap();
+    }
+}
+
+#[test]
 fn deathstate_udp_snapshot_popup_account_request_both_skins() {
     for (index, skin) in [ActiveSkin::Modern, ActiveSkin::Forever]
         .into_iter()

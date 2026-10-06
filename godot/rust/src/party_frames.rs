@@ -493,6 +493,7 @@ mod tests {
 
     fn member(name: &str, class: u8, online: bool) -> GroupMemberSnapshot {
         GroupMemberSnapshot {
+            character_id: 7,
             name: name.into(),
             role: GroupRoleSnapshot::None,
             is_leader: name == "Ann",

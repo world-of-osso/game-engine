@@ -225,6 +225,7 @@ impl NetworkBridge {
             .receive::<protocol::TradeStateUpdate>()
             // Owner-only death state, corpse and graveyard coordinates.
             .receive::<protocol::DeathStateUpdate>()
+            .receive::<protocol::ResurrectionOffer>()
             // Spellbook, action bar and casting.
             .receive::<KnownSpellsSnapshot>()
             .receive::<SpellsLearned>()

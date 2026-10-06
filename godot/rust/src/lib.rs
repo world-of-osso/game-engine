@@ -1853,6 +1853,7 @@ impl GameClient {
             AccountEvent::Mail(message) => self.receive_mail(message)?,
             AccountEvent::Trade(update) => self.receive_trade(update)?,
             AccountEvent::Death(update) => self.receive_death(update)?,
+            AccountEvent::Resurrection(offer) => self.death_flow.receive_offer(offer),
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
             AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
