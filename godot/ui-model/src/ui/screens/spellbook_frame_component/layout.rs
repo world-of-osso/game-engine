@@ -35,7 +35,7 @@ pub(super) fn background(s: f32) -> Element {
         .collect()
 }
 
-fn tab_width(name: &str) -> f32 {
+pub(super) fn tab_width(name: &str) -> f32 {
     (name.chars().count() as f32 * TAB_GLYPH_W + 40.0).clamp(TAB_MIN_W, TAB_MAX_W)
 }
 

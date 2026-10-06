@@ -32,7 +32,7 @@ use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::GameFont;
 pub use items::apply_spellbook_postsetup;
 use items::view;
-use layout::{background, category_tabs};
+use layout::{background, category_tabs, tab_width};
 pub use pagination::{Placement, paginate};
 use paging::paging;
 
