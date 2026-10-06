@@ -148,32 +148,47 @@ impl GameClient {
         })
     }
 
-    pub(super) fn spellbook_state(&mut self) -> SpellbookFrameState {
+    fn spellbook_content(&self, player: Option<SpellbookPlayer>) -> SpellbookFrameState {
         let spells = &self.account.spells;
-        let player = self.spellbook_player();
         let catalog = self.spells.catalog();
         let tabs = build_spellbook_tabs(spells.known(), spells.spec(), catalog, player);
         let class_name = catalog
             .zip(player)
             .and_then(|(data, player)| data.tabs.class_names.get(&player.class_id).cloned());
-        let mut specializations = catalog.zip(player).map_or_else(Vec::new, |(data, player)| {
+        let specializations = catalog.zip(player).map_or_else(Vec::new, |(data, player)| {
             specialization_choices(&data.tabs, player.class_id, spells.spec())
         });
-        let mut categories = spellbook_categories(tabs, class_name.as_deref());
+        let categories = spellbook_categories(tabs, class_name.as_deref());
         let spec_icon = catalog
             .zip(spells.spec())
             .and_then(|(data, spec)| data.tabs.specs.get(&spec))
             .map_or(0, |spec| spec.icon_fdid);
-        for spec in &mut specializations {
+        SpellbookFrameState {
+            categories,
+            specializations,
+            portrait_fdid: spec_icon,
+            ..Default::default()
+        }
+    }
+
+    fn extract_spellbook_icons(&mut self, content: &mut SpellbookFrameState) {
+        for spec in &mut content.specializations {
             spec.icon_fdid = self.drawable_fdid(spec.icon_fdid);
         }
-        for item in categories
+        for item in content
+            .categories
             .iter_mut()
             .flat_map(|category| category.groups.iter_mut())
             .flat_map(|group| group.items.iter_mut())
         {
             item.icon_fdid = self.drawable_fdid(item.icon_fdid);
         }
+    }
+
+    fn spellbook_state(&mut self) -> SpellbookFrameState {
+        let player = self.spellbook_player();
+        let mut content = self.spellbook_content(player);
+        self.extract_spellbook_icons(&mut content);
         let size = self
             .base()
             .get_viewport()
@@ -183,13 +198,12 @@ impl GameClient {
         let scale = self.effective_ui_scale();
         let mut state = SpellbookFrameState {
             viewport: [size.x / scale, size.y / scale],
-            categories,
             selected: self.spells.book.selected,
             page: self.spells.book.page,
-            portrait_fdid: self.drawable_fdid(spec_icon),
+            portrait_fdid: self.drawable_fdid(content.portrait_fdid),
             tab: self.spells.book.tab,
-            specializations,
             can_activate_spec: player.is_some_and(|player| player.level >= 10),
+            ..content
         };
         state.selected = state.selected.min(state.categories.len().saturating_sub(1));
         state.page = state.page.min(state.page_count() - 1);
@@ -202,38 +216,46 @@ impl GameClient {
         }
         let state = self.spellbook_state();
         self.spells.book = state.clone();
+        self.extract_spellbook_art(&state);
+        let existing = self
+            .spells
+            .book_ui
+            .as_ref()
+            .is_some_and(|ui| ui.bind().has_frame("SpellBookRoot"));
+        let shown = self
+            .sync_spellbook_frame(state, existing)
+            .and_then(|()| self.place_spellbook());
+        if !existing && shown.is_err() {
+            self.close_spellbook();
+        }
+        shown
+    }
+
+    fn extract_spellbook_art(&mut self, state: &SpellbookFrameState) {
         // New pages/specs introduce art not present when the window first opened.
-        if self.spells.book_art_state.as_ref() != Some(&state) {
+        if self.spells.book_art_state.as_ref() != Some(state) {
             self.extract_art(&crate::quests::screen_texture_fdids(
                 state.clone(),
                 game_engine_ui_model::spellbook_frame_component::spellbook_frame_screen,
             ));
             self.spells.book_art_state = Some(state.clone());
         }
-        if self
-            .spells
-            .book_ui
-            .as_ref()
-            .is_some_and(|ui| ui.bind().has_frame("SpellBookRoot"))
-        {
-            let scale = self.effective_ui_scale();
-            let ui = self.spells.book_ui.as_mut().expect("spellbook open");
-            ui.bind_mut().set_ui_scale(scale)?;
-            ui.bind_mut().set_state(state)?;
-            return self.place_spellbook();
-        }
+    }
+
+    fn sync_spellbook_frame(
+        &mut self,
+        state: SpellbookFrameState,
+        existing: bool,
+    ) -> Result<(), String> {
         let scale = self.effective_ui_scale();
         let ui = self.spells.book_ui.as_mut().expect("spellbook open");
         let mut book = ui.bind_mut();
-        let shown = book
-            .set_ui_scale(scale)
-            .and_then(|()| book.show_spellbook(state));
-        drop(book);
-        let shown = shown.and_then(|()| self.place_spellbook());
-        if shown.is_err() {
-            self.close_spellbook();
+        book.set_ui_scale(scale)?;
+        if existing {
+            book.set_state(state)
+        } else {
+            book.show_spellbook(state)
         }
-        shown
     }
 
     pub(super) fn place_spellbook(&mut self) -> Result<(), String> {
@@ -364,11 +386,15 @@ impl GameClient {
             return Ok(());
         };
         let action = ui.bind_mut().pop_action().to_string();
+        self.apply_spellbook_action(&action)
+    }
+
+    fn apply_spellbook_action(&mut self, action: &str) -> Result<(), FrameError> {
         let book = &mut self.spells.book;
         if action.is_empty() {
         } else if action == ACTION_SPELLBOOK_CLOSE {
             self.close_spellbook();
-        } else if book.select_frame_tab(&action)? {
+        } else if book.select_frame_tab(action)? {
             // The next sync replaces the selected page; book category/page stay intact.
         } else if let Some(raw) = action.strip_prefix(ACTION_ACTIVATE_SPEC) {
             let spec_id = raw
