@@ -4,7 +4,8 @@ use game_engine_ui_model::quest_frame_component::{
     QuestFramePage, QuestFrameState, RewardItemView, RewardView, quest_frame_screen,
 };
 use game_engine_ui_model::quest_log_frame_component::{
-    QuestLogDetails, QuestLogFrameState, QuestLogObjectiveLine, quest_log_frame_screen,
+    QuestDifficulty, QuestLogDetails, QuestLogFrameState, QuestLogGroup, QuestLogObjectiveLine,
+    QuestLogRow, quest_log_frame_screen,
 };
 use godot::classes::Node;
 use godot::prelude::*;
@@ -99,6 +100,22 @@ impl UiAuditProbe {
             ui.bind_mut().show_quest_window(
                 QuestLogFrameState {
                     visible: true,
+                    quest_count: 1,
+                    max_quests: 35,
+                    groups: vec![QuestLogGroup {
+                        sort_id: 1519,
+                        name: "Stormwind City".into(),
+                        collapsed: false,
+                        quests: vec![QuestLogRow {
+                            quest_id: 332,
+                            title: "Wine Shop Advert".into(),
+                            level: 1,
+                            difficulty: QuestDifficulty::Trivial,
+                            complete: true,
+                            watched: false,
+                            selected: true,
+                        }],
+                    }],
                     details: Some(QuestLogDetails {
                         quest_id: 332,
                         title: "Wine Shop Advert".into(),
@@ -111,7 +128,6 @@ impl UiAuditProbe {
                         rewards: Some(rewards),
                         watched: false,
                     }),
-                    ..Default::default()
                 },
                 quest_log_frame_screen,
             )

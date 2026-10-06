@@ -76,6 +76,11 @@ func run_case(forever: bool, page: String, long_text: bool) -> void:
 	root.add_child(probe)
 	require(probe.mount_quest_overflow(forever, page, long_text).is_empty())
 	await settle()
+	if page == "log":
+		var count: Label = node(probe, "QuestLogCount")
+		var title: Label = node(probe, "QuestLogTitle332Text")
+		require(count.text == "Quests: 1/35")
+		require(title.text.contains("Wine Shop Advert"))
 	var list: String = {
 		"log": "QuestLogDetailsScrollFrame", "detail": "QuestDetailScrollFrame",
 		"progress": "QuestProgressScrollFrame", "reward": "QuestRewardScrollFrame"
