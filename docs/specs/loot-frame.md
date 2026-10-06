@@ -12,7 +12,7 @@ References:
 
 ## What it must do
 
-- [x] A dead NPC plays `Death` (animation 1) once and holds its last frame; movement and emote animation leave it alone.
+- [x] A dead NPC plays `Death` (animation 1) once, then its authored `Dead` (animation 6) once and holds the corpse pose; movement and emote animation leave it alone. Models without a `Dead` clip author the corpse in `Death`'s last frame and hold that frame.
 - [x] `CorpseLootable` marks the corpse `Lootable`: it sparkles (gold glow like the quest sparkle) and shows the `LootAll` cursor. `lootable: false` removes both.
 - [x] Unit cursor by role and reaction: lootable corpse `LootAll`; other corpse the pointer; hostile, or neutral without services, `Attack`; flight master `Taxi`; vendor `Buy`; trainer `Trainer`; any other service `Speak`; none the pointer.
 - [x] Right-click on a lootable corpse in range sends `LootUnit { auto }` with `auto = autoLootDefault XOR Shift` (`AUTOLOOTTOGGLE` default Shift, Bindings_Standard.xml:1773). Other corpses are only targeted; living NPCs are interacted with. IPC `quest interact` makes the same choice (auto off).
@@ -59,6 +59,6 @@ The [saved reach gate](../wiki/systems/godot-conversion.md#native-loot-reach--bo
 - `tests/unit/target_tests/interactions.rs`: right-click loots with Shift inversion, empty corpse, living NPC.
 - `src/rendering/ui/wow_cursor.rs` tests: cursor by role, reaction and corpse.
 - `src/rendering/ui/quest_sparkle.rs` tests: the corpse sparkle follows `Lootable`.
-- `tests/unit/animation_tests/death_pose.rs`: Death once and held.
+- `godot/rust/src/animation/mod.rs`: Death completes into authored Dead, then holds the corpse pose; models without Dead hold Death's last frame.
 - `src/ui/panel_styles_tests.rs`: the no-portrait metal layout.
 - Live evidence: `data/diagnostics/npcloot-20260925/` (t02 corpse, t04 loot window, t05 looted with chat lines, t11 backpack).
