@@ -6,6 +6,7 @@ class InputClient extends Node:
 	var heading := 0.0
 	var turn_axis := 0.0
 	var right_held := false
+	var health := 100.0
 
 	func _input(event: InputEvent) -> void:
 		if event is InputEventKey:
@@ -26,7 +27,7 @@ class InputClient extends Node:
 		heading += turn_axis * 2.5 * 0.5
 
 	func account_state() -> Dictionary:
-		return {"camera_yaw": heading - PI}
+		return {"camera_yaw": heading - PI, "local_player_health": health}
 
 class FirstPressOverlay extends Control:
 	func _gui_input(event: InputEvent) -> void:
@@ -62,6 +63,19 @@ func run_test() -> void:
 		push_error("Slow-frame NPC approach failed or left forward held: feet=%s held=%s" % [feet, walking])
 		quit(1)
 		return
+	input_client.health = 0.0
+	var traveled := await teleport([-9205.0, -599.0, 61.8])
+	if not traveled or input_client.health <= 0.0 or feet.distance_to(Vector3(-9205.0, 61.8, 599.0)) > 0.01:
+		push_error("Travel must arrive alive before NPC interaction or exploration")
+		quit(1)
+		return
+	input_client.health = 0.0
+	feet = Vector3.ZERO
+	walking = true
+	if await walk_to(Vector3(5.0, 0.0, 0.0), 1.0) or walking:
+		push_error("Dead player's prediction must not count as a fixture walk")
+		quit(1)
+		return
 	print("FIXTURE QUEST_FLOW_MOVEMENT_PASS feet=", feet, " yaw=", yaw())
 	npc.free()
 	client.free()
@@ -70,6 +84,18 @@ func run_test() -> void:
 func _process(_delta: float) -> bool:
 	if walking:
 		feet += Vector3(sin(yaw()), 0.0, cos(yaw())) * 3.5
+	return false
+
+func character_name() -> String:
+	return "FixtureWarrior"
+
+func admin(args: Array) -> bool:
+	if args[0] == "teleport":
+		feet = Vector3(float(args[3]), float(args[5]), -float(args[4]))
+		return true
+	if args[0] == "revive":
+		input_client.health = 100.0
+		return true
 	return false
 
 func player_position() -> Vector3:
