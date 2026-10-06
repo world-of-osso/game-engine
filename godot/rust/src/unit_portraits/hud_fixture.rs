@@ -72,7 +72,7 @@ impl ModernHudOverlapFixture {
     fn initialize_frames(&mut self) -> Result<(), String> {
         let path = ProjectSettings::singleton().globalize_path("res://../data");
         game_engine_ui_model::paths::set_data_root(std::path::PathBuf::from(path.to_string()))?;
-        ui_toolkit::atlas::set_active_skin(ui_toolkit::atlas::ActiveSkin::Modern);
+        ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Modern);
         game_engine_ui_model::hud_layout::set_active_layout_settings(LayoutSettings::default());
         let mut player = UnitFrameState::named("Portraitcam");
         player.health_fraction = 1.0;
