@@ -181,7 +181,7 @@ fn settings(session: &GuildRanksSession) -> Element {
                 ),
             ));
         }
-        children.extend(gold_controls(rank, editable));
+        children.extend(gold_controls(rank, editable, session.selected_index() == 0));
         children.extend(tab_controls(session, rank, editable));
     }
     rsx! { r#frame { name: {DynName("GuildControlUI".into())}, width: WIDTH, height: HEIGHT,
@@ -279,7 +279,7 @@ fn rank_list(session: &GuildRanksSession) -> Element {
     ));
     children
 }
-fn gold_controls(rank: &GuildRankSettings, editable: bool) -> Element {
+fn gold_controls(rank: &GuildRankSettings, editable: bool, unlimited: bool) -> Element {
     let enabled =
         editable && rank.rights & (GUILD_RIGHT_WITHDRAW_GOLD | GUILD_RIGHT_WITHDRAW_REPAIR) != 0;
     // Retail GuildControlUI.lua:433 masks gold unless withdrawals or repairs are enabled.
@@ -290,9 +290,14 @@ fn gold_controls(rank: &GuildRankSettings, editable: bool) -> Element {
         302.0,
         420.0,
     );
+    let limit = if unlimited {
+        "Unlimited".to_owned()
+    } else {
+        (rank.gold_per_day / 10_000).to_string()
+    };
     children.extend(input(
         GOLD_BOX,
-        &(rank.gold_per_day / 10_000).to_string(),
+        &limit,
         enabled,
         (244.0, 330.0, 110.0, 24.0),
     ));
@@ -351,9 +356,14 @@ fn tab_controls(session: &GuildRanksSession, rank: &GuildRankSettings, editable:
             editable,
             (498.0, y),
         ));
+        let limit = if session.selected_index() == 0 {
+            "Unlimited".to_owned()
+        } else {
+            tab.withdrawals_per_day.to_string()
+        };
         children.extend(input(
             &format!("GuildTabItems{index}"),
-            &tab.withdrawals_per_day.to_string(),
+            &limit,
             editable,
             (636.0, y, 65.0, 24.0),
         ));
