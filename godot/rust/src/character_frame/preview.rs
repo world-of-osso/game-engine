@@ -52,6 +52,47 @@ impl ModelPreview {
     }
 }
 
+/// Engine-backed fixture for the paperdoll's parent/preview teardown boundary.
+#[derive(GodotClass)]
+#[class(base = RefCounted)]
+struct WowCharacterFrameLifecycleProbe {
+    base: Base<RefCounted>,
+    frame: super::CharacterFrame,
+}
+
+#[godot_api]
+impl IRefCounted for WowCharacterFrameLifecycleProbe {
+    fn init(base: Base<RefCounted>) -> Self {
+        Self {
+            base,
+            frame: super::CharacterFrame::default(),
+        }
+    }
+}
+
+#[godot_api]
+impl WowCharacterFrameLifecycleProbe {
+    #[func]
+    fn attach_preview(&mut self, mut parent: Gd<Node3D>) -> Gd<TextureRect> {
+        self.frame.reset();
+        let mut ui = crate::ui::RegistryUi::new_alloc();
+        let host = Control::new_alloc();
+        ui.add_child(&host);
+        parent.add_child(&ui);
+        let scene = Scene::new(host);
+        let view = scene.view.clone();
+        self.frame.ui = Some(ui);
+        self.frame.preview.scene = Some(scene);
+        view
+    }
+
+    #[func]
+    fn reset_frame(&mut self) -> bool {
+        self.frame.reset();
+        true
+    }
+}
+
 impl GameClient {
     pub(super) fn sync_character_model(&mut self) -> Result<(), String> {
         if !self.character_frame.paperdoll_shown() {

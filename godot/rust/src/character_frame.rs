@@ -53,10 +53,11 @@ pub(crate) struct CharacterFrame {
 
 impl CharacterFrame {
     fn reset(&mut self) {
+        // The preview view is a child of the paperdoll UI; release it before its parent.
+        self.preview.reset();
         for ui in [self.ui.take(), self.micro_ui.take()].into_iter().flatten() {
             ui.free();
         }
-        self.preview.reset();
         self.open = false;
         self.tab = CharacterTab::PaperDoll;
         self.selected_reputation = None;
