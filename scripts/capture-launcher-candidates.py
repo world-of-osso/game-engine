@@ -45,7 +45,7 @@ def capture_candidate(skin, style, env):
     if image.size != (1920, 1080):
         raise RuntimeError(f"{name}: invalid capture size {image.size}")
     # Full metal-frame outsets retained, plus player-name context below it.
-    crop = image.crop((620, 290, 1300, 855))
+    crop = image.crop((400, 290, 1300, 855))
     crop.resize((crop.width * 2, crop.height * 2), Image.Resampling.NEAREST).save(
         OUT / f"{name}-2x.png")
     magnifier = image.crop((1580, 210, 1730, 305))

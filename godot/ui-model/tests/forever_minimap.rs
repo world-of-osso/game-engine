@@ -23,6 +23,8 @@ use ui_toolkit::screen::{Screen, SharedContext};
 fn build(skin: ActiveSkin, state: MinimapClusterState) -> FrameRegistry {
     let mut shared = SharedContext::new();
     shared.insert(skin);
+    // Keep the captured baseline stable when the user changes the runtime style pick.
+    shared.insert(game_engine_ui_model::launcher::LauncherIconStyle::Outline);
     shared.insert(state);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(minimap_cluster_screen).sync(&shared, &mut registry);
