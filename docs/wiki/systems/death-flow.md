@@ -24,11 +24,15 @@ Sources under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 - `data/GlobalStrings.csv:430,4876,1912,169,171`: DEATH_RELEASE, DEATH_RELEASE_NOTIMER, RECOVER_CORPSE, ACCEPT, CANCEL.
 - `data/GlobalStrings.csv:1910,4231`: healer text templates. Client substitutes realm's 25% equipped-durability loss and ten-minute sickness, not Retail's 50%/inventory-wide loss; authoritative server behavior remains unchanged. The server computes resurrection sickness in shared `accept_spirit_healer` but `death.rs:729-758` does not attach the resulting sickness; Retail's sickness warning is not proof of an implemented server debuff.
 
-## Blocked protocol/server capabilities
+## Player resurrection offers and tap eligibility
 
-Pinned shared protocol `f1d0452`, `src/protocol/gameplay_messages.rs:565-588`, supports QueryDeathStatus, ReleaseSpirit, ResurrectAtCorpse, AcceptSpiritHealerResurrection, UseStuckEscape and DeathStateUpdate only. `src/protocol_snapshots.rs:403-425` has state, corpse/graveyard positions and range booleans, but no resurrection offer/caster/offer expiry/accept/decline. Server DeathPlugin installs no player-offer handler. The pure shared `cast_resurrect` helper is not a message. A truthful RESURRECT popup/request test is therefore blocked without changing the protocol/server.
+The resurrection/tap work replaces the former `f1d0452` protocol gaps. Default transport receives `ResurrectionOffer`; Account dispatches it into DeathFlow, which replaces release/corpse/healer dialogs with RESURRECT and its Accept/Decline buttons and server-supplied timeout. Accept sends `ResurrectionResponse` through the normal Account transport once; cancellation/timeout sends decline and restores the ordinary death dialog. An alive snapshot clears the offer. Ordinary player resurrection has no spirit-healer sickness, so the text does not falsely promise sickness (GlobalStrings.csv:3714 is the sickness variant).
 
-Tap-denied is also blocked. Server `crates/server/src/creature_tap.rs:27-33,76-104` stores character-ID tappers, subgroup sharing and damage requirements locally. Shared `UnitFlags` (`src/components/unit_frames.rs:209-249`) carries selection/attackability/pet combat flags, not viewer-relative tap-denied. The protocol registration and client codec contain no tap owner/list or equivalent viewer eligibility component. Health, threat membership and faction reaction cannot establish tap eligibility. No guessed grey rendering is added.
+Shared `UnitTap` carries stable character IDs from the server's existing multi-tapper list, never damage/threat guesses. The client compares the selected character ID and current roster's new `character_id` fields, including offline/out-of-interest members. NPCs controlled by another unit are exempt. The list is shared across viewers and sent only when tap membership changes/clears: raw 8N ID bytes, or standard bincode's vector-length varint plus N ID varints, before envelopes. `[42,43]` is 3 payload bytes. Existing roster messages add one ID varint per member; no per-viewer creature flag or per-tick tap message is added.
+
+Native nameplates prioritize CompactUnitFrame's tap-denied health RGB `(0.9,0.9,0.9)` over reaction/selection hostility (`Shared/CompactUnitFrame.lua:675-677`, not the name's 0.5 grey at :868-870). The requested target health greying uses `(0.5,0.5,0.5)`, taken from `Mainline/TargetFrame.lua:307-312`'s faction/portrait tint; that source does not itself grey the target health fill. Modern uses a solid grey fill because multiplying baked green art cannot remove its hue. Forever uses the same 0.5 RGB through its existing Flat-texture brightness multiplier. Both preserve fraction and status text.
+
+Sources: `godot/ui-model/src/death_flow.rs`, `godot/rust/src/{account,nameplates,targeting,replicated}.rs`, `godot/network/src/{lib,replica/codec}.rs`; server `crates/server/src/death/resurrection.rs`, `creature_tap.rs` and shared protocol `tests/rezrtap.rs`. Targeted proof/revisions are recorded in `/tmp/claude/rezrtap-proof.md`; these are CPU/UDP proofs, not native GPU equivalence or live realm acceptance.
 
 ## Behavioral proof (2026-10-06)
 
@@ -48,7 +52,7 @@ Production code at `0c7e60da`: locked, local, agent-run targeted `deathstate` ru
 | `deathstate_healer_requires_interaction` | PASS |
 | `deathstate_corpse_marker_and_edge_arrow_both_skins` | PENDING corrected fixture rerun |
 
-Full run: `/tmp/claude/deathstate-0c7e60da.out` (overall exit 101 due to marker fixture). Pending rerun: `/tmp/claude/deathstate-marker.{stdout,stderr}`, PID 2494650. Changed-file Cargo formatting checks pass. Rust readability manually audited; analyzer unavailable. These are CPU registry/UDP proofs, not native GPU/visual equivalence or live realm acceptance. Resurrection-offer and tap-denied tests cannot be instantiated with the pinned wire schema.
+Full run: `/tmp/claude/deathstate-0c7e60da.out` (overall exit 101 due to marker fixture). Pending rerun: `/tmp/claude/deathstate-marker.{stdout,stderr}`, PID 2494650. Changed-file Cargo formatting checks pass. Rust readability manually audited; analyzer unavailable. These are CPU registry/UDP proofs, not native GPU/visual equivalence or live realm acceptance. That historical run used the pre-offer/pre-tap schema; the resurrection/tap work above supersedes those wire gaps.
 
 ## Sources
 

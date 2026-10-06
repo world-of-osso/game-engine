@@ -32,17 +32,19 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 - `godot/ui-model/src/death_flow.rs`: concrete snapshot/proximity/click decisions in both skins.
 - `godot/rust/src/account.rs`: native event dispatch.
 - `godot/rust/src/account_deathstate_tests.rs`: UDP snapshot → AccountEvent → rendered popup click → production Account request → server receipt, in both skins.
-- `godot/network/src/deathstate_fixture.rs`: feature-gated loopback server for that host integration test.
+- `godot/network/src/deathstate_fixture.rs`: feature-gated loopback server for that host integration test, including resurrection responses.
+- `godot/rust/src/account_deathstate_tests.rs`: resurrection offer → rendered popup → Account accept → real UDP server receipt in both skins.
+- `godot/ui-model/tests/rezrtap.rs`, `godot/rust/src/{nameplates,replicated}.rs`: concrete target fills and shared nameplate/tap rules.
 
 ## Known gaps (current cycle)
 
 - [ ] Corrected corpse-marker fixture rerun queued behind unrelated publishing operation's shared build lock; details and exact proof scopes in the [proof ledger](../wiki/systems/death-flow.md#behavioral-proof-2026-10-06).
 - [ ] Ghost transparency/native GPU appearance not runtime-proven; preserve documented host compositor mitigation.
 
-- [ ] `RESURRECT` from another player is blocked: pinned protocol has no offer, caster name, offer identifier/expiry, or accept/decline request. Shared pure `cast_resurrect` is not a wire message or a server offer handler.
-- [ ] Tap-denied greying is blocked: server `CreatureTap.tappers` is server-local; replicated `UnitFlags` has no viewer-relative tap-denied flag; shared schema has no tap list/owner component.
+- [ ] `RESURRECT` offers show the caster and server-supplied timeout; Accept/Decline/timeout send the corresponding response, once. Alive closes the offer. Both skins retain the same mechanics.
+- [ ] Stable replicated tapper identities exempt the local player and current group. Tap-denied nameplate health is Retail 0.9 grey; requested target health is 0.5 grey, through each skin's existing brightness treatment. Untapped/group-eligible units keep their ordinary health colours.
 - [ ] Retail spirit-healer text describes 50% durability; pinned server applies 25% to equipped durability and does not attach computed sickness. Client formats the equipped-durability warning for that server; it cannot implement the missing debuff.
 
 ## Out of scope
 
-Server/protocol edits, new worktrees, merge/push, live development server mutation, soulstone/self-resurrection/recap and release/recovery timers absent from the supplied protocol. No fabricated resurrection offer or inferred tap ownership.
+New worktrees, merge/push, live development server mutation, soulstone/self-resurrection/recap and release/recovery timers absent from the supplied protocol. Resurrection offers and tap membership are now backed by explicit server/protocol data, never inferred from threat or health.
