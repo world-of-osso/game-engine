@@ -291,9 +291,9 @@ mod tests {
         assert_eq!(parse_camera_snapshot(&file).unwrap().fov, 1.0);
     }
 
-    /// humanfemale_hd's portrait camera animates its FoV only in later sequences.
+    /// humanfemale_hd stores its constant portrait FoV after empty sequence slots.
     #[test]
-    fn human_female_portrait_camera_has_the_default_fov() {
+    fn human_female_portrait_camera_reads_authored_sparse_fov() {
         let path = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("data/models/1000764.m2");
         let bytes =
             std::fs::read(&path).unwrap_or_else(|error| panic!("{}: {error}", path.display()));
@@ -301,8 +301,23 @@ mod tests {
         assert_eq!(camera.camera_type, 0);
         assert_eq!(camera.position, [0.62774545, -0.40620404, 1.7988782]);
         assert_eq!(camera.target, [-0.03356784, 0.0626493, 1.7492048]);
-        assert_eq!(camera.fov, 1.0);
+        assert_eq!(camera.fov, 0.7853966);
         assert_eq!((camera.near_clip, camera.far_clip), (0.22222222, 27.777779));
+    }
+
+    #[test]
+    fn portrait_camera_snapshot_skips_empty_sequence_slots() {
+        let mut file = model_with_camera();
+        let timestamps = file[8 + 0x420..8 + 0x428].to_vec();
+        let values = file[8 + 0x428..8 + 0x430].to_vec();
+        // Three slots: two empty, then the original authored key.
+        write_u32(&mut file, 8 + CAMERA_OFFSET + 96 + 4, 3);
+        write_u32(&mut file, 8 + CAMERA_OFFSET + 96 + 8, 0x480);
+        write_u32(&mut file, 8 + CAMERA_OFFSET + 96 + 12, 3);
+        write_u32(&mut file, 8 + CAMERA_OFFSET + 96 + 16, 0x498);
+        file[8 + 0x490..8 + 0x498].copy_from_slice(&timestamps);
+        file[8 + 0x4a8..8 + 0x4b0].copy_from_slice(&values);
+        assert_eq!(parse_camera_snapshot(&file).unwrap().fov, 0.8);
     }
 
     #[test]
