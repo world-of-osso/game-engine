@@ -157,15 +157,13 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
             "This action is not available right now",
         )),
     },
-    // `C_Club.IsEnabled() and not BNConnected()`.
+    // Native guild roster/settings use the account connection, not Blizzard services.
     MicroButton {
         name: "GuildMicroButton",
         title: "Guild & Communities",
         binding: None,
         art: Some("GuildCommunities"),
-        unavailable: Some(Unavailable::Reason(
-            "Unavailable\n\nBlizzard services are currently unavailable.",
-        )),
+        unavailable: None,
     },
     // Not `C_LFGInfo.CanPlayerUseGroupFinder()`: no group finder service.
     MicroButton {

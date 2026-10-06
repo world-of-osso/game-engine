@@ -5,6 +5,16 @@
 ## 2026-10-05 — Stormwind loading boundary
 
 [[stormwind-loading]] records instrumented tile-gate timeout, per-placement costs, WMO-child discovery and unrelated terrain build order. [World-loading policy](../specs/world-loading.md) now defines a spatial entry bubble without discarding distant work. Before/after evidence remains in `data/diagnostics/swload-2026-10-05/`.
+## Native guild rank settings — client continuation
+
+[[banks#Rank settings model]] now records the native guild/communities entry, both-skin
+rank/settings widgets, hierarchy-gated member context menu and GuildChannel bridge.
+Client writes wait for authoritative state; only purchased tab-name entries are edited
+from the server's fixed eight-tab rights vector. 27 targeted Rust tests pass across
+widget/model/transport/micro scopes. At `1e62844b`, native build and both inspected
+1920×1080 captures pass after a real-raster disclaimer overlap regression. Logs retain
+texture/font shutdown leaks; live server and full communities parity are not claimed.
+Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds or port 5000 use.
 
 ## 2026-10-05 — Paperdoll teardown double free
 
@@ -2603,3 +2613,6 @@ Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-b
 ## 2026-10-06 — Forever preset wiring
 
 [[forever-preset]] records current master skin/layout wiring, set-1 atlas selection, explicit product-file boundary, character-scoped persistence and FlareUI reference restrictions. Current active skin remains process-wide; pending `skinctx` is not described as integrated. HUD measurements remain in the contract and party-sheet provenance in [[portrait-party-frames]].
+## 2026-10-05 — Guild rank settings model
+
+Added portable authoritative rank controls and Officer chat parsing/classification. [Guild ranks spec](../specs/guild-ranks.md) records pending native transport, settings widgets in both skins and member menus. No native guild-settings rendering or live proof claimed. Five targeted model tests pass at `61e129e4`; Godot/UI-model/network test compilation succeeds. The additional hidden-tab RED reproduced loss of independent deposit/stack settings; GREEN preserves them.
