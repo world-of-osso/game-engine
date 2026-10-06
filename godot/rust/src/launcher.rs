@@ -14,7 +14,7 @@ fn launcher_texture_fdids(view: LauncherView) -> Vec<u32> {
     use ui_toolkit::widgets::texture::TextureSource;
     let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
     let mut shared = ui_toolkit::screen::SharedContext::new();
-    shared.insert(ui_toolkit::atlas::active_skin());
+    shared.insert(ui_toolkit::atlas::thread_skin());
     shared.insert(view);
     ui_toolkit::screen::Screen::new(model::launcher_screen).sync(&shared, &mut registry);
     let mut fdids: Vec<_> = registry

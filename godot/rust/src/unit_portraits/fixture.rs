@@ -109,7 +109,7 @@ impl PartyPortraitFixture {
         } else {
             ui_toolkit::atlas::ActiveSkin::Modern
         };
-        ui_toolkit::atlas::set_active_skin(skin);
+        ui_toolkit::atlas::set_thread_skin(skin);
         game_engine_ui_model::hud_layout::set_active_layout_settings(LayoutSettings::default());
         let mut ui = RegistryUi::new_alloc();
         self.base_mut().add_child(&ui);

@@ -85,10 +85,10 @@ impl GameClient {
         };
         let settings = layout.settings;
         self.ui_layout = layout;
-        if atlas::active_skin() == skin && hud_layout::active_layout_settings() == settings {
+        if atlas::thread_skin() == skin && hud_layout::active_layout_settings() == settings {
             return Ok(());
         }
-        atlas::set_active_skin(skin);
+        atlas::set_thread_skin(skin);
         hud_layout::set_active_layout_settings(settings);
         self.for_each_registry_ui(|ui| ui.bind_mut().sync_skin())
     }

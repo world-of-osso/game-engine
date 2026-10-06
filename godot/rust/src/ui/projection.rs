@@ -126,7 +126,7 @@ impl UiProjection {
             textures: HashMap::new(),
             waiting: HashSet::new(),
             arrived: 0,
-            skin: atlas::active_skin(),
+            skin: atlas::thread_skin(),
         }
     }
 
@@ -223,8 +223,8 @@ impl UiProjection {
         let known = self.nodes.len();
         let _span = crate::profile::span(|| format!("projection.sync {known} frames"));
         // Atlas names keep their name across a skin switch; redraw every frame's art.
-        if self.skin != atlas::active_skin() {
-            self.skin = atlas::active_skin();
+        if self.skin != atlas::thread_skin() {
+            self.skin = atlas::thread_skin();
             self.visuals.clear();
         }
         let span = crate::profile::span(|| "projection.intrinsics".to_owned());
@@ -469,7 +469,7 @@ impl UiProjection {
     /// the skin is part of their key.
     fn source(&mut self, source: &TextureSource, registry: &FrameRegistry) -> Art {
         let key = match source {
-            TextureSource::Atlas(_) => format!("{source:?}/{:?}", atlas::active_skin()),
+            TextureSource::Atlas(_) => format!("{source:?}/{:?}", atlas::thread_skin()),
             _ => format!("{source:?}"),
         };
         if let Some(loaded) = self.textures.get(&key) {

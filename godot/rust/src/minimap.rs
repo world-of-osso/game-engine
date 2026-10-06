@@ -32,7 +32,7 @@ use godot::prelude::*;
 use osso_asset_resolver::CascListfileResolver;
 use shared::components::Position;
 use shared::protocol::QuestGiverStatus;
-use ui_toolkit::atlas::{ActiveSkin, active_skin};
+use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::frame::WidgetData;
 
 use crate::background_load::BackgroundLoad;
@@ -87,7 +87,7 @@ impl Minimap {
             ui: None,
             zoom: 0,
             hovered: false,
-            skin: active_skin(),
+            skin: thread_skin(),
             catalogs: BackgroundLoad::start("minimap-catalogs", move || {
                 load_catalogs(&catalog_root)
             }),
@@ -460,7 +460,7 @@ impl GameClient {
         };
         // Frames of one level draw in creation order, so another skin's cluster and its
         // composite are built afresh instead of patched.
-        let skin = active_skin();
+        let skin = thread_skin();
         if self.minimap.skin != skin {
             self.minimap.free_ui();
             self.minimap.skin = skin;

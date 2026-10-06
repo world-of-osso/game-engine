@@ -1,7 +1,7 @@
 //! Authored panel skins shared by the Bevy and Godot registry hosts: the default slate
 //! panel and the Retail metal window borders composed from their atlas members.
 
-use ui_toolkit::atlas::{ActiveSkin, AtlasRegion, AtlasSource, active_skin, resolve_region};
+use ui_toolkit::atlas::{ActiveSkin, AtlasRegion, AtlasSource, resolve_region, thread_skin};
 use ui_toolkit::frame::NineSlice;
 use ui_toolkit::widgets::texture::TextureSource;
 
@@ -52,7 +52,7 @@ impl MetalTopLeft {
             Self::Portrait => 13.0,
             Self::Plain => 8.0,
         };
-        match active_skin() {
+        match thread_skin() {
             ActiveSkin::Modern => [left, 16.0, 4.0, 3.0],
             ActiveSkin::Forever => [left, 16.0, 2.0, 8.0],
         }
@@ -94,7 +94,7 @@ impl MetalGeometry {
     /// The geometry of the active skin's metal members.
     pub fn active() -> Result<Self, String> {
         let size = |atlas: &str| {
-            let skin = active_skin();
+            let skin = thread_skin();
             resolve_region(atlas, skin)
                 .map(|region| [region.width as u32, region.height as u32])
                 .ok_or_else(|| format!("metal frame atlas {atlas} missing for {skin:?}"))
@@ -133,7 +133,7 @@ fn metal_frame_blits(
     top_left: MetalTopLeft,
     geometry: MetalGeometry,
 ) -> Result<Vec<MetalBlit>, String> {
-    let skin = active_skin();
+    let skin = thread_skin();
     let width = |atlas: &str| {
         resolve_region(atlas, skin)
             .map(|region| region.width as u32)
@@ -203,7 +203,7 @@ pub fn metal_frame_uv_rects(geometry: MetalGeometry) -> [[f32; 4]; 9] {
 /// Sheets `compose_metal_sheet` reads under the active skin, for hosts that copy textures
 /// out of local CASC on demand. An unresolved member is reported by the compose itself.
 pub fn metal_sheet_fdids(top_left: MetalTopLeft) -> Vec<u32> {
-    let skin = active_skin();
+    let skin = thread_skin();
     let mut fdids = Vec::new();
     let blits = MetalGeometry::active().and_then(|geometry| metal_frame_blits(top_left, geometry));
     for blit in blits.into_iter().flatten() {
@@ -229,7 +229,7 @@ pub fn compose_metal_sheet(
     let (sheet_w, sheet_h) = geometry.sheet_size();
     let mut sheet = vec![0u8; (sheet_w * sheet_h * 4) as usize];
     let mut loaded = std::collections::HashMap::new();
-    let skin = active_skin();
+    let skin = thread_skin();
     for blit in metal_frame_blits(top_left, geometry)? {
         let region = resolve_region(blit.atlas, skin)
             .ok_or_else(|| format!("metal frame atlas {} missing for {skin:?}", blit.atlas))?;

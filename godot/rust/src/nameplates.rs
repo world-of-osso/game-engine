@@ -700,7 +700,7 @@ impl Nameplates {
         show_health_bars: bool,
         (data_root, icons): (&Path, &HashMap<u32, u32>),
     ) -> Result<(), String> {
-        let skin = atlas::active_skin();
+        let skin = atlas::thread_skin();
         if self.art.is_none() || self.skin != Some(skin) {
             self.art = Some(PlateArt::load(skin)?);
         }

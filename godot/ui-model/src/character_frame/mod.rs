@@ -20,7 +20,7 @@ pub use reputation_detail::{
 use game_engine_core::spell_catalog::PrimaryStat;
 use shared::components::{CombatRatings, DerivedStats, UnitStats};
 use shared::protocol::{EquipmentSlot, ItemLocation};
-use ui_toolkit::atlas::{ActiveSkin, AtlasSource, active_skin, resolve_region};
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, thread_skin};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
@@ -125,7 +125,7 @@ struct CharacterLayout {
 }
 
 fn read_character_layout() -> CharacterLayout {
-    character_layout(active_skin())
+    character_layout(thread_skin())
 }
 
 /// Camelot CharacterFrameConstants.lua:4-5; CharacterFrame.xml:408-482;
@@ -533,7 +533,7 @@ pub fn character_frame_screen(ctx: &SharedContext) -> Element {
     } else {
         reputation::TITLE
     };
-    let mut children = match active_skin() {
+    let mut children = match thread_skin() {
         ActiveSkin::Modern => window_chrome(FRAME_NAME, (width, height), title, ACTION_CLOSE),
         // Camelot CharacterFrame.xml:403 uses PortraitFrameBaseTemplate, not the rock fill.
         ActiveSkin::Forever => portrait_border(FRAME_NAME, (width, height), title, ACTION_CLOSE),
@@ -614,7 +614,7 @@ fn apply_named_chrome(registry: &mut FrameRegistry, tab: CharacterTab) {
         "CharacterFrameCloseButtonNormal",
         "RedButton-Exit",
     );
-    if active_skin() == ActiveSkin::Modern {
+    if thread_skin() == ActiveSkin::Modern {
         apply_named_texture(
             registry,
             "CharacterFrameTopTileStreaks",
@@ -639,7 +639,7 @@ fn apply_named_chrome(registry: &mut FrameRegistry, tab: CharacterTab) {
 }
 
 fn apply_named_texture(registry: &mut FrameRegistry, node: &str, atlas: &str) {
-    let region = resolve_region(atlas, active_skin())
+    let region = resolve_region(atlas, thread_skin())
         .unwrap_or_else(|| panic!("CharacterFrame atlas missing: {atlas}"));
     let AtlasSource::FileDataId(fdid) = region.source else {
         panic!("CharacterFrame chrome is not a DB2 sheet: {atlas}");
@@ -703,7 +703,7 @@ fn model_scene_frame() -> Element {
 /// `CharacterLevelText` 220×24 CENTER at PaperDollFrame TOP 0,-42 (PDF.lua:476),
 /// `GameFontNormalSmall2`; the class part in its class colour.
 fn level_text(line: &LevelLine) -> Element {
-    let (size, center, top) = match active_skin() {
+    let (size, center, top) = match thread_skin() {
         ActiveSkin::Modern => (12.0, FRAME_W / 2.0, 42.0 - 12.0),
         // PaperDollFrame.xml:431,455,467: level line below the right-pane sidebar tabs.
         ActiveSkin::Forever => (16.0, 398.0 + 233.0 / 2.0, 54.0),
@@ -713,7 +713,7 @@ fn level_text(line: &LevelLine) -> Element {
     };
     let (level_w, class_w) = (measure(&line.level), measure(&line.class_text));
     let start = center - (level_w + class_w) / 2.0;
-    let (line_h, mut children) = match active_skin() {
+    let (line_h, mut children) = match thread_skin() {
         ActiveSkin::Modern => (24.0, Element::default()),
         ActiveSkin::Forever => {
             let art = art::resolve_art("UI-Character-Info-ItemLevel-Bounce");
@@ -811,7 +811,7 @@ fn item_level_frames(item_level: &str, y: f32) -> Element {
     );
     let frame_x = stats_x + (stats_w - 187.0) / 2.0;
     let frame_y = y + 40.0;
-    let color = match active_skin() {
+    let color = match thread_skin() {
         ActiveSkin::Modern => "1.0,1.0,1.0,0.3",
         ActiveSkin::Forever => WHITE, // Camelot CharacterFrame.xml:507 has no alpha override.
     };
@@ -840,7 +840,7 @@ fn item_level_frames(item_level: &str, y: f32) -> Element {
 /// (`GameFontNormalSmall`) LEFT 11, `Value` (`GameFontHighlightSmall`) RIGHT -8, and the
 /// `UI-Character-Info-Line-Bounce` band (alpha 0.3) behind every second line.
 fn stat_lines(lines: &[StatLine], first: usize, top: f32, gap: f32) -> Element {
-    let size = match active_skin() {
+    let size = match thread_skin() {
         ActiveSkin::Modern => 10.0,
         ActiveSkin::Forever => 12.0, // Camelot CharacterFrame.xml:112,117; shared Fonts.xml:277.
     };
@@ -848,7 +848,7 @@ fn stat_lines(lines: &[StatLine], first: usize, top: f32, gap: f32) -> Element {
     let x = stats_x + (stats_w - 187.0) / 2.0;
     let art = art::resolve_art("UI-Character-Info-Line-Bounce");
     let (w, h) = art.size();
-    let color = match active_skin() {
+    let color = match thread_skin() {
         ActiveSkin::Modern => "1.0,1.0,1.0,0.3",
         ActiveSkin::Forever => WHITE, // Camelot CharacterFrame.xml:105 has no alpha override.
     };
@@ -886,7 +886,7 @@ fn stat_lines(lines: &[StatLine], first: usize, top: f32, gap: f32) -> Element {
 /// `GameFontHighlight` title CENTER 0,1.
 fn category(name: &str, title: &str, x: f32, y: f32) -> Element {
     let art = art::resolve_art("UI-Character-Info-Title");
-    let width = match active_skin() {
+    let width = match thread_skin() {
         ActiveSkin::Modern => 196.0,
         ActiveSkin::Forever => 197.0, // Camelot CharacterFrame.xml:83-90, both anchors.
     };
@@ -896,7 +896,7 @@ fn category(name: &str, title: &str, x: f32, y: f32) -> Element {
         (x, y, width, 40.0),
         WHITE,
     );
-    let font_size = match active_skin() {
+    let font_size = match thread_skin() {
         ActiveSkin::Modern => 13.0,
         ActiveSkin::Forever => 12.0, // GameFontHighlight, shared Fonts.xml:277.
     };
@@ -990,7 +990,7 @@ fn slot_icon(button: &PaperDollButton, view: &PaperDollSlotView) -> Element {
 /// Currency tab stays hidden (CF.xml): `ToggleTokenFrame` opens nothing while
 /// `C_CurrencyInfo.GetCurrencyListSize() <= 0` (CharacterFrame.lua:67-73).
 fn tabs(selected: CharacterTab) -> Element {
-    if active_skin() == ActiveSkin::Forever {
+    if thread_skin() == ActiveSkin::Forever {
         return forever_tabs(selected);
     }
     let top = FRAME_H - 2.0;

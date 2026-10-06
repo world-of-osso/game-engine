@@ -802,7 +802,7 @@ impl GameClient {
         if let (Some(state), Some(id)) = (target.as_mut(), target_id) {
             // Preserve Modern's existing reaction strip; Forever reuses the same
             // faction-template lookup already used for the target aura view.
-            if ui_toolkit::atlas::active_skin() == ui_toolkit::atlas::ActiveSkin::Forever {
+            if ui_toolkit::atlas::thread_skin() == ui_toolkit::atlas::ActiveSkin::Forever {
                 state.reaction = Some(self.reaction_to(id));
             }
             self.fill_target_auras(state, id);
@@ -814,14 +814,14 @@ impl GameClient {
                 SmallUnitFrameState::from(&target_frame_state(unit, viewer_level, 1.0, &texts))
             });
         if let (Some(state), Some(id)) = (target_of_target.as_mut(), target_of_target_id)
-            && ui_toolkit::atlas::active_skin() == ui_toolkit::atlas::ActiveSkin::Forever
+            && ui_toolkit::atlas::thread_skin() == ui_toolkit::atlas::ActiveSkin::Forever
         {
             state.reaction = Some(self.reaction_to(id));
         }
         let mut focus =
             focus_frame_state(&self.replica, self.targeting.focus, viewer_level, &texts);
         if let (Some(state), Some(id)) = (focus.as_mut(), self.targeting.focus)
-            && ui_toolkit::atlas::active_skin() == ui_toolkit::atlas::ActiveSkin::Forever
+            && ui_toolkit::atlas::thread_skin() == ui_toolkit::atlas::ActiveSkin::Forever
         {
             state.reaction = Some(self.reaction_to(id));
         }

@@ -264,7 +264,7 @@ fn load_file(path: &str) -> Result<Option<Gd<ImageTexture>>, String> {
 }
 
 /// Decoded source image and the pixel region `[x, y, w, h]` an atlas name selects under
-/// the active skin (`atlas::active_skin`); `Ok(None)` while its file loads.
+/// the active skin (`atlas::thread_skin`); `Ok(None)` while its file loads.
 pub fn load_source(
     source: &TextureSource,
     registry: &FrameRegistry,

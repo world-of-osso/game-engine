@@ -98,7 +98,7 @@ impl PartyPortraits {
         binding: &Binding,
         appearance: Option<UnitAppearance>,
     ) -> Result<(), String> {
-        let slot = party_portrait_slot(binding.index, ui_toolkit::atlas::active_skin());
+        let slot = party_portrait_slot(binding.index, ui_toolkit::atlas::thread_skin());
         let member = self
             .members
             .entry(binding.name.clone())
