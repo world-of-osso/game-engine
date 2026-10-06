@@ -861,26 +861,31 @@ func face_direction(want: float) -> void:
 	# Key turning is 2.5 rad/s: one slow frame can already exceed the tolerance.
 	# Calibrate real right-drag input from the camera's observed one-pixel response.
 	var point := Vector2(root.size.x * 0.7, root.size.y * 0.1)
-	var button := InputEventMouseButton.new()
-	button.position = point
-	button.global_position = point
-	button.button_index = MOUSE_BUTTON_RIGHT
-	button.button_mask = MOUSE_BUTTON_MASK_RIGHT
-	button.pressed = true
-	root.push_input(button, true)
-	var before: float = client.account_state().camera_yaw
-	await drag_turn(point, 1.0)
-	var after: float = client.account_state().camera_yaw
-	var sensitivity := wrapf(before - after, -PI, PI)
-	if abs(sensitivity) > 0.000001:
-		await drag_turn(point, -wrapf(want - (after + PI), -PI, PI) / sensitivity)
-	button = button.duplicate() as InputEventMouseButton
-	button.pressed = false
-	button.button_mask = 0
-	root.push_input(button, true)
-	await frames(2)
-	if abs(sensitivity) <= 0.000001 or abs(wrapf(want - yaw(), -PI, PI)) >= 0.15:
-		fail("Mouse steering failed: sensitivity=%s want=%s facing=%s" % [sensitivity, want, yaw()])
+	for attempt in range(3):
+		# Settle hover first; a native frame closing this tick can consume the press.
+		await drag_turn(point, 0.0)
+		var button := InputEventMouseButton.new()
+		button.position = point
+		button.global_position = point
+		button.button_index = MOUSE_BUTTON_RIGHT
+		button.button_mask = MOUSE_BUTTON_MASK_RIGHT
+		button.pressed = true
+		root.push_input(button, true)
+		var before: float = client.account_state().camera_yaw
+		await drag_turn(point, 1.0)
+		var after: float = client.account_state().camera_yaw
+		var sensitivity := wrapf(before - after, -PI, PI)
+		if abs(sensitivity) > 0.000001:
+			await drag_turn(point, -wrapf(want - (after + PI), -PI, PI) / sensitivity)
+		button = button.duplicate() as InputEventMouseButton
+		button.pressed = false
+		button.button_mask = 0
+		root.push_input(button, true)
+		await frames(2)
+		if abs(sensitivity) > 0.000001 and abs(wrapf(want - yaw(), -PI, PI)) < 0.15:
+			return
+		print("FIXTURE TURN_INPUT_RETRY ", attempt, " sensitivity=", sensitivity, " want=", want, " facing=", yaw())
+	fail("Mouse steering failed after three presses: want=%s facing=%s" % [want, yaw()])
 
 func drag_turn(point: Vector2, pixels: float) -> void:
 	var motion := InputEventMouseMotion.new()
