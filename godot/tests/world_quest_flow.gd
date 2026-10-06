@@ -118,7 +118,7 @@ func run_test() -> void:
 		return
 	if not await enter_world():
 		return
-	var steps := [check_pickup, check_map_objectives, check_kills, check_turn_in, check_abandon, check_exploration, check_reward_choice, check_fixed_reward]
+	var steps := [check_pickup, check_progress, check_map_objectives, check_kills, check_turn_in, check_abandon, check_exploration, check_reward_choice, check_fixed_reward]
 	# QF_STEPS (comma-separated method names) reruns a subset on a prepared character.
 	if OS.get_environment("QF_STEPS") != "":
 		steps = Array(OS.get_environment("QF_STEPS").split(",")).map(func(name): return Callable(self, name))
@@ -179,6 +179,15 @@ func check_pickup() -> bool:
 	await capture("04-accepted.png")
 	print("FIXTURE ACCEPTED ", log_entry(client.quest_state(), QUEST))
 	return true
+
+func check_progress() -> bool:
+	if not await open_quest(GIVER_AT, GIVER, QUEST_TITLE):
+		return false
+	if not await wait_quest(func(s): return s.get("page") == "Progress" and s.quest_id == QUEST, "incomplete quest progress page"):
+		return false
+	await capture("04b-progress.png")
+	await tap(KEY_ESCAPE)
+	return await wait_quest(func(s): return not s.frame_open, "progress page closed")
 
 func check_map_objectives() -> bool:
 	await tap(KEY_M)
