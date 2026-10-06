@@ -776,7 +776,10 @@ pub fn parse_layout_action(action: &str) -> Option<LayoutAction> {
 pub fn apply_layout_action(action: LayoutAction, layout: &mut LayoutOptionsView) {
     match action {
         LayoutAction::Select(_) => {}
-        LayoutAction::System(system) => layout.system = system,
+        LayoutAction::System(system) => {
+            layout.system = system;
+            layout.party_dropdown = None;
+        }
         LayoutAction::Font(font) => {
             if let Some(frame) = unit_frame_settings(&mut layout.settings, layout.system) {
                 frame.font = Some(font);

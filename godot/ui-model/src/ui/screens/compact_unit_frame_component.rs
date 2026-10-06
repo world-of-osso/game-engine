@@ -374,17 +374,14 @@ fn party_debuffs(
         .enumerate()
         .flat_map(|(index, aura)| {
             let (x, y) = match organization {
-                PartyAuraOrganization::Legacy => (
+                PartyAuraOrganization::Legacy | PartyAuraOrganization::BuffsRight => (
                     AURA_X + (index % AURAS_PER_ROW) as f32 * size,
                     height - AURA_BOTTOM - POWER_H - (index / AURAS_PER_ROW + 1) as f32 * size,
                 ),
                 PartyAuraOrganization::BuffsTop => (
-                    width - 3.0 - (index + 1) as f32 * size,
-                    height - POWER_H - 2.0 - size,
+                    width - AURA_X - (index % AURAS_PER_ROW + 1) as f32 * size,
+                    height - AURA_BOTTOM - POWER_H - (index / AURAS_PER_ROW + 1) as f32 * size,
                 ),
-                PartyAuraOrganization::BuffsRight => {
-                    (3.0, height - POWER_H - 2.0 - (index + 1) as f32 * size)
-                }
             };
             let mut icon = debuff_icon(&format!("{name}Debuff{}", index + 1), aura, (0.0, 0.0));
             super::group_frames_component::resize_party_member(
@@ -417,13 +414,12 @@ fn party_buffs(
         .enumerate()
         .flat_map(|(index, fdid)| {
             let (x, y) = match organization {
-                PartyAuraOrganization::Legacy => (
-                    width - 3.0 - (index % 3 + 1) as f32 * size,
-                    height - POWER_H - 2.0 - (index / 3 + 1) as f32 * size,
+                PartyAuraOrganization::Legacy | PartyAuraOrganization::BuffsRight => (
+                    width - AURA_X - (index % AURAS_PER_ROW + 1) as f32 * size,
+                    height - POWER_H - AURA_BOTTOM - (index / AURAS_PER_ROW + 1) as f32 * size,
                 ),
-                PartyAuraOrganization::BuffsTop => (3.0 + index as f32 * size, 2.0),
-                PartyAuraOrganization::BuffsRight => {
-                    (width - 3.0 - size, 2.0 + index as f32 * size)
+                PartyAuraOrganization::BuffsTop => {
+                    (width - AURA_X - (index + 1) as f32 * size, 3.0)
                 }
             };
             aura_texture(format!("{name}Buff{}", index + 1), *fdid, (x, y, size))
@@ -432,6 +428,7 @@ fn party_buffs(
     if let Some(fdid) = auras.defensive {
         let size = AURA_SIZE
             * 2.0
+            * component_scale((width, height))
             * f32::from(PARTY_DEFENSIVE_RANGE.clamp(settings.defensive_size.unwrap_or(75)))
             / 100.0;
         icons.extend(aura_texture(
