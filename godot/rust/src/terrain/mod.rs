@@ -19,6 +19,10 @@ mod wmo_liquid;
 
 use std::fs;
 
+/// Loading has no interactive world to protect. Amortize slow rendered frames
+/// over more resource work; in-world streaming retains each system's small budget.
+const LOADING_RESOURCE_BUDGET: std::time::Duration = std::time::Duration::from_millis(64);
+
 use game_engine_core::adt::{self, Chunk, Geometry};
 use godot::{
     classes::{ArrayMesh, MeshInstance3D, Node3D, ProjectSettings, RefCounted, mesh},

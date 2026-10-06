@@ -84,7 +84,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
-- [Stormwind loading](investigations/stormwind-loading.md) — Measured tile-wide gate overreach; local spatial prerequisites with retained distant streaming.
+- [Stormwind loading](investigations/stormwind-loading.md) — Spatial entry gate, rendered per-phase instrumentation and loading-only resource slices; retained distant streaming.
 
 - [character-preview-double-free](investigations/character-preview-double-free.md) — exact `gd.rs:911` teardown reproduction, preview-before-UI ownership fix, and process/reconnect free-site audit.
 

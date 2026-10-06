@@ -24,6 +24,16 @@ The corrected private-server headless fixture (`da4d06a6`, same Rust code) enter
 
 Two spatial-progress tests, six native loading tests and one real-asset WMO-extent test passed through the locked local helper. Extension/CLI build had no compiler warnings; changed Rust packages passed formatting. Existing spell-attachment errors and ObjectDB/texture/font shutdown leaks remain outside this loading fix; acceptance is not a clean-resource-lifetime claim. All owned PIDs were gone, `agents-swload.slice` stopped, UDP 5280 free, and the shared UDP 5000 server PID unchanged after cleanup.
 
+## Rendered-frame scheduling follow-up (October 6, 2026)
+
+The isolated `swload2` account on UDP 5286 and Weston `sw10`, at the same Trade District position and 1920×1080 Dozen Vulkan setup, reached InWorld in **37.788 s**, with first rendered frame at **38.315 s**, before the scheduling change. All **494/494** local placements were ready, collision pending and failures were zero. This is a new warm baseline, not a reproduction of the earlier 80.744-second host/cache state.
+
+Entry frame callbacks totalled **8.826 s** across 197 measured frames; object processing took **2.677 s** and terrain resource processing **2.703 s**. The three WMO builds consumed 130 slices despite only 1.331 s inside their build steps. Both systems allocated only 8 ms of resource work per rendered frame. Sampled viewport GPU median was 27.6 ms (maximum 76.3 ms), while many whole frame intervals were much longer. Repeated tiny work slices amplify rendered-frame latency; worker parse/decode and shader-resource setup are separately instrumented, not inferred from placement time.
+
+Terrain and object resource construction now share a **64-ms loading slice**, with one deadline covering each call and its WMO/chunk continuations. Clearing loading focus/terrain priorities restores the original interactive budgets. No local prerequisites, WMO batches or queued distant placements are removed. The owned-server fixture `godot/tests/stormwind_entry_profile.gd` verifies local readiness, zero failures and continued distant streaming, records first-draw time separately, and collects viewport CPU/GPU time and pipeline compilation counters. After-change timing remains pending until the new native build is measured.
+
+Evidence: `data/diagnostics/swload2-2026-10-06/`. Phase spans measure API wall time and calling-thread scheduled CPU time; uploads and shader setup do not isolate deferred GPU/driver execution. Nested phase totals overlap and must not be added as independent wall-time components.
+
 ## Proof
 
 Baseline samples, profile summary, argv, server setup and logs: `data/diagnostics/swload-2026-10-05/`. Automated coverage includes dynamic child discovery, moved-player requirements, inclusive boundaries, duplicate completion, tile-edge coverage, and `godot/tests/stormwind_loading.gd` for real private-server entry with nonzero distant pending and eventual drain. Before/after rendered and headless proof must be interpreted separately.

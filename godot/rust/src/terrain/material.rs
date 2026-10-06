@@ -75,7 +75,8 @@ impl TerrainMaterials {
         &self.failures
     }
 
-    /// Build the GPU resources of parsed tiles within `TERRAIN_BUDGET` per frame, the
+    /// Build GPU resources with the loading budget while priority tiles are set,
+    /// otherwise `TERRAIN_BUDGET` per frame. Build the
     /// tiles the map request started from first; a tile attaches once all its chunks
     /// are built.
     pub fn sync(
@@ -83,12 +84,17 @@ impl TerrainMaterials {
         parent: &mut Gd<Node3D>,
         terrain: &StreamedTerrain,
     ) -> Result<(), String> {
-        let started = Instant::now();
-        while started.elapsed() < TERRAIN_BUDGET {
+        let budget = if self.priority.is_empty() {
+            TERRAIN_BUDGET
+        } else {
+            super::LOADING_RESOURCE_BUDGET
+        };
+        let deadline = Instant::now() + budget;
+        while Instant::now() < deadline {
             let Some(tile) = self.next_tile(terrain) else {
                 break;
             };
-            let node = match self.build_tile(tile, &terrain.parsed_tiles[&tile], started) {
+            let node = match self.build_tile(tile, &terrain.parsed_tiles[&tile], deadline) {
                 Ok(Some(node)) => node,
                 Ok(None) => break,
                 Err(error) => {
@@ -176,13 +182,13 @@ impl TerrainMaterials {
         Ok(shader)
     }
 
-    /// Build more of `tile`'s chunks until the frame's budget, counted from `started`, is
-    /// spent; the tile node once every chunk is built.
+    /// Build more of `tile`'s chunks until the frame's deadline;
+    /// return the tile node once every chunk is built.
     fn build_tile(
         &mut self,
         tile: Tile,
         parsed: &NativeTerrainTile,
-        started: Instant,
+        deadline: Instant,
     ) -> Result<Option<Gd<Node3D>>, String> {
         let tex = parsed.tex.as_ref().ok_or("Missing texture companion")?;
         if tex.chunk_layers.len() != parsed.root.chunks.len() {
@@ -198,7 +204,7 @@ impl TerrainMaterials {
             chunks: Vec::new(),
             next: 0,
         });
-        let Some(build) = self.build_tile_chunks(tile, build, parsed, tex, &shader, started)?
+        let Some(build) = self.build_tile_chunks(tile, build, parsed, tex, &shader, deadline)?
         else {
             return Ok(None);
         };
@@ -212,12 +218,12 @@ impl TerrainMaterials {
         parsed: &NativeTerrainTile,
         tex: &adt::AdtTexData,
         shader: &Gd<Shader>,
-        started: Instant,
+        deadline: Instant,
     ) -> Result<Option<TileBuild>, String> {
         // Texture chunks are stored by encounter order, not by root chunk coordinates.
         let chunks = parsed.root.chunks.iter().zip(&tex.chunk_layers);
         for (chunk, layers) in chunks.skip(build.next) {
-            if started.elapsed() >= TERRAIN_BUDGET {
+            if Instant::now() >= deadline {
                 self.building = Some(build);
                 return Ok(None);
             }
