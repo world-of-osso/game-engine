@@ -83,6 +83,8 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [character-preview-double-free](investigations/character-preview-double-free.md) — exact `gd.rs:911` teardown reproduction, preview-before-UI ownership fix, and process/reconnect free-site audit.
+
 - [godot-inworld-frame-time](investigations/godot-inworld-frame-time.md) — steady-state in-world frame benchmark; main thread CPU-bound in Godot's renderer; `9cf5cc0b` sets only changed M2 material-animation inputs (Stormwind idle p50 77 → 37 ms); remaining draw-call and skinned-AABB leads.
 - [godot-cold-import-crash](investigations/godot-cold-import-crash.md) — fresh-checkout `godot --import` crashes 134/139 intermittently: threaded `.glsl` imports race on ClassDB's unlocked default-value cache (godotengine/godot#111039); pin adds PR #123546, 0/40 vs 3/20.
 - [godot-wayland-exit-hang](investigations/godot-wayland-exit-hang.md) — client never exits after `quit()` (exit 124): Godot 4.7.2 `WaylandThread::destroy()` wakes its events thread with a racy roundtrip (godotengine/godot#123059); PR #123946 patch 0/180 vs 14/190 hangs; launcher pins the patched build (0/120).
