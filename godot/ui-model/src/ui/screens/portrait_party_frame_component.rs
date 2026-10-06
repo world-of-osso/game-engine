@@ -28,11 +28,19 @@ const RETAIL_HEALTH: &str = "UI-HUD-UnitFrame-Party-PortraitOn-Bar-Health";
 // Forever-only set-0 records are not ingested by the shared atlas-name loader.
 // Exact 1x source crops, not replacement art; provenance and retirement in the wiki.
 const CHARACTER_SHEET: u32 = 4_631_591;
+// Same FDID as Retail, different layout. Local 70205 bytes match these 69913 crops.
+const CAMELOT_SHEET_FILE: &str = "data/forever-1.60.1.70205/textures/4631591.blp";
 const CHARACTER_SHEET_SIZE: (f32, f32) = (1024.0, 512.0);
 const CAMELOT_HEALTH: AtlasArt = art(
     CHARACTER_SHEET,
     CHARACTER_SHEET_SIZE,
     (195.0, 266.0, 340.0, 350.0),
+);
+// ToCharacterStyleArt:106 selects the player mana fill, not the party mana crop.
+const CAMELOT_MANA: AtlasArt = art(
+    CHARACTER_SHEET,
+    CHARACTER_SHEET_SIZE,
+    (815.0, 939.0, 326.0, 336.0),
 );
 const PORTRAIT_NAMES: [&str; MAX_MEMBERS] = [
     "PartyMemberFrame1Portrait",
@@ -217,7 +225,7 @@ fn member_health_bar(root: &str, fraction: f32, text: &StatusBarText, skin: Acti
     };
     match skin {
         ActiveSkin::Modern => status_bar(spec),
-        ActiveSkin::Forever => cropped_status_bar(spec, CAMELOT_HEALTH),
+        ActiveSkin::Forever => cropped_status_bar(spec, CAMELOT_HEALTH, CAMELOT_SHEET_FILE),
     }
 }
 
@@ -238,13 +246,14 @@ fn member_power_bar(root: &str, view: &PortraitPartyMemberView, skin: ActiveSkin
         hidden: false,
     };
     match (skin, character_power_art(view.power_type)) {
-        (ActiveSkin::Forever, Some(art)) => cropped_status_bar(spec, art),
+        (ActiveSkin::Forever, Some(art)) => cropped_status_bar(spec, art, CAMELOT_SHEET_FILE),
         _ => status_bar(spec),
     }
 }
 
 fn character_power_art(power: PowerType) -> Option<AtlasArt> {
     let (top, bottom) = match power {
+        PowerType::Mana => return Some(CAMELOT_MANA),
         PowerType::Energy => (436.0, 443.0),
         PowerType::Focus => (445.0, 452.0),
         PowerType::Rage => (472.0, 479.0),
@@ -268,8 +277,6 @@ fn party_power_atlas(power: PowerType, skin: ActiveSkin) -> Option<&'static str>
         (ActiveSkin::Modern, RunicPower) => {
             Some("UI-HUD-UnitFrame-Party-PortraitOn-Bar-RunicPower")
         }
-        // ToCharacterStyleArt:106 explicitly selects the player mana fill.
-        (ActiveSkin::Forever, Mana) => power_bar_atlas(Mana),
         // UnitFrameManaBar_UpdateType uses info.atlas for these spec powers.
         (_, LunarPower | Maelstrom | Insanity | Fury | Pain) => power_bar_atlas(power),
         _ => None,
