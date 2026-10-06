@@ -12,7 +12,7 @@ The fix resets the preview before freeing either UI parent. `ModelPreview::reset
 
 ## Free-site audit
 
-Audit baseline: `d7c05ba7`, all `.free()` calls in `godot/rust/src`, including allocation/error paths reached through frame actions, account events, replication, world rebuilds and native IPC. Line numbers below refer to that baseline; debug scenes with their own process callbacks were inspected separately, not treated as GameClient world state.
+Audit baseline: `d7c05ba7`, all 144 `.free()` calls in `godot/rust/src`, including allocation/error paths reached through frame actions, account events, replication, world rebuilds and native IPC. Line numbers below refer to that baseline; debug scenes with their own process callbacks were inspected separately, not treated as GameClient world state.
 
 | Sites (Rust paths relative to `godot/rust/src`) | Ownership result |
 |---|---|
@@ -38,7 +38,7 @@ Existing validity checks on spell effects, sounds, targeting rings and portraits
 
 RED: baseline plus probe compiled through the locked local Depot helper. Headless Godot 4.7.2 / godot-rust 0.5.5 emitted exactly `gd.rs:911 called free() on already destroyed object` from the first reset. A Rust panic aborts the GDScript call; the initial fixture lacked a watchdog and was bounded by the runner timeout. The retained fixture adds a watchdog so a future panic terminates the test explicitly.
 
-GREEN: pending verification after the fix commit. The three-hour suspend and live network reconnect are not replayed: only the proven native ownership failure boundary is reproduced. This fixture uses the available trial Godot binary (`4.7.2.stable.pr123946`), not the unavailable doubly patched launcher pin; neither rendering nor compositor behavior is part of this test.
+GREEN at `dc7f80b9`: changed-file `cargo fmt --check`, locked local Depot extension build, and headless regression each exited 0. All three attachment cycles destroyed the UI and every observed descendant; repeated reset and reattachment across process frames passed without engine errors or Rust panics. Logs: `/tmp/claude/freepanic-red.out` and `/tmp/claude/freepanic.out`. The three-hour suspend and live network reconnect are not replayed: only the proven native ownership failure boundary is reproduced. This fixture uses the available trial Godot binary (`4.7.2.stable.pr123946`), not the unavailable doubly patched launcher pin; neither rendering nor compositor behavior is part of this test.
 
 ## Sources
 
