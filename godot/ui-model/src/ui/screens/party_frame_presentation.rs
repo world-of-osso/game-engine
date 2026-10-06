@@ -55,7 +55,8 @@ pub fn party_chrome(name: &str, width: f32, height: f32, settings: PartyFrameSet
     }
     r#frame {
         name: {DynName(format!("{name}SettingsBorder"))}, width, height,
-        hidden: { !settings.border.unwrap_or(false) }, border: "1,0.5,0.5,0.5,1",
+        hidden: { !settings.border.unwrap_or(false) }, border: "1px solid 0.5,0.5,0.5,1",
+        frame_level: 10.0,
         pos_type: "absolute", left: 0.0, top: 0.0,
     } }
 }

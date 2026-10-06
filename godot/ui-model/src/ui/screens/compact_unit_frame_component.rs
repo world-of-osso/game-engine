@@ -124,29 +124,34 @@ pub fn party_unit_frame(
     let mut frame = compact_frame(name, view, rect, settings, auras);
     if settings.show_pets.unwrap_or(false) && view.status != UnitStatus::Offline {
         if let Some(pet) = pet {
-            let pet_view = CompactUnitView {
-                name: format!("{} Pet", view.name),
-                health_fraction: Some(pet.health_fraction),
-                power: None,
-                status: if pet.dead {
-                    UnitStatus::Dead
-                } else {
-                    UnitStatus::Online
-                },
-                debuffs: Vec::new(),
-                ready: None,
-                ..view.clone()
-            };
-            frame.extend(compact_frame(
+            frame.extend(compact_pet_frame(
                 &format!("{name}Pet"),
-                &pet_view,
+                pet,
                 (rect.0 + rect.2, rect.1, rect.2 * 0.5, rect.3 * 0.5),
-                settings,
-                None,
             ));
         }
     }
     frame
+}
+
+fn compact_pet_frame(
+    name: &str,
+    pet: &crate::portrait_party_frame_component::PortraitPartyPetView,
+    (x, y, width, height): Rect,
+) -> Element {
+    let fill_width = (width - 2.0) * pet.health_fraction.clamp(0.0, 1.0);
+    rsx! { r#frame {
+        name: {DynName(name.to_string())}, width, height,
+        strata: FrameStrata::Low, pos_type: "absolute", pos_x: x, pos_y: y,
+        {art_texture(format!("{name}Background"), BACKGROUND, (0.0, 0.0, width, height), BACKGROUND_RGB, false)}
+        {art_texture(format!("{name}HealthBar"), HEALTH_FILL, (1.0, 1.0, fill_width, height - 2.0), [0.0, 1.0, 0.0], fill_width <= 0.0)}
+        fontstring {
+            name: {DynName(format!("{name}Name"))}, width: {width - 4.0}, height: {height - 2.0},
+            text: {if pet.dead { "Dead" } else { "Pet" }}, font: GameFont::FrizQuadrata,
+            font_size: 10.0, font_color: NAME_COLOR, justify_h: "CENTER",
+            pos_type: "absolute", pos_x: 2.0, pos_y: 1.0,
+        }
+    } }
 }
 
 fn compact_frame(
