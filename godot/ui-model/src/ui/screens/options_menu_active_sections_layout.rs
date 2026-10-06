@@ -182,24 +182,32 @@ fn party_rows(layout: &LayoutOptionsView) -> Element {
         },
         layout.party_dropdown == Some(PartyDropdown::Aura),
     ));
-    rows.extend(party_size_row(
+    for (slider, label, value) in [
         (
             LayoutSlider::PartyDebuff,
             "Debuff Icon Size (%)",
-            f32::from(party.debuff_size.unwrap_or(100)),
+            party.debuff_size.unwrap_or(100),
         ),
         (
             LayoutSlider::PartyBuff,
             "Buff Icon Size (%)",
-            f32::from(party.buff_size.unwrap_or(100)),
+            party.buff_size.unwrap_or(100),
         ),
-    ));
-    rows.extend(slider_setting_cell(
-        LayoutSlider::PartyDefensive,
-        "Big Defensive Icon Size (%)",
-        f32::from(party.defensive_size.unwrap_or(75)),
-        &format!("{}%", party.defensive_size.unwrap_or(75)),
-    ));
+        (
+            LayoutSlider::PartyDefensive,
+            "Big Defensive Icon Size (%)",
+            party.defensive_size.unwrap_or(75),
+        ),
+    ] {
+        let range = slider.range();
+        rows.extend(slider_row(
+            &slider_key(SliderField::Layout(slider)),
+            label,
+            f32::from(range.clamp(value)),
+            f32::from(range.min),
+            f32::from(range.max),
+        ));
+    }
     rows
 }
 
