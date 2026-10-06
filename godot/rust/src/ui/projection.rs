@@ -1075,7 +1075,8 @@ fn update_multiline_edit(mut node: Gd<TextEdit>, text: &str) {
 fn move_multiline_caret_to_end(node: &mut Gd<TextEdit>) {
     let last_line = node.get_line_count() - 1;
     node.set_caret_line(last_line);
-    node.set_caret_column(node.get_line(last_line).len() as i32);
+    let column = node.get_line(last_line).to_string().chars().count() as i32;
+    node.set_caret_column(column);
 }
 
 fn read_limited_multiline_text(node: &mut Gd<TextEdit>, max_letters: Option<u32>) -> String {
