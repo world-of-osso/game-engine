@@ -137,18 +137,18 @@ fn forever_plate_level_frame_draws_the_camelot_level_indicator_atlases() {
         }
     );
     let sheet = [64.0, 64.0];
-    let art = |name| skin_art(name, ActiveSkin::Forever).unwrap();
+    let art = |name| level_art_crop(name, ActiveSkin::Forever).unwrap();
     assert_eq!(
         art(atlases.icon),
-        crop(8_165_538, sheet, [1.0, 16.0, 45.0, 60.0])
+        crop(8_165_538, sheet, [27.0, 45.0, 45.0, 63.0])
     );
     assert_eq!(
         art(atlases.selected),
-        crop(8_165_538, sheet, [1.0, 19.0, 25.0, 43.0])
+        crop(8_165_538, sheet, [29.0, 47.0, 25.0, 43.0])
     );
     assert_eq!(
         art(atlases.skull),
-        crop(8_165_538, sheet, [21.0, 47.0, 25.0, 51.0])
+        crop(8_165_538, sheet, [1.0, 27.0, 25.0, 51.0])
     );
 }
 
@@ -167,11 +167,11 @@ fn forever_level_frame_hangs_on_the_shortened_health_bars_right_end() {
         }
     );
     let plate = plate_layout(&style, 1.0, 28.0);
-    // 160×20 body centred on -14: the fill spans -94..66; the Thick frame adds 10×4.
-    assert_eq!(plate.fill.position, Vector2::new(-94.0, -9.5));
-    assert_eq!(plate.fill.size, Vector2::new(160.0, 19.0));
-    assert_eq!(plate.frame.position, Vector2::new(-98.0, -12.5));
-    assert_eq!(plate.frame.size, Vector2::new(170.0, 24.0));
+    // 160×20 body centred on -14: fill spans -94..66, abutting the 1px frame.
+    assert_eq!(plate.fill.position, Vector2::new(-94.0, -10.0));
+    assert_eq!(plate.fill.size, Vector2::new(160.0, 20.0));
+    assert_eq!(plate.frame.position, Vector2::new(-95.0, -11.0));
+    assert_eq!(plate.frame.size, Vector2::new(162.0, 22.0));
     assert_eq!(plate.fill.end().x, level_layout(&style).frame.position.x);
     // The texts keep to the shortened body: the health text ends 2px left of the frame.
     assert_eq!(
@@ -218,4 +218,122 @@ fn modern_plate_has_no_level_frame() {
             health_right: Vector2::new(92.0, 0.0),
         }
     );
+}
+
+fn decode_rgba(bytes: &[u8]) -> (png::OutputInfo, Vec<u8>) {
+    let mut reader = png::Decoder::new(std::io::Cursor::new(bytes))
+        .read_info()
+        .unwrap();
+    let mut pixels = vec![0; reader.output_buffer_size()];
+    let info = reader.next_frame(&mut pixels).unwrap();
+    pixels.truncate(info.buffer_size());
+    (info, pixels)
+}
+
+#[test]
+fn forever_health_gradient_has_reference_stops_without_a_fill_border() {
+    for thick in [false, true] {
+        let (info, pixels) = decode_rgba(health_fill_bytes(ActiveSkin::Forever, thick));
+        let stride = info.width as usize * 4;
+        for row in pixels.chunks_exact(stride) {
+            assert_eq!(&row[..4], &[74, 74, 74, 255]);
+            assert_eq!(&row[stride - 4..], &[144, 144, 144, 255]);
+        }
+    }
+}
+
+#[test]
+fn forever_health_edge_is_one_pixel_and_fill_reaches_it() {
+    use game_engine_core::nameplate_style_data::NameplateBarThickness::{Thick, Thin};
+    for preset in [Thick, Thin] {
+        let style = NameplateStyle::from_presets(preset, preset);
+        let plate = plate_layout(&style, 1.0, LEVEL_INDICATOR_WIDTH);
+        assert_eq!(plate.fill.size, Vector2::new(160.0, style.health_height));
+        assert_eq!(plate.fill.position - plate.frame.position, Vector2::ONE);
+        assert_eq!(plate.frame.end() - plate.fill.end(), Vector2::ONE);
+        let (info, pixels) = decode_rgba(health_frame_bytes(ActiveSkin::Forever, preset == Thick));
+        assert_eq!((info.width, info.height), (3, 3));
+        for (index, pixel) in pixels.chunks_exact(4).enumerate() {
+            assert_eq!(
+                pixel,
+                if index == 4 {
+                    &[0, 0, 0, 0]
+                } else {
+                    &[63, 84, 104, 255]
+                }
+            );
+        }
+    }
+}
+
+#[test]
+fn nameplate_level_one_dummy_is_known_boss_and_plus_eleven_are_unknown() {
+    use shared::components::Npc;
+    let mut replica = Replica::for_tests();
+    replica.insert(1, UnitLevel(1));
+    replica.insert(1, CreatureClassification::Normal);
+    replica.insert(
+        1,
+        Npc {
+            template_id: 44548,
+            name: "Training Dummy".into(),
+        },
+    );
+    assert_eq!(
+        displayed_plate_level(replica.unit(1).unwrap(), Some(40)),
+        Some(1)
+    );
+    replica.insert(1, CreatureClassification::Elite);
+    assert_eq!(
+        displayed_plate_level(replica.unit(1).unwrap(), Some(40)),
+        Some(1)
+    );
+    replica.insert(1, CreatureClassification::WorldBoss);
+    assert_eq!(
+        displayed_plate_level(replica.unit(1).unwrap(), Some(40)),
+        Some(0)
+    );
+    replica.insert(1, CreatureClassification::Normal);
+    replica.insert(1, UnitLevel(50));
+    assert_eq!(
+        displayed_plate_level(replica.unit(1).unwrap(), Some(40)),
+        Some(50)
+    );
+    replica.insert(1, UnitLevel(51));
+    assert_eq!(
+        displayed_plate_level(replica.unit(1).unwrap(), Some(40)),
+        Some(0)
+    );
+    replica.remove::<UnitLevel>(1);
+    assert_eq!(
+        displayed_plate_level(replica.unit(1).unwrap(), Some(40)),
+        None
+    );
+}
+
+#[test]
+fn forever_selected_level_border_does_not_draw_skull_pixels() {
+    load_atlas_tables();
+    let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let selected = level_art_crop(
+        "ui-hud-nameplates-levelindicator-selected",
+        ActiveSkin::Forever,
+    )
+    .unwrap();
+    let bytes = std::fs::read(root.join(format!("textures/{}.blp", selected.fdid))).unwrap();
+    let art = game_engine_core::blp::decode_rgba(&bytes).unwrap();
+    let [left, right, top, bottom] = selected.tex_coords;
+    let width = ((right - left) * art.width as f32).round() as usize;
+    let height = ((bottom - top) * art.height as f32).round() as usize;
+    let left = (left * art.width as f32).round() as usize;
+    let top = (top * art.height as f32).round() as usize;
+    // The ring's central 2x2 is hollow. The stale crop puts the skull's face here.
+    for y in [height / 2 - 1, height / 2] {
+        for x in [width / 2 - 1, width / 2] {
+            assert_eq!(
+                art.pixels[((top + y) * art.width as usize + left + x) * 4 + 3],
+                0
+            );
+        }
+    }
 }

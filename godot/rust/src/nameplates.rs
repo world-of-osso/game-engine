@@ -18,16 +18,17 @@ use game_engine_core::nameplate_visibility_data::{
     selection_in_combat_is_hostile,
 };
 use game_engine_core::status_text_data::{abbreviate_large_numbers, percent};
-use game_engine_core::warband_scene_data::read_atlas_art;
+use game_engine_core::warband_scene_data::{AtlasArt, read_atlas_art};
 use game_engine_network::replica::{Replica, Unit as ReplicatedUnit};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::inworld_unit_frames_component::{
     RAID_TARGET_ICONS_FDID, raid_target_tex_coords,
 };
 use godot::{
+    builtin::Side,
     classes::{
         AtlasTexture, Camera3D, CanvasLayer, ColorRect, Control, Image, ImageTexture, Label,
-        PhysicsRayQueryParameters3D, TextureRect, control::MouseFilter,
+        NinePatchRect, PhysicsRayQueryParameters3D, TextureRect, control::MouseFilter,
         text_server::OverrunBehavior, texture_rect::ExpandMode, texture_rect::StretchMode,
     },
     prelude::*,
@@ -36,6 +37,7 @@ use shared::{
     casting::CastState,
     components::{CreatureClassification, Health, Player, UnitFlags, UnitLevel},
     faction_reaction::{Unit, can_attack},
+    level_scaling::{LevelScaling, level_for_viewer},
     protocol::RAID_TARGET_ICON_COUNT,
 };
 use ui_toolkit::atlas::{self, ActiveSkin};
@@ -98,7 +100,16 @@ struct HealthSkin {
     frame_blank: (f32, f32),
 }
 
-fn health_skin(thick: bool) -> HealthSkin {
+fn health_skin(thick: bool, forever: bool) -> HealthSkin {
+    if forever {
+        return HealthSkin {
+            fill_inset: 0.0,
+            fill_y: 0.0,
+            frame_margin: Vector2::splat(2.0),
+            frame_offset: Vector2::ZERO,
+            frame_blank: (0.0, 0.0),
+        };
+    }
     let (fill_inset, fill_y, margin, offset, blank) = if thick {
         (
             2.0,
@@ -167,7 +178,7 @@ enum PlateText {
 /// (`HealthBarsContainer` BOTTOMRIGHT `xOffset = -levelFrameWidth`,
 /// Blizzard_NamePlateUnitFrame.lua:701-707); a name above stays centred on the whole plate.
 fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> PlateLayout {
-    let skin = health_skin(thick_preset(style));
+    let skin = health_skin(thick_preset(style), level_width > 0.0);
     let body = Vector2::new(style.health_width - level_width, style.health_height);
     let frame_size = body + skin.frame_margin;
     // Bevy parity: the anchor is the centre of the health bars and level frame.
@@ -432,6 +443,28 @@ struct PlateArt {
     font: Gd<godot::classes::FontFile>,
 }
 
+fn health_frame_bytes(skin: ActiveSkin, thick: bool) -> &'static [u8] {
+    if skin == ActiveSkin::Forever {
+        return include_bytes!("rendering/ui/nameplate_skins/forever-health-edge.png");
+    }
+    if thick {
+        include_bytes!("rendering/ui/nameplate_skins/health-thick.png")
+    } else {
+        include_bytes!("rendering/ui/nameplate_skins/health-thin.png")
+    }
+}
+
+fn health_fill_bytes(skin: ActiveSkin, thick: bool) -> &'static [u8] {
+    if skin == ActiveSkin::Forever {
+        return include_bytes!("rendering/ui/nameplate_skins/forever-health-fill.png");
+    }
+    if thick {
+        include_bytes!("rendering/ui/nameplate_skins/health-fill-thick.png")
+    } else {
+        include_bytes!("rendering/ui/nameplate_skins/health-fill.png")
+    }
+}
+
 fn png_texture(bytes: &[u8], desaturate: bool) -> Result<Gd<ImageTexture>, String> {
     let mut image = Image::new_gd();
     let error = image.load_png_from_buffer(&PackedByteArray::from(bytes));
@@ -459,23 +492,15 @@ fn png_texture(bytes: &[u8], desaturate: bool) -> Result<Gd<ImageTexture>, Strin
 }
 
 impl PlateArt {
-    fn load() -> Result<Self, String> {
+    fn load(active_skin: ActiveSkin) -> Result<Self, String> {
         let _span = crate::profile::span(|| "nameplates.art".to_owned());
         let skin = |bytes: &[u8]| png_texture(bytes, false);
         let fill = |bytes: &[u8]| png_texture(bytes, true);
         Ok(Self {
-            thick_frame: skin(include_bytes!(
-                "rendering/ui/nameplate_skins/health-thick.png"
-            ))?,
-            thin_frame: skin(include_bytes!(
-                "rendering/ui/nameplate_skins/health-thin.png"
-            ))?,
-            thick_fill: fill(include_bytes!(
-                "rendering/ui/nameplate_skins/health-fill-thick.png"
-            ))?,
-            thin_fill: fill(include_bytes!(
-                "rendering/ui/nameplate_skins/health-fill.png"
-            ))?,
+            thick_frame: skin(health_frame_bytes(active_skin, true))?,
+            thin_frame: skin(health_frame_bytes(active_skin, false))?,
+            thick_fill: fill(health_fill_bytes(active_skin, true))?,
+            thin_fill: fill(health_fill_bytes(active_skin, false))?,
             font: crate::ui::assets::load_font(
                 ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
             )?,
@@ -490,9 +515,41 @@ struct LevelArt {
     skull: Gd<AtlasTexture>,
 }
 
+/// The cached c60 member table's selected crop contains a skull in this local BLP.
+/// Numeric crops of the actual sheet; provenance/retirement: nameplate-style.md.
+fn level_art_crop(name: &str, skin: ActiveSkin) -> Result<AtlasArt, String> {
+    if skin == ActiveSkin::Modern {
+        return skin_art(name, skin);
+    }
+    let pixels = match name {
+        "ui-hud-nameplates-levelindicator" => [27.0, 45.0, 45.0, 63.0],
+        "ui-hud-nameplates-levelindicator-selected" => [29.0, 47.0, 25.0, 43.0],
+        "ui-hud-nameplates-levelindicator-skull" => [1.0, 27.0, 25.0, 51.0],
+        _ => return Err(format!("Unknown Forever nameplate level art: {name}")),
+    };
+    Ok(AtlasArt {
+        fdid: 8_165_538,
+        tex_coords: pixels.map(|pixel| pixel / 64.0),
+    })
+}
+
+/// Unknown effective level: a boss, or more than ten levels above the viewer.
+/// Elite classification alone never hides a known level; absent data hides the slot.
+fn displayed_plate_level(unit: ReplicatedUnit, viewer_level: Option<u8>) -> Option<u8> {
+    let level = *unit.get::<UnitLevel>()?;
+    let effective = level_for_viewer(
+        level,
+        unit.get::<LevelScaling>(),
+        viewer_level.unwrap_or(level.0),
+    );
+    let too_high = viewer_level.is_some_and(|viewer| u16::from(effective) > u16::from(viewer) + 10);
+    let boss = unit_classification(unit) == CreatureClassification::WorldBoss;
+    Some(if boss || too_high { 0 } else { effective })
+}
+
 impl LevelArt {
     fn load(atlases: LevelAtlases, skin: ActiveSkin, data_root: &Path) -> Result<Self, String> {
-        let art = |name| atlas_art(&skin_art(name, skin)?, data_root);
+        let art = |name| atlas_art(&level_art_crop(name, skin)?, data_root);
         Ok(Self {
             icon: art(atlases.icon)?,
             selected: art(atlases.selected)?,
@@ -511,7 +568,7 @@ struct LevelNodes {
 
 struct PlateNodes {
     root: Gd<Control>,
-    frame: Gd<TextureRect>,
+    frame: Gd<NinePatchRect>,
     fill: Gd<TextureRect>,
     name: Gd<Label>,
     health: Gd<Label>,
@@ -638,10 +695,10 @@ impl Nameplates {
         show_health_bars: bool,
         (data_root, icons): (&Path, &HashMap<u32, u32>),
     ) -> Result<(), String> {
-        if self.art.is_none() {
-            self.art = Some(PlateArt::load()?);
-        }
         let skin = atlas::active_skin();
+        if self.art.is_none() || self.skin != Some(skin) {
+            self.art = Some(PlateArt::load(skin)?);
+        }
         if self.skin != Some(skin) {
             // Plates hold the previous skin's textures and frame tree.
             for (_, plate) in self.plates.drain() {
@@ -820,8 +877,19 @@ fn spawn_plate(
         ignore_mouse(&mut rect);
         rect
     };
-    let fill = texture_rect();
-    let frame = texture_rect();
+    let mut fill = texture_rect();
+    let mut frame = NinePatchRect::new_alloc();
+    ignore_mouse(&mut frame);
+    // Forever's numeric hollow patch keeps a 1px edge at every authored bar size.
+    // Modern uses zero patch margins, preserving its original stretched bitmap.
+    let edge = i32::from(level_art.is_some());
+    if level_art.is_some() {
+        frame.set_texture_filter(godot::classes::canvas_item::TextureFilter::NEAREST);
+        fill.set_texture_filter(godot::classes::canvas_item::TextureFilter::LINEAR);
+    }
+    for side in [Side::LEFT, Side::RIGHT, Side::TOP, Side::BOTTOM] {
+        frame.set_patch_margin(side, edge);
+    }
     let raid_icon = texture_rect();
     let classification = texture_rect();
     // White Friz with a black outline, as the reference's texts.
@@ -1201,7 +1269,7 @@ fn project_plate(
         name_color,
         raid_target: None,
         classification: None,
-        level: unit.get::<UnitLevel>().map(|level| level.0),
+        level: None,
         targeted: selected,
         enemy: false,
         auras: Vec::new(),
@@ -1290,6 +1358,7 @@ impl GameClient {
         let fade_far = self.client_options.hud.nameplate_distance;
         let colorblind_mode = self.client_options.graphics.colorblind_mode;
         let show_health_bars = self.client_options.hud.show_health_bars;
+        let viewer_level = self.player_level().map(|level| level as u8);
         let templates = self.nameplates.templates(&self.data_root)?;
         let Some(viewer) = build_viewer(&self.world, &self.replica, target, templates) else {
             return Ok(HashMap::new());
@@ -1329,6 +1398,7 @@ impl GameClient {
                     .filter(|health| health.max > 0.0)
                     .map(|health| health_text(health, style.show_health_value))
                     .unwrap_or_default();
+                view.level = displayed_plate_level(unit, viewer_level);
                 view.enemy = rules.enemy;
                 view.raid_target = self.account.raid_targets.icon_of(unit.server_id);
                 view.classification = classification_atlas(
