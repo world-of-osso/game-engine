@@ -1393,6 +1393,24 @@ mod tests {
         model.sequences[0].duration = 1000;
         model.sequences[1].id = 6;
         model.sequences[1].duration = 0;
+        model.bones.truncate(1);
+        model.bones[0].parent_bone_id = -1;
+        model.bones[0].pivot = [0.0; 3];
+        let mut tracks = model.bone_tracks.as_ref().clone();
+        tracks.truncate(1);
+        tracks[0].translation = m2::AnimTrack {
+            interpolation_type: 1,
+            global_sequence: -1,
+            sequences: vec![
+                (vec![0, 1000], vec![[0.0; 3], [5.0, 0.0, 0.0]]),
+                (vec![0], vec![[10.0, 0.0, 0.0]]),
+            ],
+        };
+        tracks[0].rotation.global_sequence = -1;
+        tracks[0].rotation.sequences.clear();
+        tracks[0].scale.global_sequence = -1;
+        tracks[0].scale.sequences.clear();
+        model.bone_tracks = std::sync::Arc::new(tracks);
         let death = 0;
         let dead = 1;
         let mut player = AnimationState::new(&model).unwrap();
