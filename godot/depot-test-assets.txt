@@ -1,6 +1,9 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
 # Tests needing files absent here fail remotely with their own missing-path error.
 
+# Nameplate selected-border/skull pixel regression (local Blizzard sheet).
+textures/8165538.blp
+
 # game-engine-core tests/: models
 models/boar.m2
 models/boar00.skin
