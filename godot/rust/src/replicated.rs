@@ -3,7 +3,7 @@
 use game_engine_network::replica::{Replica, Unit};
 use shared::{
     components::{
-        CombatStatus, Gold, Npc, Player, UnitFactionTemplate, UnitFlags, UnitSummonedBy,
+        CombatStatus, Gold, Npc, Player, UnitFactionTemplate, UnitFlags, UnitSummonedBy, UnitTap,
         UnitTarget, UnitThreatList,
     },
     protocol::NpcFlags,
@@ -33,6 +33,7 @@ pub(crate) trait UnitFields<'a> {
     fn unit_target(self) -> Option<u64>;
     /// Server entity bits of the units on a creature's threat list.
     fn threat_list(self) -> &'a [u64];
+    fn tap_denied(self, viewer: u64, group: &[u64]) -> bool;
     /// Retail `NPCFlags` / `NPCFlags2` bits.
     fn npc_flags(self) -> Option<u64>;
     /// The local player's money in copper.
@@ -69,6 +70,14 @@ impl<'a> UnitFields<'a> for Unit<'a> {
             .map_or(&[], |list| list.0.as_slice())
     }
 
+    fn tap_denied(self, viewer: u64, group: &[u64]) -> bool {
+        self.has::<Npc>()
+            && self.summoned_by().is_none()
+            && self
+                .get::<UnitTap>()
+                .is_some_and(|tap| tap.denied(viewer, group))
+    }
+
     fn npc_flags(self) -> Option<u64> {
         self.get::<NpcFlags>().map(|flags| flags.0)
     }
@@ -87,6 +96,19 @@ mod tests {
     use super::*;
     use game_engine_network::replica::Replica;
     use shared::components::{Health, UnitSummonedBy};
+
+    #[test]
+    fn rezrtap_stable_character_taps_and_group_exemption() {
+        let mut replica = Replica::for_tests();
+        replica.insert(100, npc("Kobold"));
+        replica.insert(100, UnitTap(vec![42]));
+        let creature = replica.unit(100).unwrap();
+        assert!(!creature.tap_denied(42, &[]));
+        assert!(!creature.tap_denied(99, &[42]));
+        assert!(creature.tap_denied(99, &[101]));
+        replica.insert(100, UnitSummonedBy(42));
+        assert!(!replica.unit(100).unwrap().tap_denied(99, &[]));
+    }
 
     const HUNTER: u64 = 0x0000_0001_0000_0010;
     const OTHER_HUNTER: u64 = 0x0000_0001_0000_0011;

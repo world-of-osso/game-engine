@@ -20,6 +20,10 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 - [ ] Clicking a visible non-local plate targets its owner before mesh raycasting. Registry UI under the cursor retains input precedence.
 - [x] A unit whose replicated `UnitFlags` carry `UNIT_FLAG_NOT_SELECTABLE` (0x02000000; triggers such as the Summon Enabler Stalker) has no projected name, health or cast visual, and cannot be clicked, hovered, cursor-highlighted or tab-targeted (Retail). Clearing the flag restores the plate and selection. `sync_not_selectable` keeps the `NotSelectable` marker in step with `UnitFlags`.
 
+### Tap-denied health (Godot client)
+
+- [x] A creature tapped by neither the selected character nor a current group member uses Retail `(0.9,0.9,0.9)` health tint before reaction/selection colouring, in both skins. Player-controlled units remain exempt. Source: cached `Blizzard_UnitFrame/Shared/CompactUnitFrame.lua:561-563,675-677`; [stable wire design and proof](../wiki/systems/death-flow.md#player-resurrection-offers-and-tap-eligibility). Tests: `godot/rust/src/nameplates.rs` and `replicated.rs` (`rezrtap` filter).
+
 ### Retail visibility and occlusion (Godot client)
 
 Retail decides plate visibility in the engine from CVars; the default UI only exposes them (`Blizzard_SettingsDefinitions_Frame/Nameplates.lua:454,460,480,513`, `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns`). Defaults are the engine CVar table (wow-ui-sim `src/cvars.yaml:977-1008`, from wowless). The UI source does not contain the engine's per-unit combat test.
