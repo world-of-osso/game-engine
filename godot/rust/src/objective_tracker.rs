@@ -61,11 +61,13 @@ impl GameClient {
 
     fn objective_tracker_view(&self) -> ObjectiveTrackerState {
         let ui = &self.quests.ui;
-        ObjectiveTrackerState::from_runtime(
+        let mut state = ObjectiveTrackerState::from_runtime(
             &self.account.quests,
             ui.tracker_collapsed,
             ui.quests_collapsed,
-        )
+        );
+        state.dungeon = self.account.dungeon_objectives.block.clone();
+        state
     }
 
     fn sync_objective_tracker(&mut self) -> Result<(), String> {

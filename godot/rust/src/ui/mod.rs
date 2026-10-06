@@ -1269,6 +1269,37 @@ impl RegistryUi {
         Ok(())
     }
 
+    pub fn show_achievement_window(
+        &mut self,
+        state: game_engine_ui_model::achievements::AchievementWindow,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+        )?;
+        self.toplevel = true;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::achievements::achievement_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )
+    }
+
+    pub fn show_achievement_toast(
+        &mut self,
+        state: shared::protocol::AchievementToastSnapshot,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::achievements::achievement_toast_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     pub fn show_guild_ranks(
         &mut self,
         state: game_engine_ui_model::guild_ranks::GuildRanksSession,
