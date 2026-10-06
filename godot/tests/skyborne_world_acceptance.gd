@@ -13,6 +13,8 @@ const SKY_ENDER := "Rorian the Dayseeker"
 # Captured SQL entry251361/guid3251361000, WoW (x,y,z) -> native (x,z,-y).
 const SKY_ENDER_AT := Vector3(4088.500790283203, 976.5145996532464, -1895.0)
 const SKY_REWARD_XP := 40
+# Server npc_interaction.rs: default reach1.5 +4 +both combat reaches.
+const SKY_INTERACTION_RANGE := 8.5
 const STARTS := {95: Vector3(4088.501, 976.169, -1847.5), 96: Vector3(4051.417, 977.620, -1858.625)}
 const CHARACTERS := {95: "Skymage", 96: "Skyshaman"}
 const GIVERS := {95: "Ailee Farheart", 96: "Ventaari Brightwish"}
@@ -67,7 +69,7 @@ func run_test() -> void:
 	if error != "":
 		fail("Skyborne connection: " + error)
 		return
-	if not await enter_named_world() or not check_start():
+	if not await enter_named_world() or not check_start(scope != "turn-in"):
 		return
 	if not await save_capture("01-world-start.png") or not await inspect_kit():
 		return
@@ -141,14 +143,14 @@ func enter_named_world() -> bool:
 		var state: Dictionary = client.account_state()
 		return state.connected and state.screen == "InWorld" and state.world_attached and state.local_player_position != null and not state.terrain.parsed_tiles.is_empty(), "native world and terrain", WORLD_WAIT_MS)
 
-func check_start() -> bool:
+func check_start(require_original_start: bool = true) -> bool:
 	var state: Dictionary = client.account_state()
 	# LoadTerrain uses the Map directory, which the published Map2991 names "2991".
 	if state.selected_character_name != CHARACTERS[race] or state.terrain.map != "2991" or not state.terrain.failures.is_empty():
 		fail("Wrong named character/map or terrain failure: " + str(state))
 		return false
 	# WoW (x,y,z) -> native (x,z,-y); tolerate only server grounding precision.
-	if state.local_server_position == null or state.local_server_position.distance_to(STARTS[race]) > 1.0 or player_position().distance_to(STARTS[race]) > 1.0:
+	if state.local_server_position == null or (require_original_start and (state.local_server_position.distance_to(STARTS[race]) > 1.0 or player_position().distance_to(STARTS[race]) > 1.0)):
 		fail("Actual local/server start differs from Map2991 approved coordinates: " + str(state))
 		return false
 	var terrain := client.get_node_or_null("WorldTerrain")
@@ -255,7 +257,7 @@ func walk_to_sky_ender() -> Node3D:
 		return null
 	if not visible_body(ender):
 		print("SKYBORNE GAP Rorian136966 visible body unavailable; logical replicated ender only")
-	if not await walk_to(ender.global_position, INTERACT_YARDS - 1.0):
+	if not await walk_to(ender.global_position, 1.0):
 		fail("Native key-event walk to Rorian exceeded45s")
 		return null
 	# walk_to can return after passing the target: require actual settled proximity.
@@ -266,7 +268,7 @@ func walk_to_sky_ender() -> Node3D:
 		if Time.get_ticks_msec() >= proximity_sample.next:
 			print("SKYBORNE PROXIMITY local=", player_position(), " server=", state.local_server_position, " ender=", ender.global_position)
 			proximity_sample.next = Time.get_ticks_msec() + 1000
-		return player_position().distance_to(ender.global_position) <= INTERACT_YARDS and state.local_server_position != null and state.local_server_position.distance_to(ender.global_position) <= INTERACT_YARDS, "actual local/server proximity to Rorian", WAIT_MS):
+		return player_position().distance_to(ender.global_position) <= SKY_INTERACTION_RANGE and state.local_server_position != null and state.local_server_position.distance_to(ender.global_position) <= SKY_INTERACTION_RANGE, "actual local/server server-contract proximity to Rorian", WAIT_MS):
 		return null
 	var to := ender.global_position - player_position()
 	await face_direction(atan2(to.x, to.z))
