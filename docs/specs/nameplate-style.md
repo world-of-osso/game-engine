@@ -22,7 +22,7 @@ This spec defines the requested WoW-reference overhead health and spell bars. Re
 
 ### Tap-denied health (Godot client)
 
-- [ ] A creature tapped by neither the selected character nor a current group member uses Retail `(0.9,0.9,0.9)` health tint before reaction/selection colouring, in both skins. Player-controlled units remain exempt. Source: cached `Blizzard_UnitFrame/Shared/CompactUnitFrame.lua:561-563,675-677`; [stable wire design and proof](../wiki/systems/death-flow.md#player-resurrection-offers-and-tap-eligibility). Tests: `godot/rust/src/nameplates.rs` and `replicated.rs` (`rezrtap` filter).
+- [x] A creature tapped by neither the selected character nor a current group member uses Retail `(0.9,0.9,0.9)` health tint before reaction/selection colouring, in both skins. Player-controlled units remain exempt. Source: cached `Blizzard_UnitFrame/Shared/CompactUnitFrame.lua:561-563,675-677`; [stable wire design and proof](../wiki/systems/death-flow.md#player-resurrection-offers-and-tap-eligibility). Tests: `godot/rust/src/nameplates.rs` and `replicated.rs` (`rezrtap` filter).
 
 ### Retail visibility and occlusion (Godot client)
 
