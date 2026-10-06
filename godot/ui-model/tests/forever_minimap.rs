@@ -84,6 +84,7 @@ fn busy_state() -> MinimapClusterState {
         zone_color: [1.0, 0.1, 0.1, 1.0],
         clock_text: "3:07".into(),
         calendar_day: Some(3),
+        night: false,
         arrow_rotation: 0.5,
         zoom_buttons: true,
         zoom: 5,
@@ -273,6 +274,52 @@ fn minimapgaps_forever_title_band_excludes_map_pixels() {
     assert_rect(&registry, "MinimapPanelTop0", (0.0, 0.0, 260.0, 1.0));
     assert_rect(&registry, "MinimapPanelLeft0", (0.0, 1.0, 1.0, 258.0));
     assert!(registry.get_by_name("MinimapClusterFlareBorder").is_none());
+}
+
+/// Reference badge 57×55 at ~1.71× gives 33×32 already-scaled UI units.
+#[test]
+fn minimapgaps_forever_badge_uses_reference_size_and_local_casc_art() {
+    let registry = build(ActiveSkin::Forever, busy_state());
+    assert_rect(&registry, "MinimapDayNightBadge", (2.0, 226.0, 33.0, 32.0));
+    assert_rect(
+        &registry,
+        "MinimapLauncherButton",
+        (-36.0, 230.0, 30.0, 30.0),
+    );
+    let badge = fixed_rect(&registry, "MinimapDayNightBadge");
+    let launcher = fixed_rect(&registry, "MinimapLauncherButton");
+    assert_eq!(badge.0 - (launcher.0 + launcher.2), 8.0);
+    let Some(WidgetData::Texture(art)) = &frame(&registry, "MinimapDayNightBadge").widget_data
+    else {
+        panic!("badge is not a texture");
+    };
+    assert_eq!(
+        art.source,
+        ui_toolkit::widgets::texture::TextureSource::FileDataId(136_484)
+    );
+    assert_eq!(art.tex_coords, [0.0, 50.0 / 128.0, 0.0, 50.0 / 64.0]);
+    let mut night = busy_state();
+    night.night = true;
+    let night_registry = build(ActiveSkin::Forever, night);
+    let Some(WidgetData::Texture(night_art)) =
+        &frame(&night_registry, "MinimapDayNightBadge").widget_data
+    else {
+        panic!("night badge is not a texture");
+    };
+    assert_eq!(night_art.tex_coords, [0.5, 114.0 / 128.0, 0.0, 50.0 / 64.0]);
+    assert_rect(
+        &night_registry,
+        "MinimapDayNightBadge",
+        (2.0, 226.0, 33.0, 32.0),
+    );
+    let fdids = game_engine_ui_model::minimap::minimap_texture_fdids;
+    assert!(fdids(&busy_state(), ActiveSkin::Forever).contains(&136_484));
+    assert!(!fdids(&busy_state(), ActiveSkin::Modern).contains(&136_484));
+    assert!(
+        build(ActiveSkin::Modern, busy_state())
+            .get_by_name("MinimapDayNightBadge")
+            .is_none()
+    );
 }
 
 /// Blips, arrow and hover zoom offsets unchanged; centred map now has centre (130, 130).

@@ -362,6 +362,10 @@ impl GameClient {
                 .pvp(area, self.player_faction_group(catalogs))
         });
         let (hour, minute, day) = local_time();
+        // Retail GameTime.lua:1-2: dawn 05:30, dusk 21:00, in minutes.
+        const DAWN: u32 = 5 * 60 + 30;
+        const DUSK: u32 = 21 * 60;
+        let night = !(DAWN..DUSK).contains(&(hour * 60 + minute));
         let view = self.minimap.view(position);
         let mut blips = self.quest_blips(&view);
         if let Some(Ok(catalogs)) = self.minimap.catalogs.loaded() {
@@ -373,6 +377,7 @@ impl GameClient {
             zone_color: pvp.map_or([1.0, 0.82, 0.0, 1.0], |pvp| pvp.text_color()),
             clock_text: game_engine_core::minimap_data::clock_text(hour, minute),
             calendar_day: Some(day),
+            night,
             arrow_rotation: arrow_rotation(yaw),
             zoom_buttons: self.minimap.hovered,
             zoom: self.minimap.zoom,
@@ -470,8 +475,10 @@ impl GameClient {
         let data_root = self.data_root.clone();
         drop(span);
         let span = crate::profile::span(|| "minimap.chrome".to_owned());
-        self.minimap
-            .cache_chrome(&data_root, &minimap_texture_fdids(&state));
+        self.minimap.cache_chrome(
+            &data_root,
+            &minimap_texture_fdids(&state, self.minimap.skin),
+        );
         drop(span);
         let composite = self.minimap_composite(position);
         if let Some(ui) = self.minimap.ui.as_mut() {

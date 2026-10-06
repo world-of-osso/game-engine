@@ -40,9 +40,37 @@ func _run() -> void:
 			ui.queue_free()
 			quit(1)
 			return
+	if screen == "forever_minimap_preview":
+		if not forever_minimap_has_opaque_header_and_badge(image):
+			ui.queue_free()
+			quit(1)
+			return
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
 	quit(0)
+
+# Production display begins below the 22-unit band; no tile pixels leak into it.
+# Badge's gold ring must draw inside its derived rect, with empty space to the magnifier.
+func forever_minimap_has_opaque_header_and_badge(image: Image) -> bool:
+	if image.get_size() != Vector2i(1920, 1080):
+		push_error("Minimap capture requires 1920x1080")
+		return false
+	for x in range(1700, 1900):
+		var color = image.get_pixel(x, 29)
+		if maxf(color.r, maxf(color.g, color.b)) > 1.0 / 255.0:
+			push_error("Map leaked into the minimap title band at ", x, ": ", color)
+			return false
+	var gold_pixels = 0
+	for y in range(226, 258):
+		for x in range(1662, 1695):
+			var color = image.get_pixel(x, y)
+			if color.r > 0.25 and color.g > 0.15 and color.r > color.b * 1.5:
+				gold_pixels += 1
+	if gold_pixels < 40:
+		push_error("Day/night badge gold ring missing: ", gold_pixels)
+		return false
+	print("PASS: opaque 22-unit minimap band; badge gold pixels=", gold_pixels)
+	return true
 
 # The rank disclaimer occupies two single-line rows inside the left column.
 # Assert real rendered pixels; the previous 20px multiline label overlapped both rows.
