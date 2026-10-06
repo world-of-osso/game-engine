@@ -169,3 +169,20 @@ fn guild_ranks_model_rank_list_controls_send_and_protect_occupied_ranks() {
     assert!(session.remove_rank().is_none());
     assert!(session.add_rank("Name too long for Retail").is_none());
 }
+
+#[test]
+fn guild_ranks_model_hidden_tab_preserves_independent_settings() {
+    let mut session = GuildRanksSession::default();
+    session.apply(snapshot(0));
+    session.select_rank(2);
+    assert_eq!(
+        session.set_tab(0, false, true, "3"),
+        Some(GuildRankRequest::SetTab {
+            rank: 2,
+            tab: 0,
+            view: false,
+            deposit: true,
+            withdrawals_per_day: 3
+        })
+    );
+}
