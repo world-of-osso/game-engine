@@ -3,6 +3,80 @@ use shared::spell_data::CastFailReason;
 
 use super::{BarType, Interrupter, PlateCasts, Spark, casting_bar_state};
 
+#[test]
+fn player_castbaranim_success_flashes_then_fades_at_retail_timestamps() {
+    use ui_toolkit::atlas::ActiveSkin;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut casts = PlateCasts::default();
+        casts.observe(UNIT, Some(&bolt(1.0, true)));
+        casts.spell_go(UNIT, BOLT); // t=10.000
+        casts.advance(0.1, |_| true); // t=10.100
+        let state = casting_bar_state(casts.get(UNIT).unwrap(), None);
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(skin);
+        shared.insert(state);
+        let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
+        ui_toolkit::screen::Screen::new(
+            game_engine_ui_model::casting_bar_frame_component::casting_bar_frame_screen,
+        )
+        .sync(&shared, &mut registry);
+        let flash = registry
+            .get_by_name("CastingBarFlash")
+            .expect("completion flash missing");
+        assert!((registry.get(flash).unwrap().alpha - 0.5).abs() < 0.001);
+        casts.advance(0.25, |_| true); // t=10.350
+        assert!((casts.get(UNIT).unwrap().alpha() - 0.5).abs() < 0.001);
+        casts.advance(0.16, |_| true); // t=10.510
+        assert!(casts.get(UNIT).is_none());
+    }
+}
+
+#[test]
+fn player_castbaranim_interrupt_fills_after_spark_holds_and_fades() {
+    use ui_toolkit::atlas::ActiveSkin;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut casts = PlateCasts::default();
+        casts.observe(UNIT, Some(&bolt(0.5, true)));
+        casts.spell_failure(UNIT, BOLT, CastFailReason::Interrupted, None); // t=20.000
+        casts.advance(0.15, |_| true); // t=20.150, spark animation complete
+        let state = casting_bar_state(casts.get(UNIT).unwrap(), None);
+        assert_eq!(state.spell_name, "Interrupted");
+        assert_eq!(state.progress, 1.0, "{skin:?}: interrupted fill");
+        assert_eq!(state.alpha, 1.0);
+        casts.advance(0.85, |_| true); // t=21.000: end of hold
+        assert_eq!(casts.get(UNIT).unwrap().alpha(), 1.0);
+        casts.advance(0.15, |_| true); // t=21.150
+        assert!((casts.get(UNIT).unwrap().alpha() - 0.5).abs() < 0.001);
+        casts.advance(0.16, |_| true); // t=21.310
+        assert!(casts.get(UNIT).is_none());
+    }
+}
+
+#[test]
+fn player_castbaranim_failure_reads_failed_and_channel_uses_channel_finish() {
+    use ui_toolkit::atlas::ActiveSkin;
+    for _skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut casts = PlateCasts::default();
+        casts.observe(UNIT, Some(&bolt(0.5, true)));
+        casts.spell_failure(UNIT, BOLT, CastFailReason::OutOfRange, None); // t=30.000
+        assert_eq!(
+            casting_bar_state(casts.get(UNIT).unwrap(), None).spell_name,
+            "Failed"
+        );
+        casts.observe(UNIT, Some(&missiles(3.0)));
+        casts.observe(UNIT, None); // t=40.000, channel stop
+        casts.advance(0.1, |_| true); // t=40.100
+        let state = casting_bar_state(casts.get(UNIT).unwrap(), None);
+        assert!(state.is_channel);
+        assert_eq!(state.progress, 0.0);
+        assert_eq!(state.alpha, 1.0);
+        casts.advance(0.25, |_| true); // t=40.350
+        assert!((casts.get(UNIT).unwrap().alpha() - 0.5).abs() < 0.001);
+        casts.advance(0.16, |_| true); // t=40.510
+        assert!(casts.get(UNIT).is_none());
+    }
+}
+
 const UNIT: u64 = 42;
 const BOLT: u32 = 133;
 const MISSILES: u32 = 5143;
