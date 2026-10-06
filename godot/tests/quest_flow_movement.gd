@@ -13,16 +13,26 @@ class InputClient extends Node:
 				turn_axis = 1.0 if event.pressed else 0.0
 			elif event.keycode == KEY_RIGHT:
 				turn_axis = -1.0 if event.pressed else 0.0
-		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
-			right_held = event.pressed
+		elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and not event.pressed:
+			right_held = false
 		elif event is InputEventMouseMotion and right_held:
 			heading -= event.relative.x * 0.01
+
+	func _unhandled_input(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT and event.pressed:
+			right_held = true
 
 	func _process(_delta: float) -> void:
 		heading += turn_axis * 2.5 * 0.5
 
 	func account_state() -> Dictionary:
 		return {"camera_yaw": heading - PI}
+
+class FirstPressOverlay extends Control:
+	func _gui_input(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.pressed:
+			accept_event()
+			hide()
 
 var feet := Vector3.ZERO
 var walking := false
@@ -33,6 +43,11 @@ func run_test() -> void:
 	input_client = InputClient.new()
 	client = input_client
 	root.add_child(client)
+	# A native frame can consume the press immediately before its closing reconcile.
+	var overlay := FirstPressOverlay.new()
+	overlay.size = Vector2(root.size)
+	root.add_child(overlay)
+	await process_frame
 	await super.face_direction(0.4)
 	if abs(wrapf(0.4 - yaw(), -PI, PI)) >= 0.15 or input_client.turn_axis != 0.0 or input_client.right_held:
 		push_error("Slow-frame turn failed or left input held: yaw=%s" % yaw())
