@@ -5,7 +5,7 @@ use godot::prelude::*;
 use shared::components::UnitLevel;
 use shared::protocol::{DeathPositionSnapshot, DeathStateUpdate};
 
-use crate::{GameClient, frame_error::SessionError};
+use crate::{GameClient, frame_error::SessionError, replicated::UnitFields};
 
 const GHOST_TRANSPARENCY: f32 = 0.45;
 const GHOST_META: &str = "deathstate_ghost";

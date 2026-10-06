@@ -1700,6 +1700,10 @@ fn quest_message(
 mod dungeonclient_tests;
 
 #[cfg(test)]
+#[path = "account_deathstate_tests.rs"]
+mod deathstate_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 

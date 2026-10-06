@@ -854,6 +854,9 @@ fn describe_panic(payload: Box<dyn Any + Send>) -> String {
     format!("network worker panicked: {message}")
 }
 
+#[cfg(feature = "test-util")]
+pub mod deathstate_fixture;
+
 #[cfg(test)]
 mod wire_tests;
 
