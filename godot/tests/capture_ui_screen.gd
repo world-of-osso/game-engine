@@ -274,6 +274,16 @@ func castbar_snapshot_matches(ui: Node, image: Image, output: String) -> bool:
 	if control.save_png(output.get_basename() + "-without-feedback.png") != OK:
 		push_error("Cannot save cast feedback isolation control")
 		return false
+	if phase in ["interrupted", "failed"]:
+		var sample = Vector2i(int(track_rect.position.x + track_rect.size.x * 0.75), int(track_rect.get_center().y))
+		var red = control.get_pixelv(sample)
+		if red.r < 0.35 or red.g > red.r * 0.25 or red.b > red.r * 0.25:
+			push_error("Interrupted fill is not source red at ", sample, ": ", red)
+			return false
+		if skin == "forever" and maxf(absf(red.r - 1.0), maxf(red.g, red.b)) > 2.0 / 255.0:
+			push_error("Forever interrupted fill is not (1,0,0): ", red)
+			return false
+		print("PASS: interrupted rendered colour ", red, " at ", sample)
 	var changed_pixels = 0
 	for y in range(image.get_height()):
 		for x in range(image.get_width()):
