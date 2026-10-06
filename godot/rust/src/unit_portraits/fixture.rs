@@ -55,6 +55,14 @@ impl INode for PartyPortraitFixture {
         }
     }
 
+    fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        if let Some(ui) = self.settings_ui.as_mut() {
+            if let Err(error) = ui.bind_mut().scroll_list_input(&event) {
+                godot_error!("Party settings fixture input: {error}");
+            }
+        }
+    }
+
     fn exit_tree(&mut self) {
         self.portraits.clear(&mut self.world);
         self.world.reset();
@@ -99,6 +107,7 @@ impl PartyPortraitFixture {
             .bind_mut()
             .show_game_menu_view(settings_preview::options_view(self.layout.clone()));
         self.settings_ui = Some(ui);
+        self.base_mut().set_process_input(true);
         fixture_error(result)
     }
 
