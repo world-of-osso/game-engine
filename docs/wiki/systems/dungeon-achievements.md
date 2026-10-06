@@ -25,6 +25,14 @@ Verified: 2026-10-06. Code `ada3c295`, read-only protocol `172fd266`, read-only 
 
 Lightyear's typed MessageSender queues messages per type before serialization (`lightyear_messages-0.28.0/src/send.rs:90–150`): method-call order across types is not wire order. The UDP fixture flushes server sends separately and pauses the client worker to reproduce one-frame mixed-type reception, then asserts the actual channel sequence. A single client relay sorts message IDs before account dispatch.
 
+## Live Stockade proof (2026-10-06)
+
+Client **70bed793**, server **a53edf9**, protocol **f1d0452**: a fresh private database copied from the approved offline backup, UDP5292, account `fb_stockade`, level90 Holy paladin **Fbpalrun**. One map34 copy: player killed Randolph Moloch, Lord Overheat, then Hogger using normal attacks and self-healing. Admin operations supplied only character/gear setup and positioning/revive; no admin boss damage. Server files and UDP5000 remained untouched.
+
+Inspected [run2 screenshots](../../../data/diagnostics/stockaderun-2026-10-06/run2/): `01-entry.png` has three unchecked objectives; `02-randolph-killed.png`, `03-overheat-killed.png`, `04-hogger-killed.png` show cumulative checks. `05-final-toast.png` shows the live server-triggered 10-point Stockade alert. `06-achievement633-earned.png` shows **Earned 2026-10-06 (UTC)** and Hogger1/1. `08-left-inworld-cleared.png` shows no dungeon tracker after transfer to map0. Combat logs and read-only boss health observations are in the same directory.
+
+The run also reproduced a [waist binding defect](../investigations/npc-stance-gear.md#animated-and-nonzero-geoset-waist-follow-up-2026-10-06) that hid the paladin model; these original screenshots prove objective/achievement behavior, not correct character rendering. Current-revision fix proof and process cleanup are tracked in that directory's `proof-ledger.txt`.
+
 ## Sources
 
 - Retail `Blizzard_ObjectiveTracker/Blizzard_ScenarioObjectiveTracker.lua:202,379–416`: dungeon/stage metadata and complete checks/incomplete nubs; `Blizzard_ObjectiveTrackerManager.lua:196`: Scenario precedes Quests.
