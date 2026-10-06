@@ -3,7 +3,7 @@ extends "res://tests/world_quest_flow.gd"
 # Main supplies prepared credentials and launches twice under maintained cage/agent-run.
 # Required: GODOT_TEST_SERVER, SKYBORNE_RACE (95|96), SKYBORNE_USERNAME,
 # SKYBORNE_PASSWORD, SKYBORNE_SHOTS (absolute path under persistent data/), GAME_ENGINE_CLI,
-# SKYBORNE_SCOPE (client-items|full|turn-in|reward-reload). Prepared scopes require race95;
+# SKYBORNE_SCOPE (client-items|full|turn-in|reward-reload|shoulder-assets). Prepared scopes require race95;
 # turn-in requires active completed92460; reward-reload requires rewarded character30/XP40.
 # Neither proves fresh acceptance. client-items proves no NPC/giver/quest behavior.
 # godot --path godot -s res://tests/skyborne_world_acceptance.gd
@@ -33,10 +33,10 @@ func run_test() -> void:
 	var port := server.trim_prefix("127.0.0.1:")
 	race = OS.get_environment("SKYBORNE_RACE").to_int()
 	var scope := OS.get_environment("SKYBORNE_SCOPE")
-	if scope not in ["client-items", "full", "turn-in", "reward-reload"]:
-		fail("Require explicit SKYBORNE_SCOPE=client-items|full|turn-in|reward-reload")
+	if scope not in ["client-items", "full", "turn-in", "reward-reload", "shoulder-assets"]:
+		fail("Require explicit SKYBORNE_SCOPE=client-items|full|turn-in|reward-reload|shoulder-assets")
 		return
-	var prepared := scope in ["turn-in", "reward-reload"]
+	var prepared := scope in ["turn-in", "reward-reload", "shoulder-assets"]
 	if prepared:
 		if race != 95:
 			fail("Prepared scopes require race95 Skymage, never race96")
@@ -94,6 +94,14 @@ func run_test() -> void:
 			return
 		print("SKYBORNE REWARD_RELOAD_DONE race=95 character=Skymage character_id=30 quest=92460 xp=40")
 		print("SKYBORNE UNTESTED fresh acceptance/full fixture/original script; accepted/rewarded nothing")
+		client.free()
+		quit(0)
+		return
+	if scope == "shoulder-assets":
+		if not await check_ender_shoulders():
+			return
+		print("SKYBORNE SHOULDER_ASSETS_DONE race=95 character=Skymage npc=", SKY_ENDER)
+		print("SKYBORNE UNTESTED quest changes/full fixture/original script; accepted/rewarded nothing")
 		client.free()
 		quit(0)
 		return
@@ -306,6 +314,32 @@ func open_sky_ender(ender: Node3D, pages: Array) -> int:
 		fail("Native QuestFrame NPC differs from located Rorian")
 		return 0
 	return ender_id
+
+func check_ender_shoulders() -> bool:
+	if int(client.account_state().get("selected_character_id", -1)) != 30 or not check_reward_reload_state():
+		return false
+	var ender := await locate_logical_giver(SKY_ENDER)
+	if ender == null:
+		return false
+	if not await wait_frames(func(): return visible_body(ender), "Rorian authored body before shoulder attachment check", WAIT_MS):
+		return false
+	var visual := ender.get_node("NpcVisualRoot")
+	for side in ["Left", "Right"]:
+		var item := visual.find_child("EquipmentShoulder" + side, true, false) as Node3D
+		var attachment := 6 if side == "Left" else 5
+		if item == null or item.get_parent().name != "Attachment%d" % attachment:
+			fail("Rorian original shoulder " + side + " missing from authored attachment " + str(attachment))
+			return false
+		var meshes := item.find_children("Batch*", "MeshInstance3D", true, false)
+		if meshes.is_empty():
+			fail("Rorian shoulder " + side + " has no native geometry")
+			return false
+		for mesh in meshes:
+			if mesh.mesh == null or not mesh.is_visible_in_tree() or mesh.get_aabb().size.length() <= 0.0:
+				fail("Rorian shoulder " + side + " lacks visible nonempty geometry")
+				return false
+		print("SKYBORNE SHOULDER_ATTACHED side=", side, " attachment=", attachment, " path=", item.get_path(), " transform=", item.transform, " meshes=", meshes.size())
+	return await save_capture("02-rorian-original-shoulders.png")
 
 func check_reward_reload_state() -> bool:
 	var state: Dictionary = client.quest_state()
