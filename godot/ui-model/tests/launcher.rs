@@ -1,7 +1,6 @@
 use game_engine_core::input_bindings_data::{BindingKey, InputBindingsData};
 use game_engine_ui_model::launcher::{
-    ACTION_CLOSE, ACTION_OPEN, LauncherIcon, LauncherKey, LauncherView, SEARCH_FIELD, entries,
-    launcher_screen,
+    ACTION_CLOSE, ACTION_OPEN, LauncherKey, LauncherView, SEARCH_FIELD, entries, launcher_screen,
 };
 use game_engine_ui_model::micro_menu::{ACTION_PLAYER_SPELLS, MICRO_BUTTONS};
 use game_engine_ui_model::minimap::{MinimapClusterState, minimap_cluster_screen};
@@ -14,6 +13,7 @@ fn build(view: LauncherView) -> FrameRegistry {
 }
 
 fn build_skin(view: LauncherView, skin: ActiveSkin) -> FrameRegistry {
+    load_icon_tables();
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
     shared.insert(skin);
@@ -28,70 +28,8 @@ fn load_icon_tables() -> std::path::PathBuf {
     data
 }
 
-#[test]
-fn launcher_entries_resolve_to_non_fallback_icon_textures() {
-    use ui_toolkit::atlas::{AtlasSource, resolve_region};
-
-    const QUESTION_MARK_FDID: u32 = 134_400;
-    let data = load_icon_tables();
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        for entry in entries() {
-            // Portrait entries draw a runtime player portrait over this authored shadow.
-            let icon = entry
-                .icon
-                .unwrap_or_else(|| LauncherIcon::Atlas("UI-HUD-MicroMenu-Portrait-Shadow".into()));
-            let source = match icon {
-                LauncherIcon::Atlas(atlas) => {
-                    resolve_region(&atlas, skin)
-                        .unwrap_or_else(|| {
-                            panic!("{}: missing {atlas} under {skin:?}", entry.label)
-                        })
-                        .source
-                }
-                LauncherIcon::FileDataId(fdid) => AtlasSource::FileDataId(fdid),
-            };
-            let AtlasSource::FileDataId(fdid) = source else {
-                panic!("{}: icon must use local Blizzard data", entry.label);
-            };
-            assert_ne!(fdid, QUESTION_MARK_FDID, "{}: fallback icon", entry.label);
-            let path = data.join(format!("textures/{fdid}.blp"));
-            let bytes = std::fs::read(&path)
-                .unwrap_or_else(|error| panic!("{}: {}: {error}", entry.label, path.display()));
-            let image = game_engine_core::blp::decode_rgba(&bytes).unwrap();
-            assert!(image.width > 0 && image.height > 0, "{}", entry.label);
-        }
-    }
-}
-
-#[test]
-fn launcher_shortcuts_draw_settings_keyboard_and_map_art() {
-    use ui_toolkit::frame::WidgetData;
-    use ui_toolkit::widgets::texture::TextureSource;
-
-    load_icon_tables();
-    let registry = build(LauncherView {
-        open: true,
-        ..LauncherView::default()
-    });
-    for (name, expected) in [
-        ("LauncherArtOptions", TextureSource::FileDataId(134_063)),
-        (
-            "LauncherArtKeyBindings",
-            TextureSource::Atlas("newplayertutorial-keyboard".into()),
-        ),
-        ("LauncherArtWorldMap", TextureSource::FileDataId(130_816)),
-    ] {
-        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
-        let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
-            panic!("{name}: missing icon texture");
-        };
-        assert_eq!(texture.source, expected, "{name}");
-    }
-}
-
 fn icon_size(registry: &FrameRegistry, name: &str) -> (f32, f32) {
     use ui_toolkit::frame::Dimension;
-
     let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
     let (Dimension::Fixed(width), Dimension::Fixed(height)) = (frame.width, frame.height) else {
         panic!("{name}: icon needs fixed drawing bounds");
@@ -100,53 +38,103 @@ fn icon_size(registry: &FrameRegistry, name: &str) -> (f32, f32) {
 }
 
 #[test]
-fn launcher_icons_have_comparable_drawing_area_inside_their_tiles() {
+fn launcher_filled_icons_are_distinct_authored_resource_files() {
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::widgets::texture::TextureSource;
+
     load_icon_tables();
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let registry = build_skin(
-            LauncherView {
-                open: true,
-                ..LauncherView::default()
-            },
-            skin,
-        );
-        let (reference_w, reference_h) = icon_size(&registry, "LauncherArtOptions");
-        let reference_area = reference_w * reference_h;
-        for entry in entries() {
-            let name = if entry.icon.is_some() {
-                format!("LauncherArt{}", entry.id)
-            } else {
-                "LauncherCharacterShadow".into()
+    for (skin, palette) in [
+        (ActiveSkin::Modern, "modern"),
+        (ActiveSkin::Forever, "forever"),
+    ] {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(LauncherView {
+            open: true,
+            ..Default::default()
+        });
+        shared.insert(MinimapClusterState::default());
+        Screen::new(launcher_screen).sync(&shared, &mut registry);
+        Screen::new(minimap_cluster_screen).sync(&shared, &mut registry);
+        for (entry, glyph) in [
+            ("PlayerSpellsMicroButton", "spellbook"),
+            ("CharacterMicroButton", "character"),
+            ("QuestLogMicroButton", "quest"),
+            ("Bags", "bags"),
+            ("MainMenuMicroButton", "menu"),
+            ("ProfessionMicroButton", "professions"),
+            ("AchievementMicroButton", "achievements"),
+            ("HousingMicroButton", "housing"),
+            ("GuildMicroButton", "guild"),
+            ("LFDMicroButton", "group"),
+            ("CollectionsMicroButton", "collections"),
+            ("EJMicroButton", "adventure"),
+            ("StoreMicroButton", "shop"),
+            ("Help", "help"),
+            ("WorldMap", "map"),
+            ("Options", "options"),
+            ("KeyBindings", "keyboard"),
+        ] {
+            let name = format!("LauncherArt{entry}");
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("{name}: missing icon texture");
             };
-            let (width, height) = icon_size(&registry, &name);
-            let (tile_w, tile_h) = icon_size(&registry, &format!("LauncherEntry{}", entry.id));
-            let relative_area = width * height / reference_area;
-            assert!(
-                (0.95..=1.3).contains(&relative_area),
-                "{}: relative area {relative_area} under {skin:?}",
-                entry.label
+            assert_eq!(
+                texture.source,
+                TextureSource::File(format!(
+                    "res://ui/launcher_icons/png/{palette}/filled/{glyph}.png"
+                ))
             );
-            assert!(
-                width < tile_w && height < tile_h,
-                "{}: artwork exceeds tile",
-                entry.label
+            assert_eq!(icon_size(&registry, &name), (32.0, 32.0));
+            let label = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("LauncherLabel{entry}"))
+                        .unwrap(),
+                )
+                .unwrap();
+            let Some(WidgetData::FontString(text)) = &label.widget_data else {
+                panic!("{entry}: missing label");
+            };
+            assert_eq!(text.font_size, 15.0);
+            assert!(!text.word_wrap, "{entry}: label must remain on one line");
+            assert_eq!(
+                icon_size(&registry, &format!("LauncherLabel{entry}")),
+                (204.0, 20.0)
             );
         }
+        let magnifier = registry
+            .get(registry.get_by_name("MinimapLauncherIcon").unwrap())
+            .unwrap();
+        let Some(WidgetData::Texture(texture)) = &magnifier.widget_data else {
+            panic!("missing magnifier");
+        };
+        assert_eq!(
+            texture.source,
+            TextureSource::File(format!(
+                "res://ui/launcher_icons/png/{palette}/filled/magnifier.png"
+            ))
+        );
+        assert_eq!(icon_size(&registry, "MinimapLauncherButton"), (30.0, 30.0));
     }
 }
 
 #[test]
-fn launcher_keyboard_preserves_its_authored_atlas_aspect_ratio() {
-    use ui_toolkit::atlas::resolve_region;
-
+fn launcher_panel_height_tracks_filtered_content() {
     load_icon_tables();
-    let registry = build(LauncherView {
+    let full = build(LauncherView {
         open: true,
-        ..LauncherView::default()
+        ..Default::default()
     });
-    let (width, height) = icon_size(&registry, "LauncherArtKeyBindings");
-    let region = resolve_region("newplayertutorial-keyboard", ActiveSkin::Modern).unwrap();
-    assert!((width / height - region.width / region.height).abs() < 0.001);
+    assert_eq!(icon_size(&full, "LauncherPanel"), (526.0, 474.0));
+    let filtered = build(LauncherView {
+        open: true,
+        query: "spe".into(),
+        selected: 0,
+    });
+    assert_eq!(icon_size(&filtered, "LauncherPanel"), (526.0, 138.0));
 }
 
 #[test]
@@ -203,7 +191,7 @@ fn launcher_arrows_move_in_grid_and_click_dispatches_same_action() {
     view.key(LauncherKey::Right);
     assert_eq!(view.selected, 1);
     view.key(LauncherKey::Down);
-    assert_eq!(view.selected, 6);
+    assert_eq!(view.selected, 3);
     view.key(LauncherKey::Left);
     view.key(LauncherKey::Up);
     assert_eq!(view.selected, 0);
