@@ -35,6 +35,30 @@ Retail decides plate visibility in the engine from CVars; the default UI only ex
 - [x] Godot look and layout come from the Bevy client: reference skins, the Thick/Thin frame chosen by the nearest preset, the fill desaturated then tinted by reaction, a normally white 13px Friz name (placed as above), and the body centred 2.5 yd above the unit origin (Bevy `BAR_Y_OFFSET`). 1 UI unit is 1 viewport pixel.
 - [x] Classification indicator (`NamePlateClassificationFrameMixin:GetClassificationAtlasElement`, Blizzard_NamePlateClassificationFrame.lua:90-130): plates of units that are not friendly (`NamePlateEnemyFrameOptions.showClassificationIndicator`) show `nameplates-icon-elite-gold` for elite and world-boss units, `nameplates-icon-elite-silver` for rare elites and `UI-HUD-UnitFrame-Target-PortraitOn-Boss-Rare-Star` for rares, at 20×20 with its RIGHT on the 22×22 raid-icon slot's LEFT (Blizzard_NamePlates.xml:195-214). A raid icon or a name-only plate hides it. Only the Medium size (`classificationScale` 1) exists; PvP carrier icons are not implemented. Live: `godot/tests/plateclass_live.gd` on a private server (UDP 5187) shows Hogger's gold dragon 22px left of the health bar, `data/diagnostics/plateclass-2026-10-02/`.
 
+### Distance-alpha evidence and fixture oracle (2026-10-05)
+
+Local search of this checkout, `~/Repos`, the [client reference catalog](../wiki/reference/open-source-wow-clients.md), and the cached Blizzard Retail Lua found **no authoritative native-engine interpolation implementation**. The referenced wow-ui-sim `src/cvars.yaml` is not installed on this host. Lua settings expose CVars, not the engine's distance curve. Do not describe the legacy HUD fade as Retail interpolation.
+
+Retail CVar defaults in [wowless's Retail snapshot](https://github.com/ferronn-dev/wowless/blob/2c6dc52fe7dc2f359ba92a75b359dc373c9206a1/data/products/wow/cvars.yaml) (2022-10-26; not a fresh 2026 client measurement), quoted individually:
+
+| CVar | Source entry |
+| --- | --- |
+| `nameplateMinAlpha` | `nameplateMinAlpha: '0.6'` |
+| `nameplateMaxAlpha` | `nameplateMaxAlpha: '1.0'` |
+| `nameplateMinAlphaDistance` | `nameplateMinAlphaDistance: '10'` |
+| `nameplateMaxAlphaDistance` | `nameplateMaxAlphaDistance: '40'` |
+| `nameplateMaxDistance` | `nameplateMaxDistance: '60'` |
+| `nameplateSelectedAlpha` | `nameplateSelectedAlpha: '1.0'` |
+| `nameplateOccludedAlphaMult` | `nameplateOccludedAlphaMult: '0.4'` |
+
+[AdvancedInterfaceOptions's CVar descriptions](https://github.com/Stanzilla/AdvancedInterfaceOptions/blob/cc09dad593346e9e0d12ed2e57f3554c542161ec/cvars.lua#L142-L155) distinguish the maximum-alpha endpoint (camera distance) from `nameplateMinAlphaDistance`: "The distance from the max distance that nameplates will reach their minimum alpha." Thus 10 is an offset from the range limit, **not** a near endpoint of 10 yd. With the snapshot defaults, the described endpoints are 40 yd / alpha 1 and 50 yd / alpha 0.6. Neither source supplies a native interpolation formula, clamp behavior, or target/occlusion precedence; those remain unverified Retail details. No inferred linear Retail curve is implemented here.
+
+The **existing project contract**, implemented in `godot/core/src/rendering/ui/nameplate_visibility_data.rs`, is separate: for camera-to-health-body distance `d`, authored HUD limit `L`, and `near = max(L/2, 1)`, unselected fade is 1 below `near`, 0 at/above `L`, otherwise the source expression `1.0 - (distance - fade_near) / (fade_far - fade_near)`. Selection replaces that fade with 1; occlusion then multiplies either result by 0.4. Target selection does not bypass `plate_shown`'s player-to-unit 60 yd eligibility limit. The addon describes the selected CVar as the selected plate's alpha and occlusion as an alpha multiplier, but this project's precise composition is not independently measured Retail proof.
+
+At HUD limit 40, unselected clear/occluded alpha at camera distances 10/20/30/40/60 yd is 1/1/0.5/0/0 and 0.4/0.4/0.2/0/0. Selected clear/occluded alpha is 1/0.4 at every one of those distances, provided the unit is eligible. Under this formula, a fade of 0.219 corresponds to a camera-body distance of 35.62 yd; it is not the selected alpha. The flow's `40.0` argument is the HUD limit, not a measured unit distance. This arithmetic reconstructs the reported fade; it does not measure the live client's state.
+
+`world_nameplate_options_flow.gd` selects the NPC with Tab after every Options change. Its old `expect_distance` oracle incorrectly multiplied the unselected fade by occlusion; its 20 yd check also incorrectly expected the selected plate to disappear. Both now assert the existing selected override, including beyond the HUD fade boundary. The checked-out product already applies that override in `project_plate`; no product curve changed. Rust regression `nameplate_alpha_distances_preserve_selected_and_occlusion_overrides` covers both branches and the reported 0.219 sample. The live GDScript flow is deliberately unrun for this task.
+
 ### Cast bars (Godot client)
 
 Retail `NamePlateCastingBarMixin` over `CastingBarMixin` (`Blizzard_NamePlates/Blizzard_NamePlateCastingBar.lua`, `Blizzard_UIPanels_Game/Shared/CastingBarFrame.lua`). The replicated `CastState` is `UnitCastingInfo`/`UnitChannelInfo`; the game server's `SpellGo` is `UNIT_SPELLCAST_STOP` and `SpellFailure` (`SMSG_SPELL_FAILURE`, TrinityCore `Spell::SendInterrupted`) is `UNIT_SPELLCAST_INTERRUPTED`/`_FAILED`.

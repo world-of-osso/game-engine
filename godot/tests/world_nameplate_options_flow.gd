@@ -116,9 +116,8 @@ func run_test() -> void:
 	await set_distance(client, 20.0)
 	await click_option(client, "OptionsDoneButton")
 	await tap(KEY_TAB)
-	await process_frame
-	if client.nameplate_state().has(id) or not client.nameplate_rules(id).shown:
-		fail("Camera fade boundary changed CVar eligibility or retained plate")
+	# Selection bypasses the HUD fade even past its 20 yd boundary.
+	if not await expect_distance(client, id, 20.0):
 		return
 	print("FIXTURE PLAYER_HEALTH_UPDATE")
 	if not await wait_player_health(client, "27 / 40"):
@@ -288,9 +287,14 @@ func expect_distance(client: Node, id: int, limit: float) -> bool:
 	var distance := camera.global_position.distance_to(body)
 	var near := maxf(limit * 0.5, 1.0)
 	var fade := 1.0 if distance <= near else (0.0 if distance >= limit else 1.0 - (distance - near) / (limit - near))
+	var rules: Dictionary = client.nameplate_rules(id)
+	if not rules.targeted or client.target_state().target != id:
+		fail("Distance %s fixture lost its selected NPC: %s" % [limit, rules])
+		return false
+	# nameplateSelectedAlpha replaces the fade; occlusion still multiplies it.
 	var occlusion := 0.4 if state[id].occluded else 1.0
-	if distance <= 20.0 or distance >= 40.0 or not is_equal_approx(state[id].alpha, fade * occlusion):
-		fail("Distance %s alpha %s vs camera-body distance %s fade %s, CVar %s" % [limit, state[id].alpha, distance, fade, occlusion])
+	if distance <= 20.0 or distance >= 40.0 or not is_equal_approx(state[id].alpha, occlusion):
+		fail("Distance %s selected alpha %s vs %s; camera-body distance %s, unselected HUD fade %s" % [limit, state[id].alpha, occlusion, distance, fade])
 		return false
 	return true
 
