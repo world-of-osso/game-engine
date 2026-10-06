@@ -25,6 +25,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{
     RAID_TARGET_ICONS_FDID, raid_target_tex_coords,
 };
 use godot::{
+    builtin::Side,
     classes::{
         AtlasTexture, Camera3D, CanvasLayer, ColorRect, Control, Image, ImageTexture, Label,
         NinePatchRect, PhysicsRayQueryParameters3D, TextureRect, control::MouseFilter,
