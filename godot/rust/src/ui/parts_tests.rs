@@ -13,6 +13,26 @@ fn atlas(name: &str) -> Option<TextureSource> {
 }
 
 #[test]
+fn portrait_party_desaturated_health_projects_sampled_image_desaturation() {
+    let mut frame = Frame::new(
+        1,
+        Some("PartyMemberFrame3HealthBarFill".into()),
+        WidgetType::Texture,
+    );
+    frame.widget_data = Some(WidgetData::Texture(TextureData {
+        source: TextureSource::Atlas("UI-HUD-UnitFrame-Party-PortraitOn-Bar-Health".into()),
+        desaturated: true,
+        ..Default::default()
+    }));
+    let images = project_images(&frame, 70.0, 10.0);
+    assert_eq!(images.len(), 1);
+    assert!(
+        images[0].desaturated,
+        "native shader must desaturate sampled green pixels, not white vertex tint"
+    );
+}
+
+#[test]
 fn default_skin_button_stretches_the_whole_state_region() {
     // Login button: 250x66 frame; the original 24px/500px margins scale to exactly 12px,
     // i.e. the region is stretched as one image with no base quad beneath it.

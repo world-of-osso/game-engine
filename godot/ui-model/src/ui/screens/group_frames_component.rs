@@ -8,6 +8,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::hud_layout::{HudAnchor, hud_layout};
+use crate::portrait_party_frame_component::{PortraitPartyFrameState, portrait_party_frame};
 use crate::ui::screens::compact_unit_frame_component::{CompactUnitView, compact_unit_frame};
 use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
@@ -15,6 +16,7 @@ use crate::ui::screens::menu_primitives::{
 use crate::ui::screens::ready_check_frame_component::{ReadyCheckFrameState, ready_check_frame};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
+use game_engine_core::ui_layout_data::LayoutSettings;
 
 pub const PARTY_FRAME: &str = "CompactPartyFrame";
 pub const RAID_FRAME: &str = "CompactRaidFrameContainer";
@@ -61,6 +63,7 @@ pub const GROUP_MENU_W: f32 = 160.0;
 pub struct GroupFramesState {
     /// Party members, the player first; empty hides the party frame.
     pub party: Vec<CompactUnitView>,
+    pub portrait_party: PortraitPartyFrameState,
     /// Raid members by subgroup (index 0 = group 1); all empty hides the raid frame.
     pub raid: Vec<Vec<CompactUnitView>>,
     pub menu: GroupContextMenuState,
@@ -103,8 +106,20 @@ pub fn group_frames_screen(ctx: &SharedContext) -> Element {
     let skin = *ctx
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
+    let compact = ctx
+        .get::<LayoutSettings>()
+        .and_then(|settings| settings.use_raid_style_party_frames)
+        .unwrap_or(true);
+    let compact_members = if compact { state.party.as_slice() } else { &[] };
+    let hidden_portraits = PortraitPartyFrameState::default();
+    let portraits = if compact {
+        &hidden_portraits
+    } else {
+        &state.portrait_party
+    };
     rsx! {
-        {party_frame(&state.party, &layout.party, party_title_hidden(skin))}
+        {party_frame(compact_members, &layout.party, party_title_hidden(skin))}
+        {portrait_party_frame(portraits, &layout.party, skin)}
         {raid_frame(&state.raid, &layout.raid)}
         {group_context_menu(&state.menu)}
         {ready_check_frame(&state.ready_check)}

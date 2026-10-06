@@ -1,6 +1,22 @@
 # Portrait Party Frames
 
-Static native `PartyMemberFrame` family under Modern and Forever. `PortraitPartyFrameState` supplies four non-self member slots; no roster adapter, runtime heads, click/menu wiring or Edit Mode setting. Compact party remains the default. [Contract](../../specs/group-frames.md).
+Native `PartyMemberFrame` family under Modern and Forever. `PortraitPartyFrameState` supplies four non-self member slots from the live group roster; runtime heads, portrait click/menu wiring and Edit Mode settings UI remain excluded. Compact party remains the default. [Contract](../../specs/group-frames.md).
+
+## Step 2 — roster and source corrections
+
+`godot/rust/src/party_frames.rs::group_frames_state` supplies both compact and portrait states. The portrait adapter excludes the local player, preserves server roster order, and reads only online members' `GroupState.live` for health/power/type and Dead/Ghost. Names/class/leader/role/online come from the roster; unavailable live bars stay empty. Offline rendering overrides those fractions as Retail does. Raid returns no portrait members.
+
+`LayoutSettings.use_raid_style_party_frames` is persisted with existing per-character layouts: absent/true keeps compact; false selects portraits. `group_frames_screen` reads the canvas's settings and toggles both roots. The existing per-frame `set_state`, generation-tracked Screen sync and layout `sync_skin` propagate roster/settings changes. No settings UI added (step 4).
+
+Source paths below are relative to `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_UnitFrame/Mainline/`:
+
+- `PartyMemberFrame.lua:570-585`: offline health takes maximum value and `SetStatusBarDesaturated(true)`; portrait desaturates, pet hides; reconnect removes desaturation. Member component supplies full offline health and postsetup marks the sampled health texture, not its white vertex tint. Native `ui/parts.rs` forwards this existing texture flag to the existing canvas desaturation shader; `ui/projection.rs` preserves it while adding disabled-scrollbar desaturation. The first native recapture at `27b41020` caught projection overwriting it with false on non-scrollbars despite green registry/parts tests. `capture_ui_screen.gd::offline_party_health_is_desaturated` reproduced both skins RED at actual rendered pixels before correcting that overwrite. Portrait slots remain empty in step 2; postsetup applies the flag when a portrait texture is installed, but does not create runtime heads.
+- `UnitFrame.lua:930-950`: offline power takes maximum value and `SetStatusBarColor(0.5,0.5,0.5)` unless locked. `:535-541` resets colour and desaturates only dead **player** power. Party offline power therefore uses full width and half-grey vertex tint, not invented power desaturation; atlas hue may remain dark blue.
+- `PartyFrameTemplates.xml:293-311`: overlay fills its 120×53 parent; leader/guide BOTTOM relative TOP at (-10,-6), using atlas size. In down-positive coordinates, leader rect is `(120/2-10-w/2, 6-h, w, h)`, or `(42,-10,16,16)` for both current skins. Step 1 already had that rect. Above-frame crown extension is source-authored, not an anchor defect; keep it, make derivation explicit, and test against resolved atlas dimensions. `PartyMemberFrame.lua:349-364` controls crown/guide visibility.
+
+Behavioral coverage: concrete 2→4→2→0 member roster, promotion, offline, death and departure through roster adapter and rendered registry; both-skin default/portrait/raid switching; offline bar flags/tint and crown geometry; native image projection flag. At `27b41020`, two targeted Godot tests and all 12 portrait UI tests pass (one fixture-regeneration test ignored). At `a220f937`, native build and both-skin raster regression pass; changed-file format checks pass. Earlier unit proof remains valid for unchanged adapter/component code; raster proof covers the projection follow-up.
+
+Inspected captures: `data/diagnostics/party2-2026-10-05/{modern,forever}-party-recapture.png` and `*-detail.png`. Both show full grey offline health, full dim-blue power and the source-authored crown rect. Samples at (130,294): Modern (178,178,178), Forever (175,175,175); power (130,306) is (6,62,122) under both skins. `raster-red/` retains the reproduced green-health failure. Both clients/Weston exit 0 and all owned PIDs are gone. Pre-existing shutdown leaks persist (Modern 7 texture RIDs/10 ObjectDB instances; Forever 9/11), so this is bounded static raster proof, not clean shutdown or step-5 live acceptance. Full proof/commands are in the same directory's `proof.md`; no runtime heads, settings UI, pet acceptance or merge/push.
 
 ## Acceptance status — bounded offline art/fill pass (2026-10-05)
 

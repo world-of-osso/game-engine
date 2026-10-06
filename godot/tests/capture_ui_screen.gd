@@ -30,6 +30,22 @@ func _run() -> void:
 		push_error("UI capture requires a rendering display")
 		quit(1)
 		return
+	if screen in ["portrait_party", "forever_portrait_party"]:
+		if not offline_party_health_is_desaturated(image):
+			ui.queue_free()
+			quit(1)
+			return
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
 	quit(0)
+
+# Concrete four-member preview: third member at (22,147+2*63), health (45,19).
+# Sample right of the Offline label, inside the full offline fill under both skins.
+func offline_party_health_is_desaturated(image: Image) -> bool:
+	for pixel in [Vector2i(130, 294), Vector2i(130, 296)]:
+		var color = image.get_pixelv(pixel)
+		var spread = maxf(color.r, maxf(color.g, color.b)) - minf(color.r, minf(color.g, color.b))
+		if spread > 2.0 / 255.0 or color.r < 0.1:
+			push_error("Offline party health is not filled/desaturated at ", pixel, ": ", color)
+			return false
+	return true

@@ -5,6 +5,8 @@
 use shared::components::PowerType;
 use shared::protocol::GroupRoleSnapshot;
 use ui_toolkit::atlas::ActiveSkin;
+use ui_toolkit::frame::WidgetData;
+use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
@@ -159,6 +161,42 @@ pub fn portrait_party_frame(
     } }
 }
 
+/// Retail online status applies to the sampled health image, not its white tint.
+/// Portrait slots remain empty until step 3; an installed portrait texture gets the
+/// same desaturation. UnitFrame.lua:948-950 tints offline power without desaturating it.
+pub fn apply_portrait_party_postsetup(
+    state: &PortraitPartyFrameState,
+    registry: &mut FrameRegistry,
+) {
+    for (index, member) in state.members.iter().take(MAX_MEMBERS).enumerate() {
+        let root = format!("PartyMemberFrame{}", index + 1);
+        if let Some(texture) = party_texture_mut(registry, &format!("{root}HealthBarFill")) {
+            texture.desaturated = member.offline;
+        }
+        if let Some(texture) = party_texture_mut(registry, &format!("{root}ManaBarFill")) {
+            texture.vertex_color = if member.offline {
+                [0.5, 0.5, 0.5, 1.0]
+            } else {
+                [1.0; 4]
+            };
+        }
+        if let Some(texture) = party_texture_mut(registry, &format!("{root}Portrait")) {
+            texture.desaturated = member.offline;
+        }
+    }
+}
+
+fn party_texture_mut<'a>(
+    registry: &'a mut FrameRegistry,
+    name: &str,
+) -> Option<&'a mut ui_toolkit::widgets::texture::TextureData> {
+    let id = registry.get_by_name(name)?;
+    match registry.get_mut(id)?.widget_data.as_mut()? {
+        WidgetData::Texture(texture) => Some(texture),
+        _ => None,
+    }
+}
+
 fn party_member_frame(
     index: usize,
     view: &PortraitPartyMemberView,
@@ -207,7 +245,13 @@ fn member_bars(root: &str, view: &PortraitPartyMemberView, skin: ActiveSkin) -> 
         center: status.into(),
         ..Default::default()
     };
-    let mut bars = member_health_bar(root, view.health_fraction, &text, skin);
+    // PartyMemberFrame.lua:576-579 fills disconnected health to its maximum.
+    let health = if view.offline {
+        1.0
+    } else {
+        view.health_fraction
+    };
+    let mut bars = member_health_bar(root, health, &text, skin);
     bars.extend(member_power_bar(root, view, skin));
     bars
 }
@@ -238,7 +282,12 @@ fn member_power_bar(root: &str, view: &PortraitPartyMemberView, skin: ActiveSkin
     let spec = BarSpec {
         name: format!("{root}ManaBar"),
         rect,
-        fraction: view.power_fraction,
+        // UnitFrame.lua:944-950 fills disconnected power to its maximum.
+        fraction: if view.offline {
+            1.0
+        } else {
+            view.power_fraction
+        },
         art: party_power_atlas(view.power_type, skin),
         text: &text,
         anchors: TextAnchors::new(2.0, 4.0, 0.0),
@@ -309,7 +358,9 @@ fn member_labels(root: &str, view: &PortraitPartyMemberView, skin: ActiveSkin) -
             format!("{root}{suffix}"),
             atlas,
             skin,
-            |(w, h)| (50.0 - w / 2.0, 6.0 - h, w, h),
+            // PartyFrameTemplates.xml:302-311: BOTTOM to parent TOP (-10,-6).
+            // WoW y points up; bottom is 6 px below the member's top.
+            |(w, h)| (MEMBER_WIDTH / 2.0 - 10.0 - w / 2.0, 6.0 - h, w, h),
             WHITE,
             hidden,
         ));

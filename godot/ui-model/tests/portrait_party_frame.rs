@@ -9,6 +9,8 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::TextureSource;
 
+static SKIN_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 fn members() -> Vec<PortraitPartyMemberView> {
     ["Theron", "Jaina", "Valeera", "Uther"]
         .into_iter()
@@ -44,7 +46,6 @@ fn render(skin: ActiveSkin) -> FrameRegistry {
 fn render_state(skin: ActiveSkin, state: PortraitPartyFrameState) -> FrameRegistry {
     // Production mirrors the global active atlas skin into each SharedContext.
     // Serialize switches so concurrent test cases cannot resolve another skin's art.
-    static SKIN_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
     let _skin_lock = SKIN_LOCK.lock().unwrap();
     let previous_skin = ui_toolkit::atlas::active_skin();
     ui_toolkit::atlas::set_active_skin(skin);
@@ -54,9 +55,13 @@ fn render_state(skin: ActiveSkin, state: PortraitPartyFrameState) -> FrameRegist
     .unwrap();
     let mut shared = SharedContext::new();
     shared.insert(skin);
-    shared.insert(state);
+    shared.insert(state.clone());
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(portrait_party_frame_screen).sync(&shared, &mut registry);
+    game_engine_ui_model::portrait_party_frame_component::apply_portrait_party_postsetup(
+        &state,
+        &mut registry,
+    );
     ui_toolkit::atlas::set_active_skin(previous_skin);
     registry
 }
@@ -113,7 +118,13 @@ fn four_members_draw_state_bars_names_status_and_only_the_leader() {
             let power = frame(&registry, &format!("{root}ManaBarFill"));
             assert_eq!(
                 health.width,
-                ui_toolkit::frame::Dimension::Fixed(70.0 * view.health_fraction)
+                ui_toolkit::frame::Dimension::Fixed(
+                    70.0 * if view.offline {
+                        1.0
+                    } else {
+                        view.health_fraction
+                    }
+                )
             );
             let power_width = if skin == ActiveSkin::Forever {
                 69.0
@@ -122,7 +133,14 @@ fn four_members_draw_state_bars_names_status_and_only_the_leader() {
             };
             assert_eq!(
                 power.width,
-                ui_toolkit::frame::Dimension::Fixed(power_width * view.power_fraction)
+                ui_toolkit::frame::Dimension::Fixed(
+                    power_width
+                        * if view.offline {
+                            1.0
+                        } else {
+                            view.power_fraction
+                        }
+                )
             );
             assert!(registry.get_by_name(&format!("{root}Portrait")).is_some());
             let Some(WidgetData::FontString(name)) =
@@ -136,6 +154,117 @@ fn four_members_draw_state_bars_names_status_and_only_the_leader() {
             );
         }
         assert!(registry.get_by_name("PartyMemberFrame5").is_none());
+    }
+}
+
+#[test]
+fn portrait_party_style_switch_keeps_compact_default_and_raid_visible() {
+    use game_engine_core::ui_layout_data::LayoutSettings;
+    use game_engine_ui_model::compact_unit_frame_component::{CompactUnitView, UnitStatus};
+    use game_engine_ui_model::group_frames_component::{GroupFramesState, group_frames_screen};
+    let bob = CompactUnitView {
+        name: "Bob".into(),
+        class_rgb: [0.25, 0.78, 0.92],
+        health_fraction: Some(1.0),
+        power: Some((0.5, [0.0, 0.0, 1.0])),
+        role: shared::protocol::GroupRoleSnapshot::None,
+        status: UnitStatus::Online,
+        in_range: true,
+        selected: false,
+        ready: None,
+        debuffs: vec![],
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let _skin_lock = SKIN_LOCK.lock().unwrap();
+        let previous_skin = ui_toolkit::atlas::active_skin();
+        ui_toolkit::atlas::set_active_skin(skin);
+        game_engine_ui_model::paths::set_data_root(
+            PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        let mut state = GroupFramesState {
+            party: vec![bob.clone()],
+            portrait_party: PortraitPartyFrameState {
+                members: members(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        shared.insert(state.clone());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(group_frames_screen);
+        screen.sync(&shared, &mut registry);
+        assert!(!frame(&registry, "CompactPartyFrame").hidden);
+        assert!(frame(&registry, "PartyFrame").hidden);
+        shared.insert(LayoutSettings {
+            use_raid_style_party_frames: Some(false),
+            ..Default::default()
+        });
+        screen.sync(&shared, &mut registry);
+        assert!(frame(&registry, "CompactPartyFrame").hidden);
+        assert!(!frame(&registry, "PartyFrame").hidden);
+        assert_eq!(text(&registry, "PartyMemberFrame2Name"), "Jaina");
+        state.party.clear();
+        state.portrait_party = PortraitPartyFrameState::default();
+        state.raid = vec![vec![bob.clone()]];
+        shared.insert(state);
+        screen.sync(&shared, &mut registry);
+        assert!(frame(&registry, "CompactPartyFrame").hidden);
+        assert!(frame(&registry, "PartyFrame").hidden);
+        assert!(!frame(&registry, "CompactRaidFrameContainer").hidden);
+        shared.insert(LayoutSettings::default());
+        screen.sync(&shared, &mut registry);
+        assert!(!frame(&registry, "CompactRaidFrameContainer").hidden);
+        ui_toolkit::atlas::set_active_skin(previous_skin);
+    }
+}
+
+#[test]
+fn portrait_party_offline_uses_retail_full_desaturated_health_and_dimmed_power() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin);
+        let health = frame(&registry, "PartyMemberFrame3HealthBarFill");
+        assert_eq!(health.width, ui_toolkit::frame::Dimension::Fixed(70.0));
+        let Some(WidgetData::Texture(health)) = &health.widget_data else {
+            panic!("health texture")
+        };
+        assert!(health.desaturated);
+        let power = frame(&registry, "PartyMemberFrame3ManaBarFill");
+        let Some(WidgetData::Texture(power)) = &power.widget_data else {
+            panic!("power texture")
+        };
+        assert_eq!(power.vertex_color, [0.5, 0.5, 0.5, 1.0]);
+        assert!(
+            !power.desaturated,
+            "UnitFrame.lua:540 only desaturates dead player power"
+        );
+    }
+}
+
+#[test]
+fn portrait_party_crown_rect_matches_retail_bottom_to_top_anchor() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin);
+        let crown = frame(&registry, "PartyMemberFrame2LeaderIcon");
+        let atlas = resolve_region("UI-HUD-UnitFrame-Player-Group-LeaderIcon", skin).unwrap();
+        assert_eq!(
+            crown.width,
+            ui_toolkit::frame::Dimension::Fixed(atlas.width)
+        );
+        assert_eq!(
+            crown.height,
+            ui_toolkit::frame::Dimension::Fixed(atlas.height)
+        );
+        assert_eq!(
+            crown.position.left,
+            ui_toolkit::layout_values::Val::Px(60.0 - 10.0 - atlas.width / 2.0)
+        );
+        assert_eq!(
+            crown.position.top,
+            ui_toolkit::layout_values::Val::Px(6.0 - atlas.height)
+        );
     }
 }
 
