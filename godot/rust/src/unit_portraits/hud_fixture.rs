@@ -4,7 +4,7 @@ use game_engine_ui_model::{
     chat_frame_component::ChatFrameView,
     inworld_unit_frames_component::{InWorldUnitFramesState, UnitFrameState},
 };
-use godot::classes::{Control, Node, ProjectSettings};
+use godot::classes::{Node, ProjectSettings};
 use godot::prelude::*;
 
 use crate::ui::RegistryUi;
@@ -44,13 +44,11 @@ impl ModernHudOverlapFixture {
     #[func]
     fn bounds(&self) -> VarDictionary {
         let mut state = VarDictionary::new();
-        for (name, ui) in [("PlayerFrame", &self.player), ("ChatFrame", &self.chat)] {
-            let control = ui
-                .as_ref()
-                .unwrap()
-                .find_child(name)
-                .unwrap()
-                .cast::<Control>();
+        for (name, frame, ui) in [
+            ("PlayerFrame", "PlayerFrame", &self.player),
+            ("ChatFrame", "ChatFrame1", &self.chat),
+        ] {
+            let control = ui.as_ref().unwrap().bind().frame_control(frame).unwrap();
             state.set(name, control.get_global_rect());
         }
         state
