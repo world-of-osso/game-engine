@@ -210,7 +210,7 @@ fn party_dropdown(key: &str, label: &str, labels: &[&str], selected: usize, open
             let action = toggle_action(&format!("{key}:{index}"));
             rsx! { button {
                 name: {DynName(format!("PartyChoice{key}{index}"))},
-                width: CHOICE_ROW_W, height: 28.0, text: *text,
+                width: CHOICE_ROW_W, height: 28.0, text: {text.to_string()},
                 onclick: {action.as_str()}, pos_type: "absolute", left: 0.0, top: {28.0 + index as f32 * 28.0},
             } }
         }).collect()

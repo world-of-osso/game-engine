@@ -1,5 +1,5 @@
 //! Party-only presentation; raid frames retain their existing settings.
-use super::group_frames_component::GroupFramesState;
+use super::GroupFramesState;
 use crate::hud_layout::HudAnchor;
 use game_engine_core::ui_layout_data::{PartyFrameSettings, PartySort};
 use shared::protocol::GroupRoleSnapshot;
