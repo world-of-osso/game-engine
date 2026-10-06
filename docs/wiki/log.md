@@ -1,3 +1,7 @@
+## 2026-10-05 — Runtime portrait party heads (party3)
+
+[[portrait-party-frames#Step 3 — runtime member portraits]] records reuse of the masked unit portrait renderer, member-name resource ownership, Retail offline/dead/ghost/low-health rules and no range fade. Compact remains default with zero party renders. Offline process fixtures exercise concrete roster changes and viewport cleanup; proof is recorded in `data/diagnostics/party3-2026-10-05/proof.md`. Appearance data for never-replicated members, settings UI and live acceptance remain open.
+
 ## 2026-10-05 — Stormwind loading boundary
 
 [[stormwind-loading]] records instrumented tile-gate timeout, per-placement costs, WMO-child discovery and unrelated terrain build order. [World-loading policy](../specs/world-loading.md) now defines a spatial entry bubble without discarding distant work. Before/after evidence remains in `data/diagnostics/swload-2026-10-05/`.

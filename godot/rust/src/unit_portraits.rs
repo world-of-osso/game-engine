@@ -6,7 +6,13 @@
 //! UnitFrame.lua:199). Like Retail's portrait texture it is a still image: the model's first
 //! pose rendered once per change, the viewport idle in between.
 
+mod fixture;
+mod party;
+
+use party::PartyPortraits;
 use std::fs;
+
+use shared::components::Player;
 
 use game_engine_core::asset::m2_format::m2_camera::parse_portrait_camera;
 use game_engine_core::creation_scene_data::vertical_fov;
@@ -39,12 +45,16 @@ const MASK_SHADER: &str = "shader_type canvas_item;
 uniform sampler2D mask_texture : filter_linear;
 uniform vec4 mask_rect;
 uniform vec4 tex_rect = vec4(0.0, 0.0, 1.0, 1.0);
+uniform bool desaturated = false;
+uniform vec4 portrait_tint = vec4(1.0);
 void fragment() {
     vec4 model = texture(TEXTURE, tex_rect.xy + UV * tex_rect.zw);
     vec2 mask_uv = (UV - mask_rect.xy) / mask_rect.zw;
     bool inside = all(greaterThanEqual(mask_uv, vec2(0.0))) && all(lessThanEqual(mask_uv, vec2(1.0)));
     float keep = inside ? texture(mask_texture, mask_uv).a : 0.0;
-    COLOR = vec4(model.rgb * model.a, keep);
+    vec3 rgb = model.rgb * model.a;
+    if (desaturated) { rgb = vec3(dot(rgb, vec3(0.299, 0.587, 0.114))); }
+    COLOR = vec4(rgb * portrait_tint.rgb, keep * portrait_tint.a);
 }
 ";
 
@@ -60,6 +70,7 @@ pub(crate) struct UnitPortraits {
     merchant: Portrait,
     /// The quest giver or gossip NPC in QuestFrame (`SetPortraitTexture(.., "questnpc")`).
     quest: Portrait,
+    party: PartyPortraits,
 }
 
 impl Default for UnitPortraits {
@@ -73,6 +84,7 @@ impl Default for UnitPortraits {
             launcher: Portrait::new(game_engine_ui_model::launcher::CHARACTER_ICON),
             merchant: Portrait::new(MERCHANT_PORTRAIT),
             quest: Portrait::new(QUEST_PORTRAIT),
+            party: PartyPortraits::default(),
         }
     }
 }
@@ -106,6 +118,17 @@ impl Portrait {
             shown: None,
             pending: None,
         }
+    }
+
+    fn set_slot(&mut self, slot: PortraitSlot) {
+        if self.slot.mask_fdid != slot.mask_fdid
+            && let Some(scene) = self.scene.as_mut()
+            && scene.view.is_instance_valid()
+        {
+            scene.mask_loaded = false;
+            scene.view.set_visible(false);
+        }
+        self.slot = slot;
     }
 
     fn cancel_pending(&mut self, world: &mut WorldUnits) {
@@ -163,6 +186,9 @@ impl Portrait {
     /// The scene in `host`, made anew when the slot was rebuilt (freeing the old view and
     /// the model inside it).
     fn scene_in(&mut self, host: Gd<Control>) -> &mut Scene {
+        if let Some(scene) = self.scene.as_mut() {
+            scene.move_to_host(&host);
+        }
         let current = self.scene.as_ref().is_some_and(|scene| {
             scene.host == host.instance_id() && scene.view.is_instance_valid()
         });
@@ -257,6 +283,28 @@ impl Scene {
         }
     }
 
+    /// A surviving member moves slots without allocating another viewport.
+    fn move_to_host(&mut self, host: &Gd<Control>) {
+        if !self.view.is_instance_valid() || self.host == host.instance_id() {
+            return;
+        }
+        self.view
+            .reparent_ex(host)
+            .keep_global_transform(false)
+            .done();
+        self.view
+            .set_anchors_and_offsets_preset(LayoutPreset::FULL_RECT);
+        self.host = host.instance_id();
+    }
+
+    fn set_style(&mut self, desaturated: bool, tint: [f32; 4]) {
+        self.material
+            .set_shader_parameter("desaturated", &desaturated.to_variant());
+        let tint = Vector4::new(tint[0], tint[1], tint[2], tint[3]);
+        self.material
+            .set_shader_parameter("portrait_tint", &tint.to_variant());
+    }
+
     /// The view's screen rect and mask, the render and its camera, for automation.
     fn snapshot(&self, state: &mut VarDictionary) {
         state.set("rect", self.view.get_global_rect());
@@ -268,6 +316,15 @@ impl Scene {
         );
         state.set("viewport_size", self.viewport.get_size());
         state.set("model_shown", self.model.is_some());
+        state.set(
+            "desaturated",
+            &self.material.get_shader_parameter("desaturated"),
+        );
+        let tint = self
+            .material
+            .get_shader_parameter("portrait_tint")
+            .to::<Vector4>();
+        state.set("tint", Color::from_rgba(tint.x, tint.y, tint.z, tint.w));
         state.set("camera_position", self.camera.get_global_position());
         if let Some(image) = self
             .viewport
@@ -348,6 +405,8 @@ fn mask_material(slot: &PortraitSlot) -> Gd<ShaderMaterial> {
     let mut material = ShaderMaterial::new_gd();
     material.set_shader(&shader);
     set_slot_rects(&mut material, slot);
+    material.set_shader_parameter("desaturated", &false.to_variant());
+    material.set_shader_parameter("portrait_tint", &Vector4::ONE.to_variant());
     material
 }
 
@@ -505,6 +564,38 @@ impl GameClient {
         (host, self.world.unit_appearance(npc).cloned())
     }
 
+    /// Called after the group canvas sync, so every host matches the current roster.
+    pub(super) fn sync_party_portraits(&mut self) -> Result<(), String> {
+        let compact = game_engine_ui_model::hud_layout::active_layout_settings()
+            .use_raid_style_party_frames
+            .unwrap_or(true);
+        let local = self.account.session.selected_character_name.as_deref();
+        let bindings = party::bindings(&self.account.group, local, compact);
+        if bindings.is_empty() {
+            self.clear_party_portraits();
+            return Ok(());
+        }
+        let appearances: std::collections::HashMap<_, _> = self
+            .replica
+            .units()
+            .filter_map(|unit| {
+                let player = unit.get::<Player>()?;
+                let appearance = self.world.unit_appearance(unit.server_id)?.clone();
+                Some((player.name.clone(), appearance))
+            })
+            .collect();
+        self.targeting.portraits.party.sync(
+            &mut self.world,
+            self.group_frames.frame_ui(),
+            bindings,
+            |name| appearances.get(name).cloned(),
+        )
+    }
+
+    pub(super) fn clear_party_portraits(&mut self) {
+        self.targeting.portraits.party.clear(&mut self.world);
+    }
+
     pub(super) fn clear_unit_portraits(&mut self) {
         let portraits = &mut self.targeting.portraits;
         portraits.player.clear(&mut self.world);
@@ -515,6 +606,7 @@ impl GameClient {
         portraits.launcher.clear(&mut self.world);
         portraits.merchant.clear(&mut self.world);
         portraits.quest.clear(&mut self.world);
+        portraits.party.clear(&mut self.world);
     }
 }
 
@@ -540,6 +632,14 @@ impl GameClient {
         .into_iter()
         .find(|portrait| portrait.slot.frame == frame)
         .map(Portrait::snapshot)
+        .or_else(|| {
+            portraits
+                .party
+                .members
+                .values()
+                .find(|member| member.portrait.slot.frame == frame)
+                .map(|member| member.portrait.snapshot())
+        })
         .unwrap_or_default()
     }
 }
