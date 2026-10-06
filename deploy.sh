@@ -4,6 +4,7 @@
 # See docs/deploy.md for the bundle layout and the game-launcher contract.
 #
 # Usage: ./deploy.sh [--dry-run]
+#   DEPLOY_BUILD_WRAPPER  optional command prefix for the release build step only.
 #   --dry-run  build and assemble the bundle, then print the publish commands instead of
 #              running them.
 set -euo pipefail
@@ -170,7 +171,9 @@ publish() {
 }
 
 echo "=== Building native extension (release, Depot) ==="
-python3 "$ROOT/scripts/depot-build.py" --root "$ROOT" --release
+# DEPLOY_BUILD_WRAPPER (optional): a command prefix for the build only, e.g. a host build
+# lock, so uploads never hold it.
+${DEPLOY_BUILD_WRAPPER:-} python3 "$ROOT/scripts/depot-build.py" --root "$ROOT" --release
 echo "=== Assembling $BUNDLE ==="
 assemble
 echo "Bundle: $(du -sh --apparent-size "$BUNDLE" | cut -f1), $(find "$BUNDLE" -type f | wc -l) files"
