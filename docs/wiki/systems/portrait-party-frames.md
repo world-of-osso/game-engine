@@ -126,7 +126,18 @@ Human female HD (`1000764`, type-0 record 1) stores no FoV keys in sequence slot
 
 Static camera snapshots now take the first authored key after empty slots, retaining the format default only for a track with no keys. Camera type, base eye/target, clipping, model bounds, customization and camera-facing key lighting are unchanged. The real human-female and synthetic sparse-array regressions both reproduce `1.0` before the fix. This is static snapshot extraction, not animated camera evaluation. Local body-camera inventory finds the same sparse FoV pattern in female Worgen human-form rows and model `4220448`; no race/sex zoom overrides are used.
 
-Diagnostic data and proof ledger: `data/diagnostics/jainaportrait-2026-10-06/`. The real-model native test `res://tests/portrait_framing.gd` measures posed head vertices in screen space and visible face luminance for Human/Blood Elf, both sexes. Raster acceptance and darkness attribution remain pending until native RED/GREEN captures are inspected.
+Diagnostic data and proof ledger: `data/diagnostics/jainaportrait-2026-10-06/`. `res://tests/portrait_framing.gd` projects indexed, visible anatomical head-skin vertices (these four models' geoset group 32), with the real Stand skeleton and mapped skin binds; hairstyles are excluded because Theron's ponytail extends 3.41 viewport heights. Head-height tolerance is 75% ±20% of the portrait viewport/ring. Face luminance samples the central anatomical head region, excluding transparent pixels, ring art, shoulders and status tint.
+
+| Real HD model | Head height / viewport | Mean face RGB luminance |
+|---|---:|---:|
+| Human female / Jaina | 0.452195 → 0.585480 | 0.414161 → 0.457353 |
+| Human male / Uther | 0.707335, unchanged | 0.676062, unchanged |
+| Blood Elf female / Valeera | 0.561260, unchanged | 0.740542, unchanged |
+| Blood Elf male / Theron | 0.677184, unchanged | 0.741307, unchanged |
+
+Jaina's apparent darkness is not a missing face composite or another key-light fault: the raw render and bound 2048×1024 atlas contain lit skin. All 13 bound textures across these heads are byte-identical before/after; Jaina has default black hair, not the named NPC's customization. Correct projection enlarges her skin head 29.475%, reduces empty ring space and improves face sampling without bleaching her skin/hair or changing light intensity. Eye/target offsets remain zero; near clip is 0.222222224 for all four. The same snapshot scan finds no new nonzero position/target/roll offsets in the cached body-camera inventory.
+
+At production `e112494a` and fixture `9f0e0719`: eight core camera tests pass, including real/synthetic sparse keys, empty tracks, malformed data and creation cameras. Eight authored head orientations pass in the targeted native Rust test. Native four-head framing/brightness passes; both skins pass all five existing roster/offline/death/lifetime tests. Cargo formatting and the local extension build pass. Inspected captures: `{modern,forever}-party-recapture.png`, enlarged `*-party-detail.png`, `heads-before-after.png` and `Jaina-skin-atlas.png` in that diagnostic directory. All owned wrapper/client/compositor PIDs exit. Existing global texture/ObjectDB/font shutdown leaks remain unchanged; this is bounded offline authored-camera proof, not exact Retail image parity, all-race raster proof or live acceptance. Initial oversized-hair and script-typing oracle failures are retained in the proof ledger.
 
 ## Sources
 
