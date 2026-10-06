@@ -206,6 +206,7 @@ impl GuildRanksSession {
         stacks: &str,
     ) -> Option<GuildRankRequest> {
         let (rank, settings) = self.editable_rank()?;
+        self.state.as_ref()?.tab_names.get(usize::from(tab))?;
         settings.tabs.get(usize::from(tab))?;
         let stacks = u32::try_from(unsigned_input(stacks)?).ok()?;
         Some(GuildRankRequest::SetTab {

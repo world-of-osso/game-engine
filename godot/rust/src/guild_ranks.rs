@@ -129,7 +129,7 @@ impl GameClient {
     }
 }
 fn read_inputs(ui: &mut Gd<RegistryUi>, session: &GuildRanksSession) -> InputTexts {
-    let tabs = session.selected().map_or(0, |rank| rank.tabs.len());
+    let tabs = session.state().map_or(0, |state| state.tab_names.len());
     let names = [NAME_BOX.to_owned(), GOLD_BOX.to_owned()]
         .into_iter()
         .chain((0..tabs).map(|index| format!("GuildTabItems{index}")));
