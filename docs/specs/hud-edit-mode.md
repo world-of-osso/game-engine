@@ -67,6 +67,7 @@ Retail keeps per-system settings in each layout (`Blizzard_EditMode/Shared/EditM
 - [x] Ours, not Retail's: `font` and `text_size` (Retail unit frames have no text settings), one face and one size per frame for all its texts. The offered faces are the two the client ships (`data/fonts/FRIZQT__.TTF`, `ARIALN.ttf`; `GameFont`). Chat `width`/`height` size this client's whole chat frame (tabs, messages and edit box), where Retail's size its message frame.
 - [x] The chat frame grows from its bottom-left corner, the meter and unit frames from their preset anchor point. A larger frame can cover its neighbours until frames can be moved, as in Retail.
 - Changed under Forever at preset values: chat lines wrap to, and fill, the Forever message area (430×170) instead of Modern's (461×215), which overflowed the panel; the meter shows the rows its 214-high window fits (9) instead of Modern's 5.
+- Forever chat body and timestamps use FlareUI's Arial Narrow 12 (`Core.lua:193`), including wrapping and row height. Local `data/fonts/ARIALN.ttf` supplies the face. Frame placement and Modern's 14-unit body remain unchanged. Test: `forevergaps_chat_body_and_timestamp_use_arial_narrow_12`.
 #### Settings UI (Options > HUD)
 
 This client has no Edit Mode overlay, so the controls sit on Options > HUD under the "Layout" dropdown, modelled on Retail's per-system `EditModeSystemSettingsDialog` (title = the selected system, its settings below, `EditModeDialogs.lua:537-540,598-659`; "Revert Changes" button `EditModeDialogs.xml:303`).

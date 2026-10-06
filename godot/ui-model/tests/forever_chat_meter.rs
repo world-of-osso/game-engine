@@ -179,6 +179,33 @@ fn modern_chat_and_meter_are_byte_identical_to_base() {
     assert_eq!(tree.as_bytes(), baseline::MODERN_TREE.as_bytes());
 }
 
+#[test]
+fn forevergaps_chat_body_and_timestamp_use_arial_narrow_12() {
+    use game_engine_ui_model::chat_frame::{ChatRow, ChatRun};
+    use game_engine_ui_model::chat_frame_component::ChatMessageView;
+    use ui_toolkit::widgets::font_string::GameFont;
+    let view = ChatFrameView {
+        messages: vec![ChatMessageView {
+            timestamp: Some("12:34:56".into()),
+            rows: vec![ChatRow {
+                runs: vec![ChatRun {
+                    text: "Ice Barrier applied".into(),
+                    color: [1.0; 4],
+                    x: 0.0,
+                    width: 100.0,
+                    spell_id: None,
+                }],
+            }],
+        }],
+        ..Default::default()
+    };
+    let registry = canvas(ActiveSkin::Forever, view, chat_frame_screen);
+    for name in ["ChatFrame1MessagesRow0Run0", "ChatFrame1Message0Time"] {
+        assert_eq!(font(&registry, name).font, GameFont::ArialNarrow);
+        assert_eq!(font(&registry, name).font_size, 12.0);
+    }
+}
+
 /// The header is the skin's top band; the separator is a drawn line along its bottom edge.
 fn assert_header_band(registry: &FrameRegistry, skin: &str, header: &str, separator: &str) {
     let (skin_x, skin_y, skin_w, skin_h) = rect(registry, skin);
