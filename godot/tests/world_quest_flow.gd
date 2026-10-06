@@ -434,10 +434,16 @@ func explore(quest_id: int, outside: Array, route: Array, radius: float) -> bool
 		if not await walk_to(target, radius * 0.5 if index == route.size() - 1 else 2.0):
 			if player_dead() and deaths < 3:
 				deaths += 1
-				print("FIXTURE EXPLORATION_DEATH ", quest_id, " restart ", deaths, " from outside trigger")
-				if not await teleport(outside):
+				var recovery: Vector3 = client.account_state().local_server_position
+				var center := Vector2(route[-1][0], -route[-1][1])
+				# The route ends within four yards of the DB2 trigger centre. Never revive
+				# inside its sphere: that could credit exploration without a living walk.
+				if Vector2(recovery.x, recovery.z).distance_to(center) <= radius + 4.0:
+					fail("Cannot revive inside exploration trigger %d at %s" % [quest_id, recovery])
 					return false
-				index = 0
+				print("FIXTURE EXPLORATION_DEATH ", quest_id, " recovery ", deaths, " outside trigger at ", recovery)
+				if not await teleport([recovery.x, -recovery.z, recovery.y]):
+					return false
 				continue
 			await capture("stuck-%d.png" % quest_id)
 			fail("Could not walk to %s on the way into the trigger of %d from %s" % [point, quest_id, player_position()])
