@@ -6,7 +6,7 @@ References: MF.xml / MF.lua = `Blizzard_MailFrame/MailFrame.xml` / `.lua`; `Bliz
 
 ## Native Godot client
 
-- MailFrame and OpenMailFrame use the [shared skin-resolved metal chrome](merchant-frame.md#godot-client), without changing their Modern trees or geometry.
+- MailFrame and OpenMailFrame use the [shared skin-resolved metal chrome](merchant-frame.md#godot-client). The compose body spans the stationery's letter area and uses a multiline scrolling editor.
 - Replicated type-19 `GameObjectInfo` and `Position` identify real mailboxes. Render/pick the `GameObjectDisplayInfo.FileDataID` model with replicated rotation/scale; unresolved metadata, models or textures must report their precise asset error, never substitute a mailbox.
 - Right-click within 5 yards sends `UseGameObject`. Only its matching Mailbox role opens the authored `MailFrame` (Inbox and Send Mail tabs) with the backpack; matching `MailboxContents` may arrive before that role. Closed, unrelated and stale mailbox traffic must not reopen it.
 - One mail request is in flight at a time (`C_Mail.IsCommandPending`): the mail buttons wait for matching contents, `MailSent` or `MailFailed`. No client change predicts currency, inventory or mail contents; server `Gold`, inventory and refreshed contents do.
@@ -52,5 +52,5 @@ References: MF.xml / MF.lua = `Blizzard_MailFrame/MailFrame.xml` / `.lua`; `Bliz
 - [x] IPC: `mail status | send | read | take-item | take-money | return | delete`.
 
 ## Gaps
-- The letter edit box is one line (Enter leaves it); no stationery choice, no attachment tooltips, no minimap flipbook animation, no auction invoice layout.
+- No stationery choice, attachment tooltips, minimap flipbook animation or auction invoice layout.
 - Native: "Mail sent." uses the red UIErrorsFrame line (no yellow info-message variant yet); bag items attach by right-click only, not by dropping a cursor item on an attachment button.
