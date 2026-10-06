@@ -8,18 +8,18 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 ## What it must do
 
 ### Rank controls
-- [ ] Guild settings → Guild Ranks opens the same Retail functionality in both skins.
-- [ ] Guild Master alone adds, removes, renames, reorders and configures ranks; rank 0 is immutable, there are 2–10 ranks and names have at most 15 characters.
-- [ ] Occupied ranks cannot be removed; reordered members retain their rank identity.
+- [x] Guild settings → Guild Ranks opens the same Retail functionality in both skins.
+- [x] Guild Master alone adds, removes, renames, reorders and configures ranks; rank 0 is immutable, there are 2–10 ranks and names have at most 15 characters.
+- [x] Occupied ranks cannot be removed; reordered members retain their rank identity.
 - [x] Requests leave selected-rank data unchanged until the authoritative reply arrives.
-- [ ] Mutating controls wait for authoritative state before sending another write; queued clicks cannot overwrite a prior permission edit using stale flags.
+- [x] Mutating controls wait for authoritative state before sending another write; queued clicks cannot overwrite a prior permission edit using stale flags.
 
 ### Permissions and members
-- [ ] Selected rank shows permission checkboxes for guild/officer chat, invite/remove/promote/demote, MOTD and existing officer-note/info features.
-- [ ] Per-tab view/deposit/withdraw-stacks controls show server state. Zero denies withdrawals; only Guild Master is unlimited.
-- [ ] Whole-gold input sends copper/day, sharing the allowance with guild repairs.
-- [ ] Member context menu shows Promote/Demote only when flags and strict hierarchy allow it; promotion stops below the actor's rank.
-- [ ] Server refusals display Retail GlobalStrings. `/o` and `/officer` use the Officer channel and its styling.
+- [x] Selected rank shows permission checkboxes for guild/officer chat, invite/remove/promote/demote, MOTD and existing officer-note/info features.
+- [x] Per-tab view/deposit/withdraw-stacks controls show server state. Zero denies withdrawals; only Guild Master is unlimited.
+- [x] Whole-gold input sends copper/day, sharing the allowance with guild repairs.
+- [x] Member context menu shows Promote/Demote only when flags and strict hierarchy allow it; promotion stops below the actor's rank.
+- [x] Server refusals display Retail GlobalStrings. `/o` and `/officer` use the Officer channel and its styling.
 
 ## How it works
 
@@ -39,17 +39,23 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 
 ## Tests asserting this spec
 
-`godot/ui-model/tests/native_guild_ranks.rs` tests request values, authoritative selected data,
-rank-zero protection, occupied deletion, hierarchy, refusal text and officer classification.
-All five model tests pass at `61e129e4` through the locked local helper, compiling
-Godot, UI-model and network packages. These are model tests, not proof that native
-settings widgets or transport integration exist.
+- `godot/ui-model/tests/native_guild_ranks.rs`: 5 authoritative model/Officer tests pass.
+- `godot/ui-model/tests/guild_rank_widgets.rs`: 9 tests pass in both skins, including
+  mounted state, exact click requests, disabled controls, hierarchy, pacing and purchased tabs.
+- `godot/network/src/guild_rank_wire_tests.rs`: real loopback UDP request/reply proof passes.
+- `godot/rust/src/account.rs`: native state/refusal dispatch test passes.
+- Existing `micro_menu` binary: 11 regression tests pass.
+- `godot/tests/capture_ui_screen.gd`: native rendered disclaimer bands pass in both skins.
 
-## Known gaps (current cycle)
+Native build and inspected 1920×1080 captures pass at `1e62844b`.
+Exact names, commands, revisions and exclusions: `data/diagnostics/guildranks-2026-10-05/proof.md`.
 
-Implementation mounted in both skins; targeted widget/transport tests and native
-1920×1080 capture proof are tracked in `data/diagnostics/guildranks-2026-10-05/proof.md`.
-No live server proof is implied by offline snapshots.
+## Proof boundaries
+
+No requested native rank UI feature remains unimplemented. No live authenticated
+server smoke was run; the server slot was read-only. Both capture processes exit 0,
+but logs retain texture/font shutdown leaks. Full communities/social functionality,
+pixel-perfect Retail parity and clean-resource acceptance are not claimed.
 
 ## Out of scope
 

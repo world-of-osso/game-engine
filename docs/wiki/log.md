@@ -1,3 +1,14 @@
+## Native guild rank settings — client continuation
+
+[[banks#Rank settings model]] now records the native guild/communities entry, both-skin
+rank/settings widgets, hierarchy-gated member context menu and GuildChannel bridge.
+Client writes wait for authoritative state; only purchased tab-name entries are edited
+from the server's fixed eight-tab rights vector. 27 targeted Rust tests pass across
+widget/model/transport/micro scopes. At `1e62844b`, native build and both inspected
+1920×1080 captures pass after a real-raster disclaimer overlap regression. Logs retain
+texture/font shutdown leaks; live server and full communities parity are not claimed.
+Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds or port 5000 use.
+
 ## 2026-10-05 — Paperdoll teardown double free
 
 [[character-preview-double-free]] records a real-engine reproduction of `gd.rs:911`, the parent-before-preview teardown bug, and the process/reconnect ownership audit. Reset now releases the preview before its RegistryUi parent. At `dc7f80b9`, formatting, locked local extension build and three headless lifecycle cycles pass (each command exit 0). All 144 native Rust free sites inventoried; no other matching unguarded double-free established. Original suspend incident attribution remains conditional.
