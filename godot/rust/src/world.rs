@@ -682,6 +682,16 @@ pub(crate) fn player_motion_locomotion(motion: PlayerMotion) -> Locomotion {
     }
 }
 
+/// Apply an idle turn from the remote player's already replicated facing.
+pub(crate) fn remote_player_facing_locomotion(
+    locomotion: Locomotion,
+    _previous: Option<f32>,
+    _facing: f32,
+    _flying: bool,
+) -> Locomotion {
+    locomotion
+}
+
 /// The locomotion a unit follows from its replicated `PlayerMotion`: only another
 /// player's. The local player animates from its own predicted movement.
 pub(crate) fn remote_player_locomotion(
