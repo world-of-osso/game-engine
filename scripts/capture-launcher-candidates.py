@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline native launcher captures. Invoke under build-lock + agent-run launcherart."""
+"""Offline native filled launcher captures. Invoke under build-lock + agent-run launcher2."""
 import json
 import os
 from pathlib import Path
@@ -25,11 +25,10 @@ def stop_process(process):
             process.wait()
 
 
-def capture_candidate(skin, style, env):
-    name = f"{skin}-{style}"
+def capture_candidate(skin, env):
+    name = f"{skin}-filled-final"
     destination = OUT / f"{name}.png"
-    env = dict(env, GODOT_LAUNCHER_SKIN=skin, GODOT_LAUNCHER_STYLE=style,
-               GODOT_CAPTURE_PATH=str(destination))
+    env = dict(env, GODOT_LAUNCHER_SKIN=skin, GODOT_CAPTURE_PATH=str(destination))
     args = [str(GODOT), "--path", str(ROOT / "godot"), "--display-driver", "wayland",
             "--rendering-driver", "vulkan", "--audio-driver", "Dummy",
             "--resolution", "1920x1080", "--script", "res://tests/capture_launcher_candidates.gd"]
@@ -47,9 +46,9 @@ def capture_candidate(skin, style, env):
     # Full metal-frame outsets retained, plus player-name context below it.
     crop = image.crop((400, 290, 1300, 855))
     crop.resize((crop.width * 2, crop.height * 2), Image.Resampling.NEAREST).save(
-        OUT / f"{name}-2x.png")
+        OUT / f"{skin}-filled-2x-final.png")
     magnifier = image.crop((1580, 210, 1730, 305))
-    magnifier.resize((300, 190), Image.Resampling.NEAREST).save(OUT / f"{name}-minimap-2x.png")
+    magnifier.resize((300, 190), Image.Resampling.NEAREST).save(OUT / f"{skin}-filled-minimap-2x-final.png")
     print(f"PASS {name}: {destination}", flush=True)
     return {"pid": client.pid, "exit": code, "full": str(destination)}
 
@@ -62,7 +61,7 @@ def capture_candidates():
                VK_DRIVER_FILES="/opt/game-engine/mesa-dzn/share/vulkan/icd.d/dzn_icd.x86_64.json",
                LD_LIBRARY_PATH="/usr/lib/wsl/lib")
     status = {}
-    with (OUT / "weston.log").open("w") as log:
+    with (OUT / "weston-final.log").open("w") as log:
         weston = subprocess.Popen(
             ["weston", "--backend=headless", "--renderer=pixman", "--no-config",
              "--socket=la", "--width=1920", "--height=1080", "--idle-time=0"],
@@ -78,8 +77,7 @@ def capture_candidates():
             else:
                 raise RuntimeError("Weston socket timeout")
             for skin in ["modern", "forever"]:
-                for style in ["filled", "outline"]:
-                    status[f"{skin}-{style}"] = capture_candidate(skin, style, env)
+                status[skin] = capture_candidate(skin, env)
         finally:
             children = Path(f"/proc/{weston.pid}/task/{weston.pid}/children")
             pids = [int(pid) for pid in children.read_text().split()] if children.exists() else []
@@ -91,7 +89,7 @@ def capture_candidates():
                     pass
             status["weston_exit"] = weston.returncode
             status["weston_children"] = pids
-            (OUT / "capture-status.json").write_text(json.dumps(status, indent=2))
+            (OUT / "capture-status-final.json").write_text(json.dumps(status, indent=2))
 
 
 if __name__ == "__main__":

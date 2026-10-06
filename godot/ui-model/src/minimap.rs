@@ -309,11 +309,7 @@ pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
         ActiveSkin::Modern => modern_chrome(state, style.map_centre()),
         ActiveSkin::Forever => forever_chrome(state, &style),
     });
-    children.extend(launcher_button(
-        style.cluster_size,
-        skin,
-        crate::launcher::icon_style(ctx),
-    ));
+    children.extend(launcher_button(style.cluster_size, skin));
     let size = style.cluster_size;
     let at = hud_layout(ctx).minimap.place((size, size));
     rsx! {
@@ -337,12 +333,8 @@ pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
 /// Buff-icon-sized opener left of the cluster, bottom-aligned with it (user placement
 /// 2026-10-05): below the buff rows and the first debuff row, outside the flush-right
 /// objective tracker's column. A ninth debuff wraps onto its spot.
-fn launcher_button(
-    cluster_size: f32,
-    skin: ActiveSkin,
-    style: crate::launcher::LauncherIconStyle,
-) -> Element {
-    let icon = crate::launcher::icon_path(skin, style, "magnifier");
+fn launcher_button(cluster_size: f32, skin: ActiveSkin) -> Element {
+    let icon = crate::launcher::icon_path(skin, "magnifier");
     const ICON_SIZE: f32 = 30.0;
     const GAP: f32 = 6.0;
     let left = -(ICON_SIZE + GAP);

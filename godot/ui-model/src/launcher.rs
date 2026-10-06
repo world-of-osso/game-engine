@@ -17,40 +17,21 @@ pub const SEARCH_FIELD: &str = "LauncherSearchBox";
 pub const ACTION_OPEN: &str = "launcher:open";
 pub const ACTION_CLOSE: &str = "launcher:close";
 pub const ACTION_KEY_BINDINGS: &str = "launcher:key_bindings";
-pub const COLUMNS: usize = 5;
-const CELL_W: f32 = 108.0;
-const CELL_H: f32 = 82.0;
-const CELL_GAP: f32 = 4.0;
-const PANEL_INSET: f32 = 18.0;
+pub const COLUMNS: usize = 2;
+const CELL_W: f32 = 250.0;
+const CELL_H: f32 = 40.0;
+const CELL_GAP: f32 = 2.0;
+const PANEL_INSET: f32 = 12.0;
 const PANEL_W: f32 = COLUMNS as f32 * (CELL_W + CELL_GAP) - CELL_GAP + PANEL_INSET * 2.0;
-const GRID_TOP: f32 = 74.0;
-const ICON_SIZE: f32 = 40.0;
+const GRID_TOP: f32 = 70.0;
+const ICON_SIZE: f32 = 32.0;
 
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum LauncherIconStyle {
-    Filled,
-    Outline,
-}
-
-/// Phase-one pick: changing this constant switches launcher and minimap together.
-pub const ICON_STYLE: LauncherIconStyle = LauncherIconStyle::Outline;
-
-pub fn icon_path(skin: ActiveSkin, style: LauncherIconStyle, glyph: &str) -> String {
+pub fn icon_path(skin: ActiveSkin, glyph: &str) -> String {
     let skin = match skin {
         ActiveSkin::Modern => "modern",
         ActiveSkin::Forever => "forever",
     };
-    let style = match style {
-        LauncherIconStyle::Filled => "filled",
-        LauncherIconStyle::Outline => "outline",
-    };
-    format!("res://ui/launcher_icons/png/{skin}/{style}/{glyph}.png")
-}
-
-pub fn icon_style(ctx: &SharedContext) -> LauncherIconStyle {
-    ctx.get::<LauncherIconStyle>()
-        .copied()
-        .unwrap_or(ICON_STYLE)
+    format!("res://ui/launcher_icons/png/{skin}/filled/{glyph}.png")
 }
 
 fn entry_glyph(id: &str) -> &'static str {
@@ -60,14 +41,25 @@ fn entry_glyph(id: &str) -> &'static str {
         "QuestLogMicroButton" => "quest",
         "Bags" => "bags",
         "MainMenuMicroButton" => "menu",
-        // Phase one intentionally leaves the uncommissioned twelve entries neutral.
-        _ => "empty",
+        "ProfessionMicroButton" => "professions",
+        "AchievementMicroButton" => "achievements",
+        "HousingMicroButton" => "housing",
+        "GuildMicroButton" => "guild",
+        "LFDMicroButton" => "group",
+        "CollectionsMicroButton" => "collections",
+        "EJMicroButton" => "adventure",
+        "StoreMicroButton" => "shop",
+        "Help" => "help",
+        "WorldMap" => "map",
+        "Options" => "options",
+        "KeyBindings" => "keyboard",
+        _ => panic!("Launcher entry {id} has no authored glyph"),
     }
 }
 
 fn panel_height(count: usize) -> f32 {
     let rows = count.max(1).div_ceil(COLUMNS) as f32;
-    GRID_TOP + rows * (CELL_H + CELL_GAP) - CELL_GAP + 16.0
+    GRID_TOP + rows * (CELL_H + CELL_GAP) - CELL_GAP + PANEL_INSET
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -255,37 +247,32 @@ pub fn launcher_screen(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame {
             name: "LauncherRoot", stretch: true, mouse_enabled: true, strata: FrameStrata::Dialog,
-            {launcher_panel(view, skin, icon_style(ctx))}
+            {launcher_panel(view, skin)}
         }
     }
 }
 
-fn entry_buttons(
-    entries: &[LauncherEntry],
-    selected: usize,
-    skin: ActiveSkin,
-    style: LauncherIconStyle,
-) -> Element {
+fn entry_buttons(entries: &[LauncherEntry], selected: usize, skin: ActiveSkin) -> Element {
     entries
         .iter()
         .enumerate()
         .flat_map(|(index, entry)| {
-            let icon = icon_path(skin, style, entry_glyph(&entry.id));
+            let icon = icon_path(skin, entry_glyph(&entry.id));
             entry_button(index, entry, selected == index, &icon)
         })
         .collect()
 }
 
-fn launcher_panel(view: &LauncherView, skin: ActiveSkin, style: LauncherIconStyle) -> Element {
+fn launcher_panel(view: &LauncherView, skin: ActiveSkin) -> Element {
     let visible = view.filtered_entries();
     let height = panel_height(visible.len());
-    let entries = entry_buttons(&visible, view.selected, skin, style);
+    let entries = entry_buttons(&visible, view.selected, skin);
     rsx! {
         r#frame {
             name: "LauncherPanel", width: PANEL_W, height,
             pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%",
             {flat_panel_chrome("Launcher", (PANEL_W, height), "Launcher", ACTION_CLOSE)}
-            {search_box(&view.query, &icon_path(skin, style, "magnifier"))}
+            {search_box(&view.query, &icon_path(skin, "magnifier"))}
             {entries}
             {empty_results(view)}
         }
@@ -323,10 +310,11 @@ fn entry_button(index: usize, entry: &LauncherEntry, selected: bool, icon: &str)
             left: {PANEL_INSET + (index % COLUMNS) as f32 * (CELL_W + CELL_GAP)},
             top: {GRID_TOP + (index / COLUMNS) as f32 * (CELL_H + CELL_GAP)},
             texture { name: {DynName(format!("LauncherArt{}", entry.id))}, width: ICON_SIZE, height: ICON_SIZE,
-                texture_file: icon, pos_type: "absolute", left: {(CELL_W - ICON_SIZE) / 2.0}, top: 4.0 }
+                texture_file: icon, pos_type: "absolute", left: 4.0, top: 4.0 }
             fontstring { name: {DynName(format!("LauncherLabel{}", entry.id))}, text: {entry.label.as_str()},
-                width: {CELL_W - 4.0}, height: 34.0, font_size: 14.0, font_color: "1.0,1.0,1.0,1.0",
-                pos_type: "absolute", left: 2.0, top: 46.0 }
+                width: {CELL_W - ICON_SIZE - 14.0}, height: 20.0, font_size: 15.0, font_color: "1.0,1.0,1.0,1.0",
+                justify_h: "LEFT", word_wrap: false,
+                pos_type: "absolute", left: {ICON_SIZE + 10.0}, top: 10.0 }
         }
     }
 }

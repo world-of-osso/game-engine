@@ -3,9 +3,7 @@ use game_engine_ui_model::chat_frame_component::{ChatFrameView, chat_frame_scree
 use game_engine_ui_model::inworld_unit_frames_component::{
     InWorldUnitFramesState, UnitFrameState, inworld_unit_frames_screen,
 };
-use game_engine_ui_model::launcher::{
-    LauncherIconStyle, LauncherView, SEARCH_FIELD, launcher_screen,
-};
+use game_engine_ui_model::launcher::{LauncherView, SEARCH_FIELD, launcher_screen};
 use game_engine_ui_model::minimap::{MinimapClusterState, minimap_cluster_screen};
 use godot::prelude::*;
 use ui_toolkit::atlas::ActiveSkin;
@@ -23,9 +21,8 @@ fn candidate_screen(ctx: &SharedContext) -> Element {
     elements
 }
 
-fn candidate_context(style: LauncherIconStyle) -> SharedContext {
+fn candidate_context() -> SharedContext {
     let mut shared = SharedContext::new();
-    shared.insert(style);
     shared.insert(LauncherView {
         open: true,
         ..Default::default()
@@ -68,11 +65,7 @@ fn register_candidate_panels(registry: &mut FrameRegistry) -> Result<(), String>
 }
 
 impl RegistryUi {
-    pub(super) fn initialize_launcher_candidate(
-        &mut self,
-        skin: ActiveSkin,
-        style: LauncherIconStyle,
-    ) -> Result<(), String> {
+    pub(super) fn initialize_launcher_candidate(&mut self, skin: ActiveSkin) -> Result<(), String> {
         if self.model.is_some() {
             return Err("RegistryUi already has a screen".into());
         }
@@ -87,7 +80,7 @@ impl RegistryUi {
         register_candidate_panels(&mut registry)?;
         let mut model = RegistryModel {
             screen: Screen::new(candidate_screen),
-            shared: candidate_context(style),
+            shared: candidate_context(),
             registry,
             icon_masks: Default::default(),
             postsetup: ScreenPostsetup::None,
