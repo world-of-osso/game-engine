@@ -47,6 +47,10 @@ pub(crate) struct Banks {
 }
 
 impl Banks {
+    pub(crate) fn portrait_unit(&self) -> Option<u64> {
+        self.bank.state.npc.filter(|_| self.bank.is_open())
+    }
+
     pub(crate) fn visit_uis(
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
@@ -77,6 +81,28 @@ impl Banks {
         self.guild.close_frame();
         self.free_bank_ui();
         self.free_guild_ui();
+    }
+}
+
+#[cfg(test)]
+mod portrait_tests {
+    use super::Banks;
+    use shared::protocol::NpcRole;
+
+    #[test]
+    fn npcportraits_bank_follows_open_banker_and_clears_on_close() {
+        let mut banks = Banks::default();
+        assert_eq!(banks.portrait_unit(), None);
+        assert!(!banks.bank.open_role(11, NpcRole::Vendor));
+        assert_eq!(banks.portrait_unit(), None);
+        assert!(banks.bank.open_role(42, NpcRole::Banker));
+        assert_eq!(banks.portrait_unit(), Some(42));
+        assert!(!banks.bank.close_for(11));
+        assert_eq!(banks.portrait_unit(), Some(42));
+        assert!(banks.bank.close_for(42));
+        assert_eq!(banks.portrait_unit(), None);
+        assert!(banks.bank.open_role(73, NpcRole::Banker));
+        assert_eq!(banks.portrait_unit(), Some(73));
     }
 }
 

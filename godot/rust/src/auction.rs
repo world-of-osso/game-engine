@@ -59,6 +59,31 @@ impl Auction {
         }
     }
 }
+#[cfg(test)]
+mod portrait_tests {
+    use super::Auction;
+    use shared::protocol::GossipMenu;
+
+    #[test]
+    fn npcportraits_auction_uses_greeting_or_open_auctioneer() {
+        let mut auction = Auction::default();
+        assert_eq!(auction.portrait_unit(), None);
+        auction.gossip = Some((
+            42,
+            GossipMenu {
+                text: "Welcome".into(),
+                options: Vec::new(),
+            },
+        ));
+        assert_eq!(auction.portrait_unit(), Some(42));
+        auction.gossip = None;
+        auction.session.open(73);
+        assert_eq!(auction.portrait_unit(), Some(73));
+        auction.session.close();
+        assert_eq!(auction.portrait_unit(), None);
+    }
+}
+
 impl GameClient {
     pub(crate) fn auction_interaction_closed(&mut self, npc: u64) {
         if self.auction.session.ui.npc == Some(npc)

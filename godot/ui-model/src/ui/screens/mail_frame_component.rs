@@ -24,6 +24,10 @@ use crate::ui::strata::FrameStrata;
 
 pub const FRAME_NAME: &str = "MailFrame";
 pub const OPEN_MAIL_NAME: &str = "OpenMailFrame";
+/// MF.lua:21 `SetPortraitToAsset("Interface\\\\MailFrame\\\\Mail-Icon")`.
+pub const MAIL_PORTRAIT_FDID: u32 = 136_382;
+/// MF.lua:298 stationery icon; current normal-mail contract uses INV_Misc_Note_01.
+pub const OPEN_MAIL_PORTRAIT_FDID: u32 = 134_327;
 /// `ButtonFrameTemplate` default size (SharedUIPanelTemplates.xml:548).
 pub const FRAME_W: f32 = 338.0;
 pub const FRAME_H: f32 = 424.0;
@@ -196,7 +200,7 @@ fn build_mail_frame(state: &MailFrameState) -> Element {
     let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), title, ACTION_CLOSE);
     children.extend(crate::quest_art::window_portrait_texture(
         &crate::quest_art::window_portrait_slot("MailFramePortrait"),
-        136_382,
+        MAIL_PORTRAIT_FDID,
     ));
     match state.tab {
         MailFrameTab::Inbox => children.extend(inbox(state, busy)),
@@ -662,7 +666,7 @@ fn open_mail(open: &OpenMailView, busy: bool) -> Element {
     // MailFrame.lua:298 uses the stationery icon (INV_Misc_Note_01 for normal mail).
     children.extend(crate::quest_art::window_portrait_texture(
         &crate::quest_art::window_portrait_slot("OpenMailFramePortrait"),
-        134_327,
+        OPEN_MAIL_PORTRAIT_FDID,
     ));
     // "From:" / "Subject:" right-aligned at 105 (MF.xml:878-896).
     children.extend(label(

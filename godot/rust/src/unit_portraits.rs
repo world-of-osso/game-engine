@@ -530,11 +530,7 @@ impl GameClient {
         let (bank_host, banker) = self.npc_portrait(
             self.banks.bank_ui.as_ref(),
             &BANK_PORTRAIT,
-            self.banks
-                .bank
-                .state
-                .npc
-                .filter(|_| self.banks.bank.is_open()),
+            self.banks.portrait_unit(),
         );
         let (auction_host, auctioneer) = self.npc_portrait(
             self.auction.ui.as_ref(),
