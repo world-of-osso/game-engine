@@ -754,6 +754,38 @@ fn group_members_do_not_overlap_and_keep_their_place_without_the_party_title() {
     assert_eq!(rects[0], rects[1]);
 }
 
+/// The old launcher covered half of Forever's player name ("Launchpo...").
+#[test]
+fn launcher_panel_clears_player_name_on_default_1080p_layout() {
+    use game_engine_ui_model::launcher::{LauncherView, launcher_screen};
+
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_data_root();
+        let mut units = unit_frames();
+        units.player.name = "Launchpolish".into();
+        let mut canvases = [
+            model(units, inworld_unit_frames_screen),
+            model(
+                LauncherView {
+                    open: true,
+                    ..Default::default()
+                },
+                launcher_screen,
+            ),
+        ];
+        for canvas in &mut canvases {
+            canvas.registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
+        }
+        sync(&mut canvases, skin);
+        let panel = rect(&canvases, "LauncherPanel");
+        let player = rect(&canvases, "PlayerFrame");
+        assert!(
+            !intersects(&panel, &player),
+            "{skin:?}: launcher {panel:?} clips player {player:?}"
+        );
+    }
+}
+
 /// Preset defaults mirror the minimap's corner margins without covering other HUD frames.
 #[test]
 fn preset_meter_mirrors_minimap_and_clears_hud_at_both_resolutions() {

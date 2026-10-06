@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <title>Housing Dashboard — filled launcher icon</title>
+  <rect x="2" y="2" width="44" height="44" rx="3" fill="#0a0e13" stroke="#6a5632" stroke-width="1.2"/>
+  <path d="M5 5h38l-3 3H8v32l-3 3z" fill="#303944"/>
+  <path d="M43 5v38H5l3-3h32V8z" fill="#0a0e13"/>
+  <rect x="8" y="8" width="32" height="32" rx="1" fill="#171c23"/>
+  <g fill="#e6c47a" stroke="#e6c47a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m10 23 14-12 14 12h-4v14H14V23z"/><path d="M30 12h4v8"/>
+  </g>
+  <g fill="none" stroke="#171c23" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 37V26h6v11M17 23h2M29 23h2"/>
+  </g>
+</svg>
