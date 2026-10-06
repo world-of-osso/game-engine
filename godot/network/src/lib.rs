@@ -230,6 +230,7 @@ impl NetworkBridge {
             .receive::<ThreatUpdate>()
             // The XP bar values after enter world, every gain and every level-up.
             .receive::<protocol::PlayerXpUpdate>()
+            .receive::<protocol::LogXpGain>()
             // Melee swing outcomes and resolved casts of every replicated unit, for
             // combat animations and spell visuals.
             .receive::<CombatEvent>()

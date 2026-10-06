@@ -432,7 +432,8 @@ pub fn chat_message_line(msg: &ChatMessage) -> ChatLine {
         }
         ChatChannelType::Whisper => format!("To [{}]: {body}", msg.channel_name),
         ChatChannelType::Emote => format!("{sender} {body}"),
-        ChatChannelType::System => body.clone(),
+        // ChatFrameOverrides.lua:398-399 passes COMBAT_* text through unchanged.
+        ChatChannelType::System | ChatChannelType::CombatXpGain => body.clone(),
         ChatChannelType::Custom => format!("[{}] [{sender}]: {body}", msg.channel_name),
         // CHAT_MONSTER_SAY_GET / CHAT_MONSTER_YELL_GET: the creature's name, no link.
         ChatChannelType::MonsterSay => format!("{sender} says: {body}"),

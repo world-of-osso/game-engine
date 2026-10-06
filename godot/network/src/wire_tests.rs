@@ -1,6 +1,37 @@
 //! Real loopback UDP proof; owns its server and never contacts the development game server.
 
 #[test]
+fn xpchat_native_bridge_receives_log_xp_gain() {
+    use shared::protocol::{ExperienceChannel, LogXpGain, XpGainReason};
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8247);
+    await_connected(&mut server, &mut host);
+    let expected = LogXpGain {
+        victim: Some(0x0000_0001_0000_0099),
+        original: 120,
+        amount: 60,
+        group_bonus: 1.0,
+        reason: XpGainReason::Kill,
+    };
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<LogXpGain>>()
+        .single_mut(world)
+        .expect("one XP sender")
+        .send::<ExperienceChannel>(expected);
+    let Event::Message(message) = await_bridge_event(
+        &mut server,
+        &mut host,
+        "XP gain on the default native bridge",
+        |event| matches!(event, Event::Message(message) if message.is::<LogXpGain>()),
+    ) else {
+        panic!("expected XP gain");
+    };
+    assert_eq!(message.downcast::<LogXpGain>().ok(), Some(expected));
+    host.stop();
+}
+
+#[test]
 fn native_mailbox_requests_preserve_object_mail_and_sparse_attachment_slot() {
     use shared::protocol::{
         InteractionChannel, MailAction, MailChannel, MailRequest, UseGameObject,

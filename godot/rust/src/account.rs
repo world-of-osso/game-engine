@@ -183,6 +183,8 @@ pub enum AccountEvent {
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
+    /// One owner-only experience gain (`CHAT_MSG_COMBAT_XP_GAIN`).
+    XpGain(shared::protocol::LogXpGain),
     /// A player's social emote, played on its model.
     Emote(EmoteEvent),
     /// A group result or notice (`ERR_*`, `READY_CHECK_*`), shown as a system chat line.
@@ -1031,6 +1033,10 @@ impl Account {
             output.push(AccountEvent::GameTime(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::LogXpGain>() {
+            output.push(AccountEvent::XpGain(decode(message)?));
+            return Ok(());
+        }
         if message.is::<ChatMessage>() {
             output.push(AccountEvent::Chat(decode(message)?));
             return Ok(());
@@ -1601,6 +1607,35 @@ mod tests {
 
     use shared::components::{CharacterAppearance, EquipmentAppearance};
     use shared::protocol::{CharacterListEntry, TransferAbortReason};
+
+    #[test]
+    fn xpchat_account_dispatches_gain_without_deriving_it_from_xp_state() {
+        use shared::protocol::{LogXpGain, PlayerXpUpdate, XpGainReason};
+        let mut account = Account::new(PathBuf::new());
+        let mut output = Vec::new();
+        let xp = PlayerXpUpdate {
+            xp: 100,
+            next_level_xp: 400,
+            rested_xp: 200,
+        };
+        account
+            .dispatch_message(ProtocolMessage::for_tests(xp), &mut output)
+            .unwrap();
+        assert!(output.is_empty());
+        assert_eq!(account.xp, Some(xp));
+        let gain = LogXpGain {
+            victim: Some(99),
+            original: 120,
+            amount: 60,
+            group_bonus: 1.0,
+            reason: XpGainReason::Kill,
+        };
+        account
+            .dispatch_message(ProtocolMessage::for_tests(gain), &mut output)
+            .unwrap();
+        assert!(matches!(output.as_slice(), [AccountEvent::XpGain(received)] if *received == gain));
+        assert_eq!(account.xp, Some(xp));
+    }
 
     #[test]
     fn threat_wire_update_fills_meter_and_combat_end_clears() {

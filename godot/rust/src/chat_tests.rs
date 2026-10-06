@@ -5,6 +5,125 @@ use shared::protocol::{CombatLogKind, MissKind};
 
 const LOCAL: Option<&str> = Some("Fbchat");
 
+fn assert_xpchat(gain: shared::protocol::LogXpGain, known_victim: bool, expected: &str) {
+    use game_engine_network::replica::Replica;
+    use game_engine_ui_model::chat_data::ChatChannelType;
+    use shared::components::Npc;
+    let mut replica = Replica::for_tests();
+    if let Some(victim) = gain.victim {
+        replica.insert(
+            victim,
+            Npc {
+                template_id: 6,
+                name: "Kobold Vermin".into(),
+            },
+        );
+    }
+    if !known_victim {
+        // XP can arrive after the victim's replication removal.
+        replica.clear();
+    }
+    let mut model = ChatModel::default();
+    model.receive_xp_gain(&gain, &replica, 123.0);
+    assert_eq!(model.log.messages.len(), 1);
+    let message = &model.log.messages[0];
+    assert_eq!(message.channel_type, ChatChannelType::CombatXpGain);
+    assert_eq!(message.text, expected);
+    assert_eq!(message.formatted(), expected);
+    assert_eq!(message.timestamp, 123.0);
+    assert_eq!(
+        lines(&model, ChatTab::General),
+        [(expected.into(), [0.435, 0.435, 1.0, 1.0])]
+    );
+    assert!(lines(&model, ChatTab::Whispers).is_empty());
+    assert!(lines(&model, ChatTab::CombatLog).is_empty());
+}
+
+fn xpchat_kill() -> shared::protocol::LogXpGain {
+    shared::protocol::LogXpGain {
+        victim: Some(0x0000_0001_0000_0099),
+        original: 60,
+        amount: 60,
+        group_bonus: 1.0,
+        reason: shared::protocol::XpGainReason::Kill,
+    }
+}
+
+#[test]
+fn xpchat_kill_without_rest() {
+    assert_xpchat(
+        xpchat_kill(),
+        true,
+        "Kobold Vermin dies, you gain 60 experience.",
+    );
+}
+
+#[test]
+fn xpchat_kill_with_rested_bonus() {
+    let gain = shared::protocol::LogXpGain {
+        original: 120,
+        ..xpchat_kill()
+    };
+    assert_xpchat(
+        gain,
+        true,
+        "Kobold Vermin dies, you gain 120 experience. (+60 exp Rested bonus)",
+    );
+}
+
+#[test]
+fn xpchat_quest_reward_is_unnamed() {
+    let gain = shared::protocol::LogXpGain {
+        victim: None,
+        original: 250,
+        amount: 250,
+        reason: shared::protocol::XpGainReason::Quest,
+        ..xpchat_kill()
+    };
+    assert_xpchat(gain, false, "You gain 250 experience.");
+}
+
+#[test]
+fn xpchat_unknown_victim() {
+    assert_xpchat(
+        xpchat_kill(),
+        false,
+        "Unknown dies, you gain 60 experience.",
+    );
+}
+
+#[test]
+fn xpchat_group_bonus_and_rested_group_bonus() {
+    let gain = shared::protocol::LogXpGain {
+        original: 72,
+        amount: 72,
+        group_bonus: 1.2,
+        ..xpchat_kill()
+    };
+    assert_xpchat(
+        gain,
+        true,
+        "Kobold Vermin dies, you gain 72 experience. (+12 group bonus)",
+    );
+    assert_xpchat(
+        shared::protocol::LogXpGain {
+            original: 144,
+            ..gain
+        },
+        true,
+        "Kobold Vermin dies, you gain 144 experience. (+72 exp Rested bonus, +12 group bonus)",
+    );
+}
+
+#[test]
+fn xpchat_no_kill_reward_ignores_victim_name() {
+    let gain = shared::protocol::LogXpGain {
+        reason: shared::protocol::XpGainReason::NoKill,
+        ..xpchat_kill()
+    };
+    assert_xpchat(gain, true, "You gain 60 experience.");
+}
+
 fn server(sender: &str, content: &str, channel: ChatType) -> ChatMessage {
     ChatMessage {
         sender: sender.into(),
