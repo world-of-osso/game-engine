@@ -31,6 +31,12 @@ Commits **016b0fce** (2026-10-01 19:57:00 -0500) and **207aea4e** (20:01:57 -050
 
 Sources: [saved paired build](../../../data/diagnostics/zaralda-20261001/paired-build/paired-artifacts.json), [failed native run](../../../data/diagnostics/zaralda-20261001/native-appearance-covered/result.json) and its `stdout.log`/`stderr.log`; independent appearance report above; task-supplied actual bone diagnosis and Depot CPU receipt. [Server Midnight investigation](../../../../game-server/docs/wiki/investigations/midnight-economy-content.md#native-acceptance-blocker) owns content/economy provenance, not this renderer root. Later native-window observation is recorded below; independent gate116 gives scoped PASS for the saved flow.
 
+### Animated and nonzero-geoset waist follow-up (2026-10-06)
+
+Live Stockade paladin **Fbpalrun** lost its entire authored visual with the same binding error. Everforged Greatbelt item **222431** resolves to **5646051**, an attachment-local belt with three non-key bones (including its own animated children) and mesh **401**. Cloth belt **4072824** has a single non-key root and mesh **101**. Neither carries body-belt **18xx** geosets; both live under `collections/`, which alone does not imply character binding.
+
+The classifier now recognizes an own non-key skeleton without body-belt geosets and uses attachment **53**, retaining all of that local belt's mesh parts and animation. True 18xx collections still require matching character joints; no failed-binding fallback or bone guess is added. `character_equipment_fixtures.gd` covers the actual full Everforged paladin outfit and cloth belt with hide/show pixel comparisons, alongside existing TahoModern body-bound equipment. Pre-fix rendered run reproduces both load failures and passes TahoModern; post-fix verification is recorded in the [run2 proof ledger](../../../data/diagnostics/stockaderun-2026-10-06/run2/proof-ledger.txt).
+
 ### Native fixture boundary follow-up (evidence date 2026-10-01)
 
 Old proxy-center harness targeted the wrong point; it did not establish model occlusion. Fixture commits **17d77fcb/d2084de7** use a real body point and **600-second cold setup**, based on observed **2134/4298 placements at 240 seconds**. Product **5-second handshake** and **200 ms AH limit** remain unchanged; fixture allowance is not a product timeout change.
