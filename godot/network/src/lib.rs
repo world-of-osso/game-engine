@@ -209,6 +209,9 @@ impl NetworkBridge {
             // Dungeon difficulty and saved instances for the entrance difficulty bar.
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()
+            .receive::<protocol::DungeonProgress>()
+            .receive::<protocol::AchievementCatalogPage>()
+            .receive::<protocol::AchievementStateUpdate>()
             // Server-driven breath, fatigue and feign-death bars.
             .receive_mirror_timers()
             .receive_loot()

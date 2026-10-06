@@ -4,6 +4,7 @@ mod animation;
 pub mod appearance_options;
 pub(crate) use game_engine_core::asset;
 pub use game_engine_core::{customization_data, outfit_data};
+mod achievements;
 mod asset_startup;
 mod assets;
 mod auction;
@@ -275,6 +276,7 @@ pub struct GameClient {
     unit_menu: unit_menu::UnitMenu,
     banks: bank::Banks,
     guild_ranks: guild_ranks::GuildRanks,
+    achievements: achievements::Achievements,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
     auction: auction::Auction,
@@ -397,6 +399,7 @@ impl INode3D for GameClient {
             unit_menu: unit_menu::UnitMenu::default(),
             banks: bank::Banks::default(),
             guild_ranks: guild_ranks::GuildRanks::default(),
+            achievements: achievements::Achievements::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
@@ -1189,6 +1192,7 @@ impl GameClient {
         }
         self.banks.visit_uis(&mut visit)?;
         self.guild_ranks.visit_uis(&mut visit)?;
+        self.achievements.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
             visit(ui)?;
@@ -1691,6 +1695,7 @@ impl GameClient {
             ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
             ("Guild ranks", |c, _| c.update_guild_ranks()),
+            ("Achievements", |c, d| c.update_achievements(d)),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
@@ -1846,6 +1851,7 @@ impl GameClient {
             AccountEvent::Trade(update) => self.receive_trade(update)?,
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
+            AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
             AccountEvent::ReplicationEnded => {
@@ -2248,6 +2254,7 @@ impl GameClient {
         self.stop_sound();
         self.logout.clear();
         self.loot.reset();
+        self.achievements.reset();
         self.game_objects.reset();
         self.mailbox.reset();
         self.trade.reset();

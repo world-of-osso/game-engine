@@ -40,6 +40,8 @@ pub const TRACKER_PRIMARY_HEADER: AtlasArt = tracker((1.0, 301.0, 123.0, 163.0))
 pub const TRACKER_SECONDARY_HEADER: AtlasArt = tracker((1.0, 301.0, 165.0, 195.0));
 /// `ui-questtracker-tracker-check` (23707), drawn 16×16.
 pub const TRACKER_CHECK: AtlasArt = tracker((438.0, 457.0, 31.0, 50.0));
+/// `ui-questtracker-objective-nub` (23702), Scenario's incomplete objective.
+pub const TRACKER_NUB: AtlasArt = tracker((492.0, 511.0, 1.0, 20.0));
 /// `ui-questtrackerbutton-collapse-all` (23709), 18×19.
 pub const TRACKER_COLLAPSE_ALL: AtlasArt = tracker((480.0, 498.0, 31.0, 50.0));
 /// `ui-questtrackerbutton-expand-all` (23711), 18×19.

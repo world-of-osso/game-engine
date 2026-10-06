@@ -79,11 +79,18 @@ pub struct TrackedQuest {
     pub lines: Vec<ObjectiveLine>,
 }
 
+#[derive(Clone, Debug, PartialEq)]
+pub struct DungeonBlock {
+    pub name: String,
+    pub bosses: Vec<ObjectiveLine>,
+}
+
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct ObjectiveTrackerState {
     pub collapsed: bool,
     pub quests_collapsed: bool,
     pub quests: Vec<TrackedQuest>,
+    pub dungeon: Option<DungeonBlock>,
 }
 
 impl ObjectiveTrackerState {
@@ -101,6 +108,7 @@ impl ObjectiveTrackerState {
             collapsed,
             quests_collapsed,
             quests: watched.into_iter().map(tracked_quest).collect(),
+            dungeon: None,
         }
     }
 }
@@ -171,8 +179,13 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
     // Layout runs in the tracker's own units; every emitted length takes `scale`.
     let mut height = CONTAINER_HEADER_H;
     let mut contents = container_header(state.collapsed, scale);
-    if !state.collapsed && !state.quests.is_empty() {
-        contents.extend(quests_module(state, &mut height, scale));
+    if !state.collapsed {
+        if let Some(dungeon) = &state.dungeon {
+            contents.extend(dungeon_module(dungeon, &mut height, scale));
+        }
+        if !state.quests.is_empty() {
+            contents.extend(quests_module(state, &mut height, scale));
+        }
     }
     // `SetScale` also scales the frame's own `SetPoint` offsets.
     let anchor = hud_layout(ctx).objective_tracker;
@@ -238,7 +251,7 @@ fn container_header(collapsed: bool, scale: f32) -> Element {
 }
 
 fn quests_module(state: &ObjectiveTrackerState, height: &mut f32, scale: f32) -> Element {
-    let top = TOP_MODULE_PADDING;
+    let top = TOP_MODULE_PADDING.max(*height + 6.0);
     let button_art = if state.quests_collapsed {
         TRACKER_SECONDARY_EXPAND
     } else {
@@ -271,6 +284,38 @@ fn quests_module(state: &ObjectiveTrackerState, height: &mut f32, scale: f32) ->
         *height = y;
         y += FROM_BLOCK_OFFSET_Y;
     }
+    elements
+}
+
+/// Retail's Scenario module precedes the Quest module; the approved container anchor is unchanged.
+fn dungeon_module(dungeon: &DungeonBlock, height: &mut f32, scale: f32) -> Element {
+    let top = TOP_MODULE_PADDING;
+    let mut elements = atlas_texture(
+        "DungeonObjectiveTrackerHeaderBackground".into(),
+        &TRACKER_SECONDARY_HEADER,
+        scaled((-20.0, top - 2.0, 300.0, 30.0), scale),
+    );
+    elements.extend(header_text(
+        "DungeonObjectiveTrackerHeaderText",
+        &dungeon.name,
+        top + 5.0,
+        scale,
+    ));
+    let mut y = top + MODULE_HEADER_HEIGHT + FROM_HEADER_OFFSET_Y;
+    for (index, boss) in dungeon.bosses.iter().enumerate() {
+        let name = format!("DungeonBoss{index}");
+        elements.extend(objective_line(&name, boss, y, scale, true));
+        if boss.style == ObjectiveLineStyle::InProgress {
+            // ScenarioObjectiveTracker.lua:404: nub, not a quest dash.
+            elements.extend(atlas_texture(
+                format!("{name}Nub"),
+                &crate::quest_art::TRACKER_NUB,
+                scaled((BLOCK_OFFSET_X - 10.0, y - 2.0, 16.0, 16.0), scale),
+            ));
+        }
+        y += wrapped_text_height(&boss.text, BLOCK_W - DASH_W, LINE_FONT) + LINE_SPACING;
+    }
+    *height = y;
     elements
 }
 
@@ -331,6 +376,7 @@ fn quest_block(quest: &TrackedQuest, y: &mut f32, scale: f32) -> Element {
             line,
             *y,
             scale,
+            false,
         ));
         *y += wrapped_text_height(&line.text, BLOCK_W - DASH_W, LINE_FONT);
     }
@@ -404,9 +450,15 @@ fn block_title(block: &str, title: &str, action: &str, top: f32, scale: f32) -> 
     }
 }
 
-fn objective_line(name: &str, line: &ObjectiveLine, top: f32, scale: f32) -> Element {
+fn objective_line(
+    name: &str,
+    line: &ObjectiveLine,
+    top: f32,
+    scale: f32,
+    scenario: bool,
+) -> Element {
     let (color, dash) = match line.style {
-        ObjectiveLineStyle::InProgress => (NORMAL_COLOR, "- "),
+        ObjectiveLineStyle::InProgress => (NORMAL_COLOR, if scenario { "" } else { "- " }),
         ObjectiveLineStyle::Completed => (COMPLETE_COLOR, ""),
         ObjectiveLineStyle::CompletionText => (NORMAL_COLOR, ""),
     };
