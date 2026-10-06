@@ -13,18 +13,18 @@ func run_test() -> void:
 	fixture = ClassDB.instantiate("PartyPortraitFixture")
 	root.add_child(fixture)
 	check_error(fixture.initialize(skin.begins_with("forever")))
-	check_error(fixture.set_members(["Theron", "Jaina", "Valeera", "Uther"], true, true))
+	check_error(set_members(["Theron", "Jaina", "Valeera", "Uther"], true, true))
 	await settle()
 	check(count_views() == 0, "compact style has zero portrait hosts")
 	print("PASS portrait_party_compact_zero_hosts")
-	check_error(fixture.set_members(["Theron"], false, true))
+	check_error(set_members(["Theron"], false, true))
 	await wait_for_heads(1)
 	check_binding("Theron", 0)
-	check_error(fixture.set_members(["Theron", "Jaina", "Valeera", "Uther"], false, true))
+	check_error(set_members(["Theron", "Jaina", "Valeera", "Uther"], false, true))
 	await wait_for_heads(4)
 	for index in range(4):
 		check_binding(["Theron", "Jaina", "Valeera", "Uther"][index], index)
-	check_error(fixture.set_members(["Uther", "Jaina", "Theron"], false, true))
+	check_error(set_members(["Uther", "Jaina", "Theron"], false, true))
 	await wait_for_heads(3)
 	check_binding("Uther", 0)
 	check_binding("Jaina", 1)
@@ -32,9 +32,9 @@ func run_test() -> void:
 	check(fixture.portrait_state("Valeera").is_empty(), "departed member binding freed")
 	print("PASS portrait_party_bindings_join_leave_reorder")
 	# No appearance available: offline/out-of-interest heads retain member identity.
-	check_error(fixture.set_members(["Theron", "Jaina", "Valeera", "Uther"], false, true))
+	check_error(set_members(["Theron", "Jaina", "Valeera", "Uther"], false, true))
 	await wait_for_heads(4)
-	check_error(fixture.set_members(["Theron", "Jaina", "Valeera", "Uther"], false, false))
+	check_error(set_members(["Theron", "Jaina", "Valeera", "Uther"], false, false))
 	await wait_for_heads(4)
 	var offline: Dictionary = fixture.portrait_state("Valeera")
 	check(offline.desaturated, "offline portrait desaturated")
@@ -48,23 +48,23 @@ func run_test() -> void:
 		check(image.save_png(output) == OK, "save screenshot")
 	print("PASS portrait_party_offline_desaturated_retained_head")
 	# Four single-member joins followed by four leaves, no freed viewport remains.
-	check_error(fixture.set_members([], false, false))
+	check_error(set_members([], false, false))
 	await settle()
 	var names: Array[String] = []
 	for name in ["Theron", "Jaina", "Valeera", "Uther"]:
 		names.append(name)
-		check_error(fixture.set_members(names, false, true))
+		check_error(set_members(names, false, true))
 		await wait_for_heads(names.size())
 	for index in range(4):
 		names.pop_back()
-		check_error(fixture.set_members(names, false, true))
+		check_error(set_members(names, false, true))
 		await settle()
 		check(count_views() == names.size(), "leave releases portrait view/viewport")
 	check(count_views() == 0, "no hosts leaked after four joins and four leaves")
 	print("PASS portrait_party_four_joins_four_leaves_no_viewport_leak")
-	check_error(fixture.set_members(["Theron", "Jaina"], false, true))
+	check_error(set_members(["Theron", "Jaina"], false, true))
 	await wait_for_heads(2)
-	check_error(fixture.set_members(["Theron", "Jaina"], true, true))
+	check_error(set_members(["Theron", "Jaina"], true, true))
 	await settle()
 	check(count_views() == 0, "switch to compact frees existing renders")
 	print("PASS portrait_party_switch_compact_frees_hosts")
@@ -72,6 +72,10 @@ func run_test() -> void:
 	await settle()
 	check(root.find_children("PortraitViewport", "SubViewport", true, false).is_empty(), "fixture shutdown frees all portrait viewports")
 	quit(0)
+
+# Native Array<GString> requires a typed Array[String], including empty rosters.
+func set_members(names: Array[String], compact: bool, available: bool) -> String:
+	return fixture.set_members(names, compact, available)
 
 func check_binding(name: String, index: int) -> void:
 	var state: Dictionary = fixture.portrait_state(name)
