@@ -77,4 +77,4 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - [ ] The log is not a scrolling message frame: only the last 21 lines show.
 
 ## Out of scope
-- Tab name/icon editing UI (the icon picker is deferred), item moves inside the bank, search, and the Guild Control UI. Guild repairs are made at a merchant ([merchant-frame](merchant-frame.md)); the rank's repair right is set with game-server-admin `set-guild-bank-rights <guild> <rank> repair 0|1`.
+- Tab name/icon editing UI (the icon picker is deferred), item moves inside the bank and search. Guild Control UI is tracked separately in [guild ranks](guild-ranks.md). Guild repairs are made at a merchant ([merchant-frame](merchant-frame.md)); player-managed repair rights use the same daily allowance as gold withdrawals. Native rank settings integration remains pending.
