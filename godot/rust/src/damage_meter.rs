@@ -1,14 +1,11 @@
 //! Retail damage meter window at the top left (docs/specs/damage-meter.md). The server
-//! computes the damage sessions (`DamageMeterSnapshot`); the window shows the selected
-//! one, and its session dropdown switches between `Current Segment` and `Overall`. The
-//! other types (healing, interrupts, dispels, deaths) are counted from the combat log
-//! lines this client receives.
+//! computes all category totals and capped recaps (`DamageMeterSnapshot`); the window
+//! selects `Current Segment` or `Overall`. Owner-scoped combat logs never count here.
 
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::damage_meter_data::{DamageMeterWindow, MeterEvent, MeterUnit};
-use godot::classes::{FontFile, Time};
+use game_engine_ui_model::damage_meter_data::DamageMeterWindow;
+use godot::classes::FontFile;
 use godot::prelude::*;
-use shared::components::Player;
 use shared::protocol::{CombatLogKind, DamageMeterSession};
 use ui_toolkit::widgets::font_string::GameFont;
 
@@ -22,8 +19,6 @@ pub(crate) struct DamageMeterHud {
     window: DamageMeterWindow,
     ui: Option<Gd<RegistryUi>>,
     font: Option<Gd<FontFile>>,
-    /// `Account::combat_log_seq` already counted into the window's log.
-    combat_seen: u64,
 }
 
 impl DamageMeterHud {
@@ -69,11 +64,7 @@ impl GameClient {
             return Ok(());
         }
         self.poll_damage_meter_actions()?;
-        let now = Time::singleton().get_ticks_msec() as f64 / 1000.0;
-        self.count_combat_log(now);
-        self.damage_meter
-            .window
-            .set_snapshot(now, self.account.damage_meter.clone());
+        self.update_meter_snapshot();
         let in_combat = self
             .world
             .local_player_id()
@@ -115,38 +106,31 @@ impl GameClient {
         Ok(self.damage_meter.window.click(&action)?)
     }
 
-    /// Add the combat log lines received since the last frame to the window's log.
-    fn count_combat_log(&mut self, now: f64) {
-        let seq = self.account.combat_log_seq;
-        let log = &self.account.combat_log;
-        let fresh = (seq - self.damage_meter.combat_seen).min(log.len() as u64) as usize;
-        self.damage_meter.combat_seen = seq;
-        let spell_name = crate::chat::spell_namer(self.spells.catalog());
-        let events: Vec<MeterEvent> = log
+    /// Resolve labels from the snapshot's recap detail, never the account combat log.
+    fn update_meter_snapshot(&mut self) {
+        let snapshot = self.account.damage_meter.clone();
+        let sessions = snapshot
             .iter()
-            .skip(log.len() - fresh)
-            .filter_map(|event| {
-                let (source, target) =
-                    (self.meter_unit(event.source), self.meter_unit(event.target));
-                MeterEvent::from_combat_log(now, event, source, target, &spell_name)
-            })
+            .flat_map(|s| s.current.iter().chain(std::iter::once(&s.overall)));
+        let recaps = sessions
+            .flat_map(|s| &s.sources)
+            .flat_map(|s| &s.death_recaps);
+        let events: Vec<_> = recaps.flat_map(|r| &r.events).collect();
+        let unit_names = events
+            .iter()
+            .filter_map(|e| e.source)
+            .map(|id| (id, self.unit_display_name(Some(id))))
             .collect();
-        for event in events {
-            self.damage_meter.window.log.push(event);
-        }
-    }
-
-    fn meter_unit(&self, id: Option<u64>) -> MeterUnit {
-        let class_id = id
-            .and_then(|id| self.replica.unit(id))
-            .and_then(|unit| unit.get::<Player>())
-            .map_or(0, |player| player.class);
-        MeterUnit {
-            unit: id.unwrap_or(0),
-            name: self.unit_display_name(id),
-            class_id,
-            is_local_player: id.is_some() && id == self.world.local_player_id(),
-        }
+        let name_spell = crate::chat::spell_namer(self.spells.catalog());
+        let spell_names = events
+            .iter()
+            .filter_map(|e| e.spell_id)
+            .map(|id| (id, name_spell(id)))
+            .collect();
+        let window = &mut self.damage_meter.window;
+        window.recap_unit_names = unit_names;
+        window.recap_spell_names = spell_names;
+        window.set_snapshot(snapshot);
     }
 }
 
@@ -165,6 +149,12 @@ fn session_dictionary(session: &DamageMeterSession) -> VarDictionary {
         entry.set("local", source.is_local_player);
         entry.set("total", source.total_amount as i64);
         entry.set("dps", source.amount_per_second);
+        entry.set("healing_done", source.healing_done as i64);
+        entry.set("overhealing", source.overhealing as i64);
+        entry.set("absorbs", source.absorbs as i64);
+        entry.set("interrupts", source.interrupts as i64);
+        entry.set("dispels", source.dispels as i64);
+        entry.set("deaths", source.deaths as i64);
         let mut spells = VarDictionary::new();
         for spell in &source.spells {
             spells.set(i64::from(spell.spell_id), spell.total_amount as i64);
