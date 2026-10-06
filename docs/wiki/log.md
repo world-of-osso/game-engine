@@ -2595,3 +2595,11 @@ Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-b
 ## 2026-10-05 — In-world launcher
 
 [[launcher]]: added user's centred search grid, shared micro actions/icons, Toggle Launcher binding and minimap opener. Micro menu retained. Targeted tests and live proof pending; Support remains a placeholder.
+
+## 2026-10-06 — Private live-run and warm-slot documentation
+
+[Private headless live client](../headless-live-run.md) generalises saved private-server/Weston/Dozen runs, account and token isolation, capture entry points and owned-process cleanup. [Warm-slot rule](../remote-builds.md#warm-slot-rule) records path-keyed caches, fixed-slot branch reuse and global build serialisation; [[build-hosts]] links current GC config instead of retaining stale copied limits. Source/record review only; no builds or live rerun.
+
+## 2026-10-06 — Forever preset wiring
+
+[[forever-preset]] records current master skin/layout wiring, set-1 atlas selection, explicit product-file boundary, character-scoped persistence and FlareUI reference restrictions. Current active skin remains process-wide; pending `skinctx` is not described as integrated. HUD measurements remain in the contract and party-sheet provenance in [[portrait-party-frames]].
