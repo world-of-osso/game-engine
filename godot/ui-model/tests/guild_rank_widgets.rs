@@ -16,7 +16,7 @@ fn state(own_rank: u8) -> GuildRanksState {
             .iter()
             .map(|name| GuildRankSettings {
                 name: name.to_string(),
-                rights: GUILD_RIGHT_CHAT_LISTEN,
+                rights: GUILD_RIGHT_CHAT_LISTEN | GUILD_RIGHT_WITHDRAW_GOLD,
                 gold_per_day: 30_000,
                 tabs: vec![GuildRankTab {
                     view: true,
@@ -59,6 +59,30 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
         .onclick
         .clone()
         .unwrap_or_default()
+}
+
+#[test]
+fn guild_rank_widgets_gold_is_readonly_without_withdraw_or_repair_permission() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_active_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        let mut snapshot = state(0);
+        snapshot.ranks[2].rights = GUILD_RIGHT_CHAT_LISTEN;
+        session.apply(snapshot);
+        session.click("guild:settings", &Default::default());
+        session.select_rank(2);
+        let reg = mounted(&session);
+        assert!(action(&reg, "GuildGoldSave").is_empty());
+        assert!(matches!(
+            reg.get(reg.get_by_name(GOLD_BOX).unwrap())
+                .unwrap()
+                .widget_data,
+            Some(WidgetData::FontString(_))
+        ));
+    }
+    set_active_skin(ActiveSkin::Modern);
 }
 
 #[test]
@@ -113,7 +137,7 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
             session.click(&action(&reg, "GuildGoldSave"), &inputs),
             Some(GuildRankRequest::SetPermissions {
                 rank: 2,
-                rights: GUILD_RIGHT_CHAT_LISTEN,
+                rights: GUILD_RIGHT_CHAT_LISTEN | GUILD_RIGHT_WITHDRAW_GOLD,
                 gold_per_day: 70_000
             })
         );
@@ -121,7 +145,7 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
             session.click(&action(&reg, "GuildPermission4"), &inputs),
             Some(GuildRankRequest::SetPermissions {
                 rank: 2,
-                rights: GUILD_RIGHT_CHAT_LISTEN | GUILD_RIGHT_INVITE,
+                rights: GUILD_RIGHT_CHAT_LISTEN | GUILD_RIGHT_WITHDRAW_GOLD | GUILD_RIGHT_INVITE,
                 gold_per_day: 30_000
             })
         );

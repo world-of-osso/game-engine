@@ -1928,7 +1928,7 @@ impl RegistryUi {
 
     fn show_guild_preview_skin(&mut self, skin: ui_toolkit::atlas::ActiveSkin) -> GString {
         if let Err(error) = party_preview::load_data_root() {
-            return error.into();
+            return GString::from(error.as_str());
         }
         ui_toolkit::atlas::set_active_skin(skin);
         GString::from(
