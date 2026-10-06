@@ -160,8 +160,9 @@ pub(super) fn status_bar(spec: BarSpec<'_>) -> Element {
 }
 
 /// A source DB2 crop on its sheet; used for Forever-only base names the shared atlas
-/// table does not ingest. Text, slot placement and fractional reveal match named bars.
-pub(super) fn cropped_status_bar(spec: BarSpec<'_>, art: AtlasArt) -> Element {
+/// table does not ingest. `file` binds the product's bytes without replacing a shared
+/// FDID. Text, slot placement and fractional reveal match named bars.
+pub(super) fn cropped_status_bar(spec: BarSpec<'_>, art: AtlasArt, file: &str) -> Element {
     let (_, _, width, height) = spec.rect;
     let fraction = spec.fraction.clamp(0.0, 1.0);
     let fill_w = width * fraction;
@@ -169,7 +170,7 @@ pub(super) fn cropped_status_bar(spec: BarSpec<'_>, art: AtlasArt) -> Element {
     let fill = rsx! { texture {
         name: {dyn_name(format!("{}Fill", spec.name))},
         width: fill_w, height, hidden: {fill_w <= 0.0},
-        texture_fdid: {art.fdid}, tex_coords: {coords.as_str()},
+        texture_file: file, tex_coords: {coords.as_str()},
         pos_type: "absolute", pos_x: 0.0, pos_y: 0.0,
     } };
     render_status_bar(spec, fill)

@@ -2,7 +2,15 @@
 
 Static native `PartyMemberFrame` family under Modern and Forever. `PortraitPartyFrameState` supplies four non-self member slots; no roster adapter, runtime heads, click/menu wiring or Edit Mode setting. Compact party remains the default. [Contract](../../specs/group-frames.md).
 
-## Acceptance status — blocked (2026-10-05)
+## Acceptance status — offline recapture pending (2026-10-05)
+
+Local CASC supplied Retail `4681512.blp` and Forever build 70205's `4631591.blp` (MD5 `fa74b4e688a6d03d856ab616238058fe`; Retail remains `73bb980b6a3b738fa8f07877419a1d5e`). The slot has a separate data directory; its two missing inputs are linked to canonical data without replacing Retail bytes. Raw BGRA decoding confirms 1024×512 and bar art at 69913's player-health, player-mana and conditional party bar coordinates. Evidence: `data/diagnostics/party1-2026-10-05/forever-70205-69913-bar-crops.png`, individual `70205-*-crop.png` files and source rows in `forever-70205-69913-crops.json`.
+
+Forever's explicit party crops bind `data/forever-1.60.1.70205/textures/4631591.blp` through existing RSX `texture_file`, `TextureSource::File` and native `ui::assets::load_source`/`FileTextures`. File paths already key both decoded and projection caches. Modern keeps named Retail atlases and `data/textures/<fdid>.blp`; C60 set-1 FDIDs still use the existing importer/listfile and shared loader. No global FDID replacement or parallel loader: that would break unrelated Retail set-0 coordinates still used by the shared resolver. Forever mana now crops the 69913 player fill (815,326)–(939,336), rather than the resolver's Retail coordinates. Required files fail explicitly when absent; no alternate art.
+
+Product binding and mana source regressions reproduced RED before implementation. Offline recapture and targeted GREEN remain pending; compact remains default and steps 2–5 remain excluded.
+
+### Previous acceptance blockers (2026-10-05)
 
 Step 1 is **not raster-accepted and must not be wired as complete**. Twelve targeted behavioral/registry tests pass (8 portrait + 4 shared status-bar regressions); the Modern code-generated registry golden passes, and extension build `91960f9f` succeeds. These prove state/geometry/source-record relationships, not matching physical texture contents.
 
@@ -34,7 +42,7 @@ Forever paths are relative to `~/.cache/wow-ui-sim/blizzard-ui/wowforever/AddOns
 
 `Blizzard_UnitFrame/Mainline/PartyMemberFrame.lua:13,71-118` explicitly adds the conditional `CharacterFrameOn` art branch. Portrait mask becomes the player portrait mask; frame/health use `CharacterFrameOnParty` atlases; mana moves to (46,−30), width 69. Component deliberately selects this approved branch for Forever; the cached standard template does **not** prove automatic activation. Mana uses the explicit player fill from `:106`; Modern selects Party fills. Spec powers reuse the existing unit-frame art (`Mainline/UnitFrame.lua:539-541`, `info.atlas`).
 
-**Resolver boundary:** `ui-toolkit/core/src/atlas/db2.rs:77-80` imports Retail set 0 and Forever set 1 only. Conditional CharacterFrameOnParty health and non-mana basic fills exist solely in Forever set 0, so their names do not resolve. Component draws those exact source crops through the existing `AtlasArt` representation and shared status-bar body; it never tries alternate art. `UiTextureAtlasMember.csv:16607-16614` supplies the health/Energy/Focus/Rage/RunicPower crops on atlas 2060, FDID 4631591 (1024×512). Behavioral tests join the versioned source CSVs and compare actual drawn sheet/UVs, not fixed expected pins. This bounded workaround applies to the frozen 69913 geometry; retire the explicit crops when the shared resolver supports these Forever-only base names. No sibling toolkit changes are part of this task.
+**Resolver boundary:** `ui-toolkit/core/src/atlas/db2.rs:77-80` imports Retail set 0 and Forever set 1 only. Conditional CharacterFrameOnParty health and non-mana basic fills exist solely in Forever set 0, so their names do not resolve. Component draws those exact source crops through the existing `AtlasArt` representation and shared status-bar body; it never tries alternate art. `UiTextureAtlasMember.csv:16607-16614` supplies the health/Energy/Focus/Rage/RunicPower crops on atlas 2060, FDID 4631591 (1024×512). Behavioral tests join the versioned source CSVs and compare actual drawn sheet/UVs, not fixed expected pins. This bounded workaround applies to the frozen 69913 geometry; retire the explicit crops when the shared resolver supports these Forever base names and their product-specific sheet bytes. No sibling toolkit changes are part of this task.
 
 The conditional CharacterFrameOnParty DB2 relation in `data/db2/1.60.1.69913/` is:
 
@@ -48,7 +56,7 @@ This is the **same sheet as Forever's player portrait-on** (`scripts/forever-atl
 
 **`uipartyframec60` also exists, but is a different branch.** `scripts/forever-atlas-listfile.csv:49` maps `interface/hud/uipartyframec60.blp` to 8116745. Versioned `UiTextureAtlas.csv:2612` maps it to set-1 atlas 4019 (128×128); `UiTextureAtlasMember.csv:17817` maps member 39017 to element 21081 (`UI-HUD-UnitFrame-Party-PortraitOn`), crop (1,53)–(121,102), 120×49. `:17818` maps member 39018 to the vehicle variant. Thus ordinary Party art (and half-scale pet art) resolves to uipartyframec60 under Forever; the requested conditional CharacterFrameOnParty frame resolves to uiunitframec60. Do not conflate them.
 
-The stale root CSVs/community listfile miss these set-1 relations; the project supplement and versioned DB2 directories the atlas loader actually reads establish them. No new asset mapping or fallback added.
+The stale root CSVs/community listfile miss these set-1 relations; the project supplement and versioned DB2 directories the atlas loader actually reads establish them. The product-specific base-sheet binding above is limited to the explicit party crops; C60 mapping is unchanged.
 
 ### Proof and capture
 

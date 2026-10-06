@@ -354,18 +354,23 @@ fn spec_power_fills_reuse_the_existing_unit_frame_art() {
 
 #[test]
 fn forever_mana_uses_the_player_fill_named_by_the_camelot_override() {
-    let registry = render(ActiveSkin::Forever);
+    let registry = render_state(
+        ActiveSkin::Forever,
+        PortraitPartyFrameState {
+            members: vec![PortraitPartyMemberView {
+                power_fraction: 1.0,
+                ..PortraitPartyMemberView::named("Mana")
+            }],
+            show_pets: false,
+        },
+    );
     assert_eq!(
-        region(
+        drawn_crop(
             &registry,
             "PartyMemberFrame1ManaBarFill",
             ActiveSkin::Forever
         ),
-        resolve_region(
-            "UI-HUD-UnitFrame-Player-PortraitOn-Bar-Mana",
-            ActiveSkin::Forever
-        )
-        .unwrap()
+        source_crop("ui-hud-unitframe-player-portraiton-bar-mana")
     );
 }
 
@@ -405,6 +410,10 @@ fn drawn_crop(registry: &FrameRegistry, name: &str, skin: ActiveSkin) -> (u32, [
     };
     let (fdid, bounds) = match &data.source {
         TextureSource::FileDataId(fdid) => (*fdid, [0.0, 1.0, 0.0, 1.0]),
+        TextureSource::File(path) => {
+            assert_eq!(path, "data/forever-1.60.1.70205/textures/4631591.blp");
+            (4_631_591, [0.0, 1.0, 0.0, 1.0])
+        }
         TextureSource::Atlas(atlas) => {
             let region = resolve_region(atlas, skin).expect(atlas);
             let AtlasSource::FileDataId(fdid) = region.source else {
@@ -425,6 +434,28 @@ fn drawn_crop(registry: &FrameRegistry, name: &str, skin: ActiveSkin) -> (u32, [
             t + (b - t) * v1,
         ],
     )
+}
+
+#[test]
+fn portrait_party_binds_product_bytes_without_replacing_retail() {
+    for skin in [ActiveSkin::Forever, ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin);
+        let Some(WidgetData::Texture(data)) =
+            &frame(&registry, "PartyMemberFrame1HealthBarFill").widget_data
+        else {
+            panic!("health fill");
+        };
+        match skin {
+            ActiveSkin::Forever => assert_eq!(
+                data.source,
+                TextureSource::File("data/forever-1.60.1.70205/textures/4631591.blp".into())
+            ),
+            ActiveSkin::Modern => assert_eq!(
+                data.source,
+                TextureSource::Atlas("UI-HUD-UnitFrame-Party-PortraitOn-Bar-Health".into())
+            ),
+        }
+    }
 }
 
 #[test]
