@@ -1,6 +1,6 @@
 ## 2026-10-05 — Runtime portrait party heads (party3)
 
-[[portrait-party-frames#Step 3 — runtime member portraits]] records reuse of the masked unit portrait renderer, member-name resource ownership, Retail offline/dead/ghost/low-health rules and no range fade. Compact remains default with zero party renders. Offline process fixtures exercise concrete roster changes and viewport cleanup; proof is recorded in `data/diagnostics/party3-2026-10-05/proof.md`. Appearance data for never-replicated members, settings UI and live acceptance remain open.
+[[portrait-party-frames#Step 3 — runtime member portraits]] records reuse of the masked unit portrait renderer, member-name resource ownership, Retail offline/dead/ghost/low-health rules and no range fade. Compact remains default with zero party renders. At native `5f33198a` plus fixture `978772c5`, both skin processes pass concrete roster changes, actual grey offline head pixels and viewport cleanup; five native Rust/six UI-model tests and native build also pass. Inspected runtime-head raster passes bounded scope. Global RID/ObjectDB shutdown warnings remain, higher than the static baseline; never-replicated appearances, settings UI and live acceptance remain open. Proof: `data/diagnostics/party3-2026-10-05/proof.md`.
 
 ## 2026-10-05 — Stormwind loading boundary
 
