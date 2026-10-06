@@ -38,7 +38,7 @@ Before launch, ensure `$W/data` is an owned writable directory, not a whole-dire
 
 ## 2. Stage and start the private server
 
-Make `$RUN/server` the server's working directory. Copy matching executables to its `bin/`, make its `data/` writable for private runtime files, and stage complete server inputs there. The server reads `data/world.db` relative to its working directory: use a consistent snapshot, copied into staging and made read-only, not the protected live database. Include gametables, economy configuration and the complete LOS/ground inputs described in [server staging requirements](remote-builds.md#desktop-runtime-capability-boundary).
+Make `$RUN/server` the server's working directory. Copy matching executables to its `bin/`, make its `data/` writable for private runtime files, and stage complete server inputs there. The server reads `data/world.db` relative to its working directory: use a consistent snapshot, copied into staging and made read-only, not the protected live database. `SERVER_DATA` must contain only immutable world inputs, not live player storage or auth tokens. Include gametables, economy configuration and the complete LOS/ground inputs described in [server staging requirements](remote-builds.md#desktop-runtime-capability-boundary).
 
 ```sh
 mkdir -p "$RUN/server/bin" "$RUN/server/data"
@@ -160,4 +160,4 @@ Do not use `pkill godot`, stop `agents.slice`, or touch another run's slice. Ver
 - `data/diagnostics/playaudit2-2026-10-05/proof-ledger.txt` — real private-server multi-account gameplay, sequential startup observation and proof exclusions.
 - `data/diagnostics/swload-2026-10-05/{after.log.argv.json,server.log.argv.json}` — reusable rendered client/server environment and script entry point.
 - `/home/osso-test/.worktrees/handoff-shot.md` — cache isolation, normal JS startup and endpoint-token failure diagnosis. Historical examples there access the protected shared staging; do not replay them verbatim.
-- [agent-run](../scripts/agent/agent-run) — foreground scope execution and per-name slice ownership (`scripts/agent/agent-run:13–26`).
+- [agent-run](../scripts/agent/agent-run) — foreground scope execution and per-name slice ownership (`scripts/agent/agent-run:11–22`).
