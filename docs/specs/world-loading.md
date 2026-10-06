@@ -21,7 +21,7 @@ World entry and map transfers hide loading once the player's local entry bubble 
 
 ## Reasoning and evidence
 
-Tile ownership is not a local-readiness boundary: a city WMO can reference objects in distant districts, and terrain parsing completion is not terrain GPU attachment completion. The gate tracks spatial prerequisites and discovery ordering while retaining the rest of the streaming workload. [Stormwind investigation](../wiki/investigations/stormwind-loading.md) records root-cause measurements, before/after rendered timing, separate headless full-drain proof, and host/cache limitations. Evidence lives in `data/diagnostics/swload-2026-10-05/`.
+Tile ownership is not a local-readiness boundary: a city WMO can reference objects in distant districts, and terrain parsing completion is not terrain GPU attachment completion. The gate tracks spatial prerequisites and discovery ordering while retaining the rest of the streaming workload. [Stormwind investigation](../wiki/investigations/stormwind-loading.md) records root-cause measurements, before/after rendered timing, separate headless full-drain proof, and host/cache limitations. Evidence lives in `data/diagnostics/swload-2026-10-05/` and the rendered resource-scheduling follow-up `data/diagnostics/swload2-2026-10-06/`.
 
 ## Implementation and behavioral tests
 

@@ -30,9 +30,32 @@ The isolated `swload2` account on UDP 5286 and Weston `sw10`, at the same Trade 
 
 Entry frame callbacks totalled **8.826 s** across 197 measured frames; object processing took **2.677 s** and terrain resource processing **2.703 s**. The three WMO builds consumed 130 slices despite only 1.331 s inside their build steps. Both systems allocated only 8 ms of resource work per rendered frame. Sampled viewport GPU median was 27.6 ms (maximum 76.3 ms), while many whole frame intervals were much longer. Repeated tiny work slices amplify rendered-frame latency; worker parse/decode and shader-resource setup are separately instrumented, not inferred from placement time.
 
-Terrain and object resource construction now share a **64-ms loading slice**, with one deadline covering each call and its WMO/chunk continuations. Clearing loading focus/terrain priorities restores the original interactive budgets. No local prerequisites, WMO batches or queued distant placements are removed. The owned-server fixture `godot/tests/stormwind_entry_profile.gd` verifies local readiness, zero failures and continued distant streaming, records first-draw time separately, and collects viewport CPU/GPU time and pipeline compilation counters. After-change timing remains pending until the new native build is measured.
+Terrain and object resource construction now share a **64-ms loading slice**, with one deadline covering each call and its WMO/chunk continuations. Clearing loading focus/terrain priorities restores the original interactive budgets. No local prerequisites, WMO batches or queued distant placements are removed. The owned-server fixture `godot/tests/stormwind_entry_profile.gd` verifies local readiness, zero failures and continued distant streaming, records first-draw time separately, and collects viewport CPU/GPU time and pipeline compilation counters. At `b1fd59d7`, identical rendered args reached InWorld in **11.715 s**, first draw in **12.048 s**, with **494/494**, zero nearby collision pending and zero placement failures. Distant pending was **10,494** at entry and **10,379** by 15.946 s. Entry frames fell **199 → 29**, WMO slices **130 → 17**. Interactive budgets remain 8 ms; the unchanged distant collision budget remains 2 ms.
 
-Evidence: `data/diagnostics/swload2-2026-10-06/`. Phase spans measure API wall time and calling-thread scheduled CPU time; uploads and shader setup do not isolate deferred GPU/driver execution. Nested phase totals overlap and must not be added as independent wall-time components.
+### Entry-window profile
+
+All spans are enabled (`GAME_PROFILE_MS=0`). The aggregation window runs from the Loading screen attachment span through the InWorld observation; startup/character-select costs are excluded. Work queued ahead, including distant asset preparation, is included when it occurs in that window.
+
+| Phase (wall seconds) | Before | After |
+|---|---:|---:|
+| Instrumented M2/WMO/BLP asset IO | 0.670 | 0.294 |
+| BLP decode | 0.110 | 0.093 |
+| M2 parse | 0.181 | 0.134 |
+| WMO parse and collision parse | 0.091 | 0.070 |
+| Mesh build (worker and Godot resources) | 2.791 | 2.115 |
+| Material creation | 0.928 | 0.781 |
+| Shader resource setup | 0.045 | 0.031 |
+| Main-thread placements / WMO build steps | 2.105 | 1.389 |
+| Texture upload API | 0.736 | 0.676 |
+| Entire client frame callbacks | 8.826 | 5.532 |
+
+Nested phase totals overlap and are not additive. Upload and shader setup spans measure API wall time, not isolated deferred GPU/driver execution. Loading viewport GPU frame medians were **27.755 → 25.238 ms**; viewport CPU medians **9.882 → 10.740 ms**. Last-loading pipeline counters were identical: surface **57**, draw **22**, specialization **28**. These counters do not provide separate GPU compilation durations.
+
+The measured remaining floor is substantial synchronous resource work: mesh build 2.115 s, upload API 0.676 s, and total client callbacks 5.532 s. The rest of first-draw wall time contains account/map entry, Godot engine work, rendering/submission and inter-frame waits; those are not fully separated. This is a warm Dozen/WSL run on a shared host, not a cold-cache or hardware-independent Retail benchmark. The previous 80.744-second result is historical, not the paired baseline.
+
+Headless dummy rendering avoids real uploads/rendering and advances the same small streaming budgets without expensive rendered frames; comparing its **full drain** against rendered **entry** conflates two boundaries. The new owned headless fixture entered in **2.224 s** with 8,032 distant placements pending and drained all object work by **9.699 s**, staying InWorld with zero failures. It confirms no objects were discarded. Six native readiness tests and two spatial-progress tests passed through the locked local helper; native build and package formatting passed. Existing spell-attachment errors and shutdown texture/font/ObjectDB leaks remain outside this fix.
+
+Evidence and exact argv: `data/diagnostics/swload2-2026-10-06/` (`before3.log`, `after.log`, `before-profile.json`, `after-profile.json`, `headless2.log`, targeted test logs and proof ledger).
 
 ## Proof
 

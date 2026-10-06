@@ -168,7 +168,7 @@ MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` +
 
 ## 2026-10-06 — Rendered Stormwind resource scheduling
 
-[[stormwind-loading]]: owned UDP 5286 fixture measured 37.788-second warm entry / 38.315-second first draw with 494/494 prerequisites. Instrumented IO, decode, parse, meshes, materials, uploads, CPU/GPU viewport time and pipeline counters. Terrain/object loading slices increased to 64 ms; unchanged interactive budgets and entry bubble. After-change runtime proof pending.
+[[stormwind-loading]]: owned UDP 5286 fixture measured 37.788-second warm entry / 38.315-second first draw with 494/494 prerequisites. Instrumented IO, decode, parse, meshes, materials, uploads, CPU/GPU viewport time and pipeline counters. Terrain/object loading slices increased to 64 ms; unchanged interactive budgets and entry bubble. `b1fd59d7` same-setup rendered entry **11.715 s**, first draw **12.048 s**, 494/494 ready, zero failures; WMO slices 130→17. Eight targeted Rust tests passed; owned headless full drain **9.699 s**. Exact phase tables and measurement limits recorded in the investigation.
 
 ## 2026-10-01 — Zaralda fixture acceptance blocker
 
