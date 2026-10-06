@@ -9,6 +9,29 @@ use shared::death::DeathState;
 use super::Portrait;
 use crate::{ui::RegistryUi, world::WorldUnits, world_models::UnitAppearance};
 
+pub(super) fn roster_appearances(group: &GroupState) -> HashMap<String, UnitAppearance> {
+    use shared::components::{EquipmentAppearance, Player};
+    group
+        .members
+        .iter()
+        .map(|member| {
+            let player = Player {
+                name: member.name.clone(),
+                race: member.portrait.race,
+                class: member.class,
+                appearance: member.portrait.appearance.clone(),
+            };
+            let equipment = EquipmentAppearance {
+                entries: member.portrait.head.iter().cloned().collect(),
+            };
+            (
+                member.name.clone(),
+                UnitAppearance::Player(player, equipment),
+            )
+        })
+        .collect()
+}
+
 #[derive(Debug, PartialEq)]
 pub(super) struct Binding {
     pub name: String,
@@ -85,9 +108,6 @@ pub(super) struct PartyPortraits {
 
 pub(super) struct PartyPortrait {
     pub portrait: Portrait,
-    // Roster data has no appearance. Keep the last replicated visual while offline or
-    // outside interest; never reuse another member's head to fill an unknown portrait.
-    appearance: Option<UnitAppearance>,
 }
 
 impl PartyPortraits {
@@ -127,14 +147,10 @@ impl PartyPortraits {
             .entry(binding.name.clone())
             .or_insert_with(|| PartyPortrait {
                 portrait: Portrait::new(slot),
-                appearance: None,
             });
-        if let Some(appearance) = appearance {
-            member.appearance = Some(appearance);
-        }
         member.portrait.set_slot(slot);
         let host = ui.and_then(|ui| ui.bind().frame_control(slot.frame));
-        let result = member.portrait.sync(world, host, member.appearance.clone());
+        let result = member.portrait.sync(world, host, appearance);
         if let Some(scene) = member.portrait.scene.as_mut() {
             scene.set_style(binding.desaturated, binding.tint);
         }
@@ -166,6 +182,86 @@ mod tests {
     use shared::components::Position;
     use shared::death::DeathState;
     use shared::protocol::{GroupMemberSnapshot, GroupMemberState, GroupRoleSnapshot};
+
+    #[test]
+    fn rosterclient_unreplicated_member_uses_canonical_roster_appearance() {
+        use shared::components::{CharacterAppearance, EquipmentAppearance, Player};
+        let mut group = roster(&["Ann"]);
+        group.members[0].portrait.race = 10;
+        group.members[0].portrait.appearance = CharacterAppearance {
+            sex: 1,
+            hair_color: 3,
+            ..Default::default()
+        };
+        let appearances = roster_appearances(&group);
+        assert_eq!(group.members[0].entity, None);
+        assert!(
+            appearances.get("Ann")
+                == Some(&UnitAppearance::Player(
+                    Player {
+                        name: "Ann".into(),
+                        race: 10,
+                        class: 8,
+                        appearance: group.members[0].portrait.appearance.clone(),
+                    },
+                    EquipmentAppearance::default(),
+                )),
+            "unseen member has roster head"
+        );
+        group.members[0].online = false;
+        assert!(roster_appearances(&group) == appearances);
+        assert!(bindings(&group, None, false)[0].desaturated);
+    }
+
+    #[test]
+    fn rosterclient_head_and_visage_survive_offline_roster_replacement() {
+        use shared::components::{
+            CharacterAppearance, CustomizationChoiceSelection, EquipmentVisualSlot,
+            EquippedAppearanceEntry, FormAppearance,
+        };
+        use shared::protocol::{GroupPortraitAppearance, GroupRosterSnapshot};
+        let mut group = roster(&["Ann"]);
+        let head = EquippedAppearanceEntry {
+            slot: EquipmentVisualSlot::Head,
+            item_id: Some(32329),
+            display_info_id: Some(117595),
+            inventory_type: 1,
+            hidden: true,
+        };
+        group.members[0].portrait = GroupPortraitAppearance {
+            race: 52,
+            appearance: CharacterAppearance {
+                sex: 1,
+                customization_choices: vec![CustomizationChoiceSelection {
+                    option_id: 2886,
+                    choice_id: 51688,
+                }],
+                visage: Some(FormAppearance {
+                    hair_color: 4,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            head: Some(head.clone()),
+        };
+        let mut members = group.members.clone();
+        members[0].online = false;
+        group.apply_roster(GroupRosterSnapshot {
+            is_raid: false,
+            ready_count: 0,
+            total_count: 1,
+            members,
+            loot_method: shared::loot::LootMode::PersonalLoot,
+        });
+        let appearances = roster_appearances(&group);
+        let Some(UnitAppearance::Player(player, equipment)) = appearances.get("Ann") else {
+            panic!("offline member must build from the received roster");
+        };
+        assert_eq!(player.race, 52);
+        assert_eq!(player.appearance, group.members[0].portrait.appearance);
+        assert_eq!(equipment.entries, [head]);
+        assert!(bindings(&group, None, false)[0].desaturated);
+    }
 
     #[test]
     fn party4_portrait_bindings_keep_sorted_names_and_slots_together() {
@@ -208,6 +304,7 @@ mod tests {
                     class: 8,
                     level: 10,
                     entity: None,
+                    portrait: Default::default(),
                 })
                 .collect(),
             ..Default::default()

@@ -15,6 +15,7 @@ fn member(name: &str, leader: bool, online: bool) -> GroupMemberSnapshot {
         class: 2,
         level: 12,
         entity: online.then_some(7),
+        portrait: Default::default(),
     }
 }
 
