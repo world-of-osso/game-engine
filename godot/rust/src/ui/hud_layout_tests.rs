@@ -255,9 +255,9 @@ fn assert_modern(hud: &[RegistryModel]) {
         (467.0, 657.0, 26.0, 28.0),
     );
     assert_modern_edit_mode_systems(hud);
-    // Flush right, 300 down (user decision 2026-10-05; Retail is (-110, -275),
-    // Mainline/EditModePresetLayouts.lua:549-554).
-    assert_eq!(top_right(hud, TRACKER_FRAME), (1366.0, 300.0));
+    // Flush right (user decision 2026-10-05); Retail is TOPRIGHT (-110, -275),
+    // Mainline/EditModePresetLayouts.lua:549-554.
+    assert_eq!(top_right(hud, TRACKER_FRAME), (1366.0, 275.0));
 }
 
 /// Systems whose anchors the Forever preset shares with Modern.
@@ -434,12 +434,14 @@ fn launcher_clears_buff_area_on_default_1920x1080_canvas() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         sync(&mut canvases, skin);
         let launcher = rect(&canvases, "MinimapLauncherButton");
-        let buffs = rect(&canvases, BUFF_FRAME.0);
         assert_eq!((launcher.width, launcher.height), (30.0, 30.0));
-        assert!(
-            !intersects(&launcher, &buffs),
-            "{skin:?}: {launcher:?} overlaps {buffs:?}"
-        );
+        for name in [BUFF_FRAME.0, DEBUFF_FRAME.0] {
+            let auras = rect(&canvases, name);
+            assert!(
+                !intersects(&launcher, &auras),
+                "{skin:?}: {launcher:?} overlaps {name} {auras:?}"
+            );
+        }
     }
 }
 
@@ -468,7 +470,7 @@ fn tracker_clears_minimap_on_default_1920x1080_canvas() {
 fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
     let mut hud = hud();
     sync(&mut hud, ActiveSkin::Modern);
-    assert_rect(&hud, TRACKER_FRAME, (1106.0, 300.0, 260.0, 32.0));
+    assert_rect(&hud, TRACKER_FRAME, (1106.0, 275.0, 260.0, 32.0));
     let modern_header = rect(&hud, "ObjectiveTrackerFrameHeaderBackground");
     println!("MODERN_TRACKER_EMPTY_HASH {}", tracker_canvas_hash(&hud));
     sync(&mut hud, ActiveSkin::Forever);
@@ -491,7 +493,7 @@ fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
     }
     assert!((header.width * 288.0 / 300.0 - map.width).abs() < 0.001);
     sync(&mut hud, ActiveSkin::Modern);
-    assert_rect(&hud, TRACKER_FRAME, (1106.0, 300.0, 260.0, 32.0));
+    assert_rect(&hud, TRACKER_FRAME, (1106.0, 275.0, 260.0, 32.0));
     assert_eq!(
         rect(&hud, "ObjectiveTrackerFrameHeaderBackground"),
         modern_header
