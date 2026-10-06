@@ -41,7 +41,7 @@ func _run() -> void:
 			quit(1)
 			return
 	if screen == "forever_minimap_preview":
-		if not forever_minimap_has_opaque_header_and_badge(image):
+		if not await forever_minimap_has_opaque_header_and_badge(ui, image, output):
 			ui.queue_free()
 			quit(1)
 			return
@@ -51,7 +51,7 @@ func _run() -> void:
 
 # Production display begins below the 22-unit band; no tile pixels leak into it.
 # Badge's gold ring must draw inside its derived rect, with empty space to the magnifier.
-func forever_minimap_has_opaque_header_and_badge(image: Image) -> bool:
+func forever_minimap_has_opaque_header_and_badge(ui: Node, image: Image, output: String) -> bool:
 	if image.get_size() != Vector2i(1920, 1080):
 		push_error("Minimap capture requires 1920x1080")
 		return false
@@ -60,16 +60,45 @@ func forever_minimap_has_opaque_header_and_badge(image: Image) -> bool:
 		if maxf(color.r, maxf(color.g, color.b)) > 1.0 / 255.0:
 			push_error("Map leaked into the minimap title band at ", x, ": ", color)
 			return false
-	var gold_pixels = 0
-	for y in range(226, 258):
-		for x in range(1662, 1695):
-			var color = image.get_pixel(x, y)
-			if color.r > 0.25 and color.g > 0.15 and color.r > color.b * 1.5:
-				gold_pixels += 1
-	if gold_pixels < 40:
-		push_error("Day/night badge gold ring missing: ", gold_pixels)
+	var badge = ui.find_child("MinimapDayNightBadge", true, false) as Control
+	var launcher = ui.find_child("MinimapLauncherButton", true, false) as Control
+	var band = ui.find_child("MinimapTitleBand", true, false) as Control
+	var tracker = ui.find_child("ObjectiveTrackerFrameHeaderBackground", true, false) as Control
+	if badge == null or launcher == null or band == null or tracker == null:
+		push_error("Minimap capture controls missing")
 		return false
-	print("PASS: opaque 22-unit minimap band; badge gold pixels=", gold_pixels)
+	var badge_rect = Rect2(1662, 226, 33, 32)
+	if badge.get_global_rect() != badge_rect or launcher.get_global_rect() != Rect2(1624, 230, 30, 30):
+		push_error("Badge or approved magnifier placement changed")
+		return false
+	if band.get_global_rect() != Rect2(1668, 8, 244, 22):
+		push_error("Title band size/inset changed")
+		return false
+	if badge_rect.intersects(launcher.get_global_rect()) or tracker.get_global_rect().intersects(Rect2(1660, 0, 260, 260)):
+		push_error("Minimap overlaps approved neighboring controls")
+		return false
+	badge.hide()
+	for frame in range(2):
+		await process_frame
+		await RenderingServer.frame_post_draw
+	var without_badge = root.get_texture().get_image()
+	if without_badge.save_png(output.get_basename() + "-without-badge.png") != OK:
+		push_error("Cannot save badge isolation control")
+		return false
+	badge.show()
+	var changed_pixels = 0
+	for y in range(200, 275):
+		for x in range(1624, 1920):
+			if image.get_pixel(x, y) == without_badge.get_pixel(x, y):
+				continue
+			if not badge_rect.has_point(Vector2(x, y)):
+				push_error("Badge changed pixels outside its rect: ", Vector2i(x, y))
+				return false
+			changed_pixels += 1
+	if changed_pixels < 100:
+		push_error("Badge art did not render: ", changed_pixels)
+		return false
+	print("PASS: opaque 22-unit minimap band; isolated badge pixels=", changed_pixels, "; magnifier/tracker clear")
 	return true
 
 # The rank disclaimer occupies two single-line rows inside the left column.
