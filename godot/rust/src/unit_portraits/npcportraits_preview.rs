@@ -51,6 +51,10 @@ impl INode for NpcPortraitPreview {
     }
 }
 
+// Primary registration storage is required for the secondary preview API.
+#[godot_api]
+impl NpcPortraitPreview {}
+
 #[godot_api(secondary)]
 impl NpcPortraitPreview {
     #[func]
