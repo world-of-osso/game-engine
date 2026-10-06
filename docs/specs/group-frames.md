@@ -65,6 +65,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 ### Static portrait party component (native, step 1)
 - [x] An unwired `PartyFrame` screen renders up to four non-self member views: name/class colour, health and power fractions, leader/guide, assigned role, Offline/Dead and portrait slots. Modern uses Retail Party art; Forever deliberately selects Camelot's conditional CharacterFrameOnParty art. [Source geometry and verified set-1 atlas relation](../wiki/systems/portrait-party-frames.md).
 - [x] Optional static party pets use Retail's half-scale member art and health-only frame; `show_pets` controls visibility and container spacing.
+- [ ] Raster-correct static portrait family under both skins: blocked by missing Retail party sheet and mismatched Forever base-sheet layout. Registry/source-record tests pass but native captures do not establish art acceptance; [evidence and required inputs](../wiki/systems/portrait-party-frames.md#acceptance-status--blocked-2026-10-05).
 - [ ] Connect the portrait family to the group roster and runtime portrait bindings; retain compact default. Presentation settings are separate work.
 - [ ] Live portrait-family acceptance. Static registry golden and offline preview are not live proof.
 

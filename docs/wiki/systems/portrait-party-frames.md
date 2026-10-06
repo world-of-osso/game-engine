@@ -2,6 +2,17 @@
 
 Static native `PartyMemberFrame` family under Modern and Forever. `PortraitPartyFrameState` supplies four non-self member slots; no roster adapter, runtime heads, click/menu wiring or Edit Mode setting. Compact party remains the default. [Contract](../../specs/group-frames.md).
 
+## Acceptance status — blocked (2026-10-05)
+
+Step 1 is **not raster-accepted and must not be wired as complete**. Twelve targeted behavioral/registry tests pass (8 portrait + 4 shared status-bar regressions); the Modern code-generated registry golden passes, and extension build `91960f9f` succeeds. These prove state/geometry/source-record relationships, not matching physical texture contents.
+
+Owned offline Dozen/Weston captures in `data/diagnostics/party1-2026-10-05/` exposed two asset blockers:
+
+- `modern-party.png` / `modern-preview.log`: required Retail party sheet `data/textures/4681512.blp` is absent; art and fills are not drawn.
+- `forever-party.png` / `health-source-pixels.png`: C60 frame art is correct, but conditional health/non-mana bar crops from 69913 address unrelated icons/text in the cached Retail `4631591.blp`. Same FDID, different layout: player health is (705,213)–(829,233) in Retail 69933, versus (693,238)–(817,258) in Forever 69913. Source-row tests alone did not catch the physical-sheet mismatch.
+
+No matching 69913 base sheet was found in the examined local asset caches; only Retail CASC resolution cache is available here. Required next input: matching Forever base-sheet bytes and a skin/version-specific asset binding (do not replace shared Retail FDID 4631591), plus the missing Retail party sheet. No alternate-art substitution or CDN extraction performed. Both captures exited 0 but emitted RID/ObjectDB shutdown leak warnings; neither is visual parity or clean-resource acceptance. Owned render processes were stopped.
+
 ## Content
 
 `godot/ui-model/src/ui/screens/portrait_party_frame_component.rs` reuses unit-frame `PortraitSlot`, `portrait_slot`, `status_bar`, atlas lookup and labels. Bars reveal the supplied fractions; name tint uses supplied class colour, health retains Retail's locked art colour. Host receives slot metadata for later portrait bindings. Optional pets require `show_pets`, a supplied pet view and an online member. A guide replaces, rather than accompanies, the leader crown. No level or assistant region exists in this Retail template; role icons do.
