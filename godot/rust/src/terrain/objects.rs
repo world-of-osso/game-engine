@@ -78,7 +78,7 @@ impl ObjectSelection for AllObjects {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 enum Pending {
     Doodad(Tile, usize),
     Wmo(Tile, usize),
@@ -116,6 +116,7 @@ fn load_asset(
     data_root: &Path,
     asset: ObjectAsset,
 ) -> Result<LoadedAsset, String> {
+    let _span = crate::profile::span(|| format!("objects.worker {asset:?}"));
     match asset {
         ObjectAsset::Model(fdid) => {
             let cached = load_model_files(resolver, data_root, fdid)?;
@@ -597,6 +598,7 @@ impl TerrainObjects {
             else {
                 break;
             };
+            let span = crate::profile::span(|| format!("objects.placement {pending:?}"));
             let spawned = match self.asset_of(terrain, pending) {
                 Ok(asset) if !self.is_loaded(asset) => {
                     self.wait_for(asset, pending);
@@ -605,6 +607,7 @@ impl TerrainObjects {
                 Ok(_) => self.spawn(parent, terrain, pending),
                 Err(error) => Err(error),
             };
+            drop(span);
             if let Err(error) = &spawned {
                 // One broken authored object must not hide the rest of the scene.
                 self.failures += 1;
@@ -666,6 +669,7 @@ impl TerrainObjects {
     /// Main thread: upload one of an arrived asset's textures, which keeps it at the
     /// front of `arrived`; once none is left, its particles, and its placements are ready.
     fn finish_asset(&mut self, asset: ObjectAsset, mut loaded: Result<LoadedAsset, String>) {
+        let _span = crate::profile::span(|| format!("objects.upload {asset:?}"));
         if let Ok(LoadedAsset::Model(_, textures) | LoadedAsset::Wmo(_, textures)) = &mut loaded
             && let Some((fdid, image)) = textures.pop()
         {
@@ -824,6 +828,12 @@ impl TerrainObjects {
         let Some(mut spawn) = self.building.take() else {
             return true;
         };
+        let _span = crate::profile::span(|| {
+            format!(
+                "objects.wmo_step tile={:?} index={}",
+                spawn.tile, spawn.index
+            )
+        });
         let budget = self.budget;
         let done = spawn.build.step(
             &spawn.asset,

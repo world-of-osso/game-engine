@@ -732,6 +732,19 @@ impl GameClient {
         objects.set("spawned", self.world_objects.spawned_count() as i64);
         objects.set("pending", self.world_objects.pending_count() as i64);
         objects.set("failures", self.world_objects.failure_count() as i64);
+        if let Some(transform) = local_transform {
+            let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(
+                transform.origin.x,
+                transform.origin.z,
+            );
+            if let Some((done, total)) = self.world_objects.tile_progress(tile) {
+                objects.set("tile_done", done as i64);
+                objects.set("tile_total", total as i64);
+            }
+            if let Some(pending) = self.wmo_collision.tile_pending(tile) {
+                objects.set("collision_pending", pending as i64);
+            }
+        }
         if let Some(particles) = self.world_objects.particle_state() {
             objects.set("particles", &particles);
         }
