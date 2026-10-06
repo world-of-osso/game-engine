@@ -1,3 +1,7 @@
+#[path = "casting_bar_feedback.rs"]
+mod feedback;
+pub use feedback::{CastFeedback, apply_casting_bar_feedback_postsetup};
+
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
@@ -159,6 +163,8 @@ pub struct CastingBarState {
     pub is_interrupted: bool,
     /// `FadeOutAnim` / `HoldFadeOutAnim` on the whole bar.
     pub alpha: f32,
+    /// Player-only animation clock; target bars retain their existing presentation.
+    pub player_feedback: Option<CastFeedback>,
 }
 
 impl Default for CastingBarState {
@@ -173,6 +179,7 @@ impl Default for CastingBarState {
             is_interruptible: true,
             is_interrupted: false,
             alpha: 1.0,
+            player_feedback: None,
         }
     }
 }
@@ -240,6 +247,9 @@ fn cast_bar_frame(state: &CastingBarState, style: &CastBarStyle, at: &Placement)
         Element::default()
     };
     let fill_w = bar_w * state.progress.clamp(0.0, 1.0);
+    let (shake_x, shake_y) = state
+        .player_feedback
+        .map_or((0.0, 0.0), CastFeedback::shake_offset);
     let border = if style.border {
         flare_border_frame(style.root, holder)
     } else {
@@ -265,6 +275,8 @@ fn cast_bar_frame(state: &CastingBarState, style: &CastBarStyle, at: &Placement)
             bottom: {at.bottom.as_str()},
             margin_left: {at.margin_left},
             margin_top: {at.margin_top},
+            translate_x: {shake_x},
+            translate_y: {shake_y},
             {bar_background(style, fill_w, bar_fill_color(state, style), state)}
             {icon}
             {retail_target_art(style, state)}
@@ -323,6 +335,9 @@ fn bar_background(
     state: &CastingBarState,
 ) -> Element {
     let (bar_w, bar_h) = style.bar;
+    if state.player_feedback.is_some() {
+        return player_bar_background(style, fill_w, color, state);
+    }
     if style.icon && !style.retail_target {
         return forever_bar_background(style, fill_w, color);
     }
@@ -348,6 +363,76 @@ fn bar_background(
             {timer_text(style, &state.timer_text)}
         }
     }
+}
+
+fn player_bar_background(
+    style: &CastBarStyle,
+    fill_w: f32,
+    color: &str,
+    state: &CastingBarState,
+) -> Element {
+    let (width, height) = style.bar;
+    let forever = style.icon;
+    let x = if forever {
+        style.inset + height
+    } else {
+        style.inset
+    };
+    let background = if forever {
+        rsx! { r#frame { width, height, background_color: BAR_BG } }
+    } else {
+        rsx! { texture {
+            name: {style.name("BackgroundArt")}, width, height,
+            texture_atlas: "ui-castingbar-background",
+        } }
+    };
+    let labels = if forever {
+        Element::default()
+    } else {
+        spell_name_text(style, &state.spell_name)
+            .into_iter()
+            .chain(timer_text(style, &state.timer_text))
+            .collect()
+    };
+    rsx! { r#frame {
+        name: {style.name("Background")}, width, height,
+        pos_type: "absolute", pos_x: x, pos_y: style.inset,
+        {background}
+        {player_fill(style, state, fill_w, color)}
+        {feedback::feedback_art(style, state)}
+        {labels}
+        {feedback::player_spark(style, state, fill_w)}
+    } }
+}
+
+fn player_fill(style: &CastBarStyle, state: &CastingBarState, width: f32, color: &str) -> Element {
+    if style.icon {
+        return fill_bar(style, width, style.bar.1, color);
+    }
+    let full = matches!(state.player_feedback, Some(CastFeedback::Finished(_)));
+    let atlas = if state.is_interrupted {
+        "ui-castingbar-interrupted"
+    } else if !state.is_interruptible {
+        "ui-castingbar-uninterruptable"
+    } else if state.is_channel {
+        if full {
+            "ui-castingbar-full-channel"
+        } else {
+            "ui-castingbar-filling-channel"
+        }
+    } else if full {
+        "ui-castingbar-full-standard"
+    } else {
+        "ui-castingbar-filling-standard"
+    };
+    // Crop the fill; do not compress a whole atlas into the partial width.
+    let right = state.progress.clamp(0.0, 1.0);
+    let coords = format!("0.0,{right},0.0,1.0");
+    rsx! { texture {
+        name: {style.name("Fill")}, width, height: {style.bar.1},
+        texture_atlas: atlas, tex_coords: {coords.as_str()},
+        pos_type: "absolute", pos_x: 0.0, pos_y: 0.0,
+    } }
 }
 
 fn spell_icon(fdid: u32, style: &CastBarStyle) -> Element {

@@ -41,7 +41,7 @@ use shared::protocol::{ActionRef, CastFailed, CombatLogEvent, CombatLogKind};
 
 use crate::combat_text;
 use crate::frame_error::{FrameError, SessionError, report_once};
-use crate::nameplate_casts::{PlateCasts, casting_bar_state};
+use crate::nameplate_casts::{PlateCasts, casting_bar_state, player_casting_bar_state};
 use crate::player_spells::{bonus_bar_offset, main_bar_slot};
 use crate::{
     GameClient,
@@ -632,7 +632,12 @@ impl GameClient {
         let state = self
             .world
             .local_player_id()
-            .and_then(|player| self.hud_cast_bar(player))
+            .and_then(|player| {
+                let state = self.hud_cast_bar(player)?;
+                self.cast_bars
+                    .get(player)
+                    .map(|bar| player_casting_bar_state(bar, state.icon_fdid))
+            })
             .unwrap_or_default();
         if let Some(ui) = self.spells.cast_ui.as_mut() {
             return ui.bind_mut().set_state(state);
