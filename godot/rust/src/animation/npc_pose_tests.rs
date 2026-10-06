@@ -8,9 +8,9 @@ use std::{fs, path::PathBuf, sync::OnceLock};
 
 /// HumanMale HD 1011653 (Stockade Guard display 2989, Petty Criminal display 35069) with
 /// its external `.anim` sequences (Sit 97, Sleep 100).
-pub(super) fn human_male_hd() -> AnimationState {
+pub(super) fn human_male_model() -> &'static m2::Model {
     static MODEL: OnceLock<m2::Model> = OnceLock::new();
-    let model = MODEL.get_or_init(|| {
+    MODEL.get_or_init(|| {
         let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/models");
         let read = |name: &str| fs::read(root.join(name)).expect("authored fixture");
         m2::parse_model_with_skeleton(
@@ -20,8 +20,11 @@ pub(super) fn human_male_hd() -> AnimationState {
             |fdid| fs::read(root.join(format!("{fdid}.anim"))).ok(),
         )
         .expect("HumanMale HD")
-    });
-    AnimationState::new(model).expect("animated HumanMale HD")
+    })
+}
+
+pub(super) fn human_male_hd() -> AnimationState {
+    AnimationState::new(human_male_model()).expect("animated HumanMale HD")
 }
 
 fn current_id(player: &AnimationState) -> u16 {

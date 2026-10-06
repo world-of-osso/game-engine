@@ -77,6 +77,27 @@ fn player(with_running_landing: bool) -> AnimationState {
     }
 }
 
+fn fluid_player() -> AnimationState {
+    let mut player = player(true);
+    for id in [40, 41, 42, 43, 44, 45, 11, 12] {
+        player.sequences.push(sequence(id, 500, 80));
+        player.sequence_animated.push(false);
+        player.release_ms.push(None);
+        player.action_events.push(Vec::new());
+        let tracks = std::sync::Arc::make_mut(&mut player.tracks);
+        tracks[0]
+            .translation
+            .sequences
+            .push((vec![0], vec![[id as f32, 0.0, 0.0]]));
+        tracks[0]
+            .rotation
+            .sequences
+            .push((vec![0], vec![[0, 0, 0, 32767]]));
+        tracks[0].scale.sequences.push((vec![0], vec![[1.0; 3]]));
+    }
+    player
+}
+
 fn current_id(player: &AnimationState) -> u16 {
     player.sequences[player.current].id
 }
@@ -169,6 +190,62 @@ fn running_landing_requires_forward_run_and_available_clip() {
         assert_pose_continuous(&mut player, 0, false, false);
         assert_eq!(current_id(&player), 0);
     }
+}
+
+#[test]
+fn locomotion_crossfade_minimum_uses_wall_time_not_paced_clip_time() {
+    let mut player = fluid_player();
+    player.sequences[1].movespeed = 7.0;
+    player.set_locomotion_speed(Some(14.0));
+    assert_pose_continuous(&mut player, 5, false, true);
+    player.advance(75.0).unwrap();
+    assert_eq!(player.time_ms, 150.0);
+    assert_eq!(player.transition.as_ref().unwrap().elapsed_ms, 75.0);
+    assert!((player.poses()[0].origin.x - 0.75).abs() < 1e-4);
+    player.advance(75.0).unwrap();
+    assert!(
+        player.transition.is_some(),
+        "200 ms authored blend must last 200 real ms"
+    );
+    player.advance(50.0).unwrap();
+    assert!(player.transition.is_none());
+}
+
+#[test]
+fn locomotion_water_entry_interrupts_each_jump_phase_without_a_pose_pop() {
+    for phase in [37, 38, 39, 187] {
+        let mut player = fluid_player();
+        player.select_animation_id(phase, phase == 38).unwrap();
+        player.advance(75.0).unwrap();
+        assert_pose_continuous(&mut player, 42, false, true);
+        assert_eq!(current_id(&player), 42, "water entry from {phase}");
+        player.advance(75.0).unwrap();
+        assert_eq!(player.transition.as_ref().unwrap().elapsed_ms, 75.0);
+        assert!(!player.update_locomotion(42, false, true).unwrap());
+        player.advance(75.0).unwrap();
+        assert!(player.transition.is_none());
+    }
+}
+
+#[test]
+fn locomotion_fall_water_directions_exit_and_turn_preserve_time_and_weights() {
+    let mut player = fluid_player();
+    for id in [40, 5, 42, 41, 45, 43, 44, 40, 0, 11, 12, 0] {
+        assert_pose_continuous(&mut player, id, false, id == 5);
+        assert_eq!(current_id(&player), id);
+        let from = player.poses()[0].origin.x;
+        let target = player.sample_sequence(player.current, 0.0)[0].position.x;
+        let duration = player.transition.as_ref().unwrap().duration_ms;
+        player.advance(f64::from(duration) / 2.0).unwrap();
+        assert!((player.poses()[0].origin.x - (from + target) / 2.0).abs() < 1e-4);
+        let time = player.time_ms;
+        assert!(!player.update_locomotion(id, false, id == 5).unwrap());
+        assert_eq!(player.time_ms, time);
+        // Reverse direction before the fade finishes; the sampled outgoing weight
+        // must survive the switch, not return to either raw clip.
+    }
+    player.advance(150.0).unwrap();
+    assert!(player.transition.is_none());
 }
 
 #[test]

@@ -129,6 +129,81 @@ fn remote_player_walks_runs_strafes_backpedals_and_stands_with_continuous_crossf
     }
 }
 
+#[test]
+fn locomotion_remote_water_entry_preempts_air_and_swims_each_direction() {
+    let mut player = human_male_hd();
+    drive(&mut player, FALLING);
+    player.advance(75.0).unwrap();
+    for (flags, expected) in [
+        (SWIM | FORWARD, 42),
+        (SWIM, 41),
+        (SWIM | BACKWARD, 45),
+        (SWIM | LEFT, 43),
+        (SWIM | RIGHT, 44),
+        (FORWARD, 5),
+        (0, 0),
+    ] {
+        let before = player.poses();
+        assert!(drive(&mut player, flags));
+        assert_eq!(current_id(&player), expected);
+        assert!(pose_distance(&before, &player.poses()) < 1e-4);
+        let blend = player.transition.as_ref().unwrap().duration_ms;
+        assert!(blend >= MIN_MOVEMENT_BLEND_MS);
+        for _ in 0..3 {
+            assert!(!frame(&mut player, flags));
+        }
+        assert!((player.transition.as_ref().unwrap().elapsed_ms - 50.0).abs() < 1e-3);
+    }
+    player.advance(500.0).unwrap();
+    assert!(player.transition.is_none());
+}
+
+#[test]
+fn remote_idle_turn_uses_replicated_facing_with_continuous_crossfades() {
+    use crate::world::remote_player_facing_locomotion;
+    let mut player = human_male_hd();
+    let mut previous = None;
+    let pi = std::f32::consts::PI;
+    for (flags, facing, flying, expected) in [
+        (0, 0.0, false, 0),
+        (0, 0.12, false, 11),
+        (0, 0.0, false, 12),
+        (0, 0.0, false, 0),
+        (FORWARD, pi - 0.01, false, 5),
+        (0, -pi + 0.02, false, 11),
+        (0, pi - 0.01, false, 12),
+        (SWIM, 0.0, false, 41),
+        (0, 0.12, true, 0),
+        (FORWARD, 0.24, false, 5),
+        (0, 0.24, false, 0),
+    ] {
+        player.advance(75.0).unwrap();
+        let selected = remote_player_facing_locomotion(
+            player_motion_locomotion(PlayerMotion(flags)),
+            previous,
+            facing,
+            flying,
+        );
+        previous = Some(facing);
+        assert_eq!(selected.animation_id, expected);
+        let before = player.poses();
+        let changed = player
+            .update_locomotion(
+                selected.animation_id,
+                selected.jumping,
+                selected.running_forward,
+            )
+            .unwrap();
+        assert_eq!(current_id(&player), expected);
+        assert!(pose_distance(&before, &player.poses()) < 1e-4);
+        if changed {
+            assert!(player.transition.as_ref().unwrap().duration_ms >= MIN_MOVEMENT_BLEND_MS);
+        }
+    }
+    player.advance(500.0).unwrap();
+    assert!(player.transition.is_none());
+}
+
 /// A running jump: JumpStart 37 plays out, Jump 38 loops while `FALLING` stays set, the
 /// landing (running JumpLandRun 187 when authored, else JumpEnd 39) follows its clear,
 /// then Run 5 resumes and Stand 0 follows the stop, every switch crossfaded.

@@ -76,6 +76,8 @@ struct UnitNode {
     animation: Option<u16>,
     /// Another player's newest replicated movement flags.
     player_motion: Option<PlayerMotion>,
+    /// Last facing sampled for remote idle-turn animation; local-only state, not wire data.
+    animation_facing: Option<f32>,
     /// The replicated pose `pose_anim` was resolved from.
     pose: Option<UnitPose>,
     /// The looping animation `pose` holds while the creature stands still.
@@ -288,6 +290,7 @@ fn spawn_unit(
         death_applied: false,
         animation: None,
         player_motion: None,
+        animation_facing: None,
         pose: None,
         pose_anim: None,
         sheath: None,
@@ -680,6 +683,24 @@ pub(crate) fn player_motion_locomotion(motion: PlayerMotion) -> Locomotion {
         jumping: motion.contains(PlayerMotion::FALLING),
         running_forward: running && direction == MoveDirection::Forward,
     }
+}
+
+/// Apply an idle turn from the remote player's already replicated facing.
+pub(crate) fn remote_player_facing_locomotion(
+    mut locomotion: Locomotion,
+    previous: Option<f32>,
+    facing: f32,
+    flying: bool,
+) -> Locomotion {
+    if locomotion.animation_id != ANIM_STAND || locomotion.jumping || flying {
+        return locomotion;
+    }
+    if let Some(id) =
+        previous.and_then(|previous| crate::gameplay::facing_turn_animation_id(previous, facing))
+    {
+        locomotion.animation_id = id;
+    }
+    locomotion
 }
 
 /// The locomotion a unit follows from its replicated `PlayerMotion`: only another
@@ -1277,6 +1298,9 @@ impl WorldUnits {
             let flying = unit
                 .player_motion
                 .is_some_and(|motion| motion.contains(PlayerMotion::FLYING));
+            let facing = unit.node.get_rotation().y;
+            let previous = unit.animation_facing.replace(facing);
+            let locomotion = remote_player_facing_locomotion(locomotion, previous, facing, flying);
             if let Some(result) = mount::animate_mounted(unit, locomotion, flying, fallbacks) {
                 if let Err(error) = result {
                     errors.push(error);
