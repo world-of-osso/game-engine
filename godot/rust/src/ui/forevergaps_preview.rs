@@ -1,7 +1,7 @@
 //! Offline production-screen capture data for the four Forever reference gaps.
 use godot::prelude::*;
 
-use super::{RegistryUi, ScreenPostsetup, forevergaps_preview, party_preview};
+use super::{RegistryUi, ScreenPostsetup, party_preview};
 use game_engine_ui_model::aura_display_data::{AuraInstance, DebuffType};
 use game_engine_ui_model::chat_frame::{ChatRow, ChatRun};
 use game_engine_ui_model::chat_frame_component::{
@@ -89,10 +89,16 @@ fn chat() -> ChatFrameView {
 }
 
 pub(super) fn screen(_: &SharedContext) -> Element {
+    preview_screen(false)
+}
+
+fn preview_screen(input_open: bool) -> Element {
     let mut shared = SharedContext::new();
     shared.insert(ActiveSkin::Forever);
     shared.insert(player());
-    shared.insert(chat());
+    let mut view = chat();
+    view.input_open = input_open;
+    shared.insert(view);
     shared.insert(MinimapClusterState {
         zone_text: "Northshire Valley".into(),
         clock_text: "12:34".into(),
@@ -109,19 +115,61 @@ pub(super) fn screen(_: &SharedContext) -> Element {
     .collect()
 }
 
+/// Production Forever chat with every frame named in the corner-flush overlap check.
+pub(super) fn chatflush_screen(_: &SharedContext) -> Element {
+    use game_engine_ui_model::bags_bar_component::{BagBarState, bags_bar_screen};
+    use game_engine_ui_model::damage_meter_component::damage_meter_screen;
+    use game_engine_ui_model::damage_meter_data::DamageMeterView;
+    use game_engine_ui_model::main_action_bar_component::{
+        MainActionBarState, main_action_bar_screen,
+    };
+    use game_engine_ui_model::pet_action_bar_component::{
+        PetActionBarState, pet_action_bar_screen,
+    };
+
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Forever);
+    shared.insert(MainActionBarState {
+        player_class: Some(2),
+        ..Default::default()
+    });
+    shared.insert(PetActionBarState {
+        visible: true,
+        ..Default::default()
+    });
+    shared.insert(BagBarState::default());
+    shared.insert(DamageMeterView::default());
+    [
+        preview_screen(true),
+        main_action_bar_screen(&shared),
+        pet_action_bar_screen(&shared),
+        bags_bar_screen(&shared),
+        damage_meter_screen(&shared),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
 #[godot_api(secondary)]
 impl RegistryUi {
     /// Offline production HUD canvas for the bounded Forever reference-gap capture.
     #[func]
     pub fn show_forevergaps_preview(&mut self) -> GString {
+        self.show_forever_preview(screen)
+    }
+
+    /// Offline corner-flush chat, open input and the approved neighbouring HUD frames.
+    #[func]
+    pub fn show_chatflush_preview(&mut self) -> GString {
+        self.show_forever_preview(chatflush_screen)
+    }
+
+    fn show_forever_preview(&mut self, build: fn(&SharedContext) -> Element) -> GString {
         let result = party_preview::load_data_root().and_then(|()| {
             ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Forever);
             self.set_ui_scale(1.0)?;
-            self.show_viewport_screen(
-                forevergaps_preview::Preview,
-                forevergaps_preview::screen,
-                ScreenPostsetup::None,
-            )
+            self.show_viewport_screen(Preview, build, ScreenPostsetup::None)
         });
         GString::from(result.err().unwrap_or_default().as_str())
     }

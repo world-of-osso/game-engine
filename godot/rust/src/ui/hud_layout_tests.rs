@@ -404,20 +404,72 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
     assert_eq!(meter.x, 1366.0 - minimap.x - minimap.width);
     assert_eq!(meter.y, minimap.y);
     assert_eq!((meter.width, meter.height), (450.0, 214.0));
-    // Forever chat messages 430x170 at BOTTOMLEFT(35,145), padding 10 + header 24.
-    assert_rect(&hud, CHAT_FRAME.0, (1.0, 426.0, 469.0, 235.0));
-    assert_rect(&hud, CHAT_FLARE_SKIN, (25.0, 419.0, 450.0, 214.0));
-    assert_rect(&hud, "ChatFrame1Messages", (35.0, 453.0, 430.0, 170.0));
-    assert_rect(&hud, "ChatFrame1EditBox", (1.0, 629.0, 469.0, 32.0));
+    // User decision 2026-10-06: visible bronze edge corner-flush, input inside it.
+    assert_rect(&hud, CHAT_FRAME.0, (-26.0, 563.0, 469.0, 235.0));
+    assert_rect(&hud, CHAT_FLARE_SKIN, (-2.0, 556.0, 450.0, 214.0));
+    assert_rect(&hud, "ChatFrame1Messages", (8.0, 590.0, 430.0, 138.0));
+    assert_rect(&hud, "ChatFrame1EditBox", (1.0, 735.0, 442.0, 32.0));
     assert_rect(
         &hud,
         "ChatFrame1ScrollToBottomButton",
-        (437.0, 590.0, 26.0, 28.0),
+        (410.0, 695.0, 26.0, 28.0),
     );
     assert_modern_edit_mode_systems(&hud);
 
     sync(&mut hud, ActiveSkin::Modern);
     assert_modern(&hud);
+}
+
+#[test]
+fn chatflush_forever_visible_corner_and_input_clear_approved_frames() {
+    let mut canvases = default_canvas_hud();
+    sync(&mut canvases, ActiveSkin::Forever);
+    let panel = rect(&canvases, CHAT_FLARE_SKIN);
+    let input = rect(&canvases, "ChatFrame1EditBox");
+    println!("CHATFLUSH panel {panel:?}; input {input:?}");
+    for name in [
+        MAIN_ACTION_BAR.0,
+        "MultiBarBottomLeft",
+        "MultiBarBottomRight",
+        "MainActionBarLeftEndCap",
+        "MainActionBarRightEndCap",
+        "PetActionBar",
+        "PlayerFrame",
+        "BagsBar",
+        "DamageMeterFlareSkin",
+    ] {
+        let other = rect(&canvases, name);
+        println!("CHATFLUSH {name} {other:?}");
+        assert!(
+            !intersects(&panel, &other),
+            "chat {panel:?} overlaps {name} {other:?}"
+        );
+        assert!(
+            !intersects(&input, &other),
+            "input {input:?} overlaps {name} {other:?}"
+        );
+    }
+    // Reference's bronze border reaches x=0 and the last screen row. The authored
+    // tooltip-border sheet's line is two units inside its outer rectangle.
+    assert!((panel.x + 2.0).abs() < 0.001, "left edge: {panel:?}");
+    assert!(
+        (panel.y + panel.height - 2.0 - 1080.0).abs() < 0.001,
+        "bottom edge: {panel:?}"
+    );
+    assert!(input.x >= 0.0 && input.y >= 0.0, "input {input:?}");
+    assert!(
+        input.x + input.width <= 1920.0 && input.y + input.height <= 1080.0,
+        "input {input:?}"
+    );
+    let messages = rect(&canvases, "ChatFrame1Messages");
+    assert!(
+        messages.y + messages.height <= input.y,
+        "messages {messages:?} under input {input:?}"
+    );
+    for index in 0..3 {
+        let tab = rect(&canvases, &format!("ChatFrame1TabsTab{index}"));
+        assert!(tab.x >= 0.0 && tab.y >= 0.0, "tab {tab:?}");
+    }
 }
 
 fn default_canvas_hud() -> Vec<RegistryModel> {

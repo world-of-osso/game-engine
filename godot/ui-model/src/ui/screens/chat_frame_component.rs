@@ -110,6 +110,31 @@ const BUTTONS_LEFT: f32 = MESSAGES_LEFT - 5.0 - BUTTON_W;
 /// Blizzard's ChatFrame1EditBox (32 high) across the frame bottom, its art replaced by a
 /// 0.1 grey fill at alpha 0.8 (Display/Main.lua:203-207, Skins/Dark.lua:185-194).
 const INPUT_H: f32 = 32.0;
+/// Keep Forever's input inside the bronze border when its visible edge is corner-flush.
+const FOREVER_INPUT_INSET: f32 = 3.0;
+
+fn chat_message_height(height: f32, skin: ActiveSkin, input_open: bool) -> f32 {
+    if skin == ActiveSkin::Forever && input_open {
+        height - INPUT_H
+    } else {
+        height
+    }
+}
+
+fn chat_input_rect(size: (f32, f32), skin: ActiveSkin) -> (f32, f32, f32) {
+    if skin == ActiveSkin::Modern {
+        return (0.0, size.1 - INPUT_H, size.0);
+    }
+    let (left, top, width, height) = flare_skin_rect(messages_size(size));
+    let input_left = left + FOREVER_INPUT_INSET;
+    // The skin extends five units past the canvas's right edge; input stays in both.
+    let input_width = (width - 2.0 * FOREVER_INPUT_INSET).min(size.0 - input_left);
+    (
+        input_left,
+        top + height - FOREVER_INPUT_INSET - INPUT_H,
+        input_width,
+    )
+}
 const INPUT_BACKGROUND: &str = "0.1,0.1,0.1,0.8";
 /// Retail edit box: ChatFontNormal text in the chat type's colour after a `Say: ` header
 /// (`CHAT_SAY_SEND`) at LEFT (15, 0), text inset 15 + header width on the left and 13 on
@@ -213,8 +238,10 @@ pub fn chat_frame_view(
     chat_size: (f32, f32),
 ) -> ChatFrameView {
     let (messages_width, messages_height) = messages_size(chat_size);
-    let available_height = messages_height - MESSAGES_BOTTOM_PAD;
-    let font_size = chat_font_size(ui_toolkit::atlas::thread_skin());
+    let skin = ui_toolkit::atlas::thread_skin();
+    let available_height =
+        chat_message_height(messages_height, skin, state.input_open) - MESSAGES_BOTTOM_PAD;
+    let font_size = chat_font_size(skin);
     let area = chat_text_area_with_font(state.tab, messages_width, font_size);
     let entries = tab_entries(state.tab, chat, combat);
     let mut messages = Vec::new();
@@ -295,6 +322,12 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
             forever_background(flare_skin_rect((messages_width, messages_height)))
         }
     };
+    let messages_height = chat_message_height(messages_height, skin, view.input_open);
+    let (input_left, input_top, input_width) = chat_input_rect((width, height), skin);
+    let input_header_top = match skin {
+        ActiveSkin::Modern => height - (INPUT_H + CHAT_LINE_H) / 2.0,
+        ActiveSkin::Forever => input_top + (INPUT_H - CHAT_LINE_H) / 2.0,
+    };
     let tab_parts = match skin {
         ActiveSkin::Modern => tabs(view),
         ActiveSkin::Forever => forever_tabs(view),
@@ -345,13 +378,13 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
             )}
             r#frame {
                 name: CHAT_EDITBOX_BACKGROUND,
-                width,
+                width: input_width,
                 height: INPUT_H,
                 background_color: INPUT_BACKGROUND,
                 hidden: hide_input,
                 pos_type: "absolute",
-                left: 0.0,
-                top: {height - INPUT_H},
+                left: input_left,
+                top: input_top,
             }
             fontstring {
                 name: CHAT_EDITBOX_HEADER,
@@ -364,12 +397,12 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
                 justify_h: "LEFT",
                 hidden: hide_input,
                 pos_type: "absolute",
-                left: INPUT_HEADER_LEFT,
-                top: {height - (INPUT_H + CHAT_LINE_H) / 2.0},
+                left: {input_left + INPUT_HEADER_LEFT},
+                top: input_header_top,
             }
             editbox {
                 name: CHAT_EDITBOX,
-                width,
+                width: input_width,
                 height: INPUT_H,
                 font: CHAT_FONT,
                 font_size: CHAT_FONT_SIZE,
@@ -377,15 +410,15 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
                 text_insets: {input_insets.as_str()},
                 hidden: hide_input,
                 pos_type: "absolute",
-                left: 0.0,
-                top: {height - INPUT_H},
+                left: input_left,
+                top: input_top,
             }
         }
     }
 }
 
 // Sourced palette/layout and measured adaptations:
-// docs/specs/forever-chat-meter-chrome.md. No message/input/scroll changes.
+// docs/specs/forever-chat-meter-chrome.md; corner-flush input: hud-edit-mode.md.
 const FOREVER_TAB_PADDING: f32 = 14.0;
 const FOREVER_TAB_GAP: f32 = 4.0;
 /// FlareUI scales each 22-unit header button by 0.6 (`Core.lua:161,166,171,176`), so the
