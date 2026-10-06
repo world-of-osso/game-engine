@@ -145,6 +145,8 @@ struct PlateLayout {
     /// without one), and on the right the level frame's end under a skin with one. The
     /// cast row sits on the same span.
     span: (f32, f32),
+    /// Bottom edge of the rendered health frame, or fill when borderless.
+    bottom: f32,
 }
 
 /// Where a plate's texts sit, relative to the anchor.
@@ -215,6 +217,11 @@ fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> Plat
         text,
         top,
         span: (left, right),
+        bottom: if style.show_border {
+            frame.end().y
+        } else {
+            fill.end().y
+        },
     }
 }
 
@@ -692,9 +699,12 @@ impl Nameplates {
                 None => None,
             };
             let layout = plate_layout(style, view.fraction, level_width);
-            plate
-                .cast
-                .apply(bar, icon.as_ref(), (style, layout.span), cast_art);
+            plate.cast.apply(
+                bar,
+                icon.as_ref(),
+                (style, layout.span, layout.bottom),
+                cast_art,
+            );
             // Bevy: aura icons show with the health bars.
             let auras = if show_health_bars {
                 view.auras.as_slice()
@@ -1610,7 +1620,7 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
                     let case =
                         format!("{health:?}/{cast:?} border {show_border} level {level_width}");
                     let plate = plate_layout(&style, 1.0, level_width);
-                    let row = cast_layout(&style, 1.0, plate.span);
+                    let row = cast_layout(&style, 1.0, plate.span, plate.bottom);
                     assert_eq!(row.background.position.x, plate.span.0, "{case}");
                     assert_eq!(row.background.end().x, plate.span.1, "{case}");
                     assert_eq!(row.icon.position.x, plate.span.0, "{case}");
