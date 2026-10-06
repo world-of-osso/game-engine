@@ -89,11 +89,14 @@ def refuse_open_files(directories):
                     )
         except (FileNotFoundError, ProcessLookupError):
             continue
-        except PermissionError as error:
-            raise ValueError(
-                f"cannot inspect PID {process.name} descriptors; repair requires "
-                "permission to read every /proc/*/fd"
-            ) from error
+        except PermissionError:
+            # Non-dumpable services (systemd --user, ssh-agent) hide their descriptors even
+            # from their owner; they never open slot data. Name them so a surprise shows.
+            try:
+                name = (process / "comm").read_text().strip()
+            except OSError:
+                name = "?"
+            print(f"warning: skipped unreadable PID {process.name} ({name})", file=sys.stderr)
 
 
 def move_without_overwrite(source, destination):

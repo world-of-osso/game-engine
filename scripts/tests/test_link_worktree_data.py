@@ -157,18 +157,20 @@ class LinkWorktreeDataTests(unittest.TestCase):
             self.assertTrue((self.worktree / "data/textures").is_symlink())
             self.assertEqual(shared.read_text(), "keep")
 
-    def test_unreadable_descriptors_refuse_repair_without_mutation(self):
+    def test_unreadable_descriptors_are_named_and_skipped(self):
+        # Non-dumpable services (systemd --user) hide their descriptors from their owner.
         self.put(self.canonical, "textures/seed", "seed")
-        extra = self.put(self.worktree, "textures/extra", "slot")
-        descriptors = self.proc / "123456" / "fd"
-        descriptors.mkdir(parents=True)
-        descriptors.chmod(0)
-        self.addCleanup(descriptors.chmod, 0o700)
+        self.put(self.worktree, "textures/extra", "slot")
+        process = self.proc / "123456"
+        (process / "fd").mkdir(parents=True)
+        (process / "comm").write_text("systemd\n")
+        (process / "fd").chmod(0)
+        self.addCleanup((process / "fd").chmod, 0o700)
         result, output = self.link(repair=True)
-        self.assertNotEqual(result, 0)
-        self.assertIn("cannot inspect PID 123456", output)
-        self.assertEqual(extra.read_text(), "slot")
-        self.assertFalse((self.canonical / "data/textures/extra").exists())
+        self.assertEqual(result, 0, output)
+        self.assertIn("skipped unreadable PID 123456 (systemd)", output)
+        self.assertEqual((self.canonical / "data/textures/extra").read_text(), "slot")
+        self.assertTrue((self.worktree / "data/textures").is_symlink())
 
     def test_slot_only_directory_is_moved_to_canonical(self):
         (self.canonical / "data").mkdir()
