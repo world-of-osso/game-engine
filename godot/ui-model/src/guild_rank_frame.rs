@@ -64,7 +64,14 @@ fn roster(session: &GuildRanksSession) -> Element {
         340.0,
     ));
     if let Some(state) = session.state() {
-        for (index, member) in state.members.iter().enumerate() {
+        let offset = session.roster_page() * crate::guild_ranks::ROSTER_PAGE_SIZE;
+        for (index, member) in state
+            .members
+            .iter()
+            .enumerate()
+            .skip(offset)
+            .take(crate::guild_ranks::ROSTER_PAGE_SIZE)
+        {
             let rank = state
                 .ranks
                 .get(usize::from(member.rank))
@@ -75,7 +82,7 @@ fn roster(session: &GuildRanksSession) -> Element {
                 &format!("{} — {rank}", member.character_name),
                 &format!("guild:member:{}", member.character_name),
                 true,
-                (20.0, 72.0 + index as f32 * 30.0, 340.0, 26.0),
+                (20.0, 72.0 + (index - offset) as f32 * 30.0, 340.0, 26.0),
             ));
         }
     } else {
@@ -87,6 +94,27 @@ fn roster(session: &GuildRanksSession) -> Element {
             340.0,
         ));
     }
+    children.extend(panel_button(
+        "GuildRosterPrevious".into(),
+        "Previous",
+        "guild:roster_previous",
+        session.roster_page() > 0,
+        (20.0, 460.0, 100.0, 24.0),
+    ));
+    children.extend(title(
+        "GuildRosterPage",
+        &format!("Page {}", session.roster_page() + 1),
+        144.0,
+        462.0,
+        90.0,
+    ));
+    children.extend(panel_button(
+        "GuildRosterNext".into(),
+        "Next",
+        "guild:roster_next",
+        session.roster_has_next(),
+        (260.0, 460.0, 100.0, 24.0),
+    ));
     children.extend(panel_button(
         "GuildControlButton".into(),
         "Guild Settings",
@@ -413,7 +441,9 @@ fn checkbox(
         "Deposit" => 130.0,
         _ => 310.0,
     };
+    let alpha = if enabled { 1.0 } else { 0.5 };
     rsx! { button { name: {DynName(name)}, width, height: 26.0, onclick: action, disabled,
+    button_default_skin: false, alpha,
     pos_type: "absolute", left: x, top: y, {children} } }
 }
 

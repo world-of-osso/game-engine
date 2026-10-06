@@ -1,6 +1,8 @@
 //! Authoritative guild settings decisions; requests never optimistically edit state.
 use shared::protocol::*;
 
+pub const ROSTER_PAGE_SIZE: usize = 9;
+
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct GuildRanksSession {
     pub visible: bool,
@@ -9,6 +11,7 @@ pub struct GuildRanksSession {
     pub error: Option<String>,
     state: Option<GuildRanksState>,
     selected_rank: usize,
+    roster_page: usize,
 }
 
 impl GuildRanksSession {
@@ -20,6 +23,9 @@ impl GuildRanksSession {
     pub fn apply(&mut self, state: GuildRanksState) {
         self.error = state.error.map(|error| error.message().to_owned());
         self.selected_rank = self.selected_rank.min(state.ranks.len().saturating_sub(1));
+        self.roster_page = self
+            .roster_page
+            .min(state.members.len().saturating_sub(1) / ROSTER_PAGE_SIZE);
         self.state = Some(state);
     }
 
@@ -35,6 +41,16 @@ impl GuildRanksSession {
         {
             self.selected_rank = rank;
         }
+    }
+
+    pub fn roster_page(&self) -> usize {
+        self.roster_page
+    }
+
+    pub fn roster_has_next(&self) -> bool {
+        self.state
+            .as_ref()
+            .is_some_and(|state| state.members.len() > (self.roster_page + 1) * ROSTER_PAGE_SIZE)
     }
 
     pub fn selected_index(&self) -> usize {
@@ -60,6 +76,18 @@ impl GuildRanksSession {
             }
             "guild:settings_close" => {
                 self.settings_open = false;
+                None
+            }
+            "guild:roster_previous" => {
+                self.roster_page = self.roster_page.saturating_sub(1);
+                self.member_menu = None;
+                None
+            }
+            "guild:roster_next" => {
+                if self.roster_has_next() {
+                    self.roster_page += 1;
+                }
+                self.member_menu = None;
                 None
             }
             "guild:add" => self.add_rank(input(crate::guild_rank_frame::NAME_BOX)),
