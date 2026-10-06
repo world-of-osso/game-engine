@@ -1978,16 +1978,37 @@ impl RegistryUi {
         self.show_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Forever, true)
     }
 
+    #[func]
+    pub fn show_achievement_toast_preview(&mut self) -> GString {
+        let result = self
+            .prepare_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Modern)
+            .and_then(|()| {
+                self.show_achievement_toast(shared::protocol::AchievementToastSnapshot {
+                    achievement_id: 633,
+                    name: "Stormwind Stockade".into(),
+                    points: 10,
+                })
+            });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
+    fn prepare_dungeon_capture(
+        &mut self,
+        skin: ui_toolkit::atlas::ActiveSkin,
+    ) -> Result<(), String> {
+        party_preview::load_data_root()?;
+        ui_toolkit::atlas::set_thread_skin(skin);
+        dungeon_preview::cache_art()?;
+        self.set_ui_scale(1.0)
+    }
+
     fn show_dungeon_capture(
         &mut self,
         skin: ui_toolkit::atlas::ActiveSkin,
         window: bool,
     ) -> GString {
         let result = (|| {
-            party_preview::load_data_root()?;
-            ui_toolkit::atlas::set_thread_skin(skin);
-            dungeon_preview::cache_art()?;
-            self.set_ui_scale(1.0)?;
+            self.prepare_dungeon_capture(skin)?;
             if window {
                 self.show_achievement_window(dungeon_preview::window())
             } else {

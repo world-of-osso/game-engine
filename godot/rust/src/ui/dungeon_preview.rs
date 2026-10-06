@@ -25,7 +25,7 @@ pub(super) fn tracker() -> ObjectiveTrackerState {
                 })
                 .collect(),
         },
-        "The Stockade".into(),
+        "Stormwind Stockade".into(),
     );
     ObjectiveTrackerState {
         dungeon: objectives.block,
@@ -58,17 +58,17 @@ pub(super) fn window() -> AchievementWindow {
         achievements: vec![AchievementCatalogEntry {
             achievement_id: 633,
             name: "Stormwind Stockade".into(),
-            description: "Defeat Hogger in the Stormwind Stockade.".into(),
+            description: "Defeat Hogger.".into(),
             points: 10,
-            icon_fdid: 136363,
+            icon_fdid: 134163,
             earned: true,
             earned_at: Some(1791244800),
             progress_supported: true,
             criteria: vec![AchievementCriterionLine {
-                tree_id: 1,
+                tree_id: 3386,
                 order_index: 0,
-                criteria_id: 3666,
-                description: "Hogger defeated".into(),
+                criteria_id: 18527,
+                description: "Hogger".into(),
                 current: 1,
                 required: 1,
                 completed: true,
@@ -88,7 +88,7 @@ pub(super) fn cache_art() -> Result<(), String> {
     let fdids = game_engine_ui_model::achievements::ART
         .iter()
         .copied()
-        .chain([136363, 5320671])
+        .chain([134163, 5320671])
         .chain(game_engine_ui_model::panel_style_data::metal_sheet_fdids(
             game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
         ));
