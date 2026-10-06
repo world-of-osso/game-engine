@@ -45,7 +45,7 @@ fn selected_human_warrior_items_resolve_original_displays_and_resources() {
 }
 
 #[test]
-fn everforged_shoulders_resolve_model_column_texture_types() {
+fn equipment_everforged_shoulders_resolve_model_column_texture_types() {
     let catalog = catalog();
     let display = catalog.resolve_item_display_id(222436).unwrap();
     assert_eq!(display, 697601);

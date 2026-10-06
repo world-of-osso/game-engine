@@ -519,7 +519,11 @@ mod tests {
                     slot,
                     item_id: Some(item_id),
                     display_info_id: None,
-                    inventory_type: None,
+                    inventory_type: if slot == EquipmentVisualSlot::Shoulder {
+                        3
+                    } else {
+                        16
+                    },
                     hidden: false,
                 }],
             };
