@@ -519,10 +519,7 @@ impl AnimationState {
 
     pub fn advance(&mut self, delta_ms: f64) -> Result<(), String> {
         let mut state = self.random_state;
-        let rate = self.playback_rate();
-        let result = self.advance_with_roll(delta_ms * f64::from(rate), |upper| {
-            sample_roll(&mut state, upper)
-        });
+        let result = self.advance_with_roll(delta_ms, |upper| sample_roll(&mut state, upper));
         self.random_state = state;
         result?;
         // Global sequences run at real time, not the clip's playback rate
@@ -550,6 +547,8 @@ impl AnimationState {
         delta_ms: f64,
         mut roll: impl FnMut(u32) -> u32,
     ) -> Result<(), String> {
+        let rate = f64::from(self.playback_rate());
+        let delta_ms = delta_ms * rate;
         if !delta_ms.is_finite() || delta_ms < 0.0 || delta_ms > f32::MAX as f64 {
             return Err(format!("Invalid M2 elapsed animation time {delta_ms}"));
         }
@@ -564,7 +563,7 @@ impl AnimationState {
             } else {
                 0.0
             };
-            self.tick_transition(delta_ms);
+            self.tick_transition(delta_ms / rate);
             if !self.looping && elapsed >= duration {
                 self.finish_death(elapsed - duration);
             }
@@ -573,7 +572,7 @@ impl AnimationState {
         let family = m2::VariationFamily::read(&self.sequences, self.current)?;
         if family.is_single() {
             self.time_ms = elapsed % duration;
-            self.tick_transition(delta_ms);
+            self.tick_transition(delta_ms / rate);
             return Ok(());
         }
         family.validate_elapsed(elapsed)?;
@@ -583,12 +582,12 @@ impl AnimationState {
             let until_boundary = (duration - self.time_ms).max(0.0);
             if remaining < until_boundary {
                 self.time_ms += remaining;
-                self.tick_transition(remaining);
+                self.tick_transition(remaining / rate);
                 return Ok(());
             }
             remaining -= until_boundary;
             self.time_ms = duration;
-            self.tick_transition(until_boundary);
+            self.tick_transition(until_boundary / rate);
             let next = family.choose(&mut roll)?;
             if next != self.current {
                 self.select(next, true)?;
@@ -607,7 +606,9 @@ impl AnimationState {
         transition.elapsed_ms += delta_ms as f32;
         if let Outgoing::Sequence { index, time_ms } = &mut transition.outgoing {
             let source_duration = f64::from(self.sequences[*index].duration);
-            *time_ms = (*time_ms + delta_ms).min(source_duration);
+            let source_rate =
+                locomotion_playback_rate(self.sequences[*index].movespeed, self.locomotion_speed);
+            *time_ms = (*time_ms + delta_ms * f64::from(source_rate)).min(source_duration);
         }
         if transition.elapsed_ms >= transition.duration_ms {
             self.transition = None;
