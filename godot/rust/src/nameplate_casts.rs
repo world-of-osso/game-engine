@@ -394,9 +394,10 @@ impl PlateCasts {
         }
         if bar.casting && !bar.fading() {
             bar.interrupt(failure_text(reason, interrupter));
-        } else if bar.channel && bar.bar_type != BarType::Interrupted && interrupter.is_some() {
-            // `UNIT_SPELLCAST_CHANNEL_STOP` with `interruptedBy`: the empowered path,
-            // shown even when the channel has already started fading.
+        } else if bar.channel && bar.bar_type != BarType::Interrupted {
+            // A failed CHANNEL_STOP forces interruption even after its replicated
+            // removal starts the finish fade; an interrupter name is optional
+            // (CastingBarFrame.lua:450-456,540-541).
             bar.interrupt(failure_text(reason, interrupter));
         }
     }
