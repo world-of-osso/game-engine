@@ -11,7 +11,7 @@ extends SceneTree
 ## player's position, composite centre = that tile's texel), the subzone text, the arrow
 ## rotation for the facing and its direction along forward movement, the McBride quest
 ## blip, wheel/button zoom; accepting 28766 puts its title and "0/6" objective line in
-## the tracker at TOPRIGHT (0, -300) under the minimap, and both collapse buttons work.
+## the tracker at TOPRIGHT (0, -275) under the minimap, and both collapse buttons work.
 
 const PASSWORD := "fbtest"
 const QUEST_GIVER := "Marshal McBride"
@@ -262,8 +262,8 @@ func check_tracker() -> bool:
 	if not await check_text_visible("QuestBlock%dLine0Text" % QUEST, Color(0.8, 0.8, 0.8)):
 		return false
 	var rect: Rect2 = state.rect
-	if not state.visible or abs(rect.end.x - state.screen_width) > 0.5 or abs(rect.position.y - 300.0) > 0.5:
-		fail("Tracker at %s, expected TOPRIGHT (0, -300) of %s" % [rect, state.screen_width])
+	if not state.visible or abs(rect.end.x - state.screen_width) > 0.5 or abs(rect.position.y - 275.0) > 0.5:
+		fail("Tracker at %s, expected TOPRIGHT (0, -275) of %s" % [rect, state.screen_width])
 		return false
 	return true
 

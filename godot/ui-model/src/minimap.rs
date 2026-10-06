@@ -336,12 +336,13 @@ pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-/// Buff-icon-sized opener, below the cluster's right edge to clear buffs and tracker.
+/// Buff-icon-sized opener left of the cluster, bottom-aligned with it: below the buff
+/// rows and outside the flush-right objective tracker's column.
 fn launcher_button(cluster_size: f32) -> Element {
     const ICON_SIZE: f32 = 30.0;
     const GAP: f32 = 6.0;
-    let left = cluster_size - ICON_SIZE;
-    let top = cluster_size + GAP;
+    let left = -(ICON_SIZE + GAP);
+    let top = cluster_size - ICON_SIZE;
     rsx! {
         button {
             name: "MinimapLauncherButton", width: ICON_SIZE, height: ICON_SIZE,
