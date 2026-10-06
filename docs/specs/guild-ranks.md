@@ -2,7 +2,8 @@
 
 Retail guild settings belong in the native guild/communities frame, in Modern and
 Forever skins. `godot/ui-model/src/guild_ranks.rs` provides portable request/state
-decisions; native mounting and transport are not implemented. See [banks](../wiki/systems/banks.md#rank-settings-model) for current data flow.
+decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
+`godot/rust/src/guild_ranks.rs` connects it to GuildChannel. See [banks](../wiki/systems/banks.md#rank-settings-model) for current data flow.
 
 ## What it must do
 
@@ -21,14 +22,17 @@ decisions; native mounting and transport are not implemented. See [banks](../wik
 
 ## How it works
 
-- [Banks](../wiki/systems/banks.md#rank-settings-model) — portable authoritative model, pending native integration.
+- [Banks](../wiki/systems/banks.md#rank-settings-model) — authoritative model and native integration.
 - Shared-protocol `docs/guild-ranks.md` — request/state wire contract.
 
 ## Implementation inventory
 
 | File | Role |
 |---|---|
-| `godot/ui-model/src/guild_ranks.rs` | Selected server state and exact request values; not mounted |
+| `godot/ui-model/src/guild_ranks.rs` | Selected server state and exact request values |
+| `godot/ui-model/src/guild_rank_frame.rs` | Native communities entry, rank widgets and member menu |
+| `godot/rust/src/guild_ranks.rs` | Mount, poll clicks, send and apply native state |
+| `godot/network/src/lib.rs`, `godot/rust/src/account.rs` | Receive GuildRanksState; send requests on GuildChannel |
 | `godot/ui-model/src/game/chat_data.rs` | Officer channel styling classification |
 | `godot/ui-model/src/ui/chat_frame.rs` | Officer chat command parsing |
 
@@ -42,9 +46,9 @@ settings widgets or transport integration exist.
 
 ## Known gaps (current cycle)
 
-- [ ] Native guild/communities entry point and settings window in Modern and Forever.
-- [ ] Permission checkboxes, tab controls, gold edit box and actual rendering tests.
-- [ ] Native rank send/receive bridge integration and member context menu.
+Implementation mounted in both skins; targeted widget/transport tests and native
+1920×1080 capture proof are tracked in `data/diagnostics/guildranks-2026-10-05/proof.md`.
+No live server proof is implied by offline snapshots.
 
 ## Out of scope
 

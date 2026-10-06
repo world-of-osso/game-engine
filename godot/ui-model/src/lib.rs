@@ -182,6 +182,7 @@ pub mod bank_frame_component;
 pub mod guild_bank;
 #[path = "ui/screens/guild_bank_frame_component.rs"]
 pub mod guild_bank_frame_component;
+pub mod guild_rank_frame;
 pub mod guild_ranks;
 #[path = "ipc/format_shared.rs"]
 pub mod ipc_format;

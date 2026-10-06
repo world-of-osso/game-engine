@@ -35,6 +35,7 @@ mod game_menu;
 mod game_objects;
 mod gameplay;
 mod ground;
+mod guild_ranks;
 mod input;
 mod input_keys;
 mod ipc;
@@ -273,6 +274,7 @@ pub struct GameClient {
     trade: trade::Trade,
     unit_menu: unit_menu::UnitMenu,
     banks: bank::Banks,
+    guild_ranks: guild_ranks::GuildRanks,
     game_objects: game_objects::GameObjects,
     loot: loot::Loot,
     auction: auction::Auction,
@@ -393,6 +395,7 @@ impl INode3D for GameClient {
             trade: trade::Trade::default(),
             unit_menu: unit_menu::UnitMenu::default(),
             banks: bank::Banks::default(),
+            guild_ranks: guild_ranks::GuildRanks::default(),
             game_objects: game_objects::GameObjects::new(data_root.clone()),
             loot: loot::Loot::default(),
             auction: auction::Auction::default(),
@@ -1162,6 +1165,7 @@ impl GameClient {
             visit(ui)?;
         }
         self.banks.visit_uis(&mut visit)?;
+        self.guild_ranks.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
             visit(ui)?;
@@ -1663,6 +1667,7 @@ impl GameClient {
             ("Mailbox", |c, _| c.update_mailbox()),
             ("Trade", |c, _| c.update_trade()),
             ("Banks", |c, _| c.update_banks()),
+            ("Guild ranks", |c, _| c.update_guild_ranks()),
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
@@ -1817,6 +1822,7 @@ impl GameClient {
             AccountEvent::Mail(message) => self.receive_mail(message)?,
             AccountEvent::Trade(update) => self.receive_trade(update)?,
             AccountEvent::Bank(message) => self.receive_bank(message)?,
+            AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
             AccountEvent::ReplicationEnded => {
