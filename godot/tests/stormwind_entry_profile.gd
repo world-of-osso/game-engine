@@ -11,6 +11,7 @@ func _initialize() -> void:
 
 func run_capture() -> void:
 	root.size = Vector2i(1920, 1080)
+	RenderingServer.viewport_set_measure_render_time(root.get_viewport_rid(), true)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	var deadline := Time.get_ticks_msec() + 180000
@@ -55,7 +56,7 @@ func run_capture() -> void:
 				root.get_texture().get_image().save_webp(artifacts.path_join(phase + "-inworld.webp"))
 		if Time.get_ticks_msec() >= next_report:
 			next_report = Time.get_ticks_msec() + 1000
-			print("SWLOAD SAMPLE ", JSON.stringify({"ms": elapsed, "frames": frames, "screen": state.screen, "area": state.area_id, "position": str(state.local_player_position), "terrain_pending": state.terrain.pending_count, "objects": state.world_objects, "process_s": Performance.get_monitor(Performance.TIME_PROCESS), "physics_s": Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS), "draw_calls": RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), "pipelines": pipeline_counts()}))
+			print("SWLOAD SAMPLE ", JSON.stringify({"ms": elapsed, "frames": frames, "screen": state.screen, "area": state.area_id, "position": str(state.local_player_position), "terrain_pending": state.terrain.pending_count, "objects": state.world_objects, "render_cpu_ms": RenderingServer.viewport_get_measured_render_time_cpu(root.get_viewport_rid()), "render_gpu_ms": RenderingServer.viewport_get_measured_render_time_gpu(root.get_viewport_rid()), "process_s": Performance.get_monitor(Performance.TIME_PROCESS), "physics_s": Performance.get_monitor(Performance.TIME_PHYSICS_PROCESS), "draw_calls": RenderingServer.get_rendering_info(RenderingServer.RENDERING_INFO_TOTAL_DRAW_CALLS_IN_FRAME), "pipelines": pipeline_counts()}))
 		if entered >= 0 and elapsed > entered + 5000:
 			if state.screen != "InWorld" or pending_at_entry <= 0 or state.world_objects.pending >= pending_at_entry:
 				fail("Distant work was lost or did not continue streaming: " + str(state))
