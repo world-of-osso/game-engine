@@ -73,7 +73,8 @@ pub(super) fn apply_masks(
         13.0,
     );
     material.set_shader_parameter("border_rect", &bounds.to_variant());
-    material.set_shader_parameter("sprite_offset", &node.get_position().to_variant());
+    let sprite_offset = node.get_position() + part.get_position();
+    material.set_shader_parameter("sprite_offset", &sprite_offset.to_variant());
     material.set_shader_parameter("sprite_size", &node.get_size().to_variant());
     material.set_shader_parameter("sprite_rotation", &(-rotation).to_variant());
     let loading = apply_effect_mask(&name, bar, registry, &mut material)?;

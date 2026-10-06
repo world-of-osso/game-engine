@@ -625,19 +625,19 @@ impl GameClient {
             .and_then(|catalog| catalog.get(spell))
             .map(|spell| spell.icon_fdid);
         let icon = art.map(|fdid| self.drawable_fdid(fdid));
-        let bar = self.cast_bars.get(unit)?;
-        Some(if Some(unit) == self.world.local_player_id() {
-            player_casting_bar_state(bar, icon)
-        } else {
-            casting_bar_state(bar, icon)
-        })
+        Some(casting_bar_state(self.cast_bars.get(unit)?, icon))
     }
 
     fn sync_cast_bar(&mut self) -> Result<(), String> {
         let state = self
             .world
             .local_player_id()
-            .and_then(|player| self.hud_cast_bar(player))
+            .and_then(|player| {
+                let state = self.hud_cast_bar(player)?;
+                self.cast_bars
+                    .get(player)
+                    .map(|bar| player_casting_bar_state(bar, state.icon_fdid))
+            })
             .unwrap_or_default();
         if let Some(ui) = self.spells.cast_ui.as_mut() {
             return ui.bind_mut().set_state(state);
