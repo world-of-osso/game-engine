@@ -98,6 +98,14 @@ db2/1.60.1.70205/ChrModelMaterial.csv
 db2/1.60.1.70205/CharComponentTextureLayouts.csv
 db2/1.60.1.70205/CharComponentTextureSections.csv
 
+# Shoulder policy CPU fixtures: original unnamed shoulders and named skeletal collection.
+models/7579617.m2
+models/7731242.skin
+models/7579618.m2
+models/7731238.skin
+models/1360753.m2
+models/136075300.skin
+
 # game-engine-core tests/: models
 models/boar.m2
 models/boar00.skin

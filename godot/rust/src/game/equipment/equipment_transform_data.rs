@@ -46,16 +46,29 @@ impl EquipmentTransformConfig {
         self
     }
 
-    pub fn resolve(&self, slot: EquipmentSlot, path: &Path) -> EquipmentTransformDef {
+    /// Ordinary slot transform, or identity when that slot has no customization.
+    pub fn resolve_slot_default(&self, slot: EquipmentSlot) -> EquipmentTransformDef {
+        self.slot_defaults.get(&slot).cloned().unwrap_or_default()
+    }
+
+    /// A known filename may customize the slot; unnamed models need no artificial path.
+    pub fn resolve_optional_path(
+        &self,
+        slot: EquipmentSlot,
+        path: Option<&Path>,
+    ) -> EquipmentTransformDef {
         let key = path
-            .file_stem()
-            .and_then(|s| s.to_str())
+            .and_then(Path::file_stem)
+            .and_then(|stem| stem.to_str())
             .map(str::to_ascii_lowercase);
         key.as_ref()
             .and_then(|key| self.item_overrides.get(key))
-            .or_else(|| self.slot_defaults.get(&slot))
             .cloned()
-            .unwrap_or_default()
+            .unwrap_or_else(|| self.resolve_slot_default(slot))
+    }
+
+    pub fn resolve(&self, slot: EquipmentSlot, path: &Path) -> EquipmentTransformDef {
+        self.resolve_optional_path(slot, Some(path))
     }
 }
 
@@ -116,6 +129,49 @@ mod tests {
         assert_eq!(
             config.resolve(EquipmentSlot::Head, Path::new("other.m2")),
             EquipmentTransformDef::default()
+        );
+    }
+
+    #[test]
+    fn shoulder_policy_transforms_without_filename_use_slot_default_or_identity() {
+        let config = EquipmentTransformConfig::parse(
+            r#"(
+                slot_defaults: { ShoulderLeft: (translation: (1.0, 2.0, 3.0)) },
+                item_overrides: { "shoulder_special": (translation: (4.0, 5.0, 6.0)) },
+            )"#,
+        )
+        .unwrap();
+        let expected = EquipmentTransformDef {
+            translation: [1.0, 2.0, 3.0],
+            ..Default::default()
+        };
+        assert_eq!(
+            config.resolve_slot_default(EquipmentSlot::ShoulderLeft),
+            expected
+        );
+        assert_eq!(
+            config.resolve_optional_path(EquipmentSlot::ShoulderLeft, None),
+            expected
+        );
+        assert_eq!(
+            config.resolve_slot_default(EquipmentSlot::ShoulderRight),
+            EquipmentTransformDef::default()
+        );
+        assert_eq!(
+            config.resolve_optional_path(EquipmentSlot::ShoulderRight, None),
+            EquipmentTransformDef::default()
+        );
+        let named = Path::new("item/objectcomponents/shoulder/SHOULDER_SPECIAL.M2");
+        let override_transform =
+            config.resolve_optional_path(EquipmentSlot::ShoulderLeft, Some(named));
+        assert_eq!(override_transform.translation, [4.0, 5.0, 6.0]);
+        assert_eq!(
+            override_transform,
+            config.resolve(EquipmentSlot::ShoulderLeft, named)
+        );
+        assert_eq!(
+            config.resolve_optional_path(EquipmentSlot::ShoulderLeft, Some(Path::new("other.m2"))),
+            expected
         );
     }
 

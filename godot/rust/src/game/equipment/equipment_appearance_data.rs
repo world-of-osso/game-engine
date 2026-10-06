@@ -537,6 +537,78 @@ pub fn slot_uses_bound_joints(
     is_collection_model(m2_path)
 }
 
+/// Named shoulders retain their existing collection policy. Unnamed shoulders must
+/// prove attachment-local geometry; an unknown skeletal model needs authored identity.
+pub fn shoulder_uses_bound_joints(
+    slot: EquipmentSlot,
+    model: &game_engine_core::m2::Model,
+    m2_path: Option<&Path>,
+) -> Result<bool, String> {
+    if !matches!(
+        slot,
+        EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight
+    ) {
+        return Err(format!(
+            "Shoulder binding requested for non-shoulder slot {slot:?}"
+        ));
+    }
+    if let Some(path) = m2_path {
+        return Ok(slot_uses_bound_joints(
+            slot,
+            path,
+            &model.bones,
+            model.submeshes.iter().map(|part| part.mesh_part_id),
+        ));
+    }
+    if is_attachment_local_shoulder(model) {
+        return Ok(false);
+    }
+    Err(format!(
+        "Unnamed {slot:?} model is not proven attachment-local; skeletal shoulder binding requires an authored model path"
+    ))
+}
+
+fn is_attachment_local_shoulder(model: &game_engine_core::m2::Model) -> bool {
+    let untransformed_root = matches!(
+        model.bones.as_slice(),
+        [M2Bone {
+            key_bone_id: -1,
+            flags: 0,
+            parent_bone_id: -1,
+            ..
+        }]
+    );
+    let base_mesh_only =
+        !model.submeshes.is_empty() && model.submeshes.iter().all(|part| part.mesh_part_id == 0);
+    let root_influence_only =
+        !model.vertices.is_empty() && model.vertices.iter().all(vertex_uses_only_root);
+    let unauthored_pose = matches!(model.bone_tracks.as_slice(), [tracks]
+        if track_is_unauthored(&tracks.translation)
+            && track_is_unauthored(&tracks.rotation)
+            && track_is_unauthored(&tracks.scale));
+    untransformed_root
+        && base_mesh_only
+        && root_influence_only
+        && unauthored_pose
+        && model.skeleton_fdid.is_none()
+}
+
+fn vertex_uses_only_root(vertex: &game_engine_core::m2::Vertex) -> bool {
+    let total_weight: u16 = vertex.bone_weights.iter().copied().map(u16::from).sum();
+    let only_root = vertex
+        .bone_weights
+        .iter()
+        .zip(vertex.bone_indices)
+        .all(|(&weight, bone)| weight == 0 || bone == 0);
+    total_weight == u16::from(u8::MAX) && only_root
+}
+
+fn track_is_unauthored<T>(track: &crate::asset::m2_format::m2_anim::AnimTrack<T>) -> bool {
+    // Missing external animations retain empty per-sequence entries, not an empty
+    // outer array. Reject them too: absence of loaded keys is not absence of tracks.
+    track.global_sequence == -1 && track.sequences.is_empty()
+}
+
 fn is_attachment_local_model(
     slot: EquipmentSlot,
     bones: &[M2Bone],
@@ -746,6 +818,151 @@ mod tests {
             &[],
             [0]
         ));
+    }
+
+    fn parsed_shoulder(fdid: u32) -> game_engine_core::m2::Model {
+        let root = data_dir().join("models");
+        let bytes = std::fs::read(root.join(format!("{fdid}.m2"))).unwrap();
+        let references = game_engine_core::m2::parse_asset_references(&bytes).unwrap();
+        let skin = std::fs::read(root.join(format!("{}.skin", references.skin_fdids[0]))).unwrap();
+        game_engine_core::m2::parse_model(&bytes, &skin).unwrap()
+    }
+
+    #[test]
+    fn shoulder_policy_original_unnamed_models_use_authored_side_attachments() {
+        for (fdid, slot, attachment) in [
+            (7_579_617, EquipmentSlot::ShoulderLeft, 6),
+            (7_579_618, EquipmentSlot::ShoulderRight, 5),
+        ] {
+            let model = parsed_shoulder(fdid);
+            let bound = shoulder_uses_bound_joints(slot, &model, None).unwrap();
+            assert!(!bound, "original shoulder {fdid} must be attachment-local");
+            assert_eq!(slot_attachment_id(slot), attachment);
+            assert!(
+                model
+                    .submeshes
+                    .iter()
+                    .all(|part| runtime_mesh_part_allowed(slot, part.mesh_part_id))
+            );
+        }
+        // Splitting influence among entries for the same root changes no vertex;
+        // zero-weight indices likewise contribute nothing to the attachment pose.
+        let mut model = parsed_shoulder(7_579_617);
+        model.vertices[0].bone_weights = [128, 127, 0, 0];
+        model.vertices[0].bone_indices = [0, 0, 255, 255];
+        assert_eq!(
+            shoulder_uses_bound_joints(EquipmentSlot::ShoulderLeft, &model, None),
+            Ok(false)
+        );
+    }
+
+    #[test]
+    fn shoulder_policy_rejects_ambiguous_roots_weights_and_parts() {
+        for invalid in 0..14 {
+            let mut model = parsed_shoulder(7_579_617);
+            match invalid {
+                0 => model.bones[0].key_bone_id = 0,
+                1 => model.bones[0].flags = 0x200,
+                2 => model.bones[0].parent_bone_id = 0,
+                3 => model.bones.push(model.bones[0].clone()),
+                4 => model.bones.clear(),
+                5 => {
+                    model.vertices[0].bone_weights = [128, 127, 0, 0];
+                    model.vertices[0].bone_indices[1] = 1;
+                }
+                6 => model.vertices[0].bone_indices[0] = 1,
+                7 => model.vertices[0].bone_weights = [0; 4],
+                8 => model.vertices.clear(),
+                9 => model.submeshes[0].mesh_part_id = 2601,
+                10 => model.submeshes.clear(),
+                11 => model.bone_tracks = Vec::new().into(),
+                12 => model.skeleton_fdid = Some(1),
+                13 => model.vertices[0].bone_weights = [254, 0, 0, 0],
+                _ => unreachable!(),
+            }
+            let error = shoulder_uses_bound_joints(EquipmentSlot::ShoulderLeft, &model, None)
+                .expect_err(&format!(
+                    "ambiguous structure {invalid} must not acquire a mount"
+                ));
+            assert!(
+                error.contains("ShoulderLeft") && error.contains("Unnamed"),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn shoulder_policy_rejects_authored_tracks_even_when_constant_or_unloaded() {
+        for component in 0..3 {
+            for unloaded in [false, true] {
+                let mut model = parsed_shoulder(7_579_617);
+                let tracks = std::sync::Arc::make_mut(&mut model.bone_tracks);
+                let timeline = if unloaded { Vec::new() } else { vec![0] };
+                match component {
+                    0 => tracks[0].translation.sequences.push((
+                        timeline,
+                        if unloaded {
+                            vec![]
+                        } else {
+                            vec![[1.0, 0.0, 0.0]]
+                        },
+                    )),
+                    1 => tracks[0].rotation.sequences.push((
+                        timeline,
+                        if unloaded {
+                            vec![]
+                        } else {
+                            vec![[32767, 32767, 32767, -1]]
+                        },
+                    )),
+                    2 => tracks[0]
+                        .scale
+                        .sequences
+                        .push((timeline, if unloaded { vec![] } else { vec![[1.0; 3]] })),
+                    _ => unreachable!(),
+                }
+                assert!(
+                    shoulder_uses_bound_joints(EquipmentSlot::ShoulderRight, &model, None).is_err(),
+                    "component {component}, unloaded {unloaded}"
+                );
+            }
+        }
+        let mut model = parsed_shoulder(7_579_617);
+        std::sync::Arc::make_mut(&mut model.bone_tracks)[0]
+            .translation
+            .global_sequence = 0;
+        assert!(shoulder_uses_bound_joints(EquipmentSlot::ShoulderRight, &model, None).is_err());
+    }
+
+    #[test]
+    fn shoulder_policy_named_skeletal_collection_keeps_existing_binding() {
+        let root = data_dir().join("models");
+        let model = game_engine_core::m2::parse_model(
+            &std::fs::read(root.join("1360753.m2")).unwrap(),
+            &std::fs::read(root.join("136075300.skin")).unwrap(),
+        )
+        .unwrap();
+        assert!(model.bones.len() > 1);
+        let path = Path::new(
+            "item/objectcomponents/collections/collections_leather_raidroguemythic_q_01_hu_m.m2",
+        );
+        for slot in [EquipmentSlot::ShoulderLeft, EquipmentSlot::ShoulderRight] {
+            assert_eq!(
+                shoulder_uses_bound_joints(slot, &model, Some(path)),
+                Ok(true)
+            );
+            assert!(shoulder_uses_bound_joints(slot, &model, None).is_err());
+            assert!(collection_mesh_part_in_slot(slot, 2601));
+            assert!(!collection_mesh_part_in_slot(slot, 0));
+        }
+    }
+
+    #[test]
+    fn shoulder_policy_is_not_a_generic_unnamed_asset_policy() {
+        let model = parsed_shoulder(7_579_617);
+        for path in [None, Some(Path::new("weapon.m2"))] {
+            assert!(shoulder_uses_bound_joints(EquipmentSlot::MainHand, &model, path).is_err());
+        }
     }
 
     #[test]
