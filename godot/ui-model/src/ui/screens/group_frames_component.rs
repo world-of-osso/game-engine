@@ -8,7 +8,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::hud_layout::{HudAnchor, hud_layout};
-use crate::portrait_party_frame_component::{PortraitPartyFrameState, portrait_party_frame};
+use crate::portrait_party_frame_component::PortraitPartyFrameState;
 use crate::ui::screens::compact_unit_frame_component::{CompactUnitView, compact_unit_frame};
 use crate::ui::screens::menu_primitives::{
     ContextMenu, ContextMenuItem, context_menu, menu_height_for_items,
@@ -16,7 +16,12 @@ use crate::ui::screens::menu_primitives::{
 use crate::ui::screens::ready_check_frame_component::{ReadyCheckFrameState, ready_check_frame};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
-use game_engine_core::ui_layout_data::LayoutSettings;
+use game_engine_core::ui_layout_data::{LayoutSettings, PartyFrameSettings, PartySort};
+#[path = "party_frame_presentation.rs"]
+mod presentation;
+use presentation::scale_party;
+pub(super) use presentation::{party_chrome, place_party_member, resize_party_member};
+pub use presentation::{role_order, sorted_party_state};
 
 pub const PARTY_FRAME: &str = "CompactPartyFrame";
 pub const RAID_FRAME: &str = "CompactRaidFrameContainer";
@@ -64,6 +69,9 @@ pub struct GroupFramesState {
     /// Party members, the player first; empty hides the party frame.
     pub party: Vec<CompactUnitView>,
     pub portrait_party: PortraitPartyFrameState,
+    /// Optional replicated aura data; no invented icons when the protocol lacks it.
+    pub party_auras:
+        std::collections::BTreeMap<String, super::compact_unit_frame_component::PartyAuraView>,
     /// Raid members by subgroup (index 0 = group 1); all empty hides the raid frame.
     pub raid: Vec<Vec<CompactUnitView>>,
     pub menu: GroupContextMenuState,
@@ -106,10 +114,12 @@ pub fn group_frames_screen(ctx: &SharedContext) -> Element {
     let skin = *ctx
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
-    let compact = ctx
+    let settings = ctx
         .get::<LayoutSettings>()
-        .and_then(|settings| settings.use_raid_style_party_frames)
-        .unwrap_or(true);
+        .map(|settings| *settings)
+        .unwrap_or_default();
+    let state = sorted_party_state(&state, settings.party.sort.unwrap_or_default());
+    let compact = settings.use_raid_style_party_frames.unwrap_or(true);
     let compact_members = if compact { state.party.as_slice() } else { &[] };
     let hidden_portraits = PortraitPartyFrameState::default();
     let portraits = if compact {
@@ -118,8 +128,8 @@ pub fn group_frames_screen(ctx: &SharedContext) -> Element {
         &state.portrait_party
     };
     rsx! {
-        {party_frame(compact_members, &layout.party, party_title_hidden(skin))}
-        {portrait_party_frame(portraits, &layout.party, skin)}
+        {scale_party(party_frame(compact_members, &layout.party, party_title_hidden(skin), settings.party, &state), settings.party, &layout.party)}
+        {scale_party(crate::portrait_party_frame_component::portrait_party_frame_with_settings(portraits, &layout.party, skin, settings.party), settings.party, &layout.party)}
         {raid_frame(&state.raid, &layout.raid)}
         {group_context_menu(&state.menu)}
         {ready_check_frame(&state.ready_check)}
@@ -135,27 +145,73 @@ fn party_title_hidden(skin: ActiveSkin) -> bool {
     }
 }
 
-fn party_frame(members: &[CompactUnitView], anchor: &HudAnchor, title_hidden: bool) -> Element {
+fn party_frame(
+    members: &[CompactUnitView],
+    anchor: &HudAnchor,
+    title_hidden: bool,
+    settings: PartyFrameSettings,
+    state: &GroupFramesState,
+) -> Element {
+    let (member_w, member_h) = settings.size();
+    let horizontal = settings.horizontal.unwrap_or(false);
+    let count = members.len().min(MAX_PARTY_MEMBERS);
+    let pet_width = if settings.show_pets.unwrap_or(false)
+        && state
+            .portrait_party
+            .members
+            .iter()
+            .any(|member| member.pet.is_some() && !member.offline)
+    {
+        member_w * 0.5
+    } else {
+        0.0
+    };
+    let stride = member_w + pet_width;
+    let width = if horizontal {
+        stride * count as f32
+    } else {
+        stride
+    };
+    let height = TITLE_H
+        + if horizontal {
+            member_h
+        } else {
+            member_h * count as f32
+        };
     let frames: Element = members
         .iter()
         .take(MAX_PARTY_MEMBERS)
         .enumerate()
         .flat_map(|(index, view)| {
-            let y = TITLE_H + index as f32 * PARTY_MEMBER_H;
-            compact_unit_frame(
+            let (x, y) = if horizontal {
+                (index as f32 * stride, TITLE_H)
+            } else {
+                (0.0, TITLE_H + index as f32 * member_h)
+            };
+            let pet = state
+                .portrait_party
+                .members
+                .iter()
+                .find(|member| member.name == view.name)
+                .and_then(|member| member.pet.as_ref());
+            super::compact_unit_frame_component::party_unit_frame(
                 &party_member_frame_name(index),
                 view,
-                (0.0, y, PARTY_MEMBER_W, PARTY_MEMBER_H),
+                (x, y, member_w, member_h),
+                settings,
+                state.party_auras.get(&view.name),
+                pet,
             )
         })
         .collect();
-    let height = party_height(members.len());
-    let at = anchor.place((PARTY_MEMBER_W, height));
+    let at = anchor.place((width, height));
     rsx! {
         r#frame {
             name: {DynName(PARTY_FRAME.to_string())},
-            width: PARTY_MEMBER_W,
+            width,
             height,
+            alpha: {settings.alpha()},
+            {party_chrome(PARTY_FRAME, width, height, settings)},
             strata: FrameStrata::Low,
             hidden: {members.is_empty()},
             pos_type: "absolute",

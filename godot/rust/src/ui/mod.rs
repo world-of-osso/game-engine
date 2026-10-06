@@ -213,12 +213,18 @@ impl RegistryModel {
                 use game_engine_ui_model::portrait_party_frame_component::{
                     PortraitPartyFrameState, apply_portrait_party_postsetup,
                 };
-                let state = self
-                    .shared
-                    .get::<GroupFramesState>()
-                    .map(|state| &state.portrait_party)
-                    .or_else(|| self.shared.get::<PortraitPartyFrameState>());
-                if let Some(state) = state {
+                if let Some(state) = self.shared.get::<GroupFramesState>() {
+                    let settings = self
+                        .shared
+                        .get::<game_engine_core::ui_layout_data::LayoutSettings>()
+                        .map(|settings| *settings)
+                        .unwrap_or_default();
+                    let state = game_engine_ui_model::group_frames_component::sorted_party_state(
+                        &state,
+                        settings.party.sort.unwrap_or_default(),
+                    );
+                    apply_portrait_party_postsetup(&state.portrait_party, &mut self.registry);
+                } else if let Some(state) = self.shared.get::<PortraitPartyFrameState>() {
                     apply_portrait_party_postsetup(state, &mut self.registry);
                 }
             }

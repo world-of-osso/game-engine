@@ -72,6 +72,7 @@ impl GameClient {
             skin: self.ui_layout.skin,
             settings: self.ui_layout.settings,
             system,
+            party_dropdown: None,
         })
     }
 

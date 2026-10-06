@@ -21,10 +21,32 @@ pub(super) fn bindings(group: &GroupState, local: Option<&str>, compact: bool) -
     if compact || group.is_raid {
         return Vec::new();
     }
-    group
+    bindings_with_sort(group, local, compact, Default::default())
+}
+
+pub(super) fn bindings_with_sort(
+    group: &GroupState,
+    local: Option<&str>,
+    compact: bool,
+    sort: game_engine_core::ui_layout_data::PartySort,
+) -> Vec<Binding> {
+    use game_engine_core::ui_layout_data::PartySort;
+    use game_engine_ui_model::group_frames_component::role_order;
+    if compact || group.is_raid {
+        return Vec::new();
+    }
+    let mut members: Vec<_> = group
         .members
         .iter()
         .filter(|member| Some(member.name.as_str()) != local)
+        .collect();
+    match sort {
+        PartySort::Group => {}
+        PartySort::Role => members.sort_by_key(|member| (role_order(member.role), &member.name)),
+        PartySort::Alphabetical => members.sort_by_key(|member| &member.name),
+    }
+    members
+        .into_iter()
         .take(MAX_MEMBERS)
         .enumerate()
         .map(|(index, member)| Binding {

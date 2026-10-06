@@ -18,6 +18,10 @@ Behavioral coverage: concrete 2→4→2→0 member roster, promotion, offline, d
 
 Inspected captures: `data/diagnostics/party2-2026-10-05/{modern,forever}-party-recapture.png` and `*-detail.png`. Both show full grey offline health, full dim-blue power and the source-authored crown rect. Samples at (130,294): Modern (178,178,178), Forever (175,175,175); power (130,306) is (6,62,122) under both skins. `raster-red/` retains the reproduced green-health failure. Both clients/Weston exit 0 and all owned PIDs are gone. Pre-existing shutdown leaks persist (Modern 7 texture RIDs/10 ObjectDB instances; Forever 9/11), so this is bounded static raster proof, not clean shutdown or step-5 live acceptance. Full proof/commands are in the same directory's `proof.md`; no runtime heads, settings UI, pet acceptance or merge/push.
 
+## Step 4 — presentation settings
+
+[Party Edit Mode settings](party-edit-mode-settings.md) records the exhaustive local Retail inventory, defaults/ranges, shared-family task overrides, persistence and data boundaries. Compact remains default. Settings implementation and bounded proof do not imply step-5 live acceptance.
+
 ## Step 3 — runtime member portraits
 
 `party_frames.rs::update_group_frames` synchronizes the roster canvas before `GameClient::sync_party_portraits`. `unit_portraits/party.rs` selects four non-self names in roster order only for the portrait style and non-raid groups. Each name owns the existing `Portrait` renderer, detached model request and last replicated `UnitAppearance`. Reorder moves surviving views between hosts; rebuilt hosts recreate their views. Departures, compact/raid selection and scene exit cancel pending loads and free views with their child viewports/models. No party renders exist under the compact default.

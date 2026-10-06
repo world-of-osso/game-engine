@@ -71,6 +71,13 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Runtime portrait bindings (step 3): non-self roster names bind the existing masked M2 renderer to the four party slots under both skins. Leave/compact/raid/scene exit cancel pending loads and free owned viewports; reorder reuses surviving member resources when hosts survive. Offline desaturates the last known head; dead/ghost/low-health tints follow Retail, with no range-driven portrait fade. A member never replicated has no appearance in the current protocol: its slot stays empty until its appearance arrives. Presentation settings and live acceptance remain separate work.
 - [ ] Live portrait-family acceptance. Static registry golden and offline preview are not live proof.
 
+### Party presentation settings (step 4)
+- [x] Options → HUD → Layout Settings → Party exposes Retail's complete Party setting inventory in both skins, plus the requested Show Pets checkbox. [Source/default/range table](../wiki/systems/party-edit-mode-settings.md).
+- [x] Save each change through existing per-character `ui_layout.ron` Edit Mode layouts. Keep compact on and 98×44 unless explicitly overridden. Reset restores the preset. No drag-and-drop or frame movers.
+- [x] Size, horizontal layout, background, border, sort and pets affect the active family. Compact aura organization, opacity, frame scale and icon size settings change rendering when their data is available.
+- [ ] Full behavioral/raster acceptance for step 4; targeted tests and both-skin captures must be recorded before claiming it.
+- [ ] Live big-defensive classification: existing AuraView/spell catalog lacks Retail's classification. Do not fabricate a defensive buff. Group-only updates also lack buffs/pets outside replication interest.
+
 ### Raid frame (`CompactRaidFrameContainer`)
 - [x] Placement: 8 group columns × 5 at the native 72×36 = 576 × (14 + 180), centred above the cluster, bottom 215.
 - [x] Group `n` sits in column `n` (subgroups 1–8, 5 each; `MAX_RAID_GROUPS`). Members fill it in roster order.
