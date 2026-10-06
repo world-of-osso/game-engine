@@ -166,20 +166,11 @@ impl AchievementWindow {
             .iter()
             .position(|request| reply_matches(request, &page))
             .map(|index| self.pending.remove(index));
-        let mut requests = Vec::new();
-        match page {
+        let requests = match page {
             AchievementCatalogPage::Categories {
                 categories,
                 next_id,
-            } => {
-                for category in categories {
-                    self.categories.insert(category.category_id, category);
-                }
-                self.categories_loaded = next_id.is_none();
-                if let Some(after_id) = next_id {
-                    requests.push(QueryAchievementCatalog::Categories { after_id });
-                }
-            }
+            } => self.cache_categories(categories, next_id),
             AchievementCatalogPage::Category {
                 category_id,
                 achievements,
@@ -189,47 +180,73 @@ impl AchievementWindow {
                     pending,
                     Some(QueryAchievementCatalog::Category { after_id: 0, .. })
                 );
-                let cache = self.pages.entry(category_id).or_default();
-                if first {
-                    cache.entries.clear();
-                }
-                for entry in achievements {
-                    if let Some(old) = cache
-                        .entries
-                        .iter_mut()
-                        .find(|old| old.achievement_id == entry.achievement_id)
-                    {
-                        *old = entry;
-                    } else {
-                        cache.entries.push(entry);
-                    }
-                }
-                cache.next = next_id;
-                cache.loaded = true;
-                if self.selected_category == Some(category_id)
-                    && (first || self.selected_achievement.is_none())
-                {
-                    self.select_first();
-                }
+                self.cache_achievements(category_id, achievements, next_id, first);
+                Vec::new()
             }
             AchievementCatalogPage::Criteria {
                 achievement_id,
                 criteria,
                 next_id,
             } => {
-                for cache in self.pages.values_mut() {
-                    if let Some(entry) = cache
-                        .entries
-                        .iter_mut()
-                        .find(|entry| entry.achievement_id == achievement_id)
-                    {
-                        merge_criteria(&mut entry.criteria, &criteria);
-                        entry.next_criteria_id = next_id;
-                    }
-                }
+                self.cache_criteria(achievement_id, criteria, next_id);
+                Vec::new()
+            }
+        };
+        self.enqueue(requests)
+    }
+    fn cache_categories(
+        &mut self,
+        categories: Vec<AchievementCategoryEntry>,
+        next: Option<u32>,
+    ) -> Vec<QueryAchievementCatalog> {
+        self.categories.extend(
+            categories
+                .into_iter()
+                .map(|category| (category.category_id, category)),
+        );
+        self.categories_loaded = next.is_none();
+        next.map(|after_id| QueryAchievementCatalog::Categories { after_id })
+            .into_iter()
+            .collect()
+    }
+    fn cache_achievements(
+        &mut self,
+        category_id: u32,
+        achievements: Vec<AchievementCatalogEntry>,
+        next: Option<u32>,
+        first: bool,
+    ) {
+        let cache = self.pages.entry(category_id).or_default();
+        if first {
+            cache.entries.clear();
+        }
+        for entry in achievements {
+            update_achievement(&mut cache.entries, entry);
+        }
+        cache.next = next;
+        cache.loaded = true;
+        let should_select_first = self.selected_category == Some(category_id)
+            && (first || self.selected_achievement.is_none());
+        if should_select_first {
+            self.select_first();
+        }
+    }
+    fn cache_criteria(
+        &mut self,
+        achievement_id: u32,
+        criteria: Vec<AchievementCriterionLine>,
+        next: Option<u32>,
+    ) {
+        for cache in self.pages.values_mut() {
+            if let Some(entry) = cache
+                .entries
+                .iter_mut()
+                .find(|entry| entry.achievement_id == achievement_id)
+            {
+                merge_criteria(&mut entry.criteria, &criteria);
+                entry.next_criteria_id = next;
             }
         }
-        self.enqueue(requests)
     }
     pub fn refresh(&mut self, _update: &AchievementStateUpdate) -> Vec<QueryAchievementCatalog> {
         for page in self.pages.values_mut() {
@@ -292,6 +309,17 @@ impl AchievementWindow {
         }
     }
 }
+fn update_achievement(entries: &mut Vec<AchievementCatalogEntry>, entry: AchievementCatalogEntry) {
+    if let Some(old) = entries
+        .iter_mut()
+        .find(|old| old.achievement_id == entry.achievement_id)
+    {
+        *old = entry;
+    } else {
+        entries.push(entry);
+    }
+}
+
 fn reply_matches(request: &QueryAchievementCatalog, page: &AchievementCatalogPage) -> bool {
     match (request, page) {
         (QueryAchievementCatalog::Categories { .. }, AchievementCatalogPage::Categories { .. }) => {
@@ -549,7 +577,17 @@ fn criteria_panel(window: &AchievementWindow) -> Element {
 fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> Element {
     let prefix = format!("Achievement{}", entry.achievement_id);
     let action = format!("achievement:row:{}", entry.achievement_id);
-    let mut content = if thread_skin() == ActiveSkin::Modern {
+    let modern = thread_skin() == ActiveSkin::Modern;
+    let ink = if modern { "0.1,0.08,0.05,1.0" } else { WHITE };
+    let title_color = if modern {
+        ink
+    } else if selected {
+        GOLD
+    } else {
+        WHITE
+    };
+    let date_color = if modern { ink } else { GREY };
+    let mut content = if modern {
         art(
             format!("{prefix}Background"),
             235397,
@@ -567,14 +605,14 @@ fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> E
         format!("{prefix}Name"),
         &entry.name,
         (300.0, y + 6.0, 414.0, 20.0),
-        if selected { GOLD } else { WHITE },
+        title_color,
         &action,
     ));
     content.extend(label(
         format!("{prefix}Description"),
         &entry.description,
         (300.0, y + 28.0, 414.0, 40.0),
-        WHITE,
+        ink,
         &action,
     ));
     content.extend(art(
@@ -605,7 +643,7 @@ fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> E
         format!("{prefix}Date"),
         &date,
         (300.0, y + 70.0, 460.0, 18.0),
-        GREY,
+        date_color,
         &action,
     ));
     content
