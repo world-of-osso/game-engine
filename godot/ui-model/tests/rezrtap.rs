@@ -44,7 +44,7 @@ fn rezrtap_target_health_grey_both_skins() {
         };
         assert_eq!(
             frame.background_color,
-            [value, value, value, 1.0],
+            Some([value, value, value, 1.0]),
             "{skin:?}"
         );
     }

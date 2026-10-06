@@ -97,6 +97,19 @@ mod tests {
     use game_engine_network::replica::Replica;
     use shared::components::{Health, UnitSummonedBy};
 
+    #[test]
+    fn rezrtap_stable_character_taps_and_group_exemption() {
+        let mut replica = Replica::for_tests();
+        replica.insert(100, npc("Kobold"));
+        replica.insert(100, UnitTap(vec![42]));
+        let creature = replica.unit(100).unwrap();
+        assert!(!creature.tap_denied(42, &[]));
+        assert!(!creature.tap_denied(99, &[42]));
+        assert!(creature.tap_denied(99, &[101]));
+        replica.insert(100, UnitSummonedBy(42));
+        assert!(!replica.unit(100).unwrap().tap_denied(99, &[]));
+    }
+
     const HUNTER: u64 = 0x0000_0001_0000_0010;
     const OTHER_HUNTER: u64 = 0x0000_0001_0000_0011;
     const WOLF: u64 = 0x0000_0002_0000_0031;
