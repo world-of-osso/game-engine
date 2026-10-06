@@ -449,6 +449,32 @@ fn launcher_clears_buff_area_on_default_1920x1080_canvas() {
 }
 
 #[test]
+fn minimapgaps_forever_badge_preserves_approved_corner_placements() {
+    let mut canvases = default_canvas_hud();
+    sync(&mut canvases, ActiveSkin::Forever);
+    assert_rect(&canvases, MINIMAP_CLUSTER, (1660.0, 0.0, 260.0, 260.0));
+    assert_rect(
+        &canvases,
+        "MinimapLauncherButton",
+        (1624.0, 230.0, 30.0, 30.0),
+    );
+    assert_rect(
+        &canvases,
+        "MinimapDayNightBadge",
+        (1662.0, 226.0, 33.0, 32.0),
+    );
+    let badge = rect(&canvases, "MinimapDayNightBadge");
+    let launcher = rect(&canvases, "MinimapLauncherButton");
+    assert!(!intersects(&badge, &launcher));
+    let minimap = rect(&canvases, MINIMAP_CLUSTER);
+    for name in [TRACKER_FRAME, "ObjectiveTrackerFrameHeaderBackground"] {
+        let tracker = rect(&canvases, name);
+        assert!(!intersects(&tracker, &minimap), "{name}: {tracker:?}");
+        assert!(!intersects(&tracker, &badge), "{name}: {tracker:?}");
+    }
+}
+
+#[test]
 fn tracker_clears_minimap_on_default_1920x1080_canvas() {
     let mut canvases = default_canvas_hud();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

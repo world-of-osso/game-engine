@@ -245,10 +245,13 @@ pub fn calendar_art(day: u32) -> Option<SheetArt> {
 
 /// Art the cluster draws under either skin, for hosts that copy textures out of local
 /// CASC on demand.
-pub fn minimap_texture_fdids(state: &MinimapClusterState) -> Vec<u32> {
+pub fn minimap_texture_fdids(state: &MinimapClusterState, skin: ActiveSkin) -> Vec<u32> {
     let mut fdids = vec![FRAME.fdid, EDGE_LEFT.fdid, ARROW_FDID];
     fdids.extend(metal_sheet_fdids(MetalTopLeft::Plain));
     fdids.push(BORDER_FDID);
+    if skin == ActiveSkin::Forever {
+        fdids.push(136_484);
+    }
     if !state.blips.is_empty() {
         fdids.push(QUEST_AVAILABLE.fdid);
     }
@@ -283,6 +286,8 @@ pub struct MinimapClusterState {
     pub zone_color: [f32; 4],
     pub clock_text: String,
     pub calendar_day: Option<u32>,
+    /// Local time is before 05:30 or at/after 21:00 (Retail GameTime.lua).
+    pub night: bool,
     /// Counter-clockwise screen rotation of the north-pointing player arrow.
     pub arrow_rotation: f32,
     /// `MinimapMixin:OnEnter` shows the zoom buttons while the pointer is over the map.
@@ -408,6 +413,7 @@ fn forever_chrome(state: &MinimapClusterState, style: &ClusterStyle) -> Element 
         elements.extend(zoom_buttons(state.zoom, style.map_centre()));
     }
     elements.extend(forever_header(state, style));
+    elements.extend(forever_day_night_badge(state, style));
     if state.has_mail {
         let [left, top] = style.map_origin;
         elements.extend(mail_indicator([
@@ -416,6 +422,33 @@ fn forever_chrome(state: &MinimapClusterState, style: &ClusterStyle) -> Element 
         ]));
     }
     elements
+}
+
+/// FlareUI Minimap.lua:48-49,273-276. Reference measurement (57×55 pixels
+/// divided by 417/244 enlargement) gives 33×32 units *after* its 0.9 scale.
+/// The 6-unit overhang is already in parent units; do not scale it again.
+fn forever_day_night_badge(state: &MinimapClusterState, style: &ClusterStyle) -> Element {
+    const SCALED_SIZE: [f32; 2] = [33.0, 32.0];
+    const OVERHANG: f32 = 6.0;
+    let [left, top] = style.map_origin;
+    let [width, height] = SCALED_SIZE;
+    // Retail GameTime.lua:76-88: two 50×50 cells on the 128×64 sheet.
+    let crop_left = if state.night { 64.0 } else { 0.0 };
+    let art = SheetArt {
+        fdid: 136_484,
+        sheet: (128.0, 64.0),
+        crop: (crop_left, crop_left + 50.0, 0.0, 50.0),
+    };
+    art_texture(
+        "MinimapDayNightBadge".into(),
+        art,
+        [
+            left - OVERHANG,
+            top + style.map_size + OVERHANG - height,
+            width,
+            height,
+        ],
+    )
 }
 
 /// Eight square one-unit rings replace the rounded tooltip border. The warm
