@@ -3,7 +3,6 @@
 use super::npc_pose_tests::{human_male_hd, human_male_model};
 use super::{AnimationState, wow_vec3};
 use godot::builtin::Transform3D;
-use serde_json::json;
 
 fn skinned_positions(player: &AnimationState) -> Vec<[f32; 3]> {
     let model = human_male_model();
@@ -51,10 +50,7 @@ fn locomotion_offline_capture_jump_and_water_entry() {
         })
         .collect();
     assert!(!indices.is_empty());
-    println!(
-        "LOCOMOTION_MESH {}",
-        json!({"indices": indices, "model": 1011653})
-    );
+    println!(r#"LOCOMOTION_MESH {{"indices":{indices:?},"model":1011653}}"#);
     let mut player = human_male_hd();
     let mut seen = Vec::new();
     for step in 0..140 {
@@ -80,12 +76,10 @@ fn locomotion_offline_capture_jump_and_water_entry() {
                 .transition
                 .as_ref()
                 .map_or(1.0, |blend| blend.elapsed_ms / blend.duration_ms);
+            let ms = step * 25;
+            let vertices = skinned_positions(&player);
             println!(
-                "LOCOMOTION_FRAME {}",
-                json!({
-                    "step": step, "ms": step * 25, "id": id, "weight": weight,
-                    "vertices": skinned_positions(&player),
-                })
+                r#"LOCOMOTION_FRAME {{"step":{step},"ms":{ms},"id":{id},"weight":{weight},"vertices":{vertices:?}}}"#
             );
         }
     }
