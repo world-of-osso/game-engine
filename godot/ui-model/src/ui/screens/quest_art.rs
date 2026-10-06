@@ -229,18 +229,16 @@ fn launcher_header_art(width: f32, height: f32) -> Element {
         ActiveSkin::Forever => 95.0,
     };
     let [left, _, right, _] = MetalTopLeft::Plain.outset();
+    let middle_x = corner_width - left;
+    let middle_width = width + left + right - corner_width * 2.0;
+    let right_x = width + right - corner_width;
     [
         ("Left", "UI-Frame-Metal-CornerTopLeft", -left, corner_width),
-        (
-            "Middle",
-            "_UI-Frame-Metal-EdgeTop",
-            corner_width - left,
-            width + left + right - corner_width * 2.0,
-        ),
+        ("Middle", "_UI-Frame-Metal-EdgeTop", middle_x, middle_width),
         (
             "Right",
             "UI-Frame-Metal-CornerTopRight",
-            width + right - corner_width,
+            right_x,
             corner_width,
         ),
     ]
