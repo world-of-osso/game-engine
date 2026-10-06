@@ -19,7 +19,7 @@ extends SceneTree
 ## while facing each fire (Spray Water's cone credits the fire's SmartAI), and both reward
 ## items land in the bags. No objective is completed by admin. Travel between NPCs uses
 ## the admin `teleport`, the fixture's stand-in for the walk; short distances are walked
-## with W and the turn keys.
+## with W and right-drag mouse look (frame-independent steering at low frame rates).
 ## Environment:
 ##   GODOT_TEST_SERVER  a private test server (never the shared :5000)
 ##   QF_ACCOUNT         account (password fbtest) with one Human warrior who has not
@@ -815,22 +815,13 @@ func nearest_living(name: String) -> Dictionary:
 func yaw() -> float:
 	return client.minimap_state().facing_yaw
 
-## Turn with the turn keys until facing unit `id` (forward is (sin yaw, cos yaw)).
+## Face unit `id` with real mouse look (forward is (sin yaw, cos yaw)).
 func face_unit(id: int) -> void:
-	for attempt in range(120):
-		var unit := unit_by_id(id)
-		if unit == null:
-			return
-		var to: Vector3 = (unit as Node3D).global_position - player_position()
-		var want := atan2(to.x, to.z)
-		var diff := wrapf(want - yaw(), -PI, PI)
-		if abs(diff) < 0.15:
-			return
-		var key := KEY_LEFT if diff > 0.0 else KEY_RIGHT
-		push_key(key, true)
-		await frames(1 if abs(diff) < 0.5 else 3)
-		push_key(key, false)
-		await frames(1)
+	var unit := unit_by_id(id)
+	if unit == null:
+		return
+	var to: Vector3 = (unit as Node3D).global_position - player_position()
+	await face_direction(atan2(to.x, to.z))
 
 ## Walk to within `yards` of the engine point `target`.
 func walk_to(target: Vector3, yards: float) -> bool:
@@ -865,15 +856,40 @@ func walk_to(target: Vector3, yards: float) -> bool:
 	return false
 
 func face_direction(want: float) -> void:
-	for attempt in range(120):
-		var diff := wrapf(want - yaw(), -PI, PI)
-		if abs(diff) < 0.15:
-			return
-		var key := KEY_LEFT if diff > 0.0 else KEY_RIGHT
-		push_key(key, true)
-		await frames(1 if abs(diff) < 0.5 else 3)
-		push_key(key, false)
-		await frames(1)
+	if abs(wrapf(want - yaw(), -PI, PI)) < 0.15:
+		return
+	# Key turning is 2.5 rad/s: one slow frame can already exceed the tolerance.
+	# Calibrate real right-drag input from the camera's observed one-pixel response.
+	var point := Vector2(root.size.x * 0.7, root.size.y * 0.1)
+	var button := InputEventMouseButton.new()
+	button.position = point
+	button.global_position = point
+	button.button_index = MOUSE_BUTTON_RIGHT
+	button.button_mask = MOUSE_BUTTON_MASK_RIGHT
+	button.pressed = true
+	root.push_input(button, true)
+	var before: float = client.account_state().camera_yaw
+	await drag_turn(point, 1.0)
+	var after: float = client.account_state().camera_yaw
+	var sensitivity := wrapf(before - after, -PI, PI)
+	if abs(sensitivity) > 0.000001:
+		await drag_turn(point, -wrapf(want - (after + PI), -PI, PI) / sensitivity)
+	button = button.duplicate() as InputEventMouseButton
+	button.pressed = false
+	button.button_mask = 0
+	root.push_input(button, true)
+	await frames(2)
+	if abs(sensitivity) <= 0.000001 or abs(wrapf(want - yaw(), -PI, PI)) >= 0.15:
+		fail("Mouse steering failed: sensitivity=%s want=%s facing=%s" % [sensitivity, want, yaw()])
+
+func drag_turn(point: Vector2, pixels: float) -> void:
+	var motion := InputEventMouseMotion.new()
+	motion.position = point
+	motion.global_position = point
+	motion.relative = Vector2(pixels, 0.0)
+	motion.button_mask = MOUSE_BUTTON_MASK_RIGHT
+	root.push_input(motion, true)
+	await frames(2)
 
 ## Walk to within `yards` of unit `id`.
 func approach(id: int, yards: float) -> bool:
