@@ -193,6 +193,25 @@ fn running_landing_requires_forward_run_and_available_clip() {
 }
 
 #[test]
+fn locomotion_crossfade_minimum_uses_wall_time_not_paced_clip_time() {
+    let mut player = fluid_player();
+    player.sequences[1].movespeed = 7.0;
+    player.set_locomotion_speed(Some(14.0));
+    assert_pose_continuous(&mut player, 5, false, true);
+    player.advance(75.0).unwrap();
+    assert_eq!(player.time_ms, 150.0);
+    assert_eq!(player.transition.as_ref().unwrap().elapsed_ms, 75.0);
+    assert!((player.poses()[0].origin.x - 0.75).abs() < 1e-4);
+    player.advance(75.0).unwrap();
+    assert!(
+        player.transition.is_some(),
+        "200 ms authored blend must last 200 real ms"
+    );
+    player.advance(50.0).unwrap();
+    assert!(player.transition.is_none());
+}
+
+#[test]
 fn locomotion_water_entry_interrupts_each_jump_phase_without_a_pose_pop() {
     for phase in [37, 38, 39, 187] {
         let mut player = fluid_player();
