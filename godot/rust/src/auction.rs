@@ -71,6 +71,7 @@ mod portrait_tests {
         auction.gossip = Some((
             42,
             GossipMenu {
+                menu_id: 7,
                 text: "Welcome".into(),
                 options: Vec::new(),
             },
