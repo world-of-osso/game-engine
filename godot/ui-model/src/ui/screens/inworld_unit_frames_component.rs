@@ -49,7 +49,8 @@ use inworld_unit_frames_flare::{
 };
 pub use inworld_unit_frames_layout::*;
 use inworld_unit_frames_parts::{
-    BarSpec, WHITE, art_root, art_texture, centred_art, portrait_slot, status_bar, unit_label,
+    BarSpec, WHITE, art_root, art_texture, centred_art, grey_status_bar, portrait_slot, status_bar,
+    unit_label,
 };
 pub use inworld_unit_frames_pet::PetFrameState;
 use inworld_unit_frames_pet::pet_frame;
@@ -135,6 +136,8 @@ pub struct UnitFrameState {
     /// `UnitHealth(unit) <= 0`: the bar's `DeadText` (`TargetFrameMixin:CheckDead`,
     /// TargetFrame.lua:467-480).
     pub dead: bool,
+    /// Viewer-relative eligibility, derived from replicated creature tappers.
+    pub tap_denied: bool,
     pub reaction: Option<Reaction>,
     /// Replicated `Player.class` for FlareUI's player-only class tint.
     pub class_id: Option<u8>,
@@ -167,6 +170,7 @@ impl UnitFrameState {
             health_text: StatusBarText::default(),
             health_fraction: 0.0,
             dead: false,
+            tap_denied: false,
             reaction: None,
             class_id: None,
             classification: CreatureClassification::Normal,
@@ -628,7 +632,7 @@ fn unit_frame_contents(
     rsx! {
         {unit_label(dyn_name(format!("{prefix}Name")), &state.name, slots.name, (GOLD_TEXT, UNIT_FONT_SIZE), "LEFT")}
         {unit_label(dyn_name(format!("{prefix}LevelText")), &state.level_text, slots.level, (&state.level_color, UNIT_FONT_SIZE), slots.level_justify)}
-        {status_bar(BarSpec {
+        {health_status_bar(state.tap_denied, BarSpec {
             name: format!("{prefix}HealthBar"),
             rect: slots.health,
             fraction: state.health_fraction,
@@ -648,6 +652,14 @@ fn unit_frame_contents(
             font_size: UNIT_FONT_SIZE - 1.0,
             hidden: state.power.is_none(),
         })}
+    }
+}
+
+fn health_status_bar(tap_denied: bool, spec: BarSpec<'_>) -> Element {
+    if tap_denied {
+        grey_status_bar(spec)
+    } else {
+        status_bar(spec)
     }
 }
 

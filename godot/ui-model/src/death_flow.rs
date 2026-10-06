@@ -7,18 +7,25 @@ use shared::protocol::{
 pub const DEATH_POPUP: &str = "DEATH";
 pub const CORPSE_POPUP: &str = "RECOVER_CORPSE";
 pub const HEALER_POPUP: &str = "XP_LOSS";
-const DEATH_KEYS: [&str; 3] = [DEATH_POPUP, CORPSE_POPUP, HEALER_POPUP];
+pub const RESURRECT_POPUP: &str = "RESURRECT";
+const DEATH_KEYS: [&str; 4] = [DEATH_POPUP, CORPSE_POPUP, HEALER_POPUP, RESURRECT_POPUP];
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum DeathRequest {
     Release,
     Corpse,
     SpiritHealer,
+    Resurrection {
+        caster: u64,
+        spell_id: u32,
+        accept: bool,
+    },
 }
 
 #[derive(Default)]
 pub struct DeathFlow {
     pub snapshot: Option<DeathSnapshot>,
+    offer: Option<shared::protocol::ResurrectionOffer>,
     active: Option<&'static str>,
     pending: bool,
     healer_requested: bool,
@@ -30,10 +37,21 @@ impl DeathFlow {
             if snapshot.state != DeathStateSnapshot::Ghost {
                 self.healer_requested = false;
             }
+            if matches!(
+                snapshot.state,
+                DeathStateSnapshot::Alive | DeathStateSnapshot::Resurrecting
+            ) {
+                self.offer = None;
+            }
             self.snapshot = Some(snapshot);
         }
         self.pending = false;
         update.error
+    }
+
+    pub fn receive_offer(&mut self, offer: shared::protocol::ResurrectionOffer) {
+        self.offer = Some(offer);
+        self.pending = false;
     }
 
     /// An explicit interaction with the healer opens XP_LOSS, not arrival at the graveyard.
@@ -67,6 +85,9 @@ impl DeathFlow {
     /// Server range booleans are only sampled on requests, not on movement. Use the
     /// supplied positions and shared server range constants; server validates acceptance.
     fn popup_key(&self, position: Option<&DeathPositionSnapshot>) -> Option<&'static str> {
+        if self.offer.is_some() {
+            return Some(RESURRECT_POPUP);
+        }
         let snapshot = self.snapshot.as_ref()?;
         match snapshot.state {
             DeathStateSnapshot::Dead => Some(DEATH_POPUP),
@@ -119,7 +140,13 @@ impl DeathFlow {
         if self.pending {
             popups.hide(key);
         } else if !popups.contains(key) {
-            popups.push(popup_spec(key, level));
+            let spec = self
+                .offer
+                .as_ref()
+                .filter(|_| key == RESURRECT_POPUP)
+                .map(resurrection_popup)
+                .unwrap_or_else(|| popup_spec(key, level));
+            popups.push(spec);
         }
     }
 
@@ -129,6 +156,16 @@ impl DeathFlow {
         }
         let key = self.active?;
         let result = results.iter().find(|result| result.key == key)?;
+        if key == RESURRECT_POPUP {
+            let offer = self.offer.take()?;
+            let accept = result.outcome == PopupOutcome::Accepted;
+            self.pending = accept;
+            return Some(DeathRequest::Resurrection {
+                caster: offer.caster,
+                spell_id: offer.spell_id,
+                accept,
+            });
+        }
         if result.outcome != PopupOutcome::Accepted {
             if key == HEALER_POPUP {
                 self.healer_requested = false;
@@ -183,6 +220,19 @@ fn in_range(
         + (position.y - destination.y).powi(2)
         + (position.z - destination.z).powi(2);
     position.map_id == destination.map_id && distance_squared <= radius * radius
+}
+
+fn resurrection_popup(offer: &shared::protocol::ResurrectionOffer) -> PopupSpec {
+    PopupSpec {
+        key: RESURRECT_POPUP.into(),
+        text: format!("{} wants to resurrect you.", offer.caster_name),
+        accept_label: "Accept".into(),
+        cancel_label: Some("Decline".into()),
+        timeout: Some(std::time::Duration::from_millis(u64::from(
+            offer.time_left_ms,
+        ))),
+        confirm_text: None,
+    }
 }
 
 fn popup_spec(key: &str, level: u8) -> PopupSpec {
@@ -285,6 +335,35 @@ mod tests {
         assert!(stack.resolve(id, outcome));
         stack.drain_results()
     }
+    #[test]
+    fn rezrtap_resurrect_popup_accept_both_skins() {
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            let mut flow = DeathFlow::default();
+            let mut stack = PopupStack::default();
+            flow.receive(update(DeathStateSnapshot::Dead));
+            flow.receive_offer(shared::protocol::ResurrectionOffer {
+                caster: 42,
+                caster_name: "Alicia".into(),
+                spell_id: 7328,
+                time_left_ms: 60_000,
+            });
+            flow.sync_popups(&mut stack, Some(&at(12.0)), 60);
+            assert!(!stack.contains(DEATH_POPUP));
+            assert!(stack.contains("RESURRECT"));
+            let results =
+                draw_and_accept(&mut stack, skin, "Alicia wants to resurrect you.", "Accept");
+            assert_eq!(
+                flow.popup_results(&results),
+                Some(DeathRequest::Resurrection {
+                    caster: 42,
+                    spell_id: 7328,
+                    accept: true,
+                })
+            );
+            assert_eq!(flow.popup_results(&results), None);
+        }
+    }
+
     #[test]
     fn deathstate_dead_popup_release_both_skins() {
         for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

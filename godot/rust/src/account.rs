@@ -183,6 +183,7 @@ pub enum AccountEvent {
     /// `TradeStateUpdate`: the trade snapshot, its refusal and message.
     Trade(TradeStateUpdate),
     Death(shared::protocol::DeathStateUpdate),
+    Resurrection(shared::protocol::ResurrectionOffer),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
     GuildRanks(shared::protocol::GuildRanksState),
@@ -674,6 +675,15 @@ impl Account {
         };
         let bridge = self.bridge()?;
         match request {
+            DeathRequest::Resurrection {
+                caster,
+                spell_id,
+                accept,
+            } => bridge.send::<_, DeathChannel>(shared::protocol::ResurrectionResponse {
+                caster,
+                spell_id,
+                accept,
+            }),
             DeathRequest::Release => bridge.send::<_, DeathChannel>(ReleaseSpirit),
             DeathRequest::Corpse => bridge.send::<_, DeathChannel>(ResurrectAtCorpse),
             DeathRequest::SpiritHealer => {
@@ -1047,6 +1057,10 @@ impl Account {
         }
         if message.is::<PendingMail>() {
             output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ResurrectionOffer>() {
+            output.push(AccountEvent::Resurrection(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::DeathStateUpdate>() {

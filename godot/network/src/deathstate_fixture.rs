@@ -13,6 +13,11 @@ pub enum ReceivedDeathRequest {
     Release,
     Corpse,
     SpiritHealer,
+    Resurrection {
+        caster: u64,
+        spell_id: u32,
+        accept: bool,
+    },
 }
 
 #[derive(Resource, Default)]
@@ -22,8 +27,20 @@ fn capture_requests(
     mut releases: Query<&mut MessageReceiver<ReleaseSpirit>>,
     mut corpses: Query<&mut MessageReceiver<ResurrectAtCorpse>>,
     mut healers: Query<&mut MessageReceiver<AcceptSpiritHealerResurrection>>,
+    mut resurrections: Query<&mut MessageReceiver<shared::protocol::ResurrectionResponse>>,
     mut received: ResMut<DeathRequests>,
 ) {
+    for mut receiver in &mut resurrections {
+        received.0.extend(
+            receiver
+                .receive()
+                .map(|response| ReceivedDeathRequest::Resurrection {
+                    caster: response.caster,
+                    spell_id: response.spell_id,
+                    accept: response.accept,
+                }),
+        );
+    }
     for mut receiver in &mut releases {
         received
             .0
@@ -110,6 +127,15 @@ impl DeathServerFixture {
             .single_mut(world)
             .expect("connected fixture death sender")
             .send::<DeathChannel>(update);
+    }
+
+    pub fn send_offer(&mut self, offer: shared::protocol::ResurrectionOffer) {
+        let world = self.app.world_mut();
+        world
+            .query::<&mut MessageSender<shared::protocol::ResurrectionOffer>>()
+            .single_mut(world)
+            .expect("connected fixture resurrection sender")
+            .send::<DeathChannel>(offer);
     }
 
     pub fn take_requests(&mut self) -> Vec<ReceivedDeathRequest> {

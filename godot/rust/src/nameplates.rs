@@ -1368,6 +1368,13 @@ impl GameClient {
         let Some(viewer) = build_viewer(&self.world, &self.replica, target, templates) else {
             return Ok(HashMap::new());
         };
+        let group: Vec<_> = self
+            .account
+            .group
+            .members
+            .iter()
+            .map(|member| member.character_id)
+            .collect();
         let views = self
             .replica
             .units()
@@ -1381,13 +1388,20 @@ impl GameClient {
                 }
                 let reaction = reaction(template, viewer.template);
                 let friendly = reaction == Reaction::Friendly;
-                let color =
-                    if selection_in_combat_is_hostile(unit.threat_list(), viewer.id, friendly) {
-                        // CompactUnitFrame_UpdateHealthColor: `r, g, b = 1.0, 0.0, 0.0`.
-                        Color::from_rgb(1.0, 0.0, 0.0)
-                    } else {
-                        reaction_color(&style, reaction)
-                    };
+                let color = if self
+                    .account
+                    .session
+                    .selected_character_id
+                    .is_some_and(|character| unit.tap_denied(character, &group))
+                {
+                    // CompactUnitFrame.lua:677-678: tap-denied grey, before reaction colour.
+                    Color::from_rgb(0.5, 0.5, 0.5)
+                } else if selection_in_combat_is_hostile(unit.threat_list(), viewer.id, friendly) {
+                    // CompactUnitFrame_UpdateHealthColor: `r, g, b = 1.0, 0.0, 0.0`.
+                    Color::from_rgb(1.0, 0.0, 0.0)
+                } else {
+                    reaction_color(&style, reaction)
+                };
                 let name_color = nameplate_text_color(unit.has::<Player>(), colorblind_mode);
                 let mut view = project_plate(
                     camera,

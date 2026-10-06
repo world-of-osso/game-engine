@@ -407,6 +407,7 @@ fn native_bridge_receives_group_messages_in_channel_order() {
         total_count: 2,
         members: ["Ann", "Bob"]
             .map(|name| GroupMemberSnapshot {
+                character_id: 7,
                 name: name.into(),
                 role: GroupRoleSnapshot::None,
                 is_leader: name == "Ann",
