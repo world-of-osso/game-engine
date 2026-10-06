@@ -97,7 +97,7 @@ fn party4_both_skin_panels_emit_checkbox_slider_and_dropdown_actions() {
 }
 
 fn setup(skin: ActiveSkin) {
-    ui_toolkit::atlas::set_active_skin(skin);
+    ui_toolkit::atlas::set_thread_skin(skin);
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
