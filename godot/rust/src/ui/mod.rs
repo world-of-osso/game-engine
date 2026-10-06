@@ -170,6 +170,37 @@ impl RegistryModel {
         }
     }
 
+    /// Retail sizes the scroll child after laying out QuestInfo. Read the native flow height
+    /// before rebuilding its range and scrollbar; the child height never depends on the range.
+    fn update_quest_scroll_extent(&mut self) -> bool {
+        use game_engine_ui_model::quest_scroll::{QuestScrollExtent, quest_scroll_child};
+        let mut lists = game_engine_ui_model::quest_frame_component::QUEST_SCROLL_FRAMES.to_vec();
+        lists.push(game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL);
+        let extent = lists.into_iter().find_map(|list| {
+            let child = self.registry.get_by_name(&quest_scroll_child(list))?;
+            let height = self.registry.get(child)?.layout_rect.as_ref()?.height;
+            Some(QuestScrollExtent {
+                list: list.into(),
+                height,
+            })
+        });
+        let Some(extent) = extent else { return false };
+        if self.shared.get::<QuestScrollExtent>() == Some(&extent) {
+            return false;
+        }
+        self.shared.insert(extent);
+        true
+    }
+
+    fn project_quest_extent(&mut self, projection: &mut UiProjection) -> Result<(), String> {
+        projection.sync(&mut self.registry)?;
+        if self.update_quest_scroll_extent() {
+            self.sync();
+            projection.sync(&mut self.registry)?;
+        }
+        Ok(())
+    }
+
     /// Mirror the active layout's settings, then its skin: a change of either rebuilds the
     /// Screens that read the HUD layout.
     fn sync(&mut self) {
@@ -1725,7 +1756,7 @@ impl RegistryUi {
             .set_size(Vector2::new(width, height) / scale);
         model.resize(width / scale, height / scale, scale);
         self.base_mut().add_child(&projection.root);
-        projection.sync(&mut model.registry)?;
+        model.project_quest_extent(&mut projection)?;
         self.projection = Some(projection);
         self.model = Some(model);
         Ok(())
@@ -1758,6 +1789,25 @@ impl RegistryUi {
             .ok_or("Registry model not initialized")?;
         if model.shared.get::<T>() == Some(&state) {
             return Ok(());
+        }
+        if let Some(next) = (&state as &dyn std::any::Any)
+            .downcast_ref::<game_engine_ui_model::quest_log_frame_component::QuestLogFrameState>(
+        ) {
+            use game_engine_ui_model::quest_log_frame_component::{
+                QUEST_LOG_DETAILS_SCROLL, QuestLogFrameState,
+            };
+            let previous = model
+                .shared
+                .get::<QuestLogFrameState>()
+                .and_then(|state| state.details.as_ref())
+                .map(|details| details.quest_id);
+            let selected = next.details.as_ref().map(|details| details.quest_id);
+            if previous != selected {
+                model
+                    .registry
+                    .scroll_lists
+                    .scroll_to(QUEST_LOG_DETAILS_SCROLL, 0);
+            }
         }
         model.shared.insert(state);
         self.sync_model()
@@ -1890,7 +1940,7 @@ impl RegistryUi {
         let Some(projection) = self.projection.as_mut() else {
             return Err("Native projection not initialized".into());
         };
-        projection.sync(&mut model.registry)
+        model.project_quest_extent(projection)
     }
 }
 
