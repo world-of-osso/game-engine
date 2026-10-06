@@ -234,16 +234,18 @@ pub enum LayoutSystem {
     PetFrame,
     ChatFrame,
     DamageMeter,
+    PartyFrames,
 }
 
 impl LayoutSystem {
-    pub const ALL: [Self; 6] = [
+    pub const ALL: [Self; 7] = [
         Self::PlayerFrame,
         Self::TargetFrame,
         Self::FocusFrame,
         Self::PetFrame,
         Self::ChatFrame,
         Self::DamageMeter,
+        Self::PartyFrames,
     ];
 
     /// Retail's system names (`HUD_EDIT_MODE_PLAYER_FRAME_LABEL` "Player Frame", …,
@@ -257,8 +259,15 @@ impl LayoutSystem {
             Self::PetFrame => "Pet",
             Self::ChatFrame => "Chat",
             Self::DamageMeter => "Meter",
+            Self::PartyFrames => "Party",
         }
     }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PartyDropdown {
+    Sort,
+    Aura,
 }
 
 /// The character's Edit Mode layout as the HUD page shows and edits it (`ui_layout.ron`).
@@ -274,6 +283,7 @@ pub struct LayoutOptionsView {
     pub settings: LayoutSettings,
     /// The system whose settings show.
     pub system: LayoutSystem,
+    pub party_dropdown: Option<PartyDropdown>,
 }
 
 /// The Modern preset with no saved layouts.
@@ -289,6 +299,7 @@ impl Default for LayoutOptionsView {
             skin,
             settings: LayoutSettings::default(),
             system: LayoutSystem::default(),
+            party_dropdown: None,
         }
     }
 }

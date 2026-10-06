@@ -9,7 +9,16 @@ use crate::buff_data::DebuffType;
 use crate::group_state::ReadyMark;
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
+use game_engine_core::ui_layout_data::{
+    PARTY_DEFENSIVE_RANGE, PARTY_ICON_RANGE, PartyAuraOrganization, PartyFrameSettings,
+};
 use shared::protocol::GroupRoleSnapshot;
+
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct PartyAuraView {
+    pub buffs: Vec<u32>,
+    pub defensive: Option<u32>,
+}
 
 /// `NATIVE_UNIT_FRAME_WIDTH/HEIGHT` (CompactUnitFrame.lua:11-12): component scale base.
 const NATIVE_W: f32 = 72.0;
@@ -101,6 +110,57 @@ struct DynName(String);
 type Rect = (f32, f32, f32, f32);
 
 pub fn compact_unit_frame(name: &str, view: &CompactUnitView, rect: Rect) -> Element {
+    compact_frame(name, view, rect, PartyFrameSettings::default(), None)
+}
+
+pub fn party_unit_frame(
+    name: &str,
+    view: &CompactUnitView,
+    rect: Rect,
+    settings: PartyFrameSettings,
+    auras: Option<&PartyAuraView>,
+    pet: Option<&crate::portrait_party_frame_component::PortraitPartyPetView>,
+) -> Element {
+    let mut frame = compact_frame(name, view, rect, settings, auras);
+    if settings.show_pets.unwrap_or(false) && view.status != UnitStatus::Offline {
+        if let Some(pet) = pet {
+            frame.extend(compact_pet_frame(
+                &format!("{name}Pet"),
+                pet,
+                (rect.0 + rect.2, rect.1, rect.2 * 0.5, rect.3 * 0.5),
+            ));
+        }
+    }
+    frame
+}
+
+fn compact_pet_frame(
+    name: &str,
+    pet: &crate::portrait_party_frame_component::PortraitPartyPetView,
+    (x, y, width, height): Rect,
+) -> Element {
+    let fill_width = (width - 2.0) * pet.health_fraction.clamp(0.0, 1.0);
+    rsx! { r#frame {
+        name: {DynName(name.to_string())}, width, height,
+        strata: FrameStrata::Low, pos_type: "absolute", pos_x: x, pos_y: y,
+        {art_texture(format!("{name}Background"), BACKGROUND, (0.0, 0.0, width, height), BACKGROUND_RGB, false)}
+        {art_texture(format!("{name}HealthBar"), HEALTH_FILL, (1.0, 1.0, fill_width, height - 2.0), [0.0, 1.0, 0.0], fill_width <= 0.0)}
+        fontstring {
+            name: {DynName(format!("{name}Name"))}, width: {width - 4.0}, height: {height - 2.0},
+            text: {if pet.dead { "Dead" } else { "Pet" }}, font: GameFont::FrizQuadrata,
+            font_size: 10.0, font_color: NAME_COLOR, justify_h: "CENTER",
+            pos_type: "absolute", pos_x: 2.0, pos_y: 1.0,
+        }
+    } }
+}
+
+fn compact_frame(
+    name: &str,
+    view: &CompactUnitView,
+    rect: Rect,
+    settings: PartyFrameSettings,
+    auras: Option<&PartyAuraView>,
+) -> Element {
     let (x, y, width, height) = rect;
     let alpha = if view.in_range {
         1.0
@@ -121,11 +181,11 @@ pub fn compact_unit_frame(name: &str, view: &CompactUnitView, rect: Rect) -> Ele
             {art_texture(format!("{name}Background"), BACKGROUND, (0.0, 0.0, width, height), BACKGROUND_RGB, false)}
             {health_bar(name, view, (width, height))}
             {power_bar(name, view, (width, height))}
-            {role_icon(name, view.role)}
-            {name_text(name, view, width)}
+            {organized_labels(name, view, (width, height), settings.aura_organization.unwrap_or_default())}
             {status_text(name, view.status, (width, height))}
             {ready_icon(name, view.ready, (width, height))}
-            {debuffs(name, &view.debuffs, height)}
+            {party_debuffs(name, &view.debuffs, (width, height), settings)}
+            {party_buffs(name, auras, (width, height), settings)}
             {art_texture(format!("{name}SelectionHighlight"), SELECTION, (0.0, 0.0, width, height), [1.0; 3], !view.selected)}
         }
     }
@@ -267,6 +327,129 @@ fn ready_icon(name: &str, ready: Option<ReadyMark>, (width, height): (f32, f32))
         [1.0; 3],
         ready.is_none(),
     )
+}
+
+fn organized_labels(
+    name: &str,
+    view: &CompactUnitView,
+    (width, height): (f32, f32),
+    organization: PartyAuraOrganization,
+) -> Element {
+    if organization == PartyAuraOrganization::Legacy {
+        let mut labels = role_icon(name, view.role);
+        labels.extend(name_text(name, view, width));
+        return labels;
+    }
+    let mut role = role_icon(name, view.role);
+    if organization == PartyAuraOrganization::BuffsRight {
+        super::group_frames_component::place_party_member(
+            &mut role,
+            width - ROLE_SIZE - 3.0,
+            ROLE_Y,
+        );
+    }
+    let (x, y, text_width) = if organization == PartyAuraOrganization::BuffsTop {
+        (3.0, (height - 12.0) / 2.0, width - 6.0)
+    } else {
+        (ROLE_SIZE + 3.0, 3.0, width - 2.0 * (ROLE_SIZE + 3.0))
+    };
+    role.extend(rsx! { fontstring {
+        name: {DynName(format!("{name}Name"))}, width: text_width, height: 12.0,
+        text: view.name.as_str(), font: GameFont::FrizQuadrata, font_size: NAME_FONT_SIZE,
+        font_color: NAME_COLOR, justify_h: "CENTER", pos_type: "absolute", pos_x: x, pos_y: y,
+    } });
+    role
+}
+
+fn party_debuffs(
+    name: &str,
+    auras: &[CompactDebuffView],
+    (width, height): (f32, f32),
+    settings: PartyFrameSettings,
+) -> Element {
+    let organization = settings.aura_organization.unwrap_or_default();
+    let percent = PARTY_ICON_RANGE.clamp(settings.debuff_size.unwrap_or(100));
+    if organization == PartyAuraOrganization::Legacy && percent == 100 {
+        return debuffs(name, auras, height);
+    }
+    let size = AURA_SIZE * f32::from(percent) / 100.0;
+    auras
+        .iter()
+        .take(MAX_DEBUFFS)
+        .enumerate()
+        .flat_map(|(index, aura)| {
+            let (x, y) = match organization {
+                PartyAuraOrganization::Legacy | PartyAuraOrganization::BuffsRight => (
+                    AURA_X + (index % AURAS_PER_ROW) as f32 * size,
+                    height - AURA_BOTTOM - POWER_H - (index / AURAS_PER_ROW + 1) as f32 * size,
+                ),
+                PartyAuraOrganization::BuffsTop => (
+                    width - AURA_X - (index % AURAS_PER_ROW + 1) as f32 * size,
+                    height - AURA_BOTTOM - POWER_H - (index / AURAS_PER_ROW + 1) as f32 * size,
+                ),
+            };
+            let mut icon = debuff_icon(&format!("{name}Debuff{}", index + 1), aura, (0.0, 0.0));
+            super::group_frames_component::resize_party_member(
+                &mut icon,
+                size / AURA_SIZE,
+                size / AURA_SIZE,
+            );
+            super::group_frames_component::place_party_member(&mut icon, x, y);
+            icon
+        })
+        .collect()
+}
+
+fn party_buffs(
+    name: &str,
+    auras: Option<&PartyAuraView>,
+    (width, height): (f32, f32),
+    settings: PartyFrameSettings,
+) -> Element {
+    let Some(auras) = auras else {
+        return Element::new();
+    };
+    let size =
+        AURA_SIZE * f32::from(PARTY_ICON_RANGE.clamp(settings.buff_size.unwrap_or(100))) / 100.0;
+    let organization = settings.aura_organization.unwrap_or_default();
+    let mut icons: Element = auras
+        .buffs
+        .iter()
+        .take(6)
+        .enumerate()
+        .flat_map(|(index, fdid)| {
+            let (x, y) = match organization {
+                PartyAuraOrganization::Legacy | PartyAuraOrganization::BuffsRight => (
+                    width - AURA_X - (index % AURAS_PER_ROW + 1) as f32 * size,
+                    height - POWER_H - AURA_BOTTOM - (index / AURAS_PER_ROW + 1) as f32 * size,
+                ),
+                PartyAuraOrganization::BuffsTop => {
+                    (width - AURA_X - (index + 1) as f32 * size, 3.0)
+                }
+            };
+            aura_texture(format!("{name}Buff{}", index + 1), *fdid, (x, y, size))
+        })
+        .collect();
+    if let Some(fdid) = auras.defensive {
+        let size = AURA_SIZE
+            * 2.0
+            * component_scale((width, height))
+            * f32::from(PARTY_DEFENSIVE_RANGE.clamp(settings.defensive_size.unwrap_or(75)))
+            / 100.0;
+        icons.extend(aura_texture(
+            format!("{name}BigDefensive"),
+            fdid,
+            ((width - size) / 2.0, (height - size) / 2.0, size),
+        ));
+    }
+    icons
+}
+
+fn aura_texture(name: String, fdid: u32, (x, y, size): (f32, f32, f32)) -> Element {
+    rsx! { texture {
+        name: {DynName(name)}, width: size, height: size, texture_fdid: fdid,
+        pos_type: "absolute", pos_x: x, pos_y: y,
+    } }
 }
 
 fn debuffs(name: &str, debuffs: &[CompactDebuffView], height: f32) -> Element {

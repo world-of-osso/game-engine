@@ -335,7 +335,65 @@ impl GameClient {
                 .and_then(|data| data.get(spell_id))
                 .map_or(0, |spell| spell.icon_fdid)
         };
-        group_frames_state(&self.account.group, &viewer, &icon)
+        let mut frames = group_frames_state(&self.account.group, &viewer, &icon);
+        self.populate_party_replica_views(&mut frames);
+        game_engine_ui_model::group_frames_component::sorted_party_state(
+            &frames,
+            game_engine_ui_model::hud_layout::active_layout_settings()
+                .party
+                .sort
+                .unwrap_or_default(),
+        )
+    }
+
+    fn populate_party_replica_views(&self, frames: &mut GroupFramesState) {
+        use crate::replicated::local_pet;
+        use game_engine_ui_model::compact_unit_frame_component::PartyAuraView;
+        use game_engine_ui_model::portrait_party_frame_component::PortraitPartyPetView;
+        use shared::components::Health;
+        for unit in self.replica.units() {
+            let Some(player) = unit.get::<Player>() else {
+                continue;
+            };
+            if !frames.party.iter().any(|member| member.name == player.name) {
+                continue;
+            }
+            let buffs = self
+                .unit_auras(unit.server_id)
+                .into_iter()
+                .filter(|aura| !aura.is_debuff && aura.icon_fdid != 0)
+                .map(|aura| aura.icon_fdid)
+                .collect();
+            frames.party_auras.insert(
+                player.name.clone(),
+                PartyAuraView {
+                    buffs,
+                    defensive: None,
+                },
+            );
+            let pet = local_pet(&self.replica, unit.server_id)
+                .and_then(|id| self.replica.unit(id))
+                .and_then(|unit| unit.get::<Health>())
+                .map(|health| PortraitPartyPetView {
+                    health_fraction: if health.max > 0.0 {
+                        (health.current / health.max).clamp(0.0, 1.0)
+                    } else {
+                        0.0
+                    },
+                    dead: health.current <= 0.0,
+                });
+            if let Some(pet) = pet.as_ref() {
+                frames.party_pets.insert(player.name.clone(), pet.clone());
+            }
+            if let Some(member) = frames
+                .portrait_party
+                .members
+                .iter_mut()
+                .find(|member| member.name == player.name)
+            {
+                member.pet = pet;
+            }
+        }
     }
 
     fn show_group_ui(

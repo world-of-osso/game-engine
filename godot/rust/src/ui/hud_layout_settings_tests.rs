@@ -476,6 +476,7 @@ fn shown(
         skin: layout.skin,
         settings: layout.settings,
         system,
+        party_dropdown: None,
     }
 }
 
