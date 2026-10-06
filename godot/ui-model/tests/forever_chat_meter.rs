@@ -47,6 +47,87 @@ fn canvas<T: 'static>(
     registry
 }
 
+#[test]
+fn metergaps_forever_row_font_is_friz_quadrata_12() {
+    let registry = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
+    for name in ["DamageMeterEntry1Name", "DamageMeterEntry1Value"] {
+        let text = font(&registry, name);
+        assert_eq!(text.font_size, 12.0);
+        assert_eq!(
+            text.font,
+            ui_toolkit::widgets::font_string::GameFont::FrizQuadrata
+        );
+    }
+}
+
+#[test]
+fn metergaps_forever_secondary_tab_selects_and_displays_threat() {
+    use shared::protocol::{ThreatUnit, ThreatUpdate};
+    let mut window = DamageMeterWindow::default();
+    let registry = canvas(
+        ActiveSkin::Forever,
+        window.view(true, 0.0),
+        damage_meter_screen,
+    );
+    assert_eq!(font(&registry, "DamageMeterThreatTabName").text, "Threat");
+    let action = click(&registry, "DamageMeterThreatTab").unwrap();
+    window.click(&action).unwrap();
+    window.receive_threat(ThreatUpdate {
+        creature: 100,
+        victim: Some(10),
+        entries: vec![
+            ThreatUnit {
+                unit: 10,
+                name: "Tank".into(),
+                class_id: 2,
+                raw_threat: 200.0,
+                status: 3,
+                raw_percent: 100.0,
+                scaled_percent: 100.0,
+            },
+            ThreatUnit {
+                unit: 20,
+                name: "Healer".into(),
+                class_id: 5,
+                raw_threat: 50.0,
+                status: 0,
+                raw_percent: 25.0,
+                scaled_percent: 25.0 / 1.3,
+            },
+        ],
+    });
+    window.select_threat_target(Some(100), Some(20), true);
+    let registry = canvas(
+        ActiveSkin::Forever,
+        window.view(true, 0.0),
+        damage_meter_screen,
+    );
+    assert_eq!(font(&registry, "DamageMeterThreatTabName").color, ACTIVE);
+    assert_eq!(font(&registry, "DamageMeterEntry1Name").text, "1. Tank");
+    assert_eq!(font(&registry, "DamageMeterEntry1Value").text, "100.0%");
+    assert_eq!(font(&registry, "DamageMeterEntry2Value").text, "25.0%");
+    window
+        .click(&click(&registry, "DamageMeterDpsTab").unwrap())
+        .unwrap();
+    assert_eq!(window.meter_type, MeterType::DamageDone);
+}
+
+#[test]
+fn metergaps_forever_header_icon_centres_match_title() {
+    let registry = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
+    let (_, title_y, _, title_h) = rect(&registry, "DamageMeterTypeName");
+    let title_centre = title_y + title_h / 2.0;
+    for button in ["DamageMeterSettings", "DamageMeterSessionDropdown"] {
+        let (_, button_y, _, _) = rect(&registry, button);
+        let (_, icon_y, _, icon_h) = rect(&registry, &format!("{button}Icon"));
+        let icon_centre = button_y + icon_y + icon_h / 2.0;
+        assert!(
+            (icon_centre - title_centre).abs() <= 0.5,
+            "{button}: {icon_centre} vs {title_centre}"
+        );
+    }
+}
+
 fn meter_view() -> DamageMeterView {
     let session = DamageMeterSession {
         session_id: 1,
@@ -250,13 +331,13 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
     assert!(type_y >= header_y && type_y + type_h <= separator_y);
     assert!(type_x + type_w <= rect(&registry, "DamageMeterSessionDropdown").0);
     assert_eq!(font(&registry, "DamageMeterTypeName").text, "DPS");
-    assert_eq!(font(&registry, "DamageMeterHpsTabName").text, "HPS");
+    assert_eq!(font(&registry, "DamageMeterThreatTabName").text, "Threat");
     assert_ne!(
         font(&registry, "DamageMeterTypeName").color,
-        font(&registry, "DamageMeterHpsTabName").color,
+        font(&registry, "DamageMeterThreatTabName").color,
         "the selected tab looks different from the other"
     );
-    assert!(registry.get_by_name("DamageMeterThreatTab").is_none());
+    assert!(registry.get_by_name("DamageMeterHpsTab").is_none());
     // Three equal-width chart columns side by side, rising left to right from one baseline,
     // tinted like the settings glyph.
     let columns: Vec<_> = (0..3)
@@ -316,8 +397,8 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
     );
     // Class-coloured fill, as long as damage over the top damage.
     assert_eq!(
-        texture(&registry, "DamageMeterEntry1StatusBar").vertex_color,
-        [0.25, 0.78, 0.92, 1.0]
+        frame(&registry, "DamageMeterEntry1StatusBar").background_color,
+        Some([0.25, 0.78, 0.92, 1.0])
     );
     let fill = |name: &str| rect(&registry, name).2;
     assert_eq!(
@@ -325,7 +406,7 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
         fill("DamageMeterEntry1StatusBar")
     );
     let gradient = texture(&registry, "DamageMeterEntry1Gradient");
-    assert_eq!(gradient.tex_coords, [1.0, 0.0, 0.0, 1.0]);
+    assert_eq!(gradient.tex_coords, [0.0, 1.0, 0.0, 1.0]);
     // The row border is the header separator's bronze.
     let bronze = frame(&registry, "DamageMeterFlareSeparator")
         .background_color
@@ -484,8 +565,7 @@ fn check_row_parts(registry: &FrameRegistry, recap: bool) {
             size <= text.3 - text.1,
             "{label} font {size} taller than its box"
         );
-        // Text fills most of the bar's height, as in the reference.
-        assert!(size >= 0.5 * bar_h, "{label} font {size} in a {bar_h} bar");
+        assert_eq!(size, 12.0, "{label}: FlareUI barFont size");
     }
     assert!(name.2 <= value.0, "name and value do not overlap");
 }
@@ -674,17 +754,17 @@ fn forever_header_icons_are_centred_equal_sized_and_clear_of_separator() {
         FLARE_HEADER_STEP,
     );
     let meter = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
-    assert_header_icons(
-        &meter,
-        "DamageMeterFlareHeader",
-        "DamageMeterFlareSeparator",
-        &[
-            ("DamageMeterSessionDropdown", 398.5),
-            ("DamageMeterSettings", 419.5),
-        ],
-        -1.0,
-        21.0,
-    );
+    let separator_top = rect(&meter, "DamageMeterFlareSeparator").1;
+    for (name, left) in [
+        ("DamageMeterSessionDropdown", 398.5),
+        ("DamageMeterSettings", 419.5),
+    ] {
+        let button = rect(&meter, name);
+        let icon = rect(&meter, &format!("{name}Icon"));
+        assert_eq!(button, (left, 3.5, 22.0, 22.0));
+        assert_eq!(icon, (4.4, 4.4, 13.2, 13.2));
+        assert!(button.1 + icon.1 + icon.3 < separator_top);
+    }
 }
 
 #[test]
@@ -733,21 +813,21 @@ const ACTIVE: [f32; 4] = [0.80, 0.60, 0.34, 1.0];
 const INACTIVE: [f32; 4] = [0.56, 0.51, 0.46, 1.0];
 
 #[test]
-fn forever_dps_and_hps_tabs_select_damage_and_healing() {
-    let view = typed_view(MeterType::HealingDone, false);
+fn forever_dps_and_threat_tabs_select_damage_and_threat() {
+    let view = typed_view(MeterType::Threat, false);
     let registry = canvas(ActiveSkin::Forever, view, damage_meter_screen);
     assert_eq!(font(&registry, "DamageMeterTypeName").color, INACTIVE);
-    assert_eq!(font(&registry, "DamageMeterHpsTabName").color, ACTIVE);
+    assert_eq!(font(&registry, "DamageMeterThreatTabName").color, ACTIVE);
     assert_eq!(
         click(&registry, "DamageMeterDpsTab").as_deref(),
         Some(MeterType::DamageDone.action())
     );
     assert_eq!(
-        click(&registry, "DamageMeterHpsTab").as_deref(),
-        Some(MeterType::HealingDone.action())
+        click(&registry, "DamageMeterThreatTab").as_deref(),
+        Some(MeterType::Threat.action())
     );
     assert!(registry.get_by_name("DamageMeterOtherTypeName").is_none());
-    // Healing rows look like damage rows and are not clickable.
+    // Threat rows look like damage rows and are not clickable.
     assert_eq!(font(&registry, "DamageMeterEntry1Name").text, "Shot");
     assert_eq!(
         texture(&registry, "DamageMeterEntry1Icon").source,
@@ -761,7 +841,7 @@ fn forever_other_types_get_their_own_label_and_death_rows_are_clickable() {
     let view = typed_view(MeterType::Deaths, false);
     let registry = canvas(ActiveSkin::Forever, view, damage_meter_screen);
     assert_eq!(font(&registry, "DamageMeterTypeName").color, INACTIVE);
-    assert_eq!(font(&registry, "DamageMeterHpsTabName").color, INACTIVE);
+    assert_eq!(font(&registry, "DamageMeterThreatTabName").color, INACTIVE);
     assert_eq!(font(&registry, "DamageMeterOtherTypeName").text, "Deaths");
     assert_eq!(font(&registry, "DamageMeterOtherTypeName").color, ACTIVE);
     assert_eq!(

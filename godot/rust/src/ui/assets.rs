@@ -13,6 +13,10 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::widgets::texture::TextureSource;
 
+#[cfg(test)]
+#[path = "assets_meter_gradient_tests.rs"]
+mod meter_gradient_tests;
+
 fn asset_path(path: &str) -> PathBuf {
     let resource_path = if path.starts_with("res://") {
         path.to_owned()
