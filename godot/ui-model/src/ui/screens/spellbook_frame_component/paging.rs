@@ -3,11 +3,8 @@ use super::*;
 pub(super) fn paging(state: &SpellbookFrameState, s: f32) -> Element {
     let pages = state.page_count();
     let page = state.page.min(pages - 1);
-    let text = format!("Page {}/{}", page + 1, pages);
-    let top = PAGING_BOTTOM - PAGE_BUTTON;
     let next_left = PAGING_RIGHT - PAGE_BUTTON;
     let prev_left = next_left - PAGING_SPACING - PAGE_BUTTON;
-    let text_left = prev_left - PAGING_SPACING - PAGE_TEXT_W;
     let prev_art = if page == 0 {
         PREV_PAGE_DISABLED
     } else {
@@ -18,50 +15,54 @@ pub(super) fn paging(state: &SpellbookFrameState, s: f32) -> Element {
     } else {
         NEXT_PAGE_UP
     };
-    let prev_icon = file_texture(
-        "SpellBookPrevPageButtonIcon".into(),
-        prev_art,
-        [0.0, 0.0, PAGE_BUTTON, PAGE_BUTTON],
-        s,
-    );
-    let next_icon = file_texture(
-        "SpellBookNextPageButtonIcon".into(),
-        next_art,
-        [0.0, 0.0, PAGE_BUTTON, PAGE_BUTTON],
-        s,
-    );
-    let mut out = label(
+    let mut out = page_text(page, pages, prev_left, s);
+    out.extend(page_button(true, prev_art, prev_left, s));
+    out.extend(page_button(false, next_art, next_left, s));
+    out
+}
+
+fn page_text(page: usize, pages: usize, prev_left: f32, s: f32) -> Element {
+    let text = format!("Page {}/{}", page + 1, pages);
+    label(
         Label {
             name: "SpellBookPageText".into(),
             text: &text,
-            rect: [text_left, top + 8.0, PAGE_TEXT_W, 18.0],
+            rect: [
+                prev_left - PAGING_SPACING - PAGE_TEXT_W,
+                PAGING_BOTTOM - PAGE_BUTTON + 8.0,
+                PAGE_TEXT_W,
+                18.0,
+            ],
             size: PAGE_TEXT_SIZE,
             color: FONT_COLOR,
             justify: "RIGHT",
         },
         s,
+    )
+}
+
+fn page_button(previous: bool, fdid: u32, left: f32, s: f32) -> Element {
+    let (name, action) = if previous {
+        ("SpellBookPrevPageButton", ACTION_SPELLBOOK_PREV_PAGE)
+    } else {
+        ("SpellBookNextPageButton", ACTION_SPELLBOOK_NEXT_PAGE)
+    };
+    let icon = file_texture(
+        format!("{name}Icon"),
+        fdid,
+        [0.0, 0.0, PAGE_BUTTON, PAGE_BUTTON],
+        s,
     );
-    out.extend(rsx! {
+    rsx! {
         r#frame {
-            name: "SpellBookPrevPageButton",
+            name: {DynName(name.into())},
             width: {PAGE_BUTTON * s},
             height: {PAGE_BUTTON * s},
-            onclick: ACTION_SPELLBOOK_PREV_PAGE,
+            onclick: action,
             pos_type: "absolute",
-            pos_x: {prev_left * s},
-            pos_y: {top * s},
-            {prev_icon}
+            pos_x: {left * s},
+            pos_y: {(PAGING_BOTTOM - PAGE_BUTTON) * s},
+            {icon}
         }
-        r#frame {
-            name: "SpellBookNextPageButton",
-            width: {PAGE_BUTTON * s},
-            height: {PAGE_BUTTON * s},
-            onclick: ACTION_SPELLBOOK_NEXT_PAGE,
-            pos_type: "absolute",
-            pos_x: {next_left * s},
-            pos_y: {top * s},
-            {next_icon}
-        }
-    });
-    out
+    }
 }

@@ -3,36 +3,7 @@ use super::*;
 pub(super) fn header(group: &SpellbookGroup, rect: [f32; 2], s: f32) -> Element {
     let [x, y] = rect;
     let name = format!("SpellBookHeader{}", group.name.replace(' ', ""));
-    let children: Element = [
-        art_colored(
-            format!("{name}Backplate"),
-            &HEADER_BACKPLATE,
-            [-85.0, (HEADER_H - 106.0) / 2.0 - 10.0, 416.0, 106.0],
-            s,
-            "1.0,1.0,1.0,0.65",
-            false,
-        ),
-        label(
-            Label {
-                name: format!("{name}Text"),
-                text: &group.name,
-                rect: [-8.0, 6.0, VIEW_W - 60.0 + 8.0, 30.0],
-                size: HEADER_SIZE,
-                color: FONT_COLOR,
-                justify: "LEFT",
-            },
-            s,
-        ),
-        art(
-            format!("{name}Border"),
-            &DIVIDER,
-            [-32.0, HEADER_H - 11.0, VIEW_W - 60.0 + 32.0, 11.0],
-            s,
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
+    let children = header_children(&name, group, s);
     rsx! {
         r#frame {
             name: {DynName(name)},
@@ -44,6 +15,43 @@ pub(super) fn header(group: &SpellbookGroup, rect: [f32; 2], s: f32) -> Element 
             {children}
         }
     }
+}
+
+fn header_children(name: &str, group: &SpellbookGroup, s: f32) -> Element {
+    [
+        art_colored(
+            format!("{name}Backplate"),
+            &HEADER_BACKPLATE,
+            [-85.0, (HEADER_H - 106.0) / 2.0 - 10.0, 416.0, 106.0],
+            s,
+            "1.0,1.0,1.0,0.65",
+            false,
+        ),
+        header_text(name, group, s),
+        art(
+            format!("{name}Border"),
+            &DIVIDER,
+            [-32.0, HEADER_H - 11.0, VIEW_W - 60.0 + 32.0, 11.0],
+            s,
+        ),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn header_text(name: &str, group: &SpellbookGroup, s: f32) -> Element {
+    label(
+        Label {
+            name: format!("{name}Text"),
+            text: &group.name,
+            rect: [-8.0, 6.0, VIEW_W - 60.0 + 8.0, 30.0],
+            size: HEADER_SIZE,
+            color: FONT_COLOR,
+            justify: "LEFT",
+        },
+        s,
+    )
 }
 
 /// Button border per `SpellBookItemMixin.ArtSet`: Square (-11,1 / 1,-7 active;
@@ -66,11 +74,6 @@ fn item_border(name: &str, item: &SpellbookItemView, s: f32) -> Element {
 }
 
 fn item_texts(name: &str, item: &SpellbookItemView, s: f32) -> Element {
-    let color = if item.available_at.is_some() {
-        UNLEARNED_FONT_COLOR
-    } else {
-        FONT_COLOR
-    };
     let level = item
         .available_at
         .map(|level| format!("{AVAILABLE_AT}{level}"));
@@ -84,6 +87,20 @@ fn item_texts(name: &str, item: &SpellbookItemView, s: f32) -> Element {
     .into_iter()
     .flatten()
     .collect();
+    render_item_texts(name, item, lines, s)
+}
+
+fn render_item_texts(
+    name: &str,
+    item: &SpellbookItemView,
+    lines: Vec<(&str, &str, f32)>,
+    s: f32,
+) -> Element {
+    let color = if item.available_at.is_some() {
+        UNLEARNED_FONT_COLOR
+    } else {
+        FONT_COLOR
+    };
     let line_h = |size: f32| size + 3.0;
     let block: f32 = lines.iter().map(|&(_, _, size)| line_h(size)).sum::<f32>()
         + 2.0 * (lines.len() as f32 - 1.0);
@@ -109,81 +126,8 @@ fn item_texts(name: &str, item: &SpellbookItemView, s: f32) -> Element {
 pub(super) fn item(item: &SpellbookItemView, rect: [f32; 2], s: f32) -> Element {
     let [x, y] = rect;
     let name = spell_item_name(item.spell_id);
-    let icon_top = (ITEM_H - ICON_SIZE) / 2.0;
-    let icon_left = (BUTTON_SIZE - ICON_SIZE) / 2.0;
-    let tint = if item.available_at.is_some() {
-        UNLEARNED_TINT
-    } else {
-        "1.0,1.0,1.0,1.0"
-    };
-    let castable = !item.passive && item.available_at.is_none();
-    let onclick = castable.then(|| format!("{ACTION_SPELLBOOK_CAST}{}", item.spell_id));
-    let icon_name = format!("{name}Icon");
-    // A spell whose icon is not drawable yet (FDID 0) has no icon texture.
-    let icon: Element = if item.icon_fdid == 0 {
-        Element::default()
-    } else {
-        rsx! {
-            texture {
-                name: {DynName(icon_name)},
-                width: {ICON_SIZE * s},
-                height: {ICON_SIZE * s},
-                texture_fdid: {item.icon_fdid},
-                vertex_color: tint,
-                pos_type: "absolute",
-                pos_x: {icon_left * s},
-                pos_y: {icon_top * s},
-            }
-        }
-    };
-    let children: Element = [
-        art_colored(
-            format!("{name}Backplate"),
-            &ITEM_BACKPLATE,
-            [
-                (ITEM_W - 256.0) / 2.0 + 5.0,
-                (ITEM_H - 64.0) / 2.0 + 5.0,
-                256.0,
-                64.0,
-            ],
-            s,
-            "1.0,1.0,1.0,0.25",
-            false,
-        ),
-        icon,
-        item_border(&name, item, s),
-        item_texts(&name, item, s),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-    let button_name = format!("{name}Button");
-    let button_y = (ITEM_H - BUTTON_SIZE) / 2.0 * s;
-    let button = match onclick {
-        Some(onclick) => rsx! {
-            button {
-                name: {DynName(button_name)},
-                width: {BUTTON_SIZE * s},
-                height: {BUTTON_SIZE * s},
-                onclick,
-                button_default_skin: false,
-                pos_type: "absolute",
-                pos_x: 0.0,
-                pos_y: button_y,
-            }
-        },
-        None => rsx! {
-            button {
-                name: {DynName(button_name)},
-                width: {BUTTON_SIZE * s},
-                height: {BUTTON_SIZE * s},
-                button_default_skin: false,
-                pos_type: "absolute",
-                pos_x: 0.0,
-                pos_y: button_y,
-            }
-        },
-    };
+    let children = item_children(&name, item, s);
+    let button = item_button(&name, item, s);
     rsx! {
         r#frame {
             name: {DynName(name)},
@@ -198,28 +142,93 @@ pub(super) fn item(item: &SpellbookItemView, rect: [f32; 2], s: f32) -> Element 
     }
 }
 
+fn item_children(name: &str, item: &SpellbookItemView, s: f32) -> Element {
+    let icon = item_icon(name, item, s);
+    [
+        item_backplate(name, s),
+        icon,
+        item_border(name, item, s),
+        item_texts(name, item, s),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+fn item_backplate(name: &str, s: f32) -> Element {
+    art_colored(
+        format!("{name}Backplate"),
+        &ITEM_BACKPLATE,
+        [
+            (ITEM_W - 256.0) / 2.0 + 5.0,
+            (ITEM_H - 64.0) / 2.0 + 5.0,
+            256.0,
+            64.0,
+        ],
+        s,
+        "1.0,1.0,1.0,0.25",
+        false,
+    )
+}
+
+fn item_icon(name: &str, item: &SpellbookItemView, s: f32) -> Element {
+    if item.icon_fdid == 0 {
+        return Element::default();
+    }
+    let icon_top = (ITEM_H - ICON_SIZE) / 2.0;
+    let icon_left = (BUTTON_SIZE - ICON_SIZE) / 2.0;
+    let tint = if item.available_at.is_some() {
+        UNLEARNED_TINT
+    } else {
+        "1.0,1.0,1.0,1.0"
+    };
+    let icon_name = format!("{name}Icon");
+    rsx! {
+        texture {
+            name: {DynName(icon_name)},
+            width: {ICON_SIZE * s},
+            height: {ICON_SIZE * s},
+            texture_fdid: {item.icon_fdid},
+            vertex_color: tint,
+            pos_type: "absolute",
+            pos_x: {icon_left * s},
+            pos_y: {icon_top * s},
+        }
+    }
+}
+
+fn item_button(name: &str, item: &SpellbookItemView, s: f32) -> Element {
+    use ui_toolkit::widget_def::{Attr, WidgetChild};
+    let mut button = rsx! {
+        button {
+            name: {DynName(format!("{name}Button"))},
+            width: {BUTTON_SIZE * s},
+            height: {BUTTON_SIZE * s},
+            button_default_skin: false,
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: {(ITEM_H - BUTTON_SIZE) / 2.0 * s},
+        }
+    };
+    if !item.passive && item.available_at.is_none() {
+        let onclick = format!("{ACTION_SPELLBOOK_CAST}{}", item.spell_id);
+        let WidgetChild::Widget(widget) = &mut button[0] else {
+            unreachable!("rsx button produces a widget");
+        };
+        widget
+            .attrs
+            .insert(2, Attr::new_dynamic("onclick", onclick));
+    }
+    button
+}
+
 pub(super) fn view(
     state: &SpellbookFrameState,
     placements: Option<&Vec<Placement>>,
     index: usize,
     s: f32,
 ) -> Element {
-    let groups = state
-        .selected_category()
-        .map_or(&[][..], |category| category.groups.as_slice());
-    let children: Element = placements
-        .into_iter()
-        .flatten()
-        .flat_map(|placement| match *placement {
-            Placement::Header { group, y } => header(&groups[group], [0.0, y], s),
-            Placement::Item {
-                group,
-                item: index,
-                x,
-                y,
-            } => item(&groups[group].items[index], [x, y], s),
-        })
-        .collect();
+    let children = view_children(state, placements, s);
     let left = if index == 0 { VIEW1_LEFT } else { VIEW2_LEFT };
     rsx! {
         r#frame {
@@ -232,6 +241,29 @@ pub(super) fn view(
             {children}
         }
     }
+}
+
+fn view_children(
+    state: &SpellbookFrameState,
+    placements: Option<&Vec<Placement>>,
+    s: f32,
+) -> Element {
+    let groups = state
+        .selected_category()
+        .map_or(&[][..], |category| category.groups.as_slice());
+    placements
+        .into_iter()
+        .flatten()
+        .flat_map(|placement| match *placement {
+            Placement::Header { group, y } => header(&groups[group], [0.0, y], s),
+            Placement::Item {
+                group,
+                item: index,
+                x,
+                y,
+            } => item(&groups[group].items[index], [x, y], s),
+        })
+        .collect()
 }
 
 /// Fit only the name into its reserved line; subtext and level retain their layout.
