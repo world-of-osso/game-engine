@@ -1038,7 +1038,9 @@ fn native_bridge_receives_remote_player_motion_changes() {
     let (mut server, address) = start_fixture_server();
     let mut host = Host::connect(address, 8195);
     await_connected(&mut server, &mut host);
-    let strafing_jump = PlayerMotion(PlayerMotion::STRAFE_LEFT | PlayerMotion::FALLING);
+    let strafing_jump = PlayerMotion(
+        PlayerMotion::STRAFE_LEFT | PlayerMotion::FALLING | PlayerMotion::JUMP_STARTED,
+    );
     let entity = server
         .world_mut()
         .spawn((
@@ -1059,6 +1061,15 @@ fn native_bridge_receives_remote_player_motion_changes() {
     assert_eq!(
         host.unit(id).unwrap().get::<Player>().unwrap().name,
         "Fbfps"
+    );
+    let walkoff = PlayerMotion(PlayerMotion::FORWARD | PlayerMotion::FALLING);
+    server.world_mut().entity_mut(entity).insert(walkoff);
+    await_unit(
+        &mut server,
+        &mut host,
+        id,
+        "unjumped falling player",
+        |unit| unit.get::<PlayerMotion>() == Some(&walkoff),
     );
     server
         .world_mut()

@@ -664,8 +664,8 @@ pub(crate) struct Locomotion {
 /// player's own movement selects it (`update_player_animation`): the direction in the
 /// local `compute_movement_input` priority (forward, backward, left, right) through the
 /// shared direction selector, run unless WALKING, swim clips while SWIMMING, and the jump
-/// sequence while FALLING (wow_client `update_animation` animates remote units the same
-/// way from their movement flags).
+/// sequence while FALLING with JUMP_STARTED. FALLING without jump origin selects Fall,
+/// not JumpStart; swimming still preempts airborne clips.
 pub(crate) fn player_motion_locomotion(motion: PlayerMotion) -> Locomotion {
     let direction = [
         (PlayerMotion::FORWARD, MoveDirection::Forward),
@@ -678,9 +678,16 @@ pub(crate) fn player_motion_locomotion(motion: PlayerMotion) -> Locomotion {
     .unwrap_or(MoveDirection::None);
     let running = !motion.contains(PlayerMotion::WALKING);
     let swimming = motion.contains(PlayerMotion::SWIMMING);
+    let jumping = motion.contains(PlayerMotion::FALLING | PlayerMotion::JUMP_STARTED);
+    let unjumped_fall = motion.contains(PlayerMotion::FALLING) && !jumping && !swimming;
+    let animation_id = if unjumped_fall {
+        crate::animation::ANIM_FALL
+    } else {
+        direction_to_anim_id(direction, running, swimming)
+    };
     Locomotion {
-        animation_id: direction_to_anim_id(direction, running, swimming),
-        jumping: motion.contains(PlayerMotion::FALLING),
+        animation_id,
+        jumping,
         running_forward: running && direction == MoveDirection::Forward,
     }
 }
