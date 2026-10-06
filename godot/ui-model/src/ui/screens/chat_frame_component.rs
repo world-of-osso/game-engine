@@ -123,6 +123,13 @@ const CHAT_EDITBOX_HEADER: FrameName = FrameName("ChatFrame1EditBoxHeader");
 pub const CHAT_FONT: GameFont = GameFont::ArialNarrow;
 pub const CHAT_FONT_SIZE: f32 = 14.0;
 pub const CHAT_LINE_H: f32 = 14.0;
+/// FlareUI Core.lua:193: Arial Narrow 12; data/fonts/ARIALN.ttf is available locally.
+fn chat_font_size(skin: ActiveSkin) -> f32 {
+    match skin {
+        ActiveSkin::Modern => CHAT_FONT_SIZE,
+        ActiveSkin::Forever => 12.0,
+    }
+}
 /// `message_spacing` 5 between messages (Core/Config.lua:96).
 const MESSAGE_SPACING: f32 = 5.0;
 /// The newest message sits 2 above the bottom (Display/ScrollingMessages.lua:228).
@@ -169,6 +176,10 @@ pub struct ChatTextArea {
 /// 226-227); the inset is the width of `00:00:00` plus 8 (Core/Messages.lua:367-384).
 /// `messages_width` is the message area's width.
 pub fn chat_text_area(tab: ChatTab, messages_width: f32) -> ChatTextArea {
+    chat_text_area_with_font(tab, messages_width, CHAT_FONT_SIZE)
+}
+
+fn chat_text_area_with_font(tab: ChatTab, messages_width: f32, font_size: f32) -> ChatTextArea {
     if tab.is_combat_log() {
         return ChatTextArea {
             left: 0.0,
@@ -176,7 +187,7 @@ pub fn chat_text_area(tab: ChatTab, messages_width: f32) -> ChatTextArea {
             spacing: 0.0,
         };
     }
-    let left = timestamp_inset() + 3.0;
+    let left = timestamp_inset(font_size) + 3.0;
     ChatTextArea {
         left,
         width: messages_width - left - 1.0,
@@ -184,8 +195,8 @@ pub fn chat_text_area(tab: ChatTab, messages_width: f32) -> ChatTextArea {
     }
 }
 
-fn timestamp_inset() -> f32 {
-    text_width("00:00:00", CHAT_FONT, CHAT_FONT_SIZE) + 8.0
+fn timestamp_inset(font_size: f32) -> f32 {
+    text_width("00:00:00", CHAT_FONT, font_size) + 8.0
 }
 
 fn text_width(value: &str, font: GameFont, size: f32) -> f32 {
@@ -203,13 +214,16 @@ pub fn chat_frame_view(
 ) -> ChatFrameView {
     let (messages_width, messages_height) = messages_size(chat_size);
     let available_height = messages_height - MESSAGES_BOTTOM_PAD;
-    let area = chat_text_area(state.tab, messages_width);
+    let font_size = chat_font_size(ui_toolkit::atlas::thread_skin());
+    let area = chat_text_area_with_font(state.tab, messages_width, font_size);
     let entries = tab_entries(state.tab, chat, combat);
     let mut messages = Vec::new();
     let mut heights = Vec::new();
     for entry in entries.iter().rev().skip(state.scroll()) {
-        let rows = wrap_chat_line(&entry.line, &spell_name, area.width, measure_chat_text);
-        heights.push(rows.len() as f32 * CHAT_LINE_H);
+        let rows = wrap_chat_line(&entry.line, &spell_name, area.width, |text| {
+            text_width(text, CHAT_FONT, font_size)
+        });
+        heights.push(rows.len() as f32 * font_size);
         if messages_that_fit(&heights, available_height, area.spacing) < heights.len() {
             break;
         }
@@ -318,7 +332,7 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
                 pos_type: "absolute",
                 left: MESSAGES_LEFT,
                 top: MESSAGES_TOP,
-                {messages(view, (messages_width, messages_height))}
+                {messages(view, (messages_width, messages_height), chat_font_size(skin))}
             }
             {copy_button}
             {chat_button(
@@ -665,12 +679,12 @@ fn chat_button(name: &str, action: &str, icon: &str, x: f32, y: f32, hidden: boo
 
 /// Messages stacked up from the bottom, newest last (Display/ScrollingMessages.lua:219-270).
 /// Rows are numbered top to bottom as `ChatFrame1MessagesRow{n}`.
-fn messages(view: &ChatFrameView, (width, height): (f32, f32)) -> Element {
-    let area = chat_text_area(view.tab, width);
+fn messages(view: &ChatFrameView, (width, height): (f32, f32), font_size: f32) -> Element {
+    let area = chat_text_area_with_font(view.tab, width, font_size);
     let mut tops = Vec::with_capacity(view.messages.len());
     let mut bottom = height - MESSAGES_BOTTOM_PAD;
     for message in view.messages.iter().rev() {
-        let top = bottom - message.rows.len() as f32 * CHAT_LINE_H;
+        let top = bottom - message.rows.len() as f32 * font_size;
         tops.push(top);
         bottom = top - area.spacing;
     }
@@ -678,13 +692,14 @@ fn messages(view: &ChatFrameView, (width, height): (f32, f32)) -> Element {
     let mut row = 0;
     let mut out = Element::new();
     for (index, (message, top)) in view.messages.iter().zip(tops).enumerate() {
-        out.extend(message_decor(index, message, top, &area));
+        out.extend(message_decor(index, message, top, &area, font_size));
         for (line, chat_row) in message.rows.iter().enumerate() {
             out.extend(message_row(
                 row,
                 chat_row,
                 &area,
-                top + line as f32 * CHAT_LINE_H,
+                top + line as f32 * font_size,
+                font_size,
             ));
             row += 1;
         }
@@ -700,19 +715,20 @@ fn message_decor(
     message: &ChatMessageView,
     top: f32,
     area: &ChatTextArea,
+    font_size: f32,
 ) -> Element {
     let Some(timestamp) = message.timestamp.as_deref() else {
         return Element::new();
     };
-    let height = message.rows.len() as f32 * CHAT_LINE_H;
+    let height = message.rows.len() as f32 * font_size;
     rsx! {
         fontstring {
             name: {DynName(format!("ChatFrame1Message{index}Time"))},
             width: {area.left},
-            height: CHAT_LINE_H,
+            height: font_size,
             text: timestamp,
             font: CHAT_FONT,
-            font_size: CHAT_FONT_SIZE,
+            font_size,
             font_color: TIMESTAMP_COLOR,
             justify_h: "LEFT",
             pos_type: "absolute",
@@ -731,18 +747,24 @@ fn message_decor(
     }
 }
 
-fn message_row(row: usize, chat_row: &ChatRow, area: &ChatTextArea, top: f32) -> Element {
+fn message_row(
+    row: usize,
+    chat_row: &ChatRow,
+    area: &ChatTextArea,
+    top: f32,
+    font_size: f32,
+) -> Element {
     let runs: Element = chat_row
         .runs
         .iter()
         .enumerate()
-        .flat_map(|(run_index, run)| message_run(row, run_index, run))
+        .flat_map(|(run_index, run)| message_run(row, run_index, run, font_size))
         .collect();
     rsx! {
         r#frame {
             name: {DynName(format!("{CHAT_MESSAGES}Row{row}"))},
             width: {area.width},
-            height: CHAT_LINE_H,
+            height: font_size,
             pos_type: "absolute",
             left: {area.left},
             top: top,
@@ -751,7 +773,7 @@ fn message_row(row: usize, chat_row: &ChatRow, area: &ChatTextArea, top: f32) ->
     }
 }
 
-fn message_run(row: usize, run_index: usize, run: &ChatRun) -> Element {
+fn message_run(row: usize, run_index: usize, run: &ChatRun, font_size: f32) -> Element {
     let [r, g, b, a] = run.color;
     let is_link = run.spell_id.is_some();
     let name = match run.spell_id {
@@ -762,10 +784,10 @@ fn message_run(row: usize, run_index: usize, run: &ChatRun) -> Element {
         fontstring {
             name: {DynName(name)},
             width: {run.width.ceil() + 1.0},
-            height: CHAT_LINE_H,
+            height: font_size,
             text: {run.text.as_str()},
             font: CHAT_FONT,
-            font_size: CHAT_FONT_SIZE,
+            font_size,
             font_color: {FontColor::new(r, g, b, a)},
             justify_h: "LEFT",
             mouse_enabled: is_link,
