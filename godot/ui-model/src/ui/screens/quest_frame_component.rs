@@ -9,9 +9,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
-use crate::minimal_scroll_bar::{
-    BAR_W, MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
-};
+use crate::quest_scroll::{QuestScrollPane, quest_scroll_frame};
 use crate::ui::screens::inworld_unit_frames_component::PortraitSlot;
 use crate::ui::screens::quest_art::{
     DynName, GOSSIP_ACTIVE_ICON, GOSSIP_AVAILABLE_ICON, GOSSIP_IN_PROGRESS_ICON,
@@ -225,7 +223,6 @@ pub fn quest_frame_screen(ctx: &SharedContext) -> Element {
 }
 
 fn page_elements(page: &QuestFramePage, ctx: &SharedContext) -> Element {
-    let offset = |list| ctx.scroll_first_row(list);
     match page {
         QuestFramePage::Greeting {
             text,
@@ -237,30 +234,18 @@ fn page_elements(page: &QuestFramePage, ctx: &SharedContext) -> Element {
             description,
             objectives_text,
             rewards,
-        } => detail_panel(
-            title,
-            description,
-            objectives_text,
-            rewards,
-            offset(QUEST_DETAIL_SCROLL),
-        ),
+        } => detail_panel(title, description, objectives_text, rewards, ctx),
         QuestFramePage::Progress {
             title,
             text,
             required,
             can_complete,
-        } => progress_panel(
-            title,
-            text,
-            required,
-            *can_complete,
-            offset(QUEST_PROGRESS_SCROLL),
-        ),
+        } => progress_panel(title, text, required, *can_complete, ctx),
         QuestFramePage::Reward {
             title,
             text,
             rewards,
-        } => reward_panel(title, text, rewards, offset(QUEST_REWARD_SCROLL)),
+        } => reward_panel(title, text, rewards, ctx),
     }
 }
 
@@ -459,46 +444,69 @@ const SCROLL_CONTENT: Column = Column {
 };
 const SCROLL_CONTENT_TOP: f32 = CONTENT_TOP - SCROLL_Y;
 
-/// Scroll frame `list` scrolled down `offset` pixels: it clips `content` (laid out from its
-/// top, `height` tall) to its 300×403 and scrolls it when taller. Its bar keeps its track
-/// while nothing overflows and shows no thumb: `QuestScrollFrameTemplate` leaves
-/// `scrollBarHideIfUnscrollable` unset (`QuestFrameTemplates.xml:158-167`,
-/// `ScrollBar.lua:252-264`).
-fn scroll_frame(list: &str, content: Element, height: f32, offset: usize) -> Element {
-    let bar_height = SCROLL_H - SCROLL_BAR_TOP - SCROLL_BAR_BOTTOM;
-    let geometry = pixel_geometry(SCROLL_H, height, bar_height);
-    let offset = geometry.clamp(offset);
-    let config = scroll_list_attr(&geometry);
-    let bar = MinimalScrollBar {
-        list,
-        left: SCROLL_W + SCROLL_BAR_X,
-        top: SCROLL_BAR_TOP,
-        height: bar_height,
-        geometry,
-        offset,
-        unscrollable: Unscrollable::HideThumb,
+/// Auto-height flow retains the Retail inset and tail spacer. Projection supplies the
+/// measured scroll-child height after native text shaping.
+fn dialog_scroll_frame(ctx: &SharedContext, list: &str, text: Element, tail: f32) -> Element {
+    let content = rsx! {
+        r#frame {
+            width: CONTENT_W,
+            height: "auto",
+            layout: "flex-column",
+            align: "start",
+            margin_left: {SCROLL_CONTENT.x},
+            margin_top: SCROLL_CONTENT_TOP,
+            margin_bottom: tail,
+            {text}
+        }
     };
-    let child = list.replace("ScrollFrame", "ScrollChildFrame");
+    quest_scroll_frame(
+        ctx,
+        list,
+        content,
+        QuestScrollPane {
+            x: SCROLL_X,
+            y: SCROLL_Y,
+            width: SCROLL_W,
+            height: SCROLL_H,
+            bar_x: SCROLL_W + SCROLL_BAR_X,
+            bar_top: SCROLL_BAR_TOP,
+            bar_bottom: SCROLL_BAR_BOTTOM,
+        },
+    )
+}
+
+fn flow_text(name: &str, text: &str, font_size: f32, gap: f32) -> Element {
+    rsx! {
+        fontstring {
+            name: {DynName(name.into())},
+            width: CONTENT_W,
+            height: "auto",
+            text,
+            font: GameFont::FrizQuadrata,
+            font_size,
+            font_color: QUEST_TEXT_COLOR,
+            justify_h: "LEFT",
+            margin_top: gap,
+        }
+    }
+}
+
+fn flow_rewards(rewards: &RewardView, choosable: bool) -> Element {
+    let mut height = 0.0;
+    let rewards = rewards_section(
+        rewards,
+        choosable,
+        Column {
+            x: 0.0,
+            width: CONTENT_W,
+        },
+        &mut height,
+    );
     rsx! {
         r#frame {
-            name: {DynName(list.into())},
-            width: {SCROLL_W + SCROLL_BAR_X + BAR_W},
-            height: SCROLL_H,
-            mouse_enabled: true,
-            scroll_list: {config},
-            pos_type: "absolute",
-            left: SCROLL_X,
-            top: SCROLL_Y,
-            r#frame {
-                name: {DynName(child)},
-                width: SCROLL_W,
-                height: {height.max(SCROLL_H)},
-                pos_type: "absolute",
-                left: 0,
-                top: {-(offset as f32)},
-                {content}
-            }
-            {bar.element()}
+            width: CONTENT_W,
+            height,
+            {rewards}
         }
     }
 }
@@ -508,46 +516,29 @@ fn detail_panel(
     description: &str,
     objectives_text: &str,
     rewards: &RewardView,
-    offset: usize,
+    ctx: &SharedContext,
 ) -> Element {
-    let mut y = SCROLL_CONTENT_TOP;
-    let mut content = text_block(
-        "QuestInfoTitleHeader".into(),
-        title,
-        TITLE_FONT,
-        QUEST_TEXT_COLOR,
-        SCROLL_CONTENT,
-        &mut y,
-    );
-    y += TITLE_GAP;
-    content.extend(text_block(
-        "QuestInfoDescriptionText".into(),
+    let mut content = flow_text("QuestInfoTitleHeader", title, TITLE_FONT, 0.0);
+    content.extend(flow_text(
+        "QuestInfoDescriptionText",
         description,
         BODY_FONT,
-        QUEST_TEXT_COLOR,
-        SCROLL_CONTENT,
-        &mut y,
+        TITLE_GAP,
     ));
-    y += SECTION_GAP;
-    content.extend(text_block(
-        "QuestInfoObjectivesHeader".into(),
+    content.extend(flow_text(
+        "QuestInfoObjectivesHeader",
         "Quest Objectives",
         TITLE_FONT,
-        QUEST_TEXT_COLOR,
-        SCROLL_CONTENT,
-        &mut y,
+        SECTION_GAP,
     ));
-    y += TITLE_GAP;
-    content.extend(text_block(
-        "QuestInfoObjectivesText".into(),
+    content.extend(flow_text(
+        "QuestInfoObjectivesText",
         objectives_text,
         BODY_FONT,
-        QUEST_TEXT_COLOR,
-        SCROLL_CONTENT,
-        &mut y,
+        TITLE_GAP,
     ));
-    content.extend(rewards_section(rewards, false, SCROLL_CONTENT, &mut y));
-    let mut elements = scroll_frame(QUEST_DETAIL_SCROLL, content, y + DETAIL_TAIL, offset);
+    content.extend(flow_rewards(rewards, false));
+    let mut elements = dialog_scroll_frame(ctx, QUEST_DETAIL_SCROLL, content, DETAIL_TAIL);
     elements.extend(left_button(
         "QuestFrameAcceptButton",
         "Accept",
@@ -568,47 +559,38 @@ fn progress_panel(
     text: &str,
     required: &[RewardItemView],
     can_complete: bool,
-    offset: usize,
+    ctx: &SharedContext,
 ) -> Element {
-    let mut y = SCROLL_CONTENT_TOP;
-    let mut content = text_block(
-        "QuestProgressTitleText".into(),
-        title,
-        TITLE_FONT,
-        QUEST_TEXT_COLOR,
-        SCROLL_CONTENT,
-        &mut y,
-    );
-    y += TITLE_GAP;
-    content.extend(text_block(
-        "QuestProgressText".into(),
-        text,
-        BODY_FONT,
-        QUEST_TEXT_COLOR,
-        SCROLL_CONTENT,
-        &mut y,
-    ));
+    let mut content = flow_text("QuestProgressTitleText", title, TITLE_FONT, 0.0);
+    content.extend(flow_text("QuestProgressText", text, BODY_FONT, TITLE_GAP));
     if !required.is_empty() {
-        y += SECTION_GAP;
-        content.extend(text_block(
-            "QuestProgressRequiredItemsText".into(),
+        content.extend(flow_text(
+            "QuestProgressRequiredItemsText",
             "Required items:",
             TITLE_FONT,
-            QUEST_TEXT_COLOR,
-            SCROLL_CONTENT,
-            &mut y,
+            SECTION_GAP,
         ));
-        y += TITLE_GAP;
-        content.extend(item_grid(
+        let mut height = TITLE_GAP;
+        let items = item_grid(
             "QuestProgressItem",
             required,
             None,
             false,
-            SCROLL_CONTENT,
-            &mut y,
-        ));
+            Column {
+                x: 0.0,
+                width: CONTENT_W,
+            },
+            &mut height,
+        );
+        content.extend(rsx! {
+            r#frame {
+                width: CONTENT_W,
+                height,
+                {items}
+            }
+        });
     }
-    let mut elements = scroll_frame(QUEST_PROGRESS_SCROLL, content, y, offset);
+    let mut elements = dialog_scroll_frame(ctx, QUEST_PROGRESS_SCROLL, content, 0.0);
     elements.extend(left_button(
         "QuestFrameCompleteButton",
         "Continue",
@@ -624,27 +606,11 @@ fn progress_panel(
     elements
 }
 
-fn reward_panel(title: &str, text: &str, rewards: &RewardView, offset: usize) -> Element {
-    let mut y = SCROLL_CONTENT_TOP;
-    let mut content = text_block(
-        "QuestInfoTitleHeader".into(),
-        title,
-        TITLE_FONT,
-        QUEST_TEXT_COLOR,
-        SCROLL_CONTENT,
-        &mut y,
-    );
-    y += TITLE_GAP;
-    content.extend(text_block(
-        "QuestInfoRewardText".into(),
-        text,
-        BODY_FONT,
-        QUEST_TEXT_COLOR,
-        SCROLL_CONTENT,
-        &mut y,
-    ));
-    content.extend(rewards_section(rewards, true, SCROLL_CONTENT, &mut y));
-    let mut elements = scroll_frame(QUEST_REWARD_SCROLL, content, y + REWARD_TAIL, offset);
+fn reward_panel(title: &str, text: &str, rewards: &RewardView, ctx: &SharedContext) -> Element {
+    let mut content = flow_text("QuestInfoTitleHeader", title, TITLE_FONT, 0.0);
+    content.extend(flow_text("QuestInfoRewardText", text, BODY_FONT, TITLE_GAP));
+    content.extend(flow_rewards(rewards, true));
+    let mut elements = dialog_scroll_frame(ctx, QUEST_REWARD_SCROLL, content, REWARD_TAIL);
     // Always enabled; QuestRewardCompleteButton_OnClick reports a missing choice.
     elements.extend(left_button(
         "QuestFrameCompleteQuestButton",
@@ -759,10 +725,11 @@ fn item_grid_from(
     y: &mut f32,
 ) -> Element {
     let top = *y;
+    let columns = if column.width < CONTENT_W { 1 } else { 2 };
     let mut elements = Vec::new();
     for (i, item) in items.iter().enumerate() {
-        let x = column.x + (i % 2) as f32 * (ITEM_W + ITEM_GAP);
-        let row_y = top + (i / 2) as f32 * (ITEM_H + ITEM_GAP);
+        let x = column.x + (i % columns) as f32 * (ITEM_W + ITEM_GAP);
+        let row_y = top + (i / columns) as f32 * (ITEM_H + ITEM_GAP);
         let name = format!("{prefix}{}", first + i + 1);
         let action = choosable.then(|| format!("{CHOICE_ACTION_PREFIX}{i}"));
         elements.extend(item_button(
@@ -773,7 +740,7 @@ fn item_grid_from(
             (x, row_y),
         ));
     }
-    *y = top + items.len().div_ceil(2) as f32 * (ITEM_H + ITEM_GAP);
+    *y = top + items.len().div_ceil(columns) as f32 * (ITEM_H + ITEM_GAP);
     elements
 }
 
