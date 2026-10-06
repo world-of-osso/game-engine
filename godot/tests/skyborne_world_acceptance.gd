@@ -11,6 +11,8 @@ extends "res://tests/world_quest_flow.gd"
 const SKY_QUEST := 92460
 const SKY_TITLE := "Coming of Age"
 const SKY_ENDER := "Rorian the Dayseeker"
+# Entry255979/display139403 -> Extra163071 -> shoulder display734870 -> ModelResources84883.
+const SHOULDER_NPC := "Thendal Grove Ranger"
 # Captured SQL entry251361/guid3251361000, WoW (x,y,z) -> native (x,z,-y).
 const SKY_ENDER_AT := Vector3(4088.500790283203, 976.5145996532464, -1895.0)
 const SKY_REWARD_XP := 40
@@ -98,9 +100,9 @@ func run_test() -> void:
 		quit(0)
 		return
 	if scope == "shoulder-assets":
-		if not await check_ender_shoulders():
+		if not await check_authored_shoulders():
 			return
-		print("SKYBORNE SHOULDER_ASSETS_DONE race=95 character=Skymage npc=", SKY_ENDER)
+		print("SKYBORNE SHOULDER_ASSETS_DONE race=95 character=Skymage npc=", SHOULDER_NPC)
 		print("SKYBORNE UNTESTED quest changes/full fixture/original script; accepted/rewarded nothing")
 		client.free()
 		quit(0)
@@ -315,31 +317,34 @@ func open_sky_ender(ender: Node3D, pages: Array) -> int:
 		return 0
 	return ender_id
 
-func check_ender_shoulders() -> bool:
+func check_authored_shoulders() -> bool:
 	if int(client.account_state().get("selected_character_id", -1)) != 30 or not check_reward_reload_state():
 		return false
-	var ender := await locate_logical_giver(SKY_ENDER)
-	if ender == null:
+	var unit := await locate_logical_giver(SHOULDER_NPC)
+	if unit == null:
 		return false
-	if not await wait_frames(func(): return visible_body(ender), "Rorian authored body before shoulder attachment check", WAIT_MS):
+	for candidate in units_named(SHOULDER_NPC):
+		if candidate is Node3D and candidate.global_position.distance_to(player_position()) < unit.global_position.distance_to(player_position()):
+			unit = candidate
+	if not await wait_frames(func(): return visible_body(unit), "Grove Ranger authored body before shoulder attachment check", WAIT_MS):
 		return false
-	var visual := ender.get_node("NpcVisualRoot")
+	var visual := unit.get_node("NpcVisualRoot")
 	for side in ["Left", "Right"]:
 		var item := visual.find_child("EquipmentShoulder" + side, true, false) as Node3D
 		var attachment := 6 if side == "Left" else 5
 		if item == null or item.get_parent().name != "Attachment%d" % attachment:
-			fail("Rorian original shoulder " + side + " missing from authored attachment " + str(attachment))
+			fail("Grove Ranger original shoulder " + side + " missing from authored attachment " + str(attachment))
 			return false
 		var meshes := item.find_children("Batch*", "MeshInstance3D", true, false)
 		if meshes.is_empty():
-			fail("Rorian shoulder " + side + " has no native geometry")
+			fail("Grove Ranger shoulder " + side + " has no native geometry")
 			return false
 		for mesh in meshes:
 			if mesh.mesh == null or not mesh.is_visible_in_tree() or mesh.get_aabb().size.length() <= 0.0:
-				fail("Rorian shoulder " + side + " lacks visible nonempty geometry")
+				fail("Grove Ranger shoulder " + side + " lacks visible nonempty geometry")
 				return false
 		print("SKYBORNE SHOULDER_ATTACHED side=", side, " attachment=", attachment, " path=", item.get_path(), " transform=", item.transform, " meshes=", meshes.size())
-	return await save_capture("02-rorian-original-shoulders.png")
+	return await save_capture("02-grove-ranger-original-shoulders.png")
 
 func check_reward_reload_state() -> bool:
 	var state: Dictionary = client.quest_state()
