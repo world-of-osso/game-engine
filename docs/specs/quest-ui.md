@@ -58,7 +58,7 @@ Server [experience contract](../../../game-server-skyborn/docs/specs/experience.
 
 Fixture `4532f0f61`, server checkout `4fac87a` / attributed runtime `c5cf88a`: after a true Main-owned server restart, the same native prepared character30/race95 Skymage restored exactly40XP with92460 absent from log, watched IDs and tracker. Actual living Rorian `Greeting` excludes “Coming of Age” and lists “Harmony in Balance”; nothing was accepted or rewarded. This is separate from prior fresh acceptance and prepared turn-in, with no replay/reset/admin mutation.
 
-[Reload evidence and limits](../wiki/systems/forever-data.md#prepared-reward-reload-evidence-2026-10-06) owns saved logs, executable hashes, parser status and cleanup report. Independent audit remains pending; native OS-exit status is absent. No visual credit, original scripts/phasing, parity or full-goal closure; prior failures and appearance gaps remain.
+[Reload evidence and limits](../wiki/systems/forever-data.md#prepared-reward-reload-evidence-2026-10-06) owns saved logs, executable hashes, parser status and cleanup report. [Independent audit](../../target/skyborn-source-items/native-reward-reload-independent-proof.md) accepts bounded restored40XP/quest-removal/Greeting evidence and current cleanup; native OS-exit status remains absent. No visual credit, original scripts/phasing, parity or full-goal closure; prior failures and appearance gaps remain.
 
 ## Skin-resolved quest chrome
 
