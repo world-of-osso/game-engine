@@ -477,6 +477,7 @@ pub fn parse_chat_input(line: &str, reply_target: Option<&str>) -> ChatCommand {
         "y" | "yell" => send(ChatType::Yell, rest),
         "p" | "party" => send(ChatType::Party, rest),
         "g" | "guild" => send(ChatType::Guild, rest),
+        "o" | "officer" => send(ChatType::Officer, rest),
         "e" | "em" | "me" | "emote" => send(ChatType::Emote, rest),
         "w" | "whisper" | "t" | "tell" => parse_whisper(rest),
         "r" | "reply" => match reply_target {
