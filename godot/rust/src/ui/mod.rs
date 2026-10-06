@@ -1,4 +1,6 @@
 pub(crate) mod assets;
+#[cfg(debug_assertions)]
+mod audit_probe;
 mod icon_masks;
 pub(crate) mod input_queue;
 mod layout;

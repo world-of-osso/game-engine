@@ -311,6 +311,11 @@ impl UiProjection {
                 continue;
             }
             let size = match &frame.widget_data {
+                Some(WidgetData::FontString(data))
+                    if matches!(frame.width, Dimension::Fixed(_)) =>
+                {
+                    self.measure_wrapped_label(frame, data)?
+                }
                 Some(WidgetData::FontString(data)) => {
                     let Some(font) = self.font(data.font) else {
                         continue;
@@ -338,6 +343,32 @@ impl UiProjection {
             sizes.insert(frame.id, size);
         }
         Ok(sizes)
+    }
+
+    /// Measure with the same native shaping, wrapping and theme as the drawn Label.
+    fn measure_wrapped_label(
+        &mut self,
+        frame: &Frame,
+        data: &ui_toolkit::widgets::font_string::FontStringData,
+    ) -> Result<(f32, f32), String> {
+        let Dimension::Fixed(width) = frame.width else {
+            unreachable!()
+        };
+        let label = Label::new_alloc();
+        let rect = LayoutRect {
+            x: 0.0,
+            y: 0.0,
+            width,
+            height: 0.0,
+        };
+        let result = self
+            .update_label(label.clone(), data, frame, &rect)
+            .map(|()| {
+                let size = label.get_minimum_size();
+                (size.x, size.y)
+            });
+        label.free();
+        result
     }
 
     fn create_node(&self, frame: &Frame) -> Result<Gd<Control>, String> {
