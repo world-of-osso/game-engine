@@ -1,6 +1,6 @@
 ## 2026-10-05 — Paperdoll teardown double free
 
-[[character-preview-double-free]] records a real-engine reproduction of `gd.rs:911`, the parent-before-preview teardown bug, and the process/reconnect ownership audit. Reset now releases the preview before its RegistryUi parent. Engine regression verification pending; original suspend incident attribution remains conditional.
+[[character-preview-double-free]] records a real-engine reproduction of `gd.rs:911`, the parent-before-preview teardown bug, and the process/reconnect ownership audit. Reset now releases the preview before its RegistryUi parent. At `dc7f80b9`, formatting, locked local extension build and three headless lifecycle cycles pass (each command exit 0). All 144 native Rust free sites inventoried; no other matching unguarded double-free established. Original suspend incident attribution remains conditional.
 
 ## 2026-10-04 — Canonical toolkit integration and retained Skyborn blocker
 
