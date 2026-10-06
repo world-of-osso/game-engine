@@ -754,6 +754,83 @@ fn group_members_do_not_overlap_and_keep_their_place_without_the_party_title() {
     assert_eq!(rects[0], rects[1]);
 }
 
+/// The old launcher covered half of Forever's player name ("Launchpo...").
+#[test]
+fn launcher_panel_clears_player_name_on_default_1080p_layout() {
+    use game_engine_ui_model::launcher::{LauncherView, launcher_screen};
+
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_data_root();
+        let mut units = unit_frames();
+        units.player.name = "Launchpolish".into();
+        let mut canvases = [
+            model(units, inworld_unit_frames_screen),
+            model(
+                LauncherView {
+                    open: true,
+                    ..Default::default()
+                },
+                launcher_screen,
+            ),
+        ];
+        for canvas in &mut canvases {
+            canvas.registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
+        }
+        sync(&mut canvases, skin);
+        let panel = rect(&canvases, "LauncherPanel");
+        let player = rect(&canvases, "PlayerFrame");
+        assert!(
+            !intersects(&panel, &player),
+            "{skin:?}: launcher {panel:?} clips player {player:?}"
+        );
+    }
+}
+
+/// Launcher chrome must contain its controls, not just the title's baseline.
+#[test]
+fn launcher_header_contains_close_and_centres_title_in_both_skins() {
+    use game_engine_ui_model::launcher::{LauncherView, launcher_screen};
+    use ui_toolkit::frame::WidgetData;
+
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_data_root();
+        let mut canvases = [model(
+            LauncherView {
+                open: true,
+                ..Default::default()
+            },
+            launcher_screen,
+        )];
+        sync(&mut canvases, skin);
+        let header = rect(&canvases, "LauncherHeaderBar");
+        let close = rect(&canvases, "LauncherCloseButton");
+        let title = rect(&canvases, "LauncherTitleText");
+        assert!(
+            close.x >= header.x && close.x + close.width <= header.x + header.width,
+            "{skin:?}: close {close:?} outside header {header:?}"
+        );
+        assert!(
+            close.y >= header.y && close.y + close.height <= header.y + header.height,
+            "{skin:?}: close {close:?} outside header {header:?}"
+        );
+        let header_centre = header.y + header.height / 2.0;
+        assert!((close.y + close.height / 2.0 - header_centre).abs() <= 1.0);
+        assert!((title.y + title.height / 2.0 - header_centre).abs() <= 1.0);
+        let registry = &canvases[0].registry;
+        let frame = registry
+            .get(registry.get_by_name("LauncherTitleText").unwrap())
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+            panic!("Launcher title must be text");
+        };
+        assert!(text.font_size >= 18.0, "{skin:?}: title still too small");
+        assert_eq!(
+            text.justify_v,
+            ui_toolkit::widgets::font_string::JustifyV::Middle
+        );
+    }
+}
+
 /// Preset defaults mirror the minimap's corner margins without covering other HUD frames.
 #[test]
 fn preset_meter_mirrors_minimap_and_clears_hud_at_both_resolutions() {
