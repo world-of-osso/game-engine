@@ -403,55 +403,74 @@ impl GameClient {
         let mut state = VarDictionary::new();
         let local = self.world.local_player_id();
         let auras = local.map(|id| self.unit_auras(id)).unwrap_or_default();
-        let buttons = |debuffs: bool| {
-            let mut list = VarArray::new();
-            let shown = auras.iter().filter(|aura| aura.is_debuff == debuffs);
-            for (index, aura) in shown.enumerate() {
-                let name = aura_button_name(debuffs, index);
-                let rect = self
-                    .auras
-                    .buff_ui
-                    .as_ref()
-                    .and_then(|ui| ui.bind().frame_rect(&format!("{name}Icon")));
-                let entry = button_entry(&name, aura.spell_id, rect, &self.auras.buff_ui);
-                list.push(&entry.to_variant());
-            }
-            list
-        };
-        state.set("buffs", &buttons(false));
-        state.set("debuffs", &buttons(true));
+        state.set(
+            "buffs",
+            &snapshot_buff_buttons(&auras, false, &self.auras.buff_ui),
+        );
+        state.set(
+            "debuffs",
+            &snapshot_buff_buttons(&auras, true, &self.auras.buff_ui),
+        );
         let target = self.targeting_target();
         let target_ui = self.targeting.frame_ui().cloned();
-        let target_buttons = |prefix: &str, icons: Vec<TargetAuraIconState>| {
-            let mut list = VarArray::new();
-            for (index, icon) in icons.iter().enumerate() {
-                let name = format!("{prefix}Icon{index}");
-                let rect = target_ui
-                    .as_ref()
-                    .and_then(|ui| ui.bind().frame_rect(&format!("{name}Texture")));
-                let mut entry = button_entry(&name, icon.spell_id, rect, &target_ui);
-                entry.set("large", icon.large);
-                entry.set("elapsed", icon.elapsed.unwrap_or(-1.0));
-                entry.set(
-                    "swipe",
-                    target_ui
-                        .as_ref()
-                        .and_then(|ui| swipe_value(&ui.bind(), &name))
-                        .unwrap_or(-1.0),
-                );
-                list.push(&entry.to_variant());
-            }
-            list
-        };
         let (buffs, debuffs) = self.auras.target_icons.clone();
         state.set(
             "target",
             &target.map_or(Variant::nil(), |id| (id as i64).to_variant()),
         );
-        state.set("target_buffs", &target_buttons("TargetBuff", buffs));
-        state.set("target_debuffs", &target_buttons("TargetDebuff", debuffs));
+        state.set(
+            "target_buffs",
+            &snapshot_target_buttons("TargetBuff", &buffs, &target_ui),
+        );
+        state.set(
+            "target_debuffs",
+            &snapshot_target_buttons("TargetDebuff", &debuffs, &target_ui),
+        );
         state
     }
+}
+
+fn snapshot_buff_buttons(
+    auras: &[AuraInstance],
+    debuffs: bool,
+    ui: &Option<Gd<RegistryUi>>,
+) -> VarArray {
+    let mut list = VarArray::new();
+    let shown = auras.iter().filter(|aura| aura.is_debuff == debuffs);
+    for (index, aura) in shown.enumerate() {
+        let name = aura_button_name(debuffs, index);
+        let rect = ui
+            .as_ref()
+            .and_then(|ui| ui.bind().frame_rect(&format!("{name}Icon")));
+        let entry = button_entry(&name, aura.spell_id, rect, ui);
+        list.push(&entry.to_variant());
+    }
+    list
+}
+
+fn snapshot_target_buttons(
+    prefix: &str,
+    icons: &[TargetAuraIconState],
+    ui: &Option<Gd<RegistryUi>>,
+) -> VarArray {
+    let mut list = VarArray::new();
+    for (index, icon) in icons.iter().enumerate() {
+        let name = format!("{prefix}Icon{index}");
+        let rect = ui
+            .as_ref()
+            .and_then(|ui| ui.bind().frame_rect(&format!("{name}Texture")));
+        let mut entry = button_entry(&name, icon.spell_id, rect, ui);
+        entry.set("large", icon.large);
+        entry.set("elapsed", icon.elapsed.unwrap_or(-1.0));
+        entry.set(
+            "swipe",
+            ui.as_ref()
+                .and_then(|ui| swipe_value(&ui.bind(), &name))
+                .unwrap_or(-1.0),
+        );
+        list.push(&entry.to_variant());
+    }
+    list
 }
 
 fn button_entry(
@@ -552,7 +571,14 @@ fn sync_swipe(
     bar.set_scale(size / SWIPE_TEXTURE_SIZE as f32);
     bar.set_value(f64::from(elapsed));
     bar.set_visible(icon.elapsed.is_some());
-    let Some(edge) = edge else { return };
+    if let Some(edge) = edge {
+        sync_swipe_edge(&mut cooldown, icon, edge);
+    }
+}
+
+fn sync_swipe_edge(cooldown: &mut Gd<Control>, icon: &TargetAuraIconState, edge: &Gd<Texture2D>) {
+    let size = cooldown.get_size();
+    let elapsed = icon.elapsed.unwrap_or(0.0);
     let mut hand = match cooldown.get_node_or_null(EDGE_NODE) {
         Some(node) => node.cast::<TextureRect>(),
         None => {
