@@ -55,8 +55,7 @@ impl INode for PartyPortraitFixture {
 impl PartyPortraitFixture {
     #[func]
     fn initialize(&mut self, forever: bool) -> GString {
-        let result = self.initialize_ui(forever);
-        result.err().unwrap_or_default().into()
+        fixture_error(self.initialize_ui(forever))
     }
 
     #[func]
@@ -69,13 +68,13 @@ impl PartyPortraitFixture {
             ..Default::default()
         };
         game_engine_ui_model::hud_layout::set_active_layout_settings(settings);
-        self.sync_fixture().err().unwrap_or_default().into()
+        fixture_error(self.sync_fixture())
     }
 
     #[func]
     fn tick(&mut self) -> GString {
         self.world.attach_loaded_visuals(&Replica::default());
-        self.sync_fixture().err().unwrap_or_default().into()
+        fixture_error(self.sync_fixture())
     }
 
     #[func]
@@ -143,6 +142,10 @@ impl PartyPortraitFixture {
                 available.then(|| fixture_appearance(name))
             })
     }
+}
+
+fn fixture_error(result: Result<(), String>) -> GString {
+    GString::from(result.err().unwrap_or_default().as_str())
 }
 
 fn fixture_group(names: impl Iterator<Item = String>, disconnected: bool) -> GroupState {
