@@ -17,10 +17,24 @@ use crate::ui::anchor::FrameName;
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
 use crate::ui::screens::quest_art::window_chrome;
 
+#[path = "spellbook_frame_component/items.rs"]
+mod items;
+#[path = "spellbook_frame_component/layout.rs"]
+mod layout;
+#[path = "spellbook_frame_component/pagination.rs"]
+mod pagination;
+#[path = "spellbook_frame_component/paging.rs"]
+mod paging;
 #[path = "spellbook_frame_component/player_spells_pages.rs"]
 mod player_spells_pages;
+
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::GameFont;
+pub use items::apply_spellbook_postsetup;
+use items::view;
+use layout::{background, category_tabs, tab_width};
+pub use pagination::{Placement, paginate};
+use paging::paging;
 
 pub const SPELLBOOK_FRAME: FrameName = FrameName("SpellBookRoot");
 /// `"{ACTION_SPELLBOOK_TAB}{index}"` selects a category tab.
@@ -102,26 +116,35 @@ pub fn specialization_choices(
         .replace(' ', "");
     specs
         .into_iter()
-        .map(|(&id, spec)| SpecializationChoice {
-            id,
-            name: spec.name.clone(),
-            icon_fdid: spec.icon_fdid,
-            role: match spec.role {
-                0 => "Tank",
-                1 => "Healer",
-                2 => "Damage",
-                role => panic!("Unsupported ChrSpecialization role {role} for spec {id}"),
-            }
-            .into(),
-            description: spec.description.clone(),
-            // Blizzard_ClassSpecializationsFrame.lua:13-54, SPEC_FORMAT_STRINGS.
-            thumbnail: format!(
-                "spec-thumbnail-{class}-{}",
-                spec.name.to_lowercase().replace(' ', "")
-            ),
-            active: active_spec == Some(id),
-        })
+        .map(|(&id, spec)| specialization_choice(id, spec, &class, active_spec))
         .collect()
+}
+
+fn specialization_choice(
+    id: u32,
+    spec: &game_engine_core::spell_catalog::SpecTabInfo,
+    class: &str,
+    active_spec: Option<u32>,
+) -> SpecializationChoice {
+    SpecializationChoice {
+        id,
+        name: spec.name.clone(),
+        icon_fdid: spec.icon_fdid,
+        role: match spec.role {
+            0 => "Tank",
+            1 => "Healer",
+            2 => "Damage",
+            role => panic!("Unsupported ChrSpecialization role {role} for spec {id}"),
+        }
+        .into(),
+        description: spec.description.clone(),
+        // Blizzard_ClassSpecializationsFrame.lua:13-54, SPEC_FORMAT_STRINGS.
+        thumbnail: format!(
+            "spec-thumbnail-{class}-{}",
+            spec.name.to_lowercase().replace(' ', "")
+        ),
+        active: active_spec == Some(id),
+    }
 }
 
 /// `PlayerSpellsFrame` (`PortraitFrameTemplate`, Blizzard_PlayerSpellsFrame.xml:5-10):
@@ -326,77 +349,6 @@ impl SpellbookFrameState {
     }
 }
 
-/// A header or item placed in a page view, in unscaled view coordinates.
-#[derive(Clone, Copy, Debug, PartialEq)]
-pub enum Placement {
-    Header {
-        group: usize,
-        y: f32,
-    },
-    Item {
-        group: usize,
-        item: usize,
-        x: f32,
-        y: f32,
-    },
-}
-
-/// `PagedCondensedVerticalGridContentFrameMixin`: each group's header takes a full row,
-/// its items fill `ceil(n / 3)` rows column-first; a view that runs out of height
-/// continues the items (without the header) in the next view. Groups after the first in a
-/// view start after a 20 px spacer.
-pub fn paginate(groups: &[SpellbookGroup]) -> Vec<Vec<Placement>> {
-    let row = ITEM_H + Y_PADDING;
-    let mut views: Vec<Vec<Placement>> = vec![Vec::new()];
-    let mut y = 0.0;
-    for (group_index, group) in groups.iter().enumerate() {
-        if group.items.is_empty() {
-            continue;
-        }
-        if y > 0.0 {
-            y += SPACER;
-        }
-        if y + HEADER_H + ITEM_H > VIEW_H {
-            views.push(Vec::new());
-            y = 0.0;
-        }
-        views.last_mut().expect("a view").push(Placement::Header {
-            group: group_index,
-            y,
-        });
-        y += HEADER_H + Y_PADDING;
-        let mut placed = 0;
-        while placed < group.items.len() {
-            let remaining = group.items.len() - placed;
-            let rows_fit = ((VIEW_H - y + Y_PADDING) / row).floor().max(0.0) as usize;
-            if rows_fit == 0 {
-                views.push(Vec::new());
-                y = 0.0;
-                continue;
-            }
-            let rows = remaining.div_ceil(COLUMNS).min(rows_fit);
-            let count = remaining.min(rows * COLUMNS);
-            let view = views.last_mut().expect("a view");
-            for offset in 0..count {
-                let (column, row_index) = (offset / rows, offset % rows);
-                view.push(Placement::Item {
-                    group: group_index,
-                    item: placed + offset,
-                    x: column as f32 * (ITEM_W + X_PADDING),
-                    y: y + row_index as f32 * row,
-                });
-            }
-            placed += count;
-            y += rows as f32 * row;
-            if placed < group.items.len() {
-                views.push(Vec::new());
-                y = 0.0;
-            }
-        }
-    }
-    views
-}
-
 /// Frame scale and top-left origin for a viewport.
 pub fn frame_layout(viewport: [f32; 2]) -> (f32, [f32; 2]) {
     let [width, height] = viewport;
@@ -495,472 +447,18 @@ fn label(spec: Label<'_>, s: f32) -> Element {
     }
 }
 
-fn background(s: f32) -> Element {
-    [
-        art(
-            "SpellBookBookBGLeft".into(),
-            &BOOK_LEFT,
-            [0.0, BOOK_TOP, BOOK_W / 2.0, BOOK_H - BOOK_TOP],
-            s,
-        ),
-        art(
-            "SpellBookBookBGRight".into(),
-            &BOOK_RIGHT,
-            [BOOK_W / 2.0, BOOK_TOP, BOOK_W / 2.0, BOOK_H - BOOK_TOP],
-            s,
-        ),
-        art(
-            "SpellBookTopBar".into(),
-            &TOP_BAR,
-            [0.0, 0.0, BOOK_W - 2.0, TOP_BAR_H],
-            s,
-        ),
-        art(
-            "SpellBookBookmark".into(),
-            &BOOKMARK,
-            [BOOK_W / 2.0 + 62.0 - 102.0, BOOK_TOP, 102.0, 557.0],
-            s,
-        ),
-        art(
-            "SpellBookCorner".into(),
-            &CORNER,
-            [BOOK_W - 15.0 - 150.0, BOOK_H - 6.0 - 155.0, 150.0, 155.0],
-            s,
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect()
-}
-
-fn tab_width(name: &str) -> f32 {
-    (name.chars().count() as f32 * TAB_GLYPH_W + 40.0).clamp(TAB_MIN_W, TAB_MAX_W)
-}
-
-/// `TabSystemButtonArtTemplate` with `isTabOnTop`: the tab art is flipped vertically.
-fn category_tab(index: usize, name: &str, left: f32, selected: bool, s: f32) -> Element {
-    let width = tab_width(name);
-    let frame = category_tab_name(index);
-    let (left_art, middle_art, right_art, height) = if selected {
-        (ACTIVE_TAB_LEFT, ACTIVE_TAB_MIDDLE, ACTIVE_TAB_RIGHT, 42.0)
-    } else {
-        (TAB_LEFT, TAB_MIDDLE, TAB_RIGHT, 36.0)
-    };
-    let white = "1.0,1.0,1.0,1.0";
-    let pieces: Element = [
-        art_colored(
-            format!("{frame}Left"),
-            &left_art,
-            [0.0, 0.0, 35.0, height],
-            s,
-            white,
-            true,
-        ),
-        art_colored(
-            format!("{frame}Middle"),
-            &middle_art,
-            [35.0, 0.0, width - 35.0 - 31.0, height],
-            s,
-            white,
-            true,
-        ),
-        art_colored(
-            format!("{frame}Right"),
-            &right_art,
-            [width - 31.0, 0.0, 37.0, height],
-            s,
-            white,
-            true,
-        ),
-        label(
-            Label {
-                name: format!("{frame}Text"),
-                text: name,
-                rect: [0.0, 11.0, width, 14.0],
-                size: TAB_TEXT_SIZE,
-                color: if selected {
-                    TAB_TEXT_SELECTED
-                } else {
-                    TAB_TEXT
-                },
-                justify: "CENTER",
-            },
-            s,
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-    rsx! {
-        r#frame {
-            name: {DynName(frame)},
-            width: {width * s},
-            height: {TAB_H * s},
-            onclick: {format!("{ACTION_SPELLBOOK_TAB}{index}")},
-            pos_type: "absolute",
-            pos_x: {left * s},
-            pos_y: {TABS_TOP * s},
-            {pieces}
-        }
-    }
-}
-
-fn category_tabs(state: &SpellbookFrameState, s: f32) -> Element {
-    let mut left = TABS_LEFT;
-    let mut tabs = Vec::new();
-    for (index, category) in state.categories.iter().enumerate() {
-        tabs.extend(category_tab(
-            index,
-            &category.name,
-            left,
-            index == state.selected,
-            s,
-        ));
-        left += tab_width(&category.name) + TAB_SPACING;
-    }
-    tabs
-}
-
-fn header(group: &SpellbookGroup, rect: [f32; 2], s: f32) -> Element {
-    let [x, y] = rect;
-    let name = format!("SpellBookHeader{}", group.name.replace(' ', ""));
-    let children: Element = [
-        art_colored(
-            format!("{name}Backplate"),
-            &HEADER_BACKPLATE,
-            [-85.0, (HEADER_H - 106.0) / 2.0 - 10.0, 416.0, 106.0],
-            s,
-            "1.0,1.0,1.0,0.65",
-            false,
-        ),
-        label(
-            Label {
-                name: format!("{name}Text"),
-                text: &group.name,
-                rect: [-8.0, 6.0, VIEW_W - 60.0 + 8.0, 30.0],
-                size: HEADER_SIZE,
-                color: FONT_COLOR,
-                justify: "LEFT",
-            },
-            s,
-        ),
-        art(
-            format!("{name}Border"),
-            &DIVIDER,
-            [-32.0, HEADER_H - 11.0, VIEW_W - 60.0 + 32.0, 11.0],
-            s,
-        ),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-    rsx! {
-        r#frame {
-            name: {DynName(name)},
-            width: {VIEW_W * s},
-            height: {HEADER_H * s},
-            pos_type: "absolute",
-            pos_x: {x * s},
-            pos_y: {y * s},
-            {children}
-        }
-    }
-}
-
-/// Button border per `SpellBookItemMixin.ArtSet`: Square (-11,1 / 1,-7 active;
-/// -10,1 / 2,-5 inactive) or Circle for passives (all points).
-fn item_border(name: &str, item: &SpellbookItemView, s: f32) -> Element {
-    let top = (ITEM_H - BUTTON_SIZE) / 2.0;
-    let (border, rect) = match (item.passive, item.available_at.is_some()) {
-        (false, false) => (
-            ICON_FRAME,
-            [-11.0, top - 1.0, BUTTON_SIZE + 12.0, BUTTON_SIZE + 8.0],
-        ),
-        (false, true) => (
-            ICON_FRAME_INACTIVE,
-            [-10.0, top - 1.0, BUTTON_SIZE + 12.0, BUTTON_SIZE + 6.0],
-        ),
-        (true, false) => (PASSIVE_FRAME, [0.0, top, BUTTON_SIZE, BUTTON_SIZE]),
-        (true, true) => (PASSIVE_FRAME_INACTIVE, [0.0, top, BUTTON_SIZE, BUTTON_SIZE]),
-    };
-    art(format!("{name}Border"), &border, rect, s)
-}
-
-fn item_texts(name: &str, item: &SpellbookItemView, s: f32) -> Element {
-    let color = if item.available_at.is_some() {
-        UNLEARNED_FONT_COLOR
-    } else {
-        FONT_COLOR
-    };
-    let level = item
-        .available_at
-        .map(|level| format!("{AVAILABLE_AT}{level}"));
-    let lines: Vec<(&str, &str, f32)> = [
-        Some(("Name", item.name.as_str(), NAME_SIZE)),
-        (!item.subtext.is_empty()).then_some(("SubName", item.subtext.as_str(), SUBTEXT_SIZE)),
-        level
-            .as_deref()
-            .map(|text| ("RequiredLevel", text, SUBTEXT_SIZE)),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-    let line_h = |size: f32| size + 3.0;
-    let block: f32 = lines.iter().map(|&(_, _, size)| line_h(size)).sum::<f32>()
-        + 2.0 * (lines.len() as f32 - 1.0);
-    let mut y = (ITEM_H - block) / 2.0 - 1.0;
-    let mut out = Vec::new();
-    for (part, text, size) in lines {
-        out.extend(label(
-            Label {
-                name: format!("{name}{part}"),
-                text,
-                rect: [TEXT_LEFT, y, ITEM_W - TEXT_LEFT, line_h(size)],
-                size,
-                color,
-                justify: "LEFT",
-            },
-            s,
-        ));
-        y += line_h(size) + 2.0;
-    }
-    out
-}
-
-fn item(item: &SpellbookItemView, rect: [f32; 2], s: f32) -> Element {
-    let [x, y] = rect;
-    let name = spell_item_name(item.spell_id);
-    let icon_top = (ITEM_H - ICON_SIZE) / 2.0;
-    let icon_left = (BUTTON_SIZE - ICON_SIZE) / 2.0;
-    let tint = if item.available_at.is_some() {
-        UNLEARNED_TINT
-    } else {
-        "1.0,1.0,1.0,1.0"
-    };
-    let castable = !item.passive && item.available_at.is_none();
-    let onclick = castable.then(|| format!("{ACTION_SPELLBOOK_CAST}{}", item.spell_id));
-    let icon_name = format!("{name}Icon");
-    // A spell whose icon is not drawable yet (FDID 0) has no icon texture.
-    let icon: Element = if item.icon_fdid == 0 {
-        Element::default()
-    } else {
-        rsx! {
-            texture {
-                name: {DynName(icon_name)},
-                width: {ICON_SIZE * s},
-                height: {ICON_SIZE * s},
-                texture_fdid: {item.icon_fdid},
-                vertex_color: tint,
-                pos_type: "absolute",
-                pos_x: {icon_left * s},
-                pos_y: {icon_top * s},
-            }
-        }
-    };
-    let children: Element = [
-        art_colored(
-            format!("{name}Backplate"),
-            &ITEM_BACKPLATE,
-            [
-                (ITEM_W - 256.0) / 2.0 + 5.0,
-                (ITEM_H - 64.0) / 2.0 + 5.0,
-                256.0,
-                64.0,
-            ],
-            s,
-            "1.0,1.0,1.0,0.25",
-            false,
-        ),
-        icon,
-        item_border(&name, item, s),
-        item_texts(&name, item, s),
-    ]
-    .into_iter()
-    .flatten()
-    .collect();
-    let button_name = format!("{name}Button");
-    let button_y = (ITEM_H - BUTTON_SIZE) / 2.0 * s;
-    let button = match onclick {
-        Some(onclick) => rsx! {
-            button {
-                name: {DynName(button_name)},
-                width: {BUTTON_SIZE * s},
-                height: {BUTTON_SIZE * s},
-                onclick,
-                button_default_skin: false,
-                pos_type: "absolute",
-                pos_x: 0.0,
-                pos_y: button_y,
-            }
-        },
-        None => rsx! {
-            button {
-                name: {DynName(button_name)},
-                width: {BUTTON_SIZE * s},
-                height: {BUTTON_SIZE * s},
-                button_default_skin: false,
-                pos_type: "absolute",
-                pos_x: 0.0,
-                pos_y: button_y,
-            }
-        },
-    };
-    rsx! {
-        r#frame {
-            name: {DynName(name)},
-            width: {ITEM_W * s},
-            height: {ITEM_H * s},
-            pos_type: "absolute",
-            pos_x: {x * s},
-            pos_y: {y * s},
-            {children}
-            {button}
-        }
-    }
-}
-
-fn view(
-    state: &SpellbookFrameState,
-    placements: Option<&Vec<Placement>>,
-    index: usize,
-    s: f32,
-) -> Element {
-    let groups = state
-        .selected_category()
-        .map_or(&[][..], |category| category.groups.as_slice());
-    let children: Element = placements
-        .into_iter()
-        .flatten()
-        .flat_map(|placement| match *placement {
-            Placement::Header { group, y } => header(&groups[group], [0.0, y], s),
-            Placement::Item {
-                group,
-                item: index,
-                x,
-                y,
-            } => item(&groups[group].items[index], [x, y], s),
-        })
-        .collect();
-    let left = if index == 0 { VIEW1_LEFT } else { VIEW2_LEFT };
-    rsx! {
-        r#frame {
-            name: {DynName(format!("SpellBookView{}", index + 1))},
-            width: {VIEW_W * s},
-            height: {VIEW_H * s},
-            pos_type: "absolute",
-            pos_x: {left * s},
-            pos_y: {VIEW_TOP * s},
-            {children}
-        }
-    }
-}
-
-fn paging(state: &SpellbookFrameState, s: f32) -> Element {
-    let pages = state.page_count();
-    let page = state.page.min(pages - 1);
-    let text = format!("Page {}/{}", page + 1, pages);
-    let top = PAGING_BOTTOM - PAGE_BUTTON;
-    let next_left = PAGING_RIGHT - PAGE_BUTTON;
-    let prev_left = next_left - PAGING_SPACING - PAGE_BUTTON;
-    let text_left = prev_left - PAGING_SPACING - PAGE_TEXT_W;
-    let prev_art = if page == 0 {
-        PREV_PAGE_DISABLED
-    } else {
-        PREV_PAGE_UP
-    };
-    let next_art = if page + 1 >= pages {
-        NEXT_PAGE_DISABLED
-    } else {
-        NEXT_PAGE_UP
-    };
-    let prev_icon = file_texture(
-        "SpellBookPrevPageButtonIcon".into(),
-        prev_art,
-        [0.0, 0.0, PAGE_BUTTON, PAGE_BUTTON],
-        s,
-    );
-    let next_icon = file_texture(
-        "SpellBookNextPageButtonIcon".into(),
-        next_art,
-        [0.0, 0.0, PAGE_BUTTON, PAGE_BUTTON],
-        s,
-    );
-    let mut out = label(
-        Label {
-            name: "SpellBookPageText".into(),
-            text: &text,
-            rect: [text_left, top + 8.0, PAGE_TEXT_W, 18.0],
-            size: PAGE_TEXT_SIZE,
-            color: FONT_COLOR,
-            justify: "RIGHT",
-        },
-        s,
-    );
-    out.extend(rsx! {
-        r#frame {
-            name: "SpellBookPrevPageButton",
-            width: {PAGE_BUTTON * s},
-            height: {PAGE_BUTTON * s},
-            onclick: ACTION_SPELLBOOK_PREV_PAGE,
-            pos_type: "absolute",
-            pos_x: {prev_left * s},
-            pos_y: {top * s},
-            {prev_icon}
-        }
-        r#frame {
-            name: "SpellBookNextPageButton",
-            width: {PAGE_BUTTON * s},
-            height: {PAGE_BUTTON * s},
-            onclick: ACTION_SPELLBOOK_NEXT_PAGE,
-            pos_type: "absolute",
-            pos_x: {next_left * s},
-            pos_y: {top * s},
-            {next_icon}
-        }
-    });
-    out
-}
-
 pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<SpellbookFrameState>()
         .expect("SpellbookFrameState must be in SharedContext");
     let (s, [x, y]) = frame_layout(state.viewport);
-    let views = state
-        .selected_category()
-        .map(|category| paginate(&category.groups))
-        .unwrap_or_default();
-    let page = state.page.min(state.page_count() - 1);
     let chrome = window_chrome(
         "SpellBook",
         (FRAME_W * s, FRAME_H * s),
         state.tab.title(),
         ACTION_SPELLBOOK_CLOSE,
     );
-    let content = match state.tab {
-        PlayerSpellsTab::Spellbook => rsx! {
-            r#frame {
-                name: "SpellBookFrame",
-                width: {BOOK_W * s}, height: {BOOK_H * s},
-                pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * s},
-                {background(s)}
-                {category_tabs(state, s)}
-                {view(state, views.get(page * 2), 0, s)}
-                {view(state, views.get(page * 2 + 1), 1, s)}
-                {paging(state, s)}
-            }
-        },
-        PlayerSpellsTab::Specialization => player_spells_pages::specializations(state, s),
-        // Retail hides an unavailable Talents tab (PlayerSpellsFrame.lua:95-99),
-        // rather than providing an unavailable page. Keep the requested empty page.
-        PlayerSpellsTab::Talents => rsx! {
-            r#frame {
-                name: "ClassTalentsFrame", width: {BOOK_W * s}, height: {BOOK_H * s},
-                pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * s},
-            }
-        },
-    };
-    let [portrait_x, portrait_y, portrait_w, portrait_h] = PORTRAIT;
+    let content = frame_content(state, s);
     rsx! {
         r#frame {
             name: SPELLBOOK_FRAME,
@@ -974,6 +472,49 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
             {chrome}
             {content}
             {player_spells_pages::bottom_tabs(state, s)}
+            {frame_portrait(state, s)}
+        }
+    }
+}
+
+fn frame_content(state: &SpellbookFrameState, s: f32) -> Element {
+    match state.tab {
+        PlayerSpellsTab::Spellbook => book_page(state, s),
+        PlayerSpellsTab::Specialization => player_spells_pages::specializations(state, s),
+        // Retail hides an unavailable Talents tab (PlayerSpellsFrame.lua:95-99),
+        // rather than providing an unavailable page. Keep the requested empty page.
+        PlayerSpellsTab::Talents => rsx! {
+            r#frame {
+                name: "ClassTalentsFrame", width: {BOOK_W * s}, height: {BOOK_H * s},
+                pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * s},
+            }
+        },
+    }
+}
+
+fn book_page(state: &SpellbookFrameState, s: f32) -> Element {
+    let views = state
+        .selected_category()
+        .map(|category| paginate(&category.groups))
+        .unwrap_or_default();
+    let page = state.page.min(state.page_count() - 1);
+    rsx! {
+        r#frame {
+            name: "SpellBookFrame",
+            width: {BOOK_W * s}, height: {BOOK_H * s},
+            pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * s},
+            {background(s)}
+            {category_tabs(state, s)}
+            {view(state, views.get(page * 2), 0, s)}
+            {view(state, views.get(page * 2 + 1), 1, s)}
+            {paging(state, s)}
+        }
+    }
+}
+
+fn frame_portrait(state: &SpellbookFrameState, s: f32) -> Element {
+    let [portrait_x, portrait_y, portrait_w, portrait_h] = PORTRAIT;
+    rsx! {
             // `PortraitContainer` frameLevel 400, above the book's 100
             // (SharedUIPanelTemplates.xml:551, Blizzard_PlayerSpellsFrame.xml:49).
             texture {
@@ -986,52 +527,5 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
                 pos_x: {portrait_x * s},
                 pos_y: {portrait_y * s},
             }
-        }
-    }
-}
-
-/// Fit only the name into its reserved line; subtext and level retain their layout.
-fn fit_item_name(registry: &mut FrameRegistry, name: &str) {
-    let Some(id) = registry.get_by_name(name) else {
-        return;
-    };
-    let frame = registry.get_mut(id).expect("registered spell name");
-    let (Dimension::Fixed(width), Dimension::Fixed(height)) = (frame.width, frame.height) else {
-        panic!("spell name must have fixed bounds: {name}");
-    };
-    let Some(WidgetData::FontString(text)) = frame.widget_data.as_mut() else {
-        panic!("spell name must be a FontString: {name}");
-    };
-    let (text_width, text_height) = measure_text(&text.text, text.font, text.font_size)
-        .expect("spell name font must be available");
-    let fit = (width.floor() / text_width)
-        .min(height.floor() / text_height)
-        .min(1.0);
-    text.font_size *= fit;
-}
-
-/// Retail desaturates the icons of spells not learned yet (`SetDesaturated`).
-pub fn apply_spellbook_postsetup(state: &SpellbookFrameState, registry: &mut FrameRegistry) {
-    for spec in &state.specializations {
-        let name = format!("ClassSpec{}Description", spec.id);
-        if let Some(id) = registry.get_by_name(&name)
-            && let Some(frame) = registry.get_mut(id)
-            && let Some(WidgetData::FontString(text)) = frame.widget_data.as_mut()
-        {
-            text.word_wrap = true;
-        }
-    }
-    let Some(category) = state.selected_category() else {
-        return;
-    };
-    for item in category.groups.iter().flat_map(|group| &group.items) {
-        fit_item_name(registry, &format!("{}Name", spell_item_name(item.spell_id)));
-        let name = format!("{}Icon", spell_item_name(item.spell_id));
-        if let Some(id) = registry.get_by_name(&name)
-            && let Some(frame) = registry.get_mut(id)
-            && let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut()
-        {
-            texture.desaturated = item.available_at.is_some();
-        }
     }
 }
