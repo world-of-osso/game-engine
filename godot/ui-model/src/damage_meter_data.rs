@@ -10,8 +10,8 @@
 //! group members. Combat log delivery never contributes to these totals.
 
 use shared::protocol::{
-    CombatLogEvent, CombatLogKind, DamageMeterDeathRecap, DamageMeterSession, DamageMeterSnapshot,
-    DamageMeterSource,
+    CombatLogEvent, CombatLogKind, DamageMeterActionSpell, DamageMeterDeathRecap,
+    DamageMeterSession, DamageMeterSnapshot, DamageMeterSource,
 };
 
 use crate::ui::chat_frame::environmental_name;
@@ -23,7 +23,7 @@ pub const ACTION_DAMAGE_METER_CURRENT: &str = "damage_meter:current";
 pub const ACTION_DAMAGE_METER_OVERALL: &str = "damage_meter:overall";
 /// Type dropdown click: open or close the type menu.
 pub const ACTION_DAMAGE_METER_TYPE_MENU: &str = "damage_meter:type_menu";
-/// Row click, followed by the row's index: a death opens its recap, a recap row closes it.
+/// Row click plus index: open member spell detail/recap, or return from detail.
 pub const ACTION_DAMAGE_METER_ROW: &str = "damage_meter:row:";
 
 /// The `Enum.DamageMeterType` values the window offers
@@ -234,9 +234,13 @@ impl DamageMeterView {
         }
     }
 
-    /// Death rows open their server recap; recap rows close it.
+    /// Action rows open spell detail; deaths open recaps. Detail rows return to members.
     pub fn rows_clickable(&self) -> bool {
-        self.recap_open || self.meter_type == MeterType::Deaths
+        self.recap_open
+            || matches!(
+                self.meter_type,
+                MeterType::Deaths | MeterType::Interrupts | MeterType::Dispels
+            )
     }
 }
 
@@ -252,11 +256,14 @@ pub struct DamageMeterWindow {
     pub threat_in_combat: bool,
     /// Names resolved by the host for recap actors outside the snapshot roster.
     pub recap_unit_names: std::collections::BTreeMap<u64, String>,
+    /// Names resolved for both recap and action detail spells from the local catalog.
     pub recap_spell_names: std::collections::BTreeMap<u32, String>,
     pub menu_open: bool,
     pub type_menu_open: bool,
     /// The selected server recap: victim unit and death timestamp.
     pub recap: Option<(u64, u64)>,
+    /// Member whose interrupt/dispel spell detail is open in the selected session.
+    pub spell_source: Option<u64>,
 }
 
 impl DamageMeterWindow {
@@ -342,6 +349,9 @@ impl DamageMeterWindow {
         if self.selected_recap().is_none() {
             self.recap = None;
         }
+        if self.selected_spell_source().is_none() {
+            self.spell_source = None;
+        }
     }
 
     fn category_sources(&self) -> Vec<(&DamageMeterSource, u64)> {
@@ -371,6 +381,9 @@ impl DamageMeterWindow {
         if let Some(recap) = self.selected_recap() {
             return self.recap_rows(recap);
         }
+        if let Some(source) = self.selected_spell_source() {
+            return self.action_spell_rows(source);
+        }
         match self.meter_type {
             MeterType::DamageDone => self.damage_rows(),
             MeterType::Threat => self.threat_rows(),
@@ -379,6 +392,46 @@ impl DamageMeterWindow {
                 category_rows(&self.category_sources(), self.meter_type, duration)
             }
         }
+    }
+
+    fn selected_spell_source(&self) -> Option<&DamageMeterSource> {
+        let unit = self.spell_source?;
+        self.session_data()?
+            .sources
+            .iter()
+            .find(|source| source.unit == unit)
+    }
+
+    fn action_spell_rows(&self, source: &DamageMeterSource) -> Vec<DamageMeterRow> {
+        let spells = match self.meter_type {
+            MeterType::Interrupts => &source.interrupt_spells,
+            MeterType::Dispels => &source.dispel_spells,
+            _ => return Vec::new(),
+        };
+        let max = spells
+            .iter()
+            .map(|spell| spell.total_amount)
+            .max()
+            .unwrap_or(0);
+        spells
+            .iter()
+            .map(|spell| action_spell_row(spell, source, max, self.action_spell_name(spell)))
+            .collect()
+    }
+
+    fn action_spell_name(&self, spell: &DamageMeterActionSpell) -> String {
+        let casting_name = self.spell_name(spell.spell_id);
+        match spell.affected_spell_id {
+            Some(affected) => format!("{casting_name} → {}", self.spell_name(affected)),
+            None => casting_name,
+        }
+    }
+
+    fn spell_name(&self, id: u32) -> String {
+        self.recap_spell_names
+            .get(&id)
+            .cloned()
+            .unwrap_or_else(|| format!("Spell {id}"))
     }
 
     fn selected_recap(&self) -> Option<&DamageMeterDeathRecap> {
@@ -442,11 +495,7 @@ impl DamageMeterWindow {
     fn recap_spell_name(&self, event: &CombatLogEvent) -> String {
         match (event.kind, event.spell_id) {
             (CombatLogKind::Environmental(kind), _) => environmental_name(kind).to_owned(),
-            (_, Some(id)) => self
-                .recap_spell_names
-                .get(&id)
-                .cloned()
-                .unwrap_or_else(|| format!("Spell {id}")),
+            (_, Some(id)) => self.spell_name(id),
             (_, None) => MELEE_LABEL.to_owned(),
         }
     }
@@ -472,7 +521,7 @@ impl DamageMeterWindow {
         }
         if let Some(meter_type) = MeterType::ALL.into_iter().find(|t| t.action() == action) {
             self.meter_type = meter_type;
-            self.close_menus_and_recap();
+            self.close_menus_and_detail();
             return Ok(());
         }
         match action {
@@ -486,39 +535,49 @@ impl DamageMeterWindow {
             }
             ACTION_DAMAGE_METER_CURRENT => {
                 self.session = MeterSessionType::Current;
-                self.close_menus_and_recap();
+                self.close_menus_and_detail();
             }
             ACTION_DAMAGE_METER_OVERALL => {
                 self.session = MeterSessionType::Overall;
-                self.close_menus_and_recap();
+                self.close_menus_and_detail();
             }
             other => return Err(format!("Unknown damage meter action: {other}")),
         }
         Ok(())
     }
 
-    fn close_menus_and_recap(&mut self) {
+    fn close_menus_and_detail(&mut self) {
         self.menu_open = false;
         self.type_menu_open = false;
         self.recap = None;
+        self.spell_source = None;
     }
 
-    /// Open a member's latest exported recap; a recap row closes it.
+    /// Open a member's server detail; a detail row returns to the member list.
     fn click_row(&mut self, index: usize) -> Result<(), String> {
-        if self.recap.take().is_some() {
+        if self.recap.take().is_some() || self.spell_source.take().is_some() {
             return Ok(());
-        }
-        if self.meter_type != MeterType::Deaths {
-            return Err(format!("{:?} rows are not clickable", self.meter_type));
         }
         let sources = self.category_sources();
         let (source, _) = sources
             .get(index)
-            .ok_or_else(|| format!("No death row {index}"))?;
-        self.recap = source
-            .death_recaps
-            .last()
-            .map(|r| (source.unit, r.timestamp_unix_ms));
+            .ok_or_else(|| format!("No meter row {index}"))?;
+        match self.meter_type {
+            MeterType::Interrupts if !source.interrupt_spells.is_empty() => {
+                self.spell_source = Some(source.unit)
+            }
+            MeterType::Dispels if !source.dispel_spells.is_empty() => {
+                self.spell_source = Some(source.unit)
+            }
+            MeterType::Interrupts | MeterType::Dispels => {}
+            MeterType::Deaths => {
+                self.recap = source
+                    .death_recaps
+                    .last()
+                    .map(|r| (source.unit, r.timestamp_unix_ms));
+            }
+            _ => return Err(format!("{:?} rows are not clickable", self.meter_type)),
+        }
         Ok(())
     }
 
@@ -533,6 +592,26 @@ impl DamageMeterWindow {
             type_menu_open: self.type_menu_open,
             recap_open: self.recap.is_some(),
         }
+    }
+}
+
+fn action_spell_row(
+    spell: &DamageMeterActionSpell,
+    source: &DamageMeterSource,
+    max: u64,
+    name_text: String,
+) -> DamageMeterRow {
+    DamageMeterRow {
+        name_text,
+        value_text: abbreviate_large_number(spell.total_amount),
+        fraction: if max > 0 {
+            spell.total_amount as f32 / max as f32
+        } else {
+            0.0
+        },
+        color: class_color(source.class_id),
+        class_id: source.class_id,
+        is_local_player: source.is_local_player,
     }
 }
 
@@ -665,7 +744,9 @@ mod tests {
             overhealing: 0,
             absorbs: 0,
             interrupts: 0,
+            interrupt_spells: vec![],
             dispels: 0,
+            dispel_spells: vec![],
             deaths: 0,
             death_recaps: vec![],
         }
