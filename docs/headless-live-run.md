@@ -34,7 +34,7 @@ cp -a --reflink=auto "$RESOLVER_SOURCE" "$RESOLVER"
 
 Use a fresh destination for that copy. Reusing an existing owned warm cache is fine; do not nest another cache copy inside it. Set `ASSET_RESOLVER_CACHE_DIR=$RESOLVER` and `ASSET_RESOLVER_SHARED_DATA_DIR=$W/data` for the client.
 
-Before launch, ensure `$W/data` is an owned writable directory, not a whole-directory link to canonical data. Existing immutable assets may be file symlinks, but directories receiving extraction must be owned, and `casc/` and `cache/` must be copies. Do not write through shared directory links. Preserve existing assets and caches; do not delete `target/`, CASC tables or the resolver cache to obtain a cold run. [Asset pipeline](wiki/systems/asset-pipeline.md) owns extraction details.
+Before launch, follow the [warm-slot data-link setup](remote-builds.md#shared-worktree-data). Keep `$W/data` itself local for endpoint auth tokens and tracked art; untracked asset directories are shared links. Extraction to `$W/data/textures`, models, terrain, DB2, sounds and cache writes go through those links into canonical data. Do not isolate or copy those directories into the slot. Preserve existing assets and caches; do not delete `target/`, CASC tables or the resolver cache to obtain a cold run. The resolver cache above remains run-owned. [Asset pipeline](wiki/systems/asset-pipeline.md) owns extraction details.
 
 ## 2. Stage and start the private server
 
@@ -113,7 +113,7 @@ LD_LIBRARY_PATH="$WSL_LIB"
 
 Pass those assignments to `env` as below; setting shell variables alone does not export them. Dozen is test-only/nonconformant; [capability limits and retirement condition](remote-builds.md#desktop-runtime-capability-boundary) remain applicable. Unset `DISPLAY`; use only the private `WAYLAND_DISPLAY` for rendered runs. For displayless driver enumeration unset both display variables.
 
-Use the already built/imported matching extension and IPC CLI. If `godot/.godot/extension_list.cfg` is missing, perform one owned `--headless --audio-driver Dummy --path "$W/godot" --editor --import --quit` under the isolated config/data/resolver environment first. Import is not rendered gameplay evidence. Build through the [warm-slot workflow](remote-builds.md#warm-slot-rule), explicitly on `local` on this host; never bypass it with extension Cargo.
+Use the already built/imported matching extension and IPC CLI. If `godot/.godot/extension_list.cfg` is missing, perform one owned `--headless --audio-driver Dummy --path "$W/godot" --editor --import --quit` under the isolated config/userdata/resolver environment first. Import is not rendered gameplay evidence. Build through the [warm-slot workflow](remote-builds.md#warm-slot-rule), explicitly on `local` on this host; never bypass it with extension Cargo.
 
 Normal scene startup plus JS UI automation:
 

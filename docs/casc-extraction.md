@@ -1,5 +1,7 @@
 # CASC Asset Extraction
 
+For agent slots, complete [shared data setup](remote-builds.md#shared-worktree-data) before extracting to the `data/` paths below.
+
 ## Local WoW Install
 
 Full WoW installation synced from Windows via Syncthing:
