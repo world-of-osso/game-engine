@@ -30,6 +30,26 @@ Pinned shared protocol `f1d0452`, `src/protocol/gameplay_messages.rs:565-588`, s
 
 Tap-denied is also blocked. Server `crates/server/src/creature_tap.rs:27-33,76-104` stores character-ID tappers, subgroup sharing and damage requirements locally. Shared `UnitFlags` (`src/components/unit_frames.rs:209-249`) carries selection/attackability/pet combat flags, not viewer-relative tap-denied. The protocol registration and client codec contain no tap owner/list or equivalent viewer eligibility component. Health, threat membership and faction reaction cannot establish tap eligibility. No guessed grey rendering is added.
 
+## Behavioral proof (2026-10-06)
+
+Production code at `0c7e60da`: locked, local, agent-run targeted `deathstate` run compiled all three packages without warnings. Ten tests passed; the marker fixture failed because it omitted required `ActiveSkin` context, not because of a production renderer failure. Test-only `5ba715aa` supplies that context. Its single-test rerun is queued behind the shared build lock, held by an unrelated publishing upload; the upload is outside this task's authority. No further production changes invalidate the ten passing results.
+
+| Test | Result |
+|---|---|
+| `deathstate_default_bridge_receives_snapshot_over_udp` | PASS |
+| `deathstate_account_dispatches_snapshot_and_error` | PASS |
+| `deathstate_udp_snapshot_popup_account_request_both_skins` | PASS: release, corpse and healer requests reach real loopback server through production Account sending |
+| `deathstate_dead_popup_release_both_skins` | PASS |
+| `deathstate_ghost_corpse_range_recovery_both_skins` | PASS |
+| `deathstate_spirit_healer_accept_both_skins` | PASS |
+| `deathstate_wrong_map_and_leaving_range_hide_stale_corpse` | PASS |
+| `deathstate_refusal_preserves_snapshot_and_unlocks_retry` | PASS |
+| `deathstate_healer_cancel_reopen_and_range` | PASS |
+| `deathstate_healer_requires_interaction` | PASS |
+| `deathstate_corpse_marker_and_edge_arrow_both_skins` | PENDING corrected fixture rerun |
+
+Full run: `/tmp/claude/deathstate-0c7e60da.out` (overall exit 101 due to marker fixture). Pending rerun: `/tmp/claude/deathstate-marker.{stdout,stderr}`, PID 2494650. Changed-file Cargo formatting checks pass. Rust readability manually audited; analyzer unavailable. These are CPU registry/UDP proofs, not native GPU/visual equivalence or live realm acceptance. Resurrection-offer and tap-denied tests cannot be instantiated with the pinned wire schema.
+
 ## Sources
 
 - [Client subscription](../../../godot/network/src/lib.rs)

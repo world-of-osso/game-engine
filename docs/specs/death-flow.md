@@ -4,13 +4,14 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 
 ## What it must do
 
-- [ ] Default transport receives `DeathStateUpdate`; account dispatch preserves snapshot/error.
-- [ ] Dead snapshot shows `DEATH`; Release Spirit sends `ReleaseSpirit` on `DeathChannel`, once per answer.
+- [x] Default transport receives `DeathStateUpdate`; account dispatch preserves snapshot/error.
+- [x] Dead snapshot shows `DEATH`; Release Spirit sends `ReleaseSpirit` on `DeathChannel`, once per answer.
 - [ ] Ghost snapshot enables ghost visuals and a corpse minimap marker/edge arrow on the corpse's map.
-- [ ] Ghost proximity to the corpse shows `RECOVER_CORPSE`; Accept sends `ResurrectAtCorpse`. Leaving range/map hides it.
-- [ ] Interacting with a spirit healer near the graveyard opens confirmation; Accept sends `AcceptSpiritHealerResurrection`. Server refusal is visible and permits retry.
+- [x] Ghost proximity to the corpse shows `RECOVER_CORPSE`; Accept sends `ResurrectAtCorpse`. Leaving range/map hides it.
+- [x] Spirit healer confirmation Accept sends `AcceptSpiritHealerResurrection`; cancellation, range exit and retries retain authoritative state.
+- [ ] Live InteractUnit/right-click on a spirit healer opens the confirmation (implemented; native process proof pending).
 - [ ] Alive clears death popups, ghost appearance and corpse marker. Disconnect resets owner state.
-- [ ] Popup text, labels and click actions work in both skins.
+- [x] Popup text, labels and click actions work in both skins.
 
 ## How it works
 
@@ -34,6 +35,9 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 - `godot/network/src/deathstate_fixture.rs`: feature-gated loopback server for that host integration test.
 
 ## Known gaps (current cycle)
+
+- [ ] Corrected corpse-marker fixture rerun queued behind unrelated publishing operation's shared build lock; details and exact proof scopes in the [proof ledger](../wiki/systems/death-flow.md#behavioral-proof-2026-10-06).
+- [ ] Ghost transparency/native GPU appearance not runtime-proven; preserve documented host compositor mitigation.
 
 - [ ] `RESURRECT` from another player is blocked: pinned protocol has no offer, caster name, offer identifier/expiry, or accept/decline request. Shared pure `cast_resurrect` is not a wire message or a server offer handler.
 - [ ] Tap-denied greying is blocked: server `CreatureTap.tappers` is server-local; replicated `UnitFlags` has no viewer-relative tap-denied flag; shared schema has no tap list/owner component.
