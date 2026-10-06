@@ -37,8 +37,12 @@ GM-only editing, immutable rank zero, occupied deletion and member hierarchy.
 `guild_rank_frame.rs` renders the communities roster and its Guild Settings button,
 then the rank list, permissions, gold and purchased-tab controls. Shared panel chrome
 resolves the active Modern/Forever metal family. Disabled editors render read-only
-values; disabled buttons emit no actions. Member menu actions use the same hierarchy
-checks as request generation.
+values; disabled buttons emit no actions. Guild Master limits display Unlimited.
+Member menu actions use the same hierarchy checks as request generation; roster
+paging keeps members inside the window. A query or mutation disables writes until
+`apply` receives authoritative state, preventing consecutive permission clicks from
+sending a full bitmap derived from stale state. Immediate send failure clears that
+wait. Selected rank data is never edited optimistically.
 
 `godot/rust/src/guild_ranks.rs` owns the native canvas and polls its action queue.
 `account.rs` sends `GuildRankRequest` on ordered-reliable `GuildChannel`; the network

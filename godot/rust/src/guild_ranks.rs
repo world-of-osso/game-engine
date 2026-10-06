@@ -5,7 +5,7 @@ use game_engine_ui_model::bank::InputTexts;
 use game_engine_ui_model::guild_rank_frame::{GOLD_BOX, NAME_BOX};
 use game_engine_ui_model::guild_ranks::GuildRanksSession;
 use godot::prelude::*;
-use shared::protocol::GuildRanksState;
+use shared::protocol::{GuildRankRequest, GuildRanksState};
 
 #[derive(Default)]
 pub(crate) struct GuildRanks {
@@ -34,10 +34,18 @@ impl GameClient {
             self.close_guild_ranks();
         } else {
             let request = self.guild_ranks.session.open();
-            self.account.send_guild_rank_request(request)?;
+            self.send_guild_rank_request(request)?;
         }
         Ok(())
     }
+    fn send_guild_rank_request(&mut self, request: GuildRankRequest) -> Result<(), FrameError> {
+        if let Err(error) = self.account.send_guild_rank_request(request) {
+            self.guild_ranks.session.awaiting_state = false;
+            return Err(error.into());
+        }
+        Ok(())
+    }
+
     pub(super) fn close_guild_ranks(&mut self) -> bool {
         let visible = self.guild_ranks.session.visible;
         self.guild_ranks.session.visible = false;
@@ -78,7 +86,7 @@ impl GameClient {
             }
             let texts = read_inputs(&mut ui, &self.guild_ranks.session);
             if let Some(request) = self.guild_ranks.session.click(&action, &texts) {
-                self.account.send_guild_rank_request(request)?;
+                self.send_guild_rank_request(request)?;
             }
             if !self.guild_ranks.session.visible {
                 break;

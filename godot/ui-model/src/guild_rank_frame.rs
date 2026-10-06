@@ -201,6 +201,15 @@ fn settings(session: &GuildRanksSession) -> Element {
         children.extend(gold_controls(rank, editable, session.selected_index() == 0));
         children.extend(tab_controls(session, rank, editable));
     }
+    if session.awaiting_state {
+        children.extend(title(
+            "GuildRanksPending",
+            "Waiting for guild update…",
+            244.0,
+            704.0,
+            620.0,
+        ));
+    }
     rsx! { r#frame { name: {DynName("GuildControlUI".into())}, width: WIDTH, height: HEIGHT,
     left: 440.0, top: 130.0, pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::Dialog, {children} } }
 }
@@ -228,7 +237,7 @@ fn rank_list(session: &GuildRanksSession) -> Element {
         }
     }
     let current = session.selected().map(|r| r.name.as_str()).unwrap_or("");
-    let leader = session.state().is_some_and(|s| s.own_rank == 0);
+    let leader = session.state().is_some_and(|s| s.own_rank == 0) && !session.awaiting_state;
     children.extend(title(
         "GuildRankNameLabel",
         "Rank name (15 characters)",

@@ -6,6 +6,7 @@ pub const ROSTER_PAGE_SIZE: usize = 9;
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct GuildRanksSession {
     pub visible: bool,
+    pub awaiting_state: bool,
     pub settings_open: bool,
     pub member_menu: Option<String>,
     pub error: Option<String>,
@@ -17,10 +18,12 @@ pub struct GuildRanksSession {
 impl GuildRanksSession {
     pub fn open(&mut self) -> GuildRankRequest {
         self.visible = true;
+        self.awaiting_state = true;
         GuildRankRequest::Query
     }
 
     pub fn apply(&mut self, state: GuildRanksState) {
+        self.awaiting_state = false;
         self.error = state.error.map(|error| error.message().to_owned());
         self.selected_rank = self.selected_rank.min(state.ranks.len().saturating_sub(1));
         self.roster_page = self
@@ -64,7 +67,7 @@ impl GuildRanksSession {
         texts: &crate::bank::InputTexts,
     ) -> Option<GuildRankRequest> {
         let input = |name: &str| texts.get(name).map(String::as_str).unwrap_or_default();
-        match action {
+        let request = match action {
             "guild:close" => {
                 self.visible = false;
                 self.settings_open = false;
@@ -99,7 +102,11 @@ impl GuildRanksSession {
             "guild:promote" => self.promote(self.member_menu.as_deref()?),
             "guild:demote" => self.demote(self.member_menu.as_deref()?),
             _ => self.indexed_click(action, texts),
+        };
+        if request.is_some() {
+            self.awaiting_state = true;
         }
+        request
     }
 
     fn indexed_click(
@@ -154,6 +161,9 @@ impl GuildRanksSession {
 
     fn editable_rank(&self) -> Option<(u8, &GuildRankSettings)> {
         let state = self.state.as_ref()?;
+        if self.awaiting_state {
+            return None;
+        }
         if state.own_rank != 0 || self.selected_rank == 0 {
             return None;
         }
@@ -208,6 +218,9 @@ impl GuildRanksSession {
     }
 
     pub fn add_rank(&self, name: &str) -> Option<GuildRankRequest> {
+        if self.awaiting_state {
+            return None;
+        }
         let state = self.state.as_ref()?;
         if state.own_rank != 0 || state.ranks.len() >= GUILD_MAX_RANKS {
             return None;
@@ -254,6 +267,9 @@ impl GuildRanksSession {
     }
 
     fn change_member_rank(&self, name: &str, promote: bool) -> Option<GuildRankRequest> {
+        if self.awaiting_state {
+            return None;
+        }
         let state = self.state.as_ref()?;
         let own = state.ranks.get(usize::from(state.own_rank))?;
         let right = if promote {
