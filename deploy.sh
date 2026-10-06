@@ -17,8 +17,8 @@ DESTINATION=${DESTINATION:-woo-r2:worldofosso-client}
 
 # Runtime data: what the client reads from data/ that a player's WoW install cannot supply.
 # An allowlist, because data/ also holds auth tokens and gigabytes of diagnostics.
-DATA_DIRS=(cache campsite-ui db2 dbfilesclient fogs fonts glues item-models los minimap
-    models music reference sounds tactkeys terrain textures ui)
+DATA_DIRS=(cache campsite-ui db2 dbfilesclient fogs fonts forever-1.60.1.70205 glues item-models
+    los minimap models music reference sounds tactkeys terrain textures ui)
 DATA_FILE_GLOBS=('*.csv' '*.ron' local-listfile-cache.sqlite)
 # Inside those: negative-extraction markers, lock files, superseded resolver/NPC caches.
 DATA_EXCLUDES=('*.missing' '*.lock' cache/casc 'cache/pre-retail-*')
