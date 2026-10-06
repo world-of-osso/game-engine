@@ -13,6 +13,7 @@ fn build(view: LauncherView) -> FrameRegistry {
 }
 
 fn build_skin(view: LauncherView, skin: ActiveSkin) -> FrameRegistry {
+    load_icon_tables();
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
     shared.insert(skin);
