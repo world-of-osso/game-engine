@@ -21,16 +21,33 @@ pub struct DeathFlow {
     pub snapshot: Option<DeathSnapshot>,
     active: Option<&'static str>,
     pending: bool,
-    dismissed_healer: bool,
+    healer_requested: bool,
 }
 impl DeathFlow {
     /// Error-only replies retain the last snapshot and unlock retry.
     pub fn receive(&mut self, update: DeathStateUpdate) -> Option<String> {
         if let Some(snapshot) = update.snapshot {
+            if snapshot.state != DeathStateSnapshot::Ghost {
+                self.healer_requested = false;
+            }
             self.snapshot = Some(snapshot);
         }
         self.pending = false;
         update.error
+    }
+
+    /// An explicit interaction with the healer opens XP_LOSS, not arrival at the graveyard.
+    pub fn request_spirit_healer(&mut self, position: &DeathPositionSnapshot) -> bool {
+        let graveyard = self
+            .snapshot
+            .as_ref()
+            .and_then(|snapshot| snapshot.graveyard.as_ref());
+        let available =
+            self.is_ghost() && in_range(position, graveyard, shared::death::SPIRIT_HEALER_RANGE);
+        if available {
+            self.healer_requested = true;
+        }
+        available
     }
 
     pub fn is_ghost(&self) -> bool {
@@ -53,25 +70,31 @@ impl DeathFlow {
         let snapshot = self.snapshot.as_ref()?;
         match snapshot.state {
             DeathStateSnapshot::Dead => Some(DEATH_POPUP),
-            DeathStateSnapshot::Ghost => {
-                let position = position?;
-                if in_range(
-                    position,
-                    snapshot.corpse.as_ref(),
-                    shared::death::CORPSE_RESURRECT_RANGE,
-                ) {
-                    Some(CORPSE_POPUP)
-                } else if in_range(
-                    position,
-                    snapshot.graveyard.as_ref(),
-                    shared::death::SPIRIT_HEALER_RANGE,
-                ) {
-                    Some(HEALER_POPUP)
-                } else {
-                    None
-                }
-            }
+            DeathStateSnapshot::Ghost => self.ghost_popup_key(snapshot, position?),
             DeathStateSnapshot::Alive | DeathStateSnapshot::Resurrecting => None,
+        }
+    }
+
+    fn ghost_popup_key(
+        &self,
+        snapshot: &DeathSnapshot,
+        position: &DeathPositionSnapshot,
+    ) -> Option<&'static str> {
+        let healer_in_range = in_range(
+            position,
+            snapshot.graveyard.as_ref(),
+            shared::death::SPIRIT_HEALER_RANGE,
+        );
+        if self.healer_requested && healer_in_range {
+            Some(HEALER_POPUP)
+        } else if in_range(
+            position,
+            snapshot.corpse.as_ref(),
+            shared::death::CORPSE_RESURRECT_RANGE,
+        ) {
+            Some(CORPSE_POPUP)
+        } else {
+            None
         }
     }
 
@@ -83,7 +106,7 @@ impl DeathFlow {
     ) {
         let key = self.popup_key(position);
         if key != Some(HEALER_POPUP) {
-            self.dismissed_healer = false;
+            self.healer_requested = false;
         }
         self.active = key;
         for stale in DEATH_KEYS
@@ -93,7 +116,7 @@ impl DeathFlow {
             popups.hide(stale);
         }
         let Some(key) = key else { return };
-        if self.pending || (key == HEALER_POPUP && self.dismissed_healer) {
+        if self.pending {
             popups.hide(key);
         } else if !popups.contains(key) {
             popups.push(popup_spec(key, level));
@@ -107,7 +130,9 @@ impl DeathFlow {
         let key = self.active?;
         let result = results.iter().find(|result| result.key == key)?;
         if result.outcome != PopupOutcome::Accepted {
-            self.dismissed_healer = key == HEALER_POPUP;
+            if key == HEALER_POPUP {
+                self.healer_requested = false;
+            }
             return None;
         }
         self.pending = true;
@@ -118,6 +143,32 @@ impl DeathFlow {
             _ => unreachable!("death flow selects only death popup keys"),
         }
     }
+}
+
+/// Own corpse marker; a distant corpse stays on the map edge in its true direction.
+pub fn corpse_minimap_blip(
+    flow: &DeathFlow,
+    view: &game_engine_core::minimap_data::MinimapView,
+    map_id: u32,
+) -> Option<crate::minimap::MinimapBlip> {
+    use game_engine_core::minimap_data::MapMask;
+    let corpse = flow
+        .corpse()
+        .filter(|corpse| u32::from(corpse.map_id) == map_id)?;
+    let right = (corpse.z - view.center[1]) / view.diameter;
+    let down = (view.center[0] - corpse.x) / view.diameter;
+    // Keep the entire arrow inside both skins' map masks.
+    const EDGE_OFFSET: f32 = 0.44;
+    let distance = match view.mask {
+        MapMask::Round => right.hypot(down),
+        MapMask::Square => right.abs().max(down.abs()),
+    };
+    let scale = EDGE_OFFSET / distance.max(EDGE_OFFSET);
+    Some(crate::minimap::MinimapBlip {
+        unit: 0,
+        kind: crate::minimap::BlipKind::Corpse,
+        offset: [right * scale, down * scale],
+    })
 }
 
 fn in_range(
@@ -161,9 +212,9 @@ fn healer_text(level: u8) -> String {
     // Retail CONFIRM_XP_LOSS/NO_SICKNESS (GlobalStrings.csv:1910,4231), formatted
     // with pinned realm's 25% loss and ten-minute sickness, rather than promising 50%.
     if level < shared::death::RES_SICKNESS_MIN_LEVEL {
-        "If you find your corpse, you can resurrect for no penalty.  If I resurrect you all of your items will take 25% durability damage (equipped and inventory).".into()
+        "If you find your corpse, you can resurrect for no penalty.  If I resurrect you all of your equipped items will take 25% durability damage.".into()
     } else {
-        "If you find your corpse, you can resurrect for no penalty.  If I resurrect you all of your items will take 25% durability damage (equipped and inventory) and you will be afflicted by 10 minutes of |cff71d5ff|Hspell:15007|h[Resurrection Sickness]|h|r.".into()
+        "If you find your corpse, you can resurrect for no penalty.  If I resurrect you all of your equipped items will take 25% durability damage and you will be afflicted by 10 minutes of |cff71d5ff|Hspell:15007|h[Resurrection Sickness]|h|r.".into()
     }
 }
 
@@ -227,6 +278,9 @@ mod tests {
             .unwrap();
         let action = button.onclick.as_deref().expect("click action");
         let (id, outcome) = parse_popup_action(action).expect("popup action");
+        assert!(
+            matches!(button.widget_data.as_ref(), Some(ui_toolkit::frame::WidgetData::Button(data)) if data.text == label)
+        );
         assert_eq!(stack.visible()[0].spec.accept_label, label);
         assert!(stack.resolve(id, outcome));
         stack.drain_results()
@@ -271,11 +325,159 @@ mod tests {
         }
     }
     #[test]
+    fn deathstate_corpse_marker_and_edge_arrow_both_skins() {
+        use crate::minimap::{MinimapClusterState, cluster_style, minimap_cluster_screen};
+        use game_engine_core::minimap_data::MinimapView;
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            set_thread_skin(skin);
+            let mut flow = DeathFlow::default();
+            flow.receive(update(DeathStateSnapshot::Ghost));
+            let view = MinimapView::new([12.0, -7.0], 0).masked(cluster_style(skin).mask);
+            let marker = corpse_minimap_blip(&flow, &view, 0).expect("own corpse marker");
+            assert_eq!(marker.offset, [0.0, 0.0]);
+            let distant = MinimapView::new([-2000.0, -7.0], 0).masked(cluster_style(skin).mask);
+            let edge = corpse_minimap_blip(&flow, &distant, 0).expect("off-map corpse arrow");
+            assert!(edge.offset[1] < -0.4 && edge.offset[1] > -0.5);
+            assert!(corpse_minimap_blip(&flow, &view, 1).is_none(), "wrong map");
+            let mut shared = SharedContext::new();
+            let state = MinimapClusterState {
+                blips: vec![edge],
+                ..Default::default()
+            };
+            shared.insert(state.clone());
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(minimap_cluster_screen).sync(&shared, &mut registry);
+            crate::minimap::apply_minimap_postsetup(&state, &mut registry);
+            let frame = registry
+                .get(
+                    registry
+                        .get_by_name("MinimapCorpse0")
+                        .expect("visible corpse arrow"),
+                )
+                .unwrap();
+            let Some(ui_toolkit::frame::WidgetData::Texture(texture)) = frame.widget_data.as_ref()
+            else {
+                panic!("corpse arrow texture");
+            };
+            assert_eq!(
+                texture.source,
+                ui_toolkit::widgets::texture::TextureSource::FileDataId(
+                    crate::minimap::CORPSE_ARROW_FDID
+                )
+            );
+            assert_eq!(texture.rotation, 0.0, "north-pointing edge arrow");
+            assert!(
+                crate::minimap::minimap_texture_fdids(&state, skin)
+                    .contains(&crate::minimap::CORPSE_ARROW_FDID)
+            );
+            let diagonal = MinimapView::new([1012.0, -1007.0], 0).masked(cluster_style(skin).mask);
+            let arrow = corpse_minimap_blip(&flow, &diagonal, 0).unwrap();
+            let expected = if skin == ActiveSkin::Modern {
+                0.31112698
+            } else {
+                0.44
+            };
+            for offset in arrow.offset {
+                assert!((offset - expected).abs() < 0.00001);
+            }
+            flow.receive(update(DeathStateSnapshot::Alive));
+            assert!(corpse_minimap_blip(&flow, &view, 0).is_none());
+        }
+    }
+
+    #[test]
+    fn deathstate_wrong_map_and_leaving_range_hide_stale_corpse() {
+        let mut flow = DeathFlow::default();
+        let mut stack = PopupStack::default();
+        flow.receive(update(DeathStateSnapshot::Ghost));
+        flow.sync_popups(&mut stack, Some(&at(15.0)), 60);
+        let old_popup = stack.visible()[0].clone();
+        let mut wrong_map = at(15.0);
+        wrong_map.map_id = 1;
+        flow.sync_popups(&mut stack, Some(&wrong_map), 60);
+        assert!(!stack.is_open());
+        assert_eq!(
+            flow.popup_results(&[PopupResult {
+                id: old_popup.id,
+                key: old_popup.spec.key,
+                outcome: crate::popup::PopupOutcome::Accepted
+            }]),
+            None
+        );
+        flow.sync_popups(&mut stack, Some(&at(15.0)), 60);
+        assert!(stack.contains(CORPSE_POPUP));
+        flow.sync_popups(&mut stack, Some(&at(100.0)), 60);
+        assert!(!stack.is_open());
+    }
+
+    #[test]
+    fn deathstate_refusal_preserves_snapshot_and_unlocks_retry() {
+        let mut flow = DeathFlow::default();
+        let mut stack = PopupStack::default();
+        flow.receive(update(DeathStateSnapshot::Dead));
+        flow.sync_popups(&mut stack, Some(&at(12.0)), 60);
+        stack.accept_top();
+        assert_eq!(
+            flow.popup_results(&stack.drain_results()),
+            Some(DeathRequest::Release)
+        );
+        let error = flow.receive(DeathStateUpdate {
+            snapshot: None,
+            message: None,
+            error: Some("unable to release spirit here".into()),
+        });
+        assert_eq!(error.as_deref(), Some("unable to release spirit here"));
+        flow.sync_popups(&mut stack, Some(&at(12.0)), 60);
+        assert!(stack.contains(DEATH_POPUP));
+        stack.accept_top();
+        assert_eq!(
+            flow.popup_results(&stack.drain_results()),
+            Some(DeathRequest::Release)
+        );
+    }
+
+    #[test]
+    fn deathstate_healer_cancel_reopen_and_range() {
+        let mut flow = DeathFlow::default();
+        let mut stack = PopupStack::default();
+        flow.receive(update(DeathStateSnapshot::Ghost));
+        assert!(!flow.request_spirit_healer(&at(100.0)));
+        let mut other_map = at(203.0);
+        other_map.map_id = 1;
+        assert!(!flow.request_spirit_healer(&other_map));
+        assert!(flow.request_spirit_healer(&at(203.0)));
+        flow.sync_popups(&mut stack, Some(&at(203.0)), 60);
+        stack.cancel_top();
+        assert_eq!(flow.popup_results(&stack.drain_results()), None);
+        flow.sync_popups(&mut stack, Some(&at(203.0)), 60);
+        assert!(!stack.is_open());
+        assert!(flow.request_spirit_healer(&at(203.0)));
+        flow.sync_popups(&mut stack, Some(&at(203.0)), 60);
+        assert!(stack.contains(HEALER_POPUP));
+        flow.sync_popups(&mut stack, Some(&at(100.0)), 60);
+        assert!(!stack.is_open(), "moving away closes confirmation");
+    }
+
+    #[test]
+    fn deathstate_healer_requires_interaction() {
+        let mut flow = DeathFlow::default();
+        let mut stack = PopupStack::default();
+        flow.receive(update(DeathStateSnapshot::Ghost));
+        flow.sync_popups(&mut stack, Some(&at(203.0)), 60);
+        assert!(
+            !stack.is_open(),
+            "Retail healer confirmation starts on interaction, not release"
+        );
+    }
+
+    #[test]
     fn deathstate_spirit_healer_accept_both_skins() {
         for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
             let mut flow = DeathFlow::default();
             let mut stack = PopupStack::default();
             flow.receive(update(DeathStateSnapshot::Ghost));
+            flow.sync_popups(&mut stack, Some(&at(203.0)), 60);
+            assert!(flow.request_spirit_healer(&at(203.0)));
             flow.sync_popups(&mut stack, Some(&at(203.0)), 60);
             assert!(stack.contains("XP_LOSS"));
             let text = stack.visible()[0].spec.text.clone();

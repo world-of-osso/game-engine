@@ -8,7 +8,7 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 - [ ] Dead snapshot shows `DEATH`; Release Spirit sends `ReleaseSpirit` on `DeathChannel`, once per answer.
 - [ ] Ghost snapshot enables ghost visuals and a corpse minimap marker/edge arrow on the corpse's map.
 - [ ] Ghost proximity to the corpse shows `RECOVER_CORPSE`; Accept sends `ResurrectAtCorpse`. Leaving range/map hides it.
-- [ ] Near the graveyard, offer spirit healer confirmation; Accept sends `AcceptSpiritHealerResurrection`. Server refusal is visible and permits retry.
+- [ ] Interacting with a spirit healer near the graveyard opens confirmation; Accept sends `AcceptSpiritHealerResurrection`. Server refusal is visible and permits retry.
 - [ ] Alive clears death popups, ghost appearance and corpse marker. Disconnect resets owner state.
 - [ ] Popup text, labels and click actions work in both skins.
 
@@ -35,7 +35,7 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 
 - [ ] `RESURRECT` from another player is blocked: pinned protocol has no offer, caster name, offer identifier/expiry, or accept/decline request. Shared pure `cast_resurrect` is not a wire message or a server offer handler.
 - [ ] Tap-denied greying is blocked: server `CreatureTap.tappers` is server-local; replicated `UnitFlags` has no viewer-relative tap-denied flag; shared schema has no tap list/owner component.
-- [ ] Retail spirit-healer text describes 50% durability; pinned server applies 25% to equipped durability. Client cannot correct authoritative penalties.
+- [ ] Retail spirit-healer text describes 50% durability; pinned server applies 25% to equipped durability and does not attach computed sickness. Client formats the equipped-durability warning for that server; it cannot implement the missing debuff.
 
 ## Out of scope
 

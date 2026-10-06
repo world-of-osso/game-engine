@@ -368,6 +368,13 @@ impl GameClient {
         let night = !(DAWN..DUSK).contains(&(hour * 60 + minute));
         let view = self.minimap.view(position);
         let mut blips = self.quest_blips(&view);
+        if let Some(map_id) = self.world_map_id {
+            blips.extend(game_engine_ui_model::death_flow::corpse_minimap_blip(
+                &self.death_flow,
+                &view,
+                map_id,
+            ));
+        }
         if let Some(Ok(catalogs)) = self.minimap.catalogs.loaded() {
             let sightings = crate::vignettes::sightings(&self.replica, &catalogs.vignettes)?;
             blips.extend(crate::vignettes::minimap_blips(&view, &sightings));

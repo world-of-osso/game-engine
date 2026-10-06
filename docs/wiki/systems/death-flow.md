@@ -6,7 +6,9 @@ The native client receives owner-only `DeathStateUpdate` and uses existing Stati
 
 `NetworkBridge::connect` subscribes to the single death reply type. Account dispatch emits `AccountEvent::Death`. `DeathFlow` keeps the snapshot across error-only replies, presents DEATH/RECOVER_CORPSE/XP_LOSS, and sends at most one request until the next authoritative reply. Only errors go to UIErrorsFrame; routine server status messages aren't treated as errors.
 
-Server range flags are not movement updates: `death_support.rs:40-58` computes them only while building a reply. Client proximity uses the latest replicated local server position, matching map and the shared 30-yard corpse/20-yard healer ranges. Corpse recovery takes precedence over the healer when their ranges overlap. Cancelling the healer suppresses it until leaving healer range; dead/corpse popups remain available. Alive clears death popups.
+Server range flags are not movement updates: `death_support.rs:40-58` computes them only while building a reply. Client proximity uses the latest replicated local server position, matching map and the shared 30-yard corpse/20-yard healer ranges. Corpse recovery appears automatically in range. Only an explicit right-click/InteractUnit on a spirit healer opens XP_LOSS; that confirmation takes precedence over corpse recovery. Leaving range or cancelling closes healer confirmation; interacting again reopens it. Alive clears death popups.
+
+The owner's corpse is drawn with local-listfile FDID 136445 (`Interface/Minimap/Rotating-MinimapCorpseArrow.blp`); distant corpses clamp to the round Modern or square Forever map edge. A different map or alive state removes it. Existing minimap texture loading extracts the arrow from local CASC when needed.
 
 Local ghost visuals apply per-mesh transparency, not shared material changes. Remote ghost visuals cannot be inferred from zero health; the protocol does not replicate a ghost component. Rendered visual equivalence has not been proven.
 
@@ -20,7 +22,7 @@ Sources under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 - `Blizzard_StaticPopup_Game/GameDialogDefs.lua:1138-1172`: RESURRECT; ACCEPT/DECLINE/timeout and caster-name text.
 - `Blizzard_StaticPopup/StaticPopup.lua`: shared popup framework; actual Retail game definitions are in the files above, not this framework file.
 - `data/GlobalStrings.csv:430,4876,1912,169,171`: DEATH_RELEASE, DEATH_RELEASE_NOTIMER, RECOVER_CORPSE, ACCEPT, CANCEL.
-- `data/GlobalStrings.csv:1910,4231`: healer text templates. Client substitutes realm's 25% equipped-durability loss and ten-minute sickness, not Retail's 50%; authoritative server behavior remains unchanged.
+- `data/GlobalStrings.csv:1910,4231`: healer text templates. Client substitutes realm's 25% equipped-durability loss and ten-minute sickness, not Retail's 50%/inventory-wide loss; authoritative server behavior remains unchanged. The server computes resurrection sickness in shared `accept_spirit_healer` but `death.rs:729-758` does not attach the resulting sickness; Retail's sickness warning is not proof of an implemented server debuff.
 
 ## Blocked protocol/server capabilities
 
