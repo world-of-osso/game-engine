@@ -37,6 +37,40 @@ Live Stockade paladin **Fbpalrun** lost its entire authored visual with the same
 
 The full-outfit regression also identified the same folder inference on Everforged helm **5645909** (one independent non-key root, mesh201) and shoulders **5646084/5646085** (independent emitter skeletons, mesh0). The classifier recognizes an untransformed non-key root and independent skeleton without the attachment slot's body geosets. Belt uses **53**, helm **11**, shoulders **5/6**, retaining local models and animation. Body-armor slots remain bound, as do collection models carrying their slot's body geosets; empty meshes and transformed/keyed roots do not qualify as attachment-local. No failed-binding fallback or bone guess is added. `character_equipment_fixtures.gd` covers the actual full Everforged paladin outfit and cloth belt with hide/show pixel comparisons, alongside existing TahoModern body-bound equipment. Pre-fix rendered run reproduces both load failures and passes TahoModern; post-fix verification is recorded in the [run2 proof ledger](../../../data/diagnostics/stockaderun-2026-10-06/run2/proof-ledger.txt).
 
+### Everforged shoulder materials (2026-10-06)
+
+Run2 setup grants human paladin Fbpalrun Everforged Pauldrons **222436**, display
+**697601**, models **5646084/5646085**. Offline `StockadeEverforged` reproduced two
+untextured Batch1 materials and the white planes after the independent-skeleton fix.
+
+`ItemDisplayInfo.ModelMaterialResourcesID_0/1` supplies armor material **820898** →
+**5647905** (M2 type2). Both models also require type3, which is declared separately:
+local CASC `ItemDisplayInfoModelMatRes` FDID **4050937**, rows177123–177126, assigns
+material **822338** → **5665215** to type3 for both model columns. Type0 TXID **983198**
+is already authored. The old catalog omitted this table, so native materials left their
+sampled type3 uniform at shader-white; this is not a shoulder-side, blend-mode or
+skeleton error. Texture5665215 was absent locally because nothing requested it.
+
+The catalog now loads per-model-column typed declarations; runtime equipment carries
+those FDIDs, caches them through local CASC and binds the actual texture resources.
+Every retained item batch is checked for unresolved sampled slots before allocating
+materials. Native fixture checks inspect every sampled texture uniform; CPU regression
+uses the real paladin item plus Blackrock Pauldrons1445 and cloaks180939/170063.
+The exporter and [local extraction recipe](../../casc-extraction.md#item-model-material-declarations)
+own the data dependency; encrypted rows remain an explicit coverage gap, not a fallback.
+
+Verified renderer source **d3a4d664**: targeted CPU **29/29 PASS** (native28/core1),
+local extension build and scoped format check PASS. Rendered `StockadeEverforged`,
+`GromShoulders`, `TahoModern`, `HulaTotem` all PASS; all eight front/back captures inspected.
+Both shoulder Batch0 logs bind5647905/983198; both Batch1 logs bind5665215 twice.
+The before/after capture retains authored orange glow instead of white rectangles;
+near-white pixels (all RGB channels >245) drop5886→0. The same declarations restore
+Everforged glove glow (local extraction5665205) without item-specific shader changes.
+
+Evidence: slot-local `data/diagnostics/shoulders-2026-10-06/`: `proof-ledger.txt`,
+`cpu-final-full.log`, `green.log`, `green/StockadeEverforged.png` and its back view,
+`shoulder-before-after.png`, `capture-pixels.json`. No live server run, merge or push.
+
 ### Native fixture boundary follow-up (evidence date 2026-10-01)
 
 Old proxy-center harness targeted the wrong point; it did not establish model occlusion. Fixture commits **17d77fcb/d2084de7** use a real body point and **600-second cold setup**, based on observed **2134/4298 placements at 240 seconds**. Product **5-second handshake** and **200 ms AH limit** remain unchanged; fixture allowance is not a product timeout change.

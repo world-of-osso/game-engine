@@ -223,6 +223,9 @@ impl NetworkBridge {
             .receive_mail()
             // Player trade: one message type, so channel order is kept.
             .receive::<protocol::TradeStateUpdate>()
+            // Owner-only death state, corpse and graveyard coordinates.
+            .receive::<protocol::DeathStateUpdate>()
+            .receive::<protocol::ResurrectionOffer>()
             // Spellbook, action bar and casting.
             .receive::<KnownSpellsSnapshot>()
             .receive::<SpellsLearned>()
@@ -851,6 +854,9 @@ fn describe_panic(payload: Box<dyn Any + Send>) -> String {
     };
     format!("network worker panicked: {message}")
 }
+
+#[cfg(feature = "test-util")]
+pub mod deathstate_fixture;
 
 #[cfg(test)]
 mod wire_tests;

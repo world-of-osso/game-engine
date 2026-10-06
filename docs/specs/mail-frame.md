@@ -6,6 +6,7 @@ References: MF.xml / MF.lua = `Blizzard_MailFrame/MailFrame.xml` / `.lua`; `Bliz
 
 ## Native Godot client
 
+- Both skins show the masked Mail-Icon portrait (FDID 136382, MF.lua:21). OpenMailFrame shows the normal-mail stationery icon INV_Misc_Note_01 (134327, MF.lua:298); the current wire contract carries normal player/auction mail, not custom stationery. Shared backgrounds exclude the portrait mask.
 - MailFrame and OpenMailFrame use the [shared skin-resolved metal chrome](merchant-frame.md#godot-client). The compose body spans the stationery's letter area and uses a multiline scrolling editor.
 - Replicated type-19 `GameObjectInfo` and `Position` identify real mailboxes. Render/pick the `GameObjectDisplayInfo.FileDataID` model with replicated rotation/scale; unresolved metadata, models or textures must report their precise asset error, never substitute a mailbox.
 - Right-click within 5 yards sends `UseGameObject`. Only its matching Mailbox role opens the authored `MailFrame` (Inbox and Send Mail tabs) with the backpack; matching `MailboxContents` may arrive before that role. Closed, unrelated and stale mailbox traffic must not reopen it.

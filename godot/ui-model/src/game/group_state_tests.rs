@@ -7,6 +7,7 @@ use super::*;
 
 fn member(name: &str, leader: bool, online: bool) -> GroupMemberSnapshot {
     GroupMemberSnapshot {
+        character_id: 7,
         name: name.into(),
         role: GroupRoleSnapshot::None,
         is_leader: leader,

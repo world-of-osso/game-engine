@@ -79,12 +79,17 @@ pub struct TradeFrameState {
     pub recipient_accepted: bool,
 }
 
+/// Retail TradeFrame.lua:69 `SetPortraitToUnit("player")`.
+pub const PORTRAIT: crate::inworld_unit_frames_component::PortraitSlot =
+    crate::quest_art::window_portrait_slot("TradeFramePortrait");
+
 pub fn trade_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<TradeFrameState>()
         .expect("TradeFrameState must be in SharedContext");
     let hide = !state.visible;
     let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), "", ACTION_CLOSE);
+    children.extend(crate::quest_art::window_portrait(&PORTRAIT));
     // `TradeRecipientBG` white at .15 from TOPRIGHT -172,-20 to BOTTOMRIGHT (TF.xml:212).
     children.extend(rsx! {
         r#frame {
@@ -298,4 +303,3 @@ fn buttons(state: &TradeFrameState) -> Element {
     ));
     out
 }
-

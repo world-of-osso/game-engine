@@ -108,7 +108,10 @@ fn is_round_icon(name: &str) -> bool {
     let bag = name.ends_with("SlotIconTexture")
         && (name.starts_with("CharacterBag") || name.starts_with("CharacterReagentBag"));
     let portrait = (name.starts_with("ContainerFrame") && name.ends_with("Portrait"))
-        || name == "SpellBookPortrait";
+        || matches!(
+            name,
+            "SpellBookPortrait" | "MailFramePortrait" | "OpenMailFramePortrait"
+        );
     creation || bag || portrait
 }
 

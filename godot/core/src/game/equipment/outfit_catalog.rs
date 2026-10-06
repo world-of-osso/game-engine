@@ -5,6 +5,9 @@ use std::sync::{Mutex, OnceLock};
 
 use crate::component_file_data::ComponentFileData;
 use crate::helmet_geoset_data::{HelmetGeosetRule, load_helmet_geoset_rules};
+#[path = "item_model_material_data.rs"]
+mod item_model_material_data;
+use item_model_material_data::{ModelMaterials, load_model_materials};
 
 /// Result of resolving a starter outfit for a (race, class, sex) combo.
 #[derive(Debug, Clone, Default)]
@@ -42,6 +45,7 @@ struct LoadedOutfitData {
     model_to_fdids_cache: Mutex<HashMap<u32, Vec<u32>>>,
     /// Which race, sex and side each texture and model file is for.
     components: ComponentFileData,
+    model_materials: ModelMaterials,
     /// HelmetGeosetVisDataID -> race-specific hide rules.
     helmet_geoset_rules: HashMap<u32, Vec<HelmetGeosetRule>>,
 }
@@ -95,6 +99,7 @@ impl OutfitData {
             material_textures_cache: Mutex::new(HashMap::new()),
             model_to_fdids_cache: Mutex::new(HashMap::new()),
             components: ComponentFileData::load(&data_dir.join("db2/12.1.0.69933"))?,
+            model_materials: load_model_materials(data_dir)?,
             helmet_geoset_rules: load_helmet_geoset_rules(data_dir)?,
         };
         Ok(data)
@@ -254,12 +259,42 @@ impl OutfitData {
 
     /// Each model column of display `display_info_id` as race `race`/sex `sex` wears it,
     /// with that column's material as its texture.
+    pub fn resolve_model_texture_fdids(
+        &self,
+        display_info_id: u32,
+        model_index: usize,
+        race: u8,
+        sex: u8,
+    ) -> Result<Vec<(u32, u32)>, String> {
+        let data = self.loaded_result()?;
+        data.model_materials.get(&(display_info_id, model_index))
+            .into_iter().flatten()
+            .map(|&(kind, material)| {
+                let fdid = self.material_texture_fdid(data, material, race, sex)
+                    .ok_or_else(|| format!("Display {display_info_id} model {model_index} type {kind}: material {material} has no texture"))?;
+                Ok((kind, fdid))
+            }).collect()
+    }
+
+    pub fn shoulder_model_column(
+        &self,
+        display_info_id: u32,
+        shoulder_index: usize,
+    ) -> Result<usize, String> {
+        let data = self.loaded_result()?;
+        let display = self
+            .display_info(data, display_info_id)
+            .ok_or_else(|| format!("Display {display_info_id} missing"))?;
+        shoulder_model_column_index(&display, shoulder_index)
+            .ok_or_else(|| format!("Display {display_info_id} has no shoulder {shoulder_index}"))
+    }
+
     pub fn try_resolve_column_models(
         &self,
         display_info_id: u32,
         race: u8,
         sex: u8,
-    ) -> Result<Vec<(u32, [u32; 3])>, String> {
+    ) -> Result<Vec<(usize, u32, [u32; 3])>, String> {
         let data = self.loaded_result()?;
         let Some(display) =
             crate::outfit_catalog_db::load_cached_display_info(&self.data_dir, display_info_id)?
@@ -270,16 +305,17 @@ impl OutfitData {
         let columns = display
             .model_resource_columns
             .iter()
-            .zip(display.model_material_resource_columns);
+            .zip(display.model_material_resource_columns)
+            .enumerate();
         Ok(columns
-            .filter(|(model, _)| **model != 0)
-            .filter_map(|(&model, material)| {
+            .filter(|(_, (model, _))| **model != 0)
+            .filter_map(|(column, (&model, material))| {
                 let fdid = self.select_model_fdid(data, model, race, sex)?;
                 let texture = (material != 0)
                     .then(|| self.material_texture_fdid(data, material, race, sex))
                     .flatten()
                     .unwrap_or(0);
-                Some((fdid, [texture, 0, 0]))
+                Some((column, fdid, [texture, 0, 0]))
             })
             .collect())
     }

@@ -143,6 +143,25 @@ pub(super) fn unit_label(
 /// Retail `TextStatusBar`: the bar texture revealed left to right by `fraction`, its
 /// `TextString`, `LeftText` and `RightText` on top. The bar takes the mouse: its `OnEnter`
 /// shows the text while the status text setting hides it (TextStatusBar.xml:7).
+/// Use a solid grey fill: multiplying baked green health art cannot make it grey.
+pub(super) fn grey_status_bar(spec: BarSpec<'_>) -> Element {
+    let (_, _, width, height) = spec.rect;
+    let fill_width = width * spec.fraction.clamp(0.0, 1.0);
+    let fill = rsx! {
+        r#frame {
+            name: {dyn_name(format!("{}Fill", spec.name))},
+            width: fill_width,
+            height,
+            hidden: {fill_width <= 0.0},
+            background_color: "0.5,0.5,0.5,1.0",
+            pos_type: "absolute",
+            pos_x: 0.0,
+            pos_y: 0.0,
+        }
+    };
+    render_status_bar(spec, fill)
+}
+
 pub(super) fn status_bar(spec: BarSpec<'_>) -> Element {
     let (_, _, width, height) = spec.rect;
     let fill = spec
