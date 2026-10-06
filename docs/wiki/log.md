@@ -1,6 +1,6 @@
 ## 2026-10-05 — Portrait roster wiring and Retail online-state rules (party2)
 
-[[portrait-party-frames#Step 2 — roster and source corrections]] records member roster/live-state wiring with compact default and a persisted style flag; settings UI/runtime heads/live acceptance remain later steps. Offline health is full/desaturated; power full with half-grey tint, not invented desaturation. Native projection now desaturates sampled pixels. Step-1 crown already matches Retail BOTTOM→TOP (-10,-6); retain source rect and regression-test it rather than moving it cosmetically.
+[[portrait-party-frames#Step 2 — roster and source corrections]] records member roster/live-state wiring with compact default and a persisted style flag; settings UI/runtime heads/live acceptance remain later steps. Offline health is full/desaturated; power full with half-grey tint, not invented desaturation. Native projection now desaturates sampled pixels. Step-1 crown already matches Retail BOTTOM→TOP (-10,-6); retain source rect and regression-test it rather than moving it cosmetically. `27b41020` passes two Godot roster/projection tests and 12 portrait UI tests. Native raster then exposed a later desaturation overwrite; `a220f937` fixes it after both-skin raster RED. Final Modern/Forever recaptures pass inspected grey-health/dim-blue-power/source-crown scope; prior shutdown leaks remain. Proof: `data/diagnostics/party2-2026-10-05/proof.md`.
 
 ## 2026-10-05 — Product-bound party sheet offline proof (party1)
 
