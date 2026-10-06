@@ -5,7 +5,7 @@
   <path d="M43 5v38H5l3-3h32V8z" fill="#0a0e13"/>
   <rect x="8" y="8" width="32" height="32" rx="1" fill="#171c23"/>
   <g fill="#e6c47a" stroke="#e6c47a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
-    <path d="M20 9h8l1 5 4 2 5-1 4 7-4 3v4l3 4-5 6-5-2-4 2-1 4h-8l-1-5-4-2-5 1-4-7 4-3v-4l-3-4 5-6 5 2 4-2z" transform="translate(3 1) scale(.84)"/>
+    <path d="M35.55 20.74 L38.78 21.42 L38.78 26.58 L35.55 27.26 L34.47 29.86 L36.27 32.63 L32.63 36.27 L29.86 34.47 L27.26 35.55 L26.58 38.78 L21.42 38.78 L20.74 35.55 L18.14 34.47 L15.37 36.27 L11.73 32.63 L13.53 29.86 L12.45 27.26 L9.22 26.58 L9.22 21.42 L12.45 20.74 L13.53 18.14 L11.73 15.37 L15.37 11.73 L18.14 13.53 L20.74 12.45 L21.42 9.22 L26.58 9.22 L27.26 12.45 L29.86 13.53 L32.63 11.73 L36.27 15.37 L34.47 18.14 Z"/>
   </g>
   <g fill="none" stroke="#171c23" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
     <circle cx="24" cy="24" r="5"/>
