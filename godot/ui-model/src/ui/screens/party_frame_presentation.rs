@@ -44,7 +44,10 @@ pub fn sorted_party_state(state: &GroupFramesState, sort: PartySort) -> GroupFra
 }
 
 pub fn party_chrome(name: &str, width: f32, height: f32, settings: PartyFrameSettings) -> Element {
-    // Explicitly opt-in: the default has no additional party container chrome.
+    // Keep even the default registry identical to the pre-settings party roots.
+    if !settings.background.unwrap_or(false) && !settings.border.unwrap_or(false) {
+        return Element::new();
+    }
     rsx! { r#frame {
         name: {DynName(format!("{name}SettingsBackground"))}, width, height,
         hidden: { !settings.background.unwrap_or(false) }, background_color: "0.08,0.08,0.08,0.65",
