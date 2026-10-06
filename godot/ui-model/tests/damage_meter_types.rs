@@ -214,6 +214,14 @@ fn damage_meter_death_recap_shows_server_capped_events_newest_first() {
     let mut old = recap(10_000);
     old.events.last_mut().unwrap().amount = 999;
     data.overall.sources[2].death_recaps = vec![old, recap(20_000)];
+    for (index, amount) in [(0, 82), (1, 81)] {
+        let mut remote_recap = recap(30_000);
+        for event in &mut remote_recap.events {
+            event.target = Some(data.overall.sources[index].unit);
+        }
+        remote_recap.events.last_mut().unwrap().amount = amount;
+        data.overall.sources[index].death_recaps = vec![remote_recap];
+    }
     let mut window = DamageMeterWindow {
         snapshot: Some(data),
         meter_type: MeterType::Deaths,
@@ -234,6 +242,15 @@ fn damage_meter_death_recap_shows_server_capped_events_newest_first() {
     }
     window.click("damage_meter:row:0").unwrap();
     assert!(!window.view(false, 0.0).recap_open);
+    for (index, expected) in [(1, "-81 (1.0s)"), (2, "-82 (1.0s)")] {
+        window.click(&format!("damage_meter:row:{index}")).unwrap();
+        assert_eq!(window.rows().len(), 8);
+        assert_eq!(window.rows()[0].value_text, expected);
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            assert_rendered(&window, skin);
+        }
+        window.click("damage_meter:row:0").unwrap();
+    }
 }
 
 #[test]
