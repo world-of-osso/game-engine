@@ -86,6 +86,14 @@ fn forever_chat_and_meter_draw_the_bronze_panel_at_flareui_opacity() {
     assert_eq!(skin.border_color, BRONZE);
     assert_eq!(skin.bg_color, [1.0, 1.0, 1.0, 0.6]);
     assert_eq!((skin.edge_size, skin.center_inset), (16.0, Some(3.0)));
+    let frame = chat
+        .registry
+        .get(chat.registry.get_by_name("ChatFrame1FlareSkin").unwrap())
+        .unwrap();
+    let parts = project_images(frame, 450.0, 214.0);
+    assert_eq!(parts.len(), 9, "no opaque fill behind the backdrop");
+    assert_eq!(parts[0].color, [1.0, 1.0, 1.0, 0.6]);
+    assert!(parts[1..].iter().all(|part| part.color == BRONZE));
     assert!(matches!(skin.texture, Some(TextureSource::Dynamic(_))));
     assert!(
         !has(&chat, CHAT_BACKGROUND.0),

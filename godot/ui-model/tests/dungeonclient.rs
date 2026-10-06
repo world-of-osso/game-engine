@@ -379,9 +379,47 @@ fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skin
             text(&registry, "Achievement633Criterion2"),
             "[Complete] Hogger defeated — 1/1"
         );
+        assert_eq!(text(&registry, "AchievementFrameHeaderPoints"), "10");
+        let points = registry
+            .get(
+                registry
+                    .get_by_name("AchievementFrameHeaderPoints")
+                    .unwrap(),
+            )
+            .unwrap();
+        let shield = registry
+            .get(
+                registry
+                    .get_by_name("AchievementFrameHeaderShield")
+                    .unwrap(),
+            )
+            .unwrap();
+        let ui_toolkit::frame::Dimension::Fixed(width) = points.width else {
+            panic!("fixed points width")
+        };
+        let ui_toolkit::layout_values::Val::Px(left) = points.position.left else {
+            panic!("absolute points position")
+        };
+        assert_eq!(left + width / 2.0, 410.0);
         assert_eq!(
-            text(&registry, "AchievementPointsHeader"),
-            "Loaded earned points: 10"
+            points.position.top,
+            ui_toolkit::layout_values::Val::Px(32.0)
+        );
+        assert_eq!(points.height, ui_toolkit::frame::Dimension::Fixed(20.0));
+        assert_eq!(
+            shield.position.left,
+            ui_toolkit::layout_values::Val::Px(left + width + 3.0)
+        );
+        assert_eq!(
+            shield.position.top,
+            ui_toolkit::layout_values::Val::Px(33.0)
+        );
+        assert_eq!(
+            (shield.width, shield.height),
+            (
+                ui_toolkit::frame::Dimension::Fixed(20.0),
+                ui_toolkit::frame::Dimension::Fixed(20.0)
+            )
         );
         window.action("achievement:close");
         assert_eq!(window.action(&destination), vec![]);

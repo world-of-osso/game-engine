@@ -17,7 +17,9 @@ const ROWS: usize = 3;
 const CATEGORIES: usize = 18;
 const CRITERIA: usize = 6;
 /// Local Retail art: UI-Achievement-Category-Background, AchievementBackground, Shield.
-pub const ART: &[u32] = &[130652, 235397, 130665, 130650];
+pub const ART: &[u32] = &[130652, 235397, 130665, 130650, HEADER_SHIELD_FDID];
+/// Retail Mainline/Blizzard_AchievementUI.xml:1979-1984, UI-Achievement-TinyShield.
+const HEADER_SHIELD_FDID: u32 = 235_415;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CategoryPage {
@@ -392,13 +394,7 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
         .filter(|entry| entry.earned)
         .map(|entry| entry.points)
         .sum();
-    content.extend(label(
-        "AchievementPointsHeader".into(),
-        &format!("Loaded earned points: {points}"),
-        (20.0, 36.0, 650.0, 20.0),
-        GOLD,
-        "",
-    ));
+    content.extend(points_header(points));
     content.extend(category_panel(window));
     content.extend(achievement_rows(window));
     content.extend(criteria_panel(window));
@@ -408,6 +404,30 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
         {content}
     } }
 }
+/// Retail Mainline/Blizzard_AchievementUI.lua:298: bare formatted points;
+/// XML:1973-1984: white text with a 20x20 shield three units to its right.
+fn points_header(points: u32) -> Element {
+    let text = crate::damage_meter_data::break_up_large_number(u64::from(points));
+    let (width, _) = ui_toolkit::text_measure::measure_text(&text, GameFont::FrizQuadrata, 12.0)
+        .expect("achievement header font must be loaded");
+    let left = (820.0 - width) / 2.0;
+    let shield_left = left + width + 3.0;
+    let mut content = label(
+        "AchievementFrameHeaderPoints".into(),
+        &text,
+        // The native font needs 15 units; a shield-height box keeps both centers stable.
+        (left, 32.0, width, 20.0),
+        WHITE,
+        "",
+    );
+    content.extend(rsx! { texture {
+        name: {DynName("AchievementFrameHeaderShield".into())},
+        texture_fdid: HEADER_SHIELD_FDID, tex_coords: "0,0.625,0,0.625",
+        width: 20.0, height: 20.0, pos_type: "absolute", left: shield_left, top: 33.0,
+    } });
+    content
+}
+
 fn category_panel(window: &AchievementWindow) -> Element {
     let mut content = Vec::new();
     if thread_skin() == ActiveSkin::Modern {
