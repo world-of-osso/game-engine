@@ -140,6 +140,29 @@ fn achievement() -> AchievementCatalogEntry {
     }
 }
 #[test]
+fn dungeonclient_live_update_requests_fresh_page_even_with_query_in_flight() {
+    let mut window = AchievementWindow::default();
+    window.action("micro:AchievementMicroButton");
+    window.apply(AchievementCatalogPage::Categories {
+        categories: vec![category()],
+        next_id: None,
+    });
+    window.action("achievement:category:14808");
+    assert_eq!(
+        window.refresh(&AchievementStateUpdate {
+            snapshot: None,
+            completed: None,
+            message: None,
+            error: None
+        }),
+        vec![QueryAchievementCatalog::Category {
+            category_id: 14808,
+            after_id: 0
+        }]
+    );
+}
+
+#[test]
 fn dungeonclient_closed_live_update_refreshes_on_reopen() {
     let mut window = AchievementWindow::default();
     window.action("micro:AchievementMicroButton");
