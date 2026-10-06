@@ -2,7 +2,7 @@
 use godot::classes::{Control, Shader, ShaderMaterial};
 use godot::prelude::*;
 use ui_toolkit::registry::FrameRegistry;
-use ui_toolkit::widgets::TextureSource;
+use ui_toolkit::widgets::texture::TextureSource;
 
 use super::assets;
 

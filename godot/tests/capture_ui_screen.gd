@@ -3,6 +3,7 @@ extends SceneTree
 # Renders one authored RegistryUi screen standalone for visual comparison.
 # GODOT_CAPTURE_SCREEN: character_select | character_create | portrait_party | forever_portrait_party.
 # GODOT_CAPTURE_PATH: PNG output.
+# castbaranim_preview: GODOT_CASTBAR_SKIN, GODOT_CASTBAR_PHASE, GODOT_CASTBAR_TIME.
 
 func _initialize() -> void:
 	call_deferred("_run")
@@ -22,7 +23,7 @@ func _run() -> void:
 		push_error(error)
 		quit(1)
 		return
-	for frame in range(120 if screen == "forever_damage_meter_preview" else 3):
+	for frame in range(120 if screen in ["forever_damage_meter_preview", "castbaranim_preview"] else 3):
 		await process_frame
 		await RenderingServer.frame_post_draw
 	if screen == "chatflush_preview":
@@ -54,6 +55,11 @@ func _run() -> void:
 			return
 	if screen == "forever_minimap_preview":
 		if not await forever_minimap_has_opaque_header_and_badge(ui, image, output):
+			ui.queue_free()
+			quit(1)
+			return
+	if screen == "castbaranim_preview":
+		if not await castbar_snapshot_matches(ui, image, output):
 			ui.queue_free()
 			quit(1)
 			return
@@ -199,4 +205,69 @@ func offline_party_health_is_desaturated(image: Image) -> bool:
 		if spread > 2.0 / 255.0 or color.r < 0.1:
 			push_error("Offline party health is not filled/desaturated at ", pixel, ": ", color)
 			return false
+	return true
+
+# Frozen production reducer snapshots, with rendered feedback isolation for finishes.
+func castbar_snapshot_matches(ui: Node, image: Image, output: String) -> bool:
+	var phase = OS.get_environment("GODOT_CASTBAR_PHASE")
+	var skin = OS.get_environment("GODOT_CASTBAR_SKIN")
+	var track = ui.find_child("CastingBarBackground", true, false) as Control
+	var fill = ui.find_child("CastingBarFill", true, false) as Control
+	var label = ui.find_child("CastingBarSpellName", true, false) as Label
+	if track == null or fill == null or label == null:
+		push_error("Cast snapshot controls missing")
+		return false
+	var track_rect = track.get_global_rect()
+	var fill_rect = fill.get_global_rect()
+	var fraction = 0.5 if phase == "midcast" else (0.0 if phase == "channel" else 1.0)
+	if absf(fill_rect.size.x - track_rect.size.x * fraction) > 0.01:
+		push_error("Cast snapshot fill mismatch: ", fill_rect, " track ", track_rect)
+		return false
+	if phase in ["interrupted", "failed"] and label.text != ("Interrupted" if phase == "interrupted" else "Failed"):
+		push_error("Cast result label mismatch: ", label.text)
+		return false
+	var spark = ui.find_child("CastingBarSpark", true, false) as Control
+	if phase == "midcast":
+		if spark == null or absf(spark.get_global_rect().get_center().x - fill_rect.end.x) > 0.01:
+			push_error("Cast spark is not on the fill edge")
+			return false
+	elif spark != null and spark.is_visible_in_tree():
+		push_error("Finished cast kept its spark")
+		return false
+	print("CASTBAR_NATIVE ", skin, " ", phase, " track=", track_rect, " fill=", fill_rect, " label=", label.text)
+	var lit_pixels = 0
+	for y in range(int(track_rect.position.y), int(track_rect.end.y)):
+		for x in range(int(track_rect.position.x), int(track_rect.end.x)):
+			var color = image.get_pixel(x, y)
+			if maxf(color.r, maxf(color.g, color.b)) > 0.25:
+				lit_pixels += 1
+	if lit_pixels < 20:
+		push_error("Cast art did not render")
+		return false
+	if phase not in ["finish", "channel"]:
+		return true
+	var flash = ui.find_child("CastingBarFlash", true, false) as Control
+	if flash == null or absf(flash.modulate.a - 0.5) > 0.001:
+		push_error("100.100 completion flash is not half-bright")
+		return false
+	for name in ["CastingBarFlash", "CastingBarEnergyGlow", "CastingBarFlakes01", "CastingBarFlakes02", "CastingBarFlakes03", "CastingBarBaseGlow", "CastingBarWispGlow", "CastingBarSparkles01", "CastingBarSparkles02"]:
+		var effect = ui.find_child(name, true, false) as Control
+		if effect != null:
+			effect.hide()
+	for frame in range(2):
+		await process_frame
+		await RenderingServer.frame_post_draw
+	var control = root.get_texture().get_image()
+	if control.save_png(output.get_basename() + "-without-feedback.png") != OK:
+		push_error("Cannot save cast feedback isolation control")
+		return false
+	var changed_pixels = 0
+	for y in range(image.get_height()):
+		for x in range(image.get_width()):
+			if image.get_pixel(x, y) != control.get_pixel(x, y):
+				changed_pixels += 1
+	if changed_pixels < 20:
+		push_error("Cast completion FX did not change rendered pixels")
+		return false
+	print("PASS: cast feedback changed pixels=", changed_pixels)
 	return true

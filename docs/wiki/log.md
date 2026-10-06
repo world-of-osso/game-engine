@@ -1,3 +1,7 @@
+## 2026-10-06 — Player cast feedback
+
+[[player-cast-feedback]] records Retail flash/finish, interrupt spark/glow/shake, channel finish and fade timings; Forever retains FlareUI geometry/colours without classic timing. Production-clock preview and existing native capture route added; rendered acceptance remains pending.
+
 ## 2026-10-06 — Forever player aura lane
 
 [Forever preset](systems/forever-preset.md#player-aura-lane) now records the player-frame aura consumer and offline production-screen capture. [HUD contract](../specs/hud-edit-mode.md) owns FlareUI geometry and local-player/pet filtering. Targeted RED reproduced missing player icons; GREEN and raster proof are recorded separately under `data/diagnostics/forevergaps-2026-10-06/` when available. Modern fixtures are not regenerated.

@@ -53,14 +53,16 @@ fn player_castbaranim_interrupt_fills_after_spark_holds_and_fades() {
             .unwrap();
         match skin {
             ActiveSkin::Modern => {
-                let Some(ui_toolkit::widgets::WidgetData::Texture(texture)) =
+                let Some(ui_toolkit::frame::WidgetData::Texture(texture)) =
                     fill.widget_data.as_ref()
                 else {
                     panic!("missing interrupted texture")
                 };
                 assert_eq!(
                     texture.source,
-                    ui_toolkit::widgets::TextureSource::Atlas("ui-castingbar-interrupted".into())
+                    ui_toolkit::widgets::texture::TextureSource::Atlas(
+                        "ui-castingbar-interrupted".into()
+                    )
                 );
             }
             ActiveSkin::Forever => assert_eq!(fill.background_color, Some([1.0, 0.0, 0.0, 1.0])),
