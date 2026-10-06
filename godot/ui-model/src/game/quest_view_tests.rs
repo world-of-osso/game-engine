@@ -57,6 +57,74 @@ fn threat_within_details() -> QuestGiverQuestDetails {
 }
 
 #[test]
+fn uifixes_npc_articles_and_player_tokens_resolve_for_a_human_paladin() {
+    use shared::protocol::QuestGiverRequestItems;
+    let raw = "Hey, $Gmister:miss;. You look like |5$C, $N.$B$B|5^ $R $r $c. Bring |5 apple and |5 banana.";
+    let expected = "Hey, mister. You look like a Paladin, Theron.\n\nA Human human paladin. Bring an apple and a banana.";
+    let mut details = threat_within_details();
+    details.description = raw.into();
+    details.objectives_text = raw.into();
+    let pages = [
+        QuestDialogPage::Greeting {
+            text: raw.into(),
+            options: vec![GossipMenuOption {
+                option_id: 0,
+                icon: 0,
+                text: raw.into(),
+            }],
+            quests: vec![],
+        },
+        QuestDialogPage::Detail(details),
+        QuestDialogPage::Progress(QuestGiverRequestItems {
+            npc: 823,
+            quest_id: 332,
+            title: "Wine Shop Advert".into(),
+            completion_text: raw.into(),
+            required_items: vec![],
+            can_complete: true,
+        }),
+        QuestDialogPage::Reward {
+            offer: QuestGiverOfferReward {
+                npc: 823,
+                quest_id: 332,
+                title: "Wine Shop Advert".into(),
+                reward_text: raw.into(),
+                rewards: QuestRewards::default(),
+            },
+            choice: None,
+        },
+    ];
+    for page in pages {
+        let dialog = QuestDialog {
+            npc: 823,
+            npc_name: "Renato Gallina".into(),
+            page,
+        };
+        match quest_frame_state(Some(&dialog), &theron()).page {
+            QuestFramePage::Greeting { text, options, .. } => {
+                assert_eq!(text, expected);
+                assert_eq!(options[0].text, expected);
+            }
+            QuestFramePage::Detail {
+                description,
+                objectives_text,
+                ..
+            } => {
+                assert_eq!(description, expected);
+                assert_eq!(objectives_text, expected);
+            }
+            QuestFramePage::Progress { text, .. } | QuestFramePage::Reward { text, .. } => {
+                assert_eq!(text, expected)
+            }
+        }
+    }
+    assert_eq!(
+        substitute_quest_text("|5Orc, |5Human, ||5 costs $5", &theron()),
+        "an Orc, a Human, ||5 costs $5"
+    );
+}
+
+#[test]
 fn detail_page_substitutes_tokens() {
     let dialog = QuestDialog {
         npc: 823,
