@@ -122,6 +122,7 @@ func forever_meter_matches_reference(ui: Node, image: Image) -> bool:
 					push_error("Fill stop/highlight mismatch row ", row, " stop ", stop, " at ", Vector2(x, y), ": ", pixel, " vs ", expected)
 					return false
 	print("PASS: Forever meter rendered stops, fonts, Threat tab and icon centres")
+	return true
 
 # Production display begins below the 22-unit band; no tile pixels leak into it.
 # Badge's gold ring must draw inside its derived rect, with empty space to the magnifier.
