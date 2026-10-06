@@ -41,7 +41,7 @@ use shared::protocol::{ActionRef, CastFailed, CombatLogEvent, CombatLogKind};
 
 use crate::combat_text;
 use crate::frame_error::{FrameError, SessionError, report_once};
-use crate::nameplate_casts::{PlateCasts, casting_bar_state};
+use crate::nameplate_casts::{PlateCasts, casting_bar_state, player_casting_bar_state};
 use crate::player_spells::{bonus_bar_offset, main_bar_slot};
 use crate::{
     GameClient,
@@ -625,7 +625,12 @@ impl GameClient {
             .and_then(|catalog| catalog.get(spell))
             .map(|spell| spell.icon_fdid);
         let icon = art.map(|fdid| self.drawable_fdid(fdid));
-        Some(casting_bar_state(self.cast_bars.get(unit)?, icon))
+        let bar = self.cast_bars.get(unit)?;
+        Some(if Some(unit) == self.world.local_player_id() {
+            player_casting_bar_state(bar, icon)
+        } else {
+            casting_bar_state(bar, icon)
+        })
     }
 
     fn sync_cast_bar(&mut self) -> Result<(), String> {
