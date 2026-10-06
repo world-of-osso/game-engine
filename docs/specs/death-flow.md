@@ -30,6 +30,8 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 - `godot/network/src/wire_tests.rs`: real loopback UDP death update and requests.
 - `godot/ui-model/src/death_flow.rs`: concrete snapshot/proximity/click decisions in both skins.
 - `godot/rust/src/account.rs`: native event dispatch.
+- `godot/rust/src/account_deathstate_tests.rs`: UDP snapshot → AccountEvent → rendered popup click → production Account request → server receipt, in both skins.
+- `godot/network/src/deathstate_fixture.rs`: feature-gated loopback server for that host integration test.
 
 ## Known gaps (current cycle)
 
