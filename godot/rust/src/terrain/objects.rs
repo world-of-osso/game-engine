@@ -828,12 +828,9 @@ impl TerrainObjects {
         let Some(mut spawn) = self.building.take() else {
             return true;
         };
-        let _span = crate::profile::span(|| {
-            format!(
-                "objects.wmo_step tile={:?} index={}",
-                spawn.tile, spawn.index
-            )
-        });
+        let (tile, index) = (spawn.tile, spawn.index);
+        let _span =
+            crate::profile::span(|| format!("objects.wmo_step tile={tile:?} index={index}"));
         let budget = self.budget;
         let done = spawn.build.step(
             &spawn.asset,
