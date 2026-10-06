@@ -839,6 +839,13 @@ mod tests {
                 total_amount: total,
                 amount_per_second: dps,
             }],
+            healing_done: 0,
+            overhealing: 0,
+            absorbs: 0,
+            interrupts: 0,
+            dispels: 0,
+            deaths: 0,
+            death_recaps: vec![],
         }
     }
 
