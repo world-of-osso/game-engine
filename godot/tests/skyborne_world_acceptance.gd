@@ -3,11 +3,16 @@ extends "res://tests/world_quest_flow.gd"
 # Main supplies prepared credentials and launches twice under maintained cage/agent-run.
 # Required: GODOT_TEST_SERVER, SKYBORNE_RACE (95|96), SKYBORNE_USERNAME,
 # SKYBORNE_PASSWORD, SKYBORNE_SHOTS (absolute path under persistent data/), GAME_ENGINE_CLI,
-# SKYBORNE_SCOPE (client-items|full). client-items proves no NPC/giver/quest behavior.
+# SKYBORNE_SCOPE (client-items|full|turn-in). turn-in requires already-active completed92460;
+# it proves no fresh acceptance. client-items proves no NPC/giver/quest behavior.
 # godot --path godot -s res://tests/skyborne_world_acceptance.gd
 # No admin travel/completion, direct quest acceptance or race96 quest invention.
 const SKY_QUEST := 92460
 const SKY_TITLE := "Coming of Age"
+const SKY_ENDER := "Rorian the Dayseeker"
+# Captured SQL entry251361/guid3251361000, WoW (x,y,z) -> native (x,z,-y).
+const SKY_ENDER_AT := Vector3(4088.500790283203, 976.5145996532464, -1895.0)
+const SKY_REWARD_XP := 40
 const STARTS := {95: Vector3(4088.501, 976.169, -1847.5), 96: Vector3(4051.417, 977.620, -1858.625)}
 const CHARACTERS := {95: "Skymage", 96: "Skyshaman"}
 const GIVERS := {95: "Ailee Farheart", 96: "Ventaari Brightwish"}
@@ -17,6 +22,7 @@ const KITS := {95: [35, 117, 159, 6948, 271655, 271658, 271659], 96: [117, 159, 
 var race := 0
 var cli_path := ""
 var ipc_socket := ""
+var catalog_wait_ms := 60000
 
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
@@ -24,9 +30,14 @@ func run_test() -> void:
 	var port := server.trim_prefix("127.0.0.1:")
 	race = OS.get_environment("SKYBORNE_RACE").to_int()
 	var scope := OS.get_environment("SKYBORNE_SCOPE")
-	if scope not in ["client-items", "full"]:
-		fail("Require explicit SKYBORNE_SCOPE=client-items|full")
+	if scope not in ["client-items", "full", "turn-in"]:
+		fail("Require explicit SKYBORNE_SCOPE=client-items|full|turn-in")
 		return
+	if scope == "turn-in":
+		if race != 95:
+			fail("Prepared turn-in requires race95 Skymage, never race96")
+			return
+		catalog_wait_ms = 120000
 	var username := OS.get_environment("SKYBORNE_USERNAME")
 	var password := OS.get_environment("SKYBORNE_PASSWORD")
 	shots = OS.get_environment("SKYBORNE_SHOTS").simplify_path()
@@ -63,6 +74,14 @@ func run_test() -> void:
 	if scope == "client-items":
 		print("SKYBORNE CLIENT_ITEMS_DONE race=", race, " character=", CHARACTERS[race])
 		print("SKYBORNE UNTESTED NPC/giver/quest acceptance in client-items scope; server NPC stats are explicitly estimated")
+		client.free()
+		quit(0)
+		return
+	if scope == "turn-in":
+		if not await turn_in_prepared_quest():
+			return
+		print("SKYBORNE PREPARED_TURN_IN_DONE race=95 character=Skymage quest=92460 xp=40")
+		print("SKYBORNE UNTESTED fresh acceptance/full fixture/original script; no follow-up accepted")
 		client.free()
 		quit(0)
 		return
@@ -142,7 +161,7 @@ func check_start() -> bool:
 func inspect_kit() -> bool:
 	if not await wait_frames(func():
 		var state: Dictionary = client.merchant_state()
-		return state.item_catalog_loaded and not state.equipment.is_empty() and not state.bags.is_empty(), "source catalogs and authoritative starter inventory", 60000):
+		return state.item_catalog_loaded and not state.equipment.is_empty() and not state.bags.is_empty(), "source catalogs and authoritative starter inventory", catalog_wait_ms):
 		return false
 	var inventory: Dictionary = client.merchant_state()
 	var actual := []
@@ -211,6 +230,91 @@ func accept_native_quest() -> bool:
 		return false
 	print("SKYBORNE NATIVE_ACCEPTED ", log_entry(client.quest_state(), SKY_QUEST))
 	return await save_capture("04-quest-accepted.png")
+
+func check_prepared_turn_in() -> bool:
+	var state: Dictionary = client.quest_state()
+	var entry := log_entry(state, SKY_QUEST)
+	if entry.is_empty() or entry.get("title") != SKY_TITLE or not entry.get("completed", false) or not Array(entry.get("objectives", [])).is_empty():
+		fail("Require already-active completed92460 with zero objectives; absent/rewarded quests rejected: " + str(state))
+		return false
+	if int(state.get("xp", -1)) < 0 or Array(state.system_lines).has(SKY_TITLE + " completed."):
+		fail("Prepared turn-in lacks native XP or already has completion receipt: " + str(state))
+		return false
+	if not tracker_has(client.objective_tracker_state(), SKY_QUEST):
+		fail("Prepared92460 missing from native objective tracker")
+		return false
+	print("SKYBORNE PREPARED_TURN_IN ", state)
+	return true
+
+func walk_to_sky_ender() -> Node3D:
+	var ender := await locate_logical_giver(SKY_ENDER)
+	if ender == null:
+		return null
+	if ender.global_position.distance_to(SKY_ENDER_AT) > 1.0:
+		fail("Replicated Rorian position differs from captured SQL: " + str(ender.global_position))
+		return null
+	if not visible_body(ender):
+		print("SKYBORNE GAP Rorian136966 visible body unavailable; logical replicated ender only")
+	if not await walk_to(ender.global_position, INTERACT_YARDS - 1.0):
+		fail("Native key-event walk to Rorian exceeded45s")
+		return null
+	# walk_to can return after passing the target: require actual settled proximity.
+	if not await wait_frames(func():
+		var state: Dictionary = client.account_state()
+		return player_position().distance_to(ender.global_position) <= INTERACT_YARDS and state.local_server_position != null and state.local_server_position.distance_to(ender.global_position) <= INTERACT_YARDS, "actual local/server proximity to Rorian", WAIT_MS):
+		return null
+	var to := ender.global_position - player_position()
+	await face_direction(atan2(to.x, to.z))
+	print("SKYBORNE ENDER_NEAR replicated=", ender.global_position, " local=", player_position(), " server=", client.account_state().local_server_position)
+	return ender
+
+func turn_in_prepared_quest() -> bool:
+	if not check_prepared_turn_in():
+		return false
+	var ender := await walk_to_sky_ender()
+	if ender == null:
+		return false
+	var reply := await ipc(["quest", "interact", "--npc", SKY_ENDER])
+	if reply.strip_edges() != "interact " + SKY_ENDER:
+		fail("CLI ender interaction failed: " + reply)
+		return false
+	if not await wait_quest(func(s): return s.frame_open and s.get("npc_name") == SKY_ENDER and s.get("page") in ["Greeting", "Reward"], "Rorian native QuestFrame"):
+		return false
+	var state: Dictionary = client.quest_state()
+	var ender_id := int(state.npc)
+	var transform = client.unit_transform(ender_id)
+	if ender_id <= 0 or not client.unit_alive(ender_id) or not (transform is Transform3D):
+		fail("Native QuestFrame lacks a living replicated Rorian identity")
+		return false
+	if transform.origin.distance_to(ender.global_position) > 0.1:
+		fail("Native QuestFrame NPC differs from located Rorian")
+		return false
+	if state.page == "Greeting":
+		var index := Array(state.greeting_quests).find(SKY_TITLE)
+		if index < 0:
+			fail("Rorian greeting lacks Coming of Age: " + str(state))
+			return false
+		if not await click_visible("QuestTitleButton%dText" % (index + 1)):
+			return false
+	if not await wait_quest(func(s): return s.frame_open and s.get("npc") == ender_id and s.get("npc_name") == SKY_ENDER and s.get("page") == "Reward" and s.quest_id == SKY_QUEST, "92460 native reward"):
+		return false
+	state = client.quest_state()
+	if int(state.get("choices", -1)) != 0:
+		fail("Prepared92460 reward must have zero choices: " + str(state))
+		return false
+	if not check_prepared_turn_in():
+		return false
+	var xp_before := int(state.xp)
+	print("SKYBORNE REWARD_BEFORE xp=", xp_before, " state=", state)
+	if not await save_capture("02-prepared-reward.png") or not await click_visible("QuestFrameCompleteQuestButton"):
+		return false
+	if not await wait_quest(func(s): return not in_log(s, SKY_QUEST) and Array(s.system_lines).has(SKY_TITLE + " completed.") and int(s.get("xp", -1)) == xp_before + SKY_REWARD_XP, "92460 removed/log/chat and native +40XP"):
+		return false
+	if tracker_has(client.objective_tracker_state(), SKY_QUEST):
+		fail("Turned-in92460 remains in native objective tracker")
+		return false
+	print("SKYBORNE NATIVE_TURNED_IN xp=", xp_before, " -> ", client.quest_state().xp, " state=", client.quest_state(), " tracker=", client.objective_tracker_state())
+	return await save_capture("03-prepared-tracker-40xp.png")
 
 func click_visible(name: String) -> bool:
 	var control := quest_control("QuestFrameUI", name)
