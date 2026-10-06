@@ -12,7 +12,7 @@ use ui_toolkit::atlas::{ActiveSkin, active_skin};
 use crate::ui::screens::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, POI_IN_PROGRESS, POI_TURN_IN,
     QUEST_LOG_DIVIDER, QUEST_PARCHMENT, QUEST_TEXT_COLOR, TRACKER_CHECK, atlas_texture,
-    named_atlas_texture, panel_button, window_chrome, wrapped_text_height,
+    named_atlas_texture, panel_button, window_chrome,
 };
 use crate::ui::screens::quest_frame_component::{Column, RewardView, rewards_section};
 use crate::ui::strata::FrameStrata;
@@ -393,23 +393,21 @@ fn details_pane(details: Option<&QuestLogDetails>) -> Element {
 
 /// The quest's title, objectives, description and rewards, top-down in `pane`.
 pub fn quest_details_text(details: &QuestLogDetails, pane: QuestPane) -> Element {
-    let mut y = pane.y;
     let mut elements = details_text(
         pane,
         "QuestLogDetailsTitle",
         &details.title,
         TITLE_FONT,
         QUEST_TEXT_COLOR,
-        &mut y,
+        0.0,
     );
-    y += GAP;
     elements.extend(details_text(
         pane,
         "QuestLogDetailsObjectivesText",
         &details.objectives_text,
         BODY_FONT,
         QUEST_TEXT_COLOR,
-        &mut y,
+        GAP,
     ));
     for (index, objective) in details.objectives.iter().enumerate() {
         let color = if objective.done {
@@ -417,44 +415,61 @@ pub fn quest_details_text(details: &QuestLogDetails, pane: QuestPane) -> Element
         } else {
             QUEST_TEXT_COLOR
         };
-        y += 2.0;
         elements.extend(details_text(
             pane,
             &format!("QuestLogDetailsObjective{index}"),
             &format!("- {}", objective.text),
             BODY_FONT,
             color,
-            &mut y,
+            2.0,
         ));
     }
     if let Some(description) = &details.description {
-        y += GAP * 2.0;
         elements.extend(details_text(
             pane,
             "QuestLogDetailsDescriptionHeader",
             "Description",
             TITLE_FONT,
             QUEST_TEXT_COLOR,
-            &mut y,
+            GAP * 2.0,
         ));
-        y += GAP;
         elements.extend(details_text(
             pane,
             "QuestLogDetailsDescription",
             description,
             BODY_FONT,
             QUEST_TEXT_COLOR,
-            &mut y,
+            GAP,
         ));
     }
     if let Some(rewards) = &details.rewards {
         let column = Column {
-            x: pane.x,
+            x: 0.0,
             width: pane.width,
         };
-        elements.extend(rewards_section(rewards, false, column, &mut y));
+        let mut rewards_height = 0.0;
+        let rewards = rewards_section(rewards, false, column, &mut rewards_height);
+        elements.extend(rsx! {
+            r#frame {
+                width: {pane.width},
+                height: rewards_height,
+                {rewards}
+            }
+        });
     }
-    elements
+    rsx! {
+        r#frame {
+            name: "QuestLogDetailsContent",
+            width: {pane.width},
+            height: "auto",
+            layout: "flex-column",
+            align: "start",
+            pos_type: "absolute",
+            left: {pane.x},
+            top: {pane.y},
+            {elements}
+        }
+    }
 }
 
 fn details_text(
@@ -463,24 +478,20 @@ fn details_text(
     text: &str,
     font_size: f32,
     color: &str,
-    y: &mut f32,
+    gap: f32,
 ) -> Element {
-    let top = *y;
-    let height = wrapped_text_height(text, pane.width, font_size);
-    *y += height;
     rsx! {
         fontstring {
             name: {DynName(name.into())},
             width: {pane.width},
-            height,
+            height: "auto",
             text,
             font: GameFont::FrizQuadrata,
             font_size,
             font_color: color,
             justify_h: "LEFT",
-            pos_type: "absolute",
-            left: {pane.x},
-            top,
+            pos_type: "relative",
+            margin_top: gap,
         }
     }
 }

@@ -37,7 +37,27 @@ pub use reputation::{
     reputation_row_action, reputation_rows,
 };
 
-use crate::bag_data::InventoryState;
+use crate::bag_data::{InventoryRequest, InventoryState};
+use crate::merchant::Click;
+
+/// `PaperDollItemSlotButton_OnClick` → `UseInventoryItem`: unequip ordinary gear.
+pub fn paperdoll_unequip_request(
+    inventory: &InventoryState,
+    slot: EquipmentSlot,
+    click: Click,
+) -> Result<Option<InventoryRequest>, &'static str> {
+    if !click.right || click.shift || inventory.equipped(slot).is_none() {
+        return Ok(None);
+    }
+    let (bag, bag_slot) = inventory.first_empty_slot().ok_or("Inventory is full.")?;
+    Ok(Some(InventoryRequest::Swap(shared::protocol::SwapItem {
+        from: ItemLocation::Equipment(slot),
+        to: ItemLocation::Bag {
+            bag: bag as u8,
+            slot: bag_slot as u8,
+        },
+    })))
+}
 pub use crate::character_frame_component::{equipment_slot_action, parse_equipment_slot_action};
 use crate::merchant_frame_component::{tab, tab_width};
 use crate::quest_art::{
