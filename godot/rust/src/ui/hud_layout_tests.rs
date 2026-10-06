@@ -435,11 +435,14 @@ fn launcher_clears_buff_area_on_default_1920x1080_canvas() {
         sync(&mut canvases, skin);
         let launcher = rect(&canvases, "MinimapLauncherButton");
         assert_eq!((launcher.width, launcher.height), (30.0, 30.0));
-        for name in [BUFF_FRAME.0, DEBUFF_FRAME.0] {
-            let auras = rect(&canvases, name);
+        // Every buff row, and the first debuff row: up to eight debuffs (DEBUFFS_PER_ROW).
+        let buffs = rect(&canvases, BUFF_FRAME.0);
+        let mut first_debuff_row = rect(&canvases, DEBUFF_FRAME.0);
+        first_debuff_row.height = 40.0;
+        for auras in [buffs, first_debuff_row] {
             assert!(
                 !intersects(&launcher, &auras),
-                "{skin:?}: {launcher:?} overlaps {name} {auras:?}"
+                "{skin:?}: {launcher:?} overlaps {auras:?}"
             );
         }
     }
