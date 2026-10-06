@@ -66,7 +66,6 @@ pub(crate) struct UnitPortraits {
     /// The CharacterMicroButton's player portrait.
     micro: Portrait,
     character: Portrait,
-    launcher: Portrait,
     /// The open vendor in MerchantFrame (`SetPortraitToUnit("npc")`).
     merchant: Portrait,
     /// The quest giver or gossip NPC in QuestFrame (`SetPortraitTexture(.., "questnpc")`).
@@ -82,7 +81,6 @@ impl Default for UnitPortraits {
             pet: Portrait::new(PET_PORTRAIT),
             micro: Portrait::new(CHARACTER_PORTRAIT),
             character: Portrait::new(CHARACTER_FRAME_PORTRAIT),
-            launcher: Portrait::new(game_engine_ui_model::launcher::CHARACTER_ICON),
             merchant: Portrait::new(MERCHANT_PORTRAIT),
             quest: Portrait::new(QUEST_PORTRAIT),
             party: PartyPortraits::default(),
@@ -511,10 +509,6 @@ impl GameClient {
             .character_frame
             .frame_ui()
             .and_then(|ui| ui.bind().frame_control(CHARACTER_FRAME_PORTRAIT.frame));
-        let launcher_host = self.launcher.ui.as_ref().and_then(|ui| {
-            ui.bind()
-                .frame_control(game_engine_ui_model::launcher::CHARACTER_ICON.frame)
-        });
         let (merchant_host, merchant) = self.npc_portrait(
             self.merchant.ui.as_ref(),
             &MERCHANT_PORTRAIT,
@@ -537,9 +531,6 @@ impl GameClient {
             portraits
                 .character
                 .sync(&mut self.world, character_host, player.clone());
-        let launcher_result = portraits
-            .launcher
-            .sync(&mut self.world, launcher_host, player);
         let merchant_result = portraits
             .merchant
             .sync(&mut self.world, merchant_host, merchant);
@@ -549,7 +540,6 @@ impl GameClient {
             .and(pet_result)
             .and(micro_result)
             .and(character_result)
-            .and(launcher_result)
             .and(merchant_result)
             .and(quest_result)
     }
@@ -603,7 +593,6 @@ impl GameClient {
         portraits.pet.clear(&mut self.world);
         portraits.micro.clear(&mut self.world);
         portraits.character.clear(&mut self.world);
-        portraits.launcher.clear(&mut self.world);
         portraits.merchant.clear(&mut self.world);
         portraits.quest.clear(&mut self.world);
         portraits.party.clear(&mut self.world);
@@ -625,7 +614,6 @@ impl GameClient {
             &portraits.pet,
             &portraits.micro,
             &portraits.character,
-            &portraits.launcher,
             &portraits.merchant,
             &portraits.quest,
         ]

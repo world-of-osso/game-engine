@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <title>Professions — filled launcher icon</title>
+  <rect x="2" y="2" width="44" height="44" rx="3" fill="#0a0e13" stroke="#6a5632" stroke-width="1.2"/>
+  <path d="M5 5h38l-3 3H8v32l-3 3z" fill="#303944"/>
+  <path d="M43 5v38H5l3-3h32V8z" fill="#0a0e13"/>
+  <rect x="8" y="8" width="32" height="32" rx="1" fill="#171c23"/>
+  <g fill="#e6c47a" stroke="#e6c47a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m12 14 6-4 10 10-6 5z"/><path d="m23 23 4-3 11 15-4 3z"/><path d="M10 31h15l-3 5H12z"/>
+  </g>
+  <g fill="none" stroke="#171c23" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m16 13 7 7"/>
+  </g>
+</svg>

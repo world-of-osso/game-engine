@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 48 48">
+  <title>Achievements — filled launcher icon</title>
+  <rect x="2" y="2" width="44" height="44" rx="3" fill="#0a0e13" stroke="#6a5632" stroke-width="1.2"/>
+  <path d="M5 5h38l-3 3H8v32l-3 3z" fill="#303944"/>
+  <path d="M43 5v38H5l3-3h32V8z" fill="#0a0e13"/>
+  <rect x="8" y="8" width="32" height="32" rx="1" fill="#171c23"/>
+  <g fill="#e6c47a" stroke="#e6c47a" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 11h16v12q0 9-8 9t-8-9z"/><path d="M16 15h-6v5q0 7 8 7M32 15h6v5q0 7-8 7" fill="none"/><path d="M22 31h4v5h7v3H15v-3h7z"/>
+  </g>
+  <g fill="none" stroke="#171c23" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round">
+    <path d="m24 15 1.5 3 3.5.5-2.5 2.5.5 3.5-3-1.5-3 1.5.5-3.5-2.5-2.5 3.5-.5z" fill="#171c23" stroke-width="1"/>
+  </g>
+</svg>
