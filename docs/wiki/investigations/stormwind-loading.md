@@ -16,6 +16,14 @@ The center terrain became attached at 119.4 seconds despite parsed terrain pendi
 
 `NearbyProgress` records authored positions/bounds and settlement by placement identity. Nearby WMO children are registered before their root completes, so root attachment cannot produce a false-ready frame. Loading prioritizes individual nearby placements and asset loads rather than all placements in the center tile. Required terrain tiles build center-first. Collision construction remains nearest-first; only nearby group bounds hold the gate. Far objects remain pending and continue spawning after entry.
 
+## After and acceptance
+
+Rendered `7c214055` reached InWorld in **80.744 seconds**, with nearby progress **494/494**, nearby collision pending **0**, full object pending **10,530**, and failures **0**. Distant pending then fell to **9,766** by 172.447 seconds while the screen remained InWorld. The captured first frame is `after-inworld.webp`. Same launch recipe and retained caches were used; the after run is warm, so this pair is not an isolated performance benchmark.
+
+The corrected private-server headless fixture (`da4d06a6`, same Rust code) entered in **2.515 seconds** with **10,622** distant placements and **6** distant center-tile collision groups still pending. It stayed InWorld and reached full object pending **0** in **14.241 seconds**, with failures **0** and 8,059 unique ADT doodads/WMO roots spawned (MODD children are not in that counter). This separately proves retained work drains; headless timing is not rendered timing. Its first attempt used Godot's 64×64 dummy viewport and missed clipped UI controls; the fixture now matches the live 1920×1080 viewport and waits for layout before pointer input.
+
+Two spatial-progress tests, six native loading tests and one real-asset WMO-extent test passed through the locked local helper. Extension/CLI build had no compiler warnings; changed Rust packages passed formatting. Existing spell-attachment errors and ObjectDB/texture/font shutdown leaks remain outside this loading fix; acceptance is not a clean-resource-lifetime claim. All owned PIDs were gone, `agents-swload.slice` stopped, UDP 5280 free, and the shared UDP 5000 server PID unchanged after cleanup.
+
 ## Proof
 
 Baseline samples, profile summary, argv, server setup and logs: `data/diagnostics/swload-2026-10-05/`. Automated coverage includes dynamic child discovery, moved-player requirements, inclusive boundaries, duplicate completion, tile-edge coverage, and `godot/tests/stormwind_loading.gd` for real private-server entry with nonzero distant pending and eventual drain. Before/after rendered and headless proof must be interpreted separately.
