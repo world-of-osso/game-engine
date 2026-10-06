@@ -149,6 +149,12 @@ fn turn_animation_id(delta: f32) -> Option<u16> {
     }
 }
 
+pub(crate) fn facing_turn_animation_id(previous: f32, facing: f32) -> Option<u16> {
+    let delta = (facing - previous + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
+        - std::f32::consts::PI;
+    turn_animation_id(delta)
+}
+
 /// Retail `JumpOrAscendStart` / `SitStandOrDescendStart` (Bindings_Standard.xml:53-65, JUMP
 /// and SITORSTAND): the held ascend (+1) or descend (-1) of a swimmer or flyer.
 fn vertical_input(bindings: &InputBindingsData, input: &impl InputState) -> f32 {
@@ -180,9 +186,7 @@ impl PlayerMovement {
         let Some(previous) = previous else {
             return locomotion;
         };
-        let delta = (facing - previous + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
-            - std::f32::consts::PI;
-        turn_animation_id(delta).unwrap_or(locomotion)
+        facing_turn_animation_id(previous, facing).unwrap_or(locomotion)
     }
 
     /// `pitch` is the camera pitch, steering a swimmer or flyer moved with the right mouse
