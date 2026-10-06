@@ -18,9 +18,9 @@ The Godot client predicts the local player's movement and reports each moved pos
 - [x] Live: after a backpedal release the server replicates the unmodified speed (only a stop input makes it recompute; 2.833 stayed before) and its position matches the client's.
 
 ### Remote airborne locomotion
-- [ ] Replicated FALLING without JUMP_STARTED selects Fall 40, then returns directly to movement on touchdown.
-- [ ] FALLING with JUMP_STARTED retains JumpStart 37 → Jump 38 → JumpEnd 39 / JumpLandRun 187 → movement.
-- [ ] Airborne transitions retain the 150 ms blend floor and the currently blended outgoing pose when interrupted.
+- [x] Replicated FALLING without JUMP_STARTED selects Fall 40, then returns directly to movement on touchdown.
+- [x] FALLING with JUMP_STARTED retains JumpStart 37 → Jump 38 → JumpEnd 39 / JumpLandRun 187 → movement.
+- [x] Airborne transitions retain the 150 ms blend floor and the currently blended outgoing pose when interrupted.
 
 ### Slow client
 - [x] A client sending fewer inputs than the server's movement bank needs (one per 0.67 s frame) ends, after its stop, where the server's player stands: the server keeps moving the player to a report its bank has not reached (game-server `MovementClocks.unreached`). Live 2026-10-02, private server, `SPEED_REAL_TIME=1 SPEED_FRAME_MS=667 SPEED_RUN_SECONDS=10`: before, server 15.75 yd of the client's 66.24 (gap 50.49); after, 69.57 of 69.57 (gap 0.000; up to 10.2 yd behind while running). Evidence `data/diagnostics/posdrift-2026-10-02/`.
