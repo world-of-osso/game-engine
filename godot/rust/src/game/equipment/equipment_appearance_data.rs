@@ -342,7 +342,33 @@ fn runtime_slot_models(
     race: u8,
     sex: u8,
 ) -> Result<Vec<RuntimeModelAppearance>, String> {
-    let models = match slot {
+    let models = runtime_model_columns(outfit_data, display_info_id, slot, race, sex)?;
+    models
+        .into_iter()
+        .map(|(column, fdid, skin_fdids)| {
+            Ok(RuntimeModelAppearance {
+                slot,
+                fdid,
+                skin_fdids,
+                texture_replacements: outfit_data.resolve_model_texture_fdids(
+                    display_info_id,
+                    column,
+                    race,
+                    sex,
+                )?,
+            })
+        })
+        .collect()
+}
+
+fn runtime_model_columns(
+    outfit_data: &OutfitData,
+    display_info_id: u32,
+    slot: EquipmentSlot,
+    race: u8,
+    sex: u8,
+) -> Result<Vec<(usize, u32, [u32; 3])>, String> {
+    Ok(match slot {
         EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight => {
             let side = usize::from(slot == EquipmentSlot::ShoulderRight);
             let model =
@@ -364,23 +390,7 @@ fn runtime_slot_models(
             .into_iter()
             .map(|(fdid, skins)| (0, fdid, skins))
             .collect(),
-    };
-    models
-        .into_iter()
-        .map(|(column, fdid, skin_fdids)| {
-            Ok(RuntimeModelAppearance {
-                slot,
-                fdid,
-                skin_fdids,
-                texture_replacements: outfit_data.resolve_model_texture_fdids(
-                    display_info_id,
-                    column,
-                    race,
-                    sex,
-                )?,
-            })
-        })
-        .collect()
+    })
 }
 
 fn merge_overlay_texture_sets(base: &mut OutfitResult, overlay: &OutfitResult) {

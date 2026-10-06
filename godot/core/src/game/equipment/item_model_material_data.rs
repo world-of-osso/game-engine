@@ -18,42 +18,52 @@ pub(super) fn load_model_materials(data_dir: &Path) -> Result<ModelMaterials, St
         .next()
         .ok_or_else(|| format!("{}: missing header", path.display()))?
         .map_err(|error| format!("read {}: {error}", path.display()))?;
-    let headers = parse_csv_line_trimmed(&header);
-    let columns = [
-        "ItemDisplayInfoID",
-        "ModelIndex",
-        "TextureType",
-        "MaterialResourcesID",
-    ]
-    .map(|name| header_index(&headers, name, &path));
-    let columns: [usize; 4] = columns
-        .into_iter()
-        .collect::<Result<Vec<_>, _>>()?
-        .try_into()
-        .expect("four columns");
-    let [display, model, kind, material] = columns;
+    let columns = read_material_columns(&header, &path)?;
     let mut materials = ModelMaterials::new();
     for (index, line) in lines.enumerate() {
         let line = line.map_err(|error| format!("read {}: {error}", path.display()))?;
         let fields = parse_csv_line_trimmed(&line);
-        let read = |column: usize| -> Result<u32, String> {
-            fields
-                .get(column)
-                .and_then(|value| value.parse().ok())
-                .ok_or_else(|| {
-                    format!(
-                        "{}:{}: invalid {}",
-                        path.display(),
-                        index + 2,
-                        headers[column]
-                    )
-                })
-        };
-        let key = (read(display)?, read(model)? as usize);
+        let [display, model, kind, material] =
+            parse_material_row(&fields, columns, &path, index + 2)?;
         materials
-            .entry(key)
+            .entry((display, model as usize))
             .or_default()
-            .push((read(kind)?, read(material)?));
+            .push((kind, material));
     }
     Ok(materials)
+}
+
+fn read_material_columns(header: &str, path: &Path) -> Result<[usize; 4], String> {
+    let headers = parse_csv_line_trimmed(header);
+    Ok([
+        header_index(&headers, "ItemDisplayInfoID", path)?,
+        header_index(&headers, "ModelIndex", path)?,
+        header_index(&headers, "TextureType", path)?,
+        header_index(&headers, "MaterialResourcesID", path)?,
+    ])
+}
+
+fn parse_material_row(
+    fields: &[String],
+    columns: [usize; 4],
+    path: &Path,
+    line: usize,
+) -> Result<[u32; 4], String> {
+    let read = |column: usize| {
+        fields
+            .get(column)
+            .and_then(|value| value.parse::<u32>().ok())
+            .ok_or_else(|| {
+                format!(
+                    "{}:{line}: invalid material column {column}",
+                    path.display()
+                )
+            })
+    };
+    Ok([
+        read(columns[0])?,
+        read(columns[1])?,
+        read(columns[2])?,
+        read(columns[3])?,
+    ])
 }
