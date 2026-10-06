@@ -395,6 +395,7 @@ fn prepare_group_batch<'a>(
 }
 
 fn build_batch_mesh(batch: &PreparedWmoBatch<'_>) -> Gd<ArrayMesh> {
+    let _mesh = crate::profile::span(|| "phase.mesh_build.wmo_main".to_owned());
     let mut arrays = wmo_mesh_arrays(&batch.mesh);
     let flags = bind_retail_streams(&mut arrays, &batch.streams);
     let mut mesh = ArrayMesh::new_gd();
@@ -528,6 +529,7 @@ fn build_batch_material(
     black: &Gd<ImageTexture>,
     light: Option<&TerrainLight>,
 ) -> Result<Gd<ShaderMaterial>, String> {
+    let _material = crate::profile::span(|| "phase.material.wmo".to_owned());
     let authored = batch.material;
     let span = crate::profile::span(|| "wmo.set_shader".to_owned());
     let mut material = ShaderMaterial::new_gd();

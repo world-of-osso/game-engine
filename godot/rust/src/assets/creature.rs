@@ -162,7 +162,9 @@ pub(crate) fn load_model_files(
     if let Some(cached) = MODELS.lock().expect("model cache").get(&key) {
         return Ok(Arc::clone(cached));
     }
+    let io = crate::profile::span(|| "phase.asset_io.m2_cache".to_owned());
     let path = cache_model_files(resolver, data_root, fdid)?;
+    drop(io);
     let model = read_model_file(&path)?;
     let cached = Arc::new(CachedModel { path, model });
     MODELS
@@ -199,7 +201,10 @@ pub(crate) fn decode_new_textures(
         .into_iter()
         .filter_map(|fdid| {
             let file = data_root.join("textures").join(format!("{fdid}.blp"));
+            let io = crate::profile::span(|| "phase.asset_io.blp".to_owned());
             let bytes = fs::read(&file).ok()?;
+            drop(io);
+            let _decode = crate::profile::span(|| "phase.blp_decode.worker".to_owned());
             Some(
                 blp::decode_gpu(&bytes)
                     .map(|image| (fdid, image))

@@ -185,6 +185,7 @@ pub(crate) fn primary_skin_path(model_path: &str) -> Result<String, String> {
 /// external `.anim` files; no engine calls, so a worker thread can run it.
 pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
     let read = |path: &Path| {
+        let _io = crate::profile::span(|| "phase.asset_io.m2".to_owned());
         fs::read(path).map_err(|err| format!("Cannot read {}: {err}", path.display()))
     };
     let model = read(model_path)?;
@@ -198,6 +199,7 @@ pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
         None
     };
     let resolver = model_asset_resolver(model_path)?;
+    let _parse = crate::profile::span(|| "phase.m2_parse".to_owned());
     m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref(), |fdid| {
         read_animation_asset(model_path, fdid, &resolver)
     })
@@ -575,6 +577,7 @@ pub(crate) fn build_batch_mesh(
     model: &m2::Model,
     sub: &m2::Submesh,
 ) -> Result<Gd<ArrayMesh>, String> {
+    let _mesh = crate::profile::span(|| "phase.mesh_build.m2".to_owned());
     let streams = m2::submesh_arrays(model, sub)?;
     let vectors = |values: &[[f32; 3]]| {
         let values: Vec<_> = values.iter().copied().map(Vector3::from_array).collect();

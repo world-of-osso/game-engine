@@ -106,6 +106,7 @@ pub(super) fn load_material(
     missing: &mut PackedInt32Array,
     replacements: Option<&HashMap<u32, Gd<ImageTexture>>>,
 ) -> Result<(Gd<ShaderMaterial>, BatchBinding), String> {
+    let _material = crate::profile::span(|| "phase.material.m2".to_owned());
     let texture_dir = Path::new(
         &ProjectSettings::singleton()
             .globalize_path(path)
@@ -513,6 +514,7 @@ pub(crate) fn shared_texture(
         return Ok(Some(texture));
     }
     let _span = crate::profile::span(|| format!("material.shared_texture {fdid}"));
+    let io = crate::profile::span(|| "phase.asset_io.blp_main".to_owned());
     let bytes = match fs::read(texture_path(fdid, dir)) {
         Ok(bytes) => bytes,
         Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
@@ -521,7 +523,10 @@ pub(crate) fn shared_texture(
         }
         Err(error) => return Err(format!("Cannot read texture {fdid}: {error}")),
     };
+    drop(io);
+    let decode = crate::profile::span(|| "phase.blp_decode.main".to_owned());
     let image = blp::decode_gpu(&bytes).map_err(|error| format!("Texture {fdid}: {error}"))?;
+    drop(decode);
     let texture = texture_from_gpu_image(image)?;
     TEXTURES.with_borrow_mut(|textures| textures.insert(key, texture.clone()));
     Ok(Some(texture))
@@ -545,6 +550,7 @@ pub(crate) fn insert_shared_texture(
 }
 
 pub(crate) fn texture_from_gpu_image(image: blp::GpuImage) -> Result<Gd<ImageTexture>, String> {
+    let _upload = crate::profile::span(|| "phase.texture_upload.objects".to_owned());
     let format = match image.format {
         blp::GpuFormat::Dxt1 => image::Format::DXT1,
         blp::GpuFormat::Dxt3 => image::Format::DXT3,
