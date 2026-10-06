@@ -22,6 +22,13 @@ pub(crate) struct Auction {
     gossip: Option<(u64, GossipMenu)>,
 }
 impl Auction {
+    pub(crate) fn portrait_unit(&self) -> Option<u64> {
+        self.gossip
+            .as_ref()
+            .map(|(npc, _)| *npc)
+            .or(self.session.ui.npc)
+    }
+
     fn free_ui(&mut self) {
         if let Some(ui) = self.ui.take() {
             ui.free();
