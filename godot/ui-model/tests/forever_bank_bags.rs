@@ -271,6 +271,17 @@ fn assert_forever_bank_tree() {
 }
 
 #[test]
+#[ignore = "fixture capture only"]
+fn capture_base_trees() {
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(ActiveSkin::Modern);
+    println!("BEGIN_BANK_TREES\n{}END_BANK_TREES", modern_trees());
+}
+
+#[test]
 fn bank_bag_skin_art_preserves_modern_trees() {
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
