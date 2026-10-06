@@ -5,6 +5,9 @@
 ## 2026-10-06 — Player resurrection offers and creature taps
 
 [Death flow](systems/death-flow.md#player-resurrection-offers-and-tap-eligibility) replaces the former wire gaps with real offer/response transport, timed RESURRECT dialogs and stable viewer/group tap comparison. Retail nameplate health is 0.9 grey; requested target health uses TargetFrame's 0.5 faction/portrait tint, through each skin's brightness treatment. Targeted CPU/UDP proof ledger: `/tmp/claude/rezrtap-proof.md`; native GPU/live realm equivalence remains unclaimed.
+## 2026-10-06 — Player cast feedback
+
+[[player-cast-feedback]] records Retail flash/finish, interrupt spark/glow/shake, channel finish and fade timings; Forever retains FlareUI geometry/colours without classic timing. Production `37b82fb2`, fixture `195e31f7`: 26 targeted Rust/UI tests and native build pass; ten snapshots rendered with actual colour, spark, flash, two-axis shake and isolated FX pixel assertions. Six requested key frames plus Failed/channel captures inspected under both skins. Source-backed vertical-shake and unnamed-channel-failure regressions reproduced and fixed. Bounded visual PASS; shutdown allocation errors and host warnings remain. Evidence: `data/diagnostics/castbaranim-2026-10-06/`.
 
 ## 2026-10-06 — Forever player aura lane
 

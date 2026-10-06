@@ -2,6 +2,8 @@ pub(crate) mod assets;
 #[cfg(debug_assertions)]
 mod audit_probe;
 // New preview APIs belong in their own *_preview.rs #[godot_api(secondary)] block, never here.
+pub(crate) mod castbar_fx;
+mod castbar_preview;
 mod dungeon_preview;
 mod forevergaps_preview;
 mod guild_preview;
@@ -138,6 +140,7 @@ enum ScreenPostsetup {
     /// Autocast Shines draw the host's composite.
     PetActionBar,
     PortraitParty,
+    CastingBar,
 }
 
 impl RegistryModel {
@@ -235,6 +238,9 @@ impl RegistryModel {
             | ScreenPostsetup::Loading
             | ScreenPostsetup::Auction
             | ScreenPostsetup::Trade => {}
+            ScreenPostsetup::CastingBar => {
+                game_engine_ui_model::casting_bar_frame_component::apply_casting_bar_feedback_postsetup(&mut self.registry);
+            }
             ScreenPostsetup::WorldMap(texture) => {
                 if let Some(state) = self.shared.get::<WorldMapFrameState>() {
                     apply_world_map_postsetup(state, &mut self.registry);
@@ -1011,7 +1017,7 @@ impl RegistryUi {
 
     /// Initialize a dedicated RegistryUi instance for the player casting bar.
     pub fn show_casting_bar(&mut self, state: CastingBarState) -> Result<(), String> {
-        self.show_viewport_screen(state, casting_bar_frame_screen, ScreenPostsetup::None)
+        self.show_viewport_screen(state, casting_bar_frame_screen, ScreenPostsetup::CastingBar)
     }
 
     /// Initialize a dedicated RegistryUi instance for `GameTooltip` and its comparison tooltips.

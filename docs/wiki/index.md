@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Player cast feedback](systems/player-cast-feedback.md) — Retail animation sources, player-only sampling, skin geometry and offline captures.
+
 Knowledge base for the game-engine project, organized across five categories.
 Last updated: 2026-10-06.
 

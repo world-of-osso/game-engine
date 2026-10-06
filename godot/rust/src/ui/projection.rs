@@ -620,6 +620,13 @@ impl UiProjection {
                 material.set_blend_mode(godot::classes::canvas_item_material::BlendMode::ADD);
                 control.set_material(&material);
             }
+            loading |= super::castbar_fx::apply_masks(
+                node,
+                &mut control,
+                registry,
+                part.rotation,
+                part.additive,
+            )?;
             if part.overlay {
                 control.set_z_as_relative(false);
                 control.set_z_index(OVERLAY_Z);

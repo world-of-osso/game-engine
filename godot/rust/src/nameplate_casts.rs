@@ -254,7 +254,27 @@ pub(crate) fn casting_bar_state(bar: &CastBar, icon_fdid: Option<u32>) -> Castin
         is_interruptible: bar.bar_type != BarType::Uninterruptable,
         is_interrupted: bar.bar_type == BarType::Interrupted,
         alpha: bar.alpha(),
+        player_feedback: None,
     }
+}
+
+/// PlayerCastingBarFrame's playCastFX clock. The nameplate/target reducer is shared,
+/// but their art and interrupt-value presentation are not changed.
+pub(crate) fn player_casting_bar_state(bar: &CastBar, icon_fdid: Option<u32>) -> CastingBarState {
+    use game_engine_ui_model::casting_bar_frame_component::CastFeedback;
+    let mut state = casting_bar_state(bar, icon_fdid);
+    state.player_feedback = Some(match bar.fade {
+        Fade::None => CastFeedback::Casting,
+        Fade::Out(seconds) => CastFeedback::Finished(seconds),
+        Fade::HoldOut(seconds) => {
+            // Both skins retain Retail timing (CastingBarFrame.xml:179-183).
+            if seconds >= 0.1 {
+                state.progress = 1.0;
+            }
+            CastFeedback::Interrupted(seconds)
+        }
+    });
+    state
 }
 
 /// `GetEffectiveType`.
@@ -374,9 +394,10 @@ impl PlateCasts {
         }
         if bar.casting && !bar.fading() {
             bar.interrupt(failure_text(reason, interrupter));
-        } else if bar.channel && bar.bar_type != BarType::Interrupted && interrupter.is_some() {
-            // `UNIT_SPELLCAST_CHANNEL_STOP` with `interruptedBy`: the empowered path,
-            // shown even when the channel has already started fading.
+        } else if bar.channel && bar.bar_type != BarType::Interrupted {
+            // A failed CHANNEL_STOP forces interruption even after its replicated
+            // removal starts the finish fade; an interrupter name is optional
+            // (CastingBarFrame.lua:450-456,540-541).
             bar.interrupt(failure_text(reason, interrupter));
         }
     }
