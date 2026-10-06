@@ -9,7 +9,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
 use crate::micro_menu::{ACTION_PREFIX, MICRO_BUTTONS};
-use crate::quest_art::flat_panel_chrome;
+use crate::quest_art::launcher_panel_chrome;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -23,7 +23,9 @@ const CELL_H: f32 = 40.0;
 const CELL_GAP: f32 = 2.0;
 const PANEL_INSET: f32 = 12.0;
 const PANEL_W: f32 = COLUMNS as f32 * (CELL_W + CELL_GAP) - CELL_GAP + PANEL_INSET * 2.0;
-const GRID_TOP: f32 = 70.0;
+const HEADER_HEIGHT: f32 = 36.0;
+const HEADER_EXTRA: f32 = HEADER_HEIGHT - 20.0;
+const GRID_TOP: f32 = 70.0 + HEADER_EXTRA;
 const ICON_SIZE: f32 = 32.0;
 
 pub fn icon_path(skin: ActiveSkin, glyph: &str) -> String {
@@ -271,7 +273,7 @@ fn launcher_panel(view: &LauncherView, skin: ActiveSkin) -> Element {
         r#frame {
             name: "LauncherPanel", width: PANEL_W, height,
             pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%",
-            {flat_panel_chrome("Launcher", (PANEL_W, height), "Launcher", ACTION_CLOSE)}
+            {launcher_panel_chrome((PANEL_W, height), HEADER_HEIGHT)}
             {search_box(&view.query, &icon_path(skin, "magnifier"))}
             {entries}
             {empty_results(view)}
@@ -283,7 +285,7 @@ fn search_box(query: &str, glyph: &str) -> Element {
     rsx! {
         r#frame { name: "LauncherSearchBorder", width: {PANEL_W - PANEL_INSET * 2.0}, height: 30.0,
             background_color: "0.02,0.02,0.02,1.0", border: "1px solid 0.48,0.40,0.25,1.0",
-            pos_type: "absolute", left: PANEL_INSET, top: 32.0,
+            pos_type: "absolute", left: PANEL_INSET, top: {32.0 + HEADER_EXTRA},
             texture { name: "LauncherSearchGlyph", width: 24.0, height: 24.0,
                 texture_file: glyph, pos_type: "absolute", left: 3.0, top: 3.0 }
             editbox { name: {DynName(SEARCH_FIELD.into())}, text: query, width: {PANEL_W - PANEL_INSET * 2.0 - 30.0}, height: 30.0,
