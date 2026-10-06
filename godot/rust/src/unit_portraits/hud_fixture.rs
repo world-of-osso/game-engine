@@ -41,6 +41,19 @@ impl ModernHudOverlapFixture {
         self.chat.as_mut().unwrap().set_visible(chat);
     }
 
+    /// Reproduce a layout audit's literal pixel canvas without changing anchors.
+    #[func]
+    fn set_canvas_scale(&mut self, scale: f32) -> GString {
+        let result = self
+            .player
+            .as_mut()
+            .unwrap()
+            .bind_mut()
+            .set_ui_scale(scale)
+            .and_then(|()| self.chat.as_mut().unwrap().bind_mut().set_ui_scale(scale));
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     #[func]
     fn bounds(&self) -> VarDictionary {
         let mut state = VarDictionary::new();

@@ -15,6 +15,14 @@ func run_test() -> void:
 		push_error(error)
 		quit(1)
 		return
+	var prefix := "modern-hud"
+	if OS.get_environment("GODOT_CAPTURE_SCREEN") == "hud_reported":
+		error = fixture.set_canvas_scale(1.0)
+		if not error.is_empty():
+			push_error(error)
+			quit(1)
+			return
+		prefix = "modern-hud-reported"
 	for frame in range(4):
 		await process_frame
 		await RenderingServer.frame_post_draw
@@ -25,7 +33,7 @@ func run_test() -> void:
 		report[key] = [rect.position.x, rect.position.y, rect.size.x, rect.size.y]
 	var overlap: Rect2 = bounds.PlayerFrame.intersection(bounds.ChatFrame)
 	report["bounds_intersection"] = [overlap.position.x, overlap.position.y, overlap.size.x, overlap.size.y]
-	var file := FileAccess.open(output.path_join("modern-hud-bounds.json"), FileAccess.WRITE)
+	var file := FileAccess.open(output.path_join(prefix + "-bounds.json"), FileAccess.WRITE)
 	file.store_string(JSON.stringify(report, "\t"))
 	file.close()
 	for mode in [["empty", false, false], ["player", true, false], ["chat", false, true], ["both", true, true]]:
@@ -34,7 +42,7 @@ func run_test() -> void:
 			await process_frame
 			await RenderingServer.frame_post_draw
 		var image := root.get_texture().get_image()
-		if image.save_png(output.path_join("modern-hud-" + mode[0] + ".png")) != OK:
+		if image.save_png(output.path_join(prefix + "-" + mode[0] + ".png")) != OK:
 			push_error("save HUD capture")
 			quit(1)
 			return
