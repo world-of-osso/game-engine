@@ -236,6 +236,12 @@ func castbar_snapshot_matches(ui: Node, image: Image, output: String) -> bool:
 		push_error("Finished cast kept its spark")
 		return false
 	print("CASTBAR_NATIVE ", skin, " ", phase, " track=", track_rect, " fill=", fill_rect, " label=", label.text)
+	if phase in ["interrupted", "failed"]:
+		# At 100.175, cumulative Retail XML translation is (-1,-1) in canvas coordinates.
+		var expected_origin = Vector2(831, 903) if skin == "modern" else Vector2(826, 781)
+		if track_rect.position != expected_origin:
+			push_error("Cast shake lost an axis: ", track_rect.position, " expected ", expected_origin)
+			return false
 	var lit_pixels = 0
 	for y in range(int(track_rect.position.y), int(track_rect.end.y)):
 		for x in range(int(track_rect.position.x), int(track_rect.end.x)):
