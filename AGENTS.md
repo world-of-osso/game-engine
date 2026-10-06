@@ -46,7 +46,7 @@ godot/           # Godot project + Rust workspace (built and tested through desk
 - `./run-tests.sh` — root workspace (launcher, tools) tests, clippy, and format check; Godot workspace tests use the desktop/local helper (next line).
 - `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-core [cargo test args...]` — run `godot/` workspace `cargo test --locked` on the selected desktop/local host (CPU only, no Godot engine) with the data files listed in `godot/depot-test-assets.txt`; exits with cargo's status. Agents use this instead of local Cargo in `godot/`.
 - Parallel-agent tooling in `scripts/agent/`:
-  - `link-worktree-data.py <canonical> <worktree>` links untracked `data/` into a worktree.
+  - `link-worktree-data.py [--repair] <canonical> <worktree>` — [shared data setup and idle-slot repair](docs/remote-builds.md#shared-worktree-data).
   - `seed-target.sh <repo> <dir>` reflink-clones a warm `CARGO_TARGET_DIR`; never start an agent on an empty one.
   - `headless-client.sh start-godot <checkout> <xdg> [godot args]` runs the client in a headless cage, off the user's display; `stop <checkout>/target` stops it.
   - `agent-run <agent-name> <cmd...>` is mandatory for every local build, test server, client and extraction an agent starts (cargo, game-server, Godot/cage, casc-local). It runs inside the capped `agents.slice` (12 cores, 26 GB). Stop everything one agent started with `systemctl --user stop agents-<name>.slice`, everything all agents started with `systemctl --user stop agents.slice`.
@@ -83,7 +83,7 @@ godot/           # Godot project + Rust workspace (built and tested through desk
 - `data/terrain/` — ADT terrain files
 - `data/casc/root.bin` + `encoding.bin` — CASC resolution tables (~250MB, from `casc-extract init`). **Never delete — expensive to regenerate.**
 - WoW install: `/syncthing/World of Warcraft/` — full install synced from Windows (CASC at `Data/`, retail at `_retail_/`)
-- **Asset extraction**: Use local CASC storage, never Blizzard CDN. See `docs/casc-extraction.md`.
+- **Asset extraction**: Use local CASC storage, never Blizzard CDN. Prepare [shared data links](docs/remote-builds.md#shared-worktree-data) first. See `docs/casc-extraction.md`.
 - **Gotcha: item material textures** — some item-driven textures come from `ItemDisplayInfo.ModelMaterialResourcesID_*` via `TextureFileData`, not from the same path as attached runtime M2 textures. Auto-extraction is not fully reliable for every such path yet. If an item geoset/model shows untextured, verify the resolved texture FDID exists under `data/textures/` and extract it manually with `cargo run --manifest-path ../asset-resolver/Cargo.toml --bin casc-local -- <fdid> -o data/textures` before assuming the render path is wrong.
 
 ## ADT Terrain
