@@ -66,10 +66,6 @@ impl EquipmentTransformConfig {
             .cloned()
             .unwrap_or_else(|| self.resolve_slot_default(slot))
     }
-
-    pub fn resolve(&self, slot: EquipmentSlot, path: &Path) -> EquipmentTransformDef {
-        self.resolve_optional_path(slot, Some(path))
-    }
 }
 
 fn default_scale() -> [f32; 3] {
@@ -86,7 +82,8 @@ mod tests {
     #[test]
     fn absent_fields_resolve_to_identity() {
         let config = EquipmentTransformConfig::parse("()").unwrap();
-        let transform = config.resolve(EquipmentSlot::Head, Path::new("helm.m2"));
+        let transform =
+            config.resolve_optional_path(EquipmentSlot::Head, Some(Path::new("helm.m2")));
         assert_eq!(transform.translation, [0.0, 0.0, 0.0]);
         assert_eq!(transform.rotation_deg, [0.0, 0.0, 0.0]);
         assert_eq!(transform.scale, [1.0, 1.0, 1.0]);
@@ -105,9 +102,9 @@ mod tests {
             )"#,
         )
         .unwrap();
-        let transform = config.resolve(
+        let transform = config.resolve_optional_path(
             EquipmentSlot::MainHand,
-            Path::new("data/models/CLUB_1H_TORCH_A_01.M2"),
+            Some(Path::new("data/models/CLUB_1H_TORCH_A_01.M2")),
         );
         assert_eq!(transform.translation, [4.0, 5.0, 6.0]);
         assert_eq!(transform.rotation_deg, [10.0, 20.0, 30.0]);
@@ -122,12 +119,12 @@ mod tests {
         .unwrap();
         assert_eq!(
             config
-                .resolve(EquipmentSlot::OffHand, Path::new("other.m2"))
+                .resolve_optional_path(EquipmentSlot::OffHand, Some(Path::new("other.m2")))
                 .translation,
             [1.0, 2.0, 3.0]
         );
         assert_eq!(
-            config.resolve(EquipmentSlot::Head, Path::new("other.m2")),
+            config.resolve_optional_path(EquipmentSlot::Head, Some(Path::new("other.m2"))),
             EquipmentTransformDef::default()
         );
     }
@@ -165,10 +162,6 @@ mod tests {
         let override_transform =
             config.resolve_optional_path(EquipmentSlot::ShoulderLeft, Some(named));
         assert_eq!(override_transform.translation, [4.0, 5.0, 6.0]);
-        assert_eq!(
-            override_transform,
-            config.resolve(EquipmentSlot::ShoulderLeft, named)
-        );
         assert_eq!(
             config.resolve_optional_path(EquipmentSlot::ShoulderLeft, Some(Path::new("other.m2"))),
             expected
