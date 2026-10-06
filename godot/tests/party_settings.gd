@@ -26,6 +26,8 @@ func run_test() -> void:
 	await settle()
 	for name in ["party_compact", "party_background", "party_horizontal", "party_border", "party_pets", "Sliderparty_width", "Sliderparty_height", "Sliderparty_size", "Sliderparty_opacity", "Sliderparty_debuff", "Sliderparty_buff", "Sliderparty_defensive", "PartyDropdownButtonparty_sort", "PartyDropdownButtonparty_aura"]:
 		check((fixture.settings_rect(name) as Rect2).size.x > 0, "mounted settings control: " + name)
+	var inactive_preset := "Choiceui_layout0Hit" if skin.begins_with("forever") else "Choiceui_layout1Hit"
+	check((fixture.settings_rect(inactive_preset) as Rect2).size.x > 0, "settings selector matches rendered skin")
 	await scroll_to("party_compact")
 	await capture("settings-top")
 	await scroll_to("Sliderparty_defensive")

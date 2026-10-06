@@ -215,6 +215,7 @@ impl PartyPortraitFixture {
             ui_toolkit::atlas::ActiveSkin::Modern
         };
         ui_toolkit::atlas::set_active_skin(skin);
+        self.layout.active = if forever { "Forever" } else { "Modern" }.into();
         self.layout.skin = if forever {
             game_engine_core::ui_layout_data::LayoutSkin::Forever
         } else {
