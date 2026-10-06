@@ -298,9 +298,16 @@ fn rank_list(session: &GuildRanksSession) -> Element {
     }
     children.extend(title(
         "GuildRankAuthority",
-        "Only the Guild Master\ncan change rank settings.",
+        "Only the Guild Master",
         20.0,
         610.0,
+        208.0,
+    ));
+    children.extend(title(
+        "GuildRankAuthorityNote",
+        "can change rank settings.",
+        20.0,
+        632.0,
         208.0,
     ));
     children
