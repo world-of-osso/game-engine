@@ -19,10 +19,17 @@ October 3, 2026: main observed real extension export from both hosts, desktop CL
 - [Build guide](../../remote-builds.md) — host workflow, observed capability, rerun prerequisites and open gates.
 - [Build contract](../../specs/godot-conversion.md) — requirements and proof status.
 - `scripts/depot-build.py`, `scripts/build_hosts.py`, `launcher/` — host transport and launcher implementation.
+- [BuildKit config](../../../scripts/depot/buildkitd.toml) — GC failure diagnosis and current limits.
+- [Private live-run recipe](../../headless-live-run.md) — operational isolation and capture workflow.
 
 ## See Also
 
 - [[godot-conversion]] — native client and retained historical evidence.
+- [Warm-slot rule](../../remote-builds.md#warm-slot-rule) — fixed paths, branch reuse, cache identities and global build lock.
+- [Private headless live client](../../headless-live-run.md) — isolated real-client runtime recipe.
 
-## Builder GC policy (2026-10-05)
-The shared `game-engine` buildx builder runs with `scripts/depot/buildkitd.toml`; recreate it with `~/.worktrees/build-lock.sh scripts/setup-builder.sh` (keeps the cache volume). BuildKit's default policy capped cache mounts at ~488 MiB and the builder at ~93 GiB while it held ~102 GiB, so GC evicted the per-slot Cargo target caches between runs: cargo fingerprints reported ENOENT and every gate rebuilt ~484 crates (gates 30-34). The config keeps cache mounts 30 days up to 250 GB, the builder up to 320 GB, and at least 100 GB disk free.
+## Builder GC policy
+
+Verified source review: 2026-10-06. The shared `game-engine` buildx builder runs with [`scripts/depot/buildkitd.toml`](../../../scripts/depot/buildkitd.toml), the single source for current retention and space limits. Its comments record the October 5 failure: default GC evicted per-slot Cargo target caches, fingerprints reported ENOENT, and gates rebuilt about 484 crates. Old limits quoted here were stale; consult the config rather than copying its values into docs.
+
+When explicitly authorised to reprovision, `~/.worktrees/build-lock.sh scripts/setup-builder.sh` keeps the cache volume. Ordinary agents preserve the builder and follow the [warm-slot rule](../../remote-builds.md#warm-slot-rule); this is not an instruction to recreate it during a run.
