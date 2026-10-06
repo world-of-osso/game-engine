@@ -214,6 +214,56 @@ mod tests {
     }
 
     #[test]
+    fn rosterclient_head_and_visage_survive_offline_roster_replacement() {
+        use shared::components::{
+            CharacterAppearance, CustomizationChoiceSelection, EquipmentVisualSlot,
+            EquippedAppearanceEntry, FormAppearance,
+        };
+        use shared::protocol::{GroupPortraitAppearance, GroupRosterSnapshot};
+        let mut group = roster(&["Ann"]);
+        let head = EquippedAppearanceEntry {
+            slot: EquipmentVisualSlot::Head,
+            item_id: Some(32329),
+            display_info_id: Some(117595),
+            inventory_type: 1,
+            hidden: true,
+        };
+        group.members[0].portrait = GroupPortraitAppearance {
+            race: 52,
+            appearance: CharacterAppearance {
+                sex: 1,
+                customization_choices: vec![CustomizationChoiceSelection {
+                    option_id: 2886,
+                    choice_id: 51688,
+                }],
+                visage: Some(FormAppearance {
+                    hair_color: 4,
+                    ..Default::default()
+                }),
+                ..Default::default()
+            },
+            head: Some(head.clone()),
+        };
+        let mut members = group.members.clone();
+        members[0].online = false;
+        group.apply_roster(GroupRosterSnapshot {
+            is_raid: false,
+            ready_count: 0,
+            total_count: 1,
+            members,
+            loot_method: shared::loot::LootMode::PersonalLoot,
+        });
+        let appearances = roster_appearances(&group);
+        let Some(UnitAppearance::Player(player, equipment)) = appearances.get("Ann") else {
+            panic!("offline member must build from the received roster");
+        };
+        assert_eq!(player.race, 52);
+        assert_eq!(player.appearance, group.members[0].portrait.appearance);
+        assert_eq!(equipment.entries, [head]);
+        assert!(bindings(&group, None, false)[0].desaturated);
+    }
+
+    #[test]
     fn party4_portrait_bindings_keep_sorted_names_and_slots_together() {
         use game_engine_core::ui_layout_data::PartySort;
         let mut group = roster(&["Bob", "Zed", "Amy", "Ann"]);
