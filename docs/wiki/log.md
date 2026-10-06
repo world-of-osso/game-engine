@@ -63,7 +63,7 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 
 ## 2026-10-06 — Pinned shoulder source boundary
 
-[[forever-data#Pinned shoulder asset boundary (2026-10-06)]] separates authoredFDIDs from missing listfile paths and unproved asset bytes. Installed Forever is70235; pinned70205 config/root absent, documented root encoding-key prefix absent from16 local index files. Stale installed extractor's Retail-root failures are invalid Forever availability evidence. Source catalogs unchanged; restoring pinned local assets or changing asset-source version requires a source decision.
+[[forever-data#Pinned shoulder asset boundary (2026-10-06)]] retains absent pinned70205 config/root and invalid stale-CLI Retail-root failures. Subsequent user-authorized updated local WoW probe with maintained asset-resolver80d16d05 (offline two-job build exit0; retained binrw future-incompatibility warning) refreshes current Forever70235 local cache to1,436,182 entries and extracts all12 original shoulder assets/dependencies without missing TACT keys. Exact hashes prove byte identity with existing October5/September29 model/texture caches; both M2 embedded names are empty, primary MD5s match current CKeys. This supersedes the source-decision blocker, not pinned-root identity: no70205 root recovery, new definition version, game catalog/source-table publication/modification or CDN. Mandatory resolver-path gate is observed failure, not missing bytes; exact fix/native proof pending Main/agent199. Ailee material1102747 mapping gap remains. Docs-only receipt update; no code/build/test/ops rerun.
 
 ## 2026-10-06 — Prepared character30 native reward-reload
 
