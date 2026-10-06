@@ -17,6 +17,8 @@ pub enum ChatChannelType {
     Whisper,
     Emote,
     System,
+    /// `CHAT_MSG_COMBAT_XP_GAIN`: owner-only XP notices, not combat log events.
+    CombatXpGain,
     /// Numbered custom or zone channel (General, Trade, LookingForGroup, etc.).
     Custom,
     /// `CHAT_MSG_MONSTER_SAY` / `_YELL` / `_EMOTE` and `CHAT_MSG_RAID_BOSS_EMOTE`:
@@ -31,16 +33,17 @@ impl ChatChannelType {
     /// Display color as RGBA for this channel type.
     pub fn color(self) -> [f32; 4] {
         match self {
-            Self::Say => [1.0, 1.0, 1.0, 1.0],        // white
-            Self::Yell => [1.0, 0.25, 0.25, 1.0],     // red
-            Self::Party => [0.67, 0.67, 1.0, 1.0],    // light blue
-            Self::Raid => [1.0, 0.5, 0.0, 1.0],       // orange
-            Self::Guild => [0.25, 1.0, 0.25, 1.0],    // green
-            Self::Officer => [0.25, 0.75, 0.25, 1.0], // dark green
-            Self::Whisper => [1.0, 0.5, 1.0, 1.0],    // pink
-            Self::Emote => [1.0, 0.5, 0.25, 1.0],     // orange
-            Self::System => [1.0, 1.0, 0.0, 1.0],     // yellow
-            Self::Custom => [1.0, 0.75, 0.75, 1.0],   // light pink
+            Self::Say => [1.0, 1.0, 1.0, 1.0],              // white
+            Self::Yell => [1.0, 0.25, 0.25, 1.0],           // red
+            Self::Party => [0.67, 0.67, 1.0, 1.0],          // light blue
+            Self::Raid => [1.0, 0.5, 0.0, 1.0],             // orange
+            Self::Guild => [0.25, 1.0, 0.25, 1.0],          // green
+            Self::Officer => [0.25, 0.75, 0.25, 1.0],       // dark green
+            Self::Whisper => [1.0, 0.5, 1.0, 1.0],          // pink
+            Self::Emote => [1.0, 0.5, 0.25, 1.0],           // orange
+            Self::System => [1.0, 1.0, 0.0, 1.0],           // yellow
+            Self::CombatXpGain => [0.435, 0.435, 1.0, 1.0], // COMBAT_XP_GAIN
+            Self::Custom => [1.0, 0.75, 0.75, 1.0],         // light pink
             // Retail default ChatTypeInfo colours.
             Self::MonsterSay => [1.0, 1.0, 0.624, 1.0],
             Self::MonsterYell => [1.0, 0.251, 0.251, 1.0],
@@ -61,6 +64,7 @@ impl ChatChannelType {
             Self::Whisper => "[Whisper]",
             Self::Emote => "",
             Self::System => "[System]",
+            Self::CombatXpGain => "",
             Self::Custom => "",
             Self::MonsterSay | Self::MonsterYell | Self::MonsterEmote | Self::RaidBossEmote => "",
         }
@@ -99,6 +103,7 @@ impl ChatMessage {
     /// Formatted display: "[Channel] Sender: text" or "Sender says: text".
     pub fn formatted(&self) -> String {
         match self.channel_type {
+            ChatChannelType::CombatXpGain => return self.text.clone(),
             ChatChannelType::Emote => return format!("{} {}", self.sender, self.text),
             ChatChannelType::MonsterSay => return format!("{} says: {}", self.sender, self.text),
             ChatChannelType::MonsterYell => {
@@ -117,6 +122,55 @@ impl ChatMessage {
         } else {
             format!("{} {}: {}", prefix, self.sender, self.text)
         }
+    }
+}
+
+/// Retail COMBATLOG_XPGAIN_FIRSTPERSON / _UNNAMED, _EXHAUSTION1/2 and their
+/// _GROUP variants (GlobalStrings.csv:2370,2807,2849,2511,4128-4132).
+/// `original` includes rested XP; `amount` already includes the group multiplier.
+/// An unresolved unit uses UNKNOWNOBJECT (GlobalStrings.csv:3928), as unit names do.
+pub fn xp_gain_message(
+    gain: &shared::protocol::LogXpGain,
+    victim_name: Option<&str>,
+    timestamp: f64,
+) -> ChatMessage {
+    use shared::protocol::XpGainReason;
+    let total = gain.original;
+    let base = if gain.reason == XpGainReason::Kill {
+        let name = victim_name.unwrap_or("Unknown");
+        format!("{name} dies, you gain {total} experience.")
+    } else {
+        format!("You gain {total} experience.")
+    };
+    let bonus = xp_gain_bonus_text(gain);
+    ChatMessage {
+        channel_type: ChatChannelType::CombatXpGain,
+        channel_name: String::new(),
+        sender: String::new(),
+        text: format!("{base}{bonus}"),
+        timestamp,
+    }
+}
+
+fn xp_gain_bonus_text(gain: &shared::protocol::LogXpGain) -> String {
+    use shared::protocol::XpGainReason;
+    let group = if gain.group_bonus > 1.0 {
+        // Remove the multiplier to recover the XP contributed by the group bonus.
+        let bonus_fraction = 1.0 - 1.0 / f64::from(gain.group_bonus);
+        (f64::from(gain.amount) * bonus_fraction) as u32
+    } else {
+        0
+    };
+    let rested = if gain.reason == XpGainReason::Kill {
+        gain.original.saturating_sub(gain.amount)
+    } else {
+        0
+    };
+    match (rested, group) {
+        (0, 0) => String::new(),
+        (0, group) => format!(" (+{group} group bonus)"),
+        (rested, 0) => format!(" (+{rested} exp Rested bonus)"),
+        (rested, group) => format!(" (+{rested} exp Rested bonus, +{group} group bonus)"),
     }
 }
 

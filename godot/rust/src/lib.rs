@@ -1858,6 +1858,11 @@ impl GameClient {
             AccountEvent::Loot(message) => self.receive_loot_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
+            AccountEvent::XpGain(gain) => self.chat.model.receive_xp_gain(
+                &gain,
+                &self.replica,
+                game_engine_ui_model::chat_data::now_timestamp(),
+            ),
             AccountEvent::Emote(event) => {
                 if let Err(error) = self.world.receive_emote(event.player_entity, event.emote) {
                     godot_error!("Emote of {}: {error}", event.sender);

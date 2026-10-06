@@ -92,6 +92,25 @@ impl ChatModel {
         });
     }
 
+    /// Resolve the victim immediately, while its replicated unit is still known.
+    pub fn receive_xp_gain(
+        &mut self,
+        gain: &shared::protocol::LogXpGain,
+        replica: &game_engine_network::replica::Replica,
+        timestamp: f64,
+    ) {
+        let victim_name = gain
+            .victim
+            .and_then(|id| replica.unit(id))
+            .and_then(|unit| unit.name());
+        self.log
+            .add_message(game_engine_ui_model::chat_data::xp_gain_message(
+                gain,
+                victim_name,
+                timestamp,
+            ));
+    }
+
     /// A combat event with its units already resolved: a Combat Log line when Retail's
     /// default filters list it.
     pub fn receive_combat(
