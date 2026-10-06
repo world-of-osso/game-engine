@@ -5,7 +5,7 @@ use std::rc::Rc;
 use godot::classes::text_server::{AutowrapMode, OverrunBehavior};
 use godot::classes::{
     Button, ColorRect, Control, InputEvent, InputEventMouseButton, InputEventMouseMotion, Label,
-    LineEdit, StyleBoxEmpty, Texture2D, TextureRect,
+    LineEdit, StyleBoxEmpty, TextEdit, Texture2D, TextureRect,
 };
 use godot::global::{HorizontalAlignment, VerticalAlignment};
 use godot::prelude::*;
@@ -391,7 +391,12 @@ impl UiProjection {
                 Control::new_alloc()
             }
             WidgetType::Button => flat_button().upcast(),
-            WidgetType::EditBox => LineEdit::new_alloc().upcast(),
+            WidgetType::EditBox => match &frame.widget_data {
+                Some(WidgetData::EditBox(edit)) if edit.multi_line => {
+                    TextEdit::new_alloc().upcast()
+                }
+                _ => LineEdit::new_alloc().upcast(),
+            },
             WidgetType::FontString => Label::new_alloc().upcast(),
             other => {
                 return Err(format!(
@@ -436,7 +441,7 @@ impl UiProjection {
         let pending = &self.pending;
         match frame.widget_type {
             WidgetType::Button => connect_button(pending, frame.id, node),
-            WidgetType::EditBox => connect_edit_box(pending, frame.id, node),
+            WidgetType::EditBox => connect_edit_box(pending, frame, node),
             WidgetType::Slider => connect_slider(pending, &self.slider_capture, frame.id, node),
             // Frames, textures and font strings with an `onclick` click as in the Bevy
             // toolkit (tracker minimize buttons, minimap zone text and zoom buttons).
@@ -565,9 +570,7 @@ impl UiProjection {
                 let mut button_node = node.cast::<Button>();
                 button_node.set_disabled(!button.enabled || button.state == ButtonState::Disabled);
             }
-            Some(WidgetData::EditBox(edit)) => {
-                self.update_editbox(node.cast::<LineEdit>(), edit)?
-            }
+            Some(WidgetData::EditBox(edit)) => self.update_editbox(node, edit)?,
             Some(WidgetData::FontString(text)) => {
                 self.update_label(node.cast::<Label>(), text, frame, rect)?
             }
@@ -693,16 +696,13 @@ impl UiProjection {
 
     fn update_editbox(
         &mut self,
-        mut node: Gd<LineEdit>,
+        mut node: Gd<Control>,
         data: &ui_toolkit::widgets::edit_box::EditBoxData,
     ) -> Result<(), String> {
-        if node.get_text().to_string() != data.text {
-            node.set_text(&data.text);
-            node.set_caret_column(data.text.chars().count() as i32);
-        }
-        node.set_secret(data.password);
-        if let Some(max) = data.max_letters {
-            node.set_max_length(max as i32);
+        if data.multi_line {
+            update_multiline_edit(node.clone().cast::<TextEdit>(), &data.text);
+        } else {
+            update_single_line_edit(node.clone().cast::<LineEdit>(), data);
         }
         if let Some(font) = self.font(data.font) {
             node.add_theme_font_override("font", &font);
@@ -1022,19 +1022,73 @@ fn connect_button(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
     }
 }
 
-fn connect_edit_box(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
+fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Control>) {
+    let id = frame.id;
     let text_pending = pending.clone();
-    let text_changed = Callable::from_fn("registry-text-changed", move |args| {
-        if let Some(text) = args.first() {
-            text_pending.push(UiInput::Text(id, text.to::<GString>().to_string()));
-        }
-    });
+    let Some(WidgetData::EditBox(data)) = &frame.widget_data else {
+        return;
+    };
+    let text_changed = if data.multi_line {
+        let mut editor = node.clone().cast::<TextEdit>();
+        let max_letters = data.max_letters;
+        Callable::from_fn("registry-multiline-text-changed", move |_| {
+            let text = read_limited_multiline_text(&mut editor, max_letters);
+            text_pending.push(UiInput::Text(id, text));
+        })
+    } else {
+        node.connect("text_submitted", &emit(pending, UiInput::Submit));
+        Callable::from_fn("registry-text-changed", move |args| {
+            if let Some(text) = args.first() {
+                text_pending.push(UiInput::Text(id, text.to::<GString>().to_string()));
+            }
+        })
+    };
     node.connect("text_changed", &text_changed);
-    node.connect("text_submitted", &emit(pending, UiInput::Submit));
     node.connect("focus_entered", &emit(pending, UiInput::Focus(id)));
     node.connect("focus_exited", &emit(pending, UiInput::Blur(id)));
     let escape = release_focus_on_escape(node.clone());
     node.connect("gui_input", &escape);
+}
+
+fn update_single_line_edit(
+    mut node: Gd<LineEdit>,
+    data: &ui_toolkit::widgets::edit_box::EditBoxData,
+) {
+    if node.get_text().to_string() != data.text {
+        node.set_text(&data.text);
+        node.set_caret_column(data.text.chars().count() as i32);
+    }
+    node.set_secret(data.password);
+    if let Some(max) = data.max_letters {
+        node.set_max_length(max as i32);
+    }
+}
+
+fn update_multiline_edit(mut node: Gd<TextEdit>, text: &str) {
+    node.set_line_wrapping_mode(godot::classes::text_edit::LineWrappingMode::BOUNDARY);
+    if node.get_text().to_string() != text {
+        node.set_text(text);
+        move_multiline_caret_to_end(&mut node);
+    }
+}
+
+fn move_multiline_caret_to_end(node: &mut Gd<TextEdit>) {
+    let last_line = node.get_line_count() - 1;
+    node.set_caret_line(last_line);
+    node.set_caret_column(node.get_line(last_line).len() as i32);
+}
+
+fn read_limited_multiline_text(node: &mut Gd<TextEdit>, max_letters: Option<u32>) -> String {
+    let text = node.get_text().to_string();
+    let Some(max) = max_letters else { return text };
+    let limited: String = text.chars().take(max as usize).collect();
+    if limited != text {
+        node.set_block_signals(true);
+        node.set_text(&limited);
+        move_multiline_caret_to_end(node);
+        node.set_block_signals(false);
+    }
+    limited
 }
 
 /// The original login clears edit focus on Escape; LineEdit keeps it by default.

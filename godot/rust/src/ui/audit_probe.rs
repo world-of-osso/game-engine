@@ -9,6 +9,17 @@ use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
 
 use super::RegistryUi;
 
+fn set_audit_data_and_skin(forever: bool) -> Result<(), String> {
+    let root = godot::classes::ProjectSettings::singleton().globalize_path("res://../data");
+    game_engine_ui_model::paths::set_data_root(root.to_string().into())?;
+    set_active_skin(if forever {
+        ActiveSkin::Forever
+    } else {
+        ActiveSkin::Modern
+    });
+    Ok(())
+}
+
 #[derive(GodotClass)]
 #[class(base = Node, init)]
 struct UiAuditProbe {
@@ -18,12 +29,32 @@ struct UiAuditProbe {
 #[godot_api]
 impl UiAuditProbe {
     #[func]
+    fn mount_mail(&mut self, forever: bool) -> GString {
+        use game_engine_ui_model::mail::NativeMailView;
+        use game_engine_ui_model::mail_frame_component::{MailFrameState, MailFrameTab};
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.into();
+        }
+        let state = NativeMailView {
+            frame: MailFrameState {
+                visible: true,
+                tab: MailFrameTab::Send,
+                ..Default::default()
+            },
+            bags: Default::default(),
+        };
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("MailAuditUI");
+        self.base_mut().add_child(&ui);
+        let result = ui.bind_mut().show_mail(state);
+        result.err().unwrap_or_default().into()
+    }
+
+    #[func]
     fn mount_quest(&mut self, forever: bool) -> GString {
-        set_active_skin(if forever {
-            ActiveSkin::Forever
-        } else {
-            ActiveSkin::Modern
-        });
+        if let Err(error) = set_audit_data_and_skin(forever) {
+            return error.into();
+        }
         let state = QuestLogFrameState {
             visible: true,
             details: Some(QuestLogDetails {

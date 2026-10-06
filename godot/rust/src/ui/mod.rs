@@ -235,6 +235,9 @@ impl RegistryModel {
             }
             ScreenPostsetup::Merchant => {
                 game_engine_ui_model::merchant::place_merchant_windows(&mut self.registry);
+                game_engine_ui_model::mail_frame_component::apply_mail_body_postsetup(
+                    &mut self.registry,
+                );
                 // The NPC canvas's own backpack portrait.
                 self.icon_masks.apply(&mut self.registry);
             }
