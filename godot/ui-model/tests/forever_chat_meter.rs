@@ -47,6 +47,19 @@ fn canvas<T: 'static>(
     registry
 }
 
+#[test]
+fn metergaps_forever_row_font_is_friz_quadrata_12() {
+    let registry = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
+    for name in ["DamageMeterEntry1Name", "DamageMeterEntry1Value"] {
+        let text = font(&registry, name);
+        assert_eq!(text.font_size, 12.0);
+        assert_eq!(
+            text.font,
+            ui_toolkit::widgets::font_string::GameFont::FrizQuadrata
+        );
+    }
+}
+
 fn meter_view() -> DamageMeterView {
     let session = DamageMeterSession {
         session_id: 1,
@@ -457,8 +470,7 @@ fn check_row_parts(registry: &FrameRegistry, recap: bool) {
             size <= text.3 - text.1,
             "{label} font {size} taller than its box"
         );
-        // Text fills most of the bar's height, as in the reference.
-        assert!(size >= 0.5 * bar_h, "{label} font {size} in a {bar_h} bar");
+        assert_eq!(size, 12.0, "{label}: FlareUI barFont size");
     }
     assert!(name.2 <= value.0, "name and value do not overlap");
 }
