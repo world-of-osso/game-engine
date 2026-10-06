@@ -510,7 +510,7 @@ impl UiProjection {
         };
         let disabled_stepper = stepper_art_is_disabled(frame, registry);
         for part in &mut visual.images {
-            part.desaturated = disabled_stepper;
+            part.desaturated |= disabled_stepper;
             part.rect[0] += position.x - whole.x;
             part.rect[1] += position.y - whole.y;
         }
