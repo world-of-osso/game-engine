@@ -149,6 +149,12 @@ fn turn_animation_id(delta: f32) -> Option<u16> {
     }
 }
 
+pub(crate) fn facing_turn_animation_id(previous: f32, facing: f32) -> Option<u16> {
+    let delta = (facing - previous + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
+        - std::f32::consts::PI;
+    turn_animation_id(delta)
+}
+
 /// Retail `JumpOrAscendStart` / `SitStandOrDescendStart` (Bindings_Standard.xml:53-65, JUMP
 /// and SITORSTAND): the held ascend (+1) or descend (-1) of a swimmer or flyer.
 fn vertical_input(bindings: &InputBindingsData, input: &impl InputState) -> f32 {
@@ -170,15 +176,17 @@ impl PlayerMovement {
     fn animation_id(&mut self, facing: f32) -> u16 {
         let previous = self.previous_facing.replace(facing);
         let locomotion = direction_to_anim_id(self.direction, self.running, self.swimming);
+        let falling = !self.grounded && !self.jumping && !self.swimming && !self.flying;
+        if falling {
+            return crate::animation::ANIM_FALL;
+        }
         if self.direction != MoveDirection::None || self.jumping || self.swimming || self.flying {
             return locomotion;
         }
         let Some(previous) = previous else {
             return locomotion;
         };
-        let delta = (facing - previous + std::f32::consts::PI).rem_euclid(std::f32::consts::TAU)
-            - std::f32::consts::PI;
-        turn_animation_id(delta).unwrap_or(locomotion)
+        facing_turn_animation_id(previous, facing).unwrap_or(locomotion)
     }
 
     /// `pitch` is the camera pitch, steering a swimmer or flyer moved with the right mouse
@@ -1183,6 +1191,22 @@ mod tests {
         assert_eq!(turn_animation_id(0.02), Some(11));
         assert_eq!(turn_animation_id(-0.019), None);
         assert_eq!(turn_animation_id(-0.02), Some(12));
+    }
+
+    #[test]
+    fn locomotion_unjumped_airborne_player_falls_and_lands_into_movement() {
+        let mut movement = PlayerMovement::default();
+        movement.grounded = false;
+        assert_eq!(movement.animation_id(0.0), 40);
+        movement.direction = MoveDirection::Forward;
+        assert_eq!(movement.animation_id(0.0), 40);
+        movement.grounded = true;
+        assert_eq!(movement.animation_id(0.0), 5);
+        movement.grounded = false;
+        movement.swimming = true;
+        assert_eq!(movement.animation_id(0.0), 42);
+        movement.swimming = false;
+        assert_eq!(movement.animation_id(0.0), 40);
     }
 
     #[test]
