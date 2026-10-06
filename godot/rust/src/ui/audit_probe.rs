@@ -33,7 +33,7 @@ impl UiAuditProbe {
         use game_engine_ui_model::mail::NativeMailView;
         use game_engine_ui_model::mail_frame_component::{MailFrameState, MailFrameTab};
         if let Err(error) = set_audit_data_and_skin(forever) {
-            return error.into();
+            return error.as_str().into();
         }
         let state = NativeMailView {
             frame: MailFrameState {
@@ -47,13 +47,13 @@ impl UiAuditProbe {
         ui.set_name("MailAuditUI");
         self.base_mut().add_child(&ui);
         let result = ui.bind_mut().show_mail(state);
-        result.err().unwrap_or_default().into()
+        result.err().unwrap_or_default().as_str().into()
     }
 
     #[func]
     fn mount_quest(&mut self, forever: bool) -> GString {
         if let Err(error) = set_audit_data_and_skin(forever) {
-            return error.into();
+            return error.as_str().into();
         }
         let state = QuestLogFrameState {
             visible: true,
@@ -72,6 +72,6 @@ impl UiAuditProbe {
         let result = ui
             .bind_mut()
             .show_quest_window(state, quest_log_frame_screen);
-        result.err().unwrap_or_default().into()
+        result.err().unwrap_or_default().as_str().into()
     }
 }
