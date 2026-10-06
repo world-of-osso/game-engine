@@ -51,6 +51,21 @@ scripts/agent/agent-run <run_name> ~/.worktrees/build-lock.sh \
 
 Use the corresponding server helper for an assigned server slot. BuildKit GC limits live only in [`scripts/depot/buildkitd.toml`](../scripts/depot/buildkitd.toml); [builder GC policy](wiki/systems/build-hosts.md#builder-gc-policy) owns the eviction diagnosis and provisioning guidance. Do not change GC policy or rebuild the builder as part of ordinary slot use.
 
+### Shared worktree data
+
+Run `python3 scripts/agent/link-worktree-data.py <canonical-repo> <slot>` when preparing an assigned slot. The linker reads the slot's Git index: directories without tracked descendants become whole-directory links; only tracked subtrees are traversed. Tracked art stays branch-owned. Root auth tokens and SQLite sidecars stay slot-owned; sidecars inside a shared database directory stay with that database.
+
+For existing real asset directories, stop the slot's clients, extractors and importers before running:
+
+```sh
+python3 scripts/agent/link-worktree-data.py --repair \
+  /home/osso-test/Projects/world-of-osso/game-engine /absolute/path/to/idle-slot
+```
+
+Repair checks `/proc/*/fd` before changing anything and refuses open paths or unreadable descriptors. Run with permission to inspect every process (an authorized privileged invocation may be required); keep the slot idle until it finishes. Slot-only files move into canonical using exclusive creation, never overwriting. Identical duplicates are removed locally. Differing files are reported and retained under `<slot>/data-repair-conflicts-*/` before the real directory is replaced by its canonical link. Root-file conflicts remain in place and are reported. Resolve preserved conflicts manually; do not blindly copy them over canonical. No repair is implicit in normal linking.
+
+Cache importers use `data/cache`, atlas imports use `data/db2` and `data/textures`, and runtime/local-CASC extraction uses the same linked directories. No writer-specific destination override is needed. [Live runs](headless-live-run.md#1-reserve-inputs-and-owned-paths) own the runtime environment.
+
 ## Private headless live runs
 
 Follow [Private headless live client](headless-live-run.md) for an owned Weston/Dozen client, copied private server database, disposable accounts, explicit IPC sockets and exact-PID cleanup. That page owns the reusable runtime recipe; the [capability boundary](#desktop-runtime-capability-boundary) below records historical proof and limits.
