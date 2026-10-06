@@ -267,7 +267,7 @@ fn forever_health_edge_is_one_pixel_and_fill_reaches_it() {
 }
 
 #[test]
-fn nameplate_level_one_dummy_is_known_boss_and_plus_eleven_are_unknown() {
+fn nameplate_level_one_dummy_is_known_boss_and_plus_ten_are_unknown() {
     use shared::components::Npc;
     let mut replica = Replica::for_tests();
     replica.insert(1, UnitLevel(1));
@@ -294,10 +294,15 @@ fn nameplate_level_one_dummy_is_known_boss_and_plus_eleven_are_unknown() {
         Some(0)
     );
     replica.insert(1, CreatureClassification::Normal);
+    replica.insert(1, UnitLevel(49));
+    assert_eq!(
+        displayed_plate_level(replica.unit(1).unwrap(), Some(40)),
+        Some(49)
+    );
     replica.insert(1, UnitLevel(50));
     assert_eq!(
         displayed_plate_level(replica.unit(1).unwrap(), Some(40)),
-        Some(50)
+        Some(0)
     );
     replica.insert(1, UnitLevel(51));
     assert_eq!(
