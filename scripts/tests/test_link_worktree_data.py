@@ -91,7 +91,10 @@ class LinkWorktreeDataTests(unittest.TestCase):
             (self.canonical / "data/textures/conflict").read_text(), "canonical"
         )
         self.assertEqual((self.canonical / "data/textures/legacy").read_text(), "same")
-        backups = list(self.worktree.glob("data-repair-conflicts-*"))
+        self.assertEqual(list(self.worktree.glob("*repair-conflicts*")), [])
+        backups = list((self.worktree.parent / "repair-conflicts").glob(
+            f"{self.worktree.name}-data-repair-conflicts-*"
+        ))
         self.assertEqual(len(backups), 1)
         self.assertEqual((backups[0] / "textures/conflict").read_text(), "slot version")
         self.assertIn("conflict", output.lower())
