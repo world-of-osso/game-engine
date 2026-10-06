@@ -109,12 +109,11 @@ impl GameClient {
     /// Resolve recap and action detail labels from the snapshot, never the account combat log.
     fn update_meter_snapshot(&mut self) {
         let snapshot = self.account.damage_meter.clone();
-        let sessions = snapshot
+        let sources = snapshot
             .iter()
-            .flat_map(|s| s.current.iter().chain(std::iter::once(&s.overall)));
-        let recaps = sessions
-            .flat_map(|s| &s.sources)
-            .flat_map(|s| &s.death_recaps);
+            .flat_map(|s| s.current.iter().chain(std::iter::once(&s.overall)))
+            .flat_map(|session| &session.sources);
+        let recaps = sources.clone().flat_map(|source| &source.death_recaps);
         let events: Vec<_> = recaps.flat_map(|r| &r.events).collect();
         let unit_names = events
             .iter()
@@ -122,15 +121,6 @@ impl GameClient {
             .map(|id| (id, self.unit_display_name(Some(id))))
             .collect();
         let name_spell = crate::chat::spell_namer(self.spells.catalog());
-        let sources = snapshot
-            .iter()
-            .flat_map(|snapshot| {
-                snapshot
-                    .current
-                    .iter()
-                    .chain(std::iter::once(&snapshot.overall))
-            })
-            .flat_map(|session| &session.sources);
         let spell_names = sources
             .flat_map(source_spell_ids)
             .map(|id| (id, name_spell(id)))
