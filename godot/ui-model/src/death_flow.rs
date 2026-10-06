@@ -344,6 +344,7 @@ mod tests {
                 blips: vec![edge],
                 ..Default::default()
             };
+            shared.insert(skin);
             shared.insert(state.clone());
             let mut registry = FrameRegistry::new(1920.0, 1080.0);
             Screen::new(minimap_cluster_screen).sync(&shared, &mut registry);
