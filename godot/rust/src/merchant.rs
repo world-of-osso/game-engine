@@ -248,6 +248,9 @@ impl GameClient {
 
     /// `InteractUnit`: use a game object, else loot, attack or talk to a unit.
     pub(crate) fn interact_unit(&mut self, unit: u64) -> Result<(), FrameError> {
+        if self.interact_spirit_healer(unit) {
+            return Ok(());
+        }
         if self.use_game_object(unit)? || self.send_corpse_loot(unit)? {
             return Ok(());
         }

@@ -172,6 +172,9 @@ const EDGE_LEFT: SheetArt = hud_vertical(28.0, 34.0);
 const EDGE_RIGHT: SheetArt = hud_vertical(11.0, 18.0);
 /// `Interface\Minimap\MinimapArrow`.
 pub const ARROW_FDID: u32 = 136_431;
+/// Local listfile: Interface/Minimap/Rotating-MinimapCorpseArrow.blp.
+pub const CORPSE_ARROW_FDID: u32 = 136_445;
+pub const MINIMAP_CORPSE_PREFIX: &str = "MinimapCorpse";
 /// UiTextureAtlas 647 `ObjectIconsAtlas` (1024×1024): `QuestNormal`, `QuestTurnin`.
 pub const QUEST_AVAILABLE: SheetArt = SheetArt {
     fdid: 1_121_272,
@@ -255,6 +258,9 @@ pub fn minimap_texture_fdids(state: &MinimapClusterState, skin: ActiveSkin) -> V
     if !state.blips.is_empty() {
         fdids.push(QUEST_AVAILABLE.fdid);
     }
+    if state.blips.iter().any(|blip| blip.kind == BlipKind::Corpse) {
+        fdids.push(CORPSE_ARROW_FDID);
+    }
     if state.calendar_day.and_then(calendar_art).is_some() {
         fdids.push(CALENDAR_FDID);
     }
@@ -269,6 +275,8 @@ pub enum BlipKind {
     QuestTurnIn,
     /// A creature vignette (`VignetteKill`, `VignetteKillElite`).
     Vignette { elite: bool },
+    /// Owner's corpse, or its direction arrow at the map edge.
+    Corpse,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -563,6 +571,7 @@ fn blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
         BlipKind::QuestTurnIn => (MINIMAP_BLIP_PREFIX, QUEST_TURN_IN),
         BlipKind::Vignette { elite: false } => (MINIMAP_VIGNETTE_PREFIX, VIGNETTE_KILL),
         BlipKind::Vignette { elite: true } => (MINIMAP_VIGNETTE_PREFIX, VIGNETTE_KILL_ELITE),
+        BlipKind::Corpse => return corpse_arrow(blip, style),
     };
     let [right, down] = blip.offset;
     let [left, top] = style.map_origin;
@@ -573,6 +582,22 @@ fn blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
         art,
         [x, y, BLIP_SIZE, BLIP_SIZE],
     )
+}
+
+fn corpse_arrow(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
+    const SIZE: f32 = 20.0;
+    let [right, down] = blip.offset;
+    let [left, top] = style.map_origin;
+    let x = left + style.map_size * (0.5 + right) - SIZE / 2.0;
+    let y = top + style.map_size * (0.5 + down) - SIZE / 2.0;
+    rsx! {
+        texture {
+            name: {DynName(format!("{MINIMAP_CORPSE_PREFIX}{}", blip.unit))},
+            width: SIZE, height: SIZE,
+            texture_fdid: CORPSE_ARROW_FDID,
+            pos_type: "absolute", left: x, top: y,
+        }
+    }
 }
 
 /// `ZoomIn` 17×17 at CENTER (+88, −68) and `ZoomOut` 17×9 at (+72, −84); a button at
@@ -847,6 +872,25 @@ pub fn apply_minimap_postsetup(state: &MinimapClusterState, registry: &mut Frame
     edit_texture(registry, MINIMAP_ARROW, |texture| {
         texture.rotation = state.arrow_rotation;
     });
+    for blip in state
+        .blips
+        .iter()
+        .filter(|blip| blip.kind == BlipKind::Corpse)
+    {
+        let [right, down] = blip.offset;
+        let rotation = if right == 0.0 && down == 0.0 {
+            0.0
+        } else {
+            right.atan2(-down)
+        };
+        edit_texture(
+            registry,
+            &format!("{MINIMAP_CORPSE_PREFIX}{}", blip.unit),
+            |texture| {
+                texture.rotation = rotation;
+            },
+        );
+    }
     if let Some(id) = state.map_texture {
         edit_texture(registry, MINIMAP_DISPLAY, |texture| {
             texture.source = TextureSource::Dynamic(id);

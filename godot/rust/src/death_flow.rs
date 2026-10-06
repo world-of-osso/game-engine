@@ -42,6 +42,34 @@ impl GameClient {
         Ok(())
     }
 
+    /// Right-click and InteractUnit share this path; only an actual spirit healer
+    /// within server range can open the penalty confirmation.
+    pub(super) fn interact_spirit_healer(&mut self, id: u64) -> bool {
+        use shared::components::Position;
+        use shared::protocol::NpcFlags;
+        let Some(unit) = self.replica.unit(id) else {
+            return false;
+        };
+        let flags = NpcFlags(unit.npc_flags().unwrap_or(0));
+        if !flags.contains(NpcFlags::SPIRIT_HEALER) {
+            return false;
+        }
+        let Some(healer) = unit.get::<Position>() else {
+            return false;
+        };
+        let Some(player) = self.death_player_position() else {
+            return false;
+        };
+        let distance_squared = (player.x - healer.x).powi(2)
+            + (player.y - healer.y).powi(2)
+            + (player.z - healer.z).powi(2);
+        let range = shared::death::SPIRIT_HEALER_RANGE;
+        if distance_squared > range * range {
+            return false;
+        }
+        self.death_flow.request_spirit_healer(&player)
+    }
+
     fn death_player_position(&self) -> Option<DeathPositionSnapshot> {
         let map_id = u16::try_from(self.world_map_id?).ok()?;
         let position = self.world.local_player_server_position()?;

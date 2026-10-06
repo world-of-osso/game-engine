@@ -1703,6 +1703,50 @@ mod dungeonclient_tests;
 mod tests {
     use super::*;
 
+    #[test]
+    fn deathstate_account_dispatches_snapshot_and_error() {
+        use shared::protocol::{DeathSnapshot, DeathStateSnapshot, DeathStateUpdate};
+        let mut account = Account::new(PathBuf::from("/unused-death-data"));
+        for state in [
+            DeathStateSnapshot::Dead,
+            DeathStateSnapshot::Ghost,
+            DeathStateSnapshot::Alive,
+        ] {
+            let update = DeathStateUpdate {
+                snapshot: Some(DeathSnapshot {
+                    state,
+                    corpse: None,
+                    graveyard: None,
+                    can_resurrect_at_corpse: false,
+                    spirit_healer_available: false,
+                }),
+                error: None,
+                message: Some("death state refreshed".into()),
+            };
+            let mut events = Vec::new();
+            account
+                .dispatch_message(ProtocolMessage::for_tests(update.clone()), &mut events)
+                .unwrap();
+            let [AccountEvent::Death(received)] = events.as_slice() else {
+                panic!("death event");
+            };
+            assert_eq!(received, &update);
+        }
+        let update = DeathStateUpdate {
+            snapshot: None,
+            message: None,
+            error: Some("too far from corpse".into()),
+        };
+        let mut events = Vec::new();
+        account
+            .dispatch_message(ProtocolMessage::for_tests(update.clone()), &mut events)
+            .unwrap();
+        let [AccountEvent::Death(received)] = events.as_slice() else {
+            panic!("death refusal event");
+        };
+        assert_eq!(received, &update);
+    }
+
     use shared::components::{CharacterAppearance, EquipmentAppearance};
     use shared::protocol::{CharacterListEntry, TransferAbortReason};
 
