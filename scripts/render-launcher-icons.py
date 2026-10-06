@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the phase-one launcher SVG candidates with resvg (a build-only tool)."""
+"""Render the chosen filled launcher SVGs with resvg (a build-only tool)."""
 from pathlib import Path
 import subprocess
 
@@ -20,16 +20,17 @@ PALETTES = {
 
 def render_candidates():
     if not RESVG.is_file():
-        raise SystemExit("Missing ~/.cargo/bin/resvg; install with cargo install resvg --locked")
+        raise SystemExit("Missing ~/.cargo/bin/resvg; install with cargo install resvg --locked --version 0.48.1")
     for skin, palette in PALETTES.items():
-        for source in sorted(SOURCES.glob("*/*.svg")):
+        for source in sorted((SOURCES / "filled").glob("*.svg")):
             destination = SOURCES / "png" / skin / source.parent.name / f"{source.stem}.png"
             destination.parent.mkdir(parents=True, exist_ok=True)
             svg = source.read_text()
             for original, tinted in palette.items():
                 svg = svg.replace(original, tinted)
             # resvg accepts stdin; no intermediate recoloured source files.
-            subprocess.run([str(RESVG), "--width", "96", "-", str(destination)],
+            subprocess.run([str(RESVG), "--resources-dir", str(source.parent),
+                            "--width", "96", "-", str(destination)],
                            input=svg.encode(), check=True)
             print(destination.relative_to(ROOT))
 

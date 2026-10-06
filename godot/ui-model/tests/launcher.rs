@@ -38,77 +38,86 @@ fn icon_size(registry: &FrameRegistry, name: &str) -> (f32, f32) {
 }
 
 #[test]
-fn launcher_candidate_icons_are_authored_resource_files() {
+fn launcher_filled_icons_are_distinct_authored_resource_files() {
     use ui_toolkit::frame::WidgetData;
     use ui_toolkit::widgets::texture::TextureSource;
 
-    use game_engine_ui_model::launcher::LauncherIconStyle;
     load_icon_tables();
     for (skin, palette) in [
         (ActiveSkin::Modern, "modern"),
         (ActiveSkin::Forever, "forever"),
     ] {
-        for (style, style_name) in [
-            (LauncherIconStyle::Filled, "filled"),
-            (LauncherIconStyle::Outline, "outline"),
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(LauncherView {
+            open: true,
+            ..Default::default()
+        });
+        shared.insert(MinimapClusterState::default());
+        Screen::new(launcher_screen).sync(&shared, &mut registry);
+        Screen::new(minimap_cluster_screen).sync(&shared, &mut registry);
+        for (entry, glyph) in [
+            ("PlayerSpellsMicroButton", "spellbook"),
+            ("CharacterMicroButton", "character"),
+            ("QuestLogMicroButton", "quest"),
+            ("Bags", "bags"),
+            ("MainMenuMicroButton", "menu"),
+            ("ProfessionMicroButton", "professions"),
+            ("AchievementMicroButton", "achievements"),
+            ("HousingMicroButton", "housing"),
+            ("GuildMicroButton", "guild"),
+            ("LFDMicroButton", "group"),
+            ("CollectionsMicroButton", "collections"),
+            ("EJMicroButton", "adventure"),
+            ("StoreMicroButton", "shop"),
+            ("Help", "help"),
+            ("WorldMap", "map"),
+            ("Options", "options"),
+            ("KeyBindings", "keyboard"),
         ] {
-            let mut registry = FrameRegistry::new(1920.0, 1080.0);
-            let mut shared = SharedContext::new();
-            shared.insert(skin);
-            shared.insert(style);
-            shared.insert(LauncherView {
-                open: true,
-                ..Default::default()
-            });
-            shared.insert(MinimapClusterState::default());
-            Screen::new(launcher_screen).sync(&shared, &mut registry);
-            Screen::new(minimap_cluster_screen).sync(&shared, &mut registry);
-            for (entry, glyph) in [
-                ("PlayerSpellsMicroButton", "spellbook"),
-                ("CharacterMicroButton", "character"),
-                ("QuestLogMicroButton", "quest"),
-                ("Bags", "bags"),
-                ("MainMenuMicroButton", "menu"),
-                ("Options", "empty"),
-            ] {
-                let name = format!("LauncherArt{entry}");
-                let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
-                let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
-                    panic!("{name}: missing icon texture");
-                };
-                assert_eq!(
-                    texture.source,
-                    TextureSource::File(format!(
-                        "res://ui/launcher_icons/png/{palette}/{style_name}/{glyph}.png"
-                    ))
-                );
-                assert_eq!(icon_size(&registry, &name), (40.0, 40.0));
-                let label = registry
-                    .get(
-                        registry
-                            .get_by_name(&format!("LauncherLabel{entry}"))
-                            .unwrap(),
-                    )
-                    .unwrap();
-                let Some(WidgetData::FontString(text)) = &label.widget_data else {
-                    panic!("{entry}: missing label");
-                };
-                assert_eq!(text.font_size, 14.0);
-            }
-            let magnifier = registry
-                .get(registry.get_by_name("MinimapLauncherIcon").unwrap())
-                .unwrap();
-            let Some(WidgetData::Texture(texture)) = &magnifier.widget_data else {
-                panic!("missing magnifier");
+            let name = format!("LauncherArt{entry}");
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("{name}: missing icon texture");
             };
             assert_eq!(
                 texture.source,
                 TextureSource::File(format!(
-                    "res://ui/launcher_icons/png/{palette}/{style_name}/magnifier.png"
+                    "res://ui/launcher_icons/png/{palette}/filled/{glyph}.png"
                 ))
             );
-            assert_eq!(icon_size(&registry, "MinimapLauncherButton"), (30.0, 30.0));
+            assert_eq!(icon_size(&registry, &name), (32.0, 32.0));
+            let label = registry
+                .get(
+                    registry
+                        .get_by_name(&format!("LauncherLabel{entry}"))
+                        .unwrap(),
+                )
+                .unwrap();
+            let Some(WidgetData::FontString(text)) = &label.widget_data else {
+                panic!("{entry}: missing label");
+            };
+            assert_eq!(text.font_size, 15.0);
+            assert!(!text.word_wrap, "{entry}: label must remain on one line");
+            assert_eq!(
+                icon_size(&registry, &format!("LauncherLabel{entry}")),
+                (204.0, 20.0)
+            );
         }
+        let magnifier = registry
+            .get(registry.get_by_name("MinimapLauncherIcon").unwrap())
+            .unwrap();
+        let Some(WidgetData::Texture(texture)) = &magnifier.widget_data else {
+            panic!("missing magnifier");
+        };
+        assert_eq!(
+            texture.source,
+            TextureSource::File(format!(
+                "res://ui/launcher_icons/png/{palette}/filled/magnifier.png"
+            ))
+        );
+        assert_eq!(icon_size(&registry, "MinimapLauncherButton"), (30.0, 30.0));
     }
 }
 
@@ -119,13 +128,13 @@ fn launcher_panel_height_tracks_filtered_content() {
         open: true,
         ..Default::default()
     });
-    assert_eq!(icon_size(&full, "LauncherPanel"), (592.0, 430.0));
+    assert_eq!(icon_size(&full, "LauncherPanel"), (526.0, 458.0));
     let filtered = build(LauncherView {
         open: true,
         query: "spe".into(),
         selected: 0,
     });
-    assert_eq!(icon_size(&filtered, "LauncherPanel"), (592.0, 172.0));
+    assert_eq!(icon_size(&filtered, "LauncherPanel"), (526.0, 122.0));
 }
 
 #[test]
@@ -182,7 +191,7 @@ fn launcher_arrows_move_in_grid_and_click_dispatches_same_action() {
     view.key(LauncherKey::Right);
     assert_eq!(view.selected, 1);
     view.key(LauncherKey::Down);
-    assert_eq!(view.selected, 6);
+    assert_eq!(view.selected, 3);
     view.key(LauncherKey::Left);
     view.key(LauncherKey::Up);
     assert_eq!(view.selected, 0);

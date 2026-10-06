@@ -1,7 +1,7 @@
 extends SceneTree
 
 # Actual RegistryUi projection, offline: no server or player state changes.
-# GODOT_LAUNCHER_SKIN=modern|forever, GODOT_LAUNCHER_STYLE=filled|outline.
+# GODOT_LAUNCHER_SKIN=modern|forever; chosen filled glyphs only.
 # GODOT_CAPTURE_PATH: 1920x1080 PNG. Invoked by scripts/capture-launcher-candidates.py.
 func _initialize() -> void:
 	call_deferred("_run")
@@ -9,10 +9,9 @@ func _initialize() -> void:
 func _run() -> void:
 	var output = OS.get_environment("GODOT_CAPTURE_PATH")
 	var forever = OS.get_environment("GODOT_LAUNCHER_SKIN") == "forever"
-	var outlined = OS.get_environment("GODOT_LAUNCHER_STYLE") == "outline"
 	var ui = ClassDB.instantiate("RegistryUi")
 	root.add_child(ui)
-	var error = ui.show_launcher_candidate(forever, outlined)
+	var error = ui.show_launcher_candidate(forever)
 	if error != "":
 		push_error(error)
 		quit(1)

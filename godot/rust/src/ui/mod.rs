@@ -1879,22 +1879,16 @@ impl RegistryUi {
         )
     }
 
-    /// Phase-one launcher candidates through actual native projection, without a server.
+    /// Filled launcher through actual native projection, without a server.
     #[func]
-    pub fn show_launcher_candidate(&mut self, forever: bool, outlined: bool) -> GString {
-        use game_engine_ui_model::launcher::LauncherIconStyle;
+    pub fn show_launcher_candidate(&mut self, forever: bool) -> GString {
         use ui_toolkit::atlas::ActiveSkin;
         let skin = if forever {
             ActiveSkin::Forever
         } else {
             ActiveSkin::Modern
         };
-        let style = if outlined {
-            LauncherIconStyle::Outline
-        } else {
-            LauncherIconStyle::Filled
-        };
-        let result = self.initialize_launcher_candidate(skin, style);
+        let result = self.initialize_launcher_candidate(skin);
         GString::from(result.err().unwrap_or_default().as_str())
     }
 
