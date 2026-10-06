@@ -31,7 +31,9 @@ How the client shows the character bank, the Warband bank and the guild bank. Th
 ## Rank settings model
 
 `godot/ui-model/src/guild_ranks.rs` retains `GuildRanksState` and exposes the selected
-rank directly. Control methods return `GuildRankRequest` without editing cached state;
+rank directly. The rank settings contain eight tab-rights entries even for unpurchased
+tabs; only `tab_names` entries are mounted or accepted for editing.
+Control methods return `GuildRankRequest` without editing cached state;
 only `apply` replaces it. Gold input converts whole gold to copper. The model validates
 GM-only editing, immutable rank zero, occupied deletion and member hierarchy.
 `guild_rank_frame.rs` renders the communities roster and its Guild Settings button,

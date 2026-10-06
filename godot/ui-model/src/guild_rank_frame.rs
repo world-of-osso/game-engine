@@ -356,9 +356,8 @@ fn tab_controls(session: &GuildRanksSession, rank: &GuildRankSettings, editable:
     let Some(state) = session.state() else {
         return children;
     };
-    for (index, tab) in rank.tabs.iter().enumerate() {
+    for (index, (name, tab)) in state.tab_names.iter().zip(&rank.tabs).enumerate() {
         let y = 422.0 + index as f32 * 34.0;
-        let name = state.tab_names.get(index).map(String::as_str).unwrap_or("");
         children.extend(title(
             &format!("GuildTabName{index}"),
             name,
@@ -408,7 +407,7 @@ fn tab_controls(session: &GuildRanksSession, rank: &GuildRankSettings, editable:
             (826.0, y, 86.0, 26.0),
         ));
     }
-    if rank.tabs.is_empty() {
+    if state.tab_names.is_empty() {
         children.extend(title(
             "GuildBankNoTabs",
             "Your guild has not purchased any guild bank space.",
