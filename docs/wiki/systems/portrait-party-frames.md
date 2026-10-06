@@ -2,24 +2,28 @@
 
 Static native `PartyMemberFrame` family under Modern and Forever. `PortraitPartyFrameState` supplies four non-self member slots; no roster adapter, runtime heads, click/menu wiring or Edit Mode setting. Compact party remains the default. [Contract](../../specs/group-frames.md).
 
-## Acceptance status — offline recapture pending (2026-10-05)
+## Acceptance status — bounded offline art/fill pass (2026-10-05)
 
 Local CASC supplied Retail `4681512.blp` and Forever build 70205's `4631591.blp` (MD5 `fa74b4e688a6d03d856ab616238058fe`; Retail remains `73bb980b6a3b738fa8f07877419a1d5e`). The slot has a separate data directory; its two missing inputs are linked to canonical data without replacing Retail bytes. Raw BGRA decoding confirms 1024×512 and bar art at 69913's player-health, player-mana and conditional party bar coordinates. Evidence: `data/diagnostics/party1-2026-10-05/forever-70205-69913-bar-crops.png`, individual `70205-*-crop.png` files and source rows in `forever-70205-69913-crops.json`.
 
 Forever's explicit party crops bind `data/forever-1.60.1.70205/textures/4631591.blp` through existing RSX `texture_file`, `TextureSource::File` and native `ui::assets::load_source`/`FileTextures`. File paths already key both decoded and projection caches. Modern keeps named Retail atlases and `data/textures/<fdid>.blp`; C60 set-1 FDIDs still use the existing importer/listfile and shared loader. No global FDID replacement or parallel loader: that would break unrelated Retail set-0 coordinates still used by the shared resolver. Forever mana now crops the 69913 player fill (815,326)–(939,336), rather than the resolver's Retail coordinates. Required files fail explicitly when absent; no alternate art.
 
-Product binding and mana source regressions reproduced RED before implementation. Offline recapture and targeted GREEN remain pending; compact remains default and steps 2–5 remain excluded.
+Product binding and mana source regressions reproduced RED before implementation. At `dea89b5a`, targeted `portrait_party_frame` tests pass 9/9 (one regeneration test ignored), shared `status_text_bars` regressions pass 4/4, and the local native extension build exits 0. All use the build lock and `agent-run`. Logs and revision scope: `data/diagnostics/party1-2026-10-05/product-binding-proof.md`.
+
+Owned Dozen/Weston recaptures `modern-party-recapture.png` and `forever-party-recapture.png` both exit 0 and pass inspected four-member art/fills: health 75/50/25/0%, mana 50/25/100/0%, crown, Offline/Dead and the correct skin frame. `*-party-recapture-detail.png` provides enlarged inspection; `recapture-fill-samples.json` records sampled colour runs (source-edge transparency changes counts, not reveal endpoints). All owned client/compositor/child PIDs exited. The initial capture setup failed on AF_UNIX path length, then on a diagnostics symlink resolving the repo root; the retained recapture script uses a short slot runtime and explicit repo slot.
+
+Both native runs still emit texture RID/ObjectDB shutdown leaks (Modern 7 texture RIDs/10 instances, Forever 9/11). This is bounded offline member art/fill acceptance, not clean-resource acceptance, reference-image parity, pet raster acceptance or live/runtime portrait proof. Portrait slots intentionally remain empty. Compact remains default and steps 2–5 remain excluded.
 
 ### Previous acceptance blockers (2026-10-05)
 
-Step 1 is **not raster-accepted and must not be wired as complete**. Twelve targeted behavioral/registry tests pass (8 portrait + 4 shared status-bar regressions); the Modern code-generated registry golden passes, and extension build `91960f9f` succeeds. These prove state/geometry/source-record relationships, not matching physical texture contents.
+At `1b875412`, step 1 was **not raster-accepted and must not be wired as complete**. Twelve targeted behavioral/registry tests pass (8 portrait + 4 shared status-bar regressions); the Modern code-generated registry golden passes, and extension build `91960f9f` succeeds. These prove state/geometry/source-record relationships, not matching physical texture contents.
 
 Owned offline Dozen/Weston captures in `data/diagnostics/party1-2026-10-05/` exposed two asset blockers:
 
 - `modern-party.png` / `modern-preview.log`: required Retail party sheet `data/textures/4681512.blp` is absent; art and fills are not drawn.
 - `forever-party.png` / `health-source-pixels.png`: C60 frame art is correct, but conditional health/non-mana bar crops from 69913 address unrelated icons/text in the cached Retail `4631591.blp`. Same FDID, different layout: player health is (705,213)–(829,233) in Retail 69933, versus (693,238)–(817,258) in Forever 69913. Source-row tests alone did not catch the physical-sheet mismatch.
 
-No matching 69913 base sheet was found in the examined local asset caches; only Retail CASC resolution cache is available here. Required next input: matching Forever base-sheet bytes and a skin/version-specific asset binding (do not replace shared Retail FDID 4631591), plus the missing Retail party sheet. No alternate-art substitution or CDN extraction performed. Both captures exited 0 but emitted RID/ObjectDB shutdown leak warnings; neither is visual parity or clean-resource acceptance. Owned render processes were stopped.
+At that point, no matching 69913 base sheet was found in the examined local asset caches; only Retail CASC resolution cache was available. Required next input: matching Forever base-sheet bytes and a skin/version-specific asset binding (do not replace shared Retail FDID 4631591), plus the missing Retail party sheet. No alternate-art substitution or CDN extraction performed. Both captures exited 0 but emitted RID/ObjectDB shutdown leak warnings; neither is visual parity or clean-resource acceptance. Owned render processes were stopped.
 
 ## Content
 
