@@ -827,6 +827,8 @@ fn describe_panic(payload: Box<dyn Any + Send>) -> String {
 mod wire_tests;
 
 #[cfg(test)]
+mod dungeonclient_wire_tests;
+#[cfg(test)]
 mod guild_rank_wire_tests;
 #[cfg(test)]
 mod merchant_wire_tests;
