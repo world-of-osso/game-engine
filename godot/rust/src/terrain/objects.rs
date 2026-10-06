@@ -384,8 +384,7 @@ pub(crate) struct TerrainObjects {
     arrived: VecDeque<(ObjectAsset, Result<LoadedAsset, String>)>,
     /// Placements whose files have loaded, in arrival order.
     ready: VecDeque<Pending>,
-    /// Placements of the prioritized tiles, loaded or not: they spawn before every other
-    /// placement, including the doodads of other tiles' WMOs placed meanwhile.
+    /// Nearby loading prerequisites, loaded or not; ahead of distant placements.
     first: VecDeque<Pending>,
     /// The WMO placement being built; other placements wait for it.
     building: Option<WmoSpawn>,
@@ -513,8 +512,7 @@ impl TerrainObjects {
 
     /// Loading needs local placements, including WMO children discovered later,
     /// not everything sharing an ADT tile. Distant work remains in the stream.
-    pub fn prioritize_nearby(&mut self, player: Vec3) {
-        self.priority_focus = Some(player);
+    fn prioritize_nearby(&mut self) {
         let placements = std::mem::take(&mut self.first)
             .into_iter()
             .chain(std::mem::take(&mut self.ready))
@@ -537,8 +535,8 @@ impl TerrainObjects {
         }
     }
 
-    pub fn clear_priority(&mut self) {
-        self.priority_focus = None;
+    pub fn set_loading_focus(&mut self, player: Option<Vec3>) {
+        self.priority_focus = player;
     }
 
     /// No false-ready interval before nearby tiles register their placements.
@@ -582,8 +580,8 @@ impl TerrainObjects {
         let name = self.name;
         let span = crate::profile::span(|| format!("{name}.queue_tiles"));
         self.queue_tiles(terrain, selection);
-        if let Some(player) = self.priority_focus {
-            self.prioritize_nearby(player);
+        if self.priority_focus.is_some() {
+            self.prioritize_nearby();
         }
         drop(span);
         let span = crate::profile::span(|| format!("{name}.poll"));
@@ -1017,8 +1015,8 @@ impl TerrainObjects {
     }
 
     /// Doodads spawn later, one per pending entry, so the object budget covers them; they
-    /// are next in line, so a placed WMO is furnished before other placements spawn,
-    /// except those of the prioritized tiles unless it is one of theirs.
+    /// are next in line among their spatial priority class, never ahead of nearby
+    /// loading prerequisites when they are distant.
     fn queue_wmo_doodads(
         &mut self,
         wmo: u32,
