@@ -43,10 +43,10 @@ impl<F: FnOnce() -> String> Drop for Span<F> {
             && let Some(label) = self.label.take()
         {
             let cpu = match (self.started_cpu_ns, thread_cpu_ns()) {
-                (Some(started), Some(now)) => format!("{:.1}", (now - started) as f64 / 1e6),
+                (Some(started), Some(now)) => format!("{:.3}", (now - started) as f64 / 1e6),
                 _ => "unreported".to_owned(),
             };
-            println!("PROFILE {} ms={elapsed:.1} cpu={cpu}", label());
+            println!("PROFILE {} ms={elapsed:.3} cpu={cpu}", label());
         }
     }
 }
