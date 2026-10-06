@@ -2627,3 +2627,7 @@ Added portable authoritative rank controls and Officer chat parsing/classificati
 ## Live quest rerun — questrun
 
 [[quest-ui]]: reconciled the stale tracker-only Godot description with the native dialogue/log host. Recorded private Modern/Forever gameplay proof, prior Jasperlode ground fixes, living-walk/death recovery, and six successful Milly interest returns without claiming the historical mirror cause. Documented real slow-frame input regressions and opaque post-draw error capture. Evidence: `data/diagnostics/questrun-2026-10-05/`; long-text overflow remains outside this repair.
+
+## Sparse portrait FoV — 2026-10-06
+
+[[portrait-party-frames]]: real Human female HD camera data reproduces the first-slot-only parser substituting one radian despite authored 0.785396576 keys in slot 2. Static snapshots skip empty slots; no race-specific zoom, clipping or light changes. Real/synthetic RED confirmed; native framing and face-pixel proof pending. Evidence: `data/diagnostics/jainaportrait-2026-10-06/`.
