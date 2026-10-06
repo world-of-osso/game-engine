@@ -90,3 +90,19 @@ impl RegistryUi {
         self.focus_frame_named(SEARCH_FIELD)
     }
 }
+
+#[godot_api(secondary)]
+impl RegistryUi {
+    /// Filled launcher through actual native projection, without a server.
+    #[func]
+    pub fn show_launcher_candidate(&mut self, forever: bool) -> GString {
+        use ui_toolkit::atlas::ActiveSkin;
+        let skin = if forever {
+            ActiveSkin::Forever
+        } else {
+            ActiveSkin::Modern
+        };
+        let result = self.initialize_launcher_candidate(skin);
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+}

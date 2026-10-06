@@ -1,4 +1,7 @@
 //! Offline production-screen capture data for the four Forever reference gaps.
+use godot::prelude::*;
+
+use super::{RegistryUi, ScreenPostsetup, forevergaps_preview, party_preview};
 use game_engine_ui_model::aura_display_data::{AuraInstance, DebuffType};
 use game_engine_ui_model::chat_frame::{ChatRow, ChatRun};
 use game_engine_ui_model::chat_frame_component::{
@@ -104,4 +107,22 @@ pub(super) fn screen(_: &SharedContext) -> Element {
     .into_iter()
     .flatten()
     .collect()
+}
+
+#[godot_api(secondary)]
+impl RegistryUi {
+    /// Offline production HUD canvas for the bounded Forever reference-gap capture.
+    #[func]
+    pub fn show_forevergaps_preview(&mut self) -> GString {
+        let result = party_preview::load_data_root().and_then(|()| {
+            ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Forever);
+            self.set_ui_scale(1.0)?;
+            self.show_viewport_screen(
+                forevergaps_preview::Preview,
+                forevergaps_preview::screen,
+                ScreenPostsetup::None,
+            )
+        });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
 }
