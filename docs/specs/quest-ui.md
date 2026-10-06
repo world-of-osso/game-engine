@@ -52,7 +52,13 @@ Evidence: [native log](../../target/skyborn-source-items/native-turnin-readiness
 
 Reuse the captured-position Rorian walk and living replicated dialog identity checks above: unchanged captured elevation, local/server positions each within actual production8.5-yard3D range, native key-event walking only. Require native `Greeting` with “Coming of Age” absent from `greeting_quests`; click no quest title, Accept or Complete Quest, accept/reward nothing. Print native quest/tracker snapshots and distinctive `REWARD_RELOAD_DONE` sentinel only after saving `02-reward-reload-greeting-40xp.png` under the required persistent `SKYBORNE_SHOTS` data/ directory. Catalog120s, inherited bounded waits and total600s remain unchanged.
 
-Server [experience contract](../../../game-server-skyborn/docs/specs/experience.md) owns per-character XP persistence in redb `character_xp`; this fixture changes no storage. Main owns restart/setup, native execution and capture inspection. No direct quest mutation, reset, teleport, admin completion or invented original script. Fixture implementation establishes no passing-run or XP-persistence receipt; no fresh-acceptance/full-case credit.
+Server [experience contract](../../../game-server-skyborn/docs/specs/experience.md) owns per-character XP persistence in redb `character_xp`; this fixture changes no storage. Main owns restart/setup, native execution and capture inspection. No direct quest mutation, reset, teleport, admin completion or invented original script. Fixture implementation alone establishes no passing-run or XP-persistence receipt; the distinct observed run below supplies bounded restart evidence, not fresh-acceptance/full-case credit.
+
+#### Observed prepared reward-reload (2026-10-06)
+
+Fixture `4532f0f61`, server checkout `4fac87a` / attributed runtime `c5cf88a`: after a true Main-owned server restart, the same native prepared character30/race95 Skymage restored exactly40XP with92460 absent from log, watched IDs and tracker. Actual living Rorian `Greeting` excludes “Coming of Age” and lists “Harmony in Balance”; nothing was accepted or rewarded. This is separate from prior fresh acceptance and prepared turn-in, with no replay/reset/admin mutation.
+
+[Reload evidence and limits](../wiki/systems/forever-data.md#prepared-reward-reload-evidence-2026-10-06) owns saved logs, executable hashes, parser status and cleanup report. Independent audit remains pending; native OS-exit status is absent. No visual credit, original scripts/phasing, parity or full-goal closure; prior failures and appearance gaps remain.
 
 ## Skin-resolved quest chrome
 
