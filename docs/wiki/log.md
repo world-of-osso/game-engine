@@ -1,3 +1,7 @@
+## 2026-10-06 — Remote unjumped airborne motion
+
+[Animation](systems/animation.md#native-locomotion-interruption-and-real-time-blending) records FALLING plus jump origin in the existing PlayerMotion flags, remote Fall 40 and direct touchdown movement. Targeted pose/UDP tests cover the distinction; no live ledge capture is claimed.
+
 ## 2026-10-06 — Player resurrection offers and creature taps
 
 [Death flow](systems/death-flow.md#player-resurrection-offers-and-tap-eligibility) replaces the former wire gaps with real offer/response transport, timed RESURRECT dialogs and stable viewer/group tap comparison. Retail nameplate health is 0.9 grey; requested target health uses TargetFrame's 0.5 faction/portrait tint, through each skin's brightness treatment. Targeted CPU/UDP proof ledger: `/tmp/claude/rezrtap-proof.md`; native GPU/live realm equivalence remains unclaimed.

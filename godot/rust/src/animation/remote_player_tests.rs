@@ -11,6 +11,7 @@ const LEFT: u64 = PlayerMotion::STRAFE_LEFT;
 const RIGHT: u64 = PlayerMotion::STRAFE_RIGHT;
 const WALK: u64 = PlayerMotion::WALKING;
 const FALLING: u64 = PlayerMotion::FALLING;
+const JUMPING: u64 = PlayerMotion::FALLING | PlayerMotion::JUMP_STARTED;
 const SWIM: u64 = PlayerMotion::SWIMMING;
 
 /// One 60 fps client frame.
@@ -64,9 +65,12 @@ fn flags_select_the_local_players_animation_ids() {
         (SWIM | LEFT, locomotion(43, false, false)),
         (SWIM | RIGHT, locomotion(44, false, false)),
         (SWIM | BACKWARD, locomotion(45, false, false)),
-        (FALLING, locomotion(0, true, false)),
-        (FORWARD | FALLING, locomotion(5, true, true)),
-        (FORWARD | WALK | FALLING, locomotion(4, true, false)),
+        (FALLING, locomotion(40, false, false)),
+        (FORWARD | FALLING, locomotion(40, false, true)),
+        (SWIM | FALLING, locomotion(41, false, false)),
+        (JUMPING, locomotion(0, true, false)),
+        (FORWARD | JUMPING, locomotion(5, true, true)),
+        (FORWARD | WALK | JUMPING, locomotion(4, true, false)),
     ] {
         assert_eq!(
             player_motion_locomotion(PlayerMotion(flags)),
@@ -132,7 +136,7 @@ fn remote_player_walks_runs_strafes_backpedals_and_stands_with_continuous_crossf
 #[test]
 fn locomotion_remote_water_entry_preempts_air_and_swims_each_direction() {
     let mut player = human_male_hd();
-    drive(&mut player, FALLING);
+    drive(&mut player, JUMPING);
     player.advance(75.0).unwrap();
     for (flags, expected) in [
         (SWIM | FORWARD, 42),
@@ -204,6 +208,33 @@ fn remote_idle_turn_uses_replicated_facing_with_continuous_crossfades() {
     assert!(player.transition.is_none());
 }
 
+#[test]
+fn remote_player_airborne_walkoff_falls_and_lands_mid_crossfade() {
+    let mut player = human_male_hd();
+    drive(&mut player, FORWARD);
+    player.advance(400.0).unwrap();
+    let before = player.poses();
+    assert!(drive(&mut player, FORWARD | FALLING));
+    assert_eq!(current_id(&player), 40);
+    assert!(player.transition.as_ref().unwrap().duration_ms >= MIN_MOVEMENT_BLEND_MS);
+    assert!(pose_distance(&before, &player.poses()) < 1e-4);
+    for _ in 0..3 {
+        assert!(!frame(&mut player, FORWARD | FALLING));
+        assert_eq!(current_id(&player), 40);
+    }
+    // Touchdown interrupts the Fall fade, preserving the currently blended pose.
+    let before = player.poses();
+    assert!(drive(&mut player, FORWARD));
+    assert_eq!(current_id(&player), 5);
+    assert!(pose_distance(&before, &player.poses()) < 1e-4);
+    assert!(player.transition.as_ref().unwrap().duration_ms >= MIN_MOVEMENT_BLEND_MS);
+    for _ in 0..30 {
+        assert!(!frame(&mut player, FORWARD));
+        assert_eq!(current_id(&player), 5);
+    }
+    assert!(player.transition.is_none());
+}
+
 /// A running jump: JumpStart 37 plays out, Jump 38 loops while `FALLING` stays set, the
 /// landing (running JumpLandRun 187 when authored, else JumpEnd 39) follows its clear,
 /// then Run 5 resumes and Stand 0 follows the stop, every switch crossfaded.
@@ -225,7 +256,7 @@ fn remote_jump_starts_loops_and_lands_from_the_falling_flag() {
             }
         }
     };
-    record(&mut player, FORWARD | FALLING, 120);
+    record(&mut player, FORWARD | JUMPING, 120);
     record(&mut player, FORWARD, 120);
     record(&mut player, 0, 30);
     let landing = if player.sequences.iter().any(|s| s.id == 187) {
