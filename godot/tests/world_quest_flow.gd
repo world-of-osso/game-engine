@@ -372,7 +372,13 @@ func check_reward_choice() -> bool:
 		return false
 	await capture("15b-reward-tooltip.png")
 	var pants_before := bag_count(URCHINS_PANTS)
-	await click_control(quest_control("QuestFrameUI", "QuestFrameCompleteQuestButton"))
+	# The error holds for only three seconds. Do not spend three extra slow frames
+	# settling the click before waiting for and capturing the transient line.
+	var complete := quest_control("QuestFrameUI", "QuestFrameCompleteQuestButton")
+	if complete == null:
+		fail("No Complete Quest button")
+		return false
+	await click(complete.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, 0)
 	if not await wait_frames(func(): return error_shown(MUST_CHOOSE), "'" + MUST_CHOOSE + "'"):
 		return false
 	if not in_log(client.quest_state(), CHOICE_QUEST) or client.quest_state().get("page") != "Reward":
@@ -996,7 +1002,7 @@ func frames(count: int) -> void:
 	for frame in range(count):
 		await process_frame
 
-func click(point: Vector2, button: MouseButton) -> void:
+func click(point: Vector2, button: MouseButton, settle_frames := 3) -> void:
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
 	motion.global_position = point
@@ -1011,7 +1017,7 @@ func click(point: Vector2, button: MouseButton) -> void:
 		event.pressed = pressed
 		root.push_input(event, true)
 		await process_frame
-	await frames(3)
+	await frames(settle_frames)
 
 func click_control(control: Control) -> void:
 	if control == null:
