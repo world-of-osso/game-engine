@@ -8,6 +8,7 @@ func _initialize() -> void:
 	call_deferred("run_test")
 
 func run_test() -> void:
+	root.size = Vector2i(1920, 1080)
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	if server != "127.0.0.1:5280":
 		push_error("Requires owned Stormwind server on UDP 5280")
@@ -31,6 +32,9 @@ func run_test() -> void:
 		push_error("Character select unavailable")
 		quit(1)
 		return
+	# Let native Control layout settle before synthesizing pointer input.
+	for _frame in range(10):
+		await process_frame
 	await click_control(ui.find_child("CharCard_0", true, false))
 	await click_control(ui.find_child("EnterWorld", true, false))
 	var started := Time.get_ticks_msec()
