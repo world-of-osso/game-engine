@@ -44,7 +44,7 @@ fn portrait_tint(group: &GroupState, name: &str, online: bool) -> [f32; 4] {
     match live.death {
         DeathState::Dead => [0.35, 0.35, 0.35, 1.0],
         DeathState::Ghost => [0.2, 0.2, 0.75, 1.0],
-        DeathState::Alive => {
+        DeathState::Alive | DeathState::Resurrecting => {
             let low_health = live.health > 0 && live.health as f32 <= live.max_health as f32 * 0.2;
             if low_health {
                 [1.0, 0.0, 0.0, 1.0]
@@ -221,6 +221,8 @@ mod tests {
         let distant = bindings(&group, Some("Bob"), false);
         assert_eq!(distant[3].tint, [1.0; 4]);
         assert!(!distant[3].desaturated);
+        group.live.get_mut("Eve").unwrap().death = DeathState::Resurrecting;
+        assert_eq!(bindings(&group, Some("Bob"), false)[3].tint, [1.0; 4]);
         group.members[0].online = true;
         assert!(!bindings(&group, Some("Bob"), false)[0].desaturated);
     }
