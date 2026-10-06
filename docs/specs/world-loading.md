@@ -20,9 +20,7 @@ World entry and map transfers hide loading once the player's local entry bubble 
 
 ## Reasoning and evidence
 
-Stormwind's center tile has 1,703 ADT doodads and 11 WMO references; just 54 of its doodad origins lie within 100 yards of the Trade District repro position. The former tile gate also added every active doodad of a required city WMO, including distant districts. Its required count expanded from 1,714 to 2,891 after the first WMO attached, with more WMOs still pending. Terrain parsing completion (`terrain.pending_count=0`) does not mean terrain GPU attachment completion: the former tile order spent 119 seconds attaching the center after unrelated neighbours on the instrumented Weston/Dozen run.
-
-These measurements show why tile ownership is not a local-readiness boundary. The gate must track spatial prerequisites and discovery ordering, while retaining the rest of the streaming workload. Full before/after logs and timing summaries live in `data/diagnostics/swload-2026-10-05/`; timing reflects that host/renderer, not general performance.
+Tile ownership is not a local-readiness boundary: a city WMO can reference objects in distant districts, and terrain parsing completion is not terrain GPU attachment completion. The gate tracks spatial prerequisites and discovery ordering while retaining the rest of the streaming workload. [Stormwind investigation](../wiki/investigations/stormwind-loading.md) records root-cause measurements, before/after rendered timing, separate headless full-drain proof, and host/cache limitations. Evidence lives in `data/diagnostics/swload-2026-10-05/`.
 
 ## Implementation and behavioral tests
 
