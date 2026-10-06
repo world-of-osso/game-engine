@@ -94,6 +94,66 @@ pub struct FrameSizeSettings {
     pub height: Option<u16>,
 }
 
+/// Retail party sliders use displayed values, not the preset's zero-based indices.
+pub const PARTY_WIDTH_RANGE: SettingRange = SettingRange::new(72, 144, 2);
+pub const PARTY_HEIGHT_RANGE: SettingRange = SettingRange::new(36, 72, 2);
+pub const PARTY_OPACITY_RANGE: SettingRange = SettingRange::new(50, 100, 1);
+pub const PARTY_ICON_RANGE: SettingRange = SettingRange::new(50, 200, 10);
+pub const PARTY_DEFENSIVE_RANGE: SettingRange = SettingRange::new(50, 100, 5);
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PartySort {
+    Role,
+    #[default]
+    Group,
+    Alphabetical,
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum PartyAuraOrganization {
+    #[default]
+    Legacy,
+    BuffsTop,
+    BuffsRight,
+}
+
+/// Unset settings preserve both skins' authored party appearance.
+#[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct PartyFrameSettings {
+    pub background: Option<bool>,
+    pub horizontal: Option<bool>,
+    pub border: Option<bool>,
+    pub width: Option<u16>,
+    pub height: Option<u16>,
+    pub frame_size: Option<u16>,
+    pub sort: Option<PartySort>,
+    pub aura_organization: Option<PartyAuraOrganization>,
+    pub opacity: Option<u16>,
+    pub debuff_size: Option<u16>,
+    pub buff_size: Option<u16>,
+    pub defensive_size: Option<u16>,
+    /// Retail's showPartyPets CVar, not an EditModeUnitFrameSetting.
+    pub show_pets: Option<bool>,
+}
+
+impl PartyFrameSettings {
+    pub fn size(self) -> (f32, f32) {
+        (
+            f32::from(PARTY_WIDTH_RANGE.clamp(self.width.unwrap_or(98))),
+            f32::from(PARTY_HEIGHT_RANGE.clamp(self.height.unwrap_or(44))),
+        )
+    }
+
+    pub fn scale(self) -> f32 {
+        f32::from(UNIT_FRAME_SIZE_RANGE.clamp(self.frame_size.unwrap_or(100))) / 100.0
+    }
+
+    pub fn alpha(self) -> f32 {
+        f32::from(PARTY_OPACITY_RANGE.clamp(self.opacity.unwrap_or(100))) / 100.0
+    }
+}
+
 /// A layout's per-system settings over its preset: every field absent means the preset's
 /// own value, so a file saved before a setting existed loads unchanged.
 #[derive(Debug, Default, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -101,6 +161,7 @@ pub struct FrameSizeSettings {
 pub struct LayoutSettings {
     /// Compact party remains the project default; false selects Retail portraits.
     pub use_raid_style_party_frames: Option<bool>,
+    pub party: PartyFrameSettings,
     /// User decision 2026-10-05: both presets hide the mounted micro menu by default.
     pub show_micro_menu: Option<bool>,
     pub player_frame: UnitFrameSettings,

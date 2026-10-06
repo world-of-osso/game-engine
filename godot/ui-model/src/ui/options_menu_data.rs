@@ -15,12 +15,13 @@ use crate::ui::screens::options_menu_active_sections::{
 use crate::ui::screens::options_menu_component::{
     ACTION_RESET_LAYOUT_SETTINGS, BindingOutputView, CameraOptionsView, GraphicsOptionsView,
     HudOptionsView, KeybindingRowView, KeybindingsView, LayoutOptionsView, LayoutSystem,
-    OptionsCategory, OptionsViewModel, SoundOptionsView,
+    OptionsCategory, OptionsViewModel, PartyDropdown, SoundOptionsView,
 };
 use game_engine_core::ui_layout_data::{
     CHAT_HEIGHT_RANGE, CHAT_WIDTH_RANGE, DAMAGE_METER_HEIGHT_RANGE, DAMAGE_METER_WIDTH_RANGE,
-    LayoutFont, LayoutSettings, SettingRange, UNIT_FRAME_SIZE_RANGE, UNIT_FRAME_TEXT_SIZE_RANGE,
-    UnitFrameSettings,
+    LayoutFont, LayoutSettings, PARTY_DEFENSIVE_RANGE, PARTY_HEIGHT_RANGE, PARTY_ICON_RANGE,
+    PARTY_OPACITY_RANGE, PARTY_WIDTH_RANGE, PartyAuraOrganization, PartySort, SettingRange,
+    UNIT_FRAME_SIZE_RANGE, UNIT_FRAME_TEXT_SIZE_RANGE, UnitFrameSettings,
 };
 
 /// A slider of the HUD page's "Layout Settings" group. `FrameSize` and `TextSize` edit the
@@ -33,6 +34,13 @@ pub enum LayoutSlider {
     ChatHeight,
     MeterWidth,
     MeterHeight,
+    PartyWidth,
+    PartyHeight,
+    PartySize,
+    PartyOpacity,
+    PartyDebuff,
+    PartyBuff,
+    PartyDefensive,
 }
 
 impl LayoutSlider {
@@ -44,6 +52,12 @@ impl LayoutSlider {
             Self::ChatHeight => CHAT_HEIGHT_RANGE,
             Self::MeterWidth => DAMAGE_METER_WIDTH_RANGE,
             Self::MeterHeight => DAMAGE_METER_HEIGHT_RANGE,
+            Self::PartyWidth => PARTY_WIDTH_RANGE,
+            Self::PartyHeight => PARTY_HEIGHT_RANGE,
+            Self::PartySize => UNIT_FRAME_SIZE_RANGE,
+            Self::PartyOpacity => PARTY_OPACITY_RANGE,
+            Self::PartyDebuff | Self::PartyBuff => PARTY_ICON_RANGE,
+            Self::PartyDefensive => PARTY_DEFENSIVE_RANGE,
         }
     }
 
@@ -58,6 +72,13 @@ impl LayoutSlider {
             Self::ChatHeight => &mut settings.chat.height,
             Self::MeterWidth => &mut settings.damage_meter.width,
             Self::MeterHeight => &mut settings.damage_meter.height,
+            Self::PartyWidth => &mut settings.party.width,
+            Self::PartyHeight => &mut settings.party.height,
+            Self::PartySize => &mut settings.party.frame_size,
+            Self::PartyOpacity => &mut settings.party.opacity,
+            Self::PartyDebuff => &mut settings.party.debuff_size,
+            Self::PartyBuff => &mut settings.party.buff_size,
+            Self::PartyDefensive => &mut settings.party.defensive_size,
         })
     }
 }
@@ -72,7 +93,7 @@ pub fn unit_frame_settings(
         LayoutSystem::TargetFrame => Some(&mut settings.target_frame),
         LayoutSystem::FocusFrame => Some(&mut settings.focus_frame),
         LayoutSystem::PetFrame => Some(&mut settings.pet_frame),
-        LayoutSystem::ChatFrame | LayoutSystem::DamageMeter => None,
+        LayoutSystem::ChatFrame | LayoutSystem::DamageMeter | LayoutSystem::PartyFrames => None,
     }
 }
 
@@ -87,9 +108,71 @@ pub enum LayoutAction {
     System(LayoutSystem),
     Font(LayoutFont),
     ToggleMicroMenu,
+    PartyToggle(PartyToggle),
+    PartySort(PartySort),
+    PartyAura(PartyAuraOrganization),
+    PartyDropdown(PartyDropdown),
     /// "Reset to Preset": clear every setting of the layout.
     Reset,
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum PartyToggle {
+    Compact,
+    Background,
+    Horizontal,
+    Border,
+    Pets,
+}
+
+impl PartyToggle {
+    pub const ALL: [Self; 5] = [
+        Self::Compact,
+        Self::Background,
+        Self::Horizontal,
+        Self::Border,
+        Self::Pets,
+    ];
+
+    pub fn key(self) -> &'static str {
+        match self {
+            Self::Compact => "party_compact",
+            Self::Background => "party_background",
+            Self::Horizontal => "party_horizontal",
+            Self::Border => "party_border",
+            Self::Pets => "party_pets",
+        }
+    }
+
+    pub fn value(self, settings: &LayoutSettings) -> bool {
+        match self {
+            Self::Compact => settings.use_raid_style_party_frames.unwrap_or(true),
+            Self::Background => settings.party.background.unwrap_or(false),
+            Self::Horizontal => settings.party.horizontal.unwrap_or(false),
+            Self::Border => settings.party.border.unwrap_or(false),
+            Self::Pets => settings.party.show_pets.unwrap_or(false),
+        }
+    }
+
+    fn toggle(self, settings: &mut LayoutSettings) {
+        let value = Some(!self.value(settings));
+        match self {
+            Self::Compact => settings.use_raid_style_party_frames = value,
+            Self::Background => settings.party.background = value,
+            Self::Horizontal => settings.party.horizontal = value,
+            Self::Border => settings.party.border = value,
+            Self::Pets => settings.party.show_pets = value,
+        }
+    }
+}
+
+pub const PARTY_SORTS: [PartySort; 3] =
+    [PartySort::Role, PartySort::Group, PartySort::Alphabetical];
+pub const PARTY_AURAS: [PartyAuraOrganization; 3] = [
+    PartyAuraOrganization::Legacy,
+    PartyAuraOrganization::BuffsTop,
+    PartyAuraOrganization::BuffsRight,
+];
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum SliderField {
@@ -440,6 +523,25 @@ pub fn parse_slider_action(action: &str) -> Option<SliderField> {
 
 const SLIDER_ACTION_PREFIX: &str = "options_slider:";
 const SLIDER_ACTION_FIELDS: &[(&str, SliderField)] = &[
+    ("party_width", SliderField::Layout(LayoutSlider::PartyWidth)),
+    (
+        "party_height",
+        SliderField::Layout(LayoutSlider::PartyHeight),
+    ),
+    ("party_size", SliderField::Layout(LayoutSlider::PartySize)),
+    (
+        "party_opacity",
+        SliderField::Layout(LayoutSlider::PartyOpacity),
+    ),
+    (
+        "party_debuff",
+        SliderField::Layout(LayoutSlider::PartyDebuff),
+    ),
+    ("party_buff", SliderField::Layout(LayoutSlider::PartyBuff)),
+    (
+        "party_defensive",
+        SliderField::Layout(LayoutSlider::PartyDefensive),
+    ),
     ("mouse_sensitivity", SliderField::MouseSensitivity),
     ("fov_degrees", SliderField::FovDegrees),
     ("particle_density", SliderField::ParticleDensity),
@@ -636,6 +738,18 @@ pub fn parse_toggle_action(action: &str) -> Option<&str> {
 /// dropdown), `options_toggle:layout_system:<index>`, `options_toggle:layout_font:<index>`
 /// and the "Reset to Preset" button.
 pub fn parse_layout_action(action: &str) -> Option<LayoutAction> {
+    if let Some(toggle) = PartyToggle::ALL
+        .into_iter()
+        .find(|toggle| parse_toggle_action(action) == Some(toggle.key()))
+    {
+        return Some(LayoutAction::PartyToggle(toggle));
+    }
+    if action == "options_toggle:party_sort_open" {
+        return Some(LayoutAction::PartyDropdown(PartyDropdown::Sort));
+    }
+    if action == "options_toggle:party_aura_open" {
+        return Some(LayoutAction::PartyDropdown(PartyDropdown::Aura));
+    }
     if action == "options_toggle:layout_show_micro_menu" {
         return Some(LayoutAction::ToggleMicroMenu);
     }
@@ -651,6 +765,8 @@ pub fn parse_layout_action(action: &str) -> Option<LayoutAction> {
             .copied()
             .map(LayoutAction::System),
         LAYOUT_FONT_KEY => LAYOUT_FONTS.get(index).copied().map(LayoutAction::Font),
+        "party_sort" => PARTY_SORTS.get(index).copied().map(LayoutAction::PartySort),
+        "party_aura" => PARTY_AURAS.get(index).copied().map(LayoutAction::PartyAura),
         _ => None,
     }
 }
@@ -669,6 +785,22 @@ pub fn apply_layout_action(action: LayoutAction, layout: &mut LayoutOptionsView)
         LayoutAction::ToggleMicroMenu => {
             layout.settings.show_micro_menu =
                 Some(!layout.settings.show_micro_menu.unwrap_or(false));
+        }
+        LayoutAction::PartyToggle(toggle) => toggle.toggle(&mut layout.settings),
+        LayoutAction::PartySort(sort) => {
+            layout.settings.party.sort = Some(sort);
+            layout.party_dropdown = None;
+        }
+        LayoutAction::PartyAura(aura) => {
+            layout.settings.party.aura_organization = Some(aura);
+            layout.party_dropdown = None;
+        }
+        LayoutAction::PartyDropdown(dropdown) => {
+            layout.party_dropdown = if layout.party_dropdown == Some(dropdown) {
+                None
+            } else {
+                Some(dropdown)
+            };
         }
         LayoutAction::Reset => layout.settings = LayoutSettings::default(),
     }

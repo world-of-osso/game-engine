@@ -133,27 +133,56 @@ pub fn portrait_party_frame(
     anchor: &HudAnchor,
     skin: ActiveSkin,
 ) -> Element {
+    portrait_party_frame_with_settings(state, anchor, skin, Default::default())
+}
+
+pub fn portrait_party_frame_with_settings(
+    state: &PortraitPartyFrameState,
+    anchor: &HudAnchor,
+    skin: ActiveSkin,
+    settings: game_engine_core::ui_layout_data::PartyFrameSettings,
+) -> Element {
     let count = state.members.len().min(MAX_MEMBERS);
-    let gap = if state.show_pets { 26.0 } else { 10.0 };
-    let height = count as f32 * MEMBER_HEIGHT + count.saturating_sub(1) as f32 * gap;
-    let at = anchor.place((MEMBER_WIDTH, height));
+    let show_pets = settings.show_pets.unwrap_or(state.show_pets);
+    let horizontal = settings.horizontal.unwrap_or(false);
+    let (width, member_height) = settings.size();
+    // The existing compact preset dimensions are the reference for portrait overrides.
+    let sx = width / 98.0;
+    let sy = member_height / 44.0;
+    let member_width = MEMBER_WIDTH * sx;
+    let gap = if show_pets { 26.0 } else { 10.0 };
+    let height = if horizontal {
+        MEMBER_HEIGHT * sy
+    } else {
+        (count as f32 * MEMBER_HEIGHT + count.saturating_sub(1) as f32 * gap) * sy
+    };
+    let width = if horizontal {
+        count as f32 * member_width + count.saturating_sub(1) as f32 * gap * sx
+    } else {
+        member_width
+    };
+    let at = anchor.place((width, height));
     let members: Element = state
         .members
         .iter()
         .take(MAX_MEMBERS)
         .enumerate()
         .flat_map(|(index, view)| {
-            party_member_frame(
-                index,
-                view,
-                index as f32 * (MEMBER_HEIGHT + gap),
-                state.show_pets,
-                skin,
-            )
+            let mut member = party_member_frame(index, view, 0.0, show_pets, skin);
+            super::group_frames_component::resize_party_member(&mut member, sx, sy);
+            let (x, y) = if horizontal {
+                (index as f32 * (member_width + gap * sx), 0.0)
+            } else {
+                (0.0, index as f32 * (MEMBER_HEIGHT + gap) * sy)
+            };
+            super::group_frames_component::place_party_member(&mut member, x, y);
+            member
         })
         .collect();
     rsx! { r#frame {
-        name: {dyn_name(PARTY_FRAME.into())}, width: MEMBER_WIDTH, height,
+        name: {dyn_name(PARTY_FRAME.into())}, width, height,
+        alpha: {settings.alpha()},
+        {super::group_frames_component::party_chrome(PARTY_FRAME, width, height, settings)},
         hidden: {count == 0}, pos_type: "absolute",
         left: {at.left.as_str()}, right: {at.right.as_str()}, top: {at.top.as_str()}, bottom: {at.bottom.as_str()},
         margin_left: {at.margin_left}, margin_top: {at.margin_top},

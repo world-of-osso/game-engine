@@ -2588,6 +2588,10 @@ Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-b
 
 [[ui-rounding-seams]]: a texture turned about its centre keeps its exact rect through layout; fixes the 1 px step between the Forever XP bar's border edges and corners. Live capture `data/diagnostics/xpborder-2026-10-04/`.
 
+## 2026-10-06 — Party presentation settings
+
+[[party-edit-mode-settings]]: exhaustive local Retail Party inventory, both-skin Options HUD controls and per-character Edit Mode persistence. Compact stays default. Shared-family geometry/chrome/sort/pets and compact aura settings implemented; behavioral/raster proof pending. Big-defensive classification is absent from existing runtime data; no protocol/server changes.
+
 ## 2026-10-05 — In-world launcher
 
 [[launcher]]: added user's centred search grid, shared micro actions/icons, Toggle Launcher binding and minimap opener. Micro menu retained. Targeted tests and live proof pending; Support remains a placeholder.
