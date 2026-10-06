@@ -450,6 +450,7 @@ pub fn auction_gossip_screen(
     );
     rsx! {r#frame {name:"AuctionGossip",width:320.0,height:height,strata:ui_toolkit::strata::FrameStrata::High,pos_type:"absolute",left:16.0,top:104.0,
         {chrome}
+        {crate::quest_art::window_portrait(&crate::auction_house_frame_component::PORTRAIT)}
         fontstring {name:"AuctionGossipText",width:280.0,height:64.0,text:{view.text.as_str()},pos_type:"absolute",left:20.0,top:32.0,}
         {options}
     }}

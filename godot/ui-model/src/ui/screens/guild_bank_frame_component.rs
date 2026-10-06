@@ -15,7 +15,9 @@ use crate::ui::screens::bank_art::{
     cropped, item_slot, label, money_display, money_prompt, selected_marker, texture,
 };
 use crate::ui::screens::merchant_frame_component::{tab, tab_width};
-use crate::ui::screens::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome};
+use crate::ui::screens::quest_art::{
+    DynName, NORMAL_FONT_COLOR, panel_button, window_chrome_no_portrait,
+};
 use crate::ui::strata::FrameStrata;
 
 pub const FRAME_NAME: &str = "GuildBankFrame";
@@ -134,7 +136,9 @@ pub fn guild_bank_frame_screen(ctx: &SharedContext) -> Element {
         .get::<GuildBankFrameState>()
         .expect("GuildBankFrameState must be in SharedContext");
     let hide = !state.visible;
-    let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), &state.title, ACTION_CLOSE);
+    // GB.xml:167 inherits BasicFrameTemplate, not PortraitFrameTemplate.
+    let mut children =
+        window_chrome_no_portrait(FRAME_NAME, (FRAME_W, FRAME_H), &state.title, ACTION_CLOSE);
     // `RedMarbleBG` GuildVaultBG TOPLEFT 2,-20 / BOTTOMRIGHT -2,20, then the black
     // inner fill (GB.xml:350-362).
     children.extend(texture(
@@ -588,4 +592,3 @@ fn mode_tabs(mode: GuildBankModeView) -> Element {
     others.extend(selected);
     others
 }
-

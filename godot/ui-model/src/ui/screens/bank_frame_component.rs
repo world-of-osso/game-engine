@@ -20,6 +20,9 @@ use crate::ui::screens::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, wi
 use crate::ui::strata::FrameStrata;
 
 pub const FRAME_NAME: &str = "BankFrame";
+/// Retail BankFrame.lua:94 `SetPortraitToUnit("npc")`.
+pub const PORTRAIT: crate::inworld_unit_frames_component::PortraitSlot =
+    crate::quest_art::window_portrait_slot("BankFramePortrait");
 /// BF.xml:674 `<Size x="738" y="460"/>`.
 pub const FRAME_W: f32 = 738.0;
 pub const FRAME_H: f32 = 460.0;
@@ -149,12 +152,14 @@ pub fn bank_frame_screen(ctx: &SharedContext) -> Element {
     let hide = !state.visible;
     let skin = thread_skin();
     let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), &state.title, ACTION_CLOSE);
+    children.extend(crate::quest_art::window_portrait(&PORTRAIT));
     // `Background` TOPLEFT 0,-20 / BOTTOMRIGHT 0,30 (BF.xml:677-682).
     children.extend(bank_atlas(
         format!("{FRAME_NAME}Background"),
         BACKGROUND,
         skin,
-        (2.0, 20.0, FRAME_W - 4.0, FRAME_H - 50.0),
+        // Preserve the bottom edge, but start below the portrait mask (y=51).
+        (2.0, 51.0, FRAME_W - 4.0, FRAME_H - 81.0),
         (WHITE, DrawLayer::Artwork),
     ));
     match skin {

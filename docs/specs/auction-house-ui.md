@@ -21,6 +21,7 @@ opened from an auctioneer, on the existing auction protocol (`shared-protocol`
 ### Frame (Shared/Blizzard_AuctionHouseFrame.xml)
 
 - [x] Root `AuctionHouseFrame`, 800×538 (:5), `ButtonFrameTemplate` metal chrome (`quest_art::window_chrome`), movable by its title.
+- [x] Both skins bind the interacting auctioneer's masked portrait (`SetPortraitToUnit("npc")`, Shared/Blizzard_AuctionHouseFrame.lua:392), including the auction greeting. Backgrounds exclude the portrait mask.
 - [x] Title per tab: Browse Auctions / Post Auctions / Auctions (`UpdateTitle`, Shared/Blizzard_AuctionHouseFrame.lua:640).
 - [x] Bottom tabs Buy, Sell, Auctions (`PanelTabButtonTemplate` art, Buy at BOTTOMLEFT (20,-28), each next -15 over, width text + 40 min 70, Shared/Blizzard_AuctionHouseTab.lua:2-11); selected tab text white.
 - [x] Money: `MoneyFrameInset` and 158×19 `ThinGoldEdgeTemplate` border at BOTTOMLEFT (5,6), money right-aligned 6 in (:11-40). Money displays follow `MoneyDisplayFrameMixin`: silver and copper always, gold only when non-zero, thousands separators, AH coin atlases.
