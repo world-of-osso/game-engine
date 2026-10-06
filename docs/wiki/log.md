@@ -2648,4 +2648,4 @@ Added portable authoritative rank controls and Officer chat parsing/classificati
 
 ## 2026-10-06 — Everforged shoulder material declarations
 
-Local-CASC ItemDisplayInfoModelMatRes4050937 establishes type3 material822338/texture5665215 for item222436. Offline RED catches both white shoulder batches; catalog/runtime binding and real-item material regressions added. See [diagnosis](investigations/npc-stance-gear.md#everforged-shoulder-materials-2026-10-06); GREEN pending.
+Local-CASC ItemDisplayInfoModelMatRes4050937 establishes type3 material822338/texture5665215 for item222436. Offline RED catches both white shoulder batches; catalog/runtime binding and real-item material regressions added. Source d3a4d664: targeted29/29 CPU, native build, scoped fmt and4 rendered fixtures PASS;8 captures inspected, white planes replaced by authored orange glow. See [diagnosis](investigations/npc-stance-gear.md#everforged-shoulder-materials-2026-10-06).

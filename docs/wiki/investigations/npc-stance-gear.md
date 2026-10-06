@@ -59,8 +59,17 @@ uses the real paladin item plus Blackrock Pauldrons1445 and cloaks180939/170063.
 The exporter and [local extraction recipe](../../casc-extraction.md#item-model-material-declarations)
 own the data dependency; encrypted rows remain an explicit coverage gap, not a fallback.
 
-Evidence: slot-local `data/diagnostics/shoulders-2026-10-06/` (RED capture/log,
-per-batch diagnostics, current-revision proof ledger). Rendered GREEN remains pending.
+Verified renderer source **d3a4d664**: targeted CPU **29/29 PASS** (native28/core1),
+local extension build and scoped format check PASS. Rendered `StockadeEverforged`,
+`GromShoulders`, `TahoModern`, `HulaTotem` all PASS; all eight front/back captures inspected.
+Both shoulder Batch0 logs bind5647905/983198; both Batch1 logs bind5665215 twice.
+The before/after capture retains authored orange glow instead of white rectangles;
+near-white pixels (all RGB channels >245) drop5886→0. The same declarations restore
+Everforged glove glow (local extraction5665205) without item-specific shader changes.
+
+Evidence: slot-local `data/diagnostics/shoulders-2026-10-06/`: `proof-ledger.txt`,
+`cpu-final-full.log`, `green.log`, `green/StockadeEverforged.png` and its back view,
+`shoulder-before-after.png`, `capture-pixels.json`. No live server run, merge or push.
 
 ### Native fixture boundary follow-up (evidence date 2026-10-01)
 
