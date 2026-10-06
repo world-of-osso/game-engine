@@ -147,6 +147,9 @@ pub struct UnitFrameState {
     pub class_bar: Option<ClassBarView>,
     pub show_combat_icon: bool,
     pub show_resting_icon: bool,
+    /// Forever player-frame auras; harmful entries belong to the local player or pet.
+    /// Filled from the same counted-down aura data as BuffFrame.
+    pub player_auras: Vec<crate::aura_display_data::AuraInstance>,
     pub target_buffs: Vec<TargetAuraIconState>,
     pub target_debuffs: Vec<TargetAuraIconState>,
     /// Friendly target: buffs lead the aura container, else debuffs do.
@@ -172,6 +175,7 @@ impl UnitFrameState {
             class_bar: None,
             show_combat_icon: false,
             show_resting_icon: false,
+            player_auras: Vec::new(),
             target_buffs: Vec::new(),
             target_debuffs: Vec::new(),
             target_buffs_first: false,
@@ -387,7 +391,11 @@ fn player_frame(
     skin: ActiveSkin,
 ) -> Element {
     if skin == ActiveSkin::Forever {
-        return flare_frame(&FLARE_PLAYER, Some(state.into()), !visible, anchor);
+        let unit = FlareUnit {
+            aura_state: Some(state),
+            ..state.into()
+        };
+        return flare_frame(&FLARE_PLAYER, Some(unit), !visible, anchor);
     }
     let content = rsx! {
         {unit_frame_contents("Player", state, &PLAYER_SLOTS, HEALTH_BAR)}

@@ -1,6 +1,7 @@
 pub(crate) mod assets;
 #[cfg(debug_assertions)]
 mod audit_probe;
+mod forevergaps_preview;
 mod icon_masks;
 pub(crate) mod input_queue;
 mod layout;
@@ -1974,6 +1975,21 @@ impl RegistryUi {
                 .unwrap_or_default()
                 .as_str(),
         )
+    }
+
+    /// Offline production HUD canvas for the bounded Forever reference-gap capture.
+    #[func]
+    pub fn show_forevergaps_preview(&mut self) -> GString {
+        let result = party_preview::load_data_root().and_then(|()| {
+            ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Forever);
+            self.set_ui_scale(1.0)?;
+            self.show_viewport_screen(
+                forevergaps_preview::Preview,
+                forevergaps_preview::screen,
+                ScreenPostsetup::None,
+            )
+        });
+        GString::from(result.err().unwrap_or_default().as_str())
     }
 
     /// Offline authoritative guild snapshot through the production settings screen.
