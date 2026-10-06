@@ -6,9 +6,12 @@
 //! letter, Take Attachments, Reply / Delete or Return / Close). The Inbox and Send
 //! frames are 384×512 anchored TOPLEFT, so their bottom anchors use that height.
 
+use ui_toolkit::frame::WidgetData;
+use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
+use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::ui::screens::auction_house_frame_component::inset_border;
 use crate::ui::screens::bank_art::{
@@ -54,6 +57,20 @@ pub const ACTION_DELETE: &str = "mail_delete";
 pub const TO_BOX: &str = "SendMailNameEditBox";
 pub const SUBJECT_BOX: &str = "SendMailSubjectEditBox";
 pub const BODY_BOX: &str = "SendMailBodyEditBox";
+
+/// RSX does not expose EditBoxData's multi_line or max_letters fields.
+pub fn apply_mail_body_postsetup(registry: &mut FrameRegistry) {
+    let Some(id) = registry.get_by_name(BODY_BOX) else {
+        return;
+    };
+    let Some(frame) = registry.get_mut(id) else {
+        return;
+    };
+    if let Some(WidgetData::EditBox(edit)) = frame.widget_data.as_mut() {
+        edit.multi_line = true;
+        edit.max_letters = Some(500);
+    }
+}
 pub const MONEY_BOXES: MoneyBoxNames = MoneyBoxNames {
     gold: "SendMailMoneyGold",
     silver: "SendMailMoneySilver",
@@ -468,7 +485,19 @@ fn send_mail(state: &MailFrameState, busy: bool) -> Element {
         &format!("0.0,1.0,0.0,{}", letter_h / 256.0),
         (260.0, 83.0, 64.0, letter_h),
     ));
-    out.extend(edit_box(BODY_BOX, (28.0, 93.0, 270.0, 20.0)));
+    out.extend(rsx! {
+        editbox {
+            name: {DynName(BODY_BOX.into())},
+            width: 270.0,
+            height: {letter_h - 20.0},
+            font: GameFont::FrizQuadrata,
+            font_size: 15.0,
+            font_color: "0.18,0.12,0.06,1.0",
+            pos_type: "absolute",
+            left: 28.0,
+            top: 93.0,
+        }
+    });
     out.extend(horizontal_bar("SendMailHorizontalBarLeft2", 233.0));
     for index in 0..SEND_ATTACHMENTS {
         let item = send.attachments.get(index).and_then(Option::as_ref);
@@ -777,4 +806,3 @@ fn open_mail(open: &OpenMailView, busy: bool) -> Element {
         }
     }
 }
-

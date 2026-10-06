@@ -72,6 +72,7 @@ fn dump<T: 'static>(state: T, screen: fn(&SharedContext) -> Element, root: &str)
         ),
     );
     Screen::new(screen).sync(&ctx, &mut registry);
+    game_engine_ui_model::mail_frame_component::apply_mail_body_postsetup(&mut registry);
     let mut out = String::new();
     dump_frame(&registry, registry.get_by_name(root).unwrap(), &mut out);
     out
@@ -358,6 +359,7 @@ fn forever_window<T: 'static>(state: T, screen: fn(&SharedContext) -> Element) -
     ctx.insert(state);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(screen).sync(&ctx, &mut registry);
+    game_engine_ui_model::mail_frame_component::apply_mail_body_postsetup(&mut registry);
     registry
 }
 
