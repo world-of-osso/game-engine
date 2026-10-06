@@ -1,4 +1,7 @@
 //! Offline Stockade snapshots through the production tracker and catalog reducers.
+use godot::prelude::*;
+
+use super::{RegistryUi, dungeon_preview, party_preview};
 use game_engine_ui_model::{
     achievements::AchievementWindow, dungeon_progress::DungeonObjectives,
     objective_tracker_component::ObjectiveTrackerState,
@@ -101,4 +104,67 @@ pub(super) fn cache_art() -> Result<(), String> {
         }
     }
     Ok(())
+}
+
+#[godot_api(secondary)]
+impl RegistryUi {
+    #[func]
+    pub fn show_dungeon_tracker_preview(&mut self) -> GString {
+        self.show_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Modern, false)
+    }
+
+    #[func]
+    pub fn show_forever_dungeon_tracker_preview(&mut self) -> GString {
+        self.show_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Forever, false)
+    }
+
+    #[func]
+    pub fn show_achievement_preview(&mut self) -> GString {
+        self.show_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Modern, true)
+    }
+
+    #[func]
+    pub fn show_forever_achievement_preview(&mut self) -> GString {
+        self.show_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Forever, true)
+    }
+
+    #[func]
+    pub fn show_achievement_toast_preview(&mut self) -> GString {
+        let result = self
+            .prepare_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Modern)
+            .and_then(|()| {
+                self.show_achievement_toast(shared::protocol::AchievementToastSnapshot {
+                    achievement_id: 633,
+                    name: "Stormwind Stockade".into(),
+                    points: 10,
+                })
+            });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
+    fn prepare_dungeon_capture(
+        &mut self,
+        skin: ui_toolkit::atlas::ActiveSkin,
+    ) -> Result<(), String> {
+        party_preview::load_data_root()?;
+        ui_toolkit::atlas::set_thread_skin(skin);
+        dungeon_preview::cache_art()?;
+        self.set_ui_scale(1.0)
+    }
+
+    fn show_dungeon_capture(
+        &mut self,
+        skin: ui_toolkit::atlas::ActiveSkin,
+        window: bool,
+    ) -> GString {
+        let result = (|| {
+            self.prepare_dungeon_capture(skin)?;
+            if window {
+                self.show_achievement_window(dungeon_preview::window())
+            } else {
+                self.show_objective_tracker(dungeon_preview::tracker())
+            }
+        })();
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
 }

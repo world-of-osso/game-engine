@@ -1,8 +1,10 @@
 pub(crate) mod assets;
 #[cfg(debug_assertions)]
 mod audit_probe;
+// New preview APIs belong in their own *_preview.rs #[godot_api(secondary)] block, never here.
 mod dungeon_preview;
 mod forevergaps_preview;
+mod guild_preview;
 mod icon_masks;
 pub(crate) mod input_queue;
 mod launcher_preview;
@@ -1999,163 +2001,6 @@ impl RegistryUi {
             registry,
             icon_masks: Default::default(),
             postsetup: ScreenPostsetup::Loading,
-        };
-        model.sync();
-        GString::from(
-            self.initialize_model(model, size.x, size.y)
-                .err()
-                .unwrap_or_default()
-                .as_str(),
-        )
-    }
-
-    #[func]
-    pub fn show_dungeon_tracker_preview(&mut self) -> GString {
-        self.show_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Modern, false)
-    }
-
-    #[func]
-    pub fn show_forever_dungeon_tracker_preview(&mut self) -> GString {
-        self.show_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Forever, false)
-    }
-
-    #[func]
-    pub fn show_achievement_preview(&mut self) -> GString {
-        self.show_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Modern, true)
-    }
-
-    #[func]
-    pub fn show_forever_achievement_preview(&mut self) -> GString {
-        self.show_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Forever, true)
-    }
-
-    #[func]
-    pub fn show_achievement_toast_preview(&mut self) -> GString {
-        let result = self
-            .prepare_dungeon_capture(ui_toolkit::atlas::ActiveSkin::Modern)
-            .and_then(|()| {
-                self.show_achievement_toast(shared::protocol::AchievementToastSnapshot {
-                    achievement_id: 633,
-                    name: "Stormwind Stockade".into(),
-                    points: 10,
-                })
-            });
-        GString::from(result.err().unwrap_or_default().as_str())
-    }
-
-    fn prepare_dungeon_capture(
-        &mut self,
-        skin: ui_toolkit::atlas::ActiveSkin,
-    ) -> Result<(), String> {
-        party_preview::load_data_root()?;
-        ui_toolkit::atlas::set_thread_skin(skin);
-        dungeon_preview::cache_art()?;
-        self.set_ui_scale(1.0)
-    }
-
-    fn show_dungeon_capture(
-        &mut self,
-        skin: ui_toolkit::atlas::ActiveSkin,
-        window: bool,
-    ) -> GString {
-        let result = (|| {
-            self.prepare_dungeon_capture(skin)?;
-            if window {
-                self.show_achievement_window(dungeon_preview::window())
-            } else {
-                self.show_objective_tracker(dungeon_preview::tracker())
-            }
-        })();
-        GString::from(result.err().unwrap_or_default().as_str())
-    }
-
-    /// Offline production HUD canvas for the bounded Forever reference-gap capture.
-    #[func]
-    pub fn show_forevergaps_preview(&mut self) -> GString {
-        let result = party_preview::load_data_root().and_then(|()| {
-            ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Forever);
-            self.set_ui_scale(1.0)?;
-            self.show_viewport_screen(
-                forevergaps_preview::Preview,
-                forevergaps_preview::screen,
-                ScreenPostsetup::None,
-            )
-        });
-        GString::from(result.err().unwrap_or_default().as_str())
-    }
-
-    /// Offline authoritative guild snapshot through the production settings screen.
-    #[func]
-    pub fn show_guild_ranks_preview(&mut self) -> GString {
-        self.show_guild_preview_skin(ui_toolkit::atlas::ActiveSkin::Modern)
-    }
-
-    #[func]
-    pub fn show_forever_guild_ranks_preview(&mut self) -> GString {
-        self.show_guild_preview_skin(ui_toolkit::atlas::ActiveSkin::Forever)
-    }
-
-    fn show_guild_preview_skin(&mut self, skin: ui_toolkit::atlas::ActiveSkin) -> GString {
-        if let Err(error) = party_preview::load_data_root() {
-            return GString::from(error.as_str());
-        }
-        ui_toolkit::atlas::set_thread_skin(skin);
-        GString::from(
-            self.set_ui_scale(1.0)
-                .and_then(|()| {
-                    self.show_guild_ranks(game_engine_ui_model::guild_rank_frame::preview())
-                })
-                .err()
-                .unwrap_or_default()
-                .as_str(),
-        )
-    }
-
-    /// Filled launcher through actual native projection, without a server.
-    #[func]
-    pub fn show_launcher_candidate(&mut self, forever: bool) -> GString {
-        use ui_toolkit::atlas::ActiveSkin;
-        let skin = if forever {
-            ActiveSkin::Forever
-        } else {
-            ActiveSkin::Modern
-        };
-        let result = self.initialize_launcher_candidate(skin);
-        GString::from(result.err().unwrap_or_default().as_str())
-    }
-
-    /// Offline authored party preview for capture_ui_screen.gd; no group/network state.
-    #[func]
-    pub fn show_portrait_party(&mut self) -> GString {
-        self.show_portrait_party_skin(ui_toolkit::atlas::ActiveSkin::Modern)
-    }
-
-    #[func]
-    pub fn show_forever_portrait_party(&mut self) -> GString {
-        self.show_portrait_party_skin(ui_toolkit::atlas::ActiveSkin::Forever)
-    }
-
-    fn show_portrait_party_skin(&mut self, skin: ui_toolkit::atlas::ActiveSkin) -> GString {
-        use game_engine_ui_model::portrait_party_frame_component::portrait_party_frame_screen;
-        if self.model.is_some() {
-            return "RegistryUi already has a screen".into();
-        }
-        let Some(viewport) = self.base().get_viewport() else {
-            return "RegistryUi has no viewport".into();
-        };
-        let size = viewport.get_visible_rect().size;
-        if let Err(error) = party_preview::load_data_root() {
-            return GString::from(error.as_str());
-        }
-        ui_toolkit::atlas::set_thread_skin(skin);
-        let mut shared = SharedContext::new();
-        shared.insert(party_preview::state());
-        let mut model = RegistryModel {
-            screen: Screen::new(portrait_party_frame_screen),
-            shared,
-            registry: FrameRegistry::new(size.x, size.y),
-            icon_masks: Default::default(),
-            postsetup: ScreenPostsetup::PortraitParty,
         };
         model.sync();
         GString::from(
