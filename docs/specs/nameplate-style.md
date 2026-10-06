@@ -159,6 +159,8 @@ Ported from the Bevy client's `nameplate_auras.rs`. Retail's debuff list takes h
 
 ## Verification status
 
+- [x] 2026-10-05, branch `npfade`, code `cc45ee22`: lock + `agent-run npfade` + local Depot targeted `nameplate` filter passed (Godot 47/47; ui-model `options_policy` 3/3 and `options_views` 1/1; cargo exit 0). Includes `nameplates::tests::nameplate_alpha_distances_preserve_selected_and_occlusion_overrides` at 10/20/30/35.62/40/60 yd. Logs: `/tmp/claude/npfade.out`, `target/depot-test.log`. This proves existing project alpha arithmetic, not Retail interpolation or live rendering. `world_nameplate_options_flow.gd` remains unrun by task instruction.
+
 - [x] 2026-10-04, branch `nameplates`: Godot lib `nameplate` 36/36, core `nameplate` and ui-model `forever_quest_windows`/`options_*` pass (the Modern options fixture was recaptured for the Thick spellbar default). `--screen nameplatedebug` capture `data/diagnostics/nameplates-2026-10-04/debug-modern-2.webp` (4x crops beside it) inspected against the reference: texts inside the bar, cast track on the health frame's width with the icon at its left end.
 
 - [x] 2026-09-28, branch `nameplates` (Godot): core rules 10/10, wire test 1/1, Godot lib layout 3/3 and FactionTemplate 1/1; `tests/nameplate_occlusion.gd` exits 0. `tests/world_nameplate_flow.gd` exits 0 on 127.0.0.1:5000 as Fbworldmap (`data/diagnostics/nameplates-godot-20260928/`): no plates untargeted; three enemy Tab targets (Goblin Assassin, Blackrock Worg) each showed the only plate, friendly ones none; a Blackrock Worg behind a terrain rise read alpha 0.4 with the independent ray blocked; Escape removed the plate. Captures inspected.
