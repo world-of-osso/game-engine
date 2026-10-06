@@ -39,6 +39,8 @@ Client: `godot/ui-model/src/damage_meter_data.rs` (session selection, rows, numb
 
 ## Tests
 
+Targeted action-breakdown proof, 2026-10-06: client `18a25c90` with protocol `8147de9` passed all 14 `damage_meter`-filtered tests (four native, three model unit, seven category/render tests), exit 0 without warnings. Command: local helper `--test -p game-engine-godot -p game-engine-ui-model -p game-engine-network --no-fail-fast damage_meter`, through `build-lock.sh` and `agent-run meterspells`, detached and polled. Log: `/tmp/claude/meterspells-resume-client.out`. Modern and Forever frame-registry rendering is proved; no live GPU-render claim. The resumed run first reproduced a compile error in the render assertion: `get_by_name` returns a frame ID; `18a25c90` resolves it with `registry.get` before inspecting the click action. Approved art is unchanged.
+
 - `damage_meter_action_spell_breakdowns_render_every_member_in_both_skins`: exact cast/affected spell labels and counts for all three members in Current and Overall, rendered through Modern and Forever frame registries; row actions open detail and return to the member list.
 - `damage_meter_action_detail_tracks_snapshot_and_missing_affected_identity`: detail follows the selected member across snapshot reordering, updates counts, handles an absent affected spell, and clears when the member or snapshot disappears.
 - `damage_meter_action_spell_names_include_cast_and_affected_identities` and `damage_meter_wire_snapshot_reaches_all_categories_without_log_counts`: native label discovery and remote snapshot dispatch without owner combat-log counting.
