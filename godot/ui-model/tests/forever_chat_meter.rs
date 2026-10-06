@@ -60,6 +60,58 @@ fn metergaps_forever_row_font_is_friz_quadrata_12() {
     }
 }
 
+#[test]
+fn metergaps_forever_secondary_tab_selects_and_displays_threat() {
+    use shared::protocol::{ThreatUnit, ThreatUpdate};
+    let mut window = DamageMeterWindow::default();
+    let registry = canvas(
+        ActiveSkin::Forever,
+        window.view(true, 0.0),
+        damage_meter_screen,
+    );
+    assert_eq!(font(&registry, "DamageMeterThreatTabName").text, "Threat");
+    let action = click(&registry, "DamageMeterThreatTab").unwrap();
+    window.click(&action).unwrap();
+    window.receive_threat(ThreatUpdate {
+        creature: 100,
+        victim: Some(10),
+        entries: vec![
+            ThreatUnit {
+                unit: 10,
+                name: "Tank".into(),
+                class_id: 2,
+                raw_threat: 200.0,
+                status: 3,
+                raw_percent: 100.0,
+                scaled_percent: 100.0,
+            },
+            ThreatUnit {
+                unit: 20,
+                name: "Healer".into(),
+                class_id: 5,
+                raw_threat: 50.0,
+                status: 0,
+                raw_percent: 25.0,
+                scaled_percent: 25.0 / 1.3,
+            },
+        ],
+    });
+    window.select_threat_target(Some(100), Some(20), true);
+    let registry = canvas(
+        ActiveSkin::Forever,
+        window.view(true, 0.0),
+        damage_meter_screen,
+    );
+    assert_eq!(font(&registry, "DamageMeterThreatTabName").color, ACTIVE);
+    assert_eq!(font(&registry, "DamageMeterEntry1Name").text, "1. Tank");
+    assert_eq!(font(&registry, "DamageMeterEntry1Value").text, "100.0%");
+    assert_eq!(font(&registry, "DamageMeterEntry2Value").text, "25.0%");
+    window
+        .click(&click(&registry, "DamageMeterDpsTab").unwrap())
+        .unwrap();
+    assert_eq!(window.meter_type, MeterType::DamageDone);
+}
+
 fn meter_view() -> DamageMeterView {
     let session = DamageMeterSession {
         session_id: 1,
@@ -236,13 +288,13 @@ fn forever_meter_header_has_text_tabs_and_bronze_icons() {
     assert!(type_y >= header_y && type_y + type_h <= separator_y);
     assert!(type_x + type_w <= rect(&registry, "DamageMeterSessionDropdown").0);
     assert_eq!(font(&registry, "DamageMeterTypeName").text, "DPS");
-    assert_eq!(font(&registry, "DamageMeterHpsTabName").text, "HPS");
+    assert_eq!(font(&registry, "DamageMeterThreatTabName").text, "Threat");
     assert_ne!(
         font(&registry, "DamageMeterTypeName").color,
-        font(&registry, "DamageMeterHpsTabName").color,
+        font(&registry, "DamageMeterThreatTabName").color,
         "the selected tab looks different from the other"
     );
-    assert!(registry.get_by_name("DamageMeterThreatTab").is_none());
+    assert!(registry.get_by_name("DamageMeterHpsTab").is_none());
     // Three equal-width chart columns side by side, rising left to right from one baseline,
     // tinted like the settings glyph.
     let columns: Vec<_> = (0..3)
@@ -718,21 +770,21 @@ const ACTIVE: [f32; 4] = [0.80, 0.60, 0.34, 1.0];
 const INACTIVE: [f32; 4] = [0.56, 0.51, 0.46, 1.0];
 
 #[test]
-fn forever_dps_and_hps_tabs_select_damage_and_healing() {
-    let view = typed_view(MeterType::HealingDone, false);
+fn forever_dps_and_threat_tabs_select_damage_and_threat() {
+    let view = typed_view(MeterType::Threat, false);
     let registry = canvas(ActiveSkin::Forever, view, damage_meter_screen);
     assert_eq!(font(&registry, "DamageMeterTypeName").color, INACTIVE);
-    assert_eq!(font(&registry, "DamageMeterHpsTabName").color, ACTIVE);
+    assert_eq!(font(&registry, "DamageMeterThreatTabName").color, ACTIVE);
     assert_eq!(
         click(&registry, "DamageMeterDpsTab").as_deref(),
         Some(MeterType::DamageDone.action())
     );
     assert_eq!(
-        click(&registry, "DamageMeterHpsTab").as_deref(),
-        Some(MeterType::HealingDone.action())
+        click(&registry, "DamageMeterThreatTab").as_deref(),
+        Some(MeterType::Threat.action())
     );
     assert!(registry.get_by_name("DamageMeterOtherTypeName").is_none());
-    // Healing rows look like damage rows and are not clickable.
+    // Threat rows look like damage rows and are not clickable.
     assert_eq!(font(&registry, "DamageMeterEntry1Name").text, "Shot");
     assert_eq!(
         texture(&registry, "DamageMeterEntry1Icon").source,
@@ -746,7 +798,7 @@ fn forever_other_types_get_their_own_label_and_death_rows_are_clickable() {
     let view = typed_view(MeterType::Deaths, false);
     let registry = canvas(ActiveSkin::Forever, view, damage_meter_screen);
     assert_eq!(font(&registry, "DamageMeterTypeName").color, INACTIVE);
-    assert_eq!(font(&registry, "DamageMeterHpsTabName").color, INACTIVE);
+    assert_eq!(font(&registry, "DamageMeterThreatTabName").color, INACTIVE);
     assert_eq!(font(&registry, "DamageMeterOtherTypeName").text, "Deaths");
     assert_eq!(font(&registry, "DamageMeterOtherTypeName").color, ACTIVE);
     assert_eq!(

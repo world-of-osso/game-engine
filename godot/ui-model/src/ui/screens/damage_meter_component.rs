@@ -8,7 +8,7 @@
 //!
 //! Header (`DamageMeterSessionWindowTemplate`): the session timer, the type dropdown
 //! ("Damage Done" by default; its menu lists the types) and, on the right, the session
-//! ("C"/"O"), settings and minimize buttons. Forever: "DPS" and "HPS" tabs (Damage Done
+//! ("C"/"O"), settings and minimize buttons. Forever: "DPS" and "Threat" tabs (Damage Done
 //! and Healing Done) and one chart button whose menu lists the types and the sessions.
 //! Rows (`DamageMeterSourceEntryTemplate`, Default style): a class-coloured StatusBar with
 //! "N. Name" on the left and "damage (dps)" on the right. Death rows and a death recap's
@@ -291,7 +291,7 @@ const FOREVER_CHART_COLUMN_W: f32 = 2.2;
 /// Tab hit boxes: the 49 px between the two tab labels, starting 4 px before each.
 const FOREVER_TAB_W: f32 = 49.0;
 const FOREVER_TAB_PAD: f32 = 4.0;
-/// A third label one tab width after "HPS".
+/// A third label one tab width after "Threat".
 const FOREVER_OTHER_TYPE_LEFT: f32 = 64.0 + FOREVER_TAB_W;
 
 /// A row of a window `width` wide, and the bar right of its class icon.
@@ -303,16 +303,13 @@ fn forever_bar_width(width: f32) -> f32 {
     forever_row_width(width) - FOREVER_BAR_LEFT
 }
 
-/// "DPS" and "HPS" tabs select Damage Done and Healing Done; another type, or an open
+/// "DPS" and "Threat" tabs select Damage Done and current-target Threat; another type, or an open
 /// death recap, shows its name as a third, active label that ends before the chart button.
 fn forever_header(view: &DamageMeterView, size: (f32, f32)) -> Element {
     let chart_left = size.0 - FOREVER_CHART_RIGHT;
     let mut parts = flare_header("DamageMeterFlare", flare_skin_rect(size));
-    let tab_selected = !view.recap_open
-        && matches!(
-            view.meter_type,
-            MeterType::DamageDone | MeterType::HealingDone
-        );
+    let tab_selected =
+        !view.recap_open && matches!(view.meter_type, MeterType::DamageDone | MeterType::Threat);
     let tabs = [
         (
             "DamageMeterTypeName",
@@ -323,12 +320,12 @@ fn forever_header(view: &DamageMeterView, size: (f32, f32)) -> Element {
             MeterType::DamageDone,
         ),
         (
-            "DamageMeterHpsTabName",
-            "DamageMeterHpsTab",
-            "HPS",
+            "DamageMeterThreatTabName",
+            "DamageMeterThreatTab",
+            "Threat",
             64.0,
             60.0,
-            MeterType::HealingDone,
+            MeterType::Threat,
         ),
     ];
     for (text_name, button_name, label, left, label_width, meter_type) in tabs {
