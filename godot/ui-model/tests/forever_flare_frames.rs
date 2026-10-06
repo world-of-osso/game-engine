@@ -62,6 +62,10 @@ fn small(name: &str) -> SmallUnitFrameState {
 }
 
 fn unit_frames(skin: ActiveSkin) -> FrameRegistry {
+    unit_frames_with_player(skin, unit("Fbflare", PowerType::Mana))
+}
+
+fn unit_frames_with_player(skin: ActiveSkin, player: UnitFrameState) -> FrameRegistry {
     load_atlas_tables();
     let mut shared = SharedContext::new();
     shared.insert(skin);
@@ -69,7 +73,7 @@ fn unit_frames(skin: ActiveSkin) -> FrameRegistry {
         show_player_frame: true,
         show_target_frame: true,
         target_cast: None,
-        player: unit("Fbflare", PowerType::Mana),
+        player,
         target: Some(UnitFrameState {
             classification: CreatureClassification::Elite,
             ..unit("Hogger", PowerType::Rage)
@@ -225,6 +229,80 @@ fn fixed_rect(registry: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
         other => panic!("{name} is placed at {other:?}"),
     };
     (px(f.position.left), px(f.position.top), width, height)
+}
+
+#[test]
+fn forevergaps_live_player_auras_grow_outward_above_both_corners_with_timers() {
+    use game_engine_ui_model::aura_display_data::{AuraInstance, DebuffType};
+    let aura = |id, is_debuff, duration| AuraInstance {
+        instance_id: id,
+        spell_id: 11426,
+        name: "Ice Barrier".into(),
+        description: String::new(),
+        icon_fdid: 135988,
+        source: "Fbflare".into(),
+        from_local_player: true,
+        from_player: true,
+        duration,
+        remaining: 29.0,
+        stacks: 2,
+        is_debuff,
+        debuff_type: DebuffType::Magic,
+    };
+    let mut player = unit("Fbflare", PowerType::Mana);
+    player.player_auras = (0..12).map(|id| aura(id, false, 60.0)).collect();
+    player.player_auras.insert(0, aura(100, false, 0.0));
+    player.player_auras.push(aura(101, true, 60.0));
+    let registry = unit_frames_with_player(ActiveSkin::Forever, player.clone());
+    assert_eq!(
+        fixed_rect(&registry, "PlayerBuffIcon0"),
+        (4.0, -24.0, 20.0, 20.0)
+    );
+    assert_eq!(
+        fixed_rect(&registry, "PlayerBuffIcon1"),
+        (26.0, -24.0, 20.0, 20.0)
+    );
+    assert_eq!(
+        fixed_rect(&registry, "PlayerBuffIcon5"),
+        (4.0, -46.0, 20.0, 20.0)
+    );
+    assert!(registry.get_by_name("PlayerBuffIcon9").is_some());
+    assert!(registry.get_by_name("PlayerBuffIcon10").is_none());
+    assert_eq!(
+        fixed_rect(&registry, "PlayerDebuffIcon0"),
+        (216.0, -24.0, 20.0, 20.0)
+    );
+    assert_eq!(label(&registry, "PlayerBuffIcon0Duration").text, "29 s");
+    assert_eq!(label(&registry, "PlayerBuffIcon0Duration").font_size, 8.0);
+    assert_eq!(label(&registry, "PlayerBuffIcon0Count").font_size, 9.0);
+    let modern = unit_frames_with_player(ActiveSkin::Modern, player);
+    assert!(modern.get_by_name("PlayerBuffIcon0").is_none());
+}
+
+#[test]
+fn forevergaps_player_health_power_seam_has_retail_divider_without_moving_bars() {
+    let registry = unit_frames(ActiveSkin::Forever);
+    assert_eq!(
+        fixed_rect(&registry, "PlayerHealthBar"),
+        (4.0, 4.0, 232.0, 38.0)
+    );
+    assert_eq!(
+        fixed_rect(&registry, "PlayerManaBar"),
+        (4.0, 42.0, 232.0, 14.0)
+    );
+    // FlareUI draws its 8-high transparent divider centred on the seam;
+    // the dark stripe in that Retail texture is approximately one UI unit.
+    assert_eq!(
+        fixed_rect(&registry, "PlayerFrameSeparator"),
+        (4.0, 38.0, 232.0, 8.0)
+    );
+    assert_eq!(
+        texture_source(&registry, "PlayerFrameSeparator").0,
+        TextureSource::FileDataId(918_860)
+    );
+    let without_power = unit_frames(ActiveSkin::Modern);
+    assert!(without_power.get_by_name("PlayerFrameSeparator").is_none());
+    assert!(registry.get_by_name("TargetFrameSeparator").is_none());
 }
 
 /// FlareUI's fixed bronze `ns.BORDER_COLOR` #A67D45 (`Core.lua:8`).

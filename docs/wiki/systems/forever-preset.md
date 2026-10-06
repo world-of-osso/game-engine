@@ -24,6 +24,10 @@ The default active skin is currently a **process-wide global** `static ACTIVE_SK
 
 `layout_of` selects the constant using `ActiveSkin` and applies optional settings over it; `hud_layout(ctx)` reads the canvas's skin and settings (`godot/ui-model/src/ui/hud_layout.rs:437–506`). Exact dimensions, colours, user-approved deviations and expected behavior belong in [HUD Edit Mode](../../specs/hud-edit-mode.md), not a second table here. [[xp-bar]], [[chat-frame]] and [[portrait-party-frames]] describe their subsystem-specific consumers.
 
+## Player aura lane
+
+Forever's player frame now consumes counted-down `AuraInstance` entries from the existing BuffFrame replication pipeline. The host restricts harmful entries to the local player or its current pet; the frame applies the FlareUI buff-duration filter and lays out both corners. [HUD Edit Mode](../../specs/hud-edit-mode.md) owns geometry, text and filter requirements. `RegistryUi.show_forevergaps_preview` renders these production screens offline through `godot/tests/capture_ui_screen.gd`; it has no network/session state.
+
 ## Edit Mode and character selection
 
 `ui_layout.ron` sits beside `options_settings.ron` in the `world-of-osso` config directory. Saved layouts are account-wide; `edit_mode.active_layout` maps stringified **server character IDs** to layout names (`godot/core/src/ui_layout_data.rs:5–28,226–252`; `godot/rust/src/ui_layout.rs:14–16`). Minimal selection for an owned character is:
