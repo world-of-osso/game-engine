@@ -42,12 +42,7 @@ impl AchievementWindow {
     pub fn action(&mut self, action: &str) -> Vec<QueryAchievementCatalog> {
         let mut requests = Vec::new();
         match action {
-            OPEN_ACTION => {
-                self.visible = !self.visible;
-                if self.visible && !self.categories_loaded {
-                    requests.push(QueryAchievementCatalog::Categories { after_id: 0 });
-                }
-            }
+            OPEN_ACTION => self.toggle(&mut requests),
             "achievement:close" => self.visible = false,
             "achievement:categories_next" => {
                 self.category_offset =
@@ -56,7 +51,10 @@ impl AchievementWindow {
             "achievement:categories_prev" => {
                 self.category_offset = self.category_offset.saturating_sub(CATEGORIES)
             }
-            "achievement:rows_prev" => self.row_offset = self.row_offset.saturating_sub(ROWS),
+            "achievement:rows_prev" => {
+                self.row_offset = self.row_offset.saturating_sub(ROWS);
+                self.select_first();
+            }
             "achievement:more_rows" => self.advance_rows(&mut requests),
             "achievement:criteria_prev" => {
                 self.criterion_offset = self.criterion_offset.saturating_sub(CRITERIA)
@@ -65,6 +63,23 @@ impl AchievementWindow {
             _ => self.select_action(action, &mut requests),
         }
         self.enqueue(requests)
+    }
+    fn toggle(&mut self, requests: &mut Vec<QueryAchievementCatalog>) {
+        self.visible = !self.visible;
+        if !self.visible {
+            return;
+        }
+        if !self.categories_loaded {
+            requests.push(QueryAchievementCatalog::Categories { after_id: 0 });
+        }
+        if let Some(category_id) = self.selected_category {
+            if !self.pages.get(&category_id).is_some_and(|page| page.loaded) {
+                requests.push(QueryAchievementCatalog::Category {
+                    category_id,
+                    after_id: 0,
+                });
+            }
+        }
     }
     fn select_action(&mut self, action: &str, requests: &mut Vec<QueryAchievementCatalog>) {
         if let Some(id) = action
@@ -353,6 +368,17 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
         GOLD,
         "",
     ));
+    content.extend(category_panel(window));
+    content.extend(achievement_rows(window));
+    content.extend(criteria_panel(window));
+    rsx! { r#frame {
+        name: {DynName(FRAME.into())}, width: 820.0, height: 600.0, strata: FrameStrata::Dialog,
+        hidden: hide, mouse_enabled: true, pos_type: "absolute", left: 32.0, top: 100.0,
+        {content}
+    } }
+}
+fn category_panel(window: &AchievementWindow) -> Element {
+    let mut content = Vec::new();
     if thread_skin() == ActiveSkin::Modern {
         content.extend(art(
             "AchievementCategoriesBackground".into(),
@@ -395,6 +421,11 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
         window.category_offset + CATEGORIES < window.categories.len(),
         (112.0, 551.0, 90.0, 24.0),
     ));
+    content
+}
+
+fn achievement_rows(window: &AchievementWindow) -> Element {
+    let mut content = Vec::new();
     for (index, entry) in window
         .entries()
         .iter()
@@ -447,6 +478,11 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
         more,
         (612.0, 358.0, 174.0, 24.0),
     ));
+    content
+}
+
+fn criteria_panel(window: &AchievementWindow) -> Element {
+    let mut content = Vec::new();
     if let Some(entry) = window.selected() {
         content.extend(label(
             "AchievementCriteriaTitle".into(),
@@ -504,12 +540,9 @@ pub fn achievement_screen(ctx: &SharedContext) -> Element {
             (636.0, 551.0, 150.0, 24.0),
         ));
     }
-    rsx! { r#frame {
-        name: {DynName(FRAME.into())}, width: 820.0, height: 600.0, strata: FrameStrata::Dialog,
-        hidden: hide, mouse_enabled: true, pos_type: "absolute", left: 32.0, top: 100.0,
-        {content}
-    } }
+    content
 }
+
 fn achievement_row(entry: &AchievementCatalogEntry, y: f32, selected: bool) -> Element {
     let prefix = format!("Achievement{}", entry.achievement_id);
     let action = format!("achievement:row:{}", entry.achievement_id);

@@ -167,6 +167,12 @@ impl BridgeConfig {
         self
     }
 
+    /// Catalog pages and earned alerts retain their shared AchievementChannel order.
+    pub fn receive_achievements(mut self) -> Self {
+        self.relays.push(install_achievement_relay);
+        self
+    }
+
     pub fn connect(self, server_addr: SocketAddr, client_id: u64) -> Result<NetworkBridge, String> {
         NetworkBridge::start(server_addr, client_id, self.relays)
     }
@@ -210,8 +216,7 @@ impl NetworkBridge {
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()
             .receive::<protocol::DungeonProgress>()
-            .receive::<protocol::AchievementCatalogPage>()
-            .receive::<protocol::AchievementStateUpdate>()
+            .receive_achievements()
             // Server-driven breath, fatigue and feign-death bars.
             .receive_mirror_timers()
             .receive_loot()
@@ -549,6 +554,30 @@ fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
             }
         })
         .run_if(protocol_not_rejected),
+    );
+}
+
+fn install_achievement_relay(app: &mut App, events: Sender<Event>) {
+    app.add_systems(
+        Update,
+        (move |mut pages: Query<&mut MessageReceiver<protocol::AchievementCatalogPage>>,
+               mut updates: Query<&mut MessageReceiver<protocol::AchievementStateUpdate>>| {
+            let mut received = Vec::new();
+            for mut receiver in &mut pages {
+                received.extend(receiver.receive_with_tick().map(|message| {
+                    (message.message_id, ProtocolMessage(Box::new(message.data)))
+                }));
+            }
+            for mut receiver in &mut updates {
+                received.extend(receiver.receive_with_tick().map(|message| {
+                    (message.message_id, ProtocolMessage(Box::new(message.data)))
+                }));
+            }
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events.send(Event::Message(message)).expect("host event receiver closed");
+            }
+        }).run_if(protocol_not_rejected),
     );
 }
 
