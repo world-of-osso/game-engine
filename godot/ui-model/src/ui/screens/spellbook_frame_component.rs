@@ -116,26 +116,35 @@ pub fn specialization_choices(
         .replace(' ', "");
     specs
         .into_iter()
-        .map(|(&id, spec)| SpecializationChoice {
-            id,
-            name: spec.name.clone(),
-            icon_fdid: spec.icon_fdid,
-            role: match spec.role {
-                0 => "Tank",
-                1 => "Healer",
-                2 => "Damage",
-                role => panic!("Unsupported ChrSpecialization role {role} for spec {id}"),
-            }
-            .into(),
-            description: spec.description.clone(),
-            // Blizzard_ClassSpecializationsFrame.lua:13-54, SPEC_FORMAT_STRINGS.
-            thumbnail: format!(
-                "spec-thumbnail-{class}-{}",
-                spec.name.to_lowercase().replace(' ', "")
-            ),
-            active: active_spec == Some(id),
-        })
+        .map(|(&id, spec)| specialization_choice(id, spec, &class, active_spec))
         .collect()
+}
+
+fn specialization_choice(
+    id: u32,
+    spec: &game_engine_core::spell_catalog::SpecTabInfo,
+    class: &str,
+    active_spec: Option<u32>,
+) -> SpecializationChoice {
+    SpecializationChoice {
+        id,
+        name: spec.name.clone(),
+        icon_fdid: spec.icon_fdid,
+        role: match spec.role {
+            0 => "Tank",
+            1 => "Healer",
+            2 => "Damage",
+            role => panic!("Unsupported ChrSpecialization role {role} for spec {id}"),
+        }
+        .into(),
+        description: spec.description.clone(),
+        // Blizzard_ClassSpecializationsFrame.lua:13-54, SPEC_FORMAT_STRINGS.
+        thumbnail: format!(
+            "spec-thumbnail-{class}-{}",
+            spec.name.to_lowercase().replace(' ', "")
+        ),
+        active: active_spec == Some(id),
+    }
 }
 
 /// `PlayerSpellsFrame` (`PortraitFrameTemplate`, Blizzard_PlayerSpellsFrame.xml:5-10):
@@ -443,41 +452,13 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
         .get::<SpellbookFrameState>()
         .expect("SpellbookFrameState must be in SharedContext");
     let (s, [x, y]) = frame_layout(state.viewport);
-    let views = state
-        .selected_category()
-        .map(|category| paginate(&category.groups))
-        .unwrap_or_default();
-    let page = state.page.min(state.page_count() - 1);
     let chrome = window_chrome(
         "SpellBook",
         (FRAME_W * s, FRAME_H * s),
         state.tab.title(),
         ACTION_SPELLBOOK_CLOSE,
     );
-    let content = match state.tab {
-        PlayerSpellsTab::Spellbook => rsx! {
-            r#frame {
-                name: "SpellBookFrame",
-                width: {BOOK_W * s}, height: {BOOK_H * s},
-                pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * s},
-                {background(s)}
-                {category_tabs(state, s)}
-                {view(state, views.get(page * 2), 0, s)}
-                {view(state, views.get(page * 2 + 1), 1, s)}
-                {paging(state, s)}
-            }
-        },
-        PlayerSpellsTab::Specialization => player_spells_pages::specializations(state, s),
-        // Retail hides an unavailable Talents tab (PlayerSpellsFrame.lua:95-99),
-        // rather than providing an unavailable page. Keep the requested empty page.
-        PlayerSpellsTab::Talents => rsx! {
-            r#frame {
-                name: "ClassTalentsFrame", width: {BOOK_W * s}, height: {BOOK_H * s},
-                pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * s},
-            }
-        },
-    };
-    let [portrait_x, portrait_y, portrait_w, portrait_h] = PORTRAIT;
+    let content = frame_content(state, s);
     rsx! {
         r#frame {
             name: SPELLBOOK_FRAME,
@@ -491,6 +472,49 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
             {chrome}
             {content}
             {player_spells_pages::bottom_tabs(state, s)}
+            {frame_portrait(state, s)}
+        }
+    }
+}
+
+fn frame_content(state: &SpellbookFrameState, s: f32) -> Element {
+    match state.tab {
+        PlayerSpellsTab::Spellbook => book_page(state, s),
+        PlayerSpellsTab::Specialization => player_spells_pages::specializations(state, s),
+        // Retail hides an unavailable Talents tab (PlayerSpellsFrame.lua:95-99),
+        // rather than providing an unavailable page. Keep the requested empty page.
+        PlayerSpellsTab::Talents => rsx! {
+            r#frame {
+                name: "ClassTalentsFrame", width: {BOOK_W * s}, height: {BOOK_H * s},
+                pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * s},
+            }
+        },
+    }
+}
+
+fn book_page(state: &SpellbookFrameState, s: f32) -> Element {
+    let views = state
+        .selected_category()
+        .map(|category| paginate(&category.groups))
+        .unwrap_or_default();
+    let page = state.page.min(state.page_count() - 1);
+    rsx! {
+        r#frame {
+            name: "SpellBookFrame",
+            width: {BOOK_W * s}, height: {BOOK_H * s},
+            pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * s},
+            {background(s)}
+            {category_tabs(state, s)}
+            {view(state, views.get(page * 2), 0, s)}
+            {view(state, views.get(page * 2 + 1), 1, s)}
+            {paging(state, s)}
+        }
+    }
+}
+
+fn frame_portrait(state: &SpellbookFrameState, s: f32) -> Element {
+    let [portrait_x, portrait_y, portrait_w, portrait_h] = PORTRAIT;
+    rsx! {
             // `PortraitContainer` frameLevel 400, above the book's 100
             // (SharedUIPanelTemplates.xml:551, Blizzard_PlayerSpellsFrame.xml:49).
             texture {
@@ -503,6 +527,5 @@ pub fn spellbook_frame_screen(ctx: &SharedContext) -> Element {
                 pos_x: {portrait_x * s},
                 pos_y: {portrait_y * s},
             }
-        }
     }
 }
