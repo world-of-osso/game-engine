@@ -12,6 +12,7 @@ decisions; `guild_rank_frame.rs` renders the native roster/settings canvas and
 - [ ] Guild Master alone adds, removes, renames, reorders and configures ranks; rank 0 is immutable, there are 2–10 ranks and names have at most 15 characters.
 - [ ] Occupied ranks cannot be removed; reordered members retain their rank identity.
 - [x] Requests leave selected-rank data unchanged until the authoritative reply arrives.
+- [ ] Mutating controls wait for authoritative state before sending another write; queued clicks cannot overwrite a prior permission edit using stale flags.
 
 ### Permissions and members
 - [ ] Selected rank shows permission checkboxes for guild/officer chat, invite/remove/promote/demote, MOTD and existing officer-note/info features.

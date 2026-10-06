@@ -62,6 +62,36 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn guild_rank_widgets_render_only_purchased_bank_tabs() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_active_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        let mut snapshot = state(0);
+        let settings = snapshot.ranks[2].tabs[0].clone();
+        snapshot.ranks[2].tabs.resize(GUILD_BANK_MAX_TABS, settings);
+        session.apply(snapshot);
+        session.select_rank(2);
+        session.click("guild:settings", &Default::default());
+        let reg = mounted(&session);
+        assert!(reg.get_by_name("GuildTabName0").is_some());
+        assert!(reg.get_by_name("GuildTabName1").is_none());
+        assert!(session.click("guild:view:1", &Default::default()).is_none());
+        let mut empty = state(0);
+        empty.tab_names.clear();
+        session.apply(empty);
+        let reg = mounted(&session);
+        assert!(reg.get_by_name("GuildTabName0").is_none());
+        assert_eq!(
+            text(&reg, "GuildBankNoTabs"),
+            "Your guild has not purchased any guild bank space."
+        );
+    }
+    set_active_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn guild_rank_widgets_wait_for_authority_before_next_permission_write() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -109,6 +139,16 @@ fn guild_rank_widgets_wait_for_authority_before_next_permission_write() {
                 gold_per_day: 30_000
             })
         );
+        let mut refused = state(0);
+        refused.ranks[2].rights |= GUILD_RIGHT_INVITE;
+        refused.error = Some(GuildRankError::Permissions);
+        session.apply(refused);
+        assert_eq!(
+            session.error.as_deref(),
+            Some("You don't have permission to do that.")
+        );
+        assert!(!action(&mounted(&session), "GuildPermission5").is_empty());
+        assert_eq!(session.selected().unwrap().rights & GUILD_RIGHT_REMOVE, 0);
     }
     set_active_skin(ActiveSkin::Modern);
 }
@@ -183,28 +223,36 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
         ]
         .into();
         assert_eq!(
-            session.click(&action(&reg, "GuildRankRename"), &inputs),
+            session
+                .clone()
+                .click(&action(&reg, "GuildRankRename"), &inputs),
             Some(GuildRankRequest::Rename {
                 rank: 2,
                 name: "Raider".into()
             })
         );
         assert_eq!(
-            session.click(&action(&reg, "GuildRankAdd"), &inputs),
+            session
+                .clone()
+                .click(&action(&reg, "GuildRankAdd"), &inputs),
             Some(GuildRankRequest::Add {
                 name: "Raider".into()
             })
         );
         assert_eq!(
-            session.click(&action(&reg, "GuildRankUp"), &inputs),
+            session.clone().click(&action(&reg, "GuildRankUp"), &inputs),
             Some(GuildRankRequest::Move { rank: 2, up: true })
         );
         assert_eq!(
-            session.click(&action(&reg, "GuildRankDown"), &inputs),
+            session
+                .clone()
+                .click(&action(&reg, "GuildRankDown"), &inputs),
             Some(GuildRankRequest::Move { rank: 2, up: false })
         );
         assert_eq!(
-            session.click(&action(&reg, "GuildGoldSave"), &inputs),
+            session
+                .clone()
+                .click(&action(&reg, "GuildGoldSave"), &inputs),
             Some(GuildRankRequest::SetPermissions {
                 rank: 2,
                 rights: GUILD_RIGHT_CHAT_LISTEN | GUILD_RIGHT_WITHDRAW_GOLD,
@@ -212,7 +260,9 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
             })
         );
         assert_eq!(
-            session.click(&action(&reg, "GuildPermission4"), &inputs),
+            session
+                .clone()
+                .click(&action(&reg, "GuildPermission4"), &inputs),
             Some(GuildRankRequest::SetPermissions {
                 rank: 2,
                 rights: GUILD_RIGHT_CHAT_LISTEN | GUILD_RIGHT_WITHDRAW_GOLD | GUILD_RIGHT_INVITE,
@@ -220,7 +270,9 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
             })
         );
         assert_eq!(
-            session.click(&action(&reg, "GuildTabDeposit0"), &inputs),
+            session
+                .clone()
+                .click(&action(&reg, "GuildTabDeposit0"), &inputs),
             Some(GuildRankRequest::SetTab {
                 rank: 2,
                 tab: 0,
@@ -230,7 +282,9 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
             })
         );
         assert_eq!(
-            session.click(&action(&reg, "GuildTabSave0"), &inputs),
+            session
+                .clone()
+                .click(&action(&reg, "GuildTabSave0"), &inputs),
             Some(GuildRankRequest::SetTab {
                 rank: 2,
                 tab: 0,
@@ -326,13 +380,17 @@ fn guild_rank_roster_context_uses_strict_hierarchy_both_skins() {
         session.click("guild:member:Cara", &Default::default());
         let reg = mounted(&session);
         assert_eq!(
-            session.click(&action(&reg, "GuildMemberPromote"), &Default::default()),
+            session
+                .clone()
+                .click(&action(&reg, "GuildMemberPromote"), &Default::default()),
             Some(GuildRankRequest::Promote {
                 character_name: "Cara".into()
             })
         );
         assert_eq!(
-            session.click(&action(&reg, "GuildMemberDemote"), &Default::default()),
+            session
+                .clone()
+                .click(&action(&reg, "GuildMemberDemote"), &Default::default()),
             Some(GuildRankRequest::Demote {
                 character_name: "Cara".into()
             })
