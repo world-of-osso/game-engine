@@ -35,16 +35,19 @@ func run_test() -> void:
 		var metrics := measure_face(image, bounds)
 		var head_height := bounds.size.y / image.get_height()
 		print("PORTRAIT_FACE ", name, " fov=", camera.fov, " head_height=", head_height, " bounds=", bounds, " metrics=", metrics)
-		check(head_height >= 0.60 and head_height <= 1.10, "head fills portrait within tolerance: " + name)
+		# Anatomical head skin, excluding hairstyle extent: 75% +/- 20% of ring height.
+		check(head_height >= 0.55 and head_height <= 0.95, "head fills portrait within tolerance: " + name)
 		check(metrics.visible > 20 and metrics.mean > 0.12, "visible lit face pixels: " + name)
 		var meshes := host.find_children("*", "MeshInstance3D", true, false)
+		var saved_textures := {}
 		for index in range(meshes.size()):
 			if not meshes[index].visible:
 				continue
 			var material := meshes[index].get_active_material(0) as ShaderMaterial
 			var texture := material.get_shader_parameter("base_texture") as Texture2D
-			if texture != null:
-				texture.get_image().save_png(output.path_join(name + "-texture-%d.png" % index))
+			if texture != null and not saved_textures.has(texture.get_instance_id()):
+				saved_textures[texture.get_instance_id()] = true
+				check(texture.get_image().save_png(output.path_join(name + "-texture-%d.png" % index)) == OK, "save bound texture")
 			print("PORTRAIT_MATERIAL ", name, " batch=", index, " part=", meshes[index].get_meta("m2_mesh_part", -1), " flags=", material.get_shader_parameter("render_flags"))
 	if not failed:
 		print("PASS portrait_framing_four_real_heads")
@@ -57,7 +60,10 @@ func project_head(host: Node, camera: Camera3D, head: int) -> Rect2:
 	var minimum := Vector2(INF, INF)
 	var maximum := Vector2(-INF, -INF)
 	for mesh in host.find_children("*", "MeshInstance3D", true, false):
-		if not mesh.visible:
+		# These four HD models keep anatomical head skin in geoset group 32.
+		# Hair/eyebrow geometry can extend far beyond the face (Theron's ponytail).
+		var part: int = mesh.get_meta("m2_mesh_part")
+		if not mesh.visible or part < 3200 or part >= 3300:
 			continue
 		var arrays: Array = mesh.mesh.surface_get_arrays(0)
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
