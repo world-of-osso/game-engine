@@ -28,7 +28,8 @@ func _run() -> void:
 	var uipolish: bool = screen in ["chatflush_preview", "achievement_preview", "forever_achievement_preview"]
 	if screen == "chatflush_preview":
 		RenderingServer.set_default_clear_color(Color(0.25, 0.4, 0.55))
-	for frame in range(120 if screen == "forever_damage_meter_preview" else 3):
+	var settle_frames: int = 120 if screen in ["forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview"] else 3
+	for frame in range(settle_frames):
 		await process_frame
 		if uipolish:
 			RenderingServer.force_draw()
@@ -46,6 +47,11 @@ func _run() -> void:
 		push_error("UI capture requires a rendering display")
 		quit(1)
 		return
+	if screen in ["achievement_preview", "forever_achievement_preview"]:
+		if not achievement_header_matches_retail(ui, image):
+			ui.queue_free()
+			quit(1)
+			return
 	if screen == "chatflush_preview":
 		if not await chat_backdrop_is_translucent(ui, output):
 			ui.queue_free()
@@ -74,6 +80,40 @@ func _run() -> void:
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
 	quit(0)
+
+# Retail Mainline/Blizzard_AchievementUI.lua:298 and XML:1973-1984.
+func achievement_header_matches_retail(ui: Node, image: Image) -> bool:
+	var points := ui.find_child("AchievementFrameHeaderPoints", true, false) as Label
+	var shield := ui.find_child("AchievementFrameHeaderShield", true, false) as Control
+	if points == null or shield == null or points.text != "10" or not shield.is_visible_in_tree():
+		push_error("Retail achievement header requires 10 points and a visible shield")
+		return false
+	var text_rect := points.get_global_rect()
+	var shield_rect := shield.get_global_rect()
+	print("ACHIEVEMENT_HEADER_NATIVE points=", text_rect, " shield=", shield_rect)
+	if shield_rect.size != Vector2(20, 20) or absf(shield_rect.position.x - text_rect.end.x - 3.0) > 0.01:
+		push_error("Achievement shield size/right gap differs from Retail")
+		return false
+	if absf(shield_rect.get_center().y - text_rect.get_center().y - 1.0) > 0.01:
+		push_error("Achievement shield vertical offset differs from Retail")
+		return false
+	var white_pixels := 0
+	var gold_pixels := 0
+	for y in range(int(text_rect.position.y), int(text_rect.end.y)):
+		for x in range(int(text_rect.position.x), int(text_rect.end.x)):
+			var color := image.get_pixel(x, y)
+			if minf(color.r, minf(color.g, color.b)) > 0.75:
+				white_pixels += 1
+	for y in range(int(shield_rect.position.y), int(shield_rect.end.y)):
+		for x in range(int(shield_rect.position.x), int(shield_rect.end.x)):
+			var color := image.get_pixel(x, y)
+			if color.r > 0.4 and color.g > 0.2 and color.b < 0.3:
+				gold_pixels += 1
+	if white_pixels < 10 or gold_pixels < 10:
+		push_error("Achievement header did not render: white=", white_pixels, " gold=", gold_pixels)
+		return false
+	print("PASS: Retail achievement header 10, 20x20 shield, right gap 3 and vertical offset 1; white=", white_pixels, " gold=", gold_pixels)
+	return true
 
 # Verify FlareUI's exact native tint and visible transmission over black/white.
 # The Blizzard texture has its own alpha; final pixels are not a flat 60% fill.
