@@ -117,6 +117,32 @@ fn player_castbaranim_failure_reads_failed_and_channel_uses_channel_finish() {
     }
 }
 
+#[test]
+fn player_castbaranim_channel_interrupt_without_a_name_uses_failure_clock() {
+    for removal_first in [false, true] {
+        let mut casts = PlateCasts::default();
+        casts.observe(UNIT, Some(&missiles(1.0))); // t=50.000, two seconds remaining
+        if removal_first {
+            casts.observe(UNIT, None);
+            casts.advance(0.05, |_| true); // t=50.050, stop replicated before failure
+        }
+        casts.spell_failure(UNIT, MISSILES, CastFailReason::Interrupted, None);
+        if !removal_first {
+            casts.observe(UNIT, None);
+        }
+        casts.advance(0.15, |_| true); // t=50.150 / 50.200, red spark complete
+        let state = player_casting_bar_state(casts.get(UNIT).unwrap(), None);
+        assert_eq!(
+            state.spell_name, "Interrupted",
+            "removal first: {removal_first}"
+        );
+        assert_eq!(state.progress, 1.0);
+        assert_eq!(state.alpha, 1.0);
+        casts.advance(1.0, |_| true); // 1.15s after failure, half faded
+        assert!((casts.get(UNIT).unwrap().alpha() - 0.5).abs() < 0.001);
+    }
+}
+
 const UNIT: u64 = 42;
 const BOLT: u32 = 133;
 const MISSILES: u32 = 5143;
