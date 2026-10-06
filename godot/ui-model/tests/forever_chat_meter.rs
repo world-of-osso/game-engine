@@ -112,6 +112,22 @@ fn metergaps_forever_secondary_tab_selects_and_displays_threat() {
     assert_eq!(window.meter_type, MeterType::DamageDone);
 }
 
+#[test]
+fn metergaps_forever_header_icon_centres_match_title() {
+    let registry = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
+    let (_, title_y, _, title_h) = rect(&registry, "DamageMeterTypeName");
+    let title_centre = title_y + title_h / 2.0;
+    for button in ["DamageMeterSettings", "DamageMeterSessionDropdown"] {
+        let (_, button_y, _, _) = rect(&registry, button);
+        let (_, icon_y, _, icon_h) = rect(&registry, &format!("{button}Icon"));
+        let icon_centre = button_y + icon_y + icon_h / 2.0;
+        assert!(
+            (icon_centre - title_centre).abs() <= 0.5,
+            "{button}: {icon_centre} vs {title_centre}"
+        );
+    }
+}
+
 fn meter_view() -> DamageMeterView {
     let session = DamageMeterSession {
         session_id: 1,
@@ -711,17 +727,17 @@ fn forever_header_icons_are_centred_equal_sized_and_clear_of_separator() {
         FLARE_HEADER_STEP,
     );
     let meter = canvas(ActiveSkin::Forever, meter_view(), damage_meter_screen);
-    assert_header_icons(
-        &meter,
-        "DamageMeterFlareHeader",
-        "DamageMeterFlareSeparator",
-        &[
-            ("DamageMeterSessionDropdown", 398.5),
-            ("DamageMeterSettings", 419.5),
-        ],
-        -1.0,
-        21.0,
-    );
+    let separator_top = rect(&meter, "DamageMeterFlareSeparator").1;
+    for (name, left) in [
+        ("DamageMeterSessionDropdown", 398.5),
+        ("DamageMeterSettings", 419.5),
+    ] {
+        let button = rect(&meter, name);
+        let icon = rect(&meter, &format!("{name}Icon"));
+        assert_eq!(button, (left, 3.5, 22.0, 22.0));
+        assert_eq!(icon, (4.4, 4.4, 13.2, 13.2));
+        assert!(button.1 + icon.1 + icon.3 < separator_top);
+    }
 }
 
 #[test]

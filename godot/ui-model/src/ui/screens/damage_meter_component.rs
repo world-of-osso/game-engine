@@ -9,7 +9,7 @@
 //! Header (`DamageMeterSessionWindowTemplate`): the session timer, the type dropdown
 //! ("Damage Done" by default; its menu lists the types) and, on the right, the session
 //! ("C"/"O"), settings and minimize buttons. Forever: "DPS" and "Threat" tabs (Damage Done
-//! and Healing Done) and one chart button whose menu lists the types and the sessions.
+//! and Threat) and one chart button whose menu lists the types and the sessions.
 //! Rows (`DamageMeterSourceEntryTemplate`, Default style): a class-coloured StatusBar with
 //! "N. Name" on the left and "damage (dps)" on the right. Death rows and a death recap's
 //! rows are clickable.
@@ -284,6 +284,11 @@ const FOREVER_ROW_FONT_SIZE: f32 = 12.0;
 const FOREVER_BAR_EDGE: f32 = 8.0;
 const FOREVER_BUTTON_TOP: f32 =
     -FLARE_PADDING + (FLARE_HEADER_HEIGHT - FLARE_HEADER_BUTTON_SIZE) / 2.0;
+/// Native Friz 12 labels occupy 15 px; align glyphs to that box, not the header band.
+const FOREVER_TITLE_TOP: f32 = 7.0;
+const FOREVER_TITLE_H: f32 = 15.0;
+const FOREVER_ICON_BUTTON_TOP: f32 =
+    FOREVER_TITLE_TOP + (FOREVER_TITLE_H - FLARE_HEADER_BUTTON_SIZE) / 2.0;
 /// The chart and gear buttons' left edges, from the window's right edge.
 const FOREVER_CHART_RIGHT: f32 = 51.5;
 const FOREVER_GEAR_RIGHT: f32 = 30.5;
@@ -337,7 +342,7 @@ fn forever_header(view: &DamageMeterView, size: (f32, f32)) -> Element {
         parts.extend(flare_text(
             text_name,
             label,
-            [left, 7.0, label_width, 12.0],
+            [left, FOREVER_TITLE_TOP, label_width, FOREVER_TITLE_H],
             color,
             JustifyH::Left,
         ));
@@ -358,9 +363,9 @@ fn forever_header(view: &DamageMeterView, size: (f32, f32)) -> Element {
             view.type_label(),
             [
                 FOREVER_OTHER_TYPE_LEFT,
-                7.0,
+                FOREVER_TITLE_TOP,
                 (chart_left - FOREVER_OTHER_TYPE_LEFT).clamp(0.0, 160.0),
-                12.0,
+                FOREVER_TITLE_H,
             ],
             FLARE_ACTIVE_TEXT,
             JustifyH::Left,
@@ -372,7 +377,7 @@ fn forever_header(view: &DamageMeterView, size: (f32, f32)) -> Element {
         FLARE_GEAR_ART,
         [
             size.0 - FOREVER_GEAR_RIGHT,
-            FOREVER_BUTTON_TOP,
+            FOREVER_ICON_BUTTON_TOP,
             FLARE_HEADER_BUTTON_SIZE,
             FLARE_HEADER_BUTTON_SIZE,
         ],
@@ -408,7 +413,7 @@ fn forever_chart_button(left: f32) -> Element {
             button_default_skin: false,
             pos_type: "absolute",
             left,
-            top: FOREVER_BUTTON_TOP,
+            top: FOREVER_ICON_BUTTON_TOP,
             r#frame {
                 name: "DamageMeterSessionDropdownIcon",
                 width: FLARE_HEADER_ICON_SIZE,
