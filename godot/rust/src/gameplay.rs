@@ -170,6 +170,10 @@ impl PlayerMovement {
     fn animation_id(&mut self, facing: f32) -> u16 {
         let previous = self.previous_facing.replace(facing);
         let locomotion = direction_to_anim_id(self.direction, self.running, self.swimming);
+        let falling = !self.grounded && !self.jumping && !self.swimming && !self.flying;
+        if falling {
+            return crate::animation::ANIM_FALL;
+        }
         if self.direction != MoveDirection::None || self.jumping || self.swimming || self.flying {
             return locomotion;
         }
