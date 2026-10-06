@@ -126,10 +126,13 @@ fn chat_input_rect(size: (f32, f32), skin: ActiveSkin) -> (f32, f32, f32) {
         return (0.0, size.1 - INPUT_H, size.0);
     }
     let (left, top, width, height) = flare_skin_rect(messages_size(size));
+    let input_left = left + FOREVER_INPUT_INSET;
+    // The skin extends five units past the canvas's right edge; input stays in both.
+    let input_width = (width - 2.0 * FOREVER_INPUT_INSET).min(size.0 - input_left);
     (
-        left + FOREVER_INPUT_INSET,
+        input_left,
         top + height - FOREVER_INPUT_INSET - INPUT_H,
-        width - 2.0 * FOREVER_INPUT_INSET,
+        input_width,
     )
 }
 const INPUT_BACKGROUND: &str = "0.1,0.1,0.1,0.8";
@@ -415,7 +418,7 @@ pub fn chat_frame_screen(ctx: &SharedContext) -> Element {
 }
 
 // Sourced palette/layout and measured adaptations:
-// docs/specs/forever-chat-meter-chrome.md. No message/input/scroll changes.
+// docs/specs/forever-chat-meter-chrome.md; corner-flush input: hud-edit-mode.md.
 const FOREVER_TAB_PADDING: f32 = 14.0;
 const FOREVER_TAB_GAP: f32 = 4.0;
 /// FlareUI scales each 22-unit header button by 0.6 (`Core.lua:161,166,171,176`), so the

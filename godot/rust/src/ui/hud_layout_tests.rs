@@ -408,7 +408,7 @@ fn forever_preset_moves_the_hud_and_modern_restores_it() {
     assert_rect(&hud, CHAT_FRAME.0, (-26.0, 563.0, 469.0, 235.0));
     assert_rect(&hud, CHAT_FLARE_SKIN, (-2.0, 556.0, 450.0, 214.0));
     assert_rect(&hud, "ChatFrame1Messages", (8.0, 590.0, 430.0, 138.0));
-    assert_rect(&hud, "ChatFrame1EditBox", (1.0, 735.0, 444.0, 32.0));
+    assert_rect(&hud, "ChatFrame1EditBox", (1.0, 735.0, 442.0, 32.0));
     assert_rect(
         &hud,
         "ChatFrame1ScrollToBottomButton",
