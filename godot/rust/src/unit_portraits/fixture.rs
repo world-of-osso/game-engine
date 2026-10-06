@@ -205,7 +205,11 @@ fn fixture_appearance(name: &str) -> UnitAppearance {
     let sex = u8::from(matches!(name, "Jaina" | "Valeera"));
     let player = Player {
         name: name.into(),
-        race: 1,
+        race: if matches!(name, "Theron" | "Valeera") {
+            10
+        } else {
+            1
+        },
         class: 8,
         appearance: CharacterAppearance {
             sex,
