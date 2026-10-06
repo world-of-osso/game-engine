@@ -6,14 +6,12 @@ use game_engine_ui_model::spellbook_frame_component::{
     SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
     apply_spellbook_postsetup, spellbook_frame_screen,
 };
-use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
+use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::text_measure::measure_text;
-
-static SKIN: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 fn configure_data() {
     game_engine_ui_model::paths::set_data_root(
@@ -71,10 +69,9 @@ fn character(tab: CharacterTab) -> FrameRegistry {
 
 #[test]
 fn textfit_long_spell_name_stays_above_subtext_and_level_in_both_skins() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     configure_data();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         for viewport in [[1920.0, 1080.0], [1280.0, 720.0]] {
             let state = SpellbookFrameState {
                 viewport,
@@ -123,15 +120,14 @@ fn textfit_long_spell_name_stays_above_subtext_and_level_in_both_skins() {
             }
         }
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
 fn textfit_character_tab_captions_fit_in_both_skins() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     configure_data();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         for tab in [CharacterTab::PaperDoll, CharacterTab::Reputation] {
             let registry = character(tab);
             for index in 1..=2 {
@@ -157,15 +153,14 @@ fn textfit_character_tab_captions_fit_in_both_skins() {
             }
         }
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
 fn textfit_character_portrait_has_a_foreground_render_slot_in_both_skins() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     configure_data();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         for tab in [CharacterTab::PaperDoll, CharacterTab::Reputation] {
             let registry = character(tab);
             let portrait = frame(&registry, "CharacterFramePortrait");
@@ -176,5 +171,5 @@ fn textfit_character_portrait_has_a_foreground_render_slot_in_both_skins() {
             assert!(portrait.frame_level > frame(&registry, "CharacterFrame").frame_level);
         }
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }

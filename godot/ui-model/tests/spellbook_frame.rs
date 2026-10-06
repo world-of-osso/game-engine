@@ -3,7 +3,7 @@ use game_engine_ui_model::spellbook_frame_component::{
     SPELLBOOK_FRAME, SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
     apply_spellbook_postsetup, frame_layout, paginate, spell_item_name, spellbook_frame_screen,
 };
-use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
+use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
@@ -207,7 +207,7 @@ fn the_book_window_has_title_spec_portrait_and_close_button() {
         groups: vec![group("Warrior", 1)],
     }]);
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let registry = build(&book);
         assert_eq!(
             text(&registry, "SpellBookTitleText"),
@@ -232,7 +232,7 @@ fn the_book_window_has_title_spec_portrait_and_close_button() {
             .unwrap();
         assert_eq!(close.onclick.as_deref(), Some(ACTION_SPELLBOOK_CLOSE));
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
@@ -257,7 +257,7 @@ fn clicking_bottom_tabs_switches_content_in_both_skins() {
         groups: vec![group("Warrior", 1)],
     }]);
     for skin in [ActiveSkin::Forever, ActiveSkin::Modern] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         for (index, title, content) in [
             (1, "Specialization", "ClassSpecFrame"),
             (2, "Talents", "ClassTalentsFrame"),
@@ -284,7 +284,7 @@ fn clicking_bottom_tabs_switches_content_in_both_skins() {
         }
     }
     assert_eq!(book.tab, PlayerSpellsTab::Spellbook);
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]

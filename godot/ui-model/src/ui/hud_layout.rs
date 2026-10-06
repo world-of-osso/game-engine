@@ -492,7 +492,7 @@ pub fn set_active_layout_settings(settings: LayoutSettings) {
 
 /// The HUD layout the client draws, for state built outside a canvas.
 pub fn active_hud_layout() -> HudLayout {
-    layout_of(ui_toolkit::atlas::active_skin(), &active_layout_settings())
+    layout_of(ui_toolkit::atlas::thread_skin(), &active_layout_settings())
 }
 
 /// The canvas's HUD layout: its preset (every canvas mirrors the active skin) with the

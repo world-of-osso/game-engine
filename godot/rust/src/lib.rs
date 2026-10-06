@@ -285,6 +285,7 @@ pub struct GameClient {
 #[godot_api]
 impl INode3D for GameClient {
     fn init(base: Base<Node3D>) -> Self {
+        ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Modern);
         let settings = ProjectSettings::singleton();
         let data_root = PathBuf::from(settings.globalize_path("res://../data").to_string());
         let asset_startup = Some(asset_startup::AssetStartup::start(data_root.clone()));

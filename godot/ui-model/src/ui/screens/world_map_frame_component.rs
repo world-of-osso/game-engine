@@ -7,7 +7,7 @@
 //! returns. The host owns navigation and supplies data in [`WorldMapFrameState`];
 //! positions on the canvas are normalized map UVs.
 
-use ui_toolkit::atlas::{ActiveSkin, active_skin};
+use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
@@ -645,7 +645,7 @@ fn nav_bar(crumbs: &[MapBreadcrumb], layout: &WorldMapLayout, maximized: bool) -
         } else {
             NAV_LEFT_WINDOWED
         };
-    let right_offset = match active_skin() {
+    let right_offset = match thread_skin() {
         ActiveSkin::Forever => 50.0,
         ActiveSkin::Modern => 4.0,
     };

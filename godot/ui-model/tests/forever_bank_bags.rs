@@ -9,7 +9,7 @@ use game_engine_ui_model::bank_frame_component::{
     BankFrameState, BankPromptView, MoneyFrameView, PurchasePromptView, SideTab, bank_frame_screen,
 };
 use game_engine_ui_model::panel_style_data::{MetalGeometry, MetalTopLeft, metal_frame_style};
-use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_active_skin};
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_thread_skin};
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
@@ -277,7 +277,7 @@ fn bank_bag_skin_art_preserves_modern_trees() {
     )
     .unwrap();
     assert_bank_regions();
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
     assert_eq!(modern_trees(), fixture::TREES);
     for account in [false, true] {
         let registry = mount(bank_state(account), bank_frame_screen);
@@ -299,8 +299,8 @@ fn bank_bag_skin_art_preserves_modern_trees() {
         );
     }
     println!("Modern 1596-line fixture and concrete atlas regions passed");
-    set_active_skin(ActiveSkin::Forever);
+    set_thread_skin(ActiveSkin::Forever);
     assert_forever_bank_tree();
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
     assert_eq!(modern_trees(), fixture::TREES);
 }

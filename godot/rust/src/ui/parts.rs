@@ -3,7 +3,7 @@
 //! `render_three_slice.rs`, `render_text.rs`). Geometry is local to the frame origin;
 //! inherited frame alpha is applied by the Godot node tree, not here.
 
-use ui_toolkit::atlas::{ActiveSkin, active_skin};
+use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::frame::{Frame, NineSlice, ThreeSlice, WidgetData};
 use ui_toolkit::widgets::button::{ButtonData, ButtonState};
 use ui_toolkit::widgets::font_string::{GameFont, JustifyH, JustifyV, Outline};
@@ -71,7 +71,7 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
         if frame.background_color.is_some() {
             project_sliced_background(frame, slice, width, height, &mut parts);
         }
-        let crop_overlap = active_skin() == ActiveSkin::Forever;
+        let crop_overlap = thread_skin() == ActiveSkin::Forever;
         project_nine_slice(slice, width, height, crop_overlap, &mut parts);
     } else if frame.three_slice.is_none() || frame.background_color.is_some() {
         parts.extend(base_image(frame, width, height));

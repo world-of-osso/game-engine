@@ -5,7 +5,7 @@
 //! the tab settings menu. Positions are top-left offsets converted from the anchors;
 //! docs/specs/bank-frame.md lists them.
 
-use ui_toolkit::atlas::{ActiveSkin, AtlasSource, active_skin, resolve_region};
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, thread_skin};
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::strata::DrawLayer;
@@ -147,7 +147,7 @@ pub fn bank_frame_screen(ctx: &SharedContext) -> Element {
         .get::<BankFrameState>()
         .expect("BankFrameState must be in SharedContext");
     let hide = !state.visible;
-    let skin = active_skin();
+    let skin = thread_skin();
     let mut children = window_chrome(FRAME_NAME, (FRAME_W, FRAME_H), &state.title, ACTION_CLOSE);
     // `Background` TOPLEFT 0,-20 / BOTTOMRIGHT 0,30 (BF.xml:677-682).
     children.extend(bank_atlas(

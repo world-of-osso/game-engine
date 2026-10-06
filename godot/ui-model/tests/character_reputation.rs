@@ -4,7 +4,6 @@
 //! 3000 of the 9000 to Honored), in the server's name order.
 
 use std::path::PathBuf;
-use std::sync::Mutex;
 
 use game_engine_ui_model::character_frame::{
     ACTION_TAB_CHARACTER, ACTION_TAB_REPUTATION, CharacterFrameView, CharacterTab, MODEL_SCENE,
@@ -12,14 +11,11 @@ use game_engine_ui_model::character_frame::{
     character_frame_screen, reputation_rows,
 };
 use shared::protocol_snapshots::ReputationEntrySnapshot;
-use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
+use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::frame::{Dimension, Frame, WidgetData, WidgetType};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
-
-/// Serializes the tests that switch the process-wide active skin.
-static SKIN: Mutex<()> = Mutex::new(());
 
 fn entry(
     faction_id: u32,
@@ -121,14 +117,13 @@ fn shows_paperdoll(registry: &FrameRegistry) -> bool {
 
 #[test]
 fn the_reputation_tab_swaps_the_paper_doll_for_the_faction_standings_in_both_presets() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
     let standings = human_standings();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let character = build(view(CharacterTab::PaperDoll, &standings));
         assert!(shows_paperdoll(&character), "{skin:?}");
         assert!(character.get_by_name("ReputationEntry1").is_none());
@@ -204,18 +199,17 @@ fn the_reputation_tab_swaps_the_paper_doll_for_the_faction_standings_in_both_pre
         assert!(!shows_paperdoll(&empty));
         assert!(empty.get_by_name("ReputationEntry1Name").is_none());
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
 fn character_reputation_overflow_registers_a_scrollable_list_and_clickable_factions() {
-    let _skin = SKIN.lock().unwrap();
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let standings: Vec<_> = (0..40)
             .map(|i| entry(100 + i, &format!("Faction {i}"), "Friendly", 24_000))
             .collect();
@@ -245,18 +239,17 @@ fn character_reputation_overflow_registers_a_scrollable_list_and_clickable_facti
             "last faction must fit fully"
         );
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
 fn character_reputation_selected_faction_shows_name_standing_description_and_disabled_war() {
-    let _skin = SKIN.lock().unwrap();
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut state = view(CharacterTab::Reputation, &human_standings());
         state.reputation[2].description = "The humans of Stormwind.".into();
         let mut registry = build(state.clone());
@@ -322,7 +315,7 @@ fn character_reputation_selected_faction_shows_name_standing_description_and_dis
         state.selected_reputation = Some(9999);
         assert!(build(state).get_by_name("ReputationDetailFrame").is_none());
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
@@ -418,16 +411,15 @@ fn rect_in(registry: &FrameRegistry, frame: &Frame, root: u64) -> Option<(f32, f
 /// one of its textures.
 #[test]
 fn forever_reputation_tab_hides_the_stats_art_and_leaves_no_gap_in_the_window() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
-    set_active_skin(ActiveSkin::Forever);
+    set_thread_skin(ActiveSkin::Forever);
     let standings = human_standings();
     let paperdoll = build(view(CharacterTab::PaperDoll, &standings));
     let reputation = build(view(CharacterTab::Reputation, &standings));
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
     for name in ["CharacterFrameStoneBg", "CharacterStatsPaneClassBackground"] {
         assert!(
             paperdoll.get_by_name(name).is_some(),

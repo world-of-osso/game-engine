@@ -7,7 +7,7 @@ use game_engine_ui_model::character_frame::{
 };
 use std::fmt::Write;
 use std::path::PathBuf;
-use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
+use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
@@ -161,20 +161,65 @@ fn rect(registry: &FrameRegistry, node: &str) -> (f32, f32, f32, f32) {
     (x, y, w, h)
 }
 
-/// The tests switch the process-wide skin.
-static SKIN: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
 #[test]
-fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+fn concurrent_character_frames_keep_each_threads_skin_art() {
+    use std::sync::Barrier;
+    use ui_toolkit::atlas::{AtlasSource, resolve_region};
+
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
-    set_active_skin(ActiveSkin::Modern);
+    let modern_set = Barrier::new(2);
+    let both_set = Barrier::new(2);
+    std::thread::scope(|scope| {
+        let build_skin = |skin| {
+            if skin == ActiveSkin::Modern {
+                set_thread_skin(skin);
+                modern_set.wait();
+            } else {
+                modern_set.wait();
+                set_thread_skin(skin);
+            }
+            both_set.wait();
+            let registry = build(view(true));
+            let atlas = match skin {
+                ActiveSkin::Modern => "character-panel-background",
+                ActiveSkin::Forever => "UI-Character-Info-General-BG",
+            };
+            let expected = resolve_region(atlas, skin).unwrap();
+            let AtlasSource::FileDataId(fdid) = expected.source else {
+                panic!("character background must use DB2 art");
+            };
+            let Some(WidgetData::Texture(texture)) =
+                &frame(&registry, "CharacterFrameBackground").widget_data
+            else {
+                panic!("missing character background art");
+            };
+            assert_eq!(texture.source, TextureSource::FileDataId(fdid), "{skin:?}");
+            assert_eq!(
+                texture.tex_coords,
+                [expected.left, expected.right, expected.top, expected.bottom],
+                "{skin:?}"
+            );
+        };
+        let modern = scope.spawn(move || build_skin(ActiveSkin::Modern));
+        let forever = scope.spawn(move || build_skin(ActiveSkin::Forever));
+        modern.join().unwrap();
+        forever.join().unwrap();
+    });
+}
+
+#[test]
+fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(ActiveSkin::Modern);
     assert_eq!(modern_trees().as_bytes(), fixture::TREES.as_bytes());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let registry = build(view(true));
         for node in [
             "CharacterStatsPaneItemLevelCategoryBackground",
@@ -311,17 +356,16 @@ fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
             assert_eq!(texture.vertex_color, [1.0; 4], "{node}");
         }
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
 fn forever_stats_class_art_stays_inside_the_character_frame() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
-    set_active_skin(ActiveSkin::Forever);
+    set_thread_skin(ActiveSkin::Forever);
     let size = |frame: &ui_toolkit::frame::Frame| match (frame.width, frame.height) {
         (Dimension::Fixed(w), Dimension::Fixed(h)) => (w, h),
         other => panic!("{other:?}"),
@@ -342,5 +386,5 @@ fn forever_stats_class_art_stays_inside_the_character_frame() {
             "class {class_id}: art {x},{y} {w}x{h} outside the {frame_w}x{frame_h} frame"
         );
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
