@@ -555,17 +555,14 @@ fn forever_fill(name: &str, row: &DamageMeterRow, fill_width: f32) -> Element {
     let fraction = row.fraction.clamp(0.0, 1.0);
     let width = fill_width * fraction;
     let [r, g, b] = row.color;
-    let coords = BAR_FILL.tex_coords(fraction);
     let hidden = width <= 0.0;
     rsx! {
-        texture {
+        r#frame {
             name: {DynName(format!("{name}StatusBar"))},
             width,
             height: FOREVER_FILL_H,
             hidden,
-            texture_fdid: {BAR_FILL.fdid},
-            tex_coords: {coords.as_str()},
-            vertex_color: {format!("{r},{g},{b},1")},
+            background_color: {format!("{r},{g},{b},1")},
             pos_type: "absolute",
             left: 1.0,
             top: 1.0,
@@ -576,8 +573,8 @@ fn forever_fill(name: &str, row: &DamageMeterRow, fill_width: f32) -> Element {
             height: FOREVER_FILL_H,
             hidden,
             texture_file: "data/textures/ui/chattynator/Fade.png",
-            tex_coords: "1,0,0,1",
-            vertex_color: "0,0,0,0.6",
+            tex_coords: "0,1,0,1",
+            vertex_color: "0,0,0,0.8",
             pos_type: "absolute",
             left: 1.0,
             top: 1.0,
