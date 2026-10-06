@@ -1,6 +1,6 @@
 ## 2026-10-06 — Dungeon client
 
-[Dungeon objectives and AchievementFrame](systems/dungeon-achievements.md): native subscriptions, copy-scoped tracker above watched quests, cursor cache and both-skin browser with UTC earned dates and live alerts. Targeted proof and offline captures recorded with the feature branch; no server edits or online gameplay claim.
+[Dungeon objectives and AchievementFrame](systems/dungeon-achievements.md): code `ada3c295`, eight targeted tests and native build pass; five inspected offline captures pass under both skins. Native subscriptions, copy-scoped tracker above watched quests, cursor cache, UTC dates, in-flight live refresh and earned alerts. Approved tracker anchor retained; no server edits or live gameplay claim. Capture teardown RID/font leaks remain.
 
 ## 2026-10-06 — Authored portrait cameras and Modern HUD pixel overlap
 
