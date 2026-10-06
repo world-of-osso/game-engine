@@ -380,6 +380,7 @@ fn native_bridge_receives_group_messages_in_channel_order() {
                 class: 1,
                 level: 10,
                 entity: None,
+                portrait: Default::default(),
             })
             .to_vec(),
         loot_method: shared::loot::LootMode::PersonalLoot,

@@ -499,6 +499,7 @@ mod tests {
             class,
             level: 10,
             entity: None,
+            portrait: Default::default(),
         }
     }
 
