@@ -19,8 +19,8 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 - [x] Micro entries reuse host actions, including unavailable-window messages. The micro menu stays mounted but hidden by default; its layout setting and keybinds remain available.
 - [x] Filled original SVG art only, chosen October 5, 2026: each of the seventeen entries and the magnifier has a distinct recognizable glyph. Preserve the five approved glyphs and Forever's tile tint; no outlines, style switch, placeholder tiles or duplicate glyphs.
 - [x] Modern uses Retail standard no-portrait window chrome; Forever uses its existing metal panel family. Two-column icon/list grid: 32px icons, 15pt one-line labels, 250×40 cells, 2px row/column gaps, 12px panel inset, grid top 70; full inventory 526×458, single-result panel 526×122. Magnifier stays 30×30, 6px left of the minimap cluster and bottom-aligned.
-- [ ] Opening the launcher must not partially cover the player name on either default 1920×1080 layout.
-- [ ] Recapture the filled launcher through actual native projection in both skins at 1920×1080, with 2× launcher and minimap-magnifier crops; save `-final` evidence and inspect it.
+- [x] Opening the launcher must not partially cover the player name on either default 1920×1080 layout.
+- [x] Recapture the filled launcher through actual native projection in both skins at 1920×1080, with 2× launcher and minimap-magnifier crops; save `-final` evidence and inspect it.
 
 ## How it works
 
@@ -65,6 +65,16 @@ Evidence: `data/diagnostics/launcher-2026-10-05/launchericons-{red2,green2,build
 - [x] `forever-open-icons2.webp` and matching tree recaptured on private UDP5270 from newest `game.redb.bak-20261005-3ad34cb`, fresh `fb_launcherpolish_154503`/`fbtest`, character Launchpolish. Live tree shows widened keyboard art; screenshot inspected. Mainline Retail still authors identical Menu/Help atlas art, so both remain unchanged ([citations](../wiki/systems/launcher.md#art-and-sources)).
 
 Evidence: `data/diagnostics/launcher-2026-10-05/launcherpolish-{red,green,build,client2}.log`, `launcherpolish-capture.txt`, `launcherpolish-cleanup.txt`, and `forever-open-icons2.{webp,tree.txt}`. First owned Weston failed because its socket pathname exceeded108 bytes; stopped the first client, shortened owned runtime path, and captured with the second Weston/client. All owned processes and `agents-launcherpolish.slice` stopped; no shared server changes.
+
+## Filled art verification — 2026-10-05
+
+- [x] `4462bcab`: 9 launcher tests + 2 native HUD-clearance tests passed after RED reproduced the old icon bounds, panel dimensions and five-column navigation. Locked local helper extension build exited 0 without compiler warnings. Changed Rust files passed focused formatting checks. All 36 rendered PNGs decode at 96×96; each skin's eighteen glyph images are pixel-distinct.
+- [x] `2a9238fd`: Modern minimap fixture regenerated exclusively from the existing `modern_cluster_is_exactly_the_retail_cluster --nocapture` output. Only the two recorded magnifier resource paths changed from outlined to filled; all minimap geometry/chrome stayed identical.
+- [x] Both actual Godot 4.7.2 native captures and pointer activation checks exited 0. Full 1920×1080 images plus launcher/minimap 2× crops inspected: all labels stay on one line, complete player name remains visible, Forever keeps its tile tint, and magnifier remains in place. Captures use the same offline production-screen composition as phase one; no server was started or changed.
+
+Evidence directory: `data/diagnostics/launcherart-2026-10-05/`. Final files: `{modern,forever}-filled-final.png`, `{modern,forever}-filled-2x-final.png`, `{modern,forever}-filled-minimap-2x-final.png`, `icon-sheet-final.png`, `{modern,forever}-filled-final.log`, `capture-status-final.json`, and `modern-minimap-capture-final.log`.
+
+Native logs retain the headless Weston/dzn warnings and Texture/ObjectDB/font teardown leak messages already present in phase-one logs. Capture and pointer checks pass; resource-leak-free shutdown is not claimed or fixed by this art/layout change. Owned Weston/client/child PIDs were confirmed gone.
 
 ## Known gaps (current cycle)
 
