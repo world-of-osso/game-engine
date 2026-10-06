@@ -22,7 +22,6 @@ use ui_toolkit::widgets::texture::{DynamicTextureId, TextureData, TextureSource}
 use crate::flare_panel::BORDER_FDID;
 use crate::hud_layout::hud_layout;
 use crate::panel_style_data::{MetalTopLeft, metal_sheet_fdids};
-use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_flare::flare_border;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -355,12 +354,21 @@ fn launcher_button(cluster_size: f32, skin: ActiveSkin) -> Element {
 
 /// The map composite, the blips and the player arrow.
 fn map_layers(state: &MinimapClusterState, style: &ClusterStyle) -> Element {
-    let [left, top] = style.map_origin;
+    let [left, map_top] = style.map_origin;
+    let covered = if style.mask == MapMask::Square {
+        FOREVER_BAND_H
+    } else {
+        0.0
+    };
+    let top = map_top + covered;
+    let height = style.map_size - covered;
+    let coords = format!("0,1,{},1", covered / style.map_size);
     let mut elements = rsx! {
         texture {
             name: {DynName(MINIMAP_DISPLAY.into())},
             width: {style.map_size},
-            height: {style.map_size},
+            height,
+            tex_coords: {coords.as_str()},
             pos_type: "absolute",
             left,
             top,
@@ -386,20 +394,16 @@ fn modern_chrome(state: &MinimapClusterState, centre: [f32; 2]) -> Element {
     elements
 }
 
-/// Forever's square minimap with border-only bronze chrome and the FlareUI header row.
+/// Square, project-drawn bevel; FlareUI's panel layout, not its Media art.
 fn forever_chrome(state: &MinimapClusterState, style: &ClusterStyle) -> Element {
-    let size = style.cluster_size;
-    let mut elements = rsx! {
+    let mut elements = forever_panel_bevel(style.cluster_size);
+    let [left, top] = style.map_origin;
+    elements.extend(rsx! {
         r#frame {
-            name: "MinimapClusterFlareBorder",
-            width: size,
-            height: size,
-            pos_type: "absolute",
-            left: 0.0,
-            top: 0.0,
-            {flare_border(MINIMAP_CLUSTER, (size, size))}
+            name: "MinimapTitleBand", width: {style.map_size}, height: FOREVER_BAND_H,
+            background_color: "0,0,0,1", pos_type: "absolute", left, top,
         }
-    };
+    });
     if state.zoom_buttons {
         elements.extend(zoom_buttons(state.zoom, style.map_centre()));
     }
@@ -412,6 +416,46 @@ fn forever_chrome(state: &MinimapClusterState, style: &ClusterStyle) -> Element 
         ]));
     }
     elements
+}
+
+/// Eight square one-unit rings replace the rounded tooltip border. The warm
+/// highlight/shadow palette is sampled from the user's panel reference, not Media.
+fn forever_panel_bevel(size: f32) -> Element {
+    const RINGS: [(&str, &str); 8] = [
+        ("0.08,0.04,0.01,1", "0.04,0.02,0.01,1"),
+        ("0.55,0.39,0.20,1", "0.22,0.14,0.06,1"),
+        ("0.65,0.48,0.26,1", "0.32,0.22,0.11,1"),
+        ("0.49,0.34,0.17,1", "0.26,0.16,0.07,1"),
+        ("0.37,0.24,0.11,1", "0.18,0.10,0.04,1"),
+        ("0.22,0.13,0.05,1", "0.13,0.06,0.02,1"),
+        ("0.08,0.04,0.01,1", "0.37,0.24,0.11,1"),
+        ("0,0,0,1", "0.49,0.34,0.17,1"),
+    ];
+    RINGS
+        .into_iter()
+        .enumerate()
+        .flat_map(|(ring, (light, dark))| {
+            let inset = ring as f32;
+            let span = size - 2.0 * inset;
+            [
+                ("Top", [inset, inset, span, 1.0], light),
+                ("Left", [inset, inset + 1.0, 1.0, span - 2.0], light),
+                ("Bottom", [inset, size - inset - 1.0, span, 1.0], dark),
+                (
+                    "Right",
+                    [size - inset - 1.0, inset + 1.0, 1.0, span - 2.0],
+                    dark,
+                ),
+            ]
+            .into_iter()
+            .flat_map(move |(side, [left, top, width, height], color)| {
+                rsx! { r#frame {
+                    name: {DynName(format!("MinimapPanel{side}{ring}"))}, width, height,
+                    background_color: color, pos_type: "absolute", left, top,
+                } }
+            })
+        })
+        .collect()
 }
 
 /// Modules/Minimap.lua:154-167,178-184,200-208: tracking, zone/clock bar, calendar.

@@ -2,7 +2,7 @@
 //! built before it knew skins (master 5e9c5994). Forever is FlareUI's square minimap
 //! (FlareUI 1.3 `Modules/Minimap.lua:32-47,154-208,301-303`): a 244×244 map without a mask in a
 //! 260×260 cluster, a 17-high header with the zone name and the clock at its TOPRIGHT, and
-//! bronze Blizzard tooltip-border chrome instead of the compass ring.
+//! square project-drawn bevel chrome instead of the compass ring.
 
 use std::fmt::Write;
 
@@ -118,7 +118,7 @@ fn modern_cluster_is_exactly_the_retail_cluster() {
 // ---- Forever ----
 
 use game_engine_core::minimap_data::MapMask;
-use game_engine_ui_model::minimap::{cluster_style, minimap_texture_fdids};
+use game_engine_ui_model::minimap::cluster_style;
 use ui_toolkit::widgets::font_string::JustifyH;
 
 fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
@@ -170,7 +170,7 @@ fn forever_cluster_is_a_square_244_map_in_a_260_cluster() {
     let cluster = frame(&registry, MINIMAP_CLUSTER);
     assert_eq!(cluster.width, Dimension::Fixed(260.0));
     assert_eq!(cluster.height, Dimension::Fixed(260.0));
-    assert_rect(&registry, MINIMAP_DISPLAY, (8.0, 8.0, 244.0, 244.0));
+    assert_rect(&registry, MINIMAP_DISPLAY, (8.0, 30.0, 244.0, 222.0));
     let style = cluster_style(ActiveSkin::Forever);
     assert_eq!(style.mask, MapMask::Square);
     assert_eq!((style.cluster_size, style.map_size), (260.0, 244.0));
@@ -255,77 +255,24 @@ fn forever_header_holds_the_zone_name_and_the_clock_at_its_top_right() {
     assert_eq!(clock.color, [1.0, 1.0, 1.0, 1.0]);
 }
 
-/// Reuse FlareUI bronze backdrop border cells without a centre covering the map.
+/// FlareUI title band covers the first 22 map units; composite UVs keep the
+/// remaining map pixels at their original scale and position.
 #[test]
-fn forever_border_is_bronze_tooltip_art_instead_of_the_metal_frame() {
+fn minimapgaps_forever_title_band_excludes_map_pixels() {
     let registry = build(ActiveSkin::Forever, busy_state());
-    assert_rect(
-        &registry,
-        "MinimapClusterFlareBorder",
-        (0.0, 0.0, 260.0, 260.0),
+    assert_rect(&registry, "MinimapTitleBand", (8.0, 8.0, 244.0, 22.0));
+    assert_eq!(
+        frame(&registry, "MinimapTitleBand").background_color,
+        Some([0.0, 0.0, 0.0, 1.0])
     );
-    // 16-px tooltip-border cells: corners at the cluster's corners, edges between them;
-    // the top and bottom edges are the side cell rotated a quarter turn onto the edge.
-    let edge = 16.0;
-    let far = 260.0 - edge;
-    let span = 260.0 - 2.0 * edge;
-    let mid = 130.0;
-    let quarter = -std::f32::consts::FRAC_PI_2;
-    let mut border_source = None;
-    for (part, rect, rotation) in [
-        ("TopLeft", (0.0, 0.0, edge, edge), 0.0),
-        ("TopRight", (far, 0.0, edge, edge), 0.0),
-        ("BottomLeft", (0.0, far, edge, edge), 0.0),
-        ("BottomRight", (far, far, edge, edge), 0.0),
-        ("Left", (0.0, edge, edge, span), 0.0),
-        ("Right", (far, edge, edge, span), 0.0),
-        // Unrotated rects centred on the top and bottom rows.
-        (
-            "Top",
-            (mid - edge / 2.0, edge / 2.0 - span / 2.0, edge, span),
-            quarter,
-        ),
-        (
-            "Bottom",
-            (mid - edge / 2.0, far + edge / 2.0 - span / 2.0, edge, span),
-            quarter,
-        ),
-    ] {
-        let name = format!("MinimapClusterBorder{part}");
-        assert_rect(&registry, &name, rect);
-        let Some(WidgetData::Texture(art)) = &frame(&registry, &name).widget_data else {
-            panic!("{name} is not a texture");
-        };
-        let source = border_source.get_or_insert_with(|| art.source.clone());
-        assert_eq!(&art.source, source, "{name} uses another texture");
-        assert_eq!(art.vertex_color, [0.65, 0.49, 0.27, 1.0]);
-        assert_eq!(art.rotation, rotation);
-        assert!(!frame(&registry, &name).hidden);
-    }
-    let Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(border_fdid)) = border_source
-    else {
-        panic!("border is not file art: {border_source:?}")
+    assert_rect(&registry, MINIMAP_DISPLAY, (8.0, 30.0, 244.0, 222.0));
+    let Some(WidgetData::Texture(map)) = &frame(&registry, MINIMAP_DISPLAY).widget_data else {
+        panic!("map is not a texture");
     };
-    assert!(registry.get_by_name("MinimapClusterNineSlice").is_none());
-    let retail_only = [
-        "MinimapCompassTexture",
-        "MinimapClusterBorderTopTopLeftCorner",
-    ];
-    let modern = build(ActiveSkin::Modern, busy_state());
-    for name in retail_only {
-        assert!(registry.get_by_name(name).is_none(), "{name} under Forever");
-        assert!(modern.get_by_name(name).is_some(), "{name} under Modern");
-    }
-    assert!(modern.get_by_name("MinimapClusterNineSlice").is_none());
-    // The host also caches the reused bronze border and calendar art.
-    game_engine_ui_model::paths::set_data_root(
-        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
-    )
-    .unwrap();
-    let fdids = minimap_texture_fdids(&busy_state());
-    for fdid in [border_fdid, 4_618_663] {
-        assert!(fdids.contains(&fdid), "{fdid}");
-    }
+    assert_eq!(map.tex_coords, [0.0, 1.0, 22.0 / 244.0, 1.0]);
+    assert_rect(&registry, "MinimapPanelTop0", (0.0, 0.0, 260.0, 1.0));
+    assert_rect(&registry, "MinimapPanelLeft0", (0.0, 1.0, 1.0, 258.0));
+    assert!(registry.get_by_name("MinimapClusterFlareBorder").is_none());
 }
 
 /// Blips, arrow and hover zoom offsets unchanged; centred map now has centre (130, 130).
@@ -334,7 +281,9 @@ fn forever_map_marks_follow_the_square_map() {
     let registry = build(ActiveSkin::Forever, busy_state());
     // `(width, height)` centred on `(x, y)`.
     let centred = |(x, y): (f32, f32), (w, h): (f32, f32)| (x - w / 2.0, y - h / 2.0, w, h);
-    let (map_x, map_y, map_size, _) = fixed_rect(&registry, MINIMAP_DISPLAY);
+    let style = cluster_style(ActiveSkin::Forever);
+    let [map_x, map_y] = style.map_origin;
+    let map_size = style.map_size;
     let centre = (map_x + map_size / 2.0, map_y + map_size / 2.0);
     assert_rect(&registry, MINIMAP_ARROW, centred(centre, (32.0, 32.0)));
     // 16×16 blips centred at origin + map size × (0.5 + offset).
