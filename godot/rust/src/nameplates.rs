@@ -18,7 +18,7 @@ use game_engine_core::nameplate_visibility_data::{
     selection_in_combat_is_hostile,
 };
 use game_engine_core::status_text_data::{abbreviate_large_numbers, percent};
-use game_engine_core::warband_scene_data::read_atlas_art;
+use game_engine_core::warband_scene_data::{AtlasArt, read_atlas_art};
 use game_engine_network::replica::{Replica, Unit as ReplicatedUnit};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::inworld_unit_frames_component::{
