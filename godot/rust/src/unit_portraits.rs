@@ -6,7 +6,10 @@
 //! UnitFrame.lua:199). Like Retail's portrait texture it is a still image: the model's first
 //! pose rendered once per change, the viewport idle in between.
 
+#[cfg(test)]
+mod camera_tests;
 mod fixture;
+mod hud_fixture;
 mod party;
 
 use party::PartyPortraits;
@@ -35,7 +38,7 @@ use shared::components::SheathState;
 
 use crate::GameClient;
 use crate::assets::{M2_BOUNDS_META, M2_SOURCE_META, wow_vec3};
-use crate::character_frame::preview::bind_sheet_light;
+use crate::character_frame::preview::bind_preview_light;
 use crate::world::WorldUnits;
 use crate::world_models::UnitAppearance;
 
@@ -222,7 +225,6 @@ impl Portrait {
             model.free();
             return Err(error);
         }
-        bind_sheet_light(&model);
         // A still image: the model keeps the pose it was built in.
         model.set_process_mode(ProcessMode::DISABLED);
         scene.root.add_child(&model);
@@ -232,6 +234,10 @@ impl Portrait {
             scene.remove_model();
             return Err(format!("{} portrait: {error}", self.slot.frame));
         }
+        // The M2 shader uses -sun_direction. Keep the key in front of every
+        // model's authored portrait camera, including scaled/rotated creatures.
+        let rays = -scene.camera.get_global_basis().col_c();
+        bind_preview_light(&model, rays);
         scene.render_once();
         Ok(())
     }

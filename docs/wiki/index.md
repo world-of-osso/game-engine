@@ -1,7 +1,7 @@
 # Wiki Index
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-10-02.
+Last updated: 2026-10-06.
 
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
@@ -33,7 +33,7 @@ Engine subsystems and how they work.
 - [trade-and-mail](systems/trade-and-mail.md) — preserved Bevy trade/full mail; bounded native receiving mail with actual replicated mailbox M2/picking, authored inbox/letter/backpack, server claims, 8 focused CPU tests and saved CLI-first receiving run 6; authoritative claims/quiet reopen proved, broader conversion open
 - [banks](systems/banks.md) — Retail BankFrame (character + Warband bank) at bankers and GuildBankFrame at replicated Guild Vault objects; right-click deposit/withdraw, money entry, tab purchase, guild logs; native GuildChannel rank settings, both-skin controls and hierarchy-gated member context menus
 - [group-frames](systems/group-frames.md) — raid-style party frame and raid frames from server `GroupMemberStates`, invite popup, member menus, ready check
-- [portrait-party-frames](systems/portrait-party-frames.md) — roster-bound masked runtime heads, compact-default zero renders, Retail offline/death rules and resource lifecycle; Retail/Camelot art and c60 relations. Never-replicated appearances and live acceptance remain open
+- [portrait-party-frames](systems/portrait-party-frames.md) — roster-bound masked runtime heads, authored HD cameras with frontal portrait keys, four-race/two-sex head proof and visible Modern chat/player pixel overlap; compact-default zero renders, Retail offline/death rules and resource lifecycle; Retail/Camelot art and c60 relations. Never-replicated appearances and live acceptance remain open
 - [party-edit-mode-settings](systems/party-edit-mode-settings.md) — Retail Party inventory, both-skin HUD settings, compact-preserving defaults and layout persistence; big-defensive classification remains a data boundary
 - [loot-and-flight](systems/loot-and-flight.md) — corpses, Retail LootFrame, auto-loot and cursor, Retail FlightMapFrame on UiMap art, server-driven flights and `MovementControl` repositioning
 - [chat-frame](systems/chat-frame.md) — tabbed `ChatFrame1` (Chattynator look) shared by Bevy and Godot: server chat routing, retail line wording/colours, slash commands, edit box focus, combat log tab; live Godot fixture on a private server
