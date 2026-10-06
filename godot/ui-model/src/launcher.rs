@@ -252,32 +252,42 @@ pub fn launcher_screen(ctx: &SharedContext) -> Element {
         return Element::new();
     }
     let skin = *ctx.get::<ActiveSkin>().expect("canvas carries active skin");
-    let style = icon_style(ctx);
-    let visible = view.filtered_entries();
-    let height = panel_height(visible.len());
-    let entries: Element = visible
-        .iter()
-        .enumerate()
-        .flat_map(|(index, entry)| {
-            entry_button(
-                index,
-                entry,
-                view.selected == index,
-                &icon_path(skin, style, entry_glyph(&entry.id)),
-            )
-        })
-        .collect();
     rsx! {
         r#frame {
             name: "LauncherRoot", stretch: true, mouse_enabled: true, strata: FrameStrata::Dialog,
-            r#frame {
-                name: "LauncherPanel", width: PANEL_W, height,
-                pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%",
-                {flat_panel_chrome("Launcher", (PANEL_W, height), "Launcher", ACTION_CLOSE)}
-                {search_box(&view.query, &icon_path(skin, style, "magnifier"))}
-                {entries}
-                {empty_results(view)}
-            }
+            {launcher_panel(view, skin, icon_style(ctx))}
+        }
+    }
+}
+
+fn entry_buttons(
+    entries: &[LauncherEntry],
+    selected: usize,
+    skin: ActiveSkin,
+    style: LauncherIconStyle,
+) -> Element {
+    entries
+        .iter()
+        .enumerate()
+        .flat_map(|(index, entry)| {
+            let icon = icon_path(skin, style, entry_glyph(&entry.id));
+            entry_button(index, entry, selected == index, &icon)
+        })
+        .collect()
+}
+
+fn launcher_panel(view: &LauncherView, skin: ActiveSkin, style: LauncherIconStyle) -> Element {
+    let visible = view.filtered_entries();
+    let height = panel_height(visible.len());
+    let entries = entry_buttons(&visible, view.selected, skin, style);
+    rsx! {
+        r#frame {
+            name: "LauncherPanel", width: PANEL_W, height,
+            pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%",
+            {flat_panel_chrome("Launcher", (PANEL_W, height), "Launcher", ACTION_CLOSE)}
+            {search_box(&view.query, &icon_path(skin, style, "magnifier"))}
+            {entries}
+            {empty_results(view)}
         }
     }
 }

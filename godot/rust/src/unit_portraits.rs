@@ -522,7 +522,6 @@ impl GameClient {
             &portraits.pet,
             &portraits.micro,
             &portraits.character,
-            &portraits.launcher,
             &portraits.merchant,
             &portraits.quest,
         ]
