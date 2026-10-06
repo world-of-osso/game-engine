@@ -369,7 +369,7 @@ func check_shoulder_material(mesh: MeshInstance3D, side: String) -> bool:
 		if image == null or image.is_empty():
 			fail("Shoulder " + side + " has empty bound texture " + parameter)
 			return false
-		var file := shots + "material-" + side + "-" + str(mesh.name) + "-" + parameter + ".png"
+		var file: String = shots + "material-" + side + "-" + str(mesh.name) + "-" + parameter + ".png"
 		if image.save_png(file) != OK:
 			fail("Cannot save actual bound shoulder texture " + file)
 			return false
@@ -397,7 +397,7 @@ func capture_shoulder_views(visual: Node3D) -> bool:
 			await process_frame
 		await RenderingServer.frame_post_draw
 		var image := capture.get_texture().get_image()
-		var file := shots + "02-grove-ranger-shoulders-" + view + ".png"
+		var file: String = shots + "02-grove-ranger-shoulders-" + view + ".png"
 		if image == null or image.is_empty() or image.save_png(file) != OK:
 			capture.queue_free()
 			fail("Cannot save actual Grove Ranger shoulder view " + file)
