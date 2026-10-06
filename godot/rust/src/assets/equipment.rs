@@ -287,6 +287,9 @@ fn equipment_mesh_part_allowed(
     bound: bool,
     mesh_part: u16,
 ) -> bool {
+    if slot == EquipmentSlot::Waist && !bound {
+        return true;
+    }
     if bound && is_collection_model(authored) {
         collection_mesh_part_in_slot(slot, mesh_part)
     } else {

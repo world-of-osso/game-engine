@@ -468,41 +468,51 @@ pub fn is_collection_model(path: &Path) -> bool {
         .contains("item/objectcomponents/collections/")
 }
 
-/// Body armor and skeletal collections bind to character joints. A waist base
-/// mesh with one untransformed non-key root is attachment-local, even under
-/// `collections/` (Zaralda's 6378872); WMVx belts use BELT_BUCKLE, not Ground.
+/// Body armor and skeletal collections bind to character joints. Attachment
+/// models can also live under `collections/`: an independent non-key skeleton
+/// without the slot's body geosets stays on its authored attachment.
 pub fn slot_uses_bound_joints(
     slot: EquipmentSlot,
     m2_path: &Path,
     bones: &[M2Bone],
     mesh_parts: impl IntoIterator<Item = u16>,
 ) -> bool {
-    if slot == EquipmentSlot::Waist && is_rigid_waist_base_mesh(bones, mesh_parts) {
-        return false;
-    }
-    matches!(
+    let body_slot = matches!(
         slot,
         EquipmentSlot::Chest
             | EquipmentSlot::Hands
             | EquipmentSlot::Wrist
             | EquipmentSlot::Legs
             | EquipmentSlot::Feet
-    ) || is_collection_model(m2_path)
+    );
+    if body_slot {
+        return true;
+    }
+    if is_attachment_local_model(slot, bones, mesh_parts) {
+        return false;
+    }
+    is_collection_model(m2_path)
 }
 
-fn is_rigid_waist_base_mesh(bones: &[M2Bone], mesh_parts: impl IntoIterator<Item = u16>) -> bool {
-    let untransformed_root = matches!(
-        bones,
-        [M2Bone {
+fn is_attachment_local_model(
+    slot: EquipmentSlot,
+    bones: &[M2Bone],
+    mesh_parts: impl IntoIterator<Item = u16>,
+) -> bool {
+    let own_root = matches!(
+        bones.first(),
+        Some(M2Bone {
             key_bone_id: -1,
             flags: 0,
             parent_bone_id: -1,
             ..
-        }]
+        })
     );
-    let mut parts = mesh_parts.into_iter();
-    let base_mesh_only = parts.next() == Some(0) && parts.all(|part| part == 0);
-    untransformed_root && base_mesh_only
+    let own_skeleton = own_root && bones.iter().all(|bone| bone.key_bone_id == -1);
+    let mut parts = mesh_parts.into_iter().peekable();
+    let has_meshes = parts.peek().is_some();
+    let body_geosets = parts.any(|part| collection_mesh_part_in_slot(slot, part));
+    own_skeleton && has_meshes && !body_geosets
 }
 
 /// Whether a collection model's mesh part belongs to `slot`: a collection file is shared
@@ -751,7 +761,8 @@ mod tests {
                 [0]
             ));
         }
-        assert!(slot_uses_bound_joints(
+        // An independent skeleton may have multiple roots (e.g. shoulder emitters).
+        assert!(!slot_uses_bound_joints(
             EquipmentSlot::Waist,
             path,
             &[root.clone(), root],
@@ -764,23 +775,32 @@ mod tests {
     }
 
     #[test]
-    fn rigid_root_does_not_change_other_slots_collection_binding() {
+    fn attachment_local_skeleton_keeps_body_slots_bound() {
         let path = Path::new("item/objectcomponents/collections/belt.m2");
         for slot in [
-            EquipmentSlot::Head,
-            EquipmentSlot::ShoulderLeft,
-            EquipmentSlot::ShoulderRight,
-            EquipmentSlot::Back,
             EquipmentSlot::Chest,
             EquipmentSlot::Hands,
             EquipmentSlot::Wrist,
             EquipmentSlot::Legs,
             EquipmentSlot::Feet,
+        ] {
+            assert!(slot_uses_bound_joints(
+                slot,
+                path,
+                &[rigid_waist_root()],
+                [0]
+            ));
+        }
+        for slot in [
+            EquipmentSlot::Head,
+            EquipmentSlot::ShoulderLeft,
+            EquipmentSlot::ShoulderRight,
+            EquipmentSlot::Back,
             EquipmentSlot::MainHand,
             EquipmentSlot::OffHand,
             EquipmentSlot::Ranged,
         ] {
-            assert!(slot_uses_bound_joints(
+            assert!(!slot_uses_bound_joints(
                 slot,
                 path,
                 &[rigid_waist_root()],

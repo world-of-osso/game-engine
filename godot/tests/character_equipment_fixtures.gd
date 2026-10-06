@@ -13,6 +13,28 @@ const EPSILON := 0.001
 # `GetSheatheLink`).
 const FIXTURES := [
 	{
+		"name": "StockadeEverforged", "race": 1, "sex": 0, "class": 2, "sheath": 1, "anim": 0, "time_ms": 0.0,
+		"items": [
+			{"slot": "Head", "item_id": 222433, "inventory_type": 1},
+			{"slot": "Shoulder", "item_id": 222436, "inventory_type": 3},
+			{"slot": "Chest", "item_id": 222430, "inventory_type": 5},
+			{"slot": "Waist", "item_id": 222431, "inventory_type": 6},
+			{"slot": "Legs", "item_id": 222434, "inventory_type": 7},
+			{"slot": "Feet", "item_id": 222429, "inventory_type": 8},
+			{"slot": "Wrist", "item_id": 222435, "inventory_type": 9},
+			{"slot": "Hands", "item_id": 222437, "inventory_type": 10},
+			{"slot": "MainHand", "item_id": 222443, "inventory_type": 17},
+		],
+		"attachments": {"EquipmentWaist": 53, "EquipmentMainHand": 1},
+		"pixel_item": "EquipmentWaist",
+	},
+	{
+		"name": "StockadeClothBelt", "race": 1, "sex": 0, "class": 2, "sheath": 0, "anim": 0, "time_ms": 0.0,
+		"items": [{"slot": "Waist", "item_id": 194359, "inventory_type": 6}],
+		"attachments": {"EquipmentWaist": 53},
+		"pixel_item": "EquipmentWaist",
+	},
+	{
 		"name": "AldricDrawn", "race": 1, "sex": 0, "class": 1, "sheath": 1, "anim": 26, "time_ms": 300.0,
 		"items": [
 			{"slot": "Shirt", "item_id": 38, "inventory_type": 4},
@@ -216,11 +238,29 @@ func check_fixture(loader: Object, camera: Camera3D, fixture: Dictionary) -> voi
 		var path: String = capture_dir + fixture.name + ("" if side > 0.0 else "-back") + ".png"
 		if image.save_png(path) != OK:
 			fail(fixture, "could not save " + path)
+		if side > 0.0 and fixture.has("pixel_item"):
+			await check_item_pixels(fixture, model, image)
 	check_geosets(fixture, model)
 	check_attachments(fixture, model)
 	check_bound(fixture, model)
 	print("FIXTURE %s geosets=%s items=%s" % [fixture.name, visible_geosets(model), item_parents(model)])
 	model.free()
+
+func check_item_pixels(fixture: Dictionary, model: Node3D, shown: Image) -> void:
+	var item := model.find_child(fixture.pixel_item, true, false) as Node3D
+	if item == null:
+		fail(fixture, "pixel item missing: " + str(fixture.pixel_item))
+		return
+	item.visible = false
+	await RenderingServer.frame_post_draw
+	await RenderingServer.frame_post_draw
+	var hidden := root.get_texture().get_image()
+	item.visible = true
+	var pixels = load("res://tests/world_player_equipment_pixels.gd").new()
+	var changed: int = pixels.count_changed_pixels(shown, hidden)
+	if changed < 5:
+		fail(fixture, "belt has no rendered pixels: " + str(changed))
+	print("FIXTURE %s belt pixels=%d" % [fixture.name, changed])
 
 func pose(fixture: Dictionary, model: Node3D) -> void:
 	var animation := model.get_node_or_null("M2Animation") as WowAnimationPlayer
