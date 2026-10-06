@@ -1,10 +1,11 @@
-//! Portable guild settings decisions. Native mounting/transport are tracked separately
-//! in docs/specs/guild-ranks.md. Requests never optimistically edit server state.
+//! Authoritative guild settings decisions; requests never optimistically edit state.
 use shared::protocol::*;
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct GuildRanksSession {
     pub visible: bool,
+    pub settings_open: bool,
+    pub member_menu: Option<String>,
     pub error: Option<String>,
     state: Option<GuildRanksState>,
     selected_rank: usize,
@@ -34,6 +35,89 @@ impl GuildRanksSession {
         {
             self.selected_rank = rank;
         }
+    }
+
+    pub fn selected_index(&self) -> usize {
+        self.selected_rank
+    }
+
+    /// Native buttons read current editbox values, then produce one wire request.
+    pub fn click(
+        &mut self,
+        action: &str,
+        texts: &crate::bank::InputTexts,
+    ) -> Option<GuildRankRequest> {
+        let input = |name: &str| texts.get(name).map(String::as_str).unwrap_or_default();
+        match action {
+            "guild:close" => {
+                self.visible = false;
+                self.settings_open = false;
+                None
+            }
+            "guild:settings" => {
+                self.settings_open = true;
+                None
+            }
+            "guild:settings_close" => {
+                self.settings_open = false;
+                None
+            }
+            "guild:add" => self.add_rank(input(crate::guild_rank_frame::NAME_BOX)),
+            "guild:rename" => self.rename_rank(input(crate::guild_rank_frame::NAME_BOX)),
+            "guild:remove" => self.remove_rank(),
+            "guild:up" => self.move_rank(true),
+            "guild:down" => self.move_rank(false),
+            "guild:gold" => self.set_gold_limit(input(crate::guild_rank_frame::GOLD_BOX)),
+            "guild:promote" => self.promote(self.member_menu.as_deref()?),
+            "guild:demote" => self.demote(self.member_menu.as_deref()?),
+            _ => self.indexed_click(action, texts),
+        }
+    }
+
+    fn indexed_click(
+        &mut self,
+        action: &str,
+        texts: &crate::bank::InputTexts,
+    ) -> Option<GuildRankRequest> {
+        if let Some(name) = action.strip_prefix("guild:member:") {
+            self.member_menu = Some(name.to_owned());
+            return None;
+        }
+        let (kind, index) = action.strip_prefix("guild:")?.split_once(':')?;
+        let index: usize = index.parse().ok()?;
+        match kind {
+            "rank" => {
+                self.select_rank(index);
+                None
+            }
+            "permission" => {
+                let flag = 1u32.checked_shl(u32::try_from(index).ok()?)?;
+                self.set_permission(flag, self.selected()?.rights & flag == 0)
+            }
+            "view" | "deposit" | "items" => self.click_tab(kind, index, texts),
+            _ => None,
+        }
+    }
+
+    fn click_tab(
+        &self,
+        kind: &str,
+        index: usize,
+        texts: &crate::bank::InputTexts,
+    ) -> Option<GuildRankRequest> {
+        let tab = self.selected()?.tabs.get(index)?;
+        let view = if kind == "view" { !tab.view } else { tab.view };
+        let deposit = if kind == "deposit" {
+            !tab.deposit
+        } else {
+            tab.deposit
+        };
+        let stacks = if kind == "items" {
+            texts.get(&format!("GuildTabItems{index}"))?.clone()
+        } else {
+            tab.withdrawals_per_day.to_string()
+        };
+        self.set_tab(u8::try_from(index).ok()?, view, deposit, &stacks)
     }
 
     pub fn selected(&self) -> Option<&GuildRankSettings> {

@@ -34,9 +34,20 @@ How the client shows the character bank, the Warband bank and the guild bank. Th
 rank directly. Control methods return `GuildRankRequest` without editing cached state;
 only `apply` replaces it. Gold input converts whole gold to copper. The model validates
 GM-only editing, immutable rank zero, occupied deletion and member hierarchy.
-It is not mounted or connected to native rank transport.
+`guild_rank_frame.rs` renders the communities roster and its Guild Settings button,
+then the rank list, permissions, gold and purchased-tab controls. Shared panel chrome
+resolves the active Modern/Forever metal family. Disabled editors render read-only
+values; disabled buttons emit no actions. Member menu actions use the same hierarchy
+checks as request generation.
+
+`godot/rust/src/guild_ranks.rs` owns the native canvas and polls its action queue.
+`account.rs` sends `GuildRankRequest` on ordered-reliable `GuildChannel`; the network
+bridge receives `GuildRanksState` and account dispatch forwards it to the session.
+Refusals also go to `UIErrorsFrame`. Escape and leaving InWorld close/reset the canvas.
+The Guild micro button opens this entry point (previously unavailable).
+Offline capture methods feed a concrete snapshot into the same production screen.
 
 ## Sources
 
-- [Guild ranks contract](../../specs/guild-ranks.md) — required UI and explicit native integration gaps.
+- [Guild ranks contract](../../specs/guild-ranks.md) — required UI and proof boundaries.
 - [Portable model](../../../godot/ui-model/src/guild_ranks.rs) — state and request decisions.
