@@ -160,6 +160,21 @@ fn dungeonclient_live_update_requests_fresh_page_even_with_query_in_flight() {
             after_id: 0
         }]
     );
+    let mut stale = achievement();
+    stale.earned = false;
+    stale.earned_at = None;
+    window.apply(AchievementCatalogPage::Category {
+        category_id: 14808,
+        achievements: vec![stale],
+        next_id: None,
+    });
+    assert!(!window.selected().unwrap().earned);
+    window.apply(AchievementCatalogPage::Category {
+        category_id: 14808,
+        achievements: vec![achievement()],
+        next_id: None,
+    });
+    assert!(window.selected().unwrap().earned);
 }
 
 #[test]

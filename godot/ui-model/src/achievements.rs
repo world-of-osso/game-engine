@@ -246,7 +246,10 @@ impl AchievementWindow {
         } else {
             Vec::new()
         };
-        self.enqueue(requests)
+        // A live change needs a post-change response even if an older first page is
+        // already in flight. Same-type reliable replies consume these in send order.
+        self.pending.extend(requests.iter().copied());
+        requests
     }
     fn select_first(&mut self) {
         self.row_offset = self.row_offset.min(self.entries().len().saturating_sub(1));
