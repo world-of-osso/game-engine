@@ -1,7 +1,7 @@
 use shared::casting::CastState;
 use shared::spell_data::CastFailReason;
 
-use super::{BarType, Interrupter, PlateCasts, Spark, casting_bar_state};
+use super::{BarType, Interrupter, PlateCasts, Spark, casting_bar_state, player_casting_bar_state};
 
 #[test]
 fn player_castbaranim_success_flashes_then_fades_at_retail_timestamps() {
@@ -11,7 +11,7 @@ fn player_castbaranim_success_flashes_then_fades_at_retail_timestamps() {
         casts.observe(UNIT, Some(&bolt(1.0, true)));
         casts.spell_go(UNIT, BOLT); // t=10.000
         casts.advance(0.1, |_| true); // t=10.100
-        let state = casting_bar_state(casts.get(UNIT).unwrap(), None);
+        let state = player_casting_bar_state(casts.get(UNIT).unwrap(), None);
         let mut shared = ui_toolkit::screen::SharedContext::new();
         shared.insert(skin);
         shared.insert(state);
@@ -39,7 +39,33 @@ fn player_castbaranim_interrupt_fills_after_spark_holds_and_fades() {
         casts.observe(UNIT, Some(&bolt(0.5, true)));
         casts.spell_failure(UNIT, BOLT, CastFailReason::Interrupted, None); // t=20.000
         casts.advance(0.15, |_| true); // t=20.150, spark animation complete
-        let state = casting_bar_state(casts.get(UNIT).unwrap(), None);
+        let state = player_casting_bar_state(casts.get(UNIT).unwrap(), None);
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(skin);
+        shared.insert(state.clone());
+        let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
+        ui_toolkit::screen::Screen::new(
+            game_engine_ui_model::casting_bar_frame_component::casting_bar_frame_screen,
+        )
+        .sync(&shared, &mut registry);
+        let fill = registry
+            .get(registry.get_by_name("CastingBarFill").unwrap())
+            .unwrap();
+        match skin {
+            ActiveSkin::Modern => {
+                let Some(ui_toolkit::widgets::WidgetData::Texture(texture)) =
+                    fill.widget_data.as_ref()
+                else {
+                    panic!("missing interrupted texture")
+                };
+                assert_eq!(
+                    texture.source,
+                    ui_toolkit::widgets::TextureSource::Atlas("ui-castingbar-interrupted".into())
+                );
+            }
+            ActiveSkin::Forever => assert_eq!(fill.background_color, Some([1.0, 0.0, 0.0, 1.0])),
+        }
+        assert!(registry.get_by_name("CastingBarSpark").is_none());
         assert_eq!(state.spell_name, "Interrupted");
         assert_eq!(state.progress, 1.0, "{skin:?}: interrupted fill");
         assert_eq!(state.alpha, 1.0);
@@ -55,7 +81,7 @@ fn player_castbaranim_interrupt_fills_after_spark_holds_and_fades() {
 #[test]
 fn player_castbaranim_failure_reads_failed_and_channel_uses_channel_finish() {
     use ui_toolkit::atlas::ActiveSkin;
-    for _skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut casts = PlateCasts::default();
         casts.observe(UNIT, Some(&bolt(0.5, true)));
         casts.spell_failure(UNIT, BOLT, CastFailReason::OutOfRange, None); // t=30.000
@@ -66,10 +92,22 @@ fn player_castbaranim_failure_reads_failed_and_channel_uses_channel_finish() {
         casts.observe(UNIT, Some(&missiles(3.0)));
         casts.observe(UNIT, None); // t=40.000, channel stop
         casts.advance(0.1, |_| true); // t=40.100
-        let state = casting_bar_state(casts.get(UNIT).unwrap(), None);
+        let state = player_casting_bar_state(casts.get(UNIT).unwrap(), None);
         assert!(state.is_channel);
         assert_eq!(state.progress, 0.0);
         assert_eq!(state.alpha, 1.0);
+        let mut shared = ui_toolkit::screen::SharedContext::new();
+        shared.insert(skin);
+        shared.insert(state);
+        let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
+        ui_toolkit::screen::Screen::new(
+            game_engine_ui_model::casting_bar_frame_component::casting_bar_frame_screen,
+        )
+        .sync(&shared, &mut registry);
+        let glow = registry
+            .get_by_name("CastingBarBaseGlow")
+            .expect("channel finish missing");
+        assert!((registry.get(glow).unwrap().alpha - 1.0 / 6.0).abs() < 0.001);
         casts.advance(0.25, |_| true); // t=40.350
         assert!((casts.get(UNIT).unwrap().alpha() - 0.5).abs() < 0.001);
         casts.advance(0.16, |_| true); // t=40.510
