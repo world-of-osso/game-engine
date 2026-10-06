@@ -159,6 +159,7 @@ impl GameClient {
         closed |= self.close_trade_window()?;
         closed |= self.close_quest_windows()?;
         closed |= self.close_character_window();
+        closed |= self.close_guild_ranks();
         closed |= self.close_bank_window()?;
         closed |= self.close_guild_bank_window()?;
         Ok(closed)
