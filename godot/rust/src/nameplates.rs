@@ -886,12 +886,7 @@ fn spawn_plate(
         frame.set_texture_filter(godot::classes::canvas_item::TextureFilter::NEAREST);
         fill.set_texture_filter(godot::classes::canvas_item::TextureFilter::LINEAR);
     }
-    for side in [
-        godot::global::Side::LEFT,
-        godot::global::Side::RIGHT,
-        godot::global::Side::TOP,
-        godot::global::Side::BOTTOM,
-    ] {
+    for side in [Side::LEFT, Side::RIGHT, Side::TOP, Side::BOTTOM] {
         frame.set_patch_margin(side, edge);
     }
     let raid_icon = texture_rect();
