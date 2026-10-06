@@ -1,6 +1,6 @@
 ## 2026-10-05 — Static portrait party family (party1)
 
-[[portrait-party-frames]] adds source-cited Retail/Camelot member/pet geometry and distinguishes both verified c60 mappings: conditional CharacterFrameOnParty element 33561 → set-1 member 38477 → atlas 3960 shares Camelot's player sheet; ordinary Party element 21081 → member 39017 → atlas 4019 uses uipartyframec60. Static state-only component, behavioral tests, registry-golden capture and offline preview; no roster/portrait-runtime/settings/live acceptance. Compact remains default.
+[[portrait-party-frames]] adds source-cited Retail/Camelot member/pet geometry and distinguishes both verified c60 mappings: conditional CharacterFrameOnParty element 33561 → set-1 member 38477 → atlas 3960 shares Camelot's player sheet; ordinary Party element 21081 → member 39017 → atlas 4019 uses uipartyframec60. Static state-only component, behavioral tests, registry-golden capture and offline preview; no roster/portrait-runtime/settings/live acceptance. Compact remains default. Targeted registry/source tests pass 12/12 and extension builds, but owned native captures expose missing Retail sheet 4681512 and a mismatched 69913-vs-69933 base sheet at shared FDID 4631591. Static raster acceptance is blocked; do not wire as complete. Source-record equality is not physical-texture proof.
 
 ## 2026-10-04 — Canonical toolkit integration and retained Skyborn blocker
 
