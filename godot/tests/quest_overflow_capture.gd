@@ -37,10 +37,16 @@ func node(probe: Node, name: String) -> Control:
 func assert_clipped_pixels(before: Image, after: Image, area: Rect2) -> void:
 	# Content hiding may only change pixels inside its clipped viewport, not chrome/buttons.
 	var outside_changes := 0
+	var inside_changes := 0
 	for y in range(before.get_height()):
 		for x in range(before.get_width()):
-			if not area.grow(2).has_point(Vector2(x, y)) and before.get_pixel(x, y) != after.get_pixel(x, y):
+			if before.get_pixel(x, y) == after.get_pixel(x, y):
+				continue
+			if area.grow(2).has_point(Vector2(x, y)):
+				inside_changes += 1
+			else:
 				outside_changes += 1
+	assert(inside_changes > 100, "No rendered quest content in clipping comparison")
 	assert(outside_changes == 0, "Content escaped viewport: %d pixels" % outside_changes)
 
 func run_case(forever: bool, page: String, long_text: bool) -> void:
@@ -63,8 +69,18 @@ func run_case(forever: bool, page: String, long_text: bool) -> void:
 	var skin := "forever" if forever else "modern"
 	var prefix := "%s-%s-%s" % [skin, page, "long" if long_text else "short"]
 	var top_image := await image(prefix + "-top.png")
+	if long_text:
+		var paragraph_name: String = {"log": "QuestLogDetailsDescription", "detail": "QuestInfoDescriptionText", "progress": "QuestProgressText", "reward": "QuestInfoRewardText"}[page]
+		var paragraph: Label = node(probe, paragraph_name)
+		print("PARAGRAPH ", prefix, " rect=", paragraph.get_global_rect(), " min=", paragraph.get_minimum_size(), " lines=", paragraph.get_line_count(), " visible=", paragraph.get_visible_line_count(), " alignment=", paragraph.vertical_alignment, " spacing=", paragraph.get_theme_constant("line_spacing"))
+		paragraph.hide()
+		await settle()
+		assert_clipped_pixels(top_image, root.get_texture().get_image(), area.get_global_rect())
+		paragraph.show()
+		await settle()
 	content.hide()
 	await settle()
+	assert(not content.is_visible_in_tree())
 	var hidden := root.get_texture().get_image()
 	assert_clipped_pixels(top_image, hidden, area.get_global_rect())
 	content.show()
@@ -100,6 +116,7 @@ func run_case(forever: bool, page: String, long_text: bool) -> void:
 		var bottom_image := await image(prefix + "-bottom.png")
 		content.hide()
 		await settle()
+		assert(not content.is_visible_in_tree())
 		assert_clipped_pixels(bottom_image, root.get_texture().get_image(), area.get_global_rect())
 	else:
 		assert(metrics.y == 0 and moved.x == 0, "Short quest changed scrolling behavior")

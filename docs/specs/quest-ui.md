@@ -18,7 +18,8 @@ Retail objective tracker, quest log and quest giver frame on the live server que
 - [x] Objective areas: watched quests' unfinished objectives' `QuestPOI` polygons drawn gold (brighter rim) on the minimap and the world map canvas; the world map pins each objective (`QuestObjective`).
 - [ ] Godot Edit Mode: Retail shows the empty tracker while Edit Mode is active (`Blizzard_ObjectiveTrackerContainer.lua:104-105`); the Godot client has no Edit Mode.
 - [x] NPC portrait in the frame's portrait ring: `QuestFramePortrait` renders the dialog NPC (`SetPortraitTexture(QuestFramePortrait, "questnpc")`, QuestFrame.lua:111-117; the gossip greeting `SetPortraitToUnit("npc")`, GossipFrameShared.lua:286-291) through the unit-frame portrait path, in the same 62×62 ring slot as the MerchantFrame.
-- [ ] Scroll frames for texts taller than the parchment; super-tracking.
+- [x] Native quest-log details and QuestFrame detail/progress/reward pages clip long content to a scrolling viewport with a skin-resolved MinimalScrollBar. Scroll range covers the measured native content height; wheel and thumb input move text, objectives and rewards together. Short content stays at the top without a scroll thumb; action buttons remain outside the viewport. Narrow quest-log rewards fit within their column.
+- [ ] Super-tracking.
 
 ## Skin-resolved quest chrome
 
@@ -30,6 +31,8 @@ Retail objective tracker, quest log and quest giver frame on the live server que
 
 ## Tests asserting this spec
 
+- `godot/tests/quest_overflow_capture.gd` — offline native long/short quest log and detail/progress/reward in both skins: viewport pixel clipping, measured full range, real wheel/scrollbar-thumb input, last reward reachability and short-content stability; captures under `data/diagnostics/questoverflow-2026-10-06/`.
+- `godot/rust/src/ui/quest_scroll_tests.rs` — concrete long-log range/reward and wheel behavior in both skins; native paragraph-height flow and existing quest-dialog long/short/stepper regressions.
 - `godot/ui-model/tests/forever_quest_windows.rs` — exact Modern base tree bytes for four quest pages, quest log, logged-in/out menu and all settings categories; concrete Modern/Forever atlas regions and rendered quest texture fields, including a zone header.
 
 - `godot/ui-model/src/game/quest_runtime_tests.rs` — log deltas and accept lines, quest list per NPC, reward choice bounds, turn-in lines, token substitution.
