@@ -38,6 +38,8 @@ Markers: `nameplate.rs` spawns the talktome M2 with its animation; `indicator_fa
 
 ## Native quest scrolling
 
+Verified 2026-10-06: 42 targeted Rust tests and 16 native long/short page/skin cases pass. Final selected-quest captures and exact command scopes are in `data/diagnostics/questoverflow-2026-10-06/proof-ledger.txt` / `.json`; prototype failures remain archived separately. The data-dependent item-5580 icon test and native GTK/resource-cache teardown diagnostics are excluded from this bounded acceptance, not repaired.
+
 At `af35f6e1`, quest-log text flowed in an auto-height `QuestLogDetailsContent` directly under the window, without a scroll-list ancestor. Native projection clips registered scroll lists, not arbitrary content frames, so growing descriptions crossed the parchment and action buttons. QuestFrame already had scroll frames, but its fixed paragraph heights and subsequent absolute offsets used estimates; the injected 1000-pixel native-height regression reproduced objectives landing inside the paragraph.
 
 `quest_scroll.rs` builds a clipped viewport, auto-height child and skin-resolved MinimalScrollBar. After native shaping/layout, `RegistryModel` feeds the measured child height back into `QuestScrollExtent` and rebuilds the range/bar before drawing. Log and detail/progress/reward content use vertical flow; narrow log rewards use one column. Wheel/steppers pan 30 pixels, thumb drag reaches the full range; action buttons remain outside the viewport. Selecting another log quest resets its offset.
@@ -50,7 +52,7 @@ Proof: `godot/rust/src/ui/quest_scroll_tests.rs`, `godot/tests/quest_overflow_ca
 
 ## Live fixture diagnostics
 
-Evidence: `data/diagnostics/questrun-2026-10-05/` in the canonical game-engine data tree. Native extension `9d8a1040`, private server binary `c8cd38f`; both presets completed the gameplay flow, including real mine exploration and both fixed rewards. Long quest text still overflows the parchment; visual acceptance is separate from gameplay assertions.
+Evidence: `data/diagnostics/questrun-2026-10-05/` in the canonical game-engine data tree. Native extension `9d8a1040`, private server binary `c8cd38f`; both presets completed the gameplay flow, including real mine exploration and both fixed rewards. That run still had long-text overflow; [native quest scrolling](#native-quest-scrolling) records the later repair and its separate visual proof.
 
 ### Jasperlode
 
