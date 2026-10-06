@@ -31,6 +31,8 @@ Previously the player had progress/colours and reducer fades, but no completion 
 
 Native interrupted capture reproduced a lost vertical shake: changing `margin_top` cannot move a bottom-anchored bar. Sampling the XML translation into `translate_x`/`translate_y` moves both axes independently of HUD anchors. The existing capture fixture asserts the actual track origin at timestamp 100.175 and isolates interrupt glow pixels.
 
+A second timestamp regression reproduced channel failure retaining “Arcane Missiles” when no interrupter name accompanied `SpellFailure`. Retail forces interrupted channel stops through `HandleInterruptOrSpellFailed(true, ...)` (`Shared/CastingBarFrame.lua:450-456`); the reducer now honours the failure before or after replicated removal, without requiring a name.
+
 ## Art and evidence
 
 Retail atlas files: FDIDs `4505182`, `4505194`, `4549775`, `4550035`, `4550359`, `4550462`. Extract only from local CASC into canonical `data/textures/`; assigned slots may link those immutable files. No synchronous extraction in the per-frame HUD path.
