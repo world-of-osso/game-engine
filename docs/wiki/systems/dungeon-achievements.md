@@ -14,9 +14,20 @@ Launcher and micro-menu share AchievementMicroButton dispatch. ToggleAchievement
 
 Modern uses local UI-Achievement-Category-Background (130652), AchievementBackground (235397), Shield (130665) and Alert-Background (130650). Forever uses active-skin flat panel chrome and its metal sheet. Assets are local CASC/cache only.
 
+## Proof
+
+Verified: 2026-10-06. Code `ada3c295`, read-only protocol `172fd266`, read-only server `dc7df543`.
+
+- Locked local helper, packages `game-engine-godot`, `game-engine-ui-model`, `game-engine-network`, filter `dungeonclient`: **8/8 pass** (5 UI-model, 2 account, 1 real ephemeral UDP), `/tmp/claude/dungeonclient-last-tests.out`. Covers both-skin Stockade kill/leave rendering, catalog and criteria continuation, launcher request, live refresh during an outstanding query and reopening, account dispatch/toast, actual AchievementChannel wire order.
+- Native extension build passes, `/tmp/claude/dungeonclient-last-build.out`; SHA-256 `7b05abaac3e84fb33e17110924e1a9152d87268014603a4e5f1b857c0ae218d1`. Changed Rust files pass format checking. No broad suite or live server test was run.
+- Existing `capture_ui_screen.gd` generates `data/diagnostics/dungeonclient-2026-10-06/{modern-tracker,forever-tracker,modern-achievements,forever-achievements,achievement-toast}.png`. All five exit 0 and were inspected: ordered three-boss mid-run block, first boss checked; both panel skins, category parent/child, icon, name, description, 10 points, UTC date and Hogger criterion readable; alert visible. Approved tracker anchor unchanged. Initial low-contrast Modern capture retained as `modern-achievements-low-contrast.png`; rejected and corrected with dark row ink.
+- Captures use the available trial Godot `4.7.2.stable.pr123946.ed1daf0bf`, private headless Weston/Dozen and local CASC. Owned compositor stopped by exact PID after capture. Capture teardown reports texture/font RID leaks; clean-resource shutdown is not proven. Live instance gameplay and server-triggered grant-to-toast end-to-end proof remain untested (offline task).
+
+Lightyear's typed MessageSender queues messages per type before serialization (`lightyear_messages-0.28.0/src/send.rs:90–150`): method-call order across types is not wire order. The UDP fixture flushes server sends separately and pauses the client worker to reproduce one-frame mixed-type reception, then asserts the actual channel sequence. A single client relay sorts message IDs before account dispatch.
+
 ## Sources
 
-- Retail `Blizzard_ObjectiveTracker/Blizzard_ScenarioObjectiveTracker.lua:202,379–416`: dungeon/stage metadata and complete checks/incomplete nubs.
+- Retail `Blizzard_ObjectiveTracker/Blizzard_ScenarioObjectiveTracker.lua:202,379–416`: dungeon/stage metadata and complete checks/incomplete nubs; `Blizzard_ObjectiveTrackerManager.lua:196`: Scenario precedes Quests.
 - Retail `Blizzard_AchievementUI/Mainline/Blizzard_AchievementUI.lua:572,1814,1952`: categories, achievement metadata and criterion text/completion/counters.
 - Read-only server `docs/dungeon-achievements-client.md`, protocol `achievement_catalog_messages.rs`, pinned shared-protocol 172fd26.
 - Client `godot/ui-model/src/achievements.rs`, `dungeon_progress.rs`, `godot/rust/src/achievements.rs`.
