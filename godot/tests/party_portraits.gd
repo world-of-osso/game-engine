@@ -70,7 +70,7 @@ func run_test() -> void:
 	print("PASS portrait_party_switch_compact_frees_hosts")
 	fixture.free()
 	await settle()
-	check(root.find_children("PortraitViewport", "SubViewport", true, false).is_empty(), "fixture shutdown frees all portrait viewports")
+	check(root.find_children("*", "SubViewport", true, false).is_empty(), "fixture shutdown frees all portrait viewports")
 	quit(0)
 
 # Native Array<GString> requires a typed Array[String], including empty rosters.
@@ -81,6 +81,8 @@ func check_binding(name: String, index: int) -> void:
 	var state: Dictionary = fixture.portrait_state(name)
 	check(state.frame == "PartyMemberFrame%dPortrait" % (index + 1), "member follows reordered slot: " + name)
 	check(str(state.appearance).begins_with("player " + name + " race"), "member-specific appearance: " + name)
+	var host := fixture.find_child(state.frame, true, false) as Control
+	check(host != null and (state.rect as Rect2).is_equal_approx(host.get_global_rect()), "render occupies member's actual slot: " + name)
 
 func wait_for_heads(count: int) -> void:
 	for attempt in range(1200):
@@ -97,10 +99,16 @@ func settle() -> void:
 		await RenderingServer.frame_post_draw
 
 func count_views() -> int:
-	var views := root.find_children("PortraitView", "TextureRect", true, false).size()
-	var viewports := root.find_children("PortraitViewport", "SubViewport", true, false).size()
-	check(views == viewports, "one viewport per portrait host")
-	return views
+	# Godot may rename a reparented view during a slot swap. Count resource types,
+	# not display names, including any leaked viewport whose name also changed.
+	var viewports := root.find_children("*", "SubViewport", true, false)
+	var parents := {}
+	for viewport in viewports:
+		var parent := viewport.get_parent()
+		check(parent is TextureRect, "portrait viewport belongs to a render host")
+		parents[parent.get_instance_id()] = true
+	check(parents.size() == viewports.size(), "one viewport per portrait render host")
+	return viewports.size()
 
 func check_offline_pixels(image: Image, rect: Rect2) -> void:
 	var colored := 0
