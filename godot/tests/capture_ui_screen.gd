@@ -22,7 +22,7 @@ func _run() -> void:
 		push_error(error)
 		quit(1)
 		return
-	for frame in range(3):
+	for frame in range(120 if screen == "forever_damage_meter_preview" else 3):
 		await process_frame
 		await RenderingServer.frame_post_draw
 	var image = root.get_texture().get_image()
@@ -30,6 +30,11 @@ func _run() -> void:
 		push_error("UI capture requires a rendering display")
 		quit(1)
 		return
+	if screen == "forever_damage_meter_preview":
+		if not forever_meter_matches_reference(ui, image):
+			ui.queue_free()
+			quit(1)
+			return
 	if screen in ["portrait_party", "forever_portrait_party"]:
 		if not offline_party_health_is_desaturated(image):
 			ui.queue_free()
@@ -43,6 +48,40 @@ func _run() -> void:
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
 	quit(0)
+
+# Assert actual rendered endpoints, native font size and native icon/title rectangles.
+func forever_meter_matches_reference(ui: Node, image: Image) -> bool:
+	var title = ui.find_child("DamageMeterTypeName", true, false)
+	var title_rect: Rect2 = title.get_global_rect()
+	for name in ["DamageMeterSettingsIcon", "DamageMeterSessionDropdownIcon"]:
+		var icon = ui.find_child(name, true, false)
+		var icon_rect: Rect2 = icon.get_global_rect()
+		if absf(icon_rect.get_center().y - title_rect.get_center().y) > 0.5:
+			push_error(name, " not centred on title: ", icon_rect, " vs ", title_rect)
+			return false
+	var threat = ui.find_child("DamageMeterThreatTabName", true, false)
+	if threat == null or threat.text != "Threat":
+		push_error("Default second tab is not Threat")
+		return false
+	var expected_colors = [Color(0.25, 0.78, 0.92), Color(0.53, 0.53, 0.93), Color(0.96, 0.55, 0.73), Color(0.78, 0.61, 0.43), Color(0.0, 0.44, 0.87)]
+	for row in range(1, 6):
+		for suffix in ["Name", "Value"]:
+			var label = ui.find_child("DamageMeterEntry%d%s" % [row, suffix], true, false)
+			if label.get_theme_font_size("font_size") != 12:
+				push_error("Row font is not 12")
+				return false
+		var fill = ui.find_child("DamageMeterEntry%dStatusBar" % row, true, false)
+		var rect: Rect2 = fill.get_global_rect()
+		for stop in [0, 1]:
+			var x = rect.position.x + 2 if stop == 0 else rect.end.x - 3
+			var expected: Color = expected_colors[row - 1] * (0.5 if stop == 0 else 1.0)
+			for y in [rect.position.y + 4, rect.end.y - 5]:
+				var pixel = image.get_pixel(int(x), int(y))
+				if maxf(absf(pixel.r - expected.r), maxf(absf(pixel.g - expected.g), absf(pixel.b - expected.b))) > 0.035:
+					push_error("Fill stop/highlight mismatch row ", row, " stop ", stop, " at ", Vector2(x, y), ": ", pixel, " vs ", expected)
+					return false
+	print("PASS: Forever meter rendered stops, fonts, Threat tab and icon centres")
+	return true
 
 # The rank disclaimer occupies two single-line rows inside the left column.
 # Assert real rendered pixels; the previous 20px multiline label overlapped both rows.

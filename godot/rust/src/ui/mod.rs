@@ -4,6 +4,7 @@ mod audit_probe;
 mod icon_masks;
 pub(crate) mod input_queue;
 mod layout;
+mod meter_preview;
 mod options_keybindings;
 mod parts;
 mod party_preview;
@@ -1970,6 +1971,22 @@ impl RegistryUi {
         model.sync();
         GString::from(
             self.initialize_model(model, size.x, size.y)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
+    /// Offline meter rows for the existing capture_ui_screen.gd fixture; no network state.
+    #[func]
+    pub fn show_forever_damage_meter_preview(&mut self) -> GString {
+        if let Err(error) = party_preview::load_data_root() {
+            return GString::from(error.as_str());
+        }
+        ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Forever);
+        GString::from(
+            self.set_ui_scale(1.0)
+                .and_then(|()| self.show_damage_meter(meter_preview::view()))
                 .err()
                 .unwrap_or_default()
                 .as_str(),
