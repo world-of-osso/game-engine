@@ -2586,4 +2586,4 @@ Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-b
 
 ## 2026-10-05 — Guild rank settings model
 
-Added portable authoritative rank controls and Officer chat parsing/classification. [Guild ranks spec](../specs/guild-ranks.md) records pending native transport, settings widgets in both skins and member menus. No native guild-settings rendering or live proof claimed. Targeted model GREEN pending.
+Added portable authoritative rank controls and Officer chat parsing/classification. [Guild ranks spec](../specs/guild-ranks.md) records pending native transport, settings widgets in both skins and member menus. No native guild-settings rendering or live proof claimed. Five targeted model tests pass at `61e129e4`; Godot/UI-model/network test compilation succeeds. The additional hidden-tab RED reproduced loss of independent deposit/stack settings; GREEN preserves them.
