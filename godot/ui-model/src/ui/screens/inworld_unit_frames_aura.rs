@@ -339,11 +339,6 @@ fn aura_button_sized(
     let icon_texture: Element = resolved_icon(icon)
         .map(|fdid| aura_icon_texture(&name, fdid, size))
         .unwrap_or_default();
-    let count = if icon.stacks > 1 {
-        icon.stacks.to_string()
-    } else {
-        String::new()
-    };
     rsx! {
         r#frame {
             name: {dyn_name(name.clone())},
@@ -354,30 +349,47 @@ fn aura_button_sized(
             left: x,
             top: y,
             {icon_texture}
-            r#frame {
-                name: {dyn_name(format!("{name}Cooldown"))},
-                width: size,
-                height: size,
-                hidden: {icon.elapsed.is_none()},
-                pos_type: "absolute",
-                left: 0.0,
-                top: 1.0,
-            }
+            {aura_cooldown_frame(&name, icon, size)}
             {dispel_border(&name, icon, size)}
-            fontstring {
-                name: {dyn_name(format!("{name}Count"))},
-                width: {size + 1.0},
-                height: {COUNT_FONT_SIZE},
-                text: {count.as_str()},
-                font: "ArialNarrow",
-                font_size: COUNT_FONT_SIZE,
-                font_color: COUNT_COLOR,
-                outline: "OUTLINE",
-                justify_h: "RIGHT",
-                pos_type: "absolute",
-                right: -1.0,
-                bottom: 0.0,
-            }
+            {aura_stack_count(&name, icon.stacks, size)}
+        }
+    }
+}
+
+fn aura_cooldown_frame(name: &str, icon: &TargetAuraIconState, size: f32) -> Element {
+    rsx! {
+        r#frame {
+            name: {dyn_name(format!("{name}Cooldown"))},
+            width: size,
+            height: size,
+            hidden: {icon.elapsed.is_none()},
+            pos_type: "absolute",
+            left: 0.0,
+            top: 1.0,
+        }
+    }
+}
+
+fn aura_stack_count(name: &str, stacks: u32, size: f32) -> Element {
+    let count = if stacks > 1 {
+        stacks.to_string()
+    } else {
+        String::new()
+    };
+    rsx! {
+        fontstring {
+            name: {dyn_name(format!("{name}Count"))},
+            width: {size + 1.0},
+            height: {COUNT_FONT_SIZE},
+            text: {count.as_str()},
+            font: "ArialNarrow",
+            font_size: COUNT_FONT_SIZE,
+            font_color: COUNT_COLOR,
+            outline: "OUTLINE",
+            justify_h: "RIGHT",
+            pos_type: "absolute",
+            right: -1.0,
+            bottom: 0.0,
         }
     }
 }
