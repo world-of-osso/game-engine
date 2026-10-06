@@ -39,6 +39,8 @@ func run_test() -> void:
 		check(metrics.visible > 20 and metrics.mean > 0.12, "visible lit face pixels: " + name)
 		var meshes := host.find_children("*", "MeshInstance3D", true, false)
 		for index in range(meshes.size()):
+			if not meshes[index].visible:
+				continue
 			var material := meshes[index].get_active_material(0) as ShaderMaterial
 			var texture := material.get_shader_parameter("base_texture") as Texture2D
 			if texture != null:
@@ -66,14 +68,15 @@ func project_head(host: Node, camera: Camera3D, head: int) -> Rect2:
 			var posed := Vector3.ZERO
 			for influence in range(4):
 				var slot := index * 4 + influence
-				var bone := bones[slot]
+				var bind := bones[slot]
+				var bone := mesh.skin.get_bind_bone(bind)
 				var weight := weights[slot]
 				var ancestor := bone
 				while ancestor >= 0 and ancestor != head:
 					ancestor = skeleton.get_bone_parent(ancestor)
 				if ancestor == head:
 					head_weight += weight
-				var transform: Transform3D = skeleton.get_bone_global_pose(bone) * mesh.skin.get_bind_pose(bone)
+				var transform: Transform3D = skeleton.get_bone_global_pose(bone) * mesh.skin.get_bind_pose(bind)
 				posed += (transform * vertices[index]) * weight
 			if head_weight >= 0.9:
 				var pixel := camera.unproject_position(mesh.global_transform * posed)
