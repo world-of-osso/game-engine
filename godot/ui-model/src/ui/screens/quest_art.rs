@@ -209,6 +209,77 @@ pub fn flat_panel_chrome(
     elements
 }
 
+/// Launcher-only taller title strip. Shared window chrome above is unchanged.
+pub fn launcher_panel_chrome((width, height): (f32, f32), header_height: f32) -> Element {
+    let mut elements = flat_background("Launcher", (6.0, 20.0, width - 2.0, height - 2.0));
+    elements.extend(metal_border("Launcher", width, height, MetalTopLeft::Plain));
+    elements.extend(rsx! {
+        r#frame { name: "LauncherHeaderBar", width, height: header_height,
+            pos_type: "absolute", left: 0.0, top: 0.0,
+            {launcher_header_art(width, header_height)}
+            {launcher_header_controls(width, header_height)}
+        }
+    });
+    elements
+}
+
+fn launcher_header_art(width: f32, height: f32) -> Element {
+    // Crop the existing metal title band, retaining each skin's bevel and end caps.
+    // Source rows are relative to the active top member (Retail 150px, Forever 190px).
+    let (source_height, band_top, band_bottom) = match thread_skin() {
+        ActiveSkin::Modern => (150.0, 32.0, 78.0),
+        ActiveSkin::Forever => (190.0, 26.0, 82.0),
+    };
+    let corner_width = source_height / 2.0;
+    let [left, _, right, _] = MetalTopLeft::Plain.outset();
+    [
+        ("Left", "UI-Frame-Metal-CornerTopLeft", -left, corner_width),
+        (
+            "Middle",
+            "_UI-Frame-Metal-EdgeTop",
+            corner_width - left,
+            width + left + right - corner_width * 2.0,
+        ),
+        (
+            "Right",
+            "UI-Frame-Metal-CornerTopRight",
+            width + right - corner_width,
+            corner_width,
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(name, atlas, x, span)| {
+        let mut art = read_active_atlas_art(atlas);
+        let member_top = art.rect.2;
+        let member_height = art.rect.3 - member_top;
+        art.rect.2 = member_top + member_height * band_top / source_height;
+        art.rect.3 = member_top + member_height * band_bottom / source_height;
+        atlas_texture(
+            format!("LauncherHeader{name}"),
+            &art,
+            (x, 0.0, span, height),
+        )
+    })
+    .collect()
+}
+
+fn launcher_header_controls(width: f32, height: f32) -> Element {
+    let close_size = 24.0;
+    rsx! {
+        fontstring { name: "LauncherTitleText", width: {width - FLAT_TITLE_LEFT - 24.0}, height,
+            text: "Launcher", font: GameFont::FrizQuadrata, font_size: 20.0,
+            font_color: NORMAL_FONT_COLOR, shadow_color: "0.0,0.0,0.0,1.0", shadow_offset: "1,-1",
+            justify_h: "CENTER", justify_v: "MIDDLE",
+            pos_type: "absolute", left: FLAT_TITLE_LEFT, top: 0.0 }
+        button { name: "LauncherCloseButton", width: close_size, height: close_size,
+            onclick: crate::launcher::ACTION_CLOSE, pos_type: "absolute",
+            left: {width - close_size - 4.0}, top: {(height - close_size) / 2.0},
+            {named_atlas_texture("LauncherCloseButtonNormal".into(), CLOSE_BUTTON,
+                (0.0, 0.0, close_size, close_size))}
+        }
+    }
+}
+
 /// Retail `PortraitFrameFlatTemplate` (SharedUIPanelTemplates.xml:618-627,643-647): the
 /// `FlatPanelBackgroundTemplate` at TOPLEFT 2,-20 / BOTTOMRIGHT -2,3, the portrait metal
 /// border, `TitleContainer` from `title_left` (`SetTitleOffsets`) and the close button.

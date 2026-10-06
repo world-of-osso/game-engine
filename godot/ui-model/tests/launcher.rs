@@ -128,13 +128,13 @@ fn launcher_panel_height_tracks_filtered_content() {
         open: true,
         ..Default::default()
     });
-    assert_eq!(icon_size(&full, "LauncherPanel"), (526.0, 458.0));
+    assert_eq!(icon_size(&full, "LauncherPanel"), (526.0, 474.0));
     let filtered = build(LauncherView {
         open: true,
         query: "spe".into(),
         selected: 0,
     });
-    assert_eq!(icon_size(&filtered, "LauncherPanel"), (526.0, 122.0));
+    assert_eq!(icon_size(&filtered, "LauncherPanel"), (526.0, 138.0));
 }
 
 #[test]
