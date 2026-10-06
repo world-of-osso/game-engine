@@ -1186,6 +1186,22 @@ mod tests {
     }
 
     #[test]
+    fn locomotion_unjumped_airborne_player_falls_and_lands_into_movement() {
+        let mut movement = PlayerMovement::default();
+        movement.grounded = false;
+        assert_eq!(movement.animation_id(0.0), 40);
+        movement.direction = MoveDirection::Forward;
+        assert_eq!(movement.animation_id(0.0), 40);
+        movement.grounded = true;
+        assert_eq!(movement.animation_id(0.0), 5);
+        movement.grounded = false;
+        movement.swimming = true;
+        assert_eq!(movement.animation_id(0.0), 42);
+        movement.swimming = false;
+        assert_eq!(movement.animation_id(0.0), 40);
+    }
+
+    #[test]
     fn idle_turn_samples_consecutive_facing_without_hysteresis() {
         let mut movement = PlayerMovement::default();
         assert_eq!(movement.animation_id(0.0), 0);
