@@ -180,6 +180,7 @@ pub enum AccountEvent {
     Trade(TradeStateUpdate),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
+    GuildRanks(shared::protocol::GuildRanksState),
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
@@ -635,6 +636,15 @@ impl Account {
             }
         }
         .map_err(SessionError)
+    }
+
+    pub fn send_guild_rank_request(
+        &self,
+        request: shared::protocol::GuildRankRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::GuildChannel>(request)
+            .map_err(SessionError)
     }
 
     pub fn send_mail_request(&self, request: MailRequest) -> Result<(), SessionError> {
@@ -1196,6 +1206,10 @@ impl Account {
         if Self::is_roster_message(&message) {
             return self.dispatch_roster_message(message, output);
         }
+        if message.is::<shared::protocol::GuildRanksState>() {
+            output.push(AccountEvent::GuildRanks(decode(message)?));
+            return Ok(());
+        }
         let message = match auction_message(message)? {
             Ok(reply) => {
                 output.push(AccountEvent::Auction(reply));
@@ -1635,6 +1649,23 @@ mod tests {
             .unwrap();
         assert!(matches!(output.as_slice(), [AccountEvent::XpGain(received)] if *received == gain));
         assert_eq!(account.xp, Some(xp));
+    }
+
+    #[test]
+    fn guild_ranks_wire_state_reaches_native_event_with_refusal() {
+        let mut account = Account::new(PathBuf::new());
+        let mut output = Vec::new();
+        let state = shared::protocol::GuildRanksState {
+            ranks: vec![],
+            members: vec![],
+            own_rank: 1,
+            tab_names: vec![],
+            error: Some(shared::protocol::GuildRankError::Permissions),
+        };
+        account
+            .dispatch_world_message(ProtocolMessage::for_tests(state.clone()), &mut output)
+            .unwrap();
+        assert!(matches!(&output[..], [AccountEvent::GuildRanks(received)] if received == &state));
     }
 
     #[test]

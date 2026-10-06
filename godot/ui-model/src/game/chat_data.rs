@@ -264,6 +264,7 @@ pub fn runtime_chat_channel(
         ChatType::Yell => ChatChannelType::Yell,
         ChatType::Party => ChatChannelType::Party,
         ChatType::Guild => ChatChannelType::Guild,
+        ChatType::Officer => ChatChannelType::Officer,
         ChatType::Emote => ChatChannelType::Emote,
         ChatType::System | ChatType::ServerBroadcast => ChatChannelType::System,
         ChatType::MonsterSay(_) => ChatChannelType::MonsterSay,

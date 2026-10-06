@@ -268,6 +268,7 @@ impl GameClient {
             ACTION_CHARACTER => self.toggle_character_frame(),
             ACTION_QUEST_LOG => self.toggle_quest_log(),
             ACTION_MAIN_MENU => self.toggle_game_menu_from_micro_button()?,
+            "micro:GuildMicroButton" => self.toggle_guild_ranks()?,
             _ => match unavailable_message(action) {
                 Some(message) => self.add_world_error(&message)?,
                 None => return Err(format!("Unknown micro menu action {action}").into()),
