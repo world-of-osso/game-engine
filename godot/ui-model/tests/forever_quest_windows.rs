@@ -1,4 +1,4 @@
-//! Quest chrome resolves by name; Modern trees retain their base 818e14b8 bytes.
+//! Quest chrome resolves by name; captured Modern trees cover native quest scroll flow.
 #[path = "fixtures/modern_quest_options_menu_trees.rs"]
 mod fixture;
 use std::fmt::Write;
