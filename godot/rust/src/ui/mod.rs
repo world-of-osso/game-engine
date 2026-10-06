@@ -10,6 +10,7 @@ pub(crate) mod input_queue;
 mod launcher_preview;
 mod layout;
 mod meter_preview;
+mod minimap_preview;
 mod options_keybindings;
 mod parts;
 mod party_preview;
