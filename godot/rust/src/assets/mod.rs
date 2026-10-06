@@ -360,6 +360,18 @@ pub(super) fn build_model_filtered(
     appearance: Option<&appearance::PreparedAppearance>,
     allowed: impl Fn(u16) -> bool,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
+    build_model_filtered_with_textures(model, path, skin_texture_fdids, appearance, None, allowed)
+}
+
+/// Equipment supplies per-type item materials without changing character geoset selection.
+pub(super) fn build_model_filtered_with_textures(
+    model: &m2::Model,
+    path: &GString,
+    skin_texture_fdids: &[u32; 3],
+    appearance: Option<&appearance::PreparedAppearance>,
+    textures: Option<&HashMap<u32, Gd<godot::classes::ImageTexture>>>,
+    allowed: impl Fn(u16) -> bool,
+) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let annotation = crate::terrain::elastic_tree::load_annotation(path)?;
     let mut missing = PackedInt32Array::new();
     let model_path = global_path(path);
@@ -384,6 +396,7 @@ pub(super) fn build_model_filtered(
                 path,
                 &mut missing,
                 appearance,
+                textures,
             )
         })
         .collect::<Result<Vec<_>, String>>()?;
@@ -489,6 +502,7 @@ fn load_batch(
     path: &GString,
     missing: &mut PackedInt32Array,
     appearance: Option<&appearance::PreparedAppearance>,
+    textures: Option<&HashMap<u32, Gd<godot::classes::ImageTexture>>>,
 ) -> Result<LoadedBatch, String> {
     model.submeshes.get(batch.submesh_index).ok_or_else(|| {
         format!(
@@ -506,7 +520,7 @@ fn load_batch(
         skin_texture_fdids,
         path,
         missing,
-        appearance.map(|appearance| &appearance.textures),
+        textures.or_else(|| appearance.map(|appearance| &appearance.textures)),
     )?;
     let visible = appearance.is_none_or(|appearance| {
         let visible = !appearance.hidden_geoset_ids.contains(&batch.mesh_part_id)

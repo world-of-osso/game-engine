@@ -8,7 +8,7 @@ use std::{
 
 use game_engine_core::m2;
 use godot::{
-    classes::{MeshInstance3D, Node3D, Skeleton3D, Skin},
+    classes::{ImageTexture, MeshInstance3D, Node3D, Skeleton3D, Skin},
     prelude::*,
 };
 use osso_asset_resolver::CascListfileResolver;
@@ -17,7 +17,7 @@ use game_engine_core::customization_data::ChoiceSkinnedModel;
 
 use super::{
     appearance::PreparedAppearance,
-    build_model_filtered,
+    build_model_filtered, build_model_filtered_with_textures,
     creature::{cache_model_textures, load_model_files},
 };
 use crate::equipment_appearance_data::{
@@ -213,15 +213,20 @@ impl EquipmentContext<'_> {
             &definition.skin_fdids,
             parsed,
         )?;
+        let textures = self.load_item_textures(definition, parsed, authored_path, bound)?;
         let skin = if bound {
             Some(self.bound_skin(parsed)?)
         } else {
             None
         };
-        let (mut item, missing) =
-            build_model_filtered(parsed, &path, &definition.skin_fdids, None, |part| {
-                equipment_mesh_part_allowed(definition.slot, authored_path, bound, part)
-            })?;
+        let (mut item, missing) = build_model_filtered_with_textures(
+            parsed,
+            &path,
+            &definition.skin_fdids,
+            None,
+            Some(&textures),
+            |part| equipment_mesh_part_allowed(definition.slot, authored_path, bound, part),
+        )?;
         if !missing.is_empty() {
             item.free();
             return Err(format!(
@@ -238,6 +243,39 @@ impl EquipmentContext<'_> {
         }
         parent.add_child(&item);
         Ok(())
+    }
+
+    fn load_item_textures(
+        &self,
+        definition: &RuntimeModelAppearance,
+        model: &m2::Model,
+        authored: &Path,
+        bound: bool,
+    ) -> Result<HashMap<u32, Gd<ImageTexture>>, String> {
+        check_item_batch_textures(definition, model, |part| {
+            equipment_mesh_part_allowed(definition.slot, authored, bound, part)
+        })?;
+        let mut missing = PackedInt32Array::new();
+        let directory = self.data_root.join("textures");
+        definition
+            .texture_replacements
+            .iter()
+            .map(|&(kind, fdid)| {
+                super::creature::cache_required(
+                    self.resolver,
+                    fdid,
+                    &directory.join(format!("{fdid}.blp")),
+                )?;
+                let texture = super::material::shared_texture(fdid, &directory, &mut missing)?
+                    .ok_or_else(|| {
+                        format!(
+                            "Equipment {:?} FDID {}: missing type {kind} texture {fdid}",
+                            definition.slot, definition.fdid
+                        )
+                    })?;
+                Ok((kind, texture))
+            })
+            .collect()
     }
 
     fn parent_for(
@@ -279,6 +317,67 @@ impl EquipmentContext<'_> {
     fn bound_skin(&self, model: &m2::Model) -> Result<Gd<Skin>, String> {
         bound_skin(&*self.character, self.character_model, model)
     }
+}
+
+/// Concrete textures sampled by an item batch, including per-model-column declarations.
+fn item_batch_texture_fdids(
+    definition: &RuntimeModelAppearance,
+    model: &m2::Model,
+    unit: &m2::TextureUnit,
+) -> Result<Vec<Option<u32>>, String> {
+    let binding =
+        game_engine_core::m2_material::batch_binding(model, unit, &definition.skin_fdids)?;
+    Ok(binding
+        .texture_types
+        .iter()
+        .zip(binding.textures)
+        .map(|(kind, fdid)| {
+            definition
+                .texture_replacements
+                .iter()
+                .find(|(ty, _)| ty == kind)
+                .map(|&(_, fdid)| fdid)
+                .or(fdid)
+        })
+        .collect())
+}
+
+fn check_item_batch_textures(
+    definition: &RuntimeModelAppearance,
+    model: &m2::Model,
+    allowed: impl Fn(u16) -> bool,
+) -> Result<(), String> {
+    let trace = std::env::var_os("GAME_ENGINE_EQUIPMENT_TEXTURE_DIAGNOSTICS").is_some();
+    for (index, unit) in model.batches.iter().enumerate() {
+        let part = model
+            .submeshes
+            .get(usize::from(unit.submesh_index))
+            .ok_or_else(|| {
+                format!(
+                    "Equipment FDID {} batch {index}: missing submesh",
+                    definition.fdid
+                )
+            })?
+            .mesh_part_id;
+        if !allowed(part) {
+            continue;
+        }
+        let fdids = item_batch_texture_fdids(definition, model, unit)?;
+        if trace {
+            godot_print!(
+                "Equipment {:?} model={} batch={index} textures={fdids:?}",
+                definition.slot,
+                definition.fdid
+            );
+        }
+        if fdids.iter().any(Option::is_none) {
+            return Err(format!(
+                "Equipment {:?} FDID {} batch {index}: unresolved textures {fdids:?}",
+                definition.slot, definition.fdid
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn equipment_mesh_part_allowed(
@@ -398,6 +497,61 @@ mod tests {
             submesh_id: 0,
             name_crc: 0,
             pivot: [0.0; 3],
+        }
+    }
+
+    #[test]
+    fn equipment_item_materials_resolve_every_sampled_batch_texture() {
+        use crate::equipment_appearance_data::resolve_equipment_appearance;
+        use shared::components::{
+            EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
+        };
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let catalog = game_engine_core::outfit_data::OutfitData::load(&data);
+        for (item_id, slot, race, sex) in [
+            (222436, EquipmentVisualSlot::Shoulder, 1, 0),
+            (1445, EquipmentVisualSlot::Shoulder, 2, 0),
+            (180939, EquipmentVisualSlot::Back, 6, 0),
+            (170063, EquipmentVisualSlot::Back, 6, 1),
+        ] {
+            let appearance = EquipmentAppearance {
+                entries: vec![EquippedAppearanceEntry {
+                    slot,
+                    item_id: Some(item_id),
+                    display_info_id: None,
+                    inventory_type: None,
+                    hidden: false,
+                }],
+            };
+            let resolved = resolve_equipment_appearance(&appearance, &catalog, race, sex).unwrap();
+            assert!(!resolved.runtime_models.is_empty(), "item {item_id}");
+            for definition in resolved.runtime_models {
+                let path = data.join(format!("models/{}.m2", definition.fdid));
+                let parsed = super::super::read_model_file(&path).unwrap();
+                assert!(!parsed.batches.is_empty());
+                check_item_batch_textures(&definition, &parsed, |_| true).unwrap();
+                for unit in &parsed.batches {
+                    for fdid in item_batch_texture_fdids(&definition, &parsed, unit).unwrap() {
+                        let fdid = fdid.expect("every sampled texture must be bound");
+                        let bytes =
+                            std::fs::read(data.join(format!("textures/{fdid}.blp"))).unwrap();
+                        let texture = game_engine_core::blp::decode_rgba(&bytes).unwrap();
+                        assert!(
+                            texture
+                                .pixels
+                                .chunks_exact(4)
+                                .any(|pixel| pixel != [255, 255, 255, 255]),
+                            "item {item_id} model {} texture {fdid} is solid white",
+                            definition.fdid
+                        );
+                    }
+                }
+                if item_id == 222436 {
+                    assert!(matches!(definition.fdid, 5646084 | 5646085));
+                    assert!(definition.texture_replacements.contains(&(2, 5647905)));
+                    assert!(definition.texture_replacements.contains(&(3, 5665215)));
+                }
+            }
         }
     }
 

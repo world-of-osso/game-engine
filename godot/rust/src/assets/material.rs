@@ -152,6 +152,12 @@ pub(super) fn load_material(
             material.set_shader_parameter(TEXTURE_SLOTS[slot], &texture.to_variant());
         }
     }
+    material.set_meta(
+        "m2_texture_count",
+        &i64::try_from(binding.textures.len())
+            .expect("at most four textures")
+            .to_variant(),
+    );
     material.set_shader_parameter(
         "pixel_shader",
         &i32::from(binding.pixel_shader).to_variant(),

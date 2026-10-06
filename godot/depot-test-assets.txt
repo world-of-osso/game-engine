@@ -1,6 +1,33 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
 # Tests needing files absent here fail remotely with their own missing-path error.
 
+# Authored equipment per-model replaceable textures, extracted from local CASC 4050937.
+ItemDisplayInfoModelMatRes.csv
+models/5646084.m2
+models/564608400.skin
+models/5646085.m2
+models/564608500.skin
+models/143187.m2
+models/14318700.skin
+models/143490.m2
+models/14349000.skin
+models/3512290.m2
+models/351229000.skin
+models/2429553.m2
+models/242955300.skin
+models/2429554.m2
+models/242955400.skin
+textures/5647905.blp
+textures/5665215.blp
+textures/983198.blp
+textures/143838.blp
+textures/3512759.blp
+textures/3514198.blp
+textures/3514210.blp
+textures/2431566.blp
+textures/2431567.blp
+textures/1360817.blp
+
 # Nameplate selected-border/skull pixel regression (local Blizzard sheet).
 textures/8165538.blp
 

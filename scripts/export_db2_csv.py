@@ -65,6 +65,12 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # WoWDBDefs layout 52510D63: additional replaceable item-model textures.
+    "ItemDisplayInfoModelMatRes": (
+        0x52510D63,
+        [("ID", "id"), ("MaterialResourcesID", 0), ("TextureType", 1),
+         ("ModelIndex", 2), ("ItemDisplayInfoID", "parent")],
+    ),
     # WoWDBDefs layout CA154412: ReqSource_lang (field 0) is not exported.
     "ChrCustomizationReq": (
         0xCA154412,
