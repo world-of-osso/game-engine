@@ -44,8 +44,8 @@ fn read_array(
     Ok((count, start))
 }
 
-/// The first key of a track's first sequence; `None` when the track is not animated (no
-/// sequences, or a first sequence without keys).
+/// The first authored key, skipping empty sequence slots. Static camera snapshots
+/// must not confuse an empty slot with a track containing no authored keys.
 fn find_first_spline_key(
     md20: &[u8],
     track: usize,
@@ -71,16 +71,20 @@ fn find_first_spline_key(
             "{label} requires matching timestamp/value sequences"
         ));
     }
-    if times_count == 0 {
-        return Ok(None);
+    for sequence in 0..times_count {
+        let entry = sequence * ARRAY_ENTRY_SIZE;
+        let (time_keys, _) =
+            read_array(md20, timestamps + entry, 4, &format!("{label} timestamps"))?;
+        let (value_keys, first_key) =
+            read_array(md20, values + entry, key_size, &format!("{label} values"))?;
+        if time_keys != value_keys {
+            return Err(format!("{label} spline requires matching keys"));
+        }
+        if time_keys > 0 {
+            return Ok(Some(first_key));
+        }
     }
-    let (time_keys, _) = read_array(md20, timestamps, 4, &format!("{label} first timestamps"))?;
-    let (value_keys, first_key) =
-        read_array(md20, values, key_size, &format!("{label} first values"))?;
-    if time_keys != value_keys {
-        return Err(format!("{label} first spline requires matching keys"));
-    }
-    Ok((time_keys > 0).then_some(first_key))
+    Ok(None)
 }
 
 fn read_first_spline<const N: usize>(
@@ -281,7 +285,7 @@ mod tests {
         assert_eq!(camera.target, [44.0, 55.0, 66.0]);
     }
 
-    /// A camera whose FoV track has no key in its first sequence sees with the default
+    /// A camera whose FoV track has no authored keys sees with the default
     /// diagonal FoV of one radian.
     #[test]
     fn camera_without_fov_keys_uses_the_default_fov() {

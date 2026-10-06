@@ -120,6 +120,14 @@ The stale root CSVs/community listfile miss these set-1 relations; the project s
 
 Standalone offline preview: `GODOT_CAPTURE_SCREEN=portrait_party` (Modern) or `forever_portrait_party`, `GODOT_CAPTURE_PATH=<png>`, with `res://tests/capture_ui_screen.gd`. `RegistryUi.show_portrait_party` / `show_forever_portrait_party` install deterministic four-member data without connecting a server or changing saved settings. This older static-only preview intentionally leaves portraits empty. Step-3 runtime-head captures use `res://tests/party_portraits.gd` instead.
 
+## Sparse authored camera keys — 2026-10-06
+
+Human female HD (`1000764`, type-0 record 1) stores no FoV keys in sequence slots 0/1, but slot 2 has two keys at 0/666 ms, both `0.785396576` radians. `m2_camera.rs::find_first_spline_key` previously inspected only slot 0 and substituted one radian: square-view vertical FoV 42.238° instead of 32.650°. The larger FoV reduced head dimensions to 75.82% of their authored projection and left more black background in the ring. Human male (`1011653`) and Blood Elf female (`1100258`) have a slot-0 `0.785398185` key; Blood Elf male (`1100087`) has `0.764513075`.
+
+Static camera snapshots now take the first authored key after empty slots, retaining the format default only for a track with no keys. Camera type, base eye/target, clipping, model bounds, customization and camera-facing key lighting are unchanged. The real human-female and synthetic sparse-array regressions both reproduce `1.0` before the fix. This is static snapshot extraction, not animated camera evaluation. Local body-camera inventory finds the same sparse FoV pattern in female Worgen human-form rows and model `4220448`; no race/sex zoom overrides are used.
+
+Diagnostic data and proof ledger: `data/diagnostics/jainaportrait-2026-10-06/`. The real-model native test `res://tests/portrait_framing.gd` measures posed head vertices in screen space and visible face luminance for Human/Blood Elf, both sexes. Raster acceptance and darkness attribution remain pending until native RED/GREEN captures are inspected.
+
 ## Sources
 
 - [group-frames spec](../../specs/group-frames.md) — task boundary and retained default
