@@ -65,6 +65,8 @@ func project_head(host: Node, camera: Camera3D, head: int) -> Rect2:
 		var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
 		# Batch arrays share the full model buffer; only indexed vertices are drawn.
 		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		var batch_minimum := Vector2(INF, INF)
+		var batch_maximum := Vector2(-INF, -INF)
 		for index in indices:
 			var head_weight := 0.0
 			var posed := Vector3.ZERO
@@ -84,6 +86,9 @@ func project_head(host: Node, camera: Camera3D, head: int) -> Rect2:
 				var pixel := camera.unproject_position(mesh.global_transform * posed)
 				minimum = minimum.min(pixel)
 				maximum = maximum.max(pixel)
+				batch_minimum = batch_minimum.min(pixel)
+				batch_maximum = batch_maximum.max(pixel)
+		print("PROJECTED_BATCH ", mesh.get_path(), " part=", mesh.get_meta("m2_mesh_part", -1), " bounds=", Rect2(batch_minimum, batch_maximum - batch_minimum))
 	return Rect2(minimum, maximum - minimum)
 
 func measure_face(image: Image, bounds: Rect2) -> Dictionary:
