@@ -2627,3 +2627,7 @@ Added portable authoritative rank controls and Officer chat parsing/classificati
 ## Live quest rerun — questrun
 
 [[quest-ui]]: reconciled the stale tracker-only Godot description with the native dialogue/log host. Recorded private Modern/Forever gameplay proof, prior Jasperlode ground fixes, living-walk/death recovery, and six successful Milly interest returns without claiming the historical mirror cause. Documented real slow-frame input regressions and opaque post-draw error capture. Evidence: `data/diagnostics/questrun-2026-10-05/`; long-text overflow remains outside this repair.
+
+## 2026-10-06 — Quest overflow
+
+[[quest-ui]] records the missing log scroll ancestor and dialog estimate/native-height mismatch, Retail scroll/QuestInfo sources, measured scroll-child feedback and native capture/input regressions. Evidence and current acceptance: `data/diagnostics/questoverflow-2026-10-06/`. Recorded quest trees came only from `capture_base_trees`; Options/menu suffix unchanged.
