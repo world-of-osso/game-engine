@@ -533,7 +533,11 @@ fn level_art_crop(name: &str, skin: ActiveSkin) -> Result<AtlasArt, String> {
     })
 }
 
-/// Unknown effective level: a boss, or more than ten levels above the viewer.
+/// `UnitLevel` hides units ten or more levels above the viewer.
+const UNKNOWN_LEVEL_DIFFERENCE: u16 = 10;
+
+/// CompactUnitFrame.lua:1794-1815 shows the skull when `UnitLevel` is not positive.
+/// Bosses and the +10 boundary emulate that unknown level with zero here.
 /// Elite classification alone never hides a known level; absent data hides the slot.
 fn displayed_plate_level(unit: ReplicatedUnit, viewer_level: Option<u8>) -> Option<u8> {
     let level = *unit.get::<UnitLevel>()?;
@@ -542,7 +546,8 @@ fn displayed_plate_level(unit: ReplicatedUnit, viewer_level: Option<u8>) -> Opti
         unit.get::<LevelScaling>(),
         viewer_level.unwrap_or(level.0),
     );
-    let too_high = viewer_level.is_some_and(|viewer| u16::from(effective) > u16::from(viewer) + 10);
+    let too_high = viewer_level
+        .is_some_and(|viewer| u16::from(effective) >= u16::from(viewer) + UNKNOWN_LEVEL_DIFFERENCE);
     let boss = unit_classification(unit) == CreatureClassification::WorldBoss;
     Some(if boss || too_high { 0 } else { effective })
 }
