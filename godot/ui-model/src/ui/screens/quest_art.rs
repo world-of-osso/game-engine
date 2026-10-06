@@ -257,8 +257,8 @@ fn launcher_header_art(width: f32, height: f32) -> Element {
 fn read_launcher_title_band(atlas: &str) -> AtlasArt {
     // Existing bevel/end-cap pixels, relative to the active atlas member's top.
     let (source_height, band_top, band_bottom) = match thread_skin() {
-        ActiveSkin::Modern => (150.0, 32.0, 78.0),
-        ActiveSkin::Forever => (190.0, 26.0, 82.0),
+        ActiveSkin::Modern => (150.0, 32.0, 80.0),
+        ActiveSkin::Forever => (190.0, 26.0, 78.0),
     };
     let mut art = read_active_atlas_art(atlas);
     let member_top = art.rect.2;
