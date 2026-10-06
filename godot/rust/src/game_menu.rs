@@ -440,14 +440,16 @@ impl GameClient {
             .as_ref()
             .expect("menu has options model")
             .layout;
-        let (settings, system) = (layout.settings, layout.system);
+        let (settings, system, dropdown) = (layout.settings, layout.system, layout.party_dropdown);
         if settings != before {
             self.save_ui_layout_settings(settings)?;
         }
+        let mut refreshed = self.ui_layout_options(system)?;
+        refreshed.party_dropdown = dropdown;
         self.game_menu_options
             .as_mut()
             .expect("menu has options model")
-            .layout = self.ui_layout_options(system)?;
+            .layout = refreshed;
         Ok(())
     }
 

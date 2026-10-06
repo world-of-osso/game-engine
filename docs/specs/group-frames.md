@@ -71,6 +71,14 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Runtime portrait bindings (step 3): non-self roster names bind the existing masked M2 renderer to the four party slots under both skins. Leave/compact/raid/scene exit cancel pending loads and free owned viewports; reorder reuses surviving member resources when hosts survive. Offline desaturates the last known head; dead/ghost/low-health tints follow Retail, with no range-driven portrait fade. A member never replicated has no appearance in the current protocol: its slot stays empty until its appearance arrives. Presentation settings and live acceptance remain separate work.
 - [ ] Live portrait-family acceptance. Static registry golden and offline preview are not live proof.
 
+### Party presentation settings (step 4)
+- [x] Options → HUD → Layout Settings → Party exposes Retail's complete Party setting inventory in both skins, plus the requested Show Pets checkbox. [Source/default/range table](../wiki/systems/party-edit-mode-settings.md).
+- [x] Save each change through existing per-character `ui_layout.ron` Edit Mode layouts. Keep compact on and 98×44 unless explicitly overridden. Reset restores the preset. No drag-and-drop or frame movers.
+- [x] Size, horizontal layout, background, border, sort and pets affect the active family. Compact aura organization, opacity, frame scale and icon size settings change rendering when their data is available.
+- [x] Bounded step-4 offline proof: 1 native + 10 UI-model tests, both-skin settings/portrait captures, six real-engine cases per skin including actual border pixels, sorted head binding and viewport cleanup. [Evidence and exclusions](../wiki/systems/party-edit-mode-settings.md#bounded-verification--2026-10-06).
+- [ ] Complete step-4/live acceptance: big-defensive classification remains blocked below; no full reference-image or clean global shutdown proof.
+- [ ] Live big-defensive classification: existing AuraView/spell catalog lacks Retail's classification. Do not fabricate a defensive buff. Group-only updates also lack buffs/pets outside replication interest.
+
 ### Raid frame (`CompactRaidFrameContainer`)
 - [x] Placement: 8 group columns × 5 at the native 72×36 = 576 × (14 + 180), centred above the cluster, bottom 215.
 - [x] Group `n` sits in column `n` (subgroups 1–8, 5 each; `MAX_RAID_GROUPS`). Members fill it in roster order.
@@ -109,14 +117,15 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - Retail has no slash command to leave a party: `/leave` is a chat channel command.
 
 ### Not implemented
-- [ ] Party portraits for members never replicated (roster lacks race/customization/equipment), party-pet roster wiring and live acceptance; runtime member portrait bindings exist above. `CompactRaidFrameManager` (the side panel with ready check, role poll and markers).
+- [ ] Party portraits for members never replicated (roster lacks race/customization/equipment), party-pet data outside replication interest and live acceptance; runtime member portraits and replicated pet health wiring exist above. `CompactRaidFrameManager` (the side panel with ready check, role poll and markers).
 - [ ] Assistant / main tank / main assist.
 - [ ] Group persistence across server restarts.
 - [ ] Loot method wiring: the Loot Rules window stays client-side.
 - [ ] Features that need data the client does not have:
   - Aggro highlight: needs threat data.
   - Heal prediction and absorbs.
-  - Buff icons and the dispellable-type icons at top-right: dispel ability is not known client-side.
+  - Buff icons outside replication interest; group-only states carry harmful auras. Visible replicated buffs are rendered.
+  - Dispellable-type icons at top-right: dispel ability is not known client-side.
 - [ ] Leader icon: Retail CUF has none (CompactUnitFrame.xml; `DefaultCompactUnitFrameSetup`, CUF:1941-2069); only the classic `PartyMemberFrame` draws `UI-HUD-UnitFrame-Player-Group-LeaderIcon`.
 - [ ] Targeting a member outside replication range: no client entity exists.
 - [ ] Role enums: `shared::group::GroupRole`, `GroupRoleSnapshot` and `class_spec::Role` are still three separate types.

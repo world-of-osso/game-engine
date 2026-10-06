@@ -570,7 +570,11 @@ impl GameClient {
             .use_raid_style_party_frames
             .unwrap_or(true);
         let local = self.account.session.selected_character_name.as_deref();
-        let bindings = party::bindings(&self.account.group, local, compact);
+        let sort = game_engine_ui_model::hud_layout::active_layout_settings()
+            .party
+            .sort
+            .unwrap_or_default();
+        let bindings = party::bindings_with_sort(&self.account.group, local, compact, sort);
         if bindings.is_empty() {
             self.clear_party_portraits();
             return Ok(());

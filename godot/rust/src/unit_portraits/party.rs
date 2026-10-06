@@ -17,14 +17,37 @@ pub(super) struct Binding {
     pub tint: [f32; 4],
 }
 
+#[cfg(test)]
 pub(super) fn bindings(group: &GroupState, local: Option<&str>, compact: bool) -> Vec<Binding> {
     if compact || group.is_raid {
         return Vec::new();
     }
-    group
+    bindings_with_sort(group, local, compact, Default::default())
+}
+
+pub(super) fn bindings_with_sort(
+    group: &GroupState,
+    local: Option<&str>,
+    compact: bool,
+    sort: game_engine_core::ui_layout_data::PartySort,
+) -> Vec<Binding> {
+    use game_engine_core::ui_layout_data::PartySort;
+    use game_engine_ui_model::group_frames_component::role_order;
+    if compact || group.is_raid {
+        return Vec::new();
+    }
+    let mut members: Vec<_> = group
         .members
         .iter()
         .filter(|member| Some(member.name.as_str()) != local)
+        .collect();
+    match sort {
+        PartySort::Group => {}
+        PartySort::Role => members.sort_by_key(|member| (role_order(member.role), &member.name)),
+        PartySort::Alphabetical => members.sort_by_key(|member| &member.name),
+    }
+    members
+        .into_iter()
         .take(MAX_MEMBERS)
         .enumerate()
         .map(|(index, member)| Binding {
@@ -143,6 +166,34 @@ mod tests {
     use shared::components::Position;
     use shared::death::DeathState;
     use shared::protocol::{GroupMemberSnapshot, GroupMemberState, GroupRoleSnapshot};
+
+    #[test]
+    fn party4_portrait_bindings_keep_sorted_names_and_slots_together() {
+        use game_engine_core::ui_layout_data::PartySort;
+        let mut group = roster(&["Bob", "Zed", "Amy", "Ann"]);
+        group.members[1].role = GroupRoleSnapshot::Tank;
+        group.members[2].role = GroupRoleSnapshot::Healer;
+        group.members[3].role = GroupRoleSnapshot::Healer;
+        for (sort, expected) in [
+            (PartySort::Group, ["Zed", "Amy", "Ann"]),
+            (PartySort::Alphabetical, ["Amy", "Ann", "Zed"]),
+            (PartySort::Role, ["Zed", "Amy", "Ann"]),
+        ] {
+            let selected = bindings_with_sort(&group, Some("Bob"), false, sort);
+            let names: Vec<_> = selected
+                .iter()
+                .map(|binding| binding.name.as_str())
+                .collect();
+            assert_eq!(names, expected);
+            assert_eq!(
+                selected
+                    .iter()
+                    .map(|binding| binding.index)
+                    .collect::<Vec<_>>(),
+                [0, 1, 2]
+            );
+        }
+    }
 
     fn roster(names: &[&str]) -> GroupState {
         GroupState {

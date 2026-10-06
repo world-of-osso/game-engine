@@ -1,6 +1,6 @@
 # Portrait Party Frames
 
-Native `PartyMemberFrame` family under Modern and Forever. `PortraitPartyFrameState` supplies four non-self member slots from the live group roster; runtime heads, portrait click/menu wiring and Edit Mode settings UI remain excluded. Compact party remains the default. [Contract](../../specs/group-frames.md).
+Native `PartyMemberFrame` family under Modern and Forever. `PortraitPartyFrameState` supplies four non-self member slots from the live group roster, with runtime heads for known appearances. [Party settings](party-edit-mode-settings.md) are exposed in both skins. Portrait click/menu wiring and full live acceptance remain excluded. Compact party remains the default. [Contract](../../specs/group-frames.md).
 
 ## Step 2 — roster and source corrections
 
@@ -17,6 +17,10 @@ Source paths below are relative to `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOn
 Behavioral coverage: concrete 2→4→2→0 member roster, promotion, offline, death and departure through roster adapter and rendered registry; both-skin default/portrait/raid switching; offline bar flags/tint and crown geometry; native image projection flag. At `27b41020`, two targeted Godot tests and all 12 portrait UI tests pass (one fixture-regeneration test ignored). At `a220f937`, native build and both-skin raster regression pass; changed-file format checks pass. Earlier unit proof remains valid for unchanged adapter/component code; raster proof covers the projection follow-up.
 
 Inspected captures: `data/diagnostics/party2-2026-10-05/{modern,forever}-party-recapture.png` and `*-detail.png`. Both show full grey offline health, full dim-blue power and the source-authored crown rect. Samples at (130,294): Modern (178,178,178), Forever (175,175,175); power (130,306) is (6,62,122) under both skins. `raster-red/` retains the reproduced green-health failure. Both clients/Weston exit 0 and all owned PIDs are gone. Pre-existing shutdown leaks persist (Modern 7 texture RIDs/10 ObjectDB instances; Forever 9/11), so this is bounded static raster proof, not clean shutdown or step-5 live acceptance. Full proof/commands are in the same directory's `proof.md`; no runtime heads, settings UI, pet acceptance or merge/push.
+
+## Step 4 — presentation settings
+
+[Party Edit Mode settings](party-edit-mode-settings.md) records the exhaustive local Retail inventory, defaults/ranges, shared-family task overrides, persistence and data boundaries. Compact remains default. Settings implementation and bounded proof do not imply step-5 live acceptance.
 
 ## Step 3 — runtime member portraits
 
