@@ -15,6 +15,7 @@ World entry and map transfers hide loading once the player's local entry bubble 
 - A failed placement is reported through `godot_error!` and `world_objects.failures`, and counts as settled. No new failure bypass or timeout increase.
 - Loading displays `Loading objects done/total...` for the nearby subset. `world_objects.pending` remains the full streaming queue; `nearby_done`, `nearby_total`, and `nearby_collision_pending` expose the actual gate subset.
 - Distant placements and collision groups keep building after InWorld. Their completion cannot re-enter loading.
+- While loading, terrain and object resource construction use larger bounded slices to amortize slow rendered frames. Restore interactive streaming budgets on InWorld; preserve the same local prerequisites and required WMO batches.
 - A WMO-only map preserves the global-WMO gate; it does not require nonexistent ADT tiles.
 - The 100-yard bubble is client policy, not a reverse-engineered Retail constant. It covers the default 15-yard camera and roughly fourteen seconds of ordinary 7-yard/s movement. M2 membership uses authored origins; WMO/collision membership uses bounds to avoid losing nearby city geometry with a remote root origin. Visual draw distances remain unchanged.
 

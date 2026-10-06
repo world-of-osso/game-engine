@@ -589,9 +589,14 @@ impl TerrainObjects {
         drop(span);
         // Placements whose files are loaded spawn within the budget; the others are
         // handed to the workers and wait.
-        let started = Instant::now();
-        while started.elapsed() < self.budget {
-            if !self.continue_wmo(parent, terrain, started) {
+        let budget = if self.priority_focus.is_some() {
+            super::LOADING_RESOURCE_BUDGET
+        } else {
+            self.budget
+        };
+        let deadline = Instant::now() + budget;
+        while Instant::now() < deadline {
+            if !self.continue_wmo(parent, terrain, deadline) {
                 break;
             }
             if let Some((asset, loaded)) = self.arrived.pop_front() {
@@ -837,7 +842,7 @@ impl TerrainObjects {
         &mut self,
         parent: &mut Gd<Node3D>,
         terrain: &StreamedTerrain,
-        started: Instant,
+        deadline: Instant,
     ) -> bool {
         let Some(mut spawn) = self.building.take() else {
             return true;
@@ -845,13 +850,12 @@ impl TerrainObjects {
         let (tile, index) = (spawn.tile, spawn.index);
         let _span =
             crate::profile::span(|| format!("objects.wmo_step tile={tile:?} index={index}"));
-        let budget = self.budget;
         let done = spawn.build.step(
             &spawn.asset,
             &self.resolver,
             &self.data_root,
             self.light.as_ref(),
-            || started.elapsed() >= budget,
+            || Instant::now() >= deadline,
         );
         if !done {
             self.building = Some(spawn);

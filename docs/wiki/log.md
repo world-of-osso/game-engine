@@ -166,6 +166,10 @@ MAIN observed GREEN for single startup MainHand inventory at native `ee2d3e47` +
 
 # Wiki Log
 
+## 2026-10-06 — Rendered Stormwind resource scheduling
+
+[[stormwind-loading]]: owned UDP 5286 fixture measured 37.788-second warm entry / 38.315-second first draw with 494/494 prerequisites. Instrumented IO, decode, parse, meshes, materials, uploads, CPU/GPU viewport time and pipeline counters. Terrain/object loading slices increased to 64 ms; unchanged interactive budgets and entry bubble. After-change runtime proof pending.
+
 ## 2026-10-01 — Zaralda fixture acceptance blocker
 
 Updated [[test-assets]] and index with prepared/executed `7903cb5e` fixture and native BLOCKED 0/3. Linked [server Midnight SSOT](../../../game-server/docs/wiki/investigations/midnight-economy-content.md#native-acceptance-blocker) rather than duplicating catalog/data/CLI facts. No runtime fix, new probe, build or service operation; concurrent engine work preserved. Overall goal open.
