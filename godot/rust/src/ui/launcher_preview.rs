@@ -35,13 +35,36 @@ fn candidate_context(style: LauncherIconStyle) -> SharedContext {
         clock_text: "12:00".into(),
         ..Default::default()
     });
-    shared.insert(InWorldUnitFramesState {
-        player: UnitFrameState::named("Launchpolish"),
-        show_player_frame: true,
-        ..Default::default()
-    });
+    shared.insert(candidate_player());
     shared.insert(ChatFrameView::default());
     shared
+}
+
+fn candidate_player() -> InWorldUnitFramesState {
+    InWorldUnitFramesState {
+        player: UnitFrameState::named("Launchpolish"),
+        show_player_frame: true,
+        show_target_frame: false,
+        target_cast: None,
+        target: None,
+        target_of_target: None,
+        focus: None,
+        pet: None,
+        bosses: Vec::new(),
+        menu: Default::default(),
+        personal_resource: None,
+    }
+}
+
+fn register_candidate_panels(registry: &mut FrameRegistry) -> Result<(), String> {
+    super::register_metal_frame_style(
+        registry,
+        game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+    )?;
+    super::register_flare_bronze_style(registry, |fdid| {
+        let image = super::assets::decode_blp(&format!("data/textures/{fdid}.blp"))?;
+        Ok((image.pixels, image.width))
+    })
 }
 
 impl RegistryUi {
@@ -61,14 +84,7 @@ impl RegistryUi {
             .ok_or("RegistryUi has no viewport")?;
         let size = viewport.get_visible_rect().size;
         let mut registry = FrameRegistry::new(size.x, size.y);
-        super::register_metal_frame_style(
-            &mut registry,
-            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
-        )?;
-        super::register_flare_bronze_style(&mut registry, |fdid| {
-            let image = super::assets::decode_blp(&format!("data/textures/{fdid}.blp"))?;
-            Ok((image.pixels, image.width))
-        })?;
+        register_candidate_panels(&mut registry)?;
         let mut model = RegistryModel {
             screen: Screen::new(candidate_screen),
             shared: candidate_context(style),
