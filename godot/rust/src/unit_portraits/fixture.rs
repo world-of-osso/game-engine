@@ -326,6 +326,7 @@ fn fixture_group(names: impl Iterator<Item = String>, disconnected: bool) -> Gro
             _ => 0,
         };
         group.members.push(GroupMemberSnapshot {
+            character_id: 7,
             name: name.clone(),
             role: GroupRoleSnapshot::None,
             is_leader: name == "Jaina",

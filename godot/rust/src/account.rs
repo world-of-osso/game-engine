@@ -182,6 +182,8 @@ pub enum AccountEvent {
     Mail(MailMessage),
     /// `TradeStateUpdate`: the trade snapshot, its refusal and message.
     Trade(TradeStateUpdate),
+    Death(shared::protocol::DeathStateUpdate),
+    Resurrection(shared::protocol::ResurrectionOffer),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
     GuildRanks(shared::protocol::GuildRanksState),
@@ -663,6 +665,34 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_death(
+        &self,
+        request: game_engine_ui_model::death_flow::DeathRequest,
+    ) -> Result<(), SessionError> {
+        use game_engine_ui_model::death_flow::DeathRequest;
+        use shared::protocol::{
+            AcceptSpiritHealerResurrection, DeathChannel, ReleaseSpirit, ResurrectAtCorpse,
+        };
+        let bridge = self.bridge()?;
+        match request {
+            DeathRequest::Resurrection {
+                caster,
+                spell_id,
+                accept,
+            } => bridge.send::<_, DeathChannel>(shared::protocol::ResurrectionResponse {
+                caster,
+                spell_id,
+                accept,
+            }),
+            DeathRequest::Release => bridge.send::<_, DeathChannel>(ReleaseSpirit),
+            DeathRequest::Corpse => bridge.send::<_, DeathChannel>(ResurrectAtCorpse),
+            DeathRequest::SpiritHealer => {
+                bridge.send::<_, DeathChannel>(AcceptSpiritHealerResurrection)
+            }
+        }
+        .map_err(SessionError)
+    }
+
     pub fn send_trade(&self, request: TradeRequest) -> Result<(), SessionError> {
         let bridge = self.bridge()?;
         match request {
@@ -1027,6 +1057,14 @@ impl Account {
         }
         if message.is::<PendingMail>() {
             output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ResurrectionOffer>() {
+            output.push(AccountEvent::Resurrection(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::DeathStateUpdate>() {
+            output.push(AccountEvent::Death(decode(message)?));
             return Ok(());
         }
         if message.is::<TradeStateUpdate>() {
@@ -1676,8 +1714,56 @@ fn quest_message(
 mod dungeonclient_tests;
 
 #[cfg(test)]
+#[path = "account_deathstate_tests.rs"]
+mod deathstate_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn deathstate_account_dispatches_snapshot_and_error() {
+        use shared::protocol::{DeathSnapshot, DeathStateSnapshot, DeathStateUpdate};
+        let mut account = Account::new(PathBuf::from("/unused-death-data"));
+        for state in [
+            DeathStateSnapshot::Dead,
+            DeathStateSnapshot::Ghost,
+            DeathStateSnapshot::Alive,
+        ] {
+            let update = DeathStateUpdate {
+                snapshot: Some(DeathSnapshot {
+                    state,
+                    corpse: None,
+                    graveyard: None,
+                    can_resurrect_at_corpse: false,
+                    spirit_healer_available: false,
+                }),
+                error: None,
+                message: Some("death state refreshed".into()),
+            };
+            let mut events = Vec::new();
+            account
+                .dispatch_message(ProtocolMessage::for_tests(update.clone()), &mut events)
+                .unwrap();
+            let [AccountEvent::Death(received)] = events.as_slice() else {
+                panic!("death event");
+            };
+            assert_eq!(received, &update);
+        }
+        let update = DeathStateUpdate {
+            snapshot: None,
+            message: None,
+            error: Some("too far from corpse".into()),
+        };
+        let mut events = Vec::new();
+        account
+            .dispatch_message(ProtocolMessage::for_tests(update.clone()), &mut events)
+            .unwrap();
+        let [AccountEvent::Death(received)] = events.as_slice() else {
+            panic!("death refusal event");
+        };
+        assert_eq!(received, &update);
+    }
 
     use shared::components::{CharacterAppearance, EquipmentAppearance};
     use shared::protocol::{CharacterListEntry, TransferAbortReason};

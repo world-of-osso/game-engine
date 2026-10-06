@@ -296,6 +296,7 @@ mod tests {
             members: names
                 .iter()
                 .map(|name| GroupMemberSnapshot {
+                    character_id: 7,
                     name: (*name).into(),
                     online: true,
                     is_leader: false,

@@ -10,6 +10,9 @@ func _initialize() -> void:
 func _run() -> void:
 	var screen = OS.get_environment("GODOT_CAPTURE_SCREEN")
 	var output = OS.get_environment("GODOT_CAPTURE_PATH")
+	if screen == "npcportraits" or screen == "forever_npcportraits":
+		await capture_npcportraits(output, screen.begins_with("forever"))
+		return
 	var ui = ClassDB.instantiate("RegistryUi")
 	root.add_child(ui)
 	var method = "show_" + screen
@@ -119,6 +122,7 @@ func forever_meter_matches_reference(ui: Node, image: Image) -> bool:
 					push_error("Fill stop/highlight mismatch row ", row, " stop ", stop, " at ", Vector2(x, y), ": ", pixel, " vs ", expected)
 					return false
 	print("PASS: Forever meter rendered stops, fonts, Threat tab and icon centres")
+	return true
 
 # Production display begins below the 22-unit band; no tile pixels leak into it.
 # Badge's gold ring must draw inside its derived rect, with empty space to the magnifier.
@@ -187,6 +191,85 @@ func guild_rank_footer_has_two_lines(image: Image) -> bool:
 					gold_pixels += 1
 		if gold_pixels < 10:
 			push_error("Guild rank disclaimer line missing in band ", band)
+			return false
+	return true
+
+# Offline captures use force_draw, avoiding the protected WSL compositor's frame callback.
+func capture_npcportraits(directory: String, forever: bool) -> void:
+	if directory.is_empty() or DirAccess.make_dir_recursive_absolute(directory) != OK:
+		push_error("Npc portraits require a writable capture directory")
+		quit(1)
+		return
+	var skin_name = "forever" if forever else "modern"
+	for window in ["bank", "mail", "open-mail", "guild-bank", "auction", "auction-gossip", "trade", "merchant"]:
+		var fixture = ClassDB.instantiate("NpcPortraitPreview")
+		root.add_child(fixture)
+		var error: String = fixture.initialize(window, forever)
+		if not error.is_empty():
+			push_error(error)
+			fixture.free()
+			quit(1)
+			return
+		var live = window in ["bank", "auction", "auction-gossip", "trade", "merchant"]
+		var ready = not live
+		for attempt in range(1200 if live else 4):
+			error = fixture.tick()
+			if not error.is_empty():
+				push_error(error)
+				fixture.free()
+				quit(1)
+				return
+			await process_frame
+			RenderingServer.force_draw()
+			if live:
+				var state: Dictionary = fixture.portrait_state()
+				ready = state.get("model_shown", false) and state.get("mask_loaded", false) and not state.get("pending", true)
+				if ready:
+					var expected = "player Local player race 10" if window == "trade" else "player Offline NPC race 1"
+					if not str(state.appearance).begins_with(expected):
+						push_error("Wrong portrait source: ", state)
+						fixture.free()
+						quit(1)
+						return
+					break
+		if not ready:
+			push_error("Portrait failed to settle: ", window, " ", fixture.portrait_state())
+			fixture.free()
+			quit(1)
+			return
+		for frame in range(4):
+			await process_frame
+			RenderingServer.force_draw()
+		if not npcportraits_backgrounds_clear(fixture, window):
+			fixture.free()
+			quit(1)
+			return
+		var image = root.get_texture().get_image()
+		var path = directory.path_join(skin_name + "-" + window + ".png")
+		if image == null or image.is_empty() or image.save_png(path) != OK:
+			push_error("Cannot save portrait capture ", path)
+			fixture.free()
+			quit(1)
+			return
+		print("PASS npcportraits ", skin_name, " ", window, " ", path)
+		fixture.free()
+		await process_frame
+	quit(0)
+
+func npcportraits_backgrounds_clear(fixture: Node, window: String) -> bool:
+	if window == "guild-bank":
+		return fixture.find_child("GuildBankFramePortrait", true, false) == null
+	var prefixes = {"bank": "BankFrame", "mail": "MailFrame", "open-mail": "OpenMailFrame", "auction": "AuctionHouseFrame", "auction-gossip": "AuctionGossip", "trade": "TradeFrame", "merchant": "MerchantFrame"}
+	var prefix: String = prefixes[window]
+	var root_control = fixture.find_child(prefix, true, false) as Control
+	var mask = Rect2(root_control.get_global_rect().position + Vector2(-3, -7), Vector2(58, 58))
+	var backgrounds = [prefix + "Bg", prefix + "TopTileStreaks"]
+	if window == "bank":
+		backgrounds.append("BankFrameBackground")
+	for name in backgrounds:
+		var background = fixture.find_child(name, true, false) as Control
+		if background == null or background.get_global_rect().intersects(mask):
+			push_error("Background crosses portrait mask: ", name)
 			return false
 	return true
 

@@ -211,6 +211,20 @@ fn concurrent_character_frames_keep_each_threads_skin_art() {
 }
 
 #[test]
+#[ignore = "fixture capture only"]
+fn capture_base_trees() {
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(ActiveSkin::Modern);
+    println!(
+        "BEGIN_CHARACTER_TREES\n{}END_CHARACTER_TREES",
+        modern_trees()
+    );
+}
+
+#[test]
 fn character_frame_skin_art_and_layout_preserve_modern_bytes() {
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),

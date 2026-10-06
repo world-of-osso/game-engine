@@ -16,7 +16,7 @@ References: GB.xml / GB.lua = `Blizzard_GuildBankUI/Mainline/Blizzard_GuildBankU
 - [x] The guild bank opens as the Wide `WindowId::GuildBank` window with the backpack. Closing the window sends `CloseInteraction`, and `InteractionClosed` closes the frame.
 
 ### Layout
-- [x] Frame 750×428 (GB.xml:167) with the `metal_frame` chrome and GuildVaultBG (590068).
+- [x] Frame 750×428 (GB.xml:167) with non-portrait `metal_frame_no_portrait` chrome and GuildVaultBG (590068) in both skins. GB.xml:167 inherits `BasicFrameTemplate`, not `PortraitFrameTemplate`; do not draw an empty portrait ring.
 - [x] Seven UI-GuildBankFrame-Slots columns (100×311) at 18,59, 3 px apart. Each column holds 14 buttons in two sub-columns of 7: Button1 at 7,3, then 7 px apart; Button8 is 12 px to the right. Slot ids run 1–98.
 - [x] Side tabs are 42×50 (UI-GuildBankFrame-Tab), starting at TOPRIGHT −1,−17 and stepping 50 down. The Guild Master's buy tab (UI-GuildBankFrame-NewTab) comes last.
 - [x] Mode tabs Guild Bank / Log / Money Log / Info start at BOTTOMLEFT 7,−30. The shown mode takes no click.

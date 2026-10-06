@@ -14,6 +14,7 @@ References: TF.xml / TF.lua = `Blizzard_UIPanels_Game/Mainline/TradeFrame.xml` /
 ### The window
 - [x] An open trade opens the Panel `WindowId::Trade`; Retail TradeFrame opens no bags (no `OpenAllBags`). Closing the window (close button, Escape's `CloseAllWindows`) sends `CancelTrade` once; the trade ending closes the window.
 - [x] Native: TradeFrame is `toplevel` (TF.xml:143), raised on press like the other panels.
+- [x] Both skins bind the local player's masked portrait in the main ring (`SetPortraitToUnit("player")`, TF.lua:69); backgrounds exclude its mask.
 - [x] 344×446 `ButtonFrameTemplate` chrome; the player's name at 65,−5 and the partner's at 230,−5; the partner half tinted white .15 from TOPRIGHT −172,−20.
 - [x] Seven `TradeItemTemplate` slots per side (player at 14,−89, partner at 182,−89, 7 px apart, the seventh 28 px lower) with UI-EmptySlot, UI-QuestItemNameFrame, the item icon, count and name in its quality colour. The empty seventh slot shows UI-TradeFrame-EnchantIcon; both seventh slots are labelled "Will not be traded".
 - [x] `InsetFrameTemplate` borders under the item columns, the seventh slots and both money rows.

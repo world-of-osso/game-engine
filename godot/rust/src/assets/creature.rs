@@ -277,7 +277,7 @@ pub(crate) fn cache_model_files(
     Ok(path)
 }
 
-fn cache_required(
+pub(super) fn cache_required(
     resolver: &CascListfileResolver,
     fdid: u32,
     destination: &Path,

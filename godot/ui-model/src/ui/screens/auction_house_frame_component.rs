@@ -270,6 +270,10 @@ pub struct AuctionHouseFrameState {
     pub auctions: AuctionsView,
 }
 
+/// Retail Blizzard_AuctionHouseFrame.lua:392 `SetPortraitToUnit("npc")`.
+pub const PORTRAIT: crate::inworld_unit_frames_component::PortraitSlot =
+    crate::quest_art::window_portrait_slot("AuctionHouseFramePortrait");
+
 pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<AuctionHouseFrameState>()
@@ -288,6 +292,7 @@ pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
             left: 0.0,
             top: 0.0,
             {window_chrome(ROOT_FRAME, (FRAME_W, FRAME_H), state.tab.title(), ACTION_CLOSE)}
+            {crate::quest_art::window_portrait(&PORTRAIT)}
             {money_frame(state.money)}
             {tabs(state.tab)}
             {buy_tab::buy_content(state)}
@@ -758,4 +763,3 @@ pub fn duration_token(duration: AuctionDuration) -> &'static str {
         AuctionDuration::Long => "48",
     }
 }
-

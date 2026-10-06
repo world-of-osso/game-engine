@@ -17,6 +17,7 @@ Single MainHand startup native `5a3ebf7b` and original15-second merchant regress
 
 Engine subsystems and how they work.
 
+- [death-flow](systems/death-flow.md) — owner death snapshots, release/corpse/healer and resurrection-offer dialogs; stable viewer-relative taps and both-skin health greying.
 - [build-hosts](systems/build-hosts.md) — desktop SSH/WSL and local Docker build trial; saved selection, cache boundaries, independently accepted bounded build/server/CPU/GPU-login capability.
 
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering (Godot retail batch materials), live InWorld camera-direction CLI, optional-distance-fog shader specialization, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; native fog verification and original-video pixel equivalence remain unproven
@@ -149,7 +150,7 @@ Root cause analyses and debug findings.
 - [washed-out-sky](investigations/washed-out-sky.md) — near-white noon sky: swapped/linear LightData colours, horizon bands spread over the dome, raw FogEnd units and Smog fog colour; sky and fog now blend the player's Light zones
 - [procedural-cloud-regeneration](investigations/procedural-cloud-regeneration.md) — Procedural cloud hotspot, Empty scheduling boundaries, capped-measurement retirement, and September 5 replicated-NPC M2 cache reuse; uncapped Green remains pending
 - [replicated-unit-noops](investigations/replicated-unit-noops.md) — Empty-stage replicated-unit semantic NOOP boundaries, event-driven NPC visibility, fixes, tests, and connected relaunch proof; prior paced values are historical
-- [npc-stance-gear](investigations/npc-stance-gear.md) — Stockade guard/criminal pose, virtual items, authored armor, replication mirror and external `.anim` causes; both clients now render them (Godot live fixture `npc_pose_gear.gd`); Zaralda rigid-waist root/fix and genuine appearance/geoset caveat, CPU 27/27 plus retained check and native 116-mesh/torso-ray evidence; body-point fixture corrected, faction-35 native merchant flow observed exit0; independent artifact gate116 scoped PASS
+- [npc-stance-gear](investigations/npc-stance-gear.md) — Everforged shoulder type3 material declaration/root fix; Stockade guard/criminal pose, virtual items, authored armor, replication mirror and external `.anim` causes; both clients now render them (Godot live fixture `npc_pose_gear.gd`); Zaralda rigid-waist root/fix and genuine appearance/geoset caveat, CPU 27/27 plus retained check and native 116-mesh/torso-ray evidence; body-point fixture corrected, faction-35 native merchant flow observed exit0; independent artifact gate116 scoped PASS
 - [compile-latency](investigations/compile-latency.md) — Bevy dynamic-link feature wiring, measured edit-build comparison, and remaining under-three-second gap
 
 - [Native loot integration](systems/godot-conversion.md#native-loot--implemented-proof-pending) — Final `292a2fb2`/Depot `tt4c247nl1`: four cases, rejection/retry, bags 11/money 32756 and LOOT_DONE observed. Full exit 101 after DONE is fixture timeout, not historical RenderingServer-null; shutdown deferred, verifier 1314 pending, clean acceptance open.

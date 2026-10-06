@@ -28,6 +28,8 @@ pub struct RuntimeModelAppearance {
     pub slot: EquipmentSlot,
     pub fdid: u32,
     pub skin_fdids: [u32; 3],
+    /// ItemDisplayInfoModelMatRes (M2 texture type, texture FDID) for this model column.
+    pub texture_replacements: Vec<(u32, u32)>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -300,13 +302,7 @@ fn apply_visible_entry(
         if !models.is_empty() && !has_vis_data {
             resolved.hidden_character_geoset_groups.insert(0);
         }
-        for (fdid, skin_fdids) in models {
-            resolved.runtime_models.push(RuntimeModelAppearance {
-                slot: EquipmentSlot::Head,
-                fdid,
-                skin_fdids,
-            });
-        }
+        resolved.runtime_models.extend(models);
         return Ok(display.item_textures);
     }
     if slot == EquipmentVisualSlot::Back {
@@ -323,17 +319,14 @@ fn apply_visible_entry(
         .extend(display.item_textures.iter().map(|(_, fdid)| *fdid));
     merge_overlay_texture_sets(&mut resolved.outfit, &display);
     for runtime_slot in visual_slot_to_runtime_slots(slot) {
-        for (fdid, skin_fdids) in
-            runtime_slot_models(outfit_data, display_info_id, runtime_slot, race, sex)?
-        {
+        for model in runtime_slot_models(outfit_data, display_info_id, runtime_slot, race, sex)? {
             resolved
                 .texture_fdids
-                .extend(skin_fdids.into_iter().filter(|fdid| *fdid != 0));
-            resolved.runtime_models.push(RuntimeModelAppearance {
-                slot: runtime_slot,
-                fdid,
-                skin_fdids,
-            });
+                .extend(model.skin_fdids.into_iter().filter(|fdid| *fdid != 0));
+            resolved
+                .texture_fdids
+                .extend(model.texture_replacements.iter().map(|&(_, fdid)| fdid));
+            resolved.runtime_models.push(model);
         }
     }
     Ok(display.item_textures)
@@ -348,22 +341,54 @@ fn runtime_slot_models(
     slot: EquipmentSlot,
     race: u8,
     sex: u8,
-) -> Result<Vec<(u32, [u32; 3])>, String> {
+) -> Result<Vec<RuntimeModelAppearance>, String> {
+    let models = runtime_model_columns(outfit_data, display_info_id, slot, race, sex)?;
+    models
+        .into_iter()
+        .map(|(column, fdid, skin_fdids)| {
+            Ok(RuntimeModelAppearance {
+                slot,
+                fdid,
+                skin_fdids,
+                texture_replacements: outfit_data.resolve_model_texture_fdids(
+                    display_info_id,
+                    column,
+                    race,
+                    sex,
+                )?,
+            })
+        })
+        .collect()
+}
+
+fn runtime_model_columns(
+    outfit_data: &OutfitData,
+    display_info_id: u32,
+    slot: EquipmentSlot,
+    race: u8,
+    sex: u8,
+) -> Result<Vec<(usize, u32, [u32; 3])>, String> {
     Ok(match slot {
-        EquipmentSlot::ShoulderLeft => outfit_data
-            .resolve_shoulder_runtime_model(display_info_id, 0, race, sex)
-            .into_iter()
-            .collect(),
-        EquipmentSlot::ShoulderRight => outfit_data
-            .resolve_shoulder_runtime_model(display_info_id, 1, race, sex)
-            .into_iter()
-            .collect(),
+        EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight => {
+            let side = usize::from(slot == EquipmentSlot::ShoulderRight);
+            let model =
+                outfit_data.resolve_shoulder_runtime_model(display_info_id, side, race, sex);
+            match model {
+                Some((fdid, skins)) => vec![(
+                    outfit_data.shoulder_model_column(display_info_id, side)?,
+                    fdid,
+                    skins,
+                )],
+                None => Vec::new(),
+            }
+        }
         EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Waist | EquipmentSlot::Wrist => {
             outfit_data.try_resolve_column_models(display_info_id, race, sex)?
         }
         _ => outfit_data
             .try_resolve_runtime_model(display_info_id, race, sex)?
             .into_iter()
+            .map(|(fdid, skins)| (0, fdid, skins))
             .collect(),
     })
 }

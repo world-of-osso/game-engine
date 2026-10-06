@@ -15,7 +15,7 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
 - [x] `InteractionClosed` for the banker closes the frame.
 
 ### Layout
-- [x] Frame 738×460 (BF.xml:674) with the `metal_frame` chrome and the `bank-frame-background` atlas (5782252) from 0,20 to 0,−30.
+- [x] Frame 738×460 (BF.xml:674) with the `metal_frame` chrome and the active-skin `bank-frame-background` atlas. In both skins the portrait is the open banker (`BF.lua:94`, `SetPortraitToUnit("npc")`), masked at (-3,-7,58,58). Backgrounds exclude that mask; the bank atlas begins at y=51 and retains its bottom inset of 30.
 - [x] Slot grid: 98 slots, column-major in 7 rows (BF.lua:941-968).
   - The first slot is at 26,63; the next row is 10 px below; columns are 8 apart within a pair and 19 apart between pairs.
   - Slot backgrounds are `bags-item-slot64` (4701874) in the character bank. The Warband bank uses `warband-bank-slot`, grown −6,5 / 6,−7.
@@ -34,7 +34,7 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
 - [x] Deposit All button (256×24): `Deposit All Reagents` in the character bank, `Deposit All Warbound Items` in the Warband bank. The Warband bank also shows the "Include tradeable reagents" checkbox.
 
 ### Skin art
-- Dedicated bank textures resolve Blizzard atlas element names through `ui_toolkit::atlas::resolve_region`; Modern keeps the exact pre-conversion FDIDs, UVs, geometry and frame tree.
+- Dedicated bank textures resolve Blizzard atlas element names through `ui_toolkit::atlas::resolve_region`; Modern keeps pre-conversion FDIDs and UVs; portrait binding and background exclusion apply to both skins.
 - Forever uses `bank-frame-background`, `bags-item-bankslot64` for character slots, `bank-frame-item-slotframe` over item icons, and the scaled `bank-divider`. Warband slot art and purchase-tab art retain their set-0 members. The tinted purchase-prompt background resolves `bags-item-slot64`.
 - Camelot art does not change the 98-slot grid, slot actions, tabs or purchase/money state. Its 88-slot page cap and uniform spacing are behavior, excluded from this art conversion.
 - Standalone container windows are Retail `ContainerFrameTemplate` (Retail/Forever Mainline ContainerFrame.xml:218-265, ContainerFrame.lua:9-12,779-874): 178 wide, 37×37 slots 5 apart in a `BottomRightToTopLeft` grid from BOTTOMRIGHT (-7, 9), `PortraitFrameFlatTemplate` chrome (flat background, portrait metal border, title at left 35, close button that closes only that bag), `bags-item-slot64` under every slot through the active skin. Not drawn: portrait icon (no texture masks in rsx), backpack search box/sort button/money frame rows.

@@ -117,6 +117,7 @@ pub struct FlareUnit<'a> {
     pub health_fraction: f32,
     /// `UnitIsDeadOrGhost`: `DEAD_TEXT` replaces the health text (UnitFrames.lua:390-391).
     pub dead: bool,
+    pub tap_denied: bool,
     pub reaction: Option<Reaction>,
     pub class_id: Option<u8>,
     pub power: Option<&'a PowerBarState>,
@@ -130,6 +131,7 @@ impl<'a> From<&'a UnitFrameState> for FlareUnit<'a> {
             level: Some((unit.level_text.as_str(), unit.level_color.as_str())),
             health_fraction: unit.health_fraction,
             dead: unit.dead,
+            tap_denied: unit.tap_denied,
             reaction: unit.reaction,
             class_id: unit.class_id,
             power: unit.power.as_ref(),
@@ -148,6 +150,7 @@ impl<'a> From<&'a SmallUnitFrameState> for FlareUnit<'a> {
                 .map(|(text, color)| (text.as_str(), color.as_str())),
             health_fraction: unit.health_fraction,
             dead: unit.dead,
+            tap_denied: false,
             reaction: unit.reaction,
             class_id: unit.class_id,
             power: unit.power.as_ref(),
@@ -163,6 +166,7 @@ impl<'a> From<&'a PetFrameState> for FlareUnit<'a> {
             level: None,
             health_fraction: pet.health_fraction,
             dead: false,
+            tap_denied: false,
             reaction: pet.reaction,
             class_id: None,
             power: pet.power.as_ref(),
@@ -175,6 +179,9 @@ impl<'a> From<&'a PetFrameState> for FlareUnit<'a> {
 /// 254-266); the bar texture darkens it ([`FLAT_TEXTURE_GREY`]). Pets use their own
 /// reaction, not their owner's class. The source uses REACTION[5] when reaction is absent.
 fn health_rgb(unit: &FlareUnit<'_>) -> [f32; 3] {
+    if unit.tap_denied {
+        return [0.5, 0.5, 0.5];
+    }
     if let Some(class_id) = unit.class_id {
         return class_color(class_id);
     }
