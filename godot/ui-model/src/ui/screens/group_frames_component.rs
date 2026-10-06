@@ -16,11 +16,11 @@ use crate::ui::screens::menu_primitives::{
 use crate::ui::screens::ready_check_frame_component::{ReadyCheckFrameState, ready_check_frame};
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::{FontColor, GameFont};
-use game_engine_core::ui_layout_data::{LayoutSettings, PartyFrameSettings, PartySort};
+use game_engine_core::ui_layout_data::{LayoutSettings, PartyFrameSettings};
 #[path = "party_frame_presentation.rs"]
 mod presentation;
 use presentation::scale_party;
-pub(super) use presentation::{party_chrome, place_party_member, resize_party_member};
+pub(crate) use presentation::{party_chrome, place_party_member, resize_party_member};
 pub use presentation::{role_order, sorted_party_state};
 
 pub const PARTY_FRAME: &str = "CompactPartyFrame";
@@ -211,7 +211,6 @@ fn party_frame(
             width,
             height,
             alpha: {settings.alpha()},
-            {party_chrome(PARTY_FRAME, width, height, settings)},
             strata: FrameStrata::Low,
             hidden: {members.is_empty()},
             pos_type: "absolute",
@@ -221,6 +220,7 @@ fn party_frame(
             bottom: {at.bottom.as_str()},
             margin_left: {at.margin_left},
             margin_top: {at.margin_top},
+            {party_chrome(PARTY_FRAME, width, height, settings)}
             {group_title("CompactPartyFrameTitle", "Party", (0.0, PARTY_MEMBER_W), title_hidden)}
             {frames}
         }

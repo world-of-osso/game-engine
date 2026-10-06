@@ -169,23 +169,23 @@ pub fn portrait_party_frame_with_settings(
         .enumerate()
         .flat_map(|(index, view)| {
             let mut member = party_member_frame(index, view, 0.0, show_pets, skin);
-            super::group_frames_component::resize_party_member(&mut member, sx, sy);
+            crate::group_frames_component::resize_party_member(&mut member, sx, sy);
             let (x, y) = if horizontal {
                 (index as f32 * (member_width + gap * sx), 0.0)
             } else {
                 (0.0, index as f32 * (MEMBER_HEIGHT + gap) * sy)
             };
-            super::group_frames_component::place_party_member(&mut member, x, y);
+            crate::group_frames_component::place_party_member(&mut member, x, y);
             member
         })
         .collect();
     rsx! { r#frame {
         name: {dyn_name(PARTY_FRAME.into())}, width, height,
         alpha: {settings.alpha()},
-        {super::group_frames_component::party_chrome(PARTY_FRAME, width, height, settings)},
         hidden: {count == 0}, pos_type: "absolute",
         left: {at.left.as_str()}, right: {at.right.as_str()}, top: {at.top.as_str()}, bottom: {at.bottom.as_str()},
         margin_left: {at.margin_left}, margin_top: {at.margin_top},
+        {crate::group_frames_component::party_chrome(PARTY_FRAME, width, height, settings)}
         {members}
     } }
 }
