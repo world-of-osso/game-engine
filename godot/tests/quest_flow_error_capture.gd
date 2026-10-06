@@ -6,6 +6,11 @@ class CaptureClient extends Node:
 	func objective_tracker_state() -> Dictionary:
 		return {"visible": false}
 
+var error_line: Label
+
+func error_shown(text: String) -> bool:
+	return error_line.text == text and error_line.is_visible_in_tree()
+
 func run_test() -> void:
 	Engine.max_fps = 2
 	root.size = Vector2i(1920, 1080)
@@ -14,6 +19,7 @@ func run_test() -> void:
 	client = CaptureClient.new()
 	root.add_child(client)
 	var line := Label.new()
+	error_line = line
 	line.position = Vector2(704, 122)
 	line.size = Vector2(512, 60)
 	line.text = MUST_CHOOSE
@@ -32,9 +38,12 @@ func run_test() -> void:
 	await frames(2)
 	var settle := int(OS.get_environment("QF_ERROR_SETTLE"))
 	await click(button.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, settle)
-	if not await wait_frames(func(): return line.is_visible_in_tree(), "transient error"):
+	if settle == 3:
+		if not await wait_frames(func(): return line.is_visible_in_tree(), "transient error"):
+			return
+		await capture("error-timing.png")
+	elif not await capture_error(MUST_CHOOSE, "error-timing.png"):
 		return
-	await capture("error-timing.png")
 	var image := Image.load_from_file(shots + "error-timing.png")
 	var red := 0
 	for y in range(122, 182):
