@@ -101,7 +101,8 @@ func _initialize() -> void:
 	call_deferred("run_test")
 
 func run_test() -> void:
-	root.size = Vector2i(1280, 720)
+	# Native HUD layouts use a 1920-wide canvas; keep the tracker in captured frames.
+	root.size = Vector2i(1920, 1080)
 	var server := OS.get_environment("GODOT_TEST_SERVER")
 	if server == "" or server.ends_with(":5000"):
 		fail("GODOT_TEST_SERVER must name a private server, not :5000")
@@ -877,19 +878,29 @@ func face_direction(want: float) -> void:
 ## Walk to within `yards` of unit `id`.
 func approach(id: int, yards: float) -> bool:
 	var deadline := Time.get_ticks_msec() + 45000
+	var from := player_position()
 	while Time.get_ticks_msec() < deadline:
 		var unit := unit_by_id(id)
 		if unit == null:
+			push_key(KEY_W, false)
 			print("FIXTURE APPROACH_LOST ", id)
 			return false
-		var to: Vector3 = (unit as Node3D).global_position - player_position()
-		if Vector2(to.x, to.z).length() <= yards:
+		var here := player_position()
+		var target: Vector3 = (unit as Node3D).global_position
+		var path := Geometry2D.get_closest_point_to_segment(Vector2(target.x, target.z), Vector2(from.x, from.z), Vector2(here.x, here.z))
+		if path.distance_to(Vector2(target.x, target.z)) <= yards:
 			push_key(KEY_W, false)
 			await frames(5)
 			return true
-		await face_unit(id)
+		from = here
+		var to := target - here
+		var want := atan2(to.x, to.z)
+		if abs(wrapf(want - yaw(), -PI, PI)) >= 0.15:
+			push_key(KEY_W, false)
+			await face_direction(want)
+			from = player_position()
 		push_key(KEY_W, true)
-		await frames(6)
+		await process_frame
 	push_key(KEY_W, false)
 	var unit := unit_by_id(id)
 	print("FIXTURE APPROACH_TIMEOUT ", id, " player ", player_position(), " unit ", (unit as Node3D).global_position if unit != null else null)
@@ -950,6 +961,10 @@ func click_control(control: Control) -> void:
 	await click(control.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
 
 func capture(file: String) -> void:
+	var tracker: Dictionary = client.objective_tracker_state()
+	if tracker.get("visible", false) and not Rect2(Vector2.ZERO, Vector2(root.size)).encloses(tracker.rect):
+		fail("Tracker lies outside screenshot viewport: %s in %s" % [tracker.rect, root.size])
+		return
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	var error := image.save_png(shots + file)
