@@ -182,6 +182,7 @@ pub enum AccountEvent {
     Mail(MailMessage),
     /// `TradeStateUpdate`: the trade snapshot, its refusal and message.
     Trade(TradeStateUpdate),
+    Death(shared::protocol::DeathStateUpdate),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
     GuildRanks(shared::protocol::GuildRanksState),
@@ -663,6 +664,25 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_death(
+        &self,
+        request: game_engine_ui_model::death_flow::DeathRequest,
+    ) -> Result<(), SessionError> {
+        use game_engine_ui_model::death_flow::DeathRequest;
+        use shared::protocol::{
+            AcceptSpiritHealerResurrection, DeathChannel, ReleaseSpirit, ResurrectAtCorpse,
+        };
+        let bridge = self.bridge()?;
+        match request {
+            DeathRequest::Release => bridge.send::<_, DeathChannel>(ReleaseSpirit),
+            DeathRequest::Corpse => bridge.send::<_, DeathChannel>(ResurrectAtCorpse),
+            DeathRequest::SpiritHealer => {
+                bridge.send::<_, DeathChannel>(AcceptSpiritHealerResurrection)
+            }
+        }
+        .map_err(SessionError)
+    }
+
     pub fn send_trade(&self, request: TradeRequest) -> Result<(), SessionError> {
         let bridge = self.bridge()?;
         match request {
@@ -1027,6 +1047,10 @@ impl Account {
         }
         if message.is::<PendingMail>() {
             output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::DeathStateUpdate>() {
+            output.push(AccountEvent::Death(decode(message)?));
             return Ok(());
         }
         if message.is::<TradeStateUpdate>() {

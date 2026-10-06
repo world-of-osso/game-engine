@@ -1,6 +1,41 @@
 //! Real loopback UDP proof; owns its server and never contacts the development game server.
 
 #[test]
+fn deathstate_default_bridge_receives_snapshot_over_udp() {
+    use shared::protocol::{DeathChannel, DeathSnapshot, DeathStateSnapshot, DeathStateUpdate};
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8291);
+    await_connected(&mut server, &mut host);
+    let expected = DeathStateUpdate {
+        snapshot: Some(DeathSnapshot {
+            state: DeathStateSnapshot::Dead,
+            corpse: None,
+            graveyard: None,
+            can_resurrect_at_corpse: false,
+            spirit_healer_available: false,
+        }),
+        message: Some("you died".into()),
+        error: None,
+    };
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<DeathStateUpdate>>()
+        .single_mut(world)
+        .expect("death sender")
+        .send::<DeathChannel>(expected.clone());
+    let Event::Message(message) = await_bridge_event(
+        &mut server,
+        &mut host,
+        "death snapshot on default bridge",
+        |event| matches!(event, Event::Message(message) if message.is::<DeathStateUpdate>()),
+    ) else {
+        panic!("expected death snapshot");
+    };
+    assert_eq!(message.downcast::<DeathStateUpdate>().ok(), Some(expected));
+    host.stop();
+}
+
+#[test]
 fn xpchat_native_bridge_receives_log_xp_gain() {
     use shared::protocol::{ExperienceChannel, LogXpGain, XpGainReason};
     let (mut server, address) = start_fixture_server();

@@ -290,6 +290,7 @@ impl GameClient {
             self.group_frames.close();
             return Ok(());
         }
+        self.sync_death_popups();
         self.poll_invite_popup_actions()?;
         let hud = &mut self.group_frames;
         hud.popups.tick(Duration::from_secs_f32(delta.max(0.0)));
@@ -298,6 +299,7 @@ impl GameClient {
         self.dispatch_quest_abandon_results(&results)?;
         self.dispatch_bank_popup_results(&results)?;
         self.dispatch_mail_popup_results(&results)?;
+        self.dispatch_death_popup_results(&results)?;
         self.hide_stale_bag_destroy_popups();
         for accept in invite_answers(&results) {
             self.account.group.pending_invite = None;

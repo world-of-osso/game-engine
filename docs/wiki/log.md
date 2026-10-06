@@ -2645,3 +2645,7 @@ Added portable authoritative rank controls and Officer chat parsing/classificati
 ## 2026-10-06 — Quest overflow
 
 [[quest-ui]] records the missing log scroll ancestor and dialog estimate/native-height mismatch, Retail scroll/QuestInfo sources, measured scroll-child feedback and native capture/input regressions. Evidence and current acceptance: `data/diagnostics/questoverflow-2026-10-06/`. Recorded quest trees came only from `capture_base_trees`; Options/menu suffix unchanged.
+
+## 2026-10-06 — Owner death flow
+
+[[death-flow]] records the missing default death subscription, Retail dialog/GlobalStrings sources, supported release/corpse/healer actions and ghost projection. RED: default bridge timed out over loopback UDP; three death model tests failed as expected. Resurrection offers and tap-denied remain blocked by pinned protocol/server replication; no server/protocol modifications.
