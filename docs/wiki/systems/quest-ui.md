@@ -36,9 +36,23 @@ Markers: `nameplate.rs` spawns the talktome M2 with its animation; `indicator_fa
 - Legibility: title `OBJECTIVE_TRACKER_COLOR.Header` = `OBJECTIVE_TRACKER_BLOCK_HEADER_COLOR` (GlobalColor 241, 0xBF9C00 = 0.75, 0.61, 0) and lines `Normal` 0.8 grey, both `ObjectiveTrackerLineFont` FRIZQT 12 with a black (1, −1) shadow (`Blizzard_ObjectiveTrackerFonts.xml:202-209`). Native labels drew no FontString shadow until the projection mapped `shadow_color`/`shadow_offset` to Godot's `font_shadow_color`/`shadow_offset_*` (y flipped), so the dark-gold title vanished on bright grass. Hover highlight (`HeaderHighlight`/`NormalHighlight`) is not implemented in either client.
 
 
+## Native quest scrolling
+
+Verified 2026-10-06: 42 targeted Rust tests and 16 native long/short page/skin cases pass. Final selected-quest captures and exact command scopes are in `data/diagnostics/questoverflow-2026-10-06/proof-ledger.txt` / `.json`; prototype failures remain archived separately. The data-dependent item-5580 icon test and native GTK/resource-cache teardown diagnostics are excluded from this bounded acceptance, not repaired.
+
+At `af35f6e1`, quest-log text flowed in an auto-height `QuestLogDetailsContent` directly under the window, without a scroll-list ancestor. Native projection clips registered scroll lists, not arbitrary content frames, so growing descriptions crossed the parchment and action buttons. QuestFrame already had scroll frames, but its fixed paragraph heights and subsequent absolute offsets used estimates; the injected 1000-pixel native-height regression reproduced objectives landing inside the paragraph.
+
+`quest_scroll.rs` builds a clipped viewport, auto-height child and skin-resolved MinimalScrollBar. After native shaping/layout, `RegistryModel` feeds the measured child height back into `QuestScrollExtent` and rebuilds the range/bar before drawing. Log and detail/progress/reward content use vertical flow; narrow log rewards use one column. Wheel/steppers pan 30 pixels, thumb drag reaches the full range; action buttons remain outside the viewport. Selecting another log quest resets its offset.
+
+Retail source under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_UIPanels_Game/Mainline/`: `QuestMapFrame.xml:765-783` puts details in `QuestMapDetailsScrollFrame` with a Contents scroll child; `QuestMapFrame.lua:999-1004` displays QuestInfo there and resets the scrollbar. Retail map rewards have their own clipped container (`QuestMapFrame.xml:721`), whereas the popup log puts `QUEST_TEMPLATE_LOG` in its scroll child (`QuestMapFrame.lua:2383-2385`). `QuestInfo.lua:103-117` reparents sections and anchors each below its predecessor. Dialog scroll frames use `QuestFrameTemplates.xml:158-167`, with detail/reward `QuestInfo_Display` at `QuestFrame.lua:556-558,127-128`.
+
+Native measurement must enter the scene tree before shaping. An out-of-tree temporary Label reported 6523 pixels and one line for the 5550-character fixture; the attached label shaped 201 lines at 4017 pixels. The oversized centered block therefore looked blank at both ends despite correct scrolling. `UiProjection::measure_wrapped_label` temporarily attaches the measurement Label to its canvas, measures it, then removes/frees it before drawing. Captures additionally require native paragraph-height equality and actual glyph pixels at the top/middle, not just moving frame bounds; helper failures explicitly quit with status 1.
+
+Proof: `godot/rust/src/ui/quest_scroll_tests.rs`, `godot/tests/quest_overflow_capture.gd`, and the existing `forever_quest_windows::capture_base_trees` recorder. Capture fixture compares content-visible/hidden pixels outside the viewport and drives native wheel/thumb input for long/short log, detail, progress and reward pages in both skins. Evidence directory: `data/diagnostics/questoverflow-2026-10-06/`; consult its proof ledger for current acceptance, including paragraph-rendering checks and renderer teardown warnings. Options/menu tree suffix is byte-identical in the recapture.
+
 ## Live fixture diagnostics
 
-Evidence: `data/diagnostics/questrun-2026-10-05/` in the canonical game-engine data tree. Native extension `9d8a1040`, private server binary `c8cd38f`; both presets completed the gameplay flow, including real mine exploration and both fixed rewards. Long quest text still overflows the parchment; visual acceptance is separate from gameplay assertions.
+Evidence: `data/diagnostics/questrun-2026-10-05/` in the canonical game-engine data tree. Native extension `9d8a1040`, private server binary `c8cd38f`; both presets completed the gameplay flow, including real mine exploration and both fixed rewards. That run still had long-text overflow; [native quest scrolling](#native-quest-scrolling) records the later repair and its separate visual proof.
 
 ### Jasperlode
 
@@ -60,6 +74,7 @@ The error overlay holds a line for three seconds, then fades for half a second. 
 
 - [Quest UI spec](../../specs/quest-ui.md) — requirements and test inventory.
 - [Native quest host](../../../godot/rust/src/quests.rs) — dialogue, log and markers.
+- [Quest scroll viewport](../../../godot/ui-model/src/ui/screens/quest_scroll.rs), [native extent feedback](../../../godot/rust/src/ui/mod.rs) and [offline clipping/input capture](../../../godot/tests/quest_overflow_capture.gd) — bounded native scrolling behavior.
 - [Live fixture](../../../godot/tests/world_quest_flow.gd), [movement regression](../../../godot/tests/quest_flow_movement.gd), [capture regression](../../../godot/tests/quest_flow_error_capture.gd) — observable input, life and rendered output.
 - [Native ground](../../../godot/rust/src/ground.rs), [collision regressions](../../../godot/rust/src/wmo/collision_tests.rs) — Jasperlode geometry and slow-frame movement.
 - [Error lifetime](../../../godot/ui-model/src/ui/ui_errors_data.rs) — hold and fade durations; proof commands and revisions are in the evidence directory's `proof-ledger.txt`.

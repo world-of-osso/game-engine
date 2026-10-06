@@ -9,6 +9,7 @@ use ui_toolkit::widgets::font_string::GameFont;
 
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 
+use crate::quest_scroll::{QuestScrollPane, quest_scroll_frame};
 use crate::ui::screens::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, POI_IN_PROGRESS, POI_TURN_IN,
     QUEST_LOG_DIVIDER, QUEST_PARCHMENT, QUEST_TEXT_COLOR, TRACKER_CHECK, atlas_texture,
@@ -16,6 +17,8 @@ use crate::ui::screens::quest_art::{
 };
 use crate::ui::screens::quest_frame_component::{Column, RewardView, rewards_section};
 use crate::ui::strata::FrameStrata;
+
+pub const QUEST_LOG_DETAILS_SCROLL: &str = "QuestLogDetailsScrollFrame";
 
 pub const QUEST_LOG_FRAME: &str = "QuestLogFrame";
 pub const FRAME_W: f32 = 640.0;
@@ -164,7 +167,7 @@ pub fn quest_log_frame_screen(ctx: &SharedContext) -> Element {
         CLOSE_ACTION,
     );
     let list = quest_list(state, LIST_PANE);
-    let details = details_pane(state.details.as_ref());
+    let details = details_pane(state.details.as_ref(), ctx);
     let count_text = format!("Quests: {}/{}", state.quest_count, state.max_quests);
     rsx! {
         r#frame {
@@ -362,7 +365,7 @@ const DETAILS_TEXT_PANE: QuestPane = QuestPane {
     width: DETAILS_TEXT_W,
 };
 
-fn details_pane(details: Option<&QuestLogDetails>) -> Element {
+fn details_pane(details: Option<&QuestLogDetails>, ctx: &SharedContext) -> Element {
     let mut elements = named_atlas_texture(
         "QuestLogDetailsBackground".into(),
         QUEST_PARCHMENT,
@@ -371,7 +374,34 @@ fn details_pane(details: Option<&QuestLogDetails>) -> Element {
     let Some(details) = details else {
         return elements;
     };
-    elements.extend(quest_details_text(details, DETAILS_TEXT_PANE));
+    let text = quest_details_elements(details, DETAILS_TEXT_PANE);
+    let content = rsx! {
+        r#frame {
+            name: "QuestLogDetailsContent",
+            width: DETAILS_TEXT_W,
+            height: "auto",
+            layout: "flex-column",
+            align: "start",
+            margin_left: DETAILS_INSET,
+            margin_top: DETAILS_INSET,
+            margin_bottom: DETAILS_INSET,
+            {text}
+        }
+    };
+    elements.extend(quest_scroll_frame(
+        ctx,
+        QUEST_LOG_DETAILS_SCROLL,
+        content,
+        QuestScrollPane {
+            x: DETAILS_X,
+            y: PANE_TOP,
+            width: DETAILS_W,
+            height: PANE_BOTTOM - PANE_TOP,
+            bar_x: DETAILS_W + 5.0,
+            bar_top: 2.0,
+            bar_bottom: 5.0,
+        },
+    ));
     let track_label = if details.watched { "Untrack" } else { "Track" };
     let button_y = FRAME_H - 4.0 - 22.0;
     elements.extend(panel_button(
@@ -393,6 +423,23 @@ fn details_pane(details: Option<&QuestLogDetails>) -> Element {
 
 /// The quest's title, objectives, description and rewards, top-down in `pane`.
 pub fn quest_details_text(details: &QuestLogDetails, pane: QuestPane) -> Element {
+    let elements = quest_details_elements(details, pane);
+    rsx! {
+        r#frame {
+            name: "QuestLogDetailsContent",
+            width: {pane.width},
+            height: "auto",
+            layout: "flex-column",
+            align: "start",
+            pos_type: "absolute",
+            left: {pane.x},
+            top: {pane.y},
+            {elements}
+        }
+    }
+}
+
+fn quest_details_elements(details: &QuestLogDetails, pane: QuestPane) -> Element {
     let mut elements = details_text(
         pane,
         "QuestLogDetailsTitle",
@@ -457,19 +504,7 @@ pub fn quest_details_text(details: &QuestLogDetails, pane: QuestPane) -> Element
             }
         });
     }
-    rsx! {
-        r#frame {
-            name: "QuestLogDetailsContent",
-            width: {pane.width},
-            height: "auto",
-            layout: "flex-column",
-            align: "start",
-            pos_type: "absolute",
-            left: {pane.x},
-            top: {pane.y},
-            {elements}
-        }
-    }
+    elements
 }
 
 fn details_text(

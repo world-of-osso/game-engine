@@ -50,7 +50,9 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         let pan = reputation_pan_extent();
         return (pan * 2, pan);
     }
-    if QUEST_SCROLL_FRAMES.contains(&list) {
+    if QUEST_SCROLL_FRAMES.contains(&list)
+        || list == game_engine_ui_model::quest_log_frame_component::QUEST_LOG_DETAILS_SCROLL
+    {
         return (SCROLL_PAN_EXTENT, SCROLL_PAN_EXTENT);
     }
     let options = (list == OPTIONS_CONTENT_SCROLL)

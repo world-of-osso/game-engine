@@ -133,16 +133,6 @@ fn text(registry: &FrameRegistry, name: &str) -> String {
     }
 }
 
-fn fixed_height(registry: &FrameRegistry, name: &str) -> f32 {
-    let id = registry
-        .get_by_name(name)
-        .unwrap_or_else(|| panic!("{name} missing"));
-    match registry.get(id).unwrap().height {
-        ui_toolkit::frame::Dimension::Fixed(height) => height,
-        other => panic!("{name} height is {other:?}"),
-    }
-}
-
 /// Click the rendered button `name`.
 fn click(
     registry: &FrameRegistry,
@@ -207,17 +197,11 @@ fn pick_up_from_the_greeting_shows_details_and_accept_sends_accept_then_close() 
     );
     let detail = render_frame(&runtime);
     assert_eq!(text(&detail, "QuestInfoMoneyText"), "Money: 20 Silver");
-    // `$B$B` breaks the story into three lines; its block holds all three so the
-    // native label does not squeeze them together.
+    // Preserve the NPC's paragraph breaks. Native shaping, flow and clipping are
+    // exercised by quest_overflow_capture.gd, not a fixed-height representation.
     assert_eq!(
         text(&detail, "QuestInfoDescriptionText"),
         "Welcome, warrior.\n\nThe worgs press our lines."
-    );
-    let description = fixed_height(&detail, "QuestInfoDescriptionText");
-    let line = fixed_height(&detail, "QuestInfoTitleHeader") * 13.0 / 18.0;
-    assert!(
-        description >= 3.0 * line,
-        "description block {description} is shorter than three {line} lines"
     );
     let effects = sent(click(
         &detail,

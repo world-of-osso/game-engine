@@ -11,10 +11,49 @@ use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::scroll_list::{thumb_name, track_name};
 use ui_toolkit::widgets::texture::{DynamicTextureId, TextureSource};
 
-use super::tests::{rebuild, rect, shown};
+use super::tests::{rect, shown};
+
+/// CPU shaping fixture; native captures exercise Godot's actual Label measurement.
+fn rebuild(model: &mut RegistryModel) {
+    use crate::ui::layout::compute_layout_with_intrinsics;
+    use game_engine_ui_model::quest_art::wrapped_text_height;
+    use ui_toolkit::frame::{Dimension, WidgetData};
+    for _ in 0..2 {
+        model.screen.sync(&model.shared, &mut model.registry);
+        let intrinsics = model
+            .registry
+            .frames_iter()
+            .filter_map(|frame| {
+                let (Dimension::Fixed(width), Dimension::Auto, Some(WidgetData::FontString(text))) =
+                    (frame.width, frame.height, &frame.widget_data)
+                else {
+                    return None;
+                };
+                Some((
+                    frame.id,
+                    (
+                        width,
+                        wrapped_text_height(&text.text, width, text.font_size),
+                    ),
+                ))
+            })
+            .collect();
+        let bounds = compute_layout_with_intrinsics(&model.registry, &intrinsics).unwrap();
+        for (id, rect) in bounds {
+            model.registry.set_computed_layout(id, rect).unwrap();
+        }
+        if !model.update_quest_scroll_extent() {
+            break;
+        }
+    }
+}
 use super::*;
 use crate::ui::ui_parent::UiParent;
 use crate::ui::{RegistryModel, ScreenPostsetup};
+use game_engine_ui_model::quest_log_frame_component::{
+    QuestLogDetails, QuestLogFrameState, QuestLogObjectiveLine, quest_log_frame_screen,
+};
+use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 
 /// "Beating Them Back!" as Marshal McBride gives it, with two item rewards and money.
 fn mcbride_detail(title: &str) -> QuestFrameState {
@@ -61,6 +100,13 @@ fn short_detail() -> QuestFrameState {
 }
 
 fn quest_frame(state: QuestFrameState) -> RegistryModel {
+    quest_model(state, quest_frame_screen)
+}
+
+fn quest_model<T: 'static>(
+    state: T,
+    build: fn(&SharedContext) -> ui_toolkit::widget_def::Element,
+) -> RegistryModel {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -76,7 +122,7 @@ fn quest_frame(state: QuestFrameState) -> RegistryModel {
         ),
     );
     let mut model = RegistryModel {
-        screen: Screen::new(quest_frame_screen),
+        screen: Screen::new(build),
         shared,
         registry,
         icon_masks: Default::default(),
@@ -180,6 +226,90 @@ fn a_short_quest_shows_the_track_without_a_thumb_and_does_not_scroll() {
     assert!(press_stepper(&mut model, forward));
     rebuild(&mut model);
     assert_eq!(top(&model, "QuestInfoTitleHeader"), title);
+}
+
+#[test]
+fn questoverflow_dialog_objectives_follow_native_paragraph_height() {
+    use crate::ui::layout::compute_layout_with_intrinsics;
+    use std::collections::HashMap;
+    let model = quest_frame(mcbride_detail("Beating Them Back!"));
+    let paragraph = model
+        .registry
+        .get_by_name("QuestInfoDescriptionText")
+        .unwrap();
+    let objectives = model
+        .registry
+        .get_by_name("QuestInfoObjectivesHeader")
+        .unwrap();
+    let bounds = compute_layout_with_intrinsics(
+        &model.registry,
+        &HashMap::from([(paragraph, (280.0, 1000.0))]),
+    )
+    .unwrap();
+    assert!(bounds[&objectives].y >= bounds[&paragraph].y + 1000.0);
+}
+
+fn long_log() -> QuestLogFrameState {
+    QuestLogFrameState {
+        visible: true,
+        details: Some(QuestLogDetails {
+            quest_id: 332,
+            title: "Wine Shop Advert".into(),
+            objectives_text: "Bring Suzetta Gallina the Wine Ticket.".into(),
+            objectives: vec![QuestLogObjectiveLine {
+                text: "1/1 Wine Ticket".into(),
+                done: true,
+            }],
+            description: Some(
+                "Visit the winery and tell your friends about our wine. ".repeat(100),
+            ),
+            rewards: Some(RewardView {
+                money: 55,
+                ..Default::default()
+            }),
+            watched: false,
+        }),
+        ..Default::default()
+    }
+}
+
+#[test]
+fn questoverflow_long_log_scrolls_to_its_last_reward_in_both_skins() {
+    const LIST: &str = "QuestLogDetailsScrollFrame";
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut model = quest_model(long_log(), quest_log_frame_screen);
+        let scroll = model
+            .registry
+            .scroll_lists
+            .get(LIST)
+            .expect("details must scroll");
+        assert!(
+            scroll.geometry.max_first_row() > 1000,
+            "{skin:?} range={:?}, child={:?}, paragraph={:?}",
+            scroll.geometry,
+            rect(&model, "QuestLogDetailsScrollChildFrame"),
+            rect(&model, "QuestLogDetailsDescription")
+        );
+        assert!(shown(&model, &thumb_name(LIST)));
+        let start = top(&model, "QuestLogDetailsContent");
+        assert!(wheel(&mut model, LIST, false));
+        rebuild(&mut model);
+        assert_eq!(
+            start - top(&model, "QuestLogDetailsContent"),
+            SCROLL_PAN_EXTENT as f32
+        );
+        model.registry.scroll_lists.scroll_to(LIST, usize::MAX);
+        rebuild(&mut model);
+        let area = rect(&model, LIST).unwrap();
+        let money = rect(&model, "QuestInfoMoneyText").unwrap();
+        assert!(
+            inside(&money, &area),
+            "{skin:?} money {money:?} area {area:?}"
+        );
+        assert!(!wheel(&mut model, LIST, false));
+    }
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 /// The QuestFrame's texture list, which the client copies out of local CASC before the window

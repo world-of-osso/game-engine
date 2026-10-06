@@ -355,6 +355,10 @@ impl UiProjection {
             unreachable!()
         };
         let label = Label::new_alloc();
+        // Out-of-tree Labels have not shaped their paragraphs: get_minimum_size can
+        // report 6523px where the drawn 201-line paragraph is 4017px. Enter the same
+        // canvas/theme as the drawn label before measuring; remove it before any draw.
+        self.root.add_child(&label);
         let rect = LayoutRect {
             x: 0.0,
             y: 0.0,
@@ -367,6 +371,7 @@ impl UiProjection {
                 let size = label.get_minimum_size();
                 (size.x, size.y)
             });
+        self.root.remove_child(&label);
         label.free();
         result
     }
