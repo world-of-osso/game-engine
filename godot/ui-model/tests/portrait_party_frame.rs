@@ -9,8 +9,6 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widgets::texture::TextureSource;
 
-static SKIN_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
 fn members() -> Vec<PortraitPartyMemberView> {
     ["Theron", "Jaina", "Valeera", "Uther"]
         .into_iter()
@@ -44,11 +42,9 @@ fn render(skin: ActiveSkin) -> FrameRegistry {
 }
 
 fn render_state(skin: ActiveSkin, state: PortraitPartyFrameState) -> FrameRegistry {
-    // Production mirrors the global active atlas skin into each SharedContext.
-    // Serialize switches so concurrent test cases cannot resolve another skin's art.
-    let _skin_lock = SKIN_LOCK.lock().unwrap();
-    let previous_skin = ui_toolkit::atlas::active_skin();
-    ui_toolkit::atlas::set_active_skin(skin);
+    // Production mirrors the UI thread's skin into each SharedContext.
+    let previous_skin = ui_toolkit::atlas::thread_skin();
+    ui_toolkit::atlas::set_thread_skin(skin);
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -62,7 +58,7 @@ fn render_state(skin: ActiveSkin, state: PortraitPartyFrameState) -> FrameRegist
         &state,
         &mut registry,
     );
-    ui_toolkit::atlas::set_active_skin(previous_skin);
+    ui_toolkit::atlas::set_thread_skin(previous_skin);
     registry
 }
 
@@ -175,9 +171,8 @@ fn portrait_party_style_switch_keeps_compact_default_and_raid_visible() {
         debuffs: vec![],
     };
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let _skin_lock = SKIN_LOCK.lock().unwrap();
-        let previous_skin = ui_toolkit::atlas::active_skin();
-        ui_toolkit::atlas::set_active_skin(skin);
+        let previous_skin = ui_toolkit::atlas::thread_skin();
+        ui_toolkit::atlas::set_thread_skin(skin);
         game_engine_ui_model::paths::set_data_root(
             PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
         )
@@ -217,7 +212,7 @@ fn portrait_party_style_switch_keeps_compact_default_and_raid_visible() {
         shared.insert(LayoutSettings::default());
         screen.sync(&shared, &mut registry);
         assert!(!frame(&registry, "CompactRaidFrameContainer").hidden);
-        ui_toolkit::atlas::set_active_skin(previous_skin);
+        ui_toolkit::atlas::set_thread_skin(previous_skin);
     }
 }
 

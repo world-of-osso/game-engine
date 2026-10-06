@@ -7,7 +7,7 @@ use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
-use ui_toolkit::atlas::{ActiveSkin, active_skin};
+use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 
 use crate::ui::screens::quest_art::{
     DynName, HIGHLIGHT_FONT_COLOR, NORMAL_FONT_COLOR, POI_IN_PROGRESS, POI_TURN_IN,
@@ -307,7 +307,7 @@ fn quest_row(row: &QuestLogRow, pane: QuestPane, y: f32) -> Element {
         POI_IN_PROGRESS
     };
     let color = row.difficulty.color();
-    let title = match active_skin() {
+    let title = match thread_skin() {
         ActiveSkin::Forever => format!("[{}] {}", row.level, row.title),
         ActiveSkin::Modern => row.title.clone(),
     };

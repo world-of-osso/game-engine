@@ -5,14 +5,14 @@ use game_engine_ui_model::quest_log_frame_component::{
 };
 use godot::classes::Node;
 use godot::prelude::*;
-use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
+use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 
 use super::RegistryUi;
 
 fn set_audit_data_and_skin(forever: bool) -> Result<(), String> {
     let root = godot::classes::ProjectSettings::singleton().globalize_path("res://../data");
     game_engine_ui_model::paths::set_data_root(root.to_string().into())?;
-    set_active_skin(if forever {
+    set_thread_skin(if forever {
         ActiveSkin::Forever
     } else {
         ActiveSkin::Modern

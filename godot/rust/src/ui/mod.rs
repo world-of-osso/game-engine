@@ -177,7 +177,7 @@ impl RegistryModel {
         if self.shared.get::<LayoutSettings>() != Some(&settings) {
             self.shared.insert(settings);
         }
-        self.sync_skin(ui_toolkit::atlas::active_skin());
+        self.sync_skin(ui_toolkit::atlas::thread_skin());
     }
 
     /// Mirror `skin` into this canvas before syncing: a change advances the `ActiveSkin`
@@ -1922,7 +1922,7 @@ impl RegistryUi {
         if let Err(error) = party_preview::load_data_root() {
             return GString::from(error.as_str());
         }
-        ui_toolkit::atlas::set_active_skin(skin);
+        ui_toolkit::atlas::set_thread_skin(skin);
         let mut shared = SharedContext::new();
         shared.insert(party_preview::state());
         let mut model = RegistryModel {

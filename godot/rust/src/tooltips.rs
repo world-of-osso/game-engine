@@ -162,7 +162,7 @@ impl GameClient {
         else {
             return Ok(GameTooltipView::default());
         };
-        let tooltip = tooltip.for_skin(ui_toolkit::atlas::active_skin());
+        let tooltip = tooltip.for_skin(ui_toolkit::atlas::thread_skin());
         let anchor = tooltip.anchor;
         let mut main = place(tooltip, screen);
         let compared = item

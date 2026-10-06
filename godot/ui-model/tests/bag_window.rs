@@ -9,7 +9,7 @@ use game_engine_ui_model::bag_frame_component::{
 };
 use game_engine_ui_model::merchant::MerchantSession;
 use game_engine_ui_model::panel_style_data::{MetalGeometry, MetalTopLeft, metal_frame_style};
-use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
+use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::frame::{Dimension, Frame, WidgetData};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
@@ -100,7 +100,7 @@ fn texture_source(frame: &Frame) -> TextureSource {
 
 /// Asserts the open backpack's window parts and returns its slot background sources.
 fn assert_backpack_window(skin: ActiveSkin) -> Vec<TextureSource> {
-    set_active_skin(skin);
+    set_thread_skin(skin);
     let registry = mount();
     let window = frame(&registry, "ContainerFrame0");
     assert!(!window.hidden, "{skin:?}: backpack open");
@@ -203,7 +203,7 @@ fn open_backpack_draws_a_container_window_under_both_skins() {
     let modern = assert_backpack_window(ActiveSkin::Modern);
     let forever = assert_backpack_window(ActiveSkin::Forever);
     assert_ne!(modern, forever, "Forever draws its own slot art");
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 fn set_data_root() {
@@ -261,7 +261,7 @@ fn session_with_items() -> MerchantSession {
 #[test]
 fn search_box_dims_items_that_do_not_match_and_clearing_restores_them() {
     set_data_root();
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
     let mut session = session_with_items();
 
     let registry = mount_state(session.bag_state());
@@ -301,7 +301,7 @@ fn search_box_dims_items_that_do_not_match_and_clearing_restores_them() {
 fn search_clear_button_visibility_and_art_follow_text_in_both_presets() {
     set_data_root();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut state = backpack();
         assert!(
             mount_state(state.clone())
@@ -321,7 +321,7 @@ fn search_clear_button_visibility_and_art_follow_text_in_both_presets() {
         assert_eq!(rect(icon), [3.0, 3.0, 10.0, 10.0]);
         assert_eq!(icon.alpha, 0.5);
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 /// The search box sits in the backpack's attic, between the title bar and the slots;
@@ -330,7 +330,7 @@ fn search_clear_button_visibility_and_art_follow_text_in_both_presets() {
 fn only_the_backpack_has_a_search_box_above_its_slots() {
     set_data_root();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut state = backpack();
         let mut bag = state.bags[0].clone();
         bag.bag_index = 1;
@@ -354,7 +354,7 @@ fn only_the_backpack_has_a_search_box_above_its_slots() {
             .count();
         assert_eq!(searches, 1, "{skin:?}: one search box, on the backpack");
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 /// `ContainerFrame1MoneyFrame` shows the player's money as gold, silver and copper below
@@ -363,7 +363,7 @@ fn only_the_backpack_has_a_search_box_above_its_slots() {
 fn backpack_money_row_splits_the_players_copper_into_coins() {
     set_data_root();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut session = session_with_items();
         session.money = 123_456;
         let registry = mount_state(session.bag_state());
@@ -405,5 +405,5 @@ fn backpack_money_row_splits_the_players_copper_into_coins() {
                 .is_none()
         );
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }

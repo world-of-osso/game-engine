@@ -18,7 +18,7 @@ use game_engine_ui_model::quest_frame_component::{
 use game_engine_ui_model::quest_log_frame_component::{
     QuestLogFrameState, QuestLogGroup, quest_log_frame_screen,
 };
-use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_active_skin};
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_thread_skin};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
@@ -188,7 +188,7 @@ fn assert_draws_member(
 }
 
 fn assert_quest_chrome(skin: ActiveSkin) {
-    set_active_skin(skin);
+    set_thread_skin(skin);
     let dialog = registry(QuestFrameState::default(), quest_frame_screen);
     let log = registry(
         QuestLogFrameState {
@@ -223,7 +223,7 @@ fn assert_quest_chrome(skin: ActiveSkin) {
 
 /// Both quest windows' close buttons draw `RedButton-Exit` under `skin`; returns its file.
 fn assert_close_texture(skin: ActiveSkin) -> u32 {
-    set_active_skin(skin);
+    set_thread_skin(skin);
     let dialog = registry(QuestFrameState::default(), quest_frame_screen);
     let log = registry(QuestLogFrameState::default(), quest_log_frame_screen);
     let fdid = assert_draws_member(
@@ -248,7 +248,7 @@ fn assert_close_texture(skin: ActiveSkin) -> u32 {
 #[ignore = "base fixture capture only"]
 fn capture_base_trees() {
     load_tables();
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
     println!("BEGIN_BASE_TREES\n{}END_BASE_TREES", modern_trees());
     println!(
         "Modern close {:?}",
@@ -263,7 +263,7 @@ fn capture_base_trees() {
 #[test]
 fn quest_chrome_preserves_modern_and_resolves_forever() {
     load_tables();
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
     assert_eq!(modern_trees().as_bytes(), fixture::MODERN_TREES.as_bytes());
     // Forever draws its own close-button art, not Modern's.
     assert_ne!(
@@ -272,5 +272,5 @@ fn quest_chrome_preserves_modern_and_resolves_forever() {
     );
     assert_quest_chrome(ActiveSkin::Modern);
     assert_quest_chrome(ActiveSkin::Forever);
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }

@@ -3,7 +3,6 @@
 mod fixture;
 use std::fmt::Write;
 use std::path::PathBuf;
-use std::sync::Mutex;
 
 use game_engine_ui_model::character_frame::{
     CharacterFrameView, PaperDollSlotView, character_frame_screen,
@@ -17,7 +16,7 @@ use game_engine_ui_model::merchant_frame_component::{MerchantFrameState, merchan
 use game_engine_ui_model::panel_style_data::{
     MetalGeometry, MetalTopLeft, compose_metal_sheet, metal_frame_style,
 };
-use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_active_skin};
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, set_thread_skin};
 use ui_toolkit::frame::{Dimension, WidgetData};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
@@ -259,29 +258,24 @@ fn assert_composed_members(corner: MetalTopLeft, skin: ActiveSkin) {
     }
 }
 
-/// The tests switch the process-wide skin.
-static SKIN: Mutex<()> = Mutex::new(());
-
 #[test]
 #[ignore = "base fixture capture only"]
 fn capture_base_trees() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
     println!("BEGIN_BASE_TREES\n{}END_BASE_TREES", modern_trees());
 }
 
 #[test]
 fn small_window_chrome_preserves_modern_and_draws_forever_members() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
     assert_eq!(modern_trees().as_bytes(), fixture::MODERN_TREES.as_bytes());
     for (corner, hash) in [
         (MetalTopLeft::Portrait, 11562532850027720861),
@@ -296,13 +290,13 @@ fn small_window_chrome_preserves_modern_and_draws_forever_members() {
         );
     }
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         assert_atlas_regions(skin);
         for corner in [MetalTopLeft::Portrait, MetalTopLeft::Plain] {
             assert_composed_members(corner, skin);
         }
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 /// The member texture from `data/textures`.
@@ -365,12 +359,11 @@ fn forever_window<T: 'static>(state: T, screen: fn(&SharedContext) -> Element) -
 
 #[test]
 fn forever_window_titles_sit_inside_the_title_bar_band() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
-    set_active_skin(ActiveSkin::Forever);
+    set_thread_skin(ActiveSkin::Forever);
     let (band_top, band_bottom) = title_bar_band(MetalGeometry::active().unwrap());
     let windows = [
         (
@@ -433,7 +426,7 @@ fn forever_window_titles_sit_inside_the_title_bar_band() {
             "{window}: title {title_top}..{title_bottom} outside the title bar {top}..{bottom}"
         );
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 /// The close button's TOPRIGHT offset: Retail overhangs the window's right edge by 1 at its
@@ -441,13 +434,12 @@ fn forever_window_titles_sit_inside_the_title_bar_band() {
 /// right edge and lifts it above the top (-2, +1) (Camelot/SharedUIPanelTemplates.lua:3-5).
 #[test]
 fn forever_close_button_sits_inside_the_right_edge_and_above_the_top() {
-    let _skin = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     game_engine_ui_model::paths::set_data_root(
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
     let close_button = |skin: ActiveSkin| {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let registry = forever_window(
             MerchantFrameState {
                 visible: true,
@@ -472,7 +464,7 @@ fn forever_close_button_sits_inside_the_right_edge_and_above_the_top() {
     };
     let (modern_overhang, modern_top) = close_button(ActiveSkin::Modern);
     let (forever_overhang, forever_top) = close_button(ActiveSkin::Forever);
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
     assert!(
         modern_overhang > 0.0 && modern_top == 0.0,
         "Modern {modern_overhang},{modern_top}"
