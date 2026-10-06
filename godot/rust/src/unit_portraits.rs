@@ -17,6 +17,8 @@ use std::fs;
 
 use game_engine_core::asset::m2_format::m2_camera::parse_portrait_camera;
 use game_engine_core::creation_scene_data::vertical_fov;
+use game_engine_ui_model::auction_house_frame_component::PORTRAIT as AUCTION_PORTRAIT;
+use game_engine_ui_model::bank_frame_component::PORTRAIT as BANK_PORTRAIT;
 use game_engine_ui_model::character_frame::PORTRAIT as CHARACTER_FRAME_PORTRAIT;
 use game_engine_ui_model::inworld_unit_frames_component::{
     PET_PORTRAIT, PLAYER_PORTRAIT, PortraitSlot, TARGET_PORTRAIT,
@@ -24,6 +26,7 @@ use game_engine_ui_model::inworld_unit_frames_component::{
 use game_engine_ui_model::merchant_frame_component::PORTRAIT as MERCHANT_PORTRAIT;
 use game_engine_ui_model::micro_menu::CHARACTER_PORTRAIT;
 use game_engine_ui_model::quest_frame_component::PORTRAIT as QUEST_PORTRAIT;
+use game_engine_ui_model::trade_frame_component::PORTRAIT as TRADE_PORTRAIT;
 use godot::classes::control::{LayoutPreset, MouseFilter};
 use godot::classes::node::ProcessMode;
 use godot::classes::sub_viewport::UpdateMode;
@@ -70,6 +73,9 @@ pub(crate) struct UnitPortraits {
     merchant: Portrait,
     /// The quest giver or gossip NPC in QuestFrame (`SetPortraitTexture(.., "questnpc")`).
     quest: Portrait,
+    bank: Portrait,
+    auction: Portrait,
+    trade: Portrait,
     party: PartyPortraits,
 }
 
@@ -83,6 +89,9 @@ impl Default for UnitPortraits {
             character: Portrait::new(CHARACTER_FRAME_PORTRAIT),
             merchant: Portrait::new(MERCHANT_PORTRAIT),
             quest: Portrait::new(QUEST_PORTRAIT),
+            bank: Portrait::new(BANK_PORTRAIT),
+            auction: Portrait::new(AUCTION_PORTRAIT),
+            trade: Portrait::new(TRADE_PORTRAIT),
             party: PartyPortraits::default(),
         }
     }
@@ -517,6 +526,25 @@ impl GameClient {
         let quest_npc = self.account.quests.dialog.as_ref().map(|dialog| dialog.npc);
         let (quest_host, quest) =
             self.npc_portrait(self.quests.frame_ui(), &QUEST_PORTRAIT, quest_npc);
+        let (bank_host, banker) = self.npc_portrait(
+            self.banks.bank_ui.as_ref(),
+            &BANK_PORTRAIT,
+            self.banks
+                .bank
+                .state
+                .npc
+                .filter(|_| self.banks.bank.is_open()),
+        );
+        let (auction_host, auctioneer) = self.npc_portrait(
+            self.auction.ui.as_ref(),
+            &AUCTION_PORTRAIT,
+            self.auction.portrait_unit(),
+        );
+        let trade_host = self
+            .trade
+            .ui
+            .as_ref()
+            .and_then(|ui| ui.bind().frame_control(TRADE_PORTRAIT.frame));
         let portraits = &mut self.targeting.portraits;
         portraits.micro.slot = micro_slot;
         let player_result = portraits
@@ -535,6 +563,11 @@ impl GameClient {
             .merchant
             .sync(&mut self.world, merchant_host, merchant);
         let quest_result = portraits.quest.sync(&mut self.world, quest_host, quest);
+        let bank_result = portraits.bank.sync(&mut self.world, bank_host, banker);
+        let auction_result = portraits
+            .auction
+            .sync(&mut self.world, auction_host, auctioneer);
+        let trade_result = portraits.trade.sync(&mut self.world, trade_host, player);
         player_result
             .and(target_result)
             .and(pet_result)
@@ -542,6 +575,9 @@ impl GameClient {
             .and(character_result)
             .and(merchant_result)
             .and(quest_result)
+            .and(bank_result)
+            .and(auction_result)
+            .and(trade_result)
     }
 
     /// The window's portrait slot and `npc`'s appearance while the window shows that NPC.
@@ -595,6 +631,9 @@ impl GameClient {
         portraits.character.clear(&mut self.world);
         portraits.merchant.clear(&mut self.world);
         portraits.quest.clear(&mut self.world);
+        portraits.bank.clear(&mut self.world);
+        portraits.auction.clear(&mut self.world);
+        portraits.trade.clear(&mut self.world);
         portraits.party.clear(&mut self.world);
     }
 }
@@ -616,6 +655,9 @@ impl GameClient {
             &portraits.character,
             &portraits.merchant,
             &portraits.quest,
+            &portraits.bank,
+            &portraits.auction,
+            &portraits.trade,
         ]
         .into_iter()
         .find(|portrait| portrait.slot.frame == frame)

@@ -42,7 +42,7 @@ pub(crate) struct Banks {
     /// frames close (IPC `status warbank|guild-vault`).
     pub(crate) warbank_seen: Option<BankContents>,
     pub(crate) guild_vault_seen: Option<GuildBankContents>,
-    bank_ui: Option<Gd<RegistryUi>>,
+    pub(crate) bank_ui: Option<Gd<RegistryUi>>,
     guild_ui: Option<Gd<RegistryUi>>,
 }
 

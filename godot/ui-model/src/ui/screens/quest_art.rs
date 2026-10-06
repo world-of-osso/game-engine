@@ -143,6 +143,20 @@ pub fn window_chrome(
     elements
 }
 
+/// Retail `BasicFrameTemplate`: rectangular metal corner, no portrait well.
+pub fn window_chrome_no_portrait(
+    prefix: &str,
+    (width, height): (f32, f32),
+    title: &str,
+    close_action: &str,
+) -> Element {
+    let mut elements = window_background(prefix, width, height);
+    elements.extend(metal_border(prefix, width, height, MetalTopLeft::Plain));
+    elements.extend(window_title(prefix, width, title, FLAT_TITLE_LEFT));
+    elements.extend(close_button(prefix, width, close_action));
+    elements
+}
+
 /// `PortraitFrameTemplate` without a background (the window draws its own, like
 /// `FlightMapFrame`): the portrait `metal_frame` border, title and close button.
 pub fn portrait_border(
@@ -183,6 +197,24 @@ pub fn window_portrait(slot: &PortraitSlot) -> Element {
             pos_type: "absolute",
             left: x,
             top: y,
+        }
+    }
+}
+
+/// Static `SetPortraitToAsset` art in the same mask bounds as a live portrait.
+/// The native icon-mask pass rounds these texture frames.
+pub fn window_portrait_texture(slot: &PortraitSlot, fdid: u32) -> Element {
+    let (left, top, width, height) = slot.mask_rect;
+    rsx! {
+        texture {
+            name: {DynName(slot.frame.into())},
+            width,
+            height,
+            frame_level: 400.0,
+            texture_fdid: fdid,
+            pos_type: "absolute",
+            left,
+            top,
         }
     }
 }
@@ -361,17 +393,18 @@ fn window_background(prefix: &str, width: f32, height: f32) -> Element {
         texture {
             name: {DynName(format!("{prefix}Bg"))},
             width: {width - 4.0},
-            height: {height - 23.0},
+            height: {height - 53.0},
             texture_fdid: WINDOW_BACKGROUND,
             pos_type: "absolute",
             left: 2.0,
-            top: 21.0,
+            top: 51.0,
         }
     };
     elements.extend(named_atlas_texture(
         format!("{prefix}TopTileStreaks"),
         TOP_TILE_STREAKS,
-        (6.0, 21.0, width - 8.0, 43.0),
+        // The portrait mask ends at x=55 / y=51; neither background may cross it.
+        (55.0, 21.0, width - 57.0, 43.0),
     ));
     elements
 }
