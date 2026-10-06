@@ -3,7 +3,7 @@ use game_engine_ui_model::guild_rank_frame::{GOLD_BOX, NAME_BOX, guild_screen};
 use game_engine_ui_model::guild_ranks::GuildRanksSession;
 use shared::protocol::*;
 use std::sync::Mutex;
-use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
+use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
@@ -65,7 +65,7 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
 fn guild_rank_widgets_render_only_purchased_bank_tabs() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
         session.open();
         let mut snapshot = state(0);
@@ -88,14 +88,14 @@ fn guild_rank_widgets_render_only_purchased_bank_tabs() {
             "Your guild has not purchased any guild bank space."
         );
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
 fn guild_rank_widgets_wait_for_authority_before_next_permission_write() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
         session.open();
         session.apply(state(0));
@@ -150,14 +150,14 @@ fn guild_rank_widgets_wait_for_authority_before_next_permission_write() {
         assert!(!action(&mounted(&session), "GuildPermission5").is_empty());
         assert_eq!(session.selected().unwrap().rights & GUILD_RIGHT_REMOVE, 0);
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
 fn guild_rank_widgets_guild_master_limits_render_unlimited() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
         session.open();
         session.apply(state(0));
@@ -168,14 +168,14 @@ fn guild_rank_widgets_guild_master_limits_render_unlimited() {
         assert!(action(&reg, "GuildGoldSave").is_empty());
         assert!(action(&reg, "GuildTabSave0").is_empty());
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
 fn guild_rank_widgets_gold_is_readonly_without_withdraw_or_repair_permission() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
         session.open();
         let mut snapshot = state(0);
@@ -192,7 +192,7 @@ fn guild_rank_widgets_gold_is_readonly_without_withdraw_or_repair_permission() {
             Some(WidgetData::FontString(_))
         ));
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
@@ -206,7 +206,7 @@ fn guild_rank_widgets_entry_is_available_in_the_native_micro_menu() {
 fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
     let _lock = SKIN.lock().unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
         session.open();
         session.apply(state(0));
@@ -299,13 +299,13 @@ fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {
         session.apply(reply);
         assert_eq!(text(&mounted(&session), "GuildRankRow2"), "Raider");
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 #[test]
 fn guild_rank_widgets_disable_unauthorized_and_occupied_controls_both_skins() {
     let _lock = SKIN.lock().unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
         session.open();
         session.apply(state(1));
@@ -340,13 +340,13 @@ fn guild_rank_widgets_disable_unauthorized_and_occupied_controls_both_skins() {
             Some(GuildRankRequest::Remove { rank: 3 })
         );
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 #[test]
 fn guild_rank_roster_pages_keep_all_members_reachable() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
         session.open();
         let mut snapshot = state(0);
@@ -366,14 +366,14 @@ fn guild_rank_roster_pages_keep_all_members_reachable() {
         session.click(&action(&reg, "GuildRosterPrevious"), &Default::default());
         assert!(mounted(&session).get_by_name("GuildMember0").is_some());
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
 fn guild_rank_roster_context_uses_strict_hierarchy_both_skins() {
     let _lock = SKIN.lock().unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+        set_thread_skin(skin);
         let mut session = GuildRanksSession::default();
         session.open();
         session.apply(state(0));
@@ -400,5 +400,5 @@ fn guild_rank_roster_context_uses_strict_hierarchy_both_skins() {
         assert!(reg.get_by_name("GuildMemberPromote").is_none());
         assert!(reg.get_by_name("GuildMemberDemote").is_none());
     }
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
 }
