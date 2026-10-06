@@ -39,6 +39,10 @@ Client: `godot/ui-model/src/damage_meter_data.rs` (session selection, rows, numb
 
 ## Tests
 
+- `damage_meter_action_spell_breakdowns_render_every_member_in_both_skins`: exact cast/affected spell labels and counts for all three members in Current and Overall, rendered through Modern and Forever frame registries; row actions open detail and return to the member list.
+- `damage_meter_action_detail_tracks_snapshot_and_missing_affected_identity`: detail follows the selected member across snapshot reordering, updates counts, handles an absent affected spell, and clears when the member or snapshot disappears.
+- `damage_meter_action_spell_names_include_cast_and_affected_identities` and `damage_meter_wire_snapshot_reaches_all_categories_without_log_counts`: native label discovery and remote snapshot dispatch without owner combat-log counting.
+
 - `godot/ui-model/tests/threat_meter.rs`: a received table fills current-target rows, target switches isolate tables, an empty update clears rows, combat end discards caches before the next combat. A threat message arriving one frame before combat replication must survive until combat starts.
 - `godot/rust/src/account.rs` `threat_wire_update_fills_meter_and_combat_end_clears`: actual transport message dispatch feeds the meter and combat end clears it.
 - Targeted proof 2026-10-05: 8 damage-meter types tests, 11 two-skin chrome/menu tests, 2 current-target threat model tests (including threat-before-combat ordering) and 1 native dispatch test passed through the locked helper. No live-render proof.

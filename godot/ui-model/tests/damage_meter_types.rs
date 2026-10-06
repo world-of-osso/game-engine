@@ -109,6 +109,7 @@ fn assert_rendered(window: &DamageMeterWindow, skin: ActiveSkin) {
         if window.view(false, 0.0).rows_clickable() {
             let button = registry
                 .get_by_name(&format!("DamageMeterEntry{}Button", index + 1))
+                .and_then(|id| registry.get(id))
                 .unwrap();
             assert_eq!(
                 button.onclick.as_deref(),
