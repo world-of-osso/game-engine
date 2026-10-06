@@ -112,6 +112,9 @@ pub struct Account {
     pub quests: QuestRuntime,
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
     pub dungeon_difficulty: Option<u32>,
+    pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
+    pub achievements: game_engine_ui_model::achievements::AchievementWindow,
+    pub achievement_requests: Vec<shared::protocol::QueryAchievementCatalog>,
     /// Saved instances of the last `InstanceInfo`.
     pub instance_locks: Vec<InstanceLockInfo>,
     /// Known spells, action bar and cooldowns from the server.
@@ -146,6 +149,7 @@ pub enum AccountEvent {
     /// The session feedback changed without a screen change.
     Feedback,
     WorldReset,
+    Achievement(shared::protocol::AchievementStateUpdate),
     RestState(RestStateUpdate),
     /// `ReputationStateUpdate`: faction standings (`UPDATE_FACTION`) or a refusal.
     Reputation(shared::protocol::ReputationStateUpdate),
@@ -282,6 +286,9 @@ impl Account {
             hostname: String::new(),
             quests: QuestRuntime::default(),
             dungeon_difficulty: None,
+            dungeon_objectives: Default::default(),
+            achievements: Default::default(),
+            achievement_requests: Vec::new(),
             instance_locks: Vec::new(),
             spells: PlayerSpells::default(),
             combat_log: std::collections::VecDeque::new(),
@@ -331,6 +338,9 @@ impl Account {
         self.reply_received = false;
         self.hostname = hostname.to_owned();
         self.dungeon_difficulty = None;
+        self.dungeon_objectives = Default::default();
+        self.achievements = Default::default();
+        self.achievement_requests.clear();
         self.instance_locks.clear();
         self.spells.clear();
         self.combat_log.clear();
@@ -845,6 +855,15 @@ impl Account {
         .map_err(SessionError)
     }
 
+    pub fn send_achievement_request(
+        &self,
+        request: shared::protocol::QueryAchievementCatalog,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::AchievementChannel>(request)
+            .map_err(SessionError)
+    }
+
     /// A chat edit box line (Bevy `send_chat_message`); the server echoes it to its hearers.
     pub fn send_chat(&self, message: ChatMessage) -> Result<(), SessionError> {
         self.bridge()?
@@ -945,6 +964,9 @@ impl Account {
                 }
                 Event::ProtocolRejected(reason) => self.session.receive_protocol_rejected(reason),
                 Event::Disconnected(reason) => {
+                    self.dungeon_objectives = Default::default();
+                    self.achievements = Default::default();
+                    self.achievement_requests.clear();
                     self.set_link_connected(false);
                     output.push(AccountEvent::ReplicationEnded);
                     let effects = match reason.as_deref() {
@@ -1075,6 +1097,9 @@ impl Account {
             || message.is::<QuestGiverStatusMultiple>()
             || message.is::<DungeonDifficultySet>()
             || message.is::<InstanceInfo>()
+            || message.is::<shared::protocol::DungeonProgress>()
+            || message.is::<shared::protocol::AchievementCatalogPage>()
+            || message.is::<shared::protocol::AchievementStateUpdate>()
             || message.is::<DamageMeterSnapshot>()
             || message.is::<shared::protocol::ThreatUpdate>()
             || message.is::<shared::protocol::PlayerXpUpdate>()
@@ -1085,6 +1110,33 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if message.is::<shared::protocol::DungeonProgress>() {
+            let progress: shared::protocol::DungeonProgress = decode(message)?;
+            let name = if progress.encounters.is_empty() {
+                String::new()
+            } else {
+                find_map_field(
+                    &self.data_root,
+                    "ID",
+                    &progress.map_id.to_string(),
+                    "MapName_lang",
+                )?
+            };
+            self.dungeon_objectives.apply(progress, name);
+            return Ok(());
+        }
+        if message.is::<shared::protocol::AchievementCatalogPage>() {
+            let requests = self.achievements.apply(decode(message)?);
+            self.achievement_requests.extend(requests);
+            return Ok(());
+        }
+        if message.is::<shared::protocol::AchievementStateUpdate>() {
+            let update: shared::protocol::AchievementStateUpdate = decode(message)?;
+            self.achievement_requests
+                .extend(self.achievements.refresh(&update));
+            output.push(AccountEvent::Achievement(update));
+            return Ok(());
+        }
         if message.is::<QuestLogSnapshot>() {
             self.quests.apply_snapshot(decode(message)?);
             return Ok(());
@@ -1252,6 +1304,7 @@ impl Account {
         }
         if message.is::<NewWorld>() {
             let new_world: NewWorld = decode(message)?;
+            self.dungeon_objectives.begin_map(new_world.map_id);
             self.session.begin_world_port(new_world.map_id);
             output.push(AccountEvent::NewWorld(new_world));
             output.push(AccountEvent::Screen(SessionScreen::Loading));
@@ -1404,6 +1457,9 @@ impl Account {
                 }
                 SessionEffect::RequestDisconnect => self.connected_bridge()?.disconnect()?,
                 SessionEffect::ResetNetworkWorld => {
+                    self.dungeon_objectives = Default::default();
+                    self.achievements = Default::default();
+                    self.achievement_requests.clear();
                     self.stop_bridge()?;
                     output.push(AccountEvent::WorldReset);
                 }
@@ -1614,6 +1670,10 @@ fn quest_message(
         return Ok(Err(message));
     }))
 }
+
+#[cfg(test)]
+#[path = "account_dungeonclient_tests.rs"]
+mod dungeonclient_tests;
 
 #[cfg(test)]
 mod tests {

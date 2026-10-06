@@ -167,6 +167,12 @@ impl BridgeConfig {
         self
     }
 
+    /// Catalog pages and earned alerts retain their shared AchievementChannel order.
+    pub fn receive_achievements(mut self) -> Self {
+        self.relays.push(install_achievement_relay);
+        self
+    }
+
     pub fn connect(self, server_addr: SocketAddr, client_id: u64) -> Result<NetworkBridge, String> {
         NetworkBridge::start(server_addr, client_id, self.relays)
     }
@@ -209,6 +215,8 @@ impl NetworkBridge {
             // Dungeon difficulty and saved instances for the entrance difficulty bar.
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()
+            .receive::<protocol::DungeonProgress>()
+            .receive_achievements()
             // Server-driven breath, fatigue and feign-death bars.
             .receive_mirror_timers()
             .receive_loot()
@@ -549,6 +557,30 @@ fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
     );
 }
 
+fn install_achievement_relay(app: &mut App, events: Sender<Event>) {
+    app.add_systems(
+        Update,
+        (move |mut pages: Query<&mut MessageReceiver<protocol::AchievementCatalogPage>>,
+               mut updates: Query<&mut MessageReceiver<protocol::AchievementStateUpdate>>| {
+            let mut received = Vec::new();
+            for mut receiver in &mut pages {
+                received.extend(receiver.receive_with_tick().map(|message| {
+                    (message.message_id, ProtocolMessage(Box::new(message.data)))
+                }));
+            }
+            for mut receiver in &mut updates {
+                received.extend(receiver.receive_with_tick().map(|message| {
+                    (message.message_id, ProtocolMessage(Box::new(message.data)))
+                }));
+            }
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events.send(Event::Message(message)).expect("host event receiver closed");
+            }
+        }).run_if(protocol_not_rejected),
+    );
+}
+
 /// One relay for the three mirror timer types, sorted by their `MirrorTimerChannel` message
 /// id: a receiver per type would hand one frame's messages over in system order, so a stop
 /// could overtake the start sent before it.
@@ -823,6 +855,8 @@ fn describe_panic(payload: Box<dyn Any + Send>) -> String {
 #[cfg(test)]
 mod wire_tests;
 
+#[cfg(test)]
+mod dungeonclient_wire_tests;
 #[cfg(test)]
 mod guild_rank_wire_tests;
 #[cfg(test)]
