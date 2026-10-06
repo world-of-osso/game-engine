@@ -268,6 +268,7 @@ impl NetworkBridge {
             .receive::<protocol::GuildBankContents>()
             .receive::<protocol::GuildBankLog>()
             .receive::<protocol::GuildBankFailed>()
+            .receive::<protocol::GuildRanksState>()
             // Chat lines for the chat frame.
             .receive::<ChatMessage>()
             // Players' social emotes, played on their models.
@@ -822,6 +823,8 @@ fn describe_panic(payload: Box<dyn Any + Send>) -> String {
 #[cfg(test)]
 mod wire_tests;
 
+#[cfg(test)]
+mod guild_rank_wire_tests;
 #[cfg(test)]
 mod merchant_wire_tests;
 

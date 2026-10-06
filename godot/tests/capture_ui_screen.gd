@@ -35,9 +35,32 @@ func _run() -> void:
 			ui.queue_free()
 			quit(1)
 			return
+	if screen in ["guild_ranks_preview", "forever_guild_ranks_preview"]:
+		if not guild_rank_footer_has_two_lines(image):
+			ui.queue_free()
+			quit(1)
+			return
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
 	quit(0)
+
+# The rank disclaimer occupies two single-line rows inside the left column.
+# Assert real rendered pixels; the previous 20px multiline label overlapped both rows.
+func guild_rank_footer_has_two_lines(image: Image) -> bool:
+	if image.get_width() != 1920 or image.get_height() != 1080:
+		push_error("Guild rank capture requires 1920x1080")
+		return false
+	for band in [Vector2i(742, 762), Vector2i(764, 788)]:
+		var gold_pixels = 0
+		for y in range(band.x, band.y):
+			for x in range(459, 667):
+				var color = image.get_pixel(x, y)
+				if color.r > 0.6 and color.g > 0.4 and color.b < 0.35:
+					gold_pixels += 1
+		if gold_pixels < 10:
+			push_error("Guild rank disclaimer line missing in band ", band)
+			return false
+	return true
 
 # Concrete four-member preview: third member at (22,147+2*63), health (45,19).
 # Sample right of the Offline label, inside the full offline fill under both skins.
