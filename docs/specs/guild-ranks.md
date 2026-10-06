@@ -10,7 +10,7 @@ decisions; native mounting and transport are not implemented. See [banks](../wik
 - [ ] Guild settings → Guild Ranks opens the same Retail functionality in both skins.
 - [ ] Guild Master alone adds, removes, renames, reorders and configures ranks; rank 0 is immutable, there are 2–10 ranks and names have at most 15 characters.
 - [ ] Occupied ranks cannot be removed; reordered members retain their rank identity.
-- [ ] Requests leave selected-rank data unchanged until the authoritative reply arrives.
+- [x] Requests leave selected-rank data unchanged until the authoritative reply arrives.
 
 ### Permissions and members
 - [ ] Selected rank shows permission checkboxes for guild/officer chat, invite/remove/promote/demote, MOTD and existing officer-note/info features.
@@ -36,7 +36,9 @@ decisions; native mounting and transport are not implemented. See [banks](../wik
 
 `godot/ui-model/tests/native_guild_ranks.rs` tests request values, authoritative selected data,
 rank-zero protection, occupied deletion, hierarchy, refusal text and officer classification.
-These are model tests, not proof that native settings widgets exist.
+All five model tests pass at `61e129e4` through the locked local helper, compiling
+Godot, UI-model and network packages. These are model tests, not proof that native
+settings widgets or transport integration exist.
 
 ## Known gaps (current cycle)
 
