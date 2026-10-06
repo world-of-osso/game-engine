@@ -134,6 +134,16 @@ Proof:
 - `animation/remote_player_tests.rs` on HumanMale HD 1011653: flags → IDs for every direction, walk, swim and jump; only remote players follow flags; Walk 4 → Run 5 → 11 → 12 → 13 → Stand 0 with continuous ≥150 ms crossfades and no restart on repeated flags per frame; a running jump 5 → 37 → 38 → 187 → 5 → 0.
 - Live, two headless clients on a private server (`godot/tests/remote_player_motion.gd`, roles mover/observer): the mover (Fbfps) runs, backpedals, strafes, walks and jumps with real keys; the observer (Fbworldmap) records Fbfps's model: `run [0, 5]`, `backpedal [0, 13]`, `strafe_left [0, 11]`, `strafe_right [0, 12]`, `walk [0, 4]` with changed bones over 12 frames each, `jump [0, 37, 38, 39]`, `run_jump [0, 5, 37, 38, 187]`, and Stand 0 after every stop (`/tmp/claude/remote-motion-observer.log`, frames `/tmp/claude/remote-motion-*.png`).
 
+## Native locomotion interruption and real-time blending
+
+The native controller in `godot/rust/src/animation/mod.rs` retains the original Bevy jump sequence and running-landing choice (`src/rendering/model/animation/runtime.rs` before retirement): 37 → 38 → 39/187 → movement. Directional swim selection is also the original shared policy. Native water entry now preempts every jump/landing phase; unjumped local airborne movement selects Fall 40 and returns directly to ground movement. Local idle turning uses consecutive normalized facing deltas, selecting ShuffleLeft 11 / ShuffleRight 12 at ±0.02 radians; this is the existing native policy, not newly verified Retail turn behavior.
+
+Every destination uses its M2 `blend_time` with a 150 ms floor, including jump clips. Interrupted blends snapshot the currently evaluated base pose, preserving the outgoing mixture rather than restarting from an unblended clip. Clip playback follows movement speed; blend elapsed time remains wall time. Outgoing sequence clocks retain their own authored movement-speed pacing.
+
+`animation/jump_tests.rs` covers concrete state sequences, half-blend weights, water interruption during each jump phase, fall/swim/turn reversal, and a 2×-paced Run with a 200 ms wall-time fade. `animation/remote_player_tests.rs` covers replicated jump and swim using the same controller. The offline HumanMale HD jump/water capture fixture emits skinned body vertices and sequence/weight records; evidence belongs in canonical `data/diagnostics/locomotion-2026-10-06/`.
+
+Replication boundary remains unchanged: `PlayerMotion::FALLING` represents a jump, with no distinct unjumped-fall signal, and carries no idle-turn state. Remote ledge-fall and idle-turn parity cannot be established from those flags; no wire fields were added. Offline captures do not prove live two-client behavior or rendered scene parity.
+
 ## Generated Character Animation
 
 For original (non-WoW) generated characters, the same crossfade logic applies but clips come from Bevy `AnimationClip` assets (glTF) rather than M2 tracks. An additive breathing layer (Chest + Spine2 + Clavicles, ~2° pitch on 3s cycle) runs on top of all base movement animations. See [character-generation.md](../character-generation.md).
