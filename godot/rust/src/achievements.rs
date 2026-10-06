@@ -122,10 +122,11 @@ impl GameClient {
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("AchievementsUI");
         self.base_mut().add_child(&ui);
-        let shown = ui
-            .bind_mut()
-            .set_ui_scale(self.effective_ui_scale())
-            .and_then(|()| ui.bind_mut().show_achievement_window(state));
+        let shown = {
+            let mut host = ui.bind_mut();
+            host.set_ui_scale(self.effective_ui_scale())
+                .and_then(|()| host.show_achievement_window(state))
+        };
         if let Err(error) = shown {
             ui.free();
             return Err(error);
@@ -147,10 +148,11 @@ impl GameClient {
         ui.set_name("AchievementToastUI");
         ui.set_layer(10);
         self.base_mut().add_child(&ui);
-        let shown = ui
-            .bind_mut()
-            .set_ui_scale(self.effective_ui_scale())
-            .and_then(|()| ui.bind_mut().show_achievement_toast(toast));
+        let shown = {
+            let mut host = ui.bind_mut();
+            host.set_ui_scale(self.effective_ui_scale())
+                .and_then(|()| host.show_achievement_toast(toast))
+        };
         if let Err(error) = shown {
             ui.free();
             return Err(error);

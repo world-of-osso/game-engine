@@ -1672,6 +1672,10 @@ fn quest_message(
 }
 
 #[cfg(test)]
+#[path = "account_dungeonclient_tests.rs"]
+mod dungeonclient_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
 
