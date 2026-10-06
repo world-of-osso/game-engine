@@ -25,21 +25,32 @@ func _run() -> void:
 		push_error(error)
 		quit(1)
 		return
+	var uipolish: bool = screen in ["chatflush_preview", "achievement_preview", "forever_achievement_preview"]
+	if screen == "chatflush_preview":
+		RenderingServer.set_default_clear_color(Color(0.25, 0.4, 0.55))
 	for frame in range(120 if screen == "forever_damage_meter_preview" else 3):
 		await process_frame
-		await RenderingServer.frame_post_draw
+		if uipolish:
+			RenderingServer.force_draw()
+		else:
+			await RenderingServer.frame_post_draw
 	if screen == "chatflush_preview":
 		if not chatflush_corner_and_input(ui):
 			ui.queue_free()
 			quit(1)
 			return
 		await process_frame
-		await RenderingServer.frame_post_draw
+		RenderingServer.force_draw()
 	var image = root.get_texture().get_image()
 	if image == null or image.is_empty() or image.save_png(output) != OK:
 		push_error("UI capture requires a rendering display")
 		quit(1)
 		return
+	if screen == "chatflush_preview":
+		if not await chat_backdrop_is_translucent(ui, output):
+			ui.queue_free()
+			quit(1)
+			return
 	if screen == "forever_damage_meter_preview":
 		if not forever_meter_matches_reference(ui, image):
 			ui.queue_free()
@@ -63,6 +74,33 @@ func _run() -> void:
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
 	quit(0)
+
+# Verify FlareUI's exact native tint and visible transmission over black/white.
+# The Blizzard texture has its own alpha; final pixels are not a flat 60% fill.
+func chat_backdrop_is_translucent(ui: Node, output: String) -> bool:
+	var panel: Rect2 = ui.find_child("ChatFrame1FlareSkin", true, false).get_global_rect()
+	var controls: Array[Image] = []
+	for background in [Color.BLACK, Color.WHITE]:
+		RenderingServer.set_default_clear_color(background)
+		await process_frame
+		RenderingServer.force_draw()
+		controls.append(root.get_texture().get_image())
+	if controls[1].save_png(output.get_basename() + "-white-background.png") != OK:
+		push_error("Cannot save chat translucency control")
+		return false
+	var center := ui.find_child("ChatFrame1FlareSkin", true, false).find_child("Part0", true, false) as TextureRect
+	if center == null or not center.self_modulate.is_equal_approx(Color(1, 1, 1, 0.6)):
+		push_error("Chat backdrop tint differs from FlareUI white at alpha 0.6")
+		return false
+	for offset in [Vector2(15, 50), Vector2(200, 50), Vector2(400, 50)]:
+		var sample := Vector2i(panel.position + offset)
+		var difference := controls[1].get_pixelv(sample) - controls[0].get_pixelv(sample)
+		for channel in [difference.r, difference.g, difference.b]:
+			if channel < 0.39 or channel > 0.99:
+				push_error("Chat backdrop must be translucent, not opaque or absent: ", sample, " ", difference)
+				return false
+	print("PASS: rendered Forever backdrop preserves texture alpha with white tint at alpha 0.6")
+	return true
 
 # Production native controls: corner compensation, no neighbour overlap, usable input.
 func chatflush_corner_and_input(ui: Node) -> bool:
