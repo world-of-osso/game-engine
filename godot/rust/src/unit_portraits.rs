@@ -10,6 +10,7 @@
 mod camera_tests;
 mod fixture;
 mod hud_fixture;
+mod npcportraits_preview;
 mod party;
 
 use party::PartyPortraits;
