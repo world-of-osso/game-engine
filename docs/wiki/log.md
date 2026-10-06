@@ -2649,3 +2649,7 @@ Added portable authoritative rank controls and Officer chat parsing/classificati
 ## 2026-10-06 — Quest overflow
 
 [[quest-ui]] records the missing log scroll ancestor and dialog estimate/native-height mismatch, Retail scroll/QuestInfo sources, measured scroll-child feedback and native capture/input regressions. Evidence and current acceptance: `data/diagnostics/questoverflow-2026-10-06/`. Recorded quest trees came only from `capture_base_trees`; Options/menu suffix unchanged.
+
+## 2026-10-06 — Native locomotion interruption and remote idle turns
+
+[[animation]] records resumed locomotion work: preserved original jump/swim policy, immediate water interruption, local Fall 40, real-time blend clock fix and remote idle turning from already replicated facing. RED wall-time and remote-turn regressions reproduced; targeted animation 58/58 at `53d23a73`, remote/local input 11/11 plus core pacing 2/2 at `58e8b16a`, and scoped native cargo fmt check pass. Inspected complete-body offline jump/water sequences and logs live in canonical `data/diagnostics/locomotion-2026-10-06/`. The rejected short-landing/incomplete-geoset capture is retained as failure evidence. No new wire fields, server operations, live two-client/scene parity proof, merge or push. Remote unjumped falls remain blocked by the absent independent airborne/non-jump signal.
