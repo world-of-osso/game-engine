@@ -379,12 +379,11 @@ func check_reward_choice() -> bool:
 		fail("No Complete Quest button")
 		return false
 	await click(complete.get_global_rect().get_center(), MOUSE_BUTTON_LEFT, 0)
-	if not await wait_frames(func(): return error_shown(MUST_CHOOSE), "'" + MUST_CHOOSE + "'"):
+	if not await capture_error(MUST_CHOOSE, "16-must-choose.png"):
 		return false
 	if not in_log(client.quest_state(), CHOICE_QUEST) or client.quest_state().get("page") != "Reward":
 		fail("Complete Quest turned in without a choice: " + str(client.quest_state()))
 		return false
-	await capture("16-must-choose.png")
 	await click_control(quest_control("QuestFrameUI", "QuestInfoRewardsFrameQuestInfoItem2"))
 	if not await wait_quest(func(s): return s.get("choice") == 1, "second reward chosen"):
 		return false
@@ -615,7 +614,7 @@ func error_shown(text: String) -> bool:
 	if ui == null:
 		return false
 	for label in ui.find_children("*", "Label", true, false):
-		if label.text == text and label.is_visible_in_tree():
+		if label.text == text and label.is_visible_in_tree() and label.get_theme_color("font_color").a >= 0.9:
 			return true
 	return false
 
@@ -1025,16 +1024,30 @@ func click_control(control: Control) -> void:
 		return
 	await click(control.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
 
+func capture_error(text: String, file: String) -> bool:
+	var deadline := Time.get_ticks_msec() + WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await RenderingServer.frame_post_draw
+		if error_shown(text):
+			return save_capture(file)
+	fail("Timed out capturing an opaque rendered error: " + text)
+	return false
+
 func capture(file: String) -> void:
+	await RenderingServer.frame_post_draw
+	save_capture(file)
+
+func save_capture(file: String) -> bool:
 	var tracker: Dictionary = client.objective_tracker_state()
 	if tracker.get("visible", false) and not Rect2(Vector2.ZERO, Vector2(root.size)).encloses(tracker.rect):
 		fail("Tracker lies outside screenshot viewport: %s in %s" % [tracker.rect, root.size])
-		return
-	await RenderingServer.frame_post_draw
+		return false
 	var image := root.get_texture().get_image()
 	var error := image.save_png(shots + file)
 	if error != OK:
 		fail("Could not save " + file + ": " + str(error))
+		return false
+	return true
 
 func tap(code: Key) -> void:
 	push_key(code, true)
