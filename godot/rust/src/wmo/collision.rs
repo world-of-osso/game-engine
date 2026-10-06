@@ -131,6 +131,22 @@ impl WmoCollisionBodies {
         })
     }
 
+    /// Local groups, including a WMO queued by a neighbouring tile. Collision
+    /// outside the entry bubble keeps building after the loading screen hides.
+    pub fn nearby_pending(&self, player: Vec3) -> Option<usize> {
+        let tiles = crate::loading::nearby_tiles(player);
+        tiles.iter().all(|tile| self.tiles.contains(tile)).then(|| {
+            self.pending
+                .iter()
+                .filter(|pending| {
+                    let placement = &self.placements[pending.placement];
+                    group_distance(placement, &pending.group, player)
+                        <= crate::terrain::object_progress::ENTRY_RADIUS
+                })
+                .count()
+        })
+    }
+
     fn queue(&mut self, key: PlacementKey, tile: Option<(u32, u32)>, wmo: &WmoCollision) {
         if !self.queued.insert(key) {
             return;
@@ -246,11 +262,15 @@ pub(crate) fn wall_hit(
 
 /// Distance from the player to the group's bounding box, in whole centimetres for ordering.
 fn ordered_distance(placement: &Placement, group: &WmoGroupCollision, player: Vec3) -> u32 {
+    let distance = group_distance(placement, group, player);
+    (distance * 100.0).min(u32::MAX as f32) as u32
+}
+
+fn group_distance(placement: &Placement, group: &WmoGroupCollision, player: Vec3) -> f32 {
     let local = placement.local_from_world.transform_point3(player);
     let (min, max) = group.local_bounds();
     let scale = placement.world_from_local.matrix3.x_axis.length();
-    let distance = (local - local.clamp(min, max)).length() * scale;
-    (distance * 100.0).min(u32::MAX as f32) as u32
+    (local - local.clamp(min, max)).length() * scale
 }
 
 #[cfg(test)]

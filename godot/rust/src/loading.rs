@@ -6,10 +6,21 @@ use game_engine_core::loading_readiness::{
     GlobalWmoState, LoadingInput, TileState, evaluate_world_loading,
 };
 
-use crate::terrain::streaming::TerrainStreamState;
+use crate::terrain::{object_progress::ENTRY_RADIUS, streaming::TerrainStreamState};
 
-/// The center tile's authored objects: placements done (attached with their collision, or
-/// failed and reported) of all queued, and WMO collision groups not built yet.
+/// Terrain tiles covering the local entry bubble (a conservative X/Z square).
+/// The stream already requests the center and its eight neighbours.
+pub(crate) fn nearby_tiles(player: glam::Vec3) -> BTreeSet<(u32, u32)> {
+    let tile_at = game_engine_core::terrain_height_data::bevy_to_tile_coords;
+    let (min_row, max_col) = tile_at(player.x - ENTRY_RADIUS, player.z - ENTRY_RADIUS);
+    let (max_row, min_col) = tile_at(player.x + ENTRY_RADIUS, player.z + ENTRY_RADIUS);
+    (min_row..=max_row)
+        .flat_map(|row| (min_col..=max_col).map(move |col| (row, col)))
+        .collect()
+}
+
+/// Local entry bubble: nearby placements done (attached or failed and reported),
+/// and nearby WMO collision groups not built yet. Distant work is not included.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub(crate) struct TileObjects {
     pub done: usize,
@@ -32,8 +43,8 @@ pub(crate) struct NativeLoading {
 
 /// `local_visual_settled`: the local player's model is attached, or failed and was
 /// reported; the loading screen does not show a world without it. Once the shared rules
-/// accept the center tile's terrain, its `objects` must be done too; `None` until they are
-/// queued. A WMO-only map has no tiles and finishes with its global WMO.
+/// accept the center tile's terrain, nearby `objects` must be done too; `None`
+/// until terrain covering the bubble is attached and its placements are queued. A WMO-only map has no tiles and finishes with its global WMO.
 pub(crate) fn evaluate_native_loading(
     player_position: Option<(f32, f32)>,
     local_visual_settled: bool,
@@ -95,6 +106,19 @@ pub(crate) fn evaluate_native_loading(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn entry_bubble_covers_neighbor_when_player_is_near_tile_edge() {
+        assert_eq!(
+            nearby_tiles(glam::Vec3::new(-8928.0, 99.295, -606.0)),
+            BTreeSet::from([(30, 48), (31, 48)])
+        );
+        // Centered within the tile: no unrelated neighbour is a prerequisite.
+        assert_eq!(
+            nearby_tiles(glam::Vec3::new(-8800.0, 99.295, -800.0)),
+            BTreeSet::from([(30, 48)])
+        );
+    }
 
     /// No object waits: the terrain rules alone decide.
     const DONE: Option<TileObjects> = Some(TileObjects {
