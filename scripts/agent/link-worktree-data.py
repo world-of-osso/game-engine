@@ -62,12 +62,19 @@ def plan_links(source, destination, relative, tracked):
 
 
 def refuse_open_files(directories):
-    """Fail closed when descriptors cannot be inspected; ignore exited processes."""
+    """Refuse while any of this user's processes holds a file under `directories`.
+
+    Only the slot owner's processes (clients, extractors, agent-run builds) open slot
+    data; Depot builds read snapshot copies. Other users' descriptors are unreadable
+    without root, so they are skipped rather than blocking the repair."""
     roots = [str(path) for path in directories]
+    uid = os.getuid()
     for process in PROC_ROOT.iterdir():
         if not process.name.isdigit():
             continue
         try:
+            if process.stat().st_uid != uid:
+                continue
             descriptors = list((process / "fd").iterdir())
             for descriptor in descriptors:
                 try:
