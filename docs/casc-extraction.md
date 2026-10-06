@@ -120,6 +120,25 @@ FDID -> content key -> encoding key -> read_file_by_encoding_key()
   - `cascette-formats`: BLTE decompression
 - CASCLib: https://github.com/ladislav-zezula/CascLib — C reference implementation
 
+## Item-model material declarations
+
+Equipment requires `data/ItemDisplayInfoModelMatRes.csv`, not only the two legacy
+`ItemDisplayInfo.ModelMaterialResourcesID` columns. Extract FDID **4050937** from local
+CASC, then export layout **52510D63**:
+
+```sh
+casc-local 4050937 -o data/dbfilesclient
+python3 scripts/export_db2_csv.py ItemDisplayInfoModelMatRes data/dbfilesclient/4050937.db2 data/ItemDisplayInfoModelMatRes.csv
+```
+
+The catalog loads `(ItemDisplayInfoID, ModelIndex, TextureType, MaterialResourcesID)`
+and selects each texture through `TextureFileData`/race-sex component ownership. Native
+items cache these BLPs from local CASC and bind each declared M2 type on every sampled
+slot. `GAME_ENGINE_EQUIPMENT_TEXTURE_DIAGNOSTICS=1` logs concrete FDIDs per item batch.
+Missing declarations/files fail explicitly rather than leaving shader-white uniforms.
+The 2026-10-06 export contains 141,252 rows; 129 records remain encrypted/unavailable.
+See [Everforged shoulder diagnosis](wiki/investigations/npc-stance-gear.md#everforged-shoulder-materials-2026-10-06).
+
 ## Related Notes
 
 - `docs/casc-db2-keys.md` — difference between WoWDBDefs schema metadata and TACT key sources for encrypted DB2 extraction
