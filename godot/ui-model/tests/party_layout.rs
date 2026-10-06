@@ -23,6 +23,78 @@ use ui_toolkit::{
 };
 
 static SKIN: std::sync::Mutex<()> = std::sync::Mutex::new(());
+#[path = "../../rust/src/unit_portraits/party_settings.rs"]
+mod options_preview;
+
+#[test]
+fn party4_both_skin_panels_emit_checkbox_slider_and_dropdown_actions() {
+    let _lock = SKIN.lock().unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        setup(skin);
+        let mut layout = LayoutOptionsView {
+            system: LayoutSystem::PartyFrames,
+            ..Default::default()
+        };
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        let mut screen = Screen::new(game_engine_ui_model::game_menu_component::game_menu_screen);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        for key in [
+            "party_compact",
+            "party_background",
+            "party_horizontal",
+            "party_border",
+            "party_pets",
+        ] {
+            shared.insert(options_preview::options_view(layout.clone()));
+            screen.sync(&shared, &mut registry);
+            let id = registry.get_by_name(key).expect(key);
+            let action = registry.click_frame(id).expect("checkbox is clickable");
+            assert_eq!(action, format!("options_toggle:{key}"));
+            apply_layout_action(parse_layout_action(&action).unwrap(), &mut layout);
+        }
+        for (key, index) in [("party_sort", 0), ("party_aura", 2)] {
+            shared.insert(options_preview::options_view(layout.clone()));
+            screen.sync(&shared, &mut registry);
+            let id = registry
+                .get_by_name(&format!("PartyDropdownButton{key}"))
+                .unwrap();
+            let action = registry.click_frame(id).expect("dropdown opens");
+            apply_layout_action(parse_layout_action(&action).unwrap(), &mut layout);
+            shared.insert(options_preview::options_view(layout.clone()));
+            screen.sync(&shared, &mut registry);
+            let id = registry
+                .get_by_name(&format!("PartyChoice{key}{index}"))
+                .unwrap();
+            let action = registry.click_frame(id).expect("dropdown choice clickable");
+            apply_layout_action(parse_layout_action(&action).unwrap(), &mut layout);
+            assert!(layout.party_dropdown.is_none());
+        }
+        shared.insert(options_preview::options_view(layout.clone()));
+        screen.sync(&shared, &mut registry);
+        for key in [
+            "party_width",
+            "party_height",
+            "party_size",
+            "party_opacity",
+            "party_debuff",
+            "party_buff",
+            "party_defensive",
+        ] {
+            let id = registry.get_by_name(&format!("Slider{key}")).expect(key);
+            let action = registry.click_frame(id).expect("slider emits action");
+            assert!(matches!(
+                parse_slider_action(&action),
+                Some(SliderField::Layout(_))
+            ));
+        }
+        assert_eq!(layout.settings.party.sort, Some(PartySort::Role));
+        assert_eq!(
+            layout.settings.party.aura_organization,
+            Some(PartyAuraOrganization::BuffsRight)
+        );
+    }
+}
 
 fn setup(skin: ActiveSkin) {
     ui_toolkit::atlas::set_active_skin(skin);
@@ -155,8 +227,11 @@ fn party4_defaults_keep_both_skins_compact_at_98_by_44() {
             Dimension::Fixed(44.0)
         );
         assert_eq!(text(&r, "CompactPartyFrameMember1Name"), "Zed");
-        assert!(frame(&r, "CompactPartyFrameSettingsBorder").hidden);
-        assert!(frame(&r, "CompactPartyFrameSettingsBackground").hidden);
+        assert!(r.get_by_name("CompactPartyFrameSettingsBorder").is_none());
+        assert!(
+            r.get_by_name("CompactPartyFrameSettingsBackground")
+                .is_none()
+        );
         assert_eq!(frame(&r, "CompactPartyFrame").alpha, 1.0);
     }
 }
