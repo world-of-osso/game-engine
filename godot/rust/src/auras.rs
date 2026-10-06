@@ -34,6 +34,54 @@ use crate::faction_reaction::{Reaction, reaction};
 use crate::frame_error::FrameError;
 use crate::{GameClient, ui::RegistryUi};
 
+fn select_owned_player_auras(auras: Vec<AuraInstance>, pet_aura_ids: &[u32]) -> Vec<AuraInstance> {
+    auras
+        .into_iter()
+        .filter(|aura| {
+            !aura.is_debuff || aura.from_local_player || pet_aura_ids.contains(&aura.instance_id)
+        })
+        .collect()
+}
+
+#[cfg(test)]
+mod forevergaps_tests {
+    use super::*;
+    #[test]
+    fn forevergaps_player_debuff_filter_keeps_local_player_and_pet_not_other_players() {
+        let buff = AuraInstance {
+            instance_id: 1,
+            spell_id: 11426,
+            name: "Ice Barrier".into(),
+            description: String::new(),
+            icon_fdid: 135988,
+            source: "Shot".into(),
+            from_local_player: true,
+            from_player: true,
+            duration: 60.0,
+            remaining: 29.0,
+            stacks: 1,
+            is_debuff: false,
+            debuff_type: game_engine_ui_model::aura_display_data::DebuffType::None,
+        };
+        let mut own = buff.clone();
+        own.instance_id = 2;
+        own.is_debuff = true;
+        let mut pet = own.clone();
+        pet.instance_id = 3;
+        pet.from_local_player = false;
+        let mut other = pet.clone();
+        other.instance_id = 4;
+        let shown = select_owned_player_auras(vec![buff, own, pet, other], &[3]);
+        assert_eq!(
+            shown
+                .iter()
+                .map(|aura| aura.instance_id)
+                .collect::<Vec<_>>(),
+            vec![1, 2, 3]
+        );
+    }
+}
+
 /// `CooldownFrameTemplate` swipe colour 0,0,0,0.64 (Cooldown.xml:3-11).
 const SWIPE_COLOR: Color = Color::from_rgba(0.0, 0.0, 0.0, 0.64);
 /// `Interface\Cooldown\UI-HUD-ActionBar-SecondaryCooldown`, the template's edge texture.
@@ -210,6 +258,24 @@ impl GameClient {
             ),
             Err(_) => Reaction::Neutral,
         }
+    }
+
+    /// FlareUI's onlyMyDebuffs means the local player or its current pet, not any player.
+    pub(super) fn fill_player_frame_auras(&self, state: &mut UnitFrameState, player: u64) {
+        let pet = self.local_pet_id();
+        let pet_aura_ids: Vec<u32> = self
+            .replica
+            .unit(player)
+            .and_then(|unit| unit.get::<UnitAuras>())
+            .map(|set| {
+                set.auras
+                    .iter()
+                    .filter(|aura| aura.caster.is_some() && aura.caster == pet)
+                    .map(|aura| aura.instance_id)
+                    .collect()
+            })
+            .unwrap_or_default();
+        state.player_auras = select_owned_player_auras(self.unit_auras(player), &pet_aura_ids);
     }
 
     /// TargetFrame aura rows of `target` as the local player sees them.

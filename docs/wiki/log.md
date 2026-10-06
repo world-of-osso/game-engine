@@ -1,3 +1,7 @@
+## 2026-10-06 — Forever player aura lane
+
+[Forever preset](systems/forever-preset.md#player-aura-lane) now records the player-frame aura consumer and offline production-screen capture. [HUD contract](../specs/hud-edit-mode.md) owns FlareUI geometry and local-player/pet filtering. Targeted RED reproduced missing player icons; GREEN and raster proof are recorded separately under `data/diagnostics/forevergaps-2026-10-06/` when available. Modern fixtures are not regenerated.
+
 ## 2026-10-06 — Roster-only party portraits
 
 [Client roster appearance hookup](systems/portrait-party-frames.md#roster-only-appearance--2026-10-06) removes replicated-player discovery and cached-appearance fallback. `c582ef32` / `a104cde8`: unseen and initially offline members render from roster data, helm updates change actual head pixels, offline retains/desaturates appearance, compact remains zero-render. Native build, 13 targeted Rust/UI tests and eight real-engine cases per skin pass. Inspected Modern/Forever captures: `data/diagnostics/rosterclient-2026-10-06/`; existing shutdown warnings remain. No server, live acceptance, merge or push.

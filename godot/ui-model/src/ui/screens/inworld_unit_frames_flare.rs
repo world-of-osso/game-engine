@@ -258,7 +258,15 @@ fn flare_contents(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
         {power_bar.unwrap_or_default()}
         {flare_border_frame(spec.root, spec.size)}
         {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), [flare_separator(spec, unit), flare_texts(spec, unit, health), flare_power_text(spec, unit)].into_iter().flatten().collect())}
-        {unit.aura_state.map(|state| super::inworld_unit_frames_aura::flare_auras(state, width)).unwrap_or_default()}
+        {unit.aura_state.map(|state| flare_unit_auras(spec, state)).unwrap_or_default()}
+    }
+}
+
+fn flare_unit_auras(spec: &FlareFrame, state: &UnitFrameState) -> Element {
+    if spec.root == FLARE_PLAYER.root {
+        super::inworld_unit_frames_aura::flare_player_auras(&state.player_auras, spec.size.0)
+    } else {
+        super::inworld_unit_frames_aura::flare_auras(state, spec.size.0)
     }
 }
 
