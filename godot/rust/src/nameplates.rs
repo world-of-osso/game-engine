@@ -426,6 +426,39 @@ fn nameplate_text_color(is_player: bool, colorblind_mode: bool) -> Color {
     }
 }
 
+fn plate_health_color(
+    style: &NameplateStyle,
+    reaction: Reaction,
+    hostile: bool,
+    tap_denied: bool,
+) -> Color {
+    if tap_denied {
+        // CompactUnitFrame.lua:675-677: tap-denied health is 0.9 grey, not the
+        // 0.5 used for tap-denied names and TargetFrame faction/portrait tint.
+        Color::from_rgb(0.9, 0.9, 0.9)
+    } else if hostile {
+        Color::from_rgb(1.0, 0.0, 0.0)
+    } else {
+        reaction_color(style, reaction)
+    }
+}
+
+#[cfg(test)]
+#[test]
+fn rezrtap_nameplate_health_color_both_skins() {
+    for _skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let style = NameplateStyle::default();
+        assert_eq!(
+            plate_health_color(&style, Reaction::Hostile, true, true),
+            Color::from_rgb(0.9, 0.9, 0.9)
+        );
+        assert_eq!(
+            plate_health_color(&style, Reaction::Hostile, true, false),
+            Color::from_rgb(1.0, 0.0, 0.0)
+        );
+    }
+}
+
 fn reaction_color(style: &NameplateStyle, reaction: Reaction) -> Color {
     let [r, g, b] = match reaction {
         Reaction::Hostile => style.health_colors.hostile,
@@ -1368,6 +1401,13 @@ impl GameClient {
         let Some(viewer) = build_viewer(&self.world, &self.replica, target, templates) else {
             return Ok(HashMap::new());
         };
+        let group: Vec<_> = self
+            .account
+            .group
+            .members
+            .iter()
+            .map(|member| member.character_id)
+            .collect();
         let views = self
             .replica
             .units()
@@ -1381,13 +1421,14 @@ impl GameClient {
                 }
                 let reaction = reaction(template, viewer.template);
                 let friendly = reaction == Reaction::Friendly;
-                let color =
-                    if selection_in_combat_is_hostile(unit.threat_list(), viewer.id, friendly) {
-                        // CompactUnitFrame_UpdateHealthColor: `r, g, b = 1.0, 0.0, 0.0`.
-                        Color::from_rgb(1.0, 0.0, 0.0)
-                    } else {
-                        reaction_color(&style, reaction)
-                    };
+                let denied = self
+                    .account
+                    .session
+                    .selected_character_id
+                    .is_some_and(|character| unit.tap_denied(character, &group));
+                let hostile =
+                    selection_in_combat_is_hostile(unit.threat_list(), viewer.id, friendly);
+                let color = plate_health_color(&style, reaction, hostile, denied);
                 let name_color = nameplate_text_color(unit.has::<Player>(), colorblind_mode);
                 let mut view = project_plate(
                     camera,

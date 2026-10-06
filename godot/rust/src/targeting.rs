@@ -791,8 +791,22 @@ impl GameClient {
         let target_of_target_id = target_unit
             .and_then(|unit| target_of_target(&self.replica, unit, local_player))
             .map(|unit| unit.server_id);
-        let mut target =
-            target_unit.map(|unit| target_frame_state(unit, viewer_level, multiplier, &texts));
+        let group: Vec<_> = self
+            .account
+            .group
+            .members
+            .iter()
+            .map(|member| member.character_id)
+            .collect();
+        let mut target = target_unit.map(|unit| {
+            let mut state = target_frame_state(unit, viewer_level, multiplier, &texts);
+            state.tap_denied = self
+                .account
+                .session
+                .selected_character_id
+                .is_some_and(|viewer| unit.tap_denied(viewer, &group));
+            state
+        });
         let target_health = target_unit
             .and_then(|unit| unit.get::<Health>())
             .map(|health| {

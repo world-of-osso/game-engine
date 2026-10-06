@@ -1,3 +1,7 @@
+## 2026-10-06 — Player resurrection offers and creature taps
+
+[Death flow](systems/death-flow.md#player-resurrection-offers-and-tap-eligibility) replaces the former wire gaps with real offer/response transport, timed RESURRECT dialogs and stable viewer/group tap comparison. Retail nameplate health is 0.9 grey; requested target health uses TargetFrame's 0.5 faction/portrait tint, through each skin's brightness treatment. Targeted CPU/UDP proof ledger: `/tmp/claude/rezrtap-proof.md`; native GPU/live realm equivalence remains unclaimed.
+
 ## 2026-10-06 — Forever player aura lane
 
 [Forever preset](systems/forever-preset.md#player-aura-lane) now records the player-frame aura consumer and offline production-screen capture. [HUD contract](../specs/hud-edit-mode.md) owns FlareUI geometry and local-player/pet filtering. Targeted RED reproduced missing player icons; GREEN and raster proof are recorded separately under `data/diagnostics/forevergaps-2026-10-06/` when available. Modern fixtures are not regenerated.
@@ -2653,3 +2657,6 @@ Added portable authoritative rank controls and Officer chat parsing/classificati
 ## 2026-10-06 — Everforged shoulder material declarations
 
 Local-CASC ItemDisplayInfoModelMatRes4050937 establishes type3 material822338/texture5665215 for item222436. Offline RED catches both white shoulder batches; catalog/runtime binding and real-item material regressions added. Source d3a4d664: targeted29/29 CPU, native build, scoped fmt and4 rendered fixtures PASS;8 captures inspected, white planes replaced by authored orange glow. See [diagnosis](investigations/npc-stance-gear.md#everforged-shoulder-materials-2026-10-06).
+## 2026-10-06 — Owner death flow
+
+[[death-flow]] records the missing default death subscription, Retail dialog/GlobalStrings sources, supported release/corpse/healer actions and ghost projection. RED: default bridge timed out over loopback UDP; three death model tests failed as expected. Resurrection offers and tap-denied remain blocked by pinned protocol/server replication; no server/protocol modifications. Follow-up targeted run proved UDP subscription/requests, native account dispatch and dead/corpse/error lifecycle GREEN. Three additional RED cases isolated missing corpse marker and healer confirmation requiring explicit interaction. Owner corpse/edge arrow and InteractUnit healer confirmation implemented next; final targeted proof pending. Added a feature-gated loopback fixture to prove actual production Account sending after the rendered popup click, in both skins; no live server dependency. `0c7e60da` compiles without warnings and has ten passing targeted tests, including that full request path. Marker test-only `5ba715aa` adds the required skin context; its focused rerun is queued behind an unrelated publishing upload holding the shared build lock. [[death-flow]] records exact test names, receipts, remaining native visual proof and protocol blockers; no completion/merge readiness claim.

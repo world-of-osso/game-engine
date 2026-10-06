@@ -23,6 +23,7 @@ mod chat;
 mod combat_text;
 mod combat_visuals;
 mod damage_meter;
+mod death_flow;
 mod debug_character;
 mod display_options;
 mod entrance_bar;
@@ -273,6 +274,7 @@ pub struct GameClient {
     tooltips: tooltips::Tooltips,
     mailbox: mail::Mailbox,
     trade: trade::Trade,
+    death_flow: game_engine_ui_model::death_flow::DeathFlow,
     unit_menu: unit_menu::UnitMenu,
     banks: bank::Banks,
     guild_ranks: guild_ranks::GuildRanks,
@@ -396,6 +398,7 @@ impl INode3D for GameClient {
             tooltips: tooltips::Tooltips::default(),
             mailbox: mail::Mailbox::default(),
             trade: trade::Trade::default(),
+            death_flow: Default::default(),
             unit_menu: unit_menu::UnitMenu::default(),
             banks: bank::Banks::default(),
             guild_ranks: guild_ranks::GuildRanks::default(),
@@ -1849,6 +1852,8 @@ impl GameClient {
             AccountEvent::Combat(message) => self.receive_combat_message(message)?,
             AccountEvent::Mail(message) => self.receive_mail(message)?,
             AccountEvent::Trade(update) => self.receive_trade(update)?,
+            AccountEvent::Death(update) => self.receive_death(update)?,
+            AccountEvent::Resurrection(offer) => self.death_flow.receive_offer(offer),
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
             AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
@@ -2258,6 +2263,7 @@ impl GameClient {
         self.game_objects.reset();
         self.mailbox.reset();
         self.trade.reset();
+        self.death_flow = Default::default();
         self.in_rest_area = false;
         self.rest = None;
         self.reputation = None;
