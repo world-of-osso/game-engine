@@ -432,6 +432,22 @@ struct PlateArt {
     font: Gd<godot::classes::FontFile>,
 }
 
+fn health_frame_bytes(_skin: ActiveSkin, thick: bool) -> &'static [u8] {
+    if thick {
+        include_bytes!("rendering/ui/nameplate_skins/health-thick.png")
+    } else {
+        include_bytes!("rendering/ui/nameplate_skins/health-thin.png")
+    }
+}
+
+fn health_fill_bytes(_skin: ActiveSkin, thick: bool) -> &'static [u8] {
+    if thick {
+        include_bytes!("rendering/ui/nameplate_skins/health-fill-thick.png")
+    } else {
+        include_bytes!("rendering/ui/nameplate_skins/health-fill.png")
+    }
+}
+
 fn png_texture(bytes: &[u8], desaturate: bool) -> Result<Gd<ImageTexture>, String> {
     let mut image = Image::new_gd();
     let error = image.load_png_from_buffer(&PackedByteArray::from(bytes));
@@ -490,9 +506,17 @@ struct LevelArt {
     skull: Gd<AtlasTexture>,
 }
 
+fn level_art_crop(name: &str, skin: ActiveSkin) -> Result<AtlasArt, String> {
+    skin_art(name, skin)
+}
+
+fn displayed_plate_level(unit: ReplicatedUnit, _viewer_level: Option<u8>) -> Option<u8> {
+    unit.get::<UnitLevel>().map(|level| level.0)
+}
+
 impl LevelArt {
     fn load(atlases: LevelAtlases, skin: ActiveSkin, data_root: &Path) -> Result<Self, String> {
-        let art = |name| atlas_art(&skin_art(name, skin)?, data_root);
+        let art = |name| atlas_art(&level_art_crop(name, skin)?, data_root);
         Ok(Self {
             icon: art(atlases.icon)?,
             selected: art(atlases.selected)?,
