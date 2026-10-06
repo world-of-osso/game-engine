@@ -468,16 +468,16 @@ pub fn is_collection_model(path: &Path) -> bool {
         .contains("item/objectcomponents/collections/")
 }
 
-/// Body armor and skeletal collections bind to character joints. A waist base
-/// mesh with one untransformed non-key root is attachment-local, even under
-/// `collections/` (Zaralda's 6378872); WMVx belts use BELT_BUCKLE, not Ground.
+/// Body armor and skeletal collections bind to character joints. Waist models
+/// with only non-key bones and no body-belt geosets use BELT_BUCKLE instead:
+/// their own skeleton may animate, and their mesh IDs need not be zero.
 pub fn slot_uses_bound_joints(
     slot: EquipmentSlot,
     m2_path: &Path,
     bones: &[M2Bone],
     mesh_parts: impl IntoIterator<Item = u16>,
 ) -> bool {
-    if slot == EquipmentSlot::Waist && is_rigid_waist_base_mesh(bones, mesh_parts) {
+    if slot == EquipmentSlot::Waist && is_attachment_local_waist(bones, mesh_parts) {
         return false;
     }
     matches!(
@@ -490,19 +490,12 @@ pub fn slot_uses_bound_joints(
     ) || is_collection_model(m2_path)
 }
 
-fn is_rigid_waist_base_mesh(bones: &[M2Bone], mesh_parts: impl IntoIterator<Item = u16>) -> bool {
-    let untransformed_root = matches!(
-        bones,
-        [M2Bone {
-            key_bone_id: -1,
-            flags: 0,
-            parent_bone_id: -1,
-            ..
-        }]
-    );
-    let mut parts = mesh_parts.into_iter();
-    let base_mesh_only = parts.next() == Some(0) && parts.all(|part| part == 0);
-    untransformed_root && base_mesh_only
+fn is_attachment_local_waist(bones: &[M2Bone], mesh_parts: impl IntoIterator<Item = u16>) -> bool {
+    let own_skeleton = !bones.is_empty() && bones.iter().all(|bone| bone.key_bone_id == -1);
+    let body_belt_geosets = mesh_parts
+        .into_iter()
+        .any(|part| collection_mesh_part_in_slot(EquipmentSlot::Waist, part));
+    own_skeleton && !body_belt_geosets
 }
 
 /// Whether a collection model's mesh part belongs to `slot`: a collection file is shared

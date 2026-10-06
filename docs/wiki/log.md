@@ -2638,6 +2638,10 @@ Added portable authoritative rank controls and Officer chat parsing/classificati
 ## Sparse portrait FoV — 2026-10-06
 
 [[portrait-party-frames]]: real Human female HD camera data reproduces the first-slot-only parser substituting one radian despite authored 0.785396576 keys in slot 2. Static snapshots skip empty slots; no race-specific zoom, clipping or light changes. Real/synthetic RED confirmed; production `e112494a` plus fixture `9f0e0719` passes eight core camera tests, eight authored head orientations and real Human/Blood Elf male/female skull framing/brightness. Jaina height improves 0.452195→0.585480; skin/hair textures unchanged. Both skins' five roster/lifecycle tests and inspected offline recaptures pass. Existing global shutdown leaks remain. Rejected hairstyle/typing oracles retained. Evidence: `data/diagnostics/jainaportrait-2026-10-06/`.
+## 2026-10-06 — Live Stockade completion and waist binding
+
+[[dungeon-achievements]] records one paladin run's three player kills, inspected incremental tracker, server-triggered toast, achievement633 earned date and cleared tracker on exit. [[npc-stance-gear]] records the reproduced animated/nonzero-geoset belt binding failure and pixel regression fixtures. Evidence: `data/diagnostics/stockaderun-2026-10-06/run2/`.
+
 ## 2026-10-06 — Quest overflow
 
 [[quest-ui]] records the missing log scroll ancestor and dialog estimate/native-height mismatch, Retail scroll/QuestInfo sources, measured scroll-child feedback and native capture/input regressions. Evidence and current acceptance: `data/diagnostics/questoverflow-2026-10-06/`. Recorded quest trees came only from `capture_base_trees`; Options/menu suffix unchanged.
