@@ -1,6 +1,9 @@
 ## 2026-10-06 — Roster-only party portraits
 
 [Client roster appearance hookup](systems/portrait-party-frames.md#roster-only-appearance--2026-10-06) removes replicated-player discovery and cached-appearance fallback. `c582ef32` / `a104cde8`: unseen and initially offline members render from roster data, helm updates change actual head pixels, offline retains/desaturates appearance, compact remains zero-render. Native build, 13 targeted Rust/UI tests and eight real-engine cases per skin pass. Inspected Modern/Forever captures: `data/diagnostics/rosterclient-2026-10-06/`; existing shutdown warnings remain. No server, live acceptance, merge or push.
+## 2026-10-06 — Dungeon client
+
+[Dungeon objectives and AchievementFrame](systems/dungeon-achievements.md): code `ada3c295`, eight targeted tests and native build pass; five inspected offline captures pass under both skins. Native subscriptions, copy-scoped tracker above watched quests, cursor cache, UTC dates, in-flight live refresh and earned alerts. Approved tracker anchor retained; no server edits or live gameplay claim. Capture teardown RID/font leaks remain.
 
 ## 2026-10-06 — Authored portrait cameras and Modern HUD pixel overlap
 
