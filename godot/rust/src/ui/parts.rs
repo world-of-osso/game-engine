@@ -153,13 +153,8 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
                 Crop::Normalized(texture.tex_coords)
             };
             let [r, g, b, a] = texture.vertex_color;
-            let color = if texture.desaturated {
-                let lum = 0.2126 * r + 0.7152 * g + 0.0722 * b;
-                [lum, lum, lum, a]
-            } else {
-                texture.vertex_color
-            };
-            let mut part = textured(rect, texture.source.clone(), crop, color);
+            let mut part = textured(rect, texture.source.clone(), crop, [r, g, b, a]);
+            part.desaturated = texture.desaturated;
             part.rotation = texture.rotation;
             part.additive = texture.blend_mode == BlendMode::Additive;
             Some(part)
