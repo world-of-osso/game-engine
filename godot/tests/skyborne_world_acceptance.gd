@@ -259,8 +259,13 @@ func walk_to_sky_ender() -> Node3D:
 		fail("Native key-event walk to Rorian exceeded45s")
 		return null
 	# walk_to can return after passing the target: require actual settled proximity.
+	print("SKYBORNE WALK_RETURN local=", player_position(), " server=", client.account_state().local_server_position, " ender=", ender.global_position)
+	var proximity_sample := {"next": Time.get_ticks_msec()}
 	if not await wait_frames(func():
 		var state: Dictionary = client.account_state()
+		if Time.get_ticks_msec() >= proximity_sample.next:
+			print("SKYBORNE PROXIMITY local=", player_position(), " server=", state.local_server_position, " ender=", ender.global_position)
+			proximity_sample.next = Time.get_ticks_msec() + 1000
 		return player_position().distance_to(ender.global_position) <= INTERACT_YARDS and state.local_server_position != null and state.local_server_position.distance_to(ender.global_position) <= INTERACT_YARDS, "actual local/server proximity to Rorian", WAIT_MS):
 		return null
 	var to := ender.global_position - player_position()
