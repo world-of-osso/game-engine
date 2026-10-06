@@ -1,8 +1,9 @@
 //! Retail CastingBarFrame.xml feedback sampled on the cast reducer's clock.
+use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
-use ui_toolkit::widgets::{BlendMode, WidgetData};
+use ui_toolkit::widgets::texture::BlendMode;
 
 use super::{CastBarStyle, CastingBarState};
 
@@ -89,12 +90,12 @@ fn finish_art(style: &CastBarStyle, state: &CastingBarState, seconds: f32) -> El
             rotation: 0.0,
         },
     );
-    let finish = if state.is_channel {
-        channel_finish(style, seconds)
-    } else if state.is_interruptible {
-        standard_finish(style, seconds)
-    } else {
+    let finish = if !state.is_interruptible {
         Element::default()
+    } else if state.is_channel {
+        channel_finish(style, seconds)
+    } else {
+        standard_finish(style, seconds)
     };
     flash.into_iter().chain(finish).collect()
 }
