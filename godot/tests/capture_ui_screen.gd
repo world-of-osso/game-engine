@@ -25,21 +25,38 @@ func _run() -> void:
 		push_error(error)
 		quit(1)
 		return
-	for frame in range(120 if screen == "forever_damage_meter_preview" else 3):
+	var uipolish: bool = screen in ["chatflush_preview", "achievement_preview", "forever_achievement_preview"]
+	if screen == "chatflush_preview":
+		RenderingServer.set_default_clear_color(Color(0.25, 0.4, 0.55))
+	var settle_frames: int = 120 if screen in ["forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview"] else 3
+	for frame in range(settle_frames):
 		await process_frame
-		await RenderingServer.frame_post_draw
+		if uipolish:
+			RenderingServer.force_draw()
+		else:
+			await RenderingServer.frame_post_draw
 	if screen == "chatflush_preview":
 		if not chatflush_corner_and_input(ui):
 			ui.queue_free()
 			quit(1)
 			return
 		await process_frame
-		await RenderingServer.frame_post_draw
+		RenderingServer.force_draw()
 	var image = root.get_texture().get_image()
 	if image == null or image.is_empty() or image.save_png(output) != OK:
 		push_error("UI capture requires a rendering display")
 		quit(1)
 		return
+	if screen in ["achievement_preview", "forever_achievement_preview"]:
+		if not achievement_header_matches_retail(ui, image):
+			ui.queue_free()
+			quit(1)
+			return
+	if screen == "chatflush_preview":
+		if not await chat_backdrop_is_translucent(ui, output):
+			ui.queue_free()
+			quit(1)
+			return
 	if screen == "forever_damage_meter_preview":
 		if not forever_meter_matches_reference(ui, image):
 			ui.queue_free()
@@ -63,6 +80,67 @@ func _run() -> void:
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
 	quit(0)
+
+# Retail Mainline/Blizzard_AchievementUI.lua:298 and XML:1973-1984.
+func achievement_header_matches_retail(ui: Node, image: Image) -> bool:
+	var points := ui.find_child("AchievementFrameHeaderPoints", true, false) as Label
+	var shield := ui.find_child("AchievementFrameHeaderShield", true, false) as Control
+	if points == null or shield == null or points.text != "10" or not shield.is_visible_in_tree():
+		push_error("Retail achievement header requires 10 points and a visible shield")
+		return false
+	var text_rect := points.get_global_rect()
+	var shield_rect := shield.get_global_rect()
+	print("ACHIEVEMENT_HEADER_NATIVE points=", text_rect, " shield=", shield_rect)
+	if shield_rect.size != Vector2(20, 20) or absf(shield_rect.position.x - text_rect.end.x - 3.0) > 0.01:
+		push_error("Achievement shield size/right gap differs from Retail")
+		return false
+	if absf(shield_rect.get_center().y - text_rect.get_center().y - 1.0) > 0.01:
+		push_error("Achievement shield vertical offset differs from Retail")
+		return false
+	var white_pixels := 0
+	var gold_pixels := 0
+	for y in range(int(text_rect.position.y), int(text_rect.end.y)):
+		for x in range(int(text_rect.position.x), int(text_rect.end.x)):
+			var color := image.get_pixel(x, y)
+			if minf(color.r, minf(color.g, color.b)) > 0.75:
+				white_pixels += 1
+	for y in range(int(shield_rect.position.y), int(shield_rect.end.y)):
+		for x in range(int(shield_rect.position.x), int(shield_rect.end.x)):
+			var color := image.get_pixel(x, y)
+			if color.r > 0.4 and color.g > 0.2 and color.b < 0.3:
+				gold_pixels += 1
+	if white_pixels < 10 or gold_pixels < 10:
+		push_error("Achievement header did not render: white=", white_pixels, " gold=", gold_pixels)
+		return false
+	print("PASS: Retail achievement header 10, 20x20 shield, right gap 3 and vertical offset 1; white=", white_pixels, " gold=", gold_pixels)
+	return true
+
+# Verify FlareUI's exact native tint and visible transmission over black/white.
+# The Blizzard texture has its own alpha; final pixels are not a flat 60% fill.
+func chat_backdrop_is_translucent(ui: Node, output: String) -> bool:
+	var panel: Rect2 = ui.find_child("ChatFrame1FlareSkin", true, false).get_global_rect()
+	var controls: Array[Image] = []
+	for background in [Color.BLACK, Color.WHITE]:
+		RenderingServer.set_default_clear_color(background)
+		await process_frame
+		RenderingServer.force_draw()
+		controls.append(root.get_texture().get_image())
+	if controls[1].save_png(output.get_basename() + "-white-background.png") != OK:
+		push_error("Cannot save chat translucency control")
+		return false
+	var center := ui.find_child("ChatFrame1FlareSkin", true, false).find_child("Part0", true, false) as TextureRect
+	if center == null or not center.self_modulate.is_equal_approx(Color(1, 1, 1, 0.6)):
+		push_error("Chat backdrop tint differs from FlareUI white at alpha 0.6")
+		return false
+	for offset in [Vector2(15, 50), Vector2(200, 50), Vector2(400, 50)]:
+		var sample := Vector2i(panel.position + offset)
+		var difference := controls[1].get_pixelv(sample) - controls[0].get_pixelv(sample)
+		for channel in [difference.r, difference.g, difference.b]:
+			if channel < 0.39 or channel > 0.99:
+				push_error("Chat backdrop must be translucent, not opaque or absent: ", sample, " ", difference)
+				return false
+	print("PASS: rendered Forever backdrop preserves texture alpha with white tint at alpha 0.6")
+	return true
 
 # Production native controls: corner compensation, no neighbour overlap, usable input.
 func chatflush_corner_and_input(ui: Node) -> bool:
