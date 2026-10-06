@@ -572,12 +572,16 @@ fn sync_swipe(
     bar.set_value(f64::from(elapsed));
     bar.set_visible(icon.elapsed.is_some());
     if let Some(edge) = edge {
-        sync_swipe_edge(&mut cooldown, icon, edge);
+        sync_swipe_edge(&mut cooldown, icon, edge, size);
     }
 }
 
-fn sync_swipe_edge(cooldown: &mut Gd<Control>, icon: &TargetAuraIconState, edge: &Gd<Texture2D>) {
-    let size = cooldown.get_size();
+fn sync_swipe_edge(
+    cooldown: &mut Gd<Control>,
+    icon: &TargetAuraIconState,
+    edge: &Gd<Texture2D>,
+    size: Vector2,
+) {
     let elapsed = icon.elapsed.unwrap_or(0.0);
     let mut hand = match cooldown.get_node_or_null(EDGE_NODE) {
         Some(node) => node.cast::<TextureRect>(),
