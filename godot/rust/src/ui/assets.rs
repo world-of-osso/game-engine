@@ -14,12 +14,12 @@ use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::widgets::texture::TextureSource;
 
 fn asset_path(path: &str) -> PathBuf {
-    let source = if path.starts_with("data/") {
-        &path[5..]
+    let resource_path = if path.starts_with("res://") {
+        path.to_owned()
     } else {
-        path
+        let source = path.strip_prefix("data/").unwrap_or(path);
+        format!("res://../data/{source}")
     };
-    let resource_path = format!("res://../data/{source}");
     PathBuf::from(
         ProjectSettings::singleton()
             .globalize_path(&resource_path)

@@ -1,6 +1,7 @@
 pub(crate) mod assets;
 mod icon_masks;
 pub(crate) mod input_queue;
+mod launcher_preview;
 mod layout;
 mod options_keybindings;
 mod parts;
@@ -862,7 +863,6 @@ impl RegistryUi {
             &mut registry,
             game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
         )?;
-        register_auction_popup_style(&mut registry);
         self.show_viewport_screen_in(
             view,
             game_engine_ui_model::launcher::launcher_screen,
@@ -1877,6 +1877,25 @@ impl RegistryUi {
                 .unwrap_or_default()
                 .as_str(),
         )
+    }
+
+    /// Phase-one launcher candidates through actual native projection, without a server.
+    #[func]
+    pub fn show_launcher_candidate(&mut self, forever: bool, outlined: bool) -> GString {
+        use game_engine_ui_model::launcher::LauncherIconStyle;
+        use ui_toolkit::atlas::ActiveSkin;
+        let skin = if forever {
+            ActiveSkin::Forever
+        } else {
+            ActiveSkin::Modern
+        };
+        let style = if outlined {
+            LauncherIconStyle::Outline
+        } else {
+            LauncherIconStyle::Filled
+        };
+        let result = self.initialize_launcher_candidate(skin, style);
+        GString::from(result.err().unwrap_or_default().as_str())
     }
 
     /// Offline authored party preview for capture_ui_screen.gd; no group/network state.

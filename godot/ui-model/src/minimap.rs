@@ -248,12 +248,6 @@ pub fn calendar_art(day: u32) -> Option<SheetArt> {
 /// CASC on demand.
 pub fn minimap_texture_fdids(state: &MinimapClusterState) -> Vec<u32> {
     let mut fdids = vec![FRAME.fdid, EDGE_LEFT.fdid, ARROW_FDID];
-    let search = ui_toolkit::atlas::get_region(crate::launcher::SEARCH_ICON_ATLAS)
-        .expect("launcher magnifier atlas exists in local DB2");
-    let ui_toolkit::atlas::AtlasSource::FileDataId(search_fdid) = search.source else {
-        panic!("launcher magnifier must resolve to a FileDataID");
-    };
-    fdids.push(search_fdid);
     fdids.extend(metal_sheet_fdids(MetalTopLeft::Plain));
     fdids.push(BORDER_FDID);
     if !state.blips.is_empty() {
@@ -315,7 +309,11 @@ pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
         ActiveSkin::Modern => modern_chrome(state, style.map_centre()),
         ActiveSkin::Forever => forever_chrome(state, &style),
     });
-    children.extend(launcher_button(style.cluster_size));
+    children.extend(launcher_button(
+        style.cluster_size,
+        skin,
+        crate::launcher::icon_style(ctx),
+    ));
     let size = style.cluster_size;
     let at = hud_layout(ctx).minimap.place((size, size));
     rsx! {
@@ -339,7 +337,12 @@ pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
 /// Buff-icon-sized opener left of the cluster, bottom-aligned with it (user placement
 /// 2026-10-05): below the buff rows and the first debuff row, outside the flush-right
 /// objective tracker's column. A ninth debuff wraps onto its spot.
-fn launcher_button(cluster_size: f32) -> Element {
+fn launcher_button(
+    cluster_size: f32,
+    skin: ActiveSkin,
+    style: crate::launcher::LauncherIconStyle,
+) -> Element {
+    let icon = crate::launcher::icon_path(skin, style, "magnifier");
     const ICON_SIZE: f32 = 30.0;
     const GAP: f32 = 6.0;
     let left = -(ICON_SIZE + GAP);
@@ -351,7 +354,7 @@ fn launcher_button(cluster_size: f32) -> Element {
             pos_type: "absolute", left, top,
             texture {
                 name: "MinimapLauncherIcon", width: ICON_SIZE, height: ICON_SIZE,
-                texture_atlas: crate::launcher::SEARCH_ICON_ATLAS,
+                texture_file: {icon.as_str()},
                 pos_type: "absolute", left: 0.0, top: 0.0,
             }
         }

@@ -8,9 +8,8 @@ use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
 
-use crate::inworld_unit_frames_component::PortraitSlot;
-use crate::micro_menu::{ACTION_PREFIX, CHARACTER_PORTRAIT, MICRO_BUTTONS};
-use crate::panel_style_data::METAL_FRAME_NO_PORTRAIT_PANEL_STYLE;
+use crate::micro_menu::{ACTION_PREFIX, MICRO_BUTTONS};
+use crate::quest_art::flat_panel_chrome;
 use crate::ui::strata::FrameStrata;
 
 struct DynName(String);
@@ -18,33 +17,57 @@ pub const SEARCH_FIELD: &str = "LauncherSearchBox";
 pub const ACTION_OPEN: &str = "launcher:open";
 pub const ACTION_CLOSE: &str = "launcher:close";
 pub const ACTION_KEY_BINDINGS: &str = "launcher:key_bindings";
-pub const SEARCH_ICON_ATLAS: &str = "common-search-magnifyingglass";
 pub const COLUMNS: usize = 5;
-const PANEL_W: f32 = 720.0;
-const PANEL_H: f32 = 540.0;
-const CELL_W: f32 = 132.0;
-const CELL_H: f32 = 104.0;
-const CELL_GAP: f32 = 8.0;
-const GRID_TOP: f32 = 90.0;
-const ICON_W: f32 = 64.0;
-const ICON_H: f32 = 80.0;
-const WORLD_MAP_ICON_FDID: u32 = 130_816;
-const OPTIONS_ICON_FDID: u32 = 134_063;
-// UiTextureAtlasMember10556's override dimensions.
-const KEYBOARD_ASPECT_RATIO: f32 = 169.0 / 480.0;
+const CELL_W: f32 = 108.0;
+const CELL_H: f32 = 82.0;
+const CELL_GAP: f32 = 4.0;
+const PANEL_INSET: f32 = 18.0;
+const PANEL_W: f32 = COLUMNS as f32 * (CELL_W + CELL_GAP) - CELL_GAP + PANEL_INSET * 2.0;
+const GRID_TOP: f32 = 74.0;
+const ICON_SIZE: f32 = 40.0;
 
-/// Same CharacterMicroButton portrait and mask, displayed at twice its normal size.
-pub const CHARACTER_ICON: PortraitSlot = PortraitSlot {
-    frame: "LauncherCharacterPortrait",
-    rect: (14.0, 14.0, 36.0, 52.0),
-    mask_rect: (-3.0, -25.0, 70.0, 130.0),
-    ..CHARACTER_PORTRAIT
-};
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum LauncherIconStyle {
+    Filled,
+    Outline,
+}
 
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum LauncherIcon {
-    Atlas(String),
-    FileDataId(u32),
+/// Phase-one pick: changing this constant switches launcher and minimap together.
+pub const ICON_STYLE: LauncherIconStyle = LauncherIconStyle::Outline;
+
+pub fn icon_path(skin: ActiveSkin, style: LauncherIconStyle, glyph: &str) -> String {
+    let skin = match skin {
+        ActiveSkin::Modern => "modern",
+        ActiveSkin::Forever => "forever",
+    };
+    let style = match style {
+        LauncherIconStyle::Filled => "filled",
+        LauncherIconStyle::Outline => "outline",
+    };
+    format!("res://ui/launcher_icons/png/{skin}/{style}/{glyph}.png")
+}
+
+pub fn icon_style(ctx: &SharedContext) -> LauncherIconStyle {
+    ctx.get::<LauncherIconStyle>()
+        .copied()
+        .unwrap_or(ICON_STYLE)
+}
+
+fn entry_glyph(id: &str) -> &'static str {
+    match id {
+        "CharacterMicroButton" => "character",
+        "PlayerSpellsMicroButton" => "spellbook",
+        "QuestLogMicroButton" => "quest",
+        "Bags" => "bags",
+        "MainMenuMicroButton" => "menu",
+        // Phase one intentionally leaves the uncommissioned twelve entries neutral.
+        _ => "empty",
+    }
+}
+
+fn panel_height(count: usize) -> f32 {
+    let rows = count.max(1).div_ceil(COLUMNS) as f32;
+    GRID_TOP + rows * (CELL_H + CELL_GAP) - CELL_GAP + 16.0
 }
 
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -52,7 +75,6 @@ pub struct LauncherEntry {
     pub id: String,
     pub label: String,
     pub action: String,
-    pub icon: Option<LauncherIcon>,
 }
 
 pub fn entries() -> Vec<LauncherEntry> {
@@ -62,53 +84,26 @@ pub fn entries() -> Vec<LauncherEntry> {
             id: micro.name.into(),
             label: micro.title.into(),
             action: format!("{ACTION_PREFIX}{}", micro.name),
-            icon: micro.icon_atlas().map(LauncherIcon::Atlas),
         })
         .collect();
-    // Retail MainMenuBarMicroButtons.lua:1773-1788 loads GameMenu art for both
-    // Help and MainMenu. Its red question mark is authored micro art, not a fallback.
-    // Other shortcut art: local listfile FDID130816 (WorldMapMicroButton),
-    // FDID134063 (INV_Misc_Gear_01), and UiTextureAtlasMember10556 (keyboard).
     let shortcuts = [
-        (
-            "Help",
-            "Help",
-            crate::game_menu_main::ACTION_SUPPORT,
-            LauncherIcon::Atlas("UI-HUD-MicroMenu-GameMenu-Up".into()),
-        ),
-        (
-            "Bags",
-            "Bags",
-            "bag_toggle:0",
-            LauncherIcon::Atlas("bag-main".into()),
-        ),
+        ("Help", "Help", crate::game_menu_main::ACTION_SUPPORT),
+        ("Bags", "Bags", "bag_toggle:0"),
         (
             "WorldMap",
             "World Map",
             crate::minimap::ACTION_TOGGLE_WORLD_MAP,
-            LauncherIcon::FileDataId(WORLD_MAP_ICON_FDID),
         ),
-        (
-            "Options",
-            "Options",
-            crate::game_menu_main::ACTION_OPTIONS,
-            LauncherIcon::FileDataId(OPTIONS_ICON_FDID),
-        ),
-        (
-            "KeyBindings",
-            "Key Bindings",
-            ACTION_KEY_BINDINGS,
-            LauncherIcon::Atlas("newplayertutorial-keyboard".into()),
-        ),
+        ("Options", "Options", crate::game_menu_main::ACTION_OPTIONS),
+        ("KeyBindings", "Key Bindings", ACTION_KEY_BINDINGS),
     ];
     entries.extend(
         shortcuts
             .into_iter()
-            .map(|(id, label, action, icon)| LauncherEntry {
+            .map(|(id, label, action)| LauncherEntry {
                 id: id.into(),
                 label: label.into(),
                 action: action.into(),
-                icon: Some(icon),
             }),
     );
     entries
@@ -257,20 +252,29 @@ pub fn launcher_screen(ctx: &SharedContext) -> Element {
         return Element::new();
     }
     let skin = *ctx.get::<ActiveSkin>().expect("canvas carries active skin");
-    let entries: Element = view
-        .filtered_entries()
+    let style = icon_style(ctx);
+    let visible = view.filtered_entries();
+    let height = panel_height(visible.len());
+    let entries: Element = visible
         .iter()
         .enumerate()
-        .flat_map(|(index, entry)| entry_button(index, entry, view.selected == index))
+        .flat_map(|(index, entry)| {
+            entry_button(
+                index,
+                entry,
+                view.selected == index,
+                &icon_path(skin, style, entry_glyph(&entry.id)),
+            )
+        })
         .collect();
     rsx! {
         r#frame {
             name: "LauncherRoot", stretch: true, mouse_enabled: true, strata: FrameStrata::Dialog,
             r#frame {
-                name: "LauncherPanel", width: PANEL_W, height: PANEL_H,
+                name: "LauncherPanel", width: PANEL_W, height,
                 pos_type: "absolute", left: "50%", top: "50%", translate_x: "-50%", translate_y: "-50%",
-                {panel_art(skin)}
-                {search_box(&view.query)}
+                {flat_panel_chrome("Launcher", (PANEL_W, height), "Launcher", ACTION_CLOSE)}
+                {search_box(&view.query, &icon_path(skin, style, "magnifier"))}
                 {entries}
                 {empty_results(view)}
             }
@@ -278,38 +282,20 @@ pub fn launcher_screen(ctx: &SharedContext) -> Element {
     }
 }
 
-fn panel_art(skin: ActiveSkin) -> Element {
-    let style = match skin {
-        ActiveSkin::Forever => METAL_FRAME_NO_PORTRAIT_PANEL_STYLE,
-        ActiveSkin::Modern => crate::static_popup_component::STATIC_POPUP_PANEL_STYLE,
-    };
+fn search_box(query: &str, glyph: &str) -> Element {
     rsx! {
-        texture { name: "LauncherBackground", width: PANEL_W, height: PANEL_H,
-            texture_atlas: "UI-DialogBox-Background-Dark", pos_type: "absolute", left: 0.0, top: 0.0 }
-        r#frame { name: "LauncherBorder", width: PANEL_W, height: PANEL_H, style,
-            pos_type: "absolute", left: 0.0, top: 0.0 }
-        fontstring { name: "LauncherTitle", text: "Launcher", font_size: 16.0,
-            font_color: "1.0,0.82,0.0,1.0", width: 200.0, height: 24.0,
-            pos_type: "absolute", left: 20.0, top: 10.0, justify_h: "LEFT" }
-        button { name: "LauncherClose", width: 28.0, height: 28.0, text: "×", onclick: ACTION_CLOSE,
-            pos_type: "absolute", right: 12.0, top: 8.0 }
-    }
-}
-
-fn search_box(query: &str) -> Element {
-    rsx! {
-        r#frame { name: "LauncherSearchBorder", width: {PANEL_W - 40.0}, height: 36.0,
-            background_color: "0.02,0.02,0.02,1.0", border: "1px solid 0.68,0.54,0.25,1.0",
-            pos_type: "absolute", left: 20.0, top: 42.0,
+        r#frame { name: "LauncherSearchBorder", width: {PANEL_W - PANEL_INSET * 2.0}, height: 30.0,
+            background_color: "0.02,0.02,0.02,1.0", border: "1px solid 0.48,0.40,0.25,1.0",
+            pos_type: "absolute", left: PANEL_INSET, top: 32.0,
             texture { name: "LauncherSearchGlyph", width: 24.0, height: 24.0,
-                texture_atlas: SEARCH_ICON_ATLAS, pos_type: "absolute", left: 6.0, top: 6.0 }
-            editbox { name: {DynName(SEARCH_FIELD.into())}, text: query, width: {PANEL_W - 76.0}, height: 36.0,
-                font_size: 16.0, text_insets: "8,8,0,0", pos_type: "absolute", left: 32.0, top: 0.0 }
+                texture_file: glyph, pos_type: "absolute", left: 3.0, top: 3.0 }
+            editbox { name: {DynName(SEARCH_FIELD.into())}, text: query, width: {PANEL_W - PANEL_INSET * 2.0 - 30.0}, height: 30.0,
+                font_size: 15.0, text_insets: "6,6,0,0", pos_type: "absolute", left: 30.0, top: 0.0 }
         }
     }
 }
 
-fn entry_button(index: usize, entry: &LauncherEntry, selected: bool) -> Element {
+fn entry_button(index: usize, entry: &LauncherEntry, selected: bool, icon: &str) -> Element {
     let color = if selected {
         "0.35,0.26,0.09,0.8"
     } else {
@@ -320,65 +306,17 @@ fn entry_button(index: usize, entry: &LauncherEntry, selected: bool) -> Element 
     } else {
         "2px solid 0.0,0.0,0.0,0.0"
     };
-    let icon_width = entry_icon_width(entry);
     rsx! {
         button { name: {DynName(format!("LauncherEntry{}", entry.id))}, width: CELL_W, height: CELL_H,
             button_default_skin: false, text: "", background_color: color, border,
             onclick: {entry.action.as_str()}, pos_type: "absolute",
-            left: {14.0 + (index % COLUMNS) as f32 * (CELL_W + CELL_GAP)},
+            left: {PANEL_INSET + (index % COLUMNS) as f32 * (CELL_W + CELL_GAP)},
             top: {GRID_TOP + (index / COLUMNS) as f32 * (CELL_H + CELL_GAP)},
-            r#frame { name: {DynName(format!("LauncherIcon{}", entry.id))}, width: icon_width, height: ICON_H,
-                pos_type: "absolute", left: {(CELL_W - icon_width) / 2.0}, top: 0.0,
-                {entry_icon(entry)} }
+            texture { name: {DynName(format!("LauncherArt{}", entry.id))}, width: ICON_SIZE, height: ICON_SIZE,
+                texture_file: icon, pos_type: "absolute", left: {(CELL_W - ICON_SIZE) / 2.0}, top: 4.0 }
             fontstring { name: {DynName(format!("LauncherLabel{}", entry.id))}, text: {entry.label.as_str()},
-                width: CELL_W, height: 28.0, font_size: 12.0, font_color: "1.0,1.0,1.0,1.0",
-                pos_type: "absolute", left: 0.0, top: 76.0 }
-        }
-    }
-}
-
-fn entry_icon(entry: &LauncherEntry) -> Element {
-    if let Some(icon) = &entry.icon {
-        return icon_texture(entry, icon);
-    }
-    rsx! {
-        texture { name: "LauncherCharacterShadow", width: ICON_W, height: ICON_H,
-            texture_atlas: "UI-HUD-MicroMenu-Portrait-Shadow", pos_type: "absolute", left: 0.0, top: 0.0 }
-        r#frame { name: {DynName(CHARACTER_ICON.frame.into())}, width: {CHARACTER_ICON.rect.2}, height: {CHARACTER_ICON.rect.3},
-            pos_type: "absolute", left: {CHARACTER_ICON.rect.0}, top: {CHARACTER_ICON.rect.1} }
-    }
-}
-
-fn entry_icon_width(entry: &LauncherEntry) -> f32 {
-    match &entry.icon {
-        // Wide tutorial art needs the tile's width, not the narrow micro-button width.
-        Some(LauncherIcon::Atlas(atlas)) if atlas == "newplayertutorial-keyboard" => CELL_W - 16.0,
-        _ => ICON_W,
-    }
-}
-
-fn icon_texture(entry: &LauncherEntry, icon: &LauncherIcon) -> Element {
-    let name = DynName(format!("LauncherArt{}", entry.id));
-    let width = entry_icon_width(entry);
-    match icon {
-        LauncherIcon::Atlas(atlas) => {
-            // UiTextureAtlasMember 10556 overrides the keyboard's size to 480×169.
-            let height = if atlas == "newplayertutorial-keyboard" {
-                width * KEYBOARD_ASPECT_RATIO
-            } else {
-                ICON_H
-            };
-            rsx! { texture { name, width, height,
-            texture_atlas: atlas.as_str(), pos_type: "absolute", left: 0.0, top: {(ICON_H - height) / 2.0} } }
-        }
-        LauncherIcon::FileDataId(fdid) => {
-            let height = if *fdid == WORLD_MAP_ICON_FDID {
-                ICON_H
-            } else {
-                ICON_W
-            };
-            rsx! { texture { name, width: ICON_W, height,
-            texture_fdid: {*fdid}, pos_type: "absolute", left: 0.0, top: {(ICON_H - height) / 2.0} } }
+                width: {CELL_W - 4.0}, height: 34.0, font_size: 14.0, font_color: "1.0,1.0,1.0,1.0",
+                pos_type: "absolute", left: 2.0, top: 46.0 }
         }
     }
 }
