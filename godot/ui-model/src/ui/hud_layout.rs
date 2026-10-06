@@ -386,9 +386,10 @@ pub const FOREVER: HudLayout = HudLayout {
     // inherited minimap's mirrored margins. Saved custom placements remain untouched.
     damage_meter: MODERN.damage_meter,
     damage_meter_size: FOREVER_CHAT_PANEL_SIZE,
-    // Chat canvas messages begin at (34,27) and end 38 above the canvas bottom.
-    // Place the source's 430x170 messages at BOTTOMLEFT(35,145).
-    chat: anchor(BottomLeft, BottomLeft, 1.0, 107.0),
+    // User decision 2026-10-06: visible chat border touches the bottom-left corner.
+    // The skin begins 24 right of the canvas and ends 28 above its bottom; its
+    // tooltip-border line is 2 units inside that rectangle.
+    chat: anchor(BottomLeft, BottomLeft, -26.0, -30.0),
     chat_size: (469.0, 235.0),
     // The scaled tracker header begins four local units above its frame; clear the
     // 260-unit minimap on the default 1080-unit canvas without moving other frames.

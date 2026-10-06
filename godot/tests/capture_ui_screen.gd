@@ -25,6 +25,13 @@ func _run() -> void:
 	for frame in range(120 if screen == "forever_damage_meter_preview" else 3):
 		await process_frame
 		await RenderingServer.frame_post_draw
+	if screen == "chatflush_preview":
+		if not chatflush_corner_and_input(ui):
+			ui.queue_free()
+			quit(1)
+			return
+		await process_frame
+		await RenderingServer.frame_post_draw
 	var image = root.get_texture().get_image()
 	if image == null or image.is_empty() or image.save_png(output) != OK:
 		push_error("UI capture requires a rendering display")
@@ -48,6 +55,32 @@ func _run() -> void:
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
 	quit(0)
+
+# Production native controls: corner compensation, no neighbour overlap, usable input.
+func chatflush_corner_and_input(ui: Node) -> bool:
+	var panel = ui.find_child("ChatFrame1FlareSkin", true, false).get_global_rect()
+	var input = ui.find_child("ChatFrame1EditBox", true, false)
+	var input_rect: Rect2 = input.get_global_rect()
+	print("CHATFLUSH_NATIVE panel ", panel, "; input ", input_rect)
+	if absf(panel.position.x + 2.0) > 0.01 or absf(panel.end.y - 2.0 - 1080.0) > 0.01:
+		push_error("Chat visible edge is not corner-flush: ", panel)
+		return false
+	for name in ["MainActionBar", "MultiBarBottomLeft", "MultiBarBottomRight", "MainActionBarLeftEndCap", "MainActionBarRightEndCap", "PetActionBar", "PlayerFrame", "BagsBar", "DamageMeterFlareSkin"]:
+		var other: Rect2 = ui.find_child(name, true, false).get_global_rect()
+		print("CHATFLUSH_NATIVE ", name, " ", other)
+		if panel.intersects(other) or input_rect.intersects(other):
+			push_error("Chat/input overlaps ", name, ": ", other)
+			return false
+	if not Rect2(0, 0, 1920, 1080).encloses(input_rect) or not input.is_visible_in_tree():
+		push_error("Chat input not visible inside screen: ", input_rect)
+		return false
+	input.grab_focus()
+	input.insert_text_at_caret("chatflush input proof")
+	if not input.has_focus() or input.text != "chatflush input proof":
+		push_error("Chat input did not accept text")
+		return false
+	print("PASS: Forever corner, native overlaps and focused text input")
+	return true
 
 # Assert actual rendered endpoints, native font size and native icon/title rectangles.
 func forever_meter_matches_reference(ui: Node, image: Image) -> bool:

@@ -2073,14 +2073,23 @@ impl RegistryUi {
     /// Offline production HUD canvas for the bounded Forever reference-gap capture.
     #[func]
     pub fn show_forevergaps_preview(&mut self) -> GString {
+        self.show_forever_preview(forevergaps_preview::screen)
+    }
+
+    /// Offline corner-flush chat, open input and the approved neighbouring HUD frames.
+    #[func]
+    pub fn show_chatflush_preview(&mut self) -> GString {
+        self.show_forever_preview(forevergaps_preview::chatflush_screen)
+    }
+
+    fn show_forever_preview(
+        &mut self,
+        build: fn(&SharedContext) -> ui_toolkit::widget_def::Element,
+    ) -> GString {
         let result = party_preview::load_data_root().and_then(|()| {
             ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Forever);
             self.set_ui_scale(1.0)?;
-            self.show_viewport_screen(
-                forevergaps_preview::Preview,
-                forevergaps_preview::screen,
-                ScreenPostsetup::None,
-            )
+            self.show_viewport_screen(forevergaps_preview::Preview, build, ScreenPostsetup::None)
         });
         GString::from(result.err().unwrap_or_default().as_str())
     }

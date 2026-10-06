@@ -86,10 +86,16 @@ fn chat() -> ChatFrameView {
 }
 
 pub(super) fn screen(_: &SharedContext) -> Element {
+    preview_screen(false)
+}
+
+fn preview_screen(input_open: bool) -> Element {
     let mut shared = SharedContext::new();
     shared.insert(ActiveSkin::Forever);
     shared.insert(player());
-    shared.insert(chat());
+    let mut view = chat();
+    view.input_open = input_open;
+    shared.insert(view);
     shared.insert(MinimapClusterState {
         zone_text: "Northshire Valley".into(),
         clock_text: "12:34".into(),
@@ -100,6 +106,42 @@ pub(super) fn screen(_: &SharedContext) -> Element {
         inworld_unit_frames_screen(&shared),
         chat_frame_screen(&shared),
         minimap_cluster_screen(&shared),
+    ]
+    .into_iter()
+    .flatten()
+    .collect()
+}
+
+/// Production Forever chat with every frame named in the corner-flush overlap check.
+pub(super) fn chatflush_screen(_: &SharedContext) -> Element {
+    use game_engine_ui_model::bags_bar_component::{BagBarState, bags_bar_screen};
+    use game_engine_ui_model::damage_meter_component::damage_meter_screen;
+    use game_engine_ui_model::damage_meter_data::DamageMeterView;
+    use game_engine_ui_model::main_action_bar_component::{
+        MainActionBarState, main_action_bar_screen,
+    };
+    use game_engine_ui_model::pet_action_bar_component::{
+        PetActionBarState, pet_action_bar_screen,
+    };
+
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Forever);
+    shared.insert(MainActionBarState {
+        player_class: Some(2),
+        ..Default::default()
+    });
+    shared.insert(PetActionBarState {
+        visible: true,
+        ..Default::default()
+    });
+    shared.insert(BagBarState::default());
+    shared.insert(DamageMeterView::default());
+    [
+        preview_screen(true),
+        main_action_bar_screen(&shared),
+        pet_action_bar_screen(&shared),
+        bags_bar_screen(&shared),
+        damage_meter_screen(&shared),
     ]
     .into_iter()
     .flatten()
