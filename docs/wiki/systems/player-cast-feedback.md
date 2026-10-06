@@ -29,6 +29,8 @@ This cached Retail source has no `holdTime` member: its hold is `HoldFadeOutAnim
 
 Previously the player had progress/colours and reducer fades, but no completion flash, finish FX, interrupted full state/glow/shake or Retail pip (Forever had no spark; Modern had a solid rectangle).
 
+Native interrupted capture reproduced a lost vertical shake: changing `margin_top` cannot move a bottom-anchored bar. Sampling the XML translation into `translate_x`/`translate_y` moves both axes independently of HUD anchors. The existing capture fixture asserts the actual track origin at timestamp 100.175 and isolates interrupt glow pixels.
+
 ## Art and evidence
 
 Retail atlas files: FDIDs `4505182`, `4505194`, `4549775`, `4550035`, `4550359`, `4550462`. Extract only from local CASC into canonical `data/textures/`; assigned slots may link those immutable files. No synchronous extraction in the per-frame HUD path.
