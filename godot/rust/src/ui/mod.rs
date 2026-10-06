@@ -6,6 +6,7 @@ mod icon_masks;
 pub(crate) mod input_queue;
 mod launcher_preview;
 mod layout;
+mod minimap_preview;
 mod options_keybindings;
 mod parts;
 mod party_preview;
@@ -2002,6 +2003,16 @@ impl RegistryUi {
         model.sync();
         GString::from(
             self.initialize_model(model, size.x, size.y)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
+    #[func]
+    pub fn show_forever_minimap_preview(&mut self) -> GString {
+        GString::from(
+            self.initialize_minimap_preview()
                 .err()
                 .unwrap_or_default()
                 .as_str(),
