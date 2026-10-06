@@ -344,7 +344,36 @@ func check_authored_shoulders() -> bool:
 				fail("Grove Ranger shoulder " + side + " lacks visible nonempty geometry")
 				return false
 		print("SKYBORNE SHOULDER_ATTACHED side=", side, " attachment=", attachment, " path=", item.get_path(), " transform=", item.transform, " meshes=", meshes.size())
-	return await save_capture("02-grove-ranger-original-shoulders.png")
+	return await capture_shoulder_views(visual)
+
+func capture_shoulder_views(visual: Node3D) -> bool:
+	# Share the actual world; moving the visual into a new World3D produced blank captures.
+	var capture := SubViewport.new()
+	capture.size = Vector2i(1024, 1024)
+	capture.world_3d = visual.get_world_3d()
+	capture.render_target_update_mode = SubViewport.UPDATE_ALWAYS
+	root.add_child(capture)
+	var camera := Camera3D.new()
+	camera.projection = Camera3D.PROJECTION_ORTHOGONAL
+	camera.size = 3.4
+	capture.add_child(camera)
+	camera.make_current()
+	for view in ["front", "back"]:
+		var direction := 1.0 if view == "front" else -1.0
+		camera.position = visual.global_position + Vector3(4.0 * direction, 1.35, 5.0 * direction)
+		camera.look_at(visual.global_position + Vector3(0.0, 1.0, 0.0))
+		for frame in 8:
+			await process_frame
+		await RenderingServer.frame_post_draw
+		var image := capture.get_texture().get_image()
+		var file := shots + "02-grove-ranger-shoulders-" + view + ".png"
+		if image == null or image.is_empty() or image.save_png(file) != OK:
+			capture.queue_free()
+			fail("Cannot save actual Grove Ranger shoulder view " + file)
+			return false
+		print("SKYBORNE SHOULDER_VIEW ", file, " origin=", visual.global_position)
+	capture.queue_free()
+	return true
 
 func check_reward_reload_state() -> bool:
 	var state: Dictionary = client.quest_state()
