@@ -1,7 +1,10 @@
 extends "res://tests/world_terrain_flow.gd"
 
-# Requires GODOT_TEST_SERVER, GODOT_TEST_ACCOUNT and GODOT_TEST_PASSWORD
-# through world_units_flow.gd, including its reconnect to the same endpoint.
+# Requires GODOT_TEST_SERVER (private endpoint, never shared :5000),
+# GODOT_TEST_ACCOUNT and GODOT_TEST_PASSWORD through world_units_flow.gd.
+# That base fails before connecting if any input is unset and reuses all three
+# for reconnect. Start the private server with GAME_SERVER_GROUND_DIR pointing
+# to its ground bake; the account needs two characters (card 1 is selected).
 
 func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 	if not super.inspect_material_tiles(client, parsed_tiles):
