@@ -68,8 +68,21 @@ fn shown(window: &DamageMeterWindow) -> Vec<(String, String)> {
 
 fn assert_rendered(window: &DamageMeterWindow, skin: ActiveSkin) {
     set_thread_skin(skin);
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut shared = SharedContext::new();
     shared.insert(skin);
+    if window.recap.is_some() {
+        shared.insert(game_engine_core::ui_layout_data::LayoutSettings {
+            damage_meter: game_engine_core::ui_layout_data::FrameSizeSettings {
+                width: None,
+                height: Some(320),
+            },
+            ..Default::default()
+        });
+    }
     shared.insert(window.view(false, 0.0));
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(damage_meter_screen).sync(&shared, &mut registry);
@@ -80,7 +93,7 @@ fn assert_rendered(window: &DamageMeterWindow, skin: ActiveSkin) {
             _ => None,
         })
         .collect();
-    for row in window.rows().iter().take(3) {
+    for row in window.rows().iter() {
         assert!(
             texts.contains(&row.name_text.as_str()),
             "{skin:?}: missing {}",
@@ -198,7 +211,9 @@ fn recap(timestamp: u64) -> DamageMeterDeathRecap {
 #[test]
 fn damage_meter_death_recap_shows_server_capped_events_newest_first() {
     let mut data = snapshot();
-    data.overall.sources[2].death_recaps = vec![recap(10_000), recap(20_000)];
+    let mut old = recap(10_000);
+    old.events.last_mut().unwrap().amount = 999;
+    data.overall.sources[2].death_recaps = vec![old, recap(20_000)];
     let mut window = DamageMeterWindow {
         snapshot: Some(data),
         meter_type: MeterType::Deaths,
@@ -214,6 +229,9 @@ fn damage_meter_death_recap_shows_server_capped_events_newest_first() {
     assert_eq!(rows[1].value_text, "+70 (2.0s)");
     assert_eq!(rows[7].value_text, "-10 (8.0s)");
     assert_ne!(rows[0].color, rows[1].color);
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        assert_rendered(&window, skin);
+    }
     window.click("damage_meter:row:0").unwrap();
     assert!(!window.view(false, 0.0).recap_open);
 }
