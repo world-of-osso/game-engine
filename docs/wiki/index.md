@@ -84,6 +84,8 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [Stormwind loading](investigations/stormwind-loading.md) — Measured tile-wide gate overreach; local spatial prerequisites with retained distant streaming.
+
 - [character-preview-double-free](investigations/character-preview-double-free.md) — exact `gd.rs:911` teardown reproduction, preview-before-UI ownership fix, and process/reconnect free-site audit.
 
 - [godot-inworld-frame-time](investigations/godot-inworld-frame-time.md) — steady-state in-world frame benchmark; main thread CPU-bound in Godot's renderer; `9cf5cc0b` sets only changed M2 material-animation inputs (Stormwind idle p50 77 → 37 ms); remaining draw-call and skinned-AABB leads.
