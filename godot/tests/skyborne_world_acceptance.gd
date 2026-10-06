@@ -335,6 +335,11 @@ func check_authored_shoulders() -> bool:
 		if item == null or item.get_parent().name != "Attachment%d" % attachment:
 			fail("Grove Ranger original shoulder " + side + " missing from authored attachment " + str(attachment))
 			return false
+		var source := str(item.get_meta("m2_source_path", ""))
+		var expected_model := "7579617.m2" if side == "Left" else "7579618.m2"
+		if source.get_file() != expected_model:
+			fail("Unexpected original shoulder source model: " + source)
+			return false
 		var meshes := item.find_children("Batch*", "MeshInstance3D", true, false)
 		if meshes.is_empty():
 			fail("Grove Ranger shoulder " + side + " has no native geometry")
@@ -343,8 +348,34 @@ func check_authored_shoulders() -> bool:
 			if mesh.mesh == null or not mesh.is_visible_in_tree() or mesh.get_aabb().size.length() <= 0.0:
 				fail("Grove Ranger shoulder " + side + " lacks visible nonempty geometry")
 				return false
+			if not check_shoulder_material(mesh, side):
+				return false
 		print("SKYBORNE SHOULDER_ATTACHED side=", side, " attachment=", attachment, " path=", item.get_path(), " transform=", item.transform, " meshes=", meshes.size())
 	return await capture_shoulder_views(visual)
+
+func check_shoulder_material(mesh: MeshInstance3D, side: String) -> bool:
+	var material := mesh.get_active_material(0) as ShaderMaterial
+	if material == null or material.shader == null:
+		fail("Shoulder " + side + " lacks active shader material")
+		return false
+	for parameter in ["base_texture", "second_texture", "third_texture", "fourth_texture"]:
+		var texture := material.get_shader_parameter(parameter) as Texture2D
+		if texture == null:
+			if parameter == "base_texture":
+				fail("Shoulder " + side + " lacks base texture binding")
+				return false
+			continue
+		var image := texture.get_image()
+		if image == null or image.is_empty():
+			fail("Shoulder " + side + " has empty bound texture " + parameter)
+			return false
+		var file := shots + "material-" + side + "-" + str(mesh.name) + "-" + parameter + ".png"
+		if image.save_png(file) != OK:
+			fail("Cannot save actual bound shoulder texture " + file)
+			return false
+		# GPU resources do not expose source FDIDs; do not infer identity from names.
+		print("SKYBORNE SHOULDER_MATERIAL side=", side, " mesh=", mesh.name, " parameter=", parameter, " resource=", texture.get_instance_id(), " size=", image.get_size(), " format=", image.get_format(), " file=", file)
+	return true
 
 func capture_shoulder_views(visual: Node3D) -> bool:
 	# Share the actual world; moving the visual into a new World3D produced blank captures.
