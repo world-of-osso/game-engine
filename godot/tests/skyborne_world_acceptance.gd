@@ -161,8 +161,12 @@ func check_start(require_original_start: bool = true) -> bool:
 	return true
 
 func inspect_kit() -> bool:
+	var readiness_sample := {"next": Time.get_ticks_msec()}
 	if not await wait_frames(func():
 		var state: Dictionary = client.merchant_state()
+		if Time.get_ticks_msec() >= readiness_sample.next:
+			print("SKYBORNE INVENTORY_READINESS ", state)
+			readiness_sample.next = Time.get_ticks_msec() + 10000
 		return state.item_catalog_loaded and not state.equipment.is_empty() and not state.bags.is_empty(), "source catalogs and authoritative starter inventory", catalog_wait_ms):
 		return false
 	var inventory: Dictionary = client.merchant_state()
