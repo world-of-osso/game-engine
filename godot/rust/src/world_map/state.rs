@@ -30,10 +30,7 @@ impl GameClient {
     }
 }
 
-fn write_player_and_breadcrumbs(
-    state: &WorldMapFrameState,
-    result: &mut VarDictionary,
-) {
+fn write_player_and_breadcrumbs(state: &WorldMapFrameState, result: &mut VarDictionary) {
     result.set(
         "player_uv",
         &state
