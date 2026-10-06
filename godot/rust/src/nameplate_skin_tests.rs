@@ -137,18 +137,18 @@ fn forever_plate_level_frame_draws_the_camelot_level_indicator_atlases() {
         }
     );
     let sheet = [64.0, 64.0];
-    let art = |name| skin_art(name, ActiveSkin::Forever).unwrap();
+    let art = |name| level_art_crop(name, ActiveSkin::Forever).unwrap();
     assert_eq!(
         art(atlases.icon),
-        crop(8_165_538, sheet, [1.0, 16.0, 45.0, 60.0])
+        crop(8_165_538, sheet, [27.0, 45.0, 45.0, 63.0])
     );
     assert_eq!(
         art(atlases.selected),
-        crop(8_165_538, sheet, [1.0, 19.0, 25.0, 43.0])
+        crop(8_165_538, sheet, [29.0, 47.0, 25.0, 43.0])
     );
     assert_eq!(
         art(atlases.skull),
-        crop(8_165_538, sheet, [21.0, 47.0, 25.0, 51.0])
+        crop(8_165_538, sheet, [1.0, 27.0, 25.0, 51.0])
     );
 }
 
@@ -167,11 +167,11 @@ fn forever_level_frame_hangs_on_the_shortened_health_bars_right_end() {
         }
     );
     let plate = plate_layout(&style, 1.0, 28.0);
-    // 160×20 body centred on -14: the fill spans -94..66; the Thick frame adds 10×4.
-    assert_eq!(plate.fill.position, Vector2::new(-94.0, -9.5));
-    assert_eq!(plate.fill.size, Vector2::new(160.0, 19.0));
-    assert_eq!(plate.frame.position, Vector2::new(-98.0, -12.5));
-    assert_eq!(plate.frame.size, Vector2::new(170.0, 24.0));
+    // 160×20 body centred on -14: fill spans -94..66, abutting the 1px frame.
+    assert_eq!(plate.fill.position, Vector2::new(-94.0, -10.0));
+    assert_eq!(plate.fill.size, Vector2::new(160.0, 20.0));
+    assert_eq!(plate.frame.position, Vector2::new(-95.0, -11.0));
+    assert_eq!(plate.frame.size, Vector2::new(162.0, 22.0));
     assert_eq!(plate.fill.end().x, level_layout(&style).frame.position.x);
     // The texts keep to the shortened body: the health text ends 2px left of the frame.
     assert_eq!(
