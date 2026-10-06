@@ -62,6 +62,58 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn guild_rank_widgets_wait_for_authority_before_next_permission_write() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_active_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.select_rank(2);
+        session.click("guild:settings", &Default::default());
+        let old = mounted(&session);
+        let first = session
+            .click(&action(&old, "GuildPermission4"), &Default::default())
+            .unwrap();
+        assert_eq!(
+            first,
+            GuildRankRequest::SetPermissions {
+                rank: 2,
+                rights: GUILD_RIGHT_CHAT_LISTEN | GUILD_RIGHT_WITHDRAW_GOLD | GUILD_RIGHT_INVITE,
+                gold_per_day: 30_000
+            }
+        );
+        // Second queued click precedes the first wire reply: never overwrite its bit.
+        assert!(
+            session
+                .click(&action(&old, "GuildPermission5"), &Default::default())
+                .is_none()
+        );
+        assert!(action(&mounted(&session), "GuildPermission5").is_empty());
+        assert_eq!(
+            session.selected().unwrap().rights,
+            GUILD_RIGHT_CHAT_LISTEN | GUILD_RIGHT_WITHDRAW_GOLD
+        );
+        let mut reply = state(0);
+        reply.ranks[2].rights |= GUILD_RIGHT_INVITE;
+        session.apply(reply);
+        let fresh = mounted(&session);
+        assert_eq!(
+            session.click(&action(&fresh, "GuildPermission5"), &Default::default()),
+            Some(GuildRankRequest::SetPermissions {
+                rank: 2,
+                rights: GUILD_RIGHT_CHAT_LISTEN
+                    | GUILD_RIGHT_WITHDRAW_GOLD
+                    | GUILD_RIGHT_INVITE
+                    | GUILD_RIGHT_REMOVE,
+                gold_per_day: 30_000
+            })
+        );
+    }
+    set_active_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn guild_rank_widgets_guild_master_limits_render_unlimited() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
