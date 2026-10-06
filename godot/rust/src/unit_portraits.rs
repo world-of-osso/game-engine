@@ -15,8 +15,6 @@ mod party;
 use party::PartyPortraits;
 use std::fs;
 
-use shared::components::Player;
-
 use game_engine_core::asset::m2_format::m2_camera::parse_portrait_camera;
 use game_engine_core::creation_scene_data::vertical_fov;
 use game_engine_ui_model::character_frame::PORTRAIT as CHARACTER_FRAME_PORTRAIT;
@@ -585,15 +583,7 @@ impl GameClient {
             self.clear_party_portraits();
             return Ok(());
         }
-        let appearances: std::collections::HashMap<_, _> = self
-            .replica
-            .units()
-            .filter_map(|unit| {
-                let player = unit.get::<Player>()?;
-                let appearance = self.world.unit_appearance(unit.server_id)?.clone();
-                Some((player.name.clone(), appearance))
-            })
-            .collect();
+        let appearances = party::roster_appearances(&self.account.group);
         self.targeting.portraits.party.sync(
             &mut self.world,
             self.group_frames.frame_ui(),

@@ -1,3 +1,7 @@
+## 2026-10-06 — Roster-only party portraits
+
+[Client roster appearance hookup](systems/portrait-party-frames.md#roster-only-appearance--2026-10-06) removes replicated-player discovery and cached-appearance fallback. `c582ef32` / `a104cde8`: unseen and initially offline members render from roster data, helm updates change actual head pixels, offline retains/desaturates appearance, compact remains zero-render. Native build, 13 targeted Rust/UI tests and eight real-engine cases per skin pass. Inspected Modern/Forever captures: `data/diagnostics/rosterclient-2026-10-06/`; existing shutdown warnings remain. No server, live acceptance, merge or push.
+
 ## 2026-10-06 — Authored portrait cameras and Modern HUD pixel overlap
 
 [Portrait camera/key investigation](systems/portrait-party-frames.md#authored-camera-and-frontal-key--2026-10-06): loaded HD type-0 camera selection was already correct; fixed reversed portrait key direction and corrected the all-human offline fixture. Eight Human/Blood Elf/Dwarf/Orc male/female head-angle cases, native frontal/reversed pixel lighting and both-skin roster captures pass. Modern reported 72×70 bounds intersect in 596 drawn pixels (53×33 envelope); native default scaling intersects in 11,243 drawn pixels. Approved positions unchanged. Proof/crops: `data/diagnostics/portraitcam-2026-10-06/`. Shutdown warnings remain; no live/reference-image parity claim.
