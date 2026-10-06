@@ -368,7 +368,15 @@ fn map_layers(state: &MinimapClusterState, style: &ClusterStyle) -> Element {
     let top = map_top + covered;
     let height = style.map_size - covered;
     let coords = format!("0,1,{},1", covered / style.map_size);
-    let mut elements = rsx! {
+    let mut elements = if style.mask == MapMask::Square {
+        rsx! { r#frame {
+            name: "MinimapBlackBackdrop", width: {style.map_size}, height: {style.map_size},
+            background_color: "0,0,0,1", pos_type: "absolute", left, top: map_top,
+        } }
+    } else {
+        Vec::new()
+    };
+    elements.extend(rsx! {
         texture {
             name: {DynName(MINIMAP_DISPLAY.into())},
             width: {style.map_size},
@@ -378,7 +386,7 @@ fn map_layers(state: &MinimapClusterState, style: &ClusterStyle) -> Element {
             left,
             top,
         }
-    };
+    });
     elements.extend(state.blips.iter().flat_map(|unit| blip(unit, style)));
     elements.extend(player_arrow(style.map_centre()));
     elements

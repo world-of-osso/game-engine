@@ -276,6 +276,22 @@ fn minimapgaps_forever_title_band_excludes_map_pixels() {
     assert!(registry.get_by_name("MinimapClusterFlareBorder").is_none());
 }
 
+/// FlareUI's opaque black backdrop remains visible while map data has not arrived.
+#[test]
+fn minimapgaps_forever_empty_map_has_black_backdrop() {
+    let registry = build(ActiveSkin::Forever, MinimapClusterState::default());
+    assert_rect(&registry, "MinimapBlackBackdrop", (8.0, 8.0, 244.0, 244.0));
+    assert_eq!(
+        frame(&registry, "MinimapBlackBackdrop").background_color,
+        Some([0.0, 0.0, 0.0, 1.0])
+    );
+    assert!(
+        build(ActiveSkin::Modern, MinimapClusterState::default())
+            .get_by_name("MinimapBlackBackdrop")
+            .is_none()
+    );
+}
+
 /// Reference badge 57×55 at ~1.71× gives 33×32 already-scaled UI units.
 #[test]
 fn minimapgaps_forever_badge_uses_reference_size_and_local_casc_art() {
