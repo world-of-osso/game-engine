@@ -123,10 +123,10 @@ fn uifixes_right_click_unequips_chest_and_mainhand_or_reports_full_bags() {
     use game_engine_ui_model::character_frame::paperdoll_unequip_request;
     use game_engine_ui_model::merchant::Click;
     use shared::protocol::SwapItem;
-    use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
 
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        set_active_skin(skin);
+    // The request is skin-independent; switching the process-wide skin here would race
+    // the other tests in this binary.
+    {
         let mut inventory =
             equipped(&[(EquipmentSlot::Chest, 2379), (EquipmentSlot::MainHand, 25)]);
         let occupied = inventory.equipped(EquipmentSlot::Chest).unwrap().clone();
@@ -157,7 +157,6 @@ fn uifixes_right_click_unequips_chest_and_mainhand_or_reports_full_bags() {
             inventory = before;
         }
     }
-    set_active_skin(ActiveSkin::Modern);
 }
 
 #[test]
