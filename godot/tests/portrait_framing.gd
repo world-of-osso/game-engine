@@ -63,7 +63,9 @@ func project_head(host: Node, camera: Camera3D, head: int) -> Rect2:
 		var vertices: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var bones: PackedInt32Array = arrays[Mesh.ARRAY_BONES]
 		var weights: PackedFloat32Array = arrays[Mesh.ARRAY_WEIGHTS]
-		for index in range(vertices.size()):
+		# Batch arrays share the full model buffer; only indexed vertices are drawn.
+		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
+		for index in indices:
 			var head_weight := 0.0
 			var posed := Vector3.ZERO
 			for influence in range(4):
