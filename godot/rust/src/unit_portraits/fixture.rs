@@ -7,10 +7,13 @@ use game_engine_ui_model::group_state::GroupState;
 use godot::classes::{Node, ProjectSettings};
 use godot::prelude::*;
 use shared::components::{
-    CharacterAppearance, EquipmentAppearance, Player, Position, PowerEntry, PowerType,
+    CharacterAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, Position, PowerEntry,
+    PowerType,
 };
 use shared::death::DeathState;
-use shared::protocol::{GroupMemberSnapshot, GroupMemberState, GroupRoleSnapshot};
+use shared::protocol::{
+    GroupMemberSnapshot, GroupMemberState, GroupPortraitAppearance, GroupRoleSnapshot,
+};
 
 use super::{PartyPortraits, party};
 #[path = "party_settings.rs"]
@@ -18,7 +21,6 @@ mod settings_preview;
 use crate::party_frames::{GroupViewer, group_frames_state};
 use crate::ui::RegistryUi;
 use crate::world::WorldUnits;
-use crate::world_models::UnitAppearance;
 use game_engine_ui_model::options_menu_component::{LayoutOptionsView, LayoutSystem};
 
 #[derive(GodotClass)]
@@ -30,7 +32,6 @@ struct PartyPortraitFixture {
     portraits: PartyPortraits,
     group: GroupState,
     compact: bool,
-    available: bool,
     layout: LayoutOptionsView,
     settings_ui: Option<Gd<RegistryUi>>,
 }
@@ -46,7 +47,6 @@ impl INode for PartyPortraitFixture {
             portraits: Default::default(),
             group: Default::default(),
             compact: true,
-            available: true,
             layout: LayoutOptionsView {
                 system: LayoutSystem::PartyFrames,
                 ..Default::default()
@@ -79,7 +79,6 @@ impl PartyPortraitFixture {
     #[func]
     fn set_members(&mut self, names: Array<GString>, compact: bool, available: bool) -> GString {
         self.compact = compact;
-        self.available = available;
         self.group = fixture_group(names.iter_shared().map(|name| name.to_string()), !available);
         let settings = LayoutSettings {
             use_raid_style_party_frames: Some(compact),
@@ -188,15 +187,62 @@ impl PartyPortraitFixture {
     }
 
     #[func]
+    fn set_head(&mut self, name: GString, equipped: bool) -> GString {
+        let Some(member) = self
+            .group
+            .members
+            .iter_mut()
+            .find(|member| member.name == name.to_string())
+        else {
+            return "Unknown roster member".into();
+        };
+        member.portrait.head = equipped.then_some(EquippedAppearanceEntry {
+            slot: EquipmentVisualSlot::Head,
+            item_id: None,
+            display_info_id: Some(14903),
+            inventory_type: 1,
+            hidden: false,
+        });
+        fixture_error(self.sync_fixture())
+    }
+
+    #[func]
+    fn set_offline(&mut self, name: GString) -> GString {
+        let name = name.to_string();
+        let Some(member) = self
+            .group
+            .members
+            .iter_mut()
+            .find(|member| member.name == name)
+        else {
+            return "Unknown roster member".into();
+        };
+        member.online = false;
+        self.group.live.remove(&name);
+        fixture_error(self.sync_fixture())
+    }
+
+    #[func]
+    fn model_id(&self, name: GString) -> i64 {
+        self.portraits
+            .members
+            .get(&name.to_string())
+            .and_then(|member| member.portrait.scene.as_ref())
+            .and_then(|scene| scene.model.as_ref())
+            .map_or(0, |model| model.instance_id().to_i64())
+    }
+
+    #[func]
     fn ready_heads(&self) -> i64 {
         self.portraits
             .members
             .values()
             .filter(|member| {
                 let state = member.portrait.snapshot();
-                state
-                    .get("model_shown")
-                    .is_some_and(|value| value.to::<bool>())
+                !state.get("pending").is_some_and(|value| value.to::<bool>())
+                    && state
+                        .get("model_shown")
+                        .is_some_and(|value| value.to::<bool>())
                     && state
                         .get("mask_loaded")
                         .is_some_and(|value| value.to::<bool>())
@@ -252,10 +298,10 @@ impl PartyPortraitFixture {
             self.compact,
             self.layout.settings.party.sort.unwrap_or_default(),
         );
-        let available = self.available;
+        let appearances = party::roster_appearances(&self.group);
         self.portraits
             .sync(&mut self.world, Some(ui), bindings, |name| {
-                available.then(|| fixture_appearance(name))
+                appearances.get(name).cloned()
             })
     }
 }
@@ -288,6 +334,7 @@ fn fixture_group(names: impl Iterator<Item = String>, disconnected: bool) -> Gro
             class: 8,
             level: 10,
             entity: None,
+            portrait: fixture_appearance(&name),
         });
         if !offline {
             group.live.insert(
@@ -317,20 +364,18 @@ fn fixture_group(names: impl Iterator<Item = String>, disconnected: bool) -> Gro
     group
 }
 
-fn fixture_appearance(name: &str) -> UnitAppearance {
+fn fixture_appearance(name: &str) -> GroupPortraitAppearance {
     let sex = u8::from(matches!(name, "Jaina" | "Valeera"));
-    let player = Player {
-        name: name.into(),
+    GroupPortraitAppearance {
         race: if matches!(name, "Theron" | "Valeera") {
             10
         } else {
             1
         },
-        class: 8,
+        head: None,
         appearance: CharacterAppearance {
             sex,
             ..Default::default()
         },
-    };
-    UnitAppearance::Player(player, EquipmentAppearance::default())
+    }
 }
