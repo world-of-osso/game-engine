@@ -2583,3 +2583,7 @@ Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-b
 ## 2026-10-05 — In-world launcher
 
 [[launcher]]: added user's centred search grid, shared micro actions/icons, Toggle Launcher binding and minimap opener. Micro menu retained. Targeted tests and live proof pending; Support remains a placeholder.
+
+## 2026-10-05 — Guild rank settings model
+
+Added portable authoritative rank controls and Officer chat parsing/classification. [Guild ranks spec](../specs/guild-ranks.md) records pending native transport, settings widgets in both skins and member menus. No native guild-settings rendering or live proof claimed. Targeted model GREEN pending.

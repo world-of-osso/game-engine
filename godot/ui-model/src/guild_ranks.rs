@@ -90,8 +90,8 @@ impl GuildRanksSession {
             rank,
             tab,
             view,
-            deposit: view && deposit,
-            withdrawals_per_day: if view { stacks } else { 0 },
+            deposit,
+            withdrawals_per_day: stacks,
         })
     }
 
