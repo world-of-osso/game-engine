@@ -1710,6 +1710,62 @@ mod tests {
     }
 
     #[test]
+    fn damage_meter_wire_snapshot_reaches_all_categories_without_log_counts() {
+        use game_engine_ui_model::damage_meter_data::{DamageMeterWindow, MeterType};
+        use shared::protocol::{DamageMeterSession, DamageMeterSource};
+        let mut account = Account::new(PathBuf::new());
+        let mut output = Vec::new();
+        let source = DamageMeterSource {
+            unit: 77,
+            name: "Remote Healer".into(),
+            class_id: 5,
+            is_local_player: false,
+            total_amount: 120,
+            amount_per_second: 12.0,
+            spells: vec![],
+            healing_done: 450,
+            overhealing: 50,
+            absorbs: 60,
+            interrupts: 3,
+            dispels: 4,
+            deaths: 2,
+            death_recaps: vec![],
+        };
+        let session = DamageMeterSession {
+            session_id: 1,
+            duration_secs: 10.0,
+            active: false,
+            total_amount: 120,
+            sources: vec![source],
+        };
+        let snapshot = DamageMeterSnapshot {
+            current: Some(session.clone()),
+            overall: session,
+        };
+        account
+            .dispatch_message(ProtocolMessage::for_tests(snapshot.clone()), &mut output)
+            .unwrap();
+        assert_eq!(account.damage_meter.as_ref(), Some(&snapshot));
+        assert!(account.combat_log.is_empty());
+        let mut window = DamageMeterWindow {
+            snapshot: account.damage_meter.clone(),
+            ..Default::default()
+        };
+        for (kind, expected) in [
+            (MeterType::DamageDone, "120 (12)"),
+            (MeterType::HealingDone, "450 (45)"),
+            (MeterType::Interrupts, "3"),
+            (MeterType::Dispels, "4"),
+            (MeterType::Deaths, "2"),
+        ] {
+            window.click(kind.action()).unwrap();
+            assert_eq!(window.rows().len(), 1);
+            assert_eq!(window.rows()[0].value_text, expected);
+            assert!(!window.rows()[0].is_local_player);
+        }
+    }
+
+    #[test]
     fn combatipc_receives_pet_and_owner_logs_without_observer_events() {
         use shared::protocol::CombatLogKind;
 

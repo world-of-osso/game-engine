@@ -6,13 +6,12 @@
 //! `Overall` session, ranks its sources and formats each bar the way
 //! `DamageMeterSourceEntryMixin` does with the Edit Mode default `Numbers` = Compact.
 //!
-//! The snapshot carries damage only. Healing, interrupts, dispels and deaths are counted
-//! here from the `CombatLogEvent`s this client receives ([`MeterLog`]): the lines whose
-//! source or target is the local player. Lines between two other units never arrive, so a
-//! group member's healing of others, interrupts, dispels and deaths are not listed.
+//! Every category and death recap comes from the server snapshot, including remote
+//! group members. Combat log delivery never contributes to these totals.
 
 use shared::protocol::{
-    CombatLogEvent, CombatLogKind, DamageMeterSession, DamageMeterSnapshot, DamageMeterSource,
+    CombatLogEvent, CombatLogKind, DamageMeterDeathRecap, DamageMeterSession, DamageMeterSnapshot,
+    DamageMeterSource,
 };
 
 use crate::ui::chat_frame::environmental_name;
@@ -85,17 +84,9 @@ impl MeterType {
 pub const DEATH_RECAP_LABEL: &str = "Death Recap";
 /// `ACTION_SWING`: the recap's name for a melee swing (Blizzard_DeathRecap.lua:107-109).
 pub const MELEE_LABEL: &str = "Melee";
-/// Recap rows: Retail's recap lists the last damage events (`C_DeathRecap.GetRecapEvents`;
-/// the count is the engine's). Ours lists damage and healing, as asked, this many at most
-/// from this long before the death.
-pub const RECAP_EVENTS: usize = 5;
-pub const RECAP_WINDOW_SECS: f64 = 10.0;
 /// Recap bar colours: damage red, healing green.
 const RECAP_DAMAGE_COLOR: [f32; 3] = [0.85, 0.15, 0.15];
 const RECAP_HEAL_COLOR: [f32; 3] = [0.2, 0.8, 0.2];
-/// A combat's first line reaches the client just before the snapshot that announces its
-/// session; lines this long before the session's computed start still belong to it.
-const SESSION_START_SLACK_SECS: f64 = 0.5;
 
 /// `Enum.DamageMeterSessionType` values a window can select without a session id.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -199,139 +190,6 @@ pub fn death_time_text(seconds: f64) -> String {
     }
 }
 
-/// A unit of a combat log line, as the meter lists it.
-#[derive(Clone, Debug, PartialEq)]
-pub struct MeterUnit {
-    /// Server entity bits.
-    pub unit: u64,
-    pub name: String,
-    /// `ChrClasses` id of a player; 0 for creatures.
-    pub class_id: u8,
-    pub is_local_player: bool,
-}
-
-impl MeterUnit {
-    fn is_player(&self) -> bool {
-        self.class_id != 0
-    }
-}
-
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum MeterEventKind {
-    Damage,
-    Heal,
-    Interrupt,
-    Dispel,
-    Death,
-}
-
-/// A combat log line the meter counts, at the client time it arrived.
-#[derive(Clone, Debug, PartialEq)]
-pub struct MeterEvent {
-    pub time: f64,
-    /// When the server logged it, Unix seconds (CLEU `timestamp`).
-    pub logged_at: f64,
-    pub kind: MeterEventKind,
-    pub source: MeterUnit,
-    pub target: MeterUnit,
-    /// The damaging or healing spell's name, [`MELEE_LABEL`] for a swing, the type's name
-    /// for environmental damage (`ACTION_ENVIRONMENTAL_DAMAGE_*`).
-    pub spell_name: String,
-    /// CLEU `extraSpellName`: the interrupted spell, the dispelled aura.
-    pub extra_spell_name: Option<String>,
-    /// Damage dealt, healing without overheal, or 1 for an interrupt, a dispelled aura
-    /// or a death.
-    pub amount: u64,
-}
-
-impl MeterEvent {
-    /// The line as the meter counts it; none for lines it ignores: other kinds, no
-    /// amount, and damage to or deaths of creatures (only players get a recap).
-    pub fn from_combat_log(
-        time: f64,
-        event: &CombatLogEvent,
-        source: MeterUnit,
-        target: MeterUnit,
-        spell_name: impl Fn(u32) -> String,
-    ) -> Option<Self> {
-        let (kind, amount) = match event.kind {
-            CombatLogKind::Damage | CombatLogKind::Environmental(_) if target.is_player() => {
-                (MeterEventKind::Damage, event.amount)
-            }
-            CombatLogKind::Heal => (MeterEventKind::Heal, event.amount - event.overflow),
-            CombatLogKind::Interrupt => (MeterEventKind::Interrupt, 1),
-            CombatLogKind::Dispel => (MeterEventKind::Dispel, 1),
-            CombatLogKind::Death if target.is_player() => (MeterEventKind::Death, 1),
-            _ => return None,
-        };
-        let name = match (event.kind, event.spell_id) {
-            (CombatLogKind::Environmental(kind), _) => environmental_name(kind).to_owned(),
-            (_, Some(id)) => spell_name(id),
-            (_, None) => MELEE_LABEL.to_owned(),
-        };
-        (amount > 0).then(|| Self {
-            time,
-            logged_at: event.timestamp_unix_ms as f64 / 1000.0,
-            kind,
-            source,
-            target,
-            spell_name: name,
-            extra_spell_name: event.extra_spell_id.map(&spell_name),
-            amount: amount as u64,
-        })
-    }
-}
-
-/// When a server session ran, in client time.
-#[derive(Clone, Debug, PartialEq)]
-struct SessionSpan {
-    id: u32,
-    start: f64,
-    /// None while the session's combat runs.
-    end: Option<f64>,
-}
-
-impl SessionSpan {
-    fn contains(&self, time: f64) -> bool {
-        time >= self.start - SESSION_START_SLACK_SECS && self.end.is_none_or(|end| time <= end)
-    }
-}
-
-/// The counted combat log lines since world entry, which is what `Overall` shows (the
-/// server's `Overall` likewise counts every damage line), and when the server's `Current`
-/// session ran.
-#[derive(Clone, Debug, Default, PartialEq)]
-pub struct MeterLog {
-    events: Vec<MeterEvent>,
-    current: Option<SessionSpan>,
-}
-
-impl MeterLog {
-    pub fn push(&mut self, event: MeterEvent) {
-        self.events.push(event);
-    }
-
-    /// Note when the snapshot's `Current` session started (now less its duration) and
-    /// when it stopped being active.
-    fn observe(&mut self, now: f64, current: &DamageMeterSession) {
-        match self
-            .current
-            .as_mut()
-            .filter(|span| span.id == current.session_id)
-        {
-            Some(span) if current.active => span.end = None,
-            Some(span) => span.end = span.end.or(Some(now)),
-            None => {
-                self.current = Some(SessionSpan {
-                    id: current.session_id,
-                    start: now - f64::from(current.duration_secs),
-                    end: (!current.active).then_some(now),
-                })
-            }
-        }
-    }
-}
-
 /// One source bar.
 #[derive(Clone, Debug, PartialEq)]
 pub struct DamageMeterRow {
@@ -364,8 +222,6 @@ pub struct DamageMeterView {
     pub type_menu_open: bool,
     /// The rows are a death's recap.
     pub recap_open: bool,
-    /// The rows are an Interrupts or Dispels source's spell breakdown.
-    pub breakdown_open: bool,
 }
 
 impl DamageMeterView {
@@ -378,15 +234,9 @@ impl DamageMeterView {
         }
     }
 
-    /// Death rows open their recap, Interrupts and Dispels rows their breakdown; recap and
-    /// breakdown rows close them.
+    /// Death rows open their server recap; recap rows close it.
     pub fn rows_clickable(&self) -> bool {
-        self.recap_open
-            || self.breakdown_open
-            || matches!(
-                self.meter_type,
-                MeterType::Deaths | MeterType::Interrupts | MeterType::Dispels
-            )
+        self.recap_open || self.meter_type == MeterType::Deaths
     }
 }
 
@@ -400,13 +250,13 @@ pub struct DamageMeterWindow {
     pub threat_target: Option<u64>,
     pub local_unit: Option<u64>,
     pub threat_in_combat: bool,
-    pub log: MeterLog,
+    /// Names resolved by the host for recap actors outside the snapshot roster.
+    pub recap_unit_names: std::collections::BTreeMap<u64, String>,
+    pub recap_spell_names: std::collections::BTreeMap<u32, String>,
     pub menu_open: bool,
     pub type_menu_open: bool,
-    /// The death whose recap is shown: its index in the log.
-    pub recap: Option<usize>,
-    /// The Interrupts or Dispels source whose spell breakdown is shown: its unit.
-    pub breakdown: Option<u64>,
+    /// The selected server recap: victim unit and death timestamp.
+    pub recap: Option<(u64, u64)>,
 }
 
 impl DamageMeterWindow {
@@ -486,125 +336,62 @@ impl DamageMeterWindow {
         }
     }
 
-    /// The server's newest snapshot, received by client time `now`.
-    pub fn set_snapshot(&mut self, now: f64, snapshot: Option<DamageMeterSnapshot>) {
-        if let Some(current) = snapshot.as_ref().and_then(|s| s.current.as_ref()) {
-            self.log.observe(now, current);
-        }
+    /// Replace every category with the server's newest session data.
+    pub fn set_snapshot(&mut self, snapshot: Option<DamageMeterSnapshot>) {
         self.snapshot = snapshot;
-    }
-
-    /// The log's lines in the selected session, with their indices: all of them for
-    /// `Overall`, those that arrived while the `Current` session ran for `Current`.
-    fn session_events(&self) -> impl Iterator<Item = (usize, &MeterEvent)> {
-        let current = self.log.current.as_ref();
-        let session = self.session;
-        self.log
-            .events
-            .iter()
-            .enumerate()
-            .filter(move |(_, event)| match session {
-                MeterSessionType::Overall => true,
-                MeterSessionType::Current => current.is_some_and(|span| span.contains(event.time)),
-            })
-    }
-
-    /// What each player did of `kind` in the selected session, most first.
-    fn source_totals(&self, kind: MeterEventKind) -> Vec<(&MeterUnit, u64)> {
-        let mut totals: Vec<(&MeterUnit, u64)> = Vec::new();
-        for (_, event) in self.session_events() {
-            if event.kind != kind || !event.source.is_player() {
-                continue;
-            }
-            match totals
-                .iter_mut()
-                .find(|(source, _)| source.unit == event.source.unit)
-            {
-                Some((_, total)) => *total += event.amount,
-                None => totals.push((&event.source, event.amount)),
-            }
+        if self.selected_recap().is_none() {
+            self.recap = None;
         }
-        totals.sort_by(|a, b| b.1.cmp(&a.1));
+    }
+
+    fn category_sources(&self) -> Vec<(&DamageMeterSource, u64)> {
+        let Some(session) = self.session_data() else {
+            return Vec::new();
+        };
+        let mut totals: Vec<_> = session
+            .sources
+            .iter()
+            .map(|source| {
+                let amount = match self.meter_type {
+                    MeterType::HealingDone => source.healing_done,
+                    MeterType::Interrupts => source.interrupts,
+                    MeterType::Dispels => source.dispels,
+                    MeterType::Deaths => source.deaths,
+                    _ => source.total_amount,
+                };
+                (source, amount)
+            })
+            .collect();
+        totals.sort_by(|a, b| b.1.cmp(&a.1).then_with(|| a.0.name.cmp(&b.0.name)));
         totals
     }
 
-    /// The selected session's player deaths, newest first, as log indices. (Retail's
-    /// order is `C_DamageMeter`'s and not visible in its files.)
-    fn deaths(&self) -> Vec<usize> {
-        let mut deaths: Vec<usize> = self
-            .session_events()
-            .filter(|(_, event)| event.kind == MeterEventKind::Death)
-            .map(|(index, _)| index)
-            .collect();
-        deaths.reverse();
-        deaths
-    }
-
-    /// Rows in the server's rank order (`BuildDataProvider`); a death's recap while one
-    /// is open.
+    /// Damage retains the server's order and DPS; other categories rank their totals.
     pub fn rows(&self) -> Vec<DamageMeterRow> {
-        if let Some(death) = self.recap {
-            return self.recap_rows(death);
-        }
-        if let (Some(unit), Some(kind)) = (self.breakdown, self.counted_kind()) {
-            return self.breakdown_rows(unit, kind);
+        if let Some(recap) = self.selected_recap() {
+            return self.recap_rows(recap);
         }
         match self.meter_type {
             MeterType::DamageDone => self.damage_rows(),
-            MeterType::HealingDone => {
-                let duration = self.session_data().map_or(0.0, |s| s.duration_secs);
-                counted_rows(&self.source_totals(MeterEventKind::Heal), Some(duration))
-            }
-            MeterType::Interrupts | MeterType::Dispels => {
-                let kind = self.counted_kind().expect("a counted type");
-                counted_rows(&self.source_totals(kind), None)
-            }
-            MeterType::Deaths => self.death_rows(),
             MeterType::Threat => self.threat_rows(),
+            _ => {
+                let duration = self.session_data().map_or(0.0, |s| s.duration_secs);
+                category_rows(&self.category_sources(), self.meter_type, duration)
+            }
         }
     }
 
-    /// The count each Interrupts or Dispels row ranks by.
-    fn counted_kind(&self) -> Option<MeterEventKind> {
-        match self.meter_type {
-            MeterType::Interrupts => Some(MeterEventKind::Interrupt),
-            MeterType::Dispels => Some(MeterEventKind::Dispel),
-            _ => None,
-        }
-    }
-
-    /// `DamageMeterSourceWindow`'s spell rows for one source (DamageMeterSourceWindow.lua
-    /// 175-194, `DamageMeterSpellEntryMixin:GetNameText` DamageMeterEntry.lua:706-711): the
-    /// interrupted spells or dispelled auras by count, most first, in the source's class
-    /// colour, the bare count as the type suppresses per second.
-    fn breakdown_rows(&self, unit: u64, kind: MeterEventKind) -> Vec<DamageMeterRow> {
-        let mut spells: Vec<(&MeterEvent, u64)> = Vec::new();
-        for (_, event) in self.session_events() {
-            if event.kind != kind || event.source.unit != unit {
-                continue;
-            }
-            match spells
-                .iter_mut()
-                .find(|(seen, _)| seen.extra_spell_name == event.extra_spell_name)
-            {
-                Some((_, count)) => *count += event.amount,
-                None => spells.push((event, event.amount)),
-            }
-        }
-        spells.sort_by(|a, b| b.1.cmp(&a.1));
-        let max = spells.first().map_or(0, |(_, count)| *count);
-        spells
-            .into_iter()
-            .map(|(event, count)| DamageMeterRow {
-                // No spell id, no name text (`GetNameText` returns nil).
-                name_text: event.extra_spell_name.clone().unwrap_or_default(),
-                value_text: abbreviate_large_number(count),
-                fraction: count as f32 / max as f32,
-                color: class_color(event.source.class_id),
-                class_id: event.source.class_id,
-                is_local_player: event.source.is_local_player,
-            })
-            .collect()
+    fn selected_recap(&self) -> Option<&DamageMeterDeathRecap> {
+        let (unit, timestamp) = self.recap?;
+        let source = self
+            .session_data()?
+            .sources
+            .iter()
+            .find(|s| s.unit == unit)?;
+        source
+            .death_recaps
+            .iter()
+            .find(|r| r.timestamp_unix_ms == timestamp)
     }
 
     fn damage_rows(&self) -> Vec<DamageMeterRow> {
@@ -625,67 +412,54 @@ impl DamageMeterWindow {
             .collect()
     }
 
-    /// `DamageMeterSourceEntryMixin` for a death (DamageMeterEntry.lua:562-605): the name
-    /// without a rank, a full bar and the time into the session, which `Overall` lacks.
-    fn death_rows(&self) -> Vec<DamageMeterRow> {
-        let start = match self.session {
-            MeterSessionType::Current => self.log.current.as_ref().map(|span| span.start),
-            MeterSessionType::Overall => None,
-        };
-        self.deaths()
+    /// Server-capped damage and healing events, newest first, using server timestamps.
+    fn recap_rows(&self, recap: &DamageMeterDeathRecap) -> Vec<DamageMeterRow> {
+        let events: Vec<_> = recap
+            .events
+            .iter()
+            .rev()
+            .filter(|event| {
+                matches!(
+                    event.kind,
+                    CombatLogKind::Damage | CombatLogKind::Heal | CombatLogKind::Environmental(_)
+                )
+            })
+            .collect();
+        let max = events.iter().map(|e| recap_amount(e)).max().unwrap_or(0);
+        events
             .into_iter()
-            .map(|index| {
-                let death = &self.log.events[index];
-                DamageMeterRow {
-                    name_text: death.target.name.clone(),
-                    value_text: start
-                        .map_or_else(String::new, |start| death_time_text(death.time - start)),
-                    fraction: 1.0,
-                    color: class_color(death.target.class_id),
-                    class_id: death.target.class_id,
-                    is_local_player: death.target.is_local_player,
-                }
+            .map(|event| {
+                let name = format!(
+                    "{} by {}",
+                    self.recap_spell_name(event),
+                    self.recap_source_name(event.source)
+                );
+                recap_row(event, recap.timestamp_unix_ms, max, name)
             })
             .collect()
     }
 
-    /// The last damage and healing the dead unit took, newest first: "spell by source"
-    /// (`DEATH_RECAP_CAST_BY_TT`), the amount (damage negative as in Retail's recap,
-    /// Blizzard_DeathRecap.lua:162) and the seconds before the death ("%.1F", :72-74).
-    fn recap_rows(&self, death_index: usize) -> Vec<DamageMeterRow> {
-        let death = &self.log.events[death_index];
-        let events: Vec<&MeterEvent> = self.log.events[..death_index]
-            .iter()
-            .rev()
-            .take_while(|event| death.logged_at - event.logged_at <= RECAP_WINDOW_SECS)
-            .filter(|event| {
-                event.target.unit == death.target.unit
-                    && matches!(event.kind, MeterEventKind::Damage | MeterEventKind::Heal)
-            })
-            .take(RECAP_EVENTS)
-            .collect();
-        let max = events.iter().map(|event| event.amount).max().unwrap_or(0);
-        events
-            .into_iter()
-            .map(|event| {
-                let (sign, color) = match event.kind {
-                    MeterEventKind::Heal => ('+', RECAP_HEAL_COLOR),
-                    _ => ('-', RECAP_DAMAGE_COLOR),
-                };
-                DamageMeterRow {
-                    name_text: format!("{} by {}", event.spell_name, event.source.name),
-                    value_text: format!(
-                        "{sign}{} ({:.1}s)",
-                        break_up_large_number(event.amount),
-                        death.logged_at - event.logged_at
-                    ),
-                    fraction: event.amount as f32 / max as f32,
-                    color,
-                    class_id: 0,
-                    is_local_player: false,
-                }
-            })
-            .collect()
+    fn recap_spell_name(&self, event: &CombatLogEvent) -> String {
+        match (event.kind, event.spell_id) {
+            (CombatLogKind::Environmental(kind), _) => environmental_name(kind).to_owned(),
+            (_, Some(id)) => self
+                .recap_spell_names
+                .get(&id)
+                .cloned()
+                .unwrap_or_else(|| format!("Spell {id}")),
+            (_, None) => MELEE_LABEL.to_owned(),
+        }
+    }
+
+    fn recap_source_name(&self, unit: Option<u64>) -> String {
+        let Some(unit) = unit else {
+            return "Environment".into();
+        };
+        self.session_data()
+            .and_then(|s| s.sources.iter().find(|s| s.unit == unit))
+            .map(|s| s.name.clone())
+            .or_else(|| self.recap_unit_names.get(&unit).cloned())
+            .unwrap_or_else(|| format!("Unit {unit}"))
     }
 
     /// A header, menu or row click.
@@ -727,29 +501,24 @@ impl DamageMeterWindow {
         self.menu_open = false;
         self.type_menu_open = false;
         self.recap = None;
-        self.breakdown = None;
     }
 
-    /// `ShowSourceWindow` (DamageMeterSessionWindow.lua:967-979): a death row opens its
-    /// recap, an Interrupts or Dispels row its source's spell breakdown; a recap or
-    /// breakdown row closes it.
+    /// Open a member's latest exported recap; a recap row closes it.
     fn click_row(&mut self, index: usize) -> Result<(), String> {
-        if self.recap.take().is_some() || self.breakdown.take().is_some() {
-            return Ok(());
-        }
-        if let Some(kind) = self.counted_kind() {
-            let source = self
-                .source_totals(kind)
-                .get(index)
-                .map(|(unit, _)| unit.unit);
-            self.breakdown = Some(source.ok_or_else(|| format!("No source row {index}"))?);
+        if self.recap.take().is_some() {
             return Ok(());
         }
         if self.meter_type != MeterType::Deaths {
             return Err(format!("{:?} rows are not clickable", self.meter_type));
         }
-        let death = self.deaths().get(index).copied();
-        self.recap = Some(death.ok_or_else(|| format!("No death row {index}"))?);
+        let sources = self.category_sources();
+        let (source, _) = sources
+            .get(index)
+            .ok_or_else(|| format!("No death row {index}"))?;
+        self.recap = source
+            .death_recaps
+            .last()
+            .map(|r| (source.unit, r.timestamp_unix_ms));
         Ok(())
     }
 
@@ -763,7 +532,6 @@ impl DamageMeterWindow {
             menu_open: self.menu_open,
             type_menu_open: self.type_menu_open,
             recap_open: self.recap.is_some(),
-            breakdown_open: self.breakdown.is_some(),
         }
     }
 }
@@ -788,37 +556,91 @@ fn damage_row(index: usize, source: &DamageMeterSource, max: u64) -> DamageMeter
     }
 }
 
-/// Ranked rows of client-counted totals: "amount (per second)" over the session's
-/// `duration`, or the bare count for the types that suppress the per-second value
-/// (`DAMAGE_METER_TYPE_SUPPRESS_VALUE_PER_SECOND`, DamageMeterSessionWindow.lua:29-32).
-fn counted_rows(totals: &[(&MeterUnit, u64)], duration: Option<f32>) -> Vec<DamageMeterRow> {
+/// Effective healing excludes overhealing and consumed shields; count types omit rates.
+fn category_rows(
+    totals: &[(&DamageMeterSource, u64)],
+    kind: MeterType,
+    duration: f32,
+) -> Vec<DamageMeterRow> {
     let max = totals.first().map_or(0, |(_, total)| *total);
     totals
         .iter()
         .enumerate()
-        .map(|(index, (source, total))| DamageMeterRow {
-            name_text: format!("{}. {}", index + 1, source.name),
-            value_text: match duration {
-                Some(duration) => {
-                    let per_second = if duration > 0.0 {
-                        (*total as f32 / duration) as u64
-                    } else {
-                        0
-                    };
-                    format!(
-                        "{} ({})",
-                        abbreviate_large_number(*total),
-                        abbreviate_large_number(per_second)
-                    )
-                }
-                None => abbreviate_large_number(*total),
-            },
-            fraction: *total as f32 / max as f32,
-            color: class_color(source.class_id),
-            class_id: source.class_id,
-            is_local_player: source.is_local_player,
+        .map(|(index, (source, total))| {
+            let value_text = category_value_text(*total, kind, duration);
+            DamageMeterRow {
+                name_text: if kind == MeterType::Deaths {
+                    source.name.clone()
+                } else {
+                    format!("{}. {}", index + 1, source.name)
+                },
+                value_text,
+                fraction: if kind == MeterType::Deaths {
+                    1.0
+                } else if max > 0 {
+                    *total as f32 / max as f32
+                } else {
+                    0.0
+                },
+                color: class_color(source.class_id),
+                class_id: source.class_id,
+                is_local_player: source.is_local_player,
+            }
         })
         .collect()
+}
+
+fn category_value_text(total: u64, kind: MeterType, duration: f32) -> String {
+    if kind != MeterType::HealingDone {
+        return abbreviate_large_number(total);
+    }
+    let rate = if duration > 0.0 {
+        (total as f32 / duration) as u64
+    } else {
+        0
+    };
+    format!(
+        "{} ({})",
+        abbreviate_large_number(total),
+        abbreviate_large_number(rate)
+    )
+}
+
+fn recap_row(
+    event: &CombatLogEvent,
+    death_timestamp: u64,
+    max: u64,
+    name_text: String,
+) -> DamageMeterRow {
+    let amount = recap_amount(event);
+    let (sign, color) = if event.kind == CombatLogKind::Heal {
+        ('+', RECAP_HEAL_COLOR)
+    } else {
+        ('-', RECAP_DAMAGE_COLOR)
+    };
+    let seconds = death_timestamp.saturating_sub(event.timestamp_unix_ms) as f64 / 1000.0;
+    DamageMeterRow {
+        name_text,
+        value_text: format!("{sign}{} ({seconds:.1}s)", break_up_large_number(amount)),
+        fraction: if max > 0 {
+            amount as f32 / max as f32
+        } else {
+            0.0
+        },
+        color,
+        class_id: 0,
+        is_local_player: false,
+    }
+}
+
+fn recap_amount(event: &CombatLogEvent) -> u64 {
+    let amount = event.amount.max(0);
+    let effective = if event.kind == CombatLogKind::Heal {
+        amount - event.overflow.clamp(0, amount)
+    } else {
+        amount
+    };
+    effective as u64
 }
 
 #[cfg(test)]
@@ -839,6 +661,13 @@ mod tests {
                 total_amount: total,
                 amount_per_second: dps,
             }],
+            healing_done: 0,
+            overhealing: 0,
+            absorbs: 0,
+            interrupts: 0,
+            dispels: 0,
+            deaths: 0,
+            death_recaps: vec![],
         }
     }
 
