@@ -45,6 +45,23 @@ fn selected_human_warrior_items_resolve_original_displays_and_resources() {
 }
 
 #[test]
+fn everforged_shoulders_resolve_model_column_texture_types() {
+    let catalog = catalog();
+    let display = catalog.resolve_item_display_id(222436).unwrap();
+    assert_eq!(display, 697601);
+    for side in [0, 1] {
+        let column = catalog.shoulder_model_column(display, side).unwrap();
+        assert_eq!(column, side);
+        assert_eq!(
+            catalog
+                .resolve_model_texture_fdids(display, column, 1, 0)
+                .unwrap(),
+            [(2, 5647905), (3, 5665215)]
+        );
+    }
+}
+
+#[test]
 fn concurrent_first_imports_share_one_complete_local_catalog() {
     use std::sync::{Arc, Barrier};
 

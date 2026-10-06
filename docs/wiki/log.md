@@ -2645,3 +2645,7 @@ Added portable authoritative rank controls and Officer chat parsing/classificati
 ## 2026-10-06 — Quest overflow
 
 [[quest-ui]] records the missing log scroll ancestor and dialog estimate/native-height mismatch, Retail scroll/QuestInfo sources, measured scroll-child feedback and native capture/input regressions. Evidence and current acceptance: `data/diagnostics/questoverflow-2026-10-06/`. Recorded quest trees came only from `capture_base_trees`; Options/menu suffix unchanged.
+
+## 2026-10-06 — Everforged shoulder material declarations
+
+Local-CASC ItemDisplayInfoModelMatRes4050937 establishes type3 material822338/texture5665215 for item222436. Offline RED catches both white shoulder batches; catalog/runtime binding and real-item material regressions added. See [diagnosis](investigations/npc-stance-gear.md#everforged-shoulder-materials-2026-10-06); GREEN pending.
