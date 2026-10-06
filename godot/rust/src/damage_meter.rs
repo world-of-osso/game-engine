@@ -106,15 +106,14 @@ impl GameClient {
         Ok(self.damage_meter.window.click(&action)?)
     }
 
-    /// Resolve labels from the snapshot's recap detail, never the account combat log.
+    /// Resolve recap and action detail labels from the snapshot, never the account combat log.
     fn update_meter_snapshot(&mut self) {
         let snapshot = self.account.damage_meter.clone();
-        let sessions = snapshot
+        let sources = snapshot
             .iter()
-            .flat_map(|s| s.current.iter().chain(std::iter::once(&s.overall)));
-        let recaps = sessions
-            .flat_map(|s| &s.sources)
-            .flat_map(|s| &s.death_recaps);
+            .flat_map(|s| s.current.iter().chain(std::iter::once(&s.overall)))
+            .flat_map(|session| &session.sources);
+        let recaps = sources.clone().flat_map(|source| &source.death_recaps);
         let events: Vec<_> = recaps.flat_map(|r| &r.events).collect();
         let unit_names = events
             .iter()
@@ -122,9 +121,8 @@ impl GameClient {
             .map(|id| (id, self.unit_display_name(Some(id))))
             .collect();
         let name_spell = crate::chat::spell_namer(self.spells.catalog());
-        let spell_names = events
-            .iter()
-            .filter_map(|e| e.spell_id)
+        let spell_names = sources
+            .flat_map(source_spell_ids)
             .map(|id| (id, name_spell(id)))
             .collect();
         let window = &mut self.damage_meter.window;
@@ -132,6 +130,61 @@ impl GameClient {
         window.recap_spell_names = spell_names;
         window.set_snapshot(snapshot);
     }
+}
+
+fn source_spell_ids(
+    source: &shared::protocol::DamageMeterSource,
+) -> impl Iterator<Item = u32> + '_ {
+    let actions = source.interrupt_spells.iter().chain(&source.dispel_spells);
+    let action_ids =
+        actions.flat_map(|spell| std::iter::once(spell.spell_id).chain(spell.affected_spell_id));
+    let recap_ids = source
+        .death_recaps
+        .iter()
+        .flat_map(|recap| &recap.events)
+        .filter_map(|event| event.spell_id);
+    action_ids.chain(recap_ids)
+}
+
+#[cfg(test)]
+#[test]
+fn damage_meter_action_spell_names_include_cast_and_affected_identities() {
+    use shared::protocol::{DamageMeterActionSpell, DamageMeterSource};
+    let source = DamageMeterSource {
+        unit: 2,
+        name: "Remote".into(),
+        class_id: 5,
+        is_local_player: false,
+        total_amount: 0,
+        amount_per_second: 0.0,
+        spells: vec![],
+        healing_done: 0,
+        overhealing: 0,
+        absorbs: 0,
+        interrupts: 2,
+        interrupt_spells: vec![DamageMeterActionSpell {
+            spell_id: 2139,
+            affected_spell_id: Some(116),
+            total_amount: 2,
+        }],
+        dispels: 4,
+        dispel_spells: vec![
+            DamageMeterActionSpell {
+                spell_id: 527,
+                affected_spell_id: Some(589),
+                total_amount: 3,
+            },
+            DamageMeterActionSpell {
+                spell_id: 17,
+                affected_spell_id: None,
+                total_amount: 1,
+            },
+        ],
+        deaths: 0,
+        death_recaps: vec![],
+    };
+    let ids: std::collections::BTreeSet<_> = source_spell_ids(&source).collect();
+    assert_eq!(ids, [17, 116, 527, 589, 2139].into());
 }
 
 fn session_dictionary(session: &DamageMeterSession) -> VarDictionary {

@@ -23,7 +23,9 @@ fn source(unit: u64, name: &str, class_id: u8, values: [u64; 5]) -> DamageMeterS
         overhealing: 99,
         absorbs: 77,
         interrupts: values[2],
+        interrupt_spells: vec![],
         dispels: values[3],
+        dispel_spells: vec![],
         deaths: values[4],
         death_recaps: vec![],
     }
@@ -93,7 +95,7 @@ fn assert_rendered(window: &DamageMeterWindow, skin: ActiveSkin) {
             _ => None,
         })
         .collect();
-    for row in window.rows().iter() {
+    for (index, row) in window.rows().iter().enumerate() {
         assert!(
             texts.contains(&row.name_text.as_str()),
             "{skin:?}: missing {}",
@@ -104,7 +106,126 @@ fn assert_rendered(window: &DamageMeterWindow, skin: ActiveSkin) {
             "{skin:?}: missing {}",
             row.value_text
         );
+        if window.view(false, 0.0).rows_clickable() {
+            let button = registry
+                .get_by_name(&format!("DamageMeterEntry{}Button", index + 1))
+                .and_then(|id| registry.get(id))
+                .unwrap();
+            assert_eq!(
+                button.onclick.as_deref(),
+                Some(format!("damage_meter:row:{index}").as_str())
+            );
+        }
     }
+}
+
+#[test]
+fn damage_meter_action_spell_breakdowns_render_every_member_in_both_skins() {
+    use shared::protocol::DamageMeterActionSpell;
+    let mut data = snapshot();
+    for session in data
+        .current
+        .iter_mut()
+        .chain(std::iter::once(&mut data.overall))
+    {
+        for source in &mut session.sources {
+            source.interrupt_spells = vec![
+                DamageMeterActionSpell {
+                    spell_id: 2139,
+                    affected_spell_id: Some(116),
+                    total_amount: source.interrupts - 1,
+                },
+                DamageMeterActionSpell {
+                    spell_id: 2139,
+                    affected_spell_id: Some(133),
+                    total_amount: 1,
+                },
+            ];
+            source.dispel_spells = vec![DamageMeterActionSpell {
+                spell_id: 527,
+                affected_spell_id: Some(589),
+                total_amount: source.dispels,
+            }];
+        }
+    }
+    let mut window = DamageMeterWindow {
+        snapshot: Some(data),
+        ..Default::default()
+    };
+    window.recap_spell_names = [
+        (2139, "Counterspell"),
+        (116, "Frostbolt"),
+        (133, "Fireball"),
+        (527, "Purify"),
+        (589, "Shadow Word: Pain"),
+    ]
+    .into_iter()
+    .map(|(id, name)| (id, name.to_owned()))
+    .collect();
+    for session in ["damage_meter:current", "damage_meter:overall"] {
+        window.click(session).unwrap();
+        let multiplier = if session == "damage_meter:overall" {
+            2
+        } else {
+            1
+        };
+        for kind in [MeterType::Interrupts, MeterType::Dispels] {
+            window.click(kind.action()).unwrap();
+            for (index, unit) in [3, 2, 1].into_iter().enumerate() {
+                assert!(window.view(false, 0.0).rows_clickable());
+                window.click(&format!("damage_meter:row:{index}")).unwrap();
+                let expected = if kind == MeterType::Interrupts {
+                    vec![
+                        (
+                            "Counterspell → Frostbolt".to_owned(),
+                            (unit * 2 * multiplier - 1).to_string(),
+                        ),
+                        ("Counterspell → Fireball".to_owned(), "1".to_owned()),
+                    ]
+                } else {
+                    vec![(
+                        "Purify → Shadow Word: Pain".to_owned(),
+                        (unit * multiplier).to_string(),
+                    )]
+                };
+                assert_eq!(shown(&window), expected);
+                for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+                    assert_rendered(&window, skin);
+                }
+                window.click("damage_meter:row:0").unwrap();
+                assert_eq!(window.rows().len(), 3);
+            }
+        }
+    }
+}
+
+#[test]
+fn damage_meter_action_detail_tracks_snapshot_and_missing_affected_identity() {
+    use shared::protocol::DamageMeterActionSpell;
+    let mut data = snapshot();
+    data.overall.sources[1].interrupt_spells = vec![DamageMeterActionSpell {
+        spell_id: 2139,
+        affected_spell_id: None,
+        total_amount: 4,
+    }];
+    let mut window = DamageMeterWindow {
+        snapshot: Some(data.clone()),
+        meter_type: MeterType::Interrupts,
+        ..Default::default()
+    };
+    window.recap_spell_names.insert(2139, "Counterspell".into());
+    window.click("damage_meter:row:1").unwrap();
+    assert_eq!(shown(&window), vec![("Counterspell".into(), "4".into())]);
+    data.overall.sources[1].interrupt_spells[0].total_amount = 9;
+    data.overall.sources.reverse(); // Selection follows the member, not its old row index.
+    window.set_snapshot(Some(data.clone()));
+    assert_eq!(shown(&window), vec![("Counterspell".into(), "9".into())]);
+    data.overall.sources.retain(|source| source.unit != 2);
+    window.set_snapshot(Some(data));
+    assert_eq!(window.rows().len(), 2);
+    assert!(window.rows()[0].name_text.contains("Dps"));
+    window.set_snapshot(None);
+    assert!(window.rows().is_empty());
 }
 
 #[test]

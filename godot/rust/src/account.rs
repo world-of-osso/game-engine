@@ -1772,7 +1772,7 @@ mod tests {
     #[test]
     fn damage_meter_wire_snapshot_reaches_all_categories_without_log_counts() {
         use game_engine_ui_model::damage_meter_data::{DamageMeterWindow, MeterType};
-        use shared::protocol::{DamageMeterSession, DamageMeterSource};
+        use shared::protocol::{DamageMeterActionSpell, DamageMeterSession, DamageMeterSource};
         let mut account = Account::new(PathBuf::new());
         let mut output = Vec::new();
         let source = DamageMeterSource {
@@ -1787,7 +1787,17 @@ mod tests {
             overhealing: 50,
             absorbs: 60,
             interrupts: 3,
+            interrupt_spells: vec![DamageMeterActionSpell {
+                spell_id: 2139,
+                affected_spell_id: Some(116),
+                total_amount: 3,
+            }],
             dispels: 4,
+            dispel_spells: vec![DamageMeterActionSpell {
+                spell_id: 527,
+                affected_spell_id: Some(589),
+                total_amount: 4,
+            }],
             deaths: 2,
             death_recaps: vec![],
         };
@@ -1823,6 +1833,17 @@ mod tests {
             assert_eq!(window.rows()[0].value_text, expected);
             assert!(!window.rows()[0].is_local_player);
         }
+        for (kind, name, count) in [
+            (MeterType::Interrupts, "Spell 2139 → Spell 116", "3"),
+            (MeterType::Dispels, "Spell 527 → Spell 589", "4"),
+        ] {
+            window.click(kind.action()).unwrap();
+            window.click("damage_meter:row:0").unwrap();
+            assert_eq!(window.rows()[0].name_text, name);
+            assert_eq!(window.rows()[0].value_text, count);
+            assert!(!window.rows()[0].is_local_player);
+        }
+        assert!(account.combat_log.is_empty());
     }
 
     #[test]
