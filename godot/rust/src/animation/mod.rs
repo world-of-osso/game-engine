@@ -17,8 +17,9 @@ pub(crate) use action::ActionPriority;
 pub(crate) mod lod;
 
 const MIN_MOVEMENT_BLEND_MS: f32 = 150.0;
-/// Death: a one-shot clip that holds its last frame.
+/// Death plays once, then an authored Dead clip holds the corpse pose.
 const ANIM_DEATH: u16 = 1;
+const ANIM_DEAD: u16 = 6;
 const ANIM_STAND: u16 = 0;
 
 /// A stand state pose loop with its one-shot down and up clips (wowdev AnimationList;
@@ -521,6 +522,19 @@ impl AnimationState {
         Ok(())
     }
 
+    fn finish_death(&mut self, remaining_ms: f64) {
+        if self.sequences[self.current].id != ANIM_DEATH {
+            return;
+        }
+        // Most models have no Dead clip and author the corpse as Death's last frame.
+        let Some(dead) = self.sequences.iter().position(|clip| clip.id == ANIM_DEAD) else {
+            return;
+        };
+        self.start_transition(dead, false);
+        self.time_ms = remaining_ms.min(f64::from(self.sequences[dead].duration));
+        self.tick_transition(remaining_ms);
+    }
+
     fn advance_with_roll(
         &mut self,
         delta_ms: f64,
@@ -541,6 +555,9 @@ impl AnimationState {
                 0.0
             };
             self.tick_transition(delta_ms);
+            if !self.looping && elapsed >= duration {
+                self.finish_death(elapsed - duration);
+            }
             return Ok(());
         }
         let family = m2::VariationFamily::read(&self.sequences, self.current)?;
@@ -1362,6 +1379,63 @@ mod tests {
         assert!(player.advance(-1.0).is_err());
         assert!(
             midblend
+                .iter()
+                .zip(player.poses())
+                .all(|(a, b)| near_pose(*a, b))
+        );
+    }
+
+    #[test]
+    fn death_finishes_in_dead_and_holds_the_authored_corpse_pose() {
+        let mut model = model();
+        model.sequences.truncate(2);
+        model.sequences[0].id = 1;
+        model.sequences[0].duration = 1000;
+        model.sequences[1].id = 6;
+        model.sequences[1].duration = 0;
+        model.bones.truncate(1);
+        model.bones[0].parent_bone_id = -1;
+        model.bones[0].pivot = [0.0; 3];
+        let mut tracks = model.bone_tracks.as_ref().clone();
+        tracks.truncate(1);
+        tracks[0].translation = m2::AnimTrack {
+            interpolation_type: 1,
+            global_sequence: -1,
+            sequences: vec![
+                (vec![0, 1000], vec![[0.0; 3], [5.0, 0.0, 0.0]]),
+                (vec![0], vec![[10.0, 0.0, 0.0]]),
+            ],
+        };
+        tracks[0].rotation.global_sequence = -1;
+        tracks[0].rotation.sequences.clear();
+        tracks[0].scale.global_sequence = -1;
+        tracks[0].scale.sequences.clear();
+        model.bone_tracks = std::sync::Arc::new(tracks);
+        let death = 0;
+        let dead = 1;
+        let mut player = AnimationState::new(&model).unwrap();
+        player.play_death();
+        let duration = f64::from(model.sequences[death].duration);
+        player.advance(duration - 1.0).unwrap();
+        assert_eq!(model.sequences[player.current].id, 1);
+        player.advance(1.0).unwrap();
+        assert_eq!(model.sequences[player.current].id, 6);
+        assert!(!player.looping);
+        player
+            .advance(f64::from(model.sequences[dead].duration) + 500.0)
+            .unwrap();
+        let authored = player.sample_sequence(dead, f64::from(model.sequences[dead].duration));
+        let corpse = player.poses();
+        assert!(
+            corpse
+                .iter()
+                .zip(authored)
+                .all(|(a, b)| near_pose(*a, b.transform()))
+        );
+        player.advance(10_000.0).unwrap();
+        assert_eq!(model.sequences[player.current].id, 6);
+        assert!(
+            corpse
                 .iter()
                 .zip(player.poses())
                 .all(|(a, b)| near_pose(*a, b))
