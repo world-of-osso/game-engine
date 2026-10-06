@@ -40,7 +40,7 @@ fn await_connection(account: &mut Account, server: &mut DeathServerFixture) {
     let deadline = Instant::now() + Duration::from_secs(10);
     while Instant::now() < deadline {
         server.step();
-        let events = account.bridge.as_ref().unwrap().drain_events().unwrap();
+        let events = account.bridge.as_mut().unwrap().drain_events().unwrap();
         if events
             .into_iter()
             .any(|event| matches!(event, Event::Connected))
