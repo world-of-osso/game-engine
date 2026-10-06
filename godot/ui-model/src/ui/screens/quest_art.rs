@@ -224,13 +224,10 @@ pub fn launcher_panel_chrome((width, height): (f32, f32), header_height: f32) ->
 }
 
 fn launcher_header_art(width: f32, height: f32) -> Element {
-    // Crop the existing metal title band, retaining each skin's bevel and end caps.
-    // Source rows are relative to the active top member (Retail 150px, Forever 190px).
-    let (source_height, band_top, band_bottom) = match thread_skin() {
-        ActiveSkin::Modern => (150.0, 32.0, 78.0),
-        ActiveSkin::Forever => (190.0, 26.0, 82.0),
+    let corner_width = match thread_skin() {
+        ActiveSkin::Modern => 75.0,
+        ActiveSkin::Forever => 95.0,
     };
-    let corner_width = source_height / 2.0;
     let [left, _, right, _] = MetalTopLeft::Plain.outset();
     [
         ("Left", "UI-Frame-Metal-CornerTopLeft", -left, corner_width),
@@ -249,11 +246,7 @@ fn launcher_header_art(width: f32, height: f32) -> Element {
     ]
     .into_iter()
     .flat_map(|(name, atlas, x, span)| {
-        let mut art = read_active_atlas_art(atlas);
-        let member_top = art.rect.2;
-        let member_height = art.rect.3 - member_top;
-        art.rect.2 = member_top + member_height * band_top / source_height;
-        art.rect.3 = member_top + member_height * band_bottom / source_height;
+        let art = read_launcher_title_band(atlas);
         atlas_texture(
             format!("LauncherHeader{name}"),
             &art,
@@ -261,6 +254,20 @@ fn launcher_header_art(width: f32, height: f32) -> Element {
         )
     })
     .collect()
+}
+
+fn read_launcher_title_band(atlas: &str) -> AtlasArt {
+    // Existing bevel/end-cap pixels, relative to the active atlas member's top.
+    let (source_height, band_top, band_bottom) = match thread_skin() {
+        ActiveSkin::Modern => (150.0, 32.0, 78.0),
+        ActiveSkin::Forever => (190.0, 26.0, 82.0),
+    };
+    let mut art = read_active_atlas_art(atlas);
+    let member_top = art.rect.2;
+    let member_height = art.rect.3 - member_top;
+    art.rect.2 = member_top + member_height * band_top / source_height;
+    art.rect.3 = member_top + member_height * band_bottom / source_height;
+    art
 }
 
 fn launcher_header_controls(width: f32, height: f32) -> Element {
