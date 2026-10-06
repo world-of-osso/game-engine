@@ -67,7 +67,7 @@ func run_capture() -> void:
 			if pending_at_entry <= 0 or state.world_objects.pending >= pending_at_entry:
 				fail("Distant work was lost or did not continue streaming: " + str(state))
 				return
-			print("SWLOAD TEST PASS entered_ms=", entered, " state=", state)
+			print("SWLOAD TEST PASS entered_ms=", entered, " total_ms=", elapsed, " state=", state)
 			quit(0)
 			return
 	fail("Stormwind entry timed out: " + str(client.account_state()))
