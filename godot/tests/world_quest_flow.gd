@@ -118,7 +118,7 @@ func run_test() -> void:
 		return
 	if not await enter_world():
 		return
-	var steps := [check_pickup, check_map_objectives, check_kills, check_turn_in, check_abandon, check_reward_choice, check_fixed_reward]
+	var steps := [check_pickup, check_map_objectives, check_kills, check_turn_in, check_abandon, check_exploration, check_reward_choice, check_fixed_reward]
 	# QF_STEPS (comma-separated method names) reruns a subset on a prepared character.
 	if OS.get_environment("QF_STEPS") != "":
 		steps = Array(OS.get_environment("QF_STEPS").split(",")).map(func(name): return Callable(self, name))
@@ -311,24 +311,26 @@ func check_abandon() -> bool:
 	print("FIXTURE ABANDONED ", NEXT_QUEST, " log ", client.quest_state().log)
 	return true
 
-func check_reward_choice() -> bool:
-	# 239 needs The Jasperlode Mine (76) turned in, which follows The Fargodeep Mine
-	# (62); both are Dughan's exploration quests, done by walking into the mine's trigger.
-	if not await take_quest(DUGHAN_AT, DUGHAN, FARGODEEP, "The Fargodeep Mine"):
-		return false
-	if not await explore(FARGODEEP, FARGODEEP_OUTSIDE_AT, FARGODEEP_ROUTE, 9.0):
-		return false
-	if not await turn_in(DUGHAN_AT, DUGHAN, FARGODEEP, "The Fargodeep Mine"):
-		return false
-	if not await wait_quest(func(s): return s.get("page") == "Detail" and s.quest_id == JASPERLODE, "The Jasperlode Mine offered as the follow-up"):
-		return false
-	await click_control(quest_control("QuestFrameUI", "QuestFrameAcceptButton"))
-	if not await wait_quest(func(s): return in_log(s, JASPERLODE), "The Jasperlode Mine accepted"):
-		return false
+func check_exploration() -> bool:
+	# A prepared rerun can resume quest 76 without retaking the completed quest 62.
+	if not in_log(client.quest_state(), JASPERLODE):
+		if not await take_quest(DUGHAN_AT, DUGHAN, FARGODEEP, "The Fargodeep Mine"):
+			return false
+		if not await explore(FARGODEEP, FARGODEEP_OUTSIDE_AT, FARGODEEP_ROUTE, 9.0):
+			return false
+		if not await turn_in(DUGHAN_AT, DUGHAN, FARGODEEP, "The Fargodeep Mine"):
+			return false
+		if not await wait_quest(func(s): return s.get("page") == "Detail" and s.quest_id == JASPERLODE, "The Jasperlode Mine offered as the follow-up"):
+			return false
+		await click_control(quest_control("QuestFrameUI", "QuestFrameAcceptButton"))
+		if not await wait_quest(func(s): return in_log(s, JASPERLODE), "The Jasperlode Mine accepted"):
+			return false
 	if not await explore(JASPERLODE, JASPERLODE_OUTSIDE_AT, JASPERLODE_ROUTE, 30.0):
 		return false
-	if not await turn_in(DUGHAN_AT, DUGHAN, JASPERLODE, "The Jasperlode Mine"):
-		return false
+	return await turn_in(DUGHAN_AT, DUGHAN, JASPERLODE, "The Jasperlode Mine")
+
+func check_reward_choice() -> bool:
+	# 239 needs the exploration chain completed first.
 	if not await take_quest(DUGHAN_AT, DUGHAN, GARRISON_QUEST, GARRISON_TITLE):
 		return false
 	if not await open_quest(RAINER_AT, RAINER, GARRISON_TITLE):
@@ -423,17 +425,27 @@ func explore(quest_id: int, outside: Array, route: Array, radius: float) -> bool
 	if log_entry(client.quest_state(), quest_id).get("completed", false):
 		fail("%d completed before entering its trigger: %s" % [quest_id, log_entry(client.quest_state(), quest_id)])
 		return false
-	for index in route.size():
+	var index := 0
+	var deaths := 0
+	while index < route.size():
 		var point: Array = route[index]
 		# walk_to steers on the WoW (x, y) of the point.
 		var target := Vector3(point[0], 0.0, -point[1])
 		if not await walk_to(target, radius * 0.5 if index == route.size() - 1 else 2.0):
+			if player_dead() and deaths < 3:
+				deaths += 1
+				print("FIXTURE EXPLORATION_DEATH ", quest_id, " restart ", deaths, " from outside trigger")
+				if not await teleport(outside):
+					return false
+				index = 0
+				continue
 			await capture("stuck-%d.png" % quest_id)
 			fail("Could not walk to %s on the way into the trigger of %d from %s" % [point, quest_id, player_position()])
 			return false
 		print("FIXTURE LEG ", point, " at ", player_position(), " fps ", Engine.get_frames_per_second())
 		if log_entry(client.quest_state(), quest_id).get("completed", false):
 			break
+		index += 1
 	print("FIXTURE IN_TRIGGER? ", quest_id, " player ", player_position(), " center ", route[-1])
 	if not await wait_quest(func(s): return log_entry(s, quest_id).get("completed", false), "%d explored" % quest_id):
 		return false
@@ -610,7 +622,15 @@ func teleport(at: Array) -> bool:
 	if not admin(["teleport", character_name(), "0", str(at[0]), str(at[1]), str(at[2])]):
 		return false
 	var want := Vector3(at[0], at[2], -at[1])
-	return await wait_frames(func(): return player_position().distance_to(want) < 4.0, "teleport to " + str(at), 30000)
+	if not await wait_frames(func(): return player_position().distance_to(want) < 4.0, "teleport to " + str(at), 30000):
+		return false
+	# Travel destinations are outside exploration triggers. Revive only after arriving,
+	# so recovery cannot award an exploration objective at the death location.
+	if player_dead():
+		if not admin(["revive", character_name()]):
+			return false
+		return await wait_frames(func(): return not player_dead(), "alive after travel setup")
+	return true
 
 # --- quest helpers -------------------------------------------------------------
 
@@ -830,13 +850,16 @@ func walk_to(target: Vector3, yards: float) -> bool:
 	var from := player_position()
 	var frame := 0
 	while Time.get_ticks_msec() < deadline:
+		if player_dead():
+			push_key(KEY_W, false)
+			return false
 		var here := player_position()
 		# A slow frame covers several yards: the point is reached when the frame's path
 		# passed within `yards` of it.
 		var path := Geometry2D.get_closest_point_to_segment(target_2d, Vector2(from.x, from.z), Vector2(here.x, here.z))
 		if path.distance_to(target_2d) <= yards:
 			push_key(KEY_W, false)
-			await frames(5)
+			await process_frame
 			return true
 		from = here
 		# Stop to turn: a slow frame turns far past the heading, and walking on while the
