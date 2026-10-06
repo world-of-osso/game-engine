@@ -263,6 +263,11 @@ fn model_viewport() -> (Gd<SubViewport>, Gd<Node3D>, Gd<Camera3D>) {
 
 /// The scene light uniforms of every batch (`TerrainLight::bind_model`'s inputs).
 pub(crate) fn bind_sheet_light(visual: &Gd<Node3D>) {
+    bind_preview_light(visual, Vector3::new(1.0, 0.6, 0.3).normalized());
+}
+
+/// Preview fill and a key whose direction is the direction light travels.
+pub(crate) fn bind_preview_light(visual: &Gd<Node3D>, rays: Vector3) {
     let meshes = visual
         .find_children_ex("*")
         .type_("MeshInstance3D")
@@ -278,8 +283,7 @@ pub(crate) fn bind_sheet_light(visual: &Gd<Node3D>) {
             material.set_shader_parameter(name, &AMBIENT.to_variant());
         }
         material.set_shader_parameter("direct", &DIRECT.to_variant());
-        let sun = Vector3::new(1.0, 0.6, 0.3).normalized();
-        material.set_shader_parameter("sun_direction", &sun.to_variant());
+        material.set_shader_parameter("sun_direction", &rays.to_variant());
     }
 }
 

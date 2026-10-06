@@ -4,6 +4,26 @@
 # Nameplate selected-border/skull pixel regression (local Blizzard sheet).
 textures/8165538.blp
 
+# Portrait camera/head regressions: Blood Elf, Dwarf and Orc HD, both sexes.
+models/1100087.m2
+models/110008700.skin
+models/1100087.skel
+models/1100258.m2
+models/110025800.skin
+models/1100258.skel
+models/878772.m2
+models/87877200.skin
+models/878772.skel
+models/950080.m2
+models/95008000.skin
+models/950080.skel
+models/917116.m2
+models/91711600.skin
+models/917116.skel
+models/949470.m2
+models/94947000.skin
+models/949470.skel
+
 # game-engine-core tests/: models
 models/boar.m2
 models/boar00.skin
