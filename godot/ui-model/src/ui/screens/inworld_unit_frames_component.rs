@@ -30,6 +30,8 @@ mod inworld_unit_frames_pet;
 mod inworld_unit_frames_power;
 #[path = "personal_resource_display.rs"]
 pub mod personal_resource_display;
+#[path = "portrait_party_frame_component.rs"]
+pub mod portrait_party_frame_component;
 use class_bars::{ClassBarView, TextureView};
 use inworld_unit_frames_art::{
     BOSS_GOLD, BOSS_RARE_SILVER, BOSS_RARE_STAR, COMBAT_ICON, FRAME_PORTRAIT_OFF, HEALTH_BAR,

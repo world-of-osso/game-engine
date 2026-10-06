@@ -62,6 +62,13 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - Before a member's first live state arrives, its bars are empty; no health is invented.
 - [x] Left-click targets the member when their unit is replicated. Right-click opens the member menu.
 
+### Static portrait party component (native, step 1)
+- [x] An unwired `PartyFrame` screen renders up to four non-self member views: name/class colour, health and power fractions, leader/guide, assigned role, Offline/Dead and portrait slots. Modern uses Retail Party art; Forever deliberately selects Camelot's conditional CharacterFrameOnParty art. [Source geometry and verified set-1 atlas relation](../wiki/systems/portrait-party-frames.md).
+- [x] Optional static party pets use Retail's half-scale member art and health-only frame; `show_pets` controls visibility and container spacing.
+- [ ] Raster-correct static portrait family under both skins: offline four-member art/fills pass with local Retail and product-bound Forever sheets. Whole-family/reference parity and optional pet raster acceptance remain unproven; [bounded proof and exclusions](../wiki/systems/portrait-party-frames.md#acceptance-status--bounded-offline-artfill-pass-2026-10-05).
+- [ ] Connect the portrait family to the group roster and runtime portrait bindings; retain compact default. Presentation settings are separate work.
+- [ ] Live portrait-family acceptance. Static registry golden and offline preview are not live proof.
+
 ### Raid frame (`CompactRaidFrameContainer`)
 - [x] Placement: 8 group columns × 5 at the native 72×36 = 576 × (14 + 180), centred above the cluster, bottom 215.
 - [x] Group `n` sits in column `n` (subgroups 1–8, 5 each; `MAX_RAID_GROUPS`). Members fill it in roster order.
@@ -100,7 +107,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - Retail has no slash command to leave a party: `/leave` is a chat channel command.
 
 ### Not implemented
-- [ ] Classic `PartyMemberFrame` (portrait), pet frames, `CompactRaidFrameManager` (the side panel with ready check, role poll and markers).
+- [ ] Live portrait `PartyMemberFrame`/party-pet wiring and portrait bindings; static native components above exist. `CompactRaidFrameManager` (the side panel with ready check, role poll and markers).
 - [ ] Assistant / main tank / main assist.
 - [ ] Group persistence across server restarts.
 - [ ] Loot method wiring: the Loot Rules window stays client-side.
