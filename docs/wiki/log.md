@@ -2590,7 +2590,7 @@ Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-b
 
 ## 2026-10-06 — Party presentation settings
 
-[[party-edit-mode-settings]]: exhaustive local Retail Party inventory, both-skin Options HUD controls and per-character Edit Mode persistence. Compact stays default. Shared-family geometry/chrome/sort/pets and compact aura settings implemented; behavioral/raster proof pending. Big-defensive classification is absent from existing runtime data; no protocol/server changes.
+[[party-edit-mode-settings]]: exhaustive local Retail Party inventory, both-skin Options HUD controls and per-character Edit Mode persistence. Compact stays default. At `6df0d0d3`, 1 native + 10 UI-model tests and six real-engine cases per skin pass; all eight final captures inspected. Corrected drawable-border syntax, compact self-pet lookup and health-only pet bars. Global shutdown warnings remain unclassified. Big-defensive classification is absent from existing runtime data; no full completion claim or protocol/server changes.
 
 ## 2026-10-05 — In-world launcher
 

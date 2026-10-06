@@ -31,9 +31,17 @@ Retail hides compact-only controls in portrait mode and hides background in comp
 
 The compact and portrait components read generation-tracked LayoutSettings. Portrait bindings use the same sort as rendered labels; group hit handling receives the sorted view too. Sorting follows `Blizzard_CompactRaidFrames/Blizzard_CompactRaidFrameContainer.lua`:429–493: Group keeps player first then roster order; Role uses Tank, Healer, Damage, None with alphabetical ties; Alphabetical compares names. No raid settings change.
 
-Replicated unit auras supply visible buff icons, and `UnitSummonedBy` plus `Health` supply pets for known party members. Group-only data outside replication interest still contains only harmful auras, not buffs or pets: those extras are absent, not fabricated. Existing group health/power remains authoritative.
+Replicated unit auras supply visible buff icons, and `UnitSummonedBy` plus `Health` supply pets for known party members. Compact pet lookup uses an independent member-name map, including self, not the non-self portrait roster. Compact pets are health-only. The Display Border control emits a parsed CSS-style stroke above member art; native pixel-difference proof checks that toggling it actually paints edges. Group-only data outside replication interest still contains only harmful auras, not buffs or pets: those extras are absent, not fabricated. Existing group health/power remains authoritative.
 
 **Big defensive runtime classification is blocked:** Retail `AuraUtil.IsBigDefensive` reads classification not carried by `AuraView` or the existing spell catalog. The slider is persisted and the compact renderer honors a supplied defensive icon, but production does not designate arbitrary buffs as defensives. No protocol/server changes are authorized in this slot. Do not claim complete live coverage for that setting.
+
+## Bounded verification — 2026-10-06
+
+At implementation `6df0d0d3`, 1 native + 10 UI-model targeted tests pass; 11 prior portrait regressions remain valid for unchanged default art/selector behavior. One fixture generator is intentionally ignored. Native build and changed-file Rust formatting pass. Each skin passes six real-engine cases, including an actual border pixel-difference regression, sorted head rebinding and zero remaining owned portrait viewports. All eight final panel/portrait captures were inspected. [Full commands, test names, image verdicts and proof ledger](../../../data/diagnostics/party4-2026-10-05/proof.md).
+
+The early capture fixture omitted wheel forwarding; subsequent panel inspection found truncated icon labels. Both were corrected. Native pixel inspection additionally exposed a border attribute that produced no stroke; the final valid CSS-style stroke paints visible edges. Compact self pets originally depended on the non-self portrait roster and reserved a power-bar region; separate RED tests reproduced both before correction.
+
+No full step-4 completion claim: live big-defensive classification remains blocked above. No live/reference-image or clean global shutdown acceptance. Final Modern reports 51 texture RIDs / 43 ObjectDB instances; Forever 53 / 44, with additional renderer/font allocation warnings. All owned client/compositor PIDs exited; no existing WSLg/service was restarted. These warnings are not classified as harmless or pre-existing.
 
 ## Sources
 
