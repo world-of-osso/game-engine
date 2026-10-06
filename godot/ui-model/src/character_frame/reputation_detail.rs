@@ -1,7 +1,7 @@
 //! Retail RF.xml:270-354, RF.lua:720-747; Forever Camelot RF.xml:251-286,
 //! CharacterFrame.xml:317-388, RF.lua:735-745,756-792.
 
-use ui_toolkit::atlas::{ActiveSkin, active_skin};
+use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
@@ -51,7 +51,7 @@ pub(super) fn detail(row: Option<&ReputationRow>, ctx: &SharedContext) -> Elemen
     let Some(row) = row else {
         return Element::default();
     };
-    let forever = active_skin() == ActiveSkin::Forever;
+    let forever = thread_skin() == ActiveSkin::Forever;
     // Modern RF.xml:271-282; Forever CF.xml:318-329 and pane hosts :474-482.
     let (left, top, width, height, title_x, title_y, title_w, font) = if forever {
         (

@@ -187,9 +187,9 @@ fn a_short_quest_shows_the_track_without_a_thumb_and_does_not_scroll() {
 /// thumb and arrows load like the window's FileDataID art.
 #[test]
 fn a_modern_scroll_bar_atlas_resolves_to_a_cached_texture() {
-    use ui_toolkit::atlas::{ActiveSkin, AtlasSource, active_skin, resolve_region};
+    use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, thread_skin};
     let model = quest_frame(mcbride_detail("Beating Them Back!"));
-    assert_eq!(active_skin(), ActiveSkin::Modern);
+    assert_eq!(thread_skin(), ActiveSkin::Modern);
     let cached = crate::quests::screen_texture_fdids(
         mcbride_detail("Beating Them Back!"),
         quest_frame_screen,

@@ -1,7 +1,7 @@
 //! CharacterFrame art: the inset and stats-pane backgrounds, the race backdrop behind the
 //! model, the paperdoll inner border and the slot frames (CF.xml texture templates).
 
-use ui_toolkit::atlas::{ActiveSkin, AtlasSource, active_skin, resolve_region};
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, thread_skin};
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
@@ -21,7 +21,7 @@ const PAPERDOLL_VERTICAL: u32 = 410_249;
 /// Resolve the authored name, then preserve the existing FDID/UV representation.
 /// Sources and exact CSV rows: docs/specs/character-frame.md, Forever first slice.
 pub(super) fn resolve_art(name: &str) -> AtlasArt {
-    let region = resolve_region(name, active_skin())
+    let region = resolve_region(name, thread_skin())
         .unwrap_or_else(|| panic!("CharacterFrame atlas missing: {name}"));
     let AtlasSource::FileDataId(fdid) = region.source else {
         panic!("CharacterFrame atlas is not a DB2 sheet: {name}");
@@ -138,7 +138,7 @@ pub(super) fn atlas(
 /// `Inset.Background` `character-panel-background`; `InsetRight` (InsetFrameTemplate)
 /// with the class background of the stats pane.
 pub(super) fn inset_backgrounds(class_id: u8) -> Element {
-    if active_skin() == ActiveSkin::Forever {
+    if thread_skin() == ActiveSkin::Forever {
         return forever_pane_backgrounds(class_id);
     }
     let (left, top, right, bottom) = INSET;
@@ -276,7 +276,7 @@ pub(super) fn race_backdrop(race_id: u8) -> Element {
         ((212.0, 128.0), (0.0, 245.0), "0.171875,1,0,1"),
         ((19.0, 128.0), (212.0, 245.0), "0,0.296875,0,1"),
     ];
-    if active_skin() == ActiveSkin::Forever {
+    if thread_skin() == ActiveSkin::Forever {
         return forever_race_backdrop(first);
     }
     let mut children: Element = quarters
@@ -361,7 +361,7 @@ fn inner_corners() -> [(&'static str, (f32, f32), &'static str); 4] {
 /// The paperdoll inner border: corners, the tiled edges between them and `Bottom2` 27
 /// above the Inset bottom (PDF.xml:667-716).
 pub(super) fn inner_border() -> Element {
-    if active_skin() == ActiveSkin::Forever {
+    if thread_skin() == ActiveSkin::Forever {
         return Element::default();
     }
     let corners = inner_corners();
@@ -423,7 +423,7 @@ pub(super) fn inner_border() -> Element {
 /// 42×53 TOPLEFT -4,+8, plus the weapon pair's outer caps `Char-Slot-Bottom-Left/Right`.
 pub(super) fn slot_frame_art(button: &PaperDollButton) -> Element {
     let name = button.name;
-    if active_skin() == ActiveSkin::Forever {
+    if thread_skin() == ActiveSkin::Forever {
         // Camelot PaperDollFrame.xml:67-70: GearSlot centered on the 37px button.
         let art = resolve_art("UI-Character-Info-GearSlot");
         let (w, h) = art.size();

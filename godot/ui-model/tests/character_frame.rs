@@ -124,8 +124,7 @@ fn uifixes_right_click_unequips_chest_and_mainhand_or_reports_full_bags() {
     use game_engine_ui_model::merchant::Click;
     use shared::protocol::SwapItem;
 
-    // The request is skin-independent; switching the process-wide skin here would race
-    // the other tests in this binary.
+    // The unequip request is skin-independent.
     {
         let mut inventory =
             equipped(&[(EquipmentSlot::Chest, 2379), (EquipmentSlot::MainHand, 25)]);

@@ -4,15 +4,15 @@
 
 use std::fmt;
 
-use ui_toolkit::atlas::{ActiveSkin, AtlasSource, active_skin, resolve_region};
+use ui_toolkit::atlas::{ActiveSkin, AtlasSource, resolve_region, thread_skin};
 use ui_toolkit::rsx;
 use ui_toolkit::text_measure::measure_text;
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::panel_style_data::MetalTopLeft;
-use crate::ui::screens::inworld_unit_frames_component::{FULL_PORTRAIT, PortraitSlot};
 use crate::ui::screens::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
+use crate::ui::screens::inworld_unit_frames_component::{FULL_PORTRAIT, PortraitSlot};
 use crate::ui::strata::FrameStrata;
 
 pub struct DynName(pub String);
@@ -105,7 +105,7 @@ pub fn atlas_texture(name: String, art: &AtlasArt, rect: (f32, f32, f32, f32)) -
 
 /// Resolve active-skin art into the existing FDID/UV representation, retaining Modern tree bytes.
 fn read_active_atlas_art(name: &str) -> AtlasArt {
-    let skin = active_skin();
+    let skin = thread_skin();
     let region = resolve_region(name, skin)
         .unwrap_or_else(|| panic!("atlas {name} has no member under {skin:?}"));
     let AtlasSource::FileDataId(fdid) = region.source else {
@@ -343,7 +343,7 @@ fn window_title(prefix: &str, width: f32, title: &str, left: f32) -> Element {
 /// (Mainline/SharedUIPanelTemplates.lua:139-141), Forever `(-2, 1)` with WoW's y up, so
 /// one pixel above the top (wowforever Camelot/SharedUIPanelTemplates.lua:3-5).
 fn close_button_offset() -> (f32, f32) {
-    match active_skin() {
+    match thread_skin() {
         ActiveSkin::Forever => (-2.0, -1.0),
         ActiveSkin::Modern => (1.0, 0.0),
     }

@@ -8,7 +8,7 @@
 
 use shared::protocol_snapshots::ReputationEntrySnapshot;
 use shared::reputation::{Standing, standing_for_value, tier_progress};
-use ui_toolkit::atlas::{ActiveSkin, active_skin};
+use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
@@ -98,7 +98,7 @@ pub fn reputation_rows(entries: &[ReputationEntrySnapshot]) -> Vec<ReputationRow
 
 /// The CharacterFrame size while the ReputationFrame shows.
 pub(super) fn frame_size(paperdoll: (f32, f32)) -> (f32, f32) {
-    match active_skin() {
+    match thread_skin() {
         ActiveSkin::Modern => (MODERN_W, FRAME_H),
         ActiveSkin::Forever => paperdoll,
     }
@@ -113,7 +113,7 @@ struct ListLayout {
 }
 
 fn list_layout() -> ListLayout {
-    match active_skin() {
+    match thread_skin() {
         // ScrollBox Inset +4,-4 / -22,+2 (RF.xml:256-261); the Inset TOPLEFT 4,-60 and,
         // off the paper doll, BOTTOMRIGHT -6,4 (CharacterFrame.lua:123-141); entry 22
         // (RF.xml:129-130), bar 99×13 (RF.xml:76-77).
@@ -151,7 +151,7 @@ const ENTRY_INDENT: f32 = 2.0;
 /// frame (CharacterFrame.lua:136-139); Forever keeps its full-width panes without the
 /// paper doll's stone cap and stats pane.
 pub(super) fn backgrounds() -> Element {
-    if active_skin() == ActiveSkin::Forever {
+    if thread_skin() == ActiveSkin::Forever {
         return super::art::forever_side_pane_backgrounds();
     }
     atlas(
@@ -258,7 +258,7 @@ pub(super) fn reputation_bar(
     let (x, y, width, height) = rect;
     let name = format!("{entry}ReputationBar");
     let fill_w = width * row.fill;
-    let (mut children, font_size) = match active_skin() {
+    let (mut children, font_size) = match thread_skin() {
         ActiveSkin::Modern => {
             // `Background` `BLACK_FONT_COLOR` setAllPoints (RF.xml:78-82).
             let mut children = rsx! {
@@ -325,7 +325,7 @@ pub(super) fn reputation_bar(
 
 /// Art the pane draws, for the host to make drawable before it shows.
 pub fn reputation_art_fdids() -> Vec<u32> {
-    let mut fdids = match active_skin() {
+    let mut fdids = match thread_skin() {
         ActiveSkin::Modern => vec![
             REPUTATION_BAR_FRAME,
             SKILLS_BAR,

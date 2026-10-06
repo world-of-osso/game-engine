@@ -233,14 +233,14 @@ mod tests {
         use game_engine_ui_model::quest_log_frame_component::{
             QuestLogDetails, QuestLogFrameState, QuestLogObjectiveLine, quest_log_frame_screen,
         };
-        use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
+        use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
         use ui_toolkit::screen::{Screen, SharedContext};
         game_engine_ui_model::paths::set_data_root(
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
         )
         .unwrap();
         for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-            set_active_skin(skin);
+            set_thread_skin(skin);
             let mut shared = SharedContext::new();
             shared.insert(QuestLogFrameState {
                 visible: true,
@@ -269,7 +269,7 @@ mod tests {
                 rects[&counter]
             );
         }
-        set_active_skin(ActiveSkin::Modern);
+        set_thread_skin(ActiveSkin::Modern);
     }
 
     #[test]

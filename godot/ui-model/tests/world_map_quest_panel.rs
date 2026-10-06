@@ -11,7 +11,7 @@ use game_engine_ui_model::quest_log_frame_component::{
 use game_engine_ui_model::world_map_frame_component::{
     QuestMapPanel, WorldMapClick, WorldMapDisplay, WorldMapFrameState, world_map_frame_screen,
 };
-use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
+use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 use ui_toolkit::frame::{Dimension, WidgetData};
 use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
@@ -245,9 +245,9 @@ fn maximize_toggles_the_frame_size_and_hides_the_quest_panel() {
 /// Forever prefixes the quest level (Camelot/QuestMapFrameOverrides.lua:13-16).
 #[test]
 fn forever_prefixes_quest_titles_with_their_level() {
-    set_active_skin(ActiveSkin::Forever);
+    set_thread_skin(ActiveSkin::Forever);
     let forever = render(map_state(WorldMapDisplay::default()));
-    set_active_skin(ActiveSkin::Modern);
+    set_thread_skin(ActiveSkin::Modern);
     let modern = render(map_state(WorldMapDisplay::default()));
     assert_eq!(
         text(&forever, "QuestLogTitle28762Text").0,
