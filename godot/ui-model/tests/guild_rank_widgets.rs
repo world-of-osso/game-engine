@@ -62,6 +62,24 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
 }
 
 #[test]
+fn guild_rank_widgets_guild_master_limits_render_unlimited() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_active_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        session.apply(state(0));
+        session.click("guild:settings", &Default::default());
+        let reg = mounted(&session);
+        assert_eq!(text(&reg, GOLD_BOX), "Unlimited");
+        assert_eq!(text(&reg, "GuildTabItems0"), "Unlimited");
+        assert!(action(&reg, "GuildGoldSave").is_empty());
+        assert!(action(&reg, "GuildTabSave0").is_empty());
+    }
+    set_active_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn guild_rank_widgets_gold_is_readonly_without_withdraw_or_repair_permission() {
     let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
