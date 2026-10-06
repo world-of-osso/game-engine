@@ -23,21 +23,19 @@ fn launcher_texture_fdids(view: LauncherView) -> Vec<u32> {
             let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
                 return None;
             };
-            let TextureSource::Atlas(atlas) = &texture.source else {
-                return None;
-            };
-            let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) =
-                ui_toolkit::atlas::get_region(atlas)?.source
-            else {
-                return None;
-            };
-            Some(fdid)
+            match &texture.source {
+                TextureSource::FileDataId(fdid) => Some(*fdid),
+                TextureSource::Atlas(atlas) => match ui_toolkit::atlas::get_region(atlas)?.source {
+                    ui_toolkit::atlas::AtlasSource::FileDataId(fdid) => Some(fdid),
+                    _ => None,
+                },
+                _ => None,
+            }
         })
         .collect();
     fdids.extend(game_engine_ui_model::panel_style_data::metal_sheet_fdids(
         game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
     ));
-    fdids.push(6_795_680); // Existing Modern diamond-dialog border.
     fdids
 }
 
@@ -208,7 +206,6 @@ impl GameClient {
             return host.set_state(view);
         }
         self.extract_art(&launcher_texture_fdids(view.clone()));
-        self.drawable_fdid(model::CHARACTER_ICON.mask_fdid);
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("LauncherUI");
         ui.set_layer(20);

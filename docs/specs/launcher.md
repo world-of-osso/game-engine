@@ -16,10 +16,11 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 
 ### Inventory and appearance
 - [x] Include every existing micro entry: Character, Professions, Talents & Spellbook, Achievements, Quest Log, Housing Dashboard, Guild & Communities, Group Finder, Collections, Adventure Guide, Shop and Game Menu; also Help, Bags (backpack), World Map, Options and Key Bindings.
-- [x] Micro entries reuse existing micro-menu icons and host actions, including unavailable-window messages. Launcher is the default entry point: the micro menu stays mounted but hidden in both presets. Options > HUD Layout's per-layout **Show Micro Menu** setting restores it live (off by default); its keybinds remain available while hidden.
-- [x] Help uses Retail HelpMicroButton art; Options uses a gear, Key Bindings a keyboard, and World Map a map icon. Every entry resolves to a cached Blizzard texture, never unknown-icon FDID134400. Retail's authored GameMenu question mark is not that fallback.
-- [x] Every icon has comparable drawing area within its tile; wide keyboard art preserves its authored aspect ratio while using the tile width, not the narrow micro-button width.
-- [x] Centre panel containing search above large icons with labels below. Use existing Forever metal frame or Modern dialog artwork; no new artwork.
+- [x] Micro entries reuse host actions, including unavailable-window messages. The micro menu stays mounted but hidden by default; its layout setting and keybinds remain available.
+- [ ] Phase one: two original SVG styles (filled and outlined), each for Character Info, Talents & Spellbook, Quest Log, Bags and Game Menu, plus the magnifier. Remaining twelve entries show neutral empty tiles pending user choice; do not draw the full set yet.
+- [ ] Modern uses Retail standard no-portrait window chrome; Forever uses its existing metal panel family. The compact centred panel fits content: 40px square icons, 14pt labels, 108×82 cells, 4px gaps, grid top 74; full inventory 592×430. No minimap-button placement change.
+- [ ] Opening the launcher must not partially cover the player name on either default 1920×1080 layout.
+- [ ] Capture both styles through actual native projection in both skins at 1920×1080, with 2× crops, before user choice. Style choice changes one constant.
 
 ## How it works
 
@@ -34,11 +35,13 @@ Centred search-and-icon launcher for in-world windows. Source: `godot/ui-model/s
 - `godot/core/src/input_bindings_data.rs` — persisted Toggle Launcher binding.
 - `godot/rust/src/launcher.rs` — keyboard ownership, focus, lifecycle and shared dispatch.
 - `godot/rust/src/ui/mod.rs` — panel styles and projection.
-- `godot/rust/src/unit_portraits.rs` — Character entry portrait.
+- `godot/ui/launcher_icons/` — original candidates and rendered PNGs ([build tool](../../godot/ui/launcher_icons/README.md)).
+- `godot/rust/src/ui/launcher_preview.rs` and `godot/tests/capture_launcher_candidates.gd` — offline actual-client capture.
+- `scripts/capture-launcher-candidates.py` — owned headless capture and crops.
 
 ## Tests asserting this spec
 
-- `godot/ui-model/tests/launcher.rs` — toggle, filtering, selection, activation, Escape, minimap click, inventory, rendered shortcut texture identities, and entry-agnostic non-fallback texture resolution/BLP decoding under both skins.
+- `godot/ui-model/tests/launcher.rs` — toggle, filtering, selection, activation, Escape, minimap click, inventory, candidate texture identities/tints/sizes under both skins and styles, and content-sized panel heights.
 - `godot/core/tests/input_bindings_data.rs` — binding label, section and Ctrl+Space matching.
 - `godot/ui-model/tests/micro_menu.rs` — retained button behavior, default-hidden presets, older-layout compatibility and portrait-slot retention across visibility changes.
 
@@ -70,4 +73,4 @@ Evidence: `data/diagnostics/launcher-2026-10-05/launcherpolish-{red,green,build,
 ## Out of scope
 
 - Implementing missing destination windows: retain micro-menu unavailable behavior.
-- Top-edge hover opening, new artwork and external launcher integration.
+- Top-edge hover opening, external launcher integration, and the remaining twelve generated glyphs before user choice.
