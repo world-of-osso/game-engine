@@ -130,26 +130,43 @@ fn member_menu(session: &GuildRanksSession) -> Element {
     let Some(name) = session.member_menu.as_deref() else {
         return vec![];
     };
-    let mut children = title("GuildMemberMenuTitle", name, 20.0, 380.0, 340.0);
-    if session.promote(name).is_some() {
-        children.extend(panel_button(
-            "GuildMemberPromote".into(),
+    use crate::menu_primitives::{ContextMenu, ContextMenuItem, context_menu};
+    let items: Vec<_> = [
+        (
+            session.promote(name).is_some(),
+            "GuildMemberPromote",
             "Promote",
             "guild:promote",
-            true,
-            (20.0, 410.0, 150.0, 26.0),
-        ));
-    }
-    if session.demote(name).is_some() {
-        children.extend(panel_button(
-            "GuildMemberDemote".into(),
+        ),
+        (
+            session.demote(name).is_some(),
+            "GuildMemberDemote",
             "Demote",
             "guild:demote",
-            true,
-            (190.0, 410.0, 150.0, 26.0),
-        ));
+        ),
+    ]
+    .into_iter()
+    .filter(|(allowed, _, _, _)| *allowed)
+    .map(|(_, name, label, action)| ContextMenuItem {
+        name,
+        label,
+        action,
+    })
+    .collect();
+    if items.is_empty() {
+        return vec![];
     }
-    children
+    context_menu(ContextMenu {
+        frame_name: "GuildMemberContextMenu",
+        title_name: "GuildMemberMenuTitle",
+        divider_name: "GuildMemberMenuDivider",
+        hidden: false,
+        title: name,
+        width: 200.0,
+        x: 20.0,
+        y: -365.0,
+        items: &items,
+    })
 }
 fn settings(session: &GuildRanksSession) -> Element {
     let mut children = flat_panel_chrome(
