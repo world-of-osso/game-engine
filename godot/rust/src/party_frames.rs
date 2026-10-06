@@ -87,11 +87,54 @@ pub(crate) fn group_frames_state(
     }
     let mut ordered: Vec<&GroupMemberSnapshot> = group.members.iter().collect();
     ordered.sort_by_key(|member| Some(member.name.as_str()) != viewer.local_name);
+    state.portrait_party = portrait_party_state(group, viewer);
     state.party = ordered
         .into_iter()
         .map(|member| member_view(group, viewer, member, icon_fdid))
         .collect();
     state
+}
+
+fn portrait_party_state(
+    group: &GroupState,
+    viewer: &GroupViewer,
+) -> game_engine_ui_model::portrait_party_frame_component::PortraitPartyFrameState {
+    use game_engine_ui_model::portrait_party_frame_component::PortraitPartyFrameState;
+    let members = group
+        .members
+        .iter()
+        .filter(|member| Some(member.name.as_str()) != viewer.local_name)
+        .map(|member| portrait_member_view(group, member))
+        .collect();
+    PortraitPartyFrameState {
+        members,
+        ..Default::default()
+    }
+}
+
+fn portrait_member_view(
+    group: &GroupState,
+    member: &GroupMemberSnapshot,
+) -> game_engine_ui_model::portrait_party_frame_component::PortraitPartyMemberView {
+    use game_engine_ui_model::portrait_party_frame_component::PortraitPartyMemberView;
+    let live = group.live.get(&member.name).filter(|_| member.online);
+    let power = live.and_then(|state| state.power.as_ref());
+    PortraitPartyMemberView {
+        name: member.name.clone(),
+        class_rgb: class_color(member.class),
+        health_fraction: live.map_or(0.0, |state| {
+            fraction(i64::from(state.health), i64::from(state.max_health))
+        }),
+        power_fraction: power.map_or(0.0, |power| {
+            fraction(i64::from(power.current), i64::from(power.max))
+        }),
+        power_type: power.map_or(shared::components::PowerType::Mana, |power| power.power),
+        leader: member.is_leader,
+        role: member.role,
+        offline: !member.online,
+        dead: live.is_some_and(|state| matches!(state.death, DeathState::Dead | DeathState::Ghost)),
+        ..PortraitPartyMemberView::named(&member.name)
+    }
 }
 
 /// One member's frame from the roster and its live state; before the first live state
@@ -467,6 +510,173 @@ mod tests {
             loot_method: shared::loot::LootMode::PersonalLoot,
         });
         assert!(group_frames_state(&group, &viewer, &|_| 0).party.is_empty());
+    }
+
+    fn assert_portrait_roster_drawn(frames: &GroupFramesState) {
+        use game_engine_core::ui_layout_data::LayoutSettings;
+        use game_engine_ui_model::group_frames_component::group_frames_screen;
+        use game_engine_ui_model::portrait_party_frame_component::apply_portrait_party_postsetup;
+        use ui_toolkit::frame::WidgetData;
+        use ui_toolkit::screen::{Screen, SharedContext};
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        let mut shared = SharedContext::new();
+        shared.insert(ui_toolkit::atlas::ActiveSkin::Modern);
+        shared.insert(LayoutSettings {
+            use_raid_style_party_frames: Some(false),
+            ..Default::default()
+        });
+        shared.insert(frames.clone());
+        let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(group_frames_screen).sync(&shared, &mut registry);
+        apply_portrait_party_postsetup(&frames.portrait_party, &mut registry);
+        let frame = |name: &str| {
+            registry
+                .get(registry.get_by_name(name).expect(name))
+                .unwrap()
+        };
+        assert!(frame("CompactPartyFrame").hidden);
+        assert_eq!(
+            frame("PartyFrame").hidden,
+            frames.portrait_party.members.is_empty()
+        );
+        for (index, member) in frames.portrait_party.members.iter().enumerate() {
+            let root = format!("PartyMemberFrame{}", index + 1);
+            let Some(WidgetData::FontString(name)) = &frame(&format!("{root}Name")).widget_data
+            else {
+                panic!("name")
+            };
+            assert_eq!(name.text, member.name);
+            assert_eq!(
+                name.color,
+                [
+                    member.class_rgb[0],
+                    member.class_rgb[1],
+                    member.class_rgb[2],
+                    1.0
+                ]
+            );
+            assert_eq!(frame(&format!("{root}LeaderIcon")).hidden, !member.leader);
+            let Some(WidgetData::FontString(status)) =
+                &frame(&format!("{root}HealthBarText")).widget_data
+            else {
+                panic!("status")
+            };
+            assert_eq!(
+                status.text,
+                if member.offline {
+                    "Offline"
+                } else if member.dead {
+                    "Dead"
+                } else {
+                    ""
+                }
+            );
+            let fraction = if member.offline {
+                1.0
+            } else {
+                member.health_fraction
+            };
+            assert_eq!(
+                frame(&format!("{root}HealthBarFill")).width,
+                ui_toolkit::frame::Dimension::Fixed(70.0 * fraction)
+            );
+        }
+        assert!(
+            registry
+                .get_by_name(&format!(
+                    "PartyMemberFrame{}",
+                    frames.portrait_party.members.len() + 1
+                ))
+                .is_none()
+        );
+    }
+
+    #[test]
+    fn portrait_party_roster_tracks_join_leader_offline_death_and_leave() {
+        let mut group = GroupState::default();
+        let viewer = GroupViewer {
+            local_name: Some("Bob"),
+            target_name: None,
+        };
+        let roster = |members: Vec<GroupMemberSnapshot>| GroupRosterSnapshot {
+            is_raid: false,
+            ready_count: 0,
+            total_count: members.len() as u16,
+            members,
+            loot_method: shared::loot::LootMode::PersonalLoot,
+        };
+        group.apply_roster(roster(vec![member("Bob", 8, true), member("Ann", 1, true)]));
+        group.apply_member_states(vec![live("Ann", 300, DeathState::Alive, 10.0)]);
+        let frames = group_frames_state(&group, &viewer, &|_| 0);
+        assert_portrait_roster_drawn(&frames);
+        let ann = &frames.portrait_party.members[0];
+        assert_eq!(ann.name, "Ann");
+        assert_eq!(ann.class_rgb, class_color(1));
+        assert_eq!((ann.health_fraction, ann.power_fraction), (0.75, 0.25));
+        assert!(ann.leader);
+        assert_eq!(ann.power_type, PowerType::Mana);
+
+        let mut ann = member("Ann", 1, true);
+        ann.is_leader = false;
+        let mut cid = member("Cid", 5, true);
+        cid.is_leader = true;
+        cid.role = GroupRoleSnapshot::Healer;
+        group.apply_roster(roster(vec![
+            member("Bob", 8, true),
+            ann.clone(),
+            cid.clone(),
+            member("Dee", 4, true),
+        ]));
+        group.apply_member_states(vec![
+            live("Cid", 200, DeathState::Alive, 12.0),
+            live("Dee", 100, DeathState::Alive, 15.0),
+        ]);
+        let frames = group_frames_state(&group, &viewer, &|_| 0);
+        assert_eq!(
+            frames
+                .portrait_party
+                .members
+                .iter()
+                .map(|v| v.name.as_str())
+                .collect::<Vec<_>>(),
+            ["Ann", "Cid", "Dee"]
+        );
+        assert_portrait_roster_drawn(&frames);
+        assert!(!frames.portrait_party.members[0].leader);
+        assert!(frames.portrait_party.members[1].leader);
+        assert_eq!(
+            frames.portrait_party.members[1].role,
+            GroupRoleSnapshot::Healer
+        );
+
+        ann.online = false;
+        group.apply_roster(roster(vec![
+            member("Bob", 8, true),
+            ann,
+            cid.clone(),
+            member("Dee", 4, true),
+        ]));
+        group.apply_member_states(vec![live("Cid", 0, DeathState::Dead, 12.0)]);
+        let frames = group_frames_state(&group, &viewer, &|_| 0);
+        assert_portrait_roster_drawn(&frames);
+        assert!(frames.portrait_party.members[0].offline);
+        assert_eq!(
+            frames.portrait_party.members[0].health_fraction, 0.0,
+            "no stale live data"
+        );
+        assert!(frames.portrait_party.members[1].dead);
+        assert_eq!(frames.portrait_party.members[1].health_fraction, 0.0);
+        group.apply_roster(roster(vec![member("Bob", 8, true), cid]));
+        let frames = group_frames_state(&group, &viewer, &|_| 0);
+        assert_portrait_roster_drawn(&frames);
+        assert_eq!(frames.portrait_party.members.len(), 1);
+        group.apply_roster(roster(vec![]));
+        let frames = group_frames_state(&group, &viewer, &|_| 0);
+        assert_portrait_roster_drawn(&frames);
+        assert!(frames.portrait_party.members.is_empty());
     }
 
     /// A pending invite opens `PARTY_INVITE`; Accept answers true once, and a server
