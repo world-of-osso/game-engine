@@ -365,6 +365,40 @@ mod tests {
     }
 
     #[test]
+    fn rezrtap_decline_timeout_and_alive_clear_offer() {
+        for timeout in [false, true] {
+            let mut flow = DeathFlow::default();
+            let mut stack = PopupStack::default();
+            flow.receive(update(DeathStateSnapshot::Dead));
+            flow.receive_offer(shared::protocol::ResurrectionOffer {
+                caster: 42,
+                caster_name: "Alicia".into(),
+                spell_id: 7328,
+                time_left_ms: 60_000,
+            });
+            flow.sync_popups(&mut stack, Some(&at(12.0)), 60);
+            if timeout {
+                stack.tick(std::time::Duration::from_secs(60));
+            } else {
+                stack.cancel_top();
+            }
+            assert_eq!(
+                flow.popup_results(&stack.drain_results()),
+                Some(DeathRequest::Resurrection {
+                    caster: 42,
+                    spell_id: 7328,
+                    accept: false,
+                })
+            );
+            flow.sync_popups(&mut stack, Some(&at(12.0)), 60);
+            assert!(stack.contains(DEATH_POPUP));
+            flow.receive(update(DeathStateSnapshot::Alive));
+            flow.sync_popups(&mut stack, Some(&at(12.0)), 60);
+            assert!(!stack.is_open());
+        }
+    }
+
+    #[test]
     fn deathstate_dead_popup_release_both_skins() {
         for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
             let mut flow = DeathFlow::default();
