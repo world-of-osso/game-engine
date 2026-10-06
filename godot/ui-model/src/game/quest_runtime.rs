@@ -416,7 +416,7 @@ pub struct QuestTextTokens {
 
 /// Substitutes Retail quest text tokens: `$N`/`$n` name, `$C`/`$c` class,
 /// `$R`/`$r` race (lower case for the lower-case token), `$B`/`$b` line break and
-/// `$Gmale:female;` gendered words.
+/// `$Gmale:female;` gendered words, then English `|5` indefinite articles (`|5^` capitalized).
 pub fn substitute_quest_text(text: &str, tokens: &QuestTextTokens) -> String {
     let mut out = String::with_capacity(text.len());
     let mut chars = text.chars().peekable();
@@ -448,7 +448,48 @@ pub fn substitute_quest_text(text: &str, tokens: &QuestTextTokens) -> String {
             out.push(c);
         }
     }
+    resolve_indefinite_articles(&out)
+}
+
+/// Retail FontStrings resolve `|5word` to `a word` / `an word` after player substitution.
+fn resolve_indefinite_articles(text: &str) -> String {
+    let mut out = String::with_capacity(text.len());
+    let mut chars = text.chars().peekable();
+    while let Some(ch) = chars.next() {
+        if ch != '|' {
+            out.push(ch);
+            continue;
+        }
+        match chars.peek() {
+            Some('|') => {
+                chars.next();
+                out.push_str("||");
+            }
+            Some('5') => {
+                chars.next();
+                out.push_str(read_indefinite_article(&mut chars));
+            }
+            _ => out.push(ch),
+        }
+    }
     out
+}
+
+fn read_indefinite_article(chars: &mut std::iter::Peekable<std::str::Chars<'_>>) -> &'static str {
+    let capitalized = chars.peek() == Some(&'^');
+    if capitalized {
+        chars.next();
+    }
+    while chars.peek() == Some(&' ') {
+        chars.next();
+    }
+    let vowel = chars.peek().is_some_and(|ch| "aeiouAEIOU".contains(*ch));
+    match (capitalized, vowel) {
+        (false, false) => "a ",
+        (false, true) => "an ",
+        (true, false) => "A ",
+        (true, true) => "An ",
+    }
 }
 
 /// Reads `male:female;` after `$G` and returns the word for the player's sex.
