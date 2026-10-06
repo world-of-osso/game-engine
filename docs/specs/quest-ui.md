@@ -60,6 +60,10 @@ Fixture `4532f0f61`, server checkout `4fac87a` / attributed runtime `c5cf88a`: a
 
 [Reload evidence and limits](../wiki/systems/forever-data.md#prepared-reward-reload-evidence-2026-10-06) owns saved logs, executable hashes, parser status and cleanup report. [Independent audit](../../target/skyborn-source-items/native-reward-reload-independent-proof.md) accepts bounded restored40XP/quest-removal/Greeting evidence and current cleanup; native OS-exit status remains absent. No visual credit, original scripts/phasing, parity or full-goal closure; prior failures and appearance gaps remain.
 
+### Prepared original shoulder attachment scope
+
+`SKYBORNE_SCOPE=shoulder-assets` reuses the prepared race95 character30 login/map/source-kit checks and requires restored40XP with92460 absent. It accepts/rewards nothing. Locate living-world Rorian's authored body, require visible nonempty geometry for `EquipmentShoulderLeft` under authored attachment6 and `EquipmentShoulderRight` under attachment5, print actual native paths/transforms/mesh counts and save `02-rorian-original-shoulders.png`. Missing attachments fail rather than substitute graphics. This fixture tests the reproduced listfile-path gate with actual original models; implementation alone confers no passing-run or visual-parity proof.
+
 ## Skin-resolved quest chrome
 
 - Quest giver and quest log retain their Modern chrome geometry; quest-log details flow below measured native text rather than fixed paragraph offsets. `RedButton-Exit`, `_UI-Frame-TopTileStreaks`, `QuestBG-Parchment` and `questlog_divider` resolve by atlas name under the active skin, then populate the existing FDID/UV fields. No local-texture fallback or layout change.
