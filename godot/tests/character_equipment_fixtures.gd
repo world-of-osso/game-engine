@@ -27,6 +27,7 @@ const FIXTURES := [
 		],
 		"attachments": {"EquipmentWaist": 53, "EquipmentMainHand": 1},
 		"pixel_item": "EquipmentWaist",
+		"textured_items": ["EquipmentShoulderLeft", "EquipmentShoulderRight"],
 	},
 	{
 		"name": "StockadeClothBelt", "race": 1, "sex": 0, "class": 2, "sheath": 0, "anim": 0, "time_ms": 0.0,
@@ -128,6 +129,7 @@ const FIXTURES := [
 			{"slot": "Wrist", "item_id": 190091, "inventory_type": 9},
 		],
 		"attachments": {"EquipmentBack": 12, "EquipmentWaist": 53},
+		"textured_items": ["EquipmentBack"],
 		"bound": {"EquipmentWaist2": [18], "EquipmentWrist": [8, 23]},
 	},
 	{
@@ -137,6 +139,7 @@ const FIXTURES := [
 		"items": [{"slot": "Back", "item_id": 170063, "inventory_type": 16}],
 		"attachments": {},
 		"bound": {"EquipmentBack": [15]},
+		"textured_items": ["EquipmentBack"],
 	},
 	{
 		"name": "GromShoulders", "race": 2, "sex": 0, "class": 1, "sheath": 0, "anim": 0, "time_ms": 0.0,
@@ -145,6 +148,7 @@ const FIXTURES := [
 			{"slot": "Back", "item_id": 1190, "inventory_type": 16},
 		],
 		"attachments": {"EquipmentShoulderLeft": 6, "EquipmentShoulderRight": 5},
+		"textured_items": ["EquipmentShoulderLeft", "EquipmentShoulderRight"],
 	},
 ]
 
@@ -243,6 +247,7 @@ func check_fixture(loader: Object, camera: Camera3D, fixture: Dictionary) -> voi
 	check_geosets(fixture, model)
 	check_attachments(fixture, model)
 	check_bound(fixture, model)
+	check_item_materials(fixture, model)
 	print("FIXTURE %s geosets=%s items=%s" % [fixture.name, visible_geosets(model), item_parents(model)])
 	model.free()
 
@@ -359,6 +364,25 @@ func check_bound(fixture: Dictionary, model: Node3D) -> void:
 				var part: int = child.get_meta("m2_mesh_part")
 				if not bound[item_name].has(part / 100):
 					fail(fixture, "%s shows mesh part %d outside groups %s" % [item_name, part, bound[item_name]])
+
+func check_item_materials(fixture: Dictionary, model: Node3D) -> void:
+	for item_name in fixture.get("textured_items", []):
+		var item := model.find_child(item_name, true, false)
+		if item == null:
+			fail(fixture, "textured item missing: " + item_name)
+			continue
+		var meshes := item.find_children("*", "MeshInstance3D", true, false)
+		if meshes.is_empty():
+			fail(fixture, "no batches: " + item_name)
+		for mesh in meshes:
+			var material := (mesh as MeshInstance3D).get_active_material(0) as ShaderMaterial
+			if material == null or not material.has_meta("m2_texture_count"):
+				fail(fixture, "%s/%s has no batch texture binding" % [item_name, mesh.name])
+				continue
+			var uniforms := ["base_texture", "second_texture", "third_texture", "fourth_texture"]
+			for slot in int(material.get_meta("m2_texture_count")):
+				if not material.get_shader_parameter(uniforms[slot]) is Texture2D:
+					fail(fixture, "%s/%s slot%d has an untextured white material" % [item_name, mesh.name, slot])
 
 func has_visible_mesh(node: Node) -> bool:
 	for child in node.find_children("*", "MeshInstance3D", true, false):
