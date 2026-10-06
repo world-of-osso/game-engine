@@ -11,11 +11,11 @@ Cached source root: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_UIPa
 | Success fills, hides spark, shows full-type flash, plays fade and finish | `Shared/CastingBarFrame.lua:575-600` (`FinishSpell`); type art/finish selection at `45-76` |
 | Failed/Interrupted text and interrupted art | `Shared/CastingBarFrame.lua:540-572`; spark callback fills and hides at `669-678` |
 | Channel finish retains ending value rather than filling | `Shared/CastingBarFrame.lua:466-479,575-600` |
-| Flash alpha 0→1 in 0.2s; standard translated glow/flakes | `Mainline/CastingBarFrame.xml:130-146` |
+| Flash alpha 0→1 in 0.2s; standard translated glow/flakes | `Mainline/CastingBarFrame.xml:128-146` |
 | Channel translated wisp mask/sparkles, rotation, glow scale and alpha | `Mainline/CastingBarFrame.xml:147-167` |
 | Interrupt glow fades for 1s; shake jumps at 0.15/0.20/0.25/0.30s; red spark remains 0.1s | `Mainline/CastingBarFrame.xml:169-187` |
 | Normal fade: 0.2s delay then 0.3s; interruption hold: 1s then 0.3s | `Shared/CastingBarFrameTemplates.xml:5-16` |
-| Pip at fill edge, type-specific trailing FX and clipping masks | `Shared/CastingBarFrame.lua:680-719`; `Mainline/CastingBarFrame.xml:326-388` |
+| Pip at fill edge, type-specific trailing FX and clipping masks | `Shared/CastingBarFrame.lua:188-200,680-719`; `Mainline/CastingBarFrame.xml:326-388` |
 
 This cached Retail source has no `holdTime` member: its hold is `HoldFadeOutAnim`. The classic-style immediate interruption fill (`Shared/CastingBarFrame.lua:564-571`) is not a Forever skin requirement. FlareUI standalone cast bars override dimensions/colours (`data/reference/flareui/Core.lua:281`, `Modules/UnitFrames.lua:75-79,651-661,2225-2234`); their event updater hides a missing cast instead of defining an alternate feedback animation (`630-636`). The requested Retail feedback therefore uses the same clock under both skins.
 
@@ -37,7 +37,17 @@ A second timestamp regression reproduced channel failure retaining “Arcane Mis
 
 Retail atlas files: FDIDs `4505182`, `4505194`, `4549775`, `4550035`, `4550359`, `4550462`. Extract only from local CASC into canonical `data/textures/`; assigned slots may link those immutable files. No synchronous extraction in the per-frame HUD path.
 
-Timestamp tests are `player_castbaranim_*` in `godot/rust/src/nameplate_casts_tests.rs`. Rendered evidence status remains pending until captures are inspected; CPU model tests do not prove native shader pixels.
+Timestamp tests are `player_castbaranim_*` in `godot/rust/src/nameplate_casts_tests.rs`. CPU model tests alone do not prove native shader pixels.
+
+## Verification — 2026-10-06
+
+Production revision `37b82fb2`; capture fixture `195e31f7`. Locked, detached local helper: 20 `nameplate_casts` tests plus six `target_cast_bar` tests pass; native extension build passes without compiler warnings. Scoped formatting checks pass for changed Rust files. Source is unchanged by the subsequent evidence-only commit.
+
+The existing `capture_ui_screen.gd` rendered ten snapshots on owned headless Weston/Dozen: mid-cast at 100.000, completion/channel flash at 100.100, interruption/failure at 100.175, under Modern and Forever. All native assertions pass. Mid-cast spark centres equal fill endpoints; completed channels retain zero fill; interrupt/failure fills reach full width. Interrupt shake moves both axes by (-1,-1); sampled unglowed fills are Modern atlas red `(0.7647,0.1020,0.1765)` and Forever `(1,0,0)`. Completion isolation changes 3847/3575 pixels (Modern/Forever); interrupt glow isolation changes 6558/6625. All six requested key frames and supplemental Failed/channel images were visually inspected: expected art, flash, full red result text, retained FlareUI geometry/blue fill and correctly placed spark. Bounded feedback visual PASS, not full Retail pixel parity.
+
+Persistent evidence: canonical `data/diagnostics/castbaranim-2026-10-06/`. `modern-{midcast,finish,interrupted}.png` and `forever-{midcast,finish,interrupted}.png` are the requested six; `*-failed.png`, `*-channel.png` and `*-without-feedback.png` are supplemental/isolated controls. `capture-ledger.json` records actual child PIDs, timestamps, revision and extension hash; logs and proof ledger preserve failures and final results.
+
+Every capture exits 0, but shutdown emits texture/font RID allocation errors, ObjectDB leak warnings and host Wayland/Dozen warnings. These remain recorded, not suppressed or fixed; no clean-resource/shutdown acceptance. Native assertion/runtime errors other than those explicitly recorded shutdown allocation diagnostics fail the capture runner.
 
 ## Sources
 

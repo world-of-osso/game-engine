@@ -4,11 +4,11 @@ PlayerCastingBarFrame follows the locally cached Retail CastingBarFrame source u
 
 ## What it must do
 
-- [ ] Successful casts fill, hide their spark, show the 0.2-second completion flash and StandardFinish effects; hold 0.2 seconds, then fade over 0.3 seconds.
-- [ ] Interrupts/failures show Interrupted/Failed and interrupted art, fill after the 0.1-second interrupt spark under both skins, play source glow/shake, hold 1 second and fade over 0.3 seconds.
-- [ ] Channels retain their ending value, hide the spark, play ChannelFinish and completion flash with the normal 0.2/0.3-second fade.
-- [ ] Both skins render source spark/feedback; Forever retains FlareUI's 292×26 track, 4-unit inset, icon and cool-toned fills.
-- [ ] Offline previews use production cast state transitions. Key frames are captured only through the existing capture test.
+- [x] Successful casts fill, hide their spark, show the 0.2-second completion flash and StandardFinish effects; hold 0.2 seconds, then fade over 0.3 seconds.
+- [x] Interrupts/failures show Interrupted/Failed and interrupted art, fill after the 0.1-second interrupt spark under both skins, play source glow/shake, hold 1 second and fade over 0.3 seconds.
+- [x] Channels retain their ending value, hide the spark, play ChannelFinish and completion flash with the normal 0.2/0.3-second fade.
+- [x] Both skins render source spark/feedback; Forever retains FlareUI's 292×26 track, 4-unit inset, icon and cool-toned fills.
+- [x] Offline previews use production cast state transitions. Key frames are captured only through the existing capture test.
 
 ## How it works
 
@@ -28,7 +28,8 @@ PlayerCastingBarFrame follows the locally cached Retail CastingBarFrame source u
 
 ## Known gaps (current cycle)
 
-- [ ] Implementation and rendered key-frame proof pending.
+- Feedback acceptance verified 2026-10-06: 26 scoped Rust/UI tests and ten inspected native snapshots, including six requested key frames. See [evidence](../wiki/systems/player-cast-feedback.md#verification--2026-10-06).
+- Offline fixtures still report texture/font RID and ObjectDB allocation leaks at shutdown; clean resource lifetime is not proven.
 
 ## Out of scope
 
