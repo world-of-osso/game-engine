@@ -10,8 +10,8 @@ use game_engine_ui_model::bag_data::InventoryRequest;
 use game_engine_ui_model::character_frame::{
     ACTION_CLOSE, ACTION_MODEL, CharacterFrameView, CharacterTab, MIN_LEVEL_FOR_ITEM_LEVEL,
     PAPERDOLL_BUTTONS, PORTRAIT, attribute_lines, average_equipped_item_level, class_background,
-    enhancement_lines, level_line, paperdoll_slots, parse_equipment_slot_action, race_background,
-    reputation_art_fdids, reputation_rows,
+    enhancement_lines, level_line, paperdoll_slots, paperdoll_unequip_request,
+    parse_equipment_slot_action, race_background, reputation_art_fdids, reputation_rows,
 };
 use game_engine_ui_model::cursor_item::{CursorItem, CursorTarget};
 use game_engine_ui_model::damage_meter_data::class_color;
@@ -173,9 +173,17 @@ impl GameClient {
         click: Click,
     ) -> Result<(), FrameError> {
         if let Some(slot) = parse_equipment_slot_action(action) {
-            // Right-click is `UseInventoryItem`, which the server does not take for gear.
-            if click.right || click.shift {
+            if click.shift {
                 return Ok(());
+            }
+            if click.right {
+                let request =
+                    paperdoll_unequip_request(&self.merchant.session.inventory, slot, click);
+                return match request {
+                    Ok(Some(request)) => Ok(self.account.send_inventory_request(&request)?),
+                    Ok(None) => Ok(()),
+                    Err(error) => Ok(self.add_world_error(error)?),
+                };
             }
             let location = ItemLocation::Equipment(slot);
             if let Some(effect) = self.merchant.session.repair_click(location) {

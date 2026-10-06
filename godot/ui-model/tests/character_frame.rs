@@ -118,6 +118,49 @@ fn onclick(registry: &FrameRegistry, name: &str) -> Option<String> {
 }
 
 #[test]
+fn uifixes_right_click_unequips_chest_and_mainhand_or_reports_full_bags() {
+    use game_engine_ui_model::bag_data::InventoryRequest;
+    use game_engine_ui_model::character_frame::paperdoll_unequip_request;
+    use game_engine_ui_model::merchant::Click;
+    use shared::protocol::SwapItem;
+    use ui_toolkit::atlas::{ActiveSkin, set_active_skin};
+
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_active_skin(skin);
+        let mut inventory =
+            equipped(&[(EquipmentSlot::Chest, 2379), (EquipmentSlot::MainHand, 25)]);
+        let occupied = inventory.equipped(EquipmentSlot::Chest).unwrap().clone();
+        inventory.slots[0].fill(occupied.clone());
+        inventory.clear_slot(0, 5);
+        inventory.clear_slot(0, 10);
+        let registry = build(view(&inventory, None));
+        for name in ["CharacterChestSlot", "CharacterMainHandSlot"] {
+            let slot = parse_equipment_slot_action(&onclick(&registry, name).unwrap()).unwrap();
+            assert_eq!(
+                paperdoll_unequip_request(&inventory, slot, Click::RIGHT),
+                Ok(Some(InventoryRequest::Swap(SwapItem {
+                    from: ItemLocation::Equipment(slot),
+                    to: ItemLocation::Bag { bag: 0, slot: 5 },
+                })))
+            );
+            assert_eq!(
+                paperdoll_unequip_request(&inventory, slot, Click::LEFT),
+                Ok(None)
+            );
+            let before = inventory.clone();
+            inventory.slots[0].fill(occupied.clone());
+            assert_eq!(
+                paperdoll_unequip_request(&inventory, slot, Click::RIGHT),
+                Err("Inventory is full.")
+            );
+            assert!(inventory.equipped(slot).is_some());
+            inventory = before;
+        }
+    }
+    set_active_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn every_retail_paperdoll_button_clicks_with_its_own_equipment_slot() {
     let registry = build(view(&InventoryState::default(), None));
     assert_eq!(PAPERDOLL_BUTTONS.len(), 18);
