@@ -34,6 +34,10 @@ fn state(own_rank: u8) -> GuildRanksState {
     }
 }
 fn mounted(session: &GuildRanksSession) -> FrameRegistry {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let mut shared = SharedContext::new();
     shared.insert(session.clone());
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
@@ -55,6 +59,14 @@ fn action(reg: &FrameRegistry, name: &str) -> String {
         .onclick
         .clone()
         .unwrap_or_default()
+}
+
+#[test]
+fn guild_rank_widgets_entry_is_available_in_the_native_micro_menu() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    assert!(
+        game_engine_ui_model::micro_menu::unavailable_message("micro:GuildMicroButton").is_none()
+    );
 }
 #[test]
 fn guild_rank_widgets_render_authority_and_click_exact_requests_both_skins() {

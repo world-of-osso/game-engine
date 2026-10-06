@@ -84,6 +84,13 @@ impl GameClient {
                 break;
             }
         }
+        while let Some((action, right, _)) = ui.bind_mut().pop_alt_click() {
+            if right && action.starts_with("guild:member:") {
+                self.guild_ranks
+                    .session
+                    .click(&action, &InputTexts::default());
+            }
+        }
         Ok(())
     }
     fn sync_guild_ranks(&mut self) -> Result<(), String> {
