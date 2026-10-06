@@ -43,7 +43,7 @@ func run_test() -> void:
 		quit(1)
 		return
 	var objects: Dictionary = state.world_objects
-	if objects.get("nearby_done", -1) != objects.get("nearby_total", -2) or objects.get("nearby_collision_pending", -1) != 0:
+	if objects.get("nearby_total", 0) <= 0 or objects.get("nearby_done", -1) != objects.get("nearby_total", -2) or objects.get("nearby_collision_pending", -1) != 0:
 		push_error("Entered before nearby objects/collision ready: " + str(objects))
 		quit(1)
 		return
@@ -53,15 +53,19 @@ func run_test() -> void:
 		return
 	print("SWLOAD TEST ENTRY ms=", Time.get_ticks_msec() - started, " objects=", objects)
 	deadline = Time.get_ticks_msec() + 1800000
+	var next_report := Time.get_ticks_msec()
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		state = client.account_state()
+		if Time.get_ticks_msec() >= next_report:
+			next_report = Time.get_ticks_msec() + 1000
+			print("SWLOAD TEST STREAM ms=", Time.get_ticks_msec() - started, " objects=", state.world_objects)
 		if state.screen != "InWorld":
 			push_error("Distant streaming re-entered loading")
 			quit(1)
 			return
 		if state.world_objects.pending == 0 and state.terrain.pending_count == 0:
-			print("SWLOAD TEST PASS all objects drained ms=", Time.get_ticks_msec() - started)
+			print("SWLOAD TEST PASS all objects drained ms=", Time.get_ticks_msec() - started, " objects=", state.world_objects)
 			quit(0)
 			return
 	push_error("Distant scenery did not drain: " + str(state.world_objects))
