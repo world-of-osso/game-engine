@@ -273,8 +273,10 @@ fn cast_bar_frame(state: &CastingBarState, style: &CastBarStyle, at: &Placement)
             right: {at.right.as_str()},
             top: {at.top.as_str()},
             bottom: {at.bottom.as_str()},
-            margin_left: {at.margin_left + shake_x},
-            margin_top: {at.margin_top + shake_y},
+            margin_left: {at.margin_left},
+            margin_top: {at.margin_top},
+            translate_x: {shake_x},
+            translate_y: {shake_y},
             {bar_background(style, fill_w, bar_fill_color(state, style), state)}
             {icon}
             {retail_target_art(style, state)}

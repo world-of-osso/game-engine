@@ -251,13 +251,19 @@ func castbar_snapshot_matches(ui: Node, image: Image, output: String) -> bool:
 	if lit_pixels < 20:
 		push_error("Cast art did not render")
 		return false
-	if phase not in ["finish", "channel"]:
+	if phase == "midcast":
 		return true
-	var flash = ui.find_child("CastingBarFlash", true, false) as Control
-	if flash == null or absf(flash.modulate.a - 0.5) > 0.001:
-		push_error("100.100 completion flash is not half-bright")
-		return false
-	for name in ["CastingBarFlash", "CastingBarEnergyGlow", "CastingBarFlakes01", "CastingBarFlakes02", "CastingBarFlakes03", "CastingBarBaseGlow", "CastingBarWispGlow", "CastingBarSparkles01", "CastingBarSparkles02"]:
+	if phase in ["finish", "channel"]:
+		var flash = ui.find_child("CastingBarFlash", true, false) as Control
+		if flash == null or absf(flash.modulate.a - 0.5) > 0.001:
+			push_error("100.100 completion flash is not half-bright")
+			return false
+	else:
+		var glow = ui.find_child("CastingBarInterruptGlow", true, false) as Control
+		if glow == null or absf(glow.modulate.a - 0.825) > 0.001:
+			push_error("100.175 interruption glow does not match its 1s fade")
+			return false
+	for name in ["CastingBarFlash", "CastingBarEnergyGlow", "CastingBarFlakes01", "CastingBarFlakes02", "CastingBarFlakes03", "CastingBarBaseGlow", "CastingBarWispGlow", "CastingBarSparkles01", "CastingBarSparkles02", "CastingBarInterruptGlow"]:
 		var effect = ui.find_child(name, true, false) as Control
 		if effect != null:
 			effect.hide()
@@ -274,7 +280,7 @@ func castbar_snapshot_matches(ui: Node, image: Image, output: String) -> bool:
 			if image.get_pixel(x, y) != control.get_pixel(x, y):
 				changed_pixels += 1
 	if changed_pixels < 20:
-		push_error("Cast completion FX did not change rendered pixels")
+		push_error("Cast feedback did not change rendered pixels")
 		return false
 	print("PASS: cast feedback changed pixels=", changed_pixels)
 	return true
