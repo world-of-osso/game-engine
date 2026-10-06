@@ -1,6 +1,6 @@
 # Portrait Party Frames
 
-Native `PartyMemberFrame` family under Modern and Forever. `PortraitPartyFrameState` supplies four non-self member slots from the live group roster; runtime heads, portrait click/menu wiring and Edit Mode settings UI remain excluded. Compact party remains the default. [Contract](../../specs/group-frames.md).
+Native `PartyMemberFrame` family under Modern and Forever. `PortraitPartyFrameState` supplies four non-self member slots from the live group roster, with runtime heads for known appearances. [Party settings](party-edit-mode-settings.md) are exposed in both skins. Portrait click/menu wiring and full live acceptance remain excluded. Compact party remains the default. [Contract](../../specs/group-frames.md).
 
 ## Step 2 — roster and source corrections
 
