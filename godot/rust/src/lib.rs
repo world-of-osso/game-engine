@@ -2083,15 +2083,15 @@ impl GameClient {
 
     fn attach_world_objects(&mut self) {
         let mut parent = self.to_gd().upcast::<Node3D>();
-        if self.account.session.screen == SessionScreen::Loading {
-            if let Some(transform) = self.world.local_player_transform() {
+        let focus = if self.account.session.screen == SessionScreen::Loading {
+            self.world.local_player_transform().map(|transform| {
                 let origin = transform.origin;
-                self.world_objects
-                    .prioritize_nearby(glam::Vec3::new(origin.x, origin.y, origin.z));
-            }
+                glam::Vec3::new(origin.x, origin.y, origin.z)
+            })
         } else {
-            self.world_objects.clear_priority();
-        }
+            None
+        };
+        self.world_objects.set_loading_focus(focus);
         self.world_objects
             .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
         if let Some(player) = self.world.local_player_transform() {
