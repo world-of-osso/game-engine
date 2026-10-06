@@ -17,6 +17,7 @@ Single MainHand startup native `5a3ebf7b` and original15-second merchant regress
 
 Engine subsystems and how they work.
 
+- [death-flow](systems/death-flow.md) — owner death snapshots, Retail release/corpse/healer dialogs; resurrection-offer and tap replication gaps.
 - [build-hosts](systems/build-hosts.md) — desktop SSH/WSL and local Docker build trial; saved selection, cache boundaries, independently accepted bounded build/server/CPU/GPU-login capability.
 
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering (Godot retail batch materials), live InWorld camera-direction CLI, optional-distance-fog shader specialization, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; native fog verification and original-video pixel equivalence remain unproven
