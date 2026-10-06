@@ -3,8 +3,9 @@ extends "res://tests/world_quest_flow.gd"
 # Main supplies prepared credentials and launches twice under maintained cage/agent-run.
 # Required: GODOT_TEST_SERVER, SKYBORNE_RACE (95|96), SKYBORNE_USERNAME,
 # SKYBORNE_PASSWORD, SKYBORNE_SHOTS (absolute path under persistent data/), GAME_ENGINE_CLI,
-# SKYBORNE_SCOPE (client-items|full|turn-in). turn-in requires already-active completed92460;
-# it proves no fresh acceptance. client-items proves no NPC/giver/quest behavior.
+# SKYBORNE_SCOPE (client-items|full|turn-in|reward-reload). Prepared scopes require race95;
+# turn-in requires active completed92460; reward-reload requires rewarded character30/XP40.
+# Neither proves fresh acceptance. client-items proves no NPC/giver/quest behavior.
 # godot --path godot -s res://tests/skyborne_world_acceptance.gd
 # No admin travel/completion, direct quest acceptance or race96 quest invention.
 const SKY_QUEST := 92460
@@ -32,12 +33,13 @@ func run_test() -> void:
 	var port := server.trim_prefix("127.0.0.1:")
 	race = OS.get_environment("SKYBORNE_RACE").to_int()
 	var scope := OS.get_environment("SKYBORNE_SCOPE")
-	if scope not in ["client-items", "full", "turn-in"]:
-		fail("Require explicit SKYBORNE_SCOPE=client-items|full|turn-in")
+	if scope not in ["client-items", "full", "turn-in", "reward-reload"]:
+		fail("Require explicit SKYBORNE_SCOPE=client-items|full|turn-in|reward-reload")
 		return
-	if scope == "turn-in":
+	var prepared := scope in ["turn-in", "reward-reload"]
+	if prepared:
 		if race != 95:
-			fail("Prepared turn-in requires race95 Skymage, never race96")
+			fail("Prepared scopes require race95 Skymage, never race96")
 			return
 		catalog_wait_ms = 120000
 	var username := OS.get_environment("SKYBORNE_USERNAME")
@@ -69,7 +71,7 @@ func run_test() -> void:
 	if error != "":
 		fail("Skyborne connection: " + error)
 		return
-	if not await enter_named_world() or not check_start(scope != "turn-in"):
+	if not await enter_named_world() or not check_start(not prepared):
 		return
 	if not await save_capture("01-world-start.png") or not await inspect_kit():
 		return
@@ -84,6 +86,14 @@ func run_test() -> void:
 			return
 		print("SKYBORNE PREPARED_TURN_IN_DONE race=95 character=Skymage quest=92460 xp=40")
 		print("SKYBORNE UNTESTED fresh acceptance/full fixture/original script; no follow-up accepted")
+		client.free()
+		quit(0)
+		return
+	if scope == "reward-reload":
+		if not await check_reward_reload():
+			return
+		print("SKYBORNE REWARD_RELOAD_DONE race=95 character=Skymage character_id=30 quest=92460 xp=40")
+		print("SKYBORNE UNTESTED fresh acceptance/full fixture/original script; accepted/rewarded nothing")
 		client.free()
 		quit(0)
 		return
@@ -279,27 +289,63 @@ func walk_to_sky_ender() -> Node3D:
 	print("SKYBORNE ENDER_NEAR replicated=", ender.global_position, " local=", player_position(), " server=", client.account_state().local_server_position)
 	return ender
 
+func open_sky_ender(ender: Node3D, pages: Array) -> int:
+	var reply := await ipc(["quest", "interact", "--npc", SKY_ENDER])
+	if reply.strip_edges() != "interact " + SKY_ENDER:
+		fail("CLI ender interaction failed: " + reply)
+		return 0
+	if not await wait_quest(func(s): return s.frame_open and s.get("npc_name") == SKY_ENDER and s.get("page") in pages, "Rorian native QuestFrame"):
+		return 0
+	var state: Dictionary = client.quest_state()
+	var ender_id := int(state.npc)
+	var transform = client.unit_transform(ender_id)
+	if ender_id <= 0 or not client.unit_alive(ender_id) or not (transform is Transform3D):
+		fail("Native QuestFrame lacks a living replicated Rorian identity")
+		return 0
+	if transform.origin.distance_to(ender.global_position) > 0.1:
+		fail("Native QuestFrame NPC differs from located Rorian")
+		return 0
+	return ender_id
+
+func check_reward_reload_state() -> bool:
+	var state: Dictionary = client.quest_state()
+	var tracker: Dictionary = client.objective_tracker_state()
+	if int(state.get("xp", -1)) != SKY_REWARD_XP or in_log(state, SKY_QUEST) or Array(state.watched).has(SKY_QUEST) or tracker_has(tracker, SKY_QUEST):
+		fail("Reward reload requires exact40XP and92460 absent from log/watched/tracker: " + str(state) + " tracker=" + str(tracker))
+		return false
+	print("SKYBORNE REWARD_RELOAD_NATIVE state=", state, " tracker=", tracker)
+	return true
+
+func check_reward_reload() -> bool:
+	if int(client.account_state().get("selected_character_id", -1)) != 30:
+		fail("Reward reload requires prepared character30 Skymage")
+		return false
+	if not check_reward_reload_state():
+		return false
+	var ender := await walk_to_sky_ender()
+	if ender == null:
+		return false
+	var ender_id := await open_sky_ender(ender, ["Greeting"])
+	if ender_id <= 0:
+		return false
+	var state: Dictionary = client.quest_state()
+	if Array(state.greeting_quests).has(SKY_TITLE):
+		fail("Rewarded92460 still offered in Rorian native Greeting: " + str(state))
+		return false
+	if not check_reward_reload_state():
+		return false
+	return await save_capture("02-reward-reload-greeting-40xp.png")
+
 func turn_in_prepared_quest() -> bool:
 	if not check_prepared_turn_in():
 		return false
 	var ender := await walk_to_sky_ender()
 	if ender == null:
 		return false
-	var reply := await ipc(["quest", "interact", "--npc", SKY_ENDER])
-	if reply.strip_edges() != "interact " + SKY_ENDER:
-		fail("CLI ender interaction failed: " + reply)
-		return false
-	if not await wait_quest(func(s): return s.frame_open and s.get("npc_name") == SKY_ENDER and s.get("page") in ["Greeting", "Reward"], "Rorian native QuestFrame"):
+	var ender_id := await open_sky_ender(ender, ["Greeting", "Reward"])
+	if ender_id <= 0:
 		return false
 	var state: Dictionary = client.quest_state()
-	var ender_id := int(state.npc)
-	var transform = client.unit_transform(ender_id)
-	if ender_id <= 0 or not client.unit_alive(ender_id) or not (transform is Transform3D):
-		fail("Native QuestFrame lacks a living replicated Rorian identity")
-		return false
-	if transform.origin.distance_to(ender.global_position) > 0.1:
-		fail("Native QuestFrame NPC differs from located Rorian")
-		return false
 	if state.page == "Greeting":
 		var index := Array(state.greeting_quests).find(SKY_TITLE)
 		if index < 0:
