@@ -1,3 +1,7 @@
+## 2026-10-06 — Authored portrait cameras and Modern HUD pixel overlap
+
+[Portrait camera/key investigation](systems/portrait-party-frames.md#authored-camera-and-frontal-key--2026-10-06): loaded HD type-0 camera selection was already correct; fixed reversed portrait key direction and corrected the all-human offline fixture. Eight Human/Blood Elf/Dwarf/Orc male/female head-angle cases, native frontal/reversed pixel lighting and both-skin roster captures pass. Modern reported 72×70 bounds intersect in 596 drawn pixels (53×33 envelope); native default scaling intersects in 11,243 drawn pixels. Approved positions unchanged. Proof/crops: `data/diagnostics/portraitcam-2026-10-06/`. Shutdown warnings remain; no live/reference-image parity claim.
+
 ## 2026-10-05 — Runtime portrait party heads (party3)
 
 [[portrait-party-frames#Step 3 — runtime member portraits]] records reuse of the masked unit portrait renderer, member-name resource ownership, Retail offline/dead/ghost/low-health rules and no range fade. Compact remains default with zero party renders. At native `5f33198a` plus fixture `978772c5`, both skin processes pass concrete roster changes, actual grey offline head pixels and viewport cleanup; five native Rust/six UI-model tests and native build also pass. Inspected runtime-head raster passes bounded scope. Global RID/ObjectDB shutdown warnings remain, higher than the static baseline; never-replicated appearances, settings UI and live acceptance remain open. Proof: `data/diagnostics/party3-2026-10-05/proof.md`.
