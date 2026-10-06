@@ -1,6 +1,13 @@
 ## 2026-10-05 — Paperdoll teardown double free
 
 [[character-preview-double-free]] records a real-engine reproduction of `gd.rs:911`, the parent-before-preview teardown bug, and the process/reconnect ownership audit. Reset now releases the preview before its RegistryUi parent. At `dc7f80b9`, formatting, locked local extension build and three headless lifecycle cycles pass (each command exit 0). All 144 native Rust free sites inventoried; no other matching unguarded double-free established. Original suspend incident attribution remains conditional.
+## 2026-10-05 — Product-bound party sheet offline proof (party1)
+
+[[portrait-party-frames]] records local 70205 bytes matching frozen 69913 bar coordinates, bounded product-file binding through the existing authored UI loader, and the corrected player-mana crop. At `dea89b5a`, targeted 9 portrait + 4 status-bar tests and native build pass; inspected Modern/Forever offline recaptures pass member art/fills. Shutdown leaks remain; no pet/reference parity, roster/runtime portraits/settings/live proof. Compact default retained. Earlier blockers below are historical, not current input state.
+
+## 2026-10-05 — Static portrait party family (party1)
+
+[[portrait-party-frames]] adds source-cited Retail/Camelot member/pet geometry and distinguishes both verified c60 mappings: conditional CharacterFrameOnParty element 33561 → set-1 member 38477 → atlas 3960 shares Camelot's player sheet; ordinary Party element 21081 → member 39017 → atlas 4019 uses uipartyframec60. Static state-only component, behavioral tests, registry-golden capture and offline preview; no roster/portrait-runtime/settings/live acceptance. Compact remains default. Targeted registry/source tests pass 12/12 and extension builds, but owned native captures expose missing Retail sheet 4681512 and a mismatched 69913-vs-69933 base sheet at shared FDID 4631591. Static raster acceptance is blocked; do not wire as complete. Source-record equality is not physical-texture proof.
 
 ## 2026-10-04 — Canonical toolkit integration and retained Skyborn blocker
 
