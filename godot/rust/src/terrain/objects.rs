@@ -13,7 +13,9 @@ use game_engine_core::{
     asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume},
     asset_loader::{AssetLoader, Priority},
     blp,
-    campsite_object_data::{campsite_doodad_placement, doodad_position, placement_position},
+    campsite_object_data::{
+        campsite_doodad_placement, doodad_position, placement_position, wmo_bounds,
+    },
     wmo::{WmoDoodad, WmoDoodadModel},
 };
 use glam::{Affine3A, Vec3};
@@ -78,8 +80,8 @@ impl ObjectSelection for AllObjects {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-enum Pending {
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub(super) enum Pending {
     Doodad(Tile, usize),
     Wmo(Tile, usize),
     /// MODD doodad `usize` of the spawned WMO with this unique ID.
@@ -393,7 +395,8 @@ pub(crate) struct TerrainObjects {
     doodads: Vec<CulledDoodad>,
     wmos: Vec<CulledWmo>,
     progress: TileProgress,
-    prioritized: BTreeSet<Tile>,
+    nearby: super::object_progress::NearbyProgress,
+    priority_focus: Option<Vec3>,
     /// The tile each ADT WMO was spawned from, for its MODD doodads' progress.
     wmo_tiles: HashMap<u32, Tile>,
     /// Loaded doodad models, or why they cannot load, by FDID; kept across `reset` like
@@ -439,7 +442,8 @@ impl TerrainObjects {
             doodads: Vec::new(),
             wmos: Vec::new(),
             progress: TileProgress::default(),
-            prioritized: BTreeSet::new(),
+            nearby: super::object_progress::NearbyProgress::default(),
+            priority_focus: None,
             wmo_tiles: HashMap::new(),
             models: HashMap::new(),
             wmo_assets: HashMap::new(),
@@ -507,26 +511,24 @@ impl TerrainObjects {
         self.progress.get(tile)
     }
 
-    /// Moves `tile`'s placements ahead of the other tiles', once it is queued: its loaded
-    /// and queued placements, its model loads ahead of the loads the other tiles queued
-    /// before it parsed, and the doodads of its WMOs once placed. The loading screen
-    /// waits for them.
-    pub fn prioritize_tile(&mut self, tile: Tile) {
-        if self.prioritized.contains(&tile) || !self.queued_tiles.contains(&tile) {
-            return;
-        }
-        self.prioritized.insert(tile);
-        let ready = std::mem::take(&mut self.ready);
-        self.ready = self.take_tile(ready, tile);
-        let pending = std::mem::take(&mut self.pending);
-        self.pending = self.take_tile(pending, tile);
+    /// Loading needs local placements, including WMO children discovered later,
+    /// not everything sharing an ADT tile. Distant work remains in the stream.
+    pub fn prioritize_nearby(&mut self, player: Vec3) {
+        self.priority_focus = Some(player);
+        let placements = std::mem::take(&mut self.first)
+            .into_iter()
+            .chain(std::mem::take(&mut self.ready))
+            .chain(std::mem::take(&mut self.pending));
+        let (first, rest) = placements.partition(|&pending| self.is_prioritized(pending));
+        self.first = first;
+        self.pending = rest;
         let assets: Vec<ObjectAsset> = self
             .waiting
             .iter()
             .filter(|(_, placements)| {
                 placements
                     .iter()
-                    .any(|&pending| self.tile_of(pending) == Some(tile))
+                    .any(|&pending| self.is_prioritized(pending))
             })
             .map(|(&asset, _)| asset)
             .collect();
@@ -535,18 +537,22 @@ impl TerrainObjects {
         }
     }
 
-    /// Moves `placements` of `tile` to `first`, in order; the others, in order.
-    fn take_tile(&mut self, placements: VecDeque<Pending>, tile: Tile) -> VecDeque<Pending> {
-        let (of_tile, rest): (VecDeque<_>, VecDeque<_>) = placements
-            .into_iter()
-            .partition(|&pending| self.tile_of(pending) == Some(tile));
-        self.first.extend(of_tile);
-        rest
+    pub fn clear_priority(&mut self) {
+        self.priority_focus = None;
+    }
+
+    /// No false-ready interval before nearby tiles register their placements.
+    pub fn nearby_progress(&self, player: Vec3) -> Option<(usize, usize)> {
+        let tiles = crate::loading::nearby_tiles(player);
+        tiles
+            .iter()
+            .all(|tile| self.queued_tiles.contains(tile))
+            .then(|| self.nearby.get(player))
     }
 
     fn is_prioritized(&self, pending: Pending) -> bool {
-        self.tile_of(pending)
-            .is_some_and(|tile| self.prioritized.contains(&tile))
+        self.priority_focus
+            .is_some_and(|player| self.nearby.is_nearby(pending, player))
     }
 
     /// The tile a placement counts toward; `None` for the global WMO's doodads.
@@ -558,6 +564,7 @@ impl TerrainObjects {
     }
 
     fn finish_placement(&mut self, pending: Pending) {
+        self.nearby.finish(pending);
         if let Some(tile) = self.tile_of(pending) {
             self.progress.finish(tile);
         }
@@ -575,6 +582,9 @@ impl TerrainObjects {
         let name = self.name;
         let span = crate::profile::span(|| format!("{name}.queue_tiles"));
         self.queue_tiles(terrain, selection);
+        if let Some(player) = self.priority_focus {
+            self.prioritize_nearby(player);
+        }
         drop(span);
         let span = crate::profile::span(|| format!("{name}.poll"));
         self.arrived.extend(self.loader.poll());
@@ -724,12 +734,18 @@ impl TerrainObjects {
             for (index, doodad) in objects.doodads.iter().enumerate() {
                 let model = self.doodad_model_path(doodad);
                 if selection.doodad(doodad, model.as_deref(), tile) {
-                    self.pending.push_back(Pending::Doodad(tile, index));
+                    let pending = Pending::Doodad(tile, index);
+                    let position = doodad_position(doodad, tile.0, tile.1);
+                    self.nearby.add(pending, position, position);
+                    self.pending.push_back(pending);
                 }
             }
             for (index, wmo) in objects.wmos.iter().enumerate() {
                 if selection.wmo(wmo, tile) {
-                    self.pending.push_back(Pending::Wmo(tile, index));
+                    let pending = Pending::Wmo(tile, index);
+                    let (min, max) = wmo_bounds(wmo, tile.0, tile.1);
+                    self.nearby.add(pending, min, max);
+                    self.pending.push_back(pending);
                 }
             }
             self.progress.add(tile, self.pending.len() - queued);
@@ -843,13 +859,14 @@ impl TerrainObjects {
             self.building = Some(spawn);
             return false;
         }
-        self.progress.finish(spawn.tile);
+        let pending = Pending::Wmo(spawn.tile, spawn.index);
         let Some(objects) = terrain
             .parsed_tiles
             .get(&spawn.tile)
             .and_then(|tile| tile.obj.as_ref())
         else {
             spawn.build.abandon();
+            self.finish_placement(pending);
             return true;
         };
         let placement = &objects.wmos[spawn.index];
@@ -886,8 +903,10 @@ impl TerrainObjects {
         let doodads = spawn.asset.doodads(&spawn.doodad_sets);
         self.wmo_tiles.insert(placement.unique_id, tile);
         self.progress.add(tile, doodads.len());
-        self.adopt_wmo(placement.unique_id, &wmo_node.node, doodads, culled);
         self.attach(parent, &wmo_node.node);
+        self.adopt_wmo(placement.unique_id, &wmo_node.node, doodads, culled);
+        // Children have been registered before the root releases readiness.
+        self.finish_placement(pending);
         true
     }
 
@@ -1010,17 +1029,16 @@ impl TerrainObjects {
         if doodads.is_empty() {
             return;
         }
-        let of_prioritized = self
-            .wmo_tiles
-            .get(&wmo)
-            .is_some_and(|tile| self.prioritized.contains(tile));
-        let queue = if of_prioritized {
-            &mut self.first
-        } else {
-            &mut self.pending
-        };
+        let world_from_wmo = affine(node.get_global_transform());
         for index in (0..doodads.len()).rev() {
-            queue.push_front(Pending::WmoDoodad(wmo, index));
+            let pending = Pending::WmoDoodad(wmo, index);
+            let position = world_from_wmo.transform_point3(doodads[index].0.translation);
+            self.nearby.add(pending, position, position);
+            if self.is_prioritized(pending) {
+                self.first.push_front(pending);
+            } else {
+                self.pending.push_front(pending);
+            }
         }
         let node = node.clone();
         self.wmo_doodads.insert(
@@ -1218,7 +1236,8 @@ impl TerrainObjects {
         self.doodads.clear();
         self.wmos.clear();
         self.progress = TileProgress::default();
-        self.prioritized.clear();
+        self.nearby = super::object_progress::NearbyProgress::default();
+        self.priority_focus = None;
         self.wmo_tiles.clear();
         self.light = None;
         self.liquids = WmoLiquids::default();

@@ -45,6 +45,8 @@ pub(crate) struct TerrainMaterials {
     root: Option<Gd<Node3D>>,
     attached: BTreeSet<Tile>,
     building: Option<TileBuild>,
+    /// Loading bubble tiles, center first; empty after entry.
+    priority: Vec<Tile>,
     /// Tiles whose GPU resources could not be built; never retried until reset.
     failures: BTreeMap<Tile, String>,
     textures: HashMap<u32, Gd<ImageTexture>>,
@@ -63,6 +65,10 @@ impl TerrainMaterials {
 
     pub fn attached_tiles(&self) -> &BTreeSet<(u32, u32)> {
         &self.attached
+    }
+
+    pub fn prioritize_tiles(&mut self, tiles: Vec<Tile>) {
+        self.priority = tiles;
     }
 
     pub fn failures(&self) -> &BTreeMap<(u32, u32), String> {
@@ -120,6 +126,10 @@ impl TerrainMaterials {
             }
             self.building = None;
         }
+        let nearby = self.priority.iter().copied().find(|tile| unbuilt(tile));
+        if nearby.is_some() {
+            return nearby;
+        }
         let initial = terrain
             .initial_tiles()
             .iter()
@@ -140,6 +150,7 @@ impl TerrainMaterials {
         }
         self.attached.clear();
         self.building = None;
+        self.priority.clear();
         self.failures.clear();
         self.textures.clear();
         self.placeholder = None;

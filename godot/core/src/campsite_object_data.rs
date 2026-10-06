@@ -96,9 +96,15 @@ pub fn wmo_within_radius(
     focus: Vec3,
     radius: f32,
 ) -> bool {
+    let (min, max) = wmo_bounds(wmo, tile_y, tile_x);
+    focus.clamp(min, max).distance(focus) <= radius
+}
+
+/// World-space MODF extents, using the origin's placement coordinate convention.
+pub fn wmo_bounds(wmo: &WmoPlacement, tile_y: u32, tile_x: u32) -> (Vec3, Vec3) {
     let axes = placement_axes(wmo.position, tile_y, tile_x);
     let (a, b) = (axes(wmo.extents_min), axes(wmo.extents_max));
-    focus.clamp(a.min(b), a.max(b)).distance(focus) <= radius
+    (a.min(b), a.max(b))
 }
 
 /// Renderer-neutral equivalent of the original Bevy transform fields.

@@ -1,34 +1,36 @@
 # World loading screen (Godot client)
 
-The loading screen shown on world entry and map transfers hides only once the world under the player can be drawn: terrain, the player's model, and the authored objects of the tile the player stands on. Readiness is one path: `lib.rs` `update_loading_readiness` → `loading::evaluate_native_loading`, which adds the object stage to the shared terrain rules (`godot/core/src/game/state/loading_readiness.rs`).
+World entry and map transfers hide loading once the player's local entry bubble is ready. Distant objects continue streaming; the loading gate must not wait for every placement sharing an ADT tile. Readiness follows `lib.rs` `update_loading_readiness` → `loading::evaluate_native_loading` and the shared terrain rules (`godot/core/src/game/state/loading_readiness.rs`).
 
 ## What it must do
 
-- [x] The shared rules come first: the local player is placed and their model attached or failed (`Initializing character...`), the map's WDT is read (`Waiting for terrain...`), and the center tile's terrain is attached (`Loading terrain...`; an unbuildable tile shows `Terrain failed to load`).
-- [x] Then the center tile's objects: every ADT doodad and WMO placed on it, and the MODD doodads of each of those WMOs once it spawns, is attached with its camera collision body or has failed. The center tile's WMO collision groups must be built too. The bar shows `Loading objects done/total...` from 86 to 99%.
-- [x] A placement that fails (missing asset, unreadable model) is reported (`godot_error!`, `world_objects.failures`) and counts as done, so a missing asset cannot hold the loading screen.
-- [x] The center tile's placements spawn ahead of the neighbouring tiles' (`TerrainObjects::prioritize_tile`), whether queued, loading or loaded when it is prioritized, and so do the MODD doodads of its WMOs. Its model loads go ahead of loads the neighbours queued before it parsed (`Priority::First`). A neighbour WMO's MODD doodads spawn right after it, ahead of the rest of the neighbours' queue but never ahead of the center tile's placements.
-- [x] A WMO-only map (a dungeon) has no tiles; it finishes with its global WMO, as before.
-- [x] Neighbouring tiles' objects keep streaming in after the loading screen hides. The camera collides with each as soon as its body is added (see [WMO floor collision](wmo-floor-collision.md)).
-- [ ] The retail client's loading-screen criteria are unknown: no source found (worldentry). This gate is the user's requirement, not a retail reproduction.
+- [x] Require the selected local player and their settled model, a successful map WDT, and attached center terrain. Preserve explicit terrain failure and missing-asset reporting.
+- [x] Require attached terrain for every tile intersecting the conservative X/Z square extending 100 yards from the player. Queue those tiles' objects before evaluating their readiness; an undiscovered neighbouring tile must not create a false-ready frame.
+- [x] Require ADT/MODD doodad origins within a 100-yard sphere of the player, WMO roots whose authored MODF extents intersect that sphere, and WMO collision groups whose transformed bounds intersect it. A large WMO is required by its extent even if its origin is distant. WMO roots still build all their render batches; only their distant doodads and collision groups are nonblocking.
+- [x] Register a WMO's active MODD doodads before marking its root complete. Nearby children remain gate prerequisites even when discovered after the initial ADT queue.
+- [x] Prioritize nearby queued/ready placements and their asset loads, including newly discovered WMO doodads. Build local terrain tiles center-first. Far placements are retained, not omitted or marked complete to release loading.
 
-## Implementation inventory
+## Completion and streaming
 
-- `godot/rust/src/loading.rs`: `TileObjects`, `NativeLoading`, `evaluate_native_loading`.
-- `godot/rust/src/terrain/objects.rs`: `TileProgress`, `tile_progress`, `prioritize_tile`, the `first` queue, MODD doodads queued at the front.
-- `godot/core/src/asset_loader.rs`: `Priority::First`.
-- `godot/rust/src/wmo/collision.rs`: `tile_pending`.
-- `godot/rust/src/lib.rs`: `update_loading_readiness`.
+- A failed placement is reported through `godot_error!` and `world_objects.failures`, and counts as settled. No new failure bypass or timeout increase.
+- Loading displays `Loading objects done/total...` for the nearby subset. `world_objects.pending` remains the full streaming queue; `nearby_done`, `nearby_total`, and `nearby_collision_pending` expose the actual gate subset.
+- Distant placements and collision groups keep building after InWorld. Their completion cannot re-enter loading.
+- A WMO-only map preserves the global-WMO gate; it does not require nonexistent ADT tiles.
+- The 100-yard bubble is client policy, not a reverse-engineered Retail constant. It covers the default 15-yard camera and roughly fourteen seconds of ordinary 7-yard/s movement. M2 membership uses authored origins; WMO/collision membership uses bounds to avoid losing nearby city geometry with a remote root origin. Visual draw distances remain unchanged.
 
-## Tests asserting this spec
+## Reasoning and evidence
 
-- `godot/rust/src/loading.rs` `center_tile_objects_hold_loading_until_attached_or_failed` (and the terrain-stage tests).
-- `godot/core/src/asset_loader_tests.rs` `loads_the_loading_screen_waits_for_go_ahead_of_every_queued_load`.
-- `godot/tests/world_entry_loop.gd` (live): one Enter World, reporting the loading status every 10 s.
-- `godot/tests/world_entry_camera.gd` (live): at Northshire Abbey the first in-world frame has the Northshire oak (MDDF 10452) with its `M2Collision` body and the abbey WMO 10286 with its doodads.
+Stormwind's center tile has 1,703 ADT doodads and 11 WMO references; just 54 of its doodad origins lie within 100 yards of the Trade District repro position. The former tile gate also added every active doodad of a required city WMO, including distant districts. Its required count expanded from 1,714 to 2,891 after the first WMO attached, with more WMOs still pending. Terrain parsing completion (`terrain.pending_count=0`) does not mean terrain GPU attachment completion: the former tile order spent 119 seconds attaching the center after unrelated neighbours on the instrumented Weston/Dozen run.
 
-## Measured
+These measurements show why tile ownership is not a local-readiness boundary. The gate must track spatial prerequisites and discovery ordering, while retaining the rest of the streaming workload. Full before/after logs and timing summaries live in `data/diagnostics/swload-2026-10-05/`; timing reflects that host/renderer, not general performance.
 
-Northshire Abbey (azeroth_32_48, 986 ADT placements plus 268-355 MODD doodads of its WMOs), headless client on a private server, on a shared, loaded host: loading took 2.8-5.8 s (median 4.4 s, 6 runs) before the object gate and 5.5-19.2 s (median 8.4 s, 7 runs) after. Before the tile prioritisation it took 14-50 s, with the center tile waiting behind about 6,000 neighbouring placements. On October 1, 2026 (after the master 3f0779e6 merge) two runs on a heavily loaded 24-thread host took 129.6 s (load average about 60) and 51.5 s (about 25); both passed the first-frame checks. Under that load these figures say nothing about the gate's own cost.
+## Implementation and behavioral tests
 
-Goldshire (azeroth_31_49, 1315 ADT placements, 2929 with its WMOs' MODD doodads), headless client on a private server, shared host, October 2, 2026: before the `first` queue the center tile sat at `0/1315` for 120-180 s behind neighbour ready placements and about 6,300 neighbour WMO doodads (loading 111-230 s, 3 runs; under heavier load a run hit the fixture's 420 s timeout). After it, 10 consecutive runs of `world_entry_loop.gd` loaded in 19.9-36.7 s (median 29.9 s).
+- `terrain/object_progress.rs`: spatial progress, dynamic WMO-child discovery, inclusive radius, idempotent completion, and moved-player tests.
+- `loading.rs`: nearby terrain coverage and existing terrain/character/global-WMO/readiness tests.
+- `terrain/objects.rs`: individual-placement priority and retained full stream.
+- `terrain/material.rs`: local terrain build priority.
+- `wmo/collision.rs`: nearby collision readiness with unchanged nearest-first construction.
+- `godot/tests/stormwind_loading.gd`: isolated UDP 5280 integration regression. InWorld requires finished nearby objects/collision while distant pending remains; distant work must then drain without re-entering loading. See [WMO floor collision](wmo-floor-collision.md).
+
+Historical Northshire/Goldshire tile-gate measurements are superseded by this spatial policy; they were not Stormwind acceptance evidence.

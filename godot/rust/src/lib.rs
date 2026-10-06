@@ -744,6 +744,15 @@ impl GameClient {
             if let Some(pending) = self.wmo_collision.tile_pending(tile) {
                 objects.set("collision_pending", pending as i64);
             }
+            let player =
+                glam::Vec3::new(transform.origin.x, transform.origin.y, transform.origin.z);
+            if let Some((done, total)) = self.world_objects.nearby_progress(player) {
+                objects.set("nearby_done", done as i64);
+                objects.set("nearby_total", total as i64);
+            }
+            if let Some(pending) = self.wmo_collision.nearby_pending(player) {
+                objects.set("nearby_collision_pending", pending as i64);
+            }
         }
         if let Some(particles) = self.world_objects.particle_state() {
             objects.set("particles", &particles);
@@ -2074,6 +2083,15 @@ impl GameClient {
 
     fn attach_world_objects(&mut self) {
         let mut parent = self.to_gd().upcast::<Node3D>();
+        if self.account.session.screen == SessionScreen::Loading {
+            if let Some(transform) = self.world.local_player_transform() {
+                let origin = transform.origin;
+                self.world_objects
+                    .prioritize_nearby(glam::Vec3::new(origin.x, origin.y, origin.z));
+            }
+        } else {
+            self.world_objects.clear_priority();
+        }
         self.world_objects
             .sync(&mut parent, &self.terrain, &terrain::objects::AllObjects);
         if let Some(player) = self.world.local_player_transform() {
@@ -2112,6 +2130,18 @@ impl GameClient {
     }
 
     fn attach_terrain_materials(&mut self) -> Result<(), String> {
+        let mut priority = Vec::new();
+        if self.account.session.screen == SessionScreen::Loading {
+            if let Some(transform) = self.world.local_player_transform() {
+                let origin = transform.origin;
+                let player = glam::Vec3::new(origin.x, origin.y, origin.z);
+                let center =
+                    game_engine_core::terrain_height_data::bevy_to_tile_coords(origin.x, origin.z);
+                priority = loading::nearby_tiles(player).into_iter().collect();
+                priority.sort_by_key(|tile| (*tile != center, *tile));
+            }
+        }
+        self.terrain_materials.prioritize_tiles(priority);
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.terrain_materials.sync(&mut parent, &self.terrain)
     }
@@ -2147,14 +2177,21 @@ impl GameClient {
                 .adopt_wmo(wmo.unique_id, &wmo.node, wmo.doodads, wmo.culled);
         }
         let state = self.terrain.state();
-        let objects = position.and_then(|(x, z)| {
-            let tile = game_engine_core::terrain_height_data::bevy_to_tile_coords(x, z);
-            self.world_objects.prioritize_tile(tile);
-            let (done, total) = self.world_objects.tile_progress(tile)?;
+        let objects = self.world.local_player_transform().and_then(|transform| {
+            let origin = transform.origin;
+            let player = glam::Vec3::new(origin.x, origin.y, origin.z);
+            let tiles = loading::nearby_tiles(player);
+            if !tiles
+                .iter()
+                .all(|tile| self.terrain_materials.attached_tiles().contains(tile))
+            {
+                return None;
+            }
+            let (done, total) = self.world_objects.nearby_progress(player)?;
             Some(loading::TileObjects {
                 done,
                 total,
-                collision_pending: self.wmo_collision.tile_pending(tile)?,
+                collision_pending: self.wmo_collision.nearby_pending(player)?,
             })
         });
         let readiness = loading::evaluate_native_loading(

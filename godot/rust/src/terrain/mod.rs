@@ -5,6 +5,7 @@ pub(crate) mod elastic_tree;
 pub(crate) mod ground_detail;
 pub(crate) mod horizon;
 pub(crate) mod material;
+pub(crate) mod object_progress;
 pub(crate) mod objects;
 mod probe;
 pub(crate) mod scenery;
