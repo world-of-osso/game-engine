@@ -140,11 +140,11 @@ fn party_rows(layout: &LayoutOptionsView) -> Element {
             {super::super::bank_art::checkbox(toggle.key(), "", toggle.value(&settings), &action, (620.0, 4.0))}
         } });
     }
-    rows.extend(size_row(
+    rows.extend(party_size_row(
         (LayoutSlider::PartyWidth, "Frame Width", width),
         (LayoutSlider::PartyHeight, "Frame Height", height),
     ));
-    rows.extend(size_row(
+    rows.extend(party_size_row(
         (
             LayoutSlider::PartySize,
             "Frame Size (%)",
@@ -182,7 +182,7 @@ fn party_rows(layout: &LayoutOptionsView) -> Element {
         },
         layout.party_dropdown == Some(PartyDropdown::Aura),
     ));
-    rows.extend(size_row(
+    rows.extend(party_size_row(
         (
             LayoutSlider::PartyDebuff,
             "Debuff Icon Size (%)",
@@ -231,6 +231,14 @@ fn party_dropdown(key: &str, label: &str, labels: &[&str], selected: usize, open
 }
 
 type SizeSlider = (LayoutSlider, &'static str, f32);
+
+fn party_size_row(width: SizeSlider, height: SizeSlider) -> Element {
+    let key = format!("PartySizeRow{}", slider_key(SliderField::Layout(width.0)));
+    let cell = |(slider, label, value): SizeSlider| {
+        slider_setting_cell(slider, label, value, &format!("{value:.0}"))
+    };
+    cell_row(&key, cell(width), cell(height))
+}
 
 fn size_row(width: SizeSlider, height: SizeSlider) -> Element {
     let cell = |(slider, label, value): SizeSlider| {

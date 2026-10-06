@@ -13,10 +13,13 @@ use shared::death::DeathState;
 use shared::protocol::{GroupMemberSnapshot, GroupMemberState, GroupRoleSnapshot};
 
 use super::{PartyPortraits, party};
+#[path = "party_settings.rs"]
+mod settings_preview;
 use crate::party_frames::{GroupViewer, group_frames_state};
 use crate::ui::RegistryUi;
 use crate::world::WorldUnits;
 use crate::world_models::UnitAppearance;
+use game_engine_ui_model::options_menu_component::{LayoutOptionsView, LayoutSystem};
 
 #[derive(GodotClass)]
 #[class(base=Node)]
@@ -28,6 +31,8 @@ struct PartyPortraitFixture {
     group: GroupState,
     compact: bool,
     available: bool,
+    layout: LayoutOptionsView,
+    settings_ui: Option<Gd<RegistryUi>>,
 }
 
 #[godot_api]
@@ -42,6 +47,11 @@ impl INode for PartyPortraitFixture {
             group: Default::default(),
             compact: true,
             available: true,
+            layout: LayoutOptionsView {
+                system: LayoutSystem::PartyFrames,
+                ..Default::default()
+            },
+            settings_ui: None,
         }
     }
 
@@ -67,8 +77,94 @@ impl PartyPortraitFixture {
             use_raid_style_party_frames: Some(compact),
             ..Default::default()
         };
+        self.layout.settings = settings;
         game_engine_ui_model::hud_layout::set_active_layout_settings(settings);
         fixture_error(self.sync_fixture())
+    }
+
+    #[func]
+    fn show_settings(&mut self, shown: bool) -> GString {
+        if !shown {
+            if let Some(ui) = self.settings_ui.take() {
+                ui.free();
+            }
+            return GString::new();
+        }
+        if self.settings_ui.is_some() {
+            return GString::new();
+        }
+        let mut ui = RegistryUi::new_alloc();
+        self.base_mut().add_child(&ui);
+        let result = ui
+            .bind_mut()
+            .show_game_menu_view(settings_preview::options_view(self.layout.clone()));
+        self.settings_ui = Some(ui);
+        fixture_error(result)
+    }
+
+    #[func]
+    fn settings_action(&mut self, action: GString, value: f64) -> GString {
+        use game_engine_ui_model::options_menu_data as policy;
+        let action = action.to_string();
+        if let Some(action) = policy::parse_layout_action(&action) {
+            policy::apply_layout_action(action, &mut self.layout);
+        } else if let Some(policy::SliderField::Layout(slider)) =
+            policy::parse_slider_action(&action)
+        {
+            policy::apply_layout_slider(slider, value as f32, &mut self.layout);
+        } else {
+            return format!("Not a party layout action: {action}")
+                .as_str()
+                .into();
+        }
+        self.compact = self
+            .layout
+            .settings
+            .use_raid_style_party_frames
+            .unwrap_or(true);
+        game_engine_ui_model::hud_layout::set_active_layout_settings(self.layout.settings);
+        if let Some(ui) = self.ui.as_mut() {
+            if let Err(error) = ui.bind_mut().sync_skin() {
+                return error.as_str().into();
+            }
+        }
+        if let Some(ui) = self.settings_ui.as_mut() {
+            let result = ui
+                .bind_mut()
+                .set_game_menu_view(settings_preview::options_view(self.layout.clone()));
+            if let Err(error) = result {
+                return error.as_str().into();
+            }
+        }
+        fixture_error(self.sync_fixture())
+    }
+
+    #[func]
+    fn settings_rect(&self, name: GString) -> Rect2 {
+        self.settings_ui
+            .as_ref()
+            .and_then(|ui| ui.bind().frame_rect(&name.to_string()))
+            .map(|(rect, _)| {
+                Rect2::new(
+                    Vector2::new(rect[0], rect[1]),
+                    Vector2::new(rect[2], rect[3]),
+                )
+            })
+            .unwrap_or_default()
+    }
+
+    #[func]
+    fn member_rect(&self, name: GString) -> Rect2 {
+        self.ui
+            .as_ref()
+            .and_then(|ui| ui.bind().frame_rect(&name.to_string()))
+            .map(|(rect, _)| {
+                Rect2::new(
+                    Vector2::new(rect[0], rect[1]),
+                    Vector2::new(rect[2], rect[3]),
+                )
+            })
+            .unwrap_or_default()
     }
 
     #[func]
@@ -110,6 +206,11 @@ impl PartyPortraitFixture {
             ui_toolkit::atlas::ActiveSkin::Modern
         };
         ui_toolkit::atlas::set_active_skin(skin);
+        self.layout.skin = if forever {
+            game_engine_core::ui_layout_data::LayoutSkin::Forever
+        } else {
+            game_engine_core::ui_layout_data::LayoutSkin::Modern
+        };
         game_engine_ui_model::hud_layout::set_active_layout_settings(LayoutSettings::default());
         let mut ui = RegistryUi::new_alloc();
         self.base_mut().add_child(&ui);
@@ -135,7 +236,12 @@ impl PartyPortraitFixture {
         let state = group_frames_state(&self.group, &viewer, &|_| 0);
         ui.bind_mut().set_state(state)?;
         // Use the production roster selector and resource owner, not a test renderer.
-        let bindings = party::bindings(&self.group, Some("Bob"), self.compact);
+        let bindings = party::bindings_with_sort(
+            &self.group,
+            Some("Bob"),
+            self.compact,
+            self.layout.settings.party.sort.unwrap_or_default(),
+        );
         let available = self.available;
         self.portraits
             .sync(&mut self.world, Some(ui), bindings, |name| {

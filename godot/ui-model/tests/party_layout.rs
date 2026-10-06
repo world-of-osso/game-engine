@@ -112,8 +112,16 @@ fn text(r: &FrameRegistry, name: &str) -> String {
 }
 fn rect(r: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
     let f = frame(r, name);
-    let rect = f.layout_rect.as_ref().unwrap();
-    (rect.x, rect.y, rect.width, rect.height)
+    let pixels = |value| match value {
+        ui_toolkit::layout_values::Val::Px(value) => value,
+        other => panic!("expected fixed geometry: {other:?}"),
+    };
+    (
+        pixels(f.position.left),
+        pixels(f.position.top),
+        f.width.value(),
+        f.height.value(),
+    )
 }
 
 #[test]
@@ -333,7 +341,7 @@ fn party4_every_control_persists_round_trip_per_character_and_resets() {
             };
             apply_layout_slider(slider, value, &mut layout);
         }
-        ui_layout_data::select_layout(
+        ui_layout_data::set_active_layout(
             &path,
             17,
             if skin == LayoutSkin::Modern {

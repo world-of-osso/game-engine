@@ -17,6 +17,7 @@ pub(super) struct Binding {
     pub tint: [f32; 4],
 }
 
+#[cfg(test)]
 pub(super) fn bindings(group: &GroupState, local: Option<&str>, compact: bool) -> Vec<Binding> {
     if compact || group.is_raid {
         return Vec::new();
