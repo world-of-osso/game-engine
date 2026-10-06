@@ -1,3 +1,7 @@
+## 2026-10-05 — Portrait roster wiring and Retail online-state rules (party2)
+
+[[portrait-party-frames#Step 2 — roster and source corrections]] records member roster/live-state wiring with compact default and a persisted style flag; settings UI/runtime heads/live acceptance remain later steps. Offline health is full/desaturated; power full with half-grey tint, not invented desaturation. Native projection now desaturates sampled pixels. Step-1 crown already matches Retail BOTTOM→TOP (-10,-6); retain source rect and regression-test it rather than moving it cosmetically.
+
 ## 2026-10-05 — Product-bound party sheet offline proof (party1)
 
 [[portrait-party-frames]] records local 70205 bytes matching frozen 69913 bar coordinates, bounded product-file binding through the existing authored UI loader, and the corrected player-mana crop. At `dea89b5a`, targeted 9 portrait + 4 status-bar tests and native build pass; inspected Modern/Forever offline recaptures pass member art/fills. Shutdown leaks remain; no pet/reference parity, roster/runtime portraits/settings/live proof. Compact default retained. Earlier blockers below are historical, not current input state.

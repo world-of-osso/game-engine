@@ -128,6 +128,7 @@ enum ScreenPostsetup {
     ChatFrame,
     /// Autocast Shines draw the host's composite.
     PetActionBar,
+    PortraitParty,
 }
 
 impl RegistryModel {
@@ -203,6 +204,20 @@ impl RegistryModel {
             ScreenPostsetup::Minimap => {
                 if let Some(state) = self.shared.get::<MinimapClusterState>() {
                     apply_minimap_postsetup(state, &mut self.registry);
+                }
+            }
+            ScreenPostsetup::PortraitParty => {
+                use game_engine_ui_model::group_frames_component::GroupFramesState;
+                use game_engine_ui_model::portrait_party_frame_component::{
+                    PortraitPartyFrameState, apply_portrait_party_postsetup,
+                };
+                let state = self
+                    .shared
+                    .get::<GroupFramesState>()
+                    .map(|state| &state.portrait_party)
+                    .or_else(|| self.shared.get::<PortraitPartyFrameState>());
+                if let Some(state) = state {
+                    apply_portrait_party_postsetup(state, &mut self.registry);
                 }
             }
             ScreenPostsetup::Spellbook => {
@@ -1396,7 +1411,7 @@ impl RegistryUi {
         self.show_viewport_screen(
             state,
             game_engine_ui_model::group_frames_component::group_frames_screen,
-            ScreenPostsetup::None,
+            ScreenPostsetup::PortraitParty,
         )
     }
 
@@ -1910,7 +1925,7 @@ impl RegistryUi {
             shared,
             registry: FrameRegistry::new(size.x, size.y),
             icon_masks: Default::default(),
-            postsetup: ScreenPostsetup::None,
+            postsetup: ScreenPostsetup::PortraitParty,
         };
         model.sync();
         GString::from(

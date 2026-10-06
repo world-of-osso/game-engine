@@ -66,7 +66,9 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] An unwired `PartyFrame` screen renders up to four non-self member views: name/class colour, health and power fractions, leader/guide, assigned role, Offline/Dead and portrait slots. Modern uses Retail Party art; Forever deliberately selects Camelot's conditional CharacterFrameOnParty art. [Source geometry and verified set-1 atlas relation](../wiki/systems/portrait-party-frames.md).
 - [x] Optional static party pets use Retail's half-scale member art and health-only frame; `show_pets` controls visibility and container spacing.
 - [ ] Raster-correct static portrait family under both skins: offline four-member art/fills pass with local Retail and product-bound Forever sheets. Whole-family/reference parity and optional pet raster acceptance remain unproven; [bounded proof and exclusions](../wiki/systems/portrait-party-frames.md#acceptance-status--bounded-offline-artfill-pass-2026-10-05).
-- [ ] Connect the portrait family to the group roster and runtime portrait bindings; retain compact default. Presentation settings are separate work.
+- [x] Connect portrait member names/class colour, health/power fractions and power type, leader, role, Offline/Dead to the existing group roster/live states. Exclude self; retain roster order and compact default. `LayoutSettings.use_raid_style_party_frames = Some(false)` selects portraits; absent/true selects compact. Raid presentation is unchanged. Settings UI remains step 4.
+- [x] Offline health fills to maximum and desaturates; offline power fills to maximum and receives Retail's half-grey vertex tint (not power desaturation). Crown/guide keep the source BOTTOM→TOP anchor; its above-frame extension is intentional. [Exact source rules](../wiki/systems/portrait-party-frames.md#step-2--roster-and-source-corrections).
+- [ ] Runtime portrait bindings (step 3). Presentation settings are separate work.
 - [ ] Live portrait-family acceptance. Static registry golden and offline preview are not live proof.
 
 ### Raid frame (`CompactRaidFrameContainer`)
@@ -107,7 +109,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - Retail has no slash command to leave a party: `/leave` is a chat channel command.
 
 ### Not implemented
-- [ ] Live portrait `PartyMemberFrame`/party-pet wiring and portrait bindings; static native components above exist. `CompactRaidFrameManager` (the side panel with ready check, role poll and markers).
+- [ ] Runtime `PartyMemberFrame` portrait bindings, party-pet roster wiring and live acceptance; member roster wiring exists above. `CompactRaidFrameManager` (the side panel with ready check, role poll and markers).
 - [ ] Assistant / main tank / main assist.
 - [ ] Group persistence across server restarts.
 - [ ] Loot method wiring: the Loot Rules window stays client-side.
@@ -149,7 +151,9 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - game-engine:
   - `godot/ui-model/src/game/group_state_tests.rs`: roster/live-state lifecycle (a state ahead of its roster is kept until the roster decides), ready marks and decay, menu entries by role.
   - `godot/network/src/wire_tests.rs::native_bridge_receives_group_messages_in_channel_order`.
-  - `godot/rust/src/party_frames.rs`: party order, live bars, Dead/Offline, range, target highlight; invite popup accept/cancel/timeout.
+  - `godot/rust/src/party_frames.rs`: party order, live bars, Dead/Offline, range, target highlight; invite popup accept/cancel/timeout; `portrait_party_roster_tracks_join_leader_offline_death_and_leave` uses concrete roster transitions and inspects rendered registry names/class colours/bars/leader/status.
+  - `godot/ui-model/tests/portrait_party_frame.rs`: compact-default/portrait selection and unchanged raid visibility under both skins, source-cited offline bars and crown rect.
+  - `godot/rust/src/ui/parts_tests.rs::portrait_party_desaturated_health_projects_sampled_image_desaturation`: sampled-image desaturation reaches native shader rather than greying only vertex tint.
   - `godot/rust/src/chat_tests.rs::group_commands_become_group_requests`.
   - `src/game/networking/group_tests.rs`: inbox handling, invite cancel, chat lines, commands reaching the worker.
   - `src/scenes/group_frames/tests.rs`: frames, placement and clicks:
