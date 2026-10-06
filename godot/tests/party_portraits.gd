@@ -113,14 +113,20 @@ func count_views() -> int:
 func check_offline_pixels(image: Image, rect: Rect2) -> void:
 	var colored := 0
 	var grey := 0
+	# Only model pixels inside the circle: the skin's gold ring is not desaturated.
+	var center := rect.get_center()
+	var radius := rect.size.x * 0.28
 	for y in range(int(rect.position.y) + 5, int(rect.end.y) - 5):
 		for x in range(int(rect.position.x) + 5, int(rect.end.x) - 5):
+			if Vector2(x, y).distance_to(center) > radius:
+				continue
 			var c := image.get_pixel(x, y)
 			var spread := maxf(c.r, maxf(c.g, c.b)) - minf(c.r, minf(c.g, c.b))
 			if spread > 3.0 / 255.0:
 				colored += 1
 			elif c.r > 0.08:
 				grey += 1
+	print("OFFLINE_PIXELS rect=%s colored=%d visible_grey=%d" % [rect, colored, grey])
 	check(colored == 0 and grey > 15, "offline head has visible grey model pixels, not empty/colored slot")
 
 func check_error(error: String) -> void:
