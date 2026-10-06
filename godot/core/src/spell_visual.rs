@@ -17,8 +17,11 @@ use serde::{Deserialize, Serialize};
 use crate::csv_util::{parse_csv_line, parse_csv_records};
 use crate::db2_cache::{CacheKey, load_or_build};
 
+mod conditions;
+mod kits;
 #[path = "spell_visual_melee.rs"]
 mod melee;
+mod sounds;
 #[path = "spell_visual_voice.rs"]
 mod voice;
 pub use melee::{MeleeHand, SwingResult};
@@ -385,13 +388,17 @@ impl Table {
             .ok_or_else(|| format!("{} missing {name} column", self.path.display()))
     }
 
+    fn indices<const N: usize>(&self, names: [&str; N]) -> Result<[usize; N], String> {
+        let mut indices = [0; N];
+        for (slot, name) in indices.iter_mut().zip(names) {
+            *slot = self.column(name)?;
+        }
+        Ok(indices)
+    }
+
     /// Integer cells of `names`, per row; a malformed cell fails the load.
     fn ints<const N: usize>(&self, names: [&str; N]) -> Result<Vec<[i64; N]>, String> {
-        let columns = names.map(|name| self.column(name));
-        let mut indices = [0; N];
-        for (slot, column) in indices.iter_mut().zip(columns) {
-            *slot = column?;
-        }
+        let indices = self.indices(names)?;
         self.rows
             .iter()
             .enumerate()
@@ -413,10 +420,7 @@ impl Table {
     }
 
     fn floats<const N: usize>(&self, names: [&str; N]) -> Result<Vec<[f32; N]>, String> {
-        let mut indices = [0; N];
-        for (slot, name) in indices.iter_mut().zip(names) {
-            *slot = self.column(name)?;
-        }
+        let indices = self.indices(names)?;
         self.rows
             .iter()
             .enumerate()
@@ -508,16 +512,8 @@ impl SpellVisualCatalog {
             caster_unit,
             viewer_unit,
             viewer,
-        ] in table.ints([
-            "SpellID",
-            "SpellVisualID",
-            "DifficultyID",
-            "Priority",
-            "CasterPlayerConditionID",
-            "CasterUnitConditionID",
-            "ViewerUnitConditionID",
-            "ViewerPlayerConditionID",
-        ])? {
+        ] in spell_visual_links(&table)?
+        {
             self.spells
                 .entry(spell as u32)
                 .or_default()
@@ -559,115 +555,6 @@ impl SpellVisualCatalog {
         Ok(())
     }
 
-    fn read_kits(&mut self, dir: &Path) -> Result<(), String> {
-        let names = Table::read(dir, "SpellVisualEffectName")?;
-        let name_ints = names.ints(["ID", "ModelFileDataID"])?;
-        let name_floats = names.floats(["Scale"])?;
-        for ([id, model], [scale]) in name_ints.into_iter().zip(name_floats) {
-            self.effect_names.insert(
-                id as u32,
-                EffectName {
-                    model_fdid: model as u32,
-                    scale,
-                },
-            );
-        }
-        let attaches = Table::read(dir, "SpellVisualKitModelAttach")?;
-        let attach_ints = attaches.ints([
-            "ID",
-            "SpellVisualEffectNameID",
-            "AttachmentID",
-            "StartAnimID",
-            "AnimID",
-            "EndAnimID",
-        ])?;
-        let attach_floats = attaches.floats([
-            "Offset_0",
-            "Offset_1",
-            "Offset_2",
-            "Yaw",
-            "Pitch",
-            "Roll",
-            "Scale",
-            "StartDelay",
-        ])?;
-        let mut models = HashMap::new();
-        for ([id, name, attach, start, anim, end], [x, y, z, yaw, pitch, roll, scale, delay]) in
-            attach_ints.into_iter().zip(attach_floats)
-        {
-            let Some(effect) = self.effect_names.get(&(name as u32)) else {
-                continue;
-            };
-            if effect.model_fdid == 0 {
-                continue;
-            }
-            models.insert(
-                id as u32,
-                KitModel {
-                    model_fdid: effect.model_fdid,
-                    attachment: attachment(attach),
-                    offset: [x, y, z],
-                    yaw,
-                    pitch,
-                    roll,
-                    scale: scale * effect.scale,
-                    start_delay: delay,
-                    start_anim_id: anim_id(start),
-                    anim_id: anim_id(anim),
-                    end_anim_id: anim_id(end),
-                },
-            );
-        }
-        let anims = Table::read(dir, "SpellVisualAnim")?;
-        let anims: HashMap<u32, (i32, i32, u32)> = anims
-            .ints(["ID", "InitialAnimID", "LoopAnimID", "AnimKitID"])?
-            .into_iter()
-            .map(|[id, initial, looped, kit]| {
-                (id as u32, (initial as i32, looped as i32, kit as u32))
-            })
-            .collect();
-        let effects = Table::read(dir, "SpellVisualKitEffect")?;
-        let mut rows = effects.ints(["ParentSpellVisualKitID", "EffectType", "Effect", "ID"])?;
-        // Kit effects in ID order, as authored.
-        rows.sort_by_key(|&[kit, _, _, id]| (kit, id));
-        for [kit, kind, effect, _] in rows {
-            let kit = self.kits.entry(kit as u32).or_default();
-            match kind as u32 {
-                EFFECT_MODEL_ATTACH => kit.models.extend(models.get(&(effect as u32)).cloned()),
-                EFFECT_SOUND_KIT => kit.sound_kits.push(effect as u32),
-                EFFECT_UNIT_SOUND => kit.unit_sounds.extend(UnitSound::from_db2(effect as u32)),
-                EFFECT_ANIM if kit.anim.is_none() => {
-                    kit.anim = anims.get(&(effect as u32)).copied()
-                }
-                _ => {}
-            }
-        }
-        Ok(())
-    }
-
-    fn read_anims(&mut self, dir: &Path) -> Result<(), String> {
-        let segments = Table::read(dir, "AnimKitSegment")?;
-        for [kit, order, anim, loop_to] in segments.ints([
-            "ParentAnimKitID",
-            "OrderIndex",
-            "AnimID",
-            "LoopToSegmentIndex",
-        ])? {
-            self.anim_kits
-                .entry(kit as u32)
-                .or_default()
-                .push(SegmentRow {
-                    order: order as u32,
-                    anim_id: anim as i32,
-                    loop_to: loop_to as i32,
-                });
-        }
-        for segments in self.anim_kits.values_mut() {
-            segments.sort_by_key(|segment| segment.order);
-        }
-        Ok(())
-    }
-
     fn read_missiles(&mut self, dir: &Path) -> Result<(), String> {
         let missiles = Table::read(dir, "SpellVisualMissile")?;
         let mut rows = missiles.ints([
@@ -701,144 +588,6 @@ impl SpellVisualCatalog {
             if difficulty == 0 && speed > 0.0 && self.spells.contains_key(&(spell as u32)) {
                 self.speeds.insert(spell as u32, speed);
             }
-        }
-        Ok(())
-    }
-
-    /// The `SoundKit`s kits, missiles, unit voices and melee reference, with their
-    /// `SoundKitEntry` files.
-    fn read_sound_kits(&mut self, dir: &Path) -> Result<(), String> {
-        let referenced: std::collections::HashSet<u32> = self
-            .kits
-            .values()
-            .flat_map(|kit| kit.sound_kits.iter().copied())
-            .chain(self.missiles.values().flatten().map(|row| row.sound_kit))
-            .chain(self.voices.sound_kits())
-            .chain(self.melee.sound_kits())
-            .filter(|&id| id != 0)
-            .collect();
-        let kits = Table::read(dir, "SoundKit")?;
-        let kit_ints = kits.ints(["ID", "Flags"])?;
-        let kit_floats = kits.floats(["VolumeFloat", "MinDistance", "DistanceCutoff"])?;
-        for ([id, flags], [volume, min_distance, distance_cutoff]) in
-            kit_ints.into_iter().zip(kit_floats)
-        {
-            if referenced.contains(&(id as u32)) {
-                self.sound_kits.insert(
-                    id as u32,
-                    KitSound {
-                        sound_kit_id: id as u32,
-                        volume,
-                        looping: flags & SOUND_KIT_LOOPING != 0,
-                        min_distance,
-                        distance_cutoff,
-                        files: Vec::new(),
-                    },
-                );
-            }
-        }
-        let entries = Table::read(dir, "SoundKitEntry")?;
-        let entry_ints = entries.ints(["ID", "SoundKitID", "FileDataID", "Frequency"])?;
-        let entry_floats = entries.floats(["Volume"])?;
-        let mut rows: Vec<_> = entry_ints.into_iter().zip(entry_floats).collect();
-        rows.sort_by_key(|([id, ..], _)| *id);
-        for ([_, kit, fdid, frequency], [volume]) in rows {
-            if let Some(sound) = self.sound_kits.get_mut(&(kit as u32)) {
-                sound.files.push(SoundFile {
-                    fdid: fdid as u32,
-                    frequency: frequency as u32,
-                    volume,
-                });
-            }
-        }
-        Ok(())
-    }
-
-    fn read_conditions(&mut self, dir: &Path) -> Result<(), String> {
-        let referenced: std::collections::HashSet<u32> = self
-            .spells
-            .values()
-            .flatten()
-            .map(|choice| choice.caster_condition)
-            .filter(|&id| id != 0)
-            .collect();
-        let table = Table::read(dir, "PlayerCondition")?;
-        let handled = [
-            "ID",
-            "Failure_description_lang",
-            "Flags",
-            "ClassMask",
-            "RaceMasks_0",
-            "RaceMasks_1",
-            "Gender",
-            "MinLevel",
-            "MaxLevel",
-            "ChrSpecializationIndex",
-            "WeaponSubclassMask",
-        ];
-        // Columns whose "no requirement" value is -1; every other column's is 0.
-        let unset_minus_one = [
-            "NativeGender",
-            "MinExpansionLevel",
-            "MaxExpansionLevel",
-            "ChrSpecializationRole",
-            "PowerType",
-            "MaxExpansionTier",
-            "MinExpansionTier",
-        ];
-        let id = table.column("ID")?;
-        let wanted: Vec<&Vec<String>> = table
-            .rows
-            .iter()
-            .filter(|row| {
-                row.get(id)
-                    .and_then(|cell| cell.parse::<u32>().ok())
-                    .is_some_and(|id| referenced.contains(&id))
-            })
-            .collect();
-        let column = |name: &str| table.column(name);
-        let cell = |row: &[String], index: usize| -> i64 {
-            row.get(index)
-                .and_then(|cell| parse_number(cell))
-                .unwrap_or(0)
-        };
-        let fields = handled.map(column);
-        let mut indices = [0; 11];
-        for (slot, field) in indices.iter_mut().zip(fields) {
-            *slot = field?;
-        }
-        let others: Vec<(usize, i64)> = table
-            .columns
-            .iter()
-            .filter(|(name, _)| !handled.contains(&name.as_str()) && !name.ends_with("Logic"))
-            .map(|(name, &index)| {
-                let unset = if unset_minus_one.contains(&name.as_str()) {
-                    -1
-                } else {
-                    0
-                };
-                (index, unset)
-            })
-            .collect();
-        for row in wanted {
-            let value = |slot: usize| cell(row, indices[slot]);
-            let race_mask = (value(4) as u32 as u64) | ((value(5) as u32 as u64) << 32);
-            self.conditions.insert(
-                value(0) as u32,
-                PlayerCondition {
-                    flags: value(2),
-                    class_mask: value(3),
-                    race_mask,
-                    gender: value(6),
-                    min_level: value(7),
-                    max_level: value(8),
-                    spec_index: value(9),
-                    weapon_subclass_mask: value(10),
-                    unsupported: others
-                        .iter()
-                        .any(|&(index, unset)| cell(row, index) != unset),
-                },
-            );
         }
         Ok(())
     }
@@ -892,35 +641,6 @@ impl SpellVisualCatalog {
             .collect()
     }
 
-    /// `SpellVisualAnim`: an `AnimKit`'s first segment (looping when a segment loops
-    /// back), else the loop clip (held until the kit ends unless the kit is a
-    /// one-shot), else the initial clip once.
-    fn kit_animation(
-        &self,
-        (initial, looped, kit): (i32, i32, u32),
-        end: VisualEvent,
-    ) -> Option<KitAnimation> {
-        let held = end != VisualEvent::OneShot;
-        if kit != 0 {
-            let segments = self.anim_kits.get(&kit)?;
-            let first = segments.first()?;
-            return Some(KitAnimation {
-                anim_id: anim_id(i64::from(first.anim_id))?,
-                looping: held && segments.iter().any(|segment| segment.loop_to >= 0),
-            });
-        }
-        if let Some(id) = anim_id(i64::from(looped)) {
-            return Some(KitAnimation {
-                anim_id: id,
-                looping: held,
-            });
-        }
-        anim_id(i64::from(initial)).map(|anim_id| KitAnimation {
-            anim_id,
-            looping: false,
-        })
-    }
-
     /// The first missile of `visual_id`'s missile set.
     pub fn missile(&self, visual_id: u32) -> Option<VisualMissile> {
         let set = self.visuals.get(&visual_id)?.missile_set;
@@ -939,4 +659,17 @@ impl SpellVisualCatalog {
     pub fn missile_speed(&self, spell_id: u32) -> Option<f32> {
         self.speeds.get(&spell_id).copied()
     }
+}
+
+fn spell_visual_links(table: &Table) -> Result<Vec<[i64; 8]>, String> {
+    table.ints([
+        "SpellID",
+        "SpellVisualID",
+        "DifficultyID",
+        "Priority",
+        "CasterPlayerConditionID",
+        "CasterUnitConditionID",
+        "ViewerUnitConditionID",
+        "ViewerPlayerConditionID",
+    ])
 }
