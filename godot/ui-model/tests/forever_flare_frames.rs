@@ -227,6 +227,32 @@ fn fixed_rect(registry: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
     (px(f.position.left), px(f.position.top), width, height)
 }
 
+#[test]
+fn forevergaps_player_health_power_seam_has_retail_divider_without_moving_bars() {
+    let registry = unit_frames(ActiveSkin::Forever);
+    assert_eq!(
+        fixed_rect(&registry, "PlayerHealthBar"),
+        (4.0, 4.0, 232.0, 38.0)
+    );
+    assert_eq!(
+        fixed_rect(&registry, "PlayerManaBar"),
+        (4.0, 42.0, 232.0, 14.0)
+    );
+    // FlareUI draws its 8-high transparent divider centred on the seam;
+    // the dark stripe in that Retail texture is approximately one UI unit.
+    assert_eq!(
+        fixed_rect(&registry, "PlayerFrameSeparator"),
+        (4.0, 38.0, 232.0, 8.0)
+    );
+    assert_eq!(
+        texture_source(&registry, "PlayerFrameSeparator").0,
+        TextureSource::FileDataId(918_860)
+    );
+    let without_power = unit_frames(ActiveSkin::Modern);
+    assert!(without_power.get_by_name("PlayerFrameSeparator").is_none());
+    assert!(registry.get_by_name("TargetFrameSeparator").is_none());
+}
+
 /// FlareUI's fixed bronze `ns.BORDER_COLOR` #A67D45 (`Core.lua:8`).
 const BRONZE: [f32; 4] = [0.65, 0.49, 0.27, 1.0];
 

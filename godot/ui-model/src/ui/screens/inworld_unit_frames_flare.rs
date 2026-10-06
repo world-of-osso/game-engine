@@ -257,8 +257,30 @@ fn flare_contents(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
         {flare_bar(format!("{}HealthBar", spec.prefix), health, unit.health_fraction, health_rgb(unit), spec.mirror)}
         {power_bar.unwrap_or_default()}
         {flare_border_frame(spec.root, spec.size)}
-        {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), [flare_texts(spec, unit, health), flare_power_text(spec, unit)].into_iter().flatten().collect())}
+        {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), [flare_separator(spec, unit), flare_texts(spec, unit, health), flare_power_text(spec, unit)].into_iter().flatten().collect())}
         {unit.aura_state.map(|state| super::inworld_unit_frames_aura::flare_auras(state, width)).unwrap_or_default()}
+    }
+}
+
+/// FlareUI UnitFrames.lua:46-47,1723-1726: Retail's transparent divider, 8 high,
+/// centred on the health/power seam. Its dark centre separates the unmoved bars.
+fn flare_separator(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
+    if spec.power_height <= 0.0 || unit.power.is_none() {
+        return Element::new();
+    }
+    const HEIGHT: f32 = 8.0;
+    const FDID: u32 = 918_860;
+    let (width, height) = spec.size;
+    rsx! {
+        texture {
+            name: {dyn_name(format!("{}Separator", spec.root))},
+            width: {width - 2.0 * FLARE_INSET},
+            height: HEIGHT,
+            texture_fdid: FDID,
+            pos_type: "absolute",
+            left: FLARE_INSET,
+            top: {height - FLARE_INSET - spec.power_height - HEIGHT / 2.0},
+        }
     }
 }
 
