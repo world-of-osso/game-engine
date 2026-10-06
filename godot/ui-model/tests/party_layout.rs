@@ -140,6 +140,18 @@ fn state() -> GroupFramesState {
             ..PortraitPartyMemberView::named(&view.name)
         })
         .collect();
+    let party_pets = party
+        .iter()
+        .map(|view| {
+            (
+                view.name.clone(),
+                PortraitPartyPetView {
+                    health_fraction: 0.75,
+                    dead: false,
+                },
+            )
+        })
+        .collect();
     let party_auras = party
         .iter()
         .map(|view| {
@@ -159,15 +171,24 @@ fn state() -> GroupFramesState {
             show_pets: false,
         },
         party_auras,
+        party_pets,
         ..Default::default()
     }
 }
 
 fn render(skin: ActiveSkin, settings: LayoutSettings) -> FrameRegistry {
+    render_state(skin, settings, state())
+}
+
+fn render_state(
+    skin: ActiveSkin,
+    settings: LayoutSettings,
+    state: GroupFramesState,
+) -> FrameRegistry {
     setup(skin);
     let mut shared = SharedContext::new();
     shared.insert(skin);
-    shared.insert(state());
+    shared.insert(state);
     shared.insert(settings);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(group_frames_screen).sync(&shared, &mut registry);
@@ -209,6 +230,98 @@ fn party4_options_select_party_and_disable_compact() {
         &mut layout,
     );
     assert_eq!(layout.settings.use_raid_style_party_frames, Some(false));
+}
+
+#[test]
+fn party4_border_is_a_drawable_stroke_in_both_families() {
+    let _lock = SKIN.lock().unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for compact in [true, false] {
+            let settings = LayoutSettings {
+                use_raid_style_party_frames: Some(compact),
+                party: PartyFrameSettings {
+                    border: Some(true),
+                    ..Default::default()
+                },
+                ..Default::default()
+            };
+            let registry = render(skin, settings);
+            let name = if compact {
+                "CompactPartyFrameSettingsBorder"
+            } else {
+                "PartyFrameSettingsBorder"
+            };
+            let border = frame(&registry, name).border.as_ref().expect(
+                "Display Border must emit a drawable stroke, not only an unhidden empty frame",
+            );
+            assert_eq!(border.width, 1.0);
+            assert_eq!(border.color, [0.5, 0.5, 0.5, 1.0]);
+        }
+    }
+}
+
+#[test]
+fn party4_compact_pet_includes_self_without_a_portrait_member() {
+    let _lock = SKIN.lock().unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut state = state();
+        state.party.sort_by_key(|member| member.name != "Bob");
+        state
+            .portrait_party
+            .members
+            .retain(|member| member.name != "Bob");
+        state.party_pets.insert(
+            "Bob".into(),
+            PortraitPartyPetView {
+                health_fraction: 0.75,
+                dead: false,
+            },
+        );
+        let settings = LayoutSettings {
+            party: PartyFrameSettings {
+                show_pets: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let registry = render_state(skin, settings, state);
+        assert!(
+            registry
+                .get_by_name("CompactPartyFrameMember1Pet")
+                .is_some(),
+            "self pet must not depend on portrait roster"
+        );
+    }
+}
+
+#[test]
+fn party4_compact_pet_is_health_only() {
+    let _lock = SKIN.lock().unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let settings = LayoutSettings {
+            party: PartyFrameSettings {
+                show_pets: Some(true),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let registry = render(skin, settings);
+        assert!(
+            registry
+                .get_by_name("CompactPartyFrameMember1PetPowerBarBackground")
+                .is_none(),
+            "pet frames have no power bar"
+        );
+        assert_eq!(
+            frame(&registry, "CompactPartyFrameMember1PetHealthBar")
+                .height
+                .value(),
+            frame(&registry, "CompactPartyFrameMember1Pet")
+                .height
+                .value()
+                - 2.0
+        );
+    }
 }
 
 #[test]

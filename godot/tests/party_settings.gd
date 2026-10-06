@@ -49,8 +49,13 @@ func run_test() -> void:
 	check_error(fixture.settings_action("options_slider:party_height", 60))
 	check_error(fixture.settings_action("options_toggle:party_horizontal", 0))
 	check_error(fixture.settings_action("options_toggle:party_background", 0))
+	await settle()
+	await RenderingServer.frame_post_draw
+	var without_border := root.get_texture().get_image()
 	check_error(fixture.settings_action("options_toggle:party_border", 0))
 	await wait_heads(4)
+	await RenderingServer.frame_post_draw
+	check_border_pixels(without_border, root.get_texture().get_image(), fixture.member_rect("PartyFrame"))
 	var after: Rect2 = fixture.member_rect("PartyMemberFrame1")
 	var second: Rect2 = fixture.member_rect("PartyMemberFrame2")
 	check(after.size.x > before.size.x and after.size.y > before.size.y, "size applies to rendered portrait member")
@@ -72,6 +77,19 @@ func run_test() -> void:
 	await settle()
 	check(root.find_children("*", "SubViewport", true, false).is_empty(), "fixture cleanup leaves no portrait viewports")
 	quit(0)
+
+func check_border_pixels(before: Image, after: Image, rect: Rect2) -> void:
+	var changed := 0
+	for y in range(maxi(0, floori(rect.position.y) - 1), mini(after.get_height(), ceili(rect.position.y) + 2)):
+		for x in range(maxi(0, ceili(rect.position.x) + 1), mini(after.get_width(), floori(rect.end.x) - 1)):
+			var a := before.get_pixel(x, y)
+			var b := after.get_pixel(x, y)
+			if absf(a.r - b.r) + absf(a.g - b.g) + absf(a.b - b.b) > 0.05:
+				changed += 1
+	if changed <= rect.size.x / 3:
+		check(false, "Display Border paints actual edge pixels")
+		return
+	print("PASS party4_engine_border_paints_pixels")
 
 func scroll_to(name: String) -> void:
 	var content: Rect2 = fixture.settings_rect("OptionsContentScroll")

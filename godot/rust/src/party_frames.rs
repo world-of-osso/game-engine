@@ -373,14 +373,8 @@ impl GameClient {
             );
             let pet = local_pet(&self.replica, unit.server_id)
                 .and_then(|id| self.replica.unit(id))
-                .and_then(|unit| unit.get::<Health>());
-            if let Some(member) = frames
-                .portrait_party
-                .members
-                .iter_mut()
-                .find(|member| member.name == player.name)
-            {
-                member.pet = pet.map(|health| PortraitPartyPetView {
+                .and_then(|unit| unit.get::<Health>())
+                .map(|health| PortraitPartyPetView {
                     health_fraction: if health.max > 0.0 {
                         (health.current / health.max).clamp(0.0, 1.0)
                     } else {
@@ -388,6 +382,16 @@ impl GameClient {
                     },
                     dead: health.current <= 0.0,
                 });
+            if let Some(pet) = pet.as_ref() {
+                frames.party_pets.insert(player.name.clone(), pet.clone());
+            }
+            if let Some(member) = frames
+                .portrait_party
+                .members
+                .iter_mut()
+                .find(|member| member.name == player.name)
+            {
+                member.pet = pet;
             }
         }
     }

@@ -69,6 +69,11 @@ pub struct GroupFramesState {
     /// Party members, the player first; empty hides the party frame.
     pub party: Vec<CompactUnitView>,
     pub portrait_party: PortraitPartyFrameState,
+    /// Includes the local player's pet even though portraits omit the local player.
+    pub party_pets: std::collections::BTreeMap<
+        String,
+        crate::portrait_party_frame_component::PortraitPartyPetView,
+    >,
     /// Optional replicated aura data; no invented icons when the protocol lacks it.
     pub party_auras:
         std::collections::BTreeMap<String, super::compact_unit_frame_component::PartyAuraView>,
@@ -156,12 +161,10 @@ fn party_frame(
     let horizontal = settings.horizontal.unwrap_or(false);
     let count = members.len().min(MAX_PARTY_MEMBERS);
     let pet_width = if settings.show_pets.unwrap_or(false)
-        && state
-            .portrait_party
-            .members
-            .iter()
-            .any(|member| member.pet.is_some() && !member.offline)
-    {
+        && members.iter().any(|member| {
+            member.status != super::compact_unit_frame_component::UnitStatus::Offline
+                && state.party_pets.contains_key(&member.name)
+        }) {
         member_w * 0.5
     } else {
         0.0
@@ -188,12 +191,7 @@ fn party_frame(
             } else {
                 (0.0, TITLE_H + index as f32 * member_h)
             };
-            let pet = state
-                .portrait_party
-                .members
-                .iter()
-                .find(|member| member.name == view.name)
-                .and_then(|member| member.pet.as_ref());
+            let pet = state.party_pets.get(&view.name);
             super::compact_unit_frame_component::party_unit_frame(
                 &party_member_frame_name(index),
                 view,
