@@ -16,6 +16,13 @@ fn install(app: &mut App) {
         },
     );
 }
+fn flush_server(server: &mut App) {
+    for _ in 0..8 {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+}
+
 #[test]
 fn dungeonclient_wire_requests_catalog_and_preserves_live_update_between_pages() {
     let (mut server, address) = crate::wire_tests::start_fixture_server_with(install);
@@ -88,6 +95,17 @@ fn dungeonclient_wire_requests_catalog_and_preserves_live_update_between_pages()
         achievements: vec![],
         next_id: None,
     };
+    // MessageSender queues per type. Flush each server update to establish actual
+    // channel order, while the client worker is paused so all types arrive together.
+    let (paused, ready) = mpsc::channel();
+    let (resume, wait) = mpsc::channel();
+    bridge
+        .enqueue(move |_| {
+            paused.send(()).unwrap();
+            wait.recv_timeout(Duration::from_secs(10)).unwrap();
+        })
+        .unwrap();
+    ready.recv_timeout(Duration::from_secs(5)).unwrap();
     {
         let world = server.world_mut();
         world
@@ -95,11 +113,19 @@ fn dungeonclient_wire_requests_catalog_and_preserves_live_update_between_pages()
             .single_mut(world)
             .unwrap()
             .send::<AchievementChannel>(first.clone());
+    }
+    flush_server(&mut server);
+    {
+        let world = server.world_mut();
         world
             .query::<&mut MessageSender<AchievementStateUpdate>>()
             .single_mut(world)
             .unwrap()
             .send::<AchievementChannel>(update.clone());
+    }
+    flush_server(&mut server);
+    {
+        let world = server.world_mut();
         world
             .query::<&mut MessageSender<AchievementCatalogPage>>()
             .single_mut(world)
@@ -123,6 +149,8 @@ fn dungeonclient_wire_requests_catalog_and_preserves_live_update_between_pages()
             });
     }
     let deadline = Instant::now() + Duration::from_secs(10);
+    flush_server(&mut server);
+    resume.send(()).unwrap();
     let mut order = Vec::new();
     let mut pages = Vec::new();
     let mut updates = Vec::new();
