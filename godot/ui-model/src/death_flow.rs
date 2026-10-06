@@ -392,6 +392,14 @@ mod tests {
             );
             flow.sync_popups(&mut stack, Some(&at(12.0)), 60);
             assert!(stack.contains(DEATH_POPUP));
+            flow.receive_offer(shared::protocol::ResurrectionOffer {
+                caster: 43,
+                caster_name: "Bran".into(),
+                spell_id: 2006,
+                time_left_ms: 60_000,
+            });
+            flow.sync_popups(&mut stack, Some(&at(12.0)), 60);
+            assert!(stack.contains(RESURRECT_POPUP));
             flow.receive(update(DeathStateSnapshot::Alive));
             flow.sync_popups(&mut stack, Some(&at(12.0)), 60);
             assert!(!stack.is_open());
