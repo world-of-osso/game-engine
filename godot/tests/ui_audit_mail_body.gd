@@ -28,14 +28,16 @@ func run_test() -> void:
 			fail("Body discarded newlines")
 			return
 		ui.pop_action()
-		body.text = "Wine\n".repeat(50)
+		body.clear()
+		body.insert_text_at_caret("Wine\n".repeat(50))
 		ui.pop_action()
 		body.set_caret_line(49)
 		await process_frame
-		if body.get_scroll_vertical() <= 0 or not body.get_v_scroll_bar().visible:
+		if body.get_v_scroll() <= 0 or not body.get_v_scroll_bar().visible:
 			fail("Long letter did not scroll to caret")
 			return
-		body.text = "é".repeat(501)
+		body.clear()
+		body.insert_text_at_caret("é".repeat(501))
 		await process_frame
 		ui.pop_action()
 		if body.text.length() != 500:
