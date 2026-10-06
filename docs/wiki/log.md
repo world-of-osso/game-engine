@@ -1,3 +1,7 @@
+## 2026-10-05 — Stormwind loading boundary
+
+[[stormwind-loading]] records instrumented tile-gate timeout, per-placement costs, WMO-child discovery and unrelated terrain build order. [World-loading policy](../specs/world-loading.md) now defines a spatial entry bubble without discarding distant work. Before/after evidence remains in `data/diagnostics/swload-2026-10-05/`.
+
 ## 2026-10-05 — Paperdoll teardown double free
 
 [[character-preview-double-free]] records a real-engine reproduction of `gd.rs:911`, the parent-before-preview teardown bug, and the process/reconnect ownership audit. Reset now releases the preview before its RegistryUi parent. At `dc7f80b9`, formatting, locked local extension build and three headless lifecycle cycles pass (each command exit 0). All 144 native Rust free sites inventoried; no other matching unguarded double-free established. Original suspend incident attribution remains conditional.
