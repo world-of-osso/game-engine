@@ -37,6 +37,10 @@ pub(crate) struct GroupFramesHud {
 }
 
 impl GroupFramesHud {
+    pub(crate) fn frame_ui(&self) -> Option<&Gd<RegistryUi>> {
+        self.frames.as_ref()
+    }
+
     pub(crate) fn visit_uis(
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
@@ -282,6 +286,7 @@ impl GameClient {
     /// Per frame in the world: the invite popup's clicks and timeout, then the frames.
     pub(super) fn update_group_frames(&mut self, delta: f32) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
+            self.clear_party_portraits();
             self.group_frames.close();
             return Ok(());
         }
@@ -309,6 +314,7 @@ impl GameClient {
         };
         let frames = self.group_frames_view();
         self.show_group_ui(frames, popups)?;
+        self.sync_party_portraits()?;
         Ok(())
     }
 

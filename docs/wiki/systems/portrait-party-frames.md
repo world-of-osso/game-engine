@@ -18,6 +18,20 @@ Behavioral coverage: concrete 2→4→2→0 member roster, promotion, offline, d
 
 Inspected captures: `data/diagnostics/party2-2026-10-05/{modern,forever}-party-recapture.png` and `*-detail.png`. Both show full grey offline health, full dim-blue power and the source-authored crown rect. Samples at (130,294): Modern (178,178,178), Forever (175,175,175); power (130,306) is (6,62,122) under both skins. `raster-red/` retains the reproduced green-health failure. Both clients/Weston exit 0 and all owned PIDs are gone. Pre-existing shutdown leaks persist (Modern 7 texture RIDs/10 ObjectDB instances; Forever 9/11), so this is bounded static raster proof, not clean shutdown or step-5 live acceptance. Full proof/commands are in the same directory's `proof.md`; no runtime heads, settings UI, pet acceptance or merge/push.
 
+## Step 3 — runtime member portraits
+
+`party_frames.rs::update_group_frames` synchronizes the roster canvas before `GameClient::sync_party_portraits`. `unit_portraits/party.rs` selects four non-self names in roster order only for the portrait style and non-raid groups. Each name owns the existing `Portrait` renderer, detached model request and last replicated `UnitAppearance`. Reorder moves surviving views between hosts; rebuilt hosts recreate their views. Departures, compact/raid selection and scene exit cancel pending loads and free views with their child viewports/models. No party renders exist under the compact default.
+
+Retail source paths relative to `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_UnitFrame/Mainline/`:
+
+- `PartyMemberFrame.lua:570-585`: `Portrait:SetDesaturated(true)` when disconnected, false on reconnect. Native mask shader desaturates the rendered head, not only its host's registry texture.
+- `PartyMemberFrame.lua:592-620`: `PartyMemberHealthCheck` tints dead `(0.35,0.35,0.35,1)`, ghost `(0.2,0.2,0.75,1)`, living health `(0,20%]` red, otherwise white. Offline ignores stale live health/death, consistent with the group adapter dropping offline live states.
+- `UnitFrame.lua:175-189,199-200`: portraits use `SetPortraitTexture`, refreshed on `UNIT_PORTRAIT_UPDATE`. Neither that handler nor the party portrait health/connection handlers introduce range-driven tint/desaturation/fade. Retain a member's last known head outside replication interest; do not apply CompactUnitFrame's 0.5 range alpha to this portrait family.
+
+Appearance availability is a real protocol boundary: `GroupMemberSnapshot` supplies name/class/level, not race/customization/equipment; live group states supply health/power/death/position. An unseen member cannot have a truthful 3D head until replicated. No invented model or other member's head fills that gap. Known offline/out-of-interest heads remain available while portrait style stays selected. Settings UI, pet portrait wiring and live acceptance remain excluded.
+
+Proof runner: `res://tests/party_portraits.gd` instantiates the offline `PartyPortraitFixture`, using the production selector/resource owner and real detached player-model loader. It exercises default/switch-to-compact zero hosts, member join/leave/reorder, actual grey offline head pixels, dead tint and four joins/four leaves. Separate Godot processes isolate each skin; CPU selector tests do not switch global skins.
+
 ## Acceptance status — bounded offline art/fill pass (2026-10-05)
 
 Local CASC supplied Retail `4681512.blp` and Forever build 70205's `4631591.blp` (MD5 `fa74b4e688a6d03d856ab616238058fe`; Retail remains `73bb980b6a3b738fa8f07877419a1d5e`). The slot has a separate data directory; its two missing inputs are linked to canonical data without replacing Retail bytes. Raw BGRA decoding confirms 1024×512 and bar art at 69913's player-health, player-mana and conditional party bar coordinates. Evidence: `data/diagnostics/party1-2026-10-05/forever-70205-69913-bar-crops.png`, individual `70205-*-crop.png` files and source rows in `forever-70205-69913-crops.json`.
@@ -82,7 +96,7 @@ The stale root CSVs/community listfile miss these set-1 relations; the project s
 
 `godot/ui-model/tests/portrait_party_frame.rs` tests four names, supplied bar fractions, Offline/Dead and leader visibility under both skins, and Forever's relationship to Camelot/player art. `capture_modern_portrait_party_fixture` generates the Modern semantic registry golden; normal golden test compares the resulting external registry tree. It does not prove raster parity or live wiring.
 
-Standalone offline preview: `GODOT_CAPTURE_SCREEN=portrait_party` (Modern) or `forever_portrait_party`, `GODOT_CAPTURE_PATH=<png>`, with `res://tests/capture_ui_screen.gd`. `RegistryUi.show_portrait_party` / `show_forever_portrait_party` install deterministic four-member data without connecting a server or changing saved settings. Portrait slots are intentionally empty until runtime binding work.
+Standalone offline preview: `GODOT_CAPTURE_SCREEN=portrait_party` (Modern) or `forever_portrait_party`, `GODOT_CAPTURE_PATH=<png>`, with `res://tests/capture_ui_screen.gd`. `RegistryUi.show_portrait_party` / `show_forever_portrait_party` install deterministic four-member data without connecting a server or changing saved settings. This older static-only preview intentionally leaves portraits empty. Step-3 runtime-head captures use `res://tests/party_portraits.gd` instead.
 
 ## Sources
 

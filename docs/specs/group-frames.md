@@ -68,7 +68,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [ ] Raster-correct static portrait family under both skins: offline four-member art/fills pass with local Retail and product-bound Forever sheets. Whole-family/reference parity and optional pet raster acceptance remain unproven; [bounded proof and exclusions](../wiki/systems/portrait-party-frames.md#acceptance-status--bounded-offline-artfill-pass-2026-10-05).
 - [x] Connect portrait member names/class colour, health/power fractions and power type, leader, role, Offline/Dead to the existing group roster/live states. Exclude self; retain roster order and compact default. `LayoutSettings.use_raid_style_party_frames = Some(false)` selects portraits; absent/true selects compact. Raid presentation is unchanged. Settings UI remains step 4.
 - [x] Offline health fills to maximum and desaturates; offline power fills to maximum and receives Retail's half-grey vertex tint (not power desaturation). Crown/guide keep the source BOTTOM→TOP anchor; its above-frame extension is intentional. [Exact source rules](../wiki/systems/portrait-party-frames.md#step-2--roster-and-source-corrections).
-- [ ] Runtime portrait bindings (step 3). Presentation settings are separate work.
+- [x] Runtime portrait bindings (step 3): non-self roster names bind the existing masked M2 renderer to the four party slots under both skins. Leave/compact/raid/scene exit cancel pending loads and free owned viewports; reorder reuses surviving member resources when hosts survive. Offline desaturates the last known head; dead/ghost/low-health tints follow Retail, with no range-driven portrait fade. A member never replicated has no appearance in the current protocol: its slot stays empty until its appearance arrives. Presentation settings and live acceptance remain separate work.
 - [ ] Live portrait-family acceptance. Static registry golden and offline preview are not live proof.
 
 ### Raid frame (`CompactRaidFrameContainer`)
@@ -109,7 +109,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - Retail has no slash command to leave a party: `/leave` is a chat channel command.
 
 ### Not implemented
-- [ ] Runtime `PartyMemberFrame` portrait bindings, party-pet roster wiring and live acceptance; member roster wiring exists above. `CompactRaidFrameManager` (the side panel with ready check, role poll and markers).
+- [ ] Party portraits for members never replicated (roster lacks race/customization/equipment), party-pet roster wiring and live acceptance; runtime member portrait bindings exist above. `CompactRaidFrameManager` (the side panel with ready check, role poll and markers).
 - [ ] Assistant / main tank / main assist.
 - [ ] Group persistence across server restarts.
 - [ ] Loot method wiring: the Loot Rules window stays client-side.
