@@ -254,7 +254,7 @@ fn rank_list(session: &GuildRanksSession) -> Element {
 fn gold_controls(rank: &GuildRankSettings, editable: bool) -> Element {
     let enabled =
         editable && rank.rights & (GUILD_RIGHT_WITHDRAW_GOLD | GUILD_RIGHT_WITHDRAW_REPAIR) != 0;
-    // The allowance can be configured before enabling withdrawals; save remains leader-only.
+    // Retail GuildControlUI.lua:433 masks gold unless withdrawals or repairs are enabled.
     let mut children = title(
         "GuildGoldLabel",
         "Daily gold limit (withdrawals + repairs)",
@@ -265,14 +265,14 @@ fn gold_controls(rank: &GuildRankSettings, editable: bool) -> Element {
     children.extend(input(
         GOLD_BOX,
         &(rank.gold_per_day / 10_000).to_string(),
-        editable,
+        enabled,
         (244.0, 330.0, 110.0, 24.0),
     ));
     children.extend(panel_button(
         "GuildGoldSave".into(),
         "Save Gold Limit",
         "guild:gold",
-        editable,
+        enabled,
         (374.0, 328.0, 160.0, 28.0),
     ));
     if !enabled {

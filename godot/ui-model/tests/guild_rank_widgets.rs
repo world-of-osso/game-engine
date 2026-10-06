@@ -219,7 +219,34 @@ fn guild_rank_widgets_disable_unauthorized_and_occupied_controls_both_skins() {
     set_active_skin(ActiveSkin::Modern);
 }
 #[test]
-fn guild_roster_context_uses_strict_hierarchy_both_skins() {
+fn guild_rank_roster_pages_keep_all_members_reachable() {
+    let _lock = SKIN.lock().unwrap_or_else(|poison| poison.into_inner());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_active_skin(skin);
+        let mut session = GuildRanksSession::default();
+        session.open();
+        let mut snapshot = state(0);
+        snapshot.members = (0..13)
+            .map(|index| GuildRankMember {
+                character_name: format!("Member{index}"),
+                rank: 2,
+            })
+            .collect();
+        session.apply(snapshot);
+        let reg = mounted(&session);
+        assert!(reg.get_by_name("GuildMember9").is_none());
+        session.click(&action(&reg, "GuildRosterNext"), &Default::default());
+        let reg = mounted(&session);
+        session.click(&action(&reg, "GuildMember12"), &Default::default());
+        assert_eq!(session.member_menu.as_deref(), Some("Member12"));
+        session.click(&action(&reg, "GuildRosterPrevious"), &Default::default());
+        assert!(mounted(&session).get_by_name("GuildMember0").is_some());
+    }
+    set_active_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn guild_rank_roster_context_uses_strict_hierarchy_both_skins() {
     let _lock = SKIN.lock().unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_active_skin(skin);
