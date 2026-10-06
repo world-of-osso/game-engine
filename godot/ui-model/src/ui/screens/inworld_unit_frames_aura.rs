@@ -221,6 +221,101 @@ pub(super) fn flare_auras(state: &UnitFrameState, width: f32) -> Element {
         .collect()
 }
 
+/// Player defaults: Core.lua:283-286, UnitFrames.lua:40,48,812,931-990.
+/// Buffs grow right/up from TOPLEFT; owned debuffs left/up from TOPRIGHT.
+/// The replication boundary selects owned harmful auras; permanent buffs are hidden.
+pub(super) fn flare_player_auras(auras: &[AuraInstance], width: f32) -> Element {
+    const SIZE: f32 = 20.0;
+    const SPACING: f32 = 2.0;
+    const INSET: f32 = 4.0;
+    const GAP: f32 = 4.0;
+    const MAX: usize = 10;
+    const MAX_DURATION: f32 = 999_999.0;
+    let line_width = (width / 2.0).floor() - INSET - 4.0;
+    let columns = ((line_width + SPACING) / (SIZE + SPACING)).floor().max(1.0) as usize;
+    [false, true]
+        .into_iter()
+        .flat_map(|debuff| {
+            auras
+                .iter()
+                .filter(move |aura| aura.is_debuff == debuff)
+                .filter(|aura| {
+                    aura.is_debuff || (aura.duration > 0.0 && aura.duration <= MAX_DURATION)
+                })
+                .take(MAX)
+                .enumerate()
+                .flat_map(move |(index, aura)| {
+                    let column = (index % columns) as f32;
+                    let row = (index / columns) as f32;
+                    let offset = column * (SIZE + SPACING);
+                    let x = if debuff {
+                        width - INSET - SIZE - offset
+                    } else {
+                        INSET + offset
+                    };
+                    let y = -GAP - SIZE - row * (SIZE + SPACING);
+                    flare_player_aura_button(index, aura, (x, y, SIZE))
+                })
+        })
+        .collect()
+}
+
+/// UnitFrames.lua:831-879: black socket, 1-unit icon inset with 0.08 crop,
+/// centre duration (8pt) and bottom-right stacks (9pt), both Friz/outline/shadow.
+fn flare_player_aura_button(
+    index: usize,
+    aura: &AuraInstance,
+    (x, y, size): (f32, f32, f32),
+) -> Element {
+    let prefix = if aura.is_debuff {
+        "PlayerDebuff"
+    } else {
+        "PlayerBuff"
+    };
+    let name = format!("{prefix}Icon{index}");
+    let timer = aura.timer_text();
+    let count = if aura.stacks > 1 {
+        aura.stacks.to_string()
+    } else {
+        String::new()
+    };
+    let border = aura
+        .is_debuff
+        .then(|| {
+            let icon = target_aura_icon(aura);
+            dispel_border(&name, &icon, size)
+        })
+        .unwrap_or_default();
+    rsx! {
+        r#frame {
+            name: {dyn_name(name.clone())}, width: size, height: size,
+            background_color: "0,0,0,1", mouse_enabled: true,
+            pos_type: "absolute", left: x, top: y,
+            texture {
+                name: {dyn_name(format!("{name}Texture"))},
+                width: {size - 2.0}, height: {size - 2.0},
+                texture_fdid: {aura.icon_fdid}, tex_coords: "0.08,0.92,0.08,0.92",
+                pos_type: "absolute", left: 1.0, top: 1.0,
+            }
+            {border}
+            fontstring {
+                name: {dyn_name(format!("{name}Duration"))},
+                width: size, height: size, text: {timer.as_str()},
+                font: "FrizQuadrata", font_size: 8.0, font_color: COUNT_COLOR,
+                outline: "OUTLINE", shadow_color: "0,0,0,1", shadow_offset: "1,-1",
+                justify_h: "CENTER", pos_type: "absolute", left: 0.0, top: 0.0,
+            }
+            fontstring {
+                name: {dyn_name(format!("{name}Count"))},
+                width: {size - 2.0}, height: 9.0, text: {count.as_str()},
+                font: "FrizQuadrata", font_size: 9.0, font_color: COUNT_COLOR,
+                outline: "OUTLINE", shadow_color: "0,0,0,1", shadow_offset: "1,-1",
+                justify_h: "RIGHT", pos_type: "absolute", right: 1.0, bottom: 1.0,
+            }
+        }
+    }
+}
+
 /// `TargetFrameAuraButtonTemplate` (TargetFrameAuraButton.xml:5-31): the icon fills the
 /// button; `Cooldown` is centred 1 px down and swiped by the host; debuffs add the tinted
 /// `DispelBorder`.

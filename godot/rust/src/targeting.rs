@@ -830,7 +830,7 @@ impl GameClient {
             .as_ref()
             .map(|state| (state.level_text.clone(), target_health.unwrap_or_default()))
             .unwrap_or_default();
-        let player = self
+        let mut player = self
             .world
             .local_player_id()
             .and_then(|id| self.replica.unit(id))
@@ -846,6 +846,11 @@ impl GameClient {
                 );
                 state
             });
+        if ui_toolkit::atlas::thread_skin() == ui_toolkit::atlas::ActiveSkin::Forever
+            && let (Some(state), Some(id)) = (player.as_mut(), self.world.local_player_id())
+        {
+            self.fill_player_frame_auras(state, id);
+        }
         let class_bar = player.as_ref().and_then(|player| player.class_bar.clone());
         let personal_resource = self
             .world
