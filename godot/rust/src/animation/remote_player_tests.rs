@@ -129,6 +129,35 @@ fn remote_player_walks_runs_strafes_backpedals_and_stands_with_continuous_crossf
     }
 }
 
+#[test]
+fn locomotion_remote_water_entry_preempts_air_and_swims_each_direction() {
+    let mut player = human_male_hd();
+    drive(&mut player, FALLING);
+    player.advance(75.0).unwrap();
+    for (flags, expected) in [
+        (SWIM | FORWARD, 42),
+        (SWIM, 41),
+        (SWIM | BACKWARD, 45),
+        (SWIM | LEFT, 43),
+        (SWIM | RIGHT, 44),
+        (FORWARD, 5),
+        (0, 0),
+    ] {
+        let before = player.poses();
+        assert!(drive(&mut player, flags));
+        assert_eq!(current_id(&player), expected);
+        assert!(pose_distance(&before, &player.poses()) < 1e-4);
+        let blend = player.transition.as_ref().unwrap().duration_ms;
+        assert!(blend >= MIN_MOVEMENT_BLEND_MS);
+        for _ in 0..3 {
+            assert!(!frame(&mut player, flags));
+        }
+        assert!((player.transition.as_ref().unwrap().elapsed_ms - 50.0).abs() < 1e-3);
+    }
+    player.advance(500.0).unwrap();
+    assert!(player.transition.is_none());
+}
+
 /// A running jump: JumpStart 37 plays out, Jump 38 loops while `FALLING` stays set, the
 /// landing (running JumpLandRun 187 when authored, else JumpEnd 39) follows its clear,
 /// then Run 5 resumes and Stand 0 follows the stop, every switch crossfaded.

@@ -1024,6 +1024,8 @@ mod global_sequence_tests;
 
 #[cfg(test)]
 mod jump_tests;
+#[cfg(test)]
+mod locomotion_capture_tests;
 
 #[cfg(test)]
 mod npc_locomotion_tests;
