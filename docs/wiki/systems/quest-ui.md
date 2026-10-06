@@ -1,5 +1,7 @@
 # Quest UI
 
+> Root `src/` paths below describe the retired Bevy client; the Godot section describes the native host.
+
 Requirements: [quest UI spec](../../specs/quest-ui.md). Server side: game-server `docs/wiki/systems/quests.md`, `npc-interaction.md`.
 
 ## Data flow
@@ -25,10 +27,44 @@ Markers: `nameplate.rs` spawns the talktome M2 with its animation; `indicator_fa
 
 ## Godot client
 
-The native client ports only the objective tracker so far.
-- `godot/rust/src/objective_tracker.rs` feeds the shared `objective_tracker_component` through `ObjectiveTrackerState::from_watched`. The input is the `Account.quest_log` entries in `Account.quest_watched` order. `from_runtime` is the Bevy-only wrapper, under `cfg(not(godot_host))`.
+`godot/rust/src/quests.rs` reconciles the native quest giver frame, quest log and markers through the shared `quest_runtime`, `quest_view` and `quest_actions` models. Right-click sends normal interaction requests; greeting, detail, progress and reward pages follow server replies. L opens the log; abandon uses the confirmation popup. Tracker titles and POI buttons open the selected quest in the log.
+
+- `godot/rust/src/objective_tracker.rs` feeds the shared `objective_tracker_component` through `ObjectiveTrackerState::from_watched`, using `Account.quest_log` entries in `Account.quest_watched` order.
 - The two minimize buttons toggle `collapsed` and `quests_collapsed` locally.
-- Clicking a title or POI button (`quest_tracker:open:<id>`) does nothing, because the native QuestLogFrame does not exist.
-- There is no native QuestFrame yet. The fixture accepts a quest through `GameClient.accept_quest_from(npc_name, quest_id)`, which sends `QuestGiverAcceptQuest` directly.
-- The tracker sits under the minimap at the same Edit Mode anchor as Bevy; see [[minimap]].
+- `godot/tests/world_quest_flow.gd` drives real NPC picks, clicks, combat, exploration, item use and inventory assertions on a private server. Admin supplies travel, revival and the eight gnoll armbands, never objective completion.
+- Tracker placement and polygons: [[minimap]].
 - Legibility: title `OBJECTIVE_TRACKER_COLOR.Header` = `OBJECTIVE_TRACKER_BLOCK_HEADER_COLOR` (GlobalColor 241, 0xBF9C00 = 0.75, 0.61, 0) and lines `Normal` 0.8 grey, both `ObjectiveTrackerLineFont` FRIZQT 12 with a black (1, −1) shadow (`Blizzard_ObjectiveTrackerFonts.xml:202-209`). Native labels drew no FontString shadow until the projection mapped `shadow_color`/`shadow_offset` to Godot's `font_shadow_color`/`shadow_offset_*` (y flipped), so the dark-gold title vanished on bright grass. Hover highlight (`HeaderHighlight`/`NormalHighlight`) is not implemented in either client.
+
+
+## Live fixture diagnostics
+
+Evidence: `data/diagnostics/questrun-2026-10-05/` in the canonical game-engine data tree. Native extension `9d8a1040`, private server binary `c8cd38f`; both presets completed the gameplay flow, including real mine exploration and both fixed rewards. Long quest text still overflows the parchment; visual acceptance is separate from gameplay assertions.
+
+### Jasperlode
+
+The original mouth failure already has ground fixes in `310a1e0a` and the ramp route in `19f9d1d9`: terrain holes must not interpolate a surface over the WMO floor; slow movement frames need collision substeps. The old start stood under the entrance rock below the floor. Four real-asset collision tests cover the ramp/tunnel at 60 and 2 FPS, the terrain hole, and no falling through the hillside.
+
+The rerun crossed the mouth, but the warrior died farther inside. `modern4-client.log` records health zero, authoritative position `(-9140.282,57.63335,595.6155)` and predicted position `(-9082.92,59.81815,552.94)`: local prediction was not a living server walk. Fixture `092aef00` rejects dead walks and revives after travel; `8901eafe` resumes at the authoritative death position only outside the trigger plus a four-yard margin. It retains subsequent walking into the trigger, rather than reviving inside it or awarding credit administratively. Modern completed with one outside-trigger recovery; Forever needed two.
+
+### Milly
+
+Historical missing-mirror failure did not reproduce. Milly remained server entity `4294952020`, was re-created after the vineyard return, and both presets received one each of items `57247` and `11475`. Three additional vineyard/Milly interest exits and returns passed per preset. In Modern, her visual request preceded the player's revival. A dead-player probe also mirrored her normally but could not open gossip. Death is therefore an interaction blocker, not established evidence for the old mirroring failure. The referenced October 1 diagnostic files were absent on this host; historical cause remains unresolved. No server repair is claimed.
+
+### Slow-frame input and capture
+
+Six-frame approach bursts skip melee range at 2 FPS. `994dfbc3` polls each frame and stops movement before turning. Key turning at 2.5 rad/s can oscillate beyond its tolerance; `1a3de850` calibrates actual right-drag camera input, and `b375ab6e` handles a GUI-consumed first press with bounded retries and released buttons.
+
+The error overlay holds a line for three seconds, then fades for half a second. Predicate settling plus another draw can lose the required message: actual quest capture instrumentation saw opacity change from `1.0` to `0.334`. `9dc775f7` saves the first post-draw frame while the line is opaque. The real button/timer/rendered-image regression at 2 FPS reproduced the old empty capture and preserved 721 red text pixels with the corrected pipeline. `is_visible_in_tree()` alone is not rendered proof. The fixture uses a 1920×1080 viewport and rejects a clipped tracker.
+
+## Sources
+
+- [Quest UI spec](../../specs/quest-ui.md) — requirements and test inventory.
+- [Native quest host](../../../godot/rust/src/quests.rs) — dialogue, log and markers.
+- [Live fixture](../../../godot/tests/world_quest_flow.gd), [movement regression](../../../godot/tests/quest_flow_movement.gd), [capture regression](../../../godot/tests/quest_flow_error_capture.gd) — observable input, life and rendered output.
+- [Native ground](../../../godot/rust/src/ground.rs), [collision regressions](../../../godot/rust/src/wmo/collision_tests.rs) — Jasperlode geometry and slow-frame movement.
+- [Error lifetime](../../../godot/ui-model/src/ui/ui_errors_data.rs) — hold and fade durations; proof commands and revisions are in the evidence directory's `proof-ledger.txt`.
+
+## See Also
+
+- [[minimap]] — objective polygons and tracker placement.
+- [[ui-system]] — native frame projection and font rendering.

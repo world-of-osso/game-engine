@@ -2587,3 +2587,7 @@ Root `deploy.sh` now ships the Godot client instead of the Bevy binary: `depot-b
 ## 2026-10-05 — In-world launcher
 
 [[launcher]]: added user's centred search grid, shared micro actions/icons, Toggle Launcher binding and minimap opener. Micro menu retained. Targeted tests and live proof pending; Support remains a placeholder.
+
+## Live quest rerun — questrun
+
+[[quest-ui]]: reconciled the stale tracker-only Godot description with the native dialogue/log host. Recorded private Modern/Forever gameplay proof, prior Jasperlode ground fixes, living-walk/death recovery, and six successful Milly interest returns without claiming the historical mirror cause. Documented real slow-frame input regressions and opaque post-draw error capture. Evidence: `data/diagnostics/questrun-2026-10-05/`; long-text overflow remains outside this repair.
