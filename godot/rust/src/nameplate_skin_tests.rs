@@ -78,10 +78,47 @@ fn nameplate_glow_stays_inside_both_cast_presets_at_the_fill_edge() {
     for preset in [NameplateBarThickness::Thin, NameplateBarThickness::Thick] {
         let style = NameplateStyle::from_presets(preset, preset);
         for fraction in [0.0, 0.25, 0.5, 1.0] {
-            let layout = cast_layout(&style, fraction, (-94.0, 94.0));
+            let plate = plate_layout(&style, 1.0, 0.0);
+            let layout = cast_layout(&style, fraction, plate.span, plate.bottom);
             assert!(layout.spark.position.y >= layout.background.position.y);
             assert!(layout.spark.end().y <= layout.background.end().y);
             assert!((layout.spark.center().x - layout.fill.end().x).abs() < 1e-5);
+        }
+    }
+}
+
+/// Both skins use the same geometry that positions the rendered health and cast nodes.
+#[test]
+fn nameplate_cast_row_top_touches_health_bottom_in_both_skins() {
+    use crate::nameplate_cast_bar::cast_layout;
+    use game_engine_core::nameplate_style_data::NameplateBarThickness::{Thick, Thin};
+
+    for skin in [ActiveSkin::Forever, ActiveSkin::Modern] {
+        let level_width = if level_frame_atlases(skin).is_some() {
+            LEVEL_INDICATOR_WIDTH
+        } else {
+            0.0
+        };
+        for (health, cast) in [(Thick, Thick), (Thin, Thin), (Thick, Thin), (Thin, Thick)] {
+            for show_border in [true, false] {
+                let style = NameplateStyle {
+                    show_border,
+                    ..NameplateStyle::from_presets(health, cast)
+                };
+                let plate = plate_layout(&style, 0.73, level_width);
+                let row = cast_layout(&style, 0.3382, plate.span, plate.bottom);
+                let health_rect = if show_border { plate.frame } else { plate.fill };
+                // The captured health frame had this fractional screen-space bottom.
+                let anchor = Vector2::new(770.0, 838.504638671875_f32 - health_rect.end().y);
+                let health_bottom = (health_rect.position + anchor).y + health_rect.size.y;
+                let cast_top = (row.background.position + anchor).y;
+                assert_eq!(
+                    cast_top, health_bottom,
+                    "{skin:?} {health:?}/{cast:?} border {show_border}"
+                );
+                assert_eq!(row.fill.position.y, row.background.position.y);
+                assert_eq!(row.background.size.y, style.cast_height);
+            }
         }
     }
 }

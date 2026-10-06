@@ -25,8 +25,6 @@ use crate::nameplate_casts::{BarType, CastBar, Spark};
 
 /// Bevy `NAMEPLATE_SCALE`: reference skins are unscaled screenshot pixels.
 const NAMEPLATE_SCALE: f32 = 0.5;
-/// Bevy `HEALTH_CAST_GAP`: between the health body and the cast body.
-const HEALTH_CAST_GAP: f32 = 4.0 * NAMEPLATE_SCALE;
 /// Bevy Thin label row: its centre this far below the cast body's bottom.
 const THIN_LABEL_DROP: f32 = 14.0 * NAMEPLATE_SCALE;
 /// `NamePlateSetupOptions` at scale 1: `castIconWidth/Height`, `castBarShieldWidth/Height`.
@@ -93,17 +91,20 @@ pub(crate) struct CastLayout {
 
 /// `plate` is the left and right edge of the health row (`PlateLayout::span`): the cast
 /// row, icon included, sits on the same span, wider or narrower by what the style's cast
-/// width differs from its health width (nothing by default).
-pub(crate) fn cast_layout(style: &NameplateStyle, fraction: f32, plate: (f32, f32)) -> CastLayout {
+/// width differs from its health width (nothing by default). Its top touches the
+/// rendered health row's `health_bottom`.
+pub(crate) fn cast_layout(
+    style: &NameplateStyle,
+    fraction: f32,
+    plate: (f32, f32),
+    health_bottom: f32,
+) -> CastLayout {
     let (left, right) = plate;
     let body = Vector2::new(
         right - left + style.cast_width - style.health_width,
         style.cast_height,
     );
-    let center = Vector2::new(
-        (left + right) / 2.0,
-        style.health_height / 2.0 + HEALTH_CAST_GAP + body.y / 2.0,
-    );
+    let center = Vector2::new((left + right) / 2.0, health_bottom + body.y / 2.0);
     let left = center.x - body.x / 2.0;
     let background = Rect2::new(center - body / 2.0, body);
     let fill = Rect2::new(background.position, Vector2::new(body.x * fraction, body.y));
@@ -318,7 +319,7 @@ impl CastNodes {
         &mut self,
         bar: Option<&CastBar>,
         icon: Option<&Gd<Texture2D>>,
-        (style, plate): (&NameplateStyle, (f32, f32)),
+        (style, plate, health_bottom): (&NameplateStyle, (f32, f32), f32),
         art: &CastArt,
     ) {
         let Some(bar) = bar else {
@@ -329,7 +330,7 @@ impl CastNodes {
         self.root
             .set_modulate(Color::from_rgba(1.0, 1.0, 1.0, bar.alpha()));
         let fraction = bar.fraction();
-        let layout = cast_layout(style, fraction, plate);
+        let layout = cast_layout(style, fraction, plate, health_bottom);
         place(&mut self.background, layout.background);
         place(&mut self.fill, layout.fill);
         self.fill.set_visible(fraction > 0.0);
