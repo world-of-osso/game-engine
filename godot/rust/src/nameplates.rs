@@ -1497,6 +1497,35 @@ mod tests {
     use super::*;
     use shared::components::{CombatStatus, Npc, UnitFactionTemplate, UnitThreatList};
 
+    #[test]
+    fn nameplate_alpha_distances_preserve_selected_and_occlusion_overrides() {
+        let cvars = NameplateCvars::default();
+        // The authored HUD limit is 40 yd, not Retail's alpha-distance CVars.
+        for (distance, expected_fade) in [
+            (10.0, 1.0),
+            (20.0, 1.0),
+            (30.0, 0.5),
+            (35.62, 0.219),
+            (40.0, 0.0),
+            (60.0, 0.0),
+        ] {
+            let fade = nameplate_alpha(distance, 40.0);
+            assert!((fade - expected_fade).abs() < 1e-6, "{distance} yd");
+            for (selected, occluded, expected) in [
+                (false, false, expected_fade),
+                (false, true, expected_fade * 0.4),
+                (true, false, 1.0),
+                (true, true, 0.4),
+            ] {
+                let alpha = plate_alpha(&cvars, selected, fade, occluded);
+                assert!(
+                    (alpha - expected).abs() < 1e-6,
+                    "{distance} yd, selected={selected}, occluded={occluded}: {alpha}"
+                );
+            }
+        }
+    }
+
     const SHOT: u64 = 30;
     const GUARD: u64 = 41;
     const KOBOLD: u64 = 42;
