@@ -289,8 +289,8 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
     );
     // Class-coloured fill, as long as damage over the top damage.
     assert_eq!(
-        texture(&registry, "DamageMeterEntry1StatusBar").vertex_color,
-        [0.25, 0.78, 0.92, 1.0]
+        frame(&registry, "DamageMeterEntry1StatusBar").background_color,
+        Some([0.25, 0.78, 0.92, 1.0])
     );
     let fill = |name: &str| rect(&registry, name).2;
     assert_eq!(
@@ -298,7 +298,7 @@ fn forever_meter_rows_have_class_icons_gradient_borders_and_shadowed_text() {
         fill("DamageMeterEntry1StatusBar")
     );
     let gradient = texture(&registry, "DamageMeterEntry1Gradient");
-    assert_eq!(gradient.tex_coords, [1.0, 0.0, 0.0, 1.0]);
+    assert_eq!(gradient.tex_coords, [0.0, 1.0, 0.0, 1.0]);
     // The row border is the header separator's bronze.
     let bronze = frame(&registry, "DamageMeterFlareSeparator")
         .background_color
