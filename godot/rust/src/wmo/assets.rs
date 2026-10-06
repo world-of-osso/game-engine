@@ -148,9 +148,12 @@ fn read_root(
     data_root: &Path,
     root_fdid: u32,
 ) -> Result<wmo::WmoRootData, String> {
+    let io = crate::profile::span(|| "phase.asset_io.wmo_root".to_owned());
     let root_path = read_required_wmo(resolver, data_root, root_fdid, "root")?;
     let root_bytes = fs::read(&root_path)
         .map_err(|error| format!("WMO root {}: {error}", root_path.display()))?;
+    drop(io);
+    let _parse = crate::profile::span(|| "phase.wmo_parse.root".to_owned());
     wmo::parse_root(&root_bytes)
         .map_err(|error| format!("WMO root {}: {error}", root_path.display()))
 }
@@ -164,15 +167,20 @@ fn read_group(
     fdid: u32,
 ) -> Result<NativeWmoGroup, String> {
     let context = format!("group {index} of root FDID {root_fdid}");
+    let io = crate::profile::span(|| "phase.asset_io.wmo_group".to_owned());
     let path = read_required_wmo(resolver, data_root, fdid, &context)?;
     let bytes =
         fs::read(&path).map_err(|error| format!("WMO {context} {}: {error}", path.display()))?;
+    drop(io);
+    let parse = crate::profile::span(|| "phase.wmo_parse.group".to_owned());
     let group = wmo::parse_group(&bytes)
         .map_err(|error| format!("WMO {context} {}: {error}", path.display()))?;
     let collision = Arc::new(
         WmoGroupCollision::parse(&bytes)
             .map_err(|error| format!("WMO {context} {} collision: {error}", path.display()))?,
     );
+    drop(parse);
+    let _mesh = crate::profile::span(|| "phase.mesh_build.wmo_worker".to_owned());
     let batches = group.batches(Some(root));
     Ok(NativeWmoGroup {
         index: index as u32,

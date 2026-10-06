@@ -148,6 +148,7 @@ fn build_terrain(chunks: Vec<Chunk>, tile: Option<(u32, u32)>) -> Gd<Node3D> {
 }
 
 fn build_mesh(geometry: Geometry, colors: &[[f32; 4]; 145]) -> Gd<ArrayMesh> {
+    let _mesh = crate::profile::span(|| "phase.mesh_build.terrain".to_owned());
     let vectors = |values: Vec<[f32; 3]>| {
         let values: Vec<_> = values.into_iter().map(Vector3::from_array).collect();
         PackedVector3Array::from(values.as_slice())

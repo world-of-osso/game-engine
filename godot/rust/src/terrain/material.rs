@@ -267,6 +267,7 @@ impl TerrainMaterials {
         layers: &[adt::TextureLayer],
         shader: &Gd<Shader>,
     ) -> Result<Gd<ShaderMaterial>, String> {
+        let _material = crate::profile::span(|| "phase.material.terrain".to_owned());
         let inputs = ChunkMaterialInputs::new(parsed, layers)?;
         let span = crate::profile::span(|| "terrain.set_shader".to_owned());
         let mut material = ShaderMaterial::new_gd();
@@ -431,6 +432,7 @@ fn vector4(values: [f32; 4]) -> Vector4 {
 }
 
 fn texture_from_rgba(width: u32, height: u32, pixels: &[u8]) -> Result<Gd<ImageTexture>, String> {
+    let _upload = crate::profile::span(|| "phase.texture_upload.terrain".to_owned());
     let image = Image::create_from_data(
         width as i32,
         height as i32,
