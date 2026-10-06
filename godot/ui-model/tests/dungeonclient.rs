@@ -140,6 +140,125 @@ fn achievement() -> AchievementCatalogEntry {
     }
 }
 #[test]
+fn dungeonclient_closed_live_update_refreshes_on_reopen() {
+    let mut window = AchievementWindow::default();
+    window.action("micro:AchievementMicroButton");
+    window.apply(AchievementCatalogPage::Categories {
+        categories: vec![category()],
+        next_id: None,
+    });
+    window.action("achievement:category:14808");
+    window.apply(AchievementCatalogPage::Category {
+        category_id: 14808,
+        achievements: vec![achievement()],
+        next_id: None,
+    });
+    window.action("achievement:close");
+    assert!(
+        window
+            .refresh(&AchievementStateUpdate {
+                snapshot: None,
+                completed: None,
+                message: None,
+                error: None
+            })
+            .is_empty()
+    );
+    assert_eq!(
+        window.action("micro:AchievementMicroButton"),
+        vec![QueryAchievementCatalog::Category {
+            category_id: 14808,
+            after_id: 0
+        }]
+    );
+}
+
+#[test]
+fn dungeonclient_nonempty_cursor_pages_and_authored_tree_are_browsable() {
+    let mut window = AchievementWindow::default();
+    window.action("micro:AchievementMicroButton");
+    let mut child = category();
+    child.parent_id = 20000;
+    assert_eq!(
+        window.apply(AchievementCatalogPage::Categories {
+            categories: vec![child],
+            next_id: Some(14808)
+        }),
+        vec![QueryAchievementCatalog::Categories { after_id: 14808 }]
+    );
+    window.apply(AchievementCatalogPage::Categories {
+        categories: vec![AchievementCategoryEntry {
+            category_id: 20000,
+            parent_id: -1,
+            order_index: 0,
+            name: "Dungeons & Raids".into(),
+        }],
+        next_id: None,
+    });
+    assert_eq!(
+        window
+            .category_tree()
+            .iter()
+            .map(|(row, depth)| (row.category_id, *depth))
+            .collect::<Vec<_>>(),
+        vec![(20000, 0), (14808, 1)]
+    );
+    window.action("achievement:category:14808");
+    let entries = (625..=632)
+        .map(|id| AchievementCatalogEntry {
+            achievement_id: id,
+            criteria: vec![],
+            next_criteria_id: None,
+            ..achievement()
+        })
+        .collect();
+    window.apply(AchievementCatalogPage::Category {
+        category_id: 14808,
+        achievements: entries,
+        next_id: Some(632),
+    });
+    window.action("achievement:more_rows");
+    window.action("achievement:more_rows");
+    assert_eq!(
+        window.action("achievement:more_rows"),
+        vec![QueryAchievementCatalog::Category {
+            category_id: 14808,
+            after_id: 632
+        }]
+    );
+    let mut stockade = achievement();
+    stockade.criteria = (1..=16).map(criterion).collect();
+    stockade.next_criteria_id = Some(16);
+    window.apply(AchievementCatalogPage::Category {
+        category_id: 14808,
+        achievements: vec![stockade],
+        next_id: None,
+    });
+    window.action("achievement:more_rows");
+    window.action("achievement:row:633");
+    assert_eq!(window.selected().unwrap().achievement_id, 633);
+    for _ in 0..2 {
+        window.action("achievement:more_criteria");
+    }
+    assert_eq!(
+        window.action("achievement:more_criteria"),
+        vec![QueryAchievementCatalog::Criteria {
+            achievement_id: 633,
+            after_id: 16
+        }]
+    );
+    window.apply(AchievementCatalogPage::Criteria {
+        achievement_id: 633,
+        criteria: vec![criterion(17), criterion(18)],
+        next_id: None,
+    });
+    assert_eq!(window.selected().unwrap().criteria.len(), 18);
+    assert!(window.selected().unwrap().next_criteria_id.is_none());
+    window.action("achievement:criteria_prev");
+    assert_eq!(window.criterion_offset, 6);
+}
+
+#[test]
 fn dungeonclient_launcher_requests_categories_and_catalog_pages_render_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         assets(skin);
