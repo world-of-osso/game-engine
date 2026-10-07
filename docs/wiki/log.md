@@ -1,6 +1,6 @@
 ## 2026-10-07 — Local specialization-conditioned spell visuals
 
-[Spell visual selection](systems/spell-visuals.md#local-specialization-selection-2026-10-07) maps account primary specialization IDs to DB2 OrderIndex only for the local caster. Slam's same-weapon Arms/Fury regression reproduced the wrong kit (62428 instead of 128672); native/core targeted verification is tracked in the [contract](../specs/spell-visuals.md). Remote/NPC specialization remains unreplicated; no live/raster Retail parity claim.
+[Spell visual selection](systems/spell-visuals.md#local-specialization-selection-2026-10-07) maps account primary specialization IDs to DB2 OrderIndex only for the local caster. Slam's same-weapon Arms/Fury regression reproduced the wrong kit (62428 instead of 128672); native/core specialization regressions passed at `82ad03641`, tracked in the [contract](../specs/spell-visuals.md). Remote/NPC specialization remains unreplicated; no live/raster Retail parity claim.
 
 ## 2026-10-07 — Restart-required native SSAO
 

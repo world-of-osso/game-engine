@@ -4,10 +4,10 @@ The Godot client selects Retail DB2 spell visuals and plays their event kits on 
 
 ## What it must do
 
-- [ ] Local casts use the latest spellbook specialization from `SpecializationChanged`, mapped from `ChrSpecialization.ID` to zero-based `OrderIndex`, when evaluating `PlayerCondition.ChrSpecializationIndex`. Cast, precast/channel, aura, missile and prefetch selection use the same caster context.
-- [ ] With the same two-handed sword, Slam 1464 chooses Arms visual 51946 / cast kit 62428 and Fury visual 97446 / cast kit 128672.
-- [ ] Before specialization is received, skip specialization comparison rather than assuming the first spec. For Slam with a two-handed sword this chooses visual 51946 / kit 62428. This follows the reference evaluator; direct Retail startup visual timing remains unverified.
-- [ ] Other casters keep the existing no-spec selection behavior; never apply the local player's specialization to remote players or NPCs.
+- [x] Local casts use the latest spellbook specialization from `SpecializationChanged`, mapped from `ChrSpecialization.ID` to zero-based `OrderIndex`, when evaluating `PlayerCondition.ChrSpecializationIndex`. Cast, precast/channel, aura, missile and prefetch selection use the same caster context.
+- [x] With the same two-handed sword, Slam 1464 chooses Arms visual 51946 / cast kit 62428 and Fury visual 97446 / cast kit 128672.
+- [x] Before specialization is received, skip specialization comparison rather than assuming the first spec. For Slam with a two-handed sword this chooses visual 51946 / kit 62428. This follows the reference evaluator; direct Retail startup visual timing remains unverified.
+- [x] Other casters keep the existing no-spec selection behavior; never apply the local player's specialization to remote players or NPCs.
 
 ## How it works
 
@@ -25,6 +25,8 @@ The Godot client selects Retail DB2 spell visuals and plays their event kits on 
 
 - `godot/core/tests/spell_visual.rs::specialization_slam_picks_arms_and_fury_cast_kits_with_the_same_two_handed_sword`
 - `godot/rust/src/spell_effects/casts.rs::specialization_tests` — fresh spell state, Arms→Fury transition, local-only filtering and missing specialization.
+
+Native/core specialization filter passed at `82ad03641` (three feature tests plus one existing icon test); wrong Fury kit was reproduced before the fix. Changed-file rustfmt check passed. Tests assert state-to-DB2 selection, not rendered casts; event/prefetch wiring is source-audited and compiled.
 
 ## Known gaps (current cycle)
 
