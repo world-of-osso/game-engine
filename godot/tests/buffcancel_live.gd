@@ -6,7 +6,6 @@ const SPELL := 1459
 const BAR_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL]
 var client: Node
 var shots: String
-var failed := false
 
 func _initialize() -> void:
 	Engine.max_fps = 60
@@ -27,7 +26,7 @@ func run_test() -> void:
 	if not error.is_empty():
 		fail(error)
 		return
-	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect", 60000, "character select"):
+	if not await wait_until(func(): return client.account_state().screen == "CharacterSelect" and client.get_node_or_null("CharacterSelectUI") != null, 90000, "mounted character select"):
 		return
 	var select := client.get_node("CharacterSelectUI")
 	await click(select.find_child("CharCard_0", true, false), MOUSE_BUTTON_LEFT)
@@ -150,6 +149,5 @@ func frames(count: int) -> void:
 		await process_frame
 
 func fail(message: String) -> void:
-	failed = true
 	push_error(message)
 	quit(1)
