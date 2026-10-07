@@ -66,6 +66,7 @@ void fragment() {
 pub(crate) struct UnitPortraits {
     player: Portrait,
     target: Portrait,
+    bosses: [Portrait; 5],
     pet: Portrait,
     /// The CharacterMicroButton's player portrait.
     micro: Portrait,
@@ -85,6 +86,8 @@ impl Default for UnitPortraits {
         Self {
             player: Portrait::new(PLAYER_PORTRAIT),
             target: Portrait::new(TARGET_PORTRAIT),
+            bosses: game_engine_ui_model::inworld_unit_frames_component::BOSS_PORTRAITS
+                .map(Portrait::new),
             pet: Portrait::new(PET_PORTRAIT),
             micro: Portrait::new(CHARACTER_PORTRAIT),
             character: Portrait::new(CHARACTER_FRAME_PORTRAIT),
@@ -574,7 +577,24 @@ impl GameClient {
             .and(quest_result)
             .and(bank_result)
             .and(auction_result)
-            .and(trade_result)
+            .and(trade_result)?;
+        self.sync_boss_portraits()
+    }
+
+    fn sync_boss_portraits(&mut self) -> Result<(), String> {
+        let units = self.encounter.frames.visible_units(&self.replica);
+        let ui = self.targeting.frame_ui().cloned();
+        for (index, portrait) in self.targeting.portraits.bosses.iter_mut().enumerate() {
+            let host = ui
+                .as_ref()
+                .and_then(|ui| ui.bind().frame_control(portrait.slot.frame));
+            let appearance = units
+                .get(index)
+                .and_then(|&id| self.world.unit_appearance(id))
+                .cloned();
+            portrait.sync(&mut self.world, host, appearance)?;
+        }
+        Ok(())
     }
 
     /// The window's portrait slot and `npc`'s appearance while the window shows that NPC.
@@ -623,6 +643,9 @@ impl GameClient {
         let portraits = &mut self.targeting.portraits;
         portraits.player.clear(&mut self.world);
         portraits.target.clear(&mut self.world);
+        for portrait in &mut portraits.bosses {
+            portrait.clear(&mut self.world);
+        }
         portraits.pet.clear(&mut self.world);
         portraits.micro.clear(&mut self.world);
         portraits.character.clear(&mut self.world);
@@ -657,6 +680,7 @@ impl GameClient {
             &portraits.trade,
         ]
         .into_iter()
+        .chain(portraits.bosses.iter())
         .find(|portrait| portrait.slot.frame == frame)
         .map(Portrait::snapshot)
         .or_else(|| {
