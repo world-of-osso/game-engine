@@ -1896,7 +1896,12 @@ impl GameClient {
                 self.show_session_feedback()?;
             }
             AccountEvent::Feedback => self.show_session_feedback()?,
-            AccountEvent::WorldReset => self.reset_world()?,
+            AccountEvent::WorldReset => {
+                self.close_professions();
+                self.professions.book = Default::default();
+                self.professions.error.clear();
+                self.reset_world()?;
+            }
             AccountEvent::RestState(update) => {
                 self.in_rest_area = update
                     .snapshot

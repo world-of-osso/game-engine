@@ -107,7 +107,6 @@ impl GameClient {
     pub(super) fn update_professions(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.close_professions();
-            self.professions.book.snapshot = ProfessionSnapshot::default();
             return Ok(());
         }
         self.professions.poll_catalog(&self.data_root)?;

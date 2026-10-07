@@ -12,7 +12,7 @@ pub const QUANTITY: &str = "ProfessionsQuantity";
 pub const LIST: &str = "ProfessionsRecipeScrollFrame";
 const WIDTH: f32 = 860.0;
 const HEIGHT: f32 = 600.0;
-const ROW_HEIGHT: f32 = 34.0;
+pub const ROW_HEIGHT: f32 = 34.0;
 const LIST_HEIGHT: f32 = 450.0;
 
 #[derive(Clone, Debug, Default, PartialEq, Eq)]
@@ -34,6 +34,7 @@ pub struct ProfessionView {
 }
 
 pub fn professions_screen(ctx: &SharedContext) -> Element {
+    let _ = ctx.get::<ui_toolkit::atlas::ActiveSkin>();
     let Some(view) = ctx.get::<ProfessionView>().filter(|view| view.book.visible) else {
         return vec![];
     };
@@ -172,11 +173,13 @@ fn recipe_row(view: &ProfessionView, recipe: &crate::professions::Recipe, y: f32
 
 fn schematic(view: &ProfessionView) -> Element {
     let Some(recipe) = view.book.selected_recipe() else {
-        return text(
+        let mut out = text(
             "ProfessionsSelection",
             "Select a recipe",
             (380.0, 100.0, 440.0, 24.0),
         );
+        out.extend(craft_controls(view));
+        return out;
     };
     let mut out = text(
         "ProfessionsRecipeName",

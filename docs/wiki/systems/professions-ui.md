@@ -2,6 +2,10 @@
 
 Retail profession trainer, ProfessionsBook and ProfessionsFrame on the server profession protocol. The spec is [professions-frame](../../specs/professions-frame.md); server rules are game-server `docs/wiki/systems/professions.md`.
 
+## Retired Bevy implementation
+
+The sections below describe the removed client. Historical spec checkboxes are not native proof.
+
 ## Data flow
 
 - **Recipes** are client data, as in Retail: `game/professions_data.rs` builds a `ProfessionCatalog` from the pinned DB2 CSVs (`SkillLine`, `SkillLineAbility` rows with a skill-up line, `SpellReagents`, `SpellEffect` CREATE_ITEM, `TradeSkillCategory`, `SpellName`/`SpellMisc`, `ItemSparse`) on first use and caches it under `data/cache/profession_catalog-<build>.bin`.
@@ -20,3 +24,22 @@ Retail profession trainer, ProfessionsBook and ProfessionsFrame on the server pr
 ## Gaps
 
 Filter dropdowns, expansion switcher, tooltips, unlearn, Specializations / Crafting Orders tabs, cast bar docked on the page, quality and concentration. Gathering (herb/ore nodes) waits for server game objects; doodad mining nodes are not interactable.
+
+## Native Godot implementation
+
+Verified source: 2026-10-07. `godot/network` relays `ProfessionSnapshot`; `account.rs` emits an owner event. `professions.rs` retains snapshots during Loading and clears owner state on WorldReset. The existing inventory consumer remains authoritative for reagent removal and created items.
+
+`professions_catalog.rs` loads pinned SkillLine/SkillLineAbility, TradeSkillCategory, SpellReagents and CREATE_ITEM SpellEffect metadata on a worker. Existing spell and item catalogs supply names/icons. `ProfessionBook` groups/filter learned recipes and derives cast limits from actual bag stacks; equipment is excluded. `ProfessionView` projects onto native skin-aware panel chrome and MinimalScrollBar. K and learned profession spell entries open the window; Escape closes it. CastFailed text reuses the existing Retail error path.
+
+The [native coverage section](../../specs/professions-frame.md#native-godot-coverage-2026-10-07) owns test/live proof and remaining gaps. Native trainers and exact Retail book-entry/art/layout parity are not implemented here.
+
+## Sources
+
+- [Professions contract](../../specs/professions-frame.md) — Retail citations and bounded native proof.
+- [Native host](../../../godot/rust/src/professions.rs) — owner event, catalog worker, inputs and authoritative refresh.
+- [Pure book](../../../godot/ui-model/src/professions.rs) and [screen](../../../godot/ui-model/src/professions_frame.rs) — bag counts, requests and projection.
+
+## See Also
+
+- [[godot-conversion]] — native registry host.
+- [[forever-preset]] — skin selection, not different crafting rules.
