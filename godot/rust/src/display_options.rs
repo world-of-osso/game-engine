@@ -21,6 +21,7 @@ pub(crate) fn apply_graphics_display_options(
     update_rcas_layer(viewport, scale);
     update_bloom(viewport, graphics);
     update_anti_alias(viewport, graphics);
+    update_world_effects(viewport, graphics);
 
     let vsync_mode = if graphics.vsync_enabled {
         VSyncMode::MAILBOX
@@ -44,6 +45,36 @@ pub(crate) fn apply_graphics_display_options(
 const RCAS_LAYER_NAME: &str = "NativeRcasLayer";
 const BLOOM_CONTROLLER_NAME: &str = "NativeBloom";
 const TAA_CONTROLLER_NAME: &str = "NativeTaa";
+const WORLD_EFFECTS_CONTROLLER_NAME: &str = "NativeWorldEffects";
+
+fn update_world_effects(viewport: &mut Gd<Viewport>, graphics: &GraphicsOptionsFile) {
+    let existing = viewport.try_get_node_as::<Node>(WORLD_EFFECTS_CONTROLLER_NAME);
+    if existing.is_none() && !graphics.depth_of_field && !graphics.ssao_enabled {
+        return;
+    }
+    let mut controller = existing.unwrap_or_else(|| spawn_world_effects_controller(viewport));
+    controller.call(
+        "configure",
+        &[
+            graphics.depth_of_field.to_variant(),
+            graphics.ssao_enabled.to_variant(),
+        ],
+    );
+}
+
+fn spawn_world_effects_controller(viewport: &mut Gd<Viewport>) -> Gd<Node> {
+    let scene = ResourceLoader::singleton()
+        .load("res://scenes/world_effects.tscn")
+        .expect("Cannot load native world effects controller scene")
+        .try_cast::<PackedScene>()
+        .expect("Native world effects controller is not a PackedScene");
+    let mut controller = scene
+        .instantiate()
+        .expect("Cannot instantiate native world effects controller");
+    controller.set_name(WORLD_EFFECTS_CONTROLLER_NAME);
+    viewport.add_child(&controller);
+    controller
+}
 
 fn update_anti_alias(viewport: &mut Gd<Viewport>, graphics: &GraphicsOptionsFile) {
     let sampling = match graphics.anti_alias {
