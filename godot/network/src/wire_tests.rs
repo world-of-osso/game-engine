@@ -1,6 +1,35 @@
 //! Real loopback UDP proof; owns its server and never contacts the development game server.
 
 #[test]
+fn meetingstones_default_bridge_receives_request_over_udp() {
+    use shared::protocol::{InteractionChannel, SummonRequest};
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8301);
+    await_connected(&mut server, &mut host);
+    let expected = SummonRequest {
+        summoner: "Stonecaller".into(),
+        zone_id: 0,
+        time_left_ms: 120_000,
+    };
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<SummonRequest>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<InteractionChannel>(expected.clone());
+    let Event::Message(message) = await_bridge_event(
+        &mut server,
+        &mut host,
+        "meeting-stone offer on default bridge",
+        |event| matches!(event, Event::Message(message) if message.is::<SummonRequest>()),
+    ) else {
+        panic!("expected summon offer")
+    };
+    assert_eq!(message.downcast::<SummonRequest>().ok(), Some(expected));
+    host.stop();
+}
+
+#[test]
 fn deathstate_default_bridge_receives_snapshot_over_udp() {
     use shared::protocol::{DeathChannel, DeathSnapshot, DeathStateSnapshot, DeathStateUpdate};
     let (mut server, address) = start_fixture_server();

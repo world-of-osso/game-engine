@@ -1,6 +1,9 @@
 ## 2026-10-07 — Restart-required native SSAO
 
 [Native SSAO](investigations/native-ssao.md#restart-required-startup-mechanism) preserves the deliberate prepass-disabled Off baseline. GDExtension Servers initialization selects prepass from existing saved RON before RenderingServer construction; Options exposes restart-required persistence without live SSAO/prepass changes. No generated config, runtime project edits, DOF, or implicit AA changes. Lavapipe fresh Off/On/restarted-Off pixels, real pending UI toggles and the affected Options-tree regression pass. Strict Dozen rejection remains; evidence and scope are recorded in the investigation.
+## 2026-10-07 — Native meeting stones
+
+[Meeting stones](systems/meeting-stones.md) records native stone/ritual picking, target-retaining use, bridge/Account summon dispatch and shared StaticPopup countdown/combat/answer lifecycle. [Client contract](../specs/meeting-stones.md#native-verification-2026-10-07) owns targeted and live proof; historical Bevy captures are not native acceptance.
 
 ## 2026-10-07 — Native flight map implementation
 

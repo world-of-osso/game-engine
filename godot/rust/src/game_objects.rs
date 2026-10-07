@@ -1,5 +1,5 @@
-//! Real replicated mailbox, Guild Vault and chair M2s, resolved through build-pinned
-//! GameObjectDisplayInfo.
+//! Real replicated usable game-object M2s, including stones and ritual portals,
+//! resolved through build-pinned GameObjectDisplayInfo.
 use crate::{
     assets::{
         M2_BOUNDS_META, build_model,
@@ -15,7 +15,8 @@ use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
 use godot::{classes::Node3D, prelude::*};
 use shared::components::{Position, Rotation};
 use shared::protocol::{
-    GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX, GameObjectInfo,
+    GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX,
+    GAMEOBJECT_TYPE_MEETINGSTONE, GAMEOBJECT_TYPE_RITUAL, GameObjectInfo,
 };
 use std::{collections::HashMap, path::PathBuf};
 
@@ -69,7 +70,10 @@ const MODEL_YAW: f32 = -std::f32::consts::FRAC_PI_2;
 pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
     match go_type {
         GAMEOBJECT_TYPE_MAILBOX => Some(ActiveWowCursor::Mail),
-        GAMEOBJECT_TYPE_GUILD_BANK | GAMEOBJECT_TYPE_CHAIR => Some(ActiveWowCursor::Interact),
+        GAMEOBJECT_TYPE_GUILD_BANK
+        | GAMEOBJECT_TYPE_CHAIR
+        | GAMEOBJECT_TYPE_MEETINGSTONE
+        | GAMEOBJECT_TYPE_RITUAL => Some(ActiveWowCursor::Interact),
         _ => None,
     }
 }
@@ -90,7 +94,7 @@ impl GameObjects {
             light: None,
         }
     }
-    /// Whether `id` is a shown mailbox, Guild Vault or chair.
+    /// Whether `id` is a shown usable game object.
     pub fn contains(&self, id: u64) -> bool {
         self.objects.contains_key(&id)
     }
@@ -293,6 +297,16 @@ mod tests {
         );
         // GAMEOBJECT_TYPE_GENERIC decoration is not shown as usable.
         assert_eq!(game_object_cursor(5), None);
+    }
+
+    #[test]
+    fn meetingstones_stone_and_portal_have_interaction_cursor() {
+        for kind in [
+            shared::protocol::GAMEOBJECT_TYPE_MEETINGSTONE,
+            shared::protocol::GAMEOBJECT_TYPE_RITUAL,
+        ] {
+            assert_eq!(game_object_cursor(kind), Some(ActiveWowCursor::Interact));
+        }
     }
 
     #[test]
