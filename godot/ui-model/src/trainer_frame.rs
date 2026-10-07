@@ -42,9 +42,9 @@ pub fn trainer_screen(ctx: &SharedContext) -> Element {
         (18.0, 42.0, 380.0, 38.0),
         GOLD,
     ));
-    children.extend(filters(&view.book));
     children.extend(rank_text(view));
     children.extend(service_list(ctx, view));
+    children.extend(filters(&view.book));
     children.extend(text(
         "ClassTrainerMoneyFrame",
         &format!("Money: {}", money(view.book.money)),
@@ -86,6 +86,7 @@ fn rank_text(view: &TrainerView) -> Element {
     };
     let line = view.ranks.iter().find(|line| {
         line.rank > 0
+            && line.max_rank > 0
             && list
                 .services
                 .iter()
