@@ -30,6 +30,17 @@ func check_portrait(forever: bool) -> bool:
 		return false
 	await settle(3)
 	var early: Dictionary = fixture.portrait_state()
+	if forever:
+		# player_frame() returns FlareUnit art with no PlayerPortrait host in Forever.
+		if early.exists:
+			push_error("Forever unexpectedly mounted a model portrait")
+			return false
+		capture("portraitless.png", early)
+		print("PASS capturepolish_forever_frame_intentionally_has_no_portrait_slot")
+		return true
+	if not early.exists:
+		push_error("Modern PlayerPortrait host is missing")
+		return false
 	print("PORTRAIT_EARLY skin=", skin, " pending=", early.pending, " model_shown=", early.model_shown, " pixels=", lit_pixels(early.image))
 	capture("portrait-early.png", early)
 	var ready := false
@@ -86,7 +97,7 @@ func lit_pixels(image: Image) -> int:
 func capture(name: String, state: Dictionary) -> void:
 	var filename := skin + "-" + name
 	root.get_texture().get_image().save_png(output.path_join(filename))
-	var image: Image = state.image
+	var image: Image = state.get("image")
 	if image != null:
 		image.save_png(output.path_join(filename.get_basename() + "-raw.png"))
 	state.erase("image")
