@@ -49,9 +49,11 @@ impl IconMasks {
             })
             .collect();
         for (id, mask, fdid, crop) in pending {
-            let source = match self.masked(mask, fdid, crop, registry) {
-                Ok(texture) => TextureSource::Dynamic(texture),
-                Err(error) => {
+            // FDID 0 is no icon: an empty portrait ring (`SpellbookFrameState::portrait_fdid`).
+            let source = match (fdid != 0).then(|| self.masked(mask, fdid, crop, registry)) {
+                None => TextureSource::None,
+                Some(Ok(texture)) => TextureSource::Dynamic(texture),
+                Some(Err(error)) => {
                     godot_error!("Icon {fdid} cannot be masked: {error}");
                     TextureSource::None
                 }
@@ -156,13 +158,16 @@ mod tests {
     use game_engine_ui_model::bag_frame_component::{
         BACKPACK_PORTRAIT, BagContainerState, BagFrameState, bag_frame_screen,
     };
+    use game_engine_ui_model::spellbook_frame_component::{
+        SpellbookFrameState, spellbook_frame_screen,
+    };
     use image::RgbaImage;
     use ui_toolkit::frame::WidgetData;
     use ui_toolkit::registry::FrameRegistry;
     use ui_toolkit::screen::{Screen, SharedContext};
     use ui_toolkit::widgets::texture::TextureSource;
 
-    use super::is_round_icon;
+    use super::{IconMasks, is_round_icon};
 
     fn texture(fdid: u32) -> RgbaImage {
         let path = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"))
@@ -209,5 +214,31 @@ mod tests {
         assert_eq!(masked.get_pixel(0, 0)[3], 0, "corner cut away");
         assert_eq!(masked.get_pixel(w - 1, h - 1)[3], 0, "corner cut away");
         assert!(masked.get_pixel(w / 2, h / 2)[3] > 200, "centre kept");
+    }
+
+    /// Without a specialization the spellbook portrait's FDID is 0, an empty ring
+    /// (`SpellbookFrameState::portrait_fdid`): nothing to mask, not a missing file.
+    #[test]
+    fn spellbook_portrait_without_a_specialization_draws_no_icon() {
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        let mut ctx = SharedContext::new();
+        ctx.insert(SpellbookFrameState {
+            viewport: [1920.0, 1080.0],
+            ..Default::default()
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(spellbook_frame_screen).sync(&ctx, &mut registry);
+        IconMasks::default().apply(&mut registry);
+        let portrait = registry
+            .frames_iter()
+            .find(|frame| frame.name.as_deref() == Some("SpellBookPortrait"))
+            .expect("spellbook portrait");
+        let Some(WidgetData::Texture(texture)) = &portrait.widget_data else {
+            panic!("portrait is not a texture");
+        };
+        assert!(matches!(texture.source, TextureSource::None));
     }
 }
