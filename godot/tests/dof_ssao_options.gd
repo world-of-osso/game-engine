@@ -5,6 +5,7 @@ extends "res://tests/display_options.gd"
 var world_environment: WorldEnvironment
 var world_camera: Camera3D
 var original_environment: Environment
+var original_attributes: CameraAttributesPractical
 var portrait_camera: Camera3D
 var options_path: String
 
@@ -47,10 +48,23 @@ func run_test() -> void:
 	await process_frame
 	if not expect_resources(true, true, "replacement On world"):
 		return
-	print("PASS: saved and live DOF/SSAO resources, independent switches, Off identity, late world entry, portrait untouched")
+	if not await commit_effects(client, false, false):
+		return
+	original_attributes = CameraAttributesPractical.new()
+	original_attributes.exposure_multiplier = 0.65
+	world_camera.attributes = original_attributes
+	if not await commit_effects(client, true, false) or not expect_resources(true, false, "existing practical attributes On"):
+		return
+	if world_camera.attributes == original_attributes or original_attributes.dof_blur_far_enabled:
+		fail("DOF mutated shared original attributes")
+		return
+	if not await commit_effects(client, false, false) or not expect_resources(false, false, "existing practical attributes Off"):
+		return
+	print("PASS: saved and live DOF/SSAO resources, independent switches, Off identity, late world entry, shared attributes preserved, portrait untouched")
 	quit(0)
 
 func add_world() -> void:
+	original_attributes = null
 	original_environment = Environment.new()
 	original_environment.ambient_light_energy = 0.7
 	var lighting := Node3D.new()
@@ -88,10 +102,14 @@ func expect_resources(dof: bool, ssao: bool, stage: String) -> bool:
 		if attributes == null or not attributes.dof_blur_far_enabled or not attributes.dof_blur_near_enabled:
 			fail(stage + ": DOF attributes missing")
 			return false
-		if attributes.dof_blur_far_distance != 15.0 or attributes.dof_blur_far_transition != 5.0 or attributes.dof_blur_near_distance != 15.0 or attributes.dof_blur_near_transition != 5.0 or attributes.dof_blur_amount != 0.1:
+		if attributes.dof_blur_far_distance != 15.0 or attributes.dof_blur_far_transition != 5.0 or attributes.dof_blur_near_distance != 15.0 or attributes.dof_blur_near_transition != 5.0 or not is_equal_approx(attributes.dof_blur_amount, 0.1):
 			fail(stage + ": DOF mapping differs")
 			return false
-	elif world_camera.attributes != null:
+		var exposure := original_attributes.exposure_multiplier if original_attributes != null else 1.0
+		if not is_equal_approx(attributes.exposure_multiplier, exposure):
+			fail(stage + ": DOF changed unrelated exposure")
+			return false
+	elif world_camera.attributes != original_attributes:
 		fail(stage + ": Off changed null camera attributes")
 		return false
 	if portrait_camera.attributes != null:
@@ -102,8 +120,8 @@ func expect_resources(dof: bool, ssao: bool, stage: String) -> bool:
 func commit_effects(client: Node, dof: bool, ssao: bool) -> bool:
 	# Match the existing Options path: reread hidden fields, save snapshot, apply.
 	# Not live file watching: writing alone must not change the renderer.
-	var old_dof := world_camera.attributes != null
-	var old_ssao := world_environment.environment.ssao_enabled
+	var old_attributes := world_camera.attributes
+	var old_environment := world_environment.environment
 	var text := FileAccess.get_file_as_string(options_path)
 	for pair in [["depthOfField", dof], ["ssaoEnabled", ssao]]:
 		var pattern := RegEx.new()
@@ -116,7 +134,7 @@ func commit_effects(client: Node, dof: bool, ssao: bool) -> bool:
 	file.store_string(text)
 	file.close()
 	await process_frame
-	if (world_camera.attributes != null) != old_dof or world_environment.environment.ssao_enabled != old_ssao:
+	if world_camera.attributes != old_attributes or world_environment.environment != old_environment:
 		fail("Effect file unexpectedly watched before Options commit")
 		return false
 	var cap := Engine.max_fps != 0
