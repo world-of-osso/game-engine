@@ -5,11 +5,11 @@ Native `ClassTrainerFrame` in `godot/ui-model/src/trainer*.rs` and `godot/rust/s
 ## What it must do
 
 - [ ] A concrete `TrainerList` opens the trainer; closing sends `CloseInteraction`, and matching `InteractionClosed` or world reset closes it.
-- [ ] Available / Unavailable / Used filters project server states without modifying them; selection remains visible.
-- [ ] Services display catalog names/icons, cost, level, skill rank and prerequisite abilities. Known services show Already known without cost. Learned relevant skill ranks come from `ProfessionSnapshot`.
-- [ ] Train sends exactly one `TrainerBuySpell` for an available affordable selected service, waits for authority, and refreshes service state from the next list and money from replicated Gold.
-- [ ] Adding a primary profession requires Accept / Cancel and a free primary slot; changing selection or closing cancels confirmation.
-- [ ] `TrainerBuyFailed` displays its reason without optimistic spending. Both Modern and Forever use the shared window chrome and same decisions.
+- [x] Available / Unavailable / Used filters project server states without modifying them; selection remains visible.
+- [x] Services display catalog names/icons, cost, level, skill rank and prerequisite abilities. Known services show Already known without cost. Learned relevant skill ranks come from `ProfessionSnapshot`.
+- [x] Train sends exactly one `TrainerBuySpell` for an available affordable selected service, waits for authority, and refreshes service state from the next list and money from replicated Gold.
+- [x] Adding a primary profession requires Accept / Cancel and a free primary slot; changing selection or closing cancels confirmation.
+- [x] `TrainerBuyFailed` displays its reason without optimistic spending. Both Modern and Forever use the shared window chrome and same decisions.
 
 ## Retail references
 
@@ -38,11 +38,15 @@ Under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/trainer.rs`: concrete list, filters, exact once request, authoritative refresh, failure text, confirmation, disabled services and both-skin rendered registry projection.
-- Native/private evidence is appended to canonical `data/diagnostics/trainerframe-2026-10-07/proof-ledger.txt`.
+- Native/private evidence is appended to canonical `data/diagnostics/trainerframe-2026-10-07/proof-ledger.txt` (verified 2026-10-07): nine targeted tests and matching extension/CLI build pass at `57f3e2286`; changed-file formatting passes. No broad-suite claim.
+- Inspected Modern `shots/01-open.png`, `03-confirm.png`, `04-trained.png` at `263c9f461`: real Pomeroy gossip, first-profession confirmation, Train purchase, money 10000 → 9990 copper and Herbalism Already known. Model/bridge purchase scope is unchanged by the presentation-only follow-up.
+- Inspected Forever `forever-shots/01-open.png`, `02-available-off.png`, `03-used-off.png`, `04-restored.png` at `57f3e2286`: persisted 9990 copper/known state, catalog icons, native pointer-driven Available and Used removal/restoration, root profession flag not displayed as 1/0. `state.txt` and `client4-live.log` retain assertions; client exit 0. Four launches total against an approved `f25258b` server with a fresh offline redb copy and read-only world.db, UDP5304/Weston tf24.
+- Earlier filter capture was a genuine native failure: overlapping list controls intercepted popup input. The final screen emits filter controls after the list; final live captures verify the fix. Missing icon 4620675 was extracted from local CASC into canonical textures, never CDN.
 
 ## Known gaps (current cycle)
 
-- [ ] Current-head targeted tests and inspected private gossip → training → money/state captures remain required before native acceptance.
+- [ ] Native matching `InteractionClosed`, world-reset and Escape network-close receipt lack dedicated behavioral integration assertions; close/request code is wired, but do not infer full lifecycle acceptance from purchase proof.
+- [ ] Client exit logs contain texture/RID/ObjectDB leak warnings; exit 0 is not clean-resource shutdown proof.
 - [ ] Exact Retail 338×424 geometry, trainer-specific background/row art, portrait, rank fill, per-requirement colouring, tooltip and SkillStepButton parity remain unverified. No user-requested deviation is removed or invented.
 
 ## Out of scope
