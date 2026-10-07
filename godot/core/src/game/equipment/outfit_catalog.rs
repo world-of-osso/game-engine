@@ -132,6 +132,11 @@ impl OutfitData {
         let data = LoadedOutfitData {
             source_connection: Some(Mutex::new(connection)),
             components: ComponentFileData::load_source(&components_dir)?,
+            model_materials: if forever {
+                ModelMaterials::new()
+            } else {
+                load_model_materials(&self.data_dir)?
+            },
             helmet_geoset_rules,
             ..LoadedOutfitData::default()
         };
