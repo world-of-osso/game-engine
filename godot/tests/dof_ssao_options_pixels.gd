@@ -89,9 +89,17 @@ func run_test() -> void:
 func add_geometry() -> void:
 	geometry = Node3D.new()
 	root.add_child(geometry)
-	var material := StandardMaterial3D.new()
-	material.albedo_color = Color(0.8, 0.8, 0.8)
-	material.roughness = 1.0
+	# Production terrain material: ambient_light_disabled previously bypassed SSAO.
+	var material := ShaderMaterial.new()
+	material.shader = load("res://shaders/terrain.gdshader")
+	var image := Image.create(1, 1, false, Image.FORMAT_RGBA8)
+	image.fill(Color(0.6, 0.6, 0.6, 1.0))
+	material.set_shader_parameter("ground_0", ImageTexture.create_from_image(image))
+	material.set_shader_parameter("ambient", Vector3.ONE * 0.6)
+	material.set_shader_parameter("horizon_ambient", Vector3.ONE * 0.6)
+	material.set_shader_parameter("ground_ambient", Vector3.ONE * 0.6)
+	var sun := DirectionalLight3D.new()
+	geometry.add_child(sun)
 	var floor_mesh := PlaneMesh.new()
 	floor_mesh.size = Vector2(60, 60)
 	var floor_node := MeshInstance3D.new()

@@ -22,8 +22,7 @@ use crate::lighting::TerrainLight;
 
 const SHADER_PATH: &str = "res://shaders/wmo.gdshader";
 const SHADER_TYPE: &str = "shader_type spatial;";
-const RENDER_MODE: &str =
-    "render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;";
+const RENDER_MODE: &str = "render_mode fog_disabled, specular_disabled, cull_back, blend_mix;";
 
 /// `iWmoApi.h` `wmoMaterialShader[MAX_WMO_SHADERS]`: MOMT shader id ->
 /// (WmoVertexShader, WmoPixelShader). 10 waterWindow and 14 submarineWindow are
@@ -675,9 +674,7 @@ fn shader_variant(source: &str, key: WmoShaderKey) -> Result<String, String> {
     } else {
         "cull_back"
     };
-    let render_mode = format!(
-        "render_mode ambient_light_disabled, fog_disabled, specular_disabled, {cull}, blend_mix;"
-    );
+    let render_mode = format!("render_mode fog_disabled, specular_disabled, {cull}, blend_mix;");
     let mut code = source.replace(RENDER_MODE, &render_mode);
     if key.blended {
         code = code.replacen(

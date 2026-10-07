@@ -75,6 +75,9 @@ func _apply_ssao(world: WorldEnvironment) -> void:
 	environment.ssao_radius = SSAO_RADIUS
 	environment.ssao_intensity = SSAO_INTENSITY
 	environment.ssao_power = SSAO_POWER
+	# Retail ambient is emitted through custom light(), not engine ambient.
+	environment.ssao_light_affect = 1.0
+	environment.ssao_ao_channel_affect = 1.0
 	_environment_originals[world] = original
 	world.environment = environment
 

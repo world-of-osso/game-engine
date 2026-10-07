@@ -1,6 +1,6 @@
 shader_type spatial;
 // The binder creates source variants for the authored blend, cull and depth state.
-render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;
+render_mode fog_disabled, specular_disabled, cull_back, blend_mix;
 #include "res://shaders/m2_point_light.gdshaderinc"
 #include "res://shaders/tree_bend.gdshaderinc"
 
@@ -239,6 +239,9 @@ void fragment() {
 	}
 	// The reference's UNORM colour attachment clamps the written alpha and colour.
 	vec4 color = vec4(diffuse, clamp(gx_blend <= 1 ? mesh.a : discard_alpha * mesh.a, 0.0, 1.0));
+	// Keep authored lighting, but do not compile out Godot's SSAO sampling.
+	IRRADIANCE = vec4(0.0, 0.0, 0.0, 1.0);
+	RADIANCE = vec4(0.0, 0.0, 0.0, 1.0);
 	ALBEDO = vec3(1.0);
 	ROUGHNESS = 1.0;
 	ALPHA = color.a * scenery_opacity;

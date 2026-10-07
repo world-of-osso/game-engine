@@ -77,7 +77,7 @@ func expect_resources(dof: bool, ssao: bool, stage: String) -> bool:
 	if environment.ssao_enabled != ssao or not is_equal_approx(environment.ambient_light_energy, 0.7):
 		fail(stage + ": SSAO or unrelated ambient energy differs")
 		return false
-	if ssao and (environment.ssao_radius != 1.0 or environment.ssao_intensity != 2.0 or environment.ssao_power != 1.5):
+	if ssao and (environment.ssao_radius != 1.0 or environment.ssao_intensity != 2.0 or environment.ssao_power != 1.5 or environment.ssao_light_affect != 1.0 or environment.ssao_ao_channel_affect != 1.0):
 		fail(stage + ": SSAO radius/intensity/power differs")
 		return false
 	if not ssao and environment != original_environment:
