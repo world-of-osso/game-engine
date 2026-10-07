@@ -1,5 +1,5 @@
 //! Edit-mode drafts and mouse geometry, independent of native rendering and persistence.
-use crate::hud_edit_component::EditModeSelectionBox;
+use crate::hud_edit_component::{EditModeSelectionBox, PANEL_H, PANEL_TITLE_H, PANEL_W};
 use crate::hud_edit_elements::element_by_key;
 use game_engine_core::ui_layout_data::{ActiveLayout, HudAnchor, SavedElement};
 use std::collections::BTreeMap;
@@ -74,6 +74,9 @@ pub struct EditDraft {
     pub working: Placements,
     pub selected: Option<String>,
     pub drag: Option<Drag>,
+    pub hovered: Option<String>,
+    pub panel_position: Option<[f32; 2]>,
+    pub panel_grab: Option<[f32; 2]>,
 }
 
 impl EditDraft {
@@ -117,6 +120,42 @@ impl EditDraft {
         let position = snap_position([at[0] - drag.grab[0], at[1] - drag.grab[1]], size, screen);
         let placement = save_top_left(element.default_anchor, position, size, screen);
         self.working.insert(drag.key.clone(), placement);
+    }
+
+    pub fn start_panel_drag(&mut self, rect: [f32; 4], at: [f32; 2]) -> bool {
+        let in_title = at[0] >= rect[0]
+            && at[0] <= rect[0] + rect[2]
+            && at[1] >= rect[1]
+            && at[1] < rect[1] + PANEL_TITLE_H;
+        if !self.active || !in_title {
+            return false;
+        }
+        self.panel_position = Some([rect[0], rect[1]]);
+        self.panel_grab = Some([at[0] - rect[0], at[1] - rect[1]]);
+        true
+    }
+
+    pub fn move_panel_drag(&mut self, at: [f32; 2], screen: [f32; 2]) -> bool {
+        let Some(grab) = self.panel_grab else {
+            return false;
+        };
+        self.panel_position = Some(clamp_position(
+            [at[0] - grab[0], at[1] - grab[1]],
+            [PANEL_W, PANEL_H],
+            screen,
+        ));
+        true
+    }
+
+    pub fn update_hover(&mut self, boxes: &[EditModeSelectionBox], at: [f32; 2]) {
+        self.hovered = boxes
+            .iter()
+            .filter(|entry| {
+                let [x, y, w, h] = entry.rect;
+                at[0] >= x && at[0] <= x + w && at[1] >= y && at[1] <= y + h
+            })
+            .min_by(|a, b| (a.rect[2] * a.rect[3]).total_cmp(&(b.rect[2] * b.rect[3])))
+            .map(|entry| entry.key.clone());
     }
 
     pub fn reset_selected(&mut self) {

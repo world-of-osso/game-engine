@@ -113,7 +113,13 @@ impl GameClient {
 
     fn refresh_hud_edit(&mut self) -> Result<(), String> {
         self.hud_editor.boxes = self.collect_hud_boxes()?;
+        for entry in &mut self.hud_editor.boxes {
+            entry.hovered = self.hud_editor.draft.hovered.as_deref() == Some(entry.key.as_str());
+        }
         let panel = self.hud_edit_panel();
+        if panel.position.is_none() {
+            return Err("No clear default HUD manager position".into());
+        }
         if let Some(ui) = &mut self.hud_editor.ui {
             let mut ui = ui.bind_mut();
             ui.set_state(EditModeOverlayState {
@@ -143,6 +149,9 @@ impl GameClient {
                 .any(|(name, _)| *name == self.ui_layout.name),
             dirty: self.hud_editor.draft.working != self.ui_layout.elements,
             status: self.hud_editor.status.clone(),
+            position: self.hud_editor.draft.panel_position.or_else(|| {
+                find_panel_position(self.hud_edit_screen_size(), &self.hud_editor.boxes)
+            }),
         }
     }
 
@@ -154,10 +163,20 @@ impl GameClient {
             return self.hud_edit_button(&button);
         }
         if let Ok(motion) = event.clone().try_cast::<InputEventMouseMotion>() {
+            let at = (motion.get_position() / self.effective_ui_scale()).to_array();
+            let screen = self.hud_edit_screen_size();
+            if self.hud_editor.draft.move_panel_drag(at, screen) {
+                self.refresh_hud_edit()?;
+                return Ok(true);
+            }
+            self.hud_editor
+                .draft
+                .update_hover(&self.hud_editor.boxes, at);
             if self.hud_editor.draft.drag.is_some() {
                 self.move_hud_drag(motion.get_position())?;
                 return Ok(true);
             }
+            self.refresh_hud_edit()?;
         }
         Ok(false)
     }
@@ -167,23 +186,29 @@ impl GameClient {
             return Ok(false);
         }
         if !button.is_pressed() {
-            return Ok(self.hud_editor.draft.drag.take().is_some());
+            let mover = self.hud_editor.draft.drag.take().is_some();
+            let panel = self.hud_editor.draft.panel_grab.take().is_some();
+            return Ok(mover || panel);
         }
         let at = button.get_position();
-        let on_panel = self
+        let panel_rect = self
             .hud_editor
             .ui
             .as_ref()
-            .and_then(|ui| ui.bind().frame_rect(EDIT_MODE_PANEL.0))
-            .is_some_and(|(rect, _)| {
-                Rect2::new(
-                    Vector2::new(rect[0], rect[1]),
-                    Vector2::new(rect[2], rect[3]),
-                )
-                .contains_point(at)
-            });
-        if on_panel {
-            return Ok(false);
+            .and_then(|ui| ui.bind().frame_rect(EDIT_MODE_PANEL.0));
+        if let Some((rect, _)) = panel_rect {
+            let panel = Rect2::new(
+                Vector2::new(rect[0], rect[1]),
+                Vector2::new(rect[2], rect[3]),
+            );
+            if panel.contains_point(at) {
+                let scale = self.effective_ui_scale();
+                let logical_rect = rect.map(|value| value / scale);
+                return Ok(self
+                    .hud_editor
+                    .draft
+                    .start_panel_drag(logical_rect, (at / scale).to_array()));
+            }
         }
         self.hud_editor.draft.start_drag(
             &self.hud_editor.boxes,
@@ -191,6 +216,16 @@ impl GameClient {
         );
         self.refresh_hud_edit()?;
         Ok(true)
+    }
+
+    fn hud_edit_screen_size(&self) -> [f32; 2] {
+        self.base()
+            .get_viewport()
+            .expect("HUD editor viewport")
+            .get_visible_rect()
+            .size
+            .to_array()
+            .map(|value| value / self.effective_ui_scale())
     }
 
     fn move_hud_drag(&mut self, at: Vector2) -> Result<(), String> {
@@ -261,31 +296,19 @@ impl GameClient {
             .ok_or("HUD editor requires a selected character")?;
         let path = crate::ui_layout::layout_path();
         let name = self.hud_edit_panel().name_draft;
-        let working = self.hud_editor.draft.working.clone();
-        match action {
-            ACTION_EDIT_MODE_EXIT => return self.exit_hud_edit(),
-            ACTION_EDIT_MODE_REVERT => self.hud_editor.draft.enter(&self.ui_layout),
-            ACTION_EDIT_MODE_RESET => self.hud_editor.draft.reset_selected(),
-            ACTION_EDIT_MODE_SAVE => {
-                let layout = ui_layout_data::save_layout_elements(&path, id, working)?;
-                self.load_hud_edit_layout(layout)?;
-            }
-            ACTION_EDIT_MODE_NEW => {
-                let layout = ui_layout_data::create_layout(&path, id, &name, working)?;
-                self.load_hud_edit_layout(layout)?;
-            }
-            ACTION_EDIT_MODE_RENAME => {
-                ui_layout_data::rename_layout(&path, &self.ui_layout.name, &name)?;
-                self.load_hud_edit_layout(ui_layout_data::active_layout(&path, id)?)?;
-            }
-            ACTION_EDIT_MODE_DELETE => {
-                ui_layout_data::delete_layout(&path, &self.ui_layout.name)?;
-                self.load_hud_edit_layout(ui_layout_data::active_layout(&path, id)?)?;
-            }
-            ACTION_EDIT_MODE_PREV_LAYOUT | ACTION_EDIT_MODE_NEXT_LAYOUT => {
-                self.cycle_hud_layout(action == ACTION_EDIT_MODE_NEXT_LAYOUT)?
-            }
-            _ => return Err(format!("Unknown HUD editor action {action:?}")),
+        let layout = apply_manager_action(
+            &path,
+            id,
+            action,
+            &name,
+            &self.ui_layout,
+            &mut self.hud_editor.draft,
+        )?;
+        if !self.hud_editor.draft.active {
+            return self.exit_hud_edit();
+        }
+        if let Some(layout) = layout {
+            self.load_hud_edit_layout(layout)?;
         }
         self.hud_editor.status.clear();
         self.publish_hud_placements(self.hud_editor.draft.working.clone())
@@ -296,24 +319,75 @@ impl GameClient {
         self.hud_editor.draft.enter(&self.ui_layout);
         Ok(())
     }
+}
 
-    fn cycle_hud_layout(&mut self, forward: bool) -> Result<(), String> {
-        let path = crate::ui_layout::layout_path();
-        let names = ui_layout_data::layout_names(&path)?;
-        let current = names
-            .iter()
-            .position(|name| *name == self.ui_layout.name)
-            .ok_or("Active HUD layout missing")?;
-        let next = if forward {
-            (current + 1) % names.len()
-        } else {
-            (current + names.len() - 1) % names.len()
-        };
-        let id = self
-            .account
-            .session
-            .selected_character_id
-            .ok_or("HUD editor requires a selected character")?;
-        self.load_hud_edit_layout(ui_layout_data::set_active_layout(&path, id, &names[next])?)
+/// The native click dispatcher and offline tests share this exact persisted transition.
+pub(crate) fn apply_manager_action(
+    path: &std::path::Path,
+    id: u64,
+    action: &str,
+    name: &str,
+    layout: &ActiveLayout,
+    draft: &mut EditDraft,
+) -> Result<Option<ActiveLayout>, String> {
+    match action {
+        ACTION_EDIT_MODE_EXIT => draft.exit(),
+        ACTION_EDIT_MODE_REVERT => draft.enter(layout),
+        ACTION_EDIT_MODE_RESET => draft.reset_selected(),
+        _ => {
+            let updated =
+                persist_manager_layout(path, id, action, name, layout, draft.working.clone())?;
+            draft.enter(&updated);
+            return Ok(Some(updated));
+        }
     }
+    Ok(None)
+}
+
+fn persist_manager_layout(
+    path: &std::path::Path,
+    id: u64,
+    action: &str,
+    name: &str,
+    layout: &ActiveLayout,
+    working: game_engine_ui_model::hud_edit::Placements,
+) -> Result<ActiveLayout, String> {
+    match action {
+        ACTION_EDIT_MODE_SAVE => ui_layout_data::save_layout_elements(path, id, working),
+        ACTION_EDIT_MODE_NEW => ui_layout_data::create_layout(path, id, name, working),
+        ACTION_EDIT_MODE_RENAME => {
+            ui_layout_data::rename_layout(path, &layout.name, name)?;
+            ui_layout_data::active_layout(path, id)
+        }
+        ACTION_EDIT_MODE_DELETE => {
+            ui_layout_data::delete_layout(path, &layout.name)?;
+            ui_layout_data::active_layout(path, id)
+        }
+        ACTION_EDIT_MODE_PREV_LAYOUT | ACTION_EDIT_MODE_NEXT_LAYOUT => persist_cycled_layout(
+            path,
+            id,
+            &layout.name,
+            action == ACTION_EDIT_MODE_NEXT_LAYOUT,
+        ),
+        _ => Err(format!("Unknown HUD editor action {action:?}")),
+    }
+}
+
+fn persist_cycled_layout(
+    path: &std::path::Path,
+    id: u64,
+    active: &str,
+    forward: bool,
+) -> Result<ActiveLayout, String> {
+    let names = ui_layout_data::layout_names(path)?;
+    let current = names
+        .iter()
+        .position(|name| name == active)
+        .ok_or("Active HUD layout missing")?;
+    let next = if forward {
+        (current + 1) % names.len()
+    } else {
+        (current + names.len() - 1) % names.len()
+    };
+    ui_layout_data::set_active_layout(path, id, &names[next])
 }

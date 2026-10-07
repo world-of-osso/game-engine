@@ -41,6 +41,7 @@ fn player_box() -> EditModeSelectionBox {
         label: "Player Frame".into(),
         rect: [100.0, 200.0, 240.0, 60.0],
         selected: false,
+        hovered: false,
     }
 }
 
@@ -409,15 +410,28 @@ fn hudeditmodepolish_default_manager_does_not_cover_error_text() {
         EditModePanelState, PANEL_H, PANEL_W, edit_mode_panel_screen,
     };
     let mut shared = SharedContext::new();
-    shared.insert(EditModePanelState::default());
+    let errors = [704.0, 122.0, 512.0, 60.0];
+    let boxes = vec![EditModeSelectionBox {
+        rect: errors,
+        ..Default::default()
+    }];
+    let position =
+        game_engine_ui_model::hud_edit_component::find_panel_position([1920.0, 1080.0], &boxes)
+            .unwrap();
+    shared.insert(EditModePanelState {
+        position: Some(position),
+        ..Default::default()
+    });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(edit_mode_panel_screen).sync(&shared, &mut registry);
     let bounds = super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
     let panel = &bounds[&registry.get_by_name("EditModeManagerFrame").unwrap()];
-    let errors = [704.0, 122.0, 512.0, 60.0];
     assert!(!rects_overlap([panel.x, panel.y, PANEL_W, PANEL_H], errors));
 }
 
 fn rects_overlap(a: [f32; 4], b: [f32; 4]) -> bool {
     a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3]
 }
+
+#[path = "hud_edit_polish_tests.rs"]
+mod polish;
