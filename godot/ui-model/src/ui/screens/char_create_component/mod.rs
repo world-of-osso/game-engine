@@ -196,5 +196,3 @@ pub fn char_create_screen(ctx: &SharedContext) -> Element {
         }
     }
 }
-
-
