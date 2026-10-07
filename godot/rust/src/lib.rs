@@ -281,6 +281,7 @@ pub struct GameClient {
     trade: trade::Trade,
     death_flow: game_engine_ui_model::death_flow::DeathFlow,
     summon: game_engine_ui_model::summon::SummonPopup,
+    pending_summon: Option<(shared::protocol::SummonRequest, std::time::Duration)>,
     unit_menu: unit_menu::UnitMenu,
     banks: bank::Banks,
     guild_ranks: guild_ranks::GuildRanks,
@@ -408,6 +409,7 @@ impl INode3D for GameClient {
             trade: trade::Trade::default(),
             death_flow: Default::default(),
             summon: Default::default(),
+            pending_summon: None,
             unit_menu: unit_menu::UnitMenu::default(),
             banks: bank::Banks::default(),
             guild_ranks: guild_ranks::GuildRanks::default(),
@@ -2326,6 +2328,7 @@ impl GameClient {
         self.trade.reset();
         self.death_flow = Default::default();
         self.summon = Default::default();
+        self.pending_summon = None;
         self.in_rest_area = false;
         self.rest = None;
         self.reputation = None;

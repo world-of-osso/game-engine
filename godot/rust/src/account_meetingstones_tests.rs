@@ -67,6 +67,20 @@ fn await_request(server: &mut MeetingStoneServerFixture) -> Vec<MeetingStoneRequ
     panic!("meeting-stone request did not reach server");
 }
 
+fn await_area_name(minimap: &mut crate::minimap::Minimap, zone_id: u32) -> String {
+    let deadline = Instant::now() + Duration::from_secs(10);
+    loop {
+        if let Some(name) = minimap.area_name(zone_id) {
+            return name.unwrap_or_default();
+        }
+        assert!(
+            Instant::now() < deadline,
+            "summon AreaTable lookup timed out"
+        );
+        std::thread::sleep(Duration::from_millis(5));
+    }
+}
+
 fn popup_registry(stack: &PopupStack) -> FrameRegistry {
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     let mut shared = SharedContext::new();
@@ -116,13 +130,17 @@ fn meetingstones_udp_registry_replacement_combat_answers_and_stone_use_both_skin
         }
         let mut flow = SummonPopup::default();
         let mut stack = PopupStack::default();
+        let data_root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let mut minimap = crate::minimap::Minimap::new(&data_root);
         for (name, combat) in [("Stonecaller", false), ("Ritebearer", true)] {
             server.send(SummonRequest {
                 summoner: name.into(),
-                zone_id: 0,
+                zone_id: 1519,
                 time_left_ms: 120_000,
             });
-            flow.receive(await_offer(&mut account, &mut server), &mut stack, combat);
+            let request = await_offer(&mut account, &mut server);
+            let zone_name = await_area_name(&mut minimap, request.zone_id);
+            flow.receive(request, &zone_name, &mut stack, combat);
         }
         assert_eq!(stack.visible().len(), 1);
         assert!(
@@ -131,7 +149,18 @@ fn meetingstones_udp_registry_replacement_combat_answers_and_stone_use_both_skin
                 .text
                 .starts_with("Ritebearer wants to summon you")
         );
+        assert_eq!(
+            stack.visible()[0].spec.text,
+            "Ritebearer wants to summon you to Stormwind City. The spell will be canceled in 2 Minutes."
+        );
         let registry = popup_registry(&stack);
+        let text = registry
+            .get(registry.get_by_name("StaticPopup1Text").unwrap())
+            .unwrap();
+        assert!(
+            matches!(text.widget_data.as_ref(), Some(ui_toolkit::frame::WidgetData::FontString(data))
+            if data.text == stack.visible()[0].spec.text)
+        );
         let button = registry
             .get(registry.get_by_name("StaticPopup1Button1").unwrap())
             .unwrap();
@@ -140,6 +169,7 @@ fn meetingstones_udp_registry_replacement_combat_answers_and_stone_use_both_skin
         assert!(flow.popup_results(&stack.drain_results()).is_none());
         flow.update(Duration::from_secs(61), &mut stack, false);
         assert!(stack.visible()[0].spec.text.ends_with("59 Seconds."));
+        assert!(stack.visible()[0].spec.text.contains("to Stormwind City."));
         click_popup(&mut stack, "StaticPopup1Button1", "Accept");
         account
             .send_summon_response(flow.popup_results(&stack.drain_results()).unwrap())
@@ -154,7 +184,13 @@ fn meetingstones_udp_registry_replacement_combat_answers_and_stone_use_both_skin
                 zone_id: 0,
                 time_left_ms: 1_000,
             });
-            flow.receive(await_offer(&mut account, &mut server), &mut stack, false);
+            let request = await_offer(&mut account, &mut server);
+            let zone_name = await_area_name(&mut minimap, request.zone_id);
+            flow.receive(request, &zone_name, &mut stack, false);
+            assert_eq!(
+                stack.visible()[0].spec.text,
+                "Stonecaller wants to summon you to . The spell will be canceled in 1 Second."
+            );
             if expired {
                 flow.update(Duration::from_secs(1), &mut stack, false);
             } else {
@@ -231,10 +267,10 @@ fn meetingstones_stale_replacement_click_cannot_answer_new_request() {
         zone_id: 0,
         time_left_ms: 120_000,
     };
-    flow.receive(request.clone(), &mut stack, false);
+    flow.receive(request.clone(), "", &mut stack, false);
     let old = stack.visible()[0].id;
     stack.resolve(old, PopupOutcome::Accepted);
-    flow.receive(request, &mut stack, true);
+    flow.receive(request, "", &mut stack, true);
     assert!(flow.popup_results(&stack.drain_results()).is_none());
     assert!(!stack.resolve(old, PopupOutcome::Accepted));
     assert!(stack.is_open());
