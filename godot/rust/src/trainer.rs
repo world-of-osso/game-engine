@@ -43,6 +43,12 @@ impl GameClient {
         self.trainer.free_ui();
         visible
     }
+    pub(super) fn close_trainer_window(&mut self) -> Result<bool, FrameError> {
+        if let Some(list) = &self.trainer.book.list {
+            self.account.send_close_interaction(list.npc)?;
+        }
+        Ok(self.close_trainer())
+    }
     pub(super) fn trainer_closed_for(&mut self, npc: u64) {
         if self
             .trainer
@@ -87,10 +93,7 @@ impl GameClient {
                 break;
             }
             if action == "trainer:close" {
-                if let Some(list) = &self.trainer.book.list {
-                    self.account.send_close_interaction(list.npc)?;
-                }
-                self.close_trainer();
+                self.close_trainer_window()?;
                 break;
             }
             let request = self.apply_trainer_action(&action)?;
