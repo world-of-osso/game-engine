@@ -48,6 +48,9 @@ pub mod chat_frame;
 pub mod chat_frame_component;
 #[path = "game/group_state.rs"]
 pub mod group_state;
+pub mod professions;
+pub mod professions_catalog;
+pub mod professions_frame;
 pub mod raid_warning;
 pub mod summon;
 

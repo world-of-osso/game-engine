@@ -151,7 +151,11 @@ impl GameClient {
     fn spellbook_content(&self, player: Option<SpellbookPlayer>) -> SpellbookFrameState {
         let spells = &self.account.spells;
         let catalog = self.spells.catalog();
-        let tabs = build_spellbook_tabs(spells.known(), spells.spec(), catalog, player);
+        let mut known = spells.known().to_vec();
+        known.extend(self.profession_spell_ids());
+        known.sort_unstable();
+        known.dedup();
+        let tabs = build_spellbook_tabs(&known, spells.spec(), catalog, player);
         let class_name = catalog
             .zip(player)
             .and_then(|(data, player)| data.tabs.class_names.get(&player.class_id).cloned());

@@ -69,3 +69,53 @@ References (all under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 ## Verified scope
 
 - [x] Live headless proof on an isolated server (:5059) at Georgio Bolero (verified: 2026-09-25): gossip "Train me." → trainer list with Tailoring selected → CONFIRM_PROFESSION → Tailoring learned for 10c (Classic Tailoring 1/300, 5 recipes, Retail chat lines) → K → book → ProfessionsFrame → Create ×2 and ×1 with the cast bar: 12 → 6 Linen Cloth, 3 Bolt of Linen Cloth in the backpack, Classic Tailoring 4/300, state kept across relogs. Evidence: game-engine `data/diagnostics/crafting-20260925/` (`proof.txt`).
+
+
+## Native Godot coverage (2026-10-07)
+
+Native profession recipe book and crafting window in `godot/ui-model` and `godot/rust`, consuming the existing owner `ProfessionSnapshot` and sending `CraftRecipe`. [Native UI host](../wiki/systems/godot-conversion.md) owns rendering architecture.
+
+## What it must do
+
+- [ ] Consume the owner's profession lines and learned spells; list known recipes by DB2 category with required skill rank.
+- [ ] Filter recipe names with a case-insensitive search; retain a selectable schematic.
+- [ ] Show crafted item and reagents using DB2 names/icons and owned/needed counts summed across bags, not equipped items.
+- [ ] Create sends the selected recipe's spell ID and positive cast quantity on `ProfessionChannel`; Create All sends the available reagent-limited quantity. Missing reagents disable Create.
+- [ ] Refresh bags and skill bar from authoritative inventory and profession updates, including craft failure messages; render Modern and Forever using native chrome and scroll lists. Open from profession spells and configured K binding; Escape closes the window.
+
+## How it works
+
+- [Godot native UI host](../wiki/systems/godot-conversion.md).
+- [Private live proof procedure](../headless-live-run.md).
+
+## Implementation inventory
+
+- `godot/ui-model/src/professions.rs` — recipe book state and crafting decisions.
+- `godot/ui-model/src/professions_tests.rs` — concrete snapshot, filtering, bags and request behavior.
+- `godot/ui-model/src/professions_catalog.rs` — pinned DB2 recipe metadata.
+- `godot/ui-model/src/professions_frame.rs` — skin-aware native scroll list and schematic.
+- `godot/network/src/lib.rs` — owner snapshot relay.
+- `godot/network/src/professions_wire_tests.rs` — real UDP snapshot and craft request boundary.
+- `godot/rust/src/professions.rs` — native catalog/window/input host; inventory and skill refresh.
+- `godot/rust/src/account.rs`, `spells/casting.rs`, `spells/spellbook.rs`, `ui/mod.rs`, `window_stack.rs`, `lib.rs` — existing native host integration.
+
+## Tests asserting this spec
+
+- `godot/ui-model/src/professions_tests.rs`.
+
+## Known gaps (current cycle)
+
+- [ ] Targeted GREEN tests and private-server rendering/crafting proof pending.
+- [ ] Native trainer and exact Retail book-entry/layout/art parity remain unimplemented; historical checkboxes above describe the retired client, not native proof.
+
+## Out of scope
+
+- Server or shared protocol changes; crafting orders and Retail systems without existing server messages.
+
+## Retail references
+
+Local cache root: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`.
+
+- `Blizzard_FrameXML/Bindings_Standard.xml:1238-1240`: `TOGGLEPROFESSIONBOOK` invokes `ToggleProfessionsBook()`.
+- `Blizzard_Professions/Blizzard_ProfessionsCrafting.lua:39,52-55,967-984,1011-1021`: search, Create All and selected quantity passed to crafting transaction.
+- `Blizzard_Professions/Blizzard_ProfessionsRankBar.lua:103,136`: profession rank text and rank/max ratio.
