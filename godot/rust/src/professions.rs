@@ -292,14 +292,14 @@ impl GameClient {
     fn sync_professions(&mut self) -> Result<(), String> {
         let view = self.profession_view();
         let scale = self.effective_ui_scale();
-        if let Some(ui) = &mut self.professions.ui {
-            ui.bind_mut().set_ui_scale(scale)?;
-            return ui.bind_mut().set_state(view);
-        }
         self.extract_art(&crate::quests::screen_texture_fdids(
             view.clone(),
             professions_screen,
         ));
+        if let Some(ui) = &mut self.professions.ui {
+            ui.bind_mut().set_ui_scale(scale)?;
+            return ui.bind_mut().set_state(view);
+        }
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("ProfessionsUI");
         self.base_mut().add_child(&ui);

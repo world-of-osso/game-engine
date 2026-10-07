@@ -2,7 +2,7 @@
 use crate::bank_art::{HIGHLIGHT_FONT_COLOR, label};
 use crate::professions::ProfessionBook;
 use crate::quest_art::{
-    DynName, NORMAL_FONT_COLOR, window_chrome, window_portrait_slot, window_portrait_texture,
+    NORMAL_FONT_COLOR, window_chrome, window_portrait_slot, window_portrait_texture,
 };
 use crate::ui::strata::FrameStrata;
 use std::collections::{BTreeMap, BTreeSet};

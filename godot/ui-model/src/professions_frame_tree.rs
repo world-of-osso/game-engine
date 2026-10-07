@@ -90,7 +90,7 @@ fn search_box(view: &ProfessionView) -> Element {
         out.extend(art::atlas(&format!("{SEARCH}{suffix}"), atlas, rect));
     }
     out.extend(
-        rsx! { editbox { name: SEARCH, width: 245.0, height: 20.0, left: 18.0, top: 80.0,
+        rsx! { editbox { name: {DynName(SEARCH.into())}, width: 245.0, height: 20.0, left: 18.0, top: 80.0,
         pos_type: "absolute", font: GameFont::ArialNarrow, font_size: 14.0,
         font_color: HIGHLIGHT_FONT_COLOR, text_insets: "16,20,0,0" } },
     );
