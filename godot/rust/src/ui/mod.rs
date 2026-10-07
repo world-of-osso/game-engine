@@ -2252,6 +2252,15 @@ impl RegistryUi {
         credentials
     }
 
+    pub fn login_submission_pending(&self) -> bool {
+        self.model.as_ref().is_some_and(|model| {
+            model
+                .shared
+                .get::<login::SharedConnecting>()
+                .is_some_and(|state| state.0)
+        })
+    }
+
     pub fn registration_mode(&self) -> bool {
         self.model.as_ref().is_some_and(|model| {
             model
