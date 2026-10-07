@@ -11,6 +11,9 @@ func _initialize() -> void:
 func _run() -> void:
 	var screen = OS.get_environment("GODOT_CAPTURE_SCREEN")
 	var output = OS.get_environment("GODOT_CAPTURE_PATH")
+	if screen == "hudedit_both":
+		await capture_hud_edit_both(output)
+		return
 	if screen == "npcportraits" or screen == "forever_npcportraits":
 		await capture_npcportraits(output, screen.begins_with("forever"))
 		return
@@ -95,6 +98,34 @@ func _run() -> void:
 			return
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
+	quit(0)
+
+# UI textures load asynchronously. Capture both HUD skins only after native visuals settle.
+func capture_hud_edit_both(directory: String) -> void:
+	for entry in [["hudedit_preview", "modern-edit.png"], ["forever_hudedit_preview", "forever-edit.png"]]:
+		var ui = ClassDB.instantiate("RegistryUi")
+		root.add_child(ui)
+		var error = ui.call("show_" + entry[0])
+		if error != "":
+			push_error(error)
+			quit(1)
+			return
+		for frame in range(120):
+			await process_frame
+			await RenderingServer.frame_post_draw
+		var background := ui.find_child("EditModeSelection_player_frameBackground", true, false) as Control
+		if background == null or not background.is_visible_in_tree():
+			push_error("Player mover highlight is not mounted")
+			quit(1)
+			return
+		var image = root.get_texture().get_image()
+		if image == null or image.is_empty() or image.save_png(directory.path_join(entry[1])) != OK:
+			push_error("HUD edit capture requires rendered pixels")
+			quit(1)
+			return
+		print("PASS: settled ", entry[0], " captured")
+		ui.queue_free()
+		await process_frame
 	quit(0)
 
 # Retail ProfessionsRecipeList.xml:94-217; ReagentSlotBase.xml:6-27; RankBar.xml:5-61.
