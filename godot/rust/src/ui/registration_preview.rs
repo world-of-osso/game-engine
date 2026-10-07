@@ -19,6 +19,7 @@ impl RegistryUi {
     fn show_pending_registration(&mut self) -> Result<(), String> {
         party_preview::load_data_root()?;
         self.initialize_login(1920.0, 1080.0)?;
+        self.advance_login_fade(super::LOGIN_FADE_SECS)?;
         self.toggle_registration("Offline preview")?;
         let mut session = game_engine_session::Session::default();
         session.receive_registration(RegisterResponse {
