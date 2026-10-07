@@ -248,7 +248,7 @@ mod tests {
         let middle = rgba.get_pixel(image.width / 2, image.height / 2);
         assert!(middle[3] > 200);
         assert!(
-            middle[0..3].iter().any(|channel| *channel > 30),
+            middle.0[0..3].iter().any(|channel| *channel > 30),
             "authored art is not black"
         );
     }
