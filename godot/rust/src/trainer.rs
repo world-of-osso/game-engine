@@ -162,10 +162,12 @@ impl GameClient {
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("TrainerUI");
         self.base_mut().add_child(&ui);
-        let result = ui
-            .bind_mut()
-            .set_ui_scale(scale)
-            .and_then(|()| ui.bind_mut().show_quest_window(view, trainer_screen));
+        let result = {
+            let mut bound = ui.bind_mut();
+            bound
+                .set_ui_scale(scale)
+                .and_then(|()| bound.show_quest_window(view, trainer_screen))
+        };
         if let Err(error) = result {
             ui.free();
             return Err(error);
