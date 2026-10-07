@@ -1,6 +1,6 @@
 # Desktop disk exhaustion
 
-Observed OssoBuild recovery on Windows local date 2026-10-06 separates BuildKit cache reclamation, WSL guest free space and Windows host capacity. Recovery completed; persistent GC deployment and long-term stability remain unverified.
+Observed OssoBuild recovery on Windows local date 2026-10-06 separates BuildKit cache reclamation, WSL guest free space and Windows host capacity. Recovery and persistent GC deployment completed; long-term stability remains unverified.
 
 ## Observed exhaustion
 
@@ -18,7 +18,7 @@ Guest deletion/trim and offline VHD compaction were distinct recovery stages; gu
 
 ## Prevention boundary
 
-[[build-hosts#Builder GC policy]] owns the user-approved aggregate budget replacing warm-every-slot retention. Source configuration is updated, but persistent deployment and sustained behavior are not proven by this recovery.
+[[build-hosts#Builder GC policy]] owns the user-approved aggregate budget replacing warm-every-slot retention. The configured policy was applied through the existing locked setup script and read back from the running builder. Sustained behavior is not proven by this recovery.
 
 ## Sources
 
