@@ -404,7 +404,7 @@ impl GameClient {
     }
 
     fn target_minimap_blip(&self, view: &MinimapView) -> Option<MinimapBlip> {
-        let target = self.targeting.target?;
+        let target = self.targeting_target()?;
         let position = self.replica.unit(target)?.get::<Position>()?;
         target_minimap_blip(target, [position.x, position.z], view)
     }
