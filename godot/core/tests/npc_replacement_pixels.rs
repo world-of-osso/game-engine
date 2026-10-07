@@ -18,7 +18,7 @@ fn open_catalog(path: &Path) -> Connection {
     Connection::open_with_flags(path, OpenFlags::SQLITE_OPEN_READ_ONLY).unwrap()
 }
 
-fn decode(data: &Path, fdid: u32) -> NpcTexturePixels {
+fn load_texture_pixels(data: &Path, fdid: u32) -> NpcTexturePixels {
     let bytes = std::fs::read(data.join(format!("textures/{fdid}.blp"))).unwrap();
     let image = blp::decode_rgba(&bytes).unwrap();
     (image.pixels, image.width, image.height)
@@ -79,14 +79,14 @@ fn ailee_selected_type20_composes_authentic_pixels_on_256_canvas() {
         .iter()
         .map(|&(_, fdid)| fdid)
         .chain([default])
-        .map(|fdid| (fdid, decode(&data, fdid)))
+        .map(|fdid| (fdid, load_texture_pixels(&data, fdid)))
         .collect();
     let composed = compositor
         .composite_model_textures_with(&materials, &[], layout_id, default, |fdid| {
             decoded.get(&fdid).cloned()
         })
         .unwrap();
-    let baked = decode(&data, 7352105);
+    let baked = load_texture_pixels(&data, 7352105);
     let expected_body = baked.clone();
     let expected_type6 = game_engine_core::npc_appearance_selection_data::select_npc_type6_texture(
         compositor.declares_hair(&materials, layout_id),
