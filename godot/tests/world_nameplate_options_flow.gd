@@ -310,12 +310,35 @@ func open_options(client: Node, category: String) -> void:
 	await click_option(client, "OptionsTab" + category)
 
 func click_option(client: Node, name: String) -> void:
-	var menu := client.get_node_or_null("GameMenuUI")
-	var control = menu.find_child(name, true, false) if menu != null else null
-	if not control is Control:
+	var control := await scroll_option_into_view(client, name)
+	if control == null:
 		fail("Authored Options control absent: " + name)
 		return
 	await click_control(control)
+
+# Options pages are scroll lists: a row below the fold (Show Health Bars sits under the
+# party layout settings) only exists once the wheel scrolls it into the content rect.
+func scroll_option_into_view(client: Node, name: String) -> Control:
+	for attempt in range(80):
+		var menu := client.get_node_or_null("GameMenuUI")
+		var control = menu.find_child(name, true, false) if menu != null else null
+		var scroll = menu.find_child("OptionsContentScroll", true, false) if menu != null else null
+		if control is Control and not (scroll is Control and scroll.is_ancestor_of(control)):
+			return control
+		if not scroll is Control:
+			return null
+		var content: Rect2 = scroll.get_global_rect()
+		if control is Control and content.encloses(control.get_global_rect()):
+			return control
+		var wheel := InputEventMouseButton.new()
+		wheel.position = content.get_center()
+		var above: bool = control is Control and control.get_global_rect().position.y < content.position.y
+		wheel.button_index = MOUSE_BUTTON_WHEEL_UP if above else MOUSE_BUTTON_WHEEL_DOWN
+		wheel.pressed = true
+		root.push_input(wheel, true)
+		await process_frame
+		await process_frame
+	return null
 
 func set_distance(client: Node, value: float) -> void:
 	var menu := client.get_node("GameMenuUI")
