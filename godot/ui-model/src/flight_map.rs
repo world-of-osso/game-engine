@@ -104,16 +104,14 @@ pub struct FlightProjection {
 }
 
 pub fn project(catalog: &UiMapCatalog, map: &TaxiMap, hovered: Option<u32>) -> FlightProjection {
+    let map_id = continent_map(catalog, map);
     let pins: Vec<_> = map
         .nodes
         .iter()
         .filter(|node| node.state != TaxiNodeState::Unreachable)
         .filter_map(|node| {
-            let uv = catalog.map_position(
-                continent_map(catalog, map)?,
-                map.continent,
-                [node.world_x, node.world_y, 0.0],
-            )?;
+            let uv =
+                catalog.map_position(map_id?, map.continent, [node.world_x, node.world_y, 0.0])?;
             Some(FlightPin {
                 node: node.node,
                 name: node.name.clone(),
