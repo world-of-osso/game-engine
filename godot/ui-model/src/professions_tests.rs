@@ -156,7 +156,7 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
     for (table, data) in [
         (
             "SkillLine",
-            "ID,DisplayName_lang,SpellBookSpellID\n197,Tailoring,3908\n2540,Classic Tailoring,0\n",
+            "ID,DisplayName_lang,SpellBookSpellID,CategoryID,ParentSkillLineID\n197,Tailoring,3908,11,0\n2540,Classic Tailoring,0,11,197\n",
         ),
         ("TradeSkillCategory", "ID,Name_lang\n1089,Bandages\n"),
         (
