@@ -122,7 +122,10 @@ fn breath_bar_uses_retail_layout_atlas_and_label() {
     let (full_source, [full_left, full_right, full_top, full_bottom]) =
         texture(&build(full), "MirrorTimer1StatusBar");
     assert_eq!(source, full_source);
-    assert!(!matches!(source, TextureSource::None | TextureSource::FileDataId(0)));
+    assert!(!matches!(
+        source,
+        TextureSource::None | TextureSource::FileDataId(0)
+    ));
     assert!(full_right > full_left && full_bottom > full_top);
     assert_eq!((left, top, bottom), (full_left, full_top, full_bottom));
     assert!(((right - left) * 2.0 - (full_right - full_left)).abs() < 1e-6);

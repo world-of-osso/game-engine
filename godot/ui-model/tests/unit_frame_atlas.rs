@@ -215,9 +215,21 @@ fn modern_unit_frames_resolve_and_share_art_by_role() {
         crop(name);
     }
     for group in [
-        ["TargetOfTargetFrameArt", "FocusFrameArt", "Boss1TargetFrameArt"],
-        ["TargetReputationColor", "FocusReputationColor", "Boss1ReputationColor"],
-        ["TargetOfTargetHealthBarFill", "FocusHealthBarFill", "Boss1HealthBarFill"],
+        [
+            "TargetOfTargetFrameArt",
+            "FocusFrameArt",
+            "Boss1TargetFrameArt",
+        ],
+        [
+            "TargetReputationColor",
+            "FocusReputationColor",
+            "Boss1ReputationColor",
+        ],
+        [
+            "TargetOfTargetHealthBarFill",
+            "FocusHealthBarFill",
+            "Boss1HealthBarFill",
+        ],
     ] {
         assert_eq!(crop(group[0]), crop(group[1]), "{group:?}");
         assert_eq!(crop(group[0]), crop(group[2]), "{group:?}");
@@ -284,7 +296,10 @@ fn modern_party_frames_draw_an_icon_per_role_and_ready_mark() {
             drawn_crop(&registry, &member(part), skin);
         }
         roles.push((role, drawn_crop(&registry, &member("RoleIcon"), skin)));
-        marks.push((ready, drawn_crop(&registry, &member("ReadyCheckIcon"), skin)));
+        marks.push((
+            ready,
+            drawn_crop(&registry, &member("ReadyCheckIcon"), skin),
+        ));
     }
     assert_distinct(&roles);
     assert_distinct(&marks);
