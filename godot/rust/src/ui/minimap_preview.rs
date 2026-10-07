@@ -73,6 +73,16 @@ fn preview_boss_units()
         InWorldUnitFramesState, PowerBarState, UnitFrameState,
     };
     InWorldUnitFramesState {
+        show_player_frame: false,
+        show_target_frame: false,
+        target_cast: None,
+        player: UnitFrameState::named("Offline"),
+        target: None,
+        target_of_target: None,
+        focus: None,
+        pet: None,
+        menu: Default::default(),
+        personal_resource: None,
         bosses: ["Hogger", "Lord Overheat"]
             .into_iter()
             .map(|name| UnitFrameState {
@@ -87,7 +97,6 @@ fn preview_boss_units()
                 ..UnitFrameState::named(name)
             })
             .collect(),
-        ..Default::default()
     }
 }
 
