@@ -10,6 +10,14 @@ use shared::protocol::{
 };
 use std::path::{Path, PathBuf};
 
+/// The original registration form requires both credentials; server owns account policy.
+pub fn validate_registration(username: &str, password: &str) -> Result<(), &'static str> {
+    if username.trim().is_empty() || password.trim().is_empty() {
+        return Err("Please fill in all fields");
+    }
+    Ok(())
+}
+
 const TOKEN_FILE: &str = "auth_token";
 const TEST_PLACEHOLDER_UUID: &str = "11111111-1111-1111-1111-111111111111";
 
@@ -264,8 +272,19 @@ impl Session {
     }
 
     pub fn receive_registration(&mut self, response: RegisterResponse) -> Vec<SessionEffect> {
+        if response.pending_approval {
+            self.feedback = Some(response.error.unwrap_or_else(|| {
+                "Registration submitted. Pending administrator approval. Return to Login after approval.".into()
+            }));
+            self.screen = SessionScreen::Login;
+            return vec![SessionEffect::Transition(self.screen)];
+        }
         if !response.success {
-            self.feedback = Some(response.error.unwrap_or_default());
+            self.feedback = Some(
+                response
+                    .error
+                    .unwrap_or_else(|| "Registration failed.".into()),
+            );
             self.screen = SessionScreen::Login;
             return vec![SessionEffect::Transition(self.screen)];
         }

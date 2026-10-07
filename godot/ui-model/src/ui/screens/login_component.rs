@@ -53,6 +53,10 @@ pub struct SharedStatusText(pub String);
 #[derive(Clone, Default)]
 pub struct SharedConnecting(pub bool);
 
+/// Registration reuses the authored username/password form and retains its inputs.
+#[derive(Clone, Default)]
+pub struct SharedRegistration(pub bool);
+
 #[derive(Clone, Default)]
 pub struct SharedRealmText(pub String);
 
@@ -136,12 +140,29 @@ fn login_input_labels() -> Element {
     .collect()
 }
 
-fn login_inputs(
-    status: &str,
-    connecting: bool,
-    realm_text: &str,
-    realm_selectable: bool,
-) -> Element {
+fn registration_heading(ctx: &SharedContext) -> Element {
+    let registration = ctx.get::<SharedRegistration>().is_some_and(|state| state.0);
+    if !registration {
+        return Vec::new();
+    }
+    let server = ctx
+        .get::<SharedRealmText>()
+        .map_or("", |state| state.0.as_str());
+    let text = format!("Create Account\n{server}");
+    rsx! {
+        fontstring {
+            name: "RegistrationHeading",
+            width: 420.0, height: 48.0,
+            text,
+            font_size: 16.0,
+            font_color: COLOR_GOLD,
+            pos_type: "absolute",
+            left: "50%", pos_y: -88.0, translate_x: "-50%",
+        }
+    }
+}
+
+fn login_inputs(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame { name: "LoginInputContainer", width: 320.0, height: 200.0,
             pos_type: "absolute",
@@ -169,8 +190,9 @@ fn login_inputs(
                 pos_x: 0.0,
                 pos_y: 72.0,
             }
+            {registration_heading(ctx)}
             {login_input_labels()}
-            {login_main_buttons(false, realm_text, realm_selectable, status, connecting)}
+            {login_main_buttons(ctx)}
         }
     }
 }
@@ -191,31 +213,20 @@ fn login_realm_button(_realm_text: &str, _realm_selectable: bool, _connecting: b
     }
 }
 
-fn login_reconnect_button() -> Element {
-    rsx! {
-        button {
-            name: RECONNECT_BUTTON,
-            width: 500.0,
-            height: 66.0,
-            onclick: LoginAction::Reconnect,
-            text: "Reconnect",
-            font_size: 16.0,
-            pos_type: "absolute",
-            left: "50%",
-            pos_y: 134.0,
-            translate_x: "-50%",
-        }
-    }
-}
-
-fn login_connect_button_and_status(status_text: &str, connecting: bool) -> Element {
+fn login_connect_button_and_status(ctx: &SharedContext) -> Element {
+    let status_text = ctx
+        .get::<SharedStatusText>()
+        .map_or("", |state| state.0.as_str());
+    let connecting = ctx.get::<SharedConnecting>().is_some_and(|state| state.0);
+    let registration = ctx.get::<SharedRegistration>().is_some_and(|state| state.0);
+    let submit_text = if registration { "Register" } else { "Login" };
     let connect = rsx! {
         button {
             name: CONNECT_BUTTON,
             width: 250.0,
             height: 66.0,
             onclick: LoginAction::Connect,
-            text: "Login",
+            text: submit_text,
             font_size: 16.0,
             disabled: connecting,
             pos_type: "absolute",
@@ -227,8 +238,8 @@ fn login_connect_button_and_status(status_text: &str, connecting: bool) -> Eleme
     let status = rsx! {
         fontstring {
             name: LOGIN_STATUS,
-            width: 320.0,
-            height: 24.0,
+            width: 420.0,
+            height: 72.0,
             text: status_text,
             font_size: 13.0,
             font_color: COLOR_ERROR,
@@ -241,35 +252,32 @@ fn login_connect_button_and_status(status_text: &str, connecting: bool) -> Eleme
     [connect, status].into_iter().flatten().collect()
 }
 
-fn login_main_buttons(
-    show_reconnect: bool,
-    realm_text: &str,
-    realm_selectable: bool,
-    status_text: &str,
-    connecting: bool,
-) -> Element {
+fn login_main_buttons(ctx: &SharedContext) -> Element {
     [
-        login_realm_button(realm_text, realm_selectable, connecting),
-        if show_reconnect {
-            login_reconnect_button()
-        } else {
-            login_connect_button_and_status(status_text, connecting)
-        },
+        login_realm_button("", false, false),
+        login_connect_button_and_status(ctx),
     ]
     .into_iter()
     .flatten()
     .collect()
 }
 
-fn action_button_items() -> Element {
+fn action_button_items(ctx: &SharedContext) -> Element {
+    let registration = ctx.get::<SharedRegistration>().is_some_and(|state| state.0);
+    let connecting = ctx.get::<SharedConnecting>().is_some_and(|state| state.0);
+    let text = if registration {
+        "Back to Login"
+    } else {
+        "Create Account"
+    };
     rsx! {
         button {
             name: CREATE_ACCOUNT_BUTTON,
             width: "fill",
             height: 32.0,
             onclick: LoginAction::CreateAccount,
-            text: "Create Account",
-            hidden: true,
+            text,
+            disabled: connecting,
             font_size: 12.0,
         }
         button {
@@ -291,7 +299,7 @@ fn action_button_items() -> Element {
     }
 }
 
-fn login_action_buttons() -> Element {
+fn login_action_buttons(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame {
             name: "ActionButtons",
@@ -304,7 +312,7 @@ fn login_action_buttons() -> Element {
             pos_type: "absolute",
             right: 24.0,
             bottom: 56.0,
-            {action_button_items()}
+            {action_button_items(ctx)}
         }
     }
 }
@@ -390,7 +398,7 @@ fn login_game_logo() -> Element {
     }
 }
 
-fn login_ui(status: &str, connecting: bool, realm_text: &str, realm_selectable: bool) -> Element {
+fn login_ui(ctx: &SharedContext) -> Element {
     rsx! {
         r#frame { name: "LoginUI",
             pos_type: "absolute",
@@ -401,34 +409,21 @@ fn login_ui(status: &str, connecting: bool, realm_text: &str, realm_selectable: 
             width: "auto",
             height: "auto",
             {login_game_logo()}
-            {login_inputs(status, connecting, realm_text, realm_selectable)}
-            {login_action_buttons()}
+            {login_inputs(ctx)}
+            {login_action_buttons(ctx)}
             {login_footer()}
         }
     }
 }
 
 pub fn login_screen(ctx: &SharedContext) -> Element {
-    let status = ctx
-        .get::<SharedStatusText>()
-        .map(|s| s.0.as_str())
-        .unwrap_or("");
-    let connecting = ctx.get::<SharedConnecting>().map(|s| s.0).unwrap_or(false);
-    let realm_text = ctx
-        .get::<SharedRealmText>()
-        .map(|s| s.0.as_str())
-        .unwrap_or("Development");
-    let realm_selectable = ctx
-        .get::<SharedRealmSelectable>()
-        .map(|s| s.0)
-        .unwrap_or(true);
     rsx! {
         r#frame { name: LOGIN_ROOT, strata: FrameStrata::Background,
             pos_type: "absolute",
             left: 0.0, right: 0.0, top: 0.0, bottom: 0.0,
             width: "auto", height: "auto",
             {login_background()}
-            {login_ui(status, connecting, realm_text, realm_selectable)}
+            {login_ui(ctx)}
         }
     }
 }

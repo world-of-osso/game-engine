@@ -4,7 +4,9 @@ The game server requires username/password authentication. Passwords are hashed 
 
 ## Register a new account
 
-On the login screen, click "Don't have an account? Register" to switch to register mode. Enter a username and password, then click Register. The server creates the account and logs you in automatically.
+On the native login screen, click **Create Account** to switch the existing username/password form to **Register** for the selected server. **Back to Login** retains entered credentials. Empty or whitespace-only fields show validation feedback without sending a request. See the [registration contract](specs/registration.md).
+
+A pending-approval reply stays on the form with administrator-approval guidance and does not save a token. After approval, return to Login and submit the same credentials. A nonpending success saves the returned token and opens character select; a refusal shows the server error and permits retry.
 
 ## Login
 
@@ -14,7 +16,7 @@ Delete the relevant server's token file to force password re-entry.
 
 ## How it works
 
-1. **Register**: Client sends `RegisterRequest { username, password }`. Server hashes the password with argon2, stores the hash in the `PASSWORDS` table, creates an account, and returns a session token.
+1. **Register**: Client sends `RegisterRequest { username, password }` on AuthChannel to the selected server. `RegisterResponse { success, token, pending_approval, error }` distinguishes pending approval, immediate authentication and refusal. Pending approval takes precedence over `success` and never persists the response token.
 2. **Login (password)**: Client sends `LoginRequest { token: None, username, password }`. Server looks up the account by username, verifies the password against the stored argon2 hash, and returns a session token.
 3. **Login (token)**: Client sends `LoginRequest { token: Some(cached), username, password: "" }`. Server validates the token directly — no password check.
 
