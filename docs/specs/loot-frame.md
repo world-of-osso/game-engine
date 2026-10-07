@@ -15,6 +15,7 @@ References:
 - [x] A dead NPC plays `Death` (animation 1) once, then its authored `Dead` (animation 6) once and holds the corpse pose; movement and emote animation leave it alone. Models without a `Dead` clip author the corpse in `Death`'s last frame and hold that frame.
 - [x] `CorpseLootable` marks the corpse `Lootable`: it sparkles (gold glow like the quest sparkle) and shows the `LootAll` cursor. `lootable: false` removes both.
 - [x] Unit cursor by role and reaction: lootable corpse `LootAll`; other corpse the pointer; hostile, or neutral without services, `Attack`; flight master `Taxi`; vendor `Buy`; trainer `Trainer`; any other service `Speak`; none the pointer.
+- [x] An out-of-range lootable corpse right-click displays `ERR_LOOT_TOO_FAR` without opening a window or sending a loot request.
 - [x] Right-click on a lootable corpse in range sends `LootUnit { auto }` with `auto = autoLootDefault XOR Shift` (`AUTOLOOTTOGGLE` default Shift, Bindings_Standard.xml:1773). Other corpses are only targeted; living NPCs are interacted with. IPC `quest interact` makes the same choice (auto off).
 - [x] The Auto Loot option (`autoLootDefault`, off by default) is in the options menu and saved with the HUD options.
 - [x] `LootResponse` opens the frame; `LootSlotRemoved` removes the card and prints `LOOT_ITEM_SELF` "You receive loot: %s" (`LOOT_ITEM_SELF_MULTIPLE` "%sx%d") or `YOU_LOOT_MONEY` "You loot %s"; `LootClosed` closes it; `LootFailed` shows its Retail text (`ERR_LOOT_TOO_FAR`, `ERR_LOOT_DIDNT_KILL`, `ERR_INV_FULL`, ...).
