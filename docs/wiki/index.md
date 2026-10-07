@@ -5,7 +5,7 @@
 - [Player cast feedback](systems/player-cast-feedback.md) — Retail animation sources, player-only sampling, skin geometry and offline captures.
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-10-06.
+Last updated: 2026-10-07.
 
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
