@@ -23,7 +23,7 @@ func run_test() -> void:
 	DirAccess.make_dir_recursive_absolute(captures)
 	var cases := read_cases(oracle)
 	var failures := 0
-	for display in [825, 1322, 1285, 90209, 110154]:
+	for display in [825, 1322, 1285, 90209, 110154, 150, 35297]:
 		var old_visual: Node = client.get_node("WorldUnits/" + NPC + "/NpcVisualRoot")
 		var old_id := old_visual.get_instance_id()
 		print("FIXTURE AUTHORED_REQUEST ", display)

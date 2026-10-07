@@ -13,12 +13,14 @@ use std::collections::HashMap;
 
 type Pixels = (Vec<u8>, u32, u32);
 // Real content_creature/template_model rows; fixture relocates them to its owned map.
-const CASES: [(u32, u32, &str); 5] = [
+const CASES: [(u32, u32, &str); 7] = [
     (825, 3728, "Dark Strand Adept"),
     (1322, 3322, "Kaja"),
     (1285, 2079, "Conservator Ilthalaine"),
     (90209, 149131, "Apprentice Mage"),
     (110154, 198506, "Krenzen"),
+    (150, 3833, "Cenarion Vindicator"),
+    (35297, 46785, "Lord Cannon"),
 ];
 
 pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
@@ -63,14 +65,16 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
     let mut manifest = String::new();
     for (display, _, _) in CASES {
-        let profile =
-            query_authored_npc_appearance(&profiles, display)?.ok_or("missing real profile")?;
-        let selected = select_npc_choices(&profile, &db)?;
-        let layout = db
-            .layout_id(profile.race, profile.sex)
-            .ok_or("missing real layout")?;
-        let textures =
-            oracle_textures(&source, &compositor, &profile, &selected.materials, layout)?;
+        let textures = match query_authored_npc_appearance(&profiles, display)? {
+            Some(profile) => {
+                let selected = select_npc_choices(&profile, &db)?;
+                let layout = db
+                    .layout_id(profile.race, profile.sex)
+                    .ok_or("missing real layout")?;
+                oracle_textures(&source, &compositor, &profile, &selected.materials, layout)?
+            }
+            None => read_creature_skin_oracle(&source, display)?,
+        };
         write_display_oracle(&source, &output, display, &textures, &mut manifest)?;
     }
     fs::write(output.join("bindings.tsv"), manifest).map_err(|e| e.to_string())?;
@@ -105,6 +109,43 @@ fn decode(source: &Path, fdid: u32) -> Result<Pixels, String> {
     let bytes = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
     let image = blp::decode_rgba(&bytes).map_err(|e| format!("FDID {fdid}: {e}"))?;
     Ok((image.pixels, image.width, image.height))
+}
+
+/// Read all four DB2 variations directly, independently of the runtime SQLite importer.
+fn read_creature_skin_oracle(source: &Path, display: u32) -> Result<HashMap<u32, Pixels>, String> {
+    let csv = fs::read_to_string(source.join("CreatureDisplayInfo.csv"))
+        .map_err(|error| format!("Read CreatureDisplayInfo: {error}"))?;
+    let mut lines = csv.lines();
+    let header: Vec<_> = lines
+        .next()
+        .ok_or("empty CreatureDisplayInfo")?
+        .split(',')
+        .collect();
+    let column = |name: &str| {
+        header
+            .iter()
+            .position(|value| *value == name)
+            .ok_or_else(|| format!("missing {name}"))
+    };
+    let id_column = column("ID")?;
+    let id = display.to_string();
+    let row = lines
+        .find(|line| line.split(',').nth(id_column) == Some(id.as_str()))
+        .ok_or_else(|| format!("missing DB2 display {display}"))?;
+    let values: Vec<_> = row.split(',').collect();
+    let mut textures = HashMap::new();
+    for (variation, kind) in [(0, 11), (1, 12), (2, 13), (3, 5)] {
+        let index = column(&format!("TextureVariationFileDataID_{variation}"))?;
+        let fdid: u32 = values
+            .get(index)
+            .ok_or("truncated DB2 display")?
+            .parse()
+            .map_err(|error| format!("display {display} variation {variation}: {error}"))?;
+        if fdid != 0 {
+            textures.insert(kind, decode(source, fdid)?);
+        }
+    }
+    Ok(textures)
 }
 
 fn oracle_textures(
