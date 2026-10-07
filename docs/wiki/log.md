@@ -2705,4 +2705,4 @@ Native SSAO follow-up: stable project prepass fixes cached depth-pipeline On→O
 
 ## 2026-10-07 — Native professions
 
-[[professions-ui]] distinguishes retired trainer/book coverage from the new owner snapshot, DB2 recipe book, bag reagent counts and CraftRecipe native host. Targeted model/UDP RED observed; GREEN/live proof pending in the linked spec.
+[[professions-ui]] distinguishes retired trainer/book coverage from the native owner snapshot, DB2 recipe book, bag counts and CraftRecipe host. Model/UDP and actual signed-count RED regressions were followed by targeted GREEN and inspected Modern/Forever private crafts. The linked spec owns counts, receipts, four-launch history, cleanup and remaining parity gaps.
