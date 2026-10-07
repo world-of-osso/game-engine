@@ -372,10 +372,6 @@ fn hudeditmode_selection_background_projects_selected_and_unselected_art() {
             .unwrap();
         let frame = registry.get(id).unwrap();
         let images = super::parts::project_images(frame, 240.0, 60.0);
-        println!(
-            "BACKGROUND {:?} alpha={} images={:?}",
-            frame.widget_data, frame.alpha, images
-        );
         assert_eq!(images.len(), 1);
         assert_eq!(images[0].source, Some(TextureSource::FileDataId(fdid)));
         assert_eq!(images[0].rect, [0.0, 0.0, 240.0, 60.0]);

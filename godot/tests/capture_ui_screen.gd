@@ -102,31 +102,37 @@ func _run() -> void:
 
 # UI textures load asynchronously. Capture both HUD skins only after native visuals settle.
 func capture_hud_edit_both(directory: String) -> void:
+	var captured: bool = await capture_hud_edit_both_into(self, directory)
+	quit(0 if captured else 1)
+
+# The private live fixture reuses this exact offline capture path before creating GameClient.
+static func capture_hud_edit_both_into(tree: SceneTree, directory: String) -> bool:
 	for entry in [["hudedit_preview", "modern-edit.png"], ["forever_hudedit_preview", "forever-edit.png"]]:
 		var ui = ClassDB.instantiate("RegistryUi")
-		root.add_child(ui)
+		tree.root.add_child(ui)
 		var error = ui.call("show_" + entry[0])
 		if error != "":
 			push_error(error)
-			quit(1)
-			return
+			ui.queue_free()
+			return false
 		for frame in range(120):
-			await process_frame
+			await tree.process_frame
 			await RenderingServer.frame_post_draw
 		var background := ui.find_child("EditModeSelection_player_frameBackground", true, false) as Control
-		if background == null or not background.is_visible_in_tree():
-			push_error("Player mover highlight is not mounted")
-			quit(1)
-			return
-		var image = root.get_texture().get_image()
+		if background == null or not background.is_visible_in_tree() or abs(background.modulate.a - 0.7) > 0.001:
+			push_error("Player mover highlight is not visibly projected at 0.7 opacity")
+			ui.queue_free()
+			return false
+		var image = tree.root.get_texture().get_image()
 		if image == null or image.is_empty() or image.save_png(directory.path_join(entry[1])) != OK:
 			push_error("HUD edit capture requires rendered pixels")
-			quit(1)
-			return
-		print("PASS: settled ", entry[0], " captured")
+			ui.queue_free()
+			return false
+		print("PASS: settled ", entry[0], " captured, highlight opacity=", background.modulate.a)
+		ui.call("finish_hudedit_preview")
 		ui.queue_free()
-		await process_frame
-	quit(0)
+		await tree.process_frame
+	return true
 
 # Retail ProfessionsRecipeList.xml:94-217; ReagentSlotBase.xml:6-27; RankBar.xml:5-61.
 func professions_geometry_and_content_match(ui: Node) -> bool:

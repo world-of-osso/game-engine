@@ -47,6 +47,13 @@ impl RegistryUi {
         self.capture_hud_edit(ActiveSkin::Forever)
     }
 
+    /// Clear the offline snapshot's transient state before creating a real GameClient.
+    #[func]
+    pub fn finish_hudedit_preview(&mut self) {
+        super::hud_edit_layout::publish_editor_active(false);
+        ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+    }
+
     fn capture_hud_edit(&mut self, skin: ActiveSkin) -> GString {
         let result = (|| {
             party_preview::load_data_root()?;
