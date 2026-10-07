@@ -1,6 +1,10 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
 # Tests needing files absent here fail remotely with their own missing-path error.
 
+# Native meeting-stone summon zone names use the minimap catalog (ChrRaces below).
+AreaTable.csv
+db2/12.1.0.69933/Vignette.csv
+
 # Authored equipment per-model replaceable textures, extracted from local CASC 4050937.
 ItemDisplayInfoModelMatRes.csv
 models/5646084.m2
