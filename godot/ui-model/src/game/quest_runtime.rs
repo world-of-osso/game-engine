@@ -14,6 +14,21 @@ use shared::protocol::{
     QuestLogUpdate, QuestMarkerClass, QuestPoiSnapshot,
 };
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum QuestNotice {
+    System(String),
+    Progress(String),
+}
+
+impl std::fmt::Display for QuestNotice {
+    fn fmt(&self, formatter: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let text = match self {
+            Self::System(text) | Self::Progress(text) => text,
+        };
+        formatter.write_str(text)
+    }
+}
+
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct QuestRuntime {
     /// Quest log in server order.
@@ -107,6 +122,27 @@ pub enum QuestDialogPage {
     },
 }
 
+fn objective_progress_notices(
+    previous: &QuestEntrySnapshot,
+    changed: &QuestEntrySnapshot,
+) -> Vec<QuestNotice> {
+    previous
+        .objectives
+        .iter()
+        .zip(&changed.objectives)
+        .filter(|(before, after)| {
+            let same_objective = before.kind == after.kind && before.object_id == after.object_id;
+            same_objective && after.current > before.current
+        })
+        .map(|(_, objective)| {
+            QuestNotice::Progress(format!(
+                "{}: {}/{}",
+                objective.text, objective.current, objective.required,
+            ))
+        })
+        .collect()
+}
+
 impl QuestRuntime {
     pub fn entry(&self, quest_id: u32) -> Option<&QuestEntrySnapshot> {
         self.log.iter().find(|entry| entry.quest_id == quest_id)
@@ -147,7 +183,7 @@ impl QuestRuntime {
     }
 
     /// Applies a log delta; newly added quests produce `ERR_QUEST_ACCEPTED_S`.
-    pub fn apply_update(&mut self, update: QuestLogUpdate) -> Vec<String> {
+    pub fn apply_update(&mut self, update: QuestLogUpdate) -> Vec<QuestNotice> {
         let mut notices = Vec::new();
         self.log
             .retain(|entry| !update.removed.contains(&entry.quest_id));
@@ -157,9 +193,15 @@ impl QuestRuntime {
                 .iter_mut()
                 .find(|entry| entry.quest_id == changed.quest_id)
             {
-                Some(entry) => *entry = changed,
+                Some(entry) => {
+                    notices.extend(objective_progress_notices(entry, &changed));
+                    *entry = changed;
+                }
                 None => {
-                    notices.push(format!("Quest accepted: {}", changed.title));
+                    notices.push(QuestNotice::System(format!(
+                        "Quest accepted: {}",
+                        changed.title
+                    )));
                     self.log.push(changed);
                 }
             }
