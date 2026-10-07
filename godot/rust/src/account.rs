@@ -1797,6 +1797,47 @@ mod tests {
     use shared::protocol::{CharacterListEntry, TransferAbortReason};
 
     #[test]
+    fn flightmap_account_preserves_server_map_and_refusal_text() {
+        use shared::protocol::{TaxiError, TaxiFailed, TaxiMap, TaxiNodeInfo, TaxiNodeState};
+        let mut account = Account::new(PathBuf::new());
+        let map = TaxiMap {
+            npc: 352,
+            continent: 0,
+            nodes: vec![TaxiNodeInfo {
+                node: 2,
+                name: "Stormwind, Elwynn".into(),
+                world_x: -8841.06,
+                world_y: 489.656,
+                state: TaxiNodeState::Current,
+                cost: 0,
+                route: vec![],
+            }],
+        };
+        let mut output = Vec::new();
+        account
+            .dispatch_message(ProtocolMessage::for_tests(map.clone()), &mut output)
+            .unwrap();
+        let [AccountEvent::TaxiMap(received)] = output.as_slice() else {
+            panic!("taxi map event");
+        };
+        assert_eq!(received, &map);
+        output.clear();
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(TaxiFailed {
+                    npc: 352,
+                    error: TaxiError::NotEnoughMoney,
+                }),
+                &mut output,
+            )
+            .unwrap();
+        let [AccountEvent::Npc(NpcMessage::Error(message))] = output.as_slice() else {
+            panic!("taxi refusal");
+        };
+        assert_eq!(message, "You don't have enough money!");
+    }
+
+    #[test]
     fn xpchat_account_dispatches_gain_without_deriving_it_from_xp_state() {
         use shared::protocol::{LogXpGain, PlayerXpUpdate, XpGainReason};
         let mut account = Account::new(PathBuf::new());
