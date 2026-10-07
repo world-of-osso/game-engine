@@ -162,7 +162,7 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
         ),
         (
             "SpellReagents",
-            "SpellID,Reagent_0,Reagent_1,Reagent_2,Reagent_3,Reagent_4,Reagent_5,Reagent_6,Reagent_7,ReagentCount_0,ReagentCount_1,ReagentCount_2,ReagentCount_3,ReagentCount_4,ReagentCount_5,ReagentCount_6,ReagentCount_7\n3275,2589,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0\n",
+            "SpellID,Reagent_0,Reagent_1,Reagent_2,Reagent_3,Reagent_4,Reagent_5,Reagent_6,Reagent_7,ReagentCount_0,ReagentCount_1,ReagentCount_2,ReagentCount_3,ReagentCount_4,ReagentCount_5,ReagentCount_6,ReagentCount_7\n3275,2589,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0\n44864,34259,0,0,0,0,0,0,0,-1,0,0,0,0,0,0,0\n",
         ),
         (
             "SkillLineAbility",
