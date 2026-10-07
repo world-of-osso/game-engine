@@ -47,7 +47,9 @@ pub(crate) fn npc_pass_active<T>(
                 "missing required NPC pass texture type {kind} FDID {fdid}"
             ));
         }
-        if matches!(kind, 1 | 6) || ((visible || kind == 0) && fdid.is_none()) {
+        let requires_replacement = matches!(kind, 1 | 6);
+        let needs_resolved_source = (visible || kind == 0) && fdid.is_none();
+        if requires_replacement || needs_resolved_source {
             return Err(format!("missing required NPC pass texture type {kind}"));
         }
     }
