@@ -214,6 +214,22 @@ pub fn buff_button_at(registry: &FrameRegistry, mut frame_id: u64) -> Option<(bo
     }
 }
 
+/// Retail `AuraButtonMixin:OnClick`: only helpful player auras may be cancelled.
+/// The server enforces passive and `NO_AURA_CANCEL` restrictions.
+pub fn player_buff_cancel(
+    action: &str,
+    auras: &[AuraInstance],
+) -> Option<shared::protocol::CancelAura> {
+    let (is_debuff, index) = parse_button_name(action)?;
+    if is_debuff || index >= MAX_BUFFS {
+        return None;
+    }
+    let aura = auras.iter().filter(|aura| !aura.is_debuff).nth(index)?;
+    Some(shared::protocol::CancelAura {
+        spell_id: aura.spell_id,
+    })
+}
+
 fn parse_button_name(name: &str) -> Option<(bool, usize)> {
     let (is_debuff, rest) = match name.strip_prefix(BUFF_BUTTON) {
         Some(rest) => (false, rest),
@@ -350,9 +366,15 @@ fn aura_button(name: String, (right, top): (f32, f32), icon: &BuffIconState) -> 
     let icon_texture: Element = resolved_icon(icon)
         .map(|fdid| aura_icon(&name, fdid))
         .unwrap_or_default();
+    let cancel_action = if icon.dispel.is_none() {
+        name.clone()
+    } else {
+        String::new()
+    };
     rsx! {
         r#frame {
             name: {DynName(name.clone())},
+            onclick: {cancel_action.as_str()},
             width: AURA_W,
             height: AURA_H,
             mouse_enabled: true,

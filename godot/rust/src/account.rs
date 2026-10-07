@@ -487,6 +487,19 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// `CancelUnitBuff`: the server validates and removes a helpful player aura.
+    pub fn send_cancel_aura(
+        &self,
+        request: shared::protocol::CancelAura,
+    ) -> Result<(), SessionError> {
+        if self.session.screen != SessionScreen::InWorld || !self.session.gameplay_input_allowed() {
+            return Ok(());
+        }
+        self.bridge()?
+            .send::<_, CombatChannel>(request)
+            .map_err(SessionError)
+    }
+
     /// `SpellStopCasting`: cancel the current cast.
     pub fn send_stop_cast(&self) -> Result<(), SessionError> {
         self.bridge()?
