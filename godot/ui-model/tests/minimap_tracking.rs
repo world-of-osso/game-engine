@@ -9,7 +9,7 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 #[test]
-fn supported_tracking_requires_selected_service_flags_and_clips_positions() {
+fn minimap_tracking_requires_selected_service_flags_and_clips_positions() {
     let view = MinimapView::new([100.0, 200.0], 0);
     let units = [
         (1, NpcFlags(NpcFlags::FLIGHTMASTER), [150.0, 200.0]),
@@ -45,7 +45,7 @@ fn supported_tracking_requires_selected_service_flags_and_clips_positions() {
 }
 
 #[test]
-fn each_supported_town_role_tracks_only_its_matching_unit() {
+fn minimap_tracking_each_town_role_tracks_only_its_matching_unit() {
     let flags = [
         NpcFlags::FLIGHTMASTER,
         NpcFlags::INNKEEPER,
@@ -72,7 +72,7 @@ fn each_supported_town_role_tracks_only_its_matching_unit() {
 }
 
 #[test]
-fn tracking_menu_and_service_art_both_skins() {
+fn minimap_tracking_menu_and_service_art_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut tracking = TrackingState {
             open: true,
