@@ -50,3 +50,20 @@ Retail objective tracker, quest log and quest giver frame on the live server que
 - `godot/tests/quest_flow_movement.gd` — quest fixture NPC approach and calibrated mouse steering at deterministic 500 ms movement frames, including a GUI-consumed first press; releases input after crossing melee range or finishing a turn, rejects dead-player prediction as a walk, and verifies travel setup restores a dead warrior only after arriving outside exploration triggers. Exploration deaths resume from the authoritative death position only when safely outside the trigger; recovery never completes an objective by admin. Live quest screenshots use a 1920×1080 viewport and reject a clipped tracker.
 - Godot live: `godot/tests/world_tracker_relog.gd` — 28766 accepted, client freed, new login: the tracker shows the quest after relog (`data/diagnostics/tracker-2026-10-02/shots-relog3/`).
 - Godot: `godot/tests/world_minimap_quest.gd` — native objective tracker block, objective line, anchor and collapse on a private server (`data/diagnostics/minimapquest-2026-09-29/`); see [minimap](minimap.md).
+
+
+## Live acceptance 2026-10-07
+
+Evidence: canonical `data/diagnostics/questloop-2026-10-07/`; each capture has adjacent native state JSON and IPC UI/quest/watch/scene dumps. Initial client `1238b1a78`, progress fix `d88c66b0f`, copied private server `c2903d3`, UDP5324, level-1 human account `fb_quest1`.
+
+| Step | Result | Inspected captures / assertions |
+|---|---|---|
+| 1. Giver markers | PASS | `shots/01-marker-available.png`, `shots2/marker-available-separated.png`, `shots3/marker-turnin-separated.png`, `shots3/07-ready-for-turn-in.png`: normal NPC/minimap ! and ?, Available→Incomplete→Reward. |
+| 2. Gossip accept/log/auto-watch/tracker | PASS | `shots/02-greeting.png`, `shots/04-accepted.png`, `shots/05b-unwatched.png`:28766 accepted, log objective0/6, watched ID and tracker. Retail `Blizzard_ObjectiveTracker.lua:18–23` gates auto-watch on `autoQuestWatch`, capacity and non-bounty/non-task status. |
+| 3. Live objective progress/message | PASS after fix | RED `shots/06b-kill-credit.png` had1/6 without message; GREEN `shots2/progress-1.png` and `shots3/progress-{1,2,3}.png` show real credits through6/6 and yellow rendered progress. Native first-post-draw label colour asserted; replay/decrease/item Rust regressions pass. |
+| 4. Watched objective areas | PASS | `shots/05-world-map-objective.png`, `shots/06-minimap-objective.png`: polygon and objective pin; minimap5085 tinted pixels. |
+| 5. Unwatch/re-watch/relog | PASS | `shots/05b-unwatched.png`, `shots/05c-rewatched.png`, `shots/05d-relogged.png`: actual log buttons and persisted watched ID; empty tracker retains the user-requested header. |
+| 6. Complete/reward/grants/removal | FAIL overall | `shots3/08-reward.png`, `shots3/09-follow-up-offered.png`:28766 pays400 XP and55 Copper, leaves log/tracker and offers28774. **Fixed reward items57247/11475 remain unverified:**26391 reached1/8 in `shots3/19a-fire-1.png`, then ordinary vineyard mobs killed the player. Normal release/reclaim was attempted without admin revival; recovery failed before further item proof. Six actual Godot startups exhausted; no additional launch authorized. |
+| 7. Confirmed abandon everywhere | PASS | `shots3/11-abandon-popup.png`, `shots3/12-abandoned.png`, `shots3/abandon-map.png`:28774 absent from log/watch/tracker/minimap areas/world-map pins; giver returns Available. |
+
+Build and scoped formatting pass. Whole `game-engine-core`, `game-engine-ui-model` and `game-engine-godot` suites ran once on the fixed Rust scope:2166 passed,0 failed,6 ignored; full output in `full-crate-tests.log`. The first RED assertion executed despite a later BuildKit export failure; no duplicate broad rerun. No server defect attributed: `vineyard-death-combat.txt` records ordinary5–14 melee hits, not an established server bug. Historical steering/recovery/tooling failures remain in the ledger. This is not full quest acceptance, all marker kinds/skins/Edit Mode, or normal renderer shutdown proof.
