@@ -23,7 +23,8 @@ fn scale_canvas_rect([x, y, rw, rh]: [f32; 4], [w, h]: [f32; 2]) -> [f32; 4] {
     [x * w, y * h, rw * w, rh * h]
 }
 
-fn canvas_contents(state: &WorldMapFrameState, size: [f32; 2]) -> Element {
+/// Shared tiled map canvas for world and flight maps.
+pub fn canvas_contents(state: &WorldMapFrameState, size: [f32; 2]) -> Element {
     let mut children: Element = state
         .tiles
         .iter()

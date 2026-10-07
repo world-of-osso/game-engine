@@ -178,6 +178,7 @@ pub enum AccountEvent {
     Combat(CombatMessage),
     /// NPC interaction, vendor, bag and durability traffic.
     Npc(NpcMessage),
+    TaxiMap(shared::protocol::TaxiMap),
     Auction(AuctionReply),
     Mail(MailMessage),
     /// `TradeStateUpdate`: the trade snapshot, its refusal and message.
@@ -803,6 +804,15 @@ impl Account {
         .map_err(SessionError)
     }
 
+    pub fn send_activate_taxi(
+        &self,
+        request: shared::protocol::ActivateTaxi,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::TaxiChannel>(request)
+            .map_err(SessionError)
+    }
+
     /// The player closed the NPC's frame (`CMSG_CLOSE_INTERACTION`).
     pub fn send_close_interaction(&self, npc: u64) -> Result<(), SessionError> {
         self.bridge()?
@@ -1290,6 +1300,24 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if message.is::<shared::protocol::TaxiMap>() {
+            output.push(AccountEvent::TaxiMap(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::TaxiNodeDiscovered>() {
+            decode::<shared::protocol::TaxiNodeDiscovered>(message)?;
+            output.push(AccountEvent::Npc(NpcMessage::Error(
+                "New location discovered!".into(),
+            )));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::TaxiFailed>() {
+            let failure: shared::protocol::TaxiFailed = decode(message)?;
+            output.push(AccountEvent::Npc(NpcMessage::Error(
+                failure.error.message().into(),
+            )));
+            return Ok(());
+        }
         if Self::is_world_transition_message(&message) {
             return self.dispatch_world_transition_message(message, output);
         }
