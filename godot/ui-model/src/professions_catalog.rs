@@ -139,6 +139,7 @@ fn load_recipes(
         recipes.push(Recipe {
             spell_id,
             skill_line,
+            profession: number(row[1])?,
             category,
             name: String::new(),
             min_rank: rank(row[4])?,

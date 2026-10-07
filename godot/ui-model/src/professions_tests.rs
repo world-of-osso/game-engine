@@ -17,6 +17,7 @@ fn book() -> ProfessionBook {
             Recipe {
                 spell_id: 3275,
                 skill_line: 2540,
+                profession: 197,
                 category: "Bandages".into(),
                 name: "Linen Bandage".into(),
                 min_rank: 1,
@@ -28,6 +29,7 @@ fn book() -> ProfessionBook {
             Recipe {
                 spell_id: 3276,
                 skill_line: 2540,
+                profession: 197,
                 category: "Bandages".into(),
                 name: "Heavy Linen Bandage".into(),
                 min_rank: 40,
@@ -39,6 +41,7 @@ fn book() -> ProfessionBook {
             Recipe {
                 spell_id: 2963,
                 skill_line: 197,
+                profession: 197,
                 category: "Cloth".into(),
                 name: "Bolt of Linen Cloth".into(),
                 min_rank: 1,
@@ -217,6 +220,7 @@ fn professions_both_skins_show_counts_and_disable_missing_reagent_create() {
                     ItemDisplay {
                         name: "Linen Bandage".into(),
                         icon_fdid: 133681,
+                        quality: 1,
                     },
                 ),
                 (
@@ -224,6 +228,7 @@ fn professions_both_skins_show_counts_and_disable_missing_reagent_create() {
                     ItemDisplay {
                         name: "Linen Cloth".into(),
                         icon_fdid: 132889,
+                        quality: 1,
                     },
                 ),
             ]
@@ -240,7 +245,7 @@ fn professions_both_skins_show_counts_and_disable_missing_reagent_create() {
             .get(registry.get_by_name("ProfessionReagent0").unwrap())
             .unwrap();
         assert!(
-            matches!(reagent.widget_data.as_ref(), Some(WidgetData::FontString(text)) if text.text == "Linen Cloth  5/1")
+            matches!(reagent.widget_data.as_ref(), Some(WidgetData::FontString(text)) if text.text == "5/1 Linen Cloth")
         );
         let create = registry
             .get(registry.get_by_name("ProfessionsCreate").unwrap())
@@ -264,7 +269,7 @@ fn professions_both_skins_show_counts_and_disable_missing_reagent_create() {
             .get(registry.get_by_name("ProfessionReagent0").unwrap())
             .unwrap();
         assert!(
-            matches!(reagent.widget_data.as_ref(), Some(WidgetData::FontString(text)) if text.text == "Linen Cloth  0/1")
+            matches!(reagent.widget_data.as_ref(), Some(WidgetData::FontString(text)) if text.text == "0/1 Linen Cloth")
         );
     }
     set_thread_skin(ActiveSkin::Modern);
