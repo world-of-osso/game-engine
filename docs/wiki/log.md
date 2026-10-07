@@ -2673,4 +2673,4 @@ Local-CASC ItemDisplayInfoModelMatRes4050937 establishes type3 material822338/te
 
 ## 2026-10-06 — Desktop disk recovery and GC reconciliation
 
-[[desktop-disk-exhaustion]] records main-observed exhaustion, completed prune/trim/offline compaction and separate host/guest capacity measurements; SIGBUS causality remains unproven. [[build-hosts#Builder GC policy]] owns the approved aggregate budget superseding warm-every-slot retention; persistent deployment/stability unverified. Build guide now links instead of duplicating policy or retaining transient recovery status.
+[[desktop-disk-exhaustion]] records main-observed exhaustion, completed prune/trim/offline compaction and separate host/guest capacity measurements; SIGBUS causality remains unproven. [[build-hosts#Builder GC policy]] owns the approved aggregate budget superseding warm-every-slot retention; persistent configuration applied and inspected; sustained behavior unverified. Build guide now links instead of duplicating policy or retaining transient recovery status.
