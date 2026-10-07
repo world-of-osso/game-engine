@@ -32,7 +32,7 @@ python3 scripts/depot-build.py --root "$PWD" --release
 python3 scripts/depot-build.py --root "$PWD" --cli
 ```
 
-`--fixture` accepts every top-level `godot/network/examples/*.rs` file stem (`native_input_fixture`, `native_npc_visual_fixture`, `native_reconnect_fixture`, `native_transfer_fixture`, and any new one); the helper validates the name and the Dockerfile builds it. Fixtures locate their checkout from the installed `target/debug/examples/<name>` path.
+`--fixture` accepts every top-level `godot/network/examples/*.rs` file stem (`native_input_fixture`, `native_npc_visual_fixture`, `native_reconnect_fixture`, `native_transfer_fixture`, and any new one); the helper validates the name and the Dockerfile builds it. Fixtures locate their checkout from the installed `target/debug/examples/<name>` path. `native_input_fixture` and `native_npc_visual_fixture` stage authored root CSVs while preserving generated fixture catalogs; SQL setup and WAL-safe listfile snapshots use bundled rusqlite, not a host `sqlite3` executable. Their private data trees live under canonical `data/`.
 
 `--fixture`, `--cli`, `--release`, and `--test` retain their arguments and source/assets behavior on both hosts. For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host desktop --test -p game-engine-core` (substitute `local` as needed). Host selection does not make GDScript or GPU tests part of `--test`.
 
