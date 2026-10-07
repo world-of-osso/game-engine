@@ -17,14 +17,16 @@ Boss chat retains its existing chat consumer and also enters RaidWarnings. The p
 ## Retail sources
 
 Cached root: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`.
-- `Blizzard_UnitFrame/Mainline/TargetFrame.xml:251-279,600-648`: BossTargetFrameTemplate inherits TargetFrameTemplate; Boss1..5 belong to BossTargetFrameContainer, spacing10.
+- `Blizzard_UnitFrame/Mainline/TargetFrame.xml:367-394,600-648`: BossTargetFrameTemplate inherits TargetFrameTemplate; Boss1..5 belong to BossTargetFrameContainer, spacing10.
 - `Blizzard_UnitFrame/Mainline/TargetFrame.lua:944-1012`: boss unit names, secure target binding and small portraitless layout; native requested portrait rendering deliberately differs from that small variant.
 - `Blizzard_RaidWarning/RaidWarning.xml:3-23`: 800-wide common center frame, TOP182, four message slots. Current cached Retail combines boss-emote and raid-warning traffic rather than using a separate public RaidBossEmoteFrame.
 - `Blizzard_RaidWarning/RaidWarning.lua:6-15,82-106`: fade0.2/out3, hold10, four slots, boss formatting and clear event.
 
 ## Evidence
 
-Targeted RED reproduced unhandled native Account messages, missing boss classification art and missing transport subscription. Current GREEN/live proof pending. Private live assets/logs: canonical `data/diagnostics/bossframes-20261007/`; no historical Bevy proof is promoted.
+Verified: 2026-10-07. Targeted RED reproduced unhandled native Account messages, missing classification art and missing transport subscription. Production `cf829040` plus test-only `cd04108e`: 11 targeted cases PASS; three-crate formatting check and installed extension/CLI build pass. No broad suite.
+
+[Current contract](../../specs/boss-encounters.md#native-proof--2026-10-07) owns native proof and exclusions. Canonical `data/diagnostics/bossframes-20261007/` retains exact argv, proof ledger, inspected Hogger engage/click/server-echo/emote/kill-clear captures and cleanup. Boss fixed slot overlaps objective tracker; exact Retail right-managed geometry remains open. Manual emote captures supersede the saved script's incorrect uppercase predicate, not production behavior. No historical Bevy proof is promoted.
 
 ## Sources
 - [Contract and behavioral tests](../../specs/boss-encounters.md).

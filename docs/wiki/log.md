@@ -1,6 +1,6 @@
 ## 2026-10-07 — Native boss encounters
 
-[Boss encounters](systems/boss-encounters.md) records missing transport/host consumers, ordered lifecycle relay, replicated clickable portrait frames and timed center warning HUD. Concrete RED captured before implementation; current GREEN/private Stockade proof pending. Server/protocol unchanged.
+[Boss encounters](systems/boss-encounters.md) records missing transport/host consumers, ordered lifecycle relay, replicated clickable portrait frames and timed center warning HUD. Concrete RED preceded implementation. `cf829040` + `cd04108e`: 11 targeted cases, formatting/build PASS; inspected private Hogger frame, physical click/server echo, lowercase enrage and successful kill-clear captures. Two launches; owned processes stopped, UDP5306 free. Fixed-slot/objective overlap and exact Retail layout remain gaps. Server/protocol unchanged.
 
 ## 2026-10-07 — Portrait party Retail parity audit
 
