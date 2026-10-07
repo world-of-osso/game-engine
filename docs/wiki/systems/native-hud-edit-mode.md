@@ -16,7 +16,11 @@ Placements store logical UI-unit offsets from screen anchors. Each canvas projec
 
 One registry and `collect_selection_boxes` supply live and offline labels, visibility filtering and selected art. Unmounted/hidden roots are skipped. Bars 2/3 are temporarily mounted by their production screen while editing. Bars 4/5 have editor-only empty preview roots; this does not add their missing gameplay consumers. Exit removes previews without changing preset visibility or Options settings.
 
-`hud_edit_preview.rs` provides the secondary Godot capture methods. `hud_edit_live.gd` exercises native keys, mouse down/motion/up, Save, Escape, reset/discard and cold-process relog; it never writes mover offsets directly.
+`hud_edit_preview.rs` provides the secondary Godot capture methods. `capture_ui_screen.gd` shares its two-skin offline capture function with the live fixture, then clears transient preview state before `GameClient` creation. `hud_edit_live.gd` exercises native keys, mouse down/motion/up, Save, Escape, reset/discard and normal logout/login relog; it never writes mover offsets directly.
+
+## Fractional opacity boundary
+
+The pinned sibling `ui-toolkit-macros` parser truncates fractional numeric literals (`parse_attr_value`, `LitFloat` branch). The mover's literal `alpha: 0.7` therefore produced zero opacity despite correct art and geometry; waiting for textures did not fix it. The authorized client code uses the macro's numeric-expression path, `alpha: {0.7}`, and tests effective projected opacity. The dependency is outside this change's authorized paths; retire this syntax constraint when its literal parser preserves fractions.
 
 ## Sources
 

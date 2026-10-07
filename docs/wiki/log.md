@@ -2724,3 +2724,5 @@ Native SSAO follow-up: stable project prepass fixes cached depth-pipeline On→O
 ## 2026-10-07 — Native HUD edit mode
 
 Documented native mover drafts, bounds-only position overrides, preset-preserving previews and pointer/relog fixture. Acceptance lives in hud-edit-mode.md and its evidence ledger.
+
+Native mover render diagnosis: correct selection art/geometry had zero opacity because the pinned rsx literal parser drops fractions. Numeric-expression opacity fixes the client within authorized paths; native opacity regression and shared offline/live capture helper documented.
