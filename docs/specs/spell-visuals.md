@@ -26,7 +26,7 @@ The Godot client selects Retail DB2 spell visuals and plays their event kits on 
 - `godot/core/tests/spell_visual.rs::specialization_slam_picks_arms_and_fury_cast_kits_with_the_same_two_handed_sword`
 - `godot/rust/src/spell_effects/casts.rs::specialization_tests` — fresh spell state, Arms→Fury transition, local-only filtering and missing specialization.
 
-Native/core specialization filter passed at `82ad03641` (three feature tests plus one existing icon test); wrong Fury kit was reproduced before the fix. Changed-file rustfmt check passed. Tests assert state-to-DB2 selection, not rendered casts; event/prefetch wiring is source-audited and compiled.
+At `82ad03641`, the native/core specialization filter passed (three feature tests plus one existing icon test), then all nine `game-engine-core --test spell_visual` tests passed. Wrong Fury kit was reproduced before the fix. Changed-file rustfmt and whitespace checks passed; no compiler warnings in either GREEN log. Logs: `/tmp/claude/specvisuals.full.log` and `/tmp/claude/specvisuals-regression.full.log`. Tests assert state-to-DB2 selection, not rendered casts; event/prefetch wiring is source-audited and compiled.
 
 ## Known gaps (current cycle)
 
