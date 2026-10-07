@@ -118,7 +118,7 @@ fn preview_view() -> ProfessionView {
 }
 
 fn preview_recipes() -> Vec<Recipe> {
-    // Fixed threshold fixtures deliberately cover all four colours at rank 35.
+    // Fixed threshold fixtures cover all four difficulties at rank 35; labels stay neutral.
     [
         (3275, "Bandages", "Linen Bandage", 1, 20, 30),
         (3276, "Bandages", "Heavy Linen Bandage", 20, 25, 40),

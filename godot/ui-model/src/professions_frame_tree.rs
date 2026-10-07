@@ -10,6 +10,8 @@ use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element, widgets::font_
 const CATEGORY_HEIGHT: f32 = 25.0;
 const LIST_HEIGHT: f32 = 546.0;
 const ROW_WIDTH: f32 = 241.0;
+// Retail GetLabelColor (RecipeList.lua:232-234), GlobalColor PROFESSION_RECIPE_COLOR #e2dcd6.
+const PROFESSION_RECIPE_COLOR: &str = "0.8862745,0.8627451,0.8392157,1";
 
 pub(super) fn recipe_list(ctx: &SharedContext, view: &ProfessionView) -> Element {
     let (content, height) = tree_rows(view);
@@ -165,18 +167,18 @@ fn difficulty(view: &ProfessionView, recipe: &Recipe) -> RecipeDifficulty {
 
 fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
     let prefix = format!("ProfessionRecipe{}", recipe.spell_id);
-    let (color, icon) = match difficulty(view, recipe) {
-        RecipeDifficulty::Optimal => ("1,0.5,0.25,1", Some("Professions-Icon-Skill-High")),
-        RecipeDifficulty::Medium => ("1,1,0,1", Some("Professions-Icon-Skill-Medium")),
-        RecipeDifficulty::Easy => ("0.25,0.75,0.25,1", Some("Professions-Icon-Skill-Low")),
-        RecipeDifficulty::Trivial => ("0.5,0.5,0.5,1", None),
+    let icon = match difficulty(view, recipe) {
+        RecipeDifficulty::Optimal => Some("Professions-Icon-Skill-High"),
+        RecipeDifficulty::Medium => Some("Professions-Icon-Skill-Medium"),
+        RecipeDifficulty::Easy => Some("Professions-Icon-Skill-Low"),
+        RecipeDifficulty::Trivial => None,
     };
     let mut children = recipe_row_art(view, recipe, &prefix, icon);
     children.extend(label(
         format!("{prefix}Label"),
         &recipe.name,
         (17.0, 0.0, ROW_WIDTH - 48.0, ROW_HEIGHT),
-        (12.0, color, "LEFT"),
+        (12.0, PROFESSION_RECIPE_COLOR, "LEFT"),
     ));
     let count = view
         .recipe_craftable
@@ -188,7 +190,7 @@ fn recipe_row(view: &ProfessionView, recipe: &Recipe, y: f32) -> Element {
             format!("{prefix}Count"),
             &format!("[{count}]"),
             (ROW_WIDTH - 40.0, 0.0, 30.0, ROW_HEIGHT),
-            (12.0, HIGHLIGHT_FONT_COLOR, "RIGHT"),
+            (12.0, PROFESSION_RECIPE_COLOR, "RIGHT"),
         ));
     }
     let action = format!("profession:select:{}", recipe.spell_id);
