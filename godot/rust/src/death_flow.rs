@@ -29,6 +29,8 @@ impl GameClient {
             .map_or(0, |level| level.0);
         self.death_flow
             .sync_popups(&mut self.group_frames.popups, position.as_ref(), level);
+        self.world_lighting
+            .set_ghost_grading(self.death_flow.is_ghost());
         self.sync_ghost_visual();
     }
 

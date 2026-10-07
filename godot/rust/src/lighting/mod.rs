@@ -160,6 +160,7 @@ impl TerrainLight {
 pub(crate) struct WorldLighting {
     root: Option<Gd<Node3D>>,
     sun: Option<Gd<DirectionalLight3D>>,
+    environment: Option<Gd<Environment>>,
     sky: Option<Gd<ShaderMaterial>>,
     stars: Option<SkyModel>,
     /// LightSkybox models by FDID, with the day fraction a flag 0x1 skybox is held at.
@@ -396,6 +397,7 @@ impl WorldLighting {
         sun.set_shadow_mode(directional_light_3d::ShadowMode::PARALLEL_2_SPLITS);
         root.add_child(&sun);
         self.sun = Some(sun);
+        self.environment = Some(environment);
         self.sky = Some(sky_material);
         self.root = Some(root);
         Ok(())
@@ -406,8 +408,16 @@ impl WorldLighting {
         self.sun.clone()
     }
 
+    pub fn set_ghost_grading(&mut self, ghost: bool) {
+        if let Some(environment) = self.environment.as_mut() {
+            environment.set_adjustment_enabled(ghost);
+            environment.set_adjustment_saturation(if ghost { 0.2 } else { 1.0 });
+        }
+    }
+
     pub fn reset(&mut self) {
         self.sun = None;
+        self.environment = None;
         self.sky = None;
         self.stars = None;
         self.skyboxes.clear();
