@@ -411,6 +411,8 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(preferred.as_slice(), &[4237053, 4237050, 4237060, 4237057]);
+        drop(conn);
+        let conn = Connection::open(&path).unwrap();
         conn.execute_batch(
             "ALTER TABLE creature_displays DROP COLUMN skin_fdid_3;
              ALTER TABLE preferred_skins DROP COLUMN skin_fdid_3;",
