@@ -241,6 +241,50 @@ fn registration_pending_approval_never_authenticates_or_persists_a_token() {
 }
 
 #[test]
+fn capturepolish_registration_feedback_severity_follows_reply_not_text() {
+    let mut session = Session::default();
+    for success in [false, true] {
+        session.receive_registration(RegisterResponse {
+            success,
+            token: String::new(),
+            pending_approval: true,
+            error: Some("Pending administrator approval".into()),
+        });
+        assert!(session.feedback_is_informational);
+        assert!(session.token.is_none());
+    }
+    session.receive_registration(RegisterResponse {
+        success: false,
+        token: String::new(),
+        pending_approval: false,
+        error: Some("Pending administrator approval".into()),
+    });
+    assert!(
+        !session.feedback_is_informational,
+        "identical text on a refusal is an error"
+    );
+    session.receive_registration(RegisterResponse {
+        success: false,
+        token: String::new(),
+        pending_approval: true,
+        error: None,
+    });
+    session.receive_login(
+        LoginResponse {
+            success: false,
+            token: String::new(),
+            characters: Vec::new(),
+            error: Some("Invalid credentials".into()),
+        },
+        SessionOptions::default(),
+    );
+    assert!(
+        !session.feedback_is_informational,
+        "login failure clears pending severity"
+    );
+}
+
+#[test]
 fn registration_success_clears_roster_and_failure_surfaces_raw_error() {
     let mut session = Session::default();
     session.receive_login(

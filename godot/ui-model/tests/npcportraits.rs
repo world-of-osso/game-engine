@@ -39,6 +39,42 @@ fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a ui_toolkit::frame::
 }
 
 #[test]
+fn capturepolish_flight_map_draws_retail_flying_portrait_in_both_skins() {
+    use game_engine_ui_model::{
+        flight_map::FlightProjection,
+        flight_map_component::{FlightMapView, flight_map_screen},
+        world_map_frame_component::WorldMapFrameState,
+    };
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = mount(
+            FlightMapView {
+                map: WorldMapFrameState {
+                    viewport: [1920.0, 1080.0],
+                    ..Default::default()
+                },
+                projection: FlightProjection {
+                    pins: vec![],
+                    routes: vec![],
+                },
+                hovered: None,
+            },
+            flight_map_screen,
+        );
+        let portrait = frame(&registry, "FlightMapPortrait");
+        let Some(WidgetData::Texture(texture)) = &portrait.widget_data else {
+            panic!("portrait must be authored icon art")
+        };
+        assert!(matches!(texture.source, TextureSource::FileDataId(618_976)));
+        assert_eq!(portrait.frame_level, 400);
+        assert_eq!(
+            (portrait.width.value(), portrait.height.value()),
+            (58.0, 58.0)
+        );
+    }
+}
+
+#[test]
 fn npcportraits_sources_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);

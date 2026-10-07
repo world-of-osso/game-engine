@@ -8,7 +8,7 @@ The native login screen offers a username/password registration form using the a
 - [x] Empty or whitespace-only username/password rejects submission with feedback and no request.
 - [x] Register emits `RegisterRequest { username, password }` on AuthChannel to the currently selected server, never a cached login token.
 - [x] Submitting disables Register and mode switching; a reply restores submission.
-- [x] Pending approval retains Login, shows administrator-approval guidance, and neither authenticates nor persists a token, regardless of the response's success flag.
+- [x] Pending approval retains Login, shows administrator-approval guidance in the login form's informational gold (also used while connecting/submitting), and neither authenticates nor persists a token, regardless of the response's success flag. Refusals/validation/login errors remain error red. Severity follows the pending-approval field, not words in the response text.
 - [x] A nonpending success persists its token, clears the roster and opens character select; a refusal shows the server error and permits correction/retry.
 - [x] After private administrator approval, Back to Login and password login reach character select.
 
@@ -27,7 +27,8 @@ The native login screen offers a username/password registration form using the a
 
 ## Tests asserting this spec
 
-- `godot/ui-model/tests/login.rs` — visible entry, form switching, preserved inputs and disabled buttons.
+- `godot/ui-model/tests/login.rs` — visible entry, form switching, preserved inputs, disabled buttons and connecting/pending gold → refusal-red feedback.
+- `godot/session/tests/session.rs::capturepolish_registration_feedback_severity_follows_reply_not_text` — pending severity for either success flag and subsequent refusal/login-failure reset.
 - `godot/session/tests/session.rs` — validation, emitted request, pending/success/refusal transitions.
 - `godot/tests/registration_flow.gd` — rendered real-input registration, private pending reply, approval and password login.
 
@@ -42,6 +43,10 @@ No registration-flow gaps remain in the requested scope.
 - Matching local native extension and CLI build passes in `/tmp/claude/registration-build.out`; Rust formatting passes in `/tmp/claude/registration-fmt-final.out`.
 - `data/diagnostics/registration-2026-10-07/` contains `proof-ledger.json`, `client2.log`, `pending-ui.txt`, and inspected `shots/{pending,character-select}.png` with adjacent state JSON. Real mouse/key input registered `fb_regtest1` on private UDP 5300; pending state saved no token; approval used only the private admin socket; subsequent password login reached empty-roster character select and saved the endpoint token in canonical data. Two rendered client launches used; first observer incorrectly read `Button.text` instead of the authored child Label and never submitted registration.
 - Weston/Dozen capability warnings and Godot exit resource-leak diagnostics remain in the retained logs. Registration evidence does not establish leak-free shutdown or full client parity.
+
+## Status-colour polish (2026-10-07)
+
+`7ad775d9` / `9c4300df` distinguish informational pending replies from errors. Session severity and login-registry colour regressions pass. Offline `capturepolish_screens.gd` asserts native gold `(1, 0.82, 0, 1)` and visible status pixels; inspected `data/diagnostics/capturepolish-20261007/shots/registration_pending_preview.png`. The preview completes the normal login fade before capture; no server was used for this colour-only proof.
 
 ## Out of scope
 
