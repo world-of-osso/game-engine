@@ -1,3 +1,7 @@
+## 2026-10-07 — Minimap member/target and service blips
+
+[Minimap](systems/minimap.md#member-target-and-service-tracking-blips) records GroupMemberStates outside replica interest, skin-specific edge clamping, native rotation sign, target overlays and supported NPC-service selection. [Contract](../specs/minimap.md) owns art citations, tests and pending private live proof. Herbs/Minerals/Humanoids have no sufficient spell-tracking feed; server/protocol unchanged.
+
 ## 2026-10-07 — Restart-required native SSAO
 
 [Native SSAO](investigations/native-ssao.md#restart-required-startup-mechanism) preserves the deliberate prepass-disabled Off baseline. GDExtension Servers initialization selects prepass from existing saved RON before RenderingServer construction; Options exposes restart-required persistence without live SSAO/prepass changes. No generated config, runtime project edits, DOF, or implicit AA changes. Lavapipe fresh Off/On/restarted-Off pixels, real pending UI toggles and the affected Options-tree regression pass. Strict Dozen rejection remains; evidence and scope are recorded in the investigation.
