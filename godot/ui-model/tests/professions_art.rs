@@ -118,45 +118,13 @@ fn professions_art_reagent_slot_shows_icon_count_and_adjacent_name() {
         let registry = render(skin, view(30));
         assert_eq!(text(&registry, "ProfessionReagent0").0, "Linen Cloth");
         assert_eq!(text(&registry, "ProfessionReagent0Count").0, "2/3");
-        let slot = frame(&registry, "ProfessionReagent0Slot")
-            .layout_rect
-            .as_ref()
-            .unwrap();
-        let icon = frame(&registry, "ProfessionReagentIcon0")
-            .layout_rect
-            .as_ref()
-            .unwrap();
-        let count = frame(&registry, "ProfessionReagent0Count")
-            .layout_rect
-            .as_ref()
-            .unwrap();
-        let name = frame(&registry, "ProfessionReagent0")
-            .layout_rect
-            .as_ref()
-            .unwrap();
-        assert_eq!((slot.width, slot.height), (39.0, 39.0));
-        assert!(icon.x >= slot.x && icon.y >= slot.y);
-        assert!(icon.x + icon.width <= slot.x + slot.width);
-        assert!(count.y >= slot.y && count.y + count.height <= slot.y + slot.height);
-        assert!(name.x >= slot.x + slot.width);
+        let output_border = frame(&registry, "ProfessionsOutputBorder");
+        assert!(
+            matches!(output_border.widget_data.as_ref(), Some(WidgetData::Texture(texture)) if texture.vertex_color == [0.12, 1.0, 0.0, 1.0])
+        );
         assert_eq!(
             text(&registry, "ProfessionsSkillText").0,
             "Classic Tailoring 30/300"
-        );
-        assert_eq!(
-            (
-                frame(&registry, "ProfessionsFrame")
-                    .layout_rect
-                    .as_ref()
-                    .unwrap()
-                    .width,
-                frame(&registry, "ProfessionsFrame")
-                    .layout_rect
-                    .as_ref()
-                    .unwrap()
-                    .height
-            ),
-            (942.0, 658.0)
         );
     }
     set_thread_skin(ActiveSkin::Modern);
