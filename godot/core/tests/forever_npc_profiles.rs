@@ -133,7 +133,7 @@ fn forever_npc_profiles_ailee_authored_bake_does_not_require_body_overlay_mappin
     assert!(failures[0].contains("1102747"), "{failures:?}");
     for item in read_armor_ids(&data, 162359) {
         let baked = outfit
-            .try_resolve_baked_display_info(item, 95, 1)
+            .try_load_baked_display_info(item, 95, 1)
             .unwrap()
             .unwrap();
         assert!(baked.item_textures.is_empty(), "baked gear {item}");

@@ -76,6 +76,7 @@ mod baked_display {
             );
         }
         assert_eq!(outfit.try_resolve_runtime_model(99, 1, 0).unwrap(), None);
+        std::fs::remove_dir_all(root).unwrap();
     }
 
     #[test]
@@ -85,7 +86,7 @@ mod baked_display {
         let outfit = catalog.load_owned_forever_70205().unwrap();
         for sex in [0, 1] {
             let baked = outfit
-                .try_resolve_baked_display_info(10, 1, sex)
+                .try_load_baked_display_info(10, 1, sex)
                 .unwrap()
                 .unwrap();
             assert_eq!(baked.model_fdids, [(100, 1000 + u32::from(sex))]);
@@ -110,7 +111,7 @@ mod baked_display {
             );
             assert_eq!(
                 outfit
-                    .try_resolve_baked_display_info(display, 1, 0)
+                    .try_load_baked_display_info(display, 1, 0)
                     .unwrap_err(),
                 error
             );
@@ -129,7 +130,7 @@ mod baked_display {
         );
         let regular = outfit.try_resolve_display_info(13, 1, 0).unwrap().unwrap();
         let baked = outfit
-            .try_resolve_baked_display_info(13, 1, 0)
+            .try_load_baked_display_info(13, 1, 0)
             .unwrap()
             .unwrap();
         assert_eq!(baked.model_fdids, regular.model_fdids);
@@ -145,7 +146,7 @@ mod baked_display {
         );
         assert!(
             outfit
-                .try_resolve_baked_display_info(99, 1, 0)
+                .try_load_baked_display_info(99, 1, 0)
                 .unwrap()
                 .is_none()
         );
@@ -164,7 +165,7 @@ mod baked_display {
         );
         assert_eq!(outfit.try_resolve_column_models(735014, 95, 1).unwrap(), []);
         let baked = outfit
-            .try_resolve_baked_display_info(735014, 95, 1)
+            .try_load_baked_display_info(735014, 95, 1)
             .unwrap()
             .unwrap();
         assert_eq!(baked.model_fdids, []);

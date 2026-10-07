@@ -336,7 +336,7 @@ fn apply_visible_entry(
     baked_body: bool,
 ) -> Result<Vec<(u8, u32)>, String> {
     let display = if baked_body {
-        outfit_data.try_resolve_baked_display_info(display_info_id, race, sex)?
+        outfit_data.try_load_baked_display_info(display_info_id, race, sex)?
     } else {
         outfit_data.try_resolve_display_info(display_info_id, race, sex)?
     };

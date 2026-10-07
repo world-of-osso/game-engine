@@ -248,7 +248,7 @@ impl OutfitData {
     /// Resolve models and geosets when an authored NPC bake supplies body pixels.
     /// Component item textures are neither required nor returned; model resources
     /// and their materials remain required in this catalog's source namespace.
-    pub fn try_resolve_baked_display_info(
+    pub fn try_load_baked_display_info(
         &self,
         display_id: u32,
         race: u8,
@@ -286,7 +286,7 @@ impl OutfitData {
     }
 
     fn check_display_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {
-        self.check_model_resources(display)?;
+        self.load_required_model_resources(display)?;
         for &(_, id) in &display.item_materials {
             if self.load_material_fdids(id)?.is_empty() {
                 return Err(format!("missing TextureFileData material resource {id}"));
@@ -295,7 +295,7 @@ impl OutfitData {
         Ok(())
     }
 
-    fn check_model_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {
+    fn load_required_model_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {
         for &id in &display.model_resource_ids {
             let fdids = self.load_model_fdids(id)?;
             if fdids.is_empty() {
@@ -376,10 +376,7 @@ impl OutfitData {
         let Some(display) = self.load_display_info(display_info_id)? else {
             return Ok(None);
         };
-        self.check_display_resources(&display)?;
-        for &id in &display.model_material_resource_ids {
-            self.load_material_fdids(id)?;
-        }
+        self.load_required_model_resources(&display)?;
         Ok(self.resolve_runtime_model(display_info_id, race, sex))
     }
 
@@ -425,7 +422,7 @@ impl OutfitData {
         let Some(display) = self.load_display_info(display_info_id)? else {
             return Ok(Vec::new());
         };
-        self.check_model_resources(&display)?;
+        self.load_required_model_resources(&display)?;
         let columns = display
             .model_resource_columns
             .iter()
