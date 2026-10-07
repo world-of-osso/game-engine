@@ -45,6 +45,30 @@ Evidence under `data/diagnostics/ssao/renderer-{dzn,lvp}{,-dynamic}/`: `standard
 
 `ssao_options.gd` checks saved startup SSAO/prepass, real restart-labeled UI toggle persistence with unchanged live Environment identity/values/prepass, camera attributes, portrait exclusion, and replacement worlds. `ssao_options_pixels.gd` rejects flat-area dimming; contact darkening alone cannot pass. Dozen remains blocked and must fail the oracle. Lavapipe is a reference proof, not a hardware performance claim. Full-world/multi-vendor parity, transparency, emissive AO and Retail kernel equivalence are not established.
 
+## Restart-required bounded proof (2026-10-07)
+
+Production code at `9f0e9b97`; expected Graphics-tree snapshot refreshed at `5255d07c`. Locked local extension/CLI build exits 0 with no compiler warnings. Six `client_options` tests, 12 Options-policy tests, 10 Options-view tests and the affected Modern/Forever tree regression pass (29 unique Rust tests). Focused Rust formatting passes; changed-line readability reviewed without unrelated dispatch refactoring.
+
+| Requirement | Concrete proof | Result |
+|---|---|---|
+| Saved Off selects disabled prepass/no SSAO | Fresh headless resource fixture, read before GameClient construction | PASS |
+| Saved On selects prepass/Environment SSAO | Fresh headless and rendered process | PASS |
+| Actual Options commits persist without live changes | Restart-labeled row click, Environment identity/values, stable prepass, complete pending-toggle images | PASS |
+| Late/replacement worlds retain startup choice | Headless Off/On fixtures after opposite pending selection | PASS |
+| On shades only creases | Lavapipe: 7,877 pixels darkened >0.025; crease mean 0.0050009334; flat region byte-unchanged | PASS |
+| Off equals prepass-disabled master | Fresh Off and restart back to Off, complete image bytes | PASS |
+| Dozen with startup prepass | Flat mean darkening 0.2225490175; strict oracle exits 1 | BLOCKED; not weakened |
+
+Headless saved Off, saved On, and restarted Off each exit 0. Pixel processes reuse the real Options-saved file: Off commits pending On, next launch renders On and commits pending Off, next launch restores exact Off. No file rewrite between these restarts. The same flow is performed for Dozen through its honest On rejection.
+
+The master control uses `49978c3b`'s terrain shader from `git -C <slot> show master:godot/shaders/terrain.gdshader`, same pinned client/scene/camera/UI, SSAO Off and prepass disabled. Its shader SHA-256 is `a2233a02e191bf6e642a0dd386f568ce7034befa4c2b1fdfd759863b127b57a6`, identical to the earlier `ad9e3797` reference. Independent PNG decoding confirms Off matches both the fresh control and earlier master image, and restart-restored Off. Controlled master-material parity only, not a rebuilt full-master client or full-world proof.
+
+First pixel startup failed in CASC index allocation (`ENOMEM`), before the oracle. Host `Committed_AS` exceeded `CommitLimit`; retained log `/tmp/claude/ssao2-proof.out`. After builds finished, bounded retry with `LP_NUM_THREADS=2` passed Lavapipe. No host memory policy, builder/cache policy, or production code changed for the retry.
+
+Artifacts under `data/diagnostics/ssao/restart/`: `baseline-{lvp,dzn}/startup-off.png`, `{lvp,dzn}-off/startup-off.png`, `{lvp,dzn}-on/startup-on.png`, `lvp-restored-off/startup-off.png`, and pending-toggle captures. Inspected original captures plus `lvp-crease-off-on-diff20.png` (Off/On/amplified difference) and `dzn-on-half.png`. Crease-only Lavapipe contact shadow is visible; Dozen dims flat floor too.
+
+Logs: `/tmp/claude/ssao2.out`, `ssao2-policy.out`, `ssao2-tree-{red,capture,green}.out`, `ssao2-build-visible.out`, `ssao2-{headless-off,headless-on,headless-restarted-off}.out`, and `ssao2-r1-{baseline-lvp,lvp-off,lvp-on,lvp-restored-off,baseline-dzn,dzn-off,dzn-on}.out`. Pixel run command/env and all exits: `ssao2-pixels-r1.out` / `ssao2-pixels-results.json`. Existing RID/ObjectDB teardown leaks and missing Weston protocol warnings remain; functional exit-0 evidence is not clean-shutdown proof.
+
 ## Earlier live-toggle bounded proof (superseded by restart-required behavior)
 
 At `7571569d`, matching Rust extension/CLI built successfully (Rust source unchanged from `d9e6847a`). Six unique `client_options` tests pass, including production file load/save with both removed keys; focused Cargo formatting passes. Consumer fixture with saved Off and On exits 0. Lavapipe pixel fixture with saved Off and On exits 0: 7,877 crease pixels darkened by >0.025, mean darkening 0.0050009334, isolated flat region byte-unchanged, exact UI and exact restored Off. Complete decoded Off fixture image matches the `ad9e3797` terrain-shader reference scene. This is controlled-scene master-material parity, not a rebuilt full-master client or full-world parity claim.
