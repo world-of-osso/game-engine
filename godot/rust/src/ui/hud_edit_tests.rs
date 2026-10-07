@@ -382,3 +382,42 @@ fn hudeditmode_selection_background_projects_selected_and_unselected_art() {
         );
     }
 }
+
+#[test]
+fn hudeditmodepolish_idle_labels_are_hidden_and_selected_labels_are_readable() {
+    use game_engine_ui_model::hud_edit_component::edit_mode_overlay_screen;
+    for selected in [false, true] {
+        let mut entry = player_box();
+        entry.selected = selected;
+        let mut shared = SharedContext::new();
+        shared.insert(EditModeOverlayState { boxes: vec![entry] });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(edit_mode_overlay_screen).sync(&shared, &mut registry);
+        let label = registry
+            .get_by_name("EditModeSelection_player_frameLabel")
+            .unwrap();
+        assert_eq!(
+            super::hud_edit_layout::frame_is_visible(&registry, label),
+            selected
+        );
+    }
+}
+
+#[test]
+fn hudeditmodepolish_default_manager_does_not_cover_error_text() {
+    use game_engine_ui_model::hud_edit_component::{
+        EditModePanelState, PANEL_H, PANEL_W, edit_mode_panel_screen,
+    };
+    let mut shared = SharedContext::new();
+    shared.insert(EditModePanelState::default());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(edit_mode_panel_screen).sync(&shared, &mut registry);
+    let bounds = super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+    let panel = &bounds[&registry.get_by_name("EditModeManagerFrame").unwrap()];
+    let errors = [704.0, 122.0, 512.0, 60.0];
+    assert!(!rects_overlap([panel.x, panel.y, PANEL_W, PANEL_H], errors));
+}
+
+fn rects_overlap(a: [f32; 4], b: [f32; 4]) -> bool {
+    a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3]
+}
