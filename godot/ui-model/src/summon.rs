@@ -68,7 +68,7 @@ impl SummonPopup {
 /// Retail GetConfirmSummonExpiryText with StaticPopup_OnUpdate's ceil(seconds).
 /// The current server sends zone_id 0 (no player Zone), displayed as Unknown.
 fn confirm_summon_text(summoner: &str, remaining: Duration) -> String {
-    let seconds = remaining.as_millis().div_ceil(1_000);
+    let seconds = remaining.as_nanos().div_ceil(1_000_000_000);
     let (count, unit) = if seconds < 60 {
         (seconds, if seconds == 1 { "Second" } else { "Seconds" })
     } else {
@@ -138,6 +138,17 @@ mod tests {
             Some(SummonResponse { accept: true })
         );
         assert!(flow.popup_results(&stack.drain_results()).is_none());
+    }
+
+    #[test]
+    fn meetingstones_countdown_ceils_fractional_frame_time() {
+        let mut flow = SummonPopup::default();
+        let mut stack = PopupStack::default();
+        flow.receive(request("Stonecaller", 60_000), &mut stack, false);
+        flow.update(Duration::from_micros(999_999), &mut stack, false);
+        assert!(stack.visible()[0].spec.text.ends_with("1 Minute."));
+        flow.update(Duration::from_micros(1), &mut stack, false);
+        assert!(stack.visible()[0].spec.text.ends_with("59 Seconds."));
     }
 
     #[test]
