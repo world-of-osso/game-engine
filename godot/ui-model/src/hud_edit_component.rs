@@ -94,6 +94,8 @@ pub fn edit_mode_overlay_screen(ctx: &SharedContext) -> Element {
 fn selection_box(entry: &EditModeSelectionBox) -> Element {
     let name = selection_box_name(&entry.key);
     let [x, y, w, h] = entry.rect;
+    // Vertical bars need several text lines; the one-line label clipped their names.
+    let label_height = if w < 100.0 { h.min(54.0) } else { h.min(18.0) };
     let fdid = if entry.selected {
         SELECTED_FDID
     } else {
@@ -122,7 +124,7 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
             fontstring {
                 name: {DynName(format!("{name}Label"))},
                 width: {w},
-                height: 18.0,
+                height: {label_height},
                 text: entry.label.as_str(),
                 font: GameFont::FrizQuadrata,
                 font_size: 13.0,
