@@ -1,25 +1,11 @@
-# BuildKit daemon config for the shared `game-engine` builder (scripts/setup-builder.sh).
-# The default policy capped cache mounts at ~488 MiB and the builder at ~93 GiB, so GC
-# evicted the per-slot Cargo target caches between runs and every gate rebuilt ~484 crates
-# (2026-10-05, cargo fingerprints reported ENOENT). Keep the target caches.
+# Shared game-engine builder GC budget; apply with scripts/setup-builder.sh.
+# GC is periodic, not a hard instantaneous storage limit. Keep the whole cache
+# within a 100 GB target rather than reserving a warm cache for every agent slot.
 [worker.oci]
   gc = true
 
   [[worker.oci.gcpolicy]]
-    # Cargo target / registry caches (RUN --mount=type=cache).
-    filters = ["type==exec.cachemount"]
-    keepDuration = "720h"
-    # 6 client slots (up to ~50 GB each) + 3 server slots (~25 GB) must all stay warm.
-    maxUsedSpace = "400GB"
-
-  [[worker.oci.gcpolicy]]
-    # Everything else: layers, local sources, git checkouts.
-    keepDuration = "720h"
-    reservedSpace = "10GB"
-    maxUsedSpace = "70GB"
-
-  [[worker.oci.gcpolicy]]
     all = true
     reservedSpace = "10GB"
-    maxUsedSpace = "450GB"
+    maxUsedSpace = 100000000000
     minFreeSpace = "80GB"
