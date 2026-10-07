@@ -163,7 +163,7 @@ fn hudeditmode_both_skins_reset_scale_and_unmoved_authored_defaults() {
         for (id, rect) in &baseline {
             assert_eq!(untouched[id], *rect, "unmoved frame {id}");
         }
-        let rect = baseline[&player];
+        let rect = baseline[&player].clone();
         let saved = save_top_left(
             HudAnchor::Bottom,
             [104.0, 312.0],

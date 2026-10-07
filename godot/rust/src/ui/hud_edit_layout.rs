@@ -2,12 +2,21 @@
 //! Every sync starts from authored bounds: reset, relog and scale changes cannot accumulate drift.
 use game_engine_ui_model::hud_edit::{Placements, clamp_position, top_left};
 use game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS;
-use std::cell::RefCell;
+use std::cell::{Cell, RefCell};
 use std::collections::HashMap;
 use ui_toolkit::{anchor::AnchorTarget, layout::LayoutRect, registry::FrameRegistry};
 
 thread_local! {
     static PLACEMENTS: RefCell<Placements> = RefCell::new(Placements::new());
+    static EDITOR_ACTIVE: Cell<bool> = const { Cell::new(false) };
+}
+
+pub(crate) fn publish_editor_active(active: bool) {
+    EDITOR_ACTIVE.with(|value| value.set(active));
+}
+
+pub(super) fn editor_active() -> bool {
+    EDITOR_ACTIVE.with(Cell::get)
 }
 
 pub(crate) fn publish_placements(placements: Placements) {
