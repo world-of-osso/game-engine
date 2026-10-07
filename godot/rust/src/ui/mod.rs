@@ -325,6 +325,14 @@ impl RegistryModel {
                 }
             }
         }
+        // FlightMap uses quest-window mounting, which has no Bags icon-mask postsetup.
+        if self
+            .shared
+            .get::<game_engine_ui_model::flight_map_component::FlightMapView>()
+            .is_some()
+        {
+            self.icon_masks.apply(&mut self.registry);
+        }
     }
 
     fn resize(&mut self, width: f32, height: f32, scale: f32) {
