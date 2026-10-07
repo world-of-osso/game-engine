@@ -39,6 +39,31 @@ fn warrior(main_hand_subclass: Option<u8>) -> CasterContext {
 }
 
 #[test]
+fn specialization_slam_picks_arms_and_fury_cast_kits_with_the_same_two_handed_sword() {
+    let catalog = catalog();
+    // ChrSpecialization 71/72 OrderIndex 0/1, not specialization IDs or Lua 1/2.
+    let select = |spec_id: Option<u32>| {
+        let caster = CasterContext {
+            spec_order_index: spec_id.and_then(|id| catalog.specialization_order_index(id)),
+            ..warrior(Some(SWORD_2H))
+        };
+        let visual = catalog.visual_for_spell(SLAM, &caster).unwrap();
+        let cast = &catalog.kits(visual, VisualEvent::Cast)[0];
+        (visual, cast.kit_id, cast.animation.unwrap().anim_id)
+    };
+    assert_eq!(catalog.specialization_order_index(71), Some(0));
+    assert_eq!(catalog.specialization_order_index(72), Some(1));
+    assert_eq!(catalog.specialization_order_index(1446), Some(4));
+    assert_eq!(catalog.specialization_order_index(0), None);
+    assert_eq!(select(Some(71)), (51946, 62428, 812));
+    assert_eq!(select(Some(72)), (97446, 128672, 818));
+    // Missing primary specialization skips its check; priority 3 wins over 1.
+    assert_eq!(select(None), (51946, 62428, 812));
+    // Initial warrior spec (1446, OrderIndex 4) is known, not missing.
+    assert_eq!(select(Some(1446)), (51946, 62428, 812));
+}
+
+#[test]
 fn slam_swings_the_weapon_class_combat_ability_and_bloodies_the_target_chest() {
     let catalog = catalog();
     let one_hand = catalog
