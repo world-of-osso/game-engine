@@ -4,7 +4,6 @@ use game_engine_core::ui_layout_data::{self, ActiveLayout, SYSTEM_PRESETS};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::hud_edit::EditDraft;
 use game_engine_ui_model::hud_edit_component::*;
-use game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS;
 use godot::classes::{InputEvent, InputEventKey, InputEventMouseButton, InputEventMouseMotion};
 use godot::global::{Key, MouseButton};
 use godot::prelude::*;
@@ -87,29 +86,10 @@ impl GameClient {
             let Some(registry) = ui.registry() else {
                 return Ok(());
             };
-            for element in EDIT_MODE_ELEMENTS {
-                let Some(id) = registry.get_by_name(element.frame_name) else {
-                    continue;
-                };
-                if !crate::ui::hud_edit_layout::frame_is_visible(registry, id) {
-                    continue;
-                }
-                let Some(rect) = registry
-                    .get(id)
-                    .and_then(|frame| frame.layout_rect.as_ref())
-                else {
-                    continue;
-                };
-                if rect.width <= 0.0 || rect.height <= 0.0 {
-                    continue;
-                }
-                boxes.push(EditModeSelectionBox {
-                    key: element.key.into(),
-                    label: element.label.into(),
-                    rect: [rect.x, rect.y, rect.width, rect.height],
-                    selected: selected.as_deref() == Some(element.key),
-                });
-            }
+            boxes.extend(crate::ui::hud_edit_layout::collect_selection_boxes(
+                registry,
+                selected.as_deref(),
+            ));
             Ok(())
         })?;
         Ok(boxes)

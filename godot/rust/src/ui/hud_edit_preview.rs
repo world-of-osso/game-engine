@@ -1,7 +1,6 @@
 //! Dedicated edit-mode production UI and offline capture entrypoints.
 use super::{RegistryUi, ScreenPostsetup, party_preview};
 use game_engine_ui_model::hud_edit_component::*;
-use game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS;
 use godot::prelude::*;
 use ui_toolkit::{atlas::ActiveSkin, screen::SharedContext, widget_def::Element};
 
@@ -53,25 +52,8 @@ impl RegistryUi {
                 ..Default::default()
             })?;
             let registry = self.registry().ok_or("Preview registry missing")?;
-            let boxes = EDIT_MODE_ELEMENTS
-                .iter()
-                .filter_map(|element| {
-                    let id = registry.get_by_name(element.frame_name)?;
-                    if !super::hud_edit_layout::frame_is_visible(registry, id) {
-                        return None;
-                    }
-                    let rect = registry.get(id)?.layout_rect.as_ref()?;
-                    if rect.width <= 0.0 || rect.height <= 0.0 {
-                        return None;
-                    }
-                    Some(EditModeSelectionBox {
-                        key: element.key.into(),
-                        label: element.label.into(),
-                        rect: [rect.x, rect.y, rect.width, rect.height],
-                        selected: element.key == "player_frame",
-                    })
-                })
-                .collect();
+            let boxes =
+                super::hud_edit_layout::collect_selection_boxes(registry, Some("player_frame"));
             self.set_state(EditModeOverlayState { boxes })
         })();
         GString::from(result.err().unwrap_or_default().as_str())
