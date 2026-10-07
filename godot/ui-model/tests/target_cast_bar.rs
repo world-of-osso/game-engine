@@ -121,7 +121,10 @@ fn target_cast_forever_tree_has_bronze_holder_icon_overlay_and_timer() {
     let (bx, by, bw, bh) = rect(&r, "TargetCastingBarBackground");
     assert!(ix >= 0.0 && ix + iw <= bx, "icon left of the track");
     assert_eq!((iy, ih), (by, bh), "icon and track share a row");
-    assert!(by >= 0.0 && by + bh <= 24.0 && bx + bw <= 240.0, "inside the holder");
+    assert!(
+        by >= 0.0 && by + bh <= 24.0 && bx + bw <= 240.0,
+        "inside the holder"
+    );
     assert_eq!(
         frame(&r, "TargetCastingBarFill").background_color,
         Some([0.80, 0.60, 0.36, 1.0])
