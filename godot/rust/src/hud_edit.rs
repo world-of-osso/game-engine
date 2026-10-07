@@ -75,12 +75,28 @@ impl GameClient {
         placements: game_engine_ui_model::hud_edit::Placements,
     ) -> Result<(), String> {
         crate::ui::hud_edit_layout::publish_placements(placements);
-        self.for_each_registry_ui(|ui| ui.bind_mut().sync_skin())
+        self.for_each_registry_ui(|ui| ui.bind_mut().sync_skin())?;
+        if let Some(ui) = &mut self.hud_editor.ui {
+            ui.bind_mut().sync_skin()?;
+        }
+        Ok(())
     }
 
     fn collect_hud_boxes(&mut self) -> Result<Vec<EditModeSelectionBox>, String> {
         let selected = self.hud_editor.draft.selected.clone();
-        let mut boxes = Vec::new();
+        let mut boxes = self
+            .hud_editor
+            .ui
+            .as_ref()
+            .and_then(|ui| {
+                ui.bind().registry().map(|registry| {
+                    crate::ui::hud_edit_layout::collect_selection_boxes(
+                        registry,
+                        selected.as_deref(),
+                    )
+                })
+            })
+            .unwrap_or_default();
         self.for_each_registry_ui(|ui| {
             let ui = ui.bind();
             let Some(registry) = ui.registry() else {

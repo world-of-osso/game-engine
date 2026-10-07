@@ -5,7 +5,8 @@ use godot::prelude::*;
 use ui_toolkit::{atlas::ActiveSkin, screen::SharedContext, widget_def::Element};
 
 fn edit_screen(ctx: &SharedContext) -> Element {
-    let mut elements = edit_mode_overlay_screen(ctx);
+    let mut elements = edit_mode_side_bar_previews(ctx);
+    elements.extend(edit_mode_overlay_screen(ctx));
     if ctx.get::<EditModePanelState>().is_some() {
         elements.extend(edit_mode_panel_screen(ctx));
     }
@@ -131,6 +132,7 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
     .into_iter()
     .flatten()
     .collect();
+    elements.extend(edit_mode_side_bar_previews(ctx));
     elements.extend(edit_mode_overlay_screen(ctx));
     if ctx.get::<EditModePanelState>().is_some() {
         elements.extend(edit_mode_panel_screen(ctx));
