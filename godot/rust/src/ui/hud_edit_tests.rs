@@ -379,5 +379,10 @@ fn hudeditmode_selection_background_projects_selected_and_unselected_art() {
         assert_eq!(images.len(), 1);
         assert_eq!(images[0].source, Some(TextureSource::FileDataId(fdid)));
         assert_eq!(images[0].rect, [0.0, 0.0, 240.0, 60.0]);
+        let projected_opacity = frame.effective_alpha * images[0].color[3];
+        assert_eq!(
+            projected_opacity, 0.7,
+            "mover image must not be transparent"
+        );
     }
 }
