@@ -95,11 +95,12 @@ impl TrainerBook {
         {
             return;
         }
-        self.selected = self
+        let selected = self
             .visible_services()
             .find(|s| s.state == TrainerServiceState::Available)
             .or_else(|| self.visible_services().next())
             .map(|s| s.spell_id);
+        self.selected = selected;
     }
     pub fn select(&mut self, spell: u32) {
         if self.visible_services().any(|s| s.spell_id == spell) {
