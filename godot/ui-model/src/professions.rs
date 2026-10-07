@@ -6,6 +6,8 @@ use shared::protocol::{CraftRecipe, ProfessionSnapshot};
 pub struct Recipe {
     pub spell_id: u32,
     pub skill_line: u32,
+    /// Parent profession SkillLine, used only for window title/art.
+    pub profession: u32,
     pub category: String,
     pub name: String,
     pub min_rank: u16,

@@ -77,11 +77,26 @@ Native profession recipe book and crafting window in `godot/ui-model` and `godot
 
 ### What it must do
 
-- [x] Consume the owner's profession lines and learned spells; list known recipes by DB2 category with required skill rank.
+- [x] Consume the owner's profession lines and learned spells; list known recipes by DB2 category. Required rank remains crafting metadata, not a bracketed recipe-row suffix.
 - [x] Filter recipe names with a case-insensitive search; retain a selectable schematic.
 - [x] Show crafted item and reagents using DB2 names/icons and owned/needed counts summed across bags, not equipped items.
 - [x] Create sends the selected recipe's spell ID and positive u16 cast quantity on `ProfessionChannel`; Create All sends the available reagent-limited quantity. Missing reagents disable Create.
 - [x] Refresh bags and skill bar from authoritative inventory and profession updates; render Modern and Forever using native chrome and scroll lists. Real K and profession spellbook entry opening are live-proved.
+
+### Native visual contract
+
+- Recipe tree: 25-pixel collapsible category headers, 20-pixel plain recipe rows, 10-pixel indent, selection overlay and reagent-limited craftable count. No spell/category blue-swirl icons or red recipe buttons. Difficulty comes from each recipe's existing trivial thresholds and learned line rank; optimal orange, medium yellow, easy green, trivial grey, including grey at maximum rank.
+- Schematic: output item icon/ring and item name; 180×50 reagent cells, four per column with 5-pixel spacing. Each cell contains an item slot, item-quality border, owned/needed count on the slot and adjacent item name. Missing quantities dim the name, without changing crafting eligibility.
+- Header/chrome: profession title, 453×18 textured rank bar at (280,40), rank/max text, 942×658 portrait metal frame, list at (5,72), schematic at (281,72). Search belongs inside the list. Create/Create All and quantity spinner belong at bottom right. Classic tier shows Recipes only; unsupported specialization/order systems remain absent.
+- Forever uses its own atlas members/chrome where present, otherwise shared Retail profession art. No alternate crafting mechanics.
+- Offline previews must use a concrete mixed-difficulty snapshot with several categories, a selected recipe and partly owned reagents, through the production screen in both skins. Preview APIs live in `*_preview.rs` secondary Godot API blocks.
+
+Retail source root: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
+
+- **(a)/(b)** `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.xml:94-217` (headers, skill-up indicator, plain row and selection); `.lua:232-242,267-301` (current Retail labels are neutral `PROFESSION_RECIPE_COLOR`; difficulty is carried by skill-up art). Difficulty-tinted names are an explicit requested presentation adaptation, not a claim that this cached Retail version tints names.
+- **(c)** `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeReagentSlotBase.xml:6-27,41-62`, `Blizzard_ProfessionsTemplates.xml:43-85`, `Blizzard_ProfessionsRecipeReagentSlot.lua:238-252`, `Blizzard_ProfessionsRecipeSchematicForm.xml:31-38,63-69`, `.lua:1286-1290`; output ring: `Blizzard_ItemButton/Mainline/ItemButtonTemplate.xml` `CircularGiantItemButtonTemplate`. Cached Retail puts owned/needed before the adjacent name; placing it on the slot is the explicit requested adaptation.
+- **(d)** `Blizzard_Professions/Blizzard_ProfessionsRankBar.xml:5-61`, `.lua:103-136`, `Blizzard_ProfessionsCrafting.xml:199-202`.
+- **(e)** `Blizzard_Professions/Blizzard_ProfessionsFrame.xml:7-25`, `.lua:269-292` (tab gates), `Blizzard_ProfessionsCrafting.xml:136-150,205-224`, `.lua:344-351,912-941`; search: `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.xml:40-53`.
 
 ### How it works
 

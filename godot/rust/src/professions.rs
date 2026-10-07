@@ -12,7 +12,7 @@ use game_engine_ui_model::professions_frame::{
 use godot::prelude::*;
 use shared::casting::CastState;
 use shared::protocol::ProfessionSnapshot;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::sync::mpsc::{self, Receiver, TryRecvError};
 
 #[derive(Default)]
@@ -23,6 +23,7 @@ pub(crate) struct Professions {
     started: bool,
     ui: Option<Gd<RegistryUi>>,
     pub(crate) error: String,
+    collapsed: BTreeSet<String>,
 }
 impl Professions {
     pub(crate) fn visit_uis(
@@ -199,6 +200,25 @@ impl GameClient {
                         .map_err(|_| format!("Invalid recipe selection: {action}"))?,
                 );
                 self.professions.error.clear();
+            } else if let Some(category) = action.strip_prefix("profession:category:") {
+                if !self.professions.collapsed.remove(category) {
+                    self.professions.collapsed.insert(category.into());
+                }
+            } else if action == "profession:increase" || action == "profession:decrease" {
+                let limit = self
+                    .professions
+                    .book
+                    .craftable_count(&self.merchant.session.inventory)
+                    .max(1);
+                let quantity = self.professions.book.quantity;
+                let next = if action == "profession:increase" {
+                    quantity.saturating_add(1)
+                } else {
+                    quantity.saturating_sub(1)
+                };
+                self.professions.book.quantity = next.clamp(1, limit);
+                ui.bind_mut()
+                    .set_editbox_text(QUANTITY, &self.professions.book.quantity.to_string())?;
             } else if action == "profession:create" || action == "profession:all" {
                 let all = action == "profession:all";
                 if let Some(request) = self
@@ -236,6 +256,8 @@ impl GameClient {
                 .map(|catalog| catalog.skill_names.clone())
                 .unwrap_or_default(),
             status: self.professions.error.clone(),
+            recipe_craftable: recipe_craftable_counts(&book, inventory),
+            collapsed: self.professions.collapsed.clone(),
             book,
             reagents,
             craftable,
@@ -246,17 +268,22 @@ impl GameClient {
         view
     }
     fn cache_profession_icons(&mut self, view: &mut ProfessionView) {
-        let icons: Vec<_> = view
-            .book
-            .recipes
-            .iter()
-            .filter_map(|recipe| {
-                let spell = self.spells.catalog()?.get(recipe.spell_id)?;
-                Some((recipe.spell_id, spell.icon_fdid))
-            })
-            .collect();
-        for (spell, icon) in icons {
-            view.icons.insert(spell, self.drawable_fdid(icon));
+        let profession = view.book.selected_recipe().map(|recipe| recipe.profession);
+        let catalog = self.professions.catalog.as_ref();
+        view.profession_name = catalog
+            .and_then(|catalog| catalog.skill_names.get(&profession?))
+            .cloned()
+            .unwrap_or_default();
+        let icon = catalog.and_then(|catalog| {
+            let opener = catalog
+                .openers
+                .iter()
+                .find(|(_, skill)| Some(**skill) == profession)?
+                .0;
+            Some(self.spells.catalog()?.get(*opener)?.icon_fdid)
+        });
+        if let Some(icon) = icon {
+            view.profession_icon = self.drawable_fdid(icon);
         }
         for item in view.items.values_mut() {
             item.icon_fdid = self.drawable_fdid(item.icon_fdid);
@@ -291,6 +318,20 @@ impl GameClient {
     }
 }
 
+fn recipe_craftable_counts(
+    book: &ProfessionBook,
+    inventory: &game_engine_ui_model::bag_data::InventoryState,
+) -> BTreeMap<u32, u32> {
+    let mut selected_book = book.clone();
+    book.recipes
+        .iter()
+        .map(|recipe| {
+            selected_book.selected = Some(recipe.spell_id);
+            (recipe.spell_id, selected_book.craftable_count(inventory))
+        })
+        .collect()
+}
+
 fn profession_items(book: &ProfessionBook) -> BTreeMap<u32, ItemDisplay> {
     let Some(catalog) = item_catalog() else {
         return BTreeMap::new();
@@ -307,6 +348,7 @@ fn profession_items(book: &ProfessionBook) -> BTreeMap<u32, ItemDisplay> {
                 ItemDisplay {
                     name: item.name.clone(),
                     icon_fdid: catalog.icon_fdid(id).unwrap_or(0),
+                    quality: item.quality,
                 },
             ))
         })
