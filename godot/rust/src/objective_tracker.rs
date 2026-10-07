@@ -3,7 +3,9 @@
 //! in watch order, with the "All Objectives" and "Quests" collapse buttons.
 
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::objective_tracker_component::{ObjectiveTrackerState, TRACKER_FRAME};
+use game_engine_ui_model::objective_tracker_component::{
+    BossFrameCount, ObjectiveTrackerState, TRACKER_FRAME,
+};
 use godot::prelude::*;
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::registry::FrameRegistry;
@@ -72,8 +74,11 @@ impl GameClient {
 
     fn sync_objective_tracker(&mut self) -> Result<(), String> {
         let state = self.objective_tracker_view();
+        let bosses = BossFrameCount(self.encounter.frames.visible_units(&self.replica).len());
         if let Some(ui) = self.objective_tracker.ui.as_mut() {
-            return ui.bind_mut().set_state(state);
+            let mut ui = ui.bind_mut();
+            ui.set_state(bosses)?;
+            return ui.set_state(state);
         }
         if !self.objective_tracker.textures_cached {
             self.cache_objective_tracker_textures();
@@ -83,7 +88,11 @@ impl GameClient {
         ui.set_name("ObjectiveTrackerUI");
         self.base_mut().add_child(&ui);
         ui.bind_mut().set_ui_scale(self.effective_ui_scale())?;
-        let shown = ui.bind_mut().show_objective_tracker(state);
+        let shown = {
+            let mut view = ui.bind_mut();
+            view.show_objective_tracker(state)
+                .and_then(|()| view.set_state(bosses))
+        };
         if let Err(error) = shown {
             ui.free();
             return Err(error);

@@ -8,6 +8,7 @@ Native Godot encounter presentation. Server contract: game-server `docs/specs/bo
 - [x] Engaged units fill at most five frames in ascending priority, equal priorities retain engagement order, duplicate engages are ignored. Late replication fills pending slots; health, power, name, level and classification update from live replication.
 - [x] Disengage removes its unit; End (kill or wipe), a new Start, loading, disconnect and world reset clear stale encounter state.
 - [x] Left-click on a visible Boss1TargetFrame..Boss5TargetFrame targets that boss through normal SetTarget, never starts auto-attack.
+- [x] Boss frames retain the compact portrait-off 133×51 frame tree. Shown frames form a top-to-bottom stack with 10-unit gaps and push the objective tracker below the last boss. Hiding all bosses restores its flush-right preset anchor: Modern (0, -275), Forever (0, -300), including the existing Forever scale.
 - [x] RaidBossEmote appears in chat and center-screen RaidWarningFrame (800 wide, TOP 182), with 0.2-second fade-in, 10-second hold and 3-second fade-out. Four slots; a fifth evicts the oldest. End/start/world reset clear encounter warnings.
 
 ## How it works
@@ -17,19 +18,20 @@ Native Godot encounter presentation. Server contract: game-server `docs/specs/bo
 ## Implementation inventory
 - `godot/network/src/lib.rs` — ordered four-type encounter relay.
 - `godot/rust/src/account.rs`, `encounter.rs` — protocol dispatch, lifecycle and warning host.
-- `godot/rust/src/targeting.rs`, `unit_portraits.rs` — replicated boss frames, click binding and native portrait lifetime.
+- `godot/rust/src/targeting.rs`, `objective_tracker.rs` — replicated boss frames, click binding and visible-count tracker layout.
 - `godot/rust/src/chat.rs`, `godot/ui-model/src/raid_warning.rs` — boss-emote routing, timed warning model and center frame.
-- `godot/ui-model/src/ui/screens/inworld_unit_frames_component.rs` — five named frame roots and classification art.
+- `godot/ui-model/src/ui/screens/inworld_unit_frames_component.rs` — five named compact portraitless frame roots and right-managed stack geometry.
 
 ## Tests asserting this spec
 - `godot/network/src/wire_tests.rs::bossframes_bridge_preserves_encounter_lifecycle_channel_order` — actual UDP, held worker, two concrete lifecycle cycles.
 - `godot/rust/src/account.rs::bossframes_account_dispatches_each_encounter_message`.
 - `godot/rust/src/encounter_tests.rs` — priority, duplicate, delayed replication, live health/mana, five-slot cap, click identity, disengage, wipe/death/reset.
 - `godot/ui-model/tests/bossframes_warnings.rs` — substitution, fade timing, eviction/clear, displayed text/colour/alpha, non-intercepting center frame.
-- `godot/ui-model/tests/unit_frame_atlas.rs` — actual classification atlas and shared frame art.
+- `godot/ui-model/tests/unit_frame_atlas.rs` — actual target classification atlas and compact boss art under both skins.
+- `godot/rust/src/ui/hud_layout_tests.rs::bosslayout_managed_tracker_clears_bosses_and_returns_for_both_skins` — computed native geometry with 0, 1, 3 and returning-to-0 bosses, both skins.
 
 ## Known gaps (current cycle)
-- [ ] Exact Retail small portraitless boss art and right-managed/edit-mode sizing remain unconverted. Requested classification portraits use target portrait art; the fixed right-side slot can overlap objective tracker (observed in native Hogger captures).
+- [ ] Exact cached Retail boss-specific atlas slots and edit-mode sizing remain unconverted; this correction restores the established compact portrait-off frame tree, not a new atlas conversion.
 - [ ] Native live proof covers one boss, physical targeting/server echo, enrage and kill/reset. Five simultaneous native bosses, every power/classification and mounted loading/disconnect reset permutations remain unverified; pure projection/lifecycle tests cover five slots and explicit reset.
 
 ## Out of scope

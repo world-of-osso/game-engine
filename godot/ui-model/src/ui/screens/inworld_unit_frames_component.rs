@@ -543,11 +543,21 @@ fn raid_target_icon(raid_target: Option<u8>) -> Element {
 pub const MAX_BOSS_FRAMES: usize = 5;
 /// `BossTargetFrameContainer` (Blizzard_UnitFrame/Mainline/TargetFrame.xml): a vertical
 /// right-managed stack, `spacing` 10. Its right-side slot below the minimap is placed
-/// at the reference resolution. Encounter portraits retain target classification art,
-/// rather than Retail's portraitless small-frame variant.
+/// at the reference resolution. Retail BossTargetFrameTemplate uses Target-Boss-Small
+/// (TargetFrame.xml:367-370); OnLoad hides its portrait (TargetFrame.lua:957-966).
 const BOSS_FRAME_RIGHT: f32 = 60.0;
 const BOSS_FRAME_TOP: f32 = 300.0;
 const BOSS_FRAME_SPACING: f32 = 10.0;
+
+/// Tracker follows shown bosses with the managed container's 10-unit spacing.
+/// With no bosses its settled preset top remains unchanged.
+pub fn tracker_top_below_bosses(resting_top: f32, count: usize) -> f32 {
+    let count = count.min(MAX_BOSS_FRAMES);
+    if count == 0 {
+        return resting_top;
+    }
+    resting_top.max(BOSS_FRAME_TOP + count as f32 * (FRAME_H + BOSS_FRAME_SPACING))
+}
 
 pub fn boss_frame_name(index: usize) -> String {
     format!("Boss{}TargetFrame", index + 1)
@@ -565,33 +575,30 @@ fn boss_frame(index: usize, boss: Option<&UnitFrameState>, skin: ActiveSkin) -> 
     let content = boss
         .map(|state| {
             rsx! {
-                {reaction_strip(&prefix, state.reaction, skin, |(width, height)| (TARGET_REPUTATION.0, TARGET_REPUTATION.1, width, height))}
-                {unit_frame_contents(&prefix, state, &TARGET_SLOTS, TARGET_HEALTH_BAR)}
-                {dead_text(&prefix, TARGET_SLOTS.health, UNIT_FONT_SIZE, state.dead)}
-                {classification_art(&prefix, state.classification, skin)}
+                {reaction_strip(&prefix, state.reaction, skin, portrait_off_strip(1.0))}
+                {unit_frame_contents(&prefix, state, &PORTRAIT_OFF_SLOTS, HEALTH_BAR)}
+                {dead_text(&prefix, PORTRAIT_OFF_SLOTS.health, UNIT_FONT_SIZE, state.dead)}
             }
         })
         .unwrap_or_default();
-    let art = centred_art(
-        &name,
-        TARGET_PORTRAIT_ON,
-        (UNIT_FRAME_W, UNIT_FRAME_H),
-        skin,
+    let art = art_texture(
+        dyn_name(format!("{name}Art")),
+        FRAME_PORTRAIT_OFF,
+        (0.0, 0.0, FRAME_W, FRAME_H),
+        false,
     );
-    let portrait = portrait_slot(&BOSS_PORTRAITS[index]);
     let hidden = boss.is_none();
-    let top = BOSS_FRAME_TOP + index as f32 * (UNIT_FRAME_H + BOSS_FRAME_SPACING);
+    let top = BOSS_FRAME_TOP + index as f32 * (FRAME_H + BOSS_FRAME_SPACING);
     rsx! {
         r#frame {
             name: {dyn_name(name)},
-            width: UNIT_FRAME_W,
-            height: UNIT_FRAME_H,
+            width: FRAME_W,
+            height: FRAME_H,
             hidden,
             mouse_enabled: true,
             pos_type: "absolute",
             right: BOSS_FRAME_RIGHT,
             top,
-            {portrait}
             {art}
             {content}
         }
