@@ -24,6 +24,10 @@ use crate::hud_layout::hud_layout;
 use crate::panel_style_data::{MetalTopLeft, metal_sheet_fdids};
 use crate::ui::strata::FrameStrata;
 
+#[path = "minimap_units.rs"]
+mod units;
+pub use units::{group_minimap_blips, target_minimap_blip};
+
 struct DynName(String);
 
 pub const MINIMAP_CLUSTER: &str = "MinimapCluster";
@@ -36,6 +40,8 @@ pub const MINIMAP_ZOOM_OUT: &str = "MinimapZoomOut";
 /// Name prefixes of quest-giver and vignette blips, followed by the unit.
 pub const MINIMAP_BLIP_PREFIX: &str = "MinimapBlip";
 pub const MINIMAP_VIGNETTE_PREFIX: &str = "MinimapVignette";
+pub const MINIMAP_MEMBER_PREFIX: &str = "MinimapMember";
+pub const MINIMAP_TARGET_PREFIX: &str = "MinimapTarget";
 /// Retail `MiniMapMailFrame` (`Minimap.xml:92-145`).
 pub const MINIMAP_MAIL_FRAME: &str = "MiniMapMailFrame";
 pub const ACTION_ZOOM_IN: &str = "minimap:zoom_in";
@@ -198,6 +204,22 @@ pub const VIGNETTE_KILL_ELITE: SheetArt = SheetArt {
     sheet: (1024.0, 1024.0),
     crop: (203.0, 267.0, 395.0, 459.0),
 };
+/// ObjectIconsAtlas (UiTextureAtlas 647), pinned Retail UiTextureAtlasMember
+/// 4741/4742/4776/4791: playerpartyblip, playerraidblip, target-tracker,
+/// rotating-minimapgrouparrow. Dot art is white for class colouring.
+const PARTY_MEMBER: SheetArt = object_icon(525.0, 557.0, 628.0, 660.0);
+const RAID_MEMBER: SheetArt = object_icon(525.0, 557.0, 662.0, 694.0);
+const TARGET: SheetArt = object_icon(627.0, 659.0, 764.0, 796.0);
+const GROUP_ARROW: SheetArt = object_icon(695.0, 727.0, 594.0, 626.0);
+
+const fn object_icon(left: f32, right: f32, top: f32, bottom: f32) -> SheetArt {
+    SheetArt {
+        fdid: 1_121_272,
+        sheet: (1024.0, 1024.0),
+        crop: (left, right, top, bottom),
+    }
+}
+
 /// UiTextureAtlas 1994 (256×256): `ui-hud-calendar-<day>-up`, 21×19 cells.
 const CALENDAR_FDID: u32 = 4_618_663;
 
@@ -274,9 +296,18 @@ pub enum BlipKind {
     /// Yellow `?`: `QuestGiverStatus::Reward`.
     QuestTurnIn,
     /// A creature vignette (`VignetteKill`, `VignetteKillElite`).
-    Vignette { elite: bool },
+    Vignette {
+        elite: bool,
+    },
     /// Owner's corpse, or its direction arrow at the map edge.
     Corpse,
+    /// Party/raid member; `edge` selects the directional arrow.
+    Member {
+        class: u8,
+        raid: bool,
+        edge: bool,
+    },
+    Target,
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -572,6 +603,10 @@ fn blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
         BlipKind::Vignette { elite: false } => (MINIMAP_VIGNETTE_PREFIX, VIGNETTE_KILL),
         BlipKind::Vignette { elite: true } => (MINIMAP_VIGNETTE_PREFIX, VIGNETTE_KILL_ELITE),
         BlipKind::Corpse => return corpse_arrow(blip, style),
+        BlipKind::Member { edge: true, .. } => (MINIMAP_MEMBER_PREFIX, GROUP_ARROW),
+        BlipKind::Member { raid: true, .. } => (MINIMAP_MEMBER_PREFIX, RAID_MEMBER),
+        BlipKind::Member { .. } => (MINIMAP_MEMBER_PREFIX, PARTY_MEMBER),
+        BlipKind::Target => (MINIMAP_TARGET_PREFIX, TARGET),
     };
     let [right, down] = blip.offset;
     let [left, top] = style.map_origin;
@@ -891,10 +926,31 @@ pub fn apply_minimap_postsetup(state: &MinimapClusterState, registry: &mut Frame
             },
         );
     }
+    apply_member_blip_colors(state, registry);
     if let Some(id) = state.map_texture {
         edit_texture(registry, MINIMAP_DISPLAY, |texture| {
             texture.source = TextureSource::Dynamic(id);
         });
+    }
+}
+
+fn apply_member_blip_colors(state: &MinimapClusterState, registry: &mut FrameRegistry) {
+    for blip in &state.blips {
+        let BlipKind::Member { class, edge, .. } = blip.kind else {
+            continue;
+        };
+        let [red, green, blue] = crate::damage_meter_data::class_color(class);
+        let [right, down] = blip.offset;
+        edit_texture(
+            registry,
+            &format!("{MINIMAP_MEMBER_PREFIX}{}", blip.unit),
+            |texture| {
+                // Arrow art is green; remove its baked colour before applying the class tint.
+                texture.desaturated = edge;
+                texture.vertex_color = [red, green, blue, 1.0];
+                texture.rotation = if edge { right.atan2(-down) } else { 0.0 };
+            },
+        );
     }
 }
 

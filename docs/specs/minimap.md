@@ -27,6 +27,11 @@ Retail sources are in `~/.cache/wow-ui-sim/blizzard-ui`: `Blizzard_Minimap/Mainl
 - [x] The player arrow (`Interface\Minimap\MinimapArrow`) sits at the centre and turns with the facing. It points where forward movement goes.
 - [x] Every mirrored NPC with `NPCFlags::QUESTGIVER` is queried once with `QuestGiverStatusQuery`. `Available` shows the `QuestNormal` blip and `Reward` the `QuestTurnin` blip from `ObjectIconsAtlas`, placed at the NPC's offset from the player. Blips outside the circle are hidden, and the other statuses draw none.
 - [x] The cluster exists only in world while `hud.show_minimap` is on.
+- [ ] Both skins show online party/raid members except the local player from existing `GroupMemberStates` positions, even outside ordinary replica interest. Missing positions and offline/left members draw nothing; no protocol change.
+- [ ] Party dots use `playerpartyblip`, raid dots `playerraidblip`, tinted by the existing `RAID_CLASS_COLORS` palette. Out-of-range members use the class-tinted `rotating-minimapgrouparrow`, clamped along the member direction inside the round Modern or square Forever rim, with room for half the 16-unit icon. In-range dots remain north-up; edge arrows point toward the member.
+- [ ] The selected replicated target shows `target-tracker` at its north-up position, above other blips; clearing/despawning or moving outside the map mask hides it.
+
+Blip art: local `data/db2/12.1.0.69933/UiTextureAtlasMember.csv`, atlas 647, members 4741/4742/4776/4791; `Interface/Minimap/ObjectIconsAtlas.blp` FDID 1121272 (1024²). Crops are respectively `(525,557,628,660)`, `(525,557,662,694)`, `(627,659,764,796)`, `(695,727,594,626)` in left/right/top/bottom order. Cached Retail `Blizzard_Minimap/Mainline/Minimap.lua:251-253` dispatches `PLAYER_TARGET_CHANGED` to native `UpdateBlips`; FrameXML does not expose the native placement/colour algorithm. Icon sizing and inset remain client choices, not Lua-derived pixel-parity claims.
 
 ### Forever skin (FlareUI square minimap)
 
@@ -46,13 +51,15 @@ Header geometry comes from FlareUI; the flat bevel palette is reference-sampled.
 - [ ] Indoor (WMO) minimaps, the indoor diameter table, and `rotateMinimap` 1.
 - [x] Creature vignettes: every replicated unit with `UnitVignette` whose `Vignette.csv` row lacks `DontShowOnMinimap` shows `VignetteKill`, or `VignetteKillElite` for elite/rare-elite/world-boss classifications, at its offset; the server adds and removes `UnitVignette` with the unit's 100 yd visibility and its death (`godot/rust/src/vignettes.rs`).
 - [ ] Vignette blip size (16, as quest blips) and hover tooltip; infinite-AOI (map/zone-wide) vignettes are not sent.
-- [ ] Tracking menu and filters (`Minimap.lua:21-52`): mailboxes, flight masters, innkeepers, trainers. Party members, the target, and quest POI arrows at the edge.
+- [ ] Tracking menu and filters (`Minimap.lua:624-699`): mailboxes, flight masters, innkeepers, trainers, Find Herbs/Minerals and Track Humanoids. Audit (2026-10-07): replicated NPC flags and game-object metadata exist; creature type is only returned by tooltip queries (`shared-protocol/src/protocol/tooltip_messages.rs:53-54`, server `creature_tooltip.rs`), not a complete tracking feed. No active tracking masks/selection or herb/mineral source stream exists. Do not invent tracking results from arbitrary NPCs or static scenery. Tracking blips remain unsupported; no protocol/server change in this task. Quest POI edge arrows remain separate.
 - [ ] Mail, crafting-order and instance-difficulty indicators; the expansion landing-page button; `AddonCompartment`.
 - [ ] Clock and calendar tooltips and their clicks (TimeManager, Calendar). Realm time: the protocol carries none, so the clock shows local time. Military time.
 - [ ] Minimap ping and the zone tooltip. Edit-mode size, the header-underneath option, and moving the cluster.
 - [ ] Exact player arrow and blip sizes. These are engine-drawn, so the 32 and 16 unit sizes are assumptions.
 
 ## Tests asserting this spec
+
+- `godot/ui-model/tests/minimapblips.rs`: concrete member positions, offsets, texture colours, dot/arrow rotation and round/square edge clamping; target placement and removal; raid art and offline/missing/left-member exclusion. Pending GREEN/live proof recorded in canonical `data/diagnostics/minimapblips-20261007/proof-ledger.txt`.
 
 - `godot/core/tests/minimap_data.rs`: Northshire tile key and path; the composite's orientation, missing-tile colour and round mask; the texel under the player; blip offsets and edge; zoom clamps; clock text; zone text and PvP colours; race faction.
 - `godot/ui-model/tests/forever_minimap.rs`: the Modern trees equal the pre-skin fixture; the Forever cluster, map, header texts, border, blips, arrow, zoom buttons and mail rects; a live skin switch. `godot/core/tests/minimap_data.rs` covers the square mask's corners and corner blips.

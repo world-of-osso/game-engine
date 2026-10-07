@@ -23,7 +23,8 @@ use game_engine_ui_model::game_tooltip::hud::zone_tooltip;
 use game_engine_ui_model::minimap::{
     ACTION_TOGGLE_WORLD_MAP, ACTION_ZOOM_IN, ACTION_ZOOM_OUT, BlipKind, MINIMAP_ARROW,
     MINIMAP_BLIP_PREFIX, MINIMAP_DISPLAY, MINIMAP_VIGNETTE_PREFIX, MINIMAP_ZONE_TEXT, MinimapBlip,
-    MinimapClusterState, cluster_style, minimap_texture_fdids,
+    MinimapClusterState, cluster_style, group_minimap_blips, minimap_texture_fdids,
+    target_minimap_blip,
 };
 use game_engine_ui_model::world_map_view_data::arrow_rotation;
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion, Time};
@@ -368,6 +369,12 @@ impl GameClient {
         let night = !(DAWN..DUSK).contains(&(hour * 60 + minute));
         let view = self.minimap.view(position);
         let mut blips = self.quest_blips(&view);
+        blips.extend(group_minimap_blips(
+            &self.account.group,
+            self.account.session.selected_character_name.as_deref(),
+            &view,
+            cluster_style(self.minimap.skin).map_size,
+        ));
         if let Some(map_id) = self.world_map_id {
             blips.extend(game_engine_ui_model::death_flow::corpse_minimap_blip(
                 &self.death_flow,
@@ -379,6 +386,8 @@ impl GameClient {
             let sightings = crate::vignettes::sightings(&self.replica, &catalogs.vignettes)?;
             blips.extend(crate::vignettes::minimap_blips(&view, &sightings));
         }
+        // Target overlay comes last so selecting a member does not hide its indicator.
+        blips.extend(self.target_minimap_blip(&view));
         Ok(MinimapClusterState {
             zone_text,
             zone_color: pvp.map_or([1.0, 0.82, 0.0, 1.0], |pvp| pvp.text_color()),
@@ -392,6 +401,12 @@ impl GameClient {
             has_mail: !self.mailbox.session.pending_senders.is_empty(),
             map_texture: None,
         })
+    }
+
+    fn target_minimap_blip(&self, view: &MinimapView) -> Option<MinimapBlip> {
+        let target = self.targeting.target?;
+        let position = self.replica.unit(target)?.get::<Position>()?;
+        target_minimap_blip(target, [position.x, position.z], view)
     }
 
     /// `QuestNormal` for givers with an available quest, `QuestTurnin` for a reward;
