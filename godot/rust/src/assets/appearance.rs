@@ -1,5 +1,9 @@
 //! Prepare authored NPC replacement textures and geosets before allocating visual nodes.
 
+#[path = "appearance_pixels.rs"]
+mod appearance_pixels;
+use appearance_pixels::compose_replacement_pixels;
+
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
@@ -12,7 +16,7 @@ use game_engine_core::{
     customization_data::CustomizationDb,
     npc_appearance_assets::{load_compositor, load_customization_db},
     npc_appearance_data::{AuthoredNpcAppearance, query_authored_npc_appearance},
-    npc_appearance_selection_data::{NpcSelections, select_npc_choices, select_npc_type6_texture},
+    npc_appearance_selection_data::{NpcSelections, select_npc_choices},
 };
 use godot::{
     classes::{Image, ImageTexture, image},
@@ -214,28 +218,18 @@ fn compose_replacement_textures(
     let (composed, decoded) = load_and_compose_selected_pixels(
         compositor, selected, layout_id, resolver, data_root, display_id,
     )?;
-    let body = match appearance.baked_texture_fdid {
-        Some(fdid) => load_npc_texture(resolver, data_root, fdid)?,
-        None => composed.body,
-    };
-    let mut textures = HashMap::from([(1, body)]);
-    if let Some(type6) = select_npc_type6_texture(
-        compositor.declares_hair(&selected.materials, layout_id),
-        composed.hair,
-        composed.head,
-    )? {
-        textures.insert(6, type6);
-    }
-    // Eyes (19) compose every selected layer on their own canvas: the Eyesight overlay
-    // (target 44) over the eye colour (target 25).
-    if let Some(pixels) =
-        compositor.composite_texture_type(&selected.materials, layout_id, 19, |fdid| {
-            decoded.get(&fdid).cloned()
-        })
-    {
-        textures.insert(19, pixels);
-    }
-    Ok(textures)
+    let baked_body = appearance
+        .baked_texture_fdid
+        .map(|fdid| load_npc_texture(resolver, data_root, fdid))
+        .transpose()?;
+    compose_replacement_pixels(
+        compositor,
+        &selected.materials,
+        layout_id,
+        composed,
+        baked_body,
+        &decoded,
+    )
 }
 
 fn load_and_compose_selected_pixels(
