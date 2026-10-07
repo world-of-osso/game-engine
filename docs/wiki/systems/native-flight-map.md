@@ -10,6 +10,10 @@ Continent selection follows the current node's best world-system UiMap lineage t
 
 Flight motion and mounts remain existing replicated `MovementControl`/`Mounted` handling in `world.rs`. `flight_map_preview.rs` exposes only read-only real-state evidence; it does not synthesize offline taxi state.
 
+## Bounded verification — 2026-10-07
+
+[Flight-master spec](../../specs/flight-master.md#known-gaps-current-cycle) owns current acceptance and exclusions. Canonical evidence: `data/diagnostics/flightmap-20261007/`; `proof-ledger.txt` records exact commands and revisions, `shots-accepted/` contains inspected open/hover/flight captures, and `cleanup.txt` confirms owned-process termination and free UDP 5302. Pure projection/request/closure/refusal tests and the private rendered flow pass; broad lifecycle, mount visuals and clean engine-resource shutdown remain unclaimed.
+
 ## Sources
 
 - [Flight-master contract and Retail source citations](../../specs/flight-master.md)

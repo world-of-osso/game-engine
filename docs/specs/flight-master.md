@@ -8,16 +8,19 @@ Retail references under cached `retail/AddOns/`:
 - `Blizzard_FlightMap/FM_FlightPathDataProvider.lua:188-193`: hide undiscovered pins.
 - `Blizzard_FlightMap/FM_FlightPathDataProvider.lua:233-269`: left-click TakeTaxiNode, name/current/cost tooltip and highlighted route.
 - `Blizzard_FlightMap/FM_FlightPathDataProvider.lua:287-349`: current 28px green, reachable 20px gray/yellow pins.
+- `Blizzard_UIPanels_Game/Shared/TaxiFrame.lua:128-162`: close on TAXIMAP_CLOSED, destination name and money tooltip.
 
 ## What it must do
 
-- [ ] Talking to a flight master opens its continent map from the server's `TaxiMap`.
-- [ ] Draw current and reachable taxi nodes projected through the shared world-map catalog; mark current node green. Do not draw undiscovered nodes.
-- [ ] Draw deduplicated first-hop routes from current node; hovering a reachable destination shows its full route.
-- [ ] Hover shows destination name and copper cost expressed as gold/silver/copper, or “You are here” for current node.
-- [ ] Clicking a reachable destination emits exactly `ActivateTaxi { npc, destination }` and closes the frame. Current/unknown/unreachable nodes cannot activate.
+- [x] Talking to a flight master opens its continent map from the server's `TaxiMap` (after selecting its ride gossip option where offered).
+- [x] Draw current and reachable taxi nodes projected through the shared world-map catalog; mark current node green. Do not draw undiscovered nodes.
+- [x] Draw deduplicated first-hop routes from current node; hovering a reachable destination shows its full route.
+- [x] Hover shows destination name and copper cost expressed as gold/silver/copper, or “You are here” for current node.
+- [x] Clicking a reachable destination emits exactly `ActivateTaxi { npc, destination }` and closes the frame. Current/unknown/unreachable nodes cannot activate.
 - [ ] Close button/Escape send `CloseInteraction`; server interaction closure closes matching frame. Leaving InWorld disposes it.
-- [ ] Server refusals and discoveries show their UI error text. Flight starts and advances from replicated server movement, not client preview motion.
+- [x] Server refusals show their UI error text.
+- [ ] Discoveries show their UI error text (implemented; not exercised by this run).
+- [x] Flight starts and advances from replicated server movement, not client preview motion.
 
 ## How it works
 
@@ -43,7 +46,9 @@ Retail references under cached `retail/AddOns/`:
 
 ## Known gaps (current cycle)
 
-- [ ] Current revision targeted tests and private rendered proof pending.
+Bounded native proof at `5e5ec97b`: four targeted Rust tests pass (projection/request/closure/refusal); unchanged pure-test scope from `adcf3e55`, final native extension/CLI build and format check pass. Private Stormwind → Sentinel Hill live fixture exits 0 with visible native tooltip “Sentinel Hill, Westfall / 0g 0s 5c”, closed map and controlled server position advance. All three captures inspected under canonical `data/diagnostics/flightmap-20261007/shots-accepted/`; commands, failures, revisions and cleanup in that run's `proof-ledger.txt`. Four rendered launches total.
+
+Full Retail visual parity and broad lifecycle/other-continent proof are not claimed. Unchanged mount renderer rejects taxi mount display 6852 as outside imported appearance coverage; movement is proven, mount visuals are not. Editor import finished but exited 134 at shutdown; rendered client exits 0 with RID/ObjectDB/paged-allocator resource errors. These are retained boundaries, not clean-resource/general-shutdown acceptance.
 
 ## Out of scope
 
