@@ -1,6 +1,8 @@
 pub(crate) mod assets;
 #[cfg(debug_assertions)]
 mod audit_probe;
+#[cfg(test)]
+mod buffcancel_tests;
 // New preview APIs belong in their own *_preview.rs #[godot_api(secondary)] block, never here.
 pub(crate) mod castbar_fx;
 mod castbar_preview;
