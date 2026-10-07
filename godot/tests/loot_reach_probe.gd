@@ -149,4 +149,16 @@ func assert_target_only(flow, client: Node, id, stage: String) -> bool:
 		if client.target_state().target != id or (frame != null and frame.is_visible_in_tree()):
 			flow.fail("Reach %s click did not retain target without a loot window" % stage)
 			return false
+	if stage == "far" and not far_error_visible(client):
+		flow.fail("Out-of-range corpse click did not display ERR_LOOT_TOO_FAR")
+		return false
 	return true
+
+func far_error_visible(client: Node) -> bool:
+	var errors := client.get_node_or_null("UIErrors")
+	if errors == null:
+		return false
+	for node in errors.find_children("*", "Label", true, false):
+		if node.is_visible_in_tree() and node.text == "You are too far away to loot that corpse.":
+			return true
+	return false
