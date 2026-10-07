@@ -32,6 +32,8 @@ use shared::{
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
 use fixture_support::FixtureChild;
+#[path = "fixture_support/data.rs"]
+mod fixture_data;
 #[path = "native_npc_visual_fixture/nameplate_casts.rs"]
 mod nameplate_casts;
 
@@ -122,8 +124,11 @@ impl FixtureProject {
         let repo = checkout.as_path();
         let source = repo.join("godot");
         // This subtree is untracked and disposable; res://../data is only this fixture's data.
-        let root = repo
-            .join("data")
+        let authored_data = fs::canonicalize(repo.join("data/cache"))
+            .map_err(|error| format!("Locate authored data cache: {error}"))?;
+        let root = authored_data
+            .parent()
+            .ok_or("Authored cache has no data parent")?
             .join(format!("native-npc-fixture-{}", std::process::id()));
         let project = root.join("godot");
         let data = root.join("data");
@@ -221,14 +226,7 @@ impl FixtureProject {
             INSERT INTO creature_displays VALUES (910014,910014,910001,0,0,1000); \
             INSERT INTO creature_displays VALUES (910016,910016,910001,0,0,1000); \
             INSERT INTO creature_displays VALUES (910017,910017,910001,0,0,1000);";
-        let status = Command::new("sqlite3")
-            .arg(data.join("cache/creature_display.sqlite"))
-            .arg(sql)
-            .status()
-            .map_err(|error| format!("Run sqlite3 fixture setup: {error}"))?;
-        if !status.success() {
-            return Err(format!("sqlite3 fixture setup exited {status}"));
-        }
+        write_sqlite_fixture(&data, "creature_display.sqlite", sql)?;
         stage_preview_assets(repo, &data)?;
         stage_lighting(repo, &data)?;
         // No zone light covers the fixture maps; Light.csv alone lights them.
@@ -248,25 +246,22 @@ impl FixtureProject {
                 .map_err(|error| format!("Stage authored LightData.csv: {error}"))?;
         }
         stage_npc_appearance(&data)?;
+        fixture_data::stage_authored_csvs(repo.join("data").as_path(), &data)?;
         Ok(Self { root, project })
     }
 }
 
 fn write_sqlite_fixture(data: &Path, name: &str, sql: &str) -> Result<(), String> {
     let path = data.join("cache").join(name);
-    let output = Command::new("sqlite3")
-        .arg(&path)
-        .arg(sql)
-        .output()
-        .map_err(|error| format!("Create {}: {error}", path.display()))?;
-    if !output.status.success() {
-        return Err(format!(
-            "Create {}: {}",
-            path.display(),
-            String::from_utf8_lossy(&output.stderr)
-        ));
-    }
-    Ok(())
+    execute_fixture_sql(&path, sql)
+}
+
+fn execute_fixture_sql(path: &Path, sql: &str) -> Result<(), String> {
+    let connection = rusqlite::Connection::open(path)
+        .map_err(|error| format!("Open {}: {error}", path.display()))?;
+    connection
+        .execute_batch(sql)
+        .map_err(|error| format!("Execute fixture SQL in {}: {error}", path.display()))
 }
 
 fn stage_npc_appearance(data: &Path) -> Result<(), String> {
@@ -404,32 +399,10 @@ fn stage_fixture_listfile(repo: &Path, data: &Path) -> Result<(), String> {
     .map_err(|error| format!("Link authored listfile: {error}"))?;
     // Numeric Warband aliases live in the local catalog, not the community CSV.
     let target = data.join("local-listfile-cache.sqlite");
-    let backup = format!(".backup '{}'", target.display());
-    let result = Command::new("sqlite3")
-        .args(["-readonly", "-cmd", ".timeout 5000"])
-        .arg(repo.join("data/local-listfile-cache.sqlite"))
-        .arg(backup)
-        .output()
-        .map_err(|error| format!("Copy authored local listfile catalog: {error}"))?;
-    if !result.status.success() {
-        return Err(format!(
-            "Copy local listfile catalog: {}",
-            String::from_utf8_lossy(&result.stderr)
-        ));
-    }
-    let result = Command::new("sqlite3")
-        .arg(&target)
-        .arg("DELETE FROM local_listfile_entries WHERE lower_path IN ('world/maps/azeroth/azeroth.wdt','world/maps/kalimdor/kalimdor.wdt');
-            INSERT OR REPLACE INTO local_listfile_entries VALUES (910090,'world/maps/azeroth/azeroth.wdt','world/maps/azeroth/azeroth.wdt'),(910091,'world/maps/kalimdor/kalimdor.wdt','world/maps/kalimdor/kalimdor.wdt');")
-        .output()
-        .map_err(|error| format!("Set isolated WDT aliases: {error}"))?;
-    if !result.status.success() {
-        return Err(format!(
-            "Set isolated WDT aliases: {}",
-            String::from_utf8_lossy(&result.stderr)
-        ));
-    }
-    Ok(())
+    fixture_data::backup_database(&repo.join("data/local-listfile-cache.sqlite"), &target)?;
+    execute_fixture_sql(&target,
+        "DELETE FROM local_listfile_entries WHERE lower_path IN ('world/maps/azeroth/azeroth.wdt','world/maps/kalimdor/kalimdor.wdt');
+         INSERT OR REPLACE INTO local_listfile_entries VALUES (910090,'world/maps/azeroth/azeroth.wdt','world/maps/azeroth/azeroth.wdt'),(910091,'world/maps/kalimdor/kalimdor.wdt','world/maps/kalimdor/kalimdor.wdt');")
 }
 
 /// Authored terrain heights at the fixture's unit positions (z = 3). The fixture maps
