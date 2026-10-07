@@ -1,3 +1,7 @@
+## 2026-10-07 — Restart-required native SSAO
+
+[Native SSAO](investigations/native-ssao.md#restart-required-startup-mechanism) preserves the deliberate prepass-disabled Off baseline. GDExtension Servers initialization selects prepass from existing saved RON before RenderingServer construction; Options exposes restart-required persistence without live SSAO/prepass changes. No generated config, runtime project edits, DOF, or implicit AA changes. Strict Dozen blocker remains; restart-process pixel proof is required.
+
 ## 2026-10-07 — Native flight map implementation
 
 [Native flight map](systems/native-flight-map.md) adds server taxi message consumption, shared world-map art/canvas, current/reachable pins, route and cost hover, and activation/close lifecycle. `5e5ec97b` has bounded native build, four targeted tests and private rendered open/hover/click/controlled-flight proof; captures inspected. Render RED exposed unsupported font attributes, fixed with actual native-label assertions. Cleanup confirms free UDP 5302 and inactive owned slice. [Flight-master contract](../specs/flight-master.md) retains mount-display coverage, broad lifecycle and engine shutdown-resource gaps.

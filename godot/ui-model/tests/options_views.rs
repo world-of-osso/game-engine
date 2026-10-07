@@ -34,6 +34,7 @@ fn model() -> GameMenuViewModel {
                 colorblind_mode: false,
                 bloom_enabled: false,
                 bloom_intensity: 0.08,
+                ssao_enabled: false,
             },
             sound: SoundOptionsView {
                 muted: false,

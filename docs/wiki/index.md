@@ -183,4 +183,4 @@ External resources and asset lists.
 
 - [Zaralda observed native success](investigations/npc-stance-gear.md#native-fixture-boundary-follow-up-evidence-date-2026-10-01) — saved exit0 interaction; source/import and renderer gates distinct; independent artifact gate116 scoped PASS, no whole-world PASS.
 
-- [Native SSAO](investigations/native-ssao.md) — missing depth-prepass root cause, authored-light mapping, Dozen/Lavapipe comparison and strict pixel oracle.
+- [Native SSAO](investigations/native-ssao.md) — restart-required startup prepass, preserved Off submission baseline, authored-light mapping, Dozen/Lavapipe comparison and strict pixel oracle.

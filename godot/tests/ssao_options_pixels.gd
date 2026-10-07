@@ -47,56 +47,45 @@ func run_test() -> void:
 		client.free()
 		quit(0)
 		return
+	if original_prepass != start_enabled or not expect_ui(startup):
+		fail("Saved SSAO/prepass mismatch at pixel startup")
+		return
 	await click_menu_action(client, "MenuBtnOptions")
 	if not await wait_for_graphics(client):
 		return
-	if not await commit_effects(client, false):
-		return
-	var off := await capture(client, directory, "off.png")
-	if not expect_resources(false, "pixel Off") or not expect_ui(off):
-		return
-	var master_path := OS.get_environment("SSAO_MASTER_IMAGE")
-	if not master_path.is_empty():
-		var master := Image.load_from_file(master_path)
-		if master == null:
-			fail("Missing master Off image: " + master_path)
+	for pending in [not start_enabled, start_enabled, not start_enabled]:
+		if not await commit_effects(client, pending) or not expect_resources(start_enabled, "pending restart"):
 			return
-		master.convert(off.get_format())
-		if master.get_size() != off.get_size() or master.get_data() != off.get_data():
+		var unchanged := await capture(client, directory, "pending-%s.png" % str(pending))
+		if startup.get_data() != unchanged.get_data():
+			fail("Restart-pending toggle changed live pixels")
+			return
+	var master_path := OS.get_environment("SSAO_MASTER_IMAGE")
+	var off := Image.load_from_file(master_path)
+	if off == null:
+		fail("Missing prepass-disabled master image: " + master_path)
+		return
+	off.convert(startup.get_format())
+	if off.get_size() != startup.get_size():
+		fail("Master image dimensions differ")
+		return
+	if not start_enabled:
+		if off.get_data() != startup.get_data():
 			fail("Off differs byte-for-byte from master-material scene")
 			return
-		print("PASS: Off byte-identical to master-material scene")
-	if not start_enabled and startup.get_data() != off.get_data():
-		fail("Saved Off differs from live Off baseline")
-		return
-	if not await commit_effects(client, true):
-		return
-	var ssao := await capture(client, directory, "ssao-on.png")
-	if not expect_resources(true, "pixel SSAO") or not expect_ui(ssao):
-		return
-	var crease_delta := image_difference(off, ssao, CREASE_REGION)
-	var darker := count_darkened(off, ssao, CREASE_REGION)
-	var flat_delta := image_difference(off, ssao, FLAT_REGION)
-	print("SSAO_PIXELS mean_darkening=", crease_delta, " darkened_crease_pixels=", darker, " flat_darkening=", flat_delta)
-	if not equal_region(off, ssao, FLAT_REGION):
-		fail("SSAO darkened isolated flat terrain; whole-scene dimming is not crease proof")
-		return
-	if crease_delta < 0.002 or darker < 100:
-		fail("SSAO produced no contact shading in owned floor/box crease")
-		return
-	if not await commit_effects(client, false):
-		return
-	var restored := await capture(client, directory, "off-restored.png")
-	if not expect_resources(false, "restored Off") or not expect_ui(restored):
-		return
-	if off.get_data() != restored.get_data():
-		fail("Off did not restore exact baseline pixels")
-		return
-	if start_enabled:
-		if not expect_ui(startup) or startup.get_data() != ssao.get_data():
-			fail("Saved On startup lacks world effect pixels")
+		print("PASS: prepass-disabled Off byte-identical to master; pending On pixels unchanged")
+	else:
+		var crease_delta := image_difference(off, startup, CREASE_REGION)
+		var darker := count_darkened(off, startup, CREASE_REGION)
+		var flat_delta := image_difference(off, startup, FLAT_REGION)
+		print("SSAO_PIXELS mean_darkening=", crease_delta, " darkened_crease_pixels=", darker, " flat_darkening=", flat_delta)
+		if not equal_region(off, startup, FLAT_REGION):
+			fail("SSAO darkened isolated flat terrain; whole-scene dimming is not crease proof")
 			return
-	print("PASS: SSAO darkens crease, flat terrain unchanged, Off exact baseline, UI unchanged; saved startup=", start_enabled)
+		if crease_delta < 0.002 or darker < 100:
+			fail("SSAO produced no contact shading in owned floor/box crease")
+			return
+		print("PASS: startup On darkens creases only; pending Off pixels and UI unchanged")
 	client.free()
 	quit(0)
 
