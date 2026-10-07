@@ -42,12 +42,17 @@ func capture(name: String) -> void:
 	var image := root.get_texture().get_image()
 	assert(image.save_png(output.path_join(label + "-" + name + ".png")) == OK)
 	var rects := {}
-	for blip_name in ["MinimapMember57", "MinimapMember58", "MinimapDisplay", "MinimapCluster"]:
+	var parts := {}
+	var target_name := "MinimapTarget" + str(client.target_state().get("target", ""))
+	for blip_name in ["MinimapMember57", "MinimapMember58", "MinimapDisplay", "MinimapCluster", target_name]:
 		var control := find_control(blip_name)
 		if control != null:
 			rects[blip_name] = str(control.get_global_rect())
+			var part := control.find_child("Part0", true, false) as Control
+			if part != null:
+				parts[blip_name] = {"rotation": part.rotation, "colour": str(part.modulate), "rect": str(part.get_global_rect())}
 	write_json(name, {"account": client.account_state(), "group": client.group_state(),
-		"target": client.target_state(), "minimap": client.minimap_state(), "rects": rects})
+		"target": client.target_state(), "minimap": client.minimap_state(), "rects": rects, "parts": parts})
 	print("MINIMAP BLIPS CAPTURE ", label, " ", name)
 
 func run_proof() -> void:
