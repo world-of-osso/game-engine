@@ -165,7 +165,7 @@ fn confirmation(view: &TrainerView) -> Element {
             pos_type: "absolute", text: "Cancel", onclick: "trainer:cancel" }
     });
     rsx! { r#frame { name: "TrainerConfirmation", width: 390.0, height: 150.0, left: 430.0, top: 160.0,
-    pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::FullScreenDialog, {children} } }
+    pos_type: "absolute", mouse_enabled: true, strata: FrameStrata::FullscreenDialog, {children} } }
 }
 
 fn money(copper: u64) -> String {
