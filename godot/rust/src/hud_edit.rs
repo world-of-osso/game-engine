@@ -31,7 +31,8 @@ impl GameClient {
         }
         let world_input = self.account.session.screen == SessionScreen::InWorld
             && self.account.session.gameplay_input_allowed()
-            && self.game_menu_ui.is_none();
+            && self.game_menu_ui.is_none()
+            && !self.chat.model.state.input_open;
         if key.get_keycode() == Key::F10 && world_input {
             self.enter_hud_edit()?;
             return Ok(true);
@@ -48,17 +49,21 @@ impl GameClient {
         ui.set_layer(100);
         self.base_mut().add_child(&ui);
         ui.bind_mut().set_ui_scale(self.effective_ui_scale())?;
-        if let Err(error) = ui.bind_mut().show_hud_edit() {
+        let initialized = ui.bind_mut().show_hud_edit();
+        if let Err(error) = initialized {
             ui.queue_free();
             self.hud_editor.draft.exit();
             return Err(error);
         }
         self.hud_editor.ui = Some(ui);
+        crate::ui::hud_edit_layout::publish_editor_active(true);
+        self.publish_hud_placements(self.hud_editor.draft.working.clone())?;
         self.refresh_hud_edit()
     }
 
     pub(crate) fn exit_hud_edit(&mut self) -> Result<(), String> {
         self.hud_editor.draft.exit();
+        crate::ui::hud_edit_layout::publish_editor_active(false);
         if let Some(mut ui) = self.hud_editor.ui.take() {
             ui.queue_free();
         }
@@ -179,7 +184,7 @@ impl GameClient {
                     Vector2::new(rect[0], rect[1]),
                     Vector2::new(rect[2], rect[3]),
                 )
-                .has_point(at)
+                .contains_point(at)
             });
         if on_panel {
             return Ok(false);

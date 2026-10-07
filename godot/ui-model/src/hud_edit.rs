@@ -5,6 +5,10 @@ use game_engine_core::ui_layout_data::{ActiveLayout, HudAnchor, SavedElement};
 use std::collections::BTreeMap;
 
 pub const SNAP_GRID: f32 = 8.0;
+
+/// Transient bar previews; never part of the saved layout's settings.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub struct EditModeActive(pub bool);
 pub type Placements = BTreeMap<String, SavedElement>;
 
 pub fn anchor_fraction(anchor: HudAnchor) -> [f32; 2] {

@@ -224,6 +224,14 @@ impl RegistryModel {
     /// Mirror the active layout's settings, then its skin: a change of either rebuilds the
     /// Screens that read the HUD layout.
     fn sync(&mut self) {
+        let edit = game_engine_ui_model::hud_edit::EditModeActive(hud_edit_layout::editor_active());
+        if self
+            .shared
+            .get::<game_engine_ui_model::hud_edit::EditModeActive>()
+            != Some(&edit)
+        {
+            self.shared.insert(edit);
+        }
         let settings = game_engine_ui_model::hud_layout::active_layout_settings();
         if self.shared.get::<LayoutSettings>() != Some(&settings) {
             self.shared.insert(settings);
