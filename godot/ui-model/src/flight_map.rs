@@ -78,10 +78,10 @@ pub struct FlightPin {
 impl FlightPin {
     pub fn tooltip(&self) -> String {
         let detail = match self.state {
-            TaxiNodeState::Current => "You are here".into(),
+            TaxiNodeState::Current => "You are here",
             // Reachable costs are rendered by the tooltip's SmallMoneyFrame coins.
             TaxiNodeState::Reachable => return self.name.clone(),
-            TaxiNodeState::Unreachable => "Not Discovered".into(),
+            TaxiNodeState::Unreachable => "Not Discovered",
         };
         format!("{}\n{detail}", self.name)
     }
