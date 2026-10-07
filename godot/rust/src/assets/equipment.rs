@@ -530,8 +530,9 @@ mod tests {
     fn equipment_item_materials_resolve_every_sampled_batch_texture() {
         use crate::equipment_appearance_data::resolve_equipment_appearance;
         use shared::components::{
-            EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, ItemDefinitionSource,
+            EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
         };
+        use shared::item_data::ItemDefinitionSource;
         let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let catalog = game_engine_core::outfit_data::OutfitData::load(&data);
         for (item_id, slot, race, sex) in [
