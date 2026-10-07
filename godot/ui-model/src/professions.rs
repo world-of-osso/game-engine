@@ -90,6 +90,7 @@ impl ProfessionBook {
             .map(|(_, owned, needed)| owned / needed)
             .min()
             .unwrap_or(1)
+            .min(u32::from(u16::MAX))
     }
 
     pub fn craft_request(&self, bags: &InventoryState, all: bool) -> Option<CraftRecipe> {
@@ -100,7 +101,7 @@ impl ProfessionBook {
         }
         Some(CraftRecipe {
             spell_id: self.selected_recipe()?.spell_id,
-            casts,
+            casts: u16::try_from(casts).ok()?,
         })
     }
 }
