@@ -1115,4 +1115,7 @@ fn main() {
     if let Err(error) = result {
         panic!("{error}");
     }
+    if mode == Mode::AuthoredTextures {
+        authored_textures::persist_artifacts(&project).expect("preserve authored texture captures");
+    }
 }

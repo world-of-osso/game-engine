@@ -78,6 +78,28 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
     Ok(())
 }
 
+/// Keep proof outside the disposable project; FixtureProject::drop removes its root.
+pub(super) fn persist_artifacts(project: &FixtureProject) -> Result<(), String> {
+    let data = project.root.parent().ok_or("fixture has no data parent")?;
+    let destination = data
+        .join("diagnostics/npc-authored-textures")
+        .join(std::process::id().to_string());
+    for folder in ["oracle", "captures"] {
+        let target = destination.join(folder);
+        fs::create_dir_all(&target).map_err(|error| format!("{}: {error}", target.display()))?;
+        let source = project.root.join(folder);
+        for entry in
+            fs::read_dir(&source).map_err(|error| format!("{}: {error}", source.display()))?
+        {
+            let entry = entry.map_err(|error| error.to_string())?;
+            fs::copy(entry.path(), target.join(entry.file_name()))
+                .map_err(|error| format!("preserve {}: {error}", entry.path().display()))?;
+        }
+    }
+    println!("AUTHORED_ARTIFACTS {}", destination.display());
+    Ok(())
+}
+
 fn decode(source: &Path, fdid: u32) -> Result<Pixels, String> {
     let path = source.join(format!("textures/{fdid}.blp"));
     let bytes = fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
