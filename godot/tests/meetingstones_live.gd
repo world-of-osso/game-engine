@@ -78,7 +78,7 @@ func execute_command(command: Dictionary) -> String:
 	return "unknown operation"
 
 func click_object(entry: int) -> String:
-	var target := client.target_state()
+	var target: Dictionary = client.target_state()
 	for turn in range(24):
 		await wait_frames(3)
 		for node in client.find_children("Mailbox_*", "Node3D", true, false):
