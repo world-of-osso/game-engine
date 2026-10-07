@@ -3203,6 +3203,7 @@ dependencies = [
  "lightyear_replication",
  "lightyear_transport",
  "quick-js",
+ "rusqlite",
  "serde",
  "shared",
 ]

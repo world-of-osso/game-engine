@@ -51,6 +51,8 @@ mod dev_ipc;
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
 use fixture_support::FixtureChild;
+#[path = "fixture_support/data.rs"]
+mod fixture_data;
 #[path = "native_input_fixture/footsteps.rs"]
 mod footsteps;
 #[path = "native_input_fixture/guild_bank.rs"]
