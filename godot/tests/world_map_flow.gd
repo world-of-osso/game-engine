@@ -111,7 +111,8 @@ func run_test() -> void:
 	quit(0)
 
 func enter_world() -> bool:
-	var deadline := Time.get_ticks_msec() + 15000
+	# Character select mounts its UI only after asset startup finishes.
+	var deadline := Time.get_ticks_msec() + 90000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
@@ -119,7 +120,8 @@ func enter_world() -> bool:
 			if state.screen != "CharacterSelect" or state.character_count < 1:
 				fail("Fixture needs an authenticated character: " + str(state))
 				return false
-			break
+			if not state.assets_starting and client.get_node_or_null("CharacterSelectUI") != null:
+				break
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	var enter = ui.find_child("EnterWorld", true, false) if ui != null else null
 	if not enter is Button:
