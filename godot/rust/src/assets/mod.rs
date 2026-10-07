@@ -509,46 +509,6 @@ fn load_batch(
             batch.source_unit_index
         )
     })?;
-    check_required_replacement(batch, appearance)?;
-    let active = match appearance.and_then(|appearance| {
-        appearance
-            .inactive_npc_texture_types
-            .as_ref()
-            .map(|inactive| (appearance, inactive))
-    }) {
-        Some((appearance, inactive)) => {
-            let unit = model
-                .batches
-                .get(batch.source_unit_index)
-                .ok_or("Resolved NPC batch has no skin batch")?;
-            let binding =
-                game_engine_core::m2_material::batch_binding(model, unit, skin_texture_fdids)?;
-            appearance::npc_pass_active(
-                &binding.texture_types,
-                &binding.textures,
-                inactive,
-                &appearance.textures,
-            )
-            .map_err(|error| format!("NPC batch {}: {error}", batch.source_unit_index))?
-        }
-        None => true,
-    };
-    let _span = crate::profile::span(|| format!("model.load_material {}", batch.submesh_index));
-    let (material, binding) = material::load_material(
-        model,
-        tracks,
-        batch,
-        skin_texture_fdids,
-        path,
-        missing,
-        textures.or_else(|| appearance.map(|appearance| &appearance.textures)),
-    )?;
-    // Load required file-backed slots even when another slot makes this pass absent.
-    // The caller still receives missing-resource receipts from omitted passes.
-    if !active {
-        return Ok(None);
-    }
-    let mesh = shared_batch_mesh(model, batch.submesh_index, path)?;
     let visible = appearance.is_none_or(|appearance| {
         let visible = !appearance.hidden_geoset_ids.contains(&batch.mesh_part_id)
             && game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
@@ -562,6 +522,46 @@ fn load_batch(
             &appearance.equipment_geosets,
         )
     });
+    check_required_replacement(batch, appearance)?;
+    let missing_before = missing.len();
+    let _span = crate::profile::span(|| format!("model.load_material {}", batch.submesh_index));
+    let (material, binding) = material::load_material(
+        model,
+        tracks,
+        batch,
+        skin_texture_fdids,
+        path,
+        missing,
+        textures.or_else(|| appearance.map(|appearance| &appearance.textures)),
+    )?;
+    let active = match appearance.and_then(|appearance| {
+        appearance
+            .inactive_npc_texture_types
+            .as_ref()
+            .map(|inactive| (appearance, inactive))
+    }) {
+        Some((appearance, inactive)) => {
+            let missing_files: Vec<_> = missing.as_slice()[missing_before..]
+                .iter()
+                .map(|fdid| *fdid as u32)
+                .collect();
+            appearance::npc_pass_active(
+                &binding.texture_types,
+                &binding.textures,
+                inactive,
+                &appearance.textures,
+                visible,
+                &missing_files,
+            )
+            .map_err(|error| format!("NPC batch {}: {error}", batch.source_unit_index))?
+        }
+        None => true,
+    };
+    // Required file-backed slots must succeed even when another slot omits the draw.
+    if !active {
+        return Ok(None);
+    }
+    let mesh = shared_batch_mesh(model, batch.submesh_index, path)?;
     Ok(Some(LoadedBatch {
         mesh,
         material,
