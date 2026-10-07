@@ -16,6 +16,7 @@ use game_engine_session::SessionScreen;
 use game_engine_ui_model::aura_display_data::{AuraCasterLookup, AuraInstance, aura_instances};
 use game_engine_ui_model::buff_frame_component::{
     BuffFrameState, aura_button_name, aura_warning_alpha, buff_frame_texture_fdids,
+    player_buff_cancel,
 };
 use game_engine_ui_model::inworld_unit_frames_component::class_bars::ClassBarView;
 use game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_art::AtlasArt;
@@ -354,6 +355,18 @@ impl GameClient {
         Ok(())
     }
 
+    fn send_buff_cancellations(&mut self, auras: &[AuraInstance]) -> Result<(), FrameError> {
+        let Some(ui) = self.auras.buff_ui.as_mut() else {
+            return Ok(());
+        };
+        while let Some((action, right, _shift)) = ui.bind_mut().pop_alt_click() {
+            if right && let Some(request) = player_buff_cancel(&action, auras) {
+                self.account.send_cancel_aura(request)?;
+            }
+        }
+        Ok(())
+    }
+
     /// The local player's BuffFrame and DebuffFrame, flashing auras under 31 s.
     pub(super) fn update_auras(&mut self) -> Result<(), FrameError> {
         let clock = self
@@ -373,6 +386,7 @@ impl GameClient {
             return Ok(());
         };
         let auras = self.unit_auras(local);
+        self.send_buff_cancellations(&auras)?;
         let state =
             BuffFrameState::from_auras(&auras, self.client_options.graphics.colorblind_mode);
         self.extract_art(&buff_frame_texture_fdids(&state));

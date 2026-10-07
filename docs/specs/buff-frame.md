@@ -17,9 +17,11 @@ This spec defines the player BuffFrame and DebuffFrame and the TargetFrame auras
 - [x] Buffs have no border (`UpdateAuraType`). Debuffs draw a 40×40 border centred on the icon (BuffFrameTemplates.xml:20-25) from the `ui-debuff-border-*` atlas (`interface/hud/uidebuffframes.blp`, FDID 7553349). DebuffFrame shows dispel types (`ShowDispelType` 1, EditModePresetLayouts.lua:441), so Magic/Curse/Disease/Poison use their `-icon` member and untyped debuffs `default-noicon` (Mainline/AuraUtil.lua:20-23).
 - [x] Colorblind mode keeps the border and writes the dispel abbreviation ("Ma", "Cu", "Di", "Po"; enUS `DEBUFF_SYMBOL_*`) at the button's top left (BuffFrameTemplates.xml:32-36, AuraUtil.lua `SetAuraSymbol`).
 - [x] Hidden and passive auras are not shown.
-- [x] Hovering a button shows the aura tooltip. Right-click on a buff sends `CancelAura`; right-click on a debuff does nothing (`AuraButtonMixin:OnClick`).
+- [x] Hovering a player buff or debuff uses the native `GameTooltipUI` host with `ANCHOR_BOTTOMLEFT`; leaving hides it and remaining time refreshes while hovered (`AuraButtonMixin:OnEnter/OnLeave/OnUpdate`, BuffFrame.lua:888-913,950-970).
+- [x] Right-button release on a player buff sends exactly one `CancelAura { spell_id }` on `CombatChannel`; pressing, left-clicking and right-clicking a debuff send nothing (`AuraButtonMixin:OnLoad/OnClick`, BuffFrame.lua:863-884). Removal waits for server replication; the server rejects passive, harmful and `NO_AURA_CANCEL` auras.
 - [ ] Collapse/expand arrow. Retail shows it only when the `collapseExpandBuffs` CVar is on and a buff lasts over 90 s; the CVar default is not in the Lua tree, so it is not built.
-- [ ] Retail tooltip content (`GameTooltip:SetUnitAura`: name, dispel type, description, time remaining). The shared tooltip shows name, description, duration, stacks and source instead.
+- [x] Retail aura tooltip name, rendered aura description and remaining time (`GameTooltip:SetUnitAura`); permanent auras omit time. No spell cost/cast details, stack/source rows or total-duration row.
+- [ ] Tooltip dispel-type label.
 - [ ] Temporary weapon enchants, consolidated buffs, private aura anchors and the deadly-debuff warning.
 - [ ] Bleed borders: the protocol has no Bleed dispel type.
 - [ ] Live debuff proof: creatures never cast and no Northshire creature aura reaches the player, so debuff layout, borders and symbols are proven by screen tests only.
@@ -58,7 +60,12 @@ The Retail PlayerFrame has no aura icons: `Mainline/PlayerFrame.lua` only update
 
 - `godot/ui-model/src/game/aura_display_data.rs`: replicated views to `AuraInstance`, shared by both clients.
 - `godot/ui-model/src/ui/screens/inworld_unit_frames_aura.rs`: TargetFrame aura filters, sort and flow layout.
-- `godot/rust/src/auras.rs`: Godot BuffFrame, countdown, TargetFrame swipes.
+- `godot/rust/src/auras.rs`: Godot BuffFrame, countdown, buff cancellation consumer, TargetFrame swipes.
+- `godot/rust/src/tooltip_sources.rs` and `tooltips.rs`: player aura hover routing and native GameTooltip host.
+- `godot/rust/src/ui/projection.rs`: aura-specific right-button-up input.
+- `godot/rust/src/account.rs`: `CancelAura` transport dispatch.
+- `godot/ui-model/tests/buffcancel.rs`: mounted aura hit/content and buff/debuff request behavior.
+- `godot/network/src/wire_tests.rs`: exactly-one `CancelAura` delivery over loopback UDP.
 
 - `godot/ui-model/src/ui/screens/buff_frame_component.rs`: layout, duration text, borders, flash curve.
 - `src/scenes/buff_frame/mod.rs`: mounting, flash system, right-click cancel.
