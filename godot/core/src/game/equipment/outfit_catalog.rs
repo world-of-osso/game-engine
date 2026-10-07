@@ -245,6 +245,28 @@ impl OutfitData {
         Ok(Some(result))
     }
 
+    /// Resolve models and geosets when an authored NPC bake supplies body pixels.
+    /// Component item textures are neither required nor returned; model resources
+    /// and their materials remain required in this catalog's source namespace.
+    pub fn try_resolve_baked_display_info(
+        &self,
+        display_id: u32,
+        race: u8,
+        sex: u8,
+    ) -> Result<Option<OutfitResult>, String> {
+        let data = self.loaded_result()?;
+        let Some(mut display) = self.load_display_info(display_id)? else {
+            return Ok(None);
+        };
+        // Clear only this owned display's body overlays: the authored bake replaces
+        // those pixels, not attached models or their material textures.
+        display.item_materials.clear();
+        self.check_display_resources(&display)?;
+        let mut result = OutfitResult::default();
+        self.merge_display_into_result(&mut result, data, &display, race, sex);
+        Ok(Some(result))
+    }
+
     fn resolve_display_infos_checked(
         &self,
         data: &LoadedOutfitData,
@@ -264,18 +286,23 @@ impl OutfitData {
     }
 
     fn check_display_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {
+        self.check_model_resources(display)?;
+        for &(_, id) in &display.item_materials {
+            if self.load_material_fdids(id)?.is_empty() {
+                return Err(format!("missing TextureFileData material resource {id}"));
+            }
+        }
+        Ok(())
+    }
+
+    fn check_model_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {
         for &id in &display.model_resource_ids {
             let fdids = self.load_model_fdids(id)?;
             if fdids.is_empty() {
                 return Err(format!("missing ModelFileData model resource {id}"));
             }
         }
-        let materials = display
-            .model_material_resource_ids
-            .iter()
-            .copied()
-            .chain(display.item_materials.iter().map(|&(_, id)| id));
-        for id in materials {
+        for &id in &display.model_material_resource_ids {
             let fdids = self.load_material_fdids(id)?;
             if fdids.is_empty() {
                 return Err(format!("missing TextureFileData material resource {id}"));
@@ -398,7 +425,7 @@ impl OutfitData {
         let Some(display) = self.load_display_info(display_info_id)? else {
             return Ok(Vec::new());
         };
-        self.check_display_resources(&display)?;
+        self.check_model_resources(&display)?;
         let columns = display
             .model_resource_columns
             .iter()
