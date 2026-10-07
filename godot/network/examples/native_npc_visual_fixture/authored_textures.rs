@@ -12,7 +12,14 @@ use game_engine_core::{
 use std::collections::HashMap;
 
 type Pixels = (Vec<u8>, u32, u32);
-const DISPLAYS: [u32; 5] = [825, 1322, 1285, 90209, 110154];
+// Real content_creature/template_model rows; fixture relocates them to its owned map.
+const CASES: [(u32, u32, &str); 5] = [
+    (825, 3728, "Dark Strand Adept"),
+    (1322, 3322, "Kaja"),
+    (1285, 2079, "Conservator Ilthalaine"),
+    (90209, 149131, "Apprentice Mage"),
+    (110154, 198506, "Krenzen"),
+];
 
 pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
     let checkout = fixture_support::checkout_root_from_executable("native_npc_visual_fixture")?;
@@ -22,6 +29,7 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
         "npc_appearance.sqlite",
         "customization-v4.sqlite",
         "char_texture-v2.sqlite",
+        "creature_display.sqlite",
     ] {
         fixture_data::backup_database(
             &source.join("cache").join(name),
@@ -31,6 +39,10 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
     execute_fixture_sql(
         &data.join("cache/npc_appearance.sqlite"),
         "INSERT OR REPLACE INTO display_coverage VALUES (910010,0);",
+    )?;
+    execute_fixture_sql(
+        &data.join("cache/creature_display.sqlite"),
+        "INSERT OR REPLACE INTO creature_displays VALUES (910010,910010,910001,0,0,1500);",
     )?;
     for name in [
         "ChrRaceXChrModel.csv",
@@ -50,7 +62,7 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
     let mut manifest = String::new();
-    for display in DISPLAYS {
+    for (display, _, _) in CASES {
         let profile =
             query_authored_npc_appearance(&profiles, display)?.ok_or("missing real profile")?;
         let selected = select_npc_choices(&profile, &db)?;
@@ -138,9 +150,17 @@ fn write_display_oracle(
         )
         .map_err(|e| e.to_string())?;
     let read = |name: String| fs::read(source.join("models").join(name)).map_err(|e| e.to_string());
-    let model = m2::parse_model(
+    let skeleton_path = source.join(format!("models/{model_fdid}.skel"));
+    let skeleton = if skeleton_path.exists() {
+        Some(fs::read(&skeleton_path).map_err(|e| format!("{}: {e}", skeleton_path.display()))?)
+    } else {
+        None
+    };
+    let model = m2::parse_model_with_skeleton(
         &read(format!("{model_fdid}.m2"))?,
         &read(format!("{model_fdid}00.skin"))?,
+        skeleton.as_deref(),
+        |_| None,
     )
     .map_err(|e| e.to_string())?;
     let mut counts = HashMap::<u32, usize>::new();
@@ -193,14 +213,20 @@ pub(super) fn run(
             reject_material_error(&line)?;
             if let Some(value) = line.strip_prefix("FIXTURE AUTHORED_REQUEST ") {
                 let display: u32 = value.parse().map_err(|_| "invalid requested display")?;
-                if !DISPLAYS.contains(&display) {
-                    return Err("unexpected display request".into());
-                }
+                let (_, template, name) = CASES
+                    .iter()
+                    .find(|(id, _, _)| *id == display)
+                    .ok_or("unexpected display request")?;
                 app.world_mut()
-                    .entity_mut(npc.ok_or("NPC not spawned")?)
-                    .insert(ModelDisplay {
-                        display_id: display,
-                    });
+                    .despawn(npc.take().ok_or("NPC not spawned")?);
+                let entity = spawn_named_npc(app, display, NPC);
+                // Stable fixture node alias; replicated template/display are real authored rows.
+                app.world_mut().entity_mut(entity).insert(Npc {
+                    template_id: *template,
+                    name: NPC.into(),
+                });
+                npc = Some(entity);
+                println!("AUTHORED_SPAWN display={display} template={template} name={name}");
             }
             completed |= line == "FIXTURE AUTHORED_COMPLETE";
         }
