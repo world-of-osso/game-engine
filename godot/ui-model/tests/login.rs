@@ -115,6 +115,73 @@ fn authored_login_registry_retains_frames_layout_and_resources() {
 }
 
 #[test]
+fn registration_entry_button_is_visible_and_clickable() {
+    let mut model = LoginModel::new(1280.0, 720.0);
+    model.sync();
+    let button = model
+        .registry
+        .get(model.registry.get_by_name(CREATE_ACCOUNT_BUTTON.0).unwrap())
+        .unwrap();
+    assert!(!button.hidden);
+    assert!(matches!(button.widget_data, Some(WidgetData::Button(ref data)) if data.enabled));
+    assert_eq!(button.onclick.as_deref(), Some("create_account"));
+}
+
+#[test]
+fn registration_form_preserves_credentials_and_disables_submission_while_waiting() {
+    use game_engine_ui_model::login::SharedRegistration;
+    let mut model = LoginModel::new(1280.0, 720.0);
+    model.sync();
+    for (name, value) in [(USERNAME_INPUT, "fb_regtest1"), (PASSWORD_INPUT, "fbtest")] {
+        let id = model.registry.get_by_name(name.0).unwrap();
+        let Some(WidgetData::EditBox(data)) = &mut model.registry.get_mut(id).unwrap().widget_data
+        else {
+            panic!("missing input")
+        };
+        data.insert_at_cursor(value);
+    }
+    model.shared.insert(SharedRegistration(true));
+    model.sync();
+    let button = |model: &LoginModel, name: &str| {
+        let frame = model
+            .registry
+            .get(model.registry.get_by_name(name).unwrap())
+            .unwrap();
+        let Some(WidgetData::Button(data)) = &frame.widget_data else {
+            panic!("missing button")
+        };
+        (
+            data.text.clone(),
+            data.enabled && data.state != ButtonState::Disabled,
+        )
+    };
+    assert_eq!(button(&model, CONNECT_BUTTON.0), ("Register".into(), true));
+    assert_eq!(
+        button(&model, CREATE_ACCOUNT_BUTTON.0),
+        ("Back to Login".into(), true)
+    );
+    model.shared.insert(SharedConnecting(true));
+    model.sync();
+    assert_eq!(button(&model, CONNECT_BUTTON.0), ("Register".into(), false));
+    assert_eq!(
+        button(&model, CREATE_ACCOUNT_BUTTON.0),
+        ("Back to Login".into(), false)
+    );
+    assert_eq!(
+        model.credentials(),
+        Some(("fb_regtest1".into(), "fbtest".into()))
+    );
+    model.shared.insert(SharedConnecting(false));
+    model.shared.insert(SharedRegistration(false));
+    model.sync();
+    assert_eq!(button(&model, CONNECT_BUTTON.0), ("Login".into(), true));
+    assert_eq!(
+        model.credentials(),
+        Some(("fb_regtest1".into(), "fbtest".into()))
+    );
+}
+
+#[test]
 fn status_rebuild_updates_button_and_text_without_discarding_credentials() {
     let mut model = LoginModel::new(1920.0, 1080.0);
     model.sync();

@@ -1558,18 +1558,15 @@ impl GameClient {
         let action = login.bind_mut().pop_action().to_string();
         match action.as_str() {
             "" => Ok(()),
-            "connect" => {
-                let credentials = login.bind().credentials();
-                let username = credential_field(&credentials, "username")?;
-                let password = credential_field(&credentials, "password")?;
-                if username.trim().is_empty() || password.trim().is_empty() {
-                    return Ok(self.update_login_status("Please fill in all fields", false)?);
+            "create_account" => {
+                if !login.bind().login_submission_pending() {
+                    login
+                        .bind_mut()
+                        .toggle_registration(&self.server_hostname)?;
                 }
-                self.account
-                    .connect(&self.server_hostname, &username, &password, false)?;
-                self.reset_world()?;
-                Ok(self.update_login_status("Connecting...", true)?)
+                Ok(())
             }
+            "connect" => self.submit_login_form(),
             "reconnect" => {
                 self.account.connect(&self.server_hostname, "", "", false)?;
                 self.reset_world()?;
@@ -1581,6 +1578,36 @@ impl GameClient {
             }
             other => Err(format!("Login action not yet converted: {other}").into()),
         }
+    }
+
+    fn submit_login_form(&mut self) -> Result<(), FrameError> {
+        let login = self
+            .login_ui
+            .as_ref()
+            .ok_or("Login UI is not initialized")?;
+        if login.bind().login_submission_pending() {
+            return Ok(());
+        }
+        let credentials = login.bind().credentials();
+        let register = login.bind().registration_mode();
+        let username = credential_field(&credentials, "username")?;
+        let password = credential_field(&credentials, "password")?;
+        if let Err(error) = game_engine_session::validate_registration(&username, &password) {
+            return Ok(self.update_login_status(error, false)?);
+        }
+        if let Err(error) =
+            self.account
+                .connect(&self.server_hostname, &username, &password, register)
+        {
+            return Ok(self.update_login_status(&error.to_string(), false)?);
+        }
+        self.reset_world()?;
+        let status = if register {
+            "Submitting registration..."
+        } else {
+            "Connecting..."
+        };
+        Ok(self.update_login_status(status, true)?)
     }
 
     fn advance_login_fade(&mut self, delta: f32) -> Result<(), String> {

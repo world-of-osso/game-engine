@@ -2254,6 +2254,35 @@ impl RegistryUi {
         credentials
     }
 
+    pub fn login_submission_pending(&self) -> bool {
+        self.model.as_ref().is_some_and(|model| {
+            model
+                .shared
+                .get::<login::SharedConnecting>()
+                .is_some_and(|state| state.0)
+        })
+    }
+
+    pub fn registration_mode(&self) -> bool {
+        self.model.as_ref().is_some_and(|model| {
+            model
+                .shared
+                .get::<login::SharedRegistration>()
+                .is_some_and(|state| state.0)
+        })
+    }
+
+    pub fn toggle_registration(&mut self, server: &str) -> Result<(), String> {
+        let registration = !self.registration_mode();
+        let model = self.model.as_mut().ok_or("Login UI is not initialized")?;
+        model.shared.insert(login::SharedRegistration(registration));
+        model
+            .shared
+            .insert(login::SharedRealmText(server.to_owned()));
+        model.shared.insert(login::SharedStatusText(String::new()));
+        self.sync_model()
+    }
+
     /// Original development-realm prefill: fill both fields, then focus the first empty one.
     pub fn prefill_login(&mut self, username: &str, password: &str) -> Result<(), String> {
         let model = self.model.as_mut().ok_or("Login UI is not initialized")?;
