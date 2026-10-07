@@ -2682,3 +2682,7 @@ Local-CASC ItemDisplayInfoModelMatRes4050937 establishes type3 material822338/te
 ## 2026-10-06 — Desktop disk recovery and GC reconciliation
 
 [[desktop-disk-exhaustion]] records main-observed exhaustion, completed prune/trim/offline compaction and separate host/guest capacity measurements; SIGBUS causality remains unproven. [[build-hosts#Builder GC policy]] owns the approved aggregate budget superseding warm-every-slot retention; persistent configuration applied and inspected; sustained behavior unverified. Build guide now links instead of duplicating policy or retaining transient recovery status.
+
+## 2026-10-07 — Native SSAO
+
+Removed Depth of Field; recorded [SSAO](investigations/native-ssao.md) depth-prepass root cause and bounded renderer comparison. Dozen pixel acceptance remains blocked.

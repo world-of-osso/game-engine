@@ -43,6 +43,33 @@ fn full_options_round_trip_keeps_custom_values() {
 }
 
 #[test]
+fn removed_depth_of_field_old_file_loads_and_is_not_saved() {
+    use crate::client_options_data::{load_options_file_from_path, save_options_file_to_path};
+    let path = std::env::temp_dir().join(format!("removed-dof-options-{}.ron", std::process::id()));
+    std::fs::write(
+        &path,
+        "(accepted_eula:true,graphics:(depthOfField:true,depth_of_field:true,ssaoEnabled:true,antiAlias:None,renderScale:0.75,bloomEnabled:false))",
+    )
+    .unwrap();
+    let file = load_options_file_from_path(&path);
+    assert!(file.accepted_eula);
+    assert!(file.graphics.ssao_enabled);
+    assert_eq!(file.graphics.render_scale, 0.75);
+    assert_eq!(
+        file.graphics.anti_alias,
+        crate::client_options_data::AntiAliasMode::None
+    );
+    save_options_file_to_path(&path, &file).unwrap();
+    let saved = std::fs::read_to_string(&path).unwrap();
+    assert!(!saved.contains("depthOfField"), "{saved}");
+    assert!(!saved.contains("depth_of_field"), "{saved}");
+    let restored = load_options_file_from_path(&path);
+    std::fs::remove_file(path).unwrap();
+    assert!(restored.graphics.ssao_enabled);
+    assert_eq!(restored.graphics.render_scale, 0.75);
+}
+
+#[test]
 fn sensitivity_clamps_without_erasing_unrelated_sections() {
     let mut file = ClientOptionsFile::default();
     file.camera.mouse_sensitivity = 0.8;
