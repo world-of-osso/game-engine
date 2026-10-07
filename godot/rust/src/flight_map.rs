@@ -99,10 +99,10 @@ impl GameClient {
             ui.set_name("FlightMapUI");
             ui.set_layer(6);
             self.base_mut().add_child(&ui);
-            if let Err(error) = ui
+            let mounted = ui
                 .bind_mut()
-                .show_quest_window(view.clone(), flight_map_screen)
-            {
+                .show_quest_window(view.clone(), flight_map_screen);
+            if let Err(error) = mounted {
                 ui.free();
                 return Err(error);
             }
