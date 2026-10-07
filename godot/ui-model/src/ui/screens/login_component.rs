@@ -49,6 +49,10 @@ impl LoginAction {
 #[derive(Clone, Default)]
 pub struct SharedStatusText(pub String);
 
+/// Informational server feedback, such as pending administrator approval.
+#[derive(Clone, Default)]
+pub struct SharedStatusInformational(pub bool);
+
 /// Whether a login request is in flight. Disables the connect button.
 #[derive(Clone, Default)]
 pub struct SharedConnecting(pub bool);
@@ -219,6 +223,15 @@ fn login_connect_button_and_status(ctx: &SharedContext) -> Element {
         .map_or("", |state| state.0.as_str());
     let connecting = ctx.get::<SharedConnecting>().is_some_and(|state| state.0);
     let registration = ctx.get::<SharedRegistration>().is_some_and(|state| state.0);
+    let informational = connecting
+        || ctx
+            .get::<SharedStatusInformational>()
+            .is_some_and(|state| state.0);
+    let status_color = if informational {
+        COLOR_GOLD
+    } else {
+        COLOR_ERROR
+    };
     let submit_text = if registration { "Register" } else { "Login" };
     let connect = rsx! {
         button {
@@ -242,7 +255,7 @@ fn login_connect_button_and_status(ctx: &SharedContext) -> Element {
             height: 72.0,
             text: status_text,
             font_size: 13.0,
-            font_color: COLOR_ERROR,
+            font_color: status_color,
             pos_type: "absolute",
             left: "50%",
             pos_y: 250.0,

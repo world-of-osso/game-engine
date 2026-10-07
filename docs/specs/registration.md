@@ -8,7 +8,7 @@ The native login screen offers a username/password registration form using the a
 - [x] Empty or whitespace-only username/password rejects submission with feedback and no request.
 - [x] Register emits `RegisterRequest { username, password }` on AuthChannel to the currently selected server, never a cached login token.
 - [x] Submitting disables Register and mode switching; a reply restores submission.
-- [x] Pending approval retains Login, shows administrator-approval guidance, and neither authenticates nor persists a token, regardless of the response's success flag.
+- [x] Pending approval retains Login, shows administrator-approval guidance in the login form's informational gold (also used while connecting/submitting), and neither authenticates nor persists a token, regardless of the response's success flag. Refusals/validation/login errors remain error red. Severity follows the pending-approval field, not words in the response text.
 - [x] A nonpending success persists its token, clears the roster and opens character select; a refusal shows the server error and permits correction/retry.
 - [x] After private administrator approval, Back to Login and password login reach character select.
 
@@ -27,7 +27,8 @@ The native login screen offers a username/password registration form using the a
 
 ## Tests asserting this spec
 
-- `godot/ui-model/tests/login.rs` — visible entry, form switching, preserved inputs and disabled buttons.
+- `godot/ui-model/tests/login.rs` — visible entry, form switching, preserved inputs, disabled buttons and connecting/pending gold → refusal-red feedback.
+- `godot/session/tests/session.rs::capturepolish_registration_feedback_severity_follows_reply_not_text` — pending severity for either success flag and subsequent refusal/login-failure reset.
 - `godot/session/tests/session.rs` — validation, emitted request, pending/success/refusal transitions.
 - `godot/tests/registration_flow.gd` — rendered real-input registration, private pending reply, approval and password login.
 

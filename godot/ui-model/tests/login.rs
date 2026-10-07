@@ -182,6 +182,64 @@ fn registration_form_preserves_credentials_and_disables_submission_while_waiting
 }
 
 #[test]
+fn capturepolish_login_information_uses_gold_not_error_red() {
+    let mut model = LoginModel::new(1920.0, 1080.0);
+    model
+        .shared
+        .insert(SharedStatusText("Connecting...".into()));
+    model.shared.insert(SharedConnecting(true));
+    model.sync();
+    let status = model
+        .registry
+        .get(model.registry.get_by_name(LOGIN_STATUS.0).unwrap())
+        .unwrap();
+    let Some(WidgetData::FontString(data)) = &status.widget_data else {
+        panic!()
+    };
+    assert_eq!(data.color, [1.0, 0.82, 0.0, 1.0]);
+    model.shared.insert(SharedConnecting(false));
+    model
+        .shared
+        .insert(game_engine_ui_model::login::SharedRegistration(true));
+    model
+        .shared
+        .insert(game_engine_ui_model::login::SharedStatusInformational(true));
+    model.shared.insert(SharedStatusText(
+        "Registration submitted. Pending administrator approval.".into(),
+    ));
+    model.sync();
+    let status = model
+        .registry
+        .get(model.registry.get_by_name(LOGIN_STATUS.0).unwrap())
+        .unwrap();
+    let Some(WidgetData::FontString(data)) = &status.widget_data else {
+        panic!()
+    };
+    assert_eq!(data.color, [1.0, 0.82, 0.0, 1.0]);
+    assert_eq!(
+        data.text,
+        "Registration submitted. Pending administrator approval."
+    );
+    model
+        .shared
+        .insert(game_engine_ui_model::login::SharedStatusInformational(
+            false,
+        ));
+    model
+        .shared
+        .insert(SharedStatusText("Registration failed.".into()));
+    model.sync();
+    let status = model
+        .registry
+        .get(model.registry.get_by_name(LOGIN_STATUS.0).unwrap())
+        .unwrap();
+    let Some(WidgetData::FontString(data)) = &status.widget_data else {
+        panic!()
+    };
+    assert_eq!(data.color, [0.9, 0.5, 0.5, 1.0]);
+}
+
+#[test]
 fn status_rebuild_updates_button_and_text_without_discarding_credentials() {
     let mut model = LoginModel::new(1920.0, 1080.0);
     model.sync();

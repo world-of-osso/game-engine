@@ -20,6 +20,7 @@ mod options_keybindings;
 mod parts;
 mod party_preview;
 mod projection;
+mod registration_preview;
 mod scroll_lists;
 pub(crate) mod ui_parent;
 
@@ -2281,6 +2282,7 @@ impl RegistryUi {
             .shared
             .insert(login::SharedRealmText(server.to_owned()));
         model.shared.insert(login::SharedStatusText(String::new()));
+        model.shared.insert(login::SharedStatusInformational(false));
         self.sync_model()
     }
 
@@ -2388,13 +2390,27 @@ impl RegistryUi {
 
     #[func]
     pub fn set_status(&mut self, status: GString) -> GString {
-        let Some(model) = self.model.as_mut() else {
-            return "Login UI is not initialized".into();
-        };
+        GString::from(
+            self.set_login_feedback(&status.to_string(), false)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
+    pub(crate) fn set_login_feedback(
+        &mut self,
+        status: &str,
+        informational: bool,
+    ) -> Result<(), String> {
+        let model = self.model.as_mut().ok_or("Login UI is not initialized")?;
         model
             .shared
-            .insert(login::SharedStatusText(status.to_string()));
-        GString::from(self.sync_model().err().unwrap_or_default().as_str())
+            .insert(login::SharedStatusText(status.to_owned()));
+        model
+            .shared
+            .insert(login::SharedStatusInformational(informational));
+        self.sync_model()
     }
 
     #[func]
