@@ -219,15 +219,15 @@ impl FixtureProject {
         .map_err(|error| format!("Register extension manifest: {error}"))?;
         std::os::unix::fs::symlink(repo.join("target"), root.join("target"))
             .map_err(|error| format!("Link existing extension: {error}"))?;
-        let sql = "CREATE TABLE creature_displays (display_id INTEGER PRIMARY KEY, model_fdid INTEGER NOT NULL, skin_fdid_0 INTEGER NOT NULL, skin_fdid_1 INTEGER NOT NULL, skin_fdid_2 INTEGER NOT NULL, scale_milli INTEGER NOT NULL); \
-            INSERT INTO creature_displays VALUES (910010,910010,910001,0,0,1500); \
-            INSERT INTO creature_displays VALUES (910011,910011,910002,0,0,2000); \
-            INSERT INTO creature_displays VALUES (910015,910011,910002,0,0,1); \
-            INSERT INTO creature_displays VALUES (910012,910013,910001,0,0,1000); \
-            INSERT INTO creature_displays VALUES (910013,910013,910001,0,0,1000); \
-            INSERT INTO creature_displays VALUES (910014,910014,910001,0,0,1000); \
-            INSERT INTO creature_displays VALUES (910016,910016,910001,0,0,1000); \
-            INSERT INTO creature_displays VALUES (910017,910017,910001,0,0,1000);";
+        let sql = "CREATE TABLE creature_displays (display_id INTEGER PRIMARY KEY, model_fdid INTEGER NOT NULL, skin_fdid_0 INTEGER NOT NULL, skin_fdid_1 INTEGER NOT NULL, skin_fdid_2 INTEGER NOT NULL, skin_fdid_3 INTEGER NOT NULL, scale_milli INTEGER NOT NULL); \
+            INSERT INTO creature_displays VALUES (910010,910010,910001,0,0,0,1500); \
+            INSERT INTO creature_displays VALUES (910011,910011,910002,0,0,0,2000); \
+            INSERT INTO creature_displays VALUES (910015,910011,910002,0,0,0,1); \
+            INSERT INTO creature_displays VALUES (910012,910013,910001,0,0,0,1000); \
+            INSERT INTO creature_displays VALUES (910013,910013,910001,0,0,0,1000); \
+            INSERT INTO creature_displays VALUES (910014,910014,910001,0,0,0,1000); \
+            INSERT INTO creature_displays VALUES (910016,910016,910001,0,0,0,1000); \
+            INSERT INTO creature_displays VALUES (910017,910017,910001,0,0,0,1000);";
         write_sqlite_fixture(&data, "creature_display.sqlite", sql)?;
         stage_preview_assets(repo, &data)?;
         stage_lighting(repo, &data)?;
@@ -1112,10 +1112,10 @@ fn main() {
         Mode::AuthoredTextures => authored_textures::run(&mut app, &mut child, lines, reader),
         _ => run_nameplate_fixture(&mut app, &mut child, lines, reader),
     };
-    if let Err(error) = result {
-        panic!("{error}");
-    }
     if mode == Mode::AuthoredTextures {
         authored_textures::persist_artifacts(&project).expect("preserve authored texture captures");
+    }
+    if let Err(error) = result {
+        panic!("{error}");
     }
 }

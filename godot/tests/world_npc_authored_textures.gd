@@ -23,7 +23,7 @@ func run_test() -> void:
 	DirAccess.make_dir_recursive_absolute(captures)
 	var cases := read_cases(oracle)
 	var failures := 0
-	for display in [825, 1322, 1285, 90209, 110154]:
+	for display in [825, 1322, 1285, 90209, 110154, 150, 35297, 110189]:
 		var old_visual: Node = client.get_node("WorldUnits/" + NPC + "/NpcVisualRoot")
 		var old_id := old_visual.get_instance_id()
 		print("FIXTURE AUTHORED_REQUEST ", display)
@@ -42,13 +42,44 @@ func run_test() -> void:
 
 func read_cases(oracle: String) -> Dictionary:
 	var cases := {}
+	var uploads := read_upload_formats(oracle)
 	for line in FileAccess.get_file_as_string(oracle + "/bindings.tsv").split("\n", false):
 		var columns := line.split("\t")
 		var display := int(columns[0])
 		if not cases.has(display):
 			cases[display] = []
-		cases[display].append({"kind": int(columns[1]), "batch": columns[2], "slot": int(columns[3]), "width": int(columns[4]), "height": int(columns[5])})
+		cases[display].append({"kind": int(columns[1]), "batch": columns[2], "slot": int(columns[3]), "width": int(columns[4]), "height": int(columns[5]), "upload": uploads.get("%d-%d" % [display, int(columns[1])])})
 	return cases
+
+func read_upload_formats(oracle: String) -> Dictionary:
+	var formats := {"Dxt1": Image.FORMAT_DXT1, "Dxt3": Image.FORMAT_DXT3, "Dxt5": Image.FORMAT_DXT5, "Rgba8": Image.FORMAT_RGBA8}
+	var uploads := {}
+	for line in FileAccess.get_file_as_string(oracle + "/image-formats.tsv").split("\n", false):
+		var columns := line.split("\t")
+		uploads["%s-%s" % [columns[0], columns[1]]] = {"format": formats[columns[2]], "mipmaps": int(columns[5]) == 1}
+	return uploads
+
+# Compare exact BLP upload bytes before decoding; round using a standalone source Image,
+# not the material image. CPU image-blp and Godot DXT interpolation differ by one byte.
+func check_upload_image(image: Image, binding: Dictionary, oracle: String, display: int) -> Dictionary:
+	var prefix := "%s/%d-%d" % [oracle, display, int(binding.kind)]
+	var bytes := FileAccess.get_file_as_bytes(prefix + ".gpu")
+	var exact: bool = image != null and image.get_format() == binding.upload.format and image.get_data() == bytes
+	var reference := Image.create_from_data(binding.width, binding.height, binding.upload.mipmaps, binding.upload.format, bytes)
+	if reference.is_compressed():
+		var decode_error := reference.decompress()
+		if decode_error != OK:
+			print("AUTHORED_FAIL oracle=", prefix, " decompress=", decode_error)
+			return {"correct": false, "pixels": PackedByteArray()}
+	reference.convert(Image.FORMAT_RGBA8)
+	var pixels := reference.get_data().slice(0, binding.width * binding.height * 4)
+	var file := FileAccess.open(prefix + ".gpu.rgba", FileAccess.WRITE)
+	if file == null:
+		print("AUTHORED_FAIL oracle=", prefix, " write_error=", FileAccess.get_open_error())
+		exact = false
+	else:
+		file.store_buffer(pixels)
+	return {"correct": exact, "pixels": pixels}
 
 func wait_real_model(client: Node, old_id: int) -> Node3D:
 	var deadline := Time.get_ticks_msec() + WORLD_LOAD_WAIT_MS
@@ -67,13 +98,27 @@ func check_case(model: Node3D, display: int, bindings: Array, oracle: String, ca
 		return 1
 	for binding in bindings:
 		var kind: int = binding.kind
-		var batch := model.find_child(binding.batch, true, false) as MeshInstance3D
+		var batch := model.get_node_or_null(binding.batch) as MeshInstance3D
 		var material := batch.get_active_material(0) as ShaderMaterial if batch != null else null
 		var uniform: String = ["base_texture", "second_texture", "third_texture", "fourth_texture"][binding.slot]
 		var texture := material.get_shader_parameter(uniform) as Texture2D if material != null else null
 		var expected := FileAccess.get_file_as_bytes("%s/%d-%d.rgba" % [oracle, display, kind])
-		var image := texture.get_image() if texture != null else null
-		var correct: bool = image != null and image.get_width() == binding.width and image.get_height() == binding.height
+		var source_image := texture.get_image() if texture != null else null
+		# Dummy-renderer get_image can return the shared resource: decoding must not mutate it.
+		var image := source_image.duplicate() as Image if source_image != null else null
+		var upload_correct := true
+		if binding.upload != null:
+			var reference := check_upload_image(image, binding, oracle, display)
+			upload_correct = reference.correct
+			expected = reference.pixels
+		if image != null:
+			if image.is_compressed():
+				var decode_error := image.decompress()
+				if decode_error != OK:
+					print("AUTHORED_FAIL display=%d type=%d decompress=%d" % [display, kind, decode_error])
+					failures += 1
+			image.convert(Image.FORMAT_RGBA8)
+		var correct: bool = upload_correct and image != null and image.get_width() == binding.width and image.get_height() == binding.height
 		if correct:
 			correct = image.get_data().slice(0, expected.size()) == expected
 		if not correct:

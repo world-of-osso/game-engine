@@ -2709,3 +2709,7 @@ Native SSAO follow-up: stable project prepass fixes cached depth-pipeline On→O
 ## 2026-10-07 — Native professions
 
 [[professions-ui]] distinguishes retired trainer/book coverage from the native owner snapshot, DB2 recipe book, bag counts and CraftRecipe host. Model/UDP and actual signed-count RED regressions were followed by targeted GREEN and inspected Modern/Forever private crafts. The linked spec owns counts, receipts, four-launch history, cleanup and remaining parity gaps.
+
+## 2026-10-07 — Remaining NPC texture consumers
+
+[Per-type world audit and proof](../specs/npc-appearance.md#remaining-type-world-audit-and-proof-2026-10-07) classifies all remaining types from raw local-CASC choices, read-only world spawn joins, M2 declarations and armor. Native creature catalog/binding now preserves the fourth variation; ordinary skins and a tabard-enabled display have exact material/enabled-batch proof. Dormant declarations stay N/A, not synthetic PASSes. Captures, negative baseline, strict encoded/decoded image oracle and teardown limits remain in the contract; [character rendering](systems/character-rendering.md#authored-npc-appearance) links that SSOT.

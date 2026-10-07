@@ -100,7 +100,7 @@ pub(super) fn load_material(
     model: &m2::Model,
     tracks: &MaterialTracks,
     batch: &ResolvedBatch,
-    skin_texture_fdids: &[u32; 3],
+    skin_texture_fdids: &[u32],
     path: &GString,
     missing: &mut PackedInt32Array,
     replacements: Option<&HashMap<u32, Gd<ImageTexture>>>,
