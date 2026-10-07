@@ -106,6 +106,7 @@ impl GameClient {
     ) -> Result<Option<shared::protocol::TrainerBuySpell>, String> {
         let book = &mut self.trainer.book;
         match action {
+            "trainer:menu" => book.filter_menu = !book.filter_menu,
             "trainer:train" => return Ok(book.train()),
             "trainer:confirm" => return Ok(book.confirm(true)),
             "trainer:cancel" => {
@@ -150,6 +151,7 @@ impl GameClient {
             }
         }
         view.display.skills = self.professions.skill_names();
+        view.ranks = self.professions.book.snapshot.lines.clone();
         view
     }
     fn sync_trainer(&mut self) -> Result<(), String> {

@@ -157,7 +157,7 @@ Artifact root: canonical `data/professions-live-20261007/`; `proof-ledger.txt`, 
 
 ### Known gaps (current cycle)
 
-- [ ] Native trainer and exact Retail book-entry/layout/art parity remain unimplemented; historical checkboxes above describe the retired client, not native proof.
+- [ ] Native [trainer](trainer-frame.md) is implemented with verification tracked separately; exact Retail book-entry/layout/art parity remains open. Historical checkboxes above describe the retired client, not native proof.
 - [ ] Existing CastFailed UI error path is wired into the schematic status; Escape/X closure is implemented. Profession-specific refusal/closure runtime matrices have not been exercised.
 
 ### Out of scope
