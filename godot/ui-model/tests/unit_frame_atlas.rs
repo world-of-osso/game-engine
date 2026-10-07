@@ -315,7 +315,7 @@ fn modern_party_frames_draw_an_icon_per_role_and_ready_mark() {
 /// shape (`forever_flare_frames.rs`) and draw no portrait art; boss frames keep the
 /// target portrait art, resolved under the active skin.
 #[test]
-fn forever_boss_frames_keep_modern_art_and_flare_frames_draw_no_portrait_art() {
+fn bossframes_portrait_art_resolves_under_both_skins_and_flare_roots_keep_their_shape() {
     let forever = unit_frames(
         ActiveSkin::Forever,
         CreatureClassification::Elite,
@@ -328,13 +328,19 @@ fn forever_boss_frames_keep_modern_art_and_flare_frames_draw_no_portrait_art() {
     );
     for name in MODERN_FRAME_PARTS {
         if name.starts_with("Boss1") {
-            assert_eq!(
-                drawn_crop(&forever, name, ActiveSkin::Forever),
-                drawn_crop(&modern, name, ActiveSkin::Modern),
-                "{name}"
-            );
+            drawn_crop(&forever, name, ActiveSkin::Forever);
+            drawn_crop(&modern, name, ActiveSkin::Modern);
         }
     }
+    // Concrete committed atlas members: portrait-on art follows the active skin.
+    assert_eq!(
+        drawn_crop(&modern, "Boss1TargetFrameArt", ActiveSkin::Modern).0,
+        AtlasSource::FileDataId(4_631_591)
+    );
+    assert_eq!(
+        drawn_crop(&forever, "Boss1TargetFrameArt", ActiveSkin::Forever).0,
+        AtlasSource::FileDataId(8_036_204)
+    );
     for name in [
         "PlayerFrameArt",
         "TargetFrameArt",
