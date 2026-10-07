@@ -39,6 +39,14 @@ func run_test() -> void:
 	if not expect_resources(start_enabled, "saved pixel startup"):
 		return
 	var startup := await capture(client, directory, "startup-on.png" if start_enabled else "startup-off.png")
+	if OS.get_environment("SSAO_CAPTURE_BASELINE") == "true":
+		if start_enabled or not expect_ui(startup):
+			fail("Master baseline requires saved Off")
+			return
+		print("PASS: captured master-material Off baseline")
+		client.free()
+		quit(0)
+		return
 	await click_menu_action(client, "MenuBtnOptions")
 	if not await wait_for_graphics(client):
 		return
@@ -47,6 +55,17 @@ func run_test() -> void:
 	var off := await capture(client, directory, "off.png")
 	if not expect_resources(false, "pixel Off") or not expect_ui(off):
 		return
+	var master_path := OS.get_environment("SSAO_MASTER_IMAGE")
+	if not master_path.is_empty():
+		var master := Image.load_from_file(master_path)
+		if master == null:
+			fail("Missing master Off image: " + master_path)
+			return
+		master.convert(off.get_format())
+		if master.get_size() != off.get_size() or master.get_data() != off.get_data():
+			fail("Off differs byte-for-byte from master-material scene")
+			return
+		print("PASS: Off byte-identical to master-material scene")
 	if not start_enabled and startup.get_data() != off.get_data():
 		fail("Saved Off differs from live Off baseline")
 		return
@@ -59,7 +78,7 @@ func run_test() -> void:
 	var darker := count_darkened(off, ssao, CREASE_REGION)
 	var flat_delta := image_difference(off, ssao, FLAT_REGION)
 	print("SSAO_PIXELS mean_darkening=", crease_delta, " darkened_crease_pixels=", darker, " flat_darkening=", flat_delta)
-	if flat_delta > 0.03:
+	if not equal_region(off, ssao, FLAT_REGION):
 		fail("SSAO darkened isolated flat terrain; whole-scene dimming is not crease proof")
 		return
 	if crease_delta < 0.002 or darker < 100:
@@ -77,7 +96,8 @@ func run_test() -> void:
 		if not expect_ui(startup) or startup.get_data() != ssao.get_data():
 			fail("Saved On startup lacks world effect pixels")
 			return
-	print("PASS: SSAO darkens crease, Off exact baseline, UI unchanged; saved startup=", start_enabled)
+	print("PASS: SSAO darkens crease, flat terrain unchanged, Off exact baseline, UI unchanged; saved startup=", start_enabled)
+	client.free()
 	quit(0)
 
 func add_geometry() -> void:
@@ -85,7 +105,13 @@ func add_geometry() -> void:
 	root.add_child(geometry)
 	# Production terrain material: ambient_light_disabled previously bypassed SSAO.
 	var material := ShaderMaterial.new()
-	material.shader = load("res://shaders/terrain.gdshader")
+	var reference := OS.get_environment("SSAO_REFERENCE_TERRAIN")
+	if reference.is_empty():
+		material.shader = load("res://shaders/terrain.gdshader")
+	else:
+		var shader := Shader.new()
+		shader.code = FileAccess.get_file_as_string(reference)
+		material.shader = shader
 	var image := Image.create(1, 1, false, Image.FORMAT_RGBA8)
 	image.fill(Color(0.6, 0.6, 0.6, 1.0))
 	material.set_shader_parameter("ground_0", ImageTexture.create_from_image(image))
@@ -135,6 +161,13 @@ func expect_ui(image: Image) -> bool:
 			var expected := Color.WHITE if x < UI_REGION.position.x + 24 else Color.BLACK
 			if image.get_pixel(x, y) != expected:
 				fail("World effect altered UI pixel at %s" % Vector2i(x, y))
+				return false
+	return true
+
+func equal_region(before: Image, after: Image, region: Rect2i) -> bool:
+	for y in range(region.position.y, region.end.y):
+		for x in range(region.position.x, region.end.x):
+			if before.get_pixel(x, y) != after.get_pixel(x, y):
 				return false
 	return true
 
