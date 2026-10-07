@@ -8,7 +8,19 @@ use ui_toolkit::{
 };
 
 fn read_region(name: &str) -> Option<AtlasRegion> {
-    resolve_region(name, thread_skin()).or_else(|| resolve_region(name, ActiveSkin::Modern))
+    let region = resolve_region(name, thread_skin()).filter(forever_sheet_is_supplied);
+    region.or_else(|| resolve_region(name, ActiveSkin::Modern))
+}
+
+fn forever_sheet_is_supplied(region: &AtlasRegion) -> bool {
+    // The c60 profession export names this sheet, but local Retail CASC has no
+    // resolution/listfile entry for it (rendered preview RED, 2026-10-07).
+    // Use shared Retail art only until the Forever sheet is supplied locally.
+    const FOREVER_PROFESSION_SHEET: u32 = 8_164_391;
+    if region.source != AtlasSource::FileDataId(FOREVER_PROFESSION_SHEET) {
+        return true;
+    }
+    crate::paths::resolve_data_path(format!("textures/{FOREVER_PROFESSION_SHEET}.blp")).is_file()
 }
 
 pub(super) fn atlas(name: &str, member: &str, rect: (f32, f32, f32, f32)) -> Element {
