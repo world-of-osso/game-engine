@@ -1,5 +1,74 @@
 use super::*;
 
+/// Only the local caster has client-known specialization metadata.
+fn caster_spec_order_index(
+    caster: u64,
+    local_spec: Option<(u64, u32)>,
+    catalog: &SpellVisualCatalog,
+) -> Option<u8> {
+    let (local, spec_id) = local_spec?;
+    if caster != local {
+        return None;
+    }
+    catalog.specialization_order_index(spec_id)
+}
+
+#[cfg(test)]
+mod specialization_tests {
+    use super::*;
+    use std::path::Path;
+    use std::sync::OnceLock;
+
+    fn catalog() -> &'static SpellVisualCatalog {
+        static CATALOG: OnceLock<SpellVisualCatalog> = OnceLock::new();
+        CATALOG.get_or_init(|| {
+            let db2 = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+            SpellVisualCatalog::build(&db2).expect("local spell visual exports")
+        })
+    }
+
+    fn slam_cast_kit(caster: u64, local_spec: Option<(u64, u32)>) -> u32 {
+        let context = CasterContext {
+            race: 1,
+            class: 1,
+            gender: 0,
+            level: 80,
+            spec_order_index: caster_spec_order_index(caster, local_spec, catalog()),
+            main_hand_subclass: Some(8), // Item.SubclassID: two-handed sword.
+        };
+        let visual = catalog().visual_for_spell(1464, &context).unwrap();
+        catalog().kits(visual, VisualEvent::Cast)[0].kit_id
+    }
+
+    #[test]
+    fn specialization_local_slam_changes_from_arms_to_fury_with_the_same_weapon() {
+        // ChrSpecialization 71 (Arms): OrderIndex 0; 72 (Fury): OrderIndex 1.
+        let mut spells = crate::player_spells::PlayerSpells::default();
+        assert_eq!(
+            slam_cast_kit(42, spells.spec().map(|spec| (42, spec))),
+            62428
+        );
+        spells.set_spec(71);
+        assert_eq!(
+            slam_cast_kit(42, spells.spec().map(|spec| (42, spec))),
+            62428
+        );
+        spells.set_spec(72);
+        assert_eq!(
+            slam_cast_kit(42, spells.spec().map(|spec| (42, spec))),
+            128672
+        );
+    }
+
+    #[test]
+    fn specialization_before_the_snapshot_and_remote_casters_keep_no_spec_behavior() {
+        // No primary specialization: TrinityCore skips the spec comparison.
+        assert_eq!(slam_cast_kit(42, None), 62428);
+        assert_eq!(slam_cast_kit(99, Some((42, 72))), 62428);
+        assert_eq!(caster_spec_order_index(99, Some((42, 72)), catalog()), None);
+    }
+}
+
 impl SpellEffects {
     /// Start and end held precast/channel kits as units' replicated casts change.
     pub fn sync_casts(&mut self, units: &Replica, world: &mut WorldUnits) -> Result<(), String> {
@@ -168,6 +237,7 @@ impl SpellEffects {
         units: &Replica,
         world: &WorldUnits,
         caster: u64,
+        spec_order_index: Option<u8>,
     ) -> CasterContext {
         let unit = units.unit(caster);
         let player = unit.and_then(|unit| unit.get::<Player>());
@@ -178,7 +248,7 @@ impl SpellEffects {
             level: unit
                 .and_then(|unit| unit.get::<UnitLevel>())
                 .map_or(0, |level| u32::from(level.0)),
-            spec_order_index: None,
+            spec_order_index,
             main_hand_subclass: world.unit_main_hand_subclass(caster),
         }
     }
@@ -191,10 +261,12 @@ impl SpellEffects {
         units: &Replica,
         world: &WorldUnits,
     ) -> Result<Option<u32>, String> {
-        let context = Self::caster_context(units, world, caster);
+        let local_spec = self.local_specialization;
         let Some(catalog) = self.catalog()? else {
             return Ok(None);
         };
+        let spec_order_index = caster_spec_order_index(caster, local_spec, catalog);
+        let context = Self::caster_context(units, world, caster, spec_order_index);
         Ok(catalog.visual_for_spell(spell_id, &context))
     }
 
@@ -207,15 +279,16 @@ impl SpellEffects {
         units: &Replica,
         world: &WorldUnits,
     ) -> Result<(), String> {
-        // Its race, class and weapon pick the visuals (`caster_context`).
+        // Race, class, specialization and weapon pick the same visuals as casts.
         let replicated = units.unit(caster).is_some_and(|unit| unit.has::<Player>());
         if !replicated || spells.iter().all(|spell| self.prefetched.contains(spell)) {
             return Ok(());
         }
-        let context = Self::caster_context(units, world, caster);
         let Some(catalog) = poll_catalog(&mut self.catalog)? else {
             return Ok(());
         };
+        let spec_order_index = caster_spec_order_index(caster, self.local_specialization, catalog);
+        let context = Self::caster_context(units, world, caster, spec_order_index);
         for &spell in spells {
             if !self.prefetched.insert(spell) {
                 continue;

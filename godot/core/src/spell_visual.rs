@@ -29,9 +29,10 @@ pub use voice::{UnitSound, VoiceSource, player_displays};
 
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 9;
+const CACHE_FORMAT: u32 = 10;
 
-const SOURCE_TABLES: [&str; 24] = [
+const SOURCE_TABLES: [&str; 25] = [
+    "ChrSpecialization",
     "SpellXSpellVisual",
     "SpellVisual",
     "SpellVisualEvent",
@@ -339,6 +340,8 @@ pub struct SpellVisualCatalog {
     missiles: HashMap<u32, Vec<MissileRow>>,
     effect_names: HashMap<u32, EffectName>,
     conditions: HashMap<u32, PlayerCondition>,
+    /// `ChrSpecialization.ID` → zero-based `OrderIndex` (including Initial).
+    spec_order_indices: HashMap<u32, u8>,
     /// `SpellMisc.Speed` (yd/s) of spells with a travel speed.
     speeds: HashMap<u32, f32>,
     /// The sound kits spell visual kits, missiles, unit voices and melee play.
@@ -359,8 +362,8 @@ impl Table {
         let path = dir.join(format!("{name}.csv"));
         let text = std::fs::read_to_string(&path)
             .map_err(|error| format!("read {}: {error}", path.display()))?;
-        // PlayerCondition's failure text may be quoted over several lines.
-        let mut rows = if name == "PlayerCondition" {
+        // Condition failure text and specialization descriptions span quoted lines.
+        let mut rows = if matches!(name, "PlayerCondition" | "ChrSpecialization") {
             parse_csv_records(&text)
         } else {
             text.lines().map(parse_csv_line).collect()
@@ -494,6 +497,7 @@ impl SpellVisualCatalog {
         catalog.read_anims(dir)?;
         catalog.read_missiles(dir)?;
         catalog.read_conditions(dir)?;
+        catalog.read_specializations(dir)?;
         catalog.read_speeds(dir)?;
         catalog.read_voices(dir)?;
         catalog.read_melee(dir)?;
@@ -590,6 +594,12 @@ impl SpellVisualCatalog {
             }
         }
         Ok(())
+    }
+
+    /// The primary spec's DB2 order, not its ID or the one-based Lua spec index.
+    /// Missing/unknown IDs skip specialization comparisons, as in TrinityCore.
+    pub fn specialization_order_index(&self, spec_id: u32) -> Option<u8> {
+        self.spec_order_indices.get(&spec_id).copied()
     }
 
     /// The `SpellVisual` a caster shows for `spell_id` in open-world difficulty: the

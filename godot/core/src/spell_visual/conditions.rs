@@ -1,6 +1,16 @@
 use super::*;
 
 impl SpellVisualCatalog {
+    pub(super) fn read_specializations(&mut self, dir: &Path) -> Result<(), String> {
+        let table = Table::read(dir, "ChrSpecialization")?;
+        self.spec_order_indices = table
+            .ints(["ID", "OrderIndex"])?
+            .into_iter()
+            .map(|[id, index]| (id as u32, index as u8))
+            .collect();
+        Ok(())
+    }
+
     pub(super) fn read_conditions(&mut self, dir: &Path) -> Result<(), String> {
         let referenced: std::collections::HashSet<u32> = self
             .spells
