@@ -269,6 +269,7 @@ impl GameClient {
         if !key.is_pressed() || !self.group_frames.popups.is_open() {
             return false;
         }
+        self.update_summon_popup(Duration::ZERO);
         let stack = &mut self.group_frames.popups;
         match key.get_keycode() {
             godot::global::Key::ESCAPE => stack.cancel_top(),
@@ -291,6 +292,7 @@ impl GameClient {
             return Ok(());
         }
         self.sync_death_popups();
+        self.update_summon_popup(Duration::from_secs_f32(delta.max(0.0)));
         self.poll_invite_popup_actions()?;
         let hud = &mut self.group_frames;
         hud.popups.tick(Duration::from_secs_f32(delta.max(0.0)));
@@ -300,6 +302,7 @@ impl GameClient {
         self.dispatch_bank_popup_results(&results)?;
         self.dispatch_mail_popup_results(&results)?;
         self.dispatch_death_popup_results(&results)?;
+        self.dispatch_summon_popup_results(&results)?;
         self.hide_stale_bag_destroy_popups();
         for accept in invite_answers(&results) {
             self.account.group.pending_invite = None;

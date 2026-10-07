@@ -185,6 +185,7 @@ pub enum AccountEvent {
     Trade(TradeStateUpdate),
     Death(shared::protocol::DeathStateUpdate),
     Resurrection(shared::protocol::ResurrectionOffer),
+    Summon(shared::protocol::SummonRequest),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
     GuildRanks(shared::protocol::GuildRanksState),
@@ -549,6 +550,15 @@ impl Account {
     pub fn send_interact(&self, npc: u64) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InteractionChannel>(InteractNpc { npc })
+            .map_err(SessionError)
+    }
+
+    pub fn send_summon_response(
+        &self,
+        response: shared::protocol::SummonResponse,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, InteractionChannel>(response)
             .map_err(SessionError)
     }
 
@@ -1081,6 +1091,10 @@ impl Account {
         }
         if message.is::<PendingMail>() {
             output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::SummonRequest>() {
+            output.push(AccountEvent::Summon(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::ResurrectionOffer>() {
@@ -1764,6 +1778,10 @@ mod dungeonclient_tests;
 #[cfg(test)]
 #[path = "account_deathstate_tests.rs"]
 mod deathstate_tests;
+
+#[cfg(test)]
+#[path = "account_meetingstones_tests.rs"]
+mod meetingstones_tests;
 
 #[cfg(test)]
 mod tests {

@@ -1,10 +1,10 @@
 # Meeting stones (client)
 
-> `cargo test --bin game-engine` selectors below name tests deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+Native Godot port: `godot/rust/src/meeting_stones.rs`, `godot/ui-model/src/summon.rs`, and the default network bridge. Current native tests/live evidence are recorded below; historical Bevy evidence is not native acceptance.
 
 Using a meeting stone and answering a summon. Contract: shared-protocol `protocol/interaction_messages.rs` (`UseGameObject`, `SummonRequest`, `SummonResponse`). Server rules: game-server `docs/specs/meeting-stones.md`.
 
-References: GameDialogDefs.lua (`CONFIRM_SUMMON`, `GetConfirmSummonExpiryText`), StaticPopup.lua (`StaticPopup_OnUpdate`), UIParent.lua (`CONFIRM_SUMMON` event) under `/syncthing/Sync/Projects/wow/Interface/AddOns/`.
+Retail references (cached `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`): `Blizzard_StaticPopup_Game/GameDialogDefs.lua:2402-2438` (`GetConfirmSummonExpiryText`, `CONFIRM_SUMMON`); `Blizzard_StaticPopup/StaticPopup.lua` (`StaticPopup_OnUpdate`); `Blizzard_StaticPopup_Game/GameDialog.lua:88-90` (summon events).
 
 ## What it must do
 
@@ -25,8 +25,12 @@ References: GameDialogDefs.lua (`CONFIRM_SUMMON`, `GetConfirmSummonExpiryText`),
 - No 0.5 s decline lock (`SetupLockOnDeclineButtonAndEscape`), no `PlayerCanTeleport` check, no `CANCEL_SUMMON` from the server.
 - Cross-map summons are accepted through a map transfer ([instances](instances.md)); starting one needs the target in the interest radius (above).
 
-## Live evidence (2026-09-26)
+## Native verification (2026-10-07)
+
+Targeted `meetingstones` selectors cover request/countdown/replacement, combat click/Enter gate, Accept/Cancel/expiry responses, cursor selection and Retail refusal strings. Native transport/registry integration and private-server proof pending; no current live acceptance claim.
+
+## Historical Bevy live evidence (2026-09-26)
 Own server :5080, three headless clients (Stonecaller, Ritebearer, Wayfarer, level 30) at Blackrock Mountain stone 179584: Stonecaller targeted Wayfarer (88 yd away) and used the stone, the portal opened after 5 s, Ritebearer clicked it, Wayfarer's `CONFIRM_SUMMON` read "Stonecaller wants to summon you to Unknown. The spell will be canceled in 2 Minutes.", Accept moved Wayfarer from (-7622, -1222, 232) to Stonecaller at (-7588.7, -1139.8, 260.8). Screenshots in `data/diagnostics/summonstone/`.
 
 ## Tests asserting this spec
-`cargo test --bin game-engine summon_popup`, `cargo test --lib summon popup`.
+Use `scripts/depot-build.py --build-host local --test -p game-engine-godot -p game-engine-ui-model -p game-engine-network --no-fail-fast meetingstones` through build-lock + `agent-run meetingstones`. Never use retired root-bin selectors.
