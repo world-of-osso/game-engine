@@ -31,6 +31,9 @@ func write_json(name: String, value: Dictionary) -> void:
 	file.close()
 
 func capture(name: String) -> void:
+	# Let newly mounted highlight textures arrive through the native async loader.
+	for frame in range(12):
+		await process_frame
 	await RenderingServer.frame_post_draw
 	root.get_texture().get_image().save_png(directory.path_join(name + ".png"))
 	write_json(name, {"account": client.account_state(), "player": rectangle("PlayerFrame"), "chat": rectangle("ChatFrame1"), "editor": client.get_node_or_null("HudEditUI") != null})
