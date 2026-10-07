@@ -83,9 +83,39 @@ func _run() -> void:
 			ui.queue_free()
 			quit(1)
 			return
+	if screen in ["bosslayout_preview", "forever_bosslayout_preview"]:
+		if not bosslayout_geometry_matches(ui):
+			ui.queue_free()
+			quit(1)
+			return
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
 	quit(0)
+
+# Retail TargetFrame.xml:367-370; TargetFrame.lua:957-966,1015-1020.
+func bosslayout_geometry_matches(ui: Node) -> bool:
+	var tracker := ui.find_child("ObjectiveTrackerFrame", true, false) as Control
+	var minimap := ui.find_child("MinimapCluster", true, false) as Control
+	if tracker == null or minimap == null:
+		push_error("Boss preview requires production tracker and minimap")
+		return false
+	var tracker_rect := tracker.get_global_rect()
+	for index in range(1, 6):
+		var boss := ui.find_child("Boss%dTargetFrame" % index, true, false) as Control
+		if boss == null or boss.is_visible_in_tree() != (index <= 2):
+			push_error("Boss preview must show exactly two engaged bosses")
+			return false
+		if index > 2:
+			continue
+		var boss_rect := boss.get_global_rect()
+		print("BOSSLAYOUT_NATIVE boss", index, "=", boss_rect, " tracker=", tracker_rect)
+		if boss_rect.size != Vector2(133, 51) or tracker_rect.position.y <= boss_rect.end.y:
+			push_error("Boss size or managed tracker position differs")
+			return false
+		if boss_rect.intersects(tracker_rect) or boss_rect.intersects(minimap.get_global_rect()):
+			push_error("Boss overlaps tracker or minimap")
+			return false
+	return true
 
 # Retail Mainline/Blizzard_AchievementUI.lua:298 and XML:1973-1984.
 func achievement_header_matches_retail(ui: Node, image: Image) -> bool:
