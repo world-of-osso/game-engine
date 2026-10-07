@@ -393,8 +393,7 @@ fn read_assignments(dir: &Path) -> Result<HashMap<u32, Vec<UiMapAssignment>>, St
     Ok(assignments)
 }
 
-/// Phase-0 art of each map with its layer-0 layout and tiles.
-fn read_arts(dir: &Path) -> Result<HashMap<u32, UiMapArtLayout>, String> {
+fn read_phase_zero_art_links(dir: &Path) -> Result<HashMap<u32, u32>, String> {
     let links = Table::read(dir, "UiMapXMapArt")?;
     let [phase, link_art, link_map] = links.columns(["PhaseID", "UiMapArtID", "UiMapID"])?;
     let mut art_of_map = HashMap::new();
@@ -406,6 +405,10 @@ fn read_arts(dir: &Path) -> Result<HashMap<u32, UiMapArtLayout>, String> {
             );
         }
     }
+    Ok(art_of_map)
+}
+
+fn read_art_styles(dir: &Path) -> Result<HashMap<u32, (u32, u32)>, String> {
     let arts = Table::read(dir, "UiMapArt")?;
     let [art_id, highlight, style] =
         arts.columns(["ID", "HighlightFileDataID", "UiMapArtStyleID"])?;
@@ -417,6 +420,13 @@ fn read_arts(dir: &Path) -> Result<HashMap<u32, UiMapArtLayout>, String> {
             (arts.parse::<u32>(row, style)?, highlight),
         );
     }
+    Ok(art_style)
+}
+
+/// Phase-0 art of each map with its layer-0 layout and tiles.
+fn read_arts(dir: &Path) -> Result<HashMap<u32, UiMapArtLayout>, String> {
+    let art_of_map = read_phase_zero_art_links(dir)?;
+    let art_style = read_art_styles(dir)?;
     let layers = read_style_layers(dir)?;
     let tiles = read_tiles(dir)?;
     let mut result = HashMap::new();
