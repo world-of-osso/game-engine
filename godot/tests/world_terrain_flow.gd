@@ -27,10 +27,10 @@ func select_second_character(client: Node) -> void:
 			if tile.chunk_count <= 0 or not FileAccess.file_exists(tile.root_path):
 				fail("Parsed tile lacks actual terrain geometry or cache file: " + str(tile))
 				return
-		if not await inspect_material_tiles(client, terrain.parsed_tiles):
-			return
+		# The loading gate also waits for nearby scenery (79c98f01), not terrain alone.
 		if state.screen != "InWorld":
-			fail("Selected player and attached center terrain must complete original loading gate: " + str(state.screen))
+			continue
+		if not await inspect_material_tiles(client, terrain.parsed_tiles):
 			return
 		var loading_ui := client.get_node_or_null("LoadingUI")
 		if loading_ui == null:
