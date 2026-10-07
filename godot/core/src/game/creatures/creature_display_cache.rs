@@ -18,7 +18,7 @@ struct DisplayInfoColumns {
     id: usize,
     model: usize,
     scale: usize,
-    tex_var: [usize; 3],
+    tex_var: [usize; 4],
 }
 
 /// Builds `<data_dir>/cache/creature_display.sqlite` (display rows and per-model preferred
@@ -65,9 +65,9 @@ fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, S
         }
         Err(err) => return Err(format!("prepare source_files query: {err}")),
     };
-    // Also check that preferred_skins table exists (older caches lack it).
+    // A cache with the old three-slot schema must be rebuilt even at unchanged mtimes.
     if conn
-        .prepare("SELECT 1 FROM preferred_skins LIMIT 0")
+        .prepare("SELECT d.skin_fdid_3, p.skin_fdid_3 FROM creature_displays d, preferred_skins p LIMIT 0")
         .is_err()
     {
         return Ok(false);
@@ -104,26 +104,24 @@ fn rebuild_cache(
 
 fn build_preferred_skins(conn: &Connection) -> Result<(), String> {
     conn.execute_batch(
-        "INSERT INTO preferred_skins (model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2)
+        "INSERT INTO preferred_skins (model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3)
          SELECT model_fdid,
-                skin_fdid_0, skin_fdid_1, skin_fdid_2
+                skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3
          FROM (
              SELECT model_fdid,
-                    skin_fdid_0, skin_fdid_1, skin_fdid_2,
-                    (CASE WHEN skin_fdid_0 != 0 THEN 1 ELSE 0 END
-                   + CASE WHEN skin_fdid_1 != 0 THEN 1 ELSE 0 END
-                   + CASE WHEN skin_fdid_2 != 0 THEN 1 ELSE 0 END) AS filled,
+                    skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3,
                     display_id,
                     ROW_NUMBER() OVER (
                         PARTITION BY model_fdid
                         ORDER BY
                             (CASE WHEN skin_fdid_0 != 0 THEN 1 ELSE 0 END
                            + CASE WHEN skin_fdid_1 != 0 THEN 1 ELSE 0 END
-                           + CASE WHEN skin_fdid_2 != 0 THEN 1 ELSE 0 END) DESC,
+                           + CASE WHEN skin_fdid_2 != 0 THEN 1 ELSE 0 END
+                           + CASE WHEN skin_fdid_3 != 0 THEN 1 ELSE 0 END) DESC,
                             display_id ASC
                     ) AS rn
              FROM creature_displays
-             WHERE skin_fdid_0 != 0 OR skin_fdid_1 != 0 OR skin_fdid_2 != 0
+             WHERE skin_fdid_0 != 0 OR skin_fdid_1 != 0 OR skin_fdid_2 != 0 OR skin_fdid_3 != 0
          )
          WHERE rn = 1;
          COMMIT;",
@@ -147,6 +145,7 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
              skin_fdid_0 INTEGER NOT NULL,
              skin_fdid_1 INTEGER NOT NULL,
              skin_fdid_2 INTEGER NOT NULL,
+             skin_fdid_3 INTEGER NOT NULL,
              scale_milli INTEGER NOT NULL
          );
          CREATE INDEX idx_creature_displays_model_fdid
@@ -155,7 +154,8 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
              model_fdid INTEGER PRIMARY KEY,
              skin_fdid_0 INTEGER NOT NULL,
              skin_fdid_1 INTEGER NOT NULL,
-             skin_fdid_2 INTEGER NOT NULL
+             skin_fdid_2 INTEGER NOT NULL,
+             skin_fdid_3 INTEGER NOT NULL
          );",
     )
     .map_err(|err| format!("init creature display cache: {err}"))
@@ -216,8 +216,8 @@ fn read_display_columns(
 fn prepare_display_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
     conn.prepare(
         "INSERT OR REPLACE INTO creature_displays
-         (display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, scale_milli)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6)",
+         (display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
     )
     .map_err(|err| format!("prepare creature_displays insert: {err}"))
 }
@@ -238,6 +238,7 @@ fn insert_display_row(
             entry.skin_fdids[0],
             entry.skin_fdids[1],
             entry.skin_fdids[2],
+            entry.skin_fdids[3],
             entry.scale_milli,
         ))
         .map_err(|err| format!("insert creature display row {display_id}: {err}"))?;
@@ -314,6 +315,7 @@ fn find_display_info_columns(header: &str) -> Option<DisplayInfoColumns> {
             find("TextureVariationFileDataID_0")?,
             find("TextureVariationFileDataID_1")?,
             find("TextureVariationFileDataID_2")?,
+            find("TextureVariationFileDataID_3")?,
         ],
     })
 }
@@ -342,6 +344,7 @@ fn parse_display_entry(
                 parse_fdid(cols.tex_var[0]),
                 parse_fdid(cols.tex_var[1]),
                 parse_fdid(cols.tex_var[2]),
+                parse_fdid(cols.tex_var[3]),
             ],
             scale_milli: combine_scale_milli(display_scale_milli, model.scale_milli),
         },
@@ -408,6 +411,22 @@ mod tests {
             .unwrap()
             .unwrap();
         assert_eq!(preferred.as_slice(), &[4237053, 4237050, 4237060, 4237057]);
+        conn.execute_batch(
+            "ALTER TABLE creature_displays DROP COLUMN skin_fdid_3;
+             ALTER TABLE preferred_skins DROP COLUMN skin_fdid_3;",
+        )
+        .unwrap();
+        drop(conn);
+        // Source mtimes are unchanged: schema freshness alone must trigger re-import.
+        let path = import_creature_display_cache(&dir).unwrap();
+        let conn = open_read_only(&path).unwrap();
+        let display = crate::creature_display_data::query_display(&conn, 35297)
+            .unwrap()
+            .unwrap();
+        assert_eq!(
+            display.skin_fdids.as_slice(),
+            &[4237053, 4237050, 4237060, 4237057]
+        );
         drop(conn);
         std::fs::remove_dir_all(dir).unwrap();
     }
@@ -421,7 +440,7 @@ mod tests {
         let model_path = dir.join("CreatureModelData.csv");
         std::fs::write(
             &display_path,
-            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2\n4,7,1,11,12,0\n5,7,1,21,22,23\n",
+            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n4,7,1,11,12,0,0\n5,7,1,21,22,23,24\n",
         )
         .unwrap();
         std::fs::write(&model_path, "ID,FileDataID,ModelScale\n7,9001,1.25\n").unwrap();
@@ -437,7 +456,7 @@ mod tests {
         // Query by display_id
         let mut stmt = conn
             .prepare(
-                "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, scale_milli
+                "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli
                  FROM creature_displays WHERE display_id = ?1",
             )
             .unwrap();
@@ -445,8 +464,8 @@ mod tests {
             .query_row([4u32], |row| {
                 Ok(CreatureDisplay {
                     model_fdid: row.get(0)?,
-                    skin_fdids: [row.get(1)?, row.get(2)?, row.get(3)?],
-                    scale_milli: row.get(4)?,
+                    skin_fdids: [row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?],
+                    scale_milli: row.get(5)?,
                 })
             })
             .unwrap();
@@ -454,7 +473,7 @@ mod tests {
             entry,
             CreatureDisplay {
                 model_fdid: 9001,
-                skin_fdids: [11, 12, 0],
+                skin_fdids: [11, 12, 0, 0],
                 scale_milli: 1250,
             }
         );
@@ -462,14 +481,16 @@ mod tests {
         // Preferred skins: display_id=5 has 3 filled slots vs display_id=4 with 2
         let mut stmt = conn
             .prepare(
-                "SELECT skin_fdid_0, skin_fdid_1, skin_fdid_2
+                "SELECT skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3
                  FROM preferred_skins WHERE model_fdid = ?1",
             )
             .unwrap();
-        let skins: [u32; 3] = stmt
-            .query_row([9001u32], |row| Ok([row.get(0)?, row.get(1)?, row.get(2)?]))
+        let skins: [u32; 4] = stmt
+            .query_row([9001u32], |row| {
+                Ok([row.get(0)?, row.get(1)?, row.get(2)?, row.get(3)?])
+            })
             .unwrap();
-        assert_eq!(skins, [21, 22, 23]);
+        assert_eq!(skins, [21, 22, 23, 24]);
 
         let _ = std::fs::remove_dir_all(dir);
     }

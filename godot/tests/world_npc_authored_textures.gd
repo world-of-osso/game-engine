@@ -23,7 +23,7 @@ func run_test() -> void:
 	DirAccess.make_dir_recursive_absolute(captures)
 	var cases := read_cases(oracle)
 	var failures := 0
-	for display in [825, 1322, 1285, 90209, 110154, 150, 35297]:
+	for display in [825, 1322, 1285, 90209, 110154, 150, 35297, 110189]:
 		var old_visual: Node = client.get_node("WorldUnits/" + NPC + "/NpcVisualRoot")
 		var old_id := old_visual.get_instance_id()
 		print("FIXTURE AUTHORED_REQUEST ", display)
@@ -73,6 +73,13 @@ func check_case(model: Node3D, display: int, bindings: Array, oracle: String, ca
 		var texture := material.get_shader_parameter(uniform) as Texture2D if material != null else null
 		var expected := FileAccess.get_file_as_bytes("%s/%d-%d.rgba" % [oracle, display, kind])
 		var image := texture.get_image() if texture != null else null
+		if image != null:
+			if image.is_compressed():
+				var decode_error := image.decompress()
+				if decode_error != OK:
+					print("AUTHORED_FAIL display=%d type=%d decompress=%d" % [display, kind, decode_error])
+					failures += 1
+			image.convert(Image.FORMAT_RGBA8)
 		var correct: bool = image != null and image.get_width() == binding.width and image.get_height() == binding.height
 		if correct:
 			correct = image.get_data().slice(0, expected.size()) == expected

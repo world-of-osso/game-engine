@@ -295,7 +295,7 @@ pub(super) fn cache_required(
 pub(crate) fn cache_model_textures(
     resolver: &CascListfileResolver,
     data_root: &Path,
-    skin_fdids: &[u32; 3],
+    skin_fdids: &[u32],
     parsed: &m2::Model,
 ) -> Result<BTreeSet<u32>, String> {
     let textures = creature_texture_fdids(resolver, parsed, skin_fdids)?;
@@ -310,7 +310,7 @@ pub(crate) fn cache_model_textures(
 fn creature_texture_fdids(
     resolver: &CascListfileResolver,
     model: &m2::Model,
-    slots: &[u32; 3],
+    slots: &[u32],
 ) -> Result<BTreeSet<u32>, String> {
     // The same batches the native material binds, zero-opacity ones included.
     let batches =
@@ -341,7 +341,7 @@ mod tests {
         let resolver = local_resolver(&data_root);
         let display = CreatureDisplay {
             model_fdid: 126278,
-            skin_fdids: [126280, 0, 0],
+            skin_fdids: [126280, 0, 0, 0],
             scale_milli: 1000,
         };
         let path = cache_model_files(&resolver, &data_root, display.model_fdid).unwrap();
@@ -388,7 +388,7 @@ mod tests {
         let resolver = local_resolver(&data_root);
         let display = CreatureDisplay {
             model_fdid: 1011653,
-            skin_fdids: [0; 3],
+            skin_fdids: [0; 4],
             scale_milli: 1000,
         };
         let path = cache_model_files(&resolver, &data_root, display.model_fdid).unwrap();

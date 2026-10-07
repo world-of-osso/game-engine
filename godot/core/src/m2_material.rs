@@ -141,7 +141,7 @@ fn slot_texture(
     model: &Model,
     unit: &TextureUnit,
     slot: u16,
-    skin_texture_fdids: &[u32; 3],
+    skin_texture_fdids: &[u32],
 ) -> Result<(Option<u32>, u32, u32), String> {
     let lookup = usize::from(unit.texture_id + slot);
     let index = usize::from(*model.texture_lookup.get(lookup).ok_or_else(|| {
@@ -204,7 +204,7 @@ fn texture_weights(model: &Model, unit: &TextureUnit) -> [Option<usize>; 3] {
 pub fn batch_binding(
     model: &Model,
     unit: &TextureUnit,
-    skin_texture_fdids: &[u32; 3],
+    skin_texture_fdids: &[u32],
 ) -> Result<BatchBinding, String> {
     let vertex_shader = vertex_shader_id(unit.texture_count, unit.shader_id)?;
     let mut textures = Vec::new();

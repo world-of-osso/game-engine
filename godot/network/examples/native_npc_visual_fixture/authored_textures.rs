@@ -13,7 +13,7 @@ use std::collections::HashMap;
 
 type Pixels = (Vec<u8>, u32, u32);
 // Real content_creature/template_model rows; fixture relocates them to its owned map.
-const CASES: [(u32, u32, &str); 7] = [
+const CASES: [(u32, u32, &str); 8] = [
     (825, 3728, "Dark Strand Adept"),
     (1322, 3322, "Kaja"),
     (1285, 2079, "Conservator Ilthalaine"),
@@ -21,6 +21,7 @@ const CASES: [(u32, u32, &str); 7] = [
     (110154, 198506, "Krenzen"),
     (150, 3833, "Cenarion Vindicator"),
     (35297, 46785, "Lord Cannon"),
+    (110189, 198551, "Thaza"),
 ];
 
 pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
@@ -44,7 +45,7 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
     )?;
     execute_fixture_sql(
         &data.join("cache/creature_display.sqlite"),
-        "INSERT OR REPLACE INTO creature_displays VALUES (910010,910010,910001,0,0,1500);",
+        "INSERT OR REPLACE INTO creature_displays (display_id,model_fdid,skin_fdid_0,skin_fdid_1,skin_fdid_2,skin_fdid_3,scale_milli) VALUES (910010,910010,910001,0,0,0,1500);",
     )?;
     for name in [
         "ChrRaceXChrModel.csv",
@@ -115,6 +116,17 @@ fn decode(source: &Path, fdid: u32) -> Result<Pixels, String> {
 fn read_creature_skin_oracle(source: &Path, display: u32) -> Result<HashMap<u32, Pixels>, String> {
     let csv = fs::read_to_string(source.join("CreatureDisplayInfo.csv"))
         .map_err(|error| format!("Read CreatureDisplayInfo: {error}"))?;
+    let variations = parse_creature_variations(&csv, display)?;
+    let mut textures = HashMap::new();
+    for (fdid, kind) in variations.into_iter().zip([11, 12, 13, 5]) {
+        if fdid != 0 {
+            textures.insert(kind, decode(source, fdid)?);
+        }
+    }
+    Ok(textures)
+}
+
+fn parse_creature_variations(csv: &str, display: u32) -> Result<[u32; 4], String> {
     let mut lines = csv.lines();
     let header: Vec<_> = lines
         .next()
@@ -133,19 +145,16 @@ fn read_creature_skin_oracle(source: &Path, display: u32) -> Result<HashMap<u32,
         .find(|line| line.split(',').nth(id_column) == Some(id.as_str()))
         .ok_or_else(|| format!("missing DB2 display {display}"))?;
     let values: Vec<_> = row.split(',').collect();
-    let mut textures = HashMap::new();
-    for (variation, kind) in [(0, 11), (1, 12), (2, 13), (3, 5)] {
+    let mut variations = [0; 4];
+    for (variation, fdid) in variations.iter_mut().enumerate() {
         let index = column(&format!("TextureVariationFileDataID_{variation}"))?;
-        let fdid: u32 = values
+        *fdid = values
             .get(index)
             .ok_or("truncated DB2 display")?
             .parse()
             .map_err(|error| format!("display {display} variation {variation}: {error}"))?;
-        if fdid != 0 {
-            textures.insert(kind, decode(source, fdid)?);
-        }
     }
-    Ok(textures)
+    Ok(variations)
 }
 
 fn oracle_textures(
@@ -227,7 +236,10 @@ fn write_display_oracle(
     )
     .map_err(|e| e.to_string())?;
     let mut counts = HashMap::<u32, usize>::new();
-    for (index, unit) in model.batches.iter().enumerate() {
+    // Native node names follow stable draw order, not source SKIN record order.
+    let mut units: Vec<_> = model.batches.iter().collect();
+    units.sort_by_key(|unit| (unit.priority_plane, unit.material_layer));
+    for (index, unit) in units.into_iter().enumerate() {
         let binding = m2_material::batch_binding(&model, unit, &[0; 3])?;
         for (slot, kind) in binding.texture_types.iter().enumerate() {
             let Some((pixels, width, height)) = textures.get(kind) else {
