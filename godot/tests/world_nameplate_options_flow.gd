@@ -341,8 +341,7 @@ func scroll_option_into_view(client: Node, name: String) -> Control:
 	return null
 
 func set_distance(client: Node, value: float) -> void:
-	var menu := client.get_node("GameMenuUI")
-	var slider := menu.find_child("Slidernameplate_distance", true, false) as Control
+	var slider := await scroll_option_into_view(client, "Slidernameplate_distance")
 	if slider == null:
 		fail("Authored HUD nameplate distance slider absent")
 		return
