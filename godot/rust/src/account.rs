@@ -178,6 +178,7 @@ pub enum AccountEvent {
     Combat(CombatMessage),
     /// NPC interaction, vendor, bag and durability traffic.
     Npc(NpcMessage),
+    TaxiMap(shared::protocol::TaxiMap),
     Auction(AuctionReply),
     Mail(MailMessage),
     /// `TradeStateUpdate`: the trade snapshot, its refusal and message.
@@ -816,6 +817,15 @@ impl Account {
         .map_err(SessionError)
     }
 
+    pub fn send_activate_taxi(
+        &self,
+        request: shared::protocol::ActivateTaxi,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::TaxiChannel>(request)
+            .map_err(SessionError)
+    }
+
     /// The player closed the NPC's frame (`CMSG_CLOSE_INTERACTION`).
     pub fn send_close_interaction(&self, npc: u64) -> Result<(), SessionError> {
         self.bridge()?
@@ -1303,6 +1313,24 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if message.is::<shared::protocol::TaxiMap>() {
+            output.push(AccountEvent::TaxiMap(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::TaxiNodeDiscovered>() {
+            decode::<shared::protocol::TaxiNodeDiscovered>(message)?;
+            output.push(AccountEvent::Npc(NpcMessage::Error(
+                "New location discovered!".into(),
+            )));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::TaxiFailed>() {
+            let failure: shared::protocol::TaxiFailed = decode(message)?;
+            output.push(AccountEvent::Npc(NpcMessage::Error(
+                failure.error.message().into(),
+            )));
+            return Ok(());
+        }
         if Self::is_world_transition_message(&message) {
             return self.dispatch_world_transition_message(message, output);
         }
@@ -1780,6 +1808,47 @@ mod tests {
 
     use shared::components::{CharacterAppearance, EquipmentAppearance};
     use shared::protocol::{CharacterListEntry, TransferAbortReason};
+
+    #[test]
+    fn flightmap_account_preserves_server_map_and_refusal_text() {
+        use shared::protocol::{TaxiError, TaxiFailed, TaxiMap, TaxiNodeInfo, TaxiNodeState};
+        let mut account = Account::new(PathBuf::new());
+        let map = TaxiMap {
+            npc: 352,
+            continent: 0,
+            nodes: vec![TaxiNodeInfo {
+                node: 2,
+                name: "Stormwind, Elwynn".into(),
+                world_x: -8841.06,
+                world_y: 489.656,
+                state: TaxiNodeState::Current,
+                cost: 0,
+                route: vec![],
+            }],
+        };
+        let mut output = Vec::new();
+        account
+            .dispatch_message(ProtocolMessage::for_tests(map.clone()), &mut output)
+            .unwrap();
+        let [AccountEvent::TaxiMap(received)] = output.as_slice() else {
+            panic!("taxi map event");
+        };
+        assert_eq!(received, &map);
+        output.clear();
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(TaxiFailed {
+                    npc: 352,
+                    error: TaxiError::NotEnoughMoney,
+                }),
+                &mut output,
+            )
+            .unwrap();
+        let [AccountEvent::Npc(NpcMessage::Error(message))] = output.as_slice() else {
+            panic!("taxi refusal");
+        };
+        assert_eq!(message, "You don't have enough money!");
+    }
 
     #[test]
     fn xpchat_account_dispatches_gain_without_deriving_it_from_xp_state() {

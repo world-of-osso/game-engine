@@ -1,3 +1,7 @@
+## 2026-10-07 — Native flight map implementation
+
+[Native flight map](systems/native-flight-map.md) adds server taxi message consumption, shared world-map art/canvas, current/reachable pins, route and cost hover, and activation/close lifecycle. `5e5ec97b` has bounded native build, four targeted tests and private rendered open/hover/click/controlled-flight proof; captures inspected. Render RED exposed unsupported font attributes, fixed with actual native-label assertions. Cleanup confirms free UDP 5302 and inactive owned slice. [Flight-master contract](../specs/flight-master.md) retains mount-display coverage, broad lifecycle and engine shutdown-resource gaps.
+
 ## 2026-10-07 — Portrait party Retail parity audit
 
 [Portrait party frames](systems/portrait-party-frames.md#retail-parity-audit--2026-10-07) rechecks the old party1 findings against local Retail Mainline: health desaturation already fixed; power stays full and half-grey-tinted; crown BOTTOM→TOP extension is intentional, not TOPLEFT. Eleven targeted tests and fresh Modern/Forever offline previews pass. Compact default unchanged; existing shutdown leaks and live/reference acceptance gaps remain.

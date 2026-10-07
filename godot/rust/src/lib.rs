@@ -32,6 +32,7 @@ pub mod equipment_appearance_data;
 mod eula;
 #[path = "game/faction_reaction.rs"]
 mod faction_reaction;
+mod flight_map;
 mod frame_error;
 mod game_menu;
 mod game_objects;
@@ -200,6 +201,7 @@ pub struct GameClient {
     chat: chat::Chat,
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
+    flight_map: flight_map::FlightMap,
     minimap: minimap::Minimap,
     objective_tracker: objective_tracker::ObjectiveTracker,
     quests: quests::QuestHud,
@@ -343,6 +345,7 @@ impl INode3D for GameClient {
             chat: Default::default(),
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
+            flight_map: flight_map::FlightMap::default(),
             minimap: minimap::Minimap::new(&data_root),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
             quests: quests::QuestHud::default(),
@@ -440,7 +443,8 @@ impl INode3D for GameClient {
                 return;
             }
         }
-        if self.world_map_pointer(&event)
+        if self.flight_map_pointer(&event)
+            || self.world_map_pointer(&event)
             || self.minimap_pointer(&event)
             || self.spellbook_pointer(&event)
             || self.merchant_pointer(&event)
@@ -495,6 +499,16 @@ impl INode3D for GameClient {
             return;
         }
         if self.bag_cursor_key(key.get_keycode()) {
+            if let Some(mut viewport) = self.base().get_viewport() {
+                viewport.set_input_as_handled();
+            }
+            return;
+        }
+        if key.get_keycode() == godot::global::Key::ESCAPE && self.flight_map.session.map.is_some()
+        {
+            if let Err(error) = self.close_flight_map_interaction() {
+                self.handle_frame_error("Flight map close", error.into());
+            }
             if let Some(mut viewport) = self.base().get_viewport() {
                 viewport.set_input_as_handled();
             }
@@ -1729,6 +1743,7 @@ impl GameClient {
             ("Loot", |c, _| c.update_loot()),
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
+            ("Flight map", |c, _| c.update_flight_map()),
             ("World map", |c, _| c.update_world_map()),
             ("Minimap", |c, _| c.update_minimap()),
             ("Quests", |c, _| c.update_quests()),
@@ -1895,7 +1910,11 @@ impl GameClient {
                 self.receive_creation_result(success, error)?
             }
             AccountEvent::MirrorTimer(message) => self.receive_mirror_timer(message)?,
+            AccountEvent::TaxiMap(map) => self.open_flight_map(map)?,
             AccountEvent::Npc(message) => {
+                if let account::NpcMessage::Closed(npc) = &message {
+                    self.flight_map.session.close_for(*npc);
+                }
                 if !self.receive_quest_npc_message(&message)? && !self.bank_npc_message(&message) {
                     self.receive_npc_message(message)?;
                 }

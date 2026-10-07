@@ -102,6 +102,9 @@ pub mod ui_map_data;
 pub mod world_map_frame_art;
 #[path = "ui/screens/world_map_frame_component.rs"]
 pub mod world_map_frame_component;
+
+pub mod flight_map;
+pub mod flight_map_component;
 #[path = "world_map_view_data.rs"]
 pub mod world_map_view_data;
 
