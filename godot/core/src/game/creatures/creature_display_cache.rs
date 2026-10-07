@@ -380,6 +380,39 @@ mod tests {
     use super::*;
 
     #[test]
+    fn import_lord_cannon_preserves_fourth_creature_variation() {
+        let dir =
+            std::env::temp_dir().join(format!("creature-fourth-variation-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("CreatureDisplayInfo.csv"),
+            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n35297,2780,3,4237053,4237050,4237060,4237057\n",
+        ).unwrap();
+        std::fs::write(
+            dir.join("CreatureModelData.csv"),
+            "ID,FileDataID,ModelScale\n2780,4236958,1\n",
+        )
+        .unwrap();
+        let path = import_creature_display_cache(&dir).unwrap();
+        let conn = open_read_only(&path).unwrap();
+        let display = crate::creature_display_data::query_display(&conn, 35297)
+            .unwrap()
+            .unwrap();
+        assert_eq!(display.model_fdid, 4236958);
+        assert_eq!(display.scale_milli, 3000);
+        assert_eq!(
+            display.skin_fdids.as_slice(),
+            &[4237053, 4237050, 4237060, 4237057]
+        );
+        let preferred = crate::creature_display_data::query_preferred_skins(&conn, 4236958)
+            .unwrap()
+            .unwrap();
+        assert_eq!(preferred.as_slice(), &[4237053, 4237050, 4237060, 4237057]);
+        drop(conn);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn import_and_query_creature_display() {
         let dir =
             std::env::temp_dir().join(format!("creature-display-cache-{}", std::process::id()));
