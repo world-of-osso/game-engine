@@ -2,6 +2,8 @@ extends SceneTree
 
 # Requires GODOT_TEST_SERVER (private endpoint, never shared :5000),
 # GODOT_TEST_ACCOUNT, GODOT_TEST_PASSWORD and GODOT_TEST_SHOTS (output directory).
+# The selected character must stand in a zone whose parent is its continent (for
+# example Goldshire, Elwynn Forest), not a sub-map such as Northshire.
 # In-world World Map (docs/specs/world-map.md): M opens the
 # player's zone, right-click zooms out zone -> continent -> world, clicking the
 # player's spot zooms back in, the arrow sits at the player's map position and

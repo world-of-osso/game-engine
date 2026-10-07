@@ -22,8 +22,7 @@ func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 		fail("Automatic lighting duplicates authored Retail lighting")
 		return false
 	var terrain := client.get_node("WorldTerrain")
-	var first := terrain.get_child(0).get_child(0) as MeshInstance3D
-	var material := first.get_surface_override_material(0) as ShaderMaterial
+	var material := terrain_chunks(terrain.get_child(0))[0].get_surface_override_material(0) as ShaderMaterial
 	# Scene-lit materials read the scene light's global uniforms.
 	var scene: Dictionary = client.account_state().scene_light
 	var ambient: Vector3 = scene.ambient
@@ -42,3 +41,4 @@ func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 		fail("Native material has no authored linear fog range")
 		return false
 	return true
+

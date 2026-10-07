@@ -14,7 +14,7 @@ func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 	var terrain := client.get_node("WorldTerrain")
 	var holes := 0
 	for tile in terrain.get_children():
-		var chunk := tile.get_child(0) as MeshInstance3D
+		var chunk: MeshInstance3D = terrain_chunks(tile)[0]
 		var arrays := chunk.mesh.surface_get_arrays(0)
 		var positions: PackedVector3Array = arrays[Mesh.ARRAY_VERTEX]
 		var indices: PackedInt32Array = arrays[Mesh.ARRAY_INDEX]
