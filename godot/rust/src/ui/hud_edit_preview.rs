@@ -40,6 +40,7 @@ impl RegistryUi {
         let result = (|| {
             party_preview::load_data_root()?;
             ui_toolkit::atlas::set_thread_skin(skin);
+            super::hud_edit_layout::publish_editor_active(true);
             self.set_ui_scale(1.0)?;
             self.show_viewport_screen(
                 EditModeOverlayState::default(),
@@ -95,6 +96,11 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
     };
     use game_engine_ui_model::xp_bar_component::{XpBarState, xp_bar_screen};
     let mut shared = SharedContext::new();
+    shared.insert(
+        ctx.get::<game_engine_ui_model::hud_edit::EditModeActive>()
+            .copied()
+            .unwrap_or_default(),
+    );
     shared.insert(*ctx.get::<ActiveSkin>().expect("preview skin"));
     let target = UnitFrameState::named("Training Dummy");
     shared.insert(InWorldUnitFramesState {
