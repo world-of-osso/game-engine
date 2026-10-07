@@ -103,7 +103,9 @@ func check_case(model: Node3D, display: int, bindings: Array, oracle: String, ca
 		var uniform: String = ["base_texture", "second_texture", "third_texture", "fourth_texture"][binding.slot]
 		var texture := material.get_shader_parameter(uniform) as Texture2D if material != null else null
 		var expected := FileAccess.get_file_as_bytes("%s/%d-%d.rgba" % [oracle, display, kind])
-		var image := texture.get_image() if texture != null else null
+		var source_image := texture.get_image() if texture != null else null
+		# Dummy-renderer get_image can return the shared resource: decoding must not mutate it.
+		var image := source_image.duplicate() as Image if source_image != null else null
 		var upload_correct := true
 		if binding.upload != null:
 			var reference := check_upload_image(image, binding, oracle, display)
