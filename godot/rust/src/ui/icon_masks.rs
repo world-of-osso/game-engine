@@ -116,6 +116,8 @@ fn is_round_icon(name: &str) -> bool {
                 | "MailFramePortrait"
                 | "OpenMailFramePortrait"
                 | "FlightMapPortrait"
+                | "ProfessionsPortrait"
+                | "ProfessionsOutputIcon"
         );
     creation || bag || portrait
 }
