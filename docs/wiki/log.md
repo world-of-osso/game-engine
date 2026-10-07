@@ -2720,3 +2720,9 @@ Native SSAO follow-up: stable project prepass fixes cached depth-pipeline On→O
 ## 2026-10-07 — Remaining NPC texture consumers
 
 [Per-type world audit and proof](../specs/npc-appearance.md#remaining-type-world-audit-and-proof-2026-10-07) classifies all remaining types from raw local-CASC choices, read-only world spawn joins, M2 declarations and armor. Native creature catalog/binding now preserves the fourth variation; ordinary skins and a tabard-enabled display have exact material/enabled-batch proof. Dormant declarations stay N/A, not synthetic PASSes. Captures, negative baseline, strict encoded/decoded image oracle and teardown limits remain in the contract; [character rendering](systems/character-rendering.md#authored-npc-appearance) links that SSOT.
+
+## 2026-10-07 — Native HUD edit mode
+
+Documented native mover drafts, bounds-only position overrides, preset-preserving previews and pointer/relog fixture. Acceptance lives in hud-edit-mode.md and its evidence ledger.
+
+Native mover render diagnosis: correct selection art/geometry had zero opacity because the pinned rsx literal parser drops fractions. Numeric-expression opacity fixes the client within authorized paths; native opacity regression and shared offline/live capture helper documented.

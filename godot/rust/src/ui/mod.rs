@@ -11,6 +11,10 @@ mod dungeon_preview;
 mod flight_map_preview;
 mod forevergaps_preview;
 mod guild_preview;
+pub(crate) mod hud_edit_layout;
+mod hud_edit_preview;
+#[cfg(test)]
+mod hud_edit_tests;
 mod icon_masks;
 pub(crate) mod input_queue;
 mod launcher_preview;
@@ -220,6 +224,14 @@ impl RegistryModel {
     /// Mirror the active layout's settings, then its skin: a change of either rebuilds the
     /// Screens that read the HUD layout.
     fn sync(&mut self) {
+        let edit = game_engine_ui_model::hud_edit::EditModeActive(hud_edit_layout::editor_active());
+        if self
+            .shared
+            .get::<game_engine_ui_model::hud_edit::EditModeActive>()
+            != Some(&edit)
+        {
+            self.shared.insert(edit);
+        }
         let settings = game_engine_ui_model::hud_layout::active_layout_settings();
         if self.shared.get::<LayoutSettings>() != Some(&settings) {
             self.shared.insert(settings);

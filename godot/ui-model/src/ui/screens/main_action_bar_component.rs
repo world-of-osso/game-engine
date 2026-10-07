@@ -614,7 +614,17 @@ pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
     let style = bar_style(skin);
-    let hud = hud_layout(ctx);
+    let mut hud = hud_layout(ctx);
+    let edit_active = ctx
+        .get::<crate::hud_edit::EditModeActive>()
+        .is_some_and(|edit| edit.0);
+    if edit_active {
+        let mut preview = hud.main_action_bar;
+        preview.anchor.y += BUTTON_SIZE + BUTTON_PADDING;
+        hud.action_bar_2.get_or_insert(preview);
+        preview.anchor.y += BUTTON_SIZE + BUTTON_PADDING;
+        hud.action_bar_3.get_or_insert(preview);
+    }
     ActionBar::ALL
         .into_iter()
         .filter_map(|bar| Some((bar, bar.layout(&hud)?)))
