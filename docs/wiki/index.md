@@ -19,7 +19,7 @@ Single MainHand startup native `5a3ebf7b` and original15-second merchant regress
 
 Engine subsystems and how they work.
 
-- [boss-encounters](systems/boss-encounters.md) — native ordered encounter lifecycle, replicated clickable boss portraits and fading center warnings; bounded proof ledger.
+- [boss-encounters](systems/boss-encounters.md) — native ordered encounter lifecycle, replicated clickable compact boss frames, managed tracker placement and fading center warnings; bounded proof ledger.
 
 - [death-flow](systems/death-flow.md) — owner death snapshots, release/corpse/healer and resurrection-offer dialogs; stable viewer-relative taps and both-skin health greying.
 - [build-hosts](systems/build-hosts.md) — desktop SSH/WSL and local Docker build trial; saved selection, aggregate GC budget, cache boundaries, independently accepted bounded build/server/CPU/GPU-login capability.
