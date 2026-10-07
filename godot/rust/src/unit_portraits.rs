@@ -12,6 +12,7 @@ mod fixture;
 mod hud_fixture;
 mod npcportraits_preview;
 mod party;
+mod player_preview;
 
 use party::PartyPortraits;
 use std::fs;
