@@ -22,11 +22,39 @@ impl RegistryUi {
         let result = party_preview::load_data_root().and_then(|()| {
             set_thread_skin(skin);
             self.set_ui_scale(1.0)?;
-            self.show_professions(preview_view())?;
+            let view = preview_view();
+            cache_preview_art(&view)?;
+            self.show_professions(view)?;
             self.set_editbox_text("ProfessionsQuantity", "1")
         });
         GString::from(result.err().unwrap_or_default().as_str())
     }
+}
+
+fn cache_preview_art(view: &ProfessionView) -> Result<(), String> {
+    use godot::obj::Singleton;
+    let path = godot::classes::ProjectSettings::singleton().globalize_path("res://../data");
+    let root = std::path::PathBuf::from(path.to_string());
+    let resolver = crate::assets::creature::local_resolver(&root);
+    let fdids = crate::quests::screen_texture_fdids(
+        view.clone(),
+        game_engine_ui_model::professions_frame::professions_screen,
+    );
+    for fdid in fdids
+        .into_iter()
+        .chain(game_engine_ui_model::panel_style_data::metal_sheet_fdids(
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        ))
+        .chain([130924])
+    {
+        let path = root.join("textures").join(format!("{fdid}.blp"));
+        if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {
+            return Err(format!(
+                "Profession preview FDID {fdid} missing from local CASC"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn preview_view() -> ProfessionView {
