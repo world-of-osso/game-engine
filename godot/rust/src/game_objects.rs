@@ -1,5 +1,5 @@
-//! Real replicated mailbox, Guild Vault and chair M2s, resolved through build-pinned
-//! GameObjectDisplayInfo.
+//! Real replicated usable game-object M2s, including stones and ritual portals,
+//! resolved through build-pinned GameObjectDisplayInfo.
 use crate::{
     assets::{
         M2_BOUNDS_META, build_model,
@@ -94,7 +94,7 @@ impl GameObjects {
             light: None,
         }
     }
-    /// Whether `id` is a shown mailbox, Guild Vault or chair.
+    /// Whether `id` is a shown usable game object.
     pub fn contains(&self, id: u64) -> bool {
         self.objects.contains_key(&id)
     }
