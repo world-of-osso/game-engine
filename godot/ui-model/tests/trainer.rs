@@ -188,3 +188,81 @@ fn trainer_confirmation_cannot_buy_a_different_selection_or_closed_npc() {
     });
     assert!(book.error.is_empty());
 }
+
+fn trainer_render(
+    book: TrainerBook,
+    skin: ui_toolkit::atlas::ActiveSkin,
+) -> ui_toolkit::registry::FrameRegistry {
+    use game_engine_ui_model::trainer_frame::{TrainerView, trainer_screen};
+    use ui_toolkit::screen::{Screen, SharedContext};
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    ui_toolkit::atlas::set_thread_skin(skin);
+    let mut shared = SharedContext::new();
+    shared.insert(skin);
+    shared.insert(TrainerView {
+        book,
+        title: "Herbalist Pomeroy".into(),
+        display: TrainerDisplay {
+            names: [(100, "Herbalism".into())].into(),
+            ..Default::default()
+        },
+        ranks: vec![shared::profession::ProfessionSkillLine {
+            skill_line: 164,
+            step: 1,
+            rank: 50,
+            max_rank: 300,
+        }],
+    });
+    let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(trainer_screen).sync(&shared, &mut registry);
+    registry
+}
+fn trainer_label(registry: &ui_toolkit::registry::FrameRegistry, name: &str) -> String {
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
+    match frame.widget_data.as_ref().unwrap() {
+        ui_toolkit::frame::WidgetData::FontString(font) => font.text.clone(),
+        other => panic!("Expected trainer label, got {other:?}"),
+    }
+}
+#[test]
+fn trainer_native_screen_projects_money_ranks_filters_failure_and_confirmation_in_both_skins() {
+    use ui_toolkit::atlas::ActiveSkin;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut state = book();
+        state.filter_menu = true;
+        state.error = "You don't have enough money.".into();
+        let rendered = trainer_render(state.clone(), skin);
+        assert_eq!(
+            trainer_label(&rendered, "ClassTrainerMoneyFrame"),
+            "Money: 0g 50s 0c"
+        );
+        assert_eq!(
+            trainer_label(&rendered, "ClassTrainerStatusBarRankText"),
+            "50/300"
+        );
+        assert_eq!(
+            trainer_label(&rendered, "ClassTrainerError"),
+            "You don't have enough money."
+        );
+        assert!(rendered.get_by_name("ClassTrainerFilter0").is_some());
+        state.toggle_filter(TrainerServiceState::Available);
+        let filtered = trainer_render(state.clone(), skin);
+        assert!(filtered.get_by_name("ClassTrainerService100").is_none());
+        assert!(filtered.get_by_name("ClassTrainerService200").is_some());
+        state.toggle_filter(TrainerServiceState::Available);
+        state.select(100);
+        state.list.as_mut().unwrap().services[0].profession = true;
+        state.train();
+        let confirmed = trainer_render(state, skin);
+        assert_eq!(
+            trainer_label(&confirmed, "TrainerConfirmationText"),
+            "You may only know two professions at any one time. Would you like to learn Herbalism as your first one?"
+        );
+    }
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+}

@@ -9,6 +9,7 @@ pub struct TrainerBook {
     pub list: Option<TrainerList>,
     pub selected: Option<u32>,
     pub filters: [bool; 3],
+    pub filter_menu: bool,
     pub money: u64,
     pub primary_professions: usize,
     pub confirmation: Option<u32>,
@@ -21,6 +22,7 @@ impl Default for TrainerBook {
             list: None,
             selected: None,
             filters: [true; 3],
+            filter_menu: false,
             money: 0,
             primary_professions: 0,
             confirmation: None,
@@ -40,7 +42,7 @@ impl TrainerDisplay {
         self.names
             .get(&id)
             .cloned()
-            .unwrap_or_else(|| format!("Spell {id}"))
+            .unwrap_or_else(|| "Unknown".into())
     }
 }
 #[derive(Clone, Debug, PartialEq, Eq)]
@@ -72,6 +74,7 @@ impl TrainerBook {
     }
     pub fn close(&mut self) {
         self.list = None;
+        self.filter_menu = false;
         self.selected = None;
         self.confirmation = None;
         self.pending = false;

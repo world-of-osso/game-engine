@@ -18,6 +18,7 @@ pub struct TrainerView {
     pub book: TrainerBook,
     pub display: TrainerDisplay,
     pub title: String,
+    pub ranks: Vec<shared::profession::ProfessionSkillLine>,
 }
 
 fn text(name: &str, value: &str, rect: (f32, f32, f32, f32), color: &str) -> Element {
@@ -42,6 +43,7 @@ pub fn trainer_screen(ctx: &SharedContext) -> Element {
         GOLD,
     ));
     children.extend(filters(&view.book));
+    children.extend(rank_text(view));
     children.extend(service_list(ctx, view));
     children.extend(text(
         "ClassTrainerMoneyFrame",
@@ -63,12 +65,41 @@ pub fn trainer_screen(ctx: &SharedContext) -> Element {
 }
 
 fn filters(book: &TrainerBook) -> Element {
-    ["Available", "Unavailable", "Used"].into_iter().enumerate().flat_map(|(index, name)| {
-        let value = format!("{} {name}", if book.filters[index] { "[x]" } else { "[ ]" });
-        let action = format!("trainer:filter:{index}");
-        rsx! { button { name: {DynName(format!("ClassTrainerFilter{index}"))}, width: 120.0, height: 24.0,
-            left: {18.0 + index as f32 * 128.0}, top: 82.0, pos_type: "absolute", text: {value.as_str()}, onclick: {action.as_str()} } }
-    }).collect()
+    let mut elements = rsx! { button { name: "ClassTrainerFilterDropdown", width: 100.0, height: 24.0,
+    left: 300.0, top: 82.0, pos_type: "absolute", text: "Filter", onclick: "trainer:menu" } };
+    if book.filter_menu {
+        let choices: Element = ["Available", "Unavailable", "Used"].into_iter().enumerate().flat_map(|(index, name)| {
+            let value = format!("{} {name}", if book.filters[index] { "[x]" } else { "[ ]" });
+            let action = format!("trainer:filter:{index}");
+            rsx! { button { name: {DynName(format!("ClassTrainerFilter{index}"))}, width: 140.0, height: 24.0,
+                left: 0.0, top: {index as f32 * 24.0}, pos_type: "absolute", text: {value.as_str()}, onclick: {action.as_str()} } }
+        }).collect();
+        elements.extend(rsx! { r#frame { name: "ClassTrainerFilterMenu", width: 140.0, height: 72.0,
+            left: 260.0, top: 106.0, pos_type: "absolute", strata: FrameStrata::FullscreenDialog, {choices} } });
+    }
+    elements
+}
+
+fn rank_text(view: &TrainerView) -> Element {
+    let Some(list) = &view.book.list else {
+        return vec![];
+    };
+    let line = view.ranks.iter().find(|line| {
+        line.rank > 0
+            && list
+                .services
+                .iter()
+                .any(|service| service.req_skill_line == line.skill_line)
+    });
+    let Some(line) = line else {
+        return vec![];
+    };
+    text(
+        "ClassTrainerStatusBarRankText",
+        &format!("{}/{}", line.rank, line.max_rank),
+        (64.0, 82.0, 136.0, 18.0),
+        WHITE,
+    )
 }
 
 fn service_list(ctx: &SharedContext, view: &TrainerView) -> Element {
@@ -107,16 +138,18 @@ fn service_row(row: &TrainerRow, index: usize, view: &TrainerView) -> Element {
     };
     let selected = view.book.selected == Some(row.spell_id);
     let name = format!("{}{}", if selected { "> " } else { "" }, row.name);
-    let mut children = text(
+    let mut children = rsx! { texture { name: {DynName(format!("{prefix}Icon"))},
+    width: 36.0, height: 36.0, left: 6.0, top: 6.0, pos_type: "absolute", texture_fdid: row.icon } };
+    children.extend(text(
         &format!("{prefix}Name"),
         &name,
-        (4.0, 2.0, 350.0, 20.0),
+        (48.0, 2.0, 310.0, 20.0),
         color,
-    );
+    ));
     children.extend(text(
         &format!("{prefix}Requirements"),
         &row.requirements,
-        (4.0, 23.0, 350.0, 20.0),
+        (48.0, 23.0, 310.0, 20.0),
         WHITE,
     ));
     if state_index(row.state) != 2 {
@@ -128,7 +161,7 @@ fn service_row(row: &TrainerRow, index: usize, view: &TrainerView) -> Element {
         children.extend(text(
             &format!("{prefix}Cost"),
             &format!("Cost: {}", money(row.cost)),
-            (4.0, 43.0, 350.0, 20.0),
+            (48.0, 43.0, 310.0, 20.0),
             cost_color,
         ));
     }
@@ -142,8 +175,13 @@ fn confirmation(view: &TrainerView) -> Element {
     let Some(spell) = view.book.confirmation else {
         return vec![];
     };
+    let ordinal = if view.book.primary_professions == 0 {
+        "first"
+    } else {
+        "second"
+    };
     let message = format!(
-        "Learn {} as a primary profession?",
+        "You may only know two professions at any one time. Would you like to learn {} as your {ordinal} one?",
         view.display.spell_name(spell)
     );
     let mut children = window_chrome(
@@ -155,12 +193,12 @@ fn confirmation(view: &TrainerView) -> Element {
     children.extend(text(
         "TrainerConfirmationText",
         &message,
-        (18.0, 42.0, 350.0, 42.0),
+        (18.0, 42.0, 350.0, 60.0),
         GOLD,
     ));
     children.extend(rsx! {
         button { name: "TrainerConfirmAccept", width: 100.0, height: 24.0, left: 70.0, top: 108.0,
-            pos_type: "absolute", text: "Learn", onclick: "trainer:confirm" }
+            pos_type: "absolute", text: "Accept", onclick: "trainer:confirm" }
         button { name: "TrainerConfirmCancel", width: 100.0, height: 24.0, left: 220.0, top: 108.0,
             pos_type: "absolute", text: "Cancel", onclick: "trainer:cancel" }
     });
