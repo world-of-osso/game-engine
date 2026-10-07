@@ -1,6 +1,6 @@
 ## 2026-10-07 — Minimap member/target and service blips
 
-[Minimap](systems/minimap.md#member-target-and-service-tracking-blips) records GroupMemberStates outside replica interest, skin-specific edge clamping, native rotation sign, target overlays and supported NPC-service selection. [Contract](../specs/minimap.md) owns art citations, tests and pending private live proof. Herbs/Minerals/Humanoids have no sufficient spell-tracking feed; server/protocol unchanged.
+[Minimap](systems/minimap.md#member-target-and-service-tracking-blips) records GroupMemberStates outside replica interest, skin-specific edge clamping, native rotation sign, target overlays and supported NPC-service selection. [Contract](../specs/minimap.md#native-proof--2026-10-07) owns art citations, targeted RED/GREEN and inspected private two-client live proof: both skins, near/far/target/class colour, Forever north/header clearance and native service toggles. Four launches, live preset switch; exact-PID cleanup and free UDP5316 verified. Herbs/Minerals/Humanoids have no sufficient spell-tracking feed; server/protocol unchanged.
 
 ## 2026-10-07 — Restart-required native SSAO
 
