@@ -21,6 +21,8 @@ Single MainHand startup native `5a3ebf7b` and original15-second merchant regress
 
 Engine subsystems and how they work.
 
+- [meeting-stones](systems/meeting-stones.md) — native stone/ritual picking and shared summon popup lifecycle; contract owns current proof and gaps.
+
 - [boss-encounters](systems/boss-encounters.md) — native ordered encounter lifecycle, replicated clickable compact boss frames, managed tracker placement and fading center warnings; bounded proof ledger.
 
 - [death-flow](systems/death-flow.md) — owner death snapshots, release/corpse/healer and resurrection-offer dialogs; stable viewer-relative taps and both-skin health greying.

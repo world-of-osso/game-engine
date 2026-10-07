@@ -52,6 +52,7 @@ mod logout;
 mod loot;
 mod m2_debug;
 mod mail;
+mod meeting_stones;
 mod merchant;
 mod merchant_window;
 mod minimap;
@@ -290,6 +291,8 @@ pub struct GameClient {
     mailbox: mail::Mailbox,
     trade: trade::Trade,
     death_flow: game_engine_ui_model::death_flow::DeathFlow,
+    summon: game_engine_ui_model::summon::SummonPopup,
+    pending_summon: Option<(shared::protocol::SummonRequest, std::time::Duration)>,
     unit_menu: unit_menu::UnitMenu,
     banks: bank::Banks,
     guild_ranks: guild_ranks::GuildRanks,
@@ -416,6 +419,8 @@ impl INode3D for GameClient {
             mailbox: mail::Mailbox::default(),
             trade: trade::Trade::default(),
             death_flow: Default::default(),
+            summon: Default::default(),
+            pending_summon: None,
             unit_menu: unit_menu::UnitMenu::default(),
             banks: bank::Banks::default(),
             guild_ranks: guild_ranks::GuildRanks::default(),
@@ -1921,6 +1926,7 @@ impl GameClient {
             AccountEvent::Trade(update) => self.receive_trade(update)?,
             AccountEvent::Death(update) => self.receive_death(update)?,
             AccountEvent::Resurrection(offer) => self.death_flow.receive_offer(offer),
+            AccountEvent::Summon(request) => self.receive_summon(request),
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
             AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
@@ -2338,6 +2344,8 @@ impl GameClient {
         self.mailbox.reset();
         self.trade.reset();
         self.death_flow = Default::default();
+        self.summon = Default::default();
+        self.pending_summon = None;
         self.in_rest_area = false;
         self.rest = None;
         self.reputation = None;
