@@ -98,6 +98,16 @@ Retail source root: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 - **(d)** `Blizzard_Professions/Blizzard_ProfessionsRankBar.xml:5-61`, `.lua:103-136`, `Blizzard_ProfessionsCrafting.xml:199-202`.
 - **(e)** `Blizzard_Professions/Blizzard_ProfessionsFrame.xml:7-25`, `.lua:269-292` (tab gates), `Blizzard_ProfessionsCrafting.xml:136-150,205-224`, `.lua:344-351,912-941`; search: `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.xml:40-53`.
 
+### Retail presentation correction proof (2026-10-07)
+
+Source `8f34a0655`, directly above `41eba8ec3` on `professionsart`. Recipe labels and craftable counts use #e2dcd6 in selected and unselected rows; skill-up icons retain difficulty. Reagent text is adjacent "owned/needed Name", entirely #a0a0a0 while insufficient or white while sufficient; icon counts removed. Unlearned recipes and hover behavior remain unsupported, not newly implemented.
+
+Three targeted RED assertions reproduced the old presentation. Locked local helper `--test -p game-engine-godot -p game-engine-ui-model --no-fail-fast professions`: **12 passed**, exit 0 (`/tmp/claude/professionsart2.out`, detailed `/tmp/claude/professionsart2-green-details.out`). Both changed crates pass `cargo fmt --check`. Locked local `--cli` built/installed the extension and CLI, exit 0 (`/tmp/claude/professionsart2-build.out`); extension SHA-256 `5ed1161467a1d8754f82205f6b22d8064b83a9921e25563d3508ca2b2f733ded`. No broad-suite/CI or separate `cargo check` claim.
+
+Inspected canonical `data/professions-art-20261007b/modern.png` and `forever.png`: neutral recipe names including selected Brown Linen Robe, unchanged skill-up art, adjacent grey "2/3 Bolt of Linen Cloth" and white "4/1 Coarse Thread", no on-icon counts, unchanged rank/header/footer geometry. Existing offline preview APIs and `capture_ui_screen.gd` passed content/color/geometry assertions in both skins, both process exits 0; matching `.argv.json`, `.log` and `.exit` files preserve invocation/results.
+
+Private headless Weston/Dozen, no server. Wayland/Dozen capability and RID/ObjectDB shutdown diagnostics remain; Modern also logged a shader-cache-directory creation diagnostic during concurrent first startup. Not general renderer health or leak-free teardown proof. `agents-professionsart.slice` stopped and inactive; owned build/capture/compositor runner PIDs reaped. No merge/push, cache-policy changes, or data/UID/PLAN commits.
+
 ### Original native visual proof (2026-10-07; superseded presentation)
 
 The captures below preserve the original non-Retail difficulty-tinted labels and on-icon counts, not the corrected visual contract above.
