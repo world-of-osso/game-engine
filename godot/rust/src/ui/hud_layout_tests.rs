@@ -527,6 +527,53 @@ fn minimapgaps_forever_badge_preserves_approved_corner_placements() {
 }
 
 #[test]
+fn bosslayout_managed_tracker_clears_bosses_and_returns_for_both_skins() {
+    use game_engine_ui_model::objective_tracker_component::BossFrameCount;
+    let mut canvases = default_canvas_hud();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        sync(&mut canvases, skin);
+        let resting = rect(&canvases, TRACKER_FRAME);
+        for count in [0, 1, 3, 0] {
+            let mut units = unit_frames();
+            units.bosses = (0..count)
+                .map(|i| UnitFrameState::named(format!("Boss {i}")))
+                .collect();
+            for canvas in &mut canvases {
+                if canvas.shared.get::<InWorldUnitFramesState>().is_some() {
+                    canvas.shared.insert(units.clone());
+                }
+                if canvas.shared.get::<ObjectiveTrackerState>().is_some() {
+                    canvas.shared.insert(BossFrameCount(count));
+                }
+            }
+            sync(&mut canvases, skin);
+            let tracker = rect(&canvases, TRACKER_FRAME);
+            assert!((tracker.x + tracker.width - 1920.0).abs() < 0.001);
+            if count == 0 {
+                assert_eq!(tracker, resting, "{skin:?}: hidden bosses restore tracker");
+            }
+            let minimap = rect(&canvases, MINIMAP_CLUSTER);
+            assert!(!intersects(&tracker, &minimap));
+            let mut previous = None;
+            for i in 0..count {
+                let boss = rect(&canvases, &format!("Boss{}TargetFrame", i + 1));
+                assert_eq!((boss.width, boss.height), (133.0, 51.0));
+                assert!(!intersects(&boss, &minimap));
+                assert!(
+                    !intersects(&boss, &tracker),
+                    "{skin:?}: {boss:?} overlaps {tracker:?}"
+                );
+                assert!(tracker.y > boss.y + boss.height);
+                if let Some(last) = &previous {
+                    assert!(!intersects(last, &boss));
+                }
+                previous = Some(boss);
+            }
+        }
+    }
+}
+
+#[test]
 fn tracker_clears_minimap_on_default_1920x1080_canvas() {
     let mut canvases = default_canvas_hud();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

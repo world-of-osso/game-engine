@@ -19,6 +19,10 @@ use crate::ui::screens::quest_art::{
 };
 
 pub const TRACKER_FRAME: &str = "ObjectiveTrackerFrame";
+
+/// Visible encounter frames ahead of the tracker in the right-managed stack.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Default)]
+pub struct BossFrameCount(pub usize);
 /// `ObjectiveTrackerContainerTemplate` width.
 pub const TRACKER_W: f32 = 260.0;
 const CONTAINER_HEADER_H: f32 = 32.0;
@@ -189,9 +193,13 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
     }
     // `SetScale` also scales the frame's own `SetPoint` offsets.
     let anchor = hud_layout(ctx).objective_tracker;
+    let boss_count = ctx.get::<BossFrameCount>().copied().unwrap_or_default().0;
+    let resting_top = -anchor.y * scale;
+    let managed_top =
+        super::inworld_unit_frames_component::tracker_top_below_bosses(resting_top, boss_count);
     let at = HudAnchor {
         x: anchor.x * scale,
-        y: anchor.y * scale,
+        y: -managed_top,
         ..anchor
     }
     .place((TRACKER_W * scale, height * scale));

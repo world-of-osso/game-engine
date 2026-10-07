@@ -146,16 +146,20 @@ fn unit_frames(
 }
 
 #[test]
-fn bossframes_classification_portrait_is_drawn_for_engaged_elite() {
+fn bossframes_engaged_elite_keeps_compact_portraitless_art() {
     let registry = unit_frames(
         ActiveSkin::Modern,
         CreatureClassification::Elite,
         PowerType::Mana,
     );
-    let id = registry
-        .get_by_name("Boss1BossPortraitFrameTexture")
-        .expect("engaged boss must draw its classification portrait");
+    let id = registry.get_by_name("Boss1TargetFrame").unwrap();
     assert!(!registry.get(id).unwrap().hidden);
+    assert!(registry.get_by_name("Boss1Portrait").is_none());
+    assert!(
+        registry
+            .get_by_name("Boss1BossPortraitFrameTexture")
+            .is_none()
+    );
 }
 
 fn party_member(role: GroupRoleSnapshot, ready: ReadyMark) -> FrameRegistry {
@@ -219,8 +223,8 @@ const POWERS: [PowerType; 10] = [
     PowerType::Pain,
 ];
 
-/// Every Modern part resolves to art; target of target and focus share portrait-off art;
-/// encounter portraits use target art; a bar draws its power type's art whichever frame it is on; elite
+/// Every Modern part resolves to art; target of target, focus and bosses share portrait-off
+/// art; a bar draws its power type's art whichever frame it is on; elite
 /// and rare-elite dragons differ.
 #[test]
 fn modern_unit_frames_resolve_and_share_art_by_role() {
@@ -232,6 +236,8 @@ fn modern_unit_frames_resolve_and_share_art_by_role() {
     }
     for (a, b) in [
         ("TargetOfTargetFrameArt", "FocusFrameArt"),
+        ("FocusFrameArt", "Boss1TargetFrameArt"),
+        ("FocusHealthBarFill", "Boss1HealthBarFill"),
         ("TargetReputationColor", "FocusReputationColor"),
         ("TargetReputationColor", "Boss1ReputationColor"),
         ("TargetOfTargetHealthBarFill", "FocusHealthBarFill"),
@@ -239,8 +245,6 @@ fn modern_unit_frames_resolve_and_share_art_by_role() {
         assert_eq!(crop(a), crop(b), "{a} and {b}");
     }
     assert_eq!(crop("PlayerHealthBarFill"), crop("FocusHealthBarFill"));
-    assert_eq!(crop("TargetFrameArt"), crop("Boss1TargetFrameArt"));
-    assert_eq!(crop("TargetHealthBarFill"), crop("Boss1HealthBarFill"));
     // The boss and the player both have mana; the target has rage.
     assert_eq!(crop("Boss1ManaBarFill"), crop("PlayerManaBarFill"));
     let raging = unit_frames(skin, CreatureClassification::Elite, PowerType::Rage);
@@ -313,9 +317,9 @@ fn modern_party_frames_draw_an_icon_per_role_and_ready_mark() {
 
 /// Under Forever the player, target, target-of-target, focus and pet frames take FlareUI's
 /// shape (`forever_flare_frames.rs`) and draw no portrait art; boss frames keep the
-/// target portrait art, resolved under the active skin.
+/// compact portrait-off art.
 #[test]
-fn bossframes_portrait_art_resolves_under_both_skins_and_flare_roots_keep_their_shape() {
+fn bossframes_compact_art_resolves_under_both_skins_and_flare_roots_keep_their_shape() {
     let forever = unit_frames(
         ActiveSkin::Forever,
         CreatureClassification::Elite,
@@ -328,19 +332,13 @@ fn bossframes_portrait_art_resolves_under_both_skins_and_flare_roots_keep_their_
     );
     for name in MODERN_FRAME_PARTS {
         if name.starts_with("Boss1") {
-            drawn_crop(&forever, name, ActiveSkin::Forever);
-            drawn_crop(&modern, name, ActiveSkin::Modern);
+            assert_eq!(
+                drawn_crop(&forever, name, ActiveSkin::Forever),
+                drawn_crop(&modern, name, ActiveSkin::Modern),
+                "{name}"
+            );
         }
     }
-    // Concrete committed atlas members: portrait-on art follows the active skin.
-    assert_eq!(
-        drawn_crop(&modern, "Boss1TargetFrameArt", ActiveSkin::Modern).0,
-        AtlasSource::FileDataId(4_631_591)
-    );
-    assert_eq!(
-        drawn_crop(&forever, "Boss1TargetFrameArt", ActiveSkin::Forever).0,
-        AtlasSource::FileDataId(8_036_204)
-    );
     for name in [
         "PlayerFrameArt",
         "TargetFrameArt",
