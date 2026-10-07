@@ -65,6 +65,7 @@ func run() -> void:
 	await click("ConnectButton")
 	var status := client.find_child("LoginStatus", true, false) as Label
 	assert(status.text == "Please fill in all fields")
+	assert(not client.account_state().connected and not client.account_state().reply_received, "Invalid form started account transport")
 	await click("UsernameInput")
 	await type_text(account)
 	await click("PasswordInput")
