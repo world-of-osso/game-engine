@@ -3,7 +3,6 @@ extends SceneTree
 ## Real native input and replicated removal on a private server only.
 ## GODOT_TEST_SERVER, AURA_ACCOUNT, AURA_CHARACTER, AURA_SHOTS are required.
 const SPELL := 1459
-const BAR_KEYS := [KEY_1, KEY_2, KEY_3, KEY_4, KEY_5, KEY_6, KEY_7, KEY_8, KEY_9, KEY_0, KEY_MINUS, KEY_EQUAL]
 var client: Node
 var shots: String
 
@@ -39,12 +38,12 @@ func run_test() -> void:
 		return
 	if not await wait_until(func(): return client.spells_state().catalog_ready and client.spells_state().known.has(SPELL), 60000, "Arcane Intellect catalog"):
 		return
-	await frames(60)
-	var slot: int = client.spells_state().bar.find(SPELL)
-	if slot < 0:
-		fail("Arcane Intellect missing from bar " + str(client.spells_state()))
+	# Current default mage bar does not include this known self-buff. Use the existing
+	# normal cast boundary, not a preview aura or a local optimistic insertion.
+	error = client.use_spell(SPELL)
+	if not error.is_empty():
+		fail("Arcane Intellect cast: " + error)
 		return
-	await press(BAR_KEYS[slot])
 	if not await wait_until(func(): return buff() != null, 10000, "replicated self buff"):
 		return
 	var entry: Dictionary = buff()
@@ -103,15 +102,6 @@ func wait_until(predicate: Callable, timeout_ms: int, what: String) -> bool:
 			return true
 	fail("Timed out " + what + ": " + str(client.account_state()))
 	return false
-
-func press(key: Key) -> void:
-	for down in [true, false]:
-		var event := InputEventKey.new()
-		event.keycode = key
-		event.physical_keycode = key
-		event.pressed = down
-		root.push_input(event, true)
-		await frames(2)
 
 func move_mouse(point: Vector2) -> void:
 	var motion := InputEventMouseMotion.new()
