@@ -1,6 +1,7 @@
 //! Retail FlightMapFrame, with the world map's tiled canvas and flight-path overlays.
 use crate::flight_map::{CLOSE_ACTION, DESTINATION_ACTION, FlightPin, FlightProjection};
 use crate::ui::screens::quest_art::{DynName, named_atlas_texture, portrait_border};
+use crate::ui::strata::FrameStrata;
 use crate::world_map_frame_component::{WorldMapFrameState, canvas::canvas_contents};
 use shared::protocol::TaxiNodeState;
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
@@ -100,6 +101,7 @@ fn pin_tooltip(pin: &FlightPin) -> Element {
     rsx! {
         r#frame {
             name: "FlightMapTooltip", width: 280.0, height: 52.0,
+            strata: FrameStrata::Tooltip,
             pos_type: "absolute", left, top, background_color: "0.0,0.0,0.0,0.95",
             fontstring {
                 name: "FlightMapTooltipText", text: {text.as_str()},
