@@ -196,6 +196,51 @@ fn login_failure_preserves_roster_and_token_but_requests_reset_and_login() {
 }
 
 #[test]
+fn registration_validation_requires_both_fields() {
+    for (username, password) in [
+        ("", "fbtest"),
+        ("  ", "fbtest"),
+        ("fb_regtest1", ""),
+        ("fb_regtest1", " \t"),
+    ] {
+        assert_eq!(
+            game_engine_session::validate_registration(username, password),
+            Err("Please fill in all fields")
+        );
+    }
+    assert_eq!(
+        game_engine_session::validate_registration("fb_regtest1", "fbtest"),
+        Ok(())
+    );
+}
+
+#[test]
+fn registration_pending_approval_never_authenticates_or_persists_a_token() {
+    for success in [false, true] {
+        let mut session = Session::default();
+        let effects = session.receive_registration(RegisterResponse {
+            success,
+            token: "must-not-be-saved".into(),
+            pending_approval: true,
+            error: None,
+        });
+        assert_eq!(session.screen, SessionScreen::Login);
+        assert_eq!(session.token, None);
+        assert_eq!(
+            session.feedback.as_deref(),
+            Some(
+                "Registration submitted. Pending administrator approval. Return to Login after approval."
+            )
+        );
+        assert!(
+            !effects
+                .iter()
+                .any(|effect| matches!(effect, SessionEffect::PersistToken(_)))
+        );
+    }
+}
+
+#[test]
 fn registration_success_clears_roster_and_failure_surfaces_raw_error() {
     let mut session = Session::default();
     session.receive_login(
@@ -217,7 +262,7 @@ fn registration_success_clears_roster_and_failure_surfaces_raw_error() {
     let effects = session.receive_registration(RegisterResponse {
         success: false,
         token: "ignored".into(),
-        pending_approval: true,
+        pending_approval: false,
         error: Some("pending admin approval".into()),
     });
     assert_eq!(session.feedback.as_deref(), Some("pending admin approval"));
@@ -228,6 +273,43 @@ fn registration_success_clears_roster_and_failure_surfaces_raw_error() {
             .iter()
             .any(|effect| matches!(effect, SessionEffect::PersistToken(_)))
     );
+}
+
+#[test]
+fn registration_refusal_without_error_has_visible_feedback() {
+    let mut session = Session::default();
+    session.receive_registration(RegisterResponse {
+        success: false,
+        token: String::new(),
+        pending_approval: false,
+        error: None,
+    });
+    assert_eq!(session.screen, SessionScreen::Login);
+    assert_eq!(session.feedback.as_deref(), Some("Registration failed."));
+    assert!(session.token.is_none());
+}
+
+#[test]
+fn registration_pending_then_approved_password_login_reaches_character_select() {
+    let mut session = Session::default();
+    session.receive_registration(RegisterResponse {
+        success: false,
+        token: String::new(),
+        pending_approval: true,
+        error: None,
+    });
+    let AuthRequest::Login(request) = session.auth_request("fb_regtest1", "fbtest", false) else {
+        panic!("password login")
+    };
+    assert_eq!(request.token, None);
+    assert_eq!(
+        (request.username.as_str(), request.password.as_str()),
+        ("fb_regtest1", "fbtest")
+    );
+    session.receive_login(success(Vec::new()), SessionOptions::default());
+    assert_eq!(session.screen, SessionScreen::CharacterSelect);
+    assert_eq!(session.feedback, None);
+    assert!(session.token.is_some());
 }
 
 #[test]
