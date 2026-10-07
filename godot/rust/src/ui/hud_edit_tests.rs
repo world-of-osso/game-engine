@@ -146,6 +146,10 @@ fn hudeditmode_save_round_trip_layout_settings_characters_rename_delete() {
 
 #[test]
 fn hudeditmode_both_skins_reset_scale_and_unmoved_authored_defaults() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         ui_toolkit::atlas::set_thread_skin(skin);
         let mut shared = SharedContext::new();
