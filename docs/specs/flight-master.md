@@ -13,9 +13,10 @@ Retail references under cached `retail/AddOns/`:
 ## What it must do
 
 - [x] Talking to a flight master opens its continent map from the server's `TaxiMap` (after selecting its ride gossip option where offered).
+- [x] Fill the portrait ring with Retail's authored `Interface/Icons/icon_petfamily_flying` (FDID 618976), rounded by the existing window portrait mask (`Blizzard_FlightMap.lua:12-18`), not the interacting NPC's face.
 - [x] Draw current and reachable taxi nodes projected through the shared world-map catalog; mark current node green. Do not draw undiscovered nodes.
 - [x] Draw deduplicated first-hop routes from current node; hovering a reachable destination shows its full route.
-- [x] Hover shows destination name and copper cost expressed as gold/silver/copper, or “You are here” for current node.
+- [x] Hover shows destination name and the existing SmallMoneyFrame amount/coin pairs (white amounts, gold/silver/copper icons; omit zero denominations except 0 copper for a free route), or “You are here” for current node. Never spell costs as `0g 0s 5c`.
 - [x] Clicking a reachable destination emits exactly `ActivateTaxi { npc, destination }` and closes the frame. Current/unknown/unreachable nodes cannot activate.
 - [ ] Close button/Escape send `CloseInteraction`; server interaction closure closes matching frame. Leaving InWorld disposes it.
 - [x] Server refusals show their UI error text.
@@ -42,17 +43,23 @@ Retail references under cached `retail/AddOns/`:
 ## Tests asserting this spec
 
 - `godot/ui-model/src/flight_map.rs`: concrete Stormwind/Sentinel Hill projection, multi-hop routes, tooltip cost, exact click request and close-on-activation, rejected destinations.
+- `godot/ui-model/tests/capturepolish.rs`: 5 copper, 1 gold/23 silver/45 copper and free routes project native coin textures and amounts; current node has no money row.
+- `godot/ui-model/tests/npcportraits.rs` and native `ui::icon_masks` regression: authored flying icon in both skins, transparent corners and nonblack retained art.
 - `godot/tests/flight_map_live.gd`: real NPC pick → native map → hover → native click → closed map/replicated controlled flight and position advance on private server.
 
 ## Known gaps (current cycle)
 
-Bounded native proof at `5e5ec97b`: four targeted Rust tests pass (projection/request/closure/refusal); unchanged pure-test scope from `adcf3e55`, final native extension/CLI build and format check pass. Private Stormwind → Sentinel Hill live fixture exits 0 with visible native tooltip “Sentinel Hill, Westfall / 0g 0s 5c”, closed map and controlled server position advance. All three captures inspected under canonical `data/diagnostics/flightmap-20261007/shots-accepted/`; commands, failures, revisions and cleanup in that run's `proof-ledger.txt`. Four rendered launches total.
+Historical pre-polish bounded native proof at `5e5ec97b`: four targeted Rust tests pass (projection/request/closure/refusal); unchanged pure-test scope from `adcf3e55`, final native extension/CLI build and format check pass. Private Stormwind → Sentinel Hill live fixture exits 0 with visible native tooltip “Sentinel Hill, Westfall / 0g 0s 5c”, closed map and controlled server position advance. All three captures inspected under canonical `data/diagnostics/flightmap-20261007/shots-accepted/`; commands, failures, revisions and cleanup in that run's `proof-ledger.txt`. Four rendered launches total.
 
 Full Retail visual parity and broad lifecycle/other-continent proof are not claimed. Unchanged mount renderer rejects taxi mount display 6852 as outside imported appearance coverage; movement is proven, mount visuals are not. Editor import finished but exited 134 at shutdown; rendered client exits 0 with RID/ObjectDB/paged-allocator resource errors. These are retained boundaries, not clean-resource/general-shutdown acceptance.
 
+## Capture-polish proof (2026-10-07)
+
+Portrait art `f5d63dea` plus quest-window mask wiring `8949b789`; money rendering `eb75d925` / `5c7fc842`. Targeted source/mask/money regressions pass. Offline `capturepolish_screens.gd` verifies transparent portrait corners, nonblack authored art, amount `5` and visible copper-coin pixels. Inspected `data/diagnostics/capturepolish-20261007/shots/flight_map_preview.png`; this is chrome/tooltip proof, not tiled-map or live-flight acceptance. Commands and failures remain in that run's `proof-ledger.txt`.
+
 ## Out of scope
 
-Zoom/pan, portrait masking, texture-kit/special pins, reveal animations, early landing and rotated line textures. Routes use dots, as the retired client did; not full Retail visual parity. Missing local-CASC continent tiles remain undrawn and counted. Rider-on-mount rendering and zone-loading transitions remain existing client behavior.
+Zoom/pan, texture-kit/special pins, reveal animations, early landing and rotated line textures. Routes use dots, as the retired client did; not full Retail visual parity. Missing local-CASC continent tiles remain undrawn and counted. Rider-on-mount rendering and zone-loading transitions remain existing client behavior.
 
 ## Historical evidence
 

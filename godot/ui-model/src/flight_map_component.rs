@@ -1,6 +1,9 @@
 //! Retail FlightMapFrame, with the world map's tiled canvas and flight-path overlays.
 use crate::flight_map::{CLOSE_ACTION, DESTINATION_ACTION, FlightPin, FlightProjection};
-use crate::ui::screens::quest_art::{DynName, named_atlas_texture, portrait_border};
+use crate::ui::screens::merchant_frame_component::{MoneyAlign, money};
+use crate::ui::screens::quest_art::{
+    DynName, named_atlas_texture, portrait_border, window_portrait_slot, window_portrait_texture,
+};
 use crate::ui::strata::FrameStrata;
 use crate::world_map_frame_component::{WorldMapFrameState, canvas::canvas_contents};
 use shared::protocol::TaxiNodeState;
@@ -28,6 +31,8 @@ pub fn flight_map_screen(ctx: &SharedContext) -> Element {
     let [left, top] = frame_origin(view.map.viewport);
     let [width, height] = FRAME_SIZE;
     let canvas = flight_canvas(view);
+    // Blizzard_FlightMap.lua:12-18: SetPortraitToAsset(icon_petfamily_flying).
+    let portrait = window_portrait_texture(&window_portrait_slot("FlightMapPortrait"), 618_976);
     let border = portrait_border(
         "FlightMapFrame",
         (width, height),
@@ -43,6 +48,7 @@ pub fn flight_map_screen(ctx: &SharedContext) -> Element {
                 background_color: "0.0,0.0,0.0,1.0",
                 {canvas}
                 {border}
+                {portrait}
             }
         }
     }
@@ -98,6 +104,17 @@ fn pin_tooltip(pin: &FlightPin) -> Element {
     let left = (pin.uv[0] * w + pin.size() / 2.0).min(w - 280.0);
     let top = (pin.uv[1] * h - pin.size() / 2.0 - 52.0).max(0.0);
     let text = pin.tooltip();
+    let cost = if pin.state == TaxiNodeState::Reachable {
+        money(
+            "FlightMapTooltipMoney",
+            pin.cost,
+            (4.0, 44.0),
+            MoneyAlign::Left,
+            false,
+        )
+    } else {
+        Vec::new()
+    };
     rsx! {
         r#frame {
             name: "FlightMapTooltip", width: 280.0, height: 52.0,
@@ -106,8 +123,9 @@ fn pin_tooltip(pin: &FlightPin) -> Element {
             fontstring {
                 name: "FlightMapTooltipText", text: {text.as_str()},
                 font_size: 12.0, font_color: "1.0,0.82,0.0,1.0", justify_h: "LEFT",
-                width: 272.0, height: 48.0, pos_type: "absolute", left: 4.0, top: 2.0,
+                width: 272.0, height: 28.0, pos_type: "absolute", left: 4.0, top: 2.0,
             }
+            {cost}
         }
     }
 }

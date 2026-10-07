@@ -225,7 +225,8 @@ pub fn aura_tooltip(aura: &AuraInstance) -> GameTooltip {
             lines,
             ..TooltipPresentation::hidden()
         },
-        Some(TooltipRecord::Spell(aura.spell_id)),
+        // Retail aura tooltips omit record IDs; other spell sources retain the addon-style ID.
+        None,
     )
 }
 
@@ -469,12 +470,29 @@ mod tests {
     }
 
     #[test]
+    fn capturepolish_aura_tooltip_omits_spell_id_after_placement() {
+        super::super::set_test_data_root();
+        let tooltip = aura_tooltip(&arcane_intellect(3_542.0));
+        let placed = super::super::place(
+            tooltip,
+            super::super::TooltipScreen {
+                size: [1920.0, 1080.0],
+                cursor: [0.0, 0.0],
+            },
+        );
+        assert_eq!(placed.title, "Arcane Intellect");
+        assert_eq!(placed.lines.len(), 2);
+        assert_eq!(placed.lines[0].left_text, "Intellect increased by 5%.");
+        assert_eq!(placed.lines[1].left_text, "60 minutes remaining");
+    }
+
+    #[test]
     fn auras_show_their_description_and_the_time_remaining_counting_down() {
         super::super::set_test_data_root();
         let tooltip = aura_tooltip(&arcane_intellect(3_542.0));
         assert_eq!(tooltip.content.title, "Arcane Intellect");
         assert_eq!(tooltip.content.title_color, TOOLTIP_WHITE);
-        assert_eq!(tooltip.record, Some(TooltipRecord::Spell(1459)));
+        assert_eq!(tooltip.record, None);
         assert_eq!(
             rows(&tooltip),
             [
