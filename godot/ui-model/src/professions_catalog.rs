@@ -92,9 +92,11 @@ fn load_reagents(dir: &Path) -> Result<BTreeMap<u32, Vec<(u32, u32)>>, String> {
             let item = row[index + 1]
                 .parse::<i64>()
                 .map_err(|error| format!("SpellReagents item: {error}"))?;
-            let count = number(row[index + 9])?;
+            let count = row[index + 9]
+                .parse::<i64>()
+                .map_err(|error| format!("SpellReagents count: {error}"))?;
             if item > 0 && count > 0 {
-                *items.entry(item as u32).or_default() += count;
+                *items.entry(item as u32).or_default() += count as u32;
             }
         }
         reagents.insert(number(row[0])?, items.into_iter().collect());
