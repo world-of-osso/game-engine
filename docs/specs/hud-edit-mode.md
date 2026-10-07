@@ -7,6 +7,19 @@ Edit Mode" and open decision 1 (layouts account-wide, active layout per characte
 [in-game UI plan](../plans/2026-09-23-ingame-ui.md). Window movement is separate:
 [window manager](window-manager.md).
 
+## Native implementation (2026-10-07)
+
+- [x] F10 toggles the world-only editor; Escape after popup dismissal exits before window handling. Exit discards unsaved drafts; Save precedes exit for persistence.
+- [x] Mounted, visible registered roots receive labelled selection art, selected art and real pointer dragging. Absent/hidden roots are skipped.
+- [x] Dragged top-left snaps to the 8-unit grid, then screen edges within 8 units, then clamps. Saved anchors/offsets are logical UI units.
+- [x] Existing account layouts and per-character active layout carry mover placements alongside skin/settings; presets remain immutable. Manager supports previous/next, New, Rename, Delete, Revert, Save, Exit and Reset Selected (remove placement; Save persists reset).
+- [x] Projection starts from authored rectangles on every sync and translates descendants without mutating authored anchors. Removing offsets restores current preset geometry; UI-scale changes recompute bounds.
+- [x] Modern/Forever share the mover registry and manager. Compact party defaults, Options > HUD Layout party settings, tracker and chat defaults remain unchanged.
+- [ ] Targeted behavioral tests pass (enter/exit, drag, clamp/snap, saved round-trip, reset, scale and unchanged defaults).
+- [ ] Both offline captures inspected; private UDP 5322 live mouse drag of two frames, Save, Escape and relog persistence inspected; owned runtime cleaned up.
+
+Code: `godot/rust/src/hud_edit.rs`, `godot/rust/src/ui/hud_edit_layout.rs`, `godot/rust/src/ui/hud_edit_preview.rs`, `godot/ui-model/src/hud_edit*.rs`, `godot/core/src/ui_layout_data/edit_layouts.rs`. The inventory below is historical Bevy implementation.
+
 ## What it must do
 
 - [x] F10 toggles edit mode (World input mode only). Escape exits it, as a step after "close the top popup" and before "close all windows".

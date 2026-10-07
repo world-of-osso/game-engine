@@ -263,6 +263,9 @@ pub mod quest_scroll;
 pub mod quest_view;
 
 // Minimap cluster and objective tracker (docs/specs/minimap.md, quest-ui.md).
+pub mod hud_edit;
+pub mod hud_edit_component;
+pub mod hud_edit_elements;
 pub mod minimap;
 #[path = "ui/screens/objective_tracker_component.rs"]
 pub mod objective_tracker_component;

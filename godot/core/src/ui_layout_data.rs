@@ -1,4 +1,6 @@
 //! Canonical UI layout file operation shared with the legacy client schema.
+mod edit_layouts;
+pub use edit_layouts::{create_layout, delete_layout, rename_layout, save_layout_elements};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, path::Path};
 
@@ -190,11 +192,12 @@ pub const SYSTEM_PRESETS: [(&str, LayoutSkin); 2] = [
     ("Forever", LayoutSkin::Forever),
 ];
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct ActiveLayout {
     pub name: String,
     pub skin: LayoutSkin,
     pub settings: LayoutSettings,
+    pub elements: BTreeMap<String, SavedElement>,
 }
 
 /// The Modern preset: the layout of a character that never chose one.
@@ -205,18 +208,19 @@ impl Default for ActiveLayout {
             name: name.to_string(),
             skin,
             settings: LayoutSettings::default(),
+            elements: BTreeMap::new(),
         }
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct SavedElement {
-    anchor: HudAnchor,
-    offset: [f32; 2],
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
+pub struct SavedElement {
+    pub anchor: HudAnchor,
+    pub offset: [f32; 2],
 }
 
-#[derive(Serialize, Deserialize)]
-enum HudAnchor {
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+pub enum HudAnchor {
     TopLeft,
     Top,
     TopRight,
@@ -281,6 +285,12 @@ fn layout_named(file: &LayoutFile, name: &str) -> Result<ActiveLayout, String> {
         name: name.to_string(),
         skin,
         settings,
+        elements: file
+            .edit_mode
+            .layouts
+            .get(name)
+            .map(|layout| layout.elements.clone())
+            .unwrap_or_default(),
     })
 }
 
@@ -346,6 +356,7 @@ pub fn save_layout_settings(
     let layout = file.edit_mode.layouts.entry(name.clone()).or_default();
     layout.skin = active.skin;
     layout.settings = settings;
+    let elements = layout.elements.clone();
     file.edit_mode
         .active_layout
         .insert(character_id.to_string(), name.clone());
@@ -354,6 +365,7 @@ pub fn save_layout_settings(
         name,
         skin: active.skin,
         settings,
+        elements,
     })
 }
 

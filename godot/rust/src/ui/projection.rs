@@ -231,7 +231,8 @@ impl UiProjection {
         let intrinsics = self.measure_intrinsics(registry)?;
         drop(span);
         let span = crate::profile::span(|| "projection.layout".to_owned());
-        let bounds = layout::compute_layout_with_intrinsics(registry, &intrinsics)?;
+        let mut bounds = layout::compute_layout_with_intrinsics(registry, &intrinsics)?;
+        super::hud_edit_layout::apply_active_placements(registry, &mut bounds);
         drop(span);
         let created = std::cell::Cell::new(0);
         let nodes_span =

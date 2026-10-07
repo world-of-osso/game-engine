@@ -11,6 +11,10 @@ mod dungeon_preview;
 mod flight_map_preview;
 mod forevergaps_preview;
 mod guild_preview;
+pub(crate) mod hud_edit_layout;
+mod hud_edit_preview;
+#[cfg(test)]
+mod hud_edit_tests;
 mod icon_masks;
 pub(crate) mod input_queue;
 mod launcher_preview;
