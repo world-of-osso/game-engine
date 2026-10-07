@@ -1,7 +1,7 @@
 //! Retail DB2 recipe metadata. Names/icons are resolved by the existing spell/item catalogs.
 use crate::csv_records::CsvTable;
 use crate::professions::Recipe;
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
 #[derive(Debug, Default)]
@@ -9,6 +9,7 @@ pub struct RecipeCatalog {
     pub recipes: Vec<Recipe>,
     pub skill_names: BTreeMap<u32, String>,
     pub openers: BTreeMap<u32, u32>,
+    pub primary_skills: BTreeSet<u32>,
 }
 
 impl RecipeCatalog {
@@ -17,10 +18,19 @@ impl RecipeCatalog {
         read_rows(
             dir,
             "SkillLine",
-            &["ID", "DisplayName_lang", "SpellBookSpellID"],
+            &[
+                "ID",
+                "DisplayName_lang",
+                "SpellBookSpellID",
+                "CategoryID",
+                "ParentSkillLineID",
+            ],
             |row| {
                 let skill = number(row[0])?;
                 catalog.skill_names.insert(skill, row[1].into());
+                if number(row[3])? == 11 && number(row[4])? == 0 {
+                    catalog.primary_skills.insert(skill);
+                }
                 let opener = number(row[2])?;
                 if opener != 0 {
                     catalog.openers.insert(opener, skill);
