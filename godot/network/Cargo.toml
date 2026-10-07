@@ -21,6 +21,8 @@ quick-js = "0.4"
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 
 [dev-dependencies]
+# Real NPC fixture oracle: DB2 selection, compositor and authored M2 texture slots.
+game-engine-core = { path = "../core" }
 # Fixture SQL setup and WAL-safe snapshots without a host sqlite3 executable.
 rusqlite = { version = "0.35", features = ["bundled", "backup"] }
 # Fixtures kill their owned client process group (kill(-pgid)) and set PR_SET_PDEATHSIG.
