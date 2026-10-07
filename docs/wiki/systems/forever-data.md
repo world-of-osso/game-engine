@@ -249,7 +249,21 @@ Fixture `be3f7b35`, extension source `7c94437a62530a8e016aa9169318058fc6cafae9`,
 
 Main visually inspected leafy bronze shoulders. Solid lavender cape and elevated neighboring NPC remain unrelated gaps, not full appearance/parity acceptance. Status retains11 out-of-coverage runtime errors; the inspected race95 log ends at the untested marker without an ObjectDB warning, but does not establish warning-free full shutdown. Any late ObjectDB warning in a full log remains a gap. Launch exit0 is not native OS-exit proof (not captured). Saved cleanup reports inactive/MainPID0, UDP15002 free and owned cage/native processes stopped. Original character30 retains40XP and empty92460 log/watch/tracker; no quest accepted/rewarded or storage reset. Original70205 catalogs remain unchanged; the12 authorized local70235 assets were already byte-identical. Ailee's historical material1102747 RED is scoped by the [baked-path correction](#ailee-baked-material-applicability--bounded-correction-2026-10-07); current Ailee native acceptance and race96 original-quest gaps remain; independent visual content, native OS-exit and full gameplay/parity remain unproved.
 
+## Desktop handoff checkpoint (2026-10-07)
+
+Owned packet on OssoBuild: `/home/osso-test/Projects/world-of-osso/game-engine/data/skyborn-handoff/2026-10-07-c1cdf6e`. [Independent data proof](../../../target/skyborn-source-items/remote-handoff/independent-proof/report.md) passed 2,186 payload hashes (2,439,541,953 bytes), all2,163 unique declared Godot inputs, current Forever catalog, seven cache integrity checks and read-only world integrity/counts1229/30/30/30. No redb included. Observed osso-5000 remained active, PID1053927, cwd `/home/osso-test/data/osso-5000`; not continuous-state or live-DB byte proof.
+
+README-only correction followed that proof. [Metadata refresh](../../../target/skyborn-source-items/remote-handoff/metadata-refresh.json) records manifest `5fe64e799431b22cdd11abc7a9e4cc67c47365edb277e8beb37306faca549201`; fresh remote metadata-hash confirmation remains pending, not a reason to repeat payload hashing. Saved merge `origin/skyborn-master-merge`/`ac8` is historical: independently observed hudfixes worktree was `hudeditmode`/`6f989080`, not current ac8. Remote protocol759 differs from producing510; no pin change or compatibility claim.
+
+[Server motion checkpoint](../../../../game-server-skyborn/docs/wiki/systems/skyborne.md#reported-motion-fixture-correction-2026-10-07) supersedes the report's open fixture failure only. Data-blocked30 tests and engine all-gate remain unexecuted here. No consumption, landing or production installation proved. No supported direct Claude mailbox demonstrated; targeted channel853 names the handoff action, not acknowledgment.
+
+### Current NPC boundary
+
+Main reports user-approved omission of source-unselected passes at engine `abb`: CPU7/fmt/check valid, but native RED at type2 before geoset visibility. Source Ailee29/geoset1507 cape was already hidden; corrective implementation301 pending. This supersedes the earlier unresolved-policy hold, not native acceptance. No Ailee GREEN or full-goal closure. Area provenance, encrypted Criteria1/CriteriaTree8, NPC coverage, PBR and blue-hair limits remain.
+
 ## Sources
+
+- Main-supplied 2026-10-07 bounded handoff/NPC checkpoint — README-only refresh, pushed motion correction, channel853 and pending corrective implementation301; no fresh remote operations or native verification by this docs audit.
 
 - Main-supplied current final checkpoint (2026-10-07) — traced retry, native type20 binding followed by unresolved type7 semantics, separate shoulder proof, pending Grove291 and import278. [Current independent proof](../../../target/skyborn-source-items/npc-type20-current-independent-proof.md) owns exact CPU/format/check/cache scope; its earlier native-blocked status is superseded only by supplied later runtime evidence above.
 

@@ -2814,3 +2814,7 @@ Reconciled [[forever-data#Owned item definition namespaces]], item-source spec a
 ## [2026-10-07] systems | Reconcile current final checkpoint; goal OPEN
 
 [forever-data](systems/forever-data.md) reconciles current independent proof and later traced native evidence: corrected type20 composition is separate from unresolved Ailee type7/full-native acceptance. Records separate shoulder scope, pending Grove291, import278 preservation/provenance limits and cleanup exclusions. Historical failures retained; prior CASC root cause unproved. Overall goal OPEN. Docs-only; no code/data/tests/build/delegation/ops/push.
+
+## [2026-10-07] audit | Desktop handoff boundaries
+
+Updated [[forever-data]] with independent payload/cache/world proof, README-only metadata refresh pending remote confirmation, historical checkout/protocol boundaries and current NPC RED. Linked server fixture-only correction; no remote operations, tests, landing or native acceptance.
