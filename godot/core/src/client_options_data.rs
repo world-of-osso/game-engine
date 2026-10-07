@@ -163,8 +163,6 @@ pub struct GraphicsOptionsFile {
     pub particle_effects_enabled: bool,
     #[serde(default, rename = "ssaoEnabled")]
     pub ssao_enabled: bool,
-    #[serde(default, rename = "depthOfField")]
-    pub depth_of_field: bool,
     #[serde(default, rename = "antiAlias")]
     pub anti_alias: AntiAliasMode,
     #[serde(default = "default_particle_density", rename = "particleDensity")]
@@ -195,7 +193,6 @@ impl Default for GraphicsOptionsFile {
         Self {
             particle_effects_enabled: default_particle_effects_enabled(),
             ssao_enabled: false,
-            depth_of_field: false,
             anti_alias: AntiAliasMode::default(),
             particle_density: default_particle_density(),
             render_scale: default_render_scale(),

@@ -242,6 +242,7 @@ pub struct GraphicsDraft {
     pub colorblind_mode: bool,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
+    pub ssao_enabled: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -358,6 +359,7 @@ pub fn graphics_draft_from_file(graphics: &GraphicsOptionsFile) -> GraphicsDraft
         colorblind_mode: graphics.colorblind_mode,
         bloom_enabled: graphics.bloom_enabled,
         bloom_intensity: graphics.bloom_intensity,
+        ssao_enabled: graphics.ssao_enabled,
     }
 }
 
@@ -404,6 +406,7 @@ fn graphics_to_view(g: &GraphicsDraft) -> GraphicsOptionsView {
         colorblind_mode: g.colorblind_mode,
         bloom_enabled: g.bloom_enabled,
         bloom_intensity: g.bloom_intensity,
+        ssao_enabled: g.ssao_enabled,
     }
 }
 
@@ -924,6 +927,10 @@ fn apply_camera_step(key: &str, step: f32, c: &mut CameraDraft) {
 
 pub fn apply_toggle(key: &str, model: &mut OptionsModel) -> bool {
     let toggled = match key {
+        "ssao_enabled" => {
+            model.draft_graphics.ssao_enabled = !model.draft_graphics.ssao_enabled;
+            true
+        }
         "bloom_enabled" => {
             model.draft_graphics.bloom_enabled = !model.draft_graphics.bloom_enabled;
             true
@@ -1065,6 +1072,7 @@ pub fn apply_graphics_file_snapshot(graphics: &mut GraphicsOptionsFile, draft: &
     graphics.colorblind_mode = draft.colorblind_mode;
     graphics.bloom_enabled = draft.bloom_enabled;
     graphics.bloom_intensity = draft.bloom_intensity.clamp(0.0, 1.0);
+    graphics.ssao_enabled = draft.ssao_enabled;
 }
 
 pub fn apply_sound_file_snapshot(s: &mut SoundOptionsFile, d: &SoundDraft) {

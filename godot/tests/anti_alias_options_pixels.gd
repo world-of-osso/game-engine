@@ -90,7 +90,6 @@ func expect_saved_aa(path: String, cap_enabled: bool, stage: String) -> bool:
 		"frameRateLimit": "144",
 		"bloomEnabled": "false",
 		"ssaoEnabled": "false",
-		"depthOfField": "false",
 	}
 	for key in expected:
 		var actual := saved_option_value(path, key)

@@ -435,9 +435,19 @@ fn sound_items(sound: &SoundOptionsView) -> Element {
 
 fn graphics_items(graphics: &GraphicsOptionsView) -> Element {
     [
+        toggle_row(
+            "ssao_enabled",
+            "SSAO (Requires Restart)",
+            graphics.ssao_enabled,
+        ),
         frame_pacing_items(graphics),
         render_scale_items(graphics),
         bloom_items(graphics),
+        options_menu_sections::info_row(
+            "ssao_detail",
+            "Contact Shading",
+            "Requires antiAlias: None or Taa; takes effect next launch",
+        ),
         particle_density_item(graphics),
     ]
     .into_iter()

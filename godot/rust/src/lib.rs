@@ -161,6 +161,17 @@ const WORLD_OBJECT_BUDGET: std::time::Duration = std::time::Duration::from_milli
 // SAFETY: Godot owns extension initialization and all exposed objects use gdext's bindings.
 #[gdextension]
 unsafe impl ExtensionLibrary for GameEngineExtension {
+    fn min_level() -> godot::init::InitLevel {
+        // Load Core bindings before our Servers callback uses ProjectSettings.
+        godot::init::InitLevel::Core
+    }
+
+    fn on_stage_init(stage: godot::init::InitStage) {
+        if stage == godot::init::InitStage::Servers {
+            display_options::initialize_ssao_prepass();
+        }
+    }
+
     fn on_stage_deinit(stage: godot::init::InitStage) {
         // Release cached shaders before Godot tears down its rendering storage.
         if stage == godot::init::InitStage::MainLoop {

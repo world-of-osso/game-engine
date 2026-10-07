@@ -55,6 +55,31 @@ fn graphics_actions_project_and_commit_clamped_file() {
 }
 
 #[test]
+fn ssao_selection_projects_commits_and_resets_without_changing_aa() {
+    let mut m = model();
+    assert!(!build_view_model(&m).options.graphics.ssao_enabled);
+    assert!(apply_toggle("ssao_enabled", &mut m));
+    assert!(build_view_model(&m).options.graphics.ssao_enabled);
+    assert!(!m.committed_graphics.ssao_enabled);
+    let snapshot = apply_snapshot(&mut m);
+    let mut output = GraphicsOptionsFile {
+        anti_alias: game_engine_core::client_options_data::AntiAliasMode::None,
+        ..Default::default()
+    };
+    apply_graphics_file_snapshot(&mut output, &snapshot.graphics);
+    assert!(output.ssao_enabled);
+    assert_eq!(
+        output.anti_alias,
+        game_engine_core::client_options_data::AntiAliasMode::None
+    );
+    assert!(output.validate().is_ok());
+    reset_category_defaults(&mut m);
+    let reset = apply_snapshot(&mut m);
+    apply_graphics_file_snapshot(&mut output, &reset.graphics);
+    assert!(!output.ssao_enabled);
+}
+
+#[test]
 fn camera_and_nameplate_actions_preserve_existing_bounds_and_resets() {
     let mut m = model();
     m.category = OptionsCategory::Camera;

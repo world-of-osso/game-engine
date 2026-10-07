@@ -34,6 +34,7 @@ fn model() -> GameMenuViewModel {
                 colorblind_mode: false,
                 bloom_enabled: false,
                 bloom_intensity: 0.08,
+                ssao_enabled: false,
             },
             sound: SoundOptionsView {
                 muted: false,
@@ -147,6 +148,26 @@ fn options_categories_emit_original_actions_and_replace_visible_section() {
     assert_eq!(label(&registry, "MenuBtnOptions"), "Options");
     let addons = registry.get_by_name("MenuBtnAddons").unwrap();
     assert_eq!(registry.click_frame(addons).as_deref(), Some("menu_addons"));
+}
+
+#[test]
+fn ssao_graphics_row_discloses_restart_and_emits_toggle_action() {
+    let mut view = model();
+    view.options.category = OptionsCategory::Graphics;
+    let mut native = GameMenuModel::from_view(1280.0, 720.0, view);
+    native.sync();
+    assert_eq!(
+        label(&native.registry, "ToggleLabelssao_enabled"),
+        "SSAO (Requires Restart)"
+    );
+    let on = native
+        .registry
+        .get_by_name("ToggleSwitchssao_enabledRightHit")
+        .unwrap();
+    assert_eq!(
+        native.registry.click_frame(on).as_deref(),
+        Some("options_toggle:ssao_enabled")
+    );
 }
 
 #[test]

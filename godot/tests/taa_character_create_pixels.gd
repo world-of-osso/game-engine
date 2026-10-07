@@ -177,7 +177,6 @@ func expect_policy(path: String) -> bool:
 		"antiAlias": "Taa",
 		"bloomEnabled": "false",
 		"ssaoEnabled": "false",
-		"depthOfField": "false",
 		"renderScale": "1",
 		"uiScale": "1"
 	}

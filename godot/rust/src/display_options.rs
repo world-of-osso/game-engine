@@ -4,13 +4,29 @@ use game_engine_core::client_options_data::{
     AntiAliasMode, GraphicsOptionsFile, MAX_FRAME_RATE_LIMIT, MIN_FRAME_RATE_LIMIT,
 };
 use godot::classes::{
-    CanvasLayer, ColorRect, DisplayServer, Engine, Node, PackedScene, ResourceLoader, Shader,
-    ShaderMaterial, Viewport,
+    CanvasLayer, ColorRect, DisplayServer, Engine, Node, PackedScene, ProjectSettings,
+    ResourceLoader, Shader, ShaderMaterial, Viewport,
     control::{LayoutPreset, MouseFilter},
     display_server::VSyncMode,
     viewport::Msaa,
 };
 use godot::prelude::*;
+
+const DEPTH_PREPASS_SETTING: &str = "rendering/driver/depth_prepass/enable";
+
+/// Godot Main::setup2 invokes Servers extensions before constructing RenderingServer.
+/// Never call this from Options: opaque depth pipelines cache this startup choice.
+pub(crate) fn initialize_ssao_prepass() {
+    let mut settings = ProjectSettings::singleton();
+    let data_root = std::path::PathBuf::from(settings.globalize_path("res://../data").to_string());
+    let options = game_engine_core::client_options_data::load_options_file_with_legacy(
+        &data_root.join("ui/options_settings.ron"),
+    );
+    settings.set_setting(
+        DEPTH_PREPASS_SETTING,
+        &options.graphics.ssao_enabled.to_variant(),
+    );
+}
 
 pub(crate) fn apply_graphics_display_options(
     graphics: &GraphicsOptionsFile,
@@ -21,6 +37,7 @@ pub(crate) fn apply_graphics_display_options(
     update_rcas_layer(viewport, scale);
     update_bloom(viewport, graphics);
     update_anti_alias(viewport, graphics);
+    update_world_effects(viewport);
 
     let vsync_mode = if graphics.vsync_enabled {
         VSyncMode::MAILBOX
@@ -44,6 +61,34 @@ pub(crate) fn apply_graphics_display_options(
 const RCAS_LAYER_NAME: &str = "NativeRcasLayer";
 const BLOOM_CONTROLLER_NAME: &str = "NativeBloom";
 const TAA_CONTROLLER_NAME: &str = "NativeTaa";
+const WORLD_EFFECTS_CONTROLLER_NAME: &str = "NativeWorldEffects";
+
+fn update_world_effects(viewport: &mut Gd<Viewport>) {
+    // Renderer startup choice, not the saved value awaiting restart.
+    let ssao = ProjectSettings::singleton()
+        .get_setting(DEPTH_PREPASS_SETTING)
+        .to::<bool>();
+    let existing = viewport.try_get_node_as::<Node>(WORLD_EFFECTS_CONTROLLER_NAME);
+    if existing.is_none() && !ssao {
+        return;
+    }
+    let mut controller = existing.unwrap_or_else(|| spawn_world_effects_controller(viewport));
+    controller.call("configure", &[ssao.to_variant()]);
+}
+
+fn spawn_world_effects_controller(viewport: &mut Gd<Viewport>) -> Gd<Node> {
+    let scene = ResourceLoader::singleton()
+        .load("res://scenes/world_effects.tscn")
+        .expect("Cannot load native world effects controller scene")
+        .try_cast::<PackedScene>()
+        .expect("Native world effects controller is not a PackedScene");
+    let mut controller = scene
+        .instantiate()
+        .expect("Cannot instantiate native world effects controller");
+    controller.set_name(WORLD_EFFECTS_CONTROLLER_NAME);
+    viewport.add_child(&controller);
+    controller
+}
 
 fn update_anti_alias(viewport: &mut Gd<Viewport>, graphics: &GraphicsOptionsFile) {
     let sampling = match graphics.anti_alias {

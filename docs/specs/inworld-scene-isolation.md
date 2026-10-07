@@ -139,7 +139,7 @@ Native standalone proof, regression counts, and remaining integration qualificat
 - [x] Remove TAA, SSAO, depth/normal/motion prepasses, temporal jitter, and mip bias from `WowCamera` before `Lighting`.
 - [x] Restore graphics-option-driven TAA/SSAO and required prepasses when the stage advances to `Lighting`.
 - [x] From `Lighting` on, keep `WowCamera` prepasses only for their consumers: depth+normal for SSAO, depth+motion vectors plus temporal jitter and mip bias for TAA. MSAA without SSAO has none; the MSAA main pass reads no prepass texture.
-- [x] Preserve camera identity, transforms, MSAA state before `Lighting`, tonemapping, shadow filtering, spatial audio, bloom, sharpening, and depth-of-field synchronization.
+- [x] Preserve camera identity, transforms, MSAA state before `Lighting`, tonemapping, shadow filtering, spatial audio, bloom, and sharpening.
 - [x] Keep the standalone performance overlay active while game UI and early camera rendering are isolated.
 
 ### InWorld environment lighting
