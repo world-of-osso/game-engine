@@ -51,6 +51,8 @@ mod dev_ipc;
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
 use fixture_support::FixtureChild;
+#[path = "fixture_support/data.rs"]
+mod fixture_data;
 #[path = "native_input_fixture/footsteps.rs"]
 mod footsteps;
 #[path = "native_input_fixture/guild_bank.rs"]
@@ -960,6 +962,8 @@ fn respond_to_selection(
                 },
             );
         }
+        // Match the real server's initial specialization snapshot before opening the book.
+        send::<_, TalentChannel>(app, shared::protocol::SpecializationChanged { spec_id: 70 });
         // Intentionally withhold LoadTerrain until Loading input has been observed.
     }
     Ok(())

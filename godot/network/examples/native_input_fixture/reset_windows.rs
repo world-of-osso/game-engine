@@ -66,6 +66,7 @@ const DATA_FILES: &[&str] = &[
     "ItemDisplayInfo.csv",
     "TextureFileData.csv",
     "ItemDisplayInfoMaterialRes.csv",
+    "ItemDisplayInfoModelMatRes.csv",
     "ModelFileData.csv",
     "ChrRaces.csv",
     "equipment_transforms.ron",
@@ -154,9 +155,7 @@ impl FixtureProject {
                     .join("\n")
             ));
         }
-        let root = repo
-            .join("data")
-            .join(format!("native-reset-fixture-{}", std::process::id()));
+        let root = authored_data.join(format!("native-reset-fixture-{}", std::process::id()));
         let project = root.join("godot");
         let data = root.join("data");
         create_fixture_directories(&root, &project, &data)?;
@@ -166,6 +165,7 @@ impl FixtureProject {
         }
         stage_fixture_project(repo, &source, &root, &project)?;
         stage_fixture_csv(&data)?;
+        fixture_data::stage_authored_csvs(&authored_data, &data)?;
         Ok(Self { root, project })
     }
 
@@ -339,21 +339,7 @@ fn stage_listfile_cache_backup(authored_data: &Path, data: &Path) -> Result<(), 
         ));
     }
     let target = data.join("local-listfile-cache.sqlite");
-    let command = format!(".backup '{}'", target.display());
-    let output = Command::new("sqlite3")
-        .args(["-readonly", "-cmd", ".timeout 5000"])
-        .arg(&source)
-        .arg(command)
-        .output()
-        .map_err(|error| format!("Backup {}: {error}", source.display()))?;
-    if !output.status.success() {
-        return Err(format!(
-            "Backup {}: {}",
-            source.display(),
-            String::from_utf8_lossy(&output.stderr)
-        ));
-    }
-    Ok(())
+    fixture_data::backup_database(&source, &target)
 }
 
 fn stage_fixture_project(
@@ -598,8 +584,9 @@ fn verify_fresh_process(config: &Path, project: &Path) -> Result<(), String> {
     let binary = std::env::var_os("GODOT_BIN")
         .map(PathBuf::from)
         .unwrap_or_else(|| {
-            PathBuf::from(std::env::var_os("HOME").expect("HOME for pinned Godot"))
-                .join(".cache/game-engine/godot/4.7.2-pr123946-pr123546/godot-4.7.2-pr123946-pr123546")
+            PathBuf::from(std::env::var_os("HOME").expect("HOME for pinned Godot")).join(
+                ".cache/game-engine/godot/4.7.2-pr123946-pr123546/godot-4.7.2-pr123946-pr123546",
+            )
         });
     let output = Command::new(binary)
         .args(["--headless", "--path"])
