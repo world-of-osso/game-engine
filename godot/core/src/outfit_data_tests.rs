@@ -5,10 +5,10 @@ use crate::outfit_data::OutfitData;
 mod baked_display {
     use super::*;
 
-    fn write_catalog() -> std::path::PathBuf {
+    fn write_catalog(label: &str) -> std::path::PathBuf {
         let root = Path::new(env!("CARGO_MANIFEST_DIR"))
             .join("../../target")
-            .join(format!("baked-display-{}", std::process::id()));
+            .join(format!("baked-display-{}-{label}", std::process::id()));
         let gear = root.join("db2/1.60.1.70205");
         std::fs::create_dir_all(gear.join("items")).unwrap();
         for (name, content) in [
@@ -56,8 +56,31 @@ mod baked_display {
     }
 
     #[test]
+    fn single_model_ignores_body_components_but_requires_model_resources() {
+        let root = write_catalog("single-model");
+        let catalog = OutfitData::load(&root);
+        let outfit = catalog.load_owned_forever_70205().unwrap();
+        for sex in [0, 1] {
+            assert_eq!(
+                outfit.try_resolve_runtime_model(10, 1, sex).unwrap(),
+                Some((1000 + u32::from(sex), [2000 + u32::from(sex), 0, 0]))
+            );
+        }
+        for (display, error) in [
+            (11, "missing ModelFileData model resource 101"),
+            (12, "missing TextureFileData material resource 201"),
+        ] {
+            assert_eq!(
+                outfit.try_resolve_runtime_model(display, 1, 0).unwrap_err(),
+                error
+            );
+        }
+        assert_eq!(outfit.try_resolve_runtime_model(99, 1, 0).unwrap(), None);
+    }
+
+    #[test]
     fn columns_ignore_body_components_but_require_models_and_model_materials() {
-        let root = write_catalog();
+        let root = write_catalog("columns");
         let catalog = OutfitData::load(&root);
         let outfit = catalog.load_owned_forever_70205().unwrap();
         for sex in [0, 1] {
