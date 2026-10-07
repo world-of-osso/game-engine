@@ -69,3 +69,70 @@ References (all under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 ## Verified scope
 
 - [x] Live headless proof on an isolated server (:5059) at Georgio Bolero (verified: 2026-09-25): gossip "Train me." → trainer list with Tailoring selected → CONFIRM_PROFESSION → Tailoring learned for 10c (Classic Tailoring 1/300, 5 recipes, Retail chat lines) → K → book → ProfessionsFrame → Create ×2 and ×1 with the cast bar: 12 → 6 Linen Cloth, 3 Bolt of Linen Cloth in the backpack, Classic Tailoring 4/300, state kept across relogs. Evidence: game-engine `data/diagnostics/crafting-20260925/` (`proof.txt`).
+
+
+## Native Godot coverage (2026-10-07)
+
+Native profession recipe book and crafting window in `godot/ui-model` and `godot/rust`, consuming the existing owner `ProfessionSnapshot` and sending `CraftRecipe`. [Native UI host](../wiki/systems/godot-conversion.md) owns rendering architecture.
+
+### What it must do
+
+- [x] Consume the owner's profession lines and learned spells; list known recipes by DB2 category with required skill rank.
+- [x] Filter recipe names with a case-insensitive search; retain a selectable schematic.
+- [x] Show crafted item and reagents using DB2 names/icons and owned/needed counts summed across bags, not equipped items.
+- [x] Create sends the selected recipe's spell ID and positive u16 cast quantity on `ProfessionChannel`; Create All sends the available reagent-limited quantity. Missing reagents disable Create.
+- [x] Refresh bags and skill bar from authoritative inventory and profession updates; render Modern and Forever using native chrome and scroll lists. Real K and profession spellbook entry opening are live-proved.
+
+### How it works
+
+- [Native profession data flow](../wiki/systems/professions-ui.md#native-godot-implementation).
+- [Godot native UI host](../wiki/systems/godot-conversion.md).
+- [Private live proof procedure](../headless-live-run.md).
+
+### Implementation inventory
+
+- `godot/ui-model/src/professions.rs` — recipe book state and crafting decisions.
+- `godot/ui-model/src/professions_tests.rs` — concrete snapshot, filtering, bags and request behavior.
+- `godot/ui-model/src/professions_catalog.rs` — pinned DB2 recipe metadata.
+- `godot/ui-model/src/professions_frame.rs` — skin-aware native scroll list and schematic.
+- `godot/network/src/lib.rs` — owner snapshot relay.
+- `godot/network/src/professions_wire_tests.rs` — real UDP snapshot and craft request boundary.
+- `godot/rust/src/professions.rs` — native catalog/window/input host; inventory and skill refresh.
+- `godot/rust/src/account.rs`, `spells/casting.rs`, `spells/spellbook.rs`, `ui/mod.rs`, `window_stack.rs`, `lib.rs` — existing native host integration.
+
+### Tests asserting native coverage
+
+- `godot/ui-model/src/professions_tests.rs` — eight passing cases: requested five behaviors, authoritative refresh, DB2 joins (including signed sentinel count) and both-skin controls.
+- `godot/network/src/professions_wire_tests.rs` — one passing real UDP snapshot/CraftRecipe request case.
+- `godot/rust/src/professions_account_tests.rs` — one passing Loading snapshot/skill refresh dispatch case.
+- Live scripts/captures: canonical `data/professions-live-20261007/`, excluded from Git.
+
+### Native proof ledger
+
+Runtime source `cc1c224f`; default debug extension and matching CLI installed through the locked local helper. UI-model eight tests pass on that revision; Account one and UDP one proofs remain valid because subsequent changes touch only recipe CSV parsing. Targeted logs: `/tmp/claude/professions-signed-green.out`, `professions-green-final.out` (Account pass; obsolete fixture failure retained), `professions-wire-green.out`; build: `professions-build-final.out`. Scoped Rust formatting passes; no full-suite or CI claim.
+
+Private server `game-server.8b3819b`, SHA-256 `32ebbee39adf13fc08b566bdd1c72d59bbe2c64963710365accb07d2ed7ac8e7`, uses a copy of the approved offline redb and a read-only world.db backup. UDP 5314, Weston pf34, account `fb_professions`, own character ID 57. Admin learned Tailoring 3908, Classic Tailoring 264616 and Linen Bandage 3275; granted ten Linen Cloth. No server/protocol changes.
+
+Four total client launches: first failed before login on wrong JS helper names; second exposed actual DB2 `SpellReagents` spell 44864 count -1. Reproduced RED fixture before fixing signed parsing to match the server. Third and fourth succeeded:
+
+- Modern: K → recipe3275 → Create; Cloth10→9, Linen Bandage×1, Classic Tailoring1→2/300. Inspected `modern-before.webp` and `modern-after.webp`, with corresponding UI trees and inventory receipt.
+- Forever: P → General → `SpellBookItem3908Button` → recipe3275 → Create; Cloth9→8, Linen Bandage×2, Classic Tailoring2→3/300. Inspected `forever-before.webp` and `forever-after.webp`, with corresponding UI trees and inventory receipt. Re-entry retained prior authoritative inventory/rank.
+
+Artifact root: canonical `data/professions-live-20261007/`; `proof-ledger.txt`, `setup.log` and `cleanup.txt` retain exact inputs/results. Owned client/server/Weston PIDs and compositor children exited; `agents-professions.slice` inactive; UDP5314 free. No merge or push. Dozen/Wayland capability warnings and unrelated world spell-attachment errors remain; this is profession-window/crafting proof, not general renderer health or leak-free shutdown proof.
+
+### Known gaps (current cycle)
+
+- [ ] Native trainer and exact Retail book-entry/layout/art parity remain unimplemented; historical checkboxes above describe the retired client, not native proof.
+- [ ] Existing CastFailed UI error path is wired into the schematic status; Escape/X closure is implemented. Profession-specific refusal/closure runtime matrices have not been exercised.
+
+### Out of scope
+
+- Server or shared protocol changes; crafting orders and Retail systems without existing server messages.
+
+### Retail references
+
+Local cache root: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`.
+
+- `Blizzard_FrameXML/Bindings_Standard.xml:1238-1240`: `TOGGLEPROFESSIONBOOK` invokes `ToggleProfessionsBook()`.
+- `Blizzard_Professions/Blizzard_ProfessionsCrafting.lua:39,52-55,967-984,1011-1021`: search, Create All and selected quantity passed to crafting transaction.
+- `Blizzard_Professions/Blizzard_ProfessionsRankBar.lua:103,136`: profession rank text and rank/max ratio.

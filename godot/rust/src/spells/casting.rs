@@ -13,6 +13,9 @@ use shared::protocol::CastFailed;
 
 impl GameClient {
     pub(crate) fn cast_spell(&mut self, spell_id: u32) -> Result<(), SessionError> {
+        if self.open_profession_spell(spell_id) {
+            return Ok(());
+        }
         if self.riding_mount_of(spell_id) {
             return self.account.send_cancel_mount_aura();
         }
@@ -60,6 +63,9 @@ impl GameClient {
             .and_then(|spell| spell.powers.first())
             .and_then(|cost| PowerType::from_db(i32::from(cost.power_type)));
         let text = cast_failed_text(failed.reason, failed.detail.as_deref(), power);
+        if self.professions.book.selected == Some(failed.spell_id) {
+            self.professions.error = text.clone();
+        }
         self.spells.errors.push(text.clone());
         self.add_world_error(&text)
     }

@@ -2706,3 +2706,6 @@ Native SSAO follow-up: stable project prepass fixes cached depth-pipeline On→O
 ## 2026-10-07 — NPC replacement texture types
 
 [Character rendering](systems/character-rendering.md#native-godot-wiring) now describes selected-type canvas composition and explicit missing-canvas failure. [NPC per-type acceptance](../specs/npc-appearance.md#texture-type-acceptance-2026-10-07) owns native type19 proof, genuine-spawn material/PNG assertions, artifact-retention correction and remaining visible/all-declared-type holes. Parity rows104/105 remain Partial rather than promoting material-image proof to rendered-scene acceptance.
+## 2026-10-07 — Native professions
+
+[[professions-ui]] distinguishes retired trainer/book coverage from the native owner snapshot, DB2 recipe book, bag counts and CraftRecipe host. Model/UDP and actual signed-count RED regressions were followed by targeted GREEN and inspected Modern/Forever private crafts. The linked spec owns counts, receipts, four-launch history, cleanup and remaining parity gaps.

@@ -17,6 +17,8 @@ pub mod js_automation;
 pub mod meetingstones_fixture;
 #[path = "movement_control.rs"]
 pub mod movement_control;
+#[cfg(test)]
+mod professions_wire_tests;
 pub mod replica;
 #[path = "../../core/src/screen_arg_data.rs"]
 pub mod screen_arg_data;
@@ -236,6 +238,7 @@ impl NetworkBridge {
             .receive::<protocol::DeathStateUpdate>()
             .receive::<protocol::ResurrectionOffer>()
             .receive::<protocol::SummonRequest>()
+            .receive::<protocol::ProfessionSnapshot>()
             // Spellbook, action bar and casting.
             .receive::<KnownSpellsSnapshot>()
             .receive::<SpellsLearned>()
