@@ -12,7 +12,9 @@ pub(super) const FROSTBOLT: u32 = 116;
 pub(super) const ARCANE_MISSILES: u32 = 5143;
 
 fn cast(spell_id: u32, name: &str, target: Entity, interruptible: bool) -> CastState {
-    let mut cast = CastState::normal(spell_id, target.to_bits(), 3.0, interruptible);
+    // Cold catalog/icon loading can consume the old three-second cast before observation.
+    // The probe owns completion through CAST_KICK/RESOLVE/FAIL markers.
+    let mut cast = CastState::normal(spell_id, target.to_bits(), 120.0, interruptible);
     cast.spell_name = name.into();
     cast
 }

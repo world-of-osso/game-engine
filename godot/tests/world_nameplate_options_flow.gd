@@ -182,7 +182,7 @@ func expect_plate(client: Node, id: int, bars: bool, expected_color: Color) -> b
 		fail("Cast bar shown without a cast")
 		return false
 	var fill := plate.get_child(0) as TextureRect
-	var frame := plate.get_child(1) as TextureRect
+	var frame := plate.get_child(1) as NinePatchRect
 	var name := plate.get_child(2) as Label
 	var health := plate.get_child(3) as Label
 	if health == null or health.visible != bars:
