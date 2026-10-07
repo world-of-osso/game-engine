@@ -27,7 +27,9 @@ Cached root: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`.
 
 Verified: 2026-10-07. Targeted RED reproduced unhandled native Account messages, missing classification art and missing transport subscription. Production `cf829040` plus test-only `cd04108e`: 11 targeted cases PASS; three-crate formatting check and installed extension/CLI build pass. No broad suite.
 
-[Current contract](../../specs/boss-encounters.md#native-proof--2026-10-07) owns native proof and exclusions. Canonical `data/diagnostics/bossframes-20261007/` retains exact argv, proof ledger, inspected Hogger engage/click/server-echo/emote/kill-clear captures and cleanup. Historical boss fixed-slot/tracker overlap is addressed by the compact-tree restoration and visible-count tracker layout; exact Retail atlas/edit-mode parity remains open. Manual emote captures supersede the saved script's incorrect uppercase predicate, not production behavior. No historical Bevy proof is promoted.
+[Compact-frame correction proof](../../specs/boss-encounters.md#compact-frame-correction--2026-10-07) owns the current geometry, unchanged-fixture, offline captures and full package-pair suite evidence.
+
+[Current contract](../../specs/boss-encounters.md#native-proof--2026-10-07) owns historical live native proof and exclusions. Canonical `data/diagnostics/bossframes-20261007/` retains exact argv, proof ledger, inspected Hogger engage/click/server-echo/emote/kill-clear captures and cleanup. Historical boss fixed-slot/tracker overlap is addressed by the compact-tree restoration and visible-count tracker layout; exact Retail atlas/edit-mode parity remains open. Manual emote captures supersede the saved script's incorrect uppercase predicate, not production behavior. No historical Bevy proof is promoted.
 
 ## Sources
 - [Contract and behavioral tests](../../specs/boss-encounters.md).

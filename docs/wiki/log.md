@@ -1,3 +1,7 @@
+## 2026-10-07 — Compact boss-frame correction
+
+[Boss encounters](systems/boss-encounters.md) restores the established compact portraitless frame tree and right-managed tracker flow. [Correction proof](../specs/boss-encounters.md#compact-frame-correction--2026-10-07) owns unchanged-fixture, both-skin geometry, inspected offline captures and full package-pair suite evidence; capture shutdown RID leaks remain explicit.
+
 ## 2026-10-07 — Native boss encounters
 
 [Boss encounters](systems/boss-encounters.md) records missing transport/host consumers, ordered lifecycle relay, replicated clickable portrait frames and timed center warning HUD. Concrete RED preceded implementation. `cf829040` + `cd04108e`: 11 targeted cases, formatting/build PASS; inspected private Hogger frame, physical click/server echo, lowercase enrage and successful kill-clear captures. Two launches; owned processes stopped, UDP5306 free. Fixed-slot/objective overlap and exact Retail layout remain gaps. Server/protocol unchanged.
