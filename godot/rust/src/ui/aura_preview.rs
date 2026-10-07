@@ -13,6 +13,7 @@ impl RegistryUi {
     fn show_aura_tooltip_preview(&mut self) -> GString {
         let result = party_preview::load_data_root().and_then(|()| {
             ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Modern);
+            self.set_ui_scale(1.0)?;
             let tooltip = aura_tooltip(&preview_aura());
             self.show_game_tooltip(GameTooltipView {
                 main: place(
