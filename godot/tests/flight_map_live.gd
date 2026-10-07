@@ -16,6 +16,9 @@ func run_test() -> void:
 		return
 	if not await click_pickable(func(node): return str(node.name) == "Dungar Longdrink", "unit_server_id"):
 		return
+	if not await wait_until(func(): return shown("GossipOption0Text"), "flight-master ride option"):
+		return
+	await press("GossipOption0Text")
 	if not await wait_until(func(): return client.flight_map_state().open, "native taxi map"):
 		return
 	var state: Dictionary = client.flight_map_state()
