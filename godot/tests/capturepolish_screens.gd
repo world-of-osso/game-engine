@@ -1,4 +1,4 @@
-        extends SceneTree
+extends SceneTree
 
 # All three offline authored previews in one rendered process; no server.
 var output := OS.get_environment("GODOT_CAPTURE_PATH").get_base_dir()
