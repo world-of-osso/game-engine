@@ -121,10 +121,9 @@ func run_test() -> void:
 		return
 	print("SKYBORNE GIVER name=", GIVERS[race], " position=", unit.global_position)
 	if race == 95:
-		if unit.get_node_or_null("NpcVisualRoot") != null:
-			fail("Ailee136968 visual must remain withheld")
+		if not await wait_frames(func(): return visible_body(unit), "Ailee native visible meshes", 60000):
 			return
-		print("SKYBORNE GAP Ailee136968 visual withheld; replicated interaction only")
+		print("SKYBORNE AILEE_VISIBLE; display136968 bake7352105 verified separately in ailee-assets scope")
 		if not await accept_native_quest():
 			return
 	else:
