@@ -91,5 +91,7 @@ func run_proof() -> void:
 			var command: Dictionary = JSON.parse_string(file.get_as_text())
 			file.close()
 			DirAccess.remove_absolute(command_path)
+			if command.has("click"):
+				await click(find_control(command["click"]))
 			await capture(command["capture"])
 		await process_frame
