@@ -224,14 +224,45 @@ fn compose_replacement_textures(
     )? {
         textures.insert(6, type6);
     }
-    // Eyes (19) compose every selected layer on their own canvas: the Eyesight overlay
-    // (target 44) over the eye colour (target 25).
-    if let Some(pixels) =
-        compositor.composite_texture_type(&selected.materials, layout_id, 19, |fdid| {
-            decoded.get(&fdid).cloned()
-        })
+    textures.extend(compose_separate_replacements(
+        compositor,
+        &selected.materials,
+        layout_id,
+        &decoded,
+    )?);
+    Ok(textures)
+}
+
+fn compose_separate_replacements(
+    compositor: &CharTextureData,
+    materials: &[(u16, u32)],
+    layout_id: u32,
+    decoded: &HashMap<u32, TexturePixels>,
+) -> Result<HashMap<u32, TexturePixels>, String> {
+    let mut textures = HashMap::new();
+    // Body keeps its authored bake; type 6 keeps the established hair/head crop.
+    // Every other selected DB2 layer type uses its own ChrModelMaterial canvas.
+    for kind in compositor
+        .separate_texture_types(layout_id)
+        .into_iter()
+        .filter(|kind| *kind != 6)
     {
-        textures.insert(19, pixels);
+        if compositor
+            .replacement_texture_fdid(materials, layout_id, kind)
+            .is_none()
+        {
+            continue;
+        }
+        let pixels = compositor
+            .composite_texture_type(materials, layout_id, kind, |fdid| {
+                decoded.get(&fdid).cloned()
+            })
+            .ok_or_else(|| {
+                format!(
+                    "cannot composite NPC replacement texture type {kind} for layout {layout_id}"
+                )
+            })?;
+        textures.insert(kind, pixels);
     }
     Ok(textures)
 }
@@ -387,6 +418,87 @@ fn mip_chain((pixels, width, height): TexturePixels) -> MipChain {
         data,
         width,
         height,
+    }
+}
+
+#[cfg(test)]
+mod replacement_tests {
+    use super::*;
+    use game_engine_core::char_texture_data::{TextureLayer, TextureLayout};
+
+    fn compositor(types: &[u32], canvases: bool) -> CharTextureData {
+        let layers = types
+            .iter()
+            .map(|&kind| TextureLayer {
+                texture_type: kind,
+                layer: 0,
+                blend_mode: 0,
+                section_bitmask: -1,
+                target_id: kind as u16,
+                layout_id: 155,
+            })
+            .collect();
+        let sizes = if canvases {
+            types.iter().map(|&kind| ((155, kind), (1, 1))).collect()
+        } else {
+            HashMap::new()
+        };
+        CharTextureData::from_parts(
+            layers,
+            HashMap::new(),
+            HashMap::from([(
+                155,
+                TextureLayout {
+                    width: 1,
+                    height: 1,
+                },
+            )]),
+        )
+        .with_material_sizes(sizes)
+    }
+
+    #[test]
+    fn npc_replacements_compose_every_selected_db2_type_without_overwriting_body_or_hair() {
+        let types = [
+            1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 24, 25, 26,
+        ];
+        let materials: Vec<_> = types
+            .iter()
+            .map(|&kind| (kind as u16, kind + 100))
+            .collect();
+        let decoded = types
+            .iter()
+            .map(|&kind| (kind + 100, (vec![kind as u8, 42, 93, 255], 1, 1)))
+            .collect();
+        let actual =
+            compose_separate_replacements(&compositor(&types, true), &materials, 155, &decoded)
+                .unwrap();
+        for kind in types.into_iter().filter(|kind| !matches!(kind, 1 | 6)) {
+            assert_eq!(
+                actual.get(&kind),
+                Some(&(vec![kind as u8, 42, 93, 255], 1, 1)),
+                "type {kind}"
+            );
+        }
+        assert!(!actual.contains_key(&1));
+        assert!(!actual.contains_key(&6));
+    }
+
+    #[test]
+    fn selected_replacement_without_db2_canvas_is_an_error_not_original_base_colour() {
+        let error = compose_separate_replacements(
+            &compositor(&[19], false),
+            &[(19, 119)],
+            155,
+            &HashMap::from([(119, (vec![185, 45, 215, 255], 1, 1))]),
+        )
+        .unwrap_err();
+        assert!(error.contains("19") && error.contains("155"), "{error}");
+        assert!(
+            compose_separate_replacements(&compositor(&[19], false), &[], 155, &HashMap::new())
+                .unwrap()
+                .is_empty()
+        );
     }
 }
 
