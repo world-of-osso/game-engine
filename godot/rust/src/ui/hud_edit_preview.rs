@@ -80,6 +80,15 @@ impl RegistryUi {
             let registry = self.registry().ok_or("Preview registry missing")?;
             let boxes =
                 super::hud_edit_layout::collect_selection_boxes(registry, Some("player_frame"));
+            let position =
+                find_panel_position([registry.screen_width, registry.screen_height], &boxes)
+                    .ok_or("No clear default manager position in HUD preview")?;
+            self.set_state(EditModePanelState {
+                layout_name: format!("{skin:?}"),
+                preset: true,
+                position: Some(position),
+                ..Default::default()
+            })?;
             self.set_state(EditModeOverlayState { boxes })
         })();
         GString::from(result.err().unwrap_or_default().as_str())
@@ -193,7 +202,7 @@ fn insert_missing_mover_previews(shared: &mut SharedContext) {
     };
     shared.insert(GroupFramesState {
         party: vec![member.clone(); 5],
-        raid: vec![vec![member; 5]; 8],
+        raid: vec![vec![member]; 8],
         ..Default::default()
     });
     // Explicit offline inventory: expose the normally hidden micro menu, without changing presets.

@@ -97,6 +97,7 @@ pub(crate) fn collect_selection_boxes(
                     label: element.label.into(),
                     rect: [rect.x, rect.y, rect.width, rect.height],
                     selected: selected == Some(element.key),
+                    hovered: false,
                 },
             )
         })
