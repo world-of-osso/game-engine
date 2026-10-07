@@ -1470,6 +1470,28 @@ impl WorldUnits {
         ))
     }
 
+    /// Owner death snapshots, unlike zero health, distinguish a corpse from its ghost.
+    /// Keep the applied flag on the animation node so replacement visuals also die once.
+    pub fn update_local_death(&mut self, dead: bool) -> Result<bool, String> {
+        const DEATH_META: &str = "local_death_applied";
+        let Some(visual) = self
+            .local_player_id
+            .and_then(|id| self.units.get(&id))
+            .and_then(|unit| unit.visual.as_ref())
+        else {
+            return Ok(false);
+        };
+        let mut animation = visual
+            .try_get_node_as::<WowAnimationPlayer>("M2Animation")
+            .ok_or("Local player has no bone animation")?;
+        let applied = animation.has_meta(DEATH_META) && animation.get_meta(DEATH_META).to::<bool>();
+        if dead && !applied {
+            animation.bind_mut().play_death()?;
+        }
+        animation.set_meta(DEATH_META, &dead.to_variant());
+        Ok(dead)
+    }
+
     pub fn update_local_locomotion(
         &mut self,
         animation_id: u16,

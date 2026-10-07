@@ -68,6 +68,12 @@ impl DeathFlow {
         available
     }
 
+    pub fn is_dead(&self) -> bool {
+        self.snapshot
+            .as_ref()
+            .is_some_and(|snapshot| snapshot.state == DeathStateSnapshot::Dead)
+    }
+
     pub fn is_ghost(&self) -> bool {
         self.snapshot
             .as_ref()
