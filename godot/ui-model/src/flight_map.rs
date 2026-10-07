@@ -79,12 +79,8 @@ impl FlightPin {
     pub fn tooltip(&self) -> String {
         let detail = match self.state {
             TaxiNodeState::Current => "You are here".into(),
-            TaxiNodeState::Reachable => format!(
-                "{}g {}s {}c",
-                self.cost / 10000,
-                self.cost / 100 % 100,
-                self.cost % 100
-            ),
+            // Reachable costs are rendered by the tooltip's SmallMoneyFrame coins.
+            TaxiNodeState::Reachable => return self.name.clone(),
             TaxiNodeState::Unreachable => "Not Discovered".into(),
         };
         format!("{}\n{detail}", self.name)
@@ -252,10 +248,7 @@ mod tests {
             projection.pins[0].tooltip(),
             "Stormwind, Elwynn\nYou are here"
         );
-        assert_eq!(
-            projection.pins[1].tooltip(),
-            "Sentinel Hill, Westfall\n1g 23s 45c"
-        );
+        assert_eq!(projection.pins[1].tooltip(), "Sentinel Hill, Westfall");
         let mut multi_hop = taxi();
         multi_hop.nodes[2].state = TaxiNodeState::Reachable;
         multi_hop.nodes[2].route = vec![2, 4, 5];
