@@ -67,11 +67,32 @@ fn boss_preview_screen(ctx: &SharedContext) -> Element {
     elements
 }
 
+fn preview_boss_units()
+-> game_engine_ui_model::inworld_unit_frames_component::InWorldUnitFramesState {
+    use game_engine_ui_model::inworld_unit_frames_component::{
+        InWorldUnitFramesState, PowerBarState, UnitFrameState,
+    };
+    InWorldUnitFramesState {
+        bosses: ["Hogger", "Lord Overheat"]
+            .into_iter()
+            .map(|name| UnitFrameState {
+                health_fraction: 0.75,
+                level_text: "60".into(),
+                reaction: Some(game_engine_ui_model::faction_reaction::Reaction::Hostile),
+                power: Some(PowerBarState {
+                    power: shared::components::PowerType::Mana,
+                    current: 40,
+                    max: 100,
+                }),
+                ..UnitFrameState::named(name)
+            })
+            .collect(),
+        ..Default::default()
+    }
+}
+
 impl RegistryUi {
     fn initialize_boss_preview(&mut self, skin: ActiveSkin) -> Result<(), String> {
-        use game_engine_ui_model::inworld_unit_frames_component::{
-            InWorldUnitFramesState, UnitFrameState,
-        };
         use game_engine_ui_model::objective_tracker_component::BossFrameCount;
         super::party_preview::load_data_root()?;
         ui_toolkit::atlas::set_thread_skin(skin);
@@ -82,25 +103,7 @@ impl RegistryUi {
         let size = viewport.get_visible_rect().size;
         let mut model = load_preview_model(size.x, size.y)?;
         model.screen = Screen::new(boss_preview_screen);
-        model.shared.insert(InWorldUnitFramesState {
-            bosses: ["Hogger", "Lord Overheat"]
-                .into_iter()
-                .map(|name| UnitFrameState {
-                    health_fraction: 0.75,
-                    level_text: "60".into(),
-                    reaction: Some(game_engine_ui_model::faction_reaction::Reaction::Hostile),
-                    power: Some(
-                        game_engine_ui_model::inworld_unit_frames_component::PowerBarState {
-                            power: shared::components::PowerType::Mana,
-                            current: 40,
-                            max: 100,
-                        },
-                    ),
-                    ..UnitFrameState::named(name)
-                })
-                .collect(),
-            ..Default::default()
-        });
+        model.shared.insert(preview_boss_units());
         model.shared.insert(BossFrameCount(2));
         model.sync_skin(skin);
         let state = model.shared.get::<MinimapClusterState>().unwrap().clone();
