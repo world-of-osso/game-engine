@@ -193,6 +193,14 @@ fn trainer_render(
     book: TrainerBook,
     skin: ui_toolkit::atlas::ActiveSkin,
 ) -> ui_toolkit::registry::FrameRegistry {
+    trainer_render_rank(book, skin, (50, 300))
+}
+
+fn trainer_render_rank(
+    book: TrainerBook,
+    skin: ui_toolkit::atlas::ActiveSkin,
+    (rank, max_rank): (u16, u16),
+) -> ui_toolkit::registry::FrameRegistry {
     use game_engine_ui_model::trainer_frame::{TrainerView, trainer_screen};
     use ui_toolkit::screen::{Screen, SharedContext};
     game_engine_ui_model::paths::set_data_root(
@@ -212,8 +220,8 @@ fn trainer_render(
         ranks: vec![shared::profession::ProfessionSkillLine {
             skill_line: 164,
             step: 1,
-            rank: 50,
-            max_rank: 300,
+            rank,
+            max_rank,
         }],
     });
     let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
@@ -262,6 +270,22 @@ fn trainer_native_screen_projects_money_ranks_filters_failure_and_confirmation_i
         assert_eq!(
             trainer_label(&confirmed, "TrainerConfirmationText"),
             "You may only know two professions at any one time. Would you like to learn Herbalism as your first one?"
+        );
+    }
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn trainer_root_profession_flag_has_no_progress_fraction() {
+    use ui_toolkit::atlas::ActiveSkin;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut state = book();
+        state.list.as_mut().unwrap().services[0].req_skill_rank = 1;
+        let registry = trainer_render_rank(state, skin, (1, 0));
+        assert!(
+            registry
+                .get_by_name("ClassTrainerStatusBarRankText")
+                .is_none()
         );
     }
     ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
