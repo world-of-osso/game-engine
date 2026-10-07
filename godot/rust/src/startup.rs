@@ -164,7 +164,7 @@ impl GameClient {
             )
             .map_err(|error| error.to_string())?;
         self.reset_world()?;
-        self.update_login_status("Connecting...", true)
+        self.update_login_status("Connecting...", true, true)
     }
 
     /// Opens the requested startup panel once its screen is first shown.
