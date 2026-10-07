@@ -285,7 +285,9 @@ pub struct SpellEffects {
     data_root: PathBuf,
     catalog: BackgroundLoad<Result<SpellVisualCatalog, String>>,
     assets: SpellAssets,
-    /// Spells whose kit assets were prefetched.
+    /// Local unit ID and primary `ChrSpecialization.ID`, from account spell state.
+    local_specialization: Option<(u64, u32)>,
+    /// Spells whose kit assets were prefetched for the current specialization.
     prefetched: HashSet<u32>,
     active: Vec<ActiveEffect>,
     pending: Vec<PendingModel>,
@@ -330,6 +332,7 @@ impl SpellEffects {
             assets: SpellAssets::new(data_root.clone()),
             data_root,
             catalog,
+            local_specialization: None,
             prefetched: HashSet::new(),
             active: Vec::new(),
             pending: Vec::new(),
@@ -352,6 +355,14 @@ impl SpellEffects {
             vocal_seed: 0,
             busy: Duration::ZERO,
             frame_ms: 0.0,
+        }
+    }
+
+    /// Update before selecting kits; a changed spec needs its own assets prefetched.
+    pub fn set_local_specialization(&mut self, local_spec: Option<(u64, u32)>) {
+        if self.local_specialization != local_spec {
+            self.local_specialization = local_spec;
+            self.prefetched.clear();
         }
     }
 
@@ -460,6 +471,7 @@ impl SpellEffects {
         self.pending.clear();
         self.ready.clear();
         self.held.clear();
+        self.local_specialization = None;
         self.prefetched.clear();
         self.pools.reset();
         if let Some(root) = self.root.take() {

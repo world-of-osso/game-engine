@@ -1,3 +1,7 @@
+## 2026-10-07 — Local specialization-conditioned spell visuals
+
+[Spell visual selection](systems/spell-visuals.md#local-specialization-selection-2026-10-07) maps account primary specialization IDs to DB2 OrderIndex only for the local caster. Slam's same-weapon Arms/Fury regression reproduced the wrong kit (62428 instead of 128672); native/core targeted verification is tracked in the [contract](../specs/spell-visuals.md). Remote/NPC specialization remains unreplicated; no live/raster Retail parity claim.
+
 ## 2026-10-07 — Restart-required native SSAO
 
 [Native SSAO](investigations/native-ssao.md#restart-required-startup-mechanism) preserves the deliberate prepass-disabled Off baseline. GDExtension Servers initialization selects prepass from existing saved RON before RenderingServer construction; Options exposes restart-required persistence without live SSAO/prepass changes. No generated config, runtime project edits, DOF, or implicit AA changes. Lavapipe fresh Off/On/restarted-Off pixels, real pending UI toggles and the affected Options-tree regression pass. Strict Dozen rejection remains; evidence and scope are recorded in the investigation.
