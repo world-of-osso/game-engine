@@ -719,6 +719,12 @@ mod tests {
     use super::*;
     use shared::components::EquippedAppearanceEntry;
     use std::path::{Path, PathBuf};
+    use std::sync::OnceLock;
+
+    fn outfit_data() -> &'static OutfitData {
+        static OUTFIT_DATA: OnceLock<OutfitData> = OnceLock::new();
+        OUTFIT_DATA.get_or_init(|| OutfitData::load(&data_dir()))
+    }
 
     fn data_dir() -> PathBuf {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -742,13 +748,7 @@ mod tests {
     }
 
     fn resolve(entries: Vec<EquippedAppearanceEntry>) -> ResolvedEquipmentAppearance {
-        resolve_equipment_appearance(
-            &EquipmentAppearance { entries },
-            &OutfitData::load(&data_dir()),
-            1,
-            0,
-        )
-        .unwrap()
+        resolve_equipment_appearance(&EquipmentAppearance { entries }, outfit_data(), 1, 0).unwrap()
     }
 
     #[test]
@@ -756,10 +756,10 @@ mod tests {
         let data = data_dir();
         let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
         let armor = gear.display_armor(136968).unwrap();
-        let outfits = OutfitData::load(&data);
-        let error = resolve_equipment_appearance(&armor, &outfits, 95, 1).unwrap_err();
+        let outfits = outfit_data();
+        let error = resolve_equipment_appearance(&armor, outfits, 95, 1).unwrap_err();
         assert!(error.contains("1102747"), "{error}");
-        let baked = load_baked_equipment_appearance(&armor, &outfits, 95, 1).unwrap();
+        let baked = load_baked_equipment_appearance(&armor, outfits, 95, 1).unwrap();
         assert!(baked.outfit.item_textures.is_empty());
         assert!(baked.runtime_models.is_empty());
         assert!(baked.outfit.geoset_overrides.contains(&(5, 3)));
@@ -771,9 +771,9 @@ mod tests {
         let data = data_dir();
         let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
         let armor = gear.display_armor(139403).unwrap();
-        let outfits = OutfitData::load(&data);
-        let plain = resolve_equipment_appearance(&armor, &outfits, 95, 0).unwrap();
-        let baked = load_baked_equipment_appearance(&armor, &outfits, 95, 0).unwrap();
+        let outfits = outfit_data();
+        let plain = resolve_equipment_appearance(&armor, outfits, 95, 0).unwrap();
+        let baked = load_baked_equipment_appearance(&armor, outfits, 95, 0).unwrap();
         assert_eq!(baked.runtime_models, plain.runtime_models);
         assert_eq!(baked.outfit.geoset_overrides, plain.outfit.geoset_overrides);
         assert_eq!(
@@ -793,7 +793,7 @@ mod tests {
 
     #[test]
     fn starter_items_match_their_explicit_display_and_keep_model_fdids() {
-        let data = OutfitData::load(&data_dir());
+        let data = outfit_data();
         for (item_id, slot) in [
             (25, EquipmentVisualSlot::MainHand),
             (38, EquipmentVisualSlot::Shirt),
@@ -842,9 +842,7 @@ mod tests {
         );
         assert!(result.runtime_models.is_empty());
         assert!(result.outfit.item_textures.is_empty());
-        let display = OutfitData::load(&data_dir())
-            .resolve_item_display_id(25)
-            .unwrap();
+        let display = outfit_data().resolve_item_display_id(25).unwrap();
         let mut explicit = entry(EquipmentVisualSlot::MainHand, u32::MAX);
         explicit.display_info_id = Some(display);
         let result = resolve(vec![explicit]);
@@ -857,11 +855,11 @@ mod tests {
 
     #[test]
     fn missing_item_reports_error_instead_of_silent_fallback() {
-        let data = OutfitData::load(&data_dir());
+        let data = outfit_data();
         let appearance = EquipmentAppearance {
             entries: vec![entry(EquipmentVisualSlot::OffHand, u32::MAX)],
         };
-        let error = resolve_equipment_appearance(&appearance, &data, 1, 0).unwrap_err();
+        let error = resolve_equipment_appearance(&appearance, data, 1, 0).unwrap_err();
         assert!(
             error.contains("OffHand") && error.contains(&u32::MAX.to_string()),
             "{error}"
@@ -1264,14 +1262,9 @@ mod tests {
     #[test]
     fn belt_keeps_buckle_and_collection_and_bracers_have_models() {
         let tauren = |entries| {
-            resolve_equipment_appearance(
-                &EquipmentAppearance { entries },
-                &OutfitData::load(&data_dir()),
-                6,
-                0,
-            )
-            .unwrap()
-            .runtime_models
+            resolve_equipment_appearance(&EquipmentAppearance { entries }, outfit_data(), 6, 0)
+                .unwrap()
+                .runtime_models
         };
         let belt: Vec<_> = tauren(vec![entry(EquipmentVisualSlot::Waist, 168296)])
             .iter()
