@@ -330,14 +330,14 @@ pub fn load_model_node(path: &GString) -> Result<(Gd<Node3D>, PackedInt32Array),
 
 pub(crate) fn load_model_node_with_skin_fdids(
     path: &GString,
-    skin_texture_fdids: &[u32; 3],
+    skin_texture_fdids: &[u32],
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     load_model_node_with_appearance(path, skin_texture_fdids, None)
 }
 
 pub(super) fn load_model_node_with_appearance(
     path: &GString,
-    skin_texture_fdids: &[u32; 3],
+    skin_texture_fdids: &[u32],
     appearance: Option<&appearance::PreparedAppearance>,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     let model = read_model(path)?;
@@ -347,7 +347,7 @@ pub(super) fn load_model_node_with_appearance(
 pub(crate) fn build_model(
     model: &m2::Model,
     path: &GString,
-    skin_texture_fdids: &[u32; 3],
+    skin_texture_fdids: &[u32],
     appearance: Option<&appearance::PreparedAppearance>,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
     build_model_filtered(model, path, skin_texture_fdids, appearance, |_| true)
@@ -356,7 +356,7 @@ pub(crate) fn build_model(
 pub(super) fn build_model_filtered(
     model: &m2::Model,
     path: &GString,
-    skin_texture_fdids: &[u32; 3],
+    skin_texture_fdids: &[u32],
     appearance: Option<&appearance::PreparedAppearance>,
     allowed: impl Fn(u16) -> bool,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
@@ -367,7 +367,7 @@ pub(super) fn build_model_filtered(
 pub(super) fn build_model_filtered_with_textures(
     model: &m2::Model,
     path: &GString,
-    skin_texture_fdids: &[u32; 3],
+    skin_texture_fdids: &[u32],
     appearance: Option<&appearance::PreparedAppearance>,
     textures: Option<&HashMap<u32, Gd<godot::classes::ImageTexture>>>,
     allowed: impl Fn(u16) -> bool,
@@ -498,7 +498,7 @@ fn load_batch(
     model: &m2::Model,
     tracks: &game_engine_core::m2_material::MaterialTracks,
     batch: &game_engine_core::m2_batch_data::ResolvedBatch,
-    skin_texture_fdids: &[u32; 3],
+    skin_texture_fdids: &[u32],
     path: &GString,
     missing: &mut PackedInt32Array,
     appearance: Option<&appearance::PreparedAppearance>,

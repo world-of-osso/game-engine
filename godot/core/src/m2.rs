@@ -82,7 +82,7 @@ pub struct Model {
 /// The caller supplies the FDID path lookup used by the original empty-UV-table envmap heuristic.
 pub fn resolve_render_batches(
     model: &Model,
-    skin_texture_fdids: &[u32; 3],
+    skin_texture_fdids: &[u32],
     keep_zero_opacity_batches: bool,
     fdid_path: impl Fn(u32) -> Option<String>,
 ) -> Result<Vec<ResolvedBatch>, String> {
