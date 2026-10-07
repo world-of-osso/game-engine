@@ -36,6 +36,12 @@ Markers: `nameplate.rs` spawns the talktome M2 with its animation; `indicator_fa
 - Legibility: title `OBJECTIVE_TRACKER_COLOR.Header` = `OBJECTIVE_TRACKER_BLOCK_HEADER_COLOR` (GlobalColor 241, 0xBF9C00 = 0.75, 0.61, 0) and lines `Normal` 0.8 grey, both `ObjectiveTrackerLineFont` FRIZQT 12 with a black (1, −1) shadow (`Blizzard_ObjectiveTrackerFonts.xml:202-209`). Native labels drew no FontString shadow until the projection mapped `shadow_color`/`shadow_offset` to Godot's `font_shadow_color`/`shadow_offset_*` (y flipped), so the dark-gold title vanished on bright grass. Hover highlight (`HeaderHighlight`/`NormalHighlight`) is not implemented in either client.
 
 
+## Native objective progress notices
+
+At `1238b1a78`, real Northshire kill credits updated log/tracker counts but produced no progress message: `QuestRuntime::apply_update` replaced existing entries without emitting notices. `d88c66b0f` compares matching objective counters before replacement and returns `QuestNotice::Progress`; acceptance remains `System`. Account forwards the typed notice, and the native host renders progress through the yellow `UIErrorsFrame` path. Error lines retain red independently of progress lines.
+
+`world_quest_progress.gd` observes the authoritative counter transition before combat settle frames and captures the first post-draw yellow label. Runtime RED/GREEN, replay/decrease/item tests, 2,166 passing three-crate tests (six ignored), and live captures are retained in `data/diagnostics/questloop-2026-10-07/proof-ledger.txt`. This proves the bounded notice path, not every marker/skin/edit-mode combination; the [parity matrix](../../specs/godot-parity-matrix.md) owns acceptance scope.
+
 ## Native quest scrolling
 
 Verified 2026-10-06: 42 targeted Rust tests and 16 native long/short page/skin cases pass. Final selected-quest captures and exact command scopes are in `data/diagnostics/questoverflow-2026-10-06/proof-ledger.txt` / `.json`; prototype failures remain archived separately. The data-dependent item-5580 icon test and native GTK/resource-cache teardown diagnostics are excluded from this bounded acceptance, not repaired.
@@ -77,6 +83,7 @@ The error overlay holds a line for three seconds, then fades for half a second. 
 - [Quest scroll viewport](../../../godot/ui-model/src/ui/screens/quest_scroll.rs), [native extent feedback](../../../godot/rust/src/ui/mod.rs) and [offline clipping/input capture](../../../godot/tests/quest_overflow_capture.gd) — bounded native scrolling behavior.
 - [Live fixture](../../../godot/tests/world_quest_flow.gd), [movement regression](../../../godot/tests/quest_flow_movement.gd), [capture regression](../../../godot/tests/quest_flow_error_capture.gd) — observable input, life and rendered output.
 - [Native ground](../../../godot/rust/src/ground.rs), [collision regressions](../../../godot/rust/src/wmo/collision_tests.rs) — Jasperlode geometry and slow-frame movement.
+- [Quest notice reducer](../../../godot/ui-model/src/game/quest_runtime.rs), [native Account dispatch](../../../godot/rust/src/account.rs) and [progress capture](../../../godot/tests/world_quest_progress.gd) — authoritative count transitions to typed notices and rendered yellow text.
 - [Error lifetime](../../../godot/ui-model/src/ui/ui_errors_data.rs) — hold and fade durations; proof commands and revisions are in the evidence directory's `proof-ledger.txt`.
 
 ## See Also

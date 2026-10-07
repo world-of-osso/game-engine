@@ -2022,7 +2022,14 @@ impl GameClient {
             }
             AccountEvent::GroupNotice(text) => self.receive_group_notice(&text),
             AccountEvent::Quest(message) => self.receive_quest_message(message)?,
-            AccountEvent::QuestNotice(text) => self.add_quest_notice(&text),
+            AccountEvent::QuestNotice(notice) => match notice {
+                game_engine_ui_model::quest_runtime::QuestNotice::System(text) => {
+                    self.add_quest_notice(&text)
+                }
+                game_engine_ui_model::quest_runtime::QuestNotice::Progress(text) => {
+                    self.add_world_info(&text)?
+                }
+            },
             AccountEvent::CreatureTooltip(tooltip) => self.tooltips.receive_creature(tooltip),
             AccountEvent::Appearances(update) => self.tooltips.receive_appearances(update),
         }
@@ -2578,6 +2585,15 @@ impl GameClient {
             .expect("error UI attached")
             .bind_mut()
             .add_error(error)
+    }
+
+    fn add_world_info(&mut self, text: &str) -> Result<(), String> {
+        self.attach_errors_ui()?;
+        self.errors_ui
+            .as_mut()
+            .expect("error UI attached")
+            .bind_mut()
+            .add_info(text)
     }
 
     fn update_world_errors(&mut self, delta: f32) -> Result<(), String> {
