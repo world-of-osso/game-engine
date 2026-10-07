@@ -43,6 +43,7 @@ func run_test() -> void:
 		var result := await execute_command(command)
 		var file := FileAccess.open(shots + "result.json", FileAccess.WRITE)
 		file.store_string(JSON.stringify({"id": last_command, "result": result}))
+		file.close()
 
 func write_state(filename: String) -> void:
 	var popups := []
