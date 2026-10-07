@@ -322,6 +322,7 @@ fn forever_npc_gear_reports_declared_missing_resources() {
         "ItemDisplayInfo",
         "TextureFileData",
         "ItemDisplayInfoMaterialRes",
+        "ItemDisplayInfoModelMatRes",
         "ModelFileData",
     ] {
         std::os::unix::fs::symlink(
