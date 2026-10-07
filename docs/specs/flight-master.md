@@ -13,6 +13,7 @@ Retail references under cached `retail/AddOns/`:
 ## What it must do
 
 - [x] Talking to a flight master opens its continent map from the server's `TaxiMap` (after selecting its ride gossip option where offered).
+- [x] Fill the portrait ring with Retail's authored `Interface/Icons/icon_petfamily_flying` (FDID 618976), rounded by the existing window portrait mask (`Blizzard_FlightMap.lua:12-18`), not the interacting NPC's face.
 - [x] Draw current and reachable taxi nodes projected through the shared world-map catalog; mark current node green. Do not draw undiscovered nodes.
 - [x] Draw deduplicated first-hop routes from current node; hovering a reachable destination shows its full route.
 - [x] Hover shows destination name and copper cost expressed as gold/silver/copper, or “You are here” for current node.
@@ -52,7 +53,7 @@ Full Retail visual parity and broad lifecycle/other-continent proof are not clai
 
 ## Out of scope
 
-Zoom/pan, portrait masking, texture-kit/special pins, reveal animations, early landing and rotated line textures. Routes use dots, as the retired client did; not full Retail visual parity. Missing local-CASC continent tiles remain undrawn and counted. Rider-on-mount rendering and zone-loading transitions remain existing client behavior.
+Zoom/pan, texture-kit/special pins, reveal animations, early landing and rotated line textures. Routes use dots, as the retired client did; not full Retail visual parity. Missing local-CASC continent tiles remain undrawn and counted. Rider-on-mount rendering and zone-loading transitions remain existing client behavior.
 
 ## Historical evidence
 

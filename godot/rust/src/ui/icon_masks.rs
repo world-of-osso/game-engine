@@ -112,7 +112,10 @@ fn is_round_icon(name: &str) -> bool {
     let portrait = (name.starts_with("ContainerFrame") && name.ends_with("Portrait"))
         || matches!(
             name,
-            "SpellBookPortrait" | "MailFramePortrait" | "OpenMailFramePortrait"
+            "SpellBookPortrait"
+                | "MailFramePortrait"
+                | "OpenMailFramePortrait"
+                | "FlightMapPortrait"
         );
     creation || bag || portrait
 }
@@ -214,6 +217,40 @@ mod tests {
         assert_eq!(masked.get_pixel(0, 0)[3], 0, "corner cut away");
         assert_eq!(masked.get_pixel(w - 1, h - 1)[3], 0, "corner cut away");
         assert!(masked.get_pixel(w / 2, h / 2)[3] > 200, "centre kept");
+    }
+
+    #[test]
+    fn capturepolish_flight_map_portrait_keeps_art_and_cuts_corners() {
+        use game_engine_ui_model::quest_art::{window_portrait_slot, window_portrait_texture};
+        game_engine_ui_model::paths::set_data_root(
+            std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        )
+        .unwrap();
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(|_| {
+            window_portrait_texture(&window_portrait_slot("FlightMapPortrait"), 618_976)
+        })
+        .sync(&SharedContext::new(), &mut registry);
+        IconMasks::default().apply(&mut registry);
+        let portrait = registry
+            .get(registry.get_by_name("FlightMapPortrait").unwrap())
+            .unwrap();
+        let Some(WidgetData::Texture(texture)) = &portrait.widget_data else {
+            panic!()
+        };
+        let TextureSource::Dynamic(id) = texture.source else {
+            panic!("portrait was not masked")
+        };
+        let image = registry.dynamic_texture(id).unwrap();
+        let rgba = RgbaImage::from_raw(image.width, image.height, image.rgba8.clone()).unwrap();
+        assert_eq!(rgba.get_pixel(0, 0)[3], 0);
+        assert_eq!(rgba.get_pixel(image.width - 1, image.height - 1)[3], 0);
+        let middle = rgba.get_pixel(image.width / 2, image.height / 2);
+        assert!(middle[3] > 200);
+        assert!(
+            middle[0..3].iter().any(|channel| *channel > 30),
+            "authored art is not black"
+        );
     }
 
     /// Without a specialization the spellbook portrait's FDID is 0, an empty ring

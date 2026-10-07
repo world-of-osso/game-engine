@@ -1,6 +1,8 @@
 //! Retail FlightMapFrame, with the world map's tiled canvas and flight-path overlays.
 use crate::flight_map::{CLOSE_ACTION, DESTINATION_ACTION, FlightPin, FlightProjection};
-use crate::ui::screens::quest_art::{DynName, named_atlas_texture, portrait_border};
+use crate::ui::screens::quest_art::{
+    DynName, named_atlas_texture, portrait_border, window_portrait_slot, window_portrait_texture,
+};
 use crate::ui::strata::FrameStrata;
 use crate::world_map_frame_component::{WorldMapFrameState, canvas::canvas_contents};
 use shared::protocol::TaxiNodeState;
@@ -28,6 +30,8 @@ pub fn flight_map_screen(ctx: &SharedContext) -> Element {
     let [left, top] = frame_origin(view.map.viewport);
     let [width, height] = FRAME_SIZE;
     let canvas = flight_canvas(view);
+    // Blizzard_FlightMap.lua:12-18: SetPortraitToAsset(icon_petfamily_flying).
+    let portrait = window_portrait_texture(&window_portrait_slot("FlightMapPortrait"), 618_976);
     let border = portrait_border(
         "FlightMapFrame",
         (width, height),
@@ -43,6 +47,7 @@ pub fn flight_map_screen(ctx: &SharedContext) -> Element {
                 background_color: "0.0,0.0,0.0,1.0",
                 {canvas}
                 {border}
+                {portrait}
             }
         }
     }

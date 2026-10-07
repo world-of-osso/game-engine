@@ -7,6 +7,7 @@ mod buffcancel_tests;
 pub(crate) mod castbar_fx;
 mod castbar_preview;
 mod dungeon_preview;
+mod flight_map_preview;
 mod forevergaps_preview;
 mod guild_preview;
 mod icon_masks;
