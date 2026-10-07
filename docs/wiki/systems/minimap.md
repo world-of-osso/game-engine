@@ -10,7 +10,7 @@ How the native Godot `MinimapCluster` works. Contract: [minimap spec](../../spec
   - `compose(view, size, tile)`, the RGBA8 circle;
   - `blip_offset`;
   - `AreaCatalog` (AreaTable name, parent, `FactionGroupMask` and sanctuary flag) and `parse_race_faction_groups` (ChrRaces `Alliance`).
-- **Screen**: `godot/ui-model/src/minimap.rs` builds the rsx `MinimapCluster` in cluster-local units. Every rect is derived from the Retail anchors in `Minimap.xml`. `apply_minimap_postsetup` sets the arrow's `TextureData.rotation` and points `MinimapDisplay` at the host's dynamic texture.
+- **Screen**: `godot/ui-model/src/minimap.rs` builds the rsx `MinimapCluster` in cluster-local units. Chrome rects follow Retail anchors in `Minimap.xml`; blips use map-relative offsets and the service menu uses local checkbox geometry. `apply_minimap_postsetup` sets the arrow's `TextureData.rotation` and points `MinimapDisplay` at the host's dynamic texture.
 - **Host**: `godot/rust/src/minimap.rs` runs the per-frame "Minimap" step. It sends quest-giver queries, handles actions (zoom and world-map toggle), builds the state, and recomposites. `RegistryUi::show_minimap` registers a 1×1 dynamic texture. `set_minimap` updates its pixels in place, and the projection re-reads dynamic textures on every sync.
 
 ## Coordinates
@@ -32,6 +32,18 @@ Northshire's `azeroth/map32_48.blp` is FDID 204493, a 256² tile. At zoom 0 the 
 ## Quest-giver blips
 
 The host keeps the set of NPCs it has queried. It sends one `QuestGiverStatusQuery` for newly mirrored `QUESTGIVER` NPCs, and drops NPCs that leave replication. `Account` stores each `QuestGiverStatusMultiple` entry; the server re-sends the statuses after every quest change. `Available` and `Reward` produce blips; the other statuses produce none, and trivial quests stay hidden as with Retail's default tracking.
+
+## Member, target and service tracking blips
+
+`godot/ui-model/src/minimap_units.rs` projects the account's `GroupState.live` positions, not replica-interest positions, so out-of-interest online members still have direction arrows. Roster class selects the shared class palette; character ID names the member frame. The target instead requires a current replicated `Position`. Separate prefixes allow its overlay to coexist with the same member's dot. Modern clamps along a circle; Forever clamps along its usable square, below the opaque header. Registry rotation is counter-clockwise; north-pointing group art uses `-atan2(right, -down)` before the Godot projection negates it.
+
+`minimap_tracking.rs` holds menu selections and maps supported `NpcFlags` to Retail service art. The host supplies only current replicated positions; there is no static-world reconstruction or new server feed. Tracking-button clicks open the menu, native checkboxes update local selections, and outside clicks close it. Supported filters, unsupported spell sources, art provenance and bounded proof live in the [minimap contract](../../specs/minimap.md), not this page.
+
+## Sources
+
+- [Minimap contract](../../specs/minimap.md) — cached FrameXML and pinned DB2 art references, behavioral tests and private live proof.
+- `godot/{rust,ui-model}/src/minimap.rs`, `godot/ui-model/src/{minimap_units,minimap_tracking}.rs` — host projection, rendering and local selection.
+- `shared-protocol/src/protocol/{group_messages,interaction_messages,tooltip_messages}.rs` — group positions, service flags and query-only creature type.
 
 ## Gotchas
 

@@ -1,6 +1,9 @@
 ## 2026-10-07 — Local specialization-conditioned spell visuals
 
 [Spell visual selection](systems/spell-visuals.md#local-specialization-selection-2026-10-07) maps account primary specialization IDs to DB2 OrderIndex only for the local caster. Slam's same-weapon Arms/Fury regression reproduced the wrong kit (62428 instead of 128672); native/core specialization regressions passed at `82ad03641`, tracked in the [contract](../specs/spell-visuals.md). Remote/NPC specialization remains unreplicated; no live/raster Retail parity claim.
+## 2026-10-07 — Minimap member/target and service blips
+
+[Minimap](systems/minimap.md#member-target-and-service-tracking-blips) records GroupMemberStates outside replica interest, skin-specific edge clamping, native rotation sign, target overlays and supported NPC-service selection. [Contract](../specs/minimap.md#native-proof--2026-10-07) owns art citations, targeted RED/GREEN and inspected private two-client live proof: both skins, near/far/target/class colour, Forever north/header clearance and native service toggles. Four launches, live preset switch; exact-PID cleanup and free UDP5316 verified. Herbs/Minerals/Humanoids have no sufficient spell-tracking feed; server/protocol unchanged.
 
 ## 2026-10-07 — Restart-required native SSAO
 
