@@ -77,11 +77,46 @@ Native profession recipe book and crafting window in `godot/ui-model` and `godot
 
 ### What it must do
 
-- [x] Consume the owner's profession lines and learned spells; list known recipes by DB2 category with required skill rank.
+- [x] Consume the owner's profession lines and learned spells; list known recipes by DB2 category. Required rank remains crafting metadata, not a bracketed recipe-row suffix.
 - [x] Filter recipe names with a case-insensitive search; retain a selectable schematic.
 - [x] Show crafted item and reagents using DB2 names/icons and owned/needed counts summed across bags, not equipped items.
 - [x] Create sends the selected recipe's spell ID and positive u16 cast quantity on `ProfessionChannel`; Create All sends the available reagent-limited quantity. Missing reagents disable Create.
 - [x] Refresh bags and skill bar from authoritative inventory and profession updates; render Modern and Forever using native chrome and scroll lists. Real K and profession spellbook entry opening are live-proved.
+
+### Native visual contract
+
+- Recipe tree: 25-pixel collapsible category headers, 20-pixel plain recipe rows, 10-pixel indent, selection overlay and reagent-limited craftable count. No spell/category blue-swirl icons or red recipe buttons. Recipe names and craftable counts use neutral `PROFESSION_RECIPE_COLOR` (#e2dcd6), including selected rows. Difficulty comes from each recipe's existing trivial thresholds and learned line rank, conveyed only by high/medium/low skill-up icons; trivial or maximum-rank recipes have no icon.
+- Schematic: output item icon/ring and item name; 180×50 reagent cells, four per column with 5-pixel spacing. Each cell contains an item slot, item-quality border, adjacent "owned/needed Name" text, with no count on the icon. Missing quantities dim the entire count/name text to `DISABLED_REAGENT_COLOR` (#a0a0a0); sufficient quantities use white, without changing crafting eligibility.
+- Header/chrome: profession title, 453×18 textured rank bar at (280,40), rank/max text, 942×658 portrait metal frame, list at (5,72), schematic at (281,72). Search belongs inside the list. Create/Create All and quantity spinner belong at bottom right. Classic tier shows Recipes only; unsupported specialization/order systems remain absent.
+- Forever uses its own atlas members/chrome where present, otherwise shared Retail profession art. Its c60 profession sheet `8164391` is referenced by the export but absent from local CASC (missing resolution/listfile entry, rendered preview RED on 2026-10-07). Those members use shared Retail art until `textures/8164391.blp` is supplied; available Forever chrome remains unchanged. No alternate crafting mechanics.
+- Offline previews must use a concrete mixed-difficulty snapshot with several categories, a selected recipe and partly owned reagents, through the production screen in both skins. Preview APIs live in `*_preview.rs` secondary Godot API blocks.
+
+Retail source root: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
+
+- **(a)/(b)** `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.xml:94-217` (headers, skill-up indicator, plain row and selection); `.lua:232-242,267-301,346-376` (`GetLabelColor` returns neutral `PROFESSION_RECIPE_COLOR` for learned recipes, `DISABLED_FONT_COLOR` for unlearned; difficulty is carried by skill-up art). Selection changes overlays, not label color. Hover temporarily uses `HIGHLIGHT_FONT_COLOR`, restored on leave. Native lists currently contain learned recipes only; unlearned/hover presentation remains unsupported.
+- **(c)** `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeReagentSlotBase.xml:6-27,41-62`, `Blizzard_ProfessionsTemplates.xml:43-85`, `Blizzard_ProfessionsRecipeReagentSlot.lua:99-129,238-252,331-333`, `Blizzard_ProfessionsRecipeSchematicForm.xml:31-38,63-69`, `.lua:1286-1290`; output ring: `Blizzard_ItemButton/Mainline/ItemButtonTemplate.xml:23-73` `CircularGiantItemButtonTemplate`. Retail formats `TRADESKILL_REAGENT_COUNT` ("%s/%d"), then `("%s %s"):format(quantityText, reagentName)` into the adjacent Name. `Update` colors the whole text via `GetNameColor`; required slots without an allocation use `DISABLED_REAGENT_COLOR`, allocated slots use `HIGHLIGHT_FONT_COLOR`. Native fixed-reagent crafting dims the text when the available quantity cannot meet the required allocation.
+- **(d)** `Blizzard_Professions/Blizzard_ProfessionsRankBar.xml:5-61`, `.lua:103-136`, `Blizzard_ProfessionsCrafting.xml:199-202`.
+- **(e)** `Blizzard_Professions/Blizzard_ProfessionsFrame.xml:7-25`, `.lua:269-292` (tab gates), `Blizzard_ProfessionsCrafting.xml:136-150,205-224`, `.lua:344-351,912-941`; search: `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.xml:40-53`.
+
+### Retail presentation correction proof (2026-10-07)
+
+Source `8f34a0655`, directly above `41eba8ec3` on `professionsart`. Recipe labels and craftable counts use #e2dcd6 in selected and unselected rows; skill-up icons retain difficulty. Reagent text is adjacent "owned/needed Name", entirely #a0a0a0 while insufficient or white while sufficient; icon counts removed. Unlearned recipes and hover behavior remain unsupported, not newly implemented.
+
+Three targeted RED assertions reproduced the old presentation. Locked local helper `--test -p game-engine-godot -p game-engine-ui-model --no-fail-fast professions`: **12 passed**, exit 0 (`/tmp/claude/professionsart2.out`, detailed `/tmp/claude/professionsart2-green-details.out`). Both changed crates pass `cargo fmt --check`. Locked local `--cli` built/installed the extension and CLI, exit 0 (`/tmp/claude/professionsart2-build.out`); extension SHA-256 `5ed1161467a1d8754f82205f6b22d8064b83a9921e25563d3508ca2b2f733ded`. No broad-suite/CI or separate `cargo check` claim.
+
+Inspected canonical `data/professions-art-20261007b/modern.png` and `forever.png`: neutral recipe names including selected Brown Linen Robe, unchanged skill-up art, adjacent grey "2/3 Bolt of Linen Cloth" and white "4/1 Coarse Thread", no on-icon counts, unchanged rank/header/footer geometry. Existing offline preview APIs and `capture_ui_screen.gd` passed content/color/geometry assertions in both skins, both process exits 0; matching `.argv.json`, `.log` and `.exit` files preserve invocation/results.
+
+Private headless Weston/Dozen, no server. Wayland/Dozen capability and RID/ObjectDB shutdown diagnostics remain; Modern also logged a shader-cache-directory creation diagnostic during concurrent first startup. Not general renderer health or leak-free teardown proof. `agents-professionsart.slice` stopped and inactive; owned build/capture/compositor runner PIDs reaped. No merge/push, cache-policy changes, or data/UID/PLAN commits.
+
+### Original native visual proof (2026-10-07; superseded presentation)
+
+The captures below preserve the original non-Retail difficulty-tinted labels and on-icon counts, not the corrected visual contract above.
+
+Source `d1494131` on `professionsart`, after `a5b0c122`, `1d0d5de7` and `58b76b02`; no merge/push. Locked local helper `--test -p game-engine-godot -p game-engine-ui-model --no-fail-fast professions`: **12 passed** (eight existing UI-model cases, Account dispatch, two color/content cases and one native Taffy geometry case). Log `/tmp/claude/professionsart-final-tests.out`. Matching extension/CLI installed with the locked local helper `--cli`; `/tmp/claude/professionsart-final-build.out`. Both changed crates pass `cargo fmt --check`. No broad-suite/CI or separate `cargo check` claim; actual extension/CLI compilation and linking passed.
+
+Inspected canonical `data/professions-art-20261007/modern.png` and `forever.png`: three categories, all four difficulty colors, Brown Linen Robe selected, Bolt of Linen Cloth 2/3 and Coarse Thread 4/1, Classic Tailoring 35/300, textured output/reagent slots and bottom-right controls. `godot/tests/capture_ui_screen.gd` passed native content, colors and geometry assertions in both skins; `modern-final.log` / `forever-final.log` retain results. Preview data lives in `godot/rust/src/ui/professions_preview.rs`, a secondary Godot API block; resolved geometry in `professions_art_tests.rs`, colors/content in `godot/ui-model/tests/professions_art.rs`.
+
+Private Weston/Dozen rendering, no server. Local CASC supplied Tailoring portrait/fill; unavailable c60 sheet uses the explicitly allowed shared art. Wayland/Dozen capability warnings and RID/ObjectDB shutdown leak diagnostics remain in capture logs; not a leak-free teardown or pixel-identical Retail claim. Owned capture/compositor processes exited and `agents-professionsart.slice` is inactive. Original live craft ledger below remains historical behavior proof.
 
 ### How it works
 

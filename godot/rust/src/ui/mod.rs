@@ -20,6 +20,7 @@ mod minimap_preview;
 mod options_keybindings;
 mod parts;
 mod party_preview;
+mod professions_preview;
 mod projection;
 mod registration_preview;
 mod scroll_lists;
@@ -1375,7 +1376,7 @@ impl RegistryUi {
         let mut registry = parent.registry();
         register_metal_frame_style(
             &mut registry,
-            game_engine_ui_model::panel_style_data::MetalTopLeft::Plain,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
         )?;
         self.show_viewport_screen_in(
             state,
