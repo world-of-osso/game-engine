@@ -150,7 +150,10 @@ fn registration_form_preserves_credentials_and_disables_submission_while_waiting
         let Some(WidgetData::Button(data)) = &frame.widget_data else {
             panic!("missing button")
         };
-        (data.text.clone(), data.enabled)
+        (
+            data.text.clone(),
+            data.enabled && data.state != ButtonState::Disabled,
+        )
     };
     assert_eq!(button(&model, CONNECT_BUTTON.0), ("Register".into(), true));
     assert_eq!(
