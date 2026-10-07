@@ -1,3 +1,7 @@
+## 2026-10-07 — Skyborn post-rebase documentation checkpoint
+
+[Forever checkpoint](systems/forever-data.md#post-rebase-checkpoint-2026-10-07), [NPC contract](../specs/npc-appearance.md#forever-display-overlay) and [quest fixture contract](../specs/quest-ui.md#bounded-skyborne-native-acceptance-fixture) reconcile Main-reported clean rebase onto master13319752 at c346a224 (no skips/push, backup retained) and fixture49a88aed5's visible-Ailee expectation. Authentic profile publication is not rebased native proof. Historical RED/withheld runs and master subsystem docs retained. Indexed-column compile mismatch and agent227-owned Retail model-material regression remain open; matching rebased build/native GREEN and independent gate pending. Documentation-only audit; no tests, runtime, builds or target changes.
+
 ## 2026-10-07 — Portrait party Retail parity audit
 
 [Portrait party frames](systems/portrait-party-frames.md#retail-parity-audit--2026-10-07) rechecks the old party1 findings against local Retail Mainline: health desaturation already fixed; power stays full and half-grey-tinted; crown BOTTOM→TOP extension is intentional, not TOPLEFT. Eleven targeted tests and fresh Modern/Forever offline previews pass. Compact default unchanged; existing shutdown leaks and live/reference acceptance gaps remain.
