@@ -139,4 +139,7 @@ func commit_effects(client: Node, dof: bool, ssao: bool) -> bool:
 		return false
 	var cap := Engine.max_fps != 0
 	await click_option(client, "ToggleSwitchframe_rate_limit_enabledLeftHit" if cap else "ToggleSwitchframe_rate_limit_enabledRightHit")
-	return saved_option_value(options_path, "depthOfField") == str(dof).to_lower() and saved_option_value(options_path, "ssaoEnabled") == str(ssao).to_lower()
+	if saved_option_value(options_path, "depthOfField") != str(dof).to_lower() or saved_option_value(options_path, "ssaoEnabled") != str(ssao).to_lower():
+		fail("Authored Graphics commit lost saved DOF/SSAO booleans")
+		return false
+	return true
