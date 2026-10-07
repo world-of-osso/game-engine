@@ -68,6 +68,12 @@ impl DeathFlow {
         available
     }
 
+    pub fn is_dead(&self) -> bool {
+        self.snapshot
+            .as_ref()
+            .is_some_and(|snapshot| snapshot.state == DeathStateSnapshot::Dead)
+    }
+
     pub fn is_ghost(&self) -> bool {
         self.snapshot
             .as_ref()
@@ -264,7 +270,7 @@ fn healer_text(level: u8) -> String {
     if level < shared::death::RES_SICKNESS_MIN_LEVEL {
         "If you find your corpse, you can resurrect for no penalty.  If I resurrect you all of your equipped items will take 25% durability damage.".into()
     } else {
-        "If you find your corpse, you can resurrect for no penalty.  If I resurrect you all of your equipped items will take 25% durability damage and you will be afflicted by 10 minutes of |cff71d5ff|Hspell:15007|h[Resurrection Sickness]|h|r.".into()
+        "If you find your corpse, you can resurrect for no penalty.  If I resurrect you all of your equipped items will take 25% durability damage and you will be afflicted by 10 minutes of Resurrection Sickness.".into()
     }
 }
 

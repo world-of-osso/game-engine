@@ -155,6 +155,35 @@ fn rezrtap_udp_offer_popup_account_accept_both_skins() {
 }
 
 #[test]
+fn deathstate_healer_warning_renders_plain_sickness_name_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut flow = DeathFlow::default();
+        let mut stack = PopupStack::default();
+        flow.receive(snapshot(DeathStateSnapshot::Ghost));
+        assert!(flow.request_spirit_healer(&position(203.0)));
+        flow.sync_popups(&mut stack, Some(&position(203.0)), 20);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut shared = SharedContext::new();
+        shared.insert(StaticPopupState {
+            popups: stack.visible(),
+        });
+        Screen::new(static_popup_screen).sync(&shared, &mut registry);
+        let text = registry
+            .get(registry.get_by_name("StaticPopup1Text").unwrap())
+            .unwrap();
+        let Some(ui_toolkit::frame::WidgetData::FontString(text)) = text.widget_data.as_ref()
+        else {
+            panic!("healer warning has no displayed text");
+        };
+        assert_eq!(
+            text.text,
+            "If you find your corpse, you can resurrect for no penalty.  If I resurrect you all of your equipped items will take 25% durability damage and you will be afflicted by 10 minutes of Resurrection Sickness."
+        );
+    }
+}
+
+#[test]
 fn deathstate_udp_snapshot_popup_account_request_both_skins() {
     for (index, skin) in [ActiveSkin::Modern, ActiveSkin::Forever]
         .into_iter()
