@@ -1,6 +1,6 @@
 # Death and resurrection UI
 
-> Root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
+> Historical Bevy contract: root `src/` paths below name files deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02). Current native contract and final per-step PASS/FAIL table live in [Player death flow](death-flow.md#live-acceptance--2026-10-07). Native re-proof passes ghost grading/corpse pin, spirit-healer sickness and local corpse animation; end-to-end logout/relog remains blocked by server `f25258b` death-state restoration.
 
 Retail-style death flow on the live `DeathStateUpdate` stream (phase 3 of [in-game UI plan](../plans/2026-09-23-ingame-ui.md)). UI lives in `src/scenes/death_ui/`; network state and actions in `src/death.rs`.
 
