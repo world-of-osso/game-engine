@@ -31,7 +31,9 @@ Verified source: 2026-10-07. `godot/network` relays `ProfessionSnapshot`; `accou
 
 `professions_catalog.rs` loads pinned SkillLine/SkillLineAbility, TradeSkillCategory, SpellReagents and CREATE_ITEM SpellEffect metadata on a worker. Existing spell and item catalogs supply names/icons. `ProfessionBook` groups/filter learned recipes and derives cast limits from actual bag stacks; equipment is excluded. `ProfessionView` projects onto native skin-aware panel chrome and MinimalScrollBar. K and learned profession spell entries open the window; Escape closes it. CastFailed text reuses the existing Retail error path.
 
-The [native coverage section](../../specs/professions-frame.md#native-godot-coverage-2026-10-07) owns test/live proof and remaining gaps. Native trainers and exact Retail book-entry/art/layout parity are not implemented here.
+`SpellReagents` item/count fields are signed. Spell44864 has `ReagentCount_0=-1`; parse it as signed and retain only positive item/count pairs, matching the server. An actual-data regression fixture prevents unrelated sentinel rows from disabling the whole recipe catalog.
+
+The [native coverage section](../../specs/professions-frame.md#native-godot-coverage-2026-10-07) owns test/live proof, inspected Modern/Forever captures, exact cleanup and remaining gaps. Native trainers and exact Retail book-entry/art/layout parity are not implemented here.
 
 ## Sources
 
