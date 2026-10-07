@@ -101,6 +101,11 @@ func equal_rect(a: Array, b: Array) -> bool:
 
 func run_fixture() -> void:
 	root.size = Vector2i(1920, 1080)
+	if OS.get_environment("GODOT_HUDEDIT_OFFLINE_FIRST") == "1":
+		var capture_script = load("res://tests/capture_ui_screen.gd")
+		if not await capture_script.capture_hud_edit_both_into(self, directory):
+			fail("offline HUD preview capture failed")
+			return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	if not await connect_to_world():

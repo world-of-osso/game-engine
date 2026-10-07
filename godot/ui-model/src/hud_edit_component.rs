@@ -115,7 +115,8 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
                 width: {w},
                 height: {h},
                 texture_fdid: fdid,
-                alpha: 0.7,
+                // Pinned rsx LitFloat truncates decimals; retire expression form once fixed.
+                alpha: {0.7},
                 strata: FrameStrata::FullscreenDialog,
                 pos_type: "absolute",
                 left: 0.0,
