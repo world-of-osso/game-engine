@@ -5,7 +5,21 @@ use shared::protocol::{CraftRecipe, ProfessionChannel, ProfessionSnapshot};
 
 #[test]
 fn professions_bridge_receives_snapshot_and_sends_craft() {
-    let (mut server, address) = crate::wire_tests::start_fixture_server();
+    #[derive(Resource, Default)]
+    struct Requests(Vec<CraftRecipe>);
+    fn capture(
+        mut receivers: Query<&mut MessageReceiver<CraftRecipe>>,
+        mut requests: ResMut<Requests>,
+    ) {
+        for mut receiver in &mut receivers {
+            requests.0.extend(receiver.receive());
+        }
+    }
+    fn install(app: &mut App) {
+        app.init_resource::<Requests>();
+        app.add_systems(Update, capture);
+    }
+    let (mut server, address) = crate::wire_tests::start_fixture_server_with(install);
     let mut bridge = NetworkBridge::connect(address, 8314).expect("profession bridge");
     let deadline = Instant::now() + Duration::from_secs(10);
     loop {
@@ -58,20 +72,18 @@ fn professions_bridge_receives_snapshot_and_sends_craft() {
         })
         .unwrap();
     let deadline = Instant::now() + Duration::from_secs(3);
-    let mut craft = None;
-    while craft.is_none() && Instant::now() < deadline {
+    while server.world().resource::<Requests>().0.is_empty() && Instant::now() < deadline {
         server.update();
-        let world = server.world_mut();
-        for mut receiver in world
-            .query::<&mut MessageReceiver<CraftRecipe>>()
-            .iter_mut(world)
-        {
-            craft = receiver.receive().next();
-        }
         thread::sleep(Duration::from_millis(5));
     }
     bridge.stop().unwrap();
     assert_eq!(received, Some(snapshot));
-    let craft = craft.expect("craft arrived");
-    assert_eq!((craft.spell_id, craft.casts), (3275, 2));
+    let requests = &server.world().resource::<Requests>().0;
+    assert_eq!(
+        requests,
+        &[CraftRecipe {
+            spell_id: 3275,
+            casts: 2
+        }]
+    );
 }
