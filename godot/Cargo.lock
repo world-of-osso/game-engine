@@ -3197,6 +3197,7 @@ version = "0.1.0"
 dependencies = [
  "bevy",
  "bevy_replicon",
+ "game-engine-core",
  "libc",
  "lightyear",
  "lightyear_messages",

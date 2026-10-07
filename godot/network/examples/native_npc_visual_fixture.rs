@@ -32,6 +32,8 @@ use shared::{
 #[path = "fixture_support/mod.rs"]
 mod fixture_support;
 use fixture_support::FixtureChild;
+#[path = "native_npc_visual_fixture/authored_textures.rs"]
+mod authored_textures;
 #[path = "fixture_support/data.rs"]
 mod fixture_data;
 #[path = "native_npc_visual_fixture/nameplate_casts.rs"]
@@ -503,6 +505,7 @@ impl Drop for FixtureProject {
 #[derive(Clone, Copy, PartialEq, Eq)]
 enum Mode {
     Visual,
+    AuthoredTextures,
     Nameplates,
     NameplateCasts,
 }
@@ -521,6 +524,7 @@ fn launch_godot(
                 "--script",
                 match mode {
                     Mode::Visual => "res://tests/world_npc_visual_flow.gd",
+                    Mode::AuthoredTextures => "res://tests/world_npc_authored_textures.gd",
                     Mode::Nameplates => "res://tests/world_nameplate_options_flow.gd",
                     Mode::NameplateCasts => "res://tests/world_nameplate_casts_flow.gd",
                 },
@@ -1090,21 +1094,28 @@ fn run_nameplate_fixture(
 fn main() {
     let mode = match std::env::args().nth(1).as_deref() {
         None => Mode::Visual,
+        Some("authored-textures") => Mode::AuthoredTextures,
         Some("nameplates") => Mode::Nameplates,
         Some("nameplate-casts") => Mode::NameplateCasts,
         Some(other) => panic!("Unknown fixture mode: {other}"),
     };
-    let project = FixtureProject::create(mode != Mode::Visual)
+    let project = FixtureProject::create(matches!(mode, Mode::Nameplates | Mode::NameplateCasts))
         .expect("stage isolated fixture data and Godot project");
+    if mode == Mode::AuthoredTextures {
+        authored_textures::stage(&project).expect("stage real NPC texture oracle");
+    }
     let (mut app, address) = start_server();
     println!("FIXTURE ENDPOINT {address}");
     let (mut child, lines, reader) = launch_godot(&project.project, address, mode);
-    let result = if mode == Mode::Visual {
-        run_fixture(&mut app, &mut child, lines, reader)
-    } else {
-        run_nameplate_fixture(&mut app, &mut child, lines, reader)
+    let result = match mode {
+        Mode::Visual => run_fixture(&mut app, &mut child, lines, reader),
+        Mode::AuthoredTextures => authored_textures::run(&mut app, &mut child, lines, reader),
+        _ => run_nameplate_fixture(&mut app, &mut child, lines, reader),
     };
     if let Err(error) = result {
         panic!("{error}");
+    }
+    if mode == Mode::AuthoredTextures {
+        authored_textures::persist_artifacts(&project).expect("preserve authored texture captures");
     }
 }
