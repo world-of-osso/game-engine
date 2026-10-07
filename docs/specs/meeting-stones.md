@@ -27,10 +27,20 @@ Retail references (cached `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`): `Bl
 
 ## Native verification (2026-10-07)
 
-Targeted `meetingstones` selectors cover request/countdown/replacement, combat click/Enter gate, Accept/Cancel/expiry responses, cursor selection and Retail refusal strings. Native transport/registry integration and private-server proof pending; no current live acceptance claim.
+Rust implementation `b64a2f33`, fractional-frame correction `a3ec8ada`; live driver `c189dd69`. Evidence: `data/diagnostics/meetingstones-2026-10-07/` (`proof-ledger.txt`, input hashes, argv/PID records, retained RED/GREEN logs and `cleanup.txt`). Server binary `8b3819b`, copied offline pre-8b3819b player backup, owned read-only SQLite world snapshot; protected :5000 unchanged.
+
+| Behavior | Current proof |
+| --- | --- |
+| Request/countdown/replacement/combat/answers/expiry | Ten targeted tests PASS: four native-host cases, one network case, five UI-model cases. Real UDP → Account → native StaticPopup registry → exact Accept/Cancel/expiry wire replies in Modern and Forever; stale replacement clicks rejected; fractional frame boundaries reproduced RED then fixed. |
+| Build/format | Local helper `--cli` build PASS; three changed packages' `cargo fmt --check` PASS. Tests/build cover current Rust code; later commits only change the live driver/docs. |
+| Stone use/target/refusals | Two level-60 characters, `fb_stone1`/`fb_stone2`, in a party at Stockade stone 205553. Physical right-click retained target 4294857633; server logged spell 59782 opening ritual 179944. A targetless click delivered "Invalid target"; all four refusal strings have UDP/host tests. |
+| Summon popup/IPC/arrival | Helper portal use through native `quest interact` opened the actual popup. Inspected `client2/02-summon-popup.png` (2 Minutes), `03-before-accept-away.png` (54 Seconds), `04-arrival.png`: physical Accept returned the recipient 11.986 yd, from WoW (-8793.041, 796, 99.58086) to (-8805, 796, 98.77057); server logged accepted summon to map 0. `confirm-summon-ipc.txt` exposes StaticPopup1Text/Button1/Button2. Physical Cancel closed a second offer without moving; captures 05/06 inspected. |
+| Boundaries/cleanup | Four rendered client launches, maximum two concurrently; two parser-only Godot checks (six total invocations). Exact owned PIDs terminated, own slice inactive/dead, UDP 5310 free. Forced termination is not renderer-resource shutdown proof. |
+
+The center-only portal mouse probe did not find a pickable point with both characters at its position; the ritual completed through native IPC instead. Portal mouse-picking, live combat/replacement/expiry (covered by behavioral tests), cross-map arrival, and full Retail visual parity are not claimed. Existing NPC spell-attachment errors were observed and left out of scope.
 
 ## Historical Bevy live evidence (2026-09-26)
 Own server :5080, three headless clients (Stonecaller, Ritebearer, Wayfarer, level 30) at Blackrock Mountain stone 179584: Stonecaller targeted Wayfarer (88 yd away) and used the stone, the portal opened after 5 s, Ritebearer clicked it, Wayfarer's `CONFIRM_SUMMON` read "Stonecaller wants to summon you to Unknown. The spell will be canceled in 2 Minutes.", Accept moved Wayfarer from (-7622, -1222, 232) to Stonecaller at (-7588.7, -1139.8, 260.8). Screenshots in `data/diagnostics/summonstone/`.
 
 ## Tests asserting this spec
-Use `scripts/depot-build.py --build-host local --test -p game-engine-godot -p game-engine-ui-model -p game-engine-network --no-fail-fast meetingstones` through build-lock + `agent-run meetingstones`. Never use retired root-bin selectors.
+Use `scripts/depot-build.py --build-host local --test -p game-engine-godot -p game-engine-ui-model -p game-engine-network --lib --no-fail-fast meetingstones` through build-lock + `agent-run meetingstones`. Never use retired root-bin selectors.
