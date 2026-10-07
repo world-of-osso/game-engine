@@ -185,3 +185,5 @@ External resources and asset lists.
 [Standalone bag tooltip checkpoint](systems/godot-conversion.md#standalone-bag-item-tooltip--red-integration-proof-pending): native `ac7c16d7` + shared `0e41239a`, test `1c00b32a` + oracle `88b0505f`: MAIN-observed bounded GREEN with corrected runtime, CPU native5/shared4, registry2, same-build regressions and inspected Linen/Poor captures. Verifier1415 accepted bounded PASS after MAIN read the full report. Authentic RED101 retained; first GREEN attempt101 false oracle, not production failure; pure gear proof is not native gear hover. Prior bounded foreign gate and exclusions unchanged.
 
 - [Zaralda observed native success](investigations/npc-stance-gear.md#native-fixture-boundary-follow-up-evidence-date-2026-10-01) — saved exit0 interaction; source/import and renderer gates distinct; independent artifact gate116 scoped PASS, no whole-world PASS.
+
+- [Desktop handoff checkpoint](systems/forever-data.md#desktop-handoff-checkpoint-2026-10-07) — independently verified owned packet; README-only remote metadata confirmation pending, consumer gates open; current NPC native RED retained.
