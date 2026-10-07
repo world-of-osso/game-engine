@@ -94,9 +94,17 @@ Native profession recipe book and crafting window in `godot/ui-model` and `godot
 Retail source root: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 
 - **(a)/(b)** `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.xml:94-217` (headers, skill-up indicator, plain row and selection); `.lua:232-242,267-301` (current Retail labels are neutral `PROFESSION_RECIPE_COLOR`; difficulty is carried by skill-up art). Difficulty-tinted names are an explicit requested presentation adaptation, not a claim that this cached Retail version tints names.
-- **(c)** `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeReagentSlotBase.xml:6-27,41-62`, `Blizzard_ProfessionsTemplates.xml:43-85`, `Blizzard_ProfessionsRecipeReagentSlot.lua:238-252`, `Blizzard_ProfessionsRecipeSchematicForm.xml:31-38,63-69`, `.lua:1286-1290`; output ring: `Blizzard_ItemButton/Mainline/ItemButtonTemplate.xml` `CircularGiantItemButtonTemplate`. Cached Retail puts owned/needed before the adjacent name; placing it on the slot is the explicit requested adaptation.
+- **(c)** `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeReagentSlotBase.xml:6-27,41-62`, `Blizzard_ProfessionsTemplates.xml:43-85`, `Blizzard_ProfessionsRecipeReagentSlot.lua:238-252`, `Blizzard_ProfessionsRecipeSchematicForm.xml:31-38,63-69`, `.lua:1286-1290`; output ring: `Blizzard_ItemButton/Mainline/ItemButtonTemplate.xml:23-73` `CircularGiantItemButtonTemplate`. Cached Retail puts owned/needed before the adjacent name; placing it on the slot is the explicit requested adaptation.
 - **(d)** `Blizzard_Professions/Blizzard_ProfessionsRankBar.xml:5-61`, `.lua:103-136`, `Blizzard_ProfessionsCrafting.xml:199-202`.
 - **(e)** `Blizzard_Professions/Blizzard_ProfessionsFrame.xml:7-25`, `.lua:269-292` (tab gates), `Blizzard_ProfessionsCrafting.xml:136-150,205-224`, `.lua:344-351,912-941`; search: `Blizzard_ProfessionsTemplates/Blizzard_ProfessionsRecipeList.xml:40-53`.
+
+### Native visual proof (2026-10-07)
+
+Source `d1494131` on `professionsart`, after `a5b0c122`, `1d0d5de7` and `58b76b02`; no merge/push. Locked local helper `--test -p game-engine-godot -p game-engine-ui-model --no-fail-fast professions`: **12 passed** (eight existing UI-model cases, Account dispatch, two color/content cases and one native Taffy geometry case). Log `/tmp/claude/professionsart-final-tests.out`. Matching extension/CLI installed with the locked local helper `--cli`; `/tmp/claude/professionsart-final-build.out`. Both changed crates pass `cargo fmt --check`. No broad-suite/CI or separate `cargo check` claim; actual extension/CLI compilation and linking passed.
+
+Inspected canonical `data/professions-art-20261007/modern.png` and `forever.png`: three categories, all four difficulty colors, Brown Linen Robe selected, Bolt of Linen Cloth 2/3 and Coarse Thread 4/1, Classic Tailoring 35/300, textured output/reagent slots and bottom-right controls. `godot/tests/capture_ui_screen.gd` passed native content, colors and geometry assertions in both skins; `modern-final.log` / `forever-final.log` retain results. Preview data lives in `godot/rust/src/ui/professions_preview.rs`, a secondary Godot API block; resolved geometry in `professions_art_tests.rs`, colors/content in `godot/ui-model/tests/professions_art.rs`.
+
+Private Weston/Dozen rendering, no server. Local CASC supplied Tailoring portrait/fill; unavailable c60 sheet uses the explicitly allowed shared art. Wayland/Dozen capability warnings and RID/ObjectDB shutdown leak diagnostics remain in capture logs; not a leak-free teardown or pixel-identical Retail claim. Owned capture/compositor processes exited and `agents-professionsart.slice` is inactive. Original live craft ledger below remains historical behavior proof.
 
 ### How it works
 
