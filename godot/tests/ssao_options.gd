@@ -47,9 +47,9 @@ func run_test() -> void:
 	client.free()
 	root.get_node("NativeWorldEffects").free()
 	if ProjectSettings.get_setting("rendering/driver/depth_prepass/enable") != original_prepass:
-		fail("Controller disposal did not restore depth prepass")
+		fail("Controller disposal changed depth prepass")
 		return
-	print("PASS: saved/live SSAO values, Off identity/prepass, late world, untouched camera/portrait, removed option not saved")
+	print("PASS: saved/live SSAO values, Off identity, stable prepass, late world, untouched camera/portrait, removed option not saved")
 	quit(0)
 
 func add_world() -> void:
@@ -94,8 +94,8 @@ func expect_resources(ssao: bool, stage: String) -> bool:
 		fail(stage + ": Off replaced original environment")
 		return false
 	var prepass: bool = ProjectSettings.get_setting("rendering/driver/depth_prepass/enable")
-	if prepass != (true if ssao else original_prepass):
-		fail(stage + ": depth prepass not enabled/restored")
+	if not prepass or prepass != original_prepass:
+		fail(stage + ": required depth prepass changed")
 		return false
 	if world_camera.attributes != original_attributes:
 		fail(stage + ": SSAO changed camera attributes")

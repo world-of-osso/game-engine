@@ -4,21 +4,13 @@ extends Node
 const SSAO_RADIUS := 1.0
 const SSAO_INTENSITY := 2.0
 const SSAO_POWER := 1.5
-const DEPTH_PREPASS := "rendering/driver/depth_prepass/enable"
 
 var _ssao := false
-var _original_prepass: Variant = null
 # Originals remain untouched; Off restores their identity.
 var _environment_originals: Dictionary = {}
 
 func configure(ssao: bool) -> void:
 	_ssao = ssao
-	if ssao and _original_prepass == null:
-		_original_prepass = ProjectSettings.get_setting(DEPTH_PREPASS)
-		# Forward+ skips SSAO generation without the depth/normal prepass.
-		ProjectSettings.set_setting(DEPTH_PREPASS, true)
-	elif not ssao:
-		_restore_prepass()
 	if is_inside_tree():
 		_scan_world(get_viewport())
 
@@ -31,12 +23,6 @@ func _exit_tree() -> void:
 	for world in _environment_originals.keys():
 		if is_instance_valid(world):
 			_restore_environment(world)
-	_restore_prepass()
-
-func _restore_prepass() -> void:
-	if _original_prepass != null:
-		ProjectSettings.set_setting(DEPTH_PREPASS, _original_prepass)
-		_original_prepass = null
 
 func _scan_world(node: Node) -> void:
 	_apply_world_node(node)

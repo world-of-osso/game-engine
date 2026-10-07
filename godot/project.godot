@@ -27,7 +27,9 @@ common/max_physics_steps_per_frame=100
 
 [rendering]
 renderer/rendering_method="forward_plus"
-driver/depth_prepass/enable=false
+; SSAO requires depth/normal input. Keep this stable: Godot caches material depth-test
+; pipelines, so changing it live can make opaque geometry disappear after SSAO Off.
+driver/depth_prepass/enable=true
 textures/default_filters/use_nearest_mipmap_filter=false
 
 [shader_globals]
