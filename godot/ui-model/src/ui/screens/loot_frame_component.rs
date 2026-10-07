@@ -299,4 +299,3 @@ fn card_texts(prefix: &str, row: &LootFrameRow) -> Element {
     }));
     children
 }
-
