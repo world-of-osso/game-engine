@@ -70,7 +70,12 @@ func start() -> void:
 				var saturation := 1.0
 				if environment != null and environment.environment.adjustment_enabled:
 					saturation = environment.environment.adjustment_saturation
-				var state := {"saturation": saturation, "group": client.group_state(), "account": client.account_state(), "minimap": client.minimap_state(), "world_map": client.world_map_state(), "auras": client.aura_state(), "character": client.character_frame_state(), "target": client.target_state(), "controls": [], "meshes": []}
+				var animation_id := -1
+				var account: Dictionary = client.account_state()
+				var player_animation := client.get_node_or_null("WorldUnits/" + str(account.get("selected_character_name", "")) + "/PlayerModel/M2Animation")
+				if player_animation != null:
+					animation_id = player_animation.current_animation_id()
+				var state := {"animation": animation_id, "saturation": saturation, "group": client.group_state(), "account": client.account_state(), "minimap": client.minimap_state(), "world_map": client.world_map_state(), "auras": client.aura_state(), "character": client.character_frame_state(), "target": client.target_state(), "controls": [], "meshes": []}
 				for node in client.find_children("*", "Control", true, false):
 					if node.is_visible_in_tree():
 						var item := {"path": str(node.get_path()), "rect": str(node.get_global_rect())}
@@ -108,6 +113,8 @@ func click(control: Control) -> void:
 # actual Environment, rendered map pins, and released world/transport resources.
 func verify(state: Dictionary, expected: Dictionary, stem: String) -> void:
 	var checks: Array = []
+	if expected.has("death_pose"):
+		checks.append({"name": "authored death/corpse clip", "pass": (state.animation in [1, 6]) == bool(expected.death_pose), "actual": state.animation})
 	if expected.has("saturation"):
 		checks.append({"name": "ghost grading", "pass": is_equal_approx(state.saturation, float(expected.saturation)), "actual": state.saturation})
 	if expected.has("corpse_pin"):

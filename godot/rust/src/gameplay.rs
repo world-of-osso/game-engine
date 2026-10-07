@@ -636,6 +636,9 @@ impl crate::GameClient {
         let Some(facing) = self.world.local_player_facing() else {
             return Ok(());
         };
+        if self.world.update_local_death(self.death_flow.is_dead())? {
+            return Ok(());
+        }
         let animation_id = self.player_movement.animation_id(facing);
         let movement = &self.player_movement;
         self.world.update_local_locomotion(
