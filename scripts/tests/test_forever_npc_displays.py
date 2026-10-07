@@ -97,6 +97,120 @@ class ForeverNpcDisplayTests(unittest.TestCase):
             "ChrCustomizationSkinnedModel": [{"ID": 91, "CollectionsFileDataID": 701}],
         }
 
+    def ailee_tables(self):
+        tables = self.tables()
+        tables["CreatureDisplayInfo"][1]["ExtendedDisplayInfoID"] = 162359
+        tables["CreatureDisplayInfoExtra"][0].update(
+            ID=162359,
+            DisplayClassID=0,
+            BakeMaterialResourcesID=0,
+            HDBakeMaterialResourcesID=1067698,
+        )
+        tables["CreatureDisplayInfoOption"][0]["CreatureDisplayInfoExtraID"] = 162359
+        tables["NPCModelItemSlotDisplayInfo"][0].update(
+            NpcModelID=162359, ItemDisplayInfoID=735014
+        )
+        tables["ItemDisplayInfo"][0]["ID"] = 735014
+        tables["ItemDisplayInfoMaterialRes"][0].update(
+            ItemDisplayInfoID=735014, MaterialResourcesID=1102747
+        )
+        tables["TextureFileData"].append(
+            {"MaterialResourcesID": 1067698, "FileDataID": 7352105, "UsageType": 0}
+        )
+        return tables
+
+    def test_ailee_authored_hd_bake_does_not_require_unused_component_material(self):
+        tables = self.ailee_tables()
+        assets, failures = importer.npc_asset_roots(tables, {136968}, set(), {})
+        self.assertEqual(failures, {})
+        self.assertEqual(
+            assets[136968],
+            {
+                (7478494, "m2"),
+                (301, "blp"),
+                (7352105, "blp"),
+                (700, "m2"),
+                (803, "blp"),
+                (701, "m2"),
+                (805, "blp"),
+            },
+        )
+        rows = importer.npc.npc_appearance_rows(tables, {136968}, {})
+        self.assertEqual(rows[0], [(136968, 95, 1, 0, 7352105)])
+        self.assertEqual(rows[1], [(136968, 50)])
+        self.assertEqual(rows[2], [(136968, 2, 3)])
+
+    def test_ailee_bake_keeps_missing_attachment_dependencies_strict(self):
+        for table, resource, message in (
+            ("ModelFileData", 500, "missing ModelFileData model resources [500]"),
+            (
+                "TextureFileData",
+                403,
+                "missing TextureFileData material resources [403]",
+            ),
+        ):
+            with self.subTest(table=table):
+                tables = self.ailee_tables()
+                key = (
+                    "ModelResourcesID"
+                    if table == "ModelFileData"
+                    else "MaterialResourcesID"
+                )
+                tables[table] = [row for row in tables[table] if row[key] != resource]
+                _, failures = importer.npc_asset_roots(tables, {136968}, set(), {})
+                self.assertEqual(failures, {136968: [message]})
+
+    def test_ailee_without_selected_bake_requires_component_material(self):
+        tables = self.ailee_tables()
+        tables["CreatureDisplayInfoExtra"][0]["HDBakeMaterialResourcesID"] = 0
+        tables["CreatureDisplayInfoExtra"][0]["BakeMaterialResourcesID"] = 400
+        _, failures = importer.npc_asset_roots(tables, {136968}, set(), {})
+        self.assertEqual(
+            failures,
+            {136968: ["missing TextureFileData material resources [1102747]"]},
+        )
+
+    def test_no_bake_keeps_resolved_component_assets(self):
+        tables = self.tables()
+        tables["CreatureDisplayInfoExtra"][0]["HDBakeMaterialResourcesID"] = 0
+        assets, failures = importer.npc_asset_roots(tables, {136968}, set(), {})
+        self.assertEqual(failures, {})
+        self.assertEqual(
+            assets[136968],
+            {
+                (7478494, "m2"),
+                (301, "blp"),
+                (700, "m2"),
+                (803, "blp"),
+                (804, "blp"),
+                (701, "m2"),
+                (805, "blp"),
+            },
+        )
+
+    def test_ailee_unresolved_bake_keeps_component_validation_strict(self):
+        for fdids in ([], [0], [7352105, 7352106]):
+            with self.subTest(fdids=fdids):
+                tables = self.ailee_tables()
+                tables["TextureFileData"] = [
+                    row
+                    for row in tables["TextureFileData"]
+                    if row["MaterialResourcesID"] != 1067698
+                ] + [
+                    {"MaterialResourcesID": 1067698, "FileDataID": fdid, "UsageType": 0}
+                    for fdid in fdids
+                ]
+                _, failures = importer.npc_asset_roots(tables, {136968}, set(), {})
+                self.assertEqual(
+                    failures,
+                    {
+                        136968: [
+                            f"unresolved/ambiguous baked material 1067698: {fdids}",
+                            "missing TextureFileData material resources [1102747]",
+                        ]
+                    },
+                )
+
     def test_unnamed_skyborne_bodies_use_authored_hd_bakes(self):
         for fdid in (7478487, 7478494):
             with self.subTest(fdid=fdid):
@@ -133,7 +247,6 @@ class ForeverNpcDisplayTests(unittest.TestCase):
                 (301, "blp"),
                 (801, "blp"),
                 (803, "blp"),
-                (804, "blp"),
                 (805, "blp"),
                 (700, "m2"),
                 (701, "m2"),

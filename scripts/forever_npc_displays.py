@@ -101,7 +101,7 @@ def collect_choice_assets(tables, choices, texture_rows):
     return assets
 
 
-def collect_item_assets(item_ids, tables, texture_rows):
+def collect_item_assets(item_ids, tables, texture_rows, include_components=True):
     items = index_rows(tables, "ItemDisplayInfo", "ID")
     missing = item_ids - items.keys()
     if missing:
@@ -113,11 +113,12 @@ def collect_item_assets(item_ids, tables, texture_rows):
                 models.add(int(value))
             elif column.startswith("ModelMaterialResourcesID_"):
                 resources.add(int(value))
-    resources.update(
-        int(row["MaterialResourcesID"])
-        for row in tables.get("ItemDisplayInfoMaterialRes", [])
-        if int(row["ItemDisplayInfoID"]) in item_ids
-    )
+    if include_components:
+        resources.update(
+            int(row["MaterialResourcesID"])
+            for row in tables.get("ItemDisplayInfoMaterialRes", [])
+            if int(row["ItemDisplayInfoID"]) in item_ids
+        )
     model_rows = group_rows(tables, "ModelFileData", "ModelResourcesID")
     missing = {
         model
@@ -204,14 +205,16 @@ def npc_asset_roots(tables, requested, retail_ids, model_paths):
         )
         extra_id = int(row["ExtendedDisplayInfoID"])
         if extra_id:
+            baked_assets = set()
             extra = extras.get(extra_id)
             if extra is None:
                 errors.append(f"missing CreatureDisplayInfoExtra {extra_id}")
             else:
                 try:
-                    roots.update(
-                        collect_baked_asset(extra, fdid, model_paths, textures)
+                    baked_assets = collect_baked_asset(
+                        extra, fdid, model_paths, textures
                     )
+                    roots.update(baked_assets)
                 except (ValueError, KeyError) as error:
                     errors.append(str(error))
             choices = {
@@ -229,7 +232,14 @@ def npc_asset_roots(tables, requested, retail_ids, model_paths):
             }
             for item_id in sorted(item_ids):
                 try:
-                    roots.update(collect_item_assets({item_id}, tables, textures))
+                    roots.update(
+                        collect_item_assets(
+                            {item_id},
+                            tables,
+                            textures,
+                            include_components=not baked_assets,
+                        )
+                    )
                 except ValueError as error:
                     errors.append(str(error))
             for table in (
