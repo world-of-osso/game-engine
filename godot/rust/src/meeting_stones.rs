@@ -35,15 +35,39 @@ impl GameClient {
     }
 
     pub(super) fn receive_summon(&mut self, request: SummonRequest) {
-        let combat = self.summon_in_combat();
-        self.summon
-            .receive(request, &mut self.group_frames.popups, combat);
+        self.group_frames
+            .popups
+            .hide(game_engine_ui_model::summon::CONFIRM_SUMMON);
+        self.summon = Default::default();
+        let remaining = Duration::from_millis(u64::from(request.time_left_ms));
+        self.pending_summon = Some((request, remaining));
+        self.update_summon_popup(Duration::ZERO);
     }
 
     pub(super) fn update_summon_popup(&mut self, delta: Duration) {
         let combat = self.summon_in_combat();
         self.summon
             .update(delta, &mut self.group_frames.popups, combat);
+        self.update_pending_summon_popup(delta, combat);
+    }
+
+    fn update_pending_summon_popup(&mut self, delta: Duration, combat: bool) {
+        let Some((request, remaining)) = self.pending_summon.as_mut() else {
+            return;
+        };
+        *remaining = remaining.saturating_sub(delta);
+        // Not loaded is distinct from a loaded catalog lacking this zone.
+        let Some(zone_name) = self.minimap.area_name(request.zone_id) else {
+            return;
+        };
+        let (mut request, remaining) = self.pending_summon.take().expect("pending summon");
+        request.time_left_ms = remaining.as_nanos().div_ceil(1_000_000) as u32;
+        self.summon.receive(
+            request,
+            zone_name.as_deref().unwrap_or_default(),
+            &mut self.group_frames.popups,
+            combat,
+        );
     }
 
     fn summon_in_combat(&self) -> bool {

@@ -8,6 +8,7 @@ pub const CONFIRM_SUMMON: &str = "CONFIRM_SUMMON";
 struct Offer {
     id: PopupId,
     summoner: String,
+    zone_name: String,
     remaining: Duration,
 }
 
@@ -17,13 +18,19 @@ pub struct SummonPopup {
 }
 
 impl SummonPopup {
-    pub fn receive(&mut self, request: SummonRequest, stack: &mut PopupStack, combat: bool) {
+    pub fn receive(
+        &mut self,
+        request: SummonRequest,
+        zone_name: &str,
+        stack: &mut PopupStack,
+        combat: bool,
+    ) {
         // A distinct ID prevents queued clicks on the old request answering its replacement.
         stack.hide(CONFIRM_SUMMON);
         let remaining = Duration::from_millis(u64::from(request.time_left_ms));
         let id = stack.push(PopupSpec {
             key: CONFIRM_SUMMON.into(),
-            text: confirm_summon_text(&request.summoner, remaining),
+            text: confirm_summon_text(&request.summoner, zone_name, remaining),
             accept_label: "Accept".into(),
             cancel_label: Some("Cancel".into()),
             timeout: None, // Offer time runs even while another three popups are visible.
@@ -32,6 +39,7 @@ impl SummonPopup {
         self.offer = Some(Offer {
             id,
             summoner: request.summoner,
+            zone_name: zone_name.into(),
             remaining,
         });
         self.update(Duration::ZERO, stack, combat);
@@ -48,7 +56,7 @@ impl SummonPopup {
         } else {
             stack.set_text(
                 CONFIRM_SUMMON,
-                confirm_summon_text(&offer.summoner, offer.remaining),
+                confirm_summon_text(&offer.summoner, &offer.zone_name, offer.remaining),
             );
         }
     }
@@ -66,8 +74,7 @@ impl SummonPopup {
 }
 
 /// Retail GetConfirmSummonExpiryText with StaticPopup_OnUpdate's ceil(seconds).
-/// The current server sends zone_id 0 (no player Zone), displayed as Unknown.
-fn confirm_summon_text(summoner: &str, remaining: Duration) -> String {
+fn confirm_summon_text(summoner: &str, zone_name: &str, remaining: Duration) -> String {
     let seconds = remaining.as_nanos().div_ceil(1_000_000_000);
     let (count, unit) = if seconds < 60 {
         (seconds, if seconds == 1 { "Second" } else { "Seconds" })
@@ -76,7 +83,7 @@ fn confirm_summon_text(summoner: &str, remaining: Duration) -> String {
         (minutes, if minutes == 1 { "Minute" } else { "Minutes" })
     };
     format!(
-        "{summoner} wants to summon you to Unknown. The spell will be canceled in {count} {unit}."
+        "{summoner} wants to summon you to {zone_name}. The spell will be canceled in {count} {unit}."
     )
 }
 
@@ -97,10 +104,15 @@ mod tests {
     fn meetingstones_request_countdown_and_replacement() {
         let mut flow = SummonPopup::default();
         let mut stack = PopupStack::default();
-        flow.receive(request("Stonecaller", 120_000), &mut stack, false);
+        flow.receive(
+            request("Stonecaller", 120_000),
+            "Stormwind City",
+            &mut stack,
+            false,
+        );
         assert_eq!(
             stack.visible()[0].spec.text,
-            "Stonecaller wants to summon you to Unknown. The spell will be canceled in 2 Minutes."
+            "Stonecaller wants to summon you to Stormwind City. The spell will be canceled in 2 Minutes."
         );
         for (delta, expected) in [
             (60_000, "1 Minute."),
@@ -109,23 +121,30 @@ mod tests {
         ] {
             flow.update(Duration::from_millis(delta), &mut stack, false);
             assert!(stack.visible()[0].spec.text.ends_with(expected));
+            assert!(stack.visible()[0].spec.text.contains("to Stormwind City."));
         }
-        flow.receive(request("Ritebearer", 90_000), &mut stack, false);
+        flow.receive(request("Ritebearer", 90_000), "Westfall", &mut stack, false);
         assert_eq!(stack.visible().len(), 1);
         assert_eq!(
             stack.visible()[0].spec.text,
-            "Ritebearer wants to summon you to Unknown. The spell will be canceled in 2 Minutes."
+            "Ritebearer wants to summon you to Westfall. The spell will be canceled in 2 Minutes."
         );
         assert!(stack.drain_results().is_empty());
         flow.update(Duration::from_secs(89), &mut stack, false);
         assert!(stack.visible()[0].spec.text.ends_with("1 Second."));
+        assert!(stack.visible()[0].spec.text.contains("to Westfall."));
     }
 
     #[test]
     fn meetingstones_combat_blocks_click_and_enter_then_accept_sends_once() {
         let mut flow = SummonPopup::default();
         let mut stack = PopupStack::default();
-        flow.receive(request("Stonecaller", 120_000), &mut stack, true);
+        flow.receive(
+            request("Stonecaller", 120_000),
+            "Stormwind City",
+            &mut stack,
+            true,
+        );
         let id = stack.visible()[0].id;
         assert!(!stack.visible()[0].can_accept());
         assert!(!stack.resolve(id, PopupOutcome::Accepted));
@@ -144,7 +163,12 @@ mod tests {
     fn meetingstones_countdown_ceils_fractional_frame_time() {
         let mut flow = SummonPopup::default();
         let mut stack = PopupStack::default();
-        flow.receive(request("Stonecaller", 60_000), &mut stack, false);
+        flow.receive(
+            request("Stonecaller", 60_000),
+            "Stormwind City",
+            &mut stack,
+            false,
+        );
         flow.update(Duration::from_micros(999_999), &mut stack, false);
         assert!(stack.visible()[0].spec.text.ends_with("1 Minute."));
         flow.update(Duration::from_micros(1), &mut stack, false);
@@ -156,7 +180,7 @@ mod tests {
         for expired in [false, true] {
             let mut flow = SummonPopup::default();
             let mut stack = PopupStack::default();
-            flow.receive(request("Stonecaller", 1_001), &mut stack, false);
+            flow.receive(request("Stonecaller", 1_001), "", &mut stack, false);
             if expired {
                 flow.update(Duration::from_millis(1_001), &mut stack, false);
             } else {
