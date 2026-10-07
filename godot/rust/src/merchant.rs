@@ -267,7 +267,10 @@ impl GameClient {
     }
 
     fn use_game_object(&mut self, id: u64) -> Result<bool, FrameError> {
-        Ok(self.use_guild_vault(id)? || self.use_mailbox(id)? || self.use_chair(id)?)
+        Ok(self.use_meeting_stone(id)?
+            || self.use_guild_vault(id)?
+            || self.use_mailbox(id)?
+            || self.use_chair(id)?)
     }
 
     fn unit_right_click(&self, id: u64) -> RightClick {

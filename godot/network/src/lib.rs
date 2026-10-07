@@ -13,6 +13,8 @@ pub mod input_bindings_data;
 pub mod ipc_wire;
 #[path = "ui/js_automation.rs"]
 pub mod js_automation;
+#[cfg(feature = "test-util")]
+pub mod meetingstones_fixture;
 #[path = "movement_control.rs"]
 pub mod movement_control;
 pub mod replica;
@@ -233,6 +235,7 @@ impl NetworkBridge {
             // Owner-only death state, corpse and graveyard coordinates.
             .receive::<protocol::DeathStateUpdate>()
             .receive::<protocol::ResurrectionOffer>()
+            .receive::<protocol::SummonRequest>()
             // Spellbook, action bar and casting.
             .receive::<KnownSpellsSnapshot>()
             .receive::<SpellsLearned>()
