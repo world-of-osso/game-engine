@@ -231,21 +231,20 @@ mod tests {
             window_portrait_texture(&window_portrait_slot("FlightMapPortrait"), 618_976)
         })
         .sync(&SharedContext::new(), &mut registry);
-        IconMasks::default().apply(&mut registry);
         let portrait = registry
             .get(registry.get_by_name("FlightMapPortrait").unwrap())
             .unwrap();
-        let Some(WidgetData::Texture(texture)) = &portrait.widget_data else {
+        let Some(WidgetData::Texture(source)) = &portrait.widget_data else {
             panic!()
         };
-        let TextureSource::Dynamic(id) = texture.source else {
-            panic!("portrait was not masked")
+        let TextureSource::FileDataId(fdid) = source.source else {
+            panic!("portrait has no authored art")
         };
-        let image = registry.dynamic_texture(id).unwrap();
-        let rgba = RgbaImage::from_raw(image.width, image.height, image.rgba8.clone()).unwrap();
+        let rgba = compose_masked_icon(texture(fdid), &mask_alpha(&texture(PORTRAIT_MASK_FDID)));
+        let (width, height) = rgba.dimensions();
         assert_eq!(rgba.get_pixel(0, 0)[3], 0);
-        assert_eq!(rgba.get_pixel(image.width - 1, image.height - 1)[3], 0);
-        let middle = rgba.get_pixel(image.width / 2, image.height / 2);
+        assert_eq!(rgba.get_pixel(width - 1, height - 1)[3], 0);
+        let middle = rgba.get_pixel(width / 2, height / 2);
         assert!(middle[3] > 200);
         assert!(
             middle.0[0..3].iter().any(|channel| *channel > 30),
