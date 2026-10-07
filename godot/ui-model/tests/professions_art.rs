@@ -89,20 +89,36 @@ fn text(registry: &FrameRegistry, name: &str) -> (String, [f32; 4]) {
     }
 }
 #[test]
-fn professions_art_thresholds_tint_plain_recipe_labels_in_both_skins() {
+fn professions_art_thresholds_keep_neutral_recipe_labels_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        for (rank, color) in [
-            (1, [1.0, 0.5, 0.25, 1.0]),
-            (30, [1.0, 1.0, 0.0, 1.0]),
-            (45, [0.25, 0.75, 0.25, 1.0]),
-            (60, [0.5, 0.5, 0.5, 1.0]),
-        ] {
+        for (rank, skill_up) in [(1, true), (30, true), (45, true), (60, false), (300, false)] {
             let registry = render(skin, view(rank));
             assert_eq!(
                 text(&registry, "ProfessionRecipe3275Label"),
-                ("Linen Bandage".into(), color)
+                (
+                    "Linen Bandage".into(),
+                    [0.8862745, 0.8627451, 0.8392157, 1.0]
+                )
             );
             assert!(registry.get_by_name("ProfessionRecipeIcon3275").is_none());
+            assert_eq!(
+                registry
+                    .get_by_name("ProfessionRecipe3275SkillUp")
+                    .is_some(),
+                skill_up
+            );
+            let mut unselected = view(rank);
+            unselected.book.selected = None;
+            let unselected = render(skin, unselected);
+            assert_eq!(
+                text(&registry, "ProfessionRecipe3275Label"),
+                text(&unselected, "ProfessionRecipe3275Label")
+            );
+            assert!(
+                unselected
+                    .get_by_name("ProfessionRecipe3275Selected")
+                    .is_none()
+            );
             assert!(
                 registry
                     .get_by_name("ProfessionRecipe3275Selected")
@@ -113,11 +129,24 @@ fn professions_art_thresholds_tint_plain_recipe_labels_in_both_skins() {
     set_thread_skin(ActiveSkin::Modern);
 }
 #[test]
-fn professions_art_reagent_slot_shows_icon_count_and_adjacent_name() {
+fn professions_art_reagent_count_prefix_and_name_share_availability_color() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(skin, view(30));
-        assert_eq!(text(&registry, "ProfessionReagent0").0, "Linen Cloth");
-        assert_eq!(text(&registry, "ProfessionReagent0Count").0, "2/3");
+        assert_eq!(
+            text(&registry, "ProfessionReagent0"),
+            (
+                "2/3 Linen Cloth".into(),
+                [0.627451, 0.627451, 0.627451, 1.0]
+            )
+        );
+        assert!(registry.get_by_name("ProfessionReagent0Count").is_none());
+        let mut sufficient = view(30);
+        sufficient.reagents = vec![(2589, 4, 3)];
+        let sufficient = render(skin, sufficient);
+        assert_eq!(
+            text(&sufficient, "ProfessionReagent0"),
+            ("4/3 Linen Cloth".into(), [1.0; 4])
+        );
         let output_border = frame(&registry, "ProfessionsOutputBorder");
         assert!(
             matches!(output_border.widget_data.as_ref(), Some(WidgetData::Texture(texture)) if texture.vertex_color == [0.12, 1.0, 0.0, 1.0])

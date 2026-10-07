@@ -102,31 +102,39 @@ func professions_geometry_and_content_match(ui: Node) -> bool:
 	var frame := ui.find_child("ProfessionsFrame", true, false) as Control
 	var slot := ui.find_child("ProfessionReagent0Slot", true, false) as Control
 	var name := ui.find_child("ProfessionReagent0", true, false) as Label
-	var count := ui.find_child("ProfessionReagent0Count", true, false) as Label
+	var count := ui.find_child("ProfessionReagent0Count", true, false)
+	var sufficient := ui.find_child("ProfessionReagent1", true, false) as Label
 	var rank := ui.find_child("ProfessionsSkillText", true, false) as Label
 	var output_slot := ui.find_child("ProfessionsOutputSlot", true, false) as Control
-	if frame == null or slot == null or name == null or count == null or rank == null or output_slot == null:
+	if frame == null or slot == null or name == null or sufficient == null or rank == null or output_slot == null:
 		push_error("Profession preview lacks production frame/slots/rank")
 		return false
 	if frame.size != Vector2(942, 658) or slot.size != Vector2(39, 39) or output_slot.size != Vector2(54, 54):
 		push_error("Profession frame or item slot geometry differs")
 		return false
-	if name.text != "Bolt of Linen Cloth" or count.text != "2/3" or rank.text != "Classic Tailoring 35/300":
+	if name.text != "2/3 Bolt of Linen Cloth" or sufficient.text != "4/1 Coarse Thread" or rank.text != "Classic Tailoring 35/300":
 		push_error("Profession preview snapshot content differs")
 		return false
 	if name.get_global_rect().position.x < slot.get_global_rect().end.x:
 		push_error("Reagent name overlaps item slot")
 		return false
-	if not slot.get_global_rect().encloses(count.get_global_rect()):
-		push_error("Owned/needed count is outside reagent slot")
+	if count != null:
+		push_error("Owned/needed count must not be drawn on reagent icon")
 		return false
-	var colors := {3275: Color(0.5, 0.5, 0.5), 3276: Color(0.25, 0.75, 0.25), 2963: Color(1, 1, 0), 2964: Color(1, 0.5, 0.25)}
-	for spell in colors:
+	if not name.get_theme_color("font_color").is_equal_approx(Color.html("a0a0a0")) or not sufficient.get_theme_color("font_color").is_equal_approx(Color.WHITE):
+		push_error("Reagent count/name availability color differs")
+		return false
+	var skill_ups := {3275: false, 3276: true, 2963: true, 2964: true, 7623: true, 7624: true}
+	for spell in skill_ups:
 		var recipe := ui.find_child("ProfessionRecipe%dLabel" % spell, true, false) as Label
-		if recipe == null or not recipe.get_theme_color("font_color").is_equal_approx(colors[spell]):
-			push_error("Native recipe difficulty tint differs: ", spell)
+		if recipe == null or not recipe.get_theme_color("font_color").is_equal_approx(Color.html("e2dcd6")):
+			push_error("Native recipe neutral label color differs: ", spell)
 			return false
-	print("PASS: professions 942x658, mixed difficulty, 39px reagent slot 2/3 with adjacent name, 54px output and rank35/300")
+		var indicator := ui.find_child("ProfessionRecipe%dSkillUp" % spell, true, false)
+		if (indicator != null) != skill_ups[spell]:
+			push_error("Recipe skill-up indicator differs: ", spell)
+			return false
+	print("PASS: professions 942x658, neutral selected/unselected labels, skill-up indicators, adjacent 2/3 and 4/1 names with availability colors, 39px reagent/54px output slots, rank35/300")
 	return true
 
 # Retail TargetFrame.xml:367-370; TargetFrame.lua:957-966,1015-1020.

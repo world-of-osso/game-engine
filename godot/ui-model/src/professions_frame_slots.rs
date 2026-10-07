@@ -5,6 +5,9 @@ use crate::merchant_data::quality_color;
 use crate::quest_art::{DynName, panel_button};
 use ui_toolkit::{rsx, widget_def::Element};
 
+// Retail ReagentSlot.lua:99-110, GlobalColor DISABLED_REAGENT_COLOR #a0a0a0.
+const DISABLED_REAGENT_COLOR: &str = "0.627451,0.627451,0.627451,1";
+
 pub(super) fn schematic(view: &ProfessionView) -> Element {
     let mut out = art::background(&view.profession_name);
     let Some(recipe) = view.book.selected_recipe() else {
@@ -76,14 +79,14 @@ fn reagent_cell(
     let color = if owned >= needed {
         HIGHLIGHT_FONT_COLOR
     } else {
-        "0.627,0.627,0.627,1"
+        DISABLED_REAGENT_COLOR
     };
-    let children = reagent_slot(item, index, owned, needed);
+    let children = reagent_slot(item, index);
     let mut out = rsx! { button { name: {DynName(format!("{prefix}Slot"))}, width: 39.0, height: 39.0,
     left: 0.0, top: 5.5, pos_type: "absolute", button_default_skin: false, {children} } };
     out.extend(label(
         prefix.clone(),
-        &item.name,
+        &format!("{owned}/{needed} {}", item.name),
         (46.0, 7.0, 108.0, 36.0),
         (12.0, color, "LEFT"),
     ));
@@ -93,7 +96,7 @@ fn reagent_cell(
     pos_type: "absolute", {out} } }
 }
 
-fn reagent_slot(item: &super::ItemDisplay, index: usize, owned: u32, needed: u32) -> Element {
+fn reagent_slot(item: &super::ItemDisplay, index: usize) -> Element {
     let prefix = format!("ProfessionReagent{index}");
     let mut out = art::atlas(
         &format!("{prefix}Background"),
@@ -116,12 +119,6 @@ fn reagent_slot(item: &super::ItemDisplay, index: usize, owned: u32, needed: u32
         &format!("{prefix}CropFrame"),
         "Professions-ChoiceReagent-Frame",
         (-3.0, -3.0, 45.0, 45.0),
-    ));
-    out.extend(label(
-        format!("{prefix}Count"),
-        &format!("{owned}/{needed}"),
-        (0.0, 24.0, 37.0, 14.0),
-        (10.0, HIGHLIGHT_FONT_COLOR, "RIGHT"),
     ));
     out
 }

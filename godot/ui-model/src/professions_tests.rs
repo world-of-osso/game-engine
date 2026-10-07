@@ -245,7 +245,7 @@ fn professions_both_skins_show_counts_and_disable_missing_reagent_create() {
             .get(registry.get_by_name("ProfessionReagent0").unwrap())
             .unwrap();
         assert!(
-            matches!(reagent.widget_data.as_ref(), Some(WidgetData::FontString(text)) if text.text == "Linen Cloth")
+            matches!(reagent.widget_data.as_ref(), Some(WidgetData::FontString(text)) if text.text == "5/1 Linen Cloth")
         );
         let create = registry
             .get(registry.get_by_name("ProfessionsCreate").unwrap())
@@ -269,7 +269,7 @@ fn professions_both_skins_show_counts_and_disable_missing_reagent_create() {
             .get(registry.get_by_name("ProfessionReagent0").unwrap())
             .unwrap();
         assert!(
-            matches!(reagent.widget_data.as_ref(), Some(WidgetData::FontString(text)) if text.text == "Linen Cloth")
+            matches!(reagent.widget_data.as_ref(), Some(WidgetData::FontString(text)) if text.text == "0/1 Linen Cloth")
         );
     }
     set_thread_skin(ActiveSkin::Modern);

@@ -10,7 +10,7 @@ use ui_toolkit::{
 };
 
 #[test]
-fn professions_art_native_slot_count_name_and_footer_geometry() {
+fn professions_art_native_adjacent_reagent_text_and_footer_geometry() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
@@ -28,12 +28,12 @@ fn professions_art_native_slot_count_name_and_footer_geometry() {
         assert_eq!((frame.width, frame.height), (942.0, 658.0));
         let slot = rect("ProfessionReagent0Slot");
         let icon = rect("ProfessionReagentIcon0");
-        let count = rect("ProfessionReagent0Count");
+        assert!(registry.get_by_name("ProfessionReagent0Count").is_none());
         let name = rect("ProfessionReagent0");
         assert_eq!((slot.width, slot.height), (39.0, 39.0));
         assert!(icon.x >= slot.x && icon.y >= slot.y);
         assert!(icon.x + icon.width <= slot.x + slot.width);
-        assert!(count.y >= slot.y && count.y + count.height <= slot.y + slot.height);
+        assert_eq!((name.width, name.height), (108.0, 36.0));
         assert!(name.x >= slot.x + slot.width);
         let output = rect("ProfessionsOutputSlot");
         assert_eq!((output.width, output.height), (54.0, 54.0));
