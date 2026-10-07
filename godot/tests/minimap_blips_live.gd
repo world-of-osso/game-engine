@@ -59,7 +59,7 @@ func capture(name: String) -> void:
 			rects[blip_name] = str(control.get_global_rect())
 			var part := control.find_child("Part0", true, false) as Control
 			if part != null:
-				parts[blip_name] = {"rotation": part.rotation, "colour": str(part.modulate), "rect": str(part.get_global_rect())}
+				parts[blip_name] = {"rotation": part.rotation, "colour": str(part.self_modulate), "rect": str(part.get_global_rect())}
 	write_json(name, {"account": client.account_state(), "group": client.group_state(),
 		"target": client.target_state(), "minimap": client.minimap_state(), "rects": rects, "parts": parts})
 	print("MINIMAP BLIPS CAPTURE ", label, " ", name)
