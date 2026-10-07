@@ -6,8 +6,9 @@ use super::m2_batch_data::TextureOverlay;
 use super::m2_format::parser::{M2TextureUnit, TextureTables};
 
 /// Default FDIDs for runtime-resolved character texture types (human male, light skin).
-/// `skin_fdids` supplies creature Monster Skin 1/2/3 (types 11/12/13).
-pub fn default_fdid_for_type(ty: u32, is_hd: bool, skin_fdids: &[u32; 3]) -> Option<u32> {
+/// `skin_fdids` supplies creature variations 0..2 (types 11/12/13) and 3 (type 5).
+/// Equipment callers supply only the first three slots.
+pub fn default_fdid_for_type(ty: u32, is_hd: bool, skin_fdids: &[u32]) -> Option<u32> {
     match (ty, is_hd) {
         (1, true) => Some(1027767), // body skin HD (humanmaleskin00_00_hd, 1024x512)
         (1, false) => Some(120191), // body skin SD (humanmaleskin00_00, 512x512)
@@ -15,6 +16,7 @@ pub fn default_fdid_for_type(ty: u32, is_hd: bool, skin_fdids: &[u32; 3]) -> Opt
         (11, _) => nonzero(skin_fdids[0]),
         (12, _) => nonzero(skin_fdids[1]),
         (13, _) => nonzero(skin_fdids[2]),
+        (5, _) => skin_fdids.get(3).copied().and_then(nonzero),
         (19, _) => Some(3484643), // eye color
         _ => None,
     }
@@ -31,7 +33,7 @@ pub fn resolve_batch_texture(
     tex_types: &[u32],
     txid: &[u32],
     is_hd: bool,
-    skin_fdids: &[u32; 3],
+    skin_fdids: &[u32],
 ) -> Option<u32> {
     let tex_idx = *tex_lookup.get(unit.texture_id as usize)? as usize;
     let ty = *tex_types.get(tex_idx)?;
@@ -50,7 +52,7 @@ fn resolve_batch_texture_at_offset(
     tex_types: &[u32],
     txid: &[u32],
     is_hd: bool,
-    skin_fdids: &[u32; 3],
+    skin_fdids: &[u32],
     offset: u16,
 ) -> Option<u32> {
     let texture_id = unit.texture_id.checked_add(offset)?;
@@ -167,6 +169,20 @@ mod tests {
             transparency_index: 0,
             texture_animation_id: 0,
         }
+    }
+
+    #[test]
+    fn fourth_creature_variation_binds_type5_without_skin_fallback() {
+        let skins = [4237053, 4237050, 4237060, 4237057];
+        assert_eq!(default_fdid_for_type(5, false, &skins), Some(4237057));
+        assert_eq!(default_fdid_for_type(11, false, &skins), Some(4237053));
+        assert_eq!(default_fdid_for_type(12, false, &skins), Some(4237050));
+        assert_eq!(default_fdid_for_type(13, false, &skins), Some(4237060));
+        assert_eq!(default_fdid_for_type(5, false, &skins[..3]), None);
+        assert_eq!(
+            default_fdid_for_type(5, false, &[4237053, 4237050, 4237060, 0]),
+            None
+        );
     }
 
     #[test]

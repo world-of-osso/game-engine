@@ -54,7 +54,7 @@ pub struct WowM2Debug {
     orbit: Orbit,
     dragging: bool,
     camera: Option<Gd<Camera3D>>,
-    skin_fdids: [u32; 3],
+    skin_fdids: [u32; 4],
     missing_textures: PackedInt32Array,
 }
 
@@ -103,7 +103,7 @@ impl WowM2Debug {
             orbit: Orbit::new(FOCUS, DISTANCE),
             dragging: false,
             camera: None,
-            skin_fdids: [0; 3],
+            skin_fdids: [0; 4],
             missing_textures: PackedInt32Array::new(),
         })
     }
@@ -167,12 +167,12 @@ impl WowM2Debug {
 
 /// The original's `CreatureDisplayMap::resolve_skin_fdids_for_model_path`: the model's
 /// preferred display skins, none when no display uses it.
-fn preferred_skins(data_root: &Path, model_fdid: u32) -> Result<[u32; 3], String> {
+fn preferred_skins(data_root: &Path, model_fdid: u32) -> Result<[u32; 4], String> {
     let path = data_root.join("cache/creature_display.sqlite");
     let connection = Connection::open_with_flags(&path, OpenFlags::SQLITE_OPEN_READ_ONLY)
         .map_err(|error| format!("Cannot open {}: {error}", path.display()))?;
     query_preferred_skins(&connection, model_fdid)
-        .map(|skins| skins.unwrap_or([0; 3]))
+        .map(|skins| skins.unwrap_or([0; 4]))
         .map_err(|error| format!("Cannot query skins of {model_fdid}: {error}"))
 }
 

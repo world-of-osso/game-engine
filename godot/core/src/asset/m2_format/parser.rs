@@ -138,7 +138,7 @@ pub struct TextureTables<'a> {
     pub tex_lookup: &'a [u16],
     pub tex_types: &'a [u32],
     pub txid: &'a [u32],
-    pub skin_fdids: &'a [u32; 3],
+    pub skin_fdids: &'a [u32],
 }
 
 fn parse_binrw_entries<T>(
