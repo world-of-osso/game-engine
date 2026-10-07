@@ -42,6 +42,10 @@ fn scroll_steps(model: &RegistryModel, list: &str) -> (usize, usize) {
         REPUTATION_DESCRIPTION_SCROLL, REPUTATION_SCROLL, reputation_description_pan_extent,
         reputation_pan_extent,
     };
+    if list == game_engine_ui_model::professions_frame::LIST {
+        let row = game_engine_ui_model::professions_frame::ROW_HEIGHT as usize;
+        return (row, row);
+    }
     if list == REPUTATION_DESCRIPTION_SCROLL {
         let pan = reputation_description_pan_extent();
         return (pan * 2, pan);

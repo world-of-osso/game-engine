@@ -5,6 +5,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(test)]
+#[path = "professions_account_tests.rs"]
+mod profession_snapshot_tests;
+
 use crate::frame_error::SessionError;
 use crate::mirror_timers::MirrorTimerMessage;
 use game_engine_network::{
@@ -186,6 +190,7 @@ pub enum AccountEvent {
     Death(shared::protocol::DeathStateUpdate),
     Resurrection(shared::protocol::ResurrectionOffer),
     Summon(shared::protocol::SummonRequest),
+    Professions(shared::protocol::ProfessionSnapshot),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
     GuildRanks(shared::protocol::GuildRanksState),
@@ -550,6 +555,15 @@ impl Account {
     pub fn send_interact(&self, npc: u64) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InteractionChannel>(InteractNpc { npc })
+            .map_err(SessionError)
+    }
+
+    pub fn send_craft_recipe(
+        &self,
+        request: shared::protocol::CraftRecipe,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::ProfessionChannel>(request)
             .map_err(SessionError)
     }
 
@@ -1091,6 +1105,10 @@ impl Account {
         }
         if message.is::<PendingMail>() {
             output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ProfessionSnapshot>() {
+            output.push(AccountEvent::Professions(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::SummonRequest>() {

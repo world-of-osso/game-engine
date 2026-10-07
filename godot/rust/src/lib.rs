@@ -71,6 +71,7 @@ mod pet_bar;
 mod player_spells;
 #[path = "process_memory_status.rs"]
 mod process_memory_status;
+mod professions;
 mod profile;
 mod quests;
 mod raid_targets;
@@ -282,6 +283,7 @@ pub struct GameClient {
     cast_bars: nameplate_casts::PlateCasts,
     soft_interact: soft_interact::SoftInteract,
     spells: spells::SpellsHud,
+    professions: professions::Professions,
     pet_bar: pet_bar::PetBarHud,
     merchant: merchant::Merchant,
     bags: bags::Bags,
@@ -410,6 +412,7 @@ impl INode3D for GameClient {
             cast_bars: nameplate_casts::PlateCasts::default(),
             soft_interact: soft_interact::SoftInteract::default(),
             spells: spells::SpellsHud::default(),
+            professions: professions::Professions::default(),
             pet_bar: pet_bar::PetBarHud::default(),
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
@@ -1230,6 +1233,7 @@ impl GameClient {
         }
         self.banks.visit_uis(&mut visit)?;
         self.guild_ranks.visit_uis(&mut visit)?;
+        self.professions.visit_uis(&mut visit)?;
         self.achievements.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
@@ -1753,6 +1757,7 @@ impl GameClient {
             ("Cast bars", |c, d| c.update_cast_bars(d)),
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
+            ("Professions", |c, _| c.update_professions()),
             ("Auras", |c, _| c.update_auras()),
             ("Launcher", |c, _| c.update_launcher()),
             ("Character frame", |c, _| c.update_character_frame()),
@@ -1891,7 +1896,12 @@ impl GameClient {
                 self.show_session_feedback()?;
             }
             AccountEvent::Feedback => self.show_session_feedback()?,
-            AccountEvent::WorldReset => self.reset_world()?,
+            AccountEvent::WorldReset => {
+                self.close_professions();
+                self.professions.book = Default::default();
+                self.professions.error.clear();
+                self.reset_world()?;
+            }
             AccountEvent::RestState(update) => {
                 self.in_rest_area = update
                     .snapshot
@@ -1927,6 +1937,7 @@ impl GameClient {
             AccountEvent::Death(update) => self.receive_death(update)?,
             AccountEvent::Resurrection(offer) => self.death_flow.receive_offer(offer),
             AccountEvent::Summon(request) => self.receive_summon(request),
+            AccountEvent::Professions(snapshot) => self.receive_professions(snapshot),
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
             AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
