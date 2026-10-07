@@ -104,11 +104,7 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
     };
     use game_engine_ui_model::xp_bar_component::{XpBarState, xp_bar_screen};
     let mut shared = SharedContext::new();
-    shared.insert(
-        ctx.get::<game_engine_ui_model::hud_edit::EditModeActive>()
-            .copied()
-            .unwrap_or_default(),
-    );
+    shared.insert(game_engine_ui_model::hud_edit::EditModeActive(true));
     shared.insert(*ctx.get::<ActiveSkin>().expect("preview skin"));
     let target = UnitFrameState::named("Training Dummy");
     shared.insert(InWorldUnitFramesState {
