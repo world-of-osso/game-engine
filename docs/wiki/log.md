@@ -2802,3 +2802,7 @@ Reconciled [[forever-data#Owned item definition namespaces]], item-source spec a
 ## [2026-10-05] systems | Record estimated-stat startup and bounded native evidence
 
 [Forever data](systems/forever-data.md#current-scoped-capability-matrix) owns estimated-stat race95 native92460 acceptance, race96 visible Ventaari, receipt-scoped unchanged binary and Main-inspected captures. Initial UnitPick failure, uncaptured OS exits, withheld Ailee/other appearances and missing authored shoulders preserved. Quest contract/index link bounded evidence; no reward/script/parity or full-goal readiness claim. Independent native artifact gate pending.
+
+## [2026-10-07] systems | Record matching scratch native material failure
+
+[forever-data](systems/forever-data.md) checkpoint updated from supplied evidence: server Retail-only loader3/3 and independent bounded gate; scratch prerequisite provenance retains AreaTable build UNVERIFIED and encrypted achievement gaps. Matching world entry preserves character30/40XP/log[]; Ailee12 textured batches precede Batch94/geoset3601 empty base_texture FAIL, Grove not reached. Diagnostic assertions unchanged; batch-binding investigation pending. Historical scopes retained; docs only, no runtime/test/build/push actions.

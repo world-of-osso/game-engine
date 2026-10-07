@@ -46,6 +46,8 @@ The historical initial [Zephras inventory](terrain.md#forever-zephras-map-2991) 
 
 Bounded proof at `31f44743` ([ledger](../../../target/zephras-npc-display-proof/ledger.md), [per-display audit](../../../target/zephras-npc-display-proof/per-display.tsv)):
 
+Historical baked-path evidence below retains original revision scopes and pending statuses; the current checkpoint supersedes runtime/build status.
+
 | Boundary | Evidence | Still missing |
 |---|---|---|
 | Display → model | 235/235 requested, 174/174 grounded; Ailee 136968 and Ventaari 139694 → 7478494 | Native visual acceptance |
@@ -108,7 +110,7 @@ The prior claim that resource1102747 must block native Ailee rendering was too s
 
 ### Current source/proof checkpoint (2026-10-07)
 
-This checkpoint supersedes pending equipment/core/build statements in the historical post-rebase checkpoint below. Engine `origin/skyborn` is `5596f85163f3cece34969aae5e373e56d3254cf8`; canonical UI/shared masters are `29a9ebfd`/`5107483b`. [Server checkpoint](../../../../game-server-skyborn/docs/wiki/systems/skyborne.md#rebased-source-and-runtime-checkpoint-2026-10-07) owns the clean90-commit/no-skip rebase onto `8b3819b0`, pushed `bef3fa745`, cold backup and preserved character30/40XP. No PR or production deployment.
+This checkpoint supersedes pending equipment/core/build statements in the historical post-rebase checkpoint below. Engine pushed checkpoint is `c65b03d2b`; diagnostic fixture `5a85044ee` adds error context only, without weakening assertions; canonical UI/shared masters are `29a9ebfd`/`5107483b`. [Server checkpoint](../../../../game-server-skyborn/docs/wiki/systems/skyborne.md#rebased-source-and-runtime-checkpoint-2026-10-07) owns the clean90-commit/no-skip rebase onto `8b3819b0`, pushed `708d493`, cold backup and preserved character30/40XP. No PR or production deployment.
 
 | Boundary | Exact proof scope | Remaining gap |
 |---|---|---|
@@ -116,9 +118,11 @@ This checkpoint supersedes pending equipment/core/build statements in the histor
 | Retained actual core | Main reports retained11 passing cases plus fresh1 after authentic required CSV fixture setup correction | Exact combined12 scope, not a newly rerun full suite |
 | Retained synthetic | Independent `d6db420f1` three-test receipt above retains single/indexed-model dependency and owned Retail replacement/Forever-isolation scopes | Synthetic only; not new proof for all current source |
 | Matching client build | Main reports lib881 tests plus CLI build exit0, zero compiler warnings, extension SHA256 prefix `62ed…`; later `4d…`/`5596f8516` namespace corrections are cfg(test)-only, not production changes | Retained production build receipt, not current-HEAD binary byte identity or native GREEN; abbreviated hash is not a full identity receipt |
-| Native `ailee-assets` | Main reports auth success then explicit server protocol fingerprint rejection before world entry; agent243 source report correctly attributes old runtime protocol48 versus client510748 | No Ailee/Grove/NPC/graphics credit; not credentials/scheduling; matching server rebuild pending |
+| Native `ailee-assets` | Matching extension `62eddda…` and portable server `c818f454…` authenticated and entered world; character30 retains40XP/log`[]`; seven source-kit queries completed; Ailee attached with12 textured batches | Actual fixture FAIL: Batch94/geoset3601 has texture_count1 but empty base_texture; Grove shoulder check not reached. No Ailee native GREEN or pixel acceptance |
 
-User approved matching scratch rebuild and push. Scratch server stopped, old cage gone, exact cold backup retained; no RowData source changes or character reset. Main owns desktop-helper matching-protocol build and subsequent native proof; this docs-only checkpoint neither waits for nor executes it. Historical1448 server receipt remains revision-scoped, invalid for changed rebased scopes; no current server tests/build/native GREEN.
+Matching server from `3eb1181` was installed only in owned scratch; production unchanged. [Server checkpoint](../../../../game-server-skyborn/docs/wiki/systems/skyborne.md#rebased-source-and-runtime-checkpoint-2026-10-07) owns Retail-only loader3/3, independent gate at `708d493`, narrow scratch prerequisite imports and explicit unverified AreaTable build provenance. Historical protocol rejection below is superseded, not erased.
+
+[Native log](../../../target/skyborn-source-items/rebased-matching-ailee-native.log) and [diagnostic log](../../../target/skyborn-source-items/rebased-ailee-material-diagnostic.log) own the observed failure. Diagnostic fixture `5a85044ee` reports the failing batch only; genuine batch-binding investigation remains pending agent277. Main reports runtime stopped (server MainPID0, cage stopped). No canonical/server/player data mutation outside owned scratch, whole-goal completion, Ailee native GREEN or pixel claim. This audit performs docs only, no runtime verification.
 
 ### Post-rebase checkpoint (2026-10-07; historical)
 
@@ -170,7 +174,7 @@ Engine fixture requires explicit `SKYBORNE_SCOPE=client-items|full|turn-in|rewar
 
 ### Current scoped capability matrix
 
-[Current source/proof checkpoint](#current-sourceproof-checkpoint-2026-10-07) owns October7 revisions and supersedes current-GREEN interpretations of the historical rows below. Server1448 remains historical; no rebased server tests/build/native GREEN.
+[Current source/proof checkpoint](#current-sourceproof-checkpoint-2026-10-07) owns October7 revisions and supersedes current-GREEN interpretations of the historical rows below. Server1448 remains historical; current bounded server proof and native FAIL are recorded in that checkpoint.
 
 Observed 2026-10-06 for independently audited prepared turn-in/reward-reload rows; preceding rows retain their 2026-10-05 evidence. Documentation audit reuses saved proof; no runtime or test rerun.
 
