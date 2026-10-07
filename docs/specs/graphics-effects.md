@@ -14,6 +14,14 @@ Independent graphics controls use the existing `options_settings.ron` graphics s
 - [x] Disabled blur, glow, AA, and contact shading remove their corresponding camera effects. Changing one control must not enable another.
 - [x] Preserve unrelated saved options and normal scene-stage isolation.
 
+## Native Godot DOF / SSAO mapping
+
+- `depthOfField` and `ssaoEnabled` are independent booleans, default `false`; neither has a numeric range. The native Graphics UI currently exposes neither control. Authored Options commits preserve these hidden saved fields and apply their values live; direct file edits alone are not watched.
+- Startup and live edits use `godot/rust/src/display_options.rs`, like bloom/TAA. The world-effects controller targets only root-viewport `WorldCamera` and `WorldLighting/Environment`, including late world entry and replacement. Portrait/subviewport cameras and UI layers are excluded. Both Off skips controller creation; turning either Off restores its original resource identity without changing unrelated fields.
+- DOF On installs `CameraAttributesPractical`: near/far blur enabled, both distances 15 world units, both transitions 5 units, blur amount 0.1. The 15-unit focal distance preserves the retired client's authored focus. Practical blur is an approximation, not a conversion of Bevy's f/0.125 aperture or 64-pixel circle-of-confusion cap: Godot uses its own blur kernel/quality and amount. No claim of pixel-identical Retail optics or autofocus. DOF requires Forward+ or Mobile (not Compatibility); this client uses Forward+.
+- SSAO On duplicates the world `Environment`, enables `ssao_enabled`, and uses radius 1 world unit, intensity 2, power 1.5 (Godot defaults). Remaining `ssao_*` defaults remain unchanged. This implements contact shading, not Retail kernel equality; only visible opaque depth/normal geometry participates. SSAO requires Forward+. The existing SSAO + MSAA4x configuration error remains; no implicit AA switch.
+- Proof: `godot/tests/dof_ssao_options.gd` checks saved startup/live booleans, concrete resource values, independent On/Off, Off identity, world replacement and portrait exclusion. `dof_ssao_options_pixels.gd` checks owned floor/box crease darkening, a far checker plane's edge reduction, exact restored Off baseline and exact higher-layer UI pixels. These fixtures do not prove arbitrary material transparency, full Retail optics, or performance savings.
+
 ## How it works
 
 - [Rendering pipeline](../wiki/systems/rendering-pipeline.md)
@@ -43,6 +51,6 @@ Independent graphics controls use the existing `options_settings.ron` graphics s
 
 ## Out of scope
 
-- New graphics UI controls or live file watching; this change uses the existing startup configuration path.
+- New graphics UI controls or live file watching; native application uses the existing startup and Options-commit paths.
 - CPU improvement claims or benchmarks; switches alone do not establish savings.
 - Renderer compatibility redesign to combine SSAO and MSAA.
