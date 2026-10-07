@@ -298,3 +298,30 @@ fn hudeditmode_action_bar_previews_follow_mode_not_saved_defaults() {
     assert!(registry.get_by_name("MultiBarBottomLeft").is_none());
     assert!(registry.get_by_name("MultiBarBottomRight").is_none());
 }
+
+#[test]
+fn hudeditmode_side_bar_previews_are_registered_in_both_skins() {
+    use game_engine_ui_model::hud_edit_component::edit_mode_side_bar_previews;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        let mut registry = FrameRegistry::new(1366.0, 768.0);
+        Screen::new(edit_mode_side_bar_previews).sync(&shared, &mut registry);
+        let bounds =
+            super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+        for (id, rect) in bounds {
+            registry.get_mut(id).unwrap().layout_rect = Some(rect);
+        }
+        let boxes =
+            super::hud_edit_layout::collect_selection_boxes(&registry, Some("action_bar_4"));
+        assert_eq!(boxes.len(), 2);
+        assert_eq!(boxes[0].key, "action_bar_4");
+        assert_eq!(boxes[1].key, "action_bar_5");
+        assert!(boxes[0].selected);
+        assert!(
+            boxes
+                .iter()
+                .all(|entry| entry.rect[2] > 40.0 && entry.rect[3] > 500.0)
+        );
+    }
+}
