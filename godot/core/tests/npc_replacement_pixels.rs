@@ -3,7 +3,7 @@ mod appearance_pixels;
 
 use std::{collections::HashMap, path::Path};
 
-use appearance_pixels::compose_replacement_pixels;
+use appearance_pixels::{compose_replacement_pixels, inactive_npc_texture_types, npc_pass_active};
 use game_engine_core::{
     asset::m2_texture,
     blp,
@@ -62,12 +62,17 @@ fn ailee_selected_type20_composes_authentic_pixels_on_256_canvas() {
             }
         }
     }
+    assert_eq!(appearance.choice_ids.len(), 14);
+    assert!(!materials.iter().any(|(target, _)| *target == 19));
     assert!(materials.contains(&(38, 3613861)));
     let catalog = open_catalog(&forever.join("char_texture-v2.sqlite"));
     let (layers, sections, layouts) = query_char_texture_data(&catalog).unwrap();
     let compositor = CharTextureData::from_parts(layers, sections, layouts)
         .with_material_sizes(query_model_material_sizes(&catalog).unwrap());
     let layout_id = 202;
+    let inactive = inactive_npc_texture_types(&compositor, &materials, layout_id);
+    assert!(inactive.contains(&7));
+    assert!(!inactive.contains(&20));
     let layout = compositor.layout(layout_id).unwrap();
     let default = m2_texture::default_fdid_for_type(
         1,
@@ -136,11 +141,21 @@ fn ailee_selected_type20_composes_authentic_pixels_on_256_canvas() {
         "authored opaque full-canvas layer preserves decoded pixels"
     );
     assert!(type20.0.chunks_exact(4).any(|pixel| pixel[3] != 0));
+    assert!(!npc_pass_active(&[7], &[None], &inactive, &textures).unwrap());
+    assert!(npc_pass_active(&[20], &[None], &inactive, &textures).unwrap());
 }
 
 fn fixture() -> CharTextureData {
     CharTextureData::from_parts(
         vec![
+            TextureLayer {
+                texture_type: 7,
+                layer: 20,
+                blend_mode: 1,
+                section_bitmask: -1,
+                target_id: 19,
+                layout_id: 202,
+            },
             TextureLayer {
                 texture_type: 20,
                 layer: 18,
@@ -176,6 +191,7 @@ fn fixture() -> CharTextureData {
         )]),
     )
     .with_material_sizes(HashMap::from([
+        ((202, 7), (512, 256)),
         ((202, 20), (256, 256)),
         ((202, 6), (1, 1)),
         ((202, 19), (1, 1)),
@@ -202,6 +218,78 @@ fn unselected_separate_layers_do_not_publish_textures_or_replace_body_and_head()
     assert_eq!(textures.get(&6), Some(&head));
     assert!(!textures.contains_key(&19));
     assert!(!textures.contains_key(&20));
+}
+
+#[test]
+fn source_absence_omits_multi_slot_pass_only_after_required_slots_validate() {
+    let inactive = inactive_npc_texture_types(&fixture(), &[(38, 3613861)], 202);
+    assert!(inactive.contains(&7));
+    assert!(!inactive.contains(&1));
+    assert!(!inactive.contains(&6));
+    assert!(!inactive.contains(&20));
+    assert!(!inactive.contains(&99));
+    let textures = HashMap::from([(1, ()), (6, ()), (20, ())]);
+    assert!(!npc_pass_active(&[20, 7], &[None, None], &inactive, &textures).unwrap());
+    assert!(!npc_pass_active(&[7, 0], &[None, Some(123)], &inactive, &textures).unwrap());
+    assert!(npc_pass_active(&[20], &[None], &inactive, &textures).unwrap());
+    for kind in [0, 1, 6, 20, 99] {
+        let missing = HashMap::<u32, ()>::new();
+        assert!(npc_pass_active(&[7, kind], &[None, None], &inactive, &missing).is_err());
+        assert!(npc_pass_active(&[kind, 7], &[None, None], &inactive, &missing).is_err());
+    }
+    assert!(npc_pass_active(&[0, 99], &[Some(123), Some(456)], &inactive, &textures).unwrap());
+    for kind in [1, 6] {
+        assert!(
+            npc_pass_active(&[kind], &[Some(123)], &inactive, &HashMap::<u32, ()>::new()).is_err()
+        );
+    }
+    let unknown_layout = inactive_npc_texture_types(&fixture(), &[], 999);
+    assert!(unknown_layout.is_empty());
+    assert!(npc_pass_active(&[7], &[None], &unknown_layout, &textures).is_err());
+}
+
+#[test]
+fn selected_missing_pixels_error_instead_of_publishing_blank_type20() {
+    let result = compose_replacement_pixels(
+        &fixture(),
+        &[(38, 3613861)],
+        202,
+        composed(),
+        None,
+        &HashMap::new(),
+    );
+    assert_eq!(
+        result,
+        Err("missing selected NPC texture FDID 3613861".to_owned())
+    );
+}
+
+#[test]
+fn selected_type7_without_canvas_is_not_source_absence() {
+    let data = fixture().with_material_sizes(HashMap::new());
+    let materials = [(19, 777)];
+    assert!(!inactive_npc_texture_types(&data, &materials, 202).contains(&7));
+    let decoded = HashMap::from([(777, (vec![1, 2, 3, 255], 1, 1))]);
+    assert_eq!(
+        compose_replacement_pixels(&data, &materials, 202, composed(), None, &decoded),
+        Err("cannot composite selected NPC texture type 7 for layout 202".to_owned()),
+    );
+}
+
+#[test]
+fn selected_missing_unknown_target_remains_error() {
+    assert_eq!(
+        compose_replacement_pixels(
+            &fixture(),
+            &[(999, 777)],
+            202,
+            composed(),
+            None,
+            &HashMap::new()
+        ),
+        Err("missing selected NPC texture FDID 777".to_owned()),
+    );
+    assert!(!inactive_npc_texture_types(&fixture(), &[(19, 0)], 202).contains(&7));
 }
 
 #[test]

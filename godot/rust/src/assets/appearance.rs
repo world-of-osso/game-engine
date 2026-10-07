@@ -2,7 +2,8 @@
 
 #[path = "appearance_pixels.rs"]
 mod appearance_pixels;
-use appearance_pixels::compose_replacement_pixels;
+pub(super) use appearance_pixels::npc_pass_active;
+use appearance_pixels::{compose_replacement_pixels, inactive_npc_texture_types};
 
 use std::{
     collections::{HashMap, HashSet},
@@ -39,6 +40,8 @@ pub(crate) struct NpcAppearances {
 pub(crate) struct PreparedAppearance {
     pub(super) source: &'static str,
     pub(super) textures: HashMap<u32, Gd<ImageTexture>>,
+    /// Source-declared separate layers with no selected material; None for players.
+    pub(super) inactive_npc_texture_types: Option<HashSet<u32>>,
     pub(super) selected_geosets: Vec<(u16, u16)>,
     pub(super) authored_geosets: Vec<(u16, u16)>,
     pub(super) equipment_geosets: Vec<(u16, u16)>,
@@ -50,6 +53,7 @@ pub(crate) struct PreparedAppearance {
 pub(crate) struct AppearanceParts {
     pub(super) source: &'static str,
     pub(super) textures: HashMap<u32, MipChain>,
+    pub(super) inactive_npc_texture_types: Option<HashSet<u32>>,
     pub(super) selected_geosets: Vec<(u16, u16)>,
     pub(super) authored_geosets: Vec<(u16, u16)>,
     pub(super) equipment_geosets: Vec<(u16, u16)>,
@@ -66,6 +70,7 @@ impl AppearanceParts {
         Ok(PreparedAppearance {
             source: self.source,
             textures,
+            inactive_npc_texture_types: self.inactive_npc_texture_types,
             selected_geosets: self.selected_geosets,
             authored_geosets: self.authored_geosets,
             equipment_geosets: self.equipment_geosets,
@@ -126,6 +131,11 @@ impl NpcAppearances {
             appearance: AppearanceParts {
                 source: "NPC",
                 textures: mip_chains(textures),
+                inactive_npc_texture_types: Some(inactive_npc_texture_types(
+                    compositor,
+                    &selected.materials,
+                    layout_id,
+                )),
                 selected_geosets: selected.geosets,
                 authored_geosets: appearance.geosets,
                 equipment_geosets: armor.outfit.geoset_overrides.clone(),

@@ -365,6 +365,7 @@ impl PlayerAppearanceParts {
             skinned_appearance: PreparedAppearance {
                 source: "player skinned model",
                 textures: skinned_textures,
+                inactive_npc_texture_types: None,
                 selected_geosets: self.skinned_geosets,
                 authored_geosets: Vec::new(),
                 equipment_geosets: Vec::new(),
@@ -431,6 +432,7 @@ fn prepare_player_appearance(
         body: AppearanceParts {
             source: "player",
             textures: super::appearance::mip_chains(pixels),
+            inactive_npc_texture_types: None,
             selected_geosets: selected.geosets,
             authored_geosets: Vec::new(),
             equipment_geosets: equipment.outfit.geoset_overrides.clone(),
