@@ -49,17 +49,11 @@ const WORLD_EFFECTS_CONTROLLER_NAME: &str = "NativeWorldEffects";
 
 fn update_world_effects(viewport: &mut Gd<Viewport>, graphics: &GraphicsOptionsFile) {
     let existing = viewport.try_get_node_as::<Node>(WORLD_EFFECTS_CONTROLLER_NAME);
-    if existing.is_none() && !graphics.depth_of_field && !graphics.ssao_enabled {
+    if existing.is_none() && !graphics.ssao_enabled {
         return;
     }
     let mut controller = existing.unwrap_or_else(|| spawn_world_effects_controller(viewport));
-    controller.call(
-        "configure",
-        &[
-            graphics.depth_of_field.to_variant(),
-            graphics.ssao_enabled.to_variant(),
-        ],
-    );
+    controller.call("configure", &[graphics.ssao_enabled.to_variant()]);
 }
 
 fn spawn_world_effects_controller(viewport: &mut Gd<Viewport>) -> Gd<Node> {

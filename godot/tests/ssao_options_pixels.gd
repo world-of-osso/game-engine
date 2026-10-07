@@ -1,24 +1,25 @@
-extends "res://tests/dof_ssao_options.gd"
-## Pinned Godot 4.7.2, owned Weston ds30, Forward+ Dozen Vulkan, Dummy audio.
+extends "res://tests/ssao_options.gd"
+## Pinned Godot 4.7.2, owned Weston ss30, Forward+ Dozen Vulkan, Dummy audio.
 ## VK_DRIVER_FILES=/opt/game-engine/mesa-dzn/share/vulkan/icd.d/dzn_icd.x86_64.json
 ## LD_LIBRARY_PATH=/usr/lib/wsl/lib; --display-driver wayland --rendering-driver vulkan
-## --script res://tests/dof_ssao_options_pixels.gd -- --screen gamemenu
+## --script res://tests/ssao_options_pixels.gd -- --screen gamemenu
 ## Isolate XDG_CONFIG_HOME/XDG_DATA_HOME and GODOT_TEST_CAPTURE_DIR in data/diagnostics.
 
 const UI_REGION := Rect2i(1120, 30, 48, 24)
 const CREASE_REGION := Rect2i(180, 360, 420, 250)
-const FAR_REGION := Rect2i(750, 200, 280, 280)
+const FLAT_REGION := Rect2i(1100, 550, 100, 100)
 var geometry: Node3D
 
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
+	original_prepass = ProjectSettings.get_setting("rendering/driver/depth_prepass/enable")
 	options_path = OS.get_environment("XDG_CONFIG_HOME").path_join("world-of-osso/options_settings.ron")
 	var directory := OS.get_environment("GODOT_TEST_CAPTURE_DIR")
 	if not options_path.contains("/data/diagnostics/") or not directory.contains("/data/diagnostics/"):
-		fail("DOF/SSAO pixels require owned config/capture directories")
+		fail("SSAO pixels require owned config/capture directories")
 		return
 	if DisplayServer.get_name() == "headless" or RenderingServer.get_rendering_device() == null:
-		fail("DOF/SSAO pixels require rendered Vulkan")
+		fail("SSAO pixels require rendered Vulkan")
 		return
 	add_world()
 	original_environment.background_mode = Environment.BG_COLOR
@@ -30,60 +31,53 @@ func run_test() -> void:
 	world_camera.fov = 60.0
 	add_geometry()
 	add_ui()
-	var start_enabled := saved_option_value(options_path, "depthOfField") == "true"
+	var start_enabled := saved_option_value(options_path, "ssaoEnabled") == "true"
 	var client: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	if not await wait_for_startup_menu(client):
 		return
-	if not expect_resources(start_enabled, start_enabled, "saved pixel startup"):
+	if not expect_resources(start_enabled, "saved pixel startup"):
 		return
 	var startup := await capture(client, directory, "startup-on.png" if start_enabled else "startup-off.png")
 	await click_menu_action(client, "MenuBtnOptions")
 	if not await wait_for_graphics(client):
 		return
-	if not await commit_effects(client, false, false):
+	if not await commit_effects(client, false):
 		return
 	var off := await capture(client, directory, "off.png")
-	if not expect_resources(false, false, "pixel Off") or not expect_ui(off):
+	if not expect_resources(false, "pixel Off") or not expect_ui(off):
 		return
 	if not start_enabled and startup.get_data() != off.get_data():
 		fail("Saved Off differs from live Off baseline")
 		return
-	if not await commit_effects(client, false, true):
+	if not await commit_effects(client, true):
 		return
 	var ssao := await capture(client, directory, "ssao-on.png")
-	if not expect_resources(false, true, "pixel SSAO") or not expect_ui(ssao):
+	if not expect_resources(true, "pixel SSAO") or not expect_ui(ssao):
 		return
 	var crease_delta := image_difference(off, ssao, CREASE_REGION)
 	var darker := count_darkened(off, ssao, CREASE_REGION)
-	print("SSAO_PIXELS mean_darkening=", crease_delta, " darkened_crease_pixels=", darker)
+	var flat_delta := image_difference(off, ssao, FLAT_REGION)
+	print("SSAO_PIXELS mean_darkening=", crease_delta, " darkened_crease_pixels=", darker, " flat_darkening=", flat_delta)
+	if flat_delta > 0.03:
+		fail("SSAO darkened isolated flat terrain; whole-scene dimming is not crease proof")
+		return
 	if crease_delta < 0.002 or darker < 100:
 		fail("SSAO produced no contact shading in owned floor/box crease")
 		return
-	if not await commit_effects(client, true, false):
-		return
-	var dof := await capture(client, directory, "dof-on.png")
-	if not expect_resources(true, false, "pixel DOF") or not expect_ui(dof):
-		return
-	var sharp_edges := edge_energy(off, FAR_REGION)
-	var blurred_edges := edge_energy(dof, FAR_REGION)
-	print("DOF_PIXELS far_off_edges=", sharp_edges, " far_on_edges=", blurred_edges)
-	if sharp_edges < 0.03 or blurred_edges > sharp_edges * 0.7:
-		fail("DOF did not blur owned far checker plane")
-		return
-	if not await commit_effects(client, false, false):
+	if not await commit_effects(client, false):
 		return
 	var restored := await capture(client, directory, "off-restored.png")
-	if not expect_resources(false, false, "restored Off") or not expect_ui(restored):
+	if not expect_resources(false, "restored Off") or not expect_ui(restored):
 		return
 	if off.get_data() != restored.get_data():
 		fail("Off did not restore exact baseline pixels")
 		return
 	if start_enabled:
-		if not expect_ui(startup) or edge_energy(startup, FAR_REGION) > sharp_edges * 0.7 or count_darkened(off, startup, CREASE_REGION) < 100:
+		if not expect_ui(startup) or startup.get_data() != ssao.get_data():
 			fail("Saved On startup lacks world effect pixels")
 			return
-	print("PASS: SSAO darkens crease, DOF blurs far plane, Off exact baseline, UI unchanged; saved startup=", start_enabled)
+	print("PASS: SSAO darkens crease, Off exact baseline, UI unchanged; saved startup=", start_enabled)
 	quit(0)
 
 func add_geometry() -> void:
@@ -114,15 +108,6 @@ func add_geometry() -> void:
 	block.material_override = material
 	block.position = Vector3(-3, -1, -12)
 	geometry.add_child(block)
-	var quad := QuadMesh.new()
-	quad.size = Vector2(18, 18)
-	var far_plane := MeshInstance3D.new()
-	far_plane.mesh = quad
-	far_plane.position = Vector3(15, 1, -40)
-	var checker := ShaderMaterial.new()
-	checker.shader = load("res://tests/dof_ssao_pattern.gdshader")
-	far_plane.material_override = checker
-	geometry.add_child(far_plane)
 
 func add_ui() -> void:
 	var layer := CanvasLayer.new()
@@ -168,9 +153,3 @@ func count_darkened(before: Image, after: Image, region: Rect2i) -> int:
 				count += 1
 	return count
 
-func edge_energy(image: Image, region: Rect2i) -> float:
-	var total := 0.0
-	for y in range(region.position.y, region.end.y):
-		for x in range(region.position.x, region.end.x - 1):
-			total += absf(image.get_pixel(x + 1, y).r - image.get_pixel(x, y).r)
-	return total / ((region.size.x - 1) * region.size.y)
