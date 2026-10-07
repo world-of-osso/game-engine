@@ -35,6 +35,22 @@ impl Professions {
         }
         Ok(())
     }
+    pub(crate) fn primary_count(&self) -> usize {
+        self.catalog.as_ref().map_or(0, |catalog| {
+            self.book
+                .snapshot
+                .lines
+                .iter()
+                .filter(|line| catalog.primary_skills.contains(&line.skill_line))
+                .count()
+        })
+    }
+    pub(crate) fn skill_names(&self) -> BTreeMap<u32, String> {
+        self.catalog
+            .as_ref()
+            .map(|catalog| catalog.skill_names.clone())
+            .unwrap_or_default()
+    }
     fn free_ui(&mut self) {
         if let Some(ui) = self.ui.take() {
             ui.free();

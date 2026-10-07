@@ -161,6 +161,7 @@ impl GameClient {
         closed |= self.close_character_window();
         closed |= self.close_guild_ranks();
         closed |= self.close_professions();
+        closed |= self.close_trainer_window()?;
         closed |= self.close_achievements();
         closed |= self.close_bank_window()?;
         closed |= self.close_guild_bank_window()?;

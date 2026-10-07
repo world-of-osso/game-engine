@@ -191,6 +191,8 @@ pub enum AccountEvent {
     Resurrection(shared::protocol::ResurrectionOffer),
     Summon(shared::protocol::SummonRequest),
     Professions(shared::protocol::ProfessionSnapshot),
+    TrainerList(shared::protocol::TrainerList),
+    TrainerFailed(shared::protocol::TrainerBuyFailed),
     /// Bank and guild bank contents, logs and refusals.
     Bank(BankMessage),
     GuildRanks(shared::protocol::GuildRanksState),
@@ -555,6 +557,15 @@ impl Account {
     pub fn send_interact(&self, npc: u64) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InteractionChannel>(InteractNpc { npc })
+            .map_err(SessionError)
+    }
+
+    pub fn send_train(
+        &self,
+        request: shared::protocol::TrainerBuySpell,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::TrainerChannel>(request)
             .map_err(SessionError)
     }
 
@@ -1105,6 +1116,14 @@ impl Account {
         }
         if message.is::<PendingMail>() {
             output.push(AccountEvent::Mail(MailMessage::Pending(decode(message)?)));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::TrainerList>() {
+            output.push(AccountEvent::TrainerList(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::TrainerBuyFailed>() {
+            output.push(AccountEvent::TrainerFailed(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::ProfessionSnapshot>() {
