@@ -94,7 +94,7 @@ mod baked_display {
             assert_eq!(baked.geoset_overrides, []);
             assert_eq!(
                 outfit.try_resolve_column_models(10, 1, sex).unwrap(),
-                [(1000 + u32::from(sex), [2000 + u32::from(sex), 0, 0])]
+                [(0, 1000 + u32::from(sex), [2000 + u32::from(sex), 0, 0])]
             );
         }
         assert_eq!(
@@ -151,6 +151,78 @@ mod baked_display {
                 .is_none()
         );
         assert_eq!(outfit.try_resolve_column_models(99, 1, 0).unwrap(), []);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn owned_retail_model_replacements_stay_isolated_from_forever() {
+        let root = write_catalog("owned-replacements");
+        let forever = root.join("db2/1.60.1.70205");
+        let components = root.join("db2/12.1.0.69933");
+        std::fs::create_dir_all(&components).unwrap();
+        for name in [
+            "ItemModifiedAppearance.csv",
+            "ItemAppearance.csv",
+            "ItemDisplayInfo.csv",
+            "ItemDisplayInfoMaterialRes.csv",
+            "ModelFileData.csv",
+        ] {
+            let source = if name == "ItemModifiedAppearance.csv" || name == "ItemAppearance.csv" {
+                forever.join("items").join(name)
+            } else {
+                forever.join(name)
+            };
+            std::fs::copy(source, root.join(name)).unwrap();
+        }
+        for name in [
+            "ComponentModelFileData.csv",
+            "ComponentTextureFileData.csv",
+            "ChrRaces.csv",
+        ] {
+            std::fs::copy(forever.join(name), components.join(name)).unwrap();
+        }
+        // Empty WDC5 helmet table; no external assets or shared cache needed.
+        let mut helmet = vec![0; 356];
+        helmet[..4].copy_from_slice(b"WDC5");
+        helmet[176..180].copy_from_slice(&4u32.to_le_bytes());
+        std::fs::write(root.join("db2/HelmetGeosetData.db2"), helmet).unwrap();
+        std::fs::write(
+            root.join("TextureFileData.csv"),
+            "FileDataID,UsageType,MaterialResourcesID\n4000,0,200\n4001,0,201\n",
+        )
+        .unwrap();
+        std::fs::write(
+            root.join("ItemDisplayInfoModelMatRes.csv"),
+            "ItemDisplayInfoID,ModelIndex,TextureType,MaterialResourcesID\n10,0,2,200\n10,0,3,201\n10,1,2,201\n",
+        )
+        .unwrap();
+        let catalog = OutfitData::load(&root);
+        let retail = catalog.load_owned_retail().unwrap();
+        assert_eq!(
+            retail.try_resolve_column_models(10, 1, 0).unwrap(),
+            [(0, 1000, [4000, 0, 0])]
+        );
+        assert_eq!(
+            retail.resolve_model_texture_fdids(10, 0, 1, 0).unwrap(),
+            [(2, 4000), (3, 4001)]
+        );
+        assert_eq!(
+            retail.resolve_model_texture_fdids(10, 1, 1, 0).unwrap(),
+            [(2, 4001)]
+        );
+        let owned_forever = catalog.load_owned_forever_70205().unwrap();
+        assert_eq!(
+            owned_forever.try_resolve_column_models(10, 1, 0).unwrap(),
+            [(0, 1000, [2000, 0, 0])]
+        );
+        for column in [0, 1] {
+            assert_eq!(
+                owned_forever
+                    .resolve_model_texture_fdids(10, column, 1, 0)
+                    .unwrap(),
+                []
+            );
+        }
         std::fs::remove_dir_all(root).unwrap();
     }
 

@@ -10,6 +10,7 @@ Owned item metadata pairs the unchanged authored item ID with `shared::item_data
 - [x] Missing Forever files or rows must not select Retail definitions or scaling; lookup errors identify source and ID.
 - [ ] Preserve immutable GUID provenance across transfer/reload through owned inventory, equipment, bank, trade and auction-inventory consumers; recipient race must not select a definition.
 - [x] Item-info IPC requires explicit query source. CLI defaults deliberately to Retail; `--source forever70205` explicitly selects Forever.
+- [ ] Owned Retail equipment resolves per-model replacement texture types from root `ItemDisplayInfoModelMatRes.csv` through Retail texture resources. Forever70205 keeps source-local model skins; it must not borrow Retail replacement rows. A Forever per-model replacement export is not required by this contract.
 
 ## How it works
 
@@ -30,6 +31,7 @@ Owned item metadata pairs the unchanged authored item ID with `shared::item_data
 - `godot/ui-model/src/game/item_catalog_tests.rs`
 - `godot/ui-model/src/game/cursor_item_tests.rs`
 - `godot/cli/src/tests/request_actions.rs`
+- `godot/core/src/outfit_data_tests.rs`: owned Retail per-model replacements and Forever isolation.
 
 ## Known gaps (current cycle)
 
