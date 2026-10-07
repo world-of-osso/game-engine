@@ -10,7 +10,7 @@ How the native Godot `MinimapCluster` works. Contract: [minimap spec](../../spec
   - `compose(view, size, tile)`, the RGBA8 circle;
   - `blip_offset`;
   - `AreaCatalog` (AreaTable name, parent, `FactionGroupMask` and sanctuary flag) and `parse_race_faction_groups` (ChrRaces `Alliance`).
-- **Screen**: `godot/ui-model/src/minimap.rs` builds the rsx `MinimapCluster` in cluster-local units. Every rect is derived from the Retail anchors in `Minimap.xml`. `apply_minimap_postsetup` sets the arrow's `TextureData.rotation` and points `MinimapDisplay` at the host's dynamic texture.
+- **Screen**: `godot/ui-model/src/minimap.rs` builds the rsx `MinimapCluster` in cluster-local units. Chrome rects follow Retail anchors in `Minimap.xml`; blips use map-relative offsets and the service menu uses local checkbox geometry. `apply_minimap_postsetup` sets the arrow's `TextureData.rotation` and points `MinimapDisplay` at the host's dynamic texture.
 - **Host**: `godot/rust/src/minimap.rs` runs the per-frame "Minimap" step. It sends quest-giver queries, handles actions (zoom and world-map toggle), builds the state, and recomposites. `RegistryUi::show_minimap` registers a 1×1 dynamic texture. `set_minimap` updates its pixels in place, and the projection re-reads dynamic textures on every sync.
 
 ## Coordinates
