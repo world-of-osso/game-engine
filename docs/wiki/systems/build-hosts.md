@@ -31,7 +31,7 @@ October 3, 2026: main observed real extension export from both hosts, desktop CL
 
 ## Builder GC policy
 
-Verified source review: 2026-10-06. [`scripts/depot/buildkitd.toml`](../../../scripts/depot/buildkitd.toml) defines one aggregate `all = true` GC policy: `reservedSpace = "10GB"`, `maxUsedSpace = "100GB"`, `minFreeSpace = "80GB"`, with no retention duration. This user-approved budget supersedes the former 400/450 GB warm-every-slot policy. GC is periodic, not a hard instantaneous cap. Persistent configuration deployment and long-term stability are not yet verified.
+Verified source review: 2026-10-06. [`scripts/depot/buildkitd.toml`](../../../scripts/depot/buildkitd.toml) defines one aggregate `all = true` GC policy: `reservedSpace = "10GB"`, `maxUsedSpace = 100000000000` (100 GB in bytes), `minFreeSpace = "80GB"`, with no retention duration. This user-approved budget supersedes the former 400/450 GB warm-every-slot policy. GC is periodic, not a hard instantaneous cap. Persistent configuration deployment and long-term stability are not yet verified.
 
 Historical October 5 diagnosis: default GC evicted per-slot Cargo target caches, fingerprints reported ENOENT, and gates rebuilt about 484 crates. Fixed slot reuse still avoids unnecessary cache identities; preserving every slot's warm cache is no longer the budget objective. [[desktop-disk-exhaustion]] records the subsequent observed host exhaustion and completed recovery.
 
