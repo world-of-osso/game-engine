@@ -99,6 +99,7 @@ mod tooltip_sources;
 mod tooltip_units;
 mod tooltips;
 mod trade;
+mod trainer;
 mod ui;
 mod ui_layout;
 mod ui_scale;
@@ -284,6 +285,7 @@ pub struct GameClient {
     soft_interact: soft_interact::SoftInteract,
     spells: spells::SpellsHud,
     professions: professions::Professions,
+    trainer: trainer::Trainer,
     pet_bar: pet_bar::PetBarHud,
     merchant: merchant::Merchant,
     bags: bags::Bags,
@@ -413,6 +415,7 @@ impl INode3D for GameClient {
             soft_interact: soft_interact::SoftInteract::default(),
             spells: spells::SpellsHud::default(),
             professions: professions::Professions::default(),
+            trainer: trainer::Trainer::default(),
             pet_bar: pet_bar::PetBarHud::default(),
             merchant: merchant::Merchant::default(),
             bags: bags::Bags::default(),
@@ -1234,6 +1237,7 @@ impl GameClient {
         self.banks.visit_uis(&mut visit)?;
         self.guild_ranks.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
+        self.trainer.visit_uis(&mut visit)?;
         self.achievements.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
         if let Some(ui) = &mut self.auction.ui {
@@ -1758,6 +1762,7 @@ impl GameClient {
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
             ("Professions", |c, _| c.update_professions()),
+            ("Trainer", |c, _| c.update_trainer()),
             ("Auras", |c, _| c.update_auras()),
             ("Launcher", |c, _| c.update_launcher()),
             ("Character frame", |c, _| c.update_character_frame()),
@@ -1898,6 +1903,7 @@ impl GameClient {
             AccountEvent::Feedback => self.show_session_feedback()?,
             AccountEvent::WorldReset => {
                 self.close_professions();
+                self.close_trainer();
                 self.professions.book = Default::default();
                 self.professions.error.clear();
                 self.reset_world()?;
@@ -1938,6 +1944,8 @@ impl GameClient {
             AccountEvent::Resurrection(offer) => self.death_flow.receive_offer(offer),
             AccountEvent::Summon(request) => self.receive_summon(request),
             AccountEvent::Professions(snapshot) => self.receive_professions(snapshot),
+            AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
+            AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
             AccountEvent::Bank(message) => self.receive_bank(message)?,
             AccountEvent::GuildRanks(state) => self.receive_guild_ranks(state)?,
             AccountEvent::Achievement(update) => self.receive_achievement_update(update)?,
@@ -1957,6 +1965,7 @@ impl GameClient {
             AccountEvent::Npc(message) => {
                 if let account::NpcMessage::Closed(npc) = &message {
                     self.flight_map.session.close_for(*npc);
+                    self.trainer_closed_for(*npc);
                 }
                 if !self.receive_quest_npc_message(&message)? && !self.bank_npc_message(&message) {
                     self.receive_npc_message(message)?;

@@ -136,6 +136,9 @@ impl GameClient {
                 InteractionKind::Role(NpcRole::FlightMaster) => {
                     session.close();
                 }
+                InteractionKind::Role(NpcRole::Trainer) => {
+                    session.close();
+                }
                 // The vendor list follows the vendor role (`VendorInventory`).
                 InteractionKind::Role(NpcRole::Vendor) => {
                     self.auction_interaction_closed_any();
