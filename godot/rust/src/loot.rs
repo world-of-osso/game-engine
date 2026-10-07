@@ -11,6 +11,7 @@ use game_engine_ui_model::loot_frame_data::{
 use godot::classes::{MeshInstance3D, SphereMesh, StandardMaterial3D, base_material_3d};
 use godot::prelude::*;
 use shared::components::Npc;
+use shared::protocol::LootError;
 
 use crate::GameClient;
 use crate::account::LootMessage;
@@ -83,7 +84,7 @@ impl GameClient {
     }
 
     /// True means this is a lootable NPC corpse, including an out-of-range one.
-    pub(super) fn send_corpse_loot(&self, id: u64) -> Result<bool, FrameError> {
+    pub(super) fn send_corpse_loot(&mut self, id: u64) -> Result<bool, FrameError> {
         let is_lootable_npc = self.loot.lootable.contains(&id)
             && self.replica.unit(id).is_some_and(|unit| unit.has::<Npc>());
         if !is_lootable_npc {
@@ -100,6 +101,8 @@ impl GameClient {
             let shift = self.physical_input.gameplay_state(true).shift_held();
             let auto = auto_loot(self.client_options.hud.auto_loot, shift);
             self.account.send_loot_unit(id, auto)?;
+        } else {
+            self.add_world_error(LootError::TooFar.message())?;
         }
         Ok(true)
     }
