@@ -1166,12 +1166,7 @@ impl Account {
             let name = if progress.encounters.is_empty() {
                 String::new()
             } else {
-                find_map_field(
-                    &self.data_root,
-                    "ID",
-                    &progress.map_id.to_string(),
-                    "MapName_lang",
-                )?
+                read_transfer_map_name(&self.data_root, progress.map_id)?
             };
             self.dungeon_objectives.apply(progress, name);
             return Ok(());
