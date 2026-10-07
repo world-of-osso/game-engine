@@ -108,15 +108,22 @@ fn forever_npc_profiles_ventaari_composes_authored_textures_and_gear() {
 }
 
 #[test]
-fn forever_npc_profiles_ailee_missing_source_resource_remains_explicit() {
+fn forever_npc_profiles_ailee_authored_bake_does_not_require_body_overlay_mapping() {
     let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
     let connection = Connection::open_with_flags(
         data.join("cache/npc_appearance.sqlite"),
         OpenFlags::SQLITE_OPEN_READ_ONLY,
     )
     .unwrap();
-    let error = query_authored_npc_appearance(&connection, 136968).unwrap_err();
-    assert!(error.contains("coverage"), "{error}");
+    let appearance = query_authored_npc_appearance(&connection, 136968)
+        .unwrap()
+        .unwrap();
+    assert_eq!((appearance.race, appearance.sex), (95, 1));
+    assert_eq!(appearance.baked_texture_fdid, Some(7352105));
+    assert!(!appearance.choice_ids.is_empty());
+    let image =
+        blp::decode_rgba(&std::fs::read(data.join("textures/7352105.blp")).unwrap()).unwrap();
+    assert!(image.pixels.chunks_exact(4).any(|pixel| pixel[3] != 0));
     let outfit = OutfitData::load(&data);
     let failures: Vec<_> = read_armor_ids(&data, 162359)
         .into_iter()
@@ -124,4 +131,11 @@ fn forever_npc_profiles_ailee_missing_source_resource_remains_explicit() {
         .collect();
     assert_eq!(failures.len(), 1);
     assert!(failures[0].contains("1102747"), "{failures:?}");
+    for item in read_armor_ids(&data, 162359) {
+        let baked = outfit
+            .try_resolve_baked_display_info(item, 95, 1)
+            .unwrap()
+            .unwrap();
+        assert!(baked.item_textures.is_empty(), "baked gear {item}");
+    }
 }

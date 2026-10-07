@@ -2192,9 +2192,10 @@ textures/131129.blp
 textures/130949.blp
 textures/1537274.blp
 
-# Authored Ventaari profile composition and Ailee source-resource failure.
+# Authored Ventaari and Ailee baked profiles; unbaked outfit checks remain strict.
 cache/creature_display.sqlite
 cache/npc_appearance.sqlite
+textures/7352105.blp
 textures/120191.blp
 textures/7479318.blp
 textures/7479319.blp
