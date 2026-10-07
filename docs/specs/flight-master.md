@@ -16,7 +16,7 @@ Retail references under cached `retail/AddOns/`:
 - [x] Fill the portrait ring with Retail's authored `Interface/Icons/icon_petfamily_flying` (FDID 618976), rounded by the existing window portrait mask (`Blizzard_FlightMap.lua:12-18`), not the interacting NPC's face.
 - [x] Draw current and reachable taxi nodes projected through the shared world-map catalog; mark current node green. Do not draw undiscovered nodes.
 - [x] Draw deduplicated first-hop routes from current node; hovering a reachable destination shows its full route.
-- [x] Hover shows destination name and copper cost expressed as gold/silver/copper, or “You are here” for current node.
+- [x] Hover shows destination name and the existing SmallMoneyFrame amount/coin pairs (white amounts, gold/silver/copper icons; omit zero denominations except 0 copper for a free route), or “You are here” for current node. Never spell costs as `0g 0s 5c`.
 - [x] Clicking a reachable destination emits exactly `ActivateTaxi { npc, destination }` and closes the frame. Current/unknown/unreachable nodes cannot activate.
 - [ ] Close button/Escape send `CloseInteraction`; server interaction closure closes matching frame. Leaving InWorld disposes it.
 - [x] Server refusals show their UI error text.
@@ -43,6 +43,8 @@ Retail references under cached `retail/AddOns/`:
 ## Tests asserting this spec
 
 - `godot/ui-model/src/flight_map.rs`: concrete Stormwind/Sentinel Hill projection, multi-hop routes, tooltip cost, exact click request and close-on-activation, rejected destinations.
+- `godot/ui-model/tests/capturepolish.rs`: 5 copper, 1 gold/23 silver/45 copper and free routes project native coin textures and amounts; current node has no money row.
+- `godot/ui-model/tests/npcportraits.rs` and native `ui::icon_masks` regression: authored flying icon in both skins, transparent corners and nonblack retained art.
 - `godot/tests/flight_map_live.gd`: real NPC pick → native map → hover → native click → closed map/replicated controlled flight and position advance on private server.
 
 ## Known gaps (current cycle)

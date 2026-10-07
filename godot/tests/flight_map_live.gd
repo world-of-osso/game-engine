@@ -35,7 +35,7 @@ func run_test() -> void:
 	if not await wait_until(func(): return client.flight_map_state().hovered == 4, "Sentinel Hill hover"):
 		return
 	state = client.flight_map_state()
-	if state.tooltip != "Sentinel Hill, Westfall\n0g 0s 5c" or text("FlightMapTooltipText") != state.tooltip:
+	if state.tooltip != "Sentinel Hill, Westfall" or text("FlightMapTooltipText") != state.tooltip or text("FlightMapTooltipMoneyAmount0") != "5" or not shown("FlightMapTooltipMoneyCoin0"):
 		fail("Rendered destination/cost tooltip missing: " + str(state) + " label=" + text("FlightMapTooltipText"))
 		return
 	print("FIXTURE FLIGHT_MAP_HOVER ", state)
