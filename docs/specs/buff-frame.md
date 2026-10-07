@@ -47,6 +47,13 @@ The Retail PlayerFrame has no aura icons: `Mainline/PlayerFrame.lua` only update
 
 ## Live proof
 
+`godot/tests/buffcancel_live.gd` (2026-10-07, native Godot 4.7.2, private UDP 5298, server `8b3819b`, protocol `7597908`, disposable account `fb_buffcancel`, level-10 Human mage `Buffcancel`) exits 0 on the fourth and final allowed launch. `data/diagnostics/buffcancel-2026-10-07/` retains exact argv, executable hashes, logs and the proof ledger:
+- `shots/01-hover.png` and `.json`: replicated Arcane Intellect 1459 at BuffButton1, name, "Intellect increased by 3%." and "60 minutes remaining" through the existing native host. Its inherited debug spell-ID row is preserved.
+- `shots/02-right-held.png` and `.json`: buff and tooltip remain after left-click and while right button is held.
+- `shots/03-cancelled.png` and `.json`: right-button release removes 1459 through server replication; tooltip hidden, unrelated aura 404468 retained. All three captures inspected.
+- `targeted-tests.log`: 7/7 filtered tests pass (3 native input/request, 3 mounted model/content, 1 loopback UDP exactly-one CancelAura); build and format checks pass. Native code proof is at `7f1fe183`; subsequent commits only correct the live fixture and document evidence.
+- `client4.log`: bounded behavior PASS, not clean whole-client shutdown: unrelated NPC spell-attachment errors and RID/ObjectDB leaks remain. Earlier launches failed fixture assumptions (UI mount readiness, default bar membership, final tooltip-row ordering), not the aura behavior. Debuff rejection is behavioral-test proof, not a live harmful aura.
+
 `godot/tests/auras_live.gd` (2026-09-29, Godot client, private UDP 5088, game-server `e827f09`, level-10 Human mage `Fbauras` 12 yd from a Blackrock Spy) exits 0; screenshots in `data/diagnostics/auras-2026-09-29/`:
 - `01`: Arcane Intellect 1459 (icon 135932) at BuffButton0, "60 m", right edge 270 UI units from the screen's right, 10 down. The server logs the mage's Intellect 38 → 39.14.
 - `02`: F1 self-target: the same buff as a large (21 px) TargetFrame buff.
