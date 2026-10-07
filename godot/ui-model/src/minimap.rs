@@ -960,9 +960,12 @@ fn apply_member_blip_colors(state: &MinimapClusterState, registry: &mut FrameReg
             registry,
             &format!("{MINIMAP_MEMBER_PREFIX}{}", blip.unit),
             |texture| {
-                // Arrow art is green; remove its baked colour before applying the class tint.
-                texture.desaturated = edge;
-                texture.vertex_color = [red, green, blue, 1.0];
+                // Keep the directional sprite's authored colours; only white dots take class tint.
+                texture.vertex_color = if edge {
+                    [1.0; 4]
+                } else {
+                    [red, green, blue, 1.0]
+                };
                 texture.rotation = if edge { -right.atan2(-down) } else { 0.0 };
             },
         );

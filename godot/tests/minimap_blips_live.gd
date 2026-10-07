@@ -37,6 +37,15 @@ func click(control: Control) -> void:
 		root.push_input(event, true)
 		await process_frame
 
+func press_escape() -> void:
+	for pressed in [true, false]:
+		var event := InputEventKey.new()
+		event.keycode = KEY_ESCAPE
+		event.physical_keycode = KEY_ESCAPE
+		event.pressed = pressed
+		root.push_input(event, true)
+		await process_frame
+
 func capture(name: String) -> void:
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
@@ -91,6 +100,8 @@ func run_proof() -> void:
 			var command: Dictionary = JSON.parse_string(file.get_as_text())
 			file.close()
 			DirAccess.remove_absolute(command_path)
+			if command.get("key", "") == "Escape":
+				await press_escape()
 			if command.has("click"):
 				await click(find_control(command["click"]))
 			await capture(command["capture"])
