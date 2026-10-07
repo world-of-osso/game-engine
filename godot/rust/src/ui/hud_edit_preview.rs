@@ -4,6 +4,10 @@ use game_engine_ui_model::hud_edit_component::*;
 use godot::prelude::*;
 use ui_toolkit::{atlas::ActiveSkin, screen::SharedContext, widget_def::Element};
 
+pub(super) fn register_edit_panel_style(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    super::register_auction_popup_style(registry);
+}
+
 fn edit_screen(ctx: &SharedContext) -> Element {
     let mut elements = edit_mode_side_bar_previews(ctx);
     elements.extend(edit_mode_overlay_screen(ctx));
@@ -20,6 +24,13 @@ impl RegistryUi {
             edit_screen,
             ScreenPostsetup::None,
         )?;
+        register_edit_panel_style(
+            &mut self
+                .model
+                .as_mut()
+                .ok_or("HUD editor registry missing")?
+                .registry,
+        );
         self.set_state(EditModePanelState::default())
     }
 }
@@ -47,6 +58,13 @@ impl RegistryUi {
                 preview_screen,
                 ScreenPostsetup::None,
             )?;
+            register_edit_panel_style(
+                &mut self
+                    .model
+                    .as_mut()
+                    .ok_or("HUD preview registry missing")?
+                    .registry,
+            );
             self.set_state(EditModePanelState {
                 layout_name: format!("{skin:?}"),
                 preset: true,

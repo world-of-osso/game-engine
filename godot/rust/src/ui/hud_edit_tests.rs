@@ -325,3 +325,33 @@ fn hudeditmode_side_bar_previews_are_registered_in_both_skins() {
         );
     }
 }
+
+#[test]
+fn hudeditmode_manager_border_projects_registered_static_popup_art() {
+    use game_engine_ui_model::hud_edit_component::{
+        EditModePanelState, PANEL_H, PANEL_W, edit_mode_panel_screen,
+    };
+    use ui_toolkit::widgets::texture::TextureSource;
+    let mut registry = FrameRegistry::new(1366.0, 768.0);
+    super::hud_edit_preview::register_edit_panel_style(&mut registry);
+    let mut shared = SharedContext::new();
+    shared.insert(EditModePanelState {
+        layout_name: "Modern".into(),
+        preset: true,
+        ..Default::default()
+    });
+    Screen::new(edit_mode_panel_screen).sync(&shared, &mut registry);
+    let id = registry.get_by_name("EditModeManagerFrameBorder").unwrap();
+    let images = super::parts::project_images(registry.get(id).unwrap(), PANEL_W, PANEL_H);
+    assert_eq!(images.len(), 9);
+    assert!(
+        images
+            .iter()
+            .all(|part| part.source == Some(TextureSource::FileDataId(6_795_680)))
+    );
+    assert!(
+        images
+            .iter()
+            .all(|part| part.rect[2] > 0.0 && part.rect[3] > 0.0)
+    );
+}
