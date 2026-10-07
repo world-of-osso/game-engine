@@ -2699,3 +2699,7 @@ Local-CASC ItemDisplayInfoModelMatRes4050937 establishes type3 material822338/te
 Removed Depth of Field; recorded [SSAO](investigations/native-ssao.md) depth-prepass root cause and bounded renderer comparison. Dozen pixel acceptance remains blocked.
 
 Native SSAO follow-up: stable project prepass fixes cached depth-pipeline On→Off failure. Saved Off/On Lavapipe pixels and consumers pass; Dozen fails strict flat-region oracle. Exact scope, warnings and artifacts: [native SSAO](investigations/native-ssao.md#final-bounded-proof).
+
+## 2026-10-07 — NPC replacement texture types
+
+[Character rendering](systems/character-rendering.md#native-godot-wiring) now describes selected-type canvas composition and explicit missing-canvas failure. [NPC per-type acceptance](../specs/npc-appearance.md#texture-type-acceptance-2026-10-07) owns native type19 proof, genuine-spawn material/PNG assertions, artifact-retention correction and remaining visible/all-declared-type holes. Parity rows104/105 remain Partial rather than promoting material-image proof to rendered-scene acceptance.
