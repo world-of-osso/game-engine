@@ -44,6 +44,10 @@ No registration-flow gaps remain in the requested scope.
 - `data/diagnostics/registration-2026-10-07/` contains `proof-ledger.json`, `client2.log`, `pending-ui.txt`, and inspected `shots/{pending,character-select}.png` with adjacent state JSON. Real mouse/key input registered `fb_regtest1` on private UDP 5300; pending state saved no token; approval used only the private admin socket; subsequent password login reached empty-roster character select and saved the endpoint token in canonical data. Two rendered client launches used; first observer incorrectly read `Button.text` instead of the authored child Label and never submitted registration.
 - Weston/Dozen capability warnings and Godot exit resource-leak diagnostics remain in the retained logs. Registration evidence does not establish leak-free shutdown or full client parity.
 
+## Status-colour polish (2026-10-07)
+
+`7ad775d9` / `9c4300df` distinguish informational pending replies from errors. Session severity and login-registry colour regressions pass. Offline `capturepolish_screens.gd` asserts native gold `(1, 0.82, 0, 1)` and visible status pixels; inspected `data/diagnostics/capturepolish-20261007/shots/registration_pending_preview.png`. The preview completes the normal login fade before capture; no server was used for this colour-only proof.
+
 ## Out of scope
 
 - Server approval policy changes, automatic approval polling, password resets, email fields, and production registration testing.

@@ -49,9 +49,13 @@ Retail references under cached `retail/AddOns/`:
 
 ## Known gaps (current cycle)
 
-Bounded native proof at `5e5ec97b`: four targeted Rust tests pass (projection/request/closure/refusal); unchanged pure-test scope from `adcf3e55`, final native extension/CLI build and format check pass. Private Stormwind → Sentinel Hill live fixture exits 0 with visible native tooltip “Sentinel Hill, Westfall / 0g 0s 5c”, closed map and controlled server position advance. All three captures inspected under canonical `data/diagnostics/flightmap-20261007/shots-accepted/`; commands, failures, revisions and cleanup in that run's `proof-ledger.txt`. Four rendered launches total.
+Historical pre-polish bounded native proof at `5e5ec97b`: four targeted Rust tests pass (projection/request/closure/refusal); unchanged pure-test scope from `adcf3e55`, final native extension/CLI build and format check pass. Private Stormwind → Sentinel Hill live fixture exits 0 with visible native tooltip “Sentinel Hill, Westfall / 0g 0s 5c”, closed map and controlled server position advance. All three captures inspected under canonical `data/diagnostics/flightmap-20261007/shots-accepted/`; commands, failures, revisions and cleanup in that run's `proof-ledger.txt`. Four rendered launches total.
 
 Full Retail visual parity and broad lifecycle/other-continent proof are not claimed. Unchanged mount renderer rejects taxi mount display 6852 as outside imported appearance coverage; movement is proven, mount visuals are not. Editor import finished but exited 134 at shutdown; rendered client exits 0 with RID/ObjectDB/paged-allocator resource errors. These are retained boundaries, not clean-resource/general-shutdown acceptance.
+
+## Capture-polish proof (2026-10-07)
+
+Portrait art `f5d63dea` plus quest-window mask wiring `8949b789`; money rendering `eb75d925` / `5c7fc842`. Targeted source/mask/money regressions pass. Offline `capturepolish_screens.gd` verifies transparent portrait corners, nonblack authored art, amount `5` and visible copper-coin pixels. Inspected `data/diagnostics/capturepolish-20261007/shots/flight_map_preview.png`; this is chrome/tooltip proof, not tiled-map or live-flight acceptance. Commands and failures remain in that run's `proof-ledger.txt`.
 
 ## Out of scope
 
