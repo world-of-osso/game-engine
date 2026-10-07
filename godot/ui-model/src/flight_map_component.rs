@@ -101,9 +101,9 @@ fn pin_tooltip(pin: &FlightPin) -> Element {
         r#frame {
             name: "FlightMapTooltip", width: 280.0, height: 52.0,
             pos_type: "absolute", left, top, background_color: "0.0,0.0,0.0,0.95",
-            font_string {
+            fontstring {
                 name: "FlightMapTooltipText", text: {text.as_str()},
-                font_size: 12.0, text_color: "1.0,0.82,0.0,1.0",
+                font_size: 12.0, font_color: "1.0,0.82,0.0,1.0", justify_h: "LEFT",
                 width: 272.0, height: 48.0, pos_type: "absolute", left: 4.0, top: 2.0,
             }
         }
