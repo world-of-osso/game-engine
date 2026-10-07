@@ -67,6 +67,39 @@ fn xpchat_native_bridge_receives_log_xp_gain() {
 }
 
 #[test]
+fn buffcancel_native_bridge_delivers_exactly_one_cancel_aura() {
+    use shared::protocol::{CancelAura, CombatChannel};
+    #[derive(Resource, Default)]
+    struct Requests(Vec<CancelAura>);
+    fn capture(
+        mut receivers: Query<&mut MessageReceiver<CancelAura>>,
+        mut requests: ResMut<Requests>,
+    ) {
+        for mut receiver in &mut receivers {
+            requests.0.extend(receiver.receive());
+        }
+    }
+    fn install(app: &mut App) {
+        app.init_resource::<Requests>();
+        app.add_systems(Update, capture);
+    }
+    let (mut server, address) = start_fixture_server_with(install);
+    let mut host = Host::connect(address, 8298);
+    await_connected(&mut server, &mut host);
+    let expected = CancelAura { spell_id: 1459 };
+    host.bridge
+        .send::<_, CombatChannel>(expected.clone())
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(2);
+    while Instant::now() < deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(server.world().resource::<Requests>().0, vec![expected]);
+    host.stop();
+}
+
+#[test]
 fn native_mailbox_requests_preserve_object_mail_and_sparse_attachment_slot() {
     use shared::protocol::{
         InteractionChannel, MailAction, MailChannel, MailRequest, UseGameObject,

@@ -450,6 +450,17 @@ impl UiProjection {
             WidgetType::Slider => connect_slider(pending, &self.slider_capture, frame.id, node),
             // Frames, textures and font strings with an `onclick` click as in the Bevy
             // toolkit (tracker minimize buttons, minimap zone text and zoom buttons).
+            _ if frame
+                .name
+                .as_deref()
+                .is_some_and(|name| name.starts_with("BuffButton"))
+                && frame
+                    .onclick
+                    .as_ref()
+                    .is_some_and(|action| !action.is_empty()) =>
+            {
+                connect_buff_cancel(pending, frame.id, node);
+            }
             _ if frame.onclick.is_some() => connect_frame_click(pending, frame.id, node),
             _ => {}
         }
@@ -991,6 +1002,27 @@ fn connect_pointer_down(pending: &PendingInputs, id: u64, node: &mut Gd<Control>
             });
         if left_press {
             pending.push(UiInput::PointerDown(id));
+        }
+    });
+    node.connect("gui_input", &callback);
+}
+
+/// Retail aura buttons register `RightButtonUp`, not a press or a left-click.
+fn connect_buff_cancel(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
+    let pending = pending.clone();
+    let callback = Callable::from_fn("registry-buff-cancel", move |args| {
+        let Some(event) = args
+            .first()
+            .and_then(|event| event.try_to::<Gd<InputEventMouseButton>>().ok())
+        else {
+            return;
+        };
+        if !event.is_pressed() && event.get_button_index() == godot::global::MouseButton::RIGHT {
+            pending.push(UiInput::AltClick {
+                id,
+                right: true,
+                shift: event.is_shift_pressed(),
+            });
         }
     });
     node.connect("gui_input", &callback);
