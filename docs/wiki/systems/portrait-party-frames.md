@@ -18,6 +18,10 @@ Behavioral coverage: concrete 2→4→2→0 member roster, promotion, offline, d
 
 Inspected captures: `data/diagnostics/party2-2026-10-05/{modern,forever}-party-recapture.png` and `*-detail.png`. Both show full grey offline health, full dim-blue power and the source-authored crown rect. Samples at (130,294): Modern (178,178,178), Forever (175,175,175); power (130,306) is (6,62,122) under both skins. `raster-red/` retains the reproduced green-health failure. Both clients/Weston exit 0 and all owned PIDs are gone. Pre-existing shutdown leaks persist (Modern 7 texture RIDs/10 ObjectDB instances; Forever 9/11), so this is bounded static raster proof, not clean shutdown or step-5 live acceptance. Full proof/commands are in the same directory's `proof.md`; no runtime heads, settings UI, pet acceptance or merge/push.
 
+## Live party context-menu regression — 2026-10-06
+
+Live acceptance found native right-click handling only considered TargetFrame, FocusFrame and PetFrame; both party families had no menu hit path. `unit_menu.rs` now resolves the active compact/portrait/raid member by its rendered slot and sorted roster, opens the existing player menu, and retains it by roster membership without requiring entity replication. The compact default is unchanged. `scripts/tests/live_party_menu.py` checks real-process mouse input, menu member title and an actionable entry against the private capture harness. RED capture/log and subsequent live proof belong to `data/diagnostics/party5-2026-10-06/`; acceptance remains bounded by that run's ledger.
+
 ## Step 4 — presentation settings
 
 [Party Edit Mode settings](party-edit-mode-settings.md) records the exhaustive local Retail inventory, defaults/ranges, shared-family task overrides, persistence and data boundaries. Compact remains default. Settings implementation and bounded proof do not imply step-5 live acceptance.
