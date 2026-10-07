@@ -63,7 +63,7 @@ use shared::protocol::{PetAction, PetClearSpells, PetSpellAutocast, PetSpells};
 
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
 use game_engine_ui_model::merchant_data::MerchantRequest;
-use game_engine_ui_model::quest_runtime::{NpcInteractionRequest, QuestRuntime};
+use game_engine_ui_model::quest_runtime::{NpcInteractionRequest, QuestNotice, QuestRuntime};
 use shared::protocol::{
     AbandonQuest, QuestGiverAcceptQuest, QuestGiverChooseReward, QuestGiverCompleteQuest,
     QuestGiverHello, QuestGiverOfferReward, QuestGiverQueryQuest, QuestGiverQuestComplete,
@@ -207,7 +207,7 @@ pub enum AccountEvent {
     /// Quest giver dialog traffic and quest results.
     Quest(QuestMessage),
     /// A quest system line (`ERR_QUEST_ACCEPTED_S`, ...), shown as a system chat line.
-    QuestNotice(String),
+    QuestNotice(QuestNotice),
     /// The server's tooltip data for one creature entry.
     CreatureTooltip(CreatureTooltip),
     /// The account's learned appearances.

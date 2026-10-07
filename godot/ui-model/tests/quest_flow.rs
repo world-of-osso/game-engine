@@ -372,7 +372,10 @@ fn quest_log_lists_objectives_tracks_and_confirms_abandon() {
         removed: Vec::new(),
         watched_quest_ids: vec![BEATING_THEM_BACK],
     });
-    assert_eq!(notices, ["Quest accepted: Beating Them Back!"]);
+    assert_eq!(
+        notices.iter().map(ToString::to_string).collect::<Vec<_>>(),
+        ["Quest accepted: Beating Them Back!"]
+    );
     let log = render_log(&runtime, &ui);
     assert_eq!(text(&log, "QuestLogCount"), "Quests: 1/35");
     assert_eq!(
