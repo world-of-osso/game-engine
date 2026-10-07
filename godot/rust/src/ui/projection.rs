@@ -1017,15 +1017,30 @@ fn connect_buff_cancel(pending: &PendingInputs, id: u64, node: &mut Gd<Control>)
         else {
             return;
         };
-        if !event.is_pressed() && event.get_button_index() == godot::global::MouseButton::RIGHT {
-            pending.push(UiInput::AltClick {
-                id,
-                right: true,
-                shift: event.is_shift_pressed(),
-            });
+        if let Some(input) = buff_cancel_input(
+            id,
+            event.get_button_index(),
+            event.is_pressed(),
+            event.is_shift_pressed(),
+        ) {
+            pending.push(input);
         }
     });
     node.connect("gui_input", &callback);
+}
+
+pub(super) fn buff_cancel_input(
+    id: u64,
+    button: godot::global::MouseButton,
+    pressed: bool,
+    shift: bool,
+) -> Option<UiInput> {
+    let right_release = button == godot::global::MouseButton::RIGHT && !pressed;
+    right_release.then_some(UiInput::AltClick {
+        id,
+        right: true,
+        shift,
+    })
 }
 
 fn connect_frame_click(pending: &PendingInputs, id: u64, node: &mut Gd<Control>) {
