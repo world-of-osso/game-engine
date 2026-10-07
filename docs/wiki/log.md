@@ -1,3 +1,7 @@
+## 2026-10-07 — Retail publication checkpoint correction
+
+[Current checkpoint](systems/forever-data.md#post-rebase-checkpoint-2026-10-07) supersedes the prior unpublished/missing-input state: authentic Retail root CSV published under the existing CASC export contract, current fixture manifest complete per Main, newer local nameplate provenance recorded without original69913 byte-equivalence. Receipts own hashes/source details; encrypted omissions and source-parity gaps remain. Independent real-data OutfitData module proof (agent236) pending; bounded synthetic proof unchanged. Canonical sibling divergence/user decision, native/full acceptance blockers and saved inactive/PID-gone/freeUDP15002 cleanup receipt unchanged. Docs-only correction; no data staging, tests/builds/operations.
+
 ## 2026-10-07 — Skyborn d6db420f1 documentation checkpoint
 
 [Current checkpoint](systems/forever-data.md#post-rebase-checkpoint-2026-10-07) records shared actual OutfitData tests, indexed-column regression correction and Retail-only replacement loading. Direct agent234 final receipt at d6db420f1 proves three synthetic tests/focused formatting; readability findings remain. Main RED2 and old mixed16/20 database-lock RED retained. Retail69933 table staged141252 rows/129 encrypted drops, no root publication. Native build blocked by canonical sibling APIs; fetched compatible origin masters not applied. Actual Ailee/Grove and native/full acceptance unproved; saved scratch cleanup inactive/PIDgone/freeUDP15002. Docs-only; no tests/builds/operations/publication.
