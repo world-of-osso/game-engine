@@ -22,8 +22,7 @@ use godot::{
 };
 
 const SHADER_PATH: &str = "res://shaders/m2.gdshader";
-const RENDER_MODE: &str =
-    "render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;";
+const RENDER_MODE: &str = "render_mode fog_disabled, specular_disabled, cull_back, blend_mix;";
 /// The shader's texture uniforms, one per batch texture slot.
 const TEXTURE_SLOTS: [&str; 4] = [
     "base_texture",
@@ -307,7 +306,7 @@ impl Pipeline {
             ", depth_test_disabled"
         };
         format!(
-            "render_mode ambient_light_disabled, fog_disabled, specular_disabled, {cull}, {}{depth}{test};",
+            "render_mode fog_disabled, specular_disabled, {cull}, {}{depth}{test};",
             self.blend()
         )
     }

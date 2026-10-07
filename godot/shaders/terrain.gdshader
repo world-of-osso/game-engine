@@ -1,5 +1,5 @@
 shader_type spatial;
-render_mode ambient_light_disabled, fog_disabled, specular_disabled;
+render_mode fog_disabled, specular_disabled;
 #include "res://shaders/m2_point_light.gdshaderinc"
 
 // config: layer count, blend mode (0 layered, 1 weighted, 2 height-weighted), UV repeat.
@@ -142,6 +142,9 @@ void fragment() {
 		diffuse = mix(diffuse, reflection, clamp(reflection_weight * fresnel, 0.0, 1.0));
 	}
 	// The sole scene-owned directional light invokes light() even when direct=0.
+	// Keep authored lighting, but do not compile out Godot's SSAO sampling.
+	IRRADIANCE = vec4(0.0, 0.0, 0.0, 1.0);
+	RADIANCE = vec4(0.0, 0.0, 0.0, 1.0);
 	ALBEDO = vec3(1.0);
 	ROUGHNESS = 1.0;
 	// Pass authored operands through fragment -> light without applying gamma yet.

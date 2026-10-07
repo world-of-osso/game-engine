@@ -1,6 +1,6 @@
 shader_type spatial;
 // Material binding selects authored cull/blend variants; no Godot PBR shading or fog.
-render_mode ambient_light_disabled, fog_disabled, specular_disabled, cull_back, blend_mix;
+render_mode fog_disabled, specular_disabled, cull_back, blend_mix;
 #include "res://shaders/m2_point_light.gdshaderinc"
 
 // WebWowViewerCpp WMOMaterialTemplate.textures[0..9] (`wmoObject.cpp` getMaterialInstance).
@@ -289,6 +289,9 @@ void fragment() {
 #ifdef WMO_BLENDED
 	ALPHA = texel.opacity;
 #endif
+	// Keep authored lighting, but do not compile out Godot's SSAO sampling.
+	IRRADIANCE = vec4(0.0, 0.0, 0.0, 1.0);
+	RADIANCE = vec4(0.0, 0.0, 0.0, 1.0);
 	ALBEDO = vec3(1.0);
 	ROUGHNESS = 1.0;
 	world_normal = normalize((INV_VIEW_MATRIX * vec4(NORMAL, 0.0)).xyz);
