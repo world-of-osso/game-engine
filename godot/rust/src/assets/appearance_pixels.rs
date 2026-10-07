@@ -23,13 +23,15 @@ pub(super) fn inactive_npc_texture_types(
         .collect()
 }
 
-/// Validate every required slot before omitting a pass with an unselected layer.
-/// File-backed slots still need decoding by the material loader before omission.
+/// Validate required slots and material-loader file receipts before source omission.
+/// Hidden geosets do not require an unbound optional slot; body/hair remain required.
 pub(crate) fn npc_pass_active<T>(
     texture_types: &[u32],
     fdids: &[Option<u32>],
     inactive: &HashSet<u32>,
     textures: &HashMap<u32, T>,
+    visible: bool,
+    missing: &[u32],
 ) -> Result<bool, String> {
     if texture_types.len() != fdids.len() {
         return Err("NPC pass texture types and sources have different lengths".to_owned());
@@ -38,7 +40,14 @@ pub(crate) fn npc_pass_active<T>(
         if inactive.contains(&kind) || (kind != 0 && textures.contains_key(&kind)) {
             continue;
         }
-        if matches!(kind, 1 | 6) || fdid.is_none() {
+        if let Some(fdid) = fdid
+            && missing.contains(fdid)
+        {
+            return Err(format!(
+                "missing required NPC pass texture type {kind} FDID {fdid}"
+            ));
+        }
+        if matches!(kind, 1 | 6) || ((visible || kind == 0) && fdid.is_none()) {
             return Err(format!("missing required NPC pass texture type {kind}"));
         }
     }

@@ -1,5 +1,7 @@
 #[path = "../../rust/src/assets/appearance_pixels.rs"]
 mod appearance_pixels;
+#[path = "../../rust/src/assets/texture_file.rs"]
+mod texture_file;
 
 use std::{collections::HashMap, path::Path};
 
@@ -141,8 +143,8 @@ fn ailee_selected_type20_composes_authentic_pixels_on_256_canvas() {
         "authored opaque full-canvas layer preserves decoded pixels"
     );
     assert!(type20.0.chunks_exact(4).any(|pixel| pixel[3] != 0));
-    assert!(!npc_pass_active(&[7], &[None], &inactive, &textures).unwrap());
-    assert!(npc_pass_active(&[20], &[None], &inactive, &textures).unwrap());
+    assert!(!npc_pass_active(&[7], &[None], &inactive, &textures, true, &[]).unwrap());
+    assert!(npc_pass_active(&[20], &[None], &inactive, &textures, true, &[]).unwrap());
 }
 
 fn fixture() -> CharTextureData {
@@ -229,23 +231,213 @@ fn source_absence_omits_multi_slot_pass_only_after_required_slots_validate() {
     assert!(!inactive.contains(&20));
     assert!(!inactive.contains(&99));
     let textures = HashMap::from([(1, ()), (6, ()), (20, ())]);
-    assert!(!npc_pass_active(&[20, 7], &[None, None], &inactive, &textures).unwrap());
-    assert!(!npc_pass_active(&[7, 0], &[None, Some(123)], &inactive, &textures).unwrap());
-    assert!(npc_pass_active(&[20], &[None], &inactive, &textures).unwrap());
+    assert!(!npc_pass_active(&[20, 7], &[None, None], &inactive, &textures, true, &[]).unwrap());
+    assert!(
+        !npc_pass_active(&[7, 0], &[None, Some(123)], &inactive, &textures, true, &[]).unwrap()
+    );
+    assert!(npc_pass_active(&[20], &[None], &inactive, &textures, true, &[]).unwrap());
     for kind in [0, 1, 6, 20, 99] {
         let missing = HashMap::<u32, ()>::new();
-        assert!(npc_pass_active(&[7, kind], &[None, None], &inactive, &missing).is_err());
-        assert!(npc_pass_active(&[kind, 7], &[None, None], &inactive, &missing).is_err());
+        assert!(
+            npc_pass_active(&[7, kind], &[None, None], &inactive, &missing, true, &[]).is_err()
+        );
+        assert!(
+            npc_pass_active(&[kind, 7], &[None, None], &inactive, &missing, true, &[]).is_err()
+        );
     }
-    assert!(npc_pass_active(&[0, 99], &[Some(123), Some(456)], &inactive, &textures).unwrap());
+    assert!(
+        npc_pass_active(
+            &[0, 99],
+            &[Some(123), Some(456)],
+            &inactive,
+            &textures,
+            true,
+            &[]
+        )
+        .unwrap()
+    );
     for kind in [1, 6] {
         assert!(
-            npc_pass_active(&[kind], &[Some(123)], &inactive, &HashMap::<u32, ()>::new()).is_err()
+            npc_pass_active(
+                &[kind],
+                &[Some(123)],
+                &inactive,
+                &HashMap::<u32, ()>::new(),
+                true,
+                &[]
+            )
+            .is_err()
         );
     }
     let unknown_layout = inactive_npc_texture_types(&fixture(), &[], 999);
     assert!(unknown_layout.is_empty());
-    assert!(npc_pass_active(&[7], &[None], &unknown_layout, &textures).is_err());
+    assert!(npc_pass_active(&[7], &[None], &unknown_layout, &textures, true, &[]).is_err());
+}
+
+#[test]
+fn hidden_unbound_cape_keeps_batch_but_does_not_draw() {
+    // Authentic Ailee skin unit29: submesh68, mesh part1507, type2, no cape.
+    let visible =
+        game_engine_core::npc_appearance_selection_data::npc_geoset_visible(1507, &[(15, 0)], &[]);
+    assert!(!visible);
+    let inactive = inactive_npc_texture_types(&fixture(), &[(38, 3613861)], 202);
+    assert_eq!(
+        npc_pass_active(
+            &[2],
+            &[None],
+            &inactive,
+            &HashMap::<u32, ()>::new(),
+            visible,
+            &[]
+        ),
+        Ok(true),
+        "hidden optional cape retains its Batch node, not a drawable texture requirement"
+    );
+}
+
+#[test]
+fn visible_unbound_cape_remains_explicit_error() {
+    let visible = game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
+        1507,
+        &[(15, 0)],
+        &[(15, 7)],
+    );
+    assert!(visible);
+    let inactive = inactive_npc_texture_types(&fixture(), &[(38, 3613861)], 202);
+    assert_eq!(
+        npc_pass_active(
+            &[2],
+            &[None],
+            &inactive,
+            &HashMap::<u32, ()>::new(),
+            visible,
+            &[]
+        ),
+        Err("missing required NPC pass texture type 2".to_owned())
+    );
+}
+
+#[test]
+fn real_missing_blp_errors_before_source_unselected_omission() {
+    let dir = std::env::temp_dir().join(format!("npc-missing-blp-{}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    let fdid = 3613861;
+    let mut missing = Vec::new();
+    assert_eq!(
+        texture_file::read_texture_file(fdid, &dir, |id| missing.push(id)).unwrap(),
+        None
+    );
+    assert_eq!(missing, vec![fdid]);
+    let inactive = inactive_npc_texture_types(&fixture(), &[(38, fdid)], 202);
+    let textures = HashMap::<u32, ()>::new();
+    for visible in [true, false] {
+        for kind in [0, 2, 20, 99] {
+            for (types, sources) in [
+                ([7, kind], [None, Some(fdid)]),
+                ([kind, 7], [Some(fdid), None]),
+            ] {
+                assert_eq!(
+                    npc_pass_active(&types, &sources, &inactive, &textures, visible, &missing),
+                    Err(format!(
+                        "missing required NPC pass texture type {kind} FDID {fdid}"
+                    )),
+                    "actual NotFound must fail before omission, regardless of slot order or visibility"
+                );
+            }
+        }
+    }
+    std::fs::remove_dir(&dir).unwrap();
+}
+
+#[test]
+fn real_file_receipts_distinguish_inactive_and_required_slots() {
+    let dir = std::env::temp_dir().join(format!("npc-file-receipts-{}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    let inactive = inactive_npc_texture_types(&fixture(), &[(38, 3613861)], 202);
+    let mut missing = Vec::new();
+    let fdid = 3613861;
+    texture_file::read_texture_file(fdid, &dir, |id| missing.push(id)).unwrap();
+    let textures = HashMap::from([(20, ())]);
+    assert_eq!(
+        npc_pass_active(
+            &[7, 20],
+            &[Some(fdid), None],
+            &inactive,
+            &textures,
+            true,
+            &missing
+        ),
+        Ok(false)
+    );
+    assert!(
+        npc_pass_active(
+            &[7, 0],
+            &[Some(fdid), Some(fdid)],
+            &inactive,
+            &textures,
+            true,
+            &missing
+        )
+        .is_err()
+    );
+    std::fs::write(
+        dir.join(format!("{fdid}.blp")),
+        b"owned read-boundary bytes",
+    )
+    .unwrap();
+    missing.clear();
+    assert_eq!(
+        texture_file::read_texture_file(fdid, &dir, |id| missing.push(id)).unwrap(),
+        Some(b"owned read-boundary bytes".to_vec())
+    );
+    assert!(missing.is_empty());
+    assert_eq!(
+        npc_pass_active(
+            &[7, 0],
+            &[None, Some(fdid)],
+            &inactive,
+            &textures,
+            true,
+            &missing
+        ),
+        Ok(false)
+    );
+    assert_eq!(
+        npc_pass_active(&[0], &[Some(fdid)], &inactive, &textures, true, &missing),
+        Ok(true)
+    );
+    // These bytes test only the shared filesystem boundary, not BLP decoding.
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn texture_read_error_is_not_an_absence_receipt() {
+    let dir = std::env::temp_dir().join(format!("npc-read-error-{}", std::process::id()));
+    std::fs::create_dir(&dir).unwrap();
+    std::fs::create_dir(dir.join("3613861.blp")).unwrap();
+    let mut missing = Vec::new();
+    let error = texture_file::read_texture_file(3613861, &dir, |id| missing.push(id)).unwrap_err();
+    assert!(error.starts_with("Cannot read texture 3613861:"));
+    assert!(missing.is_empty());
+    std::fs::remove_dir_all(&dir).unwrap();
+}
+
+#[test]
+fn hidden_body_and_hair_still_require_replacements() {
+    let inactive = inactive_npc_texture_types(&fixture(), &[], 202);
+    for kind in [0, 1, 6] {
+        assert!(
+            npc_pass_active(
+                &[kind],
+                &[None],
+                &inactive,
+                &HashMap::<u32, ()>::new(),
+                false,
+                &[]
+            )
+            .is_err()
+        );
+    }
 }
 
 #[test]
