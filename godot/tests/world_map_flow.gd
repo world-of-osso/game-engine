@@ -1,6 +1,10 @@
 extends SceneTree
 
-# In-world World Map against the dev server (docs/specs/world-map.md): M opens the
+# Requires GODOT_TEST_SERVER (private endpoint, never shared :5000),
+# GODOT_TEST_ACCOUNT, GODOT_TEST_PASSWORD and GODOT_TEST_SHOTS (output directory).
+# The selected character must stand in a zone whose parent is its continent (for
+# example Goldshire, Elwynn Forest), not a sub-map such as Northshire.
+# In-world World Map (docs/specs/world-map.md): M opens the
 # player's zone, right-click zooms out zone -> continent -> world, clicking the
 # player's spot zooms back in, the arrow sits at the player's map position and
 # points where forward movement goes, Escape and M close it.
@@ -8,9 +12,8 @@ extends SceneTree
 const WORLD_WAIT_MS := 90000
 const MAP_WAIT_MS := 20000
 const MOVE_FRAMES := 60
-const SHOTS := "/tmp/claude/"
-
 var client: Node
+var shots: String
 
 func _initialize() -> void:
 	Engine.max_fps = 60
@@ -19,12 +22,15 @@ func _initialize() -> void:
 func run_test() -> void:
 	root.size = Vector2i(1280, 720)
 	var server := OS.get_environment("GODOT_TEST_SERVER")
-	if server != "127.0.0.1:5000":
-		fail("GODOT_TEST_SERVER must explicitly select 127.0.0.1:5000")
+	var account := OS.get_environment("GODOT_TEST_ACCOUNT")
+	var password := OS.get_environment("GODOT_TEST_PASSWORD")
+	shots = OS.get_environment("GODOT_TEST_SHOTS")
+	if server.is_empty() or account.is_empty() or password.is_empty() or shots.is_empty():
+		fail("GODOT_TEST_SERVER, GODOT_TEST_ACCOUNT, GODOT_TEST_PASSWORD and GODOT_TEST_SHOTS are required")
 		return
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	var error = client.connect_account(server, "admin", "admin", false)
+	var error = client.connect_account(server, account, password, false)
 	if error != "":
 		fail("Fixture connection: " + error)
 		return
@@ -107,7 +113,8 @@ func run_test() -> void:
 	quit(0)
 
 func enter_world() -> bool:
-	var deadline := Time.get_ticks_msec() + 15000
+	# Character select mounts its UI only after asset startup finishes.
+	var deadline := Time.get_ticks_msec() + 90000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
@@ -115,7 +122,8 @@ func enter_world() -> bool:
 			if state.screen != "CharacterSelect" or state.character_count < 1:
 				fail("Fixture needs an authenticated character: " + str(state))
 				return false
-			break
+			if not state.assets_starting and client.get_node_or_null("CharacterSelectUI") != null:
+				break
 	var ui = client.get_node_or_null("CharacterSelectUI")
 	var enter = ui.find_child("EnterWorld", true, false) if ui != null else null
 	if not enter is Button:
@@ -247,7 +255,7 @@ func click_named(name: String) -> void:
 func capture(file: String) -> void:
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
-	var error := image.save_png(SHOTS + file)
+	var error := image.save_png(shots.path_join(file))
 	if error != OK:
 		fail("Could not save " + file + ": " + str(error))
 
