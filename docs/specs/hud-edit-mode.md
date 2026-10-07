@@ -23,6 +23,13 @@ Acceptance: code `af2be5bd2`, documentation head `bd7addc5a`, Godot `4.7.2-pr123
 
 Code: `godot/rust/src/hud_edit.rs`, `godot/rust/src/ui/hud_edit_layout.rs`, `godot/rust/src/ui/hud_edit_preview.rs`, `godot/ui-model/src/hud_edit*.rs`, `godot/core/src/ui_layout_data/edit_layouts.rs`. The inventory below is historical Bevy implementation.
 
+## Offline polish (2026-10-07)
+
+- [ ] Manager starts at Retail's top-centred preferred position (TOP -100) but clears every mounted mover in the default layout; its title area drags and clamps it to the screen. Retail source: cached `Blizzard_EditMode/Shared/EditModeManager.xml:4-7` (`movable="true"`, `frameStrata="DIALOG"`), `EditModeManager.lua:72-78` (`StartMoving`, `StopMovingOrSizing`). User request: no mover under the manager. Deviation: collision avoidance may displace Retail's preferred point; HUD preset anchors do not change.
+- [ ] Unselected, unhovered movers show highlight art without labels. Hover shows "Click to edit"; selected movers show their system name. Retail `EditModeSystemTemplates.lua:3171-3198,3212-3262` (`ShouldShowLabelText`, `GetLabelText`), XML:11-39 (MEDIUM selection, centred hidden label). Our choice: an opaque label-only backing prevents content fighting text, while the existing translucent highlight leaves the rest of the system visible. Native editor canvas maps selections below its dialog, above gameplay canvases.
+- [ ] All 21 registered movers follow the same label/manager-clearance policy under both skins. Offline inventory exposes ordinarily hidden bars/micro menu and representative party/raid/cast frames without changing saved settings or preset visibility. No chat, tracker or party default-position decisions are changed by this polish.
+- [ ] Manager New/Rename/Delete/Revert/Save/Reset Selected/Exit and previous/next clicks emit their documented actions and exercise the same draft/persistence transition used by the client, including disabled buttons and preset protection.
+
 ## What it must do
 
 - [x] F10 toggles edit mode (World input mode only). Escape exits it, as a step after "close the top popup" and before "close all windows".

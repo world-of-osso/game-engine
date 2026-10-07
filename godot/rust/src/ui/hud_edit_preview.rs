@@ -135,6 +135,7 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
         ..Default::default()
     });
     shared.insert(ObjectiveTrackerState::default());
+    insert_missing_mover_previews(&mut shared);
     shared.insert(BuffFrameState::default());
     shared.insert(XpBarState {
         xp: 350,
@@ -153,6 +154,10 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
         buff_frame_screen(&shared),
         xp_bar_screen(&shared),
         damage_meter_screen(&shared),
+        game_engine_ui_model::ui_errors_frame_component::ui_errors_frame_screen(&shared),
+        game_engine_ui_model::casting_bar_frame_component::casting_bar_frame_screen(&shared),
+        game_engine_ui_model::group_frames_component::group_frames_screen(&shared),
+        game_engine_ui_model::micro_menu::micro_menu_screen(&shared),
     ]
     .into_iter()
     .flatten()
@@ -163,4 +168,41 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
         elements.extend(edit_mode_panel_screen(ctx));
     }
     elements
+}
+
+fn insert_missing_mover_previews(shared: &mut SharedContext) {
+    use game_engine_core::ui_layout_data::LayoutSettings;
+    use game_engine_ui_model::compact_unit_frame_component::{CompactUnitView, UnitStatus};
+    use game_engine_ui_model::group_frames_component::GroupFramesState;
+    shared.insert(game_engine_ui_model::ui_errors_data::UiErrorsData::default());
+    shared.insert(
+        game_engine_ui_model::casting_bar_frame_component::CastingBarState {
+            visible: true,
+            spell_name: "Flash of Light".into(),
+            progress: 0.5,
+            ..Default::default()
+        },
+    );
+    let member = CompactUnitView {
+        name: "Hudedit".into(),
+        class_rgb: [0.96, 0.55, 0.73],
+        health_fraction: Some(0.75),
+        power: None,
+        role: shared::protocol::GroupRoleSnapshot::Healer,
+        status: UnitStatus::Online,
+        in_range: true,
+        selected: false,
+        ready: None,
+        debuffs: Vec::new(),
+    };
+    shared.insert(GroupFramesState {
+        party: vec![member.clone(); 5],
+        raid: vec![vec![member; 5]; 8],
+        ..Default::default()
+    });
+    // Explicit offline inventory: expose the normally hidden micro menu, without changing presets.
+    shared.insert(LayoutSettings {
+        show_micro_menu: Some(true),
+        ..Default::default()
+    });
 }
