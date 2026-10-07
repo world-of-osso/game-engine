@@ -61,6 +61,14 @@ def plan_links(source, destination, relative, tracked):
     return actions
 
 
+def conflicts_root(worktree):
+    """Preserved conflicts live beside the worktrees, never inside one, so git cannot
+    pick them up as untracked files."""
+    root = worktree.parent / "repair-conflicts"
+    root.mkdir(exist_ok=True)
+    return root
+
+
 def refuse_open_files(directories):
     """Refuse while any of this user's processes holds a file under `directories`.
 
@@ -151,7 +159,7 @@ def apply_links(actions, worktree, repair):
                 if any(destination.iterdir()):
                     if conflicts is None:
                         conflicts = Path(
-                            tempfile.mkdtemp(prefix="data-repair-conflicts-", dir=worktree)
+                            tempfile.mkdtemp(prefix=f"{worktree.name}-data-repair-conflicts-", dir=conflicts_root(worktree))
                         )
                     saved = conflicts / destination.relative_to(worktree / "data")
                     saved.parent.mkdir(parents=True, exist_ok=True)
