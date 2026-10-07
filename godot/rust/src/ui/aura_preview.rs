@@ -31,6 +31,7 @@ impl RegistryUi {
 
 fn preview_aura() -> AuraInstance {
     AuraInstance {
+        instance_id: 1,
         spell_id: 1459,
         name: "Arcane Intellect".into(),
         description: "Intellect increased by 3%.".into(),
