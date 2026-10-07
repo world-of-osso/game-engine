@@ -140,7 +140,9 @@ func expect_book_default(client: Node) -> bool:
 		return false
 	var rect := book.get_global_rect()
 	var scale := book.get_global_transform().get_scale().x
-	var expected := Vector2(minf(16.0 * scale, root.size.x - rect.size.x), minf(104.0 * scale, root.size.y - rect.size.y))
+	# The clamp keeps the bottom tabs on screen: FRAME_TOTAL_H (919) = FRAME_H (883) + 36.
+	var total_height := rect.size.y * 919.0 / 883.0
+	var expected := Vector2(minf(16.0 * scale, root.size.x - rect.size.x), minf(104.0 * scale, root.size.y - total_height))
 	if rect.position.distance_to(expected) > 2.0:
 		fail("Spellbook default slot %s expected %s" % [rect.position, expected])
 		return false
@@ -256,7 +258,8 @@ func expect_map_position(client: Node) -> bool:
 	if absf(scale - 5.0 / 6.0) > 0.01:
 		fail("Expected effective nonunit UI scale 5/6, got " + str(scale))
 		return false
-	var expected := Vector2((root.size.x - rect.size.x) * 0.5, minf(104.0 * scale, root.size.y - rect.size.y))
+	# Left UI panel slot (world_map_frame_component::PANEL_SLOT): LEFT_OFFSET 16, TOP_OFFSET -116.
+	var expected := Vector2(minf(16.0 * scale, root.size.x - rect.size.x), minf(116.0 * scale, root.size.y - rect.size.y))
 	if rect.position.distance_to(expected) > 2.0:
 		fail("Map position %s, expected %s" % [rect.position, expected])
 		return false
