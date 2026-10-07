@@ -3,7 +3,7 @@ extends "res://tests/world_quest_flow.gd"
 # Main supplies prepared credentials and launches twice under maintained cage/agent-run.
 # Required: GODOT_TEST_SERVER, SKYBORNE_RACE (95|96), SKYBORNE_USERNAME,
 # SKYBORNE_PASSWORD, SKYBORNE_SHOTS (absolute path under persistent data/), GAME_ENGINE_CLI,
-# SKYBORNE_SCOPE (client-items|full|turn-in|reward-reload|shoulder-assets). Prepared scopes require race95;
+# SKYBORNE_SCOPE (client-items|full|turn-in|reward-reload|shoulder-assets|ailee-assets). Prepared scopes require race95;
 # turn-in requires active completed92460; reward-reload requires rewarded character30/XP40.
 # Neither proves fresh acceptance. client-items proves no NPC/giver/quest behavior.
 # godot --path godot -s res://tests/skyborne_world_acceptance.gd
@@ -35,10 +35,10 @@ func run_test() -> void:
 	var port := server.trim_prefix("127.0.0.1:")
 	race = OS.get_environment("SKYBORNE_RACE").to_int()
 	var scope := OS.get_environment("SKYBORNE_SCOPE")
-	if scope not in ["client-items", "full", "turn-in", "reward-reload", "shoulder-assets"]:
-		fail("Require explicit SKYBORNE_SCOPE=client-items|full|turn-in|reward-reload|shoulder-assets")
+	if scope not in ["client-items", "full", "turn-in", "reward-reload", "shoulder-assets", "ailee-assets"]:
+		fail("Require explicit SKYBORNE_SCOPE=client-items|full|turn-in|reward-reload|shoulder-assets|ailee-assets")
 		return
-	var prepared := scope in ["turn-in", "reward-reload", "shoulder-assets"]
+	var prepared := scope in ["turn-in", "reward-reload", "shoulder-assets", "ailee-assets"]
 	if prepared:
 		if race != 95:
 			fail("Prepared scopes require race95 Skymage, never race96")
@@ -96,6 +96,14 @@ func run_test() -> void:
 			return
 		print("SKYBORNE REWARD_RELOAD_DONE race=95 character=Skymage character_id=30 quest=92460 xp=40")
 		print("SKYBORNE UNTESTED fresh acceptance/full fixture/original script; accepted/rewarded nothing")
+		client.free()
+		quit(0)
+		return
+	if scope == "ailee-assets":
+		if not await check_ailee_baked_appearance() or not await check_authored_shoulders():
+			return
+		print("SKYBORNE AILEE_ASSETS_DONE race=95 character=Skymage display=136968 bake=7352105")
+		print("SKYBORNE UNTESTED quest changes/full fixture/original script; accepted/rewarded nothing")
 		client.free()
 		quit(0)
 		return
@@ -317,6 +325,40 @@ func open_sky_ender(ender: Node3D, pages: Array) -> int:
 		return 0
 	return ender_id
 
+func check_ailee_baked_appearance() -> bool:
+	if int(client.account_state().get("selected_character_id", -1)) != 30 or not check_reward_reload_state():
+		return false
+	var unit := await locate_logical_giver(GIVERS[95])
+	if unit == null:
+		return false
+	if not await wait_frames(func(): return visible_body(unit), "Ailee authored baked body", WAIT_MS):
+		return false
+	var visual := unit.get_node("NpcVisualRoot") as Node3D
+	var model := visual.get_node_or_null("NpcModel") as Node3D
+	if model == null or str(model.get_meta("m2_source_path", "")).get_file() != "7478494.m2":
+		fail("Ailee lacks original authored female body7478494")
+		return false
+	var meshes := model.find_children("Batch*", "MeshInstance3D", true, false)
+	var textured := 0
+	for mesh in meshes:
+		if mesh.mesh == null or not mesh.is_visible_in_tree() or mesh.get_aabb().size.length() <= 0.0:
+			continue
+		var material := mesh.get_active_material(0) as ShaderMaterial
+		if material == null:
+			fail("Ailee visible batch lacks authored shader material")
+			return false
+		var texture := material.get_shader_parameter("base_texture") as Texture2D
+		if texture == null or texture.get_image() == null or texture.get_image().is_empty():
+			fail("Ailee visible batch lacks nonempty texture")
+			return false
+		textured += 1
+		print("SKYBORNE AILEE_MATERIAL mesh=", mesh.name, " resource=", texture.get_instance_id(), " size=", texture.get_size())
+	if textured == 0:
+		fail("Ailee lacks visible textured authored meshes")
+		return false
+	print("SKYBORNE AILEE_VISIBLE name=", GIVERS[95], " path=", model.get_path(), " meshes=", textured)
+	return await capture_npc_views(visual, "02-ailee-authored")
+
 func check_authored_shoulders() -> bool:
 	if int(client.account_state().get("selected_character_id", -1)) != 30 or not check_reward_reload_state():
 		return false
@@ -351,7 +393,7 @@ func check_authored_shoulders() -> bool:
 			if not check_shoulder_material(mesh, side):
 				return false
 		print("SKYBORNE SHOULDER_ATTACHED side=", side, " attachment=", attachment, " path=", item.get_path(), " transform=", item.transform, " meshes=", meshes.size())
-	return await capture_shoulder_views(visual)
+	return await capture_npc_views(visual, "02-grove-ranger-shoulders")
 
 func check_shoulder_material(mesh: MeshInstance3D, side: String) -> bool:
 	var material := mesh.get_active_material(0) as ShaderMaterial
@@ -377,7 +419,7 @@ func check_shoulder_material(mesh: MeshInstance3D, side: String) -> bool:
 		print("SKYBORNE SHOULDER_MATERIAL side=", side, " mesh=", mesh.name, " parameter=", parameter, " resource=", texture.get_instance_id(), " size=", image.get_size(), " format=", image.get_format(), " file=", file)
 	return true
 
-func capture_shoulder_views(visual: Node3D) -> bool:
+func capture_npc_views(visual: Node3D, prefix: String) -> bool:
 	# Share the actual world; moving the visual into a new World3D produced blank captures.
 	var capture := SubViewport.new()
 	capture.size = Vector2i(1024, 1024)
@@ -397,12 +439,12 @@ func capture_shoulder_views(visual: Node3D) -> bool:
 			await process_frame
 		await RenderingServer.frame_post_draw
 		var image := capture.get_texture().get_image()
-		var file: String = shots + "02-grove-ranger-shoulders-" + view + ".png"
+		var file: String = shots + prefix + "-" + view + ".png"
 		if image == null or image.is_empty() or image.save_png(file) != OK:
 			capture.queue_free()
-			fail("Cannot save actual Grove Ranger shoulder view " + file)
+			fail("Cannot save actual authored NPC view " + file)
 			return false
-		print("SKYBORNE SHOULDER_VIEW ", file, " origin=", visual.global_position)
+		print("SKYBORNE NPC_VIEW ", file, " origin=", visual.global_position)
 	capture.queue_free()
 	return true
 
