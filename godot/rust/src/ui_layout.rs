@@ -11,7 +11,7 @@ use ui_toolkit::atlas::{self, ActiveSkin};
 
 use crate::GameClient;
 
-fn layout_path() -> std::path::PathBuf {
+pub(crate) fn layout_path() -> std::path::PathBuf {
     options_path().with_file_name("ui_layout.ron")
 }
 
@@ -79,16 +79,14 @@ impl GameClient {
     /// Resolve atlases under the layout's skin, publish its settings and resync every
     /// canvas, each of which mirrors both into its SharedContext so the Screens that read
     /// them rebuild.
-    fn apply_ui_layout(&mut self, layout: ActiveLayout) -> Result<(), String> {
+    pub(crate) fn apply_ui_layout(&mut self, layout: ActiveLayout) -> Result<(), String> {
         let skin = match layout.skin {
             LayoutSkin::Modern => ActiveSkin::Modern,
             LayoutSkin::Forever => ActiveSkin::Forever,
         };
         let settings = layout.settings;
+        crate::ui::hud_edit_layout::publish_placements(layout.elements.clone());
         self.ui_layout = layout;
-        if atlas::thread_skin() == skin && hud_layout::active_layout_settings() == settings {
-            return Ok(());
-        }
         atlas::set_thread_skin(skin);
         hud_layout::set_active_layout_settings(settings);
         self.for_each_registry_ui(|ui| ui.bind_mut().sync_skin())

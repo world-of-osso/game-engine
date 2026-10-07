@@ -40,6 +40,7 @@ mod game_objects;
 mod gameplay;
 mod ground;
 mod guild_ranks;
+mod hud_edit;
 mod input;
 mod input_keys;
 mod ipc;
@@ -227,6 +228,7 @@ pub struct GameClient {
     game_menu_options: Option<game_engine_ui_model::options_menu_data::OptionsModel>,
     /// The drawn Edit Mode layout; its skin is the one atlases resolve under.
     ui_layout: game_engine_core::ui_layout_data::ActiveLayout,
+    hud_editor: hud_edit::HudEditor,
     game_menu_drag: Option<game_menu::drag::OptionsDrag>,
     logout: game_engine_session::logout::LogoutState,
     in_rest_area: bool,
@@ -374,6 +376,7 @@ impl INode3D for GameClient {
             group_frames: party_frames::GroupFramesHud::default(),
             game_menu_options: None,
             ui_layout: Default::default(),
+            hud_editor: Default::default(),
             game_menu_drag: None,
             logout: Default::default(),
             in_rest_area: false,
@@ -452,6 +455,17 @@ impl INode3D for GameClient {
         if self.dispatch_priority_input(&event) {
             return;
         }
+        match self.hud_edit_pointer(&event) {
+            Ok(true) => {
+                self.mark_viewport_input_handled();
+                return;
+            }
+            Ok(false) => {}
+            Err(error) => {
+                self.handle_frame_error("HUD edit pointer", error.into());
+                return;
+            }
+        }
         match self.handle_game_menu_pointer(&event) {
             Ok(true) => {
                 if let Some(mut viewport) = self.base().get_viewport() {
@@ -484,12 +498,19 @@ impl INode3D for GameClient {
                 .clone()
                 .try_cast::<godot::classes::InputEventKey>()
                 .is_ok();
-        if self.game_menu_ui.is_none() && !split_key_event && !self.launcher.view.open {
+        if self.game_menu_ui.is_none()
+            && !split_key_event
+            && !self.launcher.view.open
+            && !self.hud_editor.draft.active
+        {
             self.physical_input.capture(&event);
         }
     }
 
     fn unhandled_input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        if self.hud_editor.draft.active {
+            return;
+        }
         match self.bag_cursor_world_pointer(&event) {
             Ok(true) => {
                 if let Some(mut viewport) = self.base().get_viewport() {
@@ -512,6 +533,9 @@ impl INode3D for GameClient {
 
     /// Screen keys left unhandled by focused edit boxes.
     fn unhandled_key_input(&mut self, event: Gd<godot::classes::InputEvent>) {
+        if self.hud_editor.draft.active {
+            return;
+        }
         let Ok(key) = event.try_cast::<godot::classes::InputEventKey>() else {
             return;
         };
@@ -618,6 +642,9 @@ impl INode3D for GameClient {
         let _span = profile::span(|| "client.frame".to_owned());
         self.poll_native_ipc();
         self.run_frame(delta);
+        if let Err(error) = self.tick_hud_edit() {
+            self.handle_frame_error("HUD editor", error.into());
+        }
         self.last_process_ms = started.elapsed().as_secs_f64() * 1000.0;
     }
 
@@ -1129,6 +1156,14 @@ impl GameClient {
             return true;
         }
         if self.static_popup_key(event) {
+            self.mark_viewport_input_handled();
+            return true;
+        }
+        let edit_used = self.hud_edit_key(event).unwrap_or_else(|error| {
+            self.handle_frame_error("HUD edit key", error.into());
+            true
+        });
+        if edit_used {
             self.mark_viewport_input_handled();
             return true;
         }

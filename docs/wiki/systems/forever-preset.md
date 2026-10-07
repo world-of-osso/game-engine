@@ -58,6 +58,8 @@ The local reference checkout is **`data/reference/flareui`**: `Core.lua` and `Mo
 
 ## See Also
 
+- [[native-hud-edit-mode]] — native mover drafts and authored-position restoration over these presets.
+
 - [[ui-system]] — shared screens, context and authored asset resolution.
 - [[portrait-party-frames]] — product-specific file binding and conditional set-0 art boundary.
 - [[xp-bar]] — preset-specific XP presentation.
