@@ -96,6 +96,7 @@ fn busy_state() -> MinimapClusterState {
         ],
         has_mail: true,
         map_texture: None,
+        tracking: Default::default(),
     }
 }
 

@@ -27,6 +27,9 @@ use crate::ui::strata::FrameStrata;
 #[path = "minimap_units.rs"]
 mod units;
 pub use units::{group_minimap_blips, target_minimap_blip};
+#[path = "minimap_tracking.rs"]
+mod tracking;
+pub use tracking::{TrackingFilter, TrackingState, tracking_minimap_blips};
 
 struct DynName(String);
 
@@ -283,6 +286,12 @@ pub fn minimap_texture_fdids(state: &MinimapClusterState, skin: ActiveSkin) -> V
     if state.blips.iter().any(|blip| blip.kind == BlipKind::Corpse) {
         fdids.push(CORPSE_ARROW_FDID);
     }
+    if state.tracking.open {
+        fdids.extend([
+            crate::bank_art::CHECKBOX_UP,
+            crate::bank_art::CHECKBOX_CHECK,
+        ]);
+    }
     if state.calendar_day.and_then(calendar_art).is_some() {
         fdids.push(CALENDAR_FDID);
     }
@@ -308,6 +317,9 @@ pub enum BlipKind {
         edge: bool,
     },
     Target,
+    Tracking {
+        filter: TrackingFilter,
+    },
 }
 
 #[derive(Clone, Debug, PartialEq)]
@@ -335,6 +347,7 @@ pub struct MinimapClusterState {
     pub blips: Vec<MinimapBlip>,
     /// `MiniMapMailFrameMixin`: unread delivered mail (`HasNewMail`) shows the icon.
     pub has_mail: bool,
+    pub tracking: TrackingState,
     /// Composite registered in the host registry, drawn by `MinimapDisplay`.
     pub map_texture: Option<DynamicTextureId>,
 }
@@ -353,6 +366,7 @@ pub fn minimap_cluster_screen(ctx: &SharedContext) -> Element {
         ActiveSkin::Forever => forever_chrome(state, &style),
     });
     children.extend(launcher_button(style.cluster_size, skin));
+    children.extend(tracking::menu(&state.tracking));
     let size = style.cluster_size;
     let at = hud_layout(ctx).minimap.place((size, size));
     rsx! {
@@ -607,6 +621,7 @@ fn blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
         BlipKind::Member { raid: true, .. } => (MINIMAP_MEMBER_PREFIX, RAID_MEMBER),
         BlipKind::Member { .. } => (MINIMAP_MEMBER_PREFIX, PARTY_MEMBER),
         BlipKind::Target => (MINIMAP_TARGET_PREFIX, TARGET),
+        BlipKind::Tracking { filter } => ("MinimapTrackedUnit", tracking::art(filter)),
     };
     let [right, down] = blip.offset;
     let [left, top] = style.map_origin;

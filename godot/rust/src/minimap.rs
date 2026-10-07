@@ -23,8 +23,8 @@ use game_engine_ui_model::game_tooltip::hud::zone_tooltip;
 use game_engine_ui_model::minimap::{
     ACTION_TOGGLE_WORLD_MAP, ACTION_ZOOM_IN, ACTION_ZOOM_OUT, BlipKind, MINIMAP_ARROW,
     MINIMAP_BLIP_PREFIX, MINIMAP_DISPLAY, MINIMAP_VIGNETTE_PREFIX, MINIMAP_ZONE_TEXT, MinimapBlip,
-    MinimapClusterState, cluster_style, group_minimap_blips, minimap_texture_fdids,
-    target_minimap_blip,
+    MinimapClusterState, TrackingState, cluster_style, group_minimap_blips, minimap_texture_fdids,
+    target_minimap_blip, tracking_minimap_blips,
 };
 use game_engine_ui_model::world_map_view_data::arrow_rotation;
 use godot::classes::{InputEvent, InputEventMouseButton, InputEventMouseMotion, Time};
@@ -32,7 +32,7 @@ use godot::global::MouseButton;
 use godot::prelude::*;
 use osso_asset_resolver::CascListfileResolver;
 use shared::components::Position;
-use shared::protocol::QuestGiverStatus;
+use shared::protocol::{NpcFlags, QuestGiverStatus};
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::frame::WidgetData;
 
@@ -48,6 +48,7 @@ pub(crate) struct Minimap {
     pub(crate) ui: Option<Gd<RegistryUi>>,
     zoom: u8,
     hovered: bool,
+    tracking: TrackingState,
     /// Skin the cluster is built under: it shapes the map mask.
     skin: ActiveSkin,
     /// `AreaTable` and `ChrRaces`, loaded from client start.
@@ -88,6 +89,7 @@ impl Minimap {
             ui: None,
             zoom: 0,
             hovered: false,
+            tracking: TrackingState::default(),
             skin: thread_skin(),
             catalogs: BackgroundLoad::start("minimap-catalogs", move || {
                 load_catalogs(&catalog_root)
@@ -129,6 +131,7 @@ impl Minimap {
         }
         self.drawn = None;
         self.hovered = false;
+        self.tracking.open = false;
     }
 
     pub(crate) fn visit_uis(
@@ -285,7 +288,11 @@ impl GameClient {
                     self.close_world_map();
                 }
             }
-            other => return Err(format!("Unknown minimap action: {other}")),
+            other => {
+                if !self.minimap.tracking.toggle_action(other) {
+                    return Err(format!("Unknown minimap action: {other}"));
+                }
+            }
         }
         Ok(())
     }
@@ -368,7 +375,8 @@ impl GameClient {
         const DUSK: u32 = 21 * 60;
         let night = !(DAWN..DUSK).contains(&(hour * 60 + minute));
         let view = self.minimap.view(position);
-        let mut blips = self.quest_blips(&view);
+        let mut blips = self.tracking_minimap_blips(&view);
+        blips.extend(self.quest_blips(&view));
         blips.extend(group_minimap_blips(
             &self.account.group,
             self.account.session.selected_character_name.as_deref(),
@@ -400,7 +408,17 @@ impl GameClient {
             blips,
             has_mail: !self.mailbox.session.pending_senders.is_empty(),
             map_texture: None,
+            tracking: self.minimap.tracking.clone(),
         })
+    }
+
+    fn tracking_minimap_blips(&self, view: &MinimapView) -> Vec<MinimapBlip> {
+        let units = self.replica.units().filter_map(|unit| {
+            let flags = unit.get::<NpcFlags>()?;
+            let position = unit.get::<Position>()?;
+            Some((unit.server_id, *flags, [position.x, position.z]))
+        });
+        tracking_minimap_blips(view, &self.minimap.tracking, units)
     }
 
     fn target_minimap_blip(&self, view: &MinimapView) -> Option<MinimapBlip> {
@@ -534,9 +552,51 @@ impl GameClient {
         Some((centre, rect.width / 2.0 * scale))
     }
 
+    fn minimap_hit(&self, name: &str, point: Vector2) -> bool {
+        let Some(ui) = self.minimap.ui.as_ref() else {
+            return false;
+        };
+        let ui = ui.bind();
+        let Some(registry) = ui.registry() else {
+            return false;
+        };
+        let rect = registry
+            .get_by_name(name)
+            .and_then(|id| registry.get(id))
+            .and_then(|frame| frame.layout_rect.as_ref());
+        let Some(rect) = rect else { return false };
+        let point = point / self.effective_ui_scale();
+        point.x >= rect.x
+            && point.x <= rect.x + rect.width
+            && point.y >= rect.y
+            && point.y <= rect.y + rect.height
+    }
+
+    fn minimap_tracking_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+        let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
+            return false;
+        };
+        if !button.is_pressed() || button.get_button_index() != MouseButton::LEFT {
+            return false;
+        }
+        let point = button.get_position();
+        if self.minimap_hit("MinimapClusterTrackingBackground", point) {
+            self.minimap.tracking.open = !self.minimap.tracking.open;
+            return true;
+        }
+        if self.minimap.tracking.open && !self.minimap_hit("MinimapTrackingMenu", point) {
+            self.minimap.tracking.open = false;
+            return true;
+        }
+        false
+    }
+
     /// Pointer over the map: hover shows the zoom buttons (`MinimapMixin:OnEnter`), and
     /// the wheel zooms instead of the camera. Returns whether `event` was consumed.
     pub(super) fn minimap_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+        if self.minimap_tracking_pointer(event) {
+            return true;
+        }
         let Some((centre, radius)) = self.minimap_extent() else {
             return false;
         };
@@ -579,6 +639,9 @@ impl GameClient {
         result.set("open", self.minimap.ui.is_some());
         result.set("zoom", i64::from(self.minimap.zoom));
         result.set("hovered", self.minimap.hovered);
+        result.set("tracking_open", self.minimap.tracking.open);
+        let tracking_enabled: Array<bool> = self.minimap.tracking.enabled.iter().copied().collect();
+        result.set("tracking_enabled", &tracking_enabled);
         if let Some((_, yaw)) = self.minimap_player() {
             result.set("facing_yaw", yaw);
         }
@@ -679,6 +742,15 @@ impl GameClient {
         };
         result.set("blips", count(MINIMAP_BLIP_PREFIX));
         result.set("vignettes", count(MINIMAP_VIGNETTE_PREFIX));
+        result.set(
+            "members",
+            count(game_engine_ui_model::minimap::MINIMAP_MEMBER_PREFIX),
+        );
+        result.set(
+            "targets",
+            count(game_engine_ui_model::minimap::MINIMAP_TARGET_PREFIX),
+        );
+        result.set("tracked", count("MinimapTrackedUnit"));
     }
 }
 
