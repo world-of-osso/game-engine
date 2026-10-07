@@ -1559,7 +1559,7 @@ impl GameClient {
         match action.as_str() {
             "" => Ok(()),
             "create_account" => {
-                if !self.account.login_reply_pending() {
+                if !login.bind().login_submission_pending() {
                     login
                         .bind_mut()
                         .toggle_registration(&self.server_hostname)?;
@@ -1581,13 +1581,13 @@ impl GameClient {
     }
 
     fn submit_login_form(&mut self) -> Result<(), FrameError> {
-        if self.account.login_reply_pending() {
-            return Ok(());
-        }
         let login = self
             .login_ui
             .as_ref()
             .ok_or("Login UI is not initialized")?;
+        if login.bind().login_submission_pending() {
+            return Ok(());
+        }
         let credentials = login.bind().credentials();
         let register = login.bind().registration_mode();
         let username = credential_field(&credentials, "username")?;
