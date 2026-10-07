@@ -2,6 +2,158 @@ use std::path::Path;
 
 use crate::outfit_data::OutfitData;
 
+mod baked_display {
+    use super::*;
+
+    fn write_catalog() -> std::path::PathBuf {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../target")
+            .join(format!("baked-display-{}", std::process::id()));
+        let gear = root.join("db2/1.60.1.70205");
+        std::fs::create_dir_all(gear.join("items")).unwrap();
+        for (name, content) in [
+            (
+                "items/ItemModifiedAppearance.csv",
+                "ItemID,ItemAppearanceID\n",
+            ),
+            ("items/ItemAppearance.csv", "ID,ItemDisplayInfoID\n"),
+            (
+                "ItemDisplayInfo.csv",
+                "ID,ModelResourcesID_0,ModelResourcesID_1,ModelMaterialResourcesID_0,ModelMaterialResourcesID_1,GeosetGroup_0,GeosetGroup_1,GeosetGroup_2,GeosetGroup_3,GeosetGroup_4,GeosetGroup_5,HelmetGeosetVis_0,HelmetGeosetVis_1\n10,100,0,200,0,0,0,0,0,0,0,0,0\n11,101,0,200,0,0,0,0,0,0,0,0,0\n12,100,0,201,0,0,0,0,0,0,0,0,0\n13,100,0,200,0,0,0,0,0,0,0,0,0\n",
+            ),
+            (
+                "ItemDisplayInfoMaterialRes.csv",
+                "ItemDisplayInfoID,ComponentSection,MaterialResourcesID\n10,4,300\n13,4,301\n",
+            ),
+            (
+                "ModelFileData.csv",
+                "FileDataID,ModelResourcesID\n1000,100\n1001,100\n",
+            ),
+            (
+                "TextureFileData.csv",
+                "FileDataID,UsageType,MaterialResourcesID\n2000,0,200\n2001,0,200\n3000,0,301\n",
+            ),
+            (
+                "ComponentModelFileData.csv",
+                "ID,GenderIndex,ClassID,RaceID,PositionIndex\n1000,0,0,1,-1\n1001,1,0,1,-1\n",
+            ),
+            (
+                "ComponentTextureFileData.csv",
+                "ID,GenderIndex,ClassID,RaceID\n2000,0,0,1\n2001,1,0,1\n3000,2,0,1\n",
+            ),
+            (
+                "ChrRaces.csv",
+                "ID,MaleTextureFallbackRaceID,MaleTextureFallbackSex,FemaleTextureFallbackRaceID,FemaleTextureFallbackSex,MaleModelFallbackRaceID,MaleModelFallbackSex,FemaleModelFallbackRaceID,FemaleModelFallbackSex\n",
+            ),
+            (
+                "HelmetGeosetData.csv",
+                "HelmetGeosetVisDataID,RaceID,HideGeosetGroup,RaceBitSelection\n",
+            ),
+        ] {
+            std::fs::write(gear.join(name), content).unwrap();
+        }
+        root
+    }
+
+    #[test]
+    fn columns_ignore_body_components_but_require_models_and_model_materials() {
+        let root = write_catalog();
+        let catalog = OutfitData::load(&root);
+        let outfit = catalog.load_owned_forever_70205().unwrap();
+        for sex in [0, 1] {
+            let baked = outfit
+                .try_resolve_baked_display_info(10, 1, sex)
+                .unwrap()
+                .unwrap();
+            assert_eq!(baked.model_fdids, [(100, 1000 + u32::from(sex))]);
+            assert_eq!(baked.item_textures, []);
+            assert_eq!(baked.geoset_overrides, []);
+            assert_eq!(
+                outfit.try_resolve_column_models(10, 1, sex).unwrap(),
+                [(1000 + u32::from(sex), [2000 + u32::from(sex), 0, 0])]
+            );
+        }
+        assert_eq!(
+            outfit.try_resolve_display_info(10, 1, 0).unwrap_err(),
+            "missing TextureFileData material resource 300"
+        );
+        for (display, error) in [
+            (11, "missing ModelFileData model resource 101"),
+            (12, "missing TextureFileData material resource 201"),
+        ] {
+            assert_eq!(
+                outfit.try_resolve_column_models(display, 1, 0).unwrap_err(),
+                error
+            );
+            assert_eq!(
+                outfit
+                    .try_resolve_baked_display_info(display, 1, 0)
+                    .unwrap_err(),
+                error
+            );
+            assert_eq!(
+                outfit.try_resolve_display_info(display, 1, 0).unwrap_err(),
+                error
+            );
+        }
+        assert_eq!(
+            outfit
+                .try_resolve_display_info(13, 1, 0)
+                .unwrap()
+                .unwrap()
+                .item_textures,
+            [(4, 3000)]
+        );
+        let regular = outfit.try_resolve_display_info(13, 1, 0).unwrap().unwrap();
+        let baked = outfit
+            .try_resolve_baked_display_info(13, 1, 0)
+            .unwrap()
+            .unwrap();
+        assert_eq!(baked.model_fdids, regular.model_fdids);
+        assert_eq!(baked.geoset_overrides, regular.geoset_overrides);
+        assert_eq!(baked.item_textures, []);
+        assert_eq!(
+            outfit
+                .try_resolve_display_info(13, 1, 0)
+                .unwrap()
+                .unwrap()
+                .item_textures,
+            [(4, 3000)]
+        );
+        assert!(
+            outfit
+                .try_resolve_baked_display_info(99, 1, 0)
+                .unwrap()
+                .is_none()
+        );
+        assert_eq!(outfit.try_resolve_column_models(99, 1, 0).unwrap(), []);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn ailee_735014_source_components_are_not_column_dependencies() {
+        let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let catalog = OutfitData::load(&data);
+        let outfit = catalog.load_owned_forever_70205().unwrap();
+        assert_eq!(
+            outfit.try_resolve_display_info(735014, 95, 1).unwrap_err(),
+            "missing TextureFileData material resource 1102747"
+        );
+        assert_eq!(outfit.try_resolve_column_models(735014, 95, 1).unwrap(), []);
+        let baked = outfit
+            .try_resolve_baked_display_info(735014, 95, 1)
+            .unwrap()
+            .unwrap();
+        assert_eq!(baked.model_fdids, []);
+        assert_eq!(baked.item_textures, []);
+        assert_eq!(baked.geoset_overrides, []);
+        assert_eq!(
+            outfit.try_resolve_display_info(735014, 95, 1).unwrap_err(),
+            "missing TextureFileData material resource 1102747"
+        );
+    }
+}
+
 #[test]
 fn forever_npc_gear_resolves_zephras_shoulders_and_preserves_retail() {
     let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
