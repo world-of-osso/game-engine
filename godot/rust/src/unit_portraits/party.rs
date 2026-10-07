@@ -217,13 +217,14 @@ mod tests {
     fn rosterclient_head_and_visage_survive_offline_roster_replacement() {
         use shared::components::{
             CharacterAppearance, CustomizationChoiceSelection, EquipmentVisualSlot,
-            EquippedAppearanceEntry, FormAppearance,
+            EquippedAppearanceEntry, FormAppearance, ItemDefinitionSource,
         };
         use shared::protocol::{GroupPortraitAppearance, GroupRosterSnapshot};
         let mut group = roster(&["Ann"]);
         let head = EquippedAppearanceEntry {
             slot: EquipmentVisualSlot::Head,
             item_id: Some(32329),
+            definition_source: Some(ItemDefinitionSource::Retail),
             display_info_id: Some(117595),
             inventory_type: 1,
             hidden: true,
