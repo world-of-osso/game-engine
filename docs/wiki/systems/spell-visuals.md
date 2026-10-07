@@ -38,7 +38,7 @@ Gotcha (2026-09-29): half the CASC index buckets were only in Syncthing `.idx.tm
 ## Resolution (`godot/core/src/spell_visual.rs`)
 
 1. **Pick the visual.** `SpellXSpellVisual` gives the visual: the highest `Priority` among `DifficultyID` 0 rows whose `CasterPlayerConditionID` holds.
-   - `PlayerCondition` follows TrinityCore `ConditionMgr::IsPlayerMeetingCondition` for the fields it checks: Disabled/Invert flags, level, race and class masks, gender, `ChrSpecializationIndex` (passes without a spec), and `WeaponSubclassMask` against the main-hand `Item.SubclassID`.
+   - `PlayerCondition` follows TrinityCore `ConditionMgr::IsPlayerMeetingCondition` for the fields it checks: Disabled/Invert flags, level, race and class masks, gender, `ChrSpecializationIndex` (compares the local caster's zero-based `ChrSpecialization.OrderIndex`; passes without a spec or for remote/NPC casters), and `WeaponSubclassMask` against the main-hand `Item.SubclassID`.
    - A condition with any other requirement never holds.
    - Example: Slam with a one-hand sword resolves to visual 97446 (condition 87161, warrior + 1H mask 768145). With a two-hander it resolves to 51946.
 2. **Start kits.** A `SpellVisualEvent` row starts a kit at `StartEvent` and ends it at `EndEvent`:
@@ -340,12 +340,36 @@ Recordings in `data/diagnostics/polymorph-2026-09-29/`:
   - The server ticked 20/s in the bad runs, so machine load was not the cause.
   - An unmatched component registry is not caught at connect.
 
+## Local specialization selection (2026-10-07)
+
+Contract: [spell visuals](../../specs/spell-visuals.md). DB2 evidence below is from local-CASC build `12.1.0.69933`; no downloaded tables or assets.
+
+`SpellXSpellVisual.CasterPlayerConditionID` points to `PlayerCondition.ChrSpecializationIndex`. It is a signed index (`-1`: unrestricted), not a `ChrSpecialization.ID`. Match against the primary specialization's **zero-based `ChrSpecialization.OrderIndex`**. `SpellXSpellVisual` has no direct specialization column in this build; the condition selects the visual, whose `SpellVisualEvent.SpellVisualKitID` selects the kit.
+
+Sources: [WoWDBDefs PlayerCondition](https://github.com/wowdev/WoWDBDefs/blob/master/definitions/PlayerCondition.dbd), [ChrSpecialization](https://github.com/wowdev/WoWDBDefs/blob/master/definitions/ChrSpecialization.dbd), and [TrinityCore ConditionMgr::IsPlayerMeetingCondition](https://github.com/TrinityCore/TrinityCore/blob/master/src/server/game/Conditions/ConditionMgr.cpp#L2846-L2855) (checked 2026-10-07). The reference compares `spec->OrderIndex != condition->ChrSpecializationIndex` only when the primary-spec lookup succeeds. Therefore missing specialization **skips** the comparison; it does not imply OrderIndex 0. This is source-backed Retail-model inference, not a direct Retail login capture. [Whoa](https://github.com/whoahq/whoa#readme), listed in the [client reference catalog](../reference/open-source-wow-clients.md), targets 3.3.5a and supplies no Retail `ChrSpecializationIndex` behavior; it is not evidence for this condition.
+
+Runtime: the account's existing `SpecializationChanged` updates `PlayerSpells.spec`. Before `SpellGo` and frame cast synchronization, the host supplies the local unit ID and specialization ID to `SpellEffects`. Its visual catalog maps the ID to DB2 OrderIndex; only that caster gets the index. Precast/channel, Cast/Impact, aura and missile resolution share this path. Changing local identity or specialization clears the prefetched-spell set so the next prefetch requests the newly selected kits. Known Initial specialization (warrior ID 1446, OrderIndex 4) is distinct from an absent snapshot. The metadata is cached with the visual catalog, avoiding a dependency on spellbook HUD loading.
+
+### Slam 1464: same two-handed sword, different spec
+
+`Item.SubclassID` 8 is a two-handed sword. The local DB2 chain is:
+
+| Spec | ChrSpecialization ID / OrderIndex | SpellXSpellVisual ID / Priority / CasterPlayerConditionID | SpellVisual | Cast kit / animation |
+|---|---|---|---|---|
+| Arms | 71 / 0 | 1727 / 3 / 87160 | 51946 | 62428 / 812 |
+| Fury | 72 / 1 | 313352 / 1 / 18183 | 97446 | 128672 / 818 CombatAbility1H01 |
+| No snapshot | absent | 1727 / 3 / 87160 (spec check skipped) | 51946 | 62428 / 812 |
+
+`PlayerCondition` 87160 requires class mask 1, spec index 0 and weapon mask 1312110; 87161 requires class mask 1, spec index 0 and weapon mask 768145 (one-handed weapons). Condition 18183 requires class mask 1 and spec index 1, without a weapon requirement. The unrestricted two-handed row 313354 (condition 64724, priority 0) loses to the matching specialization row. Both visuals use impact kit 62452. Event rows 112991 and 230296 select the distinct Cast kits. The known Initial OrderIndex 4 instead reaches unrestricted row 313354, producing the same two-handed kit as no snapshot by a different condition path.
+
+Behavioral proof is in the [contract's tests](../../specs/spell-visuals.md#tests-asserting-this-spec): local spell state before the snapshot and Arms→Fury transitions, actual DB2 ID-to-index resolution, same-weapon kits, and remote identity rejection. Native raster/live proof is not claimed; the existing capture fixture requires a live server and no offline spec cast path was found.
+
 ## Gaps
 
 - The action layer is full-body when standing and upper-body when moving (SpineLow subtree). `AnimKitSegment` conditions, per-segment bone sets and priorities, and `AnimKit` blend times are not applied.
 - Other effect types are not played: camera shakes, procedural effects, shadowy/outline/dissolve effects.
 - Aura (7/8) kits, area and destination kits, and positioner offsets for attachment -1 are not played.
-- `ChrSpecializationIndex` is always treated as no spec, and remote players' spec is unknown.
+- Remote players' and NPCs' specialization is not replicated. They still pass `ChrSpecializationIndex` checks without a spec; local specialization is never borrowed for another caster. Direct Retail fresh-login timing and both-spec raster fidelity remain unverified ([local selection evidence](#local-specialization-selection-2026-10-07)).
 - Missiles fly straight: `SpellMissileMotion` is not applied. `SpellVisualMissile` `CastOffset`/`ImpactOffset`/`Flags` and `SpellVisual.Flags` are not applied (Frostbolt's offsets are 0).
 - The missile starts at the missile attachment, not at the release event's bone and position. wowdev notes `$CSL/R/T are also used in CGUnit_C::ComputeDefaultMissileFirePos`, which is undocumented.
 - Other events (`$SHK` camera shake, `$FSD` footfall, `$AH*`/`$BRT`/`$FD*` voice events) are parsed but not played. Type-10 unit sound values outside 34-40 are not played (mapping unknown).

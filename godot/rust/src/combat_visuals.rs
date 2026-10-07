@@ -22,6 +22,7 @@ impl GameClient {
                 Ok(voiced?)
             }
             CombatMessage::SpellGo(go) => {
+                self.sync_spell_visual_specialization();
                 if self.world.local_player_id() == Some(go.caster) {
                     self.player_movement.skyriding_spell(go.spell_id);
                 }
@@ -60,7 +61,13 @@ impl GameClient {
         }
     }
 
+    fn sync_spell_visual_specialization(&mut self) {
+        let local_spec = self.world.local_player_id().zip(self.account.spells.spec());
+        self.spell_effects.set_local_specialization(local_spec);
+    }
+
     pub(super) fn update_spell_visuals(&mut self, delta: f32) -> Result<(), String> {
+        self.sync_spell_visual_specialization();
         let started = Instant::now();
         let prefetched = match self.world.local_player_id() {
             Some(local) => self.spell_effects.prefetch(
