@@ -19,6 +19,10 @@ func select_second_character(client: Node) -> void:
 			return
 		if terrain.pending_count != 0 or terrain.parsed_tiles.is_empty():
 			continue
+		# Material tiles attach a few per frame under the resource budget (terrain/material.rs).
+		var built := client.get_node_or_null("WorldTerrain")
+		if built == null or built.get_child_count() != terrain.parsed_tiles.size():
+			continue
 		for tile in terrain.parsed_tiles:
 			if tile.chunk_count <= 0 or not FileAccess.file_exists(tile.root_path):
 				fail("Parsed tile lacks actual terrain geometry or cache file: " + str(tile))
@@ -63,11 +67,11 @@ func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 		fail("Parsed terrain has no corresponding native material tiles")
 		return false
 	for tile in root.get_children():
-		if tile.get_child_count() == 0:
+		var chunks := terrain_chunks(tile)
+		if chunks.is_empty():
 			fail("Material tile has no terrain chunks")
 			return false
-		for chunk in tile.get_children():
-			var instance := chunk as MeshInstance3D
+		for instance in chunks:
 			var material := instance.get_surface_override_material(0) as ShaderMaterial
 			if material == null or material.shader == null:
 				fail("Terrain chunk lacks native authored shader material")
@@ -86,3 +90,11 @@ func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 				fail("Terrain material lacks 64x64 MCAL texture")
 				return false
 	return true
+
+## A tile's terrain chunk meshes; a tile with liquid also holds a Water node first.
+func terrain_chunks(tile: Node) -> Array[MeshInstance3D]:
+	var chunks: Array[MeshInstance3D] = []
+	for child in tile.get_children():
+		if child is MeshInstance3D and child.name.begins_with("Chunk"):
+			chunks.append(child)
+	return chunks
