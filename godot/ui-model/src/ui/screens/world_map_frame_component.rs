@@ -25,7 +25,7 @@ use crate::ui::screens::world_map_frame_art::{self as art, MapArt};
 use crate::ui::strata::FrameStrata;
 
 #[path = "world_map_frame_component/canvas.rs"]
-mod canvas;
+pub mod canvas;
 #[path = "world_map_frame_component/chrome.rs"]
 mod chrome;
 

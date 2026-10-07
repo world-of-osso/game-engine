@@ -1,3 +1,7 @@
+## 2026-10-07 — Native flight map implementation
+
+[Native flight map](systems/native-flight-map.md) adds server taxi message consumption, shared world-map art/canvas, current/reachable pins, route and cost hover, and activation/close lifecycle. Targeted RED reproduced missing request and continent selection; native GREEN/live proof pending.
+
 ## 2026-10-07 — Portrait party Retail parity audit
 
 [Portrait party frames](systems/portrait-party-frames.md#retail-parity-audit--2026-10-07) rechecks the old party1 findings against local Retail Mainline: health desaturation already fixed; power stays full and half-grey-tinted; crown BOTTOM→TOP extension is intentional, not TOPLEFT. Eleven targeted tests and fresh Modern/Forever offline previews pass. Compact default unchanged; existing shutdown leaks and live/reference acceptance gaps remain.

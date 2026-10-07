@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Native flight map](systems/native-flight-map.md) — server taxi map, shared world-map canvas, pins/routes/tooltips and activation; acceptance recorded in flight-master spec.
+
 - [Player cast feedback](systems/player-cast-feedback.md) — Retail animation sources, player-only sampling, skin geometry and offline captures.
 
 Knowledge base for the game-engine project, organized across five categories.
