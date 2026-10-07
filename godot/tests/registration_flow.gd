@@ -35,6 +35,18 @@ func type_text(value: String) -> void:
 		event.pressed = false
 		root.push_input(event)
 
+func wait_for_text(control: Control, expected: String) -> void:
+	# Authored buttons render their text in a child Label, not Button.text.
+	var deadline := Time.get_ticks_msec() + 5000
+	while Time.get_ticks_msec() < deadline:
+		var label := control as Label
+		if control is Button:
+			label = control.find_child("Text", true, false) as Label
+		if label != null and label.text == expected:
+			return
+		await process_frame
+	assert(false, "Rendered text did not reach: " + expected)
+
 func capture(name: String) -> void:
 	await process_frame
 	await RenderingServer.frame_post_draw
@@ -61,10 +73,10 @@ func run() -> void:
 	await create_timer(1.0).timeout
 	await click("CreateAccountButton")
 	var submit := client.find_child("ConnectButton", true, false) as Button
-	assert(submit.text == "Register")
+	await wait_for_text(submit, "Register")
 	await click("ConnectButton")
 	var status := client.find_child("LoginStatus", true, false) as Label
-	assert(status.text == "Please fill in all fields")
+	await wait_for_text(status, "Please fill in all fields")
 	assert(not client.account_state().connected and not client.account_state().reply_received, "Invalid form started account transport")
 	await click("UsernameInput")
 	await type_text(account)
@@ -86,7 +98,7 @@ func run() -> void:
 		await process_frame
 	assert(FileAccess.file_exists(output.path_join("approved")), "Private approval marker timed out")
 	await click("CreateAccountButton")
-	assert(submit.text == "Login")
+	await wait_for_text(submit, "Login")
 	await click("ConnectButton")
 	deadline = Time.get_ticks_msec() + 20000
 	while client.account_state().screen != "CharacterSelect" and Time.get_ticks_msec() < deadline:
