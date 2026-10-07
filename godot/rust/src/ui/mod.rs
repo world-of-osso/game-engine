@@ -1168,6 +1168,17 @@ impl RegistryUi {
         )
     }
 
+    pub(crate) fn show_raid_warnings(
+        &mut self,
+        state: game_engine_ui_model::raid_warning::RaidWarnings,
+    ) -> Result<(), String> {
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::raid_warning::raid_warning_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     fn show_viewport_screen<T: 'static>(
         &mut self,
         state: T,

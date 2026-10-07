@@ -48,6 +48,7 @@ pub mod chat_frame;
 pub mod chat_frame_component;
 #[path = "game/group_state.rs"]
 pub mod group_state;
+pub mod raid_warning;
 
 // Party/raid frames, ready check and the PARTY_INVITE popup (docs/specs/group-frames.md).
 /// The compact unit frame's dispel colours (root `buff_data`).

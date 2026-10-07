@@ -168,6 +168,12 @@ impl BridgeConfig {
     }
 
     /// Catalog pages and earned alerts retain their shared AchievementChannel order.
+    /// Preserve lifecycle order across all four types on EncounterChannel.
+    pub fn receive_encounters(mut self) -> Self {
+        self.relays.push(install_encounter_relay);
+        self
+    }
+
     pub fn receive_achievements(mut self) -> Self {
         self.relays.push(install_achievement_relay);
         self
@@ -216,6 +222,7 @@ impl NetworkBridge {
             .receive::<DungeonDifficultySet>()
             .receive::<InstanceInfo>()
             .receive::<protocol::DungeonProgress>()
+            .receive_encounters()
             .receive_achievements()
             // Server-driven breath, fatigue and feign-death bars.
             .receive_mirror_timers()
@@ -728,6 +735,39 @@ fn install_merchant_relay(app: &mut App, events: Sender<Event>) {
             drain!(inventories);
             drain!(buybacks);
             drain!(failures);
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
+            }
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
+fn install_encounter_relay(app: &mut App, events: Sender<Event>) {
+    use protocol::{EncounterDisengageUnit, EncounterEnd, EncounterEngageUnit, EncounterStart};
+    app.add_systems(
+        Update,
+        (move |mut starts: Query<&mut MessageReceiver<EncounterStart>>,
+               mut ends: Query<&mut MessageReceiver<EncounterEnd>>,
+               mut engages: Query<&mut MessageReceiver<EncounterEngageUnit>>,
+               mut disengages: Query<&mut MessageReceiver<EncounterDisengageUnit>>| {
+            let mut received = Vec::new();
+            macro_rules! drain {
+                ($receivers:ident) => {
+                    for mut receiver in &mut $receivers {
+                        received.extend(receiver.receive_with_tick().map(|message| {
+                            (message.message_id, ProtocolMessage(Box::new(message.data)))
+                        }));
+                    }
+                };
+            }
+            drain!(starts);
+            drain!(ends);
+            drain!(engages);
+            drain!(disengages);
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
                 events

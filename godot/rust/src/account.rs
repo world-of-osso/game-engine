@@ -191,6 +191,7 @@ pub enum AccountEvent {
     Loot(LootMessage),
     /// A chat line: players, creatures, the MOTD and server errors (`ChatChannel`).
     Chat(ChatMessage),
+    Encounter(crate::encounter::EncounterMessage),
     /// One owner-only experience gain (`CHAT_MSG_COMBAT_XP_GAIN`).
     XpGain(shared::protocol::LogXpGain),
     /// A player's social emote, played on its model.
@@ -1128,6 +1129,12 @@ impl Account {
         }
         if message.is::<shared::protocol::LogXpGain>() {
             output.push(AccountEvent::XpGain(decode(message)?));
+            return Ok(());
+        }
+        if crate::encounter::is_encounter_message(&message) {
+            output.push(AccountEvent::Encounter(crate::encounter::decode_message(
+                message,
+            )?));
             return Ok(());
         }
         if message.is::<ChatMessage>() {
@@ -2135,6 +2142,56 @@ mod tests {
     /// `SMSG_PET_SPELLS_MESSAGE` replaces the owner's pet bar; `SMSG_PET_CLEAR_SPELLS`
     /// removes it.
     #[test]
+    fn bossframes_account_dispatches_each_encounter_message() {
+        use shared::protocol::{
+            EncounterDisengageUnit, EncounterEnd, EncounterEngageUnit, EncounterStart,
+        };
+        let mut account = Account::new(PathBuf::new());
+        let mut output = Vec::new();
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(EncounterStart {
+                    encounter_id: 1144,
+                    difficulty_id: 1,
+                    group_size: 1,
+                }),
+                &mut output,
+            )
+            .unwrap();
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(EncounterEngageUnit {
+                    unit: 123,
+                    target_frame_priority: 0,
+                }),
+                &mut output,
+            )
+            .unwrap();
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(EncounterDisengageUnit { unit: 123 }),
+                &mut output,
+            )
+            .unwrap();
+        account
+            .dispatch_message(
+                ProtocolMessage::for_tests(EncounterEnd {
+                    encounter_id: 1144,
+                    difficulty_id: 1,
+                    group_size: 1,
+                    success: false,
+                }),
+                &mut output,
+            )
+            .unwrap();
+        assert_eq!(
+            output.len(),
+            4,
+            "every encounter message must reach the native host"
+        );
+    }
+
+    #[test]
     fn pet_spells_set_and_clear_the_pet_bar() {
         use shared::protocol::{
             ACT_COMMAND, ACT_REACTION, COMMAND_FOLLOW, PetClearSpells, PetSpells, REACT_ASSIST,
@@ -2195,7 +2252,9 @@ fn receive_loot_message(message: ProtocolMessage) -> Result<LootMessage, String>
     Ok(LootMessage::Failed(decode(message)?))
 }
 
-fn decode<M: game_engine_network::WireMessage>(message: ProtocolMessage) -> Result<M, String> {
+pub(crate) fn decode<M: game_engine_network::WireMessage>(
+    message: ProtocolMessage,
+) -> Result<M, String> {
     message.downcast::<M>().map_err(|_| {
         format!(
             "Invalid protocol message type {}",

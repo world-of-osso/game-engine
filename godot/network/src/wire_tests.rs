@@ -316,6 +316,80 @@ fn native_mailbox_replies_reach_default_bridge() {
 }
 
 #[test]
+fn bossframes_bridge_preserves_encounter_lifecycle_channel_order() {
+    use shared::protocol::{
+        EncounterChannel, EncounterDisengageUnit, EncounterEnd, EncounterEngageUnit, EncounterStart,
+    };
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8306);
+    await_connected(&mut server, &mut host);
+    let (held, confirmed) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    host.bridge
+        .enqueue(move |_| {
+            held.send(()).unwrap();
+            resumed.recv_timeout(Duration::from_secs(10)).unwrap();
+        })
+        .unwrap();
+    confirmed.recv_timeout(Duration::from_secs(10)).unwrap();
+    let start = EncounterStart {
+        encounter_id: 1144,
+        difficulty_id: 1,
+        group_size: 1,
+    };
+    let engage = EncounterEngageUnit {
+        unit: 123,
+        target_frame_priority: 0,
+    };
+    let disengage = EncounterDisengageUnit { unit: 123 };
+    let end = EncounterEnd {
+        encounter_id: 1144,
+        difficulty_id: 1,
+        group_size: 1,
+        success: false,
+    };
+    macro_rules! send {
+        ($ty:ty, $value:expr) => {{
+            let world = server.world_mut();
+            world
+                .query::<&mut MessageSender<$ty>>()
+                .single_mut(world)
+                .unwrap()
+                .send::<EncounterChannel>($value.clone());
+            server.update();
+        }};
+    }
+    send!(EncounterStart, start);
+    send!(EncounterEngageUnit, engage);
+    send!(EncounterDisengageUnit, disengage);
+    send!(EncounterEnd, end);
+    send!(EncounterStart, start);
+    send!(EncounterEngageUnit, engage);
+    let deadline = Instant::now() + Duration::from_millis(100);
+    while Instant::now() < deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    resume.send(()).unwrap();
+    let mut messages = await_messages(&mut server, &mut host, 6).into_iter();
+    macro_rules! next {
+        ($ty:ty, $value:expr) => {
+            assert_eq!(
+                messages.next().unwrap().downcast::<$ty>().ok(),
+                Some($value)
+            );
+        };
+    }
+    next!(EncounterStart, start.clone());
+    next!(EncounterEngageUnit, engage.clone());
+    next!(EncounterDisengageUnit, disengage);
+    next!(EncounterEnd, end);
+    next!(EncounterStart, start);
+    next!(EncounterEngageUnit, engage);
+    host.stop();
+}
+
+#[test]
 fn native_bridge_receives_loot_messages_in_channel_order() {
     use shared::protocol::{
         CorpseLootable, LootChannel, LootClosed, LootContent, LootError, LootFailed, LootResponse,

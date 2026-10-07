@@ -59,8 +59,90 @@ fn load_preview_model(width: f32, height: f32) -> Result<RegistryModel, String> 
     })
 }
 
+fn boss_preview_screen(ctx: &SharedContext) -> Element {
+    let mut elements = preview_screen(ctx);
+    elements.extend(
+        game_engine_ui_model::inworld_unit_frames_component::inworld_unit_frames_screen(ctx),
+    );
+    elements
+}
+
+fn preview_boss_units()
+-> game_engine_ui_model::inworld_unit_frames_component::InWorldUnitFramesState {
+    use game_engine_ui_model::inworld_unit_frames_component::{
+        InWorldUnitFramesState, PowerBarState, UnitFrameState,
+    };
+    InWorldUnitFramesState {
+        show_player_frame: false,
+        show_target_frame: false,
+        target_cast: None,
+        player: UnitFrameState::named("Offline"),
+        target: None,
+        target_of_target: None,
+        focus: None,
+        pet: None,
+        menu: Default::default(),
+        personal_resource: None,
+        bosses: ["Hogger", "Lord Overheat"]
+            .into_iter()
+            .map(|name| UnitFrameState {
+                health_fraction: 0.75,
+                level_text: "60".into(),
+                reaction: Some(game_engine_ui_model::faction_reaction::Reaction::Hostile),
+                power: Some(PowerBarState {
+                    power: shared::components::PowerType::Mana,
+                    current: 40,
+                    max: 100,
+                }),
+                ..UnitFrameState::named(name)
+            })
+            .collect(),
+    }
+}
+
+impl RegistryUi {
+    fn initialize_boss_preview(&mut self, skin: ActiveSkin) -> Result<(), String> {
+        use game_engine_ui_model::objective_tracker_component::BossFrameCount;
+        super::party_preview::load_data_root()?;
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("RegistryUi has no viewport")?;
+        let size = viewport.get_visible_rect().size;
+        let mut model = load_preview_model(size.x, size.y)?;
+        model.screen = Screen::new(boss_preview_screen);
+        model.shared.insert(preview_boss_units());
+        model.shared.insert(BossFrameCount(2));
+        model.sync_skin(skin);
+        let state = model.shared.get::<MinimapClusterState>().unwrap().clone();
+        apply_minimap_postsetup(&state, &mut model.registry);
+        self.initialize_model(model, size.x, size.y)
+    }
+}
+
 #[godot_api(secondary)]
 impl RegistryUi {
+    #[func]
+    pub fn show_bosslayout_preview(&mut self) -> GString {
+        GString::from(
+            self.initialize_boss_preview(ActiveSkin::Modern)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
+    #[func]
+    pub fn show_forever_bosslayout_preview(&mut self) -> GString {
+        GString::from(
+            self.initialize_boss_preview(ActiveSkin::Forever)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
+    }
+
     /// Offline Forever minimap chrome, badge and tracker for capture_ui_screen.gd.
     #[func]
     pub fn show_forever_minimap_preview(&mut self) -> GString {

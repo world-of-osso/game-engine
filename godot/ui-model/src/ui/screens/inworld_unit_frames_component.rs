@@ -455,7 +455,7 @@ fn target_frame_contents(state: &UnitFrameState, skin: ActiveSkin) -> Element {
         {reaction_strip("Target", state.reaction, skin, strip)}
         {unit_frame_contents("Target", state, &TARGET_SLOTS, TARGET_HEALTH_BAR)}
         {dead_text("Target", TARGET_SLOTS.health, UNIT_FONT_SIZE, state.dead)}
-        {classification_art(state.classification, skin)}
+        {classification_art("Target", state.classification, skin)}
         {raid_target_icon(state.raid_target)}
         {target_auras(state, (TARGET_AURAS_LEFT, TARGET_AURAS_TOP))}
     }
@@ -481,13 +481,17 @@ pub fn shows_rare_star(classification: CreatureClassification) -> bool {
 
 /// The dragon at its atlas size TOPRIGHT of the frame frames the portrait; the star,
 /// at its atlas size, is centred on the portrait's bottom edge.
-fn classification_art(classification: CreatureClassification, skin: ActiveSkin) -> Element {
+fn classification_art(
+    prefix: &str,
+    classification: CreatureClassification,
+    skin: ActiveSkin,
+) -> Element {
     let portrait = boss_portrait_atlas(classification);
     let (right, top) = TARGET_BOSS_PORTRAIT_TOPRIGHT;
     let (star_x, star_y) = TARGET_BOSS_ICON_CENTRE;
     rsx! {
-        {sized_atlas_texture("TargetBossPortraitFrameTexture".into(), portrait.unwrap_or(BOSS_GOLD), skin, |(width, height)| (UNIT_FRAME_W - right - width, top, width, height), WHITE, portrait.is_none())}
-        {sized_atlas_texture("TargetBossIcon".into(), BOSS_RARE_STAR, skin, |(width, height)| (star_x - width / 2.0, star_y - height / 2.0, width, height), WHITE, !shows_rare_star(classification))}
+        {sized_atlas_texture(format!("{prefix}BossPortraitFrameTexture"), portrait.unwrap_or(BOSS_GOLD), skin, |(width, height)| (UNIT_FRAME_W - right - width, top, width, height), WHITE, portrait.is_none())}
+        {sized_atlas_texture(format!("{prefix}BossIcon"), BOSS_RARE_STAR, skin, |(width, height)| (star_x - width / 2.0, star_y - height / 2.0, width, height), WHITE, !shows_rare_star(classification))}
     }
 }
 
@@ -539,10 +543,21 @@ fn raid_target_icon(raid_target: Option<u8>) -> Element {
 pub const MAX_BOSS_FRAMES: usize = 5;
 /// `BossTargetFrameContainer` (Blizzard_UnitFrame/Mainline/TargetFrame.xml): a vertical
 /// right-managed stack, `spacing` 10. Its right-side slot below the minimap is placed
-/// at the reference resolution; the boss flair art is not drawn.
+/// at the reference resolution. Retail BossTargetFrameTemplate uses Target-Boss-Small
+/// (TargetFrame.xml:367-370); OnLoad hides its portrait (TargetFrame.lua:957-966).
 const BOSS_FRAME_RIGHT: f32 = 60.0;
 const BOSS_FRAME_TOP: f32 = 300.0;
 const BOSS_FRAME_SPACING: f32 = 10.0;
+
+/// Tracker follows shown bosses with the managed container's 10-unit spacing.
+/// With no bosses its settled preset top remains unchanged.
+pub fn tracker_top_below_bosses(resting_top: f32, count: usize) -> f32 {
+    let count = count.min(MAX_BOSS_FRAMES);
+    if count == 0 {
+        return resting_top;
+    }
+    resting_top.max(BOSS_FRAME_TOP + count as f32 * (FRAME_H + BOSS_FRAME_SPACING))
+}
 
 pub fn boss_frame_name(index: usize) -> String {
     format!("Boss{}TargetFrame", index + 1)
