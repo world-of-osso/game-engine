@@ -2706,3 +2706,7 @@ Native SSAO follow-up: stable project prepass fixes cached depth-pipeline On→O
 ## 2026-10-07 — NPC replacement texture types
 
 [Character rendering](systems/character-rendering.md#native-godot-wiring) now describes selected-type canvas composition and explicit missing-canvas failure. [NPC per-type acceptance](../specs/npc-appearance.md#texture-type-acceptance-2026-10-07) owns native type19 proof, genuine-spawn material/PNG assertions, artifact-retention correction and remaining visible/all-declared-type holes. Parity rows104/105 remain Partial rather than promoting material-image proof to rendered-scene acceptance.
+
+## 2026-10-07 — Remaining NPC texture consumers
+
+[Per-type world audit and proof](../specs/npc-appearance.md#remaining-type-world-audit-and-proof-2026-10-07) classifies all remaining types from raw local-CASC choices, read-only world spawn joins, M2 declarations and armor. Native creature catalog/binding now preserves the fourth variation; ordinary skins and a tabard-enabled display have exact material/enabled-batch proof. Dormant declarations stay N/A, not synthetic PASSes. Captures, negative baseline, strict encoded/decoded image oracle and teardown limits remain in the contract; [character rendering](systems/character-rendering.md#authored-npc-appearance) links that SSOT.
