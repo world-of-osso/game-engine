@@ -142,7 +142,10 @@ fn class_pips(registry: &FrameRegistry) -> Vec<usize> {
 fn assert_color(registry: &FrameRegistry, name: &str, rgb: [f32; 3]) {
     let fill = texture(registry, name);
     assert!(
-        !matches!(fill.source, TextureSource::None | TextureSource::FileDataId(0)),
+        !matches!(
+            fill.source,
+            TextureSource::None | TextureSource::FileDataId(0)
+        ),
         "{name}"
     );
     assert_eq!(fill.vertex_color, [rgb[0], rgb[1], rgb[2], 1.0], "{name}");
