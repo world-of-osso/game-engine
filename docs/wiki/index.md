@@ -71,6 +71,8 @@ Engine subsystems and how they work.
 
 Bounded [character-select MouseSensitivity evidence](systems/godot-conversion.md#native-camera-options-boundary): test-only `576a374a`/`c46515ec` saved `run1.log` exit 0; authored 0.003/0.006 numeric saves, +4-pixel left-drag rendered-basis yaw assertions against original math (expected −0.012/−0.024, not raw observed deltas), opposite-drag restoration and retained gameplay/marker/Menu UDP/Exit proof. Main accepts independent gate **bounded saved-runtime-artifact and source PASS**: original yaw/persistence/actual rendered-basis assertions within 0.00001 radians/restore/roster+Menu; actual displaced yaw not printed, no offline displacement recomputation or zero-error claim. Character-select pitch/character creation excluded; no all-camera/all-account-scenes/startup/fresh-reload/full-conversion acceptance. Source unfrozen; shutdown paused.
 
+October7 [current source/proof checkpoint](systems/forever-data.md#current-sourceproof-checkpoint-2026-10-07) supersedes pending statuses in the historical Forever summary above: pushed engine5596/serverbef3, independent equipment20/20, retained core11+fresh1/synthetic3/lib881+CLI build; native fails before world on old-server48/client510 fingerprint mismatch. Matching server rebuild pending; no current server/native GREEN.
+
 ## Formats
 
 WoW file format specifications as used by the engine.

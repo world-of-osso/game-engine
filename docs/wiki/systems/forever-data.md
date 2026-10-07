@@ -106,7 +106,21 @@ The prior claim that resource1102747 must block native Ailee rendering was too s
 | Native46 build receipt | Build exit0, no compiler warnings; exported extension hash prefix `b131`. Tool failed only its hash guard because the new test changed during the build, not because Cargo failed | Receipt does not replace a final source-matching build. Whole-workspace formatting has unrelated baseline files; focused six-file formatting exit0 is not whole-workspace acceptance |
 | Native Ailee plus shoulders | `ailee-assets` targets Ailee and Grove Ranger shoulder regression without quest mutation | Final matching-build/main-native GREEN and independent gate running/pending at this checkpoint; front/back visual acceptance and Ailee visibility unproved |
 
-### Post-rebase checkpoint (2026-10-07)
+### Current source/proof checkpoint (2026-10-07)
+
+This checkpoint supersedes pending equipment/core/build statements in the historical post-rebase checkpoint below. Engine `origin/skyborn` is `5596f85163f3cece34969aae5e373e56d3254cf8`; canonical UI/shared masters are `29a9ebfd`/`5107483b`. [Server checkpoint](../../../../game-server-skyborn/docs/wiki/systems/skyborne.md#rebased-source-and-runtime-checkpoint-2026-10-07) owns the clean90-commit/no-skip rebase onto `8b3819b0`, pushed `bef3fa745`, cold backup and preserved character30/40XP. No PR or production deployment.
+
+| Boundary | Exact proof scope | Remaining gap |
+|---|---|---|
+| Current equipment CPU | Independent [`/tmp/claude/equipment-acceptance-5596f8516/report.md`](/tmp/claude/equipment-acceptance-5596f8516/report.md): original equipment_appearance_data module20/20 at exact `5596f8516`, exit0, zero compiler warnings; two-file focused formatting passes, no new changed-line readability findings; source/sibling/listed-data inventories unchanged | CPU only; two namespace-corrected tests outside this filter compile but do not execute; no whole-file cleanliness/native credit |
+| Retained actual core | Main reports retained11 passing cases plus fresh1 after authentic required CSV fixture setup correction | Exact combined12 scope, not a newly rerun full suite |
+| Retained synthetic | Independent `d6db420f1` three-test receipt above retains single/indexed-model dependency and owned Retail replacement/Forever-isolation scopes | Synthetic only; not new proof for all current source |
+| Matching client build | Main reports lib881 tests plus CLI build exit0, zero compiler warnings, extension SHA256 prefix `62ed…`; later `4d…`/`5596f8516` namespace corrections are cfg(test)-only, not production changes | Retained production build receipt, not current-HEAD binary byte identity or native GREEN; abbreviated hash is not a full identity receipt |
+| Native `ailee-assets` | Main reports auth success then explicit server protocol fingerprint rejection before world entry; agent243 source report correctly attributes old runtime protocol48 versus client510748 | No Ailee/Grove/NPC/graphics credit; not credentials/scheduling; matching server rebuild pending |
+
+User approved matching scratch rebuild and push. Scratch server stopped, old cage gone, exact cold backup retained; no RowData source changes or character reset. Main owns desktop-helper matching-protocol build and subsequent native proof; this docs-only checkpoint neither waits for nor executes it. Historical1448 server receipt remains revision-scoped, invalid for changed rebased scopes; no current server tests/build/native GREEN.
+
+### Post-rebase checkpoint (2026-10-07; historical)
 
 Main reports the Skyborn rebase onto master `13319752` completed cleanly at `c346a224`, with no skipped commits, no push and backup retained. Master subsystem documentation and earlier revision-scoped receipts remain authoritative for their recorded scopes; no prior GREEN is relabeled as rebased proof.
 
@@ -155,6 +169,8 @@ Main reported native entry for both races on map2991 at approved starts with ser
 Engine fixture requires explicit `SKYBORNE_SCOPE=client-items|full|turn-in|reward-reload`. `client-items` cannot confer NPC/giver/quest credit; estimated-stat `full` execution now has the bounded evidence below, not complete NPC visual or quest-gameplay acceptance. Server `docs/wiki/systems/skyborne.md` owns the startup diagnosis; [quest contract](../../specs/quest-ui.md#bounded-skyborne-native-acceptance-fixture) owns the acceptance boundary.
 
 ### Current scoped capability matrix
+
+[Current source/proof checkpoint](#current-sourceproof-checkpoint-2026-10-07) owns October7 revisions and supersedes current-GREEN interpretations of the historical rows below. Server1448 remains historical; no rebased server tests/build/native GREEN.
 
 Observed 2026-10-06 for independently audited prepared turn-in/reward-reload rows; preceding rows retain their 2026-10-05 evidence. Documentation audit reuses saved proof; no runtime or test rerun.
 
@@ -216,6 +232,9 @@ Fixture `be3f7b35`, extension source `7c94437a62530a8e016aa9169318058fc6cafae9`,
 Main visually inspected leafy bronze shoulders. Solid lavender cape and elevated neighboring NPC remain unrelated gaps, not full appearance/parity acceptance. Status retains11 out-of-coverage runtime errors; the inspected race95 log ends at the untested marker without an ObjectDB warning, but does not establish warning-free full shutdown. Any late ObjectDB warning in a full log remains a gap. Launch exit0 is not native OS-exit proof (not captured). Saved cleanup reports inactive/MainPID0, UDP15002 free and owned cage/native processes stopped. Original character30 retains40XP and empty92460 log/watch/tracker; no quest accepted/rewarded or storage reset. Original70205 catalogs remain unchanged; the12 authorized local70235 assets were already byte-identical. Ailee's historical material1102747 RED is scoped by the [baked-path correction](#ailee-baked-material-applicability--bounded-correction-2026-10-07); current Ailee native acceptance and race96 original-quest gaps remain; independent visual content, native OS-exit and full gameplay/parity remain unproved.
 
 ## Sources
+
+- [Current independent equipment report](/tmp/claude/equipment-acceptance-5596f8516/report.md) — exact20-test scope, logs, unchanged inventories, focused formatting and exclusions; local proof artifact, not repository-bundled evidence.
+- Main-supplied 2026-10-07 checkpoint — retained core11+fresh1, synthetic3, lib881/CLI build, pushed source revisions and pre-world protocol failure; no fresh build/runtime verification by this documentation audit.
 
 - [Native shoulder runtime](../../../target/skyborn-source-items/native-shoulder-green-runtime.json), [status](../../../target/skyborn-source-items/native-shoulder-green-status.json), [race95 log](../../../target/skyborn-source-items/native-shoulder-green-race95.log), [loaded extension](../../../target/skyborn-source-items/native-shoulder-green-mapped-extension.json), [cleanup](../../../target/skyborn-source-items/native-shoulder-green-cleanup.json) — bounded Main-observed shoulder completion, retained errors, missing native OS exit and preserved character state; visual/build observations supplied by Main, independent acceptance pending.
 - [Shoulder policy](../../../godot/rust/src/game/equipment/equipment_appearance_data.rs), [native attachment](../../../godot/rust/src/assets/equipment.rs), [transforms](../../../godot/rust/src/game/equipment/equipment_transform_data.rs) at `7c94437a` — parsed attachment-local acceptance and retained named/nonshoulder rules.
