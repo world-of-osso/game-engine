@@ -2686,3 +2686,5 @@ Local-CASC ItemDisplayInfoModelMatRes4050937 establishes type3 material822338/te
 ## 2026-10-07 — Native SSAO
 
 Removed Depth of Field; recorded [SSAO](investigations/native-ssao.md) depth-prepass root cause and bounded renderer comparison. Dozen pixel acceptance remains blocked.
+
+Native SSAO follow-up: stable project prepass fixes cached depth-pipeline On→Off failure. Saved Off/On Lavapipe pixels and consumers pass; Dozen fails strict flat-region oracle. Exact scope, warnings and artifacts: [native SSAO](investigations/native-ssao.md#final-bounded-proof).
