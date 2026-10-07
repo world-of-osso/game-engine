@@ -5,6 +5,10 @@ use std::{
     time::{SystemTime, UNIX_EPOCH},
 };
 
+#[cfg(test)]
+#[path = "professions_account_tests.rs"]
+mod profession_snapshot_tests;
+
 use crate::frame_error::SessionError;
 use crate::mirror_timers::MirrorTimerMessage;
 use game_engine_network::{
