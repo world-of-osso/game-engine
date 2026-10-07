@@ -962,6 +962,8 @@ fn respond_to_selection(
                 },
             );
         }
+        // Match the real server's initial specialization snapshot before opening the book.
+        send::<_, TalentChannel>(app, shared::protocol::SpecializationChanged { spec_id: 70 });
         // Intentionally withhold LoadTerrain until Loading input has been observed.
     }
     Ok(())
