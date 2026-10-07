@@ -8,6 +8,10 @@ use godot::prelude::*;
 use shared::{profession::ProfessionSkillLine, protocol::ProfessionSnapshot};
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 
+#[cfg(test)]
+#[path = "professions_art_tests.rs"]
+mod tests;
+
 #[godot_api(secondary)]
 impl RegistryUi {
     #[func]
