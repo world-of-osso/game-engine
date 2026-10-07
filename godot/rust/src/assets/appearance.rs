@@ -86,12 +86,14 @@ impl NpcAppearances {
         &mut self,
         data_root: &Path,
         display_id: u32,
-        resolve_armor: impl FnOnce(u8, u8) -> Result<ResolvedEquipmentAppearance, String>,
+        resolve_armor: impl FnOnce(
+            &AuthoredNpcAppearance,
+        ) -> Result<ResolvedEquipmentAppearance, String>,
     ) -> Result<Option<PreparedNpc>, String> {
         let Some(appearance) = self.query_appearance(data_root, display_id)? else {
             return Ok(None);
         };
-        let armor = resolve_armor(appearance.race, appearance.sex)?;
+        let armor = resolve_armor(&appearance)?;
         let (mut selected, layout_id) = self.select_choices_and_layout(data_root, &appearance)?;
         let db = self
             .customization

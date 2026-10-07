@@ -70,9 +70,29 @@ pub fn resolve_equipment_appearance(
     race: u8,
     sex: u8,
 ) -> Result<ResolvedEquipmentAppearance, String> {
+    load_equipment_appearance_checked(appearance, outfit_data, race, sex, false)
+}
+
+/// An authored NPC bake already paints body armor; retain its models and geosets.
+pub fn load_baked_equipment_appearance(
+    appearance: &EquipmentAppearance,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) -> Result<ResolvedEquipmentAppearance, String> {
+    load_equipment_appearance_checked(appearance, outfit_data, race, sex, true)
+}
+
+fn load_equipment_appearance_checked(
+    appearance: &EquipmentAppearance,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+    baked_body: bool,
+) -> Result<ResolvedEquipmentAppearance, String> {
     let mut failure = None;
     let resolved =
-        resolve_equipment_appearance_with_errors(appearance, outfit_data, race, sex, |error| {
+        load_equipment_entries(appearance, outfit_data, race, sex, baked_body, |error| {
             if failure.is_none() {
                 failure = Some(error);
             }
@@ -89,6 +109,17 @@ pub fn resolve_equipment_appearance_with_errors(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
+    report_error: impl FnMut(String),
+) -> ResolvedEquipmentAppearance {
+    load_equipment_entries(appearance, outfit_data, race, sex, false, report_error)
+}
+
+fn load_equipment_entries(
+    appearance: &EquipmentAppearance,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+    baked_body: bool,
     mut report_error: impl FnMut(String),
 ) -> ResolvedEquipmentAppearance {
     let mut resolved = ResolvedEquipmentAppearance::default();
@@ -139,6 +170,7 @@ pub fn resolve_equipment_appearance_with_errors(
             entry_data,
             race,
             sex,
+            baked_body,
         ) {
             Ok(textures) => body.record(entry.slot, display_info_id, entry_data, textures),
             Err(error) => report_error(format!(
@@ -301,10 +333,14 @@ fn apply_visible_entry(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
+    baked_body: bool,
 ) -> Result<Vec<(u8, u32)>, String> {
-    let mut display = outfit_data
-        .try_resolve_display_info(display_info_id, race, sex)?
-        .ok_or_else(|| format!("display {display_info_id} missing"))?;
+    let display = if baked_body {
+        outfit_data.try_resolve_baked_display_info(display_info_id, race, sex)?
+    } else {
+        outfit_data.try_resolve_display_info(display_info_id, race, sex)?
+    };
+    let mut display = display.ok_or_else(|| format!("display {display_info_id} missing"))?;
     if slot == EquipmentVisualSlot::Head {
         let has_vis_data = outfit_data.has_helmet_geoset_vis_data(display_info_id);
         resolved
@@ -713,6 +749,46 @@ mod tests {
             0,
         )
         .unwrap()
+    }
+
+    #[test]
+    fn baked_appearance_ailee_keeps_boot_geosets_without_unused_body_overlay() {
+        let data = data_dir();
+        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
+        let armor = gear.display_armor(136968).unwrap();
+        let outfits = OutfitData::load(&data);
+        let error = resolve_equipment_appearance(&armor, &outfits, 95, 1).unwrap_err();
+        assert!(error.contains("1102747"), "{error}");
+        let baked = load_baked_equipment_appearance(&armor, &outfits, 95, 1).unwrap();
+        assert!(baked.outfit.item_textures.is_empty());
+        assert!(baked.runtime_models.is_empty());
+        assert!(baked.outfit.geoset_overrides.contains(&(5, 3)));
+        assert!(baked.outfit.geoset_overrides.contains(&(20, 2)));
+    }
+
+    #[test]
+    fn baked_appearance_keeps_original_grove_ranger_models_and_geosets() {
+        let data = data_dir();
+        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
+        let armor = gear.display_armor(139403).unwrap();
+        let outfits = OutfitData::load(&data);
+        let plain = resolve_equipment_appearance(&armor, &outfits, 95, 0).unwrap();
+        let baked = load_baked_equipment_appearance(&armor, &outfits, 95, 0).unwrap();
+        assert_eq!(baked.runtime_models, plain.runtime_models);
+        assert_eq!(baked.outfit.geoset_overrides, plain.outfit.geoset_overrides);
+        assert_eq!(
+            baked.hidden_character_geoset_ids,
+            plain.hidden_character_geoset_ids
+        );
+        assert!(baked.outfit.item_textures.is_empty());
+        for (slot, fdid) in [
+            (EquipmentSlot::ShoulderLeft, 7579617),
+            (EquipmentSlot::ShoulderRight, 7579618),
+        ] {
+            assert!(baked.runtime_models.iter().any(|model| model.slot == slot
+                && model.fdid == fdid
+                && model.skin_fdids == [7731197, 0, 0]));
+        }
     }
 
     #[test]
