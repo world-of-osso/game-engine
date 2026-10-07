@@ -151,6 +151,26 @@ fn options_categories_emit_original_actions_and_replace_visible_section() {
 }
 
 #[test]
+fn ssao_graphics_row_discloses_restart_and_emits_toggle_action() {
+    let mut view = model();
+    view.options.category = OptionsCategory::Graphics;
+    let mut native = GameMenuModel::from_view(1280.0, 720.0, view);
+    native.sync();
+    assert_eq!(
+        label(&native.registry, "ToggleLabelssao_enabled"),
+        "SSAO (Requires Restart)"
+    );
+    let on = native
+        .registry
+        .get_by_name("ToggleSwitchssao_enabledRightHit")
+        .unwrap();
+    assert_eq!(
+        native.registry.click_frame(on).as_deref(),
+        Some("options_toggle:ssao_enabled")
+    );
+}
+
+#[test]
 fn native_game_menu_model_projects_authored_options_and_reactive_slider_values() {
     let mut view = model();
     let mut native = GameMenuModel::from_view(1280.0, 720.0, view.clone());
