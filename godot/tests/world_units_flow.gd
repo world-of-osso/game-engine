@@ -23,7 +23,8 @@ func run_test() -> void:
 	if error != "":
 		fail("Fixture connection: " + error)
 		return
-	var deadline := Time.get_ticks_msec() + 15000
+	# Character select mounts its UI only after asset startup finishes.
+	var deadline := Time.get_ticks_msec() + 90000
 	while Time.get_ticks_msec() < deadline:
 		await process_frame
 		var state: Dictionary = client.account_state()
@@ -32,6 +33,8 @@ func run_test() -> void:
 		if state.screen != "CharacterSelect" or state.character_count < 2:
 			fail("Fixture needs two authenticated characters: " + str(state))
 			return
+		if state.assets_starting or client.get_node_or_null("CharacterSelectUI") == null:
+			continue
 		await select_second_character(client)
 		return
 	fail("Timed out waiting for character selection")

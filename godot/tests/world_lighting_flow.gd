@@ -1,7 +1,10 @@
 extends "res://tests/world_terrain_flow.gd"
 
-# Requires GODOT_TEST_SERVER, GODOT_TEST_ACCOUNT and GODOT_TEST_PASSWORD
-# through world_units_flow.gd, including its reconnect to the same endpoint.
+# Requires GODOT_TEST_SERVER (private endpoint, never shared :5000),
+# GODOT_TEST_ACCOUNT and GODOT_TEST_PASSWORD through world_units_flow.gd.
+# That base fails before connecting if any input is unset and reuses all three
+# for reconnect. Start the private server with GAME_SERVER_GROUND_DIR pointing
+# to its ground bake; the account needs two characters (card 1 is selected).
 
 func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 	if not super.inspect_material_tiles(client, parsed_tiles):
@@ -19,8 +22,7 @@ func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 		fail("Automatic lighting duplicates authored Retail lighting")
 		return false
 	var terrain := client.get_node("WorldTerrain")
-	var first := terrain.get_child(0).get_child(0) as MeshInstance3D
-	var material := first.get_surface_override_material(0) as ShaderMaterial
+	var material := terrain_chunks(terrain.get_child(0))[0].get_surface_override_material(0) as ShaderMaterial
 	# Scene-lit materials read the scene light's global uniforms.
 	var scene: Dictionary = client.account_state().scene_light
 	var ambient: Vector3 = scene.ambient
@@ -39,3 +41,4 @@ func inspect_material_tiles(client: Node, parsed_tiles: Array) -> bool:
 		fail("Native material has no authored linear fog range")
 		return false
 	return true
+
