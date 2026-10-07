@@ -240,10 +240,29 @@ fn compose_separate_replacements(
     decoded: &HashMap<u32, TexturePixels>,
 ) -> Result<HashMap<u32, TexturePixels>, String> {
     let mut textures = HashMap::new();
-    if let Some(pixels) = compositor
-        .composite_texture_type(materials, layout_id, 19, |fdid| decoded.get(&fdid).cloned())
+    // Body keeps its authored bake; type 6 keeps the established hair/head crop.
+    // Every other selected DB2 layer type uses its own ChrModelMaterial canvas.
+    for kind in compositor
+        .separate_texture_types(layout_id)
+        .into_iter()
+        .filter(|kind| *kind != 6)
     {
-        textures.insert(19, pixels);
+        if compositor
+            .replacement_texture_fdid(materials, layout_id, kind)
+            .is_none()
+        {
+            continue;
+        }
+        let pixels = compositor
+            .composite_texture_type(materials, layout_id, kind, |fdid| {
+                decoded.get(&fdid).cloned()
+            })
+            .ok_or_else(|| {
+                format!(
+                    "cannot composite NPC replacement texture type {kind} for layout {layout_id}"
+                )
+            })?;
+        textures.insert(kind, pixels);
     }
     Ok(textures)
 }
@@ -440,7 +459,9 @@ mod replacement_tests {
 
     #[test]
     fn npc_replacements_compose_every_selected_db2_type_without_overwriting_body_or_hair() {
-        let types = [1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 19, 20, 21, 22, 24, 25, 26];
+        let types = [
+            1, 5, 6, 7, 8, 9, 10, 11, 12, 13, 19, 20, 21, 22, 23, 24, 25, 26,
+        ];
         let materials: Vec<_> = types
             .iter()
             .map(|&kind| (kind as u16, kind + 100))

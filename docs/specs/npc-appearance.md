@@ -57,7 +57,7 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 - [ ] Godot: a live sheath change (combat draw/sheathe) is covered by placement unit tests only; `npc_pose_gear.gd` observes spawn-time placement. Displays without a bake (1 of 7,825 in `npc_appearance.sqlite`) do not composite armor item textures in either client.
 
-- [ ] NPC composition currently binds texture types 1, 6 and 19 only. These are compositor bindings, not the three creature skin-replacement slots (M2 types 2/11, 12 and 13). Other layout texture types (Dracthyr 7–26, types 7/8/20 of other layouts) keep the M2 defaults or are blitted into the body atlas; not visually validated.
+- [ ] NPC preparation must compose every selected separate `ChrModelTextureLayer.TextureType` on its `ChrModelMaterial` canvas, preserving the authored body bake (1) and established hair/head crop (6). Missing canvases for selected layers must error, not silently retain original base colour. Generic preparation replaces the 19-only branch; targeted/native acceptance pending below. Ordinary creature skin slots (M2 2/11, 12, 13) remain a distinct path.
 
 - [ ] Parent integration must import current display data and visually validate the actual replicated Northshire NPCs; synthetic material tests are not visual acceptance. The native path reads imported caches only: it neither checks importer freshness nor rebuilds them.
 
