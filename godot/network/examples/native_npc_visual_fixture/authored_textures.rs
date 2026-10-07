@@ -9,7 +9,7 @@ use game_engine_core::{
     npc_appearance_data::query_authored_npc_appearance,
     npc_appearance_selection_data::{select_npc_choices, select_npc_type6_texture},
 };
-use std::collections::HashMap;
+use std::{collections::HashMap, io::Write};
 
 type Pixels = (Vec<u8>, u32, u32);
 // Real content_creature/template_model rows; fixture relocates them to its owned map.
@@ -52,6 +52,7 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
         "ChrRaces.csv",
         "ChrCustomizationReq.csv",
         "ChrCustomizationReqChoice.csv",
+        "equipment_transforms.ron",
     ] {
         fs::copy(source.join(name), data.join(name)).map_err(|e| e.to_string())?;
     }
@@ -65,6 +66,7 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
     )
     .map_err(|e| e.to_string())?;
     let mut manifest = String::new();
+    fs::write(output.join("image-formats.tsv"), "").map_err(|error| error.to_string())?;
     for (display, _, _) in CASES {
         let textures = match query_authored_npc_appearance(&profiles, display)? {
             Some(profile) => {
@@ -74,7 +76,10 @@ pub(super) fn stage(project: &FixtureProject) -> Result<(), String> {
                     .ok_or("missing real layout")?;
                 oracle_textures(&source, &compositor, &profile, &selected.materials, layout)?
             }
-            None => read_creature_skin_oracle(&source, display)?,
+            None => {
+                write_creature_gpu_oracle(&source, &output, display)?;
+                read_creature_skin_oracle(&source, display)?
+            }
         };
         write_display_oracle(&source, &output, display, &textures, &mut manifest)?;
     }
@@ -114,9 +119,7 @@ fn decode(source: &Path, fdid: u32) -> Result<Pixels, String> {
 
 /// Read all four DB2 variations directly, independently of the runtime SQLite importer.
 fn read_creature_skin_oracle(source: &Path, display: u32) -> Result<HashMap<u32, Pixels>, String> {
-    let csv = fs::read_to_string(source.join("CreatureDisplayInfo.csv"))
-        .map_err(|error| format!("Read CreatureDisplayInfo: {error}"))?;
-    let variations = parse_creature_variations(&csv, display)?;
+    let variations = read_creature_variations(source, display)?;
     let mut textures = HashMap::new();
     for (fdid, kind) in variations.into_iter().zip([11, 12, 13, 5]) {
         if fdid != 0 {
@@ -124,6 +127,44 @@ fn read_creature_skin_oracle(source: &Path, display: u32) -> Result<HashMap<u32,
         }
     }
     Ok(textures)
+}
+
+/// Ordinary skins stay block-compressed; CPU and Godot DXT expansion round differently.
+/// Retain the complete authored upload and an explicit format for an independent engine image.
+fn write_creature_gpu_oracle(source: &Path, output: &Path, display: u32) -> Result<(), String> {
+    let variations = read_creature_variations(source, display)?;
+    let mut formats = fs::OpenOptions::new()
+        .append(true)
+        .open(output.join("image-formats.tsv"))
+        .map_err(|error| format!("Open oracle formats: {error}"))?;
+    for (fdid, kind) in variations
+        .into_iter()
+        .zip([11, 12, 13, 5])
+        .filter(|(fdid, _)| *fdid != 0)
+    {
+        let bytes = fs::read(source.join(format!("textures/{fdid}.blp")))
+            .map_err(|error| format!("Read oracle BLP {fdid}: {error}"))?;
+        let image =
+            blp::decode_gpu(&bytes).map_err(|error| format!("Oracle BLP {fdid}: {error}"))?;
+        fs::write(output.join(format!("{display}-{kind}.gpu")), &image.data)
+            .map_err(|error| format!("Write oracle upload: {error}"))?;
+        writeln!(
+            formats,
+            "{display}\t{kind}\t{:?}\t{}\t{}\t{}",
+            image.format,
+            image.width,
+            image.height,
+            u8::from(image.mipmaps)
+        )
+        .map_err(|error| format!("Write oracle format: {error}"))?;
+    }
+    Ok(())
+}
+
+fn read_creature_variations(source: &Path, display: u32) -> Result<[u32; 4], String> {
+    let csv = fs::read_to_string(source.join("CreatureDisplayInfo.csv"))
+        .map_err(|error| format!("Read CreatureDisplayInfo: {error}"))?;
+    parse_creature_variations(&csv, display)
 }
 
 fn parse_creature_variations(csv: &str, display: u32) -> Result<[u32; 4], String> {
