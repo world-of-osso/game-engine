@@ -530,7 +530,7 @@ mod tests {
     fn equipment_item_materials_resolve_every_sampled_batch_texture() {
         use crate::equipment_appearance_data::resolve_equipment_appearance;
         use shared::components::{
-            EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
+            EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry, ItemDefinitionSource,
         };
         let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let catalog = game_engine_core::outfit_data::OutfitData::load(&data);
@@ -544,6 +544,7 @@ mod tests {
                 entries: vec![EquippedAppearanceEntry {
                     slot,
                     item_id: Some(item_id),
+                    definition_source: Some(ItemDefinitionSource::Retail),
                     display_info_id: None,
                     inventory_type: if slot == EquipmentVisualSlot::Shoulder {
                         3
