@@ -75,6 +75,34 @@ fn inherited_delta(
     }
 }
 
+/// Mounted positive-size roots whose entire parent chain is visible.
+pub(crate) fn collect_selection_boxes(
+    registry: &FrameRegistry,
+    selected: Option<&str>,
+) -> Vec<game_engine_ui_model::hud_edit_component::EditModeSelectionBox> {
+    EDIT_MODE_ELEMENTS
+        .iter()
+        .filter_map(|element| {
+            let id = registry.get_by_name(element.frame_name)?;
+            if !frame_is_visible(registry, id) {
+                return None;
+            }
+            let rect = registry.get(id)?.layout_rect.as_ref()?;
+            if rect.width <= 0.0 || rect.height <= 0.0 {
+                return None;
+            }
+            Some(
+                game_engine_ui_model::hud_edit_component::EditModeSelectionBox {
+                    key: element.key.into(),
+                    label: element.label.into(),
+                    rect: [rect.x, rect.y, rect.width, rect.height],
+                    selected: selected == Some(element.key),
+                },
+            )
+        })
+        .collect()
+}
+
 pub(crate) fn frame_is_visible(registry: &FrameRegistry, mut id: u64) -> bool {
     loop {
         let Some(frame) = registry.get(id) else {

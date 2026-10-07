@@ -200,3 +200,101 @@ fn hudeditmode_both_skins_reset_scale_and_unmoved_authored_defaults() {
         assert_eq!(scaled[&player].height, rect.height);
     }
 }
+
+#[test]
+fn hudeditmode_every_registered_root_moves_with_its_child_and_hidden_roots_have_no_mover() {
+    use game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS;
+    use ui_toolkit::{
+        frame::Dimension,
+        layout_values::{PositionType, Val},
+    };
+    let mut registry = FrameRegistry::new(1366.0, 768.0);
+    let mut placements = Placements::new();
+    for (index, element) in EDIT_MODE_ELEMENTS.iter().enumerate() {
+        let id = registry.create_frame(element.frame_name, None);
+        let frame = registry.get_mut(id).unwrap();
+        frame.position_type = PositionType::Absolute;
+        frame.position.left = Val::Px(100.0 + index as f32 * 10.0);
+        frame.position.top = Val::Px(200.0);
+        frame.width = Dimension::Fixed(80.0);
+        frame.height = Dimension::Fixed(32.0);
+        let child = registry.create_frame(&format!("{}Child", element.frame_name), Some(id));
+        let frame = registry.get_mut(child).unwrap();
+        frame.position_type = PositionType::Absolute;
+        frame.position.left = Val::Px(4.0);
+        frame.position.top = Val::Px(6.0);
+        frame.width = Dimension::Fixed(20.0);
+        frame.height = Dimension::Fixed(14.0);
+        placements.insert(
+            element.key.into(),
+            save_top_left(
+                element.default_anchor,
+                [32.0, 24.0],
+                [80.0, 32.0],
+                [1366.0, 768.0],
+            ),
+        );
+    }
+    let authored =
+        super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+    for (id, rect) in &authored {
+        registry.get_mut(*id).unwrap().layout_rect = Some(rect.clone());
+    }
+    let boxes = super::hud_edit_layout::collect_selection_boxes(&registry, Some("player_frame"));
+    assert_eq!(boxes.len(), EDIT_MODE_ELEMENTS.len());
+    assert_eq!(boxes.iter().filter(|entry| entry.selected).count(), 1);
+    for element in EDIT_MODE_ELEMENTS {
+        assert_eq!(
+            boxes
+                .iter()
+                .find(|entry| entry.key == element.key)
+                .unwrap()
+                .label,
+            element.label
+        );
+    }
+    let mut moved = authored.clone();
+    super::hud_edit_layout::apply_placements(&registry, &mut moved, &placements);
+    for element in EDIT_MODE_ELEMENTS {
+        let id = registry.get_by_name(element.frame_name).unwrap();
+        assert_eq!([moved[&id].x, moved[&id].y], [32.0, 24.0]);
+        let child = registry
+            .get_by_name(&format!("{}Child", element.frame_name))
+            .unwrap();
+        assert_eq!([moved[&child].x, moved[&child].y], [36.0, 30.0]);
+    }
+    let hidden = registry.get_by_name("PlayerFrame").unwrap();
+    registry.get_mut(hidden).unwrap().visible = false;
+    assert!(
+        !super::hud_edit_layout::collect_selection_boxes(&registry, None)
+            .iter()
+            .any(|entry| entry.key == "player_frame")
+    );
+    registry.get_mut(hidden).unwrap().visible = true;
+    let reset = super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+    assert_eq!(reset, authored);
+}
+
+#[test]
+fn hudeditmode_action_bar_previews_follow_mode_not_saved_defaults() {
+    use game_engine_ui_model::hud_edit::EditModeActive;
+    use game_engine_ui_model::main_action_bar_component::{
+        MainActionBarState, main_action_bar_screen,
+    };
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Modern);
+    shared.insert(MainActionBarState::default());
+    shared.insert(EditModeActive(false));
+    let mut registry = FrameRegistry::new(1366.0, 768.0);
+    let mut screen = Screen::new(main_action_bar_screen);
+    screen.sync(&shared, &mut registry);
+    assert!(registry.get_by_name("MultiBarBottomLeft").is_none());
+    shared.insert(EditModeActive(true));
+    screen.sync(&shared, &mut registry);
+    assert!(registry.get_by_name("MultiBarBottomLeft").is_some());
+    assert!(registry.get_by_name("MultiBarBottomRight").is_some());
+    shared.insert(EditModeActive(false));
+    screen.sync(&shared, &mut registry);
+    assert!(registry.get_by_name("MultiBarBottomLeft").is_none());
+    assert!(registry.get_by_name("MultiBarBottomRight").is_none());
+}
