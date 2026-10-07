@@ -59,7 +59,7 @@ impl WorldMap {
         self.ui.is_some()
     }
 
-    fn data(&self) -> Option<&WorldMapData> {
+    pub(super) fn data(&self) -> Option<&WorldMapData> {
         self.data.as_ref()?.as_ref().ok()
     }
 
@@ -312,7 +312,7 @@ impl GameClient {
         ))
     }
 
-    fn load_world_map_data(&mut self) -> Result<(), String> {
+    pub(super) fn load_world_map_data(&mut self) -> Result<(), String> {
         if self.world_map.data.is_none() {
             let dir = self.data_root.join(DB2_DIR);
             self.world_map.data = Some(WorldMapData::load(&dir));
@@ -324,7 +324,7 @@ impl GameClient {
     }
 
     /// Copy every texture the state draws out of local CASC; record which exist.
-    fn cache_world_map_textures(&mut self, state: &WorldMapFrameState) {
+    pub(super) fn cache_world_map_textures(&mut self, state: &WorldMapFrameState) {
         let unknown: Vec<u32> = world_map_texture_fdids(state)
             .into_iter()
             .filter(|fdid| !self.world_map.available.contains_key(fdid))

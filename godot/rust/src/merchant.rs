@@ -133,6 +133,9 @@ impl GameClient {
         let session = &mut self.merchant.session;
         match message {
             NpcMessage::Opened(opened) => match opened.kind {
+                InteractionKind::Role(NpcRole::FlightMaster) => {
+                    session.close();
+                }
                 // The vendor list follows the vendor role (`VendorInventory`).
                 InteractionKind::Role(NpcRole::Vendor) => {
                     self.auction_interaction_closed_any();
