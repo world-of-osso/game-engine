@@ -152,7 +152,8 @@ fn minimapblips_out_of_range_member_clamps_and_rotates_both_masks() {
             },
         );
         let art = texture(&registry, "MinimapMember2");
-        near(art.rotation, std::f32::consts::FRAC_PI_2);
+        // Registry angles are counter-clockwise; the Godot projection negates them.
+        near(art.rotation, -std::f32::consts::FRAC_PI_2);
         assert_eq!(
             art.tex_coords,
             [
@@ -172,7 +173,8 @@ fn minimapblips_out_of_range_member_clamps_and_rotates_both_masks() {
         let component = if skin == ActiveSkin::Modern {
             edge / 2.0_f32.sqrt()
         } else {
-            edge
+            // The north rim of Forever's visible map starts below its 22-unit header.
+            edge - 22.0 / style.map_size
         };
         near(diagonal[0].offset[0], component);
         near(diagonal[0].offset[1], -component);
@@ -185,9 +187,36 @@ fn minimapblips_out_of_range_member_clamps_and_rotates_both_masks() {
         );
         near(
             texture(&registry, "MinimapMember2").rotation,
-            std::f32::consts::FRAC_PI_4,
+            -std::f32::consts::FRAC_PI_4,
         );
     }
+}
+
+#[test]
+fn minimapblips_forever_north_edge_arrow_clears_opaque_header() {
+    let style = cluster_style(ActiveSkin::Forever);
+    let view = MinimapView::new([100.0, 200.0], 0).masked(style.mask);
+    let blips = group_minimap_blips(
+        &group([1100.0, 200.0]),
+        Some("Blipsone"),
+        &view,
+        style.map_size,
+    );
+    let registry = build(
+        ActiveSkin::Forever,
+        MinimapClusterState {
+            blips,
+            ..Default::default()
+        },
+    );
+    let frame = registry
+        .get(registry.get_by_name("MinimapMember2").unwrap())
+        .unwrap();
+    let Val::Px(top) = frame.position.top else {
+        panic!("absolute member")
+    };
+    near(top, 30.0);
+    assert_eq!(texture(&registry, "MinimapMember2").rotation, 0.0);
 }
 
 #[test]

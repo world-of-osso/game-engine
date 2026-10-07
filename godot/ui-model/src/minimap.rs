@@ -948,7 +948,7 @@ fn apply_member_blip_colors(state: &MinimapClusterState, registry: &mut FrameReg
                 // Arrow art is green; remove its baked colour before applying the class tint.
                 texture.desaturated = edge;
                 texture.vertex_color = [red, green, blue, 1.0];
-                texture.rotation = if edge { right.atan2(-down) } else { 0.0 };
+                texture.rotation = if edge { -right.atan2(-down) } else { 0.0 };
             },
         );
     }

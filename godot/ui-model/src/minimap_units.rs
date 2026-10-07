@@ -1,7 +1,7 @@
 //! Party positions remain available through GroupMemberStates outside replica interest.
 use game_engine_core::minimap_data::{MapMask, MinimapView};
 
-use super::{BLIP_SIZE, BlipKind, MinimapBlip};
+use super::{BLIP_SIZE, BlipKind, FOREVER_BAND_H, MinimapBlip};
 use crate::group_state::GroupState;
 
 pub fn group_minimap_blips(
@@ -37,12 +37,19 @@ pub fn group_minimap_blips(
 fn member_offset(view: &MinimapView, [x, z]: [f32; 2], map_size: f32) -> ([f32; 2], bool) {
     let right = (z - view.center[1]) / view.diameter;
     let down = (view.center[0] - x) / view.diameter;
-    let distance = match view.mask {
-        MapMask::Round => right.hypot(down),
-        MapMask::Square => right.abs().max(down.abs()),
-    };
     let inset_edge = 0.5 - BLIP_SIZE / (2.0 * map_size);
-    let scale = inset_edge / distance.max(inset_edge);
+    let extent = match view.mask {
+        MapMask::Round => right.hypot(down) / inset_edge,
+        MapMask::Square => {
+            let vertical_edge = if down < 0.0 {
+                inset_edge - FOREVER_BAND_H / map_size
+            } else {
+                inset_edge
+            };
+            (right.abs() / inset_edge).max(down.abs() / vertical_edge)
+        }
+    };
+    let scale = 1.0 / extent.max(1.0);
     (
         [right * scale, down * scale],
         !view.mask.contains(right, down),
