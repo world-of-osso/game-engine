@@ -57,13 +57,20 @@ func assert_screen(ui: Node, image: Image, screen: String) -> bool:
 			return false
 		var color := status.get_theme_color("font_color")
 		print("REGISTRATION_NATIVE status=", status.text, " color=", color)
-		return color.is_equal_approx(Color(1.0, 0.82, 0.0, 1.0))
+		return color.is_equal_approx(Color(1.0, 0.82, 0.0, 1.0)) and colored_pixels(image, status.get_global_rect()) > 20
 	var labels := ui.find_children("*", "Label", true, false)
 	var text := ""
+	var pixels := 0
+	var bounds := Rect2(Vector2.ZERO, image.get_size())
 	for label in labels:
+		if label.text.is_empty():
+			continue
+		if not label.is_visible_in_tree() or not bounds.encloses(label.get_global_rect()):
+			return false
 		text += label.text + "\n"
-	print("AURA_NATIVE ", text)
-	return text.contains("Arcane Intellect") and text.contains("Intellect increased by 3%.") and text.contains("60 minutes remaining") and not text.contains("Spell ID:")
+		pixels += colored_pixels(image, label.get_global_rect())
+	print("AURA_NATIVE ", text, " colored_pixels=", pixels)
+	return pixels > 20 and text.contains("Arcane Intellect") and text.contains("Intellect increased by 3%.") and text.contains("60 minutes remaining") and not text.contains("Spell ID:")
 
 func colored_pixels(image: Image, rect: Rect2) -> int:
 	var count := 0
