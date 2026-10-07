@@ -73,7 +73,7 @@ func check_case(model: Node3D, display: int, bindings: Array, oracle: String, ca
 		var texture := material.get_shader_parameter(uniform) as Texture2D if material != null else null
 		var expected := FileAccess.get_file_as_bytes("%s/%d-%d.rgba" % [oracle, display, kind])
 		var image := texture.get_image() if texture != null else null
-		var correct := image != null and image.get_width() == binding.width and image.get_height() == binding.height
+		var correct: bool = image != null and image.get_width() == binding.width and image.get_height() == binding.height
 		if correct:
 			correct = image.get_data().slice(0, expected.size()) == expected
 		if not correct:
