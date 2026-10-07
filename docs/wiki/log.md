@@ -1,3 +1,7 @@
+## 2026-10-07 — Native quest objective progress notices
+
+[Quest UI](systems/quest-ui.md#native-objective-progress-notices) records real Northshire count-update/no-message RED, typed progress dispatch, yellow rendered-message GREEN, and complete three-crate tests at `d88c66b0f`. The [parity matrix](../specs/godot-parity-matrix.md) retains bounded per-step acceptance; broad marker/edit-mode combinations are not inferred from this fix.
+
 ## 2026-10-07 — Local specialization-conditioned spell visuals
 
 [Spell visual selection](systems/spell-visuals.md#local-specialization-selection-2026-10-07) maps account primary specialization IDs to DB2 OrderIndex only for the local caster. Slam's same-weapon Arms/Fury regression reproduced the wrong kit (62428 instead of 128672); native/core specialization regressions passed at `82ad03641`, tracked in the [contract](../specs/spell-visuals.md). Remote/NPC specialization remains unreplicated; no live/raster Retail parity claim.

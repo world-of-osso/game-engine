@@ -59,7 +59,13 @@ fn update_adds_changes_and_removes_entries_and_announces_accepts() {
         watched_quest_ids: vec![7, 783],
     });
 
-    assert_eq!(notices, vec!["Quest accepted: A Threat Within".to_string()]);
+    assert_eq!(
+        notices.iter().map(ToString::to_string).collect::<Vec<_>>(),
+        vec![
+            "Kobold Vermin slain: 3/8",
+            "Quest accepted: A Threat Within"
+        ]
+    );
     assert_eq!(runtime.entry(7).unwrap().objectives[0].current, 3);
     assert_eq!(
         runtime
@@ -77,6 +83,65 @@ fn update_adds_changes_and_removes_entries_and_announces_accepts() {
     });
     assert!(runtime.entry(7).is_none());
     assert!(!runtime.is_watched(7));
+}
+
+#[test]
+fn increasing_objective_counts_announce_retail_progress_once() {
+    let mut runtime = QuestRuntime::default();
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![kobold_camp_cleanup(0)],
+        watched_quest_ids: vec![7],
+    });
+    let update = QuestLogUpdate {
+        changed: vec![kobold_camp_cleanup(1)],
+        removed: vec![],
+        watched_quest_ids: vec![7],
+    };
+    let notices = runtime.apply_update(update.clone());
+    assert_eq!(
+        notices.iter().map(ToString::to_string).collect::<Vec<_>>(),
+        vec!["Kobold Vermin slain: 1/8"]
+    );
+    assert!(runtime.apply_update(update).is_empty());
+    assert!(
+        runtime
+            .apply_update(QuestLogUpdate {
+                changed: vec![kobold_camp_cleanup(0)],
+                removed: vec![],
+                watched_quest_ids: vec![7],
+            })
+            .is_empty()
+    );
+}
+
+#[test]
+fn collecting_items_announces_progress_but_acceptance_does_not_replay_counts() {
+    let mut collected = kobold_camp_cleanup(2);
+    collected.objectives[0].kind = QuestObjectiveKind::Item;
+    collected.objectives[0].object_id = 782;
+    collected.objectives[0].text = "Painted Gnoll Armband".into();
+    let mut runtime = QuestRuntime::default();
+    let accepted = runtime.apply_update(QuestLogUpdate {
+        changed: vec![collected.clone()],
+        removed: vec![],
+        watched_quest_ids: vec![7],
+    });
+    assert_eq!(
+        accepted,
+        vec![QuestNotice::System(
+            "Quest accepted: Kobold Camp Cleanup".into()
+        )]
+    );
+    collected.objectives[0].current = 3;
+    let notices = runtime.apply_update(QuestLogUpdate {
+        changed: vec![collected],
+        removed: vec![],
+        watched_quest_ids: vec![7],
+    });
+    assert_eq!(
+        notices,
+        vec![QuestNotice::Progress("Painted Gnoll Armband: 3/8".into())]
+    );
 }
 
 #[test]

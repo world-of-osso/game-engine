@@ -1807,6 +1807,10 @@ impl RegistryUi {
         self.update_errors(|errors| errors.add(text))
     }
 
+    pub fn add_info(&mut self, text: &str) -> Result<(), String> {
+        self.update_errors(|errors| errors.add_info(text))
+    }
+
     pub fn tick_errors(&mut self, dt: f32) -> Result<(), String> {
         self.update_errors(|errors| errors.tick(dt))
     }
