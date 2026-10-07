@@ -119,6 +119,8 @@ const CONNECTION_LOST: &str = "Connection lost.";
 pub struct Session {
     pub token: Option<String>,
     pub feedback: Option<String>,
+    /// Pending registration is informational even if the wire carries it in `error`.
+    pub feedback_is_informational: bool,
     pub characters: Vec<CharacterListEntry>,
     pub selected_index: Option<usize>,
     pub selected_character_id: Option<u64>,
@@ -230,6 +232,7 @@ impl Session {
         options: SessionOptions<'_>,
     ) -> Vec<SessionEffect> {
         self.reset_world_port();
+        self.feedback_is_informational = false;
         if !response.success {
             self.clear_reconnect();
             let error = response.error.unwrap_or_default();
@@ -272,6 +275,7 @@ impl Session {
     }
 
     pub fn receive_registration(&mut self, response: RegisterResponse) -> Vec<SessionEffect> {
+        self.feedback_is_informational = response.pending_approval;
         if response.pending_approval {
             self.feedback = Some(response.error.unwrap_or_else(|| {
                 "Registration submitted. Pending administrator approval. Return to Login after approval.".into()
@@ -392,6 +396,7 @@ impl Session {
             return Vec::new();
         }
         self.reset_world_port();
+        self.feedback_is_informational = false;
         if let Some(notice) = self.pending_forced_disconnect.take() {
             self.clear_reconnect();
             self.feedback = Some(notice.message);

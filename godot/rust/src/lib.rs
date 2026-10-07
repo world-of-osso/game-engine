@@ -1148,9 +1148,10 @@ impl GameClient {
             }
             FrameError::Session(error) => error.0,
         };
+        self.account.session.feedback_is_informational = false;
         self.account.session.feedback = Some(error.clone());
         godot_error!("Account session failed in {step}: {error}");
-        if let Err(ui_error) = self.update_login_status(&error, false) {
+        if let Err(ui_error) = self.update_login_status(&error, false, false) {
             godot_error!("Login feedback failed: {ui_error}");
         }
         if let Err(stop_error) = self.account.stop() {
@@ -1584,7 +1585,7 @@ impl GameClient {
             "reconnect" => {
                 self.account.connect(&self.server_hostname, "", "", false)?;
                 self.reset_world()?;
-                Ok(self.update_login_status("Connecting...", true)?)
+                Ok(self.update_login_status("Connecting...", true, true)?)
             }
             "exit" => {
                 self.base().get_tree().quit();
@@ -1607,13 +1608,13 @@ impl GameClient {
         let username = credential_field(&credentials, "username")?;
         let password = credential_field(&credentials, "password")?;
         if let Err(error) = game_engine_session::validate_registration(&username, &password) {
-            return Ok(self.update_login_status(error, false)?);
+            return Ok(self.update_login_status(error, false, false)?);
         }
         if let Err(error) =
             self.account
                 .connect(&self.server_hostname, &username, &password, register)
         {
-            return Ok(self.update_login_status(&error.to_string(), false)?);
+            return Ok(self.update_login_status(&error.to_string(), false, false)?);
         }
         self.reset_world()?;
         let status = if register {
@@ -1621,7 +1622,7 @@ impl GameClient {
         } else {
             "Connecting..."
         };
-        Ok(self.update_login_status(status, true)?)
+        Ok(self.update_login_status(status, true, true)?)
     }
 
     fn advance_login_fade(&mut self, delta: f32) -> Result<(), String> {
@@ -1633,10 +1634,19 @@ impl GameClient {
 
     fn show_session_feedback(&mut self) -> Result<(), String> {
         let status = self.account.session.feedback.clone().unwrap_or_default();
-        self.update_login_status(&status, false)
+        self.update_login_status(
+            &status,
+            false,
+            self.account.session.feedback_is_informational,
+        )
     }
 
-    fn update_login_status(&mut self, status: &str, connecting: bool) -> Result<(), String> {
+    fn update_login_status(
+        &mut self,
+        status: &str,
+        connecting: bool,
+        informational: bool,
+    ) -> Result<(), String> {
         let Some(login) = self.login_ui.as_mut() else {
             return Ok(());
         };
@@ -1645,11 +1655,7 @@ impl GameClient {
         if !error.is_empty() {
             return Err(error.to_string());
         }
-        let error = login.set_status(GString::from(status));
-        if !error.is_empty() {
-            return Err(error.to_string());
-        }
-        Ok(())
+        login.set_login_feedback(status, informational)
     }
 
     pub(crate) fn automation_game_state(&self) -> game_engine_network::game_state_enum::GameState {
