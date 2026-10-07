@@ -348,7 +348,8 @@ func check_ailee_baked_appearance() -> bool:
 			return false
 		var texture := material.get_shader_parameter("base_texture") as Texture2D
 		if texture == null or texture.get_image() == null or texture.get_image().is_empty():
-			fail("Ailee visible batch lacks nonempty texture")
+			print("SKYBORNE AILEE_MISSING_TEXTURE mesh=", mesh.name, " mesh_part=", mesh.get_meta("m2_mesh_part", -1), " texture_count=", material.get_meta("m2_texture_count", -1), " shader=", material.shader.code)
+			fail("Ailee visible batch lacks nonempty texture: " + str(mesh.name))
 			return false
 		textured += 1
 		print("SKYBORNE AILEE_MATERIAL mesh=", mesh.name, " resource=", texture.get_instance_id(), " size=", texture.get_size())
