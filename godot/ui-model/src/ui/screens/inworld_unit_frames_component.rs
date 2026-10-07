@@ -455,7 +455,7 @@ fn target_frame_contents(state: &UnitFrameState, skin: ActiveSkin) -> Element {
         {reaction_strip("Target", state.reaction, skin, strip)}
         {unit_frame_contents("Target", state, &TARGET_SLOTS, TARGET_HEALTH_BAR)}
         {dead_text("Target", TARGET_SLOTS.health, UNIT_FONT_SIZE, state.dead)}
-        {classification_art(state.classification, skin)}
+        {classification_art("Target", state.classification, skin)}
         {raid_target_icon(state.raid_target)}
         {target_auras(state, (TARGET_AURAS_LEFT, TARGET_AURAS_TOP))}
     }
@@ -481,13 +481,17 @@ pub fn shows_rare_star(classification: CreatureClassification) -> bool {
 
 /// The dragon at its atlas size TOPRIGHT of the frame frames the portrait; the star,
 /// at its atlas size, is centred on the portrait's bottom edge.
-fn classification_art(classification: CreatureClassification, skin: ActiveSkin) -> Element {
+fn classification_art(
+    prefix: &str,
+    classification: CreatureClassification,
+    skin: ActiveSkin,
+) -> Element {
     let portrait = boss_portrait_atlas(classification);
     let (right, top) = TARGET_BOSS_PORTRAIT_TOPRIGHT;
     let (star_x, star_y) = TARGET_BOSS_ICON_CENTRE;
     rsx! {
-        {sized_atlas_texture("TargetBossPortraitFrameTexture".into(), portrait.unwrap_or(BOSS_GOLD), skin, |(width, height)| (UNIT_FRAME_W - right - width, top, width, height), WHITE, portrait.is_none())}
-        {sized_atlas_texture("TargetBossIcon".into(), BOSS_RARE_STAR, skin, |(width, height)| (star_x - width / 2.0, star_y - height / 2.0, width, height), WHITE, !shows_rare_star(classification))}
+        {sized_atlas_texture(format!("{prefix}BossPortraitFrameTexture"), portrait.unwrap_or(BOSS_GOLD), skin, |(width, height)| (UNIT_FRAME_W - right - width, top, width, height), WHITE, portrait.is_none())}
+        {sized_atlas_texture(format!("{prefix}BossIcon"), BOSS_RARE_STAR, skin, |(width, height)| (star_x - width / 2.0, star_y - height / 2.0, width, height), WHITE, !shows_rare_star(classification))}
     }
 }
 
@@ -539,7 +543,8 @@ fn raid_target_icon(raid_target: Option<u8>) -> Element {
 pub const MAX_BOSS_FRAMES: usize = 5;
 /// `BossTargetFrameContainer` (Blizzard_UnitFrame/Mainline/TargetFrame.xml): a vertical
 /// right-managed stack, `spacing` 10. Its right-side slot below the minimap is placed
-/// at the reference resolution; the boss flair art is not drawn.
+/// at the reference resolution. Encounter portraits retain target classification art,
+/// rather than Retail's portraitless small-frame variant.
 const BOSS_FRAME_RIGHT: f32 = 60.0;
 const BOSS_FRAME_TOP: f32 = 300.0;
 const BOSS_FRAME_SPACING: f32 = 10.0;
@@ -560,30 +565,33 @@ fn boss_frame(index: usize, boss: Option<&UnitFrameState>, skin: ActiveSkin) -> 
     let content = boss
         .map(|state| {
             rsx! {
-                {reaction_strip(&prefix, state.reaction, skin, portrait_off_strip(1.0))}
-                {unit_frame_contents(&prefix, state, &PORTRAIT_OFF_SLOTS, HEALTH_BAR)}
-                {dead_text(&prefix, PORTRAIT_OFF_SLOTS.health, UNIT_FONT_SIZE, state.dead)}
+                {reaction_strip(&prefix, state.reaction, skin, |(width, height)| (TARGET_REPUTATION.0, TARGET_REPUTATION.1, width, height))}
+                {unit_frame_contents(&prefix, state, &TARGET_SLOTS, TARGET_HEALTH_BAR)}
+                {dead_text(&prefix, TARGET_SLOTS.health, UNIT_FONT_SIZE, state.dead)}
+                {classification_art(&prefix, state.classification, skin)}
             }
         })
         .unwrap_or_default();
-    let art = art_texture(
-        dyn_name(format!("{name}Art")),
-        FRAME_PORTRAIT_OFF,
-        (0.0, 0.0, FRAME_W, FRAME_H),
-        false,
+    let art = centred_art(
+        &name,
+        TARGET_PORTRAIT_ON,
+        (UNIT_FRAME_W, UNIT_FRAME_H),
+        skin,
     );
+    let portrait = portrait_slot(&BOSS_PORTRAITS[index]);
     let hidden = boss.is_none();
-    let top = BOSS_FRAME_TOP + index as f32 * (FRAME_H + BOSS_FRAME_SPACING);
+    let top = BOSS_FRAME_TOP + index as f32 * (UNIT_FRAME_H + BOSS_FRAME_SPACING);
     rsx! {
         r#frame {
             name: {dyn_name(name)},
-            width: FRAME_W,
-            height: FRAME_H,
+            width: UNIT_FRAME_W,
+            height: UNIT_FRAME_H,
             hidden,
             mouse_enabled: true,
             pos_type: "absolute",
             right: BOSS_FRAME_RIGHT,
             top,
+            {portrait}
             {art}
             {content}
         }

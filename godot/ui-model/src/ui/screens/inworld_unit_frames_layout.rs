@@ -140,6 +140,30 @@ pub const TARGET_PORTRAIT: PortraitSlot = PortraitSlot {
     tex_coords: FULL_PORTRAIT,
 };
 
+/// Encounter portraits use target art and classification, with a unique native host per slot.
+pub const BOSS_PORTRAITS: [PortraitSlot; 5] = [
+    PortraitSlot {
+        frame: "Boss1Portrait",
+        ..TARGET_PORTRAIT
+    },
+    PortraitSlot {
+        frame: "Boss2Portrait",
+        ..TARGET_PORTRAIT
+    },
+    PortraitSlot {
+        frame: "Boss3Portrait",
+        ..TARGET_PORTRAIT
+    },
+    PortraitSlot {
+        frame: "Boss4Portrait",
+        ..TARGET_PORTRAIT
+    },
+    PortraitSlot {
+        frame: "Boss5Portrait",
+        ..TARGET_PORTRAIT
+    },
+];
+
 pub const SMALL_FRAME_GAP: f32 = 8.0;
 /// Target-of-target and focus draw the portrait-off art at 3/4 scale.
 pub const SMALL_ART_SCALE: f32 = 0.75;

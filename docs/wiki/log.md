@@ -1,3 +1,7 @@
+## 2026-10-07 — Native boss encounters
+
+[Boss encounters](systems/boss-encounters.md) records missing transport/host consumers, ordered lifecycle relay, replicated clickable portrait frames and timed center warning HUD. Concrete RED captured before implementation; current GREEN/private Stockade proof pending. Server/protocol unchanged.
+
 ## 2026-10-07 — Portrait party Retail parity audit
 
 [Portrait party frames](systems/portrait-party-frames.md#retail-parity-audit--2026-10-07) rechecks the old party1 findings against local Retail Mainline: health desaturation already fixed; power stays full and half-grey-tinted; crown BOTTOM→TOP extension is intentional, not TOPLEFT. Eleven targeted tests and fresh Modern/Forever offline previews pass. Compact default unchanged; existing shutdown leaks and live/reference acceptance gaps remain.
