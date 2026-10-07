@@ -1,4 +1,4 @@
-extends SceneTree
+        extends SceneTree
 
 # All three offline authored previews in one rendered process; no server.
 var output := OS.get_environment("GODOT_CAPTURE_PATH").get_base_dir()
@@ -40,7 +40,13 @@ func assert_screen(ui: Node, image: Image, screen: String) -> bool:
 			return false
 		if title.text != "Sentinel Hill, Westfall" or amount.text != "5" or not coin.is_visible_in_tree():
 			return false
-		print("FLIGHT_NATIVE portrait=", portrait.get_global_rect(), " coin=", coin.get_global_rect(), " amount=", amount.text)
+		var textures := portrait.find_children("*", "TextureRect", true, false)
+		if textures.is_empty():
+			return false
+		var icon: Image = textures[0].texture.get_image()
+		if icon == null or icon.get_pixel(0, 0).a > 0.01 or icon.get_pixel(icon.get_width() - 1, icon.get_height() - 1).a > 0.01:
+			return false
+		print("FLIGHT_NATIVE portrait=", portrait.get_global_rect(), " coin=", coin.get_global_rect(), " amount=", amount.text, " mask_corners=transparent")
 		return colored_pixels(image, portrait.get_global_rect()) > 100 and colored_pixels(image, coin.get_global_rect()) > 5
 	if screen == "registration_pending_preview":
 		var status := ui.find_child("LoginStatus", true, false) as Label
