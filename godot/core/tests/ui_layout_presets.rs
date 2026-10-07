@@ -20,6 +20,7 @@ fn layout(name: &str, skin: LayoutSkin) -> ActiveLayout {
         name: name.to_string(),
         skin,
         settings: LayoutSettings::default(),
+        elements: Default::default(),
     }
 }
 
