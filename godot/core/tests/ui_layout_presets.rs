@@ -4,7 +4,8 @@
 use std::{fs, path::PathBuf};
 
 use game_engine_core::ui_layout_data::{
-    ActiveLayout, LayoutSettings, LayoutSkin, active_layout, set_active_layout, window_position,
+    ActiveLayout, HudAnchor, LayoutSettings, LayoutSkin, SavedElement, active_layout,
+    set_active_layout, window_position,
 };
 
 fn layout_path(test: &str) -> PathBuf {
@@ -80,20 +81,23 @@ fn old_layout_file_loads_as_modern() {
         active_layout(&path, 17).unwrap(),
         layout("Modern", LayoutSkin::Modern)
     );
-    assert_eq!(
-        active_layout(&path, 18).unwrap(),
-        layout("Raid", LayoutSkin::Modern)
+    // The mover position the old Edit Mode saved in "Raid" loads with the layout.
+    let mut raid = layout("Raid", LayoutSkin::Modern);
+    raid.elements.insert(
+        "PlayerFrame".to_string(),
+        SavedElement {
+            anchor: HudAnchor::Center,
+            offset: [-300.0, -200.0],
+        },
     );
+    assert_eq!(active_layout(&path, 18).unwrap(), raid);
 
     set_active_layout(&path, 17, "Forever").unwrap();
     assert_eq!(
         window_position(&path, 17, "WorldMapFrame").unwrap(),
         Some([210.0, 104.0])
     );
-    assert_eq!(
-        active_layout(&path, 18).unwrap(),
-        layout("Raid", LayoutSkin::Modern)
-    );
+    assert_eq!(active_layout(&path, 18).unwrap(), raid);
     fs::remove_file(path).unwrap();
 }
 
