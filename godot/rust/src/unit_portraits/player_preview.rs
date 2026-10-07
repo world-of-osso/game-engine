@@ -38,8 +38,13 @@ impl INode for PlayerPortraitFixture {
 #[godot_api]
 impl PlayerPortraitFixture {
     #[func]
-    fn initialize(&mut self) -> GString {
-        GString::from(self.mount_player().err().unwrap_or_default().as_str())
+    fn initialize(&mut self, forever: bool) -> GString {
+        GString::from(
+            self.mount_player(forever)
+                .err()
+                .unwrap_or_default()
+                .as_str(),
+        )
     }
 
     #[func]
@@ -80,10 +85,15 @@ impl PlayerPortraitFixture {
 }
 
 impl PlayerPortraitFixture {
-    fn mount_player(&mut self) -> Result<(), String> {
+    fn mount_player(&mut self, forever: bool) -> Result<(), String> {
         let path = ProjectSettings::singleton().globalize_path("res://../data");
         game_engine_ui_model::paths::set_data_root(std::path::PathBuf::from(path.to_string()))?;
-        ui_toolkit::atlas::set_thread_skin(ui_toolkit::atlas::ActiveSkin::Modern);
+        let skin = if forever {
+            ui_toolkit::atlas::ActiveSkin::Forever
+        } else {
+            ui_toolkit::atlas::ActiveSkin::Modern
+        };
+        ui_toolkit::atlas::set_thread_skin(skin);
         let mut ui = RegistryUi::new_alloc();
         self.base_mut().add_child(&ui);
         ui.bind_mut().show_unit_frames(player_frame())?;
