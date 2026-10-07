@@ -133,13 +133,33 @@ fn unit_frames(
         target_of_target: Some(small("Fbatlas")),
         focus: Some(small("Mother Fang")),
         pet: Some(pet(power)),
-        bosses: vec![unit("Edwin VanCleef", PowerType::Mana)],
+        bosses: vec![UnitFrameState {
+            classification,
+            ..unit("Edwin VanCleef", PowerType::Mana)
+        }],
         menu: UnitFrameMenuState::default(),
         personal_resource: None,
     });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(inworld_unit_frames_screen).sync(&shared, &mut registry);
     registry
+}
+
+#[test]
+fn bossframes_engaged_elite_keeps_compact_portraitless_art() {
+    let registry = unit_frames(
+        ActiveSkin::Modern,
+        CreatureClassification::Elite,
+        PowerType::Mana,
+    );
+    let id = registry.get_by_name("Boss1TargetFrame").unwrap();
+    assert!(!registry.get(id).unwrap().hidden);
+    assert!(registry.get_by_name("Boss1Portrait").is_none());
+    assert!(
+        registry
+            .get_by_name("Boss1BossPortraitFrameTexture")
+            .is_none()
+    );
 }
 
 fn party_member(role: GroupRoleSnapshot, ready: ReadyMark) -> FrameRegistry {
@@ -203,8 +223,8 @@ const POWERS: [PowerType; 10] = [
     PowerType::Pain,
 ];
 
-/// Every Modern part resolves to art; the portrait-off frames (target of target, focus,
-/// boss) share theirs; a bar draws its power type's art whichever frame it is on; elite
+/// Every Modern part resolves to art; target of target, focus and bosses share portrait-off
+/// art; a bar draws its power type's art whichever frame it is on; elite
 /// and rare-elite dragons differ.
 #[test]
 fn modern_unit_frames_resolve_and_share_art_by_role() {
@@ -214,25 +234,15 @@ fn modern_unit_frames_resolve_and_share_art_by_role() {
     for name in MODERN_FRAME_PARTS {
         crop(name);
     }
-    for group in [
-        [
-            "TargetOfTargetFrameArt",
-            "FocusFrameArt",
-            "Boss1TargetFrameArt",
-        ],
-        [
-            "TargetReputationColor",
-            "FocusReputationColor",
-            "Boss1ReputationColor",
-        ],
-        [
-            "TargetOfTargetHealthBarFill",
-            "FocusHealthBarFill",
-            "Boss1HealthBarFill",
-        ],
+    for (a, b) in [
+        ("TargetOfTargetFrameArt", "FocusFrameArt"),
+        ("FocusFrameArt", "Boss1TargetFrameArt"),
+        ("FocusHealthBarFill", "Boss1HealthBarFill"),
+        ("TargetReputationColor", "FocusReputationColor"),
+        ("TargetReputationColor", "Boss1ReputationColor"),
+        ("TargetOfTargetHealthBarFill", "FocusHealthBarFill"),
     ] {
-        assert_eq!(crop(group[0]), crop(group[1]), "{group:?}");
-        assert_eq!(crop(group[0]), crop(group[2]), "{group:?}");
+        assert_eq!(crop(a), crop(b), "{a} and {b}");
     }
     assert_eq!(crop("PlayerHealthBarFill"), crop("FocusHealthBarFill"));
     // The boss and the player both have mana; the target has rage.
@@ -307,10 +317,9 @@ fn modern_party_frames_draw_an_icon_per_role_and_ready_mark() {
 
 /// Under Forever the player, target, target-of-target, focus and pet frames take FlareUI's
 /// shape (`forever_flare_frames.rs`) and draw no portrait art; boss frames keep the
-/// portrait-off names, which Forever does not re-skin (no set-1 member), so they draw
-/// what Modern draws.
+/// compact portrait-off art.
 #[test]
-fn forever_boss_frames_keep_modern_art_and_flare_frames_draw_no_portrait_art() {
+fn bossframes_compact_art_resolves_under_both_skins_and_flare_roots_keep_their_shape() {
     let forever = unit_frames(
         ActiveSkin::Forever,
         CreatureClassification::Elite,

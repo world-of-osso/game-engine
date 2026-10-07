@@ -1,6 +1,13 @@
 ## 2026-10-07 — Native flight map implementation
 
 [Native flight map](systems/native-flight-map.md) adds server taxi message consumption, shared world-map art/canvas, current/reachable pins, route and cost hover, and activation/close lifecycle. `5e5ec97b` has bounded native build, four targeted tests and private rendered open/hover/click/controlled-flight proof; captures inspected. Render RED exposed unsupported font attributes, fixed with actual native-label assertions. Cleanup confirms free UDP 5302 and inactive owned slice. [Flight-master contract](../specs/flight-master.md) retains mount-display coverage, broad lifecycle and engine shutdown-resource gaps.
+## 2026-10-07 — Compact boss-frame correction
+
+[Boss encounters](systems/boss-encounters.md) restores the established compact portraitless frame tree and right-managed tracker flow. [Correction proof](../specs/boss-encounters.md#compact-frame-correction--2026-10-07) owns unchanged-fixture, both-skin geometry, inspected offline captures and full package-pair suite evidence; capture shutdown RID leaks remain explicit.
+
+## 2026-10-07 — Native boss encounters
+
+[Boss encounters](systems/boss-encounters.md) records missing transport/host consumers, ordered lifecycle relay, replicated clickable portrait frames and timed center warning HUD. Concrete RED preceded implementation. `cf829040` + `cd04108e`: 11 targeted cases, formatting/build PASS; inspected private Hogger frame, physical click/server echo, lowercase enrage and successful kill-clear captures. Two launches; owned processes stopped, UDP5306 free. Fixed-slot/objective overlap and exact Retail layout remain gaps. Server/protocol unchanged.
 
 ## 2026-10-07 — Portrait party Retail parity audit
 

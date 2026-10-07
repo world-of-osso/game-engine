@@ -26,6 +26,7 @@ mod damage_meter;
 mod death_flow;
 mod debug_character;
 mod display_options;
+mod encounter;
 mod entrance_bar;
 #[path = "game/equipment/equipment_appearance_data.rs"]
 pub mod equipment_appearance_data;
@@ -199,6 +200,7 @@ pub struct GameClient {
     errors_ui: Option<Gd<ui::RegistryUi>>,
     mirror_timer_ui: Option<Gd<ui::RegistryUi>>,
     chat: chat::Chat,
+    encounter: encounter::EncounterHud,
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
     flight_map: flight_map::FlightMap,
@@ -343,6 +345,7 @@ impl INode3D for GameClient {
             errors_ui: None,
             mirror_timer_ui: None,
             chat: Default::default(),
+            encounter: Default::default(),
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
             flight_map: flight_map::FlightMap::default(),
@@ -452,6 +455,7 @@ impl INode3D for GameClient {
             || self.character_reputation_pointer(&event)
             || self.mailbox_pointer(&event)
             || self.pet_bar_pointer(&event)
+            || self.boss_frame_pointer(&event)
             || self.unit_menu_pointer(&event)
         {
             return;
@@ -1217,6 +1221,9 @@ impl GameClient {
         self.spells.visit_uis(&mut visit)?;
         self.pet_bar.visit_uis(&mut visit)?;
         self.targeting.visit_uis(&mut visit)?;
+        if let Some(ui) = &mut self.encounter.ui {
+            visit(ui)?;
+        }
         self.minimap.visit_uis(&mut visit)?;
         self.objective_tracker.visit_uis(&mut visit)?;
         self.quests.visit_uis(&mut visit)?;
@@ -1744,6 +1751,7 @@ impl GameClient {
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
             ("Flight map", |c, _| c.update_flight_map()),
+            ("Encounter", |c, d| c.update_encounter(d)),
             ("World map", |c, _| c.update_world_map()),
             ("Minimap", |c, _| c.update_minimap()),
             ("Quests", |c, _| c.update_quests()),
@@ -1902,6 +1910,7 @@ impl GameClient {
             AccountEvent::ReplicationStarted(schema) => self.start_replication(schema)?,
             AccountEvent::Replication(batch) => self.apply_replication(batch)?,
             AccountEvent::ReplicationEnded => {
+                self.encounter.clear();
                 self.replica.clear();
                 self.project_replication()?;
             }
@@ -1922,6 +1931,7 @@ impl GameClient {
             AccountEvent::Loot(message) => self.receive_loot_message(message)?,
             AccountEvent::Auction(reply) => self.auction.session.receive(reply),
             AccountEvent::Chat(message) => self.receive_chat(&message),
+            AccountEvent::Encounter(message) => self.receive_encounter(message),
             AccountEvent::XpGain(gain) => self.chat.model.receive_xp_gain(
                 &gain,
                 &self.replica,
@@ -2302,6 +2312,7 @@ impl GameClient {
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.encounter.clear();
         self.stop_sound();
         self.logout.clear();
         self.loot.reset();
@@ -2404,6 +2415,7 @@ impl GameClient {
         self.close_game_menu();
         self.apply_screen_ui_layout(screen)?;
         if screen != SessionScreen::InWorld {
+            self.encounter.clear();
             self.logout.clear();
             self.sync_logout_overlay()?;
         }

@@ -344,9 +344,9 @@ fn target_frame_state(
 }
 
 /// The Status Text setting and the unit frame bar the pointer is over (its `lockShow`).
-struct BarTexts {
-    display: StatusTextDisplay,
-    hovered: Option<String>,
+pub(crate) struct BarTexts {
+    pub display: StatusTextDisplay,
+    pub hovered: Option<String>,
 }
 
 impl BarTexts {
@@ -554,6 +554,20 @@ fn focus_frame_state(
 #[path = "focus_frame_tests.rs"]
 mod focus_frame_tests;
 
+pub(crate) fn boss_frame_states(
+    frames: &crate::encounter::EncounterFrames,
+    replica: &Replica,
+    viewer_level: Option<u8>,
+    texts: &BarTexts,
+) -> Vec<UnitFrameState> {
+    frames
+        .visible_units(replica)
+        .into_iter()
+        .filter_map(|id| replica.unit(id))
+        .map(|unit| target_frame_state(unit, viewer_level, 1.0, texts))
+        .collect()
+}
+
 fn unit_frames_state(
     player: Option<UnitFrameState>,
     target: Option<UnitFrameState>,
@@ -576,6 +590,50 @@ fn unit_frames_state(
 }
 
 impl GameClient {
+    pub(super) fn boss_frame_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        use godot::classes::InputEventMouseButton;
+        use godot::global::MouseButton;
+        let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
+            return false;
+        };
+        let left_press = button.is_pressed() && button.get_button_index() == MouseButton::LEFT;
+        if !left_press
+            || self.game_menu_ui.is_some()
+            || !self.account.session.gameplay_input_allowed()
+        {
+            return false;
+        }
+        match self.boss_under_pointer() {
+            Ok(Some(unit)) => {
+                self.set_target(Some(unit));
+                true
+            }
+            Ok(None) => false,
+            Err(error) => {
+                report_once(&format!("Boss frame click: {error}"));
+                false
+            }
+        }
+    }
+
+    fn boss_under_pointer(&mut self) -> Result<Option<u64>, String> {
+        let Some(hit) = self.hovered_ui_frame()? else {
+            return Ok(None);
+        };
+        if self.targeting.frame_ui.as_ref() != Some(&hit.ui) {
+            return Ok(None);
+        }
+        let units = self.encounter.frames.visible_units(&self.replica);
+        let ui = hit.ui.bind();
+        let Some(registry) = ui.registry() else {
+            return Ok(None);
+        };
+        Ok(named_ancestor(registry, hit.frame, |frame| {
+            crate::encounter::boss_frame_target(frame.name.as_deref()?, &units)
+        })
+        .map(|(_, unit)| unit))
+    }
+
     pub(super) fn targeting_target(&self) -> Option<u64> {
         self.targeting.target
     }
@@ -897,6 +955,8 @@ impl GameClient {
             pet,
             self.client_options.hud.show_health_bars,
         );
+        state.bosses =
+            boss_frame_states(&self.encounter.frames, &self.replica, viewer_level, &texts);
         state.target_cast = self.targeting.target.and_then(|id| self.hud_cast_bar(id));
         state.target_of_target = target_of_target;
         state.focus = focus;

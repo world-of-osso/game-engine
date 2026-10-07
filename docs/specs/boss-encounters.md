@@ -1,34 +1,56 @@
-# Boss encounters (client)
+# Boss encounters (native client)
 
-> Root `src/` paths and `cargo test --bin game-engine` selectors below name files and tests deleted with the [retired Bevy client](godot-conversion.md#retired-bevy-client-user-decision-2026-10-02).
-
-Dungeons phase 3: what the client shows of a scripted boss fight. Server contract: game-server `docs/specs/boss-scripts.md`; protocol shared-protocol `protocol/encounter_messages.rs` and `ChatType::Monster*`. Code: `src/game/networking/encounter.rs`, `src/ui/raid_warning.rs`, `src/scenes/raid_warning_frame/`, boss frames in `godot/ui-model/src/ui/screens/inworld_unit_frames_component.rs` and `src/rendering/ui/unit_frames.rs`.
+Native Godot encounter presentation. Server contract: game-server `docs/specs/boss-scripts.md`; wire contract: shared-protocol `protocol/encounter_messages.rs` and `ChatType::RaidBossEmote`. [Implementation and Retail references](../wiki/systems/boss-encounters.md).
 
 ## What it must do
-- [x] Creature chat reads as Retail lines: `MonsterSay` "Name says: text", `MonsterYell` "Name yells: text", `MonsterEmote`/`RaidBossEmote` the text with `%s` replaced by the speaker, in the Retail default ChatTypeInfo colours (say 1/1/0.624, yell 1/0.251/0.251, emote 1/0.502/0.251, boss emote 1/0.867/0).
-- [x] A `RaidBossEmote` also shows center screen in `RaidWarningFrame` (TOP −182, 800 wide): fades in 0.2 s, holds 10 s, fades out 3 s; at most 4 lines, a fifth evicts the oldest.
-- [x] `EncounterEngageUnit` puts the unit on a boss frame (`boss1..5`, lowest priority first, repeats ignored); `EncounterDisengageUnit` removes it; `EncounterStart`/`EncounterEnd` track the running encounter; the loading screen clears both.
-- [x] `Boss1TargetFrame`..`Boss5TargetFrame` stack on the right (60 px from the right edge, first at 300 px, 10 px apart) with the boss's name, level, health and power on the target frame art; unused ones hide; clicking one targets its boss (`FrameUnits::for_root`).
+- [x] Creature chat keeps Retail wording and colours; `%s` emotes substitute the speaker. Existing native chat tests cover this independently of encounter HUD.
+- [x] Receive Start, Engage, Disengage and End in their reliable EncounterChannel order, including multiple lifecycle cycles received together.
+- [x] Engaged units fill at most five frames in ascending priority, equal priorities retain engagement order, duplicate engages are ignored. Late replication fills pending slots; health, power, name, level and classification update from live replication.
+- [x] Disengage removes its unit; End (kill or wipe), a new Start, loading, disconnect and world reset clear stale encounter state.
+- [x] Left-click on a visible Boss1TargetFrame..Boss5TargetFrame targets that boss through normal SetTarget, never starts auto-attack.
+- [x] Boss frames retain the compact portrait-off 133×51 frame tree. Shown frames form a top-to-bottom stack with 10-unit gaps and push the objective tracker below the last boss. Hiding all bosses restores its flush-right preset anchor: Modern (0, -275), Forever (0, -300), including the existing Forever scale.
+- [x] RaidBossEmote appears in chat and center-screen RaidWarningFrame (800 wide, TOP 182), with 0.2-second fade-in, 10-second hold and 3-second fade-out. Four slots; a fifth evicts the oldest. End/start/world reset clear encounter warnings.
 
 ## How it works
-- `docs/wiki/systems/ui-system.md` (unit frames)
+- [Native encounter state, HUD and references](../wiki/systems/boss-encounters.md).
+- [Unit frame rendering](../wiki/systems/ui-system.md).
 
 ## Implementation inventory
-- `src/game/networking/encounter.rs` — `EncounterFrames`, encounter message handlers
-- `godot/ui-model/src/game/chat_data.rs`, `godot/ui-model/src/ui/chat_frame.rs`, `src/game/networking/messages.rs` — monster chat types and lines, boss emote → RaidWarnings
-- `src/ui/raid_warning.rs`, `src/ui/screens/raid_warning_frame_component.rs`, `src/scenes/raid_warning_frame/mod.rs` — RaidWarningFrame
-- `godot/ui-model/src/ui/screens/inworld_unit_frames_component.rs`, `src/rendering/ui/unit_frames.rs` — boss frames
+- `godot/network/src/lib.rs` — ordered four-type encounter relay.
+- `godot/rust/src/account.rs`, `encounter.rs` — protocol dispatch, lifecycle and warning host.
+- `godot/rust/src/targeting.rs`, `objective_tracker.rs` — replicated boss frames, click binding and visible-count tracker layout.
+- `godot/rust/src/chat.rs`, `godot/ui-model/src/raid_warning.rs` — boss-emote routing, timed warning model and center frame.
+- `godot/ui-model/src/ui/screens/inworld_unit_frames_component.rs` — five named compact portraitless frame roots and right-managed stack geometry.
 
 ## Tests asserting this spec
-`cargo test --bin game-engine encounter`, `creature_texts`, `raid_boss_emote`, `boss1`, `raid_warning`, `hud_layout`.
+- `godot/network/src/wire_tests.rs::bossframes_bridge_preserves_encounter_lifecycle_channel_order` — actual UDP, held worker, two concrete lifecycle cycles.
+- `godot/rust/src/account.rs::bossframes_account_dispatches_each_encounter_message`.
+- `godot/rust/src/encounter_tests.rs` — priority, duplicate, delayed replication, live health/mana, five-slot cap, click identity, disengage, wipe/death/reset.
+- `godot/ui-model/tests/bossframes_warnings.rs` — substitution, fade timing, eviction/clear, displayed text/colour/alpha, non-intercepting center frame.
+- `godot/ui-model/tests/unit_frame_atlas.rs` — actual target classification atlas and compact boss art under both skins.
+- `godot/rust/src/ui/hud_layout_tests.rs::bosslayout_managed_tracker_clears_bosses_and_returns_for_both_skins` — computed native geometry with 0, 1, 3 and returning-to-0 bosses, both skins.
 
 ## Known gaps (current cycle)
-- [ ] No chat bubbles over speaking creatures.
-- [ ] Boss frame flair art (`Target-Boss-Small`), boss cast bars and alternate power bars are not drawn; the frame position is the reference-resolution slot, not the edit-mode right-managed layout.
-- [ ] Creature text sounds (BroadcastText SoundKit) are not played.
+- [ ] Exact cached Retail boss-specific atlas slots and edit-mode sizing remain unconverted; this correction restores the established compact portrait-off frame tree, not a new atlas conversion.
+- [ ] Native live proof covers one boss, physical targeting/server echo, enrage and kill/reset. Five simultaneous native bosses, every power/classification and mounted loading/disconnect reset permutations remain unverified; pure projection/lifecycle tests cover five slots and explicit reset.
 
 ## Out of scope
-- Encounter journal integration, boss timers (encounter warnings), `RAID_BOSS_WHISPER`.
+- Server/protocol changes. The pinned ChatType has RaidBossEmote but no player RaidWarning message; the warning view supports both colour kinds, but cannot receive nonexistent raid-warning traffic.
+- Boss cast/alternate-power bars, encounter journal/timers, RAID_BOSS_WHISPER, creature sounds and chat bubbles.
+- Historical Bevy Stockade proof (2026-09-27) is not native Godot proof.
 
-## Live evidence (2026-09-27)
-Headless client against the stockadebosses server on :5085, evidence in `data/diagnostics/stockadebosses-20260927/`: "Hogger yells: Forest just setback!" and Boss1TargetFrame "Hogger 32" (`ui-02`, `02`); "Hogger enrages!" center screen and in chat (`04`); the boss frame hid on the reset and on death; ENCOUNTER_START/END 1144, 1145, 1146 in the client log with success false after resets and true after kills; Lord Overheat's boss frame showed his mana (`13`); Randolph Moloch's vanish emote and Mortimer's yell and collapse emote (`22`, `ui-26`).
+## Native proof — 2026-10-07
+
+Production `cf829040`, test follow-up `cd04108e`: 11 targeted cases PASS across native, network and UI-model; three-crate cargo fmt check and locked extension/CLI build pass. No broad suite or clean-runtime claim.
+
+Private copied server `8b3819b`, UDP5306, Stockade Hogger1144; only fb_bossframes/Fbbossframes. Two launches. Inspected canonical `data/diagnostics/bossframes-20261007/attempt2/`: `01-engaged.png`, `02-click-target.png` plus JSON (target=sent=server_target4294857553, auto_attack null), `03-emote-manual.webp` plus UI dump (yellow lowercase "Hogger enrages!", health fill reduced), `04-killed-cleared.webp` plus UI dump (all five roots hidden; End success=true). Earlier End success=false reset retained. Script's uppercase emote predicate missed actual BroadcastText; manual captures, not its completion banner, establish emote proof.
+
+Proof ledger and exact argv remain in canonical diagnostics. Owned PIDs exited, agents-bossframes.slice inactive, UDP5306 free; protected UDP5000 unchanged. Source/test proof does not establish exact Retail visual/layout parity.
+
+## Compact-frame correction — 2026-10-07
+
+`534b8ff8`, `a19e91f0`, `b3475461` restore the pre-bossframes compact portrait-off tree, remove native boss portrait hosts, and place the tracker after shown bosses. Encounter lifecycle, click targeting, center warnings and their tests are unchanged. Cached Retail `TargetFrame.xml:367-370,616-645` declares `Target-Boss-Small` boss buttons; `TargetFrame.lua:957-966,1015-1020` hides the portrait and resizes on show/hide. `Blizzard_ManagedFrameSystem/Shared/ManagedFrameSystem.xml:23-35` and `Mainline/ManagedFrameSystem.xml:3-9` provide the vertical right-managed stack and 10-unit spacing.
+
+Geometry RED observed 232×100 instead of 133×51; targeted GREEN covers both skins through 0→1→3→0 bosses. `modern_unit_frames_and_cast_bar_keep_their_frame_trees` passes with its fixture unchanged. Package-pair cargo fmt check and local extension/CLI build pass. Final full `game-engine-godot` + `game-engine-ui-model` suites ran once on `b3475461`: 1324 passed, zero failed; six fixture-generation helpers remain intentionally ignored. No compiler warnings in the saved suite log.
+
+Inspected offline two-boss captures: `/tmp/claude/bosslayout-captures/modern.png` and `forever.png`. Both native assertions pass: bosses 133×51 at y300/361, tracker top422; only bosses1/2 shown. Capture processes exit0, but texture/font RID leak errors occur at shutdown; leak-free teardown and new live encounter proof are not claimed. Ledger: `/tmp/claude/bosslayout-proof.md`; full raw suite log: `/tmp/claude/bosslayout-full-test.log`.
