@@ -1,9 +1,8 @@
-extends SceneTree
+extends "res://tests/capturepolish_screens.gd"
 
 # Offline player portrait readiness, same human male/class as buffcancel capture.
 # GODOT_CAPTURE_PATH names an output PNG; artifacts use its parent directory.
 var fixture: Node
-var output := OS.get_environment("GODOT_CAPTURE_PATH").get_base_dir()
 var skin := ""
 
 func _initialize() -> void:
@@ -11,6 +10,9 @@ func _initialize() -> void:
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
+	if not await capture_screens():
+		quit(1)
+		return
 	for forever in [false, true]:
 		skin = "forever" if forever else "modern"
 		if not await check_portrait(forever):

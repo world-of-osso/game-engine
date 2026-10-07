@@ -8,27 +8,30 @@ func _initialize() -> void:
 
 func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
+	quit(0 if await capture_screens() else 1)
+
+func capture_screens() -> bool:
 	for screen in ["flight_map_preview", "registration_pending_preview", "aura_tooltip_preview"]:
 		var ui := ClassDB.instantiate("RegistryUi") as Node
 		root.add_child(ui)
 		var error: String = ui.call("show_" + screen)
 		if not error.is_empty():
 			fail(ui, error)
-			return
+			return false
 		for frame in range(6):
 			await process_frame
 			await RenderingServer.frame_post_draw
 		var image := root.get_texture().get_image()
 		if image == null or image.save_png(output.path_join(screen + ".png")) != OK:
 			fail(ui, "Offline preview capture failed")
-			return
+			return false
 		if not assert_screen(ui, image, screen):
 			fail(ui, "Offline preview behavior failed: " + screen)
-			return
+			return false
 		print("PASS capturepolish_rendered_", screen)
 		ui.free()
 		await process_frame
-	quit(0)
+	return true
 
 func assert_screen(ui: Node, image: Image, screen: String) -> bool:
 	if screen == "flight_map_preview":
