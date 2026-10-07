@@ -51,6 +51,8 @@ scripts/agent/agent-run <run_name> ~/.worktrees/build-lock.sh \
 
 Use the corresponding server helper for an assigned server slot. BuildKit GC limits live only in [`scripts/depot/buildkitd.toml`](../scripts/depot/buildkitd.toml); [builder GC policy](wiki/systems/build-hosts.md#builder-gc-policy) owns the eviction diagnosis and provisioning guidance. Do not change GC policy or rebuild the builder as part of ordinary slot use.
 
+The [builder GC policy](wiki/systems/build-hosts.md#builder-gc-policy) records the user-approved aggregate budget superseding the former warm-every-slot policy; persistent configuration deployment remains unverified. [Desktop disk exhaustion](wiki/investigations/desktop-disk-exhaustion.md) records observed cache pruning and completed offline VHD compaction, distinguishing Windows host capacity from WSL guest free space.
+
 ### Shared worktree data
 
 Run `python3 scripts/agent/link-worktree-data.py <canonical-repo> <slot>` when preparing an assigned slot. The linker reads the slot's Git index: directories without tracked descendants become whole-directory links; only tracked subtrees are traversed. Tracked art stays branch-owned. Root auth tokens and SQLite sidecars stay slot-owned; sidecars inside a shared database directory stay with that database.
