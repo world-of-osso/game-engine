@@ -82,7 +82,7 @@ At `4e1de84d`, live commands for pitch `60°`, yaw/pitch `180°/45°`, `90°/20�
 
 ## Graphics effect configuration
 
-`~/.config/world-of-osso/options_settings.ron` persists graphics effects through its `graphics` section; legacy `data/ui/options_settings.ron` remains a load fallback. Commit `7f86f086` persists `particleEffectsEnabled` (default `true`), `depthOfField` (default `false`), existing `bloomEnabled` (default `false`), `antiAlias` (default `Msaa4x`), and `ssaoEnabled` (default `false`). Missing fields retain those defaults, so old configuration files remain valid. Editing the file takes effect at startup; this change adds neither live file watching nor CLI effect flags.
+`~/.config/world-of-osso/options_settings.ron` persists graphics effects through its `graphics` section; legacy `data/ui/options_settings.ron` remains a load fallback. Commit `7f86f086` persists `particleEffectsEnabled` (default `true`), existing `bloomEnabled` (default `false`), `antiAlias` (default `Msaa4x`), and `ssaoEnabled` (default `false`). Missing fields retain those defaults, so old configuration files remain valid. Editing the file takes effect at startup; this change adds neither live file watching nor CLI effect flags.
 
 Blur maps to `DepthOfField`, glow maps to `Bloom`, anti-aliasing selects `None`, `Msaa4x`, or `Taa`, and contact shading maps to `ScreenSpaceAmbientOcclusion`. Commit `24d97a50` makes SSAO independent of AA when valid: AA never enables SSAO. Bevy rejects SSAO with MSAA, so `ssaoEnabled: true` plus `antiAlias: Msaa4x` fails configuration validation with direction to select `None` or `Taa`, or disable SSAO; neither setting is silently replaced.
 
@@ -179,3 +179,5 @@ The complete WMVx blend mode reference:
 - [[procedural-cloud-regeneration]] — cloud texture generation and current UI/render performance evidence
 - [[animation]] — M2 bone animation, crossfade system
 - [[collision-system]] — player and camera collision geometry and policy
+
+Native SSAO runtime mapping and renderer limitations: [investigation](../investigations/native-ssao.md).

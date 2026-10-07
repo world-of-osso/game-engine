@@ -1,3 +1,7 @@
+## 2026-10-07 — Restart-required native SSAO
+
+[Native SSAO](investigations/native-ssao.md#restart-required-startup-mechanism) preserves the deliberate prepass-disabled Off baseline. GDExtension Servers initialization selects prepass from existing saved RON before RenderingServer construction; Options exposes restart-required persistence without live SSAO/prepass changes. No generated config, runtime project edits, DOF, or implicit AA changes. Lavapipe fresh Off/On/restarted-Off pixels, real pending UI toggles and the affected Options-tree regression pass. Strict Dozen rejection remains; evidence and scope are recorded in the investigation.
+
 ## 2026-10-07 — Native flight map implementation
 
 [Native flight map](systems/native-flight-map.md) adds server taxi message consumption, shared world-map art/canvas, current/reachable pins, route and cost hover, and activation/close lifecycle. `5e5ec97b` has bounded native build, four targeted tests and private rendered open/hover/click/controlled-flight proof; captures inspected. Render RED exposed unsupported font attributes, fixed with actual native-label assertions. Cleanup confirms free UDP 5302 and inactive owned slice. [Flight-master contract](../specs/flight-master.md) retains mount-display coverage, broad lifecycle and engine shutdown-resource gaps.
@@ -2689,3 +2693,9 @@ Local-CASC ItemDisplayInfoModelMatRes4050937 establishes type3 material822338/te
 ## 2026-10-06 — Desktop disk recovery and GC reconciliation
 
 [[desktop-disk-exhaustion]] records main-observed exhaustion, completed prune/trim/offline compaction and separate host/guest capacity measurements; SIGBUS causality remains unproven. [[build-hosts#Builder GC policy]] owns the approved aggregate budget superseding warm-every-slot retention; persistent configuration applied and inspected; sustained behavior unverified. Build guide now links instead of duplicating policy or retaining transient recovery status.
+
+## 2026-10-07 — Native SSAO
+
+Removed Depth of Field; recorded [SSAO](investigations/native-ssao.md) depth-prepass root cause and bounded renderer comparison. Dozen pixel acceptance remains blocked.
+
+Native SSAO follow-up: stable project prepass fixes cached depth-pipeline On→Off failure. Saved Off/On Lavapipe pixels and consumers pass; Dozen fails strict flat-region oracle. Exact scope, warnings and artifacts: [native SSAO](investigations/native-ssao.md#final-bounded-proof).
