@@ -152,6 +152,9 @@ fn minimapblips_out_of_range_member_clamps_and_rotates_both_masks() {
             },
         );
         let art = texture(&registry, "MinimapMember2");
+        // Retail directional art keeps its authored green centre and yellow/white rim.
+        assert!(!art.desaturated);
+        assert_eq!(art.vertex_color, [1.0; 4]);
         // Registry angles are counter-clockwise; the Godot projection negates them.
         near(art.rotation, -std::f32::consts::FRAC_PI_2);
         assert_eq!(
