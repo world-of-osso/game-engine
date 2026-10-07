@@ -85,6 +85,8 @@ pub const BOOK_ICON: u32 = 136_797;
 pub const BACKGROUND: MapArt = whole(374_155, 256.0);
 /// `interface/worldmap/worldmaparrow.blp`, the player pin (`UnitPositionFrame`).
 pub const PLAYER_ARROW: MapArt = whole(803_894, 32.0);
+/// `CorpsePinTemplate` (DeathMapDataProvider.xml): POIIcons crop, 24×24 on the map.
+pub const CORPSE: MapArt = art(136_441, (256.0, 512.0), (145.0, 162.0, 1.0, 18.0));
 /// `TaxiNode_Alliance` (6617).
 pub const TAXI_ALLIANCE: MapArt = art(OBJECT_ICONS.0, OBJECT_ICONS.1, (627.0, 659.0, 798.0, 830.0));
 /// `TaxiNode_Horde` (6618).
