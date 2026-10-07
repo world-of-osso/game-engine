@@ -29,6 +29,17 @@ Evidence under `data/diagnostics/ssao/renderer-{dzn,lvp}{,-dynamic}/`: `standard
 
 `ssao_options.gd` checks saved/live Options application, concrete Environment values, Off identity/stable prepass, camera attributes, portrait exclusion, and replacement worlds. `ssao_options_pixels.gd` rejects flat-area dimming; contact darkening alone cannot pass. Dozen remains blocked and must fail the oracle. Lavapipe is a reference proof, not a hardware performance claim. Full-world/multi-vendor parity, transparency, emissive AO and Retail kernel equivalence are not established.
 
+## Final bounded proof
+
+At `7571569d`, matching Rust extension/CLI built successfully (Rust source unchanged from `d9e6847a`). Six unique `client_options` tests pass, including production file load/save with both removed keys; focused Cargo formatting passes. Consumer fixture with saved Off and On exits 0. Lavapipe pixel fixture with saved Off and On exits 0: 7,877 crease pixels darkened by >0.025, mean darkening 0.0050009334, isolated flat region byte-unchanged, exact UI and exact restored Off. Complete decoded Off fixture image matches the `ad9e3797` terrain-shader reference scene. This is controlled-scene master-material parity, not a rebuilt full-master client or full-world parity claim.
+
+Final Dozen fixture exits 1 with checkerboard-like darkening across the whole floor and box; isolated flat mean darkening 0.2225490175. Its Off/master and UI checks pass before the strict rejection. No hardware acceptance claim.
+
+- Captures: `data/diagnostics/ssao/stable-ssao_options_pixels-lvp-{off,on}/{startup-off,startup-on,off,ssao-on,off-restored}.png` (startup filename follows saved mode); Dozen `stable-ssao_options_pixels-dzn-off/{off,ssao-on}.png`.
+- Logs: `/tmp/claude/stable-ssao_options{,_pixels}-{headless,lvp,dzn}-{off,on}.out` (only executed combinations exist), `/tmp/claude/ssao-{tests,build}.out`.
+- Master reference: `git -C <slot> show ad9e3797:godot/shaders/terrain.gdshader`; captured under `data/diagnostics/ssao/master-{lvp,dzn}/startup-off.png` with the same scene/camera/UI, original prepass disabled and SSAO Off.
+- RID/ObjectDB teardown warnings/errors remain, already present in the previous agent's fixtures. Exit-0 functional evidence is not clean-shutdown proof. No new suppression or unrelated cleanup fix.
+
 ## Sources
 
 - `godot/tests/ssao_renderer_probe.gd` — concrete renderer experiment.
