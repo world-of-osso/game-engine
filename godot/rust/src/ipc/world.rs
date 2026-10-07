@@ -20,6 +20,7 @@ impl crate::GameClient {
     /// A world request's response, or the request when the client does not serve it.
     pub(crate) fn world_request(&mut self, request: Request) -> Result<Response, Request> {
         let answer = match request {
+            Request::DeathStatus => format_death_snapshot(self.death_flow.snapshot.as_ref()),
             Request::MapTarget => self.map_target(),
             Request::MapWaypointAdd { x, y } => {
                 self.map_waypoint = Some((x, y));
@@ -239,6 +240,47 @@ impl crate::GameClient {
             .send_stop_cast()
             .map(|()| "spell stop submitted".into())
             .map_err(|_| "spell stop is unavailable: not connected".into())
+    }
+}
+
+fn format_death_snapshot(
+    snapshot: Option<&shared::protocol::DeathSnapshot>,
+) -> Result<String, String> {
+    let snapshot = snapshot.ok_or("No authoritative death snapshot received")?;
+    serde_json::to_string_pretty(snapshot)
+        .map_err(|error| format!("Serialize authoritative death snapshot: {error}"))
+}
+
+#[cfg(test)]
+mod death_status_tests {
+    use super::format_death_snapshot;
+    use shared::protocol::{DeathPositionSnapshot, DeathSnapshot, DeathStateSnapshot};
+
+    #[test]
+    fn deathstate_ipc_status_preserves_authoritative_phase_and_positions() {
+        let snapshot = DeathSnapshot {
+            state: DeathStateSnapshot::Ghost,
+            corpse: Some(DeathPositionSnapshot {
+                map_id: 0,
+                x: -9464.0,
+                y: 56.0,
+                z: -62.0,
+            }),
+            graveyard: None,
+            can_resurrect_at_corpse: false,
+            spirit_healer_available: true,
+        };
+        let json: serde_json::Value =
+            serde_json::from_str(&format_death_snapshot(Some(&snapshot)).unwrap()).unwrap();
+        assert_eq!(json["state"], "Ghost");
+        assert_eq!(json["corpse"]["x"], -9464.0);
+        assert_eq!(json["corpse"]["y"], 56.0);
+        assert_eq!(json["corpse"]["z"], -62.0);
+        assert_eq!(json["corpse"]["map_id"], 0);
+        assert_eq!(json["graveyard"], serde_json::Value::Null);
+        assert_eq!(json["can_resurrect_at_corpse"], false);
+        assert_eq!(json["spirit_healer_available"], true);
+        assert!(format_death_snapshot(None).is_err());
     }
 }
 

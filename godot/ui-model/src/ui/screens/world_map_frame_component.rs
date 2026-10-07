@@ -130,6 +130,7 @@ pub enum MapPinType {
     FlightAlliance,
     FlightHorde,
     FlightNeutral,
+    Corpse,
     /// A creature vignette (`VignettePinTemplate`).
     Vignette {
         elite: bool,
@@ -144,6 +145,7 @@ impl MapPinType {
             Self::FlightAlliance => art::TAXI_ALLIANCE,
             Self::FlightHorde => art::TAXI_HORDE,
             Self::FlightNeutral => art::TAXI_NEUTRAL,
+            Self::Corpse => art::CORPSE,
             Self::Vignette { elite: false } => art::VIGNETTE_KILL,
             Self::Vignette { elite: true } => art::VIGNETTE_KILL_ELITE,
         }
@@ -151,7 +153,7 @@ impl MapPinType {
 
     fn size(self) -> f32 {
         match self {
-            Self::QuestObjective | Self::QuestTurnIn => QUEST_PIN_SIZE,
+            Self::QuestObjective | Self::QuestTurnIn | Self::Corpse => QUEST_PIN_SIZE,
             Self::Vignette { .. } => VIGNETTE_PIN_SIZE,
             _ => PIN_SIZE,
         }

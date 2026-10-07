@@ -1,4 +1,4 @@
-//! Original logout countdown and Login transition; transport and saved token stay intact.
+//! Logout countdown and Login transition; disconnect and release the world, retaining the saved token.
 use std::time::Duration;
 
 use game_engine_core::input_bindings_data::InputAction;
@@ -66,8 +66,8 @@ impl GameClient {
     }
 
     fn finish_logout(&mut self) -> Result<(), String> {
-        self.logout.clear();
-        self.physical_input.clear();
+        self.account.stop().map_err(|error| error.to_string())?;
+        self.reset_world()?;
         self.account.session.screen = SessionScreen::Login;
         self.show_account_screen(SessionScreen::Login)
     }

@@ -10,7 +10,7 @@ use game_engine_core::input_bindings_data::InputAction;
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::quest_area_data::quest_area_overlay;
 use game_engine_ui_model::world_map_frame_component::{
-    PANEL_SLOT, QUEST_AREA_TEXTURE_SIZE, QuestMapPanel, WORLD_MAP_CLOSE_BUTTON,
+    MapPin, MapPinType, PANEL_SLOT, QUEST_AREA_TEXTURE_SIZE, QuestMapPanel, WORLD_MAP_CLOSE_BUTTON,
     WORLD_MAP_MAXIMIZE_BUTTON, WorldMapClick, WorldMapDisplay, WorldMapFrameState, WorldMapLayout,
     world_map_frame_screen, world_map_texture_fdids,
 };
@@ -297,7 +297,7 @@ impl GameClient {
             .world_map_vignettes()
             .inspect_err(|error| godot_error!("World map vignettes: {error}"))
             .unwrap_or_default();
-        Some(world_map_frame_state(
+        let mut state = world_map_frame_state(
             data,
             WorldMapRequest {
                 visible: true,
@@ -309,7 +309,23 @@ impl GameClient {
                 quest_areas: &self.account.quests.watched_objective_areas(),
                 vignettes: &vignettes,
             },
-        ))
+        );
+        if let Some(corpse) = self.death_flow.corpse()
+            && let Some([x, y]) = data.catalog.map_position(
+                state.map_id,
+                u32::from(corpse.map_id),
+                engine_to_world([corpse.x, corpse.y, corpse.z]),
+            )
+        {
+            state.pins.push(MapPin {
+                pin_type: MapPinType::Corpse,
+                label: "Corpse".into(),
+                badge: String::new(),
+                x,
+                y,
+            });
+        }
+        Some(state)
     }
 
     pub(super) fn load_world_map_data(&mut self) -> Result<(), String> {

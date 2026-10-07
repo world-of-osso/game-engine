@@ -6,11 +6,11 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 
 - [x] Default transport receives `DeathStateUpdate`; account dispatch preserves snapshot/error.
 - [x] Dead snapshot shows `DEATH`; Release Spirit sends `ReleaseSpirit` on `DeathChannel`, once per answer.
-- [ ] Ghost snapshot enables ghost visuals and a corpse minimap marker/edge arrow on the corpse's map.
+- [x] Ghost snapshot enables per-mesh transparency, world-only saturation 0.2, and corpse minimap/world-map markers on the corpse's map. Alive restores saturation 1.0 and removes markers.
 - [x] Ghost proximity to the corpse shows `RECOVER_CORPSE`; Accept sends `ResurrectAtCorpse`. Leaving range/map hides it.
 - [x] Spirit healer confirmation Accept sends `AcceptSpiritHealerResurrection`; cancellation, range exit and retries retain authoritative state.
 - [ ] Live InteractUnit/right-click on a spirit healer opens the confirmation (implemented; native process proof pending).
-- [ ] Alive clears death popups, ghost appearance and corpse marker. Disconnect resets owner state.
+- [x] Alive clears death popups, ghost appearance and corpse marker. Logout stops the account transport and releases the world/owner state; the saved token remains.
 - [x] Popup text, labels and click actions work in both skins.
 - [x] `RESURRECT` offers show the caster and server-supplied timeout; Accept/Decline/timeout send the corresponding response, once. Alive closes the offer. Both skins retain the same mechanics.
 - [x] Stable replicated tapper identities exempt the local player and current group. Tap-denied nameplate health is Retail 0.9 grey; requested target health is 0.5 grey, through each skin's existing brightness treatment. Untapped/group-eligible units keep their ordinary health colours.
