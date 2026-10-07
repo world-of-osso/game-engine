@@ -355,3 +355,29 @@ fn hudeditmode_manager_border_projects_registered_static_popup_art() {
             .all(|part| part.rect[2] > 0.0 && part.rect[3] > 0.0)
     );
 }
+
+#[test]
+fn hudeditmode_selection_background_projects_selected_and_unselected_art() {
+    use game_engine_ui_model::hud_edit_component::edit_mode_overlay_screen;
+    use ui_toolkit::widgets::texture::TextureSource;
+    for (selected, fdid) in [(false, 4_554_383), (true, 4_554_386)] {
+        let mut entry = player_box();
+        entry.selected = selected;
+        let mut shared = SharedContext::new();
+        shared.insert(EditModeOverlayState { boxes: vec![entry] });
+        let mut registry = FrameRegistry::new(1366.0, 768.0);
+        Screen::new(edit_mode_overlay_screen).sync(&shared, &mut registry);
+        let id = registry
+            .get_by_name("EditModeSelection_player_frameBackground")
+            .unwrap();
+        let frame = registry.get(id).unwrap();
+        let images = super::parts::project_images(frame, 240.0, 60.0);
+        println!(
+            "BACKGROUND {:?} alpha={} images={:?}",
+            frame.widget_data, frame.alpha, images
+        );
+        assert_eq!(images.len(), 1);
+        assert_eq!(images[0].source, Some(TextureSource::FileDataId(fdid)));
+        assert_eq!(images[0].rect, [0.0, 0.0, 240.0, 60.0]);
+    }
+}
