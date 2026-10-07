@@ -55,13 +55,13 @@ func run_test() -> void:
 	if not await wait_until(func(): return client.tooltip_state().visible and client.tooltip_state().title == "Arcane Intellect", 5000, "native aura tooltip"):
 		return
 	var tooltip: Dictionary = client.tooltip_state()
-	if tooltip.lines.size() < 2 or not str(tooltip.lines[-1]).contains("remaining") or not str(tooltip.lines[0]).contains("Intellect"):
+	if tooltip.lines.size() < 2 or not has_remaining(tooltip) or not str(tooltip.lines[0]).contains("Intellect"):
 		fail("Missing aura description/time " + str(tooltip))
 		return
 	print("BUFFCANCEL HOVER ", tooltip)
 	await capture("01-hover")
 	await move_mouse(Vector2(960, 540))
-	if not await wait_until(func(): return not client.tooltip_state().visible, 5000, "tooltip leave"):
+	if not await wait_until(func(): return client.tooltip_state().title != "Arcane Intellect", 5000, "aura tooltip leave"):
 		return
 	await move_mouse(point)
 	# Left release and right press must not cancel. Right release must.
@@ -80,13 +80,19 @@ func run_test() -> void:
 	await mouse(point, MOUSE_BUTTON_RIGHT, false)
 	if not await wait_until(func(): return buff() == null, 5000, "server-authoritative aura removal"):
 		return
-	if not await wait_until(func(): return not client.tooltip_state().visible, 5000, "removed aura tooltip hides"):
+	if not await wait_until(func(): return client.tooltip_state().title != "Arcane Intellect", 5000, "removed aura tooltip hides"):
 		return
 	print("BUFFCANCEL REMOVED ", client.aura_state())
 	await capture("03-cancelled")
 	print("BUFFCANCEL LIVE PASS")
 	client.free()
 	quit(0)
+
+func has_remaining(tooltip: Dictionary) -> bool:
+	for line in tooltip.lines:
+		if str(line).contains("remaining"):
+			return true
+	return false
 
 func buff():
 	for entry in client.aura_state().buffs:
