@@ -160,8 +160,45 @@ fn inside([x, y, w, h]: [f32; 4], point: Vector2) -> bool {
     point.x >= x && point.x <= x + w && point.y >= y && point.y <= y + h
 }
 
+fn group_member_at<'a>(
+    frames: &'a game_engine_ui_model::group_frames_component::GroupFramesState,
+    compact: bool,
+    point: Vector2,
+    rect: impl Fn(&str) -> Option<[f32; 4]>,
+) -> Option<&'a str> {
+    let hit = |frame: String, name: &'a str| {
+        rect(&frame)
+            .filter(|bounds| inside(*bounds, point))
+            .map(|_| name)
+    };
+    if frames.raid.iter().any(|group| !group.is_empty()) {
+        return frames.raid.iter().enumerate().find_map(|(group, members)| {
+            members.iter().enumerate().find_map(|(index, member)| {
+                hit(
+                    format!("CompactRaidGroup{}Member{}", group + 1, index + 1),
+                    &member.name,
+                )
+            })
+        });
+    }
+    if compact {
+        return frames.party.iter().enumerate().find_map(|(index, member)| {
+            hit(
+                format!("CompactPartyFrameMember{}", index + 1),
+                &member.name,
+            )
+        });
+    }
+    frames
+        .portrait_party
+        .members
+        .iter()
+        .enumerate()
+        .find_map(|(index, member)| hit(format!("PartyMemberFrame{}", index + 1), &member.name))
+}
+
 impl GameClient {
-    /// Right-click on TargetFrame, FocusFrame or the local PetFrame opens the menu; other right-clicks
+    /// Right-click on group, TargetFrame, FocusFrame or the local PetFrame opens the menu; other right-clicks
     /// closes it; a left press outside the open menu closes it. Clicks on its entries
     /// reach the authored buttons. Returns whether the event opened the menu.
     pub(super) fn unit_menu_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
@@ -184,6 +221,9 @@ impl GameClient {
 
     fn open_unit_menu(&mut self, point: Vector2) -> bool {
         self.unit_menu = UnitMenu::default();
+        if self.open_group_member_menu(point) {
+            return true;
+        }
         let on_frame = |name: &str| {
             self.targeting
                 .frame_ui()
@@ -245,9 +285,47 @@ impl GameClient {
         true
     }
 
-    /// The menu closes once its unit is neither target, focus nor the local pet.
+    fn open_group_member_menu(&mut self, point: Vector2) -> bool {
+        let Some(ui) = self.group_frames.frame_ui() else {
+            return false;
+        };
+        let frames = self.group_frames_view();
+        let compact = game_engine_ui_model::hud_layout::active_layout_settings()
+            .use_raid_style_party_frames
+            .unwrap_or(true);
+        let member = group_member_at(&frames, compact, point, |name| {
+            ui.bind().frame_rect(name).map(|(rect, _)| rect)
+        });
+        let Some(member) = member else {
+            return false;
+        };
+        let Some(local) = self.account.session.selected_character_name.as_deref() else {
+            return false;
+        };
+        let items = player_items(&self.account.group, local, member);
+        self.unit_menu = UnitMenu {
+            state: self.unit_menu_state(member.to_owned(), items, point),
+            unit: None,
+            player: Some(member.to_owned()),
+        };
+        true
+    }
+
+    /// Group menus depend on roster membership, not replicated unit visibility.
+    /// Other menus close once their unit is neither target, focus nor the local pet.
     pub(super) fn close_unit_menu_without_unit(&mut self) {
         let Some(unit) = self.unit_menu.unit else {
+            if let Some(name) = &self.unit_menu.player {
+                let in_group = self
+                    .account
+                    .group
+                    .members
+                    .iter()
+                    .any(|member| &member.name == name);
+                if !in_group {
+                    self.unit_menu = UnitMenu::default();
+                }
+            }
             return;
         };
         let still_available = [
