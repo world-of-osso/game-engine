@@ -153,6 +153,7 @@ pub struct GraphicsOptionsView {
     pub colorblind_mode: bool,
     pub bloom_enabled: bool,
     pub bloom_intensity: f32,
+    pub ssao_enabled: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]

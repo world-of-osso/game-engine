@@ -18,6 +18,9 @@ func run_test() -> void:
 		return
 	original_prepass = ProjectSettings.get_setting("rendering/driver/depth_prepass/enable")
 	var start_enabled := saved_option_value(options_path, "ssaoEnabled") == "true"
+	if original_prepass != start_enabled:
+		fail("Saved SSAO must select depth prepass before renderer startup")
+		return
 	add_world()
 	var client: Node = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
@@ -29,7 +32,7 @@ func run_test() -> void:
 	if not await wait_for_graphics(client):
 		return
 	for enabled in [true, false, true, false]:
-		if not await commit_effects(client, enabled) or not expect_resources(enabled, "live commit"):
+		if not await commit_effects(client, enabled) or not expect_resources(start_enabled, "restart-pending commit"):
 			return
 	# Nodes may arrive after startup (world entry/re-entry).
 	for enabled in [false, true]:
@@ -40,16 +43,18 @@ func run_test() -> void:
 		add_world()
 		await process_frame
 		await process_frame
-		if not expect_resources(enabled, "replacement world"):
+		if not expect_resources(start_enabled, "replacement world"):
 			return
-	if not await commit_effects(client, false) or not expect_resources(false, "final Off"):
+	if not await commit_effects(client, false) or not expect_resources(start_enabled, "final pending Off"):
 		return
 	client.free()
-	root.get_node("NativeWorldEffects").free()
+	var controller := root.get_node_or_null("NativeWorldEffects")
+	if controller != null:
+		controller.free()
 	if ProjectSettings.get_setting("rendering/driver/depth_prepass/enable") != original_prepass:
 		fail("Controller disposal changed depth prepass")
 		return
-	print("PASS: saved/live SSAO values, Off identity, stable prepass, late world, untouched camera/portrait, removed option not saved")
+	print("PASS: saved startup SSAO/prepass, restart-labeled UI persistence without live changes, replacement world, untouched camera/portrait")
 	quit(0)
 
 func add_world() -> void:
@@ -94,7 +99,7 @@ func expect_resources(ssao: bool, stage: String) -> bool:
 		fail(stage + ": Off replaced original environment")
 		return false
 	var prepass: bool = ProjectSettings.get_setting("rendering/driver/depth_prepass/enable")
-	if not prepass or prepass != original_prepass:
+	if prepass != original_prepass:
 		fail(stage + ": required depth prepass changed")
 		return false
 	if world_camera.attributes != original_attributes:
@@ -106,26 +111,22 @@ func expect_resources(ssao: bool, stage: String) -> bool:
 	return true
 
 func commit_effects(client: Node, ssao: bool) -> bool:
-	# Reread hidden fields, save snapshot, apply. File edits alone are not watched.
 	var old_environment := world_environment.environment
-	var text := FileAccess.get_file_as_string(options_path)
-	var pattern := RegEx.new()
-	pattern.compile("(?m)(^\\s*ssaoEnabled:\\s*)(true|false)")
-	text = pattern.sub(text, "$1" + str(ssao).to_lower(), true)
-	var file := FileAccess.open(options_path, FileAccess.WRITE)
-	if file == null:
-		fail("Cannot write owned Options: " + error_string(FileAccess.get_open_error()))
+	var label := option_control(client, "ToggleLabelssao_enabled") as Label
+	if label == null or not label.text.contains("Requires Restart"):
+		fail("SSAO Graphics row must disclose restart requirement")
 		return false
-	file.store_string(text)
-	file.close()
-	await process_frame
-	if world_environment.environment != old_environment:
-		fail("Effect file unexpectedly watched before Options commit")
-		return false
+	var current := saved_option_value(options_path, "ssaoEnabled") == "true"
+	if current != ssao:
+		await click_option(client, "ToggleSwitchssao_enabledRightHit" if ssao else "ToggleSwitchssao_enabledLeftHit")
+	# Unrelated commits must also retain startup SSAO.
 	var cap := Engine.max_fps != 0
 	await click_option(client, "ToggleSwitchframe_rate_limit_enabledLeftHit" if cap else "ToggleSwitchframe_rate_limit_enabledRightHit")
 	if saved_option_value(options_path, "ssaoEnabled") != str(ssao).to_lower():
 		fail("Authored Graphics commit lost saved SSAO boolean")
+		return false
+	if world_environment.environment != old_environment:
+		fail("Restart-pending Options changed live Environment identity")
 		return false
 	if FileAccess.get_file_as_string(options_path).contains("depthOfField"):
 		fail("Removed option was serialized by live Options commit")
