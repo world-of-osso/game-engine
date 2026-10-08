@@ -27,6 +27,6 @@ A client-side animation layer that swings a unit's arms, spine and head against 
 ## Tests asserting this spec
 
 - `godot/rust/src/animation/momentum_tests.rs` (HumanMale HD 1011653): 30 fps vs 144 fps state; cap under 3000 yd/s jolts; a run stop swings both upper arms 5–12° forward about the lateral axis; zero change leaves the pose unchanged; a scaled unit facing world −Z that runs and stops kicks ±7 yd/s along skeleton +X, with no kick from climbing or steady motion.
-- Native capture of a run-then-stop: `data/diagnostics/momentum-2026-10-08/`.
+- Native capture of a run-then-stop: `godot/tests/momentum_capture.gd` on `--screen debugcharacter` (profile view, 7 yd/s run, dead stop, frames 0–700 ms after with the left shoulder's turn from rest) into `GODOT_MOMENTUM_SCREENSHOTS`; evidence dir `data/diagnostics/momentum-2026-10-08/`. Pending: not yet run, the client needs a local WoW install for CASC startup.
 
 Run: `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-godot --lib momentum_tests`.
