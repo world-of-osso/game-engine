@@ -17,7 +17,7 @@ func _initialize() -> void:
 	assert(oracle.visible_parts(app, parts) == [0, 401, 501, 701, 1301, 1801, 2001, 2201, 2702, 3202, 3301, 5101])
 	assert(oracle.errors.is_empty())
 	var fixture := Pixels.new()
-	var loader := ClassDB.instantiate("WowAssetLoader")
+	var loader: Object = ClassDB.instantiate("WowAssetLoader")
 	var blp := FileAccess.get_file_as_bytes("res://../data/textures/143838.blp")
 	var offset := blp.decode_u32(20)
 	var length := blp.decode_u32(84)
