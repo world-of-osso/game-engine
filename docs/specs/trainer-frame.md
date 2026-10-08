@@ -43,11 +43,51 @@ Under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 - Inspected Forever `forever-shots/01-open.png`, `02-available-off.png`, `03-used-off.png`, `04-restored.png` at `57f3e2286`: persisted 9990 copper/known state, catalog icons, native pointer-driven Available and Used removal/restoration, root profession flag not displayed as 1/0. `state.txt` and `client4-live.log` retain assertions; client exit 0. Four launches total against an approved `f25258b` server with a fresh offline redb copy and read-only world.db, UDP5304/Weston tf24.
 - Earlier filter capture was a genuine native failure: overlapping list controls intercepted popup input. The final screen emits filter controls after the list; final live captures verify the fix. Missing icon 4620675 was extracted from local CASC into canonical textures, never CDN.
 
+## Visual parity audit (2026-10-07)
+
+Cached **Mainline** source governs; historical professions checkboxes are not native acceptance. No trainer-specific recorded user-requested art/layout deviation was found in this spec or the linked professions contract. Preserve authoritative training, confirmation, filters and failure text.
+
+`TUI.xml` / `TUI.lua` below mean cached `Blizzard_TrainerUI/Mainline/Blizzard_TrainerUI.{xml,lua}`; `Shared.xml` / `Shared.lua` mean `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.{xml,lua}`.
+
+| Baseline native deviation (at b844d8033) | Cached Retail contract |
+| --- | --- |
+| `trainer_frame.rs:33-46,67-68`: 420×540 with an invented greeting pane | `Shared.xml:544-572,684-692`: inherited 338×424 portrait window/inset. `TUI.lua:65-66`: NPC portrait and NPC-name title. No greeting/detail pane in `TUI.xml:108-239`; requirements belong to rows. |
+| `trainer_frame.rs:115-139,150-174`: 390-wide list at15,112, rows364×66, name with selection prefix and costs below requirements | `TUI.xml:28-60,201-214`, `TUI.lua:47-51,146-152`: 302×330 list at inset TOPLEFT5,-5, 298×47 rows, 1px initial padding, icon36×36 at LEFT6, name iconTOPRIGHT6,-1, subtext240×30, cost TOPRIGHT5,-7. |
+| `trainer_frame.rs:143-151`: green/red/grey service names | `TUI.lua:244-266`: unavailable icons desaturated and MOD0.55 background; the temporary grey name is overwritten by unconditional `name:SetText(serviceName)` at265. All names retain inherited GameFontNormal. State colours apply to filter labels (`:86-88`), not service names. |
+| `trainer_frame.rs:152-185`: missing normal/selected/hover trainer art and coin icons; zero-cost services show a cost | `TUI.xml:63-95`: TrainerTextures crops for normal/selected/hover. `TUI.lua:259-282`: known and zero cost hide money; otherwise SmallMoneyFrame, white or red affordability. |
+| `trainer_frame.rs:156-166`: uniformly white requirements, no colon | `TUI.lua:208-266`: Requires: prefix; independently coloured level number, skill-rank number and ability. `data/GlobalStrings.csv:284-288,2054`: unmet #ff2020, met #ffffff, skill name/parentheses in SystemFont_Shadow_Small. |
+| `trainer_frame.rs:71-89`: generic Filter button at300,82 and literal [x]/[ ] rows | `TUI.xml:177-181`, `TUI.lua:54,84-89`: width100, top-right−13,−35, WowStyle1FilterDropdownTemplate and three coloured checkboxes. `Blizzard_Menu/Mainline/MenuTemplates.xml:66-105`: height18, common-dropdown-b-button. |
+| `trainer_frame.rs:92-115`: rank text at64,82 without a bar | `TUI.xml:127-176`, `TUI.lua:156-172`: 136×18 at64,36, GuildFrame border, blue background/fill, centred learned rank/max. |
+| `trainer_frame.rs:48-65`: Money: text and generic100×24 Train at300,450 | `TUI.xml:112-118,182-194`: UI-MoneyFrame-Border148×34 at bottom-left5,−9; SmallMoneyFrame anchored to its RIGHT8,6; MagicButton80×22. `Shared.lua:35-38`: bottom-right adjusted−6,+4. |
+| No separate SkillStepButton in native inventory | `TUI.xml:195-200,215-223`, `TUI.lua:131-144`: optional316×40 step row and shorter bottom-inset list. Protocol provides no Retail GetTrainerServiceStepIndex; do not infer step identity from primary-profession acquisition. Remains a gap. |
+
+Additional cached Retail details: `Blizzard_Menu/Mainline/MenuVariants.lua:9-22` uses the 12×12 `common-dropdown-ticksquare` and 15×14 yellow check, offset +2,+1, with text 7px to its right. `Blizzard_Menu/Mainline/MenuTemplates.lua:53-85` supplies `common-dropdown-bg` at alpha0.925, 8/8/8/15 insets and 20px child width padding. The popup anchor's +2 WoW y is upward (`DropdownButton.lua:90-95`). `Blizzard_MoneyFrame/Shared/MoneyFrame.lua:33-72` distinguishes PLAYER (lower coins shown) from STATIC (collapsed); `Mainline/MoneyFrame.lua:302-368` includes zero lower denominations for PLAYER. Native player money now uses that distinction without altering other windows' existing collapsed money helpers.
+
+State colour values come from `data/db2/12.1.0.69933/GlobalColor.csv:5,9-10`: RED_FONT_COLOR=#ff2020, GREEN_FONT_COLOR=#19ff19, GRAY_FONT_COLOR=#808080. No invented state palette.
+
+## Native visual implementation
+
+Presentation uses 338×424 shared portrait chrome, the trainer/inset/row crops, 298×47 rows with top/right money, independent #ff2020 unmet requirement numbers/abilities, desaturated unavailable icons, selected/additive hover art, blue learned-rank fill, a 100×18 skinned filter and 80×22 Train. NPC portrait rendering reuses the existing masked unit-portrait host; title remains the NPC name. Training/filter/confirmation authority is unchanged. Exact UI acceptance is recorded below only after tests/captures pass.
+
+Offline secondary preview API: `godot/rust/src/trainer_preview.rs`; an eight-service snapshot plus a representative human portrait, never a GameClient. `GODOT_TRAINER_FILTER_MENU=1` opens the popup for a separate visual capture; main captures leave it closed so row costs remain visible. Baseline captures used the original open-popup fixture. This preview does not prove the real NPC appearance or live lifecycle.
+
+## Offline visual acceptance (2026-10-07)
+
+Production Rust at `ec76c939b`; capture assertions at `7a17cf3e6` (no Rust change). Targeted helper: **16/16** pass (nine original trainer behavior cases, seven content/art cases), `/tmp/claude/trainerart-final-green.out`. Whole Godot workspace `cargo fmt --all -- --check` passes. Locked local `--cli` build/install passes; extension SHA-256 `6ef65c399981c5b41a25b20d787a75bb20bae3fa40473a88c1ef989e9c1a1881`, `/tmp/claude/trainerart-final-build.out`. Full-crate integration results follow below; targeted counts alone are not broad-suite proof.
+
+Inspected canonical `data/diagnostics/trainerart-2026-10-07/{before-modern,before-forever,after-modern,after-forever}.png` and cropped window views. Before: oversized 420×540 window, empty portrait, greeting, tinted/prefixed names, text-only money and untextured rows. After: inherited 338×424 chrome, real masked representative-human portrait, NPC-name title, trainer background/rows, 36px icons, neutral #ffd200 names, selected/additive art, independently coloured unmet level/rank numbers, known text without cost, coin prices/wallet, blue35/300 bar, 80×22 Train and 100×18 Filter. Both final main captures exit0 and pass native geometry/content/colour and settled portrait-model/mask assertions. Authored half-pixel icon/name y5.5/6.5 rasterize to5/7; tests retain exact dimensions/x anchors and allow at most0.5px per half-pixel y anchor.
+
+Popup captures use the same fixture with `GODOT_TRAINER_FILTER_MENU=1`: Retail dropdown/background/ticksquare/checkmark members and #19ff19/#ff2020/#808080 labels; main captures leave the popup closed so prices remain visible. The eight-row fixture overflows the330px list, with available/unavailable/used, selected2963, profession3908, costs10/12550/500/0 and wallet12345. Purchase/confirmation authority is unchanged; these offline images do not re-prove live purchasing or the real NPC's appearance. RID/ObjectDB/font shutdown diagnostics and test-only Dozen/Wayland warnings remain, not clean-resource/general-renderer proof.
+
+### Full affected-crate integration
+
+The locked local helper ran `--test -p game-engine-ui-model -p game-engine-godot -p game-engine-core --no-fail-fast` **once** after final relevant Rust changes; exit0. Deduplicated detailed log counts: **core781 passed**, **Godot651 passed**, **UI-model751 passed /6 ignored**, **0 failures** (2183 passed total). No ignored tests were introduced here. Evidence: canonical `data/diagnostics/trainerart-2026-10-07/{full-details.log,full-counts.json,proof-ledger.txt}`; command and wrapper output `/tmp/claude/trainerart-full.out`. Subsequent capture-assertion/docs changes do not invalidate this CPU scope; no suite rerun.
+
 ## Known gaps (current cycle)
 
 - [ ] Native matching `InteractionClosed`, world-reset and Escape network-close receipt lack dedicated behavioral integration assertions; close/request code is wired, but do not infer full lifecycle acceptance from purchase proof.
 - [ ] Client exit logs contain texture/RID/ObjectDB leak warnings; exit 0 is not clean-resource shutdown proof.
-- [ ] Exact Retail 338×424 geometry, trainer-specific background/row art, portrait, rank fill, per-requirement colouring, tooltip and SkillStepButton parity remain unverified. No user-requested deviation is removed or invented.
+- [ ] Conditional SkillStepButton/split-inset layout lacks a supplied Retail step index; rank modifiers and service tooltips remain unsupported/unverified. Do not infer the step from `TrainerService.profession` (primary-slot acquisition). Default-window geometry/art, portrait slot/mask, base-rank fill and per-requirement colours have bounded offline acceptance above, not pixel-identical or live-NPC proof. Existing native scroll-input decisions are unchanged; only list/scrollbar geometry is matched. No user-requested deviation is removed or invented.
 
 ## Out of scope
 
