@@ -64,9 +64,10 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 18] = [
+        const SOURCES: [Source; 19] = [
             GameClient::action_button_tooltip,
             GameClient::spellbook_tooltip,
+            GameClient::trainer_tooltip,
             GameClient::chat_link_tooltip,
             GameClient::bag_slot_tooltip,
             GameClient::paperdoll_tooltip,
@@ -155,6 +156,22 @@ impl GameClient {
             OwnerSide::Right,
             tooltip,
         )?))
+    }
+
+    /// TrainerUI.xml OnEnter: the hovered service, ANCHOR_RIGHT +35, through GameTooltipUI.
+    fn trainer_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, spell) = self
+            .trainer
+            .book
+            .hovered_service(ui.registry()?, hit.frame)?;
+        drop(ui);
+        let tooltip = self.spell_game_tooltip(spell, None);
+        let tooltip =
+            self.trainer
+                .book
+                .service_tooltip(spell, tooltip, self.owner_rect(&hit.ui, owner)?)?;
+        Some(HoveredTooltip::text(tooltip))
     }
 
     fn chat_link_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {

@@ -11,7 +11,7 @@ func _run() -> void:
 		return
 	for skin in ["modern", "forever"]:
 		for mode in ["default", "hovered", "selected"]:
-			OS.set_environment("GODOT_TRAINER_SELECTED", "3908" if mode == "default" else "2963")
+			OS.set_environment("GODOT_TRAINER_DEFAULT", "1" if mode == "default" else "0")
 			OS.set_environment("GODOT_TRAINER_THREE_COINS", "1")
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)
