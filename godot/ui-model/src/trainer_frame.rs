@@ -93,49 +93,63 @@ fn filters(book: &TrainerBook) -> Element {
         member,
         (-4.0, -4.0, 108.0, 26.0),
     );
-    children.extend(text(
-        "ClassTrainerFilterLabel",
+    children.extend(label(
+        "ClassTrainerFilterLabel".into(),
         "Filter",
-        (20.0, -1.0, 70.0, 20.0),
-        NORMAL,
+        (0.0, 0.0, 100.0, 20.0),
+        (12.0, NORMAL, "CENTER"),
     ));
     let mut elements = rsx! { button { name: "ClassTrainerFilterDropdown", width: 100.0, height: 18.0,
     left: 225.0, top: 35.0, pos_type: "absolute", button_default_skin: false, onclick: "trainer:menu", {children} } };
     if book.filter_menu {
-        let choices: Element = [("Available", GREEN), ("Unavailable", RED), ("Used", GRAY)]
-            .into_iter()
-            .enumerate()
-            .flat_map(|(index, (name, color))| filter_choice(book, index, name, color))
-            .collect();
-        elements.extend(rsx! { r#frame { name: "ClassTrainerFilterMenu", width: 140.0, height: 72.0,
-            left: 231.0, top: 55.0, pos_type: "absolute", background_color: "0,0,0,0.95", strata: FrameStrata::FullscreenDialog, {choices} } });
+        let width = filter_menu_width();
+        let mut choices = art::popup_background(width);
+        choices.extend(
+            [("Available", GREEN), ("Unavailable", RED), ("Used", GRAY)]
+                .into_iter()
+                .enumerate()
+                .flat_map(|(index, (name, color))| {
+                    filter_choice(book, index, name, color, width - 16.0)
+                }),
+        );
+        elements.extend(rsx! { r#frame { name: "ClassTrainerFilterMenu", width, height: 83.0,
+            left: 231.0, top: 51.0, pos_type: "absolute", strata: FrameStrata::FullscreenDialog, {choices} } });
     }
     elements
 }
-fn filter_choice(book: &TrainerBook, index: usize, name: &str, color: &str) -> Element {
+fn filter_menu_width() -> f32 {
+    // DarkMenuElement widthPadding14, child extent padding20, inset8+8; checkbox12 + gap7.
+    let text = ui_toolkit::text_measure::measure_text(
+        "Unavailable",
+        ui_toolkit::widgets::font_string::GameFont::FrizQuadrata,
+        12.0,
+    )
+    .expect("Trainer filter font")
+    .0;
+    text.ceil() + 12.0 + 7.0 + 14.0 + 20.0 + 16.0
+}
+fn filter_choice(book: &TrainerBook, index: usize, name: &str, color: &str, width: f32) -> Element {
     let prefix = format!("ClassTrainerFilter{index}");
-    let mut children = crate::bank_art::texture(
-        format!("{prefix}Box"),
-        crate::bank_art::CHECKBOX_UP,
-        (3.0, 4.0, 16.0, 16.0),
-        WHITE,
+    let mut children = art::atlas(
+        &format!("{prefix}Box"),
+        "common-dropdown-ticksquare",
+        (0.0, 4.0, 12.0, 12.0),
     );
     if book.filters[index] {
-        children.extend(crate::bank_art::texture(
-            format!("{prefix}Check"),
-            crate::bank_art::CHECKBOX_CHECK,
-            (3.0, 4.0, 16.0, 16.0),
-            WHITE,
+        children.extend(art::atlas(
+            &format!("{prefix}Check"),
+            "common-dropdown-icon-checkmark-yellow",
+            (0.5, 2.0, 15.0, 14.0),
         ));
     }
     children.extend(text(
         &format!("{prefix}Label"),
         name,
-        (24.0, 2.0, 112.0, 20.0),
+        (19.0, -1.0, width - 19.0, 20.0),
         color,
     ));
     let action = format!("trainer:filter:{index}");
-    rsx! { button { name: {DynName(prefix)}, width: 140.0, height: 24.0, left: 0.0, top: {index as f32*24.0},
+    rsx! { button { name: {DynName(prefix)}, width, height: 20.0, left: 8.0, top: {8.0 + index as f32*20.0},
     pos_type: "absolute", button_default_skin: false, onclick: {action.as_str()}, {children} } }
 }
 

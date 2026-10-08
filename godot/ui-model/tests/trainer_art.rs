@@ -209,6 +209,27 @@ fn trainer_art_requirement_numbers_use_global_string_red_not_a_red_whole_line() 
 }
 
 #[test]
+fn trainer_art_wallet_keeps_retail_player_zero_lower_denominations() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (money, amounts) in [(10000, vec!["1", "0", "0"]), (5000, vec!["50", "0"])] {
+            let registry = render(skin, money);
+            for (index, amount) in amounts.into_iter().enumerate() {
+                assert_eq!(
+                    text(&registry, &format!("ClassTrainerMoneyFrameAmount{index}")),
+                    (amount.into(), [1.0; 4])
+                );
+                assert!(
+                    registry
+                        .get_by_name(&format!("ClassTrainerMoneyFrameCoin{index}"))
+                        .is_some()
+                );
+            }
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn trainer_art_filter_labels_use_retail_state_colors() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(skin, 0);
