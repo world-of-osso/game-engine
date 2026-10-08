@@ -2,7 +2,7 @@
 
 Native editor shares account-scoped layout storage and character selection with [[forever-preset]]. The [contract](../../specs/hud-edit-mode.md) owns controls, defaults and acceptance evidence.
 
-Verified: 2026-10-07. Implementation branch `hudeditmode`; runtime proof is recorded in the contract, not inferred from this page.
+Verified: 2026-10-08. Implementation branch `hudeditmode`; runtime proof is recorded in the contract, not inferred from this page.
 
 ## Draft and projection
 

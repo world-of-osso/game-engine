@@ -1,6 +1,6 @@
 ## 2026-10-08 — Extra Action Bars visibility
 
-[Options contract](../specs/extra-action-bars.md) records the user decision: side bars disabled by default, no disabled edit movers, unchanged tracker placement. Production bar visibility replaces editor-only side placeholders; bottom-bar skin defaults remain. Targeted proof/captures recorded in the worker handoff pending acceptance.
+[Options contract](../specs/extra-action-bars.md) records the user decision: side bars disabled by default, no disabled edit movers, unchanged tracker placement. Production bar visibility replaces editor-only side placeholders; bottom-bar skin defaults remain. Implementation `67c50ec42`: targeted GREEN 99 passed/zero failed (one ignored capture helper), extension build exit 0. Both cage captures inspected: ordered Action Bars 2–5 checkboxes, default Forever editor without 4/5 movers and unchanged tracker. [Options contract](../specs/extra-action-bars.md#known-gaps-current-cycle) records evidence and live-server exclusions.
 
 ## 2026-10-07 — Offline character garment matrix, 78-cell bounded PASS
 
