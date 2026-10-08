@@ -78,7 +78,6 @@ pub mod lighting_assets;
 pub mod liquid_data;
 #[path = "game/state/loading_readiness.rs"]
 pub mod loading_readiness;
-pub mod map_catalog;
 pub mod m2;
 pub mod m2_billboard;
 pub mod m2_lights;
@@ -86,6 +85,7 @@ pub mod m2_material;
 pub mod m2_particles;
 #[path = "asset/m2_texture_composite_data.rs"]
 pub mod m2_texture_composite_data;
+pub mod map_catalog;
 pub mod minimap_data;
 #[path = "movement_animation_data.rs"]
 pub mod movement_animation_data;
