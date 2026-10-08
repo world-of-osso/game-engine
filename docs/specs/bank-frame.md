@@ -54,7 +54,7 @@ Source roots: Retail / Forever = `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowfor
 
 Sheet rows M:84,1346,1772,1774; F:2616,2617,2689,2690. Forever divider's 864×32 member becomes 414.72×15.36 at (161.64,224.64) in the existing 738×460 frame.
 
-Known missing local BLPs: **8118796, 8118792, 8188339**. Resolution is not guarded or substituted when these files are absent. Ordinary slot sheet 8187737 exists.
+Local BLPs **8118796, 8118792, 8188339** are present (verified 2026-10-08); inspected `bankloop-2026-10-08/resume-forever-character.png` and `resume-alt-warband.png` render the Forever bank art. Resolution is not guarded or substituted when files are absent.
 
 ### Actions
 - [x] Right-clicking a filled slot sends `BankWithdraw` for the shown bank and tab.
@@ -73,6 +73,22 @@ Known missing local BLPs: **8118796, 8118792, 8188339**. Resolution is not guard
 - Native (Godot) client, `data/diagnostics/bank-live/` (2026-10-01, game-engine `bank`, private server UDP 5114, fresh redb, `godot/tests/bank_live.gd`):
   - Bankone right-clicks Olivia Burnside, picks the gossip option, buys a character tab (1g), deposits and withdraws Linen, buys Warband tab 1 (1000g), deposits Linen and 1g there and withdraws the Linen.
   - Escape closes BankFrame and its bags without opening the game menu.
+
+### Resumed private acceptance — 2026-10-08
+
+Evidence root: `data/diagnostics/bankloop-2026-10-08/`; append-only `proof-ledger.txt` distinguishes the earlier warm binary from matching `fc5156f85` extension/CLI. Private server binary remains `game-server.26f3c5c`, UDP 5360, same redb; protocol remains pinned at `7597908`. Only `fb_bank1` (Bankone/Bankalt) and `fb_bank2` (Banktwo) were administered. No protected-instance access, rebase, merge or push.
+
+| Step | PASS / FAIL / N-A | Inspected evidence and scope |
+|---|---|---|
+| 1 Lifecycle | PASS open/X/Escape/range close/reopen; FAIL distant error before fix, GREEN pending | Matching-source `resume-open.png`, `resume-x.png`, `resume-escape.png`, `resume-range.png` and IPC/UI dumps. Actual John Burnside right-click gives no error in `resume-too-far-response.png`; live assertion `range-red.log` fails. Banker-only routing fix `00c8615c4` awaits built live reproof. |
+| 2 Tabs/purchase | PASS | Matching-source `current-character-cost.png`/`current-character-confirm.png`/`current-character-tab3.png` show 500g purchase; `current-insufficient-inert.png` shows 100,000g disabled. `resume-purchase-poor.png`, `resume-purchase-confirm.png`, `resume-purchase-bought.png`: Banktwo at 999g cannot buy 1000g; seeded 2000g buys, leaves 1000g and 98 slots. Original warm Character 1g/Warband 1000g+25,000g proof retained, not replayed. |
+| 3 Tab settings | PASS name/filter close/reopen/relog; N-A icon picker | Matching-source `current-settings-relog.png`/JSON/UI dump show Bank Gear, Equipment/Profession Goods/Reagents retained after relog; earlier close/reopen `baseline-settings-reopened.png`. Icon picker explicitly deferred, not tested or invented. |
+| 4 Items | PASS supported moves/full/rejection; N-A bank-origin drag/split/swap/direct inter-tab move | Inspected warm `baseline-drag-deposit.png`, `baseline-soulbound-rejected.png`, `full-tab-rejected.png`: Copper Ore7 whole-stack drag, exact `Soulbound items cannot be stored in the Warband Bank.`, 98 Hearthstones and 99th rejection `Your bank is full` without bag loss. Matching `current-between-tabs.png` plus IPC confirms Linen20 withdrawn/redeposited into Warband tab2; `resume-forever-character.png` confirms persistent full grid. Bank requests have no partial count, swap or bank-origin cursor location; no unsupported request/response/log is claimed. |
+| 5 Money/isolation | PASS | Matching `current-money-deposited.png`/`current-money-withdrawn.png`: 75g→175g→150g, wallet 33,240,000→32,240,000→32,490,000 copper. `current-money-overdraw.png` leaves both balances unchanged; warm `baseline-money-zero.png` sends nothing and changes nothing. Bankalt `resume-alt-warband.png` sees shared Linen20/150g but its own 98-Hearthstone Character bank, not Bankone's Bank Gear/Ore7. Concurrent `resume-account1-concurrent.png` vs `resume-account2-warband.png` proves fb_bank2 has no tabs/items and 0g before its own purchase; explicit socket IPC dumps retained. |
+| 6 Warband IPC | PASS item contract; N-A money/settings fields | `current-between-tabs-status-warbank.txt`, `resume-alt-warband-status-warbank.txt`: location98/GUID173/item2589×20 matches tab2 window. fb_bank2 status is empty. `status warbank` reports item inventory only; no balance/tab-settings status exists in this contract. |
+| 7 Layout/skins | PASS bounded geometry/art inspection; FAIL full Retail equivalence | Modern `resume-open.png`, `resume-purchase-{poor,confirm,bought}.png`; Forever `resume-forever-character.png`, `resume-alt-warband.png`, dialog captures. `layout-comparison.json` checks 396 observable frame/grid values against cached Retail BF.xml:674/BF.lua:941–968: 738×460, 98 slots of 37×37, first26/63, row47, column45 plus11 per pair. Portrait control62×62(-5,-7) has Retail mask58×58(-3,-7), not a sizing defect. Existing non-additive selected-tab marker, stretched/non-tiled backgrounds, omitted edge shadows and grey rather than red unaffordable price remain; no full pixel equivalence claimed. |
+
+No server bank defect established. Missing partial-stack/bank-to-bank operations are protocol limitations, not client workarounds: `BankDeposit` names a whole bag stack; `BankWithdraw` names a whole bank slot. Bank-origin drag, split/swap and direct inter-tab requests cannot be emitted, so there is no request, response or server log for them. Modern/Forever remain skins of the same 98-slot mechanics; Camelot's 88-slot behavior and tooltip record-ID removal are not adopted.
 
 ## How it works
 - [banks](../wiki/systems/banks.md)
@@ -103,4 +119,4 @@ Known missing local BLPs: **8118796, 8118792, 8188339**. Resolution is not guard
 
 ## Out of scope
 - Search box, Cleanup/sort, the tab icon picker and the expansion filter (deferred by decision).
-- Drag and drop and stack splitting (no cursor item).
+- Bank-origin drag, partial-stack transfer, bank-slot swapping and direct inter-tab moves (not represented by the pinned bank protocol). Native whole-bag-stack drag deposit is implemented and has bounded live proof above; it does not add those missing operations.
