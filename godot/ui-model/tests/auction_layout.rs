@@ -32,8 +32,28 @@ fn auction_duration_uses_retail_dropdown_geometry() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(skin, "duration");
         let dropdown = frame(&registry, "AuctionHouseFrameItemSellFrameDurationDropdown");
-        let rect = dropdown.layout_rect.as_ref().unwrap();
-        assert_eq!((rect.width, rect.height), (120.0, 25.0));
+        assert_eq!(
+            (dropdown.width.value(), dropdown.height.value()),
+            (120.0, 25.0)
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn auction_item_header_icon_uses_retail_crop_and_size() {
+    // Blizzard_ItemButton/Mainline/ItemButtonTemplate.xml:23-41.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, "item");
+        let icon = frame(
+            &registry,
+            "AuctionHouseFrameItemBuyFrameItemDisplayItemButtonIcon",
+        );
+        assert_eq!((icon.width.value(), icon.height.value()), (46.0, 46.0));
+        let Some(WidgetData::Texture(texture)) = &icon.widget_data else {
+            panic!("item icon missing")
+        };
+        assert_eq!(texture.tex_coords, [0.078125, 0.921875, 0.078125, 0.921875]);
     }
     set_thread_skin(ActiveSkin::Modern);
 }
@@ -56,28 +76,16 @@ fn auction_buy_dialog_has_retail_dark_background() {
 fn auction_snapshots_preserve_root_search_and_band_geometry() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let browse = render(skin, "browse");
-        let root = frame(&browse, "AuctionHouseFrame")
-            .layout_rect
-            .as_ref()
-            .unwrap();
-        assert_eq!((root.width, root.height), (800.0, 538.0));
-        let search = frame(&browse, "AuctionHouseFrameSearchBox")
-            .layout_rect
-            .as_ref()
-            .unwrap();
-        assert_eq!((search.width, search.height), (241.0, 22.0));
+        let root = frame(&browse, "AuctionHouseFrame");
+        assert_eq!((root.width.value(), root.height.value()), (800.0, 538.0));
+        let search = frame(&browse, "AuctionHouseFrameSearchBox");
+        assert_eq!((search.width.value(), search.height.value()), (241.0, 22.0));
         let item = render(skin, "item");
-        let band = frame(&item, "AuctionHouseFrameItemBuyFrameRow1TimeLeft")
-            .layout_rect
-            .as_ref()
-            .unwrap();
-        assert_eq!(band.width, 120.0); // 140 minus 10px on either side.
+        let band = frame(&item, "AuctionHouseFrameItemBuyFrameRow1TimeLeft");
+        assert_eq!(band.width.value(), 120.0); // 140 minus 10px on either side.
         let bids = render(skin, "bids");
-        let band = frame(&bids, "AuctionHouseFrameAuctionsFrameBidsListRow1TimeLeft")
-            .layout_rect
-            .as_ref()
-            .unwrap();
-        assert_eq!(band.width, 130.0); // 140 minus right padding.
+        let band = frame(&bids, "AuctionHouseFrameAuctionsFrameBidsListRow1TimeLeft");
+        assert_eq!(band.width.value(), 130.0); // 140 minus right padding.
     }
     set_thread_skin(ActiveSkin::Modern);
 }
