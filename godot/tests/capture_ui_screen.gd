@@ -736,9 +736,9 @@ func capture_auction_both(directory: String) -> bool:
 			for frame in range(120):
 				await process_frame
 				await RenderingServer.frame_post_draw
-			var image = root.get_texture().get_image()
 			var prefix = directory.path_join(skin + "-" + view)
-			if image == null or image.is_empty() or image.save_png(prefix + ".png") != OK:
+			# The headless display server only has the dummy renderer: record geometry, no pixels.
+			if DisplayServer.get_name() != "headless" and not save_root_png(prefix + ".png"):
 				push_error("Auction capture requires rendered pixels: ", prefix)
 				ui.queue_free()
 				return false
@@ -763,6 +763,10 @@ func capture_auction_both(directory: String) -> bool:
 			ui.queue_free()
 			await process_frame
 	return true
+
+func save_root_png(path: String) -> bool:
+	var image = root.get_texture().get_image()
+	return image != null and not image.is_empty() and image.save_png(path) == OK
 
 func auction_bid_copper_is_clear(ui: Node) -> bool:
 	var copper := ui.find_child("AuctionHouseFrameBidAmountCopper", true, false) as Control
