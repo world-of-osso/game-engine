@@ -1,6 +1,9 @@
 ## 2026-10-07 — Native quest objective progress notices
 
 [Quest UI](systems/quest-ui.md#native-objective-progress-notices) records real Northshire count-update/no-message RED, typed progress dispatch, yellow rendered-message GREEN, and complete three-crate tests at `d88c66b0f`. The [parity matrix](../specs/godot-parity-matrix.md) retains bounded per-step acceptance; broad marker/edit-mode combinations are not inferred from this fix.
+## 2026-10-07 — HUD edit-mode polish
+
+[Native HUD edit mode](systems/native-hud-edit-mode.md) records shared selected/hover labels, manager collision avoidance and title dragging, explicit foreground paint levels and persisted manager-click transitions. The all-21 offline inventory exposed the status mover's Retail/native root-name mismatch and side-bar previews painting over tracker labels; both are corrected without moving preset HUD roots. [Contract](../specs/hud-edit-mode.md#offline-polish-2026-10-07) owns current proof and deviations; no new live/server run.
 
 ## 2026-10-07 — Local specialization-conditioned spell visuals
 

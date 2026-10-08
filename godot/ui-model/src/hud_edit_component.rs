@@ -33,8 +33,10 @@ const PANEL_STYLE: &str = crate::static_popup_component::STATIC_POPUP_PANEL_STYL
 
 pub const PANEL_W: f32 = 380.0;
 pub const PANEL_H: f32 = 228.0;
-/// Below the action-bar preview banner (y 24–58).
-pub const PANEL_TOP: f32 = 70.0;
+/// Retail EditModeManager.xml:6: TOP of UIParent at y=-100.
+pub const PANEL_TOP: f32 = 100.0;
+pub const PANEL_CLEARANCE: f32 = 8.0;
+pub const PANEL_TITLE_H: f32 = 32.0;
 const PANEL_INSET: f32 = 7.0;
 const BUTTON_W: f32 = 104.0;
 const BUTTON_H: f32 = 26.0;
@@ -55,6 +57,7 @@ pub struct EditModeSelectionBox {
     /// Top-left and size in UI units.
     pub rect: [f32; 4],
     pub selected: bool,
+    pub hovered: bool,
 }
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -70,6 +73,8 @@ pub struct EditModePanelState {
     pub preset: bool,
     pub dirty: bool,
     pub status: String,
+    /// Computed clearance position, or the user's transient title drag position.
+    pub position: Option<[f32; 2]>,
 }
 
 pub fn selection_box_name(key: &str) -> String {
@@ -80,12 +85,16 @@ pub fn edit_mode_overlay_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<EditModeOverlayState>()
         .expect("EditModeOverlayState must be in SharedContext");
-    let boxes: Element = state.boxes.iter().flat_map(selection_box).collect();
+    // Paint idle highlights first, instructions next, selected system last.
+    // Overlapping authored roots cannot cover the selected label with a later highlight.
+    let mut ordered: Vec<_> = state.boxes.iter().collect();
+    ordered.sort_by_key(|entry| (entry.selected, entry.hovered));
+    let boxes: Element = ordered.into_iter().flat_map(selection_box).collect();
     rsx! {
         r#frame {
             name: EDIT_MODE_OVERLAY_ROOT,
             stretch: true,
-            strata: FrameStrata::FullscreenDialog,
+            strata: FrameStrata::Fullscreen,
             {boxes}
         }
     }
@@ -96,6 +105,20 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
     let [x, y, w, h] = entry.rect;
     // Vertical bars need several text lines; the one-line label clipped their names.
     let label_height = if w < 100.0 { h.min(54.0) } else { h.min(18.0) };
+    let hide_label = !(entry.selected || entry.hovered);
+    let level = if entry.selected {
+        20.0
+    } else if entry.hovered {
+        10.0
+    } else {
+        0.0
+    };
+    let font_size = (label_height - 2.0).clamp(8.0, 13.0);
+    let label = if entry.selected {
+        entry.label.as_str()
+    } else {
+        "Click to edit"
+    };
     let fdid = if entry.selected {
         SELECTED_FDID
     } else {
@@ -106,7 +129,8 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
             name: {DynName(name.clone())},
             width: {w},
             height: {h},
-            strata: FrameStrata::FullscreenDialog,
+            strata: FrameStrata::Fullscreen,
+            frame_level: {level},
             pos_type: "absolute",
             left: {x},
             top: {y},
@@ -117,21 +141,34 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
                 texture_fdid: fdid,
                 // Pinned rsx LitFloat truncates decimals; retire expression form once fixed.
                 alpha: {0.7},
-                strata: FrameStrata::FullscreenDialog,
+                strata: FrameStrata::Fullscreen,
+                frame_level: {level},
                 pos_type: "absolute",
                 left: 0.0,
                 top: 0.0,
             }
+            r#frame {
+                name: {DynName(format!("{name}LabelBacking"))},
+                hidden: hide_label,
+                width: {w}, height: {label_height},
+                background_color: "0.0,0.0,0.0,1.0",
+                strata: FrameStrata::Fullscreen,
+                frame_level: {level + 1.0},
+                pos_type: "absolute", left: 0.0,
+                top: "50%", translate_y: "-50%",
+            }
             fontstring {
                 name: {DynName(format!("{name}Label"))},
+                hidden: hide_label,
                 width: {w},
                 height: {label_height},
-                text: entry.label.as_str(),
+                text: label,
                 font: GameFont::FrizQuadrata,
-                font_size: 13.0,
+                font_size,
                 font_color: COLOR_TEXT,
                 justify_h: "CENTER",
-                strata: FrameStrata::FullscreenDialog,
+                strata: FrameStrata::Fullscreen,
+                frame_level: {level + 2.0},
                 pos_type: "absolute",
                 left: 0.0,
                 top: "50%",
@@ -151,6 +188,15 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
         format!("Layout: {}", state.layout_name)
     };
     let user_layout = !state.preset;
+    let left = state
+        .position
+        .map_or_else(|| "50%".to_string(), |at| at[0].to_string());
+    let translate_x = if state.position.is_some() {
+        "0"
+    } else {
+        "-50%"
+    };
+    let top = state.position.map_or(PANEL_TOP, |at| at[1]);
     rsx! {
         r#frame {
             name: EDIT_MODE_PANEL,
@@ -159,9 +205,9 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
             strata: FrameStrata::FullscreenDialog,
             mouse_enabled: true,
             pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
-            top: PANEL_TOP,
+            left: {left.as_str()},
+            translate_x,
+            top,
             texture {
                 name: "EditModeManagerFrameBackground",
                 width: {PANEL_W - 2.0 * PANEL_INSET},
@@ -197,6 +243,49 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
             {panel_text("EditModeManagerFrameStatus", &state.status, 12.0, COLOR_LABEL, 204.0)}
         }
     }
+}
+
+/// Prefer Retail's TOP -100; move only the manager to the nearest clear edge candidate.
+/// Authored HUD positions, including user-chosen chat/tracker/party defaults, stay untouched.
+pub fn find_panel_position(screen: [f32; 2], boxes: &[EditModeSelectionBox]) -> Option<[f32; 2]> {
+    let preferred = [(screen[0] - PANEL_W) / 2.0, PANEL_TOP];
+    let xs = panel_axis_candidates(preferred[0], screen[0], PANEL_W, boxes, 0);
+    let ys = panel_axis_candidates(preferred[1], screen[1], PANEL_H, boxes, 1);
+    let mut candidates: Vec<_> = xs
+        .iter()
+        .flat_map(|x| ys.iter().map(move |y| [*x, *y]))
+        .collect();
+    let distance = |at: [f32; 2]| (at[0] - preferred[0]).powi(2) + (at[1] - preferred[1]).powi(2);
+    candidates.sort_by(|a, b| distance(*a).total_cmp(&distance(*b)));
+    candidates.into_iter().find(|at| {
+        boxes
+            .iter()
+            .all(|entry| !rects_overlap([at[0], at[1], PANEL_W, PANEL_H], entry.rect))
+    })
+}
+
+fn panel_axis_candidates(
+    preferred: f32,
+    screen: f32,
+    size: f32,
+    boxes: &[EditModeSelectionBox],
+    axis: usize,
+) -> Vec<f32> {
+    let mut values = vec![preferred, 0.0, screen - size];
+    for entry in boxes {
+        values.extend([
+            entry.rect[axis] - size - PANEL_CLEARANCE,
+            entry.rect[axis] + entry.rect[axis + 2] + PANEL_CLEARANCE,
+        ]);
+    }
+    values.retain(|value| *value >= 0.0 && *value + size <= screen);
+    values
+}
+
+pub fn rects_overlap(a: [f32; 4], b: [f32; 4]) -> bool {
+    let horizontal = a[0] < b[0] + b[2] && b[0] < a[0] + a[2];
+    let vertical = a[1] < b[1] + b[3] && b[1] < a[1] + a[3];
+    horizontal && vertical
 }
 
 fn panel_text(name: &'static str, text: &str, size: f32, color: FontColor, top: f32) -> Element {
@@ -307,7 +396,7 @@ fn side_bar_preview(name: &str, right: f32, scale: f32) -> Element {
                     width: {size}, height: {size},
                     texture_atlas: "UI-HUD-ActionBar-IconFrame",
                     pos_type: "absolute", left: 0.0, top: {index as f32 * pitch},
-                    strata: FrameStrata::FullscreenDialog,
+                    strata: FrameStrata::Fullscreen,
                 }
             }
         })
@@ -317,7 +406,7 @@ fn side_bar_preview(name: &str, right: f32, scale: f32) -> Element {
             name: {DynName(name.into())},
             width: {size}, height,
             pos_type: "absolute", right, top: "50%", translate_y: "-50%",
-            strata: FrameStrata::FullscreenDialog,
+            strata: FrameStrata::Fullscreen,
             {slots}
         }
     }
