@@ -21,6 +21,7 @@ use super::assets;
 #[derive(Clone, Copy, PartialEq, Eq, Hash)]
 enum Mask {
     Round,
+    AuctionItem,
     Glyph,
 }
 
@@ -85,12 +86,16 @@ impl IconMasks {
                 flare_glyph_mask(&mut source);
                 source
             }
-            Mask::Round => {
+            Mask::Round | Mask::AuctionItem => {
                 let round = match &mut self.mask_alpha {
                     Some(round) => round,
                     empty => empty.insert(mask_alpha(&load_rgba(PORTRAIT_MASK_FDID, "mask")?)),
                 };
-                compose_masked_icon(source, round)
+                if mask == Mask::AuctionItem {
+                    compose_auction_item_icon(source, round)
+                } else {
+                    compose_masked_icon(source, round)
+                }
             }
         };
         let id =
@@ -123,13 +128,25 @@ fn is_round_icon(name: &str) -> bool {
 }
 
 fn mask_of(name: &str) -> Option<Mask> {
-    if is_round_icon(name) {
+    if name == "AuctionHouseFrameItemBuyFrameItemDisplayItemButtonIcon" {
+        Some(Mask::AuctionItem)
+    } else if is_round_icon(name) {
         Some(Mask::Round)
     } else if FOREVER_CHAT_HEADER_ICONS.contains(&name) {
         Some(Mask::Glyph)
     } else {
         None
     }
+}
+
+/// CircularGiantItemButtonTemplate:46px icon,42px mask inset2 (ItemButtonTemplate.xml:23-41).
+fn compose_auction_item_icon(source: RgbaImage, round: &GrayImage) -> RgbaImage {
+    use image::imageops::{FilterType, replace, resize};
+    let source = resize(&source, 46, 46, FilterType::Triangle);
+    let circle = resize(round, 42, 42, FilterType::Triangle);
+    let mut mask = GrayImage::new(46, 46);
+    replace(&mut mask, &circle, 2, 2);
+    compose_masked_icon(source, &mask)
 }
 
 /// The (left, right, top, bottom) normalized region of `image`.
