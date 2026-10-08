@@ -91,7 +91,7 @@ fn trainer_art_names_are_retail_normal_gold_even_when_unavailable_or_used() {
         ] {
             assert_eq!(
                 text(&registry, &format!("ClassTrainerService{id}Name")),
-                (name.into(), [1.0, 0.82, 0.0, 1.0])
+                (name.into(), [1.0, 210.0 / 255.0, 0.0, 1.0])
             );
         }
         assert_eq!(
