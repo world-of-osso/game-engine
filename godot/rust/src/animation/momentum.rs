@@ -105,6 +105,10 @@ impl MomentumSway {
     /// The unit's velocity changed by `velocity_change` (yd/s, skeleton space): the
     /// bone tips keep moving the old way, so the swing rate jumps against the change.
     pub(super) fn kick(&mut self, velocity_change: Vector3) {
+        // A model without arm, spine or head key bones has nothing to swing.
+        if self.bones.is_empty() {
+            return;
+        }
         self.rate -= Vector2::new(velocity_change.x, velocity_change.z) * GAIN;
     }
 
@@ -189,7 +193,21 @@ pub(super) struct VelocityTracker {
 }
 
 impl VelocityTracker {
-    pub(super) fn change(&mut self, _global: Transform3D, _delta_s: f32) -> Option<Vector3> {
-        None
+    /// The horizontal velocity change since the last frame, in skeleton space (yd/s)
+    /// so turns kick sideways; `None` on the first frame, which has no velocity yet.
+    pub(super) fn change(&mut self, global: Transform3D, delta_s: f32) -> Option<Vector3> {
+        let last_origin = self.last_origin.replace(global.origin)?;
+        let moved = global.origin - last_origin;
+        let velocity = Vector3::new(moved.x, 0.0, moved.z) / delta_s;
+        let change = velocity - self.last_velocity;
+        self.last_velocity = velocity;
+        // Orthonormalized: a creature's scale must not scale its velocity.
+        Some(global.basis.orthonormalized().inverse() * change)
+    }
+
+    /// Forget the motion, so a paused unit resumes without a kick.
+    pub(super) fn reset(&mut self) {
+        self.last_origin = None;
+        self.last_velocity = Vector3::ZERO;
     }
 }

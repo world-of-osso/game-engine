@@ -649,6 +649,8 @@ pub struct WowAnimationPlayer {
     billboards: Option<billboard::Billboards>,
     /// The sequence whose bounds the sibling skinned batches cull by.
     bounds_sequence: Option<usize>,
+    /// The skeleton's motion, fed to the momentum sway each processed frame.
+    velocity: momentum::VelocityTracker,
 }
 
 #[godot_api]
@@ -664,6 +666,7 @@ impl INode for WowAnimationPlayer {
             animates: true,
             billboards: None,
             bounds_sequence: None,
+            velocity: Default::default(),
         }
     }
 
@@ -674,6 +677,7 @@ impl INode for WowAnimationPlayer {
     }
 
     fn process(&mut self, delta: f64) {
+        self.feed_velocity_change(delta);
         self.advance_time_ms(delta * 1000.0);
     }
 }
@@ -699,10 +703,29 @@ impl WowAnimationPlayer {
             animates: !m2::bones_are_static(model) || billboards.is_some(),
             billboards,
             bounds_sequence: None,
+            velocity: Default::default(),
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
         Ok(player)
+    }
+
+    /// Kick the momentum sway with the skeleton's horizontal velocity change since the
+    /// last processed frame: one path for the local player, remote players and NPCs.
+    fn feed_velocity_change(&mut self, delta: f64) {
+        let (Some(animation), Some(skeleton)) = (&mut self.animation, &self.skeleton) else {
+            return;
+        };
+        if self.paused || delta <= 0.0 {
+            self.velocity.reset();
+            return;
+        }
+        if let Some(change) = self
+            .velocity
+            .change(skeleton.get_global_transform(), delta as f32)
+        {
+            animation.add_velocity_change(change);
+        }
     }
 
     pub fn animates(&self) -> bool {
@@ -739,6 +762,7 @@ impl WowAnimationPlayer {
         }
         self.animation = previous.animation.take();
         self.paused = previous.paused;
+        self.velocity = std::mem::take(&mut previous.velocity);
         self.write_poses();
         Ok(())
     }
