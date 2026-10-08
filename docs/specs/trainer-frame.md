@@ -11,9 +11,13 @@ Native `ClassTrainerFrame` in `godot/ui-model/src/trainer*.rs` and `godot/rust/s
 - [x] Adding a primary profession requires Accept / Cancel and a free primary slot; changing selection or closing cancels confirmation.
 - [x] `TrainerBuyFailed` displays its reason without optimistic spending. Both Modern and Forever use the shared window chrome and same decisions.
 - [x] Three-denomination selected and unselected prices keep every coin inside the row/scroll clip and above selection art.
+- [ ] Recipe service content includes the crafted item's name/quality/properties, reagent names/counts and current service Requires lines; class service content retains the full shared spell tooltip. Both record-ID lines remain for recipes (Item ID and Spell ID); class spells retain Spell ID.
 - [x] Hovering any visible service row or descendant shows that service's shared catalog spell/recipe tooltip in both skins, not the selected service; Retail `ANCHOR_RIGHT` +35 and the requested grey Spell ID line remain. Leaving, filtering it away or closing removes the tooltip.
 
 ## Retail references
+
+Tooltip contract (2026-10-08, offline source audit): cached `Blizzard_TrainerUI/Mainline/Blizzard_TrainerUI.xml:95-103` sets the hovered row's owner to `ANCHOR_RIGHT` +35 and calls `GameTooltip:SetTrainerService(self:GetID())`; `Blizzard_TrainerUI.lua:312-313` refreshes it while hovered. Cached `Blizzard_APIDocumentationGenerated/TooltipInfoDocumentation.lua:1148-1161` documents native `C_TooltipInfo.GetTrainerService(serviceIndex)` returning `TooltipData`. Lua delegates the content to the game client: it does **not** enumerate crafted-item properties, reagents or full spell lines. The requested content contract is the crafted item tooltip plus named reagent counts and Requires lines for recipes; the complete shared spell tooltip for class spells. Existing native item/spell builders are the local content model, not an invented Lua implementation. Row requirement inputs are documented in `Blizzard_TrainerUI.lua:208-249` (level, profession skill/rank, abilities).
+
 
 Under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 
