@@ -728,6 +728,9 @@ impl UiProjection {
             update_multiline_edit(node.clone().cast::<TextEdit>(), &data.text);
         } else {
             update_single_line_edit(node.clone().cast::<LineEdit>(), data);
+            // Godot's default minimum (4 × 'M') widens narrow edits past their authored
+            // rect (copper 48 → 51.3); Retail EditBoxes take only their XML width.
+            node.add_theme_constant_override("minimum_character_width", 0);
         }
         if let Some(font) = self.font(data.font) {
             node.add_theme_font_override("font", &font);
