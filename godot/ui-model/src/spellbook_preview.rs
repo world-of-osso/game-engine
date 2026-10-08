@@ -1,0 +1,85 @@
+//! Offline Frost mage snapshot from the local Retail catalog, without a session/network.
+use crate::spellbook_frame_component::{
+    PlayerSpellsTab, SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
+    specialization_choices,
+};
+use game_engine_core::spell_catalog::{SpellCatalogPaths, load_spell_catalog};
+use game_engine_core::spellbook_data::{SpellbookTab, build_spellbook_tabs};
+
+const MAGE_CLASS: u32 = 8;
+const FROST_SPEC: u32 = 64;
+// Frostbolt, Frost Nova, Slow Fall, Remove Curse, Arcane Explosion/Intellect,
+// Blink, Counterspell, Ice Lance, Icy Veins and Attack (a bounded known-spell snapshot).
+const KNOWN_SPELLS: [u32; 11] = [
+    116, 122, 130, 475, 1449, 1459, 1953, 2139, 30455, 12472, 6603,
+];
+
+pub fn load_preview_state(
+    data: &std::path::Path,
+    tab: PlayerSpellsTab,
+) -> Result<SpellbookFrameState, String> {
+    let catalog = load_spell_catalog(&SpellCatalogPaths::for_data_dir(data))?;
+    for id in KNOWN_SPELLS {
+        if catalog.get(id).is_none() {
+            return Err(format!("Spellbook preview requires local spell {id}"));
+        }
+    }
+    let tabs = build_spellbook_tabs(&KNOWN_SPELLS, Some(FROST_SPEC), Some(&catalog), None);
+    let portrait_fdid = catalog
+        .tabs
+        .specs
+        .get(&FROST_SPEC)
+        .ok_or("Spellbook preview requires local Frost specialization 64")?
+        .icon_fdid;
+    Ok(SpellbookFrameState {
+        viewport: [1920.0, 1080.0],
+        categories: preview_categories(tabs),
+        tab,
+        specializations: specialization_choices(&catalog.tabs, MAGE_CLASS, Some(FROST_SPEC)),
+        portrait_fdid,
+        can_activate_spec: true,
+        ..Default::default()
+    })
+}
+
+fn preview_categories(tabs: Vec<SpellbookTab>) -> Vec<SpellbookCategory> {
+    let (general, class): (Vec<_>, Vec<_>) = tabs
+        .into_iter()
+        .map(preview_group)
+        .partition(|group| group.name == "General");
+    vec![
+        SpellbookCategory {
+            name: "Mage".into(),
+            groups: class,
+        },
+        SpellbookCategory {
+            name: "General".into(),
+            groups: general,
+        },
+    ]
+    .into_iter()
+    .filter(|category| !category.groups.is_empty())
+    .collect()
+}
+
+fn preview_group(tab: SpellbookTab) -> SpellbookGroup {
+    SpellbookGroup {
+        name: tab.name,
+        items: tab
+            .spells
+            .into_iter()
+            .map(|spell| SpellbookItemView {
+                spell_id: spell.id,
+                name: spell.name,
+                subtext: if spell.passive {
+                    "Passive".into()
+                } else {
+                    spell.subtext
+                },
+                icon_fdid: spell.icon_file_data_id,
+                passive: spell.passive,
+                available_at: spell.available_at,
+            })
+            .collect(),
+    }
+}
