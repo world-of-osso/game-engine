@@ -13,6 +13,7 @@ use godot::builtin::{Basis, Transform3D};
 
 mod action;
 mod billboard;
+mod momentum;
 pub(crate) use action::ActionPriority;
 pub(crate) mod lod;
 
@@ -189,6 +190,8 @@ pub struct AnimationState {
     /// The next `update_locomotion` may enter or leave a stand state pose through its
     /// down or up clip.
     pose_transition: bool,
+    /// Arms, spine and head swing against changes in the unit's velocity.
+    momentum: momentum::MomentumSway,
 }
 
 impl AnimationState {
@@ -253,6 +256,7 @@ impl AnimationState {
             legs_free: true,
             locomotion_speed: None,
             pose_transition: false,
+            momentum: momentum::MomentumSway::new(model),
         })
     }
 
@@ -270,7 +274,16 @@ impl AnimationState {
     /// Whether the sampled pose can change as time advances: a crossfade, or a
     /// current sequence with keyframed motion. Static props hold one pose.
     pub fn pose_varies(&self) -> bool {
-        self.transition.is_some() || self.action.is_some() || self.sequence_animated[self.current]
+        self.transition.is_some()
+            || self.action.is_some()
+            || self.momentum.active()
+            || self.sequence_animated[self.current]
+    }
+
+    /// The unit's horizontal velocity changed by `change` (yd/s, skeleton space) since
+    /// the last frame; the momentum sway swings against it.
+    pub fn add_velocity_change(&mut self, change: Vector3) {
+        self.momentum.kick(change);
     }
 
     /// Timeline and time a track samples: a global-sequence track reads timeline 0
@@ -312,7 +325,8 @@ impl AnimationState {
     }
 
     fn sampled_poses(&self) -> Vec<BonePose> {
-        self.apply_action(self.sampled_base_poses())
+        self.momentum
+            .apply(self.apply_action(self.sampled_base_poses()))
     }
 
     fn sampled_base_poses(&self) -> Vec<BonePose> {
@@ -526,6 +540,7 @@ impl AnimationState {
         // (WebWowViewerCpp animationManager.cpp updateSequencing `deltaTimeForGS`).
         self.global_ms += delta_ms;
         self.tick_action(delta_ms);
+        self.momentum.advance(delta_ms);
         Ok(())
     }
 
@@ -634,6 +649,8 @@ pub struct WowAnimationPlayer {
     billboards: Option<billboard::Billboards>,
     /// The sequence whose bounds the sibling skinned batches cull by.
     bounds_sequence: Option<usize>,
+    /// The skeleton's motion, fed to the momentum sway each processed frame.
+    velocity: momentum::VelocityTracker,
 }
 
 #[godot_api]
@@ -649,6 +666,7 @@ impl INode for WowAnimationPlayer {
             animates: true,
             billboards: None,
             bounds_sequence: None,
+            velocity: Default::default(),
         }
     }
 
@@ -659,6 +677,7 @@ impl INode for WowAnimationPlayer {
     }
 
     fn process(&mut self, delta: f64) {
+        self.feed_velocity_change(delta);
         self.advance_time_ms(delta * 1000.0);
     }
 }
@@ -684,10 +703,29 @@ impl WowAnimationPlayer {
             animates: !m2::bones_are_static(model) || billboards.is_some(),
             billboards,
             bounds_sequence: None,
+            velocity: Default::default(),
         });
         player.set_name("WowAnimationPlayer");
         player.bind_mut().write_poses();
         Ok(player)
+    }
+
+    /// Kick the momentum sway with the skeleton's horizontal velocity change since the
+    /// last processed frame: one path for the local player, remote players and NPCs.
+    fn feed_velocity_change(&mut self, delta: f64) {
+        let (Some(animation), Some(skeleton)) = (&mut self.animation, &self.skeleton) else {
+            return;
+        };
+        if self.paused || delta <= 0.0 {
+            self.velocity.reset();
+            return;
+        }
+        if let Some(change) = self
+            .velocity
+            .change(skeleton.get_global_transform(), delta as f32)
+        {
+            animation.add_velocity_change(change);
+        }
     }
 
     pub fn animates(&self) -> bool {
@@ -724,6 +762,7 @@ impl WowAnimationPlayer {
         }
         self.animation = previous.animation.take();
         self.paused = previous.paused;
+        self.velocity = std::mem::take(&mut previous.velocity);
         self.write_poses();
         Ok(())
     }
@@ -1037,6 +1076,8 @@ mod global_sequence_tests;
 mod jump_tests;
 #[cfg(test)]
 mod locomotion_capture_tests;
+#[cfg(test)]
+mod momentum_tests;
 
 #[cfg(test)]
 mod npc_locomotion_tests;
