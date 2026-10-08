@@ -74,10 +74,18 @@ material slot is checked against the exact base-level BLP bytes selected through
 `ItemDisplayInfoModelMatRes`, the legacy model materials and `TextureFileData`.
 Rigid batches join the existing CPU pixel oracle; attachment parents are checked
 against semantic head11/left shoulder6/right shoulder5. This does not independently
-prove item-local transforms or animation. Helmet hide rules still lack an independent
-oracle and every helm cell explicitly fails acceptance, even if its model/textures
-load. Existing pixel thresholds/skips and diagnostic body-texel comparisons are
-unchanged; they are not bit-exact rendered-pixel proof.
+prove item-local transforms or animation. Helmet visibility now reads independently exported `HelmetGeosetData` rows
+(layout `103B3B37`) via the generic WDC5 exporter, joined to both display visibility
+keys. Race-specific groups reset to variant1; hair uses the smallest authored
+`CharHairGeosets.Showscalp` variant when present, otherwise the model default1.
+Head groups27/21 follow the separately documented display mapping. Generic
+race-selection rows remain explicitly unsupported; none occurs in these six
+helm cells. The extra DB2 field remains uninterpreted, not invented semantics. Existing pixel thresholds/skips and diagnostic body-texel comparisons are
+unchanged; they are not bit-exact rendered-pixel proof. Full-body thumbnails are
+capture-only: their HD minification often leaves fewer than400 qualified texels.
+Every garment close-up retains the existing400-texel/97% gate. Compressed item
+bindings compare exact authored BLP base-mip blocks and format; RGBA bindings
+compare exact decoded base bytes. No DXT-to-RGBA `Image.convert` is attempted.
 
 Artifacts and the append-only command/revision ledger live under canonical
 `data/diagnostics/charmatrix-2026-10-07/`. Local cached assets are not evidence of

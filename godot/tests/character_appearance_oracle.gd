@@ -366,6 +366,7 @@ func visible_parts(app: Dictionary, parts: Array) -> Array:
 		set_group(visible, parts, 32, 3202)
 	if app["class"] != DEATH_KNIGHT:
 		hide_range(visible, 1700, 1799)
+	apply_helmet(visible, parts, app)
 	apply_equipment(visible, parts, app.displays)
 	var result := []
 	for part in parts:
@@ -392,6 +393,46 @@ func hide_range(visible: Dictionary, low: int, high: int) -> void:
 func show(visible: Dictionary, parts: Array, part: int) -> void:
 	if parts.has(part):
 		visible[part] = true
+
+# DB2-exported helmet visibility relationships; no native outfit/geoset metadata.
+# The unresolved extra field is retained in the export, not assigned invented semantics.
+func helmet_hidden_groups(display_id: int, race: int) -> Array:
+	var display := first("ItemDisplayInfo", ["ID", "HelmetGeosetVis_0", "HelmetGeosetVis_1"], "ID", display_id)
+	var groups := []
+	if display.is_empty():
+		return groups
+	for key in [display.HelmetGeosetVis_0, display.HelmetGeosetVis_1]:
+		if key == 0:
+			continue
+		for rule in rows("HelmetGeosetData", ["HelmetGeosetVisDataID", "RaceID", "HideGeosetGroup", "RaceBitSelection"], "HelmetGeosetVisDataID").get(key, []):
+			if rule.RaceID == race and not groups.has(rule.HideGeosetGroup):
+				groups.append(rule.HideGeosetGroup)
+			elif rule.RaceID == 0 and rule.RaceBitSelection != 0:
+				errors.append("helmet visibility %d has unsupported generic race selection %d" % [key, rule.RaceBitSelection])
+	groups.sort()
+	return groups
+
+func apply_helmet(visible: Dictionary, parts: Array, app: Dictionary) -> void:
+	if not app.displays.has("Head"):
+		return
+	for group in helmet_hidden_groups(app.displays.Head, app.race):
+		var variant := 1
+		if group == 0:
+			var scalps := []
+			for row in rows("CharHairGeosets", ["RaceID", "SexID", "GeosetType", "GeosetID", "Showscalp"], "RaceID").get(app.race, []):
+				if row.SexID == app.sex and row.GeosetType == 0 and row.Showscalp != 0:
+					scalps.append(row.GeosetID)
+			if not scalps.is_empty():
+				scalps.sort()
+				variant = scalps[0]
+		set_group(visible, parts, group, group * 100 + variant)
+	var head := display_info(app.displays.Head)
+	var primary := geoset_group(head, 0)
+	if primary >= 0:
+		set_group(visible, parts, 27, 2702 if primary == 0 else 2700 + primary)
+	var secondary := geoset_group(head, 1)
+	if secondary > 0:
+		set_group(visible, parts, 21, 2101 + secondary)
 
 func apply_equipment(visible: Dictionary, parts: Array, displays: Dictionary) -> void:
 	var shirt := display_info(displays.get("Shirt", 0))

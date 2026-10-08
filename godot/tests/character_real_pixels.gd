@@ -286,8 +286,6 @@ func run_case(case: Dictionary) -> Array[String]:
 	var equipment_draws := []
 	if case.has("garment"):
 		equipment_draws = check_equipment_models(case, model, problems)
-		if case.garment == "helm":
-			problems.append("HelmetGeosetData hide-rule oracle not implemented; head geosets are not independently accepted")
 	if draws.is_empty():
 		model.free()
 		return problems
@@ -316,6 +314,9 @@ func run_case(case: Dictionary) -> Array[String]:
 		material.set_shader_parameter("sun_direction", SCENE.sun_direction)
 		draw.images = draw_images(draw, canvases)
 	for view in case.views:
+		if case.has("garment") and view == "full":
+			await capture_full(case, draws)
+			continue
 		var line := await check_view(case, view, model, draws)
 		if not line.is_empty():
 			problems.append(line)
@@ -430,13 +431,27 @@ func collect_item_draws(parsed: Oracle, node: Node3D, replacements: Dictionary, 
 				problems.append("%s batch%d slot%d untextured" % [node.name, position, slot])
 			else:
 				var actual := bound.get_image()
-				actual.convert(Image.FORMAT_RGBA8)
-				var size: Vector2i = image.get_size()
-				var bytes := size.x * size.y * 4
-				if actual.get_size() != size or actual.get_data().slice(0, bytes) != image.get_data().slice(0, bytes):
+				if not texture_matches_file(actual, image, fdid):
 					problems.append("%s batch%d slot%d does not bind exact oracle FDID %d" % [node.name, position, slot, fdid])
 		draws.append({"node": mesh, "info": info, "material": material, "types": types, "part": part, "item_images": images_for_item})
 	return draws
+
+# Block-compressed uploads must match the authored BLP blocks, not an RGBA buffer.
+# Image.convert cannot convert DXT; testing those bytes as RGBA produced false FAILs.
+func texture_matches_file(actual: Image, decoded: Image, fdid: int) -> bool:
+	if actual.get_size() != decoded.get_size():
+		return false
+	if actual.is_compressed():
+		var blp := FileAccess.get_file_as_bytes(DATA + "textures/%d.blp" % fdid)
+		if blp.size() < 148 or blp.slice(0, 4).get_string_from_ascii() != "BLP2" or blp[8] != 2:
+			return false
+		var format := Image.FORMAT_DXT1 if blp[10] == 0 else (Image.FORMAT_DXT3 if blp[10] == 1 else Image.FORMAT_DXT5)
+		var offset := blp.decode_u32(20)
+		var length := blp.decode_u32(84)
+		return actual.get_format() == format and actual.get_data().slice(0, length) == blp.slice(offset, offset + length)
+	actual.convert(Image.FORMAT_RGBA8)
+	var length := decoded.get_width() * decoded.get_height() * 4
+	return actual.get_data().slice(0, length) == decoded.get_data().slice(0, length)
 
 static func mesh_part(m2: Oracle, submesh: int) -> int:
 	return m2.skin.decode_u16(m2.array_at(m2.skin, 28).y + submesh * 48)
@@ -523,6 +538,20 @@ func check_textures(case: Dictionary, draws: Array, canvases: Dictionary, proble
 
 # --- rendered pixels ---------------------------------------------------------------------
 
+# A full-body thumbnail is visual evidence, not a close-up pixel gate: its HD
+# atlas sampling exceeds MAX_LOD. Keep the close-up's MIN_PIXELS/MIN_MATCH intact.
+func capture_full(case: Dictionary, draws: Array) -> void:
+	frame(draws, VIEWS.full)
+	for frame_index in 3:
+		await process_frame
+		await RenderingServer.frame_post_draw
+	var actual := viewport.get_texture().get_image()
+	actual.convert(Image.FORMAT_RGBA8)
+	save(actual, case.name + "_full_actual")
+	if not matrix_captures.has(case.body):
+		matrix_captures[case.body] = {}
+	matrix_captures[case.body][case.garment] = actual.duplicate()
+
 func check_view(case: Dictionary, view: String, model: Node3D, draws: Array) -> String:
 	var band: Array = VIEWS[view]
 	frame(draws, band)
@@ -560,10 +589,6 @@ func check_view(case: Dictionary, view: String, model: Node3D, draws: Array) -> 
 			diff.set_pixel(x, y, Color(minf(absf(got.r - want.r) * 8.0, 1.0), minf(absf(got.g - want.g) * 8.0, 1.0), minf(absf(got.b - want.b) * 8.0, 1.0)))
 	var name := "%s_%s" % [case.name, view]
 	save(actual, name + "_actual")
-	if case.has("garment") and view == "full":
-		if not matrix_captures.has(case.body):
-			matrix_captures[case.body] = {}
-		matrix_captures[case.body][case.garment] = actual.duplicate()
 	save(expected, name + "_expected")
 	save(diff, name + "_diff")
 	var ratio := float(counts.matched) / maxf(counts.compared, 1.0)
