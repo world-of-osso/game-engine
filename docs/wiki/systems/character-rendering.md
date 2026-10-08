@@ -56,6 +56,35 @@ Branch `appearpix`. Evidence: `game-engine/data/diagnostics/appearpix-2026-10-01
 - **Fixed** (each RED first): item textures pasted opaque instead of alpha-blended; undersized layers expanded nearest instead of stock PasteScale; composited textures uploaded without mipmaps; eyes (type 19) bound only the last layer's file (Eyesight overlay lost); the second eye slot of a two-texture batch unbound (replacements applied to slot 0 only); translucent layers darkened on empty canvases (straight-alpha "over" ignored destination alpha); HD body halved to 1024x512; group-0 meshes 1 and 27+ always shown, ears 701 with 702, both faces 3201/3202; Eyesight hidden from non-Demon Hunter Night/Blood Elves (its "Both" hides eye group 51).
 - **Assumptions/open**: 4x expansion of legacy 128x64 item files into HD sections repeats PasteScale (no stock reference); face 3202 default comes from WMVx alone; a non-Demon Hunter Night/Blood Elf body batch of type 9 has no texture on either side (Retail's binding unknown); attached models (helmets, shoulders, weapons) and skinned collections are not in the pixel cases; NPC/Bevy paths share the compositor but were not pixel-checked; the Bevy client still binds eyes from the last layer (`character_customization_textures.rs`, `npc_appearance.rs`).
 
+## Race/garment matrix (2026-10-07, acceptance pending)
+
+`godot/tests/character_real_pixels.gd` extends the existing appearance oracle with
+`CHARPIX_MATRIX=1`. Six retained race/sex bodies (Human male, Orc female, Dwarf
+male, Night Elf female, Tauren male, Blood Elf female) each wear one isolated item
+in 13 categories: the original clothing contract including kilt, plus shoulders
+and helm. `CHARPIX_CASES` still selects named cells. Default eight-case runs remain
+unchanged. `CHARPIX_EVIDENCE` receives incremental `matrix-results.json`, individual
+actual/expected/diff images and one 4-by-4 contact sheet per body. Cell order is
+shirt, chest, robe, legs, kilt, boots, gloves, belt, shoulders, helm, cloak, tabard,
+bracers; unused sheet tiles are background.
+
+Rigid garment files are independently selected through `ModelFileData` and
+`ComponentModelFileData`, using the separate model fallback chain. Each sampled
+material slot is checked against the exact base-level BLP bytes selected through
+`ItemDisplayInfoModelMatRes`, the legacy model materials and `TextureFileData`.
+Rigid batches join the existing CPU pixel oracle; attachment parents are checked
+against semantic head11/left shoulder6/right shoulder5. This does not independently
+prove item-local transforms or animation. Helmet hide rules still lack an independent
+oracle and every helm cell explicitly fails acceptance, even if its model/textures
+load. Existing pixel thresholds/skips and diagnostic body-texel comparisons are
+unchanged; they are not bit-exact rendered-pixel proof.
+
+Artifacts and the append-only command/revision ledger live under canonical
+`data/diagnostics/charmatrix-2026-10-07/`. Local cached assets are not evidence of
+current CASC archive availability: the documented WoW installation is absent on
+this host. No server/networked client is part of this matrix. Acceptance results
+must be recorded only after running and inspecting the current fixture.
+
 ## Character Models and HD Skeletons
 
 Legacy models (`humanmale.m2`) store 215 bones inline in the MD20 header. HD models (`humanmale_hd.m2`) store bones externally in a `.skel` file (referenced via the SKID chunk). The `.skel` file contains SKS1 (sequences + global sequences) and SKB1 (216 bones + animation tracks). `load_skel_data()` handles both paths transparently.
