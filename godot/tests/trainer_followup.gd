@@ -26,7 +26,11 @@ func _run() -> void:
 				return
 			for frame in range(240):
 				await process_frame
-				ui.find_child("TrainerPreviewPortrait", true, false).call("tick")
+				error = ui.find_child("TrainerPreviewPortrait", true, false).call("tick")
+				if error != "":
+					push_error(error)
+					quit(1)
+					return
 				await RenderingServer.frame_post_draw
 			if not check_prices(ui):
 				quit(1)

@@ -16,13 +16,20 @@ func _run() -> void:
 		await process_frame
 		var portrait = ui.find_child("TrainerPreviewPortrait", true, false)
 		if portrait != null:
-			portrait.call("tick")
+			error = portrait.call("tick")
+			if error != "":
+				push_error(error)
+				quit(1)
+				return
 		await RenderingServer.frame_post_draw
 	var coin := ui.find_child("ClassTrainerService2963CostCoin2", true, false) as Control
 	var selected := ui.find_child("ClassTrainerService2963Selected", true, false) as Control
 	var rect := Rect2i(coin.get_global_rect())
 	var before = root.get_texture().get_image()
-	before.save_png(OS.get_environment("GODOT_CAPTURE_PATH"))
+	if before == null or before.is_empty() or before.save_png(OS.get_environment("GODOT_CAPTURE_PATH")) != OK:
+		push_error("Coin regression requires saved rendered pixels")
+		quit(1)
+		return
 	selected.hide()
 	RenderingServer.force_draw()
 	var after = root.get_texture().get_image()
