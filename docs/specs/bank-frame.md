@@ -13,6 +13,9 @@ References: BF.xml / BF.lua = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml` / 
 - [x] The bank opens as the Wide `WindowId::Bank` window, together with the backpack.
 - [x] Closing the window sends `CloseInteraction` and closes the backpack.
 - [x] `InteractionClosed` for the banker closes the frame.
+- [x] A right-click on a living banker beyond interaction range still sends the interaction attempt; the server refuses it with `You are too far away.` without opening the bank. Other NPCs retain their existing out-of-range target-only behavior.
+
+Range regression (2026-10-08): `data/diagnostics/bankloop-2026-10-08/resume-too-far-response.{json,png}` records real John Burnside input on `fc5156f85`, no open bank and no error. `assert-bank-range.py` exits 1 (`range-red.log`). Native `merchant.rs` discarded the attempt before server validation. Banker-only routing now permits authoritative refusal; GREEN/live reproof pending.
 
 ### Layout
 - [x] Frame 738×460 (BF.xml:674) with the `metal_frame` chrome and the active-skin `bank-frame-background` atlas. In both skins the portrait is the open banker (`BF.lua:94`, `SetPortraitToUnit("npc")`), masked at (-3,-7,58,58). Backgrounds exclude that mask; the bank atlas begins at y=51 and retains its bottom inset of 30.

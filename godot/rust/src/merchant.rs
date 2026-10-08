@@ -31,7 +31,7 @@ use crate::targeting::pick_unit;
 use crate::ui::{MerchantStates, RegistryUi};
 use crate::world_map::WindowDrag;
 
-/// Bevy `INTERACT_RANGE`: the farthest a right-click interacts, in yards.
+/// Bevy `INTERACT_RANGE`: non-banker right-click interaction limit, in yards.
 const INTERACT_RANGE: f32 = 5.0;
 const MERCHANT_UI: &str = "MerchantUI";
 
@@ -85,14 +85,19 @@ impl Merchant {
 /// What a right-click on a unit does (Bevy `interact_with_clicked_npc` / `npc_right_click`).
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub(crate) enum RightClick {
-    /// Target it only: a player, a corpse, or an NPC out of range.
+    /// Target it only: a player, a corpse, or a non-banker NPC out of range.
     Target,
     /// Target it and send `InteractNpc`.
     Interact,
 }
 
-pub(crate) fn right_click(is_npc: bool, dead: bool, distance: f32) -> RightClick {
-    if is_npc && !dead && distance <= INTERACT_RANGE {
+pub(crate) fn right_click(is_npc: bool, dead: bool, distance: f32, flags: NpcFlags) -> RightClick {
+    if !is_npc || dead {
+        return RightClick::Target;
+    }
+    // Bankers must reach server validation so an out-of-range attempt shows ERR_USE_TOO_FAR.
+    let can_attempt = flags.contains(NpcFlags::BANKER) || distance <= INTERACT_RANGE;
+    if can_attempt {
         RightClick::Interact
     } else {
         RightClick::Target
@@ -290,7 +295,8 @@ impl GameClient {
         let dead = unit
             .get::<Health>()
             .is_some_and(|health| health.current <= 0.0);
-        right_click(unit.has::<Npc>(), dead, distance)
+        let flags = NpcFlags(unit.npc_flags().unwrap_or(0));
+        right_click(unit.has::<Npc>(), dead, distance, flags)
     }
 
     /// Bevy `pick_desired_cursor` for units: the cursor of the NPC under the pointer.
@@ -768,11 +774,22 @@ mod tests {
 
     #[test]
     fn right_click_interacts_only_with_a_living_npc_in_range() {
-        assert_eq!(right_click(true, false, 4.9), RightClick::Interact);
-        assert_eq!(right_click(true, false, 5.0), RightClick::Interact);
-        assert_eq!(right_click(true, false, 5.1), RightClick::Target);
-        assert_eq!(right_click(true, true, 1.0), RightClick::Target);
-        assert_eq!(right_click(false, false, 1.0), RightClick::Target);
+        let flags = NpcFlags(0);
+        assert_eq!(right_click(true, false, 4.9, flags), RightClick::Interact);
+        assert_eq!(right_click(true, false, 5.0, flags), RightClick::Interact);
+        assert_eq!(right_click(true, false, 5.1, flags), RightClick::Target);
+        assert_eq!(right_click(true, true, 1.0, flags), RightClick::Target);
+        assert_eq!(right_click(false, false, 1.0, flags), RightClick::Target);
+    }
+
+    #[test]
+    fn distant_banker_attempt_reaches_authoritative_range_validation() {
+        let banker = NpcFlags(NpcFlags::BANKER);
+        assert_eq!(right_click(true, false, 8.0, banker), RightClick::Interact);
+        assert_eq!(right_click(true, true, 8.0, banker), RightClick::Target);
+        assert_eq!(right_click(false, false, 8.0, banker), RightClick::Target);
+        let vendor = NpcFlags(NpcFlags::VENDOR);
+        assert_eq!(right_click(true, false, 8.0, vendor), RightClick::Target);
     }
 
     #[test]
