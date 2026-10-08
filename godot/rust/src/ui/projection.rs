@@ -587,7 +587,7 @@ impl UiProjection {
                 let mut button_node = node.cast::<Button>();
                 button_node.set_disabled(!button.enabled || button.state == ButtonState::Disabled);
             }
-            Some(WidgetData::EditBox(edit)) => self.update_editbox(node, edit)?,
+            Some(WidgetData::EditBox(edit)) => self.update_editbox(node, edit, rect)?,
             Some(WidgetData::FontString(text)) => {
                 self.update_label(node.cast::<Label>(), text, frame, rect)?
             }
@@ -722,6 +722,7 @@ impl UiProjection {
         &mut self,
         mut node: Gd<Control>,
         data: &ui_toolkit::widgets::edit_box::EditBoxData,
+        rect: &LayoutRect,
     ) -> Result<(), String> {
         if data.multi_line {
             update_multiline_edit(node.clone().cast::<TextEdit>(), &data.text);
@@ -747,6 +748,9 @@ impl UiProjection {
         }
         node.add_theme_stylebox_override("normal", &style);
         node.add_theme_stylebox_override("focus", &style);
+        // Apply authored bounds after the font/border theme, not the default theme's minimum.
+        // Labels use the same ordering; otherwise small copper inputs retain their creation size.
+        node.set_size(Vector2::new(rect.width, rect.height));
         Ok(())
     }
 

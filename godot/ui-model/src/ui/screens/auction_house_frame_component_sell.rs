@@ -484,7 +484,7 @@ pub(super) fn sell_listing_columns() -> [Column; 4] {
         0.0,
         397.0,
         [
-            ("Bid Price", 110.0, 10.0, 0.0),
+            ("Bid Price", 120.0, 10.0, 0.0),
             ("Buyout Price", 120.0, 10.0, 0.0),
             ("Available", -1.0, 10.0, 0.0),
             ("", 90.0, 10.0, 10.0),
