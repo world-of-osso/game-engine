@@ -186,10 +186,7 @@ fn trainer_recipe_shows_created_item_quality_reagents_and_both_record_ids() {
         set_thread_skin(skin);
         let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
             spell_tooltip(catalog.get(2963).unwrap(), &Default::default()),
-            recipes
-                .recipes
-                .iter()
-                .find(|recipe| recipe.spell_id == 2963),
+            recipes.get(2963),
             Some(10),
         )
         .unwrap();
@@ -356,11 +353,7 @@ fn trainer_recipe_uses_crafted_gear_quality_and_item_requirements() {
     let dir =
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
     let recipes = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&dir).unwrap();
-    let recipe = recipes
-        .recipes
-        .iter()
-        .find(|recipe| recipe.spell_id == 12069)
-        .unwrap();
+    let recipe = recipes.get(12069).unwrap();
     let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
         spell_tooltip(spells.get(12069).unwrap(), &Default::default()),
         Some(recipe),
@@ -411,4 +404,33 @@ fn trainer_class_spell_that_creates_an_item_keeps_its_spell_tooltip() {
         Some(10),
     );
     assert_eq!(actual, Ok(expected));
+}
+
+#[test]
+fn trainer_secondary_profession_recipe_keeps_item_and_reagents() {
+    let spells = local_catalog();
+    let dir =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let recipes = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&dir).unwrap();
+    let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
+        spell_tooltip(spells.get(7751).unwrap(), &Default::default()),
+        recipes.get(7751),
+        Some(10),
+    )
+    .unwrap();
+    assert_eq!(tooltip.content.title, "Brilliant Smallfish");
+    assert!(
+        tooltip
+            .content
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Item ID: 6290")
+    );
+    assert!(
+        tooltip
+            .content
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Raw Brilliant Smallfish (1)")
+    );
 }
