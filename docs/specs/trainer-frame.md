@@ -10,6 +10,8 @@ Native `ClassTrainerFrame` in `godot/ui-model/src/trainer*.rs` and `godot/rust/s
 - [x] Train sends exactly one `TrainerBuySpell` for an available affordable selected service, waits for authority, and refreshes service state from the next list and money from replicated Gold.
 - [x] Adding a primary profession requires Accept / Cancel and a free primary slot; changing selection or closing cancels confirmation.
 - [x] `TrainerBuyFailed` displays its reason without optimistic spending. Both Modern and Forever use the shared window chrome and same decisions.
+- [ ] Three-denomination selected and unselected prices keep every coin inside the row/scroll clip and above selection art.
+- [ ] Hovering any visible service row or descendant shows that service's shared catalog spell/recipe tooltip in both skins, not the selected service; Retail `ANCHOR_RIGHT` +35 and the requested grey Spell ID line remain. Leaving, filtering it away or closing removes the tooltip.
 
 ## Retail references
 
@@ -38,6 +40,8 @@ Under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/trainer.rs`: concrete list, filters, exact once request, authoritative refresh, failure text, confirmation, disabled services and both-skin rendered registry projection.
+- `godot/ui-model/tests/trainer_tooltips.rs`: row/descendant and current-visible-list hover decisions, shared spell content/placement/ID and both-skin tooltip rendering.
+- `godot/tests/trainer_coin_pixels.gd`, `trainer_followup.gd`: native coin pixel/geometry regressions and offline hovered/leave captures in both skins; current results below.
 - Native/private evidence is appended to canonical `data/diagnostics/trainerframe-2026-10-07/proof-ledger.txt` (verified 2026-10-07): nine targeted tests and matching extension/CLI build pass at `57f3e2286`; changed-file formatting passes. No broad-suite claim.
 - Inspected Modern `shots/01-open.png`, `03-confirm.png`, `04-trained.png` at `263c9f461`: real Pomeroy gossip, first-profession confirmation, Train purchase, money 10000 → 9990 copper and Herbalism Already known. Model/bridge purchase scope is unchanged by the presentation-only follow-up.
 - Inspected Forever `forever-shots/01-open.png`, `02-available-off.png`, `03-used-off.png`, `04-restored.png` at `57f3e2286`: persisted 9990 copper/known state, catalog icons, native pointer-driven Available and Used removal/restoration, root profession flag not displayed as 1/0. `state.txt` and `client4-live.log` retain assertions; client exit 0. Four launches total against an approved `f25258b` server with a fresh offline redb copy and read-only world.db, UDP5304/Weston tf24.
@@ -82,6 +86,12 @@ Popup captures use the same fixture with `GODOT_TRAINER_FILTER_MENU=1`: Retail d
 ### Full affected-crate integration
 
 The locked local helper ran `--test -p game-engine-ui-model -p game-engine-godot -p game-engine-core --no-fail-fast` **once** after final relevant Rust changes; exit0. Deduplicated detailed log counts: **core781 passed**, **Godot651 passed**, **UI-model751 passed /6 ignored**, **0 failures** (2183 passed total). No ignored tests were introduced here. Evidence: canonical `data/diagnostics/trainerart-2026-10-07/{full-details.log,full-counts.json,proof-ledger.txt}`; command and wrapper output `/tmp/claude/trainerart-full.out`. Subsequent capture-assertion/docs changes do not invalidate this CPU scope; no suite rerun.
+
+## Trainer follow-up (2026-10-07)
+
+The selected three-denomination copper icon crossed the row border because the native flattened money renderer treated the SmallMoneyFrame's right edge as the coin edge. Cached `Blizzard_MoneyFrame/Mainline/MoneyFrame.xml` anchors CopperButton RIGHT at -13; `MoneyFrame.lua:378-380` reapplies that inset. The trainer money frame itself remains TOPRIGHT +5 (`TUI.xml:28-39`). Restore the internal 13px inset and include it in the name's width budget, rather than inventing a row offset. Money is a child frame above parent selection/highlight layers, as in Retail. Native pixel RED at baseline changes 20 opaque copper pixels when the selected layer is hidden (`trainer_coin_pixels.gd`); current GREEN and final capture evidence remain pending.
+
+SkillStep and rank modifiers are unchanged. The authoritative missing values are `GetTrainerServiceStepIndex()`'s optional service index (not the primary-profession acquisition flag) and `GetTrainerTradeskillRankValues()`'s `rankModifier` (`TUI.lua:180-190`). Existing `TrainerService` requirements and `ProfessionSkillLine` base rank/max/step do not supply those values.
 
 ## Known gaps (current cycle)
 
