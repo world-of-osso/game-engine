@@ -1,7 +1,7 @@
 //! Cached Retail TrainerUI art; active-skin atlas members precede shared Retail art.
 use super::{TrainerView, WHITE};
 use crate::bank_art::{cropped, label, texture};
-use crate::merchant_frame_component::{MoneyAlign, money_colored};
+use crate::merchant_frame_component::{MoneyAlign, player_money};
 use crate::quest_art::DynName;
 use shared::protocol::TrainerServiceState;
 use ui_toolkit::{
@@ -53,6 +53,12 @@ pub(super) fn inset() -> Element {
         (4.0, 60.0, 328.0, 338.0),
         WHITE,
     );
+    out.extend(cropped(
+        "ClassTrainerTrainerBackground".into(),
+        TRAINER_SHEET,
+        "0.00195313,0.5859375,0.00195313,0.65429688",
+        (6.0, 61.0, 308.0, 338.0),
+    ));
     for (name, member, rect) in [
         ("TopLeft", "UI-Frame-InnerTopLeft", (4.0, 60.0, 6.0, 6.0)),
         (
@@ -85,12 +91,6 @@ pub(super) fn inset() -> Element {
     ] {
         out.extend(atlas(&format!("ClassTrainerInset{name}"), member, rect));
     }
-    out.extend(cropped(
-        "ClassTrainerTrainerBackground".into(),
-        TRAINER_SHEET,
-        "0.00195313,0.5859375,0.00195313,0.65429688",
-        (6.0, 61.0, 308.0, 322.0),
-    ));
     out
 }
 
@@ -166,12 +166,11 @@ pub(super) fn wallet(copper: u64) -> Element {
         (5.0, 399.0, 148.0, 34.0),
         WHITE,
     );
-    out.extend(money_colored(
+    out.extend(player_money(
         "ClassTrainerMoneyFrame",
         copper,
         (161.0, 417.0),
         MoneyAlign::Right,
-        WHITE,
     ));
     out
 }

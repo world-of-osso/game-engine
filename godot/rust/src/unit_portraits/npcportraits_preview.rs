@@ -88,7 +88,7 @@ pub(crate) fn attach_trainer_preview(ui: Gd<RegistryUi>) -> Result<(), String> {
     let mut preview = NpcPortraitPreview::new_alloc();
     preview.set_name("TrainerPreviewPortrait");
     ui.clone()
-        .upcast::<godot::classes::Control>()
+        .upcast::<godot::classes::Node>()
         .add_child(&preview);
     let mut host = preview.bind_mut();
     host.portrait = Some(Portrait::new(game_engine_ui_model::trainer_frame::PORTRAIT));
@@ -102,7 +102,8 @@ pub(crate) fn attach_trainer_preview(ui: Gd<RegistryUi>) -> Result<(), String> {
         EquipmentAppearance::default(),
     ));
     host.ui = Some(ui);
-    host.sync_portrait()
+    // The caller still holds RegistryUi's mutable Godot binding. First tick runs after it returns.
+    Ok(())
 }
 
 impl NpcPortraitPreview {
