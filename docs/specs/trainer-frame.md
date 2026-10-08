@@ -43,6 +43,26 @@ Under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 - Inspected Forever `forever-shots/01-open.png`, `02-available-off.png`, `03-used-off.png`, `04-restored.png` at `57f3e2286`: persisted 9990 copper/known state, catalog icons, native pointer-driven Available and Used removal/restoration, root profession flag not displayed as 1/0. `state.txt` and `client4-live.log` retain assertions; client exit 0. Four launches total against an approved `f25258b` server with a fresh offline redb copy and read-only world.db, UDP5304/Weston tf24.
 - Earlier filter capture was a genuine native failure: overlapping list controls intercepted popup input. The final screen emits filter controls after the list; final live captures verify the fix. Missing icon 4620675 was extracted from local CASC into canonical textures, never CDN.
 
+## Visual parity audit (2026-10-07)
+
+Cached **Mainline** source governs; historical professions checkboxes are not native acceptance. No trainer-specific recorded user-requested art/layout deviation was found in this spec or the linked professions contract. Preserve authoritative training, confirmation, filters and failure text.
+
+`TUI.xml` / `TUI.lua` below mean cached `Blizzard_TrainerUI/Mainline/Blizzard_TrainerUI.{xml,lua}`; `Shared.xml` / `Shared.lua` mean `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.{xml,lua}`.
+
+| Baseline native deviation (at b844d8033) | Cached Retail contract |
+| --- | --- |
+| `trainer_frame.rs:33-46,67-68`: 420×540 with an invented greeting pane | `Shared.xml:544-572,684-692`: inherited 338×424 portrait window/inset. `TUI.lua:65-66`: NPC portrait and NPC-name title. No greeting/detail pane in `TUI.xml:108-239`; requirements belong to rows. |
+| `trainer_frame.rs:115-139,150-174`: 390-wide list at15,112, rows364×66, name with selection prefix and costs below requirements | `TUI.xml:28-60,201-214`, `TUI.lua:47-51,146-152`: 302×330 list at inset TOPLEFT5,-5, 298×47 rows, 1px initial padding, icon36×36 at LEFT6, name iconTOPRIGHT6,-1, subtext240×30, cost TOPRIGHT5,-7. |
+| `trainer_frame.rs:143-151`: green/red/grey service names | `TUI.lua:244-266`: unavailable icons desaturated and MOD0.55 background; the temporary grey name is overwritten by unconditional `name:SetText(serviceName)` at265. All names retain inherited GameFontNormal. State colours apply to filter labels (`:86-88`), not service names. |
+| `trainer_frame.rs:152-185`: missing normal/selected/hover trainer art and coin icons; zero-cost services show a cost | `TUI.xml:63-95`: TrainerTextures crops for normal/selected/hover. `TUI.lua:259-282`: known and zero cost hide money; otherwise SmallMoneyFrame, white or red affordability. |
+| `trainer_frame.rs:156-166`: uniformly white requirements, no colon | `TUI.lua:208-266`: Requires: prefix; independently coloured level number, skill-rank number and ability. `data/GlobalStrings.csv:284-288,2054`: unmet #ff2020, met #ffffff, skill name/parentheses in SystemFont_Shadow_Small. |
+| `trainer_frame.rs:71-89`: generic Filter button at300,82 and literal [x]/[ ] rows | `TUI.xml:177-181`, `TUI.lua:54,84-89`: width100, top-right−13,−35, WowStyle1FilterDropdownTemplate and three coloured checkboxes. `Blizzard_Menu/Mainline/MenuTemplates.xml:66-105`: height18, common-dropdown-b-button. |
+| `trainer_frame.rs:92-115`: rank text at64,82 without a bar | `TUI.xml:127-176`, `TUI.lua:156-172`: 136×18 at64,36, GuildFrame border, blue background/fill, centred learned rank/max. |
+| `trainer_frame.rs:48-65`: Money: text and generic100×24 Train at300,450 | `TUI.xml:112-118,182-194`: UI-MoneyFrame-Border148×34 at bottom-left5,−9; SmallMoneyFrame anchored to its RIGHT8,6; MagicButton80×22. `Shared.lua:35-38`: bottom-right adjusted−6,+4. |
+| No separate SkillStepButton in native inventory | `TUI.xml:195-200,215-223`, `TUI.lua:131-144`: optional316×40 step row and shorter bottom-inset list. Protocol provides no Retail GetTrainerServiceStepIndex; do not infer step identity from primary-profession acquisition. Remains a gap. |
+
+State colour values come from `data/db2/12.1.0.69933/GlobalColor.csv:5,9-10`: RED_FONT_COLOR=#ff2020, GREEN_FONT_COLOR=#19ff19, GRAY_FONT_COLOR=#808080. No invented state palette.
+
 ## Known gaps (current cycle)
 
 - [ ] Native matching `InteractionClosed`, world-reset and Escape network-close receipt lack dedicated behavioral integration assertions; close/request code is wired, but do not infer full lifecycle acceptance from purchase proof.
