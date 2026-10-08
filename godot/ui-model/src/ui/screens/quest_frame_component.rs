@@ -6,7 +6,7 @@
 
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
-use ui_toolkit::widget_def::Element;
+use ui_toolkit::widget_def::{Attr, Element};
 use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::quest_scroll::{QuestScrollPane, quest_scroll_frame};
@@ -805,18 +805,22 @@ fn item_button(
             top: {y + (ITEM_H - 36.0) / 2.0},
         }
     });
+    let mut hit_target = rsx! {
+        r#frame {
+            name: {DynName(name.to_string())},
+            width: ITEM_W,
+            height: ITEM_H,
+            mouse_enabled: true,
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    };
     if let Some(action) = action {
-        elements.extend(rsx! {
-            r#frame {
-                name: {DynName(name.to_string())},
-                width: ITEM_W,
-                height: ITEM_H,
-                onclick: {action.as_str()},
-                pos_type: "absolute",
-                left: x,
-                top: y,
-            }
-        });
+        hit_target[0]
+            .attrs
+            .push(Attr::new_dynamic("onclick", action));
     }
+    elements.extend(hit_target);
     elements
 }
