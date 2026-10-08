@@ -23,6 +23,12 @@ Full WoW installation synced from Windows via Syncthing:
 
 **Always extract from local CASC storage. Never use Blizzard CDN.**
 
+## OssoBuild local store (2026-10-08)
+
+Verified: 2026-10-08. `/syncthing/World of Warcraft/` is absent on this host, but `/mnt/c/World of Warcraft/Data/data` holds the actual local indices/archives. The existing `casc-local` discovers this WSL location; `WOW_INSTALL_PATH=/mnt/c/World of Warcraft` selects it explicitly. The successful auction-icon extraction used Retail 12.1.0.69933, build key `dcfc90fffd79ba00406ae46f5f657592`, with 1,926,810 cached resolution entries. See [auction evidence](wiki/systems/auction-house-ui.md#missing-result-icons-2026-10-08).
+
+`data/casc/root.bin`, `encoding.bin`, and the build-key directories under `data/casc/wow/` are resolution metadata (root/encoding/SQLite), not archive storage. They cannot supply file payloads alone. Do not mistake their presence for a usable install, or delete them to repair missing texture files.
+
 ## Local Refresh
 
 When the cached `root.bin` and `encoding.bin` under

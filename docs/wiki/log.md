@@ -2888,3 +2888,7 @@ Reconciled [[forever-data#Owned item definition namespaces]], item-source spec a
 Updated [[forever-data]] with independent payload/cache/world proof, README-only metadata refresh pending remote confirmation, historical checkout/protocol boundaries and current NPC RED. Linked server fixture-only correction; no remote operations, tests, landing or native acceptance.
 
 - 2026-10-07 — Reconcile bounded corrective742 native Ailee/Grove functional DONE, mapped/build receipts, CPU13 and pending304; retain OS-exit/pixel/parity/provenance exclusions. Record final handoff metadata hash proof separately from unproved consumption/landing. Docs-only; no runtime or test operations.
+
+## 2026-10-08 — Auction result icon diagnosis
+
+[Five-item trace and proof](systems/auction-house-ui.md#missing-result-icons-2026-10-08) records both-skin native RED→GREEN, once-per-FDID diagnostics and 22 content-key-matched local-CASC icons installed for the original 52-item evidence market. Six captures inspected; extracted icons render in both skins. [Shared loader policy](systems/asset-pipeline.md#native-unavailable-icons) uses existing question-mark art for unavailable icons. Whole-crate gate at `ff3129712` is blocked before tests by the requested base's merchant fixture missing `definition_source`; no passing counts, merge, push, live client or broader parity claim.
