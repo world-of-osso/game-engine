@@ -2,8 +2,8 @@ use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
-use crate::cache_source_mtime::csv_mtime;
-use crate::cache_sqlite::open_read_only;
+use crate::cache_source_mtime::{csv_mtime, source_key};
+use crate::cache_sqlite::{open_read_only, replace_atomically};
 use crate::creature_display_data::CreatureDisplay;
 use crate::sqlite_util::is_missing_table_error;
 use rusqlite::Connection;
@@ -36,10 +36,6 @@ pub fn import_creature_display_cache(data_dir: &Path) -> Result<PathBuf, String>
     }
 
     let cache_path = data_dir.join("cache/creature_display.sqlite");
-    if let Some(parent) = cache_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("create {}: {err}", parent.display()))?;
-    }
 
     let forever = data_dir.join(crate::player_model_data::FOREVER_DB2_DIR);
     let mut source_paths = vec![di.clone(), md.clone()];
@@ -51,17 +47,17 @@ pub fn import_creature_display_cache(data_dir: &Path) -> Result<PathBuf, String>
     }
     if cache_path.exists() {
         let conn = open_read_only(&cache_path)?;
-        if cache_is_fresh(&conn, &source_paths)? {
+        if cache_is_fresh(&conn, data_dir, &source_paths)? {
             return Ok(cache_path);
         }
     }
 
-    let conn = Connection::open(&cache_path)
-        .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
-    rebuild_cache(&conn, &di, &md)?;
-    import_forever_display_rows(&conn, &forever, &di)?;
-    build_preferred_skins(&conn)?;
-    record_source_files(&conn, &source_paths)?;
+    replace_atomically(&cache_path, |conn| {
+        rebuild_cache(conn, &di, &md)?;
+        import_forever_display_rows(conn, &forever, &di)?;
+        build_preferred_skins(conn)?;
+        record_source_files(conn, data_dir, &source_paths)
+    })?;
     Ok(cache_path)
 }
 
@@ -86,7 +82,11 @@ fn import_forever_display_rows(
     )
 }
 
-fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, String> {
+fn cache_is_fresh(
+    conn: &Connection,
+    data_dir: &Path,
+    source_paths: &[PathBuf],
+) -> Result<bool, String> {
     let mut stmt = match conn.prepare("SELECT path, mtime FROM source_files") {
         Ok(stmt) => stmt,
         Err(err) if is_missing_table_error(&err) => {
@@ -115,7 +115,7 @@ fn cache_is_fresh(conn: &Connection, source_paths: &[PathBuf]) -> Result<bool, S
         return Ok(false);
     }
     for path in source_paths {
-        let key = path.to_string_lossy().to_string();
+        let key = source_key(data_dir, path)?;
         if recorded.get(&key).copied() != Some(csv_mtime(path)?) {
             return Ok(false);
         }
@@ -193,13 +193,17 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
     .map_err(|err| format!("init creature display cache: {err}"))
 }
 
-fn record_source_files(conn: &Connection, source_paths: &[PathBuf]) -> Result<(), String> {
+fn record_source_files(
+    conn: &Connection,
+    data_dir: &Path,
+    source_paths: &[PathBuf],
+) -> Result<(), String> {
     let mut insert = conn
         .prepare("INSERT OR REPLACE INTO source_files (path, mtime) VALUES (?1, ?2)")
         .map_err(|err| format!("prepare source_files insert: {err}"))?;
     for path in source_paths {
         insert
-            .execute((path.to_string_lossy().to_string(), csv_mtime(path)?))
+            .execute((source_key(data_dir, path)?, csv_mtime(path)?))
             .map_err(|err| format!("insert source file {}: {err}", path.display()))?;
     }
     Ok(())
@@ -466,6 +470,37 @@ mod tests {
         assert_eq!(
             display.skin_fdids.as_slice(),
             &[4237053, 4237050, 4237060, 4237057]
+        );
+        drop(conn);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
+    fn equivalent_data_root_spelling_reuses_the_cache() {
+        let dir =
+            std::env::temp_dir().join(format!("creature-display-alias-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("CreatureDisplayInfo.csv"),
+            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n4,7,1,11,12,0,0\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("CreatureModelData.csv"),
+            "ID,FileDataID,ModelScale\n7,9001,1\n",
+        )
+        .unwrap();
+        let cache = import_creature_display_cache(&dir).unwrap();
+        let conn = Connection::open(&cache).unwrap();
+        conn.execute("DELETE FROM preferred_skins", []).unwrap();
+        drop(conn);
+        let alias = dir.join("..").join(dir.file_name().unwrap());
+        import_creature_display_cache(&alias).unwrap();
+        let conn = open_read_only(&cache).unwrap();
+        assert_eq!(
+            crate::creature_display_data::query_preferred_skins(&conn, 9001).unwrap(),
+            None,
+            "an equivalent data root must not rebuild the cache"
         );
         drop(conn);
         std::fs::remove_dir_all(dir).unwrap();

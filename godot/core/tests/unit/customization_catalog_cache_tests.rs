@@ -449,6 +449,58 @@ fn catalog_cache_reads_actual_local_options_into_an_isolated_cache() {
 }
 
 #[test]
+fn catalog_cache_reuses_sources_recorded_under_another_data_root_spelling() {
+    let fixture = CatalogFixture::new();
+    let cache = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap();
+    let conn = Connection::open(&cache).unwrap();
+    conn.execute("UPDATE options SET name = 'kept' WHERE id = 890", [])
+        .unwrap();
+    drop(conn);
+    let alias = fixture
+        .root
+        .join("..")
+        .join(fixture.root.file_name().unwrap());
+    import_customization_cache_at(&alias, &cache).unwrap();
+    let raw = load_customization_raw_data_at(&fixture.root, &cache).unwrap();
+    assert_eq!(
+        raw.options
+            .iter()
+            .find(|option| option.id == 890)
+            .unwrap()
+            .name,
+        "kept",
+        "an equivalent data root must reuse the cache instead of rebuilding it"
+    );
+}
+
+#[test]
+fn concurrent_imports_of_a_missing_catalog_all_succeed() {
+    const IMPORTERS: usize = 8;
+    let fixture = CatalogFixture::new();
+    let cache = fixture.cache_path();
+    let barrier = std::sync::Barrier::new(IMPORTERS);
+    let results = std::thread::scope(|scope| {
+        let workers = (0..IMPORTERS)
+            .map(|_| {
+                scope.spawn(|| {
+                    barrier.wait();
+                    import_customization_cache_at(Path::new("data"), &cache)
+                })
+            })
+            .collect::<Vec<_>>();
+        workers
+            .into_iter()
+            .map(|worker| worker.join().unwrap())
+            .collect::<Vec<_>>()
+    });
+    for result in results {
+        result.expect("every concurrent importer must succeed");
+    }
+    let raw = load_customization_raw_data_at(Path::new("data"), &cache).unwrap();
+    assert!(raw.options.iter().any(|option| option.id == 8789));
+}
+
+#[test]
 fn catalog_cache_rejects_invalid_authored_swatch_instead_of_inventing_color() {
     let fixture = CatalogFixture::new();
     let path = fixture.root.join("ChrCustomizationChoice.csv");
