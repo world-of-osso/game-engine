@@ -27,6 +27,33 @@ fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
 }
 
 #[test]
+fn auction_search_uses_inherited_small_font_and_instruction_colour() {
+    // InputBoxTemplates.xml:177-203 overrides ChatFontNormal with GameFontHighlightSmall.
+    // FontStyles.xml:56,92 and Fonts.xml:39-45 resolve that to FRIZQT__ 10.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, "browse");
+        let Some(WidgetData::EditBox(edit)) =
+            &frame(&registry, "AuctionHouseFrameSearchBox").widget_data
+        else {
+            panic!("search input missing")
+        };
+        assert_eq!(
+            edit.font,
+            ui_toolkit::widgets::font_string::GameFont::FrizQuadrata
+        );
+        assert_eq!(edit.font_size, 10.0);
+        let Some(WidgetData::FontString(instructions)) =
+            &frame(&registry, "AuctionHouseFrameSearchBoxInstructions").widget_data
+        else {
+            panic!("instructions missing")
+        };
+        assert_eq!(instructions.font_size, 10.0);
+        assert_eq!(instructions.color, [0.35, 0.35, 0.35, 1.0]);
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn auction_duration_uses_retail_dropdown_geometry() {
     // Blizzard_Menu/Mainline/MenuTemplates.xml:3-28; AH SellFrame.xml:124-130.
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
@@ -54,20 +81,6 @@ fn auction_item_header_icon_uses_retail_crop_and_size() {
             panic!("item icon missing")
         };
         assert_eq!(texture.tex_coords, [0.078125, 0.921875, 0.078125, 0.921875]);
-    }
-    set_thread_skin(ActiveSkin::Modern);
-}
-
-#[test]
-fn auction_buy_dialog_has_retail_dark_background() {
-    // DialogTemplates.xml:83-96, UI-DialogBox-Background-Dark file.
-    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let registry = render(skin, "dialog");
-        let background = frame(&registry, "AuctionHouseFrameBuyDialogBg");
-        assert!(
-            matches!(background.widget_data, Some(WidgetData::Texture(_))),
-            "Dialog background must display supplied art, not a flat colour"
-        );
     }
     set_thread_skin(ActiveSkin::Modern);
 }

@@ -20,7 +20,8 @@ impl RegistryUi {
         let result = party_preview::load_data_root().and_then(|()| {
             set_thread_skin(skin);
             self.set_ui_scale(1.0)?;
-            let view = std::env::var("GODOT_AUCTION_VIEW").unwrap_or_else(|_| "browse".into());
+            let view = std::env::var("GODOT_AUCTION_VIEW")
+                .map_err(|error| format!("Auction preview requires GODOT_AUCTION_VIEW: {error}"))?;
             self.show_auction(preview_view(&view)?)?;
             if matches!(view.as_str(), "inventory" | "sell" | "duration") {
                 self.set_editbox_text(QUANTITY_BOX, "3")?;
