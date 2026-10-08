@@ -338,6 +338,12 @@ impl RegistryModel {
                 }
             }
         }
+        if let Some(view) = self
+            .shared
+            .get::<game_engine_ui_model::trainer_frame::TrainerView>()
+        {
+            game_engine_ui_model::trainer_frame::apply_trainer_art(view, &mut self.registry);
+        }
         // FlightMap uses quest-window mounting, which has no Bags icon-mask postsetup.
         if self
             .shared

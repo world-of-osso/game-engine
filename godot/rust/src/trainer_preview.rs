@@ -28,10 +28,28 @@ impl RegistryUi {
                 .and_then(|()| {
                     set_thread_skin(skin);
                     self.set_ui_scale(1.0)?;
-                    self.show_quest_window(preview_view(), trainer_screen)
+                    cache_trainer_art()?;
+                    self.show_quest_window(preview_view(), trainer_screen)?;
+                    crate::unit_portraits::attach_trainer_preview(self.to_gd())
                 });
         GString::from(result.err().unwrap_or_default().as_str())
     }
+}
+
+fn cache_trainer_art() -> Result<(), String> {
+    let path = ProjectSettings::singleton().globalize_path("res://../data");
+    let root = std::path::PathBuf::from(path.to_string());
+    let resolver = crate::assets::creature::local_resolver(&root);
+    let fdids = crate::quests::screen_texture_fdids(preview_view(), trainer_screen);
+    for fdid in fdids.into_iter().chain([130924]) {
+        let path = root.join("textures").join(format!("{fdid}.blp"));
+        if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {
+            return Err(format!(
+                "Trainer preview FDID {fdid} missing from local CASC"
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn preview_view() -> TrainerView {
@@ -61,7 +79,7 @@ fn preview_view() -> TrainerView {
     .collect();
     let mut book = TrainerBook {
         money: 12345,
-        filter_menu: true,
+        filter_menu: std::env::var_os("GODOT_TRAINER_FILTER_MENU").is_some(),
         ..Default::default()
     };
     book.receive_list(TrainerList {
@@ -101,6 +119,8 @@ fn preview_view() -> TrainerView {
             .into(),
             skills: [(2540, "Classic Tailoring".into())].into(),
         },
+        player_level: 10,
+        known_spells: [3275].into(),
         ranks: vec![ProfessionSkillLine {
             skill_line: 2540,
             step: 1,
