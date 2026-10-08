@@ -33,7 +33,7 @@ func _run() -> void:
 	if screen == "chatflush_preview":
 		RenderingServer.set_default_clear_color(Color(0.25, 0.4, 0.55))
 	var trainer_preview: bool = screen in ["trainer_preview", "forever_trainer_preview"]
-	var settle_frames: int = 240 if trainer_preview else 120 if screen in ["forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview"] else 3
+	var settle_frames: int = 240 if trainer_preview else 120 if screen in ["auction_icons_preview", "forever_auction_icons_preview", "forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview"] else 3
 	for frame in range(settle_frames):
 		await process_frame
 		if screen in ["trainer_preview", "forever_trainer_preview"]:
@@ -107,6 +107,11 @@ func _run() -> void:
 			return
 	if screen in ["trainer_preview", "forever_trainer_preview"] and OS.get_environment("GODOT_TRAINER_EXPECT_RETAIL") == "1":
 		if not trainer_geometry_and_content_match(ui):
+			ui.queue_free()
+			quit(1)
+			return
+	if screen in ["auction_icons_preview", "forever_auction_icons_preview"] and OS.get_environment("GODOT_AH_EXPECT_UNKNOWN") == "1":
+		if not auction_missing_icons_match_reference(ui):
 			ui.queue_free()
 			quit(1)
 			return
@@ -710,3 +715,31 @@ func castbar_snapshot_matches(ui: Node, image: Image, output: String) -> bool:
 		return false
 	print("PASS: cast feedback changed pixels=", changed_pixels)
 	return true
+
+# Compare actual bound native pixels, not RSX declarations. The first three files
+# are absent in the regression asset set; rows 4/5 are known good controls.
+func auction_missing_icons_match_reference(ui: Node) -> bool:
+	var reference := auction_row_icon(ui, 14)
+	if reference == null:
+		push_error("Question-mark reference did not load")
+		return false
+	var expected := reference.get_image().get_data()
+	for row in [1, 2, 3]:
+		var texture := auction_row_icon(ui, row)
+		if texture == null or texture.get_image().get_data() != expected:
+			push_error("Missing auction row %d must bind INV_Misc_QuestionMark" % row)
+			return false
+	for row in [4, 5]:
+		var texture := auction_row_icon(ui, row)
+		if texture == null or texture.get_image().get_data() == expected:
+			push_error("Available auction icon must retain its own pixels")
+			return false
+	print("PASS: three missing auction icons bind question-mark pixels; two good icons preserved")
+	return true
+
+func auction_row_icon(ui: Node, row: int) -> Texture2D:
+	var frame := ui.find_child("AuctionHouseFrameBrowseResultsRow%dItemIcon" % row, true, false)
+	if frame == null:
+		return null
+	var texture := frame.get_node_or_null("Parts/Part0") as TextureRect
+	return null if texture == null else texture.texture
