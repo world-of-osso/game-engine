@@ -83,7 +83,10 @@ race-selection rows remain explicitly unsupported; none occurs in these six
 helm cells. The extra DB2 field remains uninterpreted, not invented semantics. Existing pixel thresholds/skips and diagnostic body-texel comparisons are
 unchanged; they are not bit-exact rendered-pixel proof. Full-body thumbnails are
 capture-only: their HD minification often leaves fewer than400 qualified texels.
-Every garment close-up retains the existing400-texel/97% gate. Compressed item
+Every garment close-up retains the existing400-texel/97% gate. Every worn body
+texture section also independently gates at97% of its DB2 rectangle's RGB texels
+within10/255, rather than relying on the largely unchanged overall atlas ratio;
+`matrix-results.json.body_regions` preserves rectangles and sample counts. Compressed item
 bindings compare exact authored BLP base-mip blocks and format; RGBA bindings
 compare exact decoded base bytes. No DXT-to-RGBA `Image.convert` is attempted.
 

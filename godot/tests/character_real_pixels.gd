@@ -138,6 +138,7 @@ func matrix_cases() -> Array:
 
 var matrix_results := []
 var matrix_captures := {}
+var matrix_region_checks := []
 var loader: Object
 var appearance: Appearance
 var viewport: SubViewport
@@ -184,7 +185,8 @@ func run_cases() -> void:
 func record_matrix_cell(case: Dictionary, problems: Array[String]) -> void:
 	matrix_results.append({"case": case.name, "race": case.race, "sex": case.sex,
 		"garment": case.garment, "item_id": case.items[0].item_id,
-		"status": "PASS" if problems.is_empty() else "FAIL", "reasons": problems})
+		"status": "PASS" if problems.is_empty() else "FAIL", "reasons": problems,
+		"body_regions": matrix_region_checks.duplicate(true)})
 	print("MATRIX %s %s %s" % [case.name, matrix_results.back().status, problems])
 	if evidence.is_empty():
 		return
@@ -259,6 +261,7 @@ func save(image: Image, name: String) -> void:
 # --- one case ------------------------------------------------------------------------------
 
 func run_case(case: Dictionary) -> Array[String]:
+	matrix_region_checks.clear()
 	var problems: Array[String] = []
 	var app := appearance.appearance(case.race, case.sex, case["class"], case.picks, case.items)
 	print("%s: chr model %d layout %d body %d choices %s" % [case.name, app.chr_model, app.layout, app.model_fdid, app.choices])
@@ -298,6 +301,8 @@ func run_case(case: Dictionary) -> Array[String]:
 		problems.append("oracle: " + error)
 	appearance.errors.clear()
 	check_textures(case, draws, canvases, problems)
+	if case.has("garment"):
+		check_clothing_regions(app, draws, canvases, problems)
 	draws.append_array(equipment_draws)
 	await process_frame
 	for draw in draws:
@@ -535,6 +540,50 @@ func check_textures(case: Dictionary, draws: Array, canvases: Dictionary, proble
 		# ChrModelMaterial size, so it is compared against the oracle's box-filtered mip.
 		if not got.has_mipmaps():
 			problems.append(line)
+
+# Every clothing section, not just the overall body's mostly unchanged texels.
+# Same threshold as the pixel gate; fixed atlas coordinates come from DB2.
+func check_clothing_regions(app: Dictionary, draws: Array, canvases: Dictionary, problems: Array[String]) -> void:
+	if app.item_textures.is_empty():
+		return
+	var expected: Image = canvases.get(1)
+	var actual: Image
+	for draw in draws:
+		var index: int = draw.types.find(1)
+		if index >= 0:
+			var material := (draw.node as MeshInstance3D).get_active_material(0) as ShaderMaterial
+			var uniform: String = ["base_texture", "second_texture", "third_texture", "fourth_texture"][index]
+			var texture: Texture2D = material.get_shader_parameter(uniform)
+			if texture != null:
+				actual = texture.get_image()
+			break
+	if actual == null or expected == null or actual.get_size() != expected.get_size():
+		problems.append("clothing regions require matching body atlas dimensions")
+		return
+	actual.convert(Image.FORMAT_RGBA8)
+	var checked := {}
+	for layer in app.item_textures:
+		var section: int = layer[0]
+		if checked.has(section):
+			continue
+		checked[section] = true
+		var rect := appearance.section_rect(app.layout, section)
+		var matched := 0
+		var count := rect.size.x * rect.size.y
+		if count == 0:
+			problems.append("clothing section %d has no DB2 rectangle" % section)
+			continue
+		for y in range(rect.position.y, rect.end.y):
+			for x in range(rect.position.x, rect.end.x):
+				var a := actual.get_pixel(x, y)
+				var b := expected.get_pixel(x, y)
+				if maxf(absf(a.r - b.r), maxf(absf(a.g - b.g), absf(a.b - b.b))) <= TOLERANCE:
+					matched += 1
+		var ratio := float(matched) / count
+		matrix_region_checks.append({"section": section, "rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y], "compared": count, "matched": matched, "ratio": ratio})
+		print("  clothing section%d: %d/%d texels within10/255 (%.2f%%)" % [section, matched, count, ratio * 100.0])
+		if ratio < MIN_MATCH:
+			problems.append("clothing section%d: %.2f%% below97%% texel gate" % [section, ratio * 100.0])
 
 # --- rendered pixels ---------------------------------------------------------------------
 
