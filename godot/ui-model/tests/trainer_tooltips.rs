@@ -161,3 +161,78 @@ fn trainer_spell_tooltip_uses_shared_content_right_offset_and_id_in_both_skins()
         );
     }
 }
+
+fn local_catalog() -> game_engine_core::spell_catalog::SpellCatalogData {
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    game_engine_ui_model::paths::set_data_root(root.clone()).unwrap();
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    game_engine_core::spell_catalog::load_spell_catalog(
+        &game_engine_core::spell_catalog::SpellCatalogPaths::for_data_dir(&root),
+    )
+    .unwrap()
+}
+
+#[test]
+fn trainer_recipe_shows_created_item_quality_reagents_and_both_record_ids() {
+    let catalog = local_catalog();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_spell_tooltip(
+            catalog.get(2963).unwrap(),
+            &Default::default(),
+            Some(10),
+        )
+        .unwrap();
+        let main = place(
+            tooltip.for_skin(skin),
+            TooltipScreen {
+                size: [1920.0, 1080.0],
+                cursor: [0.0; 2],
+            },
+        );
+        assert_eq!(main.title, "Bolt of Linen Cloth");
+        assert_eq!(
+            main.title_color,
+            game_engine_ui_model::merchant_data::quality_color(1)
+        );
+        let lines: Vec<_> = main.lines.iter().map(|l| l.left_text.as_str()).collect();
+        assert!(lines.contains(&"Reagents:"), "{lines:?}");
+        assert!(lines.contains(&"Linen Cloth (2)"), "{lines:?}");
+        assert!(lines.contains(&"Item ID: 2996"), "{lines:?}");
+        assert_eq!(lines.last(), Some(&"Spell ID: 2963"));
+    }
+}
+
+#[test]
+fn trainer_class_spell_retains_full_shared_tooltip() {
+    let catalog = local_catalog();
+    let spell = catalog.get(116).unwrap();
+    let input = SpellTooltipInput {
+        description: catalog
+            .render_description(116, &Default::default())
+            .unwrap(),
+        ..Default::default()
+    };
+    assert!(!input.description.is_empty());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_spell_tooltip(
+            spell,
+            &input,
+            Some(10),
+        )
+        .unwrap();
+        assert_eq!(tooltip, spell_tooltip(spell, &input));
+        let main = place(
+            tooltip.for_skin(skin),
+            TooltipScreen {
+                size: [1920.0, 1080.0],
+                cursor: [0.0; 2],
+            },
+        );
+        assert_eq!(main.title, "Frostbolt");
+        assert!(main.lines.iter().any(|l| l.right_text.contains("yd range")));
+        assert!(main.lines.iter().any(|l| l.left_text.contains("sec cast")));
+        assert!(main.lines.iter().any(|l| l.left_text == input.description));
+        assert_eq!(main.lines.last().unwrap().left_text, "Spell ID: 116");
+    }
+}
