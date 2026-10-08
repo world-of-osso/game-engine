@@ -144,6 +144,7 @@ static func capture_hud_edit_movers(tree: SceneTree, ui: Node, directory: String
 	if keys.size() != 21:
 		push_error("HUD mover inventory must include all 21 registered systems")
 		return false
+	var crops: Array[Image] = []
 	for key in keys:
 		var error: String = ui.call("select_hudedit_preview", key)
 		if not error.is_empty():
@@ -158,18 +159,47 @@ static func capture_hud_edit_movers(tree: SceneTree, ui: Node, directory: String
 			push_error("Selected HUD label missing: ", key)
 			return false
 		var rect := label.get_global_rect()
+		if not hud_edit_label_is_foreground(ui, label):
+			return false
 		if rect.intersects(manager.get_global_rect()):
 			push_error("Selected HUD label covered by manager: ", key)
 			return false
 		var image := tree.root.get_texture().get_image()
 		var region := Rect2i(rect.grow(8)).intersection(Rect2i(Vector2i.ZERO, image.get_size()))
-		if image.get_region(region).save_png(directory.path_join(skin + "-mover-" + key + ".png")) != OK:
+		var crop := image.get_region(region)
+		crops.append(crop)
+		if crop.save_png(directory.path_join(skin + "-mover-" + key + ".png")) != OK:
 			push_error("HUD mover pixel capture failed: ", key)
 			return false
 		if key == "objective_tracker" and image.save_png(directory.path_join(skin + "-tracker-selected.png")) != OK:
 			return false
 		print("PASS: ", skin, " selected mover ", key, " label=", rect)
+	var sheet := Image.create(1280, 1210, false, crops[0].get_format())
+	sheet.fill(Color(0.1, 0.1, 0.1, 1.0))
+	for index in range(crops.size()):
+		var crop := crops[index]
+		var cell := Vector2i((index % 2) * 640, (index / 2) * 110)
+		var position := cell + Vector2i((640 - crop.get_width()) / 2, 20)
+		sheet.blit_rect(crop, Rect2i(Vector2i.ZERO, crop.get_size()), position)
+	return sheet.save_png(directory.path_join(skin + "-all-21-labels.png")) == OK
+
+# Actual native image controls must not paint over any selected system label.
+static func hud_edit_label_is_foreground(ui: Node, label: Control) -> bool:
+	for node in ui.find_children("*", "Control", true, false):
+		var paint := node as Control
+		if not (paint is TextureRect or paint is ColorRect):
+			continue
+		if not paint.is_visible_in_tree() or paint.modulate.a <= 0.0:
+			continue
+		if paint.get_global_rect().intersects(label.get_global_rect()) and hud_edit_paint_depth(paint) > hud_edit_paint_depth(label):
+			push_error("Native paint covers selected HUD label: ", label.name, " by ", paint.name)
+			return false
 	return true
+
+static func hud_edit_paint_depth(item: CanvasItem) -> int:
+	var parent := item.get_parent()
+	var inherited := hud_edit_paint_depth(parent) if item.z_as_relative and parent is CanvasItem else 0
+	return item.z_index + inherited
 
 # Retail ProfessionsRecipeList.xml:94-217; ReagentSlotBase.xml:6-27; RankBar.xml:5-61.
 func professions_geometry_and_content_match(ui: Node) -> bool:

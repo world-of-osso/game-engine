@@ -1,3 +1,7 @@
+## 2026-10-07 — HUD edit-mode polish
+
+[Native HUD edit mode](systems/native-hud-edit-mode.md) records shared selected/hover labels, manager collision avoidance and title dragging, explicit foreground paint levels and persisted manager-click transitions. The all-21 offline inventory exposed the status mover's Retail/native root-name mismatch and side-bar previews painting over tracker labels; both are corrected without moving preset HUD roots. [Contract](../specs/hud-edit-mode.md#offline-polish-2026-10-07) owns current proof and deviations; no new live/server run.
+
 ## 2026-10-07 — Local specialization-conditioned spell visuals
 
 [Spell visual selection](systems/spell-visuals.md#local-specialization-selection-2026-10-07) maps account primary specialization IDs to DB2 OrderIndex only for the local caster. Slam's same-weapon Arms/Fury regression reproduced the wrong kit (62428 instead of 128672); native/core specialization regressions passed at `82ad03641`, tracked in the [contract](../specs/spell-visuals.md). Remote/NPC specialization remains unreplicated; no live/raster Retail parity claim.
