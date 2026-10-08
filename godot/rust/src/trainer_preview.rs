@@ -21,6 +21,17 @@ impl RegistryUi {
     fn show_forever_trainer_preview(&mut self) -> GString {
         self.show_trainer_preview_skin(ActiveSkin::Forever)
     }
+    /// Offline pointer hit through the same TrainerBook source and GameTooltip host as live UI.
+    #[func]
+    fn update_trainer_preview_tooltip(&self, mut host: Gd<RegistryUi>, at: Vector2) -> GString {
+        let result = self.trainer_preview_tooltip_at(at).and_then(|view| {
+            let mut host = host.bind_mut();
+            host.set_ui_scale(1.0)?;
+            host.show_game_tooltip(view)
+        });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     fn show_trainer_preview_skin(&mut self, skin: ActiveSkin) -> GString {
         let path = ProjectSettings::singleton().globalize_path("res://../data");
         let result =
@@ -34,6 +45,73 @@ impl RegistryUi {
                 });
         GString::from(result.err().unwrap_or_default().as_str())
     }
+}
+
+impl RegistryUi {
+    fn trainer_preview_tooltip_at(
+        &self,
+        at: Vector2,
+    ) -> Result<game_engine_ui_model::game_tooltip::GameTooltipView, String> {
+        use game_engine_ui_model::game_tooltip::{GameTooltipView, TooltipScreen, place};
+        let book = preview_view().book;
+        let Some((owner, spell)) = self
+            .pointer_frame_at(at)
+            .and_then(|hit| book.hovered_service(self.registry()?, hit))
+        else {
+            return Ok(GameTooltipView::default());
+        };
+        let rect = self
+            .frame_id_rect(owner)
+            .ok_or("Trainer preview owner is not visible")?;
+        let tooltip = load_preview_spell_tooltip(spell)?;
+        let tooltip = book
+            .service_tooltip(
+                spell,
+                tooltip,
+                [rect.position.x, rect.position.y, rect.size.x, rect.size.y],
+            )
+            .ok_or("Trainer preview service is no longer visible")?;
+        let viewport = self
+            .base()
+            .get_viewport()
+            .ok_or("Trainer preview lacks viewport")?;
+        let size = viewport.get_visible_rect().size;
+        Ok(GameTooltipView {
+            main: place(
+                tooltip.for_skin(ui_toolkit::atlas::thread_skin()),
+                TooltipScreen {
+                    size: [size.x, size.y],
+                    cursor: [at.x, at.y],
+                },
+            ),
+            ..Default::default()
+        })
+    }
+}
+
+fn load_preview_spell_tooltip(
+    id: u32,
+) -> Result<game_engine_ui_model::game_tooltip::GameTooltip, String> {
+    use game_engine_core::spell_catalog::{
+        SpellCatalogPaths, SpellTextContext, load_spell_catalog,
+    };
+    use game_engine_ui_model::game_tooltip::spell::{SpellTooltipInput, spell_tooltip};
+    let path = ProjectSettings::singleton().globalize_path("res://../data");
+    let paths = SpellCatalogPaths::for_data_dir(&std::path::PathBuf::from(path.to_string()));
+    let catalog = load_spell_catalog(&paths)?;
+    let spell = catalog
+        .get(id)
+        .ok_or_else(|| format!("Trainer preview spell {id} missing from local catalog"))?;
+    let description = catalog
+        .render_description(id, &SpellTextContext::default())
+        .unwrap_or_default();
+    Ok(spell_tooltip(
+        spell,
+        &SpellTooltipInput {
+            description,
+            ..Default::default()
+        },
+    ))
 }
 
 fn cache_trainer_art() -> Result<(), String> {
@@ -53,10 +131,12 @@ fn cache_trainer_art() -> Result<(), String> {
 }
 
 fn preview_view() -> TrainerView {
+    let three_coins = std::env::var("GODOT_TRAINER_THREE_COINS").as_deref() == Ok("1");
+    let wool_cost = if three_coins { 12550 } else { 500 };
     let services = [
         (3908, 10, TrainerServiceState::Available, 1, true),
         (2963, 12550, TrainerServiceState::Available, 5, false),
-        (2964, 500, TrainerServiceState::Unavailable, 20, false),
+        (2964, wool_cost, TrainerServiceState::Unavailable, 20, false),
         (3275, 100, TrainerServiceState::Known, 1, false),
         (7623, 0, TrainerServiceState::Available, 1, false),
         (7624, 25, TrainerServiceState::Unavailable, 30, false),
@@ -88,7 +168,8 @@ fn preview_view() -> TrainerView {
         greeting: "Welcome, apprentice.".into(),
         services,
     });
-    book.select(2963);
+    let default_selection = std::env::var("GODOT_TRAINER_DEFAULT").as_deref() == Ok("1");
+    book.select(if default_selection { 3908 } else { 2963 });
     TrainerView {
         book,
         title: "Georgio Bolero".into(),

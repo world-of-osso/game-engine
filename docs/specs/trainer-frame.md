@@ -1,6 +1,6 @@
 # Native trainer frame
 
-Native `ClassTrainerFrame` in `godot/ui-model/src/trainer*.rs` and `godot/rust/src/trainer.rs`, opened by the existing NPC gossip trainer role. [Professions contract](professions-frame.md) retains historical Retail requirements and recorded user decisions; retired-client checkboxes are not native proof.
+Native `ClassTrainerFrame` in `godot/ui-model/src/trainer*.rs` and `godot/rust/src/{trainer,tooltip_sources}.rs`, opened by the existing NPC gossip trainer role. [Professions contract](professions-frame.md) retains historical Retail requirements and recorded user decisions; retired-client checkboxes are not native proof.
 
 ## What it must do
 
@@ -91,13 +91,17 @@ The locked local helper ran `--test -p game-engine-ui-model -p game-engine-godot
 
 The selected three-denomination copper icon crossed the row border because the native flattened money renderer treated the SmallMoneyFrame's right edge as the coin edge. Cached `Blizzard_MoneyFrame/Mainline/MoneyFrame.xml` anchors CopperButton RIGHT at -13; `MoneyFrame.lua:378-380` reapplies that inset. The trainer money frame itself remains TOPRIGHT +5 (`TUI.xml:28-39`). Restore the internal 13px inset and include it in the name's width budget, rather than inventing a row offset. Money is a child frame above parent selection/highlight layers, as in Retail. Native pixel RED at baseline changes 20 opaque copper pixels when the selected layer is hidden (`trainer_coin_pixels.gd`); current GREEN and final capture evidence remain pending.
 
+Service hover now registers in the existing native `tooltip_sources::frame_tooltip` dispatcher and reuses `spell_game_tooltip`, `GameTooltipUI`, skin styling, placement and ID appending. `TrainerBook` resolves the row's nearest action ancestor against the current visible services, independent of selection/availability/affordability; the shared owner anchor retains Retail's +35px offset. Existing per-frame source resolution refreshes while hovered and removes stale tooltips on leave/filter/close. The offline preview uses the same source decisions and renderer, with local catalog content and no GameClient/server.
+
+No new recipe-content renderer is introduced: the existing spell source supplies title, subtext, cost/range/cast/cooldown and rendered description where present. Pinned Spell2963/2964 descriptions are empty; crafted-output item properties and reagent sections are not supplied by this shared spell renderer. Cached Lua calls C++ `SetTrainerService` but does not specify its complete line content, so full C++ recipe-tooltip parity is not claimed. The user-requested Spell ID line is preserved ([tooltip contract](unit-tooltip.md)).
+
 SkillStep and rank modifiers are unchanged. The authoritative missing values are `GetTrainerServiceStepIndex()`'s optional service index (not the primary-profession acquisition flag) and `GetTrainerTradeskillRankValues()`'s `rankModifier` (`TUI.lua:180-190`). Existing `TrainerService` requirements and `ProfessionSkillLine` base rank/max/step do not supply those values.
 
 ## Known gaps (current cycle)
 
 - [ ] Native matching `InteractionClosed`, world-reset and Escape network-close receipt lack dedicated behavioral integration assertions; close/request code is wired, but do not infer full lifecycle acceptance from purchase proof.
 - [ ] Client exit logs contain texture/RID/ObjectDB leak warnings; exit 0 is not clean-resource shutdown proof.
-- [ ] Conditional SkillStepButton/split-inset layout lacks a supplied Retail step index; rank modifiers and service tooltips remain unsupported/unverified. Do not infer the step from `TrainerService.profession` (primary-slot acquisition). Default-window geometry/art, portrait slot/mask, base-rank fill and per-requirement colours have bounded offline acceptance above, not pixel-identical or live-NPC proof. Existing native scroll-input decisions are unchanged; only list/scrollbar geometry is matched. No user-requested deviation is removed or invented.
+- [ ] Conditional SkillStepButton/split-inset layout lacks a supplied Retail step index; rank modifiers remain unsupported/unverified. Complete C++ recipe-tooltip output/reagent line parity remains unverified; shared service-hover proof is tracked above. Do not infer the step from `TrainerService.profession` (primary-slot acquisition). Default-window geometry/art, portrait slot/mask, base-rank fill and per-requirement colours have bounded offline acceptance above, not pixel-identical or live-NPC proof. Existing native scroll-input decisions are unchanged; only list/scrollbar geometry is matched. No user-requested deviation is removed or invented.
 
 ## Out of scope
 
