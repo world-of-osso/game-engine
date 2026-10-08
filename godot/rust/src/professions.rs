@@ -26,6 +26,13 @@ pub(crate) struct Professions {
     collapsed: BTreeSet<String>,
 }
 impl Professions {
+    pub(crate) fn recipe(
+        &self,
+        spell_id: u32,
+    ) -> Option<&game_engine_ui_model::professions::Recipe> {
+        self.catalog.as_ref()?.get(spell_id)
+    }
+
     pub(crate) fn visit_uis(
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,

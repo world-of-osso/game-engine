@@ -55,10 +55,10 @@ impl RegistryUi {
 
 impl RegistryUi {
     fn trainer_preview_tooltip_at(&self, at: Vector2) -> Result<GameTooltipView, String> {
-        let book = preview_view().book;
+        let view = preview_view();
         let Some((owner, spell)) = self
             .pointer_frame_at(at)
-            .and_then(|hit| book.hovered_service(self.registry()?, hit))
+            .and_then(|hit| view.book.hovered_service(self.registry()?, hit))
         else {
             return Ok(GameTooltipView::default());
         };
@@ -66,7 +66,7 @@ impl RegistryUi {
             .frame_id_rect(owner)
             .ok_or("Trainer preview owner is not visible")?;
         let tooltip = load_preview_spell_tooltip(spell)?;
-        let tooltip = book
+        let tooltip = view
             .service_tooltip(
                 spell,
                 tooltip,
@@ -94,12 +94,24 @@ impl RegistryUi {
 }
 
 fn load_preview_spell_tooltip(id: u32) -> Result<GameTooltip, String> {
+    let path = ProjectSettings::singleton().globalize_path("res://../data");
+    let root = std::path::PathBuf::from(path.to_string());
+    let tooltip = load_preview_class_tooltip(&root, id)?;
+    let recipes = load_preview_recipe_catalog(&root)?;
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
+        tooltip,
+        recipes.get(id),
+        Some(10),
+    )
+}
+
+fn load_preview_class_tooltip(root: &std::path::Path, id: u32) -> Result<GameTooltip, String> {
     use game_engine_core::spell_catalog::{
         SpellCatalogPaths, SpellTextContext, load_spell_catalog,
     };
     use game_engine_ui_model::game_tooltip::spell::{SpellTooltipInput, spell_tooltip};
-    let path = ProjectSettings::singleton().globalize_path("res://../data");
-    let paths = SpellCatalogPaths::for_data_dir(&std::path::PathBuf::from(path.to_string()));
+    let paths = SpellCatalogPaths::for_data_dir(root);
     let catalog = load_spell_catalog(&paths)?;
     let spell = catalog
         .get(id)
@@ -114,6 +126,23 @@ fn load_preview_spell_tooltip(id: u32) -> Result<GameTooltip, String> {
             ..Default::default()
         },
     ))
+}
+
+fn load_preview_recipe_catalog(
+    root: &std::path::Path,
+) -> Result<&'static game_engine_ui_model::professions_catalog::RecipeCatalog, String> {
+    use game_engine_ui_model::professions_catalog::RecipeCatalog;
+    static CATALOG: std::sync::OnceLock<Result<RecipeCatalog, String>> = std::sync::OnceLock::new();
+    CATALOG
+        .get_or_init(|| {
+            RecipeCatalog::load(
+                &root
+                    .join("db2")
+                    .join(game_engine_core::spell_catalog::SPELL_DB2_BUILD),
+            )
+        })
+        .as_ref()
+        .map_err(Clone::clone)
 }
 
 fn cache_trainer_art() -> Result<(), String> {
@@ -135,11 +164,17 @@ fn cache_trainer_art() -> Result<(), String> {
 fn preview_view() -> TrainerView {
     let three_coins = std::env::var("GODOT_TRAINER_THREE_COINS").as_deref() == Ok("1");
     let wool_cost = if three_coins { 12550 } else { 500 };
+    // Class services: Frostbolt, and Rogue Create: Crimson Vial (creates an item, not a recipe).
+    let class_service = std::env::var("GODOT_TRAINER_HOVER_SPELL")
+        .ok()
+        .and_then(|id| id.parse::<u32>().ok())
+        .filter(|id| matches!(*id, 116 | 212205));
+    let bandage_or_spell = class_service.unwrap_or(3275);
     let services = [
         (3908, 10, TrainerServiceState::Available, 1, true),
         (2963, 12550, TrainerServiceState::Available, 5, false),
         (2964, wool_cost, TrainerServiceState::Unavailable, 20, false),
-        (3275, 100, TrainerServiceState::Known, 1, false),
+        (bandage_or_spell, 100, TrainerServiceState::Known, 1, false),
         (7623, 0, TrainerServiceState::Available, 1, false),
         (7624, 25, TrainerServiceState::Unavailable, 30, false),
         (3276, 250, TrainerServiceState::Available, 5, false),
@@ -153,7 +188,11 @@ fn preview_view() -> TrainerView {
             state,
             req_level,
             profession,
-            req_skill_line: if profession { 0 } else { 2540 },
+            req_skill_line: if profession || Some(spell_id) == class_service {
+                0
+            } else {
+                2540
+            },
             req_skill_rank: if spell_id == 2964 { 75 } else { 1 },
             req_abilities: vec![],
         },
@@ -177,6 +216,8 @@ fn preview_view() -> TrainerView {
         title: "Georgio Bolero".into(),
         display: TrainerDisplay {
             names: [
+                (116, "Frostbolt"),
+                (212205, "Create: Crimson Vial"),
                 (3908, "Tailoring"),
                 (2963, "Bolt of Linen Cloth"),
                 (2964, "Bolt of Woolen Cloth"),
@@ -190,6 +231,8 @@ fn preview_view() -> TrainerView {
             .map(|(id, name)| (id, name.into()))
             .collect(),
             icons: [
+                (116, 135846),
+                (212205, 463862),
                 (3908, 136249),
                 (2963, 132890),
                 (2964, 132894),

@@ -2244,3 +2244,7 @@ textures/7734302.blp
 textures/7734305.blp
 textures/7734306.blp
 textures/7743357.blp
+
+# Trainer tooltips reuse existing professions recipe metadata.
+db2/12.1.0.69933/SpellReagents.csv
+db2/12.1.0.69933/TradeSkillCategory.csv
