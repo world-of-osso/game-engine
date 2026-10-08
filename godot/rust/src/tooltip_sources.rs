@@ -174,7 +174,7 @@ impl GameClient {
         let tooltip = match tooltip {
             Ok(tooltip) => tooltip,
             Err(error) => {
-                log::warn!("Trainer service {spell}: {error}");
+                eprintln!("Trainer service {spell}: {error}");
                 return None;
             }
         };
