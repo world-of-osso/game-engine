@@ -103,7 +103,9 @@ Tooltip source `2e8e71564`; preview lifecycle correction `2bd450ae4` initializes
 
 At `2bd450ae4`, `trainer_followup.gd` captures and asserts **six** offline snapshots in one renderer: `modern-{default,hovered,selected}.png`, `forever-{default,hovered,selected}.png` under that evidence directory. Every gold/silver/copper icon is 13×13, inside the scroll clip and at least8px inside the row's right edge, for selected Linen and unselected Wool prices. Both hovered shots show the shared Bolt of Linen Cloth tooltip to the right, **1.5 sec cast** from the local catalog and the grey **Spell ID: 2963** line; pointer leave hides it. Default shots select Tailoring, with both Linen/Wool three-coin prices unselected; selected shots show Bolt's complete red1g25s50c and disabled Train. Modern dark stone and Forever bronze chrome, representative portrait,35/300 rank and known-service text remain. All six PNGs were inspected; `capture-observations.json` and `captures-refresh.log` retain details. Existing RID/ObjectDB/font shutdown warnings remain; this is not clean-resource or real-NPC/live lifecycle proof.
 
-Full required crate integration is recorded below after completion; targeted/runtime results are not a substitute for its counts.
+### Follow-up full affected-crate integration
+
+The locked local helper ran `--test -p game-engine-godot -p game-engine-ui-model -p game-engine-core --no-fail-fast` **once**, after final code and all six inspected captures, on **`0445c320e`** (final Rust `2bd450ae4`); **exit0**. Deduplicated detailed-log counts: **core781 passed**, **Godot651 passed**, **UI-model753 passed /6 ignored**, **0 failures**; **2185 passed total**. Evidence: canonical `data/diagnostics/trainertips-2026-10-07/{full-details.log,full-counts.json,full-head.txt,proof-ledger.txt}` and `/tmp/claude/trainertips-full.out`. Source hashes remain unchanged; subsequent documentation-only commits do not invalidate this proof. Owned renderers/Weston and all recorded launch PIDs are gone; `agents-trainertips.slice` is inactive. No merge/push or server/networked-client execution.
 
 ## Known gaps (current cycle)
 
