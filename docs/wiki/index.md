@@ -7,7 +7,7 @@
 [Current Skyborne acceptance boundary](systems/forever-data.md#current-scoped-capability-matrix) owns approved estimated NPC/giver stats, bounded quest acceptance/turn-in/reload evidence and remaining gaps. [Ailee baked-path correction](systems/forever-data.md#ailee-baked-material-applicability--bounded-correction-2026-10-07) separates unused component-overlay validation from pending native rendering.
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-10-07.
+Last updated: 2026-10-08.
 
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
@@ -196,3 +196,5 @@ External resources and asset lists.
 
 - [Native SSAO](investigations/native-ssao.md) — restart-required startup prepass, preserved Off submission baseline, authored-light mapping, Dozen/Lavapipe comparison and strict pixel oracle.
 - [Desktop handoff checkpoint](systems/forever-data.md#desktop-handoff-checkpoint-2026-10-07) — independently verified owned packet; README-only remote metadata confirmation pending, consumer gates open; current NPC native RED retained.
+
+- [Auction result icon diagnosis](systems/auction-house-ui.md#missing-result-icons-2026-10-08) — five-item FDID/file trace, local-store proof and shared unavailable-icon policy.
