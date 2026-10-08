@@ -773,7 +773,7 @@ mod tests {
     use super::*;
 
     #[test]
-    fn right_click_interacts_only_with_a_living_npc_in_range() {
+    fn non_banker_right_click_requires_a_living_npc_in_range() {
         let flags = NpcFlags(0);
         assert_eq!(right_click(true, false, 4.9, flags), RightClick::Interact);
         assert_eq!(right_click(true, false, 5.0, flags), RightClick::Interact);
