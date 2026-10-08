@@ -32,6 +32,14 @@ impl crate::GameClient {
             }
             Request::GroupRoster => Ok(format_group_roster(&self.account.group)),
             Request::GroupStatus => Ok(format_group_status(&self.account.group)),
+            Request::GroupSubgroup { name, subgroup } => self.group_ipc(
+                "group subgroup",
+                GroupCommand::SetSubgroup {
+                    name: name.clone(),
+                    subgroup,
+                },
+                format!("group subgroup submitted for {name}: {subgroup}"),
+            ),
             Request::GroupInvite { name } => self.group_ipc(
                 "group invite",
                 GroupCommand::Invite(name.clone()),

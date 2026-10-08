@@ -165,6 +165,43 @@ fn quest_list_command_maps_to_request() {
 }
 
 #[test]
+fn group_subgroup_command_serializes_member_and_validates_retail_group_bounds() {
+    for subgroup in ["1", "8"] {
+        let cli = Cli::try_parse_from([
+            "game-engine-cli",
+            "group",
+            "subgroup",
+            "--name",
+            "Fbraidb",
+            "--subgroup",
+            subgroup,
+        ])
+        .expect("raid subgroup command");
+        let Cmd::Group { command } = cli.command else {
+            panic!("group command expected")
+        };
+        assert_eq!(
+            serde_json::to_value(group_request(command).unwrap()).unwrap(),
+            serde_json::json!({"GroupSubgroup": {"name": "Fbraidb", "subgroup": subgroup.parse::<u8>().unwrap()}}),
+        );
+    }
+    for subgroup in ["0", "9"] {
+        assert!(
+            Cli::try_parse_from([
+                "game-engine-cli",
+                "group",
+                "subgroup",
+                "--name",
+                "Fbraidb",
+                "--subgroup",
+                subgroup,
+            ])
+            .is_err()
+        );
+    }
+}
+
+#[test]
 fn group_roster_command_maps_to_request() {
     assert_eq!(
         group_request(GroupCmd::Roster).unwrap(),

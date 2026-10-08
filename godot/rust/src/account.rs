@@ -73,8 +73,8 @@ use shared::protocol::{
     ConvertGroupToParty, ConvertGroupToRaid, GroupChannel, GroupCommandResponse,
     GroupInviteCancelled, GroupInviteIntent, GroupInvitePrompt, GroupMemberStates,
     GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup, PromoteGroupLeader, RaidTargetIcons,
-    ReadyCheckUpdate, RespondGroupInvite, RespondReadyCheck, SetGroupRole, SetRaidTarget,
-    StartReadyCheck,
+    ReadyCheckUpdate, RespondGroupInvite, RespondReadyCheck, SetGroupRole, SetRaidSubgroup,
+    SetRaidTarget, StartReadyCheck,
 };
 
 use shared::protocol::{
@@ -984,6 +984,9 @@ impl Account {
             GroupCommand::Leave => bridge.send::<_, GroupChannel>(LeaveGroup),
             GroupCommand::ConvertToRaid => bridge.send::<_, GroupChannel>(ConvertGroupToRaid),
             GroupCommand::ConvertToParty => bridge.send::<_, GroupChannel>(ConvertGroupToParty),
+            GroupCommand::SetSubgroup { name, subgroup } => {
+                bridge.send::<_, GroupChannel>(SetRaidSubgroup { name, subgroup })
+            }
             GroupCommand::SetRole { name, role } => {
                 bridge.send::<_, GroupChannel>(SetGroupRole { name, role })
             }
