@@ -203,6 +203,59 @@ func item_display(item_id: int) -> int:
 func display_info(display_id: int) -> Dictionary:
 	return first("ItemDisplayInfo", ["ID", "GeosetGroup_0", "GeosetGroup_1", "GeosetGroup_2", "GeosetGroup_3", "GeosetGroup_4", "GeosetGroup_5", "ModelMaterialResourcesID_0"], "ID", display_id)
 
+# Rigid garment models, independently selected from ComponentModelFileData.
+# Model fallback is distinct from the texture fallback chain.
+func item_model_fdid(resource: int, race: int, sex: int, class_id: int, position: int) -> int:
+	var candidates: Array = rows("ModelFileData", ["FileDataID", "ModelResourcesID"], "ModelResourcesID").get(resource, [])
+	var chain := [[race, sex]]
+	while true:
+		var current: Array = chain.back()
+		var row := first("ChrRaces", ["ID", "MaleModelFallbackRaceID", "MaleModelFallbackSex", "FemaleModelFallbackRaceID", "FemaleModelFallbackSex"], "ID", current[0])
+		if row.is_empty():
+			break
+		var next := [row.MaleModelFallbackRaceID, row.MaleModelFallbackSex] if current[1] == 0 else [row.FemaleModelFallbackRaceID, row.FemaleModelFallbackSex]
+		if next[0] == 0 or chain.has(next):
+			break
+		chain.append(next)
+	var owned := []
+	var unowned := []
+	for candidate in candidates:
+		var info := first("ComponentModelFileData", ["ID", "GenderIndex", "ClassID", "RaceID", "PositionIndex"], "ID", candidate.FileDataID)
+		if info.is_empty():
+			unowned.append(candidate.FileDataID)
+		elif info.ClassID == 0 or info.ClassID == class_id:
+			owned.append(info)
+	for wanted in chain + [[0, sex]]:
+		for info in owned:
+			if info.RaceID == wanted[0] and gender_matches(info.GenderIndex, wanted[1]) and (info.PositionIndex == -1 or info.PositionIndex == position):
+				return info.ID
+	return unowned[0] if not unowned.is_empty() else 0
+
+func garment_models(item: Dictionary, race: int, sex: int, class_id: int) -> Array:
+	var display_id := item_display(item.item_id)
+	var display := first("ItemDisplayInfo", ["ID", "ModelResourcesID_0", "ModelResourcesID_1", "ModelMaterialResourcesID_0", "ModelMaterialResourcesID_1"], "ID", display_id)
+	var result := []
+	if display.is_empty():
+		errors.append("item %d has no display" % item.item_id)
+		return result
+	for index in 2:
+		var resource: int = display["ModelResourcesID_%d" % index]
+		if resource == 0:
+			continue
+		var fdid := item_model_fdid(resource, race, sex, class_id, index if item.slot == "Shoulder" else -1)
+		if fdid == 0:
+			errors.append("model resource %d has no race/sex file" % resource)
+			continue
+		var textures := {}
+		var legacy: int = display["ModelMaterialResourcesID_%d" % index]
+		if legacy != 0:
+			textures[2] = item_texture_fdid(legacy, race, sex, class_id)
+		for declaration in rows("ItemDisplayInfoModelMatRes", ["ItemDisplayInfoID", "ModelIndex", "TextureType", "MaterialResourcesID"], "ItemDisplayInfoID").get(display_id, []):
+			if declaration.ModelIndex == index:
+				textures[declaration.TextureType] = item_texture_fdid(declaration.MaterialResourcesID, race, sex, class_id)
+		result.append({"index": index, "fdid": fdid, "textures": textures})
+	return result
+
 func geoset_group(display: Dictionary, index: int) -> int:
 	return 0 if display.is_empty() else display["GeosetGroup_%d" % index]
 
@@ -313,6 +366,7 @@ func visible_parts(app: Dictionary, parts: Array) -> Array:
 		set_group(visible, parts, 32, 3202)
 	if app["class"] != DEATH_KNIGHT:
 		hide_range(visible, 1700, 1799)
+	apply_helmet(visible, parts, app)
 	apply_equipment(visible, parts, app.displays)
 	var result := []
 	for part in parts:
@@ -340,6 +394,46 @@ func show(visible: Dictionary, parts: Array, part: int) -> void:
 	if parts.has(part):
 		visible[part] = true
 
+# DB2-exported helmet visibility relationships; no native outfit/geoset metadata.
+# The unresolved extra field is retained in the export, not assigned invented semantics.
+func helmet_hidden_groups(display_id: int, race: int) -> Array:
+	var display := first("ItemDisplayInfo", ["ID", "HelmetGeosetVis_0", "HelmetGeosetVis_1"], "ID", display_id)
+	var groups := []
+	if display.is_empty():
+		return groups
+	for key in [display.HelmetGeosetVis_0, display.HelmetGeosetVis_1]:
+		if key == 0:
+			continue
+		for rule in rows("HelmetGeosetData", ["HelmetGeosetVisDataID", "RaceID", "HideGeosetGroup", "RaceBitSelection"], "HelmetGeosetVisDataID").get(key, []):
+			if rule.RaceID == race and not groups.has(rule.HideGeosetGroup):
+				groups.append(rule.HideGeosetGroup)
+			elif rule.RaceID == 0 and rule.RaceBitSelection != 0:
+				errors.append("helmet visibility %d has unsupported generic race selection %d" % [key, rule.RaceBitSelection])
+	groups.sort()
+	return groups
+
+func apply_helmet(visible: Dictionary, parts: Array, app: Dictionary) -> void:
+	if not app.displays.has("Head"):
+		return
+	for group in helmet_hidden_groups(app.displays.Head, app.race):
+		var variant := 1
+		if group == 0:
+			var scalps := []
+			for row in rows("CharHairGeosets", ["RaceID", "SexID", "GeosetType", "GeosetID", "Showscalp"], "RaceID").get(app.race, []):
+				if row.SexID == app.sex and row.GeosetType == 0 and row.Showscalp != 0:
+					scalps.append(row.GeosetID)
+			if not scalps.is_empty():
+				scalps.sort()
+				variant = scalps[0]
+		set_group(visible, parts, group, group * 100 + variant)
+	var head := display_info(app.displays.Head)
+	var primary := geoset_group(head, 0)
+	if primary >= 0:
+		set_group(visible, parts, 27, 2702 if primary == 0 else 2700 + primary)
+	var secondary := geoset_group(head, 1)
+	if secondary > 0:
+		set_group(visible, parts, 21, 2101 + secondary)
+
 func apply_equipment(visible: Dictionary, parts: Array, displays: Dictionary) -> void:
 	var shirt := display_info(displays.get("Shirt", 0))
 	var chest := display_info(displays.get("Chest", 0))
@@ -350,6 +444,9 @@ func apply_equipment(visible: Dictionary, parts: Array, displays: Dictionary) ->
 	var tabard := display_info(displays.get("Tabard", 0))
 	var cape := display_info(displays.get("Back", 0))
 	var wrist := display_info(displays.get("Wrist", 0))
+	var shoulder := display_info(displays.get("Shoulder", 0))
+	if geoset_group(shoulder, 0) != 0:
+		set_group(visible, parts, 26, 2601 + geoset_group(shoulder, 0))
 	if geoset_group(hands, 0) != 0:
 		hide_range(visible, 401, 499)
 		show(visible, parts, 401 + geoset_group(hands, 0))
