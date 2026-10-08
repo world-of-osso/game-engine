@@ -28,7 +28,12 @@ impl RegistryUi {
         let result = self.trainer_preview_tooltip_at(at).and_then(|view| {
             let mut host = host.bind_mut();
             host.set_ui_scale(1.0)?;
-            host.show_game_tooltip(view)
+            // show_game_tooltip initializes a screen; subsequent pointer frames update its state.
+            if host.registry().is_some() {
+                host.set_state(view)
+            } else {
+                host.show_game_tooltip(view)
+            }
         });
         GString::from(result.err().unwrap_or_default().as_str())
     }
