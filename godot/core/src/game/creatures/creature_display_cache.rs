@@ -472,6 +472,37 @@ mod tests {
     }
 
     #[test]
+    fn equivalent_data_root_spelling_reuses_the_cache() {
+        let dir =
+            std::env::temp_dir().join(format!("creature-display-alias-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(
+            dir.join("CreatureDisplayInfo.csv"),
+            "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n4,7,1,11,12,0,0\n",
+        )
+        .unwrap();
+        std::fs::write(
+            dir.join("CreatureModelData.csv"),
+            "ID,FileDataID,ModelScale\n7,9001,1\n",
+        )
+        .unwrap();
+        let cache = import_creature_display_cache(&dir).unwrap();
+        let conn = Connection::open(&cache).unwrap();
+        conn.execute("DELETE FROM preferred_skins", []).unwrap();
+        drop(conn);
+        let alias = dir.join("..").join(dir.file_name().unwrap());
+        import_creature_display_cache(&alias).unwrap();
+        let conn = open_read_only(&cache).unwrap();
+        assert_eq!(
+            crate::creature_display_data::query_preferred_skins(&conn, 9001).unwrap(),
+            None,
+            "an equivalent data root must not rebuild the cache"
+        );
+        drop(conn);
+        std::fs::remove_dir_all(dir).unwrap();
+    }
+
+    #[test]
     fn forever_npc_displays_keep_retail_collisions_and_product_model_chain() {
         let dir = std::env::temp_dir().join(format!("forever-npc-displays-{}", std::process::id()));
         let forever = dir.join("db2/1.60.1.70205");
