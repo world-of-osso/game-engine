@@ -389,3 +389,26 @@ fn trainer_recipe_uses_crafted_gear_quality_and_item_requirements() {
             .any(|line| line.left_text == "Item ID: 10042")
     );
 }
+
+#[test]
+fn trainer_class_spell_that_creates_an_item_keeps_its_spell_tooltip() {
+    let spells = local_catalog();
+    let dir =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let recipes = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&dir).unwrap();
+    // Rogue SkillLine/category7: creating an item alone does not make this a profession recipe.
+    let spell = spells.get(212205).unwrap();
+    let input = SpellTooltipInput {
+        description: spells
+            .render_description(212205, &Default::default())
+            .unwrap(),
+        ..Default::default()
+    };
+    let expected = spell_tooltip(spell, &input);
+    let actual = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
+        expected.clone(),
+        recipes.get(212205),
+        Some(10),
+    );
+    assert_eq!(actual, Ok(expected));
+}
