@@ -1791,6 +1791,22 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
     /// By default the plate's health text is the percent alone, which Retail rounds up
     /// (`math.ceil`).
     #[test]
+    fn ghoststate_dead_nameplate_replaces_numeric_health() {
+        for show_value in [true, false] {
+            assert_eq!(
+                health_text(
+                    &Health {
+                        current: 0.0,
+                        max: 120.0
+                    },
+                    show_value
+                ),
+                "Dead"
+            );
+        }
+    }
+
+    #[test]
     fn health_text_is_the_percent_alone_by_default() {
         let show_value = NameplateStyle::default().show_health_value;
         let text = |current, max| health_text(&Health { current, max }, show_value);
