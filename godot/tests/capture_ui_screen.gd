@@ -11,6 +11,10 @@ func _initialize() -> void:
 func _run() -> void:
 	var screen = OS.get_environment("GODOT_CAPTURE_SCREEN")
 	var output = OS.get_environment("GODOT_CAPTURE_PATH")
+	if screen == "auction_both":
+		var captured: bool = await capture_auction_both(output)
+		quit(0 if captured else 1)
+		return
 	if screen == "hudedit_both":
 		await capture_hud_edit_both(output)
 		return
@@ -709,4 +713,44 @@ func castbar_snapshot_matches(ui: Node, image: Image, output: String) -> bool:
 		push_error("Cast feedback did not change rendered pixels")
 		return false
 	print("PASS: cast feedback changed pixels=", changed_pixels)
+	return true
+
+# Both skins, production auction projection, no GameClient or networking.
+func capture_auction_both(directory: String) -> bool:
+	for skin in ["modern", "forever"]:
+		for view in ["browse", "item", "inventory", "sell", "duration", "owned", "bids", "dialog"]:
+			OS.set_environment("GODOT_AUCTION_VIEW", view)
+			var ui = ClassDB.instantiate("RegistryUi")
+			root.add_child(ui)
+			var method = "show_auction_preview" if skin == "modern" else "show_forever_auction_preview"
+			var error = ui.call(method)
+			if not error.is_empty():
+				push_error(error)
+				ui.queue_free()
+				return false
+			for frame in range(120):
+				await process_frame
+				await RenderingServer.frame_post_draw
+			var image = root.get_texture().get_image()
+			var prefix = directory.path_join(skin + "-" + view)
+			if image == null or image.is_empty() or image.save_png(prefix + ".png") != OK:
+				push_error("Auction capture requires rendered pixels: ", prefix)
+				ui.queue_free()
+				return false
+			var geometry: Dictionary = {}
+			for name in ["AuctionHouseFrame", "AuctionHouseFrameSearchBox", "AuctionHouseFrameItemBuyFrameRow1TimeLeft", "AuctionHouseFrameAuctionsFrameBidsListRow1TimeLeft", "AuctionHouseFrameItemSellFrameDurationDropdown", "AuctionHouseFrameBuyDialog"]:
+				var control := ui.find_child(name, true, false) as Control
+				if control != null and control.is_visible_in_tree():
+					var rect = control.get_global_rect()
+					geometry[name] = [rect.position.x, rect.position.y, rect.size.x, rect.size.y]
+			var file = FileAccess.open(prefix + ".json", FileAccess.WRITE)
+			if file == null:
+				push_error("Cannot write auction geometry: ", prefix)
+				ui.queue_free()
+				return false
+			file.store_string(JSON.stringify(geometry, "\t"))
+			file.close()
+			print("CAPTURE: ", prefix, " ", geometry)
+			ui.queue_free()
+			await process_frame
 	return true
