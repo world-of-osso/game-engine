@@ -8,6 +8,7 @@ pub mod item;
 pub mod merchant;
 pub mod render;
 pub mod spell;
+pub mod trainer;
 pub mod unit;
 
 use ui_toolkit::atlas::ActiveSkin;
