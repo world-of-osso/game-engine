@@ -234,13 +234,6 @@ impl GameClient {
         let Some(viewport) = self.base().get_viewport() else {
             return Ok(());
         };
-        godot_print!(
-            "BANKLOOP mouse={:?} hovered={:?}",
-            self.physical_input.pointer(),
-            viewport
-                .gui_get_hovered_control()
-                .map(|control| control.get_path())
-        );
         if viewport.gui_get_hovered_control().is_some() {
             return Ok(());
         }
@@ -303,13 +296,7 @@ impl GameClient {
             .get::<Health>()
             .is_some_and(|health| health.current <= 0.0);
         let flags = NpcFlags(unit.npc_flags().unwrap_or(0));
-        let decision = right_click(unit.has::<Npc>(), dead, distance, flags);
-        godot_print!(
-            "BANKLOOP unit={id} npc={} dead={dead} distance={distance} flags={} decision={decision:?}",
-            unit.has::<Npc>(),
-            flags.0
-        );
-        decision
+        right_click(unit.has::<Npc>(), dead, distance, flags)
     }
 
     /// Bevy `pick_desired_cursor` for units: the cursor of the NPC under the pointer.
