@@ -14,7 +14,26 @@ pub const VIEWS: [&str; 8] = [
 ];
 
 pub fn preview_view(view: &str) -> Result<NativeAuctionView, String> {
-    let mut frame = AuctionHouseFrameState {
+    let mut frame = browse_frame();
+    match view {
+        "browse" => {}
+        "item" | "dialog" => populate_item_buy(&mut frame, view),
+        "inventory" | "sell" | "duration" => populate_sell(&mut frame, view),
+        "owned" | "bids" => populate_auctions(&mut frame, view),
+        _ => return Err(format!("Unknown offline auction view: {view}")),
+    }
+    Ok(NativeAuctionView {
+        frame,
+        row_page: 0,
+        row_pages: 2,
+        search_page: 0,
+        search_pages: 2,
+        search_paging: matches!(view, "browse" | "item" | "dialog" | "sell" | "duration"),
+    })
+}
+
+fn browse_frame() -> AuctionHouseFrameState {
+    AuctionHouseFrameState {
         visible: true,
         money: 12_345_678,
         search_empty: true,
@@ -36,71 +55,64 @@ pub fn preview_view(view: &str) -> Result<NativeAuctionView, String> {
             })
             .collect(),
         ..Default::default()
-    };
-    match view {
-        "browse" => {}
-        "item" | "dialog" => {
-            frame.item_buy = Some(ItemBuyView {
-                item: preview_items()[0].clone(),
-                rows: preview_listings(),
-                can_bid: true,
-                can_buyout: true,
-            });
-            if view == "dialog" {
-                frame.dialog = Some(BuyDialogView {
-                    item_text: format!("{}  x3", preview_items()[0].name),
-                    price: 12_345,
-                });
-            }
-        }
-        "inventory" | "sell" | "duration" => {
-            frame.tab = AuctionHouseTab::Sell;
-            frame.sell.inventory = preview_items()
-                .into_iter()
-                .enumerate()
-                .map(|(index, item)| SellInventoryRow {
-                    item_guid: index as u64 + 1,
-                    item,
-                    count: 20,
-                    selected: false,
-                })
-                .collect();
-            if view != "inventory" {
-                frame.sell.item = Some(SellItemView {
-                    item: preview_items()[0].clone(),
-                    count: 20,
-                });
-                frame.sell.listings = preview_listings();
-                frame.sell.deposit = 12_345;
-                frame.sell.total = 37_035;
-                frame.sell.can_post = true;
-                frame.sell.duration_menu_open = view == "duration";
-            }
-        }
-        "owned" | "bids" => {
-            frame.tab = AuctionHouseTab::Auctions;
-            frame.auctions = AuctionsView {
-                tab: if view == "owned" {
-                    AuctionsSubTab::Auctions
-                } else {
-                    AuctionsSubTab::Bids
-                },
-                rows: preview_listings(),
-                can_cancel: true,
-                can_bid: true,
-                can_buyout: true,
-            };
-        }
-        _ => return Err(format!("Unknown offline auction view: {view}")),
     }
-    Ok(NativeAuctionView {
-        frame,
-        row_page: 0,
-        row_pages: 2,
-        search_page: 0,
-        search_pages: 2,
-        search_paging: matches!(view, "browse" | "item" | "dialog" | "sell" | "duration"),
-    })
+}
+
+fn populate_item_buy(frame: &mut AuctionHouseFrameState, view: &str) {
+    let item = preview_items()[0].clone();
+    if view == "dialog" {
+        frame.dialog = Some(BuyDialogView {
+            item_text: format!("{}  x3", item.name),
+            price: 12_345,
+        });
+    }
+    frame.item_buy = Some(ItemBuyView {
+        item,
+        rows: preview_listings(),
+        can_bid: true,
+        can_buyout: true,
+    });
+}
+
+fn populate_sell(frame: &mut AuctionHouseFrameState, view: &str) {
+    frame.tab = AuctionHouseTab::Sell;
+    frame.sell.inventory = preview_items()
+        .into_iter()
+        .enumerate()
+        .map(|(index, item)| SellInventoryRow {
+            item_guid: index as u64 + 1,
+            item,
+            count: 20,
+            selected: false,
+        })
+        .collect();
+    if view == "inventory" {
+        return;
+    }
+    frame.sell.item = Some(SellItemView {
+        item: preview_items()[0].clone(),
+        count: 20,
+    });
+    frame.sell.listings = preview_listings();
+    frame.sell.deposit = 12_345;
+    frame.sell.total = 37_035;
+    frame.sell.can_post = true;
+    frame.sell.duration_menu_open = view == "duration";
+}
+
+fn populate_auctions(frame: &mut AuctionHouseFrameState, view: &str) {
+    frame.tab = AuctionHouseTab::Auctions;
+    frame.auctions = AuctionsView {
+        tab: if view == "owned" {
+            AuctionsSubTab::Auctions
+        } else {
+            AuctionsSubTab::Bids
+        },
+        rows: preview_listings(),
+        can_cancel: true,
+        can_bid: true,
+        can_buyout: true,
+    };
 }
 
 fn preview_items() -> Vec<ItemLine> {
