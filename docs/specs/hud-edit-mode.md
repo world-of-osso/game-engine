@@ -36,6 +36,25 @@ Inspected canonical `data/diagnostics/editmodepolish-2026-10-07/`: `before/moder
 
 Tests: `godot/rust/src/ui/hud_edit_tests.rs`, `godot/rust/src/ui/hud_edit_polish_tests.rs`, `godot/tests/capture_ui_screen.gd` (`GODOT_HUDEDIT_MOVER_INVENTORY=1`). Retail manager operations: `Shared/EditModeManager.lua:1452-1574`; selected/revert behavior: `Shared/EditModeSystemTemplates.lua:835-857`, `Shared/EditModeDialogs.xml:303`. The client's existing New/Rename/Delete/Revert/Save/Reset/Exit and previous/next controls remain its native manager contract, not a claim that Retail uses the same button arrangement.
 
+## Live manager acceptance (2026-10-08)
+
+Private UDP 5350, server `26f3c5c`, pinned sibling protocol `7597908`; client base `6f3317230`, account-isolation fix `a66ccdb23`. Evidence root: `data/diagnostics/hudmanager-2026-10-07/`. Every capture below has matching `.json` controls and `-ui.txt` IPC dumps. The interrupted worker drove real input and inspected captures; the continuation inspected those retained captures again in `continuation-contact-1.png` through `continuation-contact-8.png`, without repeating PASS runs. Steps 1–6/8 and the Forever subset retain their original baseline proof; step 7 was re-proved on `a66ccdb23` after the isolation fix. This is bounded manager acceptance, not full-client parity or clean-resource shutdown proof.
+
+| Step | Modern | Reduced Forever | Inspected capture stems (relative to evidence root) |
+|---|---|---|---|
+| 1. Typed New; naming behavior | PASS | PASS New; naming edge cases N-A (reduced scope) | `modern-new`, `modern-duplicate-new`, `modern-empty-new`, `forever-new` |
+| 2. Move two, Save, previous/next | PASS | PASS switch; two-element movement N-A (reduced scope) | `modern-next-alpha`, `forever-switch-away`, `forever-switch-back` |
+| 3. Rename; unsubmitted name cancellation | PASS; Cancel dialog N-A | N-A | `modern-renamed`, `modern-rename-duplicate`, `modern-rename-empty`, `modern-rename-cancelled` |
+| 4. Revert; unsaved Exit | PASS | PASS Revert; Exit N-A (reduced scope) | `modern-reverted`, `modern-unsaved-exit`, `forever-reverted` |
+| 5. Delete/fallback; immutable presets | PASS; confirmation dialog N-A | PASS Delete/fallback/protection; confirmation dialog N-A | `modern-delete-fallback`, `modern-preset-protected`, `forever-deleted`, `forever-preset-protected` |
+| 6. Reset Selected affects only selected element | PASS | N-A | `modern-reset-selected` |
+| 7. Restart; account-wide layouts/per-character choice; other account isolation | PASS after RED → fix → GREEN | N-A | `green-token-manager`, `green-token-restored`, `green-second-default`, `green-second-shared`, `green-second-own-active`, `green-second-relaunch-manager`, `green-crossaccount-default`, `green-crossaccount-prev`, `green-crossaccount-options`, `green-first-after-account-switch` |
+| 8. Escape/outside click | PASS inline-manager boundary; modal/input-leak dialog cases N-A | N-A | `modern-outside-click`, `modern-escape` |
+
+**Contract boundaries:** New with an empty/duplicate name creates the next unused `Layout N`, rather than rejecting it; Rename rejects empty/duplicate names. Names are edited inline and applied only by the corresponding button; unsubmitted text does not rename. Delete is immediate and returns to that layout's skin preset. Exit discards unsaved positions without a prompt. No confirmation, Cancel or outside-dismiss modal behavior is specified or implemented, so those dialog-only requests are N-A, not inferred PASS and not a new UX assumption. Outside-click proof is limited to unchanged observed layout/positions/world state; it is not general world-input isolation proof. Compact party defaults, Options > HUD Layout controls, flush-right tracker and Forever bottom-left chat remain unchanged.
+
+**Defect:** baseline `ui_layout::layout_path` ignored authenticated realm/account and exposed `fb_hud1`'s layout to `fb_hud2` using the same XDG directory. Native RED: `crossaccount-red-leak.png`, `account-isolation-red.txt`. Fix `a66ccdb23` routes manager and Options through authenticated realm/username storage and persists token ownership; no ownerless legacy import. Targeted behavioral GREEN: `hudmanager_account_layouts_share_characters_but_not_accounts_or_realms` and `hudmanager_rotated_tokens_reopen_the_same_account_layouts`, 2 passed / 0 failed. Native GREEN proves both characters' distinct active choices across token-only fresh processes, shared account layouts, foreign-account exclusion and first-character retention after the foreign login. Retained extension/CLI build, format and changed-line readability proofs cover the same source. Whole-crate continuation result is recorded separately in the evidence ledger.
+
 ## What it must do
 
 - [x] F10 toggles edit mode (World input mode only). Escape exits it, as a step after "close the top popup" and before "close all windows".

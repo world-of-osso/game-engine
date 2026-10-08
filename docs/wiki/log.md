@@ -1,3 +1,11 @@
+## 2026-10-08 — HUD manager acceptance continuation
+
+[Contract acceptance](../specs/hud-edit-mode.md#live-manager-acceptance-2026-10-08) and [matrix](../specs/godot-parity-matrix.md#hud-manager-live-step-matrix-2026-10-08) reconcile the interrupted worker's live Modern/Forever manager proof and authenticated-account GREEN. Retained captures/dumps were inspected without repeating PASS runs; inline-manager dialog exclusions remain explicit.
+
+## 2026-10-07 — HUD manager account isolation
+
+[Native HUD edit mode](systems/native-hud-edit-mode.md) records private-server same-XDG cross-account layout exposure and authenticated realm/username storage routing. Token ownership survives credential-token rotation; ownerless legacy data is not imported. [Contract](../specs/hud-edit-mode.md) owns acceptance and compatibility boundaries.
+
 ## 2026-10-07 — Native quest objective progress notices
 
 [Quest UI](systems/quest-ui.md#native-objective-progress-notices) records real Northshire count-update/no-message RED, typed progress dispatch, yellow rendered-message GREEN, and complete three-crate tests at `d88c66b0f`. The [parity matrix](../specs/godot-parity-matrix.md) retains bounded per-step acceptance; broad marker/edit-mode combinations are not inferred from this fix.
