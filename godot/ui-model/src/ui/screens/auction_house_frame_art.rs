@@ -121,10 +121,6 @@ pub(super) const SELL_TAB_RIGHT: Crop = ah(277.0, 286.0, 439.0, 462.0); // -sell
 pub(super) const INPUT_LEFT: Crop = ah(241.0, 257.0, 853.0, 919.0); // auctionhouse-ui-inputfield-left (9499)
 pub(super) const INPUT_MIDDLE: Crop = ah(293.0, 649.0, 147.0, 213.0); // -inputfield-middle (9500)
 pub(super) const INPUT_RIGHT: Crop = ah(259.0, 275.0, 853.0, 919.0); // -inputfield-right (9501)
-pub(super) const DROPDOWN_LEFT: Crop = ah(1005.0, 1019.0, 49.0, 83.0); // auctionhouse-ui-dropdown-left (9505)
-pub(super) const DROPDOWN_MIDDLE: Crop = ah(205.0, 288.0, 955.0, 989.0); // -dropdown-middle (9506)
-pub(super) const DROPDOWN_RIGHT: Crop = ah(1005.0, 1019.0, 87.0, 121.0); // -dropdown-right (9507)
-pub(super) const DROPDOWN_ARROW: Crop = ah(925.0, 952.0, 147.0, 173.0); // -dropdown-arrow-down (9503)
 
 // Coins: `auctionhouse-icon-coin-*` (9520..9522), 20×20.
 pub(super) const COIN_GOLD: Crop = ah(985.0, 1005.0, 125.0, 145.0);
@@ -179,8 +175,6 @@ const INSET_BOTTOM: Crop = sheet(INSET_TOP_BOTTOM, 256.0, 128.0, 0.0, 256.0, 111
 pub(super) const NORMAL_FONT_COLOR: &str = "1.0,0.82,0.0,1.0";
 /// `HIGHLIGHT_FONT_COLOR`.
 pub(super) const HIGHLIGHT_FONT_COLOR: &str = "1.0,1.0,1.0,1.0";
-/// `DISABLED_FONT_COLOR`.
-pub(super) const DISABLED_FONT_COLOR: &str = "0.5,0.5,0.5,1.0";
 pub(super) const SHADOW_COLOR: &str = "0.0,0.0,0.0,1.0";
 
 /// `ITEM_QUALITY_COLORS` (ColorConstants) by quality 0 Poor .. 5 Legendary.

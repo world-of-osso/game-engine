@@ -253,10 +253,8 @@ impl RegistryModel {
 
     fn apply_postsetup(&mut self) {
         match self.postsetup {
-            ScreenPostsetup::None
-            | ScreenPostsetup::Loading
-            | ScreenPostsetup::Auction
-            | ScreenPostsetup::Trade => {}
+            ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Trade => {}
+            ScreenPostsetup::Auction => self.icon_masks.apply(&mut self.registry),
             ScreenPostsetup::CastingBar => {
                 game_engine_ui_model::casting_bar_frame_component::apply_casting_bar_feedback_postsetup(&mut self.registry);
             }

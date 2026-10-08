@@ -293,18 +293,18 @@ fn price_input(key: &str, text: &str, boxes: MoneyBoxes, y: f32, h: f32) -> Elem
 fn duration_control(sell: &SellView, y: f32) -> Element {
     let prefix = "AuctionHouseFrameItemSellFrameDuration";
     let mut out = control_label(&format!("{prefix}Label"), "Duration", y, CONTROL_H);
-    let (x, w, h) = (CONTROL_X + 1.0, 150.0, 26.0);
+    // Blizzard_Menu/Mainline/MenuTemplates.xml:3-28, WowStyle1DropdownTemplate.
+    let (x, w, h) = (CONTROL_X + 1.0, 120.0, 25.0);
     let top = y + (CONTROL_H - h) / 2.0 + 2.0;
-    let mut art = three_slice(
-        &format!("{prefix}Dropdown"),
-        [DROPDOWN_LEFT, DROPDOWN_MIDDLE, DROPDOWN_RIGHT],
-        11.0,
-        (0.0, 0.0, w, h),
+    let mut art = crate::quest_art::named_atlas_texture(
+        format!("{prefix}DropdownBackground"),
+        "common-dropdown-textholder",
+        (-8.0, -7.0, w + 16.0, h + 16.0),
     );
-    art.extend(crop_texture(
+    art.extend(crate::quest_art::named_atlas_texture(
         format!("{prefix}DropdownArrow"),
-        DROPDOWN_ARROW,
-        (w - 24.0, 3.0, 20.0, 20.0),
+        "common-dropdown-a-button",
+        (w - 26.0, 2.0, 27.0, 27.0),
     ));
     out.extend(rsx! {
         button {
@@ -319,16 +319,16 @@ fn duration_control(sell: &SellView, y: f32) -> Element {
             {art}
             fontstring {
                 name: {DynName(format!("{prefix}DropdownText"))},
-                width: {w - 36.0},
-                height: h,
+                width: {w - 34.0},
+                height: 10.0,
                 text: {duration_label(sell.duration)},
                 font: GameFont::FrizQuadrata,
                 font_size: 12.0,
                 font_color: HIGHLIGHT_FONT_COLOR,
                 justify_h: "LEFT",
                 pos_type: "absolute",
-                left: 10.0,
-                top: 0.0,
+                left: 8.0,
+                top: 8.0,
             }
         }
     });

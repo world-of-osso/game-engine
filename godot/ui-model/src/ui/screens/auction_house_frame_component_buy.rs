@@ -43,7 +43,21 @@ fn search_bar(empty: bool) -> Element {
         (x + 1.0, y + 7.0, 10.0, 10.0),
     ));
     // TextInsets left 16, right 20.
-    out.extend(edit_box(SEARCH_BOX, (x, y, w, h), "16,20,0,0"));
+    // InputBoxInstructionsTemplate overrides ChatFontNormal with GameFontHighlightSmall.
+    out.extend(rsx! {
+        editbox {
+            name: {DynName(SEARCH_BOX.to_string())},
+            width: w,
+            height: h,
+            font: GameFont::FrizQuadrata,
+            font_size: 10.0,
+            font_color: HIGHLIGHT_FONT_COLOR,
+            text_insets: "16,20,0,0",
+            pos_type: "absolute",
+            left: x,
+            top: y,
+        }
+    });
     if empty {
         out.extend(rsx! {
             fontstring {
@@ -52,8 +66,8 @@ fn search_bar(empty: bool) -> Element {
                 height: h,
                 text: "Search",
                 font: GameFont::FrizQuadrata,
-                font_size: 12.0,
-                font_color: DISABLED_FONT_COLOR,
+                font_size: 10.0,
+                font_color: "0.35,0.35,0.35,1.0",
                 justify_h: "LEFT",
                 pos_type: "absolute",
                 left: {x + 16.0},
@@ -339,16 +353,21 @@ pub(super) fn item_display(prefix: &str, item: &ItemLine, (x, y): (f32, f32)) ->
         (x, y, 622.0, 86.0),
     ));
     let (bx, by) = (x + 22.0, y + 43.0 - 27.0 + 2.0);
-    out.extend(crop_texture(
-        format!("{prefix}ItemButtonEmpty"),
-        ITEM_ICON_EMPTY,
-        (bx, by, 54.0, 54.0),
-    ));
-    out.extend(icon_texture(
-        format!("{prefix}ItemButtonIcon"),
-        item.icon_fdid,
-        (bx + 2.0, by + 2.0, 50.0, 50.0),
-    ));
+    if item.icon_fdid != 0 {
+        out.extend(rsx! {
+            texture {
+                name: {DynName(format!("{prefix}ItemButtonIcon"))},
+                width: 46.0,
+                height: 46.0,
+                texture_fdid: {item.icon_fdid},
+                tex_coords: "0.078125,0.921875,0.078125,0.921875",
+                pos_type: "absolute",
+                left: {bx + 4.0},
+                top: {by + 4.0},
+            }
+        });
+    }
+    out.extend(item_quality_border(prefix, item.quality, (bx, by)));
     out.extend(rsx! {
         fontstring {
             name: {DynName(format!("{prefix}Name"))},
@@ -367,6 +386,29 @@ pub(super) fn item_display(prefix: &str, item: &ItemLine, (x, y): (f32, f32)) ->
         }
     });
     out
+}
+
+/// ColorConstants.lua:32-42 and ItemButtonTemplate.xml:44-49:68px quality ring.
+fn item_quality_border(prefix: &str, quality: u8, (x, y): (f32, f32)) -> Element {
+    const ATLASES: [&str; 9] = [
+        "auctionhouse-itemicon-border-gray",
+        "auctionhouse-itemicon-border-white",
+        "auctionhouse-itemicon-border-green",
+        "auctionhouse-itemicon-border-blue",
+        "auctionhouse-itemicon-border-purple",
+        "auctionhouse-itemicon-border-orange",
+        "auctionhouse-itemicon-border-artifact",
+        "auctionhouse-itemicon-border-account",
+        "auctionhouse-itemicon-border-account",
+    ];
+    let Some(atlas) = ATLASES.get(usize::from(quality)) else {
+        return Vec::new();
+    };
+    crate::quest_art::named_atlas_texture(
+        format!("{prefix}ItemButtonBorder"),
+        atlas,
+        (x - 7.0, y - 7.0, 68.0, 68.0),
+    )
 }
 
 /// `AuctionHouseBidFrameTemplate` 240×22: `MoneyInputFrameTemplate` at LEFT, Bid 110×22 at
