@@ -36,7 +36,7 @@ fn ghoststate_remote_corpse_holds_death_and_ghost_alive_resume_motion() {
             if dead {
                 super::ANIM_DEATH
             } else {
-                super::ANIM_RUN
+                game_engine_core::movement_animation_data::ANIM_RUN
             }
         );
         assert_eq!(

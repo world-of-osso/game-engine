@@ -210,6 +210,7 @@ impl WowNameplateDebug {
                             max: MAX_HEALTH,
                         },
                         show_value,
+                        None,
                     ),
                     color,
                     name_color: Color::WHITE,
