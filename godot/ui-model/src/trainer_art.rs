@@ -30,6 +30,22 @@ pub(super) fn atlas(name: &str, member: &str, rect: (f32, f32, f32, f32)) -> Ele
     cropped(name.into(), fdid, &coords, rect)
 }
 
+pub(super) fn popup_background(width: f32) -> Element {
+    let mut out = atlas(
+        "ClassTrainerFilterMenuBackground",
+        "common-dropdown-bg",
+        (-10.0, -3.0, width + 20.0, 89.0),
+    );
+    let ui_toolkit::widget_def::WidgetChild::Widget(texture) = &mut out[0] else {
+        unreachable!("Atlas creates one texture")
+    };
+    texture.attrs.push(ui_toolkit::widget_def::Attr::new_static(
+        "alpha",
+        "0.925".into(),
+    ));
+    out
+}
+
 pub(super) fn inset() -> Element {
     let mut out = texture(
         "ClassTrainerInsetBackground".into(),
