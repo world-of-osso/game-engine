@@ -44,9 +44,9 @@ fn ghoststate_remote_corpse_holds_death_and_ghost_alive_resume_motion() {
             if life == DeathState::Ghost { 0.45 } else { 0.0 }
         );
         if dead {
-            let held = player.sampled_base_poses();
+            let held = player.poses();
             player.advance(FRAME_MS).unwrap();
-            assert_eq!(pose_distance(&held, &player.sampled_base_poses()), 0.0);
+            assert_eq!(pose_distance(&held, &player.poses()), 0.0);
             assert!(
                 !death_animation_change(applied, dead),
                 "repeated corpse state cannot restart death"
