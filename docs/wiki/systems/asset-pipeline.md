@@ -49,6 +49,12 @@ Extraction to disk is not the only access path. The project `AssetResolver` also
 
 WoW UI metadata stores authored FileDataIDs. A virtual path is only listfile lookup input; it is never a runtime filesystem path or a fallback export directory. Character-creation race/class icons emit `texture_fdid`; customization arrows and palette regions use an atlas FileDataID. `GameBlpLoader` resolves both through local CASC/cache. See [[ui-system]].
 
+### Native unavailable icons
+
+The native Godot `ui::assets` loader reads `data/textures/<fdid>.blp`. If read/decode fails for a FileDataID whose local listfile path belongs to `Interface/Icons`, it reports the original FDID/error through `frame_error::report_once` and loads the existing `bank_art::UNKNOWN_ICON` (134400). This policy covers asynchronous rectangular UI images and synchronous BLP decoding used by circular masks/cursor art. Loading remains asynchronous where it already was; valid images and unavailable non-icon panel/model art keep their existing behavior. The listfile path classifies the asset, never names a filesystem export. No runtime CDN fetch or new local-CASC extraction path is added.
+
+Texture successes/failures remain process-cached; installing a previously missing BLP requires a fresh client for this proof. See [auction icon diagnosis](auction-house-ui.md#missing-result-icons-2026-10-08), [extraction](../../casc-extraction.md#ossobuild-local-store-2026-10-08), and the [auction contract](../../specs/auction-house-ui.md#item-icons).
+
 ## Community Listfile
 
 CASC is path-free; the community listfile is a crowdsourced FDID→virtual-path map. It is load-bearing for two directions:

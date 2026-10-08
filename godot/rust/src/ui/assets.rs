@@ -4,6 +4,9 @@ use std::fs;
 use std::path::PathBuf;
 
 use game_engine_core::asset_loader::{AssetLoader, Priority};
+use game_engine_ui_model::bank_art::UNKNOWN_ICON;
+
+use crate::frame_error::report_once;
 
 use godot::classes::{AtlasTexture, FontFile, Image, ImageTexture, ProjectSettings, Texture2D};
 use godot::prelude::*;
@@ -170,7 +173,37 @@ fn decode_tga(path: &str, bytes: &[u8]) -> Result<DecodedFile, String> {
 }
 
 pub fn decode_blp(path: &str) -> Result<game_engine_core::blp::RgbaImage, String> {
-    decode_blp_bytes(path, &load_bytes(path)?)
+    let fdid = path
+        .strip_prefix("data/textures/")
+        .and_then(|file| file.strip_suffix(".blp"))
+        .and_then(|id| id.parse().ok());
+    let decode = |path: &str| decode_blp_bytes(path, &load_bytes(path)?);
+    match fdid {
+        Some(id) => load_icon_art(id, |id| decode(&format!("data/textures/{id}.blp"))),
+        None => decode(path),
+    }
+}
+
+/// Keep an unavailable icon visible as Retail's question mark, without replacing
+/// missing panel/model art. Both synchronous masks and asynchronous UI use this policy.
+fn load_icon_art<T>(id: u32, mut load: impl FnMut(u32) -> Result<T, String>) -> Result<T, String> {
+    match load(id) {
+        Err(error) if id != UNKNOWN_ICON && lookup_icon_namespace(id) => {
+            report_once(&format!(
+                "UI icon FDID {id}: {error}; using INV_Misc_QuestionMark ({UNKNOWN_ICON})"
+            ));
+            load(UNKNOWN_ICON)
+        }
+        result => result,
+    }
+}
+
+fn lookup_icon_namespace(id: u32) -> bool {
+    asset_resolver::lookup_fdid(id).is_some_and(|path| {
+        path.replace('\\', "/")
+            .to_ascii_lowercase()
+            .starts_with("interface/icons/")
+    })
 }
 
 fn decode_blp_bytes(path: &str, bytes: &[u8]) -> Result<game_engine_core::blp::RgbaImage, String> {
@@ -249,8 +282,9 @@ fn with_file_textures<T>(visit: impl FnOnce(&mut FileTextures) -> T) -> T {
 }
 
 /// FileDataID `id`'s art (`data/textures/<id>.blp`); `Ok(None)` while it loads.
+/// Unavailable `Interface/Icons` art uses the logged question-mark convention.
 pub fn load_file_data_id(id: u32) -> Result<Option<Gd<ImageTexture>>, String> {
-    load_file(&format!("data/textures/{id}.blp"))
+    load_icon_art(id, |id| load_file(&format!("data/textures/{id}.blp")))
 }
 
 /// UI files whose textures arrived so far.
@@ -290,9 +324,7 @@ pub fn load_source(
     };
     match source {
         TextureSource::File(path) => load_file(path).map(|image| image.map(full)),
-        TextureSource::FileDataId(id) => {
-            load_file(&format!("data/textures/{id}.blp")).map(|image| image.map(full))
-        }
+        TextureSource::FileDataId(id) => load_file_data_id(*id).map(|image| image.map(full)),
         TextureSource::Atlas(name) => {
             let region =
                 atlas::get_region(name).ok_or_else(|| format!("Unknown UI atlas region {name}"))?;

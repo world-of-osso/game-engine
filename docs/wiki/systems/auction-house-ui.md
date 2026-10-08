@@ -66,3 +66,24 @@ LiquidObject 42, local-CASC and UI icon errors remain. `extract-ah-icons.json` r
 
 - [[merchant-frame]] — original native NPC/input/registry patterns.
 - [[networking]] — owned native Lightyear bridge.
+
+
+## Missing result icons (2026-10-08)
+
+Verified baseline: `a860f7df4`, canonical `data/diagnostics/ahicons-2026-10-08/` (`five-item-trace.tsv`, `items.json`, `before-*-capture.{png,stderr.log,exit.json}`, proof ledger). Browse reads source-local `ItemCatalogEntry.icon_fdid` from `db2/12.1.0.69933/Item.csv`; `ItemSparse.csv` supplies names. This is not a failed FDID lookup or an unrequested row:
+
+| Item | Item ID | Icon FDID | Baseline `textures/<fdid>.blp` |
+| --- | --- | --- | --- |
+| Worn Dragonscale | 8165 | 134319 | Absent |
+| Thick Leather | 4304 | 134257 | Absent |
+| Swiftness Potion | 2459 | 134875 | Absent |
+| Worn Shortsword | 25 | 135274 | Present |
+| Linen Cloth | 2589 | 132889 | Present |
+
+`auction_house_frame_art::icon_texture` binds each nonzero FDID; `ui::assets::load_source` requests the BLP. Baseline native logs record each absent file, and projection caches `Art::Absent`, leaving the TextureRect unbound. Both standalone skin captures show empty bordered icon slots; the earlier live evidence described white/blank squares. Those are not claimed pixel-identical captures. The auction host does not run merchant's proactive `cache_merchant_icons` extraction.
+
+Bags, merchant, loot, mail and bank rectangular item images share this native loader, although their metadata producers differ (base-appearance helper vs `Item.IconFileDataID`) and merchant proactively caches local-CASC icons. They have the same unbound-image outcome if a requested BLP remains unavailable. Circular bag-bar/portrait images use synchronous decoding/masking. Item tooltips render text/marks, not a separate item icon. The [shared unavailable-icon policy](asset-pipeline.md#native-unavailable-icons) owns the fix across both image paths.
+
+The [host store check](../../casc-extraction.md#ossobuild-local-store-2026-10-08) found a usable local install. Existing canonical `target/debug/casc-local`, run through slot `scripts/agent/agent-run ahicons` with `WOW_INSTALL_PATH=/mnt/c/World of Warcraft`, extracted seven unique missing evidence FDIDs: 134319,134257,134875,7549246,136113,132913,133611. Spider's Silk/Shadow Silk share 136113; the two Void-Tempered Scales IDs share 7549246. Extraction was first staged under diagnostics for unchanged before/fallback captures. All seven payload MD5s match their active root content keys (`extraction-content-keys.json`); inspected BLPs are real 64×64 icons. No CDN or committed data files.
+
+Runtime GREEN/final extracted-icon captures and whole-crate counts remain pending in the proof ledger. This is not broader auction parity, live-session, or deployment acceptance.
