@@ -26,6 +26,12 @@ Offline `--screen` debug destinations of the Godot client, ported from the Bevy 
 
 - [x] Specified in [Nameplate debug screen](nameplate-debug.md).
 
+### Offline auction layout snapshots
+
+- `GODOT_CAPTURE_SCREEN=auction_both GODOT_CAPTURE_PATH=<existing-directory>` with `godot/tests/capture_ui_screen.gd` renders Browse, Item Buy, sell inventory, Sell, duration menu, Owned, Bids and buyout dialog in Modern and Forever. Each view writes PNG pixels and visible-control rectangle JSON after 120 settling frames.
+- Production `native_auction_screen` and `RegistryUi::show_auction` are used with fixed offline rows: three-denomination prices, long quality-coloured names and a blank icon. No GameClient, account or server is created. `GODOT_AUCTION_VIEW` selects an individual snapshot via `show_auction_preview` / `show_forever_auction_preview`.
+- `godot/ui-model/tests/auction_layout.rs` exercises the same authored snapshots. Rendered geometry acceptance is separate from portable geometry assertions.
+
 ### Not converted
 
 - [ ] `inworldselectiondebug` fails explicitly as unconverted. `skyboxdebug`: [native skybox debug](native-skybox-debug.md).

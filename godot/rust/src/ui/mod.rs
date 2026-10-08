@@ -5,6 +5,7 @@ mod aura_preview;
 #[cfg(test)]
 mod buffcancel_tests;
 // New preview APIs belong in their own *_preview.rs #[godot_api(secondary)] block, never here.
+mod auction_preview;
 pub(crate) mod castbar_fx;
 mod castbar_preview;
 mod dungeon_preview;

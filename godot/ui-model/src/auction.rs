@@ -1,5 +1,6 @@
 //! Native auction session: wire replies, actions and portable presentation.
 mod actions;
+pub mod preview;
 pub mod view;
 use crate::auction_house_frame_component::{AuctionHouseTab, AuctionsSubTab};
 use shared::protocol::*;
