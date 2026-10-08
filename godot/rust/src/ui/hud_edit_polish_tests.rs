@@ -352,3 +352,80 @@ fn hudeditmodepolish_hover_uses_instructions_and_leaving_hides_unselected_label(
     draft.update_hover(&[player_box()], [600.0, 400.0]);
     assert_eq!(draft.hovered, None);
 }
+
+#[test]
+fn hudeditmodepolish_tracker_selection_follows_retail_default_height_below_header() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    // Blizzard_ObjectiveTrackerContainer.lua:203-209: own-unit height = 1080 + offsetY.
+    let forever_scale = 260.0 / 288.0;
+    for (skin, top, height) in [
+        (ActiveSkin::Modern, 275.0, 805.0),
+        (
+            ActiveSkin::Forever,
+            300.0 * forever_scale,
+            780.0 * forever_scale,
+        ),
+    ] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(EditModeOverlayState::default());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(super::super::hud_edit_preview::preview_screen).sync(&shared, &mut registry);
+        let bounds =
+            super::super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new())
+                .unwrap();
+        for (id, rect) in &bounds {
+            registry.set_computed_layout(*id, rect.clone()).unwrap();
+        }
+        let mut tracker = super::super::hud_edit_layout::collect_selection_boxes(
+            &registry,
+            Some("objective_tracker"),
+        )
+        .into_iter()
+        .find(|entry| entry.key == "objective_tracker")
+        .expect("tracker mover");
+        let [_, y, _, h] = tracker.rect;
+        assert!((y - top).abs() < 0.01, "{skin:?} top {y}");
+        assert!((h - height).abs() < 0.01, "{skin:?} height {h}");
+        let header = |name: &str| {
+            let rect = &bounds[&registry.get_by_name(name).unwrap()];
+            [rect.x, rect.y, rect.width, rect.height]
+        };
+        let headers = [
+            header("ObjectiveTrackerFrameHeaderBackground"),
+            header("ObjectiveTrackerFrameHeaderText"),
+        ];
+        tracker.selected = true;
+        let mut overlay = SharedContext::new();
+        overlay.insert(EditModeOverlayState {
+            boxes: vec![tracker],
+        });
+        let mut overlay_registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(edit_mode_overlay_screen).sync(&overlay, &mut overlay_registry);
+        let overlay_bounds = super::super::layout::compute_layout_with_intrinsics(
+            &overlay_registry,
+            &HashMap::new(),
+        )
+        .unwrap();
+        let name = selection_box_name("objective_tracker");
+        for part in ["Label", "LabelBacking"] {
+            let id = overlay_registry
+                .get_by_name(&format!("{name}{part}"))
+                .unwrap();
+            let rect = &overlay_bounds[&id];
+            let rect = [rect.x, rect.y, rect.width, rect.height];
+            assert!((rect[1] + rect[3] / 2.0 - (top + height / 2.0)).abs() < 0.5);
+            for header in headers {
+                assert!(
+                    !rects_overlap(rect, header),
+                    "{skin:?} {part} {rect:?} overlaps header {header:?}"
+                );
+            }
+        }
+    }
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+}
