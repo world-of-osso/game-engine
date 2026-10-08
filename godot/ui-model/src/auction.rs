@@ -105,7 +105,7 @@ impl AuctionHouseState {
 pub struct AuctionSession {
     pub net: AuctionHouseState,
     pub ui: AuctionHouseUi,
-    last_replicated_money: Option<u32>,
+    last_replicated_money: Option<u64>,
 }
 impl AuctionSession {
     pub fn open(&mut self, npc: u64) {
@@ -134,7 +134,7 @@ impl AuctionSession {
         }
     }
     /// Consume changed entity balances, not repeated snapshots that may predate a query reply.
-    pub fn sync_replicated_money(&mut self, gold: u32) {
+    pub fn sync_replicated_money(&mut self, gold: u64) {
         if !self.net.is_open {
             return;
         }
