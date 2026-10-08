@@ -1,16 +1,17 @@
 use super::*;
 
-/// Only the local caster has client-known specialization metadata.
+/// The local caster's spec from its own spell state, other players' from their replicated
+/// `ActiveSpec` (TrinityCore `UF::PlayerData::CurrentSpecID`).
 fn caster_spec_order_index(
     caster: u64,
     local_spec: Option<(u64, u32)>,
-    _units: &Replica,
+    units: &Replica,
     catalog: &SpellVisualCatalog,
 ) -> Option<u8> {
-    let (local, spec_id) = local_spec?;
-    if caster != local {
-        return None;
-    }
+    let spec_id = match local_spec {
+        Some((local, spec_id)) if local == caster => spec_id,
+        _ => units.unit(caster)?.get::<ActiveSpec>()?.0,
+    };
     catalog.specialization_order_index(spec_id)
 }
 

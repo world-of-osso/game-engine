@@ -2,10 +2,13 @@
 //! computes all category totals and capped recaps (`DamageMeterSnapshot`); the window
 //! selects `Current Segment` or `Overall`. Owner-scoped combat logs never count here.
 
+use game_engine_core::spell_catalog::SpellbookTabIndex;
+use game_engine_network::replica::Replica;
 use game_engine_session::SessionScreen;
-use game_engine_ui_model::damage_meter_data::DamageMeterWindow;
+use game_engine_ui_model::damage_meter_data::{DamageMeterWindow, SpecIcons};
 use godot::classes::FontFile;
 use godot::prelude::*;
+use shared::components::ActiveSpec;
 use shared::protocol::{CombatLogKind, DamageMeterSession};
 use ui_toolkit::widgets::font_string::GameFont;
 
@@ -125,11 +128,60 @@ impl GameClient {
             .flat_map(source_spell_ids)
             .map(|id| (id, name_spell(id)))
             .collect();
+        let spec_icons = self
+            .spells
+            .catalog()
+            .map_or_else(SpecIcons::new, |data| spec_icons(&self.replica, &data.tabs));
         let window = &mut self.damage_meter.window;
+        window.spec_icons = spec_icons;
         window.recap_unit_names = unit_names;
         window.recap_spell_names = spell_names;
         window.set_snapshot(snapshot);
     }
+}
+
+/// Each replicated player's `ChrSpecialization.SpellIconFileID`; a unit without a spec,
+/// or a spec without an icon, has none (Retail's `specIconID` 0).
+fn spec_icons(replica: &Replica, tabs: &SpellbookTabIndex) -> SpecIcons {
+    replica
+        .units()
+        .filter_map(|unit| {
+            let spec = tabs.specs.get(&unit.get::<ActiveSpec>()?.0)?;
+            (spec.icon_fdid != 0).then_some((unit.server_id, spec.icon_fdid))
+        })
+        .collect()
+}
+
+#[cfg(test)]
+#[test]
+fn damage_meter_spec_icons_follow_each_players_replicated_spec() {
+    use game_engine_core::spell_catalog::SpecTabInfo;
+    // ChrSpecialization 72 (Fury): SpellIconFileID 132347; 62 (Arcane): 135932.
+    let tabs = SpellbookTabIndex {
+        specs: [(72, 132_347), (62, 135_932)]
+            .map(|(id, icon_fdid)| {
+                let spec = SpecTabInfo {
+                    icon_fdid,
+                    ..Default::default()
+                };
+                (id, spec)
+            })
+            .into(),
+        ..Default::default()
+    };
+    let mut replica = Replica::for_tests();
+    replica.insert(7, ActiveSpec(72));
+    replica.insert(8, ActiveSpec(0));
+    replica.insert(9, ActiveSpec(62));
+    assert_eq!(
+        spec_icons(&replica, &tabs),
+        [(7, 132_347), (9, 135_932)].into()
+    );
+    replica.insert(7, ActiveSpec(62));
+    assert_eq!(
+        spec_icons(&replica, &tabs),
+        [(7, 135_932), (9, 135_932)].into()
+    );
 }
 
 fn source_spell_ids(
