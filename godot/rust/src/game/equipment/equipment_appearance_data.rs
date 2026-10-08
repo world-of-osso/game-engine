@@ -70,9 +70,29 @@ pub fn resolve_equipment_appearance(
     race: u8,
     sex: u8,
 ) -> Result<ResolvedEquipmentAppearance, String> {
+    load_equipment_appearance_checked(appearance, outfit_data, race, sex, false)
+}
+
+/// An authored NPC bake already paints body armor; retain its models and geosets.
+pub fn load_baked_equipment_appearance(
+    appearance: &EquipmentAppearance,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+) -> Result<ResolvedEquipmentAppearance, String> {
+    load_equipment_appearance_checked(appearance, outfit_data, race, sex, true)
+}
+
+fn load_equipment_appearance_checked(
+    appearance: &EquipmentAppearance,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+    baked_body: bool,
+) -> Result<ResolvedEquipmentAppearance, String> {
     let mut failure = None;
     let resolved =
-        resolve_equipment_appearance_with_errors(appearance, outfit_data, race, sex, |error| {
+        load_equipment_entries(appearance, outfit_data, race, sex, baked_body, |error| {
             if failure.is_none() {
                 failure = Some(error);
             }
@@ -89,6 +109,17 @@ pub fn resolve_equipment_appearance_with_errors(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
+    report_error: impl FnMut(String),
+) -> ResolvedEquipmentAppearance {
+    load_equipment_entries(appearance, outfit_data, race, sex, false, report_error)
+}
+
+fn load_equipment_entries(
+    appearance: &EquipmentAppearance,
+    outfit_data: &OutfitData,
+    race: u8,
+    sex: u8,
+    baked_body: bool,
     mut report_error: impl FnMut(String),
 ) -> ResolvedEquipmentAppearance {
     let mut resolved = ResolvedEquipmentAppearance::default();
@@ -98,14 +129,34 @@ pub fn resolve_equipment_appearance_with_errors(
         if entry.hidden {
             continue;
         }
+        let entry_data = match entry.definition_source {
+            Some(shared::item_data::ItemDefinitionSource::Retail) => {
+                outfit_data.load_owned_retail()
+            }
+            Some(shared::item_data::ItemDefinitionSource::Forever70205) => {
+                outfit_data.load_owned_forever_70205()
+            }
+            None if entry.item_id.is_none() => Ok(outfit_data),
+            None => Err("owned item missing definition source".to_string()),
+        };
+        let entry_data = match entry_data {
+            Ok(data) => data,
+            Err(error) => {
+                report_error(format!(
+                    "Equipment {:?} source {:?}: {error}",
+                    entry.slot, entry.definition_source
+                ));
+                continue;
+            }
+        };
         let display_info_id = match (entry.display_info_id, entry.item_id) {
             (Some(display_id), _) => display_id,
-            (None, Some(item_id)) => match outfit_data.resolve_item_display_id(item_id) {
+            (None, Some(item_id)) => match entry_data.resolve_item_display_id(item_id) {
                 Ok(display_id) => display_id,
                 Err(error) => {
                     report_error(format!(
-                        "Equipment {:?} item {item_id}: {error}",
-                        entry.slot
+                        "Equipment {:?} source {:?} item {item_id}: {error}",
+                        entry.slot, entry.definition_source
                     ));
                     continue;
                 }
@@ -116,46 +167,53 @@ pub fn resolve_equipment_appearance_with_errors(
             &mut resolved,
             entry.slot,
             display_info_id,
-            outfit_data,
+            entry_data,
             race,
             sex,
+            baked_body,
         ) {
-            Ok(textures) => body.record(entry.slot, display_info_id, textures),
+            Ok(textures) => body.record(entry.slot, display_info_id, entry_data, textures),
             Err(error) => report_error(format!(
-                "Equipment {:?} display {display_info_id}: {error}",
-                entry.slot
+                "Equipment {:?} source {:?} display {display_info_id}: {error}",
+                entry.slot, entry.definition_source
             )),
         }
     }
-    apply_body_geosets(&mut resolved, &body, outfit_data);
-    layer_item_textures(&mut resolved, &body, outfit_data);
+    apply_body_geosets(&mut resolved, &body);
+    layer_item_textures(&mut resolved, &body);
     resolved
 }
 
 /// The displays of the slots whose items paint the body and pick its sleeve, robe and
 /// leg geosets.
 #[derive(Default)]
-struct BodyDisplays {
+struct BodyDisplays<'a> {
     /// Texture-bearing `CCharacterComponent` slot rows (see [`ITEM_PRIORITIES`]) with
     /// their displays and body textures, in equip order.
-    painted: Vec<(usize, u32, Vec<(u8, u32)>)>,
-    shirt: Option<u32>,
-    chest: Option<u32>,
-    legs: Option<u32>,
-    hands: Option<u32>,
+    painted: Vec<(usize, u32, &'a OutfitData, Vec<(u8, u32)>)>,
+    shirt: Option<(u32, &'a OutfitData)>,
+    chest: Option<(u32, &'a OutfitData)>,
+    legs: Option<(u32, &'a OutfitData)>,
+    hands: Option<(u32, &'a OutfitData)>,
 }
 
-impl BodyDisplays {
-    fn record(&mut self, slot: EquipmentVisualSlot, display_id: u32, textures: Vec<(u8, u32)>) {
+impl<'a> BodyDisplays<'a> {
+    fn record(
+        &mut self,
+        slot: EquipmentVisualSlot,
+        display_id: u32,
+        data: &'a OutfitData,
+        textures: Vec<(u8, u32)>,
+    ) {
         match slot {
-            EquipmentVisualSlot::Shirt => self.shirt = Some(display_id),
-            EquipmentVisualSlot::Chest => self.chest = Some(display_id),
-            EquipmentVisualSlot::Legs => self.legs = Some(display_id),
-            EquipmentVisualSlot::Hands => self.hands = Some(display_id),
+            EquipmentVisualSlot::Shirt => self.shirt = Some((display_id, data)),
+            EquipmentVisualSlot::Chest => self.chest = Some((display_id, data)),
+            EquipmentVisualSlot::Legs => self.legs = Some((display_id, data)),
+            EquipmentVisualSlot::Hands => self.hands = Some((display_id, data)),
             _ => {}
         }
         if let Some(row) = component_slot_row(slot) {
-            self.painted.push((row, display_id, textures));
+            self.painted.push((row, display_id, data, textures));
         }
     }
 }
@@ -167,13 +225,9 @@ impl BodyDisplays {
 /// and their GeosetGroup[1] the undershirt 1001+n (wowdev.wiki DB/ItemDisplayInfo); a
 /// chest robe (GeosetGroup[2], inventory type 20), else a legs one, hides boots 5xx,
 /// kneepads 902-999 and pants 11xx and shows skirt 1301+n in place of the pants' trousers.
-fn apply_body_geosets(
-    resolved: &mut ResolvedEquipmentAppearance,
-    body: &BodyDisplays,
-    data: &OutfitData,
-) {
-    let group = |display: Option<u32>, index| {
-        display.and_then(|display| data.display_geoset_variant(display, index))
+fn apply_body_geosets(resolved: &mut ResolvedEquipmentAppearance, body: &BodyDisplays<'_>) {
+    let group = |display: Option<(u32, &OutfitData)>, index| {
+        display.and_then(|(display, data)| data.display_geoset_variant(display, index))
     };
     let overrides = &mut resolved.outfit.geoset_overrides;
     let mut set = |geoset: u16, variant: u16| {
@@ -258,17 +312,13 @@ fn item_texture_priority(
 
 /// Order the body item textures by paste priority, whatever the equip order, so a robe
 /// paints over the shirt and the pants: the compositor pastes them in list order.
-fn layer_item_textures(
-    resolved: &mut ResolvedEquipmentAppearance,
-    body: &BodyDisplays,
-    data: &OutfitData,
-) {
+fn layer_item_textures(resolved: &mut ResolvedEquipmentAppearance, body: &BodyDisplays<'_>) {
     let priority = |texture: &(u8, u32)| {
         body.painted
             .iter()
             .rev()
-            .find(|(_, _, textures)| textures.contains(texture))
-            .and_then(|&(row, display, _)| {
+            .find(|(_, _, _, textures)| textures.contains(texture))
+            .and_then(|&(row, display, data, _)| {
                 item_texture_priority(row, usize::from(texture.0), display, data)
             })
             .unwrap_or(i8::MAX)
@@ -283,10 +333,14 @@ fn apply_visible_entry(
     outfit_data: &OutfitData,
     race: u8,
     sex: u8,
+    baked_body: bool,
 ) -> Result<Vec<(u8, u32)>, String> {
-    let mut display = outfit_data
-        .try_resolve_display_info(display_info_id, race, sex)?
-        .ok_or_else(|| format!("display {display_info_id} missing"))?;
+    let display = if baked_body {
+        outfit_data.try_load_baked_display_info(display_info_id, race, sex)?
+    } else {
+        outfit_data.try_resolve_display_info(display_info_id, race, sex)?
+    };
+    let mut display = display.ok_or_else(|| format!("display {display_info_id} missing"))?;
     if slot == EquipmentVisualSlot::Head {
         let has_vis_data = outfit_data.has_helmet_geoset_vis_data(display_info_id);
         resolved
@@ -519,6 +573,78 @@ pub fn slot_uses_bound_joints(
     is_collection_model(m2_path)
 }
 
+/// Named shoulders retain their existing collection policy. Unnamed shoulders must
+/// prove attachment-local geometry; an unknown skeletal model needs authored identity.
+pub fn shoulder_uses_bound_joints(
+    slot: EquipmentSlot,
+    model: &game_engine_core::m2::Model,
+    m2_path: Option<&Path>,
+) -> Result<bool, String> {
+    if !matches!(
+        slot,
+        EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight
+    ) {
+        return Err(format!(
+            "Shoulder binding requested for non-shoulder slot {slot:?}"
+        ));
+    }
+    if let Some(path) = m2_path {
+        return Ok(slot_uses_bound_joints(
+            slot,
+            path,
+            &model.bones,
+            model.submeshes.iter().map(|part| part.mesh_part_id),
+        ));
+    }
+    if is_attachment_local_shoulder(model) {
+        return Ok(false);
+    }
+    Err(format!(
+        "Unnamed {slot:?} model is not proven attachment-local; skeletal shoulder binding requires an authored model path"
+    ))
+}
+
+fn is_attachment_local_shoulder(model: &game_engine_core::m2::Model) -> bool {
+    let untransformed_root = matches!(
+        model.bones.as_slice(),
+        [M2Bone {
+            key_bone_id: -1,
+            flags: 0,
+            parent_bone_id: -1,
+            ..
+        }]
+    );
+    let base_mesh_only =
+        !model.submeshes.is_empty() && model.submeshes.iter().all(|part| part.mesh_part_id == 0);
+    let root_influence_only =
+        !model.vertices.is_empty() && model.vertices.iter().all(vertex_uses_only_root);
+    let unauthored_pose = matches!(model.bone_tracks.as_slice(), [tracks]
+        if track_is_unauthored(&tracks.translation)
+            && track_is_unauthored(&tracks.rotation)
+            && track_is_unauthored(&tracks.scale));
+    untransformed_root
+        && base_mesh_only
+        && root_influence_only
+        && unauthored_pose
+        && model.skeleton_fdid.is_none()
+}
+
+fn vertex_uses_only_root(vertex: &game_engine_core::m2::Vertex) -> bool {
+    let total_weight: u16 = vertex.bone_weights.iter().copied().map(u16::from).sum();
+    let only_root = vertex
+        .bone_weights
+        .iter()
+        .zip(vertex.bone_indices)
+        .all(|(&weight, bone)| weight == 0 || bone == 0);
+    total_weight == u16::from(u8::MAX) && only_root
+}
+
+fn track_is_unauthored<T>(track: &crate::asset::m2_format::m2_anim::AnimTrack<T>) -> bool {
+    // Missing external animations retain empty per-sequence entries, not an empty
+    // outer array. Reject them too: absence of loaded keys is not absence of tracks.
+    track.global_sequence == -1 && track.sequences.is_empty()
+}
+
 fn is_attachment_local_model(
     slot: EquipmentSlot,
     bones: &[M2Bone],
@@ -593,6 +719,12 @@ mod tests {
     use super::*;
     use shared::components::EquippedAppearanceEntry;
     use std::path::{Path, PathBuf};
+    use std::sync::OnceLock;
+
+    fn outfit_data() -> &'static OutfitData {
+        static OUTFIT_DATA: OnceLock<OutfitData> = OnceLock::new();
+        OUTFIT_DATA.get_or_init(|| OutfitData::load(&data_dir()))
+    }
 
     fn data_dir() -> PathBuf {
         let manifest = Path::new(env!("CARGO_MANIFEST_DIR"));
@@ -606,6 +738,7 @@ mod tests {
 
     fn entry(slot: EquipmentVisualSlot, item_id: u32) -> EquippedAppearanceEntry {
         EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
             slot,
             item_id: Some(item_id),
             display_info_id: None,
@@ -615,18 +748,52 @@ mod tests {
     }
 
     fn resolve(entries: Vec<EquippedAppearanceEntry>) -> ResolvedEquipmentAppearance {
-        resolve_equipment_appearance(
-            &EquipmentAppearance { entries },
-            &OutfitData::load(&data_dir()),
-            1,
-            0,
-        )
-        .unwrap()
+        resolve_equipment_appearance(&EquipmentAppearance { entries }, outfit_data(), 1, 0).unwrap()
+    }
+
+    #[test]
+    fn baked_appearance_ailee_keeps_boot_geosets_without_unused_body_overlay() {
+        let data = data_dir();
+        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
+        let armor = gear.display_armor(136968).unwrap();
+        let outfits = outfit_data();
+        let error = resolve_equipment_appearance(&armor, outfits, 95, 1).unwrap_err();
+        assert!(error.contains("1102747"), "{error}");
+        let baked = load_baked_equipment_appearance(&armor, outfits, 95, 1).unwrap();
+        assert!(baked.outfit.item_textures.is_empty());
+        assert!(baked.runtime_models.is_empty());
+        assert!(baked.outfit.geoset_overrides.contains(&(5, 3)));
+        assert!(baked.outfit.geoset_overrides.contains(&(20, 2)));
+    }
+
+    #[test]
+    fn baked_appearance_keeps_original_grove_ranger_models_and_geosets() {
+        let data = data_dir();
+        let gear = crate::npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
+        let armor = gear.display_armor(139403).unwrap();
+        let outfits = outfit_data();
+        let plain = resolve_equipment_appearance(&armor, outfits, 95, 0).unwrap();
+        let baked = load_baked_equipment_appearance(&armor, outfits, 95, 0).unwrap();
+        assert_eq!(baked.runtime_models, plain.runtime_models);
+        assert_eq!(baked.outfit.geoset_overrides, plain.outfit.geoset_overrides);
+        assert_eq!(
+            baked.hidden_character_geoset_ids,
+            plain.hidden_character_geoset_ids
+        );
+        assert!(baked.outfit.item_textures.is_empty());
+        for (slot, fdid) in [
+            (EquipmentSlot::ShoulderLeft, 7579617),
+            (EquipmentSlot::ShoulderRight, 7579618),
+        ] {
+            assert!(baked.runtime_models.iter().any(|model| model.slot == slot
+                && model.fdid == fdid
+                && model.skin_fdids == [7731197, 0, 0]));
+        }
     }
 
     #[test]
     fn starter_items_match_their_explicit_display_and_keep_model_fdids() {
-        let data = OutfitData::load(&data_dir());
+        let data = outfit_data();
         for (item_id, slot) in [
             (25, EquipmentVisualSlot::MainHand),
             (38, EquipmentVisualSlot::Shirt),
@@ -638,6 +805,7 @@ mod tests {
             let display = data.resolve_item_display_id(item_id).unwrap();
             let actual = resolve(vec![item.clone()]);
             let expected = resolve(vec![EquippedAppearanceEntry {
+                definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
                 display_info_id: Some(display),
                 ..item
             }]);
@@ -674,9 +842,7 @@ mod tests {
         );
         assert!(result.runtime_models.is_empty());
         assert!(result.outfit.item_textures.is_empty());
-        let display = OutfitData::load(&data_dir())
-            .resolve_item_display_id(25)
-            .unwrap();
+        let display = outfit_data().resolve_item_display_id(25).unwrap();
         let mut explicit = entry(EquipmentVisualSlot::MainHand, u32::MAX);
         explicit.display_info_id = Some(display);
         let result = resolve(vec![explicit]);
@@ -689,11 +855,11 @@ mod tests {
 
     #[test]
     fn missing_item_reports_error_instead_of_silent_fallback() {
-        let data = OutfitData::load(&data_dir());
+        let data = outfit_data();
         let appearance = EquipmentAppearance {
             entries: vec![entry(EquipmentVisualSlot::OffHand, u32::MAX)],
         };
-        let error = resolve_equipment_appearance(&appearance, &data, 1, 0).unwrap_err();
+        let error = resolve_equipment_appearance(&appearance, data, 1, 0).unwrap_err();
         assert!(
             error.contains("OffHand") && error.contains(&u32::MAX.to_string()),
             "{error}"
@@ -726,6 +892,151 @@ mod tests {
             &[],
             [0]
         ));
+    }
+
+    fn parsed_shoulder(fdid: u32) -> game_engine_core::m2::Model {
+        let root = data_dir().join("models");
+        let bytes = std::fs::read(root.join(format!("{fdid}.m2"))).unwrap();
+        let references = game_engine_core::m2::parse_asset_references(&bytes).unwrap();
+        let skin = std::fs::read(root.join(format!("{}.skin", references.skin_fdids[0]))).unwrap();
+        game_engine_core::m2::parse_model(&bytes, &skin).unwrap()
+    }
+
+    #[test]
+    fn shoulder_policy_original_unnamed_models_use_authored_side_attachments() {
+        for (fdid, slot, attachment) in [
+            (7_579_617, EquipmentSlot::ShoulderLeft, 6),
+            (7_579_618, EquipmentSlot::ShoulderRight, 5),
+        ] {
+            let model = parsed_shoulder(fdid);
+            let bound = shoulder_uses_bound_joints(slot, &model, None).unwrap();
+            assert!(!bound, "original shoulder {fdid} must be attachment-local");
+            assert_eq!(slot_attachment_id(slot), attachment);
+            assert!(
+                model
+                    .submeshes
+                    .iter()
+                    .all(|part| runtime_mesh_part_allowed(slot, part.mesh_part_id))
+            );
+        }
+        // Splitting influence among entries for the same root changes no vertex;
+        // zero-weight indices likewise contribute nothing to the attachment pose.
+        let mut model = parsed_shoulder(7_579_617);
+        model.vertices[0].bone_weights = [128, 127, 0, 0];
+        model.vertices[0].bone_indices = [0, 0, 255, 255];
+        assert_eq!(
+            shoulder_uses_bound_joints(EquipmentSlot::ShoulderLeft, &model, None),
+            Ok(false)
+        );
+    }
+
+    #[test]
+    fn shoulder_policy_rejects_ambiguous_roots_weights_and_parts() {
+        for invalid in 0..14 {
+            let mut model = parsed_shoulder(7_579_617);
+            match invalid {
+                0 => model.bones[0].key_bone_id = 0,
+                1 => model.bones[0].flags = 0x200,
+                2 => model.bones[0].parent_bone_id = 0,
+                3 => model.bones.push(model.bones[0].clone()),
+                4 => model.bones.clear(),
+                5 => {
+                    model.vertices[0].bone_weights = [128, 127, 0, 0];
+                    model.vertices[0].bone_indices[1] = 1;
+                }
+                6 => model.vertices[0].bone_indices[0] = 1,
+                7 => model.vertices[0].bone_weights = [0; 4],
+                8 => model.vertices.clear(),
+                9 => model.submeshes[0].mesh_part_id = 2601,
+                10 => model.submeshes.clear(),
+                11 => model.bone_tracks = Vec::new().into(),
+                12 => model.skeleton_fdid = Some(1),
+                13 => model.vertices[0].bone_weights = [254, 0, 0, 0],
+                _ => unreachable!(),
+            }
+            let error = shoulder_uses_bound_joints(EquipmentSlot::ShoulderLeft, &model, None)
+                .expect_err(&format!(
+                    "ambiguous structure {invalid} must not acquire a mount"
+                ));
+            assert!(
+                error.contains("ShoulderLeft") && error.contains("Unnamed"),
+                "{error}"
+            );
+        }
+    }
+
+    #[test]
+    fn shoulder_policy_rejects_authored_tracks_even_when_constant_or_unloaded() {
+        for component in 0..3 {
+            for unloaded in [false, true] {
+                let mut model = parsed_shoulder(7_579_617);
+                let tracks = std::sync::Arc::make_mut(&mut model.bone_tracks);
+                let timeline = if unloaded { Vec::new() } else { vec![0] };
+                match component {
+                    0 => tracks[0].translation.sequences.push((
+                        timeline,
+                        if unloaded {
+                            vec![]
+                        } else {
+                            vec![[1.0, 0.0, 0.0]]
+                        },
+                    )),
+                    1 => tracks[0].rotation.sequences.push((
+                        timeline,
+                        if unloaded {
+                            vec![]
+                        } else {
+                            vec![[32767, 32767, 32767, -1]]
+                        },
+                    )),
+                    2 => tracks[0]
+                        .scale
+                        .sequences
+                        .push((timeline, if unloaded { vec![] } else { vec![[1.0; 3]] })),
+                    _ => unreachable!(),
+                }
+                assert!(
+                    shoulder_uses_bound_joints(EquipmentSlot::ShoulderRight, &model, None).is_err(),
+                    "component {component}, unloaded {unloaded}"
+                );
+            }
+        }
+        let mut model = parsed_shoulder(7_579_617);
+        std::sync::Arc::make_mut(&mut model.bone_tracks)[0]
+            .translation
+            .global_sequence = 0;
+        assert!(shoulder_uses_bound_joints(EquipmentSlot::ShoulderRight, &model, None).is_err());
+    }
+
+    #[test]
+    fn shoulder_policy_named_skeletal_collection_keeps_existing_binding() {
+        let root = data_dir().join("models");
+        let model = game_engine_core::m2::parse_model(
+            &std::fs::read(root.join("1360753.m2")).unwrap(),
+            &std::fs::read(root.join("136075300.skin")).unwrap(),
+        )
+        .unwrap();
+        assert!(model.bones.len() > 1);
+        let path = Path::new(
+            "item/objectcomponents/collections/collections_leather_raidroguemythic_q_01_hu_m.m2",
+        );
+        for slot in [EquipmentSlot::ShoulderLeft, EquipmentSlot::ShoulderRight] {
+            assert_eq!(
+                shoulder_uses_bound_joints(slot, &model, Some(path)),
+                Ok(true)
+            );
+            assert!(shoulder_uses_bound_joints(slot, &model, None).is_err());
+            assert!(collection_mesh_part_in_slot(slot, 2601));
+            assert!(!collection_mesh_part_in_slot(slot, 0));
+        }
+    }
+
+    #[test]
+    fn shoulder_policy_is_not_a_generic_unnamed_asset_policy() {
+        let model = parsed_shoulder(7_579_617);
+        for path in [None, Some(Path::new("weapon.m2"))] {
+            assert!(shoulder_uses_bound_joints(EquipmentSlot::MainHand, &model, path).is_err());
+        }
     }
 
     #[test]
@@ -849,6 +1160,7 @@ mod tests {
     #[test]
     fn stockade_guard_armor_switches_glove_boot_and_tabard_geosets() {
         let display = |slot, id| EquippedAppearanceEntry {
+            definition_source: None,
             display_info_id: Some(id),
             item_id: None,
             ..entry(slot, 0)
@@ -950,14 +1262,9 @@ mod tests {
     #[test]
     fn belt_keeps_buckle_and_collection_and_bracers_have_models() {
         let tauren = |entries| {
-            resolve_equipment_appearance(
-                &EquipmentAppearance { entries },
-                &OutfitData::load(&data_dir()),
-                6,
-                0,
-            )
-            .unwrap()
-            .runtime_models
+            resolve_equipment_appearance(&EquipmentAppearance { entries }, outfit_data(), 6, 0)
+                .unwrap()
+                .runtime_models
         };
         let belt: Vec<_> = tauren(vec![entry(EquipmentVisualSlot::Waist, 168296)])
             .iter()
@@ -997,6 +1304,7 @@ mod tests {
     #[test]
     fn shoulders_helm_and_cloak_keep_authored_decisions() {
         let shoulders = resolve(vec![EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
             display_info_id: Some(7004),
             ..entry(EquipmentVisualSlot::Shoulder, 1)
         }]);
@@ -1006,12 +1314,14 @@ mod tests {
             shoulders.runtime_models[1].fdid
         );
         let helm = resolve(vec![EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
             display_info_id: Some(1128),
             ..entry(EquipmentVisualSlot::Head, 1)
         }]);
         assert_eq!(helm.runtime_models.len(), 1);
         assert!(helm.hidden_character_geoset_groups.contains(&0));
         let cloak = resolve(vec![EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
             display_info_id: Some(192786),
             ..entry(EquipmentVisualSlot::Back, 188846)
         }]);

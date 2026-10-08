@@ -1,4 +1,4 @@
-//! Item armor, weapon damage and stat values from the build-pinned Retail DB2 exports, as
+//! Item armor, weapon damage and stat values from source-local DB2 exports, as
 //! TrinityCore `ItemTemplate::GetArmor` / `GetDPS` / `GetDamage` and
 //! `Item::GetItemStatValue` with `GetRandomPropertyPoints` compute them (TrinityCore
 //! a352b1fa, ItemTemplate.cpp:147-269, Item.cpp:2385-2408, ItemEnchantmentMgr.cpp:107-175).
@@ -10,9 +10,10 @@ use std::collections::HashMap;
 use std::path::Path;
 use std::sync::OnceLock;
 
-use crate::item_catalog::ItemCatalogEntry;
+use crate::item_catalog::{FOREVER_ITEM_DIR, ItemCatalogEntry};
 use crate::spell_catalog::SPELL_DB2_BUILD;
 use crate::spell_catalog::csv_records::CsvTable;
+use shared::item_data::ItemDefinitionSource;
 
 const ITEM_CLASS_WEAPON: u8 = 2;
 const ITEM_CLASS_ARMOR: u8 = 4;
@@ -70,6 +71,41 @@ fn tables() -> &'static ItemStatTables {
             ItemStatTables::default()
         })
     })
+}
+
+fn tables_for(source: ItemDefinitionSource) -> Option<&'static ItemStatTables> {
+    match source {
+        ItemDefinitionSource::Retail => Some(tables()),
+        ItemDefinitionSource::Forever70205 => {
+            static TABLES: OnceLock<Result<ItemStatTables, String>> = OnceLock::new();
+            TABLES
+                .get_or_init(|| {
+                    let dir = crate::paths::resolve_data_path(FOREVER_ITEM_DIR);
+                    let result = load_item_stat_tables(&dir);
+                    if let Err(error) = &result {
+                        eprintln!("Forever70205 item stat tables unavailable: {error}");
+                    }
+                    result
+                })
+                .as_ref()
+                .ok()
+        }
+    }
+}
+
+pub fn item_armor_for(source: ItemDefinitionSource, entry: &ItemCatalogEntry) -> u32 {
+    tables_for(source).map_or(0, |tables| tables.armor(entry))
+}
+
+pub fn weapon_damage_for(
+    source: ItemDefinitionSource,
+    entry: &ItemCatalogEntry,
+) -> Option<WeaponDamage> {
+    tables_for(source)?.damage(entry)
+}
+
+pub fn item_stats_for(source: ItemDefinitionSource, entry: &ItemCatalogEntry) -> Vec<ItemStat> {
+    tables_for(source).map_or_else(Vec::new, |tables| tables.stats(entry))
 }
 
 /// `ARMOR_TEMPLATE` value of `entry`; 0 for items without armor.

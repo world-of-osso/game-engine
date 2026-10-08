@@ -385,22 +385,21 @@ pub(super) fn build_model_filtered_with_textures(
     .filter(|batch| allowed(batch.mesh_part_id))
     .collect();
     let tracks = game_engine_core::m2_material::MaterialTracks::of(model);
-    let batches = resolved
-        .iter()
-        .map(|batch| {
-            load_batch(
-                model,
-                &tracks,
-                batch,
-                skin_texture_fdids,
-                path,
-                &mut missing,
-                appearance,
-                textures,
-            )
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    let mesh_parts: Vec<u16> = resolved.iter().map(|batch| batch.mesh_part_id).collect();
+    let mut batches = Vec::new();
+    for (batch_index, batch) in resolved.iter().enumerate() {
+        if let Some(loaded) = load_batch(
+            model,
+            &tracks,
+            batch,
+            skin_texture_fdids,
+            path,
+            &mut missing,
+            appearance,
+            textures,
+        )? {
+            batches.push((batch_index, batch.mesh_part_id, loaded));
+        }
+    }
     let span = crate::profile::span(|| "model.skeleton".to_owned());
     let (mut skeleton, skin) = build_skeleton(&model.bones);
     if let Err(error) = attachments::add_attachment_nodes(&mut skeleton, model) {
@@ -428,7 +427,7 @@ pub(super) fn build_model_filtered_with_textures(
         tracks,
         batches
             .iter()
-            .map(|batch| (batch.material.clone(), batch.binding.clone())),
+            .map(|(_, _, batch)| (batch.material.clone(), batch.binding.clone())),
     );
     let bounds = m2_bounds(model);
     let mut root = Node3D::new_alloc();
@@ -438,7 +437,7 @@ pub(super) fn build_model_filtered_with_textures(
     }
     root.set_meta(M2_SOURCE_META, &path.to_variant());
     root.add_child(&skeleton);
-    for (batch_index, (batch, mesh_part)) in batches.into_iter().zip(mesh_parts).enumerate() {
+    for (batch_index, mesh_part, batch) in batches {
         let LoadedBatch {
             mesh,
             material,
@@ -503,25 +502,13 @@ fn load_batch(
     missing: &mut PackedInt32Array,
     appearance: Option<&appearance::PreparedAppearance>,
     textures: Option<&HashMap<u32, Gd<godot::classes::ImageTexture>>>,
-) -> Result<LoadedBatch, String> {
+) -> Result<Option<LoadedBatch>, String> {
     model.submeshes.get(batch.submesh_index).ok_or_else(|| {
         format!(
             "Batch {} references absent submesh",
             batch.source_unit_index
         )
     })?;
-    let mesh = shared_batch_mesh(model, batch.submesh_index, path)?;
-    check_required_replacement(batch, appearance)?;
-    let _span = crate::profile::span(|| format!("model.load_material {}", batch.submesh_index));
-    let (material, binding) = material::load_material(
-        model,
-        tracks,
-        batch,
-        skin_texture_fdids,
-        path,
-        missing,
-        textures.or_else(|| appearance.map(|appearance| &appearance.textures)),
-    )?;
     let visible = appearance.is_none_or(|appearance| {
         let visible = !appearance.hidden_geoset_ids.contains(&batch.mesh_part_id)
             && game_engine_core::npc_appearance_selection_data::npc_geoset_visible(
@@ -535,12 +522,52 @@ fn load_batch(
             &appearance.equipment_geosets,
         )
     });
-    Ok(LoadedBatch {
+    check_required_replacement(batch, appearance)?;
+    let missing_before = missing.len();
+    let _span = crate::profile::span(|| format!("model.load_material {}", batch.submesh_index));
+    let (material, binding) = material::load_material(
+        model,
+        tracks,
+        batch,
+        skin_texture_fdids,
+        path,
+        missing,
+        textures.or_else(|| appearance.map(|appearance| &appearance.textures)),
+    )?;
+    let active = match appearance.and_then(|appearance| {
+        appearance
+            .inactive_npc_texture_types
+            .as_ref()
+            .map(|inactive| (appearance, inactive))
+    }) {
+        Some((appearance, inactive)) => {
+            let missing_files: Vec<_> = missing.as_slice()[missing_before..]
+                .iter()
+                .map(|fdid| *fdid as u32)
+                .collect();
+            appearance::npc_pass_active(
+                &binding.texture_types,
+                &binding.textures,
+                inactive,
+                &appearance.textures,
+                visible,
+                &missing_files,
+            )
+            .map_err(|error| format!("NPC batch {}: {error}", batch.source_unit_index))?
+        }
+        None => true,
+    };
+    // Required file-backed slots must succeed even when another slot omits the draw.
+    if !active {
+        return Ok(None);
+    }
+    let mesh = shared_batch_mesh(model, batch.submesh_index, path)?;
+    Ok(Some(LoadedBatch {
         mesh,
         material,
         binding,
         visible,
-    })
+    }))
 }
 
 /// A prepared body must bind its own body (1) and hair (6) textures.

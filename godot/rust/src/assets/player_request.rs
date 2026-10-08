@@ -96,9 +96,12 @@ fn equipment_entry(item: &VarDictionary) -> Result<EquippedAppearanceEntry, Stri
             .transpose()
     };
     let inventory_type = id("inventory_type")?.unwrap_or(0);
+    let item_id = id("item_id")?;
+    let definition_source = item_id.map(|_| shared::item_data::ItemDefinitionSource::Retail);
     Ok(EquippedAppearanceEntry {
+        definition_source,
         slot: visual_slot(&slot_name)?,
-        item_id: id("item_id")?,
+        item_id,
         display_info_id: id("display_id")?,
         inventory_type: u8::try_from(inventory_type)
             .map_err(|_| format!("Equipment {slot_name} inventory type {inventory_type}"))?,

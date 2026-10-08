@@ -200,7 +200,10 @@ void fragment() {
 	float fog_visibility = min(1.0 / exp(fog_distance * underwater_fog.z),
 		clamp((1.0 / 0.7) * (1.0 - below_thickness / underwater_fog.y), 0.0, 1.0));
 	vec3 color = underwater_fog_color + (below - underwater_fog_color) * fog_visibility;
-	color = color + (lit_water - color) * ((1.0 - fresnel * 0.1) * water_color.a);
+	// Opacity is a blend weight, not an amplification factor. The input-contract GPU
+	// regression reproduces the old negative-alpha scene gain of 6.27x.
+	float opacity = clamp((1.0 - fresnel * 0.1) * water_color.a, 0.0, 1.0);
+	color = mix(color, lit_water, opacity);
 
 	vec3 halfway = normalize(to_sun - view_direction);
 	float highlight = pow(clamp(dot(halfway, normal), 0.0, 1.0), SPECULAR_POWER) * sun_attenuation

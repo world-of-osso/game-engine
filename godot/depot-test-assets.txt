@@ -55,6 +55,61 @@ models/949470.m2
 models/94947000.skin
 models/949470.skel
 
+# Source-local selected Forever kit definitions, appearance/class metadata and scaling.
+db2/1.60.1.70205/items/Item.csv
+db2/1.60.1.70205/items/ItemSparse.csv
+db2/1.60.1.70205/items/ItemSubClass.csv
+db2/1.60.1.70205/items/ItemAppearance.csv
+db2/1.60.1.70205/items/ItemModifiedAppearance.csv
+db2/1.60.1.70205/items/ItemArmorQuality.csv
+db2/1.60.1.70205/items/ItemArmorTotal.csv
+db2/1.60.1.70205/items/ArmorLocation.csv
+db2/1.60.1.70205/items/ItemArmorShield.csv
+db2/1.60.1.70205/items/ItemDamageOneHand.csv
+db2/1.60.1.70205/items/ItemDamageOneHandCaster.csv
+db2/1.60.1.70205/items/ItemDamageTwoHand.csv
+db2/1.60.1.70205/items/ItemDamageTwoHandCaster.csv
+db2/1.60.1.70205/items/RandPropPoints.csv
+db2/1.60.1.70205/items/manifest.json
+
+# Forever Skyborne catalogs: isolated cache import plus Retail-overlay regression tests.
+db2/1.60.1.70205/ChrRaces.csv
+db2/1.60.1.70205/ChrRaceXChrModel.csv
+db2/1.60.1.70205/ChrModel.csv
+db2/1.60.1.70205/CreatureDisplayInfo.csv
+db2/1.60.1.70205/CreatureModelData.csv
+# Forever NPC gear resources and component ownership.
+db2/1.60.1.70205/NPCModelItemSlotDisplayInfo.csv
+db2/1.60.1.70205/ItemDisplayInfo.csv
+db2/1.60.1.70205/ItemDisplayInfoMaterialRes.csv
+db2/1.60.1.70205/ModelFileData.csv
+db2/1.60.1.70205/ComponentModelFileData.csv
+db2/1.60.1.70205/ComponentTextureFileData.csv
+db2/1.60.1.70205/HelmetGeosetData.csv
+db2/1.60.1.70205/ChrCustomizationOption.csv
+db2/1.60.1.70205/ChrCustomizationChoice.csv
+db2/1.60.1.70205/ChrCustomizationElement.csv
+db2/1.60.1.70205/ChrCustomizationMaterial.csv
+db2/1.60.1.70205/ChrCustomizationGeoset.csv
+db2/1.60.1.70205/ChrCustomizationCategory.csv
+db2/1.60.1.70205/ChrCustomizationSkinnedModel.csv
+db2/1.60.1.70205/ChrCustomizationReq.csv
+db2/1.60.1.70205/ChrCustomizationReqChoice.csv
+db2/1.60.1.70205/CharHairGeosets.csv
+db2/1.60.1.70205/TextureFileData.csv
+db2/1.60.1.70205/ChrModelTextureLayer.csv
+db2/1.60.1.70205/ChrModelMaterial.csv
+db2/1.60.1.70205/CharComponentTextureLayouts.csv
+db2/1.60.1.70205/CharComponentTextureSections.csv
+
+# Shoulder policy CPU fixtures: original unnamed shoulders and named skeletal collection.
+models/7579617.m2
+models/7731242.skin
+models/7579618.m2
+models/7731238.skin
+models/1360753.m2
+models/136075300.skin
+
 # game-engine-core tests/: models
 models/boar.m2
 models/boar00.skin
@@ -111,6 +166,21 @@ terrain/azeroth_32_48.adt
 terrain/azeroth_32_48_tex0.adt
 terrain/azeroth_32_48_obj0.adt
 terrain/775971.wdt
+terrain/7198644.wdt
+terrain/7199999.adt
+terrain/7200002.adt
+terrain/7200000.adt
+textures/186823.blp
+textures/188574.blp
+textures/187911.blp
+textures/186967.blp
+textures/186825.blp
+textures/186975.blp
+textures/186985.blp
+textures/186819.blp
+textures/186983.blp
+textures/186821.blp
+db2/1.60.1.70205/Map.csv
 terrain/777828.adt
 terrain/2847_31_37_obj0.adt
 
@@ -175,6 +245,12 @@ db2/12.1.0.69933/SpecializationSpells.csv
 db2/12.1.0.69933/SkillLine.csv
 db2/12.1.0.69933/SkillLineAbility.csv
 
+# Forever product-isolated liquid materials.
+db2/1.60.1.70205/LiquidType.csv
+db2/1.60.1.70205/LiquidObject.csv
+db2/1.60.1.70205/LiquidMaterial.csv
+db2/1.60.1.70205/LiquidTypeXTexture.csv
+
 # game-engine-core tests/liquid_water.rs
 db2/12.1.0.69933/LiquidType.csv
 db2/12.1.0.69933/LiquidObject.csv
@@ -183,6 +259,37 @@ db2/12.1.0.69933/LiquidTypeXTexture.csv
 terrain/778417.adt
 terrain/5493433.adt
 terrain/5493438.adt
+# Current Map 2703 WDT and primary (31,37) MAID companions for Background::load.
+terrain/5493025.wdt
+terrain/5493439.adt
+terrain/5493441.adt
+# Primary _tex0 MDID/MHID terrain layers, already cached locally.
+textures/3619400.blp
+textures/3856521.blp
+textures/3850534.blp
+textures/4074560.blp
+textures/3891067.blp
+textures/1592975.blp
+textures/4045695.blp
+textures/3937820.blp
+textures/3922691.blp
+textures/1594664.blp
+textures/2400980.blp
+textures/1524608.blp
+textures/3893150.blp
+textures/3619399.blp
+textures/3856520.blp
+textures/3850533.blp
+textures/4074559.blp
+textures/3891066.blp
+textures/1592974.blp
+textures/4045694.blp
+textures/3937819.blp
+textures/3922690.blp
+textures/1594663.blp
+textures/2400979.blp
+textures/1524607.blp
+textures/3893149.blp
 terrain/1422588.adt
 
 # game-engine-core tests/spell_visual.rs
@@ -1080,6 +1187,7 @@ models/920688.wmo
 models/948620.wmo
 models/948622.wmo
 NameGen.csv
+db2/1.60.1.70205/NameGen.csv
 tactkeys/WoW.txt
 terrain/6252613.wdt
 terrain/6252663.adt
@@ -1948,6 +2056,8 @@ textures/242660.blp
 textures/187901.blp
 models/130629.m2
 models/13062900.skin
+textures/8252078.blp
+textures/8252079.blp
 textures/130630.blp
 textures/1067600.blp
 # Sun and moon discs (sky_bodies PLANET_FDIDS), cached by every LightingCatalog
@@ -2087,3 +2197,50 @@ textures/8069118.blp
 textures/131129.blp
 textures/130949.blp
 textures/1537274.blp
+
+# Authored Ventaari and Ailee baked profiles; unbaked outfit checks remain strict.
+cache/creature_display.sqlite
+cache/npc_appearance.sqlite
+textures/7352105.blp
+textures/120191.blp
+textures/7479318.blp
+textures/7479319.blp
+textures/7479320.blp
+textures/7484458.blp
+textures/7484459.blp
+textures/7484460.blp
+textures/7484461.blp
+textures/7484462.blp
+textures/7484463.blp
+textures/7484464.blp
+textures/7484465.blp
+textures/7484466.blp
+textures/7484467.blp
+textures/7484468.blp
+textures/7484469.blp
+textures/7484470.blp
+textures/7484471.blp
+textures/7484472.blp
+textures/7484473.blp
+textures/7484474.blp
+textures/7484475.blp
+textures/7484476.blp
+textures/7484477.blp
+textures/7484478.blp
+textures/7484479.blp
+textures/7484480.blp
+textures/7484902.blp
+textures/7485542.blp
+textures/7485563.blp
+textures/7487478.blp
+textures/7500050.blp
+textures/7734294.blp
+textures/7734295.blp
+textures/7734297.blp
+textures/7734298.blp
+textures/7734300.blp
+textures/7734301.blp
+textures/7734302.blp
+textures/7734305.blp
+textures/7734306.blp
+textures/7743357.blp

@@ -178,8 +178,9 @@ unsafe impl ExtensionLibrary for GameEngineExtension {
     }
 
     fn on_stage_deinit(stage: godot::init::InitStage) {
-        // Release cached shaders before Godot tears down its rendering storage.
+        // Release cached resources before Godot tears down its rendering storage.
         if stage == godot::init::InitStage::MainLoop {
+            ui::assets::clear_shared_resources();
             assets::material::clear_shared_shaders();
             shader_warmup::clear();
             assets::clear_shared_meshes();
@@ -689,6 +690,40 @@ impl GameClient {
     #[signal]
     fn screen_requested(screen: GString);
 
+    /// Read-only active creation catalog for native diagnostics and automation.
+    #[func]
+    fn character_creation_catalog(&self) -> VarDictionary {
+        let mut result = VarDictionary::new();
+        let (Some(state), Some(db)) = (self.creation.as_ref(), self.creation_catalog.as_ref())
+        else {
+            result.set("error", "Character creation is not active");
+            return result;
+        };
+        let Some(options) = db.options_for(state.customization_race(), state.selected_sex) else {
+            result.set(
+                "error",
+                "No catalog options for the active creation race/body type",
+            );
+            return result;
+        };
+        result.set("race", i64::from(state.selected_race));
+        result.set("sex", i64::from(state.selected_sex));
+        result.set("class", i64::from(state.selected_class));
+        result.set(
+            "raw_option_ids",
+            &Array::<i64>::from_iter(options.iter().map(|option| i64::from(option.id))),
+        );
+        result.set(
+            "offered_option_ids",
+            &Array::<i64>::from_iter(
+                char_create::customization_view::offered_options(state, db)
+                    .iter()
+                    .map(|option| i64::from(option.id)),
+            ),
+        );
+        result
+    }
+
     /// Applies the graphics options to the root viewport.
     #[func]
     fn apply_display_options(&mut self) {
@@ -700,6 +735,35 @@ impl GameClient {
             &self.client_options.graphics,
             &mut viewport,
         );
+    }
+
+    /// Offline integration fixture: stream an authored map at an engine-space position.
+    /// Uses the production map identity, terrain and object paths; does not authenticate.
+    #[func]
+    fn preview_world_map(&mut self, directory: GString, position: Vector3) -> GString {
+        let directory = directory.to_string();
+        let result = (|| {
+            let map_id = account::read_map_id(&self.data_root, &directory)?;
+            self.reset_world()?;
+            self.world_map_id = Some(map_id);
+            let tile =
+                game_engine_core::terrain_height_data::bevy_to_tile_coords(position.x, position.z);
+            self.terrain.request_map(directory, tile)
+        })();
+        match result {
+            Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
+    }
+
+    /// Offline fixture: run production lighting without an authenticated local player.
+    #[func]
+    fn preview_world_lighting(&mut self, position: Vector3, camera: Vector3) -> GString {
+        let result = self.sync_preview_world_lighting(position, camera);
+        match result {
+            Ok(()) => GString::new(),
+            Err(error) => GString::from(error.as_str()),
+        }
     }
 
     /// Main-thread time of the last `process`, in milliseconds.
@@ -2210,15 +2274,50 @@ impl GameClient {
             self.world_minutes,
             wmo_fog.as_ref(),
         )? {
-            self.world.update_lighting(Some(light.clone()));
-            self.game_objects.update_lighting(Some(light.clone()));
-            self.world_objects.update_lighting(&light);
-            self.ground_detail.update_lighting(&light);
-            self.horizon.update_lighting(&light);
-            self.global_wmo.update_lighting(&light);
-            self.terrain_materials.update_lighting(light);
+            self.apply_world_lighting(light);
         }
         Ok(())
+    }
+
+    fn sync_preview_world_lighting(
+        &mut self,
+        position: Vector3,
+        camera: Vector3,
+    ) -> Result<(), String> {
+        let catalog = self
+            .terrain
+            .map_wdt
+            .as_ref()
+            .ok_or("Preview lighting requires a loaded WDT")?
+            .lighting
+            .clone();
+        let map_id = self
+            .world_map_id
+            .ok_or("Preview lighting requires a map ID")?;
+        let mut parent = self.to_gd().upcast::<Node3D>();
+        let wmo_fog = self.world_objects.camera_fog(camera);
+        if let Some(light) = self.world_lighting.sync(
+            &mut parent,
+            &catalog,
+            map_id,
+            position,
+            self.world_minutes,
+            wmo_fog.as_ref(),
+        )? {
+            self.apply_world_lighting(light);
+        }
+        self.world_lighting.place_sky(camera, 0);
+        Ok(())
+    }
+
+    fn apply_world_lighting(&mut self, light: lighting::TerrainLight) {
+        self.world.update_lighting(Some(light.clone()));
+        self.game_objects.update_lighting(Some(light.clone()));
+        self.world_objects.update_lighting(&light);
+        self.ground_detail.update_lighting(&light);
+        self.horizon.update_lighting(&light);
+        self.global_wmo.update_lighting(&light);
+        self.terrain_materials.update_lighting(light);
     }
 
     /// Sky models follow the camera after it moved this frame.

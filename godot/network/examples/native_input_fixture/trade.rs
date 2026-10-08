@@ -86,6 +86,7 @@ fn snapshot(phase: TradePhase, accepted: bool) -> TradeSnapshot {
         slots: vec![None; 7],
     };
     player.slots[0] = Some(TradeItemSnapshot {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid: 9170001,
         item_id: 2589,
         name: "Linen Cloth".into(),

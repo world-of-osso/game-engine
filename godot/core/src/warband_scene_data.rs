@@ -333,15 +333,6 @@ impl WarbandSceneEntry {
     }
 }
 
-/// Extra tiles needed to complete authored campsite backdrops across tile borders.
-pub fn supplemental_terrain_tile_coords(scene: &WarbandSceneEntry) -> Vec<(u32, u32)> {
-    match scene.id {
-        // Adventurer's Rest waterfall occupies the western neighboring tile.
-        1 => vec![(31, 36)],
-        _ => Vec::new(),
-    }
-}
-
 impl WarbandScenePlacement {
     pub fn is_character_slot(&self) -> bool {
         self.slot_type == 0

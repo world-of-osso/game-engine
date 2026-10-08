@@ -78,6 +78,200 @@ impl Drop for CatalogFixture {
 }
 
 #[test]
+fn skyborne_imported_forever_catalog_and_retail_share_the_player_path() {
+    let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let db = crate::npc_appearance_assets::load_customization_db(&root).unwrap();
+    let compositor = crate::npc_appearance_assets::load_compositor(&root).unwrap();
+    assert_eq!(db.chr_model_id(1, 0), Some(1));
+    assert_eq!(db.layout_id(1, 0), Some(103));
+    for race in [95, 96] {
+        let class = if race == 95 { 8 } else { 7 };
+        for (sex, model, layout, count, skin) in [(0, 218, 201, 18, 9021), (1, 219, 202, 19, 9034)]
+        {
+            assert_eq!(db.chr_model_id(race, sex), Some(model));
+            assert_eq!(db.layout_id(race, sex), Some(layout));
+            assert_eq!(db.options_for(race, sex).unwrap().len(), count);
+            let choices = db.offered_choices(race, sex, class, skin);
+            assert!(!choices.is_empty(), "race {race} sex {sex} skin choices");
+            assert!(choices.iter().any(|choice| !choice.materials.is_empty()));
+            let canvas = compositor.layout(layout).unwrap();
+            assert_eq!((canvas.width, canvas.height), (2048, 1024));
+        }
+    }
+}
+
+#[test]
+fn skyborne_compositor_uses_forever_layouts_without_replacing_retail() {
+    let fixture = CatalogFixture::new();
+    let forever = fixture.root.join("db2/1.60.1.70205");
+    std::fs::create_dir_all(&forever).unwrap();
+    for (dir, ids) in [(&fixture.root, &[1][..]), (&forever, &[1, 201, 202][..])] {
+        let mut layouts = String::from("ID,Width,Height\n");
+        let mut sections =
+            String::from("CharComponentTextureLayoutID,SectionType,X,Y,Width,Height\n");
+        let mut layers = String::from(
+            "TextureType,Layer,BlendMode,TextureSectionTypeBitMask,ChrModelTextureTargetID_0,CharComponentTextureLayoutsID\n",
+        );
+        let mut sizes = String::from("CharComponentTextureLayoutsID,TextureType,Width,Height\n");
+        for id in ids {
+            let width = if *id == 1 {
+                if dir == &forever { 4 } else { 2 }
+            } else {
+                2048
+            };
+            let height = if *id == 1 { 1 } else { 1024 };
+            layouts.push_str(&format!("{id},{width},{height}\n"));
+            sections.push_str(&format!("{id},0,0,0,{width},{height}\n"));
+            layers.push_str(&format!("1,0,0,1,6,{id}\n"));
+            sizes.push_str(&format!("{id},1,{width},{height}\n"));
+        }
+        for (name, csv) in [
+            ("CharComponentTextureLayouts", layouts),
+            ("CharComponentTextureSections", sections),
+            ("ChrModelTextureLayer", layers),
+            ("ChrModelMaterial", sizes),
+        ] {
+            std::fs::write(dir.join(format!("{name}.csv")), csv).unwrap();
+        }
+    }
+    crate::char_texture_cache::import_char_texture_cache(&fixture.root).unwrap();
+    let compositor = crate::npc_appearance_assets::load_compositor(&fixture.root).unwrap();
+    for (id, dimensions) in [(1, (2, 1)), (201, (2048, 1024)), (202, (2048, 1024))] {
+        let (pixels, width, height) = compositor
+            .composite_with(&[(6, 99)], id, |_| Some((vec![9, 18, 27, 255], 1, 1)))
+            .unwrap();
+        assert_eq!((width, height), dimensions);
+        assert!(
+            pixels
+                .chunks_exact(4)
+                .all(|pixel| pixel == [9, 18, 27, 255])
+        );
+    }
+}
+
+#[test]
+fn skyborne_catalog_overlays_models_effects_and_colliding_requirements() {
+    let retail = CatalogFixture::new();
+    let source = CatalogFixture::new();
+    let forever = retail.root.join("db2/1.60.1.70205");
+    std::fs::create_dir_all(&forever).unwrap();
+    for entry in std::fs::read_dir(&source.root).unwrap() {
+        let entry = entry.unwrap();
+        std::fs::copy(entry.path(), forever.join(entry.file_name())).unwrap();
+    }
+    for (name, contents) in [
+        (
+            "ChrModel",
+            "ID,CharComponentTextureLayoutID,CustomizeScale,CameraDistanceOffset\n218,201,1,0\n219,202,1,0\n",
+        ),
+        (
+            "ChrRaceXChrModel",
+            "ChrRacesID,ChrModelID,Sex\n95,218,0\n95,219,1\n96,218,0\n96,219,1\n1,218,0\n",
+        ),
+        ("ChrRaces", "ID,UnalteredVisualRaceID\n95,0\n96,0\n"),
+        (
+            "ChrCustomizationOption",
+            "Name_lang,ID,ChrModelID,ChrCustomizationCategoryID,OrderIndex,OptionType,Requirement\nSkin Color,500,218,3,0,0,12\nSkin Color,501,219,3,0,0,12\nHair Style,502,218,3,1,0,0\n",
+        ),
+        (
+            "ChrCustomizationChoice",
+            "Name_lang,ID,ChrCustomizationOptionID,ChrCustomizationReqID,OrderIndex,ChrCustomizationVisReqID,SwatchColor_0,SwatchColor_1\nBlue,95000,500,19,0,0,0,0\nBlue,95001,501,20,0,0,0,0\nLong,95002,502,0,0,0,0,0\n",
+        ),
+        (
+            "ChrCustomizationElement",
+            "ChrCustomizationChoiceID,RelatedChrCustomizationChoiceID,ChrCustomizationGeosetID,ChrCustomizationMaterialID,ChrCustomizationSkinnedModelID,ChrCustomizationBoneSetID,ChrCustomizationCondModelID,ChrCustomizationDisplayInfoID,ChrCustItemGeoModifyID,ChrCustomizationVoiceID,AnimKitID,ParticleColorID,ChrCustGeoComponentLinkID\n95000,0,1,1,7,0,0,0,0,0,0,0,0\n95001,0,1,1,0,0,0,0,0,0,0,0,0\n",
+        ),
+        (
+            "CharHairGeosets",
+            "RaceID,SexID,GeosetType,GeosetID,Showscalp\n95,0,0,7,1\n",
+        ),
+    ] {
+        std::fs::write(forever.join(format!("{name}.csv")), contents).unwrap();
+    }
+    // The real Forever export has this wide GeosetID on unrelated collection rows.
+    // It must be retained, but not interpreted as a Skyborne submesh ID.
+    std::fs::OpenOptions::new()
+        .append(true)
+        .open(forever.join("ChrCustomizationSkinnedModel.csv"))
+        .and_then(|mut file| {
+            std::io::Write::write_all(&mut file, b"833,5792408,44,1684631414,-1,0\n")
+        })
+        .unwrap();
+    let header = "ID,ReqType,ClassMask,RaceMasks_0,RaceMasks_1,ReqAchievementID,ReqQuestID,ReqItemModifiedAppearanceID\n";
+    std::fs::write(
+        retail.root.join("ChrCustomizationReq.csv"),
+        format!("{header}12,1,0,1,0,0,0,0\n19,2,0,0,0,0,0,0\n"),
+    )
+    .unwrap();
+    std::fs::write(
+        forever.join("ChrCustomizationReq.csv"),
+        format!("{header}12,1,0,0,3,0,0,0\n19,1,128,0,3,0,0,0\n20,1,128,0,3,0,0,0\n"),
+    )
+    .unwrap();
+    for dir in [&retail.root, &forever] {
+        std::fs::write(
+            dir.join("ChrCustomizationReqChoice.csv"),
+            "ChrCustomizationReqID,ChrCustomizationChoiceID\n",
+        )
+        .unwrap();
+    }
+    std::fs::write(
+        forever.join("ChrCustomizationReqChoice.csv"),
+        "ChrCustomizationReqID,ChrCustomizationChoiceID\n19,95002\n",
+    )
+    .unwrap();
+    import_customization_cache(&retail.root).unwrap();
+    let db = crate::npc_appearance_assets::load_customization_db(&retail.root).unwrap();
+    assert_eq!(db.chr_model_id(1, 0), Some(1));
+    assert_eq!(db.options_for(1, 0).unwrap()[0].id, 890);
+    for (race, sex, model, layout, option) in [
+        (95, 0, 218, 201, 500),
+        (95, 1, 219, 202, 501),
+        (96, 0, 218, 201, 500),
+        (96, 1, 219, 202, 501),
+    ] {
+        assert_eq!(db.chr_model_id(race, sex), Some(model));
+        assert_eq!(db.layout_id(race, sex), Some(layout));
+        let choices = db.offered_choices(race, sex, 8, option);
+        assert_eq!(choices.len(), 1);
+        assert_eq!(choices[0].materials[0].1, 1020001);
+        assert_eq!(choices[0].geosets[0], (32, 2));
+        assert!(
+            db.offered_choices(race, sex, 1, option).is_empty(),
+            "Mage-only fixture requirement"
+        );
+        if sex == 0 {
+            let required = db.required_choices(choices[0]);
+            assert_eq!(required.len(), 1);
+            assert_eq!(required[0].option_id, 502);
+            assert_eq!(required[0].choice_ids, [95002]);
+            assert_eq!(choices[0].skinned_models[0].collection_fdid, 7760205);
+        }
+    }
+    assert!(db.offered_choices(1, 0, 8, 500).is_empty());
+    assert!(!db.offered_choices(1, 0, 8, 890).is_empty());
+    let cache = import_customization_cache(&forever).unwrap();
+    let conn = Connection::open(&cache).unwrap();
+    assert_eq!(
+        conn.query_row(
+            "SELECT geoset_id FROM skinned_models WHERE id = 833",
+            [],
+            |row| row.get::<_, u32>(0)
+        )
+        .unwrap(),
+        1684631414
+    );
+    conn.execute(
+        "UPDATE skinned_models SET geoset_id = 1684631414 WHERE id = 7",
+        [],
+    )
+    .unwrap();
+    drop(conn);
+    let error = crate::npc_appearance_assets::load_customization_db(&retail.root).unwrap_err();
+    assert!(error.contains("read skinned_models row"), "{error}");
+}
+
+#[test]
 fn catalog_cache_roundtrip_retains_original_metadata_and_effect_support() {
     let fixture = CatalogFixture::new();
     let cache = import_customization_cache_at(&fixture.root, &fixture.cache_path()).unwrap();

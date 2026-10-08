@@ -1,16 +1,16 @@
-//! The client's item catalog, one entry per item ID from the build-pinned Retail
-//! DB2 exports: `Item.csv` (class, subclass, icon) joined with `ItemSparse.csv`
-//! (name, quality, stack size, sell price, binding, level, inventory type), and the
-//! subclass names of `ItemSubClass.csv`. The
-//! server sends item IDs and counts only, so bags, the auction house and item
-//! tooltips resolve everything else here, as Retail's client resolves item data
-//! from its DB2 cache (`C_Item.GetItemInfo`).
+//! Independent Retail and Forever70205 item catalogs, keyed by authored item ID
+//! within each source. Item/ItemSparse, appearance icons and subclass names come
+//! from source-local CSVs. Owned stacks carry source and ID; no race-based lookup.
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Once, OnceLock};
 
+use shared::item_data::ItemDefinitionSource;
+
 use crate::spell_catalog::SPELL_DB2_BUILD;
+
+pub const FOREVER_ITEM_DIR: &str = "db2/1.60.1.70205/items";
 use crate::spell_catalog::csv_records::CsvTable;
 
 #[derive(Clone, Debug, Default, PartialEq)]
@@ -91,14 +91,74 @@ impl ItemCatalog {
     }
 }
 
-static CATALOG: OnceLock<ItemCatalog> = OnceLock::new();
+/// Independent namespaces; a failed Forever load never selects Retail.
+#[derive(Debug)]
+pub struct SourceItemCatalogs {
+    retail: ItemCatalog,
+    forever: Result<ItemCatalog, String>,
+}
+
+impl SourceItemCatalogs {
+    pub fn new(retail: ItemCatalog, forever: Result<ItemCatalog, String>) -> Self {
+        Self { retail, forever }
+    }
+
+    pub fn catalog(&self, source: ItemDefinitionSource) -> Result<&ItemCatalog, &str> {
+        match source {
+            ItemDefinitionSource::Retail => Ok(&self.retail),
+            ItemDefinitionSource::Forever70205 => self.forever.as_ref().map_err(String::as_str),
+        }
+    }
+
+    pub fn entry(
+        &self,
+        source: ItemDefinitionSource,
+        item_id: u32,
+    ) -> Result<&ItemCatalogEntry, String> {
+        let catalog = self
+            .catalog(source)
+            .map_err(|error| format!("{source:?} item {item_id}: {error}"))?;
+        catalog
+            .get(item_id)
+            .ok_or_else(|| format!("{source:?} item {item_id}: definition absent"))
+    }
+}
+
+static CATALOG: OnceLock<SourceItemCatalogs> = OnceLock::new();
 
 /// The catalog once its background load is done, `None` until then: as Retail's
 /// `C_Item.GetItemInfo` returns nil until `GET_ITEM_INFO_RECEIVED`, no caller waits for
 /// the ~175k-row ItemSparse parse. The first call starts the load.
 pub fn item_catalog() -> Option<&'static ItemCatalog> {
     warm_item_catalog();
+    item_catalog_for(ItemDefinitionSource::Retail)
+}
+
+pub fn item_catalogs() -> Option<&'static SourceItemCatalogs> {
+    warm_item_catalog();
     CATALOG.get()
+}
+
+pub fn item_catalog_for(source: ItemDefinitionSource) -> Option<&'static ItemCatalog> {
+    item_catalogs()?.catalog(source).ok()
+}
+
+pub fn item_catalog_entry_for(
+    source: ItemDefinitionSource,
+    item_id: u32,
+) -> Option<&'static ItemCatalogEntry> {
+    item_catalog_for(source)?.get(item_id)
+}
+
+pub fn require_item_catalog_entry(
+    source: ItemDefinitionSource,
+    item_id: u32,
+) -> Result<&'static ItemCatalogEntry, String> {
+    warm_item_catalog();
+    let catalogs = CATALOG
+        .get()
+        .ok_or_else(|| format!("{source:?} item {item_id}: catalog still loading"))?;
+    catalogs.entry(source, item_id)
 }
 
 /// Catalog entry of `item_id`; `None` while the catalog loads.
@@ -108,7 +168,14 @@ pub fn item_catalog_entry(item_id: u32) -> Option<&'static ItemCatalogEntry> {
 
 /// The item's subclass name (`GetItemInfo` itemSubType): "Sword", "Cloth".
 pub fn item_subclass_name(entry: &ItemCatalogEntry) -> Option<&'static str> {
-    item_catalog()?.subclass_name(entry.class_id, entry.subclass_id)
+    item_subclass_name_for(ItemDefinitionSource::Retail, entry)
+}
+
+pub fn item_subclass_name_for(
+    source: ItemDefinitionSource,
+    entry: &ItemCatalogEntry,
+) -> Option<&'static str> {
+    item_catalog_for(source)?.subclass_name(entry.class_id, entry.subclass_id)
 }
 
 /// Start loading the catalog on a background thread, once.
@@ -118,7 +185,19 @@ pub fn warm_item_catalog() {
         std::thread::Builder::new()
             .name("item-catalog".into())
             .spawn(|| {
-                CATALOG.get_or_init(load_client_catalog);
+                CATALOG.get_or_init(|| {
+                    let retail = load_client_catalog();
+                    let dir = crate::paths::resolve_data_path(FOREVER_ITEM_DIR);
+                    let forever = load_item_catalog(&dir).and_then(|mut catalog| {
+                        catalog.appearance_icons = crate::item_icons::load_item_icons_from(&dir)?;
+                        validate_named_items(&catalog, &dir)?;
+                        Ok(catalog)
+                    });
+                    if let Err(error) = &forever {
+                        eprintln!("Forever70205 item catalog unavailable: {error}");
+                    }
+                    SourceItemCatalogs::new(retail, forever)
+                });
             })
             .expect("spawn the item catalog loader");
     });
@@ -127,7 +206,19 @@ pub fn warm_item_catalog() {
 /// The catalog, waiting for its load. For tests and offline tools: a frame never waits.
 pub fn wait_for_item_catalog() -> &'static ItemCatalog {
     warm_item_catalog();
-    CATALOG.wait()
+    &CATALOG.wait().retail
+}
+
+fn validate_named_items(catalog: &ItemCatalog, dir: &Path) -> Result<(), String> {
+    for (id, entry) in &catalog.items {
+        if entry.name.is_empty() {
+            return Err(format!(
+                "{}: Forever70205 item {id} has no ItemSparse definition",
+                dir.display()
+            ));
+        }
+    }
+    Ok(())
 }
 
 fn load_client_catalog() -> ItemCatalog {

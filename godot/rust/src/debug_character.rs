@@ -122,6 +122,7 @@ impl DebugCharacterConfig {
         .into_iter()
         .filter(|(_, display)| *display != 0)
         .map(|(slot, display)| EquippedAppearanceEntry {
+            definition_source: None,
             slot,
             item_id: None,
             display_info_id: Some(display),

@@ -54,6 +54,7 @@ fn native_bridge_receives_merchant_messages_in_channel_order() {
     };
     let buyback = BuybackList {
         items: vec![BuybackItem {
+            definition_source: shared::item_data::ItemDefinitionSource::Retail,
             slot: 0,
             item_id: 4865,
             name: "Ruined Pelt".into(),

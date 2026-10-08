@@ -155,6 +155,7 @@ fn bag_background_for_zero_rows() {
 
 fn stack(item_guid: u64, item_id: u32, count: u32) -> shared::protocol::ItemStack {
     shared::protocol::ItemStack {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid,
         item_id,
         count,

@@ -323,8 +323,9 @@ pub(super) fn parse_mfbo(payload: &[u8]) -> Result<FlightBounds, String> {
 
     let mut min_heights = [0i16; 9];
     let mut max_heights = [0i16; 9];
-    min_heights.copy_from_slice(&values[..9]);
-    max_heights.copy_from_slice(&values[9..]);
+    // MFBO stores the upper plane first, then the lower plane (Noggit MapTile.cpp).
+    max_heights.copy_from_slice(&values[..9]);
+    min_heights.copy_from_slice(&values[9..]);
     Ok(FlightBounds {
         min_heights,
         max_heights,
@@ -779,7 +780,7 @@ pub(super) fn collect_adt_chunks(data: &[u8]) -> AdtChunksResult<'_> {
         match tag {
             b"KNCM" => root_chunks.mcnks.push(payload),
             b"O2HM" => root_chunks.mh2o = Some(payload),
-            b"OFBM" => root_chunks.mfbo = Some(payload),
+            b"OBFM" => root_chunks.mfbo = Some(payload),
             b"HMBM" => root_chunks.mbmh = Some(payload),
             b"BBBM" => root_chunks.mbbb = Some(payload),
             b"VNBM" => root_chunks.mbnv = Some(payload),

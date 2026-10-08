@@ -29,7 +29,8 @@ use crate::{
         player::{PlayerParts, build_player_model, prepare_player_parts},
     },
     equipment_appearance_data::{
-        EquipmentSlot, resolve_equipment_appearance, visual_slot_to_runtime_slots,
+        EquipmentSlot, load_baked_equipment_appearance, resolve_equipment_appearance,
+        visual_slot_to_runtime_slots,
     },
     lighting::TerrainLight,
     npc_gear_data::NpcGearData,
@@ -249,7 +250,23 @@ impl VisualCatalogs {
         let npc = self.appearances.lock().expect("NPC appearances").prepare(
             &self.data_root,
             display_id,
-            |race, sex| resolve_equipment_appearance(&armor, &self.outfit, race, sex),
+            |appearance| {
+                if appearance.baked_texture_fdid.is_some() {
+                    load_baked_equipment_appearance(
+                        &armor,
+                        &self.outfit,
+                        appearance.race,
+                        appearance.sex,
+                    )
+                } else {
+                    resolve_equipment_appearance(
+                        &armor,
+                        &self.outfit,
+                        appearance.race,
+                        appearance.sex,
+                    )
+                }
+            },
         )?;
         let (race, sex) = npc.as_ref().map_or((0, 0), |npc| (npc.race, npc.sex));
         let gear = CreatureGear {
@@ -688,6 +705,7 @@ mod tests {
             display_info_id: None,
             inventory_type,
             hidden: false,
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
         };
         let mage = EquipmentAppearance {
             entries: vec![
@@ -724,6 +742,7 @@ mod tests {
             display_info_id: None,
             inventory_type,
             hidden: false,
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
         };
         let guard = EquipmentAppearance {
             entries: vec![

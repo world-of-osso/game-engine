@@ -25,6 +25,48 @@ fn fingerprint(rules: &HashMap<u32, Vec<HelmetGeosetRule>>) -> u64 {
 }
 
 #[test]
+fn forever_npc_gear_helmet_rules_preserve_retail_visibility_groups() {
+    let source = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let fixture = Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../target")
+        .join(format!("forever-helmet-{}", std::process::id()));
+    if fixture.exists() {
+        std::fs::remove_dir_all(&fixture).unwrap();
+    }
+    std::fs::create_dir_all(fixture.join("db2/1.60.1.70205")).unwrap();
+    std::os::unix::fs::symlink(
+        source
+            .join("db2/HelmetGeosetData.db2")
+            .canonicalize()
+            .unwrap(),
+        fixture.join("db2/HelmetGeosetData.db2"),
+    )
+    .unwrap();
+    std::fs::write(fixture.join("db2/1.60.1.70205/HelmetGeosetData.csv"), "ID,RaceID,HideGeosetGroup,RaceBitSelection,HelmetGeosetVisDataID\n1,95,2,0,2000000000\n2,95,44,0,2000000000\n3,95,99,0,245\n").unwrap();
+    let rules = load_helmet_geoset_rules(&fixture).unwrap();
+    assert_eq!(
+        rules[&245],
+        load_helmet_geoset_rules(&source).unwrap()[&245]
+    );
+    assert_eq!(
+        rules.get(&2000000000),
+        Some(&vec![
+            HelmetGeosetRule {
+                race_id: 95,
+                hide_geoset_group: 2,
+                race_bit_selection: 0
+            },
+            HelmetGeosetRule {
+                race_id: 95,
+                hide_geoset_group: 44,
+                race_bit_selection: 0
+            },
+        ])
+    );
+    std::fs::remove_dir_all(fixture).unwrap();
+}
+
+#[test]
 fn authored_helmet_rules_group_every_row_by_visibility_id() {
     let data_root = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
     let started = std::time::Instant::now();

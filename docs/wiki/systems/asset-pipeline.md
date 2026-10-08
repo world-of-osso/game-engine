@@ -41,6 +41,10 @@ Extraction to disk is not the only access path. The project `AssetResolver` also
 - `data/terrain/{fdid}.adt` — ADT terrain files
 - `data/community-listfile.csv` — 136MB FDID→path map (from wowdev/wow-listfile)
 
+## Forever overlay
+
+[[forever-data]] records the pinned local-CASC importer, separate Forever CSV overlay, encrypted-row drops, content-key mismatch and AFID/BFID validation limits. [[terrain]] owns Zephras closure inventory; neither importer validation nor available files imply complete native acceptance.
+
 ## UI consumers
 
 WoW UI metadata stores authored FileDataIDs. A virtual path is only listfile lookup input; it is never a runtime filesystem path or a fallback export directory. Character-creation race/class icons emit `texture_fdid`; customization arrows and palette regions use an atlas FileDataID. `GameBlpLoader` resolves both through local CASC/cache. See [[ui-system]].
@@ -87,6 +91,8 @@ Some item-driven textures come from `ItemDisplayInfo.ModelMaterialResourcesID_*`
 - [character-creation icon metadata](../../../src/scenes/char_create/data.rs) — typed UI FileDataID consumer
 
 ## See Also
+
+- [[forever-data]] — pinned Skyborne tables/assets and acquisition limits
 
 - [[rendering-pipeline]] — consumes extracted assets at runtime
 - [[terrain]] — ADT extraction and companion file lookup

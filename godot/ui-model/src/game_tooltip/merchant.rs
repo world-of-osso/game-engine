@@ -3,7 +3,7 @@
 use shared::protocol::{BuybackItem, ItemDurability};
 
 use super::GameTooltip;
-use super::item::named_item;
+use super::item::{named_item, named_item_for};
 use crate::bag_data::InventorySlot;
 use crate::merchant_data::{MerchantState, MerchantTab};
 use crate::tooltip_presentation::{
@@ -31,7 +31,14 @@ pub fn merchant_cell_item(merchant: &MerchantState, index: usize) -> Option<Inve
 
 /// `SetBuybackItem`: the sold stack.
 pub fn buyback_item(item: &BuybackItem) -> InventorySlot {
-    named_item(item.item_id, &item.name, item.quality, item.count)
+    named_item_for(
+        item.definition_source,
+        item.item_id,
+        &item.name,
+        item.quality,
+        item.count,
+        0,
+    )
 }
 
 /// `RED_FONT_COLOR`.
@@ -209,6 +216,7 @@ mod tests {
     fn buyback_cells_show_the_sold_stack() {
         let mut merchant = merchant(vec![vendor_item(25, "Fixture Vendor Sword", 1, Some(20))]);
         merchant.buyback.push(BuybackItem {
+            definition_source: shared::item_data::ItemDefinitionSource::Retail,
             slot: 0,
             item_id: 2589,
             name: "Fixture Returned Linen".into(),
@@ -235,6 +243,7 @@ mod tests {
             items: vec![EquippedItem {
                 slot: EquipmentSlot::MainHand,
                 item: ItemStack {
+                    definition_source: shared::item_data::ItemDefinitionSource::Retail,
                     item_guid: 9,
                     item_id: 25,
                     count: 1,

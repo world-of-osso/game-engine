@@ -219,11 +219,13 @@ mod tests {
             CharacterAppearance, CustomizationChoiceSelection, EquipmentVisualSlot,
             EquippedAppearanceEntry, FormAppearance,
         };
+        use shared::item_data::ItemDefinitionSource;
         use shared::protocol::{GroupPortraitAppearance, GroupRosterSnapshot};
         let mut group = roster(&["Ann"]);
         let head = EquippedAppearanceEntry {
             slot: EquipmentVisualSlot::Head,
             item_id: Some(32329),
+            definition_source: Some(ItemDefinitionSource::Retail),
             display_info_id: Some(117595),
             inventory_type: 1,
             hidden: true,

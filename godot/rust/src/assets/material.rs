@@ -1,9 +1,12 @@
 //! Authored M2 batch material: shader variants plus the original CPU texture-composition route.
 
+#[path = "texture_file.rs"]
+mod texture_file;
+use texture_file::read_texture_file;
+
 use std::{
     cell::RefCell,
     collections::HashMap,
-    fs,
     path::{Path, PathBuf},
 };
 
@@ -455,23 +458,13 @@ fn with_render_mode(source: &str, pipeline: Pipeline, fading: bool) -> Result<St
     Ok(source.replace(RENDER_MODE, &pipeline.render_mode(fading)))
 }
 
-fn texture_path(fdid: u32, dir: &Path) -> PathBuf {
-    dir.join(format!("{fdid}.blp"))
-}
-
 pub(crate) fn load_texture(
     fdid: u32,
     dir: &Path,
     missing: &mut PackedInt32Array,
 ) -> Result<Option<DecodedTexture>, String> {
-    let path = texture_path(fdid, dir);
-    let bytes = match fs::read(&path) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            missing.push(fdid as i32);
-            return Ok(None);
-        }
-        Err(error) => return Err(format!("Cannot read texture {fdid}: {error}")),
+    let Some(bytes) = read_texture_file(fdid, dir, |fdid| missing.push(fdid as i32))? else {
+        return Ok(None);
     };
     let rgba = blp::decode_rgba(&bytes).map_err(|error| format!("Texture {fdid}: {error}"))?;
     Ok(Some((rgba.pixels, rgba.width, rgba.height)))
@@ -520,13 +513,8 @@ pub(crate) fn shared_texture(
     }
     let _span = crate::profile::span(|| format!("material.shared_texture {fdid}"));
     let io = crate::profile::span(|| "phase.asset_io.blp_main".to_owned());
-    let bytes = match fs::read(texture_path(fdid, dir)) {
-        Ok(bytes) => bytes,
-        Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
-            missing.push(fdid as i32);
-            return Ok(None);
-        }
-        Err(error) => return Err(format!("Cannot read texture {fdid}: {error}")),
+    let Some(bytes) = read_texture_file(fdid, dir, |fdid| missing.push(fdid as i32))? else {
+        return Ok(None);
     };
     drop(io);
     let decode = crate::profile::span(|| "phase.blp_decode.main".to_owned());

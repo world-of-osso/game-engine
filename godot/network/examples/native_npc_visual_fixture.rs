@@ -38,6 +38,8 @@ mod authored_textures;
 mod fixture_data;
 #[path = "native_npc_visual_fixture/nameplate_casts.rs"]
 mod nameplate_casts;
+#[path = "native_npc_visual_fixture/skyborne_profiles.rs"]
+mod skyborne_profiles;
 
 const TICK: Duration = Duration::from_millis(5);
 const NAME: &str = "Fixture Player";
@@ -508,6 +510,7 @@ enum Mode {
     AuthoredTextures,
     Nameplates,
     NameplateCasts,
+    Skyborne,
 }
 
 fn launch_godot(
@@ -516,15 +519,20 @@ fn launch_godot(
     mode: Mode,
 ) -> (FixtureChild, Receiver<String>, Vec<thread::JoinHandle<()>>) {
     let binary = std::env::var("GODOT_BIN").expect("GODOT_BIN must name the fixture executable");
+    let mut command = Command::new(binary);
+    if mode != Mode::Skyborne {
+        command.arg("--headless");
+    }
     let mut child = FixtureChild::spawn(
-        Command::new(binary)
-            .args(["--headless", "--path"])
+        command
+            .arg("--path")
             .arg(project)
             .args([
                 "--script",
                 match mode {
                     Mode::Visual => "res://tests/world_npc_visual_flow.gd",
                     Mode::AuthoredTextures => "res://tests/world_npc_authored_textures.gd",
+                    Mode::Skyborne => "res://tests/world_skyborne_npc_profiles.gd",
                     Mode::Nameplates => "res://tests/world_nameplate_options_flow.gd",
                     Mode::NameplateCasts => "res://tests/world_nameplate_casts_flow.gd",
                 },
@@ -1097,6 +1105,7 @@ fn main() {
         Some("authored-textures") => Mode::AuthoredTextures,
         Some("nameplates") => Mode::Nameplates,
         Some("nameplate-casts") => Mode::NameplateCasts,
+        Some("skyborne") => Mode::Skyborne,
         Some(other) => panic!("Unknown fixture mode: {other}"),
     };
     let project = FixtureProject::create(matches!(mode, Mode::Nameplates | Mode::NameplateCasts))
@@ -1104,12 +1113,17 @@ fn main() {
     if mode == Mode::AuthoredTextures {
         authored_textures::stage(&project).expect("stage real NPC texture oracle");
     }
+    if mode == Mode::Skyborne {
+        skyborne_profiles::stage_authored_catalogs(&project)
+            .expect("stage real Forever profile and outfit catalogs");
+    }
     let (mut app, address) = start_server();
     println!("FIXTURE ENDPOINT {address}");
     let (mut child, lines, reader) = launch_godot(&project.project, address, mode);
     let result = match mode {
         Mode::Visual => run_fixture(&mut app, &mut child, lines, reader),
         Mode::AuthoredTextures => authored_textures::run(&mut app, &mut child, lines, reader),
+        Mode::Skyborne => skyborne_profiles::run(&mut app, &mut child, lines, reader),
         _ => run_nameplate_fixture(&mut app, &mut child, lines, reader),
     };
     if mode == Mode::AuthoredTextures {

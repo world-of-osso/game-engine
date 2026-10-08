@@ -5,7 +5,7 @@ use game_engine_ui_model::bag_frame_component::{parse_bag_close_action, parse_ba
 use game_engine_ui_model::character_frame::parse_equipment_slot_action;
 use game_engine_ui_model::cursor_item::{CursorEffect, CursorItem, CursorTarget};
 use game_engine_ui_model::cursor_item_component::{CursorItemFrameState, cursor_item_screen};
-use game_engine_ui_model::item_catalog::item_catalog_entry;
+use game_engine_ui_model::item_catalog::item_catalog_entry_for;
 use game_engine_ui_model::merchant::{Click, SplitKey};
 use game_engine_ui_model::merchant_frame_component::{ACTION_FRAME, ACTION_ITEM_PREFIX};
 use game_engine_ui_model::stack_split::{StackSplitOwner, StackSplitState};
@@ -242,8 +242,8 @@ impl GameClient {
         let Some(item) = self.merchant.session.inventory.item_at(location) else {
             return Ok(());
         };
-        let can_equip =
-            item_catalog_entry(item.item_id).is_some_and(|entry| entry.inventory_type != 0);
+        let can_equip = item_catalog_entry_for(item.definition_source, item.item_id)
+            .is_some_and(|entry| entry.inventory_type != 0);
         let request = if can_equip {
             InventoryRequest::Equip(EquipItem { from: location })
         } else {

@@ -156,6 +156,7 @@ fn starter_equipment() -> EquipmentAppearance {
         ]
         .into_iter()
         .map(|(slot, item_id, inventory_type)| EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
             slot,
             item_id: Some(item_id),
             display_info_id: None,
@@ -465,6 +466,7 @@ impl Peer {
                     changes: vec![InventorySlotChange {
                         location: ItemLocation::Bag { bag: 0, slot: 0 },
                         item: Some(ItemStack {
+                            definition_source: shared::item_data::ItemDefinitionSource::Retail,
                             item_guid: 9_182_589,
                             item_id: 2589,
                             count,

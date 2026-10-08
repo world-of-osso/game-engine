@@ -102,7 +102,7 @@ fn read_liquid_material(
     let settings = ProjectSettings::singleton();
     let data_root = std::path::PathBuf::from(settings.globalize_path("res://../data").to_string());
     let native =
-        assets::NativeTerrainAssets::new(data_root.clone()).read_liquid_material(liquid)?;
+        assets::NativeTerrainAssets::new(data_root.clone()).read_liquid_material(map_id, liquid)?;
     let sample = crate::lighting::assets::LightingCatalog::read(&data_root)?.sample(
         map_id,
         wow_position,

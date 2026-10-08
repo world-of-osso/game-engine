@@ -10,10 +10,17 @@ pub(super) fn load_cached_display_info(
     display_info_id: u32,
 ) -> Result<Option<DisplayInfoResolved>, String> {
     let conn = open_outfit_conn(data_dir)?;
-    let Some(mut display) = query_display_info_row(&conn, display_info_id)? else {
+    query_display_info(&conn, display_info_id)
+}
+
+pub(crate) fn query_display_info(
+    conn: &Connection,
+    display_info_id: u32,
+) -> Result<Option<DisplayInfoResolved>, String> {
+    let Some(mut display) = query_display_info_row(conn, display_info_id)? else {
         return Ok(None);
     };
-    display.item_materials = query_display_materials(&conn, display_info_id)?;
+    display.item_materials = query_display_materials(conn, display_info_id)?;
     Ok(Some(display))
 }
 
@@ -26,7 +33,7 @@ pub(super) fn load_cached_material_texture_fdids(
     query_material_texture_fdids(&conn, material_resource_id)
 }
 
-fn query_material_texture_fdids(
+pub(crate) fn query_material_texture_fdids(
     conn: &Connection,
     material_resource_id: u32,
 ) -> Result<Vec<u32>, String> {
@@ -48,6 +55,13 @@ pub(super) fn load_cached_model_fdids(
     model_resource_id: u32,
 ) -> Result<Vec<u32>, String> {
     let conn = open_outfit_conn(data_dir)?;
+    query_model_fdids(&conn, model_resource_id)
+}
+
+pub(crate) fn query_model_fdids(
+    conn: &Connection,
+    model_resource_id: u32,
+) -> Result<Vec<u32>, String> {
     let mut stmt = conn
         .prepare(
             "SELECT file_data_id

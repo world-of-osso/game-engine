@@ -1,12 +1,12 @@
 //! Authored MH2O surfaces with the retail liquid material of their LiquidType.
 use std::{
-    collections::{BTreeMap, HashMap},
+    collections::{BTreeMap, HashMap, HashSet},
     sync::Arc,
 };
 
 use game_engine_core::{
     adt, blp,
-    liquid_data::{LiquidShader, TEXTURE_SLOTS, WaterColorSource},
+    liquid_data::{LiquidShader, PBR_WATER_MATERIAL, TEXTURE_SLOTS, WaterColorSource},
 };
 use godot::{
     classes::{
@@ -28,6 +28,7 @@ pub(super) struct WaterMaterials {
     textures: HashMap<u32, Gd<ImageTexture>>,
     black: Option<Gd<ImageTexture>>,
     light: Option<TerrainLight>,
+    borrowed_water_types: HashSet<u32>,
 }
 
 /// One LiquidType's material and the frames of its texture slots.
@@ -201,7 +202,19 @@ impl WaterMaterials {
             bound: [None; TEXTURE_SLOTS],
         };
         surface.set_time(0.0);
+        self.warn_borrowed_water(&native.params);
         Ok(surface)
+    }
+
+    fn warn_borrowed_water(&mut self, params: &game_engine_core::liquid_data::LiquidMaterial) {
+        if params.material_id == PBR_WATER_MATERIAL
+            && self.borrowed_water_types.insert(params.liquid_type)
+        {
+            godot_warn!(
+                "Material130 PBR water rendered with legacy fallback, parity unsupported; LiquidType {} uses borrowed LiquidType 5 legacy inputs, not authored PBR data",
+                params.liquid_type
+            );
+        }
     }
 
     /// Frames of one texture slot; an empty slot is the reference's one black pixel.

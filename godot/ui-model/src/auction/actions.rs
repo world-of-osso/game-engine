@@ -314,7 +314,7 @@ fn post(
         net,
         ui,
         texts,
-        catalog: &|_| None,
+        catalog: &|_, _| None,
         visible: true,
     });
     let Some(request) = request else {

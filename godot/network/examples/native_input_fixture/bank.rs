@@ -55,6 +55,7 @@ fn receive(
 
 fn linen() -> ItemStack {
     ItemStack {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid: GUID,
         item_id: 2589,
         count: 3,

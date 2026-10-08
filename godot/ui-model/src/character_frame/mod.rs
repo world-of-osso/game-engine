@@ -493,15 +493,15 @@ const TWO_HANDED: [u8; 3] = [17, 15, 26];
 
 /// `GetAverageItemLevel` "equipped": item levels of [`ITEM_LEVEL_SLOTS`] over 16, a
 /// two-handed main hand also counting for the empty off hand. `item` gives
-/// `(item_level, inventory_type)` of an item id.
+/// `(item_level, inventory_type)` for the owned slot's source and item ID.
 pub fn average_equipped_item_level(
     inventory: &InventoryState,
-    item: impl Fn(u32) -> Option<(u16, u8)>,
+    item: impl Fn(&crate::bag_data::InventorySlot) -> Option<(u16, u8)>,
 ) -> f32 {
     let level = |slot| {
         inventory
             .item_at(ItemLocation::Equipment(slot))
-            .and_then(|slot| item(slot.item_id))
+            .and_then(&item)
     };
     let mut total: u32 = ITEM_LEVEL_SLOTS
         .iter()

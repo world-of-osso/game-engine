@@ -15,7 +15,7 @@ use game_engine_ui_model::guild_bank::{
     BUY_GUILD_BANK_TAB_POPUP, GuildBankEffect, GuildBankSession, NativeGuildBankView,
 };
 use game_engine_ui_model::guild_bank_frame_component::{self as guild_frame, INFO_BOX};
-use game_engine_ui_model::item_icons::item_icon_fdid;
+use game_engine_ui_model::item_icons::item_icon_fdid_for;
 use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec};
 use godot::prelude::*;
@@ -405,10 +405,10 @@ impl GameClient {
         let stacks = BagStacks::from_inventory(&self.merchant.session.inventory);
         let banks = &mut self.banks;
         banks.bank.inventory = stacks.clone();
-        banks.bank.icons = ItemIcons(item_icon_fdid);
+        banks.bank.icons = ItemIcons(item_icon_fdid_for);
         banks.bank.money = money;
         banks.guild.inventory = stacks;
-        banks.guild.icons = ItemIcons(item_icon_fdid);
+        banks.guild.icons = ItemIcons(item_icon_fdid_for);
         banks.guild.money = money;
     }
 

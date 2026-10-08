@@ -8,7 +8,7 @@ use std::{
     sync::{Arc, OnceLock},
 };
 
-use game_engine_core::{liquid_data::LiquidCatalog, wmo_liquid};
+use game_engine_core::{liquid_data::MapLiquidCatalog, wmo_liquid};
 use godot::{classes::Node3D, prelude::*};
 use osso_asset_resolver::CascListfileResolver;
 
@@ -21,9 +21,9 @@ use crate::{lighting::TerrainLight, wmo::assets::NativeWmoAsset};
 
 #[derive(Default)]
 pub(super) struct WmoLiquids {
-    catalog: OnceLock<Result<LiquidCatalog, String>>,
+    catalog: OnceLock<Result<MapLiquidCatalog, String>>,
     textures: RefCell<TerrainTextureCache>,
-    natives: HashMap<u16, Result<Arc<NativeLiquidMaterial>, String>>,
+    natives: HashMap<(u32, u16), Result<Arc<NativeLiquidMaterial>, String>>,
     materials: WaterMaterials,
 }
 
@@ -33,6 +33,7 @@ impl WmoLiquids {
     pub fn add(
         &mut self,
         asset: &NativeWmoAsset,
+        map_id: u32,
         node: &mut Gd<Node3D>,
         resolver: &CascListfileResolver,
         data_root: &Path,
@@ -47,7 +48,7 @@ impl WmoLiquids {
                 continue;
             };
             let surface = self
-                .native(liquid_type, resolver, data_root)
+                .native(map_id, liquid_type, resolver, data_root)
                 .and_then(|native| {
                     let interior = wmo_liquid::group_interior_lit(header.flags);
                     let geometry = wmo_liquid::liquid_geometry(liquid, liquid_type);
@@ -70,18 +71,20 @@ impl WmoLiquids {
 
     fn native(
         &mut self,
+        map_id: u32,
         liquid_type: u16,
         resolver: &CascListfileResolver,
         data_root: &Path,
     ) -> Result<Arc<NativeLiquidMaterial>, String> {
         let source = LiquidSource {
+            map_id,
             resolver,
             data_root,
             textures: &self.textures,
             catalog: &self.catalog,
         };
         self.natives
-            .entry(liquid_type)
+            .entry((map_id, liquid_type))
             .or_insert_with(|| source.read_material((liquid_type, 0)).map(Arc::new))
             .clone()
     }

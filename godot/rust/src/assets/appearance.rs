@@ -1,5 +1,12 @@
 //! Prepare authored NPC replacement textures and geosets before allocating visual nodes.
 
+#[path = "appearance_pixels.rs"]
+mod appearance_pixels;
+pub(super) use appearance_pixels::npc_pass_active;
+#[cfg(test)]
+use appearance_pixels::compose_separate_replacements;
+use appearance_pixels::{compose_replacement_pixels, inactive_npc_texture_types};
+
 use std::{
     collections::{HashMap, HashSet},
     path::Path,
@@ -12,7 +19,7 @@ use game_engine_core::{
     customization_data::CustomizationDb,
     npc_appearance_assets::{load_compositor, load_customization_db},
     npc_appearance_data::{AuthoredNpcAppearance, query_authored_npc_appearance},
-    npc_appearance_selection_data::{NpcSelections, select_npc_choices, select_npc_type6_texture},
+    npc_appearance_selection_data::{NpcSelections, select_npc_choices},
 };
 use godot::{
     classes::{Image, ImageTexture, image},
@@ -35,6 +42,8 @@ pub(crate) struct NpcAppearances {
 pub(crate) struct PreparedAppearance {
     pub(super) source: &'static str,
     pub(super) textures: HashMap<u32, Gd<ImageTexture>>,
+    /// Source-declared separate layers with no selected material; None for players.
+    pub(super) inactive_npc_texture_types: Option<HashSet<u32>>,
     pub(super) selected_geosets: Vec<(u16, u16)>,
     pub(super) authored_geosets: Vec<(u16, u16)>,
     pub(super) equipment_geosets: Vec<(u16, u16)>,
@@ -46,6 +55,7 @@ pub(crate) struct PreparedAppearance {
 pub(crate) struct AppearanceParts {
     pub(super) source: &'static str,
     pub(super) textures: HashMap<u32, MipChain>,
+    pub(super) inactive_npc_texture_types: Option<HashSet<u32>>,
     pub(super) selected_geosets: Vec<(u16, u16)>,
     pub(super) authored_geosets: Vec<(u16, u16)>,
     pub(super) equipment_geosets: Vec<(u16, u16)>,
@@ -62,6 +72,7 @@ impl AppearanceParts {
         Ok(PreparedAppearance {
             source: self.source,
             textures,
+            inactive_npc_texture_types: self.inactive_npc_texture_types,
             selected_geosets: self.selected_geosets,
             authored_geosets: self.authored_geosets,
             equipment_geosets: self.equipment_geosets,
@@ -86,12 +97,14 @@ impl NpcAppearances {
         &mut self,
         data_root: &Path,
         display_id: u32,
-        resolve_armor: impl FnOnce(u8, u8) -> Result<ResolvedEquipmentAppearance, String>,
+        resolve_armor: impl FnOnce(
+            &AuthoredNpcAppearance,
+        ) -> Result<ResolvedEquipmentAppearance, String>,
     ) -> Result<Option<PreparedNpc>, String> {
         let Some(appearance) = self.query_appearance(data_root, display_id)? else {
             return Ok(None);
         };
-        let armor = resolve_armor(appearance.race, appearance.sex)?;
+        let armor = resolve_armor(&appearance)?;
         let (mut selected, layout_id) = self.select_choices_and_layout(data_root, &appearance)?;
         let db = self
             .customization
@@ -120,6 +133,11 @@ impl NpcAppearances {
             appearance: AppearanceParts {
                 source: "NPC",
                 textures: mip_chains(textures),
+                inactive_npc_texture_types: Some(inactive_npc_texture_types(
+                    compositor,
+                    &selected.materials,
+                    layout_id,
+                )),
                 selected_geosets: selected.geosets,
                 authored_geosets: appearance.geosets,
                 equipment_geosets: armor.outfit.geoset_overrides.clone(),
@@ -212,59 +230,18 @@ fn compose_replacement_textures(
     let (composed, decoded) = load_and_compose_selected_pixels(
         compositor, selected, layout_id, resolver, data_root, display_id,
     )?;
-    let body = match appearance.baked_texture_fdid {
-        Some(fdid) => load_npc_texture(resolver, data_root, fdid)?,
-        None => composed.body,
-    };
-    let mut textures = HashMap::from([(1, body)]);
-    if let Some(type6) = select_npc_type6_texture(
-        compositor.declares_hair(&selected.materials, layout_id),
-        composed.hair,
-        composed.head,
-    )? {
-        textures.insert(6, type6);
-    }
-    textures.extend(compose_separate_replacements(
+    let baked_body = appearance
+        .baked_texture_fdid
+        .map(|fdid| load_npc_texture(resolver, data_root, fdid))
+        .transpose()?;
+    compose_replacement_pixels(
         compositor,
         &selected.materials,
         layout_id,
+        composed,
+        baked_body,
         &decoded,
-    )?);
-    Ok(textures)
-}
-
-fn compose_separate_replacements(
-    compositor: &CharTextureData,
-    materials: &[(u16, u32)],
-    layout_id: u32,
-    decoded: &HashMap<u32, TexturePixels>,
-) -> Result<HashMap<u32, TexturePixels>, String> {
-    let mut textures = HashMap::new();
-    // Body keeps its authored bake; type 6 keeps the established hair/head crop.
-    // Every other selected DB2 layer type uses its own ChrModelMaterial canvas.
-    for kind in compositor
-        .separate_texture_types(layout_id)
-        .into_iter()
-        .filter(|kind| *kind != 6)
-    {
-        if compositor
-            .replacement_texture_fdid(materials, layout_id, kind)
-            .is_none()
-        {
-            continue;
-        }
-        let pixels = compositor
-            .composite_texture_type(materials, layout_id, kind, |fdid| {
-                decoded.get(&fdid).cloned()
-            })
-            .ok_or_else(|| {
-                format!(
-                    "cannot composite NPC replacement texture type {kind} for layout {layout_id}"
-                )
-            })?;
-        textures.insert(kind, pixels);
-    }
-    Ok(textures)
+    )
 }
 
 fn load_and_compose_selected_pixels(

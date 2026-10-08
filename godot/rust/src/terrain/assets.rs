@@ -13,7 +13,7 @@ use game_engine_core::{
     footstep_data::FootstepSurface,
     ground_effect_data,
     liquid_data::{
-        FIRST_LIQUID_OBJECT, LiquidCatalog, LiquidMaterial, MAGMA_NOISE_FDID, MAGMA_NOISE_SIZE,
+        FIRST_LIQUID_OBJECT, LiquidMaterial, MAGMA_NOISE_FDID, MAGMA_NOISE_SIZE, MapLiquidCatalog,
         TEXTURE_SLOTS,
     },
     terrain_surface_data, wdt,
@@ -73,14 +73,20 @@ pub(crate) struct NativeTerrainAssets {
     textures: RefCell<TerrainTextureCache>,
     lighting: RefCell<Option<Arc<LightingCatalog>>>,
     surface_catalog: OnceLock<Result<SurfaceCatalog, String>>,
-    liquids: OnceLock<Result<LiquidCatalog, String>>,
+    liquids: OnceLock<Result<MapLiquidCatalog, String>>,
+    maps: OnceLock<Result<game_engine_core::map_catalog::MapCatalog, String>>,
     /// Parsed group floors and root-wide material surface, keyed by root FDID.
     wmo_groups: RefCell<HashMap<u32, (Vec<Arc<WmoGroupCollision>>, Option<FootstepSurface>)>>,
 }
 
+type CachedFile = (PathBuf, Vec<u8>);
+type TileFiles = (CachedFile, Option<CachedFile>, Option<CachedFile>);
+
 pub(crate) struct NativeMapWdt {
+    pub map_id: u32,
     pub path: PathBuf,
     pub flags: wdt::MphdFlags,
+    pub tiles: wdt::WdtTiles,
     pub global_wmo: Option<PlacedWmo>,
     pub lighting: Arc<LightingCatalog>,
 }
@@ -127,13 +133,16 @@ impl NativeTerrainAssets {
             lighting: RefCell::new(None),
             surface_catalog: OnceLock::new(),
             liquids: OnceLock::new(),
+            maps: OnceLock::new(),
             wmo_groups: RefCell::new(HashMap::new()),
         }
     }
 
     pub fn read_map_wdt(&self, map: &str) -> Result<NativeMapWdt, String> {
-        let wow_path = format!("world/maps/{map}/{map}.wdt");
-        let (path, bytes) = self.read_declared_file(&wow_path, "wdt")?;
+        let identity = self.map_identity(map)?;
+        let (path, bytes) = self.read_fdid_file(identity.wdt_fdid, "wdt")?;
+        let tiles =
+            wdt::parse_wdt_tiles(&bytes).map_err(|error| format!("{}: {error}", path.display()))?;
         let flags = wdt::parse_wdt_mphd_flags(&bytes)
             .map_err(|error| format!("{}: {error}", path.display()))?;
         let global_wmo = wdt::parse_wdt_global_wmo(&bytes)
@@ -149,8 +158,10 @@ impl NativeTerrainAssets {
             })
             .transpose()?;
         Ok(NativeMapWdt {
+            map_id: identity.id,
             path,
             flags,
+            tiles,
             global_wmo,
             lighting: self.read_lighting_catalog()?,
         })
@@ -172,16 +183,14 @@ impl NativeTerrainAssets {
         tile_x: u32,
     ) -> Result<NativeTerrainTile, String> {
         let wdt = self.read_map_wdt(map)?;
-        let stem = format!("world/maps/{map}/{map}_{tile_y}_{tile_x}");
-        let (root_path, root_bytes) = self.read_declared_file(&format!("{stem}.adt"), "adt")?;
-        let tex_file = self.read_optional_companion(&format!("{stem}_tex0.adt"))?;
-        let obj_file = self.read_optional_companion(&format!("{stem}_obj0.adt"))?;
+        let ((root_path, root_bytes), tex_file, obj_file) =
+            self.read_tile_files(map, tile_y, tile_x, &wdt.tiles)?;
         let mut root = parse_tile_root(&root_path, &root_bytes, (tile_y, tile_x), &tex_file)?;
         let tex = parse_tile_textures(&tex_file, wdt.flags, &root)?;
         let obj = parse_tile_objects(&obj_file)?;
         let chunk_surfaces = self.classify_tile_surfaces(&root, tex.as_ref());
         let textures = self.load_tile_textures(tex.as_ref())?;
-        let liquid_materials = self.read_liquid_materials(&mut root)?;
+        let liquid_materials = self.read_liquid_materials(wdt.map_id, &mut root)?;
         let (wmo_floors, wmo_surfaces) = obj
             .as_ref()
             .map(|obj| self.read_wmo_floors(&obj.wmos, (tile_y, tile_x)))
@@ -218,6 +227,7 @@ impl NativeTerrainAssets {
     /// Resolves each layer's material, then reads LiquidObject vertices in its LVF.
     fn read_liquid_materials(
         &self,
+        map_id: u32,
         root: &mut adt::Root,
     ) -> Result<BTreeMap<(u16, u16), Result<Arc<NativeLiquidMaterial>, String>>, String> {
         let mut materials = BTreeMap::new();
@@ -229,7 +239,7 @@ impl NativeTerrainAssets {
         for layer in layers {
             let key = (layer.liquid_type, layer.liquid_object);
             if !materials.contains_key(&key) {
-                let source = self.liquid_source();
+                let source = self.liquid_source(map_id);
                 let material = match source.resolve(key) {
                     Ok(params) => Ok(Arc::new(source.read_textures(params)?)),
                     Err(error) => Err(error),
@@ -255,12 +265,17 @@ impl NativeTerrainAssets {
 
     /// The liquid material of one MH2O `(liquid_type, liquid_object)`; texture read failures
     /// are errors of the whole tile, material resolution failures only of its layers.
-    pub fn read_liquid_material(&self, key: (u16, u16)) -> Result<NativeLiquidMaterial, String> {
-        self.liquid_source().read_material(key)
+    pub fn read_liquid_material(
+        &self,
+        map_id: u32,
+        key: (u16, u16),
+    ) -> Result<NativeLiquidMaterial, String> {
+        self.liquid_source(map_id).read_material(key)
     }
 
-    fn liquid_source(&self) -> LiquidSource<'_> {
+    fn liquid_source(&self, map_id: u32) -> LiquidSource<'_> {
         LiquidSource {
+            map_id,
             resolver: &self.resolver,
             data_root: &self.data_root,
             textures: &self.textures,
@@ -396,7 +411,58 @@ impl NativeTerrainAssets {
         Ok(result)
     }
 
-    /// The map's `.wdl` low-detail heights, `None` when the listfile has none.
+    fn map_identity(
+        &self,
+        directory: &str,
+    ) -> Result<&game_engine_core::map_catalog::MapIdentity, String> {
+        let maps = self
+            .maps
+            .get_or_init(|| game_engine_core::map_catalog::MapCatalog::read(&self.data_root))
+            .as_ref()
+            .map_err(Clone::clone)?;
+        maps.by_directory(directory)
+            .ok_or_else(|| format!("Map.csv: no Directory {directory}"))
+    }
+
+    fn read_tile_files(
+        &self,
+        map: &str,
+        first: u32,
+        second: u32,
+        tiles: &wdt::WdtTiles,
+    ) -> Result<TileFiles, String> {
+        if !tiles.active.contains(&(first, second)) {
+            return Err(format!(
+                "Map {map} tile ({first}, {second}) is inactive in WDT MAIN"
+            ));
+        }
+        if tiles.maid.is_some() {
+            let ids = tiles
+                .file_ids(first, second)
+                .ok_or_else(|| format!("Map {map} active tile ({first}, {second}) missing MAID"))?;
+            return Ok((
+                self.read_fdid_file(ids.root, "adt")?,
+                self.read_optional_fdid(ids.tex0)?,
+                self.read_optional_fdid(ids.obj0)?,
+            ));
+        }
+        let stem = format!("world/maps/{map}/{map}_{first}_{second}");
+        Ok((
+            self.read_declared_file(&format!("{stem}.adt"), "adt")?,
+            self.read_optional_companion(&format!("{stem}_tex0.adt"))?,
+            self.read_optional_companion(&format!("{stem}_obj0.adt"))?,
+        ))
+    }
+
+    fn read_optional_fdid(&self, fdid: u32) -> Result<Option<CachedFile>, String> {
+        if fdid == 0 {
+            return Ok(None);
+        }
+        self.read_fdid_file(fdid, "adt").map(Some)
+    }
+
+    /// The map-level WDL FDID from the local listfile; no declared FDID means no horizon.
+    /// MAID's per-tile LOD/maptexture IDs are not a map-level WDL.
     pub fn read_map_wdl(&self, map: &str) -> Result<Option<Vec<u8>>, String> {
         let path = format!("world/maps/{map}/{map}.wdl");
         if self.resolver.lookup_path(&path).is_none() {
@@ -425,13 +491,20 @@ impl NativeTerrainAssets {
             .resolver
             .lookup_path(wow_path)
             .ok_or_else(|| format!("{wow_path} not in listfile"))?;
+        self.read_fdid_file(fdid, extension)
+    }
+
+    fn read_fdid_file(&self, fdid: u32, extension: &str) -> Result<CachedFile, String> {
+        if fdid == 0 {
+            return Err(format!("Required terrain {extension} has zero FileDataID"));
+        }
         let cache_path = self.terrain_dir.join(format!("{fdid}.{extension}"));
         let path = self
             .resolver
             .ensure_cached(fdid, &cache_path)
             .ok_or_else(|| {
                 format!(
-                    "Failed to cache local CASC {wow_path} (FDID {fdid}) at {}",
+                    "Failed to cache local CASC terrain FDID {fdid} at {}",
                     cache_path.display()
                 )
             })?;
@@ -473,10 +546,11 @@ fn read_bytes(path: &Path) -> Result<Vec<u8>, String> {
 /// Liquid materials read through one resolver: the terrain reader's for MH2O layers,
 /// the object spawner's for WMO group liquids.
 pub(crate) struct LiquidSource<'a> {
+    pub map_id: u32,
     pub resolver: &'a CascListfileResolver,
     pub data_root: &'a Path,
     pub textures: &'a RefCell<TerrainTextureCache>,
-    pub catalog: &'a OnceLock<Result<LiquidCatalog, String>>,
+    pub catalog: &'a OnceLock<Result<MapLiquidCatalog, String>>,
 }
 
 impl LiquidSource<'_> {
@@ -485,6 +559,7 @@ impl LiquidSource<'_> {
     }
 
     fn read_textures(&self, params: LiquidMaterial) -> Result<NativeLiquidMaterial, String> {
+        self.require_forever_texture_cache(&params)?;
         let mut slots: [Vec<LiquidFrame>; TEXTURE_SLOTS] = Default::default();
         for &slot in params.shader.texture_slots() {
             slots[slot] = self.read_frames(&params.texture_slots[slot])?;
@@ -502,13 +577,50 @@ impl LiquidSource<'_> {
         })
     }
 
+    fn require_forever_texture_cache(&self, params: &LiquidMaterial) -> Result<(), String> {
+        let catalog = self
+            .catalog
+            .get()
+            .ok_or("Liquid catalog not initialized")?
+            .as_ref()
+            .map_err(Clone::clone)?;
+        if !catalog.uses_forever(self.map_id) {
+            return Ok(());
+        }
+        let sampled = params
+            .shader
+            .texture_slots()
+            .iter()
+            .flat_map(|&slot| &params.texture_slots[slot]);
+        let globals = params.shader.global_textures().iter().map(|(_, fdid)| fdid);
+        for &fdid in sampled.chain(globals).filter(|&&fdid| fdid != 0) {
+            let extension = if fdid == MAGMA_NOISE_FDID {
+                "blob"
+            } else {
+                "blp"
+            };
+            let path = self
+                .data_root
+                .join("textures")
+                .join(format!("{fdid}.{extension}"));
+            if !path.is_file() {
+                return Err(format!(
+                    "Forever map {} liquid texture FDID {fdid} missing at {}",
+                    self.map_id,
+                    path.display()
+                ));
+            }
+        }
+        Ok(())
+    }
+
     fn resolve(&self, (liquid_type, liquid_object): (u16, u16)) -> Result<LiquidMaterial, String> {
         let catalog = self
             .catalog
-            .get_or_init(|| LiquidCatalog::read(&self.data_root.join("db2/12.1.0.69933")))
+            .get_or_init(|| MapLiquidCatalog::read(self.data_root))
             .as_ref()
             .map_err(Clone::clone)?;
-        catalog.liquid_material(liquid_type, liquid_object)
+        catalog.render_material(self.map_id, liquid_type, liquid_object)
     }
 
     fn read_frames(&self, fdids: &[u32]) -> Result<Vec<LiquidFrame>, String> {
@@ -605,6 +717,96 @@ pub(crate) fn wmo_surface_bounds(placement: &adt::WmoPlacement, global: bool) ->
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn zephras_missing_forever_liquid_texture_is_explicit_without_retail_extraction() {
+        let data = test_data_root();
+        let scratch =
+            std::env::temp_dir().join(format!("native-forever-liquid-{}", std::process::id()));
+        for build in ["12.1.0.69933", "1.60.1.70205"] {
+            let destination = scratch.join("db2").join(build);
+            fs::create_dir_all(&destination).unwrap();
+            for table in [
+                "Map",
+                "LiquidType",
+                "LiquidObject",
+                "LiquidMaterial",
+                "LiquidTypeXTexture",
+            ] {
+                let name = format!("{table}.csv");
+                fs::copy(
+                    data.join("db2").join(build).join(&name),
+                    destination.join(name),
+                )
+                .unwrap();
+            }
+        }
+        let assets = NativeTerrainAssets::new(scratch.clone());
+        let error = assets
+            .read_liquid_material(2991, (1251, 18420))
+            .err()
+            .unwrap();
+        assert!(
+            error.contains("Forever map 2991 liquid texture FDID"),
+            "{error}"
+        );
+        assert!(error.contains("missing at"), "{error}");
+        assert!(!scratch.join("textures").exists());
+        fs::remove_dir_all(scratch).unwrap();
+    }
+
+    #[test]
+    fn zephras_reads_unnamed_wdt_and_maid_tile_from_fdid_cache() {
+        let assets = cached_assets();
+        let map = assets.read_map_wdt("2991").unwrap();
+        assert_eq!(map.path.file_name().unwrap(), "7198644.wdt");
+        let tile = assets.read_tile("2991", 29, 26).unwrap();
+        assert_eq!(tile.root_path.file_name().unwrap(), "7199999.adt");
+        assert_eq!(tile.tex_path.unwrap().file_name().unwrap(), "7200002.adt");
+        assert_eq!(tile.obj_path.unwrap().file_name().unwrap(), "7200000.adt");
+        assert_eq!(tile.root.chunks.len(), 256);
+        assert_eq!(tile.obj.unwrap().doodads.len(), 218);
+        assert!(assets.read_map_wdl("2991").unwrap().is_none());
+        assert!(
+            assets
+                .read_tile("2991", 0, 0)
+                .err()
+                .unwrap()
+                .contains("inactive")
+        );
+    }
+
+    #[test]
+    fn zephras_maid_reader_preserves_named_companions_without_maid() {
+        let assets = cached_assets();
+        let tiles = wdt::WdtTiles {
+            active: std::collections::BTreeSet::from([(32, 48)]),
+            maid: None,
+        };
+        let ((root_path, bytes), tex, obj) =
+            assets.read_tile_files("azeroth", 32, 48, &tiles).unwrap();
+        assert_eq!(root_path.file_name().unwrap(), "778027.adt");
+        assert_eq!(adt::parse_root(&bytes).unwrap().chunks.len(), 256);
+        assert_eq!(tex.unwrap().0.file_name().unwrap(), "778030.adt");
+        assert_eq!(obj.unwrap().0.file_name().unwrap(), "778028.adt");
+    }
+
+    #[test]
+    fn zephras_declared_maid_does_not_switch_to_named_files_on_missing_root() {
+        let assets = cached_assets();
+        let tiles = wdt::WdtTiles {
+            active: std::collections::BTreeSet::from([(32, 48)]),
+            maid: Some(std::collections::BTreeMap::from([(
+                (32, 48),
+                wdt::TileFileIds::default(),
+            )])),
+        };
+        let error = assets
+            .read_tile_files("azeroth", 32, 48, &tiles)
+            .err()
+            .unwrap();
+        assert!(error.contains("zero FileDataID"), "{error}");
+    }
 
     #[test]
     fn reads_cached_map_flags_and_global_wmo_placement() {

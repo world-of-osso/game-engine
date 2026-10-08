@@ -5,7 +5,7 @@
 //! (`getLiquidMaterial`, `createLiquidMaterial`, `assignLiquidTextures`) and the per-material
 //! `create*LiquidData` packing (`LiquidWater.cpp` wave periods).
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
 use crate::csv_util::parse_csv_records;
@@ -25,6 +25,8 @@ const OCEAN_LVF: u8 = 2;
 
 /// Texture slots per LiquidType (`FrameCountTexture[6]`).
 pub const TEXTURE_SLOTS: usize = 6;
+pub const PBR_WATER_MATERIAL: u8 = 130;
+const LEGACY_WATER_TYPE: u16 = 5;
 
 /// The pixel shader of a LiquidMaterial (LiquidMaterialManager.cpp `createLiquidMaterial`;
 /// IDs without a case, such as 8, use water).
@@ -115,8 +117,8 @@ pub struct LiquidMaterial {
     pub shader: LiquidShader,
     /// Vertex format of the material (`LiquidMaterial.LVF`).
     pub lvf: u8,
-    /// `LiquidType.Float[0..18]`, the shader's f0..f17.
-    pub floats: [f32; 18],
+    /// Named source fields: 18 for legacy materials, all 38 for PBR water.
+    pub floats: Vec<f32>,
     /// Cubic depth-to-colour polynomial `LiquidType.Coefficient[0..4]`.
     pub depth_coefficients: [f32; 4],
     /// `LiquidType.Color[0..3]` as CSqliteDB.cpp `getFloatFromInt<0..2>`: bytes 0, 1, 2 / 255.
@@ -135,7 +137,7 @@ pub struct LiquidMaterial {
 struct LiquidTypeRow {
     material_id: u8,
     frame_counts: [u8; TEXTURE_SLOTS],
-    floats: [f32; 18],
+    floats: Vec<f32>,
     coefficients: [f32; 4],
     colors: [i64; 3],
     ints: [i32; 4],
@@ -160,14 +162,125 @@ pub struct LiquidCatalog {
     textures: HashMap<u32, Vec<TextureRow>>,
 }
 
+/// Separate product catalogs: only maps absent by ID and directory in Retail use Forever.
+/// A broken Forever export is retained as an error without disabling Retail materials.
+pub struct MapLiquidCatalog {
+    retail: LiquidCatalog,
+    forever_maps: HashSet<u32>,
+    forever: Result<LiquidCatalog, String>,
+}
+
+impl MapLiquidCatalog {
+    pub fn read(data: &Path) -> Result<Self, String> {
+        let retail_dir = data.join("db2/12.1.0.69933");
+        let forever_dir = data.join("db2/1.60.1.70205");
+        let retail_text = std::fs::read_to_string(retail_dir.join("Map.csv"))
+            .map_err(|error| format!("Retail Map.csv: {error}"))?;
+        let retail_maps = crate::map_catalog::MapCatalog::parse(&retail_text, &retail_text)?;
+        let merged_maps = crate::map_catalog::MapCatalog::read(data)?;
+        let forever_maps = read_table(&forever_dir, "Map", |_| Ok(()))?
+            .into_keys()
+            .filter(|id| retail_maps.by_id(*id).is_none() && merged_maps.by_id(*id).is_some())
+            .collect();
+        Ok(Self {
+            retail: LiquidCatalog::read(&retail_dir)?,
+            forever_maps,
+            forever: LiquidCatalog::read(&forever_dir),
+        })
+    }
+
+    /// Material130 has no implemented PBR renderer. This explicitly borrows LiquidType5
+    /// legacy inputs, not a client-authored fallback. Retire when the PBR contract is ported.
+    /// Source metadata remains intact in `liquid_material`.
+    pub fn render_material(
+        &self,
+        map_id: u32,
+        liquid_type: u16,
+        liquid_object: u16,
+    ) -> Result<LiquidMaterial, String> {
+        let source = self.liquid_material(map_id, liquid_type, liquid_object)?;
+        if source.material_id != PBR_WATER_MATERIAL {
+            return Ok(source);
+        }
+        let catalog = if self.uses_forever(map_id) {
+            self.forever.as_ref().map_err(Clone::clone)?
+        } else {
+            &self.retail
+        };
+        let mut borrowed = catalog.liquid_material(LEGACY_WATER_TYPE, 0)
+            .map_err(|error| format!("LiquidType {liquid_type} Material130 requires borrowed LiquidType5 inputs: {error}"))?;
+        if borrowed.material_id != 1 {
+            return Err("Borrowed LiquidType5 must identify legacy Water material1".into());
+        }
+        for &slot in LiquidShader::Water.texture_slots() {
+            let frames = &borrowed.texture_slots[slot];
+            if frames.is_empty() || frames.contains(&0) {
+                return Err(format!(
+                    "LiquidType {liquid_type} Material130 borrowed LiquidType5 has no valid texture for required legacy slot {slot}"
+                ));
+            }
+        }
+        borrowed.liquid_type = source.liquid_type;
+        borrowed.material_id = source.material_id;
+        borrowed.lvf = source.lvf;
+        borrowed.flow_direction = source.flow_direction;
+        borrowed.flow_speed = source.flow_speed;
+        Ok(borrowed)
+    }
+
+    pub fn uses_forever(&self, map_id: u32) -> bool {
+        self.forever_maps.contains(&map_id)
+    }
+
+    pub fn liquid_material(
+        &self,
+        map_id: u32,
+        liquid_type: u16,
+        liquid_object: u16,
+    ) -> Result<LiquidMaterial, String> {
+        if !self.uses_forever(map_id) {
+            return self.retail.liquid_material(liquid_type, liquid_object);
+        }
+        let catalog = self
+            .forever
+            .as_ref()
+            .map_err(|error| format!("Forever map {map_id}: {error}"))?;
+        if liquid_object >= FIRST_LIQUID_OBJECT
+            && !catalog.objects.contains_key(&u32::from(liquid_object))
+        {
+            return Err(format!(
+                "Forever LiquidObject {liquid_object} has no DB2 row"
+            ));
+        }
+        let material = catalog
+            .liquid_material(liquid_type, liquid_object)
+            .map_err(|error| format!("Forever map {map_id}: {error}"))?;
+        for &slot in material.shader.texture_slots() {
+            if material.texture_slots[slot].is_empty() {
+                return Err(format!(
+                    "Forever LiquidType {} has no textures for slot {slot}",
+                    material.liquid_type
+                ));
+            }
+        }
+        Ok(material)
+    }
+}
+
 impl LiquidCatalog {
     /// Reads `LiquidType`, `LiquidObject`, `LiquidMaterial` and `LiquidTypeXTexture` CSVs.
     pub fn read(db2_dir: &Path) -> Result<Self, String> {
         let types = read_table(db2_dir, "LiquidType", |row| {
+            let material_id = row.number("MaterialID")?;
+            let float_count = if material_id == PBR_WATER_MATERIAL {
+                38
+            } else {
+                18
+            };
             Ok(LiquidTypeRow {
-                material_id: row.number("MaterialID")?,
+                material_id,
                 frame_counts: row.array("FrameCountTexture")?,
-                floats: row.array("Float")?,
+                floats: row.numbers("Float", float_count)?,
                 coefficients: row.array("Coefficient")?,
                 colors: row.array("Color")?,
                 ints: row.array("Int")?,
@@ -225,7 +338,7 @@ impl LiquidCatalog {
             material_id: row.material_id,
             shader: LiquidShader::for_material(row.material_id),
             lvf,
-            floats: row.floats,
+            floats: row.floats.clone(),
             depth_coefficients: row.coefficients,
             flow_direction,
             flow_speed,
@@ -235,7 +348,12 @@ impl LiquidCatalog {
             ints: row.ints,
             color_source,
             texture_slots,
-            wave_periods: wave_periods(&row.floats),
+            // These are legacy Water periods, not PBR/FFT parameters.
+            wave_periods: if row.material_id == PBR_WATER_MATERIAL {
+                [0.0; 2]
+            } else {
+                wave_periods(&row.floats)
+            },
         })
     }
 
@@ -299,7 +417,7 @@ fn read_textures(db2_dir: &Path) -> Result<HashMap<u32, Vec<TextureRow>>, String
 }
 
 /// LiquidWater.cpp `createWaterLiquidData`: wave periods only when `Float[16]` animates waves.
-fn wave_periods(floats: &[f32; 18]) -> [f32; 2] {
+fn wave_periods(floats: &[f32]) -> [f32; 2] {
     if floats[16] * 0.001_875 == 0.0 {
         return [0.0; 2];
     }
@@ -352,6 +470,12 @@ impl CsvRow<'_> {
         value
             .parse()
             .map_err(|_| format!("{}.csv {column} {value:?} is not a number", self.table))
+    }
+
+    fn numbers<T: std::str::FromStr>(&self, column: &str, count: usize) -> Result<Vec<T>, String> {
+        (0..count)
+            .map(|index| self.number(&format!("{column}_{index}")))
+            .collect()
     }
 
     fn array<T: std::str::FromStr + Copy + Default, const N: usize>(

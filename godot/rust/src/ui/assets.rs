@@ -238,6 +238,12 @@ thread_local! {
     static FILE_TEXTURES: RefCell<Option<FileTextures>> = const { RefCell::new(None) };
 }
 
+/// Release UI images/fonts and close texture workers before Godot's render shutdown.
+pub(crate) fn clear_shared_resources() {
+    FILE_TEXTURES.with_borrow_mut(|textures| *textures = None);
+    FONTS.with_borrow_mut(HashMap::clear);
+}
+
 fn with_file_textures<T>(visit: impl FnOnce(&mut FileTextures) -> T) -> T {
     FILE_TEXTURES.with_borrow_mut(|textures| visit(textures.get_or_insert_with(FileTextures::new)))
 }

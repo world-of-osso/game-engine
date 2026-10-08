@@ -9,6 +9,7 @@ use shared::protocol::{
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ItemInfoQuery {
     pub item_id: u32,
+    pub definition_source: shared::item_data::ItemDefinitionSource,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]

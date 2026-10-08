@@ -473,6 +473,7 @@ fn check_social_and_combat(run: &mut Run) -> Result<(), String> {
 /// presence, as the server sends them.
 fn seed_items_and_quests(app: &mut App) {
     let stack = |item_guid, item_id| ItemStack {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid,
         item_id,
         count: 3,

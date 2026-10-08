@@ -362,6 +362,8 @@ pub(crate) enum ItemCmd {
     Info {
         #[arg(long)]
         item_id: u32,
+        #[arg(long, default_value = "retail", value_parser = ["retail", "forever70205"])]
+        source: String,
     },
 }
 

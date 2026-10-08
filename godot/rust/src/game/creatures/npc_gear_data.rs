@@ -142,6 +142,9 @@ pub struct NpcGearData {
     extra_by_display: HashMap<u32, u32>,
     /// `NPCModelItemSlotDisplayInfo.NpcModelID` → (`ItemSlot`, `ItemDisplayInfoID`).
     items_by_extra: HashMap<u32, Vec<(u8, u32)>>,
+    /// Product-scoped Extra and armor joins for display IDs absent from Retail.
+    forever_extra_by_display: HashMap<u32, u32>,
+    forever_items_by_extra: HashMap<u32, Vec<(u8, u32)>>,
     /// `Item.ID` → `SheatheType`.
     sheathe_types: HashMap<u32, u8>,
     /// `Item.ID` → `SubclassID` of weapons (`ClassID` 2).
@@ -169,9 +172,7 @@ impl NpcGearData {
             &db2_dir.join("CreatureDisplayInfo.csv"),
             ["ID", "ExtendedDisplayInfoID"],
             |[id, extra]| {
-                if extra != 0 {
-                    data.extra_by_display.insert(id as u32, extra as u32);
-                }
+                data.extra_by_display.insert(id as u32, extra as u32);
             },
         )?;
         read_rows(
@@ -194,7 +195,34 @@ impl NpcGearData {
                 }
             },
         )?;
+        let forever = db2_dir.parent().map(|dir| dir.join("1.60.1.70205"));
+        if let Some(dir) = forever.filter(|dir| dir.join("CreatureDisplayInfo.csv").is_file()) {
+            data.import_forever_armor(&dir)?;
+        }
         Ok(data)
+    }
+
+    fn import_forever_armor(&mut self, dir: &Path) -> Result<(), String> {
+        read_rows(
+            &dir.join("CreatureDisplayInfo.csv"),
+            ["ID", "ExtendedDisplayInfoID"],
+            |[id, extra]| {
+                if extra != 0 && !self.extra_by_display.contains_key(&(id as u32)) {
+                    self.forever_extra_by_display
+                        .insert(id as u32, extra as u32);
+                }
+            },
+        )?;
+        read_rows(
+            &dir.join("NPCModelItemSlotDisplayInfo.csv"),
+            ["NpcModelID", "ItemSlot", "ItemDisplayInfoID"],
+            |[extra, slot, display]| {
+                self.forever_items_by_extra
+                    .entry(extra as u32)
+                    .or_default()
+                    .push((slot as u8, display as u32));
+            },
+        )
     }
 
     /// `Emotes.AnimID` of `emote`.
@@ -220,13 +248,26 @@ impl NpcGearData {
 
     /// The display's armor as ItemDisplayInfo entries; empty without an Extra.
     pub fn display_armor(&self, display_id: u32) -> Result<EquipmentAppearance, String> {
-        let Some(extra) = self.extra_by_display.get(&display_id) else {
-            return Ok(EquipmentAppearance::default());
+        let (extra, rows) = if let Some(extra) = self.forever_extra_by_display.get(&display_id) {
+            let rows = self.forever_items_by_extra.get(extra).ok_or_else(|| {
+                format!("Forever display {display_id} Extra {extra}: missing NPCModelItemSlotDisplayInfo")
+            })?;
+            (extra, rows.as_slice())
+        } else {
+            let Some(extra) = self
+                .extra_by_display
+                .get(&display_id)
+                .filter(|extra| **extra != 0)
+            else {
+                return Ok(EquipmentAppearance::default());
+            };
+            (
+                extra,
+                self.items_by_extra
+                    .get(extra)
+                    .map_or(&[][..], Vec::as_slice),
+            )
         };
-        let rows = self
-            .items_by_extra
-            .get(extra)
-            .map_or(&[][..], Vec::as_slice);
         let entries = rows
             .iter()
             .filter(|(item_slot, _)| *item_slot != ITEM_SLOT_UNDRESSED)
@@ -235,6 +276,7 @@ impl NpcGearData {
                     format!("display {display_id} Extra {extra}: unknown ItemSlot {item_slot}")
                 })?;
                 Ok(EquippedAppearanceEntry {
+                    definition_source: None,
                     slot,
                     item_id: None,
                     display_info_id: Some(display_info_id),
