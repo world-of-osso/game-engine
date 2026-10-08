@@ -39,7 +39,7 @@ use godot::builtin::{Basis, EulerOrder, Transform3D, Vector3};
 use godot::classes::Node3D;
 use godot::prelude::*;
 use shared::casting::{CastState, CastType};
-use shared::components::{ModelDisplay, Player, UnitLevel};
+use shared::components::{ActiveSpec, ModelDisplay, Player, UnitLevel};
 use shared::protocol::SpellGo;
 
 use crate::animation::{ActionPriority, WowAnimationPlayer};
