@@ -97,6 +97,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Group frames also offer Target and Inspect when the member's unit is replicated.
 
 ### Leadership and conversion
+- The leader can move a raid member to subgroup 1–8 with `game-engine-cli group subgroup --name <member> --subgroup <1..8>` (`SetRaidSubgroup`). Frames follow the authoritative roster; permissions and full-group rejection remain server-owned.
 - [x] Promote sends `PromoteGroupLeader`. The roster moves the leader, and "%s is now the group leader." is shown.
 - [x] Convert to raid sends `ConvertGroupToRaid` ("Party converted to Raid"). Convert to party sends `ConvertGroupToParty`: all members go to subgroup 1, "Raid converted to Party".
   - A raid of 6 or more is rejected with `ERR_GROUP_FULL`.

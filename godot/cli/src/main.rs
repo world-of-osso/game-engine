@@ -399,6 +399,13 @@ pub(crate) enum QuestCmd {
 pub(crate) enum GroupCmd {
     Roster,
     Status,
+    /// Move a raid member to one of Retail's eight subgroups (leader only).
+    Subgroup {
+        #[arg(long)]
+        name: String,
+        #[arg(long, value_parser = clap::value_parser!(u8).range(1..=8))]
+        subgroup: u8,
+    },
     Invite {
         #[arg(long)]
         name: String,
