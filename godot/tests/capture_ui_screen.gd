@@ -129,9 +129,46 @@ static func capture_hud_edit_both_into(tree: SceneTree, directory: String) -> bo
 			ui.queue_free()
 			return false
 		print("PASS: settled ", entry[0], " captured, highlight opacity=", background.modulate.a)
+		if OS.get_environment("GODOT_HUDEDIT_MOVER_INVENTORY") == "1":
+			if not await capture_hud_edit_movers(tree, ui, directory, entry[1].trim_suffix("-edit.png")):
+				ui.queue_free()
+				return false
 		ui.call("finish_hudedit_preview")
 		ui.queue_free()
 		await tree.process_frame
+	return true
+
+# Offline selected-label pixel inventory, using the same registered roots as the client.
+static func capture_hud_edit_movers(tree: SceneTree, ui: Node, directory: String, skin: String) -> bool:
+	var keys: PackedStringArray = ui.call("hudedit_preview_keys")
+	if keys.size() != 21:
+		push_error("HUD mover inventory must include all 21 registered systems")
+		return false
+	for key in keys:
+		var error: String = ui.call("select_hudedit_preview", key)
+		if not error.is_empty():
+			push_error(error)
+			return false
+		for frame in range(3):
+			await tree.process_frame
+			await RenderingServer.frame_post_draw
+		var label := ui.find_child("EditModeSelection_" + key + "Label", true, false) as Control
+		var manager := ui.find_child("EditModeManagerFrame", true, false) as Control
+		if label == null or manager == null or not label.is_visible_in_tree():
+			push_error("Selected HUD label missing: ", key)
+			return false
+		var rect := label.get_global_rect()
+		if rect.intersects(manager.get_global_rect()):
+			push_error("Selected HUD label covered by manager: ", key)
+			return false
+		var image := tree.root.get_texture().get_image()
+		var region := Rect2i(rect.grow(8)).intersection(Rect2i(Vector2i.ZERO, image.get_size()))
+		if image.get_region(region).save_png(directory.path_join(skin + "-mover-" + key + ".png")) != OK:
+			push_error("HUD mover pixel capture failed: ", key)
+			return false
+		if key == "objective_tracker" and image.save_png(directory.path_join(skin + "-tracker-selected.png")) != OK:
+			return false
+		print("PASS: ", skin, " selected mover ", key, " label=", rect)
 	return true
 
 # Retail ProfessionsRecipeList.xml:94-217; ReagentSlotBase.xml:6-27; RankBar.xml:5-61.

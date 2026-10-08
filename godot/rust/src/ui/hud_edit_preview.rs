@@ -47,6 +47,28 @@ impl RegistryUi {
         self.capture_hud_edit(ActiveSkin::Forever)
     }
 
+    #[func]
+    pub fn hudedit_preview_keys(&self) -> PackedStringArray {
+        game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS
+            .iter()
+            .map(|entry| GString::from(entry.key))
+            .collect()
+    }
+
+    #[func]
+    pub fn select_hudedit_preview(&mut self, key: GString) -> GString {
+        let result = (|| {
+            let registry = self.registry().ok_or("HUD preview registry missing")?;
+            let key = key.to_string();
+            let boxes = super::hud_edit_layout::collect_selection_boxes(registry, Some(&key));
+            if !boxes.iter().any(|entry| entry.selected) {
+                return Err(format!("HUD preview mover missing: {key}"));
+            }
+            self.set_state(EditModeOverlayState { boxes })
+        })();
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     /// Clear the offline snapshot's transient state before creating a real GameClient.
     #[func]
     pub fn finish_hudedit_preview(&mut self) {

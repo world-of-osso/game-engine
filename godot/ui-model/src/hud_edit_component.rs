@@ -106,6 +106,14 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
     // Vertical bars need several text lines; the one-line label clipped their names.
     let label_height = if w < 100.0 { h.min(54.0) } else { h.min(18.0) };
     let hide_label = !(entry.selected || entry.hovered);
+    let level = if entry.selected {
+        20.0
+    } else if entry.hovered {
+        10.0
+    } else {
+        0.0
+    };
+    let font_size = (label_height - 2.0).clamp(8.0, 13.0);
     let label = if entry.selected {
         entry.label.as_str()
     } else {
@@ -122,6 +130,7 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
             width: {w},
             height: {h},
             strata: FrameStrata::Fullscreen,
+            frame_level: {level},
             pos_type: "absolute",
             left: {x},
             top: {y},
@@ -133,6 +142,7 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
                 // Pinned rsx LitFloat truncates decimals; retire expression form once fixed.
                 alpha: {0.7},
                 strata: FrameStrata::Fullscreen,
+                frame_level: {level},
                 pos_type: "absolute",
                 left: 0.0,
                 top: 0.0,
@@ -143,6 +153,7 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
                 width: {w}, height: {label_height},
                 background_color: "0.0,0.0,0.0,1.0",
                 strata: FrameStrata::Fullscreen,
+                frame_level: {level + 1.0},
                 pos_type: "absolute", left: 0.0,
                 top: "50%", translate_y: "-50%",
             }
@@ -153,10 +164,11 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
                 height: {label_height},
                 text: label,
                 font: GameFont::FrizQuadrata,
-                font_size: 13.0,
+                font_size,
                 font_color: COLOR_TEXT,
                 justify_h: "CENTER",
                 strata: FrameStrata::Fullscreen,
+                frame_level: {level + 2.0},
                 pos_type: "absolute",
                 left: 0.0,
                 top: "50%",
