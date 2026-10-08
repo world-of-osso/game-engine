@@ -6,7 +6,7 @@
 
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
-use ui_toolkit::widget_def::{Attr, Element};
+use ui_toolkit::widget_def::{Attr, Element, WidgetChild};
 use ui_toolkit::widgets::font_string::GameFont;
 
 use crate::quest_scroll::{QuestScrollPane, quest_scroll_frame};
@@ -816,8 +816,11 @@ fn item_button(
             top: y,
         }
     };
+    let WidgetChild::Widget(target_frame) = &mut hit_target[0] else {
+        unreachable!("reward hit target is a single frame");
+    };
     if let Some(action) = action {
-        hit_target[0]
+        target_frame
             .attrs
             .push(Attr::new_dynamic("onclick", action));
     }
