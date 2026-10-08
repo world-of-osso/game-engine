@@ -70,6 +70,13 @@ pub fn dispatch(
         ui.duration_menu_open = false;
         return Vec::new();
     }
+    if let Some(field) = action
+        .strip_prefix(frame::ACTION_SORT_PREFIX)
+        .and_then(parse_sort_field)
+    {
+        request_sorted_results(field, net, ui, texts);
+        return Vec::new();
+    }
     if let Some(index) = parse(action, frame::ACTION_CATEGORY_PREFIX) {
         let index = index as usize;
         if index >= view::CATEGORIES.len() {
@@ -107,6 +114,46 @@ pub fn dispatch(
         return Vec::new();
     }
     dispatch_command(action, net, ui, texts)
+}
+
+fn parse_sort_field(token: &str) -> Option<AuctionSortField> {
+    match token {
+        "name" => Some(AuctionSortField::Name),
+        "price" => Some(AuctionSortField::Buyout),
+        "bid" => Some(AuctionSortField::MinBid),
+        _ => None,
+    }
+}
+
+fn request_sorted_results(
+    field: AuctionSortField,
+    net: &mut AuctionHouseState,
+    ui: &mut AuctionHouseUi,
+    texts: &InputTexts,
+) {
+    let mut query = match &net.last_query {
+        Some(query) => query.clone(),
+        None => {
+            let mut query = search_query(view::text(texts, SEARCH_BOX));
+            query.class_id = ui.category.map(|index| view::CATEGORIES[index].1);
+            query
+        }
+    };
+    query.sort_dir = if query.sort_field == field && query.sort_dir == AuctionSortDir::Asc {
+        AuctionSortDir::Desc
+    } else {
+        AuctionSortDir::Asc
+    };
+    query.sort_field = field;
+    query.page = 0;
+    ui.row_page = 0;
+    ui.selected_auction = None;
+    let request = if ui.browse_item.is_some() {
+        AuctionRequest::Listings(query)
+    } else {
+        AuctionRequest::Browse(query)
+    };
+    net.request(request);
 }
 
 fn dispatch_command(
