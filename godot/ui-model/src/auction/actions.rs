@@ -120,7 +120,6 @@ fn parse_sort_field(token: &str) -> Option<AuctionSortField> {
     match token {
         "name" => Some(AuctionSortField::Name),
         "price" => Some(AuctionSortField::Buyout),
-        "bid" => Some(AuctionSortField::MinBid),
         _ => None,
     }
 }

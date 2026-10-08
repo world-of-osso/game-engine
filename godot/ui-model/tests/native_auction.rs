@@ -102,8 +102,8 @@ fn native_auction_sort_preserves_filters_and_resets_pages() {
     session.ui.browse_item = Some(2589);
     session.net.request(AuctionRequest::Listings(query.clone()));
     session.net.requests.clear();
-    session.click("auction_sort:bid", &InputTexts::new());
-    query.sort_field = AuctionSortField::MinBid;
+    session.click("auction_sort:price", &InputTexts::new());
+    query.sort_field = AuctionSortField::Buyout;
     query.sort_dir = AuctionSortDir::Asc;
     assert_eq!(session.net.requests, vec![AuctionRequest::Listings(query)]);
 }
@@ -248,6 +248,7 @@ fn native_auction_live_refund_updates_money_and_bid_affordability() {
     session.net.inventory.as_mut().unwrap().gold = 998_800;
     session.sync_replicated_money(998_800);
     let mut auction = listing(102);
+    auction.current_bid = Some(951_381);
     auction.min_next_bid = 998_950;
     auction.buyout_price = Some(1_000_000);
     session.net.search_results = vec![auction];
