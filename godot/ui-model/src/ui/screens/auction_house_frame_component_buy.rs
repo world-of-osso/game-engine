@@ -1,13 +1,15 @@
 //! Buy mode: search bar, categories, browse results, item buy frame and buy dialog.
 
 use super::*;
+use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, scroll_list_attr};
+use ui_toolkit::widgets::scroll_list::ScrollGeometry;
 
 /// Rows that fit the browse `ScrollBox` (100..508).
 pub const BROWSE_ROWS: usize = 20;
 /// Rows that fit the item buy `ScrollBox` (236..508).
 pub const ITEM_BUY_ROWS: usize = 13;
 
-pub(super) fn buy_content(state: &AuctionHouseFrameState) -> Element {
+pub(super) fn buy_content(ctx: &SharedContext, state: &AuctionHouseFrameState) -> Element {
     let hide = state.tab != AuctionHouseTab::Buy;
     // The bid inputs also belong to the Bids tab: only the visible mode builds them.
     let results = match &state.item_buy {
@@ -24,7 +26,7 @@ pub(super) fn buy_content(state: &AuctionHouseFrameState) -> Element {
             left: 0.0,
             top: 0.0,
             {search_bar(state.search_empty)}
-            {categories_list(&state.categories)}
+            {categories_list(ctx, &state.categories)}
             {results}
         }
     }
@@ -89,7 +91,7 @@ fn search_bar(empty: bool) -> Element {
 /// background at (3,-3), buttons from the `ScrollBox` (3,-6), each `AuctionCategoryButtonTemplate`
 /// 132×21 with its 136×32 `auctionhouse-nav-button` at (-2,0)
 /// (Mainline/Blizzard_AuctionHouseCategoriesList.xml:4-60).
-fn categories_list(categories: &[CategoryRow]) -> Element {
+fn categories_list(ctx: &SharedContext, categories: &[CategoryRow]) -> Element {
     let (x, y) = (4.0, 73.0);
     let mut out = crop_texture(
         "AuctionHouseFrameCategoriesListBackground".into(),
@@ -100,33 +102,55 @@ fn categories_list(categories: &[CategoryRow]) -> Element {
         "AuctionHouseFrameCategoriesListNineSlice",
         (x, y, 168.0, 438.0),
     ));
-    for (index, category) in categories.iter().enumerate() {
-        out.extend(category_button(
+    let list = "AuctionHouseFrameCategoriesScrollList";
+    let geometry = ScrollGeometry {
+        row_count: categories.len(),
+        visible_rows: 20,
+        row_height: 21.0,
+        track_height: 382.0,
+    };
+    let offset = geometry.clamp(ctx.scroll_first_row(list));
+    let config = scroll_list_attr(&geometry);
+    let bar = MinimalScrollBar {
+        list,
+        left: 148.0,
+        top: 0.0,
+        height: 420.0,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideBar,
+    };
+    let mut buttons = Vec::new();
+    for (index, category) in categories.iter().enumerate().skip(offset).take(20) {
+        buttons.extend(category_button(
             index,
             category,
-            (x + 3.0, y + 6.0 + index as f32 * 21.0),
+            (0.0, (index - offset) as f32 * 21.0),
         ));
     }
+    out.extend(rsx! {
+        r#frame {
+            name: {DynName(list.into())}, width: 160.0, height: 420.0,
+            mouse_enabled: true, scroll_list: {config},
+            pos_type: "absolute", left: {x + 3.0}, top: {y + 6.0},
+            {buttons}
+            {bar.element()}
+        }
+    });
     out
 }
 
 fn category_button(index: usize, category: &CategoryRow, (x, y): (f32, f32)) -> Element {
     let name = format!("AuctionHouseFrameCategoriesListButton{}", index + 1);
     let action = format!("{ACTION_CATEGORY_PREFIX}{}", category.path);
-    let indent = 4.0 + category.path.matches('/').count() as f32 * 10.0;
-    let mut art = crop_texture(
-        format!("{name}NormalTexture"),
-        NAV_BUTTON,
-        (-2.0, 0.0, 136.0, 32.0),
-    );
-    if category.selected {
-        art.extend(crop_texture(
-            format!("{name}SelectedTexture"),
-            NAV_BUTTON_SELECT,
-            (-2.0, 0.0, 136.0, 32.0),
-        ));
-    }
-    let color = if category.selected {
+    let depth = category.path.matches('/').count();
+    let indent = match depth {
+        0 => 4.0,
+        1 => 18.0,
+        _ => 26.0,
+    };
+    let art = category_art(&name, depth, category.selected);
+    let color = if category.selected || depth > 0 {
         HIGHLIGHT_FONT_COLOR
     } else {
         NORMAL_FONT_COLOR
@@ -159,6 +183,51 @@ fn category_button(index: usize, category: &CategoryRow, (x, y): (f32, f32)) -> 
             }
         }
     }
+}
+
+// Mainline/Blizzard_AuctionHouseCategoriesList.lua:5-65: secondary navigation
+// art for subclasses; sub-subcategories have no normal background.
+fn category_art(name: &str, depth: usize, selected: bool) -> Element {
+    if depth == 0 {
+        let mut art = crop_texture(
+            format!("{name}NormalTexture"),
+            NAV_BUTTON,
+            (-2.0, 0.0, 136.0, 32.0),
+        );
+        if selected {
+            art.extend(crop_texture(
+                format!("{name}SelectedTexture"),
+                NAV_BUTTON_SELECT,
+                (-2.0, 0.0, 136.0, 32.0),
+            ));
+        }
+        return art;
+    }
+    let mut art = Vec::new();
+    if depth == 1 {
+        art.extend(rsx! { texture {
+            name: {DynName(format!("{name}NormalTexture"))}, width:133.0,height:32.0,
+            texture_atlas:"auctionhouse-nav-button-secondary",pos_type:"absolute",left:1.0,top:0.0,
+        }});
+    }
+    if selected {
+        let (atlas, width, height, left, top) = if depth == 1 {
+            (
+                "auctionhouse-nav-button-secondary-select",
+                122.0,
+                21.0,
+                10.0,
+                0.0,
+            )
+        } else {
+            ("auctionhouse-ui-row-select", 116.0, 18.0, 16.0, 2.0)
+        };
+        art.extend(rsx! { texture {
+            name: {DynName(format!("{name}SelectedTexture"))},width,height,
+            texture_atlas:atlas,pos_type:"absolute",left,top,
+        }});
+    }
+    art
 }
 
 /// `AuctionHouseTableBuilder.GetBrowseListLayout` (Blizzard_AuctionHouseTableBuilder.lua:1033)

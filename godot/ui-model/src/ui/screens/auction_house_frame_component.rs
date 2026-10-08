@@ -281,6 +281,11 @@ pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<AuctionHouseFrameState>()
         .expect("AuctionHouseFrameState must be in SharedContext");
+    auction_house_frame_content(ctx, state)
+}
+
+/// Uses the caller's context so category scroll positions remain reactive.
+pub fn auction_house_frame_content(ctx: &SharedContext, state: &AuctionHouseFrameState) -> Element {
     let hide = !state.visible;
     rsx! {
         r#frame {
@@ -298,7 +303,7 @@ pub fn auction_house_frame_screen(ctx: &SharedContext) -> Element {
             {crate::quest_art::window_portrait(&PORTRAIT)}
             {money_frame(state.money)}
             {tabs(state.tab)}
-            {buy_tab::buy_content(state)}
+            {buy_tab::buy_content(ctx, state)}
             {sell_tab::sell_content(state)}
             {auctions_tab::auctions_content(state)}
             {buy_tab::buy_dialog(state.dialog.as_ref())}
