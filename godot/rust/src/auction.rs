@@ -124,6 +124,13 @@ impl GameClient {
             self.auction.reset();
             return Ok(());
         }
+        if let Some(gold) = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id)?.gold())
+        {
+            self.auction.session.sync_replicated_money(gold);
+        }
         if let Some(ui) = &mut self.auction.ui {
             let error = ui.bind_mut().sync_input();
             if !error.is_empty() {
