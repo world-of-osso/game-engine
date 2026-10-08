@@ -195,6 +195,7 @@ fn wrapped_buyback_preserves_sale_order_and_requests_physical_slots() {
         .chain([0])
         .map(|slot| BuybackItem {
             slot,
+            definition_source: shared::item_data::ItemDefinitionSource::Retail,
             item_id: if slot == 0 { 2385 } else { 2381 },
             name: if slot == 0 {
                 "Tarnished Chain Gloves"
