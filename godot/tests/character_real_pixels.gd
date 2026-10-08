@@ -30,7 +30,7 @@ const SCENE := {
 const VIEWS := {
 	"head": [0.84, 1.0, 1.0], "torso": [0.55, 0.84, 1.0], "back": [0.5, 0.84, -1.0],
 	"hips": [0.4, 0.62, 1.0], "legs": [0.15, 0.5, 1.0], "feet": [0.0, 0.16, 1.0],
-	"mid": [0.35, 1.0, 1.0],
+	"mid": [0.35, 1.0, 1.0], "full": [0.0, 1.0, 1.0],
 }
 
 # Item IDs from ItemSparse (build 12.1.0.69933). Choices by ChrCustomizationOption ID;
@@ -108,6 +108,37 @@ const CASES := [
 	},
 ]
 
+# The six race/sex bodies of the retained pixel cases, each garment isolated.
+# Kilt remains required by godot-parity-matrix; shoulders/helm add attached-model proof.
+const MATRIX_BODIES := [
+	["HumanMale", 1, 0], ["OrcFemale", 2, 1], ["DwarfMale", 3, 0],
+	["NightElfFemale", 4, 1], ["TaurenMale", 6, 0], ["BloodElfFemale", 10, 1],
+]
+const MATRIX_GARMENTS := [
+	["shirt", "Shirt", 38, "torso"], ["chest", "Chest", 846, "torso"],
+	["robe", "Chest", 6682, "legs"], ["legs", "Legs", 39, "legs"],
+	["kilt", "Legs", 153, "legs"], ["boots", "Feet", 40, "feet"],
+	["gloves", "Hands", 850, "torso"], ["belt", "Waist", 44670, "hips"],
+	["shoulders", "Shoulder", 1445, "head"], ["helm", "Head", 1280, "head"],
+	["cloak", "Back", 1190, "back"], ["tabard", "Tabard", 15197, "torso"],
+	["bracers", "Wrist", 710, "torso"],
+]
+
+func matrix_cases() -> Array:
+	var cases := []
+	for body in MATRIX_BODIES:
+		for garment in MATRIX_GARMENTS:
+			cases.append({
+				"name": "%s_%s" % [body[0], garment[0]], "body": body[0],
+				"race": body[1], "sex": body[2], "class": 1, "picks": {},
+				"garment": garment[0], "items": [{"slot": garment[1], "item_id": garment[2]}],
+				"views": ["full", garment[3]],
+			})
+	return cases
+
+var matrix_results := []
+var matrix_captures := {}
+var matrix_region_checks := []
 var loader: Object
 var appearance: Appearance
 var viewport: SubViewport
@@ -132,7 +163,8 @@ func run_cases() -> void:
 	set_clock()
 	var only := OS.get_environment("CHARPIX_CASES").split(",", false)
 	var failed: Array[String] = []
-	for case in CASES:
+	var cases := matrix_cases() if OS.get_environment("CHARPIX_MATRIX") == "1" else CASES
+	for case in cases:
 		if not only.is_empty() and not only.has(case.name):
 			continue
 		var problems := await run_case(case)
@@ -140,6 +172,8 @@ func run_cases() -> void:
 			push_error("FAIL %s: %s" % [case.name, problem])
 		if not problems.is_empty():
 			failed.append(case.name)
+		if case.has("garment"):
+			record_matrix_cell(case, problems)
 	viewport.free()
 	loader = null
 	if failed.is_empty():
@@ -147,6 +181,31 @@ func run_cases() -> void:
 	else:
 		push_error("FAILED: %s" % ", ".join(failed))
 	quit(0 if failed.is_empty() else 1)
+
+func record_matrix_cell(case: Dictionary, problems: Array[String]) -> void:
+	matrix_results.append({"case": case.name, "race": case.race, "sex": case.sex,
+		"garment": case.garment, "item_id": case.items[0].item_id,
+		"status": "PASS" if problems.is_empty() else "FAIL", "reasons": problems,
+		"body_regions": matrix_region_checks.duplicate(true)})
+	print("MATRIX %s %s %s" % [case.name, matrix_results.back().status, problems])
+	if evidence.is_empty():
+		return
+	var report := FileAccess.open(evidence.path_join("matrix-results.json"), FileAccess.WRITE)
+	if report == null:
+		push_error("cannot write matrix-results.json")
+		return
+	report.store_string(JSON.stringify(matrix_results, "\t"))
+	if not matrix_captures.has(case.body):
+		return
+	var sheet := Image.create_empty(SIZE * 4, SIZE * 4, false, Image.FORMAT_RGBA8)
+	sheet.fill(BACKGROUND)
+	var captures: Dictionary = matrix_captures[case.body]
+	for index in MATRIX_GARMENTS.size():
+		var garment: String = MATRIX_GARMENTS[index][0]
+		if captures.has(garment):
+			sheet.blit_rect(captures[garment], Rect2i(0, 0, SIZE, SIZE), Vector2i(index % 4, index / 4) * SIZE)
+	if sheet.save_png(evidence.path_join(case.body + "_contact-sheet.png")) != OK:
+		push_error("cannot write contact sheet for " + str(case.body))
 
 func make_viewport() -> void:
 	viewport = SubViewport.new()
@@ -202,6 +261,7 @@ func save(image: Image, name: String) -> void:
 # --- one case ------------------------------------------------------------------------------
 
 func run_case(case: Dictionary) -> Array[String]:
+	matrix_region_checks.clear()
 	var problems: Array[String] = []
 	var app := appearance.appearance(case.race, case.sex, case["class"], case.picks, case.items)
 	print("%s: chr model %d layout %d body %d choices %s" % [case.name, app.chr_model, app.layout, app.model_fdid, app.choices])
@@ -226,6 +286,9 @@ func run_case(case: Dictionary) -> Array[String]:
 		return problems
 	var m2 := Oracle.new(FileAccess.get_file_as_bytes(source), FileAccess.get_file_as_bytes(source.trim_suffix(".m2") + "00.skin"))
 	var draws := collect_draws(m2, model, app, problems)
+	var equipment_draws := []
+	if case.has("garment"):
+		equipment_draws = check_equipment_models(case, model, problems)
 	if draws.is_empty():
 		model.free()
 		return problems
@@ -238,6 +301,9 @@ func run_case(case: Dictionary) -> Array[String]:
 		problems.append("oracle: " + error)
 	appearance.errors.clear()
 	check_textures(case, draws, canvases, problems)
+	if case.has("garment"):
+		check_clothing_regions(app, draws, canvases, problems)
+	draws.append_array(equipment_draws)
 	await process_frame
 	for draw in draws:
 		draw.mesh = (draw.node as MeshInstance3D).bake_mesh_from_current_skeleton_pose().surface_get_arrays(0)
@@ -253,6 +319,9 @@ func run_case(case: Dictionary) -> Array[String]:
 		material.set_shader_parameter("sun_direction", SCENE.sun_direction)
 		draw.images = draw_images(draw, canvases)
 	for view in case.views:
+		if case.has("garment") and view == "full":
+			await capture_full(case, draws)
+			continue
 		var line := await check_view(case, view, model, draws)
 		if not line.is_empty():
 			problems.append(line)
@@ -294,6 +363,101 @@ func collect_draws(m2: Oracle, model: Node3D, app: Dictionary, problems: Array[S
 	print("  geosets %s" % [expected])
 	return draws
 
+# Extend the same CPU raster with rigid garment batches. The source FDID and every
+# sampled item texture come from DB2/M2 bytes, not native equipment metadata.
+func check_equipment_models(case: Dictionary, model: Node3D, problems: Array[String]) -> Array:
+	var draws := []
+	var expected_names := []
+	for item in case.items:
+		for definition in appearance.garment_models(item, case.race, case.sex, case["class"]):
+			var name: String = "Equipment" + str(item.slot)
+			var attachment := -1
+			if item.slot == "Shoulder":
+				name += "Left" if definition.index == 0 else "Right"
+				attachment = 6 if definition.index == 0 else 5
+			elif item.slot == "Head":
+				attachment = 11
+			elif definition.index > 0:
+				name += "2"
+			expected_names.append(name)
+			var node := model.find_child(name, true, false) as Node3D
+			if node == null:
+				problems.append("missing model %s FDID %d" % [name, definition.fdid])
+				continue
+			if attachment >= 0 and node.get_parent().name != "Attachment%d" % attachment:
+				problems.append("%s parent %s, expected Attachment%d" % [name, node.get_parent().name, attachment])
+			var source := String(node.get_meta("m2_source_path", ""))
+			if not source.ends_with("/%d.m2" % definition.fdid):
+				problems.append("%s source %s, expected FDID %d" % [name, source, definition.fdid])
+				continue
+			var animation := node.get_node_or_null("M2Animation")
+			if animation != null:
+				animation.process_mode = Node.PROCESS_MODE_DISABLED
+			var parsed := Oracle.new(FileAccess.get_file_as_bytes(source), FileAccess.get_file_as_bytes(source.trim_suffix(".m2") + "00.skin"))
+			draws.append_array(collect_item_draws(parsed, node, definition.textures, problems))
+	for node in model.find_children("Equipment*", "Node3D", true, false):
+		if not expected_names.has(String(node.name)):
+			problems.append("unexpected attached model %s" % node.name)
+	return draws
+
+func collect_item_draws(parsed: Oracle, node: Node3D, replacements: Dictionary, problems: Array[String]) -> Array:
+	var order := []
+	for index in parsed.batch_count():
+		var info := parsed.batch(index)
+		order.append([info.priority_plane, info.material_layer, index])
+	order.sort_custom(func(a, b): return a[0] < b[0] or (a[0] == b[0] and (a[1] < b[1] or (a[1] == b[1] and a[2] < b[2]))))
+	var draws := []
+	for position in order.size():
+		var info := parsed.batch(order[position][2])
+		var part := mesh_part(parsed, info.submesh)
+		if part / 100 == 17:
+			continue
+		var mesh := node.get_node_or_null("Batch%d" % position) as MeshInstance3D
+		if mesh == null or not mesh.is_visible_in_tree():
+			problems.append("%s missing visible batch%d part%d" % [node.name, position, part])
+			continue
+		var material := parsed.material(info, 0)
+		var images_for_item := []
+		var types := []
+		var shader := mesh.get_active_material(0) as ShaderMaterial
+		for slot in material.textures.size():
+			var kind := parsed.texture_type(info, slot)
+			types.append(kind)
+			var fdid: int = material.textures[slot][0] if kind == 0 else replacements.get(kind, 0)
+			var image: Variant = load_image(fdid) if fdid != 0 else null
+			if image == null:
+				problems.append("%s batch%d slot%d type%d oracle file %d unavailable" % [node.name, position, slot, kind, fdid])
+				images_for_item.clear()
+				break
+			images_for_item.append(Real.mip_chain((image as Image).duplicate()))
+			var uniforms := ["base_texture", "second_texture", "third_texture", "fourth_texture"]
+			var bound: Texture2D = shader.get_shader_parameter(uniforms[slot]) if shader != null else null
+			if bound == null:
+				problems.append("%s batch%d slot%d untextured" % [node.name, position, slot])
+			else:
+				var actual := bound.get_image()
+				if not texture_matches_file(actual, image, fdid):
+					problems.append("%s batch%d slot%d does not bind exact oracle FDID %d" % [node.name, position, slot, fdid])
+		draws.append({"node": mesh, "info": info, "material": material, "types": types, "part": part, "item_images": images_for_item})
+	return draws
+
+# Block-compressed uploads must match the authored BLP blocks, not an RGBA buffer.
+# Image.convert cannot convert DXT; testing those bytes as RGBA produced false FAILs.
+func texture_matches_file(actual: Image, decoded: Image, fdid: int) -> bool:
+	if actual.get_size() != decoded.get_size():
+		return false
+	if actual.is_compressed():
+		var blp := FileAccess.get_file_as_bytes(DATA + "textures/%d.blp" % fdid)
+		if blp.size() < 148 or blp.slice(0, 4).get_string_from_ascii() != "BLP2" or blp[8] != 2:
+			return false
+		var format := Image.FORMAT_DXT1 if blp[10] == 0 else (Image.FORMAT_DXT3 if blp[10] == 1 else Image.FORMAT_DXT5)
+		var offset := blp.decode_u32(20)
+		var length := blp.decode_u32(84)
+		return actual.get_format() == format and actual.get_data().slice(0, length) == blp.slice(offset, offset + length)
+	actual.convert(Image.FORMAT_RGBA8)
+	var length := decoded.get_width() * decoded.get_height() * 4
+	return actual.get_data().slice(0, length) == decoded.get_data().slice(0, length)
+
 static func mesh_part(m2: Oracle, submesh: int) -> int:
 	return m2.skin.decode_u16(m2.array_at(m2.skin, 28).y + submesh * 48)
 
@@ -304,6 +468,8 @@ func oracle_texture(app: Dictionary, texture_type: int) -> Variant:
 
 # Mip chains per texture slot: the file, or the oracle's canvas for replaceable types.
 func draw_images(draw: Dictionary, canvases: Dictionary) -> Array:
+	if draw.has("item_images"):
+		return draw.item_images
 	var result := []
 	for slot in draw.material.textures.size():
 		var image: Variant
@@ -375,7 +541,65 @@ func check_textures(case: Dictionary, draws: Array, canvases: Dictionary, proble
 		if not got.has_mipmaps():
 			problems.append(line)
 
+# Every clothing section, not just the overall body's mostly unchanged texels.
+# Same threshold as the pixel gate; fixed atlas coordinates come from DB2.
+func check_clothing_regions(app: Dictionary, draws: Array, canvases: Dictionary, problems: Array[String]) -> void:
+	if app.item_textures.is_empty():
+		return
+	var expected: Image = canvases.get(1)
+	var actual: Image
+	for draw in draws:
+		var index: int = draw.types.find(1)
+		if index >= 0:
+			var material := (draw.node as MeshInstance3D).get_active_material(0) as ShaderMaterial
+			var uniform: String = ["base_texture", "second_texture", "third_texture", "fourth_texture"][index]
+			var texture: Texture2D = material.get_shader_parameter(uniform)
+			if texture != null:
+				actual = texture.get_image()
+			break
+	if actual == null or expected == null or actual.get_size() != expected.get_size():
+		problems.append("clothing regions require matching body atlas dimensions")
+		return
+	actual.convert(Image.FORMAT_RGBA8)
+	var checked := {}
+	for layer in app.item_textures:
+		var section: int = layer[0]
+		if checked.has(section):
+			continue
+		checked[section] = true
+		var rect := appearance.section_rect(app.layout, section)
+		var matched := 0
+		var count := rect.size.x * rect.size.y
+		if count == 0:
+			problems.append("clothing section %d has no DB2 rectangle" % section)
+			continue
+		for y in range(rect.position.y, rect.end.y):
+			for x in range(rect.position.x, rect.end.x):
+				var a := actual.get_pixel(x, y)
+				var b := expected.get_pixel(x, y)
+				if maxf(absf(a.r - b.r), maxf(absf(a.g - b.g), absf(a.b - b.b))) <= TOLERANCE:
+					matched += 1
+		var ratio := float(matched) / count
+		matrix_region_checks.append({"section": section, "rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y], "compared": count, "matched": matched, "ratio": ratio})
+		print("  clothing section%d: %d/%d texels within10/255 (%.2f%%)" % [section, matched, count, ratio * 100.0])
+		if ratio < MIN_MATCH:
+			problems.append("clothing section%d: %.2f%% below97%% texel gate" % [section, ratio * 100.0])
+
 # --- rendered pixels ---------------------------------------------------------------------
+
+# A full-body thumbnail is visual evidence, not a close-up pixel gate: its HD
+# atlas sampling exceeds MAX_LOD. Keep the close-up's MIN_PIXELS/MIN_MATCH intact.
+func capture_full(case: Dictionary, draws: Array) -> void:
+	frame(draws, VIEWS.full)
+	for frame_index in 3:
+		await process_frame
+		await RenderingServer.frame_post_draw
+	var actual := viewport.get_texture().get_image()
+	actual.convert(Image.FORMAT_RGBA8)
+	save(actual, case.name + "_full_actual")
+	if not matrix_captures.has(case.body):
+		matrix_captures[case.body] = {}
+	matrix_captures[case.body][case.garment] = actual.duplicate()
 
 func check_view(case: Dictionary, view: String, model: Node3D, draws: Array) -> String:
 	var band: Array = VIEWS[view]
