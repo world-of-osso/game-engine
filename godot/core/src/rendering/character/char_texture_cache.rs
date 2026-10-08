@@ -1,5 +1,5 @@
 use crate::cache_source_mtime::{csv_mtime, source_key};
-use crate::cache_sqlite::{open_read_only, replace_atomically};
+use crate::cache_sqlite::rebuild_unless_fresh;
 use rusqlite::Connection;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
@@ -129,18 +129,15 @@ where
     Ok(())
 }
 
-fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
-    let csv_paths = source_paths(data_dir);
-    replace_atomically(cache_path, |conn| {
-        init_cache_schema(conn)?;
-        record_source_files(conn, data_dir, &csv_paths)?;
-        populate_layers(conn, &csv_paths[0])?;
-        populate_sections(conn, &csv_paths[1])?;
-        populate_layouts(conn, &csv_paths[2])?;
-        populate_model_materials(conn, &csv_paths[3])?;
-        conn.execute_batch("COMMIT;")
-            .map_err(|err| format!("commit char texture cache: {err}"))
-    })
+fn build_cache(conn: &Connection, data_dir: &Path, csv_paths: &[PathBuf]) -> Result<(), String> {
+    init_cache_schema(conn)?;
+    record_source_files(conn, data_dir, csv_paths)?;
+    populate_layers(conn, &csv_paths[0])?;
+    populate_sections(conn, &csv_paths[1])?;
+    populate_layouts(conn, &csv_paths[2])?;
+    populate_model_materials(conn, &csv_paths[3])?;
+    conn.execute_batch("COMMIT;")
+        .map_err(|err| format!("commit char texture cache: {err}"))
 }
 
 fn init_cache_schema(conn: &Connection) -> Result<(), String> {
@@ -273,15 +270,11 @@ fn populate_model_materials(conn: &Connection, path: &Path) -> Result<(), String
 pub fn import_char_texture_cache(data_dir: &Path) -> Result<PathBuf, String> {
     let cache_path = cache_path(data_dir);
     let csv_paths = source_paths(data_dir);
-    let needs_rebuild = if cache_path.exists() {
-        let conn = open_read_only(&cache_path)?;
-        !cache_is_fresh(&conn, data_dir, &csv_paths)?
-    } else {
-        true
-    };
-    if needs_rebuild {
-        rebuild_cache(&cache_path, data_dir)?;
-    }
+    rebuild_unless_fresh(
+        &cache_path,
+        |conn| cache_is_fresh(conn, data_dir, &csv_paths),
+        |conn| build_cache(conn, data_dir, &csv_paths),
+    )?;
     Ok(cache_path)
 }
 
@@ -336,6 +329,49 @@ mod tests {
         assert!(!layers.is_empty());
         assert!(!layouts.is_empty());
         drop(conn);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn concurrent_imports_of_a_stale_cache_rebuild_it_once() {
+        use std::os::unix::fs::MetadataExt;
+        const IMPORTERS: usize = 8;
+        let root = linked_source_root("stale-concurrent");
+        let cache = import_char_texture_cache(&root).unwrap();
+        rusqlite::Connection::open(&cache)
+            .unwrap()
+            .execute("UPDATE source_files SET mtime_secs = 0", [])
+            .unwrap();
+        let identity = |path: &Path| {
+            let meta = std::fs::metadata(path).unwrap();
+            (meta.ino(), meta.modified().unwrap())
+        };
+        let stale = identity(&cache);
+        let builds_before = crate::cache_sqlite::staged_builds(&cache);
+        // Every importer finds the cache stale before any of them rebuilds it.
+        crate::cache_sqlite::hold_stale_observers(&cache, IMPORTERS);
+        let seen = std::thread::scope(|scope| {
+            let workers = (0..IMPORTERS)
+                .map(|_| scope.spawn(|| identity(&import_char_texture_cache(&root).unwrap())))
+                .collect::<Vec<_>>();
+            workers
+                .into_iter()
+                .map(|worker| worker.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        crate::cache_sqlite::release_stale_observers(&cache);
+        let rebuilt = identity(&cache);
+        assert_ne!(rebuilt, stale, "the stale cache must be rebuilt");
+        assert_eq!(
+            seen,
+            vec![rebuilt; IMPORTERS],
+            "every importer must return the one rebuilt cache"
+        );
+        assert_eq!(
+            crate::cache_sqlite::staged_builds(&cache) - builds_before,
+            1,
+            "concurrent importers must rebuild a stale cache exactly once"
+        );
         std::fs::remove_dir_all(root).unwrap();
     }
 
