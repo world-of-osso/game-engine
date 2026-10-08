@@ -166,11 +166,23 @@ impl GameClient {
             .book
             .hovered_service(ui.registry()?, hit.frame)?;
         drop(ui);
-        let tooltip = self.spell_game_tooltip(spell, None);
-        let tooltip =
-            self.trainer
-                .book
-                .service_tooltip(spell, tooltip, self.owner_rect(&hit.ui, owner)?)?;
+        let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
+            self.spell_game_tooltip(spell, None),
+            self.professions.recipe(spell),
+            self.player_level(),
+        );
+        let tooltip = match tooltip {
+            Ok(tooltip) => tooltip,
+            Err(error) => {
+                log::warn!("Trainer service {spell}: {error}");
+                return None;
+            }
+        };
+        let tooltip = self.trainer_view().service_tooltip(
+            spell,
+            tooltip,
+            self.owner_rect(&hit.ui, owner)?,
+        )?;
         Some(HoveredTooltip::text(tooltip))
     }
 
