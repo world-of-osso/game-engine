@@ -71,11 +71,19 @@ Presentation uses 338×424 shared portrait chrome, the trainer/inset/row crops, 
 
 Offline secondary preview API: `godot/rust/src/trainer_preview.rs`; an eight-service snapshot plus a representative human portrait, never a GameClient. `GODOT_TRAINER_FILTER_MENU=1` opens the popup for a separate visual capture; main captures leave it closed so row costs remain visible. Baseline captures used the original open-popup fixture. This preview does not prove the real NPC appearance or live lifecycle.
 
+## Offline visual acceptance (2026-10-07)
+
+Production Rust at `ec76c939b`; capture assertions at `7a17cf3e6` (no Rust change). Targeted helper: **16/16** pass (nine original trainer behavior cases, seven content/art cases), `/tmp/claude/trainerart-final-green.out`. Whole Godot workspace `cargo fmt --all -- --check` passes. Locked local `--cli` build/install passes; extension SHA-256 `6ef65c399981c5b41a25b20d787a75bb20bae3fa40473a88c1ef989e9c1a1881`, `/tmp/claude/trainerart-final-build.out`. Full-crate integration results are recorded separately below when available; targeted counts are not broad-suite proof.
+
+Inspected canonical `data/diagnostics/trainerart-2026-10-07/{before-modern,before-forever,after-modern,after-forever}.png` and cropped window views. Before: oversized 420×540 window, empty portrait, greeting, tinted/prefixed names, text-only money and untextured rows. After: inherited 338×424 chrome, real masked representative-human portrait, NPC-name title, trainer background/rows, 36px icons, neutral #ffd200 names, selected/additive art, independently coloured unmet level/rank numbers, known text without cost, coin prices/wallet, blue35/300 bar, 80×22 Train and 100×18 Filter. Both final main captures exit0 and pass native geometry/content/colour and settled portrait-model/mask assertions. Authored half-pixel icon/name y5.5/6.5 rasterize to5/7; tests retain exact dimensions/x anchors and allow at most0.5px per half-pixel y anchor.
+
+Popup captures use the same fixture with `GODOT_TRAINER_FILTER_MENU=1`: Retail dropdown/background/ticksquare/checkmark members and #19ff19/#ff2020/#808080 labels; main captures leave the popup closed so prices remain visible. The eight-row fixture overflows the330px list, with available/unavailable/used, selected2963, profession3908, costs10/12550/500/0 and wallet12345. Purchase/confirmation authority is unchanged; these offline images do not re-prove live purchasing or the real NPC's appearance. RID/ObjectDB/font shutdown diagnostics and test-only Dozen/Wayland warnings remain, not clean-resource/general-renderer proof.
+
 ## Known gaps (current cycle)
 
 - [ ] Native matching `InteractionClosed`, world-reset and Escape network-close receipt lack dedicated behavioral integration assertions; close/request code is wired, but do not infer full lifecycle acceptance from purchase proof.
 - [ ] Client exit logs contain texture/RID/ObjectDB leak warnings; exit 0 is not clean-resource shutdown proof.
-- [ ] Exact Retail 338×424 geometry, trainer-specific background/row art, portrait, rank fill, per-requirement colouring, tooltip and SkillStepButton parity remain unverified. No user-requested deviation is removed or invented.
+- [ ] Conditional SkillStepButton/split-inset layout lacks a supplied Retail step index; rank modifiers and service tooltips remain unsupported/unverified. Do not infer the step from `TrainerService.profession` (primary-slot acquisition). Default-window geometry/art, portrait slot/mask, base-rank fill and per-requirement colours have bounded offline acceptance above, not pixel-identical or live-NPC proof. Existing native scroll-input decisions are unchanged; only list/scrollbar geometry is matched. No user-requested deviation is removed or invented.
 
 ## Out of scope
 
