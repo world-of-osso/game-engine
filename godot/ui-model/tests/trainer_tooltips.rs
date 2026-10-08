@@ -180,9 +180,8 @@ fn trainer_recipe_shows_created_item_quality_reagents_and_both_record_ids() {
     let recipes = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&data).unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
-        let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_spell_tooltip(
-            catalog.get(2963).unwrap(),
-            &Default::default(),
+        let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
+            spell_tooltip(catalog.get(2963).unwrap(), &Default::default()),
             recipes
                 .recipes
                 .iter()
@@ -219,9 +218,8 @@ fn trainer_class_spell_retains_full_shared_tooltip() {
     };
     assert!(!input.description.is_empty());
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_spell_tooltip(
-            spell,
-            &input,
+        let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
+            spell_tooltip(spell, &input),
             None,
             Some(10),
         )
@@ -311,9 +309,8 @@ fn trainer_recipe_uses_crafted_gear_quality_and_item_requirements() {
         .iter()
         .find(|recipe| recipe.spell_id == 12069)
         .unwrap();
-    let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_spell_tooltip(
-        spells.get(12069).unwrap(),
-        &Default::default(),
+    let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
+        spell_tooltip(spells.get(12069).unwrap(), &Default::default()),
         Some(recipe),
         Some(10),
     )
