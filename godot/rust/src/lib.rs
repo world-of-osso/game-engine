@@ -101,6 +101,7 @@ mod tooltip_units;
 mod tooltips;
 mod trade;
 mod trainer;
+mod trainer_preview;
 mod ui;
 mod ui_layout;
 mod ui_scale;

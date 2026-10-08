@@ -10,7 +10,7 @@ use shared::protocol::{TrainerBuyFailed, TrainerList, TrainerServiceState};
 #[derive(Default)]
 pub(crate) struct Trainer {
     pub(crate) book: TrainerBook,
-    ui: Option<Gd<RegistryUi>>,
+    pub(crate) ui: Option<Gd<RegistryUi>>,
 }
 impl Trainer {
     pub(crate) fn visit_uis(
@@ -131,6 +131,20 @@ impl GameClient {
     fn trainer_view(&self) -> TrainerView {
         let mut view = TrainerView {
             book: self.trainer.book.clone(),
+            player_level: self
+                .world
+                .local_player_id()
+                .and_then(|id| self.replica.unit(id))
+                .and_then(|unit| unit.get::<shared::components::UnitLevel>())
+                .map_or(0, |level| level.0),
+            known_spells: self
+                .account
+                .spells
+                .known()
+                .iter()
+                .copied()
+                .chain(self.professions.book.snapshot.spells.iter().copied())
+                .collect(),
             ..Default::default()
         };
         view.title = view
