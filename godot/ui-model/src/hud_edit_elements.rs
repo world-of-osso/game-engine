@@ -92,7 +92,7 @@ pub const EDIT_MODE_ELEMENTS: &[EditModeElement] = &[
     element(
         "status_tracking_bar_1",
         "Status Bar 1",
-        "MainStatusTrackingBarContainer",
+        "ExperienceBar",
         HudAnchor::Bottom,
     ),
     element("minimap", "Minimap", "MinimapCluster", HudAnchor::TopRight),

@@ -47,6 +47,28 @@ impl RegistryUi {
         self.capture_hud_edit(ActiveSkin::Forever)
     }
 
+    #[func]
+    pub fn hudedit_preview_keys(&self) -> PackedStringArray {
+        game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS
+            .iter()
+            .map(|entry| GString::from(entry.key))
+            .collect()
+    }
+
+    #[func]
+    pub fn select_hudedit_preview(&mut self, key: GString) -> GString {
+        let result = (|| {
+            let registry = self.registry().ok_or("HUD preview registry missing")?;
+            let key = key.to_string();
+            let boxes = super::hud_edit_layout::collect_selection_boxes(registry, Some(&key));
+            if !boxes.iter().any(|entry| entry.selected) {
+                return Err(format!("HUD preview mover missing: {key}"));
+            }
+            self.set_state(EditModeOverlayState { boxes })
+        })();
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     /// Clear the offline snapshot's transient state before creating a real GameClient.
     #[func]
     pub fn finish_hudedit_preview(&mut self) {
@@ -80,6 +102,15 @@ impl RegistryUi {
             let registry = self.registry().ok_or("Preview registry missing")?;
             let boxes =
                 super::hud_edit_layout::collect_selection_boxes(registry, Some("player_frame"));
+            let position =
+                find_panel_position([registry.screen_width, registry.screen_height], &boxes)
+                    .ok_or("No clear default manager position in HUD preview")?;
+            self.set_state(EditModePanelState {
+                layout_name: format!("{skin:?}"),
+                preset: true,
+                position: Some(position),
+                ..Default::default()
+            })?;
             self.set_state(EditModeOverlayState { boxes })
         })();
         GString::from(result.err().unwrap_or_default().as_str())
@@ -104,11 +135,7 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
     };
     use game_engine_ui_model::xp_bar_component::{XpBarState, xp_bar_screen};
     let mut shared = SharedContext::new();
-    shared.insert(
-        ctx.get::<game_engine_ui_model::hud_edit::EditModeActive>()
-            .copied()
-            .unwrap_or_default(),
-    );
+    shared.insert(game_engine_ui_model::hud_edit::EditModeActive(true));
     shared.insert(*ctx.get::<ActiveSkin>().expect("preview skin"));
     let target = UnitFrameState::named("Training Dummy");
     shared.insert(InWorldUnitFramesState {
@@ -135,6 +162,7 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
         ..Default::default()
     });
     shared.insert(ObjectiveTrackerState::default());
+    insert_missing_mover_previews(&mut shared);
     shared.insert(BuffFrameState::default());
     shared.insert(XpBarState {
         xp: 350,
@@ -153,6 +181,10 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
         buff_frame_screen(&shared),
         xp_bar_screen(&shared),
         damage_meter_screen(&shared),
+        game_engine_ui_model::ui_errors_frame_component::ui_errors_frame_screen(&shared),
+        game_engine_ui_model::casting_bar_frame_component::casting_bar_frame_screen(&shared),
+        game_engine_ui_model::group_frames_component::group_frames_screen(&shared),
+        game_engine_ui_model::micro_menu::micro_menu_screen(&shared),
     ]
     .into_iter()
     .flatten()
@@ -163,4 +195,41 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
         elements.extend(edit_mode_panel_screen(ctx));
     }
     elements
+}
+
+fn insert_missing_mover_previews(shared: &mut SharedContext) {
+    use game_engine_core::ui_layout_data::LayoutSettings;
+    use game_engine_ui_model::compact_unit_frame_component::{CompactUnitView, UnitStatus};
+    use game_engine_ui_model::group_frames_component::GroupFramesState;
+    shared.insert(game_engine_ui_model::ui_errors_data::UiErrorsData::default());
+    shared.insert(
+        game_engine_ui_model::casting_bar_frame_component::CastingBarState {
+            visible: true,
+            spell_name: "Flash of Light".into(),
+            progress: 0.5,
+            ..Default::default()
+        },
+    );
+    let member = CompactUnitView {
+        name: "Hudedit".into(),
+        class_rgb: [0.96, 0.55, 0.73],
+        health_fraction: Some(0.75),
+        power: None,
+        role: shared::protocol::GroupRoleSnapshot::Healer,
+        status: UnitStatus::Online,
+        in_range: true,
+        selected: false,
+        ready: None,
+        debuffs: Vec::new(),
+    };
+    shared.insert(GroupFramesState {
+        party: vec![member.clone(); 5],
+        raid: vec![vec![member]; 8],
+        ..Default::default()
+    });
+    // Explicit offline inventory: expose the normally hidden micro menu, without changing presets.
+    shared.insert(LayoutSettings {
+        show_micro_menu: Some(true),
+        ..Default::default()
+    });
 }
