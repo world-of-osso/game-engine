@@ -104,6 +104,7 @@ No server bank defect established. Missing partial-stack/bank-to-bank operations
 | `src/scenes/bag_frame/mod.rs` | Right-click deposit (`use_bag_item`) |
 
 ## Tests asserting this spec
+- `godot/rust/src/merchant.rs`: `distant_banker_attempt_reaches_authoritative_range_validation` and `non_banker_right_click_requires_a_living_npc_in_range`; live event/server/render assertion retained as `bankloop-2026-10-08/assert-bank-range.py` with RED/GREEN capture inputs.
 - `godot/ui-model/tests/forever_bank_bags.rs`: concrete Modern/Forever atlas regions, Forever divider/item chrome and unchanged slot actions, 1596-line byte-identical Modern bank fixture.
 - `godot/ui-model/tests/bag_window.rs`: under both skins the open backpack has its border, title, a close button that closes it, and one art-backed slot background per slot inside the window; Forever slot art differs from Modern.
 - `godot/ui-model/src/game/bank_data_tests.rs`
