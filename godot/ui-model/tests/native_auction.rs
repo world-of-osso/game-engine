@@ -62,6 +62,53 @@ fn native_auction_accepts_server_selected_house_but_rejects_stale_filters() {
 }
 
 #[test]
+fn native_auction_sort_preserves_filters_and_resets_pages() {
+    let mut session = AuctionSession::default();
+    session.open(99);
+    session.opened(AuctionHouseOpened {
+        success: true,
+        error: None,
+    });
+    let mut query = AuctionSearchQuery {
+        text: "cloth".into(),
+        class_id: Some(7),
+        page: 3,
+        ..Default::default()
+    };
+    session.net.request(AuctionRequest::Browse(query.clone()));
+    session.ui.row_page = 2;
+    session.net.requests.clear();
+
+    session.click("auction_sort:price", &InputTexts::new());
+    query.sort_field = AuctionSortField::Buyout;
+    query.page = 0;
+    assert_eq!(
+        session.net.requests,
+        vec![AuctionRequest::Browse(query.clone())]
+    );
+    assert_eq!(session.ui.row_page, 0);
+
+    session.net.requests.clear();
+    session.click("auction_sort:price", &InputTexts::new());
+    query.sort_dir = AuctionSortDir::Desc;
+    assert_eq!(
+        session.net.requests,
+        vec![AuctionRequest::Browse(query.clone())]
+    );
+
+    query.item_id = Some(2589);
+    query.class_id = None;
+    query.text.clear();
+    session.ui.browse_item = Some(2589);
+    session.net.request(AuctionRequest::Listings(query.clone()));
+    session.net.requests.clear();
+    session.click("auction_sort:price", &InputTexts::new());
+    query.sort_field = AuctionSortField::Buyout;
+    query.sort_dir = AuctionSortDir::Asc;
+    assert_eq!(session.net.requests, vec![AuctionRequest::Listings(query)]);
+}
+
+#[test]
 fn native_auction_interaction_gate_refresh_rejection_close() {
     let mut s = AuctionSession::default();
     assert!(s.click("auction_search", &InputTexts::new()).is_empty());
@@ -195,6 +242,45 @@ fn open_session() -> AuctionSession {
     });
     s
 }
+#[test]
+fn native_auction_live_refund_updates_money_and_bid_affordability() {
+    let mut session = open_session();
+    session.net.inventory.as_mut().unwrap().gold = 998_800;
+    session.sync_replicated_money(998_800);
+    let mut auction = listing(102);
+    auction.current_bid = Some(951_381);
+    auction.min_next_bid = 998_950;
+    auction.buyout_price = Some(1_000_000);
+    session.net.search_results = vec![auction];
+    session.ui.browse_item = Some(2589);
+    let mut texts = InputTexts::new();
+    for (name, value) in session.click("auction_select:102", &texts) {
+        texts.insert(name, value);
+    }
+    session.click("auction_bid", &texts);
+    assert!(session.net.requests.is_empty());
+
+    // Outbid refund arrives through entity Gold without an auction inventory reply.
+    session.sync_replicated_money(999_000);
+    assert_eq!(session.state(&texts).money, 999_000);
+    session.click("auction_bid", &texts);
+    assert_eq!(
+        session.net.requests,
+        vec![AuctionRequest::Bid(PlaceBid {
+            auction_id: 102,
+            amount: 998_950,
+        })]
+    );
+
+    // A newer query reply must not be overwritten by the same old entity snapshot.
+    session.net.inventory.as_mut().unwrap().gold = 999_100;
+    session.sync_replicated_money(999_000);
+    assert_eq!(session.state(&texts).money, 999_100);
+    session.close();
+    session.sync_replicated_money(5);
+    assert!(session.net.inventory.is_none());
+}
+
 #[test]
 fn native_auction_invalid_bid_and_cancel_are_not_sent() {
     let mut s = open_session();

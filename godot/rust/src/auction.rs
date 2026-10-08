@@ -11,6 +11,7 @@ use ui_toolkit::frame::WidgetData;
 use crate::{
     GameClient,
     frame_error::{FrameError, SessionError},
+    replicated::UnitFields,
     ui::RegistryUi,
 };
 
@@ -123,6 +124,13 @@ impl GameClient {
         if self.account.session.screen != SessionScreen::InWorld {
             self.auction.reset();
             return Ok(());
+        }
+        if let Some(gold) = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id)?.gold())
+        {
+            self.auction.session.sync_replicated_money(gold);
         }
         if let Some(ui) = &mut self.auction.ui {
             let error = ui.bind_mut().sync_input();
