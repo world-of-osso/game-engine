@@ -547,11 +547,12 @@ fn category_tabs_use_retail_update_tab_width() {
         name: name.into(),
         groups: vec![group(name, 1)],
     };
-    let book = state(vec![
+    let mut book = state(vec![
         category("Retribution"),
         category("Protection of the Silver Hand"),
         category("General"),
     ]);
+    book.viewport = [1920.0, 1080.0];
     let registry = build(&book);
     let rect = |index| placed(&registry, &format!("SpellBookCategoryTab{index}"));
     assert_eq!(rect(1), [70.0, 19.0, 100.0, 32.0]);
