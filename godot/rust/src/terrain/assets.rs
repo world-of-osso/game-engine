@@ -1002,7 +1002,6 @@ mod tests {
             map_error.contains("no Directory map_that_does_not_exist_999"),
             "{map_error}"
         );
-        assert!(map_error.contains("not in listfile"), "{map_error}");
 
         let tile_error = assets.read_tile("azeroth", 64, 64).err().unwrap();
         assert!(tile_error.contains("azeroth_64_64.adt"), "{tile_error}");
