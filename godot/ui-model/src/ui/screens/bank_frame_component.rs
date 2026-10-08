@@ -13,7 +13,7 @@ use ui_toolkit::widget_def::Element;
 
 use crate::ui::screens::bank_art::{
     HIGHLIGHT_FONT_COLOR, ITEM_BUTTON, MoneyBoxNames, MoneyPrompt, SlotItem, WHITE, checkbox,
-    cropped, edit_box, item_slot, label, money_display, money_prompt, selected_marker, texture,
+    cropped, edit_box, item_slot, label, money_display, money_prompt, texture,
 };
 use crate::ui::screens::merchant_frame_component::{tab, tab_width};
 use crate::ui::screens::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome};
@@ -166,6 +166,7 @@ pub fn bank_frame_screen(ctx: &SharedContext) -> Element {
         ActiveSkin::Modern => {}
         ActiveSkin::Forever => children.extend(bank_divider(skin)),
     }
+    children.extend(edge_shadows(skin));
     children.extend(side_tabs(state, skin));
     match &state.purchase {
         Some(prompt) => children.extend(purchase_prompt(prompt, skin)),
@@ -308,13 +309,17 @@ fn slots(state: &BankFrameState, skin: ActiveSkin) -> Element {
         .flat_map(|(index, item)| {
             let prefix = format!("{FRAME_NAME}Item{}", index + 1);
             let background = slot_chrome(&prefix, state.account, skin);
-            item_slot(
+            let mut slot = item_slot(
                 &prefix,
                 slot_position(index),
                 background,
                 item.as_ref(),
                 &format!("{ACTION_SLOT_PREFIX}{index}"),
-            )
+            );
+            if let Some(ui_toolkit::widget_def::WidgetChild::Widget(def)) = slot.first_mut() {
+                def.tag = "Button";
+            }
+            slot
         })
         .collect()
 }
@@ -382,7 +387,12 @@ fn side_tab(
         ),
     });
     if selected {
-        children.extend(selected_marker(format!("{name}Selected"), (0.0, 0.0, 32.0)));
+        children.extend(texture(
+            format!("{name}Selected"),
+            130_724, // Interface/Buttons/CheckButtonHilight, BF.xml:369.
+            (0.0, 0.0, 32.0, 32.0),
+            WHITE,
+        ));
     }
     rsx! {
         r#frame {
@@ -468,13 +478,18 @@ fn purchase_prompt(prompt: &PurchasePromptView, skin: ActiveSkin) -> Element {
         (money_right - 170.0, cost_y, 80.0, 14.0),
         (14.0, NORMAL_FONT_COLOR, "RIGHT"),
     ));
-    // Retail reds the price the player can't afford (BF.lua:1078-1087); the money
-    // frame greys it.
-    children.extend(money_display(
+    // BF.lua:1085 SetMoneyFrameColorByFrame(..., canAfford and "white" or "red").
+    let money_color = if prompt.can_afford {
+        WHITE
+    } else {
+        "1.0,0.1,0.1,1.0"
+    };
+    children.extend(crate::merchant_frame_component::money_colored(
         &format!("{name}Money"),
         prompt.cost,
         (money_right, cost_y + 14.0),
-        !prompt.can_afford,
+        crate::merchant_frame_component::MoneyAlign::Right,
+        money_color,
     ));
     children.extend(panel_button(
         format!("{name}Button"),
@@ -653,6 +668,134 @@ fn tab_settings(flags: u32, name_prompt: &str) -> Element {
             left: {FRAME_W + 40.0},
             top: -5.0,
             {children}
+        }
+    }
+}
+
+/// BF.xml:279-342. Keep the portrait exclusion and existing frame bounds.
+fn edge_shadows(skin: ActiveSkin) -> Element {
+    let corners = [
+        (
+            "TopLeft",
+            "bank-frame-shadow-cornertopleft",
+            (2.0, 22.0, 46.0, 46.0),
+        ),
+        (
+            "TopRight",
+            "bank-frame-shadow-cornertopright",
+            (689.0, 22.0, 46.0, 46.0),
+        ),
+        (
+            "BottomLeft",
+            "bank-frame-shadow-cornerbottomleft",
+            (2.0, 412.0, 46.0, 46.0),
+        ),
+        (
+            "BottomRight",
+            "bank-frame-shadow-cornerbottomright",
+            (689.0, 412.0, 46.0, 46.0),
+        ),
+    ];
+    let mut children: Element = corners
+        .into_iter()
+        .flat_map(|(name, atlas, rect)| {
+            bank_atlas(
+                format!("{FRAME_NAME}Shadow{name}"),
+                atlas,
+                skin,
+                rect,
+                (WHITE, DrawLayer::Border),
+            )
+        })
+        .collect();
+    for (name, atlas, rect, uv) in [
+        (
+            "Left",
+            "!bank-frame-vert-shadow",
+            (2.0, 68.0, 17.0, 344.0),
+            [0.3125, 0.578125, 0.0, 1.0],
+        ),
+        (
+            "Right",
+            "!bank-frame-vert-shadow",
+            (718.0, 68.0, 17.0, 344.0),
+            [0.015625, 0.28125, 0.0, 1.0],
+        ),
+        (
+            "Top",
+            "_bank-frame-horiz-shadow",
+            (48.0, 22.0, 641.0, 17.0),
+            [0.0, 1.0, 0.3125, 0.578125],
+        ),
+        (
+            "Bottom",
+            "_bank-frame-horiz-shadow",
+            (48.0, 441.0, 641.0, 17.0),
+            [0.0, 1.0, 0.015625, 0.28125],
+        ),
+    ] {
+        let region = resolve_region(atlas, skin).expect("bank edge shadow atlas");
+        let AtlasSource::FileDataId(fdid) = region.source else {
+            panic!("bank shadow not DB2")
+        };
+        let width = region.right - region.left;
+        let height = region.bottom - region.top;
+        let coords = format!(
+            "{},{},{},{}",
+            region.left + uv[0] * width,
+            region.left + uv[1] * width,
+            region.top + uv[2] * height,
+            region.top + uv[3] * height
+        );
+        children.extend(cropped(
+            format!("{FRAME_NAME}Shadow{name}"),
+            fdid,
+            &coords,
+            rect,
+        ));
+    }
+    children
+}
+
+/// RSX has no TextureData tiling/blend or ButtonData hover attributes.
+/// Apply after each screen sync, before native projection (same pattern as the spellbook).
+pub fn apply_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    let ids: Vec<_> = registry
+        .frames_iter()
+        .filter_map(|f| {
+            f.name
+                .as_deref()
+                .filter(|name| name.starts_with(FRAME_NAME))
+                .map(|_| f.id)
+        })
+        .collect();
+    for id in ids {
+        let frame = registry.get_mut(id).expect("bank frame id");
+        let name = frame.name.as_deref().expect("named bank frame");
+        match &mut frame.widget_data {
+            Some(ui_toolkit::frame::WidgetData::Texture(t)) => {
+                t.horiz_tile = matches!(
+                    name,
+                    "BankFrameBackground" | "BankFrameShadowTop" | "BankFrameShadowBottom"
+                );
+                t.vert_tile = matches!(
+                    name,
+                    "BankFrameBackground" | "BankFrameShadowLeft" | "BankFrameShadowRight"
+                );
+                if name.ends_with("Selected") {
+                    t.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
+                    frame.draw_layer = DrawLayer::Overlay;
+                }
+            }
+            Some(ui_toolkit::frame::WidgetData::Button(b)) if name.starts_with("BankFrameItem") => {
+                b.use_default_skin = false;
+                b.highlight_texture = Some(
+                    ui_toolkit::widgets::texture::TextureSource::FileDataId(130_718),
+                );
+                b.highlight_alpha = 1.0;
+                b.highlight_size = Some([ITEM_BUTTON, ITEM_BUTTON]);
+            }
+            _ => {}
         }
     }
 }

@@ -23,6 +23,43 @@ use super::layout;
 use super::parts::{self, ImagePart, TextPart};
 use crate::frame_error::report_once;
 
+/// Crop-aware repetition: TextureRect's TILE would repeat an entire atlas sheet.
+fn apply_atlas_tiling(
+    rect: &mut Gd<TextureRect>,
+    image: &Gd<Texture2D>,
+    crop: [f32; 4],
+    part: &ImagePart,
+) {
+    let image_width = image.get_width() as f32;
+    let image_height = image.get_height() as f32;
+    let region = Vector4::new(
+        crop[0] / image_width,
+        crop[1] / image_height,
+        crop[2] / image_width,
+        crop[3] / image_height,
+    );
+    let repeats = Vector2::new(
+        if part.tiling[0] {
+            part.rect[2] / crop[2]
+        } else {
+            1.0
+        },
+        if part.tiling[1] {
+            part.rect[3] / crop[3]
+        } else {
+            1.0
+        },
+    );
+    let mut shader = godot::classes::Shader::new_gd();
+    shader.set_code(include_str!("../../../shaders/ui_atlas_tile.gdshader"));
+    let mut material = godot::classes::ShaderMaterial::new_gd();
+    material.set_shader(&shader);
+    material.set_shader_parameter("region", &region.to_variant());
+    material.set_shader_parameter("repeats", &repeats.to_variant());
+    rect.set_texture(image);
+    rect.set_material(&material);
+}
+
 /// Original highlight overlays render above every registry frame (sprite z 500).
 const OVERLAY_Z: i32 = 4000;
 const PARTS_NODE: &str = "Parts";
@@ -446,6 +483,23 @@ impl UiProjection {
     fn connect_input(&self, frame: &Frame, node: &mut Gd<Control>) {
         let pending = &self.pending;
         match frame.widget_type {
+            WidgetType::Button
+                if frame
+                    .onclick
+                    .as_deref()
+                    .is_some_and(|action| action.starts_with("bank_slot:")) =>
+            {
+                // Preserve bankmoves' press coordinates, drag source and modified clicks.
+                connect_frame_click(pending, frame.id, node);
+                node.connect(
+                    "mouse_entered",
+                    &emit(pending, UiInput::Hover(frame.id, true)),
+                );
+                node.connect(
+                    "mouse_exited",
+                    &emit(pending, UiInput::Hover(frame.id, false)),
+                );
+            }
             WidgetType::Button => connect_button(pending, frame.id, node),
             WidgetType::EditBox => connect_edit_box(pending, frame, node),
             WidgetType::Slider => connect_slider(pending, &self.slider_capture, frame.id, node),
@@ -685,7 +739,11 @@ impl UiProjection {
         let art = self.source(source, registry);
         if let Art::Ready((image, region)) = &art {
             let (crop, flip_x, flip_y) = parts::crop_rect(&part.crop, *region);
-            rect.set_texture(&assets::sub_texture(image, crop));
+            if part.tiling.iter().any(|tile| *tile) {
+                apply_atlas_tiling(&mut rect, image, crop, part);
+            } else {
+                rect.set_texture(&assets::sub_texture(image, crop));
+            }
             rect.set_flip_h(flip_x);
             rect.set_flip_v(flip_y);
         }

@@ -3,6 +3,7 @@ mod auction_icon_preview;
 #[cfg(debug_assertions)]
 mod audit_probe;
 mod aura_preview;
+mod bank_preview;
 #[cfg(test)]
 mod buffcancel_tests;
 // New preview APIs belong in their own *_preview.rs #[godot_api(secondary)] block, never here.
@@ -139,6 +140,7 @@ enum ScreenPostsetup {
     WorldMap(DynamicTextureId),
     EntranceBar,
     Merchant,
+    Bank,
     Auction,
     /// Enter in a TradeFrame money box submits the amount.
     Trade,
@@ -300,6 +302,11 @@ impl RegistryModel {
                 if let Some(state) = self.shared.get::<EntranceBarState>() {
                     apply_entrance_bar_postsetup(state, &mut self.registry);
                 }
+            }
+            ScreenPostsetup::Bank => {
+                game_engine_ui_model::bank_frame_component::apply_bank_postsetup(
+                    &mut self.registry,
+                );
             }
             ScreenPostsetup::Merchant => {
                 game_engine_ui_model::merchant::place_merchant_windows(&mut self.registry);
@@ -1346,7 +1353,7 @@ impl RegistryUi {
         self.show_viewport_screen_in(
             state,
             game_engine_ui_model::bank_frame_component::bank_frame_screen,
-            ScreenPostsetup::None,
+            ScreenPostsetup::Bank,
             registry,
             parent,
         )?;
