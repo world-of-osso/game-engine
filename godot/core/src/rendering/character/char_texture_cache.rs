@@ -340,6 +340,52 @@ mod tests {
     }
 
     #[test]
+    fn concurrent_imports_of_a_stale_cache_rebuild_it_once() {
+        use std::os::unix::fs::MetadataExt;
+        const IMPORTERS: usize = 8;
+        let root = linked_source_root("stale-concurrent");
+        let cache = import_char_texture_cache(&root).unwrap();
+        rusqlite::Connection::open(&cache)
+            .unwrap()
+            .execute("UPDATE source_files SET mtime_secs = 0", [])
+            .unwrap();
+        let identity = |path: &Path| {
+            let meta = std::fs::metadata(path).unwrap();
+            (meta.ino(), meta.modified().unwrap())
+        };
+        let stale = identity(&cache);
+        let builds_before = crate::cache_sqlite::staged_builds(&cache);
+        let barrier = std::sync::Barrier::new(IMPORTERS);
+        let seen = std::thread::scope(|scope| {
+            let workers = (0..IMPORTERS)
+                .map(|_| {
+                    scope.spawn(|| {
+                        barrier.wait();
+                        identity(&import_char_texture_cache(&root).unwrap())
+                    })
+                })
+                .collect::<Vec<_>>();
+            workers
+                .into_iter()
+                .map(|worker| worker.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        let rebuilt = identity(&cache);
+        assert_ne!(rebuilt, stale, "the stale cache must be rebuilt");
+        assert_eq!(
+            seen,
+            vec![rebuilt; IMPORTERS],
+            "every importer must return the one rebuilt cache"
+        );
+        assert_eq!(
+            crate::cache_sqlite::staged_builds(&cache) - builds_before,
+            1,
+            "concurrent importers must rebuild a stale cache exactly once"
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn equivalent_data_root_spelling_reuses_the_cache() {
         let root = linked_source_root("alias");
         let cache = import_char_texture_cache(&root).unwrap();
