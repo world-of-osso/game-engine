@@ -2086,6 +2086,7 @@ impl GameClient {
                 }
             }
             AccountEvent::GroupNotice(text) => self.receive_group_notice(&text),
+            AccountEvent::MinimapPing(ping) => self.receive_minimap_ping(&ping),
             AccountEvent::Quest(message) => self.receive_quest_message(message)?,
             AccountEvent::QuestNotice(notice) => match notice {
                 game_engine_ui_model::quest_runtime::QuestNotice::System(text) => {
