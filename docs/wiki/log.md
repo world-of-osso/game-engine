@@ -1,6 +1,13 @@
 ## 2026-10-07 — Offline character garment matrix, 78-cell bounded PASS
 
 [Character rendering](systems/character-rendering.md#current-acceptance-78-pass-zero-fail) records final fixture `3b1490ba7`: all78 isolated cells pass actual Vulkan geoset/material/attachment/close-up checks and150 independently gated garment rectangles; all six contact sheets and cape back views inspected. `c60ba62c0` supplies the independent HelmetGeosetData CSV oracle and corrects DXT-buffer and full-thumbnail fixture defects; `41449a140` types its behavioral test. Exporter RED→GREEN1/1 and helmet/DXT tests pass; final core781/Godot658/UI-model744 pass, zero failures. The previous renderer block misread owned-process scope. No production client mismatch/fix, server/network, merge/push or full Retail pixel/animated-clipping claim. [Parity rows](../specs/godot-parity-matrix.md) retain the broader named gaps.
+## 2026-10-08 — HUD manager acceptance continuation
+
+[Contract acceptance](../specs/hud-edit-mode.md#live-manager-acceptance-2026-10-08) and [matrix](../specs/godot-parity-matrix.md#hud-manager-live-step-matrix-2026-10-08) reconcile the interrupted worker's live Modern/Forever manager proof and authenticated-account GREEN. Retained captures/dumps were inspected without repeating PASS runs; inline-manager dialog exclusions remain explicit.
+
+## 2026-10-07 — HUD manager account isolation
+
+[Native HUD edit mode](systems/native-hud-edit-mode.md) records private-server same-XDG cross-account layout exposure and authenticated realm/username storage routing. Token ownership survives credential-token rotation; ownerless legacy data is not imported. [Contract](../specs/hud-edit-mode.md) owns acceptance and compatibility boundaries.
 
 ## 2026-10-07 — Native quest objective progress notices
 
