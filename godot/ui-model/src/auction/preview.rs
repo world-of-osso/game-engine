@@ -2,17 +2,6 @@
 use super::NativeAuctionView;
 use crate::auction_house_frame_component::*;
 
-pub const VIEWS: [&str; 8] = [
-    "browse",
-    "item",
-    "inventory",
-    "sell",
-    "duration",
-    "owned",
-    "bids",
-    "dialog",
-];
-
 pub fn preview_view(view: &str) -> Result<NativeAuctionView, String> {
     let mut frame = browse_frame();
     match view {
@@ -25,9 +14,9 @@ pub fn preview_view(view: &str) -> Result<NativeAuctionView, String> {
     Ok(NativeAuctionView {
         frame,
         row_page: 0,
-        row_pages: 2,
+        row_pages: 1,
         search_page: 0,
-        search_pages: 2,
+        search_pages: 1,
         search_paging: matches!(view, "browse" | "item" | "dialog" | "sell" | "duration"),
     })
 }
