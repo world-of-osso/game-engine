@@ -54,7 +54,7 @@ fn forever_npc_displays_resolve_real_ailee_and_ventaari_without_retail_changes()
     for id in [136968, 139694] {
         let display = query_display(&connection, id).unwrap().unwrap();
         assert_eq!(display.model_fdid, 7_478_494);
-        assert_eq!(display.skin_fdids, [0; 3]);
+        assert_eq!(display.skin_fdids, [0; 4]);
         assert_eq!(display.scale_milli, 1000);
     }
     drop(connection);
