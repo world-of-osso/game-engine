@@ -236,6 +236,31 @@ fn assert_equivalent(stock: &mut App, replica: &Replica, context: &str) {
     }
 }
 
+#[test]
+fn ghoststate_replica_decodes_remote_life_transitions_over_udp() {
+    use shared::death::DeathState;
+    let mut session = Session::start(941);
+    let entity = session.spawn((player("Elara"), position(0.0), DeathState::Alive));
+    for state in [
+        DeathState::Alive,
+        DeathState::Dead,
+        DeathState::Ghost,
+        DeathState::Alive,
+    ] {
+        session.edit(entity, |entity| {
+            entity.insert(state);
+        });
+        session
+            .server
+            .world()
+            .resource::<lightyear::prelude::ReplicationDirtyQueue>()
+            .mark(entity);
+        session.until("remote life state", entity, |unit| {
+            unit.and_then(|unit| unit.get::<DeathState>()).copied() == Some(state)
+        });
+    }
+}
+
 fn player(name: &str) -> Player {
     Player {
         name: name.into(),
