@@ -3,9 +3,10 @@
 use game_engine_network::replica::{Replica, Unit};
 use shared::{
     components::{
-        CombatStatus, Gold, Npc, Player, UnitFactionTemplate, UnitFlags, UnitSummonedBy, UnitTap,
-        UnitTarget, UnitThreatList,
+        CombatStatus, Gold, Health, Npc, Player, UnitFactionTemplate, UnitFlags, UnitSummonedBy,
+        UnitTap, UnitTarget, UnitThreatList,
     },
+    death::DeathState,
     protocol::NpcFlags,
 };
 
@@ -25,6 +26,9 @@ pub(crate) fn local_pet(replica: &Replica, player: u64) -> Option<u64> {
 pub(crate) trait UnitFields<'a> {
     fn name(self) -> Option<&'a str>;
     fn in_combat(self) -> bool;
+    /// Players carry an explicit life state; NPC corpse state comes from their health.
+    fn death_state(self) -> Option<DeathState>;
+    fn dead_or_ghost(self) -> bool;
     /// Retail `FactionTemplate` id, for reaction to the local player.
     fn faction_template(self) -> Option<u32>;
     /// `UNIT_FIELD_FLAGS` bits.
@@ -51,6 +55,26 @@ impl<'a> UnitFields<'a> for Unit<'a> {
 
     fn in_combat(self) -> bool {
         self.get::<CombatStatus>().is_some_and(|status| status.0)
+    }
+
+    fn death_state(self) -> Option<DeathState> {
+        if self.has::<Player>() {
+            return self.get::<DeathState>().copied();
+        }
+        self.get::<Health>().map(|health| {
+            if health.current <= 0.0 {
+                DeathState::Dead
+            } else {
+                DeathState::Alive
+            }
+        })
+    }
+
+    fn dead_or_ghost(self) -> bool {
+        matches!(
+            self.death_state(),
+            Some(DeathState::Dead | DeathState::Ghost)
+        )
     }
 
     fn faction_template(self) -> Option<u32> {

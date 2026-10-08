@@ -36,6 +36,7 @@ use godot::{
 use shared::{
     casting::CastState,
     components::{CreatureClassification, Health, Player, UnitFlags, UnitLevel},
+    death::DeathState,
     faction_reaction::{Unit, can_attack},
     level_scaling::{LevelScaling, level_for_viewer},
     protocol::RAID_TARGET_ICON_COUNT,
@@ -239,7 +240,11 @@ fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> Plat
 /// The text at the bar's right: the percent of `UnitHealthMax` ("100%"), after
 /// `AbbreviateLargeNumbers(UnitHealth)` when the style shows the value (the reference's
 /// "425 K  100%").
-fn health_text(health: &Health, show_value: bool) -> String {
+fn health_text(health: &Health, show_value: bool, life: Option<DeathState>) -> String {
+    // Retail CompactUnitFrame_UpdateStatusText uses DEAD for both dead and ghost units.
+    if matches!(life, Some(DeathState::Dead | DeathState::Ghost)) {
+        return "Dead".to_owned();
+    }
     let (current, max) = (health.current.round() as i64, health.max.round() as i64);
     let percent = percent(current, max);
     if show_value {
@@ -1442,7 +1447,7 @@ impl GameClient {
                 view.health_text = unit
                     .get::<Health>()
                     .filter(|health| health.max > 0.0)
-                    .map(|health| health_text(health, style.show_health_value))
+                    .map(|health| health_text(health, style.show_health_value, unit.death_state()))
                     .unwrap_or_default();
                 view.level = displayed_plate_level(unit, viewer_level);
                 view.enemy = rules.enemy;
@@ -1799,8 +1804,27 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
                         current: 0.0,
                         max: 120.0
                     },
-                    show_value
+                    show_value,
+                    Some(DeathState::Dead),
                 ),
+                "Dead"
+            );
+        }
+    }
+
+    #[test]
+    fn ghoststate_nameplate_ghost_with_health_uses_dead_label_and_alive_restores_number() {
+        let health = Health {
+            current: 1.0,
+            max: 120.0,
+        };
+        for show_value in [false, true] {
+            assert_eq!(
+                health_text(&health, show_value, Some(DeathState::Ghost)),
+                "Dead"
+            );
+            assert_ne!(
+                health_text(&health, show_value, Some(DeathState::Alive)),
                 "Dead"
             );
         }
@@ -1809,7 +1833,13 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
     #[test]
     fn health_text_is_the_percent_alone_by_default() {
         let show_value = NameplateStyle::default().show_health_value;
-        let text = |current, max| health_text(&Health { current, max }, show_value);
+        let text = |current, max| {
+            health_text(
+                &Health { current, max },
+                show_value,
+                Some(DeathState::Alive),
+            )
+        };
         assert_eq!(text(425_000.0, 425_000.0), "100%");
         assert_eq!(text(324_275.0, 425_000.0), "77%");
         assert_eq!(text(42.0, 55.0), "77%");
@@ -1819,7 +1849,8 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
     /// `AbbreviateLargeNumbers` then the percent.
     #[test]
     fn health_text_leads_with_the_abbreviated_value_when_the_style_shows_it() {
-        let text = |current, max| health_text(&Health { current, max }, true);
+        let text =
+            |current, max| health_text(&Health { current, max }, true, Some(DeathState::Alive));
         assert_eq!(text(425_000.0, 425_000.0), "425 K  100%");
         assert_eq!(text(42.0, 55.0), "42  77%");
         assert_eq!(text(12_345.0, 20_000.0), "12,345  62%");

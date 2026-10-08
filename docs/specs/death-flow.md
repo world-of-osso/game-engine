@@ -15,6 +15,16 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 - [x] `RESURRECT` offers show the caster and server-supplied timeout; Accept/Decline/timeout send the corresponding response, once. Alive closes the offer. Both skins retain the same mechanics.
 - [x] Stable replicated tapper identities exempt the local player and current group. Tap-denied nameplate health is Retail 0.9 grey; requested target health is 0.5 grey, through each skin's existing brightness treatment. Untapped/group-eligible units keep their ordinary health colours.
 
+## Remote player life state
+
+- Visible remote players receive explicit Alive, Dead (unreleased corpse), or Ghost; health alone never identifies player life state.
+- Dead remote players hold their authored death animation instead of locomotion. Ghosts resume locomotion with the same per-mesh transparency as the local ghost; Alive restores opaque rendering. Replacement visuals retain the current presentation.
+- Server visibility follows existing shared `ghost_visible`: living observers do not receive ghosts; ghost observers see ghosts. Map/distance restrictions and self-visibility remain.
+- Target/focus/target-of-target and nameplate status text replace numeric health with `Dead` for Dead or Ghost, including ghosts with positive health. This follows Retail's `DEAD` label for both (`CompactUnitFrame_UpdateStatusText`); it does not invent a separate TargetFrame Ghost label. Both skins retain their existing label layouts.
+- Owner popups, corpse markers and world grading remain owner-only.
+
+Targeted proof: network `replica::tests::ghoststate_replica_decodes_remote_life_transitions_over_udp`; native `ghoststate` mapping, animation-policy and rendered UI-registry tests. Live remote visual parity remains untested in this work.
+
 ## How it works
 
 - [Death flow and protocol gaps](../wiki/systems/death-flow.md)
