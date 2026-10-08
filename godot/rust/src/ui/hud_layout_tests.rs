@@ -628,6 +628,51 @@ fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
     );
 }
 
+#[test]
+fn forevertracker_header_line_sits_under_minimap_at_both_resolutions() {
+    // 260/288 (FlareUI Modules/Minimap.lua:366-406): the header art is 300 wide, its line
+    // fades over 6 units at each end, so 288 * scale = 260 shows, the minimap's width.
+    let scale = 260.0 / 288.0;
+    for (mut canvases, width) in [(default_canvas_hud(), 1920.0), (hud(), 1366.0)] {
+        sync(&mut canvases, ActiveSkin::Modern);
+        assert_rect(&canvases, TRACKER_FRAME, (width - 260.0, 275.0, 260.0, 32.0));
+        let modern_header = rect(&canvases, "ObjectiveTrackerFrameHeaderBackground");
+
+        sync(&mut canvases, ActiveSkin::Forever);
+        assert_rect(&canvases, MINIMAP_CLUSTER, (width - 260.0, 0.0, 260.0, 260.0));
+        // Header art top 8 below the minimap's bottom (260), its visible line spanning the
+        // minimap's 260 columns exactly; the frame starts 4 tracker units below the art and
+        // ends 14 tracker units left of the line's right end.
+        assert_rect(
+            &canvases,
+            "ObjectiveTrackerFrameHeaderBackground",
+            (width - 260.0 - 6.0 * scale, 268.0, 300.0 * scale, 40.0 * scale),
+        );
+        assert_rect(
+            &canvases,
+            TRACKER_FRAME,
+            (
+                width - 14.0 * scale - 260.0 * scale,
+                268.0 + 4.0 * scale,
+                260.0 * scale,
+                32.0 * scale,
+            ),
+        );
+        let art = rect(&canvases, "ObjectiveTrackerFrameHeaderBackground");
+        let map = rect(&canvases, MINIMAP_CLUSTER);
+        let line_right = art.x + art.width - 6.0 * scale;
+        assert!((line_right - (map.x + map.width)).abs() < 0.001, "{line_right}");
+        assert!((art.y - (map.y + map.height) - 8.0).abs() < 0.001, "{}", art.y);
+
+        sync(&mut canvases, ActiveSkin::Modern);
+        assert_rect(&canvases, TRACKER_FRAME, (width - 260.0, 275.0, 260.0, 32.0));
+        assert_eq!(
+            rect(&canvases, "ObjectiveTrackerFrameHeaderBackground"),
+            modern_header
+        );
+    }
+}
+
 /// Snapshot the external frame data and computed bounds, not the RSX construction.
 fn tracker_canvas_hash(hud: &[RegistryModel]) -> u64 {
     use std::hash::{DefaultHasher, Hash, Hasher};
