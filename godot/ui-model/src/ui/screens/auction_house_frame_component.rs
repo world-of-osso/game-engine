@@ -536,6 +536,8 @@ fn buy_header_sort_token(name: &str, label: &str) -> Option<&'static str> {
     match label {
         "Name" => Some("name"),
         "Price" | "Buyout Price" => Some("price"),
+        "Current Bid" => Some("bid"),
+        "Available" => Some("available"),
         _ => None,
     }
 }
