@@ -191,10 +191,7 @@ fn trainer_recipe_shows_created_item_quality_reagents_and_both_record_ids() {
             },
         );
         assert_eq!(main.title, "Bolt of Linen Cloth");
-        assert_eq!(
-            main.title_color,
-            game_engine_ui_model::merchant_data::quality_color(1)
-        );
+        assert_eq!(main.title_color, [1.0, 1.0, 1.0, 1.0]);
         let lines: Vec<_> = main.lines.iter().map(|l| l.left_text.as_str()).collect();
         assert!(lines.contains(&"Reagents:"), "{lines:?}");
         assert!(lines.contains(&"Linen Cloth (2)"), "{lines:?}");
