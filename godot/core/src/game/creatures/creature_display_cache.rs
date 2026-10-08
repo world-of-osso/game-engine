@@ -3,7 +3,7 @@ use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
 use crate::cache_source_mtime::{csv_mtime, source_key};
-use crate::cache_sqlite::{open_read_only, replace_atomically};
+use crate::cache_sqlite::rebuild_unless_fresh;
 use crate::creature_display_data::CreatureDisplay;
 use crate::sqlite_util::is_missing_table_error;
 use rusqlite::Connection;
@@ -45,19 +45,16 @@ pub fn import_creature_display_cache(data_dir: &Path) -> Result<PathBuf, String>
             forever.join("CreatureModelData.csv"),
         ]);
     }
-    if cache_path.exists() {
-        let conn = open_read_only(&cache_path)?;
-        if cache_is_fresh(&conn, data_dir, &source_paths)? {
-            return Ok(cache_path);
-        }
-    }
-
-    replace_atomically(&cache_path, |conn| {
-        rebuild_cache(conn, &di, &md)?;
-        import_forever_display_rows(conn, &forever, &di)?;
-        build_preferred_skins(conn)?;
-        record_source_files(conn, data_dir, &source_paths)
-    })?;
+    rebuild_unless_fresh(
+        &cache_path,
+        |conn| cache_is_fresh(conn, data_dir, &source_paths),
+        |conn| {
+            rebuild_cache(conn, &di, &md)?;
+            import_forever_display_rows(conn, &forever, &di)?;
+            build_preferred_skins(conn)?;
+            record_source_files(conn, data_dir, &source_paths)
+        },
+    )?;
     Ok(cache_path)
 }
 
@@ -423,6 +420,7 @@ fn header_index(headers: &[&str], column: &str, path: &Path) -> Result<usize, St
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::cache_sqlite::open_read_only;
 
     #[test]
     fn import_lord_cannon_preserves_fourth_creature_variation() {

@@ -1,5 +1,5 @@
 use crate::cache_source_mtime::{csv_mtime, source_key};
-use crate::cache_sqlite::{open_read_only, replace_atomically};
+use crate::cache_sqlite::rebuild_unless_fresh;
 use rusqlite::Connection;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
@@ -129,18 +129,15 @@ where
     Ok(())
 }
 
-fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
-    let csv_paths = source_paths(data_dir);
-    replace_atomically(cache_path, |conn| {
-        init_cache_schema(conn)?;
-        record_source_files(conn, data_dir, &csv_paths)?;
-        populate_layers(conn, &csv_paths[0])?;
-        populate_sections(conn, &csv_paths[1])?;
-        populate_layouts(conn, &csv_paths[2])?;
-        populate_model_materials(conn, &csv_paths[3])?;
-        conn.execute_batch("COMMIT;")
-            .map_err(|err| format!("commit char texture cache: {err}"))
-    })
+fn build_cache(conn: &Connection, data_dir: &Path, csv_paths: &[PathBuf]) -> Result<(), String> {
+    init_cache_schema(conn)?;
+    record_source_files(conn, data_dir, csv_paths)?;
+    populate_layers(conn, &csv_paths[0])?;
+    populate_sections(conn, &csv_paths[1])?;
+    populate_layouts(conn, &csv_paths[2])?;
+    populate_model_materials(conn, &csv_paths[3])?;
+    conn.execute_batch("COMMIT;")
+        .map_err(|err| format!("commit char texture cache: {err}"))
 }
 
 fn init_cache_schema(conn: &Connection) -> Result<(), String> {
@@ -273,17 +270,11 @@ fn populate_model_materials(conn: &Connection, path: &Path) -> Result<(), String
 pub fn import_char_texture_cache(data_dir: &Path) -> Result<PathBuf, String> {
     let cache_path = cache_path(data_dir);
     let csv_paths = source_paths(data_dir);
-    let needs_rebuild = if cache_path.exists() {
-        let conn = open_read_only(&cache_path)?;
-        !cache_is_fresh(&conn, data_dir, &csv_paths)?
-    } else {
-        true
-    };
-    if needs_rebuild {
-        #[cfg(test)]
-        crate::cache_sqlite::observed_stale(&cache_path);
-        rebuild_cache(&cache_path, data_dir)?;
-    }
+    rebuild_unless_fresh(
+        &cache_path,
+        |conn| cache_is_fresh(conn, data_dir, &csv_paths),
+        |conn| build_cache(conn, data_dir, &csv_paths),
+    )?;
     Ok(cache_path)
 }
 

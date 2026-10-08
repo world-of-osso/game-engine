@@ -1,5 +1,5 @@
 use crate::cache_source_mtime::{csv_mtime, source_key};
-use crate::cache_sqlite::{open_read_only, replace_atomically};
+use crate::cache_sqlite::{open_read_only, rebuild_unless_fresh};
 use rusqlite::Connection;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
@@ -92,32 +92,23 @@ fn record_source_files(
     Ok(())
 }
 
-fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
+fn build_cache(conn: &Connection, data_dir: &Path, all_sources: &[PathBuf]) -> Result<(), String> {
     let csv_paths = required_csv_paths(data_dir);
     let texture_file_data = texture_file_data_path(data_dir);
-    let all_sources = rebuild_source_paths(&csv_paths, &texture_file_data);
-    replace_atomically(cache_path, |conn| {
-        init_cache_schema(conn)?;
-        record_source_files(conn, data_dir, &all_sources)?;
-        populate_chr_models(conn, &csv_paths[0])?;
-        populate_options(conn, &csv_paths[1])?;
-        populate_choices(conn, &csv_paths[2])?;
-        populate_elements(conn, &csv_paths[3])?;
-        populate_materials(conn, &csv_paths[4])?;
-        populate_geosets(conn, &csv_paths[5])?;
-        populate_hair_geosets(conn, &csv_paths[6], &RaceModels::load(data_dir)?)?;
-        populate_categories(conn, &csv_paths[7])?;
-        populate_skinned_models(conn, &csv_paths[8])?;
-        populate_texture_fdids(conn, &texture_file_data)?;
-        conn.execute_batch("COMMIT;")
-            .map_err(|err| format!("commit customization cache: {err}"))
-    })
-}
-
-fn rebuild_source_paths(csv_paths: &[PathBuf; 9], texture_file_data: &Path) -> Vec<PathBuf> {
-    let mut all_sources = csv_paths.to_vec();
-    all_sources.push(texture_file_data.to_path_buf());
-    all_sources
+    init_cache_schema(conn)?;
+    record_source_files(conn, data_dir, all_sources)?;
+    populate_chr_models(conn, &csv_paths[0])?;
+    populate_options(conn, &csv_paths[1])?;
+    populate_choices(conn, &csv_paths[2])?;
+    populate_elements(conn, &csv_paths[3])?;
+    populate_materials(conn, &csv_paths[4])?;
+    populate_geosets(conn, &csv_paths[5])?;
+    populate_hair_geosets(conn, &csv_paths[6], &RaceModels::load(data_dir)?)?;
+    populate_categories(conn, &csv_paths[7])?;
+    populate_skinned_models(conn, &csv_paths[8])?;
+    populate_texture_fdids(conn, &texture_file_data)?;
+    conn.execute_batch("COMMIT;")
+        .map_err(|err| format!("commit customization cache: {err}"))
 }
 
 fn init_cache_schema(conn: &Connection) -> Result<(), String> {
@@ -565,15 +556,11 @@ pub fn import_customization_cache(data_dir: &Path) -> Result<PathBuf, String> {
 fn import_customization_cache_at(data_dir: &Path, cache_path: &Path) -> Result<PathBuf, String> {
     let mut csv_paths = required_csv_paths(data_dir).to_vec();
     csv_paths.push(texture_file_data_path(data_dir));
-    let needs_rebuild = if cache_path.exists() {
-        let conn = open_read_only(&cache_path)?;
-        !cache_is_fresh(&conn, data_dir, &csv_paths)?
-    } else {
-        true
-    };
-    if needs_rebuild {
-        rebuild_cache(&cache_path, data_dir)?;
-    }
+    rebuild_unless_fresh(
+        cache_path,
+        |conn| cache_is_fresh(conn, data_dir, &csv_paths),
+        |conn| build_cache(conn, data_dir, &csv_paths),
+    )?;
     Ok(cache_path.to_path_buf())
 }
 
