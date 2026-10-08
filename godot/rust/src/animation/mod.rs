@@ -13,6 +13,7 @@ use godot::builtin::{Basis, Transform3D};
 
 mod action;
 mod billboard;
+mod momentum;
 pub(crate) use action::ActionPriority;
 pub(crate) mod lod;
 
@@ -189,6 +190,8 @@ pub struct AnimationState {
     /// The next `update_locomotion` may enter or leave a stand state pose through its
     /// down or up clip.
     pose_transition: bool,
+    /// Arms, spine and head swing against changes in the unit's velocity.
+    momentum: momentum::MomentumSway,
 }
 
 impl AnimationState {
@@ -253,6 +256,7 @@ impl AnimationState {
             legs_free: true,
             locomotion_speed: None,
             pose_transition: false,
+            momentum: momentum::MomentumSway::new(model),
         })
     }
 
@@ -270,7 +274,16 @@ impl AnimationState {
     /// Whether the sampled pose can change as time advances: a crossfade, or a
     /// current sequence with keyframed motion. Static props hold one pose.
     pub fn pose_varies(&self) -> bool {
-        self.transition.is_some() || self.action.is_some() || self.sequence_animated[self.current]
+        self.transition.is_some()
+            || self.action.is_some()
+            || self.momentum.active()
+            || self.sequence_animated[self.current]
+    }
+
+    /// The unit's horizontal velocity changed by `change` (yd/s, skeleton space) since
+    /// the last frame; the momentum sway swings against it.
+    pub fn add_velocity_change(&mut self, change: Vector3) {
+        self.momentum.kick(change);
     }
 
     /// Timeline and time a track samples: a global-sequence track reads timeline 0
@@ -312,7 +325,8 @@ impl AnimationState {
     }
 
     fn sampled_poses(&self) -> Vec<BonePose> {
-        self.apply_action(self.sampled_base_poses())
+        self.momentum
+            .apply(self.apply_action(self.sampled_base_poses()))
     }
 
     fn sampled_base_poses(&self) -> Vec<BonePose> {
@@ -526,6 +540,7 @@ impl AnimationState {
         // (WebWowViewerCpp animationManager.cpp updateSequencing `deltaTimeForGS`).
         self.global_ms += delta_ms;
         self.tick_action(delta_ms);
+        self.momentum.advance(delta_ms);
         Ok(())
     }
 
@@ -1037,6 +1052,8 @@ mod global_sequence_tests;
 mod jump_tests;
 #[cfg(test)]
 mod locomotion_capture_tests;
+#[cfg(test)]
+mod momentum_tests;
 
 #[cfg(test)]
 mod npc_locomotion_tests;
