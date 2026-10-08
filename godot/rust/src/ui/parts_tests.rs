@@ -48,6 +48,7 @@ fn default_skin_button_stretches_the_whole_state_region() {
             rotation: 0.0,
             additive: false,
             desaturated: false,
+            tiling: [false; 2],
         }]
     );
 }
@@ -210,6 +211,7 @@ fn css_border_draws_four_inset_edges_above_the_fill() {
         rotation: 0.0,
         additive: false,
         desaturated: false,
+        tiling: [false; 2],
     };
     let gold = [1.0, 0.82, 0.0, 0.9];
     assert_eq!(

@@ -40,6 +40,7 @@ fn mount(skin: ActiveSkin, purchase: bool) -> FrameRegistry {
     ctx.insert(state);
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(bank_frame_screen).sync(&ctx, &mut registry);
+    game_engine_ui_model::bank_frame_component::apply_bank_postsetup(&mut registry);
     registry
 }
 fn frame<'a>(r: &'a FrameRegistry, name: &str) -> &'a Frame {

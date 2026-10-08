@@ -39,6 +39,8 @@ pub struct ImagePart {
     pub additive: bool,
     /// Retail MinimalScrollBar disabled-arrow art loses texture saturation, not brightness.
     pub desaturated: bool,
+    /// Repeat the cropped member on each authored axis, never the surrounding atlas.
+    pub tiling: [bool; 2],
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -157,6 +159,7 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
             part.desaturated = texture.desaturated;
             part.rotation = texture.rotation;
             part.additive = texture.blend_mode == BlendMode::Additive;
+            part.tiling = [texture.horiz_tile, texture.vert_tile];
             Some(part)
         }
         Some(WidgetData::StatusBar(_)) => None,
@@ -319,6 +322,11 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
         [1.0, 1.0, 1.0, button.highlight_alpha],
     );
     part.overlay = true;
+    // ItemButtonTemplate:79. Scope to bank slots; other hover art keeps its contract.
+    part.additive = frame
+        .onclick
+        .as_deref()
+        .is_some_and(|action| action.starts_with("bank_slot:"));
     parts.push(part);
 }
 
@@ -430,6 +438,7 @@ fn solid(rect: [f32; 4], color: [f32; 4]) -> ImagePart {
         rotation: 0.0,
         additive: false,
         desaturated: false,
+        tiling: [false; 2],
     }
 }
 
@@ -443,6 +452,7 @@ fn textured(rect: [f32; 4], source: TextureSource, crop: Crop, color: [f32; 4]) 
         rotation: 0.0,
         additive: false,
         desaturated: false,
+        tiling: [false; 2],
     }
 }
 
