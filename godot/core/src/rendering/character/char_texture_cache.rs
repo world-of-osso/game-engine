@@ -296,7 +296,74 @@ pub fn import_char_texture_cache(data_dir: &Path) -> Result<PathBuf, String> {
 mod tests {
     use super::import_char_texture_cache;
     use crate::cache_sqlite::open_read_only;
-    use std::path::Path;
+    use std::path::{Path, PathBuf};
+
+    /// A data root whose texture CSVs link to the real ones, with its own `cache/`.
+    fn linked_source_root(name: &str) -> PathBuf {
+        let root =
+            std::env::temp_dir().join(format!("char-texture-{name}-{}", std::process::id()));
+        if root.exists() {
+            std::fs::remove_dir_all(&root).unwrap();
+        }
+        std::fs::create_dir_all(&root).unwrap();
+        for source in super::source_paths(Path::new("data")) {
+            std::os::unix::fs::symlink(
+                source.canonicalize().unwrap(),
+                root.join(source.file_name().unwrap()),
+            )
+            .unwrap();
+        }
+        root
+    }
+
+    #[test]
+    fn concurrent_imports_of_a_missing_cache_all_succeed() {
+        const IMPORTERS: usize = 8;
+        let root = linked_source_root("concurrent");
+        let barrier = std::sync::Barrier::new(IMPORTERS);
+        let results = std::thread::scope(|scope| {
+            let workers = (0..IMPORTERS)
+                .map(|_| {
+                    scope.spawn(|| {
+                        barrier.wait();
+                        import_char_texture_cache(&root)
+                    })
+                })
+                .collect::<Vec<_>>();
+            workers
+                .into_iter()
+                .map(|worker| worker.join().unwrap())
+                .collect::<Vec<_>>()
+        });
+        for result in results {
+            result.expect("every concurrent importer must succeed");
+        }
+        let conn = open_read_only(&import_char_texture_cache(&root).unwrap()).unwrap();
+        let (layers, _, layouts) =
+            crate::char_texture_query_data::query_char_texture_data(&conn).unwrap();
+        assert!(!layers.is_empty());
+        assert!(!layouts.is_empty());
+        drop(conn);
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
+    fn equivalent_data_root_spelling_reuses_the_cache() {
+        let root = linked_source_root("alias");
+        let cache = import_char_texture_cache(&root).unwrap();
+        let conn = rusqlite::Connection::open(&cache).unwrap();
+        conn.execute("DELETE FROM layouts", []).unwrap();
+        drop(conn);
+        let alias = root.join("..").join(root.file_name().unwrap());
+        import_char_texture_cache(&alias).unwrap();
+        let conn = open_read_only(&cache).unwrap();
+        let layouts: i64 = conn
+            .query_row("SELECT COUNT(*) FROM layouts", [], |row| row.get(0))
+            .unwrap();
+        assert_eq!(layouts, 0, "an equivalent data root must not rebuild the cache");
+        drop(conn);
+        std::fs::remove_dir_all(root).unwrap();
+    }
 
     #[test]
     fn query_char_texture_data_reads_sorted_layers_and_keyed_regions() {
