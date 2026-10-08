@@ -35,6 +35,7 @@ pub const ROOT_FRAME: &str = "AuctionHouseFrame";
 pub const ACTION_CLOSE: &str = "auction_close";
 pub const ACTION_TAB_PREFIX: &str = "auction_tab:";
 pub const ACTION_SEARCH: &str = "auction_search";
+pub const ACTION_SORT_PREFIX: &str = "auction_sort:";
 pub const ACTION_CATEGORY_PREFIX: &str = "auction_category:";
 pub const ACTION_BROWSE_ITEM_PREFIX: &str = "auction_browse_item:";
 pub const ACTION_BACK: &str = "auction_back";
@@ -505,6 +506,41 @@ fn item_list_frame(
 /// `AuctionHouseTableHeaderStringTemplate` label (`GameFontHighlightSmall`); columns are
 /// relative to the header container at `origin`.
 fn list_header(name: &str, column: &Column, (x, y): (f32, f32)) -> Element {
+    let position = (x + column.x + column.pad_left, y);
+    let Some(token) = buy_header_sort_token(name, column.label) else {
+        return list_header_text(name, column, position);
+    };
+    let action = format!("{ACTION_SORT_PREFIX}{token}");
+    let label = list_header_text(&format!("{name}Text"), column, (0.0, 0.0));
+    rsx! {
+        button {
+            name: {DynName(name.to_string())},
+            width: {column.w - column.pad_left - column.pad_right},
+            height: 19.0,
+            onclick: {action.as_str()},
+            button_default_skin: false,
+            pos_type: "absolute",
+            left: {position.0},
+            top: {position.1},
+            {label}
+        }
+    }
+}
+
+fn buy_header_sort_token(name: &str, label: &str) -> Option<&'static str> {
+    let is_buy_list = name.starts_with("AuctionHouseFrameBrowseResultsFrameItemList")
+        || name.starts_with("AuctionHouseFrameItemBuyFrame");
+    if !is_buy_list {
+        return None;
+    }
+    match label {
+        "Name" => Some("name"),
+        "Price" | "Buyout Price" => Some("price"),
+        _ => None,
+    }
+}
+
+fn list_header_text(name: &str, column: &Column, (x, y): (f32, f32)) -> Element {
     rsx! {
         fontstring {
             name: {DynName(name.to_string())},
@@ -518,7 +554,7 @@ fn list_header(name: &str, column: &Column, (x, y): (f32, f32)) -> Element {
             shadow_offset: "1,-1",
             justify_h: "LEFT",
             pos_type: "absolute",
-            left: {x + column.x + column.pad_left},
+            left: x,
             top: y,
         }
     }
