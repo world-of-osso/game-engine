@@ -163,6 +163,8 @@ pub struct ItemLine {
 pub struct CategoryRow {
     pub name: String,
     pub selected: bool,
+    /// Slash-separated category/subcategory indices for the click action.
+    pub path: String,
 }
 
 /// One item of the browse list (`GetBrowseListLayout`): lowest price and total available.

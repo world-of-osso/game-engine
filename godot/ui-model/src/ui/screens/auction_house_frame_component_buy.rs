@@ -112,7 +112,8 @@ fn categories_list(categories: &[CategoryRow]) -> Element {
 
 fn category_button(index: usize, category: &CategoryRow, (x, y): (f32, f32)) -> Element {
     let name = format!("AuctionHouseFrameCategoriesListButton{}", index + 1);
-    let action = format!("{ACTION_CATEGORY_PREFIX}{index}");
+    let action = format!("{ACTION_CATEGORY_PREFIX}{}", category.path);
+    let indent = 4.0 + category.path.matches('/').count() as f32 * 10.0;
     let mut art = crop_texture(
         format!("{name}NormalTexture"),
         NAV_BUTTON,
@@ -143,7 +144,7 @@ fn category_button(index: usize, category: &CategoryRow, (x, y): (f32, f32)) -> 
             {art}
             fontstring {
                 name: {DynName(format!("{name}Text"))},
-                width: 124.0,
+                width: {128.0 - indent},
                 height: 21.0,
                 text: {category.name.as_str()},
                 font: GameFont::FrizQuadrata,
@@ -153,7 +154,7 @@ fn category_button(index: usize, category: &CategoryRow, (x, y): (f32, f32)) -> 
                 shadow_offset: "1,-1",
                 justify_h: "LEFT",
                 pos_type: "absolute",
-                left: 4.0,
+                left: indent,
                 top: 0.0,
             }
         }
