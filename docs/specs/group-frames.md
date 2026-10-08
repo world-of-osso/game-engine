@@ -134,6 +134,19 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 
 ## Verified scope
 
+### Native ready-check repair (raidloop continuation)
+
+`06d85e0d8`, pinned Godot 4.7.2, private UDP 5330 and two Weston/Dozen clients. Evidence: `data/diagnostics/raidloop-2026-10-07/proof-ledger.txt`; `readycheck-*` captures were inspected, with paired JSON and native IPC status/UI dumps. Other previously passed raid steps were not rerun.
+
+| Case | Modern | Forever | Inspected captures (prefix `readycheck-<skin>-`) |
+|---|---|---|---|
+| Member sees Retail art, initiator text and both labeled buttons | PASS | PASS | `popup-b.png` |
+| Mouse Ready marks member ready on leader frames | PASS | PASS | `ready-a.png` (completed summary; Forever IPC `2/2 finished=true`) |
+| Second check, mouse Not Ready marks member not-ready | PASS | PASS | `notready-a.png` (IPC `1/2 finished=true`, member decline atlas) |
+| Popup closes on either answer and on server timeout | PASS | PASS | `ready-closed-b.png`, `notready-closed-b.png`, `timeout-start-b.png` → `timeout-closed-b.png` |
+
+The native process regression first failed on `79fe67663` with the live `Unconverted native frame decoration: ReadyCheckFrameBorder` error, then passed both skins with the registered Retail dialog nine-slice. Existing error rejection remains intact. Shared-style consumers (character reputation, bank/guild bank, auction, HUD editor and static popups) already register that style; no other missing consumer was found. Forever's menu centre overlaps its action bar at this position; proof clicked the visible left portion of the real menu, without changing approved layout or unrelated menu layering. Cached engine teardown leaks and full reference/general shutdown acceptance remain outside this bounded proof.
+
 - [x] Live (2026-09-25), three headless clients on an isolated server (:5060); evidence in `data/diagnostics/groups-20260925/` (final run at the top level, driver `run.sh`, scripts `a.js`/`b.js`/`c.js`):
   - `/invite` from IPC → `PARTY_INVITE` popup on Partyb (01), clicked Accept → party of two and three (02, 03).
   - Partyb targeted Partya by clicking her party frame (selection highlight, 05-b).
