@@ -175,11 +175,18 @@ fn local_catalog() -> game_engine_core::spell_catalog::SpellCatalogData {
 #[test]
 fn trainer_recipe_shows_created_item_quality_reagents_and_both_record_ids() {
     let catalog = local_catalog();
+    let data =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let recipes = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&data).unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_spell_tooltip(
             catalog.get(2963).unwrap(),
             &Default::default(),
+            recipes
+                .recipes
+                .iter()
+                .find(|recipe| recipe.spell_id == 2963),
             Some(10),
         )
         .unwrap();
@@ -232,4 +239,62 @@ fn trainer_class_spell_retains_full_shared_tooltip() {
         assert!(main.lines.iter().any(|l| l.left_text == input.description));
         assert_eq!(main.lines.last().unwrap().left_text, "Spell ID: 116");
     }
+}
+
+#[test]
+fn trainer_tooltip_requirements_refresh_with_the_current_service() {
+    let (book, _) = setup(ActiveSkin::Modern);
+    let mut view = TrainerView {
+        book,
+        player_level: 4,
+        ..Default::default()
+    };
+    view.display.skills.insert(2540, "Classic Tailoring".into());
+    view.book.list.as_mut().unwrap().services[0].req_skill_line = 2540;
+    view.book.list.as_mut().unwrap().services[0].req_skill_rank = 75;
+    let content = spell_tooltip(
+        &CatalogSpell {
+            id: 2963,
+            name: "Bolt of Linen Cloth".into(),
+            ..Default::default()
+        },
+        &Default::default(),
+    );
+    let tooltip = view
+        .service_tooltip(2963, content.clone(), [0.0; 4])
+        .unwrap();
+    assert!(
+        tooltip
+            .content
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Requires Level 5")
+    );
+    assert!(
+        tooltip
+            .content
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Requires Classic Tailoring (75)")
+    );
+    view.book.list.as_mut().unwrap().services[0].req_skill_rank = 150;
+    let refreshed = view
+        .service_tooltip(2963, content.clone(), [0.0; 4])
+        .unwrap();
+    assert!(
+        refreshed
+            .content
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Requires Classic Tailoring (150)")
+    );
+    assert!(
+        !refreshed
+            .content
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Requires Classic Tailoring (75)")
+    );
+    view.book.close();
+    assert!(view.service_tooltip(2963, content, [0.0; 4]).is_none());
 }
