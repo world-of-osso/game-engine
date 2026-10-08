@@ -64,21 +64,19 @@ CREATE INDEX idx_model_to_fdid_file_data_id ON model_to_fdid(file_data_id);";
 pub(super) fn import_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, String> {
     let cache_path = super::outfit_links_cache_path(data_dir);
     let csv_paths = outfit_source_paths(data_dir)?;
-    if cache_path.exists() {
-        let conn = super::open_read_only(&cache_path)?;
-        if super::outfit_cache_is_fresh(&conn, data_dir, &csv_paths)? {
-            return Ok(cache_path);
-        }
-    }
-    super::replace_atomically(&cache_path, |conn| {
-        conn.execute_batch("BEGIN;")
-            .map_err(|err| format!("begin outfit_links cache: {err}"))?;
-        init_schema(conn)?;
-        record_source_files(conn, data_dir, &csv_paths)?;
-        import_rows(conn, &csv_paths)?;
-        conn.execute_batch("COMMIT;")
-            .map_err(|err| format!("commit outfit_links cache: {err}"))
-    })?;
+    super::rebuild_unless_fresh(
+        &cache_path,
+        |conn| super::outfit_cache_is_fresh(conn, data_dir, &csv_paths),
+        |conn| {
+            conn.execute_batch("BEGIN;")
+                .map_err(|err| format!("begin outfit_links cache: {err}"))?;
+            init_schema(conn)?;
+            record_source_files(conn, data_dir, &csv_paths)?;
+            import_rows(conn, &csv_paths)?;
+            conn.execute_batch("COMMIT;")
+                .map_err(|err| format!("commit outfit_links cache: {err}"))
+        },
+    )?;
     Ok(cache_path)
 }
 

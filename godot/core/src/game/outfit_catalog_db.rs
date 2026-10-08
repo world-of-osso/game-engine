@@ -1,5 +1,5 @@
 use crate::cache_source_mtime::{csv_mtime, source_key};
-use crate::cache_sqlite::{open_read_only, replace_atomically};
+use crate::cache_sqlite::{open_read_only, rebuild_unless_fresh};
 use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
 use crate::outfit_data::DisplayInfoResolved;
 use crate::sqlite_util::is_missing_table_error;
