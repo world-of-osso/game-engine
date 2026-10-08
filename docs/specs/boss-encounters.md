@@ -8,7 +8,7 @@ Native Godot encounter presentation. Server contract: game-server `docs/specs/bo
 - [x] Engaged units fill at most five frames in ascending priority, equal priorities retain engagement order, duplicate engages are ignored. Late replication fills pending slots; health, power, name, level and classification update from live replication.
 - [x] Disengage removes its unit; End (kill or wipe), a new Start, loading, disconnect and world reset clear stale encounter state.
 - [x] Left-click on a visible Boss1TargetFrame..Boss5TargetFrame targets that boss through normal SetTarget, never starts auto-attack.
-- [x] Boss frames retain the compact portrait-off 133×51 frame tree. Shown frames form a top-to-bottom stack with 10-unit gaps and push the objective tracker below the last boss. Hiding all bosses restores its flush-right preset anchor: Modern (0, -275), Forever (0, -300), including the existing Forever scale.
+- [x] Boss frames retain the compact portrait-off 133×51 frame tree. Shown frames form a top-to-bottom stack with 10-unit gaps and push the objective tracker below the last boss. Hiding all bosses restores its preset anchor: Modern flush right (0, -275); Forever under the minimap ([hud edit mode](hud-edit-mode.md)), including the existing Forever scale.
 - [x] RaidBossEmote appears in chat and center-screen RaidWarningFrame (800 wide, TOP 182), with 0.2-second fade-in, 10-second hold and 3-second fade-out. Four slots; a fifth evicts the oldest. End/start/world reset clear encounter warnings.
 
 ## How it works

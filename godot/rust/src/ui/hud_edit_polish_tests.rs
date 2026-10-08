@@ -365,10 +365,10 @@ fn hudeditmodepolish_tracker_selection_follows_retail_default_height_below_heade
         (ActiveSkin::Modern, 275.0, 805.0),
         (
             ActiveSkin::Forever,
-            // Layout pixel-rounds the scaled top 300 * 260/288 = 270.83; the box
-            // still ends at 1080 tracker units, 975 on screen.
-            271.0,
-            1080.0 * forever_scale - 271.0,
+            // Layout pixel-rounds the top under the minimap, 268 + 4 * 260/288 = 271.61;
+            // the box still ends at 1080 tracker units, 975 on screen.
+            272.0,
+            1080.0 * forever_scale - 272.0,
         ),
     ] {
         ui_toolkit::atlas::set_thread_skin(skin);
