@@ -164,8 +164,12 @@ fn cache_trainer_art() -> Result<(), String> {
 fn preview_view() -> TrainerView {
     let three_coins = std::env::var("GODOT_TRAINER_THREE_COINS").as_deref() == Ok("1");
     let wool_cost = if three_coins { 12550 } else { 500 };
-    let class_service = std::env::var("GODOT_TRAINER_HOVER_SPELL").as_deref() == Ok("116");
-    let bandage_or_spell = if class_service { 116 } else { 3275 };
+    // Class services: Frostbolt, and Rogue Create: Crimson Vial (creates an item, not a recipe).
+    let class_service = std::env::var("GODOT_TRAINER_HOVER_SPELL")
+        .ok()
+        .and_then(|id| id.parse::<u32>().ok())
+        .filter(|id| matches!(*id, 116 | 212205));
+    let bandage_or_spell = class_service.unwrap_or(3275);
     let services = [
         (3908, 10, TrainerServiceState::Available, 1, true),
         (2963, 12550, TrainerServiceState::Available, 5, false),
@@ -184,7 +188,7 @@ fn preview_view() -> TrainerView {
             state,
             req_level,
             profession,
-            req_skill_line: if profession || spell_id == 116 {
+            req_skill_line: if profession || Some(spell_id) == class_service {
                 0
             } else {
                 2540
@@ -213,6 +217,7 @@ fn preview_view() -> TrainerView {
         display: TrainerDisplay {
             names: [
                 (116, "Frostbolt"),
+                (212205, "Create: Crimson Vial"),
                 (3908, "Tailoring"),
                 (2963, "Bolt of Linen Cloth"),
                 (2964, "Bolt of Woolen Cloth"),
@@ -227,6 +232,7 @@ fn preview_view() -> TrainerView {
             .collect(),
             icons: [
                 (116, 135846),
+                (212205, 463862),
                 (3908, 136249),
                 (2963, 132890),
                 (2964, 132894),
