@@ -548,7 +548,13 @@ fn bosslayout_managed_tracker_clears_bosses_and_returns_for_both_skins() {
             }
             sync(&mut canvases, skin);
             let tracker = rect(&canvases, TRACKER_FRAME);
-            assert!((tracker.x + tracker.width - 1920.0).abs() < 0.001);
+            // Forever's frame ends 14 tracker units short so its header line meets the
+            // minimap's right edge; that canvas snaps to whole pixels.
+            let right = match skin {
+                ActiveSkin::Modern => 1920.0,
+                ActiveSkin::Forever => (1920.0f32 - 14.0 * 260.0 / 288.0).round(),
+            };
+            assert!((tracker.x + tracker.width - right).abs() < 0.001);
             if count == 0 {
                 assert_eq!(tracker, resting, "{skin:?}: hidden bosses restore tracker");
             }
@@ -607,7 +613,8 @@ fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
     let header = rect(&hud, "ObjectiveTrackerFrameHeaderBackground");
     // FlareUI Modules/Minimap.lua:371-379,401-406: SetScale(frame outer width / 288), the
     // 288 visible pixels of the 300-pixel header line; here 260 / 288. SetScale also scales
-    // the TOPRIGHT (0, -300) offsets: right edge 1366, top 270.833.
+    // the TOPRIGHT offsets, so the header line's right end meets the minimap's: frame right
+    // edge 1366 - 14 * 260/288, top 268 + 4 * 260/288.
     let actual = [
         tracker.x,
         tracker.y,
@@ -615,7 +622,7 @@ fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
         tracker.height,
         header.width,
     ];
-    let expected = [1131.2778, 270.83334, 234.72223, 28.88889, 270.83334];
+    let expected = [1118.6389, 271.61111, 234.72223, 28.88889, 270.83334];
     for (actual, expected) in actual.into_iter().zip(expected) {
         assert!((actual - expected).abs() < 0.001, "{actual} != {expected}");
     }
@@ -626,6 +633,98 @@ fn forever_tracker_matches_minimap_width_and_modern_restores_geometry() {
         rect(&hud, "ObjectiveTrackerFrameHeaderBackground"),
         modern_header
     );
+}
+
+#[test]
+fn forevertracker_header_line_sits_under_minimap_at_both_resolutions() {
+    // 260/288 (FlareUI Modules/Minimap.lua:366-406): the header art is 300 wide, its line
+    // fades over 6 units at each end, so 288 * scale = 260 shows, the minimap's width.
+    let scale = 260.0 / 288.0;
+    // The 1920 canvas has ui_scale 1, so layout snaps every edge to a whole pixel.
+    for (mut canvases, width, tolerance) in
+        [(default_canvas_hud(), 1920.0, 0.5), (hud(), 1366.0, 0.001)]
+    {
+        sync(&mut canvases, ActiveSkin::Modern);
+        assert_rect(
+            &canvases,
+            TRACKER_FRAME,
+            (width - 260.0, 275.0, 260.0, 32.0),
+        );
+        let modern_header = rect(&canvases, "ObjectiveTrackerFrameHeaderBackground");
+
+        sync(&mut canvases, ActiveSkin::Forever);
+        assert_rect(
+            &canvases,
+            MINIMAP_CLUSTER,
+            (width - 260.0, 0.0, 260.0, 260.0),
+        );
+        // Header art top 8 below the minimap's bottom (260), its visible line spanning the
+        // minimap's 260 columns exactly; the frame starts 4 tracker units below the art and
+        // ends 14 tracker units left of the line's right end.
+        assert_edges(
+            &canvases,
+            "ObjectiveTrackerFrameHeaderBackground",
+            (
+                width - 260.0 - 6.0 * scale,
+                268.0,
+                300.0 * scale,
+                40.0 * scale,
+            ),
+            tolerance,
+        );
+        assert_edges(
+            &canvases,
+            TRACKER_FRAME,
+            (
+                width - 14.0 * scale - 260.0 * scale,
+                268.0 + 4.0 * scale,
+                260.0 * scale,
+                32.0 * scale,
+            ),
+            tolerance,
+        );
+        let art = rect(&canvases, "ObjectiveTrackerFrameHeaderBackground");
+        let map = rect(&canvases, MINIMAP_CLUSTER);
+        let line_right = art.x + art.width - 6.0 * scale;
+        assert!(
+            (line_right - (map.x + map.width)).abs() <= tolerance,
+            "{line_right}"
+        );
+        assert!(
+            (art.y - (map.y + map.height) - 8.0).abs() <= tolerance,
+            "{}",
+            art.y
+        );
+
+        sync(&mut canvases, ActiveSkin::Modern);
+        assert_rect(
+            &canvases,
+            TRACKER_FRAME,
+            (width - 260.0, 275.0, 260.0, 32.0),
+        );
+        assert_eq!(
+            rect(&canvases, "ObjectiveTrackerFrameHeaderBackground"),
+            modern_header
+        );
+    }
+}
+
+/// `name`'s left, top, right and bottom edges each within `tolerance` of `expected`'s.
+fn assert_edges(
+    hud: &[RegistryModel],
+    name: &str,
+    (x, y, width, height): (f32, f32, f32, f32),
+    tolerance: f32,
+) {
+    let r = rect(hud, name);
+    let actual = [r.x, r.y, r.x + r.width, r.y + r.height];
+    let expected = [x, y, x + width, y + height];
+    for (a, b) in actual.into_iter().zip(expected) {
+        assert!(
+            (a - b).abs() <= tolerance,
+            "{name}: {actual:?} != {expected:?}"
+        );
+    }
 }
 
 /// Snapshot the external frame data and computed bounds, not the RSX construction.
