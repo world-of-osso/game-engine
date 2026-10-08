@@ -1,6 +1,7 @@
 //! Offline mixed trainer snapshot through the production screen, without GameClient or networking.
 use crate::ui::RegistryUi;
 use game_engine_ui_model::{
+    game_tooltip::{GameTooltip, GameTooltipView, TooltipScreen, place},
     trainer::{TrainerBook, TrainerDisplay},
     trainer_frame::{TrainerView, trainer_screen},
 };
@@ -48,11 +49,7 @@ impl RegistryUi {
 }
 
 impl RegistryUi {
-    fn trainer_preview_tooltip_at(
-        &self,
-        at: Vector2,
-    ) -> Result<game_engine_ui_model::game_tooltip::GameTooltipView, String> {
-        use game_engine_ui_model::game_tooltip::{GameTooltipView, TooltipScreen, place};
+    fn trainer_preview_tooltip_at(&self, at: Vector2) -> Result<GameTooltipView, String> {
         let book = preview_view().book;
         let Some((owner, spell)) = self
             .pointer_frame_at(at)
@@ -71,27 +68,27 @@ impl RegistryUi {
                 [rect.position.x, rect.position.y, rect.size.x, rect.size.y],
             )
             .ok_or("Trainer preview service is no longer visible")?;
+        let screen = self.read_trainer_preview_screen(at)?;
+        Ok(GameTooltipView {
+            main: place(tooltip.for_skin(ui_toolkit::atlas::thread_skin()), screen),
+            ..Default::default()
+        })
+    }
+
+    fn read_trainer_preview_screen(&self, at: Vector2) -> Result<TooltipScreen, String> {
         let viewport = self
             .base()
             .get_viewport()
             .ok_or("Trainer preview lacks viewport")?;
         let size = viewport.get_visible_rect().size;
-        Ok(GameTooltipView {
-            main: place(
-                tooltip.for_skin(ui_toolkit::atlas::thread_skin()),
-                TooltipScreen {
-                    size: [size.x, size.y],
-                    cursor: [at.x, at.y],
-                },
-            ),
-            ..Default::default()
+        Ok(TooltipScreen {
+            size: [size.x, size.y],
+            cursor: [at.x, at.y],
         })
     }
 }
 
-fn load_preview_spell_tooltip(
-    id: u32,
-) -> Result<game_engine_ui_model::game_tooltip::GameTooltip, String> {
+fn load_preview_spell_tooltip(id: u32) -> Result<GameTooltip, String> {
     use game_engine_core::spell_catalog::{
         SpellCatalogPaths, SpellTextContext, load_spell_catalog,
     };
