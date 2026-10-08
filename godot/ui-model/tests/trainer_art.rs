@@ -145,6 +145,38 @@ fn trainer_art_costs_use_denomination_coins_and_red_only_when_unaffordable() {
     set_thread_skin(ActiveSkin::Modern);
 }
 #[test]
+fn trainer_art_requirement_numbers_use_global_string_red_not_a_red_whole_line() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, 10000);
+        let requirements: Vec<_> = registry
+            .frames_iter()
+            .filter(|frame| {
+                frame
+                    .name
+                    .as_deref()
+                    .is_some_and(|name| name.starts_with("ClassTrainerService200Requirements"))
+            })
+            .filter_map(|frame| match &frame.widget_data {
+                Some(WidgetData::FontString(font)) => Some((font.text.clone(), font.color)),
+                _ => None,
+            })
+            .collect();
+        assert!(
+            requirements
+                .iter()
+                .any(|(text, color)| text.contains("Requires:") && *color == [1.0; 4])
+        );
+        assert!(requirements.contains(&("5".into(), [1.0, 32.0 / 255.0, 32.0 / 255.0, 1.0])));
+        assert!(
+            !requirements
+                .iter()
+                .any(|(text, color)| text.contains("Level") && *color != [1.0; 4])
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn trainer_art_filter_labels_use_retail_state_colors() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(skin, 0);
