@@ -57,6 +57,7 @@ Sheet rows M:84,1346,1772,1774; F:2616,2617,2689,2690. Forever divider's 864×32
 Local BLPs **8118796, 8118792, 8188339** are present (verified 2026-10-08); inspected `bankloop-2026-10-08/resume-forever-character.png` and `resume-alt-warband.png` render the Forever bank art. Resolution is not guarded or substituted when files are absent.
 
 ### Actions
+- [x] Character-bank left-click/drag pickup and drop use the shared item cursor. The exact `{ tab, slot }` source survives selecting another bank tab; bags↔bank and same/across-tab destinations send the existing `SwapItem` (server handles swap/merge). Shift-click opens the existing bag StackSplitFrame; accepting places the chosen count on the cursor and dropping sends `SplitItem`. The server owns all stack changes; BankContents refreshes cursor lookup and closing clears bank-origin cursor/split state. Retail Mainline BankFrame.lua: HandleItemPickup, OnDragStart, OnReceiveDrag, OnModifiedClick, SplitStack (416-448, 590-592).
 - [x] Right-clicking a filled slot sends `BankWithdraw` for the shown bank and tab.
 - [x] Right-clicking a bag item while the bank is open sends `BankDeposit` into the shown bank's selected tab. Nothing is sent while the purchase prompt shows.
 - [x] Deposit / Withdraw opens the money entry: a gold/silver/copper `MoneyInputFrame` in a StaticPopup. Accept sends `BankMoneyTransfer` with the typed copper; an empty entry sends nothing.
@@ -110,6 +111,7 @@ Final native extension/CLI build installed in 44.8 seconds. Trace-free ELF SHA-2
 | `src/scenes/bag_frame/mod.rs` | Right-click deposit (`use_bag_item`) |
 
 ## Tests asserting this spec
+- `godot/ui-model/tests/native_bank_moves.rs`: mounted bank-slot routing, cross-tab cursor identity, exact bag/bank move and split requests, authoritative refresh and closed/Warband/purchase rejection.
 - `godot/rust/src/merchant.rs`: `distant_banker_attempt_reaches_authoritative_range_validation` and `non_banker_right_click_requires_a_living_npc_in_range`; live event/server/render assertion retained as `bankloop-2026-10-08/assert-bank-range.py` with RED/GREEN capture inputs.
 - `godot/ui-model/tests/forever_bank_bags.rs`: concrete Modern/Forever atlas regions, Forever divider/item chrome and unchanged slot actions, 1596-line byte-identical Modern bank fixture.
 - `godot/ui-model/tests/bag_window.rs`: under both skins the open backpack has its border, title, a close button that closes it, and one art-backed slot background per slot inside the window; Forever slot art differs from Modern.
@@ -126,4 +128,4 @@ Final native extension/CLI build installed in 44.8 seconds. Trace-free ELF SHA-2
 
 ## Out of scope
 - Search box, Cleanup/sort, the tab icon picker and the expansion filter (deferred by decision).
-- Bank-origin drag, partial-stack transfer, bank-slot swapping and direct inter-tab moves (not represented by the pinned bank protocol). Native whole-bag-stack drag deposit is implemented and has bounded live proof above; it does not add those missing operations.
+- Warband/guild-bank exact-slot drag, split and inter-tab moves. Character-bank support uses ItemLocation::Bank and existing SwapItem/SplitItem. Targeted model/UI tests are in `godot/ui-model/tests/native_bank_moves.rs`; no new live proof (host has no WoW install).

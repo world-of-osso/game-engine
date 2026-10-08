@@ -214,6 +214,8 @@ pub struct InventoryState {
     pub slots: Vec<Vec<InventorySlot>>,
     /// Occupied equipment slots (`EquipmentSnapshot` and deltas).
     pub equipment: BTreeMap<EquipmentSlot, InventorySlot>,
+    /// Character bank projection for the shared cursor, indexed by [tab][slot].
+    pub bank_slots: Vec<Vec<InventorySlot>>,
 }
 
 impl Default for InventoryState {
@@ -228,6 +230,7 @@ impl Default for InventoryState {
             bags: vec![backpack],
             slots: vec![vec![InventorySlot::default(); 16]],
             equipment: BTreeMap::new(),
+            bank_slots: Vec::new(),
         }
     }
 }
@@ -250,13 +253,30 @@ impl InventoryState {
         match location {
             ItemLocation::Bag { bag, slot } => self.slot(usize::from(bag), usize::from(slot)),
             ItemLocation::Equipment(slot) => self.equipped(slot),
-            ItemLocation::Bank { .. } => None,
+            ItemLocation::Bank { tab, slot } => self
+                .bank_slots
+                .get(usize::from(tab))?
+                .get(usize::from(slot)),
         }
         .filter(|item| !item.is_empty())
     }
 
     /// Character bank stacks projected for the shared item cursor.
-    pub fn apply_bank_contents(&mut self, _contents: &shared::protocol::BankContents) {}
+    pub fn apply_bank_contents(&mut self, contents: &shared::protocol::BankContents) {
+        if contents.bank != shared::protocol::BankType::Character {
+            return;
+        }
+        self.bank_slots = contents
+            .tabs
+            .iter()
+            .map(|tab| {
+                tab.slots
+                    .iter()
+                    .map(|item| item.as_ref().map(stack_slot).unwrap_or_default())
+                    .collect()
+            })
+            .collect();
+    }
 
     pub fn total_free_slots(&self) -> usize {
         self.slots
@@ -370,7 +390,15 @@ impl InventoryState {
                         item.unwrap_or_default(),
                     );
                 }
-                ItemLocation::Bank { .. } => {}
+                ItemLocation::Bank { tab, slot } => {
+                    if let Some(cell) = self
+                        .bank_slots
+                        .get_mut(usize::from(tab))
+                        .and_then(|tab| tab.get_mut(usize::from(slot)))
+                    {
+                        *cell = item.unwrap_or_default();
+                    }
+                }
                 ItemLocation::Equipment(slot) => match item {
                     Some(item) => {
                         self.equipment.insert(slot, item);
@@ -387,7 +415,10 @@ impl InventoryState {
     /// item catalog loaded get their data once it is loaded (`GET_ITEM_INFO_RECEIVED`).
     pub fn refresh_item_data(&mut self) {
         let items = self.slots.iter_mut().flatten();
-        for slot in items.chain(self.equipment.values_mut()) {
+        for slot in items
+            .chain(self.equipment.values_mut())
+            .chain(self.bank_slots.iter_mut().flatten())
+        {
             if slot.item_id != 0 {
                 *slot = with_item_data(std::mem::take(slot));
             }
