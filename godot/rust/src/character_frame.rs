@@ -15,7 +15,7 @@ use game_engine_ui_model::character_frame::{
 };
 use game_engine_ui_model::cursor_item::{CursorItem, CursorTarget};
 use game_engine_ui_model::damage_meter_data::class_color;
-use game_engine_ui_model::item_catalog::item_catalog_entry;
+use game_engine_ui_model::item_catalog::item_catalog_entry_for;
 use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::micro_menu::{
     ACTION_CHARACTER, ACTION_MAIN_MENU, ACTION_QUEST_LOG, CHARACTER_PORTRAIT, MICRO_BUTTONS,
@@ -447,7 +447,8 @@ impl GameClient {
     /// `PaperDollFrame_SetItemLevel`: `floor` of the equipped average.
     fn equipped_item_level(&self) -> u32 {
         let average = average_equipped_item_level(&self.merchant.session.inventory, |item| {
-            item_catalog_entry(item).map(|entry| (entry.item_level, entry.inventory_type))
+            item_catalog_entry_for(item.definition_source, item.item_id)
+                .map(|entry| (entry.item_level, entry.inventory_type))
         });
         average.floor() as u32
     }

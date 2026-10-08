@@ -2,6 +2,7 @@
 //! attachments, auction rows) over the shared catalog formatter, and the Shift comparison
 //! with the equipped items (`TooltipComparisonManager`, `C_TooltipComparison`).
 
+use shared::item_data::ItemDefinitionSource;
 use shared::protocol::EquipmentSlot;
 
 use super::{GameTooltip, TooltipRecord};
@@ -10,8 +11,10 @@ use crate::auction_house_frame_component::{
     ACTION_BROWSE_ITEM_PREFIX, ACTION_SELECT_AUCTION_PREFIX, ACTION_SELL_ITEM_PREFIX,
 };
 use crate::bag_data::{InventorySlot, InventoryState, ItemQuality};
-use crate::item_catalog::{ItemCatalogEntry, item_catalog_entry};
-use crate::item_stats::{item_armor, item_stats, weapon_damage};
+use crate::item_catalog::{
+    ItemCatalogEntry, SourceItemCatalogs, item_catalog_entry, item_catalogs,
+};
+use crate::item_stats::{item_armor_for, item_stats_for, weapon_damage_for};
 use crate::item_tooltip::{GREEN_FONT_COLOR, RED_FONT_COLOR, item_tooltip, stat_name, stat_text};
 use crate::tooltip_presentation::{
     TOOLTIP_DESCRIPTION_COLOR, TooltipLineState, TooltipPresentation, description_lines,
@@ -31,6 +34,26 @@ pub fn named_item(item_id: u32, name: &str, quality: u8, count: u32) -> Inventor
         quality: ItemQuality::from_id(quality),
         name: name.to_owned(),
         item_id,
+        ..Default::default()
+    }
+}
+
+pub fn named_item_for(
+    source: ItemDefinitionSource,
+    item_id: u32,
+    name: &str,
+    quality: u8,
+    count: u32,
+    item_guid: u64,
+) -> InventorySlot {
+    InventorySlot {
+        icon_fdid: crate::item_icons::item_icon_fdid_for(source, item_id).unwrap_or(0),
+        definition_source: source,
+        item_id,
+        item_guid,
+        name: name.to_owned(),
+        quality: ItemQuality::from_id(quality),
+        count,
         ..Default::default()
     }
 }
@@ -59,7 +82,14 @@ pub fn auction_row_item(action: &str, net: &AuctionHouseState) -> Option<Invento
             .browse_results
             .iter()
             .find(|item| item.item_id == item_id)?;
-        return Some(named_item(item.item_id, &item.name, item.quality, 1));
+        return Some(named_item_for(
+            item.definition_source,
+            item.item_id,
+            &item.name,
+            item.quality,
+            1,
+            0,
+        ));
     }
     if let Some(auction_id) = action.strip_prefix(ACTION_SELECT_AUCTION_PREFIX) {
         let auction_id: u64 = auction_id.parse().ok()?;
@@ -68,11 +98,13 @@ pub fn auction_row_item(action: &str, net: &AuctionHouseState) -> Option<Invento
             .flatten()
             .find(|listing| listing.auction_id == auction_id)?;
         let item = &listing.item;
-        return Some(named_item(
+        return Some(named_item_for(
+            item.definition_source,
             item.item_id,
             &item.name,
             item.quality,
             listing.stack_count,
+            item.item_guid,
         ));
     }
     let guid: u64 = action.strip_prefix(ACTION_SELL_ITEM_PREFIX)?.parse().ok()?;
@@ -82,10 +114,14 @@ pub fn auction_row_item(action: &str, net: &AuctionHouseState) -> Option<Invento
         .items
         .iter()
         .find(|item| item.item_guid == guid)?;
-    Some(InventorySlot {
-        item_guid: guid,
-        ..named_item(item.item_id, &item.name, item.quality, item.stack_count)
-    })
+    Some(named_item_for(
+        item.definition_source,
+        item.item_id,
+        &item.name,
+        item.quality,
+        item.stack_count,
+        guid,
+    ))
 }
 
 /// A comparison tooltip: the `CompareHeader` label and the equipped item's tooltip.
@@ -140,7 +176,23 @@ pub fn comparisons(
     inventory: &InventoryState,
     player_level: Option<u16>,
 ) -> Vec<ShoppingTooltip> {
-    let Some(new) = item_catalog_entry(hovered.item_id) else {
+    let Some(catalogs) = item_catalogs() else {
+        return Vec::new();
+    };
+    comparisons_in_catalogs(hovered, inventory, player_level, catalogs)
+}
+
+pub fn comparisons_in_catalogs(
+    hovered: &InventorySlot,
+    inventory: &InventoryState,
+    player_level: Option<u16>,
+    catalogs: &SourceItemCatalogs,
+) -> Vec<ShoppingTooltip> {
+    let Some(new) = catalogs
+        .catalog(hovered.definition_source)
+        .ok()
+        .and_then(|catalog| catalog.get(hovered.item_id))
+    else {
         return Vec::new();
     };
     comparison_slots(new.inventory_type)
@@ -148,19 +200,31 @@ pub fn comparisons(
         .filter_map(|slot| inventory.equipped(*slot))
         .filter(|equipped| !equipped.is_empty() && equipped.item_guid != hovered.item_guid)
         .take(2)
-        .map(|equipped| shopping_tooltip(equipped, new, player_level))
+        .map(|equipped| {
+            shopping_tooltip(
+                equipped,
+                new,
+                hovered.definition_source,
+                player_level,
+                catalogs,
+            )
+        })
         .collect()
 }
 
 fn shopping_tooltip(
     equipped: &InventorySlot,
     new: &ItemCatalogEntry,
+    source: ItemDefinitionSource,
     player_level: Option<u16>,
+    catalogs: &SourceItemCatalogs,
 ) -> ShoppingTooltip {
-    let mut tooltip = item_tooltip(equipped, player_level);
+    let catalog = catalogs.catalog(equipped.definition_source).ok();
+    let mut tooltip = crate::item_tooltip::item_tooltip_in_catalog(equipped, player_level, catalog);
     tooltip.lines.push(item_id_line(equipped.item_id));
-    let deltas = item_catalog_entry(equipped.item_id)
-        .map(|old| stat_deltas(new, old))
+    let deltas = catalog
+        .and_then(|catalog| catalog.get(equipped.item_id))
+        .map(|old| stat_deltas_for(source, new, equipped.definition_source, old))
         .unwrap_or_default();
     if !deltas.is_empty() {
         tooltip.lines.push(TooltipLineState::new(String::new()));
@@ -178,20 +242,37 @@ fn shopping_tooltip(
 /// `C_TooltipComparison.GetItemComparisonDelta`: what equipping `new` in place of `old`
 /// changes: damage per second, armor, then each stat; gains green, losses red.
 pub fn stat_deltas(new: &ItemCatalogEntry, old: &ItemCatalogEntry) -> Vec<TooltipLineState> {
+    stat_deltas_for(
+        ItemDefinitionSource::Retail,
+        new,
+        ItemDefinitionSource::Retail,
+        old,
+    )
+}
+
+pub fn stat_deltas_for(
+    new_source: ItemDefinitionSource,
+    new: &ItemCatalogEntry,
+    old_source: ItemDefinitionSource,
+    old: &ItemCatalogEntry,
+) -> Vec<TooltipLineState> {
     let mut lines = Vec::new();
-    let dps = |entry| weapon_damage(entry).map_or(0.0, |damage| damage.dps);
-    let dps_delta = dps(new) - dps(old);
+    let dps = |source, entry| weapon_damage_for(source, entry).map_or(0.0, |damage| damage.dps);
+    let dps_delta = dps(new_source, new) - dps(old_source, old);
     if (dps_delta * 10.0).round() != 0.0 {
         lines.push(delta_line(
             format!("{dps_delta:+.1} Damage Per Second"),
             dps_delta > 0.0,
         ));
     }
-    let armor = item_armor(new) as i32 - item_armor(old) as i32;
+    let armor = item_armor_for(new_source, new) as i32 - item_armor_for(old_source, old) as i32;
     if armor != 0 {
         lines.push(delta_line(format!("{armor:+} Armor"), armor > 0));
     }
-    let (new_stats, old_stats) = (item_stats(new), item_stats(old));
+    let (new_stats, old_stats) = (
+        item_stats_for(new_source, new),
+        item_stats_for(old_source, old),
+    );
     let value = |stats: &[crate::item_stats::ItemStat], stat| {
         stats
             .iter()
@@ -246,6 +327,7 @@ mod tests {
                 .map(|&(slot, item_guid, item_id)| EquippedItem {
                     slot,
                     item: ItemStack {
+                        definition_source: shared::item_data::ItemDefinitionSource::Retail,
                         item_guid,
                         item_id,
                         count: 1,
@@ -328,6 +410,7 @@ mod tests {
         use shared::protocol::{AuctionBrowseItem, AuctionInventoryItem, AuctionInventorySnapshot};
         let net = AuctionHouseState {
             browse_results: vec![AuctionBrowseItem {
+                definition_source: shared::item_data::ItemDefinitionSource::Retail,
                 item_id: 2589,
                 name: "Linen Cloth".into(),
                 quality: 1,
@@ -338,6 +421,7 @@ mod tests {
             inventory: Some(AuctionInventorySnapshot {
                 gold: 0,
                 items: vec![AuctionInventoryItem {
+                    definition_source: shared::item_data::ItemDefinitionSource::Retail,
                     item_guid: 77,
                     item_id: 25,
                     name: "Worn Shortsword".into(),

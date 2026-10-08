@@ -1,7 +1,7 @@
 //! Authored light catalogs loaded on the terrain asset worker.
 
 use std::{
-    collections::HashMap,
+    collections::{HashMap, HashSet},
     fs,
     path::{Path, PathBuf},
 };
@@ -40,6 +40,9 @@ pub(crate) struct LightingCatalog {
     pub data_root: PathBuf,
     /// The stars model, extracted from local CASC with its skin and textures.
     pub stars_path: PathBuf,
+    // Product-local LightParams IDs can collide; never merge their keyed rows.
+    forever_maps: HashSet<u32>,
+    forever_catalog: Option<Result<Box<Self>, String>>,
 }
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
@@ -79,24 +82,33 @@ pub(crate) struct WaterLight {
 
 impl LightingCatalog {
     pub fn read(data_root: &Path) -> Result<Self, String> {
-        let lights_path = data_root.join("Light.csv");
-        let keyframes_path = data_root.join("LightData.csv");
+        let db2 = data_root.join("db2/12.1.0.69933");
+        let mut catalog = Self::read_tables(data_root, data_root, &db2)?;
+        catalog.forever_maps = read_forever_map_ids(data_root)?;
+        if !catalog.forever_maps.is_empty() {
+            let tables = data_root.join("db2/1.60.1.70205");
+            let forever = Self::read_tables(data_root, &tables, &tables).map(Box::new);
+            if let Err(error) = &forever {
+                eprintln!("Failed to read Forever lighting: {error}");
+            }
+            catalog.forever_catalog = Some(forever);
+        }
+        Ok(catalog)
+    }
+
+    fn read_tables(data_root: &Path, tables: &Path, params: &Path) -> Result<Self, String> {
+        let lights_path = tables.join("Light.csv");
         let lights = parse_light_csv(&read_text(&lights_path)?)
             .map_err(|error| format!("{}: {error}", lights_path.display()))?;
-        let keyframes_text = read_text(&keyframes_path)?;
-        let keyframes = parse_light_data_csv(&keyframes_text)
-            .map_err(|error| format!("{}: {error}", keyframes_path.display()))?;
-        let fog_keyframes = parse_fog_keyframes(&keyframes_text)
-            .map_err(|error| format!("{}: {error}", keyframes_path.display()))?;
+        let (keyframes, fog_keyframes) = read_keyframes(&tables.join("LightData.csv"))?;
         let zone_lights = parse_zone_lights(
-            &read_text(&data_root.join("ZoneLight.csv"))?,
-            &read_text(&data_root.join("ZoneLightPoint.csv"))?,
+            &read_text(&tables.join("ZoneLight.csv"))?,
+            &read_text(&tables.join("ZoneLightPoint.csv"))?,
         )
-        .map_err(|error| format!("{}: {error}", data_root.display()))?;
-        let db2 = data_root.join("db2/12.1.0.69933");
+        .map_err(|error| format!("{}: {error}", tables.display()))?;
         let (liquid_alphas, light_params_flags, params_skybox) =
-            parse_light_params(&db2.join("LightParams.csv"))?;
-        let skyboxes = parse_light_skyboxes(&db2.join("LightSkybox.csv"), &params_skybox)?;
+            parse_light_params(&params.join("LightParams.csv"))?;
+        let skyboxes = parse_light_skyboxes(&params.join("LightSkybox.csv"), &params_skybox)?;
         let stars_path =
             cache_stars(data_root).map_err(|error| format!("Stars model {STARS_FDID}: {error}"))?;
         cache_planet_textures(data_root)?;
@@ -110,6 +122,8 @@ impl LightingCatalog {
             skyboxes,
             data_root: data_root.to_path_buf(),
             stars_path,
+            forever_maps: HashSet::new(),
+            forever_catalog: None,
         })
     }
 
@@ -119,6 +133,16 @@ impl LightingCatalog {
         wow_position: [f32; 3],
         minutes: f32,
     ) -> Result<LightingSample, String> {
+        if self.forever_maps.contains(&map_id) {
+            let catalog = self
+                .forever_catalog
+                .as_ref()
+                .ok_or_else(|| format!("Forever map {map_id} has no lighting catalog"))?;
+            return catalog
+                .as_ref()
+                .map_err(|error| format!("Forever map {map_id}: {error}"))?
+                .sample(map_id, wow_position, minutes);
+        }
         let weights = self.blend_weights(map_id, wow_position, LightParamsSlot::Clear)?;
         let mut sky = self.sample_sky(&weights, minutes, map_id, wow_position)?;
         let alphas = self.blend_liquid_alphas(&weights)?;
@@ -252,6 +276,47 @@ impl LightingCatalog {
         }
         blended.ok_or_else(|| "No LightParams for liquid alphas".into())
     }
+}
+
+fn read_keyframes(path: &Path) -> Result<(LightKeyframes, FogKeyframes), String> {
+    let text = read_text(path)?;
+    let keyframes =
+        parse_light_data_csv(&text).map_err(|error| format!("{}: {error}", path.display()))?;
+    let fog = parse_fog_keyframes(&text).map_err(|error| format!("{}: {error}", path.display()))?;
+    Ok((keyframes, fog))
+}
+
+fn read_forever_map_ids(data_root: &Path) -> Result<HashSet<u32>, String> {
+    let retail = read_text(&data_root.join("db2/12.1.0.69933/Map.csv"))?;
+    let forever = read_text(&data_root.join("db2/1.60.1.70205/Map.csv"))?;
+    forever_only_map_ids(&retail, &forever)
+}
+
+fn forever_only_map_ids(retail: &str, forever: &str) -> Result<HashSet<u32>, String> {
+    use game_engine_core::{
+        csv_util::{header_index, parse_csv_records},
+        map_catalog::MapCatalog,
+    };
+
+    let retail_maps = MapCatalog::parse(retail, retail)?;
+    let merged_maps = MapCatalog::parse(retail, forever)?;
+    let records = parse_csv_records(forever);
+    let header = records.first().ok_or("Forever Map.csv is empty")?;
+    let id_column = header_index(header, "ID", Path::new("Forever Map.csv"))?;
+    let ids = records
+        .iter()
+        .skip(1)
+        .filter(|row| row.len() > 1)
+        .map(|row| {
+            row[id_column]
+                .parse::<u32>()
+                .map_err(|error| format!("Forever Map.csv: {error}"))
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(ids
+        .into_iter()
+        .filter(|id| retail_maps.by_id(*id).is_none() && merged_maps.by_id(*id).is_some())
+        .collect())
 }
 
 /// Extracts the stars model, its skin and its TXID textures from local CASC (no listfile

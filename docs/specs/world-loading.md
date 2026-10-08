@@ -10,6 +10,10 @@ World entry and map transfers hide loading once the player's local entry bubble 
 - [x] Register a WMO's active MODD doodads before marking its root complete. Nearby children remain gate prerequisites even when discovered after the initial ADT queue.
 - [x] Prioritize nearby queued/ready placements and their asset loads, including newly discovered WMO doodads. Build local terrain tiles center-first. Far placements are retained, not omitted or marked complete to release loading.
 
+## Map asset identity
+
+World entry and transfers use the same directory-based terrain reader. Retail and Forever Map exports are merged explicitly (retail wins conflicts); unnamed Forever WDT/MAID files load from their FileDataID cache. [Zephras world-map contract](zephras-world-map.md) records required provisioning, no-WDL behavior and incomplete local archive coverage. Spatial readiness/failure rules above are unchanged.
+
 ## Completion and streaming
 
 - A failed placement is reported through `godot_error!` and `world_objects.failures`, and counts as settled. No new failure bypass or timeout increase.

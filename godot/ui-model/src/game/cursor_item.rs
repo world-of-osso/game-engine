@@ -5,6 +5,7 @@
 //! Retail sends for that drop; the server owns every move and answers with
 //! inventory deltas.
 
+use shared::item_data::ItemDefinitionSource;
 use shared::protocol::{DestroyItem, EquipmentSlot, ItemLocation, SplitItem, SwapItem};
 
 use crate::bag_data::{InventoryRequest, InventoryState, ItemQuality};
@@ -24,6 +25,7 @@ pub enum CursorItem {
     Inventory {
         from: ItemLocation,
         item_id: u32,
+        definition_source: ItemDefinitionSource,
         icon_fdid: u32,
         count: u32,
         split: bool,
@@ -102,6 +104,16 @@ impl CursorItem {
         *self == Self::Empty
     }
 
+    pub fn definition_source(&self) -> Option<ItemDefinitionSource> {
+        match self {
+            Self::Inventory {
+                definition_source, ..
+            } => Some(*definition_source),
+            Self::Merchant { .. } => Some(ItemDefinitionSource::Retail),
+            Self::Empty => None,
+        }
+    }
+
     pub fn icon_fdid(&self) -> Option<u32> {
         match self {
             Self::Empty => None,
@@ -132,6 +144,7 @@ impl CursorItem {
         Self::Inventory {
             from,
             item_id: item.item_id,
+            definition_source: item.definition_source,
             icon_fdid: item.icon_fdid,
             count,
             split: count < item.count,
@@ -169,6 +182,7 @@ impl CursorItem {
                 count,
                 split,
                 item_id,
+                definition_source,
                 icon_fdid,
             } => {
                 let held = Held { from, count, split };
@@ -180,6 +194,7 @@ impl CursorItem {
                         count,
                         split,
                         item_id,
+                        definition_source,
                         icon_fdid,
                     };
                 }
@@ -222,9 +237,14 @@ impl CursorItem {
     pub fn clear_if_stale(&mut self, inventory: &InventoryState, merchant: &MerchantState) {
         let stale = match self {
             Self::Empty => false,
-            Self::Inventory { from, item_id, .. } => inventory
-                .item_at(*from)
-                .is_none_or(|item| item.item_id != *item_id),
+            Self::Inventory {
+                from,
+                item_id,
+                definition_source,
+                ..
+            } => inventory.item_at(*from).is_none_or(|item| {
+                item.item_id != *item_id || item.definition_source != *definition_source
+            }),
             Self::Merchant { .. } => !merchant.is_open(),
         };
         if stale {
@@ -253,6 +273,7 @@ fn pick_up(
             CursorItem::Inventory {
                 from: location,
                 item_id: item.item_id,
+                definition_source: item.definition_source,
                 icon_fdid: item.icon_fdid,
                 count: item.count.max(1),
                 split: false,

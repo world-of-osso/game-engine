@@ -452,9 +452,7 @@ fn texture_from_rgba(width: u32, height: u32, pixels: &[u8]) -> Result<Gd<ImageT
 
 #[cfg(test)]
 mod tests {
-    use game_engine_core::warband_scene_data::{
-        read_authored_catalog, supplemental_terrain_tile_coords,
-    };
+    use game_engine_core::warband_scene_data::read_authored_catalog;
 
     use super::*;
     use crate::terrain::assets::{cached_assets, test_data_root};
@@ -468,16 +466,12 @@ mod tests {
             .find(|scene| scene.id == scene_id)
             .expect("authored scene");
         let assets = cached_assets();
-        let mut tiles = supplemental_terrain_tile_coords(scene);
-        tiles.push(scene.tile_coords());
-        tiles
-            .into_iter()
-            .map(|(y, x)| {
-                assets
-                    .read_tile(&scene.map_name(), y, x)
-                    .expect("cached campsite tile")
-            })
-            .collect()
+        let (y, x) = scene.tile_coords();
+        vec![
+            assets
+                .read_tile(&scene.map_name(), y, x)
+                .expect("cached campsite tile"),
+        ]
     }
 
     fn assert_untextured_chunks_use_original_fallback(scene_id: u32) {

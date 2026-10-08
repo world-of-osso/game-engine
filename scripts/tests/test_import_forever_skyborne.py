@@ -1,0 +1,470 @@
+import csv
+import io
+import struct
+import unittest
+
+from scripts import export_db2_csv as export
+
+
+def string_fixture(encrypted=False):
+    data = bytearray(400)
+    data[:4] = b"WDC5"
+    struct.pack_into("<6I", data, 136, 2, 1, 4, 5, 0, 123)
+    struct.pack_into("<HH7I", data, 172, 4, 0, 1, 0, 24, 0, 0, 0, 2)
+    struct.pack_into("<Q8I", data, 204, 0, 320, 1, 3, 324, 4, 0, 0, 0)
+    struct.pack_into("<Q8I", data, 244, int(encrypted), 350, 1, 2, 354, 4, 0, 0, 0)
+    struct.pack_into("<HH5I", data, 288, 0, 32, 0, 0, 0, 0, 0)
+    # Global record 0: -8 + 8 = string logical offset 0.
+    # Global record 1: -4 + 7 = string logical offset 3.
+    struct.pack_into("<I", data, 320, 8)
+    data[324:327] = b"AB\0"
+    struct.pack_into("<I", data, 327, 10)
+    struct.pack_into("<I", data, 350, 7)
+    data[354:356] = b"C\0"
+    struct.pack_into("<I", data, 356, 11)
+    return bytes(data)
+
+
+class StringTests(unittest.TestCase):
+    def test_global_string_offsets(self):
+        data = string_fixture()
+        rows, dropped, fields, _ = export.read_wdc5(data, 123)
+        self.assertEqual(dropped, 0)
+        self.assertEqual(
+            [
+                export.read_string(data, row[2], fields[0], row[0][0])
+                for row in rows.values()
+            ],
+            ["AB", "C"],
+        )
+
+    def test_null_string_offset_is_empty(self):
+        data = string_fixture()
+        _, _, fields, _ = export.read_wdc5(data, 123)
+        self.assertEqual(export.read_string(data, 320, fields[0], 0), "")
+
+    def test_zero_filled_encrypted_records_are_dropped(self):
+        data = bytearray(string_fixture(True))
+        data[350:354] = bytes(4)
+        rows, dropped, _, _ = export.read_wdc5(bytes(data), 123)
+        self.assertEqual(list(rows), [10])
+        self.assertEqual(dropped, 1)
+
+    def test_encrypted_string_block_rejected(self):
+        data = string_fixture(True)
+        rows, _, fields, _ = export.read_wdc5(data, 123)
+        with self.assertRaisesRegex(ValueError, "encrypted"):
+            export.read_string(data, rows[11][2], fields[0], rows[11][0][0])
+
+
+class ImportTests(unittest.TestCase):
+    def test_local_golden_races_and_zephras_identity(self):
+        from pathlib import Path
+
+        from scripts import import_forever_skyborne as importer
+
+        data = Path(__file__).resolve().parents[2] / "data"
+        staging = data / "cache/forever-skyborne-extract"
+        if not (staging / "1305311.db2").is_file():
+            self.skipTest("local CASC fixtures unavailable")
+        decoded = {}
+        for table in ("ChrRaces", "Map"):
+            raw = importer.extracted_path(staging, importer.TABLES[table]).read_bytes()
+            layout = struct.unpack_from("<I", raw, 156)[0]
+            columns, id_field, _ = importer.parse_definition(
+                importer.find_definition(data, table).read_text(), layout
+            )
+            rows, _ = importer.decode_rows(raw, layout, columns, id_field)
+            decoded[table] = {int(row["ID"]): row for row in rows}
+        with (data / "forever-1.60.1.70205/metadata/ChrRaces-95-96.csv").open(
+            newline=""
+        ) as handle:
+            for golden in csv.DictReader(handle):
+                actual = decoded["ChrRaces"][int(golden["ID"])]
+                self.assertEqual({key: str(actual[key]) for key in golden}, golden)
+        zephras = decoded["Map"][2991]
+        self.assertEqual(
+            (zephras["Directory"], zephras["MapName_lang"], zephras["WdtFileDataID"]),
+            ("2991", "Zephras Isle", 7198644),
+        )
+        self.assertEqual(decoded["Map"][0]["Directory"], "Azeroth")
+
+    def test_forever_lighting_tables_registered_and_real_zephras_rows(self):
+        from pathlib import Path
+
+        from scripts import import_forever_skyborne as importer
+
+        expected = {
+            "Light": 1375579,
+            "LightData": 1375580,
+            "LightParams": 1334669,
+            "LightSkybox": 1308501,
+            "ZoneLight": 1310253,
+            "ZoneLightPoint": 1310256,
+        }
+        self.assertEqual(
+            {name: importer.TABLES.get(name) for name in expected}, expected
+        )
+        data = Path(__file__).resolve().parents[2] / "data"
+        staging = data / "cache/forever-skyborne-extract"
+        if not (staging / "1375579.db2").exists():
+            self.skipTest("local lighting DB2 unavailable")
+        raw = importer.extracted_path(staging, 1375579).read_bytes()
+        layout = struct.unpack_from("<I", raw, 156)[0]
+        columns, index, _ = importer.parse_definition(
+            importer.find_definition(data, "Light").read_text(), layout
+        )
+        rows, dropped = importer.decode_rows(raw, layout, columns, index)
+        zephras = [row for row in rows if row["ContinentID"] == 2991]
+        self.assertEqual(len(zephras), 6)
+        self.assertEqual(dropped, 15)
+        self.assertEqual(
+            {row["ID"]: row["LightParamsID_0"] for row in zephras},
+            {
+                15617: 7588,
+                15969: 6989,
+                15972: 7214,
+                15973: 6989,
+                16806: 7214,
+                16854: 7601,
+            },
+        )
+
+    def test_lighting_assets_follow_only_forever_maps_and_all_slots(self):
+        from scripts import import_forever_skyborne as importer
+
+        tables = {
+            "Map": [{"ID": 0}, {"ID": 2991}],
+            "Light": [
+                {"ContinentID": 0, "LightParamsID_0": 12},
+                {"ContinentID": 2991, "LightParamsID_0": 7455, "LightParamsID_1": 9},
+            ],
+            "LightParams": [
+                {"ID": 12, "LightSkyboxID": 1},
+                {"ID": 7455, "LightSkyboxID": 683},
+                {"ID": 9, "LightSkyboxID": 0},
+            ],
+            "LightSkybox": [
+                {"ID": 1, "SkyboxFileDataID": 100, "CelestialSkyboxFileDataID": 0},
+                {
+                    "ID": 683,
+                    "SkyboxFileDataID": 7345733,
+                    "CelestialSkyboxFileDataID": 101,
+                },
+            ],
+        }
+        self.assertEqual(importer.lighting_assets(tables, {0}), {7345733, 101})
+
+    def test_dbd_inline_id_arrays_and_relation(self):
+        from scripts import import_forever_skyborne as importer
+
+        dbd = """COLUMNS
+int ID
+int Values
+int Parent
+string Name
+
+LAYOUT 0000007B
+BUILD 1.60.1.70205
+$id$ID<32>
+Values<u16>[2]
+Name
+$noninline,relation$Parent<32>
+"""
+        columns, id_field, explicit = importer.parse_definition(dbd, 123)
+        self.assertEqual(id_field, 0)
+        self.assertTrue(explicit)
+        self.assertEqual(
+            columns,
+            [
+                ("ID", "id"),
+                ("Values_0", ("u16", 1, 0)),
+                ("Values_1", ("u16", 1, 1)),
+                ("Name", ("string", 2)),
+                ("Parent", "parent"),
+            ],
+        )
+
+    def test_version_one_bone_chunks(self):
+        from scripts import import_forever_skyborne as importer
+
+        raw = struct.pack("<I4sI2H", 1, b"BIDA", 4, 58, 59)
+        importer.validate_magic(raw, "bone")
+        with self.assertRaisesRegex(ValueError, "truncated"):
+            importer.validate_magic(raw[:-1], "bone")
+
+    def test_raw_afid_animation_requires_content_identity(self):
+        import hashlib
+
+        from scripts import import_forever_skyborne as importer
+
+        raw = struct.pack("<4I", 0, 34, 67, 100)
+        importer.validate_magic(raw, "anim", hashlib.md5(raw).hexdigest())
+        with self.assertRaisesRegex(ValueError, "content"):
+            importer.validate_magic(raw, "anim", "0" * 32)
+        with self.assertRaisesRegex(ValueError, "content"):
+            importer.validate_magic(raw, "anim")
+
+    def test_chunk_closure(self):
+        from scripts import import_forever_skyborne as importer
+
+        def chunk(tag, body):
+            return tag + struct.pack("<I", len(body)) + body
+
+        data = chunk(b"MD21", b"header") + chunk(b"SFID", struct.pack("<II", 20, 21))
+        data += chunk(b"AFID", struct.pack("<HHI", 1, 0, 30))
+        data += chunk(b"BFID", struct.pack("<I", 40)) + chunk(
+            b"TXID", struct.pack("<II", 0, 50)
+        )
+        self.assertEqual(
+            importer.asset_references(data),
+            {"skin": [20, 21], "anim": [30], "bone": [40], "blp": [50]},
+        )
+
+    def test_customization_reachability(self):
+        from scripts import import_forever_skyborne as importer
+
+        tables = {
+            "ChrCustomizationOption": [
+                {"ID": "1", "ChrModelID": "218"},
+                {"ID": "2", "ChrModelID": "1"},
+            ],
+            "ChrCustomizationChoice": [{"ID": "10", "ChrCustomizationOptionID": "1"}],
+            "ChrCustomizationElement": [
+                {
+                    "ChrCustomizationChoiceID": "10",
+                    "ChrCustomizationMaterialID": "3",
+                    "ChrCustomizationSkinnedModelID": "4",
+                }
+            ],
+            "ChrCustomizationMaterial": [{"ID": "3", "MaterialResourcesID": "5"}],
+            "TextureFileData": [
+                {"MaterialResourcesID": "5", "FileDataID": "60"},
+                {"MaterialResourcesID": "6", "FileDataID": "61"},
+            ],
+            "ChrCustomizationSkinnedModel": [
+                {"ID": "4", "CollectionsFileDataID": "70"}
+            ],
+        }
+        self.assertEqual(importer.customization_assets(tables), ({60}, {70}))
+
+    def test_map_identity_columns_lead_new_header(self):
+        from scripts import import_forever_skyborne as importer
+
+        columns = [
+            (name, "id")
+            for name in ("ID", "Directory", "MapName_lang", "Flags", "WdtFileDataID")
+        ]
+        row = {
+            "ID": 2991,
+            "Directory": "2991",
+            "MapName_lang": "Zephras Isle",
+            "Flags": 1,
+            "WdtFileDataID": 7198644,
+        }
+        output, missing = importer.encode_csv(b"", columns, [row], table="Map")
+        self.assertEqual(
+            output,
+            b"ID,Directory,MapName_lang,WdtFileDataID,Flags\r\n2991,2991,Zephras Isle,7198644,1\r\n",
+        )
+        self.assertEqual(missing, [])
+
+    def test_retail_header_preserved_and_missing_column_reported(self):
+        from scripts import import_forever_skyborne as importer
+
+        header = b"ID,Name,Absent\r\n"
+        output, missing = importer.encode_csv(
+            header, [("ID", "id"), ("Name", 0)], [{"ID": 95, "Name": "Skyborne"}]
+        )
+        self.assertTrue(output.startswith(header))
+        self.assertEqual(missing, ["Absent"])
+        self.assertEqual(
+            list(csv.DictReader(io.StringIO(output.decode()))),
+            [{"ID": "95", "Name": "Skyborne", "Absent": ""}],
+        )
+
+
+class CreationSceneAssetTests(unittest.TestCase):
+    def test_skyborne_scene_imports_recursive_files_and_skin_alias(self):
+        import json
+        import sqlite3
+        import tempfile
+        from contextlib import closing
+        from pathlib import Path
+        from unittest.mock import patch
+
+        from scripts import import_forever_skyborne as importer
+
+        def chunk(tag, payload):
+            return tag + struct.pack("<I", len(payload)) + payload
+
+        tables = {
+            name: []
+            for name in (
+                "ChrCustomizationOption",
+                "ChrCustomizationChoice",
+                "ChrCustomizationElement",
+                "ChrCustomizationMaterial",
+                "TextureFileData",
+                "ChrCustomizationSkinnedModel",
+                "Map",
+                "Light",
+                "LightParams",
+                "LightSkybox",
+            )
+        }
+        tables["ChrRaces"] = [
+            {"ID": 95, "CreateScreenFileDataID": 8035354},
+            {"ID": 96, "CreateScreenFileDataID": 8035354},
+            {"ID": 1, "CreateScreenFileDataID": 666},
+        ]
+        model = chunk(b"MD21", b"")
+        scene = model + chunk(b"SFID", struct.pack("<I", 7501))
+        scene += chunk(b"TXID", struct.pack("<I", 7502))
+        scene += chunk(b"AFID", struct.pack("<HHI", 0, 0, 7503))
+        sources = {
+            "8035354.m2": scene,
+            "7501.skin": b"SKIN",
+            "7502.blp": b"BLP2",
+            "7503.anim": chunk(b"AFM2", b""),
+            "7478487.m2": model,
+            "7478494.m2": model,
+            "8200220.blp": b"BLP2",
+            "8199012.blp": b"BLP2",
+        }
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            data, staging, cache = (
+                root / name for name in ("data", "staging", "cache")
+            )
+            for directory in (
+                staging,
+                cache,
+                data / "db2" / importer.BUILD,
+                data / "db2/12.1.0.69933",
+            ):
+                directory.mkdir(parents=True, exist_ok=True)
+            (data / "db2/12.1.0.69933/Map.csv").write_text("ID\n0\n")
+            for name, raw in sources.items():
+                (staging / name).write_bytes(raw)
+            with (
+                closing(sqlite3.connect(cache / "resolution.sqlite")) as connection,
+                connection,
+            ):
+                connection.execute(
+                    "create table resolution(fdid integer,content_key blob)"
+                )
+                import hashlib
+
+                connection.executemany(
+                    "insert into resolution values (?, ?)",
+                    [
+                        (int(name.split(".")[0]), hashlib.md5(raw).digest())
+                        for name, raw in sources.items()
+                    ],
+                )
+            with (
+                patch.object(importer, "CACHE", cache),
+                patch.object(importer, "PROBE_DIRECTORY", root / "probes"),
+            ):
+                failures = importer.import_assets(data, staging, tables)
+            self.assertEqual(failures, [])
+            self.assertEqual((data / "models/8035354.m2").read_bytes(), scene)
+            self.assertEqual((data / "models/803535400.skin").read_bytes(), b"SKIN")
+            self.assertEqual((data / "textures/7502.blp").read_bytes(), b"BLP2")
+            self.assertEqual(
+                (data / "models/7503.anim").read_bytes(), sources["7503.anim"]
+            )
+            manifest = json.loads(
+                (data / "db2" / importer.BUILD / "assets.json").read_text()
+            )
+            self.assertEqual(manifest["counts"]["total"], 8)
+            self.assertNotIn("666.m2", manifest["assets"])
+
+
+def light_data_fixture():
+    widths = [32] * 60 + [128] * 3
+    record_size = sum(widths) // 8
+    start = 244 + len(widths) * 28
+    raw = bytearray(start + record_size)
+    raw[:4] = b"WDC5"
+    struct.pack_into("<6I", raw, 136, 1, 63, record_size, 0, 0, 0x360DA016)
+    struct.pack_into("<HH7I", raw, 172, 0, 0, 63, 0, 63 * 24, 0, 0, 0, 1)
+    struct.pack_into("<Q8I", raw, 204, 0, start, 1, 0, start + record_size, 0, 0, 0, 0)
+    offset = 0
+    for index, width in enumerate(widths):
+        struct.pack_into(
+            "<HH5I", raw, 244 + 63 * 4 + index * 24, offset, width, 0, 0, 0, 0, 0
+        )
+        offset += width
+    struct.pack_into("<3I", raw, start, 42, 7588, 1440)
+    struct.pack_into("<I", raw, start + 5 * 4, 0x00112233)
+    struct.pack_into("<4f", raw, start + 60 * 4, 1.0, -2.0, 3.25, 4.0)
+    struct.pack_into("<4f", raw, start + 60 * 4 + 16, 0.0, 0.0, 0.0, 1.0)
+    return bytes(raw)
+
+
+class ExportLightingTests(unittest.TestCase):
+    def export_rows(self, table, raw):
+        import tempfile
+        from pathlib import Path
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "source.db2"
+            output = Path(directory) / "output.csv"
+            source.write_bytes(raw)
+            with patch.object(
+                export.sys,
+                "argv",
+                ["export_db2_csv.py", table, str(source), str(output)],
+            ):
+                export.main()
+            text = output.read_text()
+            return text, list(csv.DictReader(io.StringIO(text)))
+
+    def test_export_real_forever_light_slots_and_coordinates(self):
+        from pathlib import Path
+
+        data = Path(__file__).resolve().parents[2] / "data"
+        source = data / "cache/forever-skyborne-extract/1375579.db2"
+        if not source.exists():
+            self.skipTest("local Forever Light fixture unavailable")
+        text, rows = self.export_rows("Light", source.read_bytes())
+        self.assertEqual(len(rows), 626)
+        zephras = {int(row["ID"]): row for row in rows if row["ContinentID"] == "2991"}
+        self.assertEqual(len(zephras), 6)
+        default = zephras[15617]
+        self.assertEqual([default[f"GameCoords_{i}"] for i in range(3)], ["0"] * 3)
+        self.assertEqual(
+            [default[f"LightParamsID_{i}"] for i in (0, 1, 4)], ["7588", "7455", "7570"]
+        )
+        self.assertEqual(
+            text.splitlines()[0], (data / "Light.csv").read_text().splitlines()[0]
+        )
+
+    def test_export_forever_light_data_inline_relation_and_late_coefficients(self):
+        from pathlib import Path
+
+        text, rows = self.export_rows("LightData", light_data_fixture())
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(
+            (rows[0]["ID"], rows[0]["LightParamID"], rows[0]["Time"]),
+            ("42", "7588", "1440"),
+        )
+        self.assertEqual(rows[0]["SkyTopColor"], str(0x00112233))
+        self.assertEqual(
+            [float(rows[0][f"FogHeightCoefficients_{i}"]) for i in range(4)],
+            [1.0, -2.0, 3.25, 4.0],
+        )
+        self.assertEqual(
+            [float(rows[0][f"MainFogCoefficients_{i}"]) for i in range(4)],
+            [0.0, 0.0, 0.0, 1.0],
+        )
+        header = Path(__file__).resolve().parents[2] / "data/LightData.csv"
+        if header.exists():
+            self.assertEqual(text.splitlines()[0], header.read_text().splitlines()[0])
+
+
+if __name__ == "__main__":
+    unittest.main()

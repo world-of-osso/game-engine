@@ -143,6 +143,16 @@ World cameras use `Tonemapping::None` (`world_camera_tonemapping`). Measured on 
 - **LightParams sun overrides:** flags 0x100 and 0x200 (SunPolar/SunAzimuth, OverrideSunPosition) are not decoded.
 - **Interpolation space:** LightData colours still interpolate in linear space, not bytes.
 
+## Forever Zephras lighting (2026-10-04)
+
+Contract: [Zephras world map](../../specs/zephras-world-map.md#lighting). `scripts/import_forever_skyborne.py` includes six lighting DB2s and follows every LightParams slot of Forever-only maps into LightSkybox M2s and their recursive skin/texture closure. Exports retain the exact existing retail CSV headers; `data/db2/1.60.1.70205/provenance.json` records hashes, DBD layout matches and encrypted-section drops. LightParams layout A7F31923 explicitly lists build 70205; other available lighting layouts are hash matches.
+
+Local extraction decoded Light 626 rows (15 encrypted dropped), LightParams 842, LightSkybox 26, ZoneLight 19 (one encrypted dropped), ZoneLightPoint 552. Dropped Light sections use unknown keys `0DA4670DB36FB2A9` and `D2C028CB7AC14D0B`; ZoneLight drops use the latter. No decoded ZoneLight names map 2991; encrypted rows remain unknown, not proven absent. Zephras's six decoded Light IDs/clear LightParams are 15617/7588, 15969/6989, 15972/7214, 15973/6989, 16806/7214, 16854/7601. Global 15617 selects LightParams 7588, flags 524, sky 683 (flags 3), model 7345733. Storm LightParams 7214 selects sky 708 (flags 9), model 454481; death slot 7570 selects sky 3/model 130495. Underwater default is LightParams 7455, also sky 683.
+
+`LightingCatalog` retains the original retail rows and selects a separate product-local catalog for map IDs accepted only from Forever by `MapCatalog`. LightParams/keyframe/sky IDs are never merged across products. Both products are read at catalog construction, so `sample` performs no file I/O. A failed Forever read is logged and retained as a contextual error for Forever samples, not replaced by retail default lighting; retail samples remain available. Native source-isolation and missing-input regressions use synthetic keyframes and a real Zephras sky FDID; authentic keyframes remain unavailable. The offline fixture calls the production `WorldLighting::sync` and material/sky binding paths without an authenticated player; it no longer creates neutral lights.
+
+Production visual proof is blocked by unavailable local LightData FDID 1375580, encoding key `395d10abb7fb2f4b80b8dd4728fcf621`, and unavailable sky skin 7345742. No Forever keyframes may be inferred from retail. Import run `/tmp/zephras-lighting-import-run.log` reports 1,404 reached assets, 1,353 present, 41 extracted and ten missing; includes Skyborne assets, not sky-only counts. Whole-map terrain closure remains separate: [[terrain#Forever Zephras (map 2991)]]. No CDN was used.
+
 ## See Also
 
 - [[washed-out-sky]]: LightData decode, sky dome and light-zone blend

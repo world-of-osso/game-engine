@@ -149,6 +149,35 @@ pub(super) fn populate_display_materials(conn: &Connection, path: &Path) -> Resu
     Ok(())
 }
 
+/// Retain declared Forever materials even when their texture mapping is missing;
+/// checked outfit resolution reports the missing resource instead of undressing it.
+pub(super) fn populate_declared_display_materials(
+    conn: &Connection,
+    path: &Path,
+) -> Result<(), String> {
+    let mut rows = Vec::new();
+    crate::csv_util::read_numeric_rows(
+        path,
+        [
+            "ItemDisplayInfoID",
+            "ComponentSection",
+            "MaterialResourcesID",
+        ],
+        |row| rows.push(row),
+    )?;
+    let mut insert = conn
+        .prepare("INSERT OR IGNORE INTO display_materials VALUES (?1, ?2, ?3)")
+        .map_err(|err| format!("prepare declared Forever materials: {err}"))?;
+    for [display, section, material] in rows {
+        if material != 0 {
+            insert
+                .execute((display, section, material))
+                .map_err(|err| format!("insert declared Forever material {material}: {err}"))?;
+        }
+    }
+    Ok(())
+}
+
 fn insert_display_material_rows(
     reader: &mut dyn BufRead,
     path: &Path,

@@ -14,6 +14,7 @@ enum Phase {
 
 fn linen(guid: u64, count: u32) -> ItemStack {
     ItemStack {
+        definition_source: shared::item_data::ItemDefinitionSource::Retail,
         item_guid: guid,
         item_id: 2589,
         count,

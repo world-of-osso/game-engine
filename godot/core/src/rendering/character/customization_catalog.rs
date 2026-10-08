@@ -333,6 +333,9 @@ pub struct CustomizationDb {
     race_models: RaceModels,
     requirements: HashMap<u32, CustomizationRequirement>,
     required_choices: HashMap<u32, Vec<RequiredChoices>>,
+    forever_requirements: HashMap<u32, CustomizationRequirement>,
+    forever_required_choices: HashMap<u32, Vec<RequiredChoices>>,
+    forever_choice_ids: std::collections::HashSet<u32>,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -377,6 +380,60 @@ impl CustomizationDb {
             db.choices_by_model.insert(*model_id, choices);
         }
         db
+    }
+
+    /// Copy only the models referenced by Forever's two playable Skyborne races.
+    /// Effect resolution happens before merging, keeping product-local material IDs isolated.
+    pub(crate) fn overlay_forever(&mut self, mut forever: Self) -> Result<(), String> {
+        let mut model_ids = std::collections::HashSet::new();
+        for race in crate::player_model_data::FOREVER_RACES {
+            for sex in [0, 1] {
+                let model = forever.chr_model_id(race, sex).ok_or_else(|| {
+                    format!("missing Forever customization model for race {race} sex {sex}")
+                })?;
+                if !forever.options_by_model.contains_key(&model) {
+                    return Err(format!(
+                        "missing Forever customization options for model {model}"
+                    ));
+                }
+                self.race_models
+                    .chr_model_by_race_sex
+                    .insert((race, sex), model);
+                model_ids.insert(model);
+            }
+        }
+        for model in model_ids {
+            let choices = forever.choices_by_model.remove(&model).unwrap_or_default();
+            for choice in choices.values() {
+                if self
+                    .choices_by_model
+                    .iter()
+                    .any(|(&id, choices)| id != model && choices.contains_key(&choice.id))
+                {
+                    return Err(format!(
+                        "Forever choice {} collides with a Retail choice",
+                        choice.id
+                    ));
+                }
+                self.forever_choice_ids.insert(choice.id);
+            }
+            self.choices_by_model.insert(model, choices);
+            self.options_by_model
+                .insert(model, forever.options_by_model.remove(&model).unwrap());
+            if let Some(layout) = forever.layout_by_model.remove(&model) {
+                self.layout_by_model.insert(model, layout);
+            }
+            if let Some(presentation) = forever.presentation_by_model.remove(&model) {
+                self.presentation_by_model.insert(model, presentation);
+            }
+            self.hair_scalp_fallback_by_model.remove(&model);
+            if let Some(scalp) = forever.hair_scalp_fallback_by_model.remove(&model) {
+                self.hair_scalp_fallback_by_model.insert(model, scalp);
+            }
+        }
+        self.forever_requirements = forever.requirements;
+        self.forever_required_choices = forever.required_choices;
+        Ok(())
     }
 
     pub fn chr_model_id(&self, race: u8, sex: u8) -> Option<u32> {
@@ -477,9 +534,13 @@ impl CustomizationDb {
 
     /// Requirement 0 is ungated; an unknown requirement ID is not selectable.
     fn requirement_allows(&self, requirement_id: u32, race: u8, class: u8) -> bool {
+        let requirements = if crate::player_model_data::FOREVER_RACES.contains(&race) {
+            &self.forever_requirements
+        } else {
+            &self.requirements
+        };
         requirement_id == 0
-            || self
-                .requirements
+            || requirements
                 .get(&requirement_id)
                 .is_some_and(|requirement| {
                     requirement.allows_new_character(self.race_models.requirement_race(race), class)
@@ -488,7 +549,12 @@ impl CustomizationDb {
 
     /// Other options' choices this choice's requirement needs selected alongside it.
     pub fn required_choices(&self, choice: &CustomizationChoice) -> &[RequiredChoices] {
-        self.required_choices
+        let required = if self.forever_choice_ids.contains(&choice.id) {
+            &self.forever_required_choices
+        } else {
+            &self.required_choices
+        };
+        required
             .get(&choice.requirement_id)
             .map_or(&[], Vec::as_slice)
     }

@@ -274,7 +274,8 @@ pub fn apply_race_change_with_seed(
     state.selected_race = race_id;
     state.visage_active = false;
     state.appearance.visage = None;
-    if !race_can_be_class(race_id, state.selected_class) {
+    // Forever Skyborne race selection starts on its authored Mage/Shaman default.
+    if matches!(race_id, 95 | 96) || !race_can_be_class(race_id, state.selected_class) {
         state.selected_class = first_available_class(race_id);
     }
     randomize_appearance_with_seed(state, db, seed);

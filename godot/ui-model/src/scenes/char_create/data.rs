@@ -14,7 +14,7 @@ pub struct RaceInfo {
     /// FileDataID of the authored race icon BLP.
     pub icon_fdid: u32,
     /// Normalized (left, right, top, bottom) crop of `icon_fdid`: `FULL_ICON`, or a
-    /// `raceicon128-*` member of atlas 897 (FDID 1662186, 2048×1024).
+    /// an authored atlas member (Retail atlas 897 or Forever atlas 4135).
     pub icon_crop: [f32; 4],
 }
 
@@ -313,6 +313,26 @@ pub static RACES: &[RaceInfo] = &[
         icon_fdid: 4696175,
         icon_crop: FULL_ICON,
     },
+    // Forever 1.60.1.70205 ChrRaces + CharBaseInfo. Defaults lead each class list.
+    // Race buttons use the male element 35486 in atlas 4135 (1024x512).
+    RaceInfo {
+        id: 95,
+        name: "High Order Skyborne",
+        short_name: "HO",
+        faction: Faction::Alliance,
+        available_classes: &[8, 1, 3, 4, 11],
+        icon_fdid: 8_200_220,
+        icon_crop: [1.0 / 1024.0, 65.0 / 1024.0, 325.0 / 512.0, 389.0 / 512.0],
+    },
+    RaceInfo {
+        id: 96,
+        name: "Windshaper Skyborne",
+        short_name: "WS",
+        faction: Faction::Horde,
+        available_classes: &[7, 1, 3, 4, 11],
+        icon_fdid: 8_200_220,
+        icon_crop: [1.0 / 1024.0, 65.0 / 1024.0, 325.0 / 512.0, 389.0 / 512.0],
+    },
     // Neutral
     RaceInfo {
         id: 25,
@@ -449,6 +469,36 @@ mod tests {
     use super::*;
 
     #[test]
+    fn skyborne_roster_uses_forever_names_classes_and_atlas() {
+        for (id, name, faction, classes) in [
+            (
+                95,
+                "High Order Skyborne",
+                Faction::Alliance,
+                &[8, 1, 3, 4, 11][..],
+            ),
+            (
+                96,
+                "Windshaper Skyborne",
+                Faction::Horde,
+                &[7, 1, 3, 4, 11][..],
+            ),
+        ] {
+            let race = race_by_id(id).expect("Skyborne roster entry");
+            assert_eq!(race.name, name);
+            assert_eq!(race.faction, faction);
+            assert_eq!(race.available_classes, classes);
+            assert_eq!(first_available_class(id), classes[0]);
+            assert_eq!(race.icon_fdid, 8_200_220);
+            assert_eq!(
+                race.icon_crop,
+                [1.0 / 1024.0, 65.0 / 1024.0, 325.0 / 512.0, 389.0 / 512.0]
+            );
+            assert!(!race_can_be_class(id, 10));
+        }
+    }
+
+    #[test]
     fn all_races_have_at_least_one_class() {
         for race in RACES {
             assert!(
@@ -479,7 +529,7 @@ mod tests {
             let dracthyr = matches!(race.id, 52 | 70);
             assert_eq!(
                 race_can_be_class(race.id, 10),
-                !dracthyr,
+                !dracthyr && !matches!(race.id, 95 | 96),
                 "{} Monk",
                 race.name
             );

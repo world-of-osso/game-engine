@@ -4,7 +4,9 @@ use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
 use crate::component_file_data::ComponentFileData;
-use crate::helmet_geoset_data::{HelmetGeosetRule, load_helmet_geoset_rules};
+use crate::helmet_geoset_data::{
+    HelmetGeosetRule, load_forever_helmet_rules, load_helmet_geoset_rules, load_retail_helmet_rules,
+};
 #[path = "item_model_material_data.rs"]
 mod item_model_material_data;
 use item_model_material_data::{ModelMaterials, load_model_materials};
@@ -39,6 +41,8 @@ pub struct DisplayInfoResolved {
 #[derive(Debug, Default)]
 struct LoadedOutfitData {
     cache_path: PathBuf,
+    /// Owned namespaces are in-memory and never query the borrowed NPC cache.
+    source_connection: Option<Mutex<rusqlite::Connection>>,
     display_info_cache: Mutex<HashMap<u32, Option<DisplayInfoResolved>>>,
     /// MaterialResourcesID -> its texture files.
     material_textures_cache: Mutex<HashMap<u32, Vec<u32>>>,
@@ -56,6 +60,8 @@ pub struct OutfitData {
     data_dir: PathBuf,
     loaded: OnceLock<Result<LoadedOutfitData, String>>,
     helmet_cache: Option<fn(&Path) -> Result<(), String>>,
+    retail_items: OnceLock<Result<Box<OutfitData>, String>>,
+    forever_items: OnceLock<Result<Box<OutfitData>, String>>,
 }
 
 impl OutfitData {
@@ -64,6 +70,8 @@ impl OutfitData {
             data_dir: data_dir.to_path_buf(),
             loaded: OnceLock::new(),
             helmet_cache: None,
+            retail_items: OnceLock::new(),
+            forever_items: OnceLock::new(),
         }
     }
 
@@ -74,6 +82,95 @@ impl OutfitData {
         let mut catalog = Self::load(data_dir);
         catalog.helmet_cache = Some(helmet_cache);
         catalog
+    }
+
+    /// Isolated Retail item/display/resource groups, without borrowed NPC rows.
+    pub fn load_owned_retail(&self) -> Result<&Self, String> {
+        self.load_owned_catalog(false)
+    }
+
+    /// Isolated Forever 70205 item/display/resource groups; no Retail substitution.
+    pub fn load_owned_forever_70205(&self) -> Result<&Self, String> {
+        self.load_owned_catalog(true)
+    }
+
+    fn load_owned_catalog(&self, forever: bool) -> Result<&Self, String> {
+        let cell = if forever {
+            &self.forever_items
+        } else {
+            &self.retail_items
+        };
+        cell.get_or_init(|| self.read_owned_catalog(forever))
+            .as_ref()
+            .map(Box::as_ref)
+            .map_err(Clone::clone)
+    }
+
+    fn read_owned_catalog(&self, forever: bool) -> Result<Box<Self>, String> {
+        let gear_dir = if forever {
+            self.data_dir.join("db2/1.60.1.70205")
+        } else {
+            self.data_dir.clone()
+        };
+        let items_dir = if forever {
+            gear_dir.join("items")
+        } else {
+            gear_dir.clone()
+        };
+        let components_dir = if forever {
+            gear_dir.clone()
+        } else {
+            gear_dir.join("db2/12.1.0.69933")
+        };
+        let connection =
+            crate::outfit_catalog_db::load_owned_outfit_connection(&items_dir, &gear_dir)?;
+        let helmet_geoset_rules = if forever {
+            load_forever_helmet_rules(&gear_dir.join("HelmetGeosetData.csv"))?
+        } else {
+            load_retail_helmet_rules(&self.data_dir)?
+        };
+        let data = LoadedOutfitData {
+            source_connection: Some(Mutex::new(connection)),
+            components: ComponentFileData::load_source(&components_dir)?,
+            model_materials: if forever {
+                ModelMaterials::new()
+            } else {
+                load_model_materials(&self.data_dir)?
+            },
+            helmet_geoset_rules,
+            ..LoadedOutfitData::default()
+        };
+        Ok(Box::new(Self {
+            loaded: OnceLock::from(Ok(data)),
+            ..Self::load(&self.data_dir)
+        }))
+    }
+
+    fn load_display_info(&self, display_id: u32) -> Result<Option<DisplayInfoResolved>, String> {
+        let data = self.loaded_result()?;
+        if let Some(conn) = &data.source_connection {
+            return crate::outfit_catalog_db::query_display_info(&conn.lock().unwrap(), display_id);
+        }
+        crate::outfit_catalog_db::load_cached_display_info(&self.data_dir, display_id)
+    }
+
+    fn load_material_fdids(&self, resource: u32) -> Result<Vec<u32>, String> {
+        let data = self.loaded_result()?;
+        if let Some(conn) = &data.source_connection {
+            return crate::outfit_catalog_db::query_material_texture_fdids(
+                &conn.lock().unwrap(),
+                resource,
+            );
+        }
+        crate::outfit_catalog_db::load_cached_material_texture_fdids(&self.data_dir, resource)
+    }
+
+    fn load_model_fdids(&self, resource: u32) -> Result<Vec<u32>, String> {
+        let data = self.loaded_result()?;
+        if let Some(conn) = &data.source_connection {
+            return crate::outfit_catalog_db::query_model_fdids(&conn.lock().unwrap(), resource);
+        }
+        crate::outfit_catalog_db::load_cached_model_fdids(&self.data_dir, resource)
     }
 
     fn loaded(&self) -> Option<&LoadedOutfitData> {
@@ -95,6 +192,7 @@ impl OutfitData {
         }
         let data = LoadedOutfitData {
             cache_path,
+            source_connection: None,
             display_info_cache: Mutex::new(HashMap::new()),
             material_textures_cache: Mutex::new(HashMap::new()),
             model_to_fdids_cache: Mutex::new(HashMap::new()),
@@ -143,12 +241,32 @@ impl OutfitData {
         sex: u8,
     ) -> Result<Option<OutfitResult>, String> {
         let data = self.loaded_result()?;
-        let Some(display) =
-            crate::outfit_catalog_db::load_cached_display_info(&self.data_dir, display_id)?
-        else {
+        let Some(display) = self.load_display_info(display_id)? else {
             return Ok(None);
         };
-        self.check_model_resources(&display)?;
+        self.check_display_resources(&display)?;
+        let mut result = OutfitResult::default();
+        self.merge_display_into_result(&mut result, data, &display, race, sex);
+        Ok(Some(result))
+    }
+
+    /// Resolve models and geosets when an authored NPC bake supplies body pixels.
+    /// Component item textures are neither required nor returned; model resources
+    /// and their materials remain required in this catalog's source namespace.
+    pub fn try_load_baked_display_info(
+        &self,
+        display_id: u32,
+        race: u8,
+        sex: u8,
+    ) -> Result<Option<OutfitResult>, String> {
+        let data = self.loaded_result()?;
+        let Some(mut display) = self.load_display_info(display_id)? else {
+            return Ok(None);
+        };
+        // Clear only this owned display's body overlays: the authored bake replaces
+        // those pixels, not attached models or their material textures.
+        display.item_materials.clear();
+        self.check_display_resources(&display)?;
         let mut result = OutfitResult::default();
         self.merge_display_into_result(&mut result, data, &display, race, sex);
         Ok(Some(result))
@@ -163,33 +281,48 @@ impl OutfitData {
     ) -> Result<OutfitResult, String> {
         let mut result = OutfitResult::default();
         for id in ids {
-            let display = crate::outfit_catalog_db::load_cached_display_info(&self.data_dir, id)?
+            let display = self
+                .load_display_info(id)?
                 .ok_or_else(|| format!("outfit display {id} missing"))?;
-            self.check_model_resources(&display)?;
+            self.check_display_resources(&display)?;
             self.merge_display_into_result(&mut result, data, &display, race, sex);
         }
         Ok(result)
     }
 
-    fn check_model_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {
+    fn check_display_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {
+        self.load_required_model_resources(display)?;
+        for &(_, id) in &display.item_materials {
+            if self.load_material_fdids(id)?.is_empty() {
+                return Err(format!("missing TextureFileData material resource {id}"));
+            }
+        }
+        Ok(())
+    }
+
+    fn load_required_model_resources(&self, display: &DisplayInfoResolved) -> Result<(), String> {
         for &id in &display.model_resource_ids {
-            crate::outfit_catalog_db::load_cached_model_fdids(&self.data_dir, id)?;
+            let fdids = self.load_model_fdids(id)?;
+            if fdids.is_empty() {
+                return Err(format!("missing ModelFileData model resource {id}"));
+            }
+        }
+        for &id in &display.model_material_resource_ids {
+            let fdids = self.load_material_fdids(id)?;
+            if fdids.is_empty() {
+                return Err(format!("missing TextureFileData material resource {id}"));
+            }
         }
         Ok(())
     }
 
     pub fn resolve_item_display_id(&self, item_id: u32) -> Result<u32, String> {
         let data = self.loaded_result()?;
+        if let Some(conn) = &data.source_connection {
+            return crate::outfit_catalog_db::query_item_display_id(&conn.lock().unwrap(), item_id);
+        }
         let conn = crate::cache_sqlite::open_read_only(&data.cache_path)?;
-        conn.query_row(
-            "SELECT iam.display_info_id
-             FROM item_modified_appearance_map ima
-             JOIN item_appearance_map iam ON iam.appearance_id = ima.appearance_id
-             WHERE ima.item_id = ?1",
-            [item_id],
-            |row| row.get(0),
-        )
-        .map_err(|err| format!("resolve item {item_id} display: {err}"))
+        crate::outfit_catalog_db::query_item_display_id(&conn, item_id)
     }
 
     pub fn resolve_display_info(&self, display_info_id: u32, race: u8, sex: u8) -> OutfitResult {
@@ -245,15 +378,10 @@ impl OutfitData {
         sex: u8,
     ) -> Result<Option<(u32, [u32; 3])>, String> {
         self.loaded_result()?;
-        let Some(display) =
-            crate::outfit_catalog_db::load_cached_display_info(&self.data_dir, display_info_id)?
-        else {
+        let Some(display) = self.load_display_info(display_info_id)? else {
             return Ok(None);
         };
-        self.check_model_resources(&display)?;
-        for &id in &display.model_material_resource_ids {
-            crate::outfit_catalog_db::load_cached_material_texture_fdids(&self.data_dir, id)?;
-        }
+        self.load_required_model_resources(&display)?;
         Ok(self.resolve_runtime_model(display_info_id, race, sex))
     }
 
@@ -296,12 +424,10 @@ impl OutfitData {
         sex: u8,
     ) -> Result<Vec<(usize, u32, [u32; 3])>, String> {
         let data = self.loaded_result()?;
-        let Some(display) =
-            crate::outfit_catalog_db::load_cached_display_info(&self.data_dir, display_info_id)?
-        else {
+        let Some(display) = self.load_display_info(display_info_id)? else {
             return Ok(Vec::new());
         };
-        self.check_model_resources(&display)?;
+        self.load_required_model_resources(&display)?;
         let columns = display
             .model_resource_columns
             .iter()
@@ -453,10 +579,7 @@ impl OutfitData {
         {
             return cached;
         }
-        let resolved =
-            crate::outfit_catalog_db::load_cached_display_info(&self.data_dir, display_info_id)
-                .ok()
-                .flatten();
+        let resolved = self.load_display_info(display_info_id).ok().flatten();
         data.display_info_cache
             .lock()
             .unwrap()
@@ -481,11 +604,9 @@ impl OutfitData {
         let candidates = match cached {
             Some(candidates) => candidates,
             None => {
-                let loaded = crate::outfit_catalog_db::load_cached_material_texture_fdids(
-                    &self.data_dir,
-                    material_resource_id,
-                )
-                .unwrap_or_default();
+                let loaded = self
+                    .load_material_fdids(material_resource_id)
+                    .unwrap_or_default();
                 data.material_textures_cache
                     .lock()
                     .unwrap()
@@ -506,9 +627,7 @@ impl OutfitData {
         {
             return cached;
         }
-        let resolved =
-            crate::outfit_catalog_db::load_cached_model_fdids(&self.data_dir, model_resource_id)
-                .unwrap_or_default();
+        let resolved = self.load_model_fdids(model_resource_id).unwrap_or_default();
         data.model_to_fdids_cache
             .lock()
             .unwrap()

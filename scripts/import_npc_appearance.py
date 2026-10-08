@@ -229,6 +229,21 @@ def select_material(values, model_path):
 
 
 def join_appearances(displays, extras, options, geosets, model_paths, textures):
+    materials = {}
+    for display, extra in displays.items():
+        if not extra:
+            continue
+        if extra not in extras:
+            raise ValueError(f"display {display}: missing Extra {extra}")
+        if display not in model_paths:
+            raise ValueError(f"display {display}: missing model path")
+        materials[display] = select_material(extras[extra][0], model_paths[display])
+    return join_appearance_materials(
+        displays, extras, options, geosets, materials, textures
+    )
+
+
+def join_appearance_materials(displays, extras, options, geosets, materials, textures):
     choices_by_extra = {}
     for (_, choice), parent in options.values():
         choices_by_extra.setdefault(parent, set()).add(choice)
@@ -239,15 +254,11 @@ def join_appearances(displays, extras, options, geosets, model_paths, textures):
             continue
         if extra_id not in extras:
             raise ValueError(f"display {display}: missing Extra {extra_id}")
-        if display not in model_paths:
-            raise ValueError(f"display {display}: missing model path")
         values = extras[extra_id][0]
         _, race, sex, klass, flags, sd, hd = values
-        material = select_material(values, model_paths[display])
+        material = materials[display]
         if material != 0 and (material < 0 or textures.get(material, 0) <= 0):
-            raise ValueError(
-                f"display {display}: unresolved material {material} for {model_paths[display]}"
-            )
+            raise ValueError(f"display {display}: unresolved material {material}")
         baked_texture = 0 if material == 0 else textures[material]
         appearances.append((display, race, sex, klass, baked_texture))
         choices.extend(

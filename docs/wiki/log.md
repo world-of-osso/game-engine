@@ -33,6 +33,33 @@
 ## 2026-10-07 — Native boss encounters
 
 [Boss encounters](systems/boss-encounters.md) records missing transport/host consumers, ordered lifecycle relay, replicated clickable portrait frames and timed center warning HUD. Concrete RED preceded implementation. `cf829040` + `cd04108e`: 11 targeted cases, formatting/build PASS; inspected private Hogger frame, physical click/server echo, lowercase enrage and successful kill-clear captures. Two launches; owned processes stopped, UDP5306 free. Fixed-slot/objective overlap and exact Retail layout remain gaps. Server/protocol unchanged.
+## 2026-10-07 — NPC hidden-pass and missing-file corrective checkpoint
+
+[Current NPC boundary](systems/forever-data.md#current-npc-boundary) reconciles production/spec7429822c3 with user-selected source-unselected omission. Retains abb CPU7/fmt/check and actual native26e type2 RED before hidden cape visibility; correction preserves non-drawn optional passes and enforces required filesystem NotFound receipts before omission. Saved targeted RED3→GREEN13/13 covers real negative files, mixed slots/visibility, authentic inactive type7/exact type20 and bake/hair;12 hashes unchanged. Matching native build01a1181b and independent304 pending; no Ailee GPU/actual-process NotFound/full-goal acceptance. Retained f781 Grove functional/source-byte eight-PNG proof excludes independent pixels; character30/40XP/log`[]`, stopped scratch and broader gaps preserved. Handoff7add/motion0750 remain separate. Wiki-only audit; no code/spec/data/tests/build/native operations/push/delegation.
+
+## 2026-10-07 — NPC type20 compositor checkpoint correction
+
+[Current checkpoint](systems/forever-data.md#current-sourceproof-checkpoint-2026-10-07) now records production/spec041fa0f54 source-driven separate NPC textures. Main's actual Forever overlay receipt falsifies source-gap diagnosis: choice61137→target38/material22855→cached3613861, layer20/layout202/canvas256×256. Saved CPU proof/ledger: RED2 passed2/failed1, GREEN3/3; all65536 authentic RGBA texels match, bake7352105/type6/type19 unchanged, strict synthetic controls retained,12 asset hashes unchanged. Authentic native Batch94/geoset3601 one-slot type20/TXID0 RED remains; matching native build pending in background, no new native GREEN/pixel/Grove acceptance. Prior gates, unknown AreaTable build provenance and encrypted achievement gaps retained. Wiki-only commit; no code/spec/GDScript/data writes, tests/builds/operations/delegation/push.
+
+## 2026-10-07 — Current source/proof and pre-world protocol checkpoint
+
+[Current checkpoint](systems/forever-data.md#current-sourceproof-checkpoint-2026-10-07) records pushed5596/bef3 and UI29a9/shared510748; independent exact equipment20/20 with zero warnings/focused formatting, retained core11+fresh1/synthetic3 and lib881/CLI build scopes. Later namespace changes are cfg(test)-only; no current binary byte-identity claim. Native auth succeeds then explicit old-server48/client510 fingerprint rejection before world; no NPC/graphics acceptance. Server SSOT owns90-commit rebase, cold backup, character30/40XP and pending desktop rebuild; historical1448 invalid for changed scopes. Docs-only; no tests/builds/data/operations/delegation/push.
+
+## 2026-10-07 — c8cd9f154 and canonical sibling rebase checkpoint
+
+[Current checkpoint](systems/forever-data.md#post-rebase-checkpoint-2026-10-07) records user-approved canonical UI/shared master rebases at `29a9ebfd`/`5107483b`, local work preserved, UI patch-equivalent skip confirmed, backups retained, both clean and no push. Actual core gate previously11/12 PASS; `c8cd9f154` supplies the authentic required CSV link before the missing-resource assertion, without weakening it. Matching targeted rerun and native build with new siblings pending; prior API blocker historical. Retained `d6db420f1` synthetic3 proof not rerun; manifest assets present,129 encrypted metadata gaps and `6d18ed447` source-proof paths retained. Real Ailee/Grove/equipment/native GREEN and independent acceptance pending. Docs-only status, not completion; no source/data/test/build/runtime/operations/delegation/push/merge.
+
+## 2026-10-07 — Retail publication checkpoint correction
+
+[Current checkpoint](systems/forever-data.md#post-rebase-checkpoint-2026-10-07) supersedes the prior unpublished/missing-input state: authentic Retail root CSV published under the existing CASC export contract, current fixture manifest complete per Main, newer local nameplate provenance recorded without original69913 byte-equivalence. Receipts own hashes/source details; encrypted omissions and source-parity gaps remain. Independent real-data OutfitData module proof (agent236) pending; bounded synthetic proof unchanged. Canonical sibling divergence/user decision, native/full acceptance blockers and saved inactive/PID-gone/freeUDP15002 cleanup receipt unchanged. Docs-only correction; no data staging, tests/builds/operations.
+
+## 2026-10-07 — Skyborn d6db420f1 documentation checkpoint
+
+[Current checkpoint](systems/forever-data.md#post-rebase-checkpoint-2026-10-07) records shared actual OutfitData tests, indexed-column regression correction and Retail-only replacement loading. Direct agent234 final receipt at d6db420f1 proves three synthetic tests/focused formatting; readability findings remain. Main RED2 and old mixed16/20 database-lock RED retained. Retail69933 table staged141252 rows/129 encrypted drops, no root publication. Native build blocked by canonical sibling APIs; fetched compatible origin masters not applied. Actual Ailee/Grove and native/full acceptance unproved; saved scratch cleanup inactive/PIDgone/freeUDP15002. Docs-only; no tests/builds/operations/publication.
+
+## 2026-10-07 — Skyborn post-rebase documentation checkpoint
+
+[Forever checkpoint](systems/forever-data.md#post-rebase-checkpoint-2026-10-07), [NPC contract](../specs/npc-appearance.md#forever-display-overlay) and [quest fixture contract](../specs/quest-ui.md#bounded-skyborne-native-acceptance-fixture) reconcile Main-reported clean rebase onto master13319752 at c346a224 (no skips/push, backup retained) and fixture49a88aed5's visible-Ailee expectation. Authentic profile publication is not rebased native proof. Historical RED/withheld runs and master subsystem docs retained. Indexed-column compile mismatch and agent227-owned Retail model-material regression remain open; matching rebased build/native GREEN and independent gate pending. Documentation-only audit; no tests, runtime, builds or target changes.
 
 ## 2026-10-07 — Portrait party Retail parity audit
 
@@ -96,6 +123,90 @@ Proof: `data/diagnostics/guildranks-2026-10-05/proof.md`. No server edits/builds
 ## 2026-10-05 — Static portrait party family (party1)
 
 [[portrait-party-frames]] adds source-cited Retail/Camelot member/pet geometry and distinguishes both verified c60 mappings: conditional CharacterFrameOnParty element 33561 → set-1 member 38477 → atlas 3960 shares Camelot's player sheet; ordinary Party element 21081 → member 39017 → atlas 4019 uses uipartyframec60. Static state-only component, behavioral tests, registry-golden capture and offline preview; no roster/portrait-runtime/settings/live acceptance. Compact remains default. Targeted registry/source tests pass 12/12 and extension builds, but owned native captures expose missing Retail sheet 4681512 and a mismatched 69913-vs-69933 base sheet at shared FDID 4631591. Static raster acceptance is blocked; do not wire as complete. Source-record equality is not physical-texture proof.
+
+## 2026-10-07 — Ailee single-model follow-up pending checkpoint
+
+[[forever-data#Ailee baked material applicability — bounded correction (2026-10-07)]] records `6c3a5da7a`: column repair alone missed Chest/Hands/Legs/Feet single-model validation. Regression `dff9e0acd` gives independent outfit behavioral RED (9 passed/1 failed, missing body300). Both model APIs now require model/model-material resources only; full outfits stay strict and NPC baked-only routing unchanged. Current effect-visible API `try_load_baked_display_info`, private `load_required_model_resources`, no old alias. Retained importer20/core initial2 GREEN are scoped; profile2 GREEN is old-API, renderer mixed-snapshot evidence. Native46 build0/no compiler warnings exported `b131`; tool hash guard failed on a test change during build, not Cargo. Final matching build/main native GREEN and independent gate running/pending. Focused six-file fmt0 does not clear unrelated whole-workspace baseline formatting. Authentic70205 publication/backup and absent1102747 mapping retained; no Ailee visibility/full-format acceptance. Docs-only; no tests/build/operations/source-data mutation.
+
+## 2026-10-07 — Ailee authentic-profile native RED checkpoint
+
+[[forever-data#Ailee baked material applicability — bounded correction (2026-10-07)]] records Main's preserved publication receipt/backup: authentic `[136968,95,1,0,7352105]`, 14 choices, 41 cached roots, all prior cache rows retained, unchanged70205 sources/no invented mapping. Highest-fidelity saved native RED uses old extension `f547ecea…`/source `7c94437a`: Waist735014 missing1102747 then Ailee body timeout, no parse error. Main integration `928eeed3b` routes authored-bake NPC armor only through `load_baked_equipment_appearance`; ordinary NPC/player validation stays strict. Agent219 core RED/GREEN, matching build, native Ailee/shoulder GREEN and independent acceptance remain pending. Importer `c43c2bf42`20/20 saved proof retained. Docs-only checkpoint; no tests/operations/data writes or completed graphics/full-parity claim.
+
+## 2026-10-07 — Ailee baked-path applicability correction
+
+[[forever-data#Ailee baked material applicability — bounded correction (2026-10-07)]] supersedes mandatory-native1102747 claims: authored HD1067698→7352105 replaces body pixels; native armor consumers do not use outfit component textures. Actual read-only importer RED retains profile136968/race95/sex1/bake7352105 and56 existing cached roots. Importer `c43c2bf42` targeted20/20 proof is not cache publication/native proof. Core resolver agent owns changes/tests; Main integration and `141beba60` native `ailee-assets` plus shoulder regression remain pending. Missing1102747 remains genuine for full-outfit/unbaked resolution; no invented data, Ailee visibility or all-NPC unblock claim. Index now links capability SSOT instead of stale giver/quest blockers. Docs-only; historical failures retained, no operations/tests/source-data mutation.
+
+## 2026-10-06 — Independent bounded shoulder gate
+
+[NPC spec](../specs/npc-appearance.md) and [[forever-data#Pinned shoulder asset boundary (2026-10-06)]] close the bounded shoulder gate: unchanged Rust7c94437a focused equipment15/15, exit0, rustfmt0; independent native functional/material artifact PASS and owned cleanup confirmed. Independent image payload omitted: main-observed shoulders are not independent visual/pixel acceptance. Ailee material1102747, native OS-exit and full appearance/gameplay parity remain gaps. No reruns or catalog changes.
+
+## 2026-10-06 — Main-observed native shoulder boundary
+
+[[forever-data#Pinned shoulder asset boundary (2026-10-06)]] and [NPC spec](../specs/npc-appearance.md) reconcile fixture `be3f7b35`/mapped extension `7c94437a` reaching SHOULDER_ASSETS_DONE: original metadata paths, Left6/Right5 parents, visible meshes, identity transforms, active256²/64² resources and saved views. Main reports clean build0/zero compiler warnings and inspected leafy bronze shoulders; GPU names alone prove no FDID identity. Eleven coverage errors, absent native OS exit and cape/neighbor gaps retained; late ObjectDB warning if present in full log is not cleared. Saved cleanup inactive/MainPID0/free15002; character30/40XP preserved without quest mutation. Catalog70205 unchanged,12local70235 assets already byte-identical; Ailee1102747/race96 original quests remain gaps. Independent native/focused-test acceptance pending. Docs-only; no reruns or full-parity claim.
+
+## 2026-10-06 — Bounded shoulder documentation reconciliation
+
+[[forever-data#Pinned shoulder asset boundary (2026-10-06)]] and [NPC spec](../specs/npc-appearance.md) reconcile committed `7c94437a` parsed attachment-local acceptance, retained named/nonshoulder rules and helper6/6 CPU-only proof at `37d7c75d`. Native RED `60bc97b9` targets Grove Ranger255979/display139403; Rorian is invalid. Original70205 catalog identity and authorized70235 exact12 byte-identical assets retained; missing bytes were not root cause. Clean build/native GREEN and independent verification pending; Ailee1102747 blocked. Docs-only audit; no runtime/build/test rerun or full-goal ownership.
+
+## 2026-10-06 — Pinned shoulder source boundary
+
+[[forever-data#Pinned shoulder asset boundary (2026-10-06)]] retains absent pinned70205 config/root and invalid stale-CLI Retail-root failures. Subsequent user-authorized updated local WoW probe with maintained asset-resolver80d16d05 (offline two-job build exit0; retained binrw future-incompatibility warning) refreshes current Forever70235 local cache to1,436,182 entries and extracts all12 original shoulder assets/dependencies without missing TACT keys. Exact hashes prove byte identity with existing October5/September29 model/texture caches; both M2 embedded names are empty, primary MD5s match current CKeys. This supersedes the source-decision blocker, not pinned-root identity: no70205 root recovery, new definition version, game catalog/source-table publication/modification or CDN. Mandatory resolver-path gate is observed failure, not missing bytes; exact fix/native proof pending Main/agent199. Ailee material1102747 mapping gap remains. Docs-only receipt update; no code/build/test/ops rerun.
+
+## 2026-10-06 — Prepared character30 native reward-reload
+
+[[forever-data#Prepared reward-reload evidence (2026-10-06)]] records fixture `4532f0f61`, server checkout `4fac87a` / attributed runtime `c5cf88a`: same race95 Skymage after true owned server restart restores exact40XP;92460 absent log/watch/tracker; actual Rorian Greeting excludes Coming of Age and lists Harmony in Balance, accepts/rewards nothing. Separate acceptance/turn-in/reload scopes; no replay/reset/admin mutation. Saved executable hashes and parser-only exit0 do not supply native OS exit. Initial60s ping/bounded retries timed out during loader progress, eventual pong succeeded; no production fix. [Independent bounded functional audit](../../target/skyborn-source-items/native-reward-reload-independent-proof.md) accepts restored40XP/Greeting and cleanup; no independent visual/scripts/parity/full-goal closure. Prior failures/gaps retained. Main reports runtime stopped/inactive/MainPID0/UDP15002 free; docs-only, no operations rerun.
+
+## 2026-10-06 — Prepared race95 native Coming of Age turn-in
+
+[[forever-data#Prepared saved-position turn-in evidence (2026-10-06)]] records engine `75eaa22b` / server checkout `4fac87a` saved-position Skymage92460: native key walk → Rorian Reward/CompleteQuest → exactXP0→40, completion/XP chat and log/watch/tracker removal. Separate from prior fresh acceptance; captured NPC Z unchanged, no admin movement/completion. Production8.5-yard3D interaction/10-yard quest ranges supersede the generic4-yard test assumption, not server behavior. Catalog98.1s; prior readiness timeout remains failed, no fixed-loader claim. [Independent bounded functional audit](../../target/skyborn-source-items/native-turnin-independent-proof.md) accepts turn-in; no independent visual/full-goal/parity closure. Estimates and authored/script/phasing/visual gaps retained. Main reports cage/scratch service stopped and UDP15002 free; no operations rerun.
+
+## 2026-10-05 — Owned equipment display namespaces
+
+[[forever-data#Owned equipment display lookup — bounded CPU proof]] records `6c5c56b1` independent in-memory Retail/Forever item/display/resource/component/helmet lookup, source-retaining body postprocessing, missing-source errors and unchanged legacy display-only/NPC policy. Dedicated public renderer target observed RED 0/7 then GREEN 8/8, including actual30 catalog links/resource closure and preserved Retail model/sex-specific textures. Published-row read-only probe retains four missing M2s/six missing textures; no extraction, content-root or native/Classic/PBR acceptance.
+
+## 2026-10-05 — Owned item definition namespaces
+
+[[forever-data#Owned item definition namespaces]] records per-stack Retail/Forever70205 catalog selection, source-preserving metadata/cursor/tooltips/comparisons/equipped-average and explicit item-info query source. Capped helper source tests at `00663840` pass 5/5, including the actual 30-row catalog and mixed collision snapshots. Equal authored names/icons stay equal; no Retail substitution for absent Forever data. CLI/source-query batch at `19034461` passes5/5, including deliberate parser default and missing-source rejection; failed network JSON placement remains separately recorded in the source ledger. Bare vendor/quest/loot and auction query/grouping boundaries remain explicit; full stats/native acceptance remain main-owned.
+
+## 2026-10-05 — Authored Skyborne NameGen overlay
+
+[[forever-data#Authored Skyborne names]] records the pinned five-column names-only export, separate source/schema provenance and runtime first-name-only race95/96 merge without replacing Retail names. Exporter development tests 2/2 and pure NameCatalog fixtures 3/3 pass; helper compilation was blocked by desktop Docker connection/local lease failures. Actual export provisioning, selectable-race invariant and native name-control acceptance remain Main-owned.
+
+## 2026-10-05 — Unnamed Skyborne NPC body FDID profile repair
+
+[[forever-data#Unnamed Skyborne NPC bodies — FDID profile repair]] records authored HD-material selection by body FDID without invented paths, the single import's before/after profile counts and exact-current-root TextureFileData re-extraction. Both requested NPCs author female body 7478494. Importer 42 passed/3 skipped and desktop profile integration 2/2 prove Ventaari composition/gear and Ailee's explicit source-resource failure, not full Ailee/native acceptance. Shared local build `c015b79b` plus capture script `a8c1bcb2` now passes the real two-NPC spawn: inspected opposite-view PNGs show clothed Ventaari; Ailee remains withheld. Fixed a blank isolated-world capture by sharing the native World3D; added a blank-frame pixel guard. Exit0, expected Ailee error only, no leak lines or owned processes. Explicitly approved local build at `06d2d192` separately compiles the current log-parser helper; no extra native run, with prior captures remaining revision-scoped. [Contract](../specs/npc-appearance.md#forever-display-overlay) and [ledger](../../target/skyborne-npc-profiles-proof/ledger.md) retain the full Ailee/all-profile boundary.
+
+## Zephras near-white water — proved input mismatch, labelled borrowed fallback
+
+[[northshire-pale-water#Zephras Material130 — explicit borrowed legacy fallback]] records the unshifted38-field DBD mapping, raw flags/lighting and decoded foam-as-normal mistake. Negative opacity amplified backing6.27×; GPU GREEN limits gain to.98×. Source38 floats remain intact; Material130 draws with explicitly borrowed same-product LiquidType5 inputs, not invented PBR math. Core16/16/native1/1 pass; importer/closure proof retained. Matched Zephras/normal-lit Retail coast captures exit0/zero engine errors, with one warning per PBR type. Blue-gray refracted water replaces the near-white sheet; PBR/FFT parity and settled-world remain open. [Ledger](../../target/zephras-water-white/ledger.md).
+
+## Zephras liquid catalogs — import and bounded CPU proof
+
+[[terrain#Forever liquid catalogs — bounded CPU proof]] records hash-matched four-table exports, packed-string-array decoding, map-product isolation, six new verified textures and preserved199 Retail type results. Python27/27 and desktop core15/15 pass. Strengthened old-binary fixture fails on absent water. Main-authorized local native build passes after desktop connectivity fails; fresh world capture exits0 with170 water surfaces,zero missing-liquid diagnostics/engine errors. Inspected coast shows blown-out white/cyan lake around a rocky grassy island; no PBR parity or settled-world claim. [Contract](../specs/zephras-world-map.md#liquids), [ledger](../../target/zephras-liquid-proof-ledger.md).
+
+## 2026-10-05 — Forever NPC gear overlay and bounded resource proof
+
+[[forever-data#Gear overlay — bounded CPU proof (2026-10-05)]] records 884/884 gear rows, whole Retail resource-group preservation/removal, product-scoped Extra joins and concrete Zephras shoulder model/texture FDIDs. Python 42 passed/3 skipped; desktop outfit 7/7, helmet 2/2 and native collision 1/1. Local import recovered Extra/geoset/helmet tables and 482 assets, but exited 1. Five texture resources affect 28 items; root asset and body-path gaps remain. No NPC screenshot/full appearance acceptance. [Contract](../specs/npc-appearance.md#forever-display-overlay).
+
+## 2026-10-05 — Four-variant native Skyborne creation acceptance
+
+[[character-creation#Skyborne branch — bounded native creation acceptance (2026-10-05)]] records four actual offscreen variants, exact model/canvas/catalog/class/icon checks, live inline-rig pose motion, inspected captures and normal exit 0 without engine errors/resource leaks. Fixed Retail-only creation-scene lookup, preserved-Warrior defaults, primary API registration and missing UI-cache shutdown cleanup. Original scene probe is content-key verified; two backdrop textures and unused fourth skin remain explicit local-archive gaps. Core targeted 5/5, native creation rules 1/1 and importer probe/closure 2/2 pass; icon decoder 3/3 proof retained. Exact scope and artifacts are in the native ledger. No create/save/reload or world-entry acceptance.
+
+## 2026-10-04 — Zephras NPC display import and explicit appearance blockers
+
+[[forever-data#Zephras NPC displays — bounded, incomplete]] records 235/235 model resolutions (174 grounded), exact preservation of existing caches, one local import, current-root asset audits and explicit encrypted-ID omissions. Importer 38 passed/3 skipped; desktop core 2/2. Required Extra/geoset sources, armor consumers and native screenshots remain incomplete; no appearance-readiness claim. [Contract](../specs/npc-appearance.md#forever-display-overlay).
+
+## 2026-10-04 — Forever Zephras lighting exports and local-archive blockers
+
+[[retail-lighting#Forever Zephras lighting (2026-10-04)]] records five extracted lighting tables, six map-2991 Light rows, explicit encrypted drops and recursive sky asset closure. Importer 14/14 passed; LightData FDID 1375580 and sky primary skin 7345742 are unavailable locally. Production-lighting fixture removes neutral lighting; native catalog/build proof remains pending behind the shared desktop build lock. No production-lit screenshot or visual acceptance claimed. [Contract](../specs/zephras-world-map.md#lighting).
+
+## 2026-10-04 — Skyborne overlay and bounded consumer proof
+
+[[forever-data]] records recovered Forever 70205 sources, encrypted drops, raw animation/bone validation and scoped collection queries. Updated [[character-creation]] and [contract](../specs/character-creation.md): 17 distinct passing CPU/UI/layout tests in the supplied ledger; native preview and create/world acceptance unchecked. Replaced historical missing-root/Bevy-only status. Desktop disk/Syncthing blocker and 21-file subset are explicitly user-reported, not ledger-verified. Documentation-only audit; no builds/tests rerun.
+
+## 2026-10-04 — Zephras FDID terrain and real-byte MFBO defects
+
+[[terrain#Forever Zephras (map 2991)]] records merged retail/Forever map identities, WDT MAIN/MAID streaming, corrected sample coordinate ordering, local-CASC recursive cache provisioning and 169 missing-archive failures. Map/WDT 4/4, corrected sample 1/1, native reader 3/3 and importer 6/6 passed; real sample exposed MFBO tag/plane-order bugs and disproved the readiness report's legacy-placement split. Offscreen capture shows 256 terrain meshes, 250 doodads and five WMO roots. Full closure, settled readiness and clean-resource lifetime remain unproved; named-companion compatibility and no-fallback tests passed. [Contract](../specs/zephras-world-map.md).
 
 ## 2026-10-04 — Canonical toolkit integration and retained Skyborn blocker
 
@@ -2737,3 +2848,36 @@ Native SSAO follow-up: stable project prepass fixes cached depth-pipeline On→O
 Documented native mover drafts, bounds-only position overrides, preset-preserving previews and pointer/relog fixture. Acceptance lives in hud-edit-mode.md and its evidence ledger.
 
 Native mover render diagnosis: correct selection art/geometry had zero opacity because the pinned rsx literal parser drops fractions. Numeric-expression opacity fixes the client within authorized paths; native opacity regression and shared offline/live capture helper documented.
+## 2026-10-05 — Preserve Retail / isolate Forever documentation audit
+
+Reconciled [[forever-data#Owned item definition namespaces]], item-source spec and producer documentation against the source-items handoff and tracked consumer/export tests. Records actual 30-item/six-loadout/45-membership catalog, nine local scaling exports, immutable server GUID provenance, explicit shared wire fields and frozen character disk ABI. Retains unowned vendor/quest/loot, bare-ID auction selection, thrown DPS/Classic slots, renderer acceptance and final paired native E2E gaps. Docs-only; no new test, build, operation or parity acceptance.
+
+## 2026-10-05 — Bounded Skyborne source-gap audit
+
+[[forever-data#Native world acceptance boundary (2026-10-05)]] records Main-reported entry and the server authored health/class blocker; explicit client-items/full fixture scopes preserve blocked full assertions. Owned equipment section supersedes the ten-file absence with local-CASC extraction, SFID skins/TXID166265 and stale installed resolver diagnosis; no native parse/render/capture credit. [[quest-ui]] corrects stale absent-frame claims from current native quests.rs source only.
+
+## 2026-10-05 — Current-WDT preview backdrop
+
+[[character-select-waterfall-loading]] and [split-shadow spec](../specs/split-adt-shadows.md) now require primary-only current-WDT previews. Actual `Background::load` worker RED rejects obsolete Map 2703 `(31,36)` at MAIN; `(31,37)` and its 14 waterfall/ripple placements remain required. Removed scene-specific supplemental-coordinate helper; preserved playable-world validation and generic object selection. Cached fixture manifest additions are grounded in current WDT MAID and primary MDID/MHID. CPU GREEN at `f99618e02`: 1 passed, 0 failed, 548 filtered out, cargo status 0 exported by Docker `bl334pw54s9srdi9rpnga9kx1`; no helper-exit claim after detachment/owned-scope stop. Existing missing Forever lighting and nine WMO-floor cache diagnostics remain outside this proof. Native image acceptance was pending at this loader proof; later bounded capture evidence is linked below.
+
+## 2026-10-05 — Serialized current-WDT/client-items evidence reconciliation
+
+[[forever-data#Current scoped capability matrix]] owns current `fdf5bb42` build/native receipts, both-race assertion sentinels and four main-inspected captures. [[character-select-waterfall-loading]] and [quest contract](../specs/quest-ui.md#bounded-skyborne-native-acceptance-fixture) link that bounded proof without NPC/quest or parity credit. Server independent five-test replacements compose 1447 distinct scoped passes, not a fresh whole-suite pass. Native runtime revisions remain receipt-scoped; OS exit uncaptured, race96 ObjectDB/platform/liquid warnings and upstream tooltip/readability findings retained. Authored health/class, source-less records, auction filters, Classic/thrown stats, scripts/phasing and PBR remain explicit gaps. Docs-only; no tests/builds/runtime/data operations.
+
+## [2026-10-05] systems | Record estimated-stat startup and bounded native evidence
+
+[Forever data](systems/forever-data.md#current-scoped-capability-matrix) owns estimated-stat race95 native92460 acceptance, race96 visible Ventaari, receipt-scoped unchanged binary and Main-inspected captures. Initial UnitPick failure, uncaptured OS exits, withheld Ailee/other appearances and missing authored shoulders preserved. Quest contract/index link bounded evidence; no reward/script/parity or full-goal readiness claim. Independent native artifact gate pending.
+
+## [2026-10-07] systems | Record matching scratch native material failure
+
+[forever-data](systems/forever-data.md) checkpoint updated from supplied evidence: server Retail-only loader3/3 and independent bounded gate; scratch prerequisite provenance retains AreaTable build UNVERIFIED and encrypted achievement gaps. Matching world entry preserves character30/40XP/log[]; Ailee12 textured batches precede Batch94/geoset3601 empty base_texture FAIL, Grove not reached. Diagnostic assertions unchanged; batch-binding investigation pending. Historical scopes retained; docs only, no runtime/test/build/push actions.
+
+## [2026-10-07] systems | Reconcile current final checkpoint; goal OPEN
+
+[forever-data](systems/forever-data.md) reconciles current independent proof and later traced native evidence: corrected type20 composition is separate from unresolved Ailee type7/full-native acceptance. Records separate shoulder scope, pending Grove291, import278 preservation/provenance limits and cleanup exclusions. Historical failures retained; prior CASC root cause unproved. Overall goal OPEN. Docs-only; no code/data/tests/build/delegation/ops/push.
+
+## [2026-10-07] audit | Desktop handoff boundaries
+
+Updated [[forever-data]] with independent payload/cache/world proof, README-only metadata refresh pending remote confirmation, historical checkout/protocol boundaries and current NPC RED. Linked server fixture-only correction; no remote operations, tests, landing or native acceptance.
+
+- 2026-10-07 — Reconcile bounded corrective742 native Ailee/Grove functional DONE, mapped/build receipts, CPU13 and pending304; retain OS-exit/pixel/parity/provenance exclusions. Record final handoff metadata hash proof separately from unproved consumption/landing. Docs-only; no runtime or test operations.

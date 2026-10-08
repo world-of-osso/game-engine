@@ -22,7 +22,8 @@ use super::{
 };
 use crate::equipment_appearance_data::{
     EquipmentSlot, RuntimeModelAppearance, collection_mesh_part_in_slot, is_collection_model,
-    model_attachment_id, runtime_mesh_part_allowed, slot_uses_bound_joints,
+    model_attachment_id, runtime_mesh_part_allowed, shoulder_uses_bound_joints, slot_attachment_id,
+    slot_uses_bound_joints,
 };
 
 #[path = "../../../core/src/asset/m2_format/m2_bone_names.rs"]
@@ -190,21 +191,11 @@ fn load_transforms(data_root: &Path) -> Result<Arc<transforms::EquipmentTransfor
 
 impl EquipmentContext<'_> {
     fn attach(&mut self, definition: &RuntimeModelAppearance) -> Result<(), String> {
-        let authored = self.resolver.resolve_path(definition.fdid).ok_or_else(|| {
-            format!(
-                "Equipment {:?} FDID {} has no authored path",
-                definition.slot, definition.fdid
-            )
-        })?;
-        let authored_path = Path::new(&authored);
+        let authored = self.resolver.resolve_path(definition.fdid);
+        let authored_path = authored.as_deref().map(Path::new);
         let cached = load_model_files(self.resolver, self.data_root, definition.fdid)?;
         let parsed = &cached.model;
-        let bound = slot_uses_bound_joints(
-            definition.slot,
-            authored_path,
-            &parsed.bones,
-            parsed.submeshes.iter().map(|mesh| mesh.mesh_part_id),
-        );
+        let bound = choose_equipment_binding(definition, parsed, authored_path)?;
         let mut parent = self.parent_for(definition.slot, authored_path, bound)?;
         let path = GString::from(cached.path.to_string_lossy().as_ref());
         cache_model_textures(
@@ -236,7 +227,9 @@ impl EquipmentContext<'_> {
         }
         item.set_name(&self.unused_item_name(definition.slot));
         item.set_transform(native_transform(
-            &self.transforms.resolve(definition.slot, authored_path),
+            &self
+                .transforms
+                .resolve_optional_path(definition.slot, authored_path),
         ));
         if let Some(skin) = skin {
             bind_character_skin(&mut item, &skin);
@@ -249,7 +242,7 @@ impl EquipmentContext<'_> {
         &self,
         definition: &RuntimeModelAppearance,
         model: &m2::Model,
-        authored: &Path,
+        authored: Option<&Path>,
         bound: bool,
     ) -> Result<HashMap<u32, Gd<ImageTexture>>, String> {
         check_item_batch_textures(definition, model, |part| {
@@ -281,13 +274,16 @@ impl EquipmentContext<'_> {
     fn parent_for(
         &self,
         slot: EquipmentSlot,
-        authored: &Path,
+        authored: Option<&Path>,
         bound: bool,
     ) -> Result<Gd<Node3D>, String> {
         if bound {
             return Ok(self.character.clone());
         }
-        let id = model_attachment_id(slot, authored);
+        let id = match authored {
+            Some(path) => model_attachment_id(slot, path),
+            None => slot_attachment_id(slot),
+        };
         self.character
             .get_node_or_null(&format!("Skeleton3D/AttachmentBone{id}/Attachment{id}"))
             .and_then(|node| node.try_cast::<Node3D>().ok())
@@ -380,16 +376,46 @@ fn check_item_batch_textures(
     Ok(())
 }
 
+fn choose_equipment_binding(
+    definition: &RuntimeModelAppearance,
+    model: &m2::Model,
+    authored: Option<&Path>,
+) -> Result<bool, String> {
+    if matches!(
+        definition.slot,
+        EquipmentSlot::ShoulderLeft | EquipmentSlot::ShoulderRight
+    ) {
+        return shoulder_uses_bound_joints(definition.slot, model, authored).map_err(|error| {
+            format!(
+                "Equipment {:?} FDID {}: {error}",
+                definition.slot, definition.fdid
+            )
+        });
+    }
+    let path = authored.ok_or_else(|| {
+        format!(
+            "Equipment {:?} FDID {} has no authored path",
+            definition.slot, definition.fdid
+        )
+    })?;
+    Ok(slot_uses_bound_joints(
+        definition.slot,
+        path,
+        &model.bones,
+        model.submeshes.iter().map(|mesh| mesh.mesh_part_id),
+    ))
+}
+
 fn equipment_mesh_part_allowed(
     slot: EquipmentSlot,
-    authored: &Path,
+    authored: Option<&Path>,
     bound: bool,
     mesh_part: u16,
 ) -> bool {
     if slot == EquipmentSlot::Waist && !bound {
         return true;
     }
-    if bound && is_collection_model(authored) {
+    if bound && authored.is_some_and(is_collection_model) {
         collection_mesh_part_in_slot(slot, mesh_part)
     } else {
         runtime_mesh_part_allowed(slot, mesh_part)
@@ -506,6 +532,7 @@ mod tests {
         use shared::components::{
             EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
         };
+        use shared::item_data::ItemDefinitionSource;
         let data = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let catalog = game_engine_core::outfit_data::OutfitData::load(&data);
         for (item_id, slot, race, sex) in [
@@ -518,6 +545,7 @@ mod tests {
                 entries: vec![EquippedAppearanceEntry {
                     slot,
                     item_id: Some(item_id),
+                    definition_source: Some(ItemDefinitionSource::Retail),
                     display_info_id: None,
                     inventory_type: if slot == EquipmentVisualSlot::Shoulder {
                         3
@@ -606,7 +634,7 @@ mod tests {
         assert_eq!(model_attachment_id(EquipmentSlot::Waist, path), 53);
         assert!(equipment_mesh_part_allowed(
             EquipmentSlot::Waist,
-            path,
+            Some(path),
             bound,
             0
         ));
@@ -622,7 +650,7 @@ mod tests {
         for part in [1801, 1802] {
             assert!(equipment_mesh_part_allowed(
                 EquipmentSlot::Waist,
-                path,
+                Some(path),
                 bound,
                 part
             ));
@@ -630,7 +658,7 @@ mod tests {
         for part in [0, 2201] {
             assert!(!equipment_mesh_part_allowed(
                 EquipmentSlot::Waist,
-                path,
+                Some(path),
                 bound,
                 part
             ));

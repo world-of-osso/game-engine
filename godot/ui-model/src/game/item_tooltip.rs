@@ -6,9 +6,10 @@
 //! not shown.
 
 use crate::bag_data::InventorySlot;
-use crate::item_catalog::{ItemCatalogEntry, item_catalog, item_subclass_name};
-use crate::item_stats::{ItemStat, item_armor, item_stats, weapon_damage};
+use crate::item_catalog::{ItemCatalog, ItemCatalogEntry, item_catalog_for};
+use crate::item_stats::{ItemStat, item_armor_for, item_stats_for, weapon_damage_for};
 use crate::merchant_data::quality_color;
+use shared::item_data::ItemDefinitionSource;
 
 use crate::tooltip_presentation::{
     TOOLTIP_DESCRIPTION_COLOR, TOOLTIP_WHITE, TooltipBorder, TooltipLineState, TooltipPresentation,
@@ -36,8 +37,16 @@ struct TooltipItem<'a> {
 }
 
 pub fn item_tooltip(slot: &InventorySlot, player_level: Option<u16>) -> TooltipPresentation {
+    item_tooltip_in_catalog(slot, player_level, item_catalog_for(slot.definition_source))
+}
+
+pub fn item_tooltip_in_catalog(
+    slot: &InventorySlot,
+    player_level: Option<u16>,
+    catalog: Option<&ItemCatalog>,
+) -> TooltipPresentation {
     let item = TooltipItem { slot, player_level };
-    let Some(catalog) = item_catalog() else {
+    let Some(catalog) = catalog else {
         return TooltipPresentation {
             visible: true,
             x: 0.0,
@@ -55,12 +64,16 @@ pub fn item_tooltip(slot: &InventorySlot, player_level: Option<u16>) -> TooltipP
         y: 0.0,
         title: slot.name.clone(),
         title_color: parse_rgba(quality_color(slot.quality.id())),
-        lines: entry.map_or_else(Vec::new, |entry| item_lines(entry, &item)),
+        lines: entry.map_or_else(Vec::new, |entry| item_lines(entry, &item, catalog)),
         border: TooltipBorder::Quality(slot.quality.id()),
     }
 }
 
-fn item_lines(entry: &ItemCatalogEntry, item: &TooltipItem) -> Vec<TooltipLineState> {
+fn item_lines(
+    entry: &ItemCatalogEntry,
+    item: &TooltipItem,
+    catalog: &ItemCatalog,
+) -> Vec<TooltipLineState> {
     let slot = item.slot;
     let white = |text: String| TooltipLineState::colored(text, TOOLTIP_WHITE);
     let mut lines = Vec::new();
@@ -78,10 +91,15 @@ fn item_lines(entry: &ItemCatalogEntry, item: &TooltipItem) -> Vec<TooltipLineSt
     if entry.max_count == 1 {
         lines.push(white("Unique".into())); // ITEM_UNIQUE
     }
-    if let Some(line) = slot_line(entry) {
+    if let Some(line) = slot_line(
+        entry,
+        catalog
+            .subclass_name(entry.class_id, entry.subclass_id)
+            .unwrap_or_default(),
+    ) {
         lines.push(line);
     }
-    lines.extend(combat_lines(entry));
+    lines.extend(combat_lines(slot.definition_source, entry));
     if let Some(durability) = slot.durability {
         // DURABILITY_TEMPLATE "Durability %d / %d".
         lines.push(white(format!(
@@ -117,29 +135,33 @@ fn item_lines(entry: &ItemCatalogEntry, item: &TooltipItem) -> Vec<TooltipLineSt
 
 /// `DAMAGE_TEMPLATE` "%s - %s Damage" with `SPEED` right and `DPS_TEMPLATE`, then
 /// `ARMOR_TEMPLATE` "%s Armor", then the stats: primary attributes white, the rest green.
-fn combat_lines(entry: &ItemCatalogEntry) -> Vec<TooltipLineState> {
+fn combat_lines(source: ItemDefinitionSource, entry: &ItemCatalogEntry) -> Vec<TooltipLineState> {
     let white = |text: String| TooltipLineState::colored(text, TOOLTIP_WHITE);
     let mut lines = Vec::new();
-    if let Some(damage) = weapon_damage(entry) {
+    if let Some(damage) = weapon_damage_for(source, entry) {
         lines.push(TooltipLineState::pair(
             format!("{} - {} Damage", (damage.min + 0.5).floor(), damage.max),
             format!("Speed {:.2}", damage.speed),
         ));
         lines.push(white(format!("({:.1} damage per second)", damage.dps)));
     }
-    let armor = item_armor(entry);
+    let armor = item_armor_for(source, entry);
     if armor > 0 {
         lines.push(white(format!("{armor} Armor")));
     }
-    lines.extend(item_stats(entry).into_iter().filter_map(|stat| {
-        let (name, primary) = stat_name(stat.stat)?;
-        let color = if primary {
-            TOOLTIP_WHITE
-        } else {
-            GREEN_FONT_COLOR
-        };
-        Some(TooltipLineState::colored(stat_text(stat, name), color))
-    }));
+    lines.extend(
+        item_stats_for(source, entry)
+            .into_iter()
+            .filter_map(|stat| {
+                let (name, primary) = stat_name(stat.stat)?;
+                let color = if primary {
+                    TOOLTIP_WHITE
+                } else {
+                    GREEN_FONT_COLOR
+                };
+                Some(TooltipLineState::colored(stat_text(stat, name), color))
+            }),
+    );
     lines
 }
 
@@ -219,8 +241,7 @@ fn binding_text(bonding: u8, soulbound: bool) -> Option<&'static str> {
 
 /// The equip slot left and the subclass right ("Main Hand" / "Sword"); a bag
 /// reads `CONTAINER_SLOTS` ("%d Slot %s").
-fn slot_line(entry: &ItemCatalogEntry) -> Option<TooltipLineState> {
-    let subclass = item_subclass_name(entry).unwrap_or_default();
+fn slot_line(entry: &ItemCatalogEntry, subclass: &str) -> Option<TooltipLineState> {
     if entry.inventory_type == INVTYPE_BAG {
         return Some(TooltipLineState::colored(
             format!("{} Slot {subclass}", entry.container_slots),
@@ -407,6 +428,7 @@ mod tests {
                 slot: &slot,
                 player_level: Some(10),
             },
+            crate::item_catalog::wait_for_item_catalog(),
         );
         let text: Vec<&str> = lines.iter().map(|line| line.left_text.as_str()).collect();
         assert_eq!(

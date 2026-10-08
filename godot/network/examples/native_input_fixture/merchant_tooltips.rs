@@ -280,6 +280,7 @@ fn send_vendor(app: &mut App, npc: u64) {
                 items: vec![BagSlotItem {
                     slot: 0,
                     item: ItemStack {
+                        definition_source: shared::item_data::ItemDefinitionSource::Retail,
                         item_guid: 9_190_4865,
                         item_id: 4865,
                         count: 2,
@@ -296,6 +297,7 @@ fn send_vendor(app: &mut App, npc: u64) {
         BuybackList {
             items: vec![
                 BuybackItem {
+                    definition_source: shared::item_data::ItemDefinitionSource::Retail,
                     slot: 4,
                     item_id: 2589,
                     name: "Fixture Returned Linen".into(),
@@ -304,6 +306,7 @@ fn send_vendor(app: &mut App, npc: u64) {
                     price: 39,
                 },
                 BuybackItem {
+                    definition_source: shared::item_data::ItemDefinitionSource::Retail,
                     slot: 8,
                     item_id: 4865,
                     name: "Fixture Returned Pelt".into(),

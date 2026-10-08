@@ -1,14 +1,40 @@
-//! Each playable race and sex's body model, from the build-pinned DB2 exports: Retail's
-//! `ChrRaceXChrModel` → `ChrModel.DisplayID` → `CreatureDisplayInfo.ModelID` →
-//! `CreatureModelData.FileDataID` chain, so every race the client knows has its model.
+//! Each playable race and sex's body model from build-pinned Retail and Forever DB2
+//! exports: `ChrRaceXChrModel` → `ChrModel.DisplayID` → `CreatureDisplayInfo.ModelID` →
+//! `CreatureModelData.FileDataID`, with a Skyborne-only Forever overlay.
 
 use std::collections::HashMap;
 use std::path::Path;
 
 use crate::csv_util::read_numeric_rows;
 
-/// (race, sex) → body model FDID.
+/// Forever 1.60.1.70205 ChrRaces: High Order Skyborne / Windshaper Skyborne.
+/// Retail defines only TBD NPC Race placeholders for these IDs.
+pub(crate) const FOREVER_RACES: [u8; 2] = [95, 96];
+pub(crate) const FOREVER_DB2_DIR: &str = "db2/1.60.1.70205";
+
+/// (race, sex) → body model FDID, with the explicit Skyborne-only Forever overlay.
 pub fn player_model_fdids(db2_dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
+    let mut models = read_model_chain(db2_dir)?;
+    let forever_dir = db2_dir
+        .parent()
+        .ok_or("DB2 directory has no parent")?
+        .join("1.60.1.70205");
+    let forever = read_model_chain(&forever_dir)?;
+    for race in FOREVER_RACES {
+        for sex in [0, 1] {
+            let fdid = forever.get(&(race, sex)).ok_or_else(|| {
+                format!(
+                    "missing Forever body model for race {race} sex {sex} in {}",
+                    forever_dir.display()
+                )
+            })?;
+            models.insert((race, sex), *fdid);
+        }
+    }
+    Ok(models)
+}
+
+fn read_model_chain(db2_dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
     let table = |name: &str| db2_dir.join(format!("{name}.csv"));
     let mut model_files = HashMap::new();
     read_numeric_rows(
@@ -51,6 +77,89 @@ pub fn player_model_fdids(db2_dir: &Path) -> Result<HashMap<(u8, u8), u32>, Stri
 mod tests {
     use super::*;
 
+    /// Forever 1.60.1.70205 Skyborne rows override Retail placeholders, not Human.
+    #[test]
+    fn skyborne_known_forever_models_follow_db2_chain() {
+        let nonce = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_nanos();
+        let dir = std::env::temp_dir().join(format!(
+            "skyborne-player-model-data-{}-{nonce}",
+            std::process::id()
+        ));
+        std::fs::create_dir(&dir).unwrap();
+        for (table, csv) in [
+            (
+                "ChrRaceXChrModel",
+                "ID,ChrRacesID,ChrModelID,Sex\n1,95,218,0\n2,95,219,1\n3,96,218,0\n4,96,219,1\n",
+            ),
+            ("ChrModel", "ID,DisplayID\n218,139407\n219,139408\n"),
+            (
+                "CreatureDisplayInfo",
+                "ID,ModelID\n139407,16480\n139408,16240\n",
+            ),
+            (
+                "CreatureModelData",
+                "ID,FileDataID\n16480,7478487\n16240,7478494\n",
+            ),
+        ] {
+            std::fs::write(dir.join(format!("{table}.csv")), csv).unwrap();
+        }
+        let retail = dir.join("12.1.0.69933");
+        let forever = dir.join("1.60.1.70205");
+        std::fs::create_dir(&retail).unwrap();
+        std::fs::rename(&dir.join("ChrRaceXChrModel.csv"), dir.join("links.csv")).unwrap();
+        std::fs::create_dir(&forever).unwrap();
+        for table in ["ChrModel", "CreatureDisplayInfo", "CreatureModelData"] {
+            std::fs::rename(
+                dir.join(format!("{table}.csv")),
+                forever.join(format!("{table}.csv")),
+            )
+            .unwrap();
+        }
+        std::fs::rename(dir.join("links.csv"), forever.join("ChrRaceXChrModel.csv")).unwrap();
+        for (table, csv) in [
+            (
+                "ChrRaceXChrModel",
+                "ChrRacesID,ChrModelID,Sex\n1,1,0\n95,1,0\n96,1,0\n",
+            ),
+            ("ChrModel", "ID,DisplayID\n1,10\n"),
+            ("CreatureDisplayInfo", "ID,ModelID\n10,20\n"),
+            ("CreatureModelData", "ID,FileDataID\n20,1011653\n"),
+        ] {
+            std::fs::write(retail.join(format!("{table}.csv")), csv).unwrap();
+        }
+        // A Forever retail-race row must never override Retail's Human.
+        std::fs::OpenOptions::new()
+            .append(true)
+            .open(forever.join("ChrRaceXChrModel.csv"))
+            .and_then(|mut file| std::io::Write::write_all(&mut file, b"5,1,218,0\n"))
+            .unwrap();
+        let result = player_model_fdids(&retail);
+        std::fs::write(
+            forever.join("ChrRaceXChrModel.csv"),
+            "ChrRacesID,ChrModelID,Sex\n95,218,0\n",
+        )
+        .unwrap();
+        let incomplete = player_model_fdids(&retail).unwrap_err();
+        assert!(incomplete.contains("race 95 sex 1"), "{incomplete}");
+        std::fs::remove_dir_all(&forever).unwrap();
+        let missing = player_model_fdids(&retail).unwrap_err();
+        assert!(missing.contains("1.60.1.70205"), "{missing}");
+        std::fs::remove_dir_all(&dir).unwrap();
+        assert_eq!(
+            result.unwrap(),
+            HashMap::from([
+                ((1, 0), 1_011_653),
+                ((95, 0), 7_478_487),
+                ((95, 1), 7_478_494),
+                ((96, 0), 7_478_487),
+                ((96, 1), 7_478_494),
+            ])
+        );
+    }
+
     /// Build 12.1.0.69933 rows; Pandaren 24 (neutral), 25 (Alliance) and 26 (Horde) share
     /// ChrModel 47/48, Gilnean (23) is the human HD model, Horde Dracthyr visage (76) the
     /// Alliance one's.
@@ -69,6 +178,10 @@ mod tests {
             (52, 1, 4_207_724),
             (76, 1, 4_220_448),
             (84, 0, 5_548_261),
+            (95, 0, 7_478_487),
+            (95, 1, 7_478_494),
+            (96, 0, 7_478_487),
+            (96, 1, 7_478_494),
         ] {
             assert_eq!(
                 models.get(&(race, sex)),

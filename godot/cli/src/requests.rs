@@ -42,9 +42,19 @@ pub fn mail_request(command: MailCmd) -> Result<Request, String> {
 
 pub fn item_request(command: ItemCmd) -> Result<Request, String> {
     let request = match command {
-        ItemCmd::Info { item_id } => Request::ItemInfo {
-            query: ItemInfoQuery { item_id },
-        },
+        ItemCmd::Info { item_id, source } => {
+            let definition_source = match source.as_str() {
+                "retail" => shared::item_data::ItemDefinitionSource::Retail,
+                "forever70205" => shared::item_data::ItemDefinitionSource::Forever70205,
+                _ => return Err(format!("unknown item definition source {source:?}")),
+            };
+            Request::ItemInfo {
+                query: ItemInfoQuery {
+                    item_id,
+                    definition_source,
+                },
+            }
+        }
     };
     Ok(request)
 }

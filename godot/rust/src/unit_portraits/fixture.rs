@@ -219,6 +219,7 @@ impl PartyPortraitFixture {
             return "Unknown roster member".into();
         };
         member.portrait.head = equipped.then_some(EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
             slot: EquipmentVisualSlot::Head,
             item_id: None,
             display_info_id: Some(14903),

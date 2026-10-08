@@ -471,7 +471,7 @@ pub fn click_sound(action: &str) -> Option<u32> {
 fn has_junk(inventory: &InventoryState) -> bool {
     inventory.slots.iter().flatten().any(|item| {
         item.quality == ItemQuality::Poor
-            && crate::item_catalog::item_catalog_entry(item.item_id)
+            && crate::item_catalog::item_catalog_entry_for(item.definition_source, item.item_id)
                 .is_some_and(|entry| entry.sell_price > 0)
     })
 }
@@ -552,7 +552,8 @@ fn buyback_cell(item: &BuybackItem, money: u64, index: usize) -> MerchantCell {
     MerchantCell {
         name: item.name.clone(),
         name_color: quality_color(item.quality),
-        icon_fdid: icon(item.item_id),
+        icon_fdid: crate::item_icons::item_icon_fdid_for(item.definition_source, item.item_id)
+            .unwrap_or(UNKNOWN_ICON_FDID),
         count: item.count,
         stock: None,
         price: u64::from(item.price),

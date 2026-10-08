@@ -76,12 +76,101 @@ fn inspect_query_command_maps_to_request() {
 
 #[test]
 fn item_info_command_maps_to_request() {
-    let request = item_request(ItemCmd::Info { item_id: 2589 }).expect("valid item command");
+    let request = item_request(ItemCmd::Info {
+        item_id: 2589,
+        source: "retail".into(),
+    })
+    .expect("valid item command");
     assert_eq!(
         request,
         Request::ItemInfo {
-            query: ItemInfoQuery { item_id: 2589 }
+            query: ItemInfoQuery {
+                item_id: 2589,
+                definition_source: shared::item_data::ItemDefinitionSource::Retail
+            }
         }
+    );
+}
+
+#[test]
+fn item_info_cli_defaults_deliberately_to_retail_and_accepts_forever() {
+    use clap::Parser;
+    use shared::item_data::ItemDefinitionSource::{Forever70205, Retail};
+    for (source_arg, expected) in [(None, Retail), (Some("forever70205"), Forever70205)] {
+        let mut args = vec!["game-engine-cli", "item", "info", "--item-id", "2947"];
+        if let Some(source) = source_arg {
+            args.extend(["--source", source]);
+        }
+        let cli = crate::Cli::try_parse_from(args).unwrap();
+        let crate::Cmd::Item { command } = cli.command else {
+            panic!("item command expected")
+        };
+        assert_eq!(
+            item_request(command).unwrap(),
+            Request::ItemInfo {
+                query: ItemInfoQuery {
+                    item_id: 2947,
+                    definition_source: expected
+                }
+            }
+        );
+    }
+    assert!(
+        crate::Cli::try_parse_from([
+            "game-engine-cli",
+            "item",
+            "info",
+            "--item-id",
+            "2947",
+            "--source",
+            "unknown"
+        ])
+        .is_err()
+    );
+}
+
+#[test]
+fn item_info_query_roundtrips_each_explicit_source() {
+    use shared::item_data::ItemDefinitionSource::{Forever70205, Retail};
+    for source in [Retail, Forever70205] {
+        let query = ItemInfoQuery {
+            item_id: 2947,
+            definition_source: source,
+        };
+        let encoded = serde_json::to_string(&query).unwrap();
+        let decoded: ItemInfoQuery = serde_json::from_str(&encoded).unwrap();
+        assert_eq!(decoded, query);
+    }
+}
+
+#[test]
+fn item_info_query_rejects_ambiguous_missing_source() {
+    let error = serde_json::from_str::<ItemInfoQuery>(r#"{"item_id":2947}"#).unwrap_err();
+    assert!(error.to_string().contains("definition_source"), "{error}");
+}
+
+#[test]
+fn item_info_preserves_forever_source_and_rejects_unknown_source() {
+    let request = item_request(ItemCmd::Info {
+        item_id: 2947,
+        source: "forever70205".into(),
+    })
+    .unwrap();
+    assert_eq!(
+        request,
+        Request::ItemInfo {
+            query: ItemInfoQuery {
+                item_id: 2947,
+                definition_source: shared::item_data::ItemDefinitionSource::Forever70205
+            }
+        }
+    );
+    assert!(
+        item_request(ItemCmd::Info {
+            item_id: 2947,
+            source: "unknown".into()
+        })
+        .is_err()
     );
 }
 
