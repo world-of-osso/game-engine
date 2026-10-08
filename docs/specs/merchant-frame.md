@@ -77,6 +77,12 @@ Native cursor coverage is partial, not wholly unconverted: [current bounded Buy 
 
 `merchant-cursor` is an independent owned native fixture mode, not a user game screen. MAIN-accepted independent gate1446 bounded PASS at `837e2c1e`/`b073e4dd`: scoped functional/source/format/readability and matching build/five-flow evidence accepted. First vendor → own embedded bag only. Right-click/Shift/buyback model paths remain retained, not full runtime proof. [Oracle, source coverage and proof boundary](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--main-accepted-bounded-pass); [invocation](../remote-builds.md#native-merchant-cursor-fixture). Existing merchant-click open/close, placement and audio gates remain unchanged.
 
+## Bounded live acceptance (2026-10-07)
+
+The merchantfix follow-up passes the requested merchant steps 1–8 on the private UDP 5328 server: priced stock/paging and a two-item Shift purchase; right-click sales; 13-sale wrap with newest Gloves restored from physical slot 0 and the oldest list item from slot 1; Repair All; a bag weapon repaired from 10/20 to 20/20 for its own 8 copper; all three refusal messages without inventory/money changes; Shift comparison with Item ID retained; Escape/range close with repair-cursor reset. Two sequential client launches, never two rendered clients. Full suites: server 1,499 passed / 56 ignored / one permitted latency test filtered; client core/ui-model/godot 2,173 passed / 6 ignored; zero failures.
+
+[Proof ledger](../../data/diagnostics/merchantloop-2026-10-07/proof-ledger.txt), `merchantfix-client{1,2}.log`, captures/state dumps under `shots-merchantfix{1,2}/`. Client source proof is `43539f8a7`, server `26f3c5c`; later documentation-only commits do not change it. Full layout/coexistence, cursor-owner coverage and other variants remain partial, as above. Shared-protocol was not changed; its buyback slot-order comment needs a separately authorized documentation correction.
+
 ## Tests asserting this spec
 
 - `godot/ui-model/src/ui/screens/merchant_frame_component_tests.rs`: frame size, title, grid offsets, coins, gray price, red tint, stock, paging, repair position/enable, money anchor, buyback tab layout, last-sale slot.
