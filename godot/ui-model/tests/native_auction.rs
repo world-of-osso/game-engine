@@ -644,3 +644,57 @@ fn ahsort_available_and_current_bid_headers_reverse_and_preserve_filters() {
         }
     }
 }
+
+#[test]
+fn ahsort_named_weapon_group_and_profession_slot_send_retail_filters() {
+    let mut s = open_session();
+    s.click("auction_category:0", &InputTexts::new());
+    s.net.requests.clear();
+    s.click("auction_category:0/0", &InputTexts::new());
+    let expected = [0, 4, 7, 9, 15, 13, 19]
+        .into_iter()
+        .map(|subclass_id| AuctionItemFilter {
+            class_id: 2,
+            subclass_id: Some(subclass_id),
+            inventory_type: None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        s.net.requests,
+        vec![AuctionRequest::Browse(AuctionSearchQuery {
+            class_id: Some(2),
+            subcategory_filters: expected,
+            ..Default::default()
+        })]
+    );
+    s.net.requests.clear();
+    s.click("auction_category:0/0/0", &InputTexts::new());
+    assert_eq!(
+        s.net.requests,
+        vec![AuctionRequest::Browse(AuctionSearchQuery {
+            class_id: Some(2),
+            subcategory_filters: vec![AuctionItemFilter {
+                class_id: 2,
+                subclass_id: Some(0),
+                inventory_type: None
+            }],
+            ..Default::default()
+        })]
+    );
+    s.click("auction_category:9", &InputTexts::new());
+    s.click("auction_category:9/0", &InputTexts::new());
+    s.net.requests.clear();
+    s.click("auction_category:9/0/0", &InputTexts::new());
+    assert_eq!(
+        s.net.requests,
+        vec![AuctionRequest::Browse(AuctionSearchQuery {
+            class_id: Some(19),
+            subcategory_filters: vec![AuctionItemFilter {
+                class_id: 19,
+                subclass_id: Some(12),
+                inventory_type: Some(29)
+            }],
+            ..Default::default()
+        })]
+    );
+}
