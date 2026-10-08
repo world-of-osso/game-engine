@@ -396,7 +396,7 @@ fn side_bar_preview(name: &str, right: f32, scale: f32) -> Element {
                     width: {size}, height: {size},
                     texture_atlas: "UI-HUD-ActionBar-IconFrame",
                     pos_type: "absolute", left: 0.0, top: {index as f32 * pitch},
-                    strata: FrameStrata::FullscreenDialog,
+                    strata: FrameStrata::Fullscreen,
                 }
             }
         })
@@ -406,7 +406,7 @@ fn side_bar_preview(name: &str, right: f32, scale: f32) -> Element {
             name: {DynName(name.into())},
             width: {size}, height,
             pos_type: "absolute", right, top: "50%", translate_y: "-50%",
-            strata: FrameStrata::FullscreenDialog,
+            strata: FrameStrata::Fullscreen,
             {slots}
         }
     }
