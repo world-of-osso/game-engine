@@ -128,7 +128,7 @@ impl GameClient {
         }
         Ok(None)
     }
-    fn trainer_view(&self) -> TrainerView {
+    pub(super) fn trainer_view(&self) -> TrainerView {
         let mut view = TrainerView {
             book: self.trainer.book.clone(),
             player_level: self

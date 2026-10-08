@@ -55,10 +55,10 @@ impl RegistryUi {
 
 impl RegistryUi {
     fn trainer_preview_tooltip_at(&self, at: Vector2) -> Result<GameTooltipView, String> {
-        let book = preview_view().book;
+        let view = preview_view();
         let Some((owner, spell)) = self
             .pointer_frame_at(at)
-            .and_then(|hit| book.hovered_service(self.registry()?, hit))
+            .and_then(|hit| view.book.hovered_service(self.registry()?, hit))
         else {
             return Ok(GameTooltipView::default());
         };
@@ -66,7 +66,7 @@ impl RegistryUi {
             .frame_id_rect(owner)
             .ok_or("Trainer preview owner is not visible")?;
         let tooltip = load_preview_spell_tooltip(spell)?;
-        let tooltip = book
+        let tooltip = view
             .service_tooltip(
                 spell,
                 tooltip,
@@ -99,7 +99,8 @@ fn load_preview_spell_tooltip(id: u32) -> Result<GameTooltip, String> {
     };
     use game_engine_ui_model::game_tooltip::spell::{SpellTooltipInput, spell_tooltip};
     let path = ProjectSettings::singleton().globalize_path("res://../data");
-    let paths = SpellCatalogPaths::for_data_dir(&std::path::PathBuf::from(path.to_string()));
+    let root = std::path::PathBuf::from(path.to_string());
+    let paths = SpellCatalogPaths::for_data_dir(&root);
     let catalog = load_spell_catalog(&paths)?;
     let spell = catalog
         .get(id)
@@ -107,13 +108,37 @@ fn load_preview_spell_tooltip(id: u32) -> Result<GameTooltip, String> {
     let description = catalog
         .render_description(id, &SpellTextContext::default())
         .unwrap_or_default();
-    Ok(spell_tooltip(
+    let tooltip = spell_tooltip(
         spell,
         &SpellTooltipInput {
             description,
             ..Default::default()
         },
-    ))
+    );
+    let recipes = load_preview_recipe_catalog(&root)?;
+    game_engine_ui_model::item_catalog::wait_for_item_catalog();
+    game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
+        tooltip,
+        recipes.get(id),
+        Some(10),
+    )
+}
+
+fn load_preview_recipe_catalog(
+    root: &std::path::Path,
+) -> Result<&'static game_engine_ui_model::professions_catalog::RecipeCatalog, String> {
+    use game_engine_ui_model::professions_catalog::RecipeCatalog;
+    static CATALOG: std::sync::OnceLock<Result<RecipeCatalog, String>> = std::sync::OnceLock::new();
+    CATALOG
+        .get_or_init(|| {
+            RecipeCatalog::load(
+                &root
+                    .join("db2")
+                    .join(game_engine_core::spell_catalog::SPELL_DB2_BUILD),
+            )
+        })
+        .as_ref()
+        .map_err(Clone::clone)
 }
 
 fn cache_trainer_art() -> Result<(), String> {

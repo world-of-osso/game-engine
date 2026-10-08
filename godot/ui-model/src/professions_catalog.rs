@@ -13,6 +13,15 @@ pub struct RecipeCatalog {
 }
 
 impl RecipeCatalog {
+    /// All imported recipes, including services the player has not learned.
+    pub fn get(&self, spell_id: u32) -> Option<&Recipe> {
+        let index = self
+            .recipes
+            .binary_search_by_key(&spell_id, |recipe| recipe.spell_id)
+            .ok()?;
+        Some(&self.recipes[index])
+    }
+
     pub fn load(dir: &Path) -> Result<Self, String> {
         let mut catalog = Self::default();
         read_rows(
