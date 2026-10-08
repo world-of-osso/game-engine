@@ -1,9 +1,6 @@
 use std::path::{Path, PathBuf};
 
 use rusqlite::Connection;
-use std::time::Duration;
-
-const CACHE_BUSY_TIMEOUT: Duration = Duration::from_secs(30);
 
 const OUTFIT_LINKS_SCHEMA_SQL: &str = "DROP TABLE IF EXISTS source_files;
 DROP TABLE IF EXISTS starter_outfits;
@@ -67,26 +64,21 @@ CREATE INDEX idx_model_to_fdid_file_data_id ON model_to_fdid(file_data_id);";
 pub(super) fn import_outfit_links_cache(data_dir: &Path) -> Result<PathBuf, String> {
     let cache_path = super::outfit_links_cache_path(data_dir);
     let csv_paths = outfit_source_paths(data_dir)?;
-    if let Some(parent) = cache_path.parent() {
-        std::fs::create_dir_all(parent)
-            .map_err(|err| format!("create {}: {err}", parent.display()))?;
+    if cache_path.exists() {
+        let conn = super::open_read_only(&cache_path)?;
+        if super::outfit_cache_is_fresh(&conn, data_dir, &csv_paths)? {
+            return Ok(cache_path);
+        }
     }
-    let conn = Connection::open(&cache_path)
-        .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
-    conn.busy_timeout(CACHE_BUSY_TIMEOUT)
-        .map_err(|err| format!("set outfit cache busy timeout: {err}"))?;
-    conn.execute_batch("BEGIN IMMEDIATE;")
-        .map_err(|err| format!("lock outfit links cache: {err}"))?;
-    if super::outfit_cache_is_fresh(&conn, &csv_paths)? {
+    super::replace_atomically(&cache_path, |conn| {
+        conn.execute_batch("BEGIN;")
+            .map_err(|err| format!("begin outfit_links cache: {err}"))?;
+        init_schema(conn)?;
+        record_source_files(conn, data_dir, &csv_paths)?;
+        import_rows(conn, &csv_paths)?;
         conn.execute_batch("COMMIT;")
-            .map_err(|err| format!("release outfit links cache: {err}"))?;
-        return Ok(cache_path);
-    }
-    init_schema(&conn)?;
-    record_source_files(&conn, &csv_paths)?;
-    import_rows(&conn, &csv_paths)?;
-    conn.execute_batch("COMMIT;")
-        .map_err(|err| format!("commit outfit_links cache: {err}"))?;
+            .map_err(|err| format!("commit outfit_links cache: {err}"))
+    })?;
     Ok(cache_path)
 }
 
@@ -100,7 +92,7 @@ pub(super) fn imported_outfit_links_cache_path(data_dir: &Path) -> Result<PathBu
     }
     let csv_paths = outfit_source_paths(data_dir)?;
     let conn = super::open_read_only(&cache_path)?;
-    if !super::outfit_cache_is_fresh(&conn, &csv_paths)? {
+    if !super::outfit_cache_is_fresh(&conn, data_dir, &csv_paths)? {
         return Err(format!(
             "{} is stale; run `cargo run --bin outfit_links_cache_import` to rebuild it",
             cache_path.display()
@@ -114,12 +106,16 @@ pub(super) fn init_schema(conn: &Connection) -> Result<(), String> {
         .map_err(|err| format!("init outfit_links cache: {err}"))
 }
 
-fn record_source_files(conn: &Connection, csv_paths: &[PathBuf]) -> Result<(), String> {
+fn record_source_files(
+    conn: &Connection,
+    data_dir: &Path,
+    csv_paths: &[PathBuf],
+) -> Result<(), String> {
     let mut source_insert = conn
         .prepare("INSERT INTO source_files (source, mtime_secs) VALUES (?1, ?2)")
         .map_err(|err| format!("prepare source_files insert: {err}"))?;
     for path in csv_paths {
-        let source = super::outfit_csv_source_key(path)?;
+        let source = super::source_key(data_dir, path)?;
         let mtime = super::csv_mtime(path)?;
         source_insert
             .execute((source, mtime))
