@@ -30,13 +30,13 @@ Forever's player frame now consumes counted-down `AuraInstance` entries from the
 
 ## Edit Mode and character selection
 
-`ui_layout.ron` sits beside `options_settings.ron` in the `world-of-osso` config directory. Saved layouts are account-wide; `edit_mode.active_layout` maps stringified **server character IDs** to layout names (`godot/core/src/ui_layout_data.rs:5–28,226–252`; `godot/rust/src/ui_layout.rs:14–16`). Minimal selection for an owned character is:
+The account-scoped `ui_layout.ron` location and authenticated token ownership are defined in the [HUD persistence contract](../../specs/hud-edit-mode.md#what-it-must-do). Saved layouts are account-wide; `edit_mode.active_layout` maps stringified **server character IDs** to layout names (`godot/core/src/ui_layout_data.rs:5–28,226–252`; `godot/rust/src/ui_layout.rs:14–16`). Minimal selection for an owned character is:
 
 ```ron
 (edit_mode: (active_layout: {"<character_id>": "Forever"}))
 ```
 
-Replace the placeholder with the actual returned character ID; retain other entries when editing an existing file. For isolated live runs use `$XDG_CONFIG_HOME/world-of-osso/ui_layout.ron`, not another player's config. [Private live-run recipe](../../headless-live-run.md) owns account/server isolation.
+Replace the placeholder with the actual returned character ID; retain other entries when editing an existing file. For isolated live runs use the authenticated account directory under the private `$XDG_CONFIG_HOME/world-of-osso/accounts/`, not another player's config. [Private live-run recipe](../../headless-live-run.md) owns account/server isolation.
 
 The two system presets are `Modern` and `Forever`; an unconfigured character chooses Modern. Selecting a preset persists that character's name mapping. Saving settings while a system preset is active creates a player layout carrying its skin rather than rewriting the preset (`godot/core/src/ui_layout_data.rs:127–151,226–252,269–298`).
 
