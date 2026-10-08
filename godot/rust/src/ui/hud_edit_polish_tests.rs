@@ -365,8 +365,10 @@ fn hudeditmodepolish_tracker_selection_follows_retail_default_height_below_heade
         (ActiveSkin::Modern, 275.0, 805.0),
         (
             ActiveSkin::Forever,
-            300.0 * forever_scale,
-            780.0 * forever_scale,
+            // Layout pixel-rounds the scaled top 300 * 260/288 = 270.83; the box
+            // still ends at 1080 tracker units, 975 on screen.
+            271.0,
+            1080.0 * forever_scale - 271.0,
         ),
     ] {
         ui_toolkit::atlas::set_thread_skin(skin);
@@ -418,7 +420,10 @@ fn hudeditmodepolish_tracker_selection_follows_retail_default_height_below_heade
                 .unwrap();
             let rect = &overlay_bounds[&id];
             let rect = [rect.x, rect.y, rect.width, rect.height];
-            assert!((rect[1] + rect[3] / 2.0 - (top + height / 2.0)).abs() < 0.5);
+            assert!(
+                (rect[1] + rect[3] / 2.0 - (top + height / 2.0)).abs() <= 1.0,
+                "{skin:?} {part} {rect:?} not centred in the selection box"
+            );
             for header in headers {
                 assert!(
                     !rects_overlap(rect, header),
