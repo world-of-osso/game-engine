@@ -250,9 +250,13 @@ impl InventoryState {
         match location {
             ItemLocation::Bag { bag, slot } => self.slot(usize::from(bag), usize::from(slot)),
             ItemLocation::Equipment(slot) => self.equipped(slot),
+            ItemLocation::Bank { .. } => None,
         }
         .filter(|item| !item.is_empty())
     }
+
+    /// Character bank stacks projected for the shared item cursor.
+    pub fn apply_bank_contents(&mut self, _contents: &shared::protocol::BankContents) {}
 
     pub fn total_free_slots(&self) -> usize {
         self.slots
@@ -366,6 +370,7 @@ impl InventoryState {
                         item.unwrap_or_default(),
                     );
                 }
+                ItemLocation::Bank { .. } => {}
                 ItemLocation::Equipment(slot) => match item {
                     Some(item) => {
                         self.equipment.insert(slot, item);
