@@ -185,7 +185,7 @@ func prove_edits() -> void:
 		return
 	write_json("expected-placements", {"player": moved_player, "chat": moved_chat, "authored_player": before_player, "authored_chat": before_chat})
 	await capture("live-saved")
-	var layout_path := OS.get_environment("XDG_CONFIG_HOME").path_join("world-of-osso/ui_layout.ron")
+	var layout_path := OS.get_environment("XDG_CONFIG_HOME").path_join("world-of-osso/accounts").path_join(OS.get_environment("GODOT_HUDEDIT_SERVER").to_utf8_buffer().hex_encode()).path_join(OS.get_environment("GODOT_HUDEDIT_ACCOUNT").to_utf8_buffer().hex_encode()).path_join("ui_layout.ron")
 	if not FileAccess.file_exists(layout_path):
 		fail("Save did not create the persisted layout file")
 		return
