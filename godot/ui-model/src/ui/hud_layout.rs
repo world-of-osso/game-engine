@@ -22,6 +22,7 @@ use crate::minimap::FOREVER_CLUSTER_SIZE;
 use crate::ui::screens::inworld_unit_frames_component::{
     PET_FRAME_H, PET_FRAME_W, SMALL_FRAME_GAP, TOT_H, TOT_W, UNIT_FRAME_H, UNIT_FRAME_W,
 };
+use crate::ui::screens::objective_tracker_component::{HEADER_ART, HEADER_LINE_FADE, TRACKER_W};
 use crate::unit_frame_style::UnitFrameStyle;
 
 /// A point of a rect: `SetPoint`'s `point` and `relativePoint`.
@@ -344,6 +345,25 @@ const FOREVER_ACTION_BAR_3: ActionBarLayout = forever_bar(
 /// being the visible line of the 300-wide header art. The frame here is the cluster border.
 pub const FOREVER_TRACKER_SCALE: f32 = FOREVER_CLUSTER_SIZE / 288.0;
 
+/// Screen units between the minimap's bottom and the tracker's header art: FlareUI's
+/// minimap `FRAME_PAD` (Modules/Minimap.lua:33), the cluster's own border-to-map inset.
+const FOREVER_TRACKER_GAP: f32 = 8.0;
+
+/// User choice (PLAN.md), not FlareUI, which keeps Mainline's TOPRIGHT (-110, -275):
+/// the tracker sits directly under the minimap, its header line spanning the minimap's
+/// width. Offsets are in tracker units because `SetScale` scales them too.
+const fn forever_tracker_anchor(minimap: HudAnchor) -> HudAnchor {
+    let (art_left, art_top, art_width, _) = HEADER_ART;
+    let line_right_past_frame = art_left + art_width - HEADER_LINE_FADE - TRACKER_W;
+    let art_top_screen = -minimap.y + FOREVER_CLUSTER_SIZE + FOREVER_TRACKER_GAP;
+    anchor(
+        TopRight,
+        TopRight,
+        minimap.x / FOREVER_TRACKER_SCALE - line_right_past_frame,
+        -(art_top_screen / FOREVER_TRACKER_SCALE - art_top),
+    )
+}
+
 /// Chat messages: Mainline/EditModePresetLayouts.lua:490-503, Camelot constants:66.
 /// FlareUI Chat.lua:1515-1520 adds padding 10 and header 24; DamageMeter.lua:1150-1159
 /// matches that skin's size; meter placement follows the user's top-left choice.
@@ -391,9 +411,7 @@ pub const FOREVER: HudLayout = HudLayout {
     // tooltip-border line is 2 units inside that rectangle.
     chat: anchor(BottomLeft, BottomLeft, -26.0, -30.0),
     chat_size: (469.0, 235.0),
-    // The scaled tracker header begins four local units above its frame; clear the
-    // 260-unit minimap on the default 1080-unit canvas without moving other frames.
-    objective_tracker: anchor(TopRight, TopRight, 0.0, -300.0),
+    objective_tracker: forever_tracker_anchor(MODERN.minimap),
     // Reference screenshot: top centre, bar art beginning 7 units below the screen edge.
     xp_bar: anchor(Top, Top, 0.0, -6.0),
     ..MODERN
