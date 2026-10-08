@@ -250,11 +250,6 @@ fn ghoststate_replica_decodes_remote_life_transitions_over_udp() {
         session.edit(entity, |entity| {
             entity.insert(state);
         });
-        session
-            .server
-            .world()
-            .resource::<lightyear::prelude::ReplicationDirtyQueue>()
-            .mark(entity);
         session.until("remote life state", entity, |unit| {
             unit.and_then(|unit| unit.get::<DeathState>()).copied() == Some(state)
         });
