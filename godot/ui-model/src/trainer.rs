@@ -62,6 +62,47 @@ pub const fn state_index(state: TrainerServiceState) -> usize {
     }
 }
 impl TrainerBook {
+    /// Resolve the hovered service row (including its descendants) against the current visible list.
+    pub fn hovered_service(
+        &self,
+        registry: &ui_toolkit::registry::FrameRegistry,
+        mut frame: u64,
+    ) -> Option<(u64, u32)> {
+        loop {
+            let row = registry.get(frame)?;
+            if let Some(spell) = row
+                .onclick
+                .as_deref()
+                .and_then(|action| action.strip_prefix("trainer:select:"))
+                .and_then(|id| id.parse::<u32>().ok())
+            {
+                return self
+                    .visible_services()
+                    .any(|service| service.spell_id == spell)
+                    .then_some((frame, spell));
+            }
+            frame = row.parent_id?;
+        }
+    }
+
+    /// Retail TrainerUI OnEnter owns the shared spell tooltip at ANCHOR_RIGHT with x offset35.
+    pub fn service_tooltip(
+        &self,
+        spell: u32,
+        tooltip: crate::game_tooltip::GameTooltip,
+        mut owner: [f32; 4],
+    ) -> Option<crate::game_tooltip::GameTooltip> {
+        if !self
+            .visible_services()
+            .any(|service| service.spell_id == spell)
+        {
+            return None;
+        }
+        const RETAIL_OWNER_OFFSET_X: f32 = 35.0;
+        owner[0] += RETAIL_OWNER_OFFSET_X;
+        Some(tooltip.owned(owner, crate::game_tooltip::OwnerSide::Right))
+    }
+
     pub fn receive_list(&mut self, list: TrainerList) {
         if self.list.as_ref().is_none_or(|old| old.npc != list.npc) {
             self.selected = None;
