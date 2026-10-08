@@ -466,7 +466,9 @@ fn spell_without_a_known_icon_builds_no_icon_texture() {
 fn placed(registry: &FrameRegistry, name: &str) -> [f32; 4] {
     use ui_toolkit::frame::Dimension;
     use ui_toolkit::layout_values::Val;
-    let frame = registry.get(registry.get_by_name(name).expect(name)).unwrap();
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
     let (Val::Px(x), Val::Px(y)) = (frame.position.left, frame.position.top) else {
         panic!("{name} is not placed in px")
     };
@@ -492,18 +494,30 @@ fn bottom_tab_bar_matches_retail_tab_system_geometry_in_both_skins() {
         let registry = build(&book);
         for (index, left) in [22.0, 123.0, 224.0].into_iter().enumerate() {
             let tab = format!("PlayerSpellsTab{}", index + 1);
-            assert_eq!(placed(&registry, &tab), [left, 881.0, 100.0, 32.0], "{skin:?} {tab}");
+            assert_eq!(
+                placed(&registry, &tab),
+                [left, 881.0, 100.0, 32.0],
+                "{skin:?} {tab}"
+            );
         }
         // Spellbook (tab 3) is selected by default.
         for (tab, pieces, text_top) in [
             (
                 "PlayerSpellsTab1",
-                [[0.0, 0.0, 35.0, 36.0], [35.0, 0.0, 34.0, 36.0], [69.0, 0.0, 37.0, 36.0]],
+                [
+                    [0.0, 0.0, 35.0, 36.0],
+                    [35.0, 0.0, 34.0, 36.0],
+                    [69.0, 0.0, 37.0, 36.0],
+                ],
                 9.0,
             ),
             (
                 "PlayerSpellsTab3",
-                [[0.0, 0.0, 35.0, 42.0], [35.0, 0.0, 35.0, 42.0], [70.0, 0.0, 37.0, 42.0]],
+                [
+                    [0.0, 0.0, 35.0, 42.0],
+                    [35.0, 0.0, 35.0, 42.0],
+                    [70.0, 0.0, 37.0, 42.0],
+                ],
                 14.0,
             ),
         ] {
@@ -522,4 +536,25 @@ fn bottom_tab_bar_matches_retail_tab_system_geometry_in_both_skins() {
         }
     }
     set_thread_skin(ActiveSkin::Modern);
+}
+
+/// Blizzard_SpellBookFrame.xml:63-67: `CategoryTabSystem` (min 100, max 150, spacing 1)
+/// of `SpellBookCategoryTabTemplate`, a `TabSystemButtonTemplate`, so `UpdateTabWidth`
+/// keeps short names at 100 and widens long ones to text + 10, capped at 150.
+#[test]
+fn category_tabs_use_retail_update_tab_width() {
+    let category = |name: &str| SpellbookCategory {
+        name: name.into(),
+        groups: vec![group(name, 1)],
+    };
+    let book = state(vec![
+        category("Retribution"),
+        category("Protection of the Silver Hand"),
+        category("General"),
+    ]);
+    let registry = build(&book);
+    let rect = |index| placed(&registry, &format!("SpellBookCategoryTab{index}"));
+    assert_eq!(rect(1), [70.0, 19.0, 100.0, 32.0]);
+    assert_eq!(rect(2), [171.0, 19.0, 150.0, 32.0]);
+    assert_eq!(rect(3), [322.0, 19.0, 100.0, 32.0]);
 }

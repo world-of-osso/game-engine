@@ -35,8 +35,14 @@ pub(super) fn background(s: f32) -> Element {
         .collect()
 }
 
+/// `TabSystemButtonMixin:UpdateTabWidth` (TabSystemTemplates.lua:154-177), shared by the
+/// PlayerSpells bottom tabs and `SpellBookCategoryTabTemplate`: the side caps (35 + 37)
+/// plus `TabSideExtraSpacing` 20, or the text plus 10 when wider, clamped to 100..150.
 pub(super) fn tab_width(name: &str) -> f32 {
-    (name.chars().count() as f32 * TAB_GLYPH_W + 40.0).clamp(TAB_MIN_W, TAB_MAX_W)
+    let sides = TAB_LEFT_W + TAB_RIGHT_W + 20.0;
+    let text = name.chars().count() as f32 * TAB_GLYPH_W;
+    let width = if sides < text { text + 10.0 } else { sides };
+    width.clamp(TAB_MIN_W, TAB_MAX_W)
 }
 
 /// `TabSystemButtonArtTemplate` with `isTabOnTop`: the tab art is flipped vertically.
