@@ -29,7 +29,7 @@ Engine subsystems and how they work.
 
 - [boss-encounters](systems/boss-encounters.md) — native ordered encounter lifecycle, replicated clickable compact boss frames, managed tracker placement and fading center warnings; bounded proof ledger.
 
-- [death-flow](systems/death-flow.md) — owner death snapshots, release/corpse/healer and resurrection-offer dialogs; stable viewer-relative taps and both-skin health greying.
+- [death-flow](systems/death-flow.md) — owner death snapshots, release/corpse/healer and resurrection-offer dialogs; replicated remote corpse/ghost presentation and Dead status labels; stable viewer-relative taps and both-skin health greying.
 - [forever-data](systems/forever-data.md) — [Current checkpoint](systems/forever-data.md#corrective-native-checkpoint--observed-functional-done-2026-10-07): corrective742 build0/mapped native functional DONE, Ailee15 textured batches/type20 and original Grove shoulders; Main inspected ten captures, no OS-exit/independent pixel claim. CPU13 passed;304 fmt/check/audit pending. Final handoff metadata hashes confirmed; consumer/landing, broader NPC/parity/provenance gaps and whole goal OPEN.
 - [build-hosts](systems/build-hosts.md) — desktop SSH/WSL and local Docker build trial; saved selection, aggregate GC budget, cache boundaries, independently accepted bounded build/server/CPU/GPU-login capability.
 

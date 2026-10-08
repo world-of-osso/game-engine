@@ -1,9 +1,12 @@
-//! Owner-only death snapshot projection. Other players need replicated ghost state.
+//! Owner death dialogs/grading and per-player ghost appearance.
 use game_engine_ui_model::popup::PopupResult;
-use godot::classes::MeshInstance3D;
+use godot::classes::{MeshInstance3D, Node3D};
 use godot::prelude::*;
-use shared::components::UnitLevel;
 use shared::protocol::{DeathPositionSnapshot, DeathStateUpdate};
+use shared::{
+    components::{Player, UnitLevel},
+    death::DeathState,
+};
 
 use crate::{GameClient, frame_error::SessionError, replicated::UnitFields};
 
@@ -86,27 +89,38 @@ impl GameClient {
     /// Apply on snapshot change and on asynchronously replaced player visuals, without
     /// changing shared materials (which would ghost other units using the same model).
     fn sync_ghost_visual(&mut self) {
-        let Some(mut visual) = self
-            .world
-            .local_player_id()
-            .and_then(|id| self.world.unit_visual(id))
-        else {
-            return;
-        };
-        let ghost = self.death_flow.is_ghost();
-        let drawn_ghost = visual.has_meta(GHOST_META) && visual.get_meta(GHOST_META).to::<bool>();
-        if drawn_ghost == ghost {
-            return;
+        let local = self.world.local_player_id();
+        for unit in self.replica.units().filter(|unit| unit.has::<Player>()) {
+            let Some(visual) = self.world.unit_visual(unit.server_id) else {
+                continue;
+            };
+            let ghost = if local == Some(unit.server_id) {
+                self.death_flow.is_ghost()
+            } else {
+                unit.death_state() == Some(DeathState::Ghost)
+            };
+            apply_ghost_meshes(visual, ghost);
         }
-        let transparency = if ghost { GHOST_TRANSPARENCY } else { 0.0 };
-        let meshes = visual
-            .find_children_ex("*")
-            .type_("MeshInstance3D")
-            .owned(false)
-            .done();
-        for node in meshes.iter_shared() {
-            node.cast::<MeshInstance3D>().set_transparency(transparency);
-        }
-        visual.set_meta(GHOST_META, &ghost.to_variant());
     }
+}
+
+pub(crate) fn ghost_transparency(ghost: bool) -> f32 {
+    if ghost { GHOST_TRANSPARENCY } else { 0.0 }
+}
+
+fn apply_ghost_meshes(mut visual: Gd<Node3D>, ghost: bool) {
+    let drawn_ghost = visual.has_meta(GHOST_META) && visual.get_meta(GHOST_META).to::<bool>();
+    if drawn_ghost == ghost {
+        return;
+    }
+    let transparency = ghost_transparency(ghost);
+    let meshes = visual
+        .find_children_ex("*")
+        .type_("MeshInstance3D")
+        .owned(false)
+        .done();
+    for node in meshes.iter_shared() {
+        node.cast::<MeshInstance3D>().set_transparency(transparency);
+    }
+    visual.set_meta(GHOST_META, &ghost.to_variant());
 }
