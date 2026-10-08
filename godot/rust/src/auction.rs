@@ -11,6 +11,7 @@ use ui_toolkit::frame::WidgetData;
 use crate::{
     GameClient,
     frame_error::{FrameError, SessionError},
+    replicated::UnitFields,
     ui::RegistryUi,
 };
 
