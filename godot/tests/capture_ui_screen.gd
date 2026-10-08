@@ -757,11 +757,10 @@ func trainer_hover_content(ui: Node) -> bool:
 		if title.text != "Frostbolt" or not lines.has("40 yd range"):
 			push_error("Spell tooltip lacks full shared spell content: " + str(lines))
 			return false
-		var has_description := false
+		var words: PackedStringArray = []
 		for line in lines:
-			if line.contains("Frost damage"):
-				has_description = true
-		if not has_description:
+			words.append_array(line.split(" ", false))
+		if not " ".join(words).contains("Frost damage"):
 			push_error("Class spell tooltip lacks rendered description")
 			return false
 	print("PASS: hovered trainer service ", spell, " title=", title.text, " lines=", lines)
