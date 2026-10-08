@@ -1,5 +1,5 @@
 use crate::cache_source_mtime::{csv_mtime, source_key};
-use crate::cache_sqlite::{open_read_only, rebuild_unless_fresh};
+use crate::cache_sqlite::rebuild_unless_fresh;
 use rusqlite::Connection;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
@@ -570,7 +570,7 @@ fn load_customization_raw_data_at(
     cache_path: &Path,
 ) -> Result<crate::customization_data::RawData, String> {
     import_customization_cache_at(data_dir, cache_path)?;
-    let conn = open_read_only(cache_path)?;
+    let conn = crate::cache_sqlite::open_read_only(cache_path)?;
     crate::customization_query_data::query_customization_raw_data(
         &conn,
         RaceModels::load(data_dir)?,
