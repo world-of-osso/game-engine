@@ -132,7 +132,7 @@ fn auction_list_and_bid_geometry_matches_retail_anchors() {
         let item = render(skin, "item");
         assert_eq!(
             frame(&item, "AuctionHouseFrameBidButton").position.left,
-            Val::Px(565.0)
+            Val::Px(575.0)
         );
         assert_eq!(
             frame(&item, "AuctionHouseFrameBidAmountGold").width.value(),
