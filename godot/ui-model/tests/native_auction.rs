@@ -62,6 +62,53 @@ fn native_auction_accepts_server_selected_house_but_rejects_stale_filters() {
 }
 
 #[test]
+fn native_auction_sort_preserves_filters_and_resets_pages() {
+    let mut session = AuctionSession::default();
+    session.open(99);
+    session.opened(AuctionHouseOpened {
+        success: true,
+        error: None,
+    });
+    let mut query = AuctionSearchQuery {
+        text: "cloth".into(),
+        class_id: Some(7),
+        page: 3,
+        ..Default::default()
+    };
+    session.net.request(AuctionRequest::Browse(query.clone()));
+    session.ui.row_page = 2;
+    session.net.requests.clear();
+
+    session.click("auction_sort:price", &InputTexts::new());
+    query.sort_field = AuctionSortField::Buyout;
+    query.page = 0;
+    assert_eq!(
+        session.net.requests,
+        vec![AuctionRequest::Browse(query.clone())]
+    );
+    assert_eq!(session.ui.row_page, 0);
+
+    session.net.requests.clear();
+    session.click("auction_sort:price", &InputTexts::new());
+    query.sort_dir = AuctionSortDir::Desc;
+    assert_eq!(
+        session.net.requests,
+        vec![AuctionRequest::Browse(query.clone())]
+    );
+
+    query.item_id = Some(2589);
+    query.class_id = None;
+    query.text.clear();
+    session.ui.browse_item = Some(2589);
+    session.net.request(AuctionRequest::Listings(query.clone()));
+    session.net.requests.clear();
+    session.click("auction_sort:bid", &InputTexts::new());
+    query.sort_field = AuctionSortField::MinBid;
+    query.sort_dir = AuctionSortDir::Asc;
+    assert_eq!(session.net.requests, vec![AuctionRequest::Listings(query)]);
+}
+
+#[test]
 fn native_auction_interaction_gate_refresh_rejection_close() {
     let mut s = AuctionSession::default();
     assert!(s.click("auction_search", &InputTexts::new()).is_empty());
