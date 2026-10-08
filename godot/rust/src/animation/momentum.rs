@@ -4,7 +4,7 @@
 //! docs/specs/momentum-sway.md.
 use super::BonePose;
 use game_engine_core::m2;
-use godot::builtin::{Basis, Quaternion, Vector2, Vector3};
+use godot::builtin::{Basis, Quaternion, Transform3D, Vector2, Vector3};
 
 /// Undamped angular frequency (rad/s) and damping ratio: a kick peaks after ~70 ms,
 /// overshoots ~7 % once and settles within 2 % after 4 / (ζ·ω0) ≈ 385 ms.
@@ -178,5 +178,18 @@ impl MomentumSway {
             bone = self.parents[index];
         }
         rotation
+    }
+}
+
+/// Differentiates a skeleton's global origin into its horizontal velocity changes.
+#[derive(Default)]
+pub(super) struct VelocityTracker {
+    last_origin: Option<Vector3>,
+    last_velocity: Vector3,
+}
+
+impl VelocityTracker {
+    pub(super) fn change(&mut self, _global: Transform3D, _delta_s: f32) -> Option<Vector3> {
+        None
     }
 }

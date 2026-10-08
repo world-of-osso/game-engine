@@ -1,9 +1,9 @@
 //! Momentum sway on the HumanMale HD model: frame-rate independence, the swing cap,
 //! the stop kick's direction and an untouched pose without velocity changes.
 use super::AnimationState;
-use super::momentum::{MAX_SWING, MomentumSway};
+use super::momentum::{MAX_SWING, MomentumSway, VelocityTracker};
 use super::npc_pose_tests::{human_male_hd, human_male_model, pose_distance};
-use godot::builtin::{Transform3D, Vector3};
+use godot::builtin::{Basis, Transform3D, Vector3};
 
 const STAND: u16 = 0;
 /// Human run speed (yd/s).
@@ -169,4 +169,38 @@ fn zero_velocity_change_leaves_the_pose_unchanged() {
     }
     assert!(!swaying.momentum.active());
     assert_eq!(pose_distance(&swaying.poses(), &still.poses()), 0.0);
+}
+
+#[test]
+fn a_stop_while_facing_world_north_kicks_skeleton_backwards() {
+    // A 1.3-scaled unit turned so model +X (forward) points world -Z, running there
+    // at 7 yd/s while climbing 1 yd/s, then stopping; frames are 1/60 s.
+    let basis = Basis::from_axis_angle(Vector3::UP, std::f32::consts::FRAC_PI_2)
+        .scaled(Vector3::splat(1.3));
+    let step = 1.0 / 60.0;
+    let mut tracker = VelocityTracker::default();
+    let mut origin = Vector3::new(10.0, 5.0, 20.0);
+    let mut changes = Vec::new();
+    for frame in 0..5 {
+        changes.push(tracker.change(Transform3D::new(basis, origin), step));
+        if frame < 2 {
+            origin += Vector3::new(0.0, 1.0, -RUN_SPEED) * step;
+        }
+    }
+    assert_eq!(changes[0], None);
+    let kick = |frame: usize| changes[frame].expect("tracked frame");
+    // The start is the first measured speed, the stop its loss; no kicks in between
+    // or after, and the climb never reaches the horizontal swing.
+    assert!(
+        (kick(1) - Vector3::new(RUN_SPEED, 0.0, 0.0)).length() < 1e-2,
+        "{:?}",
+        kick(1)
+    );
+    assert!(kick(2).length() < 1e-2, "{:?}", kick(2));
+    assert!(
+        (kick(3) - Vector3::new(-RUN_SPEED, 0.0, 0.0)).length() < 1e-2,
+        "{:?}",
+        kick(3)
+    );
+    assert!(kick(4).length() < 1e-6, "{:?}", kick(4));
 }
