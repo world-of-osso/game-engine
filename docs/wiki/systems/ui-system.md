@@ -298,6 +298,8 @@ Commit `8cac2b03` first disabled only the FPS frame-time graph at startup in str
 
 ## See Also
 
+- [[cage-capture-resolution]] — verified window/framebuffer dimensions and offline PlayerSpellsFrame visual proof.
+
 - [[ui-frame-order]] — implemented shared plugin preparation, unchanged standalone setup, named scheduling sets and verification boundaries
 
 - [[networking]] — login auth flow feeds into UI state transitions
