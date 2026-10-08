@@ -19,6 +19,7 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 - [x] Items (SBI.xml, 60 high): 36 px icon in a square (active) or circle (passive) border, name in `SystemFont_Large` and `SPELLBOOK_FONT_COLOR`, "Passive" subtext for passives. Spells flagged `SPELL_ATTR0_DO_NOT_DISPLAY` (Attributes_0 0x80) or `SPELL_ATTR4_NOT_IN_SPELLBOOK` (Attributes_4 0x8000) are not listed; `SPELL_ATTR7_ONLY_IN_SPELLBOOK_UNTIL_LEARNED` (Attributes_7 0x10000) spells only as future spells, `SPELL_ATTR8_NOT_IN_SPELLBOOK_UNTIL_LEARNED` (Attributes_8 0x2000) only once known.
 - [x] Window: the book sits in a 1618×883 `PlayerSpellsFrame` `PortraitFrameTemplate` (rock background, portrait metal frame, the active spec's icon as the round portrait, close button).
 - [x] Bottom Specialization / Talents / Spellbook tabs select exclusive pages and update the title in both presets; window fit includes the bottom tabs. Same-page key toggles close, different-page keys select without closing.
+- [x] Bottom tab bar geometry follows TST.xml in both presets: 32-high buttons 1 apart from BOTTOMLEFT 22,2; left cap TOPLEFT, right cap TOPRIGHT x 6 (active x 7), no vertical art offset; label 10 high, `width - 10` wide at CENTER y +2 (selected -3, TabSystemTemplates.lua:30-39). Bottom and category tabs share `UpdateTabWidth` (TabSystemTemplates.lua:154-177): caps 72 + 20, or text + 10 when wider, clamped 100..150, so all three bottom tabs are 100 wide.
 - [ ] P opens Spellbook; N opens Talents. Interface key-binding data includes both and an initially unbound Specialization action (Retail has no separate specialization default). Retail's single combined PlayerSpells micro button opens Specialization while the native talent system is absent, and closes a shown window.
 - [x] Specialization lists the class's non-Initial ChrSpecialization rows in OrderIndex order: name, icon, role and description, equal-width columns and server-active marker; Activate is disabled below level 10.
 - [ ] Native Activate sends the existing SetSpecialization message and never marks a spec active optimistically (model action/active marker tested; actual sender integration not yet proven).
@@ -56,12 +57,12 @@ Source exports under `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowforever}/AddOns
 ## Assumptions
 
 - Icons missing from the local CASC install show an empty slot (no substitute icon). Several Arms spells' icons (132306, 132400, 970853, 6718291) are not in the local archives.
-- The category tab width is estimated from the label length (Retail measures the font string).
+- `UpdateTabWidth` takes the label width from a 6.5 px/char estimate (Retail measures the font string); only labels near the 92 px threshold can differ.
 
 ## Tests asserting this spec
 
 - `godot/core/tests/spell_catalog.rs`: warrior names/icons, rendered Battle Shout description; level 1 and level 10 Arms spellbook lists with future spells by level.
-- `godot/ui-model/tests/spellbook_frame.rs`: column-first grid (PCG.lua examples), view continuation, Level N and cast actions, desaturation, fit including bottom tabs, exclusive page selection in both presets, N/P model routes, pinned paladin spec metadata, active marker and Activate enabled/disabled actions.
+- `godot/ui-model/tests/spellbook_frame.rs`: column-first grid (PCG.lua examples), view continuation, Level N and cast actions, desaturation, fit including bottom tabs, exclusive page selection in both presets, N/P model routes, pinned paladin spec metadata, active marker and Activate enabled/disabled actions, bottom tab bar geometry in both presets, category tab `UpdateTabWidth` widths.
 - `godot/core/tests/input_bindings_data.rs`: P/N defaults, unbound specialization action in Interface and persisted binding inventory.
 - `godot/ui-model/tests/micro_menu.rs`: combined PlayerSpells button routes to Specialization while talents are absent.
 - `godot/ui-model/tests/main_action_bar.rs`: bar geometry, keys, icon, cooldown swipe/countdown, click actions.

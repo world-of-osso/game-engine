@@ -208,6 +208,9 @@ const TAB_H: f32 = 32.0;
 const TAB_MIN_W: f32 = 100.0;
 const TAB_MAX_W: f32 = 150.0;
 const TAB_SPACING: f32 = 1.0;
+/// `uiframe-tab-left` / `uiframe-tab-right` atlas widths (TabSystemTemplates.xml:41-52).
+const TAB_LEFT_W: f32 = 35.0;
+const TAB_RIGHT_W: f32 = 37.0;
 /// `textPadding`-free width estimate of `GameFontNormalSmall` glyphs.
 const TAB_GLYPH_W: f32 = 6.5;
 /// `PagingControls` BOTTOMRIGHT -75,40 of `PagedSpellsFrame`: page text, then 32×32
