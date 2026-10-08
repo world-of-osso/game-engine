@@ -237,6 +237,11 @@ fn trainer_class_spell_retains_full_shared_tooltip() {
             },
         );
         assert_eq!(main.title, "Frostbolt");
+        assert!(
+            main.lines
+                .iter()
+                .any(|line| line.left_text == "2% of base mana")
+        );
         assert!(main.lines.iter().any(|l| l.right_text.contains("yd range")));
         assert!(main.lines.iter().any(|l| l.left_text.contains("sec cast")));
         assert!(main.lines.iter().any(|line| {
@@ -258,6 +263,8 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
     view.display.skills.insert(2540, "Classic Tailoring".into());
     view.book.list.as_mut().unwrap().services[0].req_skill_line = 2540;
     view.book.list.as_mut().unwrap().services[0].req_skill_rank = 75;
+    view.book.list.as_mut().unwrap().services[0].req_abilities = vec![3908];
+    view.display.names.insert(3908, "Tailoring".into());
     let content = spell_tooltip(
         &CatalogSpell {
             id: 2963,
@@ -283,6 +290,44 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
             .iter()
             .any(|line| line.left_text == "Requires Classic Tailoring (75)")
     );
+    let red = game_engine_ui_model::item_tooltip::RED_FONT_COLOR;
+    assert!(
+        tooltip
+            .content
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Requires Level 5" && line.left_color == red)
+    );
+    assert!(
+        tooltip
+            .content
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Requires Tailoring" && line.left_color == red)
+    );
+    view.player_level = 5;
+    view.ranks.push(shared::profession::ProfessionSkillLine {
+        skill_line: 2540,
+        rank: 75,
+        max_rank: 300,
+        step: 1,
+    });
+    view.known_spells.insert(3908);
+    let met = view
+        .service_tooltip(2963, content.clone(), [0.0; 4])
+        .unwrap();
+    for expected in [
+        "Requires Level 5",
+        "Requires Classic Tailoring (75)",
+        "Requires Tailoring",
+    ] {
+        assert!(
+            met.content
+                .lines
+                .iter()
+                .any(|line| line.left_text == expected && line.left_color == [1.0; 4])
+        );
+    }
     view.book.list.as_mut().unwrap().services[0].req_skill_rank = 150;
     let refreshed = view
         .service_tooltip(2963, content.clone(), [0.0; 4])
