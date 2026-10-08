@@ -415,6 +415,12 @@ func check_fixed_reward() -> bool:
 		fail("Fixed reward page offers choices: " + str(client.quest_state()))
 		return false
 	await capture("19-fixed-reward.png")
+	if not await hover_tooltip(quest_control("QuestFrameUI", "QuestInfoRewardsFrameQuestInfoItem1"), "Grape-Picking Sack"):
+		return false
+	if not str(client.tooltip_state()).contains("Item ID: 57247"):
+		fail("Fixed reward tooltip lacks Item ID: " + str(client.tooltip_state()))
+		return false
+	await capture("19b-fixed-reward-tooltip.png")
 	var before := {}
 	for item in FIXED_REWARDS:
 		before[item] = bag_count(item)
