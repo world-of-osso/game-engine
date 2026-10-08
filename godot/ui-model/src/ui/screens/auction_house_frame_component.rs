@@ -484,7 +484,7 @@ fn item_list_frame(
     let mut out = crop_texture(
         format!("{prefix}Background"),
         background,
-        (x + 3.0, y + 22.0, bg_w.min(w - 6.0), bg_h.min(h - 25.0)),
+        (x + 3.0, y + 22.0, bg_w.min(w - 6.0), bg_h.min(h - 24.0)),
     );
     out.extend(inset_border(
         &format!("{prefix}NineSlice"),
@@ -754,21 +754,40 @@ fn large_input_art(name: &str, rect: (f32, f32, f32, f32)) -> Element {
 /// coin at the right.
 fn small_money_input(boxes: MoneyBoxes, (x, y): (f32, f32)) -> Element {
     let parts = [
-        (boxes.gold, x, 70.0, COIN_GOLD),
-        (boxes.silver, x + 80.0, 48.0, COIN_SILVER),
-        (boxes.copper, x + 138.0, 48.0, COIN_COPPER),
+        (boxes.gold, x, 70.0, "coin-gold"),
+        (boxes.silver, x + 80.0, 48.0, "coin-silver"),
+        (boxes.copper, x + 138.0, 48.0, "coin-copper"),
     ];
     parts
         .into_iter()
         .flat_map(|(name, bx, w, coin)| {
-            let mut out = search_border(name, (bx, y, w, 20.0));
-            out.extend(edit_box(name, (bx, y, w - 14.0, 20.0), "0,0,0,0"));
-            out.extend(crop_texture(
+            let mut out = money_input_border(name, (bx, y, w));
+            out.extend(edit_box(name, (bx, y, w, 20.0), "0,0,0,0"));
+            out.extend(crate::quest_art::named_atlas_texture(
                 format!("{name}Icon"),
                 coin,
-                (bx + w - 13.0, y + 3.0, 12.0, 14.0),
+                (bx + w - 17.0, y + 3.5, 13.0, 13.0),
             ));
             out
+        })
+        .collect()
+}
+
+/// MoneyFrameEditBoxTemplate uses Common-Input-Border, not the SearchBox border.
+fn money_input_border(name: &str, (x, y, w): (f32, f32, f32)) -> Element {
+    let parts = [
+        ("Left", x - 5.0, 8.0, "0,0.0625,0,0.625"),
+        ("Middle", x + 3.0, w - 11.0, "0.0625,0.9375,0,0.625"),
+        ("Right", x + w - 8.0, 8.0, "0.9375,1,0,0.625"),
+    ];
+    parts
+        .into_iter()
+        .flat_map(|(part, left, width, coords)| {
+            rsx! { texture {
+                name: {DynName(format!("{name}Border{part}"))}, width, height:20.0,
+                texture_fdid:130_975u32, tex_coords:coords,
+                pos_type:"absolute", left, top:y,
+            } }
         })
         .collect()
 }
