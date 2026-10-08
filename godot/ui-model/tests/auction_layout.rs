@@ -86,6 +86,28 @@ fn auction_item_header_icon_uses_retail_crop_and_size() {
 }
 
 #[test]
+fn auction_bid_button_does_not_cover_copper_input() {
+    use ui_toolkit::layout_values::Val;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, "item");
+        let copper = frame(&registry, "AuctionHouseFrameBidAmountCopper");
+        let button = frame(&registry, "AuctionHouseFrameBidButton");
+        let Val::Px(left) = copper.position.left else {
+            panic!("copper not positioned")
+        };
+        let Val::Px(button_left) = button.position.left else {
+            panic!("bid not positioned")
+        };
+        assert!(
+            left + copper.width.value() <= button_left,
+            "Bid button covers copper input: {} > {button_left}",
+            left + copper.width.value()
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn auction_list_and_bid_geometry_matches_retail_anchors() {
     use ui_toolkit::layout_values::Val;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
