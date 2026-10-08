@@ -40,6 +40,7 @@ References:
 - [x] Tabs `MerchantFrameTab1` "Merchant" (CENTER at BOTTOMLEFT 50,−15) and Tab2 "Buyback" (Tab1 RIGHT −16):
   - `PanelTabButtonTemplate` art (atlas 4707839), active 42 / inactive 36 high
   - width = text + 20, at least both caps
+- [x] `BuybackList.items` arrives in sale order, oldest first and newest last, including after the 12-slot list wraps. The list displays that order; every buyback request uses the item's real `slot`, not its list index. The main-tab last-sale button uses the last entry.
 - [x] Buyback tab: title "Merchant Buyback" (`MERCHANT_BUYBACK`), 12 cells with rows every 59 px (MF.lua:516-519). Paging, repair, buyback slot and bottom border are hidden.
 - [x] Clicks (MF.lua:632-669): right-clicking an item sends `BuyItem { count: 1 }`; any click on a buyback cell sends `BuybackItemRequest`. Left-click pickup, drop-to-buy and drop-to-sell: [cursor-item](cursor-item.md).
 - [x] Right-clicking a bag item while the merchant tab is shown sells the stack (`SellItem { count: 0 }`, `ContainerFrameItemButton_OnClick`). Nothing happens on the buyback tab.
@@ -52,7 +53,7 @@ References:
 - [x] Bag item names/quality and their full item tooltips come from the client item catalog (ItemSparse): [cursor-item](cursor-item.md).
 - [x] `MerchantRepairItemButton` (36×36, `SpellIcon-256x256-Repair`, RIGHT at RepairAll LEFT −8, MF.lua:948-960) shows with Repair All and is always enabled. A click toggles the repair cursor (`ShowRepairCursor`/`HideRepairCursor`, MF.xml:305-313); while it is shown the button's `ButtonHilight-Square` stays lit (additive, MF.lua:136-142) and the cursor is `Interface/CURSOR/Crosshair/Repair`.
   - A left click on an item (a CharacterFrame paperdoll slot or a bag slot) with the repair cursor sends `RepairItem { item_guid: Some(guid) }` instead of picking it up. The cursor stays until the button is clicked again or the frame hides (`ResetCursor`, MF.lua:167).
-  - Only equipped items carry durability; the server ignores a bag item's guid (game-server `docs/specs/merchant.md`).
+  - The server repairs a damaged owned bag or equipped item by its guid for that item's own cost; undamaged or foreign items are refused (game-server `docs/specs/merchant.md`).
 - [x] Button tooltips (`ANCHOR_RIGHT`): Sell All Junk "Sell All Junk Items" (MF.xml:207-211); Repair An Item "Repair an Item" (MF.xml:300-303); Repair All, when something is damaged, "Repair All Items", the cost as a money line and, when it exceeds the player's money, "Insufficient funds to repair all items" in red (MF.xml:240-252). The last-sale slot shows its buyback item (`MerchantBuyBackButton_OnEnter`, MF.lua:1078-1082).
 - [x] Sounds: `IG_CHARACTER_INFO_OPEN`/`_CLOSE` when the frame shows/hides (MF.lua:158, 174), `IG_MAINMENU_OPTION_CHECKBOX_ON` from the page buttons (MF.lua:574, 581), `ITEM_REPAIR` from Repair All (MF.xml:256). Files are the kits' `SoundKitEntry` Oggs under `data/sounds/ui/`.
 - [x] The mouse wheel over the frame pages back (up) or forward (down) when that page button is shown and enabled, and never reaches the camera (`MerchantFrame_OnMouseWheel`, MF.lua:177-187).
@@ -75,6 +76,12 @@ References:
 Native cursor coverage is partial, not wholly unconverted: [current bounded Buy + whole/split sale acceptance](../wiki/systems/godot-conversion.md#native-merchant-split-cursor-sale--main-accepted-bounded-pass). The unchecked combined requirement above is not full native acceptance.
 
 `merchant-cursor` is an independent owned native fixture mode, not a user game screen. MAIN-accepted independent gate1446 bounded PASS at `837e2c1e`/`b073e4dd`: scoped functional/source/format/readability and matching build/five-flow evidence accepted. First vendor → own embedded bag only. Right-click/Shift/buyback model paths remain retained, not full runtime proof. [Oracle, source coverage and proof boundary](../wiki/systems/godot-conversion.md#native-merchant-cursor-buy--main-accepted-bounded-pass); [invocation](../remote-builds.md#native-merchant-cursor-fixture). Existing merchant-click open/close, placement and audio gates remain unchanged.
+
+## Bounded live acceptance (2026-10-07)
+
+The merchantfix follow-up passes the requested merchant steps 1–8 on the private UDP 5328 server: priced stock/paging and a two-item Shift purchase; right-click sales; 13-sale wrap with newest Gloves restored from physical slot 0 and the oldest list item from slot 1; Repair All; a bag weapon repaired from 10/20 to 20/20 for its own 8 copper; all three refusal messages without inventory/money changes; Shift comparison with Item ID retained; Escape/range close with repair-cursor reset. Two sequential client launches, never two rendered clients. Full suites: server 1,499 passed / 56 ignored / one permitted latency test filtered; client core/ui-model/godot 2,173 passed / 6 ignored; zero failures.
+
+[Proof ledger](../../data/diagnostics/merchantloop-2026-10-07/proof-ledger.txt), `merchantfix-client{1,2}.log`, captures/state dumps under `shots-merchantfix{1,2}/`. Client source proof is `43539f8a7`, server `26f3c5c`; later documentation-only commits do not change it. Full layout/coexistence, cursor-owner coverage and other variants remain partial, as above. Shared-protocol was not changed; its buyback slot-order comment needs a separately authorized documentation correction.
 
 ## Tests asserting this spec
 

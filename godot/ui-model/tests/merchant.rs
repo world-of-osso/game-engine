@@ -188,6 +188,57 @@ fn godric_list_opens_the_frame_with_priced_icons_and_repair() {
 }
 
 #[test]
+fn wrapped_buyback_preserves_sale_order_and_requests_physical_slots() {
+    let mut session = session(godric(), "Godric Rothgar", 500);
+    let items: Vec<BuybackItem> = (1u8..12)
+        .chain([0])
+        .map(|slot| BuybackItem {
+            slot,
+            item_id: if slot == 0 { 2385 } else { 2381 },
+            name: if slot == 0 {
+                "Tarnished Chain Gloves"
+            } else {
+                "Tarnished Chain Leggings"
+            }
+            .into(),
+            quality: 1,
+            count: 1,
+            price: 9,
+        })
+        .collect();
+    session.receive_buyback(BuybackList {
+        items: items.clone(),
+    });
+    assert_eq!(
+        session.frame_state().last_buyback.unwrap().name,
+        "Tarnished Chain Gloves"
+    );
+    assert_eq!(
+        session.click_frame(ACTION_BUYBACK_LAST, Click::RIGHT),
+        request(GODRIC, MerchantRequest::Buyback { slot: 0 })
+    );
+    session.click_frame(ACTION_TAB_BUYBACK, Click::LEFT);
+    assert_eq!(
+        session
+            .frame_state()
+            .cells
+            .iter()
+            .map(|cell| cell.name.as_str())
+            .collect::<Vec<_>>(),
+        items
+            .iter()
+            .map(|item| item.name.as_str())
+            .collect::<Vec<_>>()
+    );
+    for (index, item) in items.iter().enumerate() {
+        assert_eq!(
+            session.click_frame(&cell(index), Click::LEFT),
+            request(GODRIC, MerchantRequest::Buyback { slot: item.slot })
+        );
+    }
+}
+
+#[test]
 fn right_click_buys_one_purchase_and_left_click_does_not() {
     let mut session = session(godric(), "Godric Rothgar", 500);
     assert_eq!(session.click_frame(&cell(0), Click::LEFT), None);
