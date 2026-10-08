@@ -65,6 +65,15 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # Cached HelmetGeosetData WDC5 layout: race, hidden group, selection, extra;
+    # the relationship column is the ItemDisplayInfo helmet visibility key.
+    "HelmetGeosetData": (
+        0x103B3B37,
+        [("ID", "id"), ("RaceID", ("u8", 0)), ("HideGeosetGroup", ("u16", 1)),
+         ("RaceBitSelection", ("int", 2, 0)),
+         ("Field_10_0_0_46047_003", ("int", 3, 0)),
+         ("HelmetGeosetVisDataID", "parent")],
+    ),
     # WoWDBDefs layout 52510D63: additional replaceable item-model textures.
     "ItemDisplayInfoModelMatRes": (
         0x52510D63,
