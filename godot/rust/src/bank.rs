@@ -10,7 +10,7 @@ use game_engine_ui_model::bank::{
     BUY_BANK_TAB_POPUP, BagStacks, BankEffect, BankSession, InputTexts, ItemIcons,
 };
 use game_engine_ui_model::bank_frame_component::{self as bank_frame, MONEY_BOXES, TAB_NAME_BOX};
-use game_engine_ui_model::cursor_item::CursorItem;
+use game_engine_ui_model::cursor_item::{CursorItem, CursorTarget};
 use game_engine_ui_model::guild_bank::{
     BUY_GUILD_BANK_TAB_POPUP, GuildBankEffect, GuildBankSession, NativeGuildBankView,
 };
@@ -244,6 +244,10 @@ impl GameClient {
     pub(crate) fn receive_bank(&mut self, message: BankMessage) -> Result<(), FrameError> {
         match message {
             BankMessage::Contents(contents) => {
+                self.merchant
+                    .session
+                    .inventory
+                    .apply_bank_contents(&contents);
                 self.banks.bank.apply_contents(contents);
                 if let Some(account) = &self.banks.bank.state.account {
                     self.banks.warbank_seen = Some(account.clone());
@@ -383,6 +387,10 @@ impl GameClient {
             return Ok(());
         }
         self.feed_bank_sessions();
+        if !self.banks.bank.is_open() {
+            self.merchant.session.inventory.bank_slots.clear();
+            self.clear_stale_bag_cursor();
+        }
         self.sync_bank_popup(
             BUY_BANK_TAB_POPUP,
             self.banks.bank.purchase_confirmation.clone(),
@@ -417,6 +425,18 @@ impl GameClient {
             .is_some_and(|ui| ui.instance_id().to_i64() == owner)
     }
 
+    /// Resolve the selected character tab before pickup so the drag keeps its origin
+    /// even when another tab becomes selected (BankFrame.lua OnDragStart/OnReceiveDrag).
+    pub(super) fn bank_cursor_target(&self, owner: i64, action: &str) -> Option<CursorTarget> {
+        if !Self::is_ui(&self.banks.bank_ui, owner) {
+            return None;
+        }
+        self.banks
+            .bank
+            .slot_location(action)
+            .map(CursorTarget::Location)
+    }
+
     /// A press on a bank canvas from the shared cursor queue; `false` for other canvases.
     pub(super) fn bank_cursor_press(
         &mut self,
@@ -441,6 +461,10 @@ impl GameClient {
         owner: i64,
         action: &str,
     ) -> Result<bool, FrameError> {
+        if let Some(target) = self.bank_cursor_target(owner, action) {
+            self.send_cursor_click(target)?;
+            return Ok(true);
+        }
         if Self::is_ui(&self.banks.bank_ui, owner) {
             return self.drop_cursor_on_bank(action, Click::LEFT);
         }
@@ -451,6 +475,12 @@ impl GameClient {
     }
 
     fn bank_press(&mut self, action: &str, click: Click) -> Result<(), FrameError> {
+        self.clear_bag_split();
+        if !click.right
+            && let Some(location) = self.banks.bank.slot_location(action)
+        {
+            return self.click_inventory_slot(location, click);
+        }
         if self.drop_cursor_on_bank(action, click)? {
             return Ok(());
         }
@@ -462,7 +492,12 @@ impl GameClient {
 
     /// A whole bag stack on the cursor clicked onto a bank slot is deposited.
     fn drop_cursor_on_bank(&mut self, action: &str, click: Click) -> Result<bool, FrameError> {
-        if click.right || !action.starts_with(bank_frame::ACTION_SLOT_PREFIX) {
+        // Character slots use SwapItem/SplitItem with an exact destination. This
+        // legacy auto-deposit path remains for the out-of-scope Warband bank only.
+        if self.banks.bank.state.shown != shared::protocol::BankType::Account
+            || click.right
+            || !action.starts_with(bank_frame::ACTION_SLOT_PREFIX)
+        {
             return Ok(false);
         }
         let Some((bag, slot)) = cursor_bag_stack(&self.bags.cursor.item) else {
