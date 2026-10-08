@@ -768,6 +768,18 @@ func trainer_hover_content(ui: Node) -> bool:
 		if not " ".join(words).contains("Frost damage"):
 			push_error("Class spell tooltip lacks rendered description")
 			return false
+	elif spell == 212205:
+		# Class create-item spell: keeps its spell tooltip, never the produced item's.
+		var words: PackedStringArray = []
+		for line in lines:
+			words.append_array(line.split(" ", false))
+		if title.text != "Create: Crimson Vial" or not " ".join(words).contains("share with allies"):
+			push_error("Class create-item spell lacks its spell tooltip: " + str(lines))
+			return false
+		for line in lines:
+			if line.begins_with("Item ID:"):
+				push_error("Class create-item spell shows produced item content: " + str(lines))
+				return false
 	print("PASS: hovered trainer service ", spell, " title=", title.text, " lines=", lines)
 	return true
 
