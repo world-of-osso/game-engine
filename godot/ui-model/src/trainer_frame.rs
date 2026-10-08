@@ -23,6 +23,8 @@ pub const PORTRAIT: crate::inworld_unit_frames_component::PortraitSlot =
 const LIST_HEIGHT: f32 = 330.0;
 const WIDTH: f32 = 338.0;
 const HEIGHT: f32 = 424.0;
+// SmallMoneyFrame's CopperButton RIGHT is 13px inside the frame (MoneyFrame.lua:378-380).
+const MONEY_RIGHT_INSET: f32 = 13.0;
 const WHITE: &str = "1,1,1,1";
 // Pinned Retail GlobalColor DB2, not invented approximations of the state palette.
 const NORMAL: &str = "1,0.8235294,0,1";
@@ -209,7 +211,7 @@ fn service_row(
     let selected = view.book.selected == Some(row.spell_id);
     let show_cost = row.state != TrainerServiceState::Known && row.cost > 0;
     let cost_width = if show_cost {
-        money_width(row.cost)
+        money_width(row.cost) + MONEY_RIGHT_INSET
     } else {
         1.0
     };
@@ -231,13 +233,19 @@ fn service_row(
         } else {
             RED
         };
-        children.extend(money_colored(
+        let coins = money_colored(
             &format!("{prefix}Cost"),
             row.cost,
-            (303.0, 21.0),
+            (cost_width - MONEY_RIGHT_INSET, 14.0),
             MoneyAlign::Right,
             color,
-        ));
+        );
+        // Retail money is a child frame, above the row's selected/highlight texture layers.
+        children.extend(
+            rsx! { r#frame { name: {DynName(format!("{prefix}MoneyFrame"))},
+            width: cost_width, height: 13.0, left: {303.0 - cost_width}, top: 7.0,
+            pos_type: "absolute", {coins} } },
+        );
     }
     if selected {
         children.extend(crate::bank_art::cropped(

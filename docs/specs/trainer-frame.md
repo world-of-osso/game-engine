@@ -1,6 +1,6 @@
 # Native trainer frame
 
-Native `ClassTrainerFrame` in `godot/ui-model/src/trainer*.rs` and `godot/rust/src/trainer.rs`, opened by the existing NPC gossip trainer role. [Professions contract](professions-frame.md) retains historical Retail requirements and recorded user decisions; retired-client checkboxes are not native proof.
+Native `ClassTrainerFrame` in `godot/ui-model/src/trainer*.rs` and `godot/rust/src/{trainer,tooltip_sources}.rs`, opened by the existing NPC gossip trainer role. [Professions contract](professions-frame.md) retains historical Retail requirements and recorded user decisions; retired-client checkboxes are not native proof.
 
 ## What it must do
 
@@ -10,6 +10,8 @@ Native `ClassTrainerFrame` in `godot/ui-model/src/trainer*.rs` and `godot/rust/s
 - [x] Train sends exactly one `TrainerBuySpell` for an available affordable selected service, waits for authority, and refreshes service state from the next list and money from replicated Gold.
 - [x] Adding a primary profession requires Accept / Cancel and a free primary slot; changing selection or closing cancels confirmation.
 - [x] `TrainerBuyFailed` displays its reason without optimistic spending. Both Modern and Forever use the shared window chrome and same decisions.
+- [x] Three-denomination selected and unselected prices keep every coin inside the row/scroll clip and above selection art.
+- [x] Hovering any visible service row or descendant shows that service's shared catalog spell/recipe tooltip in both skins, not the selected service; Retail `ANCHOR_RIGHT` +35 and the requested grey Spell ID line remain. Leaving, filtering it away or closing removes the tooltip.
 
 ## Retail references
 
@@ -38,6 +40,8 @@ Under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/trainer.rs`: concrete list, filters, exact once request, authoritative refresh, failure text, confirmation, disabled services and both-skin rendered registry projection.
+- `godot/ui-model/tests/trainer_tooltips.rs`: row/descendant and current-visible-list hover decisions, shared spell content/placement/ID and both-skin tooltip rendering.
+- `godot/tests/trainer_coin_pixels.gd`, `trainer_followup.gd`: native coin pixel/geometry regressions and offline hovered/leave captures in both skins; current results below.
 - Native/private evidence is appended to canonical `data/diagnostics/trainerframe-2026-10-07/proof-ledger.txt` (verified 2026-10-07): nine targeted tests and matching extension/CLI build pass at `57f3e2286`; changed-file formatting passes. No broad-suite claim.
 - Inspected Modern `shots/01-open.png`, `03-confirm.png`, `04-trained.png` at `263c9f461`: real Pomeroy gossip, first-profession confirmation, Train purchase, money 10000 → 9990 copper and Herbalism Already known. Model/bridge purchase scope is unchanged by the presentation-only follow-up.
 - Inspected Forever `forever-shots/01-open.png`, `02-available-off.png`, `03-used-off.png`, `04-restored.png` at `57f3e2286`: persisted 9990 copper/known state, catalog icons, native pointer-driven Available and Used removal/restoration, root profession flag not displayed as 1/0. `state.txt` and `client4-live.log` retain assertions; client exit 0. Four launches total against an approved `f25258b` server with a fresh offline redb copy and read-only world.db, UDP5304/Weston tf24.
@@ -83,11 +87,31 @@ Popup captures use the same fixture with `GODOT_TRAINER_FILTER_MENU=1`: Retail d
 
 The locked local helper ran `--test -p game-engine-ui-model -p game-engine-godot -p game-engine-core --no-fail-fast` **once** after final relevant Rust changes; exit0. Deduplicated detailed log counts: **core781 passed**, **Godot651 passed**, **UI-model751 passed /6 ignored**, **0 failures** (2183 passed total). No ignored tests were introduced here. Evidence: canonical `data/diagnostics/trainerart-2026-10-07/{full-details.log,full-counts.json,proof-ledger.txt}`; command and wrapper output `/tmp/claude/trainerart-full.out`. Subsequent capture-assertion/docs changes do not invalidate this CPU scope; no suite rerun.
 
+## Trainer follow-up (2026-10-07)
+
+The selected three-denomination copper icon crossed the row border because the native flattened money renderer treated the SmallMoneyFrame's right edge as the coin edge. Cached `Blizzard_MoneyFrame/Mainline/MoneyFrame.xml` anchors CopperButton RIGHT at -13; `MoneyFrame.lua:378-380` reapplies that inset. The trainer money frame itself remains TOPRIGHT +5 (`TUI.xml:28-39`). Restore the internal 13px inset and include it in the name's width budget, rather than inventing a row offset. Money is a child frame above parent selection/highlight layers, as in Retail. Native pixel RED at baseline changes 20 opaque copper pixels when the selected layer is hidden (`trainer_coin_pixels.gd`); Native pixel GREEN in both skins moves the copper rect from `(324,215,13,13)` to `(311,215,13,13)` and reduces selection-induced opaque-pixel changes from **20 to 0**. Fix `7c8381e07`; test `trainer_coin_pixels.gd`.
+
+Service hover now registers in the existing native `tooltip_sources::frame_tooltip` dispatcher and reuses `spell_game_tooltip`, `GameTooltipUI`, skin styling, placement and ID appending. `TrainerBook` resolves the row's nearest action ancestor against the current visible services, independent of selection/availability/affordability; the shared owner anchor retains Retail's +35px offset. Existing per-frame source resolution refreshes while hovered and removes stale tooltips on leave/filter/close. The offline preview uses the same source decisions and renderer, with local catalog content and no GameClient/server.
+
+No new recipe-content renderer is introduced: the existing spell source supplies title, subtext, cost/range/cast/cooldown and rendered description where present. Pinned Spell2963/2964 descriptions are empty; crafted-output item properties and reagent sections are not supplied by this shared spell renderer. Cached Lua calls C++ `SetTrainerService` but does not specify its complete line content, so full C++ recipe-tooltip parity is not claimed. The user-requested Spell ID line is preserved ([tooltip contract](unit-tooltip.md)).
+
+SkillStep and rank modifiers are unchanged. The authoritative missing values are `GetTrainerServiceStepIndex()`'s optional service index (not the primary-profession acquisition flag) and `GetTrainerTradeskillRankValues()`'s `rankModifier` (`TUI.lua:180-190`). Existing `TrainerService` requirements and `ProfessionSkillLine` base rank/max/step do not supply those values.
+
+### Follow-up acceptance
+
+Tooltip source `2e8e71564`; preview lifecycle correction `2bd450ae4` initializes the shared host once then updates state, as production `sync_game_tooltip` does. Targeted **18/18** pass: original trainer9, art7, hover/content2; UI-model source is unchanged by preview-only fixes. Whole-workspace format proof at `8eb890930` plus changed-preview-file check at `2bd450ae4` pass; matching locked local extension/CLI builds pass. Evidence: canonical `data/diagnostics/trainertips-2026-10-07/proof-ledger.txt`, `green-details.log`, `/tmp/claude/trainertips-{green,build-refresh}.out`.
+
+At `2bd450ae4`, `trainer_followup.gd` captures and asserts **six** offline snapshots in one renderer: `modern-{default,hovered,selected}.png`, `forever-{default,hovered,selected}.png` under that evidence directory. Every gold/silver/copper icon is 13×13, inside the scroll clip and at least8px inside the row's right edge, for selected Linen and unselected Wool prices. Both hovered shots show the shared Bolt of Linen Cloth tooltip to the right, **1.5 sec cast** from the local catalog and the grey **Spell ID: 2963** line; pointer leave hides it. Default shots select Tailoring, with both Linen/Wool three-coin prices unselected; selected shots show Bolt's complete red1g25s50c and disabled Train. Modern dark stone and Forever bronze chrome, representative portrait,35/300 rank and known-service text remain. All six PNGs were inspected; `capture-observations.json` and `captures-refresh.log` retain details. Existing RID/ObjectDB/font shutdown warnings remain; this is not clean-resource or real-NPC/live lifecycle proof.
+
+### Follow-up full affected-crate integration
+
+The locked local helper ran `--test -p game-engine-godot -p game-engine-ui-model -p game-engine-core --no-fail-fast` **once**, after final code and all six inspected captures, on **`0445c320e`** (final Rust `2bd450ae4`); **exit0**. Deduplicated detailed-log counts: **core781 passed**, **Godot651 passed**, **UI-model753 passed /6 ignored**, **0 failures**; **2185 passed total**. Evidence: canonical `data/diagnostics/trainertips-2026-10-07/{full-details.log,full-counts.json,full-head.txt,proof-ledger.txt}` and `/tmp/claude/trainertips-full.out`. Source hashes remain unchanged; subsequent documentation-only commits do not invalidate this proof. Owned renderers/Weston and all recorded launch PIDs are gone; `agents-trainertips.slice` is inactive. No merge/push or server/networked-client execution.
+
 ## Known gaps (current cycle)
 
 - [ ] Native matching `InteractionClosed`, world-reset and Escape network-close receipt lack dedicated behavioral integration assertions; close/request code is wired, but do not infer full lifecycle acceptance from purchase proof.
 - [ ] Client exit logs contain texture/RID/ObjectDB leak warnings; exit 0 is not clean-resource shutdown proof.
-- [ ] Conditional SkillStepButton/split-inset layout lacks a supplied Retail step index; rank modifiers and service tooltips remain unsupported/unverified. Do not infer the step from `TrainerService.profession` (primary-slot acquisition). Default-window geometry/art, portrait slot/mask, base-rank fill and per-requirement colours have bounded offline acceptance above, not pixel-identical or live-NPC proof. Existing native scroll-input decisions are unchanged; only list/scrollbar geometry is matched. No user-requested deviation is removed or invented.
+- [ ] Conditional SkillStepButton/split-inset layout lacks a supplied Retail step index; rank modifiers remain unsupported/unverified. Complete C++ recipe-tooltip output/reagent line parity remains unverified; shared service-hover proof is tracked above. Do not infer the step from `TrainerService.profession` (primary-slot acquisition). Default-window geometry/art, portrait slot/mask, base-rank fill and per-requirement colours have bounded offline acceptance above, not pixel-identical or live-NPC proof. Existing native scroll-input decisions are unchanged; only list/scrollbar geometry is matched. No user-requested deviation is removed or invented.
 
 ## Out of scope
 
