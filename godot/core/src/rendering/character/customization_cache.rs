@@ -1,5 +1,5 @@
-use crate::cache_source_mtime::csv_mtime;
-use crate::cache_sqlite::open_read_only;
+use crate::cache_source_mtime::{csv_mtime, source_key};
+use crate::cache_sqlite::{open_read_only, replace_atomically};
 use rusqlite::Connection;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
@@ -39,7 +39,11 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
     Ok(BufReader::new(file))
 }
 
-fn cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {
+fn cache_is_fresh(
+    conn: &Connection,
+    data_dir: &Path,
+    csv_paths: &[PathBuf],
+) -> Result<bool, String> {
     let version: u32 = conn
         .pragma_query_value(None, "user_version", |row| row.get(0))
         .map_err(|err| format!("read customization cache schema version: {err}"))?;
@@ -64,7 +68,7 @@ fn cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, Stri
         recorded.insert(source, mtime);
     }
     for path in csv_paths {
-        let key = path.to_string_lossy().to_string();
+        let key = source_key(data_dir, path)?;
         if recorded.get(&key).copied() != Some(csv_mtime(path)?) {
             return Ok(false);
         }
@@ -72,13 +76,17 @@ fn cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, Stri
     Ok(true)
 }
 
-fn record_source_files(conn: &Connection, csv_paths: &[PathBuf]) -> Result<(), String> {
+fn record_source_files(
+    conn: &Connection,
+    data_dir: &Path,
+    csv_paths: &[PathBuf],
+) -> Result<(), String> {
     let mut insert = conn
         .prepare("INSERT INTO source_files (source, mtime_secs) VALUES (?1, ?2)")
         .map_err(|err| format!("prepare source_files insert: {err}"))?;
     for path in csv_paths {
         insert
-            .execute((path.to_string_lossy().to_string(), csv_mtime(path)?))
+            .execute((source_key(data_dir, path)?, csv_mtime(path)?))
             .map_err(|err| format!("insert source_files {}: {err}", path.display()))?;
     }
     Ok(())
@@ -88,43 +96,28 @@ fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
     let csv_paths = required_csv_paths(data_dir);
     let texture_file_data = texture_file_data_path(data_dir);
     let all_sources = rebuild_source_paths(&csv_paths, &texture_file_data);
-    let conn = init_cache_db(cache_path)?;
-
-    record_source_files(&conn, &all_sources)?;
-    populate_chr_models(&conn, &csv_paths[0])?;
-    populate_options(&conn, &csv_paths[1])?;
-    populate_choices(&conn, &csv_paths[2])?;
-    populate_elements(&conn, &csv_paths[3])?;
-    populate_materials(&conn, &csv_paths[4])?;
-    populate_geosets(&conn, &csv_paths[5])?;
-    populate_hair_geosets(&conn, &csv_paths[6], &RaceModels::load(data_dir)?)?;
-    populate_categories(&conn, &csv_paths[7])?;
-    populate_skinned_models(&conn, &csv_paths[8])?;
-    populate_texture_fdids(&conn, &texture_file_data)?;
-    conn.execute_batch("COMMIT;")
-        .map_err(|err| format!("commit customization cache: {err}"))?;
-    Ok(())
+    replace_atomically(cache_path, |conn| {
+        init_cache_schema(conn)?;
+        record_source_files(conn, data_dir, &all_sources)?;
+        populate_chr_models(conn, &csv_paths[0])?;
+        populate_options(conn, &csv_paths[1])?;
+        populate_choices(conn, &csv_paths[2])?;
+        populate_elements(conn, &csv_paths[3])?;
+        populate_materials(conn, &csv_paths[4])?;
+        populate_geosets(conn, &csv_paths[5])?;
+        populate_hair_geosets(conn, &csv_paths[6], &RaceModels::load(data_dir)?)?;
+        populate_categories(conn, &csv_paths[7])?;
+        populate_skinned_models(conn, &csv_paths[8])?;
+        populate_texture_fdids(conn, &texture_file_data)?;
+        conn.execute_batch("COMMIT;")
+            .map_err(|err| format!("commit customization cache: {err}"))
+    })
 }
 
 fn rebuild_source_paths(csv_paths: &[PathBuf; 9], texture_file_data: &Path) -> Vec<PathBuf> {
     let mut all_sources = csv_paths.to_vec();
     all_sources.push(texture_file_data.to_path_buf());
     all_sources
-}
-
-fn init_cache_db(cache_path: &Path) -> Result<Connection, String> {
-    create_cache_parent_dir(cache_path)?;
-    let conn = Connection::open(cache_path)
-        .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
-    init_cache_schema(&conn)?;
-    Ok(conn)
-}
-
-fn create_cache_parent_dir(cache_path: &Path) -> Result<(), String> {
-    let Some(parent) = cache_path.parent() else {
-        return Ok(());
-    };
-    std::fs::create_dir_all(parent).map_err(|err| format!("create {}: {err}", parent.display()))
 }
 
 fn init_cache_schema(conn: &Connection) -> Result<(), String> {
@@ -574,7 +567,7 @@ fn import_customization_cache_at(data_dir: &Path, cache_path: &Path) -> Result<P
     csv_paths.push(texture_file_data_path(data_dir));
     let needs_rebuild = if cache_path.exists() {
         let conn = open_read_only(&cache_path)?;
-        !cache_is_fresh(&conn, &csv_paths)?
+        !cache_is_fresh(&conn, data_dir, &csv_paths)?
     } else {
         true
     };
@@ -679,7 +672,7 @@ mod tests {
         super::init_cache_schema(&conn).unwrap();
         conn.pragma_update(None, "user_version", 0).unwrap();
         assert!(
-            !super::cache_is_fresh(&conn, &[]).unwrap(),
+            !super::cache_is_fresh(&conn, Path::new("data"), &[]).unwrap(),
             "an old cache must rebuild even when its source timestamps match"
         );
     }

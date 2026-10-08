@@ -1,5 +1,5 @@
-use crate::cache_source_mtime::csv_mtime;
-use crate::cache_sqlite::open_read_only;
+use crate::cache_source_mtime::{csv_mtime, source_key};
+use crate::cache_sqlite::{open_read_only, replace_atomically};
 use rusqlite::Connection;
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader};
@@ -30,7 +30,11 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
     Ok(BufReader::new(file))
 }
 
-fn cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {
+fn cache_is_fresh(
+    conn: &Connection,
+    data_dir: &Path,
+    csv_paths: &[PathBuf],
+) -> Result<bool, String> {
     let mut stmt = match conn.prepare("SELECT source, mtime_secs FROM source_files") {
         Ok(stmt) => stmt,
         Err(err) if is_missing_table_error(&err) => {
@@ -49,7 +53,7 @@ fn cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, Stri
         recorded.insert(source, mtime);
     }
     for path in csv_paths {
-        let key = path.to_string_lossy().to_string();
+        let key = source_key(data_dir, path)?;
         if recorded.get(&key).copied() != Some(csv_mtime(path)?) {
             return Ok(false);
         }
@@ -57,13 +61,17 @@ fn cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, Stri
     Ok(true)
 }
 
-fn record_source_files(conn: &Connection, csv_paths: &[PathBuf]) -> Result<(), String> {
+fn record_source_files(
+    conn: &Connection,
+    data_dir: &Path,
+    csv_paths: &[PathBuf],
+) -> Result<(), String> {
     let mut insert = conn
         .prepare("INSERT INTO source_files (source, mtime_secs) VALUES (?1, ?2)")
         .map_err(|err| format!("prepare source_files insert: {err}"))?;
     for path in csv_paths {
         insert
-            .execute((path.to_string_lossy().to_string(), csv_mtime(path)?))
+            .execute((source_key(data_dir, path)?, csv_mtime(path)?))
             .map_err(|err| format!("insert source_files {}: {err}", path.display()))?;
     }
     Ok(())
@@ -123,31 +131,16 @@ where
 
 fn rebuild_cache(cache_path: &Path, data_dir: &Path) -> Result<(), String> {
     let csv_paths = source_paths(data_dir);
-    let conn = init_cache_db(cache_path)?;
-
-    record_source_files(&conn, &csv_paths)?;
-    populate_layers(&conn, &csv_paths[0])?;
-    populate_sections(&conn, &csv_paths[1])?;
-    populate_layouts(&conn, &csv_paths[2])?;
-    populate_model_materials(&conn, &csv_paths[3])?;
-    conn.execute_batch("COMMIT;")
-        .map_err(|err| format!("commit char texture cache: {err}"))?;
-    Ok(())
-}
-
-fn init_cache_db(cache_path: &Path) -> Result<Connection, String> {
-    create_cache_parent_dir(cache_path)?;
-    let conn = Connection::open(cache_path)
-        .map_err(|err| format!("open {}: {err}", cache_path.display()))?;
-    init_cache_schema(&conn)?;
-    Ok(conn)
-}
-
-fn create_cache_parent_dir(cache_path: &Path) -> Result<(), String> {
-    let Some(parent) = cache_path.parent() else {
-        return Ok(());
-    };
-    std::fs::create_dir_all(parent).map_err(|err| format!("create {}: {err}", parent.display()))
+    replace_atomically(cache_path, |conn| {
+        init_cache_schema(conn)?;
+        record_source_files(conn, data_dir, &csv_paths)?;
+        populate_layers(conn, &csv_paths[0])?;
+        populate_sections(conn, &csv_paths[1])?;
+        populate_layouts(conn, &csv_paths[2])?;
+        populate_model_materials(conn, &csv_paths[3])?;
+        conn.execute_batch("COMMIT;")
+            .map_err(|err| format!("commit char texture cache: {err}"))
+    })
 }
 
 fn init_cache_schema(conn: &Connection) -> Result<(), String> {
@@ -282,7 +275,7 @@ pub fn import_char_texture_cache(data_dir: &Path) -> Result<PathBuf, String> {
     let csv_paths = source_paths(data_dir);
     let needs_rebuild = if cache_path.exists() {
         let conn = open_read_only(&cache_path)?;
-        !cache_is_fresh(&conn, &csv_paths)?
+        !cache_is_fresh(&conn, data_dir, &csv_paths)?
     } else {
         true
     };
@@ -300,8 +293,7 @@ mod tests {
 
     /// A data root whose texture CSVs link to the real ones, with its own `cache/`.
     fn linked_source_root(name: &str) -> PathBuf {
-        let root =
-            std::env::temp_dir().join(format!("char-texture-{name}-{}", std::process::id()));
+        let root = std::env::temp_dir().join(format!("char-texture-{name}-{}", std::process::id()));
         if root.exists() {
             std::fs::remove_dir_all(&root).unwrap();
         }
@@ -360,7 +352,10 @@ mod tests {
         let layouts: i64 = conn
             .query_row("SELECT COUNT(*) FROM layouts", [], |row| row.get(0))
             .unwrap();
-        assert_eq!(layouts, 0, "an equivalent data root must not rebuild the cache");
+        assert_eq!(
+            layouts, 0,
+            "an equivalent data root must not rebuild the cache"
+        );
         drop(conn);
         std::fs::remove_dir_all(root).unwrap();
     }

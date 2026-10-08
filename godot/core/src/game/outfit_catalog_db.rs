@@ -1,5 +1,5 @@
-use crate::cache_source_mtime::csv_mtime;
-use crate::cache_sqlite::open_read_only;
+use crate::cache_source_mtime::{csv_mtime, source_key};
+use crate::cache_sqlite::{open_read_only, replace_atomically};
 use crate::csv_util::{header_index, parse_csv_line_trimmed as parse_csv_line};
 use crate::outfit_data::DisplayInfoResolved;
 use crate::sqlite_util::is_missing_table_error;
@@ -77,15 +77,11 @@ fn open_reader(path: &Path) -> Result<BufReader<std::fs::File>, String> {
     Ok(BufReader::new(file))
 }
 
-fn outfit_csv_source_key(path: &Path) -> Result<String, String> {
-    Ok(path
-        .canonicalize()
-        .map_err(|err| format!("canonicalize {}: {err}", path.display()))?
-        .to_string_lossy()
-        .to_string())
-}
-
-fn outfit_cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<bool, String> {
+fn outfit_cache_is_fresh(
+    conn: &Connection,
+    data_dir: &Path,
+    csv_paths: &[PathBuf],
+) -> Result<bool, String> {
     let mut stmt = match conn.prepare("SELECT source, mtime_secs FROM source_files") {
         Ok(stmt) => stmt,
         Err(err) if is_missing_table_error(&err) => {
@@ -107,7 +103,7 @@ fn outfit_cache_is_fresh(conn: &Connection, csv_paths: &[PathBuf]) -> Result<boo
         return Ok(false);
     }
     for path in csv_paths {
-        let key = outfit_csv_source_key(path)?;
+        let key = source_key(data_dir, path)?;
         if recorded.get(&key).copied() != Some(csv_mtime(path)?) {
             return Ok(false);
         }
