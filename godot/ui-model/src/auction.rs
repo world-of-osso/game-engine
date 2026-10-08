@@ -105,6 +105,7 @@ impl AuctionHouseState {
 pub struct AuctionSession {
     pub net: AuctionHouseState,
     pub ui: AuctionHouseUi,
+    last_replicated_money: Option<u32>,
 }
 impl AuctionSession {
     pub fn open(&mut self, npc: u64) {
@@ -130,6 +131,19 @@ impl AuctionSession {
                     .error
                     .unwrap_or_else(|| "Auction house refused to open".into()),
             );
+        }
+    }
+    /// Consume changed entity balances, not repeated snapshots that may predate a query reply.
+    pub fn sync_replicated_money(&mut self, gold: u32) {
+        if !self.net.is_open {
+            return;
+        }
+        let previous_gold = self.last_replicated_money.replace(gold);
+        if previous_gold == Some(gold) {
+            return;
+        }
+        if let Some(inventory) = &mut self.net.inventory {
+            inventory.gold = gold;
         }
     }
     pub fn refresh(&mut self) {
