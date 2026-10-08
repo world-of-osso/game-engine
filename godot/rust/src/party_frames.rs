@@ -382,7 +382,12 @@ impl GameClient {
             let Some(player) = unit.get::<Player>() else {
                 continue;
             };
-            if !frames.party.iter().any(|member| member.name == player.name) {
+            let grouped = frames
+                .party
+                .iter()
+                .chain(frames.raid.iter().flatten())
+                .any(|member| member.name == player.name);
+            if !grouped {
                 continue;
             }
             let buffs = self
