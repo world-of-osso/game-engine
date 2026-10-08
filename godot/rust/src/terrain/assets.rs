@@ -999,7 +999,7 @@ mod tests {
             .err()
             .unwrap();
         assert!(
-            map_error.contains("map_that_does_not_exist_999.wdt"),
+            map_error.contains("no Directory map_that_does_not_exist_999"),
             "{map_error}"
         );
         assert!(map_error.contains("not in listfile"), "{map_error}");

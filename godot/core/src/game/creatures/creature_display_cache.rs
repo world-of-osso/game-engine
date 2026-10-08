@@ -476,10 +476,10 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("forever-npc-displays-{}", std::process::id()));
         let forever = dir.join("db2/1.60.1.70205");
         std::fs::create_dir_all(&forever).unwrap();
-        let header = "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2\n";
+        let header = "ID,ModelID,CreatureModelScale,TextureVariationFileDataID_0,TextureVariationFileDataID_1,TextureVariationFileDataID_2,TextureVariationFileDataID_3\n";
         std::fs::write(
             dir.join("CreatureDisplayInfo.csv"),
-            format!("{header}10,1,1,11,0,0\n"),
+            format!("{header}10,1,1,11,0,0,0\n"),
         )
         .unwrap();
         std::fs::write(
@@ -489,7 +489,7 @@ mod tests {
         .unwrap();
         std::fs::write(
             forever.join("CreatureDisplayInfo.csv"),
-            format!("{header}10,1,2,999,0,0\n136968,1,1,0,0,0\n139694,1,1,0,0,0\n"),
+            format!("{header}10,1,2,999,0,0,0\n136968,1,1,0,0,0,0\n139694,1,1,0,0,0,0\n"),
         )
         .unwrap();
         std::fs::write(
