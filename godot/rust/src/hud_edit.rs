@@ -294,7 +294,7 @@ impl GameClient {
             .session
             .selected_character_id
             .ok_or("HUD editor requires a selected character")?;
-        let path = crate::ui_layout::layout_path();
+        let path = self.account.hud_layout_path()?;
         let name = self.hud_edit_panel().name_draft;
         let layout = apply_manager_action(
             &path,

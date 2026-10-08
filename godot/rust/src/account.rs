@@ -112,6 +112,8 @@ pub struct Account {
     pub link: Option<NetworkLink>,
     data_root: PathBuf,
     hostname: String,
+    layout_username: Option<String>,
+    pending_layout_username: Option<String>,
     /// Server quest log, watch list, quest giver markers and the open quest dialog.
     pub quests: QuestRuntime,
     /// `GetDungeonDifficultyID`, from `DungeonDifficultySet` (login and every change).
@@ -282,6 +284,10 @@ pub enum NpcMessage {
     Error(String),
 }
 
+fn layout_accounts_path() -> PathBuf {
+    game_engine_core::client_options_data::options_path().with_file_name("layout_accounts.ron")
+}
+
 impl Account {
     pub(crate) fn login_reply_pending(&self) -> bool {
         self.session.screen == SessionScreen::Login && self.bridge.is_some() && !self.reply_received
@@ -296,6 +302,8 @@ impl Account {
             link: None,
             data_root,
             hostname: String::new(),
+            layout_username: None,
+            pending_layout_username: None,
             quests: QuestRuntime::default(),
             dungeon_difficulty: None,
             dungeon_objectives: Default::default(),
@@ -349,6 +357,8 @@ impl Account {
         self.stop_bridge()?;
         self.reply_received = false;
         self.hostname = hostname.to_owned();
+        self.layout_username = None;
+        self.pending_layout_username = None;
         self.dungeon_difficulty = None;
         self.dungeon_objectives = Default::default();
         self.achievements = Default::default();
@@ -384,8 +394,10 @@ impl Account {
             .duration_since(UNIX_EPOCH)
             .map_err(|error| format!("Connection clock: {error}"))?
             .as_nanos() as u64;
+        let request = self.session.auth_request(username, password, register);
+        self.load_layout_username(&request)?;
         let bridge = NetworkBridge::connect(address, client_id)?;
-        match self.session.auth_request(username, password, register) {
+        match request {
             AuthRequest::Login(request) => bridge.send::<_, AuthChannel>(request)?,
             AuthRequest::Register(request) => bridge.send::<_, AuthChannel>(request)?,
         }
@@ -1027,6 +1039,44 @@ impl Account {
         Ok(())
     }
 
+    fn load_layout_username(&mut self, request: &AuthRequest) -> Result<(), String> {
+        use game_engine_core::ui_layout_account::read_token_account;
+        let username = match request {
+            AuthRequest::Login(request) => match &request.token {
+                Some(token) => read_token_account(&layout_accounts_path(), &self.hostname, token)?,
+                None => request.username.clone(),
+            },
+            AuthRequest::Register(request) => request.username.clone(),
+        };
+        self.pending_layout_username = Some(username);
+        Ok(())
+    }
+
+    fn persist_layout_username(&mut self, token: &str) -> Result<(), String> {
+        let username = self
+            .pending_layout_username
+            .as_deref()
+            .ok_or("Authenticated session has no HUD layout account")?;
+        game_engine_core::ui_layout_account::persist_token_account(
+            &layout_accounts_path(),
+            &self.hostname,
+            token,
+            username,
+        )?;
+        self.layout_username = self.pending_layout_username.take();
+        Ok(())
+    }
+
+    pub(crate) fn hud_layout_path(&self) -> Result<PathBuf, String> {
+        let username = self
+            .layout_username
+            .as_deref()
+            .ok_or("HUD layouts require an authenticated account")?;
+        let base =
+            game_engine_core::client_options_data::options_path().with_file_name("ui_layout.ron");
+        game_engine_core::ui_layout_account::account_layout_path(&base, &self.hostname, username)
+    }
+
     fn read_token(&self) -> Result<Option<String>, String> {
         let path = token_path(&self.data_root, Some(&self.hostname));
         match fs::read_to_string(&path) {
@@ -1584,6 +1634,7 @@ impl Account {
             match effect {
                 SessionEffect::PersistToken(token) => {
                     let path = token_path(&self.data_root, Some(&self.hostname));
+                    self.persist_layout_username(&token)?;
                     fs::write(&path, token)
                         .map_err(|error| format!("Save session {}: {error}", path.display()))?;
                 }

@@ -133,6 +133,13 @@ See [native data flow](../wiki/systems/auction-house-ui.md#native-godot).
 - [x] Native large-market browse exposes local rows and disjoint 50-item server pages; category filtering resets the page and filters global results.
 - [x] Native server range-close passes on the private integrated server (2026-10-07 acceptance below); prior fixture-only scope remains historical.
 
+### Item icons
+
+- [x] In both skins, an unavailable item-icon BLP displays the existing `INV_Misc_QuestionMark` (FDID 134400), never a white/blank result square. Available icons retain their own pixels. The original failed FDID and read/decode error remain logged once per FDID per client process.
+- Item-definition source/ID and resolved icon FDID remain unchanged; placeholder art is not a different item definition. Missing panel art does not become an item question mark.
+- Offline regression: `godot/tests/capture_ui_screen.gd`, `GODOT_CAPTURE_SCREEN=auction_icons_preview|forever_auction_icons_preview`, `GODOT_CAPTURE_PATH=<png>`, `GODOT_AH_EXPECT_UNKNOWN=1`. The regression asset set omits BLPs 134319, 134257 and 134875 and retains 135274, 132889 and 134400. Assertions compare actual bound native texture pixels, not registry declarations. The preview contains the evidence items plus a question-mark reference, without a network client. After installing the missing assets, leave `GODOT_AH_EXPECT_UNKNOWN` unset/0 for real-icon captures.
+- [Asset diagnosis and acquisition](../wiki/systems/auction-house-ui.md#missing-result-icons-2026-10-08) records local extraction and proof separately from this contract.
+
 ### Implementation inventory
 
 - `godot/ui-model/src/auction.rs`, `auction/{actions,view}.rs` — portable session, request/reply state, validation and page-limited views.

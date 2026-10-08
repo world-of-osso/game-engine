@@ -1004,7 +1004,9 @@ mod tests {
         );
 
         let tile_error = assets.read_tile("azeroth", 64, 64).err().unwrap();
-        assert!(tile_error.contains("azeroth_64_64.adt"), "{tile_error}");
-        assert!(tile_error.contains("not in listfile"), "{tile_error}");
+        assert!(
+            tile_error.contains("azeroth tile (64, 64) is inactive in WDT"),
+            "{tile_error}"
+        );
     }
 }
