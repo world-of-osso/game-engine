@@ -222,6 +222,7 @@ fn trainer_class_spell_retains_full_shared_tooltip() {
         let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_spell_tooltip(
             spell,
             &input,
+            None,
             Some(10),
         )
         .unwrap();
@@ -297,4 +298,45 @@ fn trainer_tooltip_requirements_refresh_with_the_current_service() {
     );
     view.book.close();
     assert!(view.service_tooltip(2963, content, [0.0; 4]).is_none());
+}
+
+#[test]
+fn trainer_recipe_uses_crafted_gear_quality_and_item_requirements() {
+    let spells = local_catalog();
+    let dir =
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
+    let recipes = game_engine_ui_model::professions_catalog::RecipeCatalog::load(&dir).unwrap();
+    let recipe = recipes
+        .recipes
+        .iter()
+        .find(|recipe| recipe.spell_id == 12069)
+        .unwrap();
+    let tooltip = game_engine_ui_model::game_tooltip::trainer::trainer_spell_tooltip(
+        spells.get(12069).unwrap(),
+        &Default::default(),
+        Some(recipe),
+        Some(10),
+    )
+    .unwrap();
+    assert_eq!(tooltip.content.title, "Cindercloth Robe");
+    assert_eq!(
+        tooltip.content.title_color,
+        game_engine_ui_model::tooltip_presentation::parse_rgba(
+            game_engine_ui_model::merchant_data::quality_color(2)
+        )
+    );
+    assert!(
+        tooltip
+            .content
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Requires Level 17")
+    );
+    assert!(
+        tooltip
+            .content
+            .lines
+            .iter()
+            .any(|line| line.left_text == "Item ID: 10042")
+    );
 }
