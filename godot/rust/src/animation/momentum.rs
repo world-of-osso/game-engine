@@ -11,6 +11,7 @@ pub(super) const MAX_SWING: f32 = 12.0 * std::f32::consts::PI / 180.0;
 
 /// The spring's swing of the bone tips in the character's horizontal plane
 /// (x: model +X forward, y: model +Z lateral), radians, and its rate.
+#[derive(Default)]
 pub(super) struct MomentumSway {
     pub(super) angle: Vector2,
     pub(super) rate: Vector2,
