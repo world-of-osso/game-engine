@@ -5,6 +5,60 @@ use super::{AnimationState, MIN_MOVEMENT_BLEND_MS};
 use crate::world::{Locomotion, player_motion_locomotion, remote_player_locomotion};
 use shared::components::PlayerMotion;
 
+#[test]
+fn ghoststate_remote_corpse_holds_death_and_ghost_alive_resume_motion() {
+    use crate::{death_flow::ghost_transparency, world::death_animation_change};
+    use shared::death::DeathState;
+    let mut player = human_male_hd();
+    let mut applied = false;
+    let running = Some(PlayerMotion(FORWARD));
+    for life in [
+        DeathState::Alive,
+        DeathState::Dead,
+        DeathState::Ghost,
+        DeathState::Alive,
+    ] {
+        let dead = life == DeathState::Dead;
+        if death_animation_change(applied, dead) {
+            player.play_death();
+        }
+        applied = dead;
+        for _ in 0..120 {
+            player.advance(FRAME_MS).unwrap();
+            if let Some(motion) = remote_player_locomotion(true, false, running, Some(life)) {
+                player
+                    .update_locomotion(motion.animation_id, motion.jumping, motion.running_forward)
+                    .unwrap();
+            }
+        }
+        assert_eq!(
+            current_id(&player),
+            if dead {
+                super::ANIM_DEATH
+            } else {
+                super::ANIM_RUN
+            }
+        );
+        assert_eq!(
+            ghost_transparency(life == DeathState::Ghost),
+            if life == DeathState::Ghost { 0.45 } else { 0.0 }
+        );
+        if dead {
+            let held = player.sampled_base_poses();
+            player.advance(FRAME_MS).unwrap();
+            assert_eq!(pose_distance(&held, &player.sampled_base_poses()), 0.0);
+            assert!(
+                !death_animation_change(applied, dead),
+                "repeated corpse state cannot restart death"
+            );
+            assert!(
+                death_animation_change(false, dead),
+                "replacement visual starts the current corpse pose"
+            );
+        }
+    }
+}
+
 const FORWARD: u64 = PlayerMotion::FORWARD;
 const BACKWARD: u64 = PlayerMotion::BACKWARD;
 const LEFT: u64 = PlayerMotion::STRAFE_LEFT;
@@ -86,12 +140,12 @@ fn flags_select_the_local_players_animation_ids() {
 fn only_remote_players_follow_replicated_motion() {
     let running = Some(PlayerMotion(FORWARD));
     assert_eq!(
-        remote_player_locomotion(true, false, running),
+        remote_player_locomotion(true, false, running, None),
         Some(locomotion(5, false, true))
     );
-    assert_eq!(remote_player_locomotion(true, true, running), None);
-    assert_eq!(remote_player_locomotion(false, false, running), None);
-    assert_eq!(remote_player_locomotion(true, false, None), None);
+    assert_eq!(remote_player_locomotion(true, true, running, None), None);
+    assert_eq!(remote_player_locomotion(false, false, running, None), None);
+    assert_eq!(remote_player_locomotion(true, false, None, None), None);
 }
 
 #[test]

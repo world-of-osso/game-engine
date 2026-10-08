@@ -38,6 +38,7 @@ use shared::components::{
     MovementControl, MovementSpeed, Npc, Player, PlayerMotion, PlayerStandState, Position,
     Rotation, SheathState, StandState, UnitPose,
 };
+use shared::death::DeathState;
 use shared::protocol::EmoteKind;
 
 #[path = "world_combat.rs"]
@@ -76,6 +77,8 @@ struct UnitNode {
     animation: Option<u16>,
     /// Another player's newest replicated movement flags.
     player_motion: Option<PlayerMotion>,
+    /// Explicit replicated player life state, never inferred from health.
+    life_state: Option<DeathState>,
     /// Last facing sampled for remote idle-turn animation; local-only state, not wire data.
     animation_facing: Option<f32>,
     /// The replicated pose `pose_anim` was resolved from.
@@ -290,6 +293,7 @@ fn spawn_unit(
         death_applied: false,
         animation: None,
         player_motion: None,
+        life_state: None,
         animation_facing: None,
         pose: None,
         pose_anim: None,
@@ -716,11 +720,40 @@ pub(crate) fn remote_player_locomotion(
     is_player: bool,
     is_local: bool,
     motion: Option<PlayerMotion>,
+    life: Option<DeathState>,
 ) -> Option<Locomotion> {
-    if !is_player || is_local {
+    if !is_player || is_local || life == Some(DeathState::Dead) {
         return None;
     }
     motion.map(player_motion_locomotion)
+}
+
+pub(crate) fn death_animation_change(applied: bool, dead: bool) -> bool {
+    dead && !applied
+}
+
+/// Metadata belongs to the animation node: asynchronous replacement starts death once.
+fn sync_player_death_animation(visual: &Gd<Node3D>, dead: bool) -> Result<bool, String> {
+    const DEATH_META: &str = "player_death_applied";
+    let mut animation = visual
+        .try_get_node_as::<WowAnimationPlayer>("M2Animation")
+        .ok_or("Player has no bone animation")?;
+    let applied = animation.has_meta(DEATH_META) && animation.get_meta(DEATH_META).to::<bool>();
+    if death_animation_change(applied, dead) {
+        animation.bind_mut().play_death()?;
+    }
+    animation.set_meta(DEATH_META, &dead.to_variant());
+    Ok(dead)
+}
+
+fn sync_remote_player_death(unit: &UnitNode, is_local: bool) -> Result<(), String> {
+    if !unit.is_player || is_local {
+        return Ok(());
+    }
+    if let Some(visual) = &unit.visual {
+        sync_player_death_animation(visual, unit.life_state == Some(DeathState::Dead))?;
+    }
+    Ok(())
 }
 
 /// A player's movement clip: its stand state's pose while it stands still, else its held
@@ -1128,6 +1161,7 @@ impl WorldUnits {
         }
         unit.is_player = snapshot.has::<Player>();
         unit.player_motion = snapshot.get::<PlayerMotion>().copied();
+        unit.life_state = snapshot.get::<DeathState>().copied();
         unit.in_combat = snapshot
             .get::<CombatStatus>()
             .is_some_and(|status| status.0);
@@ -1297,9 +1331,15 @@ impl WorldUnits {
         let mut errors = Vec::new();
         let fallbacks = combat::load_fallbacks(&mut self.anim_fallbacks, &self.data_root);
         for (id, unit) in &mut self.units {
-            let Some(locomotion) =
-                remote_player_locomotion(unit.is_player, local == Some(*id), unit.player_motion)
-            else {
+            if let Err(error) = sync_remote_player_death(unit, local == Some(*id)) {
+                errors.push(format!("Player {} death animation: {error}", unit.name));
+            }
+            let Some(locomotion) = remote_player_locomotion(
+                unit.is_player,
+                local == Some(*id),
+                unit.player_motion,
+                unit.life_state,
+            ) else {
                 continue;
             };
             let flying = unit
@@ -1470,10 +1510,8 @@ impl WorldUnits {
         ))
     }
 
-    /// Owner death snapshots, unlike zero health, distinguish a corpse from its ghost.
-    /// Keep the applied flag on the animation node so replacement visuals also die once.
+    /// Owner snapshots decide local death; remote players use replicated life state.
     pub fn update_local_death(&mut self, dead: bool) -> Result<bool, String> {
-        const DEATH_META: &str = "local_death_applied";
         let Some(visual) = self
             .local_player_id
             .and_then(|id| self.units.get(&id))
@@ -1481,15 +1519,7 @@ impl WorldUnits {
         else {
             return Ok(false);
         };
-        let mut animation = visual
-            .try_get_node_as::<WowAnimationPlayer>("M2Animation")
-            .ok_or("Local player has no bone animation")?;
-        let applied = animation.has_meta(DEATH_META) && animation.get_meta(DEATH_META).to::<bool>();
-        if dead && !applied {
-            animation.bind_mut().play_death()?;
-        }
-        animation.set_meta(DEATH_META, &dead.to_variant());
-        Ok(dead)
+        sync_player_death_animation(visual, dead)
     }
 
     pub fn update_local_locomotion(
