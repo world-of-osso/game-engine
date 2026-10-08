@@ -159,6 +159,7 @@ fn meter_rows(count: usize) -> DamageMeterView {
                 fraction: 1.0 - index as f32 / count as f32,
                 color: [0.25, 0.78, 0.92],
                 class_id: 8,
+                spec_icon_fdid: None,
                 is_local_player: index == 0,
             })
             .collect(),

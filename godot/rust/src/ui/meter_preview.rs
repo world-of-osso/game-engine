@@ -20,6 +20,7 @@ pub(super) fn view() -> DamageMeterView {
         fraction: 1.0 - index as f32 * 0.125,
         color: class_color(class_id),
         class_id,
+        spec_icon_fdid: None,
         is_local_player: index == 0,
     })
     .collect();

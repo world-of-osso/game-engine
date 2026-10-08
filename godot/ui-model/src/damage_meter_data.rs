@@ -200,8 +200,11 @@ pub struct DamageMeterRow {
     /// StatusBar fill: the source's damage over the session's highest.
     pub fraction: f32,
     pub color: [f32; 3],
-    /// Source class identity for the Forever row icon; no specialization is supplied.
+    /// Source class identity: the Forever row's icon when its spec is unknown.
     pub class_id: u8,
+    /// `ChrSpecialization.SpellIconFileID` of the source's spec, which takes precedence
+    /// over the class icon (`DamageMeterSourceEntryMixin:GetIconAtlasElement`).
+    pub spec_icon_fdid: Option<u32>,
     pub is_local_player: bool,
 }
 
@@ -244,6 +247,9 @@ impl DamageMeterView {
     }
 }
 
+/// `ChrSpecialization.SpellIconFileID` by unit.
+pub type SpecIcons = std::collections::BTreeMap<u64, u32>;
+
 /// The primary window's state.
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct DamageMeterWindow {
@@ -258,6 +264,8 @@ pub struct DamageMeterWindow {
     pub recap_unit_names: std::collections::BTreeMap<u64, String>,
     /// Names resolved for both recap and action detail spells from the local catalog.
     pub recap_spell_names: std::collections::BTreeMap<u32, String>,
+    /// `ChrSpecialization.SpellIconFileID` by unit, from each player's replicated spec.
+    pub spec_icons: SpecIcons,
     pub menu_open: bool,
     pub type_menu_open: bool,
     /// The selected server recap: victim unit and death timestamp.
@@ -318,6 +326,7 @@ impl DamageMeterWindow {
                 },
                 color: class_color(entry.class_id),
                 class_id: entry.class_id,
+                spec_icon_fdid: self.spec_icons.get(&entry.unit).copied(),
                 is_local_player: self.local_unit == Some(entry.unit),
             })
             .collect()
@@ -389,7 +398,12 @@ impl DamageMeterWindow {
             MeterType::Threat => self.threat_rows(),
             _ => {
                 let duration = self.session_data().map_or(0.0, |s| s.duration_secs);
-                category_rows(&self.category_sources(), self.meter_type, duration)
+                category_rows(
+                    &self.category_sources(),
+                    self.meter_type,
+                    duration,
+                    &self.spec_icons,
+                )
             }
         }
     }
@@ -415,7 +429,15 @@ impl DamageMeterWindow {
             .unwrap_or(0);
         spells
             .iter()
-            .map(|spell| action_spell_row(spell, source, max, self.action_spell_name(spell)))
+            .map(|spell| {
+                action_spell_row(
+                    spell,
+                    source,
+                    max,
+                    self.action_spell_name(spell),
+                    &self.spec_icons,
+                )
+            })
             .collect()
     }
 
@@ -461,7 +483,7 @@ impl DamageMeterWindow {
             .sources
             .iter()
             .enumerate()
-            .map(|(index, source)| damage_row(index, source, max))
+            .map(|(index, source)| damage_row(index, source, max, &self.spec_icons))
             .collect()
     }
 
@@ -600,6 +622,7 @@ fn action_spell_row(
     source: &DamageMeterSource,
     max: u64,
     name_text: String,
+    spec_icons: &SpecIcons,
 ) -> DamageMeterRow {
     DamageMeterRow {
         name_text,
@@ -611,12 +634,18 @@ fn action_spell_row(
         },
         color: class_color(source.class_id),
         class_id: source.class_id,
+        spec_icon_fdid: spec_icons.get(&source.unit).copied(),
         is_local_player: source.is_local_player,
     }
 }
 
 /// A damage source of the server's session: "N. Name" and "damage (dps)".
-fn damage_row(index: usize, source: &DamageMeterSource, max: u64) -> DamageMeterRow {
+fn damage_row(
+    index: usize,
+    source: &DamageMeterSource,
+    max: u64,
+    spec_icons: &SpecIcons,
+) -> DamageMeterRow {
     DamageMeterRow {
         name_text: format!("{}. {}", index + 1, source.name),
         value_text: format!(
@@ -631,6 +660,7 @@ fn damage_row(index: usize, source: &DamageMeterSource, max: u64) -> DamageMeter
         },
         color: class_color(source.class_id),
         class_id: source.class_id,
+        spec_icon_fdid: spec_icons.get(&source.unit).copied(),
         is_local_player: source.is_local_player,
     }
 }
@@ -640,6 +670,7 @@ fn category_rows(
     totals: &[(&DamageMeterSource, u64)],
     kind: MeterType,
     duration: f32,
+    spec_icons: &SpecIcons,
 ) -> Vec<DamageMeterRow> {
     let max = totals.first().map_or(0, |(_, total)| *total);
     totals
@@ -663,6 +694,7 @@ fn category_rows(
                 },
                 color: class_color(source.class_id),
                 class_id: source.class_id,
+                spec_icon_fdid: spec_icons.get(&source.unit).copied(),
                 is_local_player: source.is_local_player,
             }
         })
@@ -708,6 +740,7 @@ fn recap_row(
         },
         color,
         class_id: 0,
+        spec_icon_fdid: None,
         is_local_player: false,
     }
 }
