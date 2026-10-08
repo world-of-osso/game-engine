@@ -91,17 +91,32 @@ pub(crate) fn collect_selection_boxes(
             if rect.width <= 0.0 || rect.height <= 0.0 {
                 return None;
             }
+            let height = selection_height(registry, element.key, rect);
             Some(
                 game_engine_ui_model::hud_edit_component::EditModeSelectionBox {
                     key: element.key.into(),
                     label: element.label.into(),
-                    rect: [rect.x, rect.y, rect.width, rect.height],
+                    rect: [rect.x, rect.y, rect.width, height],
                     selected: selected == Some(element.key),
                     hovered: false,
                 },
             )
         })
         .collect()
+}
+
+/// The tracker frame here is content-height; Retail's container in its default position
+/// is as tall as its parent allows, so the selection and its centred label cover that.
+fn selection_height(registry: &FrameRegistry, key: &str, rect: &LayoutRect) -> f32 {
+    let moved = PLACEMENTS.with(|active| active.borrow().contains_key(key));
+    if key != "objective_tracker" || moved {
+        return rect.height;
+    }
+    game_engine_ui_model::objective_tracker_component::default_position_height(
+        ui_toolkit::atlas::thread_skin(),
+        registry.screen_height,
+        rect.y,
+    )
 }
 
 pub(crate) fn frame_is_visible(registry: &FrameRegistry, mut id: u64) -> bool {
