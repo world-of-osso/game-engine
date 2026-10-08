@@ -420,7 +420,7 @@ pub(super) fn bid_frame((x, y): (f32, f32), enabled: bool) -> Element {
         "Bid",
         ACTION_BID,
         enabled,
-        (x + 186.0, y, 110.0, 22.0),
+        (x + 176.0, y, 110.0, 22.0),
     ));
     out
 }

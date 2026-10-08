@@ -114,7 +114,7 @@ pub(super) fn bids_columns() -> [Column; 4] {
     )
 }
 
-/// `AllAuctionsList` / `BidsList` from the summary list's right to RIGHT -5 → (172,72) 623×439
+/// `AllAuctionsList` / `BidsList` from the summary list's right to RIGHT -5 → (172,74) 623×437
 /// on `auctionhouse-background-index` (Mainline/Blizzard_AuctionHouseAuctionsFrame.xml:129-153).
 fn auctions_list(view: &AuctionsView) -> Element {
     let columns = match view.tab {
@@ -125,11 +125,11 @@ fn auctions_list(view: &AuctionsView) -> Element {
         AuctionsSubTab::Auctions => "AuctionHouseFrameAuctionsFrameAllAuctionsList",
         AuctionsSubTab::Bids => "AuctionHouseFrameAuctionsFrameBidsList",
     };
-    let mut out = item_list_frame(prefix, (172.0, 72.0, 623.0, 439.0), BG_INDEX, &columns);
+    let mut out = item_list_frame(prefix, (172.0, 74.0, 623.0, 437.0), BG_INDEX, &columns);
     out.extend(crop_texture(
         format!("{prefix}TimeLeftHeader"),
         CLOCK_ICON,
-        (176.0 + columns[3].x + 10.0, 74.0, 16.0, 16.0),
+        (176.0 + columns[3].x + 10.0, 76.0, 16.0, 16.0),
     ));
     for (index, row) in view.rows.iter().take(AUCTIONS_ROWS).enumerate() {
         let name = format!("{prefix}Row{}", index + 1);
@@ -151,7 +151,7 @@ fn auctions_list(view: &AuctionsView) -> Element {
         let action = format!("{ACTION_SELECT_AUCTION_PREFIX}{}", row.auction_id);
         out.extend(list_row(
             &name,
-            (176.0, 98.0 + index as f32 * ROW_H, 593.0, ROW_H),
+            (176.0, 100.0 + index as f32 * ROW_H, 593.0, ROW_H),
             index,
             true,
             row.selected,
