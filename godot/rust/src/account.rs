@@ -72,9 +72,9 @@ use shared::protocol::{
 use shared::protocol::{
     ConvertGroupToParty, ConvertGroupToRaid, GroupChannel, GroupCommandResponse,
     GroupInviteCancelled, GroupInviteIntent, GroupInvitePrompt, GroupMemberStates,
-    GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup, PromoteGroupLeader, RaidTargetIcons,
-    ReadyCheckUpdate, RespondGroupInvite, RespondReadyCheck, SetGroupRole, SetRaidSubgroup,
-    SetRaidTarget, StartReadyCheck,
+    GroupRosterSnapshot, GroupUninviteIntent, LeaveGroup, MinimapPing, MinimapPingRequest,
+    PromoteGroupLeader, RaidTargetIcons, ReadyCheckUpdate, RespondGroupInvite, RespondReadyCheck,
+    SetGroupRole, SetRaidSubgroup, SetRaidTarget, StartReadyCheck,
 };
 
 use shared::protocol::{
@@ -208,6 +208,8 @@ pub enum AccountEvent {
     Emote(EmoteEvent),
     /// A group result or notice (`ERR_*`, `READY_CHECK_*`), shown as a system chat line.
     GroupNotice(String),
+    /// `MINIMAP_PING`: another group member pinged the minimap.
+    MinimapPing(MinimapPing),
     /// Quest giver dialog traffic and quest results.
     Quest(QuestMessage),
     /// A quest system line (`ERR_QUEST_ACCEPTED_S`, ...), shown as a system chat line.
@@ -979,6 +981,13 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// `Minimap:PingLocation`: the server relays it to the other group members.
+    pub fn send_minimap_ping(&self, request: MinimapPingRequest) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, GroupChannel>(request)
+            .map_err(SessionError)
+    }
+
     /// A group request from chat or the invite popup, on `GroupChannel` as the root
     /// client's `send_group_command` sends it.
     pub fn send_group(&self, command: GroupCommand) -> Result<(), SessionError> {
@@ -1353,6 +1362,7 @@ impl Account {
             || message.is::<ReadyCheckUpdate>()
             || message.is::<GroupCommandResponse>()
             || message.is::<RaidTargetIcons>()
+            || message.is::<MinimapPing>()
     }
 
     /// Fill [`GroupState`] as the root client's `receive_group` does; results go to chat.
@@ -1378,6 +1388,8 @@ impl Account {
             self.group.apply_ready_check(decode(message)?);
         } else if message.is::<RaidTargetIcons>() {
             self.raid_targets = decode(message)?;
+        } else if message.is::<MinimapPing>() {
+            output.push(AccountEvent::MinimapPing(decode(message)?));
         } else {
             let response: GroupCommandResponse = decode(message)?;
             self.group.last_server_message = Some(response.message.clone());

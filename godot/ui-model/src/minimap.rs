@@ -30,6 +30,13 @@ pub use units::{group_minimap_blips, target_minimap_blip};
 #[path = "minimap_tracking.rs"]
 mod tracking;
 pub use tracking::{TrackingFilter, TrackingState, tracking_minimap_blips};
+#[path = "minimap_ping.rs"]
+mod ping;
+pub use ping::{
+    MINIMAP_PING_FADE_TIMER, MINIMAP_PING_FDID, MINIMAP_PING_NAME, MINIMAP_PING_TEXTURE,
+    MINIMAP_PING_TIMER, MinimapPingMark, MinimapPingView, minimap_click_position,
+    minimap_ping_request, minimap_ping_view,
+};
 
 struct DynName(String);
 
@@ -348,6 +355,8 @@ pub struct MinimapClusterState {
     /// `MiniMapMailFrameMixin`: unread delivered mail (`HasNewMail`) shows the icon.
     pub has_mail: bool,
     pub tracking: TrackingState,
+    /// The group's latest minimap ping, while it shows.
+    pub ping: Option<MinimapPingView>,
     /// Composite registered in the host registry, drawn by `MinimapDisplay`.
     pub map_texture: Option<DynamicTextureId>,
 }
@@ -441,6 +450,12 @@ fn map_layers(state: &MinimapClusterState, style: &ClusterStyle) -> Element {
         }
     });
     elements.extend(state.blips.iter().flat_map(|unit| blip(unit, style)));
+    elements.extend(
+        state
+            .ping
+            .iter()
+            .flat_map(|ping| ping::ping_elements(ping, style)),
+    );
     elements.extend(player_arrow(style.map_centre()));
     elements
 }
