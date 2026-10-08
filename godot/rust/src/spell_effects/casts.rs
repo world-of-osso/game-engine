@@ -4,6 +4,7 @@ use super::*;
 fn caster_spec_order_index(
     caster: u64,
     local_spec: Option<(u64, u32)>,
+    _units: &Replica,
     catalog: &SpellVisualCatalog,
 ) -> Option<u8> {
     let (local, spec_id) = local_spec?;
@@ -27,13 +28,13 @@ mod specialization_tests {
         })
     }
 
-    fn slam_cast_kit(caster: u64, local_spec: Option<(u64, u32)>) -> u32 {
+    fn slam_cast_kit(caster: u64, local_spec: Option<(u64, u32)>, units: &Replica) -> u32 {
         let context = CasterContext {
             race: 1,
             class: 1,
             gender: 0,
             level: 80,
-            spec_order_index: caster_spec_order_index(caster, local_spec, catalog()),
+            spec_order_index: caster_spec_order_index(caster, local_spec, units, catalog()),
             main_hand_subclass: Some(8), // Item.SubclassID: two-handed sword.
         };
         let visual = catalog().visual_for_spell(1464, &context).unwrap();
@@ -45,27 +46,40 @@ mod specialization_tests {
         // ChrSpecialization 71 (Arms): OrderIndex 0; 72 (Fury): OrderIndex 1.
         let mut spells = crate::player_spells::PlayerSpells::default();
         assert_eq!(
-            slam_cast_kit(42, spells.spec().map(|spec| (42, spec))),
+            slam_cast_kit(42, spells.spec().map(|spec| (42, spec)), &Replica::default()),
             62428
         );
         spells.set_spec(71);
         assert_eq!(
-            slam_cast_kit(42, spells.spec().map(|spec| (42, spec))),
+            slam_cast_kit(42, spells.spec().map(|spec| (42, spec)), &Replica::default()),
             62428
         );
         spells.set_spec(72);
         assert_eq!(
-            slam_cast_kit(42, spells.spec().map(|spec| (42, spec))),
+            slam_cast_kit(42, spells.spec().map(|spec| (42, spec)), &Replica::default()),
             128672
         );
     }
 
     #[test]
-    fn specialization_before_the_snapshot_and_remote_casters_keep_no_spec_behavior() {
+    fn specialization_before_the_snapshot_and_unknown_remote_specs_keep_no_spec_behavior() {
         // No primary specialization: TrinityCore skips the spec comparison.
-        assert_eq!(slam_cast_kit(42, None), 62428);
-        assert_eq!(slam_cast_kit(99, Some((42, 72))), 62428);
-        assert_eq!(caster_spec_order_index(99, Some((42, 72)), catalog()), None);
+        let units = Replica::for_tests();
+        assert_eq!(slam_cast_kit(42, None, &units), 62428);
+        assert_eq!(slam_cast_kit(99, Some((42, 72)), &units), 62428);
+        let none = caster_spec_order_index(99, Some((42, 72)), &units, catalog());
+        assert_eq!(none, None);
+    }
+
+    #[test]
+    fn specialization_remote_slam_follows_the_casters_replicated_spec() {
+        // The local player is Arms (71); remote caster 99 replicates Fury (72), then Arms.
+        let mut units = Replica::for_tests();
+        units.insert(99, shared::components::ActiveSpec(72));
+        assert_eq!(slam_cast_kit(99, Some((42, 71)), &units), 128672);
+        assert_eq!(slam_cast_kit(99, None, &units), 128672);
+        units.insert(99, shared::components::ActiveSpec(71));
+        assert_eq!(slam_cast_kit(99, Some((42, 72)), &units), 62428);
     }
 }
 
@@ -265,7 +279,7 @@ impl SpellEffects {
         let Some(catalog) = self.catalog()? else {
             return Ok(None);
         };
-        let spec_order_index = caster_spec_order_index(caster, local_spec, catalog);
+        let spec_order_index = caster_spec_order_index(caster, local_spec, units, catalog);
         let context = Self::caster_context(units, world, caster, spec_order_index);
         Ok(catalog.visual_for_spell(spell_id, &context))
     }
@@ -287,7 +301,8 @@ impl SpellEffects {
         let Some(catalog) = poll_catalog(&mut self.catalog)? else {
             return Ok(());
         };
-        let spec_order_index = caster_spec_order_index(caster, self.local_specialization, catalog);
+        let spec_order_index =
+            caster_spec_order_index(caster, self.local_specialization, units, catalog);
         let context = Self::caster_context(units, world, caster, spec_order_index);
         for &spell in spells {
             if !self.prefetched.insert(spell) {
