@@ -1,6 +1,13 @@
 ## 2026-10-07 — Offline character garment matrix, 78-cell bounded PASS
 
 [Character rendering](systems/character-rendering.md#current-acceptance-78-pass-zero-fail) records final fixture `3b1490ba7`: all78 isolated cells pass actual Vulkan geoset/material/attachment/close-up checks and150 independently gated garment rectangles; all six contact sheets and cape back views inspected. `c60ba62c0` supplies the independent HelmetGeosetData CSV oracle and corrects DXT-buffer and full-thumbnail fixture defects; `41449a140` types its behavioral test. Exporter RED→GREEN1/1 and helmet/DXT tests pass; final core781/Godot658/UI-model744 pass, zero failures. The previous renderer block misread owned-process scope. No production client mismatch/fix, server/network, merge/push or full Retail pixel/animated-clipping claim. [Parity rows](../specs/godot-parity-matrix.md) retain the broader named gaps.
+## 2026-10-08 — HUD manager acceptance continuation
+
+[Contract acceptance](../specs/hud-edit-mode.md#live-manager-acceptance-2026-10-08) and [matrix](../specs/godot-parity-matrix.md#hud-manager-live-step-matrix-2026-10-08) reconcile the interrupted worker's live Modern/Forever manager proof and authenticated-account GREEN. Retained captures/dumps were inspected without repeating PASS runs; inline-manager dialog exclusions remain explicit.
+
+## 2026-10-07 — HUD manager account isolation
+
+[Native HUD edit mode](systems/native-hud-edit-mode.md) records private-server same-XDG cross-account layout exposure and authenticated realm/username storage routing. Token ownership survives credential-token rotation; ownerless legacy data is not imported. [Contract](../specs/hud-edit-mode.md) owns acceptance and compatibility boundaries.
 
 ## 2026-10-07 — Native quest objective progress notices
 
@@ -2881,3 +2888,7 @@ Reconciled [[forever-data#Owned item definition namespaces]], item-source spec a
 Updated [[forever-data]] with independent payload/cache/world proof, README-only metadata refresh pending remote confirmation, historical checkout/protocol boundaries and current NPC RED. Linked server fixture-only correction; no remote operations, tests, landing or native acceptance.
 
 - 2026-10-07 — Reconcile bounded corrective742 native Ailee/Grove functional DONE, mapped/build receipts, CPU13 and pending304; retain OS-exit/pixel/parity/provenance exclusions. Record final handoff metadata hash proof separately from unproved consumption/landing. Docs-only; no runtime or test operations.
+
+## 2026-10-08 — Auction result icon diagnosis
+
+[Five-item trace and proof](systems/auction-house-ui.md#missing-result-icons-2026-10-08) records both-skin native RED→GREEN, once-per-FDID diagnostics and 22 content-key-matched local-CASC icons installed for the original 52-item evidence market. Six captures inspected; extracted icons render in both skins. [Shared loader policy](systems/asset-pipeline.md#native-unavailable-icons) uses existing question-mark art for unavailable icons. Whole-crate gate at `ff3129712` is blocked before tests by the requested base's merchant fixture missing `definition_source`; no passing counts, merge, push, live client or broader parity claim.
