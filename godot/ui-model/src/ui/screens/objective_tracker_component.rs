@@ -25,6 +25,11 @@ pub const TRACKER_FRAME: &str = "ObjectiveTrackerFrame";
 pub struct BossFrameCount(pub usize);
 /// `ObjectiveTrackerContainerTemplate` width.
 pub const TRACKER_W: f32 = 260.0;
+/// Container header art (left, top, width, height) in tracker units, from the frame's
+/// TOPLEFT, y down; its line fades over the outer 6 units at each end (FlareUI
+/// Modules/Minimap.lua:366-371: about 288 of the 300 show).
+pub const HEADER_ART: (f32, f32, f32, f32) = (-20.0, -4.0, 300.0, 40.0);
+pub const HEADER_LINE_FADE: f32 = 6.0;
 const CONTAINER_HEADER_H: f32 = 32.0;
 /// `ObjectiveTrackerFrame.topModulePadding`.
 const TOP_MODULE_PADDING: f32 = 38.0;
@@ -246,7 +251,7 @@ fn container_header(collapsed: bool, scale: f32) -> Element {
     let mut elements = atlas_texture(
         "ObjectiveTrackerFrameHeaderBackground".into(),
         &TRACKER_PRIMARY_HEADER,
-        scaled((-20.0, -4.0, 300.0, 40.0), scale),
+        scaled(HEADER_ART, scale),
     );
     elements.extend(header_text(
         "ObjectiveTrackerFrameHeaderText",
