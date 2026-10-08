@@ -7,6 +7,10 @@ ARG JOBS=8
 ENV CARGO_TARGET_DIR=/src/game-engine-godot-conversion/target \
     CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang \
     RUSTFLAGS="-C link-arg=-fuse-ld=mold -C link-arg=-Wl,--thread-count=4"
+# vendor/ktx2-rw/build.rs reads this archive before downloading; its own fetch has a 300 s
+# whole-request timeout that a slow link cannot meet for 212 MB. BuildKit caches it by checksum.
+ADD --checksum=sha256:3585d76edcdcbe3a671479686f8c81c1c10339f419e4b02a9a6f19cc6e4e0612 \
+    https://github.com/KhronosGroup/KTX-Software/archive/refs/tags/v4.4.0.tar.gz /tmp/ktx-software-v4.4.0.tar.gz
 COPY --exclude=test-assets . /src/
 
 FROM source AS build
