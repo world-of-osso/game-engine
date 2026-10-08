@@ -89,6 +89,28 @@ impl PartyPortraitFixture {
         fixture_error(self.sync_fixture())
     }
 
+    /// Inject the protocol update through the same group HUD projection as live play.
+    #[func]
+    fn apply_ready_check(&mut self, finished: bool) -> GString {
+        use shared::protocol::{ReadyCheckAnswer, ReadyCheckMemberSnapshot, ReadyCheckUpdate};
+        self.group.apply_ready_check(ReadyCheckUpdate {
+            initiator_name: "Ann".into(),
+            time_remaining_secs: if finished { 0.0 } else { 30.0 },
+            members: vec![
+                ReadyCheckMemberSnapshot {
+                    name: "Ann".into(),
+                    answer: ReadyCheckAnswer::Ready,
+                },
+                ReadyCheckMemberSnapshot {
+                    name: "Bob".into(),
+                    answer: ReadyCheckAnswer::Pending,
+                },
+            ],
+            finished,
+        });
+        fixture_error(self.sync_fixture())
+    }
+
     #[func]
     fn show_settings(&mut self, shown: bool) -> GString {
         if !shown {
