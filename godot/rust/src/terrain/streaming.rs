@@ -1092,7 +1092,12 @@ mod tests {
             .unwrap();
         wait_for(&mut stream, |state| !state.pending_map);
         let state = stream.state();
-        assert!(state.map_error.unwrap().contains("not in listfile"));
+        assert!(
+            state
+                .map_error
+                .unwrap()
+                .contains("no Directory map_that_does_not_exist_999")
+        );
         assert!(state.pending_tiles.is_empty());
         assert!(state.parsed_tiles.is_empty());
     }

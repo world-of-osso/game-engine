@@ -54,6 +54,11 @@ fn source_fixture(name: &str) -> PathBuf {
     write(&root, "ItemAppearance", "ID,ItemDisplayInfoID\n10,1542\n");
     write(
         &root,
+        "ItemDisplayInfoModelMatRes",
+        "ID,MaterialResourcesID,TextureType,ModelIndex,ItemDisplayInfoID\n",
+    );
+    write(
+        &root,
         "ItemDisplayInfo",
         &format!("{display_header}1542,7,0,8,0,1,0,0,0,0,0,0,0\n"),
     );
