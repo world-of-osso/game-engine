@@ -1,4 +1,5 @@
 pub(crate) mod assets;
+mod auction_icon_preview;
 #[cfg(debug_assertions)]
 mod audit_probe;
 mod aura_preview;
