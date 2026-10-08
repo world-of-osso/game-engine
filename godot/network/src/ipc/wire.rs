@@ -219,6 +219,10 @@ pub enum Request {
     },
     GroupRoster,
     GroupStatus,
+    GroupSubgroup {
+        name: String,
+        subgroup: u8,
+    },
     GroupInvite {
         name: String,
     },

@@ -97,6 +97,7 @@ pub fn group_request(command: GroupCmd) -> Result<Request, String> {
     let request = match command {
         GroupCmd::Roster => Request::GroupRoster,
         GroupCmd::Status => Request::GroupStatus,
+        GroupCmd::Subgroup { name, subgroup } => Request::GroupSubgroup { name, subgroup },
         GroupCmd::Invite { name } => Request::GroupInvite { name },
         GroupCmd::Uninvite { name } => Request::GroupUninvite { name },
     };
