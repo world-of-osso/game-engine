@@ -4,15 +4,32 @@ use crate::professions::Recipe;
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
 
+// SkillLine.CategoryID, including secondary professions such as Cooking.
+const SECONDARY_PROFESSION: u32 = 9;
+const PRIMARY_PROFESSION: u32 = 11;
+
 #[derive(Debug, Default)]
 pub struct RecipeCatalog {
     pub recipes: Vec<Recipe>,
     pub skill_names: BTreeMap<u32, String>,
     pub openers: BTreeMap<u32, u32>,
     pub primary_skills: BTreeSet<u32>,
+    pub profession_skills: BTreeSet<u32>,
 }
 
 impl RecipeCatalog {
+    /// Profession recipes, including unlearned services; class create-item spells stay spells.
+    pub fn get(&self, spell_id: u32) -> Option<&Recipe> {
+        let index = self
+            .recipes
+            .binary_search_by_key(&spell_id, |recipe| recipe.spell_id)
+            .ok()?;
+        let recipe = &self.recipes[index];
+        self.profession_skills
+            .contains(&recipe.profession)
+            .then_some(recipe)
+    }
+
     pub fn load(dir: &Path) -> Result<Self, String> {
         let mut catalog = Self::default();
         read_rows(
@@ -28,8 +45,12 @@ impl RecipeCatalog {
             |row| {
                 let skill = number(row[0])?;
                 catalog.skill_names.insert(skill, row[1].into());
-                if number(row[3])? == 11 && number(row[4])? == 0 {
+                let category = number(row[3])?;
+                if category == PRIMARY_PROFESSION && number(row[4])? == 0 {
                     catalog.primary_skills.insert(skill);
+                }
+                if matches!(category, SECONDARY_PROFESSION | PRIMARY_PROFESSION) {
+                    catalog.profession_skills.insert(skill);
                 }
                 let opener = number(row[2])?;
                 if opener != 0 {

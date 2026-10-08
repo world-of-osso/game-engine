@@ -59,6 +59,11 @@ func _run() -> void:
 			return
 		await process_frame
 		RenderingServer.force_draw()
+	if trainer_preview and not OS.get_environment("GODOT_TRAINER_HOVER_SPELL").is_empty():
+		if not await trainer_hover_content(ui):
+			ui.queue_free()
+			quit(1)
+			return
 	var image = root.get_texture().get_image()
 	if image == null or image.is_empty() or image.save_png(output) != OK:
 		push_error("UI capture requires a rendering display")
@@ -780,6 +785,68 @@ func auction_bid_copper_is_clear(ui: Node) -> bool:
 	if copper_rect.end.x > bid_rect.position.x:
 		push_error("Bid button covers copper input: ", copper_rect.end.x, " > ", bid_rect.position.x)
 		return false
+	return true
+
+# Real row pointer hit, shared tooltip host; no GameClient/server or authored tooltip strings.
+func trainer_hover_content(ui: Node) -> bool:
+	var spell := int(OS.get_environment("GODOT_TRAINER_HOVER_SPELL"))
+	var row := ui.find_child("ClassTrainerService%d" % spell, true, false) as Control
+	if row == null or not row.is_visible_in_tree():
+		push_error("Requested trainer hover row is not visible")
+		return false
+	var host = ClassDB.instantiate("RegistryUi")
+	host.layer = 8
+	root.add_child(host)
+	var pointer := row.get_global_rect().get_center()
+	var motion := InputEventMouseMotion.new()
+	motion.position = pointer
+	motion.global_position = pointer
+	root.push_input(motion)
+	for frame in range(6):
+		await process_frame
+		var error: String = ui.call("update_trainer_preview_tooltip", host, pointer)
+		if not error.is_empty():
+			push_error(error)
+			return false
+		await RenderingServer.frame_post_draw
+	var title := host.find_child("TooltipTitle", true, false) as Label
+	if title == null or not title.is_visible_in_tree():
+		push_error("Trainer hover lacks visible tooltip title")
+		return false
+	var lines: PackedStringArray = []
+	for label in host.find_children("TooltipLine*", "Label", true, false):
+		if label.is_visible_in_tree():
+			lines.append(label.text)
+	if not lines.has("Spell ID: %d" % spell):
+		push_error("Trainer tooltip lost Spell ID")
+		return false
+	if spell == 2963:
+		if title.text != "Bolt of Linen Cloth" or not lines.has("Linen Cloth (2)") or not lines.has("Item ID: 2996") or not lines.has("Requires Classic Tailoring (1)"):
+			push_error("Recipe tooltip lacks crafted item/reagent/requirement content: " + str(lines))
+			return false
+	elif spell == 116:
+		if title.text != "Frostbolt" or not lines.has("40 yd range"):
+			push_error("Spell tooltip lacks full shared spell content: " + str(lines))
+			return false
+		var words: PackedStringArray = []
+		for line in lines:
+			words.append_array(line.split(" ", false))
+		if not " ".join(words).contains("Frost damage"):
+			push_error("Class spell tooltip lacks rendered description")
+			return false
+	elif spell == 212205:
+		# Class create-item spell: keeps its spell tooltip, never the produced item's.
+		var words: PackedStringArray = []
+		for line in lines:
+			words.append_array(line.split(" ", false))
+		if title.text != "Create: Crimson Vial" or not " ".join(words).contains("share with allies"):
+			push_error("Class create-item spell lacks its spell tooltip: " + str(lines))
+			return false
+		for line in lines:
+			if line.begins_with("Item ID:"):
+				push_error("Class create-item spell shows produced item content: " + str(lines))
+				return false
+	print("PASS: hovered trainer service ", spell, " title=", title.text, " lines=", lines)
 	return true
 
 # Compare actual bound native pixels, not RSX declarations. The first three files

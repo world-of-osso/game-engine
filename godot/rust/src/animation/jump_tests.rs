@@ -74,6 +74,7 @@ fn player(with_running_landing: bool) -> AnimationState {
         legs_free: true,
         locomotion_speed: None,
         pose_transition: false,
+        momentum: Default::default(),
     }
 }
 
