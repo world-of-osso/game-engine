@@ -461,3 +461,65 @@ fn spell_without_a_known_icon_builds_no_icon_texture() {
         other => panic!("icon is not a texture: {other:?}"),
     }
 }
+
+/// `(x, y, w, h)` of an absolutely placed frame inside its parent.
+fn placed(registry: &FrameRegistry, name: &str) -> [f32; 4] {
+    use ui_toolkit::frame::Dimension;
+    use ui_toolkit::layout_values::Val;
+    let frame = registry.get(registry.get_by_name(name).expect(name)).unwrap();
+    let (Val::Px(x), Val::Px(y)) = (frame.position.left, frame.position.top) else {
+        panic!("{name} is not placed in px")
+    };
+    let (Dimension::Fixed(w), Dimension::Fixed(h)) = (frame.width, frame.height) else {
+        panic!("{name} has no fixed size")
+    };
+    [x, y, w, h]
+}
+
+/// Blizzard_PlayerSpellsFrame.xml:20-30: `TabSystem` TOPLEFT at the 1618×883 frame's
+/// BOTTOMLEFT 22,2, `minTabWidth` 100, `maxTabWidth` 150, `spacing` 1.
+/// TabSystemTemplates.xml:3-96: 32-high buttons; `uiframe-tab-left` 35×36 TOPLEFT,
+/// `uiframe-tab-right` 37×36 TOPRIGHT x 6, active 35/37×42 with the right cap at x 7;
+/// text 10 high at CENTER y +2 (selected -3, TabSystemTemplates.lua:29-38).
+/// `UpdateTabWidth` (.lua:154-177): sides 72 + 20 < 100, so every tab is 100 wide
+/// with a 90-wide label.
+#[test]
+fn bottom_tab_bar_matches_retail_tab_system_geometry_in_both_skins() {
+    let mut book = state(Vec::new());
+    book.viewport = [1920.0, 1080.0];
+    for skin in [ActiveSkin::Forever, ActiveSkin::Modern] {
+        set_thread_skin(skin);
+        let registry = build(&book);
+        for (index, left) in [22.0, 123.0, 224.0].into_iter().enumerate() {
+            let tab = format!("PlayerSpellsTab{}", index + 1);
+            assert_eq!(placed(&registry, &tab), [left, 881.0, 100.0, 32.0], "{skin:?} {tab}");
+        }
+        // Spellbook (tab 3) is selected by default.
+        for (tab, pieces, text_top) in [
+            (
+                "PlayerSpellsTab1",
+                [[0.0, 0.0, 35.0, 36.0], [35.0, 0.0, 34.0, 36.0], [69.0, 0.0, 37.0, 36.0]],
+                9.0,
+            ),
+            (
+                "PlayerSpellsTab3",
+                [[0.0, 0.0, 35.0, 42.0], [35.0, 0.0, 35.0, 42.0], [70.0, 0.0, 37.0, 42.0]],
+                14.0,
+            ),
+        ] {
+            for (piece, rect) in ["Left", "Middle", "Right"].into_iter().zip(pieces) {
+                assert_eq!(
+                    placed(&registry, &format!("{tab}{piece}")),
+                    rect,
+                    "{skin:?} {tab}{piece}"
+                );
+            }
+            assert_eq!(
+                placed(&registry, &format!("{tab}Text")),
+                [5.0, text_top, 90.0, 10.0],
+                "{skin:?} {tab}Text"
+            );
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
