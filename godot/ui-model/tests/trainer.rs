@@ -223,6 +223,7 @@ fn trainer_render_rank(
             rank,
             max_rank,
         }],
+        ..Default::default()
     });
     let mut registry = ui_toolkit::registry::FrameRegistry::new(1920.0, 1080.0);
     Screen::new(trainer_screen).sync(&shared, &mut registry);
@@ -246,8 +247,8 @@ fn trainer_native_screen_projects_money_ranks_filters_failure_and_confirmation_i
         state.error = "You don't have enough money.".into();
         let rendered = trainer_render(state.clone(), skin);
         assert_eq!(
-            trainer_label(&rendered, "ClassTrainerMoneyFrame"),
-            "Money: 0g 50s 0c"
+            trainer_label(&rendered, "ClassTrainerMoneyFrameAmount0"),
+            "50"
         );
         assert_eq!(
             trainer_label(&rendered, "ClassTrainerStatusBarRankText"),

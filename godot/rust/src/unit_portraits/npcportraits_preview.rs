@@ -83,6 +83,28 @@ impl NpcPortraitPreview {
     }
 }
 
+/// Reuse the real masked portrait renderer on the trainer's existing offline canvas.
+pub(crate) fn attach_trainer_preview(ui: Gd<RegistryUi>) -> Result<(), String> {
+    let mut preview = NpcPortraitPreview::new_alloc();
+    preview.set_name("TrainerPreviewPortrait");
+    ui.clone()
+        .upcast::<godot::classes::Control>()
+        .add_child(&preview);
+    let mut host = preview.bind_mut();
+    host.portrait = Some(Portrait::new(game_engine_ui_model::trainer_frame::PORTRAIT));
+    host.appearance = Some(UnitAppearance::Player(
+        Player {
+            name: "Offline human trainer".into(),
+            race: 1,
+            class: 1,
+            appearance: Default::default(),
+        },
+        EquipmentAppearance::default(),
+    ));
+    host.ui = Some(ui);
+    host.sync_portrait()
+}
+
 impl NpcPortraitPreview {
     fn mount_window(&mut self, frame: &str, forever: bool) -> Result<(), String> {
         if self.ui.is_some() {

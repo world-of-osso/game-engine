@@ -32,9 +32,18 @@ func _run() -> void:
 	var uipolish: bool = screen in ["chatflush_preview", "achievement_preview", "forever_achievement_preview"]
 	if screen == "chatflush_preview":
 		RenderingServer.set_default_clear_color(Color(0.25, 0.4, 0.55))
-	var settle_frames: int = 120 if screen in ["forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview", "trainer_preview", "forever_trainer_preview"] else 3
+	var trainer_preview: bool = screen in ["trainer_preview", "forever_trainer_preview"]
+	var settle_frames: int = 240 if trainer_preview else 120 if screen in ["forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview"] else 3
 	for frame in range(settle_frames):
 		await process_frame
+		if screen in ["trainer_preview", "forever_trainer_preview"]:
+			var portrait = ui.find_child("TrainerPreviewPortrait", true, false)
+			if portrait != null:
+				var portrait_error = portrait.call("tick")
+				if portrait_error != "":
+					push_error(portrait_error)
+					quit(1)
+					return
 		if uipolish:
 			RenderingServer.force_draw()
 		else:
@@ -141,6 +150,17 @@ static func capture_hud_edit_both_into(tree: SceneTree, directory: String) -> bo
 
 # Cached Retail TrainerUI.xml:28-105,127-219; TrainerUI.lua:187-307.
 func trainer_geometry_and_content_match(ui: Node) -> bool:
+	var portrait_host = ui.find_child("TrainerPreviewPortrait", true, false)
+	if portrait_host == null:
+		push_error("Trainer preview lacks the real masked portrait host")
+		return false
+	var portrait_state: Dictionary = portrait_host.call("portrait_state")
+	if not portrait_state.get("visible", false) or not portrait_state.get("mask_loaded", false) or not portrait_state.get("model_shown", false):
+		push_error("Trainer offline portrait model/mask did not settle")
+		return false
+	if portrait_state.get("mask_fdid", 0) != 130924:
+		push_error("Trainer portrait must use Retail CircleMask")
+		return false
 	var frame := ui.find_child("ClassTrainerFrame", true, false) as Control
 	var list := ui.find_child("ClassTrainerScrollBox", true, false) as Control
 	var row := ui.find_child("ClassTrainerService2963", true, false) as Control
@@ -163,13 +183,13 @@ func trainer_geometry_and_content_match(ui: Node) -> bool:
 	if icon.position != Vector2(6, 5.5) or name.position != Vector2(48, 6.5):
 		push_error("Trainer row icon/name anchors differ from Retail")
 		return false
-	if name.text != "Bolt of Linen Cloth" or not name.get_theme_color("font_color").is_equal_approx(Color(1, 0.82, 0)):
+	if name.text != "Bolt of Linen Cloth" or not name.get_theme_color("font_color").is_equal_approx(Color.html("ffd200")):
 		push_error("Trainer selected row must retain neutral Retail gold name")
 		return false
 	for entry in [[0, "1"], [1, "25"], [2, "50"]]:
 		var amount := ui.find_child("ClassTrainerService2963CostAmount%d" % entry[0], true, false) as Label
 		var coin := ui.find_child("ClassTrainerService2963CostCoin%d" % entry[0], true, false) as Control
-		if amount == null or coin == null or amount.text != entry[1] or not amount.get_theme_color("font_color").is_equal_approx(Color(1, 0.1, 0.1)):
+		if amount == null or coin == null or amount.text != entry[1] or not amount.get_theme_color("font_color").is_equal_approx(Color.html("ff2020")):
 			push_error("Trainer unaffordable cost must show red denominations with coins")
 			return false
 		if amount.get_global_rect().end.x > coin.get_global_rect().position.x + 0.1 or coin.size != Vector2(13, 13):

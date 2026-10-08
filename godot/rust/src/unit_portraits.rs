@@ -11,6 +11,7 @@ mod camera_tests;
 mod fixture;
 mod hud_fixture;
 mod npcportraits_preview;
+pub(crate) use npcportraits_preview::attach_trainer_preview;
 mod party;
 mod player_preview;
 
@@ -29,6 +30,7 @@ use game_engine_ui_model::merchant_frame_component::PORTRAIT as MERCHANT_PORTRAI
 use game_engine_ui_model::micro_menu::CHARACTER_PORTRAIT;
 use game_engine_ui_model::quest_frame_component::PORTRAIT as QUEST_PORTRAIT;
 use game_engine_ui_model::trade_frame_component::PORTRAIT as TRADE_PORTRAIT;
+use game_engine_ui_model::trainer_frame::PORTRAIT as TRAINER_PORTRAIT;
 use godot::classes::control::{LayoutPreset, MouseFilter};
 use godot::classes::node::ProcessMode;
 use godot::classes::sub_viewport::UpdateMode;
@@ -78,6 +80,7 @@ pub(crate) struct UnitPortraits {
     bank: Portrait,
     auction: Portrait,
     trade: Portrait,
+    trainer: Portrait,
     party: PartyPortraits,
 }
 
@@ -94,6 +97,7 @@ impl Default for UnitPortraits {
             bank: Portrait::new(BANK_PORTRAIT),
             auction: Portrait::new(AUCTION_PORTRAIT),
             trade: Portrait::new(TRADE_PORTRAIT),
+            trainer: Portrait::new(TRAINER_PORTRAIT),
             party: PartyPortraits::default(),
         }
     }
@@ -538,6 +542,9 @@ impl GameClient {
             &AUCTION_PORTRAIT,
             self.auction.portrait_unit(),
         );
+        let trainer_npc = self.trainer.book.list.as_ref().map(|list| list.npc);
+        let (trainer_host, trainer) =
+            self.npc_portrait(self.trainer.ui.as_ref(), &TRAINER_PORTRAIT, trainer_npc);
         let trade_host = self
             .trade
             .ui
@@ -566,6 +573,9 @@ impl GameClient {
             .auction
             .sync(&mut self.world, auction_host, auctioneer);
         let trade_result = portraits.trade.sync(&mut self.world, trade_host, player);
+        let trainer_result = portraits
+            .trainer
+            .sync(&mut self.world, trainer_host, trainer);
         player_result
             .and(target_result)
             .and(pet_result)
@@ -576,6 +586,7 @@ impl GameClient {
             .and(bank_result)
             .and(auction_result)
             .and(trade_result)
+            .and(trainer_result)
     }
 
     /// The window's portrait slot and `npc`'s appearance while the window shows that NPC.
@@ -632,6 +643,7 @@ impl GameClient {
         portraits.bank.clear(&mut self.world);
         portraits.auction.clear(&mut self.world);
         portraits.trade.clear(&mut self.world);
+        portraits.trainer.clear(&mut self.world);
         portraits.party.clear(&mut self.world);
     }
 }
@@ -656,6 +668,7 @@ impl GameClient {
             &portraits.bank,
             &portraits.auction,
             &portraits.trade,
+            &portraits.trainer,
         ]
         .into_iter()
         .find(|portrait| portrait.slot.frame == frame)

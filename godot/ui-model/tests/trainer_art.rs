@@ -1,7 +1,7 @@
 //! Concrete production trainer row content, coins and state presentation in both skins.
 use game_engine_ui_model::{
     trainer::{TrainerBook, TrainerDisplay},
-    trainer_frame::{TrainerView, trainer_screen},
+    trainer_frame::{TrainerView, apply_trainer_art, trainer_screen},
 };
 use shared::protocol::{TrainerList, TrainerService, TrainerServiceState};
 use ui_toolkit::{
@@ -66,6 +66,7 @@ fn render(skin: ActiveSkin, money: u64) -> FrameRegistry {
     });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(trainer_screen).sync(&context, &mut registry);
+    apply_trainer_art(context.get::<TrainerView>().unwrap(), &mut registry);
     registry
 }
 fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
@@ -144,6 +145,37 @@ fn trainer_art_costs_use_denomination_coins_and_red_only_when_unaffordable() {
     }
     set_thread_skin(ActiveSkin::Modern);
 }
+#[test]
+fn trainer_art_unavailable_icons_desaturate_without_greying_known_icons_and_selection_adds() {
+    use ui_toolkit::widgets::texture::BlendMode;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, 10000);
+        for (id, desaturated) in [(100, false), (200, true), (300, false), (400, false)] {
+            let icon = frame(&registry, &format!("ClassTrainerService{id}Icon"));
+            assert!(
+                matches!(&icon.widget_data, Some(WidgetData::Texture(texture)) if texture.desaturated == desaturated)
+            );
+        }
+        let selected = frame(&registry, "ClassTrainerService100Selected");
+        assert!(
+            matches!(&selected.widget_data, Some(WidgetData::Texture(texture)) if texture.blend_mode == BlendMode::Additive)
+        );
+        assert!(
+            registry
+                .get_by_name("ClassTrainerService200DisabledBG")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("ClassTrainerService300DisabledBG")
+                .is_none()
+        );
+        assert!(!frame(&registry, "ClassTrainerService100Highlight").visible);
+        assert!(registry.get_by_name("ClassTrainerFramePortrait").is_some());
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
 #[test]
 fn trainer_art_requirement_numbers_use_global_string_red_not_a_red_whole_line() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {

@@ -63,6 +63,12 @@ Cached **Mainline** source governs; historical professions checkboxes are not na
 
 State colour values come from `data/db2/12.1.0.69933/GlobalColor.csv:5,9-10`: RED_FONT_COLOR=#ff2020, GREEN_FONT_COLOR=#19ff19, GRAY_FONT_COLOR=#808080. No invented state palette.
 
+## Native visual implementation
+
+Presentation uses 338×424 shared portrait chrome, the trainer/inset/row crops, 298×47 rows with top/right money, independent #ff2020 unmet requirement numbers/abilities, desaturated unavailable icons, selected/additive hover art, blue learned-rank fill, a 100×18 skinned filter and 80×22 Train. NPC portrait rendering reuses the existing masked unit-portrait host; title remains the NPC name. Training/filter/confirmation authority is unchanged. Exact UI acceptance is recorded below only after tests/captures pass.
+
+Offline secondary preview API: `godot/rust/src/trainer_preview.rs`; an eight-service snapshot plus a representative human portrait, never a GameClient. `GODOT_TRAINER_FILTER_MENU=1` opens the popup for a separate visual capture; main captures leave it closed so row costs remain visible. Baseline captures used the original open-popup fixture. This preview does not prove the real NPC appearance or live lifecycle.
+
 ## Known gaps (current cycle)
 
 - [ ] Native matching `InteractionClosed`, world-reset and Escape network-close receipt lack dedicated behavioral integration assertions; close/request code is wired, but do not infer full lifecycle acceptance from purchase proof.
