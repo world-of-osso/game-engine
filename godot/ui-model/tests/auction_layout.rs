@@ -86,6 +86,21 @@ fn auction_item_header_icon_uses_retail_crop_and_size() {
 }
 
 #[test]
+fn auction_sell_bid_column_uses_retail_fixed_width() {
+    // TableBuilder.lua:1124 uses120, with10px cell padding, in every item variant.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = render(skin, "sell");
+        assert_eq!(
+            frame(&registry, "AuctionHouseFrameItemSellListHeader0")
+                .width
+                .value(),
+            110.0
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn auction_bid_button_does_not_cover_copper_input() {
     use ui_toolkit::layout_values::Val;
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
