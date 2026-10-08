@@ -173,13 +173,10 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
         .expect("ObjectiveTrackerState must be in SharedContext");
     // Retail hides an empty container outside Edit Mode (Blizzard_ObjectiveTrackerContainer.lua:99-107);
     // here the "All Objectives" header always shows, as Retail's Edit Mode draws it with nothing tracked.
-    let scale = match ctx
-        .get::<ActiveSkin>()
-        .expect("canvas carries the active skin")
-    {
-        ActiveSkin::Modern => 1.0,
-        ActiveSkin::Forever => FOREVER_TRACKER_SCALE,
-    };
+    let scale = tracker_scale(
+        *ctx.get::<ActiveSkin>()
+            .expect("canvas carries the active skin"),
+    );
     // Layout runs in the tracker's own units; every emitted length takes `scale`.
     let mut height = CONTAINER_HEADER_H;
     let mut contents = container_header(state.collapsed, scale);
@@ -218,6 +215,22 @@ pub fn objective_tracker_screen(ctx: &SharedContext) -> Element {
             {contents}
         }
     }
+}
+
+pub fn tracker_scale(skin: ActiveSkin) -> f32 {
+    match skin {
+        ActiveSkin::Modern => 1.0,
+        ActiveSkin::Forever => FOREVER_TRACKER_SCALE,
+    }
+}
+
+/// Screen height of the container in its default position, where Edit Mode's selection
+/// covers it: `ObjectiveTrackerContainerMixin:UpdateHeight` sets
+/// `max(parentHeight + offsetY, 20)` in the tracker's own units
+/// (Blizzard_ObjectiveTrackerContainer.lua:203-209). `top` is the frame's top in screen units.
+pub fn default_position_height(skin: ActiveSkin, parent_height: f32, top: f32) -> f32 {
+    let scale = tracker_scale(skin);
+    (parent_height - top / scale).max(20.0) * scale
 }
 
 fn scaled((x, y, width, height): (f32, f32, f32, f32), scale: f32) -> (f32, f32, f32, f32) {
