@@ -31,6 +31,18 @@ Scalp hair (geoset type `0` in `CharHairGeosets`) is probably controlled by a th
 
 The `HelmetGeosetVis` path was implemented but the `ItemDisplayInfo.GeosetGroup → groups 27/21` path was missing. The combination is required to match Blizzard's head-item behavior.
 
+## Six-body matrix proof (2026-10-07)
+
+The [character matrix](../systems/character-rendering.md#current-acceptance-78-pass-zero-fail)
+now independently exports all18,302 cached WDC5 rows (layout103B3B37) through
+`scripts/export_db2_csv.py`, not the Rust helmet parser. Display178254 keys460/461
+produce race-specific hair/ear/facial hide sets for all six matrix bodies. Actual
+native geosets and rendered helm cells pass at fixture `3b1490ba7`; concrete tests
+also exercise a non-default hair selection and the head-slot27 default. No
+unresolved extra-field meaning or general scalp/helmet behavior is inferred.
+Generic race-selection rows outside this matrix remain explicitly unsupported by
+the oracle. The statuses below describe the original March investigation.
+
 ## Resolution Status
 
 - `HelmetGeosetVis` / `HelmetGeosetData` path: implemented.

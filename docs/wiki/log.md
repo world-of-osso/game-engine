@@ -1,6 +1,6 @@
-## 2026-10-07 — Offline character garment matrix, rendering blocked
+## 2026-10-07 — Offline character garment matrix, 78-cell bounded PASS
 
-[Character rendering](systems/character-rendering.md#racegarment-matrix-2026-10-07-acceptance-pending) records `2cf7bd450`: the existing oracle gains 78 isolated garment cells, rigid model/material checks and incremental result/contact-sheet output. Cached DB2/asset inventories and pinned-Godot parse/native install pass; no rendered cell is accepted. Foreign renderers occupied the single-render budget; independent helmet hide-rule validation is still missing. [Parity rows](../specs/godot-parity-matrix.md) retain Partial and link each FAIL reason; no contact-sheet inspection or production fix is claimed.
+[Character rendering](systems/character-rendering.md#current-acceptance-78-pass-zero-fail) records final fixture `3b1490ba7`: all78 isolated cells pass actual Vulkan geoset/material/attachment/close-up checks and150 independently gated garment rectangles; all six contact sheets and cape back views inspected. `c60ba62c0` supplies the independent HelmetGeosetData CSV oracle and corrects DXT-buffer and full-thumbnail fixture defects; `41449a140` types its behavioral test. Exporter RED→GREEN1/1 and helmet/DXT tests pass; final core781/Godot658/UI-model744 pass, zero failures. The previous renderer block misread owned-process scope. No production client mismatch/fix, server/network, merge/push or full Retail pixel/animated-clipping claim. [Parity rows](../specs/godot-parity-matrix.md) retain the broader named gaps.
 
 ## 2026-10-07 — Native quest objective progress notices
 

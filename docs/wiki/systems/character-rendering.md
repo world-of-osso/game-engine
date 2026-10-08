@@ -56,7 +56,7 @@ Branch `appearpix`. Evidence: `game-engine/data/diagnostics/appearpix-2026-10-01
 - **Fixed** (each RED first): item textures pasted opaque instead of alpha-blended; undersized layers expanded nearest instead of stock PasteScale; composited textures uploaded without mipmaps; eyes (type 19) bound only the last layer's file (Eyesight overlay lost); the second eye slot of a two-texture batch unbound (replacements applied to slot 0 only); translucent layers darkened on empty canvases (straight-alpha "over" ignored destination alpha); HD body halved to 1024x512; group-0 meshes 1 and 27+ always shown, ears 701 with 702, both faces 3201/3202; Eyesight hidden from non-Demon Hunter Night/Blood Elves (its "Both" hides eye group 51).
 - **Assumptions/open**: 4x expansion of legacy 128x64 item files into HD sections repeats PasteScale (no stock reference); face 3202 default comes from WMVx alone; a non-Demon Hunter Night/Blood Elf body batch of type 9 has no texture on either side (Retail's binding unknown); attached models (helmets, shoulders, weapons) and skinned collections are not in the pixel cases; NPC/Bevy paths share the compositor but were not pixel-checked; the Bevy client still binds eyes from the last layer (`character_customization_textures.rs`, `npc_appearance.rs`).
 
-## Race/garment matrix (2026-10-07, acceptance pending)
+## Race/garment matrix (2026-10-07, bounded acceptance)
 
 `godot/tests/character_real_pixels.gd` extends the existing appearance oracle with
 `CHARPIX_MATRIX=1`. Six retained race/sex bodies (Human male, Orc female, Dwarf
@@ -96,51 +96,92 @@ current CASC archive availability: the documented WoW installation is absent on
 this host. No server/networked client is part of this matrix. Acceptance results
 must be recorded only after running and inspecting the current fixture.
 
-### Current acceptance: blocked, no rendered cells accepted
+### Current acceptance: 78 PASS, zero FAIL
 
-Fixture commit `2cf7bd450` parses under pinned Godot; native base `274564d72`
-builds/installs successfully. The independent CSV inventory finds every selected
-body/garment model and region/material BLP locally cached, plus all 14 primary
-skin companions. Inventory is not client equality or current CASC availability.
-`preflight.json`, `matrix-inventory.csv` and `model-dependencies.json` retain exact
-per-cell display IDs, geoset groups, region/material FDIDs and model hashes.
+Actual Vulkan (llvmpipe) run `render-regions` at fixture `3b1490ba7` exits0;
+installed native Rust remains `274564d72`. All78 cells independently match
+visible geosets, worn body sections, exact attached-model FDIDs/material blocks
+and semantic attachment parents, plus the unchanged close-up pixel gate.
+The150 garment rectangles compare16,908,288 RGB texels; the weakest rectangle
+(Tauren glove hand section) is97.5494% within10/255. Each close-up has at least
+9,513 qualified pixels; weakest match is99.0660%, above the97% requirement.
+Cloaks additionally bind the oracle-selected cape texture. Models/materials are
+N/A, not missing, when the item's DB2 rows declare no attachment.
 
-**R = FAIL (proof blocked):** foreign Godot renderers occupied the host's rendering
-capacity (PIDs 1779940 and 1780589); the task's at-most-one-rendering-process rule
-prohibited starting another. No authority was granted to stop foreign processes.
-Final inventory still found foreign raidloop renderers 1790129 and 1790525.
-This is absent acceptance evidence, not a reproduced client-rendering defect.
-**H = FAIL (oracle incomplete):** independent HelmetGeosetData hide-rule validation
-is missing, in addition to R. No contact sheets were produced or inspected.
+The earlier foreign-renderer block was a misreading: only one **owned** renderer
+is permitted. Other agents' clients were neither waited on nor stopped. One
+launch encountered4,092,268kB MemAvailable; useful non-rendering work continued,
+the67-second poll found13,413,648kB, and the sole owned renderer launched.
 
 | Garment | Slot / item ID | Human male | Orc female | Dwarf male | Night Elf female | Tauren male | Blood Elf female |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Shirt | Shirt / 38 | R | R | R | R | R | R |
-| Chest | Chest / 846 | R | R | R | R | R | R |
-| Robe | Chest / 6682 | R | R | R | R | R | R |
-| Legs | Legs / 39 | R | R | R | R | R | R |
-| Kilt | Legs / 153 | R | R | R | R | R | R |
-| Boots | Feet / 40 | R | R | R | R | R | R |
-| Gloves | Hands / 850 | R | R | R | R | R | R |
-| Belt | Waist / 44670 | R | R | R | R | R | R |
-| Shoulders | Shoulder / 1445 | R | R | R | R | R | R |
-| Helm | Head / 1280 | R+H | R+H | R+H | R+H | R+H | R+H |
-| Cloak | Back / 1190 | R | R | R | R | R | R |
-| Tabard | Tabard / 15197 | R | R | R | R | R | R |
-| Bracers | Wrist / 710 | R | R | R | R | R | R |
+| Shirt | Shirt / 38 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Chest | Chest / 846 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Robe | Chest / 6682 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Legs | Legs / 39 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Kilt | Legs / 153 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Boots | Feet / 40 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Gloves | Hands / 850 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Belt | Waist / 44670 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Shoulders | Shoulder / 1445 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Helm | Head / 1280 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Cloak | Back / 1190 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Tabard | Tabard / 15197 | PASS | PASS | PASS | PASS | PASS | PASS |
+| Bracers | Wrist / 710 | PASS | PASS | PASS | PASS | PASS | PASS |
 
-Chest846 and robe6682 were selected explicitly because their male/female cached
-files exist for all six bodies; the earlier inventory candidates chest2435 and
-robe56 had missing female/male BLPs respectively. Their absence remains recorded
-in `preflight.log`; no extraction or CDN download was attempted without a local
-CASC installation. No production mismatch fix or full pixel-parity claim is made.
+#### Inspected contact sheets
 
-The single full-crate gate at fixture revision `2cf7bd450` exits0: core781,
-Godot658 and UI-model744 passed (2183 total, zero failures); UI-model has six
-ignored fixture-regeneration tests. Raw output has no warnings. The underlying
-Rust code remains base `274564d72`; later documentation changes do not invalidate
-that gate. `full-crate-tests.log` and `full-crate-counts.json` retain exact output
-and counts. These tests do not execute the GDScript matrix or prove any pixels.
+Paths below are relative to canonical `data/diagnostics/charmatrix-2026-10-07/`.
+All six originals and their lossless two-half inspection crops were opened;
+`*_cloak_back_actual.png` was inspected separately because front thumbnails
+mostly occlude the cape. No obvious white/untextured garment, missing attachment,
+wrong skirt/robe silhouette or unintended fixed-pose clipping was observed.
+
+| Sheet under `render-regions/` | Observations |
+| --- | --- |
+| `HumanMale_contact-sheet.png` | Distinct shirt/chest and robe/kilt; boots, gloves, belt and tabard textured; both shoulders and hood present. |
+| `OrcFemale_contact-sheet.png` | Clothing follows broad torso; robe/kilt cover the legs; shoulders and hood textured, hair suppressed in helm tile. |
+| `DwarfMale_contact-sheet.png` | Short-body robe/kilt and boot silhouettes retained; beard remains below hood; both shoulders textured. |
+| `NightElfFemale_contact-sheet.png` | Tall robe/kilt silhouettes, gloves/boots and tabard visible; hood suppresses hair while retaining authored ears. |
+| `TaurenMale_contact-sheet.png` | Wide torso, hoof-covering boot textures and broad gloves retained; shoulders/hood textured; horns/mane remain visible. |
+| `BloodElfFemale_contact-sheet.png` | Fitted clothing and long skirts; hood suppresses hair but ears remain; both shoulder models and tabard textured. |
+
+These are isolated items in a fixed Stand pose, not all-animation clipping,
+item-local transform/animation, skinned collection, every playable race/sex,
+all customization, combinations or bit-exact Retail screenshot proof. Existing
+hair-atlas diagnostic differences and non-Demon-Hunter type9 absence remain
+outside this garment-region gate; the historical shader skips are unchanged.
+Generic helmet race-selection rows remain unsupported outside these six cells.
+
+#### Fixes and tests
+
+No production client mismatch was reproduced. `c60ba62c0` completes the
+independent DB2 helmet oracle and fixes two fixture defects: DXT buffers compared
+as RGBA (`Image.convert` emitted18 explicit errors) and full thumbnails subjected
+to a close-up gate despite insufficient non-minified texels. It changes neither
+close-up tolerance nor native code. `41449a140` fixes the new test's explicit
+loader type; `3b1490ba7` adds the per-garment section gate.
+
+Exporter test RED: missing `HelmetGeosetData` registration; GREEN:1/1,18,302
+rows and zero encrypted records dropped. `character_matrix_oracle_tests.gd`
+passes all six concrete helmet relationship sets, visible hair/ear/head groups,
+correct DXT binding and wrong-file rejection. `render-initial` retains the
+original22PASS/56FAIL fixture result; `render-green` and final `render-regions`
+each have78PASS/0FAIL. The oracle changes are supported by generic WDC5 export,
+not native outfit/geoset metadata.
+
+Final full affected-crate gate at `3b1490ba7` exits0: core781, Godot658,
+UI-model744 (2,183 passed, zero failed, six ignored fixture-regeneration tests).
+Raw Cargo output has no warnings. `full-crate-continue-tests.log` and
+`full-crate-continue-counts.json` retain output/revision/counts. CPU tests do
+not substitute for the separately completed render/inspection proof.
+
+`matrix-acceptance.json` and `matrix-inventory.csv` now contain actual per-cell
+outcomes, dimensions, FDIDs, sample counts and sheet paths; previous blocked
+versions are preserved with `-blocked` suffixes. `proof-ledger.txt` is append-only.
+All selected assets are cached; no extraction/CDN/server/network was used.
+Chest846 and robe6682 remain the original fixture's cached-asset choices; earlier
+unavailable candidates2435/56 remain recorded in `preflight.log`.
 
 ## Character Models and HD Skeletons
 
