@@ -61,6 +61,8 @@ Cached **Mainline** source governs; historical professions checkboxes are not na
 | `trainer_frame.rs:48-65`: Money: text and generic100×24 Train at300,450 | `TUI.xml:112-118,182-194`: UI-MoneyFrame-Border148×34 at bottom-left5,−9; SmallMoneyFrame anchored to its RIGHT8,6; MagicButton80×22. `Shared.lua:35-38`: bottom-right adjusted−6,+4. |
 | No separate SkillStepButton in native inventory | `TUI.xml:195-200,215-223`, `TUI.lua:131-144`: optional316×40 step row and shorter bottom-inset list. Protocol provides no Retail GetTrainerServiceStepIndex; do not infer step identity from primary-profession acquisition. Remains a gap. |
 
+Additional cached Retail details: `Blizzard_Menu/Mainline/MenuVariants.lua:9-22` uses the 12×12 `common-dropdown-ticksquare` and 15×14 yellow check, offset +2,+1, with text 7px to its right. `Blizzard_Menu/Mainline/MenuTemplates.lua:53-85` supplies `common-dropdown-bg` at alpha0.925, 8/8/8/15 insets and 20px child width padding. The popup anchor's +2 WoW y is upward (`DropdownButton.lua:90-95`). `Blizzard_MoneyFrame/Shared/MoneyFrame.lua:33-72` distinguishes PLAYER (lower coins shown) from STATIC (collapsed); `Mainline/MoneyFrame.lua:302-368` includes zero lower denominations for PLAYER. Native player money now uses that distinction without altering other windows' existing collapsed money helpers.
+
 State colour values come from `data/db2/12.1.0.69933/GlobalColor.csv:5,9-10`: RED_FONT_COLOR=#ff2020, GREEN_FONT_COLOR=#19ff19, GRAY_FONT_COLOR=#808080. No invented state palette.
 
 ## Native visual implementation

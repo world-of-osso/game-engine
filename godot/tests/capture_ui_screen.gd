@@ -174,6 +174,10 @@ func trainer_geometry_and_content_match(ui: Node) -> bool:
 	if frame.size != Vector2(338, 424) or list.size != Vector2(302, 330) or row.size != Vector2(298, 47) or icon.size != Vector2(36, 36):
 		push_error("Trainer frame/list/row/icon dimensions differ from Retail")
 		return false
+	var background := ui.find_child("ClassTrainerTrainerBackground", true, false) as Control
+	if background == null or background.size != Vector2(308, 338) or background.position != Vector2(6, 61):
+		push_error("Trainer background must expand the ScrollBox by -3,+4 / +3,-4")
+		return false
 	if train.size != Vector2(80, 22) or filter.size != Vector2(100, 18):
 		push_error("Trainer footer/filter dimensions differ from Retail")
 		return false

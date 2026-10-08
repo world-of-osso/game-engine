@@ -844,7 +844,11 @@ pub fn money(
 
 /// Each shown denomination's digits, their width and its coin.
 fn money_parts(copper: u64) -> Vec<(String, f32, &'static AtlasArt)> {
-    coins(copper)
+    money_parts_for(coins(copper))
+}
+
+fn money_parts_for(coins: Vec<(u64, &'static AtlasArt)>) -> Vec<(String, f32, &'static AtlasArt)> {
+    coins
         .into_iter()
         .map(|(amount, art)| {
             let digits = amount.to_string();
@@ -868,6 +872,36 @@ pub fn money_width(copper: u64) -> f32 {
     parts_width(&money_parts(copper))
 }
 
+/// Retail PLAYER money keeps zero lower denominations; STATIC service costs remain collapsed.
+/// Blizzard_MoneyFrame/Mainline/MoneyFrame.lua:302-368.
+pub(crate) fn player_money(
+    prefix: &str,
+    copper: u64,
+    anchor: (f32, f32),
+    align: MoneyAlign,
+) -> Element {
+    let parts = [
+        (copper / 10_000, &COIN_GOLD),
+        (copper / 100 % 100, &COIN_SILVER),
+        (copper % 100, &COIN_COPPER),
+    ];
+    let first = if copper >= 10_000 {
+        0
+    } else if copper >= 100 {
+        1
+    } else {
+        2
+    };
+    let coins = parts.into_iter().skip(first).collect();
+    render_money_parts(
+        prefix,
+        money_parts_for(coins),
+        anchor,
+        align,
+        HIGHLIGHT_FONT_COLOR,
+    )
+}
+
 /// [`money`] with the amounts in `color` (the trainer's red unaffordable cost).
 pub(crate) fn money_colored(
     prefix: &str,
@@ -876,7 +910,16 @@ pub(crate) fn money_colored(
     align: MoneyAlign,
     color: &str,
 ) -> Element {
-    let parts = money_parts(copper);
+    render_money_parts(prefix, money_parts(copper), anchor, align, color)
+}
+
+fn render_money_parts(
+    prefix: &str,
+    parts: Vec<(String, f32, &'static AtlasArt)>,
+    anchor: (f32, f32),
+    align: MoneyAlign,
+    color: &str,
+) -> Element {
     let total = parts_width(&parts);
     let mut x = match align {
         MoneyAlign::Left => anchor.0,

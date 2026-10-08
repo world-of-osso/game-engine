@@ -230,6 +230,85 @@ fn trainer_art_wallet_keeps_retail_player_zero_lower_denominations() {
 }
 
 #[test]
+fn trainer_art_requirements_project_independent_level_skill_and_known_ability_facts() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut book = TrainerBook::default();
+        book.receive_list(TrainerList {
+            npc: 1,
+            trainer_id: 7,
+            greeting: String::new(),
+            services: vec![TrainerService {
+                spell_id: 100,
+                state: TrainerServiceState::Unavailable,
+                cost: 250,
+                req_level: 5,
+                req_skill_line: 164,
+                req_skill_rank: 50,
+                req_abilities: vec![99, 98],
+                profession: false,
+            }],
+        });
+        let view = TrainerView {
+            book,
+            player_level: 20,
+            known_spells: [99].into(),
+            ranks: vec![shared::profession::ProfessionSkillLine {
+                skill_line: 164,
+                step: 1,
+                rank: 40,
+                max_rank: 300,
+            }],
+            display: TrainerDisplay {
+                names: [
+                    (100, "Forging".into()),
+                    (99, "Apprentice Blacksmith".into()),
+                    (98, "Smelting".into()),
+                ]
+                .into(),
+                skills: [(164, "Blacksmithing".into())].into(),
+                ..Default::default()
+            },
+            ..Default::default()
+        };
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(trainer_screen).sync(&context, &mut registry);
+        apply_trainer_art(context.get::<TrainerView>().unwrap(), &mut registry);
+        let words: Vec<_> = registry
+            .frames_iter()
+            .filter(|frame| {
+                frame
+                    .name
+                    .as_deref()
+                    .is_some_and(|name| name.starts_with("ClassTrainerService100Requirements"))
+            })
+            .filter_map(|frame| match &frame.widget_data {
+                Some(WidgetData::FontString(font)) => Some((font.text.clone(), font.color)),
+                _ => None,
+            })
+            .collect();
+        let red = [1.0, 32.0 / 255.0, 32.0 / 255.0, 1.0];
+        for value in ["5", "Blacksmithing ", "Apprentice ", "Blacksmith"] {
+            assert!(
+                words.contains(&(value.into(), [1.0; 4])),
+                "{value}: {words:?}"
+            );
+        }
+        for value in ["50", "Smelting"] {
+            assert!(words.contains(&(value.into(), red)), "{value}: {words:?}");
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn trainer_art_filter_labels_use_retail_state_colors() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let registry = render(skin, 0);
