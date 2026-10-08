@@ -1831,6 +1831,55 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
     }
 
     #[test]
+    fn ghoststate_visible_remote_player_death_states_keep_nameplate_status() {
+        let viewer = Viewer {
+            id: 7,
+            target: Some(8),
+            position: Vector3::ZERO,
+            template: None,
+        };
+        let mut replica = Replica::for_tests();
+        replica.insert(
+            8,
+            Player {
+                name: "Elara".into(),
+                race: 1,
+                class: 1,
+                appearance: Default::default(),
+            },
+        );
+        let cvars = NameplateCvars {
+            show_friendly_players: true,
+            ..Default::default()
+        };
+        for life in [
+            DeathState::Alive,
+            DeathState::Dead,
+            DeathState::Ghost,
+            DeathState::Alive,
+        ] {
+            replica.insert(8, life);
+            replica.insert(
+                8,
+                Health {
+                    current: if life == DeathState::Alive {
+                        100.0
+                    } else {
+                        0.0
+                    },
+                    max: 100.0,
+                },
+            );
+            let unit = replica.unit(8).unwrap();
+            let rules = plate_rule_input(&viewer, unit, None, 10.0);
+            assert!(
+                plate_shown(&cvars, &rules),
+                "visible targeted remote {life:?} must retain its status label"
+            );
+        }
+    }
+
+    #[test]
     fn health_text_is_the_percent_alone_by_default() {
         let show_value = NameplateStyle::default().show_health_value;
         let text = |current, max| {
