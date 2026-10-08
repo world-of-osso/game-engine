@@ -26,13 +26,7 @@ fn browse_frame() -> AuctionHouseFrameState {
         visible: true,
         money: 12_345_678,
         search_empty: true,
-        categories: super::view::CATEGORIES
-            .iter()
-            .map(|(name, _)| CategoryRow {
-                name: (*name).into(),
-                selected: false,
-            })
-            .collect(),
+        categories: super::categories::rows(&[]),
         browse: preview_items()
             .into_iter()
             .enumerate()

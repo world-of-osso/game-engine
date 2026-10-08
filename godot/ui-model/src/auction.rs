@@ -1,5 +1,6 @@
 //! Native auction session: wire replies, actions and portable presentation.
 mod actions;
+mod categories;
 pub mod preview;
 pub mod view;
 use crate::auction_house_frame_component::{AuctionHouseTab, AuctionsSubTab};
@@ -8,7 +9,8 @@ pub struct AuctionHouseUi {
     /// Auctioneer whose interaction opened the frame (server entity bits).
     pub npc: Option<u64>,
     pub tab: AuctionHouseTab,
-    pub category: Option<usize>,
+    /// Selected category → subcategory → sub-subcategory indices.
+    pub category_path: Vec<usize>,
     /// Item whose auctions the item buy frame lists.
     pub browse_item: Option<u32>,
     pub selected_auction: Option<u64>,
@@ -29,7 +31,7 @@ impl Default for AuctionHouseUi {
         Self {
             npc: None,
             tab: AuctionHouseTab::Buy,
-            category: None,
+            category_path: Vec::new(),
             browse_item: None,
             selected_auction: None,
             dialog_auction: None,
