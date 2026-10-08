@@ -11,7 +11,7 @@ Native `ClassTrainerFrame` in `godot/ui-model/src/trainer*.rs` and `godot/rust/s
 - [x] Adding a primary profession requires Accept / Cancel and a free primary slot; changing selection or closing cancels confirmation.
 - [x] `TrainerBuyFailed` displays its reason without optimistic spending. Both Modern and Forever use the shared window chrome and same decisions.
 - [x] Three-denomination selected and unselected prices keep every coin inside the row/scroll clip and above selection art.
-- [ ] Recipe service content includes the crafted item's name/quality/properties, reagent names/counts and current service Requires lines; class service content retains the full shared spell tooltip. Both record-ID lines remain for recipes (Item ID and Spell ID); class spells retain Spell ID.
+- [x] Recipe service content includes the crafted item's name/quality/properties, reagent names/counts and current service Requires lines; class service content retains the full shared spell tooltip. Both record-ID lines remain for recipes (Item ID and Spell ID); class spells retain Spell ID.
 - [x] Hovering any visible service row or descendant shows that service's shared catalog spell/recipe tooltip in both skins, not the selected service; Retail `ANCHOR_RIGHT` +35 and the requested grey Spell ID line remain. Leaving, filtering it away or closing removes the tooltip.
 
 ## Retail references
@@ -37,7 +37,8 @@ Under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 
 - `godot/ui-model/src/trainer.rs`: list/filter/selection/request/confirmation/refusal decisions.
 - `godot/ui-model/src/trainer_frame.rs`: skinned window, service list, filters, rank, money and confirmation.
-- `godot/ui-model/src/professions_catalog.rs`: primary profession classification from SkillLine.
+- `godot/ui-model/src/professions_catalog.rs`: existing recipe output/reagent imports and SkillLine classification, including unlearned recipe lookup.
+- `godot/ui-model/src/game_tooltip/trainer.rs`: shared item/spell content composition and current service Requires lines.
 - `godot/rust/src/trainer.rs`: NPC-driven native UI, Gold and snapshot projection, TrainerChannel sends.
 - `godot/rust/src/{account,merchant,professions,window_stack,lib}.rs`, `godot/network/src/lib.rs`: existing consumer/lifecycle integration.
 
@@ -117,7 +118,9 @@ The trainer composes the existing `item_game_tooltip` with `RecipeCatalog` outpu
 
 Metadata is already available: `professions_catalog.rs:load_outputs/load_reagents/load_recipes` joins SpellEffect create-item (24), SpellReagents and SkillLineAbility; `ItemCatalog` supplies output/reagent names, qualities and item properties; `SpellCatalog` supplies the class spell content. Lookup uses the unfiltered recipe catalog, **not** the player's learned-recipe book or the primary-profession acquisition flag. No new importer, core schema, server or protocol change. All needed CSVs exist under canonical `data/db2/12.1.0.69933/`; the test staging list adds SpellReagents and TradeSkillCategory (SkillLine was already present).
 
-Behavioural RED: `9f069a0b6`, six tooltip tests: three existing/class tests pass; three fail specifically on absent reagents, wrong uncommon crafted-item title colour and absent Requires. Native baseline also fails the recipe content assertion with only `1.5 sec cast` and `Spell ID: 2963`. GREEN and final capture/integration evidence pending in `data/diagnostics/trainerrecipe-2026-10-08/proof-ledger.txt`.
+Behavioural RED: `9f069a0b6`, six tooltip tests: three existing/class tests pass; three fail specifically on absent reagents, wrong uncommon crafted-item title colour and absent Requires. Native baseline also fails the recipe content assertion with only `1.5 sec cast` and `Spell ID: 2963`. GREEN: `fdad520a5` targeted trainer9/art7/tooltips6 = **22 passed**, zero failures. Test-only `7808afa4c` extends those six tooltip cases to met/unmet level/rank/ability colours and the actual Frostbolt power cost; its focused rerun and final whole-crate gate are recorded in `data/diagnostics/trainerrecipe-2026-10-08/proof-ledger.txt`. Matching native library/CLI build/install passes at `c9904c253`; changed Rust formatting passes. Whole-workspace cargo fmt retains two pre-existing reorder diffs in untouched `godot/core/src/lib.rs` and `godot/rust/src/assets/appearance.rs` (unchanged from base `0374279c8`), not a clean workspace format claim.
+
+At capture code `f3906a416` with that matching library, all four offline `capture_ui_screen.gd` PNGs were inspected: `modern-recipe.png`, `forever-recipe.png`, `modern-spell.png`, `forever-spell.png` under the same canonical evidence directory. Recipe2963 visibly shows the common-white Bolt of Linen Cloth item, Sell Price40c, Item ID2996, Linen Cloth(2), Requires Level5/Classic Tailoring(1), and final Spell ID2963. Class116 visibly shows Frostbolt, 2% of base mana, 40yd range, 1.8sec cast, the complete gold wrapped description (50% slow for8sec) and grey Spell ID116. The hovered known Frostbolt row differs from the selected Linen row. Both Modern metal and Forever bronze chrome retain their geometry and readable, unclipped tooltip content. Offline context lacks replicated caster power: the shared renderer omits an unavailable scaled damage amount rather than inventing one. Forever recipe and both spell capture exit statuses are0; initial Modern recipe has native PASS markers/PNG and exited PID, but its first launcher did not retain the OS exit code. Exact descriptors, logs and LOOK observations are in that ledger.
 
 Native content beyond these existing static recipe/item/spell catalogs (e.g. dynamically selected crafting output/reagent slots) and pixel-identical Retail C++ tooltip formatting are not established by this offline audit. The cached Lua delegates its line content to native TooltipData; no full Retail-client oracle was run.
 
@@ -125,7 +128,7 @@ Native content beyond these existing static recipe/item/spell catalogs (e.g. dyn
 
 - [ ] Native matching `InteractionClosed`, world-reset and Escape network-close receipt lack dedicated behavioral integration assertions; close/request code is wired, but do not infer full lifecycle acceptance from purchase proof.
 - [ ] Client exit logs contain texture/RID/ObjectDB leak warnings; exit 0 is not clean-resource shutdown proof.
-- [ ] Conditional SkillStepButton/split-inset layout lacks a supplied Retail step index; rank modifiers remain unsupported/unverified. Complete C++ recipe-tooltip output/reagent line parity remains unverified; shared service-hover proof is tracked above. Do not infer the step from `TrainerService.profession` (primary-slot acquisition). Default-window geometry/art, portrait slot/mask, base-rank fill and per-requirement colours have bounded offline acceptance above, not pixel-identical or live-NPC proof. Existing native scroll-input decisions are unchanged; only list/scrollbar geometry is matched. No user-requested deviation is removed or invented.
+- [ ] Conditional SkillStepButton/split-inset layout lacks a supplied Retail step index; rank modifiers remain unsupported/unverified. Static recipe output/reagent/Requires content has the scoped proof above; dynamic native crafting slots and pixel-identical C++ line formatting remain unverified. Do not infer the step from `TrainerService.profession` (primary-slot acquisition). Default-window geometry/art, portrait slot/mask, base-rank fill and per-requirement colours have bounded offline acceptance above, not pixel-identical or live-NPC proof. Existing native scroll-input decisions are unchanged; only list/scrollbar geometry is matched. No user-requested deviation is removed or invented.
 
 ## Out of scope
 
