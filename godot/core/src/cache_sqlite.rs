@@ -85,3 +85,42 @@ pub(crate) fn staged_builds(cache_path: &Path) -> usize {
         .filter(|built| built.as_path() == cache_path)
         .count()
 }
+
+#[cfg(test)]
+type StaleBarriers = Vec<(PathBuf, std::sync::Arc<std::sync::Barrier>)>;
+
+#[cfg(test)]
+static STALE_BARRIERS: std::sync::Mutex<StaleBarriers> = std::sync::Mutex::new(Vec::new());
+
+/// Makes the next `importers` callers that find the cache at `cache_path` missing or stale
+/// wait for each other before any of them rebuilds it.
+#[cfg(test)]
+pub(crate) fn hold_stale_observers(cache_path: &Path, importers: usize) {
+    let barrier = std::sync::Arc::new(std::sync::Barrier::new(importers));
+    STALE_BARRIERS
+        .lock()
+        .unwrap()
+        .push((cache_path.to_path_buf(), barrier));
+}
+
+#[cfg(test)]
+pub(crate) fn release_stale_observers(cache_path: &Path) {
+    STALE_BARRIERS
+        .lock()
+        .unwrap()
+        .retain(|(held, _)| held.as_path() != cache_path);
+}
+
+/// Called by an importer right after it found the cache missing or stale.
+#[cfg(test)]
+pub(crate) fn observed_stale(cache_path: &Path) {
+    let barrier = STALE_BARRIERS
+        .lock()
+        .unwrap()
+        .iter()
+        .find(|(held, _)| held.as_path() == cache_path)
+        .map(|(_, barrier)| barrier.clone());
+    if let Some(barrier) = barrier {
+        barrier.wait();
+    }
+}

@@ -280,6 +280,8 @@ pub fn import_char_texture_cache(data_dir: &Path) -> Result<PathBuf, String> {
         true
     };
     if needs_rebuild {
+        #[cfg(test)]
+        crate::cache_sqlite::observed_stale(&cache_path);
         rebuild_cache(&cache_path, data_dir)?;
     }
     Ok(cache_path)
@@ -355,21 +357,18 @@ mod tests {
         };
         let stale = identity(&cache);
         let builds_before = crate::cache_sqlite::staged_builds(&cache);
-        let barrier = std::sync::Barrier::new(IMPORTERS);
+        // Every importer finds the cache stale before any of them rebuilds it.
+        crate::cache_sqlite::hold_stale_observers(&cache, IMPORTERS);
         let seen = std::thread::scope(|scope| {
             let workers = (0..IMPORTERS)
-                .map(|_| {
-                    scope.spawn(|| {
-                        barrier.wait();
-                        identity(&import_char_texture_cache(&root).unwrap())
-                    })
-                })
+                .map(|_| scope.spawn(|| identity(&import_char_texture_cache(&root).unwrap())))
                 .collect::<Vec<_>>();
             workers
                 .into_iter()
                 .map(|worker| worker.join().unwrap())
                 .collect::<Vec<_>>()
         });
+        crate::cache_sqlite::release_stale_observers(&cache);
         let rebuilt = identity(&cache);
         assert_ne!(rebuilt, stale, "the stale cache must be rebuilt");
         assert_eq!(
