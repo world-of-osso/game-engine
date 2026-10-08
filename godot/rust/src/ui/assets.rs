@@ -199,7 +199,7 @@ fn load_icon_art<T>(id: u32, mut load: impl FnMut(u32) -> Result<T, String>) -> 
 }
 
 fn lookup_icon_namespace(id: u32) -> bool {
-    asset_resolver::lookup_fdid(id).is_some_and(|path| {
+    osso_asset_resolver::lookup_fdid(id).is_some_and(|path| {
         path.replace('\\', "/")
             .to_ascii_lowercase()
             .starts_with("interface/icons/")
