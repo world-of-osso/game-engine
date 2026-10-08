@@ -46,17 +46,29 @@ mod specialization_tests {
         // ChrSpecialization 71 (Arms): OrderIndex 0; 72 (Fury): OrderIndex 1.
         let mut spells = crate::player_spells::PlayerSpells::default();
         assert_eq!(
-            slam_cast_kit(42, spells.spec().map(|spec| (42, spec)), &Replica::default()),
+            slam_cast_kit(
+                42,
+                spells.spec().map(|spec| (42, spec)),
+                &Replica::default()
+            ),
             62428
         );
         spells.set_spec(71);
         assert_eq!(
-            slam_cast_kit(42, spells.spec().map(|spec| (42, spec)), &Replica::default()),
+            slam_cast_kit(
+                42,
+                spells.spec().map(|spec| (42, spec)),
+                &Replica::default()
+            ),
             62428
         );
         spells.set_spec(72);
         assert_eq!(
-            slam_cast_kit(42, spells.spec().map(|spec| (42, spec)), &Replica::default()),
+            slam_cast_kit(
+                42,
+                spells.spec().map(|spec| (42, spec)),
+                &Replica::default()
+            ),
             128672
         );
     }
