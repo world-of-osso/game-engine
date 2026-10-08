@@ -11,9 +11,59 @@ pub fn open_read_only(path: &Path) -> Result<Connection, String> {
     .map_err(|err| format!("open {}: {err}", path.display()))
 }
 
-/// Builds a cache in a private staging file and renames it over `cache_path`. Concurrent
-/// rebuilders never write the same SQLite file, and readers only ever open a complete cache.
-pub fn replace_atomically(
+/// Returns once `cache_path` holds a cache `is_fresh` accepts, building it with `build` when it
+/// is missing or stale. Rebuilders of one cache serialise on `<cache>.lock` and re-check
+/// freshness under it, so only the first rebuilds and the rest reuse its file. The build
+/// writes a private staging file renamed over `cache_path`, so readers only ever open a
+/// complete cache.
+pub fn rebuild_unless_fresh(
+    cache_path: &Path,
+    is_fresh: impl Fn(&Connection) -> Result<bool, String>,
+    build: impl FnOnce(&Connection) -> Result<(), String>,
+) -> Result<(), String> {
+    if cache_is_fresh(cache_path, &is_fresh)? {
+        return Ok(());
+    }
+    #[cfg(test)]
+    observed_stale(cache_path);
+    let _lock = lock_rebuilds(cache_path)?;
+    if cache_is_fresh(cache_path, &is_fresh)? {
+        return Ok(());
+    }
+    replace_atomically(cache_path, build)
+}
+
+fn cache_is_fresh(
+    cache_path: &Path,
+    is_fresh: impl Fn(&Connection) -> Result<bool, String>,
+) -> Result<bool, String> {
+    if !cache_path.exists() {
+        return Ok(false);
+    }
+    is_fresh(&open_read_only(cache_path)?)
+}
+
+/// Takes the exclusive rebuild lock of `cache_path`; it is released when the file is dropped.
+fn lock_rebuilds(cache_path: &Path) -> Result<std::fs::File, String> {
+    let mut lock_path = cache_path.as_os_str().to_owned();
+    lock_path.push(".lock");
+    let lock_path = PathBuf::from(lock_path);
+    if let Some(parent) = lock_path.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|err| format!("create {}: {err}", parent.display()))?;
+    }
+    let file = std::fs::OpenOptions::new()
+        .create(true)
+        .truncate(false)
+        .write(true)
+        .open(&lock_path)
+        .map_err(|err| format!("open {}: {err}", lock_path.display()))?;
+    file.lock()
+        .map_err(|err| format!("lock {}: {err}", lock_path.display()))?;
+    Ok(file)
+}
+
+fn replace_atomically(
     cache_path: &Path,
     build: impl FnOnce(&Connection) -> Result<(), String>,
 ) -> Result<(), String> {
@@ -47,7 +97,6 @@ fn staging_path(cache_path: &Path) -> Result<PathBuf, String> {
             cache_path.display()
         ));
     };
-    std::fs::create_dir_all(parent).map_err(|err| format!("create {}: {err}", parent.display()))?;
     Ok(parent.join(format!(
         "{}.{}-{}.tmp",
         name.to_string_lossy(),
