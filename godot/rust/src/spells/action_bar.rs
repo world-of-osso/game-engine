@@ -45,7 +45,9 @@ impl GameClient {
     pub(crate) fn bar_slot(&self, bar: ActionBar, index: usize) -> usize {
         match bar {
             ActionBar::Main => self.main_bar_slot(index),
-            ActionBar::BottomLeft | ActionBar::BottomRight => bar.action_slot(index),
+            ActionBar::BottomLeft | ActionBar::BottomRight | ActionBar::Right | ActionBar::Left => {
+                bar.action_slot(index)
+            }
         }
     }
 
@@ -109,6 +111,7 @@ impl GameClient {
     pub(super) fn action_bar_state(&mut self) -> MainActionBarState {
         let mut state = MainActionBarState {
             player_class: self.local_player_class(),
+            extra_action_bars: self.client_options.hud.extra_action_bars,
             ..Default::default()
         };
         for bar in ActionBar::ALL {
