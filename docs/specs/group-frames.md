@@ -108,6 +108,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Start it with `/readycheck` or `/rc` (SLASH_READYCHECK) or the self-menu entry. The server marks the leader Ready; the timeout is 30 s.
 - [x] `ReadyCheckFrame` (323×100 at CENTER 0,−10, RC) shows "%s has initiated a ready check." (`READY_CHECK_MESSAGE`) with Ready / Not Ready buttons (119×24). It shows only to members who still have to answer, not the initiator.
   - Buttons send `RespondReadyCheck`.
+  - Both Modern and Forever must project the Retail dark dialog background (6839810), nine-slice border (6795680), title, initiator message and both buttons through the native HUD. Answer and server timeout remove the popup; Ready / Not Ready answers appear on the leader's member frames.
 - [x] Member frames show `UI-LFG-ReadyMark/PendingMark/DeclineMark-Raid` at 20 × component scale, BOTTOM 0,h/3−4 (CUF:2038-2041).
   - After the check ends, members still waiting show Not Ready (`CompactUnitFrame_FinishReadyCheck`).
   - The marks clear 11 s later (`CUF_READY_CHECK_DECAY_TIME`).
@@ -164,6 +165,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - `godot/rust/src/party_frames.rs`: party order, live bars, Dead/Offline, range, target highlight; invite popup accept/cancel/timeout; `portrait_party_roster_tracks_join_leader_offline_death_and_leave` uses concrete roster transitions and inspects rendered registry names/class colours/bars/leader/status.
   - `godot/ui-model/tests/portrait_party_frame.rs`: compact-default/portrait selection and unchanged raid visibility under both skins, source-cited offline bars and crown rect.
   - `godot/rust/src/ui/parts_tests.rs::portrait_party_desaturated_health_projects_sampled_image_desaturation`: sampled-image desaturation reaches native shader rather than greying only vertex tint.
+  - `godot/tests/ready_check_projection.gd`: protocol ready-check update → native group HUD projection, both skins' dialog art/text/buttons and timeout removal (not only the UI-model tree).
   - `godot/rust/src/chat_tests.rs::group_commands_become_group_requests`.
   - `src/game/networking/group_tests.rs`: inbox handling, invite cancel, chat lines, commands reaching the worker.
   - `src/scenes/group_frames/tests.rs`: frames, placement and clicks:
