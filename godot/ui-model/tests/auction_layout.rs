@@ -86,6 +86,48 @@ fn auction_item_header_icon_uses_retail_crop_and_size() {
 }
 
 #[test]
+fn auction_list_and_bid_geometry_matches_retail_anchors() {
+    use ui_toolkit::layout_values::Val;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let owned = render(skin, "owned");
+        let row = frame(&owned, "AuctionHouseFrameAuctionsFrameAllAuctionsListRow1");
+        assert_eq!(row.position.top, Val::Px(100.0));
+        let item = render(skin, "item");
+        assert_eq!(
+            frame(&item, "AuctionHouseFrameBidButton").position.left,
+            Val::Px(565.0)
+        );
+        assert_eq!(
+            frame(&item, "AuctionHouseFrameBidAmountGold").width.value(),
+            70.0
+        );
+        assert_eq!(
+            frame(&item, "AuctionHouseFrameBidAmountSilver")
+                .width
+                .value(),
+            48.0
+        );
+        let browse = render(skin, "browse");
+        assert_eq!(
+            frame(
+                &browse,
+                "AuctionHouseFrameBrowseResultsFrameItemListBackground"
+            )
+            .height
+            .value(),
+            413.0
+        );
+        assert_eq!(
+            frame(&item, "AuctionHouseFrameItemBuyFrameItemListBackground")
+                .height
+                .value(),
+            277.0
+        );
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn auction_snapshots_preserve_root_search_and_band_geometry() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let browse = render(skin, "browse");
