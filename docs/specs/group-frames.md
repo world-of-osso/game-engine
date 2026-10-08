@@ -97,6 +97,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Group frames also offer Target and Inspect when the member's unit is replicated.
 
 ### Leadership and conversion
+- The leader can move a raid member to subgroup 1–8 with `game-engine-cli group subgroup --name <member> --subgroup <1..8>` (`SetRaidSubgroup`). Frames follow the authoritative roster; permissions and full-group rejection remain server-owned.
 - [x] Promote sends `PromoteGroupLeader`. The roster moves the leader, and "%s is now the group leader." is shown.
 - [x] Convert to raid sends `ConvertGroupToRaid` ("Party converted to Raid"). Convert to party sends `ConvertGroupToParty`: all members go to subgroup 1, "Raid converted to Party".
   - A raid of 6 or more is rejected with `ERR_GROUP_FULL`.
@@ -107,6 +108,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Start it with `/readycheck` or `/rc` (SLASH_READYCHECK) or the self-menu entry. The server marks the leader Ready; the timeout is 30 s.
 - [x] `ReadyCheckFrame` (323×100 at CENTER 0,−10, RC) shows "%s has initiated a ready check." (`READY_CHECK_MESSAGE`) with Ready / Not Ready buttons (119×24). It shows only to members who still have to answer, not the initiator.
   - Buttons send `RespondReadyCheck`.
+  - Both Modern and Forever must project the Retail dark dialog background (6839810), nine-slice border (6795680), title, initiator message and both buttons through the native HUD. Answer and server timeout remove the popup; Ready / Not Ready answers appear on the leader's member frames.
 - [x] Member frames show `UI-LFG-ReadyMark/PendingMark/DeclineMark-Raid` at 20 × component scale, BOTTOM 0,h/3−4 (CUF:2038-2041).
   - After the check ends, members still waiting show Not Ready (`CompactUnitFrame_FinishReadyCheck`).
   - The marks clear 11 s later (`CUF_READY_CHECK_DECAY_TIME`).
@@ -131,6 +133,19 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [ ] Role enums: `shared::group::GroupRole`, `GroupRoleSnapshot` and `class_spec::Role` are still three separate types.
 
 ## Verified scope
+
+### Native ready-check repair (raidloop continuation)
+
+`06d85e0d8`, pinned Godot 4.7.2, private UDP 5330 and two Weston/Dozen clients. Evidence: `data/diagnostics/raidloop-2026-10-07/proof-ledger.txt`; `readycheck-*` captures were inspected, with paired JSON and native IPC status/UI dumps. Other previously passed raid steps were not rerun.
+
+| Case | Modern | Forever | Inspected captures (prefix `readycheck-<skin>-`) |
+|---|---|---|---|
+| Member sees Retail art, initiator text and both labeled buttons | PASS | PASS | `popup-b.png` |
+| Mouse Ready marks member ready on leader frames | PASS | PASS | `ready-a.png` (completed summary; Forever IPC `2/2 finished=true`) |
+| Second check, mouse Not Ready marks member not-ready | PASS | PASS | `notready-a.png` (IPC `1/2 finished=true`, member decline atlas) |
+| Popup closes on either answer and on server timeout | PASS | PASS | `ready-closed-b.png`, `notready-closed-b.png`, `timeout-start-b.png` → `timeout-closed-b.png` |
+
+The native process regression first failed on `79fe67663` with the live `Unconverted native frame decoration: ReadyCheckFrameBorder` error, then passed both skins with the registered Retail dialog nine-slice. Existing error rejection remains intact. Shared-style consumers (character reputation, bank/guild bank, auction, HUD editor and static popups) already register that style; no other missing consumer was found. Forever's menu centre overlaps its action bar at this position; proof clicked the visible left portion of the real menu, without changing approved layout or unrelated menu layering. Cached engine teardown leaks and full reference/general shutdown acceptance remain outside this bounded proof.
 
 - [x] Live (2026-09-25), three headless clients on an isolated server (:5060); evidence in `data/diagnostics/groups-20260925/` (final run at the top level, driver `run.sh`, scripts `a.js`/`b.js`/`c.js`):
   - `/invite` from IPC → `PARTY_INVITE` popup on Partyb (01), clicked Accept → party of two and three (02, 03).
@@ -163,6 +178,7 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
   - `godot/rust/src/party_frames.rs`: party order, live bars, Dead/Offline, range, target highlight; invite popup accept/cancel/timeout; `portrait_party_roster_tracks_join_leader_offline_death_and_leave` uses concrete roster transitions and inspects rendered registry names/class colours/bars/leader/status.
   - `godot/ui-model/tests/portrait_party_frame.rs`: compact-default/portrait selection and unchanged raid visibility under both skins, source-cited offline bars and crown rect.
   - `godot/rust/src/ui/parts_tests.rs::portrait_party_desaturated_health_projects_sampled_image_desaturation`: sampled-image desaturation reaches native shader rather than greying only vertex tint.
+  - `godot/tests/ready_check_projection.gd`: protocol ready-check update → native group HUD projection, both skins' dialog art/text/buttons and timeout removal (not only the UI-model tree).
   - `godot/rust/src/chat_tests.rs::group_commands_become_group_requests`.
   - `src/game/networking/group_tests.rs`: inbox handling, invite cancel, chat lines, commands reaching the worker.
   - `src/scenes/group_frames/tests.rs`: frames, placement and clicks:

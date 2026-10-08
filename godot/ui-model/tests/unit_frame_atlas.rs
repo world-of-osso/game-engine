@@ -178,7 +178,12 @@ fn party_member(role: GroupRoleSnapshot, ready: ReadyMark) -> FrameRegistry {
     };
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(move |_| {
-        compact_unit_frame("CompactPartyFrameMember1", &view, (0.0, 0.0, 72.0, 36.0))
+        compact_unit_frame(
+            "CompactPartyFrameMember1",
+            &view,
+            (0.0, 0.0, 72.0, 36.0),
+            None,
+        )
     })
     .sync(&SharedContext::new(), &mut registry);
     registry

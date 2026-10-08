@@ -109,8 +109,13 @@ struct DynName(String);
 /// Rect `(x, y, width, height)` from the parent's top-left.
 type Rect = (f32, f32, f32, f32);
 
-pub fn compact_unit_frame(name: &str, view: &CompactUnitView, rect: Rect) -> Element {
-    compact_frame(name, view, rect, PartyFrameSettings::default(), None)
+pub fn compact_unit_frame(
+    name: &str,
+    view: &CompactUnitView,
+    rect: Rect,
+    auras: Option<&PartyAuraView>,
+) -> Element {
+    compact_frame(name, view, rect, PartyFrameSettings::default(), auras)
 }
 
 pub fn party_unit_frame(

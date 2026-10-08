@@ -17,6 +17,9 @@ use game_engine_ui_model::group_frames_component::{GroupFramesState, RAID_GROUPS
 use game_engine_ui_model::group_state::{GroupCommand, GroupState};
 use game_engine_ui_model::inworld_unit_frames_component::power_bar_rgb;
 use game_engine_ui_model::popup::{PopupOutcome, PopupResult, PopupSpec, PopupStack};
+use game_engine_ui_model::ready_check_frame_component::{
+    ACTION_READY_CHECK_NO, ACTION_READY_CHECK_YES, ReadyCheckFrameState,
+};
 use game_engine_ui_model::static_popup_component::{StaticPopupState, parse_popup_action};
 use godot::prelude::*;
 use shared::components::Player;
@@ -80,6 +83,15 @@ pub(crate) fn group_frames_state(
 ) -> GroupFramesState {
     let mut state = GroupFramesState {
         raid: vec![Vec::new(); RAID_GROUPS],
+        ready_check: ReadyCheckFrameState {
+            visible: viewer
+                .local_name
+                .is_some_and(|name| group.awaits_ready_answer(name)),
+            initiator: group
+                .ready_check
+                .as_ref()
+                .map_or_else(String::new, |check| check.update.initiator_name.clone()),
+        },
         ..Default::default()
     };
     if group.is_raid {
@@ -208,6 +220,14 @@ fn fraction(current: i64, max: i64) -> f32 {
     (current as f32 / max as f32).clamp(0.0, 1.0)
 }
 
+fn ready_check_command(action: &str) -> Result<GroupCommand, String> {
+    match action {
+        ACTION_READY_CHECK_YES => Ok(GroupCommand::RespondReadyCheck(true)),
+        ACTION_READY_CHECK_NO => Ok(GroupCommand::RespondReadyCheck(false)),
+        _ => Err(format!("Unknown group frame action: {action}")),
+    }
+}
+
 /// `PARTY_INVITE`: "%s invites you to a group." (`INVITATION`), Accept / Decline, 60 s.
 fn invite_popup_spec(inviter: &str) -> PopupSpec {
     PopupSpec {
@@ -291,6 +311,8 @@ impl GameClient {
             self.group_frames.close();
             return Ok(());
         }
+        self.account.group.tick_ready_check(delta.max(0.0));
+        self.poll_group_frame_actions()?;
         self.sync_death_popups();
         self.update_summon_popup(Duration::from_secs_f32(delta.max(0.0)));
         self.poll_invite_popup_actions()?;
@@ -360,7 +382,12 @@ impl GameClient {
             let Some(player) = unit.get::<Player>() else {
                 continue;
             };
-            if !frames.party.iter().any(|member| member.name == player.name) {
+            let grouped = frames
+                .party
+                .iter()
+                .chain(frames.raid.iter().flatten())
+                .any(|member| member.name == player.name);
+            if !grouped {
                 continue;
             }
             let buffs = self
@@ -437,6 +464,22 @@ impl GameClient {
         Ok(ui)
     }
 
+    fn poll_group_frame_actions(&mut self) -> Result<(), String> {
+        let Some(ui) = self.group_frames.frames.as_mut() else {
+            return Ok(());
+        };
+        loop {
+            let action = ui.bind_mut().pop_action().to_string();
+            if action.is_empty() {
+                return Ok(());
+            }
+            let command = ready_check_command(&action)?;
+            self.account
+                .send_group(command)
+                .map_err(|error| error.to_string())?;
+        }
+    }
+
     /// Accept / Decline clicks on the popups.
     fn poll_invite_popup_actions(&mut self) -> Result<(), String> {
         let Some(ui) = self.group_frames.popups_ui.as_mut() else {
@@ -493,6 +536,79 @@ mod tests {
     use super::*;
     use shared::components::{AuraView, Position, PowerEntry, PowerType};
     use shared::protocol::{GroupMemberState, GroupRoleSnapshot, GroupRosterSnapshot};
+
+    #[test]
+    fn raid_ready_check_projects_pending_member_popup_and_finished_marks() {
+        use shared::protocol::{ReadyCheckAnswer, ReadyCheckMemberSnapshot, ReadyCheckUpdate};
+        let mut group = GroupState::default();
+        group.is_raid = true;
+        group.members = vec![member("Ann", 2, true), member("Bob", 9, true)];
+        let mut update = ReadyCheckUpdate {
+            initiator_name: "Ann".into(),
+            time_remaining_secs: 30.0,
+            members: vec![
+                ReadyCheckMemberSnapshot {
+                    name: "Ann".into(),
+                    answer: ReadyCheckAnswer::Ready,
+                },
+                ReadyCheckMemberSnapshot {
+                    name: "Bob".into(),
+                    answer: ReadyCheckAnswer::Pending,
+                },
+            ],
+            finished: false,
+        };
+        group.apply_ready_check(update.clone());
+        let viewer = GroupViewer {
+            local_name: Some("Bob"),
+            target_name: None,
+        };
+        let frames = group_frames_state(&group, &viewer, &|_| 0);
+        assert!(frames.ready_check.visible);
+        assert_eq!(frames.ready_check.initiator, "Ann");
+        assert_eq!(
+            frames.raid[0][1].ready,
+            Some(game_engine_ui_model::group_state::ReadyMark::Waiting)
+        );
+        let leader = GroupViewer {
+            local_name: Some("Ann"),
+            target_name: None,
+        };
+        assert!(
+            !group_frames_state(&group, &leader, &|_| 0)
+                .ready_check
+                .visible
+        );
+        update.finished = true;
+        group.apply_ready_check(update);
+        let frames = group_frames_state(&group, &viewer, &|_| 0);
+        assert!(!frames.ready_check.visible);
+        assert_eq!(
+            frames.raid[0][1].ready,
+            Some(game_engine_ui_model::group_state::ReadyMark::NotReady)
+        );
+        group.tick_ready_check(11.0);
+        assert_eq!(
+            group_frames_state(&group, &viewer, &|_| 0).raid[0][1].ready,
+            None
+        );
+    }
+
+    #[test]
+    fn ready_check_buttons_send_both_answers_and_reject_unknown_actions() {
+        assert_eq!(
+            ready_check_command(ACTION_READY_CHECK_YES).unwrap(),
+            GroupCommand::RespondReadyCheck(true)
+        );
+        assert_eq!(
+            ready_check_command(ACTION_READY_CHECK_NO).unwrap(),
+            GroupCommand::RespondReadyCheck(false)
+        );
+        assert_eq!(
+            ready_check_command("invalid").unwrap_err(),
+            "Unknown group frame action: invalid"
+        );
+    }
 
     fn member(name: &str, class: u8, online: bool) -> GroupMemberSnapshot {
         GroupMemberSnapshot {

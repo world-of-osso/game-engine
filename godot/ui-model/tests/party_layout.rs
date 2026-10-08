@@ -218,6 +218,29 @@ fn rect(r: &FrameRegistry, name: &str) -> (f32, f32, f32, f32) {
 }
 
 #[test]
+fn raid_member_keeps_replicated_buffs_and_harmful_auras_after_conversion() {
+    let _lock = SKIN.lock().unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut groups = state();
+        groups.raid = vec![std::mem::take(&mut groups.party)];
+        let registry = render_state(skin, LayoutSettings::default(), groups);
+        assert_eq!(text(&registry, "CompactRaidGroup1Member1Name"), "Zed");
+        let buff = frame(&registry, "CompactRaidGroup1Member1Buff1");
+        assert!(buff.visible);
+        assert!(frame(&registry, "CompactRaidGroup1Member1Debuff1").visible);
+        let mut groups = state();
+        groups.raid = vec![std::mem::take(&mut groups.party)];
+        groups.party_auras.clear();
+        let registry = render_state(skin, LayoutSettings::default(), groups);
+        assert!(
+            registry
+                .get_by_name("CompactRaidGroup1Member1Buff1")
+                .is_none()
+        );
+    }
+}
+
+#[test]
 fn party4_options_select_party_and_disable_compact() {
     let _lock = SKIN.lock().unwrap();
     let mut layout = LayoutOptionsView::default();

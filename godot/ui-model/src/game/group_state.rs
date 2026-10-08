@@ -143,6 +143,10 @@ pub enum GroupCommand {
     Leave,
     ConvertToRaid,
     ConvertToParty,
+    SetSubgroup {
+        name: String,
+        subgroup: u8,
+    },
     SetRole {
         name: String,
         role: GroupRoleSnapshot,

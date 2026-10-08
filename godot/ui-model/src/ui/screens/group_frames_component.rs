@@ -135,7 +135,7 @@ pub fn group_frames_screen(ctx: &SharedContext) -> Element {
     rsx! {
         {scale_party(party_frame(compact_members, &layout.party, party_title_hidden(skin), settings.party, &state), settings.party, &layout.party)}
         {scale_party(crate::portrait_party_frame_component::portrait_party_frame_with_settings(portraits, &layout.party, skin, settings.party), settings.party, &layout.party)}
-        {raid_frame(&state.raid, &layout.raid)}
+        {raid_frame(&state, &layout.raid)}
         {group_context_menu(&state.menu)}
         {ready_check_frame(&state.ready_check)}
     }
@@ -225,13 +225,14 @@ fn party_frame(
     }
 }
 
-fn raid_frame(groups: &[Vec<CompactUnitView>], anchor: &HudAnchor) -> Element {
+fn raid_frame(state: &GroupFramesState, anchor: &HudAnchor) -> Element {
+    let groups = &state.raid;
     let columns: Element = groups
         .iter()
         .take(RAID_GROUPS)
         .enumerate()
         .filter(|(_, members)| !members.is_empty())
-        .flat_map(|(group, members)| raid_group(group, members))
+        .flat_map(|(group, members)| raid_group(group, members, state))
         .collect();
     let height = raid_height(groups);
     let at = anchor.place((RAID_W, height));
@@ -255,7 +256,7 @@ fn raid_frame(groups: &[Vec<CompactUnitView>], anchor: &HudAnchor) -> Element {
 }
 
 /// One `CompactRaidGroup` column at its subgroup's slot; empty groups are not drawn.
-fn raid_group(group: usize, members: &[CompactUnitView]) -> Element {
+fn raid_group(group: usize, members: &[CompactUnitView], state: &GroupFramesState) -> Element {
     let x = group as f32 * RAID_MEMBER_W;
     let mut column = group_title(
         &format!("CompactRaidGroup{}Title", group + 1),
@@ -274,6 +275,7 @@ fn raid_group(group: usize, members: &[CompactUnitView]) -> Element {
                     &raid_member_frame_name(group, member),
                     view,
                     (x, y, RAID_MEMBER_W, RAID_MEMBER_H),
+                    state.party_auras.get(&view.name),
                 )
             }),
     );

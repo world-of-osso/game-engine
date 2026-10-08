@@ -1224,6 +1224,7 @@ impl RegistryUi {
             let image = assets::decode_blp(&format!("data/textures/{fdid}.blp"))?;
             Ok((image.pixels, image.width))
         })?;
+        register_auction_popup_style(&mut registry);
         self.show_viewport_screen_in(state, build, postsetup, registry, parent)
     }
 
