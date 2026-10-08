@@ -94,27 +94,9 @@ impl RegistryUi {
 }
 
 fn load_preview_spell_tooltip(id: u32) -> Result<GameTooltip, String> {
-    use game_engine_core::spell_catalog::{
-        SpellCatalogPaths, SpellTextContext, load_spell_catalog,
-    };
-    use game_engine_ui_model::game_tooltip::spell::{SpellTooltipInput, spell_tooltip};
     let path = ProjectSettings::singleton().globalize_path("res://../data");
     let root = std::path::PathBuf::from(path.to_string());
-    let paths = SpellCatalogPaths::for_data_dir(&root);
-    let catalog = load_spell_catalog(&paths)?;
-    let spell = catalog
-        .get(id)
-        .ok_or_else(|| format!("Trainer preview spell {id} missing from local catalog"))?;
-    let description = catalog
-        .render_description(id, &SpellTextContext::default())
-        .unwrap_or_default();
-    let tooltip = spell_tooltip(
-        spell,
-        &SpellTooltipInput {
-            description,
-            ..Default::default()
-        },
-    );
+    let tooltip = load_preview_class_tooltip(&root, id)?;
     let recipes = load_preview_recipe_catalog(&root)?;
     game_engine_ui_model::item_catalog::wait_for_item_catalog();
     game_engine_ui_model::game_tooltip::trainer::trainer_service_content(
@@ -122,6 +104,28 @@ fn load_preview_spell_tooltip(id: u32) -> Result<GameTooltip, String> {
         recipes.get(id),
         Some(10),
     )
+}
+
+fn load_preview_class_tooltip(root: &std::path::Path, id: u32) -> Result<GameTooltip, String> {
+    use game_engine_core::spell_catalog::{
+        SpellCatalogPaths, SpellTextContext, load_spell_catalog,
+    };
+    use game_engine_ui_model::game_tooltip::spell::{SpellTooltipInput, spell_tooltip};
+    let paths = SpellCatalogPaths::for_data_dir(root);
+    let catalog = load_spell_catalog(&paths)?;
+    let spell = catalog
+        .get(id)
+        .ok_or_else(|| format!("Trainer preview spell {id} missing from local catalog"))?;
+    let description = catalog
+        .render_description(id, &SpellTextContext::default())
+        .unwrap_or_default();
+    Ok(spell_tooltip(
+        spell,
+        &SpellTooltipInput {
+            description,
+            ..Default::default()
+        },
+    ))
 }
 
 fn load_preview_recipe_catalog(
