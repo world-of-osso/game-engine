@@ -750,7 +750,25 @@ func capture_auction_both(directory: String) -> bool:
 				return false
 			file.store_string(JSON.stringify(geometry, "\t"))
 			file.close()
+			if OS.get_environment("GODOT_AUCTION_ASSERT_BID_CLEAR") == "1" and view in ["item", "bids"]:
+				if not auction_bid_copper_is_clear(ui):
+					ui.queue_free()
+					return false
 			print("CAPTURE: ", prefix, " ", geometry)
 			ui.queue_free()
 			await process_frame
+	return true
+
+func auction_bid_copper_is_clear(ui: Node) -> bool:
+	var copper := ui.find_child("AuctionHouseFrameBidAmountCopper", true, false) as Control
+	var bid := ui.find_child("AuctionHouseFrameBidButton", true, false) as Control
+	if copper == null or bid == null:
+		push_error("Auction bid/copper controls missing")
+		return false
+	var copper_rect = copper.get_global_rect()
+	var bid_rect = bid.get_global_rect()
+	print("BID_CLEAR: copper=", copper_rect, " bid=", bid_rect)
+	if copper_rect.end.x > bid_rect.position.x:
+		push_error("Bid button covers copper input: ", copper_rect.end.x, " > ", bid_rect.position.x)
+		return false
 	return true
