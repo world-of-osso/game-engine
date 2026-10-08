@@ -24,6 +24,7 @@ fn search_query(text: &str) -> AuctionSearchQuery {
     AuctionSearchQuery {
         item_id: None,
         class_id: None,
+        subcategory_filters: Vec::new(),
         text: text.trim().to_string(),
         page: 0,
         page_size: SEARCH_PAGE_SIZE,
