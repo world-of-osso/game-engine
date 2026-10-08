@@ -18,6 +18,8 @@ pub fn replace_atomically(
     build: impl FnOnce(&Connection) -> Result<(), String>,
 ) -> Result<(), String> {
     let staging = staging_path(cache_path)?;
+    #[cfg(test)]
+    count_staged_build(cache_path);
     let result = build_staged(&staging, build).and_then(|()| {
         std::fs::rename(&staging, cache_path).map_err(|err| {
             format!(
@@ -63,4 +65,23 @@ fn build_staged(
     build(&conn)?;
     conn.close()
         .map_err(|(_, err)| format!("close {}: {err}", staging.display()))
+}
+
+#[cfg(test)]
+static STAGED_BUILDS: std::sync::Mutex<Vec<PathBuf>> = std::sync::Mutex::new(Vec::new());
+
+#[cfg(test)]
+fn count_staged_build(cache_path: &Path) {
+    STAGED_BUILDS.lock().unwrap().push(cache_path.to_path_buf());
+}
+
+/// How many times a cache at `cache_path` has been built into a staging file.
+#[cfg(test)]
+pub(crate) fn staged_builds(cache_path: &Path) -> usize {
+    STAGED_BUILDS
+        .lock()
+        .unwrap()
+        .iter()
+        .filter(|built| built.as_path() == cache_path)
+        .count()
 }
