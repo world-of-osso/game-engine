@@ -1,19 +1,12 @@
 //! Edit Mode layout presets: the selected character's active layout picks the UI skin.
 
-use game_engine_core::{
-    client_options_data::options_path,
-    ui_layout_data::{self, ActiveLayout, LayoutSettings, LayoutSkin},
-};
+use game_engine_core::ui_layout_data::{self, ActiveLayout, LayoutSettings, LayoutSkin};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::hud_layout;
 use game_engine_ui_model::options_menu_component::{LayoutOptionsView, LayoutSystem};
 use ui_toolkit::atlas::{self, ActiveSkin};
 
 use crate::GameClient;
-
-pub(crate) fn layout_path() -> std::path::PathBuf {
-    options_path().with_file_name("ui_layout.ron")
-}
 
 impl GameClient {
     /// In the world the selected character's saved layout applies; glue screens draw Modern.
@@ -25,7 +18,7 @@ impl GameClient {
                     .session
                     .selected_character_id
                     .ok_or("In-world UI layout requires a selected server character ID")?;
-                ui_layout_data::active_layout(&layout_path(), id)?
+                ui_layout_data::active_layout(&self.account.hud_layout_path()?, id)?
             }
             SessionScreen::Login
             | SessionScreen::CharacterSelect
@@ -42,7 +35,7 @@ impl GameClient {
             .session
             .selected_character_id
             .ok_or("Layout requires a selected server character ID")?;
-        let layout = ui_layout_data::set_active_layout(&layout_path(), id, name)?;
+        let layout = ui_layout_data::set_active_layout(&self.account.hud_layout_path()?, id, name)?;
         self.apply_ui_layout(layout)
     }
 
@@ -57,7 +50,8 @@ impl GameClient {
             .session
             .selected_character_id
             .ok_or("Layout settings require a selected server character ID")?;
-        let layout = ui_layout_data::save_layout_settings(&layout_path(), id, settings)?;
+        let layout =
+            ui_layout_data::save_layout_settings(&self.account.hud_layout_path()?, id, settings)?;
         self.apply_ui_layout(layout)
     }
 
@@ -68,7 +62,7 @@ impl GameClient {
     ) -> Result<LayoutOptionsView, String> {
         Ok(LayoutOptionsView {
             active: self.ui_layout.name.clone(),
-            names: ui_layout_data::layout_names(&layout_path())?,
+            names: ui_layout_data::layout_names(&self.account.hud_layout_path()?)?,
             skin: self.ui_layout.skin,
             settings: self.ui_layout.settings,
             system,
