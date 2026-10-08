@@ -31,16 +31,69 @@ fn ghoststate_remote_player_frames_use_life_state_not_health() {
     ] {
         replica.insert(8, life);
         let unit = replica.unit(8).unwrap();
-        assert_eq!(
-            target_frame_state(unit, Some(5), 1.0, &texts()).dead,
-            dead,
-            "{life:?} target"
-        );
+        let target = target_frame_state(unit, Some(5), 1.0, &texts());
+        assert_eq!(target.dead, dead, "{life:?} target");
+        assert_target_status_text(target, dead);
         assert_eq!(
             player_frame_state(unit, false, &texts()).dead,
             dead,
             "{life:?} player"
         );
+    }
+}
+
+fn assert_target_status_text(
+    target: game_engine_ui_model::inworld_unit_frames_component::UnitFrameState,
+    dead: bool,
+) {
+    use game_engine_ui_model::inworld_unit_frames_component::{
+        InWorldUnitFramesState, UnitFrameMenuState, UnitFrameState, inworld_unit_frames_screen,
+    };
+    use ui_toolkit::{
+        atlas::ActiveSkin,
+        frame::WidgetData,
+        registry::FrameRegistry,
+        screen::{Screen, SharedContext},
+    };
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(InWorldUnitFramesState {
+            show_player_frame: false,
+            show_target_frame: true,
+            player: UnitFrameState::named("Observer"),
+            target: Some(target.clone()),
+            target_cast: None,
+            target_of_target: None,
+            focus: None,
+            pet: None,
+            bosses: vec![],
+            menu: UnitFrameMenuState::default(),
+            personal_resource: None,
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(inworld_unit_frames_screen).sync(&shared, &mut registry);
+        let name = if skin == ActiveSkin::Modern {
+            "TargetDeadText"
+        } else {
+            "TargetHealthBarText"
+        };
+        let text = registry
+            .get_by_name(name)
+            .and_then(|id| registry.get(id))
+            .and_then(|frame| match frame.widget_data.as_ref() {
+                Some(WidgetData::FontString(text)) => Some(text.text.as_str()),
+                _ => None,
+            });
+        if dead {
+            assert_eq!(text, Some("Dead"), "{skin:?}");
+        } else {
+            assert_ne!(text, Some("Dead"), "{skin:?}");
+        }
     }
 }
 
