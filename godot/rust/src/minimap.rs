@@ -4,6 +4,7 @@
 //! creature vignettes (`crate::vignettes`),
 //! the subzone text in its PvP colour, the local-time clock and calendar day. Hovering the
 //! map shows the zoom buttons; the wheel over it zooms, as `MinimapMixin:OnMouseWheel`.
+//! A left click pings the spot for the group (`MinimapMixin:OnClick`, `ui_model::minimap::ping`).
 
 use std::collections::HashMap;
 use std::fs::File;
@@ -23,7 +24,8 @@ use game_engine_ui_model::game_tooltip::hud::zone_tooltip;
 use game_engine_ui_model::minimap::{
     ACTION_TOGGLE_WORLD_MAP, ACTION_ZOOM_IN, ACTION_ZOOM_OUT, BlipKind, MINIMAP_ARROW,
     MINIMAP_BLIP_PREFIX, MINIMAP_DISPLAY, MINIMAP_VIGNETTE_PREFIX, MINIMAP_ZONE_TEXT, MinimapBlip,
-    MinimapClusterState, TrackingState, cluster_style, group_minimap_blips, minimap_texture_fdids,
+    MinimapClusterState, MinimapPingMark, TrackingState, cluster_style, group_minimap_blips,
+    minimap_click_position, minimap_ping_request, minimap_ping_view, minimap_texture_fdids,
     target_minimap_blip, tracking_minimap_blips,
 };
 use game_engine_ui_model::world_map_view_data::arrow_rotation;
@@ -32,7 +34,7 @@ use godot::global::MouseButton;
 use godot::prelude::*;
 use osso_asset_resolver::CascListfileResolver;
 use shared::components::Position;
-use shared::protocol::{NpcFlags, QuestGiverStatus};
+use shared::protocol::{MinimapPing, NpcFlags, QuestGiverStatus};
 use ui_toolkit::atlas::{ActiveSkin, thread_skin};
 use ui_toolkit::frame::WidgetData;
 
@@ -67,6 +69,8 @@ pub(crate) struct Minimap {
     /// Quest objective areas (engine `(x, z)` polygons) tinted into the composite, and
     /// the pixels they cover.
     quest_areas: (Vec<Vec<[f32; 2]>>, usize),
+    /// The latest ping, the local player's or a member's, until it expires.
+    ping: Option<MinimapPingMark>,
 }
 
 struct Catalogs {
@@ -105,6 +109,7 @@ impl Minimap {
             chrome: HashMap::new(),
             drawn: None,
             quest_areas: (Vec::new(), 0),
+            ping: None,
         }
     }
 
@@ -239,6 +244,11 @@ fn load_catalogs(data_root: &std::path::Path) -> Result<Catalogs, String> {
 
 /// Local wall-clock hour, minute and day of month (`timeMgrUseLocalTime` shows local time;
 /// the protocol carries no realm time).
+/// Monotonic seconds for ping lifetimes.
+fn ping_clock() -> f64 {
+    Time::singleton().get_ticks_usec() as f64 / 1_000_000.0
+}
+
 pub(crate) fn local_time() -> (u32, u32, u32) {
     let time = Time::singleton().get_datetime_dict_from_system();
     let field = |key: &str| time.get(key).map_or(0, |value| value.to::<i64>() as u32);
@@ -396,6 +406,20 @@ impl GameClient {
         }
         // Target overlay comes last so selecting a member does not hide its indicator.
         blips.extend(self.target_minimap_blip(&view));
+        let now = ping_clock();
+        if self
+            .minimap
+            .ping
+            .as_ref()
+            .is_some_and(|mark| mark.expired(now))
+        {
+            self.minimap.ping = None;
+        }
+        let ping = self
+            .minimap
+            .ping
+            .as_ref()
+            .and_then(|mark| minimap_ping_view(mark, &view, now));
         Ok(MinimapClusterState {
             zone_text,
             zone_color: pvp.map_or([1.0, 0.82, 0.0, 1.0], |pvp| pvp.text_color()),
@@ -409,7 +433,32 @@ impl GameClient {
             has_mail: !self.mailbox.session.pending_senders.is_empty(),
             map_texture: None,
             tracking: self.minimap.tracking.clone(),
+            ping,
         })
+    }
+
+    /// `MINIMAP_PING`: a member's ping replaces the one shown.
+    pub(crate) fn receive_minimap_ping(&mut self, ping: &MinimapPing) {
+        self.minimap.ping = Some(MinimapPingMark::received(ping, ping_clock()));
+    }
+
+    /// `Minimap:PingLocation` at `offset` (right, down fraction of the map from its
+    /// centre): sent to the group and shown locally under the player's name.
+    fn ping_minimap(&mut self, offset: [f32; 2]) -> Result<(), String> {
+        let Some((position, _)) = self.minimap_player() else {
+            return Ok(());
+        };
+        let spot = minimap_click_position(&self.minimap.view(position), offset);
+        self.account
+            .send_minimap_ping(minimap_ping_request(spot))
+            .map_err(|error| error.to_string())?;
+        let name = self.account.session.selected_character_name.clone();
+        self.minimap.ping = Some(MinimapPingMark {
+            sender_name: name.unwrap_or_default(),
+            position: spot,
+            started: ping_clock(),
+        });
+        Ok(())
     }
 
     fn tracking_minimap_blips(&self, view: &MinimapView) -> Vec<MinimapBlip> {
@@ -618,7 +667,21 @@ impl GameClient {
         let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
             return false;
         };
-        if !button.is_pressed() || !on_map(button.get_position()) {
+        let point = button.get_position();
+        if !on_map(point) {
+            return false;
+        }
+        // `MinimapMixin:OnClick`: the press is the map's, the release pings.
+        if button.get_button_index() == MouseButton::LEFT {
+            if !button.is_pressed() {
+                let offset = (point - centre) / (2.0 * radius);
+                if let Err(error) = self.ping_minimap([offset.x, offset.y]) {
+                    godot_error!("Minimap ping: {error}");
+                }
+            }
+            return true;
+        }
+        if !button.is_pressed() {
             return false;
         }
         match button.get_button_index() {
