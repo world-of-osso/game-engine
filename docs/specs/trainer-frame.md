@@ -10,8 +10,8 @@ Native `ClassTrainerFrame` in `godot/ui-model/src/trainer*.rs` and `godot/rust/s
 - [x] Train sends exactly one `TrainerBuySpell` for an available affordable selected service, waits for authority, and refreshes service state from the next list and money from replicated Gold.
 - [x] Adding a primary profession requires Accept / Cancel and a free primary slot; changing selection or closing cancels confirmation.
 - [x] `TrainerBuyFailed` displays its reason without optimistic spending. Both Modern and Forever use the shared window chrome and same decisions.
-- [ ] Three-denomination selected and unselected prices keep every coin inside the row/scroll clip and above selection art.
-- [ ] Hovering any visible service row or descendant shows that service's shared catalog spell/recipe tooltip in both skins, not the selected service; Retail `ANCHOR_RIGHT` +35 and the requested grey Spell ID line remain. Leaving, filtering it away or closing removes the tooltip.
+- [x] Three-denomination selected and unselected prices keep every coin inside the row/scroll clip and above selection art.
+- [x] Hovering any visible service row or descendant shows that service's shared catalog spell/recipe tooltip in both skins, not the selected service; Retail `ANCHOR_RIGHT` +35 and the requested grey Spell ID line remain. Leaving, filtering it away or closing removes the tooltip.
 
 ## Retail references
 
@@ -89,13 +89,21 @@ The locked local helper ran `--test -p game-engine-ui-model -p game-engine-godot
 
 ## Trainer follow-up (2026-10-07)
 
-The selected three-denomination copper icon crossed the row border because the native flattened money renderer treated the SmallMoneyFrame's right edge as the coin edge. Cached `Blizzard_MoneyFrame/Mainline/MoneyFrame.xml` anchors CopperButton RIGHT at -13; `MoneyFrame.lua:378-380` reapplies that inset. The trainer money frame itself remains TOPRIGHT +5 (`TUI.xml:28-39`). Restore the internal 13px inset and include it in the name's width budget, rather than inventing a row offset. Money is a child frame above parent selection/highlight layers, as in Retail. Native pixel RED at baseline changes 20 opaque copper pixels when the selected layer is hidden (`trainer_coin_pixels.gd`); current GREEN and final capture evidence remain pending.
+The selected three-denomination copper icon crossed the row border because the native flattened money renderer treated the SmallMoneyFrame's right edge as the coin edge. Cached `Blizzard_MoneyFrame/Mainline/MoneyFrame.xml` anchors CopperButton RIGHT at -13; `MoneyFrame.lua:378-380` reapplies that inset. The trainer money frame itself remains TOPRIGHT +5 (`TUI.xml:28-39`). Restore the internal 13px inset and include it in the name's width budget, rather than inventing a row offset. Money is a child frame above parent selection/highlight layers, as in Retail. Native pixel RED at baseline changes 20 opaque copper pixels when the selected layer is hidden (`trainer_coin_pixels.gd`); Native pixel GREEN in both skins moves the copper rect from `(324,215,13,13)` to `(311,215,13,13)` and reduces selection-induced opaque-pixel changes from **20 to 0**. Fix `7c8381e07`; test `trainer_coin_pixels.gd`.
 
 Service hover now registers in the existing native `tooltip_sources::frame_tooltip` dispatcher and reuses `spell_game_tooltip`, `GameTooltipUI`, skin styling, placement and ID appending. `TrainerBook` resolves the row's nearest action ancestor against the current visible services, independent of selection/availability/affordability; the shared owner anchor retains Retail's +35px offset. Existing per-frame source resolution refreshes while hovered and removes stale tooltips on leave/filter/close. The offline preview uses the same source decisions and renderer, with local catalog content and no GameClient/server.
 
 No new recipe-content renderer is introduced: the existing spell source supplies title, subtext, cost/range/cast/cooldown and rendered description where present. Pinned Spell2963/2964 descriptions are empty; crafted-output item properties and reagent sections are not supplied by this shared spell renderer. Cached Lua calls C++ `SetTrainerService` but does not specify its complete line content, so full C++ recipe-tooltip parity is not claimed. The user-requested Spell ID line is preserved ([tooltip contract](unit-tooltip.md)).
 
 SkillStep and rank modifiers are unchanged. The authoritative missing values are `GetTrainerServiceStepIndex()`'s optional service index (not the primary-profession acquisition flag) and `GetTrainerTradeskillRankValues()`'s `rankModifier` (`TUI.lua:180-190`). Existing `TrainerService` requirements and `ProfessionSkillLine` base rank/max/step do not supply those values.
+
+### Follow-up acceptance
+
+Tooltip source `2e8e71564`; preview lifecycle correction `2bd450ae4` initializes the shared host once then updates state, as production `sync_game_tooltip` does. Targeted **18/18** pass: original trainer9, art7, hover/content2; UI-model source is unchanged by preview-only fixes. Whole-workspace format proof at `8eb890930` plus changed-preview-file check at `2bd450ae4` pass; matching locked local extension/CLI builds pass. Evidence: canonical `data/diagnostics/trainertips-2026-10-07/proof-ledger.txt`, `green-details.log`, `/tmp/claude/trainertips-{green,build-refresh}.out`.
+
+At `2bd450ae4`, `trainer_followup.gd` captures and asserts **six** offline snapshots in one renderer: `modern-{default,hovered,selected}.png`, `forever-{default,hovered,selected}.png` under that evidence directory. Every gold/silver/copper icon is 13×13, inside the scroll clip and at least8px inside the row's right edge, for selected Linen and unselected Wool prices. Both hovered shots show the shared Bolt of Linen Cloth tooltip to the right, **1.5 sec cast** from the local catalog and the grey **Spell ID: 2963** line; pointer leave hides it. Default shots select Tailoring, with both Linen/Wool three-coin prices unselected; selected shots show Bolt's complete red1g25s50c and disabled Train. Modern dark stone and Forever bronze chrome, representative portrait,35/300 rank and known-service text remain. All six PNGs were inspected; `capture-observations.json` and `captures-refresh.log` retain details. Existing RID/ObjectDB/font shutdown warnings remain; this is not clean-resource or real-NPC/live lifecycle proof.
+
+Full required crate integration is recorded below after completion; targeted/runtime results are not a substitute for its counts.
 
 ## Known gaps (current cycle)
 
