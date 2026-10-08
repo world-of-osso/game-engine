@@ -32,7 +32,7 @@ func _run() -> void:
 	var uipolish: bool = screen in ["chatflush_preview", "achievement_preview", "forever_achievement_preview"]
 	if screen == "chatflush_preview":
 		RenderingServer.set_default_clear_color(Color(0.25, 0.4, 0.55))
-	var settle_frames: int = 120 if screen in ["forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview"] else 3
+	var settle_frames: int = 120 if screen in ["forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview", "trainer_preview", "forever_trainer_preview"] else 3
 	for frame in range(settle_frames):
 		await process_frame
 		if uipolish:
@@ -96,6 +96,11 @@ func _run() -> void:
 			ui.queue_free()
 			quit(1)
 			return
+	if screen in ["trainer_preview", "forever_trainer_preview"] and OS.get_environment("GODOT_TRAINER_EXPECT_RETAIL") == "1":
+		if not trainer_geometry_and_content_match(ui):
+			ui.queue_free()
+			quit(1)
+			return
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
 	quit(0)
@@ -132,6 +137,52 @@ static func capture_hud_edit_both_into(tree: SceneTree, directory: String) -> bo
 		ui.call("finish_hudedit_preview")
 		ui.queue_free()
 		await tree.process_frame
+	return true
+
+# Cached Retail TrainerUI.xml:28-105,127-219; TrainerUI.lua:187-307.
+func trainer_geometry_and_content_match(ui: Node) -> bool:
+	var frame := ui.find_child("ClassTrainerFrame", true, false) as Control
+	var list := ui.find_child("ClassTrainerScrollBox", true, false) as Control
+	var row := ui.find_child("ClassTrainerService2963", true, false) as Control
+	var icon := ui.find_child("ClassTrainerService2963Icon", true, false) as Control
+	var name := ui.find_child("ClassTrainerService2963Name", true, false) as Label
+	var train := ui.find_child("ClassTrainerTrainButton", true, false) as Control
+	var filter := ui.find_child("ClassTrainerFilterDropdown", true, false) as Control
+	if frame == null or list == null or row == null or icon == null or name == null or train == null or filter == null:
+		push_error("Trainer preview lacks production frame/list/row/icon/footer/filter")
+		return false
+	if frame.size != Vector2(338, 424) or list.size != Vector2(302, 330) or row.size != Vector2(298, 47) or icon.size != Vector2(36, 36):
+		push_error("Trainer frame/list/row/icon dimensions differ from Retail")
+		return false
+	if train.size != Vector2(80, 22) or filter.size != Vector2(100, 18):
+		push_error("Trainer footer/filter dimensions differ from Retail")
+		return false
+	if list.get_global_rect().position - frame.get_global_rect().position != Vector2(9, 65):
+		push_error("Trainer list no longer follows the Retail inset")
+		return false
+	if icon.position != Vector2(6, 5.5) or name.position != Vector2(48, 6.5):
+		push_error("Trainer row icon/name anchors differ from Retail")
+		return false
+	if name.text != "Bolt of Linen Cloth" or not name.get_theme_color("font_color").is_equal_approx(Color(1, 0.82, 0)):
+		push_error("Trainer selected row must retain neutral Retail gold name")
+		return false
+	for entry in [[0, "1"], [1, "25"], [2, "50"]]:
+		var amount := ui.find_child("ClassTrainerService2963CostAmount%d" % entry[0], true, false) as Label
+		var coin := ui.find_child("ClassTrainerService2963CostCoin%d" % entry[0], true, false) as Control
+		if amount == null or coin == null or amount.text != entry[1] or not amount.get_theme_color("font_color").is_equal_approx(Color(1, 0.1, 0.1)):
+			push_error("Trainer unaffordable cost must show red denominations with coins")
+			return false
+		if amount.get_global_rect().end.x > coin.get_global_rect().position.x + 0.1 or coin.size != Vector2(13, 13):
+			push_error("Trainer coin overlaps its amount or has wrong size")
+			return false
+	var known := ui.find_child("ClassTrainerService3275Requirements", true, false) as Label
+	if known == null or known.text != "Already known" or ui.find_child("ClassTrainerService3275CostAmount0", true, false) != null:
+		push_error("Trainer known service must show Already known without money")
+		return false
+	if ui.find_child("ClassTrainerService2963Selected", true, false) == null or ui.find_child("ClassTrainerGreeting", true, false) != null:
+		push_error("Trainer needs texture selection and no invented greeting pane")
+		return false
+	print("PASS: trainer338x424/list302x330/rows298x47/icon36/footer80x22/filter100x18; gold names; selected texture; red1g25s50c; known without money")
 	return true
 
 # Retail ProfessionsRecipeList.xml:94-217; ReagentSlotBase.xml:6-27; RankBar.xml:5-61.
