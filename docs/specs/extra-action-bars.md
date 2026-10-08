@@ -4,11 +4,11 @@ Native Options visibility for existing Action Bars 2–5 in both skins. Retail s
 
 ## What it must do
 
-- [ ] Options has an Action Bars category with checkboxes Action Bar 2, 3, 4, 5 in Retail numeric order. No unsupported 6–8 controls.
-- [ ] Bars 4/5 default disabled in both gameplay and edit mode, with no registered mover or placeholder. Enabling both adds two movers (offline defaults 19 → 21).
-- [ ] Changes immediately show/hide production bars and edit-mode movers, persisted in the existing `options_settings.ron` HUD settings store. Older files lacking extra visibility retain side bars disabled.
-- [ ] Preserve unset bottom-bar defaults: Modern hidden in gameplay/editor previewed, Forever visible (approved reference deviation). Explicit checkboxes override them; category Defaults clears only extra-bar choices.
-- [ ] Enabled 4/5 retain existing vertical 12-slot defaults: right insets 6/53; Modern 45×562, Forever 47.7×595.82 UI units before pixel snapping. Tracker placement unchanged when enabling/disabling. Overlap is allowed by user decision 2026-10-08, not a reason to move tracker.
+- [x] Options has an Action Bars category with checkboxes Action Bar 2, 3, 4, 5 in Retail numeric order. No unsupported 6–8 controls.
+- [x] Bars 4/5 default disabled in both gameplay and edit mode, with no registered mover or placeholder. Enabling both adds two movers (offline defaults 19 → 21).
+- [x] Changes immediately show/hide production bars and edit-mode movers, persisted in the existing `options_settings.ron` HUD settings store. Older files lacking extra visibility retain side bars disabled.
+- [x] Preserve unset bottom-bar defaults: Modern hidden in gameplay/editor previewed, Forever visible (approved reference deviation). Explicit checkboxes override them; category Defaults clears only extra-bar choices.
+- [x] Enabled 4/5 retain existing vertical 12-slot defaults: right insets 6/53; Modern 45×562, Forever 47.7×595.72 UI units before pixel snapping. Tracker placement unchanged when enabling/disabling. Overlap is allowed by user decision 2026-10-08, not a reason to move tracker.
 
 ## How it works
 
@@ -33,7 +33,7 @@ Native Options visibility for existing Action Bars 2–5 in both skins. Retail s
 
 ## Known gaps (current cycle)
 
-- [ ] Targeted GREEN and native Options/default Forever edit-mode captures pending.
+No remaining gap in this bounded visibility change. At implementation `67c50ec42`: RED HUD edit 16 passed/2 failed and Options 0 passed/1 failed; GREEN HUD edit 19, HUD layout 30, five scoped UI integration files 49 (one ignored capture helper), settings store 1, all zero failures. Extension build exits 0. Native cage captures `options-action-bars.png` and `forever-edit-defaults.png` each exit 0; inspected 1280×720 compositor output (recipe requests 1920×1080). Options shows 2–5 in order, all unchecked under Modern defaults; Forever editor has no right-side 4/5 boxes, tracker remains beneath minimap. Evidence: canonical `data/diagnostics/extrabars-2026-10-08/`, including RED/GREEN/build logs and `proof-ledger.json`. No whole-crate suite or live-server casting claim.
 
 ## Out of scope
 
