@@ -85,6 +85,52 @@ current CASC archive availability: the documented WoW installation is absent on
 this host. No server/networked client is part of this matrix. Acceptance results
 must be recorded only after running and inspecting the current fixture.
 
+### Current acceptance: blocked, no rendered cells accepted
+
+Fixture commit `2cf7bd450` parses under pinned Godot; native base `274564d72`
+builds/installs successfully. The independent CSV inventory finds every selected
+body/garment model and region/material BLP locally cached, plus all 14 primary
+skin companions. Inventory is not client equality or current CASC availability.
+`preflight.json`, `matrix-inventory.csv` and `model-dependencies.json` retain exact
+per-cell display IDs, geoset groups, region/material FDIDs and model hashes.
+
+**R = FAIL (proof blocked):** foreign Godot renderers occupied the host's rendering
+capacity (PIDs 1779940 and 1780589); the task's at-most-one-rendering-process rule
+prohibited starting another. No authority was granted to stop foreign processes.
+Final inventory still found foreign raidloop renderers 1790129 and 1790525.
+This is absent acceptance evidence, not a reproduced client-rendering defect.
+**H = FAIL (oracle incomplete):** independent HelmetGeosetData hide-rule validation
+is missing, in addition to R. No contact sheets were produced or inspected.
+
+| Garment | Slot / item ID | Human male | Orc female | Dwarf male | Night Elf female | Tauren male | Blood Elf female |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| Shirt | Shirt / 38 | R | R | R | R | R | R |
+| Chest | Chest / 846 | R | R | R | R | R | R |
+| Robe | Chest / 6682 | R | R | R | R | R | R |
+| Legs | Legs / 39 | R | R | R | R | R | R |
+| Kilt | Legs / 153 | R | R | R | R | R | R |
+| Boots | Feet / 40 | R | R | R | R | R | R |
+| Gloves | Hands / 850 | R | R | R | R | R | R |
+| Belt | Waist / 44670 | R | R | R | R | R | R |
+| Shoulders | Shoulder / 1445 | R | R | R | R | R | R |
+| Helm | Head / 1280 | R+H | R+H | R+H | R+H | R+H | R+H |
+| Cloak | Back / 1190 | R | R | R | R | R | R |
+| Tabard | Tabard / 15197 | R | R | R | R | R | R |
+| Bracers | Wrist / 710 | R | R | R | R | R | R |
+
+Chest846 and robe6682 were selected explicitly because their male/female cached
+files exist for all six bodies; the earlier inventory candidates chest2435 and
+robe56 had missing female/male BLPs respectively. Their absence remains recorded
+in `preflight.log`; no extraction or CDN download was attempted without a local
+CASC installation. No production mismatch fix or full pixel-parity claim is made.
+
+The single full-crate gate at fixture revision `2cf7bd450` exits0: core781,
+Godot658 and UI-model744 passed (2183 total, zero failures); UI-model has six
+ignored fixture-regeneration tests. Raw output has no warnings. The underlying
+Rust code remains base `274564d72`; later documentation changes do not invalidate
+that gate. `full-crate-tests.log` and `full-crate-counts.json` retain exact output
+and counts. These tests do not execute the GDScript matrix or prove any pixels.
+
 ## Character Models and HD Skeletons
 
 Legacy models (`humanmale.m2`) store 215 bones inline in the MD20 header. HD models (`humanmale_hd.m2`) store bones externally in a `.skel` file (referenced via the SKID chunk). The `.skel` file contains SKS1 (sequences + global sequences) and SKB1 (216 bones + animation tracks). `load_skel_data()` handles both paths transparently.

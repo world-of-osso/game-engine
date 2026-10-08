@@ -1,3 +1,7 @@
+## 2026-10-07 — Offline character garment matrix, rendering blocked
+
+[Character rendering](systems/character-rendering.md#racegarment-matrix-2026-10-07-acceptance-pending) records `2cf7bd450`: the existing oracle gains 78 isolated garment cells, rigid model/material checks and incremental result/contact-sheet output. Cached DB2/asset inventories and pinned-Godot parse/native install pass; no rendered cell is accepted. Foreign renderers occupied the single-render budget; independent helmet hide-rule validation is still missing. [Parity rows](../specs/godot-parity-matrix.md) retain Partial and link each FAIL reason; no contact-sheet inspection or production fix is claimed.
+
 ## 2026-10-07 — Native quest objective progress notices
 
 [Quest UI](systems/quest-ui.md#native-objective-progress-notices) records real Northshire count-update/no-message RED, typed progress dispatch, yellow rendered-message GREEN, and complete three-crate tests at `d88c66b0f`. The [parity matrix](../specs/godot-parity-matrix.md) retains bounded per-step acceptance; broad marker/edit-mode combinations are not inferred from this fix.
