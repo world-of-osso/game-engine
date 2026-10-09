@@ -24,14 +24,14 @@ Range regression (2026-10-08): `data/diagnostics/bankloop-2026-10-08/resume-too-
   - Slot backgrounds are `bags-item-slot64` (4701874) in the character bank. The Warband bank uses `warband-bank-slot`, grown −6,5 / 6,−7.
   - Stack counts show above 1.
 - [x] Side tabs: 32×32 with the SpellBook-SkillLineTab border (136831). The first is at TOPRIGHT +2,−25, and each next one 17 px below the previous (BF.lua:907-924).
-  - The selected tab shows a gold UI-Quickslot2 marker (see Known gaps).
+  - The selected tab draws `Interface/Buttons/CheckButtonHilight` (130724), 32×32 centred, white with ADD blending, on OVERLAY. Side-tab border and icon art remain unchanged.
   - The purchase tab (`bags-icon-addslots`) comes last while a tab can be bought.
 - [x] Header: the tab name in a 300×20 box at TOP −36.
 - [x] Bottom tabs `Bank` / `Warband Bank` hang at the frame's BOTTOMLEFT 22,2 (PanelTab art).
 - [x] Purchase prompt: while the purchase tab is selected, or while the bank has no tabs, the prompt replaces the slots.
   - It shows the title and `CHARACTER_BANK_TAB_PURCHASE_PROMPT` / `ACCOUNT_BANK_TAB_PURCHASE_PROMPT`.
   - Below that, "Cost:" and the Retail `BankTab` price, then a 105×21 Purchase button.
-  - Purchase is disabled when the player can't afford the tab. Retail reds the price; here the money frame greys it.
+  - Purchase is disabled when the player can't afford the tab. Money digits are Retail red (1,0.1,0.1,1), not grey; coin art stays unchanged.
 - [x] Purchase opens `CONFIRM_BUY_*_BANK_TAB` ("Do you want to purchase a Warband Bank tab for:\n1000g"). Accepting it sends `BankPurchaseTab`.
 - [x] Warband bank only: the money frame, 394×25 at BOTTOMRIGHT −3,3, with ThinGoldEdge 178×19, the stored money, and Withdraw and Deposit buttons (105×21).
 - [x] Deposit All button (256×24): `Deposit All Reagents` in the character bank, `Deposit All Warbound Items` in the Warband bank. The Warband bank also shows the "Include tradeable reagents" checkbox.
@@ -57,6 +57,7 @@ Sheet rows M:84,1346,1772,1774; F:2616,2617,2689,2690. Forever divider's 864×32
 Local BLPs **8118796, 8118792, 8188339** are present (verified 2026-10-08); inspected `bankloop-2026-10-08/resume-forever-character.png` and `resume-alt-warband.png` render the Forever bank art. Resolution is not guarded or substituted when files are absent.
 
 ### Actions
+- [x] Character-bank left-click/drag pickup and drop use the shared item cursor. The exact `{ tab, slot }` source survives selecting another bank tab; bags↔bank and same/across-tab destinations send the existing `SwapItem` (server handles swap/merge). Shift-click opens the existing bag StackSplitFrame; accepting places the chosen count on the cursor and dropping sends `SplitItem`. The server owns all stack changes; BankContents refreshes cursor lookup and closing clears bank-origin cursor/split state. Retail Mainline BankFrame.lua: HandleItemPickup, OnDragStart, OnReceiveDrag, OnModifiedClick, SplitStack (416-448, 590-592).
 - [x] Right-clicking a filled slot sends `BankWithdraw` for the shown bank and tab.
 - [x] Right-clicking a bag item while the bank is open sends `BankDeposit` into the shown bank's selected tab. Nothing is sent while the purchase prompt shows.
 - [x] Deposit / Withdraw opens the money entry: a gold/silver/copper `MoneyInputFrame` in a StaticPopup. Accept sends `BankMoneyTransfer` with the typed copper; an empty entry sends nothing.
@@ -88,13 +89,48 @@ Evidence root: `data/diagnostics/bankloop-2026-10-08/`; append-only `proof-ledge
 | 6 Warband IPC | PASS item contract; N-A money/settings fields | `current-between-tabs-status-warbank.txt`, `resume-alt-warband-status-warbank.txt`: location98/GUID173/item2589×20 matches tab2 window. fb_bank2 status is empty. `status warbank` reports item inventory only; no balance/tab-settings status exists in this contract. |
 | 7 Layout/skins | PASS bounded geometry/art inspection; FAIL full Retail equivalence | Modern `resume-open.png`, `resume-purchase-{poor,confirm,bought}.png`; Forever `resume-forever-character.png`, `resume-alt-warband.png`, dialog captures. `layout-comparison.json` checks 396 observable frame/grid values against cached Retail BF.xml:674/BF.lua:941–968: 738×460, 98 slots of 37×37, first26/63, row47, column45 plus11 per pair. Portrait control62×62(-5,-7) has Retail mask58×58(-3,-7), not a sizing defect. Existing non-additive selected-tab marker, stretched/non-tiled backgrounds, omitted edge shadows and grey rather than red unaffordable price remain; no full pixel equivalence claimed. |
 
-No server bank defect established. Missing partial-stack/bank-to-bank operations are protocol limitations, not client workarounds: `BankDeposit` names a whole bag stack; `BankWithdraw` names a whole bank slot. Bank-origin drag, split/swap and direct inter-tab requests cannot be emitted, so there is no request, response or server log for them. Modern/Forever remain skins of the same 98-slot mechanics; Camelot's 88-slot behavior and tooltip record-ID removal are not adopted.
+Historical bankloop scope only: no server bank defect was established in that run. At its pinned revisions, partial-stack/bank-to-bank operations were protocol limitations: `BankDeposit` named a whole bag stack; `BankWithdraw` named a whole bank slot. The later `bankmoves` change adds character-bank locations to `SwapItem` / `SplitItem`; the N-A item row above remains historical evidence, not the current character-bank contract. Modern/Forever remain skins of the same 98-slot mechanics; Camelot's 88-slot behavior and tooltip record-ID removal are not adopted.
 
 ### Final verification and cleanup
 
 On `68d7109df` (production source byte-identical to `2acedbd17`, SHA-256 `70d5bbc5660bda77e1076b86f27c66b3e013350cfe0850fc9d0dee18c2f6bd98`), the required locked/local/pinned five-crate `cargo test --no-fail-fast` exits **0**: CLI **103**, core **781**, Godot **661**, network **66**, UI-model **754** passed; **2365 passed, 0 failed, 6 ignored fixture-generation tests**. Raw log: `whole-crates-68d7109df.log`; counts: `final-whole-crate-counts.json`. Banker/nonbank regressions both pass. `clean-fmt.log` is exit 0; changed routing/readability has no new finding, inherited unrelated merchant function-length/cache-naming debt retained.
 
 Final native extension/CLI build installed in 44.8 seconds. Trace-free ELF SHA-256: `75185d78622d63fd6da3cab0b860ed207cb6bf52317a50e5d95e35e9e35fa9e0`. Seven of nine allowed resumed rendered launches used; two clients only for concurrent account isolation. All resumed clients exited; exact owned server/Weston PIDs terminated; `agents-bankloop.slice` stopped and inactive; UDP 5360 verified free (`cleanup-owned-pids.json`, `cleanup-udp.txt`, `cleanup-slice.txt`). Private redb, evidence and caches retained. No merge/push, no data/UID/PLAN commit, scratch PLAN untouched. Later documentation-only commits do not invalidate this source proof. Rows remain Partial for the explicitly recorded protocol/UI gaps, not an unfinished client fix.
+
+### Character-bank moves — 2026-10-08
+
+`bankmoves` adds character-bank pickup/drop, exact same/across-tab destinations and the shared split picker ([cursor contract](cursor-item.md)). `native_bank_moves` at `178e9dba3` passes 5/5 after RED 1 passed / 4 failed at `d0e42b5ac`; logs: `/home/osso/.worktrees/logs/bankmoves-engine-{red,green}.log`. This proves mounted slot routing and model request/state behavior. Native drag-release and shift-click dispatch are wired in `godot/rust/src/{bank,bag_cursor}.rs`, but no new native event, render or live proof is claimed. Whole-crate/integration gates remain with the lead.
+
+### Bounded bankart pass — 2026-10-08
+
+Source root `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`; BF = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml`. Forever shares the Mainline templates and substitutes only skin members already specified above.
+
+| Element | Source citation | Art, rect and flags |
+|---|---|---|
+| Selected tab | BF:349–376 | `CheckButtonHilight`, FDID130724, (0,0,32,32), no tiling, ADD on OVERLAY; not the old gold Quickslot substitute. |
+| Frame background | BF:677–682; Forever `Mainline/BankFrameTemplates.xml:671` | `bank-frame-background` active skin; retained portrait-excluding rect (2,51,734,379); horizontal + vertical tile, normal alpha. Native repetition samples only the cropped member, not its whole atlas sheet. |
+| Corner shadows | BF:279–304 | `bank-frame-shadow-corner{topleft,topright,bottomleft,bottomright}`, 46×46 at (2,22)/(689,22)/(2,412)/(689,412); no tile, normal alpha. |
+| Edge shadows | BF:306–340 | `!bank-frame-vert-shadow`, 17×344 at (2,68)/(718,68), vertical tile; `_bank-frame-horiz-shadow`, 641×17 at (48,22)/(48,441), horizontal tile; normal alpha. XML local crops select left/right or top/bottom halves of the member, preserving 256px repeat periods. |
+| Item hover | `Blizzard_ItemButton/Shared/ItemButtonTemplate.xml:79` (Mainline:138 for giant variant) | `Interface/Buttons/ButtonHilight-Square`, FDID130718, 37×37 icon bounds, white/ADD, no tile. Native bank slot retains press-position, drag and right/Shift click routing; no default button skin. |
+| Unaffordable price | `Blizzard_UIPanels_Game/Mainline/BankFrame.lua:1081–1086`; `Blizzard_MoneyFrame/Mainline/MoneyFrame.lua` color lookup | `SetMoneyFrameColorByFrame(..., canAfford and "white" or "red")`; red digits (1,0.1,0.1,1), normal alpha, existing coin members/rects unchanged. |
+| Bank-bag chrome (blocked) | Forever `Camelot/BankFrame.xml:4–16,62–112`; `.lua:135–190,398–410` | `bank-frame-bag-slotframe`, `bank-frame-bag-slot-bg`, `bankslot-icon-lock`, no tiling, normal alpha; template scale .75. Bag highlight `CheckButtonHilight` is ADD; BagText/BagCost/MoneyDisplay anchor to the bag row. These are not Retail Mainline side-tab art. Existing layout/authoritative bag state cannot represent this row without the excluded Camelot behavior or a new placement decision. |
+
+RED revision `58fded147`: `/home/osso/.worktrees/logs/bankart-red.log`, **0 passed / 5 failed**, EXIT101. All failures reproduce missing art/flags or grey price, not compilation errors. Stronger model-owned hover RED at `f97c2b1be`: `bankart-hover-red.log`, **0 passed / 1 failed**, EXIT101 (missing additive overlay texture).
+
+Final production revision `808b6eb2e`: `bankart-final-green-restored.log`, **11 passed / 0 failed / 1 ignored**, EXIT0 (art5, skin1, bankmoves5). `bankart-build-final.log` installs the native extension, EXIT0; ELF SHA256 `c1e4a8b4ec0d43cf0507265975178791f2176c618d045ed0d40db21d718f755b`. Earlier native build failed because the helper omits project `.gdshader` files; `d48d0ac25` embeds the shader in shipped Rust, without a fallback. A queued test failed before compilation when the dependency worktree was removed; the required environment path now aliases clean canonical protocol at the identical `c139baa` revision, with no protocol changes.
+
+Evidence: `data/diagnostics/bankart-2026-10-08/`. `capture.py` reuses spellbookshot's cage headless-mode shim; `capture.log` exits0 and asserts actual **1920×1080** window and viewport/image dimensions. All six `{modern,forever}-{tabs,hover,purchase}.png` were read. Grey Modern stone and warm Forever background repeat instead of stretching; each skin retains its slot/chrome/divider art. Selected tabs glow at32×32; the first37×37 slot gains a blue-white additive hover without losing its20 count. Both purchase captures show red500g digits and a disabled grey Purchase button. Native input additionally proves exactly one left/Shift/right bank-slot press, with left press coordinates retained. This is offline projection/input proof, not new server/live acceptance or full Retail pixel equivalence.
+
+| Element | Model proof | Native proof / limit |
+|---|---|---|
+| Selected marker | PASS FDID130724,32×32,WHITE,ADD,no tile | PASS both skins' purchased and purchase tabs inspected |
+| Tiled background | PASS active-skin member, retained rect, both tile flags | PASS both skin patterns visibly repeat at true1920×1080 |
+| Edge shadows | PASS all corner/edge atlases, rects and tile axes | PARTIAL corners/top/bottom render; vertical member FDID5779392 absent locally |
+| Unaffordable price | PASS all denomination digits red | PASS red500g and disabled button in both skins |
+| Bank-bag chrome/lock/cost labels | BLOCKED authoritative bag state and compatible placement absent | NOT IMPLEMENTED / NOT CAPTURED; purchase screenshots are bank-tab prompts, not bag purchases |
+| Additive item hover | PASS mounted ADD texture, hover show/hide and parent-closure visibility/alpha | PASS loaded ADD material, actual mouse hover and both-skin inspected captures |
+
+Local-CASC extraction of5779392 failed because `/syncthing/World of Warcraft/.build.info` is absent despite local archives and `.product.db`; no usable `/mnt/c` install or alternative local asset was found. `extract-5779392.log` is EXIT1 and native capture logs the missing texture. No CDN, substitute shadow or fabricated metadata was used. Import exited0 with8 ObjectDB warnings; capture exited0 without that shutdown warning, but platform warnings and the missing-art error remain recorded. Bank-bag art and complete vertical-shadow rendering remain open.
 
 ## How it works
 - [banks](../wiki/systems/banks.md)
@@ -110,8 +146,10 @@ Final native extension/CLI build installed in 44.8 seconds. Trace-free ELF SHA-2
 | `src/scenes/bag_frame/mod.rs` | Right-click deposit (`use_bag_item`) |
 
 ## Tests asserting this spec
+- `godot/ui-model/tests/native_bank_moves.rs`: mounted bank-slot routing, cross-tab cursor identity, exact bag/bank move and split requests, authoritative refresh and closed/Warband/purchase rejection.
 - `godot/rust/src/merchant.rs`: `distant_banker_attempt_reaches_authoritative_range_validation` and `non_banker_right_click_requires_a_living_npc_in_range`; live event/server/render assertion retained as `bankloop-2026-10-08/assert-bank-range.py` with RED/GREEN capture inputs.
-- `godot/ui-model/tests/forever_bank_bags.rs`: concrete Modern/Forever atlas regions, Forever divider/item chrome and unchanged slot actions, 1596-line byte-identical Modern bank fixture.
+- `godot/ui-model/tests/forever_bank_bags.rs`: concrete Modern/Forever atlas regions, Forever divider/item chrome, 98-slot geometry and unchanged slot actions. The historical full-tree fixture is no longer an invariant: this pass intentionally changes Modern marker, shadows, background flags and price colors.
+- `godot/ui-model/tests/native_bank_art.rs`: both-skin marker FDID/rect/ADD, skin background atlas/rect/tiling, shadow atlas/rect/axis tiling, red unaffordable money and item-hover source/size/action.
 - `godot/ui-model/tests/bag_window.rs`: under both skins the open backpack has its border, title, a close button that closes it, and one art-backed slot background per slot inside the window; Forever slot art differs from Modern.
 - `godot/ui-model/src/game/bank_data_tests.rs`
 - `src/game/networking/bank_tests.rs`
@@ -121,9 +159,8 @@ Final native extension/CLI build installed in 44.8 seconds. Trace-free ELF SHA-2
 
 ## Known gaps (current cycle)
 - [ ] Camelot bank-bag template art: `bank-frame-bag-slotframe`, `bankslot-icon-lock`, `bank-frame-bag-slot-bg` (`Camelot/BankFrame.xml:5,11,14`; F members:18120,18122,18119) resolves on sheet 8188339 but is not drawn: existing `BankFrameState` has no bank-bag slots, slot-purchase/lock or cost state. BagText/BagCost labels likewise remain unimplemented. Purchased bank-page side tabs are not bank bags; inventing state or behavior is outside this art-only pass.
-- [ ] Selected-tab highlight: Retail blends `CheckButtonHilight` additively (ADD). The ui-toolkit texture renderer has no additive blending, so a gold-tinted UI-Quickslot2 marks the selected tab instead.
-- [ ] Background and edge shadows are stretched, not tiled (the ui-toolkit has no tiling attribute for FDID textures); the edge shadow atlases are not drawn.
+- Bank-bag art remains blocked by the excluded Camelot bag/page behavior, not missing atlases: Retail Mainline BankFrame has bank tabs but no bank-bag row; Camelot has bag inventory locations and 88 slots/page. Its BagText at BOTTOMLEFT (43,80), scaled bag buttons and cost controls overlap the retained 98-slot grid and Deposit All. BankContents has tab icons, not equipped bank-bag items. No invented bag inventory, purchase request or geometry is introduced by the art fix.
 
 ## Out of scope
 - Search box, Cleanup/sort, the tab icon picker and the expansion filter (deferred by decision).
-- Bank-origin drag, partial-stack transfer, bank-slot swapping and direct inter-tab moves (not represented by the pinned bank protocol). Native whole-bag-stack drag deposit is implemented and has bounded live proof above; it does not add those missing operations.
+- Warband/guild-bank exact-slot drag, split and inter-tab moves. Character-bank support uses ItemLocation::Bank and existing SwapItem/SplitItem. Targeted model/UI tests are in `godot/ui-model/tests/native_bank_moves.rs`; live runs are excluded from this `bankmoves` proof.

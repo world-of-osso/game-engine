@@ -124,7 +124,8 @@ fn is_round_icon(name: &str) -> bool {
                 | "ProfessionsPortrait"
                 | "ProfessionsOutputIcon"
         );
-    creation || bag || portrait
+    let talent = name.starts_with("TalentNode") && name.ends_with("RoundIcon");
+    creation || bag || portrait || talent
 }
 
 fn mask_of(name: &str) -> Option<Mask> {

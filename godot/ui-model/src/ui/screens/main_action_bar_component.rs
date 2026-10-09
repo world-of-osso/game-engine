@@ -128,16 +128,27 @@ pub enum ActionBar {
     BottomLeft,
     /// Action Bar 3.
     BottomRight,
+    /// Action Bars 4/5, the right-hand vertical columns.
+    Right,
+    Left,
 }
 
 impl ActionBar {
-    pub const ALL: [Self; 3] = [Self::Main, Self::BottomLeft, Self::BottomRight];
+    pub const ALL: [Self; 5] = [
+        Self::Main,
+        Self::BottomLeft,
+        Self::BottomRight,
+        Self::Right,
+        Self::Left,
+    ];
 
     fn frame_name(self) -> &'static str {
         match self {
             Self::Main => MAIN_ACTION_BAR.0,
             Self::BottomLeft => "MultiBarBottomLeft",
             Self::BottomRight => "MultiBarBottomRight",
+            Self::Right => "MultiBarRight",
+            Self::Left => "MultiBarLeft",
         }
     }
 
@@ -147,6 +158,8 @@ impl ActionBar {
             Self::Main => "ActionButton",
             Self::BottomLeft => "MultiBarBottomLeftButton",
             Self::BottomRight => "MultiBarBottomRightButton",
+            Self::Right => "MultiBarRightButton",
+            Self::Left => "MultiBarLeftButton",
         }
     }
 
@@ -168,6 +181,8 @@ impl ActionBar {
             Self::Main => ACTION_BUTTON_PREFIX,
             Self::BottomLeft => "multi_bar_1_button:",
             Self::BottomRight => "multi_bar_2_button:",
+            Self::Right => "multi_bar_3_button:",
+            Self::Left => "multi_bar_4_button:",
         }
     }
 
@@ -179,6 +194,8 @@ impl ActionBar {
             Self::Main => 1,
             Self::BottomLeft => 6,
             Self::BottomRight => 5,
+            Self::Right => 3,
+            Self::Left => 4,
         }
     }
 
@@ -193,12 +210,35 @@ impl ActionBar {
     /// `MULTIACTIONBAR1BUTTONn` / `MULTIACTIONBAR2BUTTONn` on Action Bar 2 / 3
     /// (`ActionBarActionButtonMixin:UpdateHotkeys`, `ActionButton.lua:470-486`;
     /// `MultiActionBars.xml` `buttonType`).
-    pub const fn binding_actions(self) -> [InputAction; MAIN_BAR_BUTTONS] {
+    pub const fn binding_actions(self) -> &'static [InputAction] {
         match self {
-            Self::Main => InputAction::ACTION_BAR_BUTTONS,
-            Self::BottomLeft => InputAction::MULTI_ACTION_BAR_1,
-            Self::BottomRight => InputAction::MULTI_ACTION_BAR_2,
+            Self::Main => &InputAction::ACTION_BAR_BUTTONS,
+            Self::BottomLeft => &InputAction::MULTI_ACTION_BAR_1,
+            Self::BottomRight => &InputAction::MULTI_ACTION_BAR_2,
+            Self::Right => &InputAction::MULTI_ACTION_BAR_3,
+            Self::Left => &InputAction::MULTI_ACTION_BAR_4,
         }
+    }
+
+    /// Shared Retail ReceiveDrag destination; assignment is sent to the server by the host.
+    pub fn assignment(
+        self,
+        index: usize,
+        action: shared::protocol::ActionRef,
+        bonus_offset: u8,
+    ) -> Option<shared::protocol::SetActionButton> {
+        if index >= MAIN_BAR_BUTTONS {
+            return None;
+        }
+        let slot = if self == Self::Main && bonus_offset > 0 {
+            (6 + usize::from(bonus_offset) - 1) * MAIN_BAR_BUTTONS + index
+        } else {
+            self.action_slot(index)
+        };
+        Some(shared::protocol::SetActionButton {
+            slot: slot as u8,
+            action: Some(action),
+        })
     }
 
     /// The bar's Edit Mode settings under `layout`; `None` when the preset does not show it.
@@ -207,6 +247,7 @@ impl ActionBar {
             Self::Main => Some(&layout.main_action_bar),
             Self::BottomLeft => layout.action_bar_2.as_ref(),
             Self::BottomRight => layout.action_bar_3.as_ref(),
+            Self::Right | Self::Left => None,
         }
     }
 }
@@ -216,7 +257,8 @@ pub struct MainActionBarState {
     /// The main bar's buttons.
     pub buttons: [ActionButtonView; MAIN_BAR_BUTTONS],
     /// `MultiBarBottomLeft`'s and `MultiBarBottomRight`'s buttons.
-    pub multi_bars: [[ActionButtonView; MAIN_BAR_BUTTONS]; 2],
+    pub multi_bars: [[ActionButtonView; MAIN_BAR_BUTTONS]; 4],
+    pub extra_action_bars: game_engine_core::client_options_data::ExtraActionBars,
     /// The player's `ChrClasses` ID; `None` until the player's unit has replicated.
     pub player_class: Option<u8>,
 }
@@ -228,6 +270,7 @@ impl Default for MainActionBarState {
             multi_bars: std::array::from_fn(|_| {
                 std::array::from_fn(|_| ActionButtonView::default())
             }),
+            extra_action_bars: Default::default(),
             player_class: None,
         }
     }
@@ -239,6 +282,8 @@ impl MainActionBarState {
             ActionBar::Main => &self.buttons,
             ActionBar::BottomLeft => &self.multi_bars[0],
             ActionBar::BottomRight => &self.multi_bars[1],
+            ActionBar::Right => &self.multi_bars[2],
+            ActionBar::Left => &self.multi_bars[3],
         }
     }
 
@@ -247,6 +292,8 @@ impl MainActionBarState {
             ActionBar::Main => &mut self.buttons,
             ActionBar::BottomLeft => &mut self.multi_bars[0],
             ActionBar::BottomRight => &mut self.multi_bars[1],
+            ActionBar::Right => &mut self.multi_bars[2],
+            ActionBar::Left => &mut self.multi_bars[3],
         }
     }
 
@@ -255,7 +302,7 @@ impl MainActionBarState {
     pub fn set_hotkeys(&mut self, bindings: &InputBindingsData) {
         for bar in ActionBar::ALL {
             for (view, action) in self.bar_mut(bar).iter_mut().zip(bar.binding_actions()) {
-                view.hotkey = bindings.binding(action);
+                view.hotkey = bindings.binding(*action);
             }
         }
     }
@@ -271,7 +318,8 @@ pub fn pressed_action_buttons(
         .into_iter()
         .flat_map(|bar| {
             bar.binding_actions()
-                .into_iter()
+                .iter()
+                .copied()
                 .enumerate()
                 .filter(|(_, action)| bindings.is_just_pressed(*action, input))
                 .map(move |(index, _)| (bar, index))
@@ -581,7 +629,11 @@ fn action_bar(
         .take(layout.num_icons)
         .enumerate()
         .flat_map(|(index, view)| {
-            let origin = layout.button_origin(index, style.scale);
+            let origin = if matches!(bar, ActionBar::Right | ActionBar::Left) {
+                (0.0, index as f32 * (BUTTON_SIZE + BUTTON_PADDING) * scale)
+            } else {
+                layout.button_origin(index, style.scale)
+            };
             button((bar, index), view, origin, scale, style)
         })
         .collect();
@@ -614,18 +666,8 @@ pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
         .get::<ActiveSkin>()
         .expect("canvas carries the active skin");
     let style = bar_style(skin);
-    let mut hud = hud_layout(ctx);
-    let edit_active = ctx
-        .get::<crate::hud_edit::EditModeActive>()
-        .is_some_and(|edit| edit.0);
-    if edit_active {
-        let mut preview = hud.main_action_bar;
-        preview.anchor.y += BUTTON_SIZE + BUTTON_PADDING;
-        hud.action_bar_2.get_or_insert(preview);
-        preview.anchor.y += BUTTON_SIZE + BUTTON_PADDING;
-        hud.action_bar_3.get_or_insert(preview);
-    }
-    ActionBar::ALL
+    let hud = extra_bar_layout(ctx, state);
+    let mut elements: Element = ActionBar::ALL
         .into_iter()
         .filter_map(|bar| Some((bar, bar.layout(&hud)?)))
         .flat_map(|(bar, layout)| {
@@ -637,5 +679,69 @@ pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
             };
             action_bar(bar, state.bar(bar), layout, &style, end_caps)
         })
-        .collect()
+        .collect();
+    elements.extend(side_action_bars(state, &style));
+    elements
+}
+
+fn extra_bar_layout(ctx: &SharedContext, state: &MainActionBarState) -> HudLayout {
+    let mut hud = hud_layout(ctx);
+    let editing = ctx
+        .get::<crate::hud_edit::EditModeActive>()
+        .is_some_and(|edit| edit.0);
+    let mut preview = hud.main_action_bar;
+    preview.anchor.y += BUTTON_SIZE + BUTTON_PADDING;
+    hud.action_bar_2 = bottom_bar_layout(
+        hud.action_bar_2,
+        preview,
+        state.extra_action_bars.action_bar_2,
+        editing,
+    );
+    preview.anchor.y += BUTTON_SIZE + BUTTON_PADDING;
+    hud.action_bar_3 = bottom_bar_layout(
+        hud.action_bar_3,
+        preview,
+        state.extra_action_bars.action_bar_3,
+        editing,
+    );
+    hud
+}
+
+fn bottom_bar_layout(
+    authored: Option<ActionBarLayout>,
+    preview: ActionBarLayout,
+    enabled: Option<bool>,
+    editing: bool,
+) -> Option<ActionBarLayout> {
+    match enabled {
+        Some(false) => None,
+        Some(true) => Some(authored.unwrap_or(preview)),
+        None if editing => Some(authored.unwrap_or(preview)),
+        None => authored,
+    }
+}
+
+fn side_action_bars(state: &MainActionBarState, style: &BarStyle) -> Element {
+    use crate::hud_layout::{HudAnchor, Point};
+    [
+        (ActionBar::Right, state.extra_action_bars.action_bar_4, 6.0),
+        (ActionBar::Left, state.extra_action_bars.action_bar_5, 53.0),
+    ]
+    .into_iter()
+    .filter(|(_, enabled, _)| *enabled)
+    .flat_map(|(bar, _, right)| {
+        let layout = ActionBarLayout {
+            anchor: HudAnchor {
+                point: Point::Right,
+                relative: Point::Right,
+                x: -right,
+                y: 0.0,
+            },
+            num_icons: MAIN_BAR_BUTTONS,
+            num_rows: MAIN_BAR_BUTTONS,
+            icon_scale: 1.0,
+        };
+        action_bar(bar, state.bar(bar), &layout, style, Vec::new())
+    })
+    .collect()
 }

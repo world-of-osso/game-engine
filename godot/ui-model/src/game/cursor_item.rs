@@ -299,7 +299,9 @@ fn drop_inventory_item(
     let request = match target {
         // Clicking the source slot puts the item back.
         CursorTarget::Location(to) if to == held.from => return None,
-        CursorTarget::Location(to @ ItemLocation::Bag { .. }) if held.split => {
+        CursorTarget::Location(to @ (ItemLocation::Bag { .. } | ItemLocation::Bank { .. }))
+            if held.split =>
+        {
             InventoryRequest::Split(SplitItem {
                 from: held.from,
                 to,

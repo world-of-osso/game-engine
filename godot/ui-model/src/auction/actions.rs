@@ -7,8 +7,7 @@ use crate::auction_house_frame_component::{
     SEARCH_BOX, SELL_BID_BOXES, SELL_BUYOUT_BOXES,
 };
 use shared::protocol::{
-    AuctionDuration, AuctionSearchQuery, AuctionSortDir, AuctionSortField, BuyoutAuction,
-    CancelAuction, PlaceBid,
+    AuctionDuration, AuctionSearchQuery, AuctionSortDir, AuctionSortField, CancelAuction,
 };
 
 use super::AuctionHouseUi;
@@ -24,6 +23,7 @@ fn search_query(text: &str) -> AuctionSearchQuery {
     AuctionSearchQuery {
         item_id: None,
         class_id: None,
+        subcategory_filters: Vec::new(),
         text: text.trim().to_string(),
         page: 0,
         page_size: SEARCH_PAGE_SIZE,
@@ -77,16 +77,16 @@ pub fn dispatch(
         request_sorted_results(field, net, ui, texts);
         return Vec::new();
     }
-    if let Some(index) = parse(action, frame::ACTION_CATEGORY_PREFIX) {
-        let index = index as usize;
-        if index >= view::CATEGORIES.len() {
-            return Vec::new();
-        }
-        ui.category = (ui.category != Some(index)).then_some(index);
+    if let Some(path) = action
+        .strip_prefix(frame::ACTION_CATEGORY_PREFIX)
+        .and_then(super::categories::parse_path)
+    {
+        super::categories::select(&mut ui.category_path, path);
         ui.browse_item = None;
+        ui.selected_auction = None;
         ui.row_page = 0;
         let mut query = search_query(view::text(texts, SEARCH_BOX));
-        query.class_id = ui.category.map(|index| view::CATEGORIES[index].1);
+        super::categories::apply_filter(&mut query, &ui.category_path);
         net.request(AuctionRequest::Browse(query));
         return Vec::new();
     }
@@ -120,6 +120,8 @@ fn parse_sort_field(token: &str) -> Option<AuctionSortField> {
     match token {
         "name" => Some(AuctionSortField::Name),
         "price" => Some(AuctionSortField::Buyout),
+        "bid" => Some(AuctionSortField::Bid),
+        "available" => Some(AuctionSortField::Quantity),
         _ => None,
     }
 }
@@ -134,7 +136,7 @@ fn request_sorted_results(
         Some(query) => query.clone(),
         None => {
             let mut query = search_query(view::text(texts, SEARCH_BOX));
-            query.class_id = ui.category.map(|index| view::CATEGORIES[index].1);
+            super::categories::apply_filter(&mut query, &ui.category_path);
             query
         }
     };
@@ -167,7 +169,7 @@ fn dispatch_command(
             ui.browse_item = None;
             ui.selected_auction = None;
             let mut query = search_query(view::text(texts, SEARCH_BOX));
-            query.class_id = ui.category.map(|index| view::CATEGORIES[index].1);
+            super::categories::apply_filter(&mut query, &ui.category_path);
             net.request(AuctionRequest::Browse(query));
         }
         frame::ACTION_BACK => {
@@ -177,15 +179,6 @@ fn dispatch_command(
             ui.browse_item = None;
             ui.selected_auction = None;
         }
-        frame::ACTION_BID => return place_bid(net, ui, texts),
-        frame::ACTION_BUYOUT => ui.dialog_auction = ui.selected_auction,
-        frame::ACTION_DIALOG_BUY => {
-            if let Some(auction_id) = ui.dialog_auction.take() {
-                net.request(AuctionRequest::Buyout(BuyoutAuction { auction_id }));
-                ui.selected_auction = None;
-            }
-        }
-        frame::ACTION_DIALOG_CANCEL => ui.dialog_auction = None,
         frame::ACTION_SELL_CLEAR => return clear_sell_item(ui),
         frame::ACTION_MAX_QUANTITY => return max_quantity(net, ui),
         frame::ACTION_BUYOUT_MODE => {
@@ -241,20 +234,6 @@ fn select_auction(
         .find(|listing| listing.auction_id == auction_id)
         .map(|listing| listing.min_next_bid);
     money_edits(BID_BOXES, min_next)
-}
-
-fn place_bid(
-    net: &mut AuctionHouseState,
-    ui: &mut AuctionHouseUi,
-    texts: &InputTexts,
-) -> Vec<InputEdit> {
-    let Some(auction_id) = ui.selected_auction else {
-        return Vec::new();
-    };
-    let amount = view::money_input(texts, BID_BOXES);
-    net.request(AuctionRequest::Bid(PlaceBid { auction_id, amount }));
-    ui.selected_auction = None;
-    money_edits(BID_BOXES, None)
 }
 
 /// Putting an item in the sell slot: quantity 1, prices cleared, and a search for the

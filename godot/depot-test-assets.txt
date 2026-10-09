@@ -2248,3 +2248,32 @@ textures/7743357.blp
 # Trainer tooltips reuse existing professions recipe metadata.
 db2/12.1.0.69933/SpellReagents.csv
 db2/12.1.0.69933/TradeSkillCategory.csv
+
+# Read-only Talents: real Mage Arcane DB2 fixture.
+db2/12.1.0.69933/TraitTree.csv
+db2/12.1.0.69933/TraitNode.csv
+db2/12.1.0.69933/TraitNodeEntry.csv
+db2/12.1.0.69933/TraitDefinition.csv
+db2/12.1.0.69933/TraitEdge.csv
+db2/12.1.0.69933/TraitNodeGroup.csv
+db2/12.1.0.69933/TraitNodeGroupXTraitNode.csv
+db2/12.1.0.69933/TraitNodeGroupXTraitCond.csv
+db2/12.1.0.69933/TraitNodeGroupXTraitCost.csv
+db2/12.1.0.69933/TraitCond.csv
+db2/12.1.0.69933/TraitSubTree.csv
+db2/12.1.0.69933/SkillLineXTraitTree.csv
+db2/12.1.0.69933/TraitTreeLoadout.csv
+db2/12.1.0.69933/TraitTreeLoadoutEntry.csv
+db2/12.1.0.69933/TraitNodeXTraitNodeEntry.csv
+db2/12.1.0.69933/TraitNodeXTraitCond.csv
+db2/12.1.0.69933/TraitNodeEntryXTraitCond.csv
+db2/12.1.0.69933/TraitCost.csv
+db2/12.1.0.69933/TraitNodeXTraitCost.csv
+db2/12.1.0.69933/TraitNodeEntryXTraitCost.csv
+db2/12.1.0.69933/TraitCurrency.csv
+db2/12.1.0.69933/TraitCurrencySource.csv
+db2/12.1.0.69933/TraitTreeXTraitCurrency.csv
+db2/12.1.0.69933/SpecSetMember.csv
+# Actual grant icon and the present half of the Mage choice node.
+textures/135991.blp
+textures/135852.blp

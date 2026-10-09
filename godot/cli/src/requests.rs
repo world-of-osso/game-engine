@@ -551,6 +551,7 @@ pub fn auction_browse_request(args: AuctionBrowseRequestArgs) -> Result<Request,
         query: AuctionSearchQuery {
             item_id: None,
             class_id: None,
+            subcategory_filters: Vec::new(),
             text: args.text,
             page: args.page,
             page_size: args.page_size,

@@ -57,6 +57,7 @@ fn model() -> GameMenuViewModel {
             hud: HudOptionsView {
                 show_minimap: true,
                 show_action_bars: true,
+                extra_action_bars: Default::default(),
                 show_nameplates: true,
                 nameplate_distance: 40.0,
                 nameplate_style: NameplateStyle::default(),
@@ -111,6 +112,7 @@ fn options_categories_emit_original_actions_and_replace_visible_section() {
         (OptionsCategory::Camera, "Mouse Sensitivity"),
         (OptionsCategory::Interface, "Chat Font Size"),
         (OptionsCategory::Hud, "Show Minimap"),
+        (OptionsCategory::ActionBars, "Action Bar 2"),
         (OptionsCategory::Nameplates, "Border"),
         (OptionsCategory::Controls, "Mouse Turn Style"),
         (OptionsCategory::Accessibility, "UI Scale"),

@@ -279,6 +279,18 @@ Corrective production/spec `7429822c3` calculates the unchanged visibility formu
 
 [Cleanup receipt](../../../target/skyborn-source-items/npc-corrective-native-cleanup.json) owns process/state scope. Eleven out-of-coverage NPC errors and unmapped visible cape issues are not fixed. Area provenance unverified, encrypted Criteria1/CriteriaTree8 and original-build asset-byte gaps remain explicit. Native liquids, remaining NPC metadata/coverage and race96 quest gaps remain open. Final gate completion awaits304; full Skyborne/source/Classic parity and whole goal remain OPEN. Handoff final hashes do not prove remote30-test consumption, landing or protocol compatibility; osso5000 PID1053927 remains observed active/untouched, not continuously attested.
 
+## NPC source selection and offline sweep (2026-10-08)
+
+Verified:2026-10-08. [NPC contract/error table](../../specs/npc-appearance.md#skyborn-offline-sweep-2026-10-08) owns current counts, source query, extraction requests and proof limits. This local CPU investigation does not replace the sender's native checkpoint or claim its eleven errors reproduced.
+
+`NpcAppearanceCatalogs` stores separate Retail/Forever CDI ID sets and checks Retail membership first. `load_for_display` returns the corresponding customization/compositor data, not a source inferred from race or a source field added to the profile. Forever-only NPCs use a separate customization database per `(race,sex)` and unmerged Forever compositor data. Reachable collection interpretation is restricted to the displayed ChrModel and its authored other form, so unrelated wide geosets do not poison loading; selected invalid rows still error. Retail NPC reads exclude the player Skyborne overlay, which remains unchanged for players.
+
+`NpcAppearances::prepare` passes `ResolvedEquipmentAppearance.merged_cape_texture_fdid` through required local pixel loading into `compose_replacement_pixels`. That helper publishes the decoded cape under texture key2 while preserving body/bake and hair keys. A declared missing cape remains an error; no variation texture or raw-model substitute is chosen. Existing strict slot/source-absence/geoset policy is unchanged.
+
+The ignored core sweep imports native engine-free gear and pixel policies directly, parses the local display models and calls production material bindings with zero-opacity units retained. Armor-file receipts are separate from body composition, matching the native boundary where failed item assets are reported without preempting body preparation. Upstream absence blocks downstream batch proof explicitly. Full local data uses the documented plain-Cargo exception rather than treating the test container's asset subset as authoritative availability.
+
+Sources: [catalog selection](../../../godot/core/src/npc_appearance_assets.rs), [native preparation](../../../godot/rust/src/assets/appearance.rs), [replacement pixels](../../../godot/rust/src/assets/appearance_pixels.rs), [offline sweep/regressions](../../../godot/core/tests/forever_npc_sweep.rs). Current ledger and input hashes live in canonical `data/diagnostics/npcsweep-2026-10-08/`; no native process/render or independent-agent gate was run.
+
 ## Sources
 
 - [Corrective proof](../../../target/skyborn-source-items/npc-corrective-proof.md) and [ledger](../../../target/skyborn-source-items/npc-corrective-ledger.json) — exact7429822c3 CPU/helper scope; [NPC contract](../../specs/npc-appearance.md) changed with implementation. Main-supplied October7 native26e RED, later corrective native DONE and pending independent304 with retained Grove boundaries; no fresh operations or verification by this docs audit.
@@ -311,4 +323,5 @@ Corrective production/spec `7429822c3` calculates the unchanged visibility formu
 
 - [[character-creation]] — catalog/UI and acceptance boundaries
 - [[asset-pipeline]] — local CASC resolution
+- [[character-rendering]] — authored NPC replacement/geoset consumers
 - [[terrain]] — Zephras provisioning and rendering limits

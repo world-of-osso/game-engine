@@ -5,7 +5,7 @@ use super::{
 use game_engine_ui_model::hud_edit_component::*;
 
 #[test]
-fn hudeditmodepolish_all_21_movers_clear_manager_and_use_shared_label_policy() {
+fn hudeditmodepolish_default_19_movers_clear_manager_and_use_shared_label_policy() {
     use game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -27,7 +27,11 @@ fn hudeditmodepolish_all_21_movers_clear_manager_and_use_shared_label_policy() {
                 registry.set_computed_layout(id, rect).unwrap();
             }
             let mut boxes = super::super::hud_edit_layout::collect_selection_boxes(&registry, None);
-            assert_eq!(boxes.len(), EDIT_MODE_ELEMENTS.len(), "{skin:?} {size:?}");
+            assert_eq!(
+                boxes.len(),
+                EDIT_MODE_ELEMENTS.len() - 2,
+                "{skin:?} {size:?}"
+            );
             let at = find_panel_position(size, &boxes).expect("clear default manager space");
             let manager = [at[0], at[1], PANEL_W, PANEL_H];
             for entry in &boxes {
@@ -365,10 +369,10 @@ fn hudeditmodepolish_tracker_selection_follows_retail_default_height_below_heade
         (ActiveSkin::Modern, 275.0, 805.0),
         (
             ActiveSkin::Forever,
-            // Layout pixel-rounds the scaled top 300 * 260/288 = 270.83; the box
-            // still ends at 1080 tracker units, 975 on screen.
-            271.0,
-            1080.0 * forever_scale - 271.0,
+            // Layout pixel-rounds the top under the minimap, 268 + 4 * 260/288 = 271.61;
+            // the box still ends at 1080 tracker units, 975 on screen.
+            272.0,
+            1080.0 * forever_scale - 272.0,
         ),
     ] {
         ui_toolkit::atlas::set_thread_skin(skin);

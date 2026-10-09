@@ -181,3 +181,91 @@ fn auction_snapshots_preserve_root_search_and_band_geometry() {
     }
     set_thread_skin(ActiveSkin::Modern);
 }
+
+#[test]
+fn ahsort_displayed_buy_headers_dispatch_bid_and_available() {
+    use game_engine_ui_model::auction::{AuctionRequest, AuctionSession, view::InputTexts};
+    use shared::protocol::{AuctionHouseOpened, AuctionSortField};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        for (view, header, expected) in [
+            (
+                "browse",
+                "AuctionHouseFrameBrowseResultsFrameItemListHeader2",
+                AuctionSortField::Quantity,
+            ),
+            (
+                "item",
+                "AuctionHouseFrameItemBuyFrameItemListHeader0",
+                AuctionSortField::Bid,
+            ),
+            (
+                "item",
+                "AuctionHouseFrameItemBuyFrameItemListHeader2",
+                AuctionSortField::Quantity,
+            ),
+        ] {
+            let registry = render(skin, view);
+            let action = frame(&registry, header)
+                .onclick
+                .as_deref()
+                .expect("sortable visible header");
+            let mut session = AuctionSession::default();
+            session.open(1);
+            session.opened(AuctionHouseOpened {
+                success: true,
+                error: None,
+            });
+            if view == "item" {
+                session.ui.browse_item = Some(123);
+            }
+            session.net.requests.clear();
+            session.click(action, &InputTexts::new());
+            let query = match session.net.requests.last().unwrap() {
+                AuctionRequest::Browse(query) | AuctionRequest::Listings(query) => query,
+                other => panic!("unexpected header request {other:?}"),
+            };
+            assert_eq!(query.sort_field, expected);
+        }
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn ahsort_expanded_category_tree_scroll_reaches_last_category() {
+    use game_engine_ui_model::auction::{AuctionSession, view::InputTexts};
+    use shared::protocol::AuctionHouseOpened;
+    let _ = render(ActiveSkin::Modern, "browse");
+    let mut session = AuctionSession::default();
+    session.open(1);
+    session.opened(AuctionHouseOpened {
+        success: true,
+        error: None,
+    });
+    let texts = InputTexts::new();
+    for action in [
+        "auction_category:1",
+        "auction_category:1/3",
+        "auction_category:1/3/2",
+    ] {
+        session.click(action, &texts);
+    }
+    let state = session.native_view(&texts);
+    assert!(state.frame.categories.len() > 20);
+    let last = state.frame.categories.len();
+    let mut shared = SharedContext::new();
+    shared.insert(state);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut screen = Screen::new(native_auction_screen);
+    screen.sync(&shared, &mut registry);
+    assert!(
+        registry
+            .scroll_lists
+            .scroll_to("AuctionHouseFrameCategoriesScrollList", usize::MAX)
+    );
+    screen.sync(&shared, &mut registry);
+    let last_row = frame(
+        &registry,
+        &format!("AuctionHouseFrameCategoriesListButton{last}"),
+    );
+    assert_eq!(last_row.onclick.as_deref(), Some("auction_category:13"));
+}

@@ -9,8 +9,7 @@ pub(super) fn register_edit_panel_style(registry: &mut ui_toolkit::registry::Fra
 }
 
 fn edit_screen(ctx: &SharedContext) -> Element {
-    let mut elements = edit_mode_side_bar_previews(ctx);
-    elements.extend(edit_mode_overlay_screen(ctx));
+    let mut elements = edit_mode_overlay_screen(ctx);
     if ctx.get::<EditModePanelState>().is_some() {
         elements.extend(edit_mode_panel_screen(ctx));
     }
@@ -48,10 +47,34 @@ impl RegistryUi {
     }
 
     #[func]
+    pub fn show_actionbars_options_preview(&mut self) -> GString {
+        self.capture_action_bar_options(ActiveSkin::Modern)
+    }
+
+    #[func]
+    pub fn show_forever_actionbars_options_preview(&mut self) -> GString {
+        self.capture_action_bar_options(ActiveSkin::Forever)
+    }
+
+    fn capture_action_bar_options(&mut self, skin: ActiveSkin) -> GString {
+        let result = (|| {
+            party_preview::load_data_root()?;
+            ui_toolkit::atlas::set_thread_skin(skin);
+            self.set_ui_scale(1.0)?;
+            self.show_game_menu_view(game_engine_ui_model::options_menu_data::build_view_model(
+                &extra_bar_options_model(skin),
+            ))
+        })();
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
+    #[func]
     pub fn hudedit_preview_keys(&self) -> PackedStringArray {
-        game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS
+        self.registry()
+            .map(|registry| super::hud_edit_layout::collect_selection_boxes(registry, None))
+            .unwrap_or_default()
             .iter()
-            .map(|entry| GString::from(entry.key))
+            .map(|entry| GString::from(entry.key.as_str()))
             .collect()
     }
 
@@ -117,6 +140,45 @@ impl RegistryUi {
     }
 }
 
+pub(super) fn extra_bar_options_model(
+    skin: ActiveSkin,
+) -> game_engine_ui_model::options_menu_data::OptionsModel {
+    use game_engine_core::client_options_data::ClientOptionsFile;
+    use game_engine_core::ui_layout_data::LayoutSkin;
+    use game_engine_ui_model::options_menu_data as policy;
+    let file = ClientOptionsFile::default();
+    let graphics = policy::graphics_draft_from_file(&file.graphics);
+    let sound = policy::sound_draft_from_file(&file.sound);
+    let camera = policy::camera_draft_from_file(&file.camera);
+    let hud = policy::hud_draft_from_file(&file.hud);
+    policy::OptionsModel {
+        logged_in: true,
+        view: game_engine_ui_model::game_menu_component::GameMenuView::Options,
+        category: game_engine_ui_model::options_menu_component::OptionsCategory::ActionBars,
+        modal_position: [0.0, 0.0],
+        draft_graphics: graphics.clone(),
+        committed_graphics: graphics,
+        draft_sound: sound.clone(),
+        committed_sound: sound,
+        draft_camera: camera.clone(),
+        committed_camera: camera,
+        draft_hud: hud.clone(),
+        committed_hud: hud,
+        draft_bindings: Default::default(),
+        committed_bindings: Default::default(),
+        binding_section: game_engine_ui_model::input_bindings::BindingSection::Movement,
+        binding_capture: policy::BindingCapture::None,
+        layout: game_engine_ui_model::options_menu_component::LayoutOptionsView {
+            skin: if skin == ActiveSkin::Forever {
+                LayoutSkin::Forever
+            } else {
+                LayoutSkin::Modern
+            },
+            ..Default::default()
+        },
+    }
+}
+
 pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
     use game_engine_ui_model::bags_bar_component::{BagBarState, bags_bar_screen};
     use game_engine_ui_model::buff_frame_component::{BuffFrameState, buff_frame_screen};
@@ -153,6 +215,10 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
     });
     shared.insert(MainActionBarState {
         player_class: Some(2),
+        extra_action_bars: ctx
+            .get::<game_engine_core::client_options_data::ExtraActionBars>()
+            .copied()
+            .unwrap_or_default(),
         ..Default::default()
     });
     shared.insert(BagBarState::default());
@@ -189,7 +255,6 @@ pub(super) fn preview_screen(ctx: &SharedContext) -> Element {
     .into_iter()
     .flatten()
     .collect();
-    elements.extend(edit_mode_side_bar_previews(ctx));
     elements.extend(edit_mode_overlay_screen(ctx));
     if ctx.get::<EditModePanelState>().is_some() {
         elements.extend(edit_mode_panel_screen(ctx));
