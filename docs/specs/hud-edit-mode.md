@@ -9,7 +9,7 @@ Edit Mode" and open decision 1 (layouts account-wide, active layout per characte
 
 ## Native implementation (2026-10-07)
 
-- [x] F10 toggles the world-only editor; Escape after popup dismissal exits before window handling. Exit discards unsaved drafts; Save precedes exit for persistence.
+- [x] F10 toggles the world-only editor; Escape after popup dismissal exits before window handling. Exit autosaves pending drafts using the existing Save path (user decision 2026-10-09).
 - [x] Mounted, visible registered roots receive labelled selection art, selected art and real pointer dragging. Absent/hidden roots are skipped.
 - [x] Dragged top-left snaps to the 8-unit grid, then screen edges within 8 units, then clamps. Saved anchors/offsets are logical UI units.
 - [x] Existing account layouts and per-character active layout carry mover placements alongside skin/settings; presets remain immutable. Manager supports previous/next, New, Rename, Delete, Revert, Save, Exit and Reset Selected (remove placement; Save persists reset).
@@ -73,6 +73,14 @@ Skipped Retail entries: all 25 below lack a registered native mover in our curre
 | RaidWarning | `RAID_WARNING_LABEL` | — / Misc:10 | 484-490 |
 
 Acceptance at code `81581bebf` (spec-first `5b1431f9f`): RED 0/2 missing-checkbox tests; GREEN 3/3 new `hudeditshowlist` behaviors and 22/22 targeted `hudedit` regressions. Tests dispatch the registry click action and production persisted transition; prove label/basic order in both skins, category mover removal/restoration at identical rectangles, selection/drag/hover clearing, account-file round-trip across Exit/Revert/reopen/character/layout and other-account isolation. Native extension build exits 0. Native Forever and Modern 1920×1080 PNGs: `/syncthing/AgentShared/2026-10-09/editmode-showlist/forever.png`, `modern.png`; both inspected via ffmpeg 960×540 views and 400×234 manager crops. All five checked labels are readable, no action-button backplates, manager clears mounted movers. Evidence: `data/diagnostics/editmode-showlist-2026-10-09/{red,green-checkbox-art,build-checkbox-art,capture-final}.log`, `native-preflight-final.txt`. Offline native screenshot proof, not live server/native-pointer acceptance or a clean-resource-shutdown claim; inherited cage/audio/VSync warnings remain. Owned client/cage exited and agent slice stopped.
+
+## Autosave on exit (user decision 2026-10-09)
+
+Leaving Edit Mode through Exit/manager dismissal, Escape, F10 or the native world-exit cleanup saves pending element placements using the same persistence operation as Save. Persistence failure keeps the draft active and reports the error; it must not silently discard changes. Exiting an unchanged layout does not write or create a copy. Cancelling a delete confirmation with Escape/F10 still cancels the dialog rather than leaving Edit Mode.
+
+Existing Save semantics are unchanged: a read-only Modern/Forever preset becomes the first unused `Layout N` (initially `Layout 1`), selected for the character, preserving skin/settings and leaving the preset untouched. A custom layout is updated in place. No new copy dialog/flow is added.
+
+This explicitly deviates from Retail Mainline: `Blizzard_EditMode/Shared/EditModeManager.lua:111–139` reverts on exit/OnHide and `:1612–1614` opens `EditModeUnsavedChangesDialog` (Save and Exit / Exit / Cancel in `Shared/EditModeDialogs.xml`). User chose autosave instead; no unsaved-changes dialog is implemented. The rule is identical for both skins.
 
 ## Retail selection label correction (2026-10-09)
 

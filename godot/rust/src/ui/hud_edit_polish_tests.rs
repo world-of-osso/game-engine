@@ -417,6 +417,124 @@ fn click_and_apply_manager(
 }
 
 #[test]
+fn hud_edit_exit_autosaves_pending_changes_and_reloads_like_save() {
+    for skin in ["Modern", "Forever"] {
+        for preset in [true, false] {
+            let stem = format!("hud-edit-autosave-{skin}-{preset}-{}", std::process::id());
+            let exit_path = std::env::temp_dir().join(format!("{stem}-exit.ron"));
+            let save_path = std::env::temp_dir().join(format!("{stem}-save.ron"));
+            let placement = save_top_left(
+                HudAnchor::Bottom,
+                [104.0, 312.0],
+                [240.0, 60.0],
+                [1920.0, 1080.0],
+            );
+            let mut results = Vec::new();
+            for (path, action) in [
+                (&exit_path, ACTION_EDIT_MODE_EXIT),
+                (&save_path, ACTION_EDIT_MODE_SAVE),
+            ] {
+                let mut layout = ui_layout_data::set_active_layout(path, 57, skin).unwrap();
+                if !preset {
+                    layout =
+                        ui_layout_data::create_layout(path, 57, "Custom", layout.elements.clone())
+                            .unwrap();
+                }
+                let mut draft = EditDraft::default();
+                draft.enter(&layout);
+                draft.working.insert("player_frame".into(), placement);
+                let updated = crate::hud_edit::apply_manager_action(
+                    path, 57, action, "", &layout, &mut draft,
+                )
+                .unwrap()
+                .expect("persisted layout");
+                assert_eq!(draft.active, action == ACTION_EDIT_MODE_SAVE);
+                let reloaded = ui_layout_data::active_layout(path, 57).unwrap();
+                assert_eq!(updated, reloaded);
+                assert_eq!(reloaded.elements["player_frame"], placement);
+                assert_eq!(reloaded.name, if preset { "Layout 1" } else { "Custom" });
+                let mut relog = EditDraft::default();
+                relog.enter(&reloaded);
+                assert_eq!(relog.working["player_frame"], placement);
+                assert!(
+                    ui_layout_data::active_layout(path, 58)
+                        .unwrap()
+                        .elements
+                        .is_empty()
+                );
+                results.push(reloaded);
+                std::fs::remove_file(path).unwrap();
+            }
+            assert_eq!(
+                results[0], results[1],
+                "exit must use existing Save semantics"
+            );
+        }
+    }
+}
+
+#[test]
+fn hud_edit_unchanged_exit_does_not_copy_presets_and_failed_save_keeps_draft() {
+    for skin in ["Modern", "Forever"] {
+        let path = std::env::temp_dir().join(format!(
+            "hud-edit-exit-boundary-{skin}-{}.ron",
+            std::process::id()
+        ));
+        let layout = ui_layout_data::set_active_layout(&path, 57, skin).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let mut draft = EditDraft::default();
+        draft.enter(&layout);
+        assert!(
+            crate::hud_edit::apply_manager_action(
+                &path,
+                57,
+                ACTION_EDIT_MODE_EXIT,
+                "",
+                &layout,
+                &mut draft
+            )
+            .unwrap()
+            .is_none()
+        );
+        assert!(!draft.active);
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+        assert_eq!(
+            ui_layout_data::layout_names(&path).unwrap(),
+            ["Modern", "Forever"]
+        );
+
+        draft.enter(&layout);
+        draft.working.insert(
+            "player_frame".into(),
+            save_top_left(
+                HudAnchor::TopLeft,
+                [400.0, 240.0],
+                [240.0, 60.0],
+                [1920.0, 1080.0],
+            ),
+        );
+        draft.pending_delete = Some("Custom".into());
+        let pending = draft.working.clone();
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        assert!(
+            crate::hud_edit::apply_manager_action(
+                &path,
+                57,
+                ACTION_EDIT_MODE_EXIT,
+                "",
+                &layout,
+                &mut draft
+            )
+            .is_err()
+        );
+        assert!(draft.active);
+        assert_eq!(draft.working, pending);
+        std::fs::remove_dir(path).unwrap();
+    }
+}
+
+#[test]
 fn hudeditmodepolish_manager_clicks_drive_real_draft_and_persistence_transitions() {
     for skin in ["Modern", "Forever"] {
         let path = std::env::temp_dir().join(format!(
@@ -558,6 +676,8 @@ fn hudeditmodepolish_manager_clicks_drive_real_draft_and_persistence_transitions
         assert!(!draft.active);
         assert!(draft.working.is_empty());
         assert_eq!(ui_layout_data::active_layout(&path, 57).unwrap(), layout);
+        assert_eq!(layout.name, "Layout 1");
+        assert_eq!(layout.elements["player_frame"], placement);
         assert!(
             ui_layout_data::active_layout(&path, 58)
                 .unwrap()
