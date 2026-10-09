@@ -1,6 +1,7 @@
 //! Native auction session: wire replies, actions and portable presentation.
 mod actions;
 mod categories;
+mod confirmation;
 pub mod preview;
 pub mod view;
 use crate::auction_house_frame_component::{AuctionHouseTab, AuctionsSubTab};
@@ -14,8 +15,6 @@ pub struct AuctionHouseUi {
     /// Item whose auctions the item buy frame lists.
     pub browse_item: Option<u32>,
     pub selected_auction: Option<u64>,
-    /// Auction the buy dialog asks to buy out.
-    pub dialog_auction: Option<u64>,
     pub sell_item: Option<u64>,
     pub buyout_mode: bool,
     pub duration: AuctionDuration,
@@ -34,7 +33,6 @@ impl Default for AuctionHouseUi {
             category_path: Vec::new(),
             browse_item: None,
             selected_auction: None,
-            dialog_auction: None,
             sell_item: None,
             // `AuctionHouseBuyoutModeCheckButtonMixin:OnShow` checks it.
             buyout_mode: true,
@@ -109,6 +107,7 @@ pub struct AuctionSession {
     pub net: AuctionHouseState,
     pub ui: AuctionHouseUi,
     last_replicated_money: Option<u64>,
+    confirmation: Option<confirmation::AuctionConfirmation>,
 }
 impl AuctionSession {
     pub fn open(&mut self, npc: u64) {
@@ -218,11 +217,7 @@ impl AuctionSession {
         let state = self.full_state(texts);
         let operation = matches!(
             action,
-            "auction_bid"
-                | "auction_buyout"
-                | "auction_dialog_buy"
-                | "auction_post"
-                | "auction_cancel"
+            "auction_bid" | "auction_buyout" | "auction_post" | "auction_cancel"
         );
         if operation && self.net.operation_pending {
             return Vec::new();
@@ -238,13 +233,13 @@ impl AuctionSession {
             }
             "auction_cancel" => state.auctions.can_cancel,
             "auction_post" => state.sell.can_post,
-            "auction_dialog_buy" => state
-                .dialog
-                .as_ref()
-                .is_some_and(|dialog| dialog.price <= state.money),
             _ => true,
         };
         if !allowed {
+            return Vec::new();
+        }
+        if matches!(action, "auction_bid" | "auction_buyout") {
+            self.stage_confirmation(action, texts);
             return Vec::new();
         }
         match action {

@@ -7,6 +7,9 @@
 ## 2026-10-08 — Extra Action Bars visibility
 
 [Options contract](../specs/extra-action-bars.md) records the user decision: side bars disabled by default, no disabled edit movers, unchanged tracker placement. Production bar visibility replaces editor-only side placeholders; bottom-bar skin defaults remain. Implementation `67c50ec42`: targeted GREEN 99 passed/zero failed (one ignored capture helper), extension build exit 0. Both cage captures inspected: ordered Action Bars 2–5 checkboxes, default Forever editor without 4/5 movers and unchanged tracker. [Options contract](../specs/extra-action-bars.md#known-gaps-current-cycle) records evidence and live-server exclusions.
+## 2026-10-08 — Auction confirmations and commodity dialog art
+
+[Auction house](systems/auction-house-ui.md#native-confirmations-and-commodity-dialog-art-2026-10-08) records `c8a4f94b4`: existing global PopupStack Accept-once/Cancel-none confirmations, retained unsupported commodity preview, inset7 dark texture and active-skin Dialog border. Targeted4+7+11 tests and native build pass; six cage1920×1080 captures inspected. [Contract](../specs/auction-house-ui.md#offline-retail-layout-audit--2026-10-08) retains missing Modern border/alert payloads and excludes live/server/full-parity acceptance.
 
 ## 2026-10-07 — Offline character garment matrix, 78-cell bounded PASS
 

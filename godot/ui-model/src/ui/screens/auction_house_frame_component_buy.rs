@@ -499,6 +499,65 @@ pub(super) fn bid_frame((x, y): (f32, f32), enabled: bool) -> Element {
 /// `AuctionHouseBuyDialogTemplate` 420 wide at CENTER (0,50) with `DialogBorderDarkTemplate`:
 /// item text (`Number15FontWhite`) 17 from the top, the price 6 below it, Buy Now / Cancel
 /// 120×22 at ±64 and 18 above the bottom (Blizzard_AuctionHouseBuyDialog.xml:41-123).
+fn commodity_dialog_border(w: f32, h: f32) -> Element {
+    // Dialog layout, NineSliceLayouts.lua:157-166. Atlas logical sizes are 64px.
+    // Short dialogs have crossing side-edge anchors, rendered between those anchors.
+    const CORNER: f32 = 64.0;
+    let side_top = (h - CORNER).min(CORNER);
+    let side_height = (h - 2.0 * CORNER).abs();
+    [
+        (
+            "TopLeft",
+            "UI-Frame-DiamondMetal-CornerTopLeft",
+            (0.0, 0.0, CORNER, CORNER),
+        ),
+        (
+            "TopRight",
+            "UI-Frame-DiamondMetal-CornerTopRight",
+            (w - CORNER, 0.0, CORNER, CORNER),
+        ),
+        (
+            "BottomLeft",
+            "UI-Frame-DiamondMetal-CornerBottomLeft",
+            (0.0, h - CORNER, CORNER, CORNER),
+        ),
+        (
+            "BottomRight",
+            "UI-Frame-DiamondMetal-CornerBottomRight",
+            (w - CORNER, h - CORNER, CORNER, CORNER),
+        ),
+        (
+            "Top",
+            "_UI-Frame-DiamondMetal-EdgeTop",
+            (CORNER, 0.0, w - 2.0 * CORNER, CORNER),
+        ),
+        (
+            "Bottom",
+            "_UI-Frame-DiamondMetal-EdgeBottom",
+            (CORNER, h - CORNER, w - 2.0 * CORNER, CORNER),
+        ),
+        (
+            "Left",
+            "!UI-Frame-DiamondMetal-EdgeLeft",
+            (0.0, side_top, CORNER, side_height),
+        ),
+        (
+            "Right",
+            "!UI-Frame-DiamondMetal-EdgeRight",
+            (w - CORNER, side_top, CORNER, side_height),
+        ),
+    ]
+    .into_iter()
+    .flat_map(|(name, atlas, rect)| {
+        crate::ui::screens::quest_art::named_atlas_texture(
+            format!("AuctionHouseFrameBuyDialogBorder{name}"),
+            atlas,
+            rect,
+        )
+    })
+    .collect()
+}
+
 pub(super) fn buy_dialog(dialog: Option<&BuyDialogView>) -> Element {
     let Some(dialog) = dialog else {
         return Vec::new();
@@ -513,19 +572,19 @@ pub(super) fn buy_dialog(dialog: Option<&BuyDialogView>) -> Element {
             height: h,
             strata: FrameStrata::Dialog,
             frame_level: 200.0,
-            style: crate::ui::screens::static_popup_component::STATIC_POPUP_PANEL_STYLE,
             pos_type: "absolute",
             left: x,
             top: y,
-            r#frame {
+            texture {
                 name: "AuctionHouseFrameBuyDialogBg",
-                width: {w - 2.0 * 8.0},
-                height: {h - 2.0 * 8.0},
-                background_color: "0.0,0.0,0.0,0.9",
+                width: {w - 2.0 * 7.0},
+                height: {h - 2.0 * 7.0},
+                texture_fdid: 312_922,
                 pos_type: "absolute",
-                left: 8.0,
-                top: 8.0,
+                left: 7.0,
+                top: 7.0,
             }
+            {commodity_dialog_border(w, h)}
             fontstring {
                 name: "AuctionHouseFrameBuyDialogItemText",
                 width: {w - 40.0},
