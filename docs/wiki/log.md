@@ -2904,3 +2904,7 @@ Existing ItemLocation/SwapItem/SplitItem extended to character bank tabs; [bank 
 ## 2026-10-08 — Talents first slice
 
 Recorded local Arcane CSV witnesses, grant/spec conditions and Blizzard node geometry in [Talents](systems/talents.md); wowdev references HTTP403, implementation/proof pending.
+
+## 2026-10-08 — Read-only Talents bounded completion
+
+[Talents](systems/talents.md): local Mage Arcane graph and both-skin native page/hover proven; primitive no-art/rotation regressions corrected. Final4actual1080p captures inspected; learning/loadouts/server and unavailable icon art remain out of scope/gaps. Exact proof ledger lives on the system page.

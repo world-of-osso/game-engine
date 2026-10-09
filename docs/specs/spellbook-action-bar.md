@@ -23,7 +23,7 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 - [ ] P opens Spellbook; N opens Talents. Interface key-binding data includes both and an initially unbound Specialization action (Retail has no separate specialization default). Retail's single combined PlayerSpells micro button opens Specialization while the native talent system is absent, and closes a shown window.
 - [x] Specialization lists the class's non-Initial ChrSpecialization rows in OrderIndex order: name, icon, role and description, equal-width columns and server-active marker; Activate is disabled below level 10.
 - [ ] Native Activate sends the existing SetSpecialization message and never marks a spec active optimistically (model action/active marker tested; actual sender integration not yet proven).
-- [ ] Talents displays the local class/spec/hero trees read-only; [Talents first-slice contract](talents.md). Learning/spending/loadouts/server support remains absent.
+- [x] Talents displays the local class/spec/hero trees read-only; [Talents first-slice contract](talents.md). Learning/spending/loadouts/server support remains absent.
 - [x] Spells learned at later levels (the class line's and the active spec's, race-masked) follow the known ones in level order, greyed (`unlearnedTextAlpha` 0.6, icon desaturated and tinted `SPELLBOOK_UNLEARNED_TINT_COLOR`, inactive border) with "Level %d" (`SPELLBOOK_AVAILABLE_AT`); they cannot be cast.
 - [x] Clicking a known active spell's icon casts it.
 - [x] Authored left-pointer-down on a known active spellbook icon or main action-bar button starts the owned native Effects click before mouse-up at `master × effects × 0.55`; release, right pointer input, keyboard casts, and spellbook reopening do not replay it.
