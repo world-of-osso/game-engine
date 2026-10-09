@@ -491,6 +491,7 @@ fn launch_godot(
     let binary = if matches!(
         screen,
         StartupScreen::SettingsReload
+            | StartupScreen::Logout
             | StartupScreen::Menu
             | StartupScreen::Sound
             | StartupScreen::SoundClick
@@ -554,6 +555,7 @@ fn launch_godot(
                 if matches!(
                     screen,
                     StartupScreen::Menu
+                        | StartupScreen::Logout
                         | StartupScreen::Sound
                         | StartupScreen::SoundClick
                         | StartupScreen::MerchantClick
@@ -584,7 +586,14 @@ fn launch_godot(
                     &[][..]
                 },
             )
-            .args(["--screen", screen.as_str()])
+            .args([
+                "--screen",
+                if screen == StartupScreen::Logout {
+                    "inworld"
+                } else {
+                    screen.as_str()
+                },
+            ])
             .args(
                 if !matches!(
                     screen,
