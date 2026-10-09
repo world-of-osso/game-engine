@@ -21,6 +21,8 @@ opened from an auctioneer, on the existing auction protocol (`shared-protocol`
 ### Frame (Shared/Blizzard_AuctionHouseFrame.xml)
 
 - [x] Root `AuctionHouseFrame`, 800×538 (:5), `ButtonFrameTemplate` metal chrome (`quest_art::window_chrome`), movable by its title.
+- [x] Shared portrait chrome draws the `UI-Frame-PortraitMetal-CornerTopLeft` gold ring as an overlay above the masked portrait (Retail `Blizzard_SharedXML/Mainline/NineSliceLayouts.lua:20`); merchant, bank, trainer and mail use the same corner. The existing active-skin atlas mapping supplies art, not new elements.
+- [x] The header has opaque rock fill beneath its translucent top streaks (Retail `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:595-609`), excluding the portrait mask.
 - [x] Both skins bind the interacting auctioneer's masked portrait (`SetPortraitToUnit("npc")`, Shared/Blizzard_AuctionHouseFrame.lua:392), including the auction greeting. Backgrounds exclude the portrait mask.
 - [x] Title per tab: Browse Auctions / Post Auctions / Auctions (`UpdateTitle`, Shared/Blizzard_AuctionHouseFrame.lua:640).
 - [x] Bottom tabs Buy, Sell, Auctions (`PanelTabButtonTemplate` art, Buy at BOTTOMLEFT (20,-28), each next -15 over, width text + 40 min 70, Shared/Blizzard_AuctionHouseTab.lua:2-11); selected tab text white.
@@ -28,6 +30,7 @@ opened from an auctioneer, on the existing auction protocol (`shared-protocol`
 
 ### Buy
 
+- [x] Favorites star: disabled visual-only 32×32 square at (170,33), with the 16×16 `auctionhouse-icon-favorite` centered inside; search box starts nine pixels after it (Retail `Shared/Blizzard_AuctionHouseSearchBar.xml:49-57`, `Blizzard_SharedXML/Shared/Button/IconButtonTemplate.xml:40-56`, `Shared/Blizzard_AuctionHouseSearchBar.lua:40`). Favorites persistence/search is not implemented.
 - [x] Search bar at TOPRIGHT (-12,-29): search box 241×22 with "Search" instructions, Search button 132×22 (Shared/Blizzard_AuctionHouseSearchBar.xml). Enter in the box searches.
 - [x] Category list 168×438 at (4,73) on `auctionhouse-background-categories`, `AuctionCategoryButtonTemplate` 132×21 buttons (Mainline/Blizzard_AuctionHouseCategoriesList.xml); the 14 top-level Retail categories (Mainline/Blizzard_AuctionData.lua) filter results by `Item.ClassID`; clicking the selected one clears it.
 - [x] Browse list (172,74) 623×437 on `auctionhouse-background-index`, columns Price 168 / Name / Available 60 (`GetBrowseListLayout`, Shared/Blizzard_AuctionHouseTableBuilder.lua:1033): one row per item with its lowest per-item price (buyout, else bid) and total quantity; name in the item's quality colour with its icon (`Item.IconFileDataID`); "No items found" after an empty search.

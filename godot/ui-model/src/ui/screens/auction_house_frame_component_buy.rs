@@ -37,7 +37,8 @@ pub(super) fn buy_content(ctx: &SharedContext, state: &AuctionHouseFrameState) -
 /// (Blizzard_AuctionHouseSearchBar.xml:4-73).
 fn search_bar(empty: bool) -> Element {
     let (x, y, w, h) = (211.0, 38.0, 241.0, 22.0);
-    let mut out = search_border(SEARCH_BOX, (x, y, w, h));
+    let mut out = favorites_button();
+    out.extend(search_border(SEARCH_BOX, (x, y, w, h)));
     // `SearchBoxTemplate` magnifying glass 10×10 at LEFT (1,-1).
     out.extend(crop_texture(
         "AuctionHouseFrameSearchBoxSearchIcon".into(),
@@ -85,6 +86,33 @@ fn search_bar(empty: bool) -> Element {
         (656.0, 38.0, 132.0, 22.0),
     ));
     out
+}
+
+/// SearchBar.xml:49-57, IconButtonTemplate.xml:40-56, SearchBar.lua:40:
+/// 32×32 SquareIconButton with a centered 16×16 favorite star. No favorites model
+/// exists yet, so show the disabled Retail control without an action in both skins.
+fn favorites_button() -> Element {
+    let mut art = icon_texture(
+        "AuctionHouseFrameFavoritesSearchButtonNormal".into(),
+        896_467,
+        (0.0, 0.0, 32.0, 32.0),
+    );
+    art.extend(crate::quest_art::named_atlas_texture(
+        "AuctionHouseFrameFavoritesSearchButtonIcon".into(),
+        "auctionhouse-icon-favorite",
+        (8.0, 8.0, 16.0, 16.0),
+    ));
+    rsx! { button {
+        name: "AuctionHouseFrameFavoritesSearchButton",
+        width: 32.0,
+        height: 32.0,
+        disabled: true,
+        button_default_skin: false,
+        pos_type: "absolute",
+        left: 170.0,
+        top: 33.0,
+        {art}
+    } }
 }
 
 /// `AuctionHouseCategoriesListTemplate` 168×438 at LEFT 4, 4 below the search bar → (4,73);

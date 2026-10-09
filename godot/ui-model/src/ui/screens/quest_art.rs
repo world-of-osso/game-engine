@@ -399,6 +399,17 @@ fn window_background(prefix: &str, width: f32, height: f32) -> Element {
             left: 2.0,
             top: 51.0,
         }
+        // PortraitFrameTexturedBaseTemplate, SharedUIPanelTemplates.xml:595-609:
+        // rock beneath the translucent streaks, excluding the circular portrait well.
+        texture {
+            name: {DynName(format!("{prefix}BgTop"))},
+            width: {width - 57.0},
+            height: 30.0,
+            texture_fdid: WINDOW_BACKGROUND,
+            pos_type: "absolute",
+            left: 55.0,
+            top: 21.0,
+        }
     };
     elements.extend(named_atlas_texture(
         format!("{prefix}TopTileStreaks"),
@@ -412,7 +423,7 @@ fn window_background(prefix: &str, width: f32, height: f32) -> Element {
 /// The `layout` metal border on a frame [`MetalTopLeft::outset`] larger than the window.
 pub(crate) fn metal_border(prefix: &str, width: f32, height: f32, layout: MetalTopLeft) -> Element {
     let [left, top, right, bottom] = layout.outset();
-    rsx! {
+    let mut elements = rsx! {
         r#frame {
             name: {DynName(format!("{prefix}NineSlice"))},
             width: {width + left + right},
@@ -422,7 +433,31 @@ pub(crate) fn metal_border(prefix: &str, width: f32, height: f32, layout: MetalT
             left: {-left},
             top: {-top},
         }
+    };
+    if layout == MetalTopLeft::Portrait {
+        elements.extend(portrait_ring(prefix));
     }
+    elements
+}
+
+/// NineSliceLayouts.lua:20 OVERLAY portrait corner. Draw separately from the low-level
+/// background border so the masked 3D portrait cannot paint over the gold rim.
+fn portrait_ring(prefix: &str) -> Element {
+    let art = read_active_atlas_art("UI-Frame-PortraitMetal-CornerTopLeft");
+    let coords = art.tex_coords(1.0);
+    let region = resolve_region("UI-Frame-PortraitMetal-CornerTopLeft", thread_skin())
+        .expect("portrait metal corner atlas");
+    rsx! { texture {
+        name: {DynName(format!("{prefix}PortraitRing"))},
+        width: {region.width / 2.0},
+        height: {region.height / 2.0},
+        frame_level: 401.0,
+        texture_fdid: {art.fdid},
+        tex_coords: {coords.as_str()},
+        pos_type: "absolute",
+        left: -13.0,
+        top: -16.0,
+    } }
 }
 
 /// `TitleContainer` left inset: 58 beside a portrait, 30 without.
