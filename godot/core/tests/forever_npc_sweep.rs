@@ -151,6 +151,19 @@ impl Sweep {
             .chain(appearance.baked_texture_fdid)
             .chain(armor.merged_cape_texture_fdid)
             .chain(armor.texture_fdids.iter().copied())
+            .chain(
+                armor
+                    .runtime_models
+                    .iter()
+                    .flat_map(|model| model.skin_fdids)
+                    .filter(|fdid| *fdid != 0),
+            )
+            .chain(
+                armor
+                    .runtime_models
+                    .iter()
+                    .flat_map(|model| model.texture_replacements.iter().map(|(_, fdid)| *fdid)),
+            )
             .collect::<BTreeSet<_>>();
         let mut decoded = HashMap::new();
         let mut dependency_errors = Vec::new();
@@ -250,7 +263,7 @@ impl Sweep {
                 return audit;
             }
         };
-        let batches = match m2::resolve_render_batches(&model, &display.skin_fdids, false, |_| None)
+        let batches = match m2::resolve_render_batches(&model, &display.skin_fdids, true, |_| None)
         {
             Ok(b) => b,
             Err(e) => {
