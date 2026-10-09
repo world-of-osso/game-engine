@@ -239,34 +239,7 @@ fn assert_forever_bank_tree() {
                 Some(format!("bank_slot:{index}").as_str())
             );
         }
-        assert_art(
-            &registry,
-            "BankFrameDivider",
-            "bank-divider",
-            ActiveSkin::Forever,
-        );
-        let divider = frame(&registry, "BankFrameDivider");
-        let Val::Px(left) = divider.position.left else {
-            panic!("divider left not pixels")
-        };
-        let Val::Px(top) = divider.position.top else {
-            panic!("divider top not pixels")
-        };
-        let Dimension::Fixed(width) = divider.width else {
-            panic!("divider width not fixed")
-        };
-        let Dimension::Fixed(height) = divider.height else {
-            panic!("divider height not fixed")
-        };
-        // The divider keeps its atlas member's aspect ratio.
-        let member = resolve_region("bank-divider", ActiveSkin::Forever).unwrap();
-        assert!(
-            (width / height - member.width / member.height).abs() < 0.001,
-            "divider {width}x{height} vs member {}x{}",
-            member.width,
-            member.height
-        );
-        assert!(left >= 0.0 && top >= 0.0, "divider at {left},{top}");
+        assert!(registry.get_by_name("BankFrameDivider").is_none());
         let mut prompt = state;
         prompt.purchase = Some(PurchasePromptView::default());
         let registry = mount(prompt, bank_frame_screen);
