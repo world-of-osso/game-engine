@@ -62,7 +62,6 @@ fn forever_model_requests_do_not_reuse_retail_cached_bytes() {
             .args([
                 "--exact",
                 "forever_model_requests_do_not_reuse_retail_cached_bytes",
-                "--ignored",
                 "--nocapture",
             ])
             .env(CHILD_ROOT, &root)
