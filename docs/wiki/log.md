@@ -2936,3 +2936,7 @@ Recorded local Arcane CSV witnesses, grant/spec conditions and Blizzard node geo
 - 2026-10-09: Talents server-wire slice: account snapshots/results, full total-rank commits, local rule parity and shared staged UI. [System](systems/talents.md), [contract](../specs/talents.md). UI22 and UDP1 passed; native account/capture proof pending.
 
 - 2026-10-09: Talents wire acceptance: targeted33/33 GREEN, production-order and same-spec/tier RED regressions, native build0/format0, one inspected both-skin1920×1080 pending capture. [Proof](systems/talents.md#server-wire-acceptance-2026-10-09). No push, merge, server change or model delegation.
+
+## 2026-10-09 — Character-select roster overflow
+
+[Investigation](investigations/character-select-roster.md) records fixed95px clipped entries, non-overlapping footer, skin-independent local race/class names and native list input ownership. [Contract](../specs/character-select-roster.md) owns RED7/7, GREEN8+11, native truncation/input counterexamples and inspected1920×1080 Modern/Forever12-entry captures. No server/protocol, push/merge or3D-rendering acceptance.

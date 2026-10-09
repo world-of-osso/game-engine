@@ -208,6 +208,7 @@ pub struct GameClient {
     creation: Option<char_create::CharCreateState>,
     creation_catalog: Option<game_engine_core::customization_data::CustomizationDb>,
     name_catalog: Option<Result<char_create::NameCatalog, String>>,
+    roster_names: Option<Result<game_engine_ui_model::char_select_data::CharSelectNames, String>>,
     data_root: PathBuf,
     /// Pending CASC startup worker, or its spawn error; None after startup completes.
     asset_startup: Option<Result<asset_startup::AssetStartup, String>>,
@@ -351,6 +352,7 @@ impl INode3D for GameClient {
             creation: None,
             creation_catalog: None,
             name_catalog: None,
+            roster_names: None,
             data_root: data_root.clone(),
             asset_startup,
             startup_events: Vec::new(),
@@ -1477,11 +1479,25 @@ impl GameClient {
         self.sync_character_select_state()
     }
 
-    fn sync_character_select_state(&mut self) -> Result<(), String> {
-        let state = char_select_state_from_roster(
+    fn load_character_select_state(
+        &mut self,
+    ) -> Result<game_engine_ui_model::char_select_component::CharSelectState, String> {
+        let names = self
+            .roster_names
+            .get_or_insert_with(|| {
+                game_engine_ui_model::char_select_data::CharSelectNames::load(&self.data_root)
+            })
+            .as_ref()
+            .map_err(Clone::clone)?;
+        char_select_state_from_roster(
             &self.account.session.characters,
             self.account.session.selected_index,
-        );
+            names,
+        )
+    }
+
+    fn sync_character_select_state(&mut self) -> Result<(), String> {
+        let state = self.load_character_select_state()?;
         match self.character_ui.as_mut() {
             Some(ui) => ui.bind_mut().set_state(state),
             None => Ok(()),
@@ -2708,6 +2724,7 @@ impl GameClient {
     }
 
     fn attach_character_ui(&mut self) -> Result<(), String> {
+        let state = self.load_character_select_state()?;
         let mut ui = ui::RegistryUi::new_alloc();
         self.base_mut().add_child(&ui);
         let error = ui.bind_mut().show_character_select();
@@ -2715,10 +2732,6 @@ impl GameClient {
             ui.free();
             return Err(error.to_string());
         }
-        let state = char_select_state_from_roster(
-            &self.account.session.characters,
-            self.account.session.selected_index,
-        );
         self.delete_confirmation.clear();
         let span = profile::span(|| "attach.campsites".to_owned());
         let campsites = self.campsites.wait().clone();
