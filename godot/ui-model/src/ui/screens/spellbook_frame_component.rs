@@ -27,6 +27,8 @@ mod pagination;
 mod paging;
 #[path = "spellbook_frame_component/player_spells_pages.rs"]
 mod player_spells_pages;
+#[path = "spellbook_frame_component/talents_page.rs"]
+mod talents_page;
 
 use crate::ui::strata::FrameStrata;
 use crate::ui::widgets::font_string::GameFont;
@@ -208,6 +210,9 @@ const TAB_H: f32 = 32.0;
 const TAB_MIN_W: f32 = 100.0;
 const TAB_MAX_W: f32 = 150.0;
 const TAB_SPACING: f32 = 1.0;
+/// `uiframe-tab-left` / `uiframe-tab-right` atlas widths (TabSystemTemplates.xml:41-52).
+const TAB_LEFT_W: f32 = 35.0;
+const TAB_RIGHT_W: f32 = 37.0;
 /// `textPadding`-free width estimate of `GameFontNormalSmall` glyphs.
 const TAB_GLYPH_W: f32 = 6.5;
 /// `PagingControls` BOTTOMRIGHT -75,40 of `PagedSpellsFrame`: page text, then 32×32
@@ -315,6 +320,7 @@ pub struct SpellbookFrameState {
     pub tab: PlayerSpellsTab,
     pub specializations: Vec<SpecializationChoice>,
     pub can_activate_spec: bool,
+    pub talents: Option<crate::talents::TalentView>,
 }
 
 impl SpellbookFrameState {
@@ -481,14 +487,7 @@ fn frame_content(state: &SpellbookFrameState, s: f32) -> Element {
     match state.tab {
         PlayerSpellsTab::Spellbook => book_page(state, s),
         PlayerSpellsTab::Specialization => player_spells_pages::specializations(state, s),
-        // Retail hides an unavailable Talents tab (PlayerSpellsFrame.lua:95-99),
-        // rather than providing an unavailable page. Keep the requested empty page.
-        PlayerSpellsTab::Talents => rsx! {
-            r#frame {
-                name: "ClassTalentsFrame", width: {BOOK_W * s}, height: {BOOK_H * s},
-                pos_type: "absolute", pos_x: 0.0, pos_y: {BOOK_Y * s},
-            }
-        },
+        PlayerSpellsTab::Talents => talents_page::talents(state, s),
     }
 }
 

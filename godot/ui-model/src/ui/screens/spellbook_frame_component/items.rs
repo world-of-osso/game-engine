@@ -288,6 +288,7 @@ fn fit_item_name(registry: &mut FrameRegistry, name: &str) {
 
 /// Retail desaturates the icons of spells not learned yet (`SetDesaturated`).
 pub fn apply_spellbook_postsetup(state: &SpellbookFrameState, registry: &mut FrameRegistry) {
+    super::talents_page::apply_talents_postsetup(state, registry);
     for spec in &state.specializations {
         let name = format!("ClassSpec{}Description", spec.id);
         if let Some(id) = registry.get_by_name(&name)

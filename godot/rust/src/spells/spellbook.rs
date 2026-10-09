@@ -104,6 +104,7 @@ impl GameClient {
     }
 
     pub(crate) fn close_spellbook(&mut self) {
+        self.bags.cursor.spell_drag = None;
         if let Some(ui) = self.spells.book_ui.take() {
             ui.free();
         }
@@ -133,6 +134,7 @@ impl GameClient {
             ui.set_name("SpellBookUI");
             ui.set_layer(5);
             self.base_mut().add_child(&ui);
+            ui.bind_mut().enable_cursor_inputs();
             self.spells.book_ui = Some(ui);
         }
         Ok(())
@@ -189,9 +191,46 @@ impl GameClient {
         }
     }
 
-    fn spellbook_state(&mut self) -> SpellbookFrameState {
+    fn load_spellbook_talents(
+        &mut self,
+        player: Option<SpellbookPlayer>,
+    ) -> Result<Option<game_engine_ui_model::talents::TalentView>, String> {
+        if self.spells.book.tab != PlayerSpellsTab::Talents {
+            return Ok(None);
+        }
+        let player = player.ok_or("Talents requires a local player class")?;
+        let spec = self
+            .account
+            .spells
+            .spec()
+            .ok_or("Talents requires an active specialization")?;
+        let key = (player.class_id, spec);
+        if !self.spells.talent_views.contains_key(&key) {
+            let catalog = self
+                .spells
+                .catalog()
+                .ok_or("Talents is waiting for the local spell catalog")?;
+            let data = game_engine_ui_model::paths::resolve_data_path("");
+            let loaded = game_engine_ui_model::talents::load_talent_view(
+                &data,
+                player.class_id,
+                spec,
+                catalog,
+            );
+            self.spells.talent_views.insert(key, loaded);
+        }
+        self.spells.talent_views[&key].clone().map(|mut view| {
+            view.editor = self.account.talents.clone();
+            view.level = player.level as u8;
+            Some(view)
+        })
+    }
+
+    fn spellbook_state(&mut self) -> Result<SpellbookFrameState, String> {
         let player = self.spellbook_player();
+        let talents = self.load_spellbook_talents(player)?;
         let mut content = self.spellbook_content(player);
+        content.talents = talents;
         self.extract_spellbook_icons(&mut content);
         let size = self
             .base()
@@ -211,14 +250,14 @@ impl GameClient {
         };
         state.selected = state.selected.min(state.categories.len().saturating_sub(1));
         state.page = state.page.min(state.page_count() - 1);
-        state
+        Ok(state)
     }
 
     pub(super) fn sync_spellbook(&mut self) -> Result<(), String> {
         if self.spells.book_ui.is_none() {
             return Ok(());
         }
-        let state = self.spellbook_state();
+        let state = self.spellbook_state()?;
         self.spells.book = state.clone();
         self.extract_spellbook_art(&state);
         let existing = self
@@ -294,6 +333,22 @@ impl GameClient {
         let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
             return false;
         };
+        if button.is_pressed() && button.get_button_index() == MouseButton::RIGHT {
+            let node = self.spells.book_ui.as_ref().and_then(|ui| {
+                let ui = ui.bind();
+                let id = ui.pointer_frame_at(button.get_position())?;
+                crate::tooltips::named_ancestor(ui.registry()?, id, |frame| {
+                    game_engine_ui_model::talents::talent_button_node(frame.name.as_deref()?)
+                })
+                .map(|(_, node)| node)
+            });
+            if let Some(node) = node {
+                if let Err(error) = self.apply_talent_action(&format!("talent:refund:{node}")) {
+                    godot_error!("Talent refund: {error}");
+                }
+                return true;
+            }
+        }
         self.press_spellbook_title(&button, rect, scale)
     }
 
@@ -393,7 +448,23 @@ impl GameClient {
         self.apply_spellbook_action(&action)
     }
 
-    fn apply_spellbook_action(&mut self, action: &str) -> Result<(), FrameError> {
+    fn apply_talent_action(&mut self, action: &str) -> Result<(), FrameError> {
+        let view = self
+            .spells
+            .book
+            .talents
+            .as_ref()
+            .ok_or("Talent action requires a loaded talent page")?;
+        if let Some(request) = self.account.talents.action(view, view.level, action)? {
+            self.account.send_commit_traits(request)?;
+        }
+        Ok(())
+    }
+
+    pub(super) fn apply_spellbook_action(&mut self, action: &str) -> Result<(), FrameError> {
+        if action.starts_with("talent:") {
+            return self.apply_talent_action(action);
+        }
         let book = &mut self.spells.book;
         if action.is_empty() {
         } else if action == ACTION_SPELLBOOK_CLOSE {

@@ -4,6 +4,11 @@
 use super::*;
 use crate::ui::screens::quest_art::panel_button;
 
+/// PlayerSpellsFrame.xml:20-29: `TabSystem` TOPLEFT at the frame's BOTTOMLEFT 22,2.
+/// `TabSystemButtonTemplate` (TabSystemTemplates.xml:3-96): 32-high buttons; left cap
+/// TOPLEFT, right cap TOPRIGHT x 6 (active x 7), middle tiled between them; text 10 high
+/// at CENTER y +2, selected y -3 (TabSystemTemplates.lua:30-39), `width - 10` wide
+/// (`UpdateTabWidth`, .lua:154-177).
 pub(super) fn bottom_tabs(state: &SpellbookFrameState, s: f32) -> Element {
     let mut left = 22.0;
     let mut children = Vec::new();
@@ -11,30 +16,43 @@ pub(super) fn bottom_tabs(state: &SpellbookFrameState, s: f32) -> Element {
         let frame = format!("PlayerSpellsTab{}", index + 1);
         let width = tab_width(tab.title());
         let selected = state.tab == tab;
-        let (l, m, r, height) = if selected {
-            (ACTIVE_TAB_LEFT, ACTIVE_TAB_MIDDLE, ACTIVE_TAB_RIGHT, 42.0)
+        let (l, m, r, height, right_x, text_offset) = if selected {
+            (
+                ACTIVE_TAB_LEFT,
+                ACTIVE_TAB_MIDDLE,
+                ACTIVE_TAB_RIGHT,
+                42.0,
+                7.0,
+                -3.0,
+            )
         } else {
-            (TAB_LEFT, TAB_MIDDLE, TAB_RIGHT, 36.0)
+            (TAB_LEFT, TAB_MIDDLE, TAB_RIGHT, 36.0, 6.0, 2.0)
         };
+        let right = width + right_x - TAB_RIGHT_W;
         let pieces: Element = [
-            art(format!("{frame}Left"), &l, [0.0, -6.0, 35.0, height], s),
+            art(
+                format!("{frame}Left"),
+                &l,
+                [0.0, 0.0, TAB_LEFT_W, height],
+                s,
+            ),
             art(
                 format!("{frame}Middle"),
                 &m,
-                [35.0, -6.0, width - 66.0, height],
+                [TAB_LEFT_W, 0.0, right - TAB_LEFT_W, height],
                 s,
             ),
             art(
                 format!("{frame}Right"),
                 &r,
-                [width - 31.0, -6.0, 37.0, height],
+                [right, 0.0, TAB_RIGHT_W, height],
                 s,
             ),
             label(
                 Label {
                     name: format!("{frame}Text"),
                     text: tab.title(),
-                    rect: [0.0, 5.0, width, 14.0],
+                    rect: [5.0, (TAB_H - 10.0) / 2.0 - text_offset, width - 10.0, 10.0],
                     size: TAB_TEXT_SIZE,
                     color: if selected {
                         TAB_TEXT_SELECTED
@@ -51,7 +69,7 @@ pub(super) fn bottom_tabs(state: &SpellbookFrameState, s: f32) -> Element {
         .collect();
         children.extend(rsx! {
             r#frame {
-                name: {DynName(frame)}, width: {width * s}, height: {36.0 * s},
+                name: {DynName(frame)}, width: {width * s}, height: {TAB_H * s},
                 onclick: {format!("{ACTION_PLAYER_SPELLS_TAB}{index}")},
                 pos_type: "absolute", pos_x: {left * s}, pos_y: {(FRAME_H - 2.0) * s},
                 {pieces}

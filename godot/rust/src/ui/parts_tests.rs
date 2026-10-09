@@ -48,6 +48,7 @@ fn default_skin_button_stretches_the_whole_state_region() {
             rotation: 0.0,
             additive: false,
             desaturated: false,
+            tiling: [false; 2],
         }]
     );
 }
@@ -210,6 +211,7 @@ fn css_border_draws_four_inset_edges_above_the_fill() {
         rotation: 0.0,
         additive: false,
         desaturated: false,
+        tiling: [false; 2],
     };
     let gold = [1.0, 0.82, 0.0, 0.9];
     assert_eq!(
@@ -222,6 +224,28 @@ fn css_border_draws_four_inset_edges_above_the_fill() {
             solid([0.0, 0.0, 1.0, 34.0], gold),
         ]
     );
+}
+
+#[test]
+fn talent_missing_icon_projects_no_fake_white_art() {
+    let mut frame = Frame::new(1, Some("TalentIcon".into()), WidgetType::Texture);
+    frame.widget_data = Some(WidgetData::Texture(TextureData::default()));
+    assert!(project_images(&frame, 36.0, 36.0).is_empty());
+}
+
+#[test]
+fn talent_solid_edge_keeps_color_and_rotation() {
+    let color = [0.35, 0.35, 0.35, 1.0];
+    let mut frame = Frame::new(1, Some("TalentEdge127166".into()), WidgetType::Texture);
+    frame.widget_data = Some(WidgetData::Texture(TextureData {
+        source: TextureSource::SolidColor(color),
+        rotation: -std::f32::consts::FRAC_PI_4,
+        ..Default::default()
+    }));
+    let images = project_images(&frame, 45.0, 2.0);
+    assert_eq!(images.len(), 1);
+    assert_eq!(images[0].color, color);
+    assert_eq!(images[0].rotation, -std::f32::consts::FRAC_PI_4);
 }
 
 #[test]
