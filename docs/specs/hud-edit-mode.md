@@ -42,7 +42,35 @@ Sources below are local `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_
 - Our initial/old-file default is **checked for all five**, preserving existing eligible mover visibility. Retail's numeric defaults are supplied by the native `C_EditMode.GetAccountSettings()` API, not exposed in these Lua/XML files (Lua:859-868); this is a client default, not an invented Retail default. Compact party remains the existing default. Bars 4/5 remain off by default and controlled solely by Options > Action Bars; no manager checkbox overrides that decision.
 - Checkbox art/label relationship follows `Shared/EditModeTemplates.xml:4-26` (32-unit checkbox, label right); Retail's basic container is a two-column row-major grid (`:50-64`). Our five entries use that order in a 460×252 manager, with all labels visible. The manager's own name box and action rows reflow around the list, preserving their actions. Deviation from Retail's 510 width (XML:9): that width left no clear rectangle in our authored 1366×768 Modern HUD (raid/aura rows above, unit frames/chat below). The compact width/height preserve existing no-mover-overlap clearance in both skins. HUD roots never move. Grid, snapping and advanced-options toggles (XML:89-138) are not added: this request is system visibility, not changing editor snapping or adding unregistered systems. `Shared/EditModeSettingDisplayInfo.lua:355-365` defines per-system frame size, not these account checkboxes; Options retains those settings.
 
-Skipped Retail entries (XML element/label/order citations): **Boss Frames** (`:269-277`, basic 4), **Talking Head** (`:414-422`, basic 7), **Pet Frame** (`:253-259`) have no registered mover in our current 21-root inventory, even where gameplay components exist. Advanced-only **Arena Frames** (`:287-294`), **External Defensives** (`:305-314`), **Stance Bar** (`:324-330`), **Extra Abilities** (`:331-337`), **Pet Bar** (`:338-344`), **Possess Bar** (`:345-351`), **Encounter Bar** (`:352-358`), **Cooldown Manager** (`:359-368`), **Personal Resource Display** (`:369-378`), **Encounter Events** (`:379-388`), **Damage Meter** (`:389-398`), **Totem Bar** (`:399-405`), **Loss of Control** (`:406-412`), **Status Bar 2** (`:423-429`), **Vehicle Leave** (`:430-436`), **HUD Tooltip** (`:437-443`), **Durability** (`:444-450`), **Timer Bars** (`:451-457`), **Vehicle Seat Indicator** (`:458-464`), **Archaeology Bar** (`:465-471`), **Loot Frame** (`:472-483`), **Raid Warning** (`:484-490`) likewise have no registered native edit system yet. This does not claim that their gameplay implementations are all absent. Adding movers for them is outside this manager-only change.
+Skipped Retail entries: all 25 below lack a registered native mover in our current 21-root inventory; this does **not** claim their gameplay implementations are all absent. Adding movers is outside this manager-only change. Source is `Shared/EditModeManager.xml`; advanced indices are within the cited Frames, Combat or Misc category (Lua:1877-1908). Every localized global below has the `HUD_EDIT_MODE_` prefix. No skipped checkbox/default/preview behavior is implemented.
+
+| Retail element | Localized global suffix | Basic index / advanced category:index | XML lines |
+|---|---|---|---|
+| PetFrame | `PET_FRAME_LABEL` | — / Frames:2 | 253-259 |
+| BossFrames | `BOSS_FRAMES_LABEL` | 4 / Frames:4 | 269-277 |
+| ArenaFrames | `ARENA_FRAMES_LABEL` | — / Frames:6 | 287-293 |
+| ExternalDefensives | `EXTERNAL_DEFENSIVES_LABEL` | — / Combat:12 | 305-314 |
+| StanceBar | `STANCE_BAR_LABEL` | — / Combat:3 | 324-330 |
+| ExtraAbilities | `EXTRA_ABILITIES_LABEL` | — / Combat:4 | 331-337 |
+| PetActionBar | `PET_ACTION_BAR_LABEL` | — / Combat:5 | 338-344 |
+| PossessActionBar | `POSSESS_ACTION_BAR_LABEL` | — / Combat:6 | 345-351 |
+| EncounterBar | `ENCOUNTER_BAR_LABEL` | — / Combat:7 | 352-358 |
+| CooldownViewer | `COOLDOWN_VIEWER_LABEL` | — / Combat:8 | 359-368 |
+| PersonalResourceDisplay | `PERSONAL_RESOURCE_DISPLAY_LABEL` | — / Combat:9 | 369-378 |
+| EncounterEvents | `ENCOUNTER_EVENTS_LABEL` | — / Combat:10 | 379-388 |
+| DamageMeter | `DAMAGE_METER_LABEL` | — / Combat:11 | 389-398 |
+| TotemActionBar | `TOTEM_ACTION_BAR_LABEL` | — / Combat:13 | 399-405 |
+| LossOfControl | `LOSS_OF_CONTROL_LABEL` | — / Combat:14 | 406-412 |
+| TalkingHeadFrame | `TALKING_HEAD_FRAME_LABEL` | 7 / Misc:1 | 415-423 |
+| StatusTrackingBar2 | `STATUS_TRACKING_BAR_LABEL` | — / Misc:2 | 424-430 |
+| VehicleLeaveButton | `VEHICLE_LEAVE_BUTTON_LABEL` | — / Misc:3 | 431-437 |
+| HudTooltip | `HUD_TOOLTIP_LABEL` | — / Misc:4 | 438-444 |
+| DurabilityFrame | `DURABILITY_FRAME_LABEL` | — / Misc:5 | 445-451 |
+| TimerBars | `TIMER_BARS_LABEL` | — / Misc:6 | 452-458 |
+| VehicleSeatIndicator | `VEHICLE_SEAT_INDICATOR_LABEL` | — / Misc:7 | 459-465 |
+| ArchaeologyBar | `ARCHAEOLOGY_BAR_LABEL` | — / Misc:8 | 466-472 |
+| LootFrame | `LOOT_FRAME_LABEL` | — / Misc:9 | 473-483 |
+| RaidWarning | `RAID_WARNING_LABEL` | — / Misc:10 | 484-490 |
 
 Acceptance: behavioral manager tree assertions for labels/order under both skins; actual checkbox click dispatch toggles each eligible mover without moving roots; account-file round-trip survives editor reopen and another character/layout; native 1920×1080 captures under both skins, inspected as downscaled crops.
 
