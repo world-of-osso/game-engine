@@ -1,0 +1,9 @@
+{
+  "game_server_revision": "5b04aa931720d441aaea1f99d3c11dc2a69bba40",
+  "files": {
+    "db2_casc.py": "9630305829dcb3199a14dd73fc4163167c0ba81aeae7b1ed91575c81b96431fe",
+    "db2_schema.sql.gz": "c0e90a20b8d678382ace63e04e7bda7bfa3b8a74335ebecef0109064ef856f75",
+    "skyborne_data.py": "aedf5c7a4abbc96817238cbad6098b081d9adc0dec420e7c5728f822b54d814b",
+    "zephras_creatures.py": "0de372e43d109ac956a76fe01792dadc21c8528041ab30f8b993b2559847c126"
+  }
+}

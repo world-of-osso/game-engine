@@ -1,9 +1,9 @@
-"""Behavioral exporter proof against pinned local 70205 source bytes."""
+"""Behavioral exporter proof against repository-owned 70205 fixtures."""
 
 import csv
+import gzip
 import hashlib
 import json
-import os
 from pathlib import Path
 import shutil
 import subprocess
@@ -11,16 +11,10 @@ import sys
 import tempfile
 import unittest
 
+from scripts.tests.forever_fixture import csv_wdc5, FIXTURE_LAYOUT
+
 ROOT = Path(__file__).resolve().parents[2]
-SOURCE = Path(
-    os.environ.get(
-        "FOREVER_ITEM_SOURCE",
-        "/syncthing/Sync/Projects/world-of-osso/game-engine/data/forever-1.60.1.70205/starter-kit-probe",
-    )
-)
-SERVER = Path(
-    os.environ.get("FOREVER_SERVER_ROOT", "/home/osso/.worktrees/game-server-skyborn")
-)
+FIXTURE = Path(__file__).parent / "fixtures/forever-70205/items"
 
 
 class ForeverItemExportTests(unittest.TestCase):
@@ -28,6 +22,17 @@ class ForeverItemExportTests(unittest.TestCase):
         self.temp = tempfile.TemporaryDirectory()
         self.addCleanup(self.temp.cleanup)
         self.root = Path(self.temp.name)
+        self.source = self.root / "fixture-source"
+        self.source.mkdir()
+        for path in (FIXTURE / "source").glob("*.gz"):
+            (self.source / path.stem).write_bytes(gzip.decompress(path.read_bytes()))
+        self.definitions = self.root / "fixture-definitions"
+        shutil.copytree(FIXTURE / "definitions", self.definitions)
+        self.server = self.root / "server"
+        shutil.copytree(FIXTURE / "server", self.server)
+        schema = self.server / "scripts/db2_schema.sql.gz"
+        schema.with_suffix("").write_bytes(gzip.decompress(schema.read_bytes()))
+        self.pins = self.prepare_scaling()
         self.output = self.root / "db2/1.60.1.70205/items"
         self.retail = self.root / "db2/12.1.0.69933/items"
         self.retail.mkdir(parents=True)
@@ -36,17 +41,65 @@ class ForeverItemExportTests(unittest.TestCase):
         )
         self.before = (self.retail / "ItemSparse.csv").read_bytes()
 
-    def export(self, source=SOURCE, definitions=None):
+    def prepare_scaling(self):
+        sys.path.insert(0, str(ROOT / "scripts"))
+        self.addCleanup(sys.path.remove, str(ROOT / "scripts"))
+        import export_forever_item_catalog as exporter
+
+        original = json.loads((FIXTURE / "original-manifest.json").read_text())
+        provenance_path = self.definitions / "schema-provenance.json"
+        provenance = json.loads(provenance_path.read_text())
+        pins = {"scaling": {}, "schemas": {}}
+        for name, (fdid, _, _) in exporter.SCALING_SOURCES.items():
+            content = (FIXTURE / "scaling" / f"{name}.csv").read_bytes()
+            self.assertEqual(
+                hashlib.sha256(content).hexdigest(),
+                original["outputs"][f"{name}.csv"]["sha256"],
+            )
+            columns = next(csv.reader(content.decode().splitlines()))
+            floats = set(columns) - {"ID", "ItemLevel"}
+            strings = {"DisplayName_lang"} if name == "ItemSubClass" else set()
+            if strings:
+                floats = set()
+            raw, definition = csv_wdc5(
+                content, floats, strings,
+                row_ids=original["outputs"][f"{name}.csv"]["row_ids"],
+            )
+            (self.source / f"{fdid}.db2").write_bytes(raw)
+            (self.definitions / f"{name}.dbd").write_bytes(definition)
+            digest = hashlib.sha256(definition).hexdigest()
+            pins["scaling"][name] = [
+                fdid, FIXTURE_LAYOUT, hashlib.sha256(raw).hexdigest(),
+            ]
+            pins["schemas"][name] = digest
+            provenance[name] = {
+                "sha256": digest,
+                "source": "repo fixture reconstructed from verified 70205 CSV",
+            }
+        provenance_path.write_text(json.dumps(provenance))
+        path = self.root / "fixture-pins.json"
+        path.write_text(json.dumps(pins))
+        return path
+
+    def export(self, source=None, definitions=None):
         return subprocess.run(
             [
                 sys.executable,
-                str(ROOT / "scripts/export_forever_item_catalog.py"),
+                "-c",
+                "import sys, json; sys.path.insert(0, sys.argv.pop(1)); "
+                "import export_forever_item_catalog as exporter; "
+                "pins = json.load(open(sys.argv.pop(1))); "
+                "exporter.SCALING_SOURCES = pins['scaling']; "
+                "exporter.SCHEMA_SHA256 = {**exporter.SCHEMA_SHA256, **pins['schemas']}; "
+                "raise SystemExit(exporter.main())",
+                str(ROOT / "scripts"),
+                str(self.pins),
                 "--server-root",
-                str(SERVER),
+                str(self.server),
                 "--source-dir",
-                str(source),
+                str(source or self.source),
                 "--definitions",
-                str(definitions or SOURCE.parent / "definitions"),
+                str(definitions or self.definitions),
                 "--output",
                 str(self.output),
             ],
@@ -175,6 +228,10 @@ class ForeverItemExportTests(unittest.TestCase):
         shield = {int(r["ItemLevel"]): r for r in self.rows("ItemArmorShield")}
         self.assertEqual(shield[1]["Quality_1"], "10")
         self.assertEqual(shield[2]["Quality_1"], "18")
+        for path in (FIXTURE / "scaling").glob("*.csv"):
+            self.assertEqual(
+                (self.output / path.name).read_bytes(), path.read_bytes(), path.name,
+            )
         manifest = json.loads((self.output / "manifest.json").read_text())
         self.assertEqual(manifest["build"], "1.60.1.70205")
         self.assertEqual(len(manifest["selected_item_ids"]), 30)
@@ -204,7 +261,7 @@ class ForeverItemExportTests(unittest.TestCase):
 
     def test_corrupt_source_rejected_before_publication_no_retail_fallback(self):
         source = self.root / "source"
-        shutil.copytree(SOURCE, source)
+        shutil.copytree(self.source, source)
         path = source / "1572924.db2"
         raw = bytearray(path.read_bytes())
         raw[-1] ^= 1
@@ -217,7 +274,7 @@ class ForeverItemExportTests(unittest.TestCase):
 
     def test_schema_corruption_and_missing_source_do_not_publish(self):
         definitions = self.root / "definitions"
-        shutil.copytree(SOURCE.parent / "definitions", definitions)
+        shutil.copytree(self.definitions, definitions)
         with (definitions / "ItemArmorTotal.dbd").open("a") as stream:
             stream.write("\nCORRUPTED\n")
         result = self.export(definitions=definitions)
@@ -225,7 +282,7 @@ class ForeverItemExportTests(unittest.TestCase):
         self.assertIn("SHA", result.stderr)
         self.assertFalse(self.output.exists())
         source = self.root / "source"
-        shutil.copytree(SOURCE, source)
+        shutil.copytree(self.source, source)
         (source / "841626.db2").unlink()
         result = self.export(source)
         self.assertNotEqual(result.returncode, 0)
