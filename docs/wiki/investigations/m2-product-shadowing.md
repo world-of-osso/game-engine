@@ -1,6 +1,6 @@
 # Retail M2 cache shadows Forever NPC models
 
-Verified 2026-10-09 at engine `4c7b6cd30`, asset-resolver `80d16d05f`. No runtime fix. [Pending proposal](../../specs/product-isolated-model-assets.md) owns the design decision.
+Verified 2026-10-09 at engine `4c7b6cd30`, asset-resolver `80d16d05f`. No engine runtime fix. [Approved contract](../../specs/product-isolated-model-assets.md) owns the 2026-10-09 user decision.
 
 ## Collision boundaries
 
@@ -22,6 +22,14 @@ Exact hashes, sizes, paths and texture arrays: `data/diagnostics/m2isolation-202
 At `2cbd8f19c`, locked Depot native-crate integration test compiled and exited101: fresh Retail child passed1/1; fresh `WOW_PRODUCT=wow_classic_beta` child returned Retail bytes for **both** FDIDs. The parent expected failure is recorded in `data/diagnostics/m2isolation-2026-10-09/resolver-shadowing-red.log`. Small distinguishable payloads exercise real cache IO; they do not pretend to be valid M2s. Test is explicitly ignored in normal suites until design/implementation.
 
 Independent recount of predecessor `world2-high.log` and `world2-wind.log`: each16 NPC error records across9 displays, with6 type9 records (five139403, one139409) and10 imported-coverage records across seven other displays. Receipts: `data/diagnostics/m2isolation-2026-10-09/baseline-counts.json`. No new native run, post-fix count or zero-regression claim: runtime unchanged.
+
+## Approved implementation source boundary (2026-10-09)
+
+The importer pins Forever70205/build`842b2e5d11f8d6fe257a5b73bd5cf6c6`; current local `.build.info` selects Forever70291/build`e8dd824cf6c3d96cd01f804ca2ea5a63`. The pinned config and corresponding resolver root are absent. Slot `data/db2/1.60.1.70205/provenance.json` and Retail69933 provenance receipts are absent too. Read-only paths and hashes: slot `data/diagnostics/modelisolation-2026-10-09/source-availability.json`. Existing [pinned shoulder boundary](../systems/forever-data.md#pinned-shoulder-asset-boundary-2026-10-06) records the earlier pinned-root absence.
+
+The predecessor classic-beta model receipts were extracted with current70291, as their extraction log attests. Their type9 difference proves product shadowing, not authored70205 identity. Re-labelling those payloads as70205 would violate the approved contract. No assets have been migrated or overwritten; full-chain runtime wiring and native acceptance remain open.
+
+Independent resolver work adds `AssetIdentity`, identity-scoped cache paths, checked extraction errors, per-identity CASC state and pinned config selection on sibling branch`modelisolation`. Engine Depot stages that slot with `DEPOT_SIBLING_ASSET_RESOLVER=/home/osso/.worktrees/asset-resolver` (the existing generic sibling override). Test and source ownership propagation are separate gates; this API does not itself fix engine rendering.
 
 ## Sources
 
