@@ -31,7 +31,15 @@ Class currency2801 flags4/group7139 covers 42 visible paid nodes; the free/grant
 
 Exact CSV line numbers, rows and SHA256 hashes: `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/talenttree-2026-10-08/csv-witnesses.txt`.
 
+## Read-only rendering
+
+Main node centers use `/10` minus pan49,24, with 40px buttons and 36px icons. Class/spec currency labels anchor at372,45 and1211,45 (ClassTalentsFrame.xml:215-229). Choice buttons split ordered entries into separate hover targets; no onclick purchases or casts.
+
+Both skins intentionally use the Retail talent-border atlas crops over the shared extracted Retail4556093 sheet; only window chrome follows the skin. Hero previews normalize center x/min y at0.85 scale. First preview top follows HeroTalentsContainer.xml:181-190 and12-15 (HeroSpecButton TOP102, height108; tree container above its bottom by34; NodesContainer down90 =>266). Second eligible preview is stacked304px below: explicit read-only presentation deviation, not a chosen/learned hero specialization. No selector state is sent to a server.
+
+Missing icon FDIDs remain metadata, while their textures bind `None` before asset discovery. This deliberately bypasses the global question-mark icon fallback. `icon-audit.json` and shared `logs/extract-wanted.tsv` record missing FDIDs; no fake art. Existing circle-mask composition clips passive icons. A missing optional spec background is not fabricated: the cited ClassTalentsFrame BlackBG remains black.
+
 ## Proof ledger
 
 Evidence root: `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/talenttree-2026-10-08/`.
-Core RED `763f021b1`: five failed/zero passed, exit101. Core GREEN `cc9531ed8` (unchanged core in `ce90b9610`): five passed/zero failed, exit0, logs `/home/osso/.worktrees/logs/talenttree-{red,green-core}.log`. UI/native projection and rendered inspection pending. Handoff: `/home/osso/.worktrees/handoff-talenttree.md`.
+Core RED `763f021b1`: five failed/zero passed, exit101. Core GREEN `cc9531ed8` (unchanged core in `ce90b9610`): five passed/zero failed, exit0, logs `/home/osso/.worktrees/logs/talenttree-{red,green-core}.log`. Native baseline fixture RED: actual1920×1080, exit1 at missing class/spec nodes (`native-red-capture.log`, existing extension SHA in `native-red-library.txt`). Queued `talenttree-red-ui.log` captured an intermediate module declaration before its new file existed: compile failure, NOT behavioral RED evidence. UI/native GREEN and rendered inspection pending. Handoff: `/home/osso/.worktrees/handoff-talenttree.md`.

@@ -23,12 +23,20 @@ The PlayerSpellsFrame Talents page displays the local Retail class/spec talent t
 
 - `godot/core/src/talent_data.rs`: local DB2 graph projection, no engine/network dependency.
 - `godot/core/tests/talent_data.rs`: concrete Mage Arcane CSV contract.
-- `godot/ui-model/src/spellbook_preview.rs`: offline local Mage snapshot.
+- `godot/ui-model/src/talents.rs`: entry icon metadata and explicit missing-art projection.
+- `godot/ui-model/src/ui/screens/spellbook_frame_component/talents_page.rs`: read-only nodes, edges, ranks and stacked eligible hero previews.
+- `godot/ui-model/src/spellbook_preview.rs`: offline local Mage snapshot (Arcane for Talents).
+- `godot/rust/src/spells/spellbook.rs`: cached class/spec loading in the live PlayerSpellsFrame.
+- `godot/rust/src/tooltip_sources.rs`: shared live spell hover path.
+- `godot/rust/src/ui/spellbook_preview.rs`: offline native hover through the shared spell GameTooltip.
+- `godot/rust/src/ui/icon_masks.rs`: passive talent circle clipping using the existing authored mask.
 - `godot/ui-model/src/ui/screens/spellbook_frame_component.rs`: shared PlayerSpellsFrame state/page dispatch.
 
 ## Tests asserting this spec
 
 - `godot/core/tests/talent_data.rs`: mapping/counts, three nodes/edges, choice entries, grants, hero gating.
+- `godot/ui-model/tests/talents.rs`: both-skin node/icon/edge/choice display and no purchase/cast actions.
+- `godot/tests/talents_page.gd`: real 1920×1080 native cage geometry and spell name/description hover.
 
 ## Known gaps (current cycle)
 
