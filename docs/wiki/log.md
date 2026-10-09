@@ -1,3 +1,7 @@
+## 2026-10-09 — Product-isolated M2 design investigation
+
+[M2 product shadowing](investigations/m2-product-shadowing.md) traces the unqualified disk hit, parsed-model key and singleton CASC boundaries. Both display/FDID pairs and authentic hashes/type arrays revalidated. Real resolver subprocess regression RED with Retail control PASS; [proposal](../specs/product-isolated-model-assets.md) pending approval. Runtime unchanged; baseline16 errors/run, no after-count or native-fix claim.
+
 ## 2026-10-09 — HUD layout names and delete confirmation
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records the user-decided name validation and pending Yes/No deletion transition. [Contract](../specs/hud-edit-mode.md) owns Retail validation/dialog sources, exact confirmation text and unchanged preset Save / unsaved Exit boundaries. RED reproduces enabled empty New and immediate Delete; `4356c20a7` GREEN touched-crate hud69/core-layout7 and extension/CLI build pass. Native captures pending after default-output clearance failure and Vulkan initialization failure; no PNG or live input claim.
