@@ -142,6 +142,20 @@ Evidence:
 - **RED/GREEN:** importer test `7547e766` fails on missing fourth4237057. Production `e3ac1bc2`, test-only writable-fixture correction `45de9692`: core14 earlier focused tests + repaired schema/import1 pass; native5 focused tests pass. Final locked local helper build and Godot-workspace `cargo fmt --check` pass. Python Extra-importer tests:10 pass,3 historical Retail-input tests skipped. No separate `cargo check` was run; the helper native build compiles the affected code. Exact real-UDP RED at `e196529b` with baseline library SHA256 `4b7374866095a79c5f238c2d0ecfeebd4306285548501cd2b4456f22a4ea20c1` has **one** failure, Lord Cannon type5,128×128 expected versus absent. Same eight cases/oracle/checker with production library SHA256 `a02d7646f89e9f23572e74b06777be3bbf6d0c7a0b478c4c94688caf04182e40` exit0; all **714** material-slot assertions match. Existing 27-milestone ordinary/type6/type19/effect/reset UDP fixture also exits0.
 - **Captures/limits:** final `data/diagnostics/npc-authored-textures/683790/{oracle,captures}`; independent Pillow decoding **714/714** exact, zero differences. Inspected six-type `material-contact-sheet.png`, Lord Cannon type5 `Batch1-slot2`, and enabled Thaza type26 `Batch131-slot0`; exact paths in `inspected-capture-paths.json`. Durable logs/proof ledger/validation in `npctextypes2-2026-10-07/`. Fixture corrections preserve failures: source SKIN order differed from stable draw order; DXT CPU/engine expansion differed; decoding a shared dummy-renderer Image mutated later samples (now duplicate first); Thaza needed equipment transforms. Captures are material images, not rendered-scene parity or acceptance at original spawn locations. Existing81 ObjectDB and32 texture/1 shaped-text/2 font RID shutdown leaks remain; no clean-teardown claim.
 
+## Skyborn offline sweep (2026-10-08)
+
+`godot/core/tests/forever_npc_sweep.rs::sweep_skyborn_forever_npc_appearances` is ignored by default. Source: local packet `data/skyborn-handoff/2026-10-07-c1cdf6e/server/world.db`, map2991, all `content_creature.id1/id2/id3` template variants plus explicit `modelid`, intersected with Forever70205 `CreatureDisplayInfo.csv`. This conservative union includes218 displays and136974; seven IDs also exist in Retail and retain the production catalog's Retail precedence. No probability/phase filtering narrows coverage.
+
+Run from the checkout root (full local assets are not staged by `godot/depot-test-assets.txt`):
+
+```sh
+NPCSWEEP_DATA="$PWD/data" NPCSWEEP_OUT=/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/npcsweep-2026-10-08/baseline \
+/home/osso/.worktrees/build-lock.sh /home/osso/Projects/world-of-osso/game-engine/scripts/agent/agent-run npcsweep \
+cargo test --manifest-path godot/Cargo.toml -p game-engine-core --test forever_npc_sweep sweep_skyborn_forever_npc_appearances -- --ignored --nocapture
+```
+
+The CPU diagnostic imports native armor/gear, replacement-pixel and strict pass policies verbatim, uses production profile/choice/catalog/M2/material APIs, and performs only local file reads (no CASC extraction). It records every reachable failing batch rather than stopping at the first. Success means reports were written, **not** zero appearance failures. Missing preparation/model inputs block downstream coverage; reports retain these boundaries, not inferred native/pixel acceptance. Reports: `display-ids.txt`, `spawn-query.sql`, `errors.tsv`. Error classification and extraction receipts belong in the same evidence directory; required strictness stays unchanged.
+
 ## Out of scope
 
 - Player equipment replication and creature model redesign; authored NPC data is applied through the existing M2 and character paths.
