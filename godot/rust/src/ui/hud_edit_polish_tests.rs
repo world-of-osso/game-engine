@@ -5,6 +5,78 @@ use super::{
 use game_engine_ui_model::hud_edit_component::*;
 
 #[test]
+fn hud_edit_selection_label_is_font_only_in_both_skins() {
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::widgets::font_string::{GameFont, JustifyH};
+    use ui_toolkit::widgets::texture::TextureSource;
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    // Retail EditModeSystemTemplates.xml:35-50: overlay FontString, no label panel.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        for (selected, hovered, text) in [
+            (true, false, "Player Frame"),
+            (false, true, "Click to edit"),
+        ] {
+            let mut entry = player_box();
+            entry.selected = selected;
+            entry.hovered = hovered;
+            let mut shared = SharedContext::new();
+            shared.insert(EditModeOverlayState { boxes: vec![entry] });
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(edit_mode_overlay_screen).sync(&shared, &mut registry);
+            let bounds =
+                super::super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new())
+                    .unwrap();
+            let name = selection_box_name("player_frame");
+            let root = registry.get_by_name(&name).unwrap();
+            let label = registry.get_by_name(&format!("{name}Label")).unwrap();
+            let frame = registry.get(label).unwrap();
+            let Some(WidgetData::FontString(font)) = &frame.widget_data else {
+                panic!("selection label must be a FontString");
+            };
+            assert_eq!(font.text, text);
+            assert_eq!(font.font, GameFont::FrizQuadrata);
+            assert_eq!(font.color, [1.0, 1.0, 1.0, 1.0]);
+            assert_eq!(font.justify_h, JustifyH::Center);
+            assert!(super::super::hud_edit_layout::frame_is_visible(
+                &registry, label
+            ));
+            let rect = &bounds[&label];
+            assert_eq!(
+                [rect.x, rect.y, rect.width, rect.height],
+                [100.0, 221.0, 240.0, 18.0]
+            );
+
+            // Inspect actual image projection of the whole selection subtree: only
+            // the existing nine-slice highlight may draw, not a panel behind text.
+            let mut pending = vec![root];
+            let mut images = Vec::new();
+            while let Some(id) = pending.pop() {
+                let frame = registry.get(id).unwrap();
+                let rect = &bounds[&id];
+                images.extend(super::super::parts::project_images(
+                    frame,
+                    rect.width,
+                    rect.height,
+                ));
+                pending.extend(frame.children.iter().copied());
+            }
+            assert_eq!(
+                images.len(),
+                9,
+                "{skin:?}: label must not add backing imagery"
+            );
+            assert!(images.iter().all(|image| matches!(&image.source, Some(TextureSource::Atlas(atlas)) if atlas.contains("editmode-actionbar-"))));
+        }
+    }
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn hudeditmodepolish_default_19_movers_clear_manager_and_use_shared_label_policy() {
     use game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS;
     game_engine_ui_model::paths::set_data_root(
@@ -69,26 +141,12 @@ fn hudeditmodepolish_default_19_movers_clear_manager_and_use_shared_label_policy
                         manager,
                         [rect.x, rect.y, rect.width, rect.height]
                     ));
-                    let backing = registry
-                        .get(
-                            registry
-                                .get_by_name(&format!("{name}LabelBacking"))
-                                .unwrap(),
-                        )
-                        .unwrap();
-                    assert_eq!(
-                        super::super::hud_edit_layout::frame_is_visible(&registry, backing.id),
-                        index == selected
+                    let parts = super::super::parts::project_images(
+                        registry.get(label).unwrap(),
+                        rect.width,
+                        rect.height,
                     );
-                    if index == selected {
-                        let parts =
-                            super::super::parts::project_images(backing, rect.width, rect.height);
-                        assert!(
-                            parts.iter().any(|part| part.color == [0.0, 0.0, 0.0, 1.0]),
-                            "opaque label backing {}",
-                            entry.key
-                        );
-                    }
+                    assert!(parts.is_empty(), "label must draw text only: {}", entry.key);
                 }
                 boxes[selected].selected = false;
             }
@@ -622,7 +680,7 @@ fn hudeditmodepolish_tracker_selection_follows_retail_default_height_below_heade
         )
         .unwrap();
         let name = selection_box_name("objective_tracker");
-        for part in ["Label", "LabelBacking"] {
+        for part in ["Label"] {
             let id = overlay_registry
                 .get_by_name(&format!("{name}{part}"))
                 .unwrap();
