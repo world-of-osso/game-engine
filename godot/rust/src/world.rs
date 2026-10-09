@@ -733,10 +733,18 @@ pub(crate) fn death_animation_change(applied: bool, dead: bool) -> bool {
 }
 
 /// Metadata belongs to the animation node: asynchronous replacement starts death once.
-fn sync_player_death_animation(visual: &Gd<Node3D>, dead: bool) -> Result<bool, String> {
+fn sync_player_death_animation(unit: &UnitNode, dead: bool) -> Result<bool, String> {
     const DEATH_META: &str = "player_death_applied";
+    let Some(visual) = &unit.visual else {
+        return Ok(false);
+    };
+    let animation_path = if unit.visual_player_model.is_some() {
+        "M2Animation"
+    } else {
+        "NpcModel/M2Animation"
+    };
     let mut animation = visual
-        .try_get_node_as::<WowAnimationPlayer>("M2Animation")
+        .try_get_node_as::<WowAnimationPlayer>(animation_path)
         .ok_or("Player has no bone animation")?;
     let applied = animation.has_meta(DEATH_META) && animation.get_meta(DEATH_META).to::<bool>();
     if death_animation_change(applied, dead) {
@@ -750,9 +758,7 @@ fn sync_remote_player_death(unit: &UnitNode, is_local: bool) -> Result<(), Strin
     if !unit.is_player || is_local {
         return Ok(());
     }
-    if let Some(visual) = &unit.visual {
-        sync_player_death_animation(visual, unit.life_state == Some(DeathState::Dead))?;
-    }
+    sync_player_death_animation(unit, unit.life_state == Some(DeathState::Dead))?;
     Ok(())
 }
 
@@ -1512,14 +1518,10 @@ impl WorldUnits {
 
     /// Owner snapshots decide local death; remote players use replicated life state.
     pub fn update_local_death(&mut self, dead: bool) -> Result<bool, String> {
-        let Some(visual) = self
-            .local_player_id
-            .and_then(|id| self.units.get(&id))
-            .and_then(|unit| unit.visual.as_ref())
-        else {
+        let Some(unit) = self.local_player_id.and_then(|id| self.units.get(&id)) else {
             return Ok(false);
         };
-        sync_player_death_animation(visual, dead)
+        sync_player_death_animation(unit, dead)
     }
 
     pub fn update_local_locomotion(
