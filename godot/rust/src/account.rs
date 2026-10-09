@@ -8,6 +8,9 @@ use std::{
 #[cfg(test)]
 #[path = "professions_account_tests.rs"]
 mod profession_snapshot_tests;
+#[cfg(test)]
+#[path = "talents_account_tests.rs"]
+mod talents_account_tests;
 
 use crate::frame_error::SessionError;
 use crate::mirror_timers::MirrorTimerMessage;
