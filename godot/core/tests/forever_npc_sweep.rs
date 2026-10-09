@@ -270,6 +270,28 @@ impl Sweep {
 }
 
 #[test]
+fn forever_display137165_resolves_authored_handlebars_without_changing_retail() {
+    let data = data_root();
+    let profiles = open(&data.join("cache/npc_appearance.sqlite"));
+    let appearance = query_authored_npc_appearance(&profiles, 137165)
+        .unwrap()
+        .unwrap();
+    assert_eq!((appearance.race, appearance.sex), (7, 0));
+    assert!(appearance.choice_ids.contains(&78872));
+    let customization = load_customization_db(&data).unwrap();
+    let selected = select_npc_choices(&appearance, &customization).unwrap();
+    assert!(
+        selected.geosets.contains(&(1, 6)),
+        "{:#?}",
+        selected.geosets
+    );
+    let retail = query_authored_npc_appearance(&profiles, 825)
+        .unwrap()
+        .unwrap();
+    assert!(select_npc_choices(&retail, &customization).is_ok());
+}
+
+#[test]
 #[ignore = "requires full local Skyborn data; see npc-appearance.md"]
 fn sweep_skyborn_forever_npc_appearances() {
     let data = data_root();
