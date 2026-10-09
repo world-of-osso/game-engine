@@ -290,6 +290,32 @@ fn authored_forever_source_survives_mixed_snapshot_tooltips_and_equipped_levels(
     );
 }
 
+#[test]
+fn retail_item_scaling_fields_keep_socket_costs_aligned_to_used_stats() {
+    let mut catalog = catalog();
+    let headers = "ID,StatModifier_bonusStat_0,StatPercentEditor_0,StatPercentageOfSocket_0,StatModifier_bonusStat_1,StatPercentEditor_1,StatPercentageOfSocket_1,StatModifier_bonusStat_2,StatPercentEditor_2,StatPercentageOfSocket_2,StatModifier_bonusStat_3,StatPercentEditor_3,StatPercentageOfSocket_3,StatModifier_bonusStat_4,StatPercentEditor_4,StatPercentageOfSocket_4,StatModifier_bonusStat_5,StatPercentEditor_5,StatPercentageOfSocket_5,StatModifier_bonusStat_6,StatPercentEditor_6,StatPercentageOfSocket_6,StatModifier_bonusStat_7,StatPercentEditor_7,StatPercentageOfSocket_7,StatModifier_bonusStat_8,StatPercentEditor_8,StatPercentageOfSocket_8,StatModifier_bonusStat_9,StatPercentEditor_9,StatPercentageOfSocket_9";
+    let sparse = table(
+        "ItemSparse.csv",
+        &format!(
+            "{headers}\n25,-1,0,0,7,7889,0.25,-1,0,0,32,4300,0.75,-1,0,0,-1,0,0,-1,0,0,-1,0,0,-1,0,0,-1,0,0\n"
+        ),
+    );
+    let items = table("Item.csv", "ID,ItemSquishEraID\n25,2\n");
+    apply_retail_scaling_fields(&mut catalog, &items, &sparse).unwrap();
+    let item = catalog.get(25).unwrap();
+    assert_eq!(item.squish_era, 2);
+    assert_eq!(
+        item.stat_socket_multipliers,
+        [0.25, 0.75, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0]
+    );
+    let missing_era = table("Item.csv", "ID\n25\n");
+    assert!(
+        apply_retail_scaling_fields(&mut catalog, &missing_era, &sparse)
+            .unwrap_err()
+            .contains("ItemSquishEraID")
+    );
+}
+
 fn catalog() -> ItemCatalog {
     let mut catalog = parse_item_catalog(&table("Item.csv", ITEM_CSV)).unwrap();
     apply_item_sparse(&mut catalog, &table("ItemSparse.csv", SPARSE_CSV)).unwrap();

@@ -1,9 +1,12 @@
 use std::fmt;
 
+use crate::minimal_scroll_bar::{
+    BAR_W, MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr,
+};
 use ui_toolkit::frame::{Dimension, NineSlice};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
-use ui_toolkit::screen::SharedContext;
+use ui_toolkit::screen::{Screen, SharedContext};
 use ui_toolkit::widget_def::Element;
 use ui_toolkit::widgets::texture::TextureSource;
 
@@ -191,6 +194,60 @@ pub fn atlas_nine_slice(name: &str) -> Option<NineSlice> {
 }
 
 pub const CHAR_LIST_PANEL: FrameName = FrameName("CharacterListPanel");
+pub const CHARACTER_LIST_SCROLL: &str = "CharacterListCards";
+pub const CHARACTER_CARD_HEIGHT: f32 = 95.0;
+const CARD_GAP: f32 = 2.0; // Retail CharacterSelectList.lua:193.
+const LIST_HEIGHT: f32 = 343.0; // Panel520 - header94 - Retail footer reservation83.
+const BAR_LEFT: f32 = 351.0;
+
+/// Retail CharacterSelectList.lua:198 and CharacterSelectListUtil.lua: character-height pan.
+pub const CHARACTER_LIST_PAN: usize = (CHARACTER_CARD_HEIGHT + CARD_GAP) as usize;
+
+#[derive(PartialEq)]
+struct ScrolledSelection(Option<usize>);
+
+/// Scroll only when selection changes, not when a wheel/drag rebuilds the same selection.
+pub fn sync_char_select_screen(
+    screen: &mut Screen,
+    shared: &mut SharedContext,
+    registry: &mut FrameRegistry,
+) {
+    screen.sync(shared, registry);
+    let selected = shared.get::<CharSelectState>().and_then(|state| {
+        state
+            .selected_index
+            .filter(|index| *index < state.characters.len())
+    });
+    if shared
+        .get::<ScrolledSelection>()
+        .is_some_and(|previous| previous.0 == selected)
+    {
+        return;
+    }
+    shared.insert(ScrolledSelection(selected));
+    let Some(index) = selected else { return };
+    if scroll_selected_card(registry, index) {
+        screen.sync(shared, registry);
+    }
+}
+
+fn scroll_selected_card(registry: &mut FrameRegistry, index: usize) -> bool {
+    let offset = registry
+        .scroll_lists
+        .get(CHARACTER_LIST_SCROLL)
+        .expect("character-select ScrollBox must be mounted")
+        .first_row;
+    let top = index * (CHARACTER_CARD_HEIGHT + CARD_GAP) as usize;
+    let bottom = top + CHARACTER_CARD_HEIGHT as usize;
+    let target = if top < offset {
+        top
+    } else {
+        offset.max(bottom.saturating_sub(LIST_HEIGHT as usize))
+    };
+    registry
+        .scroll_lists
+        .scroll_to(CHARACTER_LIST_SCROLL, target)
+}
 pub const ENTER_WORLD_BUTTON: FrameName = FrameName("EnterWorld");
 pub const CREATE_CHAR_BUTTON: FrameName = FrameName("CreateChar");
 pub const DELETE_CHAR_BUTTON: FrameName = FrameName("DeleteChar");
@@ -345,7 +402,7 @@ fn card_info_label(index: usize, info: &str) -> Element {
             height: 18.0,
             text: info,
             font: GameFont::FrizQuadrata,
-            font_size: 15.0,
+            font_size: 13.0,
             font_color: COLOR_SUBTITLE,
             justify_h: JustifyH::Left,
             pos_type: "absolute",
@@ -378,7 +435,13 @@ fn card_status_label(index: usize, status: &str) -> Element {
     }
 }
 
-fn character_card(index: usize, ch: &CharDisplayEntry, is_selected: bool) -> Element {
+fn character_card(
+    index: usize,
+    ch: &CharDisplayEntry,
+    is_selected: bool,
+    offset: usize,
+) -> Element {
+    let top = index as f32 * (CHARACTER_CARD_HEIGHT + CARD_GAP) - offset as f32;
     let frame_name = dyn_name(card_frame_name(index));
     let onclick = CharSelectAction::SelectChar(index);
     let texts = [
@@ -394,7 +457,10 @@ fn character_card(index: usize, ch: &CharDisplayEntry, is_selected: bool) -> Ele
         r#frame {
             name: frame_name,
             width: 347.0,
-            height: 95.0,
+            height: CHARACTER_CARD_HEIGHT,
+            pos_type: "absolute",
+            left: 0.0,
+            top,
             onclick,
             {card_textures(index, is_selected)}
             {texts}
@@ -491,11 +557,29 @@ fn list_helper_and_divider() -> Element {
     }
 }
 
-fn card_list(characters: &[CharDisplayEntry], selected: Option<usize>) -> Element {
+fn card_list(
+    ctx: &SharedContext,
+    characters: &[CharDisplayEntry],
+    selected: Option<usize>,
+) -> Element {
+    let count = characters.len().max(1);
+    let content_height = count as f32 * (CHARACTER_CARD_HEIGHT + CARD_GAP) - CARD_GAP;
+    let geometry = pixel_geometry(LIST_HEIGHT, content_height, LIST_HEIGHT - 6.0);
+    let offset = geometry.clamp(ctx.scroll_first_row(CHARACTER_LIST_SCROLL));
+    let config = scroll_list_attr(&geometry);
+    let bar = MinimalScrollBar {
+        list: CHARACTER_LIST_SCROLL,
+        left: BAR_LEFT,
+        top: 2.0,
+        height: LIST_HEIGHT - 6.0,
+        geometry,
+        offset,
+        unscrollable: Unscrollable::HideBar,
+    };
     let cards: Element = characters
         .iter()
         .enumerate()
-        .flat_map(|(i, ch)| character_card(i, ch, selected == Some(i)))
+        .flat_map(|(i, ch)| character_card(i, ch, selected == Some(i), offset))
         .collect();
     let empty = if characters.is_empty() {
         empty_card()
@@ -504,11 +588,11 @@ fn card_list(characters: &[CharDisplayEntry], selected: Option<usize>) -> Elemen
     };
     rsx! {
         r#frame {
-            name: "CharacterListCards",
-            width: 347.0,
-            height: 420.0,
-            layout: "flex-col",
-            gap: 10.0,
+            name: {DynName(CHARACTER_LIST_SCROLL.into())},
+            width: {BAR_LEFT + BAR_W},
+            height: LIST_HEIGHT,
+            mouse_enabled: true,
+            scroll_list: config,
             pos_type: "absolute",
             left: "0%",
             top: "0%",
@@ -516,11 +600,16 @@ fn card_list(characters: &[CharDisplayEntry], selected: Option<usize>) -> Elemen
             margin_top: {94.0},
             {cards}
             {empty}
+            {bar.element()}
         }
     }
 }
 
-fn cs_character_list(characters: &[CharDisplayEntry], selected: Option<usize>) -> Element {
+fn cs_character_list(
+    ctx: &SharedContext,
+    characters: &[CharDisplayEntry],
+    selected: Option<usize>,
+) -> Element {
     let chrome = [
         list_backdrop(),
         list_realm_header(),
@@ -538,7 +627,7 @@ fn cs_character_list(characters: &[CharDisplayEntry], selected: Option<usize>) -
             margin_left: {-22},
             margin_top: {164.0},
             {chrome}
-            {card_list(characters, selected)}
+            {card_list(ctx, characters, selected)}
             {create_char_button()}
             {delete_char_button_if_selected(selected.is_some())}
         }
@@ -588,7 +677,7 @@ fn create_char_button() -> Element {
             top: "100%",
             translate_y: "-100%",
             margin_left: {18},
-            margin_top: {-64.0},
+            margin_top: {-23.0},
         }
     }
 }
@@ -600,7 +689,7 @@ fn delete_char_button() -> Element {
         CharSelectAction::DeleteChar,
         crate::ui::screens::trash_button_component::ButtonPosition {
             right: 18.0,
-            bottom: 64.0,
+            bottom: 23.0,
         },
     )
 }
@@ -684,7 +773,7 @@ pub fn char_select_screen(ctx: &SharedContext) -> Element {
             {cs_logo()}
             {char_select_top_nav()}
             {cs_name_area(&state.selected_name, has_selection)}
-            {cs_character_list(&state.characters, state.selected_index)}
+            {cs_character_list(ctx, &state.characters, state.selected_index)}
             {cs_action_buttons()}
             {cs_status(&state.status_text)}
             {campsite_ui(campsite)}
