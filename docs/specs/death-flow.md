@@ -66,14 +66,33 @@ Engine `50af22766`, Godot `4.7.2-pr123946-pr123546`, private server `f25258b`, U
 | 04 Corpse resurrection | PASS (retained) | `04-corpse-alive.png`, matching state: alive after recovery; prior ledger records approximately 50% health/mana with regeneration. |
 | 05 Spirit healer/sickness | PASS | `reproof05-confirm.png`: physical healer right-click and plain-text warning. `reproof05-alive-ready.png`, matching state and death-status: Alive, ghost effects cleared, spell 15007 / texture 136147 visible in `DebuffButton0`. Initial capture preceded asynchronous icon readiness. |
 | 06 Player resurrection offer | PASS (retained) | `06-offer-accept.png`, `06-declined.png`, `06-accepted-alive.png`: prior accepted offer/decline/accept proof; timeout not re-proven here. |
-| 07 Dead logout/relog | FAIL | `reproof07-logout-ready.png` and checks: Login, world detached, transport disconnected, death snapshot cleared. `reproof07-relogin-ready.png`, checks and death-status: InWorld with HP 0, but authoritative server state Alive and null corpse/graveyard; ghost state does not persist. |
+| 07 Dead logout/relog | FAIL (2026-10-07); persistence PASS (2026-10-09), requested logout route FAIL | Historical `f25258b`: Login teardown passed, relog returned Alive/HP 0 without corpse. Current server `70ae62a67` including `c2903d3` preserves Ghost/position/corpse and unreleased Dead; bounded re-proof below records remaining client logout failures. |
 | Local corpse animation | PASS | `reproof-corpse-held.png`, checks and death-status: authoritative Dead/HP 0; actual local `M2Animation` clip 1 remains held across successive captures, then returns to clip 0 on ghost release. |
 
 No new client defect or code fix in this re-proof. The client projects the relog snapshot it receives; synthesizing ghost state from HP would conceal lost server corpse data. No merge or push.
 
+## Step 07 live re-proof — 2026-10-09
+
+Engine `f55c65a20b613023be971d74525468ab7367375d`; server `70ae62a671385f5c091745cf7fd954607bb9599a` (contains persistence fix `c2903d3`). Extension, IPC CLI, server and admin built through the shared build lock, each exit 0. Private UDP 5460, fresh diagnostic `game.redb`, account `fb_deathlive`, level-20 Deathlive. One rendered client at a time under headless cage; no product code changes, push, merge or UDP 5000 mutation.
+
+All eight PNGs were individually inspected at 1920×1080. Captures are in `/syncthing/AgentShared/2026-10-09/death-relog/`; state snapshots, logs, manifest and build results are under canonical `data/diagnostics/deathlive-2026-10-09/`.
+
+| Step | Result | Inspected captures and observable proof |
+|---|---|---|
+| Die → release spirit | PASS | Admin kill, actual Release Spirit button click. `01-ghost-before-relog.png`: graded ghost world, ghost HUD, minimap corpse icon. `02-ghost-status.txt`: authoritative Ghost, corpse at `(-8949, 82.62083, 132)`. |
+| Logout to character list | FAIL | Actual Game Menu → Log Out detaches world/disconnects, but opens Login (`02-logout-login.png`), not CharacterSelect. Cause: `godot/rust/src/logout.rs:71–72` explicitly selects Login. Character list reached on authenticated client startup (`03-character-list.png`), then actual Enter World click. |
+| Ghost relog persistence | PASS | `04-ghost-after-relog.png`: ghost appearance/grading, HUD and minimap corpse icon persist. `04-ghost-after-status.txt`: Ghost with identical corpse/graveyard. Before/after account snapshots have identical authoritative `(-8946.23, 79.9953, 183.477)` and local `(-8946.23, 79.90372, 183.477)` positions, HP 0. |
+| Run to corpse → resurrect | PASS | Actual scripted forward movement, 1 + 6.3 seconds at heading 183.08°, no teleport. `05-recover-corpse.png`: recovery dialog; actual Accept click. `06-resurrected-alive.png`: colour/HUD restored. Authoritative Alive, null corpse/graveyard; subsequent snapshot HP 2755 at the death position. |
+| Unreleased death: normal logout | FAIL | `07-unreleased-before-logout.png`: Dead/Release Spirit. Escape does not open Game Menu; logout button unavailable. Cause: `godot/rust/src/party_frames.rs:289–304` routes Escape to the open death popup and consumes the key before Game Menu. No release sent. |
+| Unreleased death: disconnect/relog control | PASS (disconnect only) | Kicked only `fb_deathlive` via private admin socket, then replaced the stopped client and selected Deathlive. `08-unreleased-after-relog.png`: still Dead, Release Spirit popup, HP 0, same position and corpse; no automatic release/resurrection. Not a normal-logout acceptance substitute. |
+
+Server reference: `crates/server/src/auth_character_tests.rs:685–729` cites `Player::LoadFromDB`/`PLAYER_FLAGS_GHOST` and `Player::LoadCorpse` for preserving released Ghost and corpse; `:732–770` expects unreleased Dead and HP 0 without another durability loss. Live state matches both state expectations; durability was not measured live. No external reference audit or server tests were rerun.
+
+Diagnostic automation required two corrections: remove an unavailable snapshot method, then atomic command-file writes after a partial JSON read stopped polling. Ghost relog therefore includes a stopped/replaced client rather than uninterrupted same-process login. All owned server/client/compositor PIDs were stopped, own slice inactive, UDP 5460 free. No changes to other acceptance steps.
+
 ## Known gaps (current cycle)
 
-- [ ] Step 07 end-to-end persistence remains blocked by pinned server `f25258b` returning Alive with HP 0 and no corpse after ghost logout/relog. Logout teardown itself passes. Server changes are outside this client acceptance run's authority.
+- [ ] Step 07 strict logout workflow remains FAIL: Login instead of character list; unreleased death popup prevents Escape opening Game Menu. Server persistence is live-proven, but normal unreleased logout and uninterrupted same-client ghost relog remain unproven.
 - [ ] Full multi-skin/reference visual parity is not established by this bounded rendered run.
 
 ## Out of scope
