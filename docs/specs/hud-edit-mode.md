@@ -202,3 +202,8 @@ The unit-frame reference fixtures prove geometry/text with populated ToT/focus s
 - No chat frame exists, so chat is not registered. The objective-tracker frame is registered but not mounted in world yet; it becomes movable once a frame with that name is mounted. `BuffFrame` and `DebuffFrame` are mounted ([buff frame](buff-frame.md)).
 - Exiting with unsaved edits discards them without a confirmation prompt.
 - Per-element settings exist only for unit frames, chat and the damage meter ([Customisable layout settings](#customisable-layout-settings)), set on Options > HUD.
+
+## Selection geometry correction (2026-10-09)
+
+- Forever chat selection and saved drag positions follow the rendered bronze skin rectangle, not the larger offset ChatFrame1 canvas. Translate the canvas and descendants together; keep the documented bottom-left preset and input inset unchanged. Modern chat retains its native canvas bounds.
+- Idle selections remain unlabelled; hover shows “Click to edit”, selection shows the system name (Retail `Shared/EditModeSystemTemplates.lua:3193-3195,3248-3261`).

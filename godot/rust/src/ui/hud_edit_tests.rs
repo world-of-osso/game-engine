@@ -672,3 +672,46 @@ fn publish_test_bounds(registry: &mut FrameRegistry) {
 
 #[path = "hud_edit_polish_tests.rs"]
 mod polish;
+
+#[test]
+fn previewfix_forever_chat_selection_and_saved_drag_follow_rendered_skin() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Forever);
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Forever);
+    shared.insert(EditModeOverlayState::default());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(super::hud_edit_preview::preview_screen).sync(&shared, &mut registry);
+    let baseline =
+        super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+    for (id, rect) in &baseline {
+        registry.set_computed_layout(*id, rect.clone()).unwrap();
+    }
+    let skin_id = registry.get_by_name("ChatFrame1FlareSkin").unwrap();
+    let skin = &baseline[&skin_id];
+    let selection = super::hud_edit_layout::collect_selection_boxes(&registry, None)
+        .into_iter()
+        .find(|entry| entry.key == "chat_frame")
+        .unwrap();
+    assert_eq!(selection.rect, [skin.x, skin.y, skin.width, skin.height]);
+    let saved = save_top_left(
+        HudAnchor::BottomLeft,
+        [80.0, 640.0],
+        [skin.width, skin.height],
+        [1920.0, 1080.0],
+    );
+    let mut moved = baseline.clone();
+    super::hud_edit_layout::apply_placements(
+        &registry,
+        &mut moved,
+        &Placements::from([("chat_frame".into(), saved)]),
+    );
+    let moved_skin = &moved[&skin_id];
+    assert_eq!([moved_skin.x, moved_skin.y], [80.0, 640.0]);
+    let root = registry.get_by_name("ChatFrame1").unwrap();
+    assert_eq!(moved[&root].x - moved_skin.x, baseline[&root].x - skin.x);
+    assert_eq!(moved[&root].y - moved_skin.y, baseline[&root].y - skin.y);
+}
