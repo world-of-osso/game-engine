@@ -6,7 +6,7 @@ Verified: 2026-10-09. Implementation branch `hudeditmode`; runtime proof is reco
 
 ## Draft and projection
 
-`GameClient.hud_editor` holds an `EditDraft`, selected key, pointer grab offset and editor canvas. Priority key handling runs after static-popup dismissal; dragging consumes native mouse events before gameplay. Save writes the draft through the existing layout store. Exit republishes the saved placements, discarding the draft.
+`GameClient.hud_editor` holds an `EditDraft`, selected key, pointer grab offset and editor canvas. Priority key handling runs after static-popup dismissal; dragging consumes native mouse events before gameplay. Save writes the draft through the existing layout store. All native exit routes persist pending placements through the same Save transition before clearing the draft and republishing the saved layout. Unchanged exits create no copy; edited presets use the existing first-unused `Layout N` flow. The [contract](../../specs/hud-edit-mode.md#autosave-on-exit-user-decision-2026-10-09) records the explicit autosave deviation from Retail.
 
 The host routes every manager and Options HUD operation through `Account::hud_layout_path`: the realm and server-accepted username select an account directory. `SessionEffect::PersistToken` publishes the authenticated owner only after success and records token ownership privately, so rotated credential tokens and token-only reconnects reach the same layouts. Failed/unidentified logins do not expose account layouts. The [contract](../../specs/hud-edit-mode.md) owns the namespace, unknown-token behavior and ownerless legacy-file boundary; window-position paths are not changed.
 
