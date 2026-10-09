@@ -403,15 +403,12 @@ pub fn char_select_state_from_roster(
             })
         })
         .collect::<Result<_, String>>()?;
-    let selected = selected_index.and_then(|index| characters.get(index));
+    let selected = selected_index.and_then(|index| entries.get(index));
     let selected_name = selected
         .map(|character| character.name.clone())
         .unwrap_or_else(|| "Character Selection".to_owned());
     let status_text = match selected {
-        Some(_) => format!(
-            "Realm: World of Osso    {}",
-            entries[selected_index.unwrap()].info
-        ),
+        Some(character) => format!("Realm: World of Osso    {}", character.info),
         None if characters.is_empty() => "No characters available on this realm".to_owned(),
         None => "Select a character to enter the world".to_owned(),
     };
