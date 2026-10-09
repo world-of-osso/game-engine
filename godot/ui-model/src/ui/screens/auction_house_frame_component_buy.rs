@@ -78,6 +78,7 @@ fn search_bar(empty: bool) -> Element {
             }
         });
     }
+    out.extend(filter_button());
     out.extend(panel_button(
         "AuctionHouseFrameSearchButton",
         "Search",
@@ -86,6 +87,33 @@ fn search_bar(empty: bool) -> Element {
         (656.0, 38.0, 132.0, 22.0),
     ));
     out
+}
+
+/// SearchBar.xml:64-67: Filter RIGHT of SearchButton LEFT -10. MenuTemplates.xml:66-113
+/// and MenuTemplates.lua:687-706 size it to the label width +60, with a 4px art overhang.
+/// The client has no filter menu yet: this is the same disabled visual in both skins.
+fn filter_button() -> Element {
+    let text_width = measure_text("Filter", GameFont::FrizQuadrata, 12.0)
+        .expect("FrizQuadrata filter text measurement")
+        .0;
+    let width = text_width + 60.0;
+    let art = crate::quest_art::named_atlas_texture(
+        "AuctionHouseFrameFilterButtonBackground".into(),
+        "common-dropdown-b-button",
+        (-4.0, -4.0, width + 8.0, 26.0),
+    );
+    rsx! { button {
+        name: "AuctionHouseFrameFilterButton",
+        width,
+        height: 18.0,
+        disabled: true,
+        button_default_skin: false,
+        pos_type: "absolute",
+        left: {646.0 - width},
+        top: 40.0,
+        {art}
+        {label("AuctionHouseFrameFilterButtonText", "Filter", (0.0, 0.0, width, 20.0), "CENTER")}
+    } }
 }
 
 /// SearchBar.xml:49-57, IconButtonTemplate.xml:40-56, SearchBar.lua:40:
