@@ -8,15 +8,21 @@ use ui_toolkit::layout_values::Val;
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
-fn rect(frame: &Frame) -> (f32, f32, f32, f32) {
-    let (Val::Px(x), Val::Px(y), Dimension::Fixed(w), Dimension::Fixed(h)) = (
-        frame.position.left,
-        frame.position.top,
-        frame.width,
-        frame.height,
-    ) else {
+fn measurement(value: Val, extent: f32) -> f32 {
+    match value {
+        Val::Px(px) => px,
+        Val::Percent(percent) => percent * extent / 100.0,
+        Val::Auto => panic!("cast art must expose a concrete position"),
+    }
+}
+
+fn rect(frame: &Frame, track_height: f32) -> (f32, f32, f32, f32) {
+    let (Val::Px(x), Dimension::Fixed(w), Dimension::Fixed(h)) =
+        (frame.position.left, frame.width, frame.height)
+    else {
         panic!("cast art must expose a concrete rect");
     };
+    let y = measurement(frame.position.top, track_height) + measurement(frame.translation.y, h);
     (x, y, w, h)
 }
 
@@ -39,10 +45,10 @@ fn assert_player_spark_matches_fill(skin: ActiveSkin, width: f32, height: f32) {
     let spark = registry
         .get(registry.get_by_name("CastingBarSpark").unwrap())
         .unwrap();
-    let fill_rect = rect(fill);
-    let spark_rect = rect(spark);
+    let fill_rect = rect(fill, height);
+    let spark_rect = rect(spark, height);
     println!("{skin:?}: fill={fill_rect:?}, spark={spark_rect:?}");
-    assert_eq!(fill.parent, spark.parent);
+    assert_eq!(fill.parent_id, spark.parent_id);
     assert_eq!(fill_rect, (0.0, 0.0, width * 0.75, height));
     assert_eq!(spark_rect.0, fill_rect.2 - 4.0);
     assert_eq!(spark_rect.2, 8.0);
