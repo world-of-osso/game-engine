@@ -56,8 +56,16 @@ fn raid_overlap_screen(ctx: &SharedContext) -> ui_toolkit::widget_def::Element {
     );
     shared.insert(InWorldUnitFramesState {
         show_player_frame: true,
+        show_target_frame: false,
         player: UnitFrameState::named("Mailalpha"),
-        ..Default::default()
+        target: None,
+        target_of_target: None,
+        focus: None,
+        target_cast: None,
+        pet: None,
+        bosses: Vec::new(),
+        menu: Default::default(),
+        personal_resource: None,
     });
     let members = ["Mailalpha", "Mailbeta"]
         .into_iter()
