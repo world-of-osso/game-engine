@@ -943,8 +943,15 @@ func capture_bank_hover(ui: Node, prefix: String) -> bool:
 	for frame in range(10):
 		await process_frame
 		await RenderingServer.frame_post_draw
-	var highlight := slot.get_node_or_null("Parts/Part0") as TextureRect
-	if highlight == null or not highlight.material is CanvasItemMaterial or highlight.material.blend_mode != CanvasItemMaterial.BLEND_MODE_ADD:
+	var sync_error: String = ui.call("sync_input")
+	if not sync_error.is_empty():
+		push_error(sync_error)
+		return false
+	for frame in range(120):
+		await process_frame
+		await RenderingServer.frame_post_draw
+	var highlight := slot.get_node_or_null("BankFrameItem1Highlight/Parts/Part0") as TextureRect
+	if highlight == null or highlight.texture == null or not highlight.material is CanvasItemMaterial or highlight.material.blend_mode != CanvasItemMaterial.BLEND_MODE_ADD:
 		push_error("Native bank hover did not project additive ItemButton highlight")
 		return false
 	print("PASS: native ItemButton mouse hover projects ADD at ", at)

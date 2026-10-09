@@ -188,7 +188,7 @@ fn bankart_unaffordable_money_digits_are_red_not_grey() {
 #[test]
 fn bankart_item_hover_uses_retail_square_texture_without_default_button_skin() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        let r = mount(skin, false);
+        let mut r = mount(skin, false);
         rect(&r, "BankFrameItem1", [26.0, 63.0, 37.0, 37.0]);
         let Some(WidgetData::Button(b)) = &frame(&r, "BankFrameItem1").widget_data else {
             panic!("bank slot has no hover button")
@@ -205,5 +205,23 @@ fn bankart_item_hover_uses_retail_square_texture_without_default_button_skin() {
             frame(&r, "BankFrameItem1").onclick.as_deref(),
             Some("bank_slot:0")
         );
+        let slot = r.get_by_name("BankFrameItem1").unwrap();
+        let Some(WidgetData::Button(button)) = &mut r.get_mut(slot).unwrap().widget_data else {
+            panic!()
+        };
+        button.hovered = true;
+        game_engine_ui_model::bank_frame_component::apply_bank_postsetup(&mut r);
+        assert!(frame(&r, "BankFrameItem1Highlight").visible);
+        assert_eq!(frame(&r, "BankFrameItem1Highlight").effective_alpha, 1.0);
+        r.set_hidden(r.get_by_name("BankFrame").unwrap(), true);
+        game_engine_ui_model::bank_frame_component::apply_bank_postsetup(&mut r);
+        assert!(!frame(&r, "BankFrameItem1Highlight").visible);
+        r.set_hidden(r.get_by_name("BankFrame").unwrap(), false);
+        let Some(WidgetData::Button(button)) = &mut r.get_mut(slot).unwrap().widget_data else {
+            panic!()
+        };
+        button.hovered = false;
+        game_engine_ui_model::bank_frame_component::apply_bank_postsetup(&mut r);
+        assert!(!frame(&r, "BankFrameItem1Highlight").visible);
     }
 }

@@ -318,6 +318,12 @@ fn slots(state: &BankFrameState, skin: ActiveSkin) -> Element {
             );
             if let Some(ui_toolkit::widget_def::WidgetChild::Widget(def)) = slot.first_mut() {
                 def.tag = "Button";
+                def.children.extend(texture(
+                    format!("{prefix}Highlight"),
+                    130_718, // ItemButtonTemplate:79, ButtonHilight-Square.
+                    (0.0, 0.0, ITEM_BUTTON, ITEM_BUTTON),
+                    WHITE,
+                ));
             }
             slot
         })
@@ -757,6 +763,27 @@ fn edge_shadows(skin: ActiveSkin) -> Element {
     children
 }
 
+/// ItemButton's additive overlay follows its native hover state. set_hidden also
+/// propagates effective visibility/alpha; assigning hidden alone would leave stale pixels.
+fn apply_bank_highlight_visibility(registry: &mut ui_toolkit::registry::FrameRegistry, id: u64) {
+    let frame = registry.get(id).expect("bank frame id");
+    if !frame
+        .name
+        .as_deref()
+        .is_some_and(|name| name.ends_with("Highlight"))
+    {
+        return;
+    }
+    let parent = frame
+        .parent_id
+        .and_then(|parent| registry.get(parent))
+        .expect("bank highlight parent");
+    let Some(ui_toolkit::frame::WidgetData::Button(button)) = &parent.widget_data else {
+        panic!("bank highlight parent is not an ItemButton")
+    };
+    registry.set_hidden(id, !button.hovered);
+}
+
 /// RSX has no TextureData tiling/blend or ButtonData hover attributes.
 /// Apply after each screen sync, before native projection (same pattern as the spellbook).
 pub fn apply_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
@@ -770,6 +797,7 @@ pub fn apply_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) 
         })
         .collect();
     for id in ids {
+        apply_bank_highlight_visibility(registry, id);
         let frame = registry.get_mut(id).expect("bank frame id");
         let name = frame.name.as_deref().expect("named bank frame");
         match &mut frame.widget_data {
@@ -782,18 +810,13 @@ pub fn apply_bank_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) 
                     name,
                     "BankFrameBackground" | "BankFrameShadowLeft" | "BankFrameShadowRight"
                 );
-                if name.ends_with("Selected") {
+                if name.ends_with("Selected") || name.ends_with("Highlight") {
                     t.blend_mode = ui_toolkit::widgets::texture::BlendMode::Additive;
                     frame.draw_layer = DrawLayer::Overlay;
                 }
             }
             Some(ui_toolkit::frame::WidgetData::Button(b)) if name.starts_with("BankFrameItem") => {
                 b.use_default_skin = false;
-                b.highlight_texture = Some(
-                    ui_toolkit::widgets::texture::TextureSource::FileDataId(130_718),
-                );
-                b.highlight_alpha = 1.0;
-                b.highlight_size = Some([ITEM_BUTTON, ITEM_BUTTON]);
             }
             _ => {}
         }
