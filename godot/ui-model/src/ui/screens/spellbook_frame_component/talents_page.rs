@@ -140,7 +140,8 @@ fn render_tree(tree: &TalentTree, view: &TalentView, hero: Option<usize>, scale:
 fn render_edge(id: u32, from: [f32; 2], to: [f32; 2], node_scale: f32, scale: f32) -> Element {
     let delta = [to[0] - from[0], to[1] - from[1]];
     let length = (delta[0].hypot(delta[1]) - BUTTON_SIZE * node_scale).max(0.0);
-    let rotation = delta[1].atan2(delta[0]);
+    // TextureData angles are counter-clockwise; node positions use y-down.
+    let rotation = -delta[1].atan2(delta[0]);
     let center = [(from[0] + to[0]) / 2.0, (from[1] + to[1]) / 2.0];
     rsx! { texture {
         name: {DynName(format!("TalentEdge{id}"))}, width: {length*scale}, height: {2.0*scale},

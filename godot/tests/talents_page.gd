@@ -81,6 +81,16 @@ func _run() -> void:
 		print("LAYERS hover ", skin, " ", talent_layers(ui))
 		var hovered_image := root.get_texture().get_image()
 		var grant_pixel := hovered_image.get_pixel(492, 230)
+		var missing_pixel := hovered_image.get_pixel(312, 470) # Spellsteal FDID135729 is absent.
+		var edge_pixel := hovered_image.get_pixel(522, 260) # midpoint of edge127166, southeast from grant.
+		if missing_pixel.r > 0.1 or missing_pixel.g > 0.1 or missing_pixel.b > 0.1:
+			push_error("Missing talent icon substituted with paint: ", missing_pixel)
+			quit(1)
+			return
+		if edge_pixel.r < 0.15 or edge_pixel.r > 0.6 or abs(edge_pixel.r - edge_pixel.g) > 0.05:
+			push_error("Talent diagonal edge missing or wrong color: ", edge_pixel)
+			quit(1)
+			return
 		if grant_pixel.b < 0.2:
 			push_error("Talents grant icon covered after hover; pixel=", grant_pixel)
 			quit(1)
