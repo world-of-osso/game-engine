@@ -1,6 +1,9 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
 # Tests needing files absent here fail remotely with their own missing-path error.
 
+# Retail AuctionHouse favorites SquareIconButton disabled art (IconButtonTemplate.xml:55).
+textures/896467.blp
+
 # Native meeting-stone summon zone names use the minimap catalog (ChrRaces below).
 AreaTable.csv
 db2/12.1.0.69933/Vignette.csv
