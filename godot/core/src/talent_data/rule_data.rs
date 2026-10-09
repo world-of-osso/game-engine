@@ -1,7 +1,7 @@
 //! Rule data used by the server-compatible client validator.
 
 /// `TraitNode.Type`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TraitNodeType {
     Single,
     /// Entries are ranked one after another (apex talents).
@@ -14,7 +14,7 @@ pub enum TraitNodeType {
 
 /// `TraitEdge.Type`. Only these two gate availability; the other DB2 values
 /// (VisualOnly, deprecated, MutuallyExclusive) do not occur on class trees.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TraitEdgeType {
     /// Any one filled parent with this edge type makes the node available.
     SufficientForAvailability,
@@ -23,7 +23,7 @@ pub enum TraitEdgeType {
 }
 
 /// `TraitCond.CondType`.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TraitCondType {
     Available,
     Visible,
@@ -59,7 +59,7 @@ pub struct TraitCond {
     pub required_level: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct TraitCost {
     pub currency_id: u32,
     pub amount: u32,
@@ -115,7 +115,7 @@ pub struct TraitNodeGroup {
 }
 
 /// One `TraitCurrencySource` row.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CurrencySource {
     pub amount: i32,
     pub quest_id: u32,
