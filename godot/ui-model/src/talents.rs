@@ -72,16 +72,23 @@ pub fn load_talent_view(
                     .iter()
                     .find(|tree| tree.id == entry.subtree_id)
                     .map(|tree| tree.name.clone())
-                    .unwrap_or_default()
+                    .ok_or_else(|| {
+                        format!(
+                            "Talent entry {} has no visible hero tree {}",
+                            entry.id, entry.subtree_id
+                        )
+                    })?
             } else {
                 catalog
                     .get(entry.spell_id)
-                    .map(|spell| spell.name.clone())
-                    .unwrap_or_default()
+                    .map(|spell| spell.name.to_string())
+                    .ok_or_else(|| {
+                        format!("Talent entry {} has no spell {}", entry.id, entry.spell_id)
+                    })?
             };
-            (entry.id, name)
+            Ok((entry.id, name))
         })
-        .collect();
+        .collect::<Result<_, String>>()?;
     view.missing_icons = read_missing_icons(data, &view.icons)?;
     if !view.missing_icons.is_empty() {
         eprintln!(
