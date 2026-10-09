@@ -11,8 +11,16 @@ func _initialize() -> void:
 func _run() -> void:
 	var screen = OS.get_environment("GODOT_CAPTURE_SCREEN")
 	var output = OS.get_environment("GODOT_CAPTURE_PATH")
+	if screen == "sidebarbinds_both":
+		var captured: bool = await capture_sidebarbinds_both(output)
+		quit(0 if captured else 1)
+		return
 	if screen == "spellbook_both":
 		var captured: bool = await capture_spellbook_both(output)
+		quit(0 if captured else 1)
+		return
+	if screen == "bank_both":
+		var captured: bool = await capture_bank_both(output)
 		quit(0 if captured else 1)
 		return
 	if screen == "auction_both":
@@ -41,7 +49,7 @@ func _run() -> void:
 	if screen == "chatflush_preview":
 		RenderingServer.set_default_clear_color(Color(0.25, 0.4, 0.55))
 	var trainer_preview: bool = screen in ["trainer_preview", "forever_trainer_preview"]
-	var settle_frames: int = 240 if trainer_preview else 120 if screen in ["spellbook_preview", "forever_spellbook_preview", "auction_icons_preview", "forever_auction_icons_preview", "forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview"] else 3
+	var settle_frames: int = 240 if trainer_preview else 120 if screen in ["spellbook_preview", "forever_spellbook_preview", "auction_icons_preview", "forever_auction_icons_preview", "forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview", "actionbars_options_preview", "forever_actionbars_options_preview", "forever_hudedit_preview"] else 3
 	for frame in range(settle_frames):
 		await process_frame
 		if screen in ["trainer_preview", "forever_trainer_preview"]:
@@ -132,6 +140,40 @@ func _run() -> void:
 	ui.queue_free()
 	quit(0)
 
+# One cage run, real compositor mode required (not only a requested window size).
+func capture_sidebarbinds_both(directory: String) -> bool:
+	for entry in [["sidebarbinds_preview", "modern.png"], ["forever_sidebarbinds_preview", "forever.png"]]:
+		var ui = ClassDB.instantiate("RegistryUi")
+		root.add_child(ui)
+		var error: String = ui.call("show_" + entry[0])
+		if not error.is_empty():
+			push_error(error)
+			ui.queue_free()
+			return false
+		for frame in range(120):
+			await process_frame
+			await RenderingServer.frame_post_draw
+		var image := root.get_texture().get_image()
+		if image.get_size() != Vector2i(1920, 1080) or DisplayServer.window_get_size() != Vector2i(1920, 1080):
+			push_error("Sidebar capture requires real 1920x1080 window and framebuffer")
+			ui.queue_free()
+			return false
+		for bar in ["MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight", "MultiBarLeft"]:
+			var button := ui.find_child(bar + "Button1", true, false) as Control
+			var hotkey := ui.find_child(bar + "Button1HotKey", true, false) as Control
+			if button == null or hotkey == null or not button.is_visible_in_tree() or not hotkey.is_visible_in_tree():
+				push_error("Enabled sidebar button/hotkey missing: " + bar)
+				ui.queue_free()
+				return false
+			print("PASS: ", entry[0], " ", bar, " button=", button.get_global_rect(), " hotkey=", hotkey.get_global_rect())
+		if image.save_png(directory.path_join(entry[1])) != OK:
+			ui.queue_free()
+			return false
+		print("PASS: ", entry[0], " rendered 1920x1080")
+		ui.queue_free()
+		await process_frame
+	return true
+
 # UI textures load asynchronously. Capture both HUD skins only after native visuals settle.
 func capture_hud_edit_both(directory: String) -> void:
 	var captured: bool = await capture_hud_edit_both_into(self, directory)
@@ -173,8 +215,8 @@ static func capture_hud_edit_both_into(tree: SceneTree, directory: String) -> bo
 # Offline selected-label pixel inventory, using the same registered roots as the client.
 static func capture_hud_edit_movers(tree: SceneTree, ui: Node, directory: String, skin: String) -> bool:
 	var keys: PackedStringArray = ui.call("hudedit_preview_keys")
-	if keys.size() != 21:
-		push_error("HUD mover inventory must include all 21 registered systems")
+	if keys.size() != 19:
+		push_error("Default HUD mover inventory excludes disabled Action Bars 4 and 5 (19 systems)")
 		return false
 	var crops: Array[Image] = []
 	for key in keys:
@@ -213,7 +255,7 @@ static func capture_hud_edit_movers(tree: SceneTree, ui: Node, directory: String
 		var cell := Vector2i((index % 2) * 640, (index / 2) * 110)
 		var position := cell + Vector2i((640 - crop.get_width()) / 2, 20)
 		sheet.blit_rect(crop, Rect2i(Vector2i.ZERO, crop.get_size()), position)
-	return sheet.save_png(directory.path_join(skin + "-all-21-labels.png")) == OK
+	return sheet.save_png(directory.path_join(skin + "-all-19-labels.png")) == OK
 
 # Actual native image controls must not paint over any selected system label.
 static func hud_edit_label_is_foreground(ui: Node, label: Control) -> bool:
@@ -776,8 +818,14 @@ func capture_spellbook_both(directory: String) -> bool:
 
 # Both skins, production auction projection, no GameClient or networking.
 func capture_auction_both(directory: String) -> bool:
+	var views = ["browse", "item", "inventory", "sell", "duration", "owned", "bids", "dialog", "bid-popup", "buyout-popup"]
+	if OS.get_environment("GODOT_AUCTION_DIALOGS_ONLY") == "1":
+		views = ["dialog", "bid-popup", "buyout-popup"]
+	var sorted_proof := OS.get_environment("GODOT_AH_SORT_CAPTURE") == "1"
+	if sorted_proof:
+		views = ["subcategory_sorted"]
 	for skin in ["modern", "forever"]:
-		for view in ["browse", "item", "inventory", "sell", "duration", "owned", "bids", "dialog"]:
+		for view in views:
 			OS.set_environment("GODOT_AUCTION_VIEW", view)
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)
@@ -787,17 +835,32 @@ func capture_auction_both(directory: String) -> bool:
 				push_error(error)
 				ui.queue_free()
 				return false
+			var popup_host: Node = null
+			if view in ["bid-popup", "buyout-popup"]:
+				popup_host = ClassDB.instantiate("RegistryUi")
+				ui.add_child(popup_host)
+				var popup_error: String = popup_host.call("show_auction_confirmation_preview")
+				if not popup_error.is_empty():
+					push_error(popup_error)
+					ui.queue_free()
+					return false
 			for frame in range(120):
 				await process_frame
 				await RenderingServer.frame_post_draw
+			var window_size := DisplayServer.window_get_size()
+			var image := root.get_texture().get_image()
+			if (sorted_proof or DisplayServer.get_name() != "headless") and (window_size != Vector2i(1920, 1080) or image == null or image.get_size() != window_size):
+				push_error("Auction proof requires real 1920x1080 window and viewport")
+				ui.queue_free()
+				return false
 			var prefix = directory.path_join(skin + "-" + view)
 			# The headless display server only has the dummy renderer: record geometry, no pixels.
 			if DisplayServer.get_name() != "headless" and not save_root_png(prefix + ".png"):
 				push_error("Auction capture requires rendered pixels: ", prefix)
 				ui.queue_free()
 				return false
-			var geometry: Dictionary = {}
-			for name in ["AuctionHouseFrame", "AuctionHouseFrameSearchBox", "AuctionHouseFrameItemBuyFrameRow1TimeLeft", "AuctionHouseFrameAuctionsFrameBidsListRow1TimeLeft", "AuctionHouseFrameItemSellFrameDurationDropdown", "AuctionHouseFrameBuyDialog"]:
+			var geometry: Dictionary = {"window": [window_size.x, window_size.y]}
+			for name in ["AuctionHouseFrame", "AuctionHouseFrameSearchBox", "AuctionHouseFrameItemBuyFrameRow1TimeLeft", "AuctionHouseFrameAuctionsFrameBidsListRow1TimeLeft", "AuctionHouseFrameItemSellFrameDurationDropdown", "AuctionHouseFrameBuyDialog", "AuctionHouseFrameBuyDialogBg", "StaticPopup1", "StaticPopup1Text", "StaticPopup1AlertIcon", "StaticPopup1Button1", "StaticPopup1Button2"]:
 				var control := ui.find_child(name, true, false) as Control
 				if control != null and control.is_visible_in_tree():
 					var rect = control.get_global_rect()
@@ -925,3 +988,96 @@ func auction_row_icon(ui: Node, row: int) -> Texture2D:
 		return null
 	var texture := frame.get_node_or_null("Parts/Part0") as TextureRect
 	return null if texture == null else texture.texture
+
+# Offline production bank projection, exact compositor/window/viewport dimensions.
+func capture_bank_both(directory: String) -> bool:
+	for skin in ["modern", "forever"]:
+		for page in ["tabs", "purchase"]:
+			OS.set_environment("GODOT_BANK_PURCHASE", "1" if page == "purchase" else "0")
+			var ui = ClassDB.instantiate("RegistryUi")
+			root.add_child(ui)
+			var method := "show_bank_preview" if skin == "modern" else "show_forever_bank_preview"
+			var error: String = ui.call(method)
+			if not error.is_empty():
+				push_error(error)
+				ui.queue_free()
+				return false
+			for frame in range(120):
+				await process_frame
+				await RenderingServer.frame_post_draw
+			if not save_bank_capture(ui, directory.path_join(skin + "-" + page)):
+				ui.queue_free()
+				return false
+			if page == "tabs" and not await capture_bank_hover(ui, directory.path_join(skin + "-hover")):
+				ui.queue_free()
+				return false
+			ui.queue_free()
+			await process_frame
+	return true
+
+func save_bank_capture(ui: Node, prefix: String) -> bool:
+	var window_size := DisplayServer.window_get_size()
+	var image := root.get_texture().get_image()
+	if window_size != Vector2i(1920, 1080) or image == null or image.get_size() != window_size:
+		push_error("Bank proof requires real 1920x1080 window and viewport")
+		return false
+	var geometry: Dictionary = {"window": [window_size.x, window_size.y]}
+	for name in ["BankFrame", "BankFrameTab1", "BankFramePurchaseTab", "BankFrameItem1", "BankFrameItem98", "BankFramePurchasePromptMoneyAmount0"]:
+		var control := ui.find_child(name, true, false) as Control
+		if control != null and control.is_visible_in_tree():
+			var rect := control.get_global_rect()
+			geometry[name] = [rect.position.x, rect.position.y, rect.size.x, rect.size.y]
+	if image.save_png(prefix + ".png") != OK:
+		return false
+	var file := FileAccess.open(prefix + ".json", FileAccess.WRITE)
+	if file == null:
+		return false
+	file.store_string(JSON.stringify(geometry, "\t"))
+	file.close()
+	print("CAPTURE: ", prefix, " ", geometry)
+	return true
+
+func capture_bank_hover(ui: Node, prefix: String) -> bool:
+	var slot := ui.find_child("BankFrameItem1", true, false) as Control
+	if slot == null:
+		push_error("Bank preview has no first item")
+		return false
+	var at := slot.get_global_rect().get_center()
+	Input.warp_mouse(at)
+	var motion := InputEventMouseMotion.new()
+	motion.position = at
+	motion.global_position = at
+	Input.parse_input_event(motion)
+	for frame in range(10):
+		await process_frame
+		await RenderingServer.frame_post_draw
+	var sync_error: String = ui.call("sync_input")
+	if not sync_error.is_empty():
+		push_error(sync_error)
+		return false
+	for frame in range(120):
+		await process_frame
+		await RenderingServer.frame_post_draw
+	var highlight := slot.get_node_or_null("BankFrameItem1Highlight/Parts/Part0") as TextureRect
+	if highlight == null or highlight.texture == null or not highlight.material is CanvasItemMaterial or highlight.material.blend_mode != CanvasItemMaterial.BLEND_MODE_ADD:
+		push_error("Native bank hover did not project additive ItemButton highlight")
+		return false
+	print("PASS: native ItemButton mouse hover projects ADD at ", at)
+	if not save_bank_capture(ui, prefix):
+		return false
+	for modifiers in [[MOUSE_BUTTON_LEFT, false], [MOUSE_BUTTON_LEFT, true], [MOUSE_BUTTON_RIGHT, false]]:
+		for pressed in [true, false]:
+			var click := InputEventMouseButton.new()
+			click.position = at
+			click.global_position = at
+			click.button_index = modifiers[0]
+			click.shift_pressed = modifiers[1]
+			click.pressed = pressed
+			Input.parse_input_event(click)
+			await process_frame
+	var error: String = ui.call("assert_bank_preview_clicks")
+	if not error.is_empty():
+		push_error(error)
+		return false
+	print("PASS: exactly one left/shift/right bank slot press; drag coordinates retained")
+	return true

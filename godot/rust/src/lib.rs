@@ -2037,6 +2037,7 @@ impl GameClient {
             AccountEvent::NewWorld(destination) => self.transfer_world(destination)?,
             AccountEvent::TransferError(error) => self.add_world_error(&error)?,
             AccountEvent::CastFailed(failed) => self.show_cast_failed(failed)?,
+            AccountEvent::TalentError(reason) => self.add_world_error(&reason)?,
             AccountEvent::Combat(message) => self.receive_combat_message(message)?,
             AccountEvent::Mail(message) => self.receive_mail(message)?,
             AccountEvent::Trade(update) => self.receive_trade(update)?,

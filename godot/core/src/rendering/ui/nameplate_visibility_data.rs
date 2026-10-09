@@ -59,7 +59,9 @@ pub struct PlateUnit {
 /// Whether `unit` has a plate: its kind's switch is on, it is in range, and either
 /// `nameplateShowAll` is on or it is the target or fighting the player.
 pub fn plate_shown(cvars: &NameplateCvars, unit: &PlateUnit) -> bool {
-    if unit.is_local_player || !unit.selectable || !unit.alive {
+    // Visible remote players retain Dead/Ghost status text; dead NPCs have no plate.
+    let hidden_corpse = !unit.alive && !unit.is_player;
+    if unit.is_local_player || !unit.selectable || hidden_corpse {
         return false;
     }
     if unit.distance > cvars.max_distance {

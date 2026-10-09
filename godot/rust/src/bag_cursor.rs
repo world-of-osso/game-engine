@@ -47,9 +47,17 @@ pub(crate) enum BagInput {
     },
 }
 
+pub(crate) struct SpellDrag {
+    pub(crate) owner: i64,
+    pub(crate) origin: Vector2,
+    pub(crate) spell_id: u32,
+    pub(crate) icon_fdid: u32,
+}
+
 #[derive(Default)]
 pub(crate) struct BagCursor {
     pub(crate) item: CursorItem,
+    pub(crate) spell_drag: Option<SpellDrag>,
     split: Option<StackSplitState>,
     picked_at: Option<(i64, Vector2, CursorTarget)>,
     pub(crate) ui: Option<Gd<RegistryUi>>,
@@ -79,6 +87,7 @@ impl BagCursor {
             ui.free();
         }
         self.item = CursorItem::Empty;
+        self.spell_drag = None;
         self.split = None;
         self.picked_at = None;
     }
@@ -114,6 +123,9 @@ impl GameClient {
         at: Option<Vector2>,
     ) -> Result<(), FrameError> {
         self.bags.cursor.picked_at = None;
+        if self.spell_cursor_press(owner, action, click, at)? {
+            return Ok(());
+        }
         let was_empty = self.bags.cursor.item.is_empty();
         let target = self
             .bank_cursor_target(owner, action)
@@ -144,6 +156,9 @@ impl GameClient {
         at: Vector2,
         physical_at: Vector2,
     ) -> Result<(), FrameError> {
+        if self.finish_spell_drag(owner, at, physical_at)? {
+            return Ok(());
+        }
         let Some((picked_at, picked_target)) = self.take_owned_drag_origin(owner) else {
             return Ok(());
         };
@@ -153,6 +168,11 @@ impl GameClient {
         }
         // The drop target is the topmost frame of any canvas, not the pickup's own.
         let hit = self.ui_hit_at(physical_at)?;
+        if let Some(action) = hit.as_ref().and_then(|hit| hit.action.as_deref())
+            && self.assign_cursor_to_action_button(action)?
+        {
+            return Ok(());
+        }
         if let Some(UiHit {
             owner,
             action: Some(action),
@@ -367,6 +387,7 @@ impl GameClient {
         self.poll_bag_split_actions()?;
         if self.bags.cursor.ui.is_none()
             && self.bags.cursor.item.is_empty()
+            && self.bags.cursor.spell_drag.is_none()
             && self.bags.cursor.split.is_none()
         {
             return Ok(());
@@ -414,7 +435,13 @@ impl GameClient {
             Vector2::from_array(self.physical_input.pointer()) / self.effective_ui_scale();
         Ok(CursorView {
             icon: CursorItemFrameState {
-                icon_fdid: self.bags.cursor.item.icon_fdid(),
+                icon_fdid: self
+                    .bags
+                    .cursor
+                    .spell_drag
+                    .as_ref()
+                    .map(|drag| drag.icon_fdid)
+                    .or_else(|| self.bags.cursor.item.icon_fdid()),
                 position: [pointer.x, pointer.y],
             },
             split: self.bag_split_view()?,

@@ -166,7 +166,7 @@ impl PlayerSpells {
         self.spec = Some(spec_id);
     }
 
-    /// `ActionBarSnapshot`: the server's full bar; slots outside 0..120 are ignored.
+    /// `ActionBarSnapshot`: the server's full bar; slots outside 0..180 are ignored.
     pub fn set_bar(&mut self, slots: &[(u8, ActionRef)]) {
         self.slots = [None; ACTION_SLOT_COUNT];
         for &(slot, action) in slots {
@@ -174,6 +174,11 @@ impl PlayerSpells {
                 *entry = Some(action);
             }
         }
+    }
+
+    /// Local display after sending SetActionButton; a server snapshot replaces it.
+    pub fn apply_assignment(&mut self, request: &shared::protocol::SetActionButton) {
+        self.slots[usize::from(request.slot)] = request.action;
     }
 
     pub fn slot(&self, slot: usize) -> Option<ActionRef> {
@@ -488,5 +493,44 @@ mod tests {
         spells.tick(30.0);
         let charges = spells.charges(SKYRIDING_CHARGES).unwrap();
         assert_eq!((charges.current, charges.recovered()), (6, 0.0));
+    }
+}
+
+#[cfg(test)]
+mod sidebarbinds_tests {
+    use super::*;
+    use game_engine_ui_model::main_action_bar_component::ActionBar;
+    use shared::protocol::{ActionBarSnapshot, ActionRef};
+
+    #[test]
+    fn sidebarbinds_assignment_survives_persisted_snapshot_reload() {
+        let path = std::env::temp_dir().join(format!("sidebarbinds-{}.json", std::process::id()));
+        let mut spells = PlayerSpells::default();
+        let mut slots = Vec::new();
+        for (bar, expected) in [
+            (ActionBar::BottomLeft, 62),
+            (ActionBar::BottomRight, 50),
+            (ActionBar::Right, 26),
+            (ActionBar::Left, 38),
+        ] {
+            let request = bar.assignment(2, ActionRef::Spell(133), 0).unwrap();
+            assert_eq!(bar.action_slot(2), expected);
+            assert_eq!(usize::from(request.slot), expected);
+            spells.apply_assignment(&request);
+            assert_eq!(spells.slot(expected), Some(ActionRef::Spell(133)));
+            slots.push((request.slot, spells.slot(expected).unwrap()));
+            let item = bar.assignment(3, ActionRef::Item(6948), 0).unwrap();
+            spells.apply_assignment(&item);
+            assert_eq!(spells.slot(expected + 1), Some(ActionRef::Item(6948)));
+            slots.push((item.slot, spells.slot(expected + 1).unwrap()));
+        }
+        let snapshot = ActionBarSnapshot { slots };
+        std::fs::write(&path, serde_json::to_vec(&snapshot).unwrap()).unwrap();
+        let loaded: ActionBarSnapshot =
+            serde_json::from_slice(&std::fs::read(&path).unwrap()).unwrap();
+        let mut reloaded = PlayerSpells::default();
+        reloaded.set_bar(&loaded.slots);
+        assert_eq!(reloaded.slots, spells.slots);
+        std::fs::remove_file(path).unwrap();
     }
 }
