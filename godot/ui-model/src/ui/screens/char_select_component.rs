@@ -584,7 +584,7 @@ fn card_list(
     };
     rsx! {
         r#frame {
-            name: CHARACTER_LIST_SCROLL,
+            name: {DynName(CHARACTER_LIST_SCROLL.into())},
             width: {BAR_LEFT + BAR_W},
             height: LIST_HEIGHT,
             mouse_enabled: true,
