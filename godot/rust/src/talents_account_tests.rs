@@ -72,3 +72,32 @@ fn talents_account_spec_change_clears_previous_configuration() {
     assert!(account.talents.snapshot.is_none());
     assert!(!account.talents.dirty());
 }
+
+#[test]
+fn talents_account_same_spec_echo_preserves_committed_configuration() {
+    let mut account = Account::new(PathBuf::new());
+    let mut events = Vec::new();
+    let snapshot = TraitConfigSnapshot {
+        spec_id: 62,
+        tree_id: 658,
+        entries: vec![TraitEntrySelection {
+            node_id: 62121,
+            entry_id: 80180,
+            rank: 1,
+        }],
+        unspent: vec![(2801, 31), (2800, 30)],
+    };
+    account
+        .dispatch_message(ProtocolMessage::for_tests(snapshot.clone()), &mut events)
+        .unwrap();
+    // The existing server echoes the current specialization on a rejected spec request,
+    // without sending a replacement trait snapshot.
+    account
+        .dispatch_message(
+            ProtocolMessage::for_tests(SpecializationChanged { spec_id: 62 }),
+            &mut events,
+        )
+        .unwrap();
+    assert_eq!(account.talents.snapshot, Some(snapshot));
+    assert_eq!(account.talents.rank(62121, 80180), 1);
+}
