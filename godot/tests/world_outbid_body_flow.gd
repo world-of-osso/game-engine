@@ -22,14 +22,14 @@ func run_test() -> void:
 	if error != "":
 		fail("Connect: " + error)
 		return
-	if not await wait_screen(recipient, "CharacterSelect", 180000):
+	if not await wait_recipient_screen(recipient, "CharacterSelect"):
 		return
 	var enter = recipient.find_child("EnterWorld", true, false) as Control
 	if enter == null:
 		fail("Enter World missing")
 		return
 	await click(enter)
-	if not await wait_screen(recipient, "InWorld", 180000):
+	if not await wait_recipient_screen(recipient, "InWorld"):
 		return
 	await create_timer(15.0).timeout
 	if not await open_mailbox(recipient) or not await select_mail(recipient, mail_id):
@@ -57,3 +57,13 @@ func run_test() -> void:
 	print("PASS: authentic Outbid letter wraps without hidden lines and refund is exact")
 	recipient.free()
 	quit(0)
+
+func wait_recipient_screen(recipient: Node, wanted: String) -> bool:
+	var deadline := Time.get_ticks_msec() + 180000
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		var state: Dictionary = recipient.account_state()
+		if state.screen == wanted and state.reply_received and not state.assets_starting:
+			return true
+	fail("Timed out waiting for recipient screen " + wanted)
+	return false
