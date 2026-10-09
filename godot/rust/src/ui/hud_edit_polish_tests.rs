@@ -32,7 +32,8 @@ fn hudeditmodepolish_default_19_movers_clear_manager_and_use_shared_label_policy
                 EDIT_MODE_ELEMENTS.len() - 2,
                 "{skin:?} {size:?}"
             );
-            let at = find_panel_position(size, &boxes).expect("clear default manager space");
+            let at = find_panel_position(size, &boxes)
+                .unwrap_or_else(|| panic!("clear manager {skin:?} {size:?}: {boxes:?}"));
             let manager = [at[0], at[1], PANEL_W, PANEL_H];
             for entry in &boxes {
                 assert!(
