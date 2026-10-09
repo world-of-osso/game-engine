@@ -4,11 +4,12 @@ use crate::spellbook_frame_component::{
     specialization_choices,
 };
 use game_engine_core::spell_catalog::{SpellCatalogPaths, load_spell_catalog};
-use game_engine_core::spellbook_data::{SpellbookTab, build_spellbook_tabs};
+use game_engine_core::spellbook_data::{SpellbookPlayer, SpellbookTab, build_spellbook_tabs};
 
 const MAGE_CLASS: u32 = 8;
 const FROST_SPEC: u32 = 64;
 const ARCANE_SPEC: u32 = 62;
+const BASE_PREVIEW_LEVEL: u32 = 80;
 // Frostbolt, Frost Nova, Slow Fall, Remove Curse, Arcane Explosion/Intellect,
 // Blink, Counterspell, Ice Lance, Icy Veins and Attack (a bounded known-spell snapshot).
 const KNOWN_SPELLS: [u32; 11] = [
@@ -78,7 +79,16 @@ pub fn load_class_preview_state(
         ));
     }
     let known = catalog_preview_spells(&catalog, class, spec);
-    let tabs = build_spellbook_tabs(&known, Some(spec), Some(&catalog), None);
+    let tabs = build_spellbook_tabs(
+        &known,
+        Some(spec),
+        Some(&catalog),
+        Some(SpellbookPlayer {
+            class_id: class,
+            race_id: 0,
+            level: BASE_PREVIEW_LEVEL,
+        }),
+    );
     if tabs.is_empty() {
         return Err(format!(
             "Preview class {class} spec {spec} has no listed catalog spells"
@@ -107,12 +117,23 @@ fn catalog_preview_spells(
     class: u32,
     spec: u32,
 ) -> Vec<u32> {
-    let mut known: Vec<_> = catalog
+    // Match production auto-learning, not every historical skill-line reference.
+    // No race/build is supplied: this fixture includes common class spells only.
+    let class_spells = catalog
         .tabs
-        .class_spells
+        .class_progression
+        .get(&class)
+        .into_iter()
+        .flatten()
+        .filter(|spell| spell.level <= BASE_PREVIEW_LEVEL && spell.race_masks == [0, 0])
+        .map(|spell| spell.spell_id);
+    let spec_spells = catalog.tabs.specs[&spec]
+        .spells
         .iter()
-        .filter_map(|(&id, &owner)| (owner == class).then_some(id))
-        .chain(catalog.tabs.specs[&spec].spells.iter().copied())
+        .copied()
+        .filter(|id| catalog.tabs.spell_levels.get(id).copied().unwrap_or(0) <= BASE_PREVIEW_LEVEL);
+    let mut known: Vec<_> = class_spells
+        .chain(spec_spells)
         .filter(|&id| catalog.get(id).is_some())
         .collect();
     known.sort_unstable();
