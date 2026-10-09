@@ -154,18 +154,26 @@ fn render_node(
     node_scale: f32,
     scale: f32,
 ) -> Element {
-    let size = BUTTON_SIZE * node_scale;
+    let size = node_size(node) * node_scale;
     let node_scale = node_scale * scale;
     let mut children = node_entries(node, view, node_scale);
     children.extend(node_border(node, node_scale));
-    let max = node.entries[0].max_ranks;
+    let max = if node.node_type == 1 {
+        node.entries.iter().map(|entry| entry.max_ranks).sum()
+    } else {
+        node.entries[0].max_ranks
+    };
     let ranks = format!("{}/{max}", node.granted_ranks);
     children.extend(label(
         Label {
             name: format!("TalentNode{}Ranks", node.id),
             text: &ranks,
-            rect: [15.0, 32.0, 30.0, 14.0],
-            size: 12.0,
+            rect: if is_capstone(node) {
+                [10.0, 52.0, 48.0, 24.0]
+            } else {
+                [15.0, 32.0, 30.0, 14.0]
+            },
+            size: if is_capstone(node) { 22.0 } else { 12.0 },
             color: if node.granted_ranks > 0 {
                 TAB_TEXT
             } else {
@@ -214,7 +222,9 @@ fn entry_icon(
         count,
         scale,
     } = layout;
-    let width = ICON_SIZE / count as f32;
+    let icon_size = if is_capstone(node) { 61.0 } else { ICON_SIZE };
+    let inset = (node_size(node) - icon_size) / 2.0;
+    let width = icon_size / count as f32;
     let left = index as f32 / count as f32;
     let coords = format!("{},{},0.0,1.0", left, left + 1.0 / count as f32);
     let tint = if node.granted_ranks > 0 {
@@ -224,8 +234,8 @@ fn entry_icon(
     };
     let mut icon = rsx! { texture {
         name: {DynName(icon_name(node,entry.id))}, tex_coords: {coords.as_str()},
-        vertex_color: tint, width: {width*scale}, height: {ICON_SIZE*scale},
-        pos_type: "absolute", pos_x: {(2.0+index as f32*width)*scale}, pos_y: {2.0*scale},
+        vertex_color: tint, width: {width*scale}, height: {icon_size*scale},
+        pos_type: "absolute", pos_x: {(inset+index as f32*width)*scale}, pos_y: {inset*scale},
     } };
     let fdid = view.icons[&entry.id];
     if fdid != 0 && !view.missing_icons.contains(&fdid) {
@@ -250,8 +260,8 @@ fn entry_button(
     } = layout;
     rsx! { button {
         name: {DynName(format!("TalentNode{}Entry{}Spell{}Button",node.id,entry.id,entry.spell_id))},
-        width: {BUTTON_SIZE/count as f32*scale}, height: {BUTTON_SIZE*scale}, button_default_skin:false,
-        pos_type: "absolute", pos_x: {index as f32*BUTTON_SIZE/count as f32*scale}, pos_y:0.0,
+        width: {node_size(node)/count as f32*scale}, height: {node_size(node)*scale}, button_default_skin:false,
+        pos_type: "absolute", pos_x: {index as f32*node_size(node)/count as f32*scale}, pos_y:0.0,
     } }
 }
 fn node_border(node: &TalentNode, scale: f32) -> Element {
@@ -268,7 +278,16 @@ fn node_border(node: &TalentNode, scale: f32) -> Element {
     } else {
         "gray"
     };
-    let atlas = format!("talents-node-{shape}-{color}");
+    let atlas = if is_capstone(node) {
+        let active = if node.entries[0].entry_type == 14 {
+            "active-"
+        } else {
+            ""
+        };
+        format!("talents-node-apex-{active}large-{color}")
+    } else {
+        format!("talents-node-{shape}-{color}")
+    };
     // These two skins share the Retail talent mechanic/art; their window chrome differs.
     // Resolve the Retail sheet explicitly, not Forever crops over the same FDID bytes.
     let region =
@@ -287,13 +306,20 @@ fn node_border(node: &TalentNode, scale: f32) -> Element {
         format!("TalentNode{}Border", node.id),
         &art,
         [
-            (BUTTON_SIZE - width) / 2.0,
-            (BUTTON_SIZE - height) / 2.0,
+            (node_size(node) - width) / 2.0,
+            (node_size(node) - height) / 2.0,
             width,
             height,
         ],
         scale,
     )
+}
+// TalentButtonCapstoneCircle/SquareTemplate:64px, icon sizing adjustment -3.
+fn is_capstone(node: &TalentNode) -> bool {
+    matches!(node.entries[0].entry_type, 13 | 14)
+}
+fn node_size(node: &TalentNode) -> f32 {
+    if is_capstone(node) { 64.0 } else { BUTTON_SIZE }
 }
 fn icon_name(node: &TalentNode, entry: u32) -> String {
     let round = node.node_type != 2 && matches!(node.entries[0].entry_type, 2 | 3 | 13);
