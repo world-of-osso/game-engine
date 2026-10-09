@@ -48,6 +48,26 @@ pub(crate) fn query_skyborne_customization_raw_data(
     )
 }
 
+/// Interpret collections only for the displayed NPC model and its authored other form.
+pub(crate) fn query_npc_customization_raw_data(
+    conn: &Connection,
+    race_models: RaceModels,
+) -> Result<RawData, String> {
+    let models = race_models
+        .chr_model_by_race_sex
+        .values()
+        .map(u32::to_string)
+        .collect::<Vec<_>>()
+        .join(",");
+    let sql = format!(
+        "SELECT id, collection_fdid, geoset_type, geoset_id FROM skinned_models
+        WHERE id IN (SELECT e.skinned_model_id FROM elements e
+        JOIN choices c ON c.id=e.choice_id JOIN options o ON o.id=c.option_id
+        WHERE o.chr_model_id IN ({models}))"
+    );
+    query_customization_rows(conn, race_models, &sql)
+}
+
 fn query_customization_rows(
     conn: &Connection,
     race_models: RaceModels,

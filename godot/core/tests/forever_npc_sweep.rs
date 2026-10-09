@@ -12,7 +12,7 @@ use game_engine_core::{
     creature_display_data::query_display,
     geoset_visibility_data::apply_exact_geoset_overrides,
     m2, m2_material,
-    npc_appearance_assets::{load_compositor, load_customization_db},
+    npc_appearance_assets::NpcAppearanceCatalogs,
     npc_appearance_data::query_authored_npc_appearance,
     npc_appearance_selection_data::{NpcTexturePixels, npc_geoset_visible, select_npc_choices},
 };
@@ -65,8 +65,7 @@ struct Sweep {
     data: PathBuf,
     profiles: Connection,
     displays: Connection,
-    customization: game_engine_core::customization_data::CustomizationDb,
-    compositor: game_engine_core::char_texture_data::CharTextureData,
+    catalogs: NpcAppearanceCatalogs,
     gear: npc_gear_data::NpcGearData,
     outfit: outfit_data::OutfitData,
 }
@@ -82,14 +81,13 @@ impl Sweep {
         Self {
             profiles: open(&data.join("cache/npc_appearance.sqlite")),
             displays: open(&data.join("cache/creature_display.sqlite")),
-            customization: load_customization_db(&data).unwrap(),
-            compositor: load_compositor(&data).unwrap(),
+            catalogs: NpcAppearanceCatalogs::load(&data).unwrap(),
             gear: npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap(),
             outfit: outfit_data::OutfitData::load(&data),
             data,
         }
     }
-    fn prepare(&self, id: u32) -> Result<Option<Prepared>, String> {
+    fn prepare(&mut self, id: u32) -> Result<Option<Prepared>, String> {
         let Some(appearance) = query_authored_npc_appearance(&self.profiles, id)? else {
             return Ok(None);
         };
@@ -109,11 +107,14 @@ impl Sweep {
                 appearance.sex,
             )?
         };
-        let mut selected = select_npc_choices(&appearance, &self.customization)?;
+        let (customization, compositor) =
+            self.catalogs
+                .for_display(id, appearance.race, appearance.sex)?;
+        let mut selected = select_npc_choices(&appearance, customization)?;
         for &group in &armor.hidden_character_geoset_groups {
             selected.geosets.retain(|(active, _)| *active != group);
             let variant = if group == 0 {
-                self.customization
+                customization
                     .scalp_fallback_hair_geoset(appearance.race, appearance.sex)
                     .unwrap_or(1)
             } else {
@@ -121,12 +122,10 @@ impl Sweep {
             };
             selected.geosets.push((group, variant));
         }
-        let layout_id = self
-            .customization
+        let layout_id = customization
             .layout_id(appearance.race, appearance.sex)
             .ok_or("missing texture layout")?;
-        let layout = self
-            .compositor
+        let layout = compositor
             .layout(layout_id)
             .ok_or("missing compositor layout")?;
         let default = asset::m2_texture::default_fdid_for_type(
@@ -153,8 +152,7 @@ impl Sweep {
                 Err(error) => eprintln!("display {id}: {error}"),
             }
         }
-        let composed = self
-            .compositor
+        let composed = compositor
             .composite_model_textures_with(&selected.materials, &[], layout_id, default, |fdid| {
                 decoded.get(&fdid).cloned()
             })
@@ -164,7 +162,7 @@ impl Sweep {
             .map(|fdid| pixels(&self.data, fdid))
             .transpose()?;
         let textures = appearance_pixels::compose_replacement_pixels(
-            &self.compositor,
+            compositor,
             &selected.materials,
             layout_id,
             composed,
@@ -174,7 +172,7 @@ impl Sweep {
         Ok(Some(Prepared {
             textures,
             inactive: appearance_pixels::inactive_npc_texture_types(
-                &self.compositor,
+                compositor,
                 &selected.materials,
                 layout_id,
             ),
@@ -183,7 +181,7 @@ impl Sweep {
             armor,
         }))
     }
-    fn errors(&self, id: u32) -> Vec<(String, String)> {
+    fn errors(&mut self, id: u32) -> Vec<(String, String)> {
         let mut errors = Vec::new();
         let prepared = match self.prepare(id) {
             Ok(p) => p,
@@ -278,8 +276,11 @@ fn forever_display137165_resolves_authored_handlebars_without_changing_retail() 
         .unwrap();
     assert_eq!((appearance.race, appearance.sex), (7, 0));
     assert!(appearance.choice_ids.contains(&78872));
-    let customization = load_customization_db(&data).unwrap();
-    let selected = select_npc_choices(&appearance, &customization).unwrap();
+    let mut catalogs = NpcAppearanceCatalogs::load(&data).unwrap();
+    let (customization, _) = catalogs
+        .for_display(137165, appearance.race, appearance.sex)
+        .unwrap();
+    let selected = select_npc_choices(&appearance, customization).unwrap();
     assert!(
         selected.geosets.contains(&(1, 5)) && selected.geosets.contains(&(3, 4)),
         "{:#?}",
@@ -288,7 +289,8 @@ fn forever_display137165_resolves_authored_handlebars_without_changing_retail() 
     let retail = query_authored_npc_appearance(&profiles, 825)
         .unwrap()
         .unwrap();
-    assert!(select_npc_choices(&retail, &customization).is_ok());
+    let (retail_db, _) = catalogs.for_display(825, retail.race, retail.sex).unwrap();
+    assert!(select_npc_choices(&retail, retail_db).is_ok());
 }
 
 #[test]
@@ -313,7 +315,7 @@ fn sweep_skyborn_forever_npc_appearances() {
         ids.contains(&136974),
         "historical strict Batch52 display absent from source query"
     );
-    let sweep = Sweep::load(data);
+    let mut sweep = Sweep::load(data);
     let mut report = String::from("display\tbatch\treason\n");
     let mut failures = 0;
     for id in &ids {
