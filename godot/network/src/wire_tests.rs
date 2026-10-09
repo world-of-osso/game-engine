@@ -1653,6 +1653,7 @@ fn native_bridge_auction_operations_and_query_rejections() {
         text: "linen".into(),
         item_id: Some(2589),
         class_id: Some(7),
+        subcategory_filters: Vec::new(),
         page: 1,
         page_size: 50,
         min_level: None,

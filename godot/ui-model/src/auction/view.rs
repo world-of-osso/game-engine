@@ -6,8 +6,8 @@ use std::collections::HashMap;
 use super::AuctionHouseState;
 use crate::auction_house_frame_component::{
     AuctionHouseFrameState, AuctionsSubTab, AuctionsView, BID_BOXES, BrowseRow, BuyDialogView,
-    CategoryRow, ItemBuyView, ItemLine, ListingRow, MoneyBoxes, QUANTITY_BOX, SEARCH_BOX,
-    SELL_BID_BOXES, SELL_BUYOUT_BOXES, SellInventoryRow, SellItemView, SellView,
+    ItemBuyView, ItemLine, ListingRow, MoneyBoxes, QUANTITY_BOX, SEARCH_BOX, SELL_BID_BOXES,
+    SELL_BUYOUT_BOXES, SellInventoryRow, SellItemView, SellView,
 };
 use crate::item_catalog::ItemCatalogEntry;
 use shared::protocol::{
@@ -16,24 +16,7 @@ use shared::protocol::{
 
 use super::AuctionHouseUi;
 
-/// Top-level Retail categories (Mainline/Blizzard_AuctionData.lua:15-201) and the
-/// `Enum.ItemClass` each filters on. The WoW Token category has no items here.
-pub const CATEGORIES: [(&str, u8); 14] = [
-    ("Weapons", 2),
-    ("Armor", 4),
-    ("Containers", 1),
-    ("Gems", 3),
-    ("Item Enhancements", 8),
-    ("Consumables", 0),
-    ("Glyphs", 16),
-    ("Reagents", 7),
-    ("Recipes", 9),
-    ("Profession Equipment", 19),
-    ("Housing", 20),
-    ("Battle Pets", 17),
-    ("Quest Items", 12),
-    ("Miscellaneous", 15),
-];
+pub use super::categories::CATEGORIES;
 
 /// Text of every frame edit box, read from the registry.
 pub type InputTexts = HashMap<&'static str, String>;
@@ -136,7 +119,7 @@ pub fn build_view(inputs: &ViewInputs) -> AuctionHouseFrameState {
         tab: inputs.ui.tab,
         money: inputs.money(),
         search_empty: text(inputs.texts, SEARCH_BOX).is_empty(),
-        categories: categories(inputs.ui.category),
+        categories: super::categories::rows(&inputs.ui.category_path),
         browse: browse_rows(inputs),
         browse_empty_text: browse_empty_text(inputs),
         item_buy: item_buy(inputs),
@@ -144,17 +127,6 @@ pub fn build_view(inputs: &ViewInputs) -> AuctionHouseFrameState {
         sell: sell_view(inputs),
         auctions: auctions_view(inputs),
     }
-}
-
-fn categories(selected: Option<usize>) -> Vec<CategoryRow> {
-    CATEGORIES
-        .iter()
-        .enumerate()
-        .map(|(index, (name, _))| CategoryRow {
-            name: (*name).into(),
-            selected: selected == Some(index),
-        })
-        .collect()
 }
 
 /// Server-global item totals, already ordered and paged over distinct items.

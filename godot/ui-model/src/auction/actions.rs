@@ -24,6 +24,7 @@ fn search_query(text: &str) -> AuctionSearchQuery {
     AuctionSearchQuery {
         item_id: None,
         class_id: None,
+        subcategory_filters: Vec::new(),
         text: text.trim().to_string(),
         page: 0,
         page_size: SEARCH_PAGE_SIZE,
@@ -77,16 +78,16 @@ pub fn dispatch(
         request_sorted_results(field, net, ui, texts);
         return Vec::new();
     }
-    if let Some(index) = parse(action, frame::ACTION_CATEGORY_PREFIX) {
-        let index = index as usize;
-        if index >= view::CATEGORIES.len() {
-            return Vec::new();
-        }
-        ui.category = (ui.category != Some(index)).then_some(index);
+    if let Some(path) = action
+        .strip_prefix(frame::ACTION_CATEGORY_PREFIX)
+        .and_then(super::categories::parse_path)
+    {
+        super::categories::select(&mut ui.category_path, path);
         ui.browse_item = None;
+        ui.selected_auction = None;
         ui.row_page = 0;
         let mut query = search_query(view::text(texts, SEARCH_BOX));
-        query.class_id = ui.category.map(|index| view::CATEGORIES[index].1);
+        super::categories::apply_filter(&mut query, &ui.category_path);
         net.request(AuctionRequest::Browse(query));
         return Vec::new();
     }
@@ -120,6 +121,8 @@ fn parse_sort_field(token: &str) -> Option<AuctionSortField> {
     match token {
         "name" => Some(AuctionSortField::Name),
         "price" => Some(AuctionSortField::Buyout),
+        "bid" => Some(AuctionSortField::Bid),
+        "available" => Some(AuctionSortField::Quantity),
         _ => None,
     }
 }
@@ -134,7 +137,7 @@ fn request_sorted_results(
         Some(query) => query.clone(),
         None => {
             let mut query = search_query(view::text(texts, SEARCH_BOX));
-            query.class_id = ui.category.map(|index| view::CATEGORIES[index].1);
+            super::categories::apply_filter(&mut query, &ui.category_path);
             query
         }
     };
@@ -167,7 +170,7 @@ fn dispatch_command(
             ui.browse_item = None;
             ui.selected_auction = None;
             let mut query = search_query(view::text(texts, SEARCH_BOX));
-            query.class_id = ui.category.map(|index| view::CATEGORIES[index].1);
+            super::categories::apply_filter(&mut query, &ui.category_path);
             net.request(AuctionRequest::Browse(query));
         }
         frame::ACTION_BACK => {
