@@ -22,6 +22,20 @@ Retail objective tracker, quest log and quest giver frame on the live server que
 - [x] Native quest-log details and QuestFrame detail/progress/reward pages clip long content to a scrolling viewport with a skin-resolved MinimalScrollBar. Scroll range covers the measured native content height; wheel and thumb input move text, objectives and rewards together. Short content stays at the top without a scroll thumb; action buttons remain outside the viewport. Narrow quest-log rewards fit within their column.
 - [ ] Super-tracking.
 
+## Bounded private live acceptance (2026-10-09)
+
+Verified client `709a624318be6f7c1394f8f5d2e2d937a186276a`, supplied server `5b04aa931720d441aaea1f99d3c11dc2a69bba40`, fresh account `fb_qml3` on owned UDP5490. The command-driven `world_quest_flow.gd` derivative drove rendered native controls and six real Blackrock Worg kills; admin supplied only level/gold/travel, never objective credit.
+
+| Requested step | Result | Inspected PNG / authority |
+| --- | --- | --- |
+| Available marker, greeting, detail, Accept | PASS | `01-marker-available.png`, `02-greeting.png`, `03-detail.png`, `04-accepted.png`; fresh acceptance repeated the inspected predecessor sequence. |
+| Accepted quest auto-watch and objective progress | PASS | `04-accepted.png` shows 0/6; `06b-kill-credit.png` shows intermediate credit; server-backed log reached 6/6 and tracker changed to Ready for turn-in. |
+| Turn-in marker and reward | PASS | `07-ready-for-turn-in.png` yellow question mark, `08-reward.png`, `09-follow-up-offered.png`; quest removed, 2850 XP and 20 Silver reported, follow-up offered and accepted. |
+
+PNG root: `/syncthing/AgentShared/2026-10-09/questmerchlive/`. Receipts, scripts and logs: `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/questmerchlive3-2026-10-09/` (`pickup-result.json`, `kills-result.json`, `turn-in-result.json`, `quest-client.log`, `proof-ledger.txt`). Initial four predecessor originals remain in adjacent `questmerchlive-2026-10-09/`; fresh-run captures now occupy the named shared paths. Sources: local `blizzard-ui/retail/AddOns/Blizzard_UIPanels_Game/Mainline/QuestFrame.lua:159,576`; pinned [TrinityCore QuestHandler.cpp](https://github.com/TrinityCore/TrinityCore/blob/a352b1fa/src/server/game/Handlers/QuestHandler.cpp#L89-L150) acceptance and [reward validation/application](https://github.com/TrinityCore/TrinityCore/blob/a352b1fa/src/server/game/Handlers/QuestHandler.cpp#L366-L370).
+
+Bounded behavior/presence proof, not pixel parity, all marker kinds/skins, reward-item choices/fixed grants, relog, or normal-shutdown proof. No quest product defect reproduced; no code fix claimed.
+
 ## Bounded Skyborne native acceptance fixture
 
 Explicit `SKYBORNE_SCOPE=client-items` proves only current-WDT character-preview terrain/body, world/start and kit behavior. The preview capture is `00-character-select-current-wdt.png`; it does not establish Retail pixel parity. `SKYBORNE_SCOPE=full` retains giver/quest assertions. User-approved estimated NPC class/health now permit exercising this path; estimates remain distinct from authored stats, and Ailee's authentic visual profile is now published. Fixture `49a88aed5` requires visible Ailee body meshes in `full` before quest acceptance; matching rebased build/native GREEN and independent gate remain pending. A client-items pass is not NPC/quest acceptance.
