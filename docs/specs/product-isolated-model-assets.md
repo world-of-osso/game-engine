@@ -1,6 +1,6 @@
 # Product-isolated model assets
 
-**Approved contract — user decision 2026-10-09: option 1, isolate the full asset chain.** Displays 139403/139409 select Forever metadata but receive cached Retail M2 bytes. [Investigation](../wiki/investigations/m2-product-shadowing.md) records the collision and failing regression. This proposal covers the primary model and its asset dependencies, not UI skin selection.
+**Approved contract — user decision 2026-10-09: option 1, isolate the full asset chain.** Displays 139403/139409 select Forever metadata but receive cached Retail M2 bytes. [Investigation](../wiki/investigations/m2-product-shadowing.md) records the collision and failing regression. This contract covers the primary model and its full asset dependencies, not UI skin selection.
 
 ## What it must do
 
@@ -37,6 +37,7 @@ Option 1 is approved for the full referenced render-asset chain, preserving exis
 
 ## Known gaps (current cycle)
 
+- [ ] Restore verified importer provenance and matching local Forever70205 build material. The [source availability boundary](../wiki/investigations/m2-product-shadowing.md#approved-implementation-source-boundary-2026-10-09) blocks migration/native acceptance; active70291 cannot stand in for authored70205.
 - [ ] Implement approved identity API/build selection, legacy-cache migration and full-chain runtime isolation.
 - [ ] Authentic model/companion/render acceptance and post-fix error counts remain pending.
 

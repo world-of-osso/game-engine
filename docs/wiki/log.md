@@ -48,6 +48,10 @@
 ## 2026-10-09 — Offline asset closure tooling
 
 [Offline closure](systems/offline-asset-closure.md) documents deterministic extracted-byte traversal and configurable Northshire/full-catalog seeds. [Contract](../specs/offline-asset-closure.md) separates the audit from runtime no-CASC/identity/release acceptance. Initial nine-fixture/byte-identical real-manifest proof passes at `47c161419`; the audit remains incomplete. Follow-up RED reproduces skipped player requirements, unavailable pinned copies of existing legacy CSV inputs, and a late owner skeleton alias that did not expand. Exact `5520e82ff` has locked twelve-fixture PASS and two byte-identical real manifests (SHA256 `98b1fd059d2c70a82d85764e21a4c86cdfb4cae55af833fc09d318cb4700c393`). Final audit: 2,585 identities, 2,472 present/482,511,719 bytes, 113 missing, 156 unresolved and all identities unverified; audit exit1 is intentional. Northshire bell189599 and 112 skins remain absent. Full listfile census is a rough sizing proxy, not authenticated release coverage; unnamed FDIDs can be absent from it. No extraction or runtime changes.
+## 2026-10-09 — Product-isolated model contract approved; source boundary
+
+[Approved contract](../specs/product-isolated-model-assets.md) selects full-chain option1. [Investigation](investigations/m2-product-shadowing.md#approved-implementation-source-boundary-2026-10-09) records missing pinned70205 config/root and importer receipts versus installed70291, separate identity-scoped resolver API work and unchanged engine runtime. Migration/native acceptance remain blocked; no current-build relabelling.
+
 ## 2026-10-09 — Product-isolated M2 design investigation
 
 [M2 product shadowing](investigations/m2-product-shadowing.md) traces the unqualified disk hit, parsed-model key and singleton CASC boundaries. Both display/FDID pairs and authentic hashes/type arrays revalidated. Real resolver subprocess regression RED with Retail control PASS; [proposal](../specs/product-isolated-model-assets.md) pending approval. Runtime unchanged; baseline16 errors/run, no after-count or native-fix claim.
