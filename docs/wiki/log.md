@@ -2904,3 +2904,6 @@ Updated [[forever-data]] with independent payload/cache/world proof, README-only
 ## 2026-10-08 — Character-bank item moves
 
 Existing ItemLocation/SwapItem/SplitItem extended to character bank tabs; [bank system](systems/banks.md) records native cursor and transactional server behavior. Targeted proof tracked in `/home/osso/.worktrees/handoff-bankmoves.md`; no live run.
+- 2026-10-08: auction subcategory/Bid/Quantity contract and bounded protocol/server RED/GREEN ledger; native capture/engine GREEN checkpoint pending. Updated auction-house-ui system/spec.
+
+- 2026-10-08: ahsort bounded engine GREEN5 and native build EXIT0; one cage captured Modern/Forever at real1920×1080. Read both PNGs:Armor→Cloth→Chest, quantity37/12/8. Missing2 icons/editor/cage diagnostics retained; no live/broad gates.
