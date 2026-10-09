@@ -536,8 +536,13 @@ pub(crate) fn insert_shared_texture(
     if TEXTURES.with_borrow(|textures| textures.contains_key(&key)) {
         return Ok(());
     }
-    let texture =
+    let mut texture =
         texture_from_gpu_image(image).map_err(|error| format!("Texture {fdid}: {error}"))?;
+    let asset_path = dir
+        .join(format!("{fdid}.blp"))
+        .to_string_lossy()
+        .into_owned();
+    texture.set_meta("asset_path", &asset_path.to_variant());
     TEXTURES.with_borrow_mut(|textures| textures.insert(key, texture));
     Ok(())
 }
