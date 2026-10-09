@@ -12,6 +12,10 @@ Authored M2 skyboxes are backgrounds, regardless of their mesh size or position 
 - [x] Transparent scene objects that do not write depth render over the sky; preserve authored ordering between sky layers.
 - [x] Depth correction must not change texture combining, opacity, or sky-layer ordering.
 
+## Native Zephras material correction
+
+Map2991's authored sky7345733 must preserve its M2 shader0x8012 dual crossfade between the three texture stages using animated weights1/2 at the held day fraction. Do not multiply different day-phase skies together. Scope excludes other maps/materials and changes no background-depth or layer ordering. Actual-texture GPU RED/GREEN exists; rebuilt consumer/private after proof remains pending. [Cause and proof](../wiki/investigations/zephras-sky-minimap.md).
+
 ## How it works
 
 - [Skybox rendering](../wiki/systems/skybox.md)
