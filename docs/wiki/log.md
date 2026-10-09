@@ -1,3 +1,7 @@
+## 2026-10-09 — HUD layout names and delete confirmation
+
+[Native HUD edit mode](systems/native-hud-edit-mode.md) records the user-decided name validation and pending Yes/No deletion transition. [Contract](../specs/hud-edit-mode.md) owns Retail validation/dialog sources, exact confirmation text and unchanged preset Save / unsaved Exit boundaries. RED reproduces enabled empty New and immediate Delete; GREEN and native capture proof pending.
+
 ## 2026-10-08 — Skyborn NPC offline diagnosis
 
 [Forever data](systems/forever-data.md#npc-source-selection-and-offline-sweep-2026-10-08) records CDI-membership customization/compositor isolation, authored cape type2 binding and the ignored production-policy sweep. [NPC contract](../specs/npc-appearance.md#skyborn-offline-sweep-2026-10-08) owns error classification, FDID requests and exact RED/GREEN boundaries. Authentic native Batch52/original eleven errors remain blocked by local files; no fallback, push, merge, live service or independent-agent proof.

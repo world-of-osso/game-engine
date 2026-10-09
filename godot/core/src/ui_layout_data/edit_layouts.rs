@@ -39,7 +39,7 @@ fn store_layout(
         .insert(character_id.to_string(), name.into());
 }
 
-/// Copy the current draft to a named layout; an occupied/empty name gets Layout N.
+/// Copy the current draft to a unique, nonempty named layout.
 pub fn create_layout(
     path: &Path,
     character_id: u64,
@@ -52,11 +52,10 @@ pub fn create_layout(
     let available = !requested.is_empty()
         && preset_skin(requested).is_none()
         && !file.edit_mode.layouts.contains_key(requested);
-    let name = if available {
-        requested.to_owned()
-    } else {
-        unused_layout_name(&file)
-    };
+    if !available {
+        return Err("Layout name is empty or already used".into());
+    }
+    let name = requested.to_owned();
     store_layout(&mut file, character_id, &name, &active, elements);
     write_layout(path, &file)?;
     active_layout_in(&file, character_id)
