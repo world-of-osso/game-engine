@@ -1,6 +1,9 @@
 ## 2026-10-08 — Replicated remote player life state
 
 [Death flow](systems/death-flow.md#remote-player-life-state) records explicit shared DeathState decoding, remote held corpse animation, shared per-mesh ghost transparency and Retail Dead labels in both skins. Owner-only grading/dialogs remain. Targeted RED reproduced missing codec/numeric death text (0/3) and the hidden-player plate gate; native GREEN 5/5 at b949fd699 plus retained UDP decoder 1/1. Proof paths and corrected fixture assumptions are recorded in the system page. No live run, push or merge.
+## 2026-10-08 — Bounded bank art and native input proof
+
+[Banks](systems/banks.md#native-bank-art-2026-10-08) records model-owned additive overlays, crop-aware native tiling and preserved bankmoves press/modified-click callbacks. [Contract proof](../specs/bank-frame.md#bounded-bankart-pass--2026-10-08):808b6eb2e targeted11/0/1 and six inspected1920×1080 Modern/Forever tabs/hover/purchase captures. Native loaded ADD and exactly-one left/Shift/right dispatch assertions pass. Bank-bag chrome/state/layout remains blocked; vertical-shadow5779392 cannot extract without the missing local install `.build.info`. No CDN/substitute or full parity/live-server claim.
 
 ## 2026-10-07 — Offline character garment matrix, 78-cell bounded PASS
 
