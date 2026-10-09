@@ -4,7 +4,7 @@ Forever `1.60.1.70205` supplies Skyborne character data alongside Retail, not as
 
 [Map2991 sky/minimap root causes](../investigations/zephras-sky-minimap.md): listfile-only minimap resolution loses usable MAID FDIDs; sky7345733 uses a wrongly implemented dual-crossfade. Actual local assets match their content keys; scoped RED/GREEN and inspected rebuilt private before/after remove the orange/black region and show terrain minimap. Whole-day sky parity remains unclaimed.
 
-[Product-isolated M2 investigation](../investigations/m2-product-shadowing.md) traces displays139403/139409 to unqualified extracted-file and parsed-model caches plus singleton CASC state. Resolver-boundary RED is recorded; [full-chain contract](../../specs/product-isolated-model-assets.md) approved2026-10-09. Engine runtime remains unchanged; [matching source boundary](../investigations/m2-product-shadowing.md#approved-implementation-source-boundary-2026-10-09) blocks migration/native acceptance.
+[Product-isolated M2 investigation](../investigations/m2-product-shadowing.md) traces displays139403/139409 to unqualified extracted-file and parsed-model caches plus singleton CASC state. Resolver-boundary RED is recorded; [full-chain contract](../../specs/product-isolated-model-assets.md) approved2026-10-09. Engine runtime remains unchanged; [source observations](../investigations/m2-product-shadowing.md#approved-implementation-source-boundary-2026-10-09) distinguish missing historical70205 material from actual-build per-asset provenance needed for migration.
 
 ## Import and consumers
 
