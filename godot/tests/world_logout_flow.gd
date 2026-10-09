@@ -21,6 +21,12 @@ func run_test() -> void:
 		fail("Native world and camera missing")
 		return
 
+	print("FIXTURE LOGOUT_DEATH_READY")
+	if not await death_escape_opens_menu(client):
+		return
+	print("FIXTURE LOGOUT_DEATH_ESCAPE")
+	await wait_frames(30)
+
 	print("FIXTURE LOGOUT_COMBAT_TRUE")
 	await wait_frames(70)
 	if not await open_logout_menu(client):
@@ -80,35 +86,12 @@ func run_test() -> void:
 		fail("Repeated logout reset or lost original countdown: %s -> %s" % [original, countdown(client)])
 		return
 	print("FIXTURE LOGOUT_REPEATED")
-	if not await wait_screen(client, "Login", LOGOUT_WAIT_MS):
+	if not await wait_screen(client, "CharacterSelect", LOGOUT_WAIT_MS):
 		return
-	if client.get_node_or_null("WorldUnits") != world or client.get_node_or_null("WorldCamera") != camera or not client.account_state().world_attached or countdown(client) != "":
-		fail("Countdown logout lost world/camera or left overlay active")
+	if client.account_state().world_attached or countdown(client) != "":
+		fail("Countdown logout retained world or left overlay active")
 		return
 	print("FIXTURE LOGOUT_EXPIRED")
-	push_key(KEY_W, true)
-	await wait_frames(15)
-	push_key(KEY_W, false)
-	var remote := client.get_node_or_null("WorldUnits/Remote Fixture") as Node3D
-	if remote == null:
-		fail("Post-logout remote player missing")
-		return
-	var remote_before := remote.position
-	print("FIXTURE LOGOUT_LOGIN_QUIET")
-	var live_deadline := Time.get_ticks_msec() + MENU_WAIT_MS
-	while remote.position.distance_to(remote_before) < 1.0 and Time.get_ticks_msec() < live_deadline:
-		await process_frame
-	if remote.position.distance_to(remote_before) < 1.0 or client.account_state().screen != "Login" or client.get_node_or_null("WorldUnits/Remote Fixture") != remote:
-		fail("Login did not retain live replicated world connection")
-		return
-	print("FIXTURE LOGOUT_LIVE_CONNECTION")
-	var error: String = client.connect_account(server, "", "", false)
-	if error != "":
-		fail("Saved-token login failed: " + error)
-		return
-	print("FIXTURE LOGOUT_RELOGIN")
-	if not await wait_screen(client, "CharacterSelect", 15000):
-		return
 	var ui := client.get_node_or_null("CharacterSelectUI")
 	# This fixture's roster puts the unequipped character first; select Input Fixture.
 	var card = ui.find_child("CharCard_1", true, false) if ui != null else null
@@ -131,11 +114,36 @@ func run_test() -> void:
 	if not await open_logout_menu(client):
 		return
 	await click_menu_action(client, "MenuBtnLogout")
-	if not await wait_screen(client, "Login", MENU_WAIT_MS) or countdown(client) != "":
-		fail("Rest-area logout did not return immediately to Login")
+	if not await wait_screen(client, "CharacterSelect", MENU_WAIT_MS) or countdown(client) != "" or client.account_state().world_attached:
+		fail("Rest-area logout did not return immediately to character select")
 		return
 	print("FIXTURE LOGOUT_DONE")
 	quit(0)
+
+func death_escape_opens_menu(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + MENU_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if death_popup_visible(client):
+			break
+	if not death_popup_visible(client):
+		fail("Authoritative Dead snapshot did not show DEATH")
+		return false
+	push_key(KEY_ESCAPE, true)
+	await process_frame
+	push_key(KEY_ESCAPE, false)
+	if not await wait_menu(client) or not menu_authored(client):
+		fail("DEATH Escape did not open authored Game Menu")
+		return false
+	if not death_popup_visible(client):
+		fail("DEATH Escape closed the death popup")
+		return false
+	await click_menu_action(client, "MenuBtnResume")
+	return await wait_menu_closed(client, null)
+
+func death_popup_visible(client: Node) -> bool:
+	var popup := client.find_child("StaticPopup1Text", true, false) as Label
+	return popup != null and popup.is_visible_in_tree() and popup.text == "You have died. Release to the nearest graveyard?"
 
 func open_logout_menu(client: Node) -> bool:
 	push_key(KEY_ESCAPE, true)
