@@ -158,6 +158,24 @@ cargo test --locked --manifest-path godot/Cargo.toml -p game-engine-core --test 
 
 The CPU diagnostic imports native armor/gear, replacement-pixel and strict pass policies verbatim, uses production profile/choice/catalog/M2/material APIs, and performs only local file reads (no CASC extraction). It records every reachable failing batch rather than stopping at the first. Success means reports were written, **not** zero appearance failures. Missing preparation/model inputs block downstream coverage; reports retain these boundaries, not inferred native/pixel acceptance. Reports: `display-ids.txt`, `spawn-query.sql`, `errors.tsv`, `coverage.tsv`. Zero-opacity authored batches are included exactly as native allocation does; missing upstream data is never a hidden-batch exception. Error classification and extraction receipts belong in the same evidence directory; required strictness stays unchanged.
 
+### Error table and proof boundary
+
+Verified2026-10-08 at code`afa791a26`:218 display IDs visited,213 with errors,1182 error records. **(a)1181 records; (b)2 production bugs fixed; (c)1 retained rejection.** Counts are records for remaining errors and distinct bugs for fixes, not additive display counts. Full per-display/batch/reason/class table: canonical `data/diagnostics/npcsweep-2026-10-08/classified-errors.tsv`; input hashes in`source-hashes.json`.
+
+| Class | Count | Display/batch and reason | Result |
+|---|---:|---|---|
+| (a) Local files/companions |1153 records | Known body/customization/bake/cape/armor files absent. Ordinary6296 Batch0/1/2 lacks1694081. Upstream failures use`appearance`, `model`, `gear-model`, `gear-texture`, or`variation` instead of inventing a batch. |429 asset FDIDs queued; unknown children below absent models remain blocked. |
+| (a) Local imported coverage |28 displays/records |3211,6756,136967,136970,136981,137019,137338,137339,137343,137694,137998,137999,138035,138044,138117,138120,138155,138156,138170,138289,139682,140070,140071,140075,140525,142517,143516,143798 lack imported profiles/coverage. |Raw Extra/option/geoset inputs1264997/3692043/1720141 absent locally and queued; no ordinary-body substitute or invented profile. |
+| (b) Wrong customization source |1 fixed bug |137165 selected Forever78872, absent from Retail; race-based player overlay failed Gnome source selection. |CDI-owner catalogs; Gnome positive and corrupted-Retail825/Forever61137 negative controls RED→GREEN. Players unchanged. |
+| (b) Omitted authored cape |1 fixed bug |136974 armor resolves7734308/1502, but native replacement preparation discarded its merged cape FDID, leaving visible type2 unbound. |Required cape read/decode and type2 replacement. Authentic joins + one-pixel fixture RED→GREEN; not authentic Batch52/GPU proof. |
+| (c) Delivered source relationship rejected |1 record |147894 Extra165992 has no`NPCModelItemSlotDisplayInfo` rows in delivered Forever CSV. |Existing strict error retained. Raw1340661 queued to verify export completeness/intent; this does not prove the original DB2 is erroneous or authorize treating absence as undressed. |
+
+433 unique extraction requests (429 assets +4 raw tables) are tagged`[npcsweep]` in `/home/osso/.worktrees/logs/extract-wanted.tsv`; exact reasons in evidence`extraction-requests.json`. Five displays have no recorded failures:1162,2172,6297,137015,137762. Of127 imported required profiles, all declare a bake; only one currently composes successfully, with its body model still absent. The12 displays with readable model/companions exercise668 material batches, **zero prepared-NPC strict batches**: metadata/pixel/model gaps prevent that boundary. No hidden-batch exception, source fallback, or zero-native-error claim.
+
+136974 is in the list. Its known missing inputs include body7478487, bake7473339, cape7734308, selected143781/7485121/7485498/7485558/7494165/7500034, and shoulder models143167/143470. Its authentic Batch52 and the sender's eleven native errors cannot yet be reproduced with local bytes. Re-run the ignored diagnostic after acquisition; do not mistake reported diagnostic exit0 for source readiness.
+
+Proof logs under `/home/osso/.worktrees/logs/`: `npcsweep-gnome-red.log`101 → `npcsweep-gnome-green.log`0; `npcsweep-cape-red.log`101 → `npcsweep-fixes-green.log`0; `npcsweep-isolation-red.log`101 → `npcsweep-isolation-green.log`0. Current `npcsweep-acceptance.log`0 records Gnome/cape2/2, strict pixel/file policies12/12 (authentic Ailee case excluded for missing files), ignored diagnostic1/1 and scoped core `cargo check`0. Matching `npcsweep-native-final.log`0 compiles native code and passes replacement2/2, not a native process/render test. No independent agent gate per explicit user prohibition; no push/merge/live service changes.
+
 ## Out of scope
 
 - Player equipment replication and creature model redesign; authored NPC data is applied through the existing M2 and character paths.
