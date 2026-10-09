@@ -17,6 +17,10 @@ use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::widgets::texture::TextureSource;
 
 #[cfg(test)]
+#[path = "ui_file.rs"]
+mod ui_file;
+
+#[cfg(test)]
 #[path = "assets_meter_gradient_tests.rs"]
 mod meter_gradient_tests;
 
