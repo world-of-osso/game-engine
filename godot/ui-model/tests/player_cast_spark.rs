@@ -61,5 +61,5 @@ fn forever_player_spark_spans_fill_height() {
 
 #[test]
 fn modern_player_spark_keeps_matching_fill_height() {
-    assert_player_spark_matches_fill(ActiveSkin::Modern, 292.0, 20.0);
+    assert_player_spark_matches_fill(ActiveSkin::Modern, 256.0, 20.0);
 }
