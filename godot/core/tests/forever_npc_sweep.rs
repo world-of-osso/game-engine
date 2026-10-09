@@ -43,20 +43,21 @@ fn pixels(data: &Path, fdid: u32) -> Result<NpcTexturePixels, String> {
     Ok((image.pixels, image.width, image.height))
 }
 fn model(data: &Path, fdid: u32) -> Result<m2::Model, String> {
-    let read = |name: String| {
-        std::fs::read(data.join("models").join(&name)).map_err(|e| format!("{name}: {e}"))
+    let read = |name: String, source_fdid: u32| {
+        std::fs::read(data.join("models").join(&name))
+            .map_err(|e| format!("model dependency FDID {source_fdid} at models/{name}: {e}"))
     };
-    let bytes = read(format!("{fdid}.m2"))?;
+    let bytes = read(format!("{fdid}.m2"), fdid)?;
     let refs = m2::parse_asset_references(&bytes)?;
     let skin_fdid = *refs.skin_fdids.first().ok_or("no primary SFID")?;
     // The native cache aliases the primary SFID to <model>00.skin.
-    let skin = read(format!("{fdid}00.skin"))?;
+    let skin = read(format!("{fdid}00.skin"), skin_fdid)?;
     let skeleton = refs
         .skeleton_fdid
-        .map(|_| read(format!("{fdid}.skel")))
+        .map(|skeleton_fdid| read(format!("{fdid}.skel"), skeleton_fdid))
         .transpose()?;
     m2::parse_model_with_skeleton(&bytes, &skin, skeleton.as_deref(), |anim| {
-        read(format!("{anim}.anim")).ok()
+        read(format!("{anim}.anim"), anim).ok()
     })
     .map_err(|e| format!("model FDID {fdid}, skin FDID {skin_fdid}: {e}"))
 }
@@ -69,6 +70,15 @@ struct Sweep {
     gear: npc_gear_data::NpcGearData,
     outfit: outfit_data::OutfitData,
 }
+#[derive(Default)]
+struct DisplayAudit {
+    errors: Vec<(String, String)>,
+    appearance_ready: bool,
+    model_ready: bool,
+    material_batches: usize,
+    strict_npc_batches: usize,
+}
+
 struct Prepared {
     textures: HashMap<u32, NpcTexturePixels>,
     inactive: HashSet<u32>,
@@ -134,14 +144,31 @@ impl Sweep {
             &[0, 0, 0],
         )
         .unwrap();
-        let mut decoded = HashMap::new();
-        for fdid in selected
+        let required = selected
             .materials
             .iter()
             .map(|(_, fdid)| *fdid)
-            .collect::<BTreeSet<_>>()
-        {
-            decoded.insert(fdid, pixels(&self.data, fdid)?);
+            .chain(appearance.baked_texture_fdid)
+            .chain(armor.merged_cape_texture_fdid)
+            .chain(armor.texture_fdids.iter().copied())
+            .collect::<BTreeSet<_>>();
+        let mut decoded = HashMap::new();
+        let mut dependency_errors = Vec::new();
+        for fdid in required {
+            match pixels(&self.data, fdid) {
+                Ok(image) => {
+                    decoded.insert(fdid, image);
+                }
+                Err(error) => dependency_errors.push(error),
+            }
+        }
+        for item in &armor.runtime_models {
+            if let Err(error) = model(&self.data, item.fdid) {
+                dependency_errors.push(format!("Equipment {:?}: {error}", item.slot));
+            }
+        }
+        if !dependency_errors.is_empty() {
+            return Err(dependency_errors.join("\n"));
         }
         // Same optional default-atlas behavior as the production reader, with a receipt.
         if let std::collections::hash_map::Entry::Vacant(entry) = decoded.entry(default) {
@@ -159,11 +186,7 @@ impl Sweep {
             .ok_or("cannot composite model textures")?;
         let bake = appearance
             .baked_texture_fdid
-            .map(|fdid| pixels(&self.data, fdid))
-            .transpose()?;
-        if let Some(fdid) = armor.merged_cape_texture_fdid {
-            decoded.insert(fdid, pixels(&self.data, fdid)?);
-        }
+            .map(|fdid| decoded[&fdid].clone());
         let textures = appearance_pixels::compose_replacement_pixels(
             compositor,
             &selected.materials,
@@ -185,58 +208,71 @@ impl Sweep {
             armor,
         }))
     }
-    fn errors(&mut self, id: u32) -> Vec<(String, String)> {
-        let mut errors = Vec::new();
+    fn audit_display(&mut self, id: u32) -> DisplayAudit {
+        let mut audit = DisplayAudit::default();
         let prepared = match self.prepare(id) {
-            Ok(p) => p,
+            Ok(p) => {
+                audit.appearance_ready = true;
+                p
+            }
             Err(e) => {
-                errors.push(("appearance".into(), e));
+                audit.errors.extend(
+                    e.lines()
+                        .map(|reason| ("appearance".into(), reason.to_owned())),
+                );
                 None
             }
         };
         let display = match query_display(&self.displays, id) {
             Ok(Some(d)) => d,
             other => {
-                errors.push(("display".into(), format!("{other:?}")));
-                return errors;
+                audit.errors.push(("display".into(), format!("{other:?}")));
+                return audit;
             }
         };
+        for fdid in display
+            .skin_fdids
+            .into_iter()
+            .filter(|fdid| *fdid != 0)
+            .collect::<BTreeSet<_>>()
+        {
+            if let Err(error) = pixels(&self.data, fdid) {
+                audit.errors.push(("variation".into(), error));
+            }
+        }
         let model = match model(&self.data, display.model_fdid) {
-            Ok(m) => m,
-            Err(e) => {
-                errors.push(("model".into(), e));
-                return errors;
+            Ok(model) => {
+                audit.model_ready = true;
+                model
+            }
+            Err(error) => {
+                audit.errors.push(("model".into(), error));
+                return audit;
             }
         };
         let batches = match m2::resolve_render_batches(&model, &display.skin_fdids, false, |_| None)
         {
             Ok(b) => b,
             Err(e) => {
-                errors.push(("batches".into(), e));
-                return errors;
+                audit.errors.push(("batches".into(), e));
+                return audit;
             }
         };
         for batch in batches {
+            audit.material_batches += 1;
             let result = (|| {
                 let binding = m2_material::batch_binding(
                     &model,
                     &model.batches[batch.source_unit_index],
                     &display.skin_fdids,
                 )?;
-                let Some(p) = &prepared else { return Ok(()) };
-                let visible = !p
-                    .armor
-                    .hidden_character_geoset_ids
-                    .contains(&batch.mesh_part_id)
-                    && npc_geoset_visible(batch.mesh_part_id, &p.selected, &p.authored);
-                let visible = apply_exact_geoset_overrides(
-                    batch.mesh_part_id,
-                    visible,
-                    &p.armor.outfit.geoset_overrides,
-                );
                 let mut missing = Vec::new();
                 for (&kind, fdid) in binding.texture_types.iter().zip(&binding.textures) {
-                    if kind != 0 && p.textures.contains_key(&kind) {
+                    if kind != 0
+                        && prepared
+                            .as_ref()
+                            .is_some_and(|p| p.textures.contains_key(&kind))
+                    {
                         continue;
                     }
                     if let Some(fdid) = fdid {
@@ -253,6 +289,25 @@ impl Sweep {
                         }
                     }
                 }
+                let Some(p) = &prepared else {
+                    if !missing.is_empty() {
+                        return Err(format!(
+                            "missing file-backed batch texture FDIDs {missing:?}"
+                        ));
+                    }
+                    return Ok(());
+                };
+                audit.strict_npc_batches += 1;
+                let visible = !p
+                    .armor
+                    .hidden_character_geoset_ids
+                    .contains(&batch.mesh_part_id)
+                    && npc_geoset_visible(batch.mesh_part_id, &p.selected, &p.authored);
+                let visible = apply_exact_geoset_overrides(
+                    batch.mesh_part_id,
+                    visible,
+                    &p.armor.outfit.geoset_overrides,
+                );
                 appearance_pixels::npc_pass_active(
                     &binding.texture_types,
                     &binding.textures,
@@ -264,10 +319,12 @@ impl Sweep {
                 Ok(())
             })();
             if let Err(e) = result {
-                errors.push((format!("Batch{}", batch.source_unit_index), e));
+                audit
+                    .errors
+                    .push((format!("Batch{}", batch.source_unit_index), e));
             }
         }
-        errors
+        audit
     }
 }
 
@@ -390,12 +447,22 @@ fn sweep_skyborn_forever_npc_appearances() {
     let mut sweep = Sweep::load(data);
     let mut report = String::from("display\tbatch\treason\n");
     let mut failures = 0;
+    let mut coverage = String::from(
+        "display\tappearance_ready\tmodel_ready\tmaterial_batches\tstrict_npc_batches\n",
+    );
     for id in &ids {
-        let errors = sweep.errors(*id);
-        if !errors.is_empty() {
+        let audit = sweep.audit_display(*id);
+        coverage.push_str(&format!(
+            "{id}\t{}\t{}\t{}\t{}\n",
+            audit.appearance_ready,
+            audit.model_ready,
+            audit.material_batches,
+            audit.strict_npc_batches
+        ));
+        if !audit.errors.is_empty() {
             failures += 1;
         }
-        for (batch, reason) in errors {
+        for (batch, reason) in audit.errors {
             report.push_str(&format!(
                 "{id}\t{batch}\t{}\n",
                 reason.replace(['\n', '\t'], " ")
@@ -407,6 +474,7 @@ fn sweep_skyborn_forever_npc_appearances() {
     );
     std::fs::create_dir_all(&out).unwrap();
     std::fs::write(out.join("errors.tsv"), report).unwrap();
+    std::fs::write(out.join("coverage.tsv"), coverage).unwrap();
     std::fs::write(
         out.join("display-ids.txt"),
         ids.iter().map(|id| format!("{id}\n")).collect::<String>(),
