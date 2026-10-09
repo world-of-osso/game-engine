@@ -1,5 +1,5 @@
 //! Behavioral regressions for HUD Edit Mode persistence and authored placements.
-use game_engine_core::ui_layout_data::{self, HudAnchor, LayoutSkin};
+use game_engine_core::ui_layout_data::{self, HudAnchor};
 
 #[test]
 fn hudeditmode_resets_old_saved_offsets_to_builtin_forever() {
