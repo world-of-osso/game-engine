@@ -22,7 +22,11 @@ impl GameClient {
             }
             SessionScreen::Login
             | SessionScreen::CharacterSelect
-            | SessionScreen::CharacterCreate => ActiveLayout::default(),
+            | SessionScreen::CharacterCreate => ActiveLayout {
+                name: "Modern".into(),
+                skin: LayoutSkin::Modern,
+                ..Default::default()
+            },
             SessionScreen::Loading | SessionScreen::GameMenu => return Ok(()),
         };
         self.apply_ui_layout(layout)

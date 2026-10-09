@@ -1,14 +1,17 @@
-//! Behavioral regression: persisted placements were parsed but never returned to the client.
-use game_engine_core::ui_layout_data::{self, HudAnchor, LayoutSkin};
+//! Behavioral regressions for HUD Edit Mode persistence and authored placements.
+use game_engine_core::ui_layout_data::{self, HudAnchor};
 
 #[test]
-fn hudeditmode_loads_saved_offsets_without_changing_presets() {
+fn hudeditmode_resets_old_saved_offsets_to_builtin_forever() {
     let path = std::env::temp_dir().join(format!("hudeditmode-red-{}.ron", std::process::id()));
     std::fs::write(&path, r#"(edit_mode: (layouts: {"Moved": (skin: Forever, elements: {"player_frame": (anchor: Bottom, offset: (96.0, -240.0))})}, active_layout: {"42": "Moved"}))"#).unwrap();
     let active = ui_layout_data::active_layout(&path, 42).unwrap();
-    assert_eq!(active.skin, LayoutSkin::Forever);
-    assert_eq!(active.elements["player_frame"].anchor, HudAnchor::Bottom);
-    assert_eq!(active.elements["player_frame"].offset, [96.0, -240.0]);
+    assert_eq!(active, ui_layout_data::ActiveLayout::default());
+    assert_eq!(
+        ui_layout_data::layout_names(&path).unwrap(),
+        ["Modern", "Forever"]
+    );
+    assert!(ui_layout_data::set_active_layout(&path, 42, "Moved").is_err());
     assert!(
         ui_layout_data::active_layout(&path, 43)
             .unwrap()
