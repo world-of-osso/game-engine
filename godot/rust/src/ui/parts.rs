@@ -39,6 +39,8 @@ pub struct ImagePart {
     pub additive: bool,
     /// Retail MinimalScrollBar disabled-arrow art loses texture saturation, not brightness.
     pub desaturated: bool,
+    /// Repeat the cropped member on each authored axis, never the surrounding atlas.
+    pub tiling: [bool; 2],
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -141,11 +143,16 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
             None => frame.background_color.map(|color| solid(rect, color)),
         },
         Some(WidgetData::Texture(texture)) => {
-            if matches!(
-                texture.source,
-                TextureSource::None | TextureSource::SolidColor(_)
-            ) {
-                return Some(solid(rect, frame_color(frame)));
+            match &texture.source {
+                TextureSource::None => {
+                    return frame
+                        .background_color
+                        .map(|color| solid_texture(rect, color, texture));
+                }
+                TextureSource::SolidColor(color) => {
+                    return Some(solid_texture(rect, *color, texture));
+                }
+                _ => (),
             }
             let crop = if texture.tex_coords == [0.0, 1.0, 0.0, 1.0] {
                 Crop::Full
@@ -157,6 +164,7 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
             part.desaturated = texture.desaturated;
             part.rotation = texture.rotation;
             part.additive = texture.blend_mode == BlendMode::Additive;
+            part.tiling = [texture.horiz_tile, texture.vert_tile];
             Some(part)
         }
         Some(WidgetData::StatusBar(_)) => None,
@@ -165,6 +173,18 @@ fn base_image(frame: &Frame, width: f32, height: f32) -> Option<ImagePart> {
             .or_else(|| frame.backdrop.as_ref().and_then(|b| b.bg_color))
             .map(|color| solid(rect, color)),
     }
+}
+
+fn solid_texture(
+    rect: [f32; 4],
+    color: [f32; 4],
+    texture: &ui_toolkit::widgets::texture::TextureData,
+) -> ImagePart {
+    let color = std::array::from_fn(|index| color[index] * texture.vertex_color[index]);
+    let mut part = solid(rect, color);
+    part.rotation = texture.rotation;
+    part.additive = texture.blend_mode == BlendMode::Additive;
+    part
 }
 
 fn frame_color(frame: &Frame) -> [f32; 4] {
@@ -430,6 +450,7 @@ fn solid(rect: [f32; 4], color: [f32; 4]) -> ImagePart {
         rotation: 0.0,
         additive: false,
         desaturated: false,
+        tiling: [false; 2],
     }
 }
 
@@ -443,6 +464,7 @@ fn textured(rect: [f32; 4], source: TextureSource, crop: Crop, color: [f32; 4]) 
         rotation: 0.0,
         additive: false,
         desaturated: false,
+        tiling: [false; 2],
     }
 }
 

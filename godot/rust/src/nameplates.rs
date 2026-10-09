@@ -36,6 +36,7 @@ use godot::{
 use shared::{
     casting::CastState,
     components::{CreatureClassification, Health, Player, UnitFlags, UnitLevel},
+    death::DeathState,
     faction_reaction::{Unit, can_attack},
     level_scaling::{LevelScaling, level_for_viewer},
     protocol::RAID_TARGET_ICON_COUNT,
@@ -239,7 +240,11 @@ fn plate_layout(style: &NameplateStyle, fraction: f32, level_width: f32) -> Plat
 /// The text at the bar's right: the percent of `UnitHealthMax` ("100%"), after
 /// `AbbreviateLargeNumbers(UnitHealth)` when the style shows the value (the reference's
 /// "425 K  100%").
-fn health_text(health: &Health, show_value: bool) -> String {
+fn health_text(health: &Health, show_value: bool, life: Option<DeathState>) -> String {
+    // Retail CompactUnitFrame_UpdateStatusText uses DEAD for both dead and ghost units.
+    if matches!(life, Some(DeathState::Dead | DeathState::Ghost)) {
+        return "Dead".to_owned();
+    }
     let (current, max) = (health.current.round() as i64, health.max.round() as i64);
     let percent = percent(current, max);
     if show_value {
@@ -1261,9 +1266,7 @@ fn plate_rule_input(
     PlateUnit {
         is_local_player: unit.server_id == viewer.id,
         selectable: flags.is_selectable(),
-        alive: unit
-            .get::<Health>()
-            .is_none_or(|health| health.current > 0.0),
+        alive: !unit.dead_or_ghost(),
         is_player,
         enemy: flags.is_attackable() && can_attack(attacker, defender),
         targeted: viewer.target == Some(unit.server_id),
@@ -1442,7 +1445,7 @@ impl GameClient {
                 view.health_text = unit
                     .get::<Health>()
                     .filter(|health| health.max > 0.0)
-                    .map(|health| health_text(health, style.show_health_value))
+                    .map(|health| health_text(health, style.show_health_value, unit.death_state()))
                     .unwrap_or_default();
                 view.level = displayed_plate_level(unit, viewer_level);
                 view.enemy = rules.enemy;
@@ -1791,9 +1794,131 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
     /// By default the plate's health text is the percent alone, which Retail rounds up
     /// (`math.ceil`).
     #[test]
+    fn ghoststate_dead_nameplate_replaces_numeric_health() {
+        for show_value in [true, false] {
+            assert_eq!(
+                health_text(
+                    &Health {
+                        current: 0.0,
+                        max: 120.0
+                    },
+                    show_value,
+                    Some(DeathState::Dead),
+                ),
+                "Dead"
+            );
+        }
+    }
+
+    #[test]
+    fn ghoststate_nameplate_ghost_with_health_uses_dead_label_and_alive_restores_number() {
+        let health = Health {
+            current: 1.0,
+            max: 120.0,
+        };
+        for show_value in [false, true] {
+            assert_eq!(
+                health_text(&health, show_value, Some(DeathState::Ghost)),
+                "Dead"
+            );
+            assert_ne!(
+                health_text(&health, show_value, Some(DeathState::Alive)),
+                "Dead"
+            );
+        }
+    }
+
+    #[test]
+    fn ghoststate_visible_remote_player_death_states_keep_nameplate_status() {
+        let viewer = Viewer {
+            id: 7,
+            target: Some(8),
+            position: Vector3::ZERO,
+            template: None,
+        };
+        let mut replica = Replica::for_tests();
+        replica.insert(
+            8,
+            Player {
+                name: "Elara".into(),
+                race: 1,
+                class: 1,
+                appearance: Default::default(),
+            },
+        );
+        let cvars = NameplateCvars {
+            show_friendly_players: true,
+            show_friendly_npcs: true,
+            ..Default::default()
+        };
+        for life in [
+            DeathState::Alive,
+            DeathState::Dead,
+            DeathState::Ghost,
+            DeathState::Alive,
+        ] {
+            replica.insert(8, life);
+            replica.insert(
+                8,
+                Health {
+                    current: if life == DeathState::Alive {
+                        100.0
+                    } else {
+                        0.0
+                    },
+                    max: 100.0,
+                },
+            );
+            let unit = replica.unit(8).unwrap();
+            let rules = plate_rule_input(&viewer, unit, None, 10.0);
+            assert!(
+                plate_shown(&cvars, &rules),
+                "visible targeted remote {life:?} must retain its status label"
+            );
+            for hidden in [
+                PlateUnit {
+                    is_local_player: true,
+                    ..rules
+                },
+                PlateUnit {
+                    selectable: false,
+                    ..rules
+                },
+                PlateUnit {
+                    distance: cvars.max_distance + 1.0,
+                    ..rules
+                },
+            ] {
+                assert!(
+                    !plate_shown(&cvars, &hidden),
+                    "{life:?}: existing plate restrictions remain"
+                );
+            }
+            if !rules.alive {
+                assert!(
+                    !plate_shown(
+                        &cvars,
+                        &PlateUnit {
+                            is_player: false,
+                            ..rules
+                        }
+                    ),
+                    "dead NPC plates remain hidden"
+                );
+            }
+        }
+    }
+
+    #[test]
     fn health_text_is_the_percent_alone_by_default() {
         let show_value = NameplateStyle::default().show_health_value;
-        let text = |current, max| health_text(&Health { current, max }, show_value);
+        let text = |current, max| {
+            health_text(
+                &Health { current, max },
+                show_value,
+                Some(DeathState::Alive),
+            )
+        };
         assert_eq!(text(425_000.0, 425_000.0), "100%");
         assert_eq!(text(324_275.0, 425_000.0), "77%");
         assert_eq!(text(42.0, 55.0), "77%");
@@ -1803,7 +1928,8 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
     /// `AbbreviateLargeNumbers` then the percent.
     #[test]
     fn health_text_leads_with_the_abbreviated_value_when_the_style_shows_it() {
-        let text = |current, max| health_text(&Health { current, max }, true);
+        let text =
+            |current, max| health_text(&Health { current, max }, true, Some(DeathState::Alive));
         assert_eq!(text(425_000.0, 425_000.0), "425 K  100%");
         assert_eq!(text(42.0, 55.0), "42  77%");
         assert_eq!(text(12_345.0, 20_000.0), "12,345  62%");

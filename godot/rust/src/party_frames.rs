@@ -315,10 +315,14 @@ impl GameClient {
         self.poll_group_frame_actions()?;
         self.sync_death_popups();
         self.update_summon_popup(Duration::from_secs_f32(delta.max(0.0)));
+        self.auction
+            .session
+            .sync_popup(&mut self.group_frames.popups);
         self.poll_invite_popup_actions()?;
         let hud = &mut self.group_frames;
         hud.popups.tick(Duration::from_secs_f32(delta.max(0.0)));
         let results = hud.popups.drain_results();
+        self.auction.session.popup_results(&results);
         self.dispatch_bag_destroy_results(&results)?;
         self.dispatch_quest_abandon_results(&results)?;
         self.dispatch_bank_popup_results(&results)?;

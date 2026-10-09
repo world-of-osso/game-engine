@@ -41,6 +41,12 @@ const COLOR_TEXT: FontColor = FontColor::new(1.0, 1.0, 1.0, 1.0);
 const EDITBOX_W: f32 = 130.0;
 const EDITBOX_H: f32 = 20.0;
 const EDITBOX_GAP: f32 = 8.0;
+const MONEY_SPACE: f32 = 24.0;
+/// Blizzard_StaticPopup_Game/GameDialog.xml AlertIcon; GameDialog.lua:1.
+const ALERT_FDID: u32 = 357_854;
+const ALERT_SIZE: f32 = 36.0;
+const ALERT_LEFT: f32 = 24.0;
+const ALERT_TEXT_LEFT: f32 = 68.0;
 
 struct DynName(String);
 
@@ -79,11 +85,25 @@ pub fn popup_height(entry: &PopupEntry) -> f32 {
     } else {
         0.0
     };
-    PAD_TOP + text_height(&entry.spec.text) + editbox + TEXT_GAP + BUTTON_H + PAD_BOTTOM
+    let money = if entry.money_alert.is_some() {
+        MONEY_SPACE
+    } else {
+        0.0
+    };
+    PAD_TOP + popup_text_height(entry) + editbox + money + TEXT_GAP + BUTTON_H + PAD_BOTTOM
 }
 
-fn text_height(text: &str) -> f32 {
-    let chars_per_line = (TEXT_WIDTH / AVG_GLYPH_WIDTH).floor().max(1.0) as usize;
+fn popup_text_width(entry: &PopupEntry) -> f32 {
+    if entry.money_alert.is_some() {
+        POPUP_WIDTH - ALERT_TEXT_LEFT - 16.0
+    } else {
+        TEXT_WIDTH
+    }
+}
+
+fn popup_text_height(entry: &PopupEntry) -> f32 {
+    let chars_per_line = (popup_text_width(entry) / AVG_GLYPH_WIDTH).floor().max(1.0) as usize;
+    let text = &entry.spec.text;
     let lines: usize = text
         .split('\n')
         .map(|line| line.chars().count().div_ceil(chars_per_line).max(1))
@@ -133,6 +153,7 @@ fn static_popup(slot: usize, entry: &PopupEntry, top: f32) -> Element {
             {popup_background(&name, height)}
             {popup_border(&name, height)}
             {popup_text(&name, entry)}
+            {popup_money_alert(&name, entry)}
             {popup_editbox(&name, entry)}
             {popup_buttons(&name, entry)}
         }
@@ -174,8 +195,8 @@ fn popup_text(name: &str, entry: &PopupEntry) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("{name}Text"))},
-            width: TEXT_WIDTH,
-            height: {text_height(&entry.spec.text)},
+            width: {popup_text_width(entry)},
+            height: {popup_text_height(entry)},
             text: entry.spec.text.as_str(),
             font: GameFont::FrizQuadrata,
             font_size: FONT_SIZE,
@@ -184,9 +205,45 @@ fn popup_text(name: &str, entry: &PopupEntry) -> Element {
             strata: FrameStrata::Dialog,
             frame_level: 6.0,
             pos_type: "absolute",
-            left: "50%",
-            translate_x: "-50%",
+            left: {if entry.money_alert.is_some() { ALERT_TEXT_LEFT } else { (POPUP_WIDTH - TEXT_WIDTH) / 2.0 }},
             top: PAD_TOP,
+        }
+    }
+}
+
+fn popup_money_alert(name: &str, entry: &PopupEntry) -> Element {
+    let Some(amount) = entry.money_alert else {
+        return Element::default();
+    };
+    let coins = crate::ui::screens::merchant_frame_component::money(
+        &format!("{name}MoneyFrame"),
+        amount,
+        (0.0, 16.0),
+        crate::ui::screens::merchant_frame_component::MoneyAlign::Left,
+        false,
+    );
+    rsx! {
+        r#frame {
+            name: {DynName(format!("{name}MoneyFrame"))},
+            width: {popup_text_width(entry)},
+            height: 16.0,
+            strata: FrameStrata::Dialog,
+            frame_level: 6.0,
+            pos_type: "absolute",
+            left: ALERT_TEXT_LEFT,
+            top: {PAD_TOP + popup_text_height(entry) + 8.0},
+            {coins}
+        }
+        texture {
+            name: {DynName(format!("{name}AlertIcon"))},
+            width: ALERT_SIZE,
+            height: ALERT_SIZE,
+            texture_fdid: ALERT_FDID,
+            strata: FrameStrata::Dialog,
+            frame_level: 6.0,
+            pos_type: "absolute",
+            left: ALERT_LEFT,
+            top: {(popup_height(entry) - ALERT_SIZE) / 2.0},
         }
     }
 }
@@ -209,7 +266,7 @@ fn popup_editbox(name: &str, entry: &PopupEntry) -> Element {
             pos_type: "absolute",
             left: "50%",
             translate_x: "-50%",
-            top: {PAD_TOP + text_height(&entry.spec.text) + EDITBOX_GAP},
+            top: {PAD_TOP + popup_text_height(entry) + EDITBOX_GAP},
             fontstring {
                 name: {DynName(format!("{name}Text"))},
                 width: {EDITBOX_W - 8.0},
