@@ -30,6 +30,7 @@ func run_test() -> void:
 			check_plate(plate, forever)
 		host.free()
 	if failed:
+		print("FAIL: nameplate level acceptance")
 		quit(1)
 	else:
 		print("PASS: ordinary full-width Forever without numeric level/badge; skull geometry, selection, classification and Modern retained")
