@@ -266,8 +266,7 @@ fn assert_modern_edit_mode_systems(hud: &[RegistryModel]) {
     assert_eq!(top_right(hud, DEBUFF_FRAME.0), (1096.0, 155.0));
     assert_eq!(top_right(hud, MINIMAP_CLUSTER), (1366.0, 0.0));
     assert_eq!(top_left(hud, PARTY_FRAME), (22.0, 147.0));
-    let raid = rect(hud, RAID_FRAME);
-    assert_eq!((raid.x, raid.y + raid.height), (395.0, 553.0));
+    assert_eq!(top_left(hud, RAID_FRAME), (22.0, 145.0));
 }
 
 #[test]
@@ -286,6 +285,38 @@ fn modern_preset_keeps_the_retail_modern_hud_positions() {
     let mut hud = hud();
     sync(&mut hud, ActiveSkin::Modern);
     assert_modern(&hud);
+}
+
+#[test]
+fn raidoverlap_two_member_raid_clears_player_in_both_presets_and_viewports() {
+    for viewport in [(1920.0, 1080.0), (1280.0, 720.0)] {
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            let groups = GroupFramesState {
+                raid: vec![vec![member("Mailalpha"), member("Mailbeta")]],
+                ..Default::default()
+            };
+            let mut frames = vec![
+                model(unit_frames(), inworld_unit_frames_screen),
+                model(groups, group_frames_screen),
+            ];
+            for frame in &mut frames {
+                // Options' explicit uiScale 1 uses viewport-sized logical bounds,
+                // unlike the implicit Retail 768-unit canvas used by model().
+                frame.registry = ui_toolkit::registry::FrameRegistry::new(viewport.0, viewport.1);
+            }
+            sync(&mut frames, skin);
+            let player = rect(&frames, "PlayerFrame");
+            let raid = rect(&frames, RAID_FRAME);
+            assert_rect(&frames, RAID_FRAME, (22.0, 145.0, 576.0, 86.0));
+            assert!(
+                !intersects(&raid, &player),
+                "{skin:?} {viewport:?}: raid {raid:?} overlaps player {player:?}"
+            );
+            for name in ["CompactRaidGroup1Member1", "CompactRaidGroup1Member2"] {
+                assert!(!intersects(&rect(&frames, name), &player));
+            }
+        }
+    }
 }
 
 fn intersects(a: &LayoutRect, b: &LayoutRect) -> bool {
