@@ -20,6 +20,7 @@ The native character-select roster uses `godot/ui-model/src/ui/screens/char_sele
 - `godot/ui-model/src/char_select_data.rs` — Retail name catalog and Skyborne-only data overlay, independent of skin.
 - `godot/rust/src/lib.rs` — cached name loading and session roster projection.
 - `godot/rust/src/ui/scroll_lists.rs` — native wheel, steppers and thumb input.
+- `godot/rust/src/ui/mod.rs` — character-select `_input` owns its ScrollBox route; other canvases retain their host routes.
 - `godot/rust/src/ui/projection.rs` — existing ScrollBox clipping and clipped hit testing.
 - `godot/rust/src/ui/rosterfix_preview.rs` — no-argument offline12-entry Modern/Forever previews.
 
@@ -27,7 +28,7 @@ The native character-select roster uses `godot/ui-model/src/ui/screens/char_sele
 
 - `godot/rust/src/ui/rosterfix_tests.rs` — native model/Taffy layout with10/12, both skins, selection and scroll input.
 - `godot/ui-model/tests/roster_mapping.rs` — protocol text, active Skyborne names, edited catalog names and missing-ID errors.
-- `godot/tests/capture_ui_screen.gd` (`rosterfix_both`) — real1920×1080 native controls, clipping, full text width, footer separation and native wheel event.
+- `godot/tests/capture_ui_screen.gd` (`rosterfix_both`) — real1920×1080 native controls, clipping, full text width, footer separation, card8/footer clicks, native wheel and thumb drag.
 
 ## Known gaps (current cycle)
 
