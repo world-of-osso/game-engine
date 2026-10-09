@@ -34,7 +34,23 @@ fn emit_classbook_catalog_coverage() {
             })
             .count();
         println!("CLASSBOOK_CLASS\t{class}\t{name}\t{class_count}");
+        let mut missing_class: Vec<_> = catalog
+            .tabs
+            .class_spells
+            .iter()
+            .filter_map(|(&id, &owner)| (owner == class && catalog.get(id).is_none()).then_some(id))
+            .collect();
+        missing_class.sort_unstable();
+        println!("CLASSBOOK_MISSING_CLASS\t{class}\t{missing_class:?}");
         for (&spec, info) in specs {
+            let mut missing_spec: Vec<_> = info
+                .spells
+                .iter()
+                .copied()
+                .filter(|&id| catalog.get(id).is_none())
+                .collect();
+            missing_spec.sort_unstable();
+            println!("CLASSBOOK_MISSING_SPEC\t{spec}\t{missing_spec:?}");
             let spec_count = info
                 .spells
                 .iter()

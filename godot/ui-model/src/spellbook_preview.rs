@@ -77,7 +77,7 @@ pub fn load_class_preview_state(
             "Preview spec {spec} is not a playable specialization of class {class}"
         ));
     }
-    let known = catalog_preview_spells(&catalog, class, spec)?;
+    let known = catalog_preview_spells(&catalog, class, spec);
     let tabs = build_spellbook_tabs(&known, Some(spec), Some(&catalog), None);
     if tabs.is_empty() {
         return Err(format!(
@@ -106,24 +106,18 @@ fn catalog_preview_spells(
     catalog: &game_engine_core::spell_catalog::SpellCatalogData,
     class: u32,
     spec: u32,
-) -> Result<Vec<u32>, String> {
+) -> Vec<u32> {
     let mut known: Vec<_> = catalog
         .tabs
         .class_spells
         .iter()
         .filter_map(|(&id, &owner)| (owner == class).then_some(id))
         .chain(catalog.tabs.specs[&spec].spells.iter().copied())
+        .filter(|&id| catalog.get(id).is_some())
         .collect();
     known.sort_unstable();
     known.dedup();
-    for &id in &known {
-        if catalog.get(id).is_none() {
-            return Err(format!(
-                "Preview class {class} spec {spec} requires local spell {id}"
-            ));
-        }
-    }
-    Ok(known)
+    known
 }
 
 fn load_preview_talents(
