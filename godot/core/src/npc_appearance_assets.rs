@@ -55,14 +55,14 @@ impl NpcAppearanceCatalogs {
             data_root: data_root.to_owned(),
             retail_displays,
             forever_displays,
-            retail_customization: load_customization_db(data_root)?,
-            retail_compositor: load_compositor(data_root)?,
+            retail_customization: read_customization_db(data_root, false)?,
+            retail_compositor: read_compositor(data_root)?,
             forever_customization: HashMap::new(),
             forever_compositor: None,
         })
     }
 
-    pub fn for_display(
+    pub fn load_for_display(
         &mut self,
         display_id: u32,
         race: u8,

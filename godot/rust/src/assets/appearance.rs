@@ -111,7 +111,7 @@ impl NpcAppearances {
             .catalogs
             .as_mut()
             .expect("loaded NPC catalogs")
-            .for_display(display_id, appearance.race, appearance.sex)?;
+            .load_for_display(display_id, appearance.race, appearance.sex)?;
         let mut selected = select_npc_choices(&appearance, db)?;
         let layout_id = db
             .layout_id(appearance.race, appearance.sex)

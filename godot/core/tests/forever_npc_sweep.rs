@@ -119,7 +119,7 @@ impl Sweep {
         };
         let (customization, compositor) =
             self.catalogs
-                .for_display(id, appearance.race, appearance.sex)?;
+                .load_for_display(id, appearance.race, appearance.sex)?;
         let mut selected = select_npc_choices(&appearance, customization)?;
         for &group in &armor.hidden_character_geoset_groups {
             selected.geosets.retain(|(active, _)| *active != group);
@@ -352,7 +352,7 @@ fn forever_display137165_resolves_authored_handlebars_without_changing_retail() 
     assert!(appearance.choice_ids.contains(&78872));
     let mut catalogs = NpcAppearanceCatalogs::load(&data).unwrap();
     let (customization, _) = catalogs
-        .for_display(137165, appearance.race, appearance.sex)
+        .load_for_display(137165, appearance.race, appearance.sex)
         .unwrap();
     let selected = select_npc_choices(&appearance, customization).unwrap();
     assert!(
@@ -363,7 +363,9 @@ fn forever_display137165_resolves_authored_handlebars_without_changing_retail() 
     let retail = query_authored_npc_appearance(&profiles, 825)
         .unwrap()
         .unwrap();
-    let (retail_db, _) = catalogs.for_display(825, retail.race, retail.sex).unwrap();
+    let (retail_db, _) = catalogs
+        .load_for_display(825, retail.race, retail.sex)
+        .unwrap();
     assert!(select_npc_choices(&retail, retail_db).is_ok());
 }
 
@@ -371,7 +373,7 @@ fn forever_display137165_resolves_authored_handlebars_without_changing_retail() 
 fn retail_display825_rejects_forever_only_choices_even_for_skyborne_race() {
     let data = data_root();
     let mut catalogs = NpcAppearanceCatalogs::load(&data).unwrap();
-    let (retail, _) = catalogs.for_display(825, 95, 1).unwrap();
+    let (retail, _) = catalogs.load_for_display(825, 95, 1).unwrap();
     let invalid = game_engine_core::npc_appearance_data::AuthoredNpcAppearance {
         race: 95,
         sex: 1,
