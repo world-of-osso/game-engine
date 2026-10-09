@@ -20,6 +20,9 @@ var rest: Quaternion
 var failed := false
 
 func _initialize() -> void:
+	# Otherwise Godot redistributes process time around physics ticks even with
+	# --fixed-fps, changing the velocity/stop sampling interval.
+	Engine.physics_jitter_fix = 0.0
 	call_deferred("run_capture")
 
 func run_capture() -> void:
