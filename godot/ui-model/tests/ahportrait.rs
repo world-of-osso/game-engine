@@ -79,11 +79,12 @@ fn ahportrait_shared_ring_art_and_rect_in_both_skins() {
         ] {
             let ring = frame(&registry, &format!("{prefix}PortraitRing"));
             assert_atlas(ring, "UI-Frame-PortraitMetal-CornerTopLeft", skin);
-            assert_rect(ring, (-13.0, -16.0, 75.0, 75.0));
-            assert_eq!(
-                ring.frame_level, 399,
-                "ring above backgrounds, below masked portrait"
+            let region = resolve_region("UI-Frame-PortraitMetal-CornerTopLeft", skin).unwrap();
+            assert_rect(
+                ring,
+                (-13.0, -16.0, region.width / 2.0, region.height / 2.0),
             );
+            assert_eq!(ring.frame_level, 401, "ring above masked portrait");
         }
     }
 }
