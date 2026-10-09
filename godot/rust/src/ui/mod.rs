@@ -4,10 +4,10 @@ mod auction_icon_preview;
 mod audit_probe;
 mod aura_preview;
 mod bank_preview;
-#[cfg(debug_assertions)]
-mod buttonfit_preview;
 #[cfg(test)]
 mod buffcancel_tests;
+#[cfg(debug_assertions)]
+mod buttonfit_preview;
 // New preview APIs belong in their own *_preview.rs #[godot_api(secondary)] block, never here.
 mod auction_preview;
 pub(crate) mod castbar_fx;
