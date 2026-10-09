@@ -538,6 +538,23 @@ mod tests {
         assert_eq!(retail.model_fdid, 1011653);
         assert_eq!(retail.skin_fdids, [11, 0, 0, 0]);
         assert_eq!(retail.scale_milli, 1250);
+        for (id, expected_product) in [
+            (10, "wow"),
+            (136968, "wow_classic_beta"),
+            (139694, "wow_classic_beta"),
+        ] {
+            let product: String = conn
+                .query_row(
+                    "SELECT source_product FROM creature_displays WHERE display_id = ?1",
+                    [id],
+                    |row| row.get(0),
+                )
+                .unwrap();
+            assert_eq!(
+                product, expected_product,
+                "display {id} lost its authored metadata owner"
+            );
+        }
         for id in [136968, 139694] {
             assert_eq!(
                 crate::creature_display_data::query_display(&conn, id)
