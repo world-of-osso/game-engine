@@ -301,7 +301,9 @@ fn raidoverlap_two_member_raid_clears_player_in_both_presets_and_viewports() {
                 model(groups, group_frames_screen),
             ];
             for frame in &mut frames {
-                frame.registry = UiParent::for_viewport(viewport.0, viewport.1).registry();
+                // Options' explicit uiScale 1 uses viewport-sized logical bounds,
+                // unlike the implicit Retail 768-unit canvas used by model().
+                frame.registry = ui_toolkit::registry::FrameRegistry::new(viewport.0, viewport.1);
             }
             sync(&mut frames, skin);
             let player = rect(&frames, "PlayerFrame");
