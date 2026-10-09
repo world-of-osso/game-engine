@@ -1,3 +1,7 @@
+## 2026-10-08 — Skyborn NPC offline diagnosis
+
+[Forever data](systems/forever-data.md#npc-source-selection-and-offline-sweep-2026-10-08) records CDI-membership customization/compositor isolation, authored cape type2 binding and the ignored production-policy sweep. [NPC contract](../specs/npc-appearance.md#skyborn-offline-sweep-2026-10-08) owns error classification, FDID requests and exact RED/GREEN boundaries. Authentic native Batch52/original eleven errors remain blocked by local files; no fallback, push, merge, live service or independent-agent proof.
+
 ## 2026-10-08 — Replicated remote player life state
 
 [Death flow](systems/death-flow.md#remote-player-life-state) records explicit shared DeathState decoding, remote held corpse animation, shared per-mesh ghost transparency and Retail Dead labels in both skins. Owner-only grading/dialogs remain. Targeted RED reproduced missing codec/numeric death text (0/3) and the hidden-player plate gate; native GREEN 5/5 at b949fd699 plus retained UDP decoder 1/1. Proof paths and corrected fixture assumptions are recorded in the system page. No live run, push or merge.
