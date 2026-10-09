@@ -1738,6 +1738,21 @@ impl Account {
             .ok_or_else(|| "No active account connection".into())
     }
 
+    /// Leave the character's transport, then request a fresh roster with the same account token.
+    pub fn logout_to_character_select(&mut self) -> Result<(), SessionError> {
+        if self.session.token.is_none() {
+            return Err(SessionError(
+                "Logout requires an authenticated session".into(),
+            ));
+        }
+        self.stop_bridge().map_err(SessionError)?;
+        self.startup_options = StartupLoginOptions::default();
+        self.session.selected_character_id = None;
+        self.session.selected_character_name = None;
+        self.session.screen = SessionScreen::Loading;
+        self.start_transport("", "", false).map_err(SessionError)
+    }
+
     pub fn stop(&mut self) -> Result<(), SessionError> {
         self.stop_bridge().map_err(SessionError)
     }
