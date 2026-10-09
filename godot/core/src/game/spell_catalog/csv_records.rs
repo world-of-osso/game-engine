@@ -38,6 +38,10 @@ impl CsvTable {
         crate::csv_util::header_index(&self.headers, name, &self.path)
     }
 
+    pub(crate) fn headers(&self) -> &[String] {
+        &self.headers
+    }
+
     pub(crate) fn records(&self) -> Records<'_> {
         Records { rest: &self.body }
     }
