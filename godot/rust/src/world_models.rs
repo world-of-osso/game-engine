@@ -504,7 +504,7 @@ impl WorldModels {
             VisualParts::Creature { model, .. } => model.textures,
             VisualParts::Player(parts) => parts.into_textures(),
         };
-        if let Err(error) = insert_decoded_textures(&self.catalogs.data_root, textures) {
+        if let Err(error) = insert_decoded_textures(textures) {
             godot_error!("{error}");
         }
     }
@@ -536,7 +536,7 @@ impl WorldModels {
         parts: CreatureModelParts,
     ) -> Result<Gd<Node3D>, String> {
         let catalogs = &self.catalogs;
-        insert_decoded_textures(&catalogs.data_root, parts.textures)?;
+        insert_decoded_textures(parts.textures)?;
         let appearance = npc.map(|npc| npc.appearance.into_prepared()).transpose()?;
         let (mut model, missing) = build_creature_model(
             &catalogs.data_root,

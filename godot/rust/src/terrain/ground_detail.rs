@@ -31,7 +31,7 @@ use osso_asset_resolver::CascListfileResolver;
 use crate::{
     assets::{
         creature::{decode_new_textures, load_model_files, local_resolver},
-        material::{insert_shared_texture, shared_texture},
+        material::shared_texture,
     },
     frame_error,
     lighting::TerrainLight,
@@ -54,7 +54,10 @@ type Tile = (u32, u32);
 type ChunkKey = (Tile, usize);
 
 /// A worker's detail model and its decoded first texture, when not decoded before.
-type LoadedModel = (Arc<DetailModel>, Option<(u32, blp::GpuImage)>);
+type LoadedModel = (
+    Arc<DetailModel>,
+    Option<(crate::assets::creature::TextureAddress, blp::GpuImage)>,
+);
 
 enum ChunkDetail {
     /// Scattered; waiting for the placements' models (these FDIDs).
@@ -199,10 +202,9 @@ impl GroundDetail {
 
     fn receive_models(&mut self) {
         for (fdid, loaded) in self.loader.poll() {
-            let dir = self.data_root.join("textures");
             let model = loaded.and_then(|(model, texture)| {
                 if let Some((texture, image)) = texture {
-                    insert_shared_texture(texture, &dir, image)?;
+                    crate::assets::creature::publish_decoded_texture(texture, image)?;
                 }
                 Ok(model)
             });

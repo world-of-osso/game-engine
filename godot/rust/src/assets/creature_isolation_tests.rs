@@ -157,6 +157,11 @@ fn decoding_same_texture_fdid_preserves_both_products_pixels() {
             identity.product()
         );
         assert_eq!(decoded[0].1.data, [red, green, 0, 255]);
+        assert_eq!(
+            decoded[0].0.dir,
+            identity.asset_root(&fixture.0).join("textures")
+        );
+        assert_eq!(decoded[0].0.fdid, fdid);
     }
 }
 

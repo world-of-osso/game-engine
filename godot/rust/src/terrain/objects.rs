@@ -12,7 +12,6 @@ use game_engine_core::{
     adt::{DoodadPlacement, WmoPlacement},
     asset::wmo_format::fog::{WmoFogBlend, WmoFogVolume},
     asset_loader::{AssetLoader, Priority},
-    blp,
     campsite_object_data::{
         campsite_doodad_placement, doodad_position, placement_position, wmo_bounds,
     },
@@ -32,10 +31,9 @@ use crate::{
     assets::{
         build_model,
         creature::{
-            CachedModel, cache_model_textures, decode_new_textures, load_model_files,
-            local_resolver,
+            CachedModel, DecodedTextures, cache_model_textures, decode_new_textures,
+            load_model_files, local_resolver, publish_decoded_texture,
         },
-        material::insert_shared_texture,
         uv_animation::WowMaterialAnimation,
     },
     lighting::TerrainLight,
@@ -105,8 +103,8 @@ enum ObjectAsset {
 
 /// A worker's result: parsed files and the textures it decoded.
 enum LoadedAsset {
-    Model(Arc<CachedModel>, Vec<(u32, blp::GpuImage)>),
-    Wmo(Arc<NativeWmoAsset>, Vec<(u32, blp::GpuImage)>),
+    Model(Arc<CachedModel>, DecodedTextures),
+    Wmo(Arc<NativeWmoAsset>, DecodedTextures),
 }
 
 /// Two workers: one cold extraction does not hold up the next model.
@@ -686,8 +684,7 @@ impl TerrainObjects {
         if let Ok(LoadedAsset::Model(_, textures) | LoadedAsset::Wmo(_, textures)) = &mut loaded
             && let Some((fdid, image)) = textures.pop()
         {
-            let dir = self.data_root.join("textures");
-            let uploaded = insert_shared_texture(fdid, &dir, image);
+            let uploaded = publish_decoded_texture(fdid, image);
             self.arrived.push_front((asset, uploaded.and(loaded)));
             return;
         }

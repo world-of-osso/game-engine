@@ -28,8 +28,8 @@ use super::{
     appearance::{AppearanceParts, PreparedAppearance, load_appearance_texture},
     build_model,
     creature::{
-        CachedModel, cache_model_textures, decode_new_textures, insert_decoded_textures,
-        load_model_files, local_resolver,
+        CachedModel, DecodedTextures, cache_model_textures, decode_new_textures,
+        insert_decoded_textures, load_model_files, local_resolver, model_asset_root,
     },
     equipment::{attach_equipment, attach_skinned_models},
 };
@@ -200,11 +200,11 @@ pub(crate) struct PlayerParts {
     model: Arc<CachedModel>,
     appearance: PlayerAppearanceParts,
     equipment: ResolvedEquipmentAppearance,
-    textures: Vec<(u32, blp::GpuImage)>,
+    textures: DecodedTextures,
 }
 
 impl PlayerParts {
-    pub(crate) fn into_textures(self) -> Vec<(u32, blp::GpuImage)> {
+    pub(crate) fn into_textures(self) -> DecodedTextures {
         self.textures
     }
 
@@ -229,7 +229,8 @@ pub(crate) fn prepare_player_parts(
         player.appearance.sex,
     )?;
     let appearance = prepare_player_appearance(&resolver, data_root, player, &equipment)?;
-    let mut fdids = cache_model_textures(&resolver, data_root, &[0; 3], &model.model)?;
+    let fdids = cache_model_textures(&resolver, data_root, &[0; 3], &model.model)?;
+    let mut textures = decode_new_textures(model_asset_root(&model)?, &fdids)?;
     let items = equipment
         .runtime_models
         .iter()
@@ -243,10 +244,11 @@ pub(crate) fn prepare_player_parts(
     for (fdid, skin_fdids) in items {
         // A model that cannot load is reported when it is attached.
         if let Ok(parts) = load_model_files(&resolver, data_root, fdid)
-            && let Ok(textures) =
+            && let Ok(item_fdids) =
                 cache_model_textures(&resolver, data_root, &skin_fdids, &parts.model)
         {
-            fdids.extend(textures);
+            let decoded = decode_new_textures(model_asset_root(&parts)?, &item_fdids)?;
+            textures.extend(decoded);
         }
     }
     Ok(PlayerParts {
@@ -254,7 +256,7 @@ pub(crate) fn prepare_player_parts(
         model,
         appearance,
         equipment,
-        textures: decode_new_textures(data_root, &fdids)?,
+        textures,
     })
 }
 
@@ -265,7 +267,7 @@ pub(crate) fn build_player_model(
 ) -> Result<Gd<Node3D>, String> {
     let resolver = local_resolver(data_root);
     let span = crate::profile::span(|| "player.insert_textures".to_owned());
-    insert_decoded_textures(data_root, parts.textures)?;
+    insert_decoded_textures(parts.textures)?;
     drop(span);
     let span = crate::profile::span(|| "player.appearance_textures".to_owned());
     let prepared = parts.appearance.into_prepared()?;

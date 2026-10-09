@@ -32,8 +32,17 @@ pub(crate) struct CreatureGear {
 /// A creature display's model parsed and its textures decoded, off the main thread.
 pub(crate) struct CreatureModelParts {
     pub(crate) model: Arc<CachedModel>,
-    pub(crate) textures: Vec<(u32, blp::GpuImage)>,
+    pub(crate) textures: DecodedTextures,
 }
+
+/// A file's complete namespace survives worker decode and GPU publication.
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub(crate) struct TextureAddress {
+    pub(crate) dir: PathBuf,
+    pub(crate) fdid: u32,
+}
+
+pub(crate) type DecodedTextures = Vec<(TextureAddress, blp::GpuImage)>;
 
 /// Worker: extract and parse the display's model and its armor and item models, and
 /// decode their textures, so `build_creature_model` does no file work.
@@ -44,7 +53,8 @@ pub(crate) fn prepare_creature_model(
     gear: &CreatureGear,
 ) -> Result<CreatureModelParts, String> {
     let model = load_model_files(resolver, data_root, display.model_fdid)?;
-    let mut fdids = cache_model_textures(resolver, data_root, &display.skin_fdids, &model.model)?;
+    let fdids = cache_model_textures(resolver, data_root, &display.skin_fdids, &model.model)?;
+    let mut textures = decode_new_textures(model_asset_root(&model)?, &fdids)?;
     let items = gear
         .armor_models
         .iter()
@@ -52,16 +62,14 @@ pub(crate) fn prepare_creature_model(
     for item in items {
         // An item that cannot load is reported when it is attached.
         if let Ok(parts) = load_model_files(resolver, data_root, item.fdid)
-            && let Ok(textures) =
+            && let Ok(item_fdids) =
                 cache_model_textures(resolver, data_root, &item.skin_fdids, &parts.model)
         {
-            fdids.extend(textures);
+            let decoded = decode_new_textures(model_asset_root(&parts)?, &item_fdids)?;
+            textures.extend(decoded);
         }
     }
-    Ok(CreatureModelParts {
-        model,
-        textures: decode_new_textures(data_root, &fdids)?,
-    })
+    Ok(CreatureModelParts { model, textures })
 }
 
 /// Main thread: the nodes of the display's `model` with its armor and held items; their
@@ -142,6 +150,14 @@ pub(crate) struct CachedModel {
     pub(crate) model: m2::Model,
 }
 
+pub(crate) fn model_asset_root(model: &CachedModel) -> Result<&Path, String> {
+    model
+        .path
+        .parent()
+        .and_then(Path::parent)
+        .ok_or_else(|| format!("Model {} has no asset root", model.path.display()))
+}
+
 /// Parsed models by `.m2` path: every unit, item and doodad of a model shares one parse.
 static MODELS: LazyLock<Mutex<HashMap<PathBuf, Arc<CachedModel>>>> =
     LazyLock::new(|| Mutex::new(HashMap::new()));
@@ -158,7 +174,8 @@ pub(crate) fn load_model_files(
     data_root: &Path,
     fdid: u32,
 ) -> Result<Arc<CachedModel>, String> {
-    let key = data_root.join("models").join(format!("{fdid}.m2"));
+    let destination = data_root.join("models").join(format!("{fdid}.m2"));
+    let key = resolver.cache_path(&destination)?;
     if let Some(cached) = MODELS.lock().expect("model cache").get(&key) {
         return Ok(Arc::clone(cached));
     }
@@ -180,48 +197,57 @@ pub(crate) fn cached_model(data_root: &Path, fdid: u32) -> Option<Arc<CachedMode
     MODELS.lock().expect("model cache").get(&key).cloned()
 }
 
-/// Texture FDIDs some worker already decoded for the main thread's shared textures.
-static DECODED: LazyLock<Mutex<HashSet<u32>>> = LazyLock::new(|| Mutex::new(HashSet::new()));
+/// Only successfully published images suppress a later worker decode. A failed
+/// prepare or decode cannot mark an image whose pixels never reached the GPU.
+static PUBLISHED_TEXTURES: LazyLock<Mutex<HashSet<TextureAddress>>> =
+    LazyLock::new(|| Mutex::new(HashSet::new()));
 
-/// Worker: decode each of `fdids` under `data/textures` that no worker decoded before.
-/// A file absent there stays the material loader's reported missing FDID.
 pub(crate) fn decode_new_textures(
     data_root: &Path,
     fdids: &BTreeSet<u32>,
-) -> Result<Vec<(u32, blp::GpuImage)>, String> {
-    let fresh: Vec<u32> = {
-        let mut decoded = DECODED.lock().expect("decoded textures");
+) -> Result<DecodedTextures, String> {
+    let fresh: Vec<TextureAddress> = {
+        let published = PUBLISHED_TEXTURES.lock().expect("published textures");
         fdids
             .iter()
-            .copied()
-            .filter(|&fdid| decoded.insert(fdid))
+            .map(|&fdid| TextureAddress {
+                dir: data_root.join("textures"),
+                fdid,
+            })
+            .filter(|address| !published.contains(address))
             .collect()
     };
-    fresh
-        .into_iter()
-        .filter_map(|fdid| {
-            let file = data_root.join("textures").join(format!("{fdid}.blp"));
-            let io = crate::profile::span(|| "phase.asset_io.blp".to_owned());
-            let bytes = fs::read(&file).ok()?;
-            drop(io);
-            let _decode = crate::profile::span(|| "phase.blp_decode.worker".to_owned());
-            Some(
-                blp::decode_gpu(&bytes)
-                    .map(|image| (fdid, image))
-                    .map_err(|error| format!("Texture {fdid}: {error}")),
-            )
-        })
-        .collect()
+    fresh.into_iter().map(decode_texture_file).collect()
 }
 
-/// Main thread: make worker-decoded `textures` the shared textures of their files.
-pub(crate) fn insert_decoded_textures(
-    data_root: &Path,
-    textures: Vec<(u32, blp::GpuImage)>,
+fn decode_texture_file(address: TextureAddress) -> Result<(TextureAddress, blp::GpuImage), String> {
+    let file = address.dir.join(format!("{}.blp", address.fdid));
+    let io = crate::profile::span(|| "phase.asset_io.blp".to_owned());
+    let bytes = fs::read(&file)
+        .map_err(|error| format!("Texture {} at {}: {error}", address.fdid, file.display()))?;
+    drop(io);
+    let _decode = crate::profile::span(|| "phase.blp_decode.worker".to_owned());
+    let image = blp::decode_gpu(&bytes)
+        .map_err(|error| format!("Texture {} at {}: {error}", address.fdid, file.display()))?;
+    Ok((address, image))
+}
+
+/// Main thread: retain the worker's namespace, never replace it with a caller's root.
+pub(crate) fn publish_decoded_texture(
+    address: TextureAddress,
+    image: blp::GpuImage,
 ) -> Result<(), String> {
-    let dir = data_root.join("textures");
-    for (fdid, image) in textures {
-        insert_shared_texture(fdid, &dir, image)?;
+    insert_shared_texture(address.fdid, &address.dir, image)?;
+    PUBLISHED_TEXTURES
+        .lock()
+        .expect("published textures")
+        .insert(address);
+    Ok(())
+}
+
+pub(crate) fn insert_decoded_textures(textures: DecodedTextures) -> Result<(), String> {
+    for (address, image) in textures {
+        publish_decoded_texture(address, image)?;
     }
     Ok(())
 }
