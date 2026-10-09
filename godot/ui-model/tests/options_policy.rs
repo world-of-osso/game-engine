@@ -331,3 +331,32 @@ fn nameplate_health_value_toggle_defaults_off_and_persists() {
     assert!(apply_toggle("nameplate_show_health_value", &mut reloaded));
     assert!(!reloaded.draft_hud.nameplate_style.show_health_value);
 }
+
+#[test]
+fn options_extra_action_bars_accept_retail_visibility_toggles() {
+    let mut m = model();
+    assert!(!m.draft_hud.extra_action_bars.action_bar_4);
+    assert!(!m.draft_hud.extra_action_bars.action_bar_5);
+    for key in [
+        "action_bar_2",
+        "action_bar_3",
+        "action_bar_4",
+        "action_bar_5",
+    ] {
+        assert!(
+            apply_toggle(key, &mut m),
+            "missing extra action bar setting: {key}"
+        );
+    }
+    let snapshot = apply_snapshot(&mut m);
+    let mut file = HudOptionsFile::default();
+    apply_hud_file_snapshot(&mut file, &snapshot.hud);
+    assert_eq!(file.extra_action_bars.action_bar_2, Some(true));
+    assert_eq!(file.extra_action_bars.action_bar_3, Some(true));
+    assert!(file.extra_action_bars.action_bar_4);
+    assert!(file.extra_action_bars.action_bar_5);
+    m.category = parse_category_action("options_category:actionbars").unwrap();
+    assert_eq!(m.category.title(), "Action Bars");
+    reset_category_defaults(&mut m);
+    assert_eq!(m.draft_hud.extra_action_bars, Default::default());
+}

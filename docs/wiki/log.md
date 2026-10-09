@@ -1,3 +1,7 @@
+## 2026-10-08 — Extra Action Bars visibility
+
+[Options contract](../specs/extra-action-bars.md) records the user decision: side bars disabled by default, no disabled edit movers, unchanged tracker placement. Production bar visibility replaces editor-only side placeholders; bottom-bar skin defaults remain. Implementation `67c50ec42`: targeted GREEN 99 passed/zero failed (one ignored capture helper), extension build exit 0. Both cage captures inspected: ordered Action Bars 2–5 checkboxes, default Forever editor without 4/5 movers and unchanged tracker. [Options contract](../specs/extra-action-bars.md#known-gaps-current-cycle) records evidence and live-server exclusions.
+
 ## 2026-10-07 — Offline character garment matrix, 78-cell bounded PASS
 
 [Character rendering](systems/character-rendering.md#current-acceptance-78-pass-zero-fail) records final fixture `3b1490ba7`: all78 isolated cells pass actual Vulkan geoset/material/attachment/close-up checks and150 independently gated garment rectangles; all six contact sheets and cape back views inspected. `c60ba62c0` supplies the independent HelmetGeosetData CSV oracle and corrects DXT-buffer and full-thumbnail fixture defects; `41449a140` types its behavioral test. Exporter RED→GREEN1/1 and helmet/DXT tests pass; final core781/Godot658/UI-model744 pass, zero failures. The previous renderer block misread owned-process scope. No production client mismatch/fix, server/network, merge/push or full Retail pixel/animated-clipping claim. [Parity rows](../specs/godot-parity-matrix.md) retain the broader named gaps.
