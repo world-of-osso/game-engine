@@ -26,7 +26,7 @@ pub const ACTION_EDIT_MODE_CONFIRM_DELETE: &str = "edit_mode_confirm_delete";
 pub const ACTION_EDIT_MODE_CANCEL_DELETE: &str = "edit_mode_cancel_delete";
 
 /// Retail EditModeSystemSelectionLayout uses 16-unit atlas pieces offset by 8.
-/// Keep their inner halves inside the existing mover bounds, in logical UI units.
+/// Map the authored pieces to 8-unit inset corners, preserving mover bounds.
 const SELECTION_CORNER: f32 = 8.0;
 /// `Interface/DialogFrame/UIFrameDialogBoxBackgroundDark`, as the static popups.
 const PANEL_BACKGROUND_FDID: u32 = 6_839_810;
@@ -169,18 +169,18 @@ fn selection_background(name: &str, size: [f32; 2], selected: bool, level: f32) 
     let [w, h] = size;
     let c = SELECTION_CORNER;
     let kit = if selected { "selected" } else { "highlight" };
-    // Clip Retail's outward 8-unit padding, rather than enlarging mover hitboxes.
+    // Fit Retail's full atlas pieces into 8 UI units, not its outward padding.
     // Corner texcoords mirror the same authored top-left member as NineSlice.lua.
     let pieces: Element = [
-        ([0.0, 0.0, c, c], "", "corner", "0.5,1,0.5,1"),
-        ([c, 0.0, w - 2.0 * c, c], "_", "edgetop", "0,1,0.5,1"),
-        ([w - c, 0.0, c, c], "", "corner", "1,0.5,0.5,1"),
-        ([0.0, c, c, h - 2.0 * c], "!", "edgeleft", "0.5,1,0,1"),
+        ([0.0, 0.0, c, c], "", "corner", "0,1,0,1"),
+        ([c, 0.0, w - 2.0 * c, c], "_", "edgetop", "0,1,0,1"),
+        ([w - c, 0.0, c, c], "", "corner", "1,0,0,1"),
+        ([0.0, c, c, h - 2.0 * c], "!", "edgeleft", "0,1,0,1"),
         ([c, c, w - 2.0 * c, h - 2.0 * c], "", "center", "0,1,0,1"),
-        ([w - c, c, c, h - 2.0 * c], "!", "edgeright", "0,0.5,0,1"),
-        ([0.0, h - c, c, c], "", "corner", "0.5,1,1,0.5"),
-        ([c, h - c, w - 2.0 * c, c], "_", "edgebottom", "0,1,0,0.5"),
-        ([w - c, h - c, c, c], "", "corner", "1,0.5,1,0.5"),
+        ([w - c, c, c, h - 2.0 * c], "!", "edgeright", "0,1,0,1"),
+        ([0.0, h - c, c, c], "", "corner", "0,1,1,0"),
+        ([c, h - c, w - 2.0 * c, c], "_", "edgebottom", "0,1,0,1"),
+        ([w - c, h - c, c, c], "", "corner", "1,0,1,0"),
     ]
     .into_iter()
     .enumerate()
