@@ -818,9 +818,12 @@ func capture_spellbook_both(directory: String) -> bool:
 
 # Both skins, production auction projection, no GameClient or networking.
 func capture_auction_both(directory: String) -> bool:
+	var portrait_proof := OS.get_environment("GODOT_AH_PORTRAIT_CAPTURE") == "1"
 	var views = ["browse", "item", "inventory", "sell", "duration", "owned", "bids", "dialog", "bid-popup", "buyout-popup"]
 	if OS.get_environment("GODOT_AUCTION_DIALOGS_ONLY") == "1":
 		views = ["dialog", "bid-popup", "buyout-popup"]
+	if portrait_proof:
+		views = ["browse"]
 	var sorted_proof := OS.get_environment("GODOT_AH_SORT_CAPTURE") == "1"
 	if sorted_proof:
 		views = ["subcategory_sorted"]
@@ -835,6 +838,11 @@ func capture_auction_both(directory: String) -> bool:
 				push_error(error)
 				ui.queue_free()
 				return false
+			var portrait_host: Node = null
+			if portrait_proof:
+				portrait_host = ClassDB.instantiate("NpcPortraitPreview")
+				ui.add_child(portrait_host)
+				portrait_host.call("bind_auction_preview", ui)
 			var popup_host: Node = null
 			if view in ["bid-popup", "buyout-popup"]:
 				popup_host = ClassDB.instantiate("RegistryUi")
@@ -844,6 +852,9 @@ func capture_auction_both(directory: String) -> bool:
 					push_error(popup_error)
 					ui.queue_free()
 					return false
+			if portrait_host != null and not await load_auction_portrait(portrait_host):
+				ui.queue_free()
+				return false
 			for frame in range(120):
 				await process_frame
 				await RenderingServer.frame_post_draw
@@ -860,7 +871,7 @@ func capture_auction_both(directory: String) -> bool:
 				ui.queue_free()
 				return false
 			var geometry: Dictionary = {"window": [window_size.x, window_size.y]}
-			for name in ["AuctionHouseFrame", "AuctionHouseFrameSearchBox", "AuctionHouseFrameItemBuyFrameRow1TimeLeft", "AuctionHouseFrameAuctionsFrameBidsListRow1TimeLeft", "AuctionHouseFrameItemSellFrameDurationDropdown", "AuctionHouseFrameBuyDialog", "AuctionHouseFrameBuyDialogBg", "StaticPopup1", "StaticPopup1Text", "StaticPopup1AlertIcon", "StaticPopup1Button1", "StaticPopup1Button2"]:
+			for name in ["AuctionHouseFrame", "AuctionHouseFramePortrait", "AuctionHouseFramePortraitRing", "AuctionHouseFrameBgTop", "AuctionHouseFrameFavoritesSearchButton", "AuctionHouseFrameFilterButton", "AuctionHouseFrameCloseButton", "AuctionHouseFrameSearchBox", "AuctionHouseFrameItemBuyFrameRow1TimeLeft", "AuctionHouseFrameAuctionsFrameBidsListRow1TimeLeft", "AuctionHouseFrameItemSellFrameDurationDropdown", "AuctionHouseFrameBuyDialog", "AuctionHouseFrameBuyDialogBg", "StaticPopup1", "StaticPopup1Text", "StaticPopup1AlertIcon", "StaticPopup1Button1", "StaticPopup1Button2"]:
 				var control := ui.find_child(name, true, false) as Control
 				if control != null and control.is_visible_in_tree():
 					var rect = control.get_global_rect()
@@ -880,6 +891,21 @@ func capture_auction_both(directory: String) -> bool:
 			ui.queue_free()
 			await process_frame
 	return true
+
+func load_auction_portrait(host: Node) -> bool:
+	for frame in range(1200):
+		await process_frame
+		var error: String = host.call("tick")
+		if not error.is_empty():
+			push_error(error)
+			return false
+		await RenderingServer.frame_post_draw
+		var state: Dictionary = host.call("portrait_state")
+		if not state.get("pending", true) and str(state.get("appearance", "")).contains("7992"):
+			print("AUCTION_PORTRAIT: ", state)
+			return true
+	push_error("Auctioneer Fitch portrait not loaded within 1200 frames")
+	return false
 
 func save_root_png(path: String) -> bool:
 	var image = root.get_texture().get_image()
