@@ -31,6 +31,14 @@ Character-bank left clicks and drag releases use the shared cursor's SwapItem/Sp
 
 Sources: Retail `Blizzard_UIPanels_Game/Mainline/BankFrame.lua` HandleItemPickup/OnDragStart/OnReceiveDrag (416-448), OnModifiedClick (433-444), SplitStack (590-592); [character-bank contract and targeted tests](../../specs/bank-frame.md). Server move semantics follow TrinityCore a352b1fa CMSG_SWAP_ITEM/CMSG_SPLIT_ITEM, CanBankItem and StoreItem; server contract is `game-server/docs/specs/banks.md`. No live acceptance added on this host.
 
+## Native bank art (2026-10-08)
+
+`apply_bank_postsetup` applies texture tiling/ADD flags not exposed by RSX. The selected tab uses CheckButtonHilight; each ItemButton has a model-owned additive overlay whose visibility follows native hover through `registry.set_hidden`, including inherited alpha and closure. Bank buttons keep the original frame press callback for coordinates/drag and right/Shift dispatch, adding only hover callbacks; ordinary Button `pressed` callbacks would lose that boundary.
+
+Native `ImagePart.tiling` carries each authored axis to a cropped-member shader embedded in Rust. Repetition uses the member's pixel dimensions and clamps samples inside its UV rectangle, not the surrounding atlas. The build helper ships Rust/WGSL sources but excludes project `.gdshader`, so an `include_str!` of a project shader failed the first build. No alternate rendering path was retained.
+
+The [bankart source/proof table](../../specs/bank-frame.md#bounded-bankart-pass--2026-10-08) owns atlas names/rects, RED/GREEN counts, six native captures, and the unresolved bank-bag layout/state and local vertical-shadow asset gaps. Offline `bank_preview.rs` calls the production bank projection; `capture_ui_screen.gd` checks true1920×1080 and native hover/modified-click dispatch. No server/live movement proof is implied.
+
 ## Gotchas
 - The purchase tab is selectable as index `tabs.len()` while `next_tab_cost` is set. After a purchase the same index is the new tab, so the frame lands on it.
 - Guild bank logs are fetched per mode or tab. Every contents broadcast re-queries the shown log, because Retail refreshes on `GUILDBANKLOG_UPDATE`.
