@@ -21,6 +21,12 @@ func run_test() -> void:
 		fail("Native world and camera missing")
 		return
 
+	print("FIXTURE LOGOUT_DEATH_READY")
+	if not await death_escape_opens_menu(client):
+		return
+	print("FIXTURE LOGOUT_DEATH_ESCAPE")
+	await wait_frames(30)
+
 	print("FIXTURE LOGOUT_COMBAT_TRUE")
 	await wait_frames(70)
 	if not await open_logout_menu(client):
@@ -113,6 +119,31 @@ func run_test() -> void:
 		return
 	print("FIXTURE LOGOUT_DONE")
 	quit(0)
+
+func death_escape_opens_menu(client: Node) -> bool:
+	var deadline := Time.get_ticks_msec() + MENU_WAIT_MS
+	while Time.get_ticks_msec() < deadline:
+		await process_frame
+		if death_popup_visible(client):
+			break
+	if not death_popup_visible(client):
+		fail("Authoritative Dead snapshot did not show DEATH")
+		return false
+	push_key(KEY_ESCAPE, true)
+	await process_frame
+	push_key(KEY_ESCAPE, false)
+	if not await wait_menu(client) or not menu_authored(client):
+		fail("DEATH Escape did not open authored Game Menu")
+		return false
+	if not death_popup_visible(client):
+		fail("DEATH Escape closed the death popup")
+		return false
+	await click_menu_action(client, "MenuBtnResume")
+	return await wait_menu_closed(client, null)
+
+func death_popup_visible(client: Node) -> bool:
+	var popup := client.find_child("StaticPopup1Button1", true, false) as Button
+	return popup != null and popup.is_visible_in_tree() and popup.text == "Release Spirit"
 
 func open_logout_menu(client: Node) -> bool:
 	push_key(KEY_ESCAPE, true)
