@@ -301,13 +301,16 @@ fn hudeditmode_action_bar_previews_follow_mode_not_saved_defaults() {
 }
 
 #[test]
-fn hudeditmode_side_bar_previews_are_registered_in_both_skins() {
-    use game_engine_ui_model::hud_edit_component::edit_mode_side_bar_previews;
+fn hudeditmode_side_bar_previews_are_disabled_by_default_in_both_skins() {
+    use game_engine_ui_model::main_action_bar_component::{
+        MainActionBarState, main_action_bar_screen,
+    };
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         let mut shared = SharedContext::new();
         shared.insert(skin);
         let mut registry = FrameRegistry::new(1366.0, 768.0);
-        Screen::new(edit_mode_side_bar_previews).sync(&shared, &mut registry);
+        shared.insert(MainActionBarState::default());
+        Screen::new(main_action_bar_screen).sync(&shared, &mut registry);
         let bounds =
             super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
         for (id, rect) in bounds {
@@ -315,14 +318,11 @@ fn hudeditmode_side_bar_previews_are_registered_in_both_skins() {
         }
         let boxes =
             super::hud_edit_layout::collect_selection_boxes(&registry, Some("action_bar_4"));
-        assert_eq!(boxes.len(), 2);
-        assert_eq!(boxes[0].key, "action_bar_4");
-        assert_eq!(boxes[1].key, "action_bar_5");
-        assert!(boxes[0].selected);
         assert!(
-            boxes
+            !boxes
                 .iter()
-                .all(|entry| entry.rect[2] > 40.0 && entry.rect[3] > 500.0)
+                .any(|entry| entry.key == "action_bar_4" || entry.key == "action_bar_5"),
+            "disabled side bars must not register movers"
         );
     }
 }
@@ -431,6 +431,148 @@ fn hudeditmodepolish_default_manager_does_not_cover_error_text() {
 
 fn rects_overlap(a: [f32; 4], b: [f32; 4]) -> bool {
     a[0] < b[0] + b[2] && b[0] < a[0] + a[2] && a[1] < b[1] + b[3] && b[1] < a[1] + a[3]
+}
+
+#[test]
+fn hudeditmode_extra_bar_options_toggle_gameplay_and_movers_without_moving_tracker() {
+    use game_engine_core::client_options_data::HudOptionsFile;
+    use game_engine_ui_model::game_menu_component::game_menu_screen;
+    use game_engine_ui_model::main_action_bar_component::{
+        MainActionBarState, main_action_bar_screen,
+    };
+    use game_engine_ui_model::options_menu_data as policy;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut options = super::hud_edit_preview::extra_bar_options_model(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(EditModeOverlayState::default());
+        let mut registry = FrameRegistry::new(1366.0, 768.0);
+        let mut screen = Screen::new(super::hud_edit_preview::preview_screen);
+        screen.sync(&shared, &mut registry);
+        publish_test_bounds(&mut registry);
+        let before = super::hud_edit_layout::collect_selection_boxes(&registry, None);
+        assert_eq!(before.len(), 19);
+        let tracker = before
+            .iter()
+            .find(|entry| entry.key == "objective_tracker")
+            .unwrap()
+            .rect;
+        let mut gameplay = FrameRegistry::new(1366.0, 768.0);
+        let mut game_shared = SharedContext::new();
+        game_shared.insert(skin);
+        game_shared.insert(MainActionBarState::default());
+        let mut game_screen = Screen::new(main_action_bar_screen);
+        game_screen.sync(&game_shared, &mut gameplay);
+        assert!(gameplay.get_by_name("MultiBarRight").is_none());
+        assert!(gameplay.get_by_name("MultiBarLeft").is_none());
+        let mut menu_shared = SharedContext::new();
+        let mut menu = FrameRegistry::new(1366.0, 768.0);
+        let mut menu_screen = Screen::new(game_menu_screen);
+        let mut last_y = f32::NEG_INFINITY;
+        menu_shared.insert(policy::build_view_model(&options));
+        menu_screen.sync(&menu_shared, &mut menu);
+        let menu_bounds =
+            super::layout::compute_layout_with_intrinsics(&menu, &HashMap::new()).unwrap();
+        for number in 2..=5 {
+            let name = format!("ExtraActionBaraction_bar_{number}");
+            let id = menu.get_by_name(&name).unwrap();
+            let label = menu.get_by_name(&format!("{name}Text")).unwrap();
+            assert!(
+                matches!(&menu.get(label).unwrap().widget_data, Some(ui_toolkit::frame::WidgetData::FontString(data)) if data.text == format!("Action Bar {number}"))
+            );
+            let y = menu_bounds[&id].y;
+            assert!(y > last_y, "Retail checkbox order");
+            last_y = y;
+        }
+        for number in [4, 5] {
+            let id = menu
+                .get_by_name(&format!("ExtraActionBaraction_bar_{number}"))
+                .unwrap();
+            let action = menu.click_frame(id).unwrap();
+            assert!(policy::apply_toggle(
+                policy::parse_toggle_action(&action).unwrap(),
+                &mut options
+            ));
+        }
+        let snapshot = policy::apply_snapshot(&mut options);
+        let mut file = HudOptionsFile::default();
+        policy::apply_hud_file_snapshot(&mut file, &snapshot.hud);
+        shared.insert(file.extra_action_bars);
+        screen.sync(&shared, &mut registry);
+        publish_test_bounds(&mut registry);
+        let enabled = super::hud_edit_layout::collect_selection_boxes(&registry, None);
+        assert_eq!(enabled.len(), before.len() + 2);
+        assert_eq!(
+            enabled
+                .iter()
+                .find(|entry| entry.key == "objective_tracker")
+                .unwrap()
+                .rect,
+            tracker
+        );
+        game_shared.insert(MainActionBarState {
+            extra_action_bars: file.extra_action_bars,
+            ..Default::default()
+        });
+        game_screen.sync(&game_shared, &mut gameplay);
+        publish_test_bounds(&mut gameplay);
+        let game_boxes = super::hud_edit_layout::collect_selection_boxes(&gameplay, None);
+        let expected = if skin == ActiveSkin::Modern {
+            [[1315.0, 103.0, 45.0, 562.0], [1268.0, 103.0, 45.0, 562.0]]
+        } else {
+            [[1312.0, 86.0, 48.0, 596.0], [1265.0, 86.0, 48.0, 596.0]]
+        };
+        for (key, rect) in ["action_bar_4", "action_bar_5"].into_iter().zip(expected) {
+            let editor_rect = enabled.iter().find(|entry| entry.key == key).unwrap().rect;
+            assert_eq!(editor_rect, rect, "existing {skin:?} {key} defaults");
+            assert_eq!(
+                game_boxes
+                    .iter()
+                    .find(|entry| entry.key == key)
+                    .unwrap()
+                    .rect,
+                rect
+            );
+            println!("{skin:?} {key} rect={rect:?} tracker={tracker:?}");
+        }
+        for key in ["action_bar_4", "action_bar_5"] {
+            assert!(policy::apply_toggle(key, &mut options));
+        }
+        let snapshot = policy::apply_snapshot(&mut options);
+        policy::apply_hud_file_snapshot(&mut file, &snapshot.hud);
+        shared.insert(file.extra_action_bars);
+        screen.sync(&shared, &mut registry);
+        publish_test_bounds(&mut registry);
+        let disabled = super::hud_edit_layout::collect_selection_boxes(&registry, None);
+        assert_eq!(disabled.len(), 19);
+        assert_eq!(
+            disabled
+                .iter()
+                .find(|entry| entry.key == "objective_tracker")
+                .unwrap()
+                .rect,
+            tracker
+        );
+        game_shared.insert(MainActionBarState {
+            extra_action_bars: file.extra_action_bars,
+            ..Default::default()
+        });
+        game_screen.sync(&game_shared, &mut gameplay);
+        assert!(gameplay.get_by_name("MultiBarRight").is_none());
+        assert!(gameplay.get_by_name("MultiBarLeft").is_none());
+    }
+}
+
+fn publish_test_bounds(registry: &mut FrameRegistry) {
+    let bounds = super::layout::compute_layout_with_intrinsics(registry, &HashMap::new()).unwrap();
+    for (id, rect) in bounds {
+        registry.set_computed_layout(id, rect).unwrap();
+    }
 }
 
 #[path = "hud_edit_polish_tests.rs"]
