@@ -2950,4 +2950,4 @@ Recorded local Arcane CSV witnesses, grant/spec conditions and Blizzard node geo
 
 ## 2026-10-09 — Zephras sky/minimap diagnosis
 
-[Investigation](investigations/zephras-sky-minimap.md): exact local assets retained; map2991 MAID minimap path and authored sky0x8012 crossfade identified. Real-tile CPU RED and actual-texture shader RED/GREEN recorded; rebuilt private after pending.
+[Investigation](investigations/zephras-sky-minimap.md): exact local assets retained; map2991 MAID minimap path and authored sky0x8012 crossfade identified. Real-tile CPU RED→GREEN1/1 and actual-texture shader RED→GREEN3 endpoints; native build/install0 and same-spawn private before/after personally inspected. Orange/black region removed, minimap terrain visible; authored beige sky band remains, whole-day parity unclaimed. Private processes/slice stopped;5000 untouched.

@@ -2,7 +2,7 @@
 
 Forever `1.60.1.70205` supplies Skyborne character data alongside Retail, not as a replacement. Verified evidence: 2026-10-04; native Skyborne preview acceptance remains in progress.
 
-[Map2991 sky/minimap root causes](../investigations/zephras-sky-minimap.md): listfile-only minimap resolution loses usable MAID FDIDs; sky7345733 uses a wrongly implemented dual-crossfade. Actual local assets match their content keys; rebuilt private after proof pending.
+[Map2991 sky/minimap root causes](../investigations/zephras-sky-minimap.md): listfile-only minimap resolution loses usable MAID FDIDs; sky7345733 uses a wrongly implemented dual-crossfade. Actual local assets match their content keys; scoped RED/GREEN and inspected rebuilt private before/after remove the orange/black region and show terrain minimap. Whole-day sky parity remains unclaimed.
 
 ## Import and consumers
 
