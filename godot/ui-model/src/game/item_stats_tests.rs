@@ -12,6 +12,24 @@ fn entry(item_id: u32) -> &'static ItemCatalogEntry {
 }
 
 #[test]
+fn forest_chain_tooltip_matches_applied_stats() {
+    let forest = entry(1273);
+    let tooltip = crate::item_tooltip::item_tooltip(
+        &crate::bag_data::InventorySlot {
+            item_id: 1273,
+            name: forest.name.clone(),
+            count: 1,
+            ..Default::default()
+        },
+        Some(1),
+    );
+    let lines: Vec<_> = tooltip.lines.iter().map(|line| line.text.as_str()).collect();
+    println!("Forest Chain tooltip: {lines:?}");
+    assert!(lines.contains(&"+4 Stamina"), "{lines:?}");
+    assert!(lines.contains(&"10 Armor"), "{lines:?}");
+}
+
+#[test]
 fn armor_follows_the_quality_total_and_location_tables() {
     // Thin Cloth Shoes: common cloth feet, item level 2.
     assert_eq!(item_armor(entry(2117)), 1);
