@@ -393,6 +393,22 @@ mod decode_tests {
     }
 
     #[test]
+    fn shipping_missing_icon_reports_the_shipped_file_without_casc_dependency() {
+        let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let directory =
+            std::env::temp_dir().join(format!("ui-shipped-only-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let file = directory.join("135875.blp");
+        let resolver = crate::assets::creature::local_resolver(&data);
+        let error = read_ui_file(&file, Some(135875), &resolver).unwrap_err();
+        assert!(error.contains("Read UI file"), "{error}");
+        assert!(error.contains("135875.blp"), "{error}");
+        assert!(!error.contains("CASC"), "{error}");
+        assert!(!file.exists());
+        std::fs::remove_dir_all(directory).unwrap();
+    }
+
+    #[test]
     fn png_colour_types_decode_to_rgba8() {
         let rgb = png_bytes(png::ColorType::Rgb, 2, &[200, 10, 20, 30, 40, 250]);
         assert_eq!(
