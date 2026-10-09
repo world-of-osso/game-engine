@@ -55,6 +55,9 @@
 ## 2026-10-09 — Product-isolated M2 design investigation
 
 [M2 product shadowing](investigations/m2-product-shadowing.md) traces the unqualified disk hit, parsed-model key and singleton CASC boundaries. Both display/FDID pairs and authentic hashes/type arrays revalidated. Real resolver subprocess regression RED with Retail control PASS; [proposal](../specs/product-isolated-model-assets.md) pending approval. Runtime unchanged; baseline16 errors/run, no after-count or native-fix claim.
+## 2026-10-09 — Extracted-only asset policy
+
+[Shipped assets](systems/shipped-assets.md) records the P1 startup and low-level CASC boundary. [Contract](../specs/shipped-assets.md) owns explicit environment selection, shared policy/tripwire APIs and P2–P5 exclusions. Cold-process RED reproduced `WoW install not found`; GREEN/full package proof remains pending. No deployment or full closure claim.
 
 ## 2026-10-09 — HUD layout names and delete confirmation
 
