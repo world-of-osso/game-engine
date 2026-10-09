@@ -17,9 +17,6 @@ enum Stage {
     Countdown,
     Cancelled,
     Repeated,
-    Expired,
-    LoginQuiet,
-    LiveConnection,
     Relogin,
     Reloading,
     RestFinal,
@@ -92,7 +89,7 @@ pub(super) fn run(
             fs::remove_file(&token_path)
                 .map_err(|error| format!("Remove fixture-only saved token: {error}"))?;
             println!(
-                "PASS: replicated combat/rest, cancelled and retained 20s countdown, Login world/connection and token relogin over UDP"
+                "PASS: replicated combat/rest, cancelled and retained 20s countdown, authenticated character select and token re-entry over UDP"
             );
             return Ok(());
         }
@@ -115,7 +112,7 @@ fn check_login_requests(app: &mut App, progress: &mut Progress) -> Result<(), St
             && request.token.as_deref() == Some("fixture-only-token");
         if progress.stage == Stage::Loading && credentials {
             // Initial startup still uses the original fixture credentials.
-        } else if matches!(progress.stage, Stage::LiveConnection | Stage::Relogin) && token {
+        } else if matches!(progress.stage, Stage::Repeated | Stage::RestFinal) && token {
             progress.saw_token_login = true;
         } else {
             return Err(format!(
@@ -225,20 +222,9 @@ fn advance_marker(
         }
         (Stage::Repeated, "FIXTURE LOGOUT_EXPIRED") => {
             verify_token(token_path, progress.saved_token.as_deref())?;
-            progress.stage = Stage::Expired;
-        }
-        (Stage::Expired, "FIXTURE LOGOUT_LOGIN_QUIET") => {
-            let remote = progress.remote.ok_or("Post-logout remote player missing")?;
-            app.world_mut()
-                .get_mut::<Position>(remote)
-                .ok_or("Post-logout remote player has no position")?
-                .x += 4.0;
-            progress.stage = Stage::LoginQuiet;
-        }
-        (Stage::LoginQuiet, "FIXTURE LOGOUT_LIVE_CONNECTION") => {
-            progress.stage = Stage::LiveConnection;
-        }
-        (Stage::LiveConnection, "FIXTURE LOGOUT_RELOGIN") => {
+            if !progress.saw_token_login {
+                return Err("Character select was not authenticated with the saved token".into());
+            }
             if let Some(player) = progress.selected.take() {
                 app.world_mut().despawn(player);
             }
