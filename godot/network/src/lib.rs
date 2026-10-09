@@ -246,6 +246,8 @@ impl NetworkBridge {
             .receive::<SpellsLearned>()
             .receive::<SpellsUnlearned>()
             .receive::<SpecializationChanged>()
+            .receive::<protocol::TraitConfigSnapshot>()
+            .receive::<protocol::TraitCommitResult>()
             .receive::<ActionBarSnapshot>()
             .receive::<SpellCooldownUpdate>()
             .receive::<protocol::SpellChargesUpdate>()

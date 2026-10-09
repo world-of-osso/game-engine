@@ -125,6 +125,7 @@ pub struct Account {
     pub instance_locks: Vec<InstanceLockInfo>,
     /// Known spells, action bar and cooldowns from the server.
     pub spells: PlayerSpells,
+    pub talents: game_engine_ui_model::talents::TalentEditor,
     /// Newest `CombatLogEvent`s, oldest first.
     pub combat_log: std::collections::VecDeque<CombatLogEvent>,
     /// Count of `CombatLogEvent`s received this connection.
@@ -180,6 +181,7 @@ pub enum AccountEvent {
     },
     /// The server rejected a cast request.
     CastFailed(CastFailed),
+    TalentError(String),
     /// A melee swing outcome or resolved cast of a replicated unit.
     Combat(CombatMessage),
     /// NPC interaction, vendor, bag and durability traffic.
@@ -313,6 +315,7 @@ impl Account {
             achievement_requests: Vec::new(),
             instance_locks: Vec::new(),
             spells: PlayerSpells::default(),
+            talents: Default::default(),
             combat_log: std::collections::VecDeque::new(),
             combat_log_seq: 0,
             damage_meter: None,
@@ -367,6 +370,7 @@ impl Account {
         self.achievement_requests.clear();
         self.instance_locks.clear();
         self.spells.clear();
+        self.talents = Default::default();
         self.combat_log.clear();
         self.damage_meter = None;
         self.threat_updates.clear();
@@ -550,6 +554,15 @@ impl Account {
     pub fn send_set_specialization(&self, spec_id: u32) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, TalentChannel>(SetSpecialization { spec_id })
+            .map_err(SessionError)
+    }
+
+    pub fn send_commit_traits(
+        &self,
+        request: shared::protocol::CommitTraitConfig,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, TalentChannel>(request)
             .map_err(SessionError)
     }
 
@@ -1549,6 +1562,8 @@ impl Account {
             || message.is::<SpellsLearned>()
             || message.is::<SpellsUnlearned>()
             || message.is::<SpecializationChanged>()
+            || message.is::<shared::protocol::TraitConfigSnapshot>()
+            || message.is::<shared::protocol::TraitCommitResult>()
             || message.is::<ActionBarSnapshot>()
             || message.is::<SpellCooldownUpdate>()
             || message.is::<SpellChargesUpdate>()
@@ -1575,6 +1590,14 @@ impl Account {
             spells.unlearn(&decode::<SpellsUnlearned>(message)?.spells);
         } else if message.is::<SpecializationChanged>() {
             spells.set_spec(decode::<SpecializationChanged>(message)?.spec_id);
+            self.talents = Default::default();
+        } else if message.is::<shared::protocol::TraitConfigSnapshot>() {
+            self.talents.receive_snapshot(decode(message)?);
+        } else if message.is::<shared::protocol::TraitCommitResult>() {
+            self.talents.receive_result(decode(message)?);
+            if let Some(reason) = &self.talents.error_text {
+                output.push(AccountEvent::TalentError(reason.clone()));
+            }
         } else if message.is::<ActionBarSnapshot>() {
             spells.set_bar(&decode::<ActionBarSnapshot>(message)?.slots);
         } else if message.is::<SpellCooldownUpdate>() {

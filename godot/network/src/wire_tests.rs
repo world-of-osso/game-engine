@@ -1762,3 +1762,97 @@ fn native_bridge_auction_operations_and_query_rejections() {
     );
     host.stop();
 }
+
+#[test]
+fn talents_wire_commits_full_entries_and_receives_snapshot_and_failure() {
+    use shared::protocol::{
+        CommitTraitConfig, TalentChannel, TraitCommitResult, TraitConfigSnapshot,
+        TraitEntrySelection,
+    };
+    #[derive(Resource, Default)]
+    struct Requests(Vec<CommitTraitConfig>);
+    fn capture(
+        mut receivers: Query<&mut MessageReceiver<CommitTraitConfig>>,
+        mut requests: ResMut<Requests>,
+    ) {
+        for mut receiver in &mut receivers {
+            requests.0.extend(receiver.receive());
+        }
+    }
+    fn install(app: &mut App) {
+        app.init_resource::<Requests>();
+        app.add_systems(Update, capture);
+    }
+    let (mut server, address) = start_fixture_server_with(install);
+    let mut host = Host::connect(address, 8259);
+    await_connected(&mut server, &mut host);
+    let entries = vec![
+        TraitEntrySelection {
+            node_id: 62121,
+            entry_id: 80180,
+            rank: 1,
+        },
+        TraitEntrySelection {
+            node_id: 62122,
+            entry_id: 80181,
+            rank: 1,
+        },
+    ];
+    let expected = CommitTraitConfig {
+        spec_id: 62,
+        entries: entries.clone(),
+    };
+    host.bridge
+        .send::<_, TalentChannel>(expected.clone())
+        .unwrap();
+    let deadline = Instant::now() + Duration::from_secs(10);
+    while server.world().resource::<Requests>().0.is_empty() && Instant::now() < deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    assert_eq!(server.world().resource::<Requests>().0, vec![expected]);
+    let snapshot = TraitConfigSnapshot {
+        spec_id: 62,
+        tree_id: 658,
+        entries,
+        unspent: vec![(2801, 30), (2800, 30)],
+    };
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<TraitConfigSnapshot>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<TalentChannel>(snapshot.clone());
+    let Event::Message(message) = await_bridge_event(
+        &mut server,
+        &mut host,
+        "trait snapshot",
+        |event| matches!(event,Event::Message(message) if message.is::<TraitConfigSnapshot>()),
+    ) else {
+        panic!("expected trait snapshot")
+    };
+    assert_eq!(
+        message.downcast::<TraitConfigSnapshot>().ok(),
+        Some(snapshot)
+    );
+    let failure = TraitCommitResult {
+        ok: false,
+        reason: Some("requires eight points".into()),
+    };
+    let world = server.world_mut();
+    world
+        .query::<&mut MessageSender<TraitCommitResult>>()
+        .single_mut(world)
+        .unwrap()
+        .send::<TalentChannel>(failure.clone());
+    let Event::Message(message) = await_bridge_event(
+        &mut server,
+        &mut host,
+        "trait failure",
+        |event| matches!(event,Event::Message(message) if message.is::<TraitCommitResult>()),
+    ) else {
+        panic!("expected trait result")
+    };
+    assert_eq!(message.downcast::<TraitCommitResult>().ok(), Some(failure));
+    host.stop();
+}

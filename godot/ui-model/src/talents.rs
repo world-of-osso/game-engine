@@ -10,6 +10,9 @@ pub use talent_editor::TalentEditor;
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TalentView {
     pub graph: TalentPage,
+    pub editor: TalentEditor,
+    pub level: u8,
+    pub names: BTreeMap<u32, String>,
     pub rules: Option<game_engine_core::talent_data::rule_data::TraitTree>,
     /// Entry ID -> actual definition override or spell icon FDID.
     pub icons: BTreeMap<u32, u32>,
@@ -17,6 +20,20 @@ pub struct TalentView {
     pub missing_icons: BTreeSet<u32>,
 }
 impl TalentView {
+    pub fn node_rank(&self, node: &TalentNode) -> u32 {
+        if self.editor.snapshot.is_some() {
+            self.editor.node_rank(node.id)
+        } else {
+            node.granted_ranks
+        }
+    }
+    pub fn entry_rank(&self, node: &TalentNode, entry: u32) -> u32 {
+        if self.editor.snapshot.is_some() {
+            u32::from(self.editor.rank(node.id, entry))
+        } else {
+            node.granted_ranks
+        }
+    }
     pub fn nodes(&self) -> impl Iterator<Item = &TalentNode> {
         self.graph
             .class
@@ -24,6 +41,7 @@ impl TalentView {
             .iter()
             .chain(&self.graph.spec.nodes)
             .chain(self.graph.heroes.iter().flat_map(|tree| &tree.nodes))
+            .chain(self.graph.hero_selection.iter())
     }
 }
 
@@ -44,6 +62,26 @@ pub fn load_talent_view(
         ..Default::default()
     };
     view.icons = collect_talent_icons(&view, catalog)?;
+    view.names = view
+        .nodes()
+        .flat_map(|node| &node.entries)
+        .map(|entry| {
+            let name = if entry.subtree_id != 0 {
+                view.graph
+                    .heroes
+                    .iter()
+                    .find(|tree| tree.id == entry.subtree_id)
+                    .map(|tree| tree.name.clone())
+                    .unwrap_or_default()
+            } else {
+                catalog
+                    .get(entry.spell_id)
+                    .map(|spell| spell.name.clone())
+                    .unwrap_or_default()
+            };
+            (entry.id, name)
+        })
+        .collect();
     view.missing_icons = read_missing_icons(data, &view.icons)?;
     if !view.missing_icons.is_empty() {
         eprintln!(
@@ -60,7 +98,9 @@ fn collect_talent_icons(
     view.nodes()
         .flat_map(|node| &node.entries)
         .map(|entry| {
-            let fdid = if entry.override_icon != 0 {
+            let fdid = if entry.spell_id == 0 && entry.override_icon == 0 {
+                0
+            } else if entry.override_icon != 0 {
                 entry.override_icon
             } else {
                 catalog
@@ -97,8 +137,19 @@ fn read_missing_icons(data: &Path, icons: &BTreeMap<u32, u32>) -> Result<BTreeSe
 }
 
 /// Shared entry identity for the live spell tooltip source.
+pub fn talent_button_node(name: &str) -> Option<u32> {
+    name.strip_prefix("TalentNode")
+        .or_else(|| name.strip_prefix("TalentChoiceNode"))?
+        .split_once("Entry")?
+        .0
+        .parse()
+        .ok()
+}
+
 pub fn talent_button_spell(name: &str) -> Option<u32> {
-    let node = name.strip_prefix("TalentNode")?;
+    let node = name
+        .strip_prefix("TalentNode")
+        .or_else(|| name.strip_prefix("TalentChoiceNode"))?;
     let (_, spell) = node.rsplit_once("Spell")?;
     spell.strip_suffix("Button")?.parse().ok()
 }
