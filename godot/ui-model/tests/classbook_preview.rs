@@ -46,6 +46,28 @@ fn non_mage_preview_contains_own_spells_and_spec_tree() {
 }
 
 #[test]
+fn paladin_preview_does_not_pretend_effects_and_artifact_abilities_are_known() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    for spec in [65, 66, 70] {
+        let book = load_class_preview_state(&data, PlayerSpellsTab::Spellbook, 2, spec).unwrap();
+        let items: Vec<_> = book
+            .categories
+            .iter()
+            .flat_map(|c| &c.groups)
+            .flat_map(|g| &g.items)
+            .collect();
+        assert!(items.iter().any(|item| item.spell_id == 26573));
+        for effect_or_artifact in [81297, 114852, 114871, 200654, 205273, 209202] {
+            assert!(
+                !items.iter().any(|item| item.spell_id == effect_or_artifact),
+                "Paladin spec {spec} incorrectly knows effect/artifact spell {effect_or_artifact}"
+            );
+        }
+        assert!(!items.iter().any(|item| item.subtext == "Artifact"));
+    }
+}
+
+#[test]
 fn explicit_preview_rejects_wrong_or_unknown_class_and_spec() {
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     for (class, spec) in [(1, 62), (99, 71), (1, 99999)] {
