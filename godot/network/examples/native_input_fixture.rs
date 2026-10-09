@@ -282,7 +282,7 @@ fn send<M: network::Message, C: network::Channel>(app: &mut App, message: M) {
     sender.send::<C>(message);
 }
 
-fn start_server() -> (App, SocketAddr) {
+fn start_server(screen: StartupScreen) -> (App, SocketAddr) {
     // ServerUdpIo does not expose the assigned port when bound to port zero.
     let reservation = UdpSocket::bind("127.0.0.1:0").expect("reserve local fixture port");
     let address = reservation.local_addr().expect("read fixture address");
@@ -296,8 +296,10 @@ fn start_server() -> (App, SocketAddr) {
     app.add_plugins(shared::ProtocolPlugin);
     app.init_resource::<Incoming>();
     app.add_systems(Update, receive_requests);
-    app.add_observer(|link: On<Add, LinkOf>, mut commands: Commands| {
-        commands.entity(link.entity).insert(ReplicationSender);
+    app.add_observer(move |link: On<Add, LinkOf>, mut commands: Commands| {
+        if screen != StartupScreen::Logout {
+            commands.entity(link.entity).insert(ReplicationSender);
+        }
     });
     app.finish();
     app.cleanup();
@@ -859,6 +861,12 @@ fn respond_to_selection(
                 "unexpected SelectCharacter: {}",
                 request.character_id
             ));
+        }
+        if screen == StartupScreen::Logout {
+            let connection = app.world().resource::<Incoming>().connection.unwrap();
+            app.world_mut()
+                .entity_mut(connection)
+                .insert(ReplicationSender);
         }
         let spawn = if screen == StartupScreen::Swimming {
             SWIM_START
@@ -1575,7 +1583,7 @@ fn stage_isolated_project(
 
 fn main() {
     let screen = StartupScreen::from_example_args();
-    let (mut app, address) = start_server();
+    let (mut app, address) = start_server(screen);
     println!("FIXTURE ENDPOINT {address}");
     let checkout = fixture_support::checkout_root_from_executable("native_input_fixture")
         .expect("locate originating fixture checkout");
