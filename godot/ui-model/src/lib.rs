@@ -53,8 +53,8 @@ pub mod professions_catalog;
 pub mod professions_frame;
 pub mod raid_warning;
 pub mod summon;
-pub mod trainer;
 pub mod talents;
+pub mod trainer;
 pub mod trainer_frame;
 
 // Party/raid frames, ready check and the PARTY_INVITE popup (docs/specs/group-frames.md).
