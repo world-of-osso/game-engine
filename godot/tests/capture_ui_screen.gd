@@ -776,8 +776,12 @@ func capture_spellbook_both(directory: String) -> bool:
 
 # Both skins, production auction projection, no GameClient or networking.
 func capture_auction_both(directory: String) -> bool:
+	var views = ["browse", "item", "inventory", "sell", "duration", "owned", "bids", "dialog"]
+	var sorted_proof := OS.get_environment("GODOT_AH_SORT_CAPTURE") == "1"
+	if sorted_proof:
+		views = ["subcategory_sorted"]
 	for skin in ["modern", "forever"]:
-		for view in ["browse", "item", "inventory", "sell", "duration", "owned", "bids", "dialog"]:
+		for view in views:
 			OS.set_environment("GODOT_AUCTION_VIEW", view)
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)
@@ -797,6 +801,14 @@ func capture_auction_both(directory: String) -> bool:
 				ui.queue_free()
 				return false
 			var geometry: Dictionary = {}
+			if sorted_proof:
+				var window_size := DisplayServer.window_get_size()
+				var image := root.get_texture().get_image()
+				if window_size != Vector2i(1920, 1080) or image == null or image.get_size() != window_size:
+					push_error("Auction sort proof requires a real 1920x1080 window and viewport; window=", window_size, " viewport=", root.size)
+					ui.queue_free()
+					return false
+				geometry["window"] = [window_size.x, window_size.y]
 			for name in ["AuctionHouseFrame", "AuctionHouseFrameSearchBox", "AuctionHouseFrameItemBuyFrameRow1TimeLeft", "AuctionHouseFrameAuctionsFrameBidsListRow1TimeLeft", "AuctionHouseFrameItemSellFrameDurationDropdown", "AuctionHouseFrameBuyDialog"]:
 				var control := ui.find_child(name, true, false) as Control
 				if control != null and control.is_visible_in_tree():
