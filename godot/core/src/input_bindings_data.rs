@@ -950,12 +950,20 @@ impl InputAction {
 
     /// `(n, button index)` of a `MULTIACTIONBAR<n>BUTTON` binding, button index 0-based.
     pub fn multi_action_bar(self) -> Option<(u8, usize)> {
-        let in_bar = |bar: &[Self; 12]| bar.iter().position(|action| *action == self);
-        in_bar(&Self::MULTI_ACTION_BAR_1)
-            .map(|index| (1, index))
-            .or_else(|| in_bar(&Self::MULTI_ACTION_BAR_2).map(|index| (2, index)))
-            .or_else(|| in_bar(&Self::MULTI_ACTION_BAR_3).map(|index| (3, index)))
-            .or_else(|| in_bar(&Self::MULTI_ACTION_BAR_4).map(|index| (4, index)))
+        [
+            Self::MULTI_ACTION_BAR_1,
+            Self::MULTI_ACTION_BAR_2,
+            Self::MULTI_ACTION_BAR_3,
+            Self::MULTI_ACTION_BAR_4,
+        ]
+        .into_iter()
+        .enumerate()
+        .find_map(|(bar, actions)| {
+            actions
+                .iter()
+                .position(|action| *action == self)
+                .map(|index| (bar as u8 + 1, index))
+        })
     }
 
     /// Retail `BONUSACTIONBUTTON1..10` (`Bindings_Standard.xml:272-361`,
@@ -1466,12 +1474,15 @@ fn action_slot_from_key(key: &str) -> Option<InputAction> {
 }
 
 fn multi_action_bar_from_key(key: &str) -> Option<InputAction> {
-    InputAction::MULTI_ACTION_BAR_1
-        .into_iter()
-        .chain(InputAction::MULTI_ACTION_BAR_2)
-        .chain(InputAction::MULTI_ACTION_BAR_3)
-        .chain(InputAction::MULTI_ACTION_BAR_4)
-        .find(|action| action.key() == key)
+    [
+        InputAction::MULTI_ACTION_BAR_1,
+        InputAction::MULTI_ACTION_BAR_2,
+        InputAction::MULTI_ACTION_BAR_3,
+        InputAction::MULTI_ACTION_BAR_4,
+    ]
+    .into_iter()
+    .flatten()
+    .find(|action| action.key() == key)
 }
 
 fn pet_action_slot_from_key(key: &str) -> Option<InputAction> {

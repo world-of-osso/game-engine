@@ -58,9 +58,18 @@ fn load_sidebarbinds_state() -> Result<MainActionBarState, String> {
     state.extra_action_bars.action_bar_3 = Some(true);
     state.extra_action_bars.action_bar_4 = true;
     state.extra_action_bars.action_bar_5 = true;
+    assign_preview_spells(&mut state, &icons)?;
+    state.set_hotkeys(&preview_bindings());
+    Ok(state)
+}
+
+fn assign_preview_spells(
+    state: &mut MainActionBarState,
+    icons: &[&game_engine_ui_model::spellbook_frame_component::SpellbookItemView],
+) -> Result<(), String> {
     let mut spells = PlayerSpells::default();
     for bar in ActionBar::ALL {
-        for index in 0..12 {
+        for index in 0..game_engine_ui_model::main_action_bar_component::MAIN_BAR_BUTTONS {
             let spell = icons[index % icons.len()];
             let request = bar
                 .assignment(index, ActionRef::Spell(spell.spell_id), 0)
@@ -72,8 +81,7 @@ fn load_sidebarbinds_state() -> Result<MainActionBarState, String> {
             state.bar_mut(bar)[index].icon_fdid = spell.icon_fdid;
         }
     }
-    state.set_hotkeys(&preview_bindings());
-    Ok(state)
+    Ok(())
 }
 
 /// Explicit preview overrides only; Retail defaults remain unbound on all extra bars.
