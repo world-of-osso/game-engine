@@ -14,6 +14,18 @@ const ICON_EXCEPTIONS: &[(u32, &str)] = &[];
 fn every_class_spellbook_entry_has_nonempty_real_icon() {
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
     let catalog = load_spell_catalog(&SpellCatalogPaths::for_data_dir(&data)).unwrap();
+    // The user's concrete missing icon must resolve independently of the chosen build.
+    let avenging = catalog.get(31884).unwrap();
+    assert_eq!(avenging.icon_fdid, 135875);
+    let avenging_bytes = std::fs::read(data.join("textures/135875.blp")).unwrap();
+    let avenging_icon = blp::decode_rgba(&avenging_bytes).unwrap();
+    assert!(avenging_icon.width > 0 && avenging_icon.height > 0);
+    assert!(
+        avenging_icon
+            .pixels
+            .chunks_exact(4)
+            .any(|pixel| pixel[3] != 0)
+    );
     let mut decoded = BTreeMap::<u32, Result<(), String>>::new();
     let mut missing = Vec::new();
     let mut total = 0;
