@@ -33,8 +33,9 @@ const SELECTION_CORNER: f32 = 8.0;
 const PANEL_BACKGROUND_FDID: u32 = 6_839_810;
 const PANEL_STYLE: &str = crate::static_popup_component::STATIC_POPUP_PANEL_STYLE;
 
-pub const PANEL_W: f32 = 380.0;
-pub const PANEL_H: f32 = 360.0;
+/// Retail manager fixedWidth (EditModeManager.xml:9); clears movers at 1366×768.
+pub const PANEL_W: f32 = 510.0;
+pub const PANEL_H: f32 = 260.0;
 /// Retail EditModeManager.xml:6: TOP of UIParent at y=-100.
 pub const PANEL_TOP: f32 = 100.0;
 pub const PANEL_CLEARANCE: f32 = 8.0;
@@ -306,14 +307,20 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
             {panel_button("EditModeManagerFramePrev", "<", ACTION_EDIT_MODE_PREV_LAYOUT, 20.0, 36.0, 30.0, interactive)}
             {panel_button("EditModeManagerFrameNext", ">", ACTION_EDIT_MODE_NEXT_LAYOUT, PANEL_W - 50.0, 36.0, 30.0, interactive)}
             {name_input(state)}
-            {panel_button("EditModeManagerFrameNew", "New", ACTION_EDIT_MODE_NEW, 22.0, 108.0, BUTTON_W, new_enabled)}
-            {panel_button("EditModeManagerFrameRename", "Rename", ACTION_EDIT_MODE_RENAME, 138.0, 108.0, BUTTON_W, user_layout)}
-            {panel_button("EditModeManagerFrameDelete", "Delete", ACTION_EDIT_MODE_DELETE, 254.0, 108.0, BUTTON_W, user_layout)}
-            {panel_button("EditModeManagerFrameRevert", "Revert", ACTION_EDIT_MODE_REVERT, 22.0, 140.0, BUTTON_W, state.dirty && interactive)}
-            {panel_button("EditModeManagerFrameSave", "Save", ACTION_EDIT_MODE_SAVE, 138.0, 140.0, BUTTON_W, state.dirty && interactive)}
-            {panel_button("EditModeManagerFrameExit", "Exit", ACTION_EDIT_MODE_EXIT, 254.0, 140.0, BUTTON_W, interactive)}
-            {panel_button("EditModeManagerFrameReset", "Reset Selected", ACTION_EDIT_MODE_RESET, 22.0, 172.0, 150.0, interactive)}
-            {panel_text("EditModeManagerFrameStatus", &state.status, 12.0, COLOR_LABEL, 204.0)}
+            {panel_button("EditModeManagerFrameNew", "New", ACTION_EDIT_MODE_NEW, 22.0, 192.0, BUTTON_W, new_enabled)}
+            {panel_button("EditModeManagerFrameRename", "Rename", ACTION_EDIT_MODE_RENAME, 138.0, 192.0, BUTTON_W, user_layout)}
+            {panel_button("EditModeManagerFrameDelete", "Delete", ACTION_EDIT_MODE_DELETE, 254.0, 192.0, BUTTON_W, user_layout)}
+            {panel_button("EditModeManagerFrameRevert", "Revert", ACTION_EDIT_MODE_REVERT, 22.0, 224.0, BUTTON_W, state.dirty && interactive)}
+            {panel_button("EditModeManagerFrameSave", "Save", ACTION_EDIT_MODE_SAVE, 138.0, 224.0, BUTTON_W, state.dirty && interactive)}
+            {panel_button("EditModeManagerFrameExit", "Exit", ACTION_EDIT_MODE_EXIT, 254.0, 224.0, BUTTON_W, interactive)}
+            {panel_button("EditModeManagerFrameReset", "Reset Selected", ACTION_EDIT_MODE_RESET, 370.0, 192.0, 118.0, interactive)}
+            fontstring {
+                name: "EditModeManagerFrameStatus", width: 235.0, height: 32.0,
+                text: {state.status.as_str()}, font: GameFont::FrizQuadrata,
+                font_size: 12.0, font_color: COLOR_LABEL, justify_h: "LEFT",
+                strata: FrameStrata::FullscreenDialog,
+                pos_type: "absolute", left: 255.0, top: 156.0,
+            }
             {system_checkboxes(state, interactive)}
         }
         {delete_confirmation(state.pending_delete.as_deref())}
@@ -328,12 +335,13 @@ fn system_checkboxes(state: &EditModePanelState, enabled: bool) -> Element {
             let name = format!("EditModeManagerShow_{key}");
             let action = format!("edit_mode_show_{key}");
             let unchecked = !system_is_shown(&state.show_systems, key);
-            let x = 20.0 + (index % 2) as f32 * 176.0;
-            let y = 248.0 + (index / 2) as f32 * 32.0;
+            let x = 20.0 + (index % 2) as f32 * 235.0;
+            let y = 92.0 + (index / 2) as f32 * 32.0;
+            let disabled = !enabled;
             rsx! {
                 button {
-                    name: {DynName(name.clone())}, width: 176.0, height: 32.0,
-                    onclick: {action.as_str()}, enabled,
+                    name: {DynName(name.clone())}, width: 235.0, height: 32.0,
+                    onclick: {action.as_str()}, disabled,
                     strata: FrameStrata::FullscreenDialog,
                     pos_type: "absolute", left: x, top: y,
                     texture {
@@ -349,7 +357,7 @@ fn system_checkboxes(state: &EditModePanelState, enabled: bool) -> Element {
                         pos_type: "absolute", left: 0.0, top: 0.0,
                     }
                     fontstring {
-                        name: {DynName(format!("{name}Label"))}, width: 139.0, height: 32.0,
+                        name: {DynName(format!("{name}Label"))}, width: 198.0, height: 32.0,
                         text: {*label}, font: GameFont::FrizQuadrata, font_size: 12.0,
                         font_color: COLOR_TEXT, justify_h: "LEFT",
                         strata: FrameStrata::FullscreenDialog,
@@ -490,7 +498,7 @@ fn name_input(state: &EditModePanelState) -> Element {
             pos_type: "absolute",
             left: "50%",
             translate_x: "-50%",
-            top: 70.0,
+            top: 62.0,
         }
     }
 }
