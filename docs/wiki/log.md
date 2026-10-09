@@ -2904,3 +2904,7 @@ Updated [[forever-data]] with independent payload/cache/world proof, README-only
 ## 2026-10-08 — Character-bank item moves
 
 Existing ItemLocation/SwapItem/SplitItem extended to character bank tabs; [bank system](systems/banks.md) records native cursor and transactional server behavior. Targeted proof tracked in `/home/osso/.worktrees/handoff-bankmoves.md`; no live run.
+
+## 2026-10-08 — Side-bar bindings and assignment
+
+[Spellbook/action bars](systems/spellbook-action-bar.md#shared-extra-bar-assignment-2026-10-08) records shared native cursor assignment, unbound Retail side-bar bindings, exact fixed pages and both-skin preview. Four RED model failures established; GREEN/capture gate tracked in `/home/osso/.worktrees/handoff-sidebarbinds.md`. No server/protocol changes or live network/relog claim.

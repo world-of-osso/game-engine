@@ -12,7 +12,7 @@ Persisted with client options; configurable via Options → Keybindings.
 
 **Targeting**: target nearest
 
-**Action bar**: slots 1–12
+**Action bars**: main buttons 1–12 plus Action Bars 2–5 (`MULTIACTIONBAR1..4BUTTON1..12`), unbound by default on extras. Current native contract: [key bindings](../../specs/key-bindings.md); assignment/input flow: [[spellbook-action-bar]].
 
 **Audio**: toggle mute (Ctrl+S)
 
