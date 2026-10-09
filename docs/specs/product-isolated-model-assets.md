@@ -1,16 +1,16 @@
 # Product-isolated model assets
 
-**Approved contract — user decision 2026-10-09: option 1, isolate the full asset chain.** Displays 139403/139409 select Forever metadata but receive cached Retail M2 bytes. [Investigation](../wiki/investigations/m2-product-shadowing.md) records the collision and failing regression. This contract covers the primary model and its full asset dependencies, not UI skin selection.
+**Approved contract — user decision 2026-10-09: option 1, isolate the full asset chain.** Subsequent shipping direction: extract assets offline with per-asset provenance; converted creature/player/equipment and NPC-appearance paths support explicit `extracted-only` runtime access, with no CASC initialization/extraction or legacy fallback. Keep the global default unchanged while terrain/WMO/spell/UI/sound extraction is handled separately. Displays 139403/139409 select Forever metadata but receive cached Retail M2 bytes. [Investigation](../wiki/investigations/m2-product-shadowing.md) records the collision and failing regression. This contract covers the primary model and its full asset dependencies, not UI skin selection.
 
 ## What it must do
 
 Approved acceptance criteria:
 
 - [ ] A model request carries its authored product/build identity; identical FDIDs from Retail and Forever coexist without overwriting or borrowing bytes.
-- [ ] Disk files, parsed models and CASC resolution state honor that identity. A missing matching asset errors explicitly; unqualified legacy files are not evidence of ownership.
+- [ ] Disk files, parsed models and offline CASC resolution state honor that identity. Converted model/appearance paths in `extracted-only` mode read shipped files only. Missing matching assets error explicitly; no local-CASC or unqualified legacy fallback.
 - [ ] SFID skins, SKID skeletons and external animations inherit their model's identity. Referenced textures retain source identity through decoding/material publication too.
 - [ ] Preserve current Retail CDI precedence and metadata-source rules for equipment; do not assume every asset attached to a Forever NPC belongs to Forever.
-- [ ] Both named displays render without type9 failures; a comparable native run shows no new errors for other displays.
+- [ ] Both named displays render from extracted-only model/appearance files without type9 failures; a comparable native run shows no new errors for other displays. Model loads do not require access to a WoW installation.
 
 ## Decision record (2026-10-09)
 
