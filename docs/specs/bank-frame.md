@@ -101,6 +101,15 @@ Final native extension/CLI build installed in 44.8 seconds. Trace-free ELF SHA-2
 
 `bankmoves` adds character-bank pickup/drop, exact same/across-tab destinations and the shared split picker ([cursor contract](cursor-item.md)). `native_bank_moves` at `178e9dba3` passes 5/5 after RED 1 passed / 4 failed at `d0e42b5ac`; logs: `/home/osso/.worktrees/logs/bankmoves-engine-{red,green}.log`. This proves mounted slot routing and model request/state behavior. Native drag-release and shift-click dispatch are wired in `godot/rust/src/{bank,bag_cursor}.rs`, but no new native event, render or live proof is claimed. Whole-crate/integration gates remain with the lead.
 
+### Live character-bank stack split — 2026-10-09
+
+Matching engine source `43e72682f`, locked extension/CLI build exit0; one rendered native run on private UDP5520. Existing server admin `GrantItem` gave `fb_bankmoves5` / Bankfive real Linen Cloth2589×10 in fresh persistent inventory; no client inventory was fabricated. Evidence: `data/diagnostics/bankmoves5-2026-10-09/` (input/response ledgers and numbered snapshots); inspected PNGs `live5-*.png` under `/syncthing/AgentShared/2026-10-09/bankmoveslive/`, downscaled with ffmpeg.
+
+- PASS bag Shift-click → StackSplitFrame4 → Okay → exact BankFrameItem7: bag6/bank4. Real withdrawal into bag slot3 proves two authoritative Linen stacks6 and4 (`16-authoritative-bag6-plus4.json`).
+- PASS bank Shift-click after merging to10 → StackSplitFrame4 → Enter → exact BankFrameItem9: Item7 has6, Item9 has4. Real withdrawals into bag slots1/3 prove both IDs/counts, then redeposit restores6/4 (`24-bank6-bank4.json`, `25-authoritative-bank-withdrawals.json`, `26-final-split.json`). Retail Mainline `BankFrame.lua:439-443,590-592` owns modified-click/picker/SplitContainerItem behavior.
+- The bank-origin picker at the leftmost column places Okay outside the viewport (x=-49.33,width42.67); that mouse attempt sent no split. Keyboard Enter proves acceptance without a layout fix. This run does not prove on-screen mouse confirmation for that anchor or full Retail pixel parity.
+- Server binary matches the previous immutable live4 binary hash; its source revision is not independently stamped. Separate server protocol rejection proof is recorded in the bankmoves5 handoff, not inferred from UI cursor cancellation.
+
 ### Bounded bankart pass — 2026-10-08
 
 Source root `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`; BF = `Blizzard_UIPanels_Game/Mainline/BankFrame.xml`. Forever shares the Mainline templates and substitutes only skin members already specified above.
