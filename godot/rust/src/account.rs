@@ -1592,8 +1592,16 @@ impl Account {
         } else if message.is::<SpellsUnlearned>() {
             spells.unlearn(&decode::<SpellsUnlearned>(message)?.spells);
         } else if message.is::<SpecializationChanged>() {
-            spells.set_spec(decode::<SpecializationChanged>(message)?.spec_id);
-            self.talents = Default::default();
+            let spec_id = decode::<SpecializationChanged>(message)?.spec_id;
+            spells.set_spec(spec_id);
+            if self
+                .talents
+                .snapshot
+                .as_ref()
+                .is_some_and(|snapshot| snapshot.spec_id != spec_id)
+            {
+                self.talents = Default::default();
+            }
         } else if message.is::<shared::protocol::TraitConfigSnapshot>() {
             self.talents.receive_snapshot(decode(message)?);
         } else if message.is::<shared::protocol::TraitCommitResult>() {
