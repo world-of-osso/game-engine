@@ -181,7 +181,7 @@ fn professions() -> Vec<CategoryNode> {
     .collect()
 }
 
-const GENERATED_SUBCLASSES: &[(u8, &[(u8, &str)])] = [
+const GENERATED_SUBCLASSES: &[(u8, &[(u8, &str)])] = &[
     (
         0,
         &[
