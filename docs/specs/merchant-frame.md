@@ -83,6 +83,20 @@ The merchantfix follow-up passes the requested merchant steps 1–8 on the priva
 
 [Proof ledger](../../data/diagnostics/merchantloop-2026-10-07/proof-ledger.txt), `merchantfix-client{1,2}.log`, captures/state dumps under `shots-merchantfix{1,2}/`. Client source proof is `43539f8a7`, server `26f3c5c`; later documentation-only commits do not change it. Full layout/coexistence, cursor-owner coverage and other variants remain partial, as above. Shared-protocol was not changed; its buyback slot-order comment needs a separately authorized documentation correction.
 
+## Bounded private live acceptance (2026-10-09)
+
+Verified client `709a624318be6f7c1394f8f5d2e2d937a186276a`, supplied server `5b04aa931720d441aaea1f99d3c11dc2a69bba40`, fresh account `fb_qml3merchant`, owned UDP5490. A rendered `world_merchant_live_flow.gd` derivative used real pointer input and keyboard C for the paperdoll; admin damaged starter equipment to 50% before login. All amounts below are copper.
+
+| Requested step | Result | Inspected PNG / authority |
+| --- | --- | --- |
+| Buy, sell, buyback with item/money restoration | PASS | Vest buy 89: 9994→9905; sell 17: 9905→9922; buyback 17: 9922→9905. Exact purchased-name item count and post-buy money restored. `06-buyback-tab.png`, `07-buyback-restored.png`. |
+| Repair one damaged item | PASS | MainHand guid114, total cost16→8, money10000→9992; repair cursor stayed active. `03-repair-cursor.png` shows selected repair mode before the item click. |
+| Repair all remaining damaged items | PASS | Cost8→0, money9992→9984; repair sound observed. `04-repaired.png`. Two Ruined Pelts then sold directly for10, funding pre-buy money9994. |
+
+PNG root: `/syncthing/AgentShared/2026-10-09/questmerchlive/`. Scripts/logs: `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/questmerchlive3-2026-10-09/` (`merchant.gd`, `merchant-green.log`, `server.log`, `proof-ledger.txt`). Sources: MF.lua:662,667, MF.xml:255,311; pinned [TrinityCore buyback](https://github.com/TrinityCore/TrinityCore/blob/a352b1fa/src/server/game/Handlers/ItemHandler.cpp#L486-L519) restores the stored item after deducting its sale price; [single/all repair](https://github.com/TrinityCore/TrinityCore/blob/a352b1fa/src/server/game/Handlers/NPCHandler.cpp#L389-L419) selects repair by item GUID or all items.
+
+The inherited fixture's CharacterMicroButton click failed because the micro menu is [hidden by default](hud-edit-mode.md); keyboard C completed repair. This is a fixture/input-path limitation, not a product defect. No product fix claimed. Exact item-GUID restoration, wrapped buyback, bag repair, other skins, full coexistence/pixel parity and normal shutdown were not re-proved in this run; earlier broader acceptance above remains separately scoped.
+
 ## Tests asserting this spec
 
 - `godot/ui-model/src/ui/screens/merchant_frame_component_tests.rs`: frame size, title, grid offsets, coins, gray price, red tint, stock, paging, repair position/enable, money anchor, buyback tab layout, last-sale slot.
