@@ -355,37 +355,7 @@ pub(crate) fn apply_manager_action(
         return Ok(None);
     }
     if let Some(key) = action.strip_prefix("edit_mode_show_") {
-        let (_, _, movers) = SHOW_SYSTEMS
-            .iter()
-            .find(|(candidate, _, _)| *candidate == key)
-            .ok_or_else(|| format!("Unknown Edit Mode system {key:?}"))?;
-        let settings = ui_layout_data::edit_mode_account_settings(path)?;
-        let shown = !system_is_shown(&settings, key);
-        let settings = ui_layout_data::set_edit_mode_system_shown(path, key, shown)?;
-        crate::ui::hud_edit_layout::publish_account_settings(settings);
-        if !shown {
-            if draft
-                .selected
-                .as_deref()
-                .is_some_and(|selected| movers.contains(&selected))
-            {
-                draft.selected = None;
-            }
-            if draft
-                .drag
-                .as_ref()
-                .is_some_and(|drag| movers.contains(&drag.key.as_str()))
-            {
-                draft.drag = None;
-            }
-            if draft
-                .hovered
-                .as_deref()
-                .is_some_and(|hovered| movers.contains(&hovered))
-            {
-                draft.hovered = None;
-            }
-        }
+        persist_system_visibility(path, key, draft)?;
         return Ok(None);
     }
     match action {
@@ -419,6 +389,25 @@ pub(crate) fn apply_manager_action(
         }
     }
     Ok(None)
+}
+
+fn persist_system_visibility(
+    path: &std::path::Path,
+    key: &str,
+    draft: &mut EditDraft,
+) -> Result<(), String> {
+    let (_, _, movers) = SHOW_SYSTEMS
+        .iter()
+        .find(|(candidate, _, _)| *candidate == key)
+        .ok_or_else(|| format!("Unknown Edit Mode system {key:?}"))?;
+    let settings = ui_layout_data::edit_mode_account_settings(path)?;
+    let shown = !system_is_shown(&settings, key);
+    let settings = ui_layout_data::set_edit_mode_system_shown(path, key, shown)?;
+    crate::ui::hud_edit_layout::publish_account_settings(settings);
+    if !shown {
+        draft.hide_movers(movers);
+    }
+    Ok(())
 }
 
 fn persist_manager_layout(

@@ -108,9 +108,9 @@ fn hudeditmodepolish_title_drag_clamps_manager_and_preserves_hud_placements() {
     );
     assert!(draft.start_panel_drag(panel, [503.0, 200.0]));
     assert!(draft.move_panel_drag([1000.0, 500.0], [1366.0, 768.0]));
-    assert_eq!(draft.panel_position, Some([986.0, 408.0]));
+    assert_eq!(draft.panel_position, Some([856.0, 490.0]));
     assert!(draft.move_panel_drag([-100.0, 1000.0], [1366.0, 768.0]));
-    assert_eq!(draft.panel_position, Some([0.0, 408.0]));
+    assert_eq!(draft.panel_position, Some([0.0, 508.0]));
     assert_eq!(draft.working, layout.elements);
     draft.panel_grab.take();
     assert!(!draft.move_panel_drag([500.0, 500.0], [1366.0, 768.0]));
@@ -203,6 +203,11 @@ fn hudeditshowlist_checkbox_actions_toggle_movers_without_changing_layout() {
         .expect("checkbox emits action");
         assert_eq!(action, format!("edit_mode_show_{key}"));
         draft.selected = Some(movers[0].into());
+        draft.hovered = Some(movers[0].into());
+        draft.drag = Some(game_engine_ui_model::hud_edit::Drag {
+            key: movers[0].into(),
+            grab: [4.0, 8.0],
+        });
         crate::hud_edit::apply_manager_action(&path, 57, &action, "", &layout, &mut draft).unwrap();
         let hidden = collect_selection_boxes(&registry, None);
         assert!(
@@ -211,6 +216,8 @@ fn hudeditshowlist_checkbox_actions_toggle_movers_without_changing_layout() {
                 .all(|entry| !movers.contains(&entry.key.as_str()))
         );
         assert_eq!(draft.selected, None);
+        assert_eq!(draft.hovered, None);
+        assert!(draft.drag.is_none());
         assert_eq!(ui_layout_data::active_layout(&path, 57).unwrap(), layout);
         crate::hud_edit::apply_manager_action(&path, 57, &action, "", &layout, &mut draft).unwrap();
         assert_eq!(
