@@ -2907,4 +2907,4 @@ Existing ItemLocation/SwapItem/SplitItem extended to character bank tabs; [bank 
 
 ## 2026-10-08 — Side-bar bindings and assignment
 
-[Spellbook/action bars](systems/spellbook-action-bar.md#shared-extra-bar-assignment-2026-10-08) records shared native cursor assignment, unbound Retail side-bar bindings, exact fixed pages and both-skin preview. Four RED model failures established; GREEN/capture gate tracked in `/home/osso/.worktrees/handoff-sidebarbinds.md`. No server/protocol changes or live network/relog claim.
+[Spellbook/action bars](systems/spellbook-action-bar.md#shared-extra-bar-assignment-2026-10-08) records shared native cursor assignment, unbound Retail side-bar bindings, exact fixed pages and both-skin preview. Bounded RED→GREEN model and both-skin real-1920 capture gate completed; exact proof and retained asset/live-network gaps are linked from the system page and `/home/osso/.worktrees/handoff-sidebarbinds.md`. No server/protocol changes or live network/relog claim.
