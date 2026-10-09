@@ -82,7 +82,7 @@ func _run() -> void:
 		var hovered_image := root.get_texture().get_image()
 		var grant_pixel := hovered_image.get_pixel(492, 230)
 		var missing_pixel := hovered_image.get_pixel(312, 470) # Spellsteal FDID135729 is absent.
-		var edge_pixel := hovered_image.get_pixel(522, 260) # midpoint of edge127166, southeast from grant.
+		var edge_pixel := hovered_image.get_pixel(527, 265) # off-center along edge127166; rejects horizontal/unrotated paint.
 		if missing_pixel.r > 0.1 or missing_pixel.g > 0.1 or missing_pixel.b > 0.1:
 			push_error("Missing talent icon substituted with paint: ", missing_pixel)
 			quit(1)
