@@ -78,6 +78,16 @@ pub fn load_preview_state(
     })
 }
 
+/// Explicit class/spec catalog preview, independent of the legacy Mage snapshot.
+pub fn load_class_preview_state(
+    data: &std::path::Path,
+    tab: PlayerSpellsTab,
+    _class: u32,
+    _spec: u32,
+) -> Result<SpellbookFrameState, String> {
+    load_preview_state(data, tab)
+}
+
 /// Capture-only pending edits through the same model operations as live clicks.
 pub fn stage_talent_preview(state: &mut SpellbookFrameState) -> Result<(), String> {
     let view = state
