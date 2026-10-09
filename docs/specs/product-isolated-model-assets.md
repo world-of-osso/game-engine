@@ -37,7 +37,7 @@ Option 1 is approved for the full referenced render-asset chain, preserving exis
 
 ## Known gaps (current cycle)
 
-- [ ] Restore verified importer provenance and matching local Forever70205 build material. The [source availability boundary](../wiki/investigations/m2-product-shadowing.md#approved-implementation-source-boundary-2026-10-09) blocks migration/native acceptance; active70291 cannot stand in for authored70205.
+- [ ] Publish verified per-asset importer provenance before source/build ownership is consumed. Existing [source availability observations](../wiki/investigations/m2-product-shadowing.md#approved-implementation-source-boundary-2026-10-09) do not authorize relabelling current70291 bytes as70205; fresh extraction must retain its actual verified build.
 - [ ] Implement approved identity API/build selection, legacy-cache migration and full-chain runtime isolation.
 - [ ] Authentic model/companion/render acceptance and post-fix error counts remain pending.
 
