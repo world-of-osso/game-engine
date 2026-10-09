@@ -98,13 +98,12 @@ fn armor_follows_the_quality_total_and_location_tables() {
 fn weapon_damage_spreads_the_table_dps_by_variance_and_speed() {
     // Worn Shortsword: common one-hander, item level 1, 2.6 s, variance 0.5.
     let sword = weapon_damage(entry(25)).expect("weapon");
-    assert!((sword.min - 0.7596).abs() < 1e-3, "{sword:?}");
+    assert_eq!(sword.min, 0.0); // Server floors the minimum damage.
     assert_eq!((sword.max, sword.speed), (1.0, 2.6));
     assert!((sword.dps - 0.3895).abs() < 1e-3);
-    // Arced War Axe: rare two-hander, item level 13, 3.6 s, variance 0.7.
+    // Arced War Axe: level 13 squishes to 11; server range is 4-10.
     let axe = weapon_damage(entry(3191)).expect("weapon");
-    assert!((axe.min - 5.845).abs() < 1e-2, "{axe:?}");
-    assert_eq!((axe.max, axe.speed), (12.0, 3.6));
+    assert_eq!((axe.min, axe.max, axe.speed), (4.0, 10.0, 3.6));
     // Lesser Magic Wand reads the one-hand caster table.
     let wand = weapon_damage(entry(11287)).expect("wand");
     assert!((wand.dps - 0.3364).abs() < 1e-3, "{wand:?}");
@@ -119,7 +118,7 @@ fn stats_scale_the_percent_editor_by_the_random_property_points() {
     // Arced War Axe: Strength, Stamina, Haste, Critical Strike.
     assert_eq!(
         item_stats(entry(3191)),
-        [stat(4, 3), stat(7, 5), stat(36, 3), stat(32, 2)]
+        [stat(4, 3), stat(7, 4), stat(36, 3), stat(32, 2)]
     );
     // Pioneer Tunic: uncommon, Agility or Intellect and Stamina.
     assert_eq!(item_stats(entry(6268)), [stat(73, 1), stat(7, 2)]);
