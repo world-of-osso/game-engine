@@ -1,12 +1,16 @@
 //! Offline snapshots of the production auction screen; no session, requests or network.
 use super::NativeAuctionView;
+pub use super::confirmation::confirmation_spec;
 use crate::auction_house_frame_component::*;
 
 pub fn preview_view(view: &str) -> Result<NativeAuctionView, String> {
+    if view == "subcategory_sorted" {
+        return subcategory_sorted_browse();
+    }
     let mut frame = browse_frame();
     match view {
         "browse" => {}
-        "item" | "dialog" => populate_item_buy(&mut frame, view),
+        "item" | "dialog" | "bid-popup" | "buyout-popup" => populate_item_buy(&mut frame, view),
         "inventory" | "sell" | "duration" => populate_sell(&mut frame, view),
         "owned" | "bids" => populate_auctions(&mut frame, view),
         _ => return Err(format!("Unknown offline auction view: {view}")),
@@ -21,18 +25,88 @@ pub fn preview_view(view: &str) -> Result<NativeAuctionView, String> {
     })
 }
 
+/// Offline response fixture after real production category and sort actions.
+/// Item.csv / ItemSparse.csv 12.1.0.69933: cloth Chest/Robe, no live client/server.
+fn subcategory_sorted_browse() -> Result<NativeAuctionView, String> {
+    use super::{AuctionSession, view::InputTexts};
+    use shared::{item_data::ItemDefinitionSource::Retail, protocol::*};
+    crate::item_catalog::wait_for_item_catalog();
+    let mut session = AuctionSession::default();
+    session.open(1);
+    session.opened(AuctionHouseOpened {
+        success: true,
+        error: None,
+    });
+    session.net.inventory = Some(AuctionInventorySnapshot {
+        gold: 12_345_678,
+        items: Vec::new(),
+    });
+    let texts = InputTexts::from([(SEARCH_BOX, "linen".into())]);
+    for action in [
+        "auction_category:1",
+        "auction_category:1/3",
+        "auction_category:1/3/2",
+        "auction_sort:available",
+        "auction_sort:available",
+    ] {
+        session.click(action, &texts);
+    }
+    let query = session
+        .net
+        .last_query
+        .clone()
+        .ok_or("Missing sorted preview query")?;
+    if query.sort_field != AuctionSortField::Quantity
+        || query.sort_dir != AuctionSortDir::Desc
+        || query.subcategory_filters
+            != vec![
+                AuctionItemFilter {
+                    class_id: 4,
+                    subclass_id: Some(1),
+                    inventory_type: Some(5),
+                },
+                AuctionItemFilter {
+                    class_id: 4,
+                    subclass_id: Some(1),
+                    inventory_type: Some(20),
+                },
+            ]
+    {
+        return Err(format!("Incorrect sorted preview query: {query:?}"));
+    }
+    eprintln!("AUCTION_SORTED_PREVIEW query={query:?}");
+    let items = [
+        (6238, "Brown Linen Robe", 37, 12345),
+        (6241, "White Linen Robe", 12, 23456),
+        (6240, "Blue Linen Vest", 8, 34567),
+    ]
+    .into_iter()
+    .map(
+        |(item_id, name, total_quantity, lowest_unit_price)| AuctionBrowseItem {
+            item_id,
+            definition_source: Retail,
+            name: name.into(),
+            quality: 2,
+            required_level: 5,
+            lowest_unit_price,
+            total_quantity,
+        },
+    )
+    .collect();
+    session.browse_results(AuctionBrowseResults {
+        query,
+        total_results: 3,
+        items,
+    });
+    Ok(session.native_view(&texts))
+}
+
 fn browse_frame() -> AuctionHouseFrameState {
     AuctionHouseFrameState {
         visible: true,
         money: 12_345_678,
         search_empty: true,
-        categories: super::view::CATEGORIES
-            .iter()
-            .map(|(name, _)| CategoryRow {
-                name: (*name).into(),
-                selected: false,
-            })
-            .collect(),
+        categories: super::categories::rows(&[]),
         browse: preview_items()
             .into_iter()
             .enumerate()

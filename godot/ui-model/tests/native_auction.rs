@@ -12,7 +12,19 @@ mod tests {
 }
 
 use game_engine_ui_model::auction::{AuctionRequest, AuctionSession, view::InputTexts};
+use game_engine_ui_model::popup::PopupStack;
 use shared::protocol::*;
+
+fn accept_auction_confirmation(session: &mut AuctionSession, key: &str, amount: u64) {
+    let mut stack = PopupStack::default();
+    session.sync_popup(&mut stack);
+    let popup = stack.visible().remove(0);
+    assert_eq!(popup.spec.key, key);
+    assert_eq!(popup.money_alert, Some(amount));
+    stack.accept_top();
+    session.popup_results(&stack.drain_results());
+}
+
 #[test]
 fn native_auction_accepts_server_selected_house_but_rejects_stale_filters() {
     let mut session = AuctionSession::default();
@@ -268,6 +280,7 @@ fn native_auction_live_refund_updates_money_and_bid_affordability() {
     session.sync_replicated_money(999_000);
     assert_eq!(session.state(&texts).money, 999_000);
     session.click("auction_bid", &texts);
+    accept_auction_confirmation(&mut session, "BID_AUCTION", 998_950);
     assert_eq!(
         session.net.requests,
         vec![AuctionRequest::Bid(PlaceBid {
@@ -430,8 +443,8 @@ fn native_auction_server_categories_item_search_and_second_page() {
     let selected = s.state(&texts).item_buy.unwrap();
     assert!(selected.can_buyout);
     s.click("auction_buyout", &texts);
-    assert_eq!(s.state(&texts).dialog.unwrap().price, 1000);
-    s.click("auction_dialog_buy", &texts);
+    assert!(s.state(&texts).dialog.is_none());
+    accept_auction_confirmation(&mut s, "BUYOUT_AUCTION", 1000);
     assert_eq!(
         s.net.requests.pop(),
         Some(AuctionRequest::Buyout(BuyoutAuction { auction_id: 37 }))
@@ -452,6 +465,7 @@ fn native_auction_bid_buyout_owned_cancel_and_refresh() {
     }
     assert_eq!(texts[BID_BOXES.silver], "1");
     s.click("auction_bid", &texts);
+    accept_auction_confirmation(&mut s, "BID_AUCTION", 100);
     assert_eq!(
         s.net.requests,
         vec![AuctionRequest::Bid(PlaceBid {
@@ -471,8 +485,8 @@ fn native_auction_bid_buyout_owned_cancel_and_refresh() {
     s.click("auction_auctions_tab:bids", &texts);
     s.click("auction_select:5", &texts);
     s.click("auction_buyout", &texts);
-    assert_eq!(s.state(&texts).dialog.unwrap().price, 1000);
-    s.click("auction_dialog_buy", &texts);
+    assert!(s.state(&texts).dialog.is_none());
+    accept_auction_confirmation(&mut s, "BUYOUT_AUCTION", 1000);
     assert_eq!(
         s.net.requests,
         vec![AuctionRequest::Buyout(BuyoutAuction { auction_id: 5 })]
@@ -532,4 +546,169 @@ fn native_auction_browse_owned_and_bids_visit_every_fetched_listing() {
         s.click("auction_rows_prev", &texts);
         assert_eq!(s.ui.row_page, 1);
     }
+}
+
+#[test]
+fn ahsort_subcategory_click_sends_chest_and_robe_alternatives_and_toggles() {
+    let mut s = open_session();
+    let texts = InputTexts::from([(SEARCH_BOX, "robe".into())]);
+    s.click("auction_category:1", &texts); // Armor
+    s.net.requests.clear();
+    s.click("auction_category:1/3", &texts); // Cloth
+    let cloth = AuctionSearchQuery {
+        text: "robe".into(),
+        class_id: Some(4),
+        subcategory_filters: vec![AuctionItemFilter {
+            class_id: 4,
+            subclass_id: Some(1),
+            inventory_type: None,
+        }],
+        ..Default::default()
+    };
+    assert_eq!(s.net.requests, vec![AuctionRequest::Browse(cloth.clone())]);
+    s.net.requests.clear();
+    s.ui.row_page = 2;
+    s.ui.selected_auction = Some(77);
+    s.click("auction_category:1/3/2", &texts); // Chest (includes robes)
+    let mut chest = cloth.clone();
+    chest.subcategory_filters = vec![
+        AuctionItemFilter {
+            class_id: 4,
+            subclass_id: Some(1),
+            inventory_type: Some(5),
+        },
+        AuctionItemFilter {
+            class_id: 4,
+            subclass_id: Some(1),
+            inventory_type: Some(20),
+        },
+    ];
+    assert_eq!(s.net.requests, vec![AuctionRequest::Browse(chest)]);
+    assert_eq!(s.ui.row_page, 0);
+    assert_eq!(s.ui.selected_auction, None);
+    let view = s.state(&texts);
+    assert!(
+        view.categories
+            .iter()
+            .any(|row| row.name == "Chest" && row.selected)
+    );
+    s.net.requests.clear();
+    s.click("auction_category:1/3/2", &texts);
+    assert_eq!(s.net.requests, vec![AuctionRequest::Browse(cloth)]);
+    s.net.requests.clear();
+    s.click("auction_category:1", &texts);
+    assert_eq!(
+        s.net.requests,
+        vec![AuctionRequest::Browse(AuctionSearchQuery {
+            text: "robe".into(),
+            ..Default::default()
+        })]
+    );
+}
+
+#[test]
+fn ahsort_available_and_current_bid_headers_reverse_and_preserve_filters() {
+    let mut s = open_session();
+    let query = AuctionSearchQuery {
+        text: "robe".into(),
+        class_id: Some(4),
+        page: 2,
+        subcategory_filters: vec![AuctionItemFilter {
+            class_id: 4,
+            subclass_id: Some(1),
+            inventory_type: Some(20),
+        }],
+        ..Default::default()
+    };
+    for (token, field, listing) in [
+        ("available", AuctionSortField::Quantity, false),
+        ("bid", AuctionSortField::Bid, true),
+        ("available", AuctionSortField::Quantity, true),
+    ] {
+        let mut expected = query.clone();
+        expected.item_id = listing.then_some(123);
+        s.ui.browse_item = expected.item_id;
+        s.net.request(if listing {
+            AuctionRequest::Listings(expected.clone())
+        } else {
+            AuctionRequest::Browse(expected.clone())
+        });
+        for direction in [
+            AuctionSortDir::Asc,
+            AuctionSortDir::Desc,
+            AuctionSortDir::Asc,
+        ] {
+            s.net.requests.clear();
+            s.ui.row_page = 2;
+            s.ui.selected_auction = Some(77);
+            s.click(&format!("auction_sort:{token}"), &InputTexts::new());
+            expected.page = 0;
+            expected.sort_field = field;
+            expected.sort_dir = direction;
+            assert_eq!(
+                s.net.requests,
+                vec![if listing {
+                    AuctionRequest::Listings(expected.clone())
+                } else {
+                    AuctionRequest::Browse(expected.clone())
+                }]
+            );
+            assert_eq!(s.ui.row_page, 0);
+            assert_eq!(s.ui.selected_auction, None);
+        }
+    }
+}
+
+#[test]
+fn ahsort_named_weapon_group_and_profession_slot_send_retail_filters() {
+    let mut s = open_session();
+    s.click("auction_category:0", &InputTexts::new());
+    s.net.requests.clear();
+    s.click("auction_category:0/0", &InputTexts::new());
+    let expected = [0, 4, 7, 9, 15, 13, 19]
+        .into_iter()
+        .map(|subclass_id| AuctionItemFilter {
+            class_id: 2,
+            subclass_id: Some(subclass_id),
+            inventory_type: None,
+        })
+        .collect::<Vec<_>>();
+    assert_eq!(
+        s.net.requests,
+        vec![AuctionRequest::Browse(AuctionSearchQuery {
+            class_id: Some(2),
+            subcategory_filters: expected,
+            ..Default::default()
+        })]
+    );
+    s.net.requests.clear();
+    s.click("auction_category:0/0/0", &InputTexts::new());
+    assert_eq!(
+        s.net.requests,
+        vec![AuctionRequest::Browse(AuctionSearchQuery {
+            class_id: Some(2),
+            subcategory_filters: vec![AuctionItemFilter {
+                class_id: 2,
+                subclass_id: Some(0),
+                inventory_type: None
+            }],
+            ..Default::default()
+        })]
+    );
+    s.click("auction_category:9", &InputTexts::new());
+    s.click("auction_category:9/0", &InputTexts::new());
+    s.net.requests.clear();
+    s.click("auction_category:9/0/0", &InputTexts::new());
+    assert_eq!(
+        s.net.requests,
+        vec![AuctionRequest::Browse(AuctionSearchQuery {
+            class_id: Some(19),
+            subcategory_filters: vec![AuctionItemFilter {
+                class_id: 19,
+                subclass_id: Some(12),
+                inventory_type: Some(29)
+            }],
+            ..Default::default()
+        })]
+    );
 }
