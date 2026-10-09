@@ -181,7 +181,7 @@ The unit-frame reference fixtures prove geometry/text with populated ToT/focus s
 
 ## Art
 
-- Selection boxes: `Interface/EditMode/EditModeUIHighlightBackground.blp` (FDID 4554383) and `EditModeUISelectedBackground.blp` (4554386), stretched, alpha 0.7. Retail slices these as nine-slices; this uses them stretched.
+- Selection boxes: Retail `editmode-actionbar-highlight/selected-nineslice-*` corner/edge/center atlas pieces, alpha 0.7. Corners retain 8 logical UI units under the existing UI scale. Retail's 16-unit pieces extend 8 units outside the selection (`Blizzard_EditMode/Shared/EditModeSystemTemplates.lua:3139-3149`); the full authored members fit into 8-unit inset pieces here to preserve existing outer bounds and hitboxes. Corner mirroring follows `Blizzard_SharedXML/NineSlice.lua`. Hover/selection states, labels, mover anchors and panel/dialog corners stay unchanged. Center FDIDs remain 4554383/4554386; corner/horizontal edges use 4554359, vertical edges 4554389.
 - Panel: the static-popup dialog background (FDID 6839810) and `static_popup` border panel style; buttons use the `defaultbutton-nineslice-*` atlases. Retail's EditModeManagerFrame dialog border was not identified in the listfile.
 
 ## Historical Bevy implementation inventory
