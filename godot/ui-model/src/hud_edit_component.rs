@@ -165,13 +165,13 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
     }
 }
 
-fn selection_background(name: &str, size: [f32; 2], selected: bool, level: f32) -> Element {
+fn selection_background_pieces(name: &str, size: [f32; 2], selected: bool, level: f32) -> Element {
     let [w, h] = size;
     let c = SELECTION_CORNER;
     let kit = if selected { "selected" } else { "highlight" };
     // Fit Retail's full atlas pieces into 8 UI units, not its outward padding.
     // Corner texcoords mirror the same authored top-left member as NineSlice.lua.
-    let pieces: Element = [
+    [
         ([0.0, 0.0, c, c], "", "corner", "0,1,0,1"),
         ([c, 0.0, w - 2.0 * c, c], "_", "edgetop", "0,1,0,1"),
         ([w - c, 0.0, c, c], "", "corner", "1,0,0,1"),
@@ -195,7 +195,12 @@ fn selection_background(name: &str, size: [f32; 2], selected: bool, level: f32) 
             }
         }
     })
-    .collect();
+    .collect()
+}
+
+fn selection_background(name: &str, size: [f32; 2], selected: bool, level: f32) -> Element {
+    let [w, h] = size;
+    let pieces = selection_background_pieces(name, size, selected, level);
     rsx! {
         r#frame {
             name: {DynName(format!("{name}Background"))},
