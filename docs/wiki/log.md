@@ -2947,3 +2947,7 @@ Recorded local Arcane CSV witnesses, grant/spec conditions and Blizzard node geo
 ## 2026-10-09 — Character-select roster overflow
 
 [Investigation](investigations/character-select-roster.md) records fixed95px clipped entries, non-overlapping footer, skin-independent local race/class names and native list input ownership. [Contract](../specs/character-select-roster.md) owns RED7/7, GREEN8+11, native truncation/input counterexamples and inspected1920×1080 Modern/Forever12-entry captures. No server/protocol, push/merge or3D-rendering acceptance.
+
+## 2026-10-09 — Zephras sky/minimap diagnosis
+
+[Investigation](investigations/zephras-sky-minimap.md): exact local assets retained; map2991 MAID minimap path and authored sky0x8012 crossfade identified. Real-tile CPU RED and actual-texture shader RED/GREEN recorded; rebuilt private after pending.

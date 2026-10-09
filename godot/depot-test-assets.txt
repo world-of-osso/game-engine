@@ -11,6 +11,9 @@ gametables/itemsocketcostperlevel.txt
 # Retail AuctionHouse favorites SquareIconButton disabled art (IconButtonTemplate.xml:55).
 textures/896467.blp
 
+# Zephras map2991 MAID minimap regression, local Forever FDID 7199025.
+textures/7199025.blp
+
 # Native meeting-stone summon zone names use the minimap catalog (ChrRaces below).
 AreaTable.csv
 db2/12.1.0.69933/Vignette.csv

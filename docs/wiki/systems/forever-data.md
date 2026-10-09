@@ -2,6 +2,8 @@
 
 Forever `1.60.1.70205` supplies Skyborne character data alongside Retail, not as a replacement. Verified evidence: 2026-10-04; native Skyborne preview acceptance remains in progress.
 
+[Map2991 sky/minimap root causes](../investigations/zephras-sky-minimap.md): listfile-only minimap resolution loses usable MAID FDIDs; sky7345733 uses a wrongly implemented dual-crossfade. Actual local assets match their content keys; rebuilt private after proof pending.
+
 ## Import and consumers
 
 [`import_forever_skyborne.py`](../../../scripts/import_forever_skyborne.py) decodes local `wow_classic_beta` WDC5 tables using matching WoWDBDefs layout hashes and records FDID, content/encoding keys, source/definition hashes, dropped rows and absent columns. Build key: `842b2e5d11f8d6fe257a5b73bd5cf6c6`. CSVs and importer provenance/assets manifests live in `data/db2/1.60.1.70205/`; extraction staging is `data/cache/forever-skyborne-extract`, with runtime assets cached under `data/models/` and `data/textures/`. No CDN acquisition.

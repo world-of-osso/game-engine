@@ -25,7 +25,7 @@ The arrow uses the world map's `arrow_rotation(yaw) = (yaw − π/2) mod 2π`, c
 
 ## Tiles and textures
 
-`Minimap::load_tile` resolves the listfile path through `CascListfileResolver`, caches the file at `data/textures/<fdid>.blp`, and decodes it with `game_engine_core::blp::decode_rgba`. The result is cached per `(map, key)`, and a missing tile is remembered as `None`.
+For map2991, `Minimap::load_tile` reads the existing WDT7198644 MAID minimap slot; other maps resolve the listfile path through `CascListfileResolver`. [Zephras diagnosis/proof](../investigations/zephras-sky-minimap.md). It caches the file at `data/textures/<fdid>.blp`, and decodes it with `game_engine_core::blp::decode_rgba`. The result is cached per `(map, key)`, and a missing tile is remembered as `None`.
 
 Northshire's `azeroth/map32_48.blp` is FDID 204493, a 256² tile. At zoom 0 the 198-unit map spans 466⅔ yards, about 224 source texels, so the composite is 256² and is rebuilt only after the player moves half a composite pixel, the zoom changes, or the map changes. Chrome and tracker FDIDs are copied out of CASC the first time they are drawn. FDIDs 4618654 (vertical header edges) and 4618663 (calendar) were not on disk before this port.
 

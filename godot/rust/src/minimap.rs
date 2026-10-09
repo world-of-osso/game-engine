@@ -204,7 +204,20 @@ fn load_tile(
     key: TileKey,
 ) -> Result<Option<Tile>, String> {
     let path = tile_path(map, key);
-    let Some(fdid) = resolver.lookup_path(&path) else {
+    let fdid = if map == "2991" {
+        // Forever Map.csv row2991 names WDT7198644; its minimaps have no listfile names.
+        let wdt = data_root.join("terrain/7198644.wdt");
+        let bytes = std::fs::read(&wdt)
+            .map_err(|error| format!("Zephras minimap WDT {}: {error}", wdt.display()))?;
+        let tiles = game_engine_core::asset::wdt::parse_wdt_tiles(&bytes)?;
+        tiles
+            .file_ids(key.0, key.1)
+            .map(|ids| ids.minimap)
+            .filter(|&fdid| fdid != 0)
+    } else {
+        resolver.lookup_path(&path)
+    };
+    let Some(fdid) = fdid else {
         return Ok(None);
     };
     let cache = data_root.join("textures").join(format!("{fdid}.blp"));
@@ -240,6 +253,28 @@ fn load_catalogs(data_root: &std::path::Path) -> Result<Catalogs, String> {
         races: parse_race_faction_groups(races, &races_path)?,
         vignettes: parse_vignettes(vignettes, &vignettes_path)?,
     })
+}
+
+#[cfg(test)]
+mod zephras_tests {
+    use super::*;
+
+    #[test]
+    fn zephras_authored_minimap_tile_decodes_without_a_listfile_name() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        let resolver = crate::assets::creature::local_resolver(&root);
+        let tile = load_tile(&resolver, &root, "2991", (28, 24))
+            .expect("local authored tile must decode")
+            .expect("Zephras WDT names the minimap by FDID, not listfile path");
+        assert_eq!(tile.fdid, 7199025);
+        assert_eq!((tile.image.width, tile.image.height), (512, 512));
+        assert!(tile.image.pixels.chunks_exact(4).any(|pixel| pixel[0] > 20));
+        assert!(
+            load_tile(&resolver, &root, "2991", (0, 0))
+                .unwrap()
+                .is_none()
+        );
+    }
 }
 
 /// Local wall-clock hour, minute and day of month (`timeMgrUseLocalTime` shows local time;

@@ -227,7 +227,7 @@ impl WorldLighting {
         self.attach_nodes(parent)?;
         bind_sky_dome(self.sky.as_mut().expect("attached sky"), &stops, &light.fog);
         self.sync_stars(catalog, stars_alpha)?;
-        self.sync_skyboxes(catalog, &values.5, minutes)?;
+        self.sync_skyboxes(catalog, &values.5, minutes, map_id)?;
         self.sync_planets(catalog, &values.6, values.3.specular)?;
         let final_fog = values
             .5
@@ -269,6 +269,7 @@ impl WorldLighting {
         catalog: &LightingCatalog,
         draws: &[SkyboxDraw],
         minutes: f32,
+        map_id: u32,
     ) -> Result<(), String> {
         for draw in draws {
             let fraction = (draw.flags & 1 != 0).then_some(minutes.rem_euclid(2880.0) / 2880.0);
@@ -284,6 +285,9 @@ impl WorldLighting {
                 let path = assets::cache_sky_model(&catalog.data_root, draw.fdid)
                     .map_err(|error| format!("Skybox {}: {error}", draw.fdid))?;
                 let mut model = match fraction {
+                    Some(fraction) if map_id == 2991 && draw.fdid == 7345733 => {
+                        SkyModel::load_zephras_at_fraction(&catalog.data_root, &path, fraction)?
+                    }
                     Some(fraction) => {
                         SkyModel::load_at_fraction(&catalog.data_root, &path, draw.fdid, fraction)?
                     }

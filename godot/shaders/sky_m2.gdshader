@@ -11,6 +11,9 @@ uniform float transparency = 1.0;
 uniform float model_alpha = 1.0;
 uniform float alpha_test = 0.0;
 uniform int combine_mode = 0;
+// Only map2991's authored sky enables its M2 Mod_Dual_Crossfade material.
+uniform bool zephras_dual_crossfade = false;
+uniform vec3 zephras_texture_weights = vec3(1.0, 0.0, 0.0);
 uniform bool has_second_texture = false;
 uniform bool has_third_texture = false;
 uniform bool has_fourth_texture = false;
@@ -37,6 +40,9 @@ vec4 combine_textures(vec4 first, vec4 second, vec4 third, vec4 fourth) {
 	} else if (combine_mode == 0x8003) {
 		return vec4(first.rgb + second.rgb * second.a * first.a, 1.0);
 	} else if (combine_mode == 0x8012) {
+		if (zephras_dual_crossfade) {
+			return mix(mix(first, second, clamp(zephras_texture_weights.y, 0.0, 1.0)), third, clamp(zephras_texture_weights.z, 0.0, 1.0));
+		}
 		return first * mix(second, third, third.a);
 	} else if (combine_mode == 0x8016) {
 		return first * mix(second, third, fourth.a);

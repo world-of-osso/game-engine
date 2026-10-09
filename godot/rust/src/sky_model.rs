@@ -42,6 +42,8 @@ pub(crate) struct SkyModel {
     animations: Vec<AnimatedBatch>,
     global_sequences: Vec<u32>,
     default_sequence_index: usize,
+    /// Map2991 sky7345733 uses texture weights 1/2 to crossfade its authored triplets.
+    zephras_crossfade: Option<[m2::AnimTrack<i16>; 2]>,
 }
 
 impl SkyModel {
@@ -53,7 +55,7 @@ impl SkyModel {
         fdid: u32,
         time_override_ms: Option<u32>,
     ) -> Result<Self, String> {
-        Self::load_with_phase(data_root, model_path, fdid, |_| time_override_ms)
+        Self::load_with_phase(data_root, model_path, fdid, false, |_| time_override_ms)
     }
 
     /// As `load_model`, held at `fraction` of its default sequence (WebWowViewerCpp
@@ -65,7 +67,17 @@ impl SkyModel {
         fdid: u32,
         fraction: f32,
     ) -> Result<Self, String> {
-        Self::load_with_phase(data_root, model_path, fdid, |duration| {
+        Self::load_with_phase(data_root, model_path, fdid, false, |duration| {
+            Some((fraction.clamp(0.0, 1.0) * duration as f32) as u32)
+        })
+    }
+
+    pub fn load_zephras_at_fraction(
+        data_root: &Path,
+        model_path: &Path,
+        fraction: f32,
+    ) -> Result<Self, String> {
+        Self::load_with_phase(data_root, model_path, 7345733, true, |duration| {
             Some((fraction.clamp(0.0, 1.0) * duration as f32) as u32)
         })
     }
@@ -75,6 +87,7 @@ impl SkyModel {
         data_root: &Path,
         model_path: &Path,
         fdid: u32,
+        zephras: bool,
         phase: impl FnOnce(u32) -> Option<u32>,
     ) -> Result<Self, String> {
         let context = |error| format!("Sky FDID {fdid} at {}: {error}", model_path.display());
@@ -90,11 +103,27 @@ impl SkyModel {
             .get(default_sequence_index(&model))
             .map_or(0, |sequence| sequence.duration);
         let time_override_ms = phase(duration);
+        let zephras_crossfade = if zephras {
+            let weights = &model.transparency_tracks;
+            Some([
+                weights
+                    .get(1)
+                    .ok_or("Zephras sky lacks texture weight 1")?
+                    .clone(),
+                weights
+                    .get(2)
+                    .ok_or("Zephras sky lacks texture weight 2")?
+                    .clone(),
+            ])
+        } else {
+            None
+        };
         let span = crate::profile::span(|| "sky.prepare_batches".to_owned());
         let prepared = prepare_batches(&model, data_root).map_err(&context)?;
         drop(span);
         let _span = crate::profile::span(|| "sky.assemble".to_owned());
-        let mut sky = assemble_sky(model, prepared, time_override_ms).map_err(&context)?;
+        let mut sky =
+            assemble_sky(model, prepared, time_override_ms, zephras_crossfade).map_err(&context)?;
         sky.node.set_name(&format!("AuthoredSky{fdid}"));
         sky.node
             .set_meta(assets::M2_SOURCE_META, &source.to_variant());
@@ -134,6 +163,23 @@ impl SkyModel {
     }
 
     pub fn sample(&mut self, time_ms: u32) {
+        if let Some(weights) = &self.zephras_crossfade {
+            let sampled = weights.each_ref().map(|track| {
+                opacity(
+                    Some(track),
+                    self.default_sequence_index,
+                    &self.global_sequences,
+                    time_ms,
+                )
+            });
+            for material in &mut self.materials {
+                material.set_shader_parameter("zephras_dual_crossfade", &true.to_variant());
+                material.set_shader_parameter(
+                    "zephras_texture_weights",
+                    &Vector3::new(1.0, sampled[0], sampled[1]).to_variant(),
+                );
+            }
+        }
         for batch in &mut self.animations {
             let transparency = opacity(
                 batch.transparency.as_ref(),
@@ -219,6 +265,7 @@ fn assemble_sky(
     model: m2::Model,
     prepared: Vec<PreparedBatch>,
     time_override_ms: Option<u32>,
+    zephras_crossfade: Option<[m2::AnimTrack<i16>; 2]>,
 ) -> Result<SkyModel, String> {
     let (skeleton, skin) = assets::build_skeleton(&model.bones);
     let player = match load_player(&model, skeleton.clone(), time_override_ms) {
@@ -248,6 +295,7 @@ fn assemble_sky(
         animations,
         default_sequence_index: default_sequence_index(&model),
         global_sequences: model.global_sequences,
+        zephras_crossfade,
     };
     sky.sample(time_override_ms.unwrap_or(0));
     Ok(sky)
