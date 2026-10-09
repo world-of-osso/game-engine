@@ -86,6 +86,11 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [x] Frames `CompactRaidGroup{g}Member{m}` use the same member frame as the party.
 - [x] Both containers are Edit Mode elements `party_frames` / `raid_frames` (`CompactPartyFrame` / `CompactRaidFrameContainer`), anchored TOPLEFT by default.
 
+### Raid default overlap regression (2026-10-09)
+
+- [x] Explicit UI scale 1: concrete Mailalpha/Mailbeta two-member raid and player rectangles do not intersect under either preset at 1920×1080 and 1280×720. RED reproduced Forever at 1920×1080: raid (672,779,576,86), player (510,780,240,60). Implicit 768-unit UIParent scaling concealed the defect.
+- [x] Targeted native HUD layout tests: 31 passed. Offline native previews at 1920×1080 draw both named members and player under Forever/Modern, assert non-overlap, and retain PNGs at `/syncthing/AgentShared/2026-10-09/raidoverlap/{forever,modern}.png`. Evidence/logs: `data/diagnostics/raidoverlap-2026-10-09/`. No new live-network or full HUD-editor acceptance claim.
+
 ### Menus (Retail `UnitPopup`)
 - [x] Self (player frame or own group frame): "Set Role: Tank/Healer/Damage/None", then for the leader:
   - "Convert To Raid" (`CONVERT_TO_RAID`) in a party;
