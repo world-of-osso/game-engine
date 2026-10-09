@@ -1,7 +1,7 @@
 //! Offline PlayerSpellsFrame capture through the production spellbook projection.
 use super::{RegistryUi, party_preview};
 use game_engine_ui_model::spellbook_frame_component::PlayerSpellsTab;
-use game_engine_ui_model::spellbook_preview::load_preview_state;
+use game_engine_ui_model::spellbook_preview::{load_class_preview_state, load_preview_state};
 use godot::prelude::*;
 use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
 
@@ -44,7 +44,10 @@ impl RegistryUi {
                 _ => return Err(format!("Unknown offline PlayerSpells page: {page}")),
             };
             let data = game_engine_ui_model::paths::resolve_data_path("");
-            let mut state = load_preview_state(&data, tab)?;
+            let mut state = match read_preview_selection()? {
+                Some((class, spec)) => load_class_preview_state(&data, tab, class, spec)?,
+                None => load_preview_state(&data, tab)?,
+            };
             if tab == PlayerSpellsTab::Talents
                 && std::env::var("GODOT_TALENT_PENDING").as_deref() == Ok("1")
             {
@@ -114,6 +117,24 @@ impl RegistryUi {
         })
     }
 }
+fn read_preview_selection() -> Result<Option<(u32, u32)>, String> {
+    let class = std::env::var("GODOT_PREVIEW_CLASS").ok();
+    let spec = std::env::var("GODOT_PREVIEW_SPEC").ok();
+    match (class, spec) {
+        (None, None) => Ok(None),
+        (Some(class), Some(spec)) => {
+            let class = class
+                .parse()
+                .map_err(|error| format!("GODOT_PREVIEW_CLASS: {error}"))?;
+            let spec = spec
+                .parse()
+                .map_err(|error| format!("GODOT_PREVIEW_SPEC: {error}"))?;
+            Ok(Some((class, spec)))
+        }
+        _ => Err("Set GODOT_PREVIEW_CLASS and GODOT_PREVIEW_SPEC together".into()),
+    }
+}
+
 fn load_talent_preview_tooltip(
     data: &std::path::Path,
     id: u32,
@@ -127,7 +148,7 @@ fn load_talent_preview_tooltip(
         .get(id)
         .ok_or_else(|| format!("Talents preview lacks local spell {id}"))?;
     let context = SpellTextContext {
-        spec_id: Some(62),
+        spec_id: Some(read_preview_selection()?.map_or(62, |(_, spec)| spec)),
         ..Default::default()
     };
     let description = catalog
