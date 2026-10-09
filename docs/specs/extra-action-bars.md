@@ -29,6 +29,7 @@ Native Options visibility for existing Action Bars 2–5 in both skins. Retail s
 - `godot/rust/src/ui/hud_edit_polish_tests.rs` — 19 default movers, manager/label clearance.
 - `godot/ui-model/tests/options_policy.rs` — supported toggles, snapshots and category reset.
 - `godot/ui-model/tests/options_views.rs` — category/action rendering.
+- `godot/ui-model/tests/forever_quest_windows.rs` — Modern quest windows remain unchanged; combined quest/options fixture includes the added Action Bars tab and page.
 - `godot/core/tests/extra_action_bars_options.rs` — file round trip and absent-field defaults.
 
 ## Known gaps (current cycle)
