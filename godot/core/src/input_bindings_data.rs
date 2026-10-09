@@ -253,6 +253,32 @@ pub enum InputAction {
     MultiActionBar2Button10,
     MultiActionBar2Button11,
     MultiActionBar2Button12,
+    /// Retail `MULTIACTIONBAR3BUTTON1..12`: Action Bar 4.
+    MultiActionBar3Button1,
+    MultiActionBar3Button2,
+    MultiActionBar3Button3,
+    MultiActionBar3Button4,
+    MultiActionBar3Button5,
+    MultiActionBar3Button6,
+    MultiActionBar3Button7,
+    MultiActionBar3Button8,
+    MultiActionBar3Button9,
+    MultiActionBar3Button10,
+    MultiActionBar3Button11,
+    MultiActionBar3Button12,
+    /// Retail `MULTIACTIONBAR4BUTTON1..12`: Action Bar 5.
+    MultiActionBar4Button1,
+    MultiActionBar4Button2,
+    MultiActionBar4Button3,
+    MultiActionBar4Button4,
+    MultiActionBar4Button5,
+    MultiActionBar4Button6,
+    MultiActionBar4Button7,
+    MultiActionBar4Button8,
+    MultiActionBar4Button9,
+    MultiActionBar4Button10,
+    MultiActionBar4Button11,
+    MultiActionBar4Button12,
     /// Retail `BONUSACTIONBUTTON1..10`: the pet action bar buttons.
     PetActionSlot1,
     PetActionSlot2,
@@ -351,7 +377,37 @@ impl InputAction {
         Self::MultiActionBar2Button12,
     ];
 
-    pub const ALL: [Self; 96] = [
+    pub const MULTI_ACTION_BAR_3: [Self; 12] = [
+        Self::MultiActionBar3Button1,
+        Self::MultiActionBar3Button2,
+        Self::MultiActionBar3Button3,
+        Self::MultiActionBar3Button4,
+        Self::MultiActionBar3Button5,
+        Self::MultiActionBar3Button6,
+        Self::MultiActionBar3Button7,
+        Self::MultiActionBar3Button8,
+        Self::MultiActionBar3Button9,
+        Self::MultiActionBar3Button10,
+        Self::MultiActionBar3Button11,
+        Self::MultiActionBar3Button12,
+    ];
+
+    pub const MULTI_ACTION_BAR_4: [Self; 12] = [
+        Self::MultiActionBar4Button1,
+        Self::MultiActionBar4Button2,
+        Self::MultiActionBar4Button3,
+        Self::MultiActionBar4Button4,
+        Self::MultiActionBar4Button5,
+        Self::MultiActionBar4Button6,
+        Self::MultiActionBar4Button7,
+        Self::MultiActionBar4Button8,
+        Self::MultiActionBar4Button9,
+        Self::MultiActionBar4Button10,
+        Self::MultiActionBar4Button11,
+        Self::MultiActionBar4Button12,
+    ];
+
+    pub const ALL: [Self; 120] = [
         Self::MoveForward,
         Self::MoveBackward,
         Self::StrafeLeft,
@@ -416,6 +472,30 @@ impl InputAction {
         Self::MultiActionBar2Button10,
         Self::MultiActionBar2Button11,
         Self::MultiActionBar2Button12,
+        Self::MultiActionBar3Button1,
+        Self::MultiActionBar3Button2,
+        Self::MultiActionBar3Button3,
+        Self::MultiActionBar3Button4,
+        Self::MultiActionBar3Button5,
+        Self::MultiActionBar3Button6,
+        Self::MultiActionBar3Button7,
+        Self::MultiActionBar3Button8,
+        Self::MultiActionBar3Button9,
+        Self::MultiActionBar3Button10,
+        Self::MultiActionBar3Button11,
+        Self::MultiActionBar3Button12,
+        Self::MultiActionBar4Button1,
+        Self::MultiActionBar4Button2,
+        Self::MultiActionBar4Button3,
+        Self::MultiActionBar4Button4,
+        Self::MultiActionBar4Button5,
+        Self::MultiActionBar4Button6,
+        Self::MultiActionBar4Button7,
+        Self::MultiActionBar4Button8,
+        Self::MultiActionBar4Button9,
+        Self::MultiActionBar4Button10,
+        Self::MultiActionBar4Button11,
+        Self::MultiActionBar4Button12,
         Self::PetActionSlot1,
         Self::PetActionSlot2,
         Self::PetActionSlot3,
@@ -765,7 +845,31 @@ impl InputAction {
             | Self::MultiActionBar2Button9
             | Self::MultiActionBar2Button10
             | Self::MultiActionBar2Button11
-            | Self::MultiActionBar2Button12 => {
+            | Self::MultiActionBar2Button12
+            | Self::MultiActionBar3Button1
+            | Self::MultiActionBar3Button2
+            | Self::MultiActionBar3Button3
+            | Self::MultiActionBar3Button4
+            | Self::MultiActionBar3Button5
+            | Self::MultiActionBar3Button6
+            | Self::MultiActionBar3Button7
+            | Self::MultiActionBar3Button8
+            | Self::MultiActionBar3Button9
+            | Self::MultiActionBar3Button10
+            | Self::MultiActionBar3Button11
+            | Self::MultiActionBar3Button12
+            | Self::MultiActionBar4Button1
+            | Self::MultiActionBar4Button2
+            | Self::MultiActionBar4Button3
+            | Self::MultiActionBar4Button4
+            | Self::MultiActionBar4Button5
+            | Self::MultiActionBar4Button6
+            | Self::MultiActionBar4Button7
+            | Self::MultiActionBar4Button8
+            | Self::MultiActionBar4Button9
+            | Self::MultiActionBar4Button10
+            | Self::MultiActionBar4Button11
+            | Self::MultiActionBar4Button12 => {
                 unreachable!("extra action bar buttons handled by multi_action_bar_meta")
             }
         }
@@ -804,11 +908,41 @@ impl InputAction {
             ("multi_action_bar_2_button_11", "Action Bar 3 Button 11"),
             ("multi_action_bar_2_button_12", "Action Bar 3 Button 12"),
         ];
+        const BAR_4: [(&str, &str); 12] = [
+            ("multi_action_bar_3_button_1", "Action Bar 4 Button 1"),
+            ("multi_action_bar_3_button_2", "Action Bar 4 Button 2"),
+            ("multi_action_bar_3_button_3", "Action Bar 4 Button 3"),
+            ("multi_action_bar_3_button_4", "Action Bar 4 Button 4"),
+            ("multi_action_bar_3_button_5", "Action Bar 4 Button 5"),
+            ("multi_action_bar_3_button_6", "Action Bar 4 Button 6"),
+            ("multi_action_bar_3_button_7", "Action Bar 4 Button 7"),
+            ("multi_action_bar_3_button_8", "Action Bar 4 Button 8"),
+            ("multi_action_bar_3_button_9", "Action Bar 4 Button 9"),
+            ("multi_action_bar_3_button_10", "Action Bar 4 Button 10"),
+            ("multi_action_bar_3_button_11", "Action Bar 4 Button 11"),
+            ("multi_action_bar_3_button_12", "Action Bar 4 Button 12"),
+        ];
+        const BAR_5: [(&str, &str); 12] = [
+            ("multi_action_bar_4_button_1", "Action Bar 5 Button 1"),
+            ("multi_action_bar_4_button_2", "Action Bar 5 Button 2"),
+            ("multi_action_bar_4_button_3", "Action Bar 5 Button 3"),
+            ("multi_action_bar_4_button_4", "Action Bar 5 Button 4"),
+            ("multi_action_bar_4_button_5", "Action Bar 5 Button 5"),
+            ("multi_action_bar_4_button_6", "Action Bar 5 Button 6"),
+            ("multi_action_bar_4_button_7", "Action Bar 5 Button 7"),
+            ("multi_action_bar_4_button_8", "Action Bar 5 Button 8"),
+            ("multi_action_bar_4_button_9", "Action Bar 5 Button 9"),
+            ("multi_action_bar_4_button_10", "Action Bar 5 Button 10"),
+            ("multi_action_bar_4_button_11", "Action Bar 5 Button 11"),
+            ("multi_action_bar_4_button_12", "Action Bar 5 Button 12"),
+        ];
         let (bar, index) = self.multi_action_bar()?;
-        let (names, section) = if bar == 1 {
-            (&BAR_2, BindingSection::ActionBar2)
-        } else {
-            (&BAR_3, BindingSection::ActionBar3)
+        let (names, section) = match bar {
+            1 => (&BAR_2, BindingSection::ActionBar2),
+            2 => (&BAR_3, BindingSection::ActionBar3),
+            3 => (&BAR_4, BindingSection::ActionBar4),
+            4 => (&BAR_5, BindingSection::ActionBar5),
+            _ => unreachable!("only the four supported multi bars are returned"),
         };
         let (key, label) = names[index];
         Some(input_action_meta(key, label, section, None))
@@ -820,6 +954,8 @@ impl InputAction {
         in_bar(&Self::MULTI_ACTION_BAR_1)
             .map(|index| (1, index))
             .or_else(|| in_bar(&Self::MULTI_ACTION_BAR_2).map(|index| (2, index)))
+            .or_else(|| in_bar(&Self::MULTI_ACTION_BAR_3).map(|index| (3, index)))
+            .or_else(|| in_bar(&Self::MULTI_ACTION_BAR_4).map(|index| (4, index)))
     }
 
     /// Retail `BONUSACTIONBUTTON1..10` (`Bindings_Standard.xml:272-361`,
@@ -918,19 +1054,23 @@ pub enum BindingSection {
     ActionBar2,
     /// `BINDING_HEADER_ACTIONBAR3`.
     ActionBar3,
+    ActionBar4,
+    ActionBar5,
     Audio,
     Interface,
     Bags,
 }
 
 impl BindingSection {
-    pub const ALL: [Self; 9] = [
+    pub const ALL: [Self; 11] = [
         Self::Movement,
         Self::Camera,
         Self::Targeting,
         Self::ActionBar,
         Self::ActionBar2,
         Self::ActionBar3,
+        Self::ActionBar4,
+        Self::ActionBar5,
         Self::Audio,
         Self::Interface,
         Self::Bags,
@@ -944,6 +1084,8 @@ impl BindingSection {
             Self::ActionBar => "action_bar",
             Self::ActionBar2 => "action_bar_2",
             Self::ActionBar3 => "action_bar_3",
+            Self::ActionBar4 => "action_bar_4",
+            Self::ActionBar5 => "action_bar_5",
             Self::Audio => "audio",
             Self::Interface => "interface",
             Self::Bags => "bags",
@@ -958,6 +1100,8 @@ impl BindingSection {
             "action_bar" => Self::ActionBar,
             "action_bar_2" => Self::ActionBar2,
             "action_bar_3" => Self::ActionBar3,
+            "action_bar_4" => Self::ActionBar4,
+            "action_bar_5" => Self::ActionBar5,
             "audio" => Self::Audio,
             "interface" => Self::Interface,
             "bags" => Self::Bags,
@@ -973,6 +1117,8 @@ impl BindingSection {
             Self::ActionBar => "Action Bar",
             Self::ActionBar2 => "Action Bar 2",
             Self::ActionBar3 => "Action Bar 3",
+            Self::ActionBar4 => "Action Bar 4",
+            Self::ActionBar5 => "Action Bar 5",
             Self::Audio => "Audio",
             Self::Interface => "Interface",
             Self::Bags => "Bags",
@@ -1323,6 +1469,8 @@ fn multi_action_bar_from_key(key: &str) -> Option<InputAction> {
     InputAction::MULTI_ACTION_BAR_1
         .into_iter()
         .chain(InputAction::MULTI_ACTION_BAR_2)
+        .chain(InputAction::MULTI_ACTION_BAR_3)
+        .chain(InputAction::MULTI_ACTION_BAR_4)
         .find(|action| action.key() == key)
 }
 
@@ -1394,6 +1542,8 @@ pub fn actions_for_section(section: BindingSection) -> &'static [InputAction] {
         BindingSection::ActionBar => action_bar_section_actions(),
         BindingSection::ActionBar2 => &InputAction::MULTI_ACTION_BAR_1,
         BindingSection::ActionBar3 => &InputAction::MULTI_ACTION_BAR_2,
+        BindingSection::ActionBar4 => &InputAction::MULTI_ACTION_BAR_3,
+        BindingSection::ActionBar5 => &InputAction::MULTI_ACTION_BAR_4,
         BindingSection::Audio => audio_section_actions(),
         BindingSection::Interface => interface_section_actions(),
         BindingSection::Bags => bag_section_actions(),

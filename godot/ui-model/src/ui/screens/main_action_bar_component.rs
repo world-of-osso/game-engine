@@ -215,10 +215,30 @@ impl ActionBar {
             Self::Main => &InputAction::ACTION_BAR_BUTTONS,
             Self::BottomLeft => &InputAction::MULTI_ACTION_BAR_1,
             Self::BottomRight => &InputAction::MULTI_ACTION_BAR_2,
-            // Side-bar binding definitions are not implemented yet; pointer casting
-            // still uses their native action pages (MultiActionBars.xml:120,149).
-            Self::Right | Self::Left => &[],
+            Self::Right => &InputAction::MULTI_ACTION_BAR_3,
+            Self::Left => &InputAction::MULTI_ACTION_BAR_4,
         }
+    }
+
+    /// Shared Retail ReceiveDrag destination; assignment is sent to the server by the host.
+    pub fn assignment(
+        self,
+        index: usize,
+        action: shared::protocol::ActionRef,
+        bonus_offset: u8,
+    ) -> Option<shared::protocol::SetActionButton> {
+        if index >= MAIN_BAR_BUTTONS {
+            return None;
+        }
+        let slot = if self == Self::Main && bonus_offset > 0 {
+            (6 + usize::from(bonus_offset) - 1) * MAIN_BAR_BUTTONS + index
+        } else {
+            self.action_slot(index)
+        };
+        Some(shared::protocol::SetActionButton {
+            slot: slot as u8,
+            action: Some(action),
+        })
     }
 
     /// The bar's Edit Mode settings under `layout`; `None` when the preset does not show it.
