@@ -57,6 +57,7 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
   ComponentModelFileData       FDID 1349053
   GroundEffectTexture          FDID 1308499
   GroundEffectDoodad           FDID 1308057
+  WMOMinimapTexture            FDID 1323241
 """
 
 import csv
@@ -691,6 +692,19 @@ TABLES = {
     "GroundEffectDoodad": (
         0xCFD94A21,
         [("ID", "id"), ("ModelFileID", ("int", 0, 0)), ("Flags", ("int", 1, 0))],
+    ),
+    # Layout 01230A50: GroupNum, BlockX, BlockY, FileDataID; WMOID is the relation column.
+    # Indoor minimap tiles per WMO group (wowdev.wiki WMOMinimapTexture).
+    "WMOMinimapTexture": (
+        0x01230A50,
+        [
+            ("ID", "id"),
+            ("GroupNum", ("u16", 0)),
+            ("BlockX", ("u8", 1)),
+            ("BlockY", ("u8", 2)),
+            ("FileDataID", ("int", 3, 0)),
+            ("WMOID", "parent"),
+        ],
     ),
 }
 
