@@ -12,7 +12,19 @@ mod tests {
 }
 
 use game_engine_ui_model::auction::{AuctionRequest, AuctionSession, view::InputTexts};
+use game_engine_ui_model::popup::PopupStack;
 use shared::protocol::*;
+
+fn accept_auction_confirmation(session: &mut AuctionSession, key: &str, amount: u64) {
+    let mut stack = PopupStack::default();
+    session.sync_popup(&mut stack);
+    let popup = stack.visible().remove(0);
+    assert_eq!(popup.spec.key, key);
+    assert_eq!(popup.money_alert, Some(amount));
+    stack.accept_top();
+    session.popup_results(&stack.drain_results());
+}
+
 #[test]
 fn native_auction_accepts_server_selected_house_but_rejects_stale_filters() {
     let mut session = AuctionSession::default();
@@ -268,6 +280,7 @@ fn native_auction_live_refund_updates_money_and_bid_affordability() {
     session.sync_replicated_money(999_000);
     assert_eq!(session.state(&texts).money, 999_000);
     session.click("auction_bid", &texts);
+    accept_auction_confirmation(&mut session, "BID_AUCTION", 998_950);
     assert_eq!(
         session.net.requests,
         vec![AuctionRequest::Bid(PlaceBid {
@@ -430,8 +443,8 @@ fn native_auction_server_categories_item_search_and_second_page() {
     let selected = s.state(&texts).item_buy.unwrap();
     assert!(selected.can_buyout);
     s.click("auction_buyout", &texts);
-    assert_eq!(s.state(&texts).dialog.unwrap().price, 1000);
-    s.click("auction_dialog_buy", &texts);
+    assert!(s.state(&texts).dialog.is_none());
+    accept_auction_confirmation(&mut s, "BUYOUT_AUCTION", 1000);
     assert_eq!(
         s.net.requests.pop(),
         Some(AuctionRequest::Buyout(BuyoutAuction { auction_id: 37 }))
@@ -452,6 +465,7 @@ fn native_auction_bid_buyout_owned_cancel_and_refresh() {
     }
     assert_eq!(texts[BID_BOXES.silver], "1");
     s.click("auction_bid", &texts);
+    accept_auction_confirmation(&mut s, "BID_AUCTION", 100);
     assert_eq!(
         s.net.requests,
         vec![AuctionRequest::Bid(PlaceBid {
@@ -471,8 +485,8 @@ fn native_auction_bid_buyout_owned_cancel_and_refresh() {
     s.click("auction_auctions_tab:bids", &texts);
     s.click("auction_select:5", &texts);
     s.click("auction_buyout", &texts);
-    assert_eq!(s.state(&texts).dialog.unwrap().price, 1000);
-    s.click("auction_dialog_buy", &texts);
+    assert!(s.state(&texts).dialog.is_none());
+    accept_auction_confirmation(&mut s, "BUYOUT_AUCTION", 1000);
     assert_eq!(
         s.net.requests,
         vec![AuctionRequest::Buyout(BuyoutAuction { auction_id: 5 })]

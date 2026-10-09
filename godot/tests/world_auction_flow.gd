@@ -89,7 +89,7 @@ func seller_operations() -> bool:
 	# Query and actual item-selection path, then server rejection of buying one's listing.
 	if not await browse_item():
 		return false
-	if not await click_action("auction_select:%s" % posted[0]) or not await click_action("auction_buyout") or not await click_action("auction_dialog_buy"):
+	if not await click_action("auction_select:%s" % posted[0]) or not await click_action("auction_buyout") or not await accept_auction_popup():
 		return false
 	if not await wait_until(func(): return world_error_contains("own auction"), "own-buyout rejection"):
 		return false
@@ -109,7 +109,7 @@ func buyer_operations() -> bool:
 	if bid_id <= 0 or buyout_id <= 0 or bid_id == buyout_id:
 		fail("Buyer needs two distinct externally seeded auction IDs")
 		return false
-	if not await browse_item() or not await click_action("auction_select:%s" % bid_id) or not await click_action("auction_bid"):
+	if not await browse_item() or not await click_action("auction_select:%s" % bid_id) or not await click_action("auction_bid") or not await accept_auction_popup():
 		return false
 	if not await wait_until(func(): return client.auction_state().bids.any(func(row): return row.auction_id == bid_id), "accepted bid"):
 		return false
@@ -120,7 +120,7 @@ func buyer_operations() -> bool:
 	if not await browse_item() or not await click_action("auction_select:%s" % buyout_id) or not await click_action("auction_buyout"):
 		return false
 	var before: int = client.auction_state().money
-	if not await click_action("auction_dialog_buy"):
+	if not await accept_auction_popup():
 		return false
 	if not await wait_until(func(): return client.auction_state().money < before and client.auction_state().search.all(func(row): return row.auction_id != buyout_id), "completed buyout"):
 		return false
@@ -249,6 +249,15 @@ func click_action(action: String) -> bool:
 			return false
 	fail("Missing enabled action " + action)
 	return false
+
+func accept_auction_popup() -> bool:
+	var host := client.get_node_or_null("StaticPopupUI")
+	var accept := host.find_child("StaticPopup1Button1", true, false) as Button if host != null else null
+	if accept == null or not accept.is_visible_in_tree() or accept.disabled:
+		fail("Missing enabled global auction confirmation")
+		return false
+	await pointer(accept.get_global_rect().get_center(), MOUSE_BUTTON_LEFT)
+	return true
 
 func set_text(name: String, value: String) -> bool:
 	var edit := ui().find_child(name, true, false) as LineEdit if ui() != null else null

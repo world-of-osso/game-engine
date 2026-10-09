@@ -7,8 +7,7 @@ use crate::auction_house_frame_component::{
     SEARCH_BOX, SELL_BID_BOXES, SELL_BUYOUT_BOXES,
 };
 use shared::protocol::{
-    AuctionDuration, AuctionSearchQuery, AuctionSortDir, AuctionSortField, BuyoutAuction,
-    CancelAuction, PlaceBid,
+    AuctionDuration, AuctionSearchQuery, AuctionSortDir, AuctionSortField, CancelAuction,
 };
 
 use super::AuctionHouseUi;
@@ -177,15 +176,6 @@ fn dispatch_command(
             ui.browse_item = None;
             ui.selected_auction = None;
         }
-        frame::ACTION_BID => return place_bid(net, ui, texts),
-        frame::ACTION_BUYOUT => ui.dialog_auction = ui.selected_auction,
-        frame::ACTION_DIALOG_BUY => {
-            if let Some(auction_id) = ui.dialog_auction.take() {
-                net.request(AuctionRequest::Buyout(BuyoutAuction { auction_id }));
-                ui.selected_auction = None;
-            }
-        }
-        frame::ACTION_DIALOG_CANCEL => ui.dialog_auction = None,
         frame::ACTION_SELL_CLEAR => return clear_sell_item(ui),
         frame::ACTION_MAX_QUANTITY => return max_quantity(net, ui),
         frame::ACTION_BUYOUT_MODE => {
@@ -241,20 +231,6 @@ fn select_auction(
         .find(|listing| listing.auction_id == auction_id)
         .map(|listing| listing.min_next_bid);
     money_edits(BID_BOXES, min_next)
-}
-
-fn place_bid(
-    net: &mut AuctionHouseState,
-    ui: &mut AuctionHouseUi,
-    texts: &InputTexts,
-) -> Vec<InputEdit> {
-    let Some(auction_id) = ui.selected_auction else {
-        return Vec::new();
-    };
-    let amount = view::money_input(texts, BID_BOXES);
-    net.request(AuctionRequest::Bid(PlaceBid { auction_id, amount }));
-    ui.selected_auction = None;
-    money_edits(BID_BOXES, None)
 }
 
 /// Putting an item in the sell slot: quantity 1, prices cleared, and a search for the

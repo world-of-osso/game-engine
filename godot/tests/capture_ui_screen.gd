@@ -776,8 +776,11 @@ func capture_spellbook_both(directory: String) -> bool:
 
 # Both skins, production auction projection, no GameClient or networking.
 func capture_auction_both(directory: String) -> bool:
+	var views = ["browse", "item", "inventory", "sell", "duration", "owned", "bids", "dialog", "bid-popup", "buyout-popup"]
+	if OS.get_environment("GODOT_AUCTION_DIALOGS_ONLY") == "1":
+		views = ["dialog", "bid-popup", "buyout-popup"]
 	for skin in ["modern", "forever"]:
-		for view in ["browse", "item", "inventory", "sell", "duration", "owned", "bids", "dialog"]:
+		for view in views:
 			OS.set_environment("GODOT_AUCTION_VIEW", view)
 			var ui = ClassDB.instantiate("RegistryUi")
 			root.add_child(ui)
@@ -787,17 +790,32 @@ func capture_auction_both(directory: String) -> bool:
 				push_error(error)
 				ui.queue_free()
 				return false
+			var popup_host: Node = null
+			if view in ["bid-popup", "buyout-popup"]:
+				popup_host = ClassDB.instantiate("RegistryUi")
+				ui.add_child(popup_host)
+				var popup_error: String = popup_host.call("show_auction_confirmation_preview")
+				if not popup_error.is_empty():
+					push_error(popup_error)
+					ui.queue_free()
+					return false
 			for frame in range(120):
 				await process_frame
 				await RenderingServer.frame_post_draw
+			var window_size := DisplayServer.window_get_size()
+			var image := root.get_texture().get_image()
+			if DisplayServer.get_name() != "headless" and (window_size != Vector2i(1920, 1080) or image == null or image.get_size() != window_size):
+				push_error("Auction proof requires real 1920x1080 window and viewport")
+				ui.queue_free()
+				return false
 			var prefix = directory.path_join(skin + "-" + view)
 			# The headless display server only has the dummy renderer: record geometry, no pixels.
 			if DisplayServer.get_name() != "headless" and not save_root_png(prefix + ".png"):
 				push_error("Auction capture requires rendered pixels: ", prefix)
 				ui.queue_free()
 				return false
-			var geometry: Dictionary = {}
-			for name in ["AuctionHouseFrame", "AuctionHouseFrameSearchBox", "AuctionHouseFrameItemBuyFrameRow1TimeLeft", "AuctionHouseFrameAuctionsFrameBidsListRow1TimeLeft", "AuctionHouseFrameItemSellFrameDurationDropdown", "AuctionHouseFrameBuyDialog"]:
+			var geometry: Dictionary = {"window": [window_size.x, window_size.y]}
+			for name in ["AuctionHouseFrame", "AuctionHouseFrameSearchBox", "AuctionHouseFrameItemBuyFrameRow1TimeLeft", "AuctionHouseFrameAuctionsFrameBidsListRow1TimeLeft", "AuctionHouseFrameItemSellFrameDurationDropdown", "AuctionHouseFrameBuyDialog", "AuctionHouseFrameBuyDialogBg", "StaticPopup1", "StaticPopup1Text", "StaticPopup1AlertIcon", "StaticPopup1Button1", "StaticPopup1Button2"]:
 				var control := ui.find_child(name, true, false) as Control
 				if control != null and control.is_visible_in_tree():
 					var rect = control.get_global_rect()
