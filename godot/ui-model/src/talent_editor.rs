@@ -133,6 +133,15 @@ impl TalentEditor {
         let tree = view.rules.as_ref()?;
         let node = tree.node(node_id)?;
         let entry = node.entry(entry_id)?;
+        if node.kind == TraitNodeType::Tiered {
+            let earlier_tiers = node.entries.iter().take_while(|entry| entry.id != entry_id);
+            if earlier_tiers
+                .into_iter()
+                .any(|entry| u32::from(self.rank(node_id, entry.id)) < entry.max_ranks)
+            {
+                return None;
+            }
+        }
         let mut entries = self.pending.clone();
         if matches!(
             node.kind,
@@ -180,10 +189,15 @@ impl TalentEditor {
         self.error_text = None;
         true
     }
-    pub fn refund(&mut self, view: &TalentView, level: u8, node_id: u32) -> bool {
-        let (Some(snapshot), Some(tree)) = (&self.snapshot, &view.rules) else {
-            return false;
-        };
+    fn refunded_entries(
+        &self,
+        view: &TalentView,
+        level: u8,
+        node_id: u32,
+    ) -> Option<Vec<TraitEntrySelection>> {
+        let snapshot = self.snapshot.as_ref()?;
+        let tree = view.rules.as_ref()?;
+        let node = tree.node(node_id)?;
         let granted = granted_entries(
             tree,
             TraitContext {
@@ -191,19 +205,25 @@ impl TalentEditor {
                 level,
             },
         );
+        let entry_id = node.entries.iter().rev().find_map(|entry| {
+            let free = granted
+                .iter()
+                .find(|grant| grant.node_id == node_id && grant.entry_id == entry.id)
+                .map_or(0, |grant| grant.granted);
+            (u32::from(self.rank(node_id, entry.id)) > free).then_some(entry.id)
+        })?;
         let mut entries = self.pending.clone();
-        let Some(entry) = entries.iter_mut().rev().find(|entry| {
-            entry.node_id == node_id
-                && u32::from(entry.rank)
-                    > granted
-                        .iter()
-                        .find(|grant| grant.node_id == node_id && grant.entry_id == entry.entry_id)
-                        .map_or(0, |grant| grant.granted)
-        }) else {
-            return false;
-        };
+        let entry = entries
+            .iter_mut()
+            .find(|entry| entry.node_id == node_id && entry.entry_id == entry_id)?;
         entry.rank -= 1;
         entries.retain(|entry| entry.rank > 0);
+        Some(entries)
+    }
+    pub fn refund(&mut self, view: &TalentView, level: u8, node_id: u32) -> bool {
+        let Some(entries) = self.refunded_entries(view, level, node_id) else {
+            return false;
+        };
         if !self.valid(view, level, &entries) {
             return false;
         }
