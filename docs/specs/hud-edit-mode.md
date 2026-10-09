@@ -72,7 +72,7 @@ Skipped Retail entries: all 25 below lack a registered native mover in our curre
 | LootFrame | `LOOT_FRAME_LABEL` | — / Misc:9 | 473-483 |
 | RaidWarning | `RAID_WARNING_LABEL` | — / Misc:10 | 484-490 |
 
-Acceptance: behavioral manager tree assertions for labels/order under both skins; actual checkbox click dispatch toggles each eligible mover without moving roots; account-file round-trip survives editor reopen and another character/layout; native 1920×1080 captures under both skins, inspected as downscaled crops.
+Acceptance at code `81581bebf` (spec-first `5b1431f9f`): RED 0/2 missing-checkbox tests; GREEN 3/3 new `hudeditshowlist` behaviors and 22/22 targeted `hudedit` regressions. Tests dispatch the registry click action and production persisted transition; prove label/basic order in both skins, category mover removal/restoration at identical rectangles, selection/drag/hover clearing, account-file round-trip across Exit/Revert/reopen/character/layout and other-account isolation. Native extension build exits 0. Native Forever and Modern 1920×1080 PNGs: `/syncthing/AgentShared/2026-10-09/editmode-showlist/forever.png`, `modern.png`; both inspected via ffmpeg 960×540 views and 400×234 manager crops. All five checked labels are readable, no action-button backplates, manager clears mounted movers. Evidence: `data/diagnostics/editmode-showlist-2026-10-09/{red,green-checkbox-art,build-checkbox-art,capture-final}.log`, `native-preflight-final.txt`. Offline native screenshot proof, not live server/native-pointer acceptance or a clean-resource-shutdown claim; inherited cage/audio/VSync warnings remain. Owned client/cage exited and agent slice stopped.
 
 ## Offline polish (2026-10-07)
 
