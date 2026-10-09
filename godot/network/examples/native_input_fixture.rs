@@ -1584,6 +1584,7 @@ fn main() {
     if !matches!(
         screen,
         StartupScreen::SettingsReload
+            | StartupScreen::Logout
             | StartupScreen::Sound
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick
