@@ -14,7 +14,6 @@ use crate::{
 };
 use game_engine_core::{
     asset::m2_texture,
-    blp,
     char_texture_data::CharTextureData,
     customization_data::{ChoiceSkinnedModel, CustomizationChoice, CustomizationDb},
     npc_appearance_assets::{load_compositor, load_customization_db},
