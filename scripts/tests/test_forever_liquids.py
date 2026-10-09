@@ -1,11 +1,16 @@
 import csv
+import hashlib
 import io
+import json
 import struct
 import unittest
 from pathlib import Path
 
 from scripts import import_forever_skyborne as importer
 from scripts import import_forever_zephras as zephras
+from scripts.tests.forever_fixture import csv_wdc5
+
+FIXTURE = Path(__file__).parent / "fixtures/forever-70205/liquids"
 
 
 class ForeverLiquidTests(unittest.TestCase):
@@ -29,26 +34,41 @@ class ForeverLiquidTests(unittest.TestCase):
         self.assertEqual(dropped, 0)
 
     def test_importer_decodes_liquids_with_retail_headers(self):
-        data = Path(__file__).resolve().parents[2] / "data"
-        staging = data / "cache/forever-skyborne-extract"
+        expected_tables = {
+            "LiquidType": 1371380,
+            "LiquidObject": 1308058,
+            "LiquidMaterial": 1132538,
+            "LiquidTypeXTexture": 2261065,
+        }
+        self.assertEqual(
+            {name: importer.TABLES[name] for name in expected_tables}, expected_tables,
+        )
+        pins = json.loads((FIXTURE / "sha256.json").read_text())
         for table in (
             "LiquidType",
             "LiquidObject",
             "LiquidMaterial",
             "LiquidTypeXTexture",
         ):
-            fdid = importer.TABLES[table]
-            raw = importer.extracted_path(staging, fdid).read_bytes()
+            content = (FIXTURE / f"{table}.csv").read_bytes()
+            self.assertEqual(hashlib.sha256(content).hexdigest(), pins[f"{table}.csv"])
+            names = next(csv.reader(content.decode().splitlines()))
+            floats = {
+                name for name in names
+                if name.startswith(("Float_", "Coefficient_"))
+                or name in ("FlowDirection", "FlowSpeed")
+            }
+            raw, definition = csv_wdc5(content, floats, {"Name"})
             layout = struct.unpack_from("<I", raw, 156)[0]
-            columns, id_field, _ = importer.parse_definition(
-                importer.find_definition(data, table).read_text(), layout
+            columns, id_field, explicit = importer.parse_definition(
+                definition.decode(), layout
             )
+            self.assertTrue(explicit)
             rows, dropped = importer.decode_rows(raw, layout, columns, id_field)
             self.assertEqual(dropped, 0)
-            header = (
-                (data / "db2/12.1.0.69933" / f"{table}.csv")
-                .read_bytes()
-                .splitlines(keepends=True)[0]
+            header = (FIXTURE / f"{table}.retail-header.csv").read_bytes()
+            self.assertEqual(
+                hashlib.sha256(header).hexdigest(), pins[f"{table}.retail-header.csv"],
             )
             encoded, missing = importer.encode_csv(header, columns, rows, table=table)
             if table == "LiquidType":
@@ -65,6 +85,7 @@ class ForeverLiquidTests(unittest.TestCase):
             else:
                 self.assertEqual(encoded.splitlines()[0], header.strip())
             self.assertEqual(missing, [])
+            self.assertEqual(encoded, content, table)
             exported = list(csv.DictReader(io.StringIO(encoded.decode())))
             ids = {int(row["ID"]) for row in exported}
             if table == "LiquidType":
