@@ -266,16 +266,15 @@ fn read_layout(path: &Path) -> Result<LayoutFile, String> {
     Ok(file)
 }
 
-/// User decision 2026-10-09: only built-in Modern choices migrate, never custom layouts.
+/// User follow-up 2026-10-09: reset all layouts to the built-in Forever preset once.
 fn migrate_forever_default(edit_mode: &mut EditModeLayoutsFile) -> bool {
     if edit_mode.forever_default_migrated {
         return false;
     }
     for name in edit_mode.active_layout.values_mut() {
-        if name == "Modern" {
-            *name = "Forever".into();
-        }
+        *name = "Forever".into();
     }
+    edit_mode.layouts.clear();
     edit_mode.forever_default_migrated = true;
     true
 }
