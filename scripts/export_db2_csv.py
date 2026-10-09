@@ -596,8 +596,10 @@ TABLES = {
         ],
     ),
     # WoWDBDefs layout CAE394E7: water/ocean alphas are fields 6-9.
+    # Forever 1.60.1 layout A7F31923 is CAE394E7 plus seven trailing fields
+    # (WoWDBDefs LightParams.dbd); the exported leading fields keep their indices.
     "LightParams": (
-        0xCAE394E7,
+        (0xCAE394E7, 0xA7F31923),
         [
             ("ID", "id"),
             ("WaterShallowAlpha", ("float", 6, 0)),
@@ -779,8 +781,10 @@ def read_wdc5(data, layout, id_field=0):
     flags, _, _, _, _, _, common_size, palette_size, sections = struct.unpack_from(
         "<HH7I", data, 172
     )
-    if actual_layout != layout:
-        raise ValueError(f"layout {actual_layout:08X}, expected {layout:08X}")
+    accepted = layout if isinstance(layout, tuple) else (layout,)
+    if actual_layout not in accepted:
+        expected = ", ".join(f"{value:08X}" for value in accepted)
+        raise ValueError(f"layout {actual_layout:08X}, expected {expected}")
     if flags & ~0x4:
         raise ValueError(f"unsupported WDC5 flags {flags:#x}")
     fields, palette_offsets, palette_start = read_fields(data, field_count, sections)
