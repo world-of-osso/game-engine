@@ -864,7 +864,7 @@ fn spawn_level(parent: &mut Gd<Control>, art: &LevelArt) -> LevelNodes {
 
 /// Retain the unknown-level skull from `CompactUnitFrame_UpdatePlayerLevelDiff`
 /// (CompactUnitFrame.lua:1591-1620), without ordinary numeric levels or their badge.
-/// `selectedBorder` stays on the target in white
+/// `selectedBorder` stays on targeted skulls in white
 /// `TARGET_BORDER_COLOR` (Camelot/Blizzard_NamePlateLevelFrame.lua:55-70). Hidden with the
 /// health bars it hangs on.
 fn apply_level(
@@ -876,18 +876,18 @@ fn apply_level(
     let Some(nodes) = &mut plate.level else {
         return;
     };
-    let Some(level) = view.level.filter(|_| show_health_bars) else {
+    let Some(0) = view.level.filter(|_| show_health_bars) else {
         nodes.root.set_visible(false);
         return;
     };
     nodes.root.set_visible(true);
     let layout = level_layout(style);
     place(&mut nodes.icon, layout.frame);
-    nodes.icon.set_visible(level == 0);
+    nodes.icon.set_visible(true);
     place(&mut nodes.selected, layout.selected);
     nodes.selected.set_visible(view.targeted);
     place(&mut nodes.skull, layout.skull);
-    nodes.skull.set_visible(level == 0);
+    nodes.skull.set_visible(true);
 }
 
 fn spawn_plate(
