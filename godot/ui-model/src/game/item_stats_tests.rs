@@ -23,7 +23,11 @@ fn forest_chain_tooltip_matches_applied_stats() {
         },
         Some(1),
     );
-    let lines: Vec<_> = tooltip.lines.iter().map(|line| line.left_text.as_str()).collect();
+    let lines: Vec<_> = tooltip
+        .lines
+        .iter()
+        .map(|line| line.left_text.as_str())
+        .collect();
     println!("Forest Chain tooltip: {lines:?}");
     assert!(lines.contains(&"+4 Stamina"), "{lines:?}");
     assert!(lines.contains(&"10 Armor"), "{lines:?}");
