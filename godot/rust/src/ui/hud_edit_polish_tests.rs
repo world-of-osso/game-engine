@@ -166,6 +166,10 @@ fn hudeditshowlist_manager_has_retail_basic_labels_in_order_in_both_skins() {
 #[test]
 fn hudeditshowlist_checkbox_actions_toggle_movers_without_changing_layout() {
     use super::super::hud_edit_layout::collect_selection_boxes;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let path =
         std::env::temp_dir().join(format!("hudeditshowlist-toggle-{}.ron", std::process::id()));
     let layout = ui_layout_data::set_active_layout(&path, 57, "Forever").unwrap();
