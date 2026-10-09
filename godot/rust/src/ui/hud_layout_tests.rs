@@ -266,8 +266,7 @@ fn assert_modern_edit_mode_systems(hud: &[RegistryModel]) {
     assert_eq!(top_right(hud, DEBUFF_FRAME.0), (1096.0, 155.0));
     assert_eq!(top_right(hud, MINIMAP_CLUSTER), (1366.0, 0.0));
     assert_eq!(top_left(hud, PARTY_FRAME), (22.0, 147.0));
-    let raid = rect(hud, RAID_FRAME);
-    assert_eq!((raid.x, raid.y + raid.height), (395.0, 553.0));
+    assert_eq!(top_left(hud, RAID_FRAME), (22.0, 145.0));
 }
 
 #[test]
@@ -308,6 +307,7 @@ fn raidoverlap_two_member_raid_clears_player_in_both_presets_and_viewports() {
             sync(&mut frames, skin);
             let player = rect(&frames, "PlayerFrame");
             let raid = rect(&frames, RAID_FRAME);
+            assert_rect(&frames, RAID_FRAME, (22.0, 145.0, 576.0, 86.0));
             assert!(
                 !intersects(&raid, &player),
                 "{skin:?} {viewport:?}: raid {raid:?} overlaps player {player:?}"

@@ -80,11 +80,11 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 - [ ] Live big-defensive classification: existing AuraView/spell catalog lacks Retail's classification. Do not fabricate a defensive buff. Group-only updates also lack buffs/pets outside replication interest.
 
 ### Raid frame (`CompactRaidFrameContainer`)
-- [x] Placement: 8 group columns × 5 at the native 72×36 = 576 × (14 + 180), centred above the cluster, bottom 215.
+- [x] Placement: 8 group columns × 5 at the native 72×36 = 576 × (14 + 180). Both presets use Retail Mainline `EditModePresetLayouts.lua:315-320,1216-1221`: TOPLEFT on collapsed `CompactRaidFrameManager` TOPRIGHT (0, −5), resolving to UIParent TOPLEFT (22, −145). Grows downward; independent of player-frame geometry and explicit UI scale. Saved custom mover placements remain unchanged.
 - [x] Group `n` sits in column `n` (subgroups 1–8, 5 each; `MAX_RAID_GROUPS`). Members fill it in roster order.
   - Empty groups are not drawn. Each drawn group has the title "Group n" (`GROUP_NUMBER`).
 - [x] Frames `CompactRaidGroup{g}Member{m}` use the same member frame as the party.
-- [x] Both containers are Edit Mode elements `party_frames` / `raid_frames` (`CompactPartyFrame` / `CompactRaidFrameContainer`, `HudAnchor::Bottom`).
+- [x] Both containers are Edit Mode elements `party_frames` / `raid_frames` (`CompactPartyFrame` / `CompactRaidFrameContainer`), anchored TOPLEFT by default.
 
 ### Menus (Retail `UnitPopup`)
 - [x] Self (player frame or own group frame): "Set Role: Tank/Healer/Damage/None", then for the leader:
