@@ -288,6 +288,35 @@ fn modern_preset_keeps_the_retail_modern_hud_positions() {
     assert_modern(&hud);
 }
 
+#[test]
+fn raidoverlap_two_member_raid_clears_player_in_both_presets_and_viewports() {
+    for viewport in [(1920.0, 1080.0), (1280.0, 720.0)] {
+        for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+            let groups = GroupFramesState {
+                raid: vec![vec![member("Mailalpha"), member("Mailbeta")]],
+                ..Default::default()
+            };
+            let mut frames = vec![
+                model(unit_frames(), inworld_unit_frames_screen),
+                model(groups, group_frames_screen),
+            ];
+            for frame in &mut frames {
+                frame.registry = UiParent::for_viewport(viewport.0, viewport.1).registry();
+            }
+            sync(&mut frames, skin);
+            let player = rect(&frames, "PlayerFrame");
+            let raid = rect(&frames, RAID_FRAME);
+            assert!(
+                !intersects(&raid, &player),
+                "{skin:?} {viewport:?}: raid {raid:?} overlaps player {player:?}"
+            );
+            for name in ["CompactRaidGroup1Member1", "CompactRaidGroup1Member2"] {
+                assert!(!intersects(&rect(&frames, name), &player));
+            }
+        }
+    }
+}
+
 fn intersects(a: &LayoutRect, b: &LayoutRect) -> bool {
     a.x < b.x + b.width && b.x < a.x + a.width && a.y < b.y + b.height && b.y < a.y + a.height
 }
