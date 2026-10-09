@@ -1,4 +1,4 @@
-//! Pending design regression: cached files must not cross product boundaries.
+//! Approved regression: cached files must not cross product boundaries.
 //! This exercises real resolver IO, not M2 parsing or native GPU publication.
 use std::{env, fs, path::PathBuf, process::Command};
 
@@ -39,7 +39,6 @@ fn read_and_assert_selected_product(root: PathBuf) {
 }
 
 #[test]
-#[ignore = "RED: product-isolated resolver design not approved; run explicitly with --ignored"]
 fn forever_model_requests_do_not_reuse_retail_cached_bytes() {
     if let Some(root) = env::var_os(CHILD_ROOT) {
         read_and_assert_selected_product(PathBuf::from(root));
