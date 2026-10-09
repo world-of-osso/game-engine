@@ -113,6 +113,9 @@ fn check_login_requests(app: &mut App, progress: &mut Progress) -> Result<(), St
         if progress.stage == Stage::Loading && credentials {
             // Initial startup still uses the original fixture credentials.
         } else if matches!(progress.stage, Stage::Repeated | Stage::RestFinal) && token {
+            // This fixture broadcasts replicas to All; remove the logged-out character
+            // before authenticating the replacement transport, as the real server does.
+            despawn_characters(app, progress);
             progress.saw_token_login = true;
         } else {
             return Err(format!(
@@ -125,6 +128,15 @@ fn check_login_requests(app: &mut App, progress: &mut Progress) -> Result<(), St
         respond_to_login(app, StartupScreen::Logout)?;
     }
     Ok(())
+}
+
+fn despawn_characters(app: &mut App, progress: &mut Progress) {
+    for entity in [progress.selected.take(), progress.remote.take()]
+        .into_iter()
+        .flatten()
+    {
+        app.world_mut().despawn(entity);
+    }
 }
 
 fn send_rest(app: &mut App, snapshot: Option<RestSnapshot>) {
@@ -224,12 +236,6 @@ fn advance_marker(
             verify_token(token_path, progress.saved_token.as_deref())?;
             if !progress.saw_token_login {
                 return Err("Character select was not authenticated with the saved token".into());
-            }
-            if let Some(player) = progress.selected.take() {
-                app.world_mut().despawn(player);
-            }
-            if let Some(remote) = progress.remote.take() {
-                app.world_mut().despawn(remote);
             }
             progress.stage = Stage::Relogin;
         }
