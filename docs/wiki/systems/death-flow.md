@@ -20,7 +20,7 @@ Native target/player frame mapping uses explicit player life state; NPC corpse s
 
 Server interest uses shared `ghost_visible` for target and observer state changes, preserving self/map/distance rules. Alive observers lose Ghost targets; Ghost observers retain them. [Pinned TrinityCore source audit and server contract](../../../../game-server/docs/wiki/systems/networking.md#player-life-state) are recorded in the server slot; authoritative sources are TrinityCore `a352b1fa` `Player::setDeathState`, `BuildPlayerRepop`, `AuraEffect::HandleAuraGhost` (`PLAYER_FLAGS_GHOST` and visibility/detection), and `WorldObject::CanSeeOrDetect`. TC's group/corpse exceptions do not replace the existing shared policy.
 
-Fixtures: targeted `ghoststate` real-UDP decoder, remote state/frame-text and nameplate tests, plus HumanMale HD animation/presentation mapping. GREEN pending. No live two-player/GPU equivalence proof was run.
+Targeted proof: native `ghoststate` 5/5 at `b949fd699` (`/home/osso/.worktrees/logs/ghoststate-engine-green.log`, EXIT 0) covers corpse/ghost/Alive selection on HumanMale HD, terminal corpse hold, transparency mapping, numeric-status restoration, actual target-frame label registries in both skins, player plate eligibility and retained NPC/local/selectability/range restrictions. Retained decoder UDP 1/1 (`ghoststate-engine-policy-red2.log`) covers Alive → Dead → Ghost → Alive; decoder/test sources are unchanged by the later native-only fixes. Initial codec/status RED is `ghoststate-engine-red2.log` (0/3); policy RED reproduces the remote Dead plate being hidden. Invalid PvP and unfinished-clip fixture assumptions were corrected, not implemented as product requirements. No live two-player/GPU equivalence proof was run.
 
 ## Retail sources
 
