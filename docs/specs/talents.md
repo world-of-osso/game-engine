@@ -7,12 +7,12 @@ The PlayerSpellsFrame Talents page displays the local Retail class/spec talent t
 - [x] Map character class to its category-7 SkillLine, then SkillLineXTraitTree (variant 0), not to a hardcoded tree ID.
 - [x] Filter nodes/entries by TraitCond Visible conditions and SpecSetMember. Preserve sufficient (OR) hero-spec conditions.
 - [x] Display class nodes left, specialization nodes right, eligible hero subtrees in the middle; retain ordered choice entries and DB2 edges.
-- [ ] Translate PosX/PosY using Blizzard's /10 scale and pan offsets. Hero nodes use normalized top/center positions and 0.85 scale.
-- [ ] Show TraitDefinition spell icons, or OverrideIcon; missing art stays missing, never a substitute icon.
+- [x] Translate PosX/PosY using Blizzard's /10 scale and pan offsets. Hero nodes use normalized top/center positions and 0.85 scale.
+- [x] Show TraitDefinition spell icons, or OverrideIcon; missing art stays missing, never a substitute icon.
 - [x] Only matching Granted conditions show learned ranks. Zero purchase cost alone is not a grant; no starter-loadout allocations are applied.
-- [ ] Hover uses shared spell GameTooltip name/description; choice entries each expose their spell tooltip. No node click purchases, casts or mutates a character.
+- [x] Hover uses shared spell GameTooltip name/description; choice entries each expose their spell tooltip. No node click purchases, casts or mutates a character.
 - [x] Mage Arcane (62) selects tree 658, class 43/spec 38 nodes; three cited nodes and choice 62087 match CSV. Eligible Sunfury/Spellslinger have 14 nodes each.
-- [ ] Native cage captures show both skins at actual 1920×1080.
+- [x] Native cage captures show both skins at actual 1920×1080.
 
 ## How it works
 
@@ -42,8 +42,9 @@ The PlayerSpellsFrame Talents page displays the local Retail class/spec talent t
 
 ## Known gaps (current cycle)
 
-- [ ] Native nofake/edge pixel acceptance pending after renderer primitive correction `dab4f624c`. Core five-test GREEN at `cc9531ed8`; UI fourteen-test GREEN at `80c2b32e3`, log `talenttree-green-ui-final.log`, zero warnings. Prior geometry/hover candidate passed but inspection found missing-icon white quads/edge rotation loss.
+- [x] Native nofake/edge pixel acceptance: corrected primitive GREEN16/16, zero warnings; native rebuild/cage exit0. Both skins/hover captures inspected at actual1920×1080. Core5/5 and UI14/14 proof scopes unchanged; exact ledger in [provenance](../wiki/systems/talents.md).
 - [ ] Cage capture and hover proof pending.
+- [ ] 103 local icon FDIDs remain unavailable, logged with reasons to `/home/osso/.worktrees/logs/extract-wanted.tsv`; absent art stays empty. Availability is sampled at graph load; restart the client after extraction.
 - [ ] Wowdev retrieval returns HTTP 403; local schemas and Blizzard enums are directly inspected instead. URLs are recorded as requested references, not as successfully read sources.
 
 ## Out of scope — not yet: learning, loadouts, server
