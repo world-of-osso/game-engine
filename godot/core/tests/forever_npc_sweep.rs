@@ -281,7 +281,7 @@ fn forever_display137165_resolves_authored_handlebars_without_changing_retail() 
     let customization = load_customization_db(&data).unwrap();
     let selected = select_npc_choices(&appearance, &customization).unwrap();
     assert!(
-        selected.geosets.contains(&(1, 6)),
+        selected.geosets.contains(&(1, 5)) && selected.geosets.contains(&(3, 4)),
         "{:#?}",
         selected.geosets
     );
