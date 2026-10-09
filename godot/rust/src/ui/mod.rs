@@ -256,7 +256,15 @@ impl RegistryModel {
             self.shared.insert(skin);
             self.registry.refresh_panel_styles();
         }
-        self.screen.sync(&self.shared, &mut self.registry);
+        if matches!(self.postsetup, ScreenPostsetup::CharacterSelect) {
+            game_engine_ui_model::char_select_component::sync_char_select_screen(
+                &mut self.screen,
+                &mut self.shared,
+                &mut self.registry,
+            );
+        } else {
+            self.screen.sync(&self.shared, &mut self.registry);
+        }
         self.apply_postsetup();
     }
 

@@ -175,7 +175,10 @@ fn rosterfix_protocol_names_render_as_text() {
         appearance: Default::default(),
         equipment_appearance: Default::default(),
     }];
-    let state = game_engine_ui_model::char_select_state_from_roster(&characters, Some(0));
+    let root = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let names = game_engine_ui_model::char_select_data::CharSelectNames::load(&root).unwrap();
+    let state =
+        game_engine_ui_model::char_select_state_from_roster(&characters, Some(0), &names).unwrap();
     let mut model = model(10, ActiveSkin::Modern);
     model.shared.insert(state);
     rebuild(&mut model);
@@ -184,4 +187,54 @@ fn rosterfix_protocol_names_render_as_text() {
         panic!("missing info text")
     };
     assert_eq!(label.text, "Level 1 Windshaper Skyborne Druid");
+}
+
+#[test]
+fn rosterfix_wheel_stepper_and_thumb_use_retail_pan_without_reselecting() {
+    use super::scroll_lists::{drag_thumbs, press_stepper, press_thumb, release_thumbs, wheel};
+    use game_engine_ui_model::minimal_scroll_bar::forward_stepper_name;
+    use ui_toolkit::widgets::scroll_list::{thumb_name, track_name};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut model = model(12, skin);
+        assert!(wheel(&mut model, LIST, false));
+        rebuild(&mut model);
+        assert_eq!(
+            model.registry.scroll_lists.get(LIST).unwrap().first_row,
+            194
+        );
+        let forward = model
+            .registry
+            .get_by_name(&forward_stepper_name(LIST))
+            .unwrap();
+        assert!(press_stepper(&mut model, forward));
+        rebuild(&mut model);
+        assert_eq!(
+            model.registry.scroll_lists.get(LIST).unwrap().first_row,
+            291
+        );
+        let thumb = model.registry.get_by_name(&thumb_name(LIST)).unwrap();
+        let thumb_rect = rect(&model, &thumb_name(LIST));
+        assert!(press_thumb(&mut model.registry, thumb, thumb_rect.y));
+        let track = rect(&model, &track_name(LIST));
+        assert!(drag_thumbs(&mut model.registry, track.y + track.height));
+        rebuild(&mut model);
+        let state = model.registry.scroll_lists.get(LIST).unwrap();
+        assert_eq!(state.first_row, state.geometry.max_first_row());
+        assert!(release_thumbs(&mut model.registry));
+        let last = rect(&model, "CharCard_11");
+        let list = rect(&model, LIST);
+        assert_eq!(last.y + last.height, list.y + list.height);
+        assert_eq!(
+            model
+                .shared
+                .get::<CharSelectState>()
+                .unwrap()
+                .selected_index,
+            Some(0)
+        );
+        while wheel(&mut model, LIST, true) {
+            rebuild(&mut model);
+        }
+        assert_eq!(model.registry.scroll_lists.get(LIST).unwrap().first_row, 0);
+    }
 }
