@@ -524,6 +524,17 @@ fn close_button(prefix: &str, width: f32, action: &str) -> Element {
     }
 }
 
+/// Retail `UIButtonFitToTextBehaviorMixin:FitToText` with the inherited
+/// `fitTextCanWidthDecrease=true`, `fitTextWidthPadding=40` defaults
+/// (Blizzard_SharedXML/SecureUIPanelTemplates.lua:83-91, .xml:39-43).
+/// Only callers that use Retail's SetTextToFit should opt into this width.
+pub fn panel_button_fit_to_text_width(text: &str) -> f32 {
+    measure_text(text, GameFont::FrizQuadrata, 12.0)
+        .expect("UIPanelButton GameFontNormal metrics")
+        .0
+        + 40.0
+}
+
 /// `UIPanelButtonTemplate` (Retail default nine-slice button art as used by StaticPopup).
 /// A disabled button shows the disabled art and carries no action.
 pub fn panel_button(

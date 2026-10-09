@@ -6,6 +6,8 @@ mod aura_preview;
 mod bank_preview;
 #[cfg(test)]
 mod buffcancel_tests;
+#[cfg(debug_assertions)]
+mod buttonfit_preview;
 // New preview APIs belong in their own *_preview.rs #[godot_api(secondary)] block, never here.
 mod auction_preview;
 pub(crate) mod castbar_fx;
@@ -259,7 +261,10 @@ impl RegistryModel {
     fn apply_postsetup(&mut self) {
         match self.postsetup {
             ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Trade => {}
-            ScreenPostsetup::Auction => self.icon_masks.apply(&mut self.registry),
+            ScreenPostsetup::Auction => {
+                self.icon_masks.apply(&mut self.registry);
+                game_engine_ui_model::auction::apply_auction_paging_postsetup(&mut self.registry);
+            }
             ScreenPostsetup::CastingBar => {
                 game_engine_ui_model::casting_bar_frame_component::apply_casting_bar_feedback_postsetup(&mut self.registry);
             }
