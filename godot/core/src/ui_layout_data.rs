@@ -12,12 +12,25 @@ struct LayoutFile {
     edit_mode: EditModeLayoutsFile,
 }
 
-#[derive(Default, Serialize, Deserialize)]
+#[derive(Serialize, Deserialize)]
 struct EditModeLayoutsFile {
     #[serde(default)]
     layouts: BTreeMap<String, EditLayout>,
     #[serde(default)]
     active_layout: BTreeMap<String, String>,
+    /// Absent in old files; prevents migrating a later explicit Modern selection.
+    #[serde(default)]
+    forever_default_migrated: bool,
+}
+
+impl Default for EditModeLayoutsFile {
+    fn default() -> Self {
+        Self {
+            layouts: BTreeMap::new(),
+            active_layout: BTreeMap::new(),
+            forever_default_migrated: true,
+        }
+    }
 }
 
 #[derive(Default, Serialize, Deserialize)]
@@ -200,10 +213,10 @@ pub struct ActiveLayout {
     pub elements: BTreeMap<String, SavedElement>,
 }
 
-/// The Modern preset: the layout of a character that never chose one.
+/// The Forever preset: the layout of a character that never chose one.
 impl Default for ActiveLayout {
     fn default() -> Self {
-        let (name, skin) = SYSTEM_PRESETS[0];
+        let (name, skin) = ("Forever", LayoutSkin::Forever);
         Self {
             name: name.to_string(),
             skin,
@@ -245,7 +258,25 @@ fn read_layout(path: &Path) -> Result<LayoutFile, String> {
             ));
         }
     };
-    ron::from_str(&raw).map_err(|error| format!("invalid UI layout {}: {error}", path.display()))
+    let mut file: LayoutFile = ron::from_str(&raw)
+        .map_err(|error| format!("invalid UI layout {}: {error}", path.display()))?;
+    if migrate_forever_default(&mut file.edit_mode) {
+        write_layout(path, &file)?;
+    }
+    Ok(file)
+}
+
+/// User follow-up 2026-10-09: reset all layouts to the built-in Forever preset once.
+fn migrate_forever_default(edit_mode: &mut EditModeLayoutsFile) -> bool {
+    if edit_mode.forever_default_migrated {
+        return false;
+    }
+    for name in edit_mode.active_layout.values_mut() {
+        *name = "Forever".into();
+    }
+    edit_mode.layouts.clear();
+    edit_mode.forever_default_migrated = true;
+    true
 }
 
 fn write_layout(path: &Path, file: &LayoutFile) -> Result<(), String> {
@@ -301,7 +332,8 @@ fn active_layout_in(file: &LayoutFile, character_id: u64) -> Result<ActiveLayout
     }
 }
 
-/// The character's active layout; a character that never chose one uses the Modern preset.
+/// Load the character's active layout, migrating old built-in Modern choices once.
+/// A character that never chose a layout uses the Forever preset.
 pub fn active_layout(path: &Path, character_id: u64) -> Result<ActiveLayout, String> {
     active_layout_in(&read_layout(path)?, character_id)
 }
@@ -527,9 +559,9 @@ mod tests {
         changed.chat.height = Some(300);
         let saved = save_layout_settings(&path, 17, changed).unwrap();
         assert_eq!(saved.name, "Layout 1");
-        assert_eq!(saved.skin, LayoutSkin::Modern);
+        assert_eq!(saved.skin, LayoutSkin::Forever);
         assert_eq!(active_layout(&path, 17).unwrap().settings, changed);
-        // Another character edits the Modern preset: its own layout, the first untouched.
+        // Another character edits the default Forever preset: its own layout, the first untouched.
         let second = save_layout_settings(&path, 18, LayoutSettings::default()).unwrap();
         assert_eq!(second.name, "Layout 2");
         assert_eq!(active_layout(&path, 17).unwrap().settings, changed);

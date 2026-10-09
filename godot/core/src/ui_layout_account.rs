@@ -148,7 +148,7 @@ mod tests {
         );
         assert_eq!(
             ui_layout_data::active_layout(&first, 31).unwrap().name,
-            "Modern"
+            "Forever"
         );
         ui_layout_data::set_active_layout(&first, 31, "HudPersistent").unwrap();
         ui_layout_data::set_active_layout(&first, 30, "Forever").unwrap();
