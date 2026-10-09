@@ -8,7 +8,7 @@ The PlayerSpellsFrame Talents page displays the local Retail class/spec talent t
 - [x] Filter nodes/entries by TraitCond Visible conditions and SpecSetMember. Preserve sufficient (OR) hero-spec conditions.
 - [x] Display class nodes left, specialization nodes right, eligible hero subtrees in the middle; retain ordered choice entries and DB2 edges.
 - [ ] Translate PosX/PosY using Blizzard's /10 scale and pan offsets. Hero nodes use normalized top/center positions and 0.85 scale.
-- [x] Show TraitDefinition spell icons, or OverrideIcon; missing art stays missing, never a substitute icon.
+- [ ] Show TraitDefinition spell icons, or OverrideIcon; missing art stays missing, never a substitute icon.
 - [x] Only matching Granted conditions show learned ranks. Zero purchase cost alone is not a grant; no starter-loadout allocations are applied.
 - [ ] Hover uses shared spell GameTooltip name/description; choice entries each expose their spell tooltip. No node click purchases, casts or mutates a character.
 - [x] Mage Arcane (62) selects tree 658, class 43/spec 38 nodes; three cited nodes and choice 62087 match CSV. Eligible Sunfury/Spellslinger have 14 nodes each.
@@ -30,17 +30,19 @@ The PlayerSpellsFrame Talents page displays the local Retail class/spec talent t
 - `godot/rust/src/tooltip_sources.rs`: shared live spell hover path.
 - `godot/rust/src/ui/spellbook_preview.rs`: offline native hover through the shared spell GameTooltip.
 - `godot/rust/src/ui/icon_masks.rs`: passive talent circle clipping using the existing authored mask.
+- `godot/rust/src/ui/parts.rs`: missing-source no-paint and solid-color rotation/tint preservation.
 - `godot/ui-model/src/ui/screens/spellbook_frame_component.rs`: shared PlayerSpellsFrame state/page dispatch.
 
 ## Tests asserting this spec
 
 - `godot/core/tests/talent_data.rs`: mapping/counts, three nodes/edges, choice entries, grants, hero gating.
 - `godot/ui-model/tests/talents.rs`: both-skin node/icon/edge/choice display and no purchase/cast actions.
-- `godot/tests/talents_page.gd`: real 1920×1080 native cage geometry and spell name/description hover.
+- `godot/tests/talents_page.gd`: real 1920×1080 native cage geometry, spell name/description hover, missing-icon/diagonal-edge pixels.
+- `godot/rust/src/ui/parts_tests.rs`: native missing-source and solid edge projection.
 
 ## Known gaps (current cycle)
 
-- [ ] Native cage geometry/hover and capture inspection pending. Core five-test GREEN at `cc9531ed8`; UI fourteen-test GREEN at `80c2b32e3`, log `talenttree-green-ui-final.log`, zero warnings.
+- [ ] Native nofake/edge pixel acceptance pending after renderer primitive correction `dab4f624c`. Core five-test GREEN at `cc9531ed8`; UI fourteen-test GREEN at `80c2b32e3`, log `talenttree-green-ui-final.log`, zero warnings. Prior geometry/hover candidate passed but inspection found missing-icon white quads/edge rotation loss.
 - [ ] Cage capture and hover proof pending.
 - [ ] Wowdev retrieval returns HTTP 403; local schemas and Blizzard enums are directly inspected instead. URLs are recorded as requested references, not as successfully read sources.
 
