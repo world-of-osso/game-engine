@@ -36,3 +36,13 @@ fn non_mage_preview_contains_own_spells_and_spec_tree() {
         assert_eq!(talents.editor.snapshot.as_ref().unwrap().spec_id, spec);
     }
 }
+
+#[test]
+fn explicit_preview_rejects_wrong_or_unknown_class_and_spec() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    for (class, spec) in [(1, 62), (99, 71), (1, 99999)] {
+        for tab in [PlayerSpellsTab::Spellbook, PlayerSpellsTab::Talents] {
+            assert!(load_class_preview_state(&data, tab, class, spec).is_err());
+        }
+    }
+}
