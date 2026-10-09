@@ -1137,6 +1137,15 @@ func capture_rosterfix_both(directory: String) -> bool:
 			push_error("Roster PNG save failed")
 			ui.queue_free()
 			return false
+		# Card8's actual click must select that card, never open creation through the footer.
+		if await rosterfix_click_action(ui, "CharCard_7") != "select_char:7":
+			push_error("Roster card8 click was intercepted")
+			ui.queue_free()
+			return false
+		if await rosterfix_click_action(ui, "CreateChar") != "create_toggle":
+			push_error("Roster footer click did not create")
+			ui.queue_free()
+			return false
 		# A genuine native wheel event must move the scroll child without changing selection.
 		var list := ui.find_child("CharacterListCards", true, false) as Control
 		var card := ui.find_child("CharCard_9", true, false) as Control
@@ -1155,9 +1164,58 @@ func capture_rosterfix_both(directory: String) -> bool:
 			push_error("Roster native wheel must pan194px: before=", before, " after=", after)
 			ui.queue_free()
 			return false
-		print("PASS: ", entry[0], "12 fixed entries, selected10 visible, footer separate, names, native wheel194,1920x1080")
+		if not await rosterfix_drag_to_end(ui):
+			ui.queue_free()
+			return false
+		print("PASS: ", entry[0], "12 fixed entries, selected10 visible, footer separate, names, native card8/footer clicks, wheel194, thumb end,1920x1080")
 		ui.queue_free()
 		await process_frame
+	return true
+
+func rosterfix_click_action(ui: Node, name: String) -> String:
+	var control := ui.find_child(name, true, false) as Control
+	var motion := InputEventMouseMotion.new()
+	motion.position = control.get_global_rect().get_center()
+	motion.global_position = motion.position
+	Input.parse_input_event(motion)
+	await process_frame
+	for pressed in [true, false]:
+		var click := InputEventMouseButton.new()
+		click.button_index = MOUSE_BUTTON_LEFT
+		click.pressed = pressed
+		click.position = motion.position
+		click.global_position = motion.position
+		Input.parse_input_event(click)
+		await process_frame
+	return ui.call("pop_action")
+
+func rosterfix_drag_to_end(ui: Node) -> bool:
+	var thumb := ui.find_child("CharacterListCardsScrollThumb", true, false) as Control
+	var track := ui.find_child("CharacterListCardsScrollTrack", true, false) as Control
+	var press := InputEventMouseButton.new()
+	press.button_index = MOUSE_BUTTON_LEFT
+	press.pressed = true
+	press.position = thumb.get_global_rect().get_center()
+	press.global_position = press.position
+	Input.parse_input_event(press)
+	await process_frame
+	var motion := InputEventMouseMotion.new()
+	motion.position = Vector2(press.position.x, track.get_global_rect().end.y - thumb.size.y / 2.0)
+	motion.global_position = motion.position
+	Input.parse_input_event(motion)
+	for frame in range(6):
+		await process_frame
+		await RenderingServer.frame_post_draw
+	press.pressed = false
+	press.position = motion.position
+	press.global_position = motion.position
+	Input.parse_input_event(press)
+	await process_frame
+	var last := ui.find_child("CharCard_11", true, false) as Control
+	var list := ui.find_child("CharacterListCards", true, false) as Control
+	if abs(last.get_global_rect().end.y - list.get_global_rect().end.y) > 1.0:
+		push_error("Roster native thumb did not reach card12")
+		return false
 	return true
 
 func rosterfix_geometry_and_names_match(ui: Node) -> bool:

@@ -634,6 +634,24 @@ impl ICanvasLayer for RegistryUi {
         if let Some(projection) = self.projection.as_mut() {
             projection.handle_pointer(&event);
         }
+        // Character select owns its ScrollBox input; other screens retain their host routes.
+        if self
+            .model
+            .as_ref()
+            .is_some_and(|model| matches!(model.postsetup, ScreenPostsetup::CharacterSelect))
+        {
+            match self.scroll_list_input(&event) {
+                Ok(true) => {
+                    if let Some(mut viewport) = self.base().get_viewport() {
+                        viewport.set_input_as_handled();
+                    }
+                }
+                Ok(false) => {}
+                Err(error) => crate::frame_error::report_once(&format!(
+                    "Character-select scroll input: {error}"
+                )),
+            }
+        }
         // A global release also ends repeat when the screen was hidden while held.
         if let Ok(button) = event.try_cast::<godot::classes::InputEventMouseButton>() {
             if button.get_button_index() == godot::global::MouseButton::LEFT && !button.is_pressed()
