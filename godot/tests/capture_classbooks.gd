@@ -13,8 +13,8 @@ func _run() -> void:
 		return
 	var results: Array = []
 	for entry in manifest:
-		OS.set_environment("GODOT_PREVIEW_CLASS", str(entry.class_id))
-		OS.set_environment("GODOT_PREVIEW_SPEC", str(entry.spec_id))
+		OS.set_environment("GODOT_PREVIEW_CLASS", str(int(entry.class_id)))
+		OS.set_environment("GODOT_PREVIEW_SPEC", str(int(entry.spec_id)))
 		OS.set_environment("GODOT_SPELLBOOK_TAB", entry.page)
 		var ui = ClassDB.instantiate("RegistryUi")
 		root.add_child(ui)

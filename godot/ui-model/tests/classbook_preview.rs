@@ -4,9 +4,9 @@ use game_engine_ui_model::spellbook_preview::load_class_preview_state;
 #[test]
 fn non_mage_preview_contains_own_spells_and_spec_tree() {
     let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
-    for (class, spec, class_name, spec_name, spell) in [
-        (1, 71, "Warrior", "Arms", 100),
-        (5, 257, "Priest", "Holy", 585),
+    for (class, spec, class_name, spec_name, spell, talent_spell) in [
+        (1, 71, "Warrior", "Arms", 100, 12294),
+        (5, 257, "Priest", "Holy", 585, 2050),
     ] {
         let book =
             load_class_preview_state(&data, PlayerSpellsTab::Spellbook, class, spec).unwrap();
@@ -32,7 +32,15 @@ fn non_mage_preview_contains_own_spells_and_spec_tree() {
         assert_eq!(talents.graph.class.name, class_name);
         assert_eq!(talents.graph.spec.name, spec_name);
         assert!(!talents.graph.class.nodes.is_empty());
-        assert!(!talents.graph.spec.nodes.is_empty());
+        assert!(
+            talents
+                .graph
+                .spec
+                .nodes
+                .iter()
+                .flat_map(|node| &node.entries)
+                .any(|entry| entry.spell_id == talent_spell)
+        );
         assert_eq!(talents.editor.snapshot.as_ref().unwrap().spec_id, spec);
     }
 }
