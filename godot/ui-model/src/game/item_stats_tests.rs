@@ -12,6 +12,100 @@ fn entry(item_id: u32) -> &'static ItemCatalogEntry {
 }
 
 #[test]
+fn forest_chain_tooltip_matches_applied_stats() {
+    let forest = entry(1273);
+    let tooltip = crate::item_tooltip::item_tooltip(
+        &crate::bag_data::InventorySlot {
+            item_id: 1273,
+            name: forest.name.clone(),
+            count: 1,
+            ..Default::default()
+        },
+        Some(1),
+    );
+    let lines: Vec<_> = tooltip
+        .lines
+        .iter()
+        .map(|line| line.left_text.as_str())
+        .collect();
+    println!("Forest Chain tooltip: {lines:?}");
+    assert!(lines.contains(&"+4 Stamina"), "{lines:?}");
+    assert!(lines.contains(&"10 Armor"), "{lines:?}");
+    assert!(lines.contains(&"+7 Versatility"), "{lines:?}");
+    assert!(lines.contains(&"Item Level 11"), "{lines:?}");
+}
+
+#[test]
+fn armor_and_weapon_tooltips_match_server_local_rows() {
+    // Same unmodified Retail rows asserted by server item_stats::parity_tests.
+    for (id, expected) in [
+        (
+            6268,
+            vec![
+                "Item Level 6",
+                "5 Armor",
+                "+1 Agility or Intellect",
+                "+2 Stamina",
+            ],
+        ),
+        (937, vec!["Item Level 12", "6 - 9 Damage"]),
+    ] {
+        let item = entry(id);
+        let tooltip = crate::item_tooltip::item_tooltip(
+            &crate::bag_data::InventorySlot {
+                item_id: id,
+                name: item.name.clone(),
+                count: 1,
+                ..Default::default()
+            },
+            Some(1),
+        );
+        let lines: Vec<_> = tooltip
+            .lines
+            .iter()
+            .map(|line| line.left_text.as_str())
+            .collect();
+        println!(
+            "PARITY item={id} input={:?} slot={} armor={} stats={:?} weapon={:?} tooltip={lines:?}",
+            scaling(item),
+            item.inventory_type,
+            item_armor(item),
+            item_stats(item),
+            weapon_damage(item)
+        );
+        for text in expected {
+            assert!(lines.contains(&text), "item={id}: {lines:?}");
+        }
+    }
+    let weapon = weapon_damage(entry(937)).unwrap();
+    assert_eq!((weapon.min, weapon.max, weapon.speed), (6.0, 9.0, 3.6));
+}
+
+#[test]
+fn item_game_table_rows_preserve_level_alignment_and_column_order() {
+    let path = Path::new("staminamultbyilvl.txt");
+    assert_eq!(
+        parse_game_row(path, "1\t1.5\t2\t3\t4", 1, &[3, 1]).unwrap(),
+        [3.0, 1.5]
+    );
+    assert!(
+        parse_game_row(path, "2\t1.5", 1, &[1])
+            .unwrap_err()
+            .contains("non-contiguous level 2")
+    );
+    assert!(
+        parse_game_row(path, "1\t1.5", 1, &[2])
+            .unwrap_err()
+            .contains("short row 1")
+    );
+    assert!(
+        parse_game_row(path, "1\tbad", 1, &[1])
+            .unwrap_err()
+            .contains("bad value")
+    );
+}
+
+#[test]
 fn armor_follows_the_quality_total_and_location_tables() {
     // Thin Cloth Shoes: common cloth feet, item level 2.
     assert_eq!(item_armor(entry(2117)), 1);
@@ -28,13 +122,12 @@ fn armor_follows_the_quality_total_and_location_tables() {
 fn weapon_damage_spreads_the_table_dps_by_variance_and_speed() {
     // Worn Shortsword: common one-hander, item level 1, 2.6 s, variance 0.5.
     let sword = weapon_damage(entry(25)).expect("weapon");
-    assert!((sword.min - 0.7596).abs() < 1e-3, "{sword:?}");
+    assert_eq!(sword.min, 0.0); // Server floors the minimum damage.
     assert_eq!((sword.max, sword.speed), (1.0, 2.6));
     assert!((sword.dps - 0.3895).abs() < 1e-3);
-    // Arced War Axe: rare two-hander, item level 13, 3.6 s, variance 0.7.
+    // Arced War Axe: level 13 squishes to 11; server range is 4-10.
     let axe = weapon_damage(entry(3191)).expect("weapon");
-    assert!((axe.min - 5.845).abs() < 1e-2, "{axe:?}");
-    assert_eq!((axe.max, axe.speed), (12.0, 3.6));
+    assert_eq!((axe.min, axe.max, axe.speed), (4.0, 10.0, 3.6));
     // Lesser Magic Wand reads the one-hand caster table.
     let wand = weapon_damage(entry(11287)).expect("wand");
     assert!((wand.dps - 0.3364).abs() < 1e-3, "{wand:?}");
@@ -49,7 +142,7 @@ fn stats_scale_the_percent_editor_by_the_random_property_points() {
     // Arced War Axe: Strength, Stamina, Haste, Critical Strike.
     assert_eq!(
         item_stats(entry(3191)),
-        [stat(4, 3), stat(7, 5), stat(36, 3), stat(32, 2)]
+        [stat(4, 3), stat(7, 4), stat(36, 3), stat(32, 2)]
     );
     // Pioneer Tunic: uncommon, Agility or Intellect and Stamina.
     assert_eq!(item_stats(entry(6268)), [stat(73, 1), stat(7, 2)]);

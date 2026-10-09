@@ -2,7 +2,7 @@
 use super::{HEIGHT, ProfessionView, QUANTITY, art, text};
 use crate::bank_art::{HIGHLIGHT_FONT_COLOR, cropped, edit_box, label, texture};
 use crate::merchant_data::quality_color;
-use crate::quest_art::{DynName, panel_button};
+use crate::quest_art::{DynName, panel_button, panel_button_fit_to_text_width};
 use ui_toolkit::{rsx, widget_def::Element};
 
 // Retail ReagentSlot.lua:99-110, GlobalColor DISABLED_REAGENT_COLOR #a0a0a0.
@@ -130,12 +130,16 @@ fn craft_controls(view: &ProfessionView) -> Element {
         &view.status,
         (309.0, 592.0, 600.0, 24.0),
     );
+    // Retail ProfessionsCrafting.lua:698 calls SetTextToFit; .xml:219-224
+    // anchors its RIGHT 30px left of the quantity input, so growth is leftward.
+    let create_all_text = format!("Create All [{}]", view.craftable);
+    let create_all_width = panel_button_fit_to_text_width(&create_all_text);
     out.extend(panel_button(
         "ProfessionsCreateAll".into(),
-        &format!("Create All [{}]", view.craftable),
+        &create_all_text,
         "profession:all",
         view.can_all,
-        (682.0, y, 80.0, 22.0),
+        (762.0 - create_all_width, y, create_all_width, 22.0),
     ));
     out.extend(edit_box(QUANTITY, (792.0, y + 1.0, 31.0, 20.0)));
     out.extend(spinner_arrow(

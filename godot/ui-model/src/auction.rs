@@ -415,6 +415,9 @@ pub fn native_auction_screen(
     let search_left = if sell { 0.0 } else { 240.0 };
     let search_top = if sell { 24.0 } else { 0.0 };
     let hide_search = !state.search_paging;
+    // Blizzard_PagedContent/Blizzard_PagingControls.xml:4-25,82-108:
+    // 32px arrows, independent PageText, with 5px horizontal spacing.
+    let search_arrows = search_page_arrows(state);
     let content =
         crate::auction_house_frame_component::auction_house_frame_content(ctx, &state.frame);
     rsx! {
@@ -424,13 +427,41 @@ pub fn native_auction_screen(
                 button {name:"AuctionRowsPrev",width:48.0,height:22.0,text:"Prev",onclick:"auction_rows_prev",enabled:{state.row_page>0},pos_type:"absolute",left:0.0,top:0.0,}
                 fontstring {name:"AuctionRowsLabel",width:120.0,height:22.0,text:{rows.as_str()},pos_type:"absolute",left:50.0,top:0.0,}
                 button {name:"AuctionRowsNext",width:48.0,height:22.0,text:"Next",onclick:"auction_rows_next",enabled:{state.row_page+1<state.row_pages},pos_type:"absolute",left:170.0,top:0.0,}
-                r#frame {name:"AuctionResultPaging",width:360.0,height:22.0,hidden:hide_search,pos_type:"absolute",left:search_left,top:search_top,
-                    button {name:"AuctionPagePrev",width:64.0,height:22.0,text:"Prev page",onclick:"auction_page_prev",enabled:{state.search_page>0},pos_type:"absolute",left:0.0,top:0.0,}
-                    fontstring {name:"AuctionPageLabel",width:140.0,height:22.0,text:{pages.as_str()},pos_type:"absolute",left:70.0,top:0.0,}
-                    button {name:"AuctionPageNext",width:64.0,height:22.0,text:"Next page",onclick:"auction_page_next",enabled:{state.search_page+1<state.search_pages},pos_type:"absolute",left:215.0,top:0.0,}
+                r#frame {name:"AuctionResultPaging",width:214.0,height:32.0,hidden:hide_search,pos_type:"absolute",left:search_left,top:search_top,
+                    {search_arrows}
+                    fontstring {name:"AuctionPageLabel",width:140.0,height:32.0,font_size:12.0,justify_h:"CENTER",text:{pages.as_str()},pos_type:"absolute",left:37.0,top:0.0,}
                 }
             }
         }
+    }
+}
+
+fn search_page_arrows(state: &NativeAuctionView) -> ui_toolkit::widget_def::Element {
+    use ui_toolkit::rsx;
+    rsx! {
+        button {name:"AuctionPagePrev",width:32.0,height:32.0,onclick:"auction_page_prev",enabled:{state.search_page>0},button_default_skin:false,pos_type:"absolute",left:0.0,top:0.0,}
+        button {name:"AuctionPageNext",width:32.0,height:32.0,onclick:"auction_page_next",enabled:{state.search_page+1<state.search_pages},button_default_skin:false,pos_type:"absolute",left:182.0,top:0.0,}
+    }
+}
+
+/// Retail PagingControls arrow states, not UIPanelButton nine-slice/text artwork.
+/// FDIDs from the staged community listfile; attributes currently expose only atlases.
+pub fn apply_auction_paging_postsetup(registry: &mut ui_toolkit::registry::FrameRegistry) {
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::widgets::texture::TextureSource;
+    for (name, up, down, disabled) in [
+        ("AuctionPagePrev", 130_869, 130_868, 130_867),
+        ("AuctionPageNext", 130_866, 130_865, 130_864),
+    ] {
+        let id = registry.get_by_name(name).expect("auction paging button");
+        let frame = registry.get_mut(id).expect("auction paging frame");
+        let Some(WidgetData::Button(button)) = frame.widget_data.as_mut() else {
+            panic!("auction pager must be a button");
+        };
+        button.normal_texture = Some(TextureSource::FileDataId(up));
+        button.pushed_texture = Some(TextureSource::FileDataId(down));
+        button.disabled_texture = Some(TextureSource::FileDataId(disabled));
+        button.highlight_texture = Some(TextureSource::FileDataId(130_757));
     }
 }
 

@@ -6,6 +6,8 @@ mod aura_preview;
 mod bank_preview;
 #[cfg(test)]
 mod buffcancel_tests;
+#[cfg(debug_assertions)]
+mod buttonfit_preview;
 // New preview APIs belong in their own *_preview.rs #[godot_api(secondary)] block, never here.
 mod auction_preview;
 pub(crate) mod castbar_fx;
@@ -30,6 +32,9 @@ mod party_preview;
 mod professions_preview;
 mod projection;
 mod registration_preview;
+mod rosterfix_preview;
+#[cfg(test)]
+mod rosterfix_tests;
 mod scroll_lists;
 mod sidebarbinds_preview;
 mod spellbook_preview;
@@ -252,14 +257,25 @@ impl RegistryModel {
             self.shared.insert(skin);
             self.registry.refresh_panel_styles();
         }
-        self.screen.sync(&self.shared, &mut self.registry);
+        if matches!(self.postsetup, ScreenPostsetup::CharacterSelect) {
+            game_engine_ui_model::char_select_component::sync_char_select_screen(
+                &mut self.screen,
+                &mut self.shared,
+                &mut self.registry,
+            );
+        } else {
+            self.screen.sync(&self.shared, &mut self.registry);
+        }
         self.apply_postsetup();
     }
 
     fn apply_postsetup(&mut self) {
         match self.postsetup {
             ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Trade => {}
-            ScreenPostsetup::Auction => self.icon_masks.apply(&mut self.registry),
+            ScreenPostsetup::Auction => {
+                self.icon_masks.apply(&mut self.registry);
+                game_engine_ui_model::auction::apply_auction_paging_postsetup(&mut self.registry);
+            }
             ScreenPostsetup::CastingBar => {
                 game_engine_ui_model::casting_bar_frame_component::apply_casting_bar_feedback_postsetup(&mut self.registry);
             }
@@ -617,6 +633,24 @@ impl ICanvasLayer for RegistryUi {
     fn input(&mut self, event: Gd<godot::classes::InputEvent>) {
         if let Some(projection) = self.projection.as_mut() {
             projection.handle_pointer(&event);
+        }
+        // Character select owns its ScrollBox input; other screens retain their host routes.
+        if self
+            .model
+            .as_ref()
+            .is_some_and(|model| matches!(model.postsetup, ScreenPostsetup::CharacterSelect))
+        {
+            match self.scroll_list_input(&event) {
+                Ok(true) => {
+                    if let Some(mut viewport) = self.base().get_viewport() {
+                        viewport.set_input_as_handled();
+                    }
+                }
+                Ok(false) => {}
+                Err(error) => crate::frame_error::report_once(&format!(
+                    "Character-select scroll input: {error}"
+                )),
+            }
         }
         // A global release also ends repeat when the screen was hidden while held.
         if let Ok(button) = event.try_cast::<godot::classes::InputEventMouseButton>() {

@@ -63,11 +63,6 @@ const WARBAND_SLOT: &str = "warband-bank-slot";
 /// Forever Camelot/BankFrame.xml:34,36; Forever members :18121,:17832.
 const FOREVER_SLOT_FRAME: &str = "bank-frame-item-slotframe";
 const FOREVER_SLOT: &str = "bags-item-bankslot64";
-/// Camelot/BankFrame.xml:76-79: useAtlasSize, scale .48, BOTTOM +220.
-/// Forever member :18118 (864×32 on a 1024×128 sheet).
-const FOREVER_DIVIDER: &str = "bank-divider";
-const FOREVER_DIVIDER_SCALE: f32 = 0.48;
-const FOREVER_DIVIDER_BOTTOM: f32 = 220.0;
 /// `Interface\SpellBook\SpellBook-SkillLineTab`, the side tab border (BF.xml:353).
 const SKILL_LINE_TAB: u32 = 136_831;
 /// Retail and Forever UiTextureAtlasMember.csv:2883: the existing purchase-tab crop.
@@ -162,10 +157,6 @@ pub fn bank_frame_screen(ctx: &SharedContext) -> Element {
         (2.0, 51.0, FRAME_W - 4.0, FRAME_H - 81.0),
         (WHITE, DrawLayer::Artwork),
     ));
-    match skin {
-        ActiveSkin::Modern => {}
-        ActiveSkin::Forever => children.extend(bank_divider(skin)),
-    }
     children.extend(edge_shadows(skin));
     children.extend(side_tabs(state, skin));
     match &state.purchase {
@@ -236,24 +227,6 @@ fn resolve_bank_texture(name: &str, skin: ActiveSkin) -> (u32, String) {
         region.left, region.right, region.top, region.bottom
     );
     (fdid, coords)
-}
-
-fn bank_divider(skin: ActiveSkin) -> Element {
-    let region = resolve_region(FOREVER_DIVIDER, skin).expect("Forever bank-divider atlas");
-    let width = region.width * FOREVER_DIVIDER_SCALE;
-    let height = region.height * FOREVER_DIVIDER_SCALE;
-    bank_atlas(
-        format!("{FRAME_NAME}Divider"),
-        FOREVER_DIVIDER,
-        skin,
-        (
-            (FRAME_W - width) / 2.0,
-            FRAME_H - FOREVER_DIVIDER_BOTTOM - height,
-            width,
-            height,
-        ),
-        (WHITE, DrawLayer::Artwork),
-    )
 }
 
 /// Camelot/BankFrame.xml:34-36 changes only the slot art, not the existing grid.

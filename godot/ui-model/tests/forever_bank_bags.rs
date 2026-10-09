@@ -239,34 +239,7 @@ fn assert_forever_bank_tree() {
                 Some(format!("bank_slot:{index}").as_str())
             );
         }
-        assert_art(
-            &registry,
-            "BankFrameDivider",
-            "bank-divider",
-            ActiveSkin::Forever,
-        );
-        let divider = frame(&registry, "BankFrameDivider");
-        let Val::Px(left) = divider.position.left else {
-            panic!("divider left not pixels")
-        };
-        let Val::Px(top) = divider.position.top else {
-            panic!("divider top not pixels")
-        };
-        let Dimension::Fixed(width) = divider.width else {
-            panic!("divider width not fixed")
-        };
-        let Dimension::Fixed(height) = divider.height else {
-            panic!("divider height not fixed")
-        };
-        // The divider keeps its atlas member's aspect ratio.
-        let member = resolve_region("bank-divider", ActiveSkin::Forever).unwrap();
-        assert!(
-            (width / height - member.width / member.height).abs() < 0.001,
-            "divider {width}x{height} vs member {}x{}",
-            member.width,
-            member.height
-        );
-        assert!(left >= 0.0 && top >= 0.0, "divider at {left},{top}");
+        assert!(registry.get_by_name("BankFrameDivider").is_none());
         let mut prompt = state;
         prompt.purchase = Some(PurchasePromptView::default());
         let registry = mount(prompt, bank_frame_screen);
@@ -278,6 +251,44 @@ fn assert_forever_bank_tree() {
         );
         assert!(registry.get_by_name("BankFrameItem1").is_none());
     }
+}
+
+// Retail Mainline BankFrame.xml:600-738 defines no divider in either bank.
+// The seven 37px rows at y=63,110,...,345 end at y=382 (BankFrame.lua:941-968).
+fn assert_retail_bank_has_no_divider(skin: ActiveSkin, account: bool) {
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(skin);
+    let registry = mount(bank_state(account), bank_frame_screen);
+    let last_row = frame(&registry, "BankFrameItem7");
+    assert_eq!(last_row.position.top, Val::Px(345.0));
+    assert_eq!(last_row.height, Dimension::Fixed(37.0));
+    assert!(
+        registry.get_by_name("BankFrameDivider").is_none(),
+        "Retail has no divider; {skin:?} account={account} must not add one across y=63..382"
+    );
+}
+
+#[test]
+fn retail_divider_modern_character() {
+    assert_retail_bank_has_no_divider(ActiveSkin::Modern, false);
+}
+
+#[test]
+fn retail_divider_modern_warband() {
+    assert_retail_bank_has_no_divider(ActiveSkin::Modern, true);
+}
+
+#[test]
+fn retail_divider_forever_character() {
+    assert_retail_bank_has_no_divider(ActiveSkin::Forever, false);
+}
+
+#[test]
+fn retail_divider_forever_warband() {
+    assert_retail_bank_has_no_divider(ActiveSkin::Forever, true);
 }
 
 #[test]

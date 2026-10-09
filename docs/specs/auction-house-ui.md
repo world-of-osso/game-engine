@@ -59,6 +59,11 @@ opened from an auctioneer, on the existing auction protocol (`shared-protocol`
 - Native `capture_ui_screen.gd` `auction_both` with `GODOT_AH_PORTRAIT_CAPTURE=1`: Browse only in Modern and Forever, Auctioneer Fitch entry 8719/display 7992 through the production masked creature portrait renderer. The local world DB's AC and TDB model rows agree on 7992. Both actual compositor output/window/viewport are 1920×1080; capture asserts loaded creature 7992 and records geometry. Corrected full-window and zoomed header captures inspected: round NPC face with an overlapping gold/bronze ring, opaque dark header with no rectangular room-visible gap beside the portrait, star, Filter and close X. Bank also inherits the ring and opaque header through `bank_frame_component.rs:154`'s shared `window_chrome`; both skins have model assertions. `BankFrameDivider` is unchanged. Favorites and Filter remain visual-only.
 - Recipe and native PNG/JSON/log evidence: `data/diagnostics/ahportrait-2026-10-09/`; shared copies: `/syncthing/AgentShared/2026-10-09/ahportrait/`. Capture exits 0. Editor import exits 0 but reports eight ObjectDB instances at shutdown; not a fixed/general shutdown claim.
 
+## Native search paging button fit
+
+- [x] Existing protocol search-page actions and enablement remain unchanged. Both skins use Retail `PagingControlsPrevPageButtonTemplate` / `PagingControlsNextPageButtonTemplate` artwork and 32×32 hit frames, not custom 64px panel buttons containing "Prev page" / "Next page". The existing Results current/max summary stays independent, GameFontHighlight12, between the arrows with 5px spacing (`Blizzard_PagedContent/Blizzard_PagingControls.xml:4-25,82-108`). Retail AuctionHouse uses incremental scrolling rather than this protocol pager; this matches the reusable Retail paging controls, not a claim that Mainline AH has search-page buttons. Already-fitting local row paging stays unchanged.
+- [x] `godot/ui-model/tests/buttonfit.rs` checks both-skin concrete page widths and captions; the ignored native inventory in `launcher/tests/buttonfit_audit.rs` measures offline previews at 1920×1080.
+
 ## Tests asserting this spec
 
 - `cargo test --lib -- auction item_catalog` — frame layout and content per tab from concrete view states, money parts, Retail positions; network state reply pairing, error collection; `Item.csv` parsing.
