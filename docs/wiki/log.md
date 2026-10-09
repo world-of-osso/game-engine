@@ -1,3 +1,20 @@
+## 2026-10-08 — Skyborn NPC offline diagnosis
+
+[Forever data](systems/forever-data.md#npc-source-selection-and-offline-sweep-2026-10-08) records CDI-membership customization/compositor isolation, authored cape type2 binding and the ignored production-policy sweep. [NPC contract](../specs/npc-appearance.md#skyborn-offline-sweep-2026-10-08) owns error classification, FDID requests and exact RED/GREEN boundaries. Authentic native Batch52/original eleven errors remain blocked by local files; no fallback, push, merge, live service or independent-agent proof.
+
+## 2026-10-08 — Replicated remote player life state
+
+[Death flow](systems/death-flow.md#remote-player-life-state) records explicit shared DeathState decoding, remote held corpse animation, shared per-mesh ghost transparency and Retail Dead labels in both skins. Owner-only grading/dialogs remain. Targeted RED reproduced missing codec/numeric death text (0/3) and the hidden-player plate gate; native GREEN 5/5 at b949fd699 plus retained UDP decoder 1/1. Proof paths and corrected fixture assumptions are recorded in the system page. No live run, push or merge.
+## 2026-10-08 — Bounded bank art and native input proof
+
+[Banks](systems/banks.md#native-bank-art-2026-10-08) records model-owned additive overlays, crop-aware native tiling and preserved bankmoves press/modified-click callbacks. [Contract proof](../specs/bank-frame.md#bounded-bankart-pass--2026-10-08):808b6eb2e targeted11/0/1 and six inspected1920×1080 Modern/Forever tabs/hover/purchase captures. Native loaded ADD and exactly-one left/Shift/right dispatch assertions pass. Bank-bag chrome/state/layout remains blocked; vertical-shadow5779392 cannot extract without the missing local install `.build.info`. No CDN/substitute or full parity/live-server claim.
+## 2026-10-08 — Extra Action Bars visibility
+
+[Options contract](../specs/extra-action-bars.md) records the user decision: side bars disabled by default, no disabled edit movers, unchanged tracker placement. Production bar visibility replaces editor-only side placeholders; bottom-bar skin defaults remain. Implementation `67c50ec42`: targeted GREEN 99 passed/zero failed (one ignored capture helper), extension build exit 0. Both cage captures inspected: ordered Action Bars 2–5 checkboxes, default Forever editor without 4/5 movers and unchanged tracker. [Options contract](../specs/extra-action-bars.md#known-gaps-current-cycle) records evidence and live-server exclusions.
+## 2026-10-08 — Auction confirmations and commodity dialog art
+
+[Auction house](systems/auction-house-ui.md#native-confirmations-and-commodity-dialog-art-2026-10-08) records `c8a4f94b4`: existing global PopupStack Accept-once/Cancel-none confirmations, retained unsupported commodity preview, inset7 dark texture and active-skin Dialog border. Targeted4+7+11 tests and native build pass; six cage1920×1080 captures inspected. [Contract](../specs/auction-house-ui.md#offline-retail-layout-audit--2026-10-08) retains missing Modern border/alert payloads and excludes live/server/full-parity acceptance.
+
 ## 2026-10-07 — Offline character garment matrix, 78-cell bounded PASS
 
 [Character rendering](systems/character-rendering.md#current-acceptance-78-pass-zero-fail) records final fixture `3b1490ba7`: all78 isolated cells pass actual Vulkan geoset/material/attachment/close-up checks and150 independently gated garment rectangles; all six contact sheets and cape back views inspected. `c60ba62c0` supplies the independent HelmetGeosetData CSV oracle and corrects DXT-buffer and full-thumbnail fixture defects; `41449a140` types its behavioral test. Exporter RED→GREEN1/1 and helmet/DXT tests pass; final core781/Godot658/UI-model744 pass, zero failures. The previous renderer block misread owned-process scope. No production client mismatch/fix, server/network, merge/push or full Retail pixel/animated-clipping claim. [Parity rows](../specs/godot-parity-matrix.md) retain the broader named gaps.
@@ -2900,3 +2917,22 @@ Updated [[forever-data]] with independent payload/cache/world proof, README-only
 ## 2026-10-08 — Character-bank item moves
 
 Existing ItemLocation/SwapItem/SplitItem extended to character bank tabs; [bank system](systems/banks.md) records native cursor and transactional server behavior. Targeted proof tracked in `/home/osso/.worktrees/handoff-bankmoves.md`; no live run.
+
+## 2026-10-08 — Side-bar bindings and assignment
+
+[Spellbook/action bars](systems/spellbook-action-bar.md#shared-extra-bar-assignment-2026-10-08) records shared native cursor assignment, unbound Retail side-bar bindings, exact fixed pages and both-skin preview. Bounded RED→GREEN model and both-skin real-1920 capture gate completed; exact proof and retained asset/live-network gaps are linked from the system page and `/home/osso/.worktrees/handoff-sidebarbinds.md`. No server/protocol changes or live network/relog claim.
+- 2026-10-08: auction subcategory/Bid/Quantity contract and bounded protocol/server RED/GREEN ledger; native capture/engine GREEN checkpoint pending. Updated auction-house-ui system/spec.
+
+- 2026-10-08: ahsort bounded engine GREEN5 and native build EXIT0; one cage captured Modern/Forever at real1920×1080. Read both PNGs:Armor→Cloth→Chest, quantity37/12/8. Missing2 icons/editor/cage diagnostics retained; no live/broad gates.
+
+## 2026-10-08 — Talents first slice
+
+Recorded local Arcane CSV witnesses, grant/spec conditions and Blizzard node geometry in [Talents](systems/talents.md); wowdev references HTTP403, implementation/proof pending.
+
+## 2026-10-08 — Read-only Talents bounded completion
+
+[Talents](systems/talents.md): local Mage Arcane graph and both-skin native page/hover proven; primitive no-art/rotation regressions corrected. Final4actual1080p captures inspected; learning/loadouts/server and unavailable icon art remain out of scope/gaps. Exact proof ledger lives on the system page.
+
+- 2026-10-09: Talents server-wire slice: account snapshots/results, full total-rank commits, local rule parity and shared staged UI. [System](systems/talents.md), [contract](../specs/talents.md). UI22 and UDP1 passed; native account/capture proof pending.
+
+- 2026-10-09: Talents wire acceptance: targeted33/33 GREEN, production-order and same-spec/tier RED regressions, native build0/format0, one inspected both-skin1920×1080 pending capture. [Proof](systems/talents.md#server-wire-acceptance-2026-10-09). No push, merge, server change or model delegation.

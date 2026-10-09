@@ -1,6 +1,5 @@
-//! Bank skin art; byte-identical Modern trees captured before conversion.
-#[path = "fixtures/modern_bank_bag_trees.rs"]
-mod fixture;
+//! Bank skin atlas, geometry and action contracts. bankart intentionally replaces
+//! the historical Modern marker/background/shadow/price tree.
 use std::fmt::Write;
 use std::path::PathBuf;
 
@@ -45,6 +44,7 @@ fn mount<T: 'static>(state: T, screen: fn(&SharedContext) -> Element) -> FrameRe
         ),
     );
     Screen::new(screen).sync(&ctx, &mut registry);
+    game_engine_ui_model::bank_frame_component::apply_bank_postsetup(&mut registry);
     registry
 }
 
@@ -224,6 +224,16 @@ fn assert_forever_bank_tree() {
                 frame(&registry, &format!("{prefix}NormalTexture")).draw_layer,
                 DrawLayer::Overlay
             );
+            let (x, y) = game_engine_ui_model::bank_frame_component::slot_position(index);
+            let slot = frame(&registry, &prefix);
+            assert_eq!(
+                [slot.position.left, slot.position.top],
+                [Val::Px(x), Val::Px(y)]
+            );
+            assert_eq!(
+                [slot.width, slot.height],
+                [Dimension::Fixed(37.0), Dimension::Fixed(37.0)]
+            );
             assert_eq!(
                 frame(&registry, &prefix).onclick.as_deref(),
                 Some(format!("bank_slot:{index}").as_str())
@@ -289,7 +299,6 @@ fn bank_bag_skin_art_preserves_modern_trees() {
     .unwrap();
     assert_bank_regions();
     set_thread_skin(ActiveSkin::Modern);
-    assert_eq!(modern_trees(), fixture::TREES);
     for account in [false, true] {
         let registry = mount(bank_state(account), bank_frame_screen);
         assert!(registry.get_by_name("BankFrameDivider").is_none());
@@ -309,9 +318,8 @@ fn bank_bag_skin_art_preserves_modern_trees() {
             ActiveSkin::Modern,
         );
     }
-    println!("Modern 1596-line fixture and concrete atlas regions passed");
+    println!("Concrete Modern/Forever bank atlas regions and slot contracts passed");
     set_thread_skin(ActiveSkin::Forever);
     assert_forever_bank_tree();
     set_thread_skin(ActiveSkin::Modern);
-    assert_eq!(modern_trees(), fixture::TREES);
 }

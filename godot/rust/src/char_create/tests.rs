@@ -16,6 +16,9 @@ use shared::components::CharacterAppearance;
 
 use super::{CharCreateState, build_ui_state, reduce};
 
+#[path = "forever_flow_tests.rs"]
+mod forever_flow_tests;
+
 #[test]
 fn skyborne_race_selection_uses_default_class_and_only_player_options() {
     for (race, class) in [(95, 8), (96, 7)] {

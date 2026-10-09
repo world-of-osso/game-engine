@@ -103,6 +103,48 @@ pub fn camera_body(camera: &CameraOptionsView) -> OptionsPage {
     content_stack(camera_items(camera))
 }
 
+/// Retail Gameplay > Action Bars (ActionBars.lua:29–47): supported bars in
+/// numeric order. 2/3 retain the client's authored per-skin defaults.
+pub fn action_bars_body(
+    hud: &HudOptionsView,
+    skin: game_engine_core::ui_layout_data::LayoutSkin,
+) -> OptionsPage {
+    let bars = hud.extra_action_bars;
+    let bottom_default = skin == game_engine_core::ui_layout_data::LayoutSkin::Forever;
+    let rows = [
+        (
+            "action_bar_2",
+            "Action Bar 2",
+            bars.action_bar_2.unwrap_or(bottom_default),
+        ),
+        (
+            "action_bar_3",
+            "Action Bar 3",
+            bars.action_bar_3.unwrap_or(bottom_default),
+        ),
+        ("action_bar_4", "Action Bar 4", bars.action_bar_4),
+        ("action_bar_5", "Action Bar 5", bars.action_bar_5),
+    ];
+    content_stack(
+        rows.into_iter()
+            .flat_map(|(key, label, checked)| {
+                let name = format!("ExtraActionBar{key}");
+                let action = format!("options_toggle:{key}");
+                let checkbox =
+                    super::bank_art::checkbox(&name, label, checked, &action, (8.0, 10.0));
+                rsx! {
+                    r#frame {
+                        name: {DynName(format!("ExtraActionBarRow{key}"))},
+                        width: OPTIONS_ROW_W, height: 44.0,
+                        mouse_enabled: true, onclick: {action.as_str()},
+                        {checkbox}
+                    }
+                }
+            })
+            .collect(),
+    )
+}
+
 pub fn interface_body(hud: &HudOptionsView) -> OptionsPage {
     content_stack(
         [

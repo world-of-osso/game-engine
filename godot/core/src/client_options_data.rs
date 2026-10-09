@@ -222,10 +222,23 @@ impl Default for CameraOptionsFile {
     }
 }
 
+/// Extra-bar opt-ins (Retail ActionBars.lua:29–47). Unset bottom bars retain the
+/// authored skin defaults; side bars are disabled in every skin.
+#[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct ExtraActionBars {
+    pub action_bar_2: Option<bool>,
+    pub action_bar_3: Option<bool>,
+    pub action_bar_4: bool,
+    pub action_bar_5: bool,
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HudOptionsFile {
     pub show_minimap: bool,
     pub show_action_bars: bool,
+    #[serde(default, rename = "extraActionBars")]
+    pub extra_action_bars: ExtraActionBars,
     pub show_nameplates: bool,
     #[serde(default = "default_nameplate_distance", rename = "nameplateDistance")]
     pub nameplate_distance: f32,
@@ -259,6 +272,7 @@ impl Default for HudOptionsFile {
         Self {
             show_minimap: true,
             show_action_bars: true,
+            extra_action_bars: ExtraActionBars::default(),
             show_nameplates: true,
             nameplate_distance: default_nameplate_distance(),
             nameplate_style: NameplateStyle::default(),

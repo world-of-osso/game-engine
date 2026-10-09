@@ -86,6 +86,7 @@ fn shared_codecs() -> Vec<Codec> {
         Codec::of::<CombatRatings>(),
         Codec::of::<DerivedStats>(),
         Codec::of::<PlayerStandState>(),
+        Codec::of::<shared::death::DeathState>(),
         Codec::of::<CreatureClassification>(),
         Codec::of::<UnitVignette>(),
         Codec::of::<UnitSummonedBy>(),

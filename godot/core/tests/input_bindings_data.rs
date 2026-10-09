@@ -127,10 +127,10 @@ fn complete_token_grammar_round_trips_and_rejects_unsupported() {
 #[test]
 fn inventory_defaults_and_sections_are_exact() {
     let bindings = InputBindingsData::default();
-    assert_eq!(InputAction::ALL.len(), 96);
+    assert_eq!(InputAction::ALL.len(), 120);
     assert_eq!(
         BindingSection::ALL.map(|s| actions_for_section(s).len()),
-        [8, 6, 14, 22, 12, 12, 1, 15, 6]
+        [8, 6, 14, 22, 12, 12, 12, 12, 1, 15, 6]
     );
     let mut seen = std::collections::BTreeSet::new();
     for action in InputAction::ALL {
@@ -560,5 +560,23 @@ fn hotkey_text_uses_retail_key_names() {
     ];
     for (binding, text) in cases {
         assert_eq!(binding.hotkey_text(), text, "{binding:?}");
+    }
+}
+
+#[test]
+fn sidebarbinds_all_four_retail_bars_are_unbound_and_round_trip_names() {
+    let bindings = InputBindingsData::default();
+    for bar in 1..=4 {
+        for button in 1..=12 {
+            let key = format!("multi_action_bar_{bar}_button_{button}");
+            let action = InputAction::from_key(&key).expect("Retail multi action binding exists");
+            assert_eq!(action.multi_action_bar(), Some((bar, button - 1)));
+            assert_eq!(bindings.binding(action), None);
+            assert_eq!(
+                action.label(),
+                format!("Action Bar {} Button {button}", bar + 1)
+            );
+            assert_eq!(actions_for_section(action.section()).len(), 12);
+        }
     }
 }

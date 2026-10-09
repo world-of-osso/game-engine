@@ -260,7 +260,8 @@ pub const MODERN: HudLayout = HudLayout {
     show_micro_menu: false,
     // Both frames are `hidden="true"` (MultiActionBars.xml:45,75) until the player ticks
     // "Action Bar 2/3" (`GetActionBarToggles`, MultiActionBars.lua:17-33,79-91,
-    // Blizzard_SettingsDefinitions_Frame/ActionBars.lua:9,29-30); no such toggle exists here.
+    // Blizzard_SettingsDefinitions_Frame/ActionBars.lua:9,29-30); explicit Options
+    // visibility overrides these unset skin defaults in the action-bar screen.
     action_bar_2: None,
     action_bar_3: None,
     // Standard constants :2,12 and EditModeManager.lua's fixed bottom stack.

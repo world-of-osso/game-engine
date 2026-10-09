@@ -78,6 +78,7 @@ pub enum OptionsCategory {
     Camera,
     Interface,
     Hud,
+    ActionBars,
     Nameplates,
     Controls,
     Accessibility,
@@ -89,12 +90,13 @@ pub enum OptionsCategory {
 }
 
 impl OptionsCategory {
-    pub const ALL: [Self; 13] = [
+    pub const ALL: [Self; 14] = [
         Self::Graphics,
         Self::Sound,
         Self::Camera,
         Self::Interface,
         Self::Hud,
+        Self::ActionBars,
         Self::Nameplates,
         Self::Controls,
         Self::Accessibility,
@@ -112,6 +114,7 @@ impl OptionsCategory {
             Self::Camera => "camera",
             Self::Interface => "interface",
             Self::Hud => "hud",
+            Self::ActionBars => "actionbars",
             Self::Nameplates => "nameplates",
             Self::Controls => "controls",
             Self::Accessibility => "accessibility",
@@ -130,6 +133,7 @@ impl OptionsCategory {
             Self::Camera => "Camera",
             Self::Interface => "Interface",
             Self::Hud => "HUD",
+            Self::ActionBars => "Action Bars",
             Self::Nameplates => "Nameplates",
             Self::Controls => "Controls",
             Self::Accessibility => "Accessibility",
@@ -184,6 +188,7 @@ pub use crate::nameplate_style::NameplateBarThickness;
 pub struct HudOptionsView {
     pub show_minimap: bool,
     pub show_action_bars: bool,
+    pub extra_action_bars: game_engine_core::client_options_data::ExtraActionBars,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
     pub nameplate_style: crate::nameplate_style::NameplateStyle,
@@ -594,6 +599,9 @@ fn category_body(model: &OptionsViewModel) -> OptionsPage {
         OptionsCategory::Camera => options_menu_active_sections::camera_body(&model.camera),
         OptionsCategory::Interface => options_menu_active_sections::interface_body(&model.hud),
         OptionsCategory::Hud => options_menu_active_sections::hud_body(&model.hud, &model.layout),
+        OptionsCategory::ActionBars => {
+            options_menu_active_sections::action_bars_body(&model.hud, model.layout.skin)
+        }
         OptionsCategory::Nameplates => options_menu_active_sections::nameplates_body(&model.hud),
         OptionsCategory::Controls => options_menu_sections::controls_body(),
         OptionsCategory::Accessibility => {

@@ -63,6 +63,7 @@ pub(super) fn compose_replacement_pixels(
     composed: CompositedModelTextures,
     baked_body: Option<NpcTexturePixels>,
     decoded: &HashMap<u32, NpcTexturePixels>,
+    cape_fdid: Option<u32>,
 ) -> Result<HashMap<u32, NpcTexturePixels>, String> {
     for &(_, fdid) in materials {
         if !decoded.contains_key(&fdid) {
@@ -80,6 +81,12 @@ pub(super) fn compose_replacement_pixels(
     textures.extend(compose_separate_replacements(
         compositor, materials, layout_id, decoded,
     )?);
+    if let Some(fdid) = cape_fdid {
+        let cape = decoded
+            .get(&fdid)
+            .ok_or_else(|| format!("missing authored NPC cape texture FDID {fdid}"))?;
+        textures.insert(2, cape.clone());
+    }
     Ok(textures)
 }
 
