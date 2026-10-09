@@ -162,3 +162,56 @@ fn talents_gate_and_hero_level_reject_unavailable_purchases() {
     ));
     assert!(!editor.dirty());
 }
+
+#[test]
+fn talents_tiered_refund_uses_db2_entry_order_not_sorted_wire_ids() {
+    let mut view = view();
+    let node = view
+        .rules
+        .as_mut()
+        .unwrap()
+        .nodes
+        .iter_mut()
+        .find(|node| node.id == 110420)
+        .unwrap();
+    // Isolate the tier boundary from the unrelated currency gate. These are the
+    // real Arcane apex entries in DB2 order: 137028 (1),137027 (2),137026 (1).
+    node.conds.clear();
+    node.groups.clear();
+    node.parents.clear();
+    node.costs.clear();
+    for entry in &mut node.entries {
+        entry.conds.clear();
+        entry.costs.clear();
+    }
+    let mut editor = editor(&view);
+    let mut snapshot = editor.snapshot.clone().unwrap();
+    snapshot.entries.extend([
+        TraitEntrySelection {
+            node_id: 110420,
+            entry_id: 137028,
+            rank: 1,
+        },
+        TraitEntrySelection {
+            node_id: 110420,
+            entry_id: 137027,
+            rank: 1,
+        },
+    ]);
+    editor.receive_snapshot(snapshot);
+    assert!(editor.refund(&view, 80, 110420));
+    assert_eq!(
+        editor.rank(110420, 137028),
+        1,
+        "first tier must remain learned"
+    );
+    assert_eq!(
+        editor.rank(110420, 137027),
+        0,
+        "refund the last active tier"
+    );
+    assert!(
+        !editor.purchase(&view, 80, 110420, 137026),
+        "later tier requires earlier tiers maxed"
+    );
+}
