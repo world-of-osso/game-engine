@@ -322,11 +322,6 @@ fn project_highlight(frame: &Frame, width: f32, height: f32, parts: &mut Vec<Ima
         [1.0, 1.0, 1.0, button.highlight_alpha],
     );
     part.overlay = true;
-    // ItemButtonTemplate:79. Scope to bank slots; other hover art keeps its contract.
-    part.additive = frame
-        .onclick
-        .as_deref()
-        .is_some_and(|action| action.starts_with("bank_slot:"));
     parts.push(part);
 }
 
