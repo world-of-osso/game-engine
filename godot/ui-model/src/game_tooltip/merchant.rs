@@ -256,11 +256,13 @@ mod tests {
         assert_eq!(shopping.len(), 1);
         assert_eq!(shopping[0].header, "Equipped");
         assert_eq!(shopping[0].tooltip.title, "Worn Shortsword");
+        // At squished item levels the server applies 4-10 @ 3.6 (axe, 1.94 DPS) and
+        // 0-1 @ 2.6 (sword, 0.19 DPS): a 1.75 DPS gain.
         let gain = shopping[0]
             .tooltip
             .lines
             .iter()
-            .find(|line| line.left_text == "+2.1 Damage Per Second")
+            .find(|line| line.left_text == "+1.8 Damage Per Second")
             .expect("damage gain");
         assert_eq!(gain.left_color, GREEN_FONT_COLOR);
     }
