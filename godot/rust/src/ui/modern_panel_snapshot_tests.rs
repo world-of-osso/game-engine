@@ -61,6 +61,7 @@ pub(super) fn meter_view() -> DamageMeterView {
             fraction: 1.0,
             color: [0.25, 0.78, 0.92],
             class_id: 8,
+            spec_icon_fdid: None,
             is_local_player: true,
         }],
         ..DamageMeterView::default()

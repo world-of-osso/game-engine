@@ -70,6 +70,7 @@ fn metergaps_forever_fill_stops_brighten_each_class_without_vertical_highlight()
                 fraction: 1.0,
                 color,
                 class_id,
+                spec_icon_fdid: None,
                 is_local_player: true,
             }],
             ..Default::default()

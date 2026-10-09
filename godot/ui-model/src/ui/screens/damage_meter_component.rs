@@ -456,9 +456,12 @@ fn forever_entry(
 ) -> Element {
     let name = damage_meter_row_name(index);
     let row_width = forever_row_width(window_width);
-    let mut parts = match class_icon(row.class_id) {
-        Some(icon) => forever_icon(&name, icon),
-        None => Vec::new(),
+    // A known spec's icon takes precedence over the class icon
+    // (DamageMeterSourceEntryMixin:GetIconAtlasElement, DamageMeterEntry.lua:524-542).
+    let mut parts = match (row.spec_icon_fdid, class_icon(row.class_id)) {
+        (Some(fdid), _) => forever_spec_icon(&name, fdid),
+        (None, Some(icon)) => forever_icon(&name, icon),
+        (None, None) => Vec::new(),
     };
     parts.extend(forever_bar(&name, row, forever_bar_width(window_width)));
     if clickable {
@@ -484,6 +487,20 @@ fn forever_icon(name: &str, icon: &str) -> Element {
             width: FOREVER_ICON_SIZE,
             height: FOREVER_ICON_SIZE,
             texture_atlas: icon,
+            pos_type: "absolute",
+            left: 0.0,
+            top: FOREVER_ICON_TOP,
+        }
+    }
+}
+
+fn forever_spec_icon(name: &str, fdid: u32) -> Element {
+    rsx! {
+        texture {
+            name: {DynName(format!("{name}Icon"))},
+            width: FOREVER_ICON_SIZE,
+            height: FOREVER_ICON_SIZE,
+            texture_fdid: fdid,
             pos_type: "absolute",
             left: 0.0,
             top: FOREVER_ICON_TOP,
