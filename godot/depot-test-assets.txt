@@ -2277,3 +2277,11 @@ db2/12.1.0.69933/SpecSetMember.csv
 # Actual grant icon and the present half of the Mage choice node.
 textures/135991.blp
 textures/135852.blp
+
+# Ailee type-20 replacement pixels (npc_replacement_pixels.rs); bytes from Forever 1.60.1.70291, accepted by the user 2026-10-09 in place of the pinned 70205.
+textures/7494001.blp
+textures/7500053.blp
+textures/7484919.blp
+textures/7484249.blp
+textures/7494043.blp
+textures/7485567.blp
