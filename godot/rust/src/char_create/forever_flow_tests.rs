@@ -30,14 +30,8 @@ fn press_button(
     name: &str,
 ) -> Vec<CharCreateEffect> {
     let action = button_action(model, name).expect("enabled authored button");
-    let effects = reduce(
-        state,
-        action,
-        db(),
-        Err("unused names"),
-        &state.name.clone(),
-        17,
-    );
+    let name = state.name.clone();
+    let effects = reduce(state, action, db(), Err("unused names"), &name, 17);
     sync_model(model, state);
     effects
 }
