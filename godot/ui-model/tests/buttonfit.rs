@@ -1,6 +1,6 @@
 //! Concrete Retail button-fit regressions through production screen builders.
 use game_engine_ui_model::{
-    auction::{native_auction_screen, preview::preview_view},
+    auction::{apply_auction_paging_postsetup, native_auction_screen, preview::preview_view},
     professions_frame::{ProfessionView, professions_screen},
 };
 use ui_toolkit::{
@@ -84,7 +84,8 @@ fn buttonfit_auction_pagers_use_retail_32px_arrow_buttons_not_overflowing_captio
             state.row_pages = 3;
             state.search_page = 1;
             state.search_pages = 3;
-            let registry = render(state, native_auction_screen, skin);
+            let mut registry = render(state, native_auction_screen, skin);
+            apply_auction_paging_postsetup(&mut registry);
             for name in ["AuctionPagePrev", "AuctionPageNext"] {
                 let button = frame(&registry, name);
                 let Some(WidgetData::Button(text)) = &button.widget_data else {

@@ -49,6 +49,11 @@ opened from an auctioneer, on the existing auction protocol (`shared-protocol`
 - [x] Bids: bid and buyout controls as in the item buy frame.
 - [x] Any successful operation re-queries money, owned auctions, bids and the last search.
 
+## Native search paging button fit
+
+- [x] Existing protocol search-page actions and enablement remain unchanged. Both skins use Retail `PagingControlsPrevPageButtonTemplate` / `PagingControlsNextPageButtonTemplate` artwork and 32×32 hit frames, not custom 64px panel buttons containing "Prev page" / "Next page". The existing Results current/max summary stays independent, GameFontHighlight12, between the arrows with 5px spacing (`Blizzard_PagedContent/Blizzard_PagingControls.xml:4-25,82-108`). Retail AuctionHouse uses incremental scrolling rather than this protocol pager; this matches the reusable Retail paging controls, not a claim that Mainline AH has search-page buttons. Already-fitting local row paging stays unchanged.
+- [x] `godot/ui-model/tests/buttonfit.rs` checks both-skin concrete page widths and captions; the ignored native inventory in `launcher/tests/buttonfit_audit.rs` measures offline previews at 1920×1080.
+
 ## Tests asserting this spec
 
 - `cargo test --lib -- auction item_catalog` — frame layout and content per tab from concrete view states, money parts, Retail positions; network state reply pairing, error collection; `Item.csv` parsing.
