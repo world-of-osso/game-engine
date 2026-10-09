@@ -32,6 +32,8 @@ mod party_preview;
 mod professions_preview;
 mod projection;
 mod registration_preview;
+#[cfg(test)]
+mod rosterfix_tests;
 mod scroll_lists;
 mod sidebarbinds_preview;
 mod spellbook_preview;
