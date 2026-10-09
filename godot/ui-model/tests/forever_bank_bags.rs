@@ -280,6 +280,44 @@ fn assert_forever_bank_tree() {
     }
 }
 
+// Retail Mainline BankFrame.xml:600-738 defines no divider in either bank.
+// The seven 37px rows at y=63,110,...,345 end at y=382 (BankFrame.lua:941-968).
+fn assert_retail_bank_has_no_divider(skin: ActiveSkin, account: bool) {
+    game_engine_ui_model::paths::set_data_root(
+        PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(skin);
+    let registry = mount(bank_state(account), bank_frame_screen);
+    let last_row = frame(&registry, "BankFrameItem7");
+    assert_eq!(last_row.position.top, Val::Px(345.0));
+    assert_eq!(last_row.height, Dimension::Fixed(37.0));
+    assert!(
+        registry.get_by_name("BankFrameDivider").is_none(),
+        "Retail has no divider; {skin:?} account={account} must not add one across y=63..382"
+    );
+}
+
+#[test]
+fn retail_divider_modern_character() {
+    assert_retail_bank_has_no_divider(ActiveSkin::Modern, false);
+}
+
+#[test]
+fn retail_divider_modern_warband() {
+    assert_retail_bank_has_no_divider(ActiveSkin::Modern, true);
+}
+
+#[test]
+fn retail_divider_forever_character() {
+    assert_retail_bank_has_no_divider(ActiveSkin::Forever, false);
+}
+
+#[test]
+fn retail_divider_forever_warband() {
+    assert_retail_bank_has_no_divider(ActiveSkin::Forever, true);
+}
+
 #[test]
 #[ignore = "fixture capture only"]
 fn capture_base_trees() {
