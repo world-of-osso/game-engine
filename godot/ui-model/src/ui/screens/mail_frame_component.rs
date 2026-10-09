@@ -11,7 +11,7 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
-use ui_toolkit::widgets::font_string::GameFont;
+use ui_toolkit::widgets::font_string::{GameFont, JustifyV};
 
 use crate::ui::screens::auction_house_frame_component::inset_border;
 use crate::ui::screens::bank_art::{
@@ -62,8 +62,14 @@ pub const TO_BOX: &str = "SendMailNameEditBox";
 pub const SUBJECT_BOX: &str = "SendMailSubjectEditBox";
 pub const BODY_BOX: &str = "SendMailBodyEditBox";
 
-/// RSX does not expose EditBoxData's multi_line or max_letters fields.
+/// RSX lacks vertical justification, EditBoxData's multi_line and max_letters.
 pub fn apply_mail_body_postsetup(registry: &mut FrameRegistry) {
+    if let Some(id) = registry.get_by_name("OpenMailBodyText")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::FontString(body)) = frame.widget_data.as_mut()
+    {
+        body.justify_v = JustifyV::Top;
+    }
     let Some(id) = registry.get_by_name(BODY_BOX) else {
         return;
     };
@@ -710,22 +716,12 @@ fn open_mail(open: &OpenMailView, busy: bool) -> Element {
         (260.0, 84.0, 64.0, letter_h),
     ));
     // MF.xml:989-995: the 276px letter wraps from the stationery's top inset.
-    children.extend(rsx! {
-        fontstring {
-            name: {DynName("OpenMailBodyText".into())},
-            width: 276.0,
-            height: {letter_h - 20.0},
-            text: {open.body.as_str()},
-            font: GameFont::FrizQuadrata,
-            font_size: 12.0,
-            font_color: "0.18,0.12,0.06,1.0",
-            justify_h: "LEFT",
-            justify_v: "TOP",
-            pos_type: "absolute",
-            left: 18.0,
-            top: 94.0,
-        }
-    });
+    children.extend(label(
+        "OpenMailBodyText".into(),
+        &open.body,
+        (18.0, 94.0, 276.0, letter_h - 20.0),
+        (12.0, "0.18,0.12,0.06,1.0", "LEFT"),
+    ));
     children.extend(horizontal_bar(
         "OpenMailHorizontalBarLeft",
         FRAME_H - 39.0 - area_h,
