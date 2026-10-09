@@ -53,6 +53,12 @@ opened from an auctioneer, on the existing auction protocol (`shared-protocol`
 - [x] Bids: bid and buyout controls as in the item buy frame.
 - [x] Any successful operation re-queries money, owned auctions, bids and the last search.
 
+## Portrait corner proof — 2026-10-09
+
+- `godot/ui-model/tests/ahportrait.rs`: ring atlas/rect on AH, merchant, bank and mail in both skins; opaque header texture/alpha; favorites and Filter rectangles/art; interacting auctioneer session ID, not player ID. Initial visual RED: three missing elements, with the NPC binding already passing. Follow-up Filter RED: one missing control. Final targeted GREEN: 5/5, plus `auction_layout` 9/9 and `npcportraits` 3/3.
+- Native `capture_ui_screen.gd` `auction_both` with `GODOT_AH_PORTRAIT_CAPTURE=1`: Browse only in Modern and Forever, Auctioneer Fitch entry 8719/display 7992 through the production masked creature portrait renderer. The local world DB's AC and TDB model rows agree on 7992. Both actual compositor output/window/viewport are 1920×1080; capture asserts loaded creature 7992 and records geometry. Captures inspected: round NPC face with an overlapping gold/bronze ring, opaque dark header, star, Filter and close X. Favorites and Filter remain visual-only.
+- Recipe and native PNG/JSON/log evidence: `data/diagnostics/ahportrait-2026-10-09/`; shared copies: `/syncthing/AgentShared/2026-10-09/ahportrait/`. Capture exits 0. Editor import exits 0 but reports eight ObjectDB instances at shutdown; not a fixed/general shutdown claim.
+
 ## Tests asserting this spec
 
 - `cargo test --lib -- auction item_catalog` — frame layout and content per tab from concrete view states, money parts, Retail positions; network state reply pairing, error collection; `Item.csv` parsing.
