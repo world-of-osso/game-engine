@@ -161,6 +161,9 @@ impl Sweep {
             .baked_texture_fdid
             .map(|fdid| pixels(&self.data, fdid))
             .transpose()?;
+        if let Some(fdid) = armor.merged_cape_texture_fdid {
+            decoded.insert(fdid, pixels(&self.data, fdid)?);
+        }
         let textures = appearance_pixels::compose_replacement_pixels(
             compositor,
             &selected.materials,
@@ -168,6 +171,7 @@ impl Sweep {
             composed,
             bake,
             &decoded,
+            armor.merged_cape_texture_fdid,
         )?;
         Ok(Some(Prepared {
             textures,
@@ -321,9 +325,10 @@ fn forever_display136974_binds_its_authored_cape_to_type2() {
         &compositor,
         &[],
         201,
-        composed,
+        composed.clone(),
         None,
         &decoded,
+        resolved.merged_cape_texture_fdid,
     )
     .unwrap();
     assert_eq!(
@@ -334,6 +339,29 @@ fn forever_display136974_binds_its_authored_cape_to_type2() {
     assert!(
         appearance_pixels::npc_pass_active(&[2], &[None], &HashSet::new(), &textures, true, &[])
             .unwrap()
+    );
+    assert_eq!(textures.get(&1), Some(&composed.body));
+    let missing = appearance_pixels::compose_replacement_pixels(
+        &compositor,
+        &[],
+        201,
+        composed,
+        None,
+        &HashMap::new(),
+        resolved.merged_cape_texture_fdid,
+    )
+    .unwrap_err();
+    assert_eq!(missing, "missing authored NPC cape texture FDID 7734308");
+    assert!(
+        appearance_pixels::npc_pass_active(
+            &[2],
+            &[None],
+            &HashSet::new(),
+            &HashMap::<u32, ()>::new(),
+            true,
+            &[]
+        )
+        .is_err()
     );
 }
 
