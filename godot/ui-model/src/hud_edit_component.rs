@@ -337,11 +337,10 @@ fn system_checkboxes(state: &EditModePanelState, enabled: bool) -> Element {
             let unchecked = !system_is_shown(&state.show_systems, key);
             let x = 20.0 + (index % 2) as f32 * 210.0;
             let y = 90.0 + (index / 2) as f32 * 32.0;
-            let disabled = !enabled;
             rsx! {
-                button {
+                r#frame {
                     name: {DynName(name.clone())}, width: 210.0, height: 32.0,
-                    onclick: {action.as_str()}, disabled,
+                    onclick: {action.as_str()}, mouse_enabled: enabled,
                     strata: FrameStrata::FullscreenDialog,
                     pos_type: "absolute", left: x, top: y,
                     texture {
