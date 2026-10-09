@@ -364,11 +364,16 @@ fn hudeditmode_manager_border_projects_registered_static_popup_art() {
 fn hudeditmode_selection_background_projects_eight_unit_corners_without_moving_bounds() {
     use game_engine_ui_model::hud_edit_component::edit_mode_overlay_screen;
     use ui_toolkit::widgets::texture::TextureSource;
-    for (selected, hovered, kit) in [
+    let states = [
         (false, false, "highlight"),
         (false, true, "highlight"),
         (true, false, "selected"),
-    ] {
+    ];
+    for (skin, (selected, hovered, kit)) in [ActiveSkin::Modern, ActiveSkin::Forever]
+        .into_iter()
+        .flat_map(|skin| states.map(|state| (skin, state)))
+    {
+        ui_toolkit::atlas::set_thread_skin(skin);
         let mut entry = player_box();
         entry.selected = selected;
         entry.hovered = hovered;
