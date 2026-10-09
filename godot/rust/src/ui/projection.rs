@@ -23,6 +23,21 @@ use super::layout;
 use super::parts::{self, ImagePart, TextPart};
 use crate::frame_error::report_once;
 
+// The build helper ships Rust sources, not project .gdshader files; embed this
+// native-only shader exactly like the existing desaturation shader below.
+const ATLAS_TILE_SHADER: &str = r#"shader_type canvas_item;
+uniform vec4 region;
+uniform vec2 repeats;
+varying vec4 tint;
+void vertex() { tint = COLOR; }
+void fragment() {
+    vec2 uv = region.xy + fract(UV * repeats) * region.zw;
+    vec2 half_pixel = TEXTURE_PIXEL_SIZE * 0.5;
+    uv = clamp(uv, region.xy + half_pixel, region.xy + region.zw - half_pixel);
+    COLOR = texture(TEXTURE, uv) * tint;
+}
+"#;
+
 /// Crop-aware repetition: TextureRect's TILE would repeat an entire atlas sheet.
 fn apply_atlas_tiling(
     rect: &mut Gd<TextureRect>,
@@ -51,7 +66,7 @@ fn apply_atlas_tiling(
         },
     );
     let mut shader = godot::classes::Shader::new_gd();
-    shader.set_code(include_str!("../../../shaders/ui_atlas_tile.gdshader"));
+    shader.set_code(ATLAS_TILE_SHADER);
     let mut material = godot::classes::ShaderMaterial::new_gd();
     material.set_shader(&shader);
     material.set_shader_parameter("region", &region.to_variant());
