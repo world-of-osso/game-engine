@@ -364,6 +364,10 @@ fn hudeditmode_manager_border_projects_registered_static_popup_art() {
 fn hudeditmode_selection_background_projects_eight_unit_corners_without_moving_bounds() {
     use game_engine_ui_model::hud_edit_component::edit_mode_overlay_screen;
     use ui_toolkit::widgets::texture::TextureSource;
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     let states = [
         (false, false, "highlight"),
         (false, true, "highlight"),
@@ -449,6 +453,19 @@ fn hudeditmode_selection_background_projects_eight_unit_corners_without_moving_b
                 super::parts::Crop::Normalized(coords)
             };
             assert_eq!(images[0].crop, crop);
+            let atlas_name = format!("{prefix}editmode-actionbar-{kit}-nineslice-{member}");
+            let region = ui_toolkit::atlas::get_region(&atlas_name).unwrap();
+            assert_eq!([region.width, region.height], [16.0, 16.0]);
+            let fdid = match member {
+                "center" if selected => 4_554_386,
+                "center" => 4_554_383,
+                "edgeleft" | "edgeright" => 4_554_389,
+                _ => 4_554_359,
+            };
+            assert_eq!(
+                region.source,
+                ui_toolkit::atlas::AtlasSource::FileDataId(fdid)
+            );
             assert_eq!(piece.effective_alpha * images[0].color[3], 0.7);
             assert!(!piece.mouse_enabled);
         }
