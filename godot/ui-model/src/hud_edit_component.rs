@@ -25,10 +25,9 @@ pub const ACTION_EDIT_MODE_RESET: &str = "edit_mode_reset";
 pub const ACTION_EDIT_MODE_CONFIRM_DELETE: &str = "edit_mode_confirm_delete";
 pub const ACTION_EDIT_MODE_CANCEL_DELETE: &str = "edit_mode_cancel_delete";
 
-/// `Interface/EditMode/EditModeUIHighlightBackground.blp`: unselected element.
-const HIGHLIGHT_FDID: u32 = 4_554_383;
-/// `Interface/EditMode/EditModeUISelectedBackground.blp`: selected element.
-const SELECTED_FDID: u32 = 4_554_386;
+/// Retail EditModeSystemSelectionLayout uses 16-unit atlas pieces offset by 8.
+/// Keep their inner halves inside the existing mover bounds, in logical UI units.
+const SELECTION_CORNER: f32 = 8.0;
 /// `Interface/DialogFrame/UIFrameDialogBoxBackgroundDark`, as the static popups.
 const PANEL_BACKGROUND_FDID: u32 = 6_839_810;
 const PANEL_STYLE: &str = crate::static_popup_component::STATIC_POPUP_PANEL_STYLE;
@@ -123,11 +122,7 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
     } else {
         "Click to edit"
     };
-    let fdid = if entry.selected {
-        SELECTED_FDID
-    } else {
-        HIGHLIGHT_FDID
-    };
+    let background = selection_background(&name, [w, h], entry.selected, level);
     rsx! {
         r#frame {
             name: {DynName(name.clone())},
@@ -138,19 +133,7 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
             pos_type: "absolute",
             left: {x},
             top: {y},
-            texture {
-                name: {DynName(format!("{name}Background"))},
-                width: {w},
-                height: {h},
-                texture_fdid: fdid,
-                // Pinned rsx LitFloat truncates decimals; retire expression form once fixed.
-                alpha: {0.7},
-                strata: FrameStrata::Fullscreen,
-                frame_level: {level},
-                pos_type: "absolute",
-                left: 0.0,
-                top: 0.0,
-            }
+            {background}
             r#frame {
                 name: {DynName(format!("{name}LabelBacking"))},
                 hidden: hide_label,
@@ -178,6 +161,50 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
                 top: "50%",
                 translate_y: "-50%",
             }
+        }
+    }
+}
+
+fn selection_background(name: &str, size: [f32; 2], selected: bool, level: f32) -> Element {
+    let [w, h] = size;
+    let c = SELECTION_CORNER;
+    let kit = if selected { "selected" } else { "highlight" };
+    // Clip Retail's outward 8-unit padding, rather than enlarging mover hitboxes.
+    // Corner texcoords mirror the same authored top-left member as NineSlice.lua.
+    let pieces: Element = [
+        ([0.0, 0.0, c, c], "", "corner", "0.5,1,0.5,1"),
+        ([c, 0.0, w - 2.0 * c, c], "_", "edgetop", "0,1,0.5,1"),
+        ([w - c, 0.0, c, c], "", "corner", "1,0.5,0.5,1"),
+        ([0.0, c, c, h - 2.0 * c], "!", "edgeleft", "0.5,1,0,1"),
+        ([c, c, w - 2.0 * c, h - 2.0 * c], "", "center", "0,1,0,1"),
+        ([w - c, c, c, h - 2.0 * c], "!", "edgeright", "0,0.5,0,1"),
+        ([0.0, h - c, c, c], "", "corner", "0.5,1,1,0.5"),
+        ([c, h - c, w - 2.0 * c, c], "_", "edgebottom", "0,1,0,0.5"),
+        ([w - c, h - c, c, c], "", "corner", "1,0.5,1,0.5"),
+    ]
+    .into_iter()
+    .enumerate()
+    .flat_map(|(index, ([x, y, width, height], prefix, member, coords))| {
+        let atlas = format!("{prefix}editmode-actionbar-{kit}-nineslice-{member}");
+        rsx! {
+            texture {
+                name: {DynName(format!("{name}BackgroundPart{index}"))},
+                width, height, texture_atlas: {atlas.as_str()}, tex_coords: coords,
+                strata: FrameStrata::Fullscreen, frame_level: level,
+                pos_type: "absolute", left: x, top: y,
+            }
+        }
+    })
+    .collect();
+    rsx! {
+        r#frame {
+            name: {DynName(format!("{name}Background"))},
+            width: w, height: h,
+            // Pinned rsx LitFloat truncates decimals; retire expression form once fixed.
+            alpha: {0.7},
+            strata: FrameStrata::Fullscreen, frame_level: level,
+            pos_type: "absolute", left: 0.0, top: 0.0,
+            {pieces}
         }
     }
 }

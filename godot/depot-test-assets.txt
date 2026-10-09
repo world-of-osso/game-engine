@@ -2295,3 +2295,7 @@ textures/7484919.blp
 textures/7484249.blp
 textures/7494043.blp
 textures/7485567.blp
+
+# Edit Mode corner and edge atlases extracted from local Retail CASC.
+textures/4554359.blp
+textures/4554389.blp
