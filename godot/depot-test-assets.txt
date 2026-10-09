@@ -1,7 +1,9 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
 # Tests needing files absent here fail remotely with their own missing-path error.
 
-# Shared tooltip scaling: local CASC FDIDs 1391670, 1980632, 1391643.
+# Shared tooltip scaling: Retail squish and local CASC FDIDs 1391670, 1980632, 1391643.
+db2/12.1.0.69933/ItemSquishEra.csv
+db2/12.1.0.69933/CurvePoint.csv
 gametables/combatratingsmultbyilvl.txt
 gametables/staminamultbyilvl.txt
 gametables/itemsocketcostperlevel.txt
