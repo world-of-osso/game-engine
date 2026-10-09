@@ -41,7 +41,7 @@ fn frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
 #[test]
 fn buttonfit_create_all_keeps_retail_padding_and_right_anchor_for_concrete_counts() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
-        for count in [0, 7, 100, 9999] {
+        for (count, expected_width) in [(0, 114.0), (7, 114.0), (100, 129.0), (9999, 137.0)] {
             let mut view = ProfessionView {
                 craftable: count,
                 can_all: count > 0,
@@ -61,6 +61,7 @@ fn buttonfit_create_all_keeps_retail_padding_and_right_anchor_for_concrete_count
                 panic!("fixed fitted width")
             };
             println!("{skin:?} count={count} text={width} button={button_width}");
+            assert_eq!(button_width, expected_width);
             assert!(
                 width <= button_width - 40.0,
                 "{skin:?} {count}: text {width} exceeds {button_width}-40"

@@ -24,6 +24,7 @@ func run_audit() -> void:
 		if method.begins_with("show_") and entry.args.is_empty() and (method.ends_with("preview") or method in ["show_portrait_party", "show_forever_portrait_party", "show_login", "show_loading", "show_character_select", "show_character_create"]):
 			methods.append(method)
 	inventory.free()
+	methods.append_array(["show_launcher_candidate", "show_buttonfit_auction_preview"])
 	methods.sort()
 	for forever in [false, true]:
 		OS.set_environment("GODOT_CASTBAR_SKIN", "forever" if forever else "modern")
@@ -36,7 +37,7 @@ func run_audit() -> void:
 			for view in views:
 				OS.set_environment("GODOT_AUCTION_VIEW", view)
 				await audit_preview(method, view, forever)
-		for service in ["merchant", "buyback", "inbox", "send", "openmail", "opening", "trade", "guildbank"]:
+		for service in ["merchant", "buyback", "inbox", "send", "openmail", "opening", "trade", "guildbank", "character", "reputation", "menu", "options:graphics", "options:sound", "options:camera", "options:interface", "options:hud", "options:actionbars", "options:nameplates", "options:controls", "options:accessibility", "options:keybindings", "options:macros", "options:socialaddons", "options:advanced", "options:support"]:
 			await audit_preview("show_buttonfit_service_preview", service, forever)
 		for page in ["log", "detail", "progress", "reward"]:
 			await audit_quest(page, forever)
@@ -54,7 +55,13 @@ func run_audit() -> void:
 func audit_preview(method: String, view: String, forever: bool) -> void:
 	var ui = ClassDB.instantiate("RegistryUi")
 	root.add_child(ui)
-	var error = ui.call(method, view, forever) if method == "show_buttonfit_service_preview" else ui.call(method)
+	var error
+	if method == "show_buttonfit_service_preview":
+		error = ui.call(method, view, forever)
+	elif method in ["show_launcher_candidate", "show_buttonfit_auction_preview"]:
+		error = ui.call(method, forever)
+	else:
+		error = ui.call(method)
 	var case := "%s:%s:%s" % ["Forever" if forever else "Modern", method, view]
 	if error == "":
 		error = ui.call("buttonfit_reskin", forever)
