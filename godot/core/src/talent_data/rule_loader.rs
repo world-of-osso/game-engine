@@ -5,147 +5,189 @@ use std::{collections::BTreeMap, path::Path};
 
 pub fn load_trait_rules(dir: &Path, tree_id: u32) -> Result<TraitTree, String> {
     let tables = Tables::load(dir)?;
-    let projection = Projection::build(&tables, 0)?;
-    let mut sets = BTreeMap::<u32, Vec<u32>>::new();
+    let mut spec_sets = BTreeMap::<u32, Vec<u32>>::new();
     for row in tables.rows("SpecSetMember") {
-        sets.entry(row.number("SpecSet")?)
+        spec_sets
+            .entry(row.number("SpecSet")?)
             .or_default()
             .push(row.number("ChrSpecializationID")?);
     }
-    let conditions = |ids: Option<&Vec<u32>>| -> Result<Vec<TraitCond>, String> {
+    let loader = RuleLoader {
+        tables: &tables,
+        projection: Projection::build(&tables, 0)?,
+        spec_sets,
+    };
+    Ok(TraitTree {
+        tree_id,
+        currencies: loader.read_currencies(tree_id)?,
+        nodes: loader.read_nodes(tree_id)?,
+        groups: loader.read_groups(tree_id)?,
+        sub_trees: Vec::new(),
+    })
+}
+struct RuleLoader<'a> {
+    tables: &'a Tables,
+    projection: Projection<'a>,
+    spec_sets: BTreeMap<u32, Vec<u32>>,
+}
+impl RuleLoader<'_> {
+    fn tree_rows(&self, table: &str, tree_id: u32) -> Result<Vec<&Row>, String> {
+        self.tables
+            .rows(table)
+            .filter_map(|row| match row.number("TraitTreeID") {
+                Ok(id) if id == tree_id => Some(Ok(row)),
+                Ok(_) => None,
+                Err(error) => Some(Err(error)),
+            })
+            .collect()
+    }
+    fn read_conditions(&self, ids: Option<&Vec<u32>>) -> Result<Vec<TraitCond>, String> {
         ids.into_iter()
             .flatten()
-            .map(|id| read_condition(tables.row("TraitCond", *id)?, &sets))
+            .map(|id| read_condition(self.tables.row("TraitCond", *id)?, &self.spec_sets))
             .collect()
-    };
-    let costs = |ids: Option<&Vec<u32>>| -> Result<Vec<TraitCost>, String> {
+    }
+    fn read_costs(&self, ids: Option<&Vec<u32>>) -> Result<Vec<TraitCost>, String> {
         ids.into_iter()
             .flatten()
             .map(|id| {
-                let row = tables.row("TraitCost", *id)?;
+                let row = self.tables.row("TraitCost", *id)?;
                 Ok(TraitCost {
                     currency_id: row.number("TraitCurrencyID")?,
                     amount: row.number("Amount")?,
                 })
             })
             .collect()
-    };
-    let mut nodes = Vec::new();
-    for row in tables.rows("TraitNode") {
-        if row.number("TraitTreeID")? != tree_id {
-            continue;
-        }
-        let id = row.number("ID")?;
-        let mut entries = Vec::new();
-        for entry_id in projection.entries.get(&id).into_iter().flatten() {
-            let entry = tables.row("TraitNodeEntry", *entry_id)?;
-            let definition_id = entry.number("TraitDefinitionID")?;
-            let spell_id = if definition_id == 0 {
-                0
-            } else {
-                tables
-                    .row("TraitDefinition", definition_id)?
-                    .number("SpellID")?
-            };
-            entries.push(TraitNodeEntry {
-                id: *entry_id,
-                definition_id,
-                spell_id,
-                overrides_spell_id: 0,
-                passive: false,
-                max_ranks: entry.number("MaxRanks")?,
-                entry_type: entry.number("NodeEntryType")?,
-                sub_tree_id: entry.number("TraitSubTreeID")?,
-                conds: conditions(projection.entry_conditions.get(entry_id))?,
-                costs: costs(projection.entry_costs.get(entry_id))?,
-            });
-        }
-        let mut parents = Vec::new();
-        for edge in tables.rows("TraitEdge") {
-            if edge.number("RightTraitNodeID")? != id {
-                continue;
-            }
+    }
+    fn read_entries(&self, node_id: u32) -> Result<Vec<TraitNodeEntry>, String> {
+        self.projection
+            .entries
+            .get(&node_id)
+            .into_iter()
+            .flatten()
+            .map(|entry_id| {
+                let row = self.tables.row("TraitNodeEntry", *entry_id)?;
+                let definition_id = row.number("TraitDefinitionID")?;
+                let spell_id = if definition_id == 0 {
+                    0
+                } else {
+                    self.tables
+                        .row("TraitDefinition", definition_id)?
+                        .number("SpellID")?
+                };
+                Ok(TraitNodeEntry {
+                    id: *entry_id,
+                    definition_id,
+                    spell_id,
+                    overrides_spell_id: 0,
+                    passive: false,
+                    max_ranks: row.number("MaxRanks")?,
+                    entry_type: row.number("NodeEntryType")?,
+                    sub_tree_id: row.number("TraitSubTreeID")?,
+                    conds: self.read_conditions(self.projection.entry_conditions.get(entry_id))?,
+                    costs: self.read_costs(self.projection.entry_costs.get(entry_id))?,
+                })
+            })
+            .collect()
+    }
+    fn read_parents(&self) -> Result<BTreeMap<u32, Vec<(u32, TraitEdgeType)>>, String> {
+        let mut parents = BTreeMap::<u32, Vec<(u32, TraitEdgeType)>>::new();
+        for edge in self.tables.rows("TraitEdge") {
             let kind = match edge.number("Type")? {
                 2 => TraitEdgeType::SufficientForAvailability,
                 3 => TraitEdgeType::RequiredForAvailability,
                 _ => continue,
             };
-            parents.push((edge.number("LeftTraitNodeID")?, kind));
+            parents
+                .entry(edge.number("RightTraitNodeID")?)
+                .or_default()
+                .push((edge.number("LeftTraitNodeID")?, kind));
         }
-        let kind = match row.number("Type")? {
-            0 => TraitNodeType::Single,
-            1 => TraitNodeType::Tiered,
-            2 => TraitNodeType::Selection,
-            3 => TraitNodeType::SubTreeSelection,
-            other => return Err(format!("Unknown TraitNode.Type {other}")),
-        };
-        nodes.push(TraitNode {
-            id,
-            pos_x: row.position("PosX")? as i32,
-            pos_y: row.position("PosY")? as i32,
-            kind,
-            flags: row.number("Flags")?,
-            sub_tree_id: row.number("TraitSubTreeID")?,
-            entries,
-            groups: projection.groups.get(&id).cloned().unwrap_or_default(),
-            parents,
-            conds: conditions(projection.node_conditions.get(&id))?,
-            costs: costs(projection.node_costs.get(&id))?,
-        });
+        Ok(parents)
     }
-    let mut groups = Vec::new();
-    for row in tables.rows("TraitNodeGroup") {
-        if row.number("TraitTreeID")? != tree_id {
-            continue;
-        }
-        let id = row.number("ID")?;
-        groups.push(TraitNodeGroup {
-            id,
-            conds: conditions(projection.group_conditions.get(&id))?,
-            costs: costs(projection.group_costs.get(&id))?,
-        });
+    fn read_nodes(&self, tree_id: u32) -> Result<Vec<TraitNode>, String> {
+        let mut parents = self.read_parents()?;
+        self.tree_rows("TraitNode", tree_id)?
+            .into_iter()
+            .map(|row| {
+                let id = row.number("ID")?;
+                let kind = match row.number("Type")? {
+                    0 => TraitNodeType::Single,
+                    1 => TraitNodeType::Tiered,
+                    2 => TraitNodeType::Selection,
+                    3 => TraitNodeType::SubTreeSelection,
+                    other => return Err(format!("Unknown TraitNode.Type {other}")),
+                };
+                Ok(TraitNode {
+                    id,
+                    pos_x: row.position("PosX")? as i32,
+                    pos_y: row.position("PosY")? as i32,
+                    kind,
+                    flags: row.number("Flags")?,
+                    sub_tree_id: row.number("TraitSubTreeID")?,
+                    entries: self.read_entries(id)?,
+                    groups: self.projection.groups.get(&id).cloned().unwrap_or_default(),
+                    parents: parents.remove(&id).unwrap_or_default(),
+                    conds: self.read_conditions(self.projection.node_conditions.get(&id))?,
+                    costs: self.read_costs(self.projection.node_costs.get(&id))?,
+                })
+            })
+            .collect()
     }
-    let mut links = tables
-        .rows("TraitTreeXTraitCurrency")
-        .filter_map(|row| match row.number("TraitTreeID") {
-            Ok(id) if id == tree_id => Some(Ok(row)),
-            Ok(_) => None,
-            Err(error) => Some(Err(error)),
-        })
-        .collect::<Result<Vec<_>, String>>()?;
-    links.sort_by_key(|row| row.number("_Index").expect("validated CSV index"));
-    let mut currencies = Vec::new();
-    for link in links {
-        let id = link.number("TraitCurrencyID")?;
-        let mut sources = Vec::new();
-        for row in tables.rows("TraitCurrencySource") {
-            if row.number("TraitCurrencyID")? != id {
-                continue;
-            }
-            sources.push(CurrencySource {
-                amount: row
-                    .text("Amount")?
-                    .parse::<i32>()
-                    .map_err(|error| format!("TraitCurrencySource Amount: {error}"))?,
-                quest_id: row.number("QuestID")?,
-                achievement_id: row.number("AchievementID")?,
-                player_level: row.number("PlayerLevel")?,
-                node_entry_id: row.number("TraitNodeEntryID")?,
-            });
-        }
-        currencies.push(TraitCurrency {
-            id,
-            flags: tables.row("TraitCurrency", id)?.number("Flags")?,
-            sources,
-        });
+    fn read_groups(&self, tree_id: u32) -> Result<Vec<TraitNodeGroup>, String> {
+        self.tree_rows("TraitNodeGroup", tree_id)?
+            .into_iter()
+            .map(|row| {
+                let id = row.number("ID")?;
+                Ok(TraitNodeGroup {
+                    id,
+                    conds: self.read_conditions(self.projection.group_conditions.get(&id))?,
+                    costs: self.read_costs(self.projection.group_costs.get(&id))?,
+                })
+            })
+            .collect()
     }
-    Ok(TraitTree {
-        tree_id,
-        currencies,
-        nodes,
-        groups,
-        sub_trees: Vec::new(),
-    })
+    fn read_sources(&self, currency_id: u32) -> Result<Vec<CurrencySource>, String> {
+        self.tables
+            .rows("TraitCurrencySource")
+            .filter_map(|row| match row.number("TraitCurrencyID") {
+                Ok(id) if id == currency_id => Some(Ok(row)),
+                Ok(_) => None,
+                Err(error) => Some(Err(error)),
+            })
+            .map(|row| {
+                let row = row?;
+                Ok(CurrencySource {
+                    amount: row
+                        .text("Amount")?
+                        .parse::<i32>()
+                        .map_err(|error| format!("TraitCurrencySource Amount: {error}"))?,
+                    quest_id: row.number("QuestID")?,
+                    achievement_id: row.number("AchievementID")?,
+                    player_level: row.number("PlayerLevel")?,
+                    node_entry_id: row.number("TraitNodeEntryID")?,
+                })
+            })
+            .collect()
+    }
+    fn read_currencies(&self, tree_id: u32) -> Result<Vec<TraitCurrency>, String> {
+        let mut links = self
+            .tree_rows("TraitTreeXTraitCurrency", tree_id)?
+            .into_iter()
+            .map(|row| Ok((row.number("_Index")?, row.number("TraitCurrencyID")?)))
+            .collect::<Result<Vec<_>, String>>()?;
+        links.sort_by_key(|&(index, _)| index);
+        links
+            .into_iter()
+            .map(|(_, id)| {
+                Ok(TraitCurrency {
+                    id,
+                    flags: self.tables.row("TraitCurrency", id)?.number("Flags")?,
+                    sources: self.read_sources(id)?,
+                })
+            })
+            .collect()
+    }
 }
 fn read_condition(row: &Row, sets: &BTreeMap<u32, Vec<u32>>) -> Result<TraitCond, String> {
     let kind = match row.number("CondType")? {

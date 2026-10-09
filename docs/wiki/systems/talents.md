@@ -1,4 +1,4 @@
-# Read-only Talents data/layout
+# Talents data/layout and server wiring
 
 Contract: [Talents](../../specs/talents.md). Verified local inputs: 2026-10-08, Retail DB2 `12.1.0.69933`.
 
@@ -20,7 +20,7 @@ The provided Blizzard_ClassTalentUI path no longer exists in this cache. Actual 
 
 Mage ChrClasses ID 8 / Name Mage matches category-7 SkillLine ID 904. SkillLineXTraitTree row 40 maps 904→658. TraitTree row 658 exists. SpecSetMember rows 7/66/232/256/289/324 assign spec 62 to sets 2/21/160/161/162/173. Visible condition 18037 (group 7143) selects Arcane; roots 62117/62119/62121 overlap but Visible conditions choose only 62121. Condition 18032 grants its one rank for set 21. TraitTreeLoadout row 991 names tree658/spec62, but its allocations must NOT be applied.
 
-Class currency2801 flags4/group7139 covers 42 visible paid nodes; the free/granted Arcane barrier root adds one =43. Spec currency2800 flags8/group7136 covers38. Hero selector99830 entries123344/123341 refer to subtrees40/39, not spells; these are navigation metadata, not icons. Sufficient visibility conditions26681/26682 keep Sunfury for Arcane OR Fire, not both. Neither eligible hero tree is activated/learned in this slice.
+Class currency2801 flags4/group7139 covers 42 visible paid nodes; the free/granted Arcane barrier root adds one =43. Spec currency2800 flags8/group7136 covers38. Hero selector99830 entries123344/123341 refer to subtrees40/39, not spells; these are navigation metadata, not icons. Sufficient visibility conditions26681/26682 keep Sunfury for Arcane OR Fire, not both. Eligibility alone does not activate a hero tree; the server snapshot's selected entry determines activation.
 
 | Node | DB2 position | Entry → definition → spell | Outgoing edge IDs |
 |---|---|---|---|
@@ -31,13 +31,21 @@ Class currency2801 flags4/group7139 covers 42 visible paid nodes; the free/grant
 
 Exact CSV line numbers, rows and SHA256 hashes: `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/talenttree-2026-10-08/csv-witnesses.txt`.
 
-## Read-only rendering
+## Shared rendering
 
-Main node centers use `/10` minus pan49,24, with 40px buttons and 36px icons. Capstones use64px buttons/61px icons (`Blizzard_TalentButtonArt.xml:247-262`, `Blizzard_SharedTalentUtil.lua:326-361`); tiered node110420 totals entry137026/137027/137028 ranks1+2+1=4. Its border is the cited `CapstoneCircle` art set (`Blizzard_TalentButtonArt.lua:186-204`). Class/spec currency labels anchor at372,45 and1211,45 (ClassTalentsFrame.xml:215-229). Choice buttons split ordered entries into separate hover targets; no onclick purchases or casts.
+Main node centers use `/10` minus pan49,24, with 40px buttons and 36px icons. Capstones use64px buttons/61px icons (`Blizzard_TalentButtonArt.xml:247-262`, `Blizzard_SharedTalentUtil.lua:326-361`); tiered node110420 totals entry137026/137027/137028 ranks1+2+1=4. Its border is the cited `CapstoneCircle` art set (`Blizzard_TalentButtonArt.lua:186-204`). Class/spec currency labels anchor at372,45 and1211,45 (ClassTalentsFrame.xml:215-229). Choice buttons retain separate spell hover targets; clicks open a staged selection flyout, never a spell cast.
 
-Both skins intentionally use the Retail talent-border atlas crops over the shared extracted Retail4556093 sheet; only window chrome follows the skin. Hero previews normalize center x/min y at0.85 scale. First preview top follows HeroTalentsContainer.xml:181-190 and12-15 (HeroSpecButton TOP102, height108; tree container above its bottom by34; NodesContainer down90 =>266). Second eligible preview is stacked304px below: explicit read-only presentation deviation, not a chosen/learned hero specialization. No selector state is sent to a server.
+Both skins intentionally use the Retail talent-border atlas crops over the shared extracted Retail4556093 sheet; only window chrome follows the skin. Hero previews normalize center x/min y at0.85 scale. First preview top follows HeroTalentsContainer.xml:181-190 and12-15 (HeroSpecButton TOP102, height108; tree container above its bottom by34; NodesContainer down90 =>266). Second eligible preview is stacked304px below, retaining the original preview presentation. A hero selector stages one entry through the same pending model; local validation prevents purchasing in any unselected subtree.
 
 Missing icon FDIDs remain metadata, while their textures bind `None` before asset discovery. This deliberately bypasses the global question-mark icon fallback. `icon-audit.json` and shared `logs/extract-wanted.tsv` record missing FDIDs; no fake art. Existing circle-mask composition clips passive icons. A missing optional spec background is not fabricated: the cited ClassTalentsFrame BlackBG remains black.
+
+## Server wiring (2026-10-09)
+
+The account owns `TalentEditor`, independent of whether PlayerSpellsFrame is open. NetworkBridge receives `TraitConfigSnapshot` and `TraitCommitResult`; the account sends `CommitTraitConfig` on the existing TalentChannel. Snapshot and commit ranks are **total ranks**, not purchased ranks (`game-server/class_progression.rs:466-480,822-837`). Core conversion subtracts grants before validating purchases.
+
+`talent_data/rules.rs` ports the existing server evaluator from game-server master `7691f6b`; CSV rule metadata includes entry/node/group conditions and costs, required/sufficient parents, gates and level/conditional currency sources. Keep this port aligned with the server; persistence and final validation remain server-owned. Pending point displays start from server unspent amounts and apply cost/conditional-source deltas. A new snapshot is the commit boundary and replaces pending allocations; a success result alone does not invent committed state.
+
+Retail click/commit/rollback and shared Undo/Reset-anchor citations live in the [contract](../../specs/talents.md#retail-references-local-source). Both skins share the same model and page.
 
 ## Proof ledger
 
