@@ -1,3 +1,7 @@
+## 2026-10-09 — Extracted-only asset policy
+
+[Shipped assets](systems/shipped-assets.md) records the P1 startup and low-level CASC boundary. [Contract](../specs/shipped-assets.md) owns explicit environment selection, shared policy/tripwire APIs and P2–P5 exclusions. Cold-process RED reproduced `WoW install not found`; GREEN/full package proof remains pending. No deployment or full closure claim.
+
 ## 2026-10-09 — HUD layout names and delete confirmation
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records the user-decided name validation and pending Yes/No deletion transition. [Contract](../specs/hud-edit-mode.md) owns Retail validation/dialog sources, exact confirmation text and unchanged preset Save / unsaved Exit boundaries. RED reproduces enabled empty New and immediate Delete; `4356c20a7` GREEN touched-crate hud69/core-layout7 and extension/CLI build pass. Native captures pending after default-output clearance failure and Vulkan initialization failure; no PNG or live input claim.
