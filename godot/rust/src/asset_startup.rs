@@ -6,10 +6,18 @@ use std::{
 
 pub(crate) struct AssetStartup {
     worker: Option<JoinHandle<Result<(), String>>>,
+    ready: bool,
 }
 
 impl AssetStartup {
     pub(crate) fn start(data_root: PathBuf) -> Result<Self, String> {
+        let mode = osso_asset_resolver::configure_runtime_mode_from_env()?;
+        if mode == osso_asset_resolver::AssetRuntimeMode::ExtractedOnly {
+            return Ok(Self {
+                worker: None,
+                ready: true,
+            });
+        }
         Self::spawn(move || crate::assets::creature::local_resolver(&data_root).initialize())
             .map_err(|error| format!("Cannot spawn CASC initialization worker: {error}"))
     }
@@ -22,10 +30,14 @@ impl AssetStartup {
             .spawn(initialize)?;
         Ok(Self {
             worker: Some(worker),
+            ready: false,
         })
     }
 
     pub(crate) fn poll(&mut self) -> Option<Result<(), String>> {
+        if std::mem::take(&mut self.ready) {
+            return Some(Ok(()));
+        }
         if !self.worker.as_ref()?.is_finished() {
             return None;
         }
@@ -57,6 +69,163 @@ mod tests {
             assert!(Instant::now() < deadline, "startup worker did not finish");
             thread::yield_now();
         }
+    }
+
+    #[test]
+    fn extracted_only_cold_start() {
+        if std::env::var_os("SHIPPED_ASSETS_CHILD").is_some() {
+            let root = std::path::PathBuf::from(std::env::var_os("SHIPPED_ASSETS_ROOT").unwrap());
+            osso_asset_resolver::set_casc_access_hook(|error| panic!("{error}")).unwrap();
+            let mut startup = AssetStartup::start(root.clone()).unwrap();
+            assert_eq!(
+                startup.poll(),
+                Some(Ok(())),
+                "extracted-only startup is immediately ready"
+            );
+            assert_eq!(startup.poll(), None);
+            assert_shipped_fixtures(&root);
+            assert_eq!(osso_asset_resolver::forbidden_casc_access_count(), 0);
+            assert!(
+                !root.join("cache").exists(),
+                "CASC cache must not be created"
+            );
+            return;
+        }
+        let root = std::env::temp_dir().join(format!("shipped-assets-{}", std::process::id()));
+        std::fs::create_dir_all(root.join("home")).unwrap();
+        copy_shipped_fixtures(&root);
+        let result = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "asset_startup::tests::extracted_only_cold_start",
+                "--nocapture",
+            ])
+            .env_clear()
+            .env("HOME", root.join("home"))
+            .env("WOW_INSTALL_PATH", root.join("no-install"))
+            .env("WOW_DATA_PATH", root.join("no-install/Data"))
+            .env("GAME_ENGINE_ASSET_MODE", "extracted-only")
+            .env("SHIPPED_ASSETS_CHILD", "1")
+            .env("SHIPPED_ASSETS_ROOT", &root)
+            .output()
+            .unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+        assert!(
+            result.status.success(),
+            "cold start failed: {}{}",
+            String::from_utf8_lossy(&result.stdout),
+            String::from_utf8_lossy(&result.stderr)
+        );
+    }
+
+    const FIXTURES: &[(&str, u32)] = &[
+        ("textures/896467.blp", 896467),
+        ("models/143187.m2", 143187),
+        ("models/14318700.skin", 143187),
+        ("models/108121.wmo", 108121),
+        ("models/108122.wmo", 108122),
+        ("terrain/7199999.adt", 7199999),
+        ("dbfilesclient/1308499.db2", 1308499),
+        ("dbfilesclient/1284822.db2", 1284822),
+        ("sounds/spells/632305.ogg", 632305),
+    ];
+
+    fn copy_shipped_fixtures(root: &std::path::Path) {
+        let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data");
+        for (relative, _) in FIXTURES {
+            let target = root.join(relative);
+            std::fs::create_dir_all(target.parent().unwrap()).unwrap();
+            std::fs::copy(source.join(relative), target).unwrap();
+        }
+    }
+
+    fn assert_shipped_fixtures(root: &std::path::Path) {
+        use game_engine_core::{adt, blp, ground_effect_data, wmo};
+        let resolver = crate::assets::creature::local_resolver(root);
+        assert_eq!(
+            resolver.runtime_mode(),
+            osso_asset_resolver::AssetRuntimeMode::ExtractedOnly
+        );
+        resolver.initialize().unwrap();
+        for (relative, fdid) in FIXTURES {
+            let expected = root.join(relative);
+            assert_eq!(
+                resolver.ensure_cached_checked(*fdid, &expected).unwrap(),
+                expected
+            );
+            assert_eq!(resolver.ensure_cached(*fdid, &expected).unwrap(), expected);
+        }
+        let read = |relative: &str| std::fs::read(root.join(relative)).unwrap();
+        let image = blp::decode_rgba(&read("textures/896467.blp")).unwrap();
+        assert!(image.width > 0 && image.height > 0);
+        crate::assets::read_model_file(&root.join("models/143187.m2")).unwrap();
+        wmo::parse_root(&read("models/108121.wmo")).unwrap();
+        wmo::parse_group(&read("models/108122.wmo")).unwrap();
+        adt::parse_root(&read("terrain/7199999.adt")).unwrap();
+        assert!(
+            !ground_effect_data::parse_ground_effect_entries(&read("dbfilesclient/1308499.db2"))
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            !ground_effect_data::parse_terrain_type_sounds(&read("dbfilesclient/1284822.db2"))
+                .unwrap()
+                .is_empty()
+        );
+        assert!(
+            !crate::spell_assets::load_sound(&resolver, root, 632305)
+                .unwrap()
+                .is_empty()
+        );
+        let missing = root.join("textures/4294967295.blp");
+        let error = resolver
+            .ensure_cached_checked(u32::MAX, &missing)
+            .unwrap_err();
+        assert!(
+            error.contains("extracted-only")
+                && error.contains("FDID 4294967295")
+                && error.contains(&missing.display().to_string()),
+            "{error}"
+        );
+        let legacy = std::panic::catch_unwind(|| resolver.ensure_cached(u32::MAX, &missing));
+        assert!(
+            legacy.is_err(),
+            "legacy Option API must not silently omit required assets"
+        );
+    }
+
+    #[test]
+    fn low_level_tripwire_cannot_be_hidden_by_option_or_logging() {
+        if std::env::var_os("CASC_TRIPWIRE_CHILD").is_some() {
+            osso_asset_resolver::configure_runtime_mode_from_env().unwrap();
+            osso_asset_resolver::set_casc_access_hook(|error| panic!("{error}")).unwrap();
+            // Deliberately swallow the low-level panic: the counter still fails acceptance.
+            let _ = std::panic::catch_unwind(osso_asset_resolver::wow_install_path);
+            assert_eq!(
+                osso_asset_resolver::forbidden_casc_access_count(),
+                0,
+                "forbidden CASC entry was swallowed"
+            );
+            return;
+        }
+        let result = std::process::Command::new(std::env::current_exe().unwrap())
+            .args([
+                "--exact",
+                "asset_startup::tests::low_level_tripwire_cannot_be_hidden_by_option_or_logging",
+                "--nocapture",
+            ])
+            .env_clear()
+            .env("GAME_ENGINE_ASSET_MODE", "extracted-only")
+            .env("CASC_TRIPWIRE_CHILD", "1")
+            .output()
+            .unwrap();
+        let error = String::from_utf8_lossy(&result.stderr);
+        assert!(!result.status.success());
+        assert!(
+            error.contains("extracted-only forbids CASC access")
+                && error.contains("forbidden CASC entry was swallowed"),
+            "{error}"
+        );
     }
 
     #[test]
