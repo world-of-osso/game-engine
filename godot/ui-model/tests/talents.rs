@@ -66,6 +66,14 @@ fn arcane_talents_render_real_icons_positions_edges_and_read_only_choices_in_bot
         ] {
             assert!(frame(name).onclick.is_none(), "display must not buy/cast");
         }
+        let capstone = frame("TalentNode110420");
+        assert!(matches!(capstone.width, Dimension::Fixed(w) if w == 64.0));
+        let Some(WidgetData::FontString(ranks)) =
+            frame("TalentNode110420Ranks").widget_data.as_ref()
+        else {
+            panic!("capstone rank label");
+        };
+        assert_eq!(ranks.text, "0/4"); // TraitNodeEntry137026/137027/137028 MaxRanks1+2+1.
         assert!(registry.get_by_name("TalentNode62117").is_none());
         assert!(frame("TalentNode94654").visible); // second eligible hero preview, not learned
     }

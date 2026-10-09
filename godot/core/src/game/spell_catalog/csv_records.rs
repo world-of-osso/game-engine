@@ -35,7 +35,7 @@ impl CsvTable {
     }
 
     pub(crate) fn column(&self, name: &str) -> Result<usize, String> {
-        crate::csv_util::header_index(&self.headers, name, &self.path)
+        crate::csv_util::header_index(self.headers(), name, &self.path)
     }
 
     pub(crate) fn headers(&self) -> &[String] {
