@@ -1,5 +1,7 @@
 # Wiki Index
 
+[Native Skyborne recheck](systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09) — loaded roster visible; races95/96 enter world with sky defects, seven missing imported NPC profiles and two mixed-product M2 failures; source-isolated repair remains open.
+
 - [Native flight map](systems/native-flight-map.md) — server taxi map, shared world-map canvas, pins/routes/tooltips and activation; acceptance recorded in flight-master spec.
 
 - [Player cast feedback](systems/player-cast-feedback.md) — Retail animation sources, player-only sampling, skin geometry and offline captures.

@@ -1,6 +1,9 @@
 ## 2026-10-09 — HUD layout names and delete confirmation
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records the user-decided name validation and pending Yes/No deletion transition. [Contract](../specs/hud-edit-mode.md) owns Retail validation/dialog sources, exact confirmation text and unchanged preset Save / unsaved Exit boundaries. RED reproduces enabled empty New and immediate Delete; `4356c20a7` GREEN touched-crate hud69/core-layout7 and extension/CLI build pass. Native captures pending after default-output clearance failure and Vulkan initialization failure; no PNG or live input claim.
+## 2026-10-09 — Native Skyborne recheck and mixed-product model evidence
+
+[Forever data](systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09) records loaded roster PASS, two private world entries with visible sky defects, identical16 NPC errors, encrypted raw-table blockers and authentic classic-beta versus cached Retail M2 type9 differences. Shared models remain untouched; no code fix/RED-GREEN claim. Owned processes and agent slice stopped.
 
 ## 2026-10-08 — Skyborn NPC offline diagnosis
 
