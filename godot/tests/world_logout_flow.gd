@@ -142,8 +142,8 @@ func death_escape_opens_menu(client: Node) -> bool:
 	return await wait_menu_closed(client, null)
 
 func death_popup_visible(client: Node) -> bool:
-	var popup := client.find_child("StaticPopup1Button1", true, false) as Button
-	return popup != null and popup.is_visible_in_tree() and popup.text == "Release Spirit"
+	var popup := client.find_child("StaticPopup1Text", true, false) as Label
+	return popup != null and popup.is_visible_in_tree() and popup.text == "You have died. Release to the nearest graveyard?"
 
 func open_logout_menu(client: Node) -> bool:
 	push_key(KEY_ESCAPE, true)
