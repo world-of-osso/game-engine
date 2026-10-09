@@ -400,21 +400,22 @@ fn window_background(prefix: &str, width: f32, height: f32) -> Element {
             top: 51.0,
         }
         // PortraitFrameTexturedBaseTemplate, SharedUIPanelTemplates.xml:595-609:
-        // rock beneath the translucent streaks, excluding the circular portrait well.
+        // rock beneath the translucent streaks and opaque masked portrait. Leaving a
+        // rectangular gap around the circular mask exposes the room beside the ring.
         texture {
             name: {DynName(format!("{prefix}BgTop"))},
-            width: {width - 57.0},
+            width: {width - 4.0},
             height: 30.0,
             texture_fdid: WINDOW_BACKGROUND,
             pos_type: "absolute",
-            left: 55.0,
+            left: 2.0,
             top: 21.0,
         }
     };
     elements.extend(named_atlas_texture(
         format!("{prefix}TopTileStreaks"),
         TOP_TILE_STREAKS,
-        // The portrait mask ends at x=55 / y=51; neither background may cross it.
+        // Streaks stay beside the portrait; opaque rock underneath closes the corner gap.
         (55.0, 21.0, width - 57.0, 43.0),
     ));
     elements
