@@ -56,6 +56,8 @@ Header geometry comes from FlareUI; the flat bevel palette is reference-sampled.
 - [ ] Keep independent indoor/outdoor zoom values (`minimapInsideZoom` / `minimapZoom`), restoring each on entry/exit, with the indoor diameter table.
 - [ ] Prove indoor detection from real MOGP flags with matching DB2 rows and locally present tile textures; prove concrete world-position → block → FDID/texel maths and zoom switching with targeted RED/GREEN tests.
 
+**Blocked (2026-10-09): tile geometry.** `WMOMinimapTexture` is exported (`scripts/export_db2_csv.py`, layout 01230A50 matches WoWDBDefs; 158457/158458 listfile names agree) and Stockade/cave tiles are local, but no source available here (wowdev WMO page, WoWDBDefs, local references) defines block size or origin, and the data rules out the simple models: Stockade groups (12-72 units) each have one block; cave WMO 16156 groups 0 (90x34) and 2 (458x359) both have 5x3 blocks, which fits a 128-unit grid over the root MOHD box (568.6x359.2) but groups 8, 10, 16, 17 (up to 149x317) have one block each. Implementation waits for an authoritative reference or a pixel-alignment study of tiles against group floors.
+
 ### Not done
 - [ ] Indoor WMO requirements above and `rotateMinimap` 1.
 - [x] Creature vignettes: every replicated unit with `UnitVignette` whose `Vignette.csv` row lacks `DontShowOnMinimap` shows `VignetteKill`, or `VignetteKillElite` for elite/rare-elite/world-boss classifications, at its offset; the server adds and removes `UnitVignette` with the unit's 100 yd visibility and its death (`godot/rust/src/vignettes.rs`).
