@@ -164,16 +164,6 @@ fn selection_box(entry: &EditModeSelectionBox) -> Element {
             left: {x},
             top: {y},
             {background}
-            r#frame {
-                name: {DynName(format!("{name}LabelBacking"))},
-                hidden: hide_label,
-                width: {w}, height: {label_height},
-                background_color: "0.0,0.0,0.0,1.0",
-                strata: FrameStrata::Fullscreen,
-                frame_level: {level + 1.0},
-                pos_type: "absolute", left: 0.0,
-                top: "50%", translate_y: "-50%",
-            }
             fontstring {
                 name: {DynName(format!("{name}Label"))},
                 hidden: hide_label,
