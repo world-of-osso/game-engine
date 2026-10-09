@@ -10,7 +10,7 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 - [x] Ghost proximity to the corpse shows `RECOVER_CORPSE`; Accept sends `ResurrectAtCorpse`. Leaving range/map hides it.
 - [x] Spirit healer confirmation Accept sends `AcceptSpiritHealerResurrection`; cancellation, range exit and retries retain authoritative state.
 - [x] Live right-click on a spirit healer opens the confirmation; accepting resurrects the player and displays the server-supplied Resurrection Sickness aura in BuffFrame's debuff row.
-- [x] Alive clears death popups, ghost appearance and corpse marker. Logout stops the account transport and releases the world/owner state; the saved token remains.
+- [x] Alive clears death popups, ghost appearance and corpse marker. [Logout](logout.md) stops the character transport and releases the world/owner state; the account token remains and automatically reloads character select.
 - [x] Popup text, labels and click actions work in both skins.
 - [x] `RESURRECT` offers show the caster and server-supplied timeout; Accept/Decline/timeout send the corresponding response, once. Alive closes the offer. Both skins retain the same mechanics.
 - [x] Stable replicated tapper identities exempt the local player and current group. Tap-denied nameplate health is Retail 0.9 grey; requested target health is 0.5 grey, through each skin's existing brightness treatment. Untapped/group-eligible units keep their ordinary health colours.
