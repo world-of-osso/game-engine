@@ -24,6 +24,7 @@ References: MF.xml / MF.lua = `Blizzard_MailFrame/MailFrame.xml` / `.lua`; `Bliz
 - Focused ui-model behaviour tests: `godot/ui-model/tests/native_mailbox.rs`; network relay: `godot/network/src/wire_tests.rs`.
 - [x] Live two-client proof (`godot/tests/world_mail_flow.gd`): see [native player mail proof](../wiki/systems/trade-and-mail.md#native-player-mail-proof-2026-10-01).
 - [x] Receiving fixture `godot/tests/world_mail_receiving_flow.gd` (auction delivery) and its [saved proof](../wiki/systems/trade-and-mail.md#saved-native-receiving-proof-2026-10-01).
+- [x] `godot/tests/world_outbid_body_flow.gd`: [private live denomination-letter RED/GREEN](auction-house-ui.md#private-live-remainder--2026-10-09), authentic received body and exact refund through real mailbox/row input. One-line ellipsis RED becomes two fully visible top-aligned lines after the stationery-height fix; this does not prove long-letter scrolling.
 
 ## What it must do (preserved Bevy client)
 
