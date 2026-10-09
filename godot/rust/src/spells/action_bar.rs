@@ -24,6 +24,32 @@ pub(super) fn cooldown_text(remaining: f32) -> String {
     }
 }
 
+fn item_action_request(
+    inventory: &game_engine_ui_model::bag_data::InventoryState,
+    item_id: u32,
+    target: Option<u64>,
+) -> Option<shared::protocol::UseItem> {
+    for (bag, slots) in inventory.slots.iter().enumerate() {
+        if let Some(slot) = slots.iter().position(|item| item.item_id == item_id) {
+            return Some(shared::protocol::UseItem {
+                location: shared::protocol::ItemLocation::Bag {
+                    bag: bag as u8,
+                    slot: slot as u8,
+                },
+                target,
+            });
+        }
+    }
+    inventory
+        .equipment
+        .iter()
+        .find(|(_, item)| item.item_id == item_id)
+        .map(|(slot, _)| shared::protocol::UseItem {
+            location: shared::protocol::ItemLocation::Equipment(*slot),
+            target,
+        })
+}
+
 impl GameClient {
     /// The local player's `GetBonusBarOffset`, from its auras.
     pub(crate) fn bonus_bar_offset(&self) -> u8 {
@@ -60,8 +86,23 @@ impl GameClient {
         self.spells.pushed[bar as usize][index] = PUSH_SECS;
         match self.account.spells.slot(self.bar_slot(bar, index)) {
             Some(ActionRef::Spell(spell_id)) => self.cast_spell(spell_id),
+            Some(ActionRef::Item(item_id)) => self.use_action_item(item_id),
             _ => Ok(()),
         }
+    }
+
+    fn use_action_item(&self, item_id: u32) -> Result<(), SessionError> {
+        let request = item_action_request(
+            &self.merchant.session.inventory,
+            item_id,
+            self.targeting_target(),
+        );
+        if let Some(request) = request {
+            self.account.send_inventory_request(
+                &game_engine_ui_model::bag_data::InventoryRequest::Use(request),
+            )?;
+        }
+        Ok(())
     }
 
     pub(super) fn poll_action_bar_clicks(&mut self) -> Result<(), FrameError> {
@@ -167,5 +208,48 @@ impl GameClient {
         ui.bind_mut().enable_cursor_inputs();
         self.spells.bar_ui = Some(ui);
         Ok(())
+    }
+}
+
+#[cfg(test)]
+mod sidebarbinds_tests {
+    use super::*;
+    use game_engine_ui_model::bag_data::{InventorySlot, InventoryState};
+    use shared::protocol::{EquipmentSlot, ItemLocation};
+
+    #[test]
+    fn sidebarbinds_item_shortcut_uses_its_inventory_location_without_moving_the_stack() {
+        let mut inventory = InventoryState::default();
+        inventory.set_item(
+            0,
+            3,
+            InventorySlot {
+                item_id: 6948,
+                icon_fdid: 134414,
+                count: 1,
+                ..Default::default()
+            },
+        );
+        let before = inventory.slot(0, 3).unwrap().clone();
+        let request =
+            item_action_request(&inventory, 6948, Some(44)).expect("assigned item activates");
+        assert_eq!(request.location, ItemLocation::Bag { bag: 0, slot: 3 });
+        assert_eq!(request.target, Some(44));
+        assert_eq!(inventory.slot(0, 3), Some(&before));
+        inventory.clear_slot(0, 3);
+        inventory.equipment.insert(
+            EquipmentSlot::MainHand,
+            InventorySlot {
+                item_id: 19019,
+                ..before
+            },
+        );
+        assert_eq!(
+            item_action_request(&inventory, 19019, None)
+                .unwrap()
+                .location,
+            ItemLocation::Equipment(EquipmentSlot::MainHand)
+        );
+        assert!(item_action_request(&inventory, 99999, None).is_none());
     }
 }
