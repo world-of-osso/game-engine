@@ -194,9 +194,13 @@ fn bankart_item_hover_uses_retail_square_texture_without_default_button_skin() {
             panic!("bank slot has no hover button")
         };
         assert!(!b.use_default_skin);
-        assert_eq!(b.highlight_texture, Some(TextureSource::FileDataId(130718)));
-        assert_eq!(b.highlight_alpha, 1.0);
-        assert_eq!(b.highlight_size, Some([37.0, 37.0]));
+        rect(&r, "BankFrameItem1Highlight", [0.0, 0.0, 37.0, 37.0]);
+        let highlight = art(&r, "BankFrameItem1Highlight");
+        assert_eq!(highlight.source, TextureSource::FileDataId(130718));
+        assert_eq!(highlight.blend_mode, BlendMode::Additive);
+        assert!(!highlight.horiz_tile && !highlight.vert_tile);
+        assert_eq!(highlight.vertex_color, [1.0; 4]);
+        assert!(frame(&r, "BankFrameItem1Highlight").hidden);
         assert_eq!(
             frame(&r, "BankFrameItem1").onclick.as_deref(),
             Some("bank_slot:0")
