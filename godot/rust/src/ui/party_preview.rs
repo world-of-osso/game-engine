@@ -42,8 +42,69 @@ pub(super) fn state() -> PortraitPartyFrameState {
     }
 }
 
+/// Production player and group screens with a concrete two-member raid; no editor overlay.
+fn raid_overlap_screen(ctx: &SharedContext) -> ui_toolkit::widget_def::Element {
+    use game_engine_ui_model::compact_unit_frame_component::{CompactUnitView, UnitStatus};
+    use game_engine_ui_model::group_frames_component::{GroupFramesState, group_frames_screen};
+    use game_engine_ui_model::inworld_unit_frames_component::{
+        InWorldUnitFramesState, UnitFrameState, inworld_unit_frames_screen,
+    };
+    let mut shared = SharedContext::new();
+    shared.insert(
+        *ctx.get::<ui_toolkit::atlas::ActiveSkin>()
+            .expect("preview skin"),
+    );
+    shared.insert(InWorldUnitFramesState {
+        show_player_frame: true,
+        player: UnitFrameState::named("Mailalpha"),
+        ..Default::default()
+    });
+    let members = ["Mailalpha", "Mailbeta"]
+        .into_iter()
+        .map(|name| CompactUnitView {
+            name: name.into(),
+            class_rgb: [0.96, 0.55, 0.73],
+            health_fraction: Some(1.0),
+            power: None,
+            role: shared::protocol::GroupRoleSnapshot::None,
+            status: UnitStatus::Online,
+            in_range: true,
+            selected: false,
+            ready: None,
+            debuffs: Vec::new(),
+        })
+        .collect();
+    shared.insert(GroupFramesState {
+        raid: vec![members],
+        ..Default::default()
+    });
+    let mut elements = inworld_unit_frames_screen(&shared);
+    elements.extend(group_frames_screen(&shared));
+    elements
+}
+
 #[godot_api(secondary)]
 impl RegistryUi {
+    #[func]
+    pub fn show_raidoverlap_preview(&mut self) -> GString {
+        self.show_raidoverlap_skin(ui_toolkit::atlas::ActiveSkin::Modern)
+    }
+
+    #[func]
+    pub fn show_forever_raidoverlap_preview(&mut self) -> GString {
+        self.show_raidoverlap_skin(ui_toolkit::atlas::ActiveSkin::Forever)
+    }
+
+    fn show_raidoverlap_skin(&mut self, skin: ui_toolkit::atlas::ActiveSkin) -> GString {
+        let result = (|| {
+            load_data_root()?;
+            ui_toolkit::atlas::set_thread_skin(skin);
+            self.set_ui_scale(1.0)?;
+            self.show_viewport_screen((), raid_overlap_screen, ScreenPostsetup::None)
+        })();
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     /// Offline authored party preview for capture_ui_screen.gd; no group/network state.
     #[func]
     pub fn show_portrait_party(&mut self) -> GString {
