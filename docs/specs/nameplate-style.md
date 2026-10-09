@@ -74,6 +74,12 @@ Retail `NamePlateCastingBarMixin` over `CastingBarMixin` (`Blizzard_NamePlates/B
 - [x] `SpellFailure` turns the bar and soft glow red, reads `Interrupted: <interrupter>` in the interrupter's class colour for a kick, `Interrupted` without an interrupter, `Failed` for a failure on completion, holds 1.0 s and fades 0.3 s (`HoldFadeOutAnim`).
 - [x] A removed cast keeps running until its `SpellGo` or `SpellFailure`; the same cast still replicated after either does not restart the bar, and a new cast of the same spell after a replication gap does.
 
+### Private Geomancer live attempt (2026-10-09)
+
+Client `5ab533364`, copied server `5b04aa9`, private UDP5520 and owned `fb_combatlive` characters. Evidence: `data/diagnostics/combatlive-2026-10-09/combat-attempt{1,2,3}.log`. **FAIL to establish live cast-row/pip acceptance**, not a demonstrated renderer defect: first mesh pick disappeared; second selected the named Geomancer at 58.66 yd and never aggroed it; third nearest-name filtering missed duplicate NPC nodes auto-renamed by Godot. Retry bound reached. No mid-cast PNG exists; cast/pip requirements above retain their earlier proof, not new private-server acceptance.
+
+Inspected shared `01-selection-only.png` (later overwritten by the separate auto-attack run: dead owned player, Geomancer TargetFrame, no projected cast row) and `03-attack-stop.png` (cleared TargetFrame, no projected cast). Neither proves the required Fireball row, icon or glow at the fill edge. Separate auto-attack follow-ups were blocked by a server SIGKILL and Vulkan allocation failure/crash; no additional visual claim.
+
 ### Auras (Godot client)
 
 Ported from the Bevy client's `nameplate_auras.rs`. Retail's debuff list takes harmful auras (`AuraUtil.AuraFilters.Harmful`, `Blizzard_NamePlates/Blizzard_NamePlateAuras.lua:85`) cast by the local player (`requireSourceIsLocalPlayer`, :292).
