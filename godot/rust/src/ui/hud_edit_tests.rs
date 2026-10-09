@@ -361,28 +361,98 @@ fn hudeditmode_manager_border_projects_registered_static_popup_art() {
 }
 
 #[test]
-fn hudeditmode_selection_background_projects_selected_and_unselected_art() {
+fn hudeditmode_selection_background_projects_eight_unit_corners_without_moving_bounds() {
     use game_engine_ui_model::hud_edit_component::edit_mode_overlay_screen;
     use ui_toolkit::widgets::texture::TextureSource;
-    for (selected, fdid) in [(false, 4_554_383), (true, 4_554_386)] {
+    for (selected, hovered, kit) in [
+        (false, false, "highlight"),
+        (false, true, "highlight"),
+        (true, false, "selected"),
+    ] {
         let mut entry = player_box();
         entry.selected = selected;
+        entry.hovered = hovered;
         let mut shared = SharedContext::new();
         shared.insert(EditModeOverlayState { boxes: vec![entry] });
-        let mut registry = FrameRegistry::new(1366.0, 768.0);
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
         Screen::new(edit_mode_overlay_screen).sync(&shared, &mut registry);
         let id = registry
             .get_by_name("EditModeSelection_player_frameBackground")
             .unwrap();
         let frame = registry.get(id).unwrap();
-        let images = super::parts::project_images(frame, 240.0, 60.0);
-        assert_eq!(images.len(), 1);
-        assert_eq!(images[0].source, Some(TextureSource::FileDataId(fdid)));
-        assert_eq!(images[0].rect, [0.0, 0.0, 240.0, 60.0]);
-        let projected_opacity = frame.effective_alpha * images[0].color[3];
+        let bounds =
+            super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+        let background = &bounds[&id];
         assert_eq!(
-            projected_opacity, 0.7,
-            "mover image must not be transparent"
+            [
+                background.x,
+                background.y,
+                background.width,
+                background.height
+            ],
+            [100.0, 200.0, 240.0, 60.0]
+        );
+        assert_eq!(
+            frame.children.len(),
+            9,
+            "blue box must expose nine rendered pieces"
+        );
+        let expected = [
+            ([0.0, 0.0, 8.0, 8.0], "", "corner", [0.5, 1.0, 0.5, 1.0]),
+            ([8.0, 0.0, 224.0, 8.0], "_", "edgetop", [0.0, 1.0, 0.5, 1.0]),
+            ([232.0, 0.0, 8.0, 8.0], "", "corner", [1.0, 0.5, 0.5, 1.0]),
+            ([0.0, 8.0, 8.0, 44.0], "!", "edgeleft", [0.5, 1.0, 0.0, 1.0]),
+            ([8.0, 8.0, 224.0, 44.0], "", "center", [0.0, 1.0, 0.0, 1.0]),
+            (
+                [232.0, 8.0, 8.0, 44.0],
+                "!",
+                "edgeright",
+                [0.0, 0.5, 0.0, 1.0],
+            ),
+            ([0.0, 52.0, 8.0, 8.0], "", "corner", [0.5, 1.0, 1.0, 0.5]),
+            (
+                [8.0, 52.0, 224.0, 8.0],
+                "_",
+                "edgebottom",
+                [0.0, 1.0, 0.0, 0.5],
+            ),
+            ([232.0, 52.0, 8.0, 8.0], "", "corner", [1.0, 0.5, 1.0, 0.5]),
+        ];
+        for (child, (rect, prefix, member, coords)) in frame.children.iter().zip(expected) {
+            let piece = registry.get(*child).unwrap();
+            let at = &bounds[child];
+            assert_eq!(
+                [
+                    at.x - background.x,
+                    at.y - background.y,
+                    at.width,
+                    at.height
+                ],
+                rect
+            );
+            let images = super::parts::project_images(piece, at.width, at.height);
+            assert_eq!(images.len(), 1);
+            assert_eq!(
+                images[0].source,
+                Some(TextureSource::Atlas(format!(
+                    "{prefix}editmode-actionbar-{kit}-nineslice-{member}"
+                )))
+            );
+            let crop = if coords == [0.0, 1.0, 0.0, 1.0] {
+                super::parts::Crop::Full
+            } else {
+                super::parts::Crop::Normalized(coords)
+            };
+            assert_eq!(images[0].crop, crop);
+            assert_eq!(piece.effective_alpha * images[0].color[3], 0.7);
+            assert!(!piece.mouse_enabled);
+        }
+        let label = registry
+            .get_by_name("EditModeSelection_player_frameLabel")
+            .unwrap();
+        assert_eq!(
+            super::hud_edit_layout::frame_is_visible(&registry, label),
+            selected || hovered
         );
     }
 }
