@@ -308,6 +308,7 @@ fn children(class: u8) -> Vec<CategoryNode> {
         2 => weapons(),
         4 => armor(),
         19 => professions(),
+        12 => Vec::new(), // Retail Quest Items has only a class filter, no children.
         20 => vec![subclass("Decor", 20, 0), subclass("Dye", 20, 1)],
         15 => [
             ("Junk", 0),
@@ -320,15 +321,15 @@ fn children(class: u8) -> Vec<CategoryNode> {
         .into_iter()
         .map(|(name, id)| subclass(name, 15, id))
         .collect(),
-        _ => GENERATED_SUBCLASSES
-            .iter()
-            .find(|(id, _)| *id == class)
-            .map(|(_, rows)| {
-                rows.iter()
-                    .map(|(id, name)| subclass(name, class, *id))
-                    .collect()
-            })
-            .unwrap_or_default(),
+        _ => {
+            let (_, rows) = GENERATED_SUBCLASSES
+                .iter()
+                .find(|(id, _)| *id == class)
+                .expect("Retail category must have a subclass snapshot");
+            rows.iter()
+                .map(|(id, name)| subclass(name, class, *id))
+                .collect()
+        }
     }
 }
 
