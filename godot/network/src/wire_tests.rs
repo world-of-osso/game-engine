@@ -1856,3 +1856,113 @@ fn talents_wire_commits_full_entries_and_receives_snapshot_and_failure() {
     assert_eq!(message.downcast::<TraitCommitResult>().ok(), Some(failure));
     host.stop();
 }
+
+#[test]
+fn talents_wire_preserves_spec_result_snapshot_order_in_one_worker_batch() {
+    use shared::protocol::{
+        SpecializationChanged, TalentChannel, TraitCommitResult, TraitConfigSnapshot,
+    };
+    let (mut server, address) = start_fixture_server();
+    let mut host = Host::connect(address, 8260);
+    await_connected(&mut server, &mut host);
+    let (held, hold_confirmed) = mpsc::channel();
+    let (resume, resumed) = mpsc::channel();
+    host.bridge
+        .enqueue(move |_| {
+            held.send(()).unwrap();
+            resumed.recv_timeout(Duration::from_secs(10)).unwrap();
+        })
+        .unwrap();
+    hold_confirmed
+        .recv_timeout(Duration::from_secs(10))
+        .unwrap();
+    let arcane = TraitConfigSnapshot {
+        spec_id: 62,
+        tree_id: 658,
+        entries: Vec::new(),
+        unspent: vec![(2801, 31), (2800, 30)],
+    };
+    let frost = TraitConfigSnapshot {
+        spec_id: 64,
+        ..arcane.clone()
+    };
+    let success = TraitCommitResult {
+        ok: true,
+        reason: None,
+    };
+    macro_rules! send_flush {
+        ($ty:ty,$message:expr) => {{
+            let world = server.world_mut();
+            world
+                .query::<&mut MessageSender<$ty>>()
+                .single_mut(world)
+                .unwrap()
+                .send::<TalentChannel>($message);
+            server.update();
+        }};
+    }
+    // Production login, successful commit, then specialization change, accumulated
+    // while the host worker is held. Typed relays must not reorder this batch.
+    send_flush!(SpecializationChanged, SpecializationChanged { spec_id: 62 });
+    send_flush!(TraitConfigSnapshot, arcane.clone());
+    send_flush!(TraitCommitResult, success.clone());
+    send_flush!(TraitConfigSnapshot, arcane.clone());
+    send_flush!(SpecializationChanged, SpecializationChanged { spec_id: 64 });
+    send_flush!(TraitConfigSnapshot, frost.clone());
+    let deadline = Instant::now() + Duration::from_millis(100);
+    while Instant::now() < deadline {
+        server.update();
+        thread::sleep(Duration::from_millis(5));
+    }
+    resume.send(()).unwrap();
+    let mut received = await_messages(&mut server, &mut host, 6).into_iter();
+    assert_eq!(
+        received
+            .next()
+            .unwrap()
+            .downcast::<SpecializationChanged>()
+            .ok(),
+        Some(SpecializationChanged { spec_id: 62 })
+    );
+    assert_eq!(
+        received
+            .next()
+            .unwrap()
+            .downcast::<TraitConfigSnapshot>()
+            .ok(),
+        Some(arcane.clone())
+    );
+    assert_eq!(
+        received
+            .next()
+            .unwrap()
+            .downcast::<TraitCommitResult>()
+            .ok(),
+        Some(success)
+    );
+    assert_eq!(
+        received
+            .next()
+            .unwrap()
+            .downcast::<TraitConfigSnapshot>()
+            .ok(),
+        Some(arcane)
+    );
+    assert_eq!(
+        received
+            .next()
+            .unwrap()
+            .downcast::<SpecializationChanged>()
+            .ok(),
+        Some(SpecializationChanged { spec_id: 64 })
+    );
+    assert_eq!(
+        received
+            .next()
+            .unwrap()
+            .downcast::<TraitConfigSnapshot>()
+            .ok(),
+        Some(frost)
+    );
+    host.stop();
+}
