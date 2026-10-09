@@ -109,9 +109,9 @@ fn hudeditmodepolish_title_drag_clamps_manager_and_preserves_hud_placements() {
     );
     assert!(draft.start_panel_drag(panel, [503.0, 200.0]));
     assert!(draft.move_panel_drag([1000.0, 500.0], [1366.0, 768.0]));
-    assert_eq!(draft.panel_position, Some([856.0, 490.0]));
+    assert_eq!(draft.panel_position, Some([906.0, 490.0]));
     assert!(draft.move_panel_drag([-100.0, 1000.0], [1366.0, 768.0]));
-    assert_eq!(draft.panel_position, Some([0.0, 508.0]));
+    assert_eq!(draft.panel_position, Some([0.0, 516.0]));
     assert_eq!(draft.working, layout.elements);
     draft.panel_grab.take();
     assert!(!draft.move_panel_drag([500.0, 500.0], [1366.0, 768.0]));
