@@ -37,9 +37,19 @@ fn arcane_talents_render_real_icons_positions_edges_and_read_only_choices_in_bot
             let Some(WidgetData::Texture(texture)) = frame(name).widget_data.as_ref() else {
                 panic!("missing talent icon");
             };
-            assert!(
-                matches!(texture.source,ui_toolkit::widgets::texture::TextureSource::FileDataId(id) if id != 0)
-            );
+            let fdid = if learned { 135991 } else { 135729 };
+            if data.join(format!("textures/{fdid}.blp")).exists() {
+                assert_eq!(
+                    texture.source,
+                    ui_toolkit::widgets::texture::TextureSource::FileDataId(fdid)
+                );
+            } else {
+                assert_eq!(
+                    texture.source,
+                    ui_toolkit::widgets::texture::TextureSource::None,
+                    "missing talent icon must not use question-mark fallback"
+                );
+            }
             assert_eq!(texture.desaturated, !learned);
         }
         for name in [
