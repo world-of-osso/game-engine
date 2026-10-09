@@ -779,6 +779,9 @@ func capture_auction_both(directory: String) -> bool:
 	var views = ["browse", "item", "inventory", "sell", "duration", "owned", "bids", "dialog", "bid-popup", "buyout-popup"]
 	if OS.get_environment("GODOT_AUCTION_DIALOGS_ONLY") == "1":
 		views = ["dialog", "bid-popup", "buyout-popup"]
+	var sorted_proof := OS.get_environment("GODOT_AH_SORT_CAPTURE") == "1"
+	if sorted_proof:
+		views = ["subcategory_sorted"]
 	for skin in ["modern", "forever"]:
 		for view in views:
 			OS.set_environment("GODOT_AUCTION_VIEW", view)
@@ -804,7 +807,7 @@ func capture_auction_both(directory: String) -> bool:
 				await RenderingServer.frame_post_draw
 			var window_size := DisplayServer.window_get_size()
 			var image := root.get_texture().get_image()
-			if DisplayServer.get_name() != "headless" and (window_size != Vector2i(1920, 1080) or image == null or image.get_size() != window_size):
+			if (sorted_proof or DisplayServer.get_name() != "headless") and (window_size != Vector2i(1920, 1080) or image == null or image.get_size() != window_size):
 				push_error("Auction proof requires real 1920x1080 window and viewport")
 				ui.queue_free()
 				return false

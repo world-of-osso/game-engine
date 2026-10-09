@@ -1,5 +1,6 @@
 //! Native auction session: wire replies, actions and portable presentation.
 mod actions;
+mod categories;
 mod confirmation;
 pub mod preview;
 pub mod view;
@@ -9,7 +10,8 @@ pub struct AuctionHouseUi {
     /// Auctioneer whose interaction opened the frame (server entity bits).
     pub npc: Option<u64>,
     pub tab: AuctionHouseTab,
-    pub category: Option<usize>,
+    /// Selected category → subcategory → sub-subcategory indices.
+    pub category_path: Vec<usize>,
     /// Item whose auctions the item buy frame lists.
     pub browse_item: Option<u32>,
     pub selected_auction: Option<u64>,
@@ -28,7 +30,7 @@ impl Default for AuctionHouseUi {
         Self {
             npc: None,
             tab: AuctionHouseTab::Buy,
-            category: None,
+            category_path: Vec::new(),
             browse_item: None,
             selected_auction: None,
             sell_item: None,
@@ -413,9 +415,8 @@ pub fn native_auction_screen(
     let search_left = if sell { 0.0 } else { 240.0 };
     let search_top = if sell { 24.0 } else { 0.0 };
     let hide_search = !state.search_paging;
-    let mut shared = ui_toolkit::screen::SharedContext::new();
-    shared.insert(state.frame.clone());
-    let content = crate::auction_house_frame_component::auction_house_frame_screen(&shared);
+    let content =
+        crate::auction_house_frame_component::auction_house_frame_content(ctx, &state.frame);
     rsx! {
         r#frame { name:"NativeAuctionRoot", width:800.0,height:570.0,hidden:hide,strata:ui_toolkit::strata::FrameStrata::High,pos_type:"absolute",left:16.0,top:104.0,
             {content}
