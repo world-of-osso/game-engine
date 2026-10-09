@@ -70,6 +70,46 @@ struct Sweep {
     gear: npc_gear_data::NpcGearData,
     outfit: outfit_data::OutfitData,
 }
+fn read_armor_asset_errors(
+    data: &Path,
+    armor: &equipment_appearance_data::ResolvedEquipmentAppearance,
+) -> Vec<(String, String)> {
+    let fdids = armor
+        .texture_fdids
+        .iter()
+        .copied()
+        .chain(
+            armor
+                .runtime_models
+                .iter()
+                .flat_map(|model| model.skin_fdids)
+                .filter(|fdid| *fdid != 0),
+        )
+        .chain(
+            armor
+                .runtime_models
+                .iter()
+                .flat_map(|model| model.texture_replacements.iter().map(|(_, fdid)| *fdid)),
+        )
+        .filter(|fdid| Some(*fdid) != armor.merged_cape_texture_fdid)
+        .collect::<BTreeSet<_>>();
+    let mut errors = Vec::new();
+    for fdid in fdids {
+        if let Err(error) = pixels(data, fdid) {
+            errors.push(("gear-texture".into(), error));
+        }
+    }
+    for item in &armor.runtime_models {
+        if let Err(error) = model(data, item.fdid) {
+            errors.push((
+                "gear-model".into(),
+                format!("Equipment {:?}: {error}", item.slot),
+            ));
+        }
+    }
+    errors
+}
+
 #[derive(Default)]
 struct DisplayAudit {
     errors: Vec<(String, String)>,
@@ -97,7 +137,11 @@ impl Sweep {
             data,
         }
     }
-    fn prepare(&mut self, id: u32) -> Result<Option<Prepared>, String> {
+    fn prepare(
+        &mut self,
+        id: u32,
+        asset_errors: &mut Vec<(String, String)>,
+    ) -> Result<Option<Prepared>, String> {
         let Some(appearance) = query_authored_npc_appearance(&self.profiles, id)? else {
             return Ok(None);
         };
@@ -117,6 +161,7 @@ impl Sweep {
                 appearance.sex,
             )?
         };
+        asset_errors.extend(read_armor_asset_errors(&self.data, &armor));
         let (customization, compositor) =
             self.catalogs
                 .load_for_display(id, appearance.race, appearance.sex)?;
@@ -150,20 +195,6 @@ impl Sweep {
             .map(|(_, fdid)| *fdid)
             .chain(appearance.baked_texture_fdid)
             .chain(armor.merged_cape_texture_fdid)
-            .chain(armor.texture_fdids.iter().copied())
-            .chain(
-                armor
-                    .runtime_models
-                    .iter()
-                    .flat_map(|model| model.skin_fdids)
-                    .filter(|fdid| *fdid != 0),
-            )
-            .chain(
-                armor
-                    .runtime_models
-                    .iter()
-                    .flat_map(|model| model.texture_replacements.iter().map(|(_, fdid)| *fdid)),
-            )
             .collect::<BTreeSet<_>>();
         let mut decoded = HashMap::new();
         let mut dependency_errors = Vec::new();
@@ -173,11 +204,6 @@ impl Sweep {
                     decoded.insert(fdid, image);
                 }
                 Err(error) => dependency_errors.push(error),
-            }
-        }
-        for item in &armor.runtime_models {
-            if let Err(error) = model(&self.data, item.fdid) {
-                dependency_errors.push(format!("Equipment {:?}: {error}", item.slot));
             }
         }
         if !dependency_errors.is_empty() {
@@ -223,7 +249,7 @@ impl Sweep {
     }
     fn audit_display(&mut self, id: u32) -> DisplayAudit {
         let mut audit = DisplayAudit::default();
-        let prepared = match self.prepare(id) {
+        let prepared = match self.prepare(id, &mut audit.errors) {
             Ok(p) => {
                 audit.appearance_ready = true;
                 p
