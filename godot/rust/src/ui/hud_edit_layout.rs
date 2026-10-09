@@ -40,7 +40,8 @@ pub(crate) fn apply_placements(
         .filter_map(|element| {
             let saved = placements.get(element.key)?;
             let id = registry.get_by_name(element.frame_name)?;
-            let rect = bounds.get(&id)?;
+            let footprint = selection_frame_id(registry, element.key, id)?;
+            let rect = bounds.get(&footprint)?;
             let size = [rect.width, rect.height];
             let screen = [registry.screen_width, registry.screen_height];
             let at = clamp_position(top_left(*saved, size, screen), size, screen);
@@ -87,7 +88,8 @@ pub(crate) fn collect_selection_boxes(
             if !frame_is_visible(registry, id) {
                 return None;
             }
-            let rect = registry.get(id)?.layout_rect.as_ref()?;
+            let footprint = selection_frame_id(registry, element.key, id)?;
+            let rect = registry.get(footprint)?.layout_rect.as_ref()?;
             if rect.width <= 0.0 || rect.height <= 0.0 {
                 return None;
             }
@@ -103,6 +105,19 @@ pub(crate) fn collect_selection_boxes(
             )
         })
         .collect()
+}
+
+/// Forever's chat canvas deliberately extends beyond the screen to keep its inset
+/// bronze skin corner-flush. Select and anchor that skin, but translate the canvas
+/// and all descendants together so the authored inset and input geometry stay intact.
+fn selection_frame_id(registry: &FrameRegistry, key: &str, root: u64) -> Option<u64> {
+    if key == "chat_frame"
+        && ui_toolkit::atlas::thread_skin() == ui_toolkit::atlas::ActiveSkin::Forever
+    {
+        registry.get_by_name(game_engine_ui_model::chat_frame_component::CHAT_FLARE_SKIN)
+    } else {
+        Some(root)
+    }
 }
 
 /// The tracker frame here is content-height; Retail's container in its default position
