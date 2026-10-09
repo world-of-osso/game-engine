@@ -2900,3 +2900,7 @@ Updated [[forever-data]] with independent payload/cache/world proof, README-only
 ## 2026-10-08 — Character-bank item moves
 
 Existing ItemLocation/SwapItem/SplitItem extended to character bank tabs; [bank system](systems/banks.md) records native cursor and transactional server behavior. Targeted proof tracked in `/home/osso/.worktrees/handoff-bankmoves.md`; no live run.
+
+## 2026-10-08 — Talents first slice
+
+Recorded local Arcane CSV witnesses, grant/spec conditions and Blizzard node geometry in [Talents](systems/talents.md); wowdev references HTTP403, implementation/proof pending.

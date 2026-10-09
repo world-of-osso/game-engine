@@ -200,3 +200,4 @@ External resources and asset lists.
 - [Desktop handoff checkpoint](systems/forever-data.md#desktop-handoff-checkpoint-2026-10-07) — independently verified owned packet; README-only remote metadata confirmation pending, consumer gates open; current NPC native RED retained.
 
 - [Auction result icon diagnosis](systems/auction-house-ui.md#missing-result-icons-2026-10-08) — five-item FDID/file trace, local-store proof and shared unavailable-icon policy.
+- [Read-only Talents](systems/talents.md) — local DB2 class/spec/hero projection and Blizzard layout provenance; read-only first slice.
