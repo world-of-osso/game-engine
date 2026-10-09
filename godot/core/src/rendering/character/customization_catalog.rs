@@ -43,6 +43,17 @@ impl RaceModels {
         self.chr_model_by_race_sex.get(&(race, sex)).copied()
     }
 
+    pub(crate) fn for_npc(mut self, race: u8, sex: u8) -> Result<Self, String> {
+        self.chr_model_id(race, sex)
+            .ok_or_else(|| format!("missing authored NPC ChrModel for race {race} sex {sex}"))?;
+        let other_form = self.unaltered_race.get(&race).copied();
+        self.chr_model_by_race_sex
+            .retain(|&(candidate, body_type), _| {
+                body_type == sex && (candidate == race || Some(candidate) == other_form)
+            });
+        Ok(self)
+    }
+
     fn unaltered_chr_model_id(&self, race: u8, sex: u8) -> Option<u32> {
         let unaltered = *self.unaltered_race.get(&race)?;
         self.chr_model_id(unaltered, sex)
