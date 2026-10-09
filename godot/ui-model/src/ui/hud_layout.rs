@@ -288,8 +288,9 @@ pub const MODERN: HudLayout = HudLayout {
     // On collapsed `CompactRaidFrameManager`'s (222 wide, TOPLEFT -200, -140) TOPRIGHT at
     // (0, -7) (EditModePresetLayouts.lua:290-295, Blizzard_CompactRaidFrameManager.lua:93).
     party: anchor(TopLeft, TopLeft, -200.0 + 222.0, -140.0 - 7.0),
-    // Above the central unit-frame cluster.
-    raid: anchor(Bottom, Bottom, 0.0, 215.0),
+    // Mainline/EditModePresetLayouts.lua:315-320,1216-1221: TOPLEFT on the
+    // collapsed manager's TOPRIGHT (0, -5), shared by both presets.
+    raid: anchor(TopLeft, TopLeft, -200.0 + 222.0, -140.0 - 5.0),
     // User choice 2026-10-05: top-left, mirroring the minimap's top-right margins.
     // Modern already used this anchor (EditModePresetLayouts.lua:857-863).
     damage_meter: anchor(TopLeft, TopLeft, 0.0, 0.0),

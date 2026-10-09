@@ -7,7 +7,7 @@ References: MF.xml / MF.lua = `Blizzard_MailFrame/MailFrame.xml` / `.lua`; `Bliz
 ## Native Godot client
 
 - Both skins show the masked Mail-Icon portrait (FDID 136382, MF.lua:21). OpenMailFrame shows the normal-mail stationery icon INV_Misc_Note_01 (134327, MF.lua:298); the current wire contract carries normal player/auction mail, not custom stationery. Shared backgrounds exclude the portrait mask.
-- MailFrame and OpenMailFrame use the [shared skin-resolved metal chrome](merchant-frame.md#godot-client). The compose body spans the stationery's letter area and uses a multiline scrolling editor.
+- MailFrame and OpenMailFrame use the [shared skin-resolved metal chrome](merchant-frame.md#godot-client). The compose body spans the stationery's letter area and uses a multiline scrolling editor. Received letters wrap at the existing 276px width and start at the stationery's top inset (`MF.xml:989-995`); short auction letters must show their complete denomination text, not a one-line ellipsis. This does not implement Retail's received-letter scroll frame for bodies exceeding the available stationery area.
 - Replicated type-19 `GameObjectInfo` and `Position` identify real mailboxes. Render/pick the `GameObjectDisplayInfo.FileDataID` model with replicated rotation/scale; unresolved metadata, models or textures must report their precise asset error, never substitute a mailbox.
 - Right-click within 5 yards sends `UseGameObject`. Only its matching Mailbox role opens the authored `MailFrame` (Inbox and Send Mail tabs) with the backpack; matching `MailboxContents` may arrive before that role. Closed, unrelated and stale mailbox traffic must not reopen it.
 - One mail request is in flight at a time (`C_Mail.IsCommandPending`): the mail buttons wait for matching contents, `MailSent` or `MailFailed`. No client change predicts currency, inventory or mail contents; server `Gold`, inventory and refreshed contents do.
@@ -24,6 +24,7 @@ References: MF.xml / MF.lua = `Blizzard_MailFrame/MailFrame.xml` / `.lua`; `Bliz
 - Focused ui-model behaviour tests: `godot/ui-model/tests/native_mailbox.rs`; network relay: `godot/network/src/wire_tests.rs`.
 - [x] Live two-client proof (`godot/tests/world_mail_flow.gd`): see [native player mail proof](../wiki/systems/trade-and-mail.md#native-player-mail-proof-2026-10-01).
 - [x] Receiving fixture `godot/tests/world_mail_receiving_flow.gd` (auction delivery) and its [saved proof](../wiki/systems/trade-and-mail.md#saved-native-receiving-proof-2026-10-01).
+- [x] `godot/tests/world_outbid_body_flow.gd`: [private live denomination-letter RED/GREEN](auction-house-ui.md#private-live-remainder--2026-10-09), authentic received body and exact refund through real mailbox/row input. One-line ellipsis RED becomes two fully visible top-aligned lines after the stationery-height fix; this does not prove long-letter scrolling.
 
 ## What it must do (preserved Bevy client)
 
