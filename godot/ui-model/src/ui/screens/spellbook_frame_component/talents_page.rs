@@ -232,7 +232,9 @@ fn entry_icon(
         let WidgetChild::Widget(widget) = &mut icon[0] else {
             unreachable!("rsx texture produces a widget");
         };
-        widget.attrs.push(Attr::new_dynamic("texture_fdid", fdid));
+        widget
+            .attrs
+            .push(Attr::new_dynamic("texture_fdid", fdid.to_string()));
     }
     icon
 }
