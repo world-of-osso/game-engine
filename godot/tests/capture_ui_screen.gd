@@ -11,6 +11,10 @@ func _initialize() -> void:
 func _run() -> void:
 	var screen = OS.get_environment("GODOT_CAPTURE_SCREEN")
 	var output = OS.get_environment("GODOT_CAPTURE_PATH")
+	if screen == "sidebarbinds_both":
+		var captured: bool = await capture_sidebarbinds_both(output)
+		quit(0 if captured else 1)
+		return
 	if screen == "spellbook_both":
 		var captured: bool = await capture_spellbook_both(output)
 		quit(0 if captured else 1)
@@ -131,6 +135,40 @@ func _run() -> void:
 	print("PASS: rendered ", screen, " captured")
 	ui.queue_free()
 	quit(0)
+
+# One cage run, real compositor mode required (not only a requested window size).
+func capture_sidebarbinds_both(directory: String) -> bool:
+	for entry in [["sidebarbinds_preview", "modern.png"], ["forever_sidebarbinds_preview", "forever.png"]]:
+		var ui = ClassDB.instantiate("RegistryUi")
+		root.add_child(ui)
+		var error: String = ui.call("show_" + entry[0])
+		if not error.is_empty():
+			push_error(error)
+			ui.queue_free()
+			return false
+		for frame in range(120):
+			await process_frame
+			await RenderingServer.frame_post_draw
+		var image := root.get_texture().get_image()
+		if image.get_size() != Vector2i(1920, 1080) or DisplayServer.window_get_size() != Vector2i(1920, 1080):
+			push_error("Sidebar capture requires real 1920x1080 window and framebuffer")
+			ui.queue_free()
+			return false
+		for bar in ["MultiBarBottomLeft", "MultiBarBottomRight", "MultiBarRight", "MultiBarLeft"]:
+			var button := ui.find_child(bar + "Button1", true, false) as Control
+			var hotkey := ui.find_child(bar + "Button1HotKey", true, false) as Control
+			if button == null or hotkey == null or not button.is_visible_in_tree() or not hotkey.is_visible_in_tree():
+				push_error("Enabled sidebar button/hotkey missing: " + bar)
+				ui.queue_free()
+				return false
+			print("PASS: ", entry[0], " ", bar, " button=", button.get_global_rect(), " hotkey=", hotkey.get_global_rect())
+		if image.save_png(directory.path_join(entry[1])) != OK:
+			ui.queue_free()
+			return false
+		print("PASS: ", entry[0], " rendered 1920x1080")
+		ui.queue_free()
+		await process_frame
+	return true
 
 # UI textures load asynchronously. Capture both HUD skins only after native visuals settle.
 func capture_hud_edit_both(directory: String) -> void:

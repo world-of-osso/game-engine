@@ -547,6 +547,15 @@ impl Account {
 
     /// `SetSpecialization(spec_id)`; the server answers `SpecializationChanged` and the
     /// spec's spells.
+    pub fn send_set_action_button(
+        &self,
+        request: shared::protocol::SetActionButton,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, TalentChannel>(request)
+            .map_err(SessionError)
+    }
+
     pub fn send_set_specialization(&self, spec_id: u32) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, TalentChannel>(SetSpecialization { spec_id })

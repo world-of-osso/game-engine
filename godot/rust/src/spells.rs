@@ -8,6 +8,7 @@
 //! and the caster's `CombatLogEvent` damage floats over the target.
 
 mod action_bar;
+mod assignment;
 mod casting;
 mod floating_text;
 mod snapshot;

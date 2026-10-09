@@ -104,6 +104,7 @@ impl GameClient {
     }
 
     pub(crate) fn close_spellbook(&mut self) {
+        self.bags.cursor.spell_drag = None;
         if let Some(ui) = self.spells.book_ui.take() {
             ui.free();
         }
@@ -133,6 +134,7 @@ impl GameClient {
             ui.set_name("SpellBookUI");
             ui.set_layer(5);
             self.base_mut().add_child(&ui);
+            ui.bind_mut().enable_cursor_inputs();
             self.spells.book_ui = Some(ui);
         }
         Ok(())
@@ -393,7 +395,7 @@ impl GameClient {
         self.apply_spellbook_action(&action)
     }
 
-    fn apply_spellbook_action(&mut self, action: &str) -> Result<(), FrameError> {
+    pub(super) fn apply_spellbook_action(&mut self, action: &str) -> Result<(), FrameError> {
         let book = &mut self.spells.book;
         if action.is_empty() {
         } else if action == ACTION_SPELLBOOK_CLOSE {
