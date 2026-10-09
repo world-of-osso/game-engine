@@ -32,6 +32,7 @@ mod party_preview;
 mod professions_preview;
 mod projection;
 mod registration_preview;
+mod rosterfix_preview;
 #[cfg(test)]
 mod rosterfix_tests;
 mod scroll_lists;

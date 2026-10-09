@@ -226,10 +226,17 @@ pub fn sync_char_select_screen(
     }
     shared.insert(ScrolledSelection(selected));
     let Some(index) = selected else { return };
-    let Some(scroll) = registry.scroll_lists.get(CHARACTER_LIST_SCROLL) else {
-        return;
-    };
-    let offset = scroll.first_row;
+    if scroll_selected_card(registry, index) {
+        screen.sync(shared, registry);
+    }
+}
+
+fn scroll_selected_card(registry: &mut FrameRegistry, index: usize) -> bool {
+    let offset = registry
+        .scroll_lists
+        .get(CHARACTER_LIST_SCROLL)
+        .expect("character-select ScrollBox must be mounted")
+        .first_row;
     let top = index * (CHARACTER_CARD_HEIGHT + CARD_GAP) as usize;
     let bottom = top + CHARACTER_CARD_HEIGHT as usize;
     let target = if top < offset {
@@ -237,12 +244,9 @@ pub fn sync_char_select_screen(
     } else {
         offset.max(bottom.saturating_sub(LIST_HEIGHT as usize))
     };
-    if registry
+    registry
         .scroll_lists
         .scroll_to(CHARACTER_LIST_SCROLL, target)
-    {
-        screen.sync(shared, registry);
-    }
 }
 pub const ENTER_WORLD_BUTTON: FrameName = FrameName("EnterWorld");
 pub const CREATE_CHAR_BUTTON: FrameName = FrameName("CreateChar");

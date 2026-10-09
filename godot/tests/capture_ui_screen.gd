@@ -11,6 +11,10 @@ func _initialize() -> void:
 func _run() -> void:
 	var screen = OS.get_environment("GODOT_CAPTURE_SCREEN")
 	var output = OS.get_environment("GODOT_CAPTURE_PATH")
+	if screen == "rosterfix_both":
+		var captured: bool = await capture_rosterfix_both(output)
+		quit(0 if captured else 1)
+		return
 	if screen == "sidebarbinds_both":
 		var captured: bool = await capture_sidebarbinds_both(output)
 		quit(0 if captured else 1)
@@ -1106,4 +1110,90 @@ func capture_bank_hover(ui: Node, prefix: String) -> bool:
 		push_error(error)
 		return false
 	print("PASS: exactly one left/shift/right bank slot press; drag coordinates retained")
+	return true
+
+# Fixed twelve-character offline roster: production native layout, clipping and wheel input.
+func capture_rosterfix_both(directory: String) -> bool:
+	for entry in [["rosterfix_preview", "modern.png"], ["forever_rosterfix_preview", "forever.png"]]:
+		var ui = ClassDB.instantiate("RegistryUi")
+		root.add_child(ui)
+		var error: String = ui.call("show_" + entry[0])
+		if not error.is_empty():
+			push_error(error)
+			ui.queue_free()
+			return false
+		for frame in range(30):
+			await process_frame
+			await RenderingServer.frame_post_draw
+		if not rosterfix_geometry_and_names_match(ui):
+			ui.queue_free()
+			return false
+		var image := root.get_texture().get_image()
+		if DisplayServer.window_get_size() != Vector2i(1920, 1080) or image == null or image.get_size() != Vector2i(1920, 1080):
+			push_error("Roster proof requires real1920x1080 window and framebuffer")
+			ui.queue_free()
+			return false
+		if image.save_png(directory.path_join(entry[1])) != OK:
+			push_error("Roster PNG save failed")
+			ui.queue_free()
+			return false
+		# A genuine native wheel event must move the scroll child without changing selection.
+		var list := ui.find_child("CharacterListCards", true, false) as Control
+		var card := ui.find_child("CharCard_9", true, false) as Control
+		var before := card.get_global_rect().position.y
+		var wheel := InputEventMouseButton.new()
+		wheel.button_index = MOUSE_BUTTON_WHEEL_UP
+		wheel.pressed = true
+		wheel.position = list.get_global_rect().get_center()
+		wheel.global_position = wheel.position
+		Input.parse_input_event(wheel)
+		for frame in range(6):
+			await process_frame
+			await RenderingServer.frame_post_draw
+		var after := card.get_global_rect().position.y
+		if abs(after - before - 194.0) > 1.0:
+			push_error("Roster native wheel must pan194px: before=", before, " after=", after)
+			ui.queue_free()
+			return false
+		print("PASS: ", entry[0], "12 fixed entries, selected10 visible, footer separate, names, native wheel194,1920x1080")
+		ui.queue_free()
+		await process_frame
+	return true
+
+func rosterfix_geometry_and_names_match(ui: Node) -> bool:
+	var list := ui.find_child("CharacterListCards", true, false) as Control
+	var panel := ui.find_child("CharacterListPanel", true, false) as Control
+	if list == null or panel == null or not list.clip_contents:
+		push_error("Roster requires a native clipped ScrollBox")
+		return false
+	var viewport := list.get_global_rect()
+	if not panel.get_global_rect().encloses(viewport):
+		push_error("Roster viewport escaped its panel")
+		return false
+	for index in range(12):
+		var card := ui.find_child("CharCard_" + str(index), true, false) as Control
+		var info := ui.find_child("CharCard_" + str(index) + "Info", true, false) as Label
+		if card == null or abs(card.size.y - 95.0) > 0.1 or info == null:
+			push_error("Roster entry missing/compressed: ", index)
+			return false
+		if info.text.contains("Race ") or info.text.contains("Class ") or not info.text.contains("Skyborne"):
+			push_error("Roster display names missing: ", info.text)
+			return false
+		var font := info.get_theme_font("font")
+		var font_size := info.get_theme_font_size("font_size")
+		if font.get_string_size(info.text, HORIZONTAL_ALIGNMENT_LEFT, -1, font_size).x > info.size.x:
+			push_error("Roster display text truncated: ", info.text)
+			return false
+		var card_rect := card.get_global_rect()
+		if index == 9 and not viewport.encloses(card_rect):
+			push_error("Selected card10 not fully in view")
+			return false
+		for name in ["CreateChar", "DeleteChar"]:
+			var footer := ui.find_child(name, true, false) as Control
+			if footer == null or viewport.intersects(footer.get_global_rect()):
+				push_error("Roster footer overlaps viewport")
+				return false
+			if card_rect.intersects(viewport) and card_rect.intersection(viewport).intersects(footer.get_global_rect()):
+				push_error("Roster footer overlaps visible card")
+				return false
 	return true
