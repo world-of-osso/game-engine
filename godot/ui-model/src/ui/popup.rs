@@ -47,6 +47,8 @@ pub struct PopupEntry {
     pub accept_enabled: bool,
     /// What was typed into the edit box of a `confirm_text` popup.
     pub typed: String,
+    /// Retail `hasMoneyFrame` and `showAlert` confirmation presentation.
+    pub money_alert: Option<u64>,
 }
 
 impl PopupEntry {
@@ -78,6 +80,7 @@ impl PopupStack {
         if let Some(slot) = self.slots.iter_mut().find(|s| s.entry.spec.key == spec.key) {
             slot.entry.spec = spec;
             slot.entry.typed.clear();
+            slot.entry.money_alert = None;
             slot.shown_for = Duration::ZERO;
             return slot.entry.id;
         }
@@ -89,9 +92,22 @@ impl PopupStack {
                 spec,
                 accept_enabled: true,
                 typed: String::new(),
+                money_alert: None,
             },
             shown_for: Duration::ZERO,
         });
+        id
+    }
+
+    /// Show a money confirmation with the Retail alert icon.
+    pub fn push_money_alert(&mut self, spec: PopupSpec, amount: u64) -> PopupId {
+        let id = self.push(spec);
+        let slot = self
+            .slots
+            .iter_mut()
+            .find(|slot| slot.entry.id == id)
+            .unwrap();
+        slot.entry.money_alert = Some(amount);
         id
     }
 

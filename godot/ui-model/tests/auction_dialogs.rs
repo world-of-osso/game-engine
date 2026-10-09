@@ -1,5 +1,9 @@
 //! Retail AH confirmation boundaries and commodity dialog art, in both skins.
 use game_engine_ui_model::{
+    auction::AuctionRequest,
+    popup::{PopupOutcome, PopupStack},
+};
+use game_engine_ui_model::{
     auction::{AuctionSession, native_auction_screen, preview::preview_view, view::InputTexts},
     auction_house_frame_component::BID_BOXES,
 };
@@ -62,11 +66,32 @@ fn session() -> (AuctionSession, InputTexts) {
 fn item_buyout_does_not_open_commodity_buy_dialog() {
     let (mut s, texts) = session();
     s.click("auction_buyout", &texts);
+    s.click("auction_dialog_buy", &texts);
     assert!(
         s.state(&texts).dialog.is_none(),
         "stack buyout must use BUYOUT_AUCTION, not BuyDialog"
     );
     assert!(s.net.requests.is_empty());
+    let mut stack = PopupStack::default();
+    s.sync_popup(&mut stack);
+    let popup = stack.visible().remove(0);
+    assert_eq!(popup.spec.key, "BUYOUT_AUCTION");
+    assert_eq!(popup.money_alert, Some(1234));
+    assert_eq!(popup.spec.accept_label, "Accept");
+    assert_eq!(popup.spec.cancel_label.as_deref(), Some("Cancel"));
+    stack.cancel_top();
+    s.popup_results(&stack.drain_results());
+    assert!(s.net.requests.is_empty());
+    s.click("auction_buyout", &texts);
+    s.sync_popup(&mut stack);
+    stack.accept_top();
+    let results = stack.drain_results();
+    s.popup_results(&results);
+    s.popup_results(&results);
+    assert_eq!(
+        s.net.requests,
+        [AuctionRequest::Buyout(BuyoutAuction { auction_id: 42 })]
+    );
 }
 
 #[test]
@@ -77,6 +102,55 @@ fn bid_waits_for_accept_instead_of_submitting_directly() {
         s.net.requests.is_empty(),
         "BID_AUCTION must wait for Accept"
     );
+    let mut stack = PopupStack::default();
+    s.sync_popup(&mut stack);
+    s.sync_popup(&mut stack);
+    let popup = stack.visible().remove(0);
+    assert_eq!(stack.visible().len(), 1);
+    assert_eq!(popup.spec.key, "BID_AUCTION");
+    assert_eq!(popup.money_alert, Some(200));
+    stack.cancel_top();
+    s.popup_results(&stack.drain_results());
+    assert!(s.net.requests.is_empty());
+    s.click("auction_bid", &texts);
+    s.sync_popup(&mut stack);
+    // Edits and selection changes cannot change an already confirmed request.
+    let mut edited = texts.clone();
+    edited.insert(BID_BOXES.silver, "9".into());
+    s.click("auction_bid", &edited);
+    stack.accept_top();
+    let results = stack.drain_results();
+    s.popup_results(&results);
+    s.popup_results(&results);
+    assert_eq!(
+        s.net.requests,
+        [AuctionRequest::Bid(PlaceBid {
+            auction_id: 42,
+            amount: 200
+        })]
+    );
+}
+
+#[test]
+fn closing_auction_hides_confirmation_and_discards_late_accept() {
+    let (mut s, texts) = session();
+    let mut stack = PopupStack::default();
+    s.click("auction_bid", &texts);
+    s.sync_popup(&mut stack);
+    let id = stack.top().unwrap();
+    stack.resolve(id, PopupOutcome::Accepted);
+    let results = stack.drain_results();
+    s.close();
+    s.popup_results(&results);
+    s.sync_popup(&mut stack);
+    assert!(s.net.requests.is_empty());
+    assert!(!stack.is_open());
+    let (mut s, texts) = session();
+    s.click("auction_buyout", &texts);
+    s.sync_popup(&mut stack);
+    s.close();
+    s.sync_popup(&mut stack);
+    assert!(!stack.is_open());
 }
 
 #[test]

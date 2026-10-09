@@ -5,9 +5,9 @@ use std::collections::HashMap;
 
 use super::AuctionHouseState;
 use crate::auction_house_frame_component::{
-    AuctionHouseFrameState, AuctionsSubTab, AuctionsView, BID_BOXES, BrowseRow, BuyDialogView,
-    CategoryRow, ItemBuyView, ItemLine, ListingRow, MoneyBoxes, QUANTITY_BOX, SEARCH_BOX,
-    SELL_BID_BOXES, SELL_BUYOUT_BOXES, SellInventoryRow, SellItemView, SellView,
+    AuctionHouseFrameState, AuctionsSubTab, AuctionsView, BID_BOXES, BrowseRow, CategoryRow,
+    ItemBuyView, ItemLine, ListingRow, MoneyBoxes, QUANTITY_BOX, SEARCH_BOX, SELL_BID_BOXES,
+    SELL_BUYOUT_BOXES, SellInventoryRow, SellItemView, SellView,
 };
 use crate::item_catalog::ItemCatalogEntry;
 use shared::protocol::{
@@ -140,7 +140,8 @@ pub fn build_view(inputs: &ViewInputs) -> AuctionHouseFrameState {
         browse: browse_rows(inputs),
         browse_empty_text: browse_empty_text(inputs),
         item_buy: item_buy(inputs),
-        dialog: dialog(inputs),
+        // Commodity trading has no protocol yet; only the offline BuyDialog preview exists.
+        dialog: None,
         sell: sell_view(inputs),
         auctions: auctions_view(inputs),
     }
@@ -226,21 +227,6 @@ fn can_buyout(inputs: &ViewInputs, listing: Option<&AuctionListingSummary>) -> b
     listing
         .and_then(|listing| listing.buyout_price)
         .is_some_and(|buyout| buyout <= inputs.money())
-}
-
-fn dialog(inputs: &ViewInputs) -> Option<BuyDialogView> {
-    let id = inputs.ui.dialog_auction?;
-    let listing = inputs
-        .net
-        .search_results
-        .iter()
-        .chain(&inputs.net.bid_results)
-        .find(|listing| listing.auction_id == id)?;
-    Some(BuyDialogView {
-        // `AUCTION_HOUSE_DIALOG_ITEM_FORMAT` "%s  x%s".
-        item_text: format!("{}  x{}", listing.item.name, listing.stack_count),
-        price: listing.buyout_price?,
-    })
 }
 
 fn sell_item<'a>(inputs: &'a ViewInputs) -> Option<&'a AuctionInventoryItem> {

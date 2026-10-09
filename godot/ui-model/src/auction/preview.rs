@@ -1,12 +1,13 @@
 //! Offline snapshots of the production auction screen; no session, requests or network.
 use super::NativeAuctionView;
+pub use super::confirmation::confirmation_spec;
 use crate::auction_house_frame_component::*;
 
 pub fn preview_view(view: &str) -> Result<NativeAuctionView, String> {
     let mut frame = browse_frame();
     match view {
         "browse" => {}
-        "item" | "dialog" => populate_item_buy(&mut frame, view),
+        "item" | "dialog" | "bid-popup" | "buyout-popup" => populate_item_buy(&mut frame, view),
         "inventory" | "sell" | "duration" => populate_sell(&mut frame, view),
         "owned" | "bids" => populate_auctions(&mut frame, view),
         _ => return Err(format!("Unknown offline auction view: {view}")),
