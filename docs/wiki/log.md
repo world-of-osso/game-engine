@@ -2889,6 +2889,14 @@ Updated [[forever-data]] with independent payload/cache/world proof, README-only
 
 - 2026-10-07 — Reconcile bounded corrective742 native Ailee/Grove functional DONE, mapped/build receipts, CPU13 and pending304; retain OS-exit/pixel/parity/provenance exclusions. Record final handoff metadata hash proof separately from unproved consumption/landing. Docs-only; no runtime or test operations.
 
+## 2026-10-08 — Spellbook native visual proof
+
+[[cage-capture-resolution]] records the reproduced 1280×720 compositor constraint, capture-only 1920×1080 output override and six inspected Modern/Forever PlayerSpellsFrame pages at `08b83b3ac`. Focused model tests pass 13/13; native extension/CLI build and capture exit0. Bottom/category geometry and labels render; specialization background/thumbnails/Fire icon remain missing local assets. No agents, pushes or merges.
+
 ## 2026-10-08 — Auction result icon diagnosis
 
 [Five-item trace and proof](systems/auction-house-ui.md#missing-result-icons-2026-10-08) records both-skin native RED→GREEN, once-per-FDID diagnostics and 22 content-key-matched local-CASC icons installed for the original 52-item evidence market. Six captures inspected; extracted icons render in both skins. [Shared loader policy](systems/asset-pipeline.md#native-unavailable-icons) uses existing question-mark art for unavailable icons. Whole-crate gate at `ff3129712` is blocked before tests by the requested base's merchant fixture missing `definition_source`; no passing counts, merge, push, live client or broader parity claim.
+
+## 2026-10-08 — Character-bank item moves
+
+Existing ItemLocation/SwapItem/SplitItem extended to character bank tabs; [bank system](systems/banks.md) records native cursor and transactional server behavior. Targeted proof tracked in `/home/osso/.worktrees/handoff-bankmoves.md`; no live run.

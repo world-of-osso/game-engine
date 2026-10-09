@@ -39,6 +39,10 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 - [x] Unresolved description tokens render nothing, with local doubled spaces, empty wrappers and dangling punctuation removed. Resolved tokens stay unchanged; `$?…[..][..]` retains its branch evaluator. Spell/attack power values resolve when replicated player stats arrive; level-scaled points without ExpectedStat data remain hidden.
 - [ ] Not built: drag to/from the bar, other action bars and paging, range/usable/power tinting, charges, the interrupted bar, spellbook search, the settings dropdown, flyouts, pet spells and the minimized book; icon masks (`spellbook-item-spellicon-mask`, `UI-HUD-ActionBar-IconFrame-Mask`); the Retail cast bar art (the shared Bevy bar uses flat colours).
 
+## Offline visual proof
+
+`RegistryUi.show_spellbook_preview()` and `show_forever_spellbook_preview()` open the production PlayerSpellsFrame without networking, using a bounded Frost mage known-spell snapshot and names/icons/specializations from the local Retail catalog. Spellbook is selected by default; `GODOT_SPELLBOOK_TAB=specialization|talents|spellbook` selects other pages. `capture_ui_screen.gd` with `GODOT_CAPTURE_SCREEN=spellbook_both` captures all three pages in both skins to `GODOT_CAPTURE_PATH` (directory), requiring a real 1920×1080 window and framebuffer and recording native geometry alongside each PNG.
+
 ## PlayerSpells page references
 
 Source exports under `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowforever}/AddOns/`:

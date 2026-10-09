@@ -57,6 +57,7 @@ Sheet rows M:84,1346,1772,1774; F:2616,2617,2689,2690. Forever divider's 864×32
 Local BLPs **8118796, 8118792, 8188339** are present (verified 2026-10-08); inspected `bankloop-2026-10-08/resume-forever-character.png` and `resume-alt-warband.png` render the Forever bank art. Resolution is not guarded or substituted when files are absent.
 
 ### Actions
+- [x] Character-bank left-click/drag pickup and drop use the shared item cursor. The exact `{ tab, slot }` source survives selecting another bank tab; bags↔bank and same/across-tab destinations send the existing `SwapItem` (server handles swap/merge). Shift-click opens the existing bag StackSplitFrame; accepting places the chosen count on the cursor and dropping sends `SplitItem`. The server owns all stack changes; BankContents refreshes cursor lookup and closing clears bank-origin cursor/split state. Retail Mainline BankFrame.lua: HandleItemPickup, OnDragStart, OnReceiveDrag, OnModifiedClick, SplitStack (416-448, 590-592).
 - [x] Right-clicking a filled slot sends `BankWithdraw` for the shown bank and tab.
 - [x] Right-clicking a bag item while the bank is open sends `BankDeposit` into the shown bank's selected tab. Nothing is sent while the purchase prompt shows.
 - [x] Deposit / Withdraw opens the money entry: a gold/silver/copper `MoneyInputFrame` in a StaticPopup. Accept sends `BankMoneyTransfer` with the typed copper; an empty entry sends nothing.
@@ -88,13 +89,17 @@ Evidence root: `data/diagnostics/bankloop-2026-10-08/`; append-only `proof-ledge
 | 6 Warband IPC | PASS item contract; N-A money/settings fields | `current-between-tabs-status-warbank.txt`, `resume-alt-warband-status-warbank.txt`: location98/GUID173/item2589×20 matches tab2 window. fb_bank2 status is empty. `status warbank` reports item inventory only; no balance/tab-settings status exists in this contract. |
 | 7 Layout/skins | PASS bounded geometry/art inspection; FAIL full Retail equivalence | Modern `resume-open.png`, `resume-purchase-{poor,confirm,bought}.png`; Forever `resume-forever-character.png`, `resume-alt-warband.png`, dialog captures. `layout-comparison.json` checks 396 observable frame/grid values against cached Retail BF.xml:674/BF.lua:941–968: 738×460, 98 slots of 37×37, first26/63, row47, column45 plus11 per pair. Portrait control62×62(-5,-7) has Retail mask58×58(-3,-7), not a sizing defect. Existing non-additive selected-tab marker, stretched/non-tiled backgrounds, omitted edge shadows and grey rather than red unaffordable price remain; no full pixel equivalence claimed. |
 
-No server bank defect established. Missing partial-stack/bank-to-bank operations are protocol limitations, not client workarounds: `BankDeposit` names a whole bag stack; `BankWithdraw` names a whole bank slot. Bank-origin drag, split/swap and direct inter-tab requests cannot be emitted, so there is no request, response or server log for them. Modern/Forever remain skins of the same 98-slot mechanics; Camelot's 88-slot behavior and tooltip record-ID removal are not adopted.
+Historical bankloop scope only: no server bank defect was established in that run. At its pinned revisions, partial-stack/bank-to-bank operations were protocol limitations: `BankDeposit` named a whole bag stack; `BankWithdraw` named a whole bank slot. The later `bankmoves` change adds character-bank locations to `SwapItem` / `SplitItem`; the N-A item row above remains historical evidence, not the current character-bank contract. Modern/Forever remain skins of the same 98-slot mechanics; Camelot's 88-slot behavior and tooltip record-ID removal are not adopted.
 
 ### Final verification and cleanup
 
 On `68d7109df` (production source byte-identical to `2acedbd17`, SHA-256 `70d5bbc5660bda77e1076b86f27c66b3e013350cfe0850fc9d0dee18c2f6bd98`), the required locked/local/pinned five-crate `cargo test --no-fail-fast` exits **0**: CLI **103**, core **781**, Godot **661**, network **66**, UI-model **754** passed; **2365 passed, 0 failed, 6 ignored fixture-generation tests**. Raw log: `whole-crates-68d7109df.log`; counts: `final-whole-crate-counts.json`. Banker/nonbank regressions both pass. `clean-fmt.log` is exit 0; changed routing/readability has no new finding, inherited unrelated merchant function-length/cache-naming debt retained.
 
 Final native extension/CLI build installed in 44.8 seconds. Trace-free ELF SHA-256: `75185d78622d63fd6da3cab0b860ed207cb6bf52317a50e5d95e35e9e35fa9e0`. Seven of nine allowed resumed rendered launches used; two clients only for concurrent account isolation. All resumed clients exited; exact owned server/Weston PIDs terminated; `agents-bankloop.slice` stopped and inactive; UDP 5360 verified free (`cleanup-owned-pids.json`, `cleanup-udp.txt`, `cleanup-slice.txt`). Private redb, evidence and caches retained. No merge/push, no data/UID/PLAN commit, scratch PLAN untouched. Later documentation-only commits do not invalidate this source proof. Rows remain Partial for the explicitly recorded protocol/UI gaps, not an unfinished client fix.
+
+### Character-bank moves — 2026-10-08
+
+`bankmoves` adds character-bank pickup/drop, exact same/across-tab destinations and the shared split picker ([cursor contract](cursor-item.md)). `native_bank_moves` at `178e9dba3` passes 5/5 after RED 1 passed / 4 failed at `d0e42b5ac`; logs: `/home/osso/.worktrees/logs/bankmoves-engine-{red,green}.log`. This proves mounted slot routing and model request/state behavior. Native drag-release and shift-click dispatch are wired in `godot/rust/src/{bank,bag_cursor}.rs`, but no new native event, render or live proof is claimed. Whole-crate/integration gates remain with the lead.
 
 ## How it works
 - [banks](../wiki/systems/banks.md)
@@ -110,6 +115,7 @@ Final native extension/CLI build installed in 44.8 seconds. Trace-free ELF SHA-2
 | `src/scenes/bag_frame/mod.rs` | Right-click deposit (`use_bag_item`) |
 
 ## Tests asserting this spec
+- `godot/ui-model/tests/native_bank_moves.rs`: mounted bank-slot routing, cross-tab cursor identity, exact bag/bank move and split requests, authoritative refresh and closed/Warband/purchase rejection.
 - `godot/rust/src/merchant.rs`: `distant_banker_attempt_reaches_authoritative_range_validation` and `non_banker_right_click_requires_a_living_npc_in_range`; live event/server/render assertion retained as `bankloop-2026-10-08/assert-bank-range.py` with RED/GREEN capture inputs.
 - `godot/ui-model/tests/forever_bank_bags.rs`: concrete Modern/Forever atlas regions, Forever divider/item chrome and unchanged slot actions, 1596-line byte-identical Modern bank fixture.
 - `godot/ui-model/tests/bag_window.rs`: under both skins the open backpack has its border, title, a close button that closes it, and one art-backed slot background per slot inside the window; Forever slot art differs from Modern.
@@ -126,4 +132,4 @@ Final native extension/CLI build installed in 44.8 seconds. Trace-free ELF SHA-2
 
 ## Out of scope
 - Search box, Cleanup/sort, the tab icon picker and the expansion filter (deferred by decision).
-- Bank-origin drag, partial-stack transfer, bank-slot swapping and direct inter-tab moves (not represented by the pinned bank protocol). Native whole-bag-stack drag deposit is implemented and has bounded live proof above; it does not add those missing operations.
+- Warband/guild-bank exact-slot drag, split and inter-tab moves. Character-bank support uses ItemLocation::Bank and existing SwapItem/SplitItem. Targeted model/UI tests are in `godot/ui-model/tests/native_bank_moves.rs`; live runs are excluded from this `bankmoves` proof.

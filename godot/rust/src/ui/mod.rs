@@ -30,6 +30,7 @@ mod professions_preview;
 mod projection;
 mod registration_preview;
 mod scroll_lists;
+mod spellbook_preview;
 pub(crate) mod ui_parent;
 
 use std::collections::VecDeque;
