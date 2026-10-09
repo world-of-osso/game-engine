@@ -38,7 +38,7 @@ Range regression (2026-10-08): `data/diagnostics/bankloop-2026-10-08/resume-too-
 
 ### Skin art
 - Dedicated bank textures resolve Blizzard atlas element names through `ui_toolkit::atlas::resolve_region`; Modern keeps pre-conversion FDIDs and UVs; portrait binding and background exclusion apply to both skins.
-- Forever uses `bank-frame-background`, `bags-item-bankslot64` for character slots, `bank-frame-item-slotframe` over item icons, and the scaled `bank-divider`. Warband slot art and purchase-tab art retain their set-0 members. The tinted purchase-prompt background resolves `bags-item-slot64`.
+- Forever uses `bank-frame-background`, `bags-item-bankslot64` for character slots, `bank-frame-item-slotframe` over item icons, without a divider. Retail Mainline `BankFrame.xml:600-738` defines no divider in either bank tab; neither skin adds the Camelot-only frame. Warband slot art and purchase-tab art retain their set-0 members. The tinted purchase-prompt background resolves `bags-item-slot64`.
 - Camelot art does not change the 98-slot grid, slot actions, tabs or purchase/money state. Its 88-slot page cap and uniform spacing are behavior, excluded from this art conversion.
 - Standalone container windows are Retail `ContainerFrameTemplate` (Retail/Forever Mainline ContainerFrame.xml:218-265, ContainerFrame.lua:9-12,779-874): 178 wide, 37×37 slots 5 apart in a `BottomRightToTopLeft` grid from BOTTOMRIGHT (-7, 9), `PortraitFrameFlatTemplate` chrome (flat background, portrait metal border, title at left 35, close button that closes only that bag), `bags-item-slot64` under every slot through the active skin. Not drawn: portrait icon (no texture masks in rsx), backpack search box/sort button/money frame rows.
 
@@ -50,9 +50,9 @@ Source roots: Retail / Forever = `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowfor
 | `bags-item-slot64`; `bags-item-bankslot64` | Retail `Mainline/BankFrame.xml:571`, `.lua:586`; Forever `Camelot/BankFrame.xml:36` | 7767 / 18117; bankslot F:17832 | 4701874 / 8187737; Forever character slots 8118792 |
 | `warband-bank-slot` | Retail `Mainline/BankFrame.lua:582` | 11547 / 11565 (set 0) | 5782246 / 5782246 |
 | `bags-icon-addslots` | Existing purchase-tab crop, M/F member:2883 (no BankFrame XML/Lua name literal) | 2883 / 2883 | 969828 / 969828 |
-| `bank-frame-item-slotframe`; `bank-divider` | Forever `Camelot/BankFrame.xml:34`; `:76-79` (scale 0.48, BOTTOM +220) | absent / 18121; absent / 18118 | absent / 8188339 |
+| `bank-frame-item-slotframe` | Forever `Camelot/BankFrame.xml:34` (slot art only) | absent / 18121 | absent / 8188339 |
 
-Sheet rows M:84,1346,1772,1774; F:2616,2617,2689,2690. Forever divider's 864×32 member becomes 414.72×15.36 at (161.64,224.64) in the existing 738×460 frame.
+Sheet rows M:84,1346,1772,1774; F:2616,2617,2689,2690. The removed Camelot divider used a 864×32 member at scale 0.48, producing (161.64,224.64,414.72,15.36) across the Retail grid (y=63..382). Retail has no divider anchor, size, draw layer or visibility branch; its money frame is separately anchored BOTTOMRIGHT −3,+3 (`BankFrame.xml:186-188,611-614`).
 
 Local BLPs **8118796, 8118792, 8188339** are present (verified 2026-10-08); inspected `bankloop-2026-10-08/resume-forever-character.png` and `resume-alt-warband.png` render the Forever bank art. Resolution is not guarded or substituted when files are absent.
 
