@@ -1,3 +1,7 @@
+## 2026-10-08 — Auction confirmations and commodity dialog art
+
+[Auction house](systems/auction-house-ui.md#native-confirmations-and-commodity-dialog-art-2026-10-08) records `c8a4f94b4`: existing global PopupStack Accept-once/Cancel-none confirmations, retained unsupported commodity preview, inset7 dark texture and active-skin Dialog border. Targeted4+7+11 tests and native build pass; six cage1920×1080 captures inspected. [Contract](../specs/auction-house-ui.md#offline-retail-layout-audit--2026-10-08) retains missing Modern border/alert payloads and excludes live/server/full-parity acceptance.
+
 ## 2026-10-07 — Offline character garment matrix, 78-cell bounded PASS
 
 [Character rendering](systems/character-rendering.md#current-acceptance-78-pass-zero-fail) records final fixture `3b1490ba7`: all78 isolated cells pass actual Vulkan geoset/material/attachment/close-up checks and150 independently gated garment rectangles; all six contact sheets and cape back views inspected. `c60ba62c0` supplies the independent HelmetGeosetData CSV oracle and corrects DXT-buffer and full-thumbnail fixture defects; `41449a140` types its behavioral test. Exporter RED→GREEN1/1 and helmet/DXT tests pass; final core781/Godot658/UI-model744 pass, zero failures. The previous renderer block misread owned-process scope. No production client mismatch/fix, server/network, merge/push or full Retail pixel/animated-clipping claim. [Parity rows](../specs/godot-parity-matrix.md) retain the broader named gaps.
