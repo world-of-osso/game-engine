@@ -82,6 +82,30 @@ fn armor_and_weapon_tooltips_match_server_local_rows() {
 }
 
 #[test]
+fn item_game_table_rows_preserve_level_alignment_and_column_order() {
+    let path = Path::new("staminamultbyilvl.txt");
+    assert_eq!(
+        parse_game_row(path, "1\t1.5\t2\t3\t4", 1, &[3, 1]).unwrap(),
+        [3.0, 1.5]
+    );
+    assert!(
+        parse_game_row(path, "2\t1.5", 1, &[1])
+            .unwrap_err()
+            .contains("non-contiguous level 2")
+    );
+    assert!(
+        parse_game_row(path, "1\t1.5", 1, &[2])
+            .unwrap_err()
+            .contains("short row 1")
+    );
+    assert!(
+        parse_game_row(path, "1\tbad", 1, &[1])
+            .unwrap_err()
+            .contains("bad value")
+    );
+}
+
+#[test]
 fn armor_follows_the_quality_total_and_location_tables() {
     // Thin Cloth Shoes: common cloth feet, item level 2.
     assert_eq!(item_armor(entry(2117)), 1);
