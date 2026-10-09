@@ -95,7 +95,7 @@ fn ahportrait_opaque_top_inset_uses_retail_rock_fill() {
         set_thread_skin(skin);
         let registry = mount(preview_view("browse").unwrap(), native_auction_screen);
         let fill = frame(&registry, "AuctionHouseFrameBgTop");
-        assert_rect(fill, (55.0, 21.0, 743.0, 30.0));
+        assert_rect(fill, (2.0, 21.0, 796.0, 30.0));
         let Some(WidgetData::Texture(texture)) = &fill.widget_data else {
             panic!("rock texture required")
         };
