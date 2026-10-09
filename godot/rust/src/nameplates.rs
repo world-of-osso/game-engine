@@ -1266,9 +1266,7 @@ fn plate_rule_input(
     PlateUnit {
         is_local_player: unit.server_id == viewer.id,
         selectable: flags.is_selectable(),
-        alive: unit
-            .get::<Health>()
-            .is_none_or(|health| health.current > 0.0),
+        alive: !unit.dead_or_ghost(),
         is_player,
         enemy: flags.is_attackable() && can_attack(attacker, defender),
         targeted: viewer.target == Some(unit.server_id),
@@ -1850,6 +1848,7 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
         );
         let cvars = NameplateCvars {
             show_friendly_players: true,
+            show_friendly_npcs: true,
             ..Default::default()
         };
         for life in [
@@ -1876,6 +1875,37 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
                 plate_shown(&cvars, &rules),
                 "visible targeted remote {life:?} must retain its status label"
             );
+            for hidden in [
+                PlateUnit {
+                    is_local_player: true,
+                    ..rules
+                },
+                PlateUnit {
+                    selectable: false,
+                    ..rules
+                },
+                PlateUnit {
+                    distance: cvars.max_distance + 1.0,
+                    ..rules
+                },
+            ] {
+                assert!(
+                    !plate_shown(&cvars, &hidden),
+                    "{life:?}: existing plate restrictions remain"
+                );
+            }
+            if !rules.alive {
+                assert!(
+                    !plate_shown(
+                        &cvars,
+                        &PlateUnit {
+                            is_player: false,
+                            ..rules
+                        }
+                    ),
+                    "dead NPC plates remain hidden"
+                );
+            }
         }
     }
 
