@@ -28,7 +28,7 @@ func run_test() -> void:
 	if enter == null:
 		fail("Enter World missing")
 		return
-	await click_control(enter)
+	await click(enter)
 	if not await wait_screen(recipient, "InWorld", 180000):
 		return
 	await create_timer(15.0).timeout
