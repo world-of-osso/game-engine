@@ -23,6 +23,9 @@ impl RegistryUi {
             let view = std::env::var("GODOT_AUCTION_VIEW")
                 .map_err(|error| format!("Auction preview requires GODOT_AUCTION_VIEW: {error}"))?;
             self.show_auction(preview_view(&view)?)?;
+            if view == "subcategory_sorted" {
+                self.set_editbox_text(SEARCH_BOX, "linen")?;
+            }
             if matches!(view.as_str(), "inventory" | "sell" | "duration") {
                 self.set_editbox_text(QUANTITY_BOX, "3")?;
                 self.set_editbox_text(SELL_BUYOUT_BOXES.gold, "1")?;
