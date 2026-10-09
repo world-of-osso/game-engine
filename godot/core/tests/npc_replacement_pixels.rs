@@ -9,8 +9,10 @@ use appearance_pixels::{compose_replacement_pixels, inactive_npc_texture_types, 
 use game_engine_core::{
     asset::m2_texture,
     blp,
+    char_texture_cache::import_char_texture_cache,
     char_texture_data::{CharTextureData, CompositedModelTextures, TextureLayer, TextureLayout},
     char_texture_query_data::{query_char_texture_data, query_model_material_sizes},
+    customization_cache::import_customization_cache,
     npc_appearance_data::query_authored_npc_appearance,
     npc_appearance_selection_data::NpcTexturePixels,
 };
@@ -36,8 +38,8 @@ fn ailee_selected_type20_composes_authentic_pixels_on_256_canvas() {
     assert_eq!((appearance.race, appearance.sex), (95, 1));
     assert_eq!(appearance.baked_texture_fdid, Some(7352105));
     assert!(appearance.choice_ids.contains(&61137));
-    let forever = data.join("db2/1.60.1.70205/cache");
-    let customization = open_catalog(&forever.join("customization-v4.sqlite"));
+    let forever = data.join("db2/1.60.1.70205");
+    let customization = open_catalog(&import_customization_cache(&forever).unwrap());
     let mut stmt = customization
         .prepare(
             "SELECT e.related_choice_id, m.texture_target_id, t.file_data_id
@@ -67,7 +69,7 @@ fn ailee_selected_type20_composes_authentic_pixels_on_256_canvas() {
     assert_eq!(appearance.choice_ids.len(), 14);
     assert!(!materials.iter().any(|(target, _)| *target == 19));
     assert!(materials.contains(&(38, 3613861)));
-    let catalog = open_catalog(&forever.join("char_texture-v2.sqlite"));
+    let catalog = open_catalog(&import_char_texture_cache(&forever).unwrap());
     let (layers, sections, layouts) = query_char_texture_data(&catalog).unwrap();
     let compositor = CharTextureData::from_parts(layers, sections, layouts)
         .with_material_sizes(query_model_material_sizes(&catalog).unwrap());
