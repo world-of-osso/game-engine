@@ -152,7 +152,6 @@ fn metal_frame_blits(
     let bottom_right = width(CORNER_BOTTOM_RIGHT)?;
     let tile = width(EDGE_BOTTOM)?;
     let mut blits = vec![
-        blit(top_left.atlas(), (0, 0, left, top)),
         blit(EDGE_TOP, (left, 0, middle, top)),
         blit(CORNER_TOP_RIGHT, (left + middle, 0, right, top)),
         blit(EDGE_LEFT, (0, top, left, side)),
@@ -163,6 +162,11 @@ fn metal_frame_blits(
             (sheet_w - bottom_right, bottom_y, bottom_right, bottom),
         ),
     ];
+    // The portrait corner is an OVERLAY texture above the portrait, not a background
+    // sheet cell (NineSliceLayouts.lua:20). Plain corners remain in the border sheet.
+    if top_left == MetalTopLeft::Plain {
+        blits.push(blit(top_left.atlas(), (0, 0, left, top)));
+    }
     // Bottom edge from the end of the left corner to the start of the right corner.
     let mut x = bottom_left;
     while x < sheet_w - bottom_right {
