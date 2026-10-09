@@ -61,7 +61,7 @@ Implementation `4356c20a7` replaces the historical New/Delete boundaries above. 
 
 Locked helper tests on that Rust revision: touched-crate `hud` filter **69 passed / 0 failed** (Godot 55, UI model 12, core 2); additional core `ui_layout_data` filter **7 passed / 0 failed**. Native extension/CLI build exits 0. Evidence: `data/diagnostics/hudnames-2026-10-09/{red.log,green.log,full-green-test.log,core-layout.log,native-build.log}`.
 
-**Native PNG capture pending after two attempts.** Attempt 1: cage's default output has no clear manager space (`No clear default manager position in HUD preview`). Attempt 2: cage fails Vulkan device initialization (`ERROR_INITIALIZATION_FAILED`); host memory also drops below the required launch threshold. Attempt logs and `capture.gd` remain in the evidence directory. No PNGs produced or copied to AgentShared; no native appearance/input or clean-resource shutdown acceptance claimed. Owned cages exited and `agents-hudnames.slice` stopped.
+**Native visual evidence (2026-10-09):** after correcting the cage output to 1920×1080, captures at master `62e25632b` show the New button disabled for an empty name and the Yes/No Delete confirmation: `AgentShared/2026-10-09/hudnames/{01-new-disabled,02-delete-confirm}.png`. Lead opened and inspected both captures; the independent verifier confirmed both PNGs exist at 1920×1080. Whitespace and duplicate-name disabled states remain covered by behavioral tests, not separate screenshots. Earlier attempts failed due to viewport clearance and Vulkan initialization; their logs remain in `data/diagnostics/hudnames-2026-10-09/`. This evidence does not claim general native input or clean-resource-shutdown acceptance.
 
 ## What it must do
 
