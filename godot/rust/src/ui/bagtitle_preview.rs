@@ -16,7 +16,6 @@ impl RegistryUi {
             } else {
                 ActiveSkin::Modern
             });
-            self.set_ui_scale(1.0)?;
             let bags = [
                 "Backpack",
                 "Combined Bags",
