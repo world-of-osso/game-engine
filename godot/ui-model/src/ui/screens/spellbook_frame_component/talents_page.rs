@@ -34,10 +34,15 @@ pub(super) fn talents(state: &SpellbookFrameState, scale: f32) -> Element {
 }
 fn page_contents(view: &TalentView, scale: f32) -> Element {
     let graph = &view.graph;
-    let mut children = heading("TalentClassName", &graph.class.name, [372.0, 45.0], scale);
+    let mut children = heading(
+        "TalentClassName",
+        &currency_text(view, 4, &graph.class.name),
+        [372.0, 45.0],
+        scale,
+    );
     children.extend(heading(
         "TalentSpecName",
-        &graph.spec.name,
+        &currency_text(view, 8, &graph.spec.name),
         [BOOK_W - 401.0, 45.0],
         scale,
     ));
@@ -53,6 +58,23 @@ fn page_contents(view: &TalentView, scale: f32) -> Element {
         ));
         children.extend(render_tree(hero, view, Some(index), scale));
     }
+    if let Some(selector) = &graph.hero_selection {
+        children.extend(render_node(
+            selector,
+            view,
+            [BOOK_W / 2.0, 126.0],
+            1.0,
+            scale,
+        ));
+        children.extend(heading(
+            "TalentHeroSelectionLabel",
+            "Hero Talents",
+            [BOOK_W / 2.0, 76.0],
+            scale,
+        ));
+    }
+    children.extend(talent_controls(view, scale));
+    children.extend(choice_flyout(view, scale));
     children
 }
 fn heading(name: &str, text: &str, center: [f32; 2], scale: f32) -> Element {
@@ -152,13 +174,13 @@ fn render_node(
     let size = node_size(node) * node_scale;
     let node_scale = node_scale * scale;
     let mut children = node_entries(node, view, node_scale);
-    children.extend(node_border(node, node_scale));
+    children.extend(node_border(node, view, node_scale));
     let max = if node.node_type == 1 {
         node.entries.iter().map(|entry| entry.max_ranks).sum()
     } else {
         node.entries[0].max_ranks
     };
-    let ranks = format!("{}/{max}", node.granted_ranks);
+    let ranks = format!("{}/{max}", view.node_rank(node));
     children.extend(label(
         Label {
             name: format!("TalentNode{}Ranks", node.id),
@@ -169,7 +191,7 @@ fn render_node(
                 [15.0, 32.0, 30.0, 14.0]
             },
             size: if is_capstone(node) { 22.0 } else { 12.0 },
-            color: if node.granted_ranks > 0 {
+            color: if view.node_rank(node) > 0 {
                 TAB_TEXT
             } else {
                 TAB_TEXT_SELECTED
@@ -195,7 +217,7 @@ fn node_entries(node: &TalentNode, view: &TalentView, scale: f32) -> Element {
             scale,
         };
         children.extend(entry_icon(node, entry, view, layout));
-        children.extend(entry_button(node, entry, layout));
+        children.extend(entry_button(node, entry, view, layout));
     }
     children
 }
@@ -222,7 +244,7 @@ fn entry_icon(
     let width = icon_size / count as f32;
     let left = index as f32 / count as f32;
     let coords = format!("{},{},0.0,1.0", left, left + 1.0 / count as f32);
-    let tint = if node.granted_ranks > 0 {
+    let tint = if view.entry_rank(node, entry.id) > 0 {
         "1.0,1.0,1.0,1.0"
     } else {
         "0.55,0.55,0.55,1.0"
@@ -246,6 +268,7 @@ fn entry_icon(
 fn entry_button(
     node: &TalentNode,
     entry: &game_engine_core::talent_data::TalentEntry,
+    view: &TalentView,
     layout: EntryLayout,
 ) -> Element {
     let EntryLayout {
@@ -253,13 +276,16 @@ fn entry_button(
         count,
         scale,
     } = layout;
+    let action = format!("talent:node:{}", node.id);
+    let enabled = view.editor.snapshot.is_some();
     rsx! { button {
         name: {DynName(format!("TalentNode{}Entry{}Spell{}Button",node.id,entry.id,entry.spell_id))},
+        onclick: {action.as_str()}, enabled,
         width: {node_size(node)/count as f32*scale}, height: {node_size(node)*scale}, button_default_skin:false,
         pos_type: "absolute", pos_x: {index as f32*node_size(node)/count as f32*scale}, pos_y:0.0,
     } }
 }
-fn node_border(node: &TalentNode, scale: f32) -> Element {
+fn node_border(node: &TalentNode, view: &TalentView, scale: f32) -> Element {
     let choice = node.node_type == 2 && node.flags & 1 != 0;
     let shape = if choice {
         "choice"
@@ -268,8 +294,13 @@ fn node_border(node: &TalentNode, scale: f32) -> Element {
     } else {
         "square"
     };
-    let color = if node.granted_ranks > 0 {
+    let color = if view.node_rank(node) > 0 {
         "yellow"
+    } else if node.entries.iter().any(|entry| {
+        view.editor
+            .can_purchase(view, view.level, node.id, entry.id)
+    }) {
+        "green"
     } else {
         "gray"
     };
@@ -335,7 +366,7 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
                 && let Some(frame) = registry.get_mut(id)
                 && let Some(WidgetData::Texture(texture)) = frame.widget_data.as_mut()
             {
-                texture.desaturated = node.granted_ranks == 0;
+                texture.desaturated = view.entry_rank(node, entry.id) == 0;
                 let fdid = view.icons[&entry.id];
                 if fdid == 0 || view.missing_icons.contains(&fdid) {
                     texture.source = TextureSource::None;
@@ -356,4 +387,141 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
             }
         }
     }
+}
+
+fn talent_controls(view: &TalentView, scale: f32) -> Element {
+    use crate::ui::screens::quest_art::panel_button;
+    let dirty = view.editor.dirty();
+    let mut children = panel_button(
+        "TalentApply".into(),
+        "Apply Changes",
+        "talent:apply",
+        dirty,
+        (
+            (BOOK_W / 2.0 - 82.0) * scale,
+            (BOOK_H - 40.0) * scale,
+            164.0 * scale,
+            22.0 * scale,
+        ),
+    );
+    // ClassTalentsFrame.xml:293-322: Undo and Reset occupy the same anchor.
+    let (name, atlas, action) = if dirty {
+        ("TalentUndo", "talents-button-undo", "talent:undo")
+    } else {
+        ("TalentReset", "talents-button-reset", "talent:reset")
+    };
+    let region = resolve_region(atlas, ActiveSkin::Modern).expect("Retail talent control atlas");
+    let AtlasSource::FileDataId(fdid) = region.source else {
+        panic!("Talent controls must be DB2-backed");
+    };
+    let icon = AtlasArt {
+        fdid,
+        atlas: (1.0, 1.0),
+        rect: (region.left, region.right, region.top, region.bottom),
+    };
+    children.extend(super::art(
+        format!("{name}Icon"),
+        &icon,
+        [BOOK_W / 2.0 + 96.0, BOOK_H - 41.5, 25.0, 25.0],
+        scale,
+    ));
+    let enabled = view.editor.snapshot.is_some();
+    children.extend(
+        rsx! { button {name:{DynName(name.into())},onclick:action,enabled,
+            width:{25.0*scale},height:{25.0*scale},button_default_skin:false,
+            pos_type:"absolute",pos_x:{(BOOK_W/2.0+96.0)*scale},pos_y:{(BOOK_H-41.5)*scale},
+        }},
+    );
+    if let Some(reason) = &view.editor.error_text {
+        children.extend(label(
+            Label {
+                name: "TalentError".into(),
+                text: reason,
+                rect: [200.0, BOOK_H - 76.0, 1212.0, 24.0],
+                size: 16.0,
+                color: "1.0,0.2,0.2,1.0",
+                justify: "CENTER",
+            },
+            scale,
+        ));
+    }
+    children
+}
+fn currency_text(view: &TalentView, flags: u32, name: &str) -> String {
+    let currency = view.rules.as_ref().and_then(|tree| {
+        tree.currencies
+            .iter()
+            .find(|currency| currency.flags & flags != 0)
+    });
+    let points = currency.and_then(|currency| {
+        view.editor
+            .unspent(view)
+            .into_iter()
+            .find(|&(id, _)| id == currency.id)
+            .map(|(_, amount)| amount)
+    });
+    match points {
+        Some(amount) => format!("{name} Points Available: {amount}"),
+        None => format!("{name} Points Available: —"),
+    }
+}
+fn choice_flyout(view: &TalentView, scale: f32) -> Element {
+    use crate::ui::screens::quest_art::panel_button;
+    let Some(node) = view
+        .editor
+        .choice_node
+        .and_then(|id| view.nodes().find(|node| node.id == id))
+    else {
+        return Vec::new();
+    };
+    let mut choices = Vec::new();
+    for (index, entry) in node.entries.iter().enumerate() {
+        let action = format!("talent:choice:{}:{}", node.id, entry.id);
+        let name = format!(
+            "TalentChoiceNode{}Entry{}Spell{}Button",
+            node.id, entry.id, entry.spell_id
+        );
+        let enabled = view
+            .editor
+            .can_purchase(view, view.level, node.id, entry.id);
+        let text = view.names.get(&entry.id).map(String::as_str).unwrap_or("");
+        choices.extend(panel_button(
+            name,
+            text,
+            &action,
+            enabled,
+            (
+                20.0 * scale,
+                (20.0 + index as f32 * 42.0) * scale,
+                280.0 * scale,
+                32.0 * scale,
+            ),
+        ));
+        let fdid = view.icons[&entry.id];
+        if fdid != 0 && !view.missing_icons.contains(&fdid) {
+            choices.extend(file_texture(
+                format!("TalentChoiceEntry{}Icon", entry.id),
+                fdid,
+                [24.0, 23.0 + index as f32 * 42.0, 26.0, 26.0],
+                scale,
+            ));
+        }
+    }
+    let height = 62.0 + node.entries.len() as f32 * 42.0;
+    choices.extend(panel_button(
+        "TalentCloseChoice".into(),
+        "Close",
+        "talent:close_choice",
+        true,
+        (
+            110.0 * scale,
+            (height - 32.0) * scale,
+            100.0 * scale,
+            22.0 * scale,
+        ),
+    ));
+    rsx! {r#frame {name:"TalentChoiceFlyout",width:{320.0*scale},height:{height*scale},
+        background_color:"0.08,0.06,0.04,1.0",pos_type:"absolute",pos_x:{(BOOK_W/2.0-160.0)*scale},pos_y:{100.0*scale},frame_level:100,
+        {choices}
+    }}
 }

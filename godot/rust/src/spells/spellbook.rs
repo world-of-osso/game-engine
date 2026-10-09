@@ -219,7 +219,11 @@ impl GameClient {
             );
             self.spells.talent_views.insert(key, loaded);
         }
-        self.spells.talent_views[&key].clone().map(Some)
+        self.spells.talent_views[&key].clone().map(|mut view| {
+            view.editor = self.account.talents.clone();
+            view.level = player.level as u8;
+            Some(view)
+        })
     }
 
     fn spellbook_state(&mut self) -> Result<SpellbookFrameState, String> {
@@ -329,6 +333,22 @@ impl GameClient {
         let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() else {
             return false;
         };
+        if button.is_pressed() && button.get_button_index() == MouseButton::RIGHT {
+            let node = self.spells.book_ui.as_ref().and_then(|ui| {
+                let ui = ui.bind();
+                let id = ui.pointer_frame_at(button.get_position())?;
+                crate::tooltips::named_ancestor(ui.registry()?, id, |frame| {
+                    game_engine_ui_model::talents::talent_button_node(frame.name.as_deref()?)
+                })
+                .map(|(_, node)| node)
+            });
+            if let Some(node) = node {
+                if let Err(error) = self.apply_talent_action(&format!("talent:refund:{node}")) {
+                    godot_error!("Talent refund: {error}");
+                }
+                return true;
+            }
+        }
         self.press_spellbook_title(&button, rect, scale)
     }
 
@@ -428,7 +448,23 @@ impl GameClient {
         self.apply_spellbook_action(&action)
     }
 
+    fn apply_talent_action(&mut self, action: &str) -> Result<(), FrameError> {
+        let view = self
+            .spells
+            .book
+            .talents
+            .as_ref()
+            .ok_or("Talent action requires a loaded talent page")?;
+        if let Some(request) = self.account.talents.action(view, view.level, action)? {
+            self.account.send_commit_traits(request)?;
+        }
+        Ok(())
+    }
+
     pub(super) fn apply_spellbook_action(&mut self, action: &str) -> Result<(), FrameError> {
+        if action.starts_with("talent:") {
+            return self.apply_talent_action(action);
+        }
         let book = &mut self.spells.book;
         if action.is_empty() {
         } else if action == ACTION_SPELLBOOK_CLOSE {

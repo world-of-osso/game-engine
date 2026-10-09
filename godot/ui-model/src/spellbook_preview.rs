@@ -31,9 +31,31 @@ pub fn load_preview_state(
         FROST_SPEC
     };
     let talents = if tab == PlayerSpellsTab::Talents {
-        Some(crate::talents::load_talent_view(
-            data, MAGE_CLASS, spec, &catalog,
-        )?)
+        let mut view = crate::talents::load_talent_view(data, MAGE_CLASS, spec, &catalog)?;
+        let tree = view.rules.as_ref().ok_or("Preview talent rules missing")?;
+        let context = game_engine_core::talent_data::rules::TraitContext {
+            spec_id: spec,
+            level: 80,
+        };
+        let grants = game_engine_core::talent_data::rules::granted_entries(tree, context);
+        let entries = grants
+            .iter()
+            .map(|entry| shared::protocol::TraitEntrySelection {
+                node_id: entry.node_id,
+                entry_id: entry.entry_id,
+                rank: entry.total() as u8,
+            })
+            .collect();
+        let unspent = game_engine_core::talent_data::rules::unspent(tree, context, &grants);
+        view.editor
+            .receive_snapshot(shared::protocol::TraitConfigSnapshot {
+                spec_id: spec,
+                tree_id: view.graph.tree_id,
+                entries,
+                unspent,
+            });
+        view.level = context.level;
+        Some(view)
     } else {
         None
     };
@@ -54,6 +76,26 @@ pub fn load_preview_state(
         can_activate_spec: true,
         ..Default::default()
     })
+}
+
+/// Capture-only pending edits through the same model operations as live clicks.
+pub fn stage_talent_preview(state: &mut SpellbookFrameState) -> Result<(), String> {
+    let view = state
+        .talents
+        .as_mut()
+        .ok_or("Pending preview requires Talents")?;
+    let mut editor = view.editor.clone();
+    for tree in [&view.graph.class, &view.graph.spec] {
+        let (node, entry) = tree
+            .nodes
+            .iter()
+            .flat_map(|node| node.entries.iter().map(move |entry| (node.id, entry.id)))
+            .find(|&(node, entry)| editor.can_purchase(view, view.level, node, entry))
+            .ok_or_else(|| format!("Preview has no purchasable {} node", tree.name))?;
+        editor.purchase(view, view.level, node, entry);
+    }
+    view.editor = editor;
+    Ok(())
 }
 
 fn preview_categories(tabs: Vec<SpellbookTab>) -> Vec<SpellbookCategory> {

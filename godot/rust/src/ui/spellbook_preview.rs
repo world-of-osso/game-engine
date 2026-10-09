@@ -45,6 +45,20 @@ impl RegistryUi {
             };
             let data = game_engine_ui_model::paths::resolve_data_path("");
             let mut state = load_preview_state(&data, tab)?;
+            if tab == PlayerSpellsTab::Talents
+                && std::env::var("GODOT_TALENT_PENDING").as_deref() == Ok("1")
+            {
+                game_engine_ui_model::spellbook_preview::stage_talent_preview(&mut state)?;
+                let view = state
+                    .talents
+                    .as_ref()
+                    .ok_or("Pending preview lost talent view")?;
+                godot_print!(
+                    "TALENT_PENDING {:?} POINTS {:?}",
+                    view.editor.apply(),
+                    view.editor.unspent(view)
+                );
+            }
             let size = self
                 .base()
                 .get_viewport()
