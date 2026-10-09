@@ -54,6 +54,16 @@ Root fix `dc638c8e` accepts the server-selected house faction in otherwise match
 
 LiquidObject 42, local-CASC and UI icon errors remain. `extract-ah-icons.json` records 23 of 25 missing icons extracted locally; FDIDs 133849 and 136113 were unavailable. No universal performance, rendering, clean-resource or shutdown claim follows from fixture exit 0. Server range-close, title dragging and Wide-window replacement remain unproved. Full Godot conversion is owned elsewhere and remains open. Auction delivery receiving proof is in [[trade-and-mail]].
 
+## Native confirmations and commodity dialog art (2026-10-08)
+
+Verified code: `c8a4f94b4`. `AuctionSession` captures an immutable auction ID, price/bid and request before publishing `BUYOUT_AUCTION` or `BID_AUCTION` into `group_frames.popups`, the existing global PopupStack. Its matching result consumes that request once; Cancel sends nothing, and close/reset discards pending state and hides stale AH popups. `group_frames.rs` dispatches AH results; the usual auction update sends queued requests. The old item-buyout commodity-dialog route is removed. Commodity BuyDialog component/preview remains; its protocol is still unsupported.
+
+Commodity backing is file312922 inset7. Eight named DiamondMetal atlas pieces select the active skin (`NineSliceLayouts.lua` Dialog). The shared StaticPopup screen adds foreground money and36×36 alert357854 without changing popups lacking money. Strings come from GlobalStrings20567/13066 and behavior from cached `AH/Shared/Blizzard_AuctionHouseFrame.lua:26-56,844-865`.
+
+[Contract rows](../../specs/auction-house-ui.md#offline-retail-layout-audit--2026-10-08) own acceptance. `data/diagnostics/ahdialogs-2026-10-08/proof-ledger.txt` records dialog4/4, layout7/7, native auction11/11 and native extension build EXIT0, plus six inspected cage1920×1080 PNG/JSON pairs. Both skins show text, money and Accept/Cancel; commodity dark inset appears in both and Forever bronze border renders. Modern border3056750/3056755 and alert357854 remain absent, with read errors in `capture.log`. Local357854 points to missing CASC data.000, Modern3056750 to missing data.045; no CDN or substitute art. Offline screen projection is not live/server transaction proof.
+
+See [cage capture resolution](../investigations/cage-capture-resolution.md) for the capture-only compositor shim. Sources: `godot/ui-model/src/auction/confirmation.rs`, `ui/popup.rs`, `ui/screens/static_popup_component.rs`, `auction_house_frame_component_buy.rs`, `godot/rust/src/party_frames.rs` and `godot/tests/capture_ui_screen.gd`.
+
 ## Sources
 
 - [Auction requirements](../../specs/auction-house-ui.md) — native baseline and ordered smoke contract.
