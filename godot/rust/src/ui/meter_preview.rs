@@ -20,6 +20,9 @@ pub(super) fn view() -> DamageMeterView {
         fraction: 1.0 - index as f32 * 0.125,
         color: class_color(class_id),
         class_id,
+        // Jaina shows ChrSpecialization 62 (Arcane)'s SpellIconFileID; the others
+        // have no known spec and keep their class icon.
+        spec_icon_fdid: (index == 0).then_some(135_932),
         is_local_player: index == 0,
     })
     .collect();

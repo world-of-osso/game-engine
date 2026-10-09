@@ -11,7 +11,7 @@ use game_engine_ui_model::chat_frame_component::{
 };
 use game_engine_ui_model::damage_meter_component::damage_meter_screen;
 use game_engine_ui_model::damage_meter_data::{
-    DamageMeterRow, DamageMeterView, DamageMeterWindow, MeterSessionType, MeterType,
+    DamageMeterRow, DamageMeterView, DamageMeterWindow, MeterSessionType, MeterType, SpecIcons,
 };
 use game_engine_ui_model::flare_panel::{
     FLARE_BRONZE_PANEL_STYLE, flare_bronze_style, flare_glyph_mask,
@@ -129,6 +129,10 @@ fn metergaps_forever_header_icon_centres_match_title() {
 }
 
 fn meter_view() -> DamageMeterView {
+    meter_view_with_specs(Default::default())
+}
+
+fn meter_view_with_specs(spec_icons: SpecIcons) -> DamageMeterView {
     let session = DamageMeterSession {
         session_id: 1,
         duration_secs: 20.0,
@@ -180,6 +184,7 @@ fn meter_view() -> DamageMeterView {
         }),
         session: MeterSessionType::Current,
         menu_open: true,
+        spec_icons,
         ..Default::default()
     }
     .view(true, 45.0)
@@ -469,6 +474,7 @@ fn many_rows(count: usize, meter_type: MeterType, recap_open: bool) -> DamageMet
                 fraction: 1.0 - index as f32 / count as f32,
                 color: [0.67, 0.83, 0.45],
                 class_id: if recap_open { 0 } else { 3 },
+                spec_icon_fdid: None,
                 is_local_player: index == 0,
             })
             .collect(),
@@ -799,6 +805,7 @@ fn typed_view(meter_type: MeterType, recap_open: bool) -> DamageMeterView {
             fraction: 1.0,
             color: [0.96, 0.55, 0.73],
             class_id: if recap_open { 0 } else { 2 },
+            spec_icon_fdid: None,
             is_local_player: !recap_open,
         }],
         ..Default::default()
@@ -811,6 +818,23 @@ fn click(registry: &FrameRegistry, name: &str) -> Option<String> {
 
 const ACTIVE: [f32; 4] = [0.80, 0.60, 0.34, 1.0];
 const INACTIVE: [f32; 4] = [0.56, 0.51, 0.46, 1.0];
+
+/// A known spec shows its `ChrSpecialization.SpellIconFileID`; an unknown one keeps the
+/// class atlas (Blizzard_DamageMeter DamageMeterEntry.lua:524-542).
+#[test]
+fn forever_meter_rows_show_spec_icons_when_the_spec_is_known() {
+    // ChrSpecialization 62 (Arcane Mage): SpellIconFileID 135932.
+    let view = meter_view_with_specs([(42, 135_932)].into());
+    let registry = canvas(ActiveSkin::Forever, view, damage_meter_screen);
+    assert_eq!(
+        texture(&registry, "DamageMeterEntry1Icon").source,
+        TextureSource::FileDataId(135_932)
+    );
+    assert_eq!(
+        texture(&registry, "DamageMeterEntry2Icon").source,
+        TextureSource::Atlas("classicon-warrior".into())
+    );
+}
 
 #[test]
 fn forever_dps_and_threat_tabs_select_damage_and_threat() {
