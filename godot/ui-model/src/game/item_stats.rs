@@ -237,26 +237,33 @@ fn load_game_table<const N: usize>(
     }
     lines
         .enumerate()
-        .map(|(row_index, line)| {
-            let fields: Vec<_> = line.split('\t').collect();
-            let level = fields[0]
-                .parse::<usize>()
-                .map_err(|error| format!("{}: bad level: {error}", path.display()))?;
-            if level != row_index + 1 {
-                return Err(format!("{}: non-contiguous level {level}", path.display()));
-            }
-            let mut row = [0.0; N];
-            for (value, index) in row.iter_mut().zip(indexes) {
-                let field = fields
-                    .get(index)
-                    .ok_or_else(|| format!("{}: short row {level}", path.display()))?;
-                *value = field
-                    .parse()
-                    .map_err(|error| format!("{}: bad value: {error}", path.display()))?;
-            }
-            Ok(row)
-        })
+        .map(|(row_index, line)| parse_game_row(path, line, row_index + 1, &indexes))
         .collect()
+}
+
+fn parse_game_row<const N: usize>(
+    path: &Path,
+    line: &str,
+    expected_level: usize,
+    indexes: &[usize; N],
+) -> Result<[f32; N], String> {
+    let fields: Vec<_> = line.split('\t').collect();
+    let level = fields[0]
+        .parse::<usize>()
+        .map_err(|error| format!("{}: bad level: {error}", path.display()))?;
+    if level != expected_level {
+        return Err(format!("{}: non-contiguous level {level}", path.display()));
+    }
+    let mut row = [0.0; N];
+    for (value, &index) in row.iter_mut().zip(indexes) {
+        let field = fields
+            .get(index)
+            .ok_or_else(|| format!("{}: short row {level}", path.display()))?;
+        *value = field
+            .parse()
+            .map_err(|error| format!("{}: bad value: {error}", path.display()))?;
+    }
+    Ok(row)
 }
 
 fn load_squish(dir: &Path) -> Result<Option<(u8, Vec<(f64, f64)>)>, String> {
@@ -272,6 +279,10 @@ fn load_squish(dir: &Path) -> Result<Option<(u8, Vec<(f64, f64)>)>, String> {
     else {
         return Ok(None);
     };
+    Ok(Some((era as u8, load_curve_points(dir, curve[0])?)))
+}
+
+fn load_curve_points(dir: &Path, curve_id: f64) -> Result<Vec<(f64, f64)>, String> {
     let table = CsvTable::read(&dir.join("CurvePoint.csv"))?;
     let indexes = [
         table.column("CurveID")?,
@@ -286,22 +297,18 @@ fn load_squish(dir: &Path) -> Result<Option<(u8, Vec<(f64, f64)>)>, String> {
                 .get(index)
                 .ok_or_else(|| format!("{}: short curve row", table.path().display()))
         };
-        if float(field(indexes[0])?, table.path())? != curve[0] {
+        if float(field(indexes[0])?, table.path())? != curve_id {
             continue;
         }
-        points.push((
-            float(field(indexes[1])?, table.path())? as u32,
-            (
-                float(field(indexes[2])?, table.path())?,
-                float(field(indexes[3])?, table.path())?,
-            ),
-        ));
+        let order = float(field(indexes[1])?, table.path())? as u32;
+        let point = (
+            float(field(indexes[2])?, table.path())?,
+            float(field(indexes[3])?, table.path())?,
+        );
+        points.push((order, point));
     }
     points.sort_by_key(|&(order, _)| order);
-    Ok(Some((
-        era as u8,
-        points.into_iter().map(|(_, point)| point).collect(),
-    )))
+    Ok(points.into_iter().map(|(_, point)| point).collect())
 }
 
 fn float(value: &str, path: &Path) -> Result<f64, String> {
