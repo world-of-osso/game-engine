@@ -709,12 +709,23 @@ fn open_mail(open: &OpenMailView, busy: bool) -> Element {
         &format!("0.0,1.0,0.0,{}", letter_h / 256.0),
         (260.0, 84.0, 64.0, letter_h),
     ));
-    children.extend(label(
-        "OpenMailBodyText".into(),
-        &open.body,
-        (18.0, 94.0, 276.0, 14.0),
-        (12.0, "0.18,0.12,0.06,1.0", "LEFT"),
-    ));
+    // MF.xml:989-995: the 276px letter wraps from the stationery's top inset.
+    children.extend(rsx! {
+        fontstring {
+            name: {DynName("OpenMailBodyText".into())},
+            width: 276.0,
+            height: {letter_h - 20.0},
+            text: {open.body.as_str()},
+            font: GameFont::FrizQuadrata,
+            font_size: 12.0,
+            font_color: "0.18,0.12,0.06,1.0",
+            justify_h: "LEFT",
+            justify_v: "TOP",
+            pos_type: "absolute",
+            left: 18.0,
+            top: 94.0,
+        }
+    });
     children.extend(horizontal_bar(
         "OpenMailHorizontalBarLeft",
         FRAME_H - 39.0 - area_h,
