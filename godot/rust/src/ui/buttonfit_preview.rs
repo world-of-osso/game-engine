@@ -95,23 +95,20 @@ fn mail_fixture(case: &str) -> NativeMailView {
     }
 }
 
-fn menu_fixture(
+fn load_menu_fixture(
     category: Option<game_engine_ui_model::options_menu_component::OptionsCategory>,
 ) -> game_engine_ui_model::game_menu_component::GameMenuViewModel {
-    use game_engine_ui_model::{game_menu_component::*, options_menu_component::OptionsViewModel};
-    let mut options = OptionsViewModel::default();
+    use game_engine_ui_model::{
+        game_menu_component::GameMenuView, options_menu_data::build_view_model,
+    };
+    let model = super::hud_edit_preview::extra_bar_options_model(ui_toolkit::atlas::thread_skin());
+    let mut view = build_view_model(&model);
     if let Some(category) = category {
-        options.category = category;
+        view.options.category = category;
+    } else {
+        view.view = GameMenuView::MainMenu;
     }
-    GameMenuViewModel {
-        logged_in: true,
-        view: if category.is_some() {
-            GameMenuView::Options
-        } else {
-            GameMenuView::MainMenu
-        },
-        options,
-    }
+    view
 }
 
 fn trade_fixture() -> game_engine_ui_model::trade::NativeTradeView {
@@ -160,7 +157,7 @@ impl RegistryUi {
             "trade" => self.show_trade(trade_fixture()),
             "guildbank" => self.show_guild_bank(guild_bank_fixture()),
             "character" | "reputation" => self.show_character_frame(character_fixture(case)),
-            "menu" => self.show_game_menu_view(menu_fixture(None)),
+            "menu" => self.show_game_menu_view(load_menu_fixture(None)),
             key if key.starts_with("options:") => self.mount_buttonfit_options(key),
             other => Err(format!("Unknown buttonfit service {other}")),
         }
@@ -171,6 +168,6 @@ impl RegistryUi {
             .into_iter()
             .find(|category| Some(category.key()) == key.strip_prefix("options:"))
             .ok_or_else(|| format!("Unknown options audit case {key}"))?;
-        self.show_game_menu_view(menu_fixture(Some(category)))
+        self.show_game_menu_view(load_menu_fixture(Some(category)))
     }
 }
