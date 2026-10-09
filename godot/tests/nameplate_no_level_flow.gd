@@ -67,8 +67,13 @@ func check_plate(plate: Control, forever: bool) -> void:
 	expect(text == null or not text.is_visible_in_tree(), "Numeric level visible for " + name.text)
 	expect(icon.is_visible_in_tree() == skull_case, "Ordinary level badge remains for " + name.text)
 	expect(skull.is_visible_in_tree() == skull_case, "Skull visibility changed for " + name.text)
-	expect(ring.is_visible_in_tree() == selected, "Selected border changed for " + name.text)
-	if selected:
+	expect(ring.is_visible_in_tree() == (selected and skull_case), "Badge selected ring visible without skull for " + name.text)
+	if not skull_case:
+		expect(not level.is_visible_in_tree(), "Ordinary level-indicator root visible for " + name.text)
+		for part: Control in level.get_children():
+			expect(not part.is_visible_in_tree(), "Ordinary indicator art visible for " + name.text)
+			expect(not part.is_visible_in_tree() or not part.get_global_rect().intersects(health.get_global_rect()), "Indicator overlaps health percent for " + name.text)
+	if selected and skull_case:
 		expect(ring.get_rect() == Rect2(65, -13.5, 30, 27), "Selected border geometry changed")
 	if skull_case:
 		expect(skull.get_rect() == Rect2(68.5, -11.5, 23, 23), "Skull geometry changed")
