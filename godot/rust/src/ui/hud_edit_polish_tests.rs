@@ -5,7 +5,7 @@ use super::{
 use game_engine_ui_model::hud_edit_component::*;
 
 #[test]
-fn hudeditmodepolish_all_21_movers_clear_manager_and_use_shared_label_policy() {
+fn hudeditmodepolish_default_19_movers_clear_manager_and_use_shared_label_policy() {
     use game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS;
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
@@ -27,7 +27,11 @@ fn hudeditmodepolish_all_21_movers_clear_manager_and_use_shared_label_policy() {
                 registry.set_computed_layout(id, rect).unwrap();
             }
             let mut boxes = super::super::hud_edit_layout::collect_selection_boxes(&registry, None);
-            assert_eq!(boxes.len(), EDIT_MODE_ELEMENTS.len(), "{skin:?} {size:?}");
+            assert_eq!(
+                boxes.len(),
+                EDIT_MODE_ELEMENTS.len() - 2,
+                "{skin:?} {size:?}"
+            );
             let at = find_panel_position(size, &boxes).expect("clear default manager space");
             let manager = [at[0], at[1], PANEL_W, PANEL_H];
             for entry in &boxes {

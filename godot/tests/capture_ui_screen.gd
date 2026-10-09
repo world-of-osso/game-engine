@@ -41,7 +41,7 @@ func _run() -> void:
 	if screen == "chatflush_preview":
 		RenderingServer.set_default_clear_color(Color(0.25, 0.4, 0.55))
 	var trainer_preview: bool = screen in ["trainer_preview", "forever_trainer_preview"]
-	var settle_frames: int = 240 if trainer_preview else 120 if screen in ["spellbook_preview", "forever_spellbook_preview", "auction_icons_preview", "forever_auction_icons_preview", "forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview"] else 3
+	var settle_frames: int = 240 if trainer_preview else 120 if screen in ["spellbook_preview", "forever_spellbook_preview", "auction_icons_preview", "forever_auction_icons_preview", "forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview", "actionbars_options_preview", "forever_actionbars_options_preview", "forever_hudedit_preview"] else 3
 	for frame in range(settle_frames):
 		await process_frame
 		if screen in ["trainer_preview", "forever_trainer_preview"]:
@@ -173,8 +173,8 @@ static func capture_hud_edit_both_into(tree: SceneTree, directory: String) -> bo
 # Offline selected-label pixel inventory, using the same registered roots as the client.
 static func capture_hud_edit_movers(tree: SceneTree, ui: Node, directory: String, skin: String) -> bool:
 	var keys: PackedStringArray = ui.call("hudedit_preview_keys")
-	if keys.size() != 21:
-		push_error("HUD mover inventory must include all 21 registered systems")
+	if keys.size() != 19:
+		push_error("Default HUD mover inventory excludes disabled Action Bars 4 and 5 (19 systems)")
 		return false
 	var crops: Array[Image] = []
 	for key in keys:
@@ -213,7 +213,7 @@ static func capture_hud_edit_movers(tree: SceneTree, ui: Node, directory: String
 		var cell := Vector2i((index % 2) * 640, (index / 2) * 110)
 		var position := cell + Vector2i((640 - crop.get_width()) / 2, 20)
 		sheet.blit_rect(crop, Rect2i(Vector2i.ZERO, crop.get_size()), position)
-	return sheet.save_png(directory.path_join(skin + "-all-21-labels.png")) == OK
+	return sheet.save_png(directory.path_join(skin + "-all-19-labels.png")) == OK
 
 # Actual native image controls must not paint over any selected system label.
 static func hud_edit_label_is_foreground(ui: Node, label: Control) -> bool:

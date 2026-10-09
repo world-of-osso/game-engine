@@ -261,6 +261,7 @@ pub struct CameraDraft {
 pub struct HudDraft {
     pub show_minimap: bool,
     pub show_action_bars: bool,
+    pub extra_action_bars: client_options_data::ExtraActionBars,
     pub show_nameplates: bool,
     pub nameplate_distance: f32,
     pub nameplate_style: NameplateStyle,
@@ -380,6 +381,7 @@ pub fn hud_draft_from_file(hud: &HudOptionsFile) -> HudDraft {
     HudDraft {
         show_minimap: hud.show_minimap,
         show_action_bars: hud.show_action_bars,
+        extra_action_bars: hud.extra_action_bars,
         show_nameplates: hud.show_nameplates,
         nameplate_distance: hud.nameplate_distance,
         nameplate_style: hud.nameplate_style,
@@ -438,6 +440,7 @@ fn hud_to_view(h: &HudDraft) -> HudOptionsView {
     HudOptionsView {
         show_minimap: h.show_minimap,
         show_action_bars: h.show_action_bars,
+        extra_action_bars: h.extra_action_bars,
         show_nameplates: h.show_nameplates,
         nameplate_distance: h.nameplate_distance,
         nameplate_style: h.nameplate_style,
@@ -960,12 +963,16 @@ pub fn apply_toggle(key: &str, model: &mut OptionsModel) -> bool {
             model.draft_camera.invert_y = !model.draft_camera.invert_y;
             true
         }
-        _ => apply_hud_toggle(key, &mut model.draft_hud),
+        _ => apply_hud_toggle(key, &mut model.draft_hud, model.layout.skin),
     };
     toggled
 }
 
-fn apply_hud_toggle(key: &str, hud: &mut HudDraft) -> bool {
+fn apply_hud_toggle(
+    key: &str,
+    hud: &mut HudDraft,
+    skin: game_engine_core::ui_layout_data::LayoutSkin,
+) -> bool {
     match key {
         "nameplate_health_thickness" => {
             let style = &mut hud.nameplate_style;
@@ -986,6 +993,18 @@ fn apply_hud_toggle(key: &str, hud: &mut HudDraft) -> bool {
         }
         "show_minimap" => hud.show_minimap = !hud.show_minimap,
         "show_action_bars" => hud.show_action_bars = !hud.show_action_bars,
+        "action_bar_2" => {
+            let default = skin == game_engine_core::ui_layout_data::LayoutSkin::Forever;
+            hud.extra_action_bars.action_bar_2 =
+                Some(!hud.extra_action_bars.action_bar_2.unwrap_or(default));
+        }
+        "action_bar_3" => {
+            let default = skin == game_engine_core::ui_layout_data::LayoutSkin::Forever;
+            hud.extra_action_bars.action_bar_3 =
+                Some(!hud.extra_action_bars.action_bar_3.unwrap_or(default));
+        }
+        "action_bar_4" => hud.extra_action_bars.action_bar_4 = !hud.extra_action_bars.action_bar_4,
+        "action_bar_5" => hud.extra_action_bars.action_bar_5 = !hud.extra_action_bars.action_bar_5,
         "show_nameplates" => hud.show_nameplates = !hud.show_nameplates,
         "show_health_bars" => hud.show_health_bars = !hud.show_health_bars,
         "show_target_marker" => hud.show_target_marker = !hud.show_target_marker,
@@ -1034,6 +1053,7 @@ pub fn reset_category_defaults(model: &mut OptionsModel) {
         OptionsCategory::Interface | OptionsCategory::Hud => {
             model.draft_hud = hud_draft_from_file(&HudOptionsFile::default())
         }
+        OptionsCategory::ActionBars => model.draft_hud.extra_action_bars = Default::default(),
         OptionsCategory::Nameplates => model.draft_hud.nameplate_style = NameplateStyle::default(),
         OptionsCategory::Keybindings => model.draft_bindings.reset_section(model.binding_section),
         _ => {}
@@ -1104,6 +1124,7 @@ pub fn apply_camera_file_snapshot(c: &mut CameraOptionsFile, d: &CameraDraft) {
 pub fn apply_hud_file_snapshot(h: &mut HudOptionsFile, d: &HudDraft) {
     h.show_minimap = d.show_minimap;
     h.show_action_bars = d.show_action_bars;
+    h.extra_action_bars = d.extra_action_bars;
     h.show_nameplates = d.show_nameplates;
     h.nameplate_style = d.nameplate_style.clamped();
     h.nameplate_distance = d
