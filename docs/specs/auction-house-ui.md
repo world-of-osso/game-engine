@@ -22,8 +22,8 @@ opened from an auctioneer, on the existing auction protocol (`shared-protocol`
 
 - [x] Root `AuctionHouseFrame`, 800×538 (:5), `ButtonFrameTemplate` metal chrome (`quest_art::window_chrome`), movable by its title.
 - [x] Shared portrait chrome draws the `UI-Frame-PortraitMetal-CornerTopLeft` gold ring as an overlay above the masked portrait (Retail `Blizzard_SharedXML/Mainline/NineSliceLayouts.lua:20`); merchant, bank, trainer and mail use the same corner. The existing active-skin atlas mapping supplies art, not new elements.
-- [x] The header has opaque rock fill beneath its translucent top streaks (Retail `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:595-609`), excluding the portrait mask.
-- [x] Both skins bind the interacting auctioneer's masked portrait (`SetPortraitToUnit("npc")`, Shared/Blizzard_AuctionHouseFrame.lua:392), including the auction greeting. Backgrounds exclude the portrait mask.
+- [x] The header has opaque rock fill beneath its translucent top streaks (Retail `Blizzard_SharedXML/Mainline/SharedUIPanelTemplates.xml:595-609`), including beneath the opaque masked portrait; the corner outside its circular mask must not expose the room.
+- [x] Both skins bind the interacting auctioneer's masked portrait (`SetPortraitToUnit("npc")`, Shared/Blizzard_AuctionHouseFrame.lua:392), including the auction greeting. The opaque portrait masks the rock beneath it.
 - [x] Title per tab: Browse Auctions / Post Auctions / Auctions (`UpdateTitle`, Shared/Blizzard_AuctionHouseFrame.lua:640).
 - [x] Bottom tabs Buy, Sell, Auctions (`PanelTabButtonTemplate` art, Buy at BOTTOMLEFT (20,-28), each next -15 over, width text + 40 min 70, Shared/Blizzard_AuctionHouseTab.lua:2-11); selected tab text white.
 - [x] Money: `MoneyFrameInset` and 158×19 `ThinGoldEdgeTemplate` border at BOTTOMLEFT (5,6), money right-aligned 6 in (:11-40). Money displays follow `MoneyDisplayFrameMixin`: silver and copper always, gold only when non-zero, thousands separators, AH coin atlases.
@@ -55,7 +55,7 @@ opened from an auctioneer, on the existing auction protocol (`shared-protocol`
 
 ## Portrait corner proof — 2026-10-09
 
-- `godot/ui-model/tests/ahportrait.rs`: ring atlas/rect on AH, merchant, bank and mail in both skins; opaque header texture/alpha; favorites and Filter rectangles/art; interacting auctioneer session ID, not player ID. Initial visual RED: three missing elements, with the NPC binding already passing. Follow-up Filter RED: one missing control. Final targeted GREEN: 5/5, plus `auction_layout` 9/9 and `npcportraits` 3/3.
+- `godot/ui-model/tests/ahportrait.rs`: ring atlas/rect on AH, merchant, bank and mail in both skins; opaque header texture/alpha; favorites and Filter rectangles/art; interacting auctioneer session ID, not player ID. Initial visual RED: three missing elements, with the NPC binding already passing. Follow-up Filter RED: one missing control. Header-corner RED: x=55 leaves a rectangular room-visible gap around the circular mask; Retail rock starts at x=2. Final targeted GREEN: 5/5, plus `auction_layout` 9/9 and `npcportraits` 3/3.
 - Native `capture_ui_screen.gd` `auction_both` with `GODOT_AH_PORTRAIT_CAPTURE=1`: Browse only in Modern and Forever, Auctioneer Fitch entry 8719/display 7992 through the production masked creature portrait renderer. The local world DB's AC and TDB model rows agree on 7992. Both actual compositor output/window/viewport are 1920×1080; capture asserts loaded creature 7992 and records geometry. Captures inspected: round NPC face with an overlapping gold/bronze ring, opaque dark header, star, Filter and close X. Favorites and Filter remain visual-only.
 - Recipe and native PNG/JSON/log evidence: `data/diagnostics/ahportrait-2026-10-09/`; shared copies: `/syncthing/AgentShared/2026-10-09/ahportrait/`. Capture exits 0. Editor import exits 0 but reports eight ObjectDB instances at shutdown; not a fixed/general shutdown claim.
 
