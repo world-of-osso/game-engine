@@ -213,6 +213,7 @@ pub mod trade_frame_component;
 pub mod auction;
 #[path = "ui/screens/auction_house_frame_component.rs"]
 pub mod auction_house_frame_component;
+pub mod char_select_data;
 pub mod spellbook_preview;
 
 #[path = "loot_data.rs"]
@@ -390,36 +391,36 @@ impl UiErrorsModel {
 pub fn char_select_state_from_roster(
     characters: &[CharacterListEntry],
     selected_index: Option<usize>,
-) -> CharSelectState {
-    let entries = characters
+    names: &char_select_data::CharSelectNames,
+) -> Result<CharSelectState, String> {
+    let entries: Vec<CharDisplayEntry> = characters
         .iter()
-        .map(|character| CharDisplayEntry {
-            name: character.name.clone(),
-            info: format!(
-                "Level {}   Race {}   Class {}",
-                character.level, character.race, character.class
-            ),
-            status: "Ready to enter world".to_owned(),
+        .map(|character| {
+            Ok(CharDisplayEntry {
+                name: character.name.clone(),
+                info: names.info(character.level, character.race, character.class)?,
+                status: "Ready to enter world".to_owned(),
+            })
         })
-        .collect();
+        .collect::<Result<_, String>>()?;
     let selected = selected_index.and_then(|index| characters.get(index));
     let selected_name = selected
         .map(|character| character.name.clone())
         .unwrap_or_else(|| "Character Selection".to_owned());
     let status_text = match selected {
-        Some(character) => format!(
-            "Realm: World of Osso    Level {}    Race {}    Class {}",
-            character.level, character.race, character.class
+        Some(_) => format!(
+            "Realm: World of Osso    {}",
+            entries[selected_index.unwrap()].info
         ),
         None if characters.is_empty() => "No characters available on this realm".to_owned(),
         None => "Select a character to enter the world".to_owned(),
     };
-    CharSelectState {
+    Ok(CharSelectState {
         characters: entries,
         selected_index,
         selected_name,
         status_text,
-    }
+    })
 }
 
 /// Authored character-creation tree. The host owns catalog, actions and preview rendering.
@@ -485,7 +486,11 @@ impl CharacterSelectModel {
     }
 
     pub fn sync(&mut self) {
-        self.screen.sync(&self.shared, &mut self.registry);
+        char_select_component::sync_char_select_screen(
+            &mut self.screen,
+            &mut self.shared,
+            &mut self.registry,
+        );
         apply_char_select_postsetup(&mut self.registry);
     }
 }
