@@ -34,4 +34,4 @@ Exact CSV line numbers, rows and SHA256 hashes: `/home/osso/Projects/world-of-os
 ## Proof ledger
 
 Evidence root: `/home/osso/Projects/world-of-osso/game-engine/data/diagnostics/talenttree-2026-10-08/`.
-RED/GREEN and rendered inspection pending. Handoff: `/home/osso/.worktrees/handoff-talenttree.md`.
+Core RED `763f021b1`: five failed/zero passed, exit101. Core GREEN `cc9531ed8` (unchanged core in `ce90b9610`): five passed/zero failed, exit0, logs `/home/osso/.worktrees/logs/talenttree-{red,green-core}.log`. UI/native projection and rendered inspection pending. Handoff: `/home/osso/.worktrees/handoff-talenttree.md`.
