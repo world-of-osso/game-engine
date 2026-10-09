@@ -10,6 +10,7 @@ func run_test() -> void:
 	root.size = Vector2i(1920, 1080)
 	var output := OS.get_environment("BAGTITLE_SHOTS")
 	DirAccess.make_dir_recursive_absolute(output)
+	var failures := []
 	for forever in [false, true]:
 		var skin := "forever" if forever else "modern"
 		var ui = ClassDB.instantiate("RegistryUi")
@@ -22,9 +23,10 @@ func run_test() -> void:
 		# Separate windows for a readable capture without modifying authored title layout.
 		for index in range(3):
 			var container := ui.find_child("ContainerFrame" + str(index), true, false) as Control
-			container.position = Vector2(400 + index * 300, 350)
+			container.position = Vector2(150 + index * 260, 180)
 		await settle()
 		var original := root.get_texture().get_image()
+		original.save_png(output.path_join(skin + "-before.png"))
 		for index in range(3):
 			var title := ui.find_child("ContainerFrame" + str(index) + "TitleText", true, false) as Label
 			var font := title.get_theme_font("font")
@@ -45,19 +47,21 @@ func run_test() -> void:
 			title.z_index = previous_z
 			await settle()
 			if changed != 0:
-				fail("%s %s: %d title pixels hidden by container chrome" % [skin, title.text, changed])
-				return
-			print("PASS ", skin, " ", title.text, " rect=", bounds, " measured=", measured, " unoccluded")
+				failures.append("%s %s: %d title pixels hidden by container chrome" % [skin, title.text, changed])
+			print("TITLE ", skin, " ", title.text, " rect=", bounds, " measured=", measured, " occluded_pixels=", changed)
 		if original.save_png(output.path_join(skin + ".png")) != OK:
 			fail("save screenshot")
 			return
 		ui.free()
 		await process_frame
+	if not failures.is_empty():
+		fail("; ".join(failures))
+		return
 	print("PASS bagtitle both skins")
 	quit(0)
 
 func settle() -> void:
-	for frame in range(30):
+	for frame in range(120):
 		await process_frame
 		await RenderingServer.frame_post_draw
 
