@@ -141,15 +141,24 @@ impl GameClient {
 
     fn spellbook_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         let ui = hit.ui.bind();
-        let (owner, spell_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
-            name_of(frame)?
-                .strip_prefix("SpellBookItem")?
+        let (owner, (spell_id, talent)) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            let name = name_of(frame)?;
+            if let Some(spell) = game_engine_ui_model::talents::talent_button_spell(name) {
+                return Some((spell, true));
+            }
+            name.strip_prefix("SpellBookItem")?
                 .strip_suffix("Button")?
                 .parse::<u32>()
                 .ok()
+                .map(|spell| (spell, false))
         })?;
         drop(ui);
-        let tooltip = self.spell_game_tooltip(spell_id, self.spellbook_available_at(spell_id));
+        let available_at = if talent {
+            None
+        } else {
+            self.spellbook_available_at(spell_id)
+        };
+        let tooltip = self.spell_game_tooltip(spell_id, available_at);
         Some(HoveredTooltip::text(self.owned_by(
             hit,
             owner,

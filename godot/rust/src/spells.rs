@@ -67,6 +67,8 @@ pub(crate) struct SpellsHud {
     book_art_state: Option<SpellbookFrameState>,
     /// FDID → whether `data/textures/{fdid}.blp` exists or was copied from local CASC.
     textures: HashMap<u32, bool>,
+    /// Local DB2 read-only graphs, loaded once per class/spec; never server allocations.
+    talent_views: HashMap<(u32, u32), Result<game_engine_ui_model::talents::TalentView, String>>,
     /// Seconds each button stays pushed, by `ActionBar` then button.
     pushed: [[f32; MAIN_BAR_BUTTONS]; ActionBar::ALL.len()],
     combat_seen: u64,
@@ -92,6 +94,7 @@ impl Default for SpellsHud {
             book: SpellbookFrameState::default(),
             book_art_state: None,
             textures: HashMap::new(),
+            talent_views: HashMap::new(),
             pushed: Default::default(),
             combat_seen: 0,
             floating: Vec::new(),
