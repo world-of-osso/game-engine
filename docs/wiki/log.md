@@ -2916,3 +2916,11 @@ Existing ItemLocation/SwapItem/SplitItem extended to character bank tabs; [bank 
 - 2026-10-08: auction subcategory/Bid/Quantity contract and bounded protocol/server RED/GREEN ledger; native capture/engine GREEN checkpoint pending. Updated auction-house-ui system/spec.
 
 - 2026-10-08: ahsort bounded engine GREEN5 and native build EXIT0; one cage captured Modern/Forever at real1920×1080. Read both PNGs:Armor→Cloth→Chest, quantity37/12/8. Missing2 icons/editor/cage diagnostics retained; no live/broad gates.
+
+## 2026-10-08 — Talents first slice
+
+Recorded local Arcane CSV witnesses, grant/spec conditions and Blizzard node geometry in [Talents](systems/talents.md); wowdev references HTTP403, implementation/proof pending.
+
+## 2026-10-08 — Read-only Talents bounded completion
+
+[Talents](systems/talents.md): local Mage Arcane graph and both-skin native page/hover proven; primitive no-art/rotation regressions corrected. Final4actual1080p captures inspected; learning/loadouts/server and unavailable icon art remain out of scope/gaps. Exact proof ledger lives on the system page.

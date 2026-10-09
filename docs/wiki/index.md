@@ -202,3 +202,4 @@ External resources and asset lists.
 - [Auction result icon diagnosis](systems/auction-house-ui.md#missing-result-icons-2026-10-08) — five-item FDID/file trace, local-store proof and shared unavailable-icon policy.
 
 - [Auction house UI](systems/auction-house-ui.md#subcategory-and-displayed-column-sorts--2026-10-08) — native category paths, Bid/Available requests and bounded cross-repo proof.
+- [Read-only Talents](systems/talents.md) — local DB2 class/spec/hero projection and Blizzard layout provenance; read-only first slice.
