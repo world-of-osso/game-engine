@@ -41,6 +41,19 @@ impl RegistryUi {
         self.capture_hud_edit(ActiveSkin::Modern)
     }
 
+    /// Standalone native capture of the production manager's delete dialog.
+    #[func]
+    pub fn show_hudedit_delete_preview(&mut self) -> GString {
+        let result = self.set_state(EditModePanelState {
+            layout_name: "Raid Night".into(),
+            pending_delete: Some("Raid Night".into()),
+            layout_names: vec!["Modern".into(), "Forever".into(), "Raid Night".into()],
+            position: Some([493.0, 100.0]),
+            ..Default::default()
+        });
+        GString::from(result.err().unwrap_or_default().as_str())
+    }
+
     #[func]
     pub fn show_forever_hudedit_preview(&mut self) -> GString {
         self.capture_hud_edit(ActiveSkin::Forever)

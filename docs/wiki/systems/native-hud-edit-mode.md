@@ -2,7 +2,7 @@
 
 Native editor shares account-scoped layout storage and character selection with [[forever-preset]]. The [contract](../../specs/hud-edit-mode.md) owns controls, defaults and acceptance evidence.
 
-Verified: 2026-10-08. Implementation branch `hudeditmode`; runtime proof is recorded in the contract, not inferred from this page.
+Verified: 2026-10-09. Implementation branch `hudeditmode`; runtime proof is recorded in the contract, not inferred from this page.
 
 ## Draft and projection
 
@@ -21,6 +21,8 @@ One registry and `collect_selection_boxes` supply live and offline labels, visib
 The manager prefers Retail's top-centred y=100. `find_panel_position` chooses the nearest clear rectangle from mover-edge candidates; only the manager moves, never preset HUD roots. Its title drag keeps a transient, screen-clamped position in `EditDraft`, cleared on exit. Native editor selections use Fullscreen and the manager FullscreenDialog inside canvas 100: the relative layering matches Retail's MEDIUM selection / DIALOG manager while staying above independently mounted gameplay canvases. Unmounted/hidden roots are skipped. Unset bars 2/3 are temporarily mounted by their production screen while editing; explicit Off suppresses their movers. Bars 4/5 now use the production action-bar screen only when enabled in [Action Bars options](../../specs/extra-action-bars.md); no editor-only side roots remain. The existing settings store persists visibility; tracker placement stays unchanged even when enabled bars overlap it (user decision 2026-10-08).
 
 `hud_edit_preview.rs` provides the secondary Godot capture methods. Its default inventory mounts 19 roots (21 when side bars 4/5 are enabled), including the bottom-bar previews and micro menu, five party members and one raid member per subgroup. Those explicit offline fixtures do not change preset settings. `GODOT_HUDEDIT_MOVER_INVENTORY=1` makes the existing capture helper select every mover, verify manager clearance and save each rendered label crop plus the selected tracker screen.
+
+The manager receives account layout names and the inline name draft on each refresh; New's disabled atlas is selected for trimmed-empty/preset/occupied names. Persistence also rejects invalid New requests; only preset Save retains automatic `Layout N` naming. Delete stores the requested name in `EditDraft.pending_delete` and renders the native Yes/No dialog above a mouse blocker. Cancel clears only that request, preserving active layout and draft selection; confirmation deletes the requested layout and reloads its skin preset. Escape/F10 cancels an open confirmation before exiting Edit Mode. [Contract](../../specs/hud-edit-mode.md) owns the 2026-10-09 user decision and Retail text/source.
 
 `apply_manager_action` is the persisted transition used by native clicks and CPU behavioral tests. The tests dispatch through the registry's actual enabled-button action queue before applying draft, layout cycling and RON changes; they do not instantiate a live `GameClient`. `capture_ui_screen.gd` shares its two-skin offline capture function with the live fixture, then clears transient preview state before `GameClient` creation. `hud_edit_live.gd` exercises native keys, mouse down/motion/up, Save, Escape, reset/discard and normal logout/login relog; it never writes mover offsets directly.
 

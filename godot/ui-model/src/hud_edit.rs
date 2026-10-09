@@ -77,6 +77,7 @@ pub struct EditDraft {
     pub hovered: Option<String>,
     pub panel_position: Option<[f32; 2]>,
     pub panel_grab: Option<[f32; 2]>,
+    pub pending_delete: Option<String>,
 }
 
 impl EditDraft {
@@ -85,6 +86,7 @@ impl EditDraft {
         self.working = layout.elements.clone();
         self.selected = None;
         self.drag = None;
+        self.pending_delete = None;
     }
 
     /// Exit discards drafts; the host republishes the saved layout.

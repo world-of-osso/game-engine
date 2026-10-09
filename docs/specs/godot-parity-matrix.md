@@ -154,11 +154,11 @@ Historical rendering/oracle and native input details remain in the [conversion e
 
 | Step | Modern | Reduced Forever |
 |---|---|---|
-| 1. New | PASS; rejection N-A (documented Layout N behavior) | PASS New; naming edges N-A |
+| 1. New | Historical PASS; user decision 2026-10-09 now requires greyed/disabled New for empty/whitespace/duplicate/preset names, unique-name creation | Historical PASS New; new naming acceptance tracked in [contract](hud-edit-mode.md) |
 | 2. Save/switch positions | PASS | PASS switch; two-element move N-A |
 | 3. Rename/cancel | PASS inline; Cancel dialog N-A | N-A |
 | 4. Revert/unsaved Exit | PASS | PASS Revert; Exit N-A |
-| 5. Delete/fallback/preset protection | PASS; confirmation N-A | PASS; confirmation N-A |
+| 5. Delete/fallback/preset protection | Historical PASS immediate Delete; user decision 2026-10-09 requires Yes/No confirmation, cancellation preserves selection | Historical PASS; new confirmation acceptance tracked in [contract](hud-edit-mode.md) |
 | 6. Reset Selected | PASS | N-A |
 | 7. Persistence/account/character isolation | PASS after isolation fix | N-A |
 | 8. Escape/outside | PASS bounded inline; modal/input-leak cases N-A | N-A |
