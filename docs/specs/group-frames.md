@@ -134,6 +134,23 @@ References (under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`):
 
 ## Verified scope
 
+### Private two-client acceptance — 2026-10-09
+
+Forever, pinned Godot 4.7.2, cage/Vulkan, private UDP5500 and `fb_mailraid_*` accounts, Mailalpha (warlock9) / Mailbeta. Inherited extension built at `5ab533364`; checkout fast-forwarded to `709a62431` without group implementation changes; server `5b04aa931`. [Proof ledger](../../data/diagnostics/mailraidlive-2026-10-09/proof-ledger.txt), native input journal and paired PNG/JSON in `data/diagnostics/mailraidlive-2026-10-09/`; inspected downscaled captures copied full-size to `/syncthing/AgentShared/2026-10-09/mailraidlive/`.
+
+| Case / governing rule above | Observed vs expected | Result / PNG stems |
+|---|---|---|
+| `/invite`, `PARTY_INVITE`, Accept | A types `/invite Mailbeta`; B sees named inviter and accepts; popup closes. | PASS `13-invite-b`, `14-party-1`, `14-party-2` |
+| Compact party (`CRFSort_Group`) | Both show self first and the other member, full live health; warlock mana and warrior zero rage. | PASS `14-party-1`, `14-party-2` |
+| Convert To Raid (`CONVERT_TO_RAID`) | Self-menu conversion gives both the same Group1 grid, Mailalpha then Mailbeta; compact party removed. | PASS `15-raid-1`, `15-raid-2` |
+| Ready (`READY_CHECK_MESSAGE`, CUF ready marks) | A types `/readycheck`; B gets named initiator and both buttons; Ready closes popup and draws both green marks plus Everyone is Ready on both clients. | PASS `16-readycheck-popup-b`, `17-ready-response-1`, `17-ready-response-2` |
+| Not Ready (CUF ready marks) | Second check: B clicks Not Ready; both draw leader green/member red and Ready check finished. | PASS `18-notready-response-1`, `18-notready-response-2` |
+| Owner pet and optional party pet | Native spellbook click casts Summon Imp688; owner sees Imp health frame/action bar. B enables Options→HUD→Layout Settings→Party→Show Pets; other-member pet health frame appears. | PASS `19-pet-raid-a`, `21-party-owner-a`, `21-party-pet-b` |
+| Raid pet | Same live Imp and Show Pets enabled, but raid renders no pet. `raid_group` calls `compact_unit_frame` without pet data/settings; optional pets are wired only through `party_unit_frame`. | GAP `20-pet-raid-b`, `22-raid-pet-b`; raid-pet presentation unsupported in this path, not repaired |
+| Leave/disband (`PARTY_LEAVE`) | Leader's self-menu Leave empties both group states and removes both raid grids; owner pet remains. | PASS `23-disband-1`, `23-disband-2` |
+
+Native mouse/key events perform all group/pet actions; private admin only seeds level/spell setup. Raid self-menu centre overlaps the player/action bars in Forever; clicks use observed unobstructed frame/menu edges, preserving existing layout. No product fix or RED/GREEN test added. This is bounded two-member Forever proof, not full raid/subgroup/portrait/aura/out-of-interest pet, reference-pixel or general shutdown acceptance.
+
 ### Native ready-check repair (raidloop continuation)
 
 `06d85e0d8`, pinned Godot 4.7.2, private UDP 5330 and two Weston/Dozen clients. Evidence: `data/diagnostics/raidloop-2026-10-07/proof-ledger.txt`; `readycheck-*` captures were inspected, with paired JSON and native IPC status/UI dumps. Other previously passed raid steps were not rerun.
