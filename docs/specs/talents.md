@@ -42,7 +42,7 @@ All paths relative to `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 
 - `GODOT_PREVIEW_CLASS` and `GODOT_PREVIEW_SPEC` select explicit DB2 class/spec IDs together. Unknown, Initial, mismatched or missing data must fail explicitly, never substitute Mage.
 - With neither input set, retain the existing Frost Mage spellbook and Arcane Mage Talents snapshots unchanged.
-- Explicit spellbook previews project catalog class-line and selected-spec membership as a capture snapshot, not a player's learned-spell state or proof of spell execution. Talents use the production local graph/rules and granted-only initial configuration; no fabricated nodes or icon art.
+- Explicit spellbook previews project catalog class-line and selected-spec membership as a capture snapshot, not a player's learned-spell state or proof of spell execution. Membership IDs absent from the spell catalog are excluded rather than fabricated, and listed separately as data gaps in coverage. Talents use the production local graph/rules and granted-only initial configuration; no fabricated nodes or icon art.
 - `godot/tests/capture_classbooks.gd` batches the offline Forever pages at real 1920×1080 from a diagnostic manifest, records per-page errors and geometry, and never connects to a server.
 - Coverage/evidence: `data/diagnostics/classbook-shots-2026-10-09/coverage.md` and `coverage.json`. Counts describe local data presence only; missing icon art remains blank.
 
