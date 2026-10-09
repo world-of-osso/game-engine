@@ -4,14 +4,14 @@ The PlayerSpellsFrame Talents page displays the local Retail class/spec talent t
 
 ## What it must do
 
-- [ ] Map character class to its category-7 SkillLine, then SkillLineXTraitTree (variant 0), not to a hardcoded tree ID.
-- [ ] Filter nodes/entries by TraitCond Visible conditions and SpecSetMember. Preserve sufficient (OR) hero-spec conditions.
+- [x] Map character class to its category-7 SkillLine, then SkillLineXTraitTree (variant 0), not to a hardcoded tree ID.
+- [x] Filter nodes/entries by TraitCond Visible conditions and SpecSetMember. Preserve sufficient (OR) hero-spec conditions.
 - [ ] Display class nodes left, specialization nodes right, eligible hero subtrees in the middle; retain ordered choice entries and DB2 edges.
 - [ ] Translate PosX/PosY using Blizzard's /10 scale and pan offsets. Hero nodes use normalized top/center positions and 0.85 scale.
 - [ ] Show TraitDefinition spell icons, or OverrideIcon; missing art stays missing, never a substitute icon.
-- [ ] Only matching Granted conditions show learned ranks. Zero purchase cost alone is not a grant; no starter-loadout allocations are applied.
+- [x] Only matching Granted conditions show learned ranks. Zero purchase cost alone is not a grant; no starter-loadout allocations are applied.
 - [ ] Hover uses shared spell GameTooltip name/description; choice entries each expose their spell tooltip. No node click purchases, casts or mutates a character.
-- [ ] Mage Arcane (62) selects tree 658, class 43/spec 38 nodes; three cited nodes and choice 62087 match CSV. Eligible Sunfury/Spellslinger have 14 nodes each.
+- [x] Mage Arcane (62) selects tree 658, class 43/spec 38 nodes; three cited nodes and choice 62087 match CSV. Eligible Sunfury/Spellslinger have 14 nodes each.
 - [ ] Native cage captures show both skins at actual 1920×1080.
 
 ## How it works
@@ -32,7 +32,7 @@ The PlayerSpellsFrame Talents page displays the local Retail class/spec talent t
 
 ## Known gaps (current cycle)
 
-- [ ] Implementation and targeted GREEN pending.
+- [ ] UI implementation and targeted projection GREEN pending. Core five-test GREEN at `cc9531ed8` (also present in `ce90b9610`), log `talenttree-green-core.log`.
 - [ ] Cage capture and hover proof pending.
 - [ ] Wowdev retrieval returns HTTP 403; local schemas and Blizzard enums are directly inspected instead. URLs are recorded as requested references, not as successfully read sources.
 
