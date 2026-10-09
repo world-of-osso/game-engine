@@ -1,12 +1,10 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fs;
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
+use std::sync::Arc;
 
 use game_engine_core::asset_loader::{AssetLoader, Priority};
-use game_engine_ui_model::bank_art::UNKNOWN_ICON;
-
-use crate::frame_error::report_once;
+use osso_asset_resolver::CascListfileResolver;
 
 use godot::classes::{AtlasTexture, FontFile, Image, ImageTexture, ProjectSettings, Texture2D};
 use godot::prelude::*;
@@ -16,7 +14,6 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::widgets::texture::TextureSource;
 
-#[cfg(test)]
 #[path = "ui_file.rs"]
 mod ui_file;
 
@@ -39,7 +36,36 @@ fn asset_path(path: &str) -> PathBuf {
 }
 
 fn load_bytes(path: &str) -> Result<Vec<u8>, String> {
-    fs::read(asset_path(path)).map_err(|error| format!("Read authored UI asset {path}: {error}"))
+    let file = asset_path(path);
+    with_file_textures(|textures| read_ui_file(&file, file_data_id(path), &textures.resolver))
+}
+
+fn file_data_id(path: &str) -> Option<u32> {
+    path.strip_prefix("data/textures/")?
+        .strip_suffix(".blp")?
+        .parse()
+        .ok()
+}
+
+fn read_ui_file(
+    file: &Path,
+    fdid: Option<u32>,
+    resolver: &CascListfileResolver,
+) -> Result<Vec<u8>, String> {
+    ui_file::read_cached_file(file, fdid, |fdid, destination| {
+        resolver
+            .initialize()
+            .map_err(|error| format!("Initialize local CASC for UI FDID {fdid}: {error}"))?;
+        resolver
+            .ensure_cached(fdid, destination)
+            .map(|_| ())
+            .ok_or_else(|| {
+                format!(
+                    "Local CASC cannot cache requested UI FDID {fdid} at {}",
+                    destination.display()
+                )
+            })
+    })
 }
 
 thread_local! {
@@ -177,37 +203,7 @@ fn decode_tga(path: &str, bytes: &[u8]) -> Result<DecodedFile, String> {
 }
 
 pub fn decode_blp(path: &str) -> Result<game_engine_core::blp::RgbaImage, String> {
-    let fdid = path
-        .strip_prefix("data/textures/")
-        .and_then(|file| file.strip_suffix(".blp"))
-        .and_then(|id| id.parse().ok());
-    let decode = |path: &str| decode_blp_bytes(path, &load_bytes(path)?);
-    match fdid {
-        Some(id) => load_icon_art(id, |id| decode(&format!("data/textures/{id}.blp"))),
-        None => decode(path),
-    }
-}
-
-/// Keep an unavailable icon visible as Retail's question mark, without replacing
-/// missing panel/model art. Both synchronous masks and asynchronous UI use this policy.
-fn load_icon_art<T>(id: u32, mut load: impl FnMut(u32) -> Result<T, String>) -> Result<T, String> {
-    match load(id) {
-        Err(error) if id != UNKNOWN_ICON && lookup_icon_namespace(id) => {
-            report_once(&format!(
-                "UI icon FDID {id}: {error}; using INV_Misc_QuestionMark ({UNKNOWN_ICON})"
-            ));
-            load(UNKNOWN_ICON)
-        }
-        result => result,
-    }
-}
-
-fn lookup_icon_namespace(id: u32) -> bool {
-    osso_asset_resolver::lookup_fdid(id).is_some_and(|path| {
-        path.replace('\\', "/")
-            .to_ascii_lowercase()
-            .starts_with("interface/icons/")
-    })
+    decode_blp_bytes(path, &load_bytes(path)?)
 }
 
 fn decode_blp_bytes(path: &str, bytes: &[u8]) -> Result<game_engine_core::blp::RgbaImage, String> {
@@ -219,12 +215,14 @@ fn decode_blp_bytes(path: &str, bytes: &[u8]) -> Result<game_engine_core::blp::R
 struct UiFile {
     path: String,
     file: PathBuf,
+    fdid: Option<u32>,
 }
 
 /// Authored UI image files, read and decoded on worker threads and shared by every UI:
 /// a frame shows its art from the frame it has arrived (retail UI textures load
 /// asynchronously too) and no screen waits for a file.
 struct FileTextures {
+    resolver: Arc<CascListfileResolver>,
     loader: AssetLoader<UiFile, DecodedFile>,
     textures: HashMap<String, Result<Gd<ImageTexture>, String>>,
     /// Files that arrived so far; a projection redraws its waiting frames when it grows.
@@ -233,10 +231,15 @@ struct FileTextures {
 
 impl FileTextures {
     fn new() -> Self {
+        // Share local CASC/listfile initialization across both workers and icon masks.
+        let resolver = Arc::new(crate::assets::creature::local_resolver(&asset_path(
+            "data/",
+        )));
+        let worker_resolver = Arc::clone(&resolver);
         Self {
-            loader: AssetLoader::new("ui-textures", 2, |file: &UiFile| {
-                let bytes = fs::read(&file.file)
-                    .map_err(|error| format!("Read authored UI asset {}: {error}", file.path))?;
+            resolver,
+            loader: AssetLoader::new("ui-textures", 2, move |file: &UiFile| {
+                let bytes = read_ui_file(&file.file, file.fdid, &worker_resolver)?;
                 decode_file(&file.path, &bytes)
             }),
             textures: HashMap::new(),
@@ -264,6 +267,7 @@ impl FileTextures {
             UiFile {
                 path: path.to_owned(),
                 file: asset_path(path),
+                fdid: file_data_id(path),
             },
             Priority::Now,
         );
@@ -286,9 +290,9 @@ fn with_file_textures<T>(visit: impl FnOnce(&mut FileTextures) -> T) -> T {
 }
 
 /// FileDataID `id`'s art (`data/textures/<id>.blp`); `Ok(None)` while it loads.
-/// Unavailable `Interface/Icons` art uses the logged question-mark convention.
+/// Missing art is cached from local CASC; failures stay explicit, never substitute art.
 pub fn load_file_data_id(id: u32) -> Result<Option<Gd<ImageTexture>>, String> {
-    load_icon_art(id, |id| load_file(&format!("data/textures/{id}.blp")))
+    load_file(&format!("data/textures/{id}.blp"))
 }
 
 /// UI files whose textures arrived so far.

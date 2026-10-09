@@ -3,10 +3,18 @@ use std::path::Path;
 
 pub(super) fn read_cached_file(
     file: &Path,
-    _fdid: Option<u32>,
-    _extract: impl FnOnce(u32, &Path) -> Result<(), String>,
+    fdid: Option<u32>,
+    extract: impl FnOnce(u32, &Path) -> Result<(), String>,
 ) -> Result<Vec<u8>, String> {
-    std::fs::read(file).map_err(|error| format!("Read UI file {}: {error}", file.display()))
+    match (std::fs::read(file), fdid) {
+        (Ok(bytes), _) => Ok(bytes),
+        (Err(error), Some(fdid)) if error.kind() == std::io::ErrorKind::NotFound => {
+            extract(fdid, file)?;
+            std::fs::read(file)
+                .map_err(|error| format!("Read cached UI file {}: {error}", file.display()))
+        }
+        (Err(error), _) => Err(format!("Read UI file {}: {error}", file.display())),
+    }
 }
 
 #[cfg(test)]

@@ -10,6 +10,10 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 - MAB.xml = `Blizzard_ActionBar/Mainline/MainActionBar.xml`; ABT.xml = `Mainline/ActionButtonTemplate.xml`; EMPL.lua = `Blizzard_EditMode/Mainline/EditModePresetLayouts.lua`
 - data: `data/db2/12.1.0.69933` (SkillLine, SkillLineAbility, SpellLevels, SpecializationSpells, SpellMisc, UiTextureAtlasMember, GlobalColor); strings from GlobalStrings.
 
+## Spell icon source
+
+A requested spell icon must decode its own `SpellMisc.SpellIconFileDataID` BLP. The native UI file worker populates a missing `data/textures/<fdid>.blp` through the existing item/M2 local-CASC resolver; no CDN or replacement/question-mark art. Synchronous masked icons use the same file boundary. Extraction and decoding failures remain explicit. `classbook_icons.rs` checks every entry in all 13 class preview snapshots against authentic nonempty pixels or a concrete justified exception.
+
 ## What it must do
 
 - [x] Known spells, spec, action bar and cooldowns follow the server messages; leaving the world clears them.
