@@ -17,7 +17,7 @@ use std::{
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, state::app::StatesPlugin};
 use lightyear::prelude::{
     self as network, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
-    ReplicationSender, server,
+    ReplicationSender, VisibilityExt, server,
 };
 use shared::{
     components::{
@@ -301,6 +301,22 @@ fn start_server(screen: StartupScreen) -> (App, SocketAddr) {
             commands.entity(link.entity).insert(ReplicationSender);
         }
     });
+    if screen == StartupScreen::Logout {
+        // Replicon defaults to visible on Connected, before authentication. Match
+        // the real server's interest::on_replication_client_added selection boundary.
+        app.add_observer(
+            |connection: On<
+                Add,
+                bevy_replicon::server::visibility::client_visibility::ClientVisibility,
+            >,
+             players: Query<Entity, With<Player>>,
+             mut commands: Commands| {
+                for player in &players {
+                    commands.lose_visibility(player, connection.entity);
+                }
+            },
+        );
+    }
     app.finish();
     app.cleanup();
     let entity = app

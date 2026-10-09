@@ -20,6 +20,8 @@ Paths below are relative to `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 
 `godot/network/examples/native_input_fixture/logout.rs` + `godot/tests/world_logout_flow.gd`: real loopback UDP auth/combat/rest, physical Game Menu clicks, countdown/cancellation/repeated request, detached world, automatic token-only authentication, populated character list, roster click and world re-entry, rest-area instant logout. Existing session logout tests cover exact countdown rules.
 
-Current proof (2026-10-09): original code RED times out on Login. Implemented token return reaches CharacterSelect, but three GREEN attempts fail the world-detachment assertion; fixture replication versus native lifecycle remains unresolved. No passing logout acceptance claim. Existing session/death tests have not been run in this branch.
+Current proof (2026-10-09): original code RED times out on Login. Private live server master `5b04aa9`, UDP5470, fresh diagnostic database: retained-token logout reaches CharacterSelect with zero units and detached world across five samples spanning 18 seconds. Evidence: canonical `data/diagnostics/logoutfix-2026-10-09/a-after-{5..9}.json`, `client-a.log`, `server.log`.
+
+The fixture RED at `642931906` re-creates both units one frame after reset. Replicon's ConnectedClient defaults to visible before LoginRequest; delaying ReplicationSender does not gate that packet path. Real server `interest::on_replication_client_added` hides existing world entities from new connections before selection. The logout fixture now matches that boundary instead of broadcasting the old world to the unauthenticated replacement. The unchanged world-detachment assertion and full RED/GREEN acceptance remain required; existing session/death tests await the final gate.
 
 DEATH Escape behavior belongs to [death flow](death-flow.md). Skin changes are out of scope.
