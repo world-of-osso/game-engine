@@ -14,7 +14,7 @@ use ui_toolkit::frame::WidgetData;
 
 use super::keybinding_button_at;
 use crate::ui::RegistryModel;
-use crate::ui::scroll_lists::tests::{menu, options_model, show};
+use crate::ui::scroll_lists::tests::{menu, options_model, rect, show};
 
 const Q: InputBinding = InputBinding::Keyboard(BindingKey::KeyQ);
 const S: InputBinding = InputBinding::Keyboard(BindingKey::KeyS);
@@ -200,4 +200,50 @@ fn page_edits_survive_a_save_and_reload_of_the_options_file() {
         loaded.binding(InputAction::StrafeLeft),
         InputBindingsData::default().binding(InputAction::StrafeLeft)
     );
+}
+
+#[test]
+fn sidebarbinds_every_binding_section_remains_visible_inside_the_page() {
+    let (_, menu) = keybindings(BindingSection::ActionBar5);
+    let tabs = rect(&menu, "KeybindingSectionTabs").unwrap();
+    for section in BindingSection::ALL {
+        let name = format!("KeybindingSection{}Button", section.key());
+        let button = rect(&menu, &name).unwrap();
+        assert!(button.x >= tabs.x, "{name} left of page");
+        assert!(
+            button.x + button.width <= tabs.x + tabs.width + 0.01,
+            "{name} exceeds page: {button:?} vs {tabs:?}"
+        );
+    }
+    for (section, action) in [
+        (
+            BindingSection::ActionBar4,
+            InputAction::MultiActionBar3Button12,
+        ),
+        (
+            BindingSection::ActionBar5,
+            InputAction::MultiActionBar4Button12,
+        ),
+    ] {
+        let (mut model, mut menu) = keybindings(section);
+        for _ in 0..100 {
+            if !crate::ui::scroll_lists::wheel(
+                &mut menu,
+                game_engine_ui_model::options_menu_component::OPTIONS_CONTENT_SCROLL,
+                false,
+            ) {
+                break;
+            }
+            crate::ui::scroll_lists::tests::rebuild(&mut menu);
+        }
+        assert!(crate::ui::scroll_lists::tests::shown(
+            &menu,
+            &format!("KeybindingRow{}", action.key())
+        ));
+        assert_eq!(button_text(&menu, action), "Not Bound");
+        left_click(&mut model, &mut menu, action);
+        assert!(policy::capture_binding(&mut model, Q));
+        redraw(&model, &mut menu);
+        assert_eq!(button_text(&menu, action), "Q");
+    }
 }
