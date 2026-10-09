@@ -22,6 +22,8 @@ pub const ACTION_EDIT_MODE_REVERT: &str = "edit_mode_revert";
 pub const ACTION_EDIT_MODE_SAVE: &str = "edit_mode_save";
 pub const ACTION_EDIT_MODE_EXIT: &str = "edit_mode_exit";
 pub const ACTION_EDIT_MODE_RESET: &str = "edit_mode_reset";
+pub const ACTION_EDIT_MODE_CONFIRM_DELETE: &str = "edit_mode_confirm_delete";
+pub const ACTION_EDIT_MODE_CANCEL_DELETE: &str = "edit_mode_cancel_delete";
 
 /// `Interface/EditMode/EditModeUIHighlightBackground.blp`: unselected element.
 const HIGHLIGHT_FDID: u32 = 4_554_383;
@@ -69,6 +71,8 @@ pub struct EditModeOverlayState {
 pub struct EditModePanelState {
     pub layout_name: String,
     pub name_draft: String,
+    pub layout_names: Vec<String>,
+    pub pending_delete: Option<String>,
     /// The active layout is the preset: rename/delete are disabled, save copies it.
     pub preset: bool,
     pub dirty: bool,
@@ -187,7 +191,15 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
     } else {
         format!("Layout: {}", state.layout_name)
     };
-    let user_layout = !state.preset;
+    let interactive = state.pending_delete.is_none();
+    let user_layout = !state.preset && interactive;
+    let name = state.name_draft.trim();
+    let new_enabled = interactive
+        && !name.is_empty()
+        && !game_engine_core::ui_layout_data::SYSTEM_PRESETS
+            .iter()
+            .any(|(preset, _)| *preset == name)
+        && !state.layout_names.iter().any(|existing| existing == name);
     let left = state
         .position
         .map_or_else(|| "50%".to_string(), |at| at[0].to_string());
@@ -230,17 +242,67 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
             }
             {panel_text("EditModeManagerFrameTitle", "Edit Mode", 16.0, COLOR_TITLE, 14.0)}
             {panel_text("EditModeManagerFrameLayout", &layout_line, 13.0, COLOR_LABEL, 40.0)}
-            {panel_button("EditModeManagerFramePrev", "<", ACTION_EDIT_MODE_PREV_LAYOUT, 20.0, 36.0, 30.0, true)}
-            {panel_button("EditModeManagerFrameNext", ">", ACTION_EDIT_MODE_NEXT_LAYOUT, PANEL_W - 50.0, 36.0, 30.0, true)}
+            {panel_button("EditModeManagerFramePrev", "<", ACTION_EDIT_MODE_PREV_LAYOUT, 20.0, 36.0, 30.0, interactive)}
+            {panel_button("EditModeManagerFrameNext", ">", ACTION_EDIT_MODE_NEXT_LAYOUT, PANEL_W - 50.0, 36.0, 30.0, interactive)}
             {name_input(state)}
-            {panel_button("EditModeManagerFrameNew", "New", ACTION_EDIT_MODE_NEW, 22.0, 108.0, BUTTON_W, true)}
+            {panel_button("EditModeManagerFrameNew", "New", ACTION_EDIT_MODE_NEW, 22.0, 108.0, BUTTON_W, new_enabled)}
             {panel_button("EditModeManagerFrameRename", "Rename", ACTION_EDIT_MODE_RENAME, 138.0, 108.0, BUTTON_W, user_layout)}
             {panel_button("EditModeManagerFrameDelete", "Delete", ACTION_EDIT_MODE_DELETE, 254.0, 108.0, BUTTON_W, user_layout)}
-            {panel_button("EditModeManagerFrameRevert", "Revert", ACTION_EDIT_MODE_REVERT, 22.0, 140.0, BUTTON_W, state.dirty)}
-            {panel_button("EditModeManagerFrameSave", "Save", ACTION_EDIT_MODE_SAVE, 138.0, 140.0, BUTTON_W, state.dirty)}
-            {panel_button("EditModeManagerFrameExit", "Exit", ACTION_EDIT_MODE_EXIT, 254.0, 140.0, BUTTON_W, true)}
-            {panel_button("EditModeManagerFrameReset", "Reset Selected", ACTION_EDIT_MODE_RESET, 22.0, 172.0, 150.0, true)}
+            {panel_button("EditModeManagerFrameRevert", "Revert", ACTION_EDIT_MODE_REVERT, 22.0, 140.0, BUTTON_W, state.dirty && interactive)}
+            {panel_button("EditModeManagerFrameSave", "Save", ACTION_EDIT_MODE_SAVE, 138.0, 140.0, BUTTON_W, state.dirty && interactive)}
+            {panel_button("EditModeManagerFrameExit", "Exit", ACTION_EDIT_MODE_EXIT, 254.0, 140.0, BUTTON_W, interactive)}
+            {panel_button("EditModeManagerFrameReset", "Reset Selected", ACTION_EDIT_MODE_RESET, 22.0, 172.0, 150.0, interactive)}
             {panel_text("EditModeManagerFrameStatus", &state.status, 12.0, COLOR_LABEL, 204.0)}
+        }
+        {delete_confirmation(state.pending_delete.as_deref())}
+    }
+}
+
+fn delete_confirmation(name: Option<&str>) -> Element {
+    let Some(name) = name else {
+        return Element::default();
+    };
+    // Retail GlobalStrings HUD_EDIT_MODE_DELETE_LAYOUT_DIALOG_TITLE, Yes / No.
+    let text = format!("Are you sure you want to delete the layout\n{name}?");
+    rsx! {
+        r#frame {
+            name: "EditModeDeleteLayoutDialogBlocker",
+            stretch: true,
+            mouse_enabled: true,
+            strata: FrameStrata::FullscreenDialog,
+            frame_level: 100.0,
+            r#frame {
+                name: "EditModeDeleteLayoutDialog",
+                width: PANEL_W, height: 136.0,
+                mouse_enabled: true,
+                strata: FrameStrata::FullscreenDialog,
+                frame_level: 101.0,
+                pos_type: "absolute", left: "50%", top: "50%",
+                translate_x: "-50%", translate_y: "-50%",
+                texture {
+                    name: "EditModeDeleteLayoutDialogBackground",
+                    width: {PANEL_W - 14.0}, height: 122.0,
+                    texture_fdid: PANEL_BACKGROUND_FDID,
+                    strata: FrameStrata::FullscreenDialog,
+                    pos_type: "absolute", left: PANEL_INSET, top: PANEL_INSET,
+                }
+                r#frame {
+                    name: "EditModeDeleteLayoutDialogBorder",
+                    width: PANEL_W, height: 136.0, style: PANEL_STYLE,
+                    strata: FrameStrata::FullscreenDialog,
+                    pos_type: "absolute", left: 0.0, top: 0.0,
+                }
+                fontstring {
+                    name: "EditModeDeleteLayoutDialogText",
+                    width: {PANEL_W - 28.0}, height: 54.0,
+                    text: {text.as_str()}, font: GameFont::FrizQuadrata,
+                    font_size: 14.0, font_color: COLOR_TEXT, justify_h: "CENTER",
+                    strata: FrameStrata::FullscreenDialog,
+                    pos_type: "absolute", left: 14.0, top: 18.0,
+                }
+                {panel_button("EditModeDeleteLayoutDialogYes", "Yes", ACTION_EDIT_MODE_CONFIRM_DELETE, 72.0, 90.0, BUTTON_W, true)}
+                {panel_button("EditModeDeleteLayoutDialogNo", "No", ACTION_EDIT_MODE_CANCEL_DELETE, 204.0, 90.0, BUTTON_W, true)}
+            }
         }
     }
 }

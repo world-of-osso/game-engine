@@ -148,6 +148,8 @@ fn click_and_apply_manager(
     let state = EditModePanelState {
         layout_name: layout.name.clone(),
         name_draft: name.into(),
+        layout_names: ui_layout_data::layout_names(path).unwrap(),
+        pending_delete: draft.pending_delete.clone(),
         preset: ui_layout_data::SYSTEM_PRESETS
             .iter()
             .any(|(name, _)| *name == layout.name),
@@ -277,6 +279,15 @@ fn hudeditmodepolish_manager_clicks_drive_real_draft_and_persistence_transitions
             &mut draft,
             "EditModeManagerFrameDelete",
             ACTION_EDIT_MODE_DELETE,
+            "",
+        );
+        assert_eq!(layout.name, "Renamed");
+        click_and_apply_manager(
+            &path,
+            &mut layout,
+            &mut draft,
+            "EditModeDeleteLayoutDialogYes",
+            ACTION_EDIT_MODE_CONFIRM_DELETE,
             "",
         );
         assert_eq!(layout.name, skin);
@@ -437,4 +448,120 @@ fn hudeditmodepolish_tracker_selection_follows_retail_default_height_below_heade
         }
     }
     ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn hudnames_new_rejects_empty_names_without_action_or_persistence() {
+    let path = std::env::temp_dir().join(format!("hudnames-invalid-{}.ron", std::process::id()));
+    let layout = ui_layout_data::set_active_layout(&path, 57, "Modern").unwrap();
+    ui_layout_data::create_layout(&path, 58, "Raid Night", Default::default()).unwrap();
+    for name in ["", "   ", "Modern", "Forever", "Raid Night", " Raid Night "] {
+        let state = EditModePanelState {
+            name_draft: name.into(),
+            layout_names: ui_layout_data::layout_names(&path).unwrap(),
+            ..Default::default()
+        };
+        assert_eq!(
+            click_manager_button(state, "EditModeManagerFrameNew"),
+            None,
+            "{name:?}"
+        );
+        let mut draft = EditDraft::default();
+        draft.enter(&layout);
+        assert!(
+            crate::hud_edit::apply_manager_action(
+                &path,
+                57,
+                ACTION_EDIT_MODE_NEW,
+                name,
+                &layout,
+                &mut draft
+            )
+            .is_err()
+        );
+        assert_eq!(
+            ui_layout_data::layout_names(&path).unwrap(),
+            ["Modern", "Forever", "Raid Night"]
+        );
+        assert_eq!(ui_layout_data::active_layout(&path, 57).unwrap(), layout);
+    }
+    let mut draft = EditDraft::default();
+    let mut active = layout;
+    draft.enter(&active);
+    click_and_apply_manager(
+        &path,
+        &mut active,
+        &mut draft,
+        "EditModeManagerFrameNew",
+        ACTION_EDIT_MODE_NEW,
+        "Dungeon Night",
+    );
+    assert_eq!(active.name, "Dungeon Night");
+    assert_eq!(ui_layout_data::active_layout(&path, 57).unwrap(), active);
+    std::fs::remove_file(path).unwrap();
+}
+#[test]
+fn hudnames_delete_request_keeps_layout_and_active_selection() {
+    let path = std::env::temp_dir().join(format!("hudnames-delete-{}.ron", std::process::id()));
+    ui_layout_data::set_active_layout(&path, 57, "Forever").unwrap();
+    let layout =
+        ui_layout_data::create_layout(&path, 57, "Raid Night", Default::default()).unwrap();
+    let mut draft = EditDraft::default();
+    draft.enter(&layout);
+    assert!(
+        crate::hud_edit::apply_manager_action(
+            &path,
+            57,
+            ACTION_EDIT_MODE_DELETE,
+            "",
+            &layout,
+            &mut draft
+        )
+        .unwrap()
+        .is_none()
+    );
+    assert_eq!(ui_layout_data::active_layout(&path, 57).unwrap(), layout);
+    assert_eq!(
+        ui_layout_data::layout_names(&path).unwrap(),
+        ["Modern", "Forever", "Raid Night"]
+    );
+    assert_eq!(draft.pending_delete.as_deref(), Some("Raid Night"));
+    draft.selected = Some("player_frame".into());
+    let mut active = layout;
+    click_and_apply_manager(
+        &path,
+        &mut active,
+        &mut draft,
+        "EditModeDeleteLayoutDialogNo",
+        ACTION_EDIT_MODE_CANCEL_DELETE,
+        "",
+    );
+    assert_eq!(draft.pending_delete, None);
+    assert_eq!(draft.selected.as_deref(), Some("player_frame"));
+    assert_eq!(active.name, "Raid Night");
+    assert_eq!(ui_layout_data::active_layout(&path, 57).unwrap(), active);
+    click_and_apply_manager(
+        &path,
+        &mut active,
+        &mut draft,
+        "EditModeManagerFrameDelete",
+        ACTION_EDIT_MODE_DELETE,
+        "",
+    );
+    click_and_apply_manager(
+        &path,
+        &mut active,
+        &mut draft,
+        "EditModeDeleteLayoutDialogYes",
+        ACTION_EDIT_MODE_CONFIRM_DELETE,
+        "",
+    );
+    assert_eq!(draft.pending_delete, None);
+    assert_eq!(active.name, "Forever");
+    assert_eq!(ui_layout_data::active_layout(&path, 57).unwrap(), active);
+    assert_eq!(
+        ui_layout_data::layout_names(&path).unwrap(),
+        ["Modern", "Forever"]
+    );
+    std::fs::remove_file(path).unwrap();
 }
