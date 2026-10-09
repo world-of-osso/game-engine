@@ -2271,6 +2271,8 @@ db2/12.1.0.69933/TraitCost.csv
 db2/12.1.0.69933/TraitNodeXTraitCost.csv
 db2/12.1.0.69933/TraitNodeEntryXTraitCost.csv
 db2/12.1.0.69933/TraitCurrency.csv
+db2/12.1.0.69933/TraitCurrencySource.csv
+db2/12.1.0.69933/TraitTreeXTraitCurrency.csv
 db2/12.1.0.69933/SpecSetMember.csv
 # Actual grant icon and the present half of the Mage choice node.
 textures/135991.blp

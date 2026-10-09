@@ -2932,3 +2932,7 @@ Recorded local Arcane CSV witnesses, grant/spec conditions and Blizzard node geo
 ## 2026-10-08 — Read-only Talents bounded completion
 
 [Talents](systems/talents.md): local Mage Arcane graph and both-skin native page/hover proven; primitive no-art/rotation regressions corrected. Final4actual1080p captures inspected; learning/loadouts/server and unavailable icon art remain out of scope/gaps. Exact proof ledger lives on the system page.
+
+- 2026-10-09: Talents server-wire slice: account snapshots/results, full total-rank commits, local rule parity and shared staged UI. [System](systems/talents.md), [contract](../specs/talents.md). UI22 and UDP1 passed; native account/capture proof pending.
+
+- 2026-10-09: Talents wire acceptance: targeted33/33 GREEN, production-order and same-spec/tier RED regressions, native build0/format0, one inspected both-skin1920×1080 pending capture. [Proof](systems/talents.md#server-wire-acceptance-2026-10-09). No push, merge, server change or model delegation.
