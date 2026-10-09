@@ -1,6 +1,11 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
 # Tests needing files absent here fail remotely with their own missing-path error.
 
+# Shared tooltip scaling: local CASC FDIDs 1391670, 1980632, 1391643.
+gametables/combatratingsmultbyilvl.txt
+gametables/staminamultbyilvl.txt
+gametables/itemsocketcostperlevel.txt
+
 # Retail AuctionHouse favorites SquareIconButton disabled art (IconButtonTemplate.xml:55).
 textures/896467.blp
 
