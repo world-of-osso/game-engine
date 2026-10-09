@@ -118,6 +118,106 @@ fn hudeditmodepolish_title_drag_clamps_manager_and_preserves_hud_placements() {
     assert_eq!(draft.panel_position, None);
 }
 
+#[test]
+fn hudeditshowlist_manager_has_retail_basic_labels_in_order_in_both_skins() {
+    use ui_toolkit::frame::WidgetData;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(EditModePanelState::default());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(edit_mode_panel_screen).sync(&shared, &mut registry);
+        let bounds =
+            super::super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new())
+                .unwrap();
+        let entries = [
+            ("target_and_focus", "Target and Focus"),
+            ("raid_frames", "Raid Frames"),
+            ("party_frames", "Party Frames"),
+            ("buffs_and_debuffs", "Buffs and Debuffs"),
+            ("cast_bar", "Cast Bar"),
+        ];
+        let mut positions = Vec::new();
+        for (key, label) in entries {
+            let name = format!("EditModeManagerShow_{key}");
+            let id = registry
+                .get_by_name(&name)
+                .expect("manager category checkbox missing");
+            let text = registry
+                .get_by_name(&format!("{name}Label"))
+                .expect("checkbox label missing");
+            assert!(
+                matches!(&registry.get(text).unwrap().widget_data, Some(WidgetData::FontString(data)) if data.text == label)
+            );
+            let rect = bounds[&id];
+            positions.push((rect.y, rect.x));
+            assert!(
+                registry.get_by_name(&format!("{name}Check")).is_some(),
+                "initially checked"
+            );
+        }
+        assert!(
+            positions.windows(2).all(|pair| pair[0] < pair[1]),
+            "Retail row-major basic order"
+        );
+    }
+}
+
+#[test]
+fn hudeditshowlist_checkbox_actions_toggle_movers_without_changing_layout() {
+    use super::super::hud_edit_layout::collect_selection_boxes;
+    let path =
+        std::env::temp_dir().join(format!("hudeditshowlist-toggle-{}.ron", std::process::id()));
+    let layout = ui_layout_data::set_active_layout(&path, 57, "Forever").unwrap();
+    let mut draft = EditDraft::default();
+    draft.enter(&layout);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    let mut shared = SharedContext::new();
+    shared.insert(ActiveSkin::Forever);
+    shared.insert(EditModeOverlayState::default());
+    Screen::new(super::super::hud_edit_preview::preview_screen).sync(&shared, &mut registry);
+    let bounds =
+        super::super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+    for (id, rect) in bounds {
+        registry.set_computed_layout(id, rect).unwrap();
+    }
+    let original = collect_selection_boxes(&registry, None);
+    for (key, movers) in [
+        (
+            "target_and_focus",
+            vec!["target_frame", "target_of_target", "focus_frame"],
+        ),
+        ("raid_frames", vec!["raid_frames"]),
+        ("party_frames", vec!["party_frames"]),
+        ("buffs_and_debuffs", vec!["buffs", "debuffs"]),
+        ("cast_bar", vec!["cast_bar"]),
+    ] {
+        let action = click_manager_button(
+            EditModePanelState::default(),
+            &format!("EditModeManagerShow_{key}"),
+        )
+        .expect("checkbox emits action");
+        assert_eq!(action, format!("edit_mode_show_{key}"));
+        draft.selected = Some(movers[0].into());
+        crate::hud_edit::apply_manager_action(&path, 57, &action, "", &layout, &mut draft).unwrap();
+        let hidden = collect_selection_boxes(&registry, None);
+        assert!(
+            hidden
+                .iter()
+                .all(|entry| !movers.contains(&entry.key.as_str()))
+        );
+        assert_eq!(draft.selected, None);
+        assert_eq!(ui_layout_data::active_layout(&path, 57).unwrap(), layout);
+        crate::hud_edit::apply_manager_action(&path, 57, &action, "", &layout, &mut draft).unwrap();
+        assert_eq!(
+            collect_selection_boxes(&registry, None),
+            original,
+            "checkbox restores exact mover rectangles"
+        );
+    }
+    std::fs::remove_file(path).unwrap();
+}
+
 fn click_manager_button(state: EditModePanelState, button: &str) -> Option<String> {
     use super::super::{RegistryModel, ScreenPostsetup};
     let mut shared = SharedContext::new();
