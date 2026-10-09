@@ -1226,3 +1226,62 @@ fn forever_hotkeys_use_flareui_font_and_modern_keeps_retail_grey() {
         }
     }
 }
+
+#[test]
+fn sidebarbinds_side_keys_activate_retail_slots_and_draw_hotkeys_both_skins() {
+    for (bar, number, slot) in [(ActionBar::Right, 3, 24), (ActionBar::Left, 4, 36)] {
+        let action = InputAction::from_key(&format!("multi_action_bar_{number}_button_1"))
+            .expect("side bar binding exists");
+        let mut bindings = InputBindingsData::default();
+        bindings.assign(action, InputBinding::ShiftKeyboard(BindingKey::Digit1));
+        let pressed = pressed_action_buttons(
+            &bindings,
+            &Pressed {
+                keys: vec![BindingKey::Digit1],
+                shift: true,
+                ..Default::default()
+            },
+        );
+        assert_eq!(pressed, [(bar, 0)]);
+        assert_eq!(pressed[0].0.action_slot(pressed[0].1), slot);
+        for (skin, text) in [(ActiveSkin::Modern, "s-1"), (ActiveSkin::Forever, "S1")] {
+            let mut state = class_bar(Some(2));
+            state.extra_action_bars.action_bar_4 = true;
+            state.extra_action_bars.action_bar_5 = true;
+            state.set_hotkeys(&bindings);
+            let registry = build(skin, state, main_action_bar_screen);
+            assert_eq!(hotkey_text(&registry, &bar.button_name(0)), text);
+            assert_eq!(hotkey_text(&registry, &bar.button_name(1)), "");
+        }
+    }
+}
+
+#[test]
+fn sidebarbinds_spell_and_item_drops_target_the_retail_slot() {
+    use shared::protocol::ActionRef;
+    for (bar, slot) in [
+        (ActionBar::Main, 2),
+        (ActionBar::BottomLeft, 62),
+        (ActionBar::BottomRight, 50),
+        (ActionBar::Right, 26),
+        (ActionBar::Left, 38),
+    ] {
+        for action in [ActionRef::Spell(133), ActionRef::Item(6948)] {
+            let request = bar.assignment(2, action, 0).expect("drop assigns slot");
+            assert_eq!(request.slot, slot);
+            assert_eq!(request.action, Some(action));
+        }
+    }
+    assert_eq!(
+        ActionBar::Main
+            .assignment(0, ActionRef::Spell(133), 1)
+            .unwrap()
+            .slot,
+        72
+    );
+    assert!(
+        ActionBar::Right
+            .assignment(12, ActionRef::Spell(133), 0)
+            .is_none()
+    );
+}
