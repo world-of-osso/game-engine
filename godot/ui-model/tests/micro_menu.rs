@@ -41,7 +41,7 @@ fn both_presets_hide_the_micro_menu_without_destroying_its_buttons() {
 }
 
 #[test]
-fn an_older_custom_layout_loads_with_the_micro_menu_hidden() {
+fn an_older_custom_layout_resets_to_forever_with_the_micro_menu_hidden() {
     use game_engine_core::ui_layout_data::active_layout;
     let path = std::env::temp_dir().join(format!("micro-menu-old-{}.ron", std::process::id()));
     std::fs::write(&path, r#"(edit_mode: (layouts: {"Old": (skin: Forever, settings: (chat: (width: Some(600))))}, active_layout: {"17": "Old"}))"#).unwrap();
@@ -55,7 +55,8 @@ fn an_older_custom_layout_loads_with_the_micro_menu_hidden() {
         .get(registry.get_by_name("MicroMenuContainer").unwrap())
         .unwrap();
     assert!(!menu.visible);
-    assert_eq!(layout.settings.chat.width, Some(600));
+    assert_eq!(layout.name, "Forever");
+    assert_eq!(layout.settings.chat.width, None);
     std::fs::remove_file(path).unwrap();
 }
 
