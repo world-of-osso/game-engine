@@ -83,7 +83,7 @@ Scope: geometry, art, fonts and colours only. Trading state, requests, sorting a
 | View / element | Cached Retail value and citation | Current comparison / remaining work |
 | --- | --- | --- |
 | Root / chrome | 800×538, `ButtonFrameTemplate`: `AH/Shared/Blizzard_AuctionHouseFrame.xml:4-5` | Authored dimensions match; shared skin-aware metal chrome retained. |
-| Browse categories | List168×438, button132×21, normal art136×32 at(-2,0): `AH/Mainline/Blizzard_AuctionHouseCategoriesList.xml:4-17,60-90` | Authored sizes/positions match. Subcategory hierarchy and scroll bar absent; implementing navigation/scroll behaviour is excluded. |
+| Browse categories | List168×438, button132×21, normal art136×32 at(-2,0): `AH/Mainline/Blizzard_AuctionHouseCategoriesList.xml:4-17,60-90` | Authored sizes/positions matched that historical geometry-only audit. Native subcategory hierarchy/scrolling was added afterward in the cross-repo subcategory/sort change described below; it was outside that audit, not outside the current native contract. |
 | Search control | 241×22: `AH/Shared/Blizzard_AuctionHouseSearchBar.xml:4-5`; bar618×40:49; root TOPRIGHT(-12,-29): `AH/Shared/Blizzard_AuctionHouseFrame.xml:72-76` | Authored241×22 already matches. Historical native241×25 is not a reason to change authored height. |
 | Search font / placeholder | `GameFontHighlightSmall` overrides `ChatFontNormal`, instructions `GameFontDisableSmall`, explicit grey0.35: `Blizzard_SharedXML/Shared/InputBox/InputBoxTemplates.xml:177-203`; FRIZQT__10: `Blizzard_Fonts_Shared/Shared/Fonts.xml:39-45`, `FontStyles.xml:56,92-94` | Baseline generic money-input helper supplied ArialNarrow14; placeholder was Friz12/grey0.5. Corrected search alone to Friz10/grey0.35. Native baseline measured25px high in both skins; GREEN rendering pending. |
 | Search magnifier | 10×10 at LEFT(1,-1), unloaded tint0.6: `InputBoxTemplates.xml:212-218`; `InputBoxTemplates.lua:175-183` | Geometry matches; authored tint is white, not empty-search grey. Focus-specific tint is not represented in the auction view state. |
@@ -110,7 +110,7 @@ First font/dropdown/circular-icon corrections are implemented after model RED (1
 
 ## Protocol and server gaps
 
-- `AuctionSearchQuery` now carries optional exact `item_id` and `class_id`; native searches use them. The preserved Bevy category filter remains page-local.
+- `AuctionSearchQuery` carries optional exact `item_id` / `class_id`, class/subclass/inventory `subcategory_filters` alternatives, and displayed-column `Bid` / `Quantity` keys; native searches use them. The preserved Bevy category filter remains page-local.
 - Listings carry no icon, item level or class: the client reads `Item.csv`.
 - No buyout-only auctions: `min_bid` is required, so buyout mode posts `min_bid = buyout`.
 - No deposit query: the client repeats the server formula.
@@ -175,3 +175,9 @@ Final Rust code **`ab65b0fa6`**: native Name/Price/Buyout header fix (`4f63e7530
 | 6 Layout | **FAIL parity; both-skin audit complete** | Modern and Forever Buy/Sell/Owned/Bids/ItemBuy opened and inspected on final artifact. Root800×538 matches. Search control is241×25, not241×22; Bids/ItemBuy time-band column50, not cached Retail140, causing clipping; duration and buy-dialog art use older/static-popup templates rather than the cached templates. NPC portrait renders after warm-up; early placeholder is not a final defect. `inspected-final-modern-*`, `inspected-final-forever`, corresponding final-view PNG/JSON and IPC trees; `retail-layout-reference.json`, `modern-layout-measurements.json`. |
 
 Server findings retain actual request/response data. This server emits no INFO operation-audit line for successful auction mutations; absence is documented rather than fabricated. Protocol-unrepresentable requests have request/response/log **N/A**. User-requested tooltip record-ID lines are unchanged. Overall acceptance remains **Partial**, not full Retail parity.
+
+## Subcategory/sort bounded proof — 2026-10-08
+
+Shared query alternatives are ORed within the selected node, ANDed with text/exact-item/other filters. Generic subclass labels/IDs are a checked-in snapshot of local Retail `ItemSubClass.csv`12.1.0.69933 (hidden auction subclasses excluded); explicit Weapons/Armor/Profession/Housing/Miscellaneous paths follow cached Retail `Mainline/Blizzard_AuctionData.lua`. Both skins use the same taxonomy. Legendary-crafted implicit flags and WoW Token are not class/subclass/inventory filters and remain unsupported.
+
+Protocol round-trip3 and layout5 passed; server targeted4 passed, including both directions across50/25 and50/29 boundaries, current versus starting bid, global grouped quantities, ORed Chest/Robe slots and source-local templates. Engine targeted actions/layout and native offline captures are recorded in [the system proof ledger](../wiki/systems/auction-house-ui.md#subcategory-and-displayed-column-sorts--2026-10-08); this is not live network/end-to-end acceptance or a broad suite gate.
