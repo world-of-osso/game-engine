@@ -53,12 +53,6 @@ fn page_contents(view: &TalentView, scale: f32) -> Element {
         ));
         children.extend(render_tree(hero, view, Some(index), scale));
     }
-    children.extend(heading(
-        "TalentsReadOnly",
-        "Read-only — default grants only; no points spent",
-        [BOOK_W / 2.0, BOOK_H - 38.0],
-        scale,
-    ));
     children
 }
 fn heading(name: &str, text: &str, center: [f32; 2], scale: f32) -> Element {
