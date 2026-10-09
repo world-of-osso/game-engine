@@ -115,7 +115,9 @@ impl GameClient {
     ) -> Result<(), FrameError> {
         self.bags.cursor.picked_at = None;
         let was_empty = self.bags.cursor.item.is_empty();
-        let target = cursor_action_target(action)?;
+        let target = self
+            .bank_cursor_target(owner, action)
+            .or(cursor_action_target(action)?);
         if parse_bag_close_action(action).is_some() {
             // A container close button, also on a backpack an NPC canvas draws.
             self.dispatch_bag_action(action, click)?;
@@ -229,6 +231,19 @@ impl GameClient {
             }
             return self.send_bag_use_request(location);
         }
+        self.click_inventory_slot(location, click)
+    }
+
+    pub(super) fn clear_bag_split(&mut self) {
+        self.bags.cursor.split = None;
+    }
+
+    /// Bank and bag slots share the original cursor and StackSplitFrame picker.
+    pub(super) fn click_inventory_slot(
+        &mut self,
+        location: ItemLocation,
+        click: Click,
+    ) -> Result<(), FrameError> {
         if click.shift && self.bags.cursor.item.is_empty() {
             self.open_bag_split(location);
             return Ok(());
@@ -410,10 +425,23 @@ impl GameClient {
         let Some(split) = &self.bags.cursor.split else {
             return Ok(StackSplitFrameState::default());
         };
-        let StackSplitOwner::Bag(ItemLocation::Bag { bag, slot }) = split.owner else {
-            return Err("Standalone split owner is not a bag slot".into());
+        let control = match split.owner {
+            StackSplitOwner::Bag(ItemLocation::Bag { bag, slot }) => {
+                self.find_bag_split_owner(bag, slot)?
+            }
+            StackSplitOwner::Bag(ItemLocation::Bank { slot, .. }) => {
+                let name = format!("BankFrameItem{}", slot + 1);
+                let ui = self
+                    .banks
+                    .bank_ui
+                    .as_ref()
+                    .ok_or("Split owner Bank UI missing")?;
+                ui.bind()
+                    .frame_control(&name)
+                    .ok_or_else(|| format!("Split owner bank slot {name} missing"))?
+            }
+            _ => return Err("Standalone split owner is not a container slot".into()),
         };
-        let control = self.find_bag_split_owner(bag, slot)?;
         let rect = control.get_global_rect();
         let scale = self.effective_ui_scale();
         let mut state = StackSplitFrameState {
