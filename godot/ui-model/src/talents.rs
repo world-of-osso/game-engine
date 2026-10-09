@@ -93,3 +93,34 @@ pub fn talent_button_spell(name: &str) -> Option<u32> {
     let (_, spell) = node.rsplit_once("Spell")?;
     spell.strip_suffix("Button")?.parse().ok()
 }
+
+/// Staged configuration for the owning player.
+#[derive(Clone, Debug, Default, PartialEq)]
+pub struct TalentEditor {
+    pub snapshot: Option<shared::protocol::TraitConfigSnapshot>,
+    pub error_text: Option<String>,
+    pub choice_node: Option<u32>,
+}
+impl TalentEditor {
+    pub fn receive_snapshot(&mut self, _snapshot: shared::protocol::TraitConfigSnapshot) {}
+    pub fn receive_result(&mut self, _result: shared::protocol::TraitCommitResult) {}
+    pub fn rank(&self, _node: u32, _entry: u32) -> u8 {
+        0
+    }
+    pub fn unspent(&self, _view: &TalentView) -> Vec<(u32, i32)> {
+        Vec::new()
+    }
+    pub fn dirty(&self) -> bool {
+        false
+    }
+    pub fn purchase(&mut self, _view: &TalentView, _level: u8, _node: u32, _entry: u32) -> bool {
+        false
+    }
+    pub fn refund(&mut self, _view: &TalentView, _level: u8, _node: u32) -> bool {
+        false
+    }
+    pub fn undo(&mut self) {}
+    pub fn apply(&self) -> Option<shared::protocol::CommitTraitConfig> {
+        None
+    }
+}
