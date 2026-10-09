@@ -93,15 +93,27 @@ fn ahportrait_shared_ring_art_and_rect_in_both_skins() {
 fn ahportrait_opaque_top_inset_uses_retail_rock_fill() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
-        let registry = mount(preview_view("browse").unwrap(), native_auction_screen);
-        let fill = frame(&registry, "AuctionHouseFrameBgTop");
-        assert_rect(fill, (2.0, 21.0, 796.0, 30.0));
-        let Some(WidgetData::Texture(texture)) = &fill.widget_data else {
-            panic!("rock texture required")
-        };
-        assert_eq!(texture.source, TextureSource::FileDataId(374_155));
-        assert_eq!(texture.vertex_color, [1.0; 4]);
-        assert_eq!(fill.alpha, 1.0);
+        for (registry, name, width) in [
+            (
+                mount(preview_view("browse").unwrap(), native_auction_screen),
+                "AuctionHouseFrameBgTop",
+                796.0,
+            ),
+            (
+                mount(BankFrameState::default(), bank_frame_screen),
+                "BankFrameBgTop",
+                734.0,
+            ),
+        ] {
+            let fill = frame(&registry, name);
+            assert_rect(fill, (2.0, 21.0, width, 30.0));
+            let Some(WidgetData::Texture(texture)) = &fill.widget_data else {
+                panic!("rock texture required")
+            };
+            assert_eq!(texture.source, TextureSource::FileDataId(374_155));
+            assert_eq!(texture.vertex_color, [1.0; 4]);
+            assert_eq!(fill.alpha, 1.0);
+        }
     }
 }
 
