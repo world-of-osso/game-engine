@@ -114,52 +114,63 @@ fn menu_fixture(
     }
 }
 
+fn trade_fixture() -> game_engine_ui_model::trade::NativeTradeView {
+    game_engine_ui_model::trade::NativeTradeView {
+        frame: game_engine_ui_model::trade_frame_component::TradeFrameState {
+            visible: true,
+            player_name: "Theron".into(),
+            recipient_name: "Jaina".into(),
+            ..Default::default()
+        },
+    }
+}
+
+fn guild_bank_fixture() -> game_engine_ui_model::guild_bank::NativeGuildBankView {
+    game_engine_ui_model::guild_bank::NativeGuildBankView {
+        frame: game_engine_ui_model::guild_bank_frame_component::GuildBankFrameState {
+            visible: true,
+            title: "Guild Vault".into(),
+            ..Default::default()
+        },
+        bags: Default::default(),
+    }
+}
+
+fn character_fixture(case: &str) -> game_engine_ui_model::character_frame::CharacterFrameView {
+    use game_engine_ui_model::character_frame::*;
+    CharacterFrameView {
+        visible: true,
+        title: "Theron".into(),
+        race_id: 1,
+        class_id: 2,
+        tab: if case == "reputation" {
+            CharacterTab::Reputation
+        } else {
+            CharacterTab::PaperDoll
+        },
+        ..Default::default()
+    }
+}
+
 impl RegistryUi {
     fn mount_buttonfit_service(&mut self, case: &str) -> Result<(), String> {
         match case {
             "merchant" | "buyback" => self.show_merchant(merchant_fixture(case)),
             "inbox" | "send" | "openmail" | "opening" => self.show_mail(mail_fixture(case)),
-            "trade" => self.show_trade(game_engine_ui_model::trade::NativeTradeView {
-                frame: game_engine_ui_model::trade_frame_component::TradeFrameState {
-                    visible: true,
-                    player_name: "Theron".into(),
-                    recipient_name: "Jaina".into(),
-                    ..Default::default()
-                },
-            }),
-            "guildbank" => {
-                self.show_guild_bank(game_engine_ui_model::guild_bank::NativeGuildBankView {
-                    frame: game_engine_ui_model::guild_bank_frame_component::GuildBankFrameState {
-                        visible: true,
-                        title: "Guild Vault".into(),
-                        ..Default::default()
-                    },
-                    bags: Default::default(),
-                })
-            }
-            "character" | "reputation" => self.show_character_frame(
-                game_engine_ui_model::character_frame::CharacterFrameView {
-                    visible: true,
-                    title: "Theron".into(),
-                    race_id: 1,
-                    class_id: 2,
-                    tab: if case == "reputation" {
-                        game_engine_ui_model::character_frame::CharacterTab::Reputation
-                    } else {
-                        game_engine_ui_model::character_frame::CharacterTab::PaperDoll
-                    },
-                    ..Default::default()
-                },
-            ),
+            "trade" => self.show_trade(trade_fixture()),
+            "guildbank" => self.show_guild_bank(guild_bank_fixture()),
+            "character" | "reputation" => self.show_character_frame(character_fixture(case)),
             "menu" => self.show_game_menu_view(menu_fixture(None)),
-            key if key.starts_with("options:") => {
-                let category = game_engine_ui_model::options_menu_component::OptionsCategory::ALL
-                    .into_iter()
-                    .find(|category| Some(category.key()) == key.strip_prefix("options:"))
-                    .ok_or_else(|| format!("Unknown options audit case {key}"))?;
-                self.show_game_menu_view(menu_fixture(Some(category)))
-            }
+            key if key.starts_with("options:") => self.mount_buttonfit_options(key),
             other => Err(format!("Unknown buttonfit service {other}")),
         }
+    }
+
+    fn mount_buttonfit_options(&mut self, key: &str) -> Result<(), String> {
+        let category = game_engine_ui_model::options_menu_component::OptionsCategory::ALL
+            .into_iter()
+            .find(|category| Some(category.key()) == key.strip_prefix("options:"))
+            .ok_or_else(|| format!("Unknown options audit case {key}"))?;
+        self.show_game_menu_view(menu_fixture(Some(category)))
     }
 }
