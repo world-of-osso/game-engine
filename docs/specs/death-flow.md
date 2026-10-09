@@ -12,11 +12,13 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 - [x] Live right-click on a spirit healer opens the confirmation; accepting resurrects the player and displays the server-supplied Resurrection Sickness aura in BuffFrame's debuff row.
 - [x] Alive clears death popups, ghost appearance and corpse marker. [Logout](logout.md) stops the character transport and releases the world/owner state; the account token remains and automatically reloads character select.
 - [x] Popup text, labels and click actions work in both skins.
-- [ ] With DEATH visible, Escape leaves the popup open and opens the Game Menu. DEATH is not an Escape cancellation target; another escapable popup retains its normal cancellation route. Routing implemented; native RED/GREEN proof pending.
-
-Retail grounding: `Blizzard_StaticPopup_Game/Mainline/GameDialogDefs.lua:320-327` sets DEATH `whileDead`, `notClosableByLogout` and `hideOnEscape=false`. `Blizzard_StaticPopup/StaticPopup.lua:814-831` skips non-Escape popups and returns whether anything closed; `Blizzard_GameMenuEsc/Blizzard_GameMenuEsc.lua:100-113` then opens the Game Menu when no handler consumes Escape.
+- [x] With DEATH visible, Escape leaves the popup open and opens the Game Menu. DEATH is not an Escape cancellation target; another escapable popup retains its normal cancellation route.
 - [x] `RESURRECT` offers show the caster and server-supplied timeout; Accept/Decline/timeout send the corresponding response, once. Alive closes the offer. Both skins retain the same mechanics.
 - [x] Stable replicated tapper identities exempt the local player and current group. Tap-denied nameplate health is Retail 0.9 grey; requested target health is 0.5 grey, through each skin's existing brightness treatment. Untapped/group-eligible units keep their ordinary health colours.
+
+Retail grounding: `Blizzard_StaticPopup_Game/Mainline/GameDialogDefs.lua:320-327` sets DEATH `whileDead`, `notClosableByLogout` and `hideOnEscape=false`. `Blizzard_StaticPopup/StaticPopup.lua:814-831` skips non-Escape popups and returns whether anything closed; `Blizzard_GameMenuEsc/Blizzard_GameMenuEsc.lua:100-113` then opens the Game Menu when no handler consumes Escape.
+
+DEATH Escape native proof (2026-10-09): `4ac383a7d` RED renders DEATH but times out opening GameMenuUI. `8a44570de` GREEN retains rendered DEATH and opens the authored menu through physical Escape after a real UDP Dead snapshot; Resume and all existing logout phases pass. Logs: `/home/osso/.worktrees/logs/logoutfix2-death-{red-runtime2,green-runtime}.log`. Final [logout/death/popup regressions](logout.md#proof) pass.
 
 ## Remote player life state
 
