@@ -395,6 +395,8 @@ fn bar_name(bar: ActionBar) -> &'static str {
         ActionBar::Main => "MainActionBar",
         ActionBar::BottomLeft => "MultiBarBottomLeft",
         ActionBar::BottomRight => "MultiBarBottomRight",
+        ActionBar::Right => "MultiBarRight",
+        ActionBar::Left => "MultiBarLeft",
     }
 }
 
@@ -452,7 +454,12 @@ fn forever_end_caps_cover_no_action_button() {
 #[test]
 fn forever_stacks_three_centred_bars_of_9_9_and_10_buttons() {
     let registry = forever_bars();
-    let bars = ActionBar::ALL.map(|bar| {
+    let bars = [
+        ActionBar::Main,
+        ActionBar::BottomLeft,
+        ActionBar::BottomRight,
+    ]
+    .map(|bar| {
         (
             bar_rect(&registry, bar_name(bar)),
             shown_buttons(&registry, bar),

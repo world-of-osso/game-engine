@@ -4,6 +4,9 @@
 ## 2026-10-08 — Bounded bank art and native input proof
 
 [Banks](systems/banks.md#native-bank-art-2026-10-08) records model-owned additive overlays, crop-aware native tiling and preserved bankmoves press/modified-click callbacks. [Contract proof](../specs/bank-frame.md#bounded-bankart-pass--2026-10-08):808b6eb2e targeted11/0/1 and six inspected1920×1080 Modern/Forever tabs/hover/purchase captures. Native loaded ADD and exactly-one left/Shift/right dispatch assertions pass. Bank-bag chrome/state/layout remains blocked; vertical-shadow5779392 cannot extract without the missing local install `.build.info`. No CDN/substitute or full parity/live-server claim.
+## 2026-10-08 — Extra Action Bars visibility
+
+[Options contract](../specs/extra-action-bars.md) records the user decision: side bars disabled by default, no disabled edit movers, unchanged tracker placement. Production bar visibility replaces editor-only side placeholders; bottom-bar skin defaults remain. Implementation `67c50ec42`: targeted GREEN 99 passed/zero failed (one ignored capture helper), extension build exit 0. Both cage captures inspected: ordered Action Bars 2–5 checkboxes, default Forever editor without 4/5 movers and unchanged tracker. [Options contract](../specs/extra-action-bars.md#known-gaps-current-cycle) records evidence and live-server exclusions.
 
 ## 2026-10-07 — Offline character garment matrix, 78-cell bounded PASS
 
