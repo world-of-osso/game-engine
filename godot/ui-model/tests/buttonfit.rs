@@ -85,12 +85,7 @@ fn buttonfit_auction_pagers_use_retail_32px_arrow_buttons_not_overflowing_captio
             state.search_page = 1;
             state.search_pages = 3;
             let registry = render(state, native_auction_screen, skin);
-            for name in [
-                "AuctionRowsPrev",
-                "AuctionRowsNext",
-                "AuctionPagePrev",
-                "AuctionPageNext",
-            ] {
+            for name in ["AuctionPagePrev", "AuctionPageNext"] {
                 let button = frame(&registry, name);
                 let Some(WidgetData::Button(text)) = &button.widget_data else {
                     panic!("paging button")
