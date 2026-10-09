@@ -244,6 +244,27 @@ impl BankSession {
             .collect()
     }
 
+    /// Exact character bank slot addressed by a slot action on the shown tab.
+    pub fn slot_location(&self, action: &str) -> Option<ItemLocation> {
+        if !self.is_open() || self.state.shown != BankType::Character || self.state.prompt.is_some()
+        {
+            return None;
+        }
+        let slot = index(action, frame::ACTION_SLOT_PREFIX)?;
+        let tab = self.state.selected_tab(BankType::Character);
+        self.state
+            .character
+            .as_ref()?
+            .tabs
+            .get(tab)?
+            .slots
+            .get(slot)?;
+        Some(ItemLocation::Bank {
+            tab: u8::try_from(tab).ok()?,
+            slot: u8::try_from(slot).ok()?,
+        })
+    }
+
     /// Right-click on a bag slot (`UseContainerItem` with the bank open), or a
     /// cursor item dropped on the bank: deposit it into the shown tab.
     pub fn deposit_bag(&mut self, bag: u8, slot: u8) -> Vec<BankEffect> {

@@ -11,6 +11,10 @@ func _initialize() -> void:
 func _run() -> void:
 	var screen = OS.get_environment("GODOT_CAPTURE_SCREEN")
 	var output = OS.get_environment("GODOT_CAPTURE_PATH")
+	if screen == "spellbook_both":
+		var captured: bool = await capture_spellbook_both(output)
+		quit(0 if captured else 1)
+		return
 	if screen == "auction_both":
 		var captured: bool = await capture_auction_both(output)
 		quit(0 if captured else 1)
@@ -37,7 +41,7 @@ func _run() -> void:
 	if screen == "chatflush_preview":
 		RenderingServer.set_default_clear_color(Color(0.25, 0.4, 0.55))
 	var trainer_preview: bool = screen in ["trainer_preview", "forever_trainer_preview"]
-	var settle_frames: int = 240 if trainer_preview else 120 if screen in ["auction_icons_preview", "forever_auction_icons_preview", "forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview"] else 120 if screen in ["actionbars_options_preview", "forever_actionbars_options_preview", "forever_hudedit_preview"] else 3
+	var settle_frames: int = 240 if trainer_preview else 120 if screen in ["spellbook_preview", "forever_spellbook_preview", "auction_icons_preview", "forever_auction_icons_preview", "forever_damage_meter_preview", "achievement_preview", "forever_achievement_preview", "castbaranim_preview"] else 120 if screen in ["actionbars_options_preview", "forever_actionbars_options_preview", "forever_hudedit_preview"] else 3
 	for frame in range(settle_frames):
 		await process_frame
 		if screen in ["trainer_preview", "forever_trainer_preview"]:
@@ -723,6 +727,51 @@ func castbar_snapshot_matches(ui: Node, image: Image, output: String) -> bool:
 		push_error("Cast feedback did not change rendered pixels")
 		return false
 	print("PASS: cast feedback changed pixels=", changed_pixels)
+	return true
+
+# Both skins and every bottom page; production projection, local mage data, no networking.
+func capture_spellbook_both(directory: String) -> bool:
+	for skin in ["modern", "forever"]:
+		for page in ["spellbook", "specialization", "talents"]:
+			OS.set_environment("GODOT_SPELLBOOK_TAB", page)
+			var ui = ClassDB.instantiate("RegistryUi")
+			root.add_child(ui)
+			var method = "show_spellbook_preview" if skin == "modern" else "show_forever_spellbook_preview"
+			var error: String = ui.call(method)
+			if not error.is_empty():
+				push_error(error)
+				ui.queue_free()
+				return false
+			for frame in range(120):
+				await process_frame
+				await RenderingServer.frame_post_draw
+			var window_size := DisplayServer.window_get_size()
+			var image := root.get_texture().get_image()
+			if window_size != Vector2i(1920, 1080) or image == null or image.get_size() != window_size:
+				push_error("Spellbook proof requires a real 1920x1080 window and viewport; window=", window_size, " viewport=", root.size)
+				ui.queue_free()
+				return false
+			var geometry: Dictionary = {"window": [window_size.x, window_size.y]}
+			for name in ["SpellBookRoot", "PlayerSpellsTab1", "PlayerSpellsTab2", "PlayerSpellsTab3", "SpellBookCategoryTab1", "SpellBookCategoryTab2"]:
+				var control := ui.find_child(name, true, false) as Control
+				if control != null and control.is_visible_in_tree():
+					var rect := control.get_global_rect()
+					geometry[name] = [rect.position.x, rect.position.y, rect.size.x, rect.size.y]
+			var prefix := directory.path_join(skin + "-" + page)
+			if image.save_png(prefix + ".png") != OK:
+				push_error("Cannot save spellbook pixels: ", prefix)
+				ui.queue_free()
+				return false
+			var file := FileAccess.open(prefix + ".json", FileAccess.WRITE)
+			if file == null:
+				push_error("Cannot save spellbook geometry: ", prefix)
+				ui.queue_free()
+				return false
+			file.store_string(JSON.stringify(geometry, "\t"))
+			file.close()
+			print("CAPTURE: ", prefix, " ", geometry)
+			ui.queue_free()
+			await process_frame
 	return true
 
 # Both skins, production auction projection, no GameClient or networking.
