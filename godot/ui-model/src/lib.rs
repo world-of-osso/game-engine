@@ -212,6 +212,7 @@ pub mod trade_frame_component;
 pub mod auction;
 #[path = "ui/screens/auction_house_frame_component.rs"]
 pub mod auction_house_frame_component;
+pub mod spellbook_preview;
 
 #[path = "loot_data.rs"]
 pub mod loot_data;
