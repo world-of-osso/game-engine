@@ -465,7 +465,11 @@ fn apply_retail_scaling_fields(
         }
         Ok(())
     })?;
-    let columns: [String; 31] = std::array::from_fn(|index| {
+    apply_socket_multipliers(catalog, sparse)
+}
+
+fn socket_stat_columns() -> [String; 1 + STAT_SLOTS * 3] {
+    std::array::from_fn(|index| {
         if index == 0 {
             return "ID".into();
         }
@@ -476,7 +480,11 @@ fn apply_retail_scaling_fields(
             "StatPercentageOfSocket",
         ][(index - 1) % 3];
         format!("{prefix}_{slot}")
-    });
+    })
+}
+
+fn apply_socket_multipliers(catalog: &mut ItemCatalog, sparse: &CsvTable) -> Result<(), String> {
+    let columns = socket_stat_columns();
     csv_rows(sparse, columns.each_ref().map(String::as_str), |values| {
         let Some(entry) = catalog
             .items
