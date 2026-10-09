@@ -63,21 +63,47 @@ fn assert_request_choices(request: &CreateCharacter) {
         .options_for(request.race, request.appearance.sex)
         .unwrap();
     assert_eq!(options.len(), 18 + usize::from(request.appearance.sex));
-    let choices = super::super::appearance::selected_option_choices(&selected, db());
-    assert_eq!(
-        choices.len(),
-        options.len() - 1,
-        "all player options serialized"
-    );
-    for (option, choice) in choices {
-        let offered =
-            db().offered_choices(request.race, request.appearance.sex, request.class, option);
+    let offered_options = super::super::customization_view::offered_options(&selected, db());
+    assert_eq!(offered_options.len(), options.len() - 1);
+    for option in offered_options {
+        let choice = crate::appearance_options::selected_choice(
+            db(),
+            request.race,
+            request.appearance.sex,
+            request.class,
+            &request.appearance,
+            option,
+        )
+        .expect("offered option has a selected core or additional choice");
+        if !crate::appearance_options::is_core_option(
+            db(),
+            request.race,
+            request.appearance.sex,
+            option,
+        ) {
+            assert!(
+                request
+                    .appearance
+                    .customization_choices
+                    .iter()
+                    .any(|selection| selection.option_id == option.id
+                        && selection.choice_id == choice.id),
+                "offered additional option is explicit in the request"
+            );
+        }
+        let offered = db().offered_choices(
+            request.race,
+            request.appearance.sex,
+            request.class,
+            option.id,
+        );
         assert!(
             offered.iter().any(|candidate| candidate.id == choice.id),
-            "race {} class {} sex {} option {option} choice {}",
+            "race {} class {} sex {} option {} choice {}",
             request.race,
             request.class,
             request.appearance.sex,
+            option.id,
             choice.id
         );
     }
@@ -86,9 +112,14 @@ fn assert_request_choices(request: &CreateCharacter) {
             .iter()
             .find(|option| option.id == choice.option_id)
             .expect("extra option belongs to selected race/body type");
+        let offered = db().offered_choices(
+            request.race,
+            request.appearance.sex,
+            request.class,
+            option.id,
+        );
         assert!(
-            option
-                .choices
+            offered
                 .iter()
                 .any(|candidate| candidate.id == choice.choice_id)
         );
