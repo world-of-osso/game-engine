@@ -1,7 +1,7 @@
 //! Nameplate background/fill art by skin: Retail's `uicastingbar` under Modern and
 //! Forever's set-1 `uicastingbarc60` members; the soft glow is skin-independent. Forever
-//! plates carry Camelot's level frame (Blizzard_NamePlates/Camelot/
-//! Blizzard_NamePlateLevelFrame.xml) where Modern plates have none.
+//! plates retain Camelot's skull frame and selected ring (Blizzard_NamePlates/Camelot/
+//! Blizzard_NamePlateLevelFrame.xml), without numeric levels; Modern has neither.
 
 use std::path::PathBuf;
 
@@ -78,7 +78,7 @@ fn nameplate_glow_stays_inside_both_cast_presets_at_the_fill_edge() {
     for preset in [NameplateBarThickness::Thin, NameplateBarThickness::Thick] {
         let style = NameplateStyle::from_presets(preset, preset);
         for fraction in [0.0, 0.25, 0.5, 1.0] {
-            let plate = plate_layout(&style, 1.0, 0.0);
+            let plate = plate_layout(&style, 1.0, 0.0, ActiveSkin::Modern);
             let layout = cast_layout(&style, fraction, plate.span, plate.bottom);
             assert!(layout.spark.position.y >= layout.background.position.y);
             assert!(layout.spark.end().y <= layout.background.end().y);
@@ -105,7 +105,7 @@ fn nameplate_cast_row_top_touches_health_bottom_in_both_skins() {
                     show_border,
                     ..NameplateStyle::from_presets(health, cast)
                 };
-                let plate = plate_layout(&style, 0.73, level_width);
+                let plate = plate_layout(&style, 0.73, level_width, skin);
                 let row = cast_layout(&style, 0.3382, plate.span, plate.bottom);
                 let health_rect = if show_border { plate.frame } else { plate.fill };
                 // The captured health frame had this fractional screen-space bottom.
@@ -156,7 +156,7 @@ fn forever_plate_level_frame_draws_the_camelot_level_indicator_atlases() {
 /// bars end at 66 where the frame begins, the border grows it by 1 and 2 px a side, and the
 /// skull is a 23×23 square on its centre (80, 0). The Thin plate's frame is 16 high.
 #[test]
-fn forever_level_frame_hangs_on_the_shortened_health_bars_right_end() {
+fn forever_skull_frame_hangs_on_the_shortened_health_bars_right_end() {
     let style = NameplateStyle::default();
     assert_eq!(
         level_layout(&style),
@@ -166,7 +166,7 @@ fn forever_level_frame_hangs_on_the_shortened_health_bars_right_end() {
             skull: Rect2::new(Vector2::new(68.5, -11.5), Vector2::new(23.0, 23.0)),
         }
     );
-    let plate = plate_layout(&style, 1.0, 28.0);
+    let plate = plate_layout(&style, 1.0, 28.0, ActiveSkin::Forever);
     // 160×20 body centred on -14: fill spans -94..66, abutting the 1px frame.
     assert_eq!(plate.fill.position, Vector2::new(-94.0, -10.0));
     assert_eq!(plate.fill.size, Vector2::new(160.0, 20.0));
@@ -206,7 +206,7 @@ fn modern_plate_has_no_level_frame() {
         resolve_region("ui-hud-nameplates-levelindicator", ActiveSkin::Modern),
         None
     );
-    let plate = plate_layout(&NameplateStyle::default(), 1.0, 0.0);
+    let plate = plate_layout(&NameplateStyle::default(), 1.0, 0.0, ActiveSkin::Modern);
     assert_eq!(plate.fill.position, Vector2::new(-94.0, -9.5));
     assert_eq!(plate.fill.size, Vector2::new(188.0, 19.0));
     assert_eq!(plate.frame.position, Vector2::new(-98.0, -12.5));
@@ -247,7 +247,7 @@ fn forever_health_edge_is_one_pixel_and_fill_reaches_it() {
     use game_engine_core::nameplate_style_data::NameplateBarThickness::{Thick, Thin};
     for preset in [Thick, Thin] {
         let style = NameplateStyle::from_presets(preset, preset);
-        let plate = plate_layout(&style, 1.0, LEVEL_INDICATOR_WIDTH);
+        let plate = plate_layout(&style, 1.0, LEVEL_INDICATOR_WIDTH, ActiveSkin::Forever);
         assert_eq!(plate.fill.size, Vector2::new(160.0, style.health_height));
         assert_eq!(plate.fill.position - plate.frame.position, Vector2::ONE);
         assert_eq!(plate.frame.end() - plate.fill.end(), Vector2::ONE);
