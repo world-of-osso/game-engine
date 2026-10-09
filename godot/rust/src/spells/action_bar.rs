@@ -88,7 +88,22 @@ impl GameClient {
             ..Default::default()
         };
         let slot = self.bar_slot(bar, index);
-        let Some(ActionRef::Spell(spell_id)) = self.account.spells.slot(slot) else {
+        let action = self.account.spells.slot(slot);
+        if let Some(ActionRef::Item(item_id)) = action {
+            let icon = self
+                .merchant
+                .session
+                .inventory
+                .slots
+                .iter()
+                .flatten()
+                .chain(self.merchant.session.inventory.equipment.values())
+                .find(|item| item.item_id == item_id)
+                .map_or(0, |item| item.icon_fdid);
+            button.icon_fdid = self.drawable_fdid(icon);
+            return button;
+        }
+        let Some(ActionRef::Spell(spell_id)) = action else {
             return button;
         };
         let icon = self
@@ -149,6 +164,7 @@ impl GameClient {
             return Err(error);
         }
         ui.set_visible(self.client_options.hud.show_action_bars);
+        ui.bind_mut().enable_cursor_inputs();
         self.spells.bar_ui = Some(ui);
         Ok(())
     }
