@@ -46,6 +46,9 @@ impl GameClient {
 
     fn enter_hud_edit(&mut self) -> Result<(), String> {
         self.physical_input.clear();
+        crate::ui::hud_edit_layout::publish_account_settings(
+            ui_layout_data::edit_mode_account_settings(&self.account.hud_layout_path()?)?,
+        );
         self.hud_editor.draft.enter(&self.ui_layout);
         self.hud_editor.status.clear();
         let mut ui = RegistryUi::new_alloc();
@@ -147,6 +150,9 @@ impl GameClient {
             })
             .unwrap_or_default();
         Ok(EditModePanelState {
+            show_systems: ui_layout_data::edit_mode_account_settings(
+                &self.account.hud_layout_path()?,
+            )?,
             layout_name: self.ui_layout.name.clone(),
             name_draft,
             layout_names: ui_layout_data::layout_names(&self.account.hud_layout_path()?)?,
@@ -346,6 +352,40 @@ pub(crate) fn apply_manager_action(
             ACTION_EDIT_MODE_CONFIRM_DELETE | ACTION_EDIT_MODE_CANCEL_DELETE
         )
     {
+        return Ok(None);
+    }
+    if let Some(key) = action.strip_prefix("edit_mode_show_") {
+        let (_, _, movers) = SHOW_SYSTEMS
+            .iter()
+            .find(|(candidate, _, _)| *candidate == key)
+            .ok_or_else(|| format!("Unknown Edit Mode system {key:?}"))?;
+        let settings = ui_layout_data::edit_mode_account_settings(path)?;
+        let shown = !system_is_shown(&settings, key);
+        let settings = ui_layout_data::set_edit_mode_system_shown(path, key, shown)?;
+        crate::ui::hud_edit_layout::publish_account_settings(settings);
+        if !shown {
+            if draft
+                .selected
+                .as_deref()
+                .is_some_and(|selected| movers.contains(&selected))
+            {
+                draft.selected = None;
+            }
+            if draft
+                .drag
+                .as_ref()
+                .is_some_and(|drag| movers.contains(&drag.key.as_str()))
+            {
+                draft.drag = None;
+            }
+            if draft
+                .hovered
+                .as_deref()
+                .is_some_and(|hovered| movers.contains(&hovered))
+            {
+                draft.hovered = None;
+            }
+        }
         return Ok(None);
     }
     match action {

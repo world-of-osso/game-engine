@@ -108,9 +108,9 @@ fn hudeditmodepolish_title_drag_clamps_manager_and_preserves_hud_placements() {
     );
     assert!(draft.start_panel_drag(panel, [503.0, 200.0]));
     assert!(draft.move_panel_drag([1000.0, 500.0], [1366.0, 768.0]));
-    assert_eq!(draft.panel_position, Some([986.0, 490.0]));
+    assert_eq!(draft.panel_position, Some([986.0, 408.0]));
     assert!(draft.move_panel_drag([-100.0, 1000.0], [1366.0, 768.0]));
-    assert_eq!(draft.panel_position, Some([0.0, 540.0]));
+    assert_eq!(draft.panel_position, Some([0.0, 408.0]));
     assert_eq!(draft.working, layout.elements);
     draft.panel_grab.take();
     assert!(!draft.move_panel_drag([500.0, 500.0], [1366.0, 768.0]));
@@ -219,6 +219,87 @@ fn hudeditshowlist_checkbox_actions_toggle_movers_without_changing_layout() {
             "checkbox restores exact mover rectangles"
         );
     }
+    std::fs::remove_file(path).unwrap();
+}
+
+#[test]
+fn hudeditshowlist_account_preferences_survive_reopen_character_layout_and_exit() {
+    use super::super::hud_edit_layout::publish_account_settings;
+    let path = std::env::temp_dir().join(format!(
+        "hudeditshowlist-account-{}.ron",
+        std::process::id()
+    ));
+    let other_account = path.with_extension("other.ron");
+    let layout = ui_layout_data::set_active_layout(&path, 57, "Modern").unwrap();
+    let mut draft = EditDraft::default();
+    draft.enter(&layout);
+    let action = click_manager_button(
+        EditModePanelState::default(),
+        "EditModeManagerShow_party_frames",
+    )
+    .unwrap();
+    crate::hud_edit::apply_manager_action(&path, 57, &action, "", &layout, &mut draft).unwrap();
+    crate::hud_edit::apply_manager_action(
+        &path,
+        57,
+        ACTION_EDIT_MODE_REVERT,
+        "",
+        &layout,
+        &mut draft,
+    )
+    .unwrap();
+    crate::hud_edit::apply_manager_action(
+        &path,
+        57,
+        ACTION_EDIT_MODE_EXIT,
+        "",
+        &layout,
+        &mut draft,
+    )
+    .unwrap();
+    assert!(!draft.active);
+    let second = ui_layout_data::set_active_layout(&path, 58, "Forever").unwrap();
+    assert_eq!(
+        ui_layout_data::active_layout(&path, 57).unwrap().name,
+        "Modern"
+    );
+    draft.enter(&second);
+    ui_layout_data::create_layout(&path, 58, "Raid Night", Default::default()).unwrap();
+    let reloaded = ui_layout_data::edit_mode_account_settings(&path).unwrap();
+    assert!(!system_is_shown(&reloaded, "party_frames"));
+    assert!(system_is_shown(
+        &ui_layout_data::edit_mode_account_settings(&other_account).unwrap(),
+        "party_frames"
+    ));
+    publish_account_settings(reloaded.clone());
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(EditModePanelState {
+            show_systems: reloaded.clone(),
+            ..Default::default()
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(edit_mode_panel_screen).sync(&shared, &mut registry);
+        let check = registry
+            .get_by_name("EditModeManagerShow_party_framesCheck")
+            .unwrap();
+        assert!(
+            !super::super::hud_edit_layout::frame_is_visible(&registry, check),
+            "reopened manager is unchecked"
+        );
+        let target = registry
+            .get_by_name("EditModeManagerShow_target_and_focusCheck")
+            .unwrap();
+        assert!(super::super::hud_edit_layout::frame_is_visible(
+            &registry, target
+        ));
+    }
+    assert_eq!(
+        ui_layout_data::layout_names(&path).unwrap(),
+        ["Modern", "Forever", "Raid Night"]
+    );
+    publish_account_settings(Default::default());
     std::fs::remove_file(path).unwrap();
 }
 
