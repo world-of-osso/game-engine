@@ -3,6 +3,14 @@ use crate::spell_catalog::csv_records::CsvTable;
 use std::collections::{BTreeMap, BTreeSet, HashMap, VecDeque};
 use std::path::Path;
 
+#[path = "talent_data/rule_data.rs"]
+pub mod rule_data;
+#[path = "talent_data/rule_loader.rs"]
+mod rule_loader;
+#[path = "talent_data/rules.rs"]
+pub mod rules;
+pub use rule_loader::load_trait_rules;
+
 const VISIBLE: u32 = 1;
 const GRANTED: u32 = 2;
 const SUFFICIENT: u32 = 4;
@@ -99,6 +107,8 @@ impl Tables {
             "TraitCond",
             "TraitCost",
             "TraitCurrency",
+            "TraitCurrencySource",
+            "TraitTreeXTraitCurrency",
             "TraitNodeXTraitCost",
             "TraitNodeEntryXTraitCost",
             "TraitSubTree",

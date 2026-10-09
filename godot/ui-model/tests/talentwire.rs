@@ -24,7 +24,7 @@ fn editor(view: &TalentView) -> TalentEditor {
             entry_id: 80180,
             rank: 1,
         }],
-        unspent: vec![(1820, 31), (1819, 30)],
+        unspent: vec![(2801, 31), (2800, 30)],
     });
     editor
 }
@@ -33,21 +33,21 @@ fn talents_snapshot_projects_ranks_and_points() {
     let view = view();
     let editor = editor(&view);
     assert_eq!(editor.rank(62121, 80180), 1);
-    assert_eq!(editor.unspent(&view), vec![(1820, 31), (1819, 30)]);
+    assert_eq!(editor.unspent(&view), vec![(2801, 31), (2800, 30)]);
     assert!(!editor.dirty());
 }
 #[test]
 fn talents_click_refund_and_undo_stage_without_mutating_committed() {
     let view = view();
     let mut editor = editor(&view);
-    assert!(editor.purchase(&view, 80, 62084, 80140));
-    assert_eq!(editor.rank(62084, 80140), 1);
+    assert!(editor.purchase(&view, 80, 62122, 80181));
+    assert_eq!(editor.rank(62122, 80181), 1);
     assert!(editor.dirty());
-    assert!(editor.refund(&view, 80, 62084));
+    assert!(editor.refund(&view, 80, 62122));
     assert!(!editor.dirty());
-    assert!(editor.purchase(&view, 80, 62084, 80140));
+    assert!(editor.purchase(&view, 80, 62122, 80181));
     editor.undo();
-    assert_eq!(editor.rank(62084, 80140), 0);
+    assert_eq!(editor.rank(62122, 80181), 0);
     assert!(!editor.dirty());
 }
 #[test]
@@ -59,28 +59,28 @@ fn talents_impossible_clicks_do_nothing() {
     assert!(!editor.purchase(&view, 80, 999999, 1));
     assert!(!editor.dirty());
     let mut snapshot = editor.snapshot.clone().unwrap();
-    snapshot.unspent = vec![(1820, 0), (1819, 0)];
+    snapshot.unspent = vec![(2801, 0), (2800, 0)];
     editor.receive_snapshot(snapshot);
-    assert!(!editor.purchase(&view, 80, 62084, 80140));
+    assert!(!editor.purchase(&view, 80, 62122, 80181));
 }
 #[test]
 fn talents_apply_serializes_full_entry_list() {
     let view = view();
     let mut editor = editor(&view);
-    assert!(editor.purchase(&view, 80, 62084, 80140));
+    assert!(editor.purchase(&view, 80, 62122, 80181));
     assert_eq!(
         editor.apply(),
         Some(CommitTraitConfig {
             spec_id: 62,
             entries: vec![
                 TraitEntrySelection {
-                    node_id: 62084,
-                    entry_id: 80140,
+                    node_id: 62121,
+                    entry_id: 80180,
                     rank: 1
                 },
                 TraitEntrySelection {
-                    node_id: 62121,
-                    entry_id: 80180,
+                    node_id: 62122,
+                    entry_id: 80181,
                     rank: 1
                 }
             ]
@@ -96,11 +96,45 @@ fn talents_failure_reason_and_new_snapshot_clear_pending() {
         reason: Some("requires eight points".into()),
     });
     assert_eq!(editor.error_text.as_deref(), Some("requires eight points"));
-    assert!(editor.purchase(&view, 80, 62084, 80140));
+    assert!(editor.purchase(&view, 80, 62122, 80181));
     let snapshot = editor.snapshot.clone().unwrap();
     editor.receive_snapshot(snapshot);
     assert!(!editor.dirty());
-    assert_eq!(editor.rank(62084, 80140), 0);
+    assert_eq!(editor.rank(62122, 80181), 0);
     assert!(editor.error_text.is_none());
     assert!(editor.choice_node.is_none());
+}
+
+#[test]
+fn talents_choice_flyout_selects_one_entry_and_switches() {
+    let view = view();
+    let mut editor = editor(&view);
+    let node = view.graph.hero_selection.as_ref().unwrap();
+    assert!(editor.click(&view, 80, node.id, false));
+    assert_eq!(editor.choice_node, Some(node.id));
+    assert_eq!(editor.node_rank(node.id), 0);
+    assert!(editor.purchase(&view, 80, node.id, node.entries[0].id));
+    assert_eq!(editor.rank(node.id, node.entries[0].id), 1);
+    assert!(editor.choice_node.is_none());
+    assert!(editor.click(&view, 80, node.id, false));
+    assert!(editor.purchase(&view, 80, node.id, node.entries[1].id));
+    assert_eq!(editor.rank(node.id, node.entries[0].id), 0);
+    assert_eq!(editor.rank(node.id, node.entries[1].id), 1);
+    editor.undo();
+    assert_eq!(editor.node_rank(node.id), 0);
+}
+#[test]
+fn talents_gate_and_hero_level_reject_unavailable_purchases() {
+    let view = view();
+    let mut editor = editor(&view);
+    let hero = view.graph.hero_selection.as_ref().unwrap();
+    assert!(!editor.click(&view, 70, hero.id, false));
+    assert!(!editor.purchase(&view, 80, 110420, 137028));
+    assert!(!editor.purchase(
+        &view,
+        80,
+        view.graph.heroes[0].nodes[0].id,
+        view.graph.heroes[0].nodes[0].entries[0].id
+    ));
+    assert!(!editor.dirty());
 }
