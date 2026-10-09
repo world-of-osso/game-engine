@@ -1602,7 +1602,7 @@ impl NameplateProbe {
     fn draw_level_cases(mut parent: Gd<Node3D>, data_root: GString, forever: bool) -> GString {
         let data_root = std::path::PathBuf::from(data_root.to_string());
         if let Err(error) = game_engine_ui_model::paths::set_data_root(data_root.clone()) {
-            return error.into();
+            return error.as_str().into();
         }
         atlas::set_thread_skin(if forever {
             ActiveSkin::Forever
@@ -1655,7 +1655,7 @@ impl NameplateProbe {
             (&data_root, &HashMap::new()),
         ) {
             Ok(()) => GString::new(),
-            Err(error) => error.into(),
+            Err(error) => error.as_str().into(),
         }
     }
 
