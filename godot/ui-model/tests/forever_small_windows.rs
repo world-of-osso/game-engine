@@ -228,7 +228,18 @@ fn assert_composed_members(corner: MetalTopLeft, skin: ActiveSkin) {
     let tile_start = cell(PIECES[3].1, PIECES[3].2)[2];
     let tile = member("_UI-Frame-Metal-EdgeBottom", skin).1[2];
     for (name, modern_cell, forever_cell) in PIECES {
-        if name == "UI-Frame-PortraitMetal-CornerTopLeft" && corner == MetalTopLeft::Plain {
+        if name == "UI-Frame-PortraitMetal-CornerTopLeft" {
+            if corner == MetalTopLeft::Portrait {
+                // Retail NineSliceLayouts.lua:20 draws this corner above the portrait,
+                // not in the low background sheet. Every pixel of its cell stays clear.
+                let [width, height] = [geometry.columns[0], geometry.rows[0]];
+                for row in sheet
+                    .chunks_exact((sheet_w * 4) as usize)
+                    .take(height as usize)
+                {
+                    assert!(row[..(width * 4) as usize].iter().all(|pixel| *pixel == 0));
+                }
+            }
             continue;
         }
         if name == "UI-Frame-Metal-CornerTopLeft" && corner == MetalTopLeft::Portrait {
@@ -278,7 +289,7 @@ fn small_window_chrome_preserves_modern_and_draws_forever_members() {
     set_thread_skin(ActiveSkin::Modern);
     assert_eq!(modern_trees().as_bytes(), fixture::MODERN_TREES.as_bytes());
     for (corner, hash) in [
-        (MetalTopLeft::Portrait, 11562532850027720861),
+        (MetalTopLeft::Portrait, 11935972384330285517),
         (MetalTopLeft::Plain, 10577131485223720269),
     ] {
         assert_eq!(
@@ -286,7 +297,7 @@ fn small_window_chrome_preserves_modern_and_draws_forever_members() {
                 &compose_metal_sheet(corner, MetalGeometry::active().unwrap(), source).unwrap()
             ),
             hash,
-            "base b6e77253 {corner:?}"
+            "shared portrait overlay sheet {corner:?}"
         );
     }
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
