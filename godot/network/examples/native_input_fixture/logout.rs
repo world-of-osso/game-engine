@@ -2,13 +2,18 @@
 use super::*;
 use shared::{
     components::CombatStatus,
-    protocol::{RestChannel, RestSnapshot, RestStateUpdate},
+    protocol::{
+        DeathChannel, DeathSnapshot, DeathStateSnapshot, DeathStateUpdate, RestChannel,
+        RestSnapshot, RestStateUpdate,
+    },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Stage {
     Loading,
     World,
+    Dead,
+    DeathEscape,
     Combat,
     Blocked,
     ClearCombat,
@@ -17,9 +22,6 @@ enum Stage {
     Countdown,
     Cancelled,
     Repeated,
-    Expired,
-    LoginQuiet,
-    LiveConnection,
     Relogin,
     Reloading,
     RestFinal,
@@ -92,7 +94,7 @@ pub(super) fn run(
             fs::remove_file(&token_path)
                 .map_err(|error| format!("Remove fixture-only saved token: {error}"))?;
             println!(
-                "PASS: replicated combat/rest, cancelled and retained 20s countdown, Login world/connection and token relogin over UDP"
+                "PASS: replicated combat/rest, cancelled and retained 20s countdown, authenticated character select and token re-entry over UDP"
             );
             return Ok(());
         }
@@ -115,7 +117,10 @@ fn check_login_requests(app: &mut App, progress: &mut Progress) -> Result<(), St
             && request.token.as_deref() == Some("fixture-only-token");
         if progress.stage == Stage::Loading && credentials {
             // Initial startup still uses the original fixture credentials.
-        } else if matches!(progress.stage, Stage::LiveConnection | Stage::Relogin) && token {
+        } else if matches!(progress.stage, Stage::Repeated | Stage::RestFinal) && token {
+            // This fixture broadcasts replicas to All; remove the logged-out character
+            // before authenticating the replacement transport, as the real server does.
+            despawn_characters(app, progress);
             progress.saw_token_login = true;
         } else {
             return Err(format!(
@@ -130,11 +135,37 @@ fn check_login_requests(app: &mut App, progress: &mut Progress) -> Result<(), St
     Ok(())
 }
 
+fn despawn_characters(app: &mut App, progress: &mut Progress) {
+    for entity in [progress.selected.take(), progress.remote.take()]
+        .into_iter()
+        .flatten()
+    {
+        app.world_mut().despawn(entity);
+    }
+}
+
 fn send_rest(app: &mut App, snapshot: Option<RestSnapshot>) {
     send::<_, RestChannel>(
         app,
         RestStateUpdate {
             snapshot,
+            message: None,
+            error: None,
+        },
+    );
+}
+
+fn send_death_state(app: &mut App, state: DeathStateSnapshot) {
+    send::<_, DeathChannel>(
+        app,
+        DeathStateUpdate {
+            snapshot: Some(DeathSnapshot {
+                state,
+                corpse: None,
+                graveyard: None,
+                can_resurrect_at_corpse: false,
+                spirit_healer_available: false,
+            }),
             message: None,
             error: None,
         },
@@ -171,7 +202,15 @@ fn advance_marker(
             );
             progress.stage = Stage::World;
         }
-        (Stage::World, "FIXTURE LOGOUT_COMBAT_TRUE") => {
+        (Stage::World, "FIXTURE LOGOUT_DEATH_READY") => {
+            send_death_state(app, DeathStateSnapshot::Dead);
+            progress.stage = Stage::Dead;
+        }
+        (Stage::Dead, "FIXTURE LOGOUT_DEATH_ESCAPE") => {
+            send_death_state(app, DeathStateSnapshot::Alive);
+            progress.stage = Stage::DeathEscape;
+        }
+        (Stage::DeathEscape, "FIXTURE LOGOUT_COMBAT_TRUE") => {
             let player = progress
                 .selected
                 .ok_or("Combat update before player selection")?;
@@ -225,25 +264,8 @@ fn advance_marker(
         }
         (Stage::Repeated, "FIXTURE LOGOUT_EXPIRED") => {
             verify_token(token_path, progress.saved_token.as_deref())?;
-            progress.stage = Stage::Expired;
-        }
-        (Stage::Expired, "FIXTURE LOGOUT_LOGIN_QUIET") => {
-            let remote = progress.remote.ok_or("Post-logout remote player missing")?;
-            app.world_mut()
-                .get_mut::<Position>(remote)
-                .ok_or("Post-logout remote player has no position")?
-                .x += 4.0;
-            progress.stage = Stage::LoginQuiet;
-        }
-        (Stage::LoginQuiet, "FIXTURE LOGOUT_LIVE_CONNECTION") => {
-            progress.stage = Stage::LiveConnection;
-        }
-        (Stage::LiveConnection, "FIXTURE LOGOUT_RELOGIN") => {
-            if let Some(player) = progress.selected.take() {
-                app.world_mut().despawn(player);
-            }
-            if let Some(remote) = progress.remote.take() {
-                app.world_mut().despawn(remote);
+            if !progress.saw_token_login {
+                return Err("Character select was not authenticated with the saved token".into());
             }
             progress.stage = Stage::Relogin;
         }

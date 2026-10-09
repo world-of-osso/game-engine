@@ -17,7 +17,7 @@ use std::{
 use bevy::{app::ScheduleRunnerPlugin, prelude::*, state::app::StatesPlugin};
 use lightyear::prelude::{
     self as network, LinkOf, MessageReceiver, MessageSender, NetworkTarget, Replicate,
-    ReplicationSender, server,
+    ReplicationSender, VisibilityExt, server,
 };
 use shared::{
     components::{
@@ -282,7 +282,7 @@ fn send<M: network::Message, C: network::Channel>(app: &mut App, message: M) {
     sender.send::<C>(message);
 }
 
-fn start_server() -> (App, SocketAddr) {
+fn start_server(screen: StartupScreen) -> (App, SocketAddr) {
     // ServerUdpIo does not expose the assigned port when bound to port zero.
     let reservation = UdpSocket::bind("127.0.0.1:0").expect("reserve local fixture port");
     let address = reservation.local_addr().expect("read fixture address");
@@ -296,9 +296,27 @@ fn start_server() -> (App, SocketAddr) {
     app.add_plugins(shared::ProtocolPlugin);
     app.init_resource::<Incoming>();
     app.add_systems(Update, receive_requests);
-    app.add_observer(|link: On<Add, LinkOf>, mut commands: Commands| {
-        commands.entity(link.entity).insert(ReplicationSender);
+    app.add_observer(move |link: On<Add, LinkOf>, mut commands: Commands| {
+        if screen != StartupScreen::Logout {
+            commands.entity(link.entity).insert(ReplicationSender);
+        }
     });
+    if screen == StartupScreen::Logout {
+        // Replicon defaults to visible on Connected, before authentication. Match
+        // the real server's interest::on_replication_client_added selection boundary.
+        app.add_observer(
+            |connection: On<
+                Add,
+                bevy_replicon::server::visibility::client_visibility::ClientVisibility,
+            >,
+             players: Query<Entity, With<Player>>,
+             mut commands: Commands| {
+                for player in &players {
+                    commands.lose_visibility(player, connection.entity);
+                }
+            },
+        );
+    }
     app.finish();
     app.cleanup();
     let entity = app
@@ -491,6 +509,7 @@ fn launch_godot(
     let binary = if matches!(
         screen,
         StartupScreen::SettingsReload
+            | StartupScreen::Logout
             | StartupScreen::Menu
             | StartupScreen::Sound
             | StartupScreen::SoundClick
@@ -554,6 +573,7 @@ fn launch_godot(
                 if matches!(
                     screen,
                     StartupScreen::Menu
+                        | StartupScreen::Logout
                         | StartupScreen::Sound
                         | StartupScreen::SoundClick
                         | StartupScreen::MerchantClick
@@ -584,7 +604,14 @@ fn launch_godot(
                     &[][..]
                 },
             )
-            .args(["--screen", screen.as_str()])
+            .args([
+                "--screen",
+                if screen == StartupScreen::Logout {
+                    "inworld"
+                } else {
+                    screen.as_str()
+                },
+            ])
             .args(
                 if !matches!(
                     screen,
@@ -850,6 +877,12 @@ fn respond_to_selection(
                 "unexpected SelectCharacter: {}",
                 request.character_id
             ));
+        }
+        if screen == StartupScreen::Logout {
+            let connection = app.world().resource::<Incoming>().connection.unwrap();
+            app.world_mut()
+                .entity_mut(connection)
+                .insert(ReplicationSender);
         }
         let spawn = if screen == StartupScreen::Swimming {
             SWIM_START
@@ -1566,7 +1599,7 @@ fn stage_isolated_project(
 
 fn main() {
     let screen = StartupScreen::from_example_args();
-    let (mut app, address) = start_server();
+    let (mut app, address) = start_server(screen);
     println!("FIXTURE ENDPOINT {address}");
     let checkout = fixture_support::checkout_root_from_executable("native_input_fixture")
         .expect("locate originating fixture checkout");
@@ -1575,6 +1608,7 @@ fn main() {
     if !matches!(
         screen,
         StartupScreen::SettingsReload
+            | StartupScreen::Logout
             | StartupScreen::Sound
             | StartupScreen::SoundClick
             | StartupScreen::MerchantClick

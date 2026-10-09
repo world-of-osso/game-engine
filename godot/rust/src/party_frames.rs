@@ -292,7 +292,18 @@ impl GameClient {
         self.update_summon_popup(Duration::ZERO);
         let stack = &mut self.group_frames.popups;
         match key.get_keycode() {
-            godot::global::Key::ESCAPE => stack.cancel_top(),
+            godot::global::Key::ESCAPE => {
+                // Retail DEATH.hideOnEscape=false: skip it; an unconsumed Escape
+                // continues to GameMenuFrame_Show in the normal input route.
+                let Some(popup) =
+                    stack.visible().into_iter().rev().find(|popup| {
+                        popup.spec.key != game_engine_ui_model::death_flow::DEATH_POPUP
+                    })
+                else {
+                    return false;
+                };
+                stack.resolve(popup.id, PopupOutcome::Cancelled);
+            }
             godot::global::Key::ENTER | godot::global::Key::KP_ENTER => stack.accept_top(),
             _ => {
                 let Some(entry) = stack.typing_target() else {
