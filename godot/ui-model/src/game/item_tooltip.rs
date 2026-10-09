@@ -7,7 +7,9 @@
 
 use crate::bag_data::InventorySlot;
 use crate::item_catalog::{ItemCatalog, ItemCatalogEntry, item_catalog_for};
-use crate::item_stats::{ItemStat, item_armor_for, item_stats_for, weapon_damage_for};
+use crate::item_stats::{
+    ItemStat, item_armor_for, item_level_for, item_stats_for, weapon_damage_for,
+};
 use crate::merchant_data::quality_color;
 use shared::item_data::ItemDefinitionSource;
 
@@ -81,7 +83,10 @@ fn item_lines(
     if gear && entry.inventory_type != 0 {
         // ITEM_LEVEL "Item Level %d".
         lines.push(TooltipLineState::colored(
-            format!("Item Level {}", entry.item_level),
+            format!(
+                "Item Level {}",
+                item_level_for(slot.definition_source, entry)
+            ),
             TOOLTIP_DESCRIPTION_COLOR,
         ));
     }
@@ -300,6 +305,7 @@ mod tests {
             std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
         )
         .expect("tooltip test data root");
+        crate::item_catalog::wait_for_item_catalog();
     }
 
     fn texts(tooltip: &TooltipPresentation) -> Vec<(String, String)> {
@@ -339,7 +345,7 @@ mod tests {
                 pair("Item Level 1", ""),
                 pair("Soulbound", ""),
                 pair("Main Hand", "Sword"),
-                pair("1 - 1 Damage", "Speed 2.60"),
+                pair("0 - 1 Damage", "Speed 2.60"),
                 pair("(0.4 damage per second)", ""),
                 pair("Durability 18 / 20", ""),
                 pair("Sell Price:", ""),
@@ -386,21 +392,21 @@ mod tests {
         let rows = texts(&tooltip);
         let at = |text: &str| rows.iter().position(|(left, _)| left == text).expect(text);
         assert_eq!(
-            rows[at("6 - 12 Damage")],
-            pair("6 - 12 Damage", "Speed 3.60")
+            rows[at("4 - 10 Damage")],
+            pair("4 - 10 Damage", "Speed 3.60")
         );
         assert_eq!(
-            rows[at("6 - 12 Damage") + 1],
-            pair("(2.5 damage per second)", "")
+            rows[at("4 - 10 Damage") + 1],
+            pair("(2.0 damage per second)", "")
         );
         assert_eq!(tooltip.lines[at("+3 Strength")].left_color, TOOLTIP_WHITE);
-        assert_eq!(tooltip.lines[at("+5 Stamina")].left_color, TOOLTIP_WHITE);
+        assert_eq!(tooltip.lines[at("+4 Stamina")].left_color, TOOLTIP_WHITE);
         assert_eq!(tooltip.lines[at("+3 Haste")].left_color, GREEN_FONT_COLOR);
         assert_eq!(
             tooltip.lines[at("+2 Critical Strike")].left_color,
             GREEN_FONT_COLOR
         );
-        assert!(at("Two-Hand") < at("6 - 12 Damage"));
+        assert!(at("Two-Hand") < at("4 - 10 Damage"));
         assert!(at("+2 Critical Strike") < at("Requires Level 8"));
     }
 
@@ -434,12 +440,12 @@ mod tests {
         assert_eq!(
             text,
             [
-                "Item Level 20",
+                "Item Level 12",
                 "Binds when equipped",
                 "Unique",
                 "Chest",
                 // A poor cloth robe of item level 20.
-                "5 Armor",
+                "4 Armor",
                 "Requires Level 15",
                 "\"Soft as a kitten.\"",
             ]
