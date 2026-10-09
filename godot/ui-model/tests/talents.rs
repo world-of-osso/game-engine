@@ -57,6 +57,6 @@ fn arcane_talents_render_real_icons_positions_edges_and_read_only_choices_in_bot
             assert!(frame(name).onclick.is_none(), "display must not buy/cast");
         }
         assert!(registry.get_by_name("TalentNode62117").is_none());
-        assert!(registry.get_by_name("TalentNode94654").is_none()); // unselected hero tree
+        assert!(frame("TalentNode94654").visible); // second eligible hero preview, not learned
     }
 }
