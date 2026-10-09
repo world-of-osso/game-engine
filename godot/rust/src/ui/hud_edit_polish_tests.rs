@@ -149,7 +149,7 @@ fn hudeditshowlist_manager_has_retail_basic_labels_in_order_in_both_skins() {
             assert!(
                 matches!(&registry.get(text).unwrap().widget_data, Some(WidgetData::FontString(data)) if data.text == label)
             );
-            let rect = bounds[&id];
+            let rect = &bounds[&id];
             positions.push((rect.y, rect.x));
             assert!(
                 registry.get_by_name(&format!("{name}Check")).is_some(),
