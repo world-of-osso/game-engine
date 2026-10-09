@@ -402,7 +402,7 @@ fn card_info_label(index: usize, info: &str) -> Element {
             height: 18.0,
             text: info,
             font: GameFont::FrizQuadrata,
-            font_size: 15.0,
+            font_size: 13.0,
             font_color: COLOR_SUBTITLE,
             justify_h: JustifyH::Left,
             pos_type: "absolute",
