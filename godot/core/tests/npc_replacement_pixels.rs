@@ -114,6 +114,7 @@ fn ailee_selected_type20_composes_authentic_pixels_on_256_canvas() {
         composed,
         Some(baked),
         &decoded,
+        None,
     )
     .unwrap();
     assert_eq!(
@@ -214,7 +215,8 @@ fn unselected_separate_layers_do_not_publish_textures_or_replace_body_and_head()
     let body = composed.body.clone();
     let head = composed.head.clone().unwrap();
     let textures =
-        compose_replacement_pixels(&fixture(), &[], 202, composed, None, &HashMap::new()).unwrap();
+        compose_replacement_pixels(&fixture(), &[], 202, composed, None, &HashMap::new(), None)
+            .unwrap();
     assert_eq!(textures.len(), 2);
     assert_eq!(textures.get(&1), Some(&body));
     assert_eq!(textures.get(&6), Some(&head));
@@ -449,6 +451,7 @@ fn selected_missing_pixels_error_instead_of_publishing_blank_type20() {
         composed(),
         None,
         &HashMap::new(),
+        None,
     );
     assert_eq!(
         result,
@@ -463,7 +466,7 @@ fn selected_type7_without_canvas_is_not_source_absence() {
     assert!(!inactive_npc_texture_types(&data, &materials, 202).contains(&7));
     let decoded = HashMap::from([(777, (vec![1, 2, 3, 255], 1, 1))]);
     assert_eq!(
-        compose_replacement_pixels(&data, &materials, 202, composed(), None, &decoded),
+        compose_replacement_pixels(&data, &materials, 202, composed(), None, &decoded, None),
         Err("cannot composite selected NPC texture type 7 for layout 202".to_owned()),
     );
 }
@@ -477,7 +480,8 @@ fn selected_missing_unknown_target_remains_error() {
             202,
             composed(),
             None,
-            &HashMap::new()
+            &HashMap::new(),
+            None
         ),
         Err("missing selected NPC texture FDID 777".to_owned()),
     );
@@ -496,12 +500,21 @@ fn separate_canvases_do_not_overwrite_declared_hair_and_missing_hair_errors() {
         composed.clone(),
         None,
         &decoded,
+        None,
     )
     .unwrap();
     assert_eq!(textures.get(&6), Some(&hair));
     composed.hair = None;
     assert_eq!(
-        compose_replacement_pixels(&fixture(), &[(10, 100)], 202, composed, None, &decoded),
+        compose_replacement_pixels(
+            &fixture(),
+            &[(10, 100)],
+            202,
+            composed,
+            None,
+            &decoded,
+            None
+        ),
         Err("declared NPC hair target 10 did not produce a texture".to_owned()),
     );
 }

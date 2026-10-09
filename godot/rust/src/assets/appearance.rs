@@ -135,6 +135,7 @@ impl NpcAppearances {
             &resolver,
             data_root,
             display_id,
+            armor.merged_cape_texture_fdid,
         )?;
         Ok(Some(PreparedNpc {
             appearance: AppearanceParts {
@@ -209,14 +210,18 @@ fn compose_replacement_textures(
     resolver: &CascListfileResolver,
     data_root: &Path,
     display_id: u32,
+    cape_fdid: Option<u32>,
 ) -> Result<HashMap<u32, TexturePixels>, String> {
-    let (composed, decoded) = load_and_compose_selected_pixels(
+    let (composed, mut decoded) = load_and_compose_selected_pixels(
         compositor, selected, layout_id, resolver, data_root, display_id,
     )?;
     let baked_body = appearance
         .baked_texture_fdid
         .map(|fdid| load_npc_texture(resolver, data_root, fdid))
         .transpose()?;
+    if let Some(fdid) = cape_fdid {
+        decoded.insert(fdid, load_npc_texture(resolver, data_root, fdid)?);
+    }
     compose_replacement_pixels(
         compositor,
         &selected.materials,
@@ -224,6 +229,7 @@ fn compose_replacement_textures(
         composed,
         baked_body,
         &decoded,
+        cape_fdid,
     )
 }
 
