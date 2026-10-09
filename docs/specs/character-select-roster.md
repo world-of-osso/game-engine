@@ -4,11 +4,11 @@ The native character-select roster uses `godot/ui-model/src/ui/screens/char_sele
 
 ## What it must do
 
-- [ ] Ten- and twelve-character rosters retain equal 95px cards, never compressed by the viewport; visible card portions stay inside the panel's clipped list viewport.
-- [ ] Create/Delete footer controls never intersect the list or any visible card.
-- [ ] Wheel movement uses two character pan extents; steppers use one; dragging the proportional thumb reaches both ends. Scrolling alone does not change selection or snap back to it.
-- [ ] Arrow-key selection keeps the selected card fully visible, including card10 and wraparound to card1.
-- [ ] Cards render names and level/race/class display text from local ChrRaces/ChrClasses; races95/96 use the active Forever Skyborne data in both skins, without hardcoded names or numeric-ID fallback.
+- [x] Ten- and twelve-character rosters retain equal 95px cards, never compressed by the viewport; visible card portions stay inside the panel's clipped list viewport.
+- [x] Create/Delete footer controls never intersect the list or any visible card.
+- [x] Wheel movement uses two character pan extents; steppers use one; dragging the proportional thumb reaches both ends. Scrolling alone does not change selection or snap back to it.
+- [x] Arrow-key selection keeps the selected card fully visible, including card10 and wraparound to card1.
+- [x] Cards render names and level/race/class display text from local ChrRaces/ChrClasses; races95/96 use the active Forever Skyborne data in both skins, without hardcoded names or numeric-ID fallback.
 
 ## How it works
 
@@ -32,7 +32,15 @@ The native character-select roster uses `godot/ui-model/src/ui/screens/char_sele
 
 ## Known gaps (current cycle)
 
-- [ ] GREEN targeted tests and inspected offline12-entry captures pending.
+No open roster-layout/name/input gap in this bounded fix. Offline previews do not prove authenticated relog, saved locations or 3D character rendering.
+
+### Bounded proof — 2026-10-09
+
+- `7c8370f57`: native-model RED0/7, reproducing33px(10)/26px(12) cards, footer overlap, absent scrolling and numeric labels.
+- `e958e69aa`: native-model GREEN8/8; UI-model character_select6/6 + roster_mapping5/5. Later13px info-font change preserves those fixed-layout/name/scroll-algorithm scopes; native width checks cover the changed typography.
+- `7cb5656f5`: extension build/export0 and offline cage capture0. Both skins:12 entries, selected10 visible, full display-text widths, clipped viewport, separate footer, native card8 selection versus footer creation, wheel194px and thumb-to-card12. Inspected1920×1080 PNGs copied byte-identically to `/syncthing/AgentShared/2026-10-09/rosterfix/{modern,forever}.png`.
+- Native RED first caught15px label truncation (`28775d3f9` fixes typography), then missing character-select scroll-input ownership (`7cb5656f5` routes input). Neither failed capture was accepted as input proof.
+- Logs/scripts/shim/manifest: `data/diagnostics/rosterfix-2026-10-09/`; build logs: `/home/osso/.worktrees/logs/rosterfix-*.log`. CPU tests omit renderer atlas initialization; native capture loaded art. Captures retain host Wayland/libdecor/FIFO/V-Sync/XWayland diagnostics; no unrelated platform fix. Owned slice stopped; no server, UDP5000, push/merge or independent-agent run.
 
 ## Out of scope
 
