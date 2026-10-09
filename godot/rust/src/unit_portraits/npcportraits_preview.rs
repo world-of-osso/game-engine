@@ -65,6 +65,18 @@ impl NpcPortraitPreview {
             .as_str()
             .into()
     }
+    /// Offline Auctioneer Fitch uses the real creature portrait renderer. World DB
+    /// creature_template_model / tdb_creature_template_model:8719 -> display7992.
+    #[func]
+    fn bind_auction_preview(&mut self, ui: Gd<RegistryUi>) {
+        self.portrait = Some(Portrait::new(AUCTION));
+        self.appearance = Some(UnitAppearance::Creature {
+            display_id: 7992,
+            items: EquipmentAppearance::default(),
+        });
+        self.ui = Some(ui);
+    }
+
     #[func]
     fn tick(&mut self) -> GString {
         self.world.attach_loaded_visuals(&Replica::default());
