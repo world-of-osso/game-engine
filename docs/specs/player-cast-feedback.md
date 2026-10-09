@@ -31,6 +31,8 @@ PlayerCastingBarFrame follows the locally cached Retail CastingBarFrame source u
 ## Known gaps (current cycle)
 
 - Feedback acceptance verified 2026-10-06: 26 scoped Rust/UI tests and ten inspected native snapshots, including six requested key frames. See [evidence](../wiki/systems/player-cast-feedback.md#verification--2026-10-06).
+- Spark-height evidence, 2026-10-09, production revision `397c20803`: targeted tree/projection RED 1 failed (Forever), 1 passed (Modern); GREEN 2 passed. Forever local spark changed `(215,3,8,20)` → `(215,0,8,26)` against unchanged fill `(0,0,219,26)` at 75%; Modern remained `(188,0,8,20)` against `(0,0,192,20)`. Tree-only tests emit missing-atlas diagnostics; native captures load the real art.
+- Extension build passed; existing native offline `castbaranim_preview` capture passed in both skins at `midcast`, timestamp `100.000`. Inspected 350×62 Forever and 300×62 Modern crops: Forever yellow pip follows the taller blue fill, Modern unchanged. Native fill rects at 50%: Forever `(507,422,146,26)`, Modern `(512,544,128,20)`; spark centres pass the existing fill-edge assertion. PNGs: `/syncthing/AgentShared/2026-10-09/castbar-spark/{forever,modern}-{midcast,crop}.png`. Logs/hash ledger: `data/diagnostics/castbar-spark-2026-10-09/`. Captures are 1280×720 (headless cage mode); Wayland/cage environment warnings remain recorded.
 - Offline fixtures still report texture/font RID and ObjectDB allocation leaks at shutdown; clean resource lifetime is not proven.
 
 ## Out of scope
