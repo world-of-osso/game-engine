@@ -2,13 +2,18 @@
 use super::*;
 use shared::{
     components::CombatStatus,
-    protocol::{RestChannel, RestSnapshot, RestStateUpdate},
+    protocol::{
+        DeathChannel, DeathSnapshot, DeathStateSnapshot, DeathStateUpdate, RestChannel,
+        RestSnapshot, RestStateUpdate,
+    },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Stage {
     Loading,
     World,
+    Dead,
+    DeathEscape,
     Combat,
     Blocked,
     ClearCombat,
@@ -150,6 +155,23 @@ fn send_rest(app: &mut App, snapshot: Option<RestSnapshot>) {
     );
 }
 
+fn send_death_state(app: &mut App, state: DeathStateSnapshot) {
+    send::<_, DeathChannel>(
+        app,
+        DeathStateUpdate {
+            snapshot: Some(DeathSnapshot {
+                state,
+                corpse: None,
+                graveyard: None,
+                can_resurrect_at_corpse: false,
+                spirit_healer_available: false,
+            }),
+            message: None,
+            error: None,
+        },
+    );
+}
+
 fn verify_token(path: &Path, expected: Option<&[u8]>) -> Result<(), String> {
     let actual = fs::read(path)
         .map_err(|error| format!("Read fixture-only saved token {}: {error}", path.display()))?;
@@ -180,7 +202,15 @@ fn advance_marker(
             );
             progress.stage = Stage::World;
         }
-        (Stage::World, "FIXTURE LOGOUT_COMBAT_TRUE") => {
+        (Stage::World, "FIXTURE LOGOUT_DEATH_READY") => {
+            send_death_state(app, DeathStateSnapshot::Dead);
+            progress.stage = Stage::Dead;
+        }
+        (Stage::Dead, "FIXTURE LOGOUT_DEATH_ESCAPE") => {
+            send_death_state(app, DeathStateSnapshot::Alive);
+            progress.stage = Stage::DeathEscape;
+        }
+        (Stage::DeathEscape, "FIXTURE LOGOUT_COMBAT_TRUE") => {
             let player = progress
                 .selected
                 .ok_or("Combat update before player selection")?;
