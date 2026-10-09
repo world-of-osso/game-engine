@@ -10,6 +10,7 @@ func _initialize() -> void:
 
 func run_test() -> void:
 	root.size = Vector2i(720, 600)
+	var tree_only := OS.get_environment("NAMEPLATE_LEVEL_TREE_ONLY") == "1"
 	for forever in [true, false]:
 		host = Node3D.new()
 		root.add_child(host)
@@ -19,13 +20,14 @@ func run_test() -> void:
 			return
 		await process_frame
 		await process_frame
-		await RenderingServer.frame_post_draw
-		var skin := "forever" if forever else "modern"
-		var shot := root.get_texture().get_image()
-		var filename := "%s-%s.png" % [skin, OS.get_environment("NAMEPLATE_LEVEL_PHASE")]
-		if shot.save_png(OS.get_environment("NAMEPLATE_LEVEL_SHOTS").path_join(filename)) != OK:
-			fail("Cannot save " + filename)
-			return
+		if not tree_only:
+			await RenderingServer.frame_post_draw
+			var skin := "forever" if forever else "modern"
+			var shot := root.get_texture().get_image()
+			var filename := "%s-%s.png" % [skin, OS.get_environment("NAMEPLATE_LEVEL_PHASE")]
+			if shot.save_png(OS.get_environment("NAMEPLATE_LEVEL_SHOTS").path_join(filename)) != OK:
+				fail("Cannot save " + filename)
+				return
 		for plate: Control in host.get_node("Nameplates").get_children():
 			check_plate(plate, forever)
 		host.free()
@@ -33,6 +35,8 @@ func run_test() -> void:
 		print("FAIL: nameplate level acceptance")
 		quit(1)
 	else:
+		if tree_only:
+			print("TREE ONLY: rendered capture omitted")
 		print("PASS: ordinary full-width Forever without numeric level/badge; skull geometry, selection, classification and Modern retained")
 		quit(0)
 
