@@ -131,6 +131,12 @@ impl BridgeConfig {
         self
     }
 
+    /// Preserve specialization, commit result and snapshot order on TalentChannel.
+    pub fn receive_talents(mut self) -> Self {
+        self.relays.push(install_talent_relay);
+        self
+    }
+
     /// `MirrorTimerStart`, `MirrorTimerPause` and `MirrorTimerStop` in the order the server
     /// sent them on `MirrorTimerChannel`.
     pub fn receive_mirror_timers(mut self) -> Self {
@@ -245,9 +251,7 @@ impl NetworkBridge {
             .receive::<KnownSpellsSnapshot>()
             .receive::<SpellsLearned>()
             .receive::<SpellsUnlearned>()
-            .receive::<SpecializationChanged>()
-            .receive::<protocol::TraitConfigSnapshot>()
-            .receive::<protocol::TraitCommitResult>()
+            .receive_talents()
             .receive::<ActionBarSnapshot>()
             .receive::<SpellCooldownUpdate>()
             .receive::<protocol::SpellChargesUpdate>()
@@ -574,6 +578,38 @@ fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
                         .send(Event::Message(ProtocolMessage(Box::new(message))))
                         .expect("host event receiver closed");
                 }
+            }
+        })
+        .run_if(protocol_not_rejected),
+    );
+}
+
+/// One relay preserves the server's config lifecycle across typed receiver buffers.
+fn install_talent_relay(app: &mut App, events: Sender<Event>) {
+    use protocol::{TraitCommitResult, TraitConfigSnapshot};
+    app.add_systems(
+        Update,
+        (move |mut specs: Query<&mut MessageReceiver<SpecializationChanged>>,
+               mut snapshots: Query<&mut MessageReceiver<TraitConfigSnapshot>>,
+               mut results: Query<&mut MessageReceiver<TraitCommitResult>>| {
+            let mut received = Vec::new();
+            macro_rules! drain {
+                ($receivers:ident) => {
+                    for mut receiver in &mut $receivers {
+                        received.extend(receiver.receive_with_tick().map(|message| {
+                            (message.message_id, ProtocolMessage(Box::new(message.data)))
+                        }));
+                    }
+                };
+            }
+            drain!(specs);
+            drain!(snapshots);
+            drain!(results);
+            received.sort_by_key(|(id, _)| *id);
+            for (_, message) in received {
+                events
+                    .send(Event::Message(message))
+                    .expect("host event receiver closed");
             }
         })
         .run_if(protocol_not_rejected),
