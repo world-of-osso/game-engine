@@ -240,7 +240,9 @@ pub(super) fn player_spark(style: &CastBarStyle, state: &CastingBarState, fill_w
         Sprite {
             name: "Spark",
             atlas,
-            rect: (fill_w - 4.0, (style.bar.1 - 20.0) / 2.0, 8.0, 20.0),
+            // Retail Mainline/CastingBarFrame.xml:326-330 authors an 8×20 pip.
+            // Match the skin's fill height (Forever is 26); Modern stays 20.
+            rect: (fill_w - 4.0, 0.0, 8.0, style.bar.1),
             alpha: 1.0,
             rotation: 0.0,
         },

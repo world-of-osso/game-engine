@@ -8,6 +8,7 @@ PlayerCastingBarFrame follows the locally cached Retail CastingBarFrame source u
 - [x] Interrupts/failures show Interrupted/Failed and interrupted art, fill after the 0.1-second interrupt spark under both skins, play source glow/shake, hold 1 second and fade over 0.3 seconds.
 - [x] Channels retain their ending value, hide the spark, play ChannelFinish and completion flash with the normal 0.2/0.3-second fade.
 - [x] Both skins render source spark/feedback; Forever retains FlareUI's 292×26 track, 4-unit inset, icon and cool-toned fills.
+- [x] Player spark top/bottom align with the fill's inner edges. Retail `Blizzard_UIPanels_Game/Mainline/CastingBarFrame.xml:326-330` authors the 8×20 spark; Forever's taller track comes from `data/reference/flareui/Core.lua:281` (292×26). Stretch only spark height to 26 in Forever; Modern remains 8×20 on its 20-high fill. Preserve x-position, width, texture/colour, timing and all other bar geometry.
 - [x] Offline previews use production cast state transitions. Key frames are captured only through the existing capture test.
 
 ## How it works
@@ -25,6 +26,7 @@ PlayerCastingBarFrame follows the locally cached Retail CastingBarFrame source u
 
 - `godot/rust/src/nameplate_casts_tests.rs`: timestamp-driven player feedback.
 - `godot/tests/capture_ui_screen.gd`: native offline key-frame capture.
+- `godot/ui-model/tests/player_cast_spark.rs`: player casting tree/projection rects in both skins; Forever RED at fill `(0,0,219,26)` versus spark `(215,3,8,20)` (75% progress), Modern unchanged at fill `(0,0,192,20)` versus spark `(188,0,8,20)`.
 
 ## Known gaps (current cycle)
 
