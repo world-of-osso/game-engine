@@ -1597,6 +1597,68 @@ impl NameplateProbe {
         occluded(&camera, point)
     }
 
+    /// Draw concrete level/selection cases through the live renderer for native fixtures.
+    #[func]
+    fn draw_level_cases(mut parent: Gd<Node3D>, data_root: GString, forever: bool) -> GString {
+        let data_root = std::path::PathBuf::from(data_root.to_string());
+        if let Err(error) = game_engine_ui_model::paths::set_data_root(data_root.clone()) {
+            return error.into();
+        }
+        atlas::set_thread_skin(if forever {
+            ActiveSkin::Forever
+        } else {
+            ActiveSkin::Modern
+        });
+        let cases = [
+            ("Ordinary", Some(30), CreatureClassification::Elite, true),
+            ("Rare", Some(30), CreatureClassification::Rare, false),
+            (
+                "World Boss",
+                Some(0),
+                CreatureClassification::WorldBoss,
+                true,
+            ),
+            ("Large Gap", Some(0), CreatureClassification::Normal, false),
+            ("Missing Level", None, CreatureClassification::Normal, false),
+        ];
+        let views = cases
+            .into_iter()
+            .enumerate()
+            .map(|(index, (name, level, class, targeted))| {
+                (
+                    index as u64,
+                    PlateView {
+                        name: name.into(),
+                        anchor: Vector2::new(360.0, 120.0 + index as f32 * 90.0),
+                        fraction: 0.96,
+                        health_text: "96%".into(),
+                        color: Color::from_rgb(0.0, 0.5, 1.0),
+                        name_color: Color::WHITE,
+                        alpha: 1.0,
+                        occluded: false,
+                        raid_target: None,
+                        classification: classification_atlas(class, false, None, false),
+                        level,
+                        targeted,
+                        enemy: true,
+                        auras: Vec::new(),
+                    },
+                )
+            })
+            .collect();
+        let mut plates = Nameplates::new();
+        match plates.sync_nodes(
+            &mut parent,
+            views,
+            &NameplateStyle::default(),
+            true,
+            (&data_root, &HashMap::new()),
+        ) {
+            Ok(()) => GString::new(),
+            Err(error) => error.into(),
+        }
+    }
+
     /// The Retail-default plate alpha for an occluded or clear unit.
     #[func]
     fn alpha(is_occluded: bool) -> f32 {
