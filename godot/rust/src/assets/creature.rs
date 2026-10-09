@@ -322,6 +322,10 @@ fn creature_texture_fdids(
 }
 
 #[cfg(test)]
+#[path = "creature_isolation_tests.rs"]
+mod isolation_tests;
+
+#[cfg(test)]
 mod tests {
     use super::*;
     use std::path::PathBuf;
