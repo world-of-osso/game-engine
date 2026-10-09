@@ -18,7 +18,7 @@ DESTINATION=${DESTINATION:-woo-r2:worldofosso-client}
 
 # Runtime data: what the client reads from data/ that a player's WoW install cannot supply.
 # An allowlist, because data/ also holds auth tokens and gigabytes of diagnostics.
-DATA_DIRS=(cache campsite-ui db2 dbfilesclient fogs fonts forever-1.60.1.70205 glues item-models
+DATA_DIRS=(cache campsite-ui db2 dbfilesclient fogs fonts forever-1.60.1.70205 gametables glues item-models
     los minimap models music reference sounds terrain textures ui)
 # Not tactkeys/: the third-party TACT key list stays off the public bucket; the resolver
 # treats it as optional and falls back to the install's own keyring (casc_resolver.rs).

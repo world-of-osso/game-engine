@@ -192,7 +192,7 @@ mod tests {
                 ("Item Level 1", ""),
                 ("Binds when equipped", ""),
                 ("Main Hand", "Sword"),
-                ("1 - 1 Damage", "Speed 2.60"),
+                ("0 - 1 Damage", "Speed 2.60"),
                 ("(0.4 damage per second)", ""),
                 ("Durability 20 / 20", ""),
                 ("Sell Price:", ""),
@@ -256,12 +256,17 @@ mod tests {
         assert_eq!(shopping.len(), 1);
         assert_eq!(shopping[0].header, "Equipped");
         assert_eq!(shopping[0].tooltip.title, "Worn Shortsword");
+        // DPS comes from the ItemDamage table at the squished item level (the sword
+        // shows 0.4 DPS over 0-1 damage); the axe at level 11 gains 1.6 over it.
         let gain = shopping[0]
             .tooltip
             .lines
             .iter()
-            .find(|line| line.left_text == "+2.1 Damage Per Second")
-            .expect("damage gain");
+            .find(|line| line.left_text == "+1.6 Damage Per Second")
+            .unwrap_or_else(|| {
+                let lines: Vec<_> = shopping[0].tooltip.lines.iter().map(|l| &l.left_text).collect();
+                panic!("damage gain missing: {lines:?}")
+            });
         assert_eq!(gain.left_color, GREEN_FONT_COLOR);
     }
 

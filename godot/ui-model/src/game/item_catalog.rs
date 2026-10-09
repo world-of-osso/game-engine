@@ -36,6 +36,10 @@ pub struct ItemCatalogEntry {
     /// `InventoryType` (Retail `Enum.InventoryType`).
     pub inventory_type: u8,
     pub item_level: u16,
+    /// Retail Item.ItemSquishEraID; pinned Forever has no modern squish.
+    pub squish_era: u8,
+    /// Socket penalties aligned to the used stat allocations.
+    pub stat_socket_multipliers: [f32; 10],
     /// `MaxCount`: 1 is "Unique".
     pub max_count: u32,
     /// `Description_lang`, the yellow flavor text.
@@ -188,11 +192,13 @@ pub fn warm_item_catalog() {
                 CATALOG.get_or_init(|| {
                     let retail = load_client_catalog();
                     let dir = crate::paths::resolve_data_path(FOREVER_ITEM_DIR);
-                    let forever = load_item_catalog(&dir).and_then(|mut catalog| {
-                        catalog.appearance_icons = crate::item_icons::load_item_icons_from(&dir)?;
-                        validate_named_items(&catalog, &dir)?;
-                        Ok(catalog)
-                    });
+                    let forever = load_item_catalog_for(&dir, ItemDefinitionSource::Forever70205)
+                        .and_then(|mut catalog| {
+                            catalog.appearance_icons =
+                                crate::item_icons::load_item_icons_from(&dir)?;
+                            validate_named_items(&catalog, &dir)?;
+                            Ok(catalog)
+                        });
                     if let Err(error) = &forever {
                         eprintln!("Forever70205 item catalog unavailable: {error}");
                     }
@@ -244,10 +250,18 @@ fn db2_dir(data_dir: &Path) -> PathBuf {
 
 /// `Item.csv`, `ItemSparse.csv` and `ItemSubClass.csv` from one DB2 export directory.
 pub fn load_item_catalog(dir: &Path) -> Result<ItemCatalog, String> {
-    let mut catalog = parse_item_catalog(&CsvTable::read(&dir.join("Item.csv"))?)?;
+    load_item_catalog_for(dir, ItemDefinitionSource::Retail)
+}
+
+fn load_item_catalog_for(dir: &Path, source: ItemDefinitionSource) -> Result<ItemCatalog, String> {
+    let items = CsvTable::read(&dir.join("Item.csv"))?;
+    let mut catalog = parse_item_catalog(&items)?;
     let sparse = CsvTable::read(&dir.join("ItemSparse.csv"))?;
     apply_item_sparse(&mut catalog, &sparse)?;
     apply_item_sparse_stats(&mut catalog, &sparse)?;
+    if source == ItemDefinitionSource::Retail {
+        apply_retail_scaling_fields(&mut catalog, &items, &sparse)?;
+    }
     apply_subclass_names(
         &mut catalog,
         &CsvTable::read(&dir.join("ItemSubClass.csv"))?,
@@ -437,6 +451,61 @@ pub(crate) fn apply_item_sparse_stats(
         }
     }
     Ok(())
+}
+
+/// Modern scaling columns are mandatory for Retail, absent in pinned Forever.
+fn apply_retail_scaling_fields(
+    catalog: &mut ItemCatalog,
+    items: &CsvTable,
+    sparse: &CsvTable,
+) -> Result<(), String> {
+    csv_rows(items, ["ID", "ItemSquishEraID"], |[id, era]| {
+        if let Some(entry) = catalog.items.get_mut(&(number(id, items.path())? as u32)) {
+            entry.squish_era = number(era, items.path())? as u8;
+        }
+        Ok(())
+    })?;
+    apply_socket_multipliers(catalog, sparse)
+}
+
+fn socket_stat_columns() -> [String; 1 + STAT_SLOTS * 3] {
+    std::array::from_fn(|index| {
+        if index == 0 {
+            return "ID".into();
+        }
+        let slot = (index - 1) / 3;
+        let prefix = [
+            "StatModifier_bonusStat",
+            "StatPercentEditor",
+            "StatPercentageOfSocket",
+        ][(index - 1) % 3];
+        format!("{prefix}_{slot}")
+    })
+}
+
+fn apply_socket_multipliers(catalog: &mut ItemCatalog, sparse: &CsvTable) -> Result<(), String> {
+    let columns = socket_stat_columns();
+    csv_rows(sparse, columns.each_ref().map(String::as_str), |values| {
+        let Some(entry) = catalog
+            .items
+            .get_mut(&(number(values[0], sparse.path())? as u32))
+        else {
+            return Ok(());
+        };
+        let mut used = 0;
+        for triple in values[1..].chunks_exact(3) {
+            if number(triple[0], sparse.path())? >= 0 && number(triple[1], sparse.path())? != 0 {
+                entry.stat_socket_multipliers[used] = triple[2].parse().map_err(|error| {
+                    format!(
+                        "{}: bad socket multiplier: {error}",
+                        sparse.path().display()
+                    )
+                })?;
+                used += 1;
+            }
+        }
+        Ok(())
+    })
 }
 
 #[cfg(test)]

@@ -375,7 +375,7 @@ mod tests {
         let deltas = &lines[lines.len() - 3..];
         assert_eq!(
             deltas,
-            ["+1.3 Damage Per Second", "+2 Agility", "+2 Critical Strike"]
+            ["+1.0 Damage Per Second", "+2 Agility", "+2 Critical Strike"]
         );
         assert_eq!(lines[header..lines.len() - 3].join(" "), DELTA_HEADER);
         let first = compare.tooltip.lines.len() - 3;
@@ -455,13 +455,13 @@ mod tests {
         let sword = item_catalog_entry(25).unwrap();
         let lines = stat_deltas(sword, axe);
         assert!(lines.iter().all(|line| line.left_color == RED_FONT_COLOR));
-        assert_eq!(lines[0].left_text, "-2.1 Damage Per Second");
+        assert_eq!(lines[0].left_text, "-1.6 Damage Per Second");
         assert!(
             rows(&TooltipPresentation {
                 lines: lines.clone(),
                 ..TooltipPresentation::hidden()
             })
-            .contains(&"-5 Stamina")
+            .contains(&"-4 Stamina")
         );
     }
 }
