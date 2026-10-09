@@ -4,6 +4,7 @@ mod auction_icon_preview;
 mod audit_probe;
 mod aura_preview;
 mod bank_preview;
+mod bagtitle_preview;
 #[cfg(test)]
 mod buffcancel_tests;
 #[cfg(debug_assertions)]
