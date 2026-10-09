@@ -123,6 +123,27 @@ fn ahportrait_favorites_star_left_of_search_in_both_skins() {
 }
 
 #[test]
+fn ahportrait_filter_control_matches_retail_search_row() {
+    use ui_toolkit::{text_measure::measure_text, widgets::font_string::GameFont};
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = mount(preview_view("browse").unwrap(), native_auction_screen);
+        let filter = frame(&registry, "AuctionHouseFrameFilterButton");
+        let text_width = measure_text("Filter", GameFont::FrizQuadrata, 12.0)
+            .unwrap()
+            .0;
+        let width = text_width + 60.0;
+        assert_rect(filter, (646.0 - width, 40.0, width, 18.0));
+        assert!(filter.onclick.is_none(), "filter menu remains unsupported");
+        assert_atlas(
+            frame(&registry, "AuctionHouseFrameFilterButtonBackground"),
+            "common-dropdown-b-button",
+            skin,
+        );
+    }
+}
+
+#[test]
 fn ahportrait_session_binds_interacting_npc_not_player() {
     let player = 1001;
     let auctioneer = 42;
