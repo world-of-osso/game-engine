@@ -368,6 +368,25 @@ fn forever_display137165_resolves_authored_handlebars_without_changing_retail() 
 }
 
 #[test]
+fn retail_display825_rejects_forever_only_choices_even_for_skyborne_race() {
+    let data = data_root();
+    let mut catalogs = NpcAppearanceCatalogs::load(&data).unwrap();
+    let (retail, _) = catalogs.for_display(825, 95, 1).unwrap();
+    let invalid = game_engine_core::npc_appearance_data::AuthoredNpcAppearance {
+        race: 95,
+        sex: 1,
+        class: 0,
+        baked_texture_fdid: None,
+        choice_ids: vec![61137],
+        geosets: vec![],
+    };
+    assert!(
+        select_npc_choices(&invalid, retail).is_err(),
+        "Retail display825 must reject a corrupted profile borrowing Forever61137"
+    );
+}
+
+#[test]
 fn forever_display136974_binds_its_authored_cape_to_type2() {
     let data = data_root();
     let gear = npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
