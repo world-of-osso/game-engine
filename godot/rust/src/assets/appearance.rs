@@ -2,9 +2,9 @@
 
 #[path = "appearance_pixels.rs"]
 mod appearance_pixels;
-pub(super) use appearance_pixels::npc_pass_active;
 #[cfg(test)]
 use appearance_pixels::compose_separate_replacements;
+pub(super) use appearance_pixels::npc_pass_active;
 use appearance_pixels::{compose_replacement_pixels, inactive_npc_texture_types};
 
 use std::{
@@ -17,7 +17,7 @@ use game_engine_core::{
     blp,
     char_texture_data::{CharTextureData, CompositedModelTextures},
     customization_data::CustomizationDb,
-    npc_appearance_assets::{load_compositor, load_customization_db},
+    npc_appearance_assets::NpcAppearanceCatalogs,
     npc_appearance_data::{AuthoredNpcAppearance, query_authored_npc_appearance},
     npc_appearance_selection_data::{NpcSelections, select_npc_choices},
 };
@@ -35,8 +35,7 @@ pub(super) type TexturePixels = (Vec<u8>, u32, u32);
 #[derive(Default)]
 pub(crate) struct NpcAppearances {
     profiles: Option<Connection>,
-    customization: Option<CustomizationDb>,
-    compositor: Option<CharTextureData>,
+    catalogs: Option<NpcAppearanceCatalogs>,
 }
 
 pub(crate) struct PreparedAppearance {
@@ -105,16 +104,24 @@ impl NpcAppearances {
             return Ok(None);
         };
         let armor = resolve_armor(&appearance)?;
-        let (mut selected, layout_id) = self.select_choices_and_layout(data_root, &appearance)?;
-        let db = self
-            .customization
-            .as_ref()
-            .expect("loaded customization db");
-        hide_armor_geoset_groups(&mut selected.geosets, &armor, db, &appearance);
-        if self.compositor.is_none() {
-            self.compositor = Some(load_compositor(data_root)?);
+        if self.catalogs.is_none() {
+            self.catalogs = Some(NpcAppearanceCatalogs::load(data_root)?);
         }
-        let compositor = self.compositor.as_ref().expect("loaded compositor");
+        let (db, compositor) = self
+            .catalogs
+            .as_mut()
+            .expect("loaded NPC catalogs")
+            .for_display(display_id, appearance.race, appearance.sex)?;
+        let mut selected = select_npc_choices(&appearance, db)?;
+        let layout_id = db
+            .layout_id(appearance.race, appearance.sex)
+            .ok_or_else(|| {
+                format!(
+                    "missing texture layout for race {} sex {}",
+                    appearance.race, appearance.sex
+                )
+            })?;
+        hide_armor_geoset_groups(&mut selected.geosets, &armor, db, &appearance);
         let resolver = CascListfileResolver::new(
             AssetResolverConfig::new()
                 .with_data_root(data_root)
@@ -171,30 +178,6 @@ impl NpcAppearances {
             self.profiles.as_ref().expect("opened NPC appearance cache"),
             display_id,
         )
-    }
-
-    fn select_choices_and_layout(
-        &mut self,
-        data_root: &Path,
-        appearance: &AuthoredNpcAppearance,
-    ) -> Result<(NpcSelections, u32), String> {
-        if self.customization.is_none() {
-            self.customization = Some(load_customization_db(data_root)?);
-        }
-        let db = self
-            .customization
-            .as_ref()
-            .expect("loaded customization db");
-        let selected = select_npc_choices(appearance, db)?;
-        let layout_id = db
-            .layout_id(appearance.race, appearance.sex)
-            .ok_or_else(|| {
-                format!(
-                    "missing texture layout for race {} sex {}",
-                    appearance.race, appearance.sex
-                )
-            })?;
-        Ok((selected, layout_id))
     }
 }
 

@@ -1,5 +1,8 @@
 //! Read imported NPC customization and compositor catalogs without engine dependencies.
-use std::path::Path;
+use std::{
+    collections::{HashMap, HashSet},
+    path::{Path, PathBuf},
+};
 
 use rusqlite::{Connection, OpenFlags};
 
@@ -10,10 +13,103 @@ use crate::{
     },
     customization_data::{CustomizationDb, RaceModels},
     customization_query_data::{
-        customization_cache_file, query_customization_raw_data,
+        customization_cache_file, query_customization_raw_data, query_npc_customization_raw_data,
         query_skyborne_customization_raw_data,
     },
 };
+
+/// NPC source is the CDI catalog that owns its display, never its race.
+/// Retail IDs keep Retail precedence; Forever-only IDs read a separate full catalog.
+pub struct NpcAppearanceCatalogs {
+    data_root: PathBuf,
+    retail_displays: HashSet<u32>,
+    forever_displays: HashSet<u32>,
+    retail_customization: CustomizationDb,
+    retail_compositor: CharTextureData,
+    forever_customization: HashMap<(u8, u8), CustomizationDb>,
+    forever_compositor: Option<CharTextureData>,
+}
+
+impl NpcAppearanceCatalogs {
+    pub fn load(data_root: &Path) -> Result<Self, String> {
+        let mut retail_displays = HashSet::new();
+        crate::csv_util::read_numeric_rows(
+            &data_root.join("db2/12.1.0.69933/CreatureDisplayInfo.csv"),
+            ["ID"],
+            |[id]| {
+                retail_displays.insert(id as u32);
+            },
+        )?;
+        let mut forever_displays = HashSet::new();
+        let forever = data_root.join(crate::player_model_data::FOREVER_DB2_DIR);
+        if needs_forever(data_root, &forever)? {
+            crate::csv_util::read_numeric_rows(
+                &forever.join("CreatureDisplayInfo.csv"),
+                ["ID"],
+                |[id]| {
+                    forever_displays.insert(id as u32);
+                },
+            )?;
+        }
+        Ok(Self {
+            data_root: data_root.to_owned(),
+            retail_displays,
+            forever_displays,
+            retail_customization: load_customization_db(data_root)?,
+            retail_compositor: load_compositor(data_root)?,
+            forever_customization: HashMap::new(),
+            forever_compositor: None,
+        })
+    }
+
+    pub fn for_display(
+        &mut self,
+        display_id: u32,
+        race: u8,
+        sex: u8,
+    ) -> Result<(&CustomizationDb, &CharTextureData), String> {
+        if self.retail_displays.contains(&display_id) {
+            return Ok((&self.retail_customization, &self.retail_compositor));
+        }
+        if !self.forever_displays.contains(&display_id) {
+            return Err(format!(
+                "NPC display {display_id} has no authored CDI source"
+            ));
+        }
+        let forever = self
+            .data_root
+            .join(crate::player_model_data::FOREVER_DB2_DIR);
+        if self.forever_compositor.is_none() {
+            self.forever_compositor = Some(read_compositor(&forever)?);
+        }
+        if let std::collections::hash_map::Entry::Vacant(entry) =
+            self.forever_customization.entry((race, sex))
+        {
+            entry.insert(load_forever_npc_customization_db(&forever, race, sex)?);
+        }
+        Ok((
+            self.forever_customization
+                .get(&(race, sex))
+                .expect("loaded NPC catalog"),
+            self.forever_compositor
+                .as_ref()
+                .expect("loaded NPC compositor"),
+        ))
+    }
+}
+
+fn load_forever_npc_customization_db(
+    data_root: &Path,
+    race: u8,
+    sex: u8,
+) -> Result<CustomizationDb, String> {
+    let connection = open_catalog(data_root, &customization_cache_file())?;
+    let races = RaceModels::load(data_root)?.for_npc(race, sex)?;
+    let raw = query_npc_customization_raw_data(&connection, races)?;
+    let mut db = CustomizationDb::from_raw(&raw);
+    db.load_requirements(data_root)?;
+    Ok(db)
+}
 
 fn open_catalog(data_root: &Path, name: &str) -> Result<Connection, String> {
     let path = data_root.join("cache").join(name);
