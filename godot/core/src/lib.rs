@@ -1,6 +1,5 @@
 //! Bevy-free parsers over authored WoW asset bytes.
 pub mod adt;
-pub mod talent_data;
 #[path = "area_zone_data.rs"]
 pub mod area_zone_data;
 pub mod asset;
@@ -110,6 +109,7 @@ pub mod soft_target_data;
 pub mod spell_visual;
 #[path = "status_text_data.rs"]
 pub mod status_text_data;
+pub mod talent_data;
 #[path = "sound/ui_click_data.rs"]
 pub mod ui_click_data;
 pub mod ui_layout_account;
