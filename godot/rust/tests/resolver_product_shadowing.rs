@@ -1,81 +1,109 @@
-//! Approved regression: cached files must not cross product boundaries.
-//! This exercises real resolver IO, not M2 parsing or native GPU publication.
-use std::{env, fs, path::PathBuf, process::Command};
+//! Explicit authored identities exercise actual resolver file IO in one process.
+//! Receipts are not M2 parsing or GPU/rendering evidence.
+use osso_asset_resolver::{AssetIdentity, AssetResolverConfig, CascListfileResolver};
+use std::{
+    fs,
+    path::PathBuf,
+    sync::atomic::{AtomicU64, Ordering},
+};
 
-use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
-
-const CHILD_ROOT: &str = "M2_ISOLATION_TEST_ROOT";
 const CASES: [(u32, u32); 2] = [(139403, 1100087), (139409, 1100258)];
+const RETAIL_KEY: &str = "dcfc90fffd79ba00406ae46f5f657592";
+const FOREVER_KEY: &str = "e8dd824cf6c3d96cd01f804ca2ea5a63";
 
-fn payload(product: &str, fdid: u32) -> Vec<u8> {
-    format!("{product}:M2 cache receipt for FDID {fdid}").into_bytes()
-}
-
-fn read_and_assert_selected_product(root: PathBuf) {
-    let product = env::var("WOW_PRODUCT").expect("child product");
-    let resolver = CascListfileResolver::new(
-        AssetResolverConfig::new()
-            .with_data_root(&root)
-            .with_shared_data_root(&root)
-            .with_cache_root(root.join("resolver-cache")),
-    );
-    let mut mismatches = Vec::new();
-    for (display, fdid) in CASES {
-        let destination = root.join("models").join(format!("{fdid}.m2"));
-        let path = resolver
-            .ensure_cached(fdid, &destination)
-            .expect("cached file");
-        let actual = fs::read(&path).expect("cached bytes");
-        let expected = payload(&product, fdid);
-        if actual != expected {
-            mismatches.push(format!(
-                "display {display}, FDID {fdid}: requested {product}, got {:?} at {}",
-                String::from_utf8_lossy(&actual),
-                path.display()
-            ));
-        }
+struct Fixture(PathBuf);
+impl Fixture {
+    fn new() -> Self {
+        static NEXT: AtomicU64 = AtomicU64::new(0);
+        let root = std::env::temp_dir().join(format!(
+            "m2isolation-{}-{}",
+            std::process::id(),
+            NEXT.fetch_add(1, Ordering::Relaxed)
+        ));
+        fs::create_dir_all(&root).unwrap();
+        Self(root)
     }
-    assert!(mismatches.is_empty(), "{}", mismatches.join("\n"));
+    fn resolver(&self, identity: &AssetIdentity) -> CascListfileResolver {
+        CascListfileResolver::new(
+            AssetResolverConfig::new()
+                .with_data_root(&self.0)
+                .with_shared_data_root(&self.0)
+                .with_cache_root(self.0.join("resolver-cache"))
+                .with_identity(identity.clone()),
+        )
+    }
+    fn seed(&self, path: &std::path::Path, bytes: &[u8]) {
+        fs::create_dir_all(path.parent().unwrap()).unwrap();
+        fs::write(path, bytes).unwrap();
+    }
+}
+impl Drop for Fixture {
+    fn drop(&mut self) {
+        fs::remove_dir_all(&self.0).unwrap();
+    }
+}
+fn payload(identity: &AssetIdentity, fdid: u32) -> Vec<u8> {
+    format!(
+        "{}:{}:M2 receipt for FDID {fdid}",
+        identity.product(),
+        identity.build_key()
+    )
+    .into_bytes()
 }
 
 #[test]
 fn forever_model_requests_do_not_reuse_retail_cached_bytes() {
-    if let Some(root) = env::var_os(CHILD_ROOT) {
-        read_and_assert_selected_product(PathBuf::from(root));
-        return;
-    }
-    let root = env::temp_dir().join(format!("m2isolation-{}", std::process::id()));
-    fs::create_dir(&root).expect("fresh fixture directory");
-    fs::create_dir(root.join("models")).unwrap();
+    let fixture = Fixture::new();
+    let retail = AssetIdentity::new("wow", RETAIL_KEY).unwrap();
+    let forever = AssetIdentity::new("wow_classic_beta", FOREVER_KEY).unwrap();
     for (_, fdid) in CASES {
-        fs::write(
-            root.join("models").join(format!("{fdid}.m2")),
-            payload("wow", fdid),
-        )
-        .unwrap();
+        let relative = format!("models/{fdid}.m2");
+        fixture.seed(
+            &fixture.0.join(&relative),
+            b"unqualified legacy Retail decoy",
+        );
+        for identity in [&retail, &forever] {
+            fixture.seed(
+                &identity.asset_path(&fixture.0, &relative),
+                &payload(identity, fdid),
+            );
+        }
     }
-    // Fresh processes isolate WOW_PRODUCT and the resolver's process-global state.
-    // The Retail control must pass before testing the Forever request.
-    let mut results = Vec::new();
-    for product in ["wow", "wow_classic_beta"] {
-        let output = Command::new(env::current_exe().unwrap())
-            .args([
-                "--exact",
-                "forever_model_requests_do_not_reuse_retail_cached_bytes",
-                "--nocapture",
-            ])
-            .env(CHILD_ROOT, &root)
-            .env("WOW_PRODUCT", product)
-            .output()
-            .expect("spawn isolated resolver test");
-        eprintln!("{product}: {}", String::from_utf8_lossy(&output.stdout));
-        eprintln!("{}", String::from_utf8_lossy(&output.stderr));
-        results.push(output.status.success());
+    let retail_resolver = fixture.resolver(&retail);
+    let forever_resolver = fixture.resolver(&forever);
+    // Alternate both namespaces, then return to Retail: no environment switch or
+    // child process can mask a shared-state collision.
+    for (identity, resolver) in [
+        (&retail, &retail_resolver),
+        (&forever, &forever_resolver),
+        (&retail, &retail_resolver),
+    ] {
+        for (display, fdid) in CASES {
+            let relative = format!("models/{fdid}.m2");
+            let actual = resolver
+                .ensure_cached_checked(fdid, &fixture.0.join(&relative))
+                .unwrap();
+            assert_eq!(
+                fs::read(&actual).unwrap(),
+                payload(identity, fdid),
+                "display {display}"
+            );
+            assert_eq!(actual, identity.asset_path(&fixture.0, relative));
+        }
     }
-    fs::remove_dir_all(root).expect("remove fixture");
-    assert!(results[0], "Retail control failed");
-    assert!(
-        results[1],
-        "Forever request reused Retail bytes for both displays"
-    );
+}
+
+#[test]
+fn legacy_bytes_do_not_satisfy_a_missing_authored_identity() {
+    let fixture = Fixture::new();
+    let identity =
+        AssetIdentity::new("wow_classic_beta", "00000000000000000000000000000000").unwrap();
+    let path = fixture.0.join("models/1100087.m2");
+    fixture.seed(&path, b"unqualified legacy Retail decoy");
+    let error = fixture
+        .resolver(&identity)
+        .ensure_cached_checked(1100087, &path)
+        .unwrap_err();
+    assert!(error.contains(identity.build_key()), "{error}");
+    assert_eq!(fs::read(path).unwrap(), b"unqualified legacy Retail decoy");
 }
