@@ -545,8 +545,7 @@ impl Account {
             .map_err(SessionError)
     }
 
-    /// `SetSpecialization(spec_id)`; the server answers `SpecializationChanged` and the
-    /// spec's spells.
+    /// Persist an action assignment; rejected requests return the unchanged snapshot.
     pub fn send_set_action_button(
         &self,
         request: shared::protocol::SetActionButton,
@@ -556,6 +555,8 @@ impl Account {
             .map_err(SessionError)
     }
 
+    /// `SetSpecialization(spec_id)`; the server answers `SpecializationChanged` and the
+    /// spec's spells.
     pub fn send_set_specialization(&self, spec_id: u32) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, TalentChannel>(SetSpecialization { spec_id })
