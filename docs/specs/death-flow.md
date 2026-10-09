@@ -12,6 +12,9 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 - [x] Live right-click on a spirit healer opens the confirmation; accepting resurrects the player and displays the server-supplied Resurrection Sickness aura in BuffFrame's debuff row.
 - [x] Alive clears death popups, ghost appearance and corpse marker. [Logout](logout.md) stops the character transport and releases the world/owner state; the account token remains and automatically reloads character select.
 - [x] Popup text, labels and click actions work in both skins.
+- [ ] With DEATH visible, Escape leaves the popup open and opens the Game Menu. DEATH is not an Escape cancellation target; another escapable popup retains its normal cancellation route. Routing implemented; native RED/GREEN proof pending.
+
+Retail grounding: `Blizzard_StaticPopup_Game/Mainline/GameDialogDefs.lua:320-327` sets DEATH `whileDead`, `notClosableByLogout` and `hideOnEscape=false`. `Blizzard_StaticPopup/StaticPopup.lua:814-831` skips non-Escape popups and returns whether anything closed; `Blizzard_GameMenuEsc/Blizzard_GameMenuEsc.lua:100-113` then opens the Game Menu when no handler consumes Escape.
 - [x] `RESURRECT` offers show the caster and server-supplied timeout; Accept/Decline/timeout send the corresponding response, once. Alive closes the offer. Both skins retain the same mechanics.
 - [x] Stable replicated tapper identities exempt the local player and current group. Tap-denied nameplate health is Retail 0.9 grey; requested target health is 0.5 grey, through each skin's existing brightness treatment. Untapped/group-eligible units keep their ordinary health colours.
 
@@ -44,6 +47,7 @@ Targeted proof: network `replica::tests::ghoststate_replica_decodes_remote_life_
 
 ## Tests asserting this spec
 
+- `godot/network/examples/native_input_fixture/logout.rs` + `godot/tests/world_logout_flow.gd`: authoritative Dead snapshot → rendered DEATH → physical Escape → DEATH remains and authored Game Menu opens; Resume then Alive snapshot retains existing logout phases.
 - `godot/network/src/wire_tests.rs`: real loopback UDP death update and requests.
 - `godot/network/src/replica/tests.rs`: explicit remote state transitions over real UDP.
 - `godot/rust/src/{animation/remote_player_tests,unit_frame_dead_tests,nameplates}.rs`: authored corpse hold, ghost appearance mapping, both-skin target labels and plate eligibility.
