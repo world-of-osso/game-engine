@@ -44,6 +44,12 @@ fn ghoststate_remote_corpse_holds_death_and_ghost_alive_resume_motion() {
             if life == DeathState::Ghost { 0.45 } else { 0.0 }
         );
         if dead {
+            // Finish the authored Death and (when present) Dead clips before testing hold.
+            for _ in 0..2 {
+                let finish_ms = f64::from(player.sequences[player.current].duration)
+                    + f64::from(MIN_MOVEMENT_BLEND_MS);
+                player.advance(finish_ms).unwrap();
+            }
             let held = player.poses();
             player.advance(FRAME_MS).unwrap();
             assert_eq!(pose_distance(&held, &player.poses()), 0.0);

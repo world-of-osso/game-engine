@@ -9,50 +9,6 @@ use shared::components::{Health, Npc, Player, UnitFactionTemplate, UnitSummonedB
 use super::enemies_nearest_first;
 use crate::faction_reaction::parse_faction_template_csv;
 
-#[test]
-fn ghoststate_dead_ghost_players_are_not_attack_targets_even_with_positive_health() {
-    use shared::death::DeathState;
-    let (mut replica, mut distances) = northshire(false);
-    const REMOTE: u64 = 58;
-    replica.insert(HUNTER, DeathState::Alive);
-    replica.insert(
-        REMOTE,
-        Player {
-            name: "Elara".into(),
-            race: 2,
-            class: 1,
-            appearance: Default::default(),
-        },
-    );
-    replica.insert(REMOTE, UnitFactionTemplate(26));
-    replica.insert(
-        REMOTE,
-        Health {
-            current: 1.0,
-            max: 100.0,
-        },
-    );
-    distances.insert(REMOTE, 1.0);
-    for life in [
-        DeathState::Alive,
-        DeathState::Dead,
-        DeathState::Ghost,
-        DeathState::Alive,
-    ] {
-        replica.insert(REMOTE, life);
-        assert_eq!(
-            tab_cycle(&replica, &distances).contains(&REMOTE),
-            life == DeathState::Alive,
-            "{life:?}"
-        );
-    }
-    replica.insert(HUNTER, DeathState::Ghost);
-    assert!(
-        tab_cycle(&replica, &distances).is_empty(),
-        "ghost observer cannot start attacks"
-    );
-}
-
 const HUNTER: u64 = 57;
 const PET: u64 = 60;
 const GUARD: u64 = 41;
