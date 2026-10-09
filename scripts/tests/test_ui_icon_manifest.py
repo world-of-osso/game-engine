@@ -1,5 +1,6 @@
 """Concrete local DB2/BLP contract; no engine, server, CDN or synthetic art."""
 import importlib.util
+import json
 from pathlib import Path
 import shutil
 import tempfile
@@ -24,6 +25,14 @@ class RequiredUiIconManifestTests(unittest.TestCase):
         with tempfile.TemporaryDirectory(prefix="ui-icon-manifest-") as directory:
             missing = icons.missing_required_icons(manifest, Path(directory))
         self.assertEqual(missing, [135875])
+
+    def test_generated_manifest_requires_every_icon_in_the_extracted_set(self):
+        path = ROOT / "data/cache/required-ui-icons.json"
+        manifest = json.loads(path.read_text())
+        self.assertGreater(len(manifest["icons"]), 0)
+        missing = icons.missing_required_icons(manifest, ROOT / "data")
+        self.assertEqual(len(missing), 0,
+            f"{len(missing)} required icon FDIDs absent/invalid, first cases {missing[:32]}; manifest {path}")
 
     def test_real_extracted_file_satisfies_the_manifest_without_other_sources(self):
         manifest = {"icons": [{"fdid": 135875, "sources": ["SpellMisc:31884"]}]}
