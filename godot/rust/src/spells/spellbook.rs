@@ -189,9 +189,42 @@ impl GameClient {
         }
     }
 
-    fn spellbook_state(&mut self) -> SpellbookFrameState {
+    fn load_spellbook_talents(
+        &mut self,
+        player: Option<SpellbookPlayer>,
+    ) -> Result<Option<game_engine_ui_model::talents::TalentView>, String> {
+        if self.spells.book.tab != PlayerSpellsTab::Talents {
+            return Ok(None);
+        }
+        let player = player.ok_or("Talents requires a local player class")?;
+        let spec = self
+            .account
+            .spells
+            .spec()
+            .ok_or("Talents requires an active specialization")?;
+        let key = (player.class_id, spec);
+        if !self.spells.talent_views.contains_key(&key) {
+            let catalog = self
+                .spells
+                .catalog()
+                .ok_or("Talents is waiting for the local spell catalog")?;
+            let data = game_engine_ui_model::paths::resolve_data_path("");
+            let loaded = game_engine_ui_model::talents::load_talent_view(
+                &data,
+                player.class_id,
+                spec,
+                catalog,
+            );
+            self.spells.talent_views.insert(key, loaded);
+        }
+        self.spells.talent_views[&key].clone().map(Some)
+    }
+
+    fn spellbook_state(&mut self) -> Result<SpellbookFrameState, String> {
         let player = self.spellbook_player();
+        let talents = self.load_spellbook_talents(player)?;
         let mut content = self.spellbook_content(player);
+        content.talents = talents;
         self.extract_spellbook_icons(&mut content);
         let size = self
             .base()
@@ -211,14 +244,14 @@ impl GameClient {
         };
         state.selected = state.selected.min(state.categories.len().saturating_sub(1));
         state.page = state.page.min(state.page_count() - 1);
-        state
+        Ok(state)
     }
 
     pub(super) fn sync_spellbook(&mut self) -> Result<(), String> {
         if self.spells.book_ui.is_none() {
             return Ok(());
         }
-        let state = self.spellbook_state();
+        let state = self.spellbook_state()?;
         self.spells.book = state.clone();
         self.extract_spellbook_art(&state);
         let existing = self

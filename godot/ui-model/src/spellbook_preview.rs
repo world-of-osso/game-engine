@@ -8,6 +8,7 @@ use game_engine_core::spellbook_data::{SpellbookTab, build_spellbook_tabs};
 
 const MAGE_CLASS: u32 = 8;
 const FROST_SPEC: u32 = 64;
+const ARCANE_SPEC: u32 = 62;
 // Frostbolt, Frost Nova, Slow Fall, Remove Curse, Arcane Explosion/Intellect,
 // Blink, Counterspell, Ice Lance, Icy Veins and Attack (a bounded known-spell snapshot).
 const KNOWN_SPELLS: [u32; 11] = [
@@ -24,18 +25,31 @@ pub fn load_preview_state(
             return Err(format!("Spellbook preview requires local spell {id}"));
         }
     }
-    let tabs = build_spellbook_tabs(&KNOWN_SPELLS, Some(FROST_SPEC), Some(&catalog), None);
+    let spec = if tab == PlayerSpellsTab::Talents {
+        ARCANE_SPEC
+    } else {
+        FROST_SPEC
+    };
+    let talents = if tab == PlayerSpellsTab::Talents {
+        Some(crate::talents::load_talent_view(
+            data, MAGE_CLASS, spec, &catalog,
+        )?)
+    } else {
+        None
+    };
+    let tabs = build_spellbook_tabs(&KNOWN_SPELLS, Some(spec), Some(&catalog), None);
     let portrait_fdid = catalog
         .tabs
         .specs
-        .get(&FROST_SPEC)
-        .ok_or("Spellbook preview requires local Frost specialization 64")?
+        .get(&spec)
+        .ok_or_else(|| format!("Spellbook preview requires local specialization {spec}"))?
         .icon_fdid;
     Ok(SpellbookFrameState {
         viewport: [1920.0, 1080.0],
         categories: preview_categories(tabs),
         tab,
-        specializations: specialization_choices(&catalog.tabs, MAGE_CLASS, Some(FROST_SPEC)),
+        specializations: specialization_choices(&catalog.tabs, MAGE_CLASS, Some(spec)),
+        talents,
         portrait_fdid,
         can_activate_spec: true,
         ..Default::default()

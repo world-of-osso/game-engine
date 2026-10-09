@@ -29,12 +29,13 @@ fn mage_preview_projects_visible_player_spells_in_both_skins_and_all_pages() {
                         && spell.name == "Frostbolt"
                         && spell.icon_fdid != 0)
             );
-            assert!(
-                state
-                    .specializations
-                    .iter()
-                    .any(|spec| spec.id == 64 && spec.active)
-            );
+            assert!(state.specializations.iter().any(|spec| spec.id
+                == if tab == PlayerSpellsTab::Talents {
+                    62
+                } else {
+                    64
+                }
+                && spec.active));
             let mut registry = FrameRegistry::new(1920.0, 1080.0);
             let mut shared = SharedContext::new();
             shared.insert(state.clone());
