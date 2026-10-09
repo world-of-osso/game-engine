@@ -162,6 +162,7 @@ Root cause analyses and debug findings.
 - [editbox-focus-rendering](investigations/editbox-focus-rendering.md) — Nine-slice fill gap preventing clean focus state visuals
 - [target-circle-rendering](investigations/target-circle-rendering.md) — Procedural vs BLP-textured selection circle approaches
 - [authored-skybox-black-output](investigations/authored-skybox-black-output.md) — authored cloud zero-opacity source and bounded original/native dark-phase RGB match; active-phase/coastal parity open, separate from ordinary InWorld procedural sky
+- [character-select-roster](investigations/character-select-roster.md) — ten/twelve-entry flex shrink, footer hit interception, data-backed names and native ScrollBox input ownership; both-skin offline proof.
 - [charselect-ground-patch-dark-terrain](investigations/charselect-ground-patch-dark-terrain.md) — corrected terrain normals and removed campsite workaround plane
 - [character-select-waterfall-loading](investigations/character-select-waterfall-loading.md) — current-WDT primary-only preview policy (native image acceptance pending), historical split shadows, backdrop filtering, UV/timing and mist emitters; historical waterfall visibility accepted, scene brightness separate
 - [character-select-lighting-overwrite](investigations/character-select-lighting-overwrite.md) — sky overwrite root cause, M2 light-record and attachment-clock correction, environmental-sun ownership; no Retail brightness match claimed
