@@ -195,12 +195,12 @@ fn ahsort_displayed_buy_headers_dispatch_bid_and_available() {
             ),
             (
                 "item",
-                "AuctionHouseFrameItemBuyFrameHeader0",
+                "AuctionHouseFrameItemBuyFrameItemListHeader0",
                 AuctionSortField::Bid,
             ),
             (
                 "item",
-                "AuctionHouseFrameItemBuyFrameHeader2",
+                "AuctionHouseFrameItemBuyFrameItemListHeader2",
                 AuctionSortField::Quantity,
             ),
         ] {
