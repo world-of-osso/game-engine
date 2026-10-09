@@ -31,6 +31,54 @@ fn forest_chain_tooltip_matches_applied_stats() {
     println!("Forest Chain tooltip: {lines:?}");
     assert!(lines.contains(&"+4 Stamina"), "{lines:?}");
     assert!(lines.contains(&"10 Armor"), "{lines:?}");
+    assert!(lines.contains(&"+7 Versatility"), "{lines:?}");
+    assert!(lines.contains(&"Item Level 11"), "{lines:?}");
+}
+
+#[test]
+fn armor_and_weapon_tooltips_match_server_local_rows() {
+    // Same unmodified Retail rows asserted by server item_stats::parity_tests.
+    for (id, expected) in [
+        (
+            6268,
+            vec![
+                "Item Level 6",
+                "5 Armor",
+                "+1 Agility or Intellect",
+                "+2 Stamina",
+            ],
+        ),
+        (937, vec!["Item Level 12", "6 - 9 Damage"]),
+    ] {
+        let item = entry(id);
+        let tooltip = crate::item_tooltip::item_tooltip(
+            &crate::bag_data::InventorySlot {
+                item_id: id,
+                name: item.name.clone(),
+                count: 1,
+                ..Default::default()
+            },
+            Some(1),
+        );
+        let lines: Vec<_> = tooltip
+            .lines
+            .iter()
+            .map(|line| line.left_text.as_str())
+            .collect();
+        println!(
+            "PARITY item={id} input={:?} slot={} armor={} stats={:?} weapon={:?} tooltip={lines:?}",
+            scaling(item),
+            item.inventory_type,
+            item_armor(item),
+            item_stats(item),
+            weapon_damage(item)
+        );
+        for text in expected {
+            assert!(lines.contains(&text), "item={id}: {lines:?}");
+        }
+    }
+    let weapon = weapon_damage(entry(937)).unwrap();
+    assert_eq!((weapon.min, weapon.max, weapon.speed), (6.0, 9.0, 3.6));
 }
 
 #[test]
