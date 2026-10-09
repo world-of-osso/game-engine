@@ -25,7 +25,12 @@ impl GameClient {
             return Ok(false);
         }
         if self.hud_editor.draft.active && matches!(key.get_keycode(), Key::ESCAPE | Key::F10) {
-            self.exit_hud_edit()?;
+            if self.hud_editor.draft.pending_delete.is_some() {
+                self.apply_hud_edit_action(ACTION_EDIT_MODE_CANCEL_DELETE)?;
+                self.refresh_hud_edit()?;
+            } else {
+                self.exit_hud_edit()?;
+            }
             return Ok(true);
         }
         let world_input = self.account.session.screen == SessionScreen::InWorld
@@ -116,7 +121,7 @@ impl GameClient {
         for entry in &mut self.hud_editor.boxes {
             entry.hovered = self.hud_editor.draft.hovered.as_deref() == Some(entry.key.as_str());
         }
-        let panel = self.hud_edit_panel();
+        let panel = self.hud_edit_panel()?;
         if panel.position.is_none() {
             return Err("No clear default HUD manager position".into());
         }
@@ -130,7 +135,7 @@ impl GameClient {
         Ok(())
     }
 
-    fn hud_edit_panel(&mut self) -> EditModePanelState {
+    fn hud_edit_panel(&mut self) -> Result<EditModePanelState, String> {
         let name_draft = self
             .hud_editor
             .ui
@@ -141,9 +146,11 @@ impl GameClient {
                     .to_string()
             })
             .unwrap_or_default();
-        EditModePanelState {
+        Ok(EditModePanelState {
             layout_name: self.ui_layout.name.clone(),
             name_draft,
+            layout_names: ui_layout_data::layout_names(&self.account.hud_layout_path()?)?,
+            pending_delete: self.hud_editor.draft.pending_delete.clone(),
             preset: SYSTEM_PRESETS
                 .iter()
                 .any(|(name, _)| *name == self.ui_layout.name),
@@ -152,11 +159,14 @@ impl GameClient {
             position: self.hud_editor.draft.panel_position.or_else(|| {
                 find_panel_position(self.hud_edit_screen_size(), &self.hud_editor.boxes)
             }),
-        }
+        })
     }
 
     pub(crate) fn hud_edit_pointer(&mut self, event: &Gd<InputEvent>) -> Result<bool, String> {
         if !self.hud_editor.draft.active {
+            return Ok(false);
+        }
+        if self.hud_editor.draft.pending_delete.is_some() {
             return Ok(false);
         }
         if let Ok(button) = event.clone().try_cast::<InputEventMouseButton>() {
@@ -295,7 +305,7 @@ impl GameClient {
             .selected_character_id
             .ok_or("HUD editor requires a selected character")?;
         let path = self.account.hud_layout_path()?;
-        let name = self.hud_edit_panel().name_draft;
+        let name = self.hud_edit_panel()?.name_draft;
         let layout = apply_manager_action(
             &path,
             id,
@@ -330,7 +340,34 @@ pub(crate) fn apply_manager_action(
     layout: &ActiveLayout,
     draft: &mut EditDraft,
 ) -> Result<Option<ActiveLayout>, String> {
+    if draft.pending_delete.is_some()
+        && !matches!(
+            action,
+            ACTION_EDIT_MODE_CONFIRM_DELETE | ACTION_EDIT_MODE_CANCEL_DELETE
+        )
+    {
+        return Ok(None);
+    }
     match action {
+        ACTION_EDIT_MODE_DELETE => {
+            if SYSTEM_PRESETS.iter().any(|(name, _)| *name == layout.name) {
+                return Err("System presets cannot be deleted".into());
+            }
+            draft.pending_delete = Some(layout.name.clone());
+        }
+        ACTION_EDIT_MODE_CANCEL_DELETE => {
+            draft.pending_delete = None;
+        }
+        ACTION_EDIT_MODE_CONFIRM_DELETE => {
+            let name = draft
+                .pending_delete
+                .as_deref()
+                .ok_or("No layout deletion pending")?;
+            ui_layout_data::delete_layout(path, name)?;
+            let updated = ui_layout_data::active_layout(path, id)?;
+            draft.enter(&updated);
+            return Ok(Some(updated));
+        }
         ACTION_EDIT_MODE_EXIT => draft.exit(),
         ACTION_EDIT_MODE_REVERT => draft.enter(layout),
         ACTION_EDIT_MODE_RESET => draft.reset_selected(),
@@ -357,10 +394,6 @@ fn persist_manager_layout(
         ACTION_EDIT_MODE_NEW => ui_layout_data::create_layout(path, id, name, working),
         ACTION_EDIT_MODE_RENAME => {
             ui_layout_data::rename_layout(path, &layout.name, name)?;
-            ui_layout_data::active_layout(path, id)
-        }
-        ACTION_EDIT_MODE_DELETE => {
-            ui_layout_data::delete_layout(path, &layout.name)?;
             ui_layout_data::active_layout(path, id)
         }
         ACTION_EDIT_MODE_PREV_LAYOUT | ACTION_EDIT_MODE_NEXT_LAYOUT => persist_cycled_layout(

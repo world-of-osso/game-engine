@@ -53,6 +53,22 @@ References: MF.xml / MF.lua = `Blizzard_MailFrame/MailFrame.xml` / `.lua`; `Bliz
 - [x] `PendingMail` senders show the minimap `MiniMapMailFrame` icon (`ui-hud-minimap-mail-up`); no senders hide it. Hovering it shows `HAVE_MAIL_FROM` "Unread mail from:" with one line per sender (`HAVE_MAIL` without senders).
 - [x] IPC: `mail status | send | read | take-item | take-money | return | delete`.
 
+## Private live acceptance — 2026-10-09
+
+Forever skin, pinned Godot 4.7.2, private UDP5500, `fb_mailraid_a`/`fb_mailraid_b` (Mailalpha/Mailbeta), at most two rendered cage/Vulkan clients. Inherited extension built at `5ab533364`; continuation checkout `709a62431` changes no mail/group implementation. Server `5b04aa931`. Evidence: `data/diagnostics/mailraidlive-2026-10-09/`, paired capture JSON and `inputs.jsonl`; [proof ledger](../../data/diagnostics/mailraidlive-2026-10-09/proof-ledger.txt). Full-size PNGs copied to `/syncthing/AgentShared/2026-10-09/mailraidlive/` only after 960×540 inspection. Initial inbox/open captures were accepted by the predecessor; subsequent captures inspected by the continuation.
+
+| Case / Retail rule | Observed vs expected | Result / PNG stems |
+|---|---|---|
+| Inbox/open letter (`MailItemTemplate`, `OpenMailFrame`) | B sees A's subject/body, Linen20 and 1g, matching the send. | PASS `01-mail-inbox`, `02-mail-open` |
+| Take money/item (`TakeMoney`, `TakeAttachment`) | B 200000→210000c; bags gain Linen Cloth20; mail13 has zero money/items. | PASS `03-mail-claimed` |
+| Empty-letter delete (`OpenMail_Delete`) | Mail13 disappears; it remains absent after continuation reconnect and real mailbox reopen. | PASS `04-mail-deleted`, `b-mail-resumed.json` |
+| Seven-row paging (`MailItemTemplate`) | Eleven mails: first page seven rows, next page four distinct rows; page counter changes. | PASS `06-mail-page-one`, `07-mail-page-two` |
+| Return (`OpenMail_Delete`) | B's Wool5 letter15 disappears; A receives returned letter27 with Wool5. | PASS `08-mail-returned-b`, `11-return-and-cod-payment-a` |
+| C.O.D. (`COD_CONFIRMATION`, `OpenMailAttachment_OnClick`) | Silk10/1g compose; B confirms 1g, 210000→200000c and gains Silk10; A receives 10000c payment letter28 and claims it, 179540→189540c. | PASS `05-cod-send-form`, `09-cod-confirmation-b`, `10-cod-accepted-b`, `11-return-and-cod-payment-a`, `12-open-all-1` |
+| Open All (`OpenAllMailMixin`) | A claims returned Wool5/payment; B 200000→210100c; both finish idle with no remaining money/items. | PASS `12-open-all-1`, `12-open-all-2` |
+
+Input is native mouse/key events, not direct mail requests. Private admin only seeds setup and accelerates cross-account delivery. No product defect or RED/GREEN repair established; stale saved-token/account mapping and missing worktree gametables were harness setup corrections. This run does not prove Open All's C.O.D.-skip/failure/full-bag branches, all send errors, both skins, exact Retail pixels or clean shutdown.
+
 ## Gaps
 - No stationery choice, attachment tooltips, minimap flipbook animation or auction invoice layout.
 - Native: "Mail sent." uses the red UIErrorsFrame line (no yellow info-message variant yet); bag items attach by right-click only, not by dropping a cursor item on an attachment button.
