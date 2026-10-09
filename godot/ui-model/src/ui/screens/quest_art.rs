@@ -466,10 +466,13 @@ const PORTRAIT_TITLE_LEFT: f32 = 58.0;
 const FLAT_TITLE_LEFT: f32 = 30.0;
 
 /// `TitleContainer` (left, -1)..(-24, -1), `GameFontNormal` centred 5 below its top.
+/// Retail SharedUIPanelTemplates.xml:576 puts the title at frameLevel 510, above
+/// the portrait ring (401); narrow containers otherwise lose their leading glyphs.
 fn window_title(prefix: &str, width: f32, title: &str, left: f32) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("{prefix}TitleText"))},
+            frame_level: 510.0,
             width: {width - left - 24.0},
             height: 14.0,
             text: title,
