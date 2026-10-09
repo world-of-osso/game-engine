@@ -7,7 +7,9 @@
 
 use crate::bag_data::InventorySlot;
 use crate::item_catalog::{ItemCatalog, ItemCatalogEntry, item_catalog_for};
-use crate::item_stats::{ItemStat, item_armor_for, item_stats_for, weapon_damage_for};
+use crate::item_stats::{
+    ItemStat, item_armor_for, item_level_for, item_stats_for, weapon_damage_for,
+};
 use crate::merchant_data::quality_color;
 use shared::item_data::ItemDefinitionSource;
 
@@ -81,7 +83,10 @@ fn item_lines(
     if gear && entry.inventory_type != 0 {
         // ITEM_LEVEL "Item Level %d".
         lines.push(TooltipLineState::colored(
-            format!("Item Level {}", entry.item_level),
+            format!(
+                "Item Level {}",
+                item_level_for(slot.definition_source, entry)
+            ),
             TOOLTIP_DESCRIPTION_COLOR,
         ));
     }
