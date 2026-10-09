@@ -192,7 +192,7 @@ mod tests {
                 ("Item Level 1", ""),
                 ("Binds when equipped", ""),
                 ("Main Hand", "Sword"),
-                ("1 - 1 Damage", "Speed 2.60"),
+                ("0 - 1 Damage", "Speed 2.60"),
                 ("(0.4 damage per second)", ""),
                 ("Durability 20 / 20", ""),
                 ("Sell Price:", ""),
