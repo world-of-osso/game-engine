@@ -115,7 +115,22 @@ Source root `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`; BF = `Blizzard_UIP
 | Unaffordable price | `Blizzard_UIPanels_Game/Mainline/BankFrame.lua:1081–1086`; `Blizzard_MoneyFrame/Mainline/MoneyFrame.lua` color lookup | `SetMoneyFrameColorByFrame(..., canAfford and "white" or "red")`; red digits (1,0.1,0.1,1), normal alpha, existing coin members/rects unchanged. |
 | Bank-bag chrome (blocked) | Forever `Camelot/BankFrame.xml:4–16,62–112`; `.lua:135–190,398–410` | `bank-frame-bag-slotframe`, `bank-frame-bag-slot-bg`, `bankslot-icon-lock`, no tiling, normal alpha; template scale .75. Bag highlight `CheckButtonHilight` is ADD; BagText/BagCost/MoneyDisplay anchor to the bag row. These are not Retail Mainline side-tab art. Existing layout/authoritative bag state cannot represent this row without the excluded Camelot behavior or a new placement decision. |
 
-RED revision `58fded147`: `/home/osso/.worktrees/logs/bankart-red.log`, **0 passed / 5 failed**, EXIT101. All failures reproduce missing art/flags or grey price, not compilation errors. GREEN and native capture proof pending; no bank-bag completion claim.
+RED revision `58fded147`: `/home/osso/.worktrees/logs/bankart-red.log`, **0 passed / 5 failed**, EXIT101. All failures reproduce missing art/flags or grey price, not compilation errors. Stronger model-owned hover RED at `f97c2b1be`: `bankart-hover-red.log`, **0 passed / 1 failed**, EXIT101 (missing additive overlay texture).
+
+Final production revision `808b6eb2e`: `bankart-final-green-restored.log`, **11 passed / 0 failed / 1 ignored**, EXIT0 (art5, skin1, bankmoves5). `bankart-build-final.log` installs the native extension, EXIT0; ELF SHA256 `c1e4a8b4ec0d43cf0507265975178791f2176c618d045ed0d40db21d718f755b`. Earlier native build failed because the helper omits project `.gdshader` files; `d48d0ac25` embeds the shader in shipped Rust, without a fallback. A queued test failed before compilation when the dependency worktree was removed; the required environment path now aliases clean canonical protocol at the identical `c139baa` revision, with no protocol changes.
+
+Evidence: `data/diagnostics/bankart-2026-10-08/`. `capture.py` reuses spellbookshot's cage headless-mode shim; `capture.log` exits0 and asserts actual **1920×1080** window and viewport/image dimensions. All six `{modern,forever}-{tabs,hover,purchase}.png` were read. Grey Modern stone and warm Forever background repeat instead of stretching; each skin retains its slot/chrome/divider art. Selected tabs glow at32×32; the first37×37 slot gains a blue-white additive hover without losing its20 count. Both purchase captures show red500g digits and a disabled grey Purchase button. Native input additionally proves exactly one left/Shift/right bank-slot press, with left press coordinates retained. This is offline projection/input proof, not new server/live acceptance or full Retail pixel equivalence.
+
+| Element | Model proof | Native proof / limit |
+|---|---|---|
+| Selected marker | PASS FDID130724,32×32,WHITE,ADD,no tile | PASS both skins' purchased and purchase tabs inspected |
+| Tiled background | PASS active-skin member, retained rect, both tile flags | PASS both skin patterns visibly repeat at true1920×1080 |
+| Edge shadows | PASS all corner/edge atlases, rects and tile axes | PARTIAL corners/top/bottom render; vertical member FDID5779392 absent locally |
+| Unaffordable price | PASS all denomination digits red | PASS red500g and disabled button in both skins |
+| Bank-bag chrome/lock/cost labels | BLOCKED authoritative bag state and compatible placement absent | NOT IMPLEMENTED / NOT CAPTURED; purchase screenshots are bank-tab prompts, not bag purchases |
+| Additive item hover | PASS mounted ADD texture, hover show/hide and parent-closure visibility/alpha | PASS loaded ADD material, actual mouse hover and both-skin inspected captures |
+
+Local-CASC extraction of5779392 failed because `/syncthing/World of Warcraft/.build.info` is absent despite local archives and `.product.db`; no usable `/mnt/c` install or alternative local asset was found. `extract-5779392.log` is EXIT1 and native capture logs the missing texture. No CDN, substitute shadow or fabricated metadata was used. Import exited0 with8 ObjectDB warnings; capture exited0 without that shutdown warning, but platform warnings and the missing-art error remain recorded. Bank-bag art and complete vertical-shadow rendering remain open.
 
 ## How it works
 - [banks](../wiki/systems/banks.md)
