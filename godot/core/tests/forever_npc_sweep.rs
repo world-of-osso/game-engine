@@ -294,6 +294,50 @@ fn forever_display137165_resolves_authored_handlebars_without_changing_retail() 
 }
 
 #[test]
+fn forever_display136974_binds_its_authored_cape_to_type2() {
+    let data = data_root();
+    let gear = npc_gear_data::NpcGearData::load(&data.join("db2/12.1.0.69933")).unwrap();
+    let armor = gear.display_armor(136974).unwrap();
+    let outfit = outfit_data::OutfitData::load(&data);
+    let resolved =
+        equipment_appearance_data::load_baked_equipment_appearance(&armor, &outfit, 95, 0).unwrap();
+    assert_eq!(resolved.merged_cape_texture_fdid, Some(7734308));
+    assert!(resolved.outfit.geoset_overrides.contains(&(15, 2)));
+    // Authentic CDI/Extra/armor/material joins; tiny pixel fixture because the local
+    // bake/body/cape bytes are absent. This is not a native Batch52/rendering oracle.
+    let cape = (vec![17, 61, 113, 255], 1, 1);
+    let compositor = game_engine_core::char_texture_data::CharTextureData::from_parts(
+        Vec::new(),
+        HashMap::new(),
+        HashMap::new(),
+    );
+    let composed = game_engine_core::char_texture_data::CompositedModelTextures {
+        body: (vec![101, 102, 103, 255], 1, 1),
+        head: None,
+        hair: None,
+    };
+    let decoded = HashMap::from([(7734308, cape.clone())]);
+    let textures = appearance_pixels::compose_replacement_pixels(
+        &compositor,
+        &[],
+        201,
+        composed,
+        None,
+        &decoded,
+    )
+    .unwrap();
+    assert_eq!(
+        textures.get(&2),
+        Some(&cape),
+        "display136974 cape lost before strict type2 validation"
+    );
+    assert!(
+        appearance_pixels::npc_pass_active(&[2], &[None], &HashSet::new(), &textures, true, &[])
+            .unwrap()
+    );
+}
+
+#[test]
 #[ignore = "requires full local Skyborn data; see npc-appearance.md"]
 fn sweep_skyborn_forever_npc_appearances() {
     let data = data_root();
