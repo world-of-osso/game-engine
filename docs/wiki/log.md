@@ -2896,3 +2896,5 @@ Updated [[forever-data]] with independent payload/cache/world proof, README-only
 ## 2026-10-08 — Auction result icon diagnosis
 
 [Five-item trace and proof](systems/auction-house-ui.md#missing-result-icons-2026-10-08) records both-skin native RED→GREEN, once-per-FDID diagnostics and 22 content-key-matched local-CASC icons installed for the original 52-item evidence market. Six captures inspected; extracted icons render in both skins. [Shared loader policy](systems/asset-pipeline.md#native-unavailable-icons) uses existing question-mark art for unavailable icons. Whole-crate gate at `ff3129712` is blocked before tests by the requested base's merchant fixture missing `definition_source`; no passing counts, merge, push, live client or broader parity claim.
+
+- 2026-10-08: auction subcategory/Bid/Quantity contract and bounded protocol/server RED/GREEN ledger; native capture/engine GREEN checkpoint pending. Updated auction-house-ui system/spec.
