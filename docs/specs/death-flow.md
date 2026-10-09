@@ -15,6 +15,18 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 - [x] `RESURRECT` offers show the caster and server-supplied timeout; Accept/Decline/timeout send the corresponding response, once. Alive closes the offer. Both skins retain the same mechanics.
 - [x] Stable replicated tapper identities exempt the local player and current group. Tap-denied nameplate health is Retail 0.9 grey; requested target health is 0.5 grey, through each skin's existing brightness treatment. Untapped/group-eligible units keep their ordinary health colours.
 
+## Remote player life state
+
+- [x] Visible remote players receive explicit Alive, Dead (unreleased corpse), or Ghost; health alone never identifies player life state. Server visibility follows shared `ghost_visible`: living observers do not receive ghosts; ghost observers see ghosts. Map/distance restrictions and self-visibility remain.
+- [x] Dead remote player animation holds its authored corpse pose instead of locomotion; Ghost and Alive resume locomotion. Ghost transparency mapping matches the owner's 0.45 per-mesh value; Alive maps to opaque.
+- [x] Unit-frame mappings and nameplate status text use `Dead` for Dead or Ghost, including positive-health ghosts. Both-skin target labels are tested. Focus/target-of-target inherit the same state. Retail `CompactUnitFrame_UpdateStatusText` uses `DEAD` for both; no separate TargetFrame Ghost label is invented.
+- [x] Remote player status plates remain eligible through Dead/Ghost under existing CVars, range and selectability rules; dead NPC plates remain hidden.
+- [ ] Native per-mesh projection and asynchronous replacement visuals retain current corpse/ghost presentation: implemented, but two-player/GPU integration proof belongs to the lead gate.
+
+Owner popups, corpse markers and world grading remain owner-only.
+
+Targeted proof: network `replica::tests::ghoststate_replica_decodes_remote_life_transitions_over_udp`; native `ghoststate` mapping, animation-policy and rendered UI-registry tests. Live remote visual parity remains untested in this work.
+
 ## How it works
 
 - [Death flow and protocol gaps](../wiki/systems/death-flow.md)
@@ -27,10 +39,14 @@ Native player death UI consumes the realm's owner-only death snapshots. Both Mod
 - `godot/rust/src/party_frames.rs`: existing StaticPopup input/render loop.
 - `godot/ui-model/src/death_flow.rs`: popup lifecycle and action decisions.
 - `godot/rust/src/minimap.rs`, `godot/ui-model/src/minimap.rs`: corpse marker and edge arrow.
+- `godot/network/src/replica/codec.rs`: remote life-state decoder.
+- `godot/rust/src/{replicated,world,targeting,nameplates}.rs`: explicit life-state mapping, corpse animation and status text/eligibility.
 
 ## Tests asserting this spec
 
 - `godot/network/src/wire_tests.rs`: real loopback UDP death update and requests.
+- `godot/network/src/replica/tests.rs`: explicit remote state transitions over real UDP.
+- `godot/rust/src/{animation/remote_player_tests,unit_frame_dead_tests,nameplates}.rs`: authored corpse hold, ghost appearance mapping, both-skin target labels and plate eligibility.
 - `godot/ui-model/src/death_flow.rs`: concrete snapshot/proximity/click decisions in both skins.
 - `godot/rust/src/account.rs`: native event dispatch.
 - `godot/rust/src/account_deathstate_tests.rs`: UDP snapshot → AccountEvent → rendered popup click → production Account request → server receipt, in both skins.

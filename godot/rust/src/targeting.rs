@@ -336,8 +336,8 @@ fn target_frame_state(
         );
         state.health_text = texts.text("TargetHealthBar", target_health, current, max);
         state.health_fraction = fraction(health.current, health.max);
-        state.dead = health.current <= 0.0;
     }
+    state.dead = unit.dead_or_ghost();
     state.power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
     state.power_text = texts.power("TargetManaBar", state.power.as_ref(), Some(""));
     state
@@ -447,8 +447,8 @@ fn player_frame_state(unit: Unit, in_rest_area: bool, texts: &BarTexts) -> UnitF
             health.max,
         );
         state.health_fraction = fraction(health.current, health.max);
-        state.dead = health.current <= 0.0;
     }
+    state.dead = unit.dead_or_ghost();
     state.power = unit.get::<UnitPowers>().and_then(PowerBarState::primary);
     state.power_text = texts.power("PlayerManaBar", state.power.as_ref(), None);
     state
