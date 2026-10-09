@@ -1,3 +1,7 @@
+## 2026-10-09 — Offline class spellbooks and spec talents
+
+[Talents](systems/talents.md#offline-classspec-capture-2026-10-09) records paired DB2 preview inputs, preserved default Mage snapshot and production-catalog evidence. [Contract](../specs/talents.md#offline-classspec-evidence) links the data-only coverage matrix, native screenshots, exact blocked specs and existing layout/hero-eligibility limits. No spell behavior, server persistence or complete-tree parity claim.
+
 ## 2026-10-09 — HUD layout names and delete confirmation
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records the user-decided name validation and pending Yes/No deletion transition. [Contract](../specs/hud-edit-mode.md) owns Retail validation/dialog sources, exact confirmation text and unchanged preset Save / unsaved Exit boundaries. RED reproduces enabled empty New and immediate Delete; `4356c20a7` GREEN touched-crate hud69/core-layout7 and extension/CLI build pass. Native captures pending after default-output clearance failure and Vulkan initialization failure; no PNG or live input claim.

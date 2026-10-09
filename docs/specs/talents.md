@@ -44,7 +44,9 @@ All paths relative to `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 - With neither input set, retain the existing Frost Mage spellbook and Arcane Mage Talents snapshots unchanged.
 - Explicit spellbook previews project catalog class-line and selected-spec membership as a capture snapshot, not a player's learned-spell state or proof of spell execution. Membership IDs absent from the spell catalog are excluded rather than fabricated, and listed separately as data gaps in coverage. Talents use the production local graph/rules and granted-only initial configuration; no fabricated nodes or icon art.
 - `godot/tests/capture_classbooks.gd` batches the offline Forever pages at real 1920×1080 from a diagnostic manifest, records per-page errors and geometry, and never connects to a server.
-- Coverage/evidence: `data/diagnostics/classbook-shots-2026-10-09/coverage.md` and `coverage.json`. Counts describe local data presence only; missing icon art remains blank.
+- Coverage/evidence: [coverage matrix](../../data/diagnostics/classbook-shots-2026-10-09/coverage.md) and adjacent `coverage.json`: 13/13 Spellbooks and 32/39 originally counted Talents captured, plus the newly discovered Devourer (1480) row, which is blocked. Pinned DB2 actually has 40 non-pet/non-Initial specs. Counts describe local data presence only; missing icon art remains blank.
+- Current talent blockers: Havoc 577, Vengeance 581, Devourer 1480, Devastation 1467, Preservation 1468 and Augmentation 1473 fail with `Talent nodes disconnected from class/spec currency groups`; Mistweaver 270 fails at entry 124870/spell 0, Windwalker 269 at entry 125051/spell 0. No PNG is produced for these cases.
+- All 45 successful originals are real 1920×1080 and inspected after downscaling. Existing stacked hero overflow, lower-node/footer overlap and unvalidated hero eligibility remain visible; captures are current-production diagnostics, not complete-tree layout/parity acceptance. Spellbook screenshots show page 1 of a catalog-membership snapshot. Exact absent catalog IDs and host icon gaps are in the matrix.
 
 ## Exclusions and known gaps
 
