@@ -31,7 +31,7 @@ func _run() -> void:
 			push_error("Mage Arcane Talents lacks cited class/spec nodes")
 			quit(1)
 			return
-		if not rect_matches(node.get_global_rect(), Rect2(472, 209, 40, 40)) or not rect_matches(spec.get_global_rect(), Rect2(1192, 389, 40, 40)):
+		if not rect_matches(node.get_global_rect(), Rect2(472, 210, 40, 40)) or not rect_matches(spec.get_global_rect(), Rect2(1192, 390, 40, 40)):
 			push_error("Talent position does not match Blizzard /10 and pan offsets: ", node.get_global_rect(), " ", spec.get_global_rect())
 			quit(1)
 			return
