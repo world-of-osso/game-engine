@@ -348,12 +348,7 @@ impl NativeTerrainAssets {
             .data_root
             .join("dbfilesclient")
             .join(format!("{fdid}.db2"));
-        let path = self.resolver.ensure_cached(fdid, &cache).ok_or_else(|| {
-            format!(
-                "Local CASC DB2 FDID {fdid} unavailable at {}",
-                cache.display()
-            )
-        })?;
+        let path = self.resolver.ensure_cached_checked(fdid, &cache)?;
         read_bytes(&path).map_err(|error| format!("DB2 FDID {fdid}: {error}"))
     }
 
@@ -499,15 +494,7 @@ impl NativeTerrainAssets {
             return Err(format!("Required terrain {extension} has zero FileDataID"));
         }
         let cache_path = self.terrain_dir.join(format!("{fdid}.{extension}"));
-        let path = self
-            .resolver
-            .ensure_cached(fdid, &cache_path)
-            .ok_or_else(|| {
-                format!(
-                    "Failed to cache local CASC terrain FDID {fdid} at {}",
-                    cache_path.display()
-                )
-            })?;
+        let path = self.resolver.ensure_cached_checked(fdid, &cache_path)?;
         let bytes = read_bytes(&path)?;
         Ok((path, bytes))
     }

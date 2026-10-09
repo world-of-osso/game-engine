@@ -282,12 +282,7 @@ pub(super) fn cache_required(
     fdid: u32,
     destination: &Path,
 ) -> Result<PathBuf, String> {
-    resolver.ensure_cached(fdid, destination).ok_or_else(|| {
-        format!(
-            "Failed to cache local CASC FDID {fdid} at {}",
-            destination.display()
-        )
-    })
+    resolver.ensure_cached_checked(fdid, destination)
 }
 
 /// Cache the local-CASC textures an already parsed model's batches and particles
