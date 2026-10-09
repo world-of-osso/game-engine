@@ -84,6 +84,23 @@ fn emit_classbook_catalog_coverage() {
                         .chain(&graph.spec.nodes)
                         .chain(graph.heroes.iter().flat_map(|tree| &tree.nodes))
                         .chain(graph.hero_selection.iter());
+                    for node in nodes.clone() {
+                        let icons: Vec<_> = node
+                            .entries
+                            .iter()
+                            .filter(|entry| entry.subtree_id == 0)
+                            .map(|entry| {
+                                if entry.override_icon != 0 {
+                                    entry.override_icon
+                                } else {
+                                    catalog
+                                        .get(entry.spell_id)
+                                        .map_or(0, |spell| spell.icon_fdid)
+                                }
+                            })
+                            .collect();
+                        println!("CLASSBOOK_NODE_ICONS\t{spec}\t{}\t{icons:?}", node.id);
+                    }
                     let missing = nodes
                         .filter(|node| {
                             node.entries.iter().any(|entry| {
