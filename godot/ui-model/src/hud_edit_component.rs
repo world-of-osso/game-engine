@@ -1,6 +1,7 @@
 //! HUD edit mode: per-element selection boxes and the layout manager panel
 //! (Retail `EditModeManagerFrame`-like).
 
+use std::collections::BTreeMap;
 use ui_toolkit::rsx;
 use ui_toolkit::screen::SharedContext;
 use ui_toolkit::widget_def::Element;
@@ -32,8 +33,9 @@ const SELECTION_CORNER: f32 = 8.0;
 const PANEL_BACKGROUND_FDID: u32 = 6_839_810;
 const PANEL_STYLE: &str = crate::static_popup_component::STATIC_POPUP_PANEL_STYLE;
 
-pub const PANEL_W: f32 = 380.0;
-pub const PANEL_H: f32 = 228.0;
+/// Retail's 510-wide manager cannot clear our authored 1366×768 HUD; only the panel shrinks.
+pub const PANEL_W: f32 = 460.0;
+pub const PANEL_H: f32 = 252.0;
 /// Retail EditModeManager.xml:6: TOP of UIParent at y=-100.
 pub const PANEL_TOP: f32 = 100.0;
 pub const PANEL_CLEARANCE: f32 = 8.0;
@@ -50,6 +52,33 @@ const COLOR_TEXT: FontColor = FontColor::new(1.0, 1.0, 1.0, 1.0);
 const COLOR_LABEL: FontColor = FontColor::new(0.9, 0.9, 0.9, 1.0);
 
 struct DynName(String);
+
+/// Retail basicLayoutIndex order (EditModeManager.xml:244-323), registered systems only.
+pub const SHOW_SYSTEMS: &[(&str, &str, &[&str])] = &[
+    (
+        "target_and_focus",
+        "Target and Focus",
+        &["target_frame", "target_of_target", "focus_frame"],
+    ),
+    ("raid_frames", "Raid Frames", &["raid_frames"]),
+    ("party_frames", "Party Frames", &["party_frames"]),
+    (
+        "buffs_and_debuffs",
+        "Buffs and Debuffs",
+        &["buffs", "debuffs"],
+    ),
+    ("cast_bar", "Cast Bar", &["cast_bar"]),
+];
+
+pub fn system_is_shown(settings: &BTreeMap<String, bool>, key: &str) -> bool {
+    settings.get(key).copied().unwrap_or(true)
+}
+
+pub fn mover_is_shown(settings: &BTreeMap<String, bool>, mover: &str) -> bool {
+    SHOW_SYSTEMS
+        .iter()
+        .all(|(key, _, movers)| !movers.contains(&mover) || system_is_shown(settings, key))
+}
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct EditModeSelectionBox {
@@ -68,6 +97,7 @@ pub struct EditModeOverlayState {
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct EditModePanelState {
+    pub show_systems: BTreeMap<String, bool>,
     pub layout_name: String,
     pub name_draft: String,
     pub layout_names: Vec<String>,
@@ -277,17 +307,65 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
             {panel_button("EditModeManagerFramePrev", "<", ACTION_EDIT_MODE_PREV_LAYOUT, 20.0, 36.0, 30.0, interactive)}
             {panel_button("EditModeManagerFrameNext", ">", ACTION_EDIT_MODE_NEXT_LAYOUT, PANEL_W - 50.0, 36.0, 30.0, interactive)}
             {name_input(state)}
-            {panel_button("EditModeManagerFrameNew", "New", ACTION_EDIT_MODE_NEW, 22.0, 108.0, BUTTON_W, new_enabled)}
-            {panel_button("EditModeManagerFrameRename", "Rename", ACTION_EDIT_MODE_RENAME, 138.0, 108.0, BUTTON_W, user_layout)}
-            {panel_button("EditModeManagerFrameDelete", "Delete", ACTION_EDIT_MODE_DELETE, 254.0, 108.0, BUTTON_W, user_layout)}
-            {panel_button("EditModeManagerFrameRevert", "Revert", ACTION_EDIT_MODE_REVERT, 22.0, 140.0, BUTTON_W, state.dirty && interactive)}
-            {panel_button("EditModeManagerFrameSave", "Save", ACTION_EDIT_MODE_SAVE, 138.0, 140.0, BUTTON_W, state.dirty && interactive)}
-            {panel_button("EditModeManagerFrameExit", "Exit", ACTION_EDIT_MODE_EXIT, 254.0, 140.0, BUTTON_W, interactive)}
-            {panel_button("EditModeManagerFrameReset", "Reset Selected", ACTION_EDIT_MODE_RESET, 22.0, 172.0, 150.0, interactive)}
-            {panel_text("EditModeManagerFrameStatus", &state.status, 12.0, COLOR_LABEL, 204.0)}
+            {panel_button("EditModeManagerFrameNew", "New", ACTION_EDIT_MODE_NEW, 20.0, 188.0, 100.0, new_enabled)}
+            {panel_button("EditModeManagerFrameRename", "Rename", ACTION_EDIT_MODE_RENAME, 130.0, 188.0, 100.0, user_layout)}
+            {panel_button("EditModeManagerFrameDelete", "Delete", ACTION_EDIT_MODE_DELETE, 240.0, 188.0, 100.0, user_layout)}
+            {panel_button("EditModeManagerFrameRevert", "Revert", ACTION_EDIT_MODE_REVERT, 20.0, 218.0, 100.0, state.dirty && interactive)}
+            {panel_button("EditModeManagerFrameSave", "Save", ACTION_EDIT_MODE_SAVE, 130.0, 218.0, 100.0, state.dirty && interactive)}
+            {panel_button("EditModeManagerFrameExit", "Exit", ACTION_EDIT_MODE_EXIT, 240.0, 218.0, 100.0, interactive)}
+            {panel_button("EditModeManagerFrameReset", "Reset Selected", ACTION_EDIT_MODE_RESET, 350.0, 188.0, 100.0, interactive)}
+            fontstring {
+                name: "EditModeManagerFrameStatus", width: 210.0, height: 32.0,
+                text: {state.status.as_str()}, font: GameFont::FrizQuadrata,
+                font_size: 12.0, font_color: COLOR_LABEL, justify_h: "LEFT",
+                strata: FrameStrata::FullscreenDialog,
+                pos_type: "absolute", left: 230.0, top: 154.0,
+            }
+            {system_checkboxes(state, interactive)}
         }
         {delete_confirmation(state.pending_delete.as_deref())}
     }
+}
+
+fn system_checkboxes(state: &EditModePanelState, enabled: bool) -> Element {
+    SHOW_SYSTEMS
+        .iter()
+        .enumerate()
+        .flat_map(|(index, (key, label, _))| {
+            let name = format!("EditModeManagerShow_{key}");
+            let action = format!("edit_mode_show_{key}");
+            let unchecked = !system_is_shown(&state.show_systems, key);
+            let x = 20.0 + (index % 2) as f32 * 210.0;
+            let y = 90.0 + (index / 2) as f32 * 32.0;
+            rsx! {
+                r#frame {
+                    name: {DynName(name.clone())}, width: 210.0, height: 32.0,
+                    onclick: {action.as_str()}, mouse_enabled: enabled,
+                    strata: FrameStrata::FullscreenDialog,
+                    pos_type: "absolute", left: x, top: y,
+                    texture {
+                        name: {DynName(format!("{name}Up"))}, width: 32.0, height: 32.0,
+                        texture_fdid: 130_755,
+                        strata: FrameStrata::FullscreenDialog,
+                        pos_type: "absolute", left: 0.0, top: 0.0,
+                    }
+                    texture {
+                        name: {DynName(format!("{name}Check"))}, width: 32.0, height: 32.0,
+                        texture_fdid: 130_751, hidden: unchecked,
+                        strata: FrameStrata::FullscreenDialog,
+                        pos_type: "absolute", left: 0.0, top: 0.0,
+                    }
+                    fontstring {
+                        name: {DynName(format!("{name}Label"))}, width: 173.0, height: 32.0,
+                        text: {*label}, font: GameFont::FrizQuadrata, font_size: 12.0,
+                        font_color: COLOR_TEXT, justify_h: "LEFT",
+                        strata: FrameStrata::FullscreenDialog,
+                        pos_type: "absolute", left: 37.0, top: 0.0,
+                    }
+                }
+            }
+        })
+        .collect()
 }
 
 fn delete_confirmation(name: Option<&str>) -> Element {
@@ -419,7 +497,7 @@ fn name_input(state: &EditModePanelState) -> Element {
             pos_type: "absolute",
             left: "50%",
             translate_x: "-50%",
-            top: 70.0,
+            top: 62.0,
         }
     }
 }

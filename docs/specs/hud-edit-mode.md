@@ -23,6 +23,57 @@ Acceptance: code `af2be5bd2`, documentation head `bd7addc5a`, Godot `4.7.2-pr123
 
 Code: `godot/rust/src/hud_edit.rs`, `godot/rust/src/ui/hud_edit_layout.rs`, `godot/rust/src/ui/hud_edit_preview.rs`, `godot/ui-model/src/hud_edit*.rs`, `godot/core/src/ui_layout_data/edit_layouts.rs`. The inventory below is historical Bevy implementation.
 
+## Manager system checkboxes (2026-10-09)
+
+Both Modern and Forever display the same account-settings checkbox list; Forever changes art only. These switches choose **movers shown in Edit Mode**, not gameplay visibility, layout geometry or Options settings. Existing mounted/visible roots remain the eligibility boundary; a switch does not invent a missing system or change the current target/group. Player frame, ordinary action bars, chat, minimap and tracker stay always editable: Retail does not give them account-settings checkboxes (`Shared/EditModeManager.xml:244-492`).
+
+Sources below are local `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_EditMode/`. Use Retail's **basic** order (`Shared/EditModeManager.lua:1877-1908`), omitting unavailable registered movers, not XML declaration order:
+
+| Order | Label / localized global | Registered movers | Retail element/order | Retail behavior |
+|---|---|---|---|---|
+| 1 | Target and Focus / `HUD_EDIT_MODE_TARGET_AND_FOCUS` | target frame, target of target, focus frame | `Shared/EditModeManager.xml:244-252`, basic index 1 | `Shared/EditModeManager.lua:1932-1962`; target/focus highlighting and temporary preview, reset on exit |
+| 2 | Raid Frames / `HUD_EDIT_MODE_RAID_FRAMES_LABEL` | raid frames | XML:278-286, basic index 2 | Lua:2001-2028; raid highlighting/refresh |
+| 3 | Party Frames / `HUD_EDIT_MODE_PARTY_FRAMES_LABEL` | compact party frames | XML:260-268, basic index 3 | Lua:1970-1994; party highlighting/refresh |
+| 5 | Buffs and Debuffs / `HUD_EDIT_MODE_BUFFS_AND_DEBUFFS_LABEL` | buffs, debuffs | XML:296-304, basic index 5 | Lua:2272-2278,2290-2311; aura edit highlighting |
+| 6 | Cast Bar / `HUD_EDIT_MODE_CAST_BAR_LABEL` | player cast bar | XML:315-323, basic index 6 | Lua:2197-2215; cast edit highlighting |
+
+- Checked/unchecked immediately adds/removes that category's eligible selection boxes. Turning off a selected mover clears selection/drag/hover for that category. Roots and their content are not moved, hidden or destroyed. Rechecking restores the mover at its existing rectangle; exiting removes the editor, not gameplay content.
+- Persist switches immediately in the existing authenticated account/realm `ui_layout.ron`, beside named layouts, **not inside a layout or per-character selection**. Save/Revert/Exit and switching skin/layout do not undo them. Retail reads `C_EditMode.GetAccountSettings()` and writes `C_EditMode.SetAccountSetting()` (`Shared/EditModeManager.lua:859-899,902-918`); Mainline enters/resets previews in `Mainline/EditModeManagerOverrides.lua:3-54`.
+- Our initial/old-file default is **checked for all five**, preserving existing eligible mover visibility. Retail's numeric defaults are supplied by the native `C_EditMode.GetAccountSettings()` API, not exposed in these Lua/XML files (Lua:859-868); this is a client default, not an invented Retail default. Compact party remains the existing default. Bars 4/5 remain off by default and controlled solely by Options > Action Bars; no manager checkbox overrides that decision.
+- Checkbox art/label relationship follows `Shared/EditModeTemplates.xml:4-26` (32-unit checkbox, label right); Retail's basic container is a two-column row-major grid (`:50-64`). Our five entries use that order in a 460×252 manager, with all labels visible. The manager's own name box and action rows reflow around the list, preserving their actions. Deviation from Retail's 510 width (XML:9): that width left no clear rectangle in our authored 1366×768 Modern HUD (raid/aura rows above, unit frames/chat below). The compact width/height preserve existing no-mover-overlap clearance in both skins. HUD roots never move. Grid, snapping and advanced-options toggles (XML:89-138) are not added: this request is system visibility, not changing editor snapping or adding unregistered systems. `Shared/EditModeSettingDisplayInfo.lua:355-365` defines per-system frame size, not these account checkboxes; Options retains those settings.
+
+Skipped Retail entries: all 25 below lack a registered native mover in our current 21-root inventory; this does **not** claim their gameplay implementations are all absent. Adding movers is outside this manager-only change. Source is `Shared/EditModeManager.xml`; advanced indices are within the cited Frames, Combat or Misc category (Lua:1877-1908). Every localized global below has the `HUD_EDIT_MODE_` prefix. No skipped checkbox/default/preview behavior is implemented.
+
+| Retail element | Localized global suffix | Basic index / advanced category:index | XML lines |
+|---|---|---|---|
+| PetFrame | `PET_FRAME_LABEL` | — / Frames:2 | 253-259 |
+| BossFrames | `BOSS_FRAMES_LABEL` | 4 / Frames:4 | 269-277 |
+| ArenaFrames | `ARENA_FRAMES_LABEL` | — / Frames:6 | 287-293 |
+| ExternalDefensives | `EXTERNAL_DEFENSIVES_LABEL` | — / Combat:12 | 305-314 |
+| StanceBar | `STANCE_BAR_LABEL` | — / Combat:3 | 324-330 |
+| ExtraAbilities | `EXTRA_ABILITIES_LABEL` | — / Combat:4 | 331-337 |
+| PetActionBar | `PET_ACTION_BAR_LABEL` | — / Combat:5 | 338-344 |
+| PossessActionBar | `POSSESS_ACTION_BAR_LABEL` | — / Combat:6 | 345-351 |
+| EncounterBar | `ENCOUNTER_BAR_LABEL` | — / Combat:7 | 352-358 |
+| CooldownViewer | `COOLDOWN_VIEWER_LABEL` | — / Combat:8 | 359-368 |
+| PersonalResourceDisplay | `PERSONAL_RESOURCE_DISPLAY_LABEL` | — / Combat:9 | 369-378 |
+| EncounterEvents | `ENCOUNTER_EVENTS_LABEL` | — / Combat:10 | 379-388 |
+| DamageMeter | `DAMAGE_METER_LABEL` | — / Combat:11 | 389-398 |
+| TotemActionBar | `TOTEM_ACTION_BAR_LABEL` | — / Combat:13 | 399-405 |
+| LossOfControl | `LOSS_OF_CONTROL_LABEL` | — / Combat:14 | 406-412 |
+| TalkingHeadFrame | `TALKING_HEAD_FRAME_LABEL` | 7 / Misc:1 | 415-423 |
+| StatusTrackingBar2 | `STATUS_TRACKING_BAR_LABEL` | — / Misc:2 | 424-430 |
+| VehicleLeaveButton | `VEHICLE_LEAVE_BUTTON_LABEL` | — / Misc:3 | 431-437 |
+| HudTooltip | `HUD_TOOLTIP_LABEL` | — / Misc:4 | 438-444 |
+| DurabilityFrame | `DURABILITY_FRAME_LABEL` | — / Misc:5 | 445-451 |
+| TimerBars | `TIMER_BARS_LABEL` | — / Misc:6 | 452-458 |
+| VehicleSeatIndicator | `VEHICLE_SEAT_INDICATOR_LABEL` | — / Misc:7 | 459-465 |
+| ArchaeologyBar | `ARCHAEOLOGY_BAR_LABEL` | — / Misc:8 | 466-472 |
+| LootFrame | `LOOT_FRAME_LABEL` | — / Misc:9 | 473-483 |
+| RaidWarning | `RAID_WARNING_LABEL` | — / Misc:10 | 484-490 |
+
+Acceptance at code `81581bebf` (spec-first `5b1431f9f`): RED 0/2 missing-checkbox tests; GREEN 3/3 new `hudeditshowlist` behaviors and 22/22 targeted `hudedit` regressions. Tests dispatch the registry click action and production persisted transition; prove label/basic order in both skins, category mover removal/restoration at identical rectangles, selection/drag/hover clearing, account-file round-trip across Exit/Revert/reopen/character/layout and other-account isolation. Native extension build exits 0. Native Forever and Modern 1920×1080 PNGs: `/syncthing/AgentShared/2026-10-09/editmode-showlist/forever.png`, `modern.png`; both inspected via ffmpeg 960×540 views and 400×234 manager crops. All five checked labels are readable, no action-button backplates, manager clears mounted movers. Evidence: `data/diagnostics/editmode-showlist-2026-10-09/{red,green-checkbox-art,build-checkbox-art,capture-final}.log`, `native-preflight-final.txt`. Offline native screenshot proof, not live server/native-pointer acceptance or a clean-resource-shutdown claim; inherited cage/audio/VSync warnings remain. Owned client/cage exited and agent slice stopped.
+
 ## Offline polish (2026-10-07)
 
 - [x] Manager starts at Retail's top-centred preferred position (TOP -100) but clears every mounted mover in the default layout; its title area drags and clamps it to the screen. Retail source: cached `Blizzard_EditMode/Shared/EditModeManager.xml:4-7` (`movable="true"`, `frameStrata="DIALOG"`), `EditModeManager.lua:72-78` (`StartMoving`, `StopMovingOrSizing`). User request: no mover under the manager. Deviation: collision avoidance may displace Retail's preferred point; HUD preset anchors do not change.
