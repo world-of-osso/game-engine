@@ -35,6 +35,7 @@ func _run() -> void:
 			push_error("Talent position does not match Blizzard /10 and pan offsets: ", node.get_global_rect(), " ", spec.get_global_rect())
 			quit(1)
 			return
+		print("LAYERS base ", skin, " ", talent_layers(ui))
 		var prefix := directory.path_join(skin + "-talents")
 		if image.save_png(prefix + ".png") != OK:
 			push_error("Could not save Talents capture")
@@ -77,11 +78,25 @@ func _run() -> void:
 		if root.get_texture().get_image().save_png(prefix + "-hover.png") != OK:
 			quit(1)
 			return
+		print("LAYERS hover ", skin, " ", talent_layers(ui))
+		var hovered_image := root.get_texture().get_image()
+		var grant_pixel := hovered_image.get_pixel(492, 230)
+		if grant_pixel.b < 0.2:
+			push_error("Talents grant icon covered after hover; pixel=", grant_pixel)
+			quit(1)
+			return
 		print("PASS ", skin, " Talents actual1080p, cited geometry, hover ", title.text, " ", content)
 		host.queue_free()
 		ui.queue_free()
 		await process_frame
 	quit(0)
+
+func talent_layers(ui: Node) -> Dictionary:
+	var result: Dictionary = {}
+	for name in ["ClassTalentsFrame", "TalentClassName", "TalentNode62121", "TalentNode62121Entry80180Icon", "TalentNode62121Border"]:
+		var node := ui.find_child(name, true, false) as Control
+		result[name] = [node.z_index, node.z_as_relative, node.get_index(), node.is_visible_in_tree()]
+	return result
 
 func rect_matches(actual: Rect2, expected: Rect2) -> bool:
 	return actual.position.distance_to(expected.position) < 0.01 and actual.size.distance_to(expected.size) < 0.01
