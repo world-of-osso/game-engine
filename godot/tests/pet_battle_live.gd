@@ -44,6 +44,8 @@ func live_run() -> void:
 		match command.action:
 			"snapshot":
 				result.account = client.account_state()
+				result.input_enabled = client.is_processing_input()
+				result.unhandled_enabled = client.is_processing_unhandled_input()
 				result.inventory = client.merchant_state()
 				result.controls = []
 				for node in root.find_children("*", "Control", true, false):
