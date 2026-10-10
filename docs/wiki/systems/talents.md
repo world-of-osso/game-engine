@@ -37,7 +37,7 @@ Main node centers use `/10` minus pan49,24, with 40px buttons and 36px icons. Ca
 
 Both skins intentionally use the Retail talent-border atlas crops over the shared extracted Retail4556093 sheet; only window chrome follows the skin. Hero previews normalize center x/min y at0.85 scale. First preview top follows HeroTalentsContainer.xml:181-190 and12-15 (HeroSpecButton TOP102, height108; tree container above its bottom by34; NodesContainer down90 =>266). Second eligible preview is stacked304px below, retaining the original preview presentation. A hero selector stages one entry through the same pending model; local validation prevents purchasing in any unselected subtree.
 
-Missing icon FDIDs remain metadata, while their textures bind `None` before asset discovery. This deliberately bypasses the global question-mark icon fallback. `icon-audit.json` and shared `logs/extract-wanted.tsv` record missing FDIDs; no fake art. Existing circle-mask composition clips passive icons. A missing optional spec background is not fabricated: the cited ClassTalentsFrame BlackBG remains black.
+Historical talent captures retained missing icon FDIDs as metadata and bound `None` before asset discovery; their blank pixels are not current shipping acceptance. The [shipped icon contract](../../specs/spellbook-action-bar.md#spell-icon-source) now requires developer pre-extraction and explicit runtime filesystem/decode errors, with no CASC or substitute art. Existing circle-mask composition clips passive icons. A missing optional spec background is not fabricated: the cited ClassTalentsFrame BlackBG remains black.
 
 ## Server wiring (2026-10-09)
 
@@ -61,8 +61,28 @@ The [coverage matrix](../../../data/diagnostics/classbook-shots-2026-10-09/cover
 
 Evidence root: `data/diagnostics/classbook-shots-2026-10-09/`. RED2 failures at `fd33285f3`; GREEN2 new + unchanged Mage1 at `cc7349105`; native build `87d70ab43` exit0/no compiler warnings. Input-string capture RED retained as `input-red-captures.json`; corrected fixture `861bb67bc` native batch exit0. All successful originals inspected through ffmpeg-downscaled labeled panels. Existing graph/entry blockers and hero/main-node layout limits remain; no server, gameplay, full hero eligibility or complete-tree visibility claim.
 
+### Shipped-icon recapture (2026-10-09)
+
+The 19:24 shipping RED compiled the old CASC boundary before `b4094d2b2` (19:27:09 -0500). Current `assets.rs` delegates to `ui_file.rs`'s pure `std::fs::read`; missing files report the requested path. No implementation of the separately owned extracted-only runtime mode or CASC guard was added.
+
+At `0de12aa35`, native file/decode tests and serial classbook preview/icon/unchanged Mage tests pass; all actual preview rows decode nonempty authentic icons. Fixed resolver `80fd790` supplied the retry without merging; the [matrix](../../../data/diagnostics/classbook-shots-2026-10-09/coverage.md#shipped-icons-paladin-findings-and-proof) owns extraction counts, remaining hard shipping failures and observed Paladin duplicates. Historical effect/Artifact IDs are not falsely learned; residual Judgment/Shield of the Righteous same-name class/spec pairs remain explicit limits. Hunter Stopping Power's question-mark image is its actual SpellMisc icon, not a fallback.
+
+One rebuilt offline Forever client exited 0 and captured all class spellbooks; every new PNG was inspected after FFmpeg downscaling and replaced in AgentShared. The original user-report PNG and talent captures remain unchanged. Updated coverage/logs/JSON stay in diagnostics to preserve PNG-only AgentShared. Exact commands/revisions/results: `resumed-proof-ledger.json`; pixels/library/hash/shutdown proof: `recapture-shipped/`. The full required-manifest test still fails on unavailable source/key data, so this is not release readiness. Headless protocol/audio/V-Sync warnings are retained; no UI asset or compiler error was observed.
+
 ### Server-wire acceptance (2026-10-09)
 
 Production code `2f01277f2`: model RED `88ff4f421` 0/5 passed; final UI GREEN23/23 (8 model, 2 both-skin, 12 frame, 1 preview). Exact worker-batch ordering RED1passed/1failed → GREEN2/2; same-spec echo RED2passed/1failed → GREEN3/3; DB2 tier refund RED0passed/1failed → included in model GREEN8/8. Core graph5/5 remains unchanged. Total targeted GREEN33/33; native rebuild exit0, zero compiler warnings; changed-Rust format17/17 exit0. Main-thread verification only: user forbade agents.
 
-Evidence: `data/diagnostics/talentwire-2026-10-09/` contains complete RED/GREEN logs, `proof-ledger.json`, `verification.txt`, library hashes and `modern-pending.png`/`forever-pending.png`. One cage run exit0, actual1920×1080 in both skins; both images directly inspected. Same element rectangles, Mage30/Arcane29 counters, pending class62115/spec102467 ranks, enabled Apply and visible Undo. These captures cover the unchanged visual implementation at `f0fe5662d`; later lifecycle/tier changes are covered by their behavioral regressions and final native rebuild, not a second redundant capture. Missing local art stays empty. Headless import alone retained an8-ObjectDB exit warning; the cage capture and compiler logs have no warnings. No live-server persistence/relog claim.
+Evidence: `data/diagnostics/talentwire-2026-10-09/` contains complete RED/GREEN logs, `proof-ledger.json`, `verification.txt`, library hashes and `modern-pending.png`/`forever-pending.png`. One cage run exit0, actual1920×1080 in both skins; both images directly inspected. Same element rectangles, Mage30/Arcane29 counters, pending class62115/spec102467 ranks, enabled Apply and visible Undo. These captures cover the unchanged visual implementation at `f0fe5662d`; later lifecycle/tier changes are covered by their behavioral regressions and final native rebuild, not a second redundant capture. These historical captures show missing local art as empty; the current [shipped icon contract](../../specs/spellbook-action-bar.md#spell-icon-source) does not accept that as shipping proof. Headless import alone retained an8-ObjectDB exit warning; the cage capture and compiler logs have no warnings. No live-server persistence/relog claim.
+
+## Sources
+
+- [Talent contract](../../specs/talents.md) — graph, editor and preview requirements with Retail citations.
+- [Spell icon contract](../../specs/spellbook-action-bar.md#spell-icon-source) — shipped bytes, preparation and hard errors.
+- [UI file boundary](../../../godot/rust/src/ui/ui_file.rs), [developer preparation](../../../scripts/prepare_ui_icons.py) — current runtime/producer separation.
+- [Coverage and proof](../../../data/diagnostics/classbook-shots-2026-10-09/coverage.md) — capture epochs, exact icon counts and remaining blockers.
+
+## See Also
+
+- [[talents-ui]] — shared PlayerSpellsFrame presentation.
+- [[godot-conversion]] — native renderer and runtime ownership.
