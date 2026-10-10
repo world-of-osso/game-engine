@@ -69,6 +69,7 @@ class ModelAssetProvenanceTests(unittest.TestCase):
             connection.execute("INSERT INTO resolution VALUES (?, ?)", (1100087, hashlib.md5(raw).digest()))
             connection.commit()
             connection.close()
+            frozen_identity["resolution_sha256"] = hashlib.sha256(resolution.read_bytes()).hexdigest()
             staged = root / "chain-receipts.json"
             staged.write_text(json.dumps({"source_identity": frozen_identity, "assets": [{
                 "product": "wow_classic_beta", "build_key": key, "fdid": 1100087,
@@ -89,7 +90,7 @@ class ModelAssetProvenanceTests(unittest.TestCase):
             advanced_config.parent.mkdir(parents=True)
             advanced_config.write_text("root = 99999999999999999999999999999999\n")
             try:
-                result = chains.import_staged_chain(data, install, "wow_classic_beta", staged, resolution)
+                result = chains.import_staged_chain(data, "wow_classic_beta", staged, resolution)
             except ValueError as error:
                 self.fail(f"Verified frozen source rejected after install advanced: {error}")
             self.assertEqual(result.get("version"), 1)
