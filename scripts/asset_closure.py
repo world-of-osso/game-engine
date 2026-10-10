@@ -13,7 +13,7 @@ from pathlib import Path
 import struct
 
 EXPANDABLE = {"adt", "m2", "wmo", "skel", "wdt"}
-DIRECTORIES = {"adt": "terrain", "wdt": "terrain", "wdl": "terrain", "blp": "textures", "ogg": "sounds", "mp3": "sounds", "wav": "sounds", "audio": "sounds"}
+DIRECTORIES = {"adt": "terrain", "wdt": "terrain", "wdl": "terrain", "blp": "textures", "blob": "textures", "ogg": "sounds", "mp3": "sounds", "wav": "sounds", "audio": "sounds"}
 
 
 def digest(path):
@@ -86,11 +86,16 @@ class Closure:
         self.assets = {}
         self.queue = deque()
         self.unresolved = set()
+        self.resolved = set()
+        self.terrain = None
         self.inputs = {}
         self.seeds = {}
 
     def issue(self, code, reason, fdid=None):
         self.unresolved.add((code, reason, fdid))
+
+    def resolve(self, code, fdid, status, evidence):
+        self.resolved.add((code, fdid, status, evidence))
 
     def input_file(self, path):
         relative = str(path.relative_to(self.data))
@@ -170,8 +175,12 @@ class Closure:
         return {"schema_version": 1, "tool_sha256": digest(Path(__file__)), "seeds": self.seeds,
                 "inputs": sorted(self.inputs.values(), key=lambda row: row["path"]),
                 "assets": assets, "unresolved": issues,
+                "resolved": [{"code": code, "fdid": fdid, "status": status, "evidence": evidence}
+                             for code, fdid, status, evidence in sorted(self.resolved)],
                 "summary": {"files": len(assets), "present": sum(a["present"] for a in assets),
                             "missing": sum(not a["present"] for a in assets), "unresolved": len(issues),
+                            "unresolved_by_code": dict(sorted(Counter(i["code"] for i in issues).items())),
+                            "resolved_by_code": dict(sorted(Counter(r[0] for r in self.resolved).items())),
                             "unverified_identity": len(assets), "present_bytes": sum(a["size"] or 0 for a in assets),
                             "by_type": dict(sorted(Counter(a["type"] for a in assets).items()))}}
 
@@ -239,7 +248,8 @@ class Closure:
                     self.issue("emitter_auxiliary_edges", f"{label}: embedded model/recursive emitter audit required", fdid)
 
     def expand_adt(self, fdid, data):
-        table = dict(chunks(data, True))
+        stream = list(chunks(data, True))
+        table = dict(stream)
         for tag in ["MDID", "MHID"]:
             for value in integers(table.get(tag, b"")):
                 self.add(value, "blp", tag, fdid)
@@ -259,9 +269,10 @@ class Closure:
                     self.named(string_at(table.get(names, b""), offsets[index]), kind, f"ADT {tag}[{i}]", fdid)
                 else:
                     self.issue("invalid_name_index", f"{tag}[{i}] index {index}", fdid)
-        for tag in ["MH2O", "MCNK"]:
-            if tag in table:
-                self.issue("terrain_auxiliary_edges", f"{tag}: liquid/ground-effect metadata not enumerated", fdid)
+        if self.terrain is None:
+            from closure_terrain import TerrainReferences
+            self.terrain = TerrainReferences(self)
+        self.terrain.expand(fdid, stream)
 
     def expand_wmo(self, asset, data):
         fdid = asset["fdid"]
