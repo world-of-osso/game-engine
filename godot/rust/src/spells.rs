@@ -82,6 +82,7 @@ pub(crate) struct SpellsHud {
     /// Error lines shown for `CastFailed`, oldest first, for automation.
     errors: Vec<String>,
     ground: game_engine_ui_model::spell_targeting::GroundTarget,
+    item: game_engine_ui_model::spell_targeting::ItemTarget,
     reticle: Option<Gd<godot::classes::MeshInstance3D>>,
 }
 
@@ -106,6 +107,7 @@ impl Default for SpellsHud {
             sent: Vec::new(),
             errors: Vec::new(),
             ground: Default::default(),
+            item: Default::default(),
             reticle: None,
         }
     }

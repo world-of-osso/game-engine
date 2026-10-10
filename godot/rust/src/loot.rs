@@ -68,7 +68,18 @@ impl GameClient {
                     self.sync_loot_sparkle(update.corpse);
                 }
             }
-            LootMessage::Opened(response) => self.loot.state.open(response),
+            LootMessage::Opened(response) => {
+                // An item spell opens personal loot without a corpse click.
+                if !response.auto && self.world.local_player_id() == Some(response.corpse) {
+                    let shift = self.physical_input.gameplay_state(true).shift_held();
+                    if auto_loot(self.client_options.hud.auto_loot, shift) {
+                        self.account
+                            .send_loot_unit(response.corpse, true)
+                            .map_err(|error| error.to_string())?;
+                    }
+                }
+                self.loot.state.open(response);
+            }
             LootMessage::Removed(removed) => {
                 if let Some(content) = self.loot.state.remove(removed.corpse, removed.slot) {
                     game_engine_ui_model::chat_frame::add_system_line(
