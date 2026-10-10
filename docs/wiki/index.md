@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [PvP pet battles](systems/battle-pets.md#pvp-queue-and-initial-selection--bounded-proof-2026-10-10) — two isolated accounts, both-skin native queue/Accept/selection/rounds/three-pet outcomes; numeric Retail timer/XP policy unresolved.
+
 - [Disenchant](systems/disenchant.md) — both-skin private item/cast/loot/appearance/refusal proof; authoritative collection diagnostic and stale TDB material census.
 - [Passenger mounts](systems/mounts.md#passenger-mounts) — local seat enums, authoritative group occupancy, model-aligned seat transforms, production `InMap` authority and both-skin native Ride/leave/dismount live proof; acceptance owned by the [contract](../specs/passenger-mounts.md).
 

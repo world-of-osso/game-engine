@@ -1,3 +1,7 @@
+## 2026-10-10 — PvP pet battles continuation
+
+[PvP acceptance](../specs/petbattle-pvp.md#acceptance--2026-10-10-petbattle-pvp2): initial front-pet choice waits for both owners without a round cost; separate runtime data/config/token stores remove cross-account saved-token collisions. Private5598 proves queue/Accept/selection/rounds/three-pet win/loss in both skins with16 inspected PNGs and HUD restoration. Atomic command rename fixes fixture truncation races. Retail Lua reads timer/XP through runtime APIs; numerical proposal/turn policy and PvP XP formula remain unestablished, never guessed. No master merge or shared realm changes.
+
 ## 2026-10-10 — Closure round 3 final dataset
 
 [Final offline closure](systems/offline-asset-closure.md#round-3-final-dataset--verified-2026-10-10):862,509→970,356 present,2,275→2,302 missing,86,217→5,024 unresolved. Published188,100 paths /4,967,995,591 bytes;193,049 owned receipts pass,670 foreign-schema rows excluded. Sequential process recovery preserved published progress after bounded OOM; final manifest/source drift and residuals recorded. No merge, data commit, production-driver memory or no-install/P3/P4 certificate.

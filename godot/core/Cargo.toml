@@ -31,4 +31,4 @@ log = "0.4"
 [dev-dependencies]
 ron = "0.8"
 # Offline NPC sweep imports the native engine-free armor/gear policy verbatim.
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "b482f1d464f2e576f797145a31bc5e518f5643f4" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "3026c6dc7c8426d28b70d41563a4149f2b3d2f8f" }
