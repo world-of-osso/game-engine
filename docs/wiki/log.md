@@ -1,3 +1,7 @@
+## 2026-10-10 — Retail talent footer controls
+
+[Footer controls](systems/talents.md#footer-controls--2026-10-10) records staged class/spec/all reset, real catalog search with previews/keyboard/badges, unnamed default loadout UI and explicit server/serialization blockers. Native ui-model17/17, actual Down/Up/Enter/blur fixture, four inspected Arms/Arcane Modern/Forever v3 captures and footer bounds/glyph proof. Authenticated local atlas1047875 extraction; no CDN, server mutation, merge or independent verification claim.
+
 ## 2026-10-10 — Skyborne baked NPC native capture
 
 [Seven-bake checkpoint](systems/forever-data.md#seven-recovered-bakes--native-npc-checkpoint-2026-10-10) records authenticated70338 scoped asset/receipt publication, seven attached displays and eight inspected private5487 captures of four NPCs in explicitly selected Modern/Forever layouts. Three isolated-body captures remain obscured by overlapping reconstructed spawns; no renderer/server code change or full-zone appearance acceptance.

@@ -240,6 +240,6 @@ External resources and asset lists.
 - [Auction result icon diagnosis](systems/auction-house-ui.md#missing-result-icons-2026-10-08) — five-item FDID/file trace, local-store proof and shared unavailable-icon policy.
 
 - [Auction house UI](systems/auction-house-ui.md#subcategory-and-displayed-column-sorts--2026-10-08) — native category paths, Bid/Available requests and bounded cross-repo proof.
-- [Talents](systems/talents.md) — native DB2 graph, server snapshot/commit wiring, historical icon proof and [all40-spec both-skin layout/Arms acceptance](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10): eligible hero selector, non-stacked dialog/active tree, shared baseline, outlined ranks and bounded footer; [after2 rank paint/Apply art](systems/talents.md#after2-rank-paint-and-exact-apply-art-2026-10-10) supersedes rank/footer pixels with81 native captures.
+- [Talents](systems/talents.md) — native DB2 graph and snapshot/commit wiring; [all-spec layout](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10), [rank/Apply art](systems/talents.md#after2-rank-paint-and-exact-apply-art-2026-10-10) and [Retail footer controls](systems/talents.md#footer-controls--2026-10-10): staged reset, search previews/keyboard/badges, bounded loadout UI,17 tests and four inspected v3 captures; server/serialization gaps explicit.
 
 - [Spell overrides and teleports](systems/spell-overrides-teleports.md) — aura332 effective actions, destination targeting and native aura312 base/action replacement hooks; conditional-flag and citation limits.
