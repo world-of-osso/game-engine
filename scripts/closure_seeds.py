@@ -380,3 +380,6 @@ def seed_catalogs(graph, world_path, config):
     seed_displays(graph, catalogs, sorted(player_displays | set(npc_ids)))
     seed_npc_appearance(graph, npc_ids)
     seed_icons(graph, catalogs, spells)
+    if config["spells"] == "all":
+        from closure_spell_seeds import seed_spell_visuals
+        seed_spell_visuals(graph, catalogs, spells)
