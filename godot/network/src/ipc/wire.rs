@@ -256,7 +256,7 @@ pub enum Request {
     },
     CollectionDismissMount,
     CollectionSummonPet {
-        pet_id: u32,
+        pet_id: u64,
     },
     CollectionDismissPet,
     ProfessionRecipes {
