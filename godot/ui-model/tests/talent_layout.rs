@@ -186,6 +186,22 @@ fn arms_spend_badges_and_disabled_apply_remain_legible() {
     }
 }
 #[test]
+fn retail_reset_uses_20px_icon_inside_25px_footer_hit_rect() {
+    let data = data();
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let catalog = load_spell_catalog(&SpellCatalogPaths::for_data_dir(&data)).unwrap();
+    let view = load_talent_view(&data, 1, 71, &catalog).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = registry(view.clone());
+        let icon = rect(&registry, "TalentResetIcon");
+        let button = rect(&registry, "TalentReset");
+        assert_eq!([icon[2], icon[3]], [20.0, 20.0]);
+        assert_eq!([button[2], button[3]], [25.0, 25.0]);
+        assert_eq!([icon[0] - button[0], icon[1] - button[1]], [2.5, 2.5]);
+    }
+}
+#[test]
 fn hero_selector_excludes_unconditioned_nodes_from_other_specializations() {
     let data = data();
     let catalog = load_spell_catalog(&SpellCatalogPaths::for_data_dir(&data)).unwrap();
@@ -227,9 +243,19 @@ fn all40_specs_main_rects_and_hero_dialog_columns_fit_both_skins() {
         .filter(|(_, spec)| !spec.initial && spec.class_id != 0)
         .collect();
     assert_eq!(specs.len(), 40);
+    let mut hero_atlas_files = BTreeSet::from([5740409]);
     for (&spec, metadata) in specs {
         let mut view = load_talent_view(&data, metadata.class_id, spec, &catalog).unwrap();
         assert_hero_eligibility(&view, spec);
+        for tree in &view.graph.heroes {
+            let name =
+                ui_toolkit::atlas::get_name_by_element_id(tree.icon_atlas_element_id).unwrap();
+            let region = ui_toolkit::atlas::resolve_region(name, ActiveSkin::Modern).unwrap();
+            let ui_toolkit::atlas::AtlasSource::FileDataId(fdid) = region.source else {
+                panic!("Retail hero art")
+            };
+            hero_atlas_files.insert(fdid);
+        }
         let selector = view.graph.hero_selection.clone().unwrap();
         view.level = 80;
         view.editor.receive_snapshot(TraitConfigSnapshot {
@@ -311,5 +337,10 @@ fn all40_specs_main_rects_and_hero_dialog_columns_fit_both_skins() {
             }
         }
         println!("TALENT_LAYOUT\t{spec}\tmain/dialog/active\tboth skins");
+    }
+    for fdid in hero_atlas_files {
+        let bytes = std::fs::read(data.join(format!("textures/{fdid}.blp"))).unwrap();
+        let image = game_engine_core::blp::decode_rgba(&bytes).unwrap();
+        assert!(image.pixels.chunks_exact(4).any(|pixel| pixel[3] != 0));
     }
 }

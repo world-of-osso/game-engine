@@ -452,22 +452,13 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
             22.0 * scale,
         ),
     ));
-    children.extend(label(
-        Label {
-            name: "TalentApplyText".into(),
-            text: "Apply Changes",
-            rect: [
-                BOOK_W / 2.0 - 82.0,
-                BOOK_H - FOOTER_HEIGHT / 2.0 - 3.0 - 11.0,
-                164.0,
-                22.0,
-            ],
-            size: 12.0,
-            color: if dirty { TAB_TEXT } else { "0.5,0.5,0.5,1.0" },
-            justify: "CENTER",
-        },
-        scale,
-    ));
+    let caption_color = if dirty { TAB_TEXT } else { "0.5,0.5,0.5,1.0" };
+    children.extend(rsx! {fontstring {name:"TalentApplyText",text:"Apply Changes",
+        width:{164.0*scale},height:{22.0*scale},font:GameFont::FrizQuadrata,font_size:{12.0*scale},
+        font_color:caption_color,shadow_color:"0.0,0.0,0.0,1.0",shadow_offset:"1.0,-1.0",
+        justify_h:"CENTER",strata:FrameStrata::Dialog,frame_level:102,
+        pos_type:"absolute",pos_x:{(BOOK_W/2.0-82.0)*scale},pos_y:{(BOOK_H-FOOTER_HEIGHT/2.0-3.0-11.0)*scale},
+    }});
     // ClassTalentsFrame.xml:293-322: Undo and Reset occupy the same anchor.
     let (name, atlas, action) = if dirty {
         ("TalentUndo", "talents-button-undo", "talent:undo")
@@ -487,10 +478,10 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
         format!("{name}Icon"),
         &icon,
         [
-            BOOK_W / 2.0 + 96.0,
-            BOOK_H - FOOTER_HEIGHT / 2.0 - 3.0 - 12.5,
-            25.0,
-            25.0,
+            BOOK_W / 2.0 + 96.0 + (25.0 - region.width) / 2.0,
+            BOOK_H - FOOTER_HEIGHT / 2.0 - 3.0 - 12.5 + (25.0 - region.height) / 2.0,
+            region.width,
+            region.height,
         ],
         scale,
     ));
@@ -593,7 +584,7 @@ fn choice_flyout(view: &TalentView, scale: f32) -> Element {
         ),
     ));
     rsx! {r#frame {name:"TalentChoiceFlyout",width:{320.0*scale},height:{height*scale},
-        background_color:"0.08,0.06,0.04,1.0",pos_type:"absolute",pos_x:{(BOOK_W/2.0-160.0)*scale},pos_y:{100.0*scale},frame_level:100,
+        background_color:"0.08,0.06,0.04,1.0",strata:FrameStrata::Dialog,pos_type:"absolute",pos_x:{(BOOK_W/2.0-160.0)*scale},pos_y:{100.0*scale},frame_level:200,
         {choices}
     }}
 }
@@ -757,7 +748,7 @@ fn hero_choice_dialog(node: &TalentNode, view: &TalentView, scale: f32) -> Eleme
         ),
     ));
     rsx! {r#frame {name:"TalentChoiceFlyout",width:{width*scale},height:{height*scale},
-        background_color:"0.08,0.06,0.04,1.0",pos_type:"absolute",pos_x:{(BOOK_W/2.0-width/2.0)*scale},pos_y:{70.0*scale},frame_level:100,
+        background_color:"0.08,0.06,0.04,1.0",strata:FrameStrata::Dialog,pos_type:"absolute",pos_x:{(BOOK_W/2.0-width/2.0)*scale},pos_y:{70.0*scale},frame_level:200,
         {children}
     }}
 }
