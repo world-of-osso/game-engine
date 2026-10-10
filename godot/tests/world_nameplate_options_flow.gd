@@ -285,8 +285,8 @@ func expect_distance(client: Node, id: int, limit: float) -> bool:
 	var body: Vector3 = npc.global_transform * Vector3(0.0, 2.5, 0.0)
 	var camera := root.get_viewport().get_camera_3d()
 	var distance := camera.global_position.distance_to(body)
-	var near := maxf(limit * 0.5, 1.0)
-	var fade := 1.0 if distance <= near else (0.0 if distance >= limit else 1.0 - (distance - near) / (limit - near))
+	# Unselected: full alpha up to the limit, nameplateMinAlpha (0.6) at once past it.
+	var fade := 1.0 if distance <= limit else 0.6
 	var rules: Dictionary = client.nameplate_rules(id)
 	if not rules.targeted or client.target_state().target != id:
 		fail("Distance %s fixture lost its selected NPC: %s" % [limit, rules])

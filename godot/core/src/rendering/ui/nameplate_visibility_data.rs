@@ -23,6 +23,8 @@ pub struct NameplateCvars {
     /// `nameplateSelectedAlpha`: alpha of the current target's plate, in place of the
     /// distance fade.
     pub selected_alpha: f32,
+    /// `nameplateMinAlpha`: alpha of an unselected plate past the fade distance.
+    pub min_alpha: f32,
 }
 
 impl Default for NameplateCvars {
@@ -35,6 +37,7 @@ impl Default for NameplateCvars {
             max_distance: 60.0,
             occluded_alpha_mult: 0.4,
             selected_alpha: 1.0,
+            min_alpha: 0.6,
         }
     }
 }
@@ -102,17 +105,13 @@ pub fn selection_in_combat_is_hostile<T: PartialEq>(
     !friendly && threat_list.contains(&player)
 }
 
-/// Legacy camera-to-health-body fade, independent of the viewer-to-unit CVar limit.
-/// Full opacity up to half the configured distance; zero at the distance itself.
-pub fn nameplate_alpha(distance: f32, fade_far: f32) -> f32 {
-    let fade_far = fade_far.max(1.0);
-    let fade_near = (fade_far * 0.5).max(1.0);
-    if distance <= fade_near {
+/// Camera-to-health-body fade: full opacity up to the configured distance, then
+/// `nameplateMinAlpha` at once past it, with no blend (user decision 2026-10-09).
+pub fn nameplate_alpha(cvars: &NameplateCvars, distance: f32, fade_far: f32) -> f32 {
+    if distance <= fade_far {
         1.0
-    } else if distance >= fade_far {
-        0.0
     } else {
-        1.0 - (distance - fade_near) / (fade_far - fade_near)
+        cvars.min_alpha
     }
 }
 
