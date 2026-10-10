@@ -22,14 +22,23 @@ Native spell presentation consumes server aura overrides without changing learne
 - `godot/rust/src/spells/spellbook.rs`: replacement names/icons for learned entries.
 - `godot/rust/src/tooltip_sources.rs`: effective action tooltip.
 
+- `godot/ui-model/src/spell_targeting.rs`: pending destination intent and cancellation.
+- `godot/core/src/game/spell_catalog/build.rs`: authored ground cursor target metadata.
+- `godot/rust/src/spells/ground_target.rs`: reticle and world-click placement.
+- `godot/core/src/camera_follow_data.rs`, `godot/rust/src/camera.rs`: same-epoch follow vs teleport anchor translation.
+
 ## Tests asserting this spec
 
 - `godot/ui-model/tests/spell_overrides.rs`: replacement/restoration and item/animation isolation.
 
+- `godot/ui-model/src/spell_targeting.rs` tests: destination, cancellation and nonfinite input.
+- `godot/core/tests/spell_catalog.rs`: Infernal Strike/Heroic Leap vs Blink/target leaps.
+- `godot/core/src/camera_follow_data.rs`: orbit preserved at changed epoch.
+
 ## Known gaps (current cycle)
 
 - [ ] Native animation selects M2 sequence IDs and action layers; no animation replacement-set loader/mapping hook exists. `AuraOverride::Animation(1013)` cannot be interpreted as an M2 animation ID.
-- [ ] Ground-target and live private-server proof pending.
+- [ ] Private-server proof pending; the ground ring is native geometry, not exact Retail reticle art.
 
 ## Out of scope
 

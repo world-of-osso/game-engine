@@ -518,6 +518,17 @@ impl INode3D for GameClient {
         if self.hud_editor.draft.active {
             return;
         }
+        match self.ground_spell_pointer(&event) {
+            Ok(true) => {
+                self.mark_viewport_input_handled();
+                return;
+            }
+            Ok(false) => {}
+            Err(error) => {
+                self.handle_frame_error("Ground spell placement", error);
+                return;
+            }
+        }
         match self.bag_cursor_world_pointer(&event) {
             Ok(true) => {
                 if let Some(mut viewport) = self.base().get_viewport() {
@@ -550,6 +561,10 @@ impl INode3D for GameClient {
             return;
         }
         if key.is_echo() && key.get_keycode() == godot::global::Key::ESCAPE {
+            return;
+        }
+        if key.get_keycode() == godot::global::Key::ESCAPE && self.cancel_ground_target() {
+            self.mark_viewport_input_handled();
             return;
         }
         if self.bag_cursor_key(key.get_keycode()) {
@@ -1876,6 +1891,9 @@ impl GameClient {
             ("Creation scene", |c, d| Ok(c.update_creation_scene(d)?)),
             ("Player input", |c, d| Ok(c.update_player_input(d)?)),
             ("Pet bar", |c, d| c.update_pet_bar(d)),
+            ("Ground spell reticle", |c, _| {
+                c.update_ground_spell_reticle()
+            }),
             ("Cast bars", |c, d| c.update_cast_bars(d)),
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
@@ -2512,11 +2530,17 @@ impl GameClient {
         };
         let mut parent = self.to_gd().upcast::<Node3D>();
         self.world_camera.configure(&self.client_options.camera);
-        self.world_camera
-            .sync(&mut parent, &player, &self.terrain, delta)
+        self.world_camera.sync(
+            &mut parent,
+            &player,
+            &self.terrain,
+            delta,
+            self.world.local_player_epoch(),
+        )
     }
 
     fn reset_world(&mut self) -> Result<(), String> {
+        self.cancel_ground_target();
         self.encounter.clear();
         self.stop_sound();
         self.logout.clear();
