@@ -265,7 +265,7 @@ class Closure:
 
     def expand_model(self, fdid, kind, data):
         raw = data if data[:4] == b"MD20" else None
-        texture_fdids = []
+        texture_fdids = None
         for tag, payload in ([] if raw is not None else chunks(data)):
             if tag == "MD21":
                 raw = payload
@@ -298,10 +298,11 @@ class Closure:
                 raise ValueError("M2 texture array out of bounds")
             for i in range(count):
                 texture_type, flags, length, name_offset = struct.unpack_from("<IIII", raw, offset + i * 16)
-                if length and (i >= len(texture_fdids) or not texture_fdids[i]):
+                if length and texture_fdids is None:
                     self.named(string_at(raw, name_offset), "blp", f"M2 named texture {i}", fdid)
                 elif length:
-                    self.resolve("named_identity_precedence", fdid, "not_needed", f"M2 texture {i}: TXID FDID={texture_fdids[i]} is authoritative; stale filename is not requested (core m2_texture.rs)")
+                    primary = texture_fdids[i] if i < len(texture_fdids) else None
+                    self.resolve("named_identity_precedence", fdid, "not_needed", f"M2 texture {i}: TXID is authoritative (FDID={primary}, zero/absent slot makes no texture request); stale filename is not requested (core m2_texture.rs)")
             # TXID references cover particle/ribbon textures too. Replacement types
             # are supplied by display/customization/item seeds, not guessed here.
             for label, header in [("ribbon", 0x120), ("particle", 0x128)]:
@@ -318,8 +319,9 @@ class Closure:
         for index, path in enumerate(table.get("MTEX", b"").split(b"\0")):
             if not path:
                 continue
-            if index < len(diffuse_fdids) and diffuse_fdids[index]:
-                self.resolve("named_identity_precedence", fdid, "not_needed", f"ADT texture {index}: MDID FDID={diffuse_fdids[index]} is authoritative; MTEX filename is not requested (native terrain/textures.rs)")
+            if "MDID" in table:
+                primary = diffuse_fdids[index] if index < len(diffuse_fdids) else None
+                self.resolve("named_identity_precedence", fdid, "not_needed", f"ADT texture {index}: MDID is authoritative (FDID={primary}); zero/short slots never select MTEX filenames (native terrain/textures.rs); invalid diffuse slots are not certified renderable")
             else:
                 self.named(path.decode(), "blp", "ADT MTEX", fdid)
         for tag, stride, flag_offset, mask, names, indices, kind in [
