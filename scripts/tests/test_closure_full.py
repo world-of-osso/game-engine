@@ -31,6 +31,17 @@ class FullRootsTests(unittest.TestCase):
             self.assertEqual(result['summary']['present'], 2)
             self.assertEqual(result['summary']['missing'], 1)
 
+    def test_wdt_global_wmo_is_a_required_dependency(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            data = Path(tmp)
+            (data / 'terrain').mkdir()
+            placement = bytes(64)
+            (data / 'terrain/10.wdt').write_bytes(chunk('MWMO', b'world/global.wmo\0') + chunk('MODF', placement))
+            graph = Closure(data, {10: 'world/maps/indoor/indoor.wdt', 11: 'world/global.wmo'}, 'wow', 'fixture')
+            graph.add(10, 'wdt', 'global WMO map')
+            result = graph.run()
+            self.assertEqual([(a['fdid'], a['type']) for a in result['assets']], [(10, 'wdt'), (11, 'wmo')])
+
     def test_full_npcs_include_spawns_outside_named_tiles(self):
         with tempfile.TemporaryDirectory() as tmp:
             data = Path(tmp)
