@@ -18,7 +18,7 @@ lightyear_transport = { version = "0.28", default-features = false }
 serde = "1"
 # Execute the original synchronous ui.* script compiler, without Godot objects in JS.
 quick-js = "0.4"
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "7ccaa40b3736c9d2d962dc2bf04932238d873716" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "b482f1d464f2e576f797145a31bc5e518f5643f4" }
 
 [dev-dependencies]
 # Offline frozen-source extraction uses the same local archive reader; never a runtime dependency.
