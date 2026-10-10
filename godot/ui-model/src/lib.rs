@@ -53,6 +53,7 @@ pub mod professions_catalog;
 pub mod professions_frame;
 pub mod raid_warning;
 pub mod spell_overrides;
+pub mod spell_targeting;
 pub mod summon;
 pub mod talents;
 pub mod trainer;

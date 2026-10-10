@@ -23,6 +23,7 @@ pub(crate) struct WorldCamera {
     node: Option<Gd<Camera3D>>,
     state: CameraState,
     fov_degrees: f32,
+    teleport_anchor: game_engine_core::camera_follow_data::TeleportAnchor,
 }
 
 impl Default for WorldCamera {
@@ -31,6 +32,7 @@ impl Default for WorldCamera {
             node: None,
             state: CameraState::default(),
             fov_degrees: DEFAULT_CAMERA_FOV_DEGREES,
+            teleport_anchor: Default::default(),
         }
     }
 }
@@ -122,6 +124,7 @@ impl WorldCamera {
             node.free();
         }
         self.state = CameraState::default();
+        self.teleport_anchor = Default::default();
     }
 
     pub fn sync(
@@ -130,6 +133,7 @@ impl WorldCamera {
         player: &Gd<Node3D>,
         terrain: &StreamedTerrain,
         delta: f32,
+        epoch: Option<u32>,
     ) -> Result<(), String> {
         let mut camera = self
             .node
@@ -142,9 +146,18 @@ impl WorldCamera {
             .ok_or("World camera has no physics space")?;
         let current = camera.get_global_position();
         let target = player.get_global_position();
+        let original = glam::Vec3::new(current.x, current.y, current.z);
+        let translated = self.teleport_anchor.translate_camera(
+            original,
+            glam::Vec3::new(target.x, target.y, target.z),
+            epoch,
+        );
+        if translated != original {
+            self.state.collision_distance = None;
+        }
         let pose = follow_pose(
             &mut self.state,
-            [current.x, current.y, current.z].into(),
+            translated,
             [target.x, target.y, target.z].into(),
             delta,
             terrain,

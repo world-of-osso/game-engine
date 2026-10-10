@@ -26,6 +26,22 @@ impl GameClient {
             .and_then(|data| data.get(spell_id))
             .map(|spell| spell.name.to_string())
             .unwrap_or_default();
+        if self
+            .spells
+            .catalog()
+            .and_then(|data| data.get(spell_id))
+            .is_some_and(|spell| spell.ground_targeted)
+        {
+            self.spells.ground.begin(shared::protocol::SpellCastIntent {
+                spell_id: Some(spell_id),
+                spell: name,
+                target_entity: None,
+                witness: None,
+                destination: None,
+            });
+            return Ok(());
+        }
+        self.spells.cancel_ground_target();
         let target = self.targeting_target();
         if self.auto_attack_on_cast(spell_id, target)? {
             return Ok(());

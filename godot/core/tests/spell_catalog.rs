@@ -16,6 +16,16 @@ const PARRY: u32 = 3127;
 const WARRIOR_INITIAL: u32 = 1446;
 const ARMS: u32 = 71;
 
+#[test]
+fn ground_leaps_need_a_cursor_destination_but_blink_and_target_leaps_do_not() {
+    let data = catalog();
+    assert!(data.get(189110).unwrap().ground_targeted);
+    assert!(data.get(6544).unwrap().ground_targeted);
+    for id in [1953, 186260, 196884] {
+        assert!(!data.get(id).unwrap().ground_targeted, "spell {id}");
+    }
+}
+
 fn human_warrior(level: u32) -> Option<SpellbookPlayer> {
     Some(SpellbookPlayer {
         class_id: 1,

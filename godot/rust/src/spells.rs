@@ -11,6 +11,7 @@ mod action_bar;
 mod assignment;
 mod casting;
 mod floating_text;
+mod ground_target;
 mod snapshot;
 mod spellbook;
 
@@ -80,6 +81,8 @@ pub(crate) struct SpellsHud {
     sent: Vec<u32>,
     /// Error lines shown for `CastFailed`, oldest first, for automation.
     errors: Vec<String>,
+    ground: game_engine_ui_model::spell_targeting::GroundTarget,
+    reticle: Option<Gd<godot::classes::MeshInstance3D>>,
 }
 
 impl Default for SpellsHud {
@@ -102,6 +105,8 @@ impl Default for SpellsHud {
             floats_spawned: 0,
             sent: Vec::new(),
             errors: Vec::new(),
+            ground: Default::default(),
+            reticle: None,
         }
     }
 }
@@ -132,6 +137,7 @@ impl SpellsHud {
     }
 
     fn close(&mut self) {
+        self.cancel_ground_target();
         for ui in [
             self.bar_ui.take(),
             self.vigor_ui.take(),
