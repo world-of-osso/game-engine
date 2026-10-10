@@ -38,6 +38,14 @@ Server origin/master119c402, protocol3facd18, privateUDP5192/fresh redb: fb_anim
 
 Modern proof is **pending**, not equivalent to Forever proof. Initial187827 cast changed display to68671, outside imported appearance coverage. Two subsequent1251417 attempts used recursive find_child and observed a nested item's static animation0 even while the unit physically ran. Fixture now uses the exact player skeleton path; this correction is exercised by Forever. Modern reached the prescribed retry ceiling before that correction; another live attempt requires approval. Failed Modern baseline PNG was moved to diagnostics, not presented as successful user-visible evidence. Owned private server/client PIDs and agents-animrep.slice were stopped; UDP5000 untouched.
 
+### Approved Modern continuation — setup blocked, 2026-10-10
+
+Rebase onto fetched origin/masterf9d346d54 was already up to date. Server snapshot119c402 still matched fetched server origin/master; no rebuild required. Extension/server/CSV SHA256s matched the preceding proof artifacts; corrected exact-path observerffe1fd4cb and matrix spell1251417 remained unchanged.
+
+No Modern client was launched and no new captures or ffmpeg proof exist. First setup waited180s on an empty stdout log although server tracing appeared on stderr and reported UDP5192 listening: orchestration error, not a server startup failure. A second setup gated on the admin socket's existence, then issued read-only list-characters too early: `Admin command 'list-characters' on socket /tmp/game-server-admin-5192.sock timed out after 10000 ms (connect/request/reply)`. The captured server log shows world initialization still progressing and UDP5192 binding only near the timeout. Socket existence did not establish admin readiness; this does not prove an animation failure. Stopped after that setup failure without a live retry or production changes.
+
+Evidence: data/diagnostics/animrep-2026-10-10/modern-approved-{setup-first,server,roster}.log. Owned agents-animrep.slice stopped; ss confirmed no UDP5192 listener. UDP5000 untouched. Modern acceptance remains open; requested modern-{before,active,restored}.png and their ffmpeg inspection remain missing.
+
 ## Sources
 
 - [Contract](../../specs/spell-overrides-teleports.md)
