@@ -6,6 +6,15 @@ extends "res://tests/world_auction_flow.gd"
 ## isolated XDG_CONFIG_HOME containing fb_pbwild/fbtest credentials and chosen skin.
 var directory := ""
 
+class InputProbe extends Node:
+	func _input(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+			print("PBWILD input pressed=", event.pressed, " point=", event.position)
+
+	func _unhandled_input(event: InputEvent) -> void:
+		if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_RIGHT:
+			print("PBWILD unhandled pressed=", event.pressed, " point=", event.position)
+
 func _initialize() -> void:
 	Engine.max_fps = 30
 	call_deferred("live_run")
@@ -19,6 +28,7 @@ func live_run() -> void:
 	directory = OS.get_environment("PBWILD_DIR")
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
+	root.add_child(InputProbe.new())
 	var last := ""
 	while true:
 		await process_frame
