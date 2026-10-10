@@ -845,6 +845,9 @@ impl WowAnimationPlayer {
             .animation
             .as_mut()
             .ok_or_else(|| "M2 animation has no bound model".to_string())?;
+        if animation.replacements == map {
+            return Ok(());
+        }
         animation.set_replacements(map)?;
         self.write_poses();
         Ok(())

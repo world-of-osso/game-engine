@@ -18,6 +18,27 @@ fn active_sets(auras: Option<&UnitAuras>) -> Vec<u32> {
         .collect()
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use shared::components::AuraView;
+
+    #[test]
+    fn aura312_authoritative_removal_clears_hidden_aura_overrides() {
+        let mut views = UnitAuras { auras: vec![AuraView {
+            instance_id: 7, spell_id: 187827, caster: Some(42), stacks: 1,
+            charges: 0, duration_ms: 20000, remaining_ms: 18000, harmful: false,
+            dispel_type: 0, flags: AuraView::FLAG_HIDDEN,
+            overrides: vec![AuraOverride::Animation(536), AuraOverride::Animation(692),
+                AuraOverride::ActionBar { spell_id: 1, replacement: 2 }],
+        }] };
+        assert_eq!(active_sets(Some(&views)), vec![536, 692]);
+        views.auras.clear();
+        assert!(active_sets(Some(&views)).is_empty());
+        assert!(active_sets(None).is_empty());
+    }
+}
+
 impl WorldUnits {
     /// Also runs after late visual loads: an aura may arrive before the model does.
     pub(crate) fn sync_animation_replacements(&mut self, replica: &Replica) -> Result<(), String> {
