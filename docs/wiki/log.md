@@ -1,3 +1,7 @@
+## 2026-10-10 — Passenger mount production boarding and native exit
+
+[Mounts](systems/mounts.md#passenger-mounts) corrects player authority from NPC `Zone` to production `InMap`, with login-spawn RED (`Passenger has no zone`) and nine GREEN server tests. Native cursor routing now dispatches leave-seat instead of swallowing it. Two fb_* characters on private UDP5594 pass Ride, attachment40/animation91, input suppression, driver-follow, leave, dismount ejection and disconnect cleanup in Modern and Forever. Four final PNGs individually ffmpeg-decoded (exit0), published to AgentShared; [contract](../specs/passenger-mounts.md) retains catalog gaps and unavailable independent OAuth verification. Branches remain unmerged.
+
 ## 2026-10-10 — Native compile-speed evidence
 ## 2026-10-09 — Source-qualified runtime wiring and nested parser identity
 
