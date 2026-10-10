@@ -11,13 +11,13 @@
 [Current Skyborne acceptance boundary](systems/forever-data.md#current-scoped-capability-matrix) owns approved estimated NPC/giver stats, bounded quest acceptance/turn-in/reload evidence and remaining gaps. [Ailee baked-path correction](systems/forever-data.md#ailee-baked-material-applicability--bounded-correction-2026-10-07) separates unused component-overlay validation from pending native rendering.
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-10-08.
+Last updated: 2026-10-09.
 
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
 ## Systems
 
-- [Native HUD edit mode](systems/native-hud-edit-mode.md) — authenticated account/realm layouts, account-wide optional-mover checkboxes, shared mover registry, draft/save/discard, authored-bounds projection, Retail-style label/manager clearance, 19-default/21-enabled offline inventory and native mouse/relog fixture.
+- [Native HUD edit mode](systems/native-hud-edit-mode.md) — authenticated account/realm layouts, account-wide optional-mover checkboxes, shared mover registry, draft/save/autosave-on-exit, authored-bounds projection, Retail-style label/manager clearance, 19-default/21-enabled offline inventory and native mouse/relog fixture.
 
 - [Dungeon objectives and achievements](systems/dungeon-achievements.md) — copy-scoped boss tracker, cursor-cached native AchievementFrame and earned alerts in both skins; live Stockade paladin proof covers three kills, toast, 633 dated 2026-10-06 and tracker clearing.
 
