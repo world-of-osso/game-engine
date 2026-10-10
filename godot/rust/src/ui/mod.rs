@@ -40,6 +40,7 @@ mod scroll_lists;
 mod sidebarbinds_preview;
 mod spellbook_preview;
 mod toy_cooldown;
+mod toybox_preview;
 pub(crate) mod ui_parent;
 
 use std::collections::VecDeque;

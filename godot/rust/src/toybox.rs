@@ -20,6 +20,39 @@ pub(crate) struct ToyJournal {
     pub drag: Option<ToyDrag>,
 }
 impl GameClient {
+    pub(super) fn toybox_pointer(&mut self, event: &Gd<godot::classes::InputEvent>) -> bool {
+        let Ok(button) = event
+            .clone()
+            .try_cast::<godot::classes::InputEventMouseButton>()
+        else {
+            return false;
+        };
+        let delta = match button.get_button_index() {
+            godot::global::MouseButton::WHEEL_UP => -1,
+            godot::global::MouseButton::WHEEL_DOWN => 1,
+            _ => return false,
+        };
+        let Some(rect) = self
+            .toybox
+            .ui
+            .as_ref()
+            .and_then(|ui| ui.bind().frame_viewport_rect("CollectionsJournal"))
+        else {
+            return false;
+        };
+        let bounds = Rect2::new(
+            Vector2::new(rect[0], rect[1]),
+            Vector2::new(rect[2], rect[3]),
+        );
+        if !bounds.contains_point(button.get_position()) {
+            return false;
+        }
+        if button.is_pressed() {
+            self.toybox.model.turn_page(delta);
+        }
+        true
+    }
+
     pub(super) fn toggle_toybox(&mut self) -> Result<(), String> {
         if self.toybox.model.open {
             self.close_toybox();

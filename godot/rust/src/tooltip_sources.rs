@@ -143,11 +143,16 @@ impl GameClient {
     fn toy_game_tooltip(&self, item_id: u32) -> Option<GameTooltip> {
         let toy = self.toybox.model.toy(item_id)?;
         let text = self.toybox.model.tooltip(item_id)?;
-        let mut lines: Vec<_> = text
+        let text = text
             .lines()
             .skip(1)
-            .map(|line| TooltipLineState::colored(line, TOOLTIP_DESCRIPTION_COLOR))
-            .collect();
+            .collect::<Vec<_>>()
+            .join("\n")
+            .replace("|n", "\n");
+        let mut lines = game_engine_ui_model::tooltip_presentation::description_lines(
+            &text,
+            TOOLTIP_DESCRIPTION_COLOR,
+        );
         if let Some(spell_id) = toy.spell_id {
             lines.extend(self.spell_game_tooltip(spell_id, None).content.lines);
         }

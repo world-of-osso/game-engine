@@ -256,7 +256,6 @@ fn filter_rows(model: &ToyBox) -> Vec<(String, String, Option<bool>)> {
 fn filter_label(kind: &str, id: i32) -> String {
     let labels: &[&str] = if kind == "sources" {
         &[
-            "Unknown",
             "Drop",
             "Quest",
             "Vendor",
@@ -265,8 +264,8 @@ fn filter_label(kind: &str, id: i32) -> String {
             "Achievement",
             "World Event",
             "Promotion",
-            "Pet Store",
             "Trading Card Game",
+            "Pet Store",
             "Discovery",
             "Trading Post",
         ]
