@@ -2994,3 +2994,7 @@ Reconciled cast spark, editor rounding/preview/show-list/label/autosave/padding,
 ## [2026-10-09] docs | Shared-realm safety link
 
 Updated [private headless recipe](../headless-live-run.md) to link server deployment SSOT instead of presenting the former desktop realm path as current. Corrected the index StackSplit link to its [cursor contract](../specs/cursor-item.md) (`5b10f31bc`). Existing protections stay in force; no runtime changes.
+
+## [2026-10-09] investigation | Brack picking and rares2 captures
+
+[Classification investigation](investigations/rare-vignettes-and-classification.md#brack-native-selection-and-follow-up-captures): proved box-centre fixture miss versus successful native triangle/mouse selection of Brack; no product picking bug reproduced. Captured post-fix Forever rank2/rank4 and Modern rank4 in the three-launch budget, personally inspected ffmpeg downscales. Mainline rare has star/no dragon; rareelite silver dragon. Private5530 and owned clients stopped; diagnostics remain untracked.
