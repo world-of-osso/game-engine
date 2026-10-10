@@ -20,6 +20,11 @@ Private loopback5591, account fb_pets: item4401 learned Mechanical Squirrel; Pet
 
 Strict appearance import accepts `--pet-catalog` display roots; additive SQLite merge preserves10792 existing displays and adds2422 companion displays. No raw-model fallback. This proves the Mechanical Squirrel path, not visual coverage of every species. Independent verification remains unavailable because Claude OAuth expired.
 
+## Collections integration correction — 2026-10-10
+The v2 screenshots replace the standalone-window visual acceptance: shared shell/portrait, species39/display7937 in the card, footer Dismiss after authoritative summon and clearly framed4-yard follower in both skins. Pets↔Toy Box and shared close are live-proved with one visible CollectionsJournal. The Pets content frame must ignore background pointer events so it cannot intercept the shell's close button; actual pointer RED/ GREEN is preserved in `pets-v2-2026-10-10/modern-close-interception-red.json` and `modern-close-after-toy-green.json`.
+
+Rebased master requires product/build receipts for player equipment and companions. Focused frozen Retail69933 local-archive publication adds the Mechanical Squirrel chain and this private character's starter-plate/shield assets:21 authenticated assets, no legacy relabeling or data commits. Unrelated missing NPC receipts remain outside this acceptance. Capture layout explicitly enables the existing micro menu; both presets hide it by default. [Contract](../../specs/battle-pets.md#acceptance--2026-10-10) owns final proof scope.
+
 ## Sources
 - [Client spec](../../specs/battle-pets.md)
 - [Exporter](../../../scripts/export_db2_csv.py)
