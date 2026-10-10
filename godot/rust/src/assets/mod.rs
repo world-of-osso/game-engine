@@ -76,6 +76,37 @@ impl WowAssetLoader {
         model_result(slots.and_then(|slots| load_model_node_with_skin_fdids(&path, &slots)))
     }
 
+    /// Offline preview of a source-selected display through the world's complete model/appearance path.
+    #[func]
+    fn load_creature_display(&self, display_id: i64) -> VarDictionary {
+        let loaded = u32::try_from(display_id)
+            .map_err(|_| format!("Invalid creature display {display_id}"))
+            .and_then(|display| {
+                let models = crate::world_models::WorldModels::new(player_request::data_root());
+                models.load_display_preview(display)
+            });
+        match loaded {
+            Ok(node) => {
+                let mut result = VarDictionary::new();
+                result.set("node", &node);
+                result
+            }
+            Err(error) => error_result(error),
+        }
+    }
+
+    #[func]
+    fn asset_runtime_status(&self) -> VarDictionary {
+        let resolver = creature::local_resolver(&player_request::data_root());
+        let mut result = VarDictionary::new();
+        result.set("mode", format!("{:?}", resolver.runtime_mode()));
+        result.set(
+            "forbidden_casc_accesses",
+            osso_asset_resolver::forbidden_casc_access_count() as i64,
+        );
+        result
+    }
+
     /// The player `race`/`sex`/`class` wearing `items` (`player_request::equipment`),
     /// built by the world's player loader: `{node}` or `{error}`.
     #[func]

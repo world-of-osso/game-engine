@@ -85,12 +85,12 @@ fn read_armor_asset_errors(
                 .flat_map(|model| model.skin_fdids)
                 .filter(|fdid| *fdid != 0),
         )
-        .chain(
-            armor
-                .runtime_models
+        .chain(armor.runtime_models.iter().flat_map(|model| {
+            model
+                .texture_replacements
                 .iter()
-                .flat_map(|model| model.texture_replacements.iter().map(|(_, fdid)| *fdid)),
-        )
+                .map(|(_, texture)| texture.fdid)
+        }))
         .filter(|fdid| Some(*fdid) != armor.merged_cape_texture_fdid)
         .collect::<BTreeSet<_>>();
     let mut errors = Vec::new();
