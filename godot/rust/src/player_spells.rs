@@ -377,6 +377,7 @@ mod tests {
             harmful: false,
             dispel_type: 0,
             flags: 0,
+            overrides: Vec::new(),
         }
     }
 
