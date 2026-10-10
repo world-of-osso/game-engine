@@ -1,4 +1,13 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Authenticated Ethereal Portal kits: authored zero-scale billboard growth.
+products/wow/dcfc90fffd79ba00406ae46f5f657592/models/192572.m2
+products/wow/dcfc90fffd79ba00406ae46f5f657592/models/19257200.skin
+products/wow/dcfc90fffd79ba00406ae46f5f657592/models/165651.m2
+products/wow/dcfc90fffd79ba00406ae46f5f657592/models/16565100.skin
+products/wow/dcfc90fffd79ba00406ae46f5f657592/models/192573.m2
+products/wow/dcfc90fffd79ba00406ae46f5f657592/models/19257300.skin
+products/wow/dcfc90fffd79ba00406ae46f5f657592/models/165622.m2
+products/wow/dcfc90fffd79ba00406ae46f5f657592/models/16562200.skin
 # Local battle-pet icon lookup contains quoted multiline source/description fields.
 db2/12.1.0.69933/BattlePetSpecies.csv
 # Passenger seats and Retail leave-button art, exported/extracted from local CASC.

@@ -1,5 +1,6 @@
 extends "res://tests/toy_objects_live.gd"
 # Real Toy Box pointer input; isolated private realm, no injected casts or visuals.
+var fixture_failed := false
 const SAMPLES := [
 	[45011, 62736, "Stormwind Banner"],
 	[33223, 42766, "Fishing Chair"],
@@ -38,6 +39,7 @@ func run_fixture() -> void:
 		var selected := OS.get_environment("TOYFX_ITEM")
 		if selected.is_empty() or int(selected) == int(sample[0]):
 			await sample_toy(sample)
+			if fixture_failed: return
 	print("PASS: completed real Toy Box sampling (individual render verdicts in receipts) ", skin)
 	client.free()
 	quit(0)
@@ -97,3 +99,8 @@ func sample_toy(sample: Array) -> void:
 	# Ordinary player right-click cancellation prevents one toy contaminating the next.
 	if has_aura(spell): await cancel_aura(spell)
 	await create_timer(1.0).timeout
+
+func fail(message: String) -> void:
+	fixture_failed = true
+	push_error("toy-live: " + message)
+	quit(1)

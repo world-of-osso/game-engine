@@ -18,6 +18,8 @@ Retail Mainline defines CollectionsJournal geometry (703×606), tab order (Mount
 
 - Replicated effect50 generic decorations (type5), chairs (type7), and mailboxes (type19) render their authored GameObjectDisplayInfo assets and server scale in both skins. Decoration visibility does not imply interaction: generic props have no interaction cursor or picking area.
 
+- Authored zero-scale spell billboard bones remain collapsed without an invalid matrix-to-quaternion conversion. Later nonzero animation samples resume camera-facing presentation; no minimum scale or replacement pose is invented (Ethereal Portal75136, model165651).
+
 ## Reference and explicit boundaries
 
 Local source: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_Collections/Mainline/Blizzard_Collections.xml`, `Blizzard_Collections.lua`, `Blizzard_ToyBox.xml`, `Blizzard_ToyBox.lua`, `Blizzard_CollectionTemplates.xml`.
