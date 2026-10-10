@@ -39,6 +39,10 @@ The host keeps the set of NPCs it has queried. It sends one `QuestGiverStatusQue
 
 `minimap_tracking.rs` holds menu selections and maps supported `NpcFlags` to Retail service art. The host supplies only current replicated positions; there is no static-world reconstruction or new server feed. Tracking-button clicks open the menu, native checkboxes update local selections, and outside clicks close it. Supported filters, unsupported spell sources, art provenance and bounded proof live in the [minimap contract](../../specs/minimap.md), not this page.
 
+## Indoor WMO research
+
+Indoor composition remains unimplemented. [Geometry investigation](../investigations/wmo-minimap-geometry.md) records primary-source hypotheses, measured floor/tile alignment and modern split-group selection gaps; the [contract](../../specs/minimap.md#indoor-wmo-map-unimplemented) owns the completion gate.
+
 ## Sources
 
 - [Minimap contract](../../specs/minimap.md) — cached FrameXML and pinned DB2 art references, behavioral tests and private live proof.
