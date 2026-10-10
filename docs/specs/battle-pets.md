@@ -15,3 +15,6 @@ Maintained local exporter `scripts/export_db2_csv.py` supports the BattlePet tab
 
 ## Verification
 UI-model owned/unowned/search/pending/action tests in both skins, protocol journal/64-bit request round trips, and private-server native captures of both journals plus follower. Captures/proof status recorded in the Phase 1 handoff; code alone does not establish visual acceptance.
+
+### Acceptance — 2026-10-10
+Private5591 native capture proves both journal skins, item4401 ownership on two characters, summon/dismiss and a rendered Mechanical Squirrel following authoritative movement. PNGs: `/syncthing/AgentShared/2026-10-10/pets/`; motion coordinates: `data/diagnostics/pets-2026-10-10/follower-motion-proof.json`. Targeted journal UI4, protocol19, server follower/account5 and item-learning1 pass. Independent gate unavailable (expired Claude OAuth); no battle or all-species visual parity claim.
