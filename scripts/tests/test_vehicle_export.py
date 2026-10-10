@@ -20,7 +20,8 @@ class VehicleExportTests(unittest.TestCase):
             args = ["export", table, str(ROOT / f"data/dbfilesclient/{fdid}.db2"), str(output)]
             with patch.object(sys, "argv", args):
                 exporter.main()
-            return {int(row["ID"]): row for row in csv.DictReader(output.open())}
+            with output.open() as handle:
+                return {int(row["ID"]): row for row in csv.DictReader(handle)}
 
     def test_mammoth_and_chopper_preserve_sparse_passenger_seat_indices(self):
         rows = self.export("Vehicle", 1368621)
