@@ -889,7 +889,7 @@ def read_relations(data, offset, size):
 def read_wdc5(data, layout, id_field=0):
     if data[:4] != b"WDC5":
         raise ValueError("not a WDC5 file")
-    _, field_count, record_size, _, _, actual_layout = struct.unpack_from(
+    record_count, field_count, record_size, _, _, actual_layout = struct.unpack_from(
         "<6I", data, 136
     )
     flags, _, _, _, _, _, common_size, palette_size, sections = struct.unpack_from(
@@ -901,6 +901,11 @@ def read_wdc5(data, layout, id_field=0):
         raise ValueError(f"layout {actual_layout:08X}, expected {expected}")
     if flags & ~0x4:
         raise ValueError(f"unsupported WDC5 flags {flags:#x}")
+    # Empty local tables (CloneEffect) contain only field structures, no storage
+    # descriptors or sections. Layout/flags are still validated above.
+    if (record_count == 0 and sections == 0 and common_size == 0
+            and palette_size == 0 and len(data) == 204 + field_count * 4):
+        return {}, 0, [], 0
     fields, palette_offsets, palette_start = read_fields(data, field_count, sections)
     palette = data[palette_start : palette_start + palette_size]
     common = read_common(data, fields, palette_start + palette_size)
