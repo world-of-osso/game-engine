@@ -88,7 +88,10 @@ class ModelAssetProvenanceTests(unittest.TestCase):
             advanced_config = install / f"Data/config/02/9d/{advanced_key}"
             advanced_config.parent.mkdir(parents=True)
             advanced_config.write_text("root = 99999999999999999999999999999999\n")
-            result = chains.import_staged_chain(data, install, "wow_classic_beta", staged, resolution)
+            try:
+                result = chains.import_staged_chain(data, install, "wow_classic_beta", staged, resolution)
+            except ValueError as error:
+                self.fail(f"Verified frozen source rejected after install advanced: {error}")
             self.assertEqual(result.get("version"), 1)
             asset = result["assets"][0]
             self.assertEqual(asset["build"], "1.60.1.70291")
