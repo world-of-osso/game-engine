@@ -35,7 +35,27 @@ fn warrior(main_hand_subclass: Option<u8>) -> CasterContext {
         level: 10,
         spec_order_index: None,
         main_hand_subclass,
+        auras: Vec::new(),
     }
+}
+
+#[test]
+fn toyfx6_spitzy_inverted_aura_condition_shows_without_disabling_aura() {
+    // Local PlayerCondition64572: AuraSpellID_0=181943, AuraSpellLogic=65536.
+    let visual = catalog().visual_for_spell(261981, &warrior(None));
+    assert_eq!(visual, Some(74073));
+    let affected = CasterContext {
+        auras: vec![(181943, 1)],
+        ..warrior(None)
+    };
+    assert_eq!(catalog().visual_for_spell(261981, &affected), None);
+    let unrelated = CasterContext {
+        auras: vec![(261981, 1)],
+        ..warrior(None)
+    };
+    assert_eq!(catalog().visual_for_spell(261981, &unrelated), Some(74073));
+    // ModifierTree303980 is not locally exported; do not bypass Scoots' condition.
+    assert_eq!(catalog().visual_for_spell(1280563, &unrelated), None);
 }
 
 #[test]

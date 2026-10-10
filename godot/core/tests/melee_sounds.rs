@@ -244,6 +244,7 @@ fn pummel_interrupts_with_its_impact_kit_sound() {
         level: 10,
         spec_order_index: None,
         main_hand_subclass: Some(7),
+        auras: Vec::new(),
     };
     let visual = catalog.visual_for_spell(6552, &warrior).unwrap();
     assert_eq!(visual, 47968);
