@@ -178,7 +178,6 @@ impl GameClient {
                 continue;
             }
             if let Some(spell) = catalog.and_then(|data| data.get(replacement)) {
-                item.spell_id = replacement;
                 item.name = spell.name.to_string();
                 item.subtext = spell.subtext.to_string();
                 item.icon_fdid = spell.icon_fdid;

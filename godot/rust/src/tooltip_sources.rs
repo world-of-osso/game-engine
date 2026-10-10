@@ -157,7 +157,12 @@ impl GameClient {
         } else {
             self.spellbook_available_at(spell_id)
         };
-        let tooltip = self.spell_game_tooltip(spell_id, available_at);
+        let presented_spell = if talent || available_at.is_some() {
+            spell_id
+        } else {
+            self.effective_spell(spell_id)
+        };
+        let tooltip = self.spell_game_tooltip(presented_spell, available_at);
         Some(HoveredTooltip::text(self.owned_by(
             hit,
             owner,
