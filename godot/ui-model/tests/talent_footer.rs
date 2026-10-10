@@ -23,6 +23,9 @@ fn reset_class_then_undo_restores_committed_purchases_and_keeps_spec() {
     let mut state = state();
     stage_talent_preview(&mut state).unwrap();
     let view = state.talents.as_mut().unwrap();
+    let mut editor = view.editor.clone();
+    assert!(editor.purchase(view, 80, 62122, 80181));
+    view.editor = editor;
     let request = view.editor.apply().unwrap();
     view.editor.receive_snapshot(TraitConfigSnapshot {
         spec_id: request.spec_id,
@@ -65,7 +68,8 @@ fn search_highlights_matching_nodes_and_preview_selects_actual_entry_in_both_ski
         let mut shared = SharedContext::new();
         shared.insert(state.clone());
         let mut registry = FrameRegistry::new(1920.0, 1080.0);
-        Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+        let mut screen = Screen::new(spellbook_frame_screen);
+        screen.sync(&shared, &mut registry);
         apply_spellbook_postsetup(&state, &mut registry);
         let preview = registry
             .get(registry.get_by_name("TalentSearchPreview80180").unwrap())
@@ -81,7 +85,7 @@ fn search_highlights_matching_nodes_and_preview_selects_actual_entry_in_both_ski
             .unwrap();
         view.editor = editor;
         shared.insert(state.clone());
-        Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+        screen.sync(&shared, &mut registry);
         let Some(WidgetData::EditBox(search)) = &registry
             .get(registry.get_by_name("TalentSearchBox").unwrap())
             .unwrap()
@@ -130,7 +134,10 @@ fn loadout_menu_has_only_server_supported_default_configuration_no_fabricated_sa
             else {
                 panic!("loadout menu button")
             };
-            assert!(!button.enabled);
+            assert_eq!(
+                button.state,
+                ui_toolkit::widgets::button::ButtonState::Disabled
+            );
         }
         assert!(registry.get_by_name("TalentStarterBuild").is_none());
     }
