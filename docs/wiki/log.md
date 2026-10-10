@@ -1,4 +1,9 @@
 ## 2026-10-10 — Native compile-speed evidence
+## 2026-10-09 — Source-qualified runtime wiring and nested parser identity
+
+[Runtime continuation](investigations/m2-product-shadowing.md#source-qualified-runtime-continuation) records creature/player/equipment/appearance ownership, source-aware item compositing and the parser's animation-resolver identity loss. Focused resolver1/core6/native7 CPU tests pass at `08b86f04f` / `62bce6c`; provenance tests pass5/5. Authenticated scoped publication is operational. [Contract gaps](../specs/product-isolated-model-assets.md#known-gaps-current-cycle) retain authentic named-display closure/render acceptance; CPU proof is not GPU or complete-closure proof.
+
+## 2026-10-09 — Product-isolated metadata and verified offline chains
 
 [Investigation](investigations/native-compile-speed.md) records shared KTX source/lib/binding caching, glob host-profile unification, deterministic native defaults, before/after wall times and a non-winning sccache experiment. The few-seconds/every-slot requirement remains unmet; current protocol, inherited formatting, release-preflight and independent-proof gaps are explicit. [Contract](../specs/native-dev-builds.md) separates passing bounded tests from unverified acceptance.
 

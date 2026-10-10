@@ -1,6 +1,6 @@
 # Retail M2 cache shadows Forever NPC models
 
-Verified 2026-10-09 at engine `4c7b6cd30`, asset-resolver `80d16d05f`. No engine runtime fix. [Approved contract](../../specs/product-isolated-model-assets.md) owns the 2026-10-09 user decision.
+Initial investigation verified 2026-10-09 at engine `4c7b6cd30`, asset-resolver `80d16d05f`; runtime was unchanged then. Branch continuation and remaining acceptance are recorded below. [Approved contract](../../specs/product-isolated-model-assets.md) owns the 2026-10-09 user decision.
 
 ## Collision boundaries
 
@@ -39,12 +39,23 @@ Engine`e9d8d3450` retains `CreatureDisplay.source_product` through CSV import an
 
 During October9 work, the install advanced to Forever70334/build`029dc2e024aadc9e0d9073ac37126868` and removed the70291 config. The first publisher incorrectly re-selected the active build and rejected authentic staged70291 bytes. Exact upgrade/deleted-config regression:3PASS/1FAIL (`frozen-source-red.log`). `a653cb803` instead consumes frozen extraction identity and its resolution snapshot, independent of any installed build at publication. Actual Retail and Forever publishes exit0 (`publish-frozen-*.log`); unit GREEN pending. The70291 payloads retain their actual identity, never70334 or70205.
 
+## Source-qualified runtime continuation
+
+Branch `modelisolation` now carries selected products through creature/player/equipment/appearance requests. Model and material columns keep independent ownership; explicit replacements, skins, capes and body overlays select their own actual-build receipts. Compositor item pixels use `(product, FDID)` keys rather than merging with customization pixels by FDID. Parsed/decode/GPU caches retain scoped paths.
+
+A second identity-loss boundary existed in `assets/mod.rs::model_asset_resolver`: the parser received a published model path but created an unqualified resolver rooted inside that namespace. A default-mode missing external animation could therefore request active-product bytes there. `08b86f04f` reconstructs the published product/build and original data root for nested acquisition. Fresh-process RED/ GREEN tests exercise namespace errors, tempting legacy animation bytes, scoped reads and tripwire0.
+
+Focused CPU proof at `08b86f04f` / resolver `62bce6c`: resolver1/core6/native7 pass, zero failures (`scoped-final-green.log`). Frozen publication tests pass5/5, including install advance/config deletion and incremental dependency preservation. Host-native compilation exposes inherited Godot macro expression warnings; these are not a clean-warning claim.
+
+`FrozenArchiveReader` acquires encoding keys from an authenticated frozen resolution snapshot without active install/config/root selection; its existing P1 guard rejects runtime use in extracted-only mode. Current offline receipts distinguish valid recovered files from unavailable archive entries; no legacy payloads are relabelled. [Contract gaps](../../specs/product-isolated-model-assets.md#known-gaps-current-cycle) remain the source of truth for authentic closure and named-display native acceptance. CPU success does not close those gaps.
+
 ## Sources
 
 - [Native Skyborne checkpoint](../systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09)
 - [Loader](../../../godot/rust/src/assets/creature.rs), [worker](../../../godot/rust/src/world_models.rs), [display row](../../../godot/core/src/game/creatures/creature_display_data.rs)
 - Sibling `asset-resolver/src/casc_resolver.rs` lines303–324 and473–516; `src/paths.rs::casc_cache_path`; `src/lib.rs::CascListfileResolver`.
 - [Executable regression](../../../godot/rust/tests/resolver_product_shadowing.rs)
+- [Nested parser regression](../../../godot/rust/src/assets/model_parser_isolation_tests.rs), [source-aware compositor](../../../godot/rust/src/assets/player.rs) and [authored native fixture](../../../godot/tests/model_product_isolation.gd)
 
 ## See Also
 

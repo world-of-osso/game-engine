@@ -39,9 +39,10 @@ Option 1 is approved for the full referenced render-asset chain, preserving exis
 
 ## Known gaps (current cycle)
 
-- [ ] Publish verified per-asset importer provenance before source/build ownership is consumed. Existing [source availability observations](../wiki/investigations/m2-product-shadowing.md#approved-implementation-source-boundary-2026-10-09) do not authorize relabelling current70291 bytes as70205; fresh extraction must retain its actual verified build.
-- [ ] Implement approved identity API/build selection, legacy-cache migration and full-chain runtime isolation.
-- [ ] Authentic model/companion/render acceptance and post-fix error counts remain pending.
+- [x] Publish verified actual-build per-asset provenance before runtime ownership is consumed. Frozen source publication survives install upgrades and incremental imports retain earlier dependency graphs; no legacy bytes are relabelled.
+- [x] Wire converted creature/player/equipment/appearance constructors, parsed/decode/publication keys, material/cape/body-overlay products and nested animation readers. Focused CPU gate: resolver1/core6/native7 tests pass; this is not named-display GPU acceptance.
+- [ ] Complete authentic named-display equipment/appearance asset availability and render acceptance. Source gaps are recorded in the modelisolation handoff; no borrowed, fabricated or zero-filled assets replace them.
+- [ ] Named-display native captures and post-fix error counts remain pending.
 
 ## Out of scope
 
