@@ -42,7 +42,8 @@ func login(endpoint: String) -> void:
 	await wait_screen("CharacterSelect")
 	await click("EnterWorld")
 	await wait_screen("InWorld")
-	await click("PlayerSpellsMicroButton")
+	# Mainline ToggleTalents default N (input_bindings_data.rs); independent of HUD visibility.
+	await key(KEY_N)
 	await control("TalentLoadoutDropDown")
 	await frames(120)
 
@@ -145,6 +146,7 @@ func key(code: Key) -> void:
 	var event := InputEventKey.new()
 	event.pressed = true
 	event.keycode = code
+	event.physical_keycode = code
 	root.push_input(event)
 	await frames(2)
 	event.pressed = false
@@ -153,6 +155,8 @@ func key(code: Key) -> void:
 
 func click(name_text: String) -> void:
 	var node := await control(name_text)
+	if node == null:
+		return
 	await click_control(node)
 
 func click_control(node: Control) -> void:
@@ -222,5 +226,7 @@ func frames(count: int) -> void:
 		await process_frame
 
 func abort(message: String) -> void:
+	root.print_tree_pretty()
+	print("LOADOUT_FAILURE_STATE ",client.account_state())
 	push_error("TALENT_LOADOUT_LIVE_FAIL " + message)
 	quit(1)
