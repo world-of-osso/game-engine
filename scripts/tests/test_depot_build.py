@@ -2,6 +2,7 @@
 
 import json
 import os
+import shutil
 import subprocess
 import tempfile
 import time
@@ -378,7 +379,22 @@ class DepotBuildTests(unittest.TestCase):
         self.assertNotIn("CLI", self.build_args(self.records()[-1]))
         self.assertFalse(cli.exists())
 
+    def prepare_release_icon_fixture(self):
+        # Real extracted Avenging Wrath art; tiny DB2 inputs exercise the real gate.
+        tables = {
+            "SpellMisc": "SpellIconFileDataID,ActiveIconFileDataID\n135875,0\n",
+            "TraitDefinition": "OverrideIcon\n135875\n",
+            "ChrClasses": "IconFileDataID\n135875\n",
+            "ChrSpecialization": "SpellIconFileID\n135875\n",
+        }
+        for table, contents in tables.items():
+            self._put(self.root, f"data/db2/12.1.0.69933/{table}.csv", contents)
+        texture = self.root / "data/textures/135875.blp"
+        texture.parent.mkdir(parents=True)
+        shutil.copy2(SCRIPT.parent.parent / "data/textures/135875.blp", texture)
+
     def test_release_installs_optimized_library_only_under_target_release(self):
+        self.prepare_release_icon_fixture()
         command = ["python3", str(SCRIPT), "--root", str(self.root), "--release"]
         result = subprocess.run(
             command,
@@ -393,10 +409,30 @@ class DepotBuildTests(unittest.TestCase):
         self.assertIn(str(release), result.stdout)
         self.assertFalse((self.root / "target/debug/libgame_engine_godot.so").exists())
         self.assertEqual(self.build_args(self.records()[-1])["RELEASE"], "1")
+        manifest = json.loads((self.root / "data/cache/required-ui-icons.json").read_text())
+        self.assertEqual([entry["fdid"] for entry in manifest["icons"]], [135875])
+        provenance = json.loads((self.root / "data/cache/ui-icon-provenance.json").read_text())
+        self.assertEqual(provenance["status"], "complete")
+        self.assertEqual(provenance["missing_fdids"], [])
         result = self.build()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertNotIn("RELEASE", self.build_args(self.records()[-1]))
         self.assertEqual(release.read_bytes(), b"release binary")
+
+    def test_release_refuses_missing_required_icon_before_build_or_install(self):
+        self.prepare_release_icon_fixture()
+        (self.root / "data/textures/135875.blp").unlink()
+        result = subprocess.run(
+            ["python3", str(SCRIPT), "--root", str(self.root), "--release"],
+            env=self.env, text=True, capture_output=True, check=False,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("135875", result.stderr)
+        self.assertEqual(self.records(), [])
+        self.assertFalse((self.root / "target/release/libgame_engine_godot.so").exists())
+        provenance = json.loads((self.root / "data/cache/ui-icon-provenance.json").read_text())
+        self.assertEqual(provenance["status"], "incomplete")
+        self.assertEqual(provenance["missing_fdids"], [135875])
 
     def test_release_is_not_allowed_with_fixture_test_or_cli(self):
         for extra in (["--fixture", "native_input_fixture"], ["--test"], ["--cli"]):
