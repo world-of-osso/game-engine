@@ -82,3 +82,39 @@ fn animation_override_and_item_action_do_not_replace_spells() {
         ActionRef::Item(6948)
     );
 }
+
+#[test]
+fn spellbook_replacement_preserves_base_binding_and_presents_its_cooldown() {
+    use game_engine_ui_model::{
+        spell_overrides::update_spellbook_item, spellbook_frame_component::SpellbookItemView,
+    };
+    let base = SpellbookItemView {
+        spell_id: 85288,
+        name: "Raging Blow".into(),
+        subtext: String::new(),
+        icon_fdid: 132352,
+        passive: false,
+        available_at: None,
+        cooldown_fraction: 0.0,
+    };
+    let replacement = CatalogSpell {
+        id: 335097,
+        name: "Crushing Blow".into(),
+        icon_fdid: 236317,
+        ..Default::default()
+    };
+    let mut active = base.clone();
+    update_spellbook_item(&mut active, Some(&replacement), 0.75);
+    assert_eq!(active.spell_id, 85288);
+    assert_eq!(active.name, "Crushing Blow");
+    assert_eq!(active.icon_fdid, 236317);
+    assert_eq!(active.cooldown_fraction, 0.75);
+    let mut restored = base.clone();
+    update_spellbook_item(&mut restored, None, 0.0);
+    assert_eq!(restored, base);
+    let mut future = base;
+    future.available_at = Some(10);
+    update_spellbook_item(&mut future, Some(&replacement), 0.75);
+    assert_eq!(future.name, "Raging Blow");
+    assert_eq!(future.cooldown_fraction, 0.0);
+}

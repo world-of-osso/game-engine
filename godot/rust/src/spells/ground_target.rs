@@ -44,28 +44,32 @@ impl GameClient {
             MouseButton::RIGHT => {
                 self.spells.cancel_ground_target();
             }
-            MouseButton::LEFT => {
-                if let Some(point) = self.ground_spell_point(mouse.get_position()) {
-                    let root = self
-                        .world
-                        .root()
-                        .ok_or("Ground targeting has no world root")?;
-                    let destination =
-                        crate::pet_bar::position_from_world(root.get_global_transform(), point);
-                    if let Some(intent) = self.spells.ground.place(destination) {
-                        let id = intent.spell_id.expect("ground cursor stores a spell ID");
-                        self.account.send_spell_intent(intent)?;
-                        self.spells.sent.push(id);
-                        self.spells.cancel_ground_target();
-                    }
-                }
-            }
+            MouseButton::LEFT => self.place_ground_spell(mouse.get_position())?,
             _ => return Ok(false),
         }
         Ok(true)
     }
 
-    fn ground_spell_point(&self, pointer: Vector2) -> Option<Vector3> {
+    fn place_ground_spell(&mut self, pointer: Vector2) -> Result<(), FrameError> {
+        let Some(point) = self.raycast_ground_spell_point(pointer) else {
+            return Ok(());
+        };
+        let root = self
+            .world
+            .root()
+            .ok_or("Ground targeting has no world root")?;
+        let destination = crate::pet_bar::position_from_world(root.get_global_transform(), point);
+        let Some(intent) = self.spells.ground.place(destination) else {
+            return Ok(());
+        };
+        let id = intent.spell_id.expect("ground cursor stores a spell ID");
+        self.account.send_spell_intent(intent)?;
+        self.spells.sent.push(id);
+        self.spells.cancel_ground_target();
+        Ok(())
+    }
+
+    fn raycast_ground_spell_point(&self, pointer: Vector2) -> Option<Vector3> {
         crate::pet_bar::ground_under(self.world_camera.camera()?, pointer)
     }
 
@@ -77,7 +81,8 @@ impl GameClient {
             self.spells.cancel_ground_target();
             return Ok(());
         }
-        let point = self.ground_spell_point(Vector2::from_array(self.physical_input.pointer()));
+        let point =
+            self.raycast_ground_spell_point(Vector2::from_array(self.physical_input.pointer()));
         if self.spells.reticle.is_none() {
             let reticle = spawn_reticle();
             self.base_mut().add_child(&reticle);

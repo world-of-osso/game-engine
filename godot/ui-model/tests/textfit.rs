@@ -91,6 +91,7 @@ fn textfit_long_spell_name_stays_above_subtext_and_level_in_both_skins() {
                             icon_fdid: 135911,
                             passive: true,
                             available_at: Some(30),
+                            cooldown_fraction: 0.0,
                         })
                         .collect(),
                     }],
