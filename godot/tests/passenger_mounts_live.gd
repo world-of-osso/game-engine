@@ -97,7 +97,7 @@ func run_test() -> void:
 		leave.pressed.connect(func(): print("LEAVE_BUTTON_PRESSED"))
 		await click(leave)
 		print("LEAVE_INPUT_AFTER ", client.vehicle_state())
-		if not await wait_until(func(): return not seated(), "leave-seat request"): 
+		if not await wait_until(func(): return not seated(), "leave-seat request"):
 			return
 	if not await barrier("exited"):
 		return
