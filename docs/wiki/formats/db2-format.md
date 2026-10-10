@@ -82,6 +82,8 @@ python3 scripts/import_npc_appearance.py \
   --display-id 19177 --display-id 19178 --display-id 3167
 ```
 
+`--base-cache PATH` preserves every authored row from an existing read-only cache in the new output, allowing a bounded mount-display import without losing older world/fixture coverage. Conflicting primary-key rows fail; no cache is automatically promoted or replaced.
+
 Omit `--display-id` to import every CSV display. All three DB2s are fully decoded even for a selected output subset. The output must not exist. Production destination, when main approves promotion, is shared-data `cache/npc_appearance.sqlite`; no default output or automatic promotion exists. JSON stdout reports decoded/output counts and requested fixture rows (default display IDs: 19177, 19178, 3167).
 
 Supported fixed-record layouts from local `/home/osso/Repos/wowless/vendor/dbdefs/definitions/`:
