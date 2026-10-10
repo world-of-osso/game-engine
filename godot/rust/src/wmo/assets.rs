@@ -227,12 +227,9 @@ fn read_required_wmo(
     context: &str,
 ) -> Result<PathBuf, String> {
     let cache_path = data_root.join("models").join(format!("{fdid}.wmo"));
-    resolver.ensure_cached(fdid, &cache_path).ok_or_else(|| {
-        format!(
-            "WMO {context}: cannot cache local CASC FDID {fdid} at {}",
-            cache_path.display()
-        )
-    })
+    resolver
+        .ensure_cached_checked(fdid, &cache_path)
+        .map_err(|error| format!("WMO {context}: {error}"))
 }
 
 #[cfg(test)]

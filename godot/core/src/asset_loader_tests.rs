@@ -78,7 +78,10 @@ fn a_failed_load_is_reported_with_its_error() {
         wait_for(&mut loader, 1),
         vec![(99, Err("Failed to cache local CASC FDID 99".to_string()))]
     );
-    assert_eq!(loader.state(&99), Some(LoadState::Done));
+    assert_eq!(loader.state(&99), Some(LoadState::Failed));
+    assert_eq!(loader.loading(), 0);
+    assert!(!loader.request(99, Priority::Now));
+    assert!(loader.poll().is_empty());
 }
 
 #[test]
