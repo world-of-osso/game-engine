@@ -14,7 +14,7 @@
 - [Extracted-only policy](systems/shipped-assets.md) — P1 `f6b32b79e`; [closure audit](systems/offline-asset-closure.md) `5520e82ff` is incomplete, not release certification. [Client deployment](../deploy.md) separates extracted-only direction from historical CASC proof; [server deployment](../../../game-server/docs/deploy.md) owns the shared realm's current location.
 
 
-- [Offline asset closure](systems/offline-asset-closure.md) — full-catalog terrain auxiliary and runtime-path resolution, local extraction fixed points and receipt proofs; optional joins and no-install acceptance remain open.
+- [Offline asset closure](systems/offline-asset-closure.md) — terrain/path fixed points and receipt proofs; sourced spell/emitter/appearance/WMO-liquid resolver continuation now has bounded CPU proof, with extraction and no-install acceptance still open.
 - [M2 product shadowing](investigations/m2-product-shadowing.md) — unqualified disk/parsed collisions, metadata-source RED/GREEN, authenticated actual-build offline chains and remaining runtime/native boundary; [continuation evidence](investigations/m2-product-shadowing.md#continuation-authenticated-offline-chains-2026-10-09).
 
 - [Zephras sky/minimap diagnosis](investigations/zephras-sky-minimap.md) — map2991 listfile-only tile loss and wrong M2 dual-crossfade; shader/tile RED/GREEN and inspected rebuilt private before/after; whole-day sky parity unclaimed.
