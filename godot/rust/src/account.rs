@@ -508,6 +508,7 @@ impl Account {
         self.bridge()?
             .send::<_, CombatChannel>(SpellCastIntent {
                 spell_id: Some(spell_id),
+                destination: None,
                 spell: name.to_owned(),
                 target_entity: target,
                 witness,
