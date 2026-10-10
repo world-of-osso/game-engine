@@ -12,7 +12,7 @@ Contract: [spec](../../specs/spellbook-action-bar.md). Code: `godot/rust/src/spe
   - Auto Attack 6603. It is never sent as a cast; its `SPELL_EFFECT_ATTACK` is unused server-side (TrinityCore SpellEffects.cpp:170).
   - a cast of an auto-attack spell, per the catalog's `SpellAutoAttack` ([[spell-catalog]]). `OnCast` is `SpellMisc.Attributes_1 & 0x200` (SPELL_ATTR1_INITIATES_COMBAT_ENABLES_AUTO_ATTACK, "client only", TrinityCore SharedDefines.h:482); it covers Slam, Mortal Strike and the Attack action 88163. `PostCast` is `Attributes_2 & 0x100000` alone (SharedDefines.h:530, e.g. Smite); it attacks on the local player's `SpellGo`. Frostbolt has neither.
 - While attacking, a new attackable selection becomes the victim, and a friendly or empty selection sends `AttackStop`. The server's `AttackStart`/`AttackStopped` echoes keep the victim in step with server-side stops (death, evade, refusals). `target_state().auto_attack` exposes the victim.
-- Icons and chrome are copied from local CASC into `data/textures/{fdid}.blp` on first use; missing chrome is an error, a missing icon an empty slot.
+- UI icons/chrome read shipped extracted files, not runtime CASC (`86e5bb1ed`, `f385e8bdf`). Missing/invalid requested spell icons are hard errors, not empty slots or substituted art. [Icon shipping contract](../../specs/spellbook-action-bar.md) owns classbook capture evidence (`21b9fca97`), manifest/provenance preparation and the versioned CPU-only exceptions (`565122e97`); exceptions do not relax the release gate.
 - Combat text is a fixed-size `Label3D` under the client root (unit nodes carry model scale), in three lanes so auto-attack and ability numbers do not stack.
 
 ## Shared extra-bar assignment (2026-10-08)

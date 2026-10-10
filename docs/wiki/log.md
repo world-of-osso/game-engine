@@ -2982,3 +2982,7 @@ Recorded local Arcane CSV witnesses, grant/spec conditions and Blizzard node geo
 ## 2026-10-09 — Zephras sky/minimap diagnosis
 
 [Investigation](investigations/zephras-sky-minimap.md): exact local assets retained; map2991 MAID minimap path and authored sky0x8012 crossfade identified. Real-tile CPU RED→GREEN1/1 and actual-texture shader RED→GREEN3 endpoints; native build/install0 and same-spawn private before/after personally inspected. Orange/black region removed, minimap terrain visible; authored beige sky band remains, whole-day parity unclaimed. Private processes/slice stopped;5000 untouched.
+
+## [2026-10-09] docs | Landed-state reconciliation
+
+Reconciled cast spark, editor rounding/preview/show-list/label/autosave/padding, native nameplate levels/distance step and target classification, icon shipping/CPU manifest exceptions, screen clamping, readable NPC sections, P1 runtime policy and closure tooling through the [index](index.md#october-9-reconciliation). Corrected stale discard, first-use UI extraction, native fade and player retail-install claims. Indoor geometry remains blocked; seven-profile metadata publication is not native baked-texture acceptance. Linked current server deployment; preserved dated historical receipts. Docs-only inspection; no builds, assets, deployment or runtime proof added.

@@ -1,5 +1,14 @@
 # Wiki Index
 
+## October 9 reconciliation
+
+- [Player cast spark](../specs/player-cast-feedback.md) — `397c20803` skin fill-height fix; `427e5a814` owns scoped native proof.
+- [Native HUD editor](systems/native-hud-edit-mode.md) — rounding `4850c6652`, preview bounds `bcd89f56e`, show-list `386a97f5e`, label/autosave/padding `8ad38c9cb`; [nameplates](../specs/nameplate-style.md) own level removal `37144af3e` and distance step `72689598a`; [HUD contract](../specs/hud-edit-mode.md) owns target rare art `ea8a275bf`.
+- [Spellbook icon shipping](../specs/spellbook-action-bar.md) — classbook proof `21b9fca97`; manifest exceptions `565122e97` are CPU diagnostics only. [Screen clamping](../specs/window-manager.md) follows native `clampedToScreen`/StackSplit correction `5b10f31bc`.
+- [Readable NPC sections](systems/forever-data.md#readable-section-correction-2026-10-09) — tolerant decoder `d1a816b52`/`714a1042c`; seven profiles published, missing bakes still separate. [Indoor minimap](systems/minimap.md#indoor-status-2026-10-09) remains geometry-blocked, not implemented.
+- [Extracted-only policy](systems/shipped-assets.md) — P1 `f6b32b79e`; [closure audit](systems/offline-asset-closure.md) `5520e82ff` is incomplete, not release certification. [Client deployment](../deploy.md) separates extracted-only direction from historical CASC proof; [server deployment](../../../game-server/docs/deploy.md) owns the shared realm's current location.
+
+
 - [Offline asset closure](systems/offline-asset-closure.md) — extracted-only Northshire/Human-Warrior graph, configurable full-catalog roots, explicit provenance/unresolved boundaries and approximate inventory sizes.
 
 - [Zephras sky/minimap diagnosis](investigations/zephras-sky-minimap.md) — map2991 listfile-only tile loss and wrong M2 dual-crossfade; shader/tile RED/GREEN and inspected rebuilt private before/after; whole-day sky parity unclaimed.
