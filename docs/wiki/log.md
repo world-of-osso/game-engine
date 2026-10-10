@@ -1,3 +1,7 @@
+## 2026-10-10 — Generic toy aura consumption
+
+[Native Toy Box](systems/toy-box.md#generic-toy-aura-consumption-2026-10-10) records scale/fall state and ordered override-slot consumption. Private55382 scale1→0.5→1 captured in both configured skins; Forever additionally proves feather20yd/no damage then normal fall/damage after removal. Modern feather capture remains pending after bounded fixture retries. Server owns preparation/census; no merge or protected-realm operation.
+
 ## 2026-10-10 — Native compile-speed evidence
 ## 2026-10-09 — Source-qualified runtime wiring and nested parser identity
 

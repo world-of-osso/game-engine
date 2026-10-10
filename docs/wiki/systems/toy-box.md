@@ -26,6 +26,14 @@ Current screenshots: `/syncthing/AgentShared/2026-10-10/toybox/v2-*.png`, 13 per
 
 Existing Time-Lost Figurine transform displays17864/20601/20817 are outside imported NPC appearance coverage; attachment19/animation errors remain recorded. Server casts, aura replication and UI cooldowns are proved; complete transform-model/spell-visual rendering is not. Independent verifier remains unavailable (expired Claude OAuth), not passed. Private processes and own slice stopped; no :5000 mutation, merge, server/protocol edit or player-bundle deployment.
 
+## Generic toy aura consumption (2026-10-10)
+
+The toy-effects2 protocol adds replicated UnitScale and FeatherFall. World::upsert scales the unit root while preserving native creature/display scales; player prediction uses a downward-only7yd/s cap while FeatherFall is active. Removal restores ordinary scale/gravity. Both are skin-independent world state, not UI scripts.
+
+Aura293 extends existing AuraView.overrides with an ordered SpellSet. action_slot resolves six main-bar slots by OverrideSpellData order, including empty/item-bound slots, and clears the remaining main slots; other bars and persisted actions stay unchanged. Newest set wins, including over form paging. Removing it restores stored actions. Aura332 spell-ID replacement remains unchanged. Server data preparation and census are owned by [server toys](../../../../game-server/docs/wiki/systems/toys.md).
+
+Native targeted proofs cover real UDP scale/fall/set transport, downward prediction/removal and override-slot replacement/restoration. Owned private55382 captures show scale1→0.5→1 from actual World Enlarger18660 use in both configured skins. Forever additionally shows authentic Whispers113542 spell167273, no health loss while feather-falling20yd, then faster fall/damage after removal. Modern feather capture is pending after bounded fixture retries; no both-skin feather PASS claimed. The item113542 lacks a runtime template and was not reported as usable or synthesized for the live proof. Capture sequence videos and private receipts are recorded in /home/osso/.worktrees/handoff-toy-effects2.md; dedicated Retail override-bar chrome/individual ability scripts are not implemented by the slot source change.
+
 ## Sources
 
 - [Toy Box contract](../../specs/toy-box.md)
