@@ -16,7 +16,7 @@
 
 - [Offline asset closure](systems/offline-asset-closure.md) — extracted-only Northshire/Human-Warrior graph, configurable full-catalog roots, explicit provenance/unresolved boundaries and approximate inventory sizes.
 - [M2 product shadowing](investigations/m2-product-shadowing.md) — unqualified disk/parsed collisions, metadata-source RED/GREEN, authenticated actual-build offline chains and remaining runtime/native boundary; [continuation evidence](investigations/m2-product-shadowing.md#continuation-authenticated-offline-chains-2026-10-09).
-- [Offline asset closure](systems/offline-asset-closure.md) — full-catalog terrain auxiliary and runtime-path resolution, local extraction fixed points and receipt proofs; optional joins and no-install acceptance remain open.
+- [Offline asset closure](systems/offline-asset-closure.md) — full-catalog traversal and authenticated no-clobber extraction; [70338 recheck](systems/offline-asset-closure.md#recorded-gap-recovery--verified-2026-10-10) recovers seven bakes, vehicle7476985 and204 IV8 failures. Optional joins/no-install acceptance remain open.
 
 - [Zephras sky/minimap diagnosis](investigations/zephras-sky-minimap.md) — map2991 listfile-only tile loss and wrong M2 dual-crossfade; shader/tile RED/GREEN and inspected rebuilt private before/after; whole-day sky parity unclaimed.
 

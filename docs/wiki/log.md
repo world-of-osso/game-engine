@@ -1,3 +1,7 @@
+## 2026-10-10 — Stable local CASC / 70338 gap recovery
+
+[Recorded-gap recovery](systems/offline-asset-closure.md#recorded-gap-recovery--verified-2026-10-10) records a readable70338 root, seven body bakes, vehicle7476985 and204 IV8 recoveries using the existing fixed extractor. Local cache importer finds48 already-known names. Vehicle+6/VehicleSeat+8/GlobalStrings+65 reexport candidates preserve canonical CSVs; no server import, asset download, mirror write or rendering acceptance.
+
 ## 2026-10-10 — Disenchant bag-item cursor
 
 [Disenchant](systems/disenchant.md) records item targeting before bag actions, GUID intents, cancellation, personal-loot auto taking and ABI initializers. Native ui-model5/5 passes; extension compile proof in handoff. Rendered routing not performed; no realm/service/merge changes.
