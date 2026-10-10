@@ -460,6 +460,40 @@ fn toyfx2_feather_fall_replicates_and_reverts_over_udp() {
 }
 
 #[test]
+fn toyfx2_override_set_replicates_and_removes_with_aura_over_udp() {
+    use shared::components::{AuraOverride, AuraView};
+    let mut session = Session::start(9154);
+    let applied = UnitAuras {
+        auras: vec![AuraView {
+            instance_id: 1,
+            spell_id: 176889,
+            caster: None,
+            stacks: 1,
+            charges: 0,
+            duration_ms: 300000,
+            remaining_ms: 300000,
+            harmful: false,
+            dispel_type: 0,
+            flags: 0,
+            overrides: vec![AuraOverride::SpellSet {
+                id: 785,
+                spells: vec![225656, 225658, 225660, 225657, 225659, 0, 0, 0, 0, 0],
+            }],
+        }],
+    };
+    let hero = session.spawn((player("OverrideToy"), position(1.0), applied.clone()));
+    session.until("override list applied", hero, |unit| {
+        unit.and_then(|u| u.get::<UnitAuras>()) == Some(&applied)
+    });
+    session.edit(hero, |hero| {
+        hero.insert(UnitAuras::default());
+    });
+    session.until("override list removed", hero, |unit| {
+        unit.and_then(|u| u.get::<UnitAuras>()) == Some(&UnitAuras::default())
+    });
+}
+
+#[test]
 fn replica_matches_stock_replicon_client_over_udp() {
     let mut session = Session::start(9100);
     let (hero, wolf) = run_scenario(&mut session, true);
