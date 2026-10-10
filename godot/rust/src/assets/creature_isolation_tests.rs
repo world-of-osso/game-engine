@@ -71,7 +71,7 @@ fn model_with_vertex(x: f32) -> Vec<u8> {
 }
 
 #[test]
-fn parsed_same_fdid_models_keep_both_product_namespaces() {
+fn model_asset_parsed_same_fdid_models_keep_both_product_namespaces() {
     let fixture = Fixture::new();
     let skin =
         fs::read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/models/12627800.skin"))
@@ -93,7 +93,7 @@ fn parsed_same_fdid_models_keep_both_product_namespaces() {
 }
 
 #[test]
-fn sfid_skid_and_external_animation_acquisition_inherit_the_model_identity() {
+fn model_asset_sfid_skid_and_external_animation_acquisition_inherit_the_model_identity() {
     let fixture = Fixture::new();
     let retail = AssetIdentity::new("wow", RETAIL_KEY).unwrap();
     let forever = AssetIdentity::new("wow_classic_beta", FOREVER_KEY).unwrap();
@@ -140,7 +140,7 @@ fn solid_palettized_blp(red: u8, green: u8) -> Vec<u8> {
 }
 
 #[test]
-fn decoding_same_texture_fdid_preserves_both_products_pixels() {
+fn model_asset_decoding_same_texture_fdid_preserves_both_products_pixels() {
     let fixture = Fixture::new();
     let retail = AssetIdentity::new("wow", RETAIL_KEY).unwrap();
     let forever = AssetIdentity::new("wow_classic_beta", FOREVER_KEY).unwrap();
@@ -169,7 +169,7 @@ fn decoding_same_texture_fdid_preserves_both_products_pixels() {
 }
 
 #[test]
-fn missing_matching_texture_errors_and_does_not_poison_a_later_decode() {
+fn model_asset_missing_matching_texture_errors_and_does_not_poison_a_later_decode() {
     let fixture = Fixture::new();
     let retail = AssetIdentity::new("wow", RETAIL_KEY).unwrap();
     let fdid = 2_000_000_102;
