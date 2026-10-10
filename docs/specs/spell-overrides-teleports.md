@@ -5,7 +5,7 @@ Native spell presentation consumes server aura overrides without changing learne
 ## What it must do
 
 - [ ] Active aura332 substitutions show and cast the replacement on action buttons, including its tooltip, icon and cooldown; removal restores the base spell.
-- [ ] Learned spellbook entries present the active replacement without mutating known spells.
+- [ ] Learned spellbook entries present the active replacement name, icon, tooltip and cooldown without mutating known spells or base drag/binding IDs.
 - [ ] Ground-destination spells enter targeting mode, show a ground reticle, send the clicked destination, and cancel on right-click or Escape. Forward Blink does not require a destination.
 - [ ] Same-map teleports snap the player while preserving camera orbit without sweeping the camera through intervening geometry.
 - [ ] Apply aura312 animation replacement sets when the native animation system has a replacement-set hook; otherwise record the gap.
