@@ -1,3 +1,7 @@
+## 2026-10-10 — Closure round 4 local fixed point
+
+[Round 4](systems/offline-asset-closure.md#round-4-local-fixed-point--verified-2026-10-10) records seven recovered/expanded IV8 ADTs, three recovered metadata joins, newly discovered model descendants and precise local residuals. Runtime index regenerated through the no-clobber importer after backup; legacy byte conflicts remain unowned. Full Python280run/277pass/3skip, bounded root/receipt proofs, no world.db write/master merge/download or no-install acceptance.
+
 ## 2026-10-10 — Closure round 3 final dataset
 
 [Final offline closure](systems/offline-asset-closure.md#round-3-final-dataset--verified-2026-10-10):862,509→970,356 present,2,275→2,302 missing,86,217→5,024 unresolved. Published188,100 paths /4,967,995,591 bytes;193,049 owned receipts pass,670 foreign-schema rows excluded. Sequential process recovery preserved published progress after bounded OOM; final manifest/source drift and residuals recorded. No merge, data commit, production-driver memory or no-install/P3/P4 certificate.
