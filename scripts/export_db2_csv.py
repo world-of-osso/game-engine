@@ -61,6 +61,8 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
 """
 
 import csv
+import importlib.util
+from pathlib import Path
 import struct
 import sys
 
@@ -938,9 +940,12 @@ TABLES = {
 }
 
 # Additional closure layouts, pinned to the same local Retail build.
-from closure_db2_layouts import CLOSURE_TABLES
-
-TABLES.update(CLOSURE_TABLES)
+_layout_spec = importlib.util.spec_from_file_location(
+    "closure_db2_layouts", Path(__file__).with_name("closure_db2_layouts.py")
+)
+_layouts = importlib.util.module_from_spec(_layout_spec)
+_layout_spec.loader.exec_module(_layouts)
+TABLES.update(_layouts.CLOSURE_TABLES)
 
 # Narrow DBD types: pallet entries are 32-bit and carry unrelated high bits.
 NARROW = {"i8": (True, 8), "u8": (False, 8), "i16": (True, 16), "u16": (False, 16)}
