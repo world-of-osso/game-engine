@@ -267,6 +267,9 @@ impl GameClient {
         if self.use_game_object(unit)? || self.send_corpse_loot(unit)? {
             return Ok(());
         }
+        if self.start_clicked_wild_pet(unit)? {
+            return Ok(());
+        }
         // Interacting with an attackable unit attacks it (`CMSG_ATTACK_SWING`).
         if self.can_auto_attack(unit) {
             self.start_auto_attack(unit)?;

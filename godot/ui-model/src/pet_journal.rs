@@ -156,6 +156,24 @@ impl PetJournalView {
         });
         rows
     }
+    pub fn equip_selected(&mut self, slot: usize) -> Option<shared::protocol::SetBattlePetLoadout> {
+        if self.pending || slot >= 3 {
+            return None;
+        }
+        let PetRowKey::Owned(id) = self.selected? else {
+            return None;
+        };
+        self.journal.get(id)?;
+        let mut slots = self.journal.battle_slots;
+        for current in &mut slots {
+            if *current == Some(id) {
+                *current = None;
+            }
+        }
+        slots[slot] = Some(id);
+        self.pending = true;
+        Some(shared::protocol::SetBattlePetLoadout { slots })
+    }
     pub fn select(&mut self, key: PetRowKey) {
         if self.rows().iter().any(|row| row.key == key) {
             self.selected = Some(key);
@@ -211,7 +229,7 @@ pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
     children.extend(search_box());
     children.extend(pet_list(ctx, view));
     children.extend(pet_card(view));
-    children.extend(battle_slots());
+    children.extend(battle_slots(view));
     children.extend(journal_buttons(view));
     let body = rsx! { r#frame { name: "PetJournal", width: 703.0, height: 606.0,
     left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: false, {children} } };
@@ -338,15 +356,26 @@ fn pet_card(view: &PetJournalView) -> Element {
     ));
     out
 }
-fn battle_slots() -> Element {
+fn battle_slots(view: &PetJournalView) -> Element {
     let mut out = Vec::new();
+    let selected_owned = matches!(view.selected, Some(PetRowKey::Owned(_)));
     for slot in 0..3 {
         let top = 279.0 + slot as f32 * 100.0;
-        out.extend(
-            rsx! { texture { name: {DynName(format!("PetJournalBattleSlot{slot}"))},
-            texture_atlas: "PetJournal-BattleSlot-Locked", width: 405.0, height: 92.0,
-            left: 292.0, top, pos_type: "absolute" } },
+        let pet = view.journal.battle_slots[slot].and_then(|id| view.journal.get(id));
+        let text = pet.map_or_else(
+            || format!("Battle slot {}: choose a pet", slot + 1),
+            |pet| {
+                let name = &view.catalog[&pet.species_id].name;
+                format!("{} · Level {} · Slot {}", name, pet.level, slot + 1)
+            },
         );
+        out.extend(panel_button(
+            format!("PetJournalBattleSlot{slot}"),
+            &text,
+            &format!("pet:equip:{slot}"),
+            selected_owned && !view.pending,
+            (292.0, top, 405.0, 92.0),
+        ));
     }
     out
 }

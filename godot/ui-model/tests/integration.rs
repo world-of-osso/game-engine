@@ -96,5 +96,6 @@ mod ui_errors;
 mod unit_dead_text;
 mod unit_frame_atlas;
 mod vigor_bar;
+mod wild_pet_battle;
 mod world_map_quest_panel;
 mod xp_bar;
