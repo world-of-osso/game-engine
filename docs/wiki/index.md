@@ -39,7 +39,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 - [Native Toy Box](systems/toy-box.md) — Retail journal, unresolved-name ItemID labels, both-skin search/progress/desaturation; master-protocol private live learning/favourite/cast/bar/relog proof and inspected26 v2 captures. Transform-model coverage remains separate.
 - [Quest map objectives](systems/quest-map-objectives.md) — local Retail POI census, server-only geometry and numbered overlays; v2 fixes128/192 opacity and super-tracked world-map blobs, with targeted/native/private proof and four inspected PNGs. Hover/native-minimap selection gaps explicit.
-- [Battle pets](systems/battle-pets.md) — local CASC catalogs, account journal and shared Collections Pets tab; [v2 companion proof](systems/battle-pets.md#collections-integration-correction--2026-10-10) and [bounded wild PvE](systems/battle-pets.md#wild-pve-integration--verified-2026-10-10), both-skin private win/capture with isolated HUD.
+- [Battle pets](systems/battle-pets.md) — local CASC catalogs, account journal and shared Collections Pets tab; [v2 companion proof](systems/battle-pets.md#collections-integration-correction--2026-10-10) and [bounded wild PvE](systems/battle-pets.md#wild-pve-integration--verified-2026-10-10), both-skin private win/capture with isolated HUD and [Retail HUD v2](systems/battle-pets.md#retail-hud-correction--verified-2026-10-10).
 
 - [Extracted-only assets](systems/shipped-assets.md) — P1 startup/CASC policy, detached legacy-miss completion and cold-process fixture boundaries; complete closure and deployment remain later phases.
 

@@ -32,6 +32,9 @@ The [wild client contract](../../specs/wild-pet-battles.md) and [server contract
 
 Private pointer proof uses explicit account-scoped Modern/Forever layouts and native `account_state().ui_skin`. New accounts default to Forever on current master: an unset layout is not Modern proof. Both skins now have inspected win/trap/capture/journal images, visible health/actions, two pet meshes and close restoration. The named spec records exact revisions, native assertions and eight960×540 PNG hashes. Unsupported inherited effect semantics, all-species assets/spawns and full Retail visual/combat parity remain outside this bounded proof.
 
+## Retail HUD correction — verified 2026-10-10
+The [v2 HUD contract](../../specs/wild-pet-battles.md#retail-hud-v2--2026-10-10) owns acceptance. Active/reserve portraits, quality-tinted Retail frame art, icon actions/locks/cooldowns/ability-family badges and XP chrome replace bare bars and ability-name labels. `BattleCombatFeedback` transports actual event target/amounts, not inferred HP deltas; a pointer-transparent Dialog layer paints floating numbers above the detached model viewport and expires them after two seconds. The original text painted beneath the viewport and partially hid ally damage; both-skin captures now prove legible amounts. Mainline Lua hides timer art for wild PvE and centers its Pass button; timed snapshots alone show the round countdown. Terminal rewards include the new XP threshold so level-ups redraw progress correctly.
+
 ## Sources
 - [Wild native host](../../../godot/rust/src/wild_pet_battle.rs), [private pointer fixture](../../../godot/tests/pet_battle_live.gd) and [wild spec/acceptance](../../specs/wild-pet-battles.md).
 - [Client spec](../../specs/battle-pets.md)
