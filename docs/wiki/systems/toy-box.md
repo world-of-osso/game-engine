@@ -34,9 +34,18 @@ Aura293 extends existing AuraView.overrides with an ordered SpellSet. action_slo
 
 Native targeted proofs cover real UDP scale/fall/set transport, downward prediction/removal and override-slot replacement/restoration. Owned private55382 captures show scale1→0.5→1 from actual World Enlarger18660 use in both configured skins. Forever additionally shows authentic Whispers113542 spell167273, no health loss while feather-falling20yd, then faster fall/damage after removal. Modern feather capture is pending after bounded fixture retries; no both-skin feather PASS claimed. The item113542 lacks a runtime template and was not reported as usable or synthesized for the live proof. Capture sequence videos and private receipts are recorded in /home/osso/.worktrees/handoff-toy-effects2.md; dedicated Retail override-bar chrome/individual ability scripts are not implemented by the slot source change.
 
+## Effect50 object rendering (2026-10-10)
+
+`GameObjects::upsert` previously discarded generic type5 decorations because they have no interaction cursor. Visibility now admits generic decorations independently of interaction; they receive no picking area. Existing chair7/mailbox19 interaction remains unchanged. Display metadata, assets and replicated scale still use the existing Retail GameObjectDisplayInfo path.
+
+At production `dce2a4432` and fixture `c5a681cd2`, the visibility test has observed RED→GREEN and all five targeted game-object tests pass. Native extension/CLI builds pass. Private server `toy-effects4`42527c8, UDP55386, fresh redb and disposable fb_toyaura233 accounts delivered actual learned UseToy45011/33223/40768 casts. Both configured skins attached banner194274/display10483/model511482, chair186475/display7467/model197230 and MOLL-E191605/display8171/model244272; scales1/1/0.5. Six inspected PNGs are in `/syncthing/AgentShared/2026-10-10/toy-aura233/`; receipts/logs are in `data/diagnostics/toy-aura233-2026-10-10/`. Other scenery asset-receipt failures are not cleared by this bounded proof. Owned processes stopped; no shared realm or world.db mutation.
+
+Aura233 remains **unimplemented**. Pinned TrinityCore names it CHANGE_MODEL_FOR_ALL_HUMANOIDS and handles it client-side, not MOD_FAKE_INEBRIATE. Its misc payload is not yet resolved to a Retail-correct visual: blindly using4076/6409 as CreatureDisplayInfo would render Troll/Orc models. No such guess, global ModelDisplay rewrite, or viewer-isolation claim was added. Local source investigation and authenticated CASC table receipts are retained in the same diagnostics and `/home/osso/.worktrees/handoff-toy-aura233.md`.
+
 ## Sources
 
 - [Toy Box contract](../../specs/toy-box.md)
+- `godot/rust/src/game_objects.rs`, `godot/tests/toy_objects_live.gd`; local TrinityCore a352b1fa `SpellAuraDefines.h:320`, `SpellAuraEffects.cpp:305`; local Retail SpellEffect753551/1017276 and CreatureDisplayInfo4076/6409.
 - Client `godot/ui-model/src/toybox.rs`, `toybox_component.rs`; `godot/rust/src/toybox.rs`, `ui/projection.rs`, `ui/toy_cooldown.rs`, `spells/action_bar.rs`.
 - [Build-host contract](../../remote-builds.md) — native helper and sibling overrides.
 - Local Retail `Blizzard_Collections/Mainline/Blizzard_ToyBox.lua`, `Blizzard_ToyBox.xml`, `Blizzard_Collections.xml`, `Blizzard_SharedXML/Mainline/SharedCollectionTemplates.xml`.

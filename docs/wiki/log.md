@@ -1,3 +1,7 @@
+## 2026-10-10 — Effect50 toy object rendering
+
+[Toy objects](systems/toy-box.md#effect50-object-rendering-2026-10-10) records the generic-decoration cursor/visibility bug, targeted RED→GREEN, five passing native tests and actual UseToy45011/33223/40768 assets/scales on private toy-effects4 UDP55386. Six inspected configured-skin PNGs retained; aura233 is named from pinned TrinityCore but remains unimplemented pending authentic payload resolution. No global model, database, shared realm or master changes.
+
 ## 2026-10-10 — Quest POI hover, v3
 
 [Quest map objectives](systems/quest-map-objectives.md#v3-source-boundary-2026-10-10) records title/POI hover selection without super-tracking, authored polygon addition/removal and Retail additive InnerGlow. New RED→GREEN regressions,29 distinct targeted UI-model/core tests, native build/check and private UDP5528 both-skin input fixture pass. Eight originals FFmpeg-downscaled/inspected and published with `v3-` prefix. Native minimap selection is not exposed by searched Retail Lua/API sources; existing watched behavior retained, parity unclaimed.
