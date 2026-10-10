@@ -82,6 +82,70 @@ TABLES = {
         [("ID", "id"), ("X", ("i16", 1)), ("Y", ("i16", 2)),
          ("Z", ("i16", 3)), ("QuestPOIBlobID", "parent")],
     ),
+    # Retail 12.1.0.69933 local CASC layouts, WoWDBDefs field ordering.
+    "BattlePetSpecies": (0x589BE282, [
+        ("ID", "id"), ("Description_lang", ("string", 0)),
+        ("SourceText_lang", ("string", 1)), ("CreatureID", ("int", 3, 0)),
+        ("SummonSpellID", ("int", 4, 0)), ("IconFileDataID", ("int", 5, 0)),
+        ("PetTypeEnum", ("i8", 6)), ("Flags", ("int", 7, 0)),
+        ("SourceTypeEnum", ("i8", 8)), ("CardUIModelSceneID", ("int", 9, 0)),
+        ("LoadoutUIModelSceneID", ("int", 10, 0)), ("CovenantID", ("int", 11, 0)),
+    ]),
+    "BattlePetAbility": (0x1C738742, [
+        ("ID", "id"), ("Name_lang", ("string", 0)),
+        ("Description_lang", ("string", 1)), ("IconFileDataID", ("int", 2, 0)),
+        ("PetTypeEnum", ("i8", 3)), ("Cooldown", 4),
+        ("BattlePetVisualID", ("u16", 5)), ("Flags", ("int", 6, 0)),
+    ]),
+    "BattlePetAbilityEffect": (0x221D1FE6, [
+        ("ID", "id"), ("BattlePetAbilityTurnID", ("u16", 1)),
+        ("OrderIndex", ("u8", 2)), ("BattlePetEffectPropertiesID", ("u16", 3)),
+        ("AuraBattlePetAbilityID", ("u16", 4)), ("BattlePetVisualID", ("u16", 5)),
+    ] + [(f"Param_{i}", ("i16", 6, i)) for i in range(6)]),
+    "BattlePetAbilityTurn": (0x20C3BE16, [
+        ("ID", "id"), ("BattlePetAbilityID", ("u16", 1)),
+        ("OrderIndex", ("u8", 2)), ("TurnTypeEnum", ("u8", 3)),
+        ("EventTypeEnum", ("u8", 4)), ("BattlePetVisualID", ("u16", 5)),
+    ]),
+    "BattlePetSpeciesState": (0x2ABE26A5, [
+        ("ID", "id"), ("BattlePetStateID", ("u16", 0)),
+        ("Value", ("int", 1, 0)), ("BattlePetSpeciesID", "parent"),
+    ]),
+    "BattlePetBreedState": (0x030182F5, [
+        ("ID", "id"), ("BattlePetStateID", ("int", 0, 0)),
+        ("Value", ("u16", 1)), ("BattlePetBreedID", "parent"),
+    ]),
+    "BattlePetBreedQuality": (0xF3E3FDFC, [
+        ("ID", "id"), ("MaxQualityRoll", ("int", 0, 0)),
+        ("StateMultiplier", ("float", 1, 0)), ("QualityEnum", ("u8", 2)),
+    ]),
+    "BattlePetState": (0x489B22AD, [
+        ("ID", "id"), ("LuaName", ("string", 0)),
+        ("Flags", ("int", 1, 0)), ("BattlePetVisualID", ("u16", 2)),
+    ]),
+    "BattlePetSpeciesXAbility": (0x69104208, [
+        ("ID", "id"), ("BattlePetAbilityID", ("u16", 0)),
+        ("RequiredLevel", ("u8", 1)), ("SlotEnum", ("i8", 2)),
+        ("BattlePetSpeciesID", "parent"),
+    ]),
+    "BattlePetEffectProperties": (0xED4FBC95,
+        [("ID", "id")] + [(f"ParamLabel_{i}", ("string", 0, i)) for i in range(6)]
+        + [("BattlePetVisualID", ("u16", 1))]
+        + [(f"ParamTypeEnum_{i}", ("u8", 2, i)) for i in range(6)]),
+    "BattlePetAbilityState": (0x3381AC8D, [
+        ("ID", "id"), ("BattlePetStateID", 0), ("Value", ("int", 1, 0)),
+        ("BattlePetAbilityID", "parent"),
+    ]),
+    "BattlePetDisplayOverride": (0xFC2D3715, [
+        ("ID", "id"), ("PlayerConditionID", 0), ("CreatureDisplayInfoID", 1),
+        ("PriorityCategory", ("u8", 2)), ("BattlePetSpeciesID", "parent"),
+    ]),
+    "BattlePetVisual": (0x9B125C9E, [
+        ("ID", "id"), ("SceneScriptFunction", ("string", 0)),
+        ("SpellVisualID", 1), ("CastMilliSeconds", ("u16", 2)),
+        ("ImpactMilliSeconds", ("u16", 3)), ("RangeTypeEnum", ("i8", 4)),
+        ("Flags", ("int", 5, 0)), ("SceneScriptPackageID", ("u16", 6)),
+    ]),
     # Retail 12.1.0.69933, WoWDBDefs GlobalStrings.dbd layout D40F6D96.
     "GlobalStrings": (
         0xD40F6D96,
@@ -733,7 +797,7 @@ TABLES = {
 NARROW = {"i8": (True, 8), "u8": (False, 8), "i16": (True, 16), "u16": (False, 16)}
 
 # Tables whose inline ID is not their first field.
-INLINE_ID_FIELD = {"SpellVisualMissile": 2, "ChrModel": 2}
+INLINE_ID_FIELD = {"SpellVisualMissile": 2, "ChrModel": 2, "BattlePetSpecies": 2}
 
 
 def read_fields(data, field_count, sections):
@@ -916,7 +980,12 @@ def main():
                         return struct.unpack("<i", struct.pack("<I", bits))[0]
                     return "%.9g" % struct.unpack("<f", struct.pack("<I", bits))[0]
                 if isinstance(s, tuple):
-                    return read_string(data, record_offset, fields[s[1]], values[s[1]])
+                    field, value = fields[s[1]], values[s[1]]
+                    if len(s) == 3:
+                        element = s[2]
+                        value = (value >> (32 * element)) & 0xFFFFFFFF
+                        field = (field[0] + 32 * element, *field[1:])
+                    return read_string(data, record_offset, field, value)
                 return (
                     {"id": row_id, "parent": parent}[s]
                     if isinstance(s, str)
