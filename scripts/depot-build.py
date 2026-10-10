@@ -295,23 +295,22 @@ def stable_context(cache, mode, checkout_key):
         shutil.rmtree(context, ignore_errors=True)
 
 
-def native_source_root(root):
+def native_source_root(root, project_name="game-engine", siblings=SIBLINGS):
     """The checkout path Cargo should read. Without DEPOT_SIBLING_* overrides it is `root`;
     with any, a per-checkout directory of symlinks places `root` beside the overridden
     siblings, since Cargo resolves the relative path dependencies through it as written."""
-    overrides = {name: sibling_repo(root, name) for name in SIBLINGS}
+    overrides = {name: sibling_repo(root, name) for name in siblings}
     if all(path == root.parent / name for name, path in overrides.items()):
         return root
     _, checkout_key = prepare_checkout_cache(root)
     tree = Path.home() / ".cache" / "game-engine" / "native-roots" / checkout_key
     tree.mkdir(parents=True, exist_ok=True)
-    for name, target in {"game-engine": root, **overrides}.items():
+    for name, target in {project_name: root, **overrides}.items():
         link = tree / name
         if link.is_symlink() or link.exists():
             link.unlink()
         link.symlink_to(target)
-    return tree / "game-engine"
-
+    return tree / project_name
 
 
 def native_cargo(root, command, arguments, output=None):

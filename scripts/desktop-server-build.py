@@ -85,7 +85,8 @@ def build(root, host=None, release=False, binary=None):
             for name in binaries:
                 arguments.extend(["--bin", name])
             with native_slot():
-                code = run_cargo(root, arguments)
+                source = depot.native_source_root(root, "game-server", ("shared-protocol",))
+                code = run_cargo(root, arguments, source_root=source)
             if code:
                 raise subprocess.CalledProcessError(code, ["cargo", *arguments])
             for name in binaries:
@@ -179,7 +180,8 @@ def run_tests(root, cargo_args, host=None):
         saved = root / TEST_LOG
         saved.parent.mkdir(parents=True, exist_ok=True)
         with lock, native_slot(), saved.open("w") as log:
-            code = run_cargo(root, ["test", *cargo_args], output=log)
+            source = depot.native_source_root(root, "game-server", ("shared-protocol",))
+            code = run_cargo(root, ["test", *cargo_args], output=log, source_root=source)
         depot.phase("native server test", start)
         depot.print_test_summary(saved.read_text(errors="replace").splitlines())
         print(f"Full log: {saved}")
