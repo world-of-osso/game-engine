@@ -6,6 +6,8 @@ use ui_toolkit::widget_def::Element;
 use super::options_menu_component::OptionsPage;
 
 const OPTIONS_CONTENT_W: f32 = 716.0;
+// Native FrizQuadrata 13px glyphs occupy 19px per line, not the CPU measure's 16px.
+const INFO_LINE_HEIGHT: f32 = 20.0;
 const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
 const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
@@ -115,13 +117,16 @@ pub fn support_body() -> OptionsPage {
 }
 
 pub fn info_row(key: &str, label: &str, detail: &str) -> Element {
+    let lines = crate::quest_art::wrapped_line_count(detail, 370.0, 13.0);
+    let detail_height = lines as f32 * INFO_LINE_HEIGHT;
+    let row_height = detail_height.max(34.0);
     rsx! {
         r#frame {
             name: {DynName(format!("InfoRow{key}"))},
             width: {OPTIONS_CONTENT_W - 30.0},
-            height: 34.0,
+            height: row_height,
             {row_label(key, label)}
-            {info_detail(key, detail)}
+            {info_detail(key, detail, detail_height)}
         }
     }
 }
@@ -198,16 +203,17 @@ fn row_label(key: &str, text: &str) -> Element {
     }
 }
 
-fn info_detail(key: &str, detail: &str) -> Element {
+fn info_detail(key: &str, detail: &str, height: f32) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("InfoDetail{key}"))},
             width: 370.0,
-            height: 28.0,
+            height,
             text: {detail},
             font_size: 13.0,
             color: "0.72,0.72,0.72,1.0",
             justify_h: "RIGHT",
+            justify_v: "TOP",
             pos_type: "absolute",
             left: "100%",
             top: "50%",
