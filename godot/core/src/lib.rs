@@ -80,6 +80,7 @@ pub mod liquid_data;
 #[path = "game/state/loading_readiness.rs"]
 pub mod loading_readiness;
 pub mod m2;
+pub mod vehicle_seat;
 pub mod m2_billboard;
 pub mod m2_lights;
 pub mod m2_material;
