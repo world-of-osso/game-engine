@@ -22,9 +22,9 @@ class NativeDevEnvironment(unittest.TestCase):
             binary = root / 'cargo'
             binary.write_text(
                 '#!/usr/bin/env python3\n'
-                'import json, os\n'
+                'import json, os, sys\n'
                 'from pathlib import Path\n'
-                'Path(os.environ["OBSERVATION"]).write_text(json.dumps({"cwd": os.getcwd(), "environment": dict(os.environ)}))\n'
+                'Path(os.environ["OBSERVATION"]).write_text(json.dumps({"cwd": os.getcwd(), "args": sys.argv[1:], "environment": dict(os.environ)}))\n'
             )
             binary.chmod(0o755)
             observation = root / 'observed.json'
@@ -42,7 +42,9 @@ class NativeDevEnvironment(unittest.TestCase):
             self.assertEqual(child['CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER'], 'clang')
             self.assertEqual(child['CARGO_ENCODED_RUSTFLAGS'].split('\x1f'),
                              ['-C', 'link-arg=-fuse-ld=mold', '-C', 'link-arg=-Wl,--thread-count=4'])
-            self.assertEqual(child['CARGO_TARGET_DIR'], str(root / 'target'))
+            self.assertNotIn('CARGO_TARGET_DIR', child)
+            target_option = seen['args'].index('--target-dir')
+            self.assertEqual(seen['args'][target_option + 1], str(root / 'target'))
 
 
 if __name__ == '__main__':
