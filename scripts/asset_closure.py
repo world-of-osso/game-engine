@@ -184,7 +184,15 @@ class Closure:
         elif kind == "wmo":
             self.expand_wmo(asset, data)
         elif kind == "wdt":
-            for tag, payload in chunks(data, True):
+            table = dict(chunks(data, True))
+            for i, row in enumerate(records(table.get("MODF", b""), 64)):
+                value = u32(row)
+                flags = struct.unpack_from("<H", row, 56)[0]
+                if flags & 0x8:
+                    self.add(value, "wmo", f"WDT MODF[{i}]", fdid)
+                else:
+                    self.named(string_at(table.get("MWMO", b""), value), "wmo", f"WDT MODF[{i}]", fdid)
+            for tag, payload in table.items():
                 if tag == "MAID":
                     for i, row in enumerate(records(payload, 32)):
                         for column, value in enumerate(integers(row)):
