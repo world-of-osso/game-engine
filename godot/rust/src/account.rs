@@ -198,6 +198,7 @@ pub enum AccountEvent {
     Resurrection(shared::protocol::ResurrectionOffer),
     Summon(shared::protocol::SummonRequest),
     Professions(shared::protocol::ProfessionSnapshot),
+    Collections(shared::protocol::CollectionStateUpdate),
     TrainerList(shared::protocol::TrainerList),
     TrainerFailed(shared::protocol::TrainerBuyFailed),
     /// Bank and guild bank contents, logs and refusals.
@@ -626,6 +627,20 @@ impl Account {
         self.bridge()?
             .send::<_, shared::protocol::TrainerChannel>(request)
             .map_err(SessionError)
+    }
+
+    pub fn send_pet_request(
+        &self,
+        request: game_engine_ui_model::pet_journal::PetRequest,
+    ) -> Result<(), SessionError> {
+        use game_engine_ui_model::pet_journal::PetRequest;
+        use shared::protocol::{CollectionChannel, DismissPet, SummonPet};
+        let bridge = self.bridge()?;
+        match request {
+            PetRequest::Summon(pet_id) => bridge.send::<_, CollectionChannel>(SummonPet { pet_id }),
+            PetRequest::Dismiss => bridge.send::<_, CollectionChannel>(DismissPet),
+        }
+        .map_err(SessionError)
     }
 
     pub fn send_craft_recipe(
@@ -1231,6 +1246,10 @@ impl Account {
         }
         if message.is::<shared::protocol::TrainerBuyFailed>() {
             output.push(AccountEvent::TrainerFailed(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::CollectionStateUpdate>() {
+            output.push(AccountEvent::Collections(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::ProfessionSnapshot>() {

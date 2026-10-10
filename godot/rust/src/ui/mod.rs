@@ -1458,6 +1458,27 @@ impl RegistryUi {
         )
     }
 
+    pub fn show_pet_journal(
+        &mut self,
+        state: game_engine_ui_model::pet_journal::PetJournalView,
+    ) -> Result<(), String> {
+        let parent = self.hud_parent()?;
+        let mut registry = parent.registry();
+        register_metal_frame_style(
+            &mut registry,
+            game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
+        )?;
+        self.show_viewport_screen_in(
+            state,
+            game_engine_ui_model::pet_journal::pet_journal_screen,
+            ScreenPostsetup::None,
+            registry,
+            parent,
+        )?;
+        self.toplevel = true;
+        Ok(())
+    }
+
     pub fn show_professions(
         &mut self,
         state: game_engine_ui_model::professions_frame::ProfessionView,

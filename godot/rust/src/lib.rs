@@ -69,6 +69,7 @@ mod particle_debug;
 mod particles;
 mod party_frames;
 mod pet_bar;
+mod pet_journal;
 mod player_spells;
 #[path = "process_memory_status.rs"]
 mod process_memory_status;
@@ -293,6 +294,7 @@ pub struct GameClient {
     soft_interact: soft_interact::SoftInteract,
     spells: spells::SpellsHud,
     professions: professions::Professions,
+    pet_journal: pet_journal::CompanionJournal,
     trainer: trainer::Trainer,
     pet_bar: pet_bar::PetBarHud,
     merchant: merchant::Merchant,
@@ -426,6 +428,7 @@ impl INode3D for GameClient {
             soft_interact: soft_interact::SoftInteract::default(),
             spells: spells::SpellsHud::default(),
             professions: professions::Professions::default(),
+            pet_journal: pet_journal::CompanionJournal::default(),
             trainer: trainer::Trainer::default(),
             pet_bar: pet_bar::PetBarHud::default(),
             merchant: merchant::Merchant::default(),
@@ -1366,6 +1369,7 @@ impl GameClient {
         self.banks.visit_uis(&mut visit)?;
         self.guild_ranks.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
+        self.pet_journal.visit_uis(&mut visit)?;
         self.trainer.visit_uis(&mut visit)?;
         self.achievements.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
@@ -1910,6 +1914,7 @@ impl GameClient {
             ("Targeting", |c, _| c.update_targeting()),
             ("Spells", |c, d| c.update_spells(d)),
             ("Professions", |c, _| c.update_professions()),
+            ("Pet Journal", |c, _| c.update_pet_journal()),
             ("Trainer", |c, _| c.update_trainer()),
             ("Auras", |c, _| c.update_auras()),
             ("Launcher", |c, _| c.update_launcher()),
@@ -2053,6 +2058,8 @@ impl GameClient {
             AccountEvent::WorldReset => {
                 self.close_professions();
                 self.close_trainer();
+                self.close_pet_journal();
+                self.pet_journal.view = Default::default();
                 self.professions.book = Default::default();
                 self.professions.error.clear();
                 self.reset_world()?;
@@ -2094,6 +2101,7 @@ impl GameClient {
             AccountEvent::Resurrection(offer) => self.death_flow.receive_offer(offer),
             AccountEvent::Summon(request) => self.receive_summon(request),
             AccountEvent::Professions(snapshot) => self.receive_professions(snapshot),
+            AccountEvent::Collections(update) => self.pet_journal.view.receive(update),
             AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
             AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
             AccountEvent::Bank(message) => self.receive_bank(message)?,
