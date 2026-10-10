@@ -6,6 +6,42 @@ use shared::{
 };
 
 #[test]
+fn toyfx2_override_set_replaces_empty_spell_and_item_slots_then_restores() {
+    use game_engine_ui_model::spell_overrides::resolve_action_slot;
+    // Actual Golden Hearthstone Card119211, spell176889, OverrideSpellData785.
+    let aura = AuraView {
+        overrides: vec![AuraOverride::SpellSet {
+            id: 785,
+            spells: vec![225656, 225658, 225660, 225657, 225659, 0, 0, 0, 0, 0],
+        }],
+        instance_id: 1,
+        spell_id: 176889,
+        caster: Some(42),
+        stacks: 1,
+        charges: 0,
+        duration_ms: 300000,
+        remaining_ms: 300000,
+        harmful: false,
+        dispel_type: 0,
+        flags: 0,
+    };
+    for stored in [
+        None,
+        Some(ActionRef::Spell(133)),
+        Some(ActionRef::Item(18660)),
+    ] {
+        assert_eq!(
+            resolve_action_slot(0, stored, &[aura.clone()]),
+            Some(ActionRef::Spell(225656))
+        );
+        assert_eq!(resolve_action_slot(0, stored, &[]), stored);
+        assert_eq!(resolve_action_slot(5, stored, &[aura.clone()]), None);
+        assert_eq!(resolve_action_slot(6, stored, &[aura.clone()]), None);
+        assert_eq!(resolve_action_slot(12, stored, &[aura.clone()]), stored);
+    }
+}
+
+#[test]
 fn override_applies_and_restores_action_button_without_rebinding() {
     let base = ActionRef::Spell(85288);
     let catalog = SpellCatalogData::from_parts(

@@ -79,15 +79,32 @@ impl GameClient {
     }
 
     pub(crate) fn action_slot(&self, slot: usize) -> Option<ActionRef> {
-        self.account
-            .spells
-            .slot(slot)
-            .map(|action| self.effective_action(action))
+        let auras = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id)?.get::<UnitAuras>())
+            .map_or(&[][..], |auras| auras.auras.as_slice());
+        game_engine_ui_model::spell_overrides::resolve_action_slot(
+            slot,
+            self.account.spells.slot(slot),
+            auras,
+        )
     }
 
     /// Action slot shown on main bar button `index`, paged by the player's form.
     pub(crate) fn main_bar_slot(&self, index: usize) -> usize {
-        main_bar_slot(index, self.bonus_bar_offset())
+        let override_bar = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id)?.get::<UnitAuras>())
+            .is_some_and(|auras| {
+                game_engine_ui_model::spell_overrides::override_spell_set(&auras.auras).is_some()
+            });
+        if override_bar {
+            index
+        } else {
+            main_bar_slot(index, self.bonus_bar_offset())
+        }
     }
 
     /// Action slot shown on `bar`'s button `index`: only the main bar is paged.

@@ -26,6 +26,36 @@ pub fn update_spellbook_item(
     item.cooldown_fraction = cooldown_fraction;
 }
 
+/// Retail OverrideActionBar.lua exposes six ordered buttons. A293 overrides the
+/// main bar including empty stored slots, not spell-ID pairs like aura332.
+pub fn override_spell_set(auras: &[AuraView]) -> Option<&[u32]> {
+    auras
+        .iter()
+        .rev()
+        .flat_map(|aura| &aura.overrides)
+        .find_map(|entry| match entry {
+            AuraOverride::SpellSet { spells, .. } => Some(spells.as_slice()),
+            _ => None,
+        })
+}
+
+pub fn resolve_action_slot(
+    slot: usize,
+    stored: Option<ActionRef>,
+    auras: &[AuraView],
+) -> Option<ActionRef> {
+    if slot < 12 {
+        if let Some(spells) = override_spell_set(auras) {
+            return (slot < 6)
+                .then(|| spells.get(slot).copied())
+                .flatten()
+                .filter(|&id| id != 0)
+                .map(ActionRef::Spell);
+        }
+    }
+    stored.map(|action| resolve_action(action, auras))
+}
+
 /// Server-resolved aura332 pairs. Recompute from current auras so removal restores
 /// the base action without changing action slots or known spells.
 pub fn resolve_action(action: ActionRef, auras: &[AuraView]) -> ActionRef {

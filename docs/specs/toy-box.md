@@ -14,6 +14,8 @@ Retail Mainline defines CollectionsJournal geometry (703×606), tab order (Mount
 
 - Replicated FeatherFall caps only downward player prediction at7yd/s while aura105 is active; upward jumps retain their impulse and removal restores ordinary gravity. Reference: TrinityCore MovementUtil.cpp terminalSafefallVelocity and a352b1fa HandleAuraFeatherFall.
 
+- Aura293 SpellSet extends existing aura332 AuraView.overrides consumption: first six main slots use OverrideSpellData order, zero entries and remaining main slots are empty, other bars stay unchanged. Newest set wins; removal restores stored actions without rebinding. Existing main-bar art is retained; dedicated Retail OverrideActionBar chrome is not added here.
+
 ## Reference and explicit boundaries
 
 Local source: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_Collections/Mainline/Blizzard_Collections.xml`, `Blizzard_Collections.lua`, `Blizzard_ToyBox.xml`, `Blizzard_ToyBox.lua`, `Blizzard_CollectionTemplates.xml`.
