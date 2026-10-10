@@ -4620,3 +4620,11 @@ textures/8026696.blp
 textures/8026697.blp
 textures/8026698.blp
 textures/8026700.blp
+# Retail TraitSubTree icons and HeroTalentsContainer/SelectionDialog sheets.
+textures/130824.blp
+textures/130825.blp
+textures/130826.blp
+textures/130828.blp
+textures/5171843.blp
+textures/5740021.blp
+textures/5740409.blp

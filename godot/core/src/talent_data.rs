@@ -47,6 +47,8 @@ pub struct TalentEdge {
 pub struct TalentTree {
     pub id: u32,
     pub name: String,
+    pub description: String,
+    pub icon_atlas_element_id: u32,
     pub nodes: Vec<TalentNode>,
     pub edges: Vec<TalentEdge>,
 }
@@ -392,7 +394,7 @@ pub fn load_talent_page(dir: &Path, class: u32, spec: u32) -> Result<TalentPage,
         starter_loadout_id: find_starter_loadout(&tables, tree_id, spec)?,
         ..Default::default()
     };
-    page.heroes = project_heroes(&tables, tree_id, &nodes, &subtrees, &edges)?;
+    page.heroes = project_heroes(&tables, &page, &nodes, &subtrees, &edges)?;
     Ok(page)
 }
 fn find_class_tree(tables: &Tables, class_name: &str) -> Result<u32, String> {
@@ -511,29 +513,36 @@ fn select_tree(
         name: name.to_string(),
         nodes,
         edges,
+        ..Default::default()
     }
 }
 fn project_heroes(
     tables: &Tables,
-    tree: u32,
+    page: &TalentPage,
     nodes: &[TalentNode],
     subtrees: &BTreeMap<u32, u32>,
     edges: &[TalentEdge],
 ) -> Result<Vec<TalentTree>, String> {
-    let mut heroes = Vec::new();
-    for row in tables.rows("TraitSubTree") {
-        if row.number("TraitTreeID")? != tree {
-            continue;
-        }
-        let id = row.number("ID")?;
-        let hero = select_tree(id, row.text("Name_lang")?, nodes, edges, |node| {
-            subtrees[&node.id] == id
-        });
-        if !hero.nodes.is_empty() {
-            heroes.push(hero);
-        }
-    }
-    Ok(heroes)
+    // Retail HeroTalentsContainer/SelectionDialog use the spec-visible selection
+    // node's entries, never every subtree containing a visible/unconditioned node.
+    let eligible: BTreeSet<_> = page
+        .hero_selection
+        .iter()
+        .flat_map(|node| &node.entries)
+        .map(|entry| entry.subtree_id)
+        .collect();
+    eligible
+        .into_iter()
+        .map(|id| {
+            let row = tables.row("TraitSubTree", id)?;
+            let mut hero = select_tree(id, row.text("Name_lang")?, nodes, edges, |node| {
+                subtrees[&node.id] == id
+            });
+            hero.description = row.text("Description_lang")?.to_string();
+            hero.icon_atlas_element_id = row.number("UiTextureAtlasElementID")?;
+            Ok(hero)
+        })
+        .collect()
 }
 fn find_starter_loadout(tables: &Tables, tree: u32, spec: u32) -> Result<Option<u32>, String> {
     for row in tables.rows("TraitTreeLoadout") {
