@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """Build/export bookworm Linux server executables, or run the server workspace tests, on
-desktop or local; never start the server."""
+desktop or local, or build/test natively on this host; never start the server."""
 
 import argparse
 import fcntl
@@ -14,6 +14,7 @@ import tempfile
 import time
 
 from build_hosts import CACHE_ROOT, execute
+from native_cargo import native_slot, run_cargo
 
 SCRIPTS = Path(__file__).resolve().parent
 spec = importlib.util.spec_from_file_location("depot_build", SCRIPTS / "depot-build.py")
@@ -67,9 +68,29 @@ def build(root, host=None, release=False, binary=None):
     binaries = (binary,) if binary else BINARIES
     root = Path(root).resolve()
     host = depot.select_build_host(host)
+    if release and host == "native":
+        raise ValueError(
+            "release artifacts use the bookworm container: --build-host local|desktop"
+        )
     lock, cache, checkout_key = depot.locked_checkout(root)
     key = "server-" + checkout_key
     with lock:
+        if host == "native":
+            arguments = ["build"]
+            packages = dict.fromkeys(
+                "client" if name == "game-cli" else "server" for name in binaries
+            )
+            for package in packages:
+                arguments.extend(["-p", package])
+            for name in binaries:
+                arguments.extend(["--bin", name])
+            with native_slot():
+                code = run_cargo(root, arguments)
+            if code:
+                raise subprocess.CalledProcessError(code, ["cargo", *arguments])
+            for name in binaries:
+                print(root / "target/debug" / name)
+            return
         target = root / "target" / ("release" if release else "debug")
         if (root / "target").is_symlink() or target.is_symlink():
             raise ValueError(
@@ -154,6 +175,16 @@ def run_tests(root, cargo_args, host=None):
     lock, cache, checkout_key = depot.locked_checkout(root)
     key = "server-" + checkout_key
     start = time.monotonic()
+    if host == "native":
+        saved = root / TEST_LOG
+        saved.parent.mkdir(parents=True, exist_ok=True)
+        with lock, native_slot(), saved.open("w") as log:
+            code = run_cargo(root, ["test", *cargo_args], output=log)
+        depot.phase("native server test", start)
+        depot.print_test_summary(saved.read_text(errors="replace").splitlines())
+        print(f"Full log: {saved}")
+        print(f"cargo test {shlex.join(cargo_args)}: exit {code}", flush=True)
+        return code
     # Checkouts share the mirror, so it stays locked until the tests have read it.
     with lock, (cache / f"{TEST_DATA_MIRROR}-{host}.lock").open("w") as data_lock:
         fcntl.flock(data_lock, fcntl.LOCK_EX)
@@ -197,8 +228,8 @@ def main():
         default=SCRIPTS.parents[1] / "game-server",
         help="originating server checkout",
     )
-    parser.add_argument("--build-host", choices=("desktop", "local"))
-    parser.add_argument("--save-build-host", choices=("desktop", "local"))
+    parser.add_argument("--build-host", choices=depot.HOSTS)
+    parser.add_argument("--save-build-host", choices=depot.HOSTS)
     parser.add_argument("--release", action="store_true")
     parser.add_argument("--bin", choices=BINARIES, dest="binary")
     parser.add_argument(
