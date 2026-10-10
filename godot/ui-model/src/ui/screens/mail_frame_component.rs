@@ -168,6 +168,7 @@ pub struct AuctionInvoiceView {
     pub amount_label: String,
     pub amount: u64,
     pub sale_price: Option<u64>,
+    pub buyout: u64,
     pub deposit: u64,
     pub house_cut: u64,
     pub count: u64,
@@ -682,6 +683,18 @@ pub fn open_attachment_position(index: usize, rows: usize) -> (f32, f32) {
 
 /// Retail MailFrame.xml:1094-1227; invoice replaces the letter, not its attachments.
 fn auction_invoice(invoice: &AuctionInvoiceView) -> Element {
+    let mut children = invoice_heading(invoice);
+    let amount_y = if let Some(bid) = invoice.sale_price {
+        children.extend(seller_invoice_rows(invoice, bid));
+        276.0
+    } else {
+        185.0
+    };
+    children.extend(invoice_total(invoice, amount_y));
+    children
+}
+
+fn invoice_heading(invoice: &AuctionInvoiceView) -> Element {
     let mut children = label(
         "OpenMailInvoiceItemLabel".into(),
         &invoice.item_label,
@@ -694,47 +707,56 @@ fn auction_invoice(invoice: &AuctionInvoiceView) -> Element {
         (30.0, 140.0, 270.0, 16.0),
         (12.0, "0.18,0.12,0.06,1.0", "LEFT"),
     ));
-    let amount_y = if let Some(bid) = invoice.sale_price {
-        children.extend(invoice_money_row(
-            ("OpenMailInvoiceSalePrice", "OpenMailSalePriceMoneyFrame"),
-            crate::auction_mail::text("SALE_PRICE_COLON"),
-            bid / invoice.count,
-            161.0,
-            false,
-        ));
-        if invoice.count > 1 {
-            children.extend(label(
-                "OpenMailSalePriceMoneyFrameCount".into(),
-                &crate::auction_mail::text("AUCTION_HOUSE_MAIL_FORMAT_COUNT")
-                    .replace("%s", &invoice.count.to_string()),
-                (30.0, 178.0, 120.0, 14.0),
-                (12.0, "0.18,0.12,0.06,1.0", "LEFT"),
-            ));
-        }
-        children.extend(invoice_money_row(
-            ("OpenMailInvoiceDeposit", "OpenMailDepositMoneyFrame"),
-            crate::auction_mail::text("DEPOSIT_COLON"),
-            invoice.deposit,
-            195.0,
-            false,
-        ));
-        children.extend(invoice_money_row(
-            ("OpenMailInvoiceHouseCut", "OpenMailHouseCutMoneyFrame"),
-            crate::auction_mail::text("AUCTION_HOUSE_CUT_COLON"),
-            invoice.house_cut,
-            229.0,
-            true,
-        ));
-        276.0
-    } else {
-        185.0
-    };
-    children.extend(texture(
+    children
+}
+
+fn seller_invoice_rows(invoice: &AuctionInvoiceView, bid: u64) -> Element {
+    let mut children = invoice_money_row(
+        ("OpenMailInvoiceSalePrice", "OpenMailSalePriceMoneyFrame"),
+        crate::auction_mail::text("SALE_PRICE_COLON"),
+        bid / invoice.count,
+        161.0,
+        false,
+    );
+    children.extend(invoice_sale_count(invoice.count));
+    children.extend(invoice_money_row(
+        ("OpenMailInvoiceDeposit", "OpenMailDepositMoneyFrame"),
+        crate::auction_mail::text("DEPOSIT_COLON"),
+        invoice.deposit,
+        195.0,
+        false,
+    ));
+    children.extend(invoice_money_row(
+        ("OpenMailInvoiceHouseCut", "OpenMailHouseCutMoneyFrame"),
+        crate::auction_mail::text("AUCTION_HOUSE_CUT_COLON"),
+        invoice.house_cut,
+        229.0,
+        true,
+    ));
+    children
+}
+
+fn invoice_sale_count(count: u64) -> Element {
+    if count <= 1 {
+        return Element::default();
+    }
+    let caption = crate::auction_mail::text("AUCTION_HOUSE_MAIL_FORMAT_COUNT")
+        .replace("%s", &count.to_string());
+    label(
+        "OpenMailSalePriceMoneyFrameCount".into(),
+        &caption,
+        (30.0, 178.0, 120.0, 14.0),
+        (12.0, "0.18,0.12,0.06,1.0", "LEFT"),
+    )
+}
+
+fn invoice_total(invoice: &AuctionInvoiceView, y: f32) -> Element {
+    let mut children = texture(
         "OpenMailArithmeticLine".into(),
         136_387,
-        (30.0, amount_y - 25.0, 256.0, 32.0),
+        (30.0, y - 25.0, 256.0, 32.0),
         WHITE,
-    ));
+    );
     children.extend(invoice_money_row(
         (
             "OpenMailInvoiceAmountReceived",
@@ -742,12 +764,11 @@ fn auction_invoice(invoice: &AuctionInvoiceView) -> Element {
         ),
         &invoice.amount_label,
         invoice.amount,
-        amount_y,
+        y,
         false,
     ));
     children
 }
-
 fn invoice_money_row(
     names: (&str, &str),
     caption: &str,
