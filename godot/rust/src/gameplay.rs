@@ -41,6 +41,7 @@ pub(crate) struct PlayerMovement {
     /// The server lets the player fly (its replicated `PlayerMotion::CAN_FLY`, from a
     /// flying mount's speed aura).
     can_fly: bool,
+    feather_fall: bool,
     /// Flying (`MOVEMENTFLAG_FLYING`): no gravity; Jump ascends, SitOrStand descends and
     /// mouse steering pitches forward movement.
     pub flying: bool,
@@ -115,6 +116,7 @@ impl Default for PlayerMovement {
             jumping: false,
             swimming: false,
             can_fly: false,
+            feather_fall: false,
             flying: false,
             can_adv_fly: false,
             glider: None,
@@ -417,6 +419,8 @@ impl PlayerMovement {
             ground.probe(position),
             delta,
             shared::movement::GRAVITY,
+            self.feather_fall
+                .then_some(shared::movement::FEATHER_FALL_SPEED),
         );
         self.vertical_velocity = vertical.vertical_velocity;
         self.grounded = vertical.grounded;
@@ -850,6 +854,9 @@ impl crate::GameClient {
         if let Some(speed) = unit.get::<MovementSpeed>() {
             self.player_movement.adopt_server_speed(speed.0);
         }
+        self.player_movement.feather_fall = unit
+            .get::<shared::components::FeatherFall>()
+            .is_some_and(|state| state.0);
         let motion = unit.get::<PlayerMotion>().copied().unwrap_or_default();
         self.player_movement
             .set_can_fly(motion.contains(PlayerMotion::CAN_FLY));
