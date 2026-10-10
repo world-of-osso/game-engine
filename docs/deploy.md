@@ -22,13 +22,13 @@ The import runs once at assembly with `.godot/extension_list.cfg` already writte
 
 `deploy.sh` copies an allowlist from `data/`: the directories `cache campsite-ui db2 dbfilesclient fogs fonts glues item-models los minimap models music reference sounds tactkeys terrain textures ui`, top-level `*.csv`, `*.ron` and `local-listfile-cache.sqlite`. It drops `*.missing` extraction markers, `*.lock`, `cache/casc` and `cache/pre-retail-*`. `data/` also holds `auth_token*` files, diagnostics and screenshots, so it is never synced wholesale. On 2026-10-03 the bundle was 38 GB and 93,328 files. Of that, CASC extraction caches (`models`, `textures`, `terrain`, `music`) make up about 29 GB, and `los` 6.3 GB.
 
-Players still need a retail WoW install for local CASC, found by `WOW_INSTALL_PATH`, `WOW_DATA_PATH` or the asset resolver's standard locations. The client extracts assets it lacks into `data/`.
+The player-bundle direction is extracted-only: players must not need a retail install or runtime CASC extraction. [Shipped assets](specs/shipped-assets.md) owns the runtime policy landed in `b4094d2b2`/`f6b32b79e`; P1 requires `GAME_ENGINE_ASSET_MODE=extracted-only`, while unset still selects development local-CASC mode. P1 did not change deployment. Manifest-qualified packaging and pristine no-install/download acceptance remain later phases; [offline closure](wiki/systems/offline-asset-closure.md) records the incomplete audit, not a release-ready asset set.
 
 ## Proof
 
 On 2026-10-03 at `574ad01f`, `./deploy.sh --dry-run` exited 0, with the Depot release build and an import that also exited 0 (`data/diagnostics/deploygodot-2026-10-03/dry-run.log`). A reflinked copy of the bundle was made outside the checkout, with the runtime's execute bit cleared to match a game-launcher download. Its entry was run under headless cage with `--server 127.0.0.1:5190 --screen inworld --char Fbdeploy`. It reached Northshire in-world, with player, terrain, NPCs and HUD (`inworld.png`, `dump-scene.txt`, `client-run1.log`), and the server logged `Character 30 entered world`.
 
-The run used a saved-token login, the builder's WoW install for CASC, and its resolver cache in `~/.cache/asset-resolver`. It does not prove a cold resolver cache, a machine without the repo, or a game-launcher download.
+This historical run used a saved-token login, the builder's WoW install for CASC, and its resolver cache in `~/.cache/asset-resolver`. It does not prove the extracted-only player contract, a cold resolver cache, a machine without the repo, or a game-launcher download.
 
 ## Publish
 
