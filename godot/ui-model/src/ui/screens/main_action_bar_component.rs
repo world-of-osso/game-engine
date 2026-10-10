@@ -24,6 +24,8 @@ pub const MAIN_ACTION_BAR: FrameName = FrameName("MainActionBar");
 pub const MAIN_BAR_BUTTONS: usize = 12;
 /// Clicking main bar button `n` (0-based) emits `"{ACTION_BUTTON_PREFIX}{n}"`.
 pub const ACTION_BUTTON_PREFIX: &str = "action_button:";
+pub const ACTION_VEHICLE_EXIT: &str = "vehicle_exit";
+const VEHICLE_LEAVE_SIZE: f32 = 32.0;
 
 pub const BUTTON_SIZE: f32 = 45.0;
 pub const BUTTON_PADDING: f32 = 2.0;
@@ -53,7 +55,7 @@ const COOLDOWN_TEXT_COLOR: &str = "1.0,1.0,1.0,1.0";
 
 /// Every chrome sheet the Modern bar draws (`uiactionbar`), for hosts that copy art out
 /// of local CASC.
-pub const ACTION_BAR_ART_FDIDS: [u32; 1] = [4_613_342];
+pub const ACTION_BAR_ART_FDIDS: [u32; 3] = [4_613_342, 237_700, 237_699];
 
 const SLOT_BACKGROUND: &str = "UI-HUD-ActionBar-IconFrame-Background";
 const SLOT_ART: &str = "UI-HUD-ActionBar-IconFrame-Slot";
@@ -263,6 +265,9 @@ pub struct MainActionBarState {
     pub extra_action_bars: game_engine_core::client_options_data::ExtraActionBars,
     /// The player's `ChrClasses` ID; `None` until the player's unit has replicated.
     pub player_class: Option<u8>,
+    pub vehicle_leave: bool,
+    pub vehicle_leave_pressed: bool,
+    pub vehicle_leave_hovered: bool,
 }
 
 impl Default for MainActionBarState {
@@ -274,6 +279,9 @@ impl Default for MainActionBarState {
             }),
             extra_action_bars: Default::default(),
             player_class: None,
+            vehicle_leave: false,
+            vehicle_leave_pressed: false,
+            vehicle_leave_hovered: false,
         }
     }
 }
@@ -669,6 +677,48 @@ fn action_bar(
     }
 }
 
+/// Retail VehicleLeaveButton.xml:32px exit art; dock above the active bottom bars.
+fn vehicle_leave_button(state: &MainActionBarState, hud: &HudLayout, scale: f32) -> Element {
+    let bottom = [
+        Some(&hud.main_action_bar),
+        hud.action_bar_2.as_ref(),
+        hud.action_bar_3.as_ref(),
+    ]
+    .into_iter()
+    .flatten()
+    .map(|bar| bar.anchor.y + bar.size(scale).1)
+    .fold(0.0, f32::max)
+        + BUTTON_PADDING;
+    let icon = if state.vehicle_leave_pressed {
+        237_699u32
+    } else {
+        237_700u32
+    };
+    let hidden = !state.vehicle_leave;
+    let highlight_hidden = !state.vehicle_leave_hovered;
+    rsx! {
+        button {
+            name:FrameName("MainMenuBarVehicleLeaveButton"),
+            width:VEHICLE_LEAVE_SIZE,height:VEHICLE_LEAVE_SIZE,
+            hidden,button_default_skin:false,onclick:ACTION_VEHICLE_EXIT,
+            strata:FrameStrata::High,
+            pos_type:"absolute",left:"50%",margin_left:{-VEHICLE_LEAVE_SIZE/2.0},bottom,
+            texture {
+                name:FrameName("MainMenuBarVehicleLeaveButtonIcon"),
+                width:VEHICLE_LEAVE_SIZE,height:VEHICLE_LEAVE_SIZE,
+                texture_fdid:icon,tex_coords:"0.140625,0.859375,0.140625,0.859375",
+                pos_type:"absolute",pos_x:0.0,pos_y:0.0,
+            }
+            texture {
+                name:FrameName("MainMenuBarVehicleLeaveButtonHighlight"),
+                width:VEHICLE_LEAVE_SIZE,height:VEHICLE_LEAVE_SIZE,
+                texture_atlas:HIGHLIGHT,hidden:highlight_hidden,
+                pos_type:"absolute",pos_x:0.0,pos_y:0.0,
+            }
+        }
+    }
+}
+
 pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
     let state = ctx
         .get::<MainActionBarState>()
@@ -692,6 +742,7 @@ pub fn main_action_bar_screen(ctx: &SharedContext) -> Element {
         })
         .collect();
     elements.extend(side_action_bars(state, &style));
+    elements.extend(vehicle_leave_button(state, &hud, style.scale));
     elements
 }
 

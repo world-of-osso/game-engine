@@ -4,8 +4,8 @@ use crate::frame_error::{FrameError, SessionError};
 use crate::player_spells::{bonus_bar_offset, main_bar_slot};
 use crate::{GameClient, ui::RegistryUi};
 use game_engine_ui_model::main_action_bar_component::{
-    ACTION_BAR_ART_FDIDS, ActionBar, ActionButtonView, MAIN_BAR_BUTTONS, MainActionBarState,
-    parse_action_button,
+    ACTION_BAR_ART_FDIDS, ACTION_VEHICLE_EXIT, ActionBar, ActionButtonView, MAIN_BAR_BUTTONS,
+    MainActionBarState, parse_action_button,
 };
 use godot::prelude::*;
 use shared::components::{Player, UnitAuras};
@@ -136,6 +136,9 @@ impl GameClient {
             return Ok(());
         };
         let action = ui.bind_mut().pop_action().to_string();
+        if action == ACTION_VEHICLE_EXIT {
+            return Ok(self.account.send_exit_vehicle()?);
+        }
         match parse_action_button(&action) {
             Some((bar, index)) => Ok(self.use_action_button(bar, index)?),
             None if action.is_empty() => Ok(()),
@@ -206,6 +209,11 @@ impl GameClient {
     pub(super) fn action_bar_state(&mut self) -> MainActionBarState {
         let mut state = MainActionBarState {
             player_class: self.local_player_class(),
+            vehicle_leave: self
+                .world
+                .local_player_id()
+                .and_then(|id| self.replica.unit(id))
+                .is_some_and(|unit| unit.has::<shared::components::VehiclePassenger>()),
             extra_action_bars: self.client_options.hud.extra_action_bars,
             ..Default::default()
         };
@@ -215,6 +223,15 @@ impl GameClient {
             }
         }
         state.set_hotkeys(&self.client_options.bindings);
+        state.vehicle_leave_hovered = self
+            .spells
+            .bar_ui
+            .as_ref()
+            .and_then(|ui| ui.bind().hovered_button())
+            .is_some_and(|(name, _)| name == "MainMenuBarVehicleLeaveButton");
+        state.vehicle_leave_pressed = state.vehicle_leave_hovered
+            && godot::classes::Input::singleton()
+                .is_mouse_button_pressed(godot::global::MouseButton::LEFT);
         if let Some((name, _)) = self
             .spells
             .bar_ui
