@@ -1,6 +1,7 @@
 from pathlib import Path
 import struct
 import sys
+import subprocess
 import tempfile
 import unittest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
@@ -37,6 +38,27 @@ class FixedPointTests(unittest.TestCase):
             self.assertEqual(result['summary']['missing'], 0)
             self.assertEqual([r['before'] for r in rounds], [1, 1, 1])
             self.assertEqual([r['after'] for r in rounds], [1, 1, 0])
+
+    def test_graph_replacement_completes_with_room_for_one_manifest(self):
+        code = '''
+from pathlib import Path
+import resource
+import os
+from closure_extract_rounds import fixed_point
+baseline = int(Path('/proc/self/statm').read_text().split()[0]) * os.sysconf('SC_PAGE_SIZE')
+limit = baseline + 40 * 1024 * 1024
+resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
+result = fixed_point({'payload': b'x' * (24 * 1024 * 1024)},
+                     lambda m, n: {'files': 1},
+                     lambda: {'done': True, 'payload': b'y' * (24 * 1024 * 1024)},
+                     lambda m: 0 if m.get('done') else 1, lambda r: None)
+print(len(result['payload']))
+'''
+        result = subprocess.run([sys.executable, '-c', code],
+                                cwd=Path(__file__).resolve().parents[1],
+                                text=True, capture_output=True, check=False)
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(result.stdout.strip(), str(24 * 1024 * 1024))
 
     def test_indexed_failure_stops_without_claiming_missing_bytes_present(self):
         manifest = {'summary': {'missing': 1}, 'assets': [{'fdid': 8, 'present': False}]}
