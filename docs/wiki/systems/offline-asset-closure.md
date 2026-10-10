@@ -124,6 +124,15 @@ Appearance's original driver later exceeded its14GiB cgroup: the receipt/allocat
 ### Bounded-test incident
 
 A new RED fixture falsely returned `files=1` for unchanged data, so its round ledger grew indefinitely and the short-test process was OOM-killed (36,423,376,896-byte slice peak). The corrected fixture returns zero after its one available leaf is present; finite RED/GREEN proves retryable-count termination without marking the unavailable leaf present. Continuation short tests now use an explicit 512MiB hard maximum and zero swap on their own slice; a soft `MemoryHigh` alone did not bound the runaway. Heavy extraction units are separate. Other-process impact was not audited. Evidence: `test-fixture-oom-incident.txt`, `retryable-finite-red.log`, `retryable-green.log` under the continuation evidence root.
+## Recorded-gap recovery — verified 2026-10-10
+
+`recheck_local_asset_gaps.py` is separate from the offline graph audit. Feed a product-keyed JSON inventory of FDID/type/locations, an explicit read-only install, canonical data root, existing extractor and private output directory. It authenticates current metadata, retries indexed payloads, then uses the existing no-clobber publication path. Unknown-key output stays unpublished; server imports are outside this tool.
+
+Evidence `data/diagnostics/forever70338-keys-2026-10-10/` records stable archive/config/IDX mtimes across180s and idle Syncthing with zero needed files. Forever1.60.1.70338 now has a readable root, unlike70334. Seven recorded Skyborne bakes and Retail vehicle model7476985 are published. All204 original IV8 failures decode with the existing blteiv extractor; three old IDX misses and one old size mismatch also resolve. This is asset recovery, not renderer or complete-closure acceptance; original root-absent identities and alias conflicts remain recorded individually.
+
+Sibling asset-resolver's `scripts/import_dbcache_keys.py` joins16-byte TactKey payloads with8-byte TactKeyLookup names by record ID, supplementing hotfix lookups with a local lookup DB2. Retail cache yields48 names, all already present in the external store; no new names added. Reports never include key bytes. The Classic-beta cache is absent locally.
+
+Reexports preserve existing CSVs. Retail candidates under `data/db2/12.1.0.69933/recheck-forever70338/` expose Vehicle+6, VehicleSeat+8 and GlobalStrings+65 IDs relative to the recorded/current CSVs. Creature's43-row gain over its older handoff is already present in canonical CSV. Forever reexports use distinct1.60.1.70338 paths. No world.db import or live acceptance performed.
 
 ## Sources
 
@@ -132,6 +141,7 @@ A new RED fixture falsely returned `files=1` for unchanged data, so its round le
 - `scripts/closure_{kit_effects,emitters,appearance,wmo_liquid}.py`, `closure_db2_layouts.py`, `export_db2_csv.py` and their concrete `scripts/tests/test_closure_*.py` fixtures.
 - WoWDBDefs `meta/enums/SpellVisualKitEffectType.dbde` and exact-build `definitions/*.dbd`; source hashes in the evidence root. NPC bake selection follows `scripts/import_npc_appearance.py`; WMO liquid identity/request ordering follows `godot/core/src/wmo_liquid.rs` and `godot/rust/src/terrain/wmo_liquid.rs`.
 - wowdev/pywowlib `m2_file.py` / `file_formats/m2_format.py` — BFID `.bone` arrays and PFID `.phys` identity, collected without claiming runtime satellite support.
+- `scripts/recheck_local_asset_gaps.py`, `scripts/tests/test_recheck_local_asset_gaps.py`; recovery evidence above includes per-FDID results, native logs and CSV candidates.
 - `godot/core/src/asset/{adt,m2,wmo}_format/` — current binary layouts and flags; WMO material shader 19/20 texture slots reference WebWowViewerCpp in parser_types.rs.
 - Sibling `game-server/crates/server/src/{player_create_info.rs,class_progression.rs,spell_info/class_data.rs}` — imported loadout and auto-learn/default-skill rules; source comments cite TrinityCore ObjectMgr/Player.
 

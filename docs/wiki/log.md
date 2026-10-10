@@ -5,6 +5,34 @@
 ## 2026-10-10 — Unresolved closure resolver continuation
 
 [Offline asset closure](systems/offline-asset-closure.md#resolver-continuation--tooling-verified-2026-10-10) records sourced spell-kit/effect, native M2 emitter, raw extended appearance and owning-root WMO liquid joins; local DB2 layouts, unlisted sound headers, BFID/PFID satellites and explicit script/voice/format gaps. Tooling1f9ff541d passes66 isolated fixtures without warnings. This implementation checkpoint preceded the completed round-3 dataset above; no no-install certificate, merge or data commit.
+## 2026-10-10 — Effect50 toy object rendering
+
+[Toy objects](systems/toy-box.md#effect50-object-rendering-2026-10-10) records the generic-decoration cursor/visibility bug, targeted RED→GREEN, five passing native tests and actual UseToy45011/33223/40768 assets/scales on private toy-effects4 UDP55386. Six inspected configured-skin PNGs retained; aura233 is named from pinned TrinityCore but remains unimplemented pending authentic payload resolution. No global model, database, shared realm or master changes.
+## 2026-10-10 — Disenchant private live proof
+
+[Disenchant](systems/disenchant.md#private-live-proof--2026-10-10): engine588689217/server2aa9da0, private5617, fresh fb_ account. Forever727 and Modern816 consumed; authentic entry3 loot manually taken; appearances214/242 added and survived relog; grey25 refused/retained. Read-only snapshot RED→GREEN and update unit1/1 pass. Census50/100 TDB entries affected by16 absent materials,40 wholly unavailable; live753 empty-loot disposal/action-lock bug now has server branch519a34d unavailable/actual-empty-roll refusal, Disenchant8/8 and check/format proof; no post-fix rendered/merge claim. No wardrobe UI or broad auto-loot/cancellation proof.
+
+## 2026-10-10 — Quest POI hover, v3
+
+[Quest map objectives](systems/quest-map-objectives.md#v3-source-boundary-2026-10-10) records title/POI hover selection without super-tracking, authored polygon addition/removal and Retail additive InnerGlow. New RED→GREEN regressions,29 distinct targeted UI-model/core tests, native build/check and private UDP5528 both-skin input fixture pass. Eight originals FFmpeg-downscaled/inspected and published with `v3-` prefix. Native minimap selection is not exposed by searched Retail Lua/API sources; existing watched behavior retained, parity unclaimed.
+## 2026-10-10 — Retail talent footer controls
+
+[Footer controls](systems/talents.md#footer-controls--2026-10-10) records staged class/spec/all reset, real catalog search with previews/keyboard/badges, unnamed default loadout UI and explicit server/serialization blockers. Native ui-model17/17, actual Down/Up/Enter/blur fixture, four inspected Arms/Arcane Modern/Forever v3 captures and footer bounds/glyph proof. Authenticated local atlas1047875 extraction; no CDN, server mutation, merge or independent verification claim.
+
+## 2026-10-10 — Skyborne baked NPC native capture
+
+[Seven-bake checkpoint](systems/forever-data.md#seven-recovered-bakes--native-npc-checkpoint-2026-10-10) records authenticated70338 scoped asset/receipt publication, seven attached displays and eight inspected private5487 captures of four NPCs in explicitly selected Modern/Forever layouts. Three isolated-body captures remain obscured by overlapping reconstructed spawns; no renderer/server code change or full-zone appearance acceptance.
+## 2026-10-10 — Retail pet battle HUD v2
+
+[HUD correction](systems/battle-pets.md#retail-hud-correction--verified-2026-10-10) removes centered Rust debug output and ability-name labels, uses Retail active/reserve portraits and icon actions/locks/badges, adds XP chrome and target-amount floating feedback above the model viewport. Both skins have individually downscaled/inspected battle/ability/trap-ready/win PNGs. UI6/wire2/server6 targeted tests and native builds/check pass; protocol/server changes carry missing HUD metadata only. Independent verifier OAuth expired before execution.
+
+## 2026-10-10 — Bounded wild PvE pet battle acceptance
+
+[Wild integration](systems/battle-pets.md#wild-pve-integration--verified-2026-10-10) records real native loadout/right-click/swap, defeated wins and captures in explicitly verified Modern/Forever layouts on private5592. Final state-before-End fixes stale lethal HP; saved layer visibility prevents normal HUD/nameplates covering battle controls and restores them on close. Eight individually ffmpeg-downscaled/inspected PNGs,31 shared static native rectangles,26 UI integration tests and required server workspace1,753 passes/71 ignored/one skip. Unsupported effect semantics and expired independent verifier authentication remain explicit; no merge or shared-realm operation.
+
+## 2026-10-10 — Stable local CASC / 70338 gap recovery
+
+[Recorded-gap recovery](systems/offline-asset-closure.md#recorded-gap-recovery--verified-2026-10-10) records a readable70338 root, seven body bakes, vehicle7476985 and204 IV8 recoveries using the existing fixed extractor. Local cache importer finds48 already-known names. Vehicle+6/VehicleSeat+8/GlobalStrings+65 reexport candidates preserve canonical CSVs; no server import, asset download, mirror write or rendering acceptance.
 
 ## 2026-10-10 — Disenchant bag-item cursor
 
@@ -3089,6 +3117,10 @@ Recorded pure override/book cooldown and destination tests, both-skin private Bl
 ## 2026-10-10 — Override live acceptance resumed on ca6b249
 
 Server learned-spell publication unblocked both-skin aura proof. Fixed approved native book press routing; click/hover, book→bar drag, real aura332 apply/restore and ground destinations passed. Current native check passed after bounded cached KTX artifact seeding. [Coverage and limits](systems/spell-overrides-teleports.md#scoped-acceptance-2026-10-10).
+
+## 2026-10-10 — Aura312 client replacement hook
+
+Added local Retail replacement-table exports and per-unit base/action selection maps, authoritative clearing and logical-source jump progression. Preserved crossfade pose continuity and movement blend minimum. [Implementation and proof limits](systems/spell-overrides-teleports.md#animation-replacements): no speed field in these layouts; conditional flags and primary Retail missing-destination citation remain unverified.
 ## 2026-10-10 — Terrain and runtime-path asset closure
 
 [Offline closure continuation](systems/offline-asset-closure.md#closure-continuation--verified-2026-10-10) records parsed terrain/liquid/ground-detail identities, current-runtime not-needed evidence, SQLite/local-cache path precedence and direct Map/TXID/MDID references; local-CASC fixed points, receipt/size proof and remaining acceptance boundaries. No data committed or no-install gameplay certification.

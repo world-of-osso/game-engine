@@ -96,6 +96,21 @@ fn load_blob_rows(dir: &Path) -> Result<Vec<[i64; 8]>, String> {
     Ok(rows)
 }
 
+/// Quest title / POI controls that participate in Retail's transient highlight.
+/// Numeric prefixes must end at a known suffix, not at a different quest's ID.
+pub fn hovered_quest_id(name: &str) -> Option<u32> {
+    let rest = name
+        .strip_prefix("QuestLogTitle")
+        .or_else(|| name.strip_prefix("QuestBlock"))?;
+    let end = rest.find(|c: char| !c.is_ascii_digit())?;
+    let suffix = &rest[end..];
+    if suffix == "Text" || suffix == "HeaderText" || suffix.starts_with("POIButton") {
+        rest[..end].parse().ok()
+    } else {
+        None
+    }
+}
+
 pub fn quest_minimap_blips(
     runtime: &crate::quest_runtime::QuestRuntime,
     selected: Option<u32>,

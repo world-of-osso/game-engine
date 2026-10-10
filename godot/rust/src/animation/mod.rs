@@ -14,6 +14,8 @@ use godot::builtin::{Basis, Transform3D};
 mod action;
 mod billboard;
 mod momentum;
+#[cfg(test)]
+mod replacement_tests;
 pub(crate) use action::ActionPriority;
 pub(crate) mod lod;
 
@@ -167,6 +169,8 @@ pub struct AnimationState {
     global_ms: f64,
     local_pivots: Vec<Vector3>,
     current: usize,
+    replacements: std::collections::HashMap<u16, u16>,
+    source_id: u16,
     time_ms: f64,
     looping: bool,
     transition: Option<Transition>,
@@ -243,6 +247,13 @@ impl AnimationState {
                 .iter()
                 .position(|sequence| sequence.id == 0)
                 .unwrap_or(0),
+            replacements: Default::default(),
+            source_id: model
+                .sequences
+                .iter()
+                .find(|sequence| sequence.id == ANIM_STAND)
+                .unwrap_or(&model.sequences[0])
+                .id,
             time_ms: 0.0,
             looping: true,
             transition: None,
@@ -364,15 +375,46 @@ impl AnimationState {
             return Ok(());
         }
         self.start_transition(index, looping);
+        self.source_id = self.sequences[index].id;
+        Ok(())
+    }
+
+    /// Missing destination keeps source, without following destination's fallback chain.
+    fn replacement_id(&self, source: u16) -> u16 {
+        self.replacements
+            .get(&source)
+            .copied()
+            .filter(|&destination| self.has_base_sequence(destination))
+            .unwrap_or(source)
+    }
+
+    pub fn set_replacements(
+        &mut self,
+        map: std::collections::HashMap<u16, u16>,
+    ) -> Result<(), String> {
+        if self.replacements == map {
+            return Ok(());
+        }
+        self.replacements = map;
+        self.select_animation_id(self.source_id, self.looping)?;
+        if let Some(action) = &self.action {
+            let (source, looping, priority) = (action.source_id, action.looping, action.priority);
+            if !action.releasing && self.sequences[action.index].id != self.replacement_id(source) {
+                self.play_action(source, looping, priority)?;
+            }
+        }
         Ok(())
     }
 
     pub fn select_animation_id(&mut self, id: u16, looping: bool) -> Result<bool, String> {
+        let source = id;
+        let id = self.replacement_id(source);
         let index = self
             .sequences
             .iter()
             .position(|sequence| sequence.id == id && sequence.variation_id == 0)
             .ok_or_else(|| format!("M2 animation ID {id} has no base variation"))?;
+        self.source_id = source;
         if self.sequences[self.current].id == id && self.looping == looping {
             return Ok(false);
         }
@@ -401,7 +443,7 @@ impl AnimationState {
         if swimming {
             return self.select_animation_id(movement_id, true);
         }
-        let current_id = self.sequences[self.current].id;
+        let current_id = self.source_id;
         let finished = self.time_ms >= f64::from(self.sequences[self.current].duration);
         if !jumping
             && let Some(selected) = self.update_pose(current_id, movement_id, finished, armed)
@@ -479,12 +521,14 @@ impl AnimationState {
 
     fn play_death(&mut self) {
         self.action = None;
+        let death = self.replacement_id(ANIM_DEATH);
         if let Some(index) = self
             .sequences
             .iter()
-            .position(|sequence| sequence.id == ANIM_DEATH)
+            .position(|sequence| sequence.id == death && sequence.variation_id == 0)
         {
             self.start_transition(index, false);
+            self.source_id = ANIM_DEATH;
         }
     }
 
@@ -545,14 +589,20 @@ impl AnimationState {
     }
 
     fn finish_death(&mut self, remaining_ms: f64) {
-        if self.sequences[self.current].id != ANIM_DEATH {
+        if self.source_id != ANIM_DEATH {
             return;
         }
         // Most models have no Dead clip and author the corpse as Death's last frame.
-        let Some(dead) = self.sequences.iter().position(|clip| clip.id == ANIM_DEAD) else {
+        let dead_id = self.replacement_id(ANIM_DEAD);
+        let Some(dead) = self
+            .sequences
+            .iter()
+            .position(|clip| clip.id == dead_id && clip.variation_id == 0)
+        else {
             return;
         };
         self.start_transition(dead, false);
+        self.source_id = ANIM_DEAD;
         self.time_ms = remaining_ms.min(f64::from(self.sequences[dead].duration));
         self.tick_transition(remaining_ms);
     }
@@ -791,6 +841,22 @@ impl WowAnimationPlayer {
         if let Some(animation) = self.animation.as_mut() {
             animation.pose_transition = true;
         }
+    }
+
+    pub(crate) fn set_replacements(
+        &mut self,
+        map: std::collections::HashMap<u16, u16>,
+    ) -> Result<(), String> {
+        let animation = self
+            .animation
+            .as_mut()
+            .ok_or_else(|| "M2 animation has no bound model".to_string())?;
+        if animation.replacements == map {
+            return Ok(());
+        }
+        animation.set_replacements(map)?;
+        self.write_poses();
+        Ok(())
     }
 
     pub(crate) fn playback_rate(&self) -> Option<f32> {

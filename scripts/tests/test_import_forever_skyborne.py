@@ -50,11 +50,22 @@ class StringTests(unittest.TestCase):
         self.assertEqual(list(rows), [10])
         self.assertEqual(dropped, 1)
 
-    def test_encrypted_string_block_rejected(self):
+    def test_decrypted_keyed_string_block_is_read(self):
         data = string_fixture(True)
         rows, _, fields, _ = export.read_wdc5(data, 123)
-        with self.assertRaisesRegex(ValueError, "encrypted"):
-            export.read_string(data, rows[11][2], fields[0], rows[11][0][0])
+        self.assertEqual(
+            export.read_string(data, rows[11][2], fields[0], rows[11][0][0]), "C"
+        )
+
+    def test_unreadable_encrypted_string_block_rejected(self):
+        data = string_fixture(True)
+        rows, _, fields, _ = export.read_wdc5(data, 123)
+        record_offset, value = rows[11][2], rows[11][0][0]
+        # A keyed section whose records and strings are all zero was never decrypted.
+        unreadable = bytearray(data)
+        unreadable[350:356] = bytes(6)
+        with self.assertRaisesRegex(ValueError, "unreadable encrypted"):
+            export.read_string(bytes(unreadable), record_offset, fields[0], value)
 
 
 class ImportTests(unittest.TestCase):

@@ -122,7 +122,14 @@ impl GameClient {
         Ok(())
     }
     fn apply_pet_journal_action(&mut self, action: &str) -> Result<(), FrameError> {
-        if let Some(id) = action.strip_prefix("pet:select:owned:") {
+        if let Some(slot) = action.strip_prefix("pet:equip:") {
+            let slot = slot
+                .parse()
+                .map_err(|_| format!("Invalid loadout action: {action}"))?;
+            if let Some(request) = self.pet_journal.view.equip_selected(slot) {
+                self.account.send_pet_loadout(request)?;
+            }
+        } else if let Some(id) = action.strip_prefix("pet:select:owned:") {
             self.pet_journal.view.select(PetRowKey::Owned(
                 id.parse()
                     .map_err(|_| format!("Invalid pet action: {action}"))?,

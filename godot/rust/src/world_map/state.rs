@@ -61,11 +61,16 @@ fn write_map_contents(state: &WorldMapFrameState, result: &mut VarDictionary) {
             .as_ref()
             .map_or("", |highlight| highlight.name.as_str()),
     );
+    result.set(
+        "highlighted_quest",
+        state.highlighted_quest.map_or(0, i64::from),
+    );
     result.set("pin_count", state.pins.len() as i64);
     result.set("quest_area_count", state.quest_areas.len() as i64);
     let mut pins = VarArray::new();
     for pin in &state.pins {
         let mut entry = VarDictionary::new();
+        entry.set("quest_id", pin.quest_id.map_or(0, i64::from));
         entry.set("type", format!("{:?}", pin.pin_type).as_str());
         entry.set("label", pin.label.as_str());
         entry.set("badge", pin.badge.as_str());
