@@ -26,6 +26,21 @@ zero forbidden entries. A separate child deliberately swallows a tripwire panic;
 the counter still makes that child fail. This is CPU asset-startup proof, not a
 rendered gameplay or complete asset-closure proof.
 
+## P1 proof (2026-10-09)
+
+Engine code `5dbe8b3c0` and resolver `8fc769b` (on modelisolation's `3157d12`)
+passed the locked depot startup target 5/5 and all six engine packages: 2,656
+passed, zero failures, seven existing ignored, no warnings. The RED subprocess
+on the original startup returned `WoW install not found`. Changed-file rustfmt
+checks and manual readability review pass. No rendered-game or complete-closure
+claim follows from these CPU tests.
+
+A combined run also passed resolver unit22/bin2, then stopped at its pre-existing
+install-dependent `tests/initialize.rs`: depot has no WoW install. Default CASC
+behavior remains unchanged; that environmental failure is not suppressed.
+Evidence lives under
+`data/diagnostics/shippedassets-p1-2026-10-09/` in the canonical checkout.
+
 ## Sources
 
 - [Shipped-assets contract](../../specs/shipped-assets.md)
