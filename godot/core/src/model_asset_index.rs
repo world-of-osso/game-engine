@@ -1,6 +1,7 @@
 //! Shipped per-asset receipts select actual builds independently of metadata builds.
 use crate::asset_product::AssetProduct;
 use serde::Deserialize;
+use std::{collections::HashMap, path::Path};
 
 #[derive(Debug, Deserialize)]
 pub struct ModelAssetReceipt {
@@ -15,11 +16,43 @@ pub struct ModelAssetReceipt {
     pub content_key: String,
 }
 
-pub struct ModelAssetIndex;
+pub struct ModelAssetIndex {
+    assets: HashMap<(AssetProduct, u32, String), ModelAssetReceipt>,
+}
+
+#[derive(Deserialize)]
+struct IndexFile {
+    version: u32,
+    assets: Vec<ModelAssetReceipt>,
+}
 
 impl ModelAssetIndex {
-    pub fn from_json(_json: &str) -> Result<Self, String> {
-        Ok(Self)
+    pub fn load(data_root: &Path) -> Result<Self, String> {
+        let path = data_root.join("cache/model-asset-index.json");
+        let json = std::fs::read_to_string(&path)
+            .map_err(|error| format!("Read model asset index {}: {error}", path.display()))?;
+        Self::from_json(&json)
+            .map_err(|error| format!("Model asset index {}: {error}", path.display()))
+    }
+
+    pub fn from_json(json: &str) -> Result<Self, String> {
+        let file: IndexFile = serde_json::from_str(json)
+            .map_err(|error| format!("Decode asset receipts: {error}"))?;
+        if file.version != 1 {
+            return Err(format!(
+                "Unsupported model asset index version {}",
+                file.version
+            ));
+        }
+        let mut assets = HashMap::new();
+        for receipt in file.assets {
+            validate_receipt(&receipt)?;
+            let key = (receipt.product, receipt.fdid, receipt.kind.clone());
+            if assets.insert(key.clone(), receipt).is_some() {
+                return Err(format!("Duplicate model asset receipt for {key:?}"));
+            }
+        }
+        Ok(Self { assets })
     }
 
     pub fn receipt(
@@ -28,11 +61,50 @@ impl ModelAssetIndex {
         fdid: u32,
         kind: &str,
     ) -> Result<&ModelAssetReceipt, String> {
-        Err(format!(
-            "No verified asset receipt for {} FDID {fdid}.{kind}",
-            product.as_str()
-        ))
+        self.assets
+            .get(&(product, fdid, kind.to_owned()))
+            .ok_or_else(|| {
+                format!(
+                    "No verified asset receipt for {} FDID {fdid}.{kind}",
+                    product.as_str()
+                )
+            })
     }
+}
+
+fn is_hex(value: &str, length: usize) -> bool {
+    value.len() == length && value.bytes().all(|byte| byte.is_ascii_hexdigit())
+}
+
+fn validate_receipt(receipt: &ModelAssetReceipt) -> Result<(), String> {
+    let directory = match receipt.kind.as_str() {
+        "blp" => "textures",
+        "m2" | "skin" | "skel" | "anim" | "bone" => "models",
+        kind => return Err(format!("Unsupported model-chain asset kind {kind}")),
+    };
+    let expected = format!(
+        "products/{}/{}/{directory}/{}.{}",
+        receipt.product.as_str(),
+        receipt.build_key,
+        receipt.fdid,
+        receipt.kind
+    );
+    if receipt.path != expected {
+        return Err(format!(
+            "Asset {} has wrong namespace; expected {expected}",
+            receipt.path
+        ));
+    }
+    let hashes_valid = is_hex(&receipt.build_key, 32)
+        && is_hex(&receipt.sha256, 64)
+        && is_hex(&receipt.content_key, 32);
+    let has_bytes = receipt.bytes != 0;
+    let has_build = !receipt.build.is_empty();
+    let complete = hashes_valid && has_bytes && has_build;
+    if !complete {
+        return Err(format!("Incomplete verified receipt for {}", receipt.path));
+    }
+    Ok(())
 }
 
 #[cfg(test)]
