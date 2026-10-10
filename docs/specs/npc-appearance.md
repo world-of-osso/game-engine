@@ -25,6 +25,14 @@ Replicated NPCs render the appearance selected by their creature display data. R
 
 - [x] Compose every selected separate DB2 texture type on its `ChrModelMaterial` canvas, preserving baked body (1) and the established hair/head crop (6). A selected layer without a canvas errors rather than retaining original base colour. `assets::appearance::replacement_tests` covers the declared type union and the historical missing-eye-canvas boundary.
 
+## Unknown-key record contract
+
+- Import readable fixed-record sections, including decrypted keyed sections. Omit unknown-key zero-filled records; never fabricate profiles, parent relationships or record values. Corrupt/unsupported layouts remain errors.
+- Report skipped records per table with section, key name, cleartext encrypted record IDs, and `parent: unknown (zero-filled)` for relationship-bearing tables. Missing explicitly referenced records remain errors; unrelated encrypted sections do not reject readable records.
+- Identify a locked display only from a readable reference to a demonstrably undecodable required record, recording its blocking key/table/record IDs. Missing coverage alone and unknown parent ownership are not evidence that a display is locked. A successful re-import restores real coverage rather than substituting an ordinary creature or partial record.
+- Initial user decision: deactivate genuinely locked models pending a future patch/keyring. Corrected lead decision on2026-10-09: **deactivate none of displays143516/138170/136970/136981/136967/137339/138156**, whose Extras and readable customization/item chains exist. Preserve quest/service-critical creatures while their deactivation decision is pending. No hardcoded runtime display-ID policy.
+- Hidden options/geosets cannot be attributed to displays because their parent fields are zero-filled. The inference that the hidden nine options belong to newer Extra165799 is not proof. [Forever investigation](../wiki/systems/forever-data.md#readable-section-correction-2026-10-09) owns exact source IDs, dependency audit and proof limits. Decoder omission/reporting and explicit missing-Extra rejection have targeted fixture proof; seven real profiles are published. Missing local bakes still block native appearance/error-free acceptance; metadata coverage alone is not rendered acceptance.
+
 ## Forever display overlay
 
 - [x] Resolve display IDs absent from Retail using Forever 1.60.1.70205 CDI → CMD, with the Forever model table even when ModelID collides. Keep every Retail display row unchanged.
