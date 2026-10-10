@@ -13,6 +13,7 @@ use godot::{
 impl SpellsHud {
     pub(super) fn cancel_ground_target(&mut self) {
         self.ground.cancel();
+        self.item.cancel();
         if let Some(reticle) = self.reticle.take() {
             reticle.free();
         }
@@ -21,7 +22,7 @@ impl SpellsHud {
 
 impl GameClient {
     pub(crate) fn cancel_ground_target(&mut self) -> bool {
-        let active = self.spells.ground.active();
+        let active = self.spells.ground.active() || self.spells.item.active();
         self.spells.cancel_ground_target();
         active
     }
@@ -31,6 +32,9 @@ impl GameClient {
         &mut self,
         event: &Gd<InputEvent>,
     ) -> Result<bool, FrameError> {
+        if self.spells.item.active() {
+            return Ok(self.item_spell_world_pointer(event));
+        }
         if !self.spells.ground.active() {
             return Ok(false);
         }
@@ -48,6 +52,22 @@ impl GameClient {
             _ => return Ok(false),
         }
         Ok(true)
+    }
+
+    fn item_spell_world_pointer(&mut self, event: &Gd<InputEvent>) -> bool {
+        let Ok(mouse) = event.clone().try_cast::<InputEventMouseButton>() else {
+            return false;
+        };
+        if !mouse.is_pressed() {
+            return false;
+        }
+        match mouse.get_button_index() {
+            MouseButton::RIGHT => self.spells.item.cancel(),
+            // Disenchant cannot target world units; retain the cursor.
+            MouseButton::LEFT => {}
+            _ => return false,
+        }
+        true
     }
 
     fn place_ground_spell(&mut self, pointer: Vector2) -> Result<(), FrameError> {
@@ -74,11 +94,11 @@ impl GameClient {
     }
 
     pub(crate) fn update_ground_spell_reticle(&mut self) -> Result<(), FrameError> {
-        if !self.spells.ground.active() {
-            return Ok(());
-        }
         if !self.account.session.gameplay_input_allowed() || self.game_menu_ui.is_some() {
             self.spells.cancel_ground_target();
+            return Ok(());
+        }
+        if !self.spells.ground.active() {
             return Ok(());
         }
         let point =

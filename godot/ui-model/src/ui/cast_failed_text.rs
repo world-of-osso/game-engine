@@ -66,6 +66,11 @@ pub fn cast_failed_text(
         CastFailReason::AffectingCombat => "You are in combat",
         // SPELL_FAILED_NOT_MOUNTED
         CastFailReason::NotMounted => "You are mounted.",
+        CastFailReason::CantBeDisenchanted => "Item cannot be disenchanted",
+        CastFailReason::CantBeDisenchantedSkill => {
+            "Your Enchanting skill is not high enough to disenchant that"
+        }
+        CastFailReason::NotKnown => "Spell not learned",
     };
     text.to_string()
 }

@@ -14,6 +14,7 @@ use shared::protocol::CastFailed;
 impl GameClient {
     pub(crate) fn cast_spell(&mut self, spell_id: u32) -> Result<(), SessionError> {
         let spell_id = self.effective_spell(spell_id);
+        self.spells.cancel_ground_target();
         if self.open_profession_spell(spell_id) {
             return Ok(());
         }
@@ -26,6 +27,25 @@ impl GameClient {
             .and_then(|data| data.get(spell_id))
             .map(|spell| spell.name.to_string())
             .unwrap_or_default();
+        if spell_id == 13262 {
+            let icon = self
+                .spells
+                .catalog()
+                .and_then(|data| data.get(spell_id))
+                .map_or(0, |spell| spell.icon_fdid);
+            self.spells.item.begin(
+                shared::protocol::SpellCastIntent {
+                    spell_id: Some(spell_id),
+                    spell: name,
+                    target_entity: None,
+                    target_item_guid: None,
+                    witness: None,
+                    destination: None,
+                },
+                icon,
+            );
+            return Ok(());
+        }
         if self
             .spells
             .catalog()
@@ -33,6 +53,7 @@ impl GameClient {
             .is_some_and(|spell| spell.ground_targeted)
         {
             self.spells.ground.begin(shared::protocol::SpellCastIntent {
+                target_item_guid: None,
                 spell_id: Some(spell_id),
                 spell: name,
                 target_entity: None,
@@ -41,7 +62,6 @@ impl GameClient {
             });
             return Ok(());
         }
-        self.spells.cancel_ground_target();
         let target = self.targeting_target();
         if self.auto_attack_on_cast(spell_id, target)? {
             return Ok(());
@@ -53,6 +73,44 @@ impl GameClient {
         self.account.send_cast(spell_id, &name, target, witness)?;
         self.spells.sent.push(spell_id);
         Ok(())
+    }
+
+    pub(crate) fn item_spell_cursor_icon(&self) -> Option<u32> {
+        self.spells.item.icon_fdid()
+    }
+
+    /// ContainerFrame spell-targeting branch precedes pickup, use and NPC actions.
+    pub(crate) fn item_spell_cursor_click(
+        &mut self,
+        action: &str,
+        click: game_engine_ui_model::merchant::Click,
+    ) -> Result<bool, FrameError> {
+        if !self.spells.item.active() {
+            return Ok(false);
+        }
+        let Some((bag, slot)) =
+            game_engine_ui_model::bag_frame_component::parse_bag_slot_action(action)
+        else {
+            return Ok(false);
+        };
+        if click.right {
+            self.spells.item.cancel();
+            return Ok(true);
+        }
+        let guid = self
+            .merchant
+            .session
+            .inventory
+            .slot(bag, slot)
+            .map_or(0, |item| item.item_guid);
+        if let Some(intent) = self.spells.item.choose(guid) {
+            let id = intent
+                .spell_id
+                .expect("item spell cursor stores a spell ID");
+            self.account.send_spell_intent(intent)?;
+            self.spells.sent.push(id);
+        }
+        Ok(true)
     }
 
     /// Whether the local player rides the mount `spell_id` summons (it is mounted and has

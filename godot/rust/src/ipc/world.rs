@@ -227,6 +227,7 @@ impl crate::GameClient {
         );
         self.account
             .send_spell_intent(SpellCastIntent {
+                target_item_guid: None,
                 spell_id,
                 spell: spell.clone(),
                 target_entity,

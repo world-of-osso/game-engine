@@ -123,6 +123,9 @@ impl GameClient {
         at: Option<Vector2>,
     ) -> Result<(), FrameError> {
         self.bags.cursor.picked_at = None;
+        if self.item_spell_cursor_click(action, click)? {
+            return Ok(());
+        }
         if self.toybox_cursor_press(owner, action, click, at)? {
             return Ok(());
         }
@@ -243,6 +246,9 @@ impl GameClient {
         action: &str,
         click: Click,
     ) -> Result<(), FrameError> {
+        if self.item_spell_cursor_click(action, click)? {
+            return Ok(());
+        }
         let location = parse_bag_location(action)?;
         self.bags.cursor.split = None;
         if !click.right
@@ -394,6 +400,7 @@ impl GameClient {
         if self.bags.cursor.ui.is_none()
             && self.bags.cursor.item.is_empty()
             && self.bags.cursor.spell_drag.is_none()
+            && self.item_spell_cursor_icon().is_none()
             && self.toybox.drag.is_none()
             && self.bags.cursor.split.is_none()
         {
@@ -442,14 +449,15 @@ impl GameClient {
             Vector2::from_array(self.physical_input.pointer()) / self.effective_ui_scale();
         Ok(CursorView {
             icon: CursorItemFrameState {
-                icon_fdid: self
-                    .bags
-                    .cursor
-                    .spell_drag
-                    .as_ref()
-                    .map(|drag| drag.icon_fdid)
-                    .or_else(|| self.toybox.drag.as_ref().map(|drag| drag.icon_fdid))
-                    .or_else(|| self.bags.cursor.item.icon_fdid()),
+                icon_fdid: self.item_spell_cursor_icon().or_else(|| {
+                    self.bags
+                        .cursor
+                        .spell_drag
+                        .as_ref()
+                        .map(|drag| drag.icon_fdid)
+                        .or_else(|| self.toybox.drag.as_ref().map(|drag| drag.icon_fdid))
+                        .or_else(|| self.bags.cursor.item.icon_fdid())
+                }),
                 position: [pointer.x, pointer.y],
             },
             split: self.bag_split_view()?,
