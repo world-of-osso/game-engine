@@ -132,6 +132,7 @@ impl WildBattleView {
             if !(1..=3).contains(&button)
                 || !pet.abilities[usize::from(button - 1)].usable
                 || state.replacement_required
+                || state.initial_selection_required
             {
                 return None;
             }
@@ -139,14 +140,16 @@ impl WildBattleView {
         } else if let Some(slot) = action.strip_prefix("pb:swap:") {
             let slot: u8 = slot.parse().ok()?;
             let index = usize::from(slot.checked_sub(1)?);
-            if index == usize::from(state.active[0]) || state.teams[0].get(index)?.health <= 0 {
+            if (!state.initial_selection_required && index == usize::from(state.active[0]))
+                || state.teams[0].get(index)?.health <= 0
+            {
                 return None;
             }
             WildPetBattleAction::Swap(slot)
         } else {
             match action {
                 "pb:trap" if state.can_trap => WildPetBattleAction::Trap,
-                "pb:pass" if !state.replacement_required => WildPetBattleAction::Pass,
+                "pb:pass" if !state.replacement_required && !state.initial_selection_required => WildPetBattleAction::Pass,
                 "pb:confirm-forfeit" if self.confirm_forfeit => WildPetBattleAction::Forfeit,
                 _ => return None,
             }
@@ -244,7 +247,7 @@ pub fn wild_battle_screen(ctx: &SharedContext) -> Element {
     }
     children.extend(rsx! { r#frame { name: "PetBattleFloatingLayer", width, height, left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: false, strata: ui_toolkit::strata::FrameStrata::Dialog, {floating} } });
 
-    if view.show_swap || state.replacement_required {
+    if view.show_swap || state.replacement_required || state.initial_selection_required {
         children.extend(swap_panel(view, state));
     }
     if view.confirm_forfeit {
@@ -488,7 +491,7 @@ fn action_bar(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
         out.extend(icon_button(
             format!("PetBattleAbility{number}"),
             &format!("pb:ability:{number}"),
-            enabled && ability.usable && !state.replacement_required,
+            enabled && ability.usable && !state.replacement_required && !state.initial_selection_required,
             (x, top, 52.0, 52.0),
         ));
         if ability.id != 0 {
@@ -586,7 +589,7 @@ fn action_bar(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
         "PetBattlePass".into(),
         "Pass",
         "pb:pass",
-        enabled && !state.replacement_required,
+        enabled && !state.replacement_required && !state.initial_selection_required,
         (width / 2.0 - 40.0, height - 116.0, 80.0, 22.0),
     ));
     if state.turn_time_ms != 0 {
@@ -619,8 +622,18 @@ fn effectiveness_badge(attack: u8, defender: u8) -> Option<u32> {
 }
 fn swap_panel(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
     let mut out = Vec::new();
+    if state.initial_selection_required {
+        out.extend(label(
+            "PetBattleSelectPetInstruction".into(),
+            "Select a pet!",
+            (view.viewport[0] / 2.0 - 285.0, view.viewport[1] - 245.0, 570.0, 28.0),
+            (18.0, WHITE, "CENTER"),
+        ));
+    }
     for (index, pet) in state.teams[0].iter().enumerate() {
-        let enabled = pet.health > 0 && index != usize::from(state.active[0]) && !view.pending;
+        let enabled = pet.health > 0
+            && (state.initial_selection_required || index != usize::from(state.active[0]))
+            && !view.pending;
         out.extend(panel_button(
             format!("PetBattleSwapPet{}", index + 1),
             &format!("{} {} / {}", pet.name, pet.health, pet.max_health),

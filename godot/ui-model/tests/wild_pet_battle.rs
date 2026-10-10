@@ -56,10 +56,32 @@ fn snapshot() -> WildPetBattleSnapshot {
         wild_creature: 99,
         can_trap: true,
         turn_time_ms: 0,
+        initial_selection_required: false,
         replacement_required: false,
         feedback: vec![],
     }
 }
+#[test]
+fn petbattle_pvp_initial_selection_allows_current_pet_but_not_combat_actions() {
+    let mut view = WildBattleView::default();
+    let mut state = snapshot();
+    state.wild_creature = 0;
+    state.can_trap = false;
+    state.initial_selection_required = true;
+    state.teams[0][0].abilities[0].usable = true;
+    state.teams[0][0].abilities[0].cooldown = 0;
+    view.receive(WildPetBattleUpdate::Start(state.clone()));
+    assert!(view.action("pb:ability:1").is_none());
+    assert!(view.action("pb:pass").is_none());
+    let request = view.action("pb:swap:1").expect("current front pet can be selected");
+    assert_eq!(request.action, WildPetBattleAction::Swap(1));
+    assert_eq!(request.round, state.round);
+    assert!(view.action("pb:swap:2").is_none());
+    view.receive(WildPetBattleUpdate::Rejected("initial pet already selected".into()));
+    view.receive(WildPetBattleUpdate::State(WildPetBattleSnapshot { initial_selection_required: false, ..state }));
+    assert!(view.action("pb:ability:1").is_some());
+}
+
 #[test]
 fn wild_pet_battle_actions_use_authoritative_round_and_block_cooldowns_pending_and_fainted_swaps() {
     let mut view = WildBattleView::default();

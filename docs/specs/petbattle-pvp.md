@@ -28,7 +28,8 @@ Retail Pet Journal Find Battle queues account-owned teams. Mainline sources: loc
 ## Known gaps (current cycle)
 
 - [ ] Private two-account, both-skin screenshot proof: genuine Modern queue/proposal reached; initial unresolved border fixed, then corrected native startup blocked on saved-token/account-layout mismatch after bounded retries. No accepted PNGs published.
-- [ ] Initial pet selection, proposal/round timers and PvP XP remain unimplemented.
+- [x] PvP initial selection automatically shows the existing three-pet picker, permits selecting the current front pet and prevents abilities/pass until both owners choose. Mainline `Blizzard_PetBattleUI.lua:185–198` drives mandatory pre-battle selection; `GlobalStrings.csv` ID22782 supplies `Select a pet!`.
+- [ ] Proposal/round timer values and PvP XP formula were not established from local Retail Lua/GlobalStrings/BattlePet DB2; remain unset, never guessed. Lua:523 reads `C_PetBattles.GetTurnTimeInfo()`, XML ready popup:54 queries `CanAcceptQueuedPVPMatch()`, Lua:264 reads current XP. None supplies the required numerical policy. Diagnostic census: `data/diagnostics/petbattle-pvp-2026-10-10/pvp2-retail-evidence.json`.
 - [ ] Exact Retail matchmaking rating/level tolerance and penalty/reward policy not yet certified.
 
 ## Out of scope
