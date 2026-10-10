@@ -1,5 +1,6 @@
 """Reachable spell roots traverse visual kits, missiles, audio and textures."""
 from pathlib import Path
+import hashlib
 import sys
 import tempfile
 import unittest
@@ -30,10 +31,15 @@ class SpellRootsTests(unittest.TestCase):
             root.mkdir(parents=True)
             for name, text in tables.items():
                 (root / (name + '.csv')).write_text(text)
+            (data / 'sounds/spells').mkdir(parents=True)
+            (data / 'sounds/spells/80.ogg').write_bytes(b'OggSfixture')
             graph = Closure(data, {80: 'sound/a.ogg', 81: 'sound/b.mp3'}, 'wow', 'fixture')
             seed_spell_visuals(graph, Catalogs(graph), [100])
             self.assertEqual(sorted(graph.assets), [(60, 'm2'), (61, 'm2'), (62, 'm2'), (70, 'blp'), (71, 'blp'), (72, 'blp'), (80, 'ogg'), (81, 'mp3')])
             self.assertTrue(any(code == 'unsupported_spell_kit_effect' and '99' in reason for code, reason, _ in graph.unresolved))
+            result = graph.run()
+            self.assertEqual(next(row for row in result['assets'] if row['fdid'] == 80)['present_files'],
+                             [{'path': 'sounds/spells/80.ogg', 'size': 11, 'sha256': hashlib.sha256(b'OggSfixture').hexdigest()}])
 
 
 if __name__ == '__main__':
