@@ -16,6 +16,8 @@ A requested spell icon must decode its own `SpellMisc.SpellIconFileDataID` BLP f
 
 Developer/depot asset preparation enumerates a deterministic superset of reachable icons: every positive SpellMisc icon/active icon, TraitDefinition override, class/spec portrait and source-local item/appearance icon. Extract only authentic local-CASC bytes ahead of shipping, with source-table hashes and per-file provenance. Ship `data/cache/required-ui-icons.json`, `ui-icon-provenance.json` and the declared `data/textures/<fdid>.blp` files. Release builds must fail with an explicit missing-FDID list when this set is incomplete; debug/CPU diagnosis does not constitute shipping acceptance. No unavailable icon may be fabricated or omitted from the required manifest to make validation pass.
 
+CPU scripts tests account for unavailable local icons in versioned [`scripts/ui-icon-exceptions.json`](../../scripts/ui-icon-exceptions.json), with one FDID and concrete reason per entry. Tests reject both unlisted missing icons and stale exceptions (icons now extracted or no longer required). This diagnostic allowance does not authorize shipping: `scripts/depot-build.py::build(release=True)` still calls `scripts/prepare_ui_icons.py::prepare_ui_icons`, which refuses incomplete assets without consulting exceptions.
+
 ## What it must do
 
 - [x] Known spells, spec, action bar and cooldowns follow the server messages; leaving the world clears them.

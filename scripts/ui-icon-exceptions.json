@@ -1,0 +1,34 @@
+{
+  "version": 1,
+  "spell_db2_build": "12.1.0.69933",
+  "exceptions": [
+    {
+      "fdid": 3937156,
+      "reason": "Local CASC resolution/listfile has no mapping for this FDID."
+    },
+    {
+      "fdid": 4069393,
+      "reason": "Local CASC resolution/listfile has no mapping for this FDID."
+    },
+    {
+      "fdid": 6865682,
+      "reason": "Local CASC resolution/listfile has no mapping for this FDID."
+    },
+    {
+      "fdid": 7431442,
+      "reason": "Missing TACT key NAME FBBF041F980CE0DC; extractor output is zero-filled .dat, not authentic BLP."
+    },
+    {
+      "fdid": 7431451,
+      "reason": "Missing TACT key NAME FBBF041F980CE0DC; extractor output is zero-filled .dat, not authentic BLP."
+    },
+    {
+      "fdid": 7578215,
+      "reason": "Local CASC root lacks content for inv_12_jewelryandtrinkets_raid_darkwell_tank2_phoenixegg.blp."
+    },
+    {
+      "fdid": 7813752,
+      "reason": "Local CASC resolution/listfile has no mapping for this FDID."
+    }
+  ]
+}

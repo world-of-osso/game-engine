@@ -2,7 +2,7 @@
 
 Root `cargo run` and `rd` compile only the tiny std-only launcher locally. The launcher runs `python3 scripts/depot-build.py --root <checkout>` on the selected `desktop` or `local` Docker build host, then launches/imports Godot locally as usual. The helper retains its filename; Depot is no longer required. This October 3, 2026 trial replaces the Depot-only contract; historical Depot evidence below remains evidence for its original runs, not proof of either new host.
 
-`--build-host desktop|local` selects a host for one helper or launcher invocation; the launcher consumes it rather than forwarding it to Godot. Without an explicit host, the helper reads `~/.config/game-engine/build-host`, independent of runtime `XDG_CONFIG_HOME` isolation. Missing or invalid defaults fail explicitly; no host fallback.
+`--build-host desktop|local|native` selects a host for one helper or launcher invocation; the launcher consumes it rather than forwarding it to Godot. Without an explicit host, the helper reads `~/.config/game-engine/build-host`, independent of runtime `XDG_CONFIG_HOME` isolation. Missing or invalid defaults fail explicitly; no host fallback.
 
 Client options `--screen`, `--state`, `--server`, `--char`, and `--run-js-ui-script <path>` are routed after Godot's `--` separator; native Godot options stay before it. Direct Godot invocation must place client options after `--`. The script uses the shared synchronous JS compiler and native frame-driven consumer; see the [native UI automation contract](specs/native-ui-automation.md) and [bounded Login evidence and open gates](wiki/systems/godot-conversion.md#native-js-automation--bounded-login-green-overall-gate-fail). Routing is not all-action or full-feature acceptance.
 
@@ -48,7 +48,11 @@ Verified source review: 2026-10-06, master `2f5f3e79`. Agents must reuse their a
 
 The path is the cache identity, not the branch: `scripts/depot-build.py:261–269` hashes `os.fsencode(root)` with SHA-256 and keeps the first 20 hex characters; `scripts/build_hosts.py:32–46` passes `godot-target-<hash>` to BuildKit. The server helper adds `server-` to that checkout key and passes `server-target-<key>`, giving **`server-target-server-<hash>`** (`scripts/desktop-server-build.py:70–88,154–170`). A new slot path therefore starts another cache; switching branches at the same path preserves the warm slot. [Build boundary](#build-boundary) owns snapshot freshness, per-checkout locking and artifact export details.
 
-Wrap every agent build/test using the shared builder with `~/.worktrees/build-lock.sh`; this global lock serialises builds across slots, unlike the helper's per-checkout lock. The wrapper's implementation is `~/.worktrees/build-lock.sh:5–9` (host-local, not tracked here). On this Ubuntu WSL host select `--build-host local` explicitly:
+## Native host (`native`, agent-server default since 2026-10-09)
+
+`--build-host native` runs host `cargo build|test --locked --manifest-path godot/Cargo.toml` with `CARGO_TARGET_DIR=<checkout>/target`, so the extension, fixtures and CLI land where `godot/game_engine.gdextension` and fixtures expect them, and tests read the checkout's real `data/` (no staged test-asset subset). Cargo uses every core; `scripts/depot-build.py` holds one of `GAME_ENGINE_NATIVE_SLOTS` (default 3) host-wide slots per run, so agents run it under `scripts/agent/agent-run` without `build-lock.sh`. `--release` refuses `native`: host (Arch) links need the host's newest glibc, so shipped artifacts use the bookworm container (`--build-host local`).
+
+Wrap every agent build/test using the shared container builder with `~/.worktrees/build-lock.sh`; this global lock serialises builds across slots, unlike the helper's per-checkout lock. The wrapper's implementation is `~/.worktrees/build-lock.sh:5–9` (host-local, not tracked here). On this Ubuntu WSL host select `--build-host local` explicitly:
 
 ```sh
 scripts/agent/agent-run <run_name> ~/.worktrees/build-lock.sh \
@@ -158,7 +162,7 @@ The GPU fixture requires the warm complete active-build CASC cache, authored UI/
 
 ### Gaming and proof limits
 
-The saved default is currently `desktop`. Before gaming, select `local` with `python3 scripts/depot-build.py --save-build-host local`; restore `desktop` afterward. All trial-owned runtimes were stopped. Other-session Cargo jobs may still be active; this does not establish an idle desktop. If WSL must release memory, first check running jobs and their owners and confirm no other session needs OssoBuild; only then optionally run `ssh desktop wsl.exe --terminate OssoBuild`. Never terminate the distro merely because this trial finished.
+On agent-server the saved default is `native` (2026-10-09). The desktop history below is retained for the OssoBuild host. All trial-owned runtimes were stopped. Other-session Cargo jobs may still be active; this does not establish an idle desktop. If WSL must release memory, first check running jobs and their owners and confirm no other session needs OssoBuild; only then optionally run `ssh desktop wsl.exe --terminate OssoBuild`. Never terminate the distro merely because this trial finished.
 
 Both extension exports, desktop CLI export and the 16-test camera subset are host-capability observations, not head-pinned native/sibling snapshot acceptance. The camera subset retained an unused-import warning; it is not an all-core or warning-free pass. Main's ledger is `target/build-host-proof.md`. Independent followup at `0c8f7275` accepted the bounded trial: launcher format/check/readability and 25 process tests pass after `f8d3a3c9`; the unchanged 42-test Python proof remains valid. Both runtime fixtures and the authored image were independently inspected. Full-game parity remains outside this acceptance.
 

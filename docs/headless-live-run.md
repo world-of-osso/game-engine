@@ -20,7 +20,7 @@ Set these variables to approved, existing inputs before executing examples. Use 
 | `RACE`, `CLASS`, `LEVEL`, `X`, `Y`, `Z` | Explicit scenario setup inputs for that character |
 | `RESOLVER_SOURCE`, `DOZEN`, `WSL_LIB` | Warm resolver cache, `/opt/game-engine/mesa-dzn`, `/usr/lib/wsl/lib` |
 
-**Never touch UDP `:5000` or `/home/osso-test/data/osso-5000`.** Do not start, stop, restart, administer, replace binaries, copy a live redb, or alter files there. Obtain inputs from separately approved staging; this recipe grants no access to that protected instance. Use only `fb_*` accounts and their own characters, never `admin` or `Theron`, even if a copied database contains them. Do not restart WSL, WSLg or other sessions' services.
+**Never touch the shared UDP `:5000` realm.** Its current host/unit/state are owned by the [server deployment SSOT](../../game-server/docs/deploy.md), not the former desktop `osso-5000` instance. Do not start, stop, restart, administer, replace binaries, copy a live redb, or alter shared-realm files. Obtain inputs from separately approved staging; this recipe grants no access to that protected instance. Use only `fb_*` accounts and their own characters, never `admin` or `Theron`, even if a copied database contains them. Do not restart WSL, WSLg or other sessions' services.
 
 Check `ss -ulnp` for the chosen port before launch and record the baseline. Reserve a different free port if occupied; do not kill its owner. Record engine/server/protocol revisions, executable hashes, exact argv/environment, working directories and intended proof in `$RUN/proof-ledger.txt`. A protocol fingerprint mismatch requires matching binaries, not repeated login attempts.
 
