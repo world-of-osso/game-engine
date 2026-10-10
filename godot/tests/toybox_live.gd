@@ -32,11 +32,11 @@ func run_fixture() -> void:
 	await type_text("Time-Lost Figurine")
 	if not await wait_until(func(): return control("ToySpellButton1Name") != null and control("ToySpellButton1Name").text == "Time-Lost Figurine", "search result"): return
 	if relog:
-		if learned().is_empty() or not learned().favourite or int(client.toybox_state().slots.get(11, 0)) != ITEM:
+		if learned().is_empty() or not learned().favourite or int(client.toybox_state().slots.get(8, 0)) != ITEM:
 			fail("favourite/action slot did not survive relog: " + str(client.toybox_state())); return
 		await capture("relog-favourite-slot")
 		if OS.get_environment("TOYBOX_FINAL_RELOG") != "1":
-			await click("ActionButton12")
+			await click("ActionButton9")
 			if not await wait_until(func(): return float(learned().cooldown) > 0.0 and transformed(), "bar cast and authoritative cooldown"): return
 			await capture("bar-used-cooldown")
 		print("PASS: Toy Box relog favourite and slot; real bar use ", client.toybox_state(), " auras=", client.aura_state())
@@ -68,10 +68,10 @@ func run_fixture() -> void:
 	await click("ToySpellButton1")
 	if not await wait_until(func(): return float(learned().cooldown) > 0.0 and transformed(), "journal cast and authoritative toy cooldown"): return
 	await capture("used-cooldown")
-	await drag_to("ToySpellButton1", "ActionButton12")
-	if not await wait_until(func(): return int(client.toybox_state().slots.get(11, 0)) == ITEM, "toy action assignment"): return
+	await drag_to("ToySpellButton1", "ActionButton9")
+	if not await wait_until(func(): return int(client.toybox_state().slots.get(8, 0)) == ITEM, "toy action assignment"): return
 	await capture("dragged-action-slot")
-	await click("ActionButton12")
+	await click("ActionButton9")
 	if not await wait_until(func(): return client.toybox_state().error != "", "same UseToy bar path cooldown refusal"): return
 	await capture("bar-cooldown-error")
 	print("PASS: Toy Box learned/use/favourite/drag/bar-refusal ", client.toybox_state(), " auras=", client.aura_state())
