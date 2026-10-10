@@ -90,6 +90,8 @@ func run_test() -> void:
 		if local_position().distance_to(before_move) < 2.0 or not await assert_seated():
 			fail("Passenger did not follow the driver")
 			return
+		if not await capture(skin + "-driver-moved-passenger-mammoth"):
+			return
 		await click(control("MainMenuBarVehicleLeaveButton"))
 		if not await wait_until(func(): return not seated(), "leave-seat request"):
 			return
