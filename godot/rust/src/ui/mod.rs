@@ -379,6 +379,15 @@ impl RegistryModel {
         {
             game_engine_ui_model::trainer_frame::apply_trainer_art(view, &mut self.registry);
         }
+        if let Some(view) = self
+            .shared
+            .get::<game_engine_ui_model::toybox_component::ToyBoxView>()
+        {
+            game_engine_ui_model::toybox_component::apply_toybox_postsetup(
+                view,
+                &mut self.registry,
+            );
+        }
         // FlightMap uses quest-window mounting, which has no Bags icon-mask postsetup.
         if self
             .shared
