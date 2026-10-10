@@ -27,23 +27,7 @@ impl GameClient {
             .and_then(|data| data.get(spell_id))
             .map(|spell| spell.name.to_string())
             .unwrap_or_default();
-        if spell_id == 13262 {
-            let icon = self
-                .spells
-                .catalog()
-                .and_then(|data| data.get(spell_id))
-                .map_or(0, |spell| spell.icon_fdid);
-            self.spells.item.begin(
-                shared::protocol::SpellCastIntent {
-                    spell_id: Some(spell_id),
-                    spell: name,
-                    target_entity: None,
-                    target_item_guid: None,
-                    witness: None,
-                    destination: None,
-                },
-                icon,
-            );
+        if self.begin_disenchant_cursor(spell_id, &name) {
             return Ok(());
         }
         if self
@@ -73,6 +57,30 @@ impl GameClient {
         self.account.send_cast(spell_id, &name, target, witness)?;
         self.spells.sent.push(spell_id);
         Ok(())
+    }
+
+    fn begin_disenchant_cursor(&mut self, spell_id: u32, name: &str) -> bool {
+        const DISENCHANT: u32 = 13262;
+        if spell_id != DISENCHANT {
+            return false;
+        }
+        let icon = self
+            .spells
+            .catalog()
+            .and_then(|data| data.get(spell_id))
+            .map_or(0, |spell| spell.icon_fdid);
+        self.spells.item.begin(
+            shared::protocol::SpellCastIntent {
+                spell_id: Some(spell_id),
+                spell: name.to_owned(),
+                target_entity: None,
+                target_item_guid: None,
+                witness: None,
+                destination: None,
+            },
+            icon,
+        );
+        true
     }
 
     pub(crate) fn item_spell_cursor_icon(&self) -> Option<u32> {
