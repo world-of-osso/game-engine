@@ -878,3 +878,21 @@ fn auction_mail_invoice_is_not_a_letter_and_renders_retail_rows() {
             .is_none()
     );
 }
+
+#[test]
+fn auction_mail_nil_participant_uses_retail_multiple_participant_labels() {
+    configure_assets();
+    for (tag, expected) in [
+        ("AUCTION_SOLD_MAIL_SUBJECT", "Purchased By: Multiple Buyers"),
+        ("AUCTION_WON_MAIL_SUBJECT", "Sold By: Multiple Sellers"),
+    ] {
+        let mut session = open(vec![MailHeader {
+            subject: format!("{tag}:Wool Cloth"),
+            body: ":1001:2000:37:50:1".into(),
+            ..mail(1)
+        }]);
+        session.selected = Some(1);
+        let view = session.view(0, &InventoryState::default(), &MailTexts::default());
+        assert_eq!(view.open.unwrap().invoice.unwrap().player_label, expected);
+    }
+}
