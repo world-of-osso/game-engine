@@ -22,7 +22,9 @@ func _run() -> void:
 	await frames(120)
 	await login(endpoint)
 	var phase := OS.get_environment("TALENT_LOADOUT_PHASE")
-	if phase == "metadata":
+	if phase == "existing":
+		await existing_lifecycle()
+	elif phase == "metadata":
 		await metadata_draft()
 	elif phase == "inspect":
 		await inspect_loadouts()
@@ -33,7 +35,7 @@ func _run() -> void:
 	else:
 		abort("Unknown explicit skin")
 		return
-	var proof_suffix := "-" + phase if phase in ["inspect", "metadata"] else ""
+	var proof_suffix := "-" + phase if phase in ["inspect", "metadata", "existing"] else ""
 	var proof_name := skin + proof_suffix + "-proof.json"
 	var file := FileAccess.open(directory.path_join(proof_name), FileAccess.WRITE)
 	file.store_string(JSON.stringify(evidence, "\t"))
@@ -56,6 +58,30 @@ func login(endpoint: String) -> void:
 	await key(KEY_N)
 	await control("TalentLoadoutDropDown")
 	await frames(120)
+
+func existing_lifecycle() -> void:
+	await expect_caption("Dungeons")
+	await new_loadout("Modern Temporary")
+	await menu()
+	var config_id := 0
+	for node in root.find_children("TalentLoadoutRow*Text", "Label", true, false):
+		var label := node as Label
+		if label.text == "Modern Temporary":
+			config_id = int(str(label.name).trim_prefix("TalentLoadoutRow").trim_suffix("Text"))
+	if config_id == 0:
+		abort("Created config has no authoritative named row")
+		return
+	await click("TalentLoadoutEdit" + str(config_id))
+	await click("TalentLoadoutDelete")
+	await click("TalentLoadoutSave")
+	await expect_caption("Default Loadout")
+	await expect_rank("1/1")
+	await menu()
+	await click("TalentLoadoutRow2")
+	await expect_caption("Dungeons")
+	await login(OS.get_environment("TALENT_LOADOUT_ENDPOINT"))
+	await expect_caption("Dungeons")
+	await expect_rank("1/1")
 
 func metadata_draft() -> void:
 	await expect_caption("Dungeons")
