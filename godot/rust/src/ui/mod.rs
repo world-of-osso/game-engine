@@ -570,16 +570,6 @@ impl RegistryModel {
 
     /// Original Enter in an edit box: login submits unless in flight; deletion confirms.
     fn submit(&self, actions: &mut VecDeque<String>) {
-        if matches!(self.postsetup, ScreenPostsetup::Spellbook) {
-            eprintln!(
-                "TALENT_INPUT_SUBMIT focused={:?} name={:?}",
-                self.registry.focused_frame,
-                self.registry
-                    .focused_frame
-                    .and_then(|id| self.registry.get(id))
-                    .and_then(|frame| frame.name.as_deref())
-            );
-        }
         let connecting = self
             .shared
             .get::<login::SharedConnecting>()

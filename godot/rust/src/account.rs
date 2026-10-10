@@ -616,7 +616,6 @@ impl Account {
         &self,
         request: shared::protocol::TraitLoadoutRequest,
     ) -> Result<(), SessionError> {
-        eprintln!("TALENT_INPUT_REQUEST {request:?}");
         self.bridge()?
             .send::<_, TalentChannel>(request)
             .map_err(SessionError)
@@ -1685,9 +1684,7 @@ impl Account {
         } else if message.is::<shared::protocol::TraitConfigSnapshot>() {
             self.talents.receive_snapshot(decode(message)?);
         } else if message.is::<shared::protocol::TraitLoadoutsSnapshot>() {
-            let list = decode::<shared::protocol::TraitLoadoutsSnapshot>(message)?;
-            eprintln!("TALENT_INPUT_LIST {list:?}");
-            self.talents.receive_loadouts(list);
+            self.talents.receive_loadouts(decode(message)?);
         } else if message.is::<shared::protocol::TraitCommitResult>() {
             self.talents.receive_result(decode(message)?);
             if let Some(reason) = &self.talents.error_text {

@@ -93,7 +93,9 @@ Retail sources: `Blizzard_ClassTalentsFrame.lua:493-533,577-621` (new copies cur
 
 Import/export prerequisite: `Blizzard_ClassTalentImportExport.lua:172,200` fetches an8-bit version through a C API; local generated SharedTraitsDocumentation declares no value. Header is8 version/16 spec/128 hash bits, all class-tree nodes sorted ascending, selection/purchase bits, optional partial6-bit ranks, choice2-bit index. Tiered ranks split across ordered entries on import (same file:363-392). `ExportUtil.lua:31-69,120-152` packs/extracts LSB-first6-bit base64 symbols, not byte-based padded Base64. No numeric version/string is selected or emitted. Starter availability/activation/next-purchase and PvP/Warmode authority remain missing, as recorded in the contract.
 
-Proof pending native integration; server behavioural4/4 passed at9690934, migration RED is preserved. Evidence root `data/diagnostics/talent-loadouts-2026-10-10/`.
+Proof: server behavioural4/4 at9690934, ui-model22/22 and real UDP relay2/2 at9ad2595a1; native extension+CLI build passes without compiler warnings. Modern private UDP46869 reaches native create/two rows/switch/Apply, then the resumed real-server fixture proves Enter rename, confirmed delete and relog atac594c756. Forever proof remains pending. Evidence root `data/diagnostics/talent-loadouts-2026-10-10/`.
+
+The apparent rename-via-Enter failure was a harness IO deadlock, not a dropped UI submit: instrumentation recorded native signal → registry Submit → Rename request → renamed server list after correcting launch IO. `Pyrun.spawn()` leaves stdout/stderr pipes undrained; busy server NPC logs filled stderr and blocked its worker, also reproducing a login timeout. `scripts/agent/logged-process.py` redirects both streams to a durable file before exec; use `agent-run NAME python3 scripts/agent/logged-process.py LOG PROGRAM ...` for detached private servers. A real-process regression writes1MiB per stream without draining the parent pipes and verifies READY/file contents/exit-code propagation. No UI fallback, fabricated reply or server timeout suppression.
 
 ## Server wiring (2026-10-09)
 

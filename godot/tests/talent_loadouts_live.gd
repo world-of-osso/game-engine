@@ -76,7 +76,9 @@ func rename_delete_relog() -> void:
 	await click("TalentLoadoutEdit1")
 	await capture("edit-dialog")
 	await type_name("Raid Updated")
-	print("TALENT_INPUT_BEFORE_ENTER focus=",(root.find_child("TalentLoadoutNameInput",true,false) as LineEdit).has_focus())
+	if not (root.find_child("TalentLoadoutNameInput", true, false) as LineEdit).has_focus():
+		abort("Name input lost native focus before Enter")
+		return
 	await key(KEY_ENTER)
 	await expect_caption("Raid Updated")
 	await new_loadout("Temporary")
