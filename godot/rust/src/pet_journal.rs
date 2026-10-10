@@ -52,14 +52,23 @@ impl GameClient {
             self.close_pet_journal();
             return Ok(());
         }
-        if !self.pet_journal.view.visible {
+        if !self.pet_journal.view.visible && !self.pet_journal.view.queue_ready() {
+            if let Some(ui) = self.pet_journal.ui.take() {
+                ui.free();
+            }
             return Ok(());
         }
-        self.load_pet_icons()?;
-        self.poll_pet_journal_inputs()?;
         if self.pet_journal.view.visible {
+            self.load_pet_icons()?;
+        }
+        self.poll_pet_journal_inputs()?;
+        if self.pet_journal.view.visible || self.pet_journal.view.queue_ready() {
             self.sync_pet_journal()?;
-            self.sync_pet_card_model()?;
+            if self.pet_journal.view.visible {
+                self.sync_pet_card_model()?;
+            } else {
+                self.clear_pet_card_model();
+            }
         }
         Ok(())
     }
@@ -141,6 +150,11 @@ impl GameClient {
             ));
         } else {
             match action {
+                "pet:find-battle" | "pet:queue-accept" | "pet:queue-decline" => {
+                    if let Some(request) = self.pet_journal.view.queue_action(action) {
+                        self.account.send_pet_queue(request)?;
+                    }
+                }
                 "pet:close" | "collections:close" => {
                     self.close_pet_journal();
                 }

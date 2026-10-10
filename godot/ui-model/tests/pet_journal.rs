@@ -191,3 +191,70 @@ fn pet_journal_skins_share_retail_layout_and_real_instance_text() {
     }
     set_thread_skin(ActiveSkin::Modern);
 }
+
+#[test]
+fn petbattle_pvp_journal_find_leave_and_proposal_wait_for_authority() {
+    use shared::protocol::{
+        PetBattleQueueRequest as Request, PetBattleQueueState as State, PetBattleQueueUpdate,
+    };
+    let mut view = view();
+    for _ in 0..2 {
+        view.journal
+            .add_with_breed(39, 1, PetQuality::Common, 3)
+            .unwrap();
+    }
+    assert_eq!(view.queue_action("pet:find-battle"), Some(Request::Join));
+    assert_eq!(view.queue_action("pet:find-battle"), None);
+    view.receive_queue(PetBattleQueueUpdate {
+        state: State::Queued,
+        error: None,
+    });
+    assert_eq!(view.queue_action("pet:find-battle"), Some(Request::Leave));
+    view.receive_queue(PetBattleQueueUpdate {
+        state: State::Proposal {
+            proposal_id: 91,
+            accepted: false,
+        },
+        error: None,
+    });
+    assert_eq!(
+        view.queue_action("pet:queue-accept"),
+        Some(Request::Accept { proposal_id: 91 })
+    );
+    view.receive_queue(PetBattleQueueUpdate {
+        state: State::Proposal {
+            proposal_id: 91,
+            accepted: true,
+        },
+        error: None,
+    });
+    assert_eq!(view.queue_action("pet:queue-accept"), None);
+    assert_eq!(view.queue_action("pet:find-battle"), Some(Request::Leave));
+}
+#[test]
+fn petbattle_pvp_ready_popup_appears_without_open_journal_in_both_skins() {
+    use shared::protocol::PetBattleQueueState;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = view();
+        view.visible = false;
+        view.queue = PetBattleQueueState::Proposal {
+            proposal_id: 91,
+            accepted: false,
+        };
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(pet_journal_screen).sync(&context, &mut registry);
+        assert!(registry.get_by_name("PetBattleQueueReadyFrame").is_some());
+        assert!(registry.get_by_name("PetBattleQueueAcceptButton").is_some());
+        assert!(
+            registry
+                .get_by_name("PetBattleQueueDeclineButton")
+                .is_some()
+        );
+        assert!(registry.get_by_name("CollectionsJournal").is_none());
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}

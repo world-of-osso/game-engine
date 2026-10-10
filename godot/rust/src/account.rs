@@ -200,6 +200,7 @@ pub enum AccountEvent {
     Professions(shared::protocol::ProfessionSnapshot),
     Collections(shared::protocol::CollectionStateUpdate),
     WildPetBattle(shared::protocol::WildPetBattleUpdate),
+    PetBattleQueue(shared::protocol::PetBattleQueueUpdate),
     TrainerList(shared::protocol::TrainerList),
     TrainerFailed(shared::protocol::TrainerBuyFailed),
     /// Bank and guild bank contents, logs and refusals.
@@ -667,6 +668,14 @@ impl Account {
     pub fn send_wild_battle_action(
         &self,
         request: shared::protocol::WildPetBattleActionRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::CollectionChannel>(request)
+            .map_err(SessionError)
+    }
+    pub fn send_pet_queue(
+        &self,
+        request: shared::protocol::PetBattleQueueRequest,
     ) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, shared::protocol::CollectionChannel>(request)
@@ -1284,6 +1293,10 @@ impl Account {
         }
         if message.is::<shared::protocol::TrainerBuyFailed>() {
             output.push(AccountEvent::TrainerFailed(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::PetBattleQueueUpdate>() {
+            output.push(AccountEvent::PetBattleQueue(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::WildPetBattleUpdate>() {
