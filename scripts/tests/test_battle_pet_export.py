@@ -40,6 +40,13 @@ class BattlePetExportTests(unittest.TestCase):
         self.assertEqual(rows[24]["ParamLabel_5"], "")
         self.assertEqual(len(rows), 135)
 
+    def test_creature_names_and_display_arrays_for_companion_models(self):
+        rows, report = self.export("Creature", 841631)
+        self.assertEqual(rows[2671]["Name_lang"], "Mechanical Squirrel")
+        self.assertEqual(rows[2671]["DisplayID_0"], "7937")
+        self.assertEqual(rows[2671]["DisplayID_3"], "0")
+        self.assertIn("48 encrypted records dropped", report)
+
     def test_breed_quality_exports_float_not_raw_bits(self):
         rows, _ = self.export("BattlePetBreedQuality", 801578)
         self.assertEqual(float(rows[7]["StateMultiplier"]), 0.5)
