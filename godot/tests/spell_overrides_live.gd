@@ -52,17 +52,7 @@ func override_proof() -> bool:
 	await tap(KEY_P)
 	await wait_frames(4)
 	var book: Node = client.get_node("SpellBookUI")
-	var icon: Control
-	for page in range(16):
-		icon = book.find_child("SpellBookItem85288Button", true, false) as Control
-		if icon != null and icon.is_visible_in_tree():
-			break
-		var next := book.find_child("SpellBookNextPageButton", true, false) as Control
-		if next == null:
-			fail("No next spellbook page")
-			return false
-		await click(next)
-		await wait_frames(3)
+	var icon: Control = await find_book_spell(book, 85288)
 	if icon == null or not icon.is_visible_in_tree():
 		fail("No learned Raging Blow button")
 		return false
@@ -107,6 +97,24 @@ func override_proof() -> bool:
 	await capture("override-restored")
 	await tap(KEY_ESCAPE)
 	return await ground_proof()
+
+func find_book_spell(book: Node, spell: int) -> Control:
+	for category in range(1, 6):
+		var tab := book.find_child("SpellBookCategoryTab%d" % category, true, false) as Control
+		if tab == null:
+			break
+		await click(tab)
+		await wait_frames(3)
+		for page in range(16):
+			var icon := book.find_child("SpellBookItem%dButton" % spell, true, false) as Control
+			if icon != null and icon.is_visible_in_tree():
+				return icon
+			var next := book.find_child("SpellBookNextPageButton", true, false) as Control
+			if next == null:
+				break
+			await click(next)
+			await wait_frames(3)
+	return null
 
 func ground_proof() -> bool:
 	var before: int = client.spells_state().sent.size()
