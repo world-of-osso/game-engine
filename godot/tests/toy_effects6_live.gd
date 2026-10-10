@@ -71,10 +71,10 @@ func run_fixture() -> void:
 
 func move_near_authored_hostile() -> bool:
 	var closest: Node3D
-	for node in client.find_children("Blackrock Worg", "Node3D", true, false):
+	for node in client.find_children("Blackrock Invader", "Node3D", true, false):
 		if node.get_node_or_null("NpcVisualRoot") == null: continue
 		if closest == null or actor.position.distance_to(node.position) < actor.position.distance_to(closest.position): closest = node
-	if closest == null: fail("no source-authored Blackrock Worg model"); return false
+	if closest == null: fail("no source-authored Blackrock Invader42937 model"); return false
 	var camera := root.get_camera_3d()
 	if camera == null: fail("no world camera"); return false
 	var forward := -camera.global_basis.z
