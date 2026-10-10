@@ -56,6 +56,11 @@ Separate opt-in `scripts/recheck_local_asset_gaps.py` consumes a recorded produc
 
 `scripts/tests/test_recheck_local_asset_gaps.py` covers real extractor-process publication, unknown-key rejection, and conflicting existing-file preservation.
 
+## Local metadata recovery
+
+- ModelFileData export accepts the pinned Retail `2AE4E788` layout, retaining inline FileDataIDs after the bounding box and authored resource/flags/LOD values. Wrong layouts fail before CSV creation.
+- Recovered CSVs use distinct paths selected explicitly by the closure config; existing CSVs and runtime caches remain untouched. Readable encrypted-table sections do not certify complete metadata or authenticate zero-filled records.
+
 ## Out of scope
 
 Runtime policy/tripwire (P1), product-isolated runtime keys/identity migration (P2), packaging/release enforcement, audio/UI scenario acceptance. The offline graph audit itself still performs no extraction. Neither tool establishes no-install gameplay acceptance.
