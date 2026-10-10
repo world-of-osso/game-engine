@@ -112,8 +112,10 @@ class Closure:
         asset = self.assets[key]
         asset["edges"].add((parent, reason))
         asset["locations"].add(f"{DIRECTORIES.get(kind, 'models')}/{fdid}.{kind}")
-        if alias:
+        if alias and alias not in asset["locations"]:
             asset["locations"].add(alias)
+            if asset.get("present") is False and kind in EXPANDABLE and (self.data / alias).is_file():
+                self.queue.append(key)
 
     def named(self, logical, kind, reason, parent):
         ids = self.by_path.get(normalized(logical), [])
@@ -144,9 +146,12 @@ class Closure:
             path = self.inspect(asset)
             if asset["type"] not in EXPANDABLE:
                 continue
+            missing = ("missing_dependency_bytes", f"cannot expand {asset['type']}", asset["fdid"])
             if not path:
-                self.issue("missing_dependency_bytes", f"cannot expand {asset['type']}", asset["fdid"])
+                if not asset["present"]:
+                    self.unresolved.add(missing)
                 continue
+            self.unresolved.discard(missing)
             try:
                 self.expand(asset, path.read_bytes())
             except (ValueError, struct.error, UnicodeError) as error:

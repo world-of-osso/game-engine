@@ -1,6 +1,12 @@
 {
   "product": "wow",
   "metadata_build": "12.1.0.69933",
+  "table_paths": {
+    "ModelFileData": "ModelFileData.csv",
+    "TextureFileData": "TextureFileData.csv",
+    "ItemDisplayInfoMaterialRes": "ItemDisplayInfoMaterialRes.csv",
+    "ChrCustomizationReq": "ChrCustomizationReq.csv"
+  },
   "maps": "all",
   "characters": "all",
   "npc_displays": "all",

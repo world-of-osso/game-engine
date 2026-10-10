@@ -1,6 +1,12 @@
 {
   "product": "wow",
   "metadata_build": "12.1.0.69933",
+  "table_paths": {
+    "ModelFileData": "ModelFileData.csv",
+    "TextureFileData": "TextureFileData.csv",
+    "ItemDisplayInfoMaterialRes": "ItemDisplayInfoMaterialRes.csv",
+    "ChrCustomizationReq": "ChrCustomizationReq.csv"
+  },
   "maps": [{"id": 0, "directory": "azeroth", "tiles": [[32, 48], [33, 48], [32, 49], [33, 49]]}],
   "characters": [{"race": 1, "sex": 0, "class": 1, "level": 1, "choices": "default"}],
   "npc_displays": "tiles",
