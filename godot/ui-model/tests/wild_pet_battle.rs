@@ -389,3 +389,62 @@ fn petbattle_effect_hud_chat_keeps_rounds_and_terminal_lines_until_next_battle()
     view.receive(WildPetBattleUpdate::Start(snapshot()));
     assert!(view.combat_text.is_empty());
 }
+
+#[test]
+fn petbattle_effect_hud_log_pages_and_cleared_effects_rebuild_from_authoritative_state() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    let mut view = WildBattleView::default();
+    let mut state = snapshot();
+    state.weather = Some(BattleAuraSnapshot {
+        ability_id: 403,
+        name: "Sunny Day".into(),
+        icon: 535593,
+        rounds_remaining: 1,
+        is_buff: true,
+    });
+    state.team_auras[0] = state.teams[0][0].auras.clone();
+    view.receive(WildPetBattleUpdate::Start(state.clone()));
+    for index in 0..10 {
+        view.receive(WildPetBattleUpdate::Round {
+            state: state.clone(),
+            combat_text: vec![format!("Round {index}")],
+        });
+    }
+    let mut context = SharedContext::new();
+    context.insert(ActiveSkin::Modern);
+    let mut registry = FrameRegistry::new(1280.0, 720.0);
+    let mut screen = Screen::new(wild_battle_screen);
+    for (action, expected) in [
+        ("", "Round 3"),
+        ("pb:log-up", "Round 2"),
+        ("pb:log-down", "Round 3"),
+    ] {
+        view.action(action);
+        context.insert(view.clone());
+        screen.sync(&context, &mut registry);
+        let frame = registry
+            .get(registry.get_by_name("PetBattleCombatLogLine0").unwrap())
+            .unwrap();
+        assert!(
+            matches!(frame.widget_data.as_ref(),Some(ui_toolkit::frame::WidgetData::FontString(value)) if value.text == expected)
+        );
+    }
+    state.weather = None;
+    state.team_auras = Default::default();
+    for pet in state.teams.iter_mut().flatten() {
+        pet.auras.clear();
+    }
+    view.receive(WildPetBattleUpdate::State(state));
+    context.insert(view);
+    screen.sync(&context, &mut registry);
+    for name in [
+        "PetBattleWeatherName",
+        "PetBattleAllyPadBuff0Duration",
+        "PetBattleAllyBuff0",
+    ] {
+        assert!(registry.get_by_name(name).is_none(), "{name}");
+    }
+}

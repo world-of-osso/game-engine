@@ -1,3 +1,7 @@
+## 2026-10-10 — Pet-battle effect HUD
+
+[Effect HUD scopes](systems/battle-pets.md#effect-hud-scopes--verified-2026-10-10): separate weather/team pads/pet auras, Retail duration/polarity/row placement and max(cooldown, lockdown) overlays; retained temporary combat log. Private5598 fb_pbhud3 native Sunlight/Cyclone/Tranquility shows both skins, damage/heal floats and close restoration; six individually inspected PNGs,95/98/98 matching static rectangles. Authentic private level2 journal fixture, not acquisition or detached-model coverage. Nonzero lockdown handlers remain gated; turn-lock/continuation availability has separate server tests. No master merge or world.db writes.
+
 ## 2026-10-10 — PvP pet battles continuation
 
 [PvP acceptance](../specs/petbattle-pvp.md#acceptance--2026-10-10-petbattle-pvp2): initial front-pet choice waits for both owners without a round cost; separate runtime data/config/token stores remove cross-account saved-token collisions. Private5598 proves queue/Accept/selection/rounds/three-pet win/loss in both skins with16 inspected PNGs and HUD restoration. Atomic command rename fixes fixture truncation races. Retail Lua reads timer/XP through runtime APIs; numerical proposal/turn policy and PvP XP formula remain unestablished, never guessed. No master merge or shared realm changes.
