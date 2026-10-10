@@ -471,28 +471,22 @@ fn queue_popup(view: &PetJournalView) -> Element {
     }
     let left = view.viewport[0] / 2.0 - 160.0;
     let top = view.viewport[1] / 2.0 - 100.0;
-    let mut children = texture(
-        "PetBattleQueueBackground".into(),
-        6_839_810,
-        (7.0, 7.0, 306.0, 186.0),
-        WHITE,
-    );
-    children.extend(
-        rsx! { r#frame { name: "PetBattleQueueBorder", width: 320.0, height: 200.0,
-        style: "static_popup", pos_type: "absolute", left: 0.0, top: 0.0, frame_level: 5.0 } },
-    );
-    children.extend(texture(
-        "PetBattleQueueArt".into(),
-        655474,
-        (32.0, 20.0, 256.0, 100.0),
-        WHITE,
-    ));
-    children.extend(label(
-        "PetBattleQueueLabel".into(),
-        "A pet battle is ready!",
-        (10.0, 130.0, 300.0, 25.0),
-        (14.0, WHITE, "CENTER"),
-    ));
+    use ui_toolkit::strata::FrameStrata;
+    let mut children = rsx! {
+        texture { name: "PetBattleQueueBackground", texture_fdid: 6_839_810,
+            width: 306.0, height: 186.0, left: 7.0, top: 7.0,
+            pos_type: "absolute", strata: FrameStrata::Dialog, frame_level: 1.0 }
+        r#frame { name: "PetBattleQueueBorder", width: 320.0, height: 200.0,
+            style: "static_popup", pos_type: "absolute", left: 0.0, top: 0.0,
+            strata: FrameStrata::Dialog, frame_level: 5.0 }
+        texture { name: "PetBattleQueueArt", texture_fdid: 655474,
+            width: 256.0, height: 100.0, left: 32.0, top: 20.0,
+            pos_type: "absolute", strata: FrameStrata::Dialog, frame_level: 6.0 }
+        font_string { name: "PetBattleQueueLabel", text: "A pet battle is ready!",
+            width: 300.0, height: 25.0, left: 10.0, top: 130.0, font_size: 14.0,
+            font_color: WHITE, justify_h: "CENTER", pos_type: "absolute",
+            strata: FrameStrata::Dialog, frame_level: 6.0 }
+    };
     for (name, text, action, x) in [
         (
             "PetBattleQueueAcceptButton",
@@ -507,15 +501,16 @@ fn queue_popup(view: &PetJournalView) -> Element {
             165.0,
         ),
     ] {
-        children.extend(panel_button(
-            name.into(),
-            text,
-            action,
-            !view.queue_pending,
-            (x, 159.0, 120.0, 21.0),
-        ));
+        children.extend(rsx! { button { name: {DynName(name.into())}, text: text,
+        onclick: action, disabled: view.queue_pending, width: 120.0, height: 21.0,
+        left: x, top: 159.0, pos_type: "absolute", font_size: 13.0,
+        strata: FrameStrata::Dialog, frame_level: 10.0,
+        button_atlas_up: "defaultbutton-nineslice-up",
+        button_atlas_pressed: "defaultbutton-nineslice-pressed",
+        button_atlas_highlight: "defaultbutton-nineslice-highlight",
+        button_atlas_disabled: "defaultbutton-nineslice-disabled" } });
     }
     rsx! { r#frame { name: "PetBattleQueueReadyFrame", width: 320.0, height: 200.0,
-    strata: ui_toolkit::strata::FrameStrata::Dialog, frame_level: 10.0,
+    strata: FrameStrata::Dialog,
     mouse_enabled: true, pos_type: "absolute", left: left, top: top, {children} } }
 }
