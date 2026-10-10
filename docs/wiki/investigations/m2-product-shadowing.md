@@ -49,6 +49,10 @@ Focused CPU proof at `08b86f04f` / resolver `62bce6c`: resolver1/core6/native7 p
 
 `FrozenArchiveReader` acquires encoding keys from an authenticated frozen resolution snapshot without active install/config/root selection; its existing P1 guard rejects runtime use in extracted-only mode. Current offline receipts distinguish valid recovered files from unavailable archive entries; no legacy payloads are relabelled. [Contract gaps](../../specs/product-isolated-model-assets.md#known-gaps-current-cycle) remain the source of truth for authentic closure and named-display native acceptance. CPU success does not close those gaps.
 
+## Independent native comparator
+
+Native Vulkan/cage run of Retail display21774/model126278 through the same `WorldModels` preview path passes the scoped source/hash check, renders two meshes in `ExtractedOnly` mode and reports tripwire0. `native-comparator-1.log` records no model/texture/type9 error; host audio/XWayland/decor warnings remain separate. The requested PNG directory contains `display-21774.png`, inspected at640×360: a textured turkey is visible. This independent comparator consumes one of three native runs; it does not substitute for or close the two named displays' acceptance.
+
 ## Sources
 
 - [Native Skyborne checkpoint](../systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09)
