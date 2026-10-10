@@ -504,6 +504,14 @@ impl GameClient {
             }
             self.account.talents.search_focused = focused;
         }
+        if host.has_frame("TalentLoadoutNameInput") {
+            if self.account.talents.loadout_focus_requested {
+                host.focus_frame_named("TalentLoadoutNameInput")?;
+                self.account.talents.loadout_focus_requested = false;
+            }
+            self.account.talents.loadout_name =
+                host.frame_text("TalentLoadoutNameInput".into()).to_string();
+        }
         drop(host);
         self.apply_spellbook_action(&action)
     }
@@ -517,6 +525,10 @@ impl GameClient {
             .ok_or("Talent action requires a loaded talent page")?;
         if let Some(request) = self.account.talents.action(view, view.level, action)? {
             self.account.send_commit_traits(request)?;
+            self.account.talents.loadout_busy = true;
+        }
+        if let Some(request) = self.account.talents.take_loadout_request() {
+            self.account.send_trait_loadout(request)?;
         }
         Ok(())
     }

@@ -596,6 +596,13 @@ impl RegistryModel {
             {
                 actions.push_back("talent:search_submit".into());
             }
+            ScreenPostsetup::Spellbook
+                if self.registry.focused_frame
+                    == self.registry.get_by_name("TalentLoadoutNameInput")
+                    && self.registry.focused_frame.is_some() =>
+            {
+                actions.push_back("talent:loadout_save".into());
+            }
             ScreenPostsetup::Trade => actions.push_back(crate::trade::ACTION_MONEY_SUBMIT.into()),
             // Original: Enter confirms a pending deletion once its gate is ready.
             ScreenPostsetup::CharacterSelect => {
@@ -2351,6 +2358,7 @@ impl RegistryUi {
                 }
             }
             UiInput::Submit => model.submit(&mut self.actions),
+            UiInput::CancelTalentLoadout => self.actions.push_back("talent:loadout_cancel".into()),
             UiInput::SearchPreviewStep(step) => {
                 self.actions.push_back(format!("talent:search_move:{step}"))
             }

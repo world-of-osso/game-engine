@@ -7,7 +7,7 @@ use game_engine_core::spell_catalog::{SPELL_DB2_BUILD, SpellCatalogData};
 use game_engine_core::talent_data::{TalentNode, TalentPage, load_talent_page};
 use std::collections::{BTreeMap, BTreeSet};
 use std::path::Path;
-pub use talent_editor::TalentEditor;
+pub use talent_editor::{LoadoutDialog, TalentEditor};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TalentView {
