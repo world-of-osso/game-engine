@@ -44,7 +44,7 @@ Publication uses an independent same-directory temporary, flush/fsync, atomic no
 
 ## Resolver continuation — tooling verified 2026-10-10
 
-`closure-unresolved2` adds sourced resolvers; extraction is still running, so the prior final counts above remain the last completed dataset milestone. Tooling `20787e177` has 69 isolated Python fixtures passing with no warnings. This is not no-install gameplay acceptance.
+`closure-unresolved2` completed round 3 extraction and owned receipt proof; [final dataset](#round-3-final-dataset--verified-2026-10-10) supersedes the prior dataset milestone. Tooling `20787e177` retains 69 isolated Python fixtures passing with no warnings; no tracked resolver changes invalidate that proof. This is not no-install gameplay acceptance.
 
 | Boundary | Traversal now handles | Remaining evidence boundary |
 |---|---|---|
@@ -58,11 +58,68 @@ Local DB2s are exported with exact Retail layout hashes, not inferred field offs
 
 Each class runs from an immutable scripts snapshot under `agents.slice`, then uses the existing authenticated local-CASC batch publisher and fixed-point driver. Failure records carry forward without inventing identities or retrying known unavailable bytes. `be1a2e37c` counts only retryable local-index identities when testing the extraction fixed point; recorded failures still remain missing in the manifest. This prevents known encrypted/indexed failures from forcing redundant extraction rounds. Later `687839b78`/`20787e177` preserve a fresh missing frontier exposed by peer publication, even when own extraction created zero files and the missing count is unchanged. Required owner aliases count as work even when the numeric skeleton already exists; newly classified root-absent descendants persist to failure records. No install is used by the traversal itself. Manifest fingerprints include every resolver module; hashes and separate receipt proofs do not automatically authenticate legacy bytes or caches.
 
-Evidence root: `data/diagnostics/closure-unresolved2-2026-10-10/`. Final per-class counts, extraction bytes and receipt ranges must come from completed phase summaries, not this implementation inventory. Six existing model parse boundaries have inspected non-M2 headers: one reverse-MVER WMO and five M3DT models; do not misreport them as proven corrupt M2 files or silently invent format support.
+Evidence root: `data/diagnostics/closure-unresolved2-2026-10-10/`. Completed phase summaries, `summary.{json,md}`, `final-fingerprints.json`, `final-source-drift.json`, `final-residuals.json` and `receipt-reconciliation.json` own the exact final counts, hashes, boundaries and receipt ranges. Six existing model parse boundaries have inspected non-M2 headers: one reverse-MVER WMO and five M3DT models; do not misreport them as proven corrupt M2 files or silently invent format support.
+
+### Round 3 final dataset — verified 2026-10-10
+
+| Graph metric | Completed round-2 baseline | Final round 3 |
+|---|---:|---:|
+| Present identities | 862,509 | 970,356 |
+| Missing identities | 2,275 | 2,302 |
+| Unresolved records | 86,217 | 5,024 |
+| Total identities | 864,784 | 972,658 |
+| Present identity bytes | 139,754,981,627 | 143,732,207,363 |
+
+The first post-resolver spell audit had 862,700 present /65,529 missing /51,968 unresolved: discovery enlarged the graph before extraction. Final missing totals therefore are not a fixed-scope failure-rate comparison.
+
+| Resolver warning class | Baseline | Final |
+|---|---:|---:|
+| Spell-kit effects | 35,781 | 0 |
+| M2 emitters | 20,026 | 0 |
+| Extended appearances | 18,716 | 0 |
+| Unknown sound types | 4,476 | 22 |
+| WMO liquids | 1,259 | 0 |
+| Unsupported customization effects | 678 | 0 |
+| Unsupported model edges | 112 | 0 |
+
+Emitter warnings reached20,032 after spell descendants; extended-display resolution later covered18,722 records. Unknown sound warnings reached5,974 before header classification. Complete before/after **all** warning classes are in evidence `summary.md`; zero warning counts do not certify complete format/rendering support.
+
+| Extraction phase | New runtime paths | Bytes | Fixed-point rounds |
+|---|---:|---:|---:|
+| Spells | 125,999 | 1,795,450,372 | 3 |
+| Emitters | 203 | 38,407,872 | 1 |
+| Appearance | 58,028 | 2,915,819,214 | 3 |
+| Sounds | 2,329 | 76,053,234 | 1 |
+| WMO / satellites | 1,506 | 125,827,230 | 2 |
+
+Runtime total **188,065 paths /4,951,557,922 bytes**. Two raw-DB2 publication batches add35 paths /16,437,669 bytes: **188,100 paths /4,967,995,591 bytes** overall. Phase totals include descendants, aliases and earlier pending frontiers—not exclusively class-owned bytes. Emitter parsing introduced no new identities; its203 paths completed a prior shared-data frontier. Graph bytes count identities, whereas publication bytes include required runtime aliases; dependency-only extractor build seeding is excluded.
+
+Final manifest: evidence `wmo/round-02/manifest.json`, SHA-256 **`517829f9704c57920fbbe86cfc3566a104f9dff7d72f4bf9c557013d188a8c2a`**. Resolver/config/input hashes are preserved in `final-fingerprints.json`.
+
+Source drift is explicit: world-selection SHA-256 `5549a27c4874a268eb1e443dfda7e7d5bc22cda92c785e955a91eeb33152dc2c` → `fa0ad2f2a1282570da12f8e54c948bdb9c5265ed4b156607dee937247c1cf0e5`, **27 added display roots**, no removed displays or changed item/spawn/spell roots. Exact IDs are in `final-source-drift.json`. Compared with the completed baseline,36 hashed input paths were added and legacy `TextureFileData.csv` removed; shared input paths have no changed hashes. The later appearance traversal additionally began reading the existing pinned `ChrCustomizationDisplayInfo.csv`: an input-set addition, not changed bytes. Peer additions and evolving roots prevent a pristine/immutable-dataset claim.
+
+| Owned receipt byte range | Authenticated rows | Foreign-schema rows excluded |
+|---|---:|---:|
+| 368708685..418094009 | 126,132 | 0 |
+| 418094009..418398492 | 93 | 670 |
+| 418398492..428783024 | 26,675 | 0 |
+| 428783024..444535058 | 40,149 | 0 |
+
+**193,049 owned rows, zero errors**:188,100 extracted plus4,949 verified-existing. Authenticated root/native content and encoding keys, size, MD5 and SHA-256 pass; extracted path/byte totals exactly reconcile every phase. Only previously unproved suffixes were newly checked. The670 foreign `version`/`disposition`-schema rows remain explicitly excluded; this is not whole-ledger or legacy-identity authentication. `final-owned-receipt-proof.{json,log}` and `receipt-reconciliation.json` preserve proof.
+
+Residual boundaries, with every record in `final-residuals.json`:
+
+- **3,643 metadata gaps**:3,382 SpellMisc DifficultyID=0,247 CreatureDisplayInfo, eight NPC item-resource joins, four SoundKitEntry kit joins and two SpellVisualEffectName rows.
+- **1,297 unexpanded dependency records** overlap the2,302 missing identities:2,127 absent from the authenticated local root and175 indexed encrypted records rejected for unsupported8-byte IVs. No unavailable bytes were fabricated. Raw metadata also retains key-rejected FDID4050937; CameraEffect dropped one encrypted row and the existing ItemDisplayInfoModelMatRes export dropped129 rows.
+- **19 client-scene scripts /22 unknown sound types** remain. All35,878 pinned customization-element voice values are zero; nonzero voice joins remain unsupported, not certified by that dataset.
+- **27 alias conflicts /six non-M2 headers /four unmapped paths** remain. FDID4928485 is reverse-MVER WMO;6655655/7267179/7267181/7267182/7267183 are M3DT, not proven corrupt M2s. Two unauthenticated caches, two legacy metadata sources and two catalog-reachability policies also remain.
+- **972,658 manifest identities remain unverified** despite the separate new-receipt proof. No native/game/CI/pristine/no-install P3/P4 acceptance or independent verifier PASS is claimed; independent model verification remained OAuth-unavailable.
 
 ### Extractor artifact lifetime
 
-The shared `asset-resolver/target/debug/casc-local` disappeared after the spell phase, stopping emitter extraction before publication. Recovery uses the native helper and an explicit dependency-only warm seed (455,378,969 bytes); this filesystem rejected reflinks, so no full-target clone/cold bulk-cache rebuild was used. The rebuilt extractor is retained under the evidence root's `tools/` with its source revision and SHA-256; resumed phases verify that private artifact instead of depending on mutable shared build output. No packages, releases, host services or asset-download sources changed.
+The shared `asset-resolver/target/debug/casc-local` disappeared after the spell phase, stopping emitter extraction before publication. Recovery uses the native helper and an explicit dependency-only warm seed (455,378,969 bytes); this filesystem rejected reflinks, so no full-target clone/cold bulk-cache rebuild was used. The rebuilt extractor is retained under the evidence root's `tools/` with its source revision and SHA-256; resumed phases verify that private artifact instead of depending on mutable shared build output. No packages, releases, protected host services or asset-download sources changed.
+
+Appearance's original driver later exceeded its14GiB cgroup: the receipt/allocator heap remained alive while a separate traverser built another graph. Raising only the soft limit did not fix that overlap. Task-only `staged-recovery.py` resumed from retained round-1 publication/progress, rerunning only the failed traversal, then separated extraction, traversal and analysis into sequential processes at unchanged14GiB hard/zero-swap limits. The standalone recovery traversal completed at13GiB peak. A256MiB controller also rejected an oversized decoded source-fingerprint report; completed analysis was retained and large fingerprints separated from the small frontier/count report, with the cap unchanged. Failed logs/journals are preserved. This operational wrapper is not a fix or acceptance claim for the tracked combined-process driver; retire it when that driver has process-isolated stages. The512MiB short-test mitigation was not lifted.
 
 ### Bounded-test incident
 
