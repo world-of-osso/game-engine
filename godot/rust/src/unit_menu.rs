@@ -521,7 +521,9 @@ impl GameClient {
                 .account
                 .send_board_vehicle(driver)
                 .err()
-                .map_or_else(GString::new, |error| GString::from(error.to_string())),
+                .map_or_else(GString::new, |error| {
+                    GString::from(error.to_string().as_str())
+                }),
             None => GString::from("Party member has no available passenger mount"),
         }
     }
@@ -531,7 +533,9 @@ impl GameClient {
         self.account
             .send_exit_vehicle()
             .err()
-            .map_or_else(GString::new, |error| GString::from(error.to_string()))
+            .map_or_else(GString::new, |error| {
+                GString::from(error.to_string().as_str())
+            })
     }
 
     #[func]
