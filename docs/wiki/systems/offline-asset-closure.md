@@ -44,7 +44,7 @@ Publication uses an independent same-directory temporary, flush/fsync, atomic no
 
 ## Resolver continuation — tooling verified 2026-10-10
 
-`closure-unresolved2` adds sourced resolvers; extraction is still running, so the prior final counts above remain the last completed dataset milestone. Tooling `1f9ff541d` has 66 isolated Python fixtures passing with no warnings. This is not no-install gameplay acceptance.
+`closure-unresolved2` adds sourced resolvers; extraction is still running, so the prior final counts above remain the last completed dataset milestone. Tooling `20787e177` has 69 isolated Python fixtures passing with no warnings. This is not no-install gameplay acceptance.
 
 | Boundary | Traversal now handles | Remaining evidence boundary |
 |---|---|---|
@@ -56,9 +56,13 @@ Publication uses an independent same-directory temporary, flush/fsync, atomic no
 
 Local DB2s are exported with exact Retail layout hashes, not inferred field offsets. Empty WDC5 tables can legitimately lack storage descriptors. Layout definitions are preserved and hashed under `data/diagnostics/closure-unresolved2-2026-10-10/sources/`; exported CSVs and immutable phase tooling snapshots are separate evidence. `TextureFileData` now uses the pinned local export in full-catalog mode. Partial encrypted tables report dropped records; readable rows do not prove complete metadata coverage.
 
-Each class runs from an immutable scripts snapshot under `agents.slice`, then uses the existing authenticated local-CASC batch publisher and fixed-point driver. Failure records carry forward without inventing identities or retrying known unavailable bytes. `be1a2e37c` counts only retryable local-index identities when testing the extraction fixed point; recorded failures still remain missing in the manifest. This prevents known encrypted/indexed failures from forcing redundant extraction rounds. No install is used by the traversal itself. Manifest fingerprints include every resolver module; hashes and separate receipt proofs do not automatically authenticate legacy bytes or caches.
+Each class runs from an immutable scripts snapshot under `agents.slice`, then uses the existing authenticated local-CASC batch publisher and fixed-point driver. Failure records carry forward without inventing identities or retrying known unavailable bytes. `be1a2e37c` counts only retryable local-index identities when testing the extraction fixed point; recorded failures still remain missing in the manifest. This prevents known encrypted/indexed failures from forcing redundant extraction rounds. Later `687839b78`/`20787e177` preserve a fresh missing frontier exposed by peer publication, even when own extraction created zero files and the missing count is unchanged. Required owner aliases count as work even when the numeric skeleton already exists; newly classified root-absent descendants persist to failure records. No install is used by the traversal itself. Manifest fingerprints include every resolver module; hashes and separate receipt proofs do not automatically authenticate legacy bytes or caches.
 
 Evidence root: `data/diagnostics/closure-unresolved2-2026-10-10/`. Final per-class counts, extraction bytes and receipt ranges must come from completed phase summaries, not this implementation inventory. Six existing model parse boundaries have inspected non-M2 headers: one reverse-MVER WMO and five M3DT models; do not misreport them as proven corrupt M2 files or silently invent format support.
+
+### Extractor artifact lifetime
+
+The shared `asset-resolver/target/debug/casc-local` disappeared after the spell phase, stopping emitter extraction before publication. Recovery uses the native helper and an explicit dependency-only warm seed (455,378,969 bytes); this filesystem rejected reflinks, so no full-target clone/cold bulk-cache rebuild was used. The rebuilt extractor is retained under the evidence root's `tools/` with its source revision and SHA-256; resumed phases verify that private artifact instead of depending on mutable shared build output. No packages, releases, host services or asset-download sources changed.
 
 ### Bounded-test incident
 
