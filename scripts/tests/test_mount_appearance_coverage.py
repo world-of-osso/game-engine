@@ -1,4 +1,5 @@
 """Extend authored coverage without losing existing required NPC appearances."""
+import contextlib
 import importlib.util
 from pathlib import Path
 import sqlite3
@@ -20,12 +21,12 @@ class MountAppearanceCoverageTests(unittest.TestCase):
             merged = importer.merge_existing_rows(base, ([], [], [], [(27237, 0)]))
             output = Path(directory) / "mounts.sqlite"
             importer.write_database(output, merged)
-            with sqlite3.connect(output) as connection:
+            with contextlib.closing(sqlite3.connect(output)) as connection:
                 self.assertEqual(connection.execute("SELECT * FROM appearances").fetchall(), old[0])
                 self.assertEqual(connection.execute("SELECT * FROM choices").fetchall(), old[1])
                 self.assertEqual(connection.execute("SELECT * FROM geosets").fetchall(), old[2])
                 self.assertEqual(connection.execute("SELECT * FROM display_coverage ORDER BY display_id").fetchall(), [(19177, 1), (27237, 0)])
-            with sqlite3.connect(base) as connection:
+            with contextlib.closing(sqlite3.connect(base)) as connection:
                 self.assertEqual(connection.execute("SELECT * FROM display_coverage").fetchall(), old[3])
 
     def test_conflicting_existing_coverage_is_rejected_not_downgraded(self):
