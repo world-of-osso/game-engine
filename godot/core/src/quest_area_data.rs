@@ -207,7 +207,14 @@ mod tests {
     #[test]
     fn overlay_fills_inside_with_a_stronger_rim_and_leaves_outside_clear() {
         let square = vec![[10.0, 10.0], [30.0, 10.0], [30.0, 30.0], [10.0, 30.0]];
-        let overlay = quest_area_overlay(40, 40, &[square], &art(), false);
+        let polygons = [square];
+        let overlay = quest_area_overlay(40, 40, &polygons, &art(), false);
+        let selected = quest_area_overlay(40, 40, &polygons, &art(), true);
+        assert_eq!(alpha(&selected, 40, 20, 20), 180, "selected fill alpha");
+        assert!(
+            alpha(&selected, 40, 10, 20) > alpha(&overlay, 40, 10, 20),
+            "selected border highlight"
+        );
         assert_eq!(alpha(&overlay, 40, 5, 5), 0, "outside");
         assert_eq!(alpha(&overlay, 40, 20, 20), 128, "Retail fill alpha");
         assert!(alpha(&overlay, 40, 10, 20) > 128, "rim over fill");
