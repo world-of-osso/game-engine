@@ -83,6 +83,15 @@ TABLES = {
          ("Z", ("i16", 3)), ("QuestPOIBlobID", "parent")],
     ),
     # Retail 12.1.0.69933 local CASC layouts, WoWDBDefs field ordering.
+    "Creature": (0x6E14C900, [
+        ("ID", "id"), ("Name_lang", ("string", 0)),
+        ("NameAlt_lang", ("string", 1)), ("Title_lang", ("string", 2)),
+        ("TitleAlt_lang", ("string", 3)), ("Classification", ("i8", 4)),
+        ("CreatureType", ("u8", 5)), ("CreatureFamily", ("u16", 6)),
+        ("StartAnimState", ("i8", 7)),
+    ] + [(f"DisplayID_{i}", ("int", 8, i)) for i in range(4)]
+      + [(f"DisplayProbability_{i}", ("float", 9, i)) for i in range(4)]
+      + [(f"AlwaysItem_{i}", ("int", 10, i)) for i in range(3)]),
     "BattlePetSpecies": (0x589BE282, [
         ("ID", "id"), ("Description_lang", ("string", 0)),
         ("SourceText_lang", ("string", 1)), ("CreatureID", ("int", 3, 0)),
