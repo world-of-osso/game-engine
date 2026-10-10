@@ -1,6 +1,6 @@
 ## 2026-10-10 — Talent layout and Arms text
 
-[Layout acceptance](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10) records worst105/257/270 and Arms REDs, spec-selector subtree membership, shared first-row baseline, Retail border/spend-text sizing,82px footer and native caption layering at0e718ecfc. Targeted13/13; one offline client captures40×2 skins, native rect/visible-glyph80/80 and all FFmpeg downscales inspected before PNG-only publication. Live activation/persistence and full parity excluded;20 inherited macro warnings and expired verifier OAuth retained.
+[Layout acceptance](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10) records worst105/257/270 and Arms REDs, spec-selector subtree membership, shared first-row baseline, Retail border/spend-text sizing,82px footer and native caption layering and corrected Mainline anchors/padded rim at74a6181cd. Targeted15 distinct passes (latest layout8/page2 plus source-identical core5); one offline client captures40×2 skins, native rect/visible-glyph80/80 and all FFmpeg downscales inspected before PNG-only publication. Live activation/persistence and full parity excluded;20 inherited macro warnings and expired verifier OAuth retained.
 
 ## 2026-10-09 — All40 talent views and shipped icon recapture
 
