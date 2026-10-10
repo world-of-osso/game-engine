@@ -10,6 +10,8 @@ Retail Mainline defines CollectionsJournal geometry (703×606), tab order (Mount
 - Drag copies ToyAction to any existing action bar slot. Retail PickupToyBoxItem is persisted as ActionRef::Item(ItemID), using existing SetActionButton and server persistence. A catalog toy slot activates through the same UseToy path, not UseItem or bag possession. No protocol/server patch is needed.
 - Hover displays toy identity, source, ownership and unavailable reason. Collections micro-menu opens/closes the journal.
 
+- Replicated UnitScale applies aura61 additive scale to the unit root, preserving each native visual's own scale and restoring1 on removal. Both skins share this world presentation.
+
 ## Reference and explicit boundaries
 
 Local source: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_Collections/Mainline/Blizzard_Collections.xml`, `Blizzard_Collections.lua`, `Blizzard_ToyBox.xml`, `Blizzard_ToyBox.lua`, `Blizzard_CollectionTemplates.xml`.
