@@ -59,6 +59,11 @@ def git_files(repo, paths, tracked):
 
 def allowed(repo_name, path, tracked):
     parts = path.parts
+    if tracked and repo_name == "game-server" and (
+        parts == (".cargo", "config.toml")
+        or parts[:2] == ("vendor", "recastnavigation-sys")
+    ):
+        return True
     if any(part in EXCLUDED_DIRS for part in parts) or any(
         part.startswith(".") for part in parts
     ):
