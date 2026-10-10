@@ -1,6 +1,9 @@
 ## 2026-10-09 — Retail auction subject and invoice formatting
 
 [Native auction mail](systems/trade-and-mail.md#retail-auction-mail-formatting-2026-10-09) records local-CASC GlobalStrings extraction, client-owned subject localization, seller/buyer invoice rendering and the screenshot-reproduced money-coordinate correction. Final native ui-model844/0/7; real private5510 inbox crop published. Text and numeric field proof are bounded; post-correction invoice pixels and triangle picking are not claimed.
+## 2026-10-10 — Native dev rebuild timings
+
+[Native dev rebuild investigation](investigations/native-dev-build-timings.md) separates relocated-cache KTX compilation from warm touch loops. One UI integration harness replaces 93 targets; workspace compilation 37.75s → 14.21s, extension 8.73s → 7.55s (no causal extension improvement claimed). Workspace inventory unchanged: 2681 passed, 8 ignored; link-only timing unavailable.
 
 ## 2026-10-09 — All40 talent views and shipped icon recapture
 
