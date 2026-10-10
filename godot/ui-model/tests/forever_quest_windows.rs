@@ -261,6 +261,38 @@ fn capture_base_trees() {
 }
 
 #[test]
+fn graphics_settings_remain_reachable_after_scrolling() {
+    use game_engine_ui_model::options_menu_component::{OptionsViewModel, options_view};
+
+    load_tables();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let view = build_view_model(&options_model());
+        let mut shared = SharedContext::new();
+        shared.insert((view.options.clone(), 0usize));
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(|ctx: &SharedContext| {
+            let (view, offset) = ctx.get::<(OptionsViewModel, usize)>().unwrap();
+            options_view(view, *offset)
+        });
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("SliderRowbloom_intensity").is_none());
+        assert!(registry.get_by_name("SliderRowparticle_density").is_none());
+
+        // Scroll to the bottom; the production list clamps this pixel offset.
+        shared.insert((view.options, usize::MAX));
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("SliderRowbloom_intensity").is_some());
+        let particles = registry.get_by_name("SliderLabelparticle_density").unwrap();
+        assert!(matches!(
+            &registry.get(particles).unwrap().widget_data,
+            Some(WidgetData::FontString(data)) if data.text == "Particle Density"
+        ));
+    }
+    set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn quest_chrome_preserves_modern_and_resolves_forever() {
     load_tables();
     set_thread_skin(ActiveSkin::Modern);

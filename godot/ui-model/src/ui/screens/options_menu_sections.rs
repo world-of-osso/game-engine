@@ -6,6 +6,8 @@ use ui_toolkit::widget_def::Element;
 use super::options_menu_component::OptionsPage;
 
 const OPTIONS_CONTENT_W: f32 = 716.0;
+// Native FrizQuadrata 13px glyphs occupy 19px per line, not the CPU measure's 16px.
+const INFO_LINE_HEIGHT: f32 = 20.0;
 const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
 const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
@@ -115,13 +117,16 @@ pub fn support_body() -> OptionsPage {
 }
 
 pub fn info_row(key: &str, label: &str, detail: &str) -> Element {
+    let lines = crate::quest_art::wrapped_line_count(detail, 370.0, 13.0);
+    let detail_height = lines as f32 * INFO_LINE_HEIGHT;
+    let row_height = detail_height.max(34.0);
     rsx! {
         r#frame {
             name: {DynName(format!("InfoRow{key}"))},
             width: {OPTIONS_CONTENT_W - 30.0},
-            height: 34.0,
-            {row_label(key, label)}
-            {info_detail(key, detail)}
+            height: row_height,
+            {row_label(key, label, lines > 1)}
+            {info_detail(key, detail, detail_height)}
         }
     }
 }
@@ -132,7 +137,7 @@ pub fn ghost_button_row(key: &str, label: &str, detail: &str) -> Element {
             name: {DynName(format!("GhostRow{key}"))},
             width: {OPTIONS_CONTENT_W - 30.0},
             height: 34.0,
-            {row_label(key, label)}
+            {row_label(key, label, false)}
             {ghost_detail(key, detail)}
             {disabled_button(key)}
         }
@@ -152,7 +157,7 @@ pub fn action_button_row(
             name: {DynName(format!("ActionRow{key}"))},
             width: {OPTIONS_CONTENT_W - 30.0},
             height: 34.0,
-            {row_label(key, label)}
+            {row_label(key, label, false)}
             {ghost_detail(key, detail)}
             button {
                 name: {DynName(format!("ActionButton{key}"))},
@@ -180,7 +185,9 @@ fn section_stack(items: Element) -> OptionsPage {
     OptionsPage { items, gap: 12.0 }
 }
 
-fn row_label(key: &str, text: &str) -> Element {
+fn row_label(key: &str, text: &str, multiline: bool) -> Element {
+    let top = if multiline { "0%" } else { "50%" };
+    let translate_y = if multiline { "0%" } else { "-50%" };
     rsx! {
         fontstring {
             name: {DynName(format!("RowLabel{key}"))},
@@ -192,22 +199,23 @@ fn row_label(key: &str, text: &str) -> Element {
             justify_h: "LEFT",
             pos_type: "absolute",
             left: "0%",
-            top: "50%",
-            translate_y: "-50%",
+            top,
+            translate_y,
         }
     }
 }
 
-fn info_detail(key: &str, detail: &str) -> Element {
+fn info_detail(key: &str, detail: &str, height: f32) -> Element {
     rsx! {
         fontstring {
             name: {DynName(format!("InfoDetail{key}"))},
             width: 370.0,
-            height: 28.0,
+            height,
             text: {detail},
             font_size: 13.0,
             color: "0.72,0.72,0.72,1.0",
             justify_h: "RIGHT",
+            justify_v: "TOP",
             pos_type: "absolute",
             left: "100%",
             top: "50%",

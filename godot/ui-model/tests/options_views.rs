@@ -18,6 +18,10 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 fn model() -> GameMenuViewModel {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     GameMenuViewModel {
         logged_in: true,
         view: GameMenuView::Options,
