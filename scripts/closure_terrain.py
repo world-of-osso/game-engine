@@ -37,19 +37,33 @@ class TerrainReferences:
             self.graph.issue('terrain_auxiliary_edges', f'{name} ID={key}: referenced metadata row absent', parent)
         return row
 
+    def optional_ground_row(self, name, key, parent):
+        row = self.index(name).get(key)
+        source = self.graph.seeds.get('table_paths', {}).get(name, f'db2/{self.graph.metadata_build}/{name}.csv')
+        if row is None and source in self.graph.inputs:
+            self.graph.resolve('terrain_optional_effect', parent, 'not_needed',
+                               f'{name} ID={key} absent from hashed pinned CSV; core ground_detail.rs GroundEffects::texture / native ground_detail.rs model_fdids skip absent optional rows before any model request; metadata completeness is not certified')
+        elif row is None:
+            self.graph.issue('terrain_auxiliary_edges', f'{name} ID={key}: metadata file absent', parent)
+        return row
+
     def ground_effect(self, effect, parent):
         if effect in {0, 0xffff, 0xffffffff}:
-            return
-        row = self.require('GroundEffectTexture', effect, parent)
+            return False
+        row = self.optional_ground_row('GroundEffectTexture', effect, parent)
         if row is None:
-            return
+            return False
+        needed = False
         for column in range(4):
             doodad = number(row, f'DoodadID_{column}')
             if not doodad:
                 continue
-            target = self.require('GroundEffectDoodad', doodad, parent)
+            target = self.optional_ground_row('GroundEffectDoodad', doodad, parent)
             if target is not None:
-                self.graph.add(number(target, 'ModelFileID'), 'm2', f'MCLY effect {effect} -> GroundEffectDoodad {doodad}', parent)
+                model = number(target, 'ModelFileID')
+                self.graph.add(model, 'm2', f'MCLY effect {effect} -> GroundEffectDoodad {doodad}', parent)
+                needed = needed or bool(model)
+        return needed
 
     def liquid(self, liquid_type, liquid_object, parent):
         if liquid_object >= 42:
@@ -94,7 +108,7 @@ class TerrainReferences:
             if len(payload) < 128:
                 raise ValueError('root MCNK header requires 128 bytes')
             payload = payload[128:]
-        effects, sounds, unknown = set(), set(), set()
+        effects, sounds, unknown, ignored = set(), set(), set(), set()
         geometry = {'MCVT', 'MCNR', 'MCCV', 'MCLV', 'MCSH', 'MCAL', 'MCRF', 'MCRD', 'MCRW', 'MCBB', 'MCDD', 'MCMT', 'MCQB'}
         for tag, block in chunks(payload, True):
             if tag == 'MCLY':
@@ -103,12 +117,11 @@ class TerrainReferences:
             elif tag in {'MCSE', 'ESCM'}:
                 for row in records(block, 28):
                     sounds.add(u32(row))
-            elif tag == 'MCLQ':
-                # Legacy liquid type lives in MCNK header flags, not MCLQ FDIDs.
-                unknown.add('MCLQ legacy liquid material')
+            elif tag in {'MCLQ', 'MPTX'}:
+                ignored.add(tag)
             elif tag not in geometry:
                 unknown.add(tag)
-        return effects, sounds, unknown
+        return effects, sounds, unknown, ignored
 
     def sound(self, kit, parent):
         if not kit:
@@ -126,25 +139,30 @@ class TerrainReferences:
 
     def expand(self, fdid, stream):
         table = dict(stream)
-        effects, sounds, unknown = set(), set(), set()
+        effects, sounds, unknown, ignored = set(), set(), set(), set()
         root = 'MHDR' in table
         mcnks = 0
         for tag, payload in stream:
             if tag == 'MCNK':
-                e, s, u = self.nested_references(payload, root)
+                e, s, u, unused = self.nested_references(payload, root)
                 effects.update(e)
                 sounds.update(s)
                 unknown.update(u)
+                ignored.update(unused)
                 mcnks += 1
         before_mcnk = len(self.graph.unresolved)
+        needs_models = False
         for effect in sorted(effects):
-            self.ground_effect(effect, fdid)
+            needs_models = self.ground_effect(effect, fdid) or needs_models
         for kit in sorted(sounds):
             self.sound(kit, fdid)
         for tag in sorted(unknown):
             self.graph.issue('terrain_auxiliary_edges', f'MCNK {tag}: external reference semantics unproved', fdid)
+        for tag in sorted(ignored):
+            self.graph.resolve('terrain_unused_chunk', fdid, 'not_needed',
+                               f'MCNK {tag}: core adt/parsing.rs apply_mcnk_subchunk and adt_tex.rs parse_tex0_mcnk do not consume this chunk; native terrain requests no file from it. No Retail-format completeness claim.')
         if mcnks and len(self.graph.unresolved) == before_mcnk:
-            status = 'resolved' if effects - {0, 0xffff, 0xffffffff} or sounds else 'not_needed'
+            status = 'resolved' if needs_models or sounds else 'not_needed'
             self.graph.resolve('terrain_auxiliary_edges', fdid, status,
                                f'MCNK: inspected all {mcnks} chunks; MCLY effects={sorted(effects)}, MCSE kits={sorted(sounds)}; other known subchunks hold inline geometry/alpha/shadow/placement indices (core adt_format)')
         if 'MH2O' in table:
