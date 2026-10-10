@@ -29,6 +29,7 @@ Option 1 is approved for the full referenced render-asset chain, preserving exis
 
 - `godot/core/src/game/creatures/creature_display_data.rs`: display rows retain `source_product` through import/SQLite lookup, with Retail collision precedence. This is metadata ownership, not an asset-build receipt; runtime identity selection remains pending.
 - `scripts/import_model_asset_chains.py`: publishes local-CASC staged chains only after actual installed-build and per-FDID content-key verification; writes scoped companions and a per-asset index, keeping metadata hashes separate.
+- `cache/outfit_links-v4.sqlite`: source product retained separately for each selected display/model/material resource group. Existing Retail groups keep their rows and ownership; owned item catalogs retain their explicit source.
 - `godot/rust/src/world_models.rs`, `assets/creature.rs`: model requests, file paths and parsed cache.
 - Sibling `asset-resolver/src/{lib.rs,paths.rs,casc_resolver.rs}`: resolver configuration, cache-hit policy and CASC state.
 

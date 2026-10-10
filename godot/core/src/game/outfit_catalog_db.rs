@@ -25,6 +25,7 @@ pub(crate) use outfit_query::{
 pub(crate) fn load_owned_outfit_connection(
     items_dir: &Path,
     gear_dir: &Path,
+    source_product: crate::asset_product::AssetProduct,
 ) -> Result<Connection, String> {
     let conn = Connection::open_in_memory()
         .map_err(|err| format!("open owned outfit namespace: {err}"))?;
@@ -38,6 +39,7 @@ pub(crate) fn load_owned_outfit_connection(
         &gear_dir.join("ItemDisplayInfoMaterialRes.csv"),
     )?;
     populate_model_to_fdid(&conn, &gear_dir.join("ModelFileData.csv"))?;
+    outfit_links_cache::record_resource_products(&conn, source_product)?;
     Ok(conn)
 }
 
@@ -57,7 +59,7 @@ type OutfitKey = (u8, u8, u8);
 type StarterOutfits = HashMap<OutfitKey, Vec<u32>>;
 /// Versioned by schema: checkouts with an older schema keep reading their own file.
 fn outfit_links_cache_path(data_dir: &Path) -> PathBuf {
-    data_dir.join("cache/outfit_links-v3.sqlite")
+    data_dir.join("cache/outfit_links-v4.sqlite")
 }
 fn required_outfit_csv_paths(data_dir: &Path) -> [PathBuf; 7] {
     [

@@ -122,8 +122,13 @@ impl OutfitData {
         } else {
             gear_dir.join("db2/12.1.0.69933")
         };
+        let product = if forever {
+            crate::asset_product::AssetProduct::Forever
+        } else {
+            crate::asset_product::AssetProduct::Retail
+        };
         let connection =
-            crate::outfit_catalog_db::load_owned_outfit_connection(&items_dir, &gear_dir)?;
+            crate::outfit_catalog_db::load_owned_outfit_connection(&items_dir, &gear_dir, product)?;
         let helmet_geoset_rules = if forever {
             load_forever_helmet_rules(&gear_dir.join("HelmetGeosetData.csv"))?
         } else {
