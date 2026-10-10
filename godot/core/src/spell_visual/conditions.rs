@@ -40,7 +40,7 @@ impl SpellVisualCatalog {
     }
 }
 
-const HANDLED: [&str; 11] = [
+const HANDLED: [&str; 20] = [
     "ID",
     "Failure_description_lang",
     "Flags",
@@ -52,6 +52,15 @@ const HANDLED: [&str; 11] = [
     "MaxLevel",
     "ChrSpecializationIndex",
     "WeaponSubclassMask",
+    "AuraSpellLogic",
+    "AuraSpellID_0",
+    "AuraSpellID_1",
+    "AuraSpellID_2",
+    "AuraSpellID_3",
+    "AuraStacks_0",
+    "AuraStacks_1",
+    "AuraStacks_2",
+    "AuraStacks_3",
 ];
 // Columns whose "no requirement" value is -1; every other column's is 0.
 const UNSET_MINUS_ONE: [&str; 7] = [
@@ -88,11 +97,18 @@ fn condition_cell(row: &[String], index: usize) -> i64 {
 
 fn parse_condition(
     row: &[String],
-    indices: &[usize; 11],
+    indices: &[usize; 20],
     others: &[(usize, i64)],
 ) -> (u32, PlayerCondition) {
     let value = |slot: usize| condition_cell(row, indices[slot]);
     let race_mask = (value(4) as u32 as u64) | ((value(5) as u32 as u64) << 32);
+    // Support one authored aura requirement only. Multi-operand logic remains
+    // unavailable until its semantics can be established from local sources.
+    const INVERT_FIRST_AURA: i64 = 1 << 16;
+    let aura_logic = value(11);
+    let unsupported_aura = !matches!(aura_logic, 0 | INVERT_FIRST_AURA)
+        || (13..=15).any(|slot| value(slot) != 0)
+        || (17..=19).any(|slot| value(slot) != 0);
     let condition = PlayerCondition {
         flags: value(2),
         class_mask: value(3),
@@ -102,9 +118,13 @@ fn parse_condition(
         max_level: value(8),
         spec_index: value(9),
         weapon_subclass_mask: value(10),
-        unsupported: others
-            .iter()
-            .any(|&(index, unset)| condition_cell(row, index) != unset),
+        aura_spell: value(12) as u32,
+        aura_stacks: value(16) as u32,
+        aura_inverted: aura_logic == INVERT_FIRST_AURA,
+        unsupported: unsupported_aura
+            || others
+                .iter()
+                .any(|&(index, unset)| condition_cell(row, index) != unset),
     };
     (value(0) as u32, condition)
 }
