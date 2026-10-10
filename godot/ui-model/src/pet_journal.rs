@@ -5,7 +5,7 @@ use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome};
 use crate::ui::strata::FrameStrata;
 use shared::pet_battle::PetJournal;
 use shared::protocol::{CollectionPetSnapshot, CollectionStateUpdate};
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
 
 pub const SEARCH: &str = "PetJournalSearchBox";
@@ -111,10 +111,13 @@ impl PetJournalView {
             })
             .collect();
         if !self.collected_only {
+            let owned_species: BTreeSet<_> =
+                self.journal.pets.iter().map(|pet| pet.species_id).collect();
             rows.extend(
                 self.catalog
                     .values()
-                    .filter(|species| self.journal.count_species(species.pet_id) == 0)
+                    .filter(|species| !species.name.is_empty())
+                    .filter(|species| !owned_species.contains(&species.pet_id))
                     .map(|species| PetRow {
                         key: PetRowKey::Species(species.pet_id),
                         species: species.pet_id,

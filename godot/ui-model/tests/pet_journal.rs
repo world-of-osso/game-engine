@@ -74,6 +74,26 @@ fn uncollected_species_cannot_summon_and_search_filters_names() {
 }
 
 #[test]
+fn unreadable_species_stays_in_catalog_but_not_blank_list_selection() {
+    let mut view = view();
+    view.journal = PetJournal::default();
+    view.selected = None;
+    view.catalog.insert(
+        354,
+        CollectionPetSnapshot {
+            pet_id: 354,
+            name: String::new(),
+            known: false,
+            active: false,
+        },
+    );
+    view.reselect_visible();
+    assert!(view.catalog.contains_key(&354));
+    assert_eq!(view.rows().len(), 2);
+    assert_eq!(view.selected, Some(PetRowKey::Species(40)));
+}
+
+#[test]
 fn pet_journal_skins_share_retail_layout_and_real_instance_text() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
