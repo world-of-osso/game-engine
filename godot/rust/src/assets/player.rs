@@ -150,6 +150,23 @@ fn compose_player_pixels(
     Ok(textures)
 }
 
+fn compose_product_player_pixels(
+    compositor: &CharTextureData,
+    choices: &PlayerChoices,
+    product: game_engine_core::asset_product::AssetProduct,
+    item_textures: &[(u8, game_engine_core::asset_product::AssetTexture)],
+    layout_id: u32,
+    mut load: impl FnMut(game_engine_core::asset_product::AssetTexture) -> Result<TexturePixels, String>,
+) -> Result<HashMap<u32, TexturePixels>, String> {
+    let items: Vec<_> = item_textures
+        .iter()
+        .map(|(section, texture)| (*section, texture.fdid))
+        .collect();
+    compose_player_pixels(compositor, choices, &items, layout_id, |fdid| {
+        load(game_engine_core::asset_product::AssetTexture { product, fdid })
+    })
+}
+
 fn default_player_body_fdid(compositor: &CharTextureData, layout_id: u32) -> Result<u32, String> {
     let layout = compositor
         .layout(layout_id)
@@ -665,6 +682,43 @@ mod tests {
             geosets: Vec::new(),
             skinned_models: Vec::new(),
         }
+    }
+
+    #[test]
+    fn model_asset_body_overlays_do_not_merge_same_fdid_from_different_products() {
+        use game_engine_core::asset_product::{AssetProduct, AssetTexture};
+        let mut choices = empty_choices();
+        choices.materials.push((1, 777));
+        let textures = compose_product_player_pixels(
+            &clothing_compositor(),
+            &choices,
+            AssetProduct::Retail,
+            &[(
+                3,
+                AssetTexture {
+                    product: AssetProduct::Forever,
+                    fdid: 777,
+                },
+            )],
+            7,
+            |texture| {
+                Ok((
+                    match texture.product {
+                        AssetProduct::Retail => vec![120, 80, 40, 255],
+                        AssetProduct::Forever => vec![10, 200, 30, 255],
+                    },
+                    1,
+                    1,
+                ))
+            },
+        )
+        .unwrap();
+        assert_eq!(
+            textures[&1].0,
+            [
+                120, 80, 40, 255, 10, 200, 30, 255, 120, 80, 40, 255, 10, 200, 30, 255
+            ]
+        );
     }
 
     #[test]

@@ -10,6 +10,13 @@ pub enum AssetProduct {
     Forever,
 }
 
+/// A metadata-selected file, before its actual build is read from the receipt index.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+pub struct AssetTexture {
+    pub product: AssetProduct,
+    pub fdid: u32,
+}
+
 impl AssetProduct {
     pub fn as_str(self) -> &'static str {
         match self {
