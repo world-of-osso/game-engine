@@ -145,7 +145,11 @@ def seed_terrain(graph, config):
             tiles = sorted(tiles_by_directory[directory])
             for kind in ["wdt", "wdl"]:
                 logical = f"world/maps/{directory}/{directory}.{kind}"
-                if logical in graph.by_path:
+                if kind == "wdt" and "wdt_fdid" in map_spec:
+                    graph.add(map_spec["wdt_fdid"], "wdt", f"Map {map_spec['id']} WdtFileDataID")
+                    if not map_spec["wdt_fdid"]:
+                        graph.resolve("map_declared_wdt", None, "not_needed", f"Map {map_spec['id']} WdtFileDataID=0; native read_fdid_file rejects zero before file IO, not a supported-map certification")
+                elif logical in graph.by_path:
                     graph.named(logical, kind, f"map {map_spec['id']} {kind}", None)
         for x, y in tiles:
             selected.add((map_spec["id"], x, y))
@@ -328,7 +332,7 @@ def seed_catalogs(graph, world_path, config):
     graph.seeds = dict(config)
     maps = config["maps"]
     if maps == "all":
-        maps = [{"id": number(row, "ID"), "directory": row["Directory"], "tiles": "all"}
+        maps = [{"id": number(row, "ID"), "directory": row["Directory"], "tiles": "all", "wdt_fdid": number(row, "WdtFileDataID")}
                 for row in catalogs.rows("Map") if row.get("Directory")]
     tiles = seed_terrain(graph, {"maps": maps})
     race_models = catalogs.rows("ChrRaceXChrModel")

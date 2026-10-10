@@ -98,6 +98,7 @@ def main():
     parser.add_argument('--extractor', type=Path, required=True)
     parser.add_argument('--world-db', type=Path, required=True)
     parser.add_argument('--config', type=Path, required=True)
+    parser.add_argument('--path-resolution-cache', type=Path)
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--handoff', type=Path, required=True)
     parser.add_argument('--workers', type=int, default=4)
@@ -169,6 +170,8 @@ def main():
         command = ['python3', str(Path(__file__).with_name('asset_closure.py')),
                    '--data', str(args.data), '--world-db', str(args.world_db),
                    '--config', str(args.config), '--output', str(path)]
+        if args.path_resolution_cache is not None:
+            command.extend(['--path-resolution-cache', str(args.path_resolution_cache)])
         print(f'Traversing round {current_round[0]}', flush=True)
         with (output / 'traversal.log').open('w') as stream:
             result = subprocess.run(command, stdout=stream, stderr=stream, check=False)
