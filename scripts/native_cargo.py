@@ -35,11 +35,16 @@ def native_slot():
         time.sleep(5)
 
 
-def run_cargo(root, arguments, output=None):
+def run_cargo(root, arguments, output=None, source_root=None):
     environment = os.environ | {"CARGO_TARGET_DIR": str(root / "target")}
     environment.pop("CARGO_BUILD_JOBS", None)
+    manifest = (
+        ["--manifest-path", str(source_root / "Cargo.toml")]
+        if source_root is not None and source_root != root
+        else []
+    )
     return subprocess.run(
-        ["cargo", arguments[0], "--locked", *arguments[1:]],
+        ["cargo", arguments[0], "--locked", *manifest, *arguments[1:]],
         cwd=root,
         env=environment,
         stdout=output,
