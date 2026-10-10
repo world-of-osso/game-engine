@@ -13,6 +13,7 @@ class SpellRootsTests(unittest.TestCase):
     def test_spell_visual_chain_and_authored_kit_cycle(self):
         from closure_spell_seeds import seed_spell_visuals
         tables = {
+            'SpellMisc': 'ID,SpellID,DifficultyID,SpellIconFileDataID\n1,100,7,72\n',
             'SpellXSpellVisual': 'ID,SpellID,SpellVisualID,SpellIconFileID\n1,100,10,71\n2,999,99,90\n',
             'SpellVisual': 'ID,SpellVisualMissileSetID\n10,20\n99,99\n',
             'SpellVisualEvent': 'ID,SpellVisualID,SpellVisualKitID\n1,10,30\n',
@@ -31,7 +32,7 @@ class SpellRootsTests(unittest.TestCase):
                 (root / (name + '.csv')).write_text(text)
             graph = Closure(data, {80: 'sound/a.ogg', 81: 'sound/b.mp3'}, 'wow', 'fixture')
             seed_spell_visuals(graph, Catalogs(graph), [100])
-            self.assertEqual(sorted(graph.assets), [(60, 'm2'), (61, 'm2'), (62, 'm2'), (70, 'blp'), (71, 'blp'), (80, 'ogg'), (81, 'mp3')])
+            self.assertEqual(sorted(graph.assets), [(60, 'm2'), (61, 'm2'), (62, 'm2'), (70, 'blp'), (71, 'blp'), (72, 'blp'), (80, 'ogg'), (81, 'mp3')])
             self.assertTrue(any(code == 'unsupported_spell_kit_effect' and '99' in reason for code, reason, _ in graph.unresolved))
 
 
