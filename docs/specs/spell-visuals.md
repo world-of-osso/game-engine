@@ -15,7 +15,7 @@ The Godot client selects Retail DB2 spell visuals and plays their event kits on 
 - [x] Unknown multi-aura logic, ModifierTree and other unsupported requirements remain unavailable, never bypassed. Scoots1280563/ModifierTree303980 remains blocked by absent local data.
 - [ ] Procedural cloak kit106563/Type17 payload is not present in the local export; no model mapping is invented.
 
-Behavioral fixture: `godot/core/tests/spell_visual.rs::toyfx6_spitzy_inverted_aura_condition_shows_without_disabling_aura`. Native both-skin proof remains pending.
+Behavioral fixture: `godot/core/tests/spell_visual.rs::toyfx6_spitzy_inverted_aura_condition_shows_without_disabling_aura`. Actual journal Spitzy kits/models were captured in both configured skins; precise rear-view attachment alignment and live present-aura exclusion are not certified. Mortar live acceptance remains pending; see the [toy evidence boundary](../wiki/systems/toy-box.md#toy-effects6-conditional-selection-and-summon-coverage-2026-10-10).
 
 ## How it works
 
