@@ -7,7 +7,7 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 - [x] Prefer locally exported Retail POI geometry where present; use authored server POIs for other quest IDs. Never invent missing polygons.
 - [x] Show blue incomplete watched-objective areas and numbered objective pins on both maps. Completion removes areas and replaces the objective pin with a `?` turn-in pin.
 - [x] Match map numbers to objective tracker watch order; clicking a tracker quest super-tracks it and highlights its area.
-- [ ] Show available-giver `!` pins when authoritative giver status and position exist.
+- [x] Show available-giver `!` pins when authoritative giver status and position exist.
 - [x] Clip minimap areas and icons to its mask; rotate map geometry and overlays together when rotation is enabled. Show the selected off-screen objective's direction arrow at the edge.
 
 ## How it works
@@ -36,7 +36,7 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 - [ ] Conditional POIs require player-condition evaluation; excluded, never replaced with guessed shapes. Missing authored geometry remains absent; [source coverage](../wiki/systems/quest-map-objectives.md#source-ownership).
 - [ ] Independent verification unavailable (Claude OAuth expired). Workspace format check has two unchanged baseline failures; changed-file format check passes.
 
-Current proof: 40 distinct targeted tests; giver-offer projection assertion awaiting GREEN. native extension/CLI build and cargo check pass. Real quest28766 accepted on private UDP5518; authoritative completion updates both maps live. Twelve final 1920×1080 PNGs (both skins, incomplete/complete, world map/minimap/rotated minimap) were FFmpeg-decoded and visually inspected before publication to `/syncthing/AgentShared/2026-10-10/quest-poi/`. Off-screen edge arrows have pure-model proof, not live screenshot proof.
+Current proof: 41 distinct targeted tests; native extension/CLI build and cargo check pass. Real quest28766 accepted on private UDP5518; authoritative completion updates both maps live. Twelve final 1920×1080 PNGs (both skins, incomplete/complete, world map/minimap/rotated minimap) were FFmpeg-decoded and visually inspected before publication to `/syncthing/AgentShared/2026-10-10/quest-poi/`. Off-screen edge arrows have pure-model proof, not live screenshot proof.
 
 ## Out of scope
 

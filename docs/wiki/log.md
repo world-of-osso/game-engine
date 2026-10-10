@@ -1,6 +1,6 @@
 ## 2026-10-10 — Quest map objective sources and integration
 
-[Quest map objectives](systems/quest-map-objectives.md) records local CASC blob/point exports, source coverage and native blue-overlay integration. RED selection, completed-objective, color and rotation receipts retained; GREEN/native/live acceptance pending.
+[Quest map objectives](systems/quest-map-objectives.md) records local CASC coverage, source-owned geometry, numbered icons, blue overlays and super-tracking. 41 distinct targeted tests, native build/check, private5518 real quest28766 acceptance/live completion and both-skin12-PNG FFmpeg/visual proof; published PNG-only to AgentShared. Sprite number and fixture mount-race REDs corrected. Conditional/missing geometry, inherited format failures and unavailable independent OAuth verification remain explicit.
 
 ## 2026-10-09 — Retail auction subject and invoice formatting
 
