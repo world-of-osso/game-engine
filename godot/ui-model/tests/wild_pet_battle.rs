@@ -2,7 +2,7 @@ use game_engine_ui_model::wild_pet_battle::{WildBattleView, wild_battle_screen};
 use shared::protocol::*;
 use ui_toolkit::{
     atlas::{ActiveSkin, set_thread_skin},
-    frame::{Dimension, WidgetData},
+    frame::Dimension,
     registry::FrameRegistry,
     screen::{Screen, SharedContext},
 };
@@ -13,6 +13,10 @@ fn snapshot() -> WildPetBattleSnapshot {
         species_id: 39,
         name: "Mechanical Squirrel".into(),
         display_id: 7937,
+        icon: 132145,
+        quality: 1,
+        xp: 25,
+        next_level_xp: 100,
         family: 9,
         level: 1,
         health: 159,
@@ -27,11 +31,13 @@ fn snapshot() -> WildPetBattleSnapshot {
                 "Locked".into()
             },
             icon: 132139,
+            family: 7,
             cooldown: if index == 0 { 2 } else { 0 },
             usable: false,
         }),
         auras: vec![BattleAuraSnapshot {
             ability_id: 194,
+            icon: 132139,
             rounds_remaining: 2,
         }],
     };
@@ -51,6 +57,7 @@ fn snapshot() -> WildPetBattleSnapshot {
         can_trap: true,
         turn_time_ms: 0,
         replacement_required: false,
+        feedback: vec![],
     }
 }
 #[test]
@@ -101,12 +108,7 @@ fn wild_pet_battle_skins_render_same_frames_auras_abilities_and_untimed_pve_time
             assert_eq!(frame.width, Dimension::Fixed(270.0));
             assert_eq!(frame.height, Dimension::Fixed(80.0));
         }
-        let timer = registry
-            .get(registry.get_by_name("PetBattleTurnTimerText").unwrap())
-            .unwrap();
-        assert!(
-            matches!(timer.widget_data.as_ref(), Some(WidgetData::FontString(text)) if text.text=="Select an action")
-        );
+        assert!(registry.get_by_name("PetBattleTurnTimerText").is_none());
         for name in [
             "PetBattleAllyType",
             "PetBattleEnemyType",
@@ -122,6 +124,79 @@ fn wild_pet_battle_skins_render_same_frames_auras_abilities_and_untimed_pve_time
         ] {
             assert!(registry.get_by_name(name).is_some(), "{name}");
         }
+    }
+}
+#[test]
+fn wild_pet_battle_retail_hud_has_icons_locks_reserves_and_no_debug_output() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let mut view = WildBattleView::default();
+        view.receive(WildPetBattleUpdate::Round {
+            state: snapshot(),
+            combat_text: vec![
+                "Used { pet: PetRef { team: 1, slot: 0 }, ability: 119, turn: 1 }".into(),
+                "Order([0, 1])".into(),
+                "29 damage".into(),
+            ],
+        });
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(wild_battle_screen).sync(&context, &mut registry);
+        assert!(registry.get_by_name("PetBattleCombatText").is_none());
+        assert!(registry.get_by_name("PetBattleAbility1Label").is_none());
+        for name in [
+            "PetBattleAbility1Icon",
+            "PetBattleAbility1Effectiveness",
+            "PetBattleAbility2Lock",
+            "PetBattleAllyIcon",
+            "PetBattleEnemyIcon",
+            "PetBattleAllyReserve1",
+            "PetBattleAllyReserve2",
+            "PetBattleXPBar",
+        ] {
+            assert!(registry.get_by_name(name).is_some(), "{skin:?}: {name}");
+        }
+    }
+}
+#[test]
+fn wild_pet_battle_feedback_preserves_event_amounts_and_badges_follow_enemy_type() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for (family, badge) in [(4, Some(608706)), (2, Some(608707)), (0, None)] {
+        let mut state = snapshot();
+        state.teams[1][0].family = family;
+        state.feedback = vec![BattleCombatFeedback {
+            team: 1,
+            slot: 0,
+            text: "29".into(),
+            healing: false,
+        }];
+        let mut view = WildBattleView::default();
+        view.receive(WildPetBattleUpdate::Round {
+            state,
+            combat_text: vec!["29 damage".into()],
+        });
+        let mut context = SharedContext::new();
+        context.insert(ActiveSkin::Modern);
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(wild_battle_screen).sync(&context, &mut registry);
+        let floating = registry
+            .get(registry.get_by_name("PetBattleFloating0").unwrap())
+            .unwrap();
+        assert!(
+            matches!(floating.widget_data.as_ref(), Some(ui_toolkit::frame::WidgetData::FontString(text)) if text.text == "29")
+        );
+        let indicator = registry.get_by_name("PetBattleAbility1Effectiveness");
+        assert_eq!(indicator.is_some(), badge.is_some());
     }
 }
 #[test]
