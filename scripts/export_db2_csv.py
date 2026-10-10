@@ -69,6 +69,19 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # Local Retail 12.1.0.69933; wowdev/WoWDBDefs QuestPOIBlob/Point layouts.
+    "QuestPOIBlob": (
+        0xFDC814CF,
+        [("ID", "id"), ("MapID", ("i16", 1)), ("UiMapID", 2),
+         ("Flags", 3), ("NumPoints", ("u8", 4)), ("QuestID", 5),
+         ("ObjectiveIndex", ("int", 6, 0)), ("ObjectiveID", 7),
+         ("PlayerConditionID", 8), ("NavigationPlayerConditionID", 9)],
+    ),
+    "QuestPOIPoint": (
+        0x5CBBEFE7,
+        [("ID", "id"), ("X", ("i16", 1)), ("Y", ("i16", 2)),
+         ("Z", ("i16", 3)), ("QuestPOIBlobID", "parent")],
+    ),
     # Retail 12.1.0.69933, WoWDBDefs GlobalStrings.dbd layout D40F6D96.
     "GlobalStrings": (
         0xD40F6D96,
