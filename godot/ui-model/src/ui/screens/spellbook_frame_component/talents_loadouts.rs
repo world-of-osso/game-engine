@@ -7,6 +7,7 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
     let list = view.editor.loadouts.as_ref();
     let configs = list.map_or(&[][..], |list| list.configs.as_slice());
     let enabled = !view.editor.loadout_busy;
+    let disabled = !enabled;
     for (index, config) in configs.iter().enumerate() {
         let action = format!("talent:loadout_select:{}", config.id);
         let edit = format!("talent:loadout_edit:{}", config.id);
@@ -19,12 +20,12 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
         } else {
             Vec::new()
         };
-        rows.extend(rsx! { button {name:{DynName(name.clone())},onclick:{action.as_str()},enabled,
+        rows.extend(rsx! { button {name:{DynName(name.clone())},onclick:{action.as_str()},disabled,
             button_default_skin:false,width:{164.0*scale},height:{28.0*scale},pos_type:"absolute",left:{6.0*scale},top,
             fontstring {name:{DynName(format!("{name}Text"))},text:{config.name.as_str()},width:{136.0*scale},height:{28.0*scale},
                 font_size:{12.0*scale},font_color:TAB_TEXT,justify_h:"LEFT",mouse_enabled:false} {check}
         }
-        button {name:{DynName(format!("TalentLoadoutEdit{}",config.id))},onclick:{edit.as_str()},enabled,button_default_skin:false,
+        button {name:{DynName(format!("TalentLoadoutEdit{}",config.id))},onclick:{edit.as_str()},disabled,button_default_skin:false,
             width:{16.0*scale},height:{16.0*scale},pos_type:"absolute",left:{178.0*scale},top:{top+6.0*scale},
             texture {name:{DynName(format!("{name}Gear"))},texture_fdid:311226,width:{16.0*scale},height:{16.0*scale},mouse_enabled:false,
                 pos_type:"absolute",left:0.0,top:0.0}
@@ -68,7 +69,8 @@ fn sentinel_row(
     scale: f32,
 ) -> Element {
     let color = if enabled { TAB_TEXT } else { "0.5,0.5,0.5,1.0" };
-    rsx! { button {name:{DynName(name.into())},onclick:action,enabled,button_default_skin:false,
+    let disabled = !enabled;
+    rsx! { button {name:{DynName(name.into())},onclick:action,disabled,button_default_skin:false,
         width:{188.0*scale},height:{28.0*scale},pos_type:"absolute",left:{6.0*scale},top:{(6.0+index as f32*28.0)*scale},
         fontstring {name:{DynName(format!("{name}Text"))},text,width:{188.0*scale},height:{28.0*scale},
             font_size:{12.0*scale},font_color:color,justify_h:"LEFT",mouse_enabled:false}
