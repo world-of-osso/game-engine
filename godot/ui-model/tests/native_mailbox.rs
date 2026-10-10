@@ -822,6 +822,38 @@ fn auction_mail_invoice_is_not_a_letter_and_renders_retail_rows() {
         };
         assert_eq!(label.text, expected);
     }
+    // Concrete renderer input geometry: each amount belongs below its caption,
+    // as the native screenshot demonstrated (not inverse distance from frame bottom).
+    for (caption, amount) in [
+        (
+            "OpenMailInvoiceSalePrice",
+            "OpenMailSalePriceMoneyFrameAmount0",
+        ),
+        ("OpenMailInvoiceDeposit", "OpenMailDepositMoneyFrameAmount0"),
+        (
+            "OpenMailInvoiceHouseCut",
+            "OpenMailHouseCutMoneyFrameAmount0",
+        ),
+        (
+            "OpenMailInvoiceAmountReceived",
+            "OpenMailTransactionAmountMoneyFrameAmount0",
+        ),
+    ] {
+        let label = registry
+            .get(registry.get_by_name(caption).unwrap())
+            .unwrap();
+        let amount = registry.get(registry.get_by_name(amount).unwrap()).unwrap();
+        let ui_toolkit::layout_values::Val::Px(label_top) = label.position.top else {
+            panic!("pixel caption geometry")
+        };
+        let ui_toolkit::layout_values::Val::Px(amount_top) = amount.position.top else {
+            panic!("pixel money geometry")
+        };
+        assert!(
+            (amount_top - label_top - 18.0).abs() < 1.0,
+            "{caption}: amount belongs below its own label"
+        );
+    }
     let header = MailHeader {
         subject: "AUCTION_WON_MAIL_SUBJECT:Wool Cloth".into(),
         body: "Seller:12345:20000:132:0:4".into(),
