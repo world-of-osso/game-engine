@@ -444,6 +444,22 @@ fn toyfx2_scale_state_replicates_and_reverts_over_udp() {
 }
 
 #[test]
+fn toyfx2_feather_fall_replicates_and_reverts_over_udp() {
+    use shared::components::FeatherFall;
+    let mut session = Session::start(9153);
+    let hero = session.spawn((player("FeatherToy"), position(1.0), FeatherFall(true)));
+    session.until("feather fall applied", hero, |unit| {
+        unit.and_then(|u| u.get::<FeatherFall>().copied()) == Some(FeatherFall(true))
+    });
+    session.edit(hero, |hero| {
+        hero.insert(FeatherFall(false));
+    });
+    session.until("feather fall removed", hero, |unit| {
+        unit.and_then(|u| u.get::<FeatherFall>().copied()) == Some(FeatherFall(false))
+    });
+}
+
+#[test]
 fn replica_matches_stock_replicon_client_over_udp() {
     let mut session = Session::start(9100);
     let (hero, wolf) = run_scenario(&mut session, true);

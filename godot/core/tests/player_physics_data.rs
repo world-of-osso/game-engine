@@ -6,6 +6,41 @@ use game_engine_core::player_physics_data::{
 use glam::Vec3;
 
 const GRAVITY: f32 = 19.6;
+
+#[test]
+fn toyfx2_feather_fall_caps_prediction_and_removal_restores_gravity() {
+    let mut state = VerticalState {
+        y: 100.0,
+        vertical_velocity: -40.0,
+        grounded: false,
+    };
+    for _ in 0..120 {
+        let previous = state.y;
+        state = apply_gravity_and_ground_snap(
+            state,
+            GroundState::Supported(0.0),
+            1.0 / 60.0,
+            GRAVITY,
+            Some(7.0),
+        );
+        assert_eq!(state.vertical_velocity, -7.0);
+        assert!((previous - state.y - 7.0 / 60.0).abs() < 0.001);
+    }
+    let uncapped =
+        apply_gravity_and_ground_snap(state, GroundState::Supported(0.0), 0.1, GRAVITY, None);
+    assert!(uncapped.vertical_velocity < -7.0);
+    let jumping = apply_gravity_and_ground_snap(
+        VerticalState {
+            vertical_velocity: 9.0,
+            ..state
+        },
+        GroundState::Supported(0.0),
+        0.1,
+        GRAVITY,
+        Some(7.0),
+    );
+    assert!(jumping.vertical_velocity > 0.0);
+}
 const SNAP: f32 = 0.3;
 const MAX_SLOPE_ANGLE: f32 = std::f32::consts::FRAC_PI_4;
 const STEP_UP_HEIGHT: f32 = 1.6;
@@ -115,7 +150,13 @@ fn snapping_requires_target_within_step_below_current_height() {
 
 fn step(state: VerticalState, ground: GroundState, dt: f32) -> VerticalState {
     let grounded = update_grounded(state.y, ground, SNAP);
-    apply_gravity_and_ground_snap(VerticalState { grounded, ..state }, ground, dt, GRAVITY)
+    apply_gravity_and_ground_snap(
+        VerticalState { grounded, ..state },
+        ground,
+        dt,
+        GRAVITY,
+        None,
+    )
 }
 
 #[test]
