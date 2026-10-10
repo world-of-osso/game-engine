@@ -72,9 +72,9 @@ impl GameClient {
         }
         self.wild_pet_battle.view.receive(update);
     }
-    pub(super) fn update_wild_pet_battle(&mut self, delta: f64) -> Result<(), FrameError> {
+    pub(super) fn update_wild_pet_battle(&mut self, delta: f32) -> Result<(), FrameError> {
         self.wild_pet_battle.view.feedback_seconds =
-            (self.wild_pet_battle.view.feedback_seconds - delta as f32).max(0.0);
+            (self.wild_pet_battle.view.feedback_seconds - delta).max(0.0);
         if self.account.session.screen != SessionScreen::InWorld
             || self.wild_pet_battle.view.state.is_none()
         {
