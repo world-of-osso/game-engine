@@ -169,12 +169,97 @@ fn hudeditmodepolish_title_drag_clamps_manager_and_preserves_hud_placements() {
     assert!(draft.move_panel_drag([1000.0, 500.0], [1366.0, 768.0]));
     assert_eq!(draft.panel_position, Some([906.0, 490.0]));
     assert!(draft.move_panel_drag([-100.0, 1000.0], [1366.0, 768.0]));
-    assert_eq!(draft.panel_position, Some([0.0, 516.0]));
+    assert_eq!(draft.panel_position, Some([0.0, 508.0]));
     assert_eq!(draft.working, layout.elements);
     draft.panel_grab.take();
     assert!(!draft.move_panel_drag([500.0, 500.0], [1366.0, 768.0]));
     draft.exit();
     assert_eq!(draft.panel_position, None);
+}
+
+#[test]
+fn hud_edit_manager_action_rows_keep_retail_bottom_and_side_insets() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(EditModePanelState::default());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(edit_mode_panel_screen).sync(&shared, &mut registry);
+        let bounds =
+            super::super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new())
+                .unwrap();
+        let panel = &bounds[&registry.get_by_name(EDIT_MODE_PANEL.0).unwrap()];
+        // Retail EditModeManager.xml:526-534: bottom inset16, side insets15.
+        for name in ["Revert", "Save", "Exit"] {
+            let button = &bounds[&registry
+                .get_by_name(&format!("EditModeManagerFrame{name}"))
+                .unwrap()];
+            assert_eq!(
+                panel.y + panel.height - button.y - button.height,
+                16.0,
+                "{skin:?} {name} bottom inset"
+            );
+        }
+        for (first, last) in [("New", "Reset"), ("Revert", "Exit")] {
+            let first = &bounds[&registry
+                .get_by_name(&format!("EditModeManagerFrame{first}"))
+                .unwrap()];
+            let last = &bounds[&registry
+                .get_by_name(&format!("EditModeManagerFrame{last}"))
+                .unwrap()];
+            assert_eq!(first.x - panel.x, 15.0, "{skin:?} left inset");
+            assert_eq!(
+                panel.x + panel.width - last.x - last.width,
+                15.0,
+                "{skin:?} right inset"
+            );
+        }
+    }
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn hud_edit_manager_button_labels_fit_rendered_buttons_in_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(EditModePanelState::default());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(edit_mode_panel_screen).sync(&shared, &mut registry);
+        let bounds =
+            super::super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new())
+                .unwrap();
+        for name in [
+            "New", "Rename", "Delete", "Reset", "Revert", "Save", "Exit", "Prev", "Next",
+        ] {
+            let id = registry
+                .get_by_name(&format!("EditModeManagerFrame{name}"))
+                .unwrap();
+            let text = super::super::parts::project_button_text(registry.get(id).unwrap())
+                .expect("rendered button text");
+            let (width, height) =
+                ui_toolkit::text_measure::measure_text(&text.content, text.font, text.font_size)
+                    .expect("real Friz Quadrata font metrics");
+            let button = &bounds[&id];
+            assert!(
+                width + 12.0 <= button.width,
+                "{skin:?} {} width={width} button={} (6px text insets)",
+                text.content,
+                button.width
+            );
+            assert!(
+                height <= button.height,
+                "{skin:?} {} height={height} button={}",
+                text.content,
+                button.height
+            );
+        }
+    }
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]

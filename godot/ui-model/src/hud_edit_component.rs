@@ -35,7 +35,7 @@ const PANEL_STYLE: &str = crate::static_popup_component::STATIC_POPUP_PANEL_STYL
 
 /// Retail's 510-wide manager cannot clear our authored 1366×768 HUD; only the panel shrinks.
 pub const PANEL_W: f32 = 460.0;
-pub const PANEL_H: f32 = 252.0;
+pub const PANEL_H: f32 = 260.0;
 /// Retail EditModeManager.xml:6: TOP of UIParent at y=-100.
 pub const PANEL_TOP: f32 = 100.0;
 pub const PANEL_CLEARANCE: f32 = 8.0;
@@ -43,6 +43,11 @@ pub const PANEL_TITLE_H: f32 = 32.0;
 const PANEL_INSET: f32 = 7.0;
 const BUTTON_W: f32 = 104.0;
 const BUTTON_H: f32 = 26.0;
+/// Retail EditModeManager.xml:526-534 anchors footer buttons 15 in, 16 up.
+const BUTTON_SIDE_INSET: f32 = 15.0;
+const BUTTON_BOTTOM_INSET: f32 = 16.0;
+const BUTTON_GAP: f32 = 8.0;
+const RESET_BUTTON_W: f32 = 118.0;
 const BUTTON_ATLAS_UP: &str = "defaultbutton-nineslice-up";
 const BUTTON_ATLAS_PRESSED: &str = "defaultbutton-nineslice-pressed";
 const BUTTON_ATLAS_HIGHLIGHT: &str = "defaultbutton-nineslice-highlight";
@@ -261,6 +266,12 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
         "-50%"
     };
     let top = state.position.map_or(PANEL_TOP, |at| at[1]);
+    let row_width = PANEL_W - 2.0 * BUTTON_SIDE_INSET;
+    let action_width = (row_width - RESET_BUTTON_W - 3.0 * BUTTON_GAP) / 3.0;
+    let action_step = action_width + BUTTON_GAP;
+    let footer_width = (row_width - 2.0 * BUTTON_GAP) / 3.0;
+    let footer_step = footer_width + BUTTON_GAP;
+    let footer_top = PANEL_H - BUTTON_H - BUTTON_BOTTOM_INSET;
     rsx! {
         r#frame {
             name: EDIT_MODE_PANEL,
@@ -297,13 +308,13 @@ pub fn edit_mode_panel_screen(ctx: &SharedContext) -> Element {
             {panel_button("EditModeManagerFramePrev", "<", ACTION_EDIT_MODE_PREV_LAYOUT, 20.0, 36.0, 30.0, interactive)}
             {panel_button("EditModeManagerFrameNext", ">", ACTION_EDIT_MODE_NEXT_LAYOUT, PANEL_W - 50.0, 36.0, 30.0, interactive)}
             {name_input(state)}
-            {panel_button("EditModeManagerFrameNew", "New", ACTION_EDIT_MODE_NEW, 20.0, 188.0, 100.0, new_enabled)}
-            {panel_button("EditModeManagerFrameRename", "Rename", ACTION_EDIT_MODE_RENAME, 130.0, 188.0, 100.0, user_layout)}
-            {panel_button("EditModeManagerFrameDelete", "Delete", ACTION_EDIT_MODE_DELETE, 240.0, 188.0, 100.0, user_layout)}
-            {panel_button("EditModeManagerFrameRevert", "Revert", ACTION_EDIT_MODE_REVERT, 20.0, 218.0, 100.0, state.dirty && interactive)}
-            {panel_button("EditModeManagerFrameSave", "Save", ACTION_EDIT_MODE_SAVE, 130.0, 218.0, 100.0, state.dirty && interactive)}
-            {panel_button("EditModeManagerFrameExit", "Exit", ACTION_EDIT_MODE_EXIT, 240.0, 218.0, 100.0, interactive)}
-            {panel_button("EditModeManagerFrameReset", "Reset Selected", ACTION_EDIT_MODE_RESET, 350.0, 188.0, 100.0, interactive)}
+            {panel_button("EditModeManagerFrameNew", "New", ACTION_EDIT_MODE_NEW, BUTTON_SIDE_INSET, 188.0, action_width, new_enabled)}
+            {panel_button("EditModeManagerFrameRename", "Rename", ACTION_EDIT_MODE_RENAME, BUTTON_SIDE_INSET + action_step, 188.0, action_width, user_layout)}
+            {panel_button("EditModeManagerFrameDelete", "Delete", ACTION_EDIT_MODE_DELETE, BUTTON_SIDE_INSET + 2.0 * action_step, 188.0, action_width, user_layout)}
+            {panel_button("EditModeManagerFrameRevert", "Revert", ACTION_EDIT_MODE_REVERT, BUTTON_SIDE_INSET, footer_top, footer_width, state.dirty && interactive)}
+            {panel_button("EditModeManagerFrameSave", "Save", ACTION_EDIT_MODE_SAVE, BUTTON_SIDE_INSET + footer_step, footer_top, footer_width, state.dirty && interactive)}
+            {panel_button("EditModeManagerFrameExit", "Exit", ACTION_EDIT_MODE_EXIT, BUTTON_SIDE_INSET + 2.0 * footer_step, footer_top, footer_width, interactive)}
+            {panel_button("EditModeManagerFrameReset", "Reset Selected", ACTION_EDIT_MODE_RESET, BUTTON_SIDE_INSET + 3.0 * action_step, 188.0, RESET_BUTTON_W, interactive)}
             fontstring {
                 name: "EditModeManagerFrameStatus", width: 210.0, height: 32.0,
                 text: {state.status.as_str()}, font: GameFont::FrizQuadrata,
