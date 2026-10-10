@@ -405,7 +405,19 @@ class Closure:
                     raise ValueError("SKPD requires 16 bytes")
                 self.add(u32(payload, 8), "skel", "SKPD parent skeleton", fdid)
             elif tag in {"BFID", "PFID"}:
-                self.issue("unsupported_model_edge", tag, fdid)
+                # wowdev/pywowlib m2_file.py / file_formats/m2_format.py:
+                # BFID lists .bone poses; PFID is one .phys satellite FDID.
+                # Native core ignores these satellites; collect authored bytes
+                # without pretending to implement their runtime physics/poses.
+                if tag == "PFID" and len(payload) != 4:
+                    raise ValueError("PFID requires one 4-byte physics FDID")
+                for index, value in enumerate(integers(payload)):
+                    self.add(
+                        value,
+                        "bone" if tag == "BFID" else "phys",
+                        f"{tag}[{index}]",
+                        fdid,
+                    )
         if kind == "m2":
             if raw is None or raw[:4] != b"MD20":
                 raise ValueError("no MD20/MD21 model header")
