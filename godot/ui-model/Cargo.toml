@@ -3,6 +3,13 @@ name = "game-engine-ui-model"
 version = "0.1.0"
 edition = "2024"
 rust-version = "1.95"
+autotests = false
+
+# One harness avoids compiling/linking the same UI dependencies for 93 binaries.
+# Keep each suite in its own module so fixtures and helpers remain isolated.
+[[test]]
+name = "integration"
+path = "tests/integration.rs"
 
 [dependencies]
 # Shared chat timestamps: local `HH:MM:SS`, as the root client's chat frame formats them.
