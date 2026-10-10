@@ -10,6 +10,13 @@ DROP TABLE IF EXISTS display_info;
 DROP TABLE IF EXISTS material_textures;
 DROP TABLE IF EXISTS display_materials;
 DROP TABLE IF EXISTS model_to_fdid;
+DROP TABLE IF EXISTS asset_resource_sources;
+CREATE TABLE asset_resource_sources (
+    table_name TEXT NOT NULL,
+    resource_id INTEGER NOT NULL,
+    source_product TEXT NOT NULL CHECK(source_product IN ('wow', 'wow_classic_beta')),
+    PRIMARY KEY (table_name, resource_id)
+);
 CREATE TABLE source_files (source TEXT PRIMARY KEY, mtime_secs INTEGER NOT NULL);
 CREATE TABLE starter_outfits (
     race_id INTEGER NOT NULL,
@@ -130,6 +137,7 @@ fn import_rows(conn: &Connection, csv_paths: &[PathBuf]) -> Result<(), String> {
     super::material_links::populate_material_textures(conn, &csv_paths[4])?;
     super::material_links::populate_display_materials(conn, &csv_paths[5])?;
     super::populate_model_to_fdid(conn, &csv_paths[6])?;
+    record_resource_products(conn, crate::asset_product::AssetProduct::Retail)?;
     if csv_paths.len() > 7 {
         import_forever_gear_rows(conn, &csv_paths[7..])?;
     }
@@ -190,6 +198,27 @@ fn import_forever_gear_rows(conn: &Connection, paths: &[PathBuf]) -> Result<(), 
         ("model_to_fdid", "model_resource_id"),
         ("model_to_fdid", "model_resource_id"),
     )?;
+    record_resource_products(conn, crate::asset_product::AssetProduct::Forever)?;
+    Ok(())
+}
+
+/// Existing group owners stay intact; only newly imported groups receive this product.
+pub(super) fn record_resource_products(
+    conn: &Connection,
+    product: crate::asset_product::AssetProduct,
+) -> Result<(), String> {
+    for (table, key) in [
+        ("display_info", "id"),
+        ("material_textures", "material_resource_id"),
+        ("model_to_fdid", "model_resource_id"),
+    ] {
+        let sql = format!(
+            "INSERT OR IGNORE INTO asset_resource_sources
+            SELECT ?1, {key}, ?2 FROM {table}"
+        );
+        conn.execute(&sql, rusqlite::params![table, product.as_str()])
+            .map_err(|error| format!("Record {table} metadata product: {error}"))?;
+    }
     Ok(())
 }
 
