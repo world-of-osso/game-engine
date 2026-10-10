@@ -1,3 +1,7 @@
+## 2026-10-09 — Edit Mode labels, autosave and manager padding
+
+[Contract](../specs/hud-edit-mode.md#labelautosavepadding-acceptance-2026-10-09) records separate fixes `fac75ebb1` / `914b196b1` / `533213fe0`, three observed RED boundaries, locked 30/30 GREEN and the final native build. Modern/Forever Player Frame labels have no backing band; both manager rows leave Retail insets and Reset Selected fits. Full 1920×1080 PNGs and manager crops were inspected through ffmpeg downscales. Autosave uses existing Save/preset-copy semantics by explicit user decision; CPU file-reload proof, not fresh native relog. [System](systems/native-hud-edit-mode.md) owns wiring. Party/raid overlap and tracker geometry remain unchanged; owned runtime stopped.
+
 ## 2026-10-09 — Edit Mode account-wide optional mover list
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records immediate account-wide visibility persistence and shared selection filtering, independent of gameplay/layout settings. [Contract](../specs/hud-edit-mode.md#manager-system-checkboxes-2026-10-09) owns all Retail labels/order/default boundaries, five supported versus 25 unregistered systems, source citations and RED/GREEN/native proof at `81581bebf`. Both skins expose the same checkbox elements; only the manager reflows, never HUD roots.

@@ -175,15 +175,14 @@ func prove_edits() -> void:
 	if equal_rect(before_player, moved_player) or equal_rect(before_chat, moved_chat):
 		fail("native drag did not move both roots")
 		return
-	await click("EditModeManagerFrameSave")
+	# User decision: leaving Edit Mode saves without an explicit Save click.
 	await key(KEY_ESCAPE)
 	if client.get_node_or_null("HudEditUI") != null:
 		fail("Escape did not exit edit mode")
 		return
 	if not equal_rect(moved_player, rectangle("PlayerFrame")) or not equal_rect(moved_chat, rectangle("ChatFrame1")):
-		fail("Save then Escape did not retain moved frames")
+		fail("Escape autosave did not retain moved frames")
 		return
-	write_json("expected-placements", {"player": moved_player, "chat": moved_chat, "authored_player": before_player, "authored_chat": before_chat})
 	await capture("live-saved")
 	var layout_path := OS.get_environment("XDG_CONFIG_HOME").path_join("world-of-osso/accounts").path_join(OS.get_environment("GODOT_HUDEDIT_SERVER").to_utf8_buffer().hex_encode()).path_join(OS.get_environment("GODOT_HUDEDIT_ACCOUNT").to_utf8_buffer().hex_encode()).path_join("ui_layout.ron")
 	if not FileAccess.file_exists(layout_path):
@@ -201,9 +200,13 @@ func prove_edits() -> void:
 		return
 	await capture("live-reset-draft")
 	await key(KEY_ESCAPE)
-	if not equal_rect(moved_player, rectangle("PlayerFrame")):
-		fail("Escape did not discard unsaved reset")
+	if not equal_rect(before_player, rectangle("PlayerFrame")) or not equal_rect(moved_chat, rectangle("ChatFrame1")):
+		fail("Escape autosave did not retain reset and preserve the other frame")
 		return
+	write_json("expected-placements", {"player": before_player, "chat": moved_chat, "authored_player": before_player, "authored_chat": before_chat})
+	saved_file = FileAccess.open(directory.path_join("saved-layout.ron"), FileAccess.WRITE)
+	saved_file.store_string(FileAccess.get_file_as_string(layout_path))
+	saved_file.close()
 	await capture("live-final-saved")
 
 func prove_relog() -> void:

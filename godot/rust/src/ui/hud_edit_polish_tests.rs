@@ -5,6 +5,78 @@ use super::{
 use game_engine_ui_model::hud_edit_component::*;
 
 #[test]
+fn hud_edit_selection_label_is_font_only_in_both_skins() {
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::widgets::font_string::{GameFont, JustifyH};
+    use ui_toolkit::widgets::texture::TextureSource;
+
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    // Retail EditModeSystemTemplates.xml:35-50: overlay FontString, no label panel.
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        for (selected, hovered, text) in [
+            (true, false, "Player Frame"),
+            (false, true, "Click to edit"),
+        ] {
+            let mut entry = player_box();
+            entry.selected = selected;
+            entry.hovered = hovered;
+            let mut shared = SharedContext::new();
+            shared.insert(EditModeOverlayState { boxes: vec![entry] });
+            let mut registry = FrameRegistry::new(1920.0, 1080.0);
+            Screen::new(edit_mode_overlay_screen).sync(&shared, &mut registry);
+            let bounds =
+                super::super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new())
+                    .unwrap();
+            let name = selection_box_name("player_frame");
+            let root = registry.get_by_name(&name).unwrap();
+            let label = registry.get_by_name(&format!("{name}Label")).unwrap();
+            let frame = registry.get(label).unwrap();
+            let Some(WidgetData::FontString(font)) = &frame.widget_data else {
+                panic!("selection label must be a FontString");
+            };
+            assert_eq!(font.text, text);
+            assert_eq!(font.font, GameFont::FrizQuadrata);
+            assert_eq!(font.color, [1.0, 1.0, 1.0, 1.0]);
+            assert_eq!(font.justify_h, JustifyH::Center);
+            assert!(super::super::hud_edit_layout::frame_is_visible(
+                &registry, label
+            ));
+            let rect = &bounds[&label];
+            assert_eq!(
+                [rect.x, rect.y, rect.width, rect.height],
+                [100.0, 221.0, 240.0, 18.0]
+            );
+
+            // Inspect actual image projection of the whole selection subtree: only
+            // the existing nine-slice highlight may draw, not a panel behind text.
+            let mut pending = vec![root];
+            let mut images = Vec::new();
+            while let Some(id) = pending.pop() {
+                let frame = registry.get(id).unwrap();
+                let rect = &bounds[&id];
+                images.extend(super::super::parts::project_images(
+                    frame,
+                    rect.width,
+                    rect.height,
+                ));
+                pending.extend(frame.children.iter().copied());
+            }
+            assert_eq!(
+                images.len(),
+                9,
+                "{skin:?}: label must not add backing imagery"
+            );
+            assert!(images.iter().all(|image| matches!(&image.source, Some(TextureSource::Atlas(atlas)) if atlas.contains("editmode-actionbar-"))));
+        }
+    }
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
 fn hudeditmodepolish_default_19_movers_clear_manager_and_use_shared_label_policy() {
     use game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS;
     game_engine_ui_model::paths::set_data_root(
@@ -69,26 +141,12 @@ fn hudeditmodepolish_default_19_movers_clear_manager_and_use_shared_label_policy
                         manager,
                         [rect.x, rect.y, rect.width, rect.height]
                     ));
-                    let backing = registry
-                        .get(
-                            registry
-                                .get_by_name(&format!("{name}LabelBacking"))
-                                .unwrap(),
-                        )
-                        .unwrap();
-                    assert_eq!(
-                        super::super::hud_edit_layout::frame_is_visible(&registry, backing.id),
-                        index == selected
+                    let parts = super::super::parts::project_images(
+                        registry.get(label).unwrap(),
+                        rect.width,
+                        rect.height,
                     );
-                    if index == selected {
-                        let parts =
-                            super::super::parts::project_images(backing, rect.width, rect.height);
-                        assert!(
-                            parts.iter().any(|part| part.color == [0.0, 0.0, 0.0, 1.0]),
-                            "opaque label backing {}",
-                            entry.key
-                        );
-                    }
+                    assert!(parts.is_empty(), "label must draw text only: {}", entry.key);
                 }
                 boxes[selected].selected = false;
             }
@@ -111,12 +169,97 @@ fn hudeditmodepolish_title_drag_clamps_manager_and_preserves_hud_placements() {
     assert!(draft.move_panel_drag([1000.0, 500.0], [1366.0, 768.0]));
     assert_eq!(draft.panel_position, Some([906.0, 490.0]));
     assert!(draft.move_panel_drag([-100.0, 1000.0], [1366.0, 768.0]));
-    assert_eq!(draft.panel_position, Some([0.0, 516.0]));
+    assert_eq!(draft.panel_position, Some([0.0, 508.0]));
     assert_eq!(draft.working, layout.elements);
     draft.panel_grab.take();
     assert!(!draft.move_panel_drag([500.0, 500.0], [1366.0, 768.0]));
     draft.exit();
     assert_eq!(draft.panel_position, None);
+}
+
+#[test]
+fn hud_edit_manager_action_rows_keep_retail_bottom_and_side_insets() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(EditModePanelState::default());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(edit_mode_panel_screen).sync(&shared, &mut registry);
+        let bounds =
+            super::super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new())
+                .unwrap();
+        let panel = &bounds[&registry.get_by_name(EDIT_MODE_PANEL.0).unwrap()];
+        // Retail EditModeManager.xml:526-534: bottom inset16, side insets15.
+        for name in ["Revert", "Save", "Exit"] {
+            let button = &bounds[&registry
+                .get_by_name(&format!("EditModeManagerFrame{name}"))
+                .unwrap()];
+            assert_eq!(
+                panel.y + panel.height - button.y - button.height,
+                16.0,
+                "{skin:?} {name} bottom inset"
+            );
+        }
+        for (first, last) in [("New", "Reset"), ("Revert", "Exit")] {
+            let first = &bounds[&registry
+                .get_by_name(&format!("EditModeManagerFrame{first}"))
+                .unwrap()];
+            let last = &bounds[&registry
+                .get_by_name(&format!("EditModeManagerFrame{last}"))
+                .unwrap()];
+            assert_eq!(first.x - panel.x, 15.0, "{skin:?} left inset");
+            assert_eq!(
+                panel.x + panel.width - last.x - last.width,
+                15.0,
+                "{skin:?} right inset"
+            );
+        }
+    }
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn hud_edit_manager_button_labels_fit_rendered_buttons_in_both_skins() {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        ui_toolkit::atlas::set_thread_skin(skin);
+        let mut shared = SharedContext::new();
+        shared.insert(EditModePanelState::default());
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        Screen::new(edit_mode_panel_screen).sync(&shared, &mut registry);
+        let bounds =
+            super::super::layout::compute_layout_with_intrinsics(&registry, &HashMap::new())
+                .unwrap();
+        for name in [
+            "New", "Rename", "Delete", "Reset", "Revert", "Save", "Exit", "Prev", "Next",
+        ] {
+            let id = registry
+                .get_by_name(&format!("EditModeManagerFrame{name}"))
+                .unwrap();
+            let text = super::super::parts::project_button_text(registry.get(id).unwrap())
+                .expect("rendered button text");
+            let (width, height) =
+                ui_toolkit::text_measure::measure_text(&text.content, text.font, text.font_size)
+                    .expect("real Friz Quadrata font metrics");
+            let button = &bounds[&id];
+            assert!(
+                width + 12.0 <= button.width,
+                "{skin:?} {} width={width} button={} (6px text insets)",
+                text.content,
+                button.width
+            );
+            assert!(
+                height <= button.height,
+                "{skin:?} {} height={height} button={}",
+                text.content,
+                button.height
+            );
+        }
+    }
+    ui_toolkit::atlas::set_thread_skin(ActiveSkin::Modern);
 }
 
 #[test]
@@ -359,6 +502,124 @@ fn click_and_apply_manager(
 }
 
 #[test]
+fn hud_edit_exit_autosaves_pending_changes_and_reloads_like_save() {
+    for skin in ["Modern", "Forever"] {
+        for preset in [true, false] {
+            let stem = format!("hud-edit-autosave-{skin}-{preset}-{}", std::process::id());
+            let exit_path = std::env::temp_dir().join(format!("{stem}-exit.ron"));
+            let save_path = std::env::temp_dir().join(format!("{stem}-save.ron"));
+            let placement = save_top_left(
+                HudAnchor::Bottom,
+                [104.0, 312.0],
+                [240.0, 60.0],
+                [1920.0, 1080.0],
+            );
+            let mut results = Vec::new();
+            for (path, action) in [
+                (&exit_path, ACTION_EDIT_MODE_EXIT),
+                (&save_path, ACTION_EDIT_MODE_SAVE),
+            ] {
+                let mut layout = ui_layout_data::set_active_layout(path, 57, skin).unwrap();
+                if !preset {
+                    layout =
+                        ui_layout_data::create_layout(path, 57, "Custom", layout.elements.clone())
+                            .unwrap();
+                }
+                let mut draft = EditDraft::default();
+                draft.enter(&layout);
+                draft.working.insert("player_frame".into(), placement);
+                let updated = crate::hud_edit::apply_manager_action(
+                    path, 57, action, "", &layout, &mut draft,
+                )
+                .unwrap()
+                .expect("persisted layout");
+                assert_eq!(draft.active, action == ACTION_EDIT_MODE_SAVE);
+                let reloaded = ui_layout_data::active_layout(path, 57).unwrap();
+                assert_eq!(updated, reloaded);
+                assert_eq!(reloaded.elements["player_frame"], placement);
+                assert_eq!(reloaded.name, if preset { "Layout 1" } else { "Custom" });
+                let mut relog = EditDraft::default();
+                relog.enter(&reloaded);
+                assert_eq!(relog.working["player_frame"], placement);
+                assert!(
+                    ui_layout_data::active_layout(path, 58)
+                        .unwrap()
+                        .elements
+                        .is_empty()
+                );
+                results.push(reloaded);
+                std::fs::remove_file(path).unwrap();
+            }
+            assert_eq!(
+                results[0], results[1],
+                "exit must use existing Save semantics"
+            );
+        }
+    }
+}
+
+#[test]
+fn hud_edit_unchanged_exit_does_not_copy_presets_and_failed_save_keeps_draft() {
+    for skin in ["Modern", "Forever"] {
+        let path = std::env::temp_dir().join(format!(
+            "hud-edit-exit-boundary-{skin}-{}.ron",
+            std::process::id()
+        ));
+        let layout = ui_layout_data::set_active_layout(&path, 57, skin).unwrap();
+        let before = std::fs::read(&path).unwrap();
+        let mut draft = EditDraft::default();
+        draft.enter(&layout);
+        assert!(
+            crate::hud_edit::apply_manager_action(
+                &path,
+                57,
+                ACTION_EDIT_MODE_EXIT,
+                "",
+                &layout,
+                &mut draft
+            )
+            .unwrap()
+            .is_none()
+        );
+        assert!(!draft.active);
+        assert_eq!(std::fs::read(&path).unwrap(), before);
+        assert_eq!(
+            ui_layout_data::layout_names(&path).unwrap(),
+            ["Modern", "Forever"]
+        );
+
+        draft.enter(&layout);
+        draft.working.insert(
+            "player_frame".into(),
+            save_top_left(
+                HudAnchor::TopLeft,
+                [400.0, 240.0],
+                [240.0, 60.0],
+                [1920.0, 1080.0],
+            ),
+        );
+        draft.pending_delete = Some("Custom".into());
+        let pending = draft.working.clone();
+        std::fs::remove_file(&path).unwrap();
+        std::fs::create_dir(&path).unwrap();
+        assert!(
+            crate::hud_edit::apply_manager_action(
+                &path,
+                57,
+                ACTION_EDIT_MODE_EXIT,
+                "",
+                &layout,
+                &mut draft
+            )
+            .is_err()
+        );
+        assert!(draft.active);
+        assert_eq!(draft.working, pending);
+        std::fs::remove_dir(path).unwrap();
+    }
+}
+
+#[test]
 fn hudeditmodepolish_manager_clicks_drive_real_draft_and_persistence_transitions() {
     for skin in ["Modern", "Forever"] {
         let path = std::env::temp_dir().join(format!(
@@ -500,6 +761,8 @@ fn hudeditmodepolish_manager_clicks_drive_real_draft_and_persistence_transitions
         assert!(!draft.active);
         assert!(draft.working.is_empty());
         assert_eq!(ui_layout_data::active_layout(&path, 57).unwrap(), layout);
+        assert_eq!(layout.name, "Layout 1");
+        assert_eq!(layout.elements["player_frame"], placement);
         assert!(
             ui_layout_data::active_layout(&path, 58)
                 .unwrap()
@@ -622,7 +885,7 @@ fn hudeditmodepolish_tracker_selection_follows_retail_default_height_below_heade
         )
         .unwrap();
         let name = selection_box_name("objective_tracker");
-        for part in ["Label", "LabelBacking"] {
+        for part in ["Label"] {
             let id = overlay_registry
                 .get_by_name(&format!("{name}{part}"))
                 .unwrap();
