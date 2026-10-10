@@ -27,19 +27,20 @@ func run_fixture() -> void:
 	for node in client.find_children("*", "Label", true, false):
 		if node.is_visible_in_tree() and node.text == OS.get_environment("TOYBOX_CHARACTER"):
 			print("CHARACTER_LABEL ", node.get_path(), " ", node.get_global_rect())
-	await capture("catalog")
+	await capture("catalog-relog" if relog else "catalog")
 	await click("ToyBoxSearchBox")
 	await type_text("Time-Lost Figurine")
 	if not await wait_until(func(): return control("ToySpellButton1Name") != null and control("ToySpellButton1Name").text == "Time-Lost Figurine", "search result"): return
 	if relog:
 		if learned().is_empty() or not learned().favourite or int(client.toybox_state().slots.get(8, 0)) != ITEM:
 			fail("favourite/action slot did not survive relog: " + str(client.toybox_state())); return
-		await capture("relog-favourite-slot")
-		if OS.get_environment("TOYBOX_FINAL_RELOG") != "1":
+		var final_relog := OS.get_environment("TOYBOX_FINAL_RELOG") == "1"
+		await capture("final-relog-favourite-slot" if final_relog else "relog-favourite-slot")
+		if not final_relog:
 			await click("ActionButton9")
 			if not await wait_until(func(): return float(learned().cooldown) > 0.0 and transformed(), "bar cast and authoritative cooldown"): return
 			await capture("bar-used-cooldown")
-		print("PASS: Toy Box relog favourite and slot; real bar use ", client.toybox_state(), " auras=", client.aura_state())
+		print("PASS: Toy Box relog favourite and slot ", client.toybox_state(), " auras=", client.aura_state())
 		client.free(); quit(0); return
 	await capture("uncollected")
 	await click("CollectionsMicroButton")
