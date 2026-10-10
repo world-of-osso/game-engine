@@ -402,6 +402,17 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
     let Some(view) = &state.talents else {
         return;
     };
+    if ui_toolkit::atlas::thread_skin() == ActiveSkin::Modern
+        && let Some(id) = registry.get_by_name("TalentApply")
+        && let Some(frame) = registry.get_mut(id)
+        && let Some(WidgetData::Button(button)) = frame.widget_data.as_mut()
+    {
+        // ApplyButton inherits UIPanelButtonNoTooltipTemplate, not the newer atlas button.
+        button.normal_texture = Some(TextureSource::FileDataId(130828));
+        button.pushed_texture = Some(TextureSource::FileDataId(130825));
+        button.disabled_texture = Some(TextureSource::FileDataId(130824));
+        button.highlight_texture = None;
+    }
     for node in view.nodes() {
         // RSX has no justify_v attribute; set the actual FontString property.
         let rank_name = format!("TalentNode{}Ranks", node.id);

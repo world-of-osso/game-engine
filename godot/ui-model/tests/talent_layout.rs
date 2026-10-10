@@ -206,6 +206,17 @@ fn arms_spend_badges_and_disabled_apply_remain_legible() {
             .get(registry.get_by_name("TalentApply").unwrap())
             .unwrap();
         assert_eq!(apply.onclick.as_deref(), Some(""));
+        if skin == ActiveSkin::Modern {
+            let Some(WidgetData::Button(button)) = &apply.widget_data else {
+                panic!("apply button")
+            };
+            assert_eq!(
+                button.disabled_texture,
+                Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
+                    130824
+                ))
+            );
+        }
     }
 }
 #[test]
