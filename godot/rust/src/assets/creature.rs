@@ -138,10 +138,49 @@ fn held_items<'a>(
 
 pub(crate) fn authored_model_resolver(
     data_root: &Path,
-    _product: game_engine_core::asset_product::AssetProduct,
-    _fdid: u32,
+    product: game_engine_core::asset_product::AssetProduct,
+    fdid: u32,
 ) -> Result<CascListfileResolver, String> {
-    Ok(local_resolver(data_root))
+    authored_asset_resolver(data_root, product, fdid, "m2")
+}
+
+pub(crate) fn authored_asset_resolver(
+    data_root: &Path,
+    product: game_engine_core::asset_product::AssetProduct,
+    fdid: u32,
+    kind: &str,
+) -> Result<CascListfileResolver, String> {
+    let index = load_asset_index(data_root)?;
+    let receipt = index.receipt(product, fdid, kind)?;
+    let identity = osso_asset_resolver::AssetIdentity::new(product.as_str(), &receipt.build_key)?;
+    Ok(CascListfileResolver::new(
+        AssetResolverConfig::new()
+            .with_data_root(data_root)
+            .with_shared_data_root(data_root)
+            .with_identity(identity),
+    ))
+}
+
+fn load_asset_index(
+    data_root: &Path,
+) -> Result<Arc<game_engine_core::model_asset_index::ModelAssetIndex>, String> {
+    use game_engine_core::model_asset_index::ModelAssetIndex;
+    static INDEXES: LazyLock<Mutex<HashMap<PathBuf, Arc<ModelAssetIndex>>>> =
+        LazyLock::new(|| Mutex::new(HashMap::new()));
+    if let Some(index) = INDEXES
+        .lock()
+        .expect("asset receipt indexes")
+        .get(data_root)
+        .cloned()
+    {
+        return Ok(index);
+    }
+    let index = Arc::new(ModelAssetIndex::load(data_root)?);
+    INDEXES
+        .lock()
+        .expect("asset receipt indexes")
+        .insert(data_root.to_owned(), Arc::clone(&index));
+    Ok(index)
 }
 
 pub(crate) fn local_resolver(data_root: &Path) -> CascListfileResolver {

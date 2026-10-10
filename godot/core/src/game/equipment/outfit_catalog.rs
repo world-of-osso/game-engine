@@ -424,8 +424,8 @@ impl OutfitData {
 
     pub fn load_column_products(
         &self,
-        _display_info_id: u32,
-        _model_index: usize,
+        display_info_id: u32,
+        model_index: usize,
     ) -> Result<
         (
             crate::asset_product::AssetProduct,
@@ -433,10 +433,40 @@ impl OutfitData {
         ),
         String,
     > {
-        Ok((
-            crate::asset_product::AssetProduct::Retail,
-            Some(crate::asset_product::AssetProduct::Retail),
-        ))
+        let display = self
+            .load_display_info(display_info_id)?
+            .ok_or_else(|| format!("Display {display_info_id} missing"))?;
+        let model = *display
+            .model_resource_columns
+            .get(model_index)
+            .ok_or_else(|| {
+                format!("Display {display_info_id} has no model column {model_index}")
+            })?;
+        let material = display.model_material_resource_columns[model_index];
+        let product = self.load_resource_product("model_to_fdid", model)?;
+        let material_product = if material == 0 {
+            None
+        } else {
+            Some(self.load_resource_product("material_textures", material)?)
+        };
+        Ok((product, material_product))
+    }
+
+    pub fn load_resource_product(
+        &self,
+        table: &str,
+        resource: u32,
+    ) -> Result<crate::asset_product::AssetProduct, String> {
+        let data = self.loaded_result()?;
+        if let Some(conn) = &data.source_connection {
+            return query_resource_product(
+                &conn.lock().expect("owned outfit namespace"),
+                table,
+                resource,
+            );
+        }
+        let conn = crate::cache_sqlite::open_read_only(&data.cache_path)?;
+        query_resource_product(&conn, table, resource)
     }
 
     pub fn try_resolve_column_models(
@@ -789,6 +819,17 @@ fn head_geoset_secondary_variant(raw_value: i16) -> Option<u16> {
         value if value <= 0 => None,
         value => Some(value as u16 + 1),
     }
+}
+
+fn query_resource_product(
+    conn: &rusqlite::Connection,
+    table: &str,
+    resource: u32,
+) -> Result<crate::asset_product::AssetProduct, String> {
+    conn.query_row(
+        "SELECT source_product FROM asset_resource_sources WHERE table_name = ?1 AND resource_id = ?2",
+        rusqlite::params![table, resource], |row| row.get(0),
+    ).map_err(|error| format!("Metadata source for {table} resource {resource}: {error}"))
 }
 
 fn shoulder_model_column_index(
