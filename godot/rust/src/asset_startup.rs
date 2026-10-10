@@ -210,7 +210,7 @@ mod tests {
             let image = completion.1.unwrap();
             assert!(image.width > 0 && image.height > 0);
         } else {
-            assert_eq!(completion.1.unwrap_err(), checked_error.unwrap());
+            assert_eq!(completion.1.err().unwrap(), checked_error.unwrap());
         }
         assert_eq!(loader.state(&fdid), Some(LoadState::Done));
         assert_eq!(loader.loading(), 0);
