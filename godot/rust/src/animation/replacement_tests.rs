@@ -120,3 +120,12 @@ fn aura312_reap_action_remaps_and_restores_without_blend_pop() {
     unit.advance(300.0).unwrap();
     assert_eq!(unit.action_id(), None);
 }
+
+#[test]
+fn aura312_direct_death_selection_also_translates_source() {
+    let mut unit = player(&[0, 1, 25]);
+    unit.set_replacements([(1, 25)].into()).unwrap();
+    unit.play_death();
+    assert_eq!(unit.sequences[unit.current].id, 25);
+    assert_eq!(unit.source_id, 1);
+}
