@@ -108,6 +108,8 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [WMO minimap geometry](investigations/wmo-minimap-geometry.md) — 40-group/four-WMO CPU alignment; 128-unit/group-minimum legacy fits, modern split-group tile-family mismatch; indoor implementation remains blocked.
+
 - [cage-capture-resolution](investigations/cage-capture-resolution.md) — headless output constrained 1920×1080 requests to 1280×720; capture-only output override, six inspected spellbook pages, and missing specialization assets.
 
 - [desktop-disk-exhaustion](investigations/desktop-disk-exhaustion.md) — October 6 observed Windows/WSL exhaustion, completed cache pruning and offline VHD compaction; crash causality and sustained GC behavior unproven.
