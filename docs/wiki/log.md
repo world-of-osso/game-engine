@@ -1,6 +1,6 @@
 ## 2026-10-09 — Detached extracted-only misses
 
-[Shipped assets](systems/shipped-assets.md#detached-legacy-misses-2026-10-09) records the independent P1 failure: a legacy cache panic killed its detached worker and left the key Loading. Typed cache errors now propagate to Failed completions, preserving local-CASC optional behavior. Cold-process RED proves missing completion and present BLP success; GREEN/package proof pending. [Contract](../specs/shipped-assets.md) owns exact error and once-only completion requirements.
+[Shipped assets](systems/shipped-assets.md#detached-legacy-misses-2026-10-09) records the independent P1 failure: a legacy cache panic killed its detached worker and left the key Loading. Typed cache errors now propagate to Failed completions, preserving local-CASC optional behavior. Cold-process RED proves missing completion and present BLP success; engine `f809ad04a` + resolver `cb64094` GREEN startup7/7 and six-engine-package2658/0/7 pass, zero warnings. Resolver31/2: missing-install and hard-coded-listfile prerequisites fail before changed assertions; product-identity7/7 passes. Independent verifier unavailable (expired Claude OAuth); no clean resolver-integration or rendered-game claim. [Contract](../specs/shipped-assets.md) owns exact error and once-only completion requirements.
 
 ## 2026-10-09 — Extracted-only asset policy
 

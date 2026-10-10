@@ -41,7 +41,17 @@ Existing consumers log each handed-out error; repeated requests do not enqueue
 known keys. Cold-process worker tests reproduce the missing-texture boundary and
 load a real present BLP in an authored product/build namespace. RED at engine
 `23586a033` + resolver `8fc769b`: worker panicked, key stayed Loading; present BLP
-passed. GREEN and final package verification are pending.
+passed. GREEN at engine `f809ad04a` + resolver `cb64094`: startup7/7,
+including both worker subprocesses; missing completion carries the exact checked
+error, marks Failed/loading0 and is not repeated. The six engine packages passed
+2,658/0/7 with `--no-fail-fast`, zero warnings. Resolver all-target testing with
+`--no-fail-fast` passed31 and failed2 unchanged prerequisite boundaries:
+`initialize.rs` has no WoW install, `negative_cache.rs` has no canonical listfile
+at its hard-coded container path. Product-identity7/7 covers legacy scoped hits
+and exact checked/legacy miss equality. Full logs live in canonical
+`data/diagnostics/shippedassets-p1b-2026-10-09/`. Changed-file format/diff checks
+pass; independent read-only verification could not start because Claude OAuth
+expired. No claim of a clean resolver integration gate or rendered gameplay.
 
 ## Original P1 proof (2026-10-09)
 
@@ -61,7 +71,9 @@ Evidence lives under
 ## Sources
 
 - [Shipped-assets contract](../../specs/shipped-assets.md)
-- [Startup boundary](../../../godot/rust/src/asset_startup.rs)
+- [Startup boundary and cold-worker regressions](../../../godot/rust/src/asset_startup.rs)
+- [Detached completion state](../../../godot/core/src/asset_loader.rs)
+- [Ground-detail worker](../../../godot/rust/src/terrain/ground_detail.rs)
 - [Depot fixtures](../../../godot/depot-test-assets.txt)
 
 ## See Also
