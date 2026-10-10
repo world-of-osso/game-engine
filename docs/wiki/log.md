@@ -1,3 +1,7 @@
+## 2026-10-10 — Disenchant private live proof
+
+[Disenchant](systems/disenchant.md#private-live-proof--2026-10-10): engine588689217/server2aa9da0, private5617, fresh fb_ account. Forever727 and Modern816 consumed; authentic entry3 loot manually taken; appearances214/242 added and survived relog; grey25 refused/retained. Read-only snapshot RED→GREEN and update unit1/1 pass. Census50/100 TDB entries affected by16 absent materials,40 wholly unavailable; live753 empty-loot disposal/action-lock bug remains server-remediation scope. No wardrobe UI or broad auto-loot/cancellation proof.
+
 ## 2026-10-10 — Quest POI hover, v3
 
 [Quest map objectives](systems/quest-map-objectives.md#v3-source-boundary-2026-10-10) records title/POI hover selection without super-tracking, authored polygon addition/removal and Retail additive InnerGlow. New RED→GREEN regressions,29 distinct targeted UI-model/core tests, native build/check and private UDP5528 both-skin input fixture pass. Eight originals FFmpeg-downscaled/inspected and published with `v3-` prefix. Native minimap selection is not exposed by searched Retail Lua/API sources; existing watched behavior retained, parity unclaimed.
