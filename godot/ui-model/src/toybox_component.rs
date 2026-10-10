@@ -41,6 +41,11 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
         .flat_map(|(index, toy)| toy_tile(model, index, toy))
         .collect();
     let tabs = tabs();
+    let background = named_atlas_texture(
+        "ToyBoxBackground".into(),
+        "collections-background-tile",
+        (3.0, 40.0, 691.0, 541.0),
+    );
     let filters = filter_menu(model);
     let context = context_menu(model);
     let count = format!(
@@ -64,6 +69,7 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
                         pos_type: "absolute", left: 481.0, top: 15.0 }
                     button { name: "ToyBoxFilterDropdown", text: "Filter", width: 90.0, height: 22.0,
                         pos_type: "absolute", left: 599.0, top: 15.0, onclick: "toy_filters" }
+                    {background}
                     {tiles}
                     fontstring { name: "ToyBoxEmpty", text: "No toys match these filters.", hidden: {!empty},
                         width: 600.0, height: 24.0, pos_type: "absolute", left: 40.0, top: 245.0 }
@@ -100,8 +106,8 @@ fn tabs() -> Element {
 fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -> Element {
     let name = format!("ToySpellButton{}", index + 1);
     let action = format!("{}{}", toybox::USE_PREFIX, toy.item_id);
-    let left = 40.0 + (index % 3) as f32 * 208.0;
-    let top = 73.0 + (index / 3) as f32 * 66.0;
+    let left = 43.0 + (index % 3) as f32 * 208.0;
+    let top = 93.0 + (index / 3) as f32 * 66.0;
     let alpha = if toy.learned { 1.0 } else { 0.18 };
     let border = if toy.learned {
         "collections-itemborder-collected"
