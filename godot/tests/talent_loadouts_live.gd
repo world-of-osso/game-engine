@@ -111,6 +111,9 @@ func forever_relog() -> void:
 	if root.find_child("TalentLoadoutDialog", true, false) != null:
 		abort("Escape did not cancel the name dialog")
 		return
+	if root.find_child("TalentLoadoutDropDown", true, false) == null:
+		abort("Escape incorrectly closed the parent Talents window")
+		return
 	await menu()
 	await click("TalentLoadoutRow2")
 	await expect_caption("Dungeons")

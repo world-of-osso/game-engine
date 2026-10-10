@@ -114,7 +114,6 @@ pub enum UiInput {
     Text(u64, String),
     Submit,
     SearchPreviewStep(isize),
-    CancelTalentLoadout,
     Hover(u64, bool),
     Press(u64),
     Release(u64),
@@ -1198,20 +1197,6 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
             if frame.name.as_deref() == Some("TalentSearchBox") {
                 let keys = search_preview_keys(pending.clone(), node.clone());
                 node.connect("gui_input", &keys);
-            } else {
-                let cancel_pending = pending.clone();
-                let cancel = Callable::from_fn("talent-loadout-name-escape", move |args| {
-                    let escaped = args
-                        .first()
-                        .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
-                        .is_some_and(|key| {
-                            key.is_pressed() && key.get_keycode() == godot::global::Key::ESCAPE
-                        });
-                    if escaped {
-                        cancel_pending.push(UiInput::CancelTalentLoadout);
-                    }
-                });
-                node.connect("gui_input", &cancel);
             }
         } else {
             node.connect("text_submitted", &emit(pending, UiInput::Submit));

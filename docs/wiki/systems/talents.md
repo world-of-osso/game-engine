@@ -97,6 +97,8 @@ Proof: server behavioural4/4 at9690934, ui-model22/22 and real UDP relay2/2 at9a
 
 The apparent rename-via-Enter failure was a harness IO deadlock, not a dropped UI submit: instrumentation recorded native signal → registry Submit → Rename request → renamed server list after correcting launch IO. `Pyrun.spawn()` leaves stdout/stderr pipes undrained; busy server NPC logs filled stderr and blocked its worker, also reproducing a login timeout. `scripts/agent/logged-process.py` redirects both streams to a durable file before exec; use `agent-run NAME python3 scripts/agent/logged-process.py LOG PROGRAM ...` for detached private servers. A real-process regression writes1MiB per stream without draining the parent pipes and verifies READY/file contents/exit-code propagation. No UI fallback, fabricated reply or server timeout suppression.
 
+Forever's first native run exposed a separate Escape ownership bug: the name field cancelled locally but left Escape unhandled, so GameClient's global window closer removed the parent Talents page. The active editor dialog now consumes Escape before close-all (including confirmation popups); redundant field-specific cancel event plumbing was removed. The real-server fixture asserts the dialog disappears while the Talents dropdown remains before switching/relogging.
+
 ## Server wiring (2026-10-09)
 
 The account owns `TalentEditor`, independent of whether PlayerSpellsFrame is open. NetworkBridge receives `TraitConfigSnapshot` and `TraitCommitResult`; the account sends `CommitTraitConfig` on the existing TalentChannel. Snapshot and commit ranks are **total ranks**, not purchased ranks (`game-server/class_progression.rs:466-480,822-837`). Core conversion subtracts grants before validating purchases.

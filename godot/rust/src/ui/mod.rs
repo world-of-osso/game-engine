@@ -2358,7 +2358,6 @@ impl RegistryUi {
                 }
             }
             UiInput::Submit => model.submit(&mut self.actions),
-            UiInput::CancelTalentLoadout => self.actions.push_back("talent:loadout_cancel".into()),
             UiInput::SearchPreviewStep(step) => {
                 self.actions.push_back(format!("talent:search_move:{step}"))
             }
