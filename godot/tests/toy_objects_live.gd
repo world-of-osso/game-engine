@@ -28,6 +28,9 @@ func run_fixture() -> void:
 		await learn_toy(int(toy[0]))
 		if not learned_toy(int(toy[0])): return
 		await click("CollectionsMicroButton")
+		if not await wait_until(func(): return control("CollectionsJournalTab3") != null, "Collections tabs"): return
+		await click("CollectionsJournalTab3")
+		if not await wait_until(func(): return control("ToyBoxSearchBox") != null, "Toy Box tab"): return
 		await click("ToyBoxSearchBox")
 		var edit := control("ToyBoxSearchBox") as LineEdit
 		edit.select_all()
