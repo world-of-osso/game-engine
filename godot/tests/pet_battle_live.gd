@@ -85,7 +85,11 @@ func live_run() -> void:
 							continue
 						var picked = auctioneer_surface_point(unit, area, camera)
 						if not picked.is_empty():
+							result.point = [picked.point.x, picked.point.y]
+							result.picked_unit = UnitPicker.pick(camera, picked.point)
 							await pointer(picked.point, MOUSE_BUTTON_RIGHT)
+							var hovered = root.gui_get_hovered_control()
+							result.hovered = str(hovered.get_path()) if hovered != null else ""
 							clicked = true
 							break
 				if not clicked:
