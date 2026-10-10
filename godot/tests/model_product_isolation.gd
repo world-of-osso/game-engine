@@ -97,11 +97,7 @@ func capture_display(display: int, index: Dictionary) -> bool:
 		fail("Display %d has no visible meshes" % display)
 		visual.free()
 		return false
-	var bounds: AABB = model.get_meta("m2_bounds")
-	var focus := visual.global_transform * bounds.get_center()
-	var radius := maxf(bounds.size.length() * visual.scale.x * 0.5, 0.5)
-	camera.position = focus + Vector3(0, radius * 0.1, radius * 4.0)
-	camera.look_at(focus)
+	frame_visible_meshes(model)
 	for frame in range(45):
 		await process_frame
 	await RenderingServer.frame_post_draw
@@ -114,6 +110,19 @@ func capture_display(display: int, index: Dictionary) -> bool:
 	print("MODEL_ISOLATION DISPLAY id=", display, " model=", DISPLAYS[display][0], " product=", expected.product, " actual_build=", expected.build, " source=", source, " meshes=", meshes)
 	visual.free()
 	return true
+
+func frame_visible_meshes(model: Node3D) -> void:
+	var bounds := AABB()
+	var first := true
+	for child in model.find_children("*", "MeshInstance3D", true, false):
+		var mesh := child as MeshInstance3D
+		if mesh.is_visible_in_tree():
+			var world_bounds: AABB = mesh.global_transform * mesh.get_aabb()
+			bounds = world_bounds if first else bounds.merge(world_bounds)
+			first = false
+	var center := bounds.get_center()
+	var distance := maxf(bounds.size.length(), 0.1) * 2.1
+	camera.look_at_from_position(center + Vector3(1, 0.08, 0.25).normalized() * distance, center)
 
 func capture_equipped_player(index: Dictionary) -> bool:
 	var items := [{"slot": "MainHand", "item_id": 25, "inventory_type": 21}]
@@ -139,10 +148,7 @@ func capture_equipped_player(index: Dictionary) -> bool:
 			fail("Player/item source differs from authenticated Retail receipt: " + source)
 			model.free()
 			return false
-	var bounds: AABB = model.get_meta("m2_bounds")
-	var center := model.global_transform * bounds.get_center()
-	var height := maxf(bounds.size.y, maxf(bounds.size.x, bounds.size.z))
-	camera.look_at_from_position(center + Vector3(height * 1.5, height * 0.15, height * 0.35), center)
+	frame_visible_meshes(model)
 	for frame in range(45):
 		await process_frame
 	await RenderingServer.frame_post_draw
