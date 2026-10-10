@@ -510,13 +510,10 @@ fn runtime_model_columns(
             else {
                 return Ok(Vec::new());
             };
-            let display = outfit_data
-                .load_display_info(display_info_id)?
-                .ok_or_else(|| format!("Display {display_info_id} missing"))?;
-            let column = display
-                .model_resource_columns
-                .iter()
-                .position(|resource| *resource != 0)
+            let columns = outfit_data.try_resolve_column_models(display_info_id, race, sex)?;
+            let column = columns
+                .first()
+                .map(|&(column, _, _)| column)
                 .ok_or_else(|| {
                     format!("Display {display_info_id}: resolved model has no source column")
                 })?;
