@@ -732,7 +732,7 @@ fn read_wmo_texture(
 ) -> Result<Gd<ImageTexture>, String> {
     let dir = data_root.join("textures");
     let destination = dir.join(format!("{fdid}.blp"));
-    resolver.ensure_cached(fdid, &destination).ok_or_else(|| {
+    resolver.ensure_cached(fdid, &destination)?.ok_or_else(|| {
         format!(
             "Local CASC WMO texture FDID {fdid} unavailable at {}",
             destination.display()
@@ -831,6 +831,7 @@ mod tests {
                 let path = data_root.join("textures").join(format!("{fdid}.blp"));
                 let path = resolver
                     .ensure_cached(fdid, &path)
+                    .unwrap()
                     .unwrap_or_else(|| panic!("texture FDID {fdid} not in local CASC"));
                 let image = blp::decode_rgba(&std::fs::read(path).unwrap()).unwrap();
                 assert!(image.width > 0 && image.height > 0, "FDID {fdid}");
