@@ -3,11 +3,13 @@ import hashlib
 import importlib.util
 import json
 import sqlite3
+import sys
 from pathlib import Path
 import tempfile
 import unittest
 
 SCRIPT = Path(__file__).resolve().parents[1] / "import_model_asset_chains.py"
+sys.path.insert(0, str(SCRIPT.parent))
 SPEC = importlib.util.spec_from_file_location("model_chains", SCRIPT)
 chains = importlib.util.module_from_spec(SPEC)
 SPEC.loader.exec_module(chains)
