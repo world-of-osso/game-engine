@@ -150,6 +150,26 @@ mod tests {
     /// `UnitIsUnit("pet", unit)`: the unit whose `SummonedBy` is the local player; another
     /// hunter's wolf and an unowned boar are not it.
     #[test]
+    fn non_combat_companion_does_not_take_the_combat_pet_frame() {
+        let mut replica = Replica::for_tests();
+        let companion = BOAR;
+        replica.insert(
+            companion,
+            Npc {
+                template_id: 2671,
+                name: "Mechanical Squirrel".into(),
+            },
+        );
+        replica.insert(companion, UnitSummonedBy(HUNTER));
+        replica.insert(companion, UnitFlags(0x302));
+        assert_eq!(local_pet(&replica, HUNTER), None);
+        replica.insert(WOLF, npc("Wolf"));
+        replica.insert(WOLF, UnitSummonedBy(HUNTER));
+        replica.insert(WOLF, UnitFlags(0x8));
+        assert_eq!(local_pet(&replica, HUNTER), Some(WOLF));
+    }
+
+    #[test]
     fn local_pet_is_the_unit_summoned_by_the_local_player() {
         let mut replica = Replica::for_tests();
         replica.insert(BOAR, npc("Young Boar"));
