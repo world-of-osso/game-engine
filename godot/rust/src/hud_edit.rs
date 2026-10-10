@@ -69,6 +69,25 @@ impl GameClient {
     }
 
     pub(crate) fn exit_hud_edit(&mut self) -> Result<(), String> {
+        if self.hud_editor.draft.active {
+            let id = self
+                .account
+                .session
+                .selected_character_id
+                .ok_or("HUD editor requires a selected character")?;
+            let path = self.account.hud_layout_path()?;
+            let saved = apply_manager_action(
+                &path,
+                id,
+                ACTION_EDIT_MODE_EXIT,
+                "",
+                &self.ui_layout,
+                &mut self.hud_editor.draft,
+            )?;
+            if let Some(layout) = saved {
+                self.apply_ui_layout(layout)?;
+            }
+        }
         self.hud_editor.draft.exit();
         crate::ui::hud_edit_layout::publish_editor_active(false);
         if let Some(mut ui) = self.hud_editor.ui.take() {
@@ -305,6 +324,9 @@ impl GameClient {
     }
 
     fn apply_hud_edit_action(&mut self, action: &str) -> Result<(), String> {
+        if action == ACTION_EDIT_MODE_EXIT {
+            return self.exit_hud_edit();
+        }
         let id = self
             .account
             .session
@@ -349,7 +371,9 @@ pub(crate) fn apply_manager_action(
     if draft.pending_delete.is_some()
         && !matches!(
             action,
-            ACTION_EDIT_MODE_CONFIRM_DELETE | ACTION_EDIT_MODE_CANCEL_DELETE
+            ACTION_EDIT_MODE_CONFIRM_DELETE
+                | ACTION_EDIT_MODE_CANCEL_DELETE
+                | ACTION_EDIT_MODE_EXIT
         )
     {
         return Ok(None);
@@ -378,7 +402,22 @@ pub(crate) fn apply_manager_action(
             draft.enter(&updated);
             return Ok(Some(updated));
         }
-        ACTION_EDIT_MODE_EXIT => draft.exit(),
+        ACTION_EDIT_MODE_EXIT => {
+            let saved = if draft.working != layout.elements {
+                Some(persist_manager_layout(
+                    path,
+                    id,
+                    ACTION_EDIT_MODE_SAVE,
+                    "",
+                    layout,
+                    draft.working.clone(),
+                )?)
+            } else {
+                None
+            };
+            draft.exit();
+            return Ok(saved);
+        }
         ACTION_EDIT_MODE_REVERT => draft.enter(layout),
         ACTION_EDIT_MODE_RESET => draft.reset_selected(),
         _ => {
