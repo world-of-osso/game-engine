@@ -108,6 +108,7 @@ func override_proof() -> bool:
 		fail("Action tooltip did not restore")
 		return false
 	await capture("override-restored")
+	print("PROOF aura332 override and restoration PASS skin=", skin)
 	await tap(KEY_ESCAPE)
 	return await ground_proof()
 
@@ -136,7 +137,8 @@ func ground_proof() -> bool:
 		fail("Heroic Leap targeting")
 		return false
 	var camera := root.get_camera_3d()
-	var point := camera.unproject_position(start + Vector3(2.0, 0.0, 0.0))
+	# Heroic Leap has a minimum range: aim twelve yards ahead, not two beside us.
+	var point := camera.unproject_position(start + Vector3(0.0, 0.0, 12.0))
 	await pointer(point)
 	var reticle := client.get_node_or_null("GroundSpellReticle") as Node3D
 	if reticle == null or not reticle.visible or client.spells_state().sent.size() != before:
