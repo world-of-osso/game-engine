@@ -252,9 +252,16 @@ impl GameClient {
             view.editor = self.account.talents.clone();
             view.level = player.level as u8;
             view.on_action_bar = (0..crate::player_spells::ACTION_SLOT_COUNT)
-                .filter_map(|slot| match self.account.spells.slot(slot) {
-                    Some(shared::protocol::ActionRef::Spell(id)) => Some(id),
-                    _ => None,
+                .filter_map(|slot| {
+                    match self
+                        .account
+                        .spells
+                        .slot(slot)
+                        .map(|action| self.effective_action(action))
+                    {
+                        Some(shared::protocol::ActionRef::Spell(id)) => Some(id),
+                        _ => None,
+                    }
                 })
                 .collect();
             Some(view)

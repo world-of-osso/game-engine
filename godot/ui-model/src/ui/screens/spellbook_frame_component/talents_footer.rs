@@ -1,6 +1,6 @@
 //! ClassTalentsFrame.xml: LoadSystem LEFT48, SearchBox LEFT20, Reset/Undo shared anchor.
 use super::*;
-use crate::talents::search::NOT_ON_ACTION_BAR;
+use crate::talents::search::{MAX_PREVIEW_ENTRIES, MIN_SEARCH_CHARACTERS, NOT_ON_ACTION_BAR};
 use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
 
 pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
@@ -13,7 +13,8 @@ pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
         width: 200.0 * scale,
         height: 30.0 * scale,
         x: 48.0 * scale,
-        y: y * scale,
+        // menu_primitives takes y-up offsets; talent canvas is y-down.
+        y: -y * scale,
         background_color: "0.04,0.04,0.04,1.0",
         text_color: TAB_TEXT,
         arrow_color: TAB_TEXT,
@@ -154,7 +155,7 @@ fn search_box(view: &TalentView, y: f32, scale: f32) -> Element {
     if view.editor.search_preview {
         let entries = view.search_preview_entries();
         let mut rows = Vec::new();
-        if text.chars().count() < 2 {
+        if text.chars().count() < MIN_SEARCH_CHARACTERS {
             rows.extend(menu_row(
                 "TalentSearchNotOnBar",
                 NOT_ON_ACTION_BAR,
@@ -165,7 +166,7 @@ fn search_box(view: &TalentView, y: f32, scale: f32) -> Element {
                 scale,
             ));
         } else {
-            for (index, (entry, name)) in entries.iter().take(3).enumerate() {
+            for (index, (entry, name)) in entries.iter().take(MAX_PREVIEW_ENTRIES).enumerate() {
                 rows.extend(menu_row(
                     &format!("TalentSearchPreview{entry}"),
                     name,
@@ -178,8 +179,8 @@ fn search_box(view: &TalentView, y: f32, scale: f32) -> Element {
             }
         }
         if !rows.is_empty() {
-            let overflow = entries.len().saturating_sub(3);
-            let height = (entries.len().clamp(1, 3) as f32) * 28.0
+            let overflow = entries.len().saturating_sub(MAX_PREVIEW_ENTRIES);
+            let height = (entries.len().clamp(1, MAX_PREVIEW_ENTRIES) as f32) * 28.0
                 + 12.0
                 + if overflow > 0 { 20.0 } else { 0.0 };
             if overflow > 0 {

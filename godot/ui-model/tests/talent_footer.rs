@@ -55,6 +55,49 @@ fn reset_class_then_undo_restores_committed_purchases_and_keeps_spec() {
 }
 
 #[test]
+fn reset_all_preserves_selected_hero_purchases_and_granted_main_ranks() {
+    let mut state = state();
+    stage_talent_preview(&mut state).unwrap();
+    let view = state.talents.as_mut().unwrap();
+    let selector = view.graph.hero_selection.as_ref().unwrap();
+    let entry = &selector.entries[0];
+    let mut editor = view.editor.clone();
+    assert!(editor.purchase(view, 80, selector.id, entry.id));
+    let hero = view
+        .graph
+        .heroes
+        .iter()
+        .find(|tree| tree.id == entry.subtree_id)
+        .unwrap();
+    let (node, hero_entry) = hero
+        .nodes
+        .iter()
+        .flat_map(|node| node.entries.iter().map(move |entry| (node.id, entry.id)))
+        .find(|&(node, entry)| editor.can_purchase(view, 80, node, entry))
+        .unwrap();
+    assert!(editor.purchase(view, 80, node, hero_entry));
+    let request = editor.apply().unwrap();
+    editor.receive_snapshot(TraitConfigSnapshot {
+        spec_id: request.spec_id,
+        tree_id: view.graph.tree_id,
+        entries: request.entries.clone(),
+        unspent: editor.unspent(view),
+    });
+    editor.action(view, 80, "talent:reset:all").unwrap();
+    assert_eq!(editor.rank(selector.id, entry.id), 1);
+    assert_eq!(editor.rank(node, hero_entry), 1);
+    for tree in [&view.graph.class, &view.graph.spec] {
+        for node in &tree.nodes {
+            assert_eq!(editor.node_rank(node.id), node.granted_ranks);
+        }
+    }
+    assert!(editor.dirty());
+    editor.undo();
+    assert_eq!(editor.apply(), None);
+    assert_eq!(editor.snapshot.unwrap().entries, request.entries);
+}
+
+#[test]
 fn search_highlights_matching_nodes_and_preview_selects_actual_entry_in_both_skins() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
@@ -97,6 +140,38 @@ fn search_highlights_matching_nodes_and_preview_selects_actual_entry_in_both_ski
         assert!(registry.get_by_name("TalentSearchPreview80180").is_none());
         assert!(registry.get_by_name("TalentNode62121SearchMatch").is_some());
         assert!(registry.get_by_name("TalentNode62084SearchMatch").is_none());
+        let view = state.talents.as_mut().unwrap();
+        let mut editor = view.editor.clone();
+        editor
+            .action(view, 80, "talent:search:harmful magic")
+            .unwrap();
+        editor.action(view, 80, "talent:search_submit").unwrap();
+        view.editor = editor;
+        let barrier = view
+            .graph
+            .class
+            .nodes
+            .iter()
+            .find(|node| node.id == 62121)
+            .unwrap();
+        assert_eq!(
+            view.search_match_atlas(barrier),
+            Some("talents-search-match")
+        );
+        shared.insert(state.clone());
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("TalentNode62121SearchMatch").is_some());
+        assert!(registry.get_by_name("TalentNode62084SearchMatch").is_none());
+        let view = state.talents.as_mut().unwrap();
+        let hero_entry = view.graph.heroes[0].nodes[0].entries[0].id;
+        let mut editor = view.editor.clone();
+        editor
+            .action(view, 80, &format!("talent:search_select:{hero_entry}"))
+            .unwrap();
+        view.editor = editor;
+        shared.insert(state.clone());
+        screen.sync(&shared, &mut registry);
+        assert!(registry.get_by_name("HeroSpecSearchMatch").is_some());
     }
 }
 
@@ -122,6 +197,16 @@ fn loadout_menu_has_only_server_supported_default_configuration_no_fabricated_sa
             panic!("loadout caption")
         };
         assert_eq!(caption.text, "Default Loadout");
+        let dropdown = registry
+            .get(registry.get_by_name("TalentLoadoutDropDown").unwrap())
+            .unwrap();
+        let search = registry
+            .get(registry.get_by_name("TalentSearchBox").unwrap())
+            .unwrap();
+        assert_eq!(
+            dropdown.position.top, search.position.top,
+            "Retail LoadSystem and SearchBox share the footer centerline"
+        );
         for name in [
             "TalentNewLoadout",
             "TalentImportLoadout",
