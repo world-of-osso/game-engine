@@ -3,11 +3,14 @@ use crate::nameplate_visibility_data::{
 };
 
 #[test]
-fn camera_body_distance_fades_from_half_limit_and_vanishes_at_limit() {
-    assert_eq!(nameplate_alpha(20.0, 40.0), 1.0);
-    assert_eq!(nameplate_alpha(30.0, 40.0), 0.5);
-    assert_eq!(nameplate_alpha(40.0, 40.0), 0.0);
-    assert_eq!(nameplate_alpha(45.0, 60.0), 0.5);
+fn camera_body_distance_steps_to_min_alpha_past_the_limit() {
+    let cvars = NameplateCvars::default();
+    assert_eq!(nameplate_alpha(&cvars, 10.0, 40.0), 1.0);
+    assert_eq!(nameplate_alpha(&cvars, 39.9, 40.0), 1.0);
+    assert_eq!(nameplate_alpha(&cvars, 40.0, 40.0), 1.0);
+    assert_eq!(nameplate_alpha(&cvars, 40.1, 40.0), 0.6);
+    assert_eq!(nameplate_alpha(&cvars, 59.0, 40.0), 0.6);
+    assert_eq!(nameplate_alpha(&cvars, 45.0, 60.0), 1.0);
 }
 
 const LOCAL: u64 = 1;
@@ -216,12 +219,12 @@ fn occluded_plates_take_the_occluded_alpha_multiplier() {
 #[test]
 fn the_target_plate_is_opaque_at_any_camera_distance() {
     let cvars = NameplateCvars::default();
-    // Showcase: the target 30 yd from the camera with the 40 yd fade got 0.5.
-    let fade = nameplate_alpha(30.0, 40.0);
-    assert_eq!(fade, 0.5);
+    // The target 50 yd from the camera, past the 40 yd limit, would get min alpha.
+    let fade = nameplate_alpha(&cvars, 50.0, 40.0);
+    assert_eq!(fade, 0.6);
     assert_eq!(plate_alpha(&cvars, true, fade, false), 1.0);
     assert_eq!(plate_alpha(&cvars, true, 0.0, false), 1.0);
-    assert_eq!(plate_alpha(&cvars, false, fade, false), 0.5);
+    assert_eq!(plate_alpha(&cvars, false, fade, false), 0.6);
     // Line of sight still dims it.
     assert_eq!(plate_alpha(&cvars, true, fade, true), 0.4);
 }

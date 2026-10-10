@@ -1278,7 +1278,11 @@ fn project_plate(
     if !camera.is_position_in_frustum(top) {
         return None;
     }
-    let fade = nameplate_alpha(camera.get_global_position().distance_to(top), fade_far);
+    let fade = nameplate_alpha(
+        cvars,
+        camera.get_global_position().distance_to(top),
+        fade_far,
+    );
     if fade <= 0.0 && !selected {
         return None;
     }
@@ -1665,16 +1669,15 @@ mod tests {
     #[test]
     fn nameplate_alpha_distances_preserve_selected_and_occlusion_overrides() {
         let cvars = NameplateCvars::default();
-        // The authored HUD limit is 40 yd, not Retail's alpha-distance CVars.
+        // Full alpha up to the authored HUD limit (40 yd), min alpha at once past it.
         for (distance, expected_fade) in [
             (10.0, 1.0),
-            (20.0, 1.0),
-            (30.0, 0.5),
-            (35.62, 0.219),
-            (40.0, 0.0),
-            (60.0, 0.0),
+            (30.0, 1.0),
+            (40.0, 1.0),
+            (40.5, 0.6),
+            (60.0, 0.6),
         ] {
-            let fade = nameplate_alpha(distance, 40.0);
+            let fade = nameplate_alpha(&cvars, distance, 40.0);
             assert!((fade - expected_fade).abs() < 1e-6, "{distance} yd");
             for (selected, occluded, expected) in [
                 (false, false, expected_fade),
