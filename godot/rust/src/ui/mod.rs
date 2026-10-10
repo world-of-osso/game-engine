@@ -39,6 +39,8 @@ mod rosterfix_tests;
 mod scroll_lists;
 mod sidebarbinds_preview;
 mod spellbook_preview;
+mod toy_cooldown;
+mod toybox_preview;
 pub(crate) mod ui_parent;
 
 use std::collections::VecDeque;
@@ -376,6 +378,15 @@ impl RegistryModel {
             .get::<game_engine_ui_model::trainer_frame::TrainerView>()
         {
             game_engine_ui_model::trainer_frame::apply_trainer_art(view, &mut self.registry);
+        }
+        if let Some(view) = self
+            .shared
+            .get::<game_engine_ui_model::toybox_component::ToyBoxView>()
+        {
+            game_engine_ui_model::toybox_component::apply_toybox_postsetup(
+                view,
+                &mut self.registry,
+            );
         }
         // FlightMap uses quest-window mounting, which has no Bags icon-mask postsetup.
         if self
@@ -1022,6 +1033,15 @@ impl RegistryUi {
             registry,
             parent,
         )
+    }
+
+    pub fn show_toybox(
+        &mut self,
+        view: game_engine_ui_model::toybox_component::ToyBoxView,
+    ) -> Result<(), String> {
+        self.show_quest_window(view, game_engine_ui_model::toybox_component::toybox_screen)?;
+        self.enable_cursor_inputs();
+        Ok(())
     }
 
     /// Initialize a dedicated RegistryUi instance for the Retail main action bar.

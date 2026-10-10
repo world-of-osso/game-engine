@@ -119,6 +119,7 @@ impl GameClient {
             .spell_drag
             .as_ref()
             .map(|drag| ActionRef::Spell(drag.spell_id))
+            .or_else(|| self.toybox.drag.as_ref().map(|drag| drag.action.to_slot()))
             .or_else(|| match &self.bags.cursor.item {
                 CursorItem::Inventory { item_id, .. } => Some(ActionRef::Item(*item_id)),
                 _ => None,
@@ -133,6 +134,7 @@ impl GameClient {
         self.account.spells.apply_assignment(&request);
         self.bags.cursor.item = CursorItem::Empty;
         self.bags.cursor.spell_drag = None;
+        self.toybox.drag = None;
         Ok(true)
     }
 }

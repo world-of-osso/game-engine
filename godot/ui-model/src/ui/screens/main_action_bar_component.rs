@@ -110,6 +110,8 @@ pub struct ActionButtonView {
     pub icon_fdid: u32,
     /// Remaining fraction of the running cooldown or GCD, 0 when none.
     pub cooldown_fraction: f32,
+    /// Toy actions use the native radial CooldownFrame swipe.
+    pub radial_cooldown: bool,
     /// Countdown text of cooldowns of 2 s and longer.
     pub cooldown_text: String,
     /// Key held or button pressed: `PushedTexture` replaces `NormalTexture`.
@@ -391,7 +393,16 @@ fn cooldown(name: &str, view: &ActionButtonView, scale: f32) -> Element {
     let size = BUTTON_SIZE * scale;
     let inset = COOLDOWN_INSET * scale;
     let side = size - 2.0 * inset;
-    let height = (side * view.cooldown_fraction.clamp(0.0, 1.0)).round();
+    let height = if view.radial_cooldown {
+        side
+    } else {
+        (side * view.cooldown_fraction.clamp(0.0, 1.0)).round()
+    };
+    let background = if view.radial_cooldown {
+        "0.0,0.0,0.0,0.0"
+    } else {
+        COOLDOWN_SWIPE
+    };
     let swipe = DynName(format!("{name}Cooldown"));
     let text = DynName(format!("{name}CooldownText"));
     rsx! {
@@ -400,7 +411,7 @@ fn cooldown(name: &str, view: &ActionButtonView, scale: f32) -> Element {
             width: side,
             height,
             hidden: {height <= 0.0},
-            background_color: COOLDOWN_SWIPE,
+            background_color: background,
             pos_type: "absolute",
             pos_x: inset,
             pos_y: {size - inset - height},

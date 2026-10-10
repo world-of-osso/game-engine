@@ -54,6 +54,8 @@ pub mod professions_frame;
 pub mod raid_warning;
 pub mod summon;
 pub mod talents;
+pub mod toybox;
+pub mod toybox_component;
 pub mod trainer;
 pub mod trainer_frame;
 
