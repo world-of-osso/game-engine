@@ -938,8 +938,9 @@ def read_string(data, record_offset, field, value):
     logical = (index - total) * record_size + field[0] // 8 + value
     for key, start, count, size, *_ in headers:
         if 0 <= logical < size:
-            if key:
-                raise ValueError(f"string offset lands in encrypted section {key:016X}")
+            section_payload = data[start : start + count * record_size + size]
+            if key and not any(section_payload):
+                raise ValueError(f"string offset lands in unreadable encrypted section {key:016X}")
             offset = start + count * record_size + logical
             end = data.index(b"\0", offset, start + count * record_size + size)
             return data[offset:end].decode("utf-8")
