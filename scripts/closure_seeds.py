@@ -444,6 +444,7 @@ def seed_customizations(graph, chr_model, selector, race=1, class_id=1):
 
 def apply_choices(graph, db, choices, mode):
     selected = set(choices)
+    unsupported_choices = set()
     for choice in sorted(selected):
         for row in db.execute(
             "SELECT related_choice_id,material_id,skinned_model_id,has_unsupported_effects FROM elements WHERE choice_id=?",
@@ -466,7 +467,18 @@ def apply_choices(graph, db, choices, mode):
                     fdid, "m2", f"customization choice {choice} skinned model {model}"
                 )
             if unsupported:
-                graph.issue("unsupported_customization_effect", f"choice {choice}")
+                unsupported_choices.add(choice)
+    if unsupported_choices:
+        if getattr(graph, "appearance", None) is None:
+            from closure_appearance import DisplayAppearanceReferences
+
+            graph.appearance = DisplayAppearanceReferences(graph, Catalogs(graph))
+        # The legacy cache retains only a boolean, not the effect fields. Audit
+        # every authored raw alternative for those choices rather than guessing
+        # which extra field set that boolean; missing raw rows remain errors.
+        graph.appearance.seed_choices(
+            unsupported_choices, mode="all", require_rows=True
+        )
 
 
 def seed_npc_appearance(graph, displays):

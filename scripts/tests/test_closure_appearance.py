@@ -7,7 +7,8 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 from asset_closure import Closure
-from closure_seeds import Catalogs, seed_displays
+from closure_seeds import Catalogs, seed_displays, apply_choices
+import sqlite3
 
 
 class AppearanceTests(unittest.TestCase):
@@ -60,6 +61,30 @@ class AppearanceTests(unittest.TestCase):
             )
             self.assertFalse(
                 any(c == "display_extended_appearance" for c, _, _ in g.unresolved)
+            )
+
+    def test_cached_unsupported_choice_joins_its_raw_conditional_model(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            root = d / "db2/fixture"
+            root.mkdir(parents=True)
+            (root / "ChrCustomizationElement.csv").write_text(
+                "ID,ChrCustomizationChoiceID,ChrCustomizationCondModelID\n1,30,51\n"
+            )
+            (root / "ChrCustomizationCondModel.csv").write_text(
+                "ID,CreatureModelDataID\n51,12\n"
+            )
+            (root / "CreatureModelData.csv").write_text("ID,FileDataID\n12,104\n")
+            db = sqlite3.connect(":memory:")
+            self.addCleanup(db.close)
+            db.executescript(
+                "CREATE TABLE elements(choice_id,related_choice_id,material_id,skinned_model_id,has_unsupported_effects); INSERT INTO elements VALUES(30,0,0,0,1); CREATE TABLE materials(id,material_resources_id); CREATE TABLE texture_fdids(material_resources_id,file_data_id); CREATE TABLE skinned_models(id,collection_fdid);"
+            )
+            g = Closure(d, {}, "wow", "fixture")
+            apply_choices(g, db, [30], "selected")
+            self.assertIn((104, "m2"), g.assets)
+            self.assertFalse(
+                any(c == "unsupported_customization_effect" for c, _, _ in g.unresolved)
             )
 
     def test_absent_extra_is_a_required_metadata_boundary(self):
