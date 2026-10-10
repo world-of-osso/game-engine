@@ -6,6 +6,8 @@ import json
 import os
 from pathlib import Path
 import threading
+import shutil
+import tempfile
 
 RECEIPT_LOCK = threading.Lock()
 
@@ -76,16 +78,21 @@ def publish(stage, data, locations, identity, index, receipts=None):
         receipts = read_receipts(index) if receipts is None else receipts
         for relative, target in targets:
             target.parent.mkdir(parents=True, exist_ok=True)
-            try:
-                os.link(stage, target)
-                disposition = 'extracted'
-                result['created'] += 1
-                result['bytes'] += size
-            except FileExistsError:
-                if file_hashes(target) != (size, content, sha256):
-                    result['conflicts'].append(relative)
-                    continue
-                disposition = 'verified_existing'
+            with tempfile.NamedTemporaryFile(dir=target.parent, prefix='.closure-') as temporary:
+                with stage.open('rb') as source:
+                    shutil.copyfileobj(source, temporary, 1024 * 1024)
+                temporary.flush()
+                os.fsync(temporary.fileno())
+                try:
+                    os.link(temporary.name, target)
+                    disposition = 'extracted'
+                    result['created'] += 1
+                    result['bytes'] += size
+                except FileExistsError:
+                    if file_hashes(target) != (size, content, sha256):
+                        result['conflicts'].append(relative)
+                        continue
+                    disposition = 'verified_existing'
             previous = receipts.get(relative)
             if previous and all(previous.get(k) == v for k, v in identity.items()) and previous['sha256'] == sha256:
                 continue
