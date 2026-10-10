@@ -1,6 +1,6 @@
 //! Unit frame art names Blizzard atlas elements. Under Modern every element resolves to
-//! art, shared or distinct by role; under Forever the FlareUI-shaped frames draw none and
-//! boss frames keep Modern's art.
+//! art, shared or distinct by role; Forever's FlareUI-shaped frames retain target
+//! classification art, while boss frames keep Modern's compact art.
 
 use std::path::PathBuf;
 
@@ -350,8 +350,13 @@ fn bossframes_compact_art_resolves_under_both_skins_and_flare_roots_keep_their_s
         "TargetOfTargetFrameArt",
         "FocusFrameArt",
         "PetFrameArt",
-        "TargetBossPortraitFrameTexture",
     ] {
         assert!(forever.get_by_name(name).is_none(), "{name} drawn");
     }
+    let dragon = drawn_crop(
+        &forever,
+        "TargetBossPortraitFrameTexture",
+        ActiveSkin::Forever,
+    );
+    assert_eq!(dragon.0, AtlasSource::FileDataId(8_244_541));
 }

@@ -1,3 +1,7 @@
+## 2026-10-09 — Rare vignettes and Forever target classification
+
+[Rare classification investigation](investigations/rare-vignettes-and-classification.md) records315 spawned rare templates with no vignette assignment, distinct newer IDs behind name matches, local CASC comparisons and the Forever target overlay bypass. Three registry RED cases reproduce missing art; shared authored classification elements now populate the Forever target overlay, with GREEN pending. Native Modern Ruul capture passed; Brack rank4 picking and post-fix Forever pixels remain unproved after the three-run budget.
+
 ## 2026-10-09 — HUD layout names and delete confirmation
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records the user-decided name validation and pending Yes/No deletion transition. [Contract](../specs/hud-edit-mode.md) owns Retail validation/dialog sources, exact confirmation text and unchanged preset Save / unsaved Exit boundaries. RED reproduces enabled empty New and immediate Delete; `4356c20a7` GREEN touched-crate hud69/core-layout7 and extension/CLI build pass. Native captures pending after default-output clearance failure and Vulkan initialization failure; no PNG or live input claim.
