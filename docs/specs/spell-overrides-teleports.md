@@ -10,6 +10,11 @@ Native spell presentation consumes server aura overrides without changing learne
 - [ ] Same-map teleports snap the player while preserving camera orbit without sweeping the camera through intervening geometry.
 - [ ] Apply aura312 animation replacement sets when the native animation system has a replacement-set hook; otherwise record the gap.
 
+- [x] Pure action resolution applies/restores replacement IDs without changing stored bindings; book projection keeps base IDs while substituting name/icon/cooldown.
+- [x] Pending ground intent includes the clicked finite destination; cancel sends nothing.
+- [x] Pinned catalog distinguishes ground leaps from Blink and target-unit leaps.
+- [x] Camera anchor preserves orbit displacement on changed movement epoch.
+
 ## How it works
 
 - [Native implementation and Retail references](../wiki/systems/spell-overrides-teleports.md)
@@ -38,7 +43,7 @@ Native spell presentation consumes server aura overrides without changing learne
 ## Known gaps (current cycle)
 
 - [ ] Native animation selects M2 sequence IDs and action layers; no animation replacement-set loader/mapping hook exists. `AuraOverride::Animation(1013)` cannot be interpreted as an M2 animation ID.
-- [ ] Private-server proof pending; the ground ring is native geometry, not exact Retail reticle art.
+- [ ] Private-server aura/ground proof blocked on authentic talent spell availability (admin profession-learning success did not add class spells). Both-skin Blink wall proof passed; ground ring remains native geometry, not exact Retail art.
 
 ## Out of scope
 

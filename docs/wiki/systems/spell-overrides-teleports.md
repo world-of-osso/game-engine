@@ -33,3 +33,19 @@ MovementControl epoch changes already snap the player. The camera now translates
 
 - [[player-cast-feedback]] — native spell animation selection.
 - [[godot-conversion]] — native client lifecycle and proof boundaries.
+
+## Scoped acceptance (2026-10-10)
+
+| Capability | Evidence | Limit |
+|---|---|---|
+| Aura332 action apply/restore | UI-model RED/GREEN; effective ID drives native icon, tooltip, cooldown and cast | Real override aura render/cast pending |
+| Spellbook base binding, substituted name/icon/cooldown | Pure projection RED/GREEN plus 12 native-model book layout tests | Runtime override proof pending |
+| Ground intent destination/cancel | UI-model3/3; real pinned Infernal Strike/Heroic Leap vs Blink catalog1/1 | Live ground placement pending; reticle is native ring geometry |
+| Same-map player/camera | Epoch/orbit unit test; both-skin private master3753ca2 Blink wall cast moved3.3311yd, no errors | Camera collision near Abbey confines the view; no pixel-exact Retail comparison |
+| Aura312 | Recorded replacement-set loader/translation gap | Not applied |
+
+Implementation660bd1606 native build passed with no warnings. Changed Rust formatting passed; workspace fmt finds only inherited `network/src/replica/codec.rs` and `ui-model/src/game_tooltip/merchant.rs` differences. Cargo check was cancelled after unexpected detachment: its ktx2-rw build script remained active for over nine minutes; no completed check proof is claimed. No broad suites.
+
+Private override setup reached Fury spec72 but known spells omitted1719/85288. Online admin `learn-spell` reported success; that handler queues the profession learner, and no requested class spells appeared in the client snapshot. Retry ceiling reached. Complete an authentic talent allocation before continuing this real-server fixture; do not fabricate replicated auras or mutate production.
+
+User-visible Blink PNGs and 60-frame MP4 sequences (1280x720, 4fps playback, not real-time recordings) are in `/syncthing/AgentShared/2026-10-10/overrides/`. ffprobe confirmed both60 frames/15s; ffmpeg decoded all frames and signalstats were inspected. Full logs stay under `data/diagnostics/overrides-2026-10-10/`. Private UDP5184 and all owned clients were stopped; UDP5000 untouched.
