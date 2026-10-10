@@ -16,14 +16,24 @@ import unittest
 def find_ktx_build_script(root):
     if 'KTX_BUILD_SCRIPT' in os.environ:
         return Path(os.environ['KTX_BUILD_SCRIPT']).resolve()
+    # Only a binary compiled after the current build.rs/cache.rs exercises them.
+    sources = root / 'vendor/ktx2-rw'
+    newest_source = max(
+        (sources / name).stat().st_mtime for name in ('build.rs', 'cache.rs')
+    )
     scripts = sorted(
-        (root / 'target/debug/build').glob('ktx2-rw-*/build-script-build'),
+        (
+            path
+            for path in (root / 'target/debug/build').glob('ktx2-rw-*/build-script-build')
+            if path.stat().st_mtime >= newest_source
+        ),
         key=lambda path: path.stat().st_mtime,
     )
     if not scripts:
         raise AssertionError(
-            f'no compiled ktx2-rw build script under {root}/target/debug/build; '
-            'build the extension once (scripts/depot-build.py) before this test'
+            f'no ktx2-rw build script under {root}/target/debug/build is newer than '
+            'vendor/ktx2-rw/build.rs; build the extension once (scripts/depot-build.py) '
+            'before this test'
         )
     return scripts[-1]
 
