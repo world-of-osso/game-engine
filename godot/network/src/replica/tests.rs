@@ -422,6 +422,28 @@ fn run_scenario(session: &mut Session, despawn_hero: bool) -> (Entity, Entity) {
 }
 
 #[test]
+fn toyfx2_scale_state_replicates_and_reverts_over_udp() {
+    use shared::components::UnitScale;
+    let mut session = Session::start(9152);
+    let hero = session.spawn((player("ScaleToy"), position(1.0), UnitScale(0.5)));
+    session.until("scale toy", hero, |unit| {
+        unit.and_then(|u| u.get::<UnitScale>().copied()) == Some(UnitScale(0.5))
+    });
+    session.edit(hero, |hero| {
+        hero.insert(UnitScale(1.5));
+    });
+    session.until("additive scale", hero, |unit| {
+        unit.and_then(|u| u.get::<UnitScale>().copied()) == Some(UnitScale(1.5))
+    });
+    session.edit(hero, |hero| {
+        hero.insert(UnitScale::default());
+    });
+    session.until("native scale restored", hero, |unit| {
+        unit.and_then(|u| u.get::<UnitScale>().copied()) == Some(UnitScale(1.0))
+    });
+}
+
+#[test]
 fn replica_matches_stock_replicon_client_over_udp() {
     let mut session = Session::start(9100);
     let (hero, wolf) = run_scenario(&mut session, true);

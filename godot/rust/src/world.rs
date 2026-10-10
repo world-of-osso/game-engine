@@ -1165,6 +1165,12 @@ impl WorldUnits {
             unit.node.set_meta(UNIT_NAME_META, &name.to_variant());
             unit.name = name.to_owned();
         }
+        let scale = snapshot
+            .get::<shared::components::UnitScale>()
+            .copied()
+            .unwrap_or_default()
+            .0;
+        unit.node.set_scale(Vector3::ONE * scale);
         unit.is_player = snapshot.has::<Player>();
         unit.player_motion = snapshot.get::<PlayerMotion>().copied();
         unit.life_state = snapshot.get::<DeathState>().copied();
