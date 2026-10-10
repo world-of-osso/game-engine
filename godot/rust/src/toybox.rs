@@ -253,6 +253,21 @@ impl GameClient {
             "toy_page:prev" => self.toybox.model.turn_page(-1),
             "toy_page:next" => self.toybox.model.turn_page(1),
             "toy_tab" => {}
+            "toy_search:clear" => {
+                self.toybox.model.filters.search.clear();
+                self.toybox.model.page = 0;
+                if let Some(control) = self
+                    .toybox
+                    .ui
+                    .as_ref()
+                    .and_then(|ui| ui.bind().frame_control(model::SEARCH_FIELD))
+                {
+                    let mut editor = control
+                        .try_cast::<godot::classes::LineEdit>()
+                        .map_err(|_| "Toy Box search is not a LineEdit")?;
+                    editor.clear();
+                }
+            }
             _ => {
                 if let Some(id) = action
                     .strip_prefix(model::FAVOURITE_PREFIX)

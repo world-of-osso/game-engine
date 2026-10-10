@@ -48,11 +48,8 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
     );
     let filters = filter_menu(model);
     let context = context_menu(model);
-    let count = format!(
-        "{} / {}",
-        model.catalog.iter().filter(|toy| toy.learned).count(),
-        model.catalog.len()
-    );
+    let progress = progress_bar(model);
+    let search = search_box(model);
     let page = format!("Page {} of {}", model.page + 1, model.page_count());
     let error = model.error.as_deref().unwrap_or("");
     let empty = model.page_items().is_empty();
@@ -63,10 +60,8 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
                 background_color: "0.08,0.07,0.06,1.0",
                 {chrome} {portrait}
                 r#frame { name: "ToyBox", width: 701.0, height: 580.0, pos_type: "absolute", left: 1.0, top: 20.0,
-                    fontstring { name: "ToyBoxProgress", text: {count.as_str()}, width: 196.0, height: 13.0,
-                        pos_type: "absolute", left: 252.0, top: 19.0, font_size: 11.0, justify_h: "CENTER" }
-                    editbox { name: "ToyBoxSearchBox", text: {model.filters.search.as_str()}, width: 115.0, height: 20.0,
-                        pos_type: "absolute", left: 481.0, top: 15.0 }
+                    {progress}
+                    {search}
                     button { name: "ToyBoxFilterDropdown", text: "Filter", width: 90.0, height: 22.0,
                         pos_type: "absolute", left: 599.0, top: 15.0, onclick: "toy_filters" }
                     {background}
@@ -90,17 +85,113 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
 }
 
 fn tabs() -> Element {
-    TABS.into_iter()
+    let mut left = 11.0;
+    let mut tabs: Vec<_> = TABS
+        .into_iter()
         .enumerate()
-        .flat_map(|(index, title)| {
-            let selected = index == 2;
-            let left = 11.0 + index as f32 * 110.0;
-            rsx! { button { name: {DynName(format!("CollectionsJournalTab{}", index + 1))},
-                width: 110.0, height: 28.0, pos_type: "absolute", left, top: 604.0,
-                text: title, disabled: {!selected}, onclick: "toy_tab", font_size: 11.0 }
-            }
+        .map(|(index, title)| {
+            let width = crate::merchant_frame_component::tab_width(title);
+            let tab = journal_tab(index, title, left, width);
+            left += width - 16.0;
+            tab
         })
-        .collect()
+        .collect();
+    let selected = tabs.remove(2);
+    tabs.into_iter().flatten().chain(selected).collect()
+}
+
+fn journal_tab(index: usize, title: &str, left: f32, width: f32) -> Element {
+    let selected = index == 2;
+    let name = format!("CollectionsJournalTab{}", index + 1);
+    let prefix = if selected {
+        "uiframe-activetab"
+    } else {
+        "uiframe-tab"
+    };
+    let height = if selected { 42.0 } else { 36.0 };
+    let offset = if selected { -1.0 } else { -3.0 };
+    let right = width + if selected { 8.0 } else { 7.0 } - 37.0;
+    let mut art = named_atlas_texture(
+        format!("{name}Left"),
+        &format!("{prefix}-left"),
+        (offset, 0.0, 35.0, height),
+    );
+    art.extend(named_atlas_texture(
+        format!("{name}Middle"),
+        &format!("_{prefix}-center"),
+        (offset + 35.0, 0.0, right - offset - 35.0, height),
+    ));
+    art.extend(named_atlas_texture(
+        format!("{name}Right"),
+        &format!("{prefix}-right"),
+        (right, 0.0, 37.0, height),
+    ));
+    let color = if selected {
+        "1.0,1.0,1.0,1.0"
+    } else {
+        "0.5,0.5,0.5,1.0"
+    };
+    rsx! { button { name: {DynName(name.clone())}, width, height: 32.0, pos_type: "absolute", left, top: 604.0,
+        button_default_skin: false, disabled: {!selected}, onclick: "toy_tab", {art}
+        fontstring { name: {DynName(format!("{name}Text"))}, text: title, width, height: 32.0,
+            pos_type: "absolute", left: 0.0, top: {if selected { 3.0 } else { -2.0 }},
+            font_size: 10.0, font_color: color, justify_h: "CENTER" }
+    } }
+}
+
+fn search_box(model: &ToyBox) -> Element {
+    let mut art = named_atlas_texture(
+        "ToyBoxSearchLeft".into(),
+        "common-search-border-left",
+        (476.0, 15.0, 8.0, 20.0),
+    );
+    art.extend(named_atlas_texture(
+        "ToyBoxSearchMiddle".into(),
+        "common-search-border-middle",
+        (484.0, 15.0, 104.0, 20.0),
+    ));
+    art.extend(named_atlas_texture(
+        "ToyBoxSearchRight".into(),
+        "common-search-border-right",
+        (588.0, 15.0, 8.0, 20.0),
+    ));
+    art.extend(named_atlas_texture(
+        "ToyBoxSearchIcon".into(),
+        "common-search-magnifyingglass",
+        (482.0, 21.0, 10.0, 10.0),
+    ));
+    let search = model.filters.search.as_str();
+    let clear = named_atlas_texture(
+        "ToyBoxSearchClearIcon".into(),
+        "common-search-clearbutton",
+        (3.0, 3.0, 10.0, 10.0),
+    );
+    rsx! { {art}
+        editbox { name: "ToyBoxSearchBox", text: search, width: 115.0, height: 20.0,
+            text_insets: "16,20,0,0", pos_type: "absolute", left: 481.0, top: 15.0, font_size: 12.0 }
+        fontstring { name: "ToyBoxSearchHint", text: "Search", hidden: {!search.is_empty()},
+            mouse_enabled: false, width: 70.0, height: 20.0, pos_type: "absolute", left: 497.0, top: 15.0,
+            font_size: 12.0, font_color: "0.5,0.5,0.5,1.0", justify_h: "LEFT" }
+        button { name: "ToyBoxSearchClear", width: 17.0, height: 17.0, hidden: {search.is_empty()},
+            pos_type: "absolute", left: 576.0, top: 16.5, button_default_skin: false, onclick: "toy_search:clear", {clear} }
+    }
+}
+
+fn progress_bar(model: &ToyBox) -> Element {
+    let learned = model.catalog.iter().filter(|toy| toy.learned).count();
+    let count = format!("{learned} / {}", model.catalog.len());
+    let width = 196.0 * learned as f32 / model.catalog.len().max(1) as f32;
+    rsx! {
+        r#frame { name: "ToyBoxProgressBar", width: 196.0, height: 13.0,
+            pos_type: "absolute", left: 252.0, top: 19.0, background_color: "0.0,0.0,0.0,1.0",
+            r#frame { name: "ToyBoxProgressFill", width, height: 11.0, pos_type: "absolute", left: 0.0, top: 1.0,
+                background_color: "0.03125,0.85,0.0,1.0" }
+            texture { name: "ToyBoxProgressBorder", texture_fdid: 136571, width: 205.0, height: 29.0,
+                pos_type: "absolute", left: -5.0, top: -8.0 }
+            fontstring { name: "ToyBoxProgress", text: {count.as_str()}, width: 196.0, height: 13.0,
+                pos_type: "absolute", left: 0.0, top: -1.0, font_size: 11.0, justify_h: "CENTER" }
+        }
+    }
 }
 
 fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -> Element {
