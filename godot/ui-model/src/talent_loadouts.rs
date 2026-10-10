@@ -32,6 +32,15 @@ impl TalentEditor {
             })
             .map_or("Default Loadout", |config| config.name.as_str())
     }
+    /// An exclusive Retail loadout popup owns Escape before its parent window.
+    pub fn cancel_loadout_dialog(&mut self) -> bool {
+        if self.loadout_dialog.is_none() {
+            return false;
+        }
+        self.loadout_dialog = None;
+        self.error_text = None;
+        true
+    }
     pub fn take_loadout_request(&mut self) -> Option<TraitLoadoutRequest> {
         self.loadout_request.take()
     }
@@ -62,8 +71,7 @@ impl TalentEditor {
                 self.loadout_menu = false;
             }
             "_cancel" => {
-                self.loadout_dialog = None;
-                self.error_text = None;
+                self.cancel_loadout_dialog();
             }
             "_save" => return self.save_loadout_name(),
             "_delete" => {
