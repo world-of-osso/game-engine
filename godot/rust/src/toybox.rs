@@ -1,6 +1,7 @@
 //! Native Collections journal lifecycle and one toy use path for tiles and bars.
+use crate::frame_error::SessionError;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
-use game_engine_session::{SessionError, SessionScreen};
+use game_engine_session::SessionScreen;
 use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::toybox::{self as model, ToyAction, ToyBox};
 use game_engine_ui_model::toybox_component::{ToyBoxView, toybox_screen};
@@ -131,7 +132,8 @@ impl GameClient {
             ui.set_name("CollectionsJournalUI");
             ui.set_layer(6);
             self.base_mut().add_child(&ui);
-            if let Err(error) = ui.bind_mut().show_toybox(view.clone()) {
+            let mounted = ui.bind_mut().show_toybox(view.clone());
+            if let Err(error) = mounted {
                 ui.free();
                 return Err(error);
             }
