@@ -145,6 +145,10 @@ impl GameClient {
     /// press closes every bag and every panel. Returns whether anything was open.
     pub(super) fn close_all_windows(&mut self) -> Result<bool, FrameError> {
         let mut closed = self.bags.close_all_bags(None);
+        if self.toybox.model.open {
+            self.close_toybox();
+            closed = true;
+        }
         if self.spellbook_open() {
             self.close_spellbook();
             closed = true;
