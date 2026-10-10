@@ -1,3 +1,7 @@
+## 2026-10-10 — Toy-effects6 condition and summon coverage
+
+[Toy follow-up](systems/toy-box.md#toy-effects6-conditional-selection-and-summon-coverage-2026-10-10): source-bound inverted aura condition RED→GREEN10/10; strict ordinary train coverage preserves all prior profiles/choices/geosets. Actual journal input produces Spitzy/train/Duck Lovie assets in both configured skins. Mortar live acceptance remains blocked; final observer ordering/range correction is parse-only proof.1256 authenticated local FDID/kind receipts retained for offline certification. No fabricated payload, aura233 implementation, world.db write or shared realm mutation.
+
 ## 2026-10-10 — Closure round 3 final dataset
 
 [Final offline closure](systems/offline-asset-closure.md#round-3-final-dataset--verified-2026-10-10):862,509→970,356 present,2,275→2,302 missing,86,217→5,024 unresolved. Published188,100 paths /4,967,995,591 bytes;193,049 owned receipts pass,670 foreign-schema rows excluded. Sequential process recovery preserved published progress after bounded OOM; final manifest/source drift and residuals recorded. No merge, data commit, production-driver memory or no-install/P3/P4 certificate.

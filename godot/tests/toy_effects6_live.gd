@@ -41,26 +41,17 @@ func run_fixture() -> void:
 		if selected != null:
 			var rules: Dictionary = client.nameplate_rules(int(selected))
 			receipts.append({"phase": "target-selection", "target": client.target_state(), "rules": rules})
-			if str(rules.get("reaction", "")) == "Hostile" and bool(rules.get("alive", false)):
+			var distance := float(rules.get("distance", 0.0))
+			# Local SpellRange503 has min8/max30 yards. Preserve selection;
+			# no second teleport or captured model pointer during range observation.
+			if str(rules.get("reaction", "")) == "Hostile" and bool(rules.get("alive", false)) and distance >= 8.0 and distance <= 30.0:
 				hostile = true
 				break
 	if not hostile: fail("no living hostile target in Tab cycle"); return
 	var target_id := int(client.target_state().target)
 	if not await wait_until(func(): return client.target_state().server_target == target_id, "authoritative hostile target"): return
-	var target_node: Node3D
-	for area in client.find_children("*", "Area3D", true, false):
-		if area.has_meta("unit_server_id") and int(area.get_meta("unit_server_id")) == target_id:
-			target_node = area.get_parent() as Node3D
-			break
-	if target_node == null: fail("selected hostile has no authored model"); return
-	var direction := actor.global_position - target_node.global_position
-	direction.y = 0.0
-	if direction.length() == 0.0: fail("zero direction to target"); return
-	var destination := target_node.global_position + direction.normalized() * 20.0
-	destination.y = actor.position.y
-	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(destination.x), str(-destination.z), str(destination.y)]): return
-	if not await wait_until(func(): return abs(actor.global_position.distance_to(target_node.global_position) - 20.0) < 1.0, "valid mortar20yd"): return
-	receipts.append({"phase": "mortar-range", "distance": actor.global_position.distance_to(target_node.global_position), "target": client.target_state(), "rules": client.nameplate_rules(target_id)})
+	var range_rules: Dictionary = client.nameplate_rules(target_id)
+	receipts.append({"phase": "mortar-range", "distance": range_rules.get("distance"), "target": client.target_state(), "rules": range_rules})
 	await use_toy(204818, "Mallard Mortar", false)
 	if failed: return
 	for step in range(30):
