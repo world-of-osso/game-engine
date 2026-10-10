@@ -28,6 +28,10 @@ func run_fixture() -> void:
 		if node.is_visible_in_tree() and node.text == OS.get_environment("TOYBOX_CHARACTER"):
 			print("CHARACTER_LABEL ", node.get_path(), " ", node.get_global_rect())
 	await capture("catalog-relog" if relog else "catalog")
+	if not relog:
+		await click("ToyBoxNextPage")
+		await click("ToyBoxNextPage")
+		await capture("catalog-named-page")
 	await click("ToyBoxSearchBox")
 	await type_text("Time-Lost Figurine")
 	if not await wait_until(func(): return control("ToySpellButton1Name") != null and control("ToySpellButton1Name").text == "Time-Lost Figurine", "search result"): return
