@@ -80,6 +80,7 @@ mod spell_power_text;
 mod spellbook_frame;
 mod spellbook_preview;
 mod status_text_bars;
+mod talent_footer;
 mod talent_icons;
 mod talents;
 mod talentwire;
