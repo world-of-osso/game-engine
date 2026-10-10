@@ -38,14 +38,19 @@ MovementControl epoch changes already snap the player. The camera now translates
 
 | Capability | Evidence | Limit |
 |---|---|---|
-| Aura332 action apply/restore | UI-model RED/GREEN; effective ID drives native icon, tooltip, cooldown and cast | Real override aura render/cast pending |
-| Spellbook base binding, substituted name/icon/cooldown | Pure projection RED/GREEN plus 12 native-model book layout tests | Runtime override proof pending |
-| Ground intent destination/cancel | UI-model3/3; real pinned Infernal Strike/Heroic Leap vs Blink catalog1/1 | Live ground placement pending; reticle is native ring geometry |
+| Aura332 action apply/restore | UI-model RED/GREEN; effective ID drives native icon, tooltip, cooldown and cast | Both skins: real aura1719 apply/restore, effective335097 intent; no-target rejection expected |
+| Spellbook base binding, substituted name/icon/cooldown | Pure projection RED/GREEN plus 12 native-model book layout tests | Both skins: base-bound book entry/tooltip swaps and restores |
+| Ground intent destination/cancel | UI-model3/3; real pinned Infernal Strike/Heroic Leap vs Blink catalog1/1 | Both skins: pending reticle then clicked destination moves14.269yd; reticle is native ring geometry |
 | Same-map player/camera | Epoch/orbit unit test; both-skin private master3753ca2 Blink wall cast moved3.3311yd, no errors | Camera collision near Abbey confines the view; no pixel-exact Retail comparison |
 | Aura312 | Recorded replacement-set loader/translation gap | Not applied |
 
-Implementation660bd1606 native build passed with no warnings. Changed Rust formatting passed; workspace fmt finds only inherited `network/src/replica/codec.rs` and `ui-model/src/game_tooltip/merchant.rs` differences. Cargo check was cancelled after unexpected detachment: its ktx2-rw build script remained active for over nine minutes; no completed check proof is claimed. No broad suites.
+Implementation660bd1606 native build passed with no warnings. Changed Rust formatting passed; workspace fmt finds only inherited `network/src/replica/codec.rs` and `ui-model/src/game_tooltip/merchant.rs` differences. Initial cargo check was cancelled after a cold ktx2-rw build script attempted a new network download. Matching same-host cached KTX4.4.0 headers/static library were seeded into that check output (no download/source change); final helper cargo check passed at9455e03ba with no warnings. Cold-build automation itself was not changed. No broad suites.
 
-Private override setup reached Fury spec72 but known spells omitted1719/85288. Online admin `learn-spell` reported success; that handler queues the profession learner, and no requested class spells appeared in the client snapshot. Retry ceiling reached. Complete an authentic talent allocation before continuing this real-server fixture; do not fabricate replicated auras or mutate production.
+Initial server3753ca2 override setup omitted1719/85288 despite admin learning success. Server masterca6b249 fixed live learned-spell publication. A fresh redb on private5184 then supplied these spells to Fury72 through admin learning. Native book drag exposed a separate release-only Button routing bug; approved fix9455e03ba routes spellbook sources through existing press-coordinate FrameClick, keeping hover. Both-skin final fixture7ac442591 passed plain click (one85288 intent), hover, book→main-bar drag, aura1719 replacement335097, expiry restoration and ground6544 placement. Replacement melee intents deliberately had no target and received the expected rejection; successful melee damage is not claimed. Ambient NPC spell-visual attachment errors10848/80676 remain unrelated.
 
-User-visible Blink PNGs and 60-frame MP4 sequences (1280x720, 4fps playback, not real-time recordings) are in `/syncthing/AgentShared/2026-10-10/overrides/`. ffprobe confirmed both60 frames/15s; ffmpeg decoded all frames and signalstats were inspected. Full logs stay under `data/diagnostics/overrides-2026-10-10/`. Private UDP5184 and all owned clients were stopped; UDP5000 untouched.
+User-visible override/ground PNGs and Blink PNGs/60-frame MP4 sequences (1280x720, 4fps playback, not real-time recordings) are in `/syncthing/AgentShared/2026-10-10/overrides/`. ffprobe confirmed both60 frames/15s; ffmpeg decoded all frames and signalstats were inspected. Full logs stay under `data/diagnostics/overrides-2026-10-10/`. Private UDP5184 and all owned clients were stopped; UDP5000 untouched.
+
+
+### Approved draggable-button routing audit
+
+Bag slots, equipment slots, merchant/trade item cells and non-backpack bag slots are clickable frame widgets and already receive press coordinates. Bank slot buttons were already specially routed. Spellbook buttons were the sole existing draggable Button source missing that route; only their prefix was added. Native mount/toy/pet journal drag entries were not found. `ActionRef::Macro(u32)` exists on the wire, but no native macro drag UI was found. Dragging from an action bar remains an existing explicitly unbuilt case, not fixed by this press-source change.

@@ -3018,3 +3018,7 @@ Recorded native aura332 presentation and animation replacement-set hook gap; gro
 ## 2026-10-10 — Scoped client override/teleport proof
 
 Recorded pure override/book cooldown and destination tests, both-skin private Blink wall captures, class-spell setup blocker, inherited formatter failures and incomplete cold cargo check. See [coverage](systems/spell-overrides-teleports.md#scoped-acceptance-2026-10-10).
+
+## 2026-10-10 — Override live acceptance resumed on ca6b249
+
+Server learned-spell publication unblocked both-skin aura proof. Fixed approved native book press routing; click/hover, book→bar drag, real aura332 apply/restore and ground destinations passed. Current native check passed after bounded cached KTX artifact seeding. [Coverage and limits](systems/spell-overrides-teleports.md#scoped-acceptance-2026-10-10).
