@@ -368,6 +368,46 @@ fn doomwalkers_vignette_pins_tanaris_and_kalimdor() {
 }
 
 #[test]
+fn giver_offer_pin_projects_marshal_mcbride_only_when_authoritatively_available() {
+    use shared::protocol::{QuestGiverStatus, QuestMarkerClass};
+    let catalog = &data().catalog;
+    // Actual content_creature197 spawn, world XYZ (not engine X/height/Z).
+    let location = (0, [-8913.42, -137.542, 80.8928]);
+    let pin = quest_offer_pin(
+        catalog,
+        37,
+        "Marshal McBride",
+        QuestGiverStatus::Available(QuestMarkerClass::Normal),
+        location,
+    )
+    .unwrap();
+    assert_eq!(pin.pin_type, MapPinType::QuestAvailable);
+    assert_eq!(pin.label, "Marshal McBride");
+    assert!((pin.x - (1535.420044 + 137.542) / 3470.840088).abs() < 0.00001);
+    assert!((pin.y - (-7939.580078 + 8913.42) / 2314.620117).abs() < 0.00001);
+    assert!(
+        quest_offer_pin(
+            catalog,
+            37,
+            "Marshal McBride",
+            QuestGiverStatus::Incomplete(QuestMarkerClass::Normal),
+            location
+        )
+        .is_none()
+    );
+    assert!(
+        quest_offer_pin(
+            catalog,
+            947,
+            "Marshal McBride",
+            QuestGiverStatus::Available(QuestMarkerClass::Normal),
+            location
+        )
+        .is_none()
+    );
+}
+
+#[test]
 fn completed_objective_does_not_keep_an_objective_pin() {
     let mut entry = quest("Beating Them Back!", false, vec![poi(0, [-8894.0, -138.0])]);
     entry.quest_id = 28766;

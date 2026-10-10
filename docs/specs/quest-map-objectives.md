@@ -4,11 +4,11 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 
 ## What it must do
 
-- [ ] Prefer locally exported Retail POI geometry where present; use authored server POIs for other quest IDs. Never invent missing polygons.
-- [ ] Show blue incomplete watched-objective areas and numbered objective pins on both maps. Completion removes areas and replaces the objective pin with a `?` turn-in pin.
-- [ ] Match map numbers to objective tracker watch order; clicking a tracker quest super-tracks it and highlights its area.
+- [x] Prefer locally exported Retail POI geometry where present; use authored server POIs for other quest IDs. Never invent missing polygons.
+- [x] Show blue incomplete watched-objective areas and numbered objective pins on both maps. Completion removes areas and replaces the objective pin with a `?` turn-in pin.
+- [x] Match map numbers to objective tracker watch order; clicking a tracker quest super-tracks it and highlights its area.
 - [ ] Show available-giver `!` pins when authoritative giver status and position exist.
-- [ ] Clip minimap areas and icons to its mask; rotate map geometry and overlays together when rotation is enabled. Show the selected off-screen objective's direction arrow at the edge.
+- [x] Clip minimap areas and icons to its mask; rotate map geometry and overlays together when rotation is enabled. Show the selected off-screen objective's direction arrow at the edge.
 
 ## How it works
 
@@ -17,7 +17,7 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 ## Implementation inventory
 
 - `scripts/export_db2_csv.py`: pinned local-CASC DB2 exports.
-- `godot/ui-model/src/quest_poi.rs`: local geometry catalog, visibility and minimap pins.
+- `godot/ui-model/src/{quest_poi,world_map_view_data}.rs`: local geometry, visibility, authoritative giver-offer projection and map pins.
 - `godot/ui-model/src/game/quest_{runtime,actions}.rs`: watch numbering and super-tracking.
 - `godot/core/src/{quest_area_data,minimap_data}.rs`: authored-art rasterization and shared map transform.
 - `godot/rust/src/{quests,world_map,minimap}.rs`: live snapshot hydration and native map hosts.
@@ -33,9 +33,10 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 
 ## Known gaps (current cycle)
 
-- [ ] Targeted GREEN and extension compile proof pending.
-- [ ] Private real-quest screenshots in both skins pending.
-- [ ] Conditional POIs require player-condition evaluation; excluded, never replaced with guessed shapes.
+- [ ] Conditional POIs require player-condition evaluation; excluded, never replaced with guessed shapes. Missing authored geometry remains absent; [source coverage](../wiki/systems/quest-map-objectives.md#source-ownership).
+- [ ] Independent verification unavailable (Claude OAuth expired). Workspace format check has two unchanged baseline failures; changed-file format check passes.
+
+Current proof: 40 distinct targeted tests; giver-offer projection assertion awaiting GREEN. native extension/CLI build and cargo check pass. Real quest28766 accepted on private UDP5518; authoritative completion updates both maps live. Twelve final 1920×1080 PNGs (both skins, incomplete/complete, world map/minimap/rotated minimap) were FFmpeg-decoded and visually inspected before publication to `/syncthing/AgentShared/2026-10-10/quest-poi/`. Off-screen edge arrows have pure-model proof, not live screenshot proof.
 
 ## Out of scope
 

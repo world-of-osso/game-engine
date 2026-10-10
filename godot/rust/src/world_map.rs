@@ -358,40 +358,28 @@ impl GameClient {
         catalog: &game_engine_ui_model::ui_map_data::UiMapCatalog,
         map_id: u32,
     ) -> Vec<MapPin> {
-        use game_engine_ui_model::ui_map_data::map_type;
         let Some(world_map) = self.world_map_id else {
             return Vec::new();
         };
-        if !matches!(
-            catalog.map(map_id).map(|map| map.kind),
-            Some(map_type::ZONE | map_type::CONTINENT)
-        ) {
-            return Vec::new();
-        }
         self.account
             .quests
             .giver_status
             .iter()
-            .filter(|(_, status)| {
-                matches!(status, shared::protocol::QuestGiverStatus::Available(_))
-            })
-            .filter_map(|(&unit, _)| {
+            .filter_map(|(&unit, &status)| {
                 let position = self
                     .replica
                     .unit(unit)?
                     .get::<shared::components::Position>()?;
-                let [x, y] = catalog.map_position(
+                game_engine_ui_model::world_map_view_data::quest_offer_pin(
+                    catalog,
                     map_id,
-                    world_map,
-                    engine_to_world([position.x, position.y, position.z]),
-                )?;
-                Some(MapPin {
-                    pin_type: MapPinType::QuestAvailable,
-                    label: self.npc_name(unit),
-                    badge: String::new(),
-                    x,
-                    y,
-                })
+                    &self.npc_name(unit),
+                    status,
+                    (
+                        world_map,
+                        engine_to_world([position.x, position.y, position.z]),
+                    ),
+                )
             })
             .collect()
     }
