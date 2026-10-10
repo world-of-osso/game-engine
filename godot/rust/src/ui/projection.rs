@@ -1187,10 +1187,15 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
             Some("TalentSearchBox" | "TalentLoadoutNameInput")
         ) {
             let submit_pending = pending.clone();
+            let trace_name = frame.name.clone().unwrap_or_default();
             let mut edit = node.clone();
             node.connect(
                 "text_submitted",
                 &Callable::from_fn("talent-search-submit", move |_| {
+                    eprintln!(
+                        "TALENT_INPUT_SIGNAL name={trace_name} id={id} focused={}",
+                        edit.has_focus()
+                    );
                     submit_pending.push(UiInput::Submit);
                     edit.release_focus();
                 }),

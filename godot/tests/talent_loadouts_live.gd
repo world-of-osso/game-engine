@@ -51,6 +51,10 @@ func login(endpoint: String) -> void:
 	await frames(120)
 
 func modern_lifecycle() -> void:
+	if OS.get_environment("TALENT_LOADOUT_PHASE") == "rename":
+		await expect_caption("Raid")
+		await rename_delete_relog()
+		return
 	await expect_caption("Default Loadout")
 	await new_loadout("Raid")
 	await purchase_first_class_node()
@@ -65,10 +69,14 @@ func modern_lifecycle() -> void:
 	await click("TalentApply")
 	await expect_rank("1/1")
 	await frames(60)
+	await rename_delete_relog()
+
+func rename_delete_relog() -> void:
 	await menu()
 	await click("TalentLoadoutEdit1")
 	await capture("edit-dialog")
 	await type_name("Raid Updated")
+	print("TALENT_INPUT_BEFORE_ENTER focus=",(root.find_child("TalentLoadoutNameInput",true,false) as LineEdit).has_focus())
 	await key(KEY_ENTER)
 	await expect_caption("Raid Updated")
 	await new_loadout("Temporary")
