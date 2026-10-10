@@ -185,6 +185,7 @@ pub mod panel_style_data;
 #[path = "ui/screens/bank_art.rs"]
 pub mod bank_art;
 // Bank and guild bank (docs/specs/bank-frame.md, guild-bank-frame.md).
+pub mod auction_mail;
 pub mod bank;
 #[path = "game/bank_data.rs"]
 pub mod bank_data;

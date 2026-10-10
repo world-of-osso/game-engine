@@ -2305,6 +2305,10 @@ textures/7485567.blp
 textures/4554359.blp
 textures/4554389.blp
 
+# Retail 12.1.0.69933 auction subject and invoice strings/art (local CASC).
+db2/12.1.0.69933/GlobalStrings.csv
+textures/136387.blp
+
 # Real local-CASC spellbook icon coverage, classbook-shots receipts (2026-10-09).
 textures/132092.blp
 textures/132110.blp

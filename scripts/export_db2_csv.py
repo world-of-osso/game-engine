@@ -69,6 +69,12 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # Retail 12.1.0.69933, WoWDBDefs GlobalStrings.dbd layout D40F6D96.
+    "GlobalStrings": (
+        0xD40F6D96,
+        [("ID", "id"), ("BaseTag", ("string", 0)),
+         ("TagText_lang", ("string", 1)), ("Flags", 2)],
+    ),
     # Cached HelmetGeosetData WDC5 layout: race, hidden group, selection, extra;
     # the relationship column is the ItemDisplayInfo helmet visibility key.
     "HelmetGeosetData": (

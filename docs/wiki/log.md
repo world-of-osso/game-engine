@@ -1,3 +1,7 @@
+## 2026-10-09 — Retail auction subject and invoice formatting
+
+[Native auction mail](systems/trade-and-mail.md#retail-auction-mail-formatting-2026-10-09) records local-CASC GlobalStrings extraction, client-owned subject localization, seller/buyer invoice rendering and the screenshot-reproduced money-coordinate correction. Final native ui-model844/0/7; real private5510 inbox crop published. Text and numeric field proof are bounded; post-correction invoice pixels and triangle picking are not claimed.
+
 ## 2026-10-09 — All40 talent views and shipped icon recapture
 
 [All-spec talent recapture](systems/talents.md#all-spec-shipped-icon-recapture-2026-10-09) records rank-bearing currency projection, retained undefined Monk entries and authentic icon proof at `eaae560b9`. Targeted11/11 and native build pass; one offline Forever client exits0, captures40/40 and each PNG is individually FFmpeg-downscaled/inspected before PNG-only publication. Retribution137/137; total5825/5829 entry slots, three explicit undefined Monk IDs/four slots. [Contract](../specs/talents.md#offline-classspec-evidence) and diagnostics matrix retain unsupported auxiliary presentation and existing hero/layout limits; no gameplay/full-parity claim.
