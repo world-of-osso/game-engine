@@ -13,6 +13,7 @@ const HERO_SCALE: f32 = 0.85;
 // NodesContainer TOP -90 => 102+108-34+90 =266. OffsetY8 is applied to nodes.
 const HERO_TOP: f32 = 266.0;
 const FOOTER_HEIGHT: f32 = 82.0;
+const MAIN_FIRST_ROW: f32 = 126.0;
 const HERO_DIALOG_SIZE: [f32; 2] = [970.0, 832.0];
 const HERO_DIALOG_NODES_TOP: f32 = 417.0;
 const EDGE_COLOR: [f32; 4] = [0.35, 0.35, 0.35, 1.0];
@@ -94,27 +95,35 @@ struct TreeLayout {
 fn main_tree_zoom(view: &TalentView) -> f32 {
     // Reserve Retail's ButtonsParent bottomPadding. Include painted spend text,
     // not only the button hit rect, in the existing uniform zoom transform.
-    let bottom = view
-        .graph
-        .class
-        .nodes
-        .iter()
-        .chain(&view.graph.spec.nodes)
-        .map(|node| node.position[1] / 10.0 - PAN[1] + if is_capstone(node) { 42.0 } else { 20.0 })
+    let bottom = [&view.graph.class, &view.graph.spec]
+        .into_iter()
+        .map(|tree| {
+            let first = first_row_y(tree);
+            tree.nodes
+                .iter()
+                .map(|node| {
+                    (node.position[1] - first) / 10.0 + if is_capstone(node) { 42.0 } else { 20.0 }
+                })
+                .fold(0.0, f32::max)
+        })
         .fold(0.0, f32::max);
-    ((BOOK_H - FOOTER_HEIGHT) / bottom).min(1.0)
+    ((BOOK_H - FOOTER_HEIGHT - MAIN_FIRST_ROW) / bottom).min(1.0)
+}
+fn first_row_y(tree: &TalentTree) -> f32 {
+    tree.nodes
+        .iter()
+        .map(|node| node.position[1])
+        .fold(f32::INFINITY, f32::min)
 }
 fn main_tree_layout(tree: &TalentTree, zoom: f32) -> TreeLayout {
+    let first = first_row_y(tree);
     let centers = tree
         .nodes
         .iter()
         .map(|node| {
             let x = node.position[0] / 10.0 - PAN[0];
-            let y = node.position[1] / 10.0 - PAN[1];
-            (
-                node.id,
-                [BOOK_W / 2.0 + (x - BOOK_W / 2.0) * zoom, y * zoom],
-            )
+            let y = MAIN_FIRST_ROW + (node.position[1] - first) / 10.0 * zoom;
+            (node.id, [BOOK_W / 2.0 + (x - BOOK_W / 2.0) * zoom, y])
         })
         .collect();
     TreeLayout {
@@ -210,30 +219,31 @@ fn render_node(
         node.entries[0].max_ranks
     };
     let ranks = format!("{}/{max}", view.node_rank(node));
-    children.extend(label(
-        Label {
-            name: format!("TalentNode{}Ranks", node.id),
-            text: &ranks,
-            rect: if is_capstone(node) {
-                [10.0, 50.0, 48.0, 24.0]
-            } else {
-                [19.0, 20.0, 30.0, 14.0]
-            },
-            size: if is_capstone(node) { 22.0 } else { 12.0 },
-            color: if view.node_rank(node) > 0 {
-                TAB_TEXT
-            } else {
-                TAB_TEXT_SELECTED
-            },
-            justify: "CENTER",
-        },
-        node_scale,
-    ));
+    children.extend(rank_badge(node, view, &ranks, node_scale));
     rsx! { r#frame {
         name: {DynName(format!("TalentNode{}",node.id))}, width: {size*scale}, height: {size*scale},
         pos_type: "absolute", pos_x: {(center[0]-size/2.0)*scale}, pos_y: {(center[1]-size/2.0)*scale},
         {children}
     } }
+}
+fn rank_badge(node: &TalentNode, view: &TalentView, ranks: &str, scale: f32) -> Element {
+    // TalentButtonArt SpendText: bottom anchor, overridden by SizingAdjustment.
+    // Thick black glyph outline is Retail's badge, not a new background panel.
+    let (x, y, width, height, font_size) = if is_capstone(node) {
+        (8.0, 42.0, 52.0, 32.0, 22.0)
+    } else {
+        (16.0, 10.0, 36.0, 24.0, 16.0)
+    };
+    let color = if view.node_rank(node) > 0 {
+        TAB_TEXT
+    } else {
+        TAB_TEXT_SELECTED
+    };
+    rsx! {fontstring {name:{DynName(format!("TalentNode{}Ranks",node.id))},text:ranks,
+        width:{width*scale},height:{height*scale},font:GameFont::FrizQuadrata,font_size:{font_size*scale},
+        font_color:color,outline:"THICKOUTLINE",shadow_color:"0.0,0.0,0.0,1.0",shadow_offset:"1.0,-1.0",
+        justify_h:"CENTER",pos_type:"absolute",pos_x:{x*scale},pos_y:{y*scale},
+    }}
 }
 fn node_entries(node: &TalentNode, view: &TalentView, scale: f32) -> Element {
     let choice = node.node_type == 2 && node.flags & 1 != 0;
@@ -432,7 +442,7 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
     );
     children.extend(panel_button(
         "TalentApply".into(),
-        "Apply Changes",
+        "",
         "talent:apply",
         dirty,
         (
@@ -441,6 +451,22 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
             164.0 * scale,
             22.0 * scale,
         ),
+    ));
+    children.extend(label(
+        Label {
+            name: "TalentApplyText".into(),
+            text: "Apply Changes",
+            rect: [
+                BOOK_W / 2.0 - 82.0,
+                BOOK_H - FOOTER_HEIGHT / 2.0 - 3.0 - 11.0,
+                164.0,
+                22.0,
+            ],
+            size: 12.0,
+            color: if dirty { TAB_TEXT } else { "0.5,0.5,0.5,1.0" },
+            justify: "CENTER",
+        },
+        scale,
     ));
     // ClassTalentsFrame.xml:293-322: Undo and Reset occupy the same anchor.
     let (name, atlas, action) = if dirty {

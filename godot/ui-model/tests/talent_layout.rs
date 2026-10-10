@@ -107,6 +107,84 @@ fn assert_unselected_heroes(view: &TalentView, registry: &FrameRegistry) {
     }
     assert!(registry.get_by_name("HeroSpecButton").is_some());
 }
+fn assert_headers_and_baseline(view: &TalentView, registry: &FrameRegistry) {
+    let mut first_centers = Vec::new();
+    for (tree, heading) in [
+        (&view.graph.class, "TalentClassName"),
+        (&view.graph.spec, "TalentSpecName"),
+    ] {
+        let header = rect(registry, heading);
+        let mut first = f32::INFINITY;
+        for node in &tree.nodes {
+            let bounds = rect(registry, &format!("TalentNode{}", node.id));
+            assert!(
+                bounds[1] >= header[1] + header[3],
+                "{} header overlaps node{}",
+                tree.name,
+                node.id
+            );
+            first = first.min(bounds[1] + bounds[3] / 2.0);
+        }
+        first_centers.push(first);
+    }
+    assert!(
+        (first_centers[0] - first_centers[1]).abs() < 0.01,
+        "class/spec top baselines {:?}",
+        first_centers
+    );
+}
+#[test]
+fn arms_currency_headers_align_above_nodes_in_both_skins() {
+    let data = data();
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let catalog = load_spell_catalog(&SpellCatalogPaths::for_data_dir(&data)).unwrap();
+    let view = load_talent_view(&data, 1, 71, &catalog).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        assert_headers_and_baseline(&view, &registry(view.clone()));
+    }
+}
+#[test]
+fn arms_spend_badges_and_disabled_apply_remain_legible() {
+    use ui_toolkit::{frame::WidgetData, widgets::font_string::Outline};
+    let data = data();
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let catalog = load_spell_catalog(&SpellCatalogPaths::for_data_dir(&data)).unwrap();
+    let view = load_talent_view(&data, 1, 71, &catalog).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = registry(view.clone());
+        for node in view.graph.class.nodes.iter().chain(&view.graph.spec.nodes) {
+            let name = format!("TalentNode{}Ranks", node.id);
+            let frame = registry.get(registry.get_by_name(&name).unwrap()).unwrap();
+            let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+                panic!("rank badge")
+            };
+            assert_eq!(
+                text.outline,
+                Outline::ThickOutline,
+                "node{} readable over rim",
+                node.id
+            );
+        }
+        let frame = registry
+            .get(
+                registry
+                    .get_by_name("TalentApplyText")
+                    .expect("explicit Retail disabled text"),
+            )
+            .unwrap();
+        let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+            panic!("apply caption")
+        };
+        assert_eq!(text.text, "Apply Changes");
+        assert_eq!(text.color, [0.5, 0.5, 0.5, 1.0]);
+        let apply = registry
+            .get(registry.get_by_name("TalentApply").unwrap())
+            .unwrap();
+        assert_eq!(apply.onclick.as_deref(), Some(""));
+    }
+}
 #[test]
 fn hero_selector_excludes_unconditioned_nodes_from_other_specializations() {
     let data = data();
@@ -164,6 +242,7 @@ fn all40_specs_main_rects_and_hero_dialog_columns_fit_both_skins() {
             set_thread_skin(skin);
             let main = registry(view.clone());
             assert_node_area(&view, &main, spec);
+            assert_headers_and_baseline(&view, &main);
             assert_unselected_heroes(&view, &main);
             let mut choosing = view.clone();
             let mut editor = choosing.editor.clone();
