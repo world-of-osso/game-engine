@@ -70,9 +70,14 @@ pub fn invoice(mail: &MailHeader) -> Result<Option<AuctionInvoiceView>, String> 
         "AUCTION_WON_MAIL_SUBJECT" => false,
         _ => return Ok(None),
     };
-    let fields: Vec<&str> = mail.body.split(':').collect();
-    let [player, bid, _buyout, deposit, cut, count] = fields.as_slice() else {
-        return Err(format!("Invalid auction invoice for mail {}", mail.mail_id));
+    let (player, amounts) = parse_invoice_body(&mail.body, seller)?;
+    Ok(Some(invoice_view(item, player, amounts)))
+}
+
+fn parse_invoice_body(body: &str, seller: bool) -> Result<(&str, InvoiceAmounts), String> {
+    let fields: Vec<&str> = body.split(':').collect();
+    let [player, bid, buyout, deposit, cut, count] = fields.as_slice() else {
+        return Err("Invalid auction invoice field count".into());
     };
     let parse = |value: &str| {
         value
@@ -80,31 +85,30 @@ pub fn invoice(mail: &MailHeader) -> Result<Option<AuctionInvoiceView>, String> 
             .map_err(|error| format!("Invalid auction invoice number {value}: {error}"))
     };
     let bid = parse(bid)?;
+    let buyout = parse(buyout)?;
     let deposit = parse(deposit)?;
     let cut = parse(cut)?;
     let count = parse(count)?;
     if count == 0 || cut > bid || bid.checked_add(deposit).is_none() {
-        return Err(format!(
-            "Invalid auction invoice amounts for mail {}",
-            mail.mail_id
-        ));
+        return Err("Invalid auction invoice amounts".into());
     }
-    Ok(Some(invoice_view(
-        item,
+    Ok((
         player,
         InvoiceAmounts {
             seller,
             bid,
+            buyout,
             deposit,
             cut,
             count,
         },
-    )))
+    ))
 }
 
 struct InvoiceAmounts {
     seller: bool,
     bid: u64,
+    buyout: u64,
     deposit: u64,
     cut: u64,
     count: u64,
@@ -114,18 +118,43 @@ fn invoice_view(item: &str, player: &str, amounts: InvoiceAmounts) -> AuctionInv
     let InvoiceAmounts {
         seller,
         bid,
+        buyout,
         deposit,
         cut,
         count,
     } = amounts;
-    let item = if count > 1 {
+    let item = invoice_item_name(item, count);
+    let (item_tag, player_tag, amount_tag, multiple_tag) = invoice_tags(seller);
+    let player = if player.is_empty() {
+        text(multiple_tag)
+    } else {
+        player
+    };
+    AuctionInvoiceView {
+        item_label: format!("{} {item}", text(item_tag)),
+        player_label: format!("{} {player}", text(player_tag)),
+        amount_label: text(amount_tag).into(),
+        amount: if seller { bid + deposit - cut } else { bid },
+        sale_price: seller.then_some(bid),
+        buyout,
+        deposit,
+        house_cut: cut,
+        count,
+    }
+}
+
+fn invoice_item_name(item: &str, count: u64) -> String {
+    if count > 1 {
         text("AUCTION_MAIL_ITEM_STACK")
             .replacen("%s", item, 1)
             .replace("%d", &count.to_string())
     } else {
         item.to_string()
-    };
-    let (item_tag, player_tag, amount_tag, multiple_tag) = if seller {
+    }
+}
+
+fn invoice_tags(seller: bool) -> (&'static str, &'static str, &'static str, &'static str) {
+    if seller {
         (
             "ITEM_SOLD_COLON",
             "PURCHASED_BY_COLON",
@@ -139,20 +168,5 @@ fn invoice_view(item: &str, player: &str, amounts: InvoiceAmounts) -> AuctionInv
             "AMOUNT_PAID_COLON",
             "AUCTION_HOUSE_MAIL_MULTIPLE_SELLERS",
         )
-    };
-    let player = if player.is_empty() {
-        text(multiple_tag)
-    } else {
-        player
-    };
-    AuctionInvoiceView {
-        item_label: format!("{} {item}", text(item_tag)),
-        player_label: format!("{} {player}", text(player_tag)),
-        amount_label: text(amount_tag).into(),
-        amount: if seller { bid + deposit - cut } else { bid },
-        sale_price: seller.then_some(bid),
-        deposit,
-        house_cut: cut,
-        count,
     }
 }

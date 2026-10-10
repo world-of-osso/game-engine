@@ -514,7 +514,7 @@ fn native_mailbox_authored_ui_has_both_tabs_and_disables_actions_while_pending()
     else {
         panic!("Missing subject label")
     };
-    assert_eq!(subject.text, "Auction won: Linen Cloth");
+    assert_eq!(subject.text, header.subject);
     click(&mut session, "mail_take_money");
     let busy = build(&session);
     for name in [
@@ -793,6 +793,7 @@ fn auction_mail_invoice_is_not_a_letter_and_renders_retail_rows() {
     let opened = view.open.as_ref().unwrap();
     assert_eq!(opened.body, "");
     let invoice = opened.invoice.as_ref().unwrap();
+    assert_eq!(invoice.buyout, 20000);
     assert_eq!(
         (
             invoice.sale_price,
