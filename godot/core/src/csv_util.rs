@@ -100,6 +100,19 @@ mod tests {
         let fields = parse_csv_line_trimmed(" a , \" b \" ,c ");
         assert_eq!(fields, vec!["a", "b", "c"]);
     }
+    #[test]
+    fn numeric_rows_reads_local_pet_species_with_multiline_description_fields() {
+        let path = Path::new(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/db2/12.1.0.69933/BattlePetSpecies.csv");
+        let mut icons = std::collections::BTreeMap::new();
+        let result = read_numeric_rows(&path, ["ID", "IconFileDataID"], |[id, icon]| {
+            icons.insert(id, icon);
+        });
+        assert!(result.is_ok(), "local pet CSV failed: {result:?}");
+        assert_eq!(icons.len(), 3001);
+        assert_eq!(icons[&39], 656559);
+        assert!(icons.contains_key(&1530));
+    }
 }
 
 /// Call `row` with the integer values of `columns` for each record of the CSV export at
@@ -111,12 +124,10 @@ pub fn read_numeric_rows<const N: usize>(
 ) -> Result<(), String> {
     let text = std::fs::read_to_string(path)
         .map_err(|error| format!("read {}: {error}", path.display()))?;
-    let mut lines = text.lines();
-    let header = parse_csv_line(
-        lines
-            .next()
-            .ok_or_else(|| format!("{} has no header", path.display()))?,
-    );
+    let mut records = parse_csv_records(&text).into_iter();
+    let header = records
+        .next()
+        .ok_or_else(|| format!("{} has no header", path.display()))?;
     let mut indexes = [0; N];
     for (index, column) in indexes.iter_mut().zip(columns) {
         *index = header
@@ -124,13 +135,12 @@ pub fn read_numeric_rows<const N: usize>(
             .position(|name| *name == column)
             .ok_or_else(|| format!("{} has no column {column}", path.display()))?;
     }
-    for line in lines.filter(|line| !line.is_empty()) {
-        let fields = parse_csv_line(line);
+    for fields in records.filter(|row| row != &[String::new()]) {
         let mut values = [0; N];
         for (value, index) in values.iter_mut().zip(indexes) {
             let field = fields
                 .get(index)
-                .ok_or_else(|| format!("{}: short row {line:?}", path.display()))?;
+                .ok_or_else(|| format!("{}: short row {fields:?}", path.display()))?;
             *value = field
                 .parse()
                 .map_err(|error| format!("{}: bad value {field:?}: {error}", path.display()))?;

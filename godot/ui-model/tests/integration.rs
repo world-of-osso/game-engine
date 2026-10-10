@@ -67,6 +67,7 @@ mod party_layout;
 mod personal_resource_display;
 mod pet_action_bar;
 mod pet_frame;
+mod pet_journal;
 mod player_cast_spark;
 mod portrait_party_frame;
 mod professions_art;

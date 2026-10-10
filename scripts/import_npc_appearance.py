@@ -410,6 +410,12 @@ def load_textures(csv_path, outfit_cache, needed):
 
 
 def import_files(args):
+    if args.pet_catalog:
+        catalog = json.loads(args.pet_catalog.read_text())
+        pet_displays = sorted({int(pet["display_id"]) for pet in catalog if int(pet["display_id"]) > 0})
+        if not pet_displays:
+            raise ValueError("pet catalog has no resolvable display roots")
+        args.display_id = list(args.display_id or []) + pet_displays
     decoded = {}
     skipped = {}
     for kind, table, filename in [
@@ -516,6 +522,10 @@ def main(argv=None):
         action="append",
         type=int,
         help="Limit output to these displays; repeatable, otherwise all displays",
+    )
+    parser.add_argument(
+        "--pet-catalog", type=Path,
+        help="Add every resolved companion display from export_pet_catalog.py output",
     )
     args = parser.parse_args(argv)
     try:

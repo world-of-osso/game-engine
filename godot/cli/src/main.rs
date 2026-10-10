@@ -673,7 +673,7 @@ pub(crate) enum CollectionCmd {
     DismissMount,
     SummonPet {
         #[arg(long)]
-        pet_id: u32,
+        pet_id: u64,
     },
     DismissPet,
 }

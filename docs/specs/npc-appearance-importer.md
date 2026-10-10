@@ -10,6 +10,7 @@ Local-only Python stdlib importer in `scripts/import_npc_appearance.py`. Produce
 - [x] Forever NPC dependency collection with a validated authored bake excludes only unused body-component overlays. Retain required model/model-material and customization assets; absent/unresolved bake keeps strict component requirements. Do not invent a texture mapping for an unused overlay.
 - [x] Write deterministic `appearances(display_id PRIMARY KEY, race, sex, class, baked_texture_fdid)`, `choices(display_id, choice_id)`, and `geosets(display_id, geoset_index, geoset_value)` tables. Composite primary keys prohibit duplicate choices/geoset indices.
 - [x] Write `display_coverage(display_id PRIMARY KEY, requires_appearance)` for every selected CSV display, including ordinary creatures with `ExtendedDisplayInfoID = 0`. Unselected displays are outside coverage; coverage is reported separately from appearance counts.
+- [x] `--pet-catalog` selects every resolved companion display from the local BattlePetSpecies/Creature join. `merge_npc_appearance.py` adds uncovered displays to a new cache, preserves all existing rows, rejects required profiles without an appearance, and never automatically promotes an output.
 - [x] Reader returns `None` only for covered ordinary creatures. Covered required appearances without a profile and displays outside coverage return explicit errors, never raw-model fallback.
 - [x] Require an explicit new output path, refuse replacement, and report failures without producing an incomplete database.
 

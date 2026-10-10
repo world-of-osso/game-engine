@@ -4,6 +4,9 @@
 ## 2026-10-10 — Generic toy aura consumption
 
 [Native Toy Box](systems/toy-box.md#generic-toy-aura-consumption-2026-10-10) records scale/fall state and ordered override-slot consumption. Private55382 scale1→0.5→1 captured in both configured skins; Forever additionally proves feather20yd/no damage then normal fall/damage after removal. Modern feather capture remains pending after bounded fixture retries. Server owns preparation/census; no merge or protected-realm operation.
+## 2026-10-10 — Pets in Collections, v2 native proof
+
+[Collections correction](systems/battle-pets.md#collections-integration-correction--2026-10-10) reuses the Toy Box shell/portrait/tab bar and character model viewport. Real pointer input reproduces and fixes content interception of shared close. Rebased private5591 proof: actual item learning, card model/Dismiss, mutual Pets/Toy Box tabs and lateral4-yard follower in both skins. Four inspected v2 PNGs; all7 published PNGs ffmpeg-decode. Pets4/Toy Box9 targeted tests pass. Battles and full species/NPC asset coverage excluded.
 
 ## 2026-10-10 — Native compile-speed evidence
 ## 2026-10-09 — Source-qualified runtime wiring and nested parser identity
@@ -27,6 +30,9 @@
 ## 2026-10-10 — Quest map objective sources and integration
 
 [Quest map objectives](systems/quest-map-objectives.md) records local CASC coverage, source-owned geometry, numbered icons, blue overlays and super-tracking. 41 distinct targeted tests, native build/check, private5518 real quest28766 acceptance/live completion and both-skin12-PNG FFmpeg/visual proof; published PNG-only to AgentShared. Sprite number and fixture mount-race REDs corrected. Conditional/missing geometry, inherited format failures and unavailable independent OAuth verification remain explicit.
+## 2026-10-10 — Battle-pet data and companion foundation
+
+[Battle pets](systems/battle-pets.md) records pinned local species/ability/state exports, per-element WDC5 string-array offsets, Creature display joins, account journal transport, and Retail-shaped native journal. Private5591 both-skin journals, item learning/shared account ownership and rendered Mechanical Squirrel movement/dismiss are now captured. Strict companion appearance roots add2422 displays without replacing10792 existing rows. Targeted UI4/protocol19/server5/item1 pass; independent gate OAuth-blocked. Phase 1 handoff retains counts and remaining proof limits; turn battles excluded.
 
 ## 2026-10-09 — Retail auction subject and invoice formatting
 

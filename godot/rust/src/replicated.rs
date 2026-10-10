@@ -15,12 +15,19 @@ pub(crate) fn is_unit(unit: Unit) -> bool {
     unit.has::<Player>() || unit.has::<Npc>()
 }
 
-/// `UnitIsUnit("pet", unit)`: the replicated unit whose `SummonedBy` is `player`.
+/// The controlled pet frame must not bind a non-combat companion's SummonedBy.
 pub(crate) fn local_pet(replica: &Replica, player: u64) -> Option<u64> {
     replica
         .units()
-        .find(|unit| unit.summoned_by() == Some(player))
+        .find(|unit| unit.summoned_by() == Some(player) && !is_non_combat_companion(*unit))
         .map(|unit| unit.server_id)
+}
+
+fn is_non_combat_companion(unit: Unit) -> bool {
+    // Companion minions are non-attackable and immune to both players and NPCs.
+    use shared::pet_battle::COMPANION_UNIT_FLAGS;
+    unit.unit_flags()
+        .is_some_and(|flags| flags & COMPANION_UNIT_FLAGS == COMPANION_UNIT_FLAGS)
 }
 
 pub(crate) trait UnitFields<'a> {
@@ -149,6 +156,26 @@ mod tests {
 
     /// `UnitIsUnit("pet", unit)`: the unit whose `SummonedBy` is the local player; another
     /// hunter's wolf and an unowned boar are not it.
+    #[test]
+    fn non_combat_companion_does_not_take_the_combat_pet_frame() {
+        let mut replica = Replica::for_tests();
+        let companion = BOAR;
+        replica.insert(
+            companion,
+            Npc {
+                template_id: 2671,
+                name: "Mechanical Squirrel".into(),
+            },
+        );
+        replica.insert(companion, UnitSummonedBy(HUNTER));
+        replica.insert(companion, UnitFlags(0x302));
+        assert_eq!(local_pet(&replica, HUNTER), None);
+        replica.insert(WOLF, npc("Wolf"));
+        replica.insert(WOLF, UnitSummonedBy(HUNTER));
+        replica.insert(WOLF, UnitFlags(0x8));
+        assert_eq!(local_pet(&replica, HUNTER), Some(WOLF));
+    }
+
     #[test]
     fn local_pet_is_the_unit_summoned_by_the_local_player() {
         let mut replica = Replica::for_tests();
