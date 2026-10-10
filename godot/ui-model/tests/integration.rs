@@ -73,6 +73,7 @@ mod professions_art;
 mod quest_flow;
 mod rezrtap;
 mod roster_mapping;
+mod spell_overrides;
 mod spell_power_text;
 mod spellbook_frame;
 mod spellbook_preview;

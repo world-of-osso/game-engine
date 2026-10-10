@@ -36,7 +36,7 @@ impl GameClient {
         state.set("known", &packed_ids(spells.known()));
         state.set("spec", i64::from(spells.spec().unwrap_or(0)));
         let bar: Vec<u32> = (0..MAIN_BAR_BUTTONS)
-            .map(|index| match spells.slot(self.main_bar_slot(index)) {
+            .map(|index| match self.action_slot(self.main_bar_slot(index)) {
                 Some(ActionRef::Spell(id)) => id,
                 _ => 0,
             })
