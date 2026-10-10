@@ -13,14 +13,14 @@ Party/raid members can ride available passenger seats on a player's summoned mou
 - [x] Board an empty enter/exit non-control seat for a living party/raid member; reject non-group and full-mount requests without mutating passenger state.
 - [x] Exit frees occupancy and restores movement control.
 - [x] Passenger translation follows the driver's rotation/translation; eject on driver dismount, death, despawn, map or instance transfer (`InMap`, not NPC `Zone`).
-- [ ] Ignore actual passenger movement packets; clear disconnected passenger occupancy; verify passenger death and mount replacement.
-- [ ] Verify local catalog and actual M2 seat bind offsets, not just synthetic transform fixtures.
+- [x] Ignore actual passenger movement packets; clear disconnected passenger occupancy; verify passenger death and mount replacement.
+- [x] Verify local catalog and actual M2 seat bind offsets, not just synthetic transform fixtures.
 
 ### Client and live acceptance
-- [ ] Resolve VehicleSeat attachment enums into the mount M2 lookup; apply offsets and seat animation to passenger visuals.
-- [ ] Passenger camera follows the vehicle; passenger input cannot translate the character.
-- [ ] Both skins expose the same Retail vehicle leave control and group-member Ride interaction.
-- [ ] Two fb_* characters on a private UDP port demonstrate mammoth/yak seating in both skins; inspect captures before publication.
+- [x] Resolve VehicleSeat attachment enums into the mount M2 lookup; apply offsets and seat animation to passenger visuals.
+- [x] Passenger camera follows the vehicle; passenger input cannot translate the character.
+- [x] Both skins expose the same Retail vehicle leave control and group-member Ride interaction.
+- [x] Two fb_* characters on a private UDP port demonstrate mammoth/yak seating in both skins; inspect captures before publication.
 
 ## How it works
 - [Mounts](../wiki/systems/mounts.md).
@@ -37,13 +37,13 @@ Party/raid members can ride available passenger seats on a player's summoned mou
 - `scripts/tests/test_vehicle_export.py`.
 - Sibling `shared-protocol/tests/vehicle_wire.rs`.
 - Sibling `game-server/crates/server/src/vehicle_tests.rs`.
-- Sibling `game-server/crates/server/src/networking_tests/receiver_rate.rs` passenger input test (pending).
+- Sibling `game-server/crates/server/src/networking_tests/receiver_rate.rs` passenger input test.
 - `godot/core/src/vehicle_seat.rs` seat-transform test.
-- `godot/tests/passenger_mounts_live.gd`: two-client input, animated seat/pose, driver movement, exit, dismount and disconnect fixture (live pending).
+- `godot/tests/passenger_mounts_live.gd`: two-client input, animated seat/pose, driver movement, exit, dismount and disconnect fixture (Modern and Forever live PASS on private UDP5594, 2026-10-10).
 
 ## Known gaps (current cycle)
 - [ ] Yak and drake creature entries are absent from the current local world.db link source; no guessed VehicleIDs.
-- [ ] Client rendering/UI and live proof remain in progress, not accepted.
+- [x] Mammoth display27237/Vehicle312/seat2764 live acceptance: party Ride, animation91 on attachment40, input suppression, driver movement/follow, native leave, dismount ejection and disconnect cleanup pass in both skins. Four 1280×720 PNGs decode with ffmpeg exit0 at `/syncthing/AgentShared/2026-10-10/passenger-mounts/`; logs under `data/diagnostics/passenger-mounts-2026-10-10/continuation/{modern-final,forever-final}/`.
 - [ ] Independent verification backend is blocked by expired Claude OAuth; no substitute paid backend authorized.
 
 ## Out of scope
