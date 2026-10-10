@@ -24,7 +24,8 @@ def seed_sound_kits(graph, catalogs, kits):
         if kind not in {'ogg', 'mp3', 'wav'}:
             graph.issue('unknown_sound_file_type', f'SoundKit {kit} file {fdid}', fdid)
             continue
-        graph.add(fdid, kind, f'SoundKit {kit} entry {row["ID"]}')
+        alias = f'sounds/spells/{fdid}.ogg' if kind == 'ogg' else None
+        graph.add(fdid, kind, f'SoundKit {kit} entry {row["ID"]}', alias=alias)
     for kit in sorted(kits - found):
         graph.issue('missing_metadata_row', f'SoundKitEntry SoundKitID={kit}')
 
