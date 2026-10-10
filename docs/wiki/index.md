@@ -121,7 +121,7 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
-- [Rare vignettes and classification](investigations/rare-vignettes-and-classification.md) — server-side vignette assignment versus rank, wrong name joins, local CASC limits, authentic Forever target classification art and bounded native capture proof.
+- [Rare vignettes and classification](investigations/rare-vignettes-and-classification.md) — server-side vignette assignment versus rank, wrong name joins, local CASC limits, authentic Forever target classification art, Brack fixture-centre diagnosis and captured Forever rareelite/rare plus Modern rare.
 
 - [cage-capture-resolution](investigations/cage-capture-resolution.md) — headless output constrained 1920×1080 requests to 1280×720; capture-only output override, six inspected spellbook pages, and missing specialization assets.
 
