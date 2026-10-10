@@ -30,12 +30,14 @@ func run_fixture() -> void:
 	if OS.get_environment("TOYFX_ONLY_MORTAR") != "1":
 		await prove_attachments()
 		if failed: return
+	if not await move_near_authored_hostile(): return
 	var hostile := false
 	for attempt in range(40):
 		await tap(KEY_TAB)
 		var selected = client.target_state().target
 		if selected != null:
 			var rules: Dictionary = client.nameplate_rules(int(selected))
+			receipts.append({"phase": "target-selection", "target": client.target_state(), "rules": rules})
 			if str(rules.get("reaction", "")) == "Hostile" and bool(rules.get("alive", false)):
 				hostile = true
 				break
@@ -66,6 +68,23 @@ func run_fixture() -> void:
 	print("PASS: toy-effects6 actual Toy Box ", "mortar" if OS.get_environment("TOYFX_ONLY_MORTAR") == "1" else "Spitzy/train/nap/mortar", " ", skin)
 	client.free()
 	quit(0)
+
+func move_near_authored_hostile() -> bool:
+	var closest: Node3D
+	for node in client.find_children("Blackrock Worg", "Node3D", true, false):
+		if node.get_node_or_null("NpcVisualRoot") == null: continue
+		if closest == null or actor.position.distance_to(node.position) < actor.position.distance_to(closest.position): closest = node
+	if closest == null: fail("no source-authored Blackrock Worg model"); return false
+	var camera := root.get_camera_3d()
+	if camera == null: fail("no world camera"); return false
+	var forward := -camera.global_basis.z
+	forward.y = 0.0
+	var destination := closest.position - forward.normalized() * 20.0
+	destination.y = closest.position.y
+	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(destination.x), str(-destination.z), str(destination.y)]): return false
+	if not await wait_until(func(): return actor.position.distance_to(destination) < 3.0, "private20yd hostile positioning"): return false
+	await create_timer(1.0).timeout
+	return true
 
 func prove_attachments() -> void:
 	await use_toy(156871, "Spitzy")
