@@ -112,6 +112,10 @@ fn talent_loadouts_rename_delete_and_dirty_switch_require_correct_confirmations(
         }
     );
     editor.receive_loadouts(list(view.editor.snapshot.as_ref().unwrap().spec_id, 1));
+    assert!(
+        editor.dirty(),
+        "Renaming metadata must preserve unapplied talent edits"
+    );
     editor.action(view, 80, "talent:loadout_edit:3").unwrap();
     editor.action(view, 80, "talent:loadout_delete").unwrap();
     assert_eq!(editor.loadout_dialog, Some(LoadoutDialog::Delete(3)));

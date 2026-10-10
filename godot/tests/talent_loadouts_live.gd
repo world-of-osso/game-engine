@@ -22,7 +22,9 @@ func _run() -> void:
 	await frames(120)
 	await login(endpoint)
 	var phase := OS.get_environment("TALENT_LOADOUT_PHASE")
-	if phase == "inspect":
+	if phase == "metadata":
+		await metadata_draft()
+	elif phase == "inspect":
 		await inspect_loadouts()
 	elif skin == "modern":
 		await modern_lifecycle()
@@ -31,7 +33,8 @@ func _run() -> void:
 	else:
 		abort("Unknown explicit skin")
 		return
-	var proof_name := skin + ("-inspect" if phase == "inspect" else "") + "-proof.json"
+	var proof_suffix := "-" + phase if phase in ["inspect", "metadata"] else ""
+	var proof_name := skin + proof_suffix + "-proof.json"
 	var file := FileAccess.open(directory.path_join(proof_name), FileAccess.WRITE)
 	file.store_string(JSON.stringify(evidence, "\t"))
 	file.close()
@@ -53,6 +56,27 @@ func login(endpoint: String) -> void:
 	await key(KEY_N)
 	await control("TalentLoadoutDropDown")
 	await frames(120)
+
+func metadata_draft() -> void:
+	await expect_caption("Dungeons")
+	var candidates := root.find_children("TalentNode62122Entry80181Spell*Button", "Button", true, false)
+	if candidates.size() != 1:
+		abort("Metadata proof requires the authentic Mage class node")
+		return
+	await click_control(candidates[0], MOUSE_BUTTON_RIGHT)
+	await expect_rank("0/1")
+	for name_text in ["Dungeons Draft", "Dungeons"]:
+		await menu()
+		await click("TalentLoadoutEdit2")
+		await type_name(name_text)
+		await key(KEY_ENTER)
+		await expect_caption(name_text)
+		await expect_rank("0/1")
+	await click("TalentUndo")
+	await expect_rank("1/1")
+	await login(OS.get_environment("TALENT_LOADOUT_ENDPOINT"))
+	await expect_caption("Dungeons")
+	await expect_rank("1/1")
 
 func inspect_loadouts() -> void:
 	await expect_caption("Dungeons")
@@ -203,10 +227,10 @@ func click(name_text: String) -> void:
 		return
 	await click_control(node)
 
-func click_control(node: Control) -> void:
+func click_control(node: Control, button: MouseButton = MOUSE_BUTTON_LEFT) -> void:
 	var event := InputEventMouseButton.new()
 	event.position = node.get_global_rect().get_center()
-	event.button_index = MOUSE_BUTTON_LEFT
+	event.button_index = button
 	event.pressed = true
 	root.push_input(event)
 	await frames(2)
