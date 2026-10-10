@@ -512,7 +512,6 @@ impl Account {
                 spell: name.to_owned(),
                 target_entity: target,
                 witness,
-                destination: None,
             })
             .map_err(SessionError)
     }
