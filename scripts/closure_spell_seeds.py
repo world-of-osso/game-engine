@@ -64,23 +64,24 @@ def seed_spell_visuals(graph, catalogs, spells):
     effects = set()
     sounds = set()
     attachments = catalogs.index('SpellVisualKitModelAttach')
+    from closure_kit_effects import KitEffectReferences
+    from collections import defaultdict
+    attach_names = defaultdict(set)
     for row in attachments.values():
-        if value(row, 'ParentSpellVisualKitID') in kits:
-            effects.add(value(row, 'SpellVisualEffectNameID'))
+        attach_names[value(row, 'ParentSpellVisualKitID')].add(value(row, 'SpellVisualEffectNameID'))
+    kit_rows = defaultdict(list)
     for row in catalogs.rows('SpellVisualKitEffect'):
-        if value(row, 'ParentSpellVisualKitID') not in kits:
-            continue
-        kind, effect = value(row, 'EffectType'), value(row, 'Effect')
-        if kind == 2:
-            attachment = attachments.get(effect)
-            if attachment is None:
-                graph.issue('missing_metadata_row', f'SpellVisualKitModelAttach ID={effect}')
-            else:
-                effects.add(value(attachment, 'SpellVisualEffectNameID'))
-        elif kind == 5:
-            sounds.add(effect)
-        elif kind != 6:
-            graph.issue('unsupported_spell_kit_effect', f'kit {row["ParentSpellVisualKitID"]} effect type {kind} effect {effect}')
+        kit_rows[value(row, 'ParentSpellVisualKitID')].append(row)
+    references = KitEffectReferences(graph, catalogs, effects, sounds, kits)
+    visited = set()
+    while kits - visited:
+        expand_kit_ids(catalogs, kits)
+        for kit in sorted(kits - visited):
+            visited.add(kit)
+            effects.update(attach_names[kit])
+            for row in kit_rows[kit]:
+                kind, effect = value(row, 'EffectType'), value(row, 'Effect')
+                references.seed(kind, effect, f'kit {kit} effect type {kind} effect {effect}')
     missiles = {value(row, 'SpellVisualMissileSetID') for row in catalogs.rows('SpellVisual')
                 if value(row, 'ID') in visuals} - {0}
     for row in catalogs.rows('SpellVisualMissile'):

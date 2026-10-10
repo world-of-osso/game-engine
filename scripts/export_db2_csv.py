@@ -820,6 +820,10 @@ TABLES = {
     ),
 }
 
+# Additional closure layouts, pinned to the same local Retail build.
+from closure_db2_layouts import CLOSURE_TABLES
+TABLES.update(CLOSURE_TABLES)
+
 # Narrow DBD types: pallet entries are 32-bit and carry unrelated high bits.
 NARROW = {"i8": (True, 8), "u8": (False, 8), "i16": (True, 16), "u16": (False, 16)}
 
