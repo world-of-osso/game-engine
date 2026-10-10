@@ -109,7 +109,7 @@ mod tests {
             icons.insert(id, icon);
         });
         assert!(result.is_ok(), "local pet CSV failed: {result:?}");
-        assert_eq!(icons.len(), 2994);
+        assert_eq!(icons.len(), 3001);
         assert_eq!(icons[&39], 656559);
         assert!(icons.contains_key(&1530));
     }
