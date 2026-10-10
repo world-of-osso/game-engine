@@ -1,3 +1,7 @@
+## 2026-10-10 — Native compile-speed evidence
+
+[Investigation](investigations/native-compile-speed.md) records shared KTX source/lib/binding caching, glob host-profile unification, deterministic native defaults, before/after wall times and a non-winning sccache experiment. The few-seconds/every-slot requirement remains unmet; current protocol, inherited formatting, release-preflight and independent-proof gaps are explicit. [Contract](../specs/native-dev-builds.md) separates passing bounded tests from unverified acceptance.
+
 ## 2026-10-09 — Retail auction subject and invoice formatting
 
 [Native auction mail](systems/trade-and-mail.md#retail-auction-mail-formatting-2026-10-09) records local-CASC GlobalStrings extraction, client-owned subject localization, seller/buyer invoice rendering and the screenshot-reproduced money-coordinate correction. Final native ui-model844/0/7; real private5510 inbox crop published. Text and numeric field proof are bounded; post-correction invoice pixels and triangle picking are not claimed.

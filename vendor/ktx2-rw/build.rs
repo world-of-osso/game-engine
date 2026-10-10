@@ -1,11 +1,15 @@
+mod cache;
+
+use sha2::{Digest, Sha256};
 use std::env;
 use std::fs;
+use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
 
 const KTX_SOFTWARE_VERSION: &str = "4.4.0";
 const KTX_SOFTWARE_URL: &str =
     "https://github.com/KhronosGroup/KTX-Software/archive/refs/tags/v4.4.0.tar.gz";
-const FALLBACK_PATH: &str = "/tmp/ktx-software-v4.4.0.tar.gz";
+const SOURCE_SHA256: &str = "3585d76edcdcbe3a671479686f8c81c1c10339f419e4b02a9a6f19cc6e4e0612";
 
 fn main() {
     let out_dir = PathBuf::from(env::var("OUT_DIR").unwrap());
@@ -14,40 +18,45 @@ fn main() {
     let target_arch = env::var("CARGO_CFG_TARGET_ARCH").unwrap();
     let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
 
-    // Check if we should build or use cached version
-    let ktx_build_dir = out_dir.join("KTX-Software-build");
-    let ktx_lib_path = ktx_build_dir.join("lib").join(get_lib_name(&target_os));
-
-    if !ktx_lib_path.exists() {
-        build_ktx_software(&out_dir, &target, &target_os, &target_arch, &target_env);
-    }
-
-    // Link the built library
-    let lib_dir = ktx_build_dir.join("lib");
-    println!("cargo:rustc-link-search=native={}", lib_dir.display());
-
-    // Try to find what library was actually built and link appropriately
-    if lib_dir.join("libktx.a").exists() || lib_dir.join("ktx.lib").exists() {
-        println!("cargo:rustc-link-lib=static=ktx");
-    } else if lib_dir.join("ktx.framework").exists() {
-        // For iOS/macOS frameworks
-        println!("cargo:rustc-link-search=framework={}", lib_dir.display());
-        println!("cargo:rustc-link-lib=framework=ktx");
-    } else if lib_dir.join("libktx.dylib").exists() || lib_dir.join("libktx.so").exists() {
-        println!("cargo:rustc-link-lib=dylib=ktx");
-    } else {
-        // Fallback to static linking
-        println!("cargo:rustc-link-lib=static=ktx");
-    }
-
-    // Link required system libraries
+    let root = read_cache_root();
+    let key = read_build_cache_key(&target);
+    let library = format!(
+        "KTX-Software-build/lib/{}",
+        get_lib_name(&target_os, &target_env)
+    );
+    let entry = cache::populate_locked(&root, &key, &[&library, "bindings.rs"], |entry| {
+        let source = fetch_cached_source(&root);
+        build_ktx_software(
+            entry,
+            &source,
+            &target,
+            &target_os,
+            &target_arch,
+            &target_env,
+        );
+        write_bindings(entry, &source, &target);
+    });
+    fs::copy(entry.join("bindings.rs"), out_dir.join("bindings.rs"))
+        .expect("Cannot copy cached KTX bindings to OUT_DIR");
+    println!(
+        "cargo:rustc-link-search=native={}",
+        entry.join("KTX-Software-build/lib").display()
+    );
+    println!("cargo:rustc-link-lib=static=ktx");
     link_system_libraries(&target_os, &target_env, &target);
-
-    // Configure bindgen
-    setup_bindgen(&out_dir, &target, &ktx_build_dir);
 
     // Invalidation rules
     println!("cargo:rerun-if-changed=build.rs");
+    println!("cargo:rerun-if-changed=cache.rs");
+    println!("cargo:rerun-if-changed=Cargo.toml");
+    for name in [
+        "KTX_CACHE_DIR",
+        "KTX_SOFTWARE_ARCHIVE",
+        "XDG_CACHE_HOME",
+        "HOME",
+    ] {
+        println!("cargo:rerun-if-env-changed={name}");
+    }
     println!("cargo:rerun-if-env-changed=TARGET");
     println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_OS");
     println!("cargo:rerun-if-env-changed=CARGO_CFG_TARGET_ARCH");
@@ -55,19 +64,19 @@ fn main() {
 
 fn build_ktx_software(
     out_dir: &Path,
+    ktx_source_dir: &Path,
     target: &str,
     target_os: &str,
     target_arch: &str,
     target_env: &str,
 ) {
-    let ktx_source_dir = download_and_extract_ktx_software(out_dir);
     let ktx_build_dir = out_dir.join("KTX-Software-build");
 
     // Create build directory
     fs::create_dir_all(&ktx_build_dir).expect("Failed to create build directory");
 
     // Configure CMake
-    let mut cmake_config = cmake::Config::new(&ktx_source_dir);
+    let mut cmake_config = cmake::Config::new(ktx_source_dir);
 
     // Basic configuration - match KTX-Software's official build approach
     cmake_config
@@ -99,106 +108,182 @@ fn build_ktx_software(
         target_env,
     );
 
-    // Build
     let dst = cmake_config.build();
+    let library = dst.join("lib").join(get_lib_name(target_os, target_env));
+    assert!(
+        library.is_file(),
+        "CMake did not produce {}",
+        library.display()
+    );
+}
 
-    // Find the built library - it could be static, dynamic, or framework
-    let lib_dir = dst.join("lib");
-    let possible_locations = [
-        (lib_dir.join("libktx.a"), "libktx.a", "static"), // Static library (preferred)
-        (lib_dir.join("ktx.lib"), "ktx.lib", "static"),   // Windows static library
-        (lib_dir.join("libktx.dylib"), "libktx.dylib", "dylib"), // macOS dynamic library
-        (lib_dir.join("libktx.so"), "libktx.so", "dylib"), // Linux dynamic library
-        (
-            lib_dir.join("ktx.framework").join("ktx"),
-            "ktx",
-            "framework",
-        ), // iOS/macOS framework
-    ];
-
-    let mut found_lib = None;
-    for (lib_path, lib_name, lib_type) in &possible_locations {
-        if lib_path.exists() {
-            found_lib = Some((lib_path.clone(), lib_name.to_string(), lib_type.to_string()));
-            break;
-        }
+fn read_cache_root() -> PathBuf {
+    if let Some(path) = env::var_os("KTX_CACHE_DIR") {
+        return PathBuf::from(path);
     }
+    let base = match env::var_os("XDG_CACHE_HOME") {
+        Some(path) => PathBuf::from(path),
+        None => PathBuf::from(env::var_os("HOME").expect("KTX cache needs HOME or KTX_CACHE_DIR"))
+            .join(".cache"),
+    };
+    base.join("game-engine/ktx")
+}
 
-    let (_, _lib_name, lib_type) = found_lib.expect("No KTX library found after build");
+fn read_build_cache_key(target: &str) -> String {
+    let mut hash = Sha256::new();
+    hash.update(include_bytes!("build.rs"));
+    hash.update(include_bytes!("cache.rs"));
+    hash.update(include_bytes!("Cargo.toml"));
+    hash.update(target.as_bytes());
+    hash.update(bindgen::clang_version().full.as_bytes());
+    spawn_compiler_and_hash_identity(&mut hash, false);
+    spawn_compiler_and_hash_identity(&mut hash, true);
+    for name in [
+        "CMAKE_TOOLCHAIN_FILE",
+        "CMAKE_GENERATOR",
+        "CMAKE_PREFIX_PATH",
+        "ANDROID_NDK_ROOT",
+        "MINGW_PREFIX",
+        "LIBCLANG_PATH",
+        "BINDGEN_EXTRA_CLANG_ARGS",
+    ] {
+        hash_environment(&mut hash, name);
+    }
+    for suffix in [target.to_string(), target.replace('-', "_")] {
+        hash_environment(&mut hash, &format!("BINDGEN_EXTRA_CLANG_ARGS_{suffix}"));
+    }
+    format!("{KTX_SOFTWARE_VERSION}-{target}-{:x}", hash.finalize())
+}
 
-    // Handle different library types
-    if matches!(lib_type.as_str(), "dylib") {
-        // Dynamic library built - user may need to configure library paths
+fn hash_environment(hash: &mut Sha256, name: &str) {
+    println!("cargo:rerun-if-env-changed={name}");
+    hash.update(name.as_bytes());
+    hash.update([0]);
+    if let Ok(value) = env::var(name) {
+        hash.update(value.as_bytes());
+    }
+    hash.update([0]);
+}
+
+fn spawn_compiler_and_hash_identity(hash: &mut Sha256, cpp: bool) {
+    // CMake always uses Release, independent of Cargo's dev/test/release profile.
+    let compiler = cc::Build::new()
+        .cpp(cpp)
+        .opt_level(3)
+        .debug(false)
+        .get_compiler();
+    let output = compiler
+        .to_command()
+        .arg("--version")
+        .output()
+        .expect("Cannot identify KTX compiler");
+    assert!(
+        output.status.success(),
+        "KTX compiler --version failed: {:?}",
+        compiler.path()
+    );
+    hash.update(compiler.path().as_os_str().as_encoded_bytes());
+    hash.update(output.stdout);
+    for argument in compiler.args() {
+        hash.update(argument.as_encoded_bytes());
+        hash.update([0]);
     }
 }
 
-fn download_and_extract_ktx_software(out_dir: &Path) -> PathBuf {
-    let ktx_source_dir = out_dir.join(format!("KTX-Software-{}", KTX_SOFTWARE_VERSION));
-
-    // Skip download if already exists
-    if ktx_source_dir.exists() {
-        return ktx_source_dir;
-    }
-
-    // Only print download message when actually downloading
-
-    // Create client with longer timeout
-    let client = reqwest::blocking::Client::builder()
-        .timeout(std::time::Duration::from_secs(300))
-        .build()
-        .expect("Failed to create HTTP client");
-
-    // Try fallback path first
-    if std::path::Path::new(FALLBACK_PATH).exists() {
-        let tar_gz_data = std::fs::read(FALLBACK_PATH).expect("Failed to read fallback archive");
-        let tar_gz = flate2::read::GzDecoder::new(&tar_gz_data[..]);
-        let mut archive = tar::Archive::new(tar_gz);
-        archive
-            .unpack(out_dir)
-            .expect("Failed to extract KTX-Software");
-        return ktx_source_dir;
-    }
-
-    // Download with retries
-    let mut last_error = None;
-    for attempt in 1..=3 {
-        match client.get(KTX_SOFTWARE_URL).send() {
-            Ok(response) => {
-                match response.bytes() {
-                    Ok(bytes) => {
-                        // Extract tar.gz
-                        let tar_gz = flate2::read::GzDecoder::new(&bytes[..]);
-                        let mut archive = tar::Archive::new(tar_gz);
-                        archive
-                            .unpack(out_dir)
-                            .expect("Failed to extract KTX-Software");
-
-                        // Download successful
-                        return ktx_source_dir;
-                    }
-                    Err(e) => {
-                        last_error = Some(format!("Failed to read response body: {}", e));
-                        if attempt < 3 {
-                            std::thread::sleep(std::time::Duration::from_secs(5));
-                        }
-                    }
-                }
+fn fetch_cached_source(root: &Path) -> PathBuf {
+    let key = format!("source-{KTX_SOFTWARE_VERSION}-{SOURCE_SHA256}");
+    let header = format!("KTX-Software-{KTX_SOFTWARE_VERSION}/include/ktx.h");
+    let directory = cache::populate_locked(root, &key, &[&header, "source.tar.gz"], |directory| {
+        let archive = directory.join("source.tar.gz");
+        match env::var_os("KTX_SOFTWARE_ARCHIVE") {
+            Some(path) => {
+                fs::copy(path, &archive).expect("Cannot read KTX_SOFTWARE_ARCHIVE");
             }
-            Err(e) => {
-                last_error = Some(format!("Failed to download KTX-Software: {}", e));
-                if attempt < 3 {
-                    std::thread::sleep(std::time::Duration::from_secs(5));
-                }
+            None => fetch_source_archive(&archive),
+        }
+        assert_eq!(
+            read_and_hash_file(&archive),
+            SOURCE_SHA256,
+            "KTX source archive SHA-256 mismatch"
+        );
+        let input = fs::File::open(&archive).expect("Cannot open KTX source archive");
+        tar::Archive::new(flate2::read::GzDecoder::new(input))
+            .unpack(directory)
+            .expect("Cannot extract KTX source archive");
+    });
+    directory.join(format!("KTX-Software-{KTX_SOFTWARE_VERSION}"))
+}
+
+fn read_and_hash_file(path: &Path) -> String {
+    let mut input = fs::File::open(path).expect("Cannot read KTX archive for SHA-256");
+    let mut hash = Sha256::new();
+    let mut buffer = [0; 64 * 1024];
+    loop {
+        let count = input
+            .read(&mut buffer)
+            .expect("Cannot hash KTX source archive");
+        if count == 0 {
+            break;
+        }
+        hash.update(&buffer[..count]);
+    }
+    format!("{:x}", hash.finalize())
+}
+
+fn fetch_source_archive(destination: &Path) {
+    eprintln!(
+        "KTX cache absent: fetching {KTX_SOFTWARE_URL} into {}",
+        destination.display()
+    );
+    let client = reqwest::blocking::Client::builder()
+        .timeout(std::time::Duration::from_secs(900))
+        .build()
+        .expect("Cannot create KTX HTTP client");
+    for attempt in 0..3 {
+        match fetch_archive_attempt(&client, destination) {
+            Ok(()) => return,
+            Err((message, retry_after)) => {
+                assert!(
+                    attempt < 2 && retry_after.is_some(),
+                    "KTX source fetch failed: {message}"
+                );
+                let jitter = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .expect("Cannot read retry clock")
+                    .subsec_millis() as u64;
+                let seconds = retry_after.unwrap().max(2u64.pow(attempt + 1));
+                std::thread::sleep(std::time::Duration::from_millis(seconds * 1000 + jitter));
             }
         }
     }
+}
 
-    panic!(
-        "Download failed: {}. You can manually download {} and place it at {} to use as fallback",
-        last_error.unwrap_or_else(|| "Unknown download error".to_string()),
-        KTX_SOFTWARE_URL,
-        FALLBACK_PATH
-    );
+fn fetch_archive_attempt(
+    client: &reqwest::blocking::Client,
+    destination: &Path,
+) -> Result<(), (String, Option<u64>)> {
+    let mut response = client
+        .get(KTX_SOFTWARE_URL)
+        .send()
+        .map_err(|error| (error.to_string(), Some(0)))?;
+    let status = response.status();
+    if !status.is_success() {
+        let retryable = status.is_server_error() || status.as_u16() == 429;
+        let seconds = response
+            .headers()
+            .get(reqwest::header::RETRY_AFTER)
+            .and_then(|value| value.to_str().ok())
+            .and_then(|value| value.parse().ok())
+            .unwrap_or(0);
+        return Err((
+            format!("HTTP {status} fetching {KTX_SOFTWARE_URL}"),
+            retryable.then_some(seconds),
+        ));
+    }
+    let mut file = fs::File::create(destination).expect("Cannot write cached KTX source archive");
+    std::io::copy(&mut response, &mut file).map_err(|error| (error.to_string(), Some(0)))?;
+    file.flush().expect("Cannot flush KTX source archive");
+    Ok(())
 }
 
 fn configure_cmake_for_target(
@@ -357,9 +442,9 @@ fn configure_cmake_for_target(
     }
 }
 
-fn get_lib_name(target_os: &str) -> &'static str {
-    match target_os {
-        "windows" => "ktx.lib",
+fn get_lib_name(target_os: &str, target_env: &str) -> &'static str {
+    match (target_os, target_env) {
+        ("windows", "msvc") => "ktx.lib",
         _ => "libktx.a",
     }
 }
@@ -738,14 +823,12 @@ fn emit_prefix_gcc_search_paths(lib_path: &Path, triple: &str) {
     }
 }
 
-fn setup_bindgen(out_dir: &Path, target: &str, _ktx_build_dir: &Path) {
-    let ktx_source_dir = out_dir.join(format!("KTX-Software-{}", KTX_SOFTWARE_VERSION));
+fn write_bindings(out_dir: &Path, ktx_source_dir: &Path, target: &str) {
     let header_path = ktx_source_dir.join("include").join("ktx.h");
 
     let mut builder = bindgen::Builder::default()
         .header(header_path.to_string_lossy())
-        .clang_arg(format!("-I{}", ktx_source_dir.join("include").display()))
-        .parse_callbacks(Box::new(bindgen::CargoCallbacks::new()));
+        .clang_arg(format!("-I{}", ktx_source_dir.join("include").display()));
 
     // Add target-specific configuration for cross-compilation
     if target.contains("windows") && !cfg!(windows) {
@@ -810,9 +893,7 @@ fn setup_bindgen(out_dir: &Path, target: &str, _ktx_build_dir: &Path) {
     // Generate the bindings
     let bindings = builder.generate().expect("Unable to generate bindings");
 
-    // Write the bindings to the $OUT_DIR/bindings.rs file.
-    let out_path = PathBuf::from(env::var("OUT_DIR").unwrap());
     bindings
-        .write_to_file(out_path.join("bindings.rs"))
+        .write_to_file(out_dir.join("bindings.rs"))
         .expect("Couldn't write bindings!");
 }
