@@ -14,6 +14,7 @@ from pathlib import Path
 import struct
 import sqlite3
 
+ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 EXPANDABLE = {"adt", "m2", "wmo", "skel", "wdt"}
 DIRECTORIES = {"adt": "terrain", "wdt": "terrain", "wdl": "terrain", "blp": "textures", "blob": "textures", "ogg": "sounds", "mp3": "sounds", "wav": "sounds", "audio": "sounds"}
 
@@ -26,8 +27,12 @@ def digest(path):
     return h.hexdigest()
 
 
+def ascii_lower(value):
+    return value.translate(ASCII_LOWER)
+
+
 def normalized(path):
-    return path.replace("\\", "/").lower().replace(".mdx", ".m2")
+    return ascii_lower(path.replace("\\", "/")).replace(".mdx", ".m2")
 
 
 def chunks(data, reverse=False):
@@ -75,7 +80,7 @@ def read_listfile(path):
         for line in stream:
             fdid, logical = line.rstrip("\n").split(";", 1)
             fdid = int(fdid)
-            lower = logical.lower()
+            lower = ascii_lower(logical)
             canonical = normalized(logical)
             candidates[fdid] = lower if canonical == lower else canonical
             previous_path = live_paths.pop(fdid, None)

@@ -46,6 +46,15 @@ class PathTests(unittest.TestCase):
         self.assertEqual(bindings, expected)
         self.assertEqual(paths[7], 'world/a.m2')  # retain candidate census, not a false path binding
 
+    def test_runtime_ascii_casefold_does_not_merge_non_ascii_names(self):
+        path = self.put('community-listfile.csv', '1;world/Éclair.m2\n9;world/éclair.m2\n'.encode())
+        paths, bindings = read_listfile(path)
+        self.assertEqual(bindings, {'world/Éclair.m2': 1, 'world/éclair.m2': 9})
+        self.put('models/1.m2', model())
+        graph = Closure(self.data, paths, 'wow', 'fixture', runtime_paths=bindings)
+        graph.named('WORLD/Éclair.M2', 'm2', 'case-sensitive non-ASCII name', None)
+        self.assertEqual([a['fdid'] for a in graph.run()['assets']], [1])
+
     def test_persisted_local_row_wins_and_its_input_is_fingerprinted(self):
         cache = self.data / 'local.sqlite'
         with closing(sqlite3.connect(cache)) as db:
