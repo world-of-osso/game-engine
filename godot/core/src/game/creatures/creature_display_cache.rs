@@ -2,6 +2,7 @@ use std::collections::{HashMap, HashSet};
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
 
+use crate::asset_product::AssetProduct;
 use crate::cache_source_mtime::{csv_mtime, source_key};
 use crate::cache_sqlite::rebuild_unless_fresh;
 use crate::creature_display_data::CreatureDisplay;
@@ -10,6 +11,7 @@ use rusqlite::Connection;
 
 #[derive(Clone, Copy)]
 struct CreatureModelData {
+    source_product: AssetProduct,
     fdid: u32,
     scale_milli: u32,
 }
@@ -66,7 +68,10 @@ fn import_forever_display_rows(
     if !forever.exists() {
         return Ok(());
     }
-    let models = parse_model_data(&forever.join("CreatureModelData.csv"))?;
+    let models = parse_model_data(
+        &forever.join("CreatureModelData.csv"),
+        AssetProduct::Forever,
+    )?;
     let mut retail_ids = HashSet::new();
     crate::csv_util::read_numeric_rows(retail_display_info, ["ID"], |[id]| {
         retail_ids.insert(id as u32);
@@ -93,7 +98,7 @@ fn cache_is_fresh(
     };
     // A cache with the old three-slot schema must be rebuilt even at unchanged mtimes.
     if conn
-        .prepare("SELECT d.skin_fdid_3, p.skin_fdid_3 FROM creature_displays d, preferred_skins p LIMIT 0")
+        .prepare("SELECT d.skin_fdid_3, d.source_product, p.skin_fdid_3 FROM creature_displays d, preferred_skins p LIMIT 0")
         .is_err()
     {
         return Ok(false);
@@ -126,7 +131,7 @@ fn rebuild_cache(
     model_data_path: &Path,
 ) -> Result<(), String> {
     init_cache_schema(conn)?;
-    let model_data = parse_model_data(model_data_path)?;
+    let model_data = parse_model_data(model_data_path, AssetProduct::Retail)?;
     import_display_rows(conn, display_info_path, &model_data, &HashSet::new())?;
     Ok(())
 }
@@ -175,7 +180,8 @@ fn init_cache_schema(conn: &Connection) -> Result<(), String> {
              skin_fdid_1 INTEGER NOT NULL,
              skin_fdid_2 INTEGER NOT NULL,
              skin_fdid_3 INTEGER NOT NULL,
-             scale_milli INTEGER NOT NULL
+             scale_milli INTEGER NOT NULL,
+             source_product TEXT NOT NULL CHECK(source_product IN ('wow', 'wow_classic_beta'))
          );
          CREATE INDEX idx_creature_displays_model_fdid
              ON creature_displays(model_fdid);
@@ -251,8 +257,8 @@ fn read_display_columns(
 fn prepare_display_insert(conn: &Connection) -> Result<rusqlite::Statement<'_>, String> {
     conn.prepare(
         "INSERT OR IGNORE INTO creature_displays
-         (display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)",
+         (display_id, model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)",
     )
     .map_err(|err| format!("prepare creature_displays insert: {err}"))
 }
@@ -279,12 +285,16 @@ fn insert_display_row(
             entry.skin_fdids[2],
             entry.skin_fdids[3],
             entry.scale_milli,
+            entry.source_product.as_str(),
         ))
         .map_err(|err| format!("insert creature display row {display_id}: {err}"))?;
     Ok(())
 }
 
-fn parse_model_data(path: &Path) -> Result<HashMap<u32, CreatureModelData>, String> {
+fn parse_model_data(
+    path: &Path,
+    source_product: AssetProduct,
+) -> Result<HashMap<u32, CreatureModelData>, String> {
     let mut map = HashMap::new();
     let mut reader = open_reader(path)?;
     let mut header = String::new();
@@ -312,6 +322,7 @@ fn parse_model_data(path: &Path) -> Result<HashMap<u32, CreatureModelData>, Stri
             id_col,
             fdid_col,
             scale_col,
+            source_product,
         );
     }
     Ok(map)
@@ -323,6 +334,7 @@ fn insert_model_entry(
     id_col: usize,
     fdid_col: usize,
     scale_col: Option<usize>,
+    source_product: AssetProduct,
 ) {
     let cols: Vec<&str> = line.split(',').collect();
     let Some(id) = cols.get(id_col).and_then(|s| s.parse::<u32>().ok()) else {
@@ -337,6 +349,7 @@ fn insert_model_entry(
     map.insert(
         id,
         CreatureModelData {
+            source_product,
             fdid,
             scale_milli: parse_scale_milli(scale_col.and_then(|idx| cols.get(idx).copied())),
         },
@@ -378,6 +391,7 @@ fn parse_display_entry(
     Some((
         display_id,
         CreatureDisplay {
+            source_product: model.source_product,
             model_fdid: model.fdid,
             skin_fdids: [
                 parse_fdid(cols.tex_var[0]),
@@ -554,6 +568,10 @@ mod tests {
                 product, expected_product,
                 "display {id} lost its authored metadata owner"
             );
+            let display = crate::creature_display_data::query_display(&conn, id)
+                .unwrap()
+                .unwrap();
+            assert_eq!(display.source_product.as_str(), expected_product);
         }
         for id in [136968, 139694] {
             assert_eq!(
@@ -599,25 +617,13 @@ mod tests {
 
         let conn = open_read_only(&cache_path).unwrap();
 
-        // Query by display_id
-        let mut stmt = conn
-            .prepare(
-                "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli
-                 FROM creature_displays WHERE display_id = ?1",
-            )
-            .unwrap();
-        let entry = stmt
-            .query_row([4u32], |row| {
-                Ok(CreatureDisplay {
-                    model_fdid: row.get(0)?,
-                    skin_fdids: [row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?],
-                    scale_milli: row.get(5)?,
-                })
-            })
+        let entry = crate::creature_display_data::query_display(&conn, 4)
+            .unwrap()
             .unwrap();
         assert_eq!(
             entry,
             CreatureDisplay {
+                source_product: AssetProduct::Retail,
                 model_fdid: 9001,
                 skin_fdids: [11, 12, 0, 0],
                 scale_milli: 1250,

@@ -365,6 +365,7 @@ mod tests {
         let data_root = cached_data_root();
         let resolver = local_resolver(&data_root);
         let display = CreatureDisplay {
+            source_product: game_engine_core::asset_product::AssetProduct::Retail,
             model_fdid: 126278,
             skin_fdids: [126280, 0, 0, 0],
             scale_milli: 1000,
@@ -412,6 +413,7 @@ mod tests {
         let data_root = cached_data_root();
         let resolver = local_resolver(&data_root);
         let display = CreatureDisplay {
+            source_product: game_engine_core::asset_product::AssetProduct::Retail,
             model_fdid: 1011653,
             skin_fdids: [0; 4],
             scale_milli: 1000,
