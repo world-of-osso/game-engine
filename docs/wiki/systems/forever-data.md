@@ -310,21 +310,25 @@ Sources: [native model cache](../../../godot/rust/src/assets/creature.rs), [stri
 
 Verified:2026-10-09. The initial user decision was to deactivate genuinely locked models until a future patch/keyring permits a successful re-import. After the dependency audit, the lead explicitly directed: **deactivate none of the seven**, import readable records and report unknown sections. Quest endpoints must not be deactivated without the pending user decision. [NPC contract](../../specs/npc-appearance.md#unknown-key-record-contract) owns the behavior.
 
-| Display | Readable Extra | Readable options | Readable NPC item rows |
-|---|---|---|---|
-|136967|162977|12|8|
-|136970|162551|14|5|
-|136981|163375|13|8|
-|137339|162203|17|6|
-|138156|162557|14|6|
-|138170|162558|14|8|
-|143516|164474|13|7|
+| Display | Readable Extra | Readable options | Readable NPC item rows | Declared body bake FDID |
+|---|---|---|---|---|
+|136967|162977|12|8|7474260|
+|136970|162551|14|5|7414459|
+|136981|163375|13|8|7507379|
+|137339|162203|17|6|7344132|
+|138156|162557|14|6|7414802|
+|138170|162558|14|8|7415753|
+|143516|164474|13|7|7759343|
 
 All selected choices and their four customization geoset IDs per display exist in the imported Forever CSVs. None has a readable authored `CreatureDisplayInfoGeosetData` override; the two readable override rows belong to displays146433 and80. Canonical `data/diagnostics/lockeddisplays-2026-10-09/per-display-records.json` records exact option/choice/geoset/item IDs, slots, Extra values and raw SHA256s.
 
 Unknown sections contain Extra165799 and options1088419–1088427 under key`057DC814574BD5B6`, and geosets134310/134313/134314 under key`1C43CC2976172D0C`. No imported Forever CDI references Extra165799. Unknown option/geoset record bodies, section ID lists and parent relationships are zero-filled; separate cleartext encrypted-ID metadata reveals record IDs, **not parents**. Their ownership is unprovable from these bytes. **Lead inference, not proof:** the nine high consecutive option IDs likely belong to the newer Extra165799 rather than these seven (their highest readable option ID is1069032). Importing their readable chains follows the existing [master read-decrypted/report-skip policy](../../../scripts/export_db2_csv.py) (lead-supplied `docs/handoffs/skyborn.md:48`), without asserting hidden-row ownership or full appearance completeness.
 
-The read-only world impact receipt `creature-impact.json` identifies nine entries/12 spawns, all map2991 and each with one display. Six are quest endpoints:251366,251368,251389,251964,251991,263113. Entries251365/251537/252478 have no quest links, vendor/trainer rows or flight-master flags. No deactivation was performed. Decoder RED/GREEN, real profile publication and native proof remain pending at this investigation checkpoint.
+The read-only world impact receipt `creature-impact.json` identifies nine entries/12 spawns, all map2991 and each with one display. Six are quest endpoints:251366,251368,251389,251964,251991,263113. Entries251365/251537/252478 have no quest links, vendor/trainer rows or flight-master flags. No deactivation was performed. At decoder `714a1042c`, targeted GREEN passes13 tests, with3 existing local-Retail tests skipped for absent inputs; RED recorded the missing omission-report API. `importer-green.log/.exit` owns exact scope, including decrypted-keyed sections, signed/palette/common/copy records, malformed input and explicitly missing Extra rejection. The existing CLI emits skipped sections keyed by DB2 table name.
+
+`reimport-readable.py` invokes the committed decoder and existing Forever `npc_appearance_rows`/`publish_appearance_rows` helpers, publishing7 real appearances,97 choices and7 required-appearance coverage rows, with0 authored override rows. `cache-delta.json` proves no prior rows were changed or removed. `reimport-report.json` records all thirteen unknown section IDs/key names and zero CDI references to hidden Extra165799; no server policy or spawn changed. Raw source extraction used actual Forever70291/build`e8dd824cf6c3d96cd01f804ca2ea5a63` (`skybornlive`'s `raw-forever-extract.log`); retained CSV directory labels are not proof of a complete pinned70205 source build.
+
+**Native BLOCKED, not PASS:** all seven declared bakes above are absent locally. The install advanced to Forever1.60.1.70334/build`029dc2e024aadc9e0d9073ac37126868`; its root encoding key`bb32f86e4e8e83adf2be8751c2e958b8` has no local archive location. Existing extraction and approved fixed resolver`80fd790` each exit1 with0/7 before texture decode. `bake-source-unavailable.json` records unavailable current content keys/SHA256s and separately labelled older70291 resolution references. No substitute, Retail overwrite, native run, PNG or zero-client-errors claim. Independent read-only verification was attempted but unavailable because OAuth expired; it is not a passed gate.
 
 ## Sources
 
