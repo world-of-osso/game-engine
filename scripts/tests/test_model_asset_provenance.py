@@ -115,6 +115,29 @@ class ModelAssetProvenanceTests(unittest.TestCase):
             for row in result["assets"]:
                 self.assertEqual(hashlib.md5((data / row["path"]).read_bytes()).hexdigest(), row["content_key"])
 
+    def test_existing_different_scoped_bytes_are_preserved(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = Path(directory)
+            receipt = {"path": "products/wow/build/models/42.m2"}
+            path = data / receipt["path"]
+            path.parent.mkdir(parents=True)
+            path.write_bytes(b"existing-build")
+            with self.assertRaisesRegex(ValueError, "conflicting existing asset"):
+                chains.write_asset_files(data, [(receipt, b"new-build")])
+            self.assertEqual(path.read_bytes(), b"existing-build")
+
+    def test_existing_matching_scoped_bytes_keep_their_inode(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = Path(directory)
+            receipt = {"path": "products/wow/build/models/42.m2"}
+            path = data / receipt["path"]
+            path.parent.mkdir(parents=True)
+            path.write_bytes(b"same-build")
+            inode = path.stat().st_ino
+            chains.write_asset_files(data, [(receipt, b"same-build")])
+            self.assertEqual(path.stat().st_ino, inode)
+            self.assertEqual(path.read_bytes(), b"same-build")
+
     def test_receipt_rejects_borrowed_or_zero_filled_bytes(self):
         with self.assertRaisesRegex(ValueError, "content key"):
             chains.create_asset_receipt({"product": "wow_classic_beta", "build_key": "e8dd824cf6c3d96cd01f804ca2ea5a63", "build": "1.60.1.70291"}, 1100087, "m2", "models/1100087.m2", b"retail-model", hashlib.md5(b"forever-model").hexdigest())
