@@ -12,7 +12,7 @@ Party/raid members can ride available passenger seats on a player's summoned mou
 ### Server
 - [x] Board an empty enter/exit non-control seat for a living party/raid member; reject non-group and full-mount requests without mutating passenger state.
 - [x] Exit frees occupancy and restores movement control.
-- [x] Passenger translation follows the driver's rotation/translation; eject on driver dismount, death, despawn, map or zone transfer.
+- [x] Passenger translation follows the driver's rotation/translation; eject on driver dismount, death, despawn, map or instance transfer (`InMap`, not NPC `Zone`).
 - [ ] Ignore actual passenger movement packets; clear disconnected passenger occupancy; verify passenger death and mount replacement.
 - [ ] Verify local catalog and actual M2 seat bind offsets, not just synthetic transform fixtures.
 
