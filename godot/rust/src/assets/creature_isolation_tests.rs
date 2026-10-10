@@ -1,6 +1,8 @@
 //! Real file acquisition/parsing and BLP decode boundaries; no GPU allocation.
 use super::*;
+use game_engine_core::asset_product::AssetProduct;
 use osso_asset_resolver::AssetIdentity;
+use serde_json::json;
 use std::sync::atomic::{AtomicU64, Ordering};
 
 const MODEL_FDID: u32 = 126278;
@@ -119,6 +121,95 @@ fn model_asset_sfid_skid_and_external_animation_acquisition_inherit_the_model_id
         assert_eq!(fs::read(dir.join("126278.skel")).unwrap(), skeleton);
         assert_eq!(fs::read(dir.join("1003.anim")).unwrap(), receipt);
     }
+}
+
+#[test]
+fn model_asset_runtime_receipts_select_pinned_namespaces_without_casc() {
+    if let Some(root) = std::env::var_os("MODEL_ASSET_CHILD_ROOT") {
+        let root = PathBuf::from(root);
+        osso_asset_resolver::set_casc_access_hook(|error| panic!("{error}")).unwrap();
+        osso_asset_resolver::configure_runtime_mode_from_env().unwrap();
+        for (product, x) in [
+            (AssetProduct::Retail, 1.25),
+            (AssetProduct::Forever, 7.5),
+            (AssetProduct::Retail, 1.25),
+        ] {
+            let resolver = authored_model_resolver(&root, product, MODEL_FDID).unwrap();
+            assert_eq!(
+                resolver.runtime_mode(),
+                osso_asset_resolver::AssetRuntimeMode::ExtractedOnly
+            );
+            let parsed = load_model_files(&resolver, &root, MODEL_FDID).unwrap();
+            assert_eq!(parsed.model.vertices[0].position[0], x);
+            assert!(
+                parsed
+                    .path
+                    .starts_with(root.join("products").join(product.as_str()))
+            );
+        }
+        let resolver =
+            authored_model_resolver(&root, AssetProduct::Forever, MODEL_FDID + 1).unwrap();
+        let error = load_model_files(&resolver, &root, MODEL_FDID + 1)
+            .err()
+            .expect("missing qualified model borrowed legacy bytes");
+        assert!(error.contains("wow_classic_beta"));
+        assert_eq!(osso_asset_resolver::forbidden_casc_access_count(), 0);
+        assert!(!root.join("home/.cache").exists());
+        return;
+    }
+    let fixture = Fixture::new();
+    let skin =
+        fs::read(PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data/models/12627800.skin"))
+            .unwrap();
+    let mut receipts = Vec::new();
+    for (product, key, build, x) in [
+        (AssetProduct::Retail, RETAIL_KEY, "12.1.0.69933", 1.25),
+        (AssetProduct::Forever, FOREVER_KEY, "1.60.1.70291", 7.5),
+    ] {
+        let identity = AssetIdentity::new(product.as_str(), key).unwrap();
+        let bytes = model_with_vertex(x);
+        fixture.seed(&identity, "models/126278.m2", &bytes);
+        fixture.seed(&identity, "models/12627800.skin", &skin);
+        receipts.push(json!({"product": product, "build_key": key, "build": build,
+            "fdid": MODEL_FDID, "kind": "m2", "path": format!("products/{}/{key}/models/126278.m2", product.as_str()),
+            "bytes": bytes.len(), "sha256": "a".repeat(64), "content_key": "b".repeat(32)}));
+    }
+    let mut missing = receipts[1].clone();
+    missing["fdid"] = json!(MODEL_FDID + 1);
+    missing["path"] = json!(format!(
+        "products/wow_classic_beta/{FOREVER_KEY}/models/126279.m2"
+    ));
+    receipts.push(missing);
+    // Valid legacy models deliberately tempt an unqualified resolver in a fresh process.
+    fs::create_dir_all(fixture.0.join("models")).unwrap();
+    for fdid in [MODEL_FDID, MODEL_FDID + 1] {
+        fs::write(
+            fixture.0.join(format!("models/{fdid}.m2")),
+            model_with_vertex(1.25),
+        )
+        .unwrap();
+        fs::write(fixture.0.join(format!("models/{fdid}00.skin")), &skin).unwrap();
+    }
+    fs::create_dir_all(fixture.0.join("cache")).unwrap();
+    fs::write(
+        fixture.0.join("cache/model-asset-index.json"),
+        json!({"version": 1, "assets": receipts}).to_string(),
+    )
+    .unwrap();
+    fs::create_dir_all(fixture.0.join("home")).unwrap();
+    let result = std::process::Command::new(std::env::current_exe().unwrap())
+        .args(["--exact", "assets::creature::isolation_tests::model_asset_runtime_receipts_select_pinned_namespaces_without_casc", "--nocapture"])
+        .env_clear().env("HOME", fixture.0.join("home"))
+        .env("WOW_INSTALL_PATH", fixture.0.join("no-install"))
+        .env("WOW_DATA_PATH", fixture.0.join("no-install/Data"))
+        .env("GAME_ENGINE_ASSET_MODE", "extracted-only")
+        .env("MODEL_ASSET_CHILD_ROOT", &fixture.0).output().unwrap();
+    assert!(
+        result.status.success(),
+        "qualified runtime failed: {}{}",
+        String::from_utf8_lossy(&result.stdout),
+        String::from_utf8_lossy(&result.stderr)
+    );
 }
 
 fn solid_palettized_blp(red: u8, green: u8) -> Vec<u8> {
