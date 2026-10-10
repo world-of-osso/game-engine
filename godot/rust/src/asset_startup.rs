@@ -118,6 +118,107 @@ mod tests {
         );
     }
 
+    #[test]
+    fn extracted_only_legacy_worker_missing_texture_completes() {
+        legacy_texture_worker_process(false);
+    }
+
+    #[test]
+    fn extracted_only_legacy_worker_present_texture_loads() {
+        legacy_texture_worker_process(true);
+    }
+
+    fn legacy_texture_worker_process(present: bool) {
+        let name = if present {
+            "asset_startup::tests::extracted_only_legacy_worker_present_texture_loads"
+        } else {
+            "asset_startup::tests::extracted_only_legacy_worker_missing_texture_completes"
+        };
+        if std::env::var_os("LEGACY_TEXTURE_WORKER_CHILD").is_some() {
+            assert_legacy_texture_worker(present);
+            return;
+        }
+        let root =
+            std::env::temp_dir().join(format!("legacy-texture-{}-{present}", std::process::id()));
+        std::fs::create_dir_all(&root).unwrap();
+        let output = std::process::Command::new(std::env::current_exe().unwrap())
+            .args(["--exact", name, "--nocapture"])
+            .env_clear()
+            .env("GAME_ENGINE_ASSET_MODE", "extracted-only")
+            .env("LEGACY_TEXTURE_WORKER_CHILD", "1")
+            .env("LEGACY_TEXTURE_ROOT", &root)
+            .output()
+            .unwrap();
+        std::fs::remove_dir_all(root).unwrap();
+        assert!(
+            output.status.success(),
+            "{}{}",
+            String::from_utf8_lossy(&output.stdout),
+            String::from_utf8_lossy(&output.stderr)
+        );
+        assert!(!String::from_utf8_lossy(&output.stderr).contains("panicked"));
+    }
+
+    fn assert_legacy_texture_worker(present: bool) {
+        use game_engine_core::asset_loader::{AssetLoader, LoadState, Priority};
+        use osso_asset_resolver::{AssetIdentity, AssetResolverConfig, CascListfileResolver};
+        use std::time::{Duration, Instant};
+        osso_asset_resolver::configure_runtime_mode_from_env().unwrap();
+        let root = std::path::PathBuf::from(std::env::var_os("LEGACY_TEXTURE_ROOT").unwrap());
+        let identity =
+            AssetIdentity::new("wow_classic_beta", "00000000000000000000000000000000").unwrap();
+        let fdid = 896467;
+        let destination = root.join(format!("textures/{fdid}.blp"));
+        let expected = identity.asset_path(&root, format!("textures/{fdid}.blp"));
+        if present {
+            let source = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+                .join("../../data/textures/896467.blp");
+            std::fs::create_dir_all(expected.parent().unwrap()).unwrap();
+            std::fs::copy(source, &expected).unwrap();
+        }
+        let resolver = CascListfileResolver::new(
+            AssetResolverConfig::new()
+                .with_data_root(&root)
+                .with_shared_data_root(&root)
+                .with_identity(identity),
+        );
+        let checked_error = resolver.ensure_cached_checked(fdid, &destination).err();
+        let mut loader = AssetLoader::new("legacy-texture", 1, move |&key: &u32| {
+            let path = resolver
+                .ensure_cached(key, &destination)
+                .ok_or_else(|| "legacy cache returned None".to_owned())?;
+            let bytes = std::fs::read(path).map_err(|error| error.to_string())?;
+            game_engine_core::blp::decode_rgba(&bytes)
+        });
+        assert!(loader.request(fdid, Priority::Now));
+        let deadline = Instant::now() + Duration::from_secs(2);
+        let completion = loop {
+            let mut results = loader.poll();
+            if let Some(result) = results.pop() {
+                break result;
+            }
+            assert!(
+                Instant::now() < deadline,
+                "missing completion; state {:?}, loading {}",
+                loader.state(&fdid),
+                loader.loading()
+            );
+            std::thread::sleep(Duration::from_millis(1));
+        };
+        assert_eq!(completion.0, fdid);
+        if present {
+            let image = completion.1.unwrap();
+            assert!(image.width > 0 && image.height > 0);
+        } else {
+            assert_eq!(completion.1.unwrap_err(), checked_error.unwrap());
+        }
+        assert_eq!(loader.state(&fdid), Some(LoadState::Done));
+        assert_eq!(loader.loading(), 0);
+        assert!(!loader.request(fdid, Priority::Now));
+        assert!(loader.poll().is_empty());
+        assert_eq!(osso_asset_resolver::forbidden_casc_access_count(), 0);
+    }
+
     const FIXTURES: &[(&str, u32)] = &[
         ("textures/896467.blp", 896467),
         ("models/143187.m2", 143187),
