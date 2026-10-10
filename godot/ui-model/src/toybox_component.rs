@@ -43,7 +43,6 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
     let tabs = tabs();
     let filters = filter_menu(model);
     let context = context_menu(model);
-    let tooltip = tooltip(model);
     let count = format!(
         "{} / {}",
         model.catalog.iter().filter(|toy| toy.learned).count(),
@@ -76,7 +75,7 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
                         pos_type: "absolute", left: 190.0, top: 522.0, justify_h: "RIGHT", font_size: 12.0 }
                     fontstring { name: "ToyBoxError", text: error, width: 650.0, height: 26.0,
                         pos_type: "absolute", left: 24.0, top: 548.0, font_color: "1.0,0.2,0.2,1.0", font_size: 12.0 }
-                    {filters} {context} {tooltip}
+                    {filters} {context}
                 }
                 {tabs}
             }
@@ -138,7 +137,7 @@ fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -
     } else {
         String::new()
     };
-    let height = fraction * 39.0;
+    let height = 39.0;
     let font_color = if toy.learned {
         "1.0,0.82,0.0,1.0"
     } else {
@@ -150,7 +149,7 @@ fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -
             width: 42.0, height: 42.0, pos_type: "absolute", left: 4.0, top: 3.0, alpha }
         {art} {favourite} {new}
         r#frame { name: {DynName(format!("{name}Cooldown"))}, width: 40.0, height,
-            pos_type: "absolute", left: 5.0, top: {43.0 - height}, background_color: "0.0,0.0,0.0,0.8" }
+            pos_type: "absolute", left: 5.0, top: 4.0, hidden: {fraction <= 0.0} }
         fontstring { name: {DynName(format!("{name}CooldownText"))}, text: {countdown.as_str()}, width: 50.0, height: 50.0,
             pos_type: "absolute", left: 0.0, top: 0.0, font_size: 14.0, justify_h: "CENTER" }
         fontstring { name: {DynName(format!("{name}Name"))}, text: {toy.name.as_str()}, width: 135.0, height: 50.0,
@@ -300,15 +299,4 @@ fn context_menu(model: &ToyBox) -> Element {
     rsx! { r#frame { name: "ToyBoxContextMenu", width: 218.0, height: 30.0,
     pos_type: "absolute", left: 400.0, top: 440.0, strata: FrameStrata::Dialog,
     mouse_enabled: true, background_color: "0.05,0.04,0.03,1.0", {button} } }
-}
-fn tooltip(model: &ToyBox) -> Element {
-    let Some(text) = model.hovered.and_then(|id| model.tooltip(id)) else {
-        return vec![];
-    };
-    rsx! { r#frame { name: "ToyBoxTooltip", width: 310.0, height: 112.0,
-        strata: FrameStrata::Tooltip, pos_type: "absolute", left: 700.0, top: 70.0,
-        background_color: "0.0,0.0,0.0,0.96",
-        fontstring { name: "ToyBoxTooltipText", text: {text.as_str()}, width: 298.0, height: 104.0,
-            pos_type: "absolute", left: 6.0, top: 4.0, font_size: 12.0, justify_h: "LEFT" }
-    } }
 }

@@ -64,7 +64,8 @@ impl GameClient {
     /// The tooltip of the hovered frame, if it has one.
     pub(crate) fn frame_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
         type Source = fn(&mut GameClient, &HoveredFrame) -> Option<HoveredTooltip>;
-        const SOURCES: [Source; 19] = [
+        const SOURCES: [Source; 20] = [
+            GameClient::toybox_tooltip,
             GameClient::action_button_tooltip,
             GameClient::spellbook_tooltip,
             GameClient::trainer_tooltip,
@@ -130,13 +131,56 @@ impl GameClient {
         let (_, (bar, index)) = named_ancestor(ui.registry()?, hit.frame, |frame| {
             parse_action_button(frame.onclick.as_deref()?)
         })?;
-        let ActionRef::Spell(spell_id) = self.account.spells.slot(self.bar_slot(bar, index))?
-        else {
-            return None;
-        };
-        Some(HoveredTooltip::text(
-            self.spell_game_tooltip(spell_id, None),
+        match self.account.spells.slot(self.bar_slot(bar, index))? {
+            ActionRef::Spell(spell_id) => Some(HoveredTooltip::text(
+                self.spell_game_tooltip(spell_id, None),
+            )),
+            ActionRef::Item(item_id) => Some(HoveredTooltip::text(self.toy_game_tooltip(item_id)?)),
+            ActionRef::Macro(_) => None,
+        }
+    }
+
+    fn toy_game_tooltip(&self, item_id: u32) -> Option<GameTooltip> {
+        let toy = self.toybox.model.toy(item_id)?;
+        let text = self.toybox.model.tooltip(item_id)?;
+        let mut lines: Vec<_> = text
+            .lines()
+            .skip(1)
+            .map(|line| TooltipLineState::colored(line, TOOLTIP_DESCRIPTION_COLOR))
+            .collect();
+        if let Some(spell_id) = toy.spell_id {
+            lines.extend(self.spell_game_tooltip(spell_id, None).content.lines);
+        }
+        Some(GameTooltip::new(
+            TooltipPresentation {
+                title: toy.name.clone(),
+                lines,
+                ..Default::default()
+            },
+            Some(game_engine_ui_model::game_tooltip::TooltipRecord::Item(
+                item_id,
+            )),
         ))
+    }
+
+    fn toybox_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {
+        let ui = hit.ui.bind();
+        let (owner, item_id) = named_ancestor(ui.registry()?, hit.frame, |frame| {
+            frame
+                .onclick
+                .as_deref()?
+                .strip_prefix(game_engine_ui_model::toybox::USE_PREFIX)?
+                .parse::<u32>()
+                .ok()
+        })?;
+        drop(ui);
+        let tooltip = self.toy_game_tooltip(item_id)?;
+        Some(HoveredTooltip::text(self.owned_by(
+            hit,
+            owner,
+            OwnerSide::Right,
+            tooltip,
+        )?))
     }
 
     fn spellbook_tooltip(&mut self, hit: &HoveredFrame) -> Option<HoveredTooltip> {

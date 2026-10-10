@@ -148,7 +148,15 @@ impl GameClient {
         }
         let host = self.toybox.ui.as_mut().ok_or("Toy Box UI missing")?;
         host.bind_mut().set_ui_scale(scale)?;
-        host.bind_mut().set_state(view)
+        let mut host = host.bind_mut();
+        host.set_state(view)?;
+        for (index, toy) in self.toybox.model.page_items().into_iter().enumerate() {
+            let fraction = toy
+                .spell_id
+                .map_or(0.0, |spell| self.toybox.model.cooldowns.fraction(spell));
+            host.update_toy_swipe(&format!("ToySpellButton{}Cooldown", index + 1), fraction)?;
+        }
+        Ok(())
     }
     pub(crate) fn toybox_cursor_press(
         &mut self,
