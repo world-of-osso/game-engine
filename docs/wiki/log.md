@@ -1,3 +1,7 @@
+## 2026-10-09 — Corrected locked-display premise
+
+[Forever dependency audit](systems/forever-data.md#readable-section-correction-2026-10-09) corrects entire-table decoder rejection being mistaken for seven encrypted appearances. All seven Extras and readable choice/item chains exist; unknown option/geoset parents are zero-filled and cannot be attributed. [Contract](../specs/npc-appearance.md#unknown-key-record-contract) retains unknown-key reports, mandatory explicit references and the corrected lead decision to deactivate none. Implementation/re-import/native proof pending.
+
 ## 2026-10-09 — HUD layout names and delete confirmation
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records the user-decided name validation and pending Yes/No deletion transition. [Contract](../specs/hud-edit-mode.md) owns Retail validation/dialog sources, exact confirmation text and unchanged preset Save / unsaved Exit boundaries. RED reproduces enabled empty New and immediate Delete; `4356c20a7` GREEN touched-crate hud69/core-layout7 and extension/CLI build pass. Native captures pending after default-output clearance failure and Vulkan initialization failure; no PNG or live input claim.
