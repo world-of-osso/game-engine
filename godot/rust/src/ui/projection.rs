@@ -499,12 +499,12 @@ impl UiProjection {
         let pending = &self.pending;
         match frame.widget_type {
             WidgetType::Button
-                if frame
-                    .onclick
-                    .as_deref()
-                    .is_some_and(|action| action.starts_with("bank_slot:")) =>
+                if frame.onclick.as_deref().is_some_and(|action| {
+                    action.starts_with("bank_slot:")
+                        || action.starts_with(game_engine_ui_model::toybox::USE_PREFIX)
+                }) =>
             {
-                // Preserve bankmoves' press coordinates, drag source and modified clicks.
+                // Bank slots and toy tiles need press coordinates and modified clicks.
                 connect_frame_click(pending, frame.id, node);
                 node.connect(
                     "mouse_entered",

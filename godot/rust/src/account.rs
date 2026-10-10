@@ -223,6 +223,9 @@ pub enum AccountEvent {
     CreatureTooltip(CreatureTooltip),
     /// The account's learned appearances.
     Appearances(AppearanceCollectionUpdate),
+    Toys(shared::protocol::ToyCollectionUpdate),
+    ToyResult(shared::protocol::ToyResult),
+    ToyCooldown(SpellCooldownUpdate),
 }
 
 /// Quest giver dialog pages, turn-in results and rejections (`QuestChannel`).
@@ -550,6 +553,21 @@ impl Account {
     pub fn send_set_dungeon_difficulty(&self, difficulty_id: u32) -> Result<(), SessionError> {
         self.bridge()?
             .send::<_, InstanceChannel>(SetDungeonDifficulty { difficulty_id })
+            .map_err(SessionError)
+    }
+
+    pub fn send_use_toy(&self, item_id: u32) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::CollectionChannel>(shared::protocol::UseToy { item_id })
+            .map_err(SessionError)
+    }
+
+    pub fn send_toy_favourite(&self, item_id: u32, favourite: bool) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::CollectionChannel>(shared::protocol::SetToyFavourite {
+                item_id,
+                favourite,
+            })
             .map_err(SessionError)
     }
 
@@ -1289,6 +1307,14 @@ impl Account {
             output.push(AccountEvent::CreatureTooltip(decode(message)?));
             return Ok(());
         }
+        if message.is::<shared::protocol::ToyCollectionUpdate>() {
+            output.push(AccountEvent::Toys(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::ToyResult>() {
+            output.push(AccountEvent::ToyResult(decode(message)?));
+            return Ok(());
+        }
         if message.is::<AppearanceCollectionUpdate>() {
             output.push(AccountEvent::Appearances(decode(message)?));
             return Ok(());
@@ -1623,7 +1649,9 @@ impl Account {
         } else if message.is::<ActionBarSnapshot>() {
             spells.set_bar(&decode::<ActionBarSnapshot>(message)?.slots);
         } else if message.is::<SpellCooldownUpdate>() {
-            spells.apply_cooldown(&decode(message)?);
+            let update = decode(message)?;
+            spells.apply_cooldown(&update);
+            output.push(AccountEvent::ToyCooldown(update));
         } else if message.is::<SpellChargesUpdate>() {
             spells.apply_charges(&decode(message)?);
         } else if message.is::<CastFailed>() {
@@ -1886,6 +1914,10 @@ fn quest_message(
         return Ok(Err(message));
     }))
 }
+
+#[cfg(test)]
+#[path = "account_toys_tests.rs"]
+mod toys_tests;
 
 #[cfg(test)]
 #[path = "account_dungeonclient_tests.rs"]

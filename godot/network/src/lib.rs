@@ -297,6 +297,8 @@ impl NetworkBridge {
             // Unit tooltip data and the account's appearance collection (unit-tooltip.md).
             .receive::<protocol::CreatureTooltip>()
             .receive::<protocol::AppearanceCollectionUpdate>()
+            .receive::<protocol::ToyCollectionUpdate>()
+            .receive::<protocol::ToyResult>()
             // Bank and guild bank contents, logs and refusals (bank-frame.md).
             .receive::<protocol::BankContents>()
             .receive::<protocol::BankFailed>()

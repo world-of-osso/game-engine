@@ -31,6 +31,8 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
+- [Native Toy Box](systems/toy-box.md) — Retail journal, unresolved-name ItemID labels, both-skin search/progress/desaturation; master-protocol private live learning/favourite/cast/bar/relog proof and inspected26 v2 captures. Transform-model coverage remains separate.
+
 - [Extracted-only assets](systems/shipped-assets.md) — P1 startup/CASC policy, detached legacy-miss completion and cold-process fixture boundaries; complete closure and deployment remain later phases.
 
 - [Native HUD edit mode](systems/native-hud-edit-mode.md) — authenticated account/realm layouts, account-wide optional-mover checkboxes, shared mover registry, draft/save/autosave-on-exit, authored-bounds projection, Retail-style label/manager clearance, 19-default/21-enabled offline inventory and native mouse/relog fixture.

@@ -99,6 +99,8 @@ mod terrain;
 mod tooltip_sources;
 mod tooltip_units;
 mod tooltips;
+mod toybox;
+mod toybox_snapshot;
 mod trade;
 mod trainer;
 mod trainer_preview;
@@ -222,6 +224,7 @@ pub struct GameClient {
     game_menu_ui: Option<Gd<ui::RegistryUi>>,
     world_map: world_map::WorldMap,
     flight_map: flight_map::FlightMap,
+    toybox: toybox::ToyJournal,
     minimap: minimap::Minimap,
     objective_tracker: objective_tracker::ObjectiveTracker,
     quests: quests::QuestHud,
@@ -373,6 +376,7 @@ impl INode3D for GameClient {
             game_menu_ui: None,
             world_map: world_map::WorldMap::default(),
             flight_map: flight_map::FlightMap::default(),
+            toybox: toybox::ToyJournal::default(),
             minimap: minimap::Minimap::new(&data_root),
             objective_tracker: objective_tracker::ObjectiveTracker::default(),
             quests: quests::QuestHud::default(),
@@ -486,7 +490,8 @@ impl INode3D for GameClient {
                 return;
             }
         }
-        if self.flight_map_pointer(&event)
+        if self.toybox_pointer(&event)
+            || self.flight_map_pointer(&event)
             || self.world_map_pointer(&event)
             || self.minimap_pointer(&event)
             || self.spellbook_pointer(&event)
@@ -1103,6 +1108,12 @@ impl GameClient {
         self.spells_snapshot()
     }
 
+    /// Read-only Toy Box and persisted toy-slot state for live process fixtures.
+    #[func]
+    fn toybox_state(&self) -> VarDictionary {
+        self.toybox_snapshot()
+    }
+
     /// The pet bar: pet, command/react states, buttons, checked states, Move To targeting
     /// and the `PetAction`s sent.
     #[func]
@@ -1316,6 +1327,7 @@ impl GameClient {
             &mut self.game_menu_ui,
             &mut self.launcher.ui,
             &mut self.world_map.ui,
+            &mut self.toybox.ui,
         ] {
             if let Some(ui) = ui {
                 visit(ui)?;
@@ -1901,6 +1913,7 @@ impl GameClient {
             ("Auction", |c, _| c.update_auction()),
             ("Chat", |c, d| c.update_chat(d)),
             ("Flight map", |c, _| c.update_flight_map()),
+            ("Toy Box", |c, d| c.update_toybox(d)),
             ("Encounter", |c, d| c.update_encounter(d)),
             ("World map", |c, _| c.update_world_map()),
             ("Minimap", |c, _| c.update_minimap()),
@@ -2117,6 +2130,9 @@ impl GameClient {
             },
             AccountEvent::CreatureTooltip(tooltip) => self.tooltips.receive_creature(tooltip),
             AccountEvent::Appearances(update) => self.tooltips.receive_appearances(update),
+            AccountEvent::Toys(update) => self.toybox.model.receive(update.toys),
+            AccountEvent::ToyResult(result) => self.receive_toy_result(result)?,
+            AccountEvent::ToyCooldown(update) => self.toybox.model.cooldowns.apply(&update),
         }
         Ok(())
     }

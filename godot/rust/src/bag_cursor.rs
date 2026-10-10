@@ -123,6 +123,9 @@ impl GameClient {
         at: Option<Vector2>,
     ) -> Result<(), FrameError> {
         self.bags.cursor.picked_at = None;
+        if self.toybox_cursor_press(owner, action, click, at)? {
+            return Ok(());
+        }
         if self.spell_cursor_press(owner, action, click, at)? {
             return Ok(());
         }
@@ -156,6 +159,9 @@ impl GameClient {
         at: Vector2,
         physical_at: Vector2,
     ) -> Result<(), FrameError> {
+        if self.finish_toy_drag(owner, at, physical_at)? {
+            return Ok(());
+        }
         if self.finish_spell_drag(owner, at, physical_at)? {
             return Ok(());
         }
@@ -388,6 +394,7 @@ impl GameClient {
         if self.bags.cursor.ui.is_none()
             && self.bags.cursor.item.is_empty()
             && self.bags.cursor.spell_drag.is_none()
+            && self.toybox.drag.is_none()
             && self.bags.cursor.split.is_none()
         {
             return Ok(());
@@ -441,6 +448,7 @@ impl GameClient {
                     .spell_drag
                     .as_ref()
                     .map(|drag| drag.icon_fdid)
+                    .or_else(|| self.toybox.drag.as_ref().map(|drag| drag.icon_fdid))
                     .or_else(|| self.bags.cursor.item.icon_fdid()),
                 position: [pointer.x, pointer.y],
             },
