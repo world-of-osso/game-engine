@@ -1,3 +1,7 @@
+## 2026-10-09 — All40 talent views and shipped icon recapture
+
+[All-spec talent recapture](systems/talents.md#all-spec-shipped-icon-recapture-2026-10-09) records rank-bearing currency projection, retained undefined Monk entries and authentic icon proof at `eaae560b9`. Targeted11/11 and native build pass; one offline Forever client exits0, captures40/40 and each PNG is individually FFmpeg-downscaled/inspected before PNG-only publication. Retribution137/137; total5825/5829 entry slots, three explicit undefined Monk IDs/four slots. [Contract](../specs/talents.md#offline-classspec-evidence) and diagnostics matrix retain unsupported auxiliary presentation and existing hero/layout limits; no gameplay/full-parity claim.
+
 ## 2026-10-09 — Edit Mode labels, autosave and manager padding
 
 [Contract](../specs/hud-edit-mode.md#labelautosavepadding-acceptance-2026-10-09) records separate fixes `fac75ebb1` / `914b196b1` / `533213fe0`, three observed RED boundaries, locked 30/30 GREEN and the final native build. Modern/Forever Player Frame labels have no backing band; both manager rows leave Retail insets and Reset Selected fits. Full 1920×1080 PNGs and manager crops were inspected through ffmpeg downscales. Autosave uses existing Save/preset-copy semantics by explicit user decision; CPU file-reload proof, not fresh native relog. [System](systems/native-hud-edit-mode.md) owns wiring. Party/raid overlap and tracker geometry remain unchanged; owned runtime stopped.
