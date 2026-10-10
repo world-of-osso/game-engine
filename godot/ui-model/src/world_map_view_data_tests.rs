@@ -64,7 +64,14 @@ fn quest(title: &str, completed: bool, pois: Vec<QuestPoiSnapshot>) -> QuestEntr
         zone: String::new(),
         completed,
         repeatability: QuestRepeatability::Normal,
-        objectives: Vec::new(),
+        objectives: vec![shared::protocol::QuestObjectiveSnapshot {
+            text: "Objective".into(),
+            current: 0,
+            required: 1,
+            completed: false,
+            kind: shared::protocol::QuestObjectiveKind::Monster,
+            object_id: 49871,
+        }],
         level: 1,
         sort_id: 12,
         objectives_text: String::new(),
@@ -358,4 +365,25 @@ fn doomwalkers_vignette_pins_tanaris_and_kalimdor() {
     let zone_only = [doomwalker(true)];
     assert_eq!(vignette_pins_on(data, 71, &zone_only).len(), 1);
     assert!(vignette_pins_on(data, 12, &zone_only).is_empty());
+}
+
+#[test]
+fn completed_objective_does_not_keep_an_objective_pin() {
+    let mut entry = quest("Beating Them Back!", false, vec![poi(0, [-8894.0, -138.0])]);
+    entry.quest_id = 28766;
+    entry.objectives = vec![shared::protocol::QuestObjectiveSnapshot {
+        text: "Blackrock Worg slain".into(),
+        current: 6,
+        required: 6,
+        completed: true,
+        kind: shared::protocol::QuestObjectiveKind::Monster,
+        object_id: 49871,
+    }];
+    let view = state_with_quests(data(), 37, &player(0.0), &[entry]);
+    assert!(
+        !view
+            .pins
+            .iter()
+            .any(|p| p.pin_type == MapPinType::QuestObjective)
+    );
 }

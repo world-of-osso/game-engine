@@ -261,6 +261,7 @@ pub mod quest_actions;
 pub mod quest_frame_component;
 #[path = "ui/screens/quest_log_frame_component.rs"]
 pub mod quest_log_frame_component;
+pub mod quest_poi;
 #[path = "game/quest_runtime.rs"]
 pub mod quest_runtime;
 #[path = "ui/screens/quest_scroll.rs"]
