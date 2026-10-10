@@ -14,6 +14,13 @@ Wild PvE encounters use server-authoritative snapshots and actions, rendered thr
 - [x] Ordinary world HUD/nameplates cannot cover the active battle HUD; closing a battle restores each surviving layer's prior visibility.
 - [ ] Disconnect/reset restores surviving layers (implemented, not separately live-proved).
 
+## Effect HUD state
+- Weather has a centered Retail frame with authored background, icon, name and remaining turns.
+- Each team pad and active pet separates buffs/debuffs into Retail aura rows; hostile icons use red borders. Negative duration hides the label. Team-pad state survives pet swaps without duplicating onto pet rows.
+- Ability overlays display the greater of cooldown and lockdown; other authoritative unusable states dim the icon without inventing a duration.
+- A dedicated temporary Pet Battle combat log retains successive rounds and terminal messages, with history navigation. Floating damage/heal remains event-based, independent of net HP deltas.
+- Both skins use the same frames and geometry. Server-gated ability-lockdown handlers remain out of scope; no client simulation fabricates their turns.
+
 ## How it works
 - [Battle-pet journal and assets](../wiki/systems/battle-pets.md).
 - [Server turn catalog](../../../game-server/docs/wiki/systems/pet-battle-engine.md).
