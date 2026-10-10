@@ -26,6 +26,10 @@ fn registry(view: TalentView) -> FrameRegistry {
     });
     let mut registry = FrameRegistry::new(1920.0, 1080.0);
     Screen::new(spellbook_frame_screen).sync(&context, &mut registry);
+    game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+        context.get::<SpellbookFrameState>().unwrap(),
+        &mut registry,
+    );
     registry
 }
 fn rect(registry: &FrameRegistry, name: &str) -> [f32; 4] {

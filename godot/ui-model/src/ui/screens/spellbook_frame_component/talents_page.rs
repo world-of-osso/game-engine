@@ -242,7 +242,7 @@ fn rank_badge(node: &TalentNode, view: &TalentView, ranks: &str, scale: f32) -> 
     };
     rsx! {fontstring {name:{DynName(format!("TalentNode{}Ranks",node.id))},text:ranks,
         width:{width*scale},height:{height*scale},font:GameFont::ArialNarrow,font_size:{font_size*scale},
-        justify_v:"BOTTOM",font_color:color,outline:"THICKOUTLINE",shadow_color:"0.0,0.0,0.0,1.0",shadow_offset:"1.0,-1.0",
+        font_color:color,outline:"THICKOUTLINE",shadow_color:"0.0,0.0,0.0,1.0",shadow_offset:"1.0,-1.0",
         justify_h:"CENTER",pos_type:"absolute",pos_x:{x*scale},pos_y:{y*scale},
     }}
 }
@@ -403,6 +403,14 @@ pub(super) fn apply_talents_postsetup(state: &SpellbookFrameState, registry: &mu
         return;
     };
     for node in view.nodes() {
+        // RSX has no justify_v attribute; set the actual FontString property.
+        let rank_name = format!("TalentNode{}Ranks", node.id);
+        if let Some(id) = registry.get_by_name(&rank_name)
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::FontString(text)) = frame.widget_data.as_mut()
+        {
+            text.justify_v = ui_toolkit::widgets::font_string::JustifyV::Bottom;
+        }
         for entry in &node.entries {
             let name = icon_name(node, entry.id);
             if let Some(id) = registry.get_by_name(&name)
