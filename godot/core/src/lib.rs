@@ -88,6 +88,7 @@ pub mod m2_particles;
 pub mod m2_texture_composite_data;
 pub mod map_catalog;
 pub mod minimap_data;
+pub mod model_asset_index;
 #[path = "movement_animation_data.rs"]
 pub mod movement_animation_data;
 #[path = "movement_input_data.rs"]
