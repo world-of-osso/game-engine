@@ -1458,6 +1458,18 @@ impl RegistryUi {
         )
     }
 
+    pub fn show_wild_pet_battle(
+        &mut self,
+        state: game_engine_ui_model::wild_pet_battle::WildBattleView,
+    ) -> Result<(), String> {
+        self.toplevel = true;
+        self.show_viewport_screen(
+            state,
+            game_engine_ui_model::wild_pet_battle::wild_battle_screen,
+            ScreenPostsetup::None,
+        )
+    }
+
     pub fn show_pet_journal(
         &mut self,
         state: game_engine_ui_model::pet_journal::PetJournalView,
