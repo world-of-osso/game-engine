@@ -2059,7 +2059,7 @@ impl GameClient {
                 self.close_professions();
                 self.close_trainer();
                 self.close_pet_journal();
-                self.pet_journal.view = Default::default();
+                self.pet_journal = Default::default();
                 self.professions.book = Default::default();
                 self.professions.error.clear();
                 self.reset_world()?;
