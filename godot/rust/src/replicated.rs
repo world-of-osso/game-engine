@@ -15,12 +15,19 @@ pub(crate) fn is_unit(unit: Unit) -> bool {
     unit.has::<Player>() || unit.has::<Npc>()
 }
 
-/// `UnitIsUnit("pet", unit)`: the replicated unit whose `SummonedBy` is `player`.
+/// The controlled pet frame must not bind a non-combat companion's SummonedBy.
 pub(crate) fn local_pet(replica: &Replica, player: u64) -> Option<u64> {
     replica
         .units()
-        .find(|unit| unit.summoned_by() == Some(player))
+        .find(|unit| unit.summoned_by() == Some(player) && !is_non_combat_companion(*unit))
         .map(|unit| unit.server_id)
+}
+
+fn is_non_combat_companion(unit: Unit) -> bool {
+    // Companion minions are non-attackable and immune to both players and NPCs.
+    const COMPANION_FLAGS: u32 = 0x2 | 0x100 | 0x200;
+    unit.unit_flags()
+        .is_some_and(|flags| flags & COMPANION_FLAGS == COMPANION_FLAGS)
 }
 
 pub(crate) trait UnitFields<'a> {

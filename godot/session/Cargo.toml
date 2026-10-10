@@ -5,4 +5,4 @@ edition = "2024"
 rust-version = "1.95"
 
 [dependencies]
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "4bcf874" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "91ad8b1577854e18805383908f34e1a8cb49f1fb" }
