@@ -232,7 +232,7 @@ fn rank_badge(node: &TalentNode, view: &TalentView, ranks: &str, scale: f32) -> 
     let (x, y, width, height, font_size) = if is_capstone(node) {
         (8.0, 42.0, 52.0, 32.0, 22.0)
     } else {
-        (16.0, 10.0, 36.0, 24.0, 16.0)
+        (13.0, 12.0, 36.0, 24.0, 16.0)
     };
     let color = if view.node_rank(node) > 0 {
         TAB_TEXT
@@ -365,10 +365,11 @@ fn node_border(node: &TalentNode, view: &TalentView, scale: f32) -> Element {
         atlas: (1.0, 1.0),
         rect: (region.left, region.right, region.top, region.bottom),
     };
-    // SizingAdjustment sets StateBorder to the button size; atlas pixel size
-    // is not its draw size (apex's 84px source draws inside a 64px button).
-    let width = node_size(node);
-    let height = node_size(node);
+    // UpdateStateBorder uses atlas draw dimensions, including override sizes.
+    // Ordinary borders override to40; a capstone keeps its padded84/80px art
+    // around the64px hit target. Resampling that art to64 shrinks its rim.
+    let width = region.width;
+    let height = region.height;
     super::art(
         format!("TalentNode{}Border", node.id),
         &art,

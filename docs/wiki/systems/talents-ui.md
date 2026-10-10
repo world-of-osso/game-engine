@@ -1,5 +1,7 @@
 # Talents UI (trait tree window)
 
+Historical Bevy implementation, retired2026-10-02. Current native layout, art and behavior: [Talents](talents.md) and its [contract](../../specs/talents.md). Sizes, source paths and gaps below describe the retired client, not current acceptance.
+
 Retail-style talent window `PlayerSpellsFrame`, driven by the server trait config messages. Wide window class of the [in-game UI plan](../../plans/2026-09-23-ingame-ui.md): centered, 1000×680, top y=104. The server model and validation rules are in game-server `docs/wiki/systems/talents.md`. The client is display-only: the server validates every commit.
 
 ## Code
