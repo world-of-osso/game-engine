@@ -3081,3 +3081,6 @@ Recorded pure override/book cooldown and destination tests, both-skin private Bl
 ## 2026-10-10 — Override live acceptance resumed on ca6b249
 
 Server learned-spell publication unblocked both-skin aura proof. Fixed approved native book press routing; click/hover, book→bar drag, real aura332 apply/restore and ground destinations passed. Current native check passed after bounded cached KTX artifact seeding. [Coverage and limits](systems/spell-overrides-teleports.md#scoped-acceptance-2026-10-10).
+## 2026-10-10 — Terrain and runtime-path asset closure
+
+[Offline closure continuation](systems/offline-asset-closure.md#closure-continuation--verified-2026-10-10) records parsed terrain/liquid/ground-detail identities, current-runtime not-needed evidence, SQLite/local-cache path precedence and direct Map/TXID/MDID references; local-CASC fixed points, receipt/size proof and remaining acceptance boundaries. No data committed or no-install gameplay certification.
