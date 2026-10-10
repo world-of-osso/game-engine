@@ -394,6 +394,16 @@ impl WorldModels {
         }
     }
 
+    /// Offline native preview follows the same source-selected worker/build path as world units.
+    pub(crate) fn load_display_preview(&self, display_id: u32) -> Result<Gd<Node3D>, String> {
+        let parts = self.catalogs.load_creature(
+            display_id,
+            &EquipmentAppearance::default(),
+            SheathState::Unarmed,
+        )?;
+        self.build_visual(parts, None)
+    }
+
     /// Native player display from the same build-pinned ChrModel rows as unit voices.
     pub fn player_native_display(&mut self, player: &Player) -> Result<u32, String> {
         let dir = self.catalogs.data_root.join("db2/12.1.0.69933");
