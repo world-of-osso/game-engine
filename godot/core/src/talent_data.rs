@@ -452,7 +452,11 @@ fn infer_main_sides(
 ) -> Result<BTreeMap<u32, u32>, String> {
     let main: BTreeSet<_> = nodes
         .iter()
-        .filter(|n| subtrees[&n.id] == 0 && n.node_type != SUBTREE_SELECTION)
+        .filter(|n| {
+            subtrees[&n.id] == 0
+                && n.node_type != SUBTREE_SELECTION
+                && n.entries.iter().any(|entry| entry.max_ranks != 0)
+        })
         .map(|n| n.id)
         .collect();
     let mut sides = BTreeMap::new();
