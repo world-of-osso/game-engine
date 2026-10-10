@@ -173,13 +173,13 @@ pub const MICRO_BUTTONS: [MicroButton; 12] = [
         art: Some("Groupfinder"),
         unavailable: Some(SYSTEM_DISABLED),
     },
-    // No CollectionsJournal natively; the Lua's only disabled branch is the kiosk one.
+    // Retail CollectionsJournal; native Toy Box is the implemented journal tab.
     MicroButton {
         name: "CollectionsMicroButton",
         title: "Warband Collections",
         binding: None,
         art: Some("Collections"),
-        unavailable: Some(SYSTEM_DISABLED),
+        unavailable: None,
     },
     // Not `AdventureGuideUtil.IsAvailable()`: `FEATURE_NOT_YET_AVAILABLE`.
     MicroButton {

@@ -86,6 +86,9 @@ impl GameClient {
         self.spells.pushed[bar as usize][index] = PUSH_SECS;
         match self.account.spells.slot(self.bar_slot(bar, index)) {
             Some(ActionRef::Spell(spell_id)) => self.cast_spell(spell_id),
+            Some(ActionRef::Item(item_id)) if self.toybox.model.toy(item_id).is_some() => {
+                self.use_toy(item_id)
+            }
             Some(ActionRef::Item(item_id)) => self.use_action_item(item_id),
             _ => Ok(()),
         }
@@ -131,6 +134,18 @@ impl GameClient {
         let slot = self.bar_slot(bar, index);
         let action = self.account.spells.slot(slot);
         if let Some(ActionRef::Item(item_id)) = action {
+            if let Some(toy) = self.toybox.model.toy(item_id) {
+                let icon = toy.icon_file_data_id;
+                if let Some(spell) = toy.spell_id {
+                    button.cooldown_fraction = self.toybox.model.cooldowns.fraction(spell);
+                    let remaining = self.toybox.model.cooldowns.remaining(spell);
+                    if remaining > 0.0 {
+                        button.cooldown_text = cooldown_text(remaining);
+                    }
+                }
+                button.icon_fdid = self.drawable_fdid(icon);
+                return button;
+            }
             let icon = self
                 .merchant
                 .session
