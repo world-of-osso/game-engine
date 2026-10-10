@@ -23,7 +23,7 @@ use crate::{
         appearance::{NpcAppearances, PreparedNpc},
         creature::{
             CreatureGear, CreatureModelParts, build_creature_model, insert_decoded_textures,
-            local_resolver, prepare_creature_model,
+            prepare_creature_model,
         },
         equipment::place_equipment,
         player::{PlayerParts, build_player_model, prepare_player_parts},
@@ -164,7 +164,17 @@ impl VisualParts {
         models
             .into_iter()
             .filter_map(|model| {
-                let cached = crate::assets::creature::cached_model(data_root, model.fdid)?;
+                let cached = match crate::assets::creature::cached_model(
+                    data_root,
+                    model.product,
+                    model.fdid,
+                ) {
+                    Ok(cached) => cached?,
+                    Err(error) => {
+                        godot_error!("Equipment particle model: {error}");
+                        return None;
+                    }
+                };
                 let particles =
                     crate::particles::ModelParticles::from_model(model.fdid, &cached.model)?;
                 Some((model.slot, particles))
@@ -250,6 +260,7 @@ impl VisualCatalogs {
         let npc = self.appearances.lock().expect("NPC appearances").prepare(
             &self.data_root,
             display_id,
+            display.source_product,
             |appearance| {
                 if appearance.baked_texture_fdid.is_some() {
                     load_baked_equipment_appearance(
@@ -275,8 +286,7 @@ impl VisualCatalogs {
                 .map_or_else(Vec::new, |npc| npc.armor.runtime_models.clone()),
             items: self.virtual_item_models(display_id, items, sheath, race, sex)?,
         };
-        let resolver = local_resolver(&self.data_root);
-        let model = prepare_creature_model(&resolver, &self.data_root, &display, &gear)?;
+        let model = prepare_creature_model(&self.data_root, &display, &gear)?;
         Ok(VisualParts::Creature {
             display_id,
             display,

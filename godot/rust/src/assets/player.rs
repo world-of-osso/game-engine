@@ -14,6 +14,7 @@ use crate::{
 };
 use game_engine_core::{
     asset::m2_texture,
+    asset_product::{AssetProduct, AssetTexture},
     char_texture_data::CharTextureData,
     customization_data::{ChoiceSkinnedModel, CustomizationChoice, CustomizationDb},
     npc_appearance_assets::{load_compositor, load_customization_db},
@@ -24,14 +25,17 @@ use osso_asset_resolver::CascListfileResolver;
 use shared::components::{CharacterAppearance, EquipmentAppearance, Player};
 
 use super::{
-    appearance::{AppearanceParts, PreparedAppearance, load_appearance_texture},
+    appearance::{AppearanceParts, PreparedAppearance, load_authored_appearance_texture},
     build_model,
     creature::{
-        CachedModel, DecodedTextures, cache_model_textures, decode_new_textures,
-        insert_decoded_textures, load_model_files, local_resolver, model_asset_root,
+        CachedModel, DecodedTextures, authored_model_resolver, cache_model_textures,
+        decode_new_textures, insert_decoded_textures, load_model_files, model_asset_root,
     },
-    equipment::{attach_equipment, attach_skinned_models},
+    equipment::{attach_equipment, attach_skinned_models, prepare_equipment_model},
 };
+
+#[cfg(test)]
+use super::appearance::load_appearance_texture;
 
 type TexturePixels = (Vec<u8>, u32, u32);
 
@@ -117,23 +121,60 @@ fn project_player_geosets(
         .collect()
 }
 
+#[cfg(test)]
 fn compose_player_pixels(
     compositor: &CharTextureData,
     choices: &PlayerChoices,
     item_textures: &[(u8, u32)],
     layout_id: u32,
-    load: impl FnMut(u32) -> Result<TexturePixels, String>,
+    mut load: impl FnMut(u32) -> Result<TexturePixels, String>,
+) -> Result<HashMap<u32, TexturePixels>, String> {
+    let items: Vec<_> = item_textures
+        .iter()
+        .map(|&(section, fdid)| {
+            (
+                section,
+                AssetTexture {
+                    product: AssetProduct::Retail,
+                    fdid,
+                },
+            )
+        })
+        .collect();
+    compose_product_player_pixels(
+        compositor,
+        choices,
+        AssetProduct::Retail,
+        &items,
+        layout_id,
+        |texture| load(texture.fdid),
+    )
+}
+
+fn compose_product_player_pixels(
+    compositor: &CharTextureData,
+    choices: &PlayerChoices,
+    product: AssetProduct,
+    item_textures: &[(u8, AssetTexture)],
+    layout_id: u32,
+    load: impl FnMut(AssetTexture) -> Result<TexturePixels, String>,
 ) -> Result<HashMap<u32, TexturePixels>, String> {
     let default_fdid = default_player_body_fdid(compositor, layout_id)?;
-    let decoded =
-        load_required_player_pixels(&choices.materials, item_textures, default_fdid, load)?;
+    let decoded = load_required_player_pixels(
+        &choices.materials,
+        product,
+        item_textures,
+        default_fdid,
+        load,
+    )?;
     let composed = compositor
-        .composite_model_textures_with(
+        .composite_model_textures_with_item_loader(
             &choices.materials,
             item_textures,
             layout_id,
             default_fdid,
-            |fdid| decoded.get(&fdid).cloned(),
+            |fdid| decoded.get(&AssetTexture { product, fdid }).cloned(),
+            |texture| decoded.get(&texture).cloned(),
         )
         .ok_or_else(|| format!("cannot composite player texture layout {layout_id}"))?;
     let mut textures = HashMap::from([(1, composed.body)]);
@@ -150,23 +191,6 @@ fn compose_player_pixels(
     Ok(textures)
 }
 
-fn compose_product_player_pixels(
-    compositor: &CharTextureData,
-    choices: &PlayerChoices,
-    product: game_engine_core::asset_product::AssetProduct,
-    item_textures: &[(u8, game_engine_core::asset_product::AssetTexture)],
-    layout_id: u32,
-    mut load: impl FnMut(game_engine_core::asset_product::AssetTexture) -> Result<TexturePixels, String>,
-) -> Result<HashMap<u32, TexturePixels>, String> {
-    let items: Vec<_> = item_textures
-        .iter()
-        .map(|(section, texture)| (*section, texture.fdid))
-        .collect();
-    compose_player_pixels(compositor, choices, &items, layout_id, |fdid| {
-        load(game_engine_core::asset_product::AssetTexture { product, fdid })
-    })
-}
-
 fn default_player_body_fdid(compositor: &CharTextureData, layout_id: u32) -> Result<u32, String> {
     let layout = compositor
         .layout(layout_id)
@@ -177,15 +201,19 @@ fn default_player_body_fdid(compositor: &CharTextureData, layout_id: u32) -> Res
 
 fn load_required_player_pixels(
     materials: &[(u16, u32)],
-    item_textures: &[(u8, u32)],
+    product: AssetProduct,
+    item_textures: &[(u8, AssetTexture)],
     default_fdid: u32,
-    mut load: impl FnMut(u32) -> Result<TexturePixels, String>,
-) -> Result<HashMap<u32, TexturePixels>, String> {
-    let required: HashSet<u32> = materials
+    mut load: impl FnMut(AssetTexture) -> Result<TexturePixels, String>,
+) -> Result<HashMap<AssetTexture, TexturePixels>, String> {
+    let required: HashSet<AssetTexture> = materials
         .iter()
-        .map(|(_, fdid)| *fdid)
-        .chain(item_textures.iter().map(|(_, fdid)| *fdid))
-        .chain(std::iter::once(default_fdid))
+        .map(|&(_, fdid)| AssetTexture { product, fdid })
+        .chain(item_textures.iter().map(|(_, texture)| *texture))
+        .chain(std::iter::once(AssetTexture {
+            product,
+            fdid: default_fdid,
+        }))
         .collect();
     required
         .into_iter()
@@ -236,28 +264,27 @@ pub(crate) fn prepare_player_parts(
     player: &Player,
     equipment: &EquipmentAppearance,
 ) -> Result<PlayerParts, String> {
-    let resolver = local_resolver(data_root);
-    let model = load_player_body(&resolver, data_root, player)?;
+    let (resolver, model) = load_player_body(data_root, player)?;
     let equipment = resolve_equipment_appearance(
         equipment,
         &OutfitData::load(data_root),
         player.race,
         player.appearance.sex,
     )?;
-    let appearance = prepare_player_appearance(&resolver, data_root, player, &equipment)?;
+    let appearance = prepare_player_appearance(data_root, player, &equipment)?;
     let fdids = cache_model_textures(&resolver, data_root, &[0; 3], &model.model)?;
     let mut textures = decode_new_textures(model_asset_root(&model)?, &fdids)?;
-    let items = equipment
-        .runtime_models
+    for item in &equipment.runtime_models {
+        textures.extend(prepare_equipment_model(data_root, item)?);
+    }
+    let product = game_engine_core::player_model_data::player_asset_product(player.race);
+    for fdid in appearance
+        .skinned_models
         .iter()
-        .map(|item| (item.fdid, item.skin_fdids))
-        .chain(
-            appearance
-                .skinned_models
-                .iter()
-                .map(|model| (model.collection_fdid, [0; 3])),
-        );
-    for (fdid, skin_fdids) in items {
+        .map(|model| model.collection_fdid)
+    {
+        let resolver = authored_model_resolver(data_root, product, fdid)?;
+        let skin_fdids = [0; 3];
         // A model that cannot load is reported when it is attached.
         if let Ok(parts) = load_model_files(&resolver, data_root, fdid)
             && let Ok(item_fdids) =
@@ -281,7 +308,7 @@ pub(crate) fn build_player_model(
     data_root: &Path,
     parts: PlayerParts,
 ) -> Result<Gd<Node3D>, String> {
-    let resolver = local_resolver(data_root);
+    let product = parts.appearance.product;
     let span = crate::profile::span(|| "player.insert_textures".to_owned());
     insert_decoded_textures(parts.textures)?;
     drop(span);
@@ -303,7 +330,6 @@ pub(crate) fn build_player_model(
     let attached = attach_equipment(
         &mut model,
         parsed,
-        &resolver,
         data_root,
         &parts.equipment.runtime_models,
     )
@@ -311,10 +337,10 @@ pub(crate) fn build_player_model(
         attach_skinned_models(
             &mut model,
             parsed,
-            &resolver,
             data_root,
             &prepared.skinned_appearance,
             &prepared.skinned_models,
+            product,
         )
     });
     if let Err(error) = attached {
@@ -334,15 +360,17 @@ pub(crate) fn load_player_model(
 }
 
 fn load_player_body(
-    resolver: &CascListfileResolver,
     data_root: &Path,
     player: &Player,
-) -> Result<Arc<CachedModel>, String> {
+) -> Result<(CascListfileResolver, Arc<CachedModel>), String> {
     let race = player.race;
     let sex = player.appearance.sex;
     let fdid = player_model_fdid(data_root, race, sex)?
         .ok_or_else(|| format!("no player model for race {race} sex {sex}"))?;
-    load_model_files(resolver, data_root, fdid)
+    let product = game_engine_core::player_model_data::player_asset_product(race);
+    let resolver = authored_model_resolver(data_root, product, fdid)?;
+    let model = load_model_files(&resolver, data_root, fdid)?;
+    Ok((resolver, model))
 }
 
 /// The race/sex body model FDID (`player_model_data`); the table is read once.
@@ -364,6 +392,7 @@ struct PreparedPlayer {
 
 /// A `PreparedPlayer` with its textures still pixels, so a worker can prepare it.
 struct PlayerAppearanceParts {
+    product: AssetProduct,
     body: AppearanceParts,
     /// The skinned models' geosets: each model's (type, ID).
     skinned_geosets: Vec<(u16, u16)>,
@@ -396,7 +425,6 @@ impl PlayerAppearanceParts {
 }
 
 fn prepare_player_appearance(
-    resolver: &CascListfileResolver,
     data_root: &Path,
     player: &Player,
     equipment: &ResolvedEquipmentAppearance,
@@ -418,25 +446,19 @@ fn prepare_player_appearance(
         .layout_id(race, sex)
         .ok_or_else(|| format!("missing player texture layout for race {race} sex {sex}"))?;
     let compositor = load_compositor(data_root)?;
-    let mut seen = HashSet::new();
-    let item_textures: Vec<_> = equipment
-        .outfit
-        .item_textures
-        .iter()
-        .copied()
-        .filter(|texture| seen.insert(*texture))
-        .collect();
-    let mut pixels = compose_player_pixels(
+    let product = game_engine_core::player_model_data::player_asset_product(race);
+    let mut pixels = compose_product_player_pixels(
         &compositor,
         &selected,
-        &item_textures,
+        product,
+        &equipment.body_texture_assets,
         layout_id,
-        |texture_fdid| load_appearance_texture(resolver, data_root, texture_fdid, "player"),
+        |texture| load_authored_appearance_texture(data_root, texture, "player"),
     )?;
-    if let Some(fdid) = equipment.merged_cape_texture_fdid {
+    if let Some(texture) = equipment.merged_cape_texture {
         pixels.insert(
             2,
-            load_appearance_texture(resolver, data_root, fdid, "player cape")?,
+            load_authored_appearance_texture(data_root, texture, "player cape")?,
         );
     }
     compose_separate_texture_types(
@@ -444,9 +466,12 @@ fn prepare_player_appearance(
         &selected.materials,
         layout_id,
         &mut pixels,
-        |fdid| load_appearance_texture(resolver, data_root, fdid, "player"),
+        |fdid| {
+            load_authored_appearance_texture(data_root, AssetTexture { product, fdid }, "player")
+        },
     )?;
     Ok(PlayerAppearanceParts {
+        product,
         body: AppearanceParts {
             source: "player",
             textures: super::appearance::mip_chains(pixels),

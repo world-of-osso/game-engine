@@ -27,10 +27,10 @@ Option 1 is approved for the full referenced render-asset chain, preserving exis
 
 ## Implementation inventory
 
-- `godot/core/src/game/creatures/creature_display_data.rs`: display rows retain `source_product` through import/SQLite lookup, with Retail collision precedence. This is metadata ownership, not an asset-build receipt; runtime identity selection remains pending.
+- `godot/core/src/game/creatures/creature_display_data.rs`: display rows retain `source_product` through import/SQLite lookup, with Retail collision precedence. Runtime creature requests select that product's actual-build receipt.
 - `scripts/import_model_asset_chains.py`: publishes local-CASC staged chains from frozen actual-build provenance and its resolution snapshot, verifying every FDID's content key; writes scoped companions and a per-asset index, keeping metadata hashes separate. Publication must survive install upgrades/removal without re-selecting an active build.
 - `cache/outfit_links-v4.sqlite`: source product retained separately for each selected display/model/material resource group. Existing Retail groups keep their rows and ownership; owned item catalogs retain their explicit source.
-- `godot/rust/src/world_models.rs`, `assets/creature.rs`: model requests, file paths and parsed cache.
+- `godot/rust/src/world_models.rs`, `assets/{creature,player,equipment,appearance}.rs`: source-qualified model requests, parsed/decode/publication keys and replacement textures. Equipment models, column materials, explicit replacements, capes and body overlays retain independently selected products; the compositor keys item pixels by `(product, FDID)` separately from customization/default pixels.
 - Sibling `asset-resolver/src/{lib.rs,paths.rs,casc_resolver.rs}`: resolver configuration, cache-hit policy and CASC state.
 
 ## Tests asserting this spec
