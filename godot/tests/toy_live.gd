@@ -2,7 +2,7 @@ extends "res://tests/toy_objects_live.gd"
 # Real Toy Box pointer input; isolated private realm, no injected casts or visuals.
 const SAMPLES := [
 	[45011, 62736, "Stormwind Banner"],
-	[33223, 42784, "Fishing Chair"],
+	[33223, 42766, "Fishing Chair"],
 	[40768, 54710, "MOLL-E"],
 	[156871, 261981, "Spitzy"],
 	[165791, 286277, "Worn Cloak"],
@@ -57,11 +57,18 @@ func sample_toy(sample: Array) -> void:
 	var before: Dictionary = client.spell_visuals_state()
 	var start_ms := Time.get_ticks_msec()
 	var result := {"skin": skin, "item": item, "spell": spell, "disabled": button.get("disabled"), "before": before, "frames": []}
+	if item == 88580 and control("PlayerFrame") != null:
+		await click("PlayerFrame")
+	if item == 204818:
+		await tap(KEY_TAB)
 	await click("ToySpellButton1")
 	await tap(KEY_ESCAPE)
 	# Sample short-lived cast art and held attachments separately; preserve actual state.
 	for frame in range(7):
 		await create_timer(0.4 if frame < 3 else 1.0).timeout
+		if frame == 4 and item in [45011, 33223, 40768]:
+			var pos := actor.position
+			if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(pos.x + 3.0), str(-pos.z), str(pos.y)]): return
 		await RenderingServer.frame_post_draw
 		var image_path := OS.get_environment("TOYFX_SHOTS").path_join("%s-toy%d-%d.png" % [skin, item, frame])
 		if root.get_texture().get_image().save_png(image_path) != OK: fail("capture " + image_path); return
