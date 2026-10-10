@@ -7,10 +7,12 @@ legacy filenames and metadata build labels do NOT authenticate actual builds.
 """
 import argparse
 from collections import Counter, deque
+from contextlib import closing
 import hashlib
 import json
 from pathlib import Path
 import struct
+import sqlite3
 
 EXPANDABLE = {"adt", "m2", "wmo", "skel", "wdt"}
 DIRECTORIES = {"adt": "terrain", "wdt": "terrain", "wdl": "terrain", "blp": "textures", "blob": "textures", "ogg": "sounds", "mp3": "sounds", "wav": "sounds", "audio": "sounds"}
@@ -66,21 +68,48 @@ def string_at(data, offset):
 
 
 def read_listfile(path):
-    result = {}
+    # Preserve the candidate census, but reconstruct the runtime SQLite import:
+    # INSERT OR REPLACE has unique constraints on BOTH fdid and lower_path.
+    candidates, bindings, live_paths = {}, {}, {}
     with path.open(encoding="utf-8") as stream:
         for line in stream:
             fdid, logical = line.rstrip("\n").split(";", 1)
-            result[int(fdid)] = normalized(logical)
-    return result
+            fdid = int(fdid)
+            lower = logical.lower()
+            canonical = normalized(logical)
+            candidates[fdid] = lower if canonical == lower else canonical
+            previous_path = live_paths.pop(fdid, None)
+            if previous_path is not None:
+                bindings.pop(previous_path, None)
+            previous_id = bindings.pop(lower, None)
+            if previous_id is not None:
+                live_paths.pop(previous_id, None)
+            bindings[lower] = fdid
+            live_paths[fdid] = lower
+    return candidates, bindings
+
+
+def read_local_listfile(path):
+    by_fdid, by_path = {}, {}
+    with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)) as db:
+        db.execute("BEGIN")
+        for fdid, logical, lower in db.execute("SELECT fdid,path,lower_path FROM local_listfile_entries"):
+            by_fdid[fdid] = normalized(logical)
+            by_path[lower] = fdid
+    return by_fdid, by_path
 
 
 class Closure:
-    def __init__(self, data, paths, product, metadata_build):
+    def __init__(self, data, paths, product, metadata_build, runtime_paths=None, path_cache=None):
         self.data = Path(data)
         self.paths = paths
         self.by_path = {}
         for fdid, path in paths.items():
-            self.by_path.setdefault(normalized(path), []).append(fdid)
+            canonical = normalized(path)
+            self.by_path.setdefault(path if canonical == path else canonical, []).append(fdid)
+        self.runtime_paths = runtime_paths if runtime_paths is not None else {path: ids[-1] for path, ids in self.by_path.items()}
+        self.local_paths = {}
+        self.local_bindings = {}
         self.product = product
         self.metadata_build = metadata_build
         self.assets = {}
@@ -90,6 +119,17 @@ class Closure:
         self.terrain = None
         self.inputs = {}
         self.seeds = {}
+        if path_cache is not None:
+            self.input_file(path_cache)
+            self.local_paths, self.local_bindings = read_local_listfile(path_cache)
+            for path in self.local_bindings:
+                self.by_path.setdefault(path, [])
+
+    def logical_path(self, fdid):
+        if fdid in self.local_paths:
+            return self.local_paths[fdid]
+        logical = self.paths.get(fdid)
+        return logical if self.runtime_paths.get(logical) == fdid else None
 
     def issue(self, code, reason, fdid=None):
         self.unresolved.add((code, reason, fdid))
@@ -108,7 +148,7 @@ class Closure:
         key = (int(fdid), kind)
         if key not in self.assets:
             self.assets[key] = {"fdid": int(fdid), "type": kind,
-                                "logical_path": self.paths.get(int(fdid)),
+                                "logical_path": self.logical_path(int(fdid)),
                                 "source_product": None, "requested_product": self.product,
                                 "metadata_build": self.metadata_build,
                                 "actual_build": None, "identity_status": "unverified",
@@ -123,11 +163,21 @@ class Closure:
                 self.queue.append(key)
 
     def named(self, logical, kind, reason, parent):
-        ids = self.by_path.get(normalized(logical), [])
-        if len(ids) != 1:
-            self.issue("unmapped_path" if not ids else "ambiguous_path", f"{reason}: {logical}", parent)
+        canonical = normalized(logical)
+        ids = self.by_path.get(canonical, [])
+        if canonical in self.local_bindings:
+            selected = self.local_bindings[canonical]
+            source = "persisted local-listfile row takes precedence (asset-resolver Listfile::lookup_path)"
+        else:
+            selected = self.runtime_paths.get(canonical)
+            source = "last surviving SQLite INSERT OR REPLACE row, unique fdid/lower_path (asset-resolver listfile_cache.rs)"
+        if selected is None:
+            self.issue("unmapped_path", f"{reason}: {logical}; no runtime binding", parent)
             return
-        self.add(ids[0], kind, reason, parent)
+        if len(ids) > 1 or selected not in ids:
+            code = "ambiguous_path" if len(ids) > 1 else "runtime_path_override"
+            self.resolve(code, parent, "resolved", f"{reason}: {logical}; candidates={ids}; selected FDID={selected}; {source}")
+        self.add(selected, kind, reason, parent)
 
     def inspect(self, asset):
         found = []
@@ -176,7 +226,7 @@ class Closure:
                 "inputs": sorted(self.inputs.values(), key=lambda row: row["path"]),
                 "assets": assets, "unresolved": issues,
                 "resolved": [{"code": code, "fdid": fdid, "status": status, "evidence": evidence}
-                             for code, fdid, status, evidence in sorted(self.resolved)],
+                             for code, fdid, status, evidence in sorted(self.resolved, key=lambda row: (row[0], row[1] or 0, row[2], row[3]))],
                 "summary": {"files": len(assets), "present": sum(a["present"] for a in assets),
                             "missing": sum(not a["present"] for a in assets), "unresolved": len(issues),
                             "unresolved_by_code": dict(sorted(Counter(i["code"] for i in issues).items())),
@@ -210,12 +260,16 @@ class Closure:
 
     def expand_model(self, fdid, kind, data):
         raw = data if data[:4] == b"MD20" else None
+        texture_fdids = []
         for tag, payload in ([] if raw is not None else chunks(data)):
             if tag == "MD21":
                 raw = payload
             elif tag in {"TXID", "SFID", "SKID"}:
                 child_kind = {"TXID": "blp", "SFID": "skin", "SKID": "skel"}[tag]
-                for i, value in enumerate(integers(payload)):
+                values = integers(payload)
+                if tag == "TXID":
+                    texture_fdids = values
+                for i, value in enumerate(values):
                     alias = f"models/{fdid}{i:02}.skin" if tag == "SFID" else None
                     if tag == "SKID":
                         alias = f"models/{fdid}.skel"
@@ -239,8 +293,10 @@ class Closure:
                 raise ValueError("M2 texture array out of bounds")
             for i in range(count):
                 texture_type, flags, length, name_offset = struct.unpack_from("<IIII", raw, offset + i * 16)
-                if length:
+                if length and (i >= len(texture_fdids) or not texture_fdids[i]):
                     self.named(string_at(raw, name_offset), "blp", f"M2 named texture {i}", fdid)
+                elif length:
+                    self.resolve("named_identity_precedence", fdid, "not_needed", f"M2 texture {i}: TXID FDID={texture_fdids[i]} is authoritative; stale filename is not requested (core m2_texture.rs)")
             # TXID references cover particle/ribbon textures too. Replacement types
             # are supplied by display/customization/item seeds, not guessed here.
             for label, header in [("ribbon", 0x120), ("particle", 0x128)]:
@@ -253,8 +309,13 @@ class Closure:
         for tag in ["MDID", "MHID"]:
             for value in integers(table.get(tag, b"")):
                 self.add(value, "blp", tag, fdid)
-        for path in table.get("MTEX", b"").split(b"\0"):
-            if path:
+        diffuse_fdids = integers(table.get("MDID", b""))
+        for index, path in enumerate(table.get("MTEX", b"").split(b"\0")):
+            if not path:
+                continue
+            if index < len(diffuse_fdids) and diffuse_fdids[index]:
+                self.resolve("named_identity_precedence", fdid, "not_needed", f"ADT texture {index}: MDID FDID={diffuse_fdids[index]} is authoritative; MTEX filename is not requested (native terrain/textures.rs)")
+            else:
                 self.named(path.decode(), "blp", "ADT MTEX", fdid)
         for tag, stride, flag_offset, mask, names, indices, kind in [
             ("MDDF", 36, 34, 0x40, "MMDX", "MMID", "m2"),
@@ -353,11 +414,13 @@ def main():
     parser.add_argument("--config", type=Path, default=Path(__file__).with_name("closure-northshire.json"))
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--estimate-output", type=Path)
+    parser.add_argument("--path-resolution-cache", type=Path, help="read-only snapshot of the shipped runtime local-listfile cache, under data/")
     args = parser.parse_args()
     from closure_seeds import seed_catalogs
     config = json.loads(args.config.read_text())
-    graph = Closure(args.data, read_listfile(args.data / "community-listfile.csv"),
-                    config["product"], config["metadata_build"])
+    paths, runtime_paths = read_listfile(args.data / "community-listfile.csv")
+    graph = Closure(args.data, paths, config["product"], config["metadata_build"],
+                    runtime_paths=runtime_paths, path_cache=args.path_resolution_cache)
     graph.input_file(args.data / "community-listfile.csv")
     if args.estimate_output:
         estimate = estimate_catalog(args.data, graph.paths)
