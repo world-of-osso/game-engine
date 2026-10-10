@@ -8,6 +8,7 @@ Retail spell13262 enters item spell-targeting before sending a cast. See [pipeli
 - [ ] Native bag clicks must invoke that model before pickup/use/sale; wired and compiled, rendered routing untested.
 - [ ] Escape or right-click cancels targeting without a cast; world clicks do not substitute unit targets.
 - [x] Normal spell initializers set the optional item GUID to None; compile against the companion protocol ABI.
+- [ ] Read-only `tooltip_state().appearance_collection` exposes sorted authoritative account appearance IDs, never bag ownership, for live disposal proof.
 - [ ] Personal disenchant loot opens the existing LootFrame and honors configured auto-loot/Shift inversion.
 
 ## How it works
@@ -23,6 +24,8 @@ Retail spell13262 enters item spell-targeting before sending a cast. See [pipeli
 
 ## Tests asserting this spec
 - `godot/ui-model/src/spell_targeting.rs`: item GUID/cancel/empty-slot cursor tests, existing ground-target tests.
+- `godot/tests/appearance_collection_snapshot.gd`: empty authoritative snapshot and returned-array mutation isolation.
+- `godot/rust/src/tooltips.rs`: authoritative update replacement/deduplication.
 
 ## Known gaps (current cycle)
 Native cursor/ground UI-model5/5 passes; matching-protocol extension compilation passes.

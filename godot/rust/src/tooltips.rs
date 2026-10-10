@@ -265,6 +265,9 @@ impl GameClient {
             shopping.push(&entry.to_variant());
         }
         state.set("shopping", &shopping);
+        let appearances: PackedInt64Array =
+            self.tooltips.appearances().all().map(i64::from).collect();
+        state.set("appearance_collection", &appearances);
         state
     }
 
@@ -281,6 +284,25 @@ impl GameClient {
                     .map(|line| format!("{}|{}", line.left_text, line.right_text)),
             )
             .collect()
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn authoritative_appearance_updates_replace_the_collection() {
+        let mut tooltips = Tooltips::default();
+        tooltips.receive_appearances(AppearanceCollectionUpdate {
+            appearances: vec![214, 154, 214],
+        });
+        assert_eq!(tooltips.appearances().all().collect::<Vec<_>>(), [154, 214]);
+
+        tooltips.receive_appearances(AppearanceCollectionUpdate {
+            appearances: vec![214],
+        });
+        assert_eq!(tooltips.appearances().all().collect::<Vec<_>>(), [214]);
     }
 }
 
