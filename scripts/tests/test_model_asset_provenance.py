@@ -1,6 +1,8 @@
 """Actual-build identity and verified byte receipts, not legacy filename inference."""
 import hashlib
 import importlib.util
+import json
+import sqlite3
 from pathlib import Path
 import tempfile
 import unittest
@@ -42,6 +44,44 @@ class ModelAssetProvenanceTests(unittest.TestCase):
                 "bytes": len(raw), "sha256": hashlib.sha256(raw).hexdigest(),
                 "content_key": hashlib.md5(raw).hexdigest(),
             })
+
+    def test_import_publishes_verified_bytes_in_actual_namespace_and_keeps_retail(self):
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            install, data = root / "install", root / "data"
+            key = "e8dd824cf6c3d96cd01f804ca2ea5a63"
+            config = install / f"Data/config/e8/dd/{key}"
+            config.parent.mkdir(parents=True)
+            config.write_text("root = 0123456789abcdef0123456789abcdef\n")
+            (install / ".build.info").write_text(
+                "Active!DEC:1|Build Key!HEX:16|Version!STRING:0|Product!STRING:0\n"
+                f"1|{key}|1.60.1.70291|wow_classic_beta\n"
+            )
+            raw = b"MD21\\x04\\x00\\x00\\x00MD20"
+            source = root / "1100087.dat"
+            source.write_bytes(raw)
+            resolution = root / "resolution.sqlite"
+            connection = sqlite3.connect(resolution)
+            connection.execute("CREATE TABLE resolution (fdid INTEGER, content_key BLOB)")
+            connection.execute("INSERT INTO resolution VALUES (?, ?)", (1100087, hashlib.md5(raw).digest()))
+            connection.commit()
+            connection.close()
+            staged = root / "chain-receipts.json"
+            staged.write_text(json.dumps({"assets": [{
+                "product": "wow_classic_beta", "build_key": key, "fdid": 1100087,
+                "kind": "m2", "source_path": str(source), "sha256": hashlib.sha256(raw).hexdigest(),
+                "content_key": hashlib.md5(raw).hexdigest(), "bytes": len(raw),
+            }], "dependencies": {}, "failures": []}))
+            retail = data / "products/wow/dcfc90fffd79ba00406ae46f5f657592/models/1100087.m2"
+            retail.parent.mkdir(parents=True)
+            retail.write_bytes(b"retail-sentinel")
+            result = chains.import_staged_chain(data, install, "wow_classic_beta", staged, resolution)
+            self.assertEqual(result.get("version"), 1)
+            asset = result["assets"][0]
+            self.assertEqual(asset["build"], "1.60.1.70291")
+            self.assertEqual((data / asset["path"]).read_bytes(), raw)
+            self.assertEqual(retail.read_bytes(), b"retail-sentinel")
+            self.assertEqual(json.loads((data / "cache/model-asset-index.json").read_text()), result)
 
     def test_receipt_rejects_borrowed_or_zero_filled_bytes(self):
         with self.assertRaisesRegex(ValueError, "content key"):
