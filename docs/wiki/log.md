@@ -5,6 +5,13 @@
 ## 2026-10-10 — Skyborne baked NPC native capture
 
 [Seven-bake checkpoint](systems/forever-data.md#seven-recovered-bakes--native-npc-checkpoint-2026-10-10) records authenticated70338 scoped asset/receipt publication, seven attached displays and eight inspected private5487 captures of four NPCs in explicitly selected Modern/Forever layouts. Three isolated-body captures remain obscured by overlapping reconstructed spawns; no renderer/server code change or full-zone appearance acceptance.
+## 2026-10-10 — Retail pet battle HUD v2
+
+[HUD correction](systems/battle-pets.md#retail-hud-correction--verified-2026-10-10) removes centered Rust debug output and ability-name labels, uses Retail active/reserve portraits and icon actions/locks/badges, adds XP chrome and target-amount floating feedback above the model viewport. Both skins have individually downscaled/inspected battle/ability/trap-ready/win PNGs. UI6/wire2/server6 targeted tests and native builds/check pass; protocol/server changes carry missing HUD metadata only. Independent verifier OAuth expired before execution.
+
+## 2026-10-10 — Bounded wild PvE pet battle acceptance
+
+[Wild integration](systems/battle-pets.md#wild-pve-integration--verified-2026-10-10) records real native loadout/right-click/swap, defeated wins and captures in explicitly verified Modern/Forever layouts on private5592. Final state-before-End fixes stale lethal HP; saved layer visibility prevents normal HUD/nameplates covering battle controls and restores them on close. Eight individually ffmpeg-downscaled/inspected PNGs,31 shared static native rectangles,26 UI integration tests and required server workspace1,753 passes/71 ignored/one skip. Unsupported effect semantics and expired independent verifier authentication remain explicit; no merge or shared-realm operation.
 
 ## 2026-10-10 — Stable local CASC / 70338 gap recovery
 
