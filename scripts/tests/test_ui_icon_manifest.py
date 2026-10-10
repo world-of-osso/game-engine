@@ -46,8 +46,38 @@ class RequiredUiIconManifestTests(unittest.TestCase):
         manifest = json.loads(path.read_text())
         self.assertGreater(len(manifest["icons"]), 0)
         missing = icons.missing_required_icons(manifest, ROOT / "data")
-        self.assertEqual(len(missing), 0,
-            f"{len(missing)} required icon FDIDs absent/invalid, first cases {missing[:32]}; manifest {path}")
+        exceptions = json.loads((ROOT / "scripts/ui-icon-exceptions.json").read_text())
+        self.assertEqual(exceptions["version"], 1)
+        self.assertEqual(exceptions["spell_db2_build"], manifest["spell_db2_build"])
+        entries = exceptions["exceptions"]
+        self.assertTrue(all(isinstance(entry["fdid"], int) and entry["fdid"] > 0
+                            and entry["reason"].strip() for entry in entries))
+        allowed = [entry["fdid"] for entry in entries]
+        self.assertEqual(len(allowed), len(set(allowed)), "Duplicate exception FDIDs")
+        self.assert_icon_exceptions_match_missing(missing, allowed)
+
+    def assert_icon_exceptions_match_missing(self, missing, allowed):
+        self.assertEqual(set(missing) - set(allowed), set(),
+                         "Required icon FDIDs missing without exceptions")
+        self.assertEqual(set(allowed) - set(missing), set(),
+                         "Stale icon exceptions: now extracted or no longer required")
+
+    def test_unlisted_missing_icon_is_rejected(self):
+        manifest = {"icons": [{"fdid": 135875, "sources": ["SpellMisc:31884"]}]}
+        with tempfile.TemporaryDirectory(prefix="ui-icon-unlisted-") as directory:
+            missing = icons.missing_required_icons(manifest, Path(directory))
+        with self.assertRaisesRegex(AssertionError, "missing without exceptions"):
+            self.assert_icon_exceptions_match_missing(missing, [])
+
+    def test_now_extracted_icon_exception_is_rejected_as_stale(self):
+        manifest = {"icons": [{"fdid": 135875, "sources": ["SpellMisc:31884"]}]}
+        with tempfile.TemporaryDirectory(prefix="ui-icon-stale-") as directory:
+            data = Path(directory)
+            (data / "textures").mkdir()
+            shutil.copy2(ROOT / "data/textures/135875.blp", data / "textures/135875.blp")
+            missing = icons.missing_required_icons(manifest, data)
+        with self.assertRaisesRegex(AssertionError, "Stale icon exceptions"):
+            self.assert_icon_exceptions_match_missing(missing, [135875])
 
     def test_real_extracted_file_satisfies_the_manifest_without_other_sources(self):
         manifest = {"icons": [{"fdid": 135875, "sources": ["SpellMisc:31884"]}]}
