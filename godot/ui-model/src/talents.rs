@@ -78,6 +78,10 @@ pub fn load_talent_view(
                             entry.id, entry.subtree_id
                         )
                     })?
+            } else if entry.spell_id == 0 {
+                // Local Mainline contains undefined Monk entries. Keep their
+                // graph identity/ranks, but do not invent a spell name or art.
+                String::new()
             } else {
                 catalog
                     .get(entry.spell_id)
