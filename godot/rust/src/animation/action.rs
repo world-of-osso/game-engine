@@ -48,16 +48,17 @@ pub(crate) enum ActionPriority {
 }
 
 pub(super) struct ActionLayer {
-    index: usize,
-    priority: ActionPriority,
+    pub(super) index: usize,
+    pub(super) source_id: u16,
+    pub(super) priority: ActionPriority,
     time_ms: f64,
-    looping: bool,
+    pub(super) looping: bool,
     /// Pose of the action this one replaced, faded out over `fade_ms`.
     outgoing: Option<(Vec<BonePose>, f32)>,
     fade_ms: f32,
     pub(super) upper: f32,
     pub(super) lower: f32,
-    releasing: bool,
+    pub(super) releasing: bool,
     /// The clip's missile release event has yet to fire.
     awaits_release: bool,
     /// Index of its next reported event.
@@ -137,7 +138,7 @@ impl AnimationState {
     pub fn resolve_clip(&self, id: u16, fallbacks: &HashMap<u16, u16>) -> Option<u16> {
         let mut clip = id;
         for _ in 0..16 {
-            if self.base_sequence(clip).is_some() {
+            if self.base_sequence(self.replacement_id(clip)).is_some() {
                 return Some(clip);
             }
             clip = *fallbacks.get(&clip)?;
@@ -164,6 +165,8 @@ impl AnimationState {
         looping: bool,
         priority: ActionPriority,
     ) -> Result<bool, String> {
+        let source_id = id;
+        let id = self.replacement_id(source_id);
         let index = self
             .base_sequence(id)
             .ok_or_else(|| format!("M2 animation ID {id} has no base variation"))?;
@@ -187,6 +190,7 @@ impl AnimationState {
         };
         self.action = Some(ActionLayer {
             index,
+            source_id,
             priority,
             time_ms: 0.0,
             looping,
@@ -204,7 +208,7 @@ impl AnimationState {
     /// Fade out the held action `id`; another clip or no action is left alone.
     pub fn stop_action(&mut self, id: u16) {
         if let Some(action) = &mut self.action
-            && self.sequences[action.index].id == id
+            && action.source_id == id
         {
             action.releasing = true;
         }

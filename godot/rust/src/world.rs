@@ -41,6 +41,8 @@ use shared::components::{
 use shared::death::DeathState;
 use shared::protocol::EmoteKind;
 
+#[path = "animation/replicated.rs"]
+mod animation_replacements;
 #[path = "world_combat.rs"]
 pub(crate) mod combat;
 #[path = "world_emotes.rs"]
@@ -948,6 +950,8 @@ pub struct WorldUnits {
     root: Option<Gd<Node3D>>,
     /// `AnimationData.Fallback`, loaded on first use.
     anim_fallbacks: Option<HashMap<u16, u16>>,
+    animation_replacements:
+        Option<game_engine_core::animation_replacements::AnimationReplacementCatalog>,
     data_root: PathBuf,
     units: HashMap<u64, UnitNode>,
     selected_name: Option<String>,
@@ -970,6 +974,7 @@ impl WorldUnits {
         Self {
             root: None,
             anim_fallbacks: None,
+            animation_replacements: None,
             data_root: data_root.clone(),
             units: HashMap::new(),
             selected_name: None,

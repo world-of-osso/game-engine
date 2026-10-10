@@ -3081,3 +3081,7 @@ Recorded pure override/book cooldown and destination tests, both-skin private Bl
 ## 2026-10-10 — Override live acceptance resumed on ca6b249
 
 Server learned-spell publication unblocked both-skin aura proof. Fixed approved native book press routing; click/hover, book→bar drag, real aura332 apply/restore and ground destinations passed. Current native check passed after bounded cached KTX artifact seeding. [Coverage and limits](systems/spell-overrides-teleports.md#scoped-acceptance-2026-10-10).
+
+## 2026-10-10 — Aura312 client replacement hook
+
+Added local Retail replacement-table exports and per-unit base/action selection maps, authoritative clearing and logical-source jump progression. Preserved crossfade pose continuity and movement blend minimum. [Implementation and proof limits](systems/spell-overrides-teleports.md#animation-replacements): no speed field in these layouts; conditional flags and primary Retail missing-destination citation remain unverified.
