@@ -4,8 +4,8 @@ use crate::frame_error::{FrameError, SessionError};
 use crate::player_spells::{bonus_bar_offset, main_bar_slot};
 use crate::{GameClient, ui::RegistryUi};
 use game_engine_ui_model::main_action_bar_component::{
-    ACTION_BAR_ART_FDIDS, ACTION_VEHICLE_EXIT, ActionBar, ActionButtonView, MAIN_BAR_BUTTONS,
-    MainActionBarState, parse_action_button,
+    ACTION_BAR_ART_FDIDS, ActionBar, ActionButtonView, MAIN_BAR_BUTTONS, MainActionBarState,
+    parse_action_button,
 };
 use godot::prelude::*;
 use shared::components::{Player, UnitAuras};
@@ -136,9 +136,6 @@ impl GameClient {
             return Ok(());
         };
         let action = ui.bind_mut().pop_action().to_string();
-        if action == ACTION_VEHICLE_EXIT {
-            return Ok(self.account.send_exit_vehicle()?);
-        }
         match parse_action_button(&action) {
             Some((bar, index)) => Ok(self.use_action_button(bar, index)?),
             None if action.is_empty() => Ok(()),

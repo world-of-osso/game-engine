@@ -31,6 +31,7 @@ Party/raid members can ride available passenger seats on a player's summoned mou
 - Sibling `shared-protocol/src/protocol/{gameplay_messages,registration}.rs`: board/exit messages.
 - Sibling `game-server/crates/server/src/vehicle.rs`: content joins, authority, occupancy, movement control and ejection.
 - `godot/network/src/replica/codec.rs`: passenger component decoding.
+- `godot/rust/src/spells/assignment.rs`: native action-bar cursor input dispatches the leave-seat request; it is not a spell/item slot action.
 
 ## Tests asserting this spec
 - `scripts/tests/test_vehicle_export.py`.
