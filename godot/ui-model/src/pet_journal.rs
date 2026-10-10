@@ -203,6 +203,7 @@ fn pet_list(ctx: &SharedContext, view: &PetJournalView) -> Element {
     let geometry = pixel_geometry(LIST_HEIGHT, height, LIST_HEIGHT);
     let offset = geometry.clamp(ctx.scroll_first_row(LIST));
     let config = scroll_list_attr(&geometry);
+    let child_top = -(offset as f32);
     let bar = MinimalScrollBar {
         list: LIST,
         left: 257.0,
@@ -223,7 +224,7 @@ fn pet_list(ctx: &SharedContext, view: &PetJournalView) -> Element {
     rsx! { r#frame { name: "PetJournalScrollBox", width: 260.0, height: LIST_HEIGHT,
     left: 7.0, top: 96.0, pos_type: "absolute", mouse_enabled: true, scroll_list: config,
     r#frame { name: "PetJournalScrollChild", width: 250.0, height,
-        left: 0.0, top: {-offset as f32}, pos_type: "absolute", {content} }
+        left: 0.0, top: child_top, pos_type: "absolute", {content} }
     {bar.element()} } }
 }
 fn pet_row(view: &PetJournalView, row: &PetRow, top: f32) -> Element {
