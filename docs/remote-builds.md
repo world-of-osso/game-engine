@@ -58,7 +58,7 @@ Server agents use `scripts/desktop-server-build.py --root <server-slot> --build-
 
 Server release exports stay bookworm-only: `desktop-server-build.py --build-host local|desktop --release` (also used by server `deploy.sh`). `build-host.py --release` delegates exports to that helper; test/check/features/run are not release-export options. `native --release` fails before Cargo: NixOS glibc 2.42 cannot load Arch-linked glibc 2.43 artifacts.
 
-`--build-host native` runs host `cargo build|test --locked --manifest-path godot/Cargo.toml` with `CARGO_TARGET_DIR=<checkout>/target`, so the extension, fixtures and CLI land where `godot/game_engine.gdextension` and fixtures expect them, and tests read the checkout's real `data/` (no staged test-asset subset). Cargo sizes jobs from the agents.slice quota after dropping inherited `CARGO_BUILD_JOBS`; `scripts/native_cargo.py` supplies the shared `GAME_ENGINE_NATIVE_SLOTS` (default 3) host-wide slots to engine and server helpers, so agents run it under `scripts/agent/agent-run` without `build-lock.sh`. `--release` refuses `native`: host (Arch) links need the host's newest glibc, so shipped artifacts use the bookworm container (`--build-host local`).
+`--build-host native` runs host `cargo build|test --locked --manifest-path godot/Cargo.toml --target-dir <checkout>/target` (without a checkout-specific `CARGO_TARGET_DIR` in the compiler environment), so the extension, fixtures and CLI land where `godot/game_engine.gdextension` and fixtures expect them, and tests read the checkout's real `data/` (no staged test-asset subset). Engine native builds set `CARGO_BUILD_JOBS` to the host CPU affinity count, overriding the root config's two-job cap (explicit Cargo `-j` still wins). They set clang/mold defaults independently of caller cwd; explicit `RUSTFLAGS`/`CARGO_ENCODED_RUSTFLAGS` or target linker environment remains authoritative. Root Cargo/release settings are unchanged. `scripts/native_cargo.py` supplies the shared `GAME_ENGINE_NATIVE_SLOTS` (default 3) host-wide slots to engine and server helpers, so agents run it under `scripts/agent/agent-run` without `build-lock.sh`. `--release` refuses `native`: host (Arch) links need the host's newest glibc, so shipped artifacts use the bookworm container (`--build-host local`).
 
 Wrap every agent build/test using the shared container builder with `~/.worktrees/build-lock.sh`; this global lock serialises builds across slots, unlike the helper's per-checkout lock. The wrapper's implementation is `~/.worktrees/build-lock.sh:5–9` (host-local, not tracked here). On this Ubuntu WSL host select `--build-host local` explicitly:
 
@@ -70,6 +70,21 @@ scripts/agent/agent-run <run_name> ~/.worktrees/build-lock.sh \
 Use the corresponding server helper for an assigned server slot. BuildKit GC limits live only in [`scripts/depot/buildkitd.toml`](../scripts/depot/buildkitd.toml); [builder GC policy](wiki/systems/build-hosts.md#builder-gc-policy) owns the eviction diagnosis and provisioning guidance. Do not change GC policy or rebuild the builder as part of ordinary slot use.
 
 The [builder GC policy](wiki/systems/build-hosts.md#builder-gc-policy) records the user-approved aggregate budget superseding the former warm-every-slot policy; the configuration is applied on OssoBuild, with effective policy recorded there. [Desktop disk exhaustion](wiki/investigations/desktop-disk-exhaustion.md) records observed cache pruning and completed offline VHD compaction, distinguishing Windows host capacity from WSL guest free space.
+
+### Shared native KTX cache
+
+`vendor/ktx2-rw` stores the pinned 212 MB KTX 4.4.0 source archive, libktx and
+bindings in `${XDG_CACHE_HOME:-~/.cache}/game-engine/ktx`. New Cargo `OUT_DIR`s
+reuse the same compiler/target/options-keyed native artifacts under file locks;
+only initial cache population fetches/builds source. `KTX_CACHE_DIR` overrides
+the root; `KTX_SOFTWARE_ARCHIVE` is an explicit offline archive input. Failures
+are loud, with no alternate library/download path. Bookworm has a separate
+BuildKit cache; native Arch artifacts never enter releases. See
+[patch provenance](../vendor/README.md).
+
+The Godot workspace pins `glob` debug info because it is both a CLI normal
+dependency and a bindgen build dependency; extension and workspace tests now
+share its host profile rather than rebuilding clang-sys/bindgen/KTX.
 
 ### Shared worktree data
 

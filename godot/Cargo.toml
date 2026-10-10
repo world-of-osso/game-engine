@@ -28,6 +28,12 @@ opt-level = 2
 [profile.dev.package.game-engine-core]
 opt-level = 2
 
+# glob is both the CLI's normal dependency and clang-sys's build dependency.
+# Pin debug info so adding the CLI to cargo test --workspace does not rebuild
+# glob -> clang-sys -> bindgen -> ktx2-rw with another host profile hash.
+[profile.dev.package.glob]
+debug = 1
+
 # Replica decodes every replicated component change on the main thread each frame.
 [profile.dev.package.game-engine-network]
 opt-level = 2

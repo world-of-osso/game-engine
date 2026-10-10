@@ -4161,10 +4161,12 @@ name = "ktx2-rw"
 version = "0.2.4"
 dependencies = [
  "bindgen",
+ "cc",
  "cmake",
  "flate2",
  "libc",
  "reqwest",
+ "sha2",
  "tar",
  "zip",
 ]
