@@ -13,7 +13,7 @@ fn active_sets(auras: Option<&UnitAuras>) -> Vec<u32> {
         .flat_map(|aura| &aura.overrides)
         .filter_map(|value| match value {
             AuraOverride::Animation(id) => Some(*id),
-            AuraOverride::ActionBar { .. } => None,
+            AuraOverride::ActionBar { .. } | AuraOverride::SpellSet { .. } => None,
         })
         .collect()
 }
