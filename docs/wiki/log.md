@@ -1,3 +1,7 @@
+## 2026-10-10 — Class spell private live proof
+
+[Class spell proof](investigations/class-spell-live-proof.md) records thirteen bounded native client paths, four classes in both skins, received damage/heal/aura/resource receipts and inspected screenshots on private54113. Setup/skin migration/cast-time/resource/spec mistakes remain distinct from script defects; supplemental contracts and full class parity remain unproved. No production code, world.db, shared realm or master changes.
+
 ## 2026-10-10 — PvP pet battles continuation
 
 [PvP acceptance](../specs/petbattle-pvp.md#acceptance--2026-10-10-petbattle-pvp2): initial front-pet choice waits for both owners without a round cost; separate runtime data/config/token stores remove cross-account saved-token collisions. Private5598 proves queue/Accept/selection/rounds/three-pet win/loss in both skins with16 inspected PNGs and HUD restoration. Atomic command rename fixes fixture truncation races. Retail Lua reads timer/XP through runtime APIs; numerical proposal/turn policy and PvP XP formula remain unestablished, never guessed. No master merge or shared realm changes.

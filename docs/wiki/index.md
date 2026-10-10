@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Class spell live proof](investigations/class-spell-live-proof.md) — thirteen bounded class-script paths on private54113, four classes in both skins; exact receipts and unproved supplemental contracts retained.
+
 - [PvP pet battles](systems/battle-pets.md#pvp-queue-and-initial-selection--bounded-proof-2026-10-10) — two isolated accounts, both-skin native queue/Accept/selection/rounds/three-pet outcomes; numeric Retail timer/XP policy unresolved.
 
 - [Disenchant](systems/disenchant.md) — both-skin private item/cast/loot/appearance/refusal proof; authoritative collection diagnostic and stale TDB material census.
