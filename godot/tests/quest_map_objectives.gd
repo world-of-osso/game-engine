@@ -21,7 +21,11 @@ func run_test() -> void:
 	DirAccess.make_dir_recursive_absolute(evidence)
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
-	var error: String = client.connect_account(server, "fb_questpoi", "fbtest", false)
+	var account := OS.get_environment("QUEST_POI_ACCOUNT")
+	if not account.begins_with("fb_questpoi"):
+		fail("Require disposable QUEST_POI_ACCOUNT with fb_questpoi prefix")
+		return
+	var error: String = client.connect_account(server, account, "fbtest", false)
 	if not error.is_empty():
 		fail(error)
 		return
@@ -103,6 +107,10 @@ func capture_skin(forever: bool, complete: bool) -> bool:
 	var icon := client.get_node("MinimapUI").find_child("MinimapQuestObjective28766", true, false) as Control
 	if icon == null or not icon.is_visible_in_tree():
 		fail("Rendered minimap objective/turn-in icon missing")
+		return false
+	var minimap_number := client.get_node("MinimapUI").find_child("MinimapQuestObjective28766Number", true, false) as Label
+	if not complete and (minimap_number == null or minimap_number.text != "1"):
+		fail("Rendered minimap number1 missing")
 		return false
 	await capture(skin + "-" + phase + "-minimap.png")
 	await key(KEY_M)
