@@ -34,7 +34,7 @@ osso_asset_resolver = { package = "asset-resolver", path = "../../../asset-resol
 game-engine-network = { path = "../network" }
 game-engine-session = { path = "../session" }
 # Authoritative wire message types; engine scheduling stays inside the network worker.
-shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "91ad8b1577854e18805383908f34e1a8cb49f1fb" }
+shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "7ccaa40b3736c9d2d962dc2bf04932238d873716" }
 game-engine-ui-model = { path = "../ui-model" }
 ui-toolkit = { package = "ui-toolkit-core", path = "../../../ui-toolkit/core" }
 # Preserve the authored registry layout semantics and local rounding fix.
