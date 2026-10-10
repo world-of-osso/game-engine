@@ -44,6 +44,11 @@ def expand_kit_ids(catalogs, kits):
 def seed_spell_visuals(graph, catalogs, spells):
     wanted = set(spells)
     visuals = set()
+    for row in catalogs.rows('SpellMisc'):
+        spell = value(row, 'SpellID')
+        if spell in wanted:
+            for field in ['SpellIconFileDataID', 'ActiveIconFileDataID']:
+                graph.add(value(row, field), 'blp', f'spell {spell} difficulty {row.get("DifficultyID", "")} {field}')
     for row in catalogs.rows('SpellXSpellVisual'):
         spell = value(row, 'SpellID')
         if spell not in wanted:
