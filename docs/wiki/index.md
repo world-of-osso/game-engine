@@ -12,7 +12,7 @@
 
 
 - [Offline asset closure](systems/offline-asset-closure.md) — extracted-only Northshire/Human-Warrior graph, configurable full-catalog roots, explicit provenance/unresolved boundaries and approximate inventory sizes.
-- [M2 product shadowing](investigations/m2-product-shadowing.md) — both Forever display FDIDs collide in unqualified disk/parsed caches; real resolver subprocess regression RED; full-chain product/build contract approved; verified per-asset provenance and engine wiring remain open, native proof awaits GPU-driver reboot.
+- [M2 product shadowing](investigations/m2-product-shadowing.md) — unqualified disk/parsed collisions, metadata-source RED/GREEN, authenticated actual-build offline chains and remaining runtime/native boundary; [continuation evidence](investigations/m2-product-shadowing.md#continuation-authenticated-offline-chains-2026-10-09).
 
 - [Zephras sky/minimap diagnosis](investigations/zephras-sky-minimap.md) — map2991 listfile-only tile loss and wrong M2 dual-crossfade; shader/tile RED/GREEN and inspected rebuilt private before/after; whole-day sky parity unclaimed.
 
