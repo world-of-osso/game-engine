@@ -186,6 +186,38 @@ fn arms_spend_badges_and_disabled_apply_remain_legible() {
     }
 }
 #[test]
+fn mainline_spend_anchor_and_capstone_atlas_draw_bounds_match_retail() {
+    let data = data();
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let catalog = load_spell_catalog(&SpellCatalogPaths::for_data_dir(&data)).unwrap();
+    let view = load_talent_view(&data, 8, 62, &catalog).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = registry(view.clone());
+        let node = rect(&registry, "TalentNode62121");
+        let badge = rect(&registry, "TalentNode62121Ranks");
+        let zoom = node[2] / 40.0;
+        // TalentButtonArt.xml SpendText BOTTOM x11,y4; not LegionInfinite x14,y6.
+        assert!((badge[0] + badge[2] / 2.0 - 31.0 * zoom).abs() < 0.01);
+        assert!((badge[1] + badge[3] - 36.0 * zoom).abs() < 0.01);
+    }
+}
+#[test]
+fn mainline_capstone_keeps_84px_padded_art_around_64px_hit_target() {
+    let data = data();
+    game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();
+    let catalog = load_spell_catalog(&SpellCatalogPaths::for_data_dir(&data)).unwrap();
+    let view = load_talent_view(&data, 8, 62, &catalog).unwrap();
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        set_thread_skin(skin);
+        let registry = registry(view.clone());
+        let capstone = rect(&registry, "TalentNode110420");
+        let border = rect(&registry, "TalentNode110420Border");
+        // UpdateStateBorder uses atlas draw size after SetAndApplySize.
+        assert!((border[2] / capstone[2] - 84.0 / 64.0).abs() < 0.01);
+    }
+}
+#[test]
 fn retail_reset_uses_20px_icon_inside_25px_footer_hit_rect() {
     let data = data();
     game_engine_ui_model::paths::set_data_root(data.clone()).unwrap();

@@ -1,3 +1,7 @@
+## 2026-10-10 — Talent layout and Arms text
+
+[Layout acceptance](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10) records worst105/257/270 and Arms REDs, spec-selector subtree membership, shared first-row baseline, Retail border/spend-text sizing,82px footer and native caption layering at0e718ecfc. Targeted13/13; one offline client captures40×2 skins, native rect/visible-glyph80/80 and all FFmpeg downscales inspected before PNG-only publication. Live activation/persistence and full parity excluded;20 inherited macro warnings and expired verifier OAuth retained.
+
 ## 2026-10-09 — All40 talent views and shipped icon recapture
 
 [All-spec talent recapture](systems/talents.md#all-spec-shipped-icon-recapture-2026-10-09) records rank-bearing currency projection, retained undefined Monk entries and authentic icon proof at `eaae560b9`. Targeted11/11 and native build pass; one offline Forever client exits0, captures40/40 and each PNG is individually FFmpeg-downscaled/inspected before PNG-only publication. Retribution137/137; total5825/5829 entry slots, three explicit undefined Monk IDs/four slots. [Contract](../specs/talents.md#offline-classspec-evidence) and diagnostics matrix retain unsupported auxiliary presentation and existing hero/layout limits; no gameplay/full-parity claim.

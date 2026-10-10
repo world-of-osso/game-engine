@@ -75,7 +75,7 @@ Engine subsystems and how they work.
 - [professions-ui](systems/professions-ui.md) — native DB2 recipe book/crafting, owner snapshots and bag counts; both-skin private craft proof linked in the spec. Retired trainer/book coverage remains distinguished.
 - [quest-ui](systems/quest-ui.md) — native dialogue/log/tracker/markers; typed objective-progress notices and first-post-draw yellow-message proof; measured quest scrolling and offline clipping/input proof; live quest proof, Jasperlode ground and death recovery, unresolved historical Milly mirror failure, low-FPS input and transient-error capture
 - [spell-catalog](systems/spell-catalog.md) — background-loaded 12.1.0.69933 spell DB2 catalog, bincode cache under `data/cache/`, static description token rendering and its limits
-- [talents-ui](systems/talents-ui.md) — Retail trait-tree window `PlayerSpellsFrame`: CSV tree load, mirrored server rules, local pending config, Apply/Reset/spec, authored `talents-*` atlas art
+- [talents-ui](systems/talents-ui.md) — historical retired Bevy trait window; [Talents](systems/talents.md) owns current native behavior and layout.
 - [xp-bar](systems/xp-bar.md) — [XP HUD spec](../specs/xp-bar.md), existing owner-only state, Modern named atlases and Forever flat palette/top-centre placement
 - [forever-preset](systems/forever-preset.md) — FlareUI-inspired skin/layout preset, atlas set selection, player aura lane/offline capture, current global skin lifetime and per-character Edit Mode wiring.
 - [ui-system](systems/ui-system.md) — rsx!/Screen/SharedContext, native Bevy projection, authored UI FileDataID resolution, layout, widgets, input, automation, unit frames, and World Builder sidebar
@@ -222,4 +222,4 @@ External resources and asset lists.
 - [Auction result icon diagnosis](systems/auction-house-ui.md#missing-result-icons-2026-10-08) — five-item FDID/file trace, local-store proof and shared unavailable-icon policy.
 
 - [Auction house UI](systems/auction-house-ui.md#subcategory-and-displayed-column-sorts--2026-10-08) — native category paths, Bid/Available requests and bounded cross-repo proof.
-- [Talents](systems/talents.md) — local DB2 graph/layout provenance, existing-server snapshot/commit wiring, [offline class/spec capture](systems/talents.md#offline-classspec-capture-2026-10-09) and [all40-spec shipped-icon recapture](systems/talents.md#all-spec-shipped-icon-recapture-2026-10-09) (5825/5829 slots; explicit undefined Monk exceptions); shared staged edits, point counters and choice flow.
+- [Talents](systems/talents.md) — native DB2 graph, server snapshot/commit wiring, historical icon proof and [all40-spec both-skin layout/Arms acceptance](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10): eligible hero selector, non-stacked dialog/active tree, shared baseline, outlined ranks and bounded footer;80 native captures.

@@ -11,7 +11,7 @@ import subprocess
 import sys
 
 WIDTH, HEIGHT = 1920, 1080
-NODE = re.compile(r"TalentNode\d+$")
+PAINTED_NODE = re.compile(r"TalentNode\d+(?:Ranks|Border)?$")
 
 
 def decode_png(path):
@@ -42,7 +42,7 @@ def check_capture(directory, capture):
     footer = geometry["TalentFooter"]
     failures = []
     for name, rect in geometry.items():
-        if not NODE.fullmatch(name) and not name.endswith("Ranks"):
+        if not PAINTED_NODE.fullmatch(name):
             continue
         x, y, width, height = rect
         if y + height > footer[1] + 0.51:
