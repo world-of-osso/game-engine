@@ -2098,17 +2098,25 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
         assert_eq!(classification_atlas(Elite, false, None, true), None);
     }
 
-    /// The 20×20 `ClassificationFrame` hangs RIGHT on the 22×22 `RaidTargetFrame`'s LEFT,
-    /// which hangs on the health bars' LEFT (-94): -136..-116 × -10..10, ending where the
-    /// raid icon's -116..-94 begins.
+    /// Retail collapses the hidden raid frame in the classification anchor chain.
     #[test]
-    fn classification_sits_left_of_the_raid_icon_slot() {
+    fn classification_touches_health_bar_without_raid_marker() {
+        let style = NameplateStyle::default();
+        for skin in [ActiveSkin::Forever, ActiveSkin::Modern] {
+            for level_width in [0.0, LEVEL_INDICATOR_WIDTH] {
+                let layout = plate_layout(&style, 1.0, level_width, skin);
+                let rect = classification_rect(&style);
+                assert_eq!(rect.end().x, layout.fill.position.x);
+                assert_eq!(rect.size, Vector2::splat(20.0));
+            }
+        }
+    }
+
+    #[test]
+    fn classification_anchor_moves_22_pixels_left_with_raid_marker() {
         let style = NameplateStyle::default();
         let rect = classification_rect(&style);
-        assert_eq!(
-            rect,
-            Rect2::new(Vector2::new(-136.0, -10.0), Vector2::new(20.0, 20.0))
-        );
+        assert_eq!(rect.end().x, -style.health_width / 2.0 - 22.0);
         let name = Rect2::new(Vector2::new(-30.0, -28.5), Vector2::new(60.0, 14.0));
         assert_eq!(rect.end().x, raid_icon_rect(&style, true, name).position.x);
     }
