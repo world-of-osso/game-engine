@@ -96,12 +96,17 @@ class DisplayAppearanceReferences:
         for row in rows:
             self.graph.add(number(row, "FileDataID"), "blp", reason)
 
-    def seed_choices(self, choices):
+    def seed_choices(self, choices, mode="selected", require_rows=False):
         elements = self.grouped("ChrCustomizationElement", "ChrCustomizationChoiceID")
         for choice in sorted(choices):
+            if require_rows and not elements[choice]:
+                self.graph.issue(
+                    "missing_metadata_row",
+                    f"ChrCustomizationElement choice={choice}: legacy cache requires raw effect row",
+                )
             for row in elements[choice]:
                 related = number(row, "RelatedChrCustomizationChoiceID")
-                if related and related not in choices:
+                if related and related not in choices and mode != "all":
                     continue
                 reason = f"NPC customization choice {choice} element {row['ID']}"
                 material_id = number(row, "ChrCustomizationMaterialID")
