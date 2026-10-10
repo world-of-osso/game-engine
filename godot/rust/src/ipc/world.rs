@@ -231,6 +231,7 @@ impl crate::GameClient {
                 spell: spell.clone(),
                 target_entity,
                 witness,
+                destination: None,
             })
             .map(|()| {
                 format!(
