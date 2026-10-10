@@ -25,7 +25,8 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 ## Tests asserting this spec
 
 - `godot/ui-model/src/quest_poi.rs` tests: real quest28766 geometry and completion/edge direction.
-- `godot/ui-model/tests/quest_flow.rs`: tracker selection.
+- `godot/ui-model/tests/quest_flow.rs`: tracker selection and both-skin numbered POI buttons.
+- `godot/tests/quest_map_objectives.gd`: private quest28766 acceptance, selected quest, live completion and rendered both-skin captures.
 - `godot/ui-model/src/world_map_view_data_tests.rs`: projection and completed-objective removal.
 - `godot/core/{src/quest_area_data.rs,tests/minimap_data.rs}`: blue fill, clipping and rotation/inverse projection.
 

@@ -12,10 +12,9 @@ use ui_toolkit::widgets::font_string::GameFont;
 use crate::hud_layout::{FOREVER_TRACKER_SCALE, HudAnchor, hud_layout};
 use crate::quest_runtime::QuestRuntime;
 use crate::ui::screens::quest_art::{
-    DynName, POI_IN_PROGRESS, POI_NUMBER, POI_TURN_IN, TRACKER_CHECK, TRACKER_COLLAPSE_ALL,
-    TRACKER_EXPAND_ALL, TRACKER_PRIMARY_HEADER, TRACKER_SECONDARY_COLLAPSE,
-    TRACKER_SECONDARY_EXPAND, TRACKER_SECONDARY_HEADER, atlas_texture, line_height,
-    wrapped_text_height,
+    DynName, POI_NUMBER, POI_TURN_IN, TRACKER_CHECK, TRACKER_COLLAPSE_ALL, TRACKER_EXPAND_ALL,
+    TRACKER_PRIMARY_HEADER, TRACKER_SECONDARY_COLLAPSE, TRACKER_SECONDARY_EXPAND,
+    TRACKER_SECONDARY_HEADER, atlas_texture, line_height, wrapped_text_height,
 };
 
 pub const TRACKER_FRAME: &str = "ObjectiveTrackerFrame";
@@ -305,8 +304,8 @@ fn quests_module(state: &ObjectiveTrackerState, height: &mut f32, scale: f32) ->
         return elements;
     }
     let mut y = top + MODULE_HEADER_HEIGHT + FROM_HEADER_OFFSET_Y;
-    for quest in &state.quests {
-        elements.extend(quest_block(quest, &mut y, scale));
+    for (index, quest) in state.quests.iter().enumerate() {
+        elements.extend(quest_block(quest, index + 1, &mut y, scale));
         *height = y;
         y += FROM_BLOCK_OFFSET_Y;
     }
@@ -387,12 +386,12 @@ fn header_button(
     }
 }
 
-fn quest_block(quest: &TrackedQuest, y: &mut f32, scale: f32) -> Element {
+fn quest_block(quest: &TrackedQuest, number: usize, y: &mut f32, scale: f32) -> Element {
     let block = format!("QuestBlock{}", quest.quest_id);
     let action = format!("{OPEN_QUEST_PREFIX}{}", quest.quest_id);
     let block_top = *y;
     let title_h = wrapped_text_height(&quest.title, BLOCK_W, LINE_FONT);
-    let mut elements = poi_button(&block, quest.complete, &action, block_top, scale);
+    let mut elements = poi_button(&block, number, quest.complete, &action, block_top, scale);
     elements.extend(block_title(&block, &quest.title, &action, block_top, scale));
     *y += title_h;
     for (index, line) in quest.lines.iter().enumerate() {
@@ -409,9 +408,16 @@ fn quest_block(quest: &TrackedQuest, y: &mut f32, scale: f32) -> Element {
     elements
 }
 
-/// `POIButton` (20×20) TOPRIGHT at the header's TOPLEFT (-7, +5): in-progress icon on
-/// the quest number plate, or the turn-in icon for a finished quest.
-fn poi_button(block: &str, complete: bool, action: &str, top: f32, scale: f32) -> Element {
+/// `POIButton` (20×20) TOPRIGHT at the header's TOPLEFT (-7, +5): numbered
+/// objective plate, or the turn-in icon for a finished quest.
+fn poi_button(
+    block: &str,
+    number: usize,
+    complete: bool,
+    action: &str,
+    top: f32,
+    scale: f32,
+) -> Element {
     let x = BLOCK_OFFSET_X - 7.0 - POI_SIZE;
     let y = top - 5.0;
     let centre = |size: f32| {
@@ -433,11 +439,16 @@ fn poi_button(block: &str, complete: bool, action: &str, top: f32, scale: f32) -
         )
     } else {
         let mut plate = atlas_texture(format!("{block}POIButtonNormal"), &POI_NUMBER, centre(32.0));
-        plate.extend(atlas_texture(
-            format!("{block}POIButtonInProgress"),
-            &POI_IN_PROGRESS,
-            centre(20.0),
-        ));
+        let text = number.to_string();
+        plate.extend(rsx! { fontstring {
+            name: {DynName(format!("{block}POIButtonNumber"))},
+            text: {text.as_str()}, font: GameFont::FrizQuadrata,
+            font_size: {11.0 * scale}, font_color: "1,1,1,1",
+            shadow_color: SHADOW, shadow_offset: "1,-1",
+            justify_h: "CENTER", justify_v: "MIDDLE",
+            width: {POI_SIZE * scale}, height: {POI_SIZE * scale},
+            pos_type: "absolute", left: {x * scale}, top: {y * scale},
+        }});
         plate
     };
     let hit = DynName(format!("{block}POIButton"));

@@ -798,6 +798,8 @@ impl GameClient {
         result.set("open", self.minimap.ui.is_some());
         result.set("zoom", i64::from(self.minimap.zoom));
         result.set("hovered", self.minimap.hovered);
+        result.set("rotating", self.minimap.rotate);
+        result.set("map_rotation", self.minimap.rotation);
         result.set("tracking_open", self.minimap.tracking.open);
         let tracking_enabled: Array<bool> = self.minimap.tracking.enabled.iter().copied().collect();
         result.set("tracking_enabled", &tracking_enabled);

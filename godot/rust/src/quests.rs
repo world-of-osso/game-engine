@@ -236,7 +236,7 @@ impl GameClient {
             self.quests.reset();
             return Ok(());
         }
-        self.prepare_quest_pois()?;
+        self.load_and_apply_quest_pois()?;
         self.query_quest_givers()?;
         let interactive =
             self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed();
@@ -253,7 +253,7 @@ impl GameClient {
         Ok(())
     }
 
-    fn prepare_quest_pois(&mut self) -> Result<(), String> {
+    fn load_and_apply_quest_pois(&mut self) -> Result<(), String> {
         if self.quests.poi_catalog.is_none() {
             let catalog = game_engine_ui_model::quest_poi::QuestPoiCatalog::load(
                 &self.data_root.join("db2/12.1.0.69933"),
