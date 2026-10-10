@@ -30,6 +30,14 @@ Extract FDIDs1284817/1301100 with local casc-local and export using scripts/expo
 
 Primary schema: wowdev/WoWDBDefs definitions/AnimReplacement{Set}.dbd, layouts above. Schema proves fields, not missing-destination behavior. Source retention is the explicit user contract; no independently verified primary Retail client fallback implementation was found.
 
+### Aura312 bounded proof — 2026-10-10
+
+Production8a0a3923e: targeted native animation suite74/74 (including nine aura312 lifecycle/selection tests), actual CSV loader1/1, native extension build exit0 with no warnings. Required native cargo check atd858dac75 exits0 without warnings. Changed Rust formatting passes; workspace formatting still fails in unchanged network/replica/codec.rs and ui-model/game_tooltip/merchant.rs. All commands use agent-run/native helpers, no build-lock. Formatting-onlyd858dac75 does not invalidate runtime behavior evidence. Independent verifier could not authenticate (expired Claude OAuth); no independent verdict claimed.
+
+Server origin/master119c402, protocol3facd18, privateUDP5192/fresh redb: fb_animrep_forever/Animforever (HumanWarrior80, character31), authentic learned matrix1251417 cast applied set499. Forever native fixture observes the unit skeleton at PlayerModel/M2Animation: Run5→FlyRun223→Run5 on expiry, cast errors empty. Three1280×720 PNGs in /syncthing/AgentShared/2026-10-10/anim-replacement/ were visually inspected and decoded with ffmpeg signalstats (exit0). Logs stay in data/diagnostics/animrep-2026-10-10/. Ambient missing NPC asset receipts and inherited editor-thread/import shutdown warnings remain unrelated, not suppressed.
+
+Modern proof is **pending**, not equivalent to Forever proof. Initial187827 cast changed display to68671, outside imported appearance coverage. Two subsequent1251417 attempts used recursive find_child and observed a nested item's static animation0 even while the unit physically ran. Fixture now uses the exact player skeleton path; this correction is exercised by Forever. Modern reached the prescribed retry ceiling before that correction; another live attempt requires approval. Failed Modern baseline PNG was moved to diagnostics, not presented as successful user-visible evidence. Owned private server/client PIDs and agents-animrep.slice were stopped; UDP5000 untouched.
+
 ## Sources
 
 - [Contract](../../specs/spell-overrides-teleports.md)
