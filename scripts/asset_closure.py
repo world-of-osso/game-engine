@@ -13,7 +13,7 @@ from pathlib import Path
 import struct
 
 EXPANDABLE = {"adt", "m2", "wmo", "skel", "wdt"}
-DIRECTORIES = {"adt": "terrain", "wdt": "terrain", "wdl": "terrain", "blp": "textures", "ogg": "sounds", "mp3": "sounds", "wav": "sounds"}
+DIRECTORIES = {"adt": "terrain", "wdt": "terrain", "wdl": "terrain", "blp": "textures", "ogg": "sounds", "mp3": "sounds", "wav": "sounds", "audio": "sounds"}
 
 
 def digest(path):
