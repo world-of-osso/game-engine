@@ -1,6 +1,6 @@
 ## 2026-10-09 — Corrected locked-display premise
 
-[Forever dependency audit](systems/forever-data.md#readable-section-correction-2026-10-09) corrects entire-table decoder rejection being mistaken for seven encrypted appearances. All seven Extras and readable choice/item chains exist; unknown option/geoset parents are zero-filled and cannot be attributed. [Contract](../specs/npc-appearance.md#unknown-key-record-contract) retains unknown-key reports, mandatory explicit references and the corrected lead decision to deactivate none. Implementation/re-import/native proof pending.
+[Forever dependency audit](systems/forever-data.md#readable-section-correction-2026-10-09) corrects entire-table decoder rejection being mistaken for seven encrypted appearances. All seven Extras and readable choice/item chains exist; unknown option/geoset parents are zero-filled and cannot be attributed. [Contract](../specs/npc-appearance.md#unknown-key-record-contract) retains unknown-key reports, mandatory explicit references and the corrected lead decision to deactivate none. Decoder714a1042c targeted GREEN13 passed/3 skipped; authentic readable metadata re-import adds7 profiles/97 choices/7 coverage rows without changing prior rows. No CDI references hidden Extra165799 and no creature deactivated. All seven declared bakes remain absent; current Forever70334 local-CASC root archive is unavailable even with fixed80fd790. Native proof/PNGs and independent OAuth-blocked gate remain unproved.
 
 ## 2026-10-09 — HUD layout names and delete confirmation
 
