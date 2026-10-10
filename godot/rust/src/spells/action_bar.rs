@@ -62,6 +62,29 @@ impl GameClient {
             })
     }
 
+    pub(crate) fn effective_spell(&self, spell_id: u32) -> u32 {
+        match self.effective_action(ActionRef::Spell(spell_id)) {
+            ActionRef::Spell(id) => id,
+            _ => unreachable!("spell overrides preserve action type"),
+        }
+    }
+
+    fn effective_action(&self, action: ActionRef) -> ActionRef {
+        let auras = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id)?.get::<UnitAuras>())
+            .map_or(&[][..], |auras| auras.auras.as_slice());
+        game_engine_ui_model::spell_overrides::resolve_action(action, auras)
+    }
+
+    pub(crate) fn action_slot(&self, slot: usize) -> Option<ActionRef> {
+        self.account
+            .spells
+            .slot(slot)
+            .map(|action| self.effective_action(action))
+    }
+
     /// Action slot shown on main bar button `index`, paged by the player's form.
     pub(crate) fn main_bar_slot(&self, index: usize) -> usize {
         main_bar_slot(index, self.bonus_bar_offset())
@@ -84,7 +107,7 @@ impl GameClient {
         index: usize,
     ) -> Result<(), SessionError> {
         self.spells.pushed[bar as usize][index] = PUSH_SECS;
-        match self.account.spells.slot(self.bar_slot(bar, index)) {
+        match self.action_slot(self.bar_slot(bar, index)) {
             Some(ActionRef::Spell(spell_id)) => self.cast_spell(spell_id),
             Some(ActionRef::Item(item_id)) if self.toybox.model.toy(item_id).is_some() => {
                 self.use_toy(item_id)
@@ -132,7 +155,7 @@ impl GameClient {
             ..Default::default()
         };
         let slot = self.bar_slot(bar, index);
-        let action = self.account.spells.slot(slot);
+        let action = self.action_slot(slot);
         if let Some(ActionRef::Item(item_id)) = action {
             if let Some(toy) = self.toybox.model.toy(item_id) {
                 let icon = toy.icon_file_data_id;

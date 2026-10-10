@@ -17,6 +17,7 @@ fn spell(spell_id: u32, name: &str, available_at: Option<u32>) -> SpellbookItemV
         icon_fdid: 132340,
         passive: false,
         available_at,
+        cooldown_fraction: 0.0,
     }
 }
 

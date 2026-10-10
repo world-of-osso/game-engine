@@ -66,6 +66,7 @@ pub(super) fn item_view(spell: &SpellbookSpell) -> SpellbookItemView {
         icon_fdid: spell.icon_file_data_id,
         passive: spell.passive,
         available_at: spell.available_at,
+        cooldown_fraction: 0.0,
     }
 }
 
@@ -164,7 +165,8 @@ impl GameClient {
         let specializations = catalog.zip(player).map_or_else(Vec::new, |(data, player)| {
             specialization_choices(&data.tabs, player.class_id, spells.spec())
         });
-        let categories = spellbook_categories(tabs, class_name.as_deref());
+        let mut categories = spellbook_categories(tabs, class_name.as_deref());
+        self.apply_spellbook_overrides(&mut categories);
         let spec_icon = catalog
             .zip(spells.spec())
             .and_then(|(data, spec)| data.tabs.specs.get(&spec))
@@ -174,6 +176,33 @@ impl GameClient {
             specializations,
             portrait_fdid: spec_icon,
             ..Default::default()
+        }
+    }
+
+    fn apply_spellbook_overrides(&self, categories: &mut [SpellbookCategory]) {
+        for item in categories
+            .iter_mut()
+            .flat_map(|category| &mut category.groups)
+            .flat_map(|group| &mut group.items)
+        {
+            let effective = self.effective_spell(item.spell_id);
+            let replacement = self
+                .spells
+                .catalog()
+                .and_then(|data| data.get(effective))
+                .filter(|_| effective != item.spell_id);
+            let timer = self
+                .account
+                .spells
+                .button_cooldown(effective, self.spell_triggers_gcd(effective));
+            let fraction = timer
+                .filter(|timer| timer.duration > 0.0)
+                .map_or(0.0, |timer| timer.remaining / timer.duration);
+            game_engine_ui_model::spell_overrides::update_spellbook_item(
+                item,
+                replacement,
+                fraction,
+            );
         }
     }
 

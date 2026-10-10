@@ -309,12 +309,18 @@ fn apply_effects(dir: &Path, spells: &mut SpellMap) -> Result<(), String> {
         "ScalingClass",
         "Coefficient",
         "EffectMiscValue_0",
+        "ImplicitTarget_0",
+        "ImplicitTarget_1",
     ];
     let mut effects: HashMap<u32, Vec<CatalogEffect>> = HashMap::new();
     let mut bonus_bars: HashMap<u32, u8> = HashMap::new();
     for_each_row(dir, "SpellEffect", &columns, |row| {
         if !row.is_base_difficulty(1)? {
             return Ok(());
+        }
+        let cursor_destination = row.get::<u16>(15)? == 87 || row.get::<u16>(16)? == 87;
+        if cursor_destination && let Some(spell) = spells.get_mut(&row.get(0)?) {
+            spell.ground_targeted = true;
         }
         let primary_radius = radius(row.get(8)?);
         let radius_yd = if primary_radius > 0.0 {

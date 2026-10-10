@@ -147,6 +147,7 @@ fn item_children(name: &str, item: &SpellbookItemView, s: f32) -> Element {
     [
         item_backplate(name, s),
         icon,
+        item_cooldown(name, item, s),
         item_border(name, item, s),
         item_texts(name, item, s),
     ]
@@ -193,6 +194,25 @@ fn item_icon(name: &str, item: &SpellbookItemView, s: f32) -> Element {
             pos_type: "absolute",
             pos_x: {icon_left * s},
             pos_y: {icon_top * s},
+        }
+    }
+}
+
+/// Same native remaining-fraction shade as action buttons; Retail book cooldowns
+/// query the effective spell through GetSpellBookItemCooldown.
+fn item_cooldown(name: &str, item: &SpellbookItemView, s: f32) -> Element {
+    let side = ICON_SIZE * s;
+    let height = side * item.cooldown_fraction.clamp(0.0, 1.0);
+    rsx! {
+        r#frame {
+            name: {DynName(format!("{name}Cooldown"))},
+            width: side,
+            height,
+            hidden: {height <= 0.0},
+            background_color: "0.0,0.0,0.0,0.8",
+            pos_type: "absolute",
+            pos_x: {(BUTTON_SIZE - ICON_SIZE) / 2.0 * s},
+            pos_y: {(ITEM_H - ICON_SIZE) / 2.0 * s + side - height},
         }
     }
 }

@@ -134,6 +134,9 @@ pub struct CatalogSpell {
     /// `SpellShapeshiftForm.BonusActionBar` of the form its MOD_SHAPESHIFT effect
     /// applies (Retail `GetBonusBarOffset` while the aura is up); 0 for none.
     pub bonus_bar: u8,
+    /// SpellEffect target87 (DEST_DEST): supplied by the ground cursor, not a unit
+    /// or caster-forward destination such as Blink's target55.
+    pub ground_targeted: bool,
 }
 
 impl CatalogSpell {

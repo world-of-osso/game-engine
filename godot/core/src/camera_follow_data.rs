@@ -10,6 +10,47 @@ pub const COLLISION_RECOVERY_SPEED: f32 = 5.0;
 const TERRAIN_COLLISION_STEPS: usize = 24;
 const TERRAIN_COLLISION_CLEARANCE: f32 = 0.2;
 
+/// Camera's last followed player point and adopted movement epoch.
+#[derive(Default)]
+pub struct TeleportAnchor {
+    previous: Option<(u32, Vec3)>,
+}
+
+impl TeleportAnchor {
+    pub fn translate_camera(&mut self, current: Vec3, player: Vec3, epoch: Option<u32>) -> Vec3 {
+        let Some(epoch) = epoch else {
+            return current;
+        };
+        let translated = match self.previous {
+            Some((previous_epoch, previous_player)) if previous_epoch != epoch => {
+                current + player - previous_player
+            }
+            _ => current,
+        };
+        self.previous = Some((epoch, player));
+        translated
+    }
+}
+
+#[cfg(test)]
+mod teleport_tests {
+    use super::*;
+    #[test]
+    fn teleport_translates_camera_and_preserves_orbit_without_follow_lag() {
+        let mut anchor = TeleportAnchor::default();
+        let camera = Vec3::new(10.0, 5.0, 25.0);
+        let player = Vec3::new(10.0, 2.0, 20.0);
+        assert_eq!(anchor.translate_camera(camera, player, Some(4)), camera);
+        let destination = Vec3::new(30.0, 2.0, 20.0);
+        let shifted = anchor.translate_camera(camera, destination, Some(5));
+        assert_eq!(shifted - destination, camera - player);
+        assert_eq!(
+            anchor.translate_camera(shifted, destination + Vec3::X, Some(5)),
+            shifted
+        );
+    }
+}
+
 pub struct CameraPose {
     pub position: Vec3,
     pub eye_target: Vec3,
