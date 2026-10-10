@@ -34,7 +34,9 @@ class RequiredUiIconManifestTests(unittest.TestCase):
             (data / "db2").symlink_to(ROOT / "data/db2", target_is_directory=True)
             with self.assertRaises(ValueError):
                 icons.prepare_ui_icons(root, root / "no-extractor")
-            provenance = json.loads((data / "cache/ui-icon-provenance.json").read_text())
+            path = data / "cache/ui-icon-provenance.json"
+            self.assertTrue(path.is_file(), "Blocked preparation must preserve provenance")
+            provenance = json.loads(path.read_text())
             self.assertEqual(provenance["status"], "incomplete")
             self.assertIn(135875, provenance["missing_fdids"])
             self.assertEqual(provenance["icons"], [])
