@@ -27,11 +27,14 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - `scripts/tests/test_asset_closure.py` — concrete binary chains, catalog joins, missing/malformed dependencies, cycles, aliases and census.
 - `scripts/tests/test_closure_terrain.py` — repeated MCNK layers, liquid/object joins, global blob, FDIDs versus flags, malformed offsets and not-needed evidence.
 - `scripts/tests/test_closure_paths.py` — runtime SQLite displacement, local precedence, explicit FDIDs over names and visible unmapped gaps.
+- `scripts/tests/test_closure_kit_effects.py` — concrete beam/texture/emission/barrage descendants, recursive chains, shader-only evidence, missing rows and unknown types.
+- `scripts/tests/test_closure_db2_export.py` — local DB2 beam-chain identities exported by exact-layout schema.
 
 ## Known gaps (current cycle)
 
 - [ ] Legacy extracted files have no authenticated product/actual-build receipts. Hashing proves local bytes, not origin. Manifest identity remains unverified.
 - [x] Inspect every ADT MCNK and MH2O instance; resolve MCLY ground effects through GroundEffectTexture/Doodad and liquids through LiquidObject/Type/XTexture, including renderer-global textures. Record inline-only chunks and zero-instance liquids as not-needed with evidence; missing required joins/unknown chunks stay unresolved. Absent optional ground-effect rows are not-needed only when the CSV is present and hashed and the current runtime skips the row before any model request; ignored MPTX/legacy MCLQ chunks are explicitly scoped to current runtime support, not Retail-format completeness.
+- [x] Traverse known SpellVisualKitEffect discriminants through pinned local effect tables: attachments, beam chains, emission models, texture blends, decals, screen effects and sound kits. Preserve cycles, missing rows, unknown types and unparsed client-scene script boundaries. Numeric-only effects are scoped to current native file requests, not a claim of full Retail effect rendering.
 - [ ] Emitter auxiliary edges remain an explicit unresolved boundary.
 - [ ] Full spell selector is a conservative catalog superset; complete server reachability needs content policy.
 - [ ] Full character selector includes modeled placeholder races; supported playable-pair policy and customization requirement evaluation remain unresolved.
