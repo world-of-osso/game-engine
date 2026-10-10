@@ -412,15 +412,15 @@ def load_textures(csv_path, outfit_cache, needed):
 def import_files(args):
     decoded = {}
     skipped = {}
-    for kind, filename in [
-        ("extra", "1264997.db2"),
-        ("option", "3692043.db2"),
-        ("geoset", "1720141.db2"),
+    for kind, table, filename in [
+        ("extra", "CreatureDisplayInfoExtra", "1264997.db2"),
+        ("option", "CreatureDisplayInfoOption", "3692043.db2"),
+        ("geoset", "CreatureDisplayInfoGeosetData", "1720141.db2"),
     ]:
         path = args.db2_dir / filename
         try:
-            skipped[kind] = []
-            decoded[kind] = read_wdc5(path.read_bytes(), kind, skipped=skipped[kind])
+            skipped[table] = []
+            decoded[kind] = read_wdc5(path.read_bytes(), kind, skipped=skipped[table])
         except ValueError as error:
             raise ValueError(f"{path}: {error}") from error
     displays = {}
