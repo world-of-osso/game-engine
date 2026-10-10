@@ -1,6 +1,9 @@
 ## 2026-10-10 — PvP pet battles continuation
 
 [PvP acceptance](../specs/petbattle-pvp.md#acceptance--2026-10-10-petbattle-pvp2): initial front-pet choice waits for both owners without a round cost; separate runtime data/config/token stores remove cross-account saved-token collisions. Private5598 proves queue/Accept/selection/rounds/three-pet win/loss in both skins with16 inspected PNGs and HUD restoration. Atomic command rename fixes fixture truncation races. Retail Lua reads timer/XP through runtime APIs; numerical proposal/turn policy and PvP XP formula remain unestablished, never guessed. No master merge or shared realm changes.
+## 2026-10-10 — Toy-effects6 condition and summon coverage
+
+[Toy follow-up](systems/toy-box.md#toy-effects6-conditional-selection-and-summon-coverage-2026-10-10): source-bound inverted aura condition RED→GREEN10/10; strict ordinary train coverage preserves all prior profiles/choices/geosets. Actual journal input produces Spitzy/train/Duck Lovie assets in both configured skins. Mortar live acceptance remains blocked; final observer ordering/range correction is parse-only proof.1256 authenticated local FDID/kind receipts retained for offline certification. No fabricated payload, aura233 implementation, world.db write or shared realm mutation.
 
 ## 2026-10-10 — Closure round 3 final dataset
 
