@@ -213,6 +213,12 @@ fn progress_bar(model: &ToyBox) -> Element {
 fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -> Element {
     let name = format!("ToySpellButton{}", index + 1);
     let action = format!("{}{}", toybox::USE_PREFIX, toy.item_id);
+    // Retail ToySpellButton_UpdateButton displays ItemID when GetToyInfo returns an empty name.
+    let label = if toy.name.is_empty() {
+        toy.item_id.to_string()
+    } else {
+        toy.name.clone()
+    };
     let left = 43.0 + (index % 3) as f32 * 208.0;
     let top = 93.0 + (index / 3) as f32 * 66.0;
     let alpha = if !toy.learned {
@@ -271,7 +277,7 @@ fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -
             pos_type: "absolute", left: 5.0, top: 4.0, hidden: {fraction <= 0.0} }
         fontstring { name: {DynName(format!("{name}CooldownText"))}, text: {countdown.as_str()}, width: 50.0, height: 50.0,
             pos_type: "absolute", left: 0.0, top: 0.0, font_size: 14.0, justify_h: "CENTER" }
-        fontstring { name: {DynName(format!("{name}Name"))}, text: {toy.name.as_str()}, width: 135.0, height: 50.0,
+        fontstring { name: {DynName(format!("{name}Name"))}, text: {label.as_str()}, width: 135.0, height: 50.0,
             pos_type: "absolute", left: 59.0, top: -3.0, font_size: 12.0, font_color, justify_h: "LEFT" }
     } }
 }

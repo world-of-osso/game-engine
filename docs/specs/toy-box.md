@@ -2,7 +2,7 @@
 
 Retail Mainline defines CollectionsJournal geometry (703×606), tab order (Mounts, Pets, Toy Box, Heirlooms, Appearances, Warband Scenes), and ToyBox's 18 entries/page, 3 columns × 6 rows. Forever changes art only.
 
-- Both skins show each toy name to its icon's right, including greyed uncollected names and desaturated uncollected icons; search and a graphical collection progress bar remain present in both skins.
+- Both skins show each toy name to its icon's right, including greyed uncollected names and desaturated uncollected icons. Empty catalog names display ItemID, matching Retail ToySpellButton_UpdateButton; search and a graphical collection progress bar remain present in both skins.
 - Full ToyCollectionUpdate replaces catalog/ownership/favourites. Initial ownership is not new; subsequent learning glows and navigates to the filtered page containing that toy.
 - Collected/uncollected/usable, source, expansion and case-insensitive name search filter the real catalog. Favourites sort first, then name and ItemID. Empty filters show an empty result. Page changes clamp.
 - Left click sends UseToy only for learned, available entries. Right click on learned toys offers Set/Remove Favorite. Server results display refusals; successful Use acknowledges cast start, not completion. Existing CastFailed/SpellGo remain authoritative.

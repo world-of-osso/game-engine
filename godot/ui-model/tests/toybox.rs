@@ -7,17 +7,22 @@ use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::screen::{Screen, SharedContext};
 
 fn journal(skin: ActiveSkin) -> FrameRegistry {
+    journal_with_catalog(
+        skin,
+        (1..=18)
+            .map(|id| toy(id, &format!("Toy {id:02}"), id % 2 == 0))
+            .collect(),
+    )
+}
+
+fn journal_with_catalog(skin: ActiveSkin, catalog: Vec<ToySnapshot>) -> FrameRegistry {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
     )
     .unwrap();
     set_thread_skin(skin);
     let mut model = ToyBox::default();
-    model.receive(
-        (1..=18)
-            .map(|id| toy(id, &format!("Toy {id:02}"), id % 2 == 0))
-            .collect(),
-    );
+    model.receive(catalog);
     let mut shared = SharedContext::new();
     shared.insert(ToyBoxView {
         model,
@@ -89,6 +94,20 @@ fn search_progress_and_six_journal_tabs_exist_in_both_skins() {
         );
         for index in 1..=6 {
             visible_frame(&registry, &format!("CollectionsJournalTab{index}"));
+        }
+    }
+}
+
+#[test]
+fn unresolved_catalog_names_display_item_id_like_retail_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry =
+            journal_with_catalog(skin, vec![toy(72220, "", false), toy(72221, "", true)]);
+        for (index, item_id) in [(1, 72220), (2, 72221)] {
+            let frame = visible_frame(&registry, &format!("ToySpellButton{index}Name"));
+            assert!(
+                matches!(&frame.widget_data, Some(WidgetData::FontString(text)) if text.text == item_id.to_string())
+            );
         }
     }
 }
