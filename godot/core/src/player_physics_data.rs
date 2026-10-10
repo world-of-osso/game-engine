@@ -114,6 +114,7 @@ pub fn apply_gravity_and_ground_snap(
     ground: GroundState,
     dt: f32,
     gravity: f32,
+    max_fall_speed: Option<f32>,
 ) -> VerticalState {
     let ground_y = match ground {
         GroundState::Supported(height) => Some(height),
@@ -131,6 +132,9 @@ pub fn apply_gravity_and_ground_snap(
         state.vertical_velocity = 0.0;
     } else {
         state.vertical_velocity -= gravity * dt;
+        if let Some(speed) = max_fall_speed {
+            state.vertical_velocity = state.vertical_velocity.max(-speed);
+        }
         state.y += state.vertical_velocity * dt;
         if let Some(ground_y) = ground_y
             && state.y <= ground_y

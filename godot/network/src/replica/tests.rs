@@ -422,6 +422,78 @@ fn run_scenario(session: &mut Session, despawn_hero: bool) -> (Entity, Entity) {
 }
 
 #[test]
+fn toyfx2_scale_state_replicates_and_reverts_over_udp() {
+    use shared::components::UnitScale;
+    let mut session = Session::start(9152);
+    let hero = session.spawn((player("ScaleToy"), position(1.0), UnitScale(0.5)));
+    session.until("scale toy", hero, |unit| {
+        unit.and_then(|u| u.get::<UnitScale>().copied()) == Some(UnitScale(0.5))
+    });
+    session.edit(hero, |hero| {
+        hero.insert(UnitScale(1.5));
+    });
+    session.until("additive scale", hero, |unit| {
+        unit.and_then(|u| u.get::<UnitScale>().copied()) == Some(UnitScale(1.5))
+    });
+    session.edit(hero, |hero| {
+        hero.insert(UnitScale::default());
+    });
+    session.until("native scale restored", hero, |unit| {
+        unit.and_then(|u| u.get::<UnitScale>().copied()) == Some(UnitScale(1.0))
+    });
+}
+
+#[test]
+fn toyfx2_feather_fall_replicates_and_reverts_over_udp() {
+    use shared::components::FeatherFall;
+    let mut session = Session::start(9153);
+    let hero = session.spawn((player("FeatherToy"), position(1.0), FeatherFall(true)));
+    session.until("feather fall applied", hero, |unit| {
+        unit.and_then(|u| u.get::<FeatherFall>().copied()) == Some(FeatherFall(true))
+    });
+    session.edit(hero, |hero| {
+        hero.insert(FeatherFall(false));
+    });
+    session.until("feather fall removed", hero, |unit| {
+        unit.and_then(|u| u.get::<FeatherFall>().copied()) == Some(FeatherFall(false))
+    });
+}
+
+#[test]
+fn toyfx2_override_set_replicates_and_removes_with_aura_over_udp() {
+    use shared::components::{AuraOverride, AuraView};
+    let mut session = Session::start(9154);
+    let applied = UnitAuras {
+        auras: vec![AuraView {
+            instance_id: 1,
+            spell_id: 176889,
+            caster: None,
+            stacks: 1,
+            charges: 0,
+            duration_ms: 300000,
+            remaining_ms: 300000,
+            harmful: false,
+            dispel_type: 0,
+            flags: 0,
+            overrides: vec![AuraOverride::SpellSet {
+                id: 785,
+                spells: vec![225656, 225658, 225660, 225657, 225659, 0, 0, 0, 0, 0],
+            }],
+        }],
+    };
+    let hero = session.spawn((player("OverrideToy"), position(1.0), applied.clone()));
+    session.until("override list applied", hero, |unit| {
+        unit.and_then(|u| u.get::<UnitAuras>()) == Some(&applied)
+    });
+    session.edit(hero, |hero| {
+        hero.insert(UnitAuras::default());
+    });
+    session.until("override list removed", hero, |unit| {
+        unit.and_then(|u| u.get::<UnitAuras>()) == Some(&UnitAuras::default())
+    });
+}
+
+#[test]
 fn replica_matches_stock_replicon_client_over_udp() {
     let mut session = Session::start(9100);
     let (hero, wolf) = run_scenario(&mut session, true);
