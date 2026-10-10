@@ -42,9 +42,20 @@ At production `dce2a4432` and fixture `c5a681cd2`, the visibility test has obser
 
 Aura233 remains **unimplemented**. Pinned TrinityCore names it CHANGE_MODEL_FOR_ALL_HUMANOIDS and handles it client-side, not MOD_FAKE_INEBRIATE. Its misc payload is not yet resolved to a Retail-correct visual: blindly using4076/6409 as CreatureDisplayInfo would render Troll/Orc models. No such guess, global ModelDisplay rewrite, or viewer-isolation claim was added. Local source investigation and authenticated CASC table receipts are retained in the same diagnostics and `/home/osso/.worktrees/handoff-toy-aura233.md`.
 
+## Representative native effects proof (2026-10-10)
+
+Private server `toy-effects5`b7f1a99, UDP55392 and disposable Orc accounts sampled14 toys through real bag learning/Toy Box input in Modern and Forever. Twelve received SpellGo; mortar204818 refused OutOfRange and periodic-dummy116139 explicitly refused script support. Bounded native assets passed for45011/33223/40768/221964/228413/263198/88580 plus destination54452; this is not complete Retail visual/audio fidelity.
+
+Ethereal Portal75136 exposed an animation panic: authenticated model165651 starts four billboard bones at scale0. Affine decomposition cannot recover a quaternion from their zero matrix. `7caa054b5` preserves their sampled invisible TRS until expansion, without clamping scale or substituting a pose. The four-model authored regression has observed RED→GREEN; native full-cast departure20yd→bind passes in both skins with no panic. Native build, package check and changed-file format pass.
+
+Remaining: Spitzy/Scoots visual conditions require unsupported AuraSpellID181943/ModifierTree303980 evaluation; Worn Cloak kit106563 references procedural type17, not ordinary model attachments; train summon display28599 lacks imported NPC appearance. Audio starts/FDIDs are recorded, but this host selects Dummy (no output device), so audible parity is unproved. Aura233 was skipped. No procedural/conditional mapping was guessed.
+
+Evidence: `data/diagnostics/toy-live-2026-10-10/{summary.json,retail-visual-kits.json,source-records.json,source-hashes.json,conditions.json,portal-red2-full.log,portal-green-full.log}` and both destination-green logs/receipts. All287 PNGs in `/syncthing/AgentShared/2026-10-10/toy-live/` were decoded into35 full-frame contact sheets and visually inspected; tiny rear-view attachments do not certify exact alignment. Authenticated local-CASC chains242 assets plus534 Orc customization textures were published with the existing frozen importer; no world.db write, shared realm mutation or CDN. Parent owns independent integration acceptance.
+
 ## Sources
 
 - [Toy Box contract](../../specs/toy-box.md)
+- `godot/rust/src/animation/billboard.rs`, `godot/tests/toy_live.gd`, `godot/core/src/spell_visual/{conditions,kits}.rs`; authenticated Retail model165651 and pinned SpellVisualEvent/SpellVisualKitEffect/SpellProceduralEffect/PlayerCondition rows in the toy-live evidence above.
 - `godot/rust/src/game_objects.rs`, `godot/tests/toy_objects_live.gd`; local TrinityCore a352b1fa `SpellAuraDefines.h:320`, `SpellAuraEffects.cpp:305`; local Retail SpellEffect753551/1017276 and CreatureDisplayInfo4076/6409.
 - Client `godot/ui-model/src/toybox.rs`, `toybox_component.rs`; `godot/rust/src/toybox.rs`, `ui/projection.rs`, `ui/toy_cooldown.rs`, `spells/action_bar.rs`.
 - [Build-host contract](../../remote-builds.md) — native helper and sibling overrides.

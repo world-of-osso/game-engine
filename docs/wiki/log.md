@@ -1,3 +1,7 @@
+## 2026-10-10 — Representative toy effects and portal billboard collapse
+
+[Native toy effects](systems/toy-box.md#representative-native-effects-proof-2026-10-10):14 both-skin private samples,12 SpellGo identities; eight bounded visible-asset passes. Authored portal165651 scale0 caused affine quaternion decomposition panic;7caa054b5 preserves collapsed TRS and has real-asset RED→GREEN plus both-skin20yd departure→bind native proof.287 inspected PNGs; conditional/procedural/summon gaps and absent audible output remain explicit. No aura233 mapping, world.db write, shared realm mutation or merge.
+
 ## 2026-10-10 — Effect50 toy object rendering
 
 [Toy objects](systems/toy-box.md#effect50-object-rendering-2026-10-10) records the generic-decoration cursor/visibility bug, targeted RED→GREEN, five passing native tests and actual UseToy45011/33223/40768 assets/scales on private toy-effects4 UDP55386. Six inspected configured-skin PNGs retained; aura233 is named from pinned TrinityCore but remains unimplemented pending authentic payload resolution. No global model, database, shared realm or master changes.
