@@ -1024,6 +1024,15 @@ impl RegistryUi {
         )
     }
 
+    pub fn show_toybox(
+        &mut self,
+        view: game_engine_ui_model::toybox_component::ToyBoxView,
+    ) -> Result<(), String> {
+        self.show_quest_window(view, game_engine_ui_model::toybox_component::toybox_screen)?;
+        self.enable_cursor_inputs();
+        Ok(())
+    }
+
     /// Initialize a dedicated RegistryUi instance for the Retail main action bar.
     pub fn show_main_action_bar(&mut self, state: MainActionBarState) -> Result<(), String> {
         self.show_viewport_screen(state, main_action_bar_screen, ScreenPostsetup::None)

@@ -85,6 +85,7 @@ mod target_classification;
 mod target_raid_icon;
 mod textfit;
 mod threat_meter;
+mod toybox;
 mod trainer;
 mod trainer_art;
 mod trainer_tooltips;
