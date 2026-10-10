@@ -42,10 +42,31 @@ Evidence: `data/diagnostics/closure-unresolved-2026-10-10/{summary.md,summary.js
 
 Publication uses an independent same-directory temporary, flush/fsync, atomic no-clobber **link**, then temporary-name removal—not an in-place write or a hardlink to mutable extraction staging. Native CASC writes only private batch staging in this workflow. All 938,530 receipt rows in the lead-requested size audit matched; the remaining appended rows are covered by content/key proof. Existing files are never overwritten. Separate receipt proof does not authenticate every unreceipted legacy file or populate the graph's still-unverified identity fields.
 
+## Resolver continuation — tooling verified 2026-10-10
+
+`closure-unresolved2` adds sourced resolvers; extraction is still running, so the prior final counts above remain the last completed dataset milestone. Tooling `1f9ff541d` has 66 isolated Python fixtures passing with no warnings. This is not no-install gameplay acceptance.
+
+| Boundary | Traversal now handles | Remaining evidence boundary |
+|---|---|---|
+| Spell kits | WoWDBDefs effect discriminants, model attachments, emission/barrage models, recursive beam textures/sounds, texture blends, decals, screen effects and conditional unit-voice kit superset | Client-scene script assets and missing rows remain explicit; numeric-only effects have current-native no-file-IO evidence, not complete Retail rendering support |
+| Emitters | Core 272/274 legacy filename arrays, 0x1ec particle stride, packed 5-bit multitexture indices, 176-byte ribbon texture arrays and recursive M2 work-queue cycles | Malformed arrays and unmapped filenames remain errors; no alternate Legion-header guess |
+| Extended displays | Extra's model-path-selected HD/SD bake, raw element material/collection/conditional-model/display choices, NPC item-display resources including ModelMatRes | Zero HD never substitutes SD; unknown voice semantics, missing metadata and unauthenticated legacy caches remain boundaries |
+| WMO liquids | Owning MOHD flags carried to GFID/named groups; core MOGP liquid translation; shared and late roots; LiquidType/Material/XTexture and existing renderer globals | MLIQ's material index is MOMT, not a liquid ID; hidden tiles still load the material before geometry; orphan roots are unresolved |
+| Auxiliary identities | Actual unlisted sound headers, BFID bone/PFID physics satellites, raw elements behind legacy unsupported-choice flags | Unknown sound bytes remain unknown; satellite collection does not implement runtime physics/poses |
+
+Local DB2s are exported with exact Retail layout hashes, not inferred field offsets. Empty WDC5 tables can legitimately lack storage descriptors. Layout definitions are preserved and hashed under `data/diagnostics/closure-unresolved2-2026-10-10/sources/`; exported CSVs and immutable phase tooling snapshots are separate evidence. `TextureFileData` now uses the pinned local export in full-catalog mode. Partial encrypted tables report dropped records; readable rows do not prove complete metadata coverage.
+
+Each class runs from an immutable scripts snapshot under `agents.slice`, then uses the existing authenticated local-CASC batch publisher and fixed-point driver. Failure records carry forward without inventing identities or retrying known unavailable bytes. No install is used by the traversal itself. Manifest fingerprints include every resolver module; hashes and separate receipt proofs do not automatically authenticate legacy bytes or caches.
+
+Evidence root: `data/diagnostics/closure-unresolved2-2026-10-10/`. Final per-class counts, extraction bytes and receipt ranges must come from completed phase summaries, not this implementation inventory. Six existing model parse boundaries have inspected non-M2 headers: one reverse-MVER WMO and five M3DT models; do not misreport them as proven corrupt M2 files or silently invent format support.
+
 ## Sources
 
 - [Contract](../../specs/offline-asset-closure.md).
 - `scripts/asset_closure.py`, `scripts/closure_seeds.py`, `scripts/tests/test_asset_closure.py`.
+- `scripts/closure_{kit_effects,emitters,appearance,wmo_liquid}.py`, `closure_db2_layouts.py`, `export_db2_csv.py` and their concrete `scripts/tests/test_closure_*.py` fixtures.
+- WoWDBDefs `meta/enums/SpellVisualKitEffectType.dbde` and exact-build `definitions/*.dbd`; source hashes in the evidence root. NPC bake selection follows `scripts/import_npc_appearance.py`; WMO liquid identity/request ordering follows `godot/core/src/wmo_liquid.rs` and `godot/rust/src/terrain/wmo_liquid.rs`.
+- wowdev/pywowlib `m2_file.py` / `file_formats/m2_format.py` — BFID `.bone` arrays and PFID `.phys` identity, collected without claiming runtime satellite support.
 - `godot/core/src/asset/{adt,m2,wmo}_format/` — current binary layouts and flags; WMO material shader 19/20 texture slots reference WebWowViewerCpp in parser_types.rs.
 - Sibling `game-server/crates/server/src/{player_create_info.rs,class_progression.rs,spell_info/class_data.rs}` — imported loadout and auto-learn/default-skill rules; source comments cite TrinityCore ObjectMgr/Player.
 

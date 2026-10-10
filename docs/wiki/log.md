@@ -1,3 +1,7 @@
+## 2026-10-10 — Unresolved closure resolver continuation
+
+[Offline asset closure](systems/offline-asset-closure.md#resolver-continuation--tooling-verified-2026-10-10) records sourced spell-kit/effect, native M2 emitter, raw extended appearance and owning-root WMO liquid joins; local DB2 layouts, unlisted sound headers, BFID/PFID satellites and explicit script/voice/format gaps. Tooling1f9ff541d passes66 isolated fixtures without warnings. Immutable class extraction phases are running; no final dataset/no-install certificate, merge or data commit.
+
 ## 2026-10-10 — Disenchant bag-item cursor
 
 [Disenchant](systems/disenchant.md) records item targeting before bag actions, GUID intents, cancellation, personal-loot auto taking and ABI initializers. Native ui-model5/5 passes; extension compile proof in handoff. Rendered routing not performed; no realm/service/merge changes.
