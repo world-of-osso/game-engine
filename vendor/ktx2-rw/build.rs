@@ -19,8 +19,11 @@ fn main() {
     let target_env = env::var("CARGO_CFG_TARGET_ENV").unwrap_or_default();
 
     let root = read_cache_root();
-    let key = hash_build_inputs(&target);
-    let library = format!("KTX-Software-build/lib/{}", get_lib_name(&target_os));
+    let key = read_build_cache_key(&target);
+    let library = format!(
+        "KTX-Software-build/lib/{}",
+        get_lib_name(&target_os, &target_env)
+    );
     let entry = cache::populate_locked(&root, &key, &[&library, "bindings.rs"], |entry| {
         let source = fetch_cached_source(&root);
         build_ktx_software(
@@ -106,7 +109,7 @@ fn build_ktx_software(
     );
 
     let dst = cmake_config.build();
-    let library = dst.join("lib").join(get_lib_name(target_os));
+    let library = dst.join("lib").join(get_lib_name(target_os, target_env));
     assert!(
         library.is_file(),
         "CMake did not produce {}",
@@ -126,15 +129,15 @@ fn read_cache_root() -> PathBuf {
     base.join("game-engine/ktx")
 }
 
-fn hash_build_inputs(target: &str) -> String {
+fn read_build_cache_key(target: &str) -> String {
     let mut hash = Sha256::new();
     hash.update(include_bytes!("build.rs"));
     hash.update(include_bytes!("cache.rs"));
     hash.update(include_bytes!("Cargo.toml"));
     hash.update(target.as_bytes());
     hash.update(bindgen::clang_version().full.as_bytes());
-    hash_compiler(&mut hash, false);
-    hash_compiler(&mut hash, true);
+    spawn_compiler_and_hash_identity(&mut hash, false);
+    spawn_compiler_and_hash_identity(&mut hash, true);
     for name in [
         "CMAKE_TOOLCHAIN_FILE",
         "CMAKE_GENERATOR",
@@ -162,7 +165,7 @@ fn hash_environment(hash: &mut Sha256, name: &str) {
     hash.update([0]);
 }
 
-fn hash_compiler(hash: &mut Sha256, cpp: bool) {
+fn spawn_compiler_and_hash_identity(hash: &mut Sha256, cpp: bool) {
     // CMake always uses Release, independent of Cargo's dev/test/release profile.
     let compiler = cc::Build::new()
         .cpp(cpp)
@@ -199,7 +202,7 @@ fn fetch_cached_source(root: &Path) -> PathBuf {
             None => fetch_source_archive(&archive),
         }
         assert_eq!(
-            hash_file(&archive),
+            read_and_hash_file(&archive),
             SOURCE_SHA256,
             "KTX source archive SHA-256 mismatch"
         );
@@ -211,7 +214,7 @@ fn fetch_cached_source(root: &Path) -> PathBuf {
     directory.join(format!("KTX-Software-{KTX_SOFTWARE_VERSION}"))
 }
 
-fn hash_file(path: &Path) -> String {
+fn read_and_hash_file(path: &Path) -> String {
     let mut input = fs::File::open(path).expect("Cannot read KTX archive for SHA-256");
     let mut hash = Sha256::new();
     let mut buffer = [0; 64 * 1024];
@@ -439,9 +442,9 @@ fn configure_cmake_for_target(
     }
 }
 
-fn get_lib_name(target_os: &str) -> &'static str {
-    match target_os {
-        "windows" => "ktx.lib",
+fn get_lib_name(target_os: &str, target_env: &str) -> &'static str {
+    match (target_os, target_env) {
+        ("windows", "msvc") => "ktx.lib",
         _ => "libktx.a",
     }
 }
