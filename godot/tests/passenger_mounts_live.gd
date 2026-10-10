@@ -92,8 +92,12 @@ func run_test() -> void:
 			return
 		if not await capture(skin + "-driver-moved-passenger-mammoth"):
 			return
-		await click(control("MainMenuBarVehicleLeaveButton"))
-		if not await wait_until(func(): return not seated(), "leave-seat request"):
+		var leave := control("MainMenuBarVehicleLeaveButton") as Button
+		print("LEAVE_INPUT path=", leave.get_path(), " rect=", leave.get_global_rect(), " disabled=", leave.disabled)
+		leave.pressed.connect(func(): print("LEAVE_BUTTON_PRESSED"))
+		await click(leave)
+		print("LEAVE_INPUT_AFTER ", client.vehicle_state())
+		if not await wait_until(func(): return not seated(), "leave-seat request"): 
 			return
 	if not await barrier("exited"):
 		return
