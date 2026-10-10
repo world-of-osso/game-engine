@@ -1,4 +1,4 @@
-extends "res://tests/skyriding_bar_live.gd"
+    extends "res://tests/skyriding_bar_live.gd"
 
 ## Private real-server proof: aura1719 action substitution/restoration, ground leap,
 ## and Blink against the same Abbey wall segment used by the server's real LOS test.
@@ -43,7 +43,11 @@ func override_proof() -> bool:
 	if error != "":
 		fail(error)
 		return false
-	if not await wait_until(func(): return client.spells_state().known.has(85288) and client.spells_state().known.has(1719), 10000, "Fury spells"):
+	if not await wait_until(func(): return client.spells_state().spec == 72, 10000, "Fury specialization"):
+		return false
+	if not signal_setup():
+		return false
+	if not await wait_until(func(): return client.spells_state().known.has(85288) and client.spells_state().known.has(1719), 30000, "Fury spells"):
 		return false
 	await tap(KEY_P)
 	await wait_frames(4)
@@ -129,9 +133,18 @@ func ground_proof() -> bool:
 	await capture("ground-placed")
 	return true
 
+func signal_setup() -> bool:
+	var setup := OS.get_environment("OVERRIDE_SETUP")
+	if setup == "":
+		fail("Owned online spell setup signal required")
+		return false
+	FileAccess.open(setup, FileAccess.WRITE).store_string("online")
+	return true
+
 func blink_proof() -> bool:
-	if not client.spells_state().known.has(1953):
-		fail("Mage does not know Blink")
+	if not signal_setup():
+		return false
+	if not await wait_until(func(): return client.spells_state().known.has(1953), 30000, "Blink learned"):
 		return false
 	var yaw := atan2(12.7, 27.2)
 	client.set_camera_orbit(yaw - PI, -0.3, 12.0)
