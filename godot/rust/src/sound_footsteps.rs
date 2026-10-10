@@ -61,7 +61,9 @@ impl Footsteps {
                     self.streams.insert(entry.fdid, stream);
                     self.catalog.entries.push(entry);
                 }
-                None => godot_error!("Footstep {}: Godot rejected Ogg stream", entry.fdid),
+                None => {
+                    godot_error!("Footstep {}: Godot rejected Ogg stream", entry.fdid);
+                }
             }
         }
         if self.catalog.entries.is_empty() {

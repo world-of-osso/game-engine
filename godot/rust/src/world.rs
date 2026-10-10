@@ -1218,7 +1218,9 @@ impl WorldUnits {
                         mount.node = Some(model);
                         mount::seat_rider(unit);
                     }
-                    Err(error) => godot_error!("Mount of {}: {error}", unit.name),
+                    Err(error) => {
+                        godot_error!("Mount of {}: {error}", unit.name);
+                    }
                 }
                 continue;
             }

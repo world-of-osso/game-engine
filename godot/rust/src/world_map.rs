@@ -295,7 +295,9 @@ impl GameClient {
         let player = self.world_map_player();
         let vignettes = self
             .world_map_vignettes()
-            .inspect_err(|error| godot_error!("World map vignettes: {error}"))
+            .inspect_err(|error| {
+                godot_error!("World map vignettes: {error}");
+            })
             .unwrap_or_default();
         let mut state = world_map_frame_state(
             data,
@@ -394,8 +396,12 @@ impl GameClient {
             if !path.exists() {
                 match resolver.ensure_cached(fdid, &path) {
                     Ok(Some(_)) => {}
-                    Ok(None) => godot_warn!("Quest panel texture FDID {fdid} is not in local CASC"),
-                    Err(error) => godot_warn!("{error}"),
+                    Ok(None) => {
+                        godot_warn!("Quest panel texture FDID {fdid} is not in local CASC");
+                    }
+                    Err(error) => {
+                        godot_warn!("{error}");
+                    }
                 }
             }
         }
