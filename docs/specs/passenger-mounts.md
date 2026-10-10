@@ -47,4 +47,3 @@ Party/raid members can ride available passenger seats on a player's summoned mou
 ## Out of scope
 - Mount journal and collection UI, explicitly excluded.
 - Full vehicle action/override bar, player-frame vehicle art and seat indicators; only exit-seat control requested.
-- NPC passenger vendors/services.

@@ -549,6 +549,18 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_board_vehicle(&self, driver: u64) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(shared::protocol::BoardVehicle { driver })
+            .map_err(SessionError)
+    }
+
+    pub fn send_exit_vehicle(&self) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, CombatChannel>(shared::protocol::ExitVehicle)
+            .map_err(SessionError)
+    }
+
     /// `SetDungeonDifficultyID`; the server validates it and answers `DungeonDifficultySet`.
     pub fn send_set_dungeon_difficulty(&self, difficulty_id: u32) -> Result<(), SessionError> {
         self.bridge()?

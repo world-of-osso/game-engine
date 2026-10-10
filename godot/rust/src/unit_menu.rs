@@ -24,6 +24,7 @@ use crate::replicated::UnitFields;
 /// `UnitPopupRaidTarget<n>ButtonMixin:OnClick` → `SetRaidTargetIcon(unit, n)`.
 const ACTION_UNIT_MENU_RAID_TARGET_PREFIX: &str = "unit_menu_raid_target:";
 const ACTION_DISMISS_PET: &str = "unit_menu_dismiss_pet";
+const ACTION_RIDE_VEHICLE: &str = "unit_menu_ride_vehicle";
 const ACTION_DISMISS_HUNTER_PET: &str = "unit_menu_dismiss_hunter_pet";
 const DISMISS_PET_SPELL: u32 = 2641;
 const HUNTER_CLASS: u8 = 3;
@@ -101,6 +102,14 @@ fn menu_unit(
 }
 
 /// The open menu's entries: the focus entry, the player entries, the raid target icons.
+fn ride_item() -> UnitMenuItem {
+    UnitMenuItem {
+        name: "UnitFrameContextMenuRide".into(),
+        label: "Ride".into(),
+        action: ACTION_RIDE_VEHICLE.into(),
+    }
+}
+
 fn menu_items(from_focus_frame: bool, player_items: Vec<UnitMenuItem>) -> Vec<UnitMenuItem> {
     std::iter::once(focus_menu_item(from_focus_frame))
         .chain(player_items)
@@ -257,10 +266,16 @@ impl GameClient {
         };
         let title = name.to_owned();
         let player = self.target_player_name(unit);
-        let player_items = match &player {
+        let mut player_items = match &player {
             Some(player) => player_items(&self.account.group, &local, player),
             None => Vec::new(),
         };
+        if player
+            .as_ref()
+            .is_some_and(|name| self.ride_mount_id(name).is_some())
+        {
+            player_items.push(ride_item());
+        }
         let pet_items = if Some(unit) == self.local_pet_id() {
             let hunter = self
                 .world
@@ -302,7 +317,10 @@ impl GameClient {
         let Some(local) = self.account.session.selected_character_name.as_deref() else {
             return false;
         };
-        let items = player_items(&self.account.group, local, member);
+        let mut items = player_items(&self.account.group, local, member);
+        if self.ride_mount_id(member).is_some() {
+            items.push(ride_item());
+        }
         self.unit_menu = UnitMenu {
             state: self.unit_menu_state(member.to_owned(), items, point),
             unit: None,
@@ -337,6 +355,37 @@ impl GameClient {
         if !still_available {
             self.unit_menu = UnitMenu::default();
         }
+    }
+
+    fn ride_mount_id(&self, name: &str) -> Option<u64> {
+        let local_id = self.world.local_player_id()?;
+        let local = self.replica.unit(local_id)?;
+        if local.has::<shared::components::VehiclePassenger>()
+            || local.has::<shared::components::Mounted>()
+        {
+            return None;
+        }
+        if !self
+            .account
+            .group
+            .members
+            .iter()
+            .any(|member| member.name.eq_ignore_ascii_case(name))
+        {
+            return None;
+        }
+        self.replica
+            .units()
+            .find(|unit| {
+                unit.server_id != local_id
+                    && unit
+                        .get::<Player>()
+                        .is_some_and(|player| player.name.eq_ignore_ascii_case(name))
+                    && unit
+                        .get::<shared::components::Mounted>()
+                        .is_some_and(|mount| mount.vehicle_id != 0)
+            })
+            .map(|unit| unit.server_id)
     }
 
     fn target_player_name(&self, unit: u64) -> Option<String> {
@@ -445,6 +494,12 @@ impl GameClient {
             return Ok(());
         };
         match action {
+            ACTION_RIDE_VEHICLE => match self.ride_mount_id(&unit) {
+                Some(driver) => self.account.send_board_vehicle(driver),
+                None => Err(SessionError(
+                    "Passenger mount is no longer available".into(),
+                )),
+            },
             ACTION_UNIT_MENU_TRADE => self.initiate_trade(unit),
             ACTION_UNIT_MENU_CLOSE => Ok(()),
             action => match GroupMenuEntry::from_action(action) {
@@ -454,6 +509,53 @@ impl GameClient {
                 ))),
             },
         }
+    }
+}
+
+#[godot_api(secondary)]
+impl GameClient {
+    #[func]
+    fn ride_player_mount(&self, name: GString) -> GString {
+        match self.ride_mount_id(&name.to_string()) {
+            Some(driver) => self
+                .account
+                .send_board_vehicle(driver)
+                .err()
+                .map_or_else(GString::new, |error| GString::from(error.to_string())),
+            None => GString::from("Party member has no available passenger mount"),
+        }
+    }
+
+    #[func]
+    fn leave_vehicle(&self) -> GString {
+        self.account
+            .send_exit_vehicle()
+            .err()
+            .map_or_else(GString::new, |error| GString::from(error.to_string()))
+    }
+
+    #[func]
+    fn vehicle_state(&self) -> VarDictionary {
+        let mut state = VarDictionary::new();
+        let Some(unit) = self
+            .world
+            .local_player_id()
+            .and_then(|id| self.replica.unit(id))
+        else {
+            return state;
+        };
+        state.set("entity", unit.server_id as i64);
+        if let Some(mount) = unit.get::<shared::components::Mounted>() {
+            state.set("vehicle_id", mount.vehicle_id);
+            state.set("display_id", mount.mount_display_id);
+            state.set("passengers", mount.seats.iter().flatten().count() as i64);
+        }
+        if let Some(passenger) = unit.get::<shared::components::VehiclePassenger>() {
+            state.set("driver", passenger.driver as i64);
+            state.set("seat_index", passenger.seat_index as i64);
+            state.set("seat_id", passenger.seat_id);
+        }
+        state
     }
 }
 
