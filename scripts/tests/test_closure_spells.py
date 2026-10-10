@@ -17,10 +17,10 @@ class SpellRootsTests(unittest.TestCase):
             'SpellVisual': 'ID,SpellVisualMissileSetID\n10,20\n99,99\n',
             'SpellVisualEvent': 'ID,SpellVisualID,SpellVisualKitID\n1,10,30\n',
             'SpellVisualKit': 'ID,FallbackSpellVisualKitID\n30,31\n31,30\n',
-            'SpellVisualKitEffect': 'ID,ParentSpellVisualKitID,EffectType,Effect\n1,31,5,50\n2,30,99,88\n',
-            'SpellVisualKitModelAttach': 'ID,ParentSpellVisualKitID,SpellVisualEffectNameID\n1,30,40\n',
+            'SpellVisualKitEffect': 'ID,ParentSpellVisualKitID,EffectType,Effect\n1,31,5,50\n2,30,99,88\n3,30,2,10\n',
+            'SpellVisualKitModelAttach': 'ID,ParentSpellVisualKitID,SpellVisualEffectNameID\n1,30,40\n10,999,42\n',
             'SpellVisualMissile': 'ID,SpellVisualMissileSetID,SpellVisualEffectNameID,SoundEntriesID\n1,20,41,51\n',
-            'SpellVisualEffectName': 'ID,ModelFileDataID,TextureFileDataID\n40,60,70\n41,61,0\n',
+            'SpellVisualEffectName': 'ID,ModelFileDataID,TextureFileDataID\n40,60,70\n41,61,0\n42,62,0\n',
             'SoundKitEntry': 'ID,SoundKitID,FileDataID\n1,50,80\n2,51,81\n3,99,90\n',
         }
         with tempfile.TemporaryDirectory() as tmp:
@@ -31,7 +31,7 @@ class SpellRootsTests(unittest.TestCase):
                 (root / (name + '.csv')).write_text(text)
             graph = Closure(data, {80: 'sound/a.ogg', 81: 'sound/b.mp3'}, 'wow', 'fixture')
             seed_spell_visuals(graph, Catalogs(graph), [100])
-            self.assertEqual(sorted(graph.assets), [(60, 'm2'), (61, 'm2'), (70, 'blp'), (71, 'blp'), (80, 'ogg'), (81, 'mp3')])
+            self.assertEqual(sorted(graph.assets), [(60, 'm2'), (61, 'm2'), (62, 'm2'), (70, 'blp'), (71, 'blp'), (80, 'ogg'), (81, 'mp3')])
             self.assertTrue(any(code == 'unsupported_spell_kit_effect' and '99' in reason for code, reason, _ in graph.unresolved))
 
 
