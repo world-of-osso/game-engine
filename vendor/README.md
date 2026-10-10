@@ -14,7 +14,8 @@ Neither imported package contained separate LICENSE files.
 ## ktx2-rw (MIT OR Apache-2.0)
 
 The fork adds MinGW GCC runtime and target sysroot library search directories
-beneath `MINGW_PREFIX` and uses bindgen 0.73.1 to avoid deprecated generated code.
+beneath `MINGW_PREFIX` and pins bindgen 0.73.2 to avoid deprecated generated code
+and keep the cached generator version identical in the root/Godot workspaces.
 It also caches libktx and generated bindings outside Cargo's `OUT_DIR`, under
 `${XDG_CACHE_HOME:-~/.cache}/game-engine/ktx` (`KTX_CACHE_DIR` overrides it).
 Entries hash KTX version/target, this build recipe (CMake options), compiler identity

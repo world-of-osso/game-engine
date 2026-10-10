@@ -80,8 +80,9 @@ version = "1"
 [build-dependencies.sha2]
 version = "0.10"
 
+# Bindings are shared across workspaces; pin the generator in the cache recipe.
 [build-dependencies.bindgen]
-version = "0.73.1"
+version = "=0.73.2"
 
 [build-dependencies.cmake]
 version = "0.1"
