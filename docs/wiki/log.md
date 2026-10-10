@@ -1,3 +1,7 @@
+## 2026-10-10 — Named talent loadout lifecycle
+
+[Named loadouts](systems/talents.md#named-loadouts--2026-10-10) adds server-owned per-spec rows/selection, create/rename/delete/switch dialogs and ordered transport; migration/server4 behavioural tests pass. Native UI/live proof remains pending. Import/export has no locally verified C API serialization-version value; Starter/PvP/Warmode remain explicit authentic-data gaps.
+
 ## 2026-10-10 — Retail talent footer controls
 
 [Footer controls](systems/talents.md#footer-controls--2026-10-10) records staged class/spec/all reset, real catalog search with previews/keyboard/badges, unnamed default loadout UI and explicit server/serialization blockers. Native ui-model17/17, actual Down/Up/Enter/blur fixture, four inspected Arms/Arcane Modern/Forever v3 captures and footer bounds/glyph proof. Authenticated local atlas1047875 extraction; no CDN, server mutation, merge or independent verification claim.

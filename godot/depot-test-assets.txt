@@ -13,6 +13,8 @@ AnimReplacement.csv
 sounds/spells/632305.ogg
 # Retail SpellSearch preview row/highlight atlas, authenticated local CASC extraction.
 textures/1047875.blp
+textures/130751.blp
+textures/311226.blp
 # Tests needing files absent here fail remotely with their own missing-path error.
 
 # Shared tooltip scaling: Retail squish and local CASC FDIDs 1391670, 1980632, 1391643.
