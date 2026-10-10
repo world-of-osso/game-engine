@@ -21,6 +21,19 @@ impl crate::GameClient {
     pub(crate) fn world_request(&mut self, request: Request) -> Result<Response, Request> {
         let answer = match request {
             Request::DeathStatus => format_death_snapshot(self.death_flow.snapshot.as_ref()),
+            Request::CollectionPets { missing } => Ok(self.pet_journal_text(missing)),
+            Request::CollectionSummonPet { pet_id } => self
+                .account
+                .send_pet_request(game_engine_ui_model::pet_journal::PetRequest::Summon(
+                    pet_id,
+                ))
+                .map(|()| format!("companion summon submitted: {pet_id}"))
+                .map_err(|error| error.to_string()),
+            Request::CollectionDismissPet => self
+                .account
+                .send_pet_request(game_engine_ui_model::pet_journal::PetRequest::Dismiss)
+                .map(|()| "companion dismiss submitted".into())
+                .map_err(|error| error.to_string()),
             Request::MapTarget => self.map_target(),
             Request::MapWaypointAdd { x, y } => {
                 self.map_waypoint = Some((x, y));
@@ -61,6 +74,45 @@ impl crate::GameClient {
             Ok(text) => Response::Text(text),
             Err(error) => Response::Error(error),
         })
+    }
+
+    fn pet_journal_text(&self, missing: bool) -> String {
+        let view = &self.pet_journal.view;
+        let mut lines: Vec<_> = view
+            .journal
+            .pets
+            .iter()
+            .map(|pet| {
+                let name = view
+                    .catalog
+                    .get(&pet.species_id)
+                    .map_or("", |species| species.name.as_str());
+                format!(
+                    "guid={} species={} name={} level={} breed={} quality={:?} active={}",
+                    pet.id,
+                    pet.species_id,
+                    name,
+                    pet.level,
+                    pet.breed_id,
+                    pet.quality,
+                    view.summoned == Some(pet.id)
+                )
+            })
+            .collect();
+        if missing {
+            lines.extend(
+                view.catalog
+                    .values()
+                    .filter(|species| view.journal.count_species(species.pet_id) == 0)
+                    .map(|species| {
+                        format!(
+                            "species={} name={} collected=false",
+                            species.pet_id, species.name
+                        )
+                    }),
+            );
+        }
+        lines.join("\n")
     }
 
     fn connected(&self) -> bool {
