@@ -21,14 +21,18 @@ func _run() -> void:
 	root.add_child(client)
 	await frames(120)
 	await login(endpoint)
-	if skin == "modern":
+	var phase := OS.get_environment("TALENT_LOADOUT_PHASE")
+	if phase == "inspect":
+		await inspect_loadouts()
+	elif skin == "modern":
 		await modern_lifecycle()
 	elif skin == "forever":
 		await forever_relog()
 	else:
 		abort("Unknown explicit skin")
 		return
-	var file := FileAccess.open(directory.path_join(skin + "-proof.json"), FileAccess.WRITE)
+	var proof_name := skin + ("-inspect" if phase == "inspect" else "") + "-proof.json"
+	var file := FileAccess.open(directory.path_join(proof_name), FileAccess.WRITE)
 	file.store_string(JSON.stringify(evidence, "\t"))
 	file.close()
 	print("TALENT_LOADOUT_LIVE_PASS ", skin)
@@ -49,6 +53,30 @@ func login(endpoint: String) -> void:
 	await key(KEY_N)
 	await control("TalentLoadoutDropDown")
 	await frames(120)
+
+func inspect_loadouts() -> void:
+	await expect_caption("Dungeons")
+	await menu()
+	await capture("named-rows")
+	await click("TalentLoadoutEdit1")
+	await capture("edit-dialog")
+	await key(KEY_ESCAPE)
+	if root.find_child("TalentLoadoutDropDown", true, false) == null:
+		abort("Escape closed Talents during inspection")
+		return
+	await menu()
+	await click("TalentLoadoutEdit2")
+	await click("TalentLoadoutDelete")
+	await capture("delete-confirmation")
+	await key(KEY_ESCAPE)
+	if root.find_child("TalentLoadoutDropDown", true, false) == null:
+		abort("Confirmation Escape closed Talents")
+		return
+	await login(OS.get_environment("TALENT_LOADOUT_ENDPOINT"))
+	await expect_caption("Dungeons")
+	await expect_rank("1/1")
+	await menu()
+	await capture("relog-persisted")
 
 func modern_lifecycle() -> void:
 	if OS.get_environment("TALENT_LOADOUT_PHASE") == "rename":
@@ -226,7 +254,8 @@ func capture(suffix: String) -> void:
 	await frames(30)
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
-	var filename := skin + "-" + suffix + ".png"
+	var prefix := "mainline-" if OS.get_environment("TALENT_LOADOUT_PHASE") == "inspect" else ""
+	var filename := prefix + skin + "-" + suffix + ".png"
 	if image.save_png(directory.path_join(filename)) != OK:
 		abort("PNG save failed: " + filename)
 		return

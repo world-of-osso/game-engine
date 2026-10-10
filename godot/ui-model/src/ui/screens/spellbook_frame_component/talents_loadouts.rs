@@ -25,9 +25,9 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
                 font_size:{12.0*scale},font_color:TAB_TEXT,justify_h:"LEFT",mouse_enabled:false} {check}
         }
         button {name:{DynName(format!("TalentLoadoutEdit{}",config.id))},onclick:{edit.as_str()},enabled,button_default_skin:false,
-            width:{24.0*scale},height:{24.0*scale},pos_type:"absolute",left:{170.0*scale},top:{top+2.0*scale},
-            texture {name:{DynName(format!("{name}Gear"))},texture_fdid:311226,width:{20.0*scale},height:{20.0*scale},mouse_enabled:false,
-                pos_type:"absolute",left:{2.0*scale},top:{2.0*scale}}
+            width:{16.0*scale},height:{16.0*scale},pos_type:"absolute",left:{178.0*scale},top:{top+6.0*scale},
+            texture {name:{DynName(format!("{name}Gear"))},texture_fdid:311226,width:{16.0*scale},height:{16.0*scale},mouse_enabled:false,
+                pos_type:"absolute",left:0.0,top:0.0}
         } });
     }
     for (offset, name, label, action, available) in [
@@ -41,13 +41,12 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
         (1, "TalentImportLoadout", "Import Loadout", "", false),
         (2, "TalentExportLoadout", "Export Loadout", "", false),
     ] {
-        rows.extend(menu_row(
+        rows.extend(sentinel_row(
             name,
             label,
             action,
             available,
             configs.len() + offset,
-            200.0,
             scale,
         ));
     }
@@ -58,6 +57,22 @@ pub(super) fn loadout_menu(view: &TalentView, y: f32, scale: f32) -> Element {
         rows,
         scale,
     )
+}
+
+fn sentinel_row(
+    name: &str,
+    text: &str,
+    action: &str,
+    enabled: bool,
+    index: usize,
+    scale: f32,
+) -> Element {
+    let color = if enabled { TAB_TEXT } else { "0.5,0.5,0.5,1.0" };
+    rsx! { button {name:{DynName(name.into())},onclick:action,enabled,button_default_skin:false,
+        width:{188.0*scale},height:{28.0*scale},pos_type:"absolute",left:{6.0*scale},top:{(6.0+index as f32*28.0)*scale},
+        fontstring {name:{DynName(format!("{name}Text"))},text,width:{188.0*scale},height:{28.0*scale},
+            font_size:{12.0*scale},font_color:color,justify_h:"LEFT",mouse_enabled:false}
+    } }
 }
 
 pub(super) fn loadout_dialog(view: &TalentView, scale: f32) -> Element {
@@ -130,7 +145,9 @@ pub(super) fn loadout_dialog(view: &TalentView, scale: f32) -> Element {
     let cancel_x = if is_edit { 300.0 } else { 235.0 };
     contents.extend(dialog_button(
         "TalentLoadoutSave",
-        if confirm {
+        if matches!(dialog, LoadoutDialog::Delete(_)) {
+            "Delete"
+        } else if confirm {
             "Confirm"
         } else if is_edit {
             "Accept"

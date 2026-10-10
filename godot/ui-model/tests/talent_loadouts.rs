@@ -172,9 +172,61 @@ fn talent_loadouts_both_skins_render_three_server_rows_and_selected_caption() {
             button.state,
             ui_toolkit::widgets::button::ButtonState::Disabled
         );
+        assert_eq!(
+            button.normal_texture, None,
+            "Retail dropdown sentinels draw flat menu text, not panel button art"
+        );
         assert!(registry.get_by_name("TalentStarterBuild").is_none());
     }
 }
+#[test]
+fn talent_loadouts_modern_dialog_draws_the_mainline_panel_button_sheets() {
+    set_thread_skin(ActiveSkin::Modern);
+    let mut state = state();
+    let editor = &mut state.talents.as_mut().unwrap().editor;
+    editor.loadout_dialog = Some(LoadoutDialog::Edit(1));
+    editor.loadout_name = "Raid".into();
+    let mut shared = SharedContext::new();
+    shared.insert(state.clone());
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+    game_engine_ui_model::spellbook_frame_component::apply_spellbook_postsetup(
+        &state,
+        &mut registry,
+    );
+    for name in [
+        "TalentLoadoutSave",
+        "TalentLoadoutDelete",
+        "TalentLoadoutCancel",
+    ] {
+        let Some(WidgetData::Button(button)) = &registry
+            .get(registry.get_by_name(name).unwrap())
+            .unwrap()
+            .widget_data
+        else {
+            panic!("dialog button")
+        };
+        assert_eq!(
+            button.normal_texture,
+            Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
+                130828
+            ))
+        );
+        assert_eq!(
+            button.pushed_texture,
+            Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
+                130825
+            ))
+        );
+        assert_eq!(
+            button.disabled_texture,
+            Some(ui_toolkit::widgets::texture::TextureSource::FileDataId(
+                130824
+            ))
+        );
+    }
+}
+
 #[test]
 fn talent_loadouts_ignore_list_from_other_spec() {
     let state = state();
