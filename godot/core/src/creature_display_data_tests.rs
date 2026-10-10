@@ -12,15 +12,17 @@ fn query_display_reads_model_all_skins_and_scale() {
             skin_fdid_1 INTEGER NOT NULL,
             skin_fdid_2 INTEGER NOT NULL,
             skin_fdid_3 INTEGER NOT NULL,
-            scale_milli INTEGER NOT NULL
+            scale_milli INTEGER NOT NULL,
+            source_product TEXT NOT NULL
         );
-        INSERT INTO creature_displays VALUES (42, 1234, 567, 890, 123, 456, 1750);",
+        INSERT INTO creature_displays VALUES (42, 1234, 567, 890, 123, 456, 1750, 'wow');",
     )
     .unwrap();
 
     assert_eq!(
         query_display(&conn, 42).unwrap(),
         Some(CreatureDisplay {
+            source_product: crate::asset_product::AssetProduct::Retail,
             model_fdid: 1234,
             skin_fdids: [567, 890, 123, 456],
             scale_milli: 1750,

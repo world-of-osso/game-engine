@@ -6,6 +6,7 @@ use rusqlite::{Connection, OptionalExtension};
 /// The first three bind M2 types 11/12/13; the fourth binds type 5.
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub struct CreatureDisplay {
+    pub source_product: crate::asset_product::AssetProduct,
     pub model_fdid: u32,
     pub skin_fdids: [u32; 4],
     pub scale_milli: u32,
@@ -17,7 +18,7 @@ pub fn query_display(
     display_id: u32,
 ) -> rusqlite::Result<Option<CreatureDisplay>> {
     let mut stmt = conn.prepare(
-        "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli
+        "SELECT model_fdid, skin_fdid_0, skin_fdid_1, skin_fdid_2, skin_fdid_3, scale_milli, source_product
          FROM creature_displays WHERE display_id = ?1",
     )?;
     stmt.query_row([display_id], |row| {
@@ -25,6 +26,7 @@ pub fn query_display(
             model_fdid: row.get(0)?,
             skin_fdids: [row.get(1)?, row.get(2)?, row.get(3)?, row.get(4)?],
             scale_milli: row.get(5)?,
+            source_product: row.get(6)?,
         })
     })
     .optional()

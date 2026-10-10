@@ -4,6 +4,7 @@ pub mod adt;
 pub mod area_zone_data;
 pub mod asset;
 pub mod asset_loader;
+pub mod asset_product;
 pub mod blp;
 #[path = "camera_control_data.rs"]
 pub mod camera_control_data;
