@@ -244,3 +244,18 @@ fn wild_pet_battle_forfeit_requires_confirmation_and_end_stops_actions() {
     });
     assert!(view.action("pb:trap").is_none());
 }
+
+#[test]
+fn petbattle_pvp_waiting_player_can_still_confirm_forfeit() {
+    let mut view = WildBattleView::default();
+    let mut state = snapshot();
+    state.wild_creature = 0;
+    state.can_trap = false;
+    view.receive(WildPetBattleUpdate::Start(state));
+    assert!(view.action("pb:pass").is_some());
+    assert!(view.pending);
+    assert!(view.action("pb:forfeit").is_none());
+    assert!(view.confirm_forfeit);
+    let request = view.action("pb:confirm-forfeit").unwrap();
+    assert_eq!(request.action, WildPetBattleAction::Forfeit);
+}
