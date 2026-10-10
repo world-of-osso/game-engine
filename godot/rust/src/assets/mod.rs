@@ -256,11 +256,43 @@ fn model_asset_resolver(model_path: &Path) -> Result<CascListfileResolver, Strin
         .parent()
         .and_then(Path::parent)
         .ok_or("Model path has no asset root")?;
-    Ok(CascListfileResolver::new(
-        AssetResolverConfig::new()
-            .with_data_root(data_root)
-            .with_shared_data_root(data_root),
-    ))
+    let mut config = AssetResolverConfig::new()
+        .with_data_root(data_root)
+        .with_shared_data_root(data_root);
+    if let Some((root, identity)) = published_model_identity(data_root)? {
+        config = config
+            .with_data_root(&root)
+            .with_shared_data_root(&root)
+            .with_identity(identity);
+    }
+    Ok(CascListfileResolver::new(config))
+}
+
+fn published_model_identity(
+    asset_root: &Path,
+) -> Result<Option<(std::path::PathBuf, osso_asset_resolver::AssetIdentity)>, String> {
+    let Some(products) = asset_root
+        .parent()
+        .and_then(Path::parent)
+        .filter(|path| path.file_name() == Some(std::ffi::OsStr::new("products")))
+    else {
+        return Ok(None);
+    };
+    let product = asset_root
+        .parent()
+        .and_then(Path::file_name)
+        .and_then(|name| name.to_str())
+        .ok_or("Published model path has no UTF-8 product")?;
+    let build = asset_root
+        .file_name()
+        .and_then(|name| name.to_str())
+        .ok_or("Published model path has no UTF-8 build key")?;
+    let root = products
+        .parent()
+        .ok_or("Published model path has no data root")?
+        .to_owned();
+    let identity = osso_asset_resolver::AssetIdentity::new(product, build)?;
+    Ok(Some((root, identity)))
 }
 
 fn read_animation_asset(
