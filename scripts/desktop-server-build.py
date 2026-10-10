@@ -22,7 +22,6 @@ depot = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(depot)
 
 BINARIES = ("game-server", "game-server-admin", "game-cli")
-GROUND_GAPS = Path("crates/server/src/ground_gaps.tsv")
 TEST_DATA = SCRIPTS / "desktop-server/test-data.txt"
 TEST_LOG = Path("target/server-test.log")
 # Synced data mirror on each host, shared by every checkout under one lock.
@@ -39,18 +38,6 @@ def snapshot(root, context):
         if not repo.is_dir():
             raise FileNotFoundError(f"missing build dependency: {repo}")
         depot.snapshot_repo(repo, context / name, (".",), name)
-    # This tracked include_str! input is not a source suffix in the engine helper.
-    if GROUND_GAPS in depot.git_files(root, (".",), True) and not depot.allowed(
-        "game-server", GROUND_GAPS, True
-    ):
-        source = root / GROUND_GAPS
-        if source.is_symlink() or any(
-            (root / parent).is_symlink() for parent in GROUND_GAPS.parents
-        ):
-            raise ValueError(f"unsupported source symlink: {source}")
-        destination = context / "game-server" / GROUND_GAPS
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(source, destination)
     for name in ("game-server", "shared-protocol"):
         if not (context / name / "Cargo.toml").is_file():
             raise FileNotFoundError(f"missing build dependency: {name}/Cargo.toml")
