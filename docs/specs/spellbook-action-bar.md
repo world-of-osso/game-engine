@@ -12,7 +12,9 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 
 ## Spell icon source
 
-A requested spell icon must decode its own `SpellMisc.SpellIconFileDataID` BLP. The native UI file worker populates a missing `data/textures/<fdid>.blp` through the existing item/M2 local-CASC resolver; no CDN or replacement/question-mark art. Synchronous masked icons use the same file boundary. Extraction and decoding failures remain explicit. `classbook_icons.rs` checks every entry in all 13 class preview snapshots against authentic nonempty pixels or a concrete justified exception.
+A requested spell icon must decode its own `SpellMisc.SpellIconFileDataID` BLP from the shipped asset set. The UI worker and synchronous icon masks must not read a local WoW installation, call CASC, or substitute question-mark art. Missing or invalid files return a hard error. `classbook_icons.rs` checks every entry in all 13 class preview snapshots against authentic nonempty pixels or a concrete justified exception.
+
+Developer/depot asset preparation enumerates a deterministic superset of reachable icons: every positive SpellMisc icon/active icon, TraitDefinition override, class/spec portrait and source-local item/appearance icon. Extract only authentic local-CASC bytes ahead of shipping, with source-table hashes and per-file provenance. Ship `data/cache/required-ui-icons.json`, `ui-icon-provenance.json` and the declared `data/textures/<fdid>.blp` files. Release builds must fail with an explicit missing-FDID list when this set is incomplete; debug/CPU diagnosis does not constitute shipping acceptance. No unavailable icon may be fabricated or omitted from the required manifest to make validation pass.
 
 ## What it must do
 
