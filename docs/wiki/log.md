@@ -3107,3 +3107,7 @@ Added local Retail replacement-table exports and per-unit base/action selection 
 ## 2026-10-10 — Terrain and runtime-path asset closure
 
 [Offline closure continuation](systems/offline-asset-closure.md#closure-continuation--verified-2026-10-10) records parsed terrain/liquid/ground-detail identities, current-runtime not-needed evidence, SQLite/local-cache path precedence and direct Map/TXID/MDID references; local-CASC fixed points, receipt/size proof and remaining acceptance boundaries. No data committed or no-install gameplay certification.
+
+## 2026-10-10 — PvP queue partial delivery
+
+Updated [battle pets](systems/battle-pets.md#pvp-queue--partial-2026-10-10) and [PvP contract](../specs/petbattle-pvp.md): real queue/proposal transport, shared-engine synchronized rounds and outcomes, model tests/native compile proof; full Retail parity and both-skin native acceptance remain open.
