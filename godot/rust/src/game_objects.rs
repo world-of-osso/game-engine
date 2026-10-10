@@ -15,8 +15,8 @@ use game_engine_ui_model::wow_cursor_data::ActiveWowCursor;
 use godot::{classes::Node3D, prelude::*};
 use shared::components::{Position, Rotation};
 use shared::protocol::{
-    GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GUILD_BANK, GAMEOBJECT_TYPE_MAILBOX,
-    GAMEOBJECT_TYPE_MEETINGSTONE, GAMEOBJECT_TYPE_RITUAL, GameObjectInfo,
+    GAMEOBJECT_TYPE_CHAIR, GAMEOBJECT_TYPE_GENERIC, GAMEOBJECT_TYPE_GUILD_BANK,
+    GAMEOBJECT_TYPE_MAILBOX, GAMEOBJECT_TYPE_MEETINGSTONE, GAMEOBJECT_TYPE_RITUAL, GameObjectInfo,
 };
 use std::{collections::HashMap, path::PathBuf};
 
@@ -78,6 +78,10 @@ pub(crate) fn game_object_cursor(go_type: u8) -> Option<ActiveWowCursor> {
     }
 }
 
+fn game_object_is_renderable(go_type: u8) -> bool {
+    go_type == GAMEOBJECT_TYPE_GENERIC || game_object_cursor(go_type).is_some()
+}
+
 /// The top centre of an M2's bounding box placed by `model` (the model node's global
 /// transform).
 fn bounds_top(model: Transform3D, bounds: Aabb) -> Vector3 {
@@ -120,7 +124,7 @@ impl GameObjects {
         info: &GameObjectInfo,
     ) -> Result<(), String> {
         let id = unit.server_id;
-        if game_object_cursor(info.go_type).is_none() {
+        if !game_object_is_renderable(info.go_type) {
             self.remove(id);
             return Ok(());
         }
@@ -139,7 +143,9 @@ impl GameObjects {
             .is_none_or(|old| old.display_id != info.display_id);
         if changed {
             let visual = self.load_visual(info)?;
-            if let Err(error) = crate::targeting::attach_pick_area(&visual, id) {
+            if game_object_cursor(info.go_type).is_some()
+                && let Err(error) = crate::targeting::attach_pick_area(&visual, id)
+            {
                 visual.free();
                 return Err(error);
             }
@@ -297,6 +303,18 @@ mod tests {
         );
         // GAMEOBJECT_TYPE_GENERIC decoration is not shown as usable.
         assert_eq!(game_object_cursor(5), None);
+    }
+
+    #[test]
+    fn toyfx4_decorations_render_without_becoming_interactive() {
+        // Authentic effect50 Stormwind banner45011 / entry194274 / display10483.
+        assert!(game_object_is_renderable(GAMEOBJECT_TYPE_GENERIC));
+        assert_eq!(game_object_cursor(GAMEOBJECT_TYPE_GENERIC), None);
+        // Fishing Chair33223 and MOLL-E40768 retain their existing interaction.
+        assert!(game_object_is_renderable(GAMEOBJECT_TYPE_CHAIR));
+        assert!(game_object_is_renderable(GAMEOBJECT_TYPE_MAILBOX));
+        // Unsupported spell-focus objects are not silently admitted by this fix.
+        assert!(!game_object_is_renderable(8));
     }
 
     #[test]
