@@ -264,7 +264,12 @@ mod tests {
             .iter()
             .find(|line| line.left_text == "+1.6 Damage Per Second")
             .unwrap_or_else(|| {
-                let lines: Vec<_> = shopping[0].tooltip.lines.iter().map(|l| &l.left_text).collect();
+                let lines: Vec<_> = shopping[0]
+                    .tooltip
+                    .lines
+                    .iter()
+                    .map(|l| &l.left_text)
+                    .collect();
                 panic!("damage gain missing: {lines:?}")
             });
         assert_eq!(gain.left_color, GREEN_FONT_COLOR);
