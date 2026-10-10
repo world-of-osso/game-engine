@@ -31,6 +31,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - `scripts/tests/test_closure_db2_export.py` — local DB2 beam-chain identities exported by exact-layout schema.
 - `scripts/tests/test_closure_emitters.py` — recursive geometry/model cycles, packed texture indices, ribbon arrays and malformed filenames.
 - `scripts/tests/test_closure_appearance.py` — authored HD bake selection, zero-bake non-substitution, conditional models, raw choices, NPC item materials and missing Extra rows.
+- `scripts/tests/test_closure_wmo_liquid.py` — shared root flags, liquid DB2 descendants, green-lava no-IO, hidden-tile material IO and orphan root boundaries.
 
 ## Known gaps (current cycle)
 
@@ -39,6 +40,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - [x] Traverse known SpellVisualKitEffect discriminants through pinned local effect tables: attachments, beam chains, emission models, texture blends, decals, screen effects and sound kits. Preserve cycles, missing rows, unknown types and unparsed client-scene script boundaries. Numeric-only effects are scoped to current native file requests, not a claim of full Retail effect rendering.
 - [x] Traverse native M2 particle geometry/recursive filenames, packed multitexture indices and ribbon texture-index arrays; preserve malformed arrays and unmapped names. Use the core 272/274 legacy header/stride, not a guessed alternate layout.
 - [x] Join extended displays through authored Extra HD/SD material selection, raw customization element choices/conditional models and NPC item-display materials. Never replace a zero HD bake with SD. Missing joins, unknown voice semantics and cache/provenance boundaries remain explicit.
+- [x] Resolve WMO MLIQ through owning MOHD flags and MOGP liquid fields using the core liquid-type translation, including shared/late root contexts. Reuse LiquidType/Material/XTexture and renderer-global inputs. Do not mistake the MLIQ MOMT index for a liquid DB2 identity or skip the material request for hidden tiles.
 - [ ] Full spell selector is a conservative catalog superset; complete server reachability needs content policy.
 - [ ] Full character selector includes modeled placeholder races; supported playable-pair policy and customization requirement evaluation remain unresolved.
 
