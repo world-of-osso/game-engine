@@ -312,15 +312,13 @@ impl GameClient {
                 hovered: self.world_map.hovered,
                 player: player.as_ref(),
                 quests: &self.account.quests.map_entries(),
-                // QuestBlobDataProvider Refresh draws the super-tracked quest,
-                // not every watched quest. Hover/focus selection remains unsupported.
-                quest_areas: &self
-                    .account
-                    .quests
-                    .selected_objective_areas(self.quests.ui.super_tracked),
+                // QuestBlobDataProvider Refresh adds the hovered quest to super-tracking.
+                // Both use the native source's unchanged fill128/border192.
+                quest_areas: &self.account.quests.map_objective_areas(&self.quests.ui),
                 vignettes: &vignettes,
             },
         );
+        state.highlighted_quest = self.quests.ui.highlighted;
         state
             .pins
             .extend(self.world_map_quest_offer_pins(&data.catalog, state.map_id));
@@ -333,6 +331,7 @@ impl GameClient {
         {
             state.pins.push(MapPin {
                 pin_type: MapPinType::Corpse,
+                quest_id: None,
                 label: "Corpse".into(),
                 badge: String::new(),
                 x,

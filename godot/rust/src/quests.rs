@@ -236,6 +236,7 @@ impl GameClient {
             self.quests.reset();
             return Ok(());
         }
+        self.update_quest_poi_hover()?;
         self.load_and_apply_quest_pois()?;
         self.query_quest_givers()?;
         let interactive =
@@ -250,6 +251,24 @@ impl GameClient {
         self.remember_quest_details();
         self.sync_quest_windows()?;
         self.sync_quest_markers()?;
+        Ok(())
+    }
+
+    /// Retail title/POI OnEnter/OnLeave: highlight without changing super-tracking.
+    fn update_quest_poi_hover(&mut self) -> Result<(), String> {
+        let hit = self.hovered_ui_frame()?;
+        let highlighted = hit.and_then(|hit| {
+            let ui = hit.ui.bind();
+            let (_, quest_id) =
+                crate::tooltips::named_ancestor(ui.registry()?, hit.frame, |frame| {
+                    game_engine_ui_model::quest_poi::hovered_quest_id(frame.name.as_deref()?)
+                })?;
+            self.account
+                .quests
+                .entry(quest_id)
+                .map(|entry| entry.quest_id)
+        });
+        self.quests.ui.highlighted = highlighted;
         Ok(())
     }
 

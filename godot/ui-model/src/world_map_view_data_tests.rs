@@ -429,6 +429,39 @@ fn completed_objective_does_not_keep_an_objective_pin() {
 }
 
 #[test]
+fn hover_adds_real_worg_blob_without_supertracking_and_leave_removes_it() {
+    use crate::quest_runtime::{QuestRuntime, QuestUiState};
+    let catalog = crate::quest_poi::QuestPoiCatalog::load(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933"),
+    )
+    .unwrap();
+    let mut entry = quest("Beating Them Back!", false, Vec::new());
+    entry.quest_id = 28766;
+    let mut runtime = QuestRuntime::default();
+    runtime.log.push(entry);
+    catalog.apply(&mut runtime.log);
+    let mut ui = QuestUiState::default();
+    assert!(runtime.map_objective_areas(&ui).is_empty());
+    ui.highlighted = Some(28766);
+    let areas = runtime.map_objective_areas(&ui);
+    assert_eq!(areas.len(), 1);
+    assert_eq!(areas[0].points.len(), 7);
+    assert_eq!(ui.super_tracked, None);
+    ui.super_tracked = Some(28766);
+    assert_eq!(
+        runtime.map_objective_areas(&ui).len(),
+        1,
+        "same quest drawn once"
+    );
+    ui.highlighted = None;
+    assert_eq!(runtime.map_objective_areas(&ui).len(), 1);
+    ui.super_tracked = None;
+    assert!(runtime.map_objective_areas(&ui).is_empty());
+    ui.highlighted = Some(999999);
+    assert!(runtime.map_objective_areas(&ui).is_empty());
+}
+
+#[test]
 fn real_worg_polygon_projects_into_elwynn_and_completion_replaces_it_with_turnin() {
     let catalog = crate::quest_poi::QuestPoiCatalog::load(
         &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933"),

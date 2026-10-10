@@ -161,6 +161,7 @@ pub fn world_map_frame_state(data: &WorldMapData, request: WorldMapRequest) -> W
             .hovered
             .and_then(|uv| highlight(catalog, map_id, uv)),
         pins,
+        highlighted_quest: None,
         quest_areas,
         player: request
             .player
@@ -263,6 +264,7 @@ fn quest_pins(catalog: &UiMapCatalog, map_id: u32, quests: &[QuestEntrySnapshot]
         };
         pins.push(MapPin {
             pin_type,
+            quest_id: Some(quest.quest_id),
             label: quest.title.clone(),
             badge,
             x,
@@ -295,6 +297,7 @@ fn vignette_pins(
                 pin_type: MapPinType::Vignette {
                     elite: vignette.elite,
                 },
+                quest_id: None,
                 label: vignette.name.clone(),
                 badge: String::new(),
                 x,
@@ -325,6 +328,7 @@ pub fn quest_offer_pin(
     let [x, y] = catalog.map_position(map_id, source_map, position)?;
     Some(MapPin {
         pin_type: MapPinType::QuestAvailable,
+        quest_id: None,
         label: label.into(),
         badge: String::new(),
         x,
@@ -352,6 +356,7 @@ fn flight_pins(data: &WorldMapData, map_id: u32, faction: Option<Faction>) -> Ve
             };
             Some(MapPin {
                 pin_type,
+                quest_id: None,
                 label: node.name.clone(),
                 badge: String::new(),
                 x,

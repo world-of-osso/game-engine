@@ -33,7 +33,8 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 
 ## Known gaps (current cycle)
 
-- [ ] Quest-log/tracker hover/focus blob selection and hover visuals: no world-map highlight texture/atlas or native highlight alpha found in cached Retail UI. No invented highlight applied.
+- [x] Quest-log/tracker title or POI hover adds that quest's authored world-map polygons without changing super-tracking. Leaving removes the transient selection. Matching map POI buttons show Retail `UI-QuestPoi-InnerGlow` (atlas member23600, additive, default alpha/colour). Both skins share behavior. No stronger native blob opacity is invented.
+- [ ] Focused quest selection and native blob hover shading remain unimplemented; no Lua/asset source exposes native highlight shading. Only asset-backed button glow is claimed.
 - [ ] Retail minimap native blob selection is not exposed in cached Lua. QuestPOIs is an always-on tracking filter, not proof of which polygons native code draws; retain watched polygons pending native evidence. The authored minimap OutsideSelected border remains, at unchanged128/192 opacity.
 
 - [ ] Conditional POIs require player-condition evaluation; excluded, never replaced with guessed shapes. Missing authored geometry remains absent; [source coverage](../wiki/systems/quest-map-objectives.md#source-ownership).

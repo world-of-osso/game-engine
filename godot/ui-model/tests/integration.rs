@@ -72,6 +72,7 @@ mod player_cast_spark;
 mod portrait_party_frame;
 mod professions_art;
 mod quest_flow;
+mod quest_poi_hover;
 mod rezrtap;
 mod roster_mapping;
 mod spell_overrides;

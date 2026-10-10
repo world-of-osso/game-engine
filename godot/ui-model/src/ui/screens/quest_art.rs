@@ -53,6 +53,8 @@ pub const TRACKER_SECONDARY_EXPAND: AtlasArt = tracker((323.0, 339.0, 123.0, 139
 
 /// `UI-QuestPoi-QuestNumber` (23605), atlas 2549 `questpoi.blp`, 32×32.
 pub const POI_NUMBER: AtlasArt = art(5_320_914, (256.0, 128.0), (67.0, 99.0, 35.0, 67.0));
+/// `UI-QuestPoi-InnerGlow` (23600), atlas2549; POIButton.xml uses additive blending.
+pub const POI_INNER_GLOW: AtlasArt = art(5_320_914, (256.0, 128.0), (1.0, 33.0, 67.0, 99.0));
 /// `Quest-In-Progress-Icon-yellow` (25059), atlas 2670 (2x), shown 32×32.
 pub const POI_IN_PROGRESS: AtlasArt = art(5_423_566, (256.0, 128.0), (67.0, 131.0, 1.0, 65.0));
 /// `UI-QuestIcon-TurnIn-Normal` (10221), atlas 1575, 32×32.
