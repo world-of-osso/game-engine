@@ -1,6 +1,6 @@
 # Quest map objectives
 
-Native quest map integration. Contract: [quest map objectives](../../specs/quest-map-objectives.md). Verified source census: 2026-10-10; rendering acceptance remains pending.
+Native quest map integration. Contract: [quest map objectives](../../specs/quest-map-objectives.md). Verified: 2026-10-10. Source census, 41 targeted tests and private real-quest both-skin rendering proof recorded below; no full-catalog or full-Retail-parity claim.
 
 ## Source ownership
 
@@ -9,6 +9,8 @@ Local Retail CASC build `dcfc90fffd79ba00406ae46f5f657592` contains QuestPOIBlob
 Catalog covers 21,765 quest IDs. Of 12,343 `content_quest_template` IDs in server world.db, 4,599 have local DB2 POIs, 11,700 have authored server POIs, and 641 have neither. Server `quest_data::load_pois` already reads `content_quest_poi` and ordered `content_quest_poi_points`; existing QuestEntrySnapshot/QuestLogUpdate replication is sufficient for non-local quest IDs. No protocol expansion.
 
 Locally covered quests use only their local rows, including an empty list if every row is conditional. Other quest IDs retain server-authored snapshot geometry. 6,679 conditional local blobs are excluded until condition evaluation exists. Source blob519073 (quest85461 navigation marker) declares one point but relates ten: explicitly reported and excluded. Two conditional quest38576 blobs also have point-count mismatches. No synthetic replacement.
+
+The 146 Skyborne quest IDs in `zephras_quest_meta` have no POIs in the current server tables or Retail client DB2. Also checked LOCAL Forever product `wow_classic_beta`, buildf6e309c700cea095978aeb5d85210df4/1.60.1.70338: supported layouts,54 blobs/99points,0 encrypted records,0 Skyborne quest overlap. Those quests cannot gain invented objective positions or areas. Raw Forever exports live beside the Retail census in `forever-70338/`.
 
 Quest28766, Beating Them Back!, has blob57135 with seven points, beginning `(-8894,-138)`, and turn-in blob57134 at `(-8913,-137)`. Its server POI coordinates match these client rows. Quest7, Kobold Camp Cleanup, is absent from the Retail DB2 but has an authentic server polygon.
 
@@ -19,6 +21,16 @@ Quest28766, Beating Them Back!, has blob57135 with seven points, beginning `(-88
 `quest_area_data` samples extracted blue fill342529 and white world-map rim342531. Minimap uses the same blue fill with authored minimap rim533895 and selected rim1083696 (Retail minimap fill533894 is transparent; the user explicitly requested filled blue areas on both maps). Normal fill/border alpha128/192 follows QuestBlobDataProvider OnLoad; selected areas use stronger fill and selected rim. Geometry rasterization uses even-odd containment and nearest-edge distance; exact Blizzard native tessellation/filtering is not claimed.
 
 `MinimapView.rotation` rotates pixel sampling, objective polygons, blip offsets and inverse click projection together. Native `set_minimap_rotation(bool)` exposes the setting; no new skin-specific controls. Off-screen selected quests use SuperTrackerArrow FDID407337 and the same inset mask-boundary calculation as member arrows. Available `!` pins use authoritative queried giver statuses and replicated positions only, not an invented global giver catalog.
+
+## Proof (2026-10-10)
+
+- Production integration `b6496a79c`, tracker/fixture `c7c20e6f3`, minimap number fix `5508dc0f9`; mount-ready fixture `69f7b22c1`, server-only fixture `4ec52368f`, selected-alpha assertion `1284f9069` do not change production behavior. `065ab44f6` extracts the existing available-giver projection into a tested pure helper without changing its outputs.
+- 41 distinct targeted tests: core blob2, core minimap12, local POI3, world map11, quest flow12, numbered minimap1. RED receipts precede selection, completion, color, rotation, catalog and visible-number fixes. Build and native cargo check pass without warnings. Changed Rust files format cleanly; workspace format check fails in unchanged `network/src/replica/codec.rs` and `ui-model/src/game_tooltip/merchant.rs`.
+- Private UDP5518, fresh private redb, disposable `fb_questpoi_number`/Questpoitwo character31: real quest28766 acceptance; tracker click selects it; numbered tracker/world/minimap icons; clipped blue area; rotation; server admin objective completion emits live quest updates, removing areas and showing turn-in `?`. No client state injection.
+- Final fixture `quest_map_objectives.gd` PASS. Twelve1920×1080 original PNGs decoded through FFmpeg, all scaled frames inspected, plus both-skin number crops; PNG-only publication `/syncthing/AgentShared/2026-10-10/quest-poi/`. Manifest/hashes and final logs in persistent diagnostics. Off-screen arrow has model/asset-orientation proof, not a live edge capture. Available-giver projection has real Marshal McBride position/status eligibility proof; no separate live offer-pin capture is claimed.
+- Live setup corrections: server ground root is engine `data/`, not server `data/ground`; admin set-position accepts world XYZ, not engine X/height/Z. The fixture waits for mounted EnterWorld controls, not just the account screen enum. Visual inspection caught the unregistered `font_string` tag; `fontstring` plus a real displayed-text RED/GREEN regression fixed it before final publication.
+
+Owned clients/server and agents-questpoi.slice stopped. Independent verifier could not authenticate (expired Claude OAuth); main-observed evidence only. Inherited live spell80676/attachment22 diagnostics and compositor/libdecor warnings are not quest-render regressions and were not suppressed.
 
 ## Sources
 
