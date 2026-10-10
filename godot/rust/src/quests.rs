@@ -74,6 +74,9 @@ pub(crate) struct QuestHud {
     queried: HashSet<u64>,
     /// Texture FDIDs already looked up in local CASC.
     cached_textures: HashSet<u32>,
+    poi_catalog: Option<game_engine_ui_model::quest_poi::QuestPoiCatalog>,
+    pub(crate) map_blob_art: Option<game_engine_core::quest_area_data::QuestAreaArt>,
+    pub(crate) minimap_blob_art: Option<game_engine_core::quest_area_data::QuestAreaArt>,
     /// Marker model shown per quest giver.
     markers: HashMap<u64, u32>,
 }
@@ -219,7 +222,7 @@ impl GameClient {
         add_system_line(&mut self.chat.model.log, text);
     }
 
-    fn npc_name(&self, npc: u64) -> String {
+    pub(super) fn npc_name(&self, npc: u64) -> String {
         self.replica
             .unit(npc)
             .and_then(|unit| unit.get::<Npc>())
@@ -233,6 +236,7 @@ impl GameClient {
             self.quests.reset();
             return Ok(());
         }
+        self.load_and_apply_quest_pois()?;
         self.query_quest_givers()?;
         let interactive =
             self.game_menu_ui.is_none() && self.account.session.gameplay_input_allowed();
@@ -246,6 +250,43 @@ impl GameClient {
         self.remember_quest_details();
         self.sync_quest_windows()?;
         self.sync_quest_markers()?;
+        Ok(())
+    }
+
+    fn load_and_apply_quest_pois(&mut self) -> Result<(), String> {
+        if self.quests.poi_catalog.is_none() {
+            let catalog = game_engine_ui_model::quest_poi::QuestPoiCatalog::load(
+                &self.data_root.join("db2/12.1.0.69933"),
+            )?;
+            for error in &catalog.unresolved {
+                godot_warn!("{error}");
+            }
+            godot_print!(
+                "Quest POI catalog: {} conditional blobs excluded",
+                catalog.conditional_blobs
+            );
+            self.quests.map_blob_art = Some(game_engine_core::quest_area_data::QuestAreaArt::load(
+                &self.data_root,
+                false,
+            )?);
+            self.quests.minimap_blob_art = Some(
+                game_engine_core::quest_area_data::QuestAreaArt::load(&self.data_root, true)?,
+            );
+            self.quests.poi_catalog = Some(catalog);
+        }
+        self.quests
+            .poi_catalog
+            .as_ref()
+            .expect("loaded quest POIs")
+            .apply(&mut self.account.quests.log);
+        if self
+            .quests
+            .ui
+            .super_tracked
+            .is_some_and(|id| self.account.quests.entry(id).is_none())
+        {
+            self.quests.ui.super_tracked = None;
+        }
         Ok(())
     }
 

@@ -128,6 +128,10 @@ impl GameClient {
         let mut result = VarDictionary::new();
         result.set("collapsed", self.quests.ui.tracker_collapsed);
         result.set("quests_collapsed", self.quests.ui.quests_collapsed);
+        result.set(
+            "super_tracked",
+            self.quests.ui.super_tracked.map_or(0, i64::from),
+        );
         let Some(ui) = &self.objective_tracker.ui else {
             return result;
         };

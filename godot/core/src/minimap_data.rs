@@ -78,6 +78,8 @@ pub struct MinimapView {
     pub center: [f32; 2],
     pub diameter: f32,
     pub mask: MapMask,
+    /// Counter-clockwise rotation of the map and every overlay, in screen space.
+    pub rotation: f32,
 }
 
 impl MinimapView {
@@ -86,7 +88,12 @@ impl MinimapView {
             center,
             diameter: OUTDOOR_DIAMETERS[usize::from(zoom.min(ZOOM_LEVELS - 1))],
             mask: MapMask::Round,
+            rotation: 0.0,
         }
+    }
+
+    pub fn rotated(self, rotation: f32) -> Self {
+        Self { rotation, ..self }
     }
 
     pub fn masked(self, mask: MapMask) -> Self {
@@ -107,7 +114,8 @@ impl MinimapView {
 
     /// Tiles the view circle touches, in key order.
     pub fn tiles(&self) -> Vec<TileKey> {
-        let radius = self.diameter / 2.0;
+        let (sin, cos) = self.rotation.sin_cos();
+        let radius = self.diameter / 2.0 * (sin.abs() + cos.abs());
         let [x, z] = self.center;
         let span =
             |low: f32, high: f32| (low.floor().max(0.0) as u32)..=(high.floor().min(63.0) as u32);
@@ -126,20 +134,32 @@ impl MinimapView {
 
     /// Engine position under composite pixel `(px, py)` of a `size`² image.
     pub fn pixel_position(&self, px: u32, py: u32, size: u32) -> [f32; 2] {
-        let yards = self.diameter / size as f32;
-        let half = size as f32 / 2.0;
-        [
-            self.center[0] + (half - py as f32 - 0.5) * yards,
-            self.center[1] + (px as f32 + 0.5 - half) * yards,
-        ]
+        self.offset_position([
+            (px as f32 + 0.5) / size as f32 - 0.5,
+            (py as f32 + 0.5) / size as f32 - 0.5,
+        ])
     }
 
     /// Offset of `point` from the minimap centre as a fraction of the minimap size
     /// (right, down), or None outside the mask.
-    pub fn blip_offset(&self, [x, z]: [f32; 2]) -> Option<[f32; 2]> {
+    pub fn blip_offset(&self, point: [f32; 2]) -> Option<[f32; 2]> {
+        let [right, down] = self.screen_offset(point);
+        self.mask.contains(right, down).then_some([right, down])
+    }
+
+    pub fn screen_offset(&self, [x, z]: [f32; 2]) -> [f32; 2] {
         let right = (z - self.center[1]) / self.diameter;
         let down = (self.center[0] - x) / self.diameter;
-        self.mask.contains(right, down).then_some([right, down])
+        let (sin, cos) = self.rotation.sin_cos();
+        [cos * right + sin * down, -sin * right + cos * down]
+    }
+
+    pub fn offset_position(&self, [right, down]: [f32; 2]) -> [f32; 2] {
+        let (sin, cos) = self.rotation.sin_cos();
+        [
+            self.center[0] - (sin * right + cos * down) * self.diameter,
+            self.center[1] + (cos * right - sin * down) * self.diameter,
+        ]
     }
 }
 
@@ -182,24 +202,25 @@ pub fn tint_quest_areas(
     size: u32,
     pixels: &mut [u8],
     areas: &[Vec<[f32; 2]>],
+    art: &crate::quest_area_data::QuestAreaArt,
+    highlighted: bool,
 ) -> usize {
-    let scale = size as f32 / view.diameter;
+    let scale = size as f32;
     let half = size as f32 / 2.0;
     // Engine (x, z) to composite pixels: right is +z, down is -x.
     let polygons: Vec<Vec<[f32; 2]>> = areas
         .iter()
         .map(|area| {
             area.iter()
-                .map(|[x, z]| {
-                    [
-                        half + (z - view.center[1]) * scale,
-                        half + (view.center[0] - x) * scale,
-                    ]
+                .map(|&point| {
+                    let [right, down] = view.screen_offset(point);
+                    [half + right * scale, half + down * scale]
                 })
                 .collect()
         })
         .collect();
-    let overlay = crate::quest_area_data::quest_area_overlay(size, size, &polygons);
+    let overlay =
+        crate::quest_area_data::quest_area_overlay(size, size, &polygons, art, highlighted);
     crate::quest_area_data::blend_overlay(pixels, &overlay)
 }
 

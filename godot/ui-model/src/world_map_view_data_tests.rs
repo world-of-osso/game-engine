@@ -64,7 +64,14 @@ fn quest(title: &str, completed: bool, pois: Vec<QuestPoiSnapshot>) -> QuestEntr
         zone: String::new(),
         completed,
         repeatability: QuestRepeatability::Normal,
-        objectives: Vec::new(),
+        objectives: vec![shared::protocol::QuestObjectiveSnapshot {
+            text: "Objective".into(),
+            current: 0,
+            required: 1,
+            completed: false,
+            kind: shared::protocol::QuestObjectiveKind::Monster,
+            object_id: 49871,
+        }],
         level: 1,
         sort_id: 12,
         objectives_text: String::new(),
@@ -358,4 +365,121 @@ fn doomwalkers_vignette_pins_tanaris_and_kalimdor() {
     let zone_only = [doomwalker(true)];
     assert_eq!(vignette_pins_on(data, 71, &zone_only).len(), 1);
     assert!(vignette_pins_on(data, 12, &zone_only).is_empty());
+}
+
+#[test]
+fn giver_offer_pin_projects_marshal_mcbride_only_when_authoritatively_available() {
+    use shared::protocol::{QuestGiverStatus, QuestMarkerClass};
+    let catalog = &data().catalog;
+    // Actual content_creature197 spawn, world XYZ (not engine X/height/Z).
+    let location = (0, [-8913.42, -137.542, 80.8928]);
+    let pin = quest_offer_pin(
+        catalog,
+        37,
+        "Marshal McBride",
+        QuestGiverStatus::Available(QuestMarkerClass::Normal),
+        location,
+    )
+    .unwrap();
+    assert_eq!(pin.pin_type, MapPinType::QuestAvailable);
+    assert_eq!(pin.label, "Marshal McBride");
+    assert!((pin.x - (1535.420044 + 137.542) / 3470.840088).abs() < 0.00001);
+    assert!((pin.y - (-7939.580078 + 8913.42) / 2314.620117).abs() < 0.00001);
+    assert!(
+        quest_offer_pin(
+            catalog,
+            37,
+            "Marshal McBride",
+            QuestGiverStatus::Incomplete(QuestMarkerClass::Normal),
+            location
+        )
+        .is_none()
+    );
+    assert!(
+        quest_offer_pin(
+            catalog,
+            947,
+            "Marshal McBride",
+            QuestGiverStatus::Available(QuestMarkerClass::Normal),
+            location
+        )
+        .is_none()
+    );
+}
+
+#[test]
+fn completed_objective_does_not_keep_an_objective_pin() {
+    let mut entry = quest("Beating Them Back!", false, vec![poi(0, [-8894.0, -138.0])]);
+    entry.quest_id = 28766;
+    entry.objectives = vec![shared::protocol::QuestObjectiveSnapshot {
+        text: "Blackrock Worg slain".into(),
+        current: 6,
+        required: 6,
+        completed: true,
+        kind: shared::protocol::QuestObjectiveKind::Monster,
+        object_id: 49871,
+    }];
+    let view = state_with_quests(data(), 37, &player(0.0), &[entry]);
+    assert!(
+        !view
+            .pins
+            .iter()
+            .any(|p| p.pin_type == MapPinType::QuestObjective)
+    );
+}
+
+#[test]
+fn real_worg_polygon_projects_into_elwynn_and_completion_replaces_it_with_turnin() {
+    let catalog = crate::quest_poi::QuestPoiCatalog::load(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933"),
+    )
+    .unwrap();
+    let mut entry = quest("Beating Them Back!", false, Vec::new());
+    entry.quest_id = 28766;
+    let mut runtime = crate::quest_runtime::QuestRuntime::default();
+    runtime.log.push(entry);
+    runtime.watched.push(28766);
+    catalog.apply(&mut runtime.log);
+    let view = |runtime: &crate::quest_runtime::QuestRuntime, selected| {
+        world_map_frame_state(
+            data(),
+            WorldMapRequest {
+                visible: true,
+                viewport: [1280.0, 720.0],
+                map_id: 37,
+                hovered: None,
+                player: None,
+                quests: &runtime.map_entries(),
+                quest_areas: &runtime.selected_objective_areas(selected),
+                vignettes: &[],
+            },
+        )
+    };
+    let unselected = view(&runtime, None);
+    assert!(unselected.quest_areas.is_empty());
+    assert_eq!(
+        unselected.pins[0].badge, "1",
+        "selection changes blobs, not pins"
+    );
+    assert!(view(&runtime, Some(7)).quest_areas.is_empty());
+    let active = view(&runtime, Some(28766));
+    assert_eq!(active.quest_areas.len(), 1);
+    assert_eq!(active.quest_areas[0].len(), 7);
+    // Independent UiMapAssignment39462 bounds, local DB2 point(-8894,-138).
+    let [u, v] = active.quest_areas[0][0];
+    assert!((u - 1673.420044 / 3470.840088).abs() < 0.00001);
+    assert!((v - 954.419922 / 2314.620117).abs() < 0.00001);
+    assert_eq!(active.pins[0].badge, "1");
+    let mut finished = runtime.log[0].clone();
+    finished.completed = true;
+    finished.objectives[0].completed = true;
+    runtime.apply_update(shared::protocol::QuestLogUpdate {
+        changed: vec![finished],
+        removed: Vec::new(),
+        watched_quest_ids: vec![28766],
+    });
+    let complete = view(&runtime, Some(28766));
+    assert!(complete.quest_areas.is_empty());
+    assert_eq!(complete.pins[0].pin_type, MapPinType::QuestTurnIn);
+    assert!(complete.pins[0].badge.is_empty());
 }

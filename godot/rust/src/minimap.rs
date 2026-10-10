@@ -49,6 +49,9 @@ const DB2_DIR: &str = "db2/12.1.0.69933";
 pub(crate) struct Minimap {
     pub(crate) ui: Option<Gd<RegistryUi>>,
     zoom: u8,
+    rotate: bool,
+    rotation: f32,
+    drawn_selection: Option<u32>,
     hovered: bool,
     tracking: TrackingState,
     /// Skin the cluster is built under: it shapes the map mask.
@@ -92,6 +95,9 @@ impl Minimap {
         Self {
             ui: None,
             zoom: 0,
+            rotate: false,
+            rotation: 0.0,
+            drawn_selection: None,
             hovered: false,
             tracking: TrackingState::default(),
             skin: thread_skin(),
@@ -127,7 +133,9 @@ impl Minimap {
 
     /// The view around `position` at the current zoom, clipped to the skin's map mask.
     fn view(&self, position: [f32; 2]) -> MinimapView {
-        MinimapView::new(position, self.zoom).masked(cluster_style(self.skin).mask)
+        MinimapView::new(position, self.zoom)
+            .masked(cluster_style(self.skin).mask)
+            .rotated(self.rotation)
     }
 
     fn free_ui(&mut self) {
@@ -468,7 +476,7 @@ impl GameClient {
             clock_text: game_engine_core::minimap_data::clock_text(hour, minute),
             calendar_day: Some(day),
             night,
-            arrow_rotation: arrow_rotation(yaw),
+            arrow_rotation: arrow_rotation(yaw) + self.minimap.rotation,
             zoom_buttons: self.minimap.hovered,
             zoom: self.minimap.zoom,
             blips,
@@ -538,6 +546,15 @@ impl GameClient {
             })
             .collect();
         blips.sort_by_key(|blip| blip.unit);
+        if let Some(map_id) = self.world_map_id {
+            blips.extend(game_engine_ui_model::quest_poi::quest_minimap_blips(
+                &self.account.quests,
+                self.quests.ui.super_tracked,
+                map_id,
+                view,
+                cluster_style(self.minimap.skin).map_size,
+            ));
+        }
         blips
     }
 
@@ -552,6 +569,8 @@ impl GameClient {
             && !self.minimap.tiles_arrived
             && *drawn_map == map
             && self.minimap.quest_areas.0 == areas
+            && self.minimap.drawn_selection == self.quests.ui.super_tracked
+            && drawn.rotation == view.rotation
             && drawn.diameter == view.diameter
             && (drawn.center[0] - view.center[0]).hypot(drawn.center[1] - view.center[1])
                 < pixel_yards / 2.0
@@ -564,7 +583,16 @@ impl GameClient {
         let mut pixels = compose(&view, COMPOSITE_PX, |key| {
             minimap.tile(&map, key).map(|tile| &tile.image)
         });
-        let tinted = tint_quest_areas(&view, COMPOSITE_PX, &mut pixels, &areas);
+        let art = self.quests.minimap_blob_art.as_ref()?;
+        let selected = self.minimap_selected_areas();
+        let normal: Vec<_> = areas
+            .iter()
+            .filter(|area| !selected.contains(area))
+            .cloned()
+            .collect();
+        let tinted = tint_quest_areas(&view, COMPOSITE_PX, &mut pixels, &normal, art, false)
+            + tint_quest_areas(&view, COMPOSITE_PX, &mut pixels, &selected, art, true);
+        self.minimap.drawn_selection = self.quests.ui.super_tracked;
         self.minimap.quest_areas = (areas, tinted);
         self.minimap.drawn = Some((map, view, pixels.clone()));
         Some((COMPOSITE_PX, pixels))
@@ -590,9 +618,29 @@ impl GameClient {
             .collect()
     }
 
+    fn minimap_selected_areas(&self) -> Vec<Vec<[f32; 2]>> {
+        self.account
+            .quests
+            .selected_objective_areas(self.quests.ui.super_tracked)
+            .into_iter()
+            .filter(|poi| Some(poi.map_id) == self.world_map_id)
+            .map(|poi| {
+                poi.points
+                    .iter()
+                    .map(|point| [point.x as f32, -(point.y as f32)])
+                    .collect()
+            })
+            .collect()
+    }
+
     fn sync_minimap(&mut self) -> Result<(), String> {
         let Some((position, yaw)) = self.minimap_player() else {
             return Ok(());
+        };
+        self.minimap.rotation = if self.minimap.rotate {
+            -arrow_rotation(yaw)
+        } else {
+            0.0
         };
         // Frames of one level draw in creation order, so another skin's cluster and its
         // composite are built afresh instead of patched.
@@ -737,6 +785,12 @@ impl GameClient {
 
 #[godot_api(secondary)]
 impl GameClient {
+    /// Native equivalent of the rotateMinimap setting; map, blobs and pins share its transform.
+    #[func]
+    fn set_minimap_rotation(&mut self, enabled: bool) {
+        self.minimap.rotate = enabled;
+    }
+
     /// Minimap view, drawn tile, arrow, zone text and blips, for fixtures.
     #[func]
     fn minimap_state(&self) -> VarDictionary {
@@ -744,6 +798,8 @@ impl GameClient {
         result.set("open", self.minimap.ui.is_some());
         result.set("zoom", i64::from(self.minimap.zoom));
         result.set("hovered", self.minimap.hovered);
+        result.set("rotating", self.minimap.rotate);
+        result.set("map_rotation", self.minimap.rotation);
         result.set("tracking_open", self.minimap.tracking.open);
         let tracking_enabled: Array<bool> = self.minimap.tracking.enabled.iter().copied().collect();
         result.set("tracking_enabled", &tracking_enabled);

@@ -18,7 +18,7 @@ pub fn group_minimap_blips(
                 return None;
             }
             let live = group.live.get(&member.name)?;
-            let (offset, edge) = member_offset(view, [live.position.x, live.position.z], map_size);
+            let (offset, edge) = edge_offset(view, [live.position.x, live.position.z], map_size);
             Some(MinimapBlip {
                 unit: member.character_id,
                 kind: BlipKind::Member {
@@ -34,9 +34,8 @@ pub fn group_minimap_blips(
 
 /// North-up screen direction, clamped along its ray to the skin's boundary. Leave
 /// half the icon inside the rim; use an arrow only outside the actual map mask.
-fn member_offset(view: &MinimapView, [x, z]: [f32; 2], map_size: f32) -> ([f32; 2], bool) {
-    let right = (z - view.center[1]) / view.diameter;
-    let down = (view.center[0] - x) / view.diameter;
+pub fn edge_offset(view: &MinimapView, point: [f32; 2], map_size: f32) -> ([f32; 2], bool) {
+    let [right, down] = view.screen_offset(point);
     let inset_edge = 0.5 - BLIP_SIZE / (2.0 * map_size);
     let extent = match view.mask {
         MapMask::Round => right.hypot(down) / inset_edge,

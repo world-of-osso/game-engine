@@ -13,6 +13,13 @@
 ## 2026-10-10 — Native Toy Box (initial proof)
 
 [Native Toy Box](systems/toy-box.md) records catalog/favourite protocol consumption, Retail journal/paging/filter UI, ToyAction classification over existing persisted ItemID slots, native radial swipe and the generic-Button modified-press defect. Five UI-model tests and one wire test pass; both-skin native pointer regression passes. Private UDP55373 proof covers catalog/search and supported toy learning/consumption; favourite/use/bar/relog live acceptance remains pending after the host retry cap. Explicit offline screenshots are not server-state proof.
+## 2026-10-10 — Quest blob opacity and selection correction
+
+[Quest map objectives](systems/quest-map-objectives.md) records552a3f9ec: selection no longer changes128/192 opacity; world-map polygons follow super-tracking, not all watched quests. Targeted raster3/model1, native build/check and new private live fixture pass. Four inspected `v2-` objective world-map/minimap PNGs published. Hover/focus and native minimap blob-selection parity remain gaps, not guessed behavior.
+
+## 2026-10-10 — Quest map objective sources and integration
+
+[Quest map objectives](systems/quest-map-objectives.md) records local CASC coverage, source-owned geometry, numbered icons, blue overlays and super-tracking. 41 distinct targeted tests, native build/check, private5518 real quest28766 acceptance/live completion and both-skin12-PNG FFmpeg/visual proof; published PNG-only to AgentShared. Sprite number and fixture mount-race REDs corrected. Conditional/missing geometry, inherited format failures and unavailable independent OAuth verification remain explicit.
 
 ## 2026-10-09 — Retail auction subject and invoice formatting
 

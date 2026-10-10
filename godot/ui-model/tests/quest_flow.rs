@@ -618,3 +618,49 @@ fn log_reward_tooltips_come_from_the_rewards_the_giver_showed() {
         Some("Urchin's Pants")
     );
 }
+
+#[test]
+fn tracker_click_super_tracks_beating_them_back() {
+    let mut runtime = QuestRuntime::default();
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![worgs(0)],
+        watched_quest_ids: vec![BEATING_THEM_BACK],
+    });
+    let mut ui = QuestUiState::default();
+    quest_ui_action("quest_tracker:open:28766", &mut runtime, &mut ui);
+    assert_eq!(ui.super_tracked, Some(BEATING_THEM_BACK));
+    quest_ui_action("quest_tracker:open:999999", &mut runtime, &mut ui);
+    assert_eq!(
+        ui.super_tracked,
+        Some(BEATING_THEM_BACK),
+        "absent quests cannot be selected"
+    );
+}
+
+#[test]
+fn tracker_poi_numbers_follow_watch_order_in_both_skins() {
+    use game_engine_ui_model::objective_tracker_component::{
+        ObjectiveTrackerState, objective_tracker_screen,
+    };
+    configure_assets();
+    let mut runtime = QuestRuntime::default();
+    let mut lions = worgs(0);
+    lions.quest_id = LIONS_FOR_LAMBS;
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![worgs(0), lions],
+        watched_quest_ids: vec![LIONS_FOR_LAMBS, BEATING_THEM_BACK],
+    });
+    for skin in [
+        ui_toolkit::atlas::ActiveSkin::Modern,
+        ui_toolkit::atlas::ActiveSkin::Forever,
+    ] {
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(ObjectiveTrackerState::from_runtime(&runtime, false, false));
+        Screen::new(objective_tracker_screen).sync(&context, &mut registry);
+        assert_eq!(text(&registry, "QuestBlock28774POIButtonNumber"), "1");
+        assert_eq!(text(&registry, "QuestBlock28766POIButtonNumber"), "2");
+        assert_eq!(runtime.map_entries()[0].quest_id, LIONS_FOR_LAMBS);
+    }
+}
