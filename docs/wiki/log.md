@@ -1,3 +1,7 @@
+## 2026-10-10 — Pets in Collections, v2 native proof
+
+[Collections correction](systems/battle-pets.md#collections-integration-correction--2026-10-10) reuses the Toy Box shell/portrait/tab bar and character model viewport. Real pointer input reproduces and fixes content interception of shared close. Rebased private5591 proof: actual item learning, card model/Dismiss, mutual Pets/Toy Box tabs and lateral4-yard follower in both skins. Four inspected v2 PNGs; all7 published PNGs ffmpeg-decode. Pets4/Toy Box9 targeted tests pass. Battles and full species/NPC asset coverage excluded.
+
 ## 2026-10-10 — Native compile-speed evidence
 ## 2026-10-09 — Source-qualified runtime wiring and nested parser identity
 
