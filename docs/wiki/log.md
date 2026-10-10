@@ -1,3 +1,7 @@
+## 2026-10-09 — Edit Mode account-wide optional mover list
+
+[Native HUD edit mode](systems/native-hud-edit-mode.md) records immediate account-wide visibility persistence and shared selection filtering, independent of gameplay/layout settings. [Contract](../specs/hud-edit-mode.md#manager-system-checkboxes-2026-10-09) owns all Retail labels/order/default boundaries, five supported versus 25 unregistered systems, source citations and RED/GREEN/native proof at `81581bebf`. Both skins expose the same checkbox elements; only the manager reflows, never HUD roots.
+
 ## 2026-10-09 — HUD layout names and delete confirmation
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records the user-decided name validation and pending Yes/No deletion transition. [Contract](../specs/hud-edit-mode.md) owns Retail validation/dialog sources, exact confirmation text and unchanged preset Save / unsaved Exit boundaries. RED reproduces enabled empty New and immediate Delete; `4356c20a7` GREEN touched-crate hud69/core-layout7 and extension/CLI build pass. Native captures pending after default-output clearance failure and Vulkan initialization failure; no PNG or live input claim.

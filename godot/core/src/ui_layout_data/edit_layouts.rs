@@ -1,6 +1,22 @@
 //! Account-wide named layout writes; selection remains keyed by server character ID.
 use super::*;
 
+/// Missing entries preserve the client's existing visible-mover default.
+pub fn edit_mode_account_settings(path: &Path) -> Result<BTreeMap<String, bool>, String> {
+    Ok(read_layout(path)?.edit_mode.show_systems)
+}
+
+pub fn set_edit_mode_system_shown(
+    path: &Path,
+    key: &str,
+    shown: bool,
+) -> Result<BTreeMap<String, bool>, String> {
+    let mut file = read_layout(path)?;
+    file.edit_mode.show_systems.insert(key.into(), shown);
+    write_layout(path, &file)?;
+    Ok(file.edit_mode.show_systems)
+}
+
 /// Save a draft. Presets always create a player layout; settings survive frame moves.
 pub fn save_layout_elements(
     path: &Path,
