@@ -90,6 +90,28 @@ class EmitterTests(unittest.TestCase):
                 )
             )
 
+    def test_bone_and_physics_satellite_identities(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            (d / "models").mkdir()
+            raw = bytearray(0x130)
+            raw[:4] = b"MD20"
+            (d / "models/1.m2").write_bytes(
+                chunk("MD21", raw)
+                + chunk("BFID", struct.pack("<2I", 100, 101))
+                + chunk("PFID", struct.pack("<I", 102))
+            )
+            g = Closure(d, {}, "wow", "fixture")
+            g.add(1, "m2", "seed")
+            r = g.run()
+            self.assertEqual(
+                sorted(g.assets),
+                [(1, "m2"), (100, "bone"), (101, "bone"), (102, "phys")],
+            )
+            self.assertFalse(
+                any(i["code"] == "unsupported_model_edge" for i in r["unresolved"])
+            )
+
     def test_truncated_filename_array_is_not_a_resolved_emitter(self):
         raw = emitter_model()
         struct.pack_into("<II", raw, 0x130 + 0x20, 20, len(raw) - 1)
