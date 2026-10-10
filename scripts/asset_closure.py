@@ -13,7 +13,7 @@ from pathlib import Path
 import struct
 
 EXPANDABLE = {"adt", "m2", "wmo", "skel", "wdt"}
-DIRECTORIES = {"adt": "terrain", "wdt": "terrain", "wdl": "terrain", "blp": "textures"}
+DIRECTORIES = {"adt": "terrain", "wdt": "terrain", "wdl": "terrain", "blp": "textures", "ogg": "sounds", "mp3": "sounds", "wav": "sounds"}
 
 
 def digest(path):
@@ -348,6 +348,7 @@ def main():
     result = graph.run()
     result["config_sha256"] = digest(args.config)
     result["seed_tool_sha256"] = digest(Path(__file__).with_name("closure_seeds.py"))
+    result["spell_seed_tool_sha256"] = digest(Path(__file__).with_name("closure_spell_seeds.py"))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
     print(json.dumps(result["summary"], sort_keys=True))
