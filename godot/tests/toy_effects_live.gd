@@ -32,6 +32,21 @@ func run_fixture() -> void:
 	print("TOYFX_ACTOR ", actor.get_path(), " pos=", actor.position)
 	var floor_y := actor.position.y
 	await record_phase("native-scale", 1.0)
+	await learn_world_enlarger()
+	await click("CollectionsMicroButton")
+	await click("ToyBoxSearchBox")
+	await type_text("World Enlarger")
+	if not await wait_until(func(): return control("ToySpellButton1Name") != null and control("ToySpellButton1Name").text == "World Enlarger", "toy search"): return
+	await click("ToySpellButton1")
+	if not await wait_until(func(): return has_aura(23126) and abs(actor.scale.x - 0.5) < 0.001, "replicated half scale"): return
+	await tap(KEY_ESCAPE)
+	await record_phase("toy18660-scale-half", 2.0)
+	await cancel_aura(23126)
+	if not await wait_until(func(): return not has_aura(23126) and abs(actor.scale.x - 1.0) < 0.001, "scale removal"): return
+	await record_phase("scale-restored", 1.0)
+	await prove_feather_fall(floor_y)
+
+func learn_world_enlarger() -> void:
 	await click("MainMenuBarBackpackButton")
 	if not await wait_until(func(): return control("ContainerFrame0") != null, "backpack"): return
 	var bag_name := ""
@@ -44,20 +59,13 @@ func run_fixture() -> void:
 			if int(toy.item_id) == 18660: return true
 		return false, "toy learning"): return
 	await tap(KEY_ESCAPE)
-	await click("CollectionsMicroButton")
-	await click("ToyBoxSearchBox")
-	await type_text("World Enlarger")
-	if not await wait_until(func(): return control("ToySpellButton1Name") != null and control("ToySpellButton1Name").text == "World Enlarger", "toy search"): return
-	await click("ToySpellButton1")
-	if not await wait_until(func(): return has_aura(23126) and abs(actor.scale.x - 0.5) < 0.001, "replicated half scale"): return
-	await tap(KEY_ESCAPE)
-	await record_phase("toy18660-scale-half", 2.0)
-	await cancel_aura(23126)
-	if not await wait_until(func(): return not has_aura(23126) and abs(actor.scale.x - 1.0) < 0.001, "scale removal"): return
-	await record_phase("scale-restored", 1.0)
+
+func prove_feather_fall(floor_y: float) -> void:
 	#113542 lacks runtime item data; prove its authentic spell167273, not successful UseToy.
 	if not command(OS.get_environment("TOYFX_ADMIN"), ["learn-spell", character, "167273"]): return
-	if not command(OS.get_environment("TOYFX_CLI"), ["--socket", "/tmp/game-engine-%d.sock" % OS.get_process_id(), "spell", "cast", "--spell", "167273"]): return
+	# IPC is serviced by this main thread; never synchronously wait on our own CLI.
+	var cast_pid := OS.create_process(OS.get_environment("TOYFX_CLI"), ["--socket", "/tmp/game-engine-%d.sock" % OS.get_process_id(), "spell", "cast", "--spell", "167273"])
+	if cast_pid < 0: fail("cannot start feather cast IPC"); return
 	if not await wait_until(func(): return has_aura(167273), "feather spell cast"): return
 	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, "-8949.95", "-132.49", str(floor_y + 20.0)]): return
 	if not await wait_until(func(): return actor.position.y > floor_y + 15.0, "private elevated position"): return
