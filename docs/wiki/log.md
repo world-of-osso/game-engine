@@ -1,3 +1,7 @@
+## 2026-10-09 — Offline asset closure tooling
+
+[Offline closure](systems/offline-asset-closure.md) documents deterministic extracted-byte traversal and configurable Northshire/full-catalog seeds. [Contract](../specs/offline-asset-closure.md) separates the audit from runtime no-CASC/identity/release acceptance. Fixture RED covers absent tooling and extended WMO material slots; final fixture/slice evidence pending. No extraction or runtime changes.
+
 ## 2026-10-09 — HUD layout names and delete confirmation
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records the user-decided name validation and pending Yes/No deletion transition. [Contract](../specs/hud-edit-mode.md) owns Retail validation/dialog sources, exact confirmation text and unchanged preset Save / unsaved Exit boundaries. RED reproduces enabled empty New and immediate Delete; `4356c20a7` GREEN touched-crate hud69/core-layout7 and extension/CLI build pass. Native captures pending after default-output clearance failure and Vulkan initialization failure; no PNG or live input claim.

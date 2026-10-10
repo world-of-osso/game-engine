@@ -1,0 +1,9 @@
+{
+  "product": "wow",
+  "metadata_build": "12.1.0.69933",
+  "maps": "all",
+  "characters": "all",
+  "npc_displays": "all",
+  "items": "all",
+  "spells": "all"
+}
