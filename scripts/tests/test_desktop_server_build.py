@@ -191,6 +191,18 @@ class DesktopServerBuildTests(unittest.TestCase):
             self.assertEqual(files.get("game-server/" + name), content, name)
         self.assertNotIn("game-server/vendor/recastnavigation-sys/untracked.secret", files)
 
+    def test_release_snapshot_includes_tracked_embedded_sql(self):
+        # vehicle.rs embeds scripts/vehicle_models.sql with include_str!.
+        self.put(self.root, "scripts/vehicle_models.sql", "SELECT 1;\n")
+        subprocess.run(["git", "-C", str(self.root), "add", "scripts"], check=True)
+        self.put(self.root, "scripts/untracked.sql", "SECRET")
+        module = self.load()
+        with patch.object(module, "execute", self.execute):
+            module.build(self.root, host="local", release=True)
+        files = json.loads(self.capture.read_text())["files"]
+        self.assertEqual(files.get("game-server/scripts/vehicle_models.sql"), "SELECT 1;\n")
+        self.assertNotIn("game-server/scripts/untracked.sql", files)
+
     def test_failure_preserves_old_executable(self):
         module = self.load()
         old = self.root / "target/debug/game-server"
