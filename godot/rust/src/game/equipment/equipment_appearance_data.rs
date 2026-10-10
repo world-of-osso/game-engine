@@ -1,5 +1,6 @@
 use super::outfit_data::{OutfitData, OutfitResult};
 use crate::asset::m2_format::m2_anim::M2Bone;
+use game_engine_core::asset_product::{AssetProduct, AssetTexture};
 use serde::{Deserialize, Serialize};
 use shared::components::{EquipmentAppearance, EquipmentVisualSlot};
 use std::collections::HashSet;
@@ -27,9 +28,11 @@ pub enum EquipmentSlot {
 pub struct RuntimeModelAppearance {
     pub slot: EquipmentSlot,
     pub fdid: u32,
+    pub product: AssetProduct,
     pub skin_fdids: [u32; 3],
+    pub skin_products: [Option<AssetProduct>; 3],
     /// ItemDisplayInfoModelMatRes (M2 texture type, texture FDID) for this model column.
-    pub texture_replacements: Vec<(u32, u32)>,
+    pub texture_replacements: Vec<(u32, AssetTexture)>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -37,6 +40,8 @@ pub struct ResolvedEquipmentAppearance {
     pub outfit: OutfitResult,
     pub runtime_models: Vec<RuntimeModelAppearance>,
     pub merged_cape_texture_fdid: Option<u32>,
+    pub merged_cape_texture: Option<AssetTexture>,
+    pub body_texture_assets: Vec<(u8, AssetTexture)>,
     /// Textures needed by non-head item overlays, cloaks, and runtime models.
     pub texture_fdids: Vec<u32>,
     pub explicit_slots: HashSet<EquipmentVisualSlot>,
@@ -190,7 +195,7 @@ fn load_equipment_entries(
 struct BodyDisplays<'a> {
     /// Texture-bearing `CCharacterComponent` slot rows (see [`ITEM_PRIORITIES`]) with
     /// their displays and body textures, in equip order.
-    painted: Vec<(usize, u32, &'a OutfitData, Vec<(u8, u32)>)>,
+    painted: Vec<(usize, u32, &'a OutfitData, Vec<(u8, AssetTexture)>)>,
     shirt: Option<(u32, &'a OutfitData)>,
     chest: Option<(u32, &'a OutfitData)>,
     legs: Option<(u32, &'a OutfitData)>,
@@ -203,7 +208,7 @@ impl<'a> BodyDisplays<'a> {
         slot: EquipmentVisualSlot,
         display_id: u32,
         data: &'a OutfitData,
-        textures: Vec<(u8, u32)>,
+        textures: Vec<(u8, AssetTexture)>,
     ) {
         match slot {
             EquipmentVisualSlot::Shirt => self.shirt = Some((display_id, data)),
@@ -313,7 +318,7 @@ fn item_texture_priority(
 /// Order the body item textures by paste priority, whatever the equip order, so a robe
 /// paints over the shirt and the pants: the compositor pastes them in list order.
 fn layer_item_textures(resolved: &mut ResolvedEquipmentAppearance, body: &BodyDisplays<'_>) {
-    let priority = |texture: &(u8, u32)| {
+    let priority = |texture: &(u8, AssetTexture)| {
         body.painted
             .iter()
             .rev()
@@ -323,7 +328,12 @@ fn layer_item_textures(resolved: &mut ResolvedEquipmentAppearance, body: &BodyDi
             })
             .unwrap_or(i8::MAX)
     };
-    resolved.outfit.item_textures.sort_by_key(priority);
+    resolved.body_texture_assets.sort_by_key(priority);
+    resolved.outfit.item_textures = resolved
+        .body_texture_assets
+        .iter()
+        .map(|&(section, texture)| (section, texture.fdid))
+        .collect();
 }
 
 fn apply_visible_entry(
@@ -334,13 +344,21 @@ fn apply_visible_entry(
     race: u8,
     sex: u8,
     baked_body: bool,
-) -> Result<Vec<(u8, u32)>, String> {
+) -> Result<Vec<(u8, AssetTexture)>, String> {
     let display = if baked_body {
         outfit_data.try_load_baked_display_info(display_info_id, race, sex)?
     } else {
         outfit_data.try_resolve_display_info(display_info_id, race, sex)?
     };
     let mut display = display.ok_or_else(|| format!("display {display_info_id} missing"))?;
+    let textures = if baked_body {
+        Vec::new()
+    } else {
+        outfit_data.load_source_item_textures(display_info_id, race, sex)?
+    };
+    resolved
+        .body_texture_assets
+        .extend(textures.iter().copied());
     if slot == EquipmentVisualSlot::Head {
         let has_vis_data = outfit_data.has_helmet_geoset_vis_data(display_info_id);
         resolved
@@ -357,12 +375,17 @@ fn apply_visible_entry(
             resolved.hidden_character_geoset_groups.insert(0);
         }
         resolved.runtime_models.extend(models);
-        return Ok(display.item_textures);
+        return Ok(textures);
     }
     if slot == EquipmentVisualSlot::Back {
-        if let Some(fdid) = outfit_data.cape_texture_fdid(display_info_id, race, sex) {
-            resolved.merged_cape_texture_fdid = Some(fdid);
-            resolved.texture_fdids.push(fdid);
+        if let Some(texture) = outfit_data
+            .load_source_skin_textures(display_info_id, race, sex)?
+            .first()
+            .copied()
+        {
+            resolved.merged_cape_texture = Some(texture);
+            resolved.merged_cape_texture_fdid = Some(texture.fdid);
+            resolved.texture_fdids.push(texture.fdid);
         }
     }
     if let Some(overrides) = slot_geoset_overrides(slot, display_info_id, outfit_data) {
@@ -377,13 +400,16 @@ fn apply_visible_entry(
             resolved
                 .texture_fdids
                 .extend(model.skin_fdids.into_iter().filter(|fdid| *fdid != 0));
-            resolved
-                .texture_fdids
-                .extend(model.texture_replacements.iter().map(|&(_, fdid)| fdid));
+            resolved.texture_fdids.extend(
+                model
+                    .texture_replacements
+                    .iter()
+                    .map(|&(_, texture)| texture.fdid),
+            );
             resolved.runtime_models.push(model);
         }
     }
-    Ok(display.item_textures)
+    Ok(textures)
 }
 
 /// The models display `display_info_id` puts in `slot`: one shoulder per side; both
@@ -400,11 +426,24 @@ fn runtime_slot_models(
     models
         .into_iter()
         .map(|(column, fdid, skin_fdids)| {
+            let (product, material_product) =
+                outfit_data.load_column_products(display_info_id, column)?;
+            let skin_products = runtime_skin_products(
+                outfit_data,
+                display_info_id,
+                slot,
+                material_product,
+                &skin_fdids,
+                race,
+                sex,
+            )?;
             Ok(RuntimeModelAppearance {
                 slot,
                 fdid,
+                product,
                 skin_fdids,
-                texture_replacements: outfit_data.resolve_model_texture_fdids(
+                skin_products,
+                texture_replacements: outfit_data.load_source_model_textures(
                     display_info_id,
                     column,
                     race,
@@ -413,6 +452,32 @@ fn runtime_slot_models(
             })
         })
         .collect()
+}
+
+fn runtime_skin_products(
+    data: &OutfitData,
+    display: u32,
+    slot: EquipmentSlot,
+    column_product: Option<AssetProduct>,
+    skins: &[u32; 3],
+    race: u8,
+    sex: u8,
+) -> Result<[Option<AssetProduct>; 3], String> {
+    if matches!(
+        slot,
+        EquipmentSlot::Head
+            | EquipmentSlot::Back
+            | EquipmentSlot::Waist
+            | EquipmentSlot::Wrist
+            | EquipmentSlot::ShoulderLeft
+            | EquipmentSlot::ShoulderRight
+    ) {
+        return Ok(skins.map(|fdid| (fdid != 0).then_some(column_product).flatten()));
+    }
+    let textures = data.load_source_skin_textures(display, race, sex)?;
+    Ok(std::array::from_fn(|index| {
+        textures.get(index).map(|texture| texture.product)
+    }))
 }
 
 fn runtime_model_columns(
@@ -439,11 +504,24 @@ fn runtime_model_columns(
         EquipmentSlot::Head | EquipmentSlot::Back | EquipmentSlot::Waist | EquipmentSlot::Wrist => {
             outfit_data.try_resolve_column_models(display_info_id, race, sex)?
         }
-        _ => outfit_data
-            .try_resolve_runtime_model(display_info_id, race, sex)?
-            .into_iter()
-            .map(|(fdid, skins)| (0, fdid, skins))
-            .collect(),
+        _ => {
+            let Some((fdid, skins)) =
+                outfit_data.try_resolve_runtime_model(display_info_id, race, sex)?
+            else {
+                return Ok(Vec::new());
+            };
+            let display = outfit_data
+                .load_display_info(display_info_id)?
+                .ok_or_else(|| format!("Display {display_info_id} missing"))?;
+            let column = display
+                .model_resource_columns
+                .iter()
+                .position(|resource| *resource != 0)
+                .ok_or_else(|| {
+                    format!("Display {display_info_id}: resolved model has no source column")
+                })?;
+            vec![(column, fdid, skins)]
+        }
     })
 }
 

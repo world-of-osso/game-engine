@@ -14,6 +14,7 @@ use std::{
 
 use game_engine_core::{
     asset::m2_texture,
+    asset_product::{AssetProduct, AssetTexture},
     blp,
     char_texture_data::{CharTextureData, CompositedModelTextures},
     customization_data::CustomizationDb,
@@ -25,7 +26,7 @@ use godot::{
     classes::{Image, ImageTexture, image},
     prelude::*,
 };
-use osso_asset_resolver::{AssetResolverConfig, CascListfileResolver};
+use osso_asset_resolver::CascListfileResolver;
 use rusqlite::{Connection, OpenFlags};
 
 use crate::equipment_appearance_data::ResolvedEquipmentAppearance;
@@ -96,6 +97,7 @@ impl NpcAppearances {
         &mut self,
         data_root: &Path,
         display_id: u32,
+        product: AssetProduct,
         resolve_armor: impl FnOnce(
             &AuthoredNpcAppearance,
         ) -> Result<ResolvedEquipmentAppearance, String>,
@@ -122,20 +124,16 @@ impl NpcAppearances {
                 )
             })?;
         hide_armor_geoset_groups(&mut selected.geosets, &armor, db, &appearance);
-        let resolver = CascListfileResolver::new(
-            AssetResolverConfig::new()
-                .with_data_root(data_root)
-                .with_shared_data_root(data_root),
-        );
         let textures = compose_replacement_textures(
             compositor,
             &appearance,
             &selected,
             layout_id,
-            &resolver,
+            product,
             data_root,
             display_id,
-            armor.merged_cape_texture_fdid,
+            &armor.body_texture_assets,
+            armor.merged_cape_texture,
         )?;
         Ok(Some(PreparedNpc {
             appearance: AppearanceParts {
@@ -207,39 +205,53 @@ fn compose_replacement_textures(
     appearance: &AuthoredNpcAppearance,
     selected: &NpcSelections,
     layout_id: u32,
-    resolver: &CascListfileResolver,
+    product: AssetProduct,
     data_root: &Path,
     display_id: u32,
-    cape_fdid: Option<u32>,
+    item_textures: &[(u8, AssetTexture)],
+    cape: Option<AssetTexture>,
 ) -> Result<HashMap<u32, TexturePixels>, String> {
-    let (composed, mut decoded) = load_and_compose_selected_pixels(
-        compositor, selected, layout_id, resolver, data_root, display_id,
+    let (composed, decoded) = load_and_compose_selected_pixels(
+        compositor,
+        selected,
+        layout_id,
+        product,
+        data_root,
+        display_id,
+        item_textures,
     )?;
     let baked_body = appearance
         .baked_texture_fdid
-        .map(|fdid| load_npc_texture(resolver, data_root, fdid))
+        .map(|fdid| {
+            load_authored_appearance_texture(data_root, AssetTexture { product, fdid }, "NPC bake")
+        })
         .transpose()?;
-    if let Some(fdid) = cape_fdid {
-        decoded.insert(fdid, load_npc_texture(resolver, data_root, fdid)?);
-    }
-    compose_replacement_pixels(
+    let mut replacements = compose_replacement_pixels(
         compositor,
         &selected.materials,
         layout_id,
         composed,
         baked_body,
         &decoded,
-        cape_fdid,
-    )
+        None,
+    )?;
+    if let Some(texture) = cape {
+        replacements.insert(
+            2,
+            load_authored_appearance_texture(data_root, texture, "NPC cape")?,
+        );
+    }
+    Ok(replacements)
 }
 
 fn load_and_compose_selected_pixels(
     compositor: &CharTextureData,
     selected: &NpcSelections,
     layout_id: u32,
-    resolver: &CascListfileResolver,
+    product: AssetProduct,
     data_root: &Path,
     display_id: u32,
+    item_textures: &[(u8, AssetTexture)],
 ) -> Result<(CompositedModelTextures, HashMap<u32, TexturePixels>), String> {
     let layout = compositor
         .layout(layout_id)
@@ -251,11 +263,23 @@ fn load_and_compose_selected_pixels(
     )
     .ok_or_else(|| format!("missing default NPC body texture for layout {layout_id}"))?;
     let decoded =
-        load_selected_and_default_pixels(selected, default_fdid, resolver, data_root, display_id)?;
-    let composed = compositor
-        .composite_model_textures_with(&selected.materials, &[], layout_id, default_fdid, |fdid| {
-            decoded.get(&fdid).cloned()
+        load_selected_and_default_pixels(selected, default_fdid, product, data_root, display_id)?;
+    let item_pixels: HashMap<AssetTexture, TexturePixels> = item_textures
+        .iter()
+        .map(|&(_, texture)| {
+            load_authored_appearance_texture(data_root, texture, "NPC armor")
+                .map(|pixels| (texture, pixels))
         })
+        .collect::<Result<_, _>>()?;
+    let composed = compositor
+        .composite_model_textures_with_item_loader(
+            &selected.materials,
+            item_textures,
+            layout_id,
+            default_fdid,
+            |fdid| decoded.get(&fdid).cloned(),
+            |texture| item_pixels.get(&texture).cloned(),
+        )
         .ok_or_else(|| format!("cannot composite NPC texture layout {layout_id}"))?;
     Ok((composed, decoded))
 }
@@ -263,7 +287,7 @@ fn load_and_compose_selected_pixels(
 fn load_selected_and_default_pixels(
     selected: &NpcSelections,
     default_fdid: u32,
-    resolver: &CascListfileResolver,
+    product: AssetProduct,
     data_root: &Path,
     display_id: u32,
 ) -> Result<HashMap<u32, TexturePixels>, String> {
@@ -274,11 +298,21 @@ fn load_selected_and_default_pixels(
         .map(|(_, fdid)| *fdid)
         .collect::<HashSet<_>>()
     {
-        decoded.insert(fdid, load_npc_texture(resolver, data_root, fdid)?);
+        decoded.insert(
+            fdid,
+            load_authored_appearance_texture(data_root, AssetTexture { product, fdid }, "NPC")?,
+        );
     }
     // The default atlas is optional in the original compositor, but failures must be visible.
     if !decoded.contains_key(&default_fdid) {
-        match load_npc_texture(resolver, data_root, default_fdid) {
+        match load_authored_appearance_texture(
+            data_root,
+            AssetTexture {
+                product,
+                fdid: default_fdid,
+            },
+            "NPC default",
+        ) {
             Ok(pixels) => {
                 decoded.insert(default_fdid, pixels);
             }
@@ -288,12 +322,14 @@ fn load_selected_and_default_pixels(
     Ok(decoded)
 }
 
-fn load_npc_texture(
-    resolver: &CascListfileResolver,
+pub(super) fn load_authored_appearance_texture(
     data_root: &Path,
-    fdid: u32,
+    texture: game_engine_core::asset_product::AssetTexture,
+    source: &str,
 ) -> Result<TexturePixels, String> {
-    load_appearance_texture(resolver, data_root, fdid, "NPC")
+    let resolver =
+        super::creature::authored_asset_resolver(data_root, texture.product, texture.fdid, "blp")?;
+    load_appearance_texture(&resolver, data_root, texture.fdid, source)
 }
 
 pub(super) fn load_appearance_texture(

@@ -47,27 +47,20 @@ pub(crate) type DecodedTextures = Vec<(TextureAddress, blp::GpuImage)>;
 /// Worker: extract and parse the display's model and its armor and item models, and
 /// decode their textures, so `build_creature_model` does no file work.
 pub(crate) fn prepare_creature_model(
-    resolver: &CascListfileResolver,
     data_root: &Path,
     display: &CreatureDisplay,
     gear: &CreatureGear,
 ) -> Result<CreatureModelParts, String> {
-    let model = load_model_files(resolver, data_root, display.model_fdid)?;
-    let fdids = cache_model_textures(resolver, data_root, &display.skin_fdids, &model.model)?;
+    let model = load_display_model_files(data_root, display)?;
+    let resolver = authored_model_resolver(data_root, display.source_product, display.model_fdid)?;
+    let fdids = cache_model_textures(&resolver, data_root, &display.skin_fdids, &model.model)?;
     let mut textures = decode_new_textures(model_asset_root(&model)?, &fdids)?;
     let items = gear
         .armor_models
         .iter()
         .chain(gear.items.iter().map(|(item, _)| item));
     for item in items {
-        // An item that cannot load is reported when it is attached.
-        if let Ok(parts) = load_model_files(resolver, data_root, item.fdid)
-            && let Ok(item_fdids) =
-                cache_model_textures(resolver, data_root, &item.skin_fdids, &parts.model)
-        {
-            let decoded = decode_new_textures(model_asset_root(&parts)?, &item_fdids)?;
-            textures.extend(decoded);
-        }
+        textures.extend(super::equipment::prepare_equipment_model(data_root, item)?);
     }
     Ok(CreatureModelParts { model, textures })
 }
@@ -81,7 +74,7 @@ pub(crate) fn build_creature_model(
     appearance: Option<&PreparedAppearance>,
     gear: &CreatureGear,
 ) -> Result<(Gd<Node3D>, PackedInt32Array), String> {
-    let resolver = local_resolver(data_root);
+    let resolver = authored_model_resolver(data_root, display.source_product, display.model_fdid)?;
     let parsed = &model.model;
     let path = GString::from(model.path.to_string_lossy().as_ref());
     let (mut model, missing) = build_model(parsed, &path, &display.skin_fdids, appearance)?;
@@ -100,9 +93,7 @@ pub(crate) fn build_creature_model(
             item.fdid
         );
     };
-    if let Err(error) =
-        attach_each_equipment(&mut model, parsed, &resolver, data_root, &models, report)
-    {
+    if let Err(error) = attach_each_equipment(&mut model, parsed, data_root, &models, report) {
         model.free();
         return Err(error);
     }
@@ -140,7 +131,8 @@ pub(crate) fn load_display_model_files(
     data_root: &Path,
     display: &CreatureDisplay,
 ) -> Result<Arc<CachedModel>, String> {
-    load_model_files(&local_resolver(data_root), data_root, display.model_fdid)
+    let resolver = authored_model_resolver(data_root, display.source_product, display.model_fdid)?;
+    load_model_files(&resolver, data_root, display.model_fdid)
 }
 
 pub(crate) fn authored_model_resolver(
@@ -188,6 +180,26 @@ fn load_asset_index(
         .expect("asset receipt indexes")
         .insert(data_root.to_owned(), Arc::clone(&index));
     Ok(index)
+}
+
+pub(crate) fn cache_authored_texture(
+    data_root: &Path,
+    texture: game_engine_core::asset_product::AssetTexture,
+) -> Result<TextureAddress, String> {
+    let resolver = authored_asset_resolver(data_root, texture.product, texture.fdid, "blp")?;
+    let path = cache_required(
+        &resolver,
+        texture.fdid,
+        &data_root.join(format!("textures/{}.blp", texture.fdid)),
+    )?;
+    let dir = path
+        .parent()
+        .ok_or("Texture path has no directory")?
+        .to_owned();
+    Ok(TextureAddress {
+        dir,
+        fdid: texture.fdid,
+    })
 }
 
 pub(crate) fn local_resolver(data_root: &Path) -> CascListfileResolver {
@@ -246,9 +258,14 @@ pub(crate) fn load_model_files(
 }
 
 /// Model `fdid` if a worker already parsed it (`load_model_files`), without file work.
-pub(crate) fn cached_model(data_root: &Path, fdid: u32) -> Option<Arc<CachedModel>> {
-    let key = data_root.join("models").join(format!("{fdid}.m2"));
-    MODELS.lock().expect("model cache").get(&key).cloned()
+pub(crate) fn cached_model(
+    data_root: &Path,
+    product: game_engine_core::asset_product::AssetProduct,
+    fdid: u32,
+) -> Result<Option<Arc<CachedModel>>, String> {
+    let resolver = authored_model_resolver(data_root, product, fdid)?;
+    let key = resolver.cache_path(&data_root.join("models").join(format!("{fdid}.m2")))?;
+    Ok(MODELS.lock().expect("model cache").get(&key).cloned())
 }
 
 /// Only successfully published images suppress a later worker decode. A failed

@@ -184,7 +184,28 @@ impl CharTextureData {
         item_textures: &[(u8, u32)],
         layout_id: u32,
         default_fdid: u32,
+        load: impl FnMut(u32) -> Option<(Vec<u8>, u32, u32)>,
+    ) -> Option<CompositedModelTextures> {
+        let load = std::cell::RefCell::new(load);
+        self.composite_model_textures_with_item_loader(
+            materials,
+            item_textures,
+            layout_id,
+            default_fdid,
+            |fdid| load.borrow_mut()(fdid),
+            |fdid| load.borrow_mut()(fdid),
+        )
+    }
+
+    /// Item keys retain their source independently of customization/default FDIDs.
+    pub fn composite_model_textures_with_item_loader<K: Copy>(
+        &self,
+        materials: &[(u16, u32)],
+        item_textures: &[(u8, K)],
+        layout_id: u32,
+        default_fdid: u32,
         mut load: impl FnMut(u32) -> Option<(Vec<u8>, u32, u32)>,
+        mut load_item: impl FnMut(K) -> Option<(Vec<u8>, u32, u32)>,
     ) -> Option<CompositedModelTextures> {
         let layout = self.layouts.get(&layout_id)?;
         let (w, h) = (layout.width, layout.height);
@@ -193,7 +214,7 @@ impl CharTextureData {
         self.seed_default_body_texture(&mut pixels, w, h, layout_id, default_fdid, &mut load);
         let atlas_materials = self.atlas_materials(materials, layout_id);
         self.composite_materials_into(&mut pixels, w, &atlas_materials, layout_id, &mut load);
-        self.composite_item_textures_into(&mut pixels, w, item_textures, layout_id, &mut load);
+        self.composite_item_textures_into(&mut pixels, w, item_textures, layout_id, &mut load_item);
 
         let hair = self
             .declares_hair(materials, layout_id)
@@ -290,13 +311,13 @@ impl CharTextureData {
         });
     }
 
-    fn composite_item_textures_into(
+    fn composite_item_textures_into<K: Copy>(
         &self,
         pixels: &mut [u8],
         canvas_w: u32,
-        item_textures: &[(u8, u32)],
+        item_textures: &[(u8, K)],
         layout_id: u32,
-        load: &mut impl FnMut(u32) -> Option<(Vec<u8>, u32, u32)>,
+        load: &mut impl FnMut(K) -> Option<(Vec<u8>, u32, u32)>,
     ) {
         // Items alpha-blend over the body (Wow.exe Paste, solarityclient composer.rs
         // `alpha_blend`): straight alpha, blend mode 9.
@@ -321,15 +342,15 @@ impl CharTextureData {
         }
     }
 
-    fn blit_item_texture_into(
+    fn blit_item_texture_into<K: Copy>(
         &self,
         pixels: &mut [u8],
         canvas_w: u32,
         item_layer: &TextureLayer,
         layout_id: u32,
         component_section: u8,
-        fdid: u32,
-        load: &mut impl FnMut(u32) -> Option<(Vec<u8>, u32, u32)>,
+        fdid: K,
+        load: &mut impl FnMut(K) -> Option<(Vec<u8>, u32, u32)>,
     ) {
         let Some((tex_pixels, tex_w, tex_h)) = load(fdid) else {
             return;

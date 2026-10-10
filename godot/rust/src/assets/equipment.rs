@@ -6,19 +6,24 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use game_engine_core::m2;
+use game_engine_core::{
+    asset_product::{AssetProduct, AssetTexture},
+    m2,
+};
 use godot::{
     classes::{ImageTexture, MeshInstance3D, Node3D, Skeleton3D, Skin},
     prelude::*,
 };
-use osso_asset_resolver::CascListfileResolver;
 
 use game_engine_core::customization_data::ChoiceSkinnedModel;
 
 use super::{
     appearance::PreparedAppearance,
     build_model_filtered, build_model_filtered_with_textures,
-    creature::{cache_model_textures, load_model_files},
+    creature::{
+        DecodedTextures, authored_model_resolver, cache_authored_texture, cache_model_textures,
+        decode_new_textures, load_model_files, model_asset_root,
+    },
 };
 use crate::equipment_appearance_data::{
     EquipmentSlot, RuntimeModelAppearance, collection_mesh_part_in_slot, is_collection_model,
@@ -31,10 +36,56 @@ mod bone_names;
 #[path = "../game/equipment/equipment_transform_data.rs"]
 mod transforms;
 
+/// Selected skins and explicit per-type materials keep their own products.
+fn equipment_texture_replacements(
+    definition: &RuntimeModelAppearance,
+) -> Result<Vec<(u32, AssetTexture)>, String> {
+    let mut replacements = std::collections::BTreeMap::new();
+    for (index, &fdid) in definition.skin_fdids.iter().enumerate() {
+        if fdid == 0 {
+            continue;
+        }
+        let product = definition.skin_products[index].ok_or_else(|| {
+            format!(
+                "Equipment {} skin {index}: missing source product",
+                definition.fdid
+            )
+        })?;
+        let texture = AssetTexture { product, fdid };
+        replacements.insert(11 + index as u32, texture);
+        if index == 0 {
+            replacements.insert(2, texture);
+        }
+    }
+    replacements.extend(definition.texture_replacements.iter().copied());
+    Ok(replacements.into_iter().collect())
+}
+
+pub(crate) fn prepare_equipment_model(
+    data_root: &Path,
+    definition: &RuntimeModelAppearance,
+) -> Result<DecodedTextures, String> {
+    let resolver = authored_model_resolver(data_root, definition.product, definition.fdid)?;
+    let cached = load_model_files(&resolver, data_root, definition.fdid)?;
+    let fdids = cache_model_textures(&resolver, data_root, &[0; 3], &cached.model)?;
+    let mut textures = decode_new_textures(model_asset_root(&cached)?, &fdids)?;
+    for (_, texture) in equipment_texture_replacements(definition)? {
+        let address = cache_authored_texture(data_root, texture)?;
+        let root = address
+            .dir
+            .parent()
+            .ok_or("Texture directory has no asset root")?;
+        textures.extend(decode_new_textures(
+            root,
+            &std::collections::BTreeSet::from([address.fdid]),
+        )?);
+    }
+    Ok(textures)
+}
+
 struct EquipmentContext<'a> {
     character: &'a mut Gd<Node3D>,
     character_model: &'a m2::Model,
-    resolver: &'a CascListfileResolver,
     data_root: &'a Path,
     transforms: Arc<transforms::EquipmentTransformConfig>,
 }
@@ -42,14 +93,13 @@ struct EquipmentContext<'a> {
 pub(super) fn attach_equipment(
     character: &mut Gd<Node3D>,
     character_model: &m2::Model,
-    resolver: &CascListfileResolver,
     data_root: &Path,
     models: &[RuntimeModelAppearance],
 ) -> Result<(), String> {
     if models.is_empty() {
         return Ok(());
     }
-    let mut context = EquipmentContext::new(character, character_model, resolver, data_root)?;
+    let mut context = EquipmentContext::new(character, character_model, data_root)?;
     for model in models {
         context.attach(model)?;
     }
@@ -61,7 +111,6 @@ pub(super) fn attach_equipment(
 pub(super) fn attach_each_equipment(
     character: &mut Gd<Node3D>,
     character_model: &m2::Model,
-    resolver: &CascListfileResolver,
     data_root: &Path,
     models: &[RuntimeModelAppearance],
     mut report: impl FnMut(&RuntimeModelAppearance, String),
@@ -69,7 +118,7 @@ pub(super) fn attach_each_equipment(
     if models.is_empty() {
         return Ok(());
     }
-    let mut context = EquipmentContext::new(character, character_model, resolver, data_root)?;
+    let mut context = EquipmentContext::new(character, character_model, data_root)?;
     for model in models {
         if let Err(error) = context.attach(model) {
             report(model, error);
@@ -85,10 +134,10 @@ pub(super) fn attach_each_equipment(
 pub(super) fn attach_skinned_models(
     character: &mut Gd<Node3D>,
     character_model: &m2::Model,
-    resolver: &CascListfileResolver,
     data_root: &Path,
     appearance: &PreparedAppearance,
     models: &[ChoiceSkinnedModel],
+    product: AssetProduct,
 ) -> Result<(), String> {
     let mut parts_by_file: Vec<(u32, Vec<u16>)> = Vec::new();
     for model in models {
@@ -101,10 +150,11 @@ pub(super) fn attach_skinned_models(
         }
     }
     for (fdid, parts) in parts_by_file {
-        let cached = load_model_files(resolver, data_root, fdid)?;
+        let resolver = authored_model_resolver(data_root, product, fdid)?;
+        let cached = load_model_files(&resolver, data_root, fdid)?;
         let path = GString::from(cached.path.to_string_lossy().as_ref());
         let parsed = &cached.model;
-        cache_model_textures(resolver, data_root, &[0; 3], parsed)?;
+        cache_model_textures(&resolver, data_root, &[0; 3], parsed)?;
         let skin = bound_skin(character, character_model, parsed)?;
         let (mut collection, missing) =
             build_model_filtered(parsed, &path, &[0; 3], Some(appearance), |part| {
@@ -158,13 +208,11 @@ impl<'a> EquipmentContext<'a> {
     fn new(
         character: &'a mut Gd<Node3D>,
         character_model: &'a m2::Model,
-        resolver: &'a CascListfileResolver,
         data_root: &'a Path,
     ) -> Result<Self, String> {
         Ok(Self {
             character,
             character_model,
-            resolver,
             data_root,
             transforms: load_transforms(data_root)?,
         })
@@ -191,19 +239,16 @@ fn load_transforms(data_root: &Path) -> Result<Arc<transforms::EquipmentTransfor
 
 impl EquipmentContext<'_> {
     fn attach(&mut self, definition: &RuntimeModelAppearance) -> Result<(), String> {
-        let authored = self.resolver.resolve_path(definition.fdid);
+        let resolver =
+            authored_model_resolver(self.data_root, definition.product, definition.fdid)?;
+        let authored = resolver.resolve_path(definition.fdid);
         let authored_path = authored.as_deref().map(Path::new);
-        let cached = load_model_files(self.resolver, self.data_root, definition.fdid)?;
+        let cached = load_model_files(&resolver, self.data_root, definition.fdid)?;
         let parsed = &cached.model;
         let bound = choose_equipment_binding(definition, parsed, authored_path)?;
         let mut parent = self.parent_for(definition.slot, authored_path, bound)?;
         let path = GString::from(cached.path.to_string_lossy().as_ref());
-        cache_model_textures(
-            self.resolver,
-            self.data_root,
-            &definition.skin_fdids,
-            parsed,
-        )?;
+        cache_model_textures(&resolver, self.data_root, &[0; 3], parsed)?;
         let textures = self.load_item_textures(definition, parsed, authored_path, bound)?;
         let skin = if bound {
             Some(self.bound_skin(parsed)?)
@@ -249,17 +294,12 @@ impl EquipmentContext<'_> {
             equipment_mesh_part_allowed(definition.slot, authored, bound, part)
         })?;
         let mut missing = PackedInt32Array::new();
-        let directory = self.data_root.join("textures");
-        definition
-            .texture_replacements
-            .iter()
-            .map(|&(kind, fdid)| {
-                super::creature::cache_required(
-                    self.resolver,
-                    fdid,
-                    &directory.join(format!("{fdid}.blp")),
-                )?;
-                let texture = super::material::shared_texture(fdid, &directory, &mut missing)?
+        equipment_texture_replacements(definition)?
+            .into_iter()
+            .map(|(kind, source)| {
+                let address = cache_authored_texture(self.data_root, source)?;
+                let fdid = source.fdid;
+                let texture = super::material::shared_texture(fdid, &address.dir, &mut missing)?
                     .ok_or_else(|| {
                         format!(
                             "Equipment {:?} FDID {}: missing type {kind} texture {fdid}",
@@ -332,7 +372,7 @@ fn item_batch_texture_fdids(
                 .texture_replacements
                 .iter()
                 .find(|(ty, _)| ty == kind)
-                .map(|&(_, fdid)| fdid)
+                .map(|&(_, texture)| texture.fdid)
                 .or(fdid)
         })
         .collect())
@@ -580,8 +620,20 @@ mod tests {
                 }
                 if item_id == 222436 {
                     assert!(matches!(definition.fdid, 5646084 | 5646085));
-                    assert!(definition.texture_replacements.contains(&(2, 5647905)));
-                    assert!(definition.texture_replacements.contains(&(3, 5665215)));
+                    assert!(definition.texture_replacements.contains(&(
+                        2,
+                        AssetTexture {
+                            product: AssetProduct::Retail,
+                            fdid: 5647905
+                        }
+                    )));
+                    assert!(definition.texture_replacements.contains(&(
+                        3,
+                        AssetTexture {
+                            product: AssetProduct::Retail,
+                            fdid: 5665215
+                        }
+                    )));
                 }
             }
         }
