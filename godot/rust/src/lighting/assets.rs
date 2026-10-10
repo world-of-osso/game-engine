@@ -331,7 +331,7 @@ fn cache_planet_textures(data_root: &Path) -> Result<(), String> {
     for fdid in PLANET_FDIDS {
         let destination = data_root.join("textures").join(format!("{fdid}.blp"));
         resolver
-            .ensure_cached(fdid, &destination)
+            .ensure_cached(fdid, &destination)?
             .ok_or_else(|| format!("planet texture {fdid} not in local CASC"))?;
     }
     Ok(())
@@ -351,7 +351,7 @@ pub(crate) fn cache_sky_model(data_root: &Path, fdid: u32) -> Result<PathBuf, St
         {
             let destination = data_root.join("textures").join(format!("{texture}.blp"));
             resolver
-                .ensure_cached(texture, &destination)
+                .ensure_cached(texture, &destination)?
                 .ok_or_else(|| format!("texture {texture} not in local CASC"))?;
         }
     }

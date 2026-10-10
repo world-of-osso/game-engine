@@ -15,6 +15,13 @@
 ## 2026-10-09 — Offline class spellbooks and spec talents
 
 [Talents](systems/talents.md#offline-classspec-capture-2026-10-09) records paired DB2 preview inputs, preserved default Mage snapshot and production-catalog evidence. [Contract](../specs/talents.md#offline-classspec-evidence) links the data-only coverage matrix, native screenshots, exact blocked specs and existing layout/hero-eligibility limits. No spell behavior, server persistence or complete-tree parity claim.
+## 2026-10-09 — Detached extracted-only misses
+
+[Shipped assets](systems/shipped-assets.md#detached-legacy-misses-2026-10-09) records the independent P1 failure: a legacy cache panic killed its detached worker and left the key Loading. Typed cache errors now propagate to Failed completions, preserving local-CASC optional behavior. Cold-process RED proves missing completion and present BLP success; engine `f809ad04a` + resolver `cb64094` GREEN startup7/7 and six-engine-package2658/0/7 pass, zero warnings. Resolver31/2: missing-install and hard-coded-listfile prerequisites fail before changed assertions; product-identity7/7 passes. Independent verifier unavailable (expired Claude OAuth); no clean resolver-integration or rendered-game claim. [Contract](../specs/shipped-assets.md) owns exact error and once-only completion requirements.
+
+## 2026-10-09 — Extracted-only asset policy
+
+[Shipped assets](systems/shipped-assets.md) records the P1 startup and low-level CASC boundary. [Contract](../specs/shipped-assets.md) owns explicit environment selection, shared policy/tripwire APIs and P2–P5 exclusions. Cold-process RED reproduced `WoW install not found`; engine `5dbe8b3c0` + resolver `8fc769b` GREEN5/5 and full six-engine-package2656/0/7 pass, no warnings. Resolver unit22/bin2 pass; its pre-existing install-dependent integration test fails in no-install depot. No deployment, rendered-game or full closure claim.
 
 ## 2026-10-09 — HUD layout names and delete confirmation
 

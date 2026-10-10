@@ -152,7 +152,7 @@ fn cache_trainer_art() -> Result<(), String> {
     let fdids = crate::quests::screen_texture_fdids(preview_view(), trainer_screen);
     for fdid in fdids.into_iter().chain([130924]) {
         let path = root.join("textures").join(format!("{fdid}.blp"));
-        if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {
+        if !path.exists() && resolver.ensure_cached(fdid, &path)?.is_none() {
             return Err(format!(
                 "Trainer preview FDID {fdid} missing from local CASC"
             ));
