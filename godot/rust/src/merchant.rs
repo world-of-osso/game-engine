@@ -236,12 +236,18 @@ impl GameClient {
         let Some(viewport) = self.base().get_viewport() else {
             return Ok(());
         };
+        godot_print!(
+            "PBWILD merchant pointer={:?} hovered={:?}",
+            self.physical_input.pointer(),
+            viewport.gui_get_hovered_control()
+        );
         if viewport.gui_get_hovered_control().is_some() {
             return Ok(());
         }
         let clicked = viewport.get_camera_3d().and_then(|camera| {
             pick_unit(&camera, Vector2::from_array(self.physical_input.pointer()))
         });
+        godot_print!("PBWILD merchant clicked={clicked:?}");
         let unit = match clicked {
             Some(unit) => {
                 if self.use_game_object(unit)? {
