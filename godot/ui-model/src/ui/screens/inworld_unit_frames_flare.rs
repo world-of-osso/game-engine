@@ -6,6 +6,7 @@
 
 use std::f32::consts::FRAC_PI_2;
 
+use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::rsx;
 use ui_toolkit::widget_def::Element;
 
@@ -264,9 +265,21 @@ fn flare_contents(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
         {flare_bar(format!("{}HealthBar", spec.prefix), health, unit.health_fraction, health_rgb(unit), spec.mirror)}
         {power_bar.unwrap_or_default()}
         {flare_border_frame(spec.root, spec.size)}
-        {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), [flare_separator(spec, unit), flare_texts(spec, unit, health), flare_power_text(spec, unit)].into_iter().flatten().collect())}
+        {flare_layer(format!("{}Overlay", spec.root), (0.0, 0.0, width, height), [flare_separator(spec, unit), flare_texts(spec, unit, health), flare_power_text(spec, unit), flare_target_classification(spec, unit)].into_iter().flatten().collect())}
         {unit.aura_state.map(|state| flare_unit_auras(spec, state)).unwrap_or_default()}
     }
+}
+
+/// Forever changes the art, not Retail's target classification elements or anchors.
+fn flare_target_classification(spec: &FlareFrame, unit: &FlareUnit<'_>) -> Element {
+    if spec.root != FLARE_TARGET.root {
+        return Element::new();
+    }
+    unit.aura_state
+        .map(|state| {
+            super::classification_art(spec.prefix, state.classification, ActiveSkin::Forever)
+        })
+        .unwrap_or_default()
 }
 
 fn flare_unit_auras(spec: &FlareFrame, state: &UnitFrameState) -> Element {

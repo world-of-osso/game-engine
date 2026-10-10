@@ -108,6 +108,8 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [Rare vignettes and classification](investigations/rare-vignettes-and-classification.md) — server-side vignette assignment versus rank, wrong name joins, local CASC limits, authentic Forever target classification art and bounded native capture proof.
+
 - [cage-capture-resolution](investigations/cage-capture-resolution.md) — headless output constrained 1920×1080 requests to 1280×720; capture-only output override, six inspected spellbook pages, and missing specialization assets.
 
 - [desktop-disk-exhaustion](investigations/desktop-disk-exhaustion.md) — October 6 observed Windows/WSL exhaustion, completed cache pruning and offline VHD compaction; crash causality and sustained GC behavior unproven.

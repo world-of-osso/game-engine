@@ -1,6 +1,9 @@
 ## 2026-10-09 — Edit Mode account-wide optional mover list
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records immediate account-wide visibility persistence and shared selection filtering, independent of gameplay/layout settings. [Contract](../specs/hud-edit-mode.md#manager-system-checkboxes-2026-10-09) owns all Retail labels/order/default boundaries, five supported versus 25 unregistered systems, source citations and RED/GREEN/native proof at `81581bebf`. Both skins expose the same checkbox elements; only the manager reflows, never HUD roots.
+## 2026-10-09 — Rare vignettes and Forever target classification
+
+[Rare classification investigation](investigations/rare-vignettes-and-classification.md) records315 spawned rare templates with no vignette assignment, distinct newer IDs behind name matches, local CASC comparisons and the Forever target overlay bypass. Three registry RED cases atf314d1b52 reproduce missing art; correctionea8a275bf passed31 focused unit-frame tests and changed-file rustfmt check. Authored Forever gold/silver dragons and the Retail star now populate the target overlay at shared Retail anchors. Native Modern Ruul capture passed; Brack rank4 picking and post-fix Forever pixels remain unproved after the three-run budget.
 
 ## 2026-10-09 — HUD layout names and delete confirmation
 
