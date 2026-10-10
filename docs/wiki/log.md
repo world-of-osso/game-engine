@@ -2986,3 +2986,7 @@ Recorded local Arcane CSV witnesses, grant/spec conditions and Blizzard node geo
 ## [2026-10-09] docs | Landed-state reconciliation
 
 Reconciled cast spark, editor rounding/preview/show-list/label/autosave/padding, native nameplate levels/distance step and target classification, icon shipping/CPU manifest exceptions, screen clamping, readable NPC sections, P1 runtime policy and closure tooling through the [index](index.md#october-9-reconciliation). Corrected stale discard, first-use UI extraction, native fade and player retail-install claims. Indoor geometry remains blocked; seven-profile metadata publication is not native baked-texture acceptance. Linked current server deployment; preserved dated historical receipts. Docs-only inspection; no builds, assets, deployment or runtime proof added.
+
+## [2026-10-09] docs | Shared-realm safety link
+
+Updated [private headless recipe](../headless-live-run.md) to link server deployment SSOT instead of presenting the former desktop realm path as current. Corrected the index StackSplit link to its [cursor contract](../specs/cursor-item.md) (`5b10f31bc`). Existing protections stay in force; no runtime changes.
