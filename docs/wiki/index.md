@@ -40,6 +40,8 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 - [Effect50 toy objects](systems/toy-box.md#effect50-object-rendering-2026-10-10) — generic decoration visibility separated from interaction; three actual toys rendered in both configured skins; aura233 payload mapping remains unimplemented.
 
+- [Representative toy effects](systems/toy-box.md#representative-native-effects-proof-2026-10-10) —14 both-skin samples, zero-scale portal billboard RED→GREEN/native return, explicit conditional/procedural/summon/audio gaps.
+
 - [Generic toy auras](systems/toy-box.md#generic-toy-aura-consumption-2026-10-10) — scale/fall replication and override sets; private scale proof, Forever fall proof and remaining Modern capture boundary.
 
 - [Native Toy Box](systems/toy-box.md) — Retail journal, unresolved-name ItemID labels, both-skin search/progress/desaturation; master-protocol private live learning/favourite/cast/bar/relog proof and inspected26 v2 captures. Transform-model coverage remains separate.
