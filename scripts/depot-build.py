@@ -322,6 +322,24 @@ def native_slot():
         time.sleep(5)
 
 
+def native_source_root(root):
+    """The checkout path Cargo should read. Without DEPOT_SIBLING_* overrides it is `root`;
+    with any, a per-checkout directory of symlinks places `root` beside the overridden
+    siblings, since Cargo resolves the relative path dependencies through it as written."""
+    overrides = {name: sibling_repo(root, name) for name in SIBLINGS}
+    if all(path == root.parent / name for name, path in overrides.items()):
+        return root
+    _, checkout_key = prepare_checkout_cache(root)
+    tree = Path.home() / ".cache" / "game-engine" / "native-roots" / checkout_key
+    tree.mkdir(parents=True, exist_ok=True)
+    for name, target in {"game-engine": root, **overrides}.items():
+        link = tree / name
+        if link.is_symlink() or link.exists():
+            link.unlink()
+        link.symlink_to(target)
+    return tree / "game-engine"
+
+
 def native_cargo(root, command, arguments, output=None):
     """Run `cargo <command>` on this host for godot/, with artifacts in the checkout's
     target/ where game_engine.gdextension loads them."""
@@ -329,7 +347,7 @@ def native_cargo(root, command, arguments, output=None):
     # Size jobs from the cgroup CPU quota (agents.slice), not an inherited session value.
     environment.pop("CARGO_BUILD_JOBS", None)
     return subprocess.run(
-        ["cargo", command, "--locked", "--manifest-path", str(root / "godot/Cargo.toml"), *arguments],
+        ["cargo", command, "--locked", "--manifest-path", str(native_source_root(root) / "godot/Cargo.toml"), *arguments],
         env=environment,
         stdout=output,
         stderr=subprocess.STDOUT if output else None,
