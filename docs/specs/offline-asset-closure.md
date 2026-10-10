@@ -24,11 +24,13 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 ## Tests asserting this spec
 
 - `scripts/tests/test_asset_closure.py` — concrete binary chains, catalog joins, missing/malformed dependencies, cycles, aliases and census.
+- `scripts/tests/test_closure_terrain.py` — repeated MCNK layers, liquid/object joins, global blob, FDIDs versus flags, malformed offsets and not-needed evidence.
 
 ## Known gaps (current cycle)
 
 - [ ] Legacy extracted files have no authenticated product/actual-build receipts. Hashing proves local bytes, not origin. Manifest identity remains unverified.
-- [ ] Liquid/ground-effect and emitter auxiliary edges are explicit unresolved boundaries, not complete enumeration.
+- [x] Inspect every ADT MCNK and MH2O instance; resolve MCLY ground effects through GroundEffectTexture/Doodad and liquids through LiquidObject/Type/XTexture, including renderer-global textures. Record inline-only chunks and zero-instance liquids as not-needed with evidence; missing joins/unknown chunks stay unresolved.
+- [ ] Emitter auxiliary edges remain an explicit unresolved boundary.
 - [ ] Full spell selector is a conservative catalog superset; complete server reachability needs content policy.
 - [ ] Full character selector includes modeled placeholder races; supported playable-pair policy and customization requirement evaluation remain unresolved.
 
