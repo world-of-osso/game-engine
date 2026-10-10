@@ -61,6 +61,16 @@ One final offline client at74a6181cd captured80/80 (40 specs×2 skins), actual19
 
 CPU rect proof covers both hero options and each active subtree; native screenshots cover the main unselected selector, not live activation/persistence or open-dialog pixels. Loadout/search behavior remains excluded. Independent verifier unavailable (expired Claude OAuth); main-thread targeted/native proof only. Legacy `talents_page.gd` fixed-coordinate/missing-icon oracle is historical, not this layout's acceptance fixture; use `capture_talent_layout.gd` plus `check_talent_layout.py`.
 
+### after2 rank paint and exact Apply art (2026-10-10)
+
+This follow-up supersedes the preceding rank/footer visual acceptance. Source39ce84620: SystemFont16/22 Roman members are Arial Narrow16/18 (`Blizzard_Fonts_Shared/Mainline/Fonts.xml:381-419`), not Friz16/22. Bottom-align native glyphs through postsetup because RSX has no justify_v attribute. Keep ordinary BOTTOM11,4 and capstone BOTTOM2,−10; reserve the capstone label's4px outline, not only its rect. The stronger native oracle rejects the old Arms painted bottom882>footer878.
+
+Apply inherits `Blizzard_SharedXML/SecureUIPanelTemplates.xml:39-93`: UI-Panel-Button-Up/Down/Disabled, fixed12px caps and cropped80×22 member. Modern now uses exact local FDIDs130828/130825/130824; hover uses additive130826 (`Mainline/SharedUIPanelTemplates.xml:3-5`). Forever retains its art skin. `Shared/FontStyles.xml:86-88` confirms disabled .5 grey. Reset/Undo use the unchanged exact ClassTalentsFrame atlases, not a guessed replacement for the red Reset sprite.
+
+Proof: targeted UI/layout10/10 and native projection17/17; native extension build0 with20 inherited macro warnings; changed-file rustfmt check0. One extracted-only client exits0, captures81/81 at1920×1080 (40×2 plus exact Arms Modern); outlined native bounds and currency/hero/Apply glyph oracle81/81. FFmpeg downscaled81; inspected Arms71, choice/apex Arcane62 and apex Restoration105 in both skins, plus exact Arms full/detail pixels. Published81 `after2-` PNGs under the same AgentShared directory; prior122 files hash-identical. Evidence: `data/diagnostics/talent-layout-after2-2026-10-10/`.
+
+Retail Reset Defaults menu, loadout/search, Warmode and PvP footer controls remain absent: their corresponding client data/behavior is not implemented. Existing Reset only restores committed allocations; no fake menu or controls added. Native open-dialog/live persistence remains unproved. Independent verifier again unavailable (expired Claude OAuth); manual Rust audit only, no independent or clean-readability certification. Capture-only cage resolution interposer reused after the default1280×720 output was explicitly rejected; both own clients stopped.
+
 ## Server wiring (2026-10-09)
 
 The account owns `TalentEditor`, independent of whether PlayerSpellsFrame is open. NetworkBridge receives `TraitConfigSnapshot` and `TraitCommitResult`; the account sends `CommitTraitConfig` on the existing TalentChannel. Snapshot and commit ranks are **total ranks**, not purchased ranks (`game-server/class_progression.rs:466-480,822-837`). Core conversion subtracts grants before validating purchases.
