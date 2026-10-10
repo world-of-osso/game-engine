@@ -45,8 +45,11 @@ def check_capture(directory, capture):
         if not PAINTED_NODE.fullmatch(name):
             continue
         x, y, width, height = rect
-        if y + height > footer[1] + 0.51:
-            failures.append(f"{name} bottom{y + height:.2f} > footer{footer[1]}")
+        # Godot draws the thick glyph outline outside the Label's layout rect.
+        # Retail SpendText must fit as painted, not merely as an unoutlined box.
+        outline = 4.0 if name.endswith("Ranks") else 0.0
+        if y + height + outline > footer[1] + 0.51:
+            failures.append(f"{name} painted bottom{y + height + outline:.2f} > footer{footer[1]}")
     pixels = decode_png(directory / capture["filename"])
     counts = {}
     for name, color in [("TalentClassName", 255), ("TalentSpecName", 255),

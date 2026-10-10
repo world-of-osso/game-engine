@@ -166,6 +166,25 @@ fn arms_spend_badges_and_disabled_apply_remain_legible() {
                 "node{} readable over rim",
                 node.id
             );
+            assert_eq!(
+                text.font,
+                ui_toolkit::widgets::font_string::GameFont::ArialNarrow
+            );
+            assert_eq!(
+                text.justify_v,
+                ui_toolkit::widgets::font_string::JustifyV::Bottom
+            );
+            let node_rect = rect(&registry, &format!("TalentNode{}", node.id));
+            let is_apex = matches!(node.entries[0].entry_type, 13 | 14);
+            let zoom = node_rect[2] / if is_apex { 64.0 } else { 40.0 };
+            // Fonts.xml: SystemFont22's Roman member is18, not22.
+            assert!((text.font_size - if is_apex { 18.0 } else { 16.0 } * zoom).abs() < 0.01);
+            let badge = rect(&registry, &name);
+            let footer_top = rect(&registry, "ClassTalentsFrame")[3] - 82.0;
+            assert!(
+                node_rect[1] + badge[1] + badge[3] + 4.0 * zoom <= footer_top + 0.01,
+                "rank outline must remain above footer"
+            );
         }
         let frame = registry
             .get(
