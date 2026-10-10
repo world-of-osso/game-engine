@@ -121,18 +121,21 @@ fn sfid_skid_and_external_animation_acquisition_inherit_the_model_identity() {
     }
 }
 
-fn solid_bc5(red: u8, green: u8) -> Vec<u8> {
-    const HEADER_SIZE: u32 = 148;
-    let mut bytes = vec![0; HEADER_SIZE as usize];
+fn solid_palettized_blp(red: u8, green: u8) -> Vec<u8> {
+    const HEADER_SIZE: usize = 148;
+    const PALETTE_SIZE: usize = 256 * 4;
+    const MIP_OFFSET: usize = HEADER_SIZE + PALETTE_SIZE;
+    let mut bytes = vec![0; MIP_OFFSET];
     bytes[..4].copy_from_slice(b"BLP2");
     bytes[4..8].copy_from_slice(&1u32.to_le_bytes());
-    bytes[8] = 2;
-    bytes[10] = 11;
+    bytes[8] = 1; // Palettized encoding, supported by the GPU decoder.
+    bytes[9] = 8; // Eight-bit alpha.
     bytes[12..16].copy_from_slice(&1u32.to_le_bytes());
     bytes[16..20].copy_from_slice(&1u32.to_le_bytes());
-    bytes[20..24].copy_from_slice(&HEADER_SIZE.to_le_bytes());
-    bytes[84..88].copy_from_slice(&16u32.to_le_bytes());
-    bytes.extend([red, red, 0, 0, 0, 0, 0, 0, green, green, 0, 0, 0, 0, 0, 0]);
+    bytes[20..24].copy_from_slice(&(MIP_OFFSET as u32).to_le_bytes());
+    bytes[84..88].copy_from_slice(&2u32.to_le_bytes());
+    bytes[HEADER_SIZE..HEADER_SIZE + 4].copy_from_slice(&[0, green, red, 255]);
+    bytes.extend([0, 255]); // Palette index zero, opaque alpha.
     bytes
 }
 
@@ -146,7 +149,7 @@ fn decoding_same_texture_fdid_preserves_both_products_pixels() {
         fixture.seed(
             identity,
             &format!("textures/{fdid}.blp"),
-            &solid_bc5(red, green),
+            &solid_palettized_blp(red, green),
         );
         let decoded =
             decode_new_textures(&identity.asset_root(&fixture.0), &BTreeSet::from([fdid])).unwrap();
@@ -173,7 +176,11 @@ fn missing_matching_texture_errors_and_does_not_poison_a_later_decode() {
     let root = retail.asset_root(&fixture.0);
     let requested = BTreeSet::from([fdid]);
     assert!(decode_new_textures(&root, &requested).is_err());
-    fixture.seed(&retail, &format!("textures/{fdid}.blp"), &solid_bc5(55, 66));
+    fixture.seed(
+        &retail,
+        &format!("textures/{fdid}.blp"),
+        &solid_palettized_blp(55, 66),
+    );
     let decoded = decode_new_textures(&root, &requested).unwrap();
     assert_eq!(decoded.len(), 1);
     assert_eq!(decoded[0].1.data, [55, 66, 0, 255]);
