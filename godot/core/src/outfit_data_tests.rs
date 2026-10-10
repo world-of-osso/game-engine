@@ -56,14 +56,9 @@ mod baked_display {
     }
 
     #[test]
-    fn model_asset_owned_overlay_and_explicit_material_keep_source_product() {
+    fn model_asset_owned_overlay_keeps_its_source_product() {
         use crate::asset_product::{AssetProduct, AssetTexture};
         let root = write_catalog("source-overlays");
-        std::fs::write(
-            root.join("db2/1.60.1.70205/ItemDisplayInfoModelMatRes.csv"),
-            "ItemDisplayInfoID,ModelIndex,TextureType,MaterialResourcesID\n13,0,2,200\n",
-        )
-        .unwrap();
         let catalog = OutfitData::load(&root);
         let forever = catalog.load_owned_forever_70205().unwrap();
         assert_eq!(
@@ -76,16 +71,8 @@ mod baked_display {
                 }
             )]
         );
-        assert_eq!(
-            forever.load_source_model_textures(13, 0, 1, 0).unwrap(),
-            [(
-                2,
-                AssetTexture {
-                    product: AssetProduct::Forever,
-                    fdid: 2000
-                }
-            )]
-        );
+        // Authored 70205 has no ItemDisplayInfoModelMatRes table.
+        assert_eq!(forever.load_source_model_textures(13, 0, 1, 0).unwrap(), []);
         std::fs::remove_dir_all(root).unwrap();
     }
 
@@ -245,7 +232,26 @@ mod baked_display {
             [(2, 4001)]
         );
         let owned_forever = catalog.load_owned_forever_70205().unwrap();
-        use crate::asset_product::AssetProduct;
+        use crate::asset_product::{AssetProduct, AssetTexture};
+        assert_eq!(
+            retail.load_source_model_textures(10, 0, 1, 0).unwrap(),
+            [
+                (
+                    2,
+                    AssetTexture {
+                        product: AssetProduct::Retail,
+                        fdid: 4000
+                    }
+                ),
+                (
+                    3,
+                    AssetTexture {
+                        product: AssetProduct::Retail,
+                        fdid: 4001
+                    }
+                ),
+            ]
+        );
         assert_eq!(
             retail.load_column_products(10, 0).unwrap(),
             (AssetProduct::Retail, Some(AssetProduct::Retail))
@@ -637,7 +643,7 @@ fn concurrent_first_imports_share_one_complete_local_catalog() {
             worker.join().unwrap();
         }
     });
-    let cache = fixture.join("cache/outfit_links-v3.sqlite");
+    let cache = fixture.join("cache/outfit_links-v4.sqlite");
     let before = std::fs::metadata(&cache).unwrap().modified().unwrap();
     let alias = fixture.join("..").join(fixture.file_name().unwrap());
     crate::outfit_catalog_db::import_outfit_links_cache(&alias).unwrap();
