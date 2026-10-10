@@ -129,7 +129,6 @@ Architecture decisions and feature designs.
 - [Rare vignettes and classification](investigations/rare-vignettes-and-classification.md) — server-side vignette assignment versus rank, wrong name joins, local CASC limits, authentic Forever target classification art, Brack fixture-centre diagnosis and captured Forever rareelite/rare plus Modern rare.
 - [M2 product shadowing](investigations/m2-product-shadowing.md) — source-qualified runtime wiring, actual-build frozen provenance, parser identity RED/GREEN and named-display acceptance boundary.
 
-- [Rare vignettes and classification](investigations/rare-vignettes-and-classification.md) — server-side vignette assignment versus rank, wrong name joins, local CASC limits, authentic Forever target classification art and bounded native capture proof.
 
 - [cage-capture-resolution](investigations/cage-capture-resolution.md) — headless output constrained 1920×1080 requests to 1280×720; capture-only output override, six inspected spellbook pages, and missing specialization assets.
 
