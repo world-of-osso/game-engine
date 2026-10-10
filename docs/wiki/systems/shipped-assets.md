@@ -2,7 +2,9 @@
 
 P1 separates runtime reads of extracted files from development CASC extraction.
 The [contract](../../specs/shipped-assets.md) owns selection, error semantics and
-the remaining P2–P5 work; this page describes implementation boundaries.
+the remaining P3–P5 work; this page describes P1 implementation boundaries.
+[P2 model/product isolation](../../specs/product-isolated-model-assets.md) owns
+source-qualified model chains and their extracted-only native acceptance.
 
 ## Runtime boundary
 
