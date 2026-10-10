@@ -61,6 +61,8 @@ Usage: export_db2_csv.py <table> <file.db2> <out.csv>
 """
 
 import csv
+import importlib.util
+from pathlib import Path
 import struct
 import sys
 
@@ -83,89 +85,185 @@ TABLES = {
     # Local Retail 12.1.0.69933; wowdev/WoWDBDefs QuestPOIBlob/Point layouts.
     "QuestPOIBlob": (
         0xFDC814CF,
-        [("ID", "id"), ("MapID", ("i16", 1)), ("UiMapID", 2),
-         ("Flags", 3), ("NumPoints", ("u8", 4)), ("QuestID", 5),
-         ("ObjectiveIndex", ("int", 6, 0)), ("ObjectiveID", 7),
-         ("PlayerConditionID", 8), ("NavigationPlayerConditionID", 9)],
+        [
+            ("ID", "id"),
+            ("MapID", ("i16", 1)),
+            ("UiMapID", 2),
+            ("Flags", 3),
+            ("NumPoints", ("u8", 4)),
+            ("QuestID", 5),
+            ("ObjectiveIndex", ("int", 6, 0)),
+            ("ObjectiveID", 7),
+            ("PlayerConditionID", 8),
+            ("NavigationPlayerConditionID", 9),
+        ],
     ),
     "QuestPOIPoint": (
         0x5CBBEFE7,
-        [("ID", "id"), ("X", ("i16", 1)), ("Y", ("i16", 2)),
-         ("Z", ("i16", 3)), ("QuestPOIBlobID", "parent")],
+        [
+            ("ID", "id"),
+            ("X", ("i16", 1)),
+            ("Y", ("i16", 2)),
+            ("Z", ("i16", 3)),
+            ("QuestPOIBlobID", "parent"),
+        ],
     ),
     # Retail 12.1.0.69933 local CASC layouts, WoWDBDefs field ordering.
-    "Creature": (0x6E14C900, [
-        ("ID", "id"), ("Name_lang", ("string", 0)),
-        ("NameAlt_lang", ("string", 1)), ("Title_lang", ("string", 2)),
-        ("TitleAlt_lang", ("string", 3)), ("Classification", ("i8", 4)),
-        ("CreatureType", ("u8", 5)), ("CreatureFamily", ("u16", 6)),
-        ("StartAnimState", ("i8", 7)),
-    ] + [(f"DisplayID_{i}", ("int", 8, i)) for i in range(4)]
-      + [(f"DisplayProbability_{i}", ("float", 9, i)) for i in range(4)]
-      + [(f"AlwaysItem_{i}", ("int", 10, i)) for i in range(3)]),
-    "BattlePetSpecies": (0x589BE282, [
-        ("ID", "id"), ("Description_lang", ("string", 0)),
-        ("SourceText_lang", ("string", 1)), ("CreatureID", ("int", 3, 0)),
-        ("SummonSpellID", ("int", 4, 0)), ("IconFileDataID", ("int", 5, 0)),
-        ("PetTypeEnum", ("i8", 6)), ("Flags", ("int", 7, 0)),
-        ("SourceTypeEnum", ("i8", 8)), ("CardUIModelSceneID", ("int", 9, 0)),
-        ("LoadoutUIModelSceneID", ("int", 10, 0)), ("CovenantID", ("int", 11, 0)),
-    ]),
-    "BattlePetAbility": (0x1C738742, [
-        ("ID", "id"), ("Name_lang", ("string", 0)),
-        ("Description_lang", ("string", 1)), ("IconFileDataID", ("int", 2, 0)),
-        ("PetTypeEnum", ("i8", 3)), ("Cooldown", 4),
-        ("BattlePetVisualID", ("u16", 5)), ("Flags", ("int", 6, 0)),
-    ]),
-    "BattlePetAbilityEffect": (0x221D1FE6, [
-        ("ID", "id"), ("BattlePetAbilityTurnID", ("u16", 1)),
-        ("OrderIndex", ("u8", 2)), ("BattlePetEffectPropertiesID", ("u16", 3)),
-        ("AuraBattlePetAbilityID", ("u16", 4)), ("BattlePetVisualID", ("u16", 5)),
-    ] + [(f"Param_{i}", ("i16", 6, i)) for i in range(6)]),
-    "BattlePetAbilityTurn": (0x20C3BE16, [
-        ("ID", "id"), ("BattlePetAbilityID", ("u16", 1)),
-        ("OrderIndex", ("u8", 2)), ("TurnTypeEnum", ("u8", 3)),
-        ("EventTypeEnum", ("u8", 4)), ("BattlePetVisualID", ("u16", 5)),
-    ]),
-    "BattlePetSpeciesState": (0x2ABE26A5, [
-        ("ID", "id"), ("BattlePetStateID", ("u16", 0)),
-        ("Value", ("int", 1, 0)), ("BattlePetSpeciesID", "parent"),
-    ]),
-    "BattlePetBreedState": (0x030182F5, [
-        ("ID", "id"), ("BattlePetStateID", ("int", 0, 0)),
-        ("Value", ("u16", 1)), ("BattlePetBreedID", "parent"),
-    ]),
-    "BattlePetBreedQuality": (0xF3E3FDFC, [
-        ("ID", "id"), ("MaxQualityRoll", ("int", 0, 0)),
-        ("StateMultiplier", ("float", 1, 0)), ("QualityEnum", ("u8", 2)),
-    ]),
-    "BattlePetState": (0x489B22AD, [
-        ("ID", "id"), ("LuaName", ("string", 0)),
-        ("Flags", ("int", 1, 0)), ("BattlePetVisualID", ("u16", 2)),
-    ]),
-    "BattlePetSpeciesXAbility": (0x69104208, [
-        ("ID", "id"), ("BattlePetAbilityID", ("u16", 0)),
-        ("RequiredLevel", ("u8", 1)), ("SlotEnum", ("i8", 2)),
-        ("BattlePetSpeciesID", "parent"),
-    ]),
-    "BattlePetEffectProperties": (0xED4FBC95,
-        [("ID", "id")] + [(f"ParamLabel_{i}", ("string", 0, i)) for i in range(6)]
+    "Creature": (
+        0x6E14C900,
+        [
+            ("ID", "id"),
+            ("Name_lang", ("string", 0)),
+            ("NameAlt_lang", ("string", 1)),
+            ("Title_lang", ("string", 2)),
+            ("TitleAlt_lang", ("string", 3)),
+            ("Classification", ("i8", 4)),
+            ("CreatureType", ("u8", 5)),
+            ("CreatureFamily", ("u16", 6)),
+            ("StartAnimState", ("i8", 7)),
+        ]
+        + [(f"DisplayID_{i}", ("int", 8, i)) for i in range(4)]
+        + [(f"DisplayProbability_{i}", ("float", 9, i)) for i in range(4)]
+        + [(f"AlwaysItem_{i}", ("int", 10, i)) for i in range(3)],
+    ),
+    "BattlePetSpecies": (
+        0x589BE282,
+        [
+            ("ID", "id"),
+            ("Description_lang", ("string", 0)),
+            ("SourceText_lang", ("string", 1)),
+            ("CreatureID", ("int", 3, 0)),
+            ("SummonSpellID", ("int", 4, 0)),
+            ("IconFileDataID", ("int", 5, 0)),
+            ("PetTypeEnum", ("i8", 6)),
+            ("Flags", ("int", 7, 0)),
+            ("SourceTypeEnum", ("i8", 8)),
+            ("CardUIModelSceneID", ("int", 9, 0)),
+            ("LoadoutUIModelSceneID", ("int", 10, 0)),
+            ("CovenantID", ("int", 11, 0)),
+        ],
+    ),
+    "BattlePetAbility": (
+        0x1C738742,
+        [
+            ("ID", "id"),
+            ("Name_lang", ("string", 0)),
+            ("Description_lang", ("string", 1)),
+            ("IconFileDataID", ("int", 2, 0)),
+            ("PetTypeEnum", ("i8", 3)),
+            ("Cooldown", 4),
+            ("BattlePetVisualID", ("u16", 5)),
+            ("Flags", ("int", 6, 0)),
+        ],
+    ),
+    "BattlePetAbilityEffect": (
+        0x221D1FE6,
+        [
+            ("ID", "id"),
+            ("BattlePetAbilityTurnID", ("u16", 1)),
+            ("OrderIndex", ("u8", 2)),
+            ("BattlePetEffectPropertiesID", ("u16", 3)),
+            ("AuraBattlePetAbilityID", ("u16", 4)),
+            ("BattlePetVisualID", ("u16", 5)),
+        ]
+        + [(f"Param_{i}", ("i16", 6, i)) for i in range(6)],
+    ),
+    "BattlePetAbilityTurn": (
+        0x20C3BE16,
+        [
+            ("ID", "id"),
+            ("BattlePetAbilityID", ("u16", 1)),
+            ("OrderIndex", ("u8", 2)),
+            ("TurnTypeEnum", ("u8", 3)),
+            ("EventTypeEnum", ("u8", 4)),
+            ("BattlePetVisualID", ("u16", 5)),
+        ],
+    ),
+    "BattlePetSpeciesState": (
+        0x2ABE26A5,
+        [
+            ("ID", "id"),
+            ("BattlePetStateID", ("u16", 0)),
+            ("Value", ("int", 1, 0)),
+            ("BattlePetSpeciesID", "parent"),
+        ],
+    ),
+    "BattlePetBreedState": (
+        0x030182F5,
+        [
+            ("ID", "id"),
+            ("BattlePetStateID", ("int", 0, 0)),
+            ("Value", ("u16", 1)),
+            ("BattlePetBreedID", "parent"),
+        ],
+    ),
+    "BattlePetBreedQuality": (
+        0xF3E3FDFC,
+        [
+            ("ID", "id"),
+            ("MaxQualityRoll", ("int", 0, 0)),
+            ("StateMultiplier", ("float", 1, 0)),
+            ("QualityEnum", ("u8", 2)),
+        ],
+    ),
+    "BattlePetState": (
+        0x489B22AD,
+        [
+            ("ID", "id"),
+            ("LuaName", ("string", 0)),
+            ("Flags", ("int", 1, 0)),
+            ("BattlePetVisualID", ("u16", 2)),
+        ],
+    ),
+    "BattlePetSpeciesXAbility": (
+        0x69104208,
+        [
+            ("ID", "id"),
+            ("BattlePetAbilityID", ("u16", 0)),
+            ("RequiredLevel", ("u8", 1)),
+            ("SlotEnum", ("i8", 2)),
+            ("BattlePetSpeciesID", "parent"),
+        ],
+    ),
+    "BattlePetEffectProperties": (
+        0xED4FBC95,
+        [("ID", "id")]
+        + [(f"ParamLabel_{i}", ("string", 0, i)) for i in range(6)]
         + [("BattlePetVisualID", ("u16", 1))]
-        + [(f"ParamTypeEnum_{i}", ("u8", 2, i)) for i in range(6)]),
-    "BattlePetAbilityState": (0x3381AC8D, [
-        ("ID", "id"), ("BattlePetStateID", 0), ("Value", ("int", 1, 0)),
-        ("BattlePetAbilityID", "parent"),
-    ]),
-    "BattlePetDisplayOverride": (0xFC2D3715, [
-        ("ID", "id"), ("PlayerConditionID", 0), ("CreatureDisplayInfoID", 1),
-        ("PriorityCategory", ("u8", 2)), ("BattlePetSpeciesID", "parent"),
-    ]),
-    "BattlePetVisual": (0x9B125C9E, [
-        ("ID", "id"), ("SceneScriptFunction", ("string", 0)),
-        ("SpellVisualID", 1), ("CastMilliSeconds", ("u16", 2)),
-        ("ImpactMilliSeconds", ("u16", 3)), ("RangeTypeEnum", ("i8", 4)),
-        ("Flags", ("int", 5, 0)), ("SceneScriptPackageID", ("u16", 6)),
-    ]),
+        + [(f"ParamTypeEnum_{i}", ("u8", 2, i)) for i in range(6)],
+    ),
+    "BattlePetAbilityState": (
+        0x3381AC8D,
+        [
+            ("ID", "id"),
+            ("BattlePetStateID", 0),
+            ("Value", ("int", 1, 0)),
+            ("BattlePetAbilityID", "parent"),
+        ],
+    ),
+    "BattlePetDisplayOverride": (
+        0xFC2D3715,
+        [
+            ("ID", "id"),
+            ("PlayerConditionID", 0),
+            ("CreatureDisplayInfoID", 1),
+            ("PriorityCategory", ("u8", 2)),
+            ("BattlePetSpeciesID", "parent"),
+        ],
+    ),
+    "BattlePetVisual": (
+        0x9B125C9E,
+        [
+            ("ID", "id"),
+            ("SceneScriptFunction", ("string", 0)),
+            ("SpellVisualID", 1),
+            ("CastMilliSeconds", ("u16", 2)),
+            ("ImpactMilliSeconds", ("u16", 3)),
+            ("RangeTypeEnum", ("i8", 4)),
+            ("Flags", ("int", 5, 0)),
+            ("SceneScriptPackageID", ("u16", 6)),
+        ],
+    ),
     # Local Retail 12.1.0.69933, WoWDBDefs Vehicle EF5C7D41 / VehicleSeat 973F2793.
     "Vehicle": (
         0xEF5C7D41,
@@ -176,34 +274,52 @@ TABLES = {
         0x973F2793,
         [("ID", "id")]
         + [(f"AttachmentOffset_{i}", ("float", 0, i)) for i in range(3)]
-        + [("Flags", ("int", 2, 0)), ("FlagsB", ("int", 3, 0)),
-           ("FlagsC", ("int", 4, 0)), ("AttachmentID", ("int", 5, 0)),
-           ("RideAnimStart", ("i16", 15)), ("RideAnimLoop", ("i16", 16)),
-           ("PassengerAttachmentID", ("i8", 35)),
-           ("PassengerYaw", ("float", 36, 0)),
-           ("PassengerPitch", ("float", 37, 0)),
-           ("PassengerRoll", ("float", 38, 0))],
+        + [
+            ("Flags", ("int", 2, 0)),
+            ("FlagsB", ("int", 3, 0)),
+            ("FlagsC", ("int", 4, 0)),
+            ("AttachmentID", ("int", 5, 0)),
+            ("RideAnimStart", ("i16", 15)),
+            ("RideAnimLoop", ("i16", 16)),
+            ("PassengerAttachmentID", ("i8", 35)),
+            ("PassengerYaw", ("float", 36, 0)),
+            ("PassengerPitch", ("float", 37, 0)),
+            ("PassengerRoll", ("float", 38, 0)),
+        ],
     ),
     # Retail 12.1.0.69933, WoWDBDefs GlobalStrings.dbd layout D40F6D96.
     "GlobalStrings": (
         0xD40F6D96,
-        [("ID", "id"), ("BaseTag", ("string", 0)),
-         ("TagText_lang", ("string", 1)), ("Flags", 2)],
+        [
+            ("ID", "id"),
+            ("BaseTag", ("string", 0)),
+            ("TagText_lang", ("string", 1)),
+            ("Flags", 2),
+        ],
     ),
     # Cached HelmetGeosetData WDC5 layout: race, hidden group, selection, extra;
     # the relationship column is the ItemDisplayInfo helmet visibility key.
     "HelmetGeosetData": (
         0x103B3B37,
-        [("ID", "id"), ("RaceID", ("u8", 0)), ("HideGeosetGroup", ("u16", 1)),
-         ("RaceBitSelection", ("int", 2, 0)),
-         ("Field_10_0_0_46047_003", ("int", 3, 0)),
-         ("HelmetGeosetVisDataID", "parent")],
+        [
+            ("ID", "id"),
+            ("RaceID", ("u8", 0)),
+            ("HideGeosetGroup", ("u16", 1)),
+            ("RaceBitSelection", ("int", 2, 0)),
+            ("Field_10_0_0_46047_003", ("int", 3, 0)),
+            ("HelmetGeosetVisDataID", "parent"),
+        ],
     ),
     # WoWDBDefs layout 52510D63: additional replaceable item-model textures.
     "ItemDisplayInfoModelMatRes": (
         0x52510D63,
-        [("ID", "id"), ("MaterialResourcesID", 0), ("TextureType", 1),
-         ("ModelIndex", 2), ("ItemDisplayInfoID", "parent")],
+        [
+            ("ID", "id"),
+            ("MaterialResourcesID", 0),
+            ("TextureType", 1),
+            ("ModelIndex", 2),
+            ("ItemDisplayInfoID", "parent"),
+        ],
     ),
     # Forever 1.60.1.70205: non-inline ID, first name (0) or surname (1).
     "NameGen": (
@@ -344,7 +460,10 @@ TABLES = {
     "UiTextureKit": (0x4740638A, [("ID", "id"), ("KitPrefix", ("string", 0))]),
     # Spell description `$<name>` variables: SpellXDescriptionVariables links a spell to
     # one SpellDescriptionVariables row whose Variables text defines `$name=...` lines.
-    "SpellDescriptionVariables": (0x33868CFD, [("ID", "id"), ("Variables", ("string", 0))]),
+    "SpellDescriptionVariables": (
+        0x33868CFD,
+        [("ID", "id"), ("Variables", ("string", 0))],
+    ),
     "SpellXDescriptionVariables": (
         0x23F4E51E,
         [("ID", "id"), ("SpellID", 0), ("SpellDescriptionVariablesID", 1)],
@@ -831,6 +950,14 @@ TABLES = {
     ),
 }
 
+# Additional closure layouts, pinned to the same local Retail build.
+_layout_spec = importlib.util.spec_from_file_location(
+    "closure_db2_layouts", Path(__file__).with_name("closure_db2_layouts.py")
+)
+_layouts = importlib.util.module_from_spec(_layout_spec)
+_layout_spec.loader.exec_module(_layouts)
+TABLES.update(_layouts.CLOSURE_TABLES)
+
 # Narrow DBD types: pallet entries are 32-bit and carry unrelated high bits.
 NARROW = {"i8": (True, 8), "u8": (False, 8), "i16": (True, 16), "u16": (False, 16)}
 
@@ -896,7 +1023,7 @@ def read_relations(data, offset, size):
 def read_wdc5(data, layout, id_field=0):
     if data[:4] != b"WDC5":
         raise ValueError("not a WDC5 file")
-    _, field_count, record_size, _, _, actual_layout = struct.unpack_from(
+    record_count, field_count, record_size, _, _, actual_layout = struct.unpack_from(
         "<6I", data, 136
     )
     flags, _, _, _, _, _, common_size, palette_size, sections = struct.unpack_from(
@@ -908,6 +1035,16 @@ def read_wdc5(data, layout, id_field=0):
         raise ValueError(f"layout {actual_layout:08X}, expected {expected}")
     if flags & ~0x4:
         raise ValueError(f"unsupported WDC5 flags {flags:#x}")
+    # Empty local tables (CloneEffect) contain only field structures, no storage
+    # descriptors or sections. Layout/flags are still validated above.
+    if (
+        record_count == 0
+        and sections == 0
+        and common_size == 0
+        and palette_size == 0
+        and len(data) == 204 + field_count * 4
+    ):
+        return {}, 0, [], 0
     fields, palette_offsets, palette_start = read_fields(data, field_count, sections)
     palette = data[palette_start : palette_start + palette_size]
     common = read_common(data, fields, palette_start + palette_size)
@@ -969,7 +1106,9 @@ def read_string(data, record_offset, field, value):
         if 0 <= logical < size:
             section_payload = data[start : start + count * record_size + size]
             if key and not any(section_payload):
-                raise ValueError(f"string offset lands in unreadable encrypted section {key:016X}")
+                raise ValueError(
+                    f"string offset lands in unreadable encrypted section {key:016X}"
+                )
             offset = start + count * record_size + logical
             end = data.index(b"\0", offset, start + count * record_size + size)
             return data[offset:end].decode("utf-8")

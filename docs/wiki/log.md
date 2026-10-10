@@ -1,6 +1,27 @@
+## 2026-10-10 — Closure round 3 final dataset
+
+[Final offline closure](systems/offline-asset-closure.md#round-3-final-dataset--verified-2026-10-10):862,509→970,356 present,2,275→2,302 missing,86,217→5,024 unresolved. Published188,100 paths /4,967,995,591 bytes;193,049 owned receipts pass,670 foreign-schema rows excluded. Sequential process recovery preserved published progress after bounded OOM; final manifest/source drift and residuals recorded. No merge, data commit, production-driver memory or no-install/P3/P4 certificate.
+
+## 2026-10-10 — Unresolved closure resolver continuation
+
+[Offline asset closure](systems/offline-asset-closure.md#resolver-continuation--tooling-verified-2026-10-10) records sourced spell-kit/effect, native M2 emitter, raw extended appearance and owning-root WMO liquid joins; local DB2 layouts, unlisted sound headers, BFID/PFID satellites and explicit script/voice/format gaps. Tooling1f9ff541d passes66 isolated fixtures without warnings. This implementation checkpoint preceded the completed round-3 dataset above; no no-install certificate, merge or data commit.
+## 2026-10-10 — Representative toy effects and portal billboard collapse
+
+[Native toy effects](systems/toy-box.md#representative-native-effects-proof-2026-10-10):14 both-skin private samples,12 SpellGo identities; eight bounded visible-asset passes. Authored portal165651 scale0 caused affine quaternion decomposition panic;7caa054b5 preserves collapsed TRS and has real-asset RED→GREEN plus both-skin20yd departure→bind native proof.287 inspected PNGs; conditional/procedural/summon gaps and absent audible output remain explicit. No aura233 mapping, world.db write, shared realm mutation or merge.
+
+## 2026-10-10 — Effect50 toy object rendering
+
+[Toy objects](systems/toy-box.md#effect50-object-rendering-2026-10-10) records the generic-decoration cursor/visibility bug, targeted RED→GREEN, five passing native tests and actual UseToy45011/33223/40768 assets/scales on private toy-effects4 UDP55386. Six inspected configured-skin PNGs retained; aura233 is named from pinned TrinityCore but remains unimplemented pending authentic payload resolution. No global model, database, shared realm or master changes.
+## 2026-10-10 — Disenchant private live proof
+
+[Disenchant](systems/disenchant.md#private-live-proof--2026-10-10): engine588689217/server2aa9da0, private5617, fresh fb_ account. Forever727 and Modern816 consumed; authentic entry3 loot manually taken; appearances214/242 added and survived relog; grey25 refused/retained. Read-only snapshot RED→GREEN and update unit1/1 pass. Census50/100 TDB entries affected by16 absent materials,40 wholly unavailable; live753 empty-loot disposal/action-lock bug now has server branch519a34d unavailable/actual-empty-roll refusal, Disenchant8/8 and check/format proof; no post-fix rendered/merge claim. No wardrobe UI or broad auto-loot/cancellation proof.
+
 ## 2026-10-10 — Quest POI hover, v3
 
 [Quest map objectives](systems/quest-map-objectives.md#v3-source-boundary-2026-10-10) records title/POI hover selection without super-tracking, authored polygon addition/removal and Retail additive InnerGlow. New RED→GREEN regressions,29 distinct targeted UI-model/core tests, native build/check and private UDP5528 both-skin input fixture pass. Eight originals FFmpeg-downscaled/inspected and published with `v3-` prefix. Native minimap selection is not exposed by searched Retail Lua/API sources; existing watched behavior retained, parity unclaimed.
+## 2026-10-10 — Retail talent footer controls
+
+[Footer controls](systems/talents.md#footer-controls--2026-10-10) records staged class/spec/all reset, real catalog search with previews/keyboard/badges, unnamed default loadout UI and explicit server/serialization blockers. Native ui-model17/17, actual Down/Up/Enter/blur fixture, four inspected Arms/Arcane Modern/Forever v3 captures and footer bounds/glyph proof. Authenticated local atlas1047875 extraction; no CDN, server mutation, merge or independent verification claim.
 
 ## 2026-10-10 — Skyborne baked NPC native capture
 

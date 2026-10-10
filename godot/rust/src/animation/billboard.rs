@@ -34,6 +34,10 @@ impl Billboards {
         let Some(view_from_skeleton) = view_from_skeleton(skeleton) else {
             return;
         };
+        self.apply_in_view(poses, view_from_skeleton);
+    }
+
+    fn apply_in_view(&self, poses: &mut [BonePose], view_from_skeleton: Affine3A) {
         let locals: Vec<Affine3A> = poses.iter().map(|pose| affine(*pose)).collect();
         let mut globals = vec![None; poses.len()];
         for index in 0..poses.len() {
@@ -48,6 +52,12 @@ impl Billboards {
                 _ => Affine3A::IDENTITY,
             };
             let global = globals[index].unwrap_or(locals[index]);
+            // Authored zero-scale bones (portal165651 starts this way) are invisible.
+            // Their orientation is undefined: preserve the sampled TRS until they
+            // expand, rather than decomposing a zero matrix into a quaternion.
+            if global.matrix3 == glam::Mat3A::ZERO {
+                continue;
+            }
             *pose = bone_pose(parent.inverse() * global);
         }
     }
@@ -109,6 +119,48 @@ fn affine(pose: BonePose) -> Affine3A {
         Quat::from_xyzw(q.x, q.y, q.z, q.w),
         Vec3::new(pose.position.x, pose.position.y, pose.position.z),
     )
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::animation::AnimationState;
+    use std::{fs, path::PathBuf};
+
+    #[test]
+    fn toy_live_portal_billboards_preserve_authored_scale_through_growth() {
+        let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
+            .join("../../data/products/wow/dcfc90fffd79ba00406ae46f5f657592/models");
+        for fdid in [192572, 165651, 192573, 165622] {
+            let read =
+                |name: String| fs::read(root.join(name)).expect("authenticated portal asset");
+            let model = m2::parse_model_with_skeleton(
+                &read(format!("{fdid}.m2")),
+                &read(format!("{fdid}00.skin")),
+                None,
+                |child| fs::read(root.join(format!("{child}.anim"))).ok(),
+            )
+            .expect("authored Ethereal Portal visual model");
+            let Some(billboards) = Billboards::new(&model) else {
+                continue;
+            };
+            let mut animation = AnimationState::new(&model).unwrap();
+            for time in [0.0, 10.0, 100.0, 500.0, 1000.0] {
+                animation.seek_fixed_time_ms(time).unwrap();
+                let mut poses = animation.sampled_poses();
+                let authored = poses.clone();
+                billboards.apply_in_view(&mut poses, Affine3A::IDENTITY);
+                for (bone, pose) in poses.into_iter().enumerate() {
+                    assert!(affine(pose).is_finite(), "portal {fdid} time={time}");
+                    if authored[bone].scale == Vector3::ZERO {
+                        assert_eq!(pose.scale, Vector3::ZERO);
+                        assert_eq!(pose.position, authored[bone].position);
+                        assert_eq!(pose.rotation, authored[bone].rotation);
+                    }
+                }
+            }
+        }
+    }
 }
 
 fn bone_pose(transform: Affine3A) -> BonePose {

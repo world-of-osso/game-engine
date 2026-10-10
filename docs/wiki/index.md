@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Disenchant](systems/disenchant.md) — Retail bag-item cast/loot pipeline and bounded native proof.
+- [Disenchant](systems/disenchant.md) — both-skin private item/cast/loot/appearance/refusal proof; authoritative collection diagnostic and stale TDB material census.
 - [Passenger mounts](systems/mounts.md#passenger-mounts) — local seat enums, authoritative group occupancy, model-aligned seat transforms, production `InMap` authority and both-skin native Ride/leave/dismount live proof; acceptance owned by the [contract](../specs/passenger-mounts.md).
 
 - [Native dev rebuild timings](investigations/native-dev-build-timings.md) — warm workspace test compilation 37.75s → 14.21s with one UI harness; unchanged 2689-test inventory, relocated-cache and linker-profiling limits.
@@ -15,7 +15,7 @@
 - [Extracted-only policy](systems/shipped-assets.md) — P1 `f6b32b79e`; [closure audit](systems/offline-asset-closure.md) `5520e82ff` is incomplete, not release certification. [Client deployment](../deploy.md) separates extracted-only direction from historical CASC proof; [server deployment](../../../game-server/docs/deploy.md) owns the shared realm's current location.
 
 
-- [Offline asset closure](systems/offline-asset-closure.md) — extracted-only Northshire/Human-Warrior graph, configurable full-catalog roots, explicit provenance/unresolved boundaries and approximate inventory sizes.
+- [Offline asset closure — round 3 final](systems/offline-asset-closure.md#round-3-final-dataset--verified-2026-10-10) — 970,356 present /2,302 missing /5,024 unresolved;188,100 paths /4,967,995,591 bytes and193,049 owned receipts verified. Residual/source drift and no-install acceptance remain explicit.
 - [M2 product shadowing](investigations/m2-product-shadowing.md) — unqualified disk/parsed collisions, metadata-source RED/GREEN, authenticated actual-build offline chains and remaining runtime/native boundary; [continuation evidence](investigations/m2-product-shadowing.md#continuation-authenticated-offline-chains-2026-10-09).
 - [Offline asset closure](systems/offline-asset-closure.md) — full-catalog traversal and authenticated no-clobber extraction; [70338 recheck](systems/offline-asset-closure.md#recorded-gap-recovery--verified-2026-10-10) recovers seven bakes, vehicle7476985 and204 IV8 failures. Optional joins/no-install acceptance remain open.
 
@@ -30,11 +30,15 @@
 [Current Skyborne acceptance boundary](systems/forever-data.md#current-scoped-capability-matrix) owns approved estimated NPC/giver stats, bounded quest acceptance/turn-in/reload evidence and remaining gaps. [Ailee baked-path correction](systems/forever-data.md#ailee-baked-material-applicability--bounded-correction-2026-10-07) separates unused component-overlay validation from pending native rendering.
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-10-09.
+Last updated: 2026-10-10.
 
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
 ## Systems
+
+- [Effect50 toy objects](systems/toy-box.md#effect50-object-rendering-2026-10-10) — generic decoration visibility separated from interaction; three actual toys rendered in both configured skins; aura233 payload mapping remains unimplemented.
+
+- [Representative toy effects](systems/toy-box.md#representative-native-effects-proof-2026-10-10) —14 both-skin samples, zero-scale portal billboard RED→GREEN/native return, explicit conditional/procedural/summon/audio gaps.
 
 - [Generic toy auras](systems/toy-box.md#generic-toy-aura-consumption-2026-10-10) — scale/fall replication and override sets; private scale proof, Forever fall proof and remaining Modern capture boundary.
 
@@ -242,6 +246,6 @@ External resources and asset lists.
 - [Auction result icon diagnosis](systems/auction-house-ui.md#missing-result-icons-2026-10-08) — five-item FDID/file trace, local-store proof and shared unavailable-icon policy.
 
 - [Auction house UI](systems/auction-house-ui.md#subcategory-and-displayed-column-sorts--2026-10-08) — native category paths, Bid/Available requests and bounded cross-repo proof.
-- [Talents](systems/talents.md) — native DB2 graph, server snapshot/commit wiring, historical icon proof and [all40-spec both-skin layout/Arms acceptance](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10): eligible hero selector, non-stacked dialog/active tree, shared baseline, outlined ranks and bounded footer; [after2 rank paint/Apply art](systems/talents.md#after2-rank-paint-and-exact-apply-art-2026-10-10) supersedes rank/footer pixels with81 native captures.
+- [Talents](systems/talents.md) — native DB2 graph and snapshot/commit wiring; [all-spec layout](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10), [rank/Apply art](systems/talents.md#after2-rank-paint-and-exact-apply-art-2026-10-10) and [Retail footer controls](systems/talents.md#footer-controls--2026-10-10): staged reset, search previews/keyboard/badges, bounded loadout UI,17 tests and four inspected v3 captures; server/serialization gaps explicit.
 
 - [Spell overrides and teleports](systems/spell-overrides-teleports.md) — aura332 effective actions, destination targeting and native aura312 base/action replacement hooks; conditional-flag and citation limits.
