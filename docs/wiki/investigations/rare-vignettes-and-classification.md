@@ -20,7 +20,7 @@ Mainline `TargetFrame.lua:437-445` shows a silver dragon only for rareelite and 
 
 ## Proof and limits
 
-Three Forever registry tests reproduced missing star/dragon controls (REDf314d1b52, exit101). GREEN and related unit-frame verification pending. Native run2 before the fix captured Modern Ruul with silver dragon/star, one ordinary target blip and zero vignettes. Both requested PNG paths contain the same native frame. Run3 Brack520 could not be selected via native input, despite grounded staging; rank4 capture remains unproved. Three-run budget exhausted: no post-fix Forever native proof.
+Three Forever registry tests reproduced missing star/dragon controls (REDf314d1b52, exit101). Correctionea8a275bf passed all31 tests across target_classification, unit_frame_atlas, forever_flare_frames, forever_unit_reference and unit_dead_text through the locked helper (exit0); changed Rust files passed rustfmt check. Registry/atlas proof is not native pixel proof. Native run2 before the fix captured Modern Ruul with silver dragon/star, one ordinary target blip and zero vignettes. Both requested PNG paths contain the same native frame. Run3 Brack520 could not be selected via native input, despite grounded staging; rank4 capture remains unproved. Three-run budget exhausted: no post-fix Forever native proof.
 
 ## Sources
 
