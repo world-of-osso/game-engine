@@ -113,8 +113,13 @@ def write_asset_index(data, identity, staged, verified, aliases):
     assets.update({(r["product"], r["fdid"], r["kind"]): r for r, _ in verified})
     alias_records = {r["path"]: r for r in existing.get("aliases", [])}
     alias_records.update({r["path"]: r for r, _ in aliases})
-    chain = {**identity, "dependencies": staged["dependencies"], "metadata": staged.get("metadata", [])}
-    chains = [c for c in existing.get("chains", []) if (c["product"], c["build_key"]) != (identity["product"], identity["build_key"])]
+    namespace = (identity["product"], identity["build_key"])
+    chains = existing.get("chains", [])
+    previous = next((c for c in chains if (c["product"], c["build_key"]) == namespace), {})
+    chain = {**identity,
+             "dependencies": {**previous.get("dependencies", {}), **staged["dependencies"]},
+             "metadata": [*previous.get("metadata", []), *staged.get("metadata", [])]}
+    chains = [c for c in chains if (c["product"], c["build_key"]) != namespace]
     result = {"version": 1, "assets": [assets[key] for key in sorted(assets)],
               "aliases": [alias_records[key] for key in sorted(alias_records)], "chains": [*chains, chain]}
     path.parent.mkdir(parents=True, exist_ok=True)
