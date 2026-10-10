@@ -13,6 +13,7 @@ use shared::protocol::CastFailed;
 
 impl GameClient {
     pub(crate) fn cast_spell(&mut self, spell_id: u32) -> Result<(), SessionError> {
+        let spell_id = self.effective_spell(spell_id);
         if self.open_profession_spell(spell_id) {
             return Ok(());
         }

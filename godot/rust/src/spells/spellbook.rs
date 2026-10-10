@@ -164,7 +164,27 @@ impl GameClient {
         let specializations = catalog.zip(player).map_or_else(Vec::new, |(data, player)| {
             specialization_choices(&data.tabs, player.class_id, spells.spec())
         });
-        let categories = spellbook_categories(tabs, class_name.as_deref());
+        let mut categories = spellbook_categories(tabs, class_name.as_deref());
+        for item in categories
+            .iter_mut()
+            .flat_map(|category| &mut category.groups)
+            .flat_map(|group| &mut group.items)
+        {
+            if item.available_at.is_some() {
+                continue;
+            }
+            let replacement = self.effective_spell(item.spell_id);
+            if replacement == item.spell_id {
+                continue;
+            }
+            if let Some(spell) = catalog.and_then(|data| data.get(replacement)) {
+                item.spell_id = replacement;
+                item.name = spell.name.to_string();
+                item.subtext = spell.subtext.to_string();
+                item.icon_fdid = spell.icon_fdid;
+                item.passive = spell.passive;
+            }
+        }
         let spec_icon = catalog
             .zip(spells.spec())
             .and_then(|(data, spec)| data.tabs.specs.get(&spec))

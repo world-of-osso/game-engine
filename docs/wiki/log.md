@@ -3010,3 +3010,7 @@ Updated [private headless recipe](../headless-live-run.md) to link server deploy
 ## [2026-10-09] investigation | Brack picking and rares2 captures
 
 [Classification investigation](investigations/rare-vignettes-and-classification.md#brack-native-selection-and-follow-up-captures): proved box-centre fixture miss versus successful native triangle/mouse selection of Brack; no product picking bug reproduced. Captured post-fix Forever rank2/rank4 and Modern rank4 in the three-launch budget, personally inspected ffmpeg downscales. Mainline rare has star/no dragon; rareelite silver dragon. Private5530 and owned clients stopped; diagnostics remain untracked.
+
+## 2026-10-10 — Client spell overrides
+
+Recorded native aura332 presentation and animation replacement-set hook gap; ground/live proof pending.
