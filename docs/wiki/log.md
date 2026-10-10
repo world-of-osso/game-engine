@@ -1,6 +1,6 @@
 ## 2026-10-09 — Extracted-only asset policy
 
-[Shipped assets](systems/shipped-assets.md) records the P1 startup and low-level CASC boundary. [Contract](../specs/shipped-assets.md) owns explicit environment selection, shared policy/tripwire APIs and P2–P5 exclusions. Cold-process RED reproduced `WoW install not found`; GREEN/full package proof remains pending. No deployment or full closure claim.
+[Shipped assets](systems/shipped-assets.md) records the P1 startup and low-level CASC boundary. [Contract](../specs/shipped-assets.md) owns explicit environment selection, shared policy/tripwire APIs and P2–P5 exclusions. Cold-process RED reproduced `WoW install not found`; engine `5dbe8b3c0` + resolver `8fc769b` GREEN5/5 and full six-engine-package2656/0/7 pass, no warnings. Resolver unit22/bin2 pass; its pre-existing install-dependent integration test fails in no-install depot. No deployment, rendered-game or full closure claim.
 
 ## 2026-10-09 — HUD layout names and delete confirmation
 
