@@ -684,6 +684,14 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
             pos_type:"absolute",pos_x:{button_x*scale},pos_y:{102.0*scale},
         }},
     );
+    if let Some(atlas) = view.inactive_hero_search_atlas() {
+        children.extend(retail_atlas(
+            "HeroSpecSearchMatch",
+            atlas,
+            [button_x + 108.0 - 31.5, 102.0 - 31.5, 63.0, 63.0],
+            scale,
+        ));
+    }
     let text = match active {
         Some(tree) => tree.name.clone(),
         None => selector

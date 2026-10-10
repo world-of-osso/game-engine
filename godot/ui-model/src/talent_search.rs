@@ -3,12 +3,41 @@ use crate::talents::TalentView;
 use game_engine_core::talent_data::TalentNode;
 
 pub const NOT_ON_ACTION_BAR: &str = "Not on Action Bar";
+// Blizzard_FrameXMLBase/Constants.lua:296; SpellSearchTemplates.xml:81.
+pub const MIN_SEARCH_CHARACTERS: usize = 3;
+pub const MAX_PREVIEW_ENTRIES: usize = 3;
 
 impl TalentView {
+    /// HeroTalentsContainer.lua:339-362 marks the selector for inactive subtree matches.
+    pub fn inactive_hero_search_atlas(&self) -> Option<&'static str> {
+        let active = self
+            .graph
+            .hero_selection
+            .as_ref()
+            .and_then(|selector| {
+                selector
+                    .entries
+                    .iter()
+                    .find(|entry| self.editor.rank(selector.id, entry.id) > 0)
+            })
+            .map(|entry| entry.subtree_id);
+        self.graph
+            .heroes
+            .iter()
+            .filter(|tree| Some(tree.id) != active)
+            .flat_map(|tree| &tree.nodes)
+            .filter_map(|node| self.search_match_atlas(node))
+            .max_by_key(|atlas| match *atlas {
+                "talents-search-exactmatch" => 4,
+                "talents-search-match" => 3,
+                "talents-search-relatedmatch" => 1,
+                _ => 2,
+            })
+    }
     /// Retail previews names, while submitted text also searches descriptions.
     pub fn search_preview_entries(&self) -> Vec<(u32, &str)> {
         let query = self.editor.search_text.to_lowercase();
-        if query.chars().count() < 2 || !self.editor.search_preview {
+        if query.chars().count() < MIN_SEARCH_CHARACTERS || !self.editor.search_preview {
             return Vec::new();
         }
         let mut entries: Vec<_> = self
@@ -24,7 +53,7 @@ impl TalentView {
 
     pub fn search_match_atlas(&self, node: &TalentNode) -> Option<&'static str> {
         let query = self.editor.search_filter.to_lowercase();
-        if query.chars().count() < 2 {
+        if query.chars().count() < MIN_SEARCH_CHARACTERS {
             return None;
         }
         if query == NOT_ON_ACTION_BAR.to_lowercase() {

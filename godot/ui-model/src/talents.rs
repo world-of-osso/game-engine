@@ -106,9 +106,16 @@ pub fn load_talent_view(
         .nodes()
         .flat_map(|node| &node.entries)
         .filter_map(|entry| {
-            catalog
-                .render_description(entry.spell_id, &context)
-                .map(|text| (entry.id, text))
+            let description = if entry.subtree_id != 0 {
+                view.graph
+                    .heroes
+                    .iter()
+                    .find(|tree| tree.id == entry.subtree_id)
+                    .map(|tree| tree.description.clone())
+            } else {
+                catalog.render_description(entry.spell_id, &context)
+            };
+            description.map(|text| (entry.id, text))
         })
         .collect();
     view.replaced_names = view
