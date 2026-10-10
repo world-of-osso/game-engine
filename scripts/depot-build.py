@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
-"""Build the Linux Godot extension or run workspace tests on explicit desktop/local hosts."""
+"""Build the Linux Godot extension or run workspace tests on this host (native) or in the
+bookworm container on desktop/local. Release artifacts always use the container."""
 
 import argparse
 import contextlib
@@ -33,6 +34,10 @@ CLI = "game-engine-cli"
 FIXTURE_DIR = Path("godot/network/examples")
 TEST_ASSETS = Path("godot/depot-test-assets.txt")
 TEST_LOG = Path("target/depot-test.log")
+HOSTS = ("desktop", "local", "native")
+CONTAINER_HOSTS = ("desktop", "local")
+# Concurrent native cargo runs. Each already uses every core, so this bounds memory.
+NATIVE_SLOTS = int(os.environ.get("GAME_ENGINE_NATIVE_SLOTS", "3"))
 FICLONE = 0x40049409
 SUMMARY_PREFIXES = ("     Running ", "   Doc-tests ", "test result:", "error")
 
@@ -234,12 +239,12 @@ def select_build_host(explicit):
     setting = build_host_setting()
     if not setting.is_file():
         raise ValueError(
-            "choose --build-host desktop|local or --save-build-host desktop|local"
+            "choose --build-host desktop|local|native or --save-build-host desktop|local|native"
         )
     host = setting.read_text().strip()
-    if host not in {"desktop", "local"}:
+    if host not in HOSTS:
         raise ValueError(
-            f"invalid build-host {host!r} in {setting}; choose --build-host desktop|local"
+            f"invalid build-host {host!r} in {setting}; choose --build-host desktop|local|native"
         )
     return host
 
@@ -291,16 +296,95 @@ def stable_context(cache, mode, checkout_key):
         shutil.rmtree(context, ignore_errors=True)
 
 
+@contextlib.contextmanager
+def native_slot():
+    """Hold one of NATIVE_SLOTS host-wide slots for the duration of a native cargo run."""
+    directory = Path.home() / ".cache" / "game-engine" / "native-slots"
+    directory.mkdir(parents=True, exist_ok=True)
+    waiting = False
+    while True:
+        for number in range(1, NATIVE_SLOTS + 1):
+            handle = (directory / f"slot{number}").open("w")
+            try:
+                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
+            except BlockingIOError:
+                handle.close()
+                continue
+            print(f"Native slot {number}/{NATIVE_SLOTS} acquired", flush=True)
+            try:
+                yield
+            finally:
+                handle.close()
+            return
+        if not waiting:
+            print(f"All {NATIVE_SLOTS} native slots busy; waiting", flush=True)
+            waiting = True
+        time.sleep(5)
+
+
+def native_cargo(root, command, arguments, output=None):
+    """Run `cargo <command>` on this host for godot/, with artifacts in the checkout's
+    target/ where game_engine.gdextension loads them."""
+    environment = os.environ | {"CARGO_TARGET_DIR": str(root / "target")}
+    return subprocess.run(
+        ["cargo", command, "--locked", "--manifest-path", str(root / "godot/Cargo.toml"), *arguments],
+        env=environment,
+        stdout=output,
+        stderr=subprocess.STDOUT if output else None,
+        check=False,
+    ).returncode
+
+
+def build_native(root, fixture, cli):
+    builds = [["-p", "game-engine-godot", "--lib"]]
+    if fixture:
+        builds.append(["-p", "game-engine-network", "--example", fixture])
+    if cli:
+        builds.append(["-p", "game-engine-cli", "--bin", CLI])
+    start = time.monotonic()
+    with native_slot():
+        for arguments in builds:
+            code = native_cargo(root, "build", arguments)
+            if code != 0:
+                raise subprocess.CalledProcessError(code, ["cargo", "build", *arguments])
+    phase("native build", start)
+    print(root / "target" / "debug" / ARTIFACT)
+    if fixture:
+        print(root / "target" / "debug" / "examples" / fixture)
+    if cli:
+        print(root / "target" / "debug" / CLI)
+
+
+def run_tests_native(root, cargo_args):
+    saved = root / TEST_LOG
+    saved.parent.mkdir(parents=True, exist_ok=True)
+    start = time.monotonic()
+    with native_slot(), saved.open("w") as log:
+        code = native_cargo(root, "test", cargo_args, output=log)
+    phase("native test", start)
+    print_test_summary(saved.read_text(errors="replace").splitlines())
+    print(f"Full log: {saved}")
+    print(f"cargo test {shlex.join(cargo_args)}: exit {code}", flush=True)
+    return code
+
+
 def build(root, fixture=None, cli=False, release=False, host=None):
-    if release:
-        # Shipping requires prepared UI art; debug/CPU work can diagnose gaps without
-        # publishing an incomplete asset set. Runtime never calls this developer step.
-        prepare_ui_icons(root, sibling_repo(root, "asset-resolver") / "target/debug/casc-local")
+    host = select_build_host(host)
+    if release and host == "native":
+        # glibc portability: a host (Arch) link needs the host's newest glibc.
+        raise ValueError("release artifacts use the bookworm container: --build-host local|desktop")
     if fixture and fixture not in fixture_names(root):
         raise ValueError(
             f"unknown fixture {fixture!r}; choose from {', '.join(fixture_names(root))}"
         )
-    host = select_build_host(host)
+    if host == "native":
+        lock, _, _ = locked_checkout(root)
+        with lock:
+            return build_native(root, fixture, cli)
+    if release:
+        # Shipping requires prepared UI art; debug/CPU work can diagnose gaps without
+        # publishing an incomplete asset set. Runtime never calls this developer step.
+        prepare_ui_icons(root, sibling_repo(root, "asset-resolver") / "target/debug/casc-local")
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         target = root / "target"
@@ -356,6 +440,10 @@ def build(root, fixture=None, cli=False, release=False, host=None):
 def run_tests(root, cargo_args, host=None):
     """Run `cargo test` on the selected host and return cargo's exit status."""
     host = select_build_host(host)
+    if host == "native":
+        lock, _, _ = locked_checkout(root)
+        with lock:
+            return run_tests_native(root, cargo_args)
     lock, cache, checkout_key = locked_checkout(root)
     with lock:
         start = time.monotonic()
@@ -410,12 +498,12 @@ def main():
     )
     parser.add_argument(
         "--build-host",
-        choices=("desktop", "local"),
+        choices=HOSTS,
         help="override saved build host for this run",
     )
     parser.add_argument(
         "--save-build-host",
-        choices=("desktop", "local"),
+        choices=HOSTS,
         help="save default host and exit without building",
     )
     mode = parser.add_mutually_exclusive_group()

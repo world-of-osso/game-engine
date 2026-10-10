@@ -117,11 +117,11 @@ fn consume_option_value(
 }
 
 fn validate_build_host(value: OsString) -> Result<OsString, String> {
-    if matches!(value.to_str(), Some("desktop" | "local")) {
+    if matches!(value.to_str(), Some("desktop" | "local" | "native")) {
         Ok(value)
     } else {
         Err(format!(
-            "invalid --build-host {:?}; expected desktop or local",
+            "invalid --build-host {:?}; expected desktop or local (container) or native",
             value
         ))
     }
