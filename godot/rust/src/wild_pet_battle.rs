@@ -176,7 +176,10 @@ impl GameClient {
             self.clear_battle_scene();
             let requests = displays.map(|display_id| {
                 self.world
-                    .request_detached_visual(&UnitAppearance::Creature { display_id })
+                    .request_detached_visual(&UnitAppearance::Creature {
+                        display_id,
+                        items: Default::default(),
+                    })
             });
             self.wild_pet_battle.pending = Some((requests, displays));
         }
