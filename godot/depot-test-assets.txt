@@ -11,6 +11,8 @@ AnimReplacementSet.csv
 AnimReplacement.csv
 # Existing extracted spell sound for the no-install cold-start fixture (33 KiB).
 sounds/spells/632305.ogg
+# Retail SpellSearch preview row/highlight atlas, authenticated local CASC extraction.
+textures/1047875.blp
 # Tests needing files absent here fail remotely with their own missing-path error.
 
 # Shared tooltip scaling: Retail squish and local CASC FDIDs 1391670, 1980632, 1391643.

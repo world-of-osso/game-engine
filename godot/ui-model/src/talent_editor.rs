@@ -7,7 +7,7 @@ use game_engine_core::talent_data::{
 use shared::protocol::{
     CommitTraitConfig, TraitCommitResult, TraitConfigSnapshot, TraitEntrySelection,
 };
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TalentEditor {
@@ -20,6 +20,7 @@ pub struct TalentEditor {
     pub search_filter: String,
     pub search_preview: bool,
     pub search_focused: bool,
+    pub search_index: Option<usize>,
     pending: Vec<TraitEntrySelection>,
     level: u8,
 }
@@ -71,7 +72,7 @@ impl TalentEditor {
             .as_ref()
             .ok_or("Reset requires a talent snapshot")?;
         let tree = view.rules.as_ref().ok_or("Reset requires talent rules")?;
-        let nodes: Vec<u32> = match scope {
+        let nodes: BTreeSet<u32> = match scope {
             "class" => view.graph.class.nodes.iter().map(|node| node.id).collect(),
             "spec" => view.graph.spec.nodes.iter().map(|node| node.id).collect(),
             "all" => view
@@ -317,6 +318,83 @@ impl TalentEditor {
         };
         self.purchase(view, level, node_id, entry.id)
     }
+    fn select_search_preview(&mut self, view: &TalentView) {
+        let Some(index) = self.search_index.filter(|_| self.search_preview) else {
+            return;
+        };
+        if self.search_text.chars().count() < crate::talents::search::MIN_SEARCH_CHARACTERS {
+            self.search_text = crate::talents::search::NOT_ON_ACTION_BAR.into();
+        } else if let Some((_, name)) = view.search_name_entries(&self.search_text).get(index) {
+            self.search_text = (*name).into();
+        }
+        self.search_index = None;
+    }
+    fn finish_search(&mut self, text: String) {
+        self.search_text = text.clone();
+        self.search_filter = text;
+        self.search_preview = false;
+        self.search_index = None;
+    }
+    fn move_search_preview(&mut self, view: &TalentView, step: isize) -> Result<(), String> {
+        if !matches!(step, -1 | 1) {
+            return Err("Talent preview navigation must be -1 or 1".into());
+        }
+        let count =
+            if self.search_text.chars().count() < crate::talents::search::MIN_SEARCH_CHARACTERS {
+                1
+            } else {
+                view.search_name_entries(&self.search_text)
+                    .len()
+                    .min(crate::talents::search::MAX_PREVIEW_ENTRIES)
+            };
+        self.search_index = (count > 0).then(|| {
+            let previous = self
+                .search_index
+                .map_or(if step > 0 { -1 } else { 0 }, |index| index as isize);
+            (previous + step).rem_euclid(count as isize) as usize
+        });
+        self.search_preview = true;
+        Ok(())
+    }
+    fn search_action(&mut self, view: &TalentView, command: &str) -> Result<(), String> {
+        let (kind, value) = command.split_once(':').unwrap_or((command, ""));
+        match kind {
+            "" => {
+                self.search_text = value.into();
+                self.search_preview = true;
+                self.search_index = None;
+            }
+            "_clear" => self.finish_search(String::new()),
+            "_select_bar" => self.finish_search(crate::talents::search::NOT_ON_ACTION_BAR.into()),
+            "_highlight_bar" => self.search_index = Some(0),
+            "_submit" => {
+                self.select_search_preview(view);
+                self.finish_search(self.search_text.clone());
+            }
+            "_select" => {
+                let id = parse_id(value)?;
+                self.finish_search(
+                    view.names
+                        .get(&id)
+                        .ok_or("Unknown talent search entry")?
+                        .clone(),
+                );
+            }
+            "_highlight" => {
+                let id = parse_id(value)?;
+                self.search_index = view
+                    .search_name_entries(&self.search_text)
+                    .iter()
+                    .position(|(entry, _)| *entry == id);
+            }
+            "_move" => self.move_search_preview(
+                view,
+                value.parse().map_err(|_| "Bad talent preview navigation")?,
+            )?,
+            _ => return Err(format!("Unknown talent search action: {command}")),
+        }
+        Ok(())
+    }
     pub fn action(
         &mut self,
         view: &TalentView,
@@ -339,43 +417,14 @@ impl TalentEditor {
                 self.reset_menu = false;
                 return Ok(None);
             }
-            "talent:search_select_bar" => {
-                self.search_text = crate::talents::search::NOT_ON_ACTION_BAR.into();
-                self.search_filter = self.search_text.clone();
-                self.search_preview = false;
-                return Ok(None);
-            }
-            "talent:search_submit" => {
-                self.search_filter = self.search_text.clone();
-                self.search_preview = false;
-                return Ok(None);
-            }
-            "talent:search_clear" => {
-                self.search_text.clear();
-                self.search_filter.clear();
-                self.search_preview = false;
-                return Ok(None);
-            }
             "talent:close_choice" => {
                 self.choice_node = None;
                 return Ok(None);
             }
             _ => (),
         }
-        if let Some(text) = action.strip_prefix("talent:search:") {
-            self.search_text = text.to_owned();
-            self.search_preview = true;
-            return Ok(None);
-        }
-        if let Some(entry) = action.strip_prefix("talent:search_select:") {
-            let entry = parse_id(entry)?;
-            self.search_text = view
-                .names
-                .get(&entry)
-                .ok_or("Unknown talent search entry")?
-                .clone();
-            self.search_filter = self.search_text.clone();
-            self.search_preview = false;
+        if let Some(command) = action.strip_prefix("talent:search") {
+            self.search_action(view, command)?;
             return Ok(None);
         }
         if let Some(scope) = action.strip_prefix("talent:reset:") {

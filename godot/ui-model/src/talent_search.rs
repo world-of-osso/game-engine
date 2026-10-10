@@ -10,6 +10,11 @@ pub const MAX_PREVIEW_ENTRIES: usize = 3;
 impl TalentView {
     /// HeroTalentsContainer.lua:339-362 marks the selector for inactive subtree matches.
     pub fn inactive_hero_search_atlas(&self) -> Option<&'static str> {
+        if let Some(selector) = &self.graph.hero_selection
+            && let Some(atlas) = self.search_match_atlas(selector)
+        {
+            return Some(atlas);
+        }
         let active = self
             .graph
             .hero_selection
@@ -36,8 +41,14 @@ impl TalentView {
     }
     /// Retail previews names, while submitted text also searches descriptions.
     pub fn search_preview_entries(&self) -> Vec<(u32, &str)> {
-        let query = self.editor.search_text.to_lowercase();
-        if query.chars().count() < MIN_SEARCH_CHARACTERS || !self.editor.search_preview {
+        if !self.editor.search_preview {
+            return Vec::new();
+        }
+        self.search_name_entries(&self.editor.search_text)
+    }
+    pub fn search_name_entries(&self, text: &str) -> Vec<(u32, &str)> {
+        let query = text.to_lowercase();
+        if query.chars().count() < MIN_SEARCH_CHARACTERS {
             return Vec::new();
         }
         let mut entries: Vec<_> = self
@@ -46,7 +57,11 @@ impl TalentView {
             .filter(|(_, name)| name.to_lowercase().contains(&query))
             .map(|(&id, name)| (id, name.as_str()))
             .collect();
-        entries.sort_by(|a, b| a.1.cmp(b.1).then(a.0.cmp(&b.0)));
+        // SpellSearchFilter.lua:4-24: exact match first, then case-insensitive name.
+        entries.sort_by_cached_key(|(id, name)| {
+            let lower = name.to_lowercase();
+            (lower != query, lower, *id)
+        });
         entries.dedup_by(|a, b| a.1 == b.1);
         entries
     }

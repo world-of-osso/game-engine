@@ -113,6 +113,7 @@ pub enum UiInput {
     Blur(u64),
     Text(u64, String),
     Submit,
+    SearchPreviewStep(isize),
     Hover(u64, bool),
     Press(u64),
     Release(u64),
@@ -1180,7 +1181,23 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
             text_pending.push(UiInput::Text(id, text));
         })
     } else {
-        node.connect("text_submitted", &emit(pending, UiInput::Submit));
+        if frame.name.as_deref() == Some("TalentSearchBox") {
+            let submit_pending = pending.clone();
+            let mut edit = node.clone();
+            node.connect(
+                "text_submitted",
+                &Callable::from_fn("talent-search-submit", move |_| {
+                    submit_pending.push(UiInput::Submit);
+                    edit.release_focus();
+                }),
+            );
+            node.connect(
+                "gui_input",
+                &search_preview_keys(pending.clone(), node.clone()),
+            );
+        } else {
+            node.connect("text_submitted", &emit(pending, UiInput::Submit));
+        }
         Callable::from_fn("registry-text-changed", move |args| {
             if let Some(text) = args.first() {
                 text_pending.push(UiInput::Text(id, text.to::<GString>().to_string()));
@@ -1237,6 +1254,27 @@ fn read_limited_multiline_text(node: &mut Gd<TextEdit>, max_letters: Option<u32>
 }
 
 /// The original login clears edit focus on Escape; LineEdit keeps it by default.
+fn search_preview_keys(pending: PendingInputs, mut edit: Gd<Control>) -> Callable {
+    Callable::from_fn("talent-search-preview-keys", move |args| {
+        let Some(key) = args
+            .first()
+            .and_then(|event| event.try_to::<Gd<godot::classes::InputEventKey>>().ok())
+        else {
+            return;
+        };
+        if !key.is_pressed() {
+            return;
+        }
+        let step = match key.get_keycode() {
+            godot::global::Key::UP => -1,
+            godot::global::Key::DOWN => 1,
+            _ => return,
+        };
+        pending.push(UiInput::SearchPreviewStep(step));
+        edit.accept_event();
+    })
+}
+
 fn release_focus_on_escape(mut edit: Gd<Control>) -> Callable {
     Callable::from_fn("registry-editbox-escape", move |args| {
         let escaped = args

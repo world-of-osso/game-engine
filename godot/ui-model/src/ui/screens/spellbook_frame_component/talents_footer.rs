@@ -156,31 +156,15 @@ fn search_box(view: &TalentView, y: f32, scale: f32) -> Element {
         let entries = view.search_preview_entries();
         let mut rows = Vec::new();
         if text.chars().count() < MIN_SEARCH_CHARACTERS {
-            rows.extend(menu_row(
-                "TalentSearchNotOnBar",
-                NOT_ON_ACTION_BAR,
-                "talent:search_select_bar",
-                true,
-                0,
-                240.0,
-                scale,
-            ));
+            rows.extend(preview_row(view, None, 0, scale));
         } else {
             for (index, (entry, name)) in entries.iter().take(MAX_PREVIEW_ENTRIES).enumerate() {
-                rows.extend(menu_row(
-                    &format!("TalentSearchPreview{entry}"),
-                    name,
-                    &format!("talent:search_select:{entry}"),
-                    true,
-                    index,
-                    240.0,
-                    scale,
-                ));
+                rows.extend(preview_row(view, Some((*entry, name)), index, scale));
             }
         }
         if !rows.is_empty() {
             let overflow = entries.len().saturating_sub(MAX_PREVIEW_ENTRIES);
-            let height = (entries.len().clamp(1, MAX_PREVIEW_ENTRIES) as f32) * 28.0
+            let height = (entries.len().clamp(1, MAX_PREVIEW_ENTRIES) as f32) * 27.0
                 + 12.0
                 + if overflow > 0 { 20.0 } else { 0.0 };
             if overflow > 0 {
@@ -188,7 +172,7 @@ fn search_box(view: &TalentView, y: f32, scale: f32) -> Element {
                     Label {
                         name: "TalentSearchOverflow".into(),
                         text: &format!("{overflow} more results"),
-                        rect: [6.0, height - 24.0, 228.0, 20.0],
+                        rect: [6.0, height - 24.0, 164.0, 20.0],
                         size: 12.0,
                         color: TAB_TEXT,
                         justify: "LEFT",
@@ -198,13 +182,86 @@ fn search_box(view: &TalentView, y: f32, scale: f32) -> Element {
             }
             children.extend(menu(
                 "TalentSearchPreviewContainer",
-                [264.0, y - height, 240.0, height],
+                [272.0, y + 28.0, 176.0, height],
                 rows,
                 scale,
             ));
         }
     }
     children
+}
+
+fn preview_row(view: &TalentView, entry: Option<(u32, &str)>, index: usize, scale: f32) -> Element {
+    let (name, text, action) = match entry {
+        Some((id, name)) => (
+            format!("TalentSearchPreview{id}"),
+            name,
+            format!("talent:search_select:{id}"),
+        ),
+        None => (
+            "TalentSearchNotOnBar".into(),
+            NOT_ON_ACTION_BAR,
+            "talent:search_select_bar".into(),
+        ),
+    };
+    let mut art = retail_atlas(
+        &format!("{name}Background"),
+        "_search-rowbg",
+        [0.0, 0.0, 176.0, 27.0],
+        scale,
+    );
+    if view.editor.search_index == Some(index) {
+        art.extend(retail_atlas(
+            &format!("{name}Highlight"),
+            "search-highlight",
+            [0.0, 0.0, 176.0, 27.0],
+            scale,
+        ));
+    }
+    if let Some((entry, _)) = entry {
+        art.extend(preview_icon(view, entry, &name, scale));
+        art.extend(retail_atlas(
+            &format!("{name}IconBorder"),
+            "talents-search-suggestion-itemborder",
+            [5.0, 3.5, 18.0, 18.0],
+            scale,
+        ));
+    } else {
+        art.extend(retail_atlas(
+            &format!("{name}Icon"),
+            "talents-search-suggestion-magnifyingglass",
+            [10.0, 5.5, 14.0, 14.0],
+            scale,
+        ));
+    }
+    rsx! {button {name:{DynName(name.clone())},onclick:{action.as_str()},button_default_skin:false,
+        width:{176.0*scale},height:{27.0*scale},strata:FrameStrata::Dialog,frame_level:2010,
+        pos_type:"absolute",left:0.0,top:{(6.0+index as f32*27.0)*scale},{art}
+        fontstring {name:{DynName(format!("{name}Text"))},text,width:{144.0*scale},height:{27.0*scale},
+            font_size:{12.0*scale},font_color:"1.0,1.0,1.0,1.0",justify_h:"LEFT",mouse_enabled:false,
+            strata:FrameStrata::Dialog,frame_level:2011,pos_type:"absolute",left:{27.0*scale},top:0.0}
+    }}
+}
+fn preview_icon(view: &TalentView, entry: u32, name: &str, scale: f32) -> Element {
+    let fdid = view.icons[&entry];
+    if fdid != 0 {
+        return rsx! {texture {name:{DynName(format!("{name}Icon"))},texture_fdid:fdid,width:{16.0*scale},height:{16.0*scale},
+        pos_type:"absolute",left:{6.0*scale},top:{4.5*scale}}};
+    }
+    let hero = view
+        .graph
+        .hero_selection
+        .as_ref()
+        .and_then(|node| node.entries.iter().find(|option| option.id == entry))
+        .and_then(|option| {
+            view.graph
+                .heroes
+                .iter()
+                .find(|tree| tree.id == option.subtree_id)
+        });
+    hero.map_or_else(Vec::new, |tree| {
+        hero_icon(tree, &format!("{name}Icon"), [6.0, 4.5, 16.0, 16.0], scale)
+    })
 }
 
 fn menu(name: &str, rect: [f32; 4], children: Element, scale: f32) -> Element {

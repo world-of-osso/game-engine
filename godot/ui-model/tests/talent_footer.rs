@@ -114,6 +114,21 @@ fn search_highlights_matching_nodes_and_preview_selects_actual_entry_in_both_ski
         let mut screen = Screen::new(spellbook_frame_screen);
         screen.sync(&shared, &mut registry);
         apply_spellbook_postsetup(&state, &mut registry);
+        let Some(WidgetData::Texture(icon)) = &registry
+            .get(
+                registry
+                    .get_by_name("TalentSearchPreview80180Icon")
+                    .unwrap(),
+            )
+            .unwrap()
+            .widget_data
+        else {
+            panic!("preview spell icon")
+        };
+        assert_eq!(
+            icon.source,
+            ui_toolkit::widgets::texture::TextureSource::FileDataId(135991)
+        );
         let preview = registry
             .get(registry.get_by_name("TalentSearchPreview80180").unwrap())
             .unwrap();
@@ -172,7 +187,54 @@ fn search_highlights_matching_nodes_and_preview_selects_actual_entry_in_both_ski
         shared.insert(state.clone());
         screen.sync(&shared, &mut registry);
         assert!(registry.get_by_name("HeroSpecSearchMatch").is_some());
+        let view = state.talents.as_mut().unwrap();
+        let entry = view.graph.hero_selection.as_ref().unwrap().entries[0].id;
+        let mut editor = view.editor.clone();
+        editor
+            .action(view, 80, &format!("talent:search_select:{entry}"))
+            .unwrap();
+        view.editor = editor;
+        shared.insert(state.clone());
+        screen.sync(&shared, &mut registry);
+        assert!(
+            registry.get_by_name("HeroSpecSearchMatch").is_some(),
+            "a real hero selection entry must highlight its selector"
+        );
     }
+}
+
+#[test]
+fn keyboard_search_preview_selects_real_name_and_clear_removes_matches() {
+    let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
+    let bytes = std::fs::read(data.join("textures/1047875.blp")).unwrap();
+    let atlas = game_engine_core::blp::decode_rgba(&bytes).unwrap();
+    assert!(atlas.pixels.chunks_exact(4).any(|pixel| pixel[3] != 0));
+    let mut state = state();
+    let view = state.talents.as_mut().unwrap();
+    let mut editor = view.editor.clone();
+    editor
+        .action(view, 80, "talent:search:prismatic barrier")
+        .unwrap();
+    editor.action(view, 80, "talent:search_move:1").unwrap();
+    editor.action(view, 80, "talent:search_submit").unwrap();
+    view.editor = editor;
+    let barrier = view
+        .graph
+        .class
+        .nodes
+        .iter()
+        .find(|node| node.id == 62121)
+        .unwrap();
+    assert_eq!(view.editor.search_text, "Prismatic Barrier");
+    assert_eq!(
+        view.search_match_atlas(barrier),
+        Some("talents-search-exactmatch")
+    );
+    let mut editor = view.editor.clone();
+    editor.action(view, 80, "talent:search_clear").unwrap();
+    view.editor = editor;
+    assert_eq!(view.search_match_atlas(barrier), None);
+    assert!(view.editor.search_text.is_empty());
 }
 
 #[test]

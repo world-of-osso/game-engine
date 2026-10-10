@@ -484,21 +484,26 @@ impl GameClient {
         if !error.is_empty() {
             return Err(error.to_string().into());
         }
+        let action = host.pop_action().to_string();
+        let selecting_search =
+            action == "talent:search_submit" || action.starts_with("talent:search_select");
         if host.has_frame("TalentSearchBox") {
             let text = host.frame_text("TalentSearchBox".into()).to_string();
             let focused = host.is_frame_focused("TalentSearchBox");
             if self.account.talents.search_text != text {
                 self.account.talents.search_text = text;
+                self.account.talents.search_index = None;
                 self.account.talents.search_preview = focused;
             } else if focused && !self.account.talents.search_focused {
                 self.account.talents.search_preview = true;
+                self.account.talents.search_index = None;
             }
-            if !focused {
+            if !focused && !selecting_search {
                 self.account.talents.search_preview = false;
+                self.account.talents.search_index = None;
             }
             self.account.talents.search_focused = focused;
         }
-        let action = host.pop_action().to_string();
         drop(host);
         self.apply_spellbook_action(&action)
     }
