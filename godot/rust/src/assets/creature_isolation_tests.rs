@@ -147,6 +147,17 @@ fn model_asset_runtime_receipts_select_pinned_namespaces_without_casc() {
                     .starts_with(root.join("products").join(product.as_str()))
             );
         }
+        let display = CreatureDisplay {
+            source_product: AssetProduct::Forever,
+            model_fdid: MODEL_FDID,
+            skin_fdids: [0; 4],
+            scale_milli: 1000,
+        };
+        let parsed = load_display_model_files(&root, &display).unwrap();
+        assert_eq!(
+            parsed.model.vertices[0].position[0], 7.5,
+            "display worker borrowed Retail pixels/model"
+        );
         let resolver =
             authored_model_resolver(&root, AssetProduct::Forever, MODEL_FDID + 1).unwrap();
         let error = load_model_files(&resolver, &root, MODEL_FDID + 1)

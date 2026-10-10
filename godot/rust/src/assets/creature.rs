@@ -136,6 +136,13 @@ fn held_items<'a>(
         .collect()
 }
 
+pub(crate) fn load_display_model_files(
+    data_root: &Path,
+    display: &CreatureDisplay,
+) -> Result<Arc<CachedModel>, String> {
+    load_model_files(&local_resolver(data_root), data_root, display.model_fdid)
+}
+
 pub(crate) fn authored_model_resolver(
     data_root: &Path,
     product: game_engine_core::asset_product::AssetProduct,
