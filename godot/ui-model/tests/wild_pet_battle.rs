@@ -73,12 +73,19 @@ fn petbattle_pvp_initial_selection_allows_current_pet_but_not_combat_actions() {
     view.receive(WildPetBattleUpdate::Start(state.clone()));
     assert!(view.action("pb:ability:1").is_none());
     assert!(view.action("pb:pass").is_none());
-    let request = view.action("pb:swap:1").expect("current front pet can be selected");
+    let request = view
+        .action("pb:swap:1")
+        .expect("current front pet can be selected");
     assert_eq!(request.action, WildPetBattleAction::Swap(1));
     assert_eq!(request.round, state.round);
     assert!(view.action("pb:swap:2").is_none());
-    view.receive(WildPetBattleUpdate::Rejected("initial pet already selected".into()));
-    view.receive(WildPetBattleUpdate::State(WildPetBattleSnapshot { initial_selection_required: false, ..state }));
+    view.receive(WildPetBattleUpdate::Rejected(
+        "initial pet already selected".into(),
+    ));
+    view.receive(WildPetBattleUpdate::State(WildPetBattleSnapshot {
+        initial_selection_required: false,
+        ..state
+    }));
     assert!(view.action("pb:ability:1").is_some());
 }
 

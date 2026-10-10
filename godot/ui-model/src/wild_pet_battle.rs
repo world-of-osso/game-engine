@@ -149,7 +149,9 @@ impl WildBattleView {
         } else {
             match action {
                 "pb:trap" if state.can_trap => WildPetBattleAction::Trap,
-                "pb:pass" if !state.replacement_required && !state.initial_selection_required => WildPetBattleAction::Pass,
+                "pb:pass" if !state.replacement_required && !state.initial_selection_required => {
+                    WildPetBattleAction::Pass
+                }
                 "pb:confirm-forfeit" if self.confirm_forfeit => WildPetBattleAction::Forfeit,
                 _ => return None,
             }
@@ -491,7 +493,10 @@ fn action_bar(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
         out.extend(icon_button(
             format!("PetBattleAbility{number}"),
             &format!("pb:ability:{number}"),
-            enabled && ability.usable && !state.replacement_required && !state.initial_selection_required,
+            enabled
+                && ability.usable
+                && !state.replacement_required
+                && !state.initial_selection_required,
             (x, top, 52.0, 52.0),
         ));
         if ability.id != 0 {
@@ -626,7 +631,12 @@ fn swap_panel(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
         out.extend(label(
             "PetBattleSelectPetInstruction".into(),
             "Select a pet!",
-            (view.viewport[0] / 2.0 - 285.0, view.viewport[1] - 245.0, 570.0, 28.0),
+            (
+                view.viewport[0] / 2.0 - 285.0,
+                view.viewport[1] - 245.0,
+                570.0,
+                28.0,
+            ),
             (18.0, WHITE, "CENTER"),
         ));
     }
