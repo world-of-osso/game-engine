@@ -11,7 +11,7 @@
 - [Extracted-only policy](systems/shipped-assets.md) — P1 `f6b32b79e`; [closure audit](systems/offline-asset-closure.md) `5520e82ff` is incomplete, not release certification. [Client deployment](../deploy.md) separates extracted-only direction from historical CASC proof; [server deployment](../../../game-server/docs/deploy.md) owns the shared realm's current location.
 
 
-- [Offline asset closure](systems/offline-asset-closure.md) — extracted-only Northshire/Human-Warrior graph, configurable full-catalog roots, explicit provenance/unresolved boundaries and approximate inventory sizes.
+- [Offline asset closure](systems/offline-asset-closure.md) — full-catalog terrain auxiliary and runtime-path resolution, local extraction fixed points and receipt proofs; optional joins and no-install acceptance remain open.
 
 - [Zephras sky/minimap diagnosis](investigations/zephras-sky-minimap.md) — map2991 listfile-only tile loss and wrong M2 dual-crossfade; shader/tile RED/GREEN and inspected rebuilt private before/after; whole-day sky parity unclaimed.
 
