@@ -30,8 +30,10 @@ entry and does not increment this count.
 
 ## Later phases (not P1)
 
-- **P2:** Authenticated product/build identities, receipts and manifest-qualified
-  bytes; prove same-FDID chains coexist without legacy-path substitution.
+- **P2 (implemented):** Authenticated product/build identities, receipts and
+  manifest-qualified model bytes; same-FDID chains coexist without legacy-path
+  substitution. [Model/product isolation contract](product-isolated-model-assets.md)
+  owns requirements and bounded native acceptance; later closure is separate.
 - **P3:** Offline fixed-point closure for one map and complete character/NPC/item/
   spell/audio/UI slice; pristine no-install bundle and deterministic missing-file
   failure.
