@@ -199,6 +199,7 @@ pub enum AccountEvent {
     Summon(shared::protocol::SummonRequest),
     Professions(shared::protocol::ProfessionSnapshot),
     Collections(shared::protocol::CollectionStateUpdate),
+    WildPetBattle(shared::protocol::WildPetBattleUpdate),
     TrainerList(shared::protocol::TrainerList),
     TrainerFailed(shared::protocol::TrainerBuyFailed),
     /// Bank and guild bank contents, logs and refusals.
@@ -654,6 +655,30 @@ impl Account {
             PetRequest::Dismiss => bridge.send::<_, CollectionChannel>(DismissPet),
         }
         .map_err(SessionError)
+    }
+
+    pub fn send_wild_battle_start(&self, creature: u64) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::CollectionChannel>(shared::protocol::StartWildPetBattle {
+                creature,
+            })
+            .map_err(SessionError)
+    }
+    pub fn send_wild_battle_action(
+        &self,
+        request: shared::protocol::WildPetBattleActionRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::CollectionChannel>(request)
+            .map_err(SessionError)
+    }
+    pub fn send_pet_loadout(
+        &self,
+        request: shared::protocol::SetBattlePetLoadout,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, shared::protocol::CollectionChannel>(request)
+            .map_err(SessionError)
     }
 
     pub fn send_craft_recipe(
@@ -1259,6 +1284,10 @@ impl Account {
         }
         if message.is::<shared::protocol::TrainerBuyFailed>() {
             output.push(AccountEvent::TrainerFailed(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::WildPetBattleUpdate>() {
+            output.push(AccountEvent::WildPetBattle(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::CollectionStateUpdate>() {

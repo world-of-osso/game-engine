@@ -114,6 +114,7 @@ mod unit_portraits;
 mod vignettes;
 mod vigor;
 mod waypoint_path;
+mod wild_pet_battle;
 mod window_stack;
 mod wmo;
 mod world;
@@ -295,6 +296,7 @@ pub struct GameClient {
     spells: spells::SpellsHud,
     professions: professions::Professions,
     pet_journal: pet_journal::CompanionJournal,
+    wild_pet_battle: wild_pet_battle::WildBattleHud,
     trainer: trainer::Trainer,
     pet_bar: pet_bar::PetBarHud,
     merchant: merchant::Merchant,
@@ -429,6 +431,7 @@ impl INode3D for GameClient {
             spells: spells::SpellsHud::default(),
             professions: professions::Professions::default(),
             pet_journal: pet_journal::CompanionJournal::default(),
+            wild_pet_battle: wild_pet_battle::WildBattleHud::default(),
             trainer: trainer::Trainer::default(),
             pet_bar: pet_bar::PetBarHud::default(),
             merchant: merchant::Merchant::default(),
@@ -1370,6 +1373,7 @@ impl GameClient {
         self.guild_ranks.visit_uis(&mut visit)?;
         self.professions.visit_uis(&mut visit)?;
         self.pet_journal.visit_uis(&mut visit)?;
+        self.wild_pet_battle.visit_uis(&mut visit)?;
         self.trainer.visit_uis(&mut visit)?;
         self.achievements.visit_uis(&mut visit)?;
         self.loot.visit_uis(&mut visit)?;
@@ -1915,6 +1919,7 @@ impl GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Professions", |c, _| c.update_professions()),
             ("Pet Journal", |c, _| c.update_pet_journal()),
+            ("Wild Pet Battle", |c, _| c.update_wild_pet_battle()),
             ("Trainer", |c, _| c.update_trainer()),
             ("Auras", |c, _| c.update_auras()),
             ("Launcher", |c, _| c.update_launcher()),
@@ -2059,6 +2064,7 @@ impl GameClient {
                 self.close_professions();
                 self.close_trainer();
                 self.close_pet_journal();
+                self.reset_wild_pet_battle();
                 self.pet_journal = Default::default();
                 self.professions.book = Default::default();
                 self.professions.error.clear();
@@ -2102,6 +2108,7 @@ impl GameClient {
             AccountEvent::Summon(request) => self.receive_summon(request),
             AccountEvent::Professions(snapshot) => self.receive_professions(snapshot),
             AccountEvent::Collections(update) => self.pet_journal.view.receive(update),
+            AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
             AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
             AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
             AccountEvent::Bank(message) => self.receive_bank(message)?,
