@@ -236,6 +236,7 @@ fn preview_group(tab: SpellbookTab) -> SpellbookGroup {
                 icon_fdid: spell.icon_file_data_id,
                 passive: spell.passive,
                 available_at: spell.available_at,
+                cooldown_fraction: 0.0,
             })
             .collect(),
     }

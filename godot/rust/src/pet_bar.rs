@@ -107,7 +107,7 @@ fn optional_id(id: Option<u64>) -> Variant {
 }
 
 /// The visible terrain, WMO or doodad surface under `screen_point`.
-fn ground_under(camera: &Gd<Camera3D>, screen_point: Vector2) -> Option<Vector3> {
+pub(crate) fn ground_under(camera: &Gd<Camera3D>, screen_point: Vector2) -> Option<Vector3> {
     let mut space = camera.get_world_3d()?.get_direct_space_state()?;
     let origin = camera.project_ray_origin(screen_point);
     let end = origin + camera.project_ray_normal(screen_point) * camera.get_far();

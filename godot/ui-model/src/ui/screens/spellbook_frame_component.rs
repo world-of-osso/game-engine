@@ -292,6 +292,8 @@ pub struct SpellbookItemView {
     pub passive: bool,
     /// Learned later: greyed with "Level N" (`FutureSpell`).
     pub available_at: Option<u32>,
+    /// Remaining fraction of the effective spell's cooldown/GCD.
+    pub cooldown_fraction: f32,
 }
 
 /// A skill line of the category: its header and spells.

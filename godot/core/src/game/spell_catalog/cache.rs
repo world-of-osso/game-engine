@@ -7,7 +7,7 @@ use super::build::SOURCE_TABLES;
 use crate::db2_cache::CacheKey;
 
 /// Bump when `CatalogSpell` or the build rules change.
-const CACHE_FORMAT: u32 = 9;
+const CACHE_FORMAT: u32 = 10;
 
 pub(super) fn cache_key(source_dir: &Path) -> Result<CacheKey, String> {
     let sources = SOURCE_TABLES

@@ -502,9 +502,13 @@ impl UiProjection {
                 if frame.onclick.as_deref().is_some_and(|action| {
                     action.starts_with("bank_slot:")
                         || action.starts_with(game_engine_ui_model::toybox::USE_PREFIX)
+                        || action.starts_with(
+                            game_engine_ui_model::spellbook_frame_component::ACTION_SPELLBOOK_CAST,
+                        )
                 }) =>
             {
-                // Bank slots and toy tiles need press coordinates and modified clicks.
+                // Cursor sources (bank slots, toy tiles, spellbook entries) need press
+                // coordinates and modified clicks; release decides click vs drag.
                 connect_frame_click(pending, frame.id, node);
                 node.connect(
                     "mouse_entered",

@@ -3044,3 +3044,14 @@ Updated [private headless recipe](../headless-live-run.md) to link server deploy
 ## 2026-10-10 — P2 model isolation native acceptance
 
 Updated [M2 product shadowing](investigations/m2-product-shadowing.md#native-acceptance-2026-10-10) and [contract](../specs/product-isolated-model-assets.md): recovered authentic frozen-build source gaps, scoped14/14, zero-warning native build, extracted-only4/4 GPU proof with tripwire0 and inspected player/item/creature PNGs. No merge or P3/P4 certification.
+## 2026-10-10 — Client spell overrides
+
+Recorded native aura332 presentation and animation replacement-set hook gap; ground/live proof pending.
+
+## 2026-10-10 — Scoped client override/teleport proof
+
+Recorded pure override/book cooldown and destination tests, both-skin private Blink wall captures, class-spell setup blocker, inherited formatter failures and incomplete cold cargo check. See [coverage](systems/spell-overrides-teleports.md#scoped-acceptance-2026-10-10).
+
+## 2026-10-10 — Override live acceptance resumed on ca6b249
+
+Server learned-spell publication unblocked both-skin aura proof. Fixed approved native book press routing; click/hover, book→bar drag, real aura332 apply/restore and ground destinations passed. Current native check passed after bounded cached KTX artifact seeding. [Coverage and limits](systems/spell-overrides-teleports.md#scoped-acceptance-2026-10-10).

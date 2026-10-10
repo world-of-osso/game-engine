@@ -131,7 +131,7 @@ impl GameClient {
         let (_, (bar, index)) = named_ancestor(ui.registry()?, hit.frame, |frame| {
             parse_action_button(frame.onclick.as_deref()?)
         })?;
-        match self.account.spells.slot(self.bar_slot(bar, index))? {
+        match self.action_slot(self.bar_slot(bar, index))? {
             ActionRef::Spell(spell_id) => Some(HoveredTooltip::text(
                 self.spell_game_tooltip(spell_id, None),
             )),
@@ -207,7 +207,12 @@ impl GameClient {
         } else {
             self.spellbook_available_at(spell_id)
         };
-        let tooltip = self.spell_game_tooltip(spell_id, available_at);
+        let presented_spell = if talent || available_at.is_some() {
+            spell_id
+        } else {
+            self.effective_spell(spell_id)
+        };
+        let tooltip = self.spell_game_tooltip(presented_spell, available_at);
         Some(HoveredTooltip::text(self.owned_by(
             hit,
             owner,
