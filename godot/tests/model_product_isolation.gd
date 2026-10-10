@@ -76,7 +76,8 @@ func capture_display(display: int, index: Dictionary) -> bool:
 		fail("Display %d: model source/hash differs from actual-build receipt: %s" % [display, source])
 		return false
 	var meshes := 0
-	for mesh in model.find_children("*", "MeshInstance3D", true, false):
+	for child in model.find_children("*", "MeshInstance3D", true, false):
+		var mesh := child as MeshInstance3D
 		if mesh.is_visible_in_tree():
 			meshes += 1
 	if meshes == 0:
