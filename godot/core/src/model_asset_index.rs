@@ -95,6 +95,10 @@ fn validate_receipt(receipt: &ModelAssetReceipt) -> Result<(), String> {
             receipt.path
         ));
     }
+    validate_receipt_fields(receipt)
+}
+
+fn validate_receipt_fields(receipt: &ModelAssetReceipt) -> Result<(), String> {
     let hashes_valid = is_hex(&receipt.build_key, 32)
         && is_hex(&receipt.sha256, 64)
         && is_hex(&receipt.content_key, 32);
