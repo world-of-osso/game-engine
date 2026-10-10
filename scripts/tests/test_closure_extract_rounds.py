@@ -4,43 +4,87 @@ import sys
 import subprocess
 import tempfile
 import unittest
+
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from asset_closure import Closure
-from closure_extract_rounds import fixed_point
+from closure_extract_rounds import fixed_point, count_retryable
 
 
 class FixedPointTests(unittest.TestCase):
+    def test_recorded_indexed_failures_do_not_force_another_extraction_round(self):
+        failures = {8: "encrypted/unknown TACT key"}
+        initial = {
+            "summary": {"missing": 2},
+            "assets": [{"fdid": 8, "present": False}, {"fdid": 9, "present": False}],
+        }
+        after = {
+            "summary": {"missing": 1},
+            "assets": [{"fdid": 8, "present": False}, {"fdid": 9, "present": True}],
+        }
+
+        def count(manifest):
+            statuses = {
+                a["fdid"]: "local_index_present"
+                for a in manifest["assets"]
+                if not a["present"]
+            }
+            return count_retryable(statuses, failures)
+
+        rounds = []
+        result = fixed_point(
+            initial,
+            lambda m, n: {"files": int(not m["assets"][1]["present"])},
+            lambda: after,
+            count,
+            rounds.append,
+        )
+        self.assertEqual(result["summary"]["missing"], 1)
+        self.assertEqual([(r["before"], r["after"]) for r in rounds], [(1, 0)])
+
     def test_missing_expandable_descendants_are_extracted_in_later_rounds(self):
         with tempfile.TemporaryDirectory() as directory:
             data = Path(directory)
-            paths = {1: 'world/map.wdt', 2: 'world/tile.adt', 3: 'texture.blp'}
+            paths = {1: "world/map.wdt", 2: "world/tile.adt", 3: "texture.blp"}
+
             def chunk(tag, payload):
-                return tag + struct.pack('<I', len(payload)) + payload
-            payloads = {1: chunk(b'DIAM', struct.pack('<8I', 2, 0, 0, 0, 0, 0, 0, 0)),
-                        2: chunk(b'DIDM', struct.pack('<I', 3)), 3: b'BLP2fixture'}
+                return tag + struct.pack("<I", len(payload)) + payload
+
+            payloads = {
+                1: chunk(b"DIAM", struct.pack("<8I", 2, 0, 0, 0, 0, 0, 0, 0)),
+                2: chunk(b"DIDM", struct.pack("<I", 3)),
+                3: b"BLP2fixture",
+            }
+
             def traverse():
-                graph = Closure(data, paths, 'wow', 'fixture')
-                graph.add(1, 'wdt', 'map root')
+                graph = Closure(data, paths, "wow", "fixture")
+                graph.add(1, "wdt", "map root")
                 return graph.run()
+
             def extract(manifest, round_number):
                 files = 0
-                for asset in manifest['assets']:
-                    if not asset['present']:
-                        target = data / asset['locations'][0]
+                for asset in manifest["assets"]:
+                    if not asset["present"]:
+                        target = data / asset["locations"][0]
                         target.parent.mkdir(parents=True, exist_ok=True)
-                        target.write_bytes(payloads[asset['fdid']])
+                        target.write_bytes(payloads[asset["fdid"]])
                         files += 1
-                return {'files': files}
+                return {"files": files}
+
             rounds = []
-            result = fixed_point(traverse(), extract, traverse,
-                                 lambda m: m['summary']['missing'], rounds.append)
-            self.assertEqual(result['summary']['present'], 3)
-            self.assertEqual(result['summary']['missing'], 0)
-            self.assertEqual([r['before'] for r in rounds], [1, 1, 1])
-            self.assertEqual([r['after'] for r in rounds], [1, 1, 0])
+            result = fixed_point(
+                traverse(),
+                extract,
+                traverse,
+                lambda m: m["summary"]["missing"],
+                rounds.append,
+            )
+            self.assertEqual(result["summary"]["present"], 3)
+            self.assertEqual(result["summary"]["missing"], 0)
+            self.assertEqual([r["before"] for r in rounds], [1, 1, 1])
+            self.assertEqual([r["after"] for r in rounds], [1, 1, 0])
 
     def test_graph_replacement_completes_with_room_for_one_manifest(self):
-        code = '''
+        code = """
 from pathlib import Path
 import resource
 import os
@@ -53,21 +97,33 @@ result = fixed_point({'summary': {'missing': 1}, 'payload': b'x' * (24 * 1024 * 
                      lambda: {'summary': {'missing': 0}, 'done': True, 'payload': b'y' * (24 * 1024 * 1024)},
                      lambda m: 0 if m.get('done') else 1, lambda r: None)
 print(len(result['payload']))
-'''
-        result = subprocess.run([sys.executable, '-c', code],
-                                cwd=Path(__file__).resolve().parents[1],
-                                text=True, capture_output=True, check=False)
+"""
+        result = subprocess.run(
+            [sys.executable, "-c", code],
+            cwd=Path(__file__).resolve().parents[1],
+            text=True,
+            capture_output=True,
+            check=False,
+        )
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertEqual(result.stdout.strip(), str(24 * 1024 * 1024))
 
     def test_indexed_failure_stops_without_claiming_missing_bytes_present(self):
-        manifest = {'summary': {'missing': 1}, 'assets': [{'fdid': 8, 'present': False}]}
+        manifest = {
+            "summary": {"missing": 1},
+            "assets": [{"fdid": 8, "present": False}],
+        }
         rounds = []
-        result = fixed_point(manifest, lambda m, n: {'files': 0}, lambda: manifest,
-                             lambda m: m['summary']['missing'], rounds.append)
-        self.assertEqual(result['summary']['missing'], 1)
+        result = fixed_point(
+            manifest,
+            lambda m, n: {"files": 0},
+            lambda: manifest,
+            lambda m: m["summary"]["missing"],
+            rounds.append,
+        )
+        self.assertEqual(result["summary"]["missing"], 1)
         self.assertEqual(len(rounds), 1)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     unittest.main()
