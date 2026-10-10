@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Offline asset closure](systems/offline-asset-closure.md) — extracted-only Northshire/Human-Warrior graph, configurable full-catalog roots, explicit provenance/unresolved boundaries and approximate inventory sizes.
+
 - [Zephras sky/minimap diagnosis](investigations/zephras-sky-minimap.md) — map2991 listfile-only tile loss and wrong M2 dual-crossfade; shader/tile RED/GREEN and inspected rebuilt private before/after; whole-day sky parity unclaimed.
 
 [Native Skyborne recheck](systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09) — loaded roster visible; races95/96 enter world with sky defects, seven missing imported NPC profiles and two mixed-product M2 failures; source-isolated repair remains open.
