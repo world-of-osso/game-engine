@@ -689,7 +689,7 @@ fn blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
         elements.extend(rsx! { font_string {
             name: {DynName(format!("{prefix}{}Number", blip.unit))},
             text: {text.as_str()}, font: GameFont::FrizQuadrata, font_size: 10.0,
-            color: WHITE, justify_h: "CENTER", justify_v: "MIDDLE",
+            font_color: WHITE, justify_h: "CENTER", justify_v: "MIDDLE",
             width: BLIP_SIZE, height: BLIP_SIZE,
             pos_type: "absolute", left: x, top: y,
         }});

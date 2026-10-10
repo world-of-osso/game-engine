@@ -332,43 +332,9 @@ impl GameClient {
                 vignettes: &vignettes,
             },
         );
-        if matches!(
-            data.catalog.map(state.map_id).map(|map| map.kind),
-            Some(
-                game_engine_ui_model::ui_map_data::map_type::ZONE
-                    | game_engine_ui_model::ui_map_data::map_type::CONTINENT
-            )
-        ) {
-            for (&unit, status) in &self.account.quests.giver_status {
-                if !matches!(status, shared::protocol::QuestGiverStatus::Available(_)) {
-                    continue;
-                }
-                let Some(position) = self
-                    .replica
-                    .unit(unit)
-                    .and_then(|u| u.get::<shared::components::Position>())
-                else {
-                    continue;
-                };
-                let Some(world_map) = self.world_map_id else {
-                    continue;
-                };
-                let Some([x, y]) = data.catalog.map_position(
-                    state.map_id,
-                    world_map,
-                    engine_to_world([position.x, position.y, position.z]),
-                ) else {
-                    continue;
-                };
-                state.pins.push(MapPin {
-                    pin_type: MapPinType::QuestAvailable,
-                    label: self.npc_name(unit),
-                    badge: String::new(),
-                    x,
-                    y,
-                });
-            }
-        }
+        state
+            .pins
+            .extend(self.world_map_quest_offer_pins(&data.catalog, state.map_id));
         if let Some(corpse) = self.death_flow.corpse()
             && let Some([x, y]) = data.catalog.map_position(
                 state.map_id,
@@ -385,6 +351,49 @@ impl GameClient {
             });
         }
         Some(state)
+    }
+
+    fn world_map_quest_offer_pins(
+        &self,
+        catalog: &game_engine_ui_model::ui_map_data::UiMapCatalog,
+        map_id: u32,
+    ) -> Vec<MapPin> {
+        use game_engine_ui_model::ui_map_data::map_type;
+        let Some(world_map) = self.world_map_id else {
+            return Vec::new();
+        };
+        if !matches!(
+            catalog.map(map_id).map(|map| map.kind),
+            Some(map_type::ZONE | map_type::CONTINENT)
+        ) {
+            return Vec::new();
+        }
+        self.account
+            .quests
+            .giver_status
+            .iter()
+            .filter(|(_, status)| {
+                matches!(status, shared::protocol::QuestGiverStatus::Available(_))
+            })
+            .filter_map(|(&unit, _)| {
+                let position = self
+                    .replica
+                    .unit(unit)?
+                    .get::<shared::components::Position>()?;
+                let [x, y] = catalog.map_position(
+                    map_id,
+                    world_map,
+                    engine_to_world([position.x, position.y, position.z]),
+                )?;
+                Some(MapPin {
+                    pin_type: MapPinType::QuestAvailable,
+                    label: self.npc_name(unit),
+                    badge: String::new(),
+                    x,
+                    y,
+                })
+            })
+            .collect()
     }
 
     pub(super) fn load_world_map_data(&mut self) -> Result<(), String> {

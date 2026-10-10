@@ -387,3 +387,52 @@ fn completed_objective_does_not_keep_an_objective_pin() {
             .any(|p| p.pin_type == MapPinType::QuestObjective)
     );
 }
+
+#[test]
+fn real_worg_polygon_projects_into_elwynn_and_completion_replaces_it_with_turnin() {
+    let catalog = crate::quest_poi::QuestPoiCatalog::load(
+        &std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933"),
+    )
+    .unwrap();
+    let mut entry = quest("Beating Them Back!", false, Vec::new());
+    entry.quest_id = 28766;
+    let mut runtime = crate::quest_runtime::QuestRuntime::default();
+    runtime.log.push(entry);
+    runtime.watched.push(28766);
+    catalog.apply(&mut runtime.log);
+    let view = |runtime: &crate::quest_runtime::QuestRuntime| {
+        world_map_frame_state(
+            data(),
+            WorldMapRequest {
+                visible: true,
+                viewport: [1280.0, 720.0],
+                map_id: 37,
+                hovered: None,
+                player: None,
+                quests: &runtime.map_entries(),
+                quest_areas: &runtime.watched_objective_areas(),
+                vignettes: &[],
+            },
+        )
+    };
+    let active = view(&runtime);
+    assert_eq!(active.quest_areas.len(), 1);
+    assert_eq!(active.quest_areas[0].len(), 7);
+    // Independent UiMapAssignment39462 bounds, local DB2 point(-8894,-138).
+    let [u, v] = active.quest_areas[0][0];
+    assert!((u - 1673.420044 / 3470.840088).abs() < 0.00001);
+    assert!((v - 954.419922 / 2314.620117).abs() < 0.00001);
+    assert_eq!(active.pins[0].badge, "1");
+    let mut finished = runtime.log[0].clone();
+    finished.completed = true;
+    finished.objectives[0].completed = true;
+    runtime.apply_update(shared::protocol::QuestLogUpdate {
+        changed: vec![finished],
+        removed: Vec::new(),
+        watched_quest_ids: vec![28766],
+    });
+    let complete = view(&runtime);
+    assert!(complete.quest_areas.is_empty());
+    assert_eq!(complete.pins[0].pin_type, MapPinType::QuestTurnIn);
+    assert!(complete.pins[0].badge.is_empty());
+}

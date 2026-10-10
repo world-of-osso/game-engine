@@ -13,60 +13,44 @@ pub struct QuestPoiCatalog {
 }
 impl QuestPoiCatalog {
     pub fn load(dir: &Path) -> Result<Self, String> {
-        let mut points: HashMap<u32, Vec<QuestPoiPoint>> = HashMap::new();
-        read_numeric_rows(
-            &dir.join("QuestPOIPoint.csv"),
-            ["QuestPOIBlobID", "X", "Y"],
-            |[id, x, y]| {
-                points.entry(id as u32).or_default().push(QuestPoiPoint {
-                    x: x as i32,
-                    y: y as i32,
-                });
-            },
-        )?;
-        let mut rows = Vec::new();
-        read_numeric_rows(
-            &dir.join("QuestPOIBlob.csv"),
-            [
-                "ID",
-                "QuestID",
-                "MapID",
-                "UiMapID",
-                "ObjectiveIndex",
-                "Flags",
-                "NumPoints",
-                "PlayerConditionID",
-            ],
-            |row| rows.push(row),
-        )?;
+        let mut points = load_points(dir)?;
+        let rows = load_blob_rows(dir)?;
         let mut catalog = Self::default();
-        for [id, quest, map, ui_map, objective, flags, count, condition] in rows {
-            let pois = catalog.quests.entry(quest as u32).or_default();
-            // Condition evaluation is not implemented; never display a conditional shape.
-            if condition != 0 {
-                catalog.conditional_blobs += 1;
-                continue;
-            }
-            let polygon = points.remove(&(id as u32)).unwrap_or_default();
-            if polygon.len() != count as usize {
-                catalog.unresolved.push(format!(
-                    "QuestPOIBlob {id}: expected {count} points, found {}; excluded",
-                    polygon.len()
-                ));
-                continue;
-            }
-            pois.push(QuestPoiSnapshot {
-                objective_index: objective as i32,
-                map_id: map as u32,
-                world_map_area_id: ui_map as u32,
-                floor: 0,
-                priority: 0,
-                flags: flags as u32,
-                points: polygon,
-            });
+        for row in rows {
+            catalog.insert_blob(row, &mut points);
         }
         Ok(catalog)
     }
+    fn insert_blob(
+        &mut self,
+        [id, quest, map, ui_map, objective, flags, count, condition]: [i64; 8],
+        points: &mut HashMap<u32, Vec<QuestPoiPoint>>,
+    ) {
+        let pois = self.quests.entry(quest as u32).or_default();
+        // Condition evaluation is not implemented; never display a conditional shape.
+        if condition != 0 {
+            self.conditional_blobs += 1;
+            return;
+        }
+        let polygon = points.remove(&(id as u32)).unwrap_or_default();
+        if polygon.len() != count as usize {
+            self.unresolved.push(format!(
+                "QuestPOIBlob {id}: expected {count} points, found {}; excluded",
+                polygon.len()
+            ));
+            return;
+        }
+        pois.push(QuestPoiSnapshot {
+            objective_index: objective as i32,
+            map_id: map as u32,
+            world_map_area_id: ui_map as u32,
+            floor: 0,
+            priority: 0,
+            flags: flags as u32,
+            points: polygon,
+        });
+    }
+
     pub fn apply(&self, entries: &mut [QuestEntrySnapshot]) {
         for entry in entries {
             if let Some(pois) = self.quests.get(&entry.quest_id) {
@@ -76,6 +60,40 @@ impl QuestPoiCatalog {
             }
         }
     }
+}
+
+fn load_points(dir: &Path) -> Result<HashMap<u32, Vec<QuestPoiPoint>>, String> {
+    let mut points: HashMap<u32, Vec<QuestPoiPoint>> = HashMap::new();
+    read_numeric_rows(
+        &dir.join("QuestPOIPoint.csv"),
+        ["QuestPOIBlobID", "X", "Y"],
+        |[id, x, y]| {
+            points.entry(id as u32).or_default().push(QuestPoiPoint {
+                x: x as i32,
+                y: y as i32,
+            });
+        },
+    )?;
+    Ok(points)
+}
+
+fn load_blob_rows(dir: &Path) -> Result<Vec<[i64; 8]>, String> {
+    let mut rows = Vec::new();
+    read_numeric_rows(
+        &dir.join("QuestPOIBlob.csv"),
+        [
+            "ID",
+            "QuestID",
+            "MapID",
+            "UiMapID",
+            "ObjectiveIndex",
+            "Flags",
+            "NumPoints",
+            "PlayerConditionID",
+        ],
+        |row| rows.push(row),
+    )?;
+    Ok(rows)
 }
 
 pub fn quest_minimap_blips(

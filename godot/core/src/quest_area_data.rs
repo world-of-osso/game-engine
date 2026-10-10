@@ -48,30 +48,7 @@ pub fn quest_area_overlay(
                 ..((max[0] + RIM_PX).ceil().min(width as f32) as u32);
             for px in columns {
                 let point = [px as f32 + 0.5, py as f32 + 0.5];
-                let mut color = [0u8; 4];
-                if inside(polygon, point) {
-                    color = sample(
-                        &art.fill,
-                        [
-                            (px % art.fill.width) as f32 / art.fill.width as f32,
-                            (py % art.fill.height) as f32 / art.fill.height as f32,
-                        ],
-                    );
-                    color[3] =
-                        ((u16::from(color[3]) * if highlighted { 180 } else { 128 }) / 255) as u8;
-                }
-                let distance = edge_distance(polygon, point);
-                if distance <= RIM_PX {
-                    let rim = if highlighted {
-                        &art.selected_rim
-                    } else {
-                        &art.rim
-                    };
-                    let mut border = sample(rim, [0.5, distance / RIM_PX]);
-                    border[3] =
-                        ((u16::from(border[3]) * if highlighted { 255 } else { 192 }) / 255) as u8;
-                    color = over(color, border);
-                }
+                let color = polygon_pixel(polygon, point, art, highlighted);
                 let offset = ((py * width + px) * 4) as usize;
                 if color[3] > overlay[offset + 3] {
                     overlay[offset..offset + 4].copy_from_slice(&color);
@@ -80,6 +57,40 @@ pub fn quest_area_overlay(
         }
     }
     overlay
+}
+
+fn polygon_pixel(
+    polygon: &[[f32; 2]],
+    point: [f32; 2],
+    art: &QuestAreaArt,
+    highlighted: bool,
+) -> [u8; 4] {
+    let mut color = [0; 4];
+    if inside(polygon, point) {
+        let [x, y] = point;
+        color = sample(
+            &art.fill,
+            [
+                (x.floor() as u32 % art.fill.width) as f32 / art.fill.width as f32,
+                (y.floor() as u32 % art.fill.height) as f32 / art.fill.height as f32,
+            ],
+        );
+        let fill_alpha = if highlighted { 180 } else { 128 };
+        color[3] = (u16::from(color[3]) * fill_alpha / 255) as u8;
+    }
+    let distance = edge_distance(polygon, point);
+    if distance <= RIM_PX {
+        let rim = if highlighted {
+            &art.selected_rim
+        } else {
+            &art.rim
+        };
+        let mut border = sample(rim, [0.5, distance / RIM_PX]);
+        let border_alpha = if highlighted { 255 } else { 192 };
+        border[3] = (u16::from(border[3]) * border_alpha / 255) as u8;
+        color = over(color, border);
+    }
+    color
 }
 
 fn over(base: [u8; 4], top: [u8; 4]) -> [u8; 4] {
