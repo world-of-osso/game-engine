@@ -151,6 +151,8 @@ Local uses installed Arch Cargo/rustc 1.98.1 without rustup; desktop uses pinned
 
 ## Server builds and tests
 
+Server source snapshots preserve tracked `.cargo/config.toml` and the entire tracked `vendor/recastnavigation-sys/` tree, including hidden build inputs, CMakeLists/templates and inline C++. Untracked non-source vendor files remain excluded. `scripts/tests/test_desktop_server_build.py` exercises the release snapshot/export boundary. Bookworm release proof (2026-10-10): engine958294c62 with serverc2774c5/shared75fe6a4, all three binaries linked; server GLIBC ceiling2.35 (admin/client2.34). Evidence: `data/diagnostics/navmesh-release-2026-10-10/`; [server shipping](../../game-server/docs/deploy.md) remains lead-owned.
+
 `scripts/desktop-server-build.py` selects its host like the extension helper: `--build-host desktop|local`, else the saved `~/.config/game-engine/build-host`. `--test` uses the same selection.
 
 ```sh
