@@ -3014,3 +3014,7 @@ Updated [private headless recipe](../headless-live-run.md) to link server deploy
 ## 2026-10-10 — Client spell overrides
 
 Recorded native aura332 presentation and animation replacement-set hook gap; ground/live proof pending.
+
+## 2026-10-10 — Scoped client override/teleport proof
+
+Recorded pure override/book cooldown and destination tests, both-skin private Blink wall captures, class-spell setup blocker, inherited formatter failures and incomplete cold cargo check. See [coverage](systems/spell-overrides-teleports.md#scoped-acceptance-2026-10-10).
