@@ -61,6 +61,9 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
         return Vec::new();
     }
     let mut parts = Vec::new();
+    if project_panel_button(frame, width, height, &mut parts) {
+        return parts;
+    }
     let rect = [0.0, 0.0, width, height];
     if let Some(skin) = button_skin(frame) {
         // The original generated button nine-slice scales its atlas margins by
@@ -84,6 +87,48 @@ pub fn project_images(frame: &Frame, width: f32, height: f32) -> Vec<ImagePart> 
     project_border(frame, width, height, &mut parts);
     project_highlight(frame, width, height, &mut parts);
     parts
+}
+
+/// SecureUIPanelTemplates.xml: fixed12px caps on the cropped80×22 sheet member.
+/// The atlas nine-slice path is different art and must not stretch these legacy files.
+fn project_panel_button(
+    frame: &Frame,
+    width: f32,
+    height: f32,
+    parts: &mut Vec<ImagePart>,
+) -> bool {
+    let Some(WidgetData::Button(button)) = &frame.widget_data else {
+        return false;
+    };
+    let Some(source @ TextureSource::FileDataId(130824 | 130825 | 130828)) =
+        select_button_base_texture_source(button)
+    else {
+        return false;
+    };
+    let cap = 12.0 * height / 22.0;
+    for (x, w, left, right) in [
+        (0.0, cap, 0.0, 0.09375),
+        (cap, width - 2.0 * cap, 0.09375, 0.53125),
+        (width - cap, cap, 0.53125, 0.625),
+    ] {
+        parts.push(textured(
+            [x, 0.0, w, height],
+            source.clone(),
+            Crop::Normalized([left, right, 0.0, 0.6875]),
+            WHITE,
+        ));
+    }
+    if button.hovered && button.state != ButtonState::Disabled {
+        let mut highlight = textured(
+            [0.0, 0.0, width, height],
+            TextureSource::FileDataId(130826),
+            Crop::Normalized([0.0, 0.625, 0.0, 0.6875]),
+            WHITE,
+        );
+        highlight.additive = true;
+        parts.push(highlight);
+    }
+    true
 }
 
 /// Button text; font strings and edit boxes are projected by native Godot controls.
