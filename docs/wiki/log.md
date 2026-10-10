@@ -1,3 +1,7 @@
+## 2026-10-10 — Disenchant bag-item cursor
+
+[Disenchant](systems/disenchant.md) records item targeting before bag actions, GUID intents, cancellation, personal-loot auto taking and ABI initializers. Native ui-model5/5 passes; extension compile proof in handoff. Rendered routing not performed; no realm/service/merge changes.
+
 ## 2026-10-10 — Native compile-speed evidence
 ## 2026-10-09 — Source-qualified runtime wiring and nested parser identity
 
