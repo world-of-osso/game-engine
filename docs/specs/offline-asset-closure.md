@@ -38,7 +38,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 ## Known gaps (current cycle)
 
-Round 3 completed extraction/owned-receipt evidence on2026-10-10: **970,356 present /2,302 missing /5,024 unresolved**. [Final dataset and proof](../wiki/systems/offline-asset-closure.md#round-3-final-dataset--verified-2026-10-10) preserve all per-class counts, source drift and hashes;3,643 metadata gaps and1,297 unexpanded dependency records remain. Existing69 fixtures at20787e177 remain valid; task-only staged recovery does not establish production-driver memory acceptance or no-install gameplay.
+Round 4 reached the locally recoverable fixed point on2026-10-10. [Current dataset, residual reasons and proof](../wiki/systems/offline-asset-closure.md#round-4-local-fixed-point--verified-2026-10-10) own counts, input drift, hashes and bounded runtime-index publication. Root-absent dependencies, unreadable metadata, legacy provenance and runtime acceptance remain open; task-only process isolation does not establish production-driver memory acceptance.
 
 - [ ] Legacy extracted files have no authenticated product/actual-build receipts. Hashing proves local bytes, not origin. Manifest identity remains unverified.
 - [x] Inspect every ADT MCNK and MH2O instance; resolve MCLY ground effects through GroundEffectTexture/Doodad and liquids through LiquidObject/Type/XTexture, including renderer-global textures. Record inline-only chunks and zero-instance liquids as not-needed with evidence; missing required joins/unknown chunks stay unresolved. Absent optional ground-effect rows are not-needed only when the CSV is present and hashed and the current runtime skips the row before any model request; ignored MPTX/legacy MCLQ chunks are explicitly scoped to current runtime support, not Retail-format completeness.
@@ -55,6 +55,11 @@ Round 3 completed extraction/owned-receipt evidence on2026-10-10: **970,356 pres
 Separate opt-in `scripts/recheck_local_asset_gaps.py` consumes a recorded product/FDID/path inventory. It resolves the active build through authenticated local root/encoding metadata and IDX bounds, retries payloads in private staging, rejects unknown-key output, and publishes through the existing atomic no-clobber receipt path. Existing files must remain untouched; conflicts and invalid identities remain visible. It never imports server tables or fetches assets remotely.
 
 `scripts/tests/test_recheck_local_asset_gaps.py` covers real extractor-process publication, unknown-key rejection, and conflicting existing-file preservation.
+
+## Local metadata recovery
+
+- ModelFileData export accepts the pinned Retail `2AE4E788` layout, retaining inline FileDataIDs after the bounding box and authored resource/flags/LOD values. Wrong layouts fail before CSV creation.
+- Recovered CSVs use distinct paths selected explicitly by the closure config; existing metadata CSVs and display/customization caches remain untouched. Readable encrypted-table sections do not certify complete metadata or authenticate zero-filled records.
 
 ## Out of scope
 

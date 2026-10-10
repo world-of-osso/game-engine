@@ -9,8 +9,10 @@ import argparse
 import csv
 import hashlib
 import json
+import os
 from pathlib import Path
 import sqlite3
+import tempfile
 
 from import_forever_skyborne import validate_magic
 
@@ -99,9 +101,15 @@ def write_asset_files(data, verified):
     for receipt, raw in verified:
         path = data / receipt["path"]
         path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = path.with_suffix(path.suffix + ".importing")
-        temporary.write_bytes(raw)
-        temporary.replace(path)
+        with tempfile.NamedTemporaryFile(dir=path.parent, prefix=".model-asset-") as temporary:
+            temporary.write(raw)
+            temporary.flush()
+            os.fsync(temporary.fileno())
+            try:
+                os.link(temporary.name, path)
+            except FileExistsError:
+                if path.read_bytes() != raw:
+                    raise ValueError(f"conflicting existing asset: {path}")
 
 
 def write_asset_index(data, identity, staged, verified, aliases):

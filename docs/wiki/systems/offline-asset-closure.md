@@ -134,6 +134,38 @@ Sibling asset-resolver's `scripts/import_dbcache_keys.py` joins16-byte TactKey p
 
 Reexports preserve existing CSVs. Retail candidates under `data/db2/12.1.0.69933/recheck-forever70338/` expose Vehicle+6, VehicleSeat+8 and GlobalStrings+65 IDs relative to the recorded/current CSVs. Creature's43-row gain over its older handoff is already present in canonical CSV. Forever reexports use distinct1.60.1.70338 paths. No world.db import or live acceptance performed.
 
+## Round 4 local fixed point — verified 2026-10-10
+
+Evidence: `data/diagnostics/closure-round4-2026-10-10/`. Three standalone full-catalog traversals completed; extraction and graph heaps never overlapped. The final authenticated local-root recheck has **zero retryable identities**. This means locally available bytes reached a fixed point, not that the no-install target is complete.
+
+| Graph metric | Round 3 | Round 4 |
+|---|---:|---:|
+| Present identities | 970,356 | 970,584 |
+| Missing identities | 2,302 | 2,127 |
+| Unresolved records | 5,024 | 4,993 |
+| Total identities | 972,658 | 972,711 |
+| Present identity bytes | 143,732,207,363 | 143,760,566,463 |
+
+| Boundary | Before → after | Proof / remaining reason |
+|---|---|---|
+| Unexpanded dependencies | 1,297 → 1,290 | Seven IV8 ADTs recovered and expanded. All remaining records reference FDIDs absent from the authenticated Retail root:1,164 ADT,105 WDT,21 M2. |
+| Metadata gaps | 3,643 → 3,640 | Two SpellVisualEffectName rows and ModelResourcesID85100 recovered. Refreshed ModelFileData exposes11 M2 roots; their41 skins/one texture expanded/extracted. |
+| Unknown sounds | 22 → 0 | Authentic bytes identify Ogg; required Ogg aliases published. |
+| Alias conflicts / client-scene scripts | 27 /19 → unchanged | Conflicting bytes preserved; script semantics not implemented. Six non-M2 headers/four unmapped paths also unchanged. |
+| Provenance / policy | Not certified | 972,711 legacy graph identities unverified; two cache/three metadata markers and two reachability policies remain. Diagnostic CSV overrides add one metadata-build marker; receipts do not suppress it. |
+
+Remaining missing identities are **2,126 root-absent positive FDIDs plus invalid FDID−1**, not encrypted payloads. All175 formerly rejected IV8 identities now have authenticated bytes. Metadata classification preserves every record:3,382 SpellMisc spell joins absent from readable raw records (417,635 parent joins exactly match pinned CSV;55 encrypted rows withheld),247 missing readable CreatureDisplayInfo rows (10 withheld), four SoundKitEntry kit joins (2,537 withheld), and seven item-resource joins absent from complete authenticated ModelFileData/TextureFileData. Membership in an encrypted remainder is explicitly unproven, not asserted absent. `metadata-classification.json` and `final-residuals.json` own the per-record reasons.
+
+Separate CSVs are selected by evidence `closure-config.json`; existing metadata is not overwritten. ModelFileData's pinned `2AE4E788` exporter retains inline FDIDs after the six-float bounding box, resource/flags/LOD values and rejects other layouts. `48fb38b10` has concrete synthetic CLI RED2/GREEN2. Readable sections of key-rejected DB2 staging may supply CSV rows but are never published as authenticated complete DB2s.
+
+Publication creates **330 legacy/runtime-alias/raw-DB2 paths /44,418,564 bytes**, excluding scoped-index publication. Root/key/size proofs for each phase pass;789 requested readable paths have matching MD5/SHA-256 receipts. This is bounded publication proof, not whole-ledger/legacy-origin authentication. `summary.json`, `publication-proof.json`, `frontier{-2,}-proof.json` and `receipt-proof.json` preserve exact scope.
+
+Runtime-miss recovery uses the [product-isolated importer](../../specs/product-isolated-model-assets.md): derived index **3,386 →3,774 entries**,319 aliases retained,477 requested entries verified in actual-build product namespaces. Backup: `data/cache/model-asset-index.json.pre-closure4-20261010`. `ac34ad95e` changes asset publication to atomic no-clobber links: equal bytes preserve their inode; differing bytes fail explicitly. RED2/GREEN7 and full Python **280 run /277 pass /3 skipped, exit0** at that revision; inherited ResourceWarnings remain visible. No extension build or independent verifier PASS claimed.
+
+Three preserved legacy M2 conflicts (`119369`, `119376`, `1000764`) have no closure receipts and match neither Retail69933 nor authenticated cached/current Forever70291/70338 roots. Their original writer/build is unknown, not guessed Forever. Authenticated Retail copies coexist in scoped paths. Runtime `200010.m2` recovered; `8203433.blp` remains root-absent. Display145204/145205 exists in pinned CSV and readable raw CDI but not the runtime cache; no display-cache rewrite. Scoped index publication covers recorded requests, **not complete model chains or runtime acceptance**.
+
+Final manifest `manifest-3.json` SHA-256 **`8349cd5eb377bcf911269ef6d1a22aabc38a25c9e7b52ed5a2a7f292fa4448ac`**. World-selection fingerprint remains `fa0ad2f2a1282570da12f8e54c948bdb9c5265ed4b156607dee937247c1cf0e5`; two explicit CSV inputs replace their previous paths. Shared `cache/npc_appearance.sqlite` changed concurrently; exact hashes in `source-drift.json`. No immutable/pristine dataset, master merge, world.db write, download, runtime/P3/P4 or no-install certificate.
+
 ## Sources
 
 - [Contract](../../specs/offline-asset-closure.md).
@@ -142,6 +174,7 @@ Reexports preserve existing CSVs. Retail candidates under `data/db2/12.1.0.69933
 - WoWDBDefs `meta/enums/SpellVisualKitEffectType.dbde` and exact-build `definitions/*.dbd`; source hashes in the evidence root. NPC bake selection follows `scripts/import_npc_appearance.py`; WMO liquid identity/request ordering follows `godot/core/src/wmo_liquid.rs` and `godot/rust/src/terrain/wmo_liquid.rs`.
 - wowdev/pywowlib `m2_file.py` / `file_formats/m2_format.py` — BFID `.bone` arrays and PFID `.phys` identity, collected without claiming runtime satellite support.
 - `scripts/recheck_local_asset_gaps.py`, `scripts/tests/test_recheck_local_asset_gaps.py`; recovery evidence above includes per-FDID results, native logs and CSV candidates.
+- `scripts/tests/test_model_file_data_export.py`, `scripts/import_model_asset_chains.py`, `scripts/tests/test_model_asset_provenance.py`; round-4 inline-ID and scoped no-clobber behavioral proofs.
 - `godot/core/src/asset/{adt,m2,wmo}_format/` — current binary layouts and flags; WMO material shader 19/20 texture slots reference WebWowViewerCpp in parser_types.rs.
 - Sibling `game-server/crates/server/src/{player_create_info.rs,class_progression.rs,spell_info/class_data.rs}` — imported loadout and auto-learn/default-skill rules; source comments cite TrinityCore ObjectMgr/Player.
 
