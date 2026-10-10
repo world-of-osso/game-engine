@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Passenger mounts](systems/mounts.md#passenger-mounts) — local seat enums, authoritative group occupancy, model-aligned seat transforms and native Ride/leave control; acceptance owned by the [contract](../specs/passenger-mounts.md).
+
 - [Native dev rebuild timings](investigations/native-dev-build-timings.md) — warm workspace test compilation 37.75s → 14.21s with one UI harness; unchanged 2689-test inventory, relocated-cache and linker-profiling limits.
 
 ## October 9 reconciliation
