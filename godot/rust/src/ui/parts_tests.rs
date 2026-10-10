@@ -13,6 +13,38 @@ fn atlas(name: &str) -> Option<TextureSource> {
 }
 
 #[test]
+fn retail_panel_button_preserves_12px_caps_and_crops_unused_sheet_area() {
+    for (state, fdid) in [
+        (ButtonState::Normal, 130828),
+        (ButtonState::Pushed, 130825),
+        (ButtonState::Disabled, 130824),
+    ] {
+        let frame = button(ButtonData {
+            state,
+            normal_texture: Some(TextureSource::FileDataId(130828)),
+            pushed_texture: Some(TextureSource::FileDataId(130825)),
+            disabled_texture: Some(TextureSource::FileDataId(130824)),
+            ..Default::default()
+        });
+        let images = project_images(&frame, 164.0, 22.0);
+        assert_eq!(images.len(), 3);
+        for (image, rect, crop) in images
+            .iter()
+            .zip([
+                ([0.0, 0.0, 12.0, 22.0], [0.0, 0.09375, 0.0, 0.6875]),
+                ([12.0, 0.0, 140.0, 22.0], [0.09375, 0.53125, 0.0, 0.6875]),
+                ([152.0, 0.0, 12.0, 22.0], [0.53125, 0.625, 0.0, 0.6875]),
+            ])
+            .map(|(image, (rect, crop))| (image, rect, crop))
+        {
+            assert_eq!(image.source, Some(TextureSource::FileDataId(fdid)));
+            assert_eq!(image.rect, rect);
+            assert_eq!(image.crop, Crop::Normalized(crop));
+        }
+    }
+}
+
+#[test]
 fn portrait_party_desaturated_health_projects_sampled_image_desaturation() {
     let mut frame = Frame::new(
         1,

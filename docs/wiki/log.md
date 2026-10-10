@@ -4,6 +4,11 @@
 ## 2026-10-10 — Native dev rebuild timings
 
 [Native dev rebuild investigation](investigations/native-dev-build-timings.md) separates relocated-cache KTX compilation from warm touch loops. One UI integration harness replaces 93 targets; workspace compilation 37.75s → 14.21s, extension 8.73s → 7.55s (no causal extension improvement claimed). Workspace inventory unchanged: 2681 passed, 8 ignored; link-only timing unavailable.
+## 2026-10-10 — Talent layout and Arms text
+
+[after2 correction](systems/talents.md#after2-rank-paint-and-exact-apply-art-2026-10-10):39ce84620 fixes Arial Narrow16/18 bottom glyph paint, apex outline clearance and exact Modern Apply legacy strips. Targeted27 passes; extracted-only81 captures/native checks, FFmpeg81 downscales and Arms/choice/apex both-skin inspection;81 after2 PNGs published,122 prior files unchanged. Unsupported Retail footer controls recorded rather than invented; verifier OAuth and inherited warnings remain.
+
+[Layout acceptance](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10) records worst105/257/270 and Arms REDs, spec-selector subtree membership, shared first-row baseline, Retail border/spend-text sizing,82px footer and native caption layering and corrected Mainline anchors/padded rim at74a6181cd. Targeted15 distinct passes (latest layout8/page2 plus source-identical core5); one offline client captures40×2 skins, native rect/visible-glyph80/80 and all FFmpeg downscales inspected before PNG-only publication. Live activation/persistence and full parity excluded;20 inherited macro warnings and expired verifier OAuth retained.
 
 ## 2026-10-09 — All40 talent views and shipped icon recapture
 
