@@ -3,6 +3,7 @@ use std::path::Path;
 use std::path::PathBuf;
 use std::sync::{Mutex, OnceLock};
 
+use crate::asset_product::AssetTexture;
 use crate::component_file_data::ComponentFileData;
 use crate::helmet_geoset_data::{
     HelmetGeosetRule, load_forever_helmet_rules, load_helmet_geoset_rules, load_retail_helmet_rules,
@@ -428,22 +429,19 @@ impl OutfitData {
         race: u8,
         sex: u8,
     ) -> Result<Vec<(u8, crate::asset_product::AssetTexture)>, String> {
+        let data = self.loaded_result()?;
         let display = self
-            .try_resolve_display_info(display_info_id, race, sex)?
+            .load_display_info(display_info_id)?
             .ok_or_else(|| format!("Display {display_info_id} missing"))?;
-        Ok(display
-            .item_textures
+        self.check_display_resources(&display)?;
+        display
+            .item_materials
             .into_iter()
-            .map(|(section, fdid)| {
-                (
-                    section,
-                    crate::asset_product::AssetTexture {
-                        product: crate::asset_product::AssetProduct::Retail,
-                        fdid,
-                    },
-                )
+            .map(|(section, material)| {
+                self.load_source_material_texture(data, material, race, sex)
+                    .map(|texture| (section, texture))
             })
-            .collect())
+            .collect()
     }
 
     pub fn load_source_model_textures(
@@ -453,19 +451,47 @@ impl OutfitData {
         race: u8,
         sex: u8,
     ) -> Result<Vec<(u32, crate::asset_product::AssetTexture)>, String> {
-        Ok(self
-            .resolve_model_texture_fdids(display_info_id, model_index, race, sex)?
+        let data = self.loaded_result()?;
+        data.model_materials
+            .get(&(display_info_id, model_index))
             .into_iter()
-            .map(|(kind, fdid)| {
-                (
-                    kind,
-                    crate::asset_product::AssetTexture {
-                        product: crate::asset_product::AssetProduct::Retail,
-                        fdid,
-                    },
-                )
+            .flatten()
+            .map(|&(kind, material)| {
+                self.load_source_material_texture(data, material, race, sex)
+                    .map(|texture| (kind, texture))
             })
-            .collect())
+            .collect()
+    }
+
+    pub fn load_source_skin_textures(
+        &self,
+        display_info_id: u32,
+        race: u8,
+        sex: u8,
+    ) -> Result<Vec<AssetTexture>, String> {
+        let data = self.loaded_result()?;
+        let display = self
+            .load_display_info(display_info_id)?
+            .ok_or_else(|| format!("Display {display_info_id} missing"))?;
+        display
+            .model_material_resource_ids
+            .into_iter()
+            .map(|material| self.load_source_material_texture(data, material, race, sex))
+            .collect()
+    }
+
+    fn load_source_material_texture(
+        &self,
+        data: &LoadedOutfitData,
+        material: u32,
+        race: u8,
+        sex: u8,
+    ) -> Result<AssetTexture, String> {
+        let fdid = self
+            .material_texture_fdid(data, material, race, sex)
+            .ok_or_else(|| format!("Material {material}: no texture for race {race} sex {sex}"))?;
+        let product = self.load_resource_product("material_textures", material)?;
+        Ok(AssetTexture { product, fdid })
     }
 
     pub fn load_column_products(
