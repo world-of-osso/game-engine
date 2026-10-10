@@ -67,6 +67,8 @@ pub struct PetJournalView {
     pub collected_only: bool,
     pub pending: bool,
     pub error: String,
+    pub queue: shared::protocol::PetBattleQueueState,
+    pub queue_pending: bool,
 }
 impl Default for PetJournalView {
     fn default() -> Self {
@@ -83,10 +85,56 @@ impl Default for PetJournalView {
             collected_only: false,
             pending: false,
             error: String::new(),
+            queue: shared::protocol::PetBattleQueueState::Idle,
+            queue_pending: false,
         }
     }
 }
 impl PetJournalView {
+    pub fn queue_ready(&self) -> bool {
+        matches!(
+            self.queue,
+            shared::protocol::PetBattleQueueState::Proposal {
+                accepted: false,
+                ..
+            }
+        )
+    }
+    pub fn queue_action(
+        &mut self,
+        action: &str,
+    ) -> Option<shared::protocol::PetBattleQueueRequest> {
+        use shared::protocol::{PetBattleQueueRequest as Request, PetBattleQueueState as State};
+        if self.queue_pending {
+            return None;
+        }
+        let request = match (action, self.queue) {
+            ("pet:find-battle", State::Idle)
+                if self.journal.battle_slots.iter().all(Option::is_some) =>
+            {
+                Request::Join
+            }
+            ("pet:find-battle", State::Queued | State::Proposal { .. }) => Request::Leave,
+            (
+                "pet:queue-accept",
+                State::Proposal {
+                    proposal_id,
+                    accepted: false,
+                },
+            ) => Request::Accept { proposal_id },
+            ("pet:queue-decline", State::Proposal { proposal_id, .. }) => {
+                Request::Decline { proposal_id }
+            }
+            _ => return None,
+        };
+        self.queue_pending = true;
+        Some(request)
+    }
+    pub fn receive_queue(&mut self, update: shared::protocol::PetBattleQueueUpdate) {
+        self.queue = update.state;
+        self.queue_pending = false;
+        self.error = update.error.unwrap_or_default();
+    }
     pub fn receive(&mut self, update: CollectionStateUpdate) {
         if let Some(snapshot) = update.snapshot {
             self.catalog = snapshot
@@ -216,9 +264,12 @@ impl PetJournalView {
 
 pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
     let _ = ctx.get::<ui_toolkit::atlas::ActiveSkin>();
-    let Some(view) = ctx.get::<PetJournalView>().filter(|view| view.visible) else {
+    let Some(view) = ctx.get::<PetJournalView>() else {
         return vec![];
     };
+    if !view.visible {
+        return queue_popup(view);
+    }
     let mut children = Vec::new();
     children.extend(label(
         "PetJournalPetCount".into(),
@@ -233,7 +284,9 @@ pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
     children.extend(journal_buttons(view));
     let body = rsx! { r#frame { name: "PetJournal", width: 703.0, height: 606.0,
     left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: false, {children} } };
-    crate::collections_component::collections_shell(view.viewport, 1, body)
+    let mut out = crate::collections_component::collections_shell(view.viewport, 1, body);
+    out.extend(queue_popup(view));
+    out
 }
 fn search_box() -> Element {
     rsx! { editbox { name: "PetJournalSearchBox", width: 145.0, height: 20.0,
@@ -373,7 +426,9 @@ fn battle_slots(view: &PetJournalView) -> Element {
             format!("PetJournalBattleSlot{slot}"),
             &text,
             &format!("pet:equip:{slot}"),
-            selected_owned && !view.pending,
+            selected_owned
+                && !view.pending
+                && view.queue == shared::protocol::PetBattleQueueState::Idle,
             (292.0, top, 405.0, 92.0),
         ));
     }
@@ -392,10 +447,75 @@ fn journal_buttons(view: &PetJournalView) -> Element {
     );
     out.extend(panel_button(
         "PetJournalFindBattle".into(),
-        "Find Battle",
-        "",
-        false,
+        if matches!(
+            view.queue,
+            shared::protocol::PetBattleQueueState::Queued
+                | shared::protocol::PetBattleQueueState::Proposal { .. }
+        ) {
+            "Leave Queue"
+        } else {
+            "Find Battle"
+        },
+        "pet:find-battle",
+        !view.queue_pending
+            && view.queue != shared::protocol::PetBattleQueueState::InBattle
+            && view.journal.battle_slots.iter().all(Option::is_some),
         (563.0, 584.0, 140.0, 22.0),
     ));
     out
+}
+
+fn queue_popup(view: &PetJournalView) -> Element {
+    if !view.queue_ready() {
+        return vec![];
+    }
+    let left = view.viewport[0] / 2.0 - 160.0;
+    let top = view.viewport[1] / 2.0 - 100.0;
+    let mut children = texture(
+        "PetBattleQueueBackground".into(),
+        6_839_810,
+        (7.0, 7.0, 306.0, 186.0),
+        WHITE,
+    );
+    children.extend(
+        rsx! { r#frame { name: "PetBattleQueueBorder", width: 320.0, height: 200.0,
+        style: "static_popup", pos_type: "absolute", left: 0.0, top: 0.0, frame_level: 5.0 } },
+    );
+    children.extend(texture(
+        "PetBattleQueueArt".into(),
+        655474,
+        (32.0, 20.0, 256.0, 100.0),
+        WHITE,
+    ));
+    children.extend(label(
+        "PetBattleQueueLabel".into(),
+        "A pet battle is ready!",
+        (10.0, 130.0, 300.0, 25.0),
+        (14.0, WHITE, "CENTER"),
+    ));
+    for (name, text, action, x) in [
+        (
+            "PetBattleQueueAcceptButton",
+            "Accept",
+            "pet:queue-accept",
+            35.0,
+        ),
+        (
+            "PetBattleQueueDeclineButton",
+            "Decline",
+            "pet:queue-decline",
+            165.0,
+        ),
+    ] {
+        children.extend(panel_button(
+            name.into(),
+            text,
+            action,
+            !view.queue_pending,
+            (x, 159.0, 120.0, 21.0),
+        ));
+    }
+    rsx! { r#frame { name: "PetBattleQueueReadyFrame", width: 320.0, height: 200.0,
+    strata: ui_toolkit::strata::FrameStrata::Dialog, frame_level: 10.0,
+    mouse_enabled: true, pos_type: "absolute", left: left, top: top, {children} } }
 }

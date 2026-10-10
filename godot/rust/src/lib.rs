@@ -2115,6 +2115,7 @@ impl GameClient {
             AccountEvent::Professions(snapshot) => self.receive_professions(snapshot),
             AccountEvent::Collections(update) => self.pet_journal.view.receive(update),
             AccountEvent::WildPetBattle(update) => self.receive_wild_pet_battle(update),
+            AccountEvent::PetBattleQueue(update) => self.pet_journal.view.receive_queue(update),
             AccountEvent::TrainerList(list) => self.receive_trainer_list(list),
             AccountEvent::TrainerFailed(failed) => self.receive_trainer_failure(failed),
             AccountEvent::Bank(message) => self.receive_bank(message)?,
