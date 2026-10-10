@@ -63,9 +63,10 @@ func learn_world_enlarger() -> void:
 func prove_feather_fall(floor_y: float) -> void:
 	#113542 lacks runtime item data; prove its authentic spell167273, not successful UseToy.
 	if not command(OS.get_environment("TOYFX_ADMIN"), ["learn-spell", character, "167273"]): return
-	# IPC is serviced by this main thread; never synchronously wait on our own CLI.
-	var cast_pid := OS.create_process(OS.get_environment("TOYFX_CLI"), ["--socket", "/tmp/game-engine-%d.sock" % OS.get_process_id(), "spell", "cast", "--spell", "167273"])
-	if cast_pid < 0: fail("cannot start feather cast IPC"); return
+	# Main harness sends IPC and records its answer; this thread continues servicing it.
+	var ready := FileAccess.open(output.path_join("feather-ready"), FileAccess.WRITE)
+	ready.store_string(str(OS.get_process_id()))
+	ready.close()
 	if not await wait_until(func(): return has_aura(167273), "feather spell cast"): return
 	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, "-8949.95", "-132.49", str(floor_y + 20.0)]): return
 	if not await wait_until(func(): return actor.position.y > floor_y + 15.0, "private elevated position"): return
@@ -77,9 +78,7 @@ func prove_feather_fall(floor_y: float) -> void:
 	if not await wait_until(func(): return actor.position.y > floor_y + 15.0, "ordinary fall setup"): return
 	await record_phase("ordinary-fall-after-removal", 2.0)
 	if not await wait_until(func(): return actor.position.y <= floor_y + 0.5, "ordinary landing"): return
-	var file := FileAccess.open(output.path_join("receipts.json"), FileAccess.WRITE)
-	file.store_string(JSON.stringify(receipts, "\t"))
-	file.close()
+	write_receipts()
 	print("PASS: toy scale and authentic feather spell applied/rendered/reverted ", character, " frames=", frame_number)
 	client.free()
 	quit(0)
@@ -102,6 +101,12 @@ func record_phase(label: String, seconds: float) -> void:
 			"position": [actor.position.x, actor.position.y, actor.position.z], "auras": client.aura_state()})
 		frame_number += 1
 		await create_timer(0.1).timeout
+	write_receipts()
+
+func write_receipts() -> void:
+	var file := FileAccess.open(output.path_join("receipts.json"), FileAccess.WRITE)
+	file.store_string(JSON.stringify(receipts, "\t"))
+	file.close()
 
 func has_aura(spell: int) -> bool:
 	for aura in client.aura_state().buffs:
