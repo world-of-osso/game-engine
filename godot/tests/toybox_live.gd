@@ -1,5 +1,5 @@
 extends SceneTree
-# Private toys-branch server only. Native input; observations never mutate gameplay state.
+# Private master server only. Native input; observations never mutate gameplay state.
 const ITEM := 32782
 var client: Node
 var shots := OS.get_environment("TOYBOX_SHOTS")
@@ -15,7 +15,7 @@ func run_fixture() -> void:
 	client = load("res://scenes/client.tscn").instantiate()
 	root.add_child(client)
 	if not await wait_until(func(): return not client.account_state().assets_starting, "asset startup", 180000): return
-	var error: String = client.connect_account(OS.get_environment("GODOT_TEST_SERVER"), "fb_toybox", "fbtest", false)
+	var error: String = client.connect_account(OS.get_environment("GODOT_TEST_SERVER"), OS.get_environment("TOYBOX_ACCOUNT"), "fbtest", false)
 	if error != "": fail(error); return
 	if not await wait_until(func(): return client.get_node_or_null("CharacterSelectUI") != null, "character select", 120000): return
 	await click("CharCard_0")
@@ -24,6 +24,9 @@ func run_fixture() -> void:
 	await wait_frames(120)
 	await click("CollectionsMicroButton")
 	if not await wait_until(func(): return control("ToySpellButton18") != null, "eighteen catalog tiles"): return
+	for node in client.find_children("*", "Label", true, false):
+		if node.is_visible_in_tree() and node.text == OS.get_environment("TOYBOX_CHARACTER"):
+			print("CHARACTER_LABEL ", node.get_path(), " ", node.get_global_rect())
 	await capture("catalog")
 	await click("ToyBoxSearchBox")
 	await type_text("Time-Lost Figurine")
@@ -32,7 +35,11 @@ func run_fixture() -> void:
 		if learned().is_empty() or not learned().favourite or int(client.toybox_state().slots.get(11, 0)) != ITEM:
 			fail("favourite/action slot did not survive relog: " + str(client.toybox_state())); return
 		await capture("relog-favourite-slot")
-		print("PASS: Toy Box relog favourite and slot ", client.toybox_state())
+		if OS.get_environment("TOYBOX_FINAL_RELOG") != "1":
+			await click("ActionButton12")
+			if not await wait_until(func(): return float(learned().cooldown) > 0.0 and transformed(), "bar cast and authoritative cooldown"): return
+			await capture("bar-used-cooldown")
+		print("PASS: Toy Box relog favourite and slot; real bar use ", client.toybox_state(), " auras=", client.aura_state())
 		client.free(); quit(0); return
 	await capture("uncollected")
 	await click("CollectionsMicroButton")
@@ -55,17 +62,26 @@ func run_fixture() -> void:
 	await capture("favourite-menu")
 	await click("ToyBoxFavouriteToggle")
 	if not await wait_until(func(): return learned().favourite, "account favourite update"): return
+	await click("ToyBoxSearchClear")
+	if not await wait_until(func(): return control("ToySpellButton18") != null and control("ToySpellButton1Name").text == "Time-Lost Figurine", "favourite sorts ahead of full catalog"): return
+	await capture("favourite-sorted")
+	await click("ToySpellButton1")
+	if not await wait_until(func(): return float(learned().cooldown) > 0.0 and transformed(), "journal cast and authoritative toy cooldown"): return
+	await capture("used-cooldown")
 	await drag_to("ToySpellButton1", "ActionButton12")
 	if not await wait_until(func(): return int(client.toybox_state().slots.get(11, 0)) == ITEM, "toy action assignment"): return
-	await click("ToySpellButton1")
-	if not await wait_until(func(): return float(learned().cooldown) > 0.0, "authoritative toy cooldown"): return
-	await capture("used-cooldown-and-slot")
+	await capture("dragged-action-slot")
 	await click("ActionButton12")
 	if not await wait_until(func(): return client.toybox_state().error != "", "same UseToy bar path cooldown refusal"): return
 	await capture("bar-cooldown-error")
 	print("PASS: Toy Box learned/use/favourite/drag/bar-refusal ", client.toybox_state(), " auras=", client.aura_state())
 	client.free()
 	quit(0)
+
+func transformed() -> bool:
+	for aura in client.aura_state().buffs:
+		if int(aura.spell_id) == 41301: return true
+	return false
 
 func learned() -> Dictionary:
 	for toy in client.toybox_state().learned:
@@ -147,10 +163,11 @@ func tap(code: Key) -> void:
 func capture(label: String) -> void:
 	await wait_frames(30)
 	await RenderingServer.frame_post_draw
-	var path := shots.path_join(skin + "-" + label)
+	var path := shots.path_join("v2-" + skin + "-" + label)
 	root.get_texture().get_image().save_png(path + ".png")
-	var file := FileAccess.open(path + ".json", FileAccess.WRITE)
-	file.store_string(JSON.stringify({"toys": client.toybox_state(), "account": client.account_state()}, "\t"))
+	var receipt := OS.get_environment("TOYBOX_RECEIPTS").path_join("v2-" + skin + "-" + label + ".json")
+	var file := FileAccess.open(receipt, FileAccess.WRITE)
+	file.store_string(JSON.stringify({"toys": client.toybox_state(), "account": client.account_state(), "auras": client.aura_state()}, "\t"))
 	file.close()
 	print("TOYBOX_CAPTURE ", path)
 
