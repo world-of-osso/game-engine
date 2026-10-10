@@ -54,6 +54,8 @@ func check_plate(plate: Control, forever: bool) -> void:
 	expect(health.is_visible_in_tree() and health.text == "96%", "Health percent lost")
 	expect(frame.is_visible_in_tree(), "Health border lost")
 	expect(classification.is_visible_in_tree() == (name.text in ["Ordinary", "Rare", "World Boss"]), "Classification lost for " + name.text)
+	if classification.is_visible_in_tree():
+		expect(is_equal_approx(classification.get_global_rect().end.x, fill.get_global_rect().position.x), "Classification reserves hidden raid-marker space for " + name.text)
 	var level := plate.get_node_or_null("PlayerLevelDiffFrame") as Control
 	if not forever:
 		expect(level == null, "Modern gained level frame")
