@@ -132,12 +132,21 @@ def seed_icons(graph, catalogs, spells):
 
 def seed_terrain(graph, config):
     selected = set()
+    tiles_by_directory = defaultdict(set)
+    pattern = re.compile(r"world/maps/([^/]+)/([^/]+)_(\d+)_(\d+)\.adt$")
+    for path in graph.paths.values():
+        match = pattern.fullmatch(path)
+        if match and match[1] == match[2]:
+            tiles_by_directory[match[1]].add((int(match[3]), int(match[4])))
     for map_spec in config["maps"]:
         directory = map_spec["directory"].lower()
         tiles = map_spec["tiles"]
         if tiles == "all":
-            pattern = re.compile(rf"world/maps/{re.escape(directory)}/{re.escape(directory)}_(\d+)_(\d+)\.adt$")
-            tiles = sorted({(int(m[1]), int(m[2])) for p in graph.paths.values() if (m := pattern.fullmatch(p))})
+            tiles = sorted(tiles_by_directory[directory])
+            for kind in ["wdt", "wdl"]:
+                logical = f"world/maps/{directory}/{directory}.{kind}"
+                if logical in graph.by_path:
+                    graph.named(logical, kind, f"map {map_spec['id']} {kind}", None)
         for x, y in tiles:
             selected.add((map_spec["id"], x, y))
             for suffix in ["", "_tex0", "_obj0", "_obj1"]:
@@ -344,9 +353,12 @@ def seed_catalogs(graph, world_path, config):
             graph.add(number(model, "SkeletonFileDataID"), "skel", f"ChrModel {model_id} SkeletonFileDataID")
             character["selected_choices"] = seed_customizations(graph, model_id, character["choices"], character["race"], character.get("class", 1))
     with readonly(world_path) as db:
-        spawns, npc_ids = npc_displays(db, tiles)
         if config["npc_displays"] == "all":
-            npc_ids = sorted({row[0] for row in db.execute("SELECT CreatureDisplayID FROM content_creature_template_model")} | {row[0] for row in db.execute("SELECT modelid FROM content_creature WHERE modelid!=0")})
+            spawns = [dict(row) for row in db.execute(
+                "SELECT guid,id1,id2,id3,modelid,position_x,position_y FROM content_creature ORDER BY guid")]
+            npc_ids = sorted(({row[0] for row in db.execute("SELECT CreatureDisplayID FROM content_creature_template_model")} | {row["modelid"] for row in spawns}) - {0})
+        else:
+            spawns, npc_ids = npc_displays(db, tiles)
         items = config["items"]
         if items == "all":
             items = [row[0] for row in db.execute("SELECT ID FROM content_item ORDER BY ID")]
