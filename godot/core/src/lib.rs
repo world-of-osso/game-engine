@@ -1,5 +1,6 @@
 //! Bevy-free parsers over authored WoW asset bytes.
 pub mod adt;
+pub mod animation_replacements;
 #[path = "area_zone_data.rs"]
 pub mod area_zone_data;
 pub mod asset;
