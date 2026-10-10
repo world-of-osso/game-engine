@@ -12,6 +12,8 @@ Retail Mainline defines CollectionsJournal geometry (703×606), tab order (Mount
 
 - Replicated UnitScale applies aura61 additive scale to the unit root, preserving each native visual's own scale and restoring1 on removal. Both skins share this world presentation.
 
+- Replicated FeatherFall caps only downward player prediction at7yd/s while aura105 is active; upward jumps retain their impulse and removal restores ordinary gravity. Reference: TrinityCore MovementUtil.cpp terminalSafefallVelocity and a352b1fa HandleAuraFeatherFall.
+
 ## Reference and explicit boundaries
 
 Local source: `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/Blizzard_Collections/Mainline/Blizzard_Collections.xml`, `Blizzard_Collections.lua`, `Blizzard_ToyBox.xml`, `Blizzard_ToyBox.lua`, `Blizzard_CollectionTemplates.xml`.
