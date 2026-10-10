@@ -8,7 +8,9 @@ pub mod equipment_appearance_data;
 #[path = "../../rust/src/game/creatures/npc_gear_data.rs"]
 pub mod npc_gear_data;
 use game_engine_core::asset_product::AssetTexture;
-pub use game_engine_core::{asset, outfit_data};
+pub use game_engine_core::{asset, customization_data, outfit_data};
+#[path = "../../rust/src/rendering/character/appearance_options.rs"]
+pub mod appearance_options;
 
 fn main() {
     let data = PathBuf::from(
@@ -96,6 +98,7 @@ fn write_required_assets(data: &Path, displays: &rusqlite::Connection) -> Result
         };
         add_armor_assets(&mut assets, &armor)?;
     }
+    add_equipped_player_assets(data, &outfit, &mut assets)?;
     let lines: Vec<_> = assets
         .into_iter()
         .map(|(product, fdid, kind)| format!("{product},{fdid},{kind}"))
@@ -108,6 +111,66 @@ fn write_required_assets(data: &Path, displays: &rusqlite::Connection) -> Result
         output.display()
     );
     Ok(())
+}
+
+fn add_equipped_player_assets(
+    data: &Path,
+    outfit: &outfit_data::OutfitData,
+    assets: &mut BTreeSet<(&'static str, u32, &'static str)>,
+) -> Result<(), String> {
+    use game_engine_core::npc_appearance_assets::{load_compositor, load_customization_db};
+    use shared::components::{
+        CharacterAppearance, EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
+    };
+    let body =
+        game_engine_core::player_model_data::player_model_fdids(&data.join("db2/12.1.0.69933"))?;
+    assets.insert((
+        "wow",
+        *body.get(&(1, 0)).ok_or("Human male model absent")?,
+        "m2",
+    ));
+    let db = load_customization_db(data)?;
+    let selected =
+        appearance_options::selected_choices(&db, 1, 0, 1, &CharacterAppearance::default());
+    let ids: BTreeSet<_> = selected.iter().map(|choice| choice.id).collect();
+    for choice in selected {
+        for &(_, fdid) in &choice.materials {
+            assets.insert(("wow", fdid, "blp"));
+        }
+        for material in &choice.related_materials {
+            if ids.contains(&material.related_choice_id) {
+                assets.insert(("wow", material.fdid, "blp"));
+            }
+        }
+        for model in &choice.skinned_models {
+            if model.related_choice_id == 0 || ids.contains(&model.related_choice_id) {
+                assets.insert(("wow", model.collection_fdid, "m2"));
+            }
+        }
+    }
+    let compositor = load_compositor(data)?;
+    let layout = compositor
+        .layout(db.layout_id(1, 0).ok_or("Human male layout absent")?)
+        .ok_or("Human male compositor layout absent")?;
+    let default = game_engine_core::asset::m2_texture::default_fdid_for_type(
+        1,
+        layout.width == 2048 && layout.height == 1024,
+        &[0; 3],
+    )
+    .ok_or("Human male default texture absent")?;
+    assets.insert(("wow", default, "blp"));
+    let equipment = EquipmentAppearance {
+        entries: vec![EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
+            slot: EquipmentVisualSlot::MainHand,
+            item_id: Some(25),
+            display_info_id: None,
+            inventory_type: 21,
+            hidden: false,
+        }],
+    };
+    let armor = equipment_appearance_data::resolve_equipment_appearance(&equipment, outfit, 1, 0)?;
+    add_armor_assets(assets, &armor)
 }
 
 fn add_armor_assets(
