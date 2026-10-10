@@ -1476,6 +1476,7 @@ impl RegistryUi {
     ) -> Result<(), String> {
         let parent = self.hud_parent()?;
         let mut registry = parent.registry();
+        register_auction_popup_style(&mut registry);
         register_metal_frame_style(
             &mut registry,
             game_engine_ui_model::panel_style_data::MetalTopLeft::Portrait,
