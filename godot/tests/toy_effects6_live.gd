@@ -27,24 +27,19 @@ func run_fixture() -> void:
 		return false, "player model", 120000): return
 	await create_timer(2.0).timeout
 	await capture_phase("baseline")
-	await use_toy(156871, "Spitzy")
-	if failed: return
-	if not await wait_until(func(): return has_aura(261981) and kit_active(261981, 94072), "Spitzy source kit94072", 45000): return
-	await capture_phase("spitzy")
-	await cancel_aura(261981)
-	if not await wait_until(func(): return not has_aura(261981), "Spitzy cancellation"): return
-	await use_toy(45057, "Wind-Up Train Wrecker")
-	if failed: return
-	if not await wait_until(func(): return train_model() != null, "train wrecker source model123251", 45000): return
-	await capture_phase("train-wrecker")
-	await use_toy(194056, "Duck-Stuffed Duck Lovie")
-	if failed: return
-	if not await wait_until(func(): return has_aura(383065) and kit_active(383065, 162763), "Duck Lovie authored nap", 45000): return
-	await capture_phase("duck-lovie")
-	await cancel_aura(383065)
-	if not await wait_until(func(): return not has_aura(383065), "Duck Lovie cancellation"): return
-	await tap(KEY_TAB)
-	if not await wait_until(func(): return client.target_state().target != null, "hostile Tab target"): return
+	if OS.get_environment("TOYFX_ONLY_MORTAR") != "1":
+		await prove_attachments()
+		if failed: return
+	var hostile := false
+	for attempt in range(40):
+		await tap(KEY_TAB)
+		var selected = client.target_state().target
+		if selected != null:
+			var rules: Dictionary = client.nameplate_rules(int(selected))
+			if str(rules.get("reaction", "")) == "Hostile" and bool(rules.get("alive", false)):
+				hostile = true
+				break
+	if not hostile: fail("no living hostile target in Tab cycle"); return
 	var target_id := int(client.target_state().target)
 	var target_node: Node3D
 	for area in client.find_children("*", "Area3D", true, false):
@@ -68,9 +63,27 @@ func run_fixture() -> void:
 	if not has_go(406870): fail("valid-range mortar did not receive SpellGo"); return
 	write_receipts()
 	if failed: return
-	print("PASS: toy-effects6 actual Toy Box Spitzy/train/nap/mortar ", skin)
+	print("PASS: toy-effects6 actual Toy Box ", "mortar" if OS.get_environment("TOYFX_ONLY_MORTAR") == "1" else "Spitzy/train/nap/mortar", " ", skin)
 	client.free()
 	quit(0)
+
+func prove_attachments() -> void:
+	await use_toy(156871, "Spitzy")
+	if failed: return
+	if not await wait_until(func(): return has_aura(261981) and kit_active(261981, 94072), "Spitzy source kit94072", 45000): return
+	await capture_phase("spitzy")
+	await cancel_aura(261981)
+	if not await wait_until(func(): return not has_aura(261981), "Spitzy cancellation"): return
+	await use_toy(45057, "Wind-Up Train Wrecker")
+	if failed: return
+	if not await wait_until(func(): return train_model() != null, "train wrecker source model123251", 45000): return
+	await capture_phase("train-wrecker")
+	await use_toy(194056, "Duck-Stuffed Duck Lovie")
+	if failed: return
+	if not await wait_until(func(): return has_aura(383065) and kit_active(383065, 162763), "Duck Lovie authored nap", 45000): return
+	await capture_phase("duck-lovie")
+	await cancel_aura(383065)
+	if not await wait_until(func(): return not has_aura(383065), "Duck Lovie cancellation"): return
 
 func use_toy(item: int, title: String, settle := true) -> void:
 	await learn_toy(item)
@@ -108,5 +121,5 @@ func capture_phase(label: String) -> void:
 	await RenderingServer.frame_post_draw
 	var path := OS.get_environment("TOYFX_SHOTS").path_join("%s-%s.png" % [skin, label])
 	if root.get_texture().get_image().save_png(path) != OK: fail("capture " + path); return
-	receipts.append({"phase": label, "skin": skin, "screenshot": path, "auras": client.aura_state(), "visuals": client.spell_visuals_state(), "target": client.target_state(), "actor_position": [actor.position.x, actor.position.y, actor.position.z]})
+	receipts.append({"phase": label, "skin": skin, "screenshot": path, "auras": client.aura_state(), "visuals": client.spell_visuals_state(), "target": client.target_state(), "toybox": client.toybox_state(), "actor_position": [actor.position.x, actor.position.y, actor.position.z]})
 	write_receipts()
