@@ -490,7 +490,8 @@ impl INode3D for GameClient {
                 return;
             }
         }
-        if self.flight_map_pointer(&event)
+        if self.toybox_pointer(&event)
+            || self.flight_map_pointer(&event)
             || self.world_map_pointer(&event)
             || self.minimap_pointer(&event)
             || self.spellbook_pointer(&event)
