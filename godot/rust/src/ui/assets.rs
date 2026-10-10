@@ -1,10 +1,8 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::path::{Path, PathBuf};
-use std::sync::Arc;
+use std::path::PathBuf;
 
 use game_engine_core::asset_loader::{AssetLoader, Priority};
-use osso_asset_resolver::CascListfileResolver;
 
 use godot::classes::{AtlasTexture, FontFile, Image, ImageTexture, ProjectSettings, Texture2D};
 use godot::prelude::*;
@@ -36,36 +34,7 @@ fn asset_path(path: &str) -> PathBuf {
 }
 
 fn load_bytes(path: &str) -> Result<Vec<u8>, String> {
-    let file = asset_path(path);
-    with_file_textures(|textures| read_ui_file(&file, file_data_id(path), &textures.resolver))
-}
-
-fn file_data_id(path: &str) -> Option<u32> {
-    path.strip_prefix("data/textures/")?
-        .strip_suffix(".blp")?
-        .parse()
-        .ok()
-}
-
-fn read_ui_file(
-    file: &Path,
-    fdid: Option<u32>,
-    resolver: &CascListfileResolver,
-) -> Result<Vec<u8>, String> {
-    ui_file::read_cached_file(file, fdid, |fdid, destination| {
-        resolver
-            .initialize()
-            .map_err(|error| format!("Initialize local CASC for UI FDID {fdid}: {error}"))?;
-        resolver
-            .ensure_cached(fdid, destination)
-            .map(|_| ())
-            .ok_or_else(|| {
-                format!(
-                    "Local CASC cannot cache requested UI FDID {fdid} at {}",
-                    destination.display()
-                )
-            })
-    })
+    ui_file::read_required_file(&asset_path(path))
 }
 
 thread_local! {
@@ -215,14 +184,12 @@ fn decode_blp_bytes(path: &str, bytes: &[u8]) -> Result<game_engine_core::blp::R
 struct UiFile {
     path: String,
     file: PathBuf,
-    fdid: Option<u32>,
 }
 
 /// Authored UI image files, read and decoded on worker threads and shared by every UI:
 /// a frame shows its art from the frame it has arrived (retail UI textures load
 /// asynchronously too) and no screen waits for a file.
 struct FileTextures {
-    resolver: Arc<CascListfileResolver>,
     loader: AssetLoader<UiFile, DecodedFile>,
     textures: HashMap<String, Result<Gd<ImageTexture>, String>>,
     /// Files that arrived so far; a projection redraws its waiting frames when it grows.
@@ -231,15 +198,9 @@ struct FileTextures {
 
 impl FileTextures {
     fn new() -> Self {
-        // Share local CASC/listfile initialization across both workers and icon masks.
-        let resolver = Arc::new(crate::assets::creature::local_resolver(&asset_path(
-            "data/",
-        )));
-        let worker_resolver = Arc::clone(&resolver);
         Self {
-            resolver,
-            loader: AssetLoader::new("ui-textures", 2, move |file: &UiFile| {
-                let bytes = read_ui_file(&file.file, file.fdid, &worker_resolver)?;
+            loader: AssetLoader::new("ui-textures", 2, |file: &UiFile| {
+                let bytes = ui_file::read_required_file(&file.file)?;
                 decode_file(&file.path, &bytes)
             }),
             textures: HashMap::new(),
@@ -267,7 +228,6 @@ impl FileTextures {
             UiFile {
                 path: path.to_owned(),
                 file: asset_path(path),
-                fdid: file_data_id(path),
             },
             Priority::Now,
         );
@@ -290,7 +250,7 @@ fn with_file_textures<T>(visit: impl FnOnce(&mut FileTextures) -> T) -> T {
 }
 
 /// FileDataID `id`'s art (`data/textures/<id>.blp`); `Ok(None)` while it loads.
-/// Missing art is cached from local CASC; failures stay explicit, never substitute art.
+/// Only shipped/extracted art is read; missing files are errors, never substitute art.
 pub fn load_file_data_id(id: u32) -> Result<Option<Gd<ImageTexture>>, String> {
     load_file(&format!("data/textures/{id}.blp"))
 }
@@ -394,13 +354,11 @@ mod decode_tests {
 
     #[test]
     fn shipping_missing_icon_reports_the_shipped_file_without_casc_dependency() {
-        let data = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data");
         let directory =
             std::env::temp_dir().join(format!("ui-shipped-only-{}", std::process::id()));
         std::fs::create_dir_all(&directory).unwrap();
         let file = directory.join("135875.blp");
-        let resolver = crate::assets::creature::local_resolver(&data);
-        let error = read_ui_file(&file, Some(135875), &resolver).unwrap_err();
+        let error = ui_file::read_required_file(&file).unwrap_err();
         assert!(error.contains("Read UI file"), "{error}");
         assert!(error.contains("135875.blp"), "{error}");
         assert!(!error.contains("CASC"), "{error}");
