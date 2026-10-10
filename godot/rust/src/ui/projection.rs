@@ -499,12 +499,14 @@ impl UiProjection {
         let pending = &self.pending;
         match frame.widget_type {
             WidgetType::Button
-                if frame
-                    .onclick
-                    .as_deref()
-                    .is_some_and(|action| action.starts_with("bank_slot:")) =>
+                if frame.onclick.as_deref().is_some_and(|action| {
+                    action.starts_with("bank_slot:")
+                        || action.starts_with(
+                            game_engine_ui_model::spellbook_frame_component::ACTION_SPELLBOOK_CAST,
+                        )
+                }) =>
             {
-                // Preserve bankmoves' press coordinates, drag source and modified clicks.
+                // Cursor sources need press coordinates; release decides click vs drag.
                 connect_frame_click(pending, frame.id, node);
                 node.connect(
                     "mouse_entered",

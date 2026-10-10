@@ -56,6 +56,19 @@ func override_proof() -> bool:
 	if icon == null or not icon.is_visible_in_tree():
 		fail("No learned Raging Blow button")
 		return false
+	await hover(icon)
+	if client.tooltip_state().title != "Raging Blow":
+		fail("Spellbook hover tooltip did not show Raging Blow")
+		return false
+	var sent_before: int = client.spells_state().sent.size()
+	var at := icon.get_global_rect().get_center()
+	await mouse(at, MOUSE_BUTTON_LEFT, true)
+	await mouse(at, MOUSE_BUTTON_LEFT, false)
+	await wait_frames(3)
+	if client.spells_state().sent.size() != sent_before + 1 or client.spells_state().sent[-1] != 85288:
+		fail("Plain spellbook click did not submit exactly one base cast")
+		return false
+	print("PROOF plain spellbook click cast85288 exactly once; hover Raging Blow")
 	var bar: Node = client.get_node("MainActionBarUI")
 	var button := bar.find_child("ActionButton1", true, false) as Control
 	await drag_spell(icon, button)
