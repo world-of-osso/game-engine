@@ -61,7 +61,7 @@ impl GameClient {
             let icon = self
                 .spells
                 .catalog()
-                .and_then(|data| data.get(spell_id))
+                .and_then(|data| data.get(self.effective_spell(spell_id)))
                 .map_or(0, |spell| spell.icon_fdid);
             let icon_fdid = self.drawable_fdid(icon);
             self.bags.cursor.spell_drag = Some(SpellDrag {
