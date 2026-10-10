@@ -34,6 +34,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - `scripts/tests/test_closure_wmo_liquid.py` — shared root flags, liquid DB2 descendants, green-lava no-IO, hidden-tile material IO and orphan root boundaries.
 - `scripts/tests/test_closure_sound_identity.py`, `test_closure_readonly.py` — real sound headers/unknown bytes and read-transaction closure.
 - `scripts/tests/test_closure_extract_rounds.py` — descendant extraction, bounded graph replacement and fixed-point termination excluding recorded failures without falsifying missing summaries.
+- `scripts/tests/test_closure_convergence.py` — peer publication exposes new descendants despite zero own files/unchanged missing count; numeric skeleton presence does not satisfy a newly required owner alias.
 
 ## Known gaps (current cycle)
 
