@@ -29,7 +29,7 @@ pub use voice::{UnitSound, VoiceSource, player_displays};
 
 const DB2_BUILD: &str = "12.1.0.69933";
 /// Bump when the cached catalog layout or its build rules change.
-const CACHE_FORMAT: u32 = 10;
+const CACHE_FORMAT: u32 = 11;
 
 const SOURCE_TABLES: [&str; 25] = [
     "ChrSpecialization",
@@ -134,7 +134,7 @@ impl KitTarget {
 }
 
 /// What a caster's `PlayerCondition` is evaluated against.
-#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[derive(Clone, Debug, Default, PartialEq, Eq)]
 pub struct CasterContext {
     pub race: u8,
     pub class: u8,
@@ -144,6 +144,8 @@ pub struct CasterContext {
     pub spec_order_index: Option<u8>,
     /// `Item.SubclassID` of the equipped main-hand weapon.
     pub main_hand_subclass: Option<u8>,
+    /// Replicated active spell IDs and stack counts of this caster.
+    pub auras: Vec<(u32, u32)>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -156,6 +158,9 @@ struct PlayerCondition {
     max_level: i64,
     spec_index: i64,
     weapon_subclass_mask: i64,
+    aura_spell: u32,
+    aura_stacks: u32,
+    aura_inverted: bool,
     /// Some other requirement the client cannot evaluate here is set.
     unsupported: bool,
 }
@@ -190,8 +195,20 @@ impl PlayerCondition {
                 || caster
                     .main_hand_subclass
                     .is_some_and(|subclass| self.weapon_subclass_mask & (1 << subclass) != 0),
+            self.meets_aura(caster),
         ];
         checks.into_iter().all(|check| check)
+    }
+
+    fn meets_aura(&self, caster: &CasterContext) -> bool {
+        if self.aura_spell == 0 {
+            return true;
+        }
+        let present = caster
+            .auras
+            .iter()
+            .any(|&(spell, stacks)| spell == self.aura_spell && stacks >= self.aura_stacks);
+        present != self.aura_inverted
     }
 }
 

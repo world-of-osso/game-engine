@@ -9,6 +9,14 @@ The Godot client selects Retail DB2 spell visuals and plays their event kits on 
 - [x] Before specialization is received, skip specialization comparison rather than assuming the first spec. For Slam with a two-handed sword this chooses visual 51946 / kit 62428. This follows the reference evaluator; direct Retail startup visual timing remains unverified.
 - [x] Other casters keep the existing no-spec selection behavior; never apply the local player's specialization to remote players or NPCs.
 
+## Toy conditional visuals (2026-10-10)
+
+- [x] Evaluate a single caster AuraSpellID/stack requirement from replicated UnitAuras, including its AuraSpellLogic65536 inversion. Spitzy261981 selects visual74073 without aura181943 and refuses that visual when181943 is present.
+- [x] Unknown multi-aura logic, ModifierTree and other unsupported requirements remain unavailable, never bypassed. Scoots1280563/ModifierTree303980 remains blocked by absent local data.
+- [ ] Procedural cloak kit106563/Type17 payload is not present in the local export; no model mapping is invented.
+
+Behavioral fixture: `godot/core/tests/spell_visual.rs::toyfx6_spitzy_inverted_aura_condition_shows_without_disabling_aura`. Actual journal Spitzy kits/models were captured in both configured skins; precise rear-view attachment alignment and live present-aura exclusion are not certified. Mortar live acceptance remains pending; see the [toy evidence boundary](../wiki/systems/toy-box.md#toy-effects6-conditional-selection-and-summon-coverage-2026-10-10).
+
 ## How it works
 
 - [Spell visual resolution, DB2 rows and references](../wiki/systems/spell-visuals.md#local-specialization-selection-2026-10-07)

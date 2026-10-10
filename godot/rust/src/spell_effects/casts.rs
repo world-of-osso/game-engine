@@ -37,6 +37,7 @@ mod specialization_tests {
             level: 80,
             spec_order_index: caster_spec_order_index(caster, local_spec, units, catalog()),
             main_hand_subclass: Some(8), // Item.SubclassID: two-handed sword.
+            auras: Vec::new(),
         };
         let visual = catalog().visual_for_spell(1464, &context).unwrap();
         catalog().kits(visual, VisualEvent::Cast)[0].kit_id
@@ -277,6 +278,16 @@ impl SpellEffects {
                 .map_or(0, |level| u32::from(level.0)),
             spec_order_index,
             main_hand_subclass: world.unit_main_hand_subclass(caster),
+            auras: unit
+                .and_then(|unit| unit.get::<shared::components::UnitAuras>())
+                .map(|auras| {
+                    auras
+                        .auras
+                        .iter()
+                        .map(|aura| (aura.spell_id, u32::from(aura.stacks)))
+                        .collect()
+                })
+                .unwrap_or_default(),
         }
     }
 
