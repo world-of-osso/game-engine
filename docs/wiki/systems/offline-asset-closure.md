@@ -56,9 +56,13 @@ Publication uses an independent same-directory temporary, flush/fsync, atomic no
 
 Local DB2s are exported with exact Retail layout hashes, not inferred field offsets. Empty WDC5 tables can legitimately lack storage descriptors. Layout definitions are preserved and hashed under `data/diagnostics/closure-unresolved2-2026-10-10/sources/`; exported CSVs and immutable phase tooling snapshots are separate evidence. `TextureFileData` now uses the pinned local export in full-catalog mode. Partial encrypted tables report dropped records; readable rows do not prove complete metadata coverage.
 
-Each class runs from an immutable scripts snapshot under `agents.slice`, then uses the existing authenticated local-CASC batch publisher and fixed-point driver. Failure records carry forward without inventing identities or retrying known unavailable bytes. No install is used by the traversal itself. Manifest fingerprints include every resolver module; hashes and separate receipt proofs do not automatically authenticate legacy bytes or caches.
+Each class runs from an immutable scripts snapshot under `agents.slice`, then uses the existing authenticated local-CASC batch publisher and fixed-point driver. Failure records carry forward without inventing identities or retrying known unavailable bytes. `be1a2e37c` counts only retryable local-index identities when testing the extraction fixed point; recorded failures still remain missing in the manifest. This prevents known encrypted/indexed failures from forcing redundant extraction rounds. No install is used by the traversal itself. Manifest fingerprints include every resolver module; hashes and separate receipt proofs do not automatically authenticate legacy bytes or caches.
 
 Evidence root: `data/diagnostics/closure-unresolved2-2026-10-10/`. Final per-class counts, extraction bytes and receipt ranges must come from completed phase summaries, not this implementation inventory. Six existing model parse boundaries have inspected non-M2 headers: one reverse-MVER WMO and five M3DT models; do not misreport them as proven corrupt M2 files or silently invent format support.
+
+### Bounded-test incident
+
+A new RED fixture falsely returned `files=1` for unchanged data, so its round ledger grew indefinitely and the short-test process was OOM-killed (36,423,376,896-byte slice peak). The corrected fixture returns zero after its one available leaf is present; finite RED/GREEN proves retryable-count termination without marking the unavailable leaf present. Continuation short tests now use an explicit 512MiB hard maximum and zero swap on their own slice; a soft `MemoryHigh` alone did not bound the runaway. Heavy extraction units are separate. Other-process impact was not audited. Evidence: `test-fixture-oom-incident.txt`, `retryable-finite-red.log`, `retryable-green.log` under the continuation evidence root.
 
 ## Sources
 
