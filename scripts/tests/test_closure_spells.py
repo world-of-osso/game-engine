@@ -23,7 +23,7 @@ class SpellRootsTests(unittest.TestCase):
             'SpellVisualKitModelAttach': 'ID,ParentSpellVisualKitID,SpellVisualEffectNameID\n1,30,40\n10,999,42\n',
             'SpellVisualMissile': 'ID,SpellVisualMissileSetID,SpellVisualEffectNameID,SoundEntriesID\n1,20,41,51\n',
             'SpellVisualEffectName': 'ID,ModelFileDataID,TextureFileDataID\n40,60,70\n41,61,0\n42,62,0\n',
-            'SoundKitEntry': 'ID,SoundKitID,FileDataID\n1,50,80\n2,51,81\n3,99,90\n',
+            'SoundKitEntry': 'ID,SoundKitID,FileDataID\n1,50,80\n2,51,81\n3,99,90\n4,50,82\n',
         }
         with tempfile.TemporaryDirectory() as tmp:
             data = Path(tmp)
@@ -35,8 +35,9 @@ class SpellRootsTests(unittest.TestCase):
             (data / 'sounds/spells/80.ogg').write_bytes(b'OggSfixture')
             graph = Closure(data, {80: 'sound/a.ogg', 81: 'sound/b.mp3'}, 'wow', 'fixture')
             seed_spell_visuals(graph, Catalogs(graph), [100])
-            self.assertEqual(sorted(graph.assets), [(60, 'm2'), (61, 'm2'), (62, 'm2'), (70, 'blp'), (71, 'blp'), (72, 'blp'), (80, 'ogg'), (81, 'mp3')])
+            self.assertEqual(sorted(graph.assets), [(60, 'm2'), (61, 'm2'), (62, 'm2'), (70, 'blp'), (71, 'blp'), (72, 'blp'), (80, 'ogg'), (81, 'mp3'), (82, 'audio')])
             self.assertTrue(any(code == 'unsupported_spell_kit_effect' and '99' in reason for code, reason, _ in graph.unresolved))
+            self.assertTrue(any(code == 'unknown_sound_file_type' and fdid == 82 for code, _, fdid in graph.unresolved))
             result = graph.run()
             self.assertEqual(next(row for row in result['assets'] if row['fdid'] == 80)['present_files'],
                              [{'path': 'sounds/spells/80.ogg', 'size': 11, 'sha256': hashlib.sha256(b'OggSfixture').hexdigest()}])

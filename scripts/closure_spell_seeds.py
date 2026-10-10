@@ -23,8 +23,8 @@ def seed_sound_kits(graph, catalogs, kits):
         kind = PurePosixPath(graph.paths.get(fdid, '')).suffix.lstrip('.')
         if kind not in {'ogg', 'mp3', 'wav'}:
             graph.issue('unknown_sound_file_type', f'SoundKit {kit} file {fdid}', fdid)
-            continue
-        alias = f'sounds/spells/{fdid}.ogg' if kind == 'ogg' else None
+            kind = 'audio'
+        alias = f'sounds/spells/{fdid}.ogg' if kind in {'ogg', 'audio'} else None
         graph.add(fdid, kind, f'SoundKit {kit} entry {row["ID"]}', alias=alias)
     for kit in sorted(kits - found):
         graph.issue('missing_metadata_row', f'SoundKitEntry SoundKitID={kit}')
