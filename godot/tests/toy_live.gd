@@ -45,6 +45,11 @@ func run_fixture() -> void:
 func sample_toy(sample: Array) -> void:
 	var item := int(sample[0])
 	var spell := int(sample[1])
+	if item == 54452:
+		var departure := actor.position + Vector3(20.0, 0.0, 0.0)
+		if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(departure.x), str(-departure.z), str(departure.y)]): return
+		if not await wait_until(func(): return actor.position.distance_to(departure) < 1.0, "private portal departure"): return
+	var initial_position := actor.position
 	await learn_toy(item)
 	if not learned_toy(item): return
 	await click("CollectionsMicroButton")
@@ -82,6 +87,10 @@ func sample_toy(sample: Array) -> void:
 				objects.append({"entry": node.get_meta("game_object_entry"), "display": node.get_meta("game_object_display_id"), "position": str(node.position), "meshes": node.find_children("*", "MeshInstance3D", true, false).size()})
 		result.frames.append({"ms": Time.get_ticks_msec() - start_ms, "visuals": state, "auras": client.aura_state(), "position": str(actor.position), "objects": objects, "image": image_path})
 	result["after"] = client.toybox_state()
+	result["departure"] = str(initial_position)
+	if item == 54452 and actor.position.distance_to(initial_position) < 15.0:
+		fail("Ethereal Portal did not return from private departure to bind position")
+		return
 	receipts.append(result)
 	write_receipts()
 	print("TOYLIVE_SAMPLE ", skin, " item=", item, " spell=", spell, " kits=", client.spell_visuals_state().started)
