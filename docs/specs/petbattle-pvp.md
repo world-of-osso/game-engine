@@ -4,8 +4,8 @@ Retail Pet Journal Find Battle queues account-owned teams. Mainline sources: loc
 
 ## What it must do
 
-- [ ] Find Battle sends Join; queued/proposal states show Leave Queue; pending sends wait for authority.
-- [ ] Queue-ready popup appears even with journal closed; Accept/Decline carry the current proposal ID.
+- [x] Find Battle sends Join; queued/proposal states show Leave Queue; pending sends wait for authority.
+- [x] Queue-ready popup appears even with journal closed; Accept/Decline carry the current proposal ID.
 - [ ] Both art skins use identical Retail controls and geometry.
 - [ ] PvP rounds use the existing battle HUD, no trap eligibility, owner-oriented teams and terminal results.
 
@@ -27,8 +27,9 @@ Retail Pet Journal Find Battle queues account-owned teams. Mainline sources: loc
 
 ## Known gaps (current cycle)
 
-- [ ] Private two-account, both-skin screenshot proof.
-- [ ] Exact Retail matchmaking rating, countdown penalties and reward policy not yet certified.
+- [ ] Private two-account, both-skin screenshot proof: genuine Modern queue/proposal reached; initial unresolved border fixed, then corrected native startup blocked on saved-token/account-layout mismatch after bounded retries. No accepted PNGs published.
+- [ ] Initial pet selection, proposal/round timers and PvP XP remain unimplemented.
+- [ ] Exact Retail matchmaking rating/level tolerance and penalty/reward policy not yet certified.
 
 ## Out of scope
 
