@@ -18,8 +18,12 @@ requests. No archive, root, encoding, keyring or listfile-driven extraction occu
 
 Required misses return errors containing mode, FDID (and authored product/build
 when present), and the exact expected path. Checked APIs propagate these errors.
-Legacy Option APIs must fail explicitly in extracted-only mode, not return a
-silent None. `forbidden_casc_access_count()` records forbidden low-level entries;
+Legacy optional cache APIs return `Result<Option<PathBuf>, String>`: extracted-only
+misses return the same error as the checked API, never panic or silently return
+None. Local-CASC extraction failures retain their logged `Ok(None)` behavior.
+Detached AssetLoader requests propagate required texture/animation errors to an
+`Err` completion; polling marks the key Failed (not Loading), delivers the error
+once for caller logging, and does not retry that key. `forbidden_casc_access_count()` records forbidden low-level entries;
 a test hook can panic immediately, and cold-process tests assert zero even if a
 caller catches or logs an error. An ordinary extracted-file miss is not a CASC
 entry and does not increment this count.

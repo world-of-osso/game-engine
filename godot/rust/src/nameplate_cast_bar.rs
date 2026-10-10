@@ -160,7 +160,7 @@ fn ensure_texture(data_root: &Path, fdid: u32) -> Result<(), String> {
     let path = data_root.join("textures").join(format!("{fdid}.blp"));
     if path.exists()
         || crate::assets::creature::local_resolver(data_root)
-            .ensure_cached(fdid, &path)
+            .ensure_cached(fdid, &path)?
             .is_some()
     {
         Ok(())

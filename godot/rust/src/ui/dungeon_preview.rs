@@ -97,7 +97,7 @@ pub(super) fn cache_art() -> Result<(), String> {
         ));
     for fdid in fdids {
         let path = root.join("textures").join(format!("{fdid}.blp"));
-        if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {
+        if !path.exists() && resolver.ensure_cached(fdid, &path)?.is_none() {
             return Err(format!(
                 "Offline capture: FDID {fdid} missing from local CASC"
             ));

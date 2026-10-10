@@ -352,10 +352,19 @@ impl GameClient {
         let textures = self.data_root.join("textures");
         for fdid in unknown {
             let path = textures.join(format!("{fdid}.blp"));
-            let found = resolver.ensure_cached(fdid, &path).is_some() || path.exists();
-            if !found {
-                godot_warn!("World map texture FDID {fdid} is not in local CASC");
-            }
+            let found = match resolver.ensure_cached(fdid, &path) {
+                Ok(file) => {
+                    let found = file.is_some() || path.exists();
+                    if !found {
+                        godot_warn!("World map texture FDID {fdid} is not in local CASC");
+                    }
+                    found
+                }
+                Err(error) => {
+                    godot_warn!("{error}");
+                    false
+                }
+            };
             self.world_map.available.insert(fdid, found);
         }
     }
@@ -382,8 +391,12 @@ impl GameClient {
         let resolver = crate::assets::creature::local_resolver(&self.data_root);
         for fdid in new {
             let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
-            if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {
-                godot_warn!("Quest panel texture FDID {fdid} is not in local CASC");
+            if !path.exists() {
+                match resolver.ensure_cached(fdid, &path) {
+                    Ok(Some(_)) => {}
+                    Ok(None) => godot_warn!("Quest panel texture FDID {fdid} is not in local CASC"),
+                    Err(error) => godot_warn!("{error}"),
+                }
             }
         }
     }

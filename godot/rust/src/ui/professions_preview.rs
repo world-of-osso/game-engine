@@ -52,7 +52,7 @@ fn cache_preview_art(view: &ProfessionView) -> Result<(), String> {
         .chain([130924])
     {
         let path = root.join("textures").join(format!("{fdid}.blp"));
-        if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {
+        if !path.exists() && resolver.ensure_cached(fdid, &path)?.is_none() {
             return Err(format!(
                 "Profession preview FDID {fdid} missing from local CASC"
             ));

@@ -1,3 +1,7 @@
+## 2026-10-09 — Detached extracted-only misses
+
+[Shipped assets](systems/shipped-assets.md#detached-legacy-misses-2026-10-09) records the independent P1 failure: a legacy cache panic killed its detached worker and left the key Loading. Typed cache errors now propagate to Failed completions, preserving local-CASC optional behavior. Cold-process RED proves missing completion and present BLP success; GREEN/package proof pending. [Contract](../specs/shipped-assets.md) owns exact error and once-only completion requirements.
+
 ## 2026-10-09 — Extracted-only asset policy
 
 [Shipped assets](systems/shipped-assets.md) records the P1 startup and low-level CASC boundary. [Contract](../specs/shipped-assets.md) owns explicit environment selection, shared policy/tripwire APIs and P2–P5 exclusions. Cold-process RED reproduced `WoW install not found`; engine `5dbe8b3c0` + resolver `8fc769b` GREEN5/5 and full six-engine-package2656/0/7 pass, no warnings. Resolver unit22/bin2 pass; its pre-existing install-dependent integration test fails in no-install depot. No deployment, rendered-game or full closure claim.
