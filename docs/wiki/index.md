@@ -15,7 +15,7 @@
 - [Extracted-only policy](systems/shipped-assets.md) — P1 `f6b32b79e`; [closure audit](systems/offline-asset-closure.md) `5520e82ff` is incomplete, not release certification. [Client deployment](../deploy.md) separates extracted-only direction from historical CASC proof; [server deployment](../../../game-server/docs/deploy.md) owns the shared realm's current location.
 
 
-- [Offline asset closure — round 3 final](systems/offline-asset-closure.md#round-3-final-dataset--verified-2026-10-10) — 970,356 present /2,302 missing /5,024 unresolved;188,100 paths /4,967,995,591 bytes and193,049 owned receipts verified. Residual/source drift and no-install acceptance remain explicit.
+- [Offline asset closure — round 4](systems/offline-asset-closure.md#round-4-local-fixed-point--verified-2026-10-10) — local fixed point, precise root/metadata residuals, authenticated no-clobber recovery and backed-up runtime-index regeneration; no no-install certificate. Historical round-3 dataset remains linked in the same page.
 - [M2 product shadowing](investigations/m2-product-shadowing.md) — unqualified disk/parsed collisions, metadata-source RED/GREEN, authenticated actual-build offline chains and remaining runtime/native boundary; [continuation evidence](investigations/m2-product-shadowing.md#continuation-authenticated-offline-chains-2026-10-09).
 - [Offline asset closure](systems/offline-asset-closure.md) — full-catalog traversal and authenticated no-clobber extraction; [70338 recheck](systems/offline-asset-closure.md#recorded-gap-recovery--verified-2026-10-10) recovers seven bakes, vehicle7476985 and204 IV8 failures. Optional joins/no-install acceptance remain open.
 
