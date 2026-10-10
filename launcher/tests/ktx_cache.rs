@@ -25,12 +25,17 @@ fn concurrent_slots_publish_once_and_distinct_keys_do_not_share() {
         let handles: Vec<_> = (0..4)
             .map(|_| {
                 scope.spawn(|| {
-                    cache::populate_locked(&root, "4.4.0-linux-release", &["libktx.a", "bindings.rs"], |entry| {
-                        count.fetch_add(1, Ordering::SeqCst);
-                        std::thread::sleep(std::time::Duration::from_millis(50));
-                        fs::write(entry.join("libktx.a"), b"library").unwrap();
-                        fs::write(entry.join("bindings.rs"), b"bindings").unwrap();
-                    })
+                    cache::populate_locked(
+                        &root,
+                        "4.4.0-linux-release",
+                        &["libktx.a", "bindings.rs"],
+                        |entry| {
+                            count.fetch_add(1, Ordering::SeqCst);
+                            std::thread::sleep(std::time::Duration::from_millis(50));
+                            fs::write(entry.join("libktx.a"), b"library").unwrap();
+                            fs::write(entry.join("bindings.rs"), b"bindings").unwrap();
+                        },
+                    )
                 })
             })
             .collect();
@@ -63,19 +68,24 @@ fn failed_population_is_not_published_and_next_slot_rebuilds() {
         assert!(!entry.join("partial").exists());
         fs::write(entry.join("libktx.a"), b"complete library").unwrap();
     });
-    assert_eq!(fs::read(entry.join("libktx.a")).unwrap(), b"complete library");
+    assert_eq!(
+        fs::read(entry.join("libktx.a")).unwrap(),
+        b"complete library"
+    );
     fs::remove_dir_all(root).unwrap();
 }
 
 #[test]
-fn_missing_artifact_in_completed_cache_fails_loudly() {
+fn missing_artifact_in_completed_cache_fails_loudly() {
     let root = directory();
     let entry = cache::populate_locked(&root, "key", &["bindings.rs"], |entry| {
         fs::write(entry.join("bindings.rs"), b"bindings").unwrap();
     });
     fs::remove_file(entry.join("bindings.rs")).unwrap();
     let result = std::panic::catch_unwind(|| {
-        cache::populate_locked(&root, "key", &["bindings.rs"], |_| panic!("must not rebuild a corrupt completed entry"));
+        cache::populate_locked(&root, "key", &["bindings.rs"], |_| {
+            panic!("must not rebuild a corrupt completed entry")
+        });
     });
     assert!(result.is_err());
     fs::remove_dir_all(root).unwrap();
