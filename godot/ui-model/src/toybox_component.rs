@@ -1,8 +1,6 @@
 //! Retail Mainline CollectionsJournal.xml (703x606) and ToyBox.xml (3x6 grid).
 use crate::toybox::{self, ToyBox};
-use crate::ui::screens::quest_art::{
-    DynName, named_atlas_texture, portrait_border, window_portrait_slot, window_portrait_texture,
-};
+use crate::ui::screens::quest_art::{DynName, named_atlas_texture};
 use crate::ui::strata::FrameStrata;
 use ui_toolkit::{
     frame::WidgetData, registry::FrameRegistry, rsx, screen::SharedContext, widget_def::Element,
@@ -21,15 +19,7 @@ pub fn apply_toybox_postsetup(view: &ToyBoxView, registry: &mut FrameRegistry) {
     }
 }
 
-pub const SIZE: [f32; 2] = [703.0, 606.0];
-pub const TABS: [&str; 6] = [
-    "Mounts",
-    "Pets",
-    "Toy Box",
-    "Heirlooms",
-    "Appearances",
-    "Warband Scenes",
-];
+pub use crate::collections_component::{SIZE, TABS};
 #[derive(Clone, Debug, PartialEq)]
 pub struct ToyBoxView {
     pub model: ToyBox,
@@ -39,23 +29,12 @@ pub struct ToyBoxView {
 pub fn toybox_screen(ctx: &SharedContext) -> Element {
     let view = ctx.get::<ToyBoxView>().expect("ToyBoxView required");
     let model = &view.model;
-    let left = (view.viewport[0] - SIZE[0]) / 2.0;
-    let top = (view.viewport[1] - SIZE[1]) / 2.0;
-    let chrome = portrait_border(
-        "CollectionsJournal",
-        (SIZE[0], SIZE[1]),
-        "Toy Box",
-        toybox::CLOSE,
-    );
-    let portrait =
-        window_portrait_texture(&window_portrait_slot("CollectionsJournalPortrait"), 454_046);
     let tiles: Element = model
         .page_items()
         .into_iter()
         .enumerate()
         .flat_map(|(index, toy)| toy_tile(model, index, toy))
         .collect();
-    let tabs = tabs();
     let background = named_atlas_texture(
         "ToyBoxBackground".into(),
         "collections-background-tile",
@@ -68,12 +47,7 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
     let page = format!("Page {} of {}", model.page + 1, model.page_count());
     let error = model.error.as_deref().unwrap_or("");
     let empty = model.page_items().is_empty();
-    rsx! {
-        r#frame { name: "CollectionsRoot", stretch: true,
-            r#frame { name: "CollectionsJournal", width: 703.0, height: 606.0,
-                mouse_enabled: true, pos_type: "absolute", left, top,
-                background_color: "0.08,0.07,0.06,1.0",
-                {chrome} {portrait}
+    let body = rsx! {
                 r#frame { name: "ToyBox", width: 701.0, height: 580.0, pos_type: "absolute", left: 1.0, top: 20.0,
                     {progress}
                     {search}
@@ -93,66 +67,8 @@ pub fn toybox_screen(ctx: &SharedContext) -> Element {
                         pos_type: "absolute", left: 24.0, top: 548.0, font_color: "1.0,0.2,0.2,1.0", font_size: 12.0 }
                     {filters} {context}
                 }
-                {tabs}
-            }
-        }
-    }
-}
-
-fn tabs() -> Element {
-    let mut left = 11.0;
-    let mut tabs: Vec<_> = TABS
-        .into_iter()
-        .enumerate()
-        .map(|(index, title)| {
-            let width = crate::merchant_frame_component::tab_width(title);
-            let tab = journal_tab(index, title, left, width);
-            // Collections OnLoad calls SetNumTabs; AnchorTabs replaces XML's -16 with +3.
-            left += width + 3.0;
-            tab
-        })
-        .collect();
-    let selected = tabs.remove(2);
-    tabs.into_iter().flatten().chain(selected).collect()
-}
-
-fn journal_tab(index: usize, title: &str, left: f32, width: f32) -> Element {
-    let selected = index == 2;
-    let name = format!("CollectionsJournalTab{}", index + 1);
-    let prefix = if selected {
-        "uiframe-activetab"
-    } else {
-        "uiframe-tab"
     };
-    let height = if selected { 42.0 } else { 36.0 };
-    let offset = if selected { -1.0 } else { -3.0 };
-    let right = width + if selected { 8.0 } else { 7.0 } - 37.0;
-    let mut art = named_atlas_texture(
-        format!("{name}Left"),
-        &format!("{prefix}-left"),
-        (offset, 0.0, 35.0, height),
-    );
-    art.extend(named_atlas_texture(
-        format!("{name}Middle"),
-        &format!("_{prefix}-center"),
-        (offset + 35.0, 0.0, right - offset - 35.0, height),
-    ));
-    art.extend(named_atlas_texture(
-        format!("{name}Right"),
-        &format!("{prefix}-right"),
-        (right, 0.0, 37.0, height),
-    ));
-    let color = if selected {
-        "1.0,1.0,1.0,1.0"
-    } else {
-        "0.5,0.5,0.5,1.0"
-    };
-    rsx! { button { name: {DynName(name.clone())}, width, height: 32.0, pos_type: "absolute", left, top: 604.0,
-        button_default_skin: false, disabled: {!selected}, onclick: "toy_tab", {art}
-        fontstring { name: {DynName(format!("{name}Text"))}, text: title, width, height: 32.0,
-            pos_type: "absolute", left: 0.0, top: {if selected { 3.0 } else { -2.0 }},
-            font_size: 10.0, font_color: color, justify_h: "CENTER" }
-    } }
+    crate::collections_component::collections_shell(view.viewport, 2, body)
 }
 
 fn search_box(model: &ToyBox) -> Element {
