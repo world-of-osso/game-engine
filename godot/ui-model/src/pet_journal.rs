@@ -214,7 +214,7 @@ pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
     children.extend(battle_slots());
     children.extend(journal_buttons(view));
     let body = rsx! { r#frame { name: "PetJournal", width: 703.0, height: 606.0,
-    left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: true, {children} } };
+    left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: false, {children} } };
     crate::collections_component::collections_shell(view.viewport, 1, body)
 }
 fn search_box() -> Element {
