@@ -301,7 +301,7 @@ func wait_screen(screen: String) -> void:
 	abort("Screen timeout: " + screen + " " + str(client.account_state()))
 
 func capture(suffix: String) -> void:
-	await frames(30)
+	await frames(120)
 	await RenderingServer.frame_post_draw
 	var image := root.get_texture().get_image()
 	var prefix := "mainline-" if OS.get_environment("TALENT_LOADOUT_PHASE") == "inspect" else ""
