@@ -35,7 +35,9 @@ func run_fixture() -> void:
 		return actor.find_children("PlayerModel", "Node3D", true, false).size() > 0, "native player visual", 120000): return
 	await create_timer(2.0).timeout
 	for sample in SAMPLES:
-		await sample_toy(sample)
+		var selected := OS.get_environment("TOYFX_ITEM")
+		if selected.is_empty() or int(selected) == int(sample[0]):
+			await sample_toy(sample)
 	print("PASS: completed real Toy Box sampling (individual render verdicts in receipts) ", skin)
 	client.free()
 	quit(0)
@@ -64,7 +66,8 @@ func sample_toy(sample: Array) -> void:
 	await click("ToySpellButton1")
 	await tap(KEY_ESCAPE)
 	# Sample short-lived cast art and held attachments separately; preserve actual state.
-	for frame in range(7):
+	var frame_count := 13 if item == 54452 else 7
+	for frame in range(frame_count):
 		await create_timer(0.4 if frame < 3 else 1.0).timeout
 		if frame == 4 and item in [45011, 33223, 40768]:
 			var pos := actor.position
