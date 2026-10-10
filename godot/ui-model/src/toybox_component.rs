@@ -92,7 +92,8 @@ fn tabs() -> Element {
         .map(|(index, title)| {
             let width = crate::merchant_frame_component::tab_width(title);
             let tab = journal_tab(index, title, left, width);
-            left += width - 16.0;
+            // Collections OnLoad calls SetNumTabs; AnchorTabs replaces XML's -16 with +3.
+            left += width + 3.0;
             tab
         })
         .collect();
