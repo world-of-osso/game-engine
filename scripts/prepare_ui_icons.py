@@ -103,34 +103,51 @@ def normalize_extracted_icon_names(data: Path, fdids: list[int]) -> None:
                 source.rename(destination)
 
 
+def record_icon_provenance(data: Path, manifest: dict, missing: list[int]) -> None:
+    absent = set(missing)
+    records = []
+    for entry in manifest["icons"]:
+        fdid = entry["fdid"]
+        if fdid not in absent:
+            path = data / "textures" / f"{fdid}.blp"
+            records.append({"fdid": fdid, "sha256": hash_file(path), "bytes": path.stat().st_size})
+    write_json_if_changed(data / "cache/ui-icon-provenance.json", {
+        "status": "incomplete" if missing else "complete",
+        "missing_fdids": missing,
+        "extractor": "casc-local (local WoW archives only; developer build step)",
+        "source_tables": manifest["source_tables"],
+        "icons": records,
+    })
+
+
+def extract_missing_icons(root: Path, extractor: Path, missing: list[int], evidence: Path) -> int:
+    if not extractor.is_file():
+        raise ValueError(f"UI icon pre-extraction needs {extractor}; {len(missing)} required FDIDs absent: {missing[:32]}")
+    environment = dict(os.environ, WOW_PRODUCT="wow")
+    with (evidence / "extract.log").open("a") as log:
+        log.write(f"\nPreparing {len(missing)} declared UI icon FDIDs from local CASC only\n")
+        log.flush()
+        result = subprocess.run([str(extractor), *map(str, missing), "-o", str(root / "data/textures")],
+                                cwd=root, env=environment, stdout=log, stderr=subprocess.STDOUT)
+    normalize_extracted_icon_names(root / "data", missing)
+    return result.returncode
+
+
 def prepare_ui_icons(root: Path, extractor: Path) -> dict:
     data = root / "data"
     manifest = collect_required_icons(data)
     write_json_if_changed(data / MANIFEST, manifest)
     missing = missing_required_icons(manifest, data)
+    record_icon_provenance(data, manifest, missing)
     evidence = data / "diagnostics/ui-icon-preparation"
     evidence.mkdir(parents=True, exist_ok=True)
     if missing:
-        if not extractor.is_file():
-            raise ValueError(f"UI icon pre-extraction needs {extractor}; {len(missing)} required FDIDs absent: {missing[:32]}")
-        environment = dict(os.environ, WOW_PRODUCT="wow")
-        with (evidence / "extract.log").open("a") as log:
-            log.write(f"\nPreparing {len(missing)} declared UI icon FDIDs from local CASC only\n")
-            log.flush()
-            result = subprocess.run([str(extractor), *map(str, missing), "-o", str(data / "textures")],
-                                    cwd=root, env=environment, stdout=log, stderr=subprocess.STDOUT)
-        normalize_extracted_icon_names(data, missing)
+        status = extract_missing_icons(root, extractor, missing, evidence)
         missing = missing_required_icons(manifest, data)
-        if result.returncode or missing:
-            write_json_if_changed(evidence / "missing.json", {"fdids": missing, "extract_exit": result.returncode})
+        record_icon_provenance(data, manifest, missing)
+        if status or missing:
+            write_json_if_changed(evidence / "missing.json", {"fdids": missing, "extract_exit": status})
             raise ValueError(f"UI asset preparation failed: {len(missing)} required icons absent/invalid: {missing[:32]}; complete list/log: {evidence}")
-    provenance = {
-        "extractor": "casc-local (local WoW archives only; developer build step)",
-        "source_tables": manifest["source_tables"],
-        "icons": [{"fdid": entry["fdid"], "sha256": hash_file(data / "textures" / f"{entry['fdid']}.blp"),
-                   "bytes": (data / "textures" / f"{entry['fdid']}.blp").stat().st_size} for entry in manifest["icons"]],
-    }
-    write_json_if_changed(data / "cache/ui-icon-provenance.json", provenance)
     (evidence / "missing.json").unlink(missing_ok=True)
     print(f"Prepared {len(manifest['icons'])} required UI icon BLPs; manifest/provenance ship in data/cache/", flush=True)
     return manifest
