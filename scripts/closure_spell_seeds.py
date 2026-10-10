@@ -57,16 +57,23 @@ def seed_spell_visuals(graph, catalogs, spells):
     kits = expand_kit_ids(catalogs, kits)
     effects = set()
     sounds = set()
-    for row in catalogs.rows('SpellVisualKitModelAttach'):
+    attachments = catalogs.index('SpellVisualKitModelAttach')
+    for row in attachments.values():
         if value(row, 'ParentSpellVisualKitID') in kits:
             effects.add(value(row, 'SpellVisualEffectNameID'))
     for row in catalogs.rows('SpellVisualKitEffect'):
         if value(row, 'ParentSpellVisualKitID') not in kits:
             continue
         kind, effect = value(row, 'EffectType'), value(row, 'Effect')
-        if kind == 5:
+        if kind == 2:
+            attachment = attachments.get(effect)
+            if attachment is None:
+                graph.issue('missing_metadata_row', f'SpellVisualKitModelAttach ID={effect}')
+            else:
+                effects.add(value(attachment, 'SpellVisualEffectNameID'))
+        elif kind == 5:
             sounds.add(effect)
-        elif kind not in {2, 6}:
+        elif kind != 6:
             graph.issue('unsupported_spell_kit_effect', f'kit {row["ParentSpellVisualKitID"]} effect type {kind} effect {effect}')
     missiles = {value(row, 'SpellVisualMissileSetID') for row in catalogs.rows('SpellVisual')
                 if value(row, 'ID') in visuals} - {0}
