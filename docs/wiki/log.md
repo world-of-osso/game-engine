@@ -1,3 +1,7 @@
+## 2026-10-10 — Bounded wild PvE pet battle acceptance
+
+[Wild integration](systems/battle-pets.md#wild-pve-integration--verified-2026-10-10) records real native loadout/right-click/swap, defeated wins and captures in explicitly verified Modern/Forever layouts on private5592. Final state-before-End fixes stale lethal HP; saved layer visibility prevents normal HUD/nameplates covering battle controls and restores them on close. Eight individually ffmpeg-downscaled/inspected PNGs,31 shared static native rectangles,26 UI integration tests and required server workspace1,753 passes/71 ignored/one skip. Unsupported effect semantics and expired independent verifier authentication remain explicit; no merge or shared-realm operation.
+
 ## 2026-10-10 — Stable local CASC / 70338 gap recovery
 
 [Recorded-gap recovery](systems/offline-asset-closure.md#recorded-gap-recovery--verified-2026-10-10) records a readable70338 root, seven body bakes, vehicle7476985 and204 IV8 recoveries using the existing fixed extractor. Local cache importer finds48 already-known names. Vehicle+6/VehicleSeat+8/GlobalStrings+65 reexport candidates preserve canonical CSVs; no server import, asset download, mirror write or rendering acceptance.
