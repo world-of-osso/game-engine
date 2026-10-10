@@ -565,7 +565,8 @@ impl INode3D for GameClient {
                     godot_print!(
                         "PBWILD captured right pressed={} edge={}",
                         button.is_pressed(),
-                        self.physical_input.mouse_just_pressed(
+                        game_engine_core::input_bindings_data::InputState::mouse_just_pressed(
+                            &self.physical_input,
                             game_engine_core::input_bindings_data::BindingMouseButton::Right
                         )
                     );
