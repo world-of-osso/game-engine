@@ -12,6 +12,7 @@ Local-only Python stdlib importer in `scripts/import_npc_appearance.py`. Produce
 - [x] Write `display_coverage(display_id PRIMARY KEY, requires_appearance)` for every selected CSV display, including ordinary creatures with `ExtendedDisplayInfoID = 0`. Unselected displays are outside coverage; coverage is reported separately from appearance counts.
 - [x] Reader returns `None` only for covered ordinary creatures. Covered required appearances without a profile and displays outside coverage return explicit errors, never raw-model fallback.
 - [x] Require an explicit new output path, refuse replacement, and report failures without producing an incomplete database.
+- [ ] An explicit read-only base cache may extend validated mount coverage into a new output while preserving all prior profiles, choices, geosets and coverage; conflicting rows must fail instead of downgrading required appearances.
 
 ## How it works
 
