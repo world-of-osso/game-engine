@@ -113,6 +113,24 @@ class PathTests(unittest.TestCase):
         self.assertEqual([a['fdid'] for a in result['assets']], [1, 17])
         self.assertFalse(result['unresolved'])
 
+    def test_zero_or_short_primary_arrays_do_not_fall_back_to_names(self):
+        name = b'textures/old.blp\0'
+        raw = bytearray(0x148 + len(name))
+        raw[:4] = b'MD20'
+        struct.pack_into('<II', raw, 0x50, 1, 0x138)
+        struct.pack_into('<IIII', raw, 0x138, 0, 0, len(name), 0x148)
+        raw[0x148:] = name
+        for txid in [ints(0), b'']:
+            self.put('models/2.m2', chunk('MD21', raw) + chunk('TXID', txid))
+            graph = Closure(self.data, {8: 'textures/old.blp'}, 'wow', 'fixture')
+            graph.add(2, 'm2', 'test')
+            self.assertEqual([a['fdid'] for a in graph.run()['assets']], [2])
+        for mdid in [ints(0), b'']:
+            self.put('terrain/1.adt', chunk('MDID', mdid, True) + chunk('MTEX', name, True))
+            graph = Closure(self.data, {8: 'textures/old.blp'}, 'wow', 'fixture')
+            graph.add(1, 'adt', 'test')
+            self.assertEqual([a['fdid'] for a in graph.run()['assets']], [1])
+
     def test_displaced_path_without_runtime_binding_remains_a_visible_gap(self):
         graph = Closure(self.data, {7: 'world/a.m2', 3: 'world/b.m2'}, 'wow', 'fixture', runtime_paths={'world/b.m2': 3})
         graph.named('world/a.m2', 'm2', 'displaced placement', None)
