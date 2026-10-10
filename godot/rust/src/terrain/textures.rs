@@ -86,12 +86,7 @@ impl TerrainTextureCache {
         }
         let io = crate::profile::span(|| "phase.asset_io.terrain_texture".to_owned());
         let destination = data_root.join("textures").join(format!("{fdid}.blp"));
-        let path = resolver.ensure_cached(fdid, &destination).ok_or_else(|| {
-            format!(
-                "Local CASC texture FDID {fdid} unavailable at {}",
-                destination.display()
-            )
-        })?;
+        let path = resolver.ensure_cached_checked(fdid, &destination)?;
         let bytes =
             fs::read(&path).map_err(|error| format!("FDID {fdid} {}: {error}", path.display()))?;
         drop(io);

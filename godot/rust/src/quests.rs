@@ -569,8 +569,14 @@ impl GameClient {
         let resolver = local_resolver(&self.data_root);
         for fdid in new {
             let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
-            if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {
-                godot_warn!("Quest window texture FDID {fdid} is not in local CASC");
+            if !path.exists() {
+                match resolver.ensure_cached(fdid, &path) {
+                    Ok(Some(_)) => {}
+                    Ok(None) => {
+                        godot_warn!("Quest window texture FDID {fdid} is not in local CASC")
+                    }
+                    Err(error) => godot_warn!("{error}"),
+                }
             }
         }
     }
