@@ -71,6 +71,14 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # Local Retail 12.1.0.69933: six-float GeoBox precedes inline FileDataID.
+    # Resource/flags/LOD ordering checked against 130,311 legacy CSV identities;
+    # newly readable local rows include FDIDs 7567115/7567116, resource 85100.
+    "ModelFileData": (
+        0x2AE4E788,
+        [("FileDataID", "id"), ("Flags", ("int", 2, 0)),
+         ("LodCount", ("int", 3, 0)), ("ModelResourcesID", ("int", 4, 0))],
+    ),
     # Local Retail 12.1.0.69933; WoWDBDefs layouts. No speed column in these tables.
     "AnimReplacementSet": (
         0x7C047695,
@@ -962,7 +970,9 @@ TABLES.update(_layouts.CLOSURE_TABLES)
 NARROW = {"i8": (True, 8), "u8": (False, 8), "i16": (True, 16), "u16": (False, 16)}
 
 # Tables whose inline ID is not their first field.
-INLINE_ID_FIELD = {"SpellVisualMissile": 2, "ChrModel": 2, "BattlePetSpecies": 2}
+INLINE_ID_FIELD = {
+    "SpellVisualMissile": 2, "ChrModel": 2, "BattlePetSpecies": 2, "ModelFileData": 1,
+}
 
 
 def read_fields(data, field_count, sections):
