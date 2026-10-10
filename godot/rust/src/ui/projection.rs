@@ -1191,10 +1191,8 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
                     edit.release_focus();
                 }),
             );
-            node.connect(
-                "gui_input",
-                &search_preview_keys(pending.clone(), node.clone()),
-            );
+            let keys = search_preview_keys(pending.clone(), node.clone());
+            node.connect("gui_input", &keys);
         } else {
             node.connect("text_submitted", &emit(pending, UiInput::Submit));
         }
