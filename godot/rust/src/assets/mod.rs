@@ -5,6 +5,9 @@ pub(crate) mod creature;
 pub(crate) mod equipment;
 pub(crate) mod m2_lights;
 pub(crate) mod material;
+#[cfg(test)]
+#[path = "model_parser_isolation_tests.rs"]
+mod parser_isolation_tests;
 pub(crate) mod player;
 mod player_request;
 pub(crate) mod uv_animation;
