@@ -118,17 +118,32 @@ fn add_equipped_player_assets(
     outfit: &outfit_data::OutfitData,
     assets: &mut BTreeSet<(&'static str, u32, &'static str)>,
 ) -> Result<(), String> {
-    use game_engine_core::npc_appearance_assets::{load_compositor, load_customization_db};
-    use shared::components::{
-        CharacterAppearance, EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry,
-    };
-    let body =
+    use shared::components::{EquipmentAppearance, EquipmentVisualSlot, EquippedAppearanceEntry};
+    let bodies =
         game_engine_core::player_model_data::player_model_fdids(&data.join("db2/12.1.0.69933"))?;
-    assets.insert((
-        "wow",
-        *body.get(&(1, 0)).ok_or("Human male model absent")?,
-        "m2",
-    ));
+    let body = *bodies.get(&(1, 0)).ok_or("Human male model absent")?;
+    assets.insert(("wow", body, "m2"));
+    add_default_player_customization_assets(data, assets)?;
+    let equipment = EquipmentAppearance {
+        entries: vec![EquippedAppearanceEntry {
+            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
+            slot: EquipmentVisualSlot::MainHand,
+            item_id: Some(25),
+            display_info_id: None,
+            inventory_type: 21,
+            hidden: false,
+        }],
+    };
+    let armor = equipment_appearance_data::resolve_equipment_appearance(&equipment, outfit, 1, 0)?;
+    add_armor_assets(assets, &armor)
+}
+
+fn add_default_player_customization_assets(
+    data: &Path,
+    assets: &mut BTreeSet<(&'static str, u32, &'static str)>,
+) -> Result<(), String> {
+    use game_engine_core::npc_appearance_assets::load_customization_db;
+    use shared::components::CharacterAppearance;
     let db = load_customization_db(data)?;
     let selected =
         appearance_options::selected_choices(&db, 1, 0, 1, &CharacterAppearance::default());
@@ -148,29 +163,20 @@ fn add_equipped_player_assets(
             }
         }
     }
-    let compositor = load_compositor(data)?;
-    let layout = compositor
-        .layout(db.layout_id(1, 0).ok_or("Human male layout absent")?)
-        .ok_or("Human male compositor layout absent")?;
-    let default = game_engine_core::asset::m2_texture::default_fdid_for_type(
-        1,
-        layout.width == 2048 && layout.height == 1024,
-        &[0; 3],
-    )
-    .ok_or("Human male default texture absent")?;
+    let layout_id = db.layout_id(1, 0).ok_or("Human male layout absent")?;
+    let default = read_default_player_texture(data, layout_id)?;
     assets.insert(("wow", default, "blp"));
-    let equipment = EquipmentAppearance {
-        entries: vec![EquippedAppearanceEntry {
-            definition_source: Some(shared::item_data::ItemDefinitionSource::Retail),
-            slot: EquipmentVisualSlot::MainHand,
-            item_id: Some(25),
-            display_info_id: None,
-            inventory_type: 21,
-            hidden: false,
-        }],
-    };
-    let armor = equipment_appearance_data::resolve_equipment_appearance(&equipment, outfit, 1, 0)?;
-    add_armor_assets(assets, &armor)
+    Ok(())
+}
+
+fn read_default_player_texture(data: &Path, layout_id: u32) -> Result<u32, String> {
+    let compositor = game_engine_core::npc_appearance_assets::load_compositor(data)?;
+    let layout = compositor
+        .layout(layout_id)
+        .ok_or("Human male compositor layout absent")?;
+    let high_resolution = layout.width == 2048 && layout.height == 1024;
+    game_engine_core::asset::m2_texture::default_fdid_for_type(1, high_resolution, &[0; 3])
+        .ok_or_else(|| "Human male default texture absent".into())
 }
 
 fn add_armor_assets(
