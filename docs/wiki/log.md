@@ -1,3 +1,7 @@
+## 2026-10-09 — Shipped-only UI icons and refreshed class spellbooks
+
+[Shipped-icon recapture](systems/talents.md#shipped-icon-recapture-2026-10-09) reconciles the pre-fix CASC RED with the current filesystem-only boundary, targeted GREEN, fixed-resolver retry and inspected Forever recaptures. The linked coverage matrix owns per-class icon totals, source/key shipping blockers and residual Paladin same-name pairs. Only the requested PNGs were replaced in AgentShared; no runtime mode duplication, resolver merge or release-readiness claim.
+
 ## 2026-10-09 — Offline class spellbooks and spec talents
 
 [Talents](systems/talents.md#offline-classspec-capture-2026-10-09) records paired DB2 preview inputs, preserved default Mage snapshot and production-catalog evidence. [Contract](../specs/talents.md#offline-classspec-evidence) links the data-only coverage matrix, native screenshots, exact blocked specs and existing layout/hero-eligibility limits. No spell behavior, server persistence or complete-tree parity claim.
