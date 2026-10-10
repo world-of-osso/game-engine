@@ -27,7 +27,7 @@ impl GameClient {
             );
             toys.push(&row);
         }
-        state.set("learned", toys);
+        state.set("learned", &toys);
         let mut slots = VarDictionary::new();
         for slot in 0..crate::player_spells::ACTION_SLOT_COUNT {
             if let Some(action) = self
@@ -39,7 +39,7 @@ impl GameClient {
                 slots.set(slot as i64, i64::from(action.item_id));
             }
         }
-        state.set("slots", slots);
+        state.set("slots", &slots);
         state
     }
 }
