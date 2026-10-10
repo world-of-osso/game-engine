@@ -8,6 +8,7 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 - [x] Seed Northshire tiles, a male level-1 Human Warrior, starting kit, local world.db spawn displays and spellbook SpellMisc icons.
 - [x] Emit deterministic JSON with FDID/type/path, edges, product/build provenance status, presence, sizes and SHA-256.
 - [x] Report unknown joins, malformed bytes, missing expansion boundaries and conflicting local aliases instead of silently dropping dependencies.
+- [x] Resolve named references with the runtime's persisted-local precedence and surviving SQLite import binding, not largest/minimum FDID heuristics; retain displacement gaps. Prefer declared Map.WdtFileDataID, M2 TXID and ADT MDID over stale names; a present TXID/MDID never falls back to names for zero/short slots. Hash the explicit read-only local-listfile snapshot used by the audit.
 - [ ] Select full catalogs through configuration without changing the traversal; label approximate full-scope file/byte estimates separately from proven coverage.
 
 ## How it works
@@ -24,11 +25,14 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 ## Tests asserting this spec
 
 - `scripts/tests/test_asset_closure.py` — concrete binary chains, catalog joins, missing/malformed dependencies, cycles, aliases and census.
+- `scripts/tests/test_closure_terrain.py` — repeated MCNK layers, liquid/object joins, global blob, FDIDs versus flags, malformed offsets and not-needed evidence.
+- `scripts/tests/test_closure_paths.py` — runtime SQLite displacement, local precedence, explicit FDIDs over names and visible unmapped gaps.
 
 ## Known gaps (current cycle)
 
 - [ ] Legacy extracted files have no authenticated product/actual-build receipts. Hashing proves local bytes, not origin. Manifest identity remains unverified.
-- [ ] Liquid/ground-effect and emitter auxiliary edges are explicit unresolved boundaries, not complete enumeration.
+- [x] Inspect every ADT MCNK and MH2O instance; resolve MCLY ground effects through GroundEffectTexture/Doodad and liquids through LiquidObject/Type/XTexture, including renderer-global textures. Record inline-only chunks and zero-instance liquids as not-needed with evidence; missing required joins/unknown chunks stay unresolved. Absent optional ground-effect rows are not-needed only when the CSV is present and hashed and the current runtime skips the row before any model request; ignored MPTX/legacy MCLQ chunks are explicitly scoped to current runtime support, not Retail-format completeness.
+- [ ] Emitter auxiliary edges remain an explicit unresolved boundary.
 - [ ] Full spell selector is a conservative catalog superset; complete server reachability needs content policy.
 - [ ] Full character selector includes modeled placeholder races; supported playable-pair policy and customization requirement evaluation remain unresolved.
 

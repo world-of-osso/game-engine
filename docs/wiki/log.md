@@ -3085,3 +3085,6 @@ Server learned-spell publication unblocked both-skin aura proof. Fixed approved 
 ## 2026-10-10 — Aura312 client replacement hook
 
 Added local Retail replacement-table exports and per-unit base/action selection maps, authoritative clearing and logical-source jump progression. Preserved crossfade pose continuity and movement blend minimum. [Implementation and proof limits](systems/spell-overrides-teleports.md#animation-replacements): no speed field in these layouts; conditional flags and primary Retail missing-destination citation remain unverified.
+## 2026-10-10 — Terrain and runtime-path asset closure
+
+[Offline closure continuation](systems/offline-asset-closure.md#closure-continuation--verified-2026-10-10) records parsed terrain/liquid/ground-detail identities, current-runtime not-needed evidence, SQLite/local-cache path precedence and direct Map/TXID/MDID references; local-CASC fixed points, receipt/size proof and remaining acceptance boundaries. No data committed or no-install gameplay certification.
