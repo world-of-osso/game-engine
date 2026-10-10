@@ -136,6 +136,7 @@ impl GameClient {
         if let Some(ActionRef::Item(item_id)) = action {
             if let Some(toy) = self.toybox.model.toy(item_id) {
                 let icon = toy.icon_file_data_id;
+                button.radial_cooldown = true;
                 if let Some(spell) = toy.spell_id {
                     button.cooldown_fraction = self.toybox.model.cooldowns.fraction(spell);
                     let remaining = self.toybox.model.cooldowns.remaining(spell);
@@ -207,23 +208,41 @@ impl GameClient {
         let state = self.action_bar_state();
         if let Some(ui) = self.spells.bar_ui.as_mut() {
             ui.set_visible(self.client_options.hud.show_action_bars);
-            return ui.bind_mut().set_state(state);
+            let mut host = ui.bind_mut();
+            host.set_state(state.clone())?;
+            return sync_toy_swipes(&mut host, &state);
         }
         self.extract_art(&ACTION_BAR_ART_FDIDS);
         let mut ui = RegistryUi::new_alloc();
         ui.set_name("MainActionBarUI");
         ui.set_layer(2);
         self.base_mut().add_child(&ui);
-        let shown = ui.bind_mut().show_main_action_bar(state);
+        let shown = ui.bind_mut().show_main_action_bar(state.clone());
         if let Err(error) = shown {
             ui.free();
             return Err(error);
         }
         ui.set_visible(self.client_options.hud.show_action_bars);
         ui.bind_mut().enable_cursor_inputs();
+        sync_toy_swipes(&mut ui.bind_mut(), &state)?;
         self.spells.bar_ui = Some(ui);
         Ok(())
     }
+}
+
+fn sync_toy_swipes(host: &mut RegistryUi, state: &MainActionBarState) -> Result<(), String> {
+    for bar in ActionBar::ALL {
+        for (index, button) in state.bar(bar).iter().enumerate() {
+            let name = format!("{}Cooldown", bar.button_name(index));
+            let fraction = if button.radial_cooldown {
+                button.cooldown_fraction
+            } else {
+                0.0
+            };
+            host.update_toy_swipe(&name, fraction)?;
+        }
+    }
+    Ok(())
 }
 
 #[cfg(test)]
