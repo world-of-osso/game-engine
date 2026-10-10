@@ -98,6 +98,8 @@ pub const VIGNETTE_KILL: MapArt = art(OBJECT_ICONS.0, OBJECT_ICONS.1, (599.0, 66
 pub const VIGNETTE_KILL_ELITE: MapArt =
     art(OBJECT_ICONS.0, OBJECT_ICONS.1, (203.0, 267.0, 395.0, 459.0));
 /// `UI-QuestPoi-QuestNumber` (23605): numbered objective circle.
+pub const QUEST_AVAILABLE: MapArt =
+    art(OBJECT_ICONS.0, OBJECT_ICONS.1, (137.0, 201.0, 263.0, 327.0));
 pub const QUEST_NUMBER: MapArt = art(QUEST_POI.0, QUEST_POI.1, (67.0, 99.0, 35.0, 67.0));
 /// `UI-QuestPoi-QuestBangTurnIn` (25009): completed quest turn-in.
 pub const QUEST_TURN_IN: MapArt = art(QUEST_POI.0, QUEST_POI.1, (67.0, 99.0, 1.0, 33.0));

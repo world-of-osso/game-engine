@@ -1,3 +1,7 @@
+## 2026-10-10 — Quest map objective sources and integration
+
+[Quest map objectives](systems/quest-map-objectives.md) records local CASC blob/point exports, source coverage and native blue-overlay integration. RED selection, completed-objective, color and rotation receipts retained; GREEN/native/live acceptance pending.
+
 ## 2026-10-09 — Retail auction subject and invoice formatting
 
 [Native auction mail](systems/trade-and-mail.md#retail-auction-mail-formatting-2026-10-09) records local-CASC GlobalStrings extraction, client-owned subject localization, seller/buyer invoice rendering and the screenshot-reproduced money-coordinate correction. Final native ui-model844/0/7; real private5510 inbox crop published. Text and numeric field proof are bounded; post-correction invoice pixels and triangle picking are not claimed.

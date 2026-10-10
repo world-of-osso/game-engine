@@ -53,10 +53,7 @@ impl MinimapPingMark {
 /// Engine `(x, z)` under a click `offset` (right, down) from the map centre as a fraction
 /// of the map size: the inverse of `MinimapView::blip_offset`.
 pub fn minimap_click_position(view: &MinimapView, [right, down]: [f32; 2]) -> [f32; 2] {
-    [
-        view.center[0] - down * view.diameter,
-        view.center[1] + right * view.diameter,
-    ]
+    view.offset_position([right, down])
 }
 
 /// `Minimap:PingLocation` at engine `(x, z)`, sent as WoW world x/y.

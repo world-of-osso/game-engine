@@ -26,7 +26,7 @@ use crate::ui::strata::FrameStrata;
 
 #[path = "minimap_units.rs"]
 mod units;
-pub use units::{group_minimap_blips, target_minimap_blip};
+pub use units::{edge_offset, group_minimap_blips, target_minimap_blip};
 #[path = "minimap_tracking.rs"]
 mod tracking;
 pub use tracking::{TrackingFilter, TrackingState, tracking_minimap_blips};
@@ -52,6 +52,14 @@ pub const MINIMAP_BLIP_PREFIX: &str = "MinimapBlip";
 pub const MINIMAP_VIGNETTE_PREFIX: &str = "MinimapVignette";
 pub const MINIMAP_MEMBER_PREFIX: &str = "MinimapMember";
 pub const MINIMAP_TARGET_PREFIX: &str = "MinimapTarget";
+pub const MINIMAP_OBJECTIVE_PREFIX: &str = "MinimapQuestObjective";
+pub const MINIMAP_SUPERTRACK_PREFIX: &str = "MinimapSuperTrack";
+pub const SUPERTRACK_ARROW_FDID: u32 = 407_337;
+const QUEST_NUMBER: SheetArt = SheetArt {
+    fdid: 5_320_914,
+    sheet: (256.0, 128.0),
+    crop: (67.0, 99.0, 35.0, 67.0),
+};
 /// Retail `MiniMapMailFrame` (`Minimap.xml:92-145`).
 pub const MINIMAP_MAIL_FRAME: &str = "MiniMapMailFrame";
 pub const ACTION_ZOOM_IN: &str = "minimap:zoom_in";
@@ -293,6 +301,20 @@ pub fn minimap_texture_fdids(state: &MinimapClusterState, skin: ActiveSkin) -> V
     if state.blips.iter().any(|blip| blip.kind == BlipKind::Corpse) {
         fdids.push(CORPSE_ARROW_FDID);
     }
+    if state
+        .blips
+        .iter()
+        .any(|b| matches!(b.kind, BlipKind::QuestObjective { .. }))
+    {
+        fdids.push(QUEST_NUMBER.fdid);
+    }
+    if state
+        .blips
+        .iter()
+        .any(|b| b.kind == BlipKind::QuestSuperTrackArrow)
+    {
+        fdids.push(SUPERTRACK_ARROW_FDID);
+    }
     if state.tracking.open {
         fdids.extend([
             crate::bank_art::CHECKBOX_UP,
@@ -311,6 +333,11 @@ pub enum BlipKind {
     QuestAvailable,
     /// Yellow `?`: `QuestGiverStatus::Reward`.
     QuestTurnIn,
+    QuestObjective {
+        number: usize,
+    },
+    QuestPoiTurnIn,
+    QuestSuperTrackArrow,
     /// A creature vignette (`VignetteKill`, `VignetteKillElite`).
     Vignette {
         elite: bool,
@@ -629,6 +656,16 @@ fn blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
     let (prefix, art) = match blip.kind {
         BlipKind::QuestAvailable => (MINIMAP_BLIP_PREFIX, QUEST_AVAILABLE),
         BlipKind::QuestTurnIn => (MINIMAP_BLIP_PREFIX, QUEST_TURN_IN),
+        BlipKind::QuestPoiTurnIn => (MINIMAP_OBJECTIVE_PREFIX, QUEST_TURN_IN),
+        BlipKind::QuestObjective { .. } => (MINIMAP_OBJECTIVE_PREFIX, QUEST_NUMBER),
+        BlipKind::QuestSuperTrackArrow => (
+            MINIMAP_SUPERTRACK_PREFIX,
+            SheetArt {
+                fdid: SUPERTRACK_ARROW_FDID,
+                sheet: (32.0, 32.0),
+                crop: (0.0, 32.0, 0.0, 32.0),
+            },
+        ),
         BlipKind::Vignette { elite: false } => (MINIMAP_VIGNETTE_PREFIX, VIGNETTE_KILL),
         BlipKind::Vignette { elite: true } => (MINIMAP_VIGNETTE_PREFIX, VIGNETTE_KILL_ELITE),
         BlipKind::Corpse => return corpse_arrow(blip, style),
@@ -642,11 +679,22 @@ fn blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
     let [left, top] = style.map_origin;
     let x = left + style.map_size * (0.5 + right) - BLIP_SIZE / 2.0;
     let y = top + style.map_size * (0.5 + down) - BLIP_SIZE / 2.0;
-    art_texture(
+    let mut elements = art_texture(
         format!("{prefix}{}", blip.unit),
         art,
         [x, y, BLIP_SIZE, BLIP_SIZE],
-    )
+    );
+    if let BlipKind::QuestObjective { number } = blip.kind {
+        let text = number.to_string();
+        elements.extend(rsx! { font_string {
+            name: {DynName(format!("{prefix}{}Number", blip.unit))},
+            text: {text.as_str()}, font: GameFont::FrizQuadrata, font_size: 10.0,
+            color: WHITE, justify_h: "CENTER", justify_v: "MIDDLE",
+            width: BLIP_SIZE, height: BLIP_SIZE,
+            pos_type: "absolute", left: x, top: y,
+        }});
+    }
+    elements
 }
 
 fn corpse_arrow(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
@@ -953,6 +1001,20 @@ pub fn apply_minimap_postsetup(state: &MinimapClusterState, registry: &mut Frame
             &format!("{MINIMAP_CORPSE_PREFIX}{}", blip.unit),
             |texture| {
                 texture.rotation = rotation;
+            },
+        );
+    }
+    for blip in state
+        .blips
+        .iter()
+        .filter(|b| b.kind == BlipKind::QuestSuperTrackArrow)
+    {
+        let [right, down] = blip.offset;
+        edit_texture(
+            registry,
+            &format!("{MINIMAP_SUPERTRACK_PREFIX}{}", blip.unit),
+            |texture| {
+                texture.rotation = -right.atan2(-down);
             },
         );
     }

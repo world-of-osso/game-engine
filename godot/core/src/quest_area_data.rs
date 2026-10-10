@@ -1,42 +1,100 @@
-//! Quest objective areas (`QuestPOI` blobs) as an RGBA overlay for the minimap composite
-//! and the world map canvas. Retail draws them with the `UI-QuestBlob-Inside` fill and
-//! `UI-QuestBlob-Outside` rim art; this approximates both as a gold fill with a
-//! brighter rim one and a half pixels wide.
+//! Authored quest polygons rasterized with extracted Retail blue fill and rim art.
+use crate::minimap_data::{TileImage, sample};
+use std::path::Path;
 
-/// Overlay colour (`QuestBlob` gold).
-pub const QUEST_AREA_COLOR: [u8; 3] = [255, 209, 0];
-const FILL_ALPHA: f32 = 0.25;
-const RIM_ALPHA: f32 = 0.7;
-const RIM_PX: f32 = 1.5;
+const RIM_PX: f32 = 3.0;
 
-/// `width`×`height` RGBA overlay of `polygons` (pixel coordinates, three or more
-/// points each): transparent outside, gold fill inside, a stronger gold rim.
-pub fn quest_area_overlay(width: u32, height: u32, polygons: &[Vec<[f32; 2]>]) -> Vec<u8> {
+pub struct QuestAreaArt {
+    fill: TileImage,
+    rim: TileImage,
+    selected_rim: TileImage,
+}
+impl QuestAreaArt {
+    pub fn load(root: &Path, minimap: bool) -> Result<Self, String> {
+        let read = |id| {
+            let path = root.join("textures").join(format!("{id}.blp"));
+            let bytes = std::fs::read(&path).map_err(|e| format!("{}: {e}", path.display()))?;
+            let image = crate::blp::decode_rgba(&bytes)?;
+            Ok::<_, String>(TileImage {
+                pixels: image.pixels,
+                width: image.width,
+                height: image.height,
+            })
+        };
+        Ok(Self {
+            fill: read(342_529)?,
+            rim: read(if minimap { 533_895 } else { 342_531 })?,
+            selected_rim: read(if minimap { 1_083_696 } else { 342_531 })?,
+        })
+    }
+}
+
+/// Transparent RGBA overlay. Shapes come only from POI points; textures never
+/// substitute a missing polygon. Highlighting uses the selected rim and full alpha.
+pub fn quest_area_overlay(
+    width: u32,
+    height: u32,
+    polygons: &[Vec<[f32; 2]>],
+    art: &QuestAreaArt,
+    highlighted: bool,
+) -> Vec<u8> {
     let mut overlay = vec![0u8; (width * height * 4) as usize];
     for polygon in polygons.iter().filter(|polygon| polygon.len() >= 3) {
         let (min, max) = bounds(polygon);
-        let rows = (min[1].floor().max(0.0) as u32)..(max[1].ceil().min(height as f32) as u32);
+        let rows = ((min[1] - RIM_PX).floor().max(0.0) as u32)
+            ..((max[1] + RIM_PX).ceil().min(height as f32) as u32);
         for py in rows {
-            let columns =
-                (min[0].floor().max(0.0) as u32)..(max[0].ceil().min(width as f32) as u32);
+            let columns = ((min[0] - RIM_PX).floor().max(0.0) as u32)
+                ..((max[0] + RIM_PX).ceil().min(width as f32) as u32);
             for px in columns {
                 let point = [px as f32 + 0.5, py as f32 + 0.5];
-                if !inside(polygon, point) {
-                    continue;
+                let mut color = [0u8; 4];
+                if inside(polygon, point) {
+                    color = sample(
+                        &art.fill,
+                        [
+                            (px % art.fill.width) as f32 / art.fill.width as f32,
+                            (py % art.fill.height) as f32 / art.fill.height as f32,
+                        ],
+                    );
+                    color[3] =
+                        ((u16::from(color[3]) * if highlighted { 180 } else { 128 }) / 255) as u8;
                 }
-                let alpha = if edge_distance(polygon, point) <= RIM_PX {
-                    RIM_ALPHA
-                } else {
-                    FILL_ALPHA
-                };
+                let distance = edge_distance(polygon, point);
+                if distance <= RIM_PX {
+                    let rim = if highlighted {
+                        &art.selected_rim
+                    } else {
+                        &art.rim
+                    };
+                    let mut border = sample(rim, [0.5, distance / RIM_PX]);
+                    border[3] =
+                        ((u16::from(border[3]) * if highlighted { 255 } else { 192 }) / 255) as u8;
+                    color = over(color, border);
+                }
                 let offset = ((py * width + px) * 4) as usize;
-                overlay[offset..offset + 3].copy_from_slice(&QUEST_AREA_COLOR);
-                let alpha = (alpha * 255.0).round() as u8;
-                overlay[offset + 3] = overlay[offset + 3].max(alpha);
+                if color[3] > overlay[offset + 3] {
+                    overlay[offset..offset + 4].copy_from_slice(&color);
+                }
             }
         }
     }
     overlay
+}
+
+fn over(base: [u8; 4], top: [u8; 4]) -> [u8; 4] {
+    let a = f32::from(top[3]) / 255.0;
+    let b = f32::from(base[3]) / 255.0 * (1.0 - a);
+    let alpha = a + b;
+    if alpha == 0.0 {
+        return [0; 4];
+    }
+    let mut result = [0; 4];
+    for c in 0..3 {
+        result[c] = ((f32::from(top[c]) * a + f32::from(base[c]) * b) / alpha).round() as u8;
+    }
+    result[3] = (alpha * 255.0).round() as u8;
+    result
 }
 
 /// Blends `overlay` into the opaque pixels of `base` (same size); returns how many
@@ -107,6 +165,30 @@ fn edge_distance(polygon: &[[f32; 2]], [x, y]: [f32; 2]) -> f32 {
 mod tests {
     use super::*;
 
+    #[test]
+    fn retail_objective_fill_is_blue() {
+        let overlay = quest_area_overlay(
+            40,
+            40,
+            &[vec![[10.0, 10.0], [30.0, 10.0], [30.0, 30.0], [10.0, 30.0]]],
+            &art(),
+            false,
+        );
+        let offset = ((20 * 40 + 20) * 4) as usize;
+        assert!(
+            overlay[offset + 2] > overlay[offset],
+            "objective areas must use blue Retail fill"
+        );
+    }
+
+    fn art() -> QuestAreaArt {
+        QuestAreaArt::load(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+            false,
+        )
+        .unwrap()
+    }
+
     fn alpha(overlay: &[u8], width: u32, x: u32, y: u32) -> u8 {
         overlay[((y * width + x) * 4 + 3) as usize]
     }
@@ -114,14 +196,18 @@ mod tests {
     #[test]
     fn overlay_fills_inside_with_a_stronger_rim_and_leaves_outside_clear() {
         let square = vec![[10.0, 10.0], [30.0, 10.0], [30.0, 30.0], [10.0, 30.0]];
-        let overlay = quest_area_overlay(40, 40, &[square]);
+        let overlay = quest_area_overlay(40, 40, &[square], &art(), false);
         assert_eq!(alpha(&overlay, 40, 5, 5), 0, "outside");
-        assert_eq!(alpha(&overlay, 40, 20, 20), 64, "fill");
-        assert_eq!(alpha(&overlay, 40, 10, 20), 179, "rim");
+        assert_eq!(alpha(&overlay, 40, 20, 20), 128, "Retail fill alpha");
+        assert!(alpha(&overlay, 40, 10, 20) > 128, "rim over fill");
         let mut base = vec![100u8; 40 * 40 * 4];
         let blended = blend_overlay(&mut base, &overlay);
-        assert_eq!(blended, 20 * 20);
+        assert!(
+            blended > 20 * 20,
+            "authored rim extends outside the exact polygon"
+        );
         let centre = ((20 * 40 + 20) * 4) as usize;
-        assert_eq!(&base[centre..centre + 4], &[139, 127, 75, 100]);
+        assert!(base[centre + 2] > base[centre]);
+        assert_eq!(base[centre + 3], 100, "base mask preserved");
     }
 }

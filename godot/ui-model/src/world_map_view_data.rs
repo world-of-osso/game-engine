@@ -222,7 +222,7 @@ fn player_marker(
 }
 
 /// Map-UV outlines of the objective areas drawn on `map_id`.
-fn quest_area_polygons(
+pub fn quest_area_polygons(
     catalog: &UiMapCatalog,
     map_id: u32,
     areas: &[&QuestPoiSnapshot],
@@ -245,8 +245,7 @@ fn quest_pins(catalog: &UiMapCatalog, map_id: u32, quests: &[QuestEntrySnapshot]
     let mut pins = Vec::new();
     for (index, quest) in quests.iter().enumerate() {
         let poi = quest.pois.iter().find_map(|poi| {
-            let turn_in = poi.objective_index == -1;
-            if turn_in != quest.completed || poi.points.is_empty() {
+            if !crate::quest_poi::poi_is_visible(quest, poi) {
                 return None;
             }
             let count = poi.points.len() as f32;

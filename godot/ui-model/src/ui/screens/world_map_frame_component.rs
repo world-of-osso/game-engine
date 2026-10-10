@@ -125,6 +125,7 @@ const WHITE: &str = "1.0,1.0,1.0,1.0";
 pub enum MapPinType {
     /// Active quest objective area, numbered by quest log order.
     QuestObjective,
+    QuestAvailable,
     /// Completed quest, turn-in location.
     QuestTurnIn,
     FlightAlliance,
@@ -141,6 +142,7 @@ impl MapPinType {
     fn art(self) -> MapArt {
         match self {
             Self::QuestObjective => art::QUEST_NUMBER,
+            Self::QuestAvailable => art::QUEST_AVAILABLE,
             Self::QuestTurnIn => art::QUEST_TURN_IN,
             Self::FlightAlliance => art::TAXI_ALLIANCE,
             Self::FlightHorde => art::TAXI_HORDE,
@@ -153,7 +155,9 @@ impl MapPinType {
 
     fn size(self) -> f32 {
         match self {
-            Self::QuestObjective | Self::QuestTurnIn | Self::Corpse => QUEST_PIN_SIZE,
+            Self::QuestObjective | Self::QuestAvailable | Self::QuestTurnIn | Self::Corpse => {
+                QUEST_PIN_SIZE
+            }
             Self::Vignette { .. } => VIGNETTE_PIN_SIZE,
             _ => PIN_SIZE,
         }

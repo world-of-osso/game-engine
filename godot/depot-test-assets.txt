@@ -4628,3 +4628,11 @@ textures/130828.blp
 textures/5171843.blp
 textures/5740021.blp
 textures/5740409.blp
+# Quest geometry and extracted Retail blue blob / super-track art.
+db2/12.1.0.69933/QuestPOIBlob.csv
+db2/12.1.0.69933/QuestPOIPoint.csv
+textures/342529.blp
+textures/342531.blp
+textures/533895.blp
+textures/1083696.blp
+textures/407337.blp

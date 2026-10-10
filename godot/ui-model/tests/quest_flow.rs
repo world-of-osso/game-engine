@@ -618,3 +618,21 @@ fn log_reward_tooltips_come_from_the_rewards_the_giver_showed() {
         Some("Urchin's Pants")
     );
 }
+
+#[test]
+fn tracker_click_super_tracks_beating_them_back() {
+    let mut runtime = QuestRuntime::default();
+    runtime.apply_snapshot(QuestLogSnapshot {
+        entries: vec![worgs(0)],
+        watched_quest_ids: vec![BEATING_THEM_BACK],
+    });
+    let mut ui = QuestUiState::default();
+    quest_ui_action("quest_tracker:open:28766", &mut runtime, &mut ui);
+    assert_eq!(ui.super_tracked, Some(BEATING_THEM_BACK));
+    quest_ui_action("quest_tracker:open:999999", &mut runtime, &mut ui);
+    assert_eq!(
+        ui.super_tracked,
+        Some(BEATING_THEM_BACK),
+        "absent quests cannot be selected"
+    );
+}
