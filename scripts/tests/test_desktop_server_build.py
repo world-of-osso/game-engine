@@ -168,6 +168,29 @@ class DesktopServerBuildTests(unittest.TestCase):
         )
         self.assertNotIn("game-server/crates/server/src/new.rs", result["files"])
 
+    def test_release_snapshot_preserves_recast_build_inputs(self):
+        inputs = {
+            ".cargo/config.toml": '[env]\nRECAST_VENDOR = "true"\n',
+            "vendor/recastnavigation-sys/CMakeLists.txt": "cmake_minimum_required(VERSION 3.5)\n",
+            "vendor/recastnavigation-sys/recastnavigation/CMakeLists.txt": "project(Recast)\n",
+            "vendor/recastnavigation-sys/recastnavigation/cmake/config.cmake.in": "@PACKAGE_INIT@\n",
+            "vendor/recastnavigation-sys/recastnavigation/cmake/targets.cmake": "set(RECAST_FOUND TRUE)\n",
+            "vendor/recastnavigation-sys/templates/header.in": "@HEADER@\n",
+            "vendor/recastnavigation-sys/src/inline.cc": "void recast_inline() {}\n",
+            "vendor/recastnavigation-sys/.tracked-build-input": "tracked vendor input\n",
+        }
+        for name, content in inputs.items():
+            self.put(self.root, name, content)
+        subprocess.run(["git", "-C", str(self.root), "add", ".cargo", "vendor"], check=True)
+        self.put(self.root, "vendor/recastnavigation-sys/untracked.secret", "SECRET")
+        module = self.load()
+        with patch.object(module, "execute", self.execute):
+            module.build(self.root, host="local", release=True)
+        files = json.loads(self.capture.read_text())["files"]
+        for name, content in inputs.items():
+            self.assertEqual(files.get("game-server/" + name), content, name)
+        self.assertNotIn("game-server/vendor/recastnavigation-sys/untracked.secret", files)
+
     def test_failure_preserves_old_executable(self):
         module = self.load()
         old = self.root / "target/debug/game-server"
