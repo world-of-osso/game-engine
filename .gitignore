@@ -5,3 +5,4 @@
 /.worktrees/
 PLAN.md
 __pycache__/
+/periodic-checks.md
