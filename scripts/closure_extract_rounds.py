@@ -16,6 +16,18 @@ from closure_extract import read_receipts, summarize_receipts
 from closure_extract_batch import extract_batch, pending_assets
 
 
+def missing_runtime_assets(assets, data, failures):
+    return [
+        a
+        for a in assets
+        if a["fdid"] not in failures
+        and (
+            not a["present"]
+            or any(not (data / name).is_file() for name in a["locations"])
+        )
+    ]
+
+
 def count_retryable(statuses, failures):
     return sum(
         status == "local_index_present" and fdid not in failures
@@ -23,15 +35,26 @@ def count_retryable(statuses, failures):
     )
 
 
+def missing_frontier(manifest):
+    frontier = set()
+    for asset in manifest.get("assets", []):
+        present = {row["path"] for row in asset.get("present_files", [])}
+        if "locations" in asset:
+            frontier.update(
+                (asset["fdid"], asset.get("type"), name)
+                for name in asset["locations"]
+                if name not in present
+            )
+        elif not asset["present"]:
+            frontier.add((asset["fdid"], asset.get("type"), None))
+    return frontier
+
+
 def fixed_point(manifest, extract, traverse, count, record):
     number = 1
     while True:
         before = count(manifest)
-        frontier = {
-            (a["fdid"], a.get("type"))
-            for a in manifest.get("assets", [])
-            if not a["present"]
-        }
+        frontier = missing_frontier(manifest)
         extraction = extract(manifest, number)
         # Full-catalog graphs are multi-GB; release the prior round before replacement.
         manifest = None
@@ -46,11 +69,7 @@ def fixed_point(manifest, extract, traverse, count, record):
                 "summary": manifest["summary"],
             }
         )
-        next_frontier = {
-            (a["fdid"], a.get("type"))
-            for a in manifest.get("assets", [])
-            if not a["present"]
-        }
+        next_frontier = missing_frontier(manifest)
         if after == 0 or (
             extraction["files"] == 0 and after >= before and next_frontier <= frontier
         ):
@@ -171,8 +190,11 @@ def main():
     current_round = [0]
 
     def count(manifest):
-        missing = [a for a in manifest["assets"] if not a["present"]]
+        missing = missing_runtime_assets(manifest["assets"], args.data, failures)
         statuses = inventory.describe(missing)
+        for fdid, status in statuses.items():
+            if status != "local_index_present":
+                failures[fdid] = status
         return count_retryable(statuses, failures)
 
     def extract(manifest, number):
@@ -314,6 +336,7 @@ def main():
             "build": inventory.build,
         },
     }
+    write_json(failures_path, failures)
     write_json(args.output / "summary.json", summary)
     with args.handoff.open("a") as stream:
         stream.write(
