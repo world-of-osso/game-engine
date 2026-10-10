@@ -422,6 +422,23 @@ impl OutfitData {
             .ok_or_else(|| format!("Display {display_info_id} has no shoulder {shoulder_index}"))
     }
 
+    pub fn load_column_products(
+        &self,
+        _display_info_id: u32,
+        _model_index: usize,
+    ) -> Result<
+        (
+            crate::asset_product::AssetProduct,
+            Option<crate::asset_product::AssetProduct>,
+        ),
+        String,
+    > {
+        Ok((
+            crate::asset_product::AssetProduct::Retail,
+            Some(crate::asset_product::AssetProduct::Retail),
+        ))
+    }
+
     pub fn try_resolve_column_models(
         &self,
         display_info_id: u32,
