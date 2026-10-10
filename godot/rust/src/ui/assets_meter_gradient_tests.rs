@@ -2,6 +2,7 @@
 use super::*;
 use game_engine_ui_model::damage_meter_component::damage_meter_screen;
 use game_engine_ui_model::damage_meter_data::{DamageMeterRow, DamageMeterView, class_color};
+use std::fs;
 use ui_toolkit::atlas::ActiveSkin;
 use ui_toolkit::frame::WidgetData;
 use ui_toolkit::screen::{Screen, SharedContext};

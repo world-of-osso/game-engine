@@ -77,8 +77,14 @@ impl GameClient {
         let resolver = crate::assets::creature::local_resolver(&self.data_root);
         for fdid in new {
             let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
-            if !path.exists() && resolver.ensure_cached(fdid, &path).is_none() {
-                godot_warn!("Flight map texture FDID {fdid} is unavailable in local CASC");
+            if !path.exists() {
+                match resolver.ensure_cached(fdid, &path) {
+                    Ok(Some(_)) => {}
+                    Ok(None) => {
+                        godot_warn!("Flight map texture FDID {fdid} is unavailable in local CASC")
+                    }
+                    Err(error) => godot_warn!("{error}"),
+                }
             }
         }
     }

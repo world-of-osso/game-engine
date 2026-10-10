@@ -100,7 +100,41 @@ def read_relations(data, offset, size, count):
     return relation
 
 
-def read_wdc5(data, kind):
+def read_skipped_sections(data, metadata_end, sections, record_size, noninline):
+    keyed = []
+    unknown = set()
+    for section in range(sections):
+        key, start, count, *_ = unpack(data, "Q8I", 204 + section * 40)
+        if not key:
+            continue
+        keyed.append((section, key, count))
+        if count and not any(block(data, start, count * record_size)):
+            unknown.add(section)
+    if not unknown:
+        return {}
+    skipped = {}
+    position = metadata_end
+    for section, key, count in keyed:
+        id_count = unpack(data, "I", position)[0]
+        position += 4
+        if id_count != count:
+            raise ValueError(f"invalid encrypted-ID metadata for section {section}")
+        ids = list(unpack(data, f"{id_count}I", position))
+        position += id_count * 4
+        if section in unknown:
+            skipped[section] = {
+                "section": section,
+                "key_name": f"{key:016X}",
+                "record_ids": ids,
+                "parent": (
+                    "unknown (zero-filled)" if noninline
+                    else "not applicable (inline Extra)"
+                ),
+            }
+    return skipped
+
+
+def read_wdc5(data, kind, *, skipped=None):
     layout, count, noninline = LAYOUTS[kind]
     if block(data, 0, 4) != b"WDC5" or unpack(data, "I", 4)[0] != 5:
         raise ValueError("expected WDC5 version 5")
@@ -144,6 +178,7 @@ def read_wdc5(data, kind):
     fields, metadata_end = read_fields(
         data, count, sections, record_size, palette_size, common_size
     )
+    omitted = read_skipped_sections(data, metadata_end, sections, record_size, noninline)
     if not noninline and fields[0][2] == 2:
         raise ValueError("unsupported common storage for inline ID")
     raw_rows = {}
@@ -166,8 +201,9 @@ def read_wdc5(data, kind):
         if n and (start < metadata_end or start >= len(data)):
             raise ValueError(f"missing {'encrypted ' if key else ''}section {section}")
         payload = block(data, start, n * record_size)
-        if key and n and not any(payload):
-            raise ValueError(f"missing encrypted section {section}, key {key:016X}")
+        if section in omitted:
+            seen_records += n
+            continue
         if id_size != (n * 4 if noninline else 0):
             raise ValueError("invalid section ID list size")
         id_start = start + n * record_size + string_size
@@ -218,6 +254,8 @@ def read_wdc5(data, kind):
         if not noninline:
             values[0] = rid
         rows[rid] = (tuple(values), parent)
+    if skipped is not None:
+        skipped.extend(omitted.values())
     return rows
 
 
@@ -373,14 +411,16 @@ def load_textures(csv_path, outfit_cache, needed):
 
 def import_files(args):
     decoded = {}
-    for kind, filename in [
-        ("extra", "1264997.db2"),
-        ("option", "3692043.db2"),
-        ("geoset", "1720141.db2"),
+    skipped = {}
+    for kind, table, filename in [
+        ("extra", "CreatureDisplayInfoExtra", "1264997.db2"),
+        ("option", "CreatureDisplayInfoOption", "3692043.db2"),
+        ("geoset", "CreatureDisplayInfoGeosetData", "1720141.db2"),
     ]:
         path = args.db2_dir / filename
         try:
-            decoded[kind] = read_wdc5(path.read_bytes(), kind)
+            skipped[table] = []
+            decoded[kind] = read_wdc5(path.read_bytes(), kind, skipped=skipped[table])
         except ValueError as error:
             raise ValueError(f"{path}: {error}") from error
     displays = {}
@@ -418,6 +458,7 @@ def import_files(args):
     return {
         "output": str(args.output.resolve()),
         "decoded_records": {kind: len(records) for kind, records in decoded.items()},
+        "skipped_sections": skipped,
         "counts": dict(
             zip(
                 ("appearances", "choices", "geosets", "display_coverage"),

@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Offline asset closure](systems/offline-asset-closure.md) — extracted-only Northshire/Human-Warrior graph, configurable full-catalog roots, explicit provenance/unresolved boundaries and approximate inventory sizes.
+
 - [Zephras sky/minimap diagnosis](investigations/zephras-sky-minimap.md) — map2991 listfile-only tile loss and wrong M2 dual-crossfade; shader/tile RED/GREEN and inspected rebuilt private before/after; whole-day sky parity unclaimed.
 
 [Native Skyborne recheck](systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09) — loaded roster visible; races95/96 enter world with sky defects, seven missing imported NPC profiles and two mixed-product M2 failures; source-isolated repair remains open.
@@ -11,13 +13,15 @@
 [Current Skyborne acceptance boundary](systems/forever-data.md#current-scoped-capability-matrix) owns approved estimated NPC/giver stats, bounded quest acceptance/turn-in/reload evidence and remaining gaps. [Ailee baked-path correction](systems/forever-data.md#ailee-baked-material-applicability--bounded-correction-2026-10-07) separates unused component-overlay validation from pending native rendering.
 
 Knowledge base for the game-engine project, organized across five categories.
-Last updated: 2026-10-08.
+Last updated: 2026-10-09.
 
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
 ## Systems
 
-- [Native HUD edit mode](systems/native-hud-edit-mode.md) — authenticated account/realm layouts, account-wide optional-mover checkboxes, shared mover registry, draft/save/discard, authored-bounds projection, Retail-style label/manager clearance, 19-default/21-enabled offline inventory and native mouse/relog fixture.
+- [Extracted-only assets](systems/shipped-assets.md) — P1 startup/CASC policy, detached legacy-miss completion and cold-process fixture boundaries; complete closure and deployment remain later phases.
+
+- [Native HUD edit mode](systems/native-hud-edit-mode.md) — authenticated account/realm layouts, account-wide optional-mover checkboxes, shared mover registry, draft/save/autosave-on-exit, authored-bounds projection, Retail-style label/manager clearance, 19-default/21-enabled offline inventory and native mouse/relog fixture.
 
 - [Dungeon objectives and achievements](systems/dungeon-achievements.md) — copy-scoped boss tracker, cursor-cached native AchievementFrame and earned alerts in both skins; live Stockade paladin proof covers three kills, toast, 633 dated 2026-10-06 and tracker clearing.
 
@@ -34,7 +38,7 @@ Engine subsystems and how they work.
 - [boss-encounters](systems/boss-encounters.md) — native ordered encounter lifecycle, replicated clickable compact boss frames, managed tracker placement and fading center warnings; bounded proof ledger.
 
 - [death-flow](systems/death-flow.md) — owner death snapshots, release/corpse/healer and resurrection-offer dialogs; replicated remote corpse/ghost presentation and Dead status labels; stable viewer-relative taps and both-skin health greying.
-- [forever-data](systems/forever-data.md) — [Local NPC source/cape investigation](systems/forever-data.md#npc-source-selection-and-offline-sweep-2026-10-08): CDI-membership catalog separation and required cape binding; offline source/asset error table, native batches blocked by local data. [Retained native checkpoint](systems/forever-data.md#corrective-native-checkpoint--observed-functional-done-2026-10-07): corrective742 build0/mapped native functional DONE, Ailee15 textured batches/type20 and original Grove shoulders; Main inspected ten captures, no OS-exit/independent pixel claim. CPU13 passed;304 fmt/check/audit pending. Final handoff metadata hashes confirmed; consumer/landing, broader NPC/parity/provenance gaps and whole goal OPEN.
+- [forever-data](systems/forever-data.md) — [Readable-section correction](systems/forever-data.md#readable-section-correction-2026-10-09): all seven previously missing Extras are readable; encrypted option/geoset parent ownership remains unknown, no deactivation authorized after corrected audit. [Local NPC source/cape investigation](systems/forever-data.md#npc-source-selection-and-offline-sweep-2026-10-08): CDI-membership catalog separation and required cape binding; offline source/asset error table, native batches blocked by local data. [Retained native checkpoint](systems/forever-data.md#corrective-native-checkpoint--observed-functional-done-2026-10-07): corrective742 build0/mapped native functional DONE, Ailee15 textured batches/type20 and original Grove shoulders; Main inspected ten captures, no OS-exit/independent pixel claim. CPU13 passed;304 fmt/check/audit pending. Final handoff metadata hashes confirmed; consumer/landing, broader NPC/parity/provenance gaps and whole goal OPEN.
 - [build-hosts](systems/build-hosts.md) — desktop SSH/WSL and local Docker build trial; saved selection, aggregate GC budget, cache boundaries, independently accepted bounded build/server/CPU/GPU-login capability.
 
 - [rendering-pipeline](systems/rendering-pipeline.md) — M2 model rendering (Godot retail batch materials), live InWorld camera-direction CLI, optional-distance-fog shader specialization, authored alpha-tested foliage depth coverage, camera collision independent of view culling, startup-only Empty PBR/light/debug/material/target-visual registration boundaries, blend modes, terrain/particle/skybox pipelines, known Bevy bugs, and open UI/render-resource investigation; native fog verification and original-video pixel equivalence remain unproven
@@ -209,4 +213,4 @@ External resources and asset lists.
 - [Auction result icon diagnosis](systems/auction-house-ui.md#missing-result-icons-2026-10-08) — five-item FDID/file trace, local-store proof and shared unavailable-icon policy.
 
 - [Auction house UI](systems/auction-house-ui.md#subcategory-and-displayed-column-sorts--2026-10-08) — native category paths, Bid/Available requests and bounded cross-repo proof.
-- [Talents](systems/talents.md) — local DB2 graph/layout provenance and existing-server snapshot/commit wiring; shared staged edits, point counters and choice flow.
+- [Talents](systems/talents.md) — local DB2 graph/layout provenance, existing-server snapshot/commit wiring, [offline class/spec capture](systems/talents.md#offline-classspec-capture-2026-10-09) and [shipped-icon recapture](systems/talents.md#shipped-icon-recapture-2026-10-09); shared staged edits, point counters and choice flow.

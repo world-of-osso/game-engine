@@ -18,8 +18,10 @@ use std::thread;
 pub enum LoadState {
     /// Queued or in a worker's hands.
     Loading,
-    /// Its result was handed out by `poll`.
+    /// Its successful result was handed out by `poll`.
     Done,
+    /// Its error was handed out by `poll`; the key will not be retried.
+    Failed,
 }
 
 /// How soon a load is needed.
@@ -148,8 +150,13 @@ where
     /// Hand out the loads finished since the last call, without blocking.
     pub fn poll(&mut self) -> Vec<(K, Result<T, String>)> {
         let finished: Vec<_> = self.results.try_iter().collect();
-        for (key, _) in &finished {
-            self.states.insert(key.clone(), LoadState::Done);
+        for (key, result) in &finished {
+            let state = if result.is_ok() {
+                LoadState::Done
+            } else {
+                LoadState::Failed
+            };
+            self.states.insert(key.clone(), state);
         }
         finished
     }

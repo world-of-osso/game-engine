@@ -440,7 +440,7 @@ fn load_detail_model(
     resolver.ensure_cached(
         texture,
         &data_root.join("textures").join(format!("{texture}.blp")),
-    );
+    )?;
     let decoded = decode_new_textures(data_root, &BTreeSet::from([texture]))?;
     Ok((Arc::new(model), decoded.into_iter().next()))
 }
