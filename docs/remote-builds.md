@@ -36,6 +36,12 @@ python3 scripts/depot-build.py --root "$PWD" --cli
 
 `--fixture`, `--cli`, `--release`, and `--test` retain their arguments and source/assets behavior on both hosts. For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host desktop --test -p game-engine-core` (substitute `local` as needed). Host selection does not make GDScript or GPU tests part of `--test`.
 
+## UI icons prepared before shipping
+
+Release builds run `scripts/prepare_ui_icons.py` on the originating developer checkout before native compilation. It enumerates all positive spell/trait/class/spec and source-local item icon metadata, writes `data/cache/required-ui-icons.json`, and uses the existing sibling `asset-resolver/target/debug/casc-local` to fill missing BLPs from local archives only. Source-table hashes and actual file hashes/sizes are recorded in `data/cache/ui-icon-provenance.json`; these cache files and textures are included by `deploy.sh`.
+
+The shipped UI only reads these files. Missing/invalid required images stop release preparation with a full FDID list and extraction receipts under `data/diagnostics/ui-icon-preparation/`; no runtime CASC or question-mark substitution. `python3 scripts/tests/test_ui_icon_manifest.py` validates the declared extracted set. Debug builds and CPU tests remain available to diagnose incomplete source data without publishing it. This does not remove the existing runtime M2/CASC dependency; that separate model-isolation work remains open.
+
 ## Warm-slot rule
 
 Verified source review: 2026-10-06, master `2f5f3e79`. Agents must reuse their assigned fixed worktree slots and switch branches in those slots. Never create new client/server worktrees, delete `target/`, prune builder caches, or recreate bulk target caches. Temporary **shared-protocol** worktrees are allowed: they supply source only and have no checkout target cache of their own.
