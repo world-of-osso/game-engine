@@ -25,13 +25,28 @@ mod tests {
 
     #[test]
     fn aura312_authoritative_removal_clears_hidden_aura_overrides() {
-        let mut views = UnitAuras { auras: vec![AuraView {
-            instance_id: 7, spell_id: 187827, caster: Some(42), stacks: 1,
-            charges: 0, duration_ms: 20000, remaining_ms: 18000, harmful: false,
-            dispel_type: 0, flags: AuraView::FLAG_HIDDEN,
-            overrides: vec![AuraOverride::Animation(536), AuraOverride::Animation(692),
-                AuraOverride::ActionBar { spell_id: 1, replacement: 2 }],
-        }] };
+        let mut views = UnitAuras {
+            auras: vec![AuraView {
+                instance_id: 7,
+                spell_id: 187827,
+                caster: Some(42),
+                stacks: 1,
+                charges: 0,
+                duration_ms: 20000,
+                remaining_ms: 18000,
+                harmful: false,
+                dispel_type: 0,
+                flags: AuraView::FLAG_HIDDEN,
+                overrides: vec![
+                    AuraOverride::Animation(536),
+                    AuraOverride::Animation(692),
+                    AuraOverride::ActionBar {
+                        spell_id: 1,
+                        replacement: 2,
+                    },
+                ],
+            }],
+        };
         assert_eq!(active_sets(Some(&views)), vec![536, 692]);
         views.auras.clear();
         assert!(active_sets(Some(&views)).is_empty());
