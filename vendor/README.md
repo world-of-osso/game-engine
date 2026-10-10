@@ -15,8 +15,22 @@ Neither imported package contained separate LICENSE files.
 
 The fork adds MinGW GCC runtime and target sysroot library search directories
 beneath `MINGW_PREFIX` and uses bindgen 0.73.1 to avoid deprecated generated code.
-Retire the patch when upstream includes both changes and native GNU Windows
-linking passes. Root tools tests exercise KTX conversion; native Windows linking
+It also caches libktx and generated bindings outside Cargo's `OUT_DIR`, under
+`${XDG_CACHE_HOME:-~/.cache}/game-engine/ktx` (`KTX_CACHE_DIR` overrides it).
+Entries hash KTX version/target, this build recipe (CMake options), compiler identity
+and arguments, libclang identity and toolchain/bindgen environment. A file lock
+serializes each entry; completion is published only after both artifacts exist.
+Failed entries are rebuilt on the next attempt; corrupt completed entries fail loudly.
+The SHA-256-pinned 212 MB source archive is fetched once into a separately locked
+source entry, not vendored. Warm/new-OUT_DIR builds use no network. An explicit
+`KTX_SOFTWARE_ARCHIVE` supplies an offline archive; there is no `/tmp` fallback.
+Bookworm uses its own BuildKit cache and explicit archive, not Arch native artifacts.
+Build dependencies `cc` and `sha2` identify compiler inputs and hash inputs/archive;
+both already exist in the workspace lockfiles.
+
+Retire the patch when upstream includes the Windows/bindgen changes and equivalent
+cross-OUT_DIR native caching, and native GNU Windows linking plus concurrent offline
+cache reuse pass. Root tools tests exercise KTX conversion; native Windows linking
 is a separate verification boundary.
 
 ## taffy (MIT)
