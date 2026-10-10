@@ -104,7 +104,14 @@ impl WildBattleView {
             return None;
         }
         let state = self.state.as_ref()?;
-        if self.pending || self.result.is_some() {
+        if self.result.is_some() {
+            return None;
+        }
+        let forfeit_action = matches!(
+            action,
+            "pb:forfeit" | "pb:cancel-forfeit" | "pb:confirm-forfeit"
+        );
+        if self.pending && !(state.wild_creature == 0 && forfeit_action) {
             return None;
         }
         if action == "pb:swap" {
@@ -543,17 +550,20 @@ fn action_bar(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
         (370.0, "Forfeit", 638661, "pb:forfeit", true),
     ] {
         let x = left + offset;
+        let waiting_forfeit =
+            name == "Forfeit" && state.wild_creature == 0 && view.result.is_none();
+        let control_enabled = usable && (enabled || waiting_forfeit);
         out.extend(icon_button(
             format!("PetBattle{name}"),
             action,
-            enabled && usable,
+            control_enabled,
             (x, top, 52.0, 52.0),
         ));
         out.extend(texture(
             format!("PetBattle{name}Icon"),
             icon,
             (x, top, 52.0, 52.0),
-            if enabled && usable {
+            if control_enabled {
                 WHITE
             } else {
                 "0.35,0.35,0.35,1"
