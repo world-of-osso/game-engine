@@ -45,24 +45,21 @@ func run_fixture() -> void:
 	if not await wait_until(func(): return not has_aura(383065), "Duck Lovie cancellation"): return
 	await tap(KEY_TAB)
 	if not await wait_until(func(): return client.target_state().target != null, "hostile Tab target"): return
-	var target_name := str(client.target_state().target_name)
+	var target_id := int(client.target_state().target)
 	var target_node: Node3D
-	for node in client.find_children(target_name, "Node3D", true, false):
-		if node.get_node_or_null("NpcModel") != null or node.get_node_or_null("NpcVisualRoot") != null:
-			target_node = node
+	for area in client.find_children("*", "Area3D", true, false):
+		if area.has_meta("unit_server_id") and int(area.get_meta("unit_server_id")) == target_id:
+			target_node = area.get_parent() as Node3D
 			break
-	if target_node == null:
-		for node in client.find_children("*", "Node3D", true, false):
-			if str(node.name) == target_name: target_node = node; break
-	if target_node == null: fail("target node missing: " + target_name); return
-	var direction := actor.position - target_node.position
+	if target_node == null: fail("selected hostile has no authored model"); return
+	var direction := actor.global_position - target_node.global_position
 	direction.y = 0.0
 	if direction.length() == 0.0: fail("zero direction to target"); return
-	var destination := target_node.position + direction.normalized() * 20.0
+	var destination := target_node.global_position + direction.normalized() * 20.0
 	destination.y = actor.position.y
 	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, str(destination.x), str(-destination.z), str(destination.y)]): return
-	if not await wait_until(func(): return abs(actor.position.distance_to(target_node.position) - 20.0) < 1.0, "valid mortar20yd"): return
-	receipts.append({"phase": "mortar-range", "distance": actor.position.distance_to(target_node.position), "target": client.target_state()})
+	if not await wait_until(func(): return abs(actor.global_position.distance_to(target_node.global_position) - 20.0) < 1.0, "valid mortar20yd"): return
+	receipts.append({"phase": "mortar-range", "distance": actor.global_position.distance_to(target_node.global_position), "target": client.target_state(), "rules": client.nameplate_rules(target_id)})
 	await use_toy(204818, "Mallard Mortar", false)
 	if failed: return
 	for step in range(30):
@@ -102,8 +99,8 @@ func has_go(spell: int) -> bool:
 	return false
 
 func train_model() -> Node3D:
-	for node in client.find_children("NpcModel", "Node3D", true, false):
-		if node.has_meta("model_file_data_id") and int(node.get_meta("model_file_data_id")) == 123251:
+	for unit in client.find_children("Wind-Up Train Wrecker", "Node3D", true, false):
+		for node in unit.find_children("NpcModel", "Node3D", true, false):
 			if not node.find_children("*", "MeshInstance3D", true, false).is_empty(): return node
 	return null
 
