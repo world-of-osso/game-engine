@@ -157,8 +157,18 @@ fn collect_bounds(
         x: translate_x,
         y: translate_y,
     } = frame.translation;
-    let x = parent.0 + layout.location.x + translate(translate_x, layout.size.width);
-    let y = parent.1 + layout.location.y + translate(translate_y, layout.size.height);
+    let anchored_x = parent.0 + layout.location.x + translate(translate_x, layout.size.width);
+    let anchored_y = parent.1 + layout.location.y + translate(translate_y, layout.size.height);
+    // Retail clampedToScreen shifts the anchored frame, not its size or anchors.
+    // Children inherit the shift; screen-anchored children remain independent.
+    let (x, y) = if frame.clamped_to_screen {
+        (
+            anchored_x.clamp(0.0, (registry.screen_width - layout.size.width).max(0.0)),
+            anchored_y.clamp(0.0, (registry.screen_height - layout.size.height).max(0.0)),
+        )
+    } else {
+        (anchored_x, anchored_y)
+    };
     bounds.insert(
         id,
         LayoutRect {
@@ -227,6 +237,96 @@ pub fn compute_layout_with_intrinsics(
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn stacksplit_clamp_keeps_picker_and_mouse_okay_inside_screen_edges() {
+        use crate::ui::{RegistryModel, ScreenPostsetup};
+        use game_engine_ui_model::stack_split_frame_component::{
+            ACTION_OKAY, FRAME_NAME, StackSplitFrameState, stack_split_frame_screen,
+        };
+        use ui_toolkit::screen::{Screen, SharedContext};
+
+        // BOTTOMRIGHT to an owner's TOPRIGHT at the left/top edge; opposite
+        // anchors at right/bottom. Native coordinates already resolve SetPoint.
+        for scale in [1.0, 2.0 / 3.0] {
+            for (x, y) in [
+                (-151.0, 200.0),
+                (790.0, 200.0),
+                (300.0, 590.0),
+                (0.0, -96.0),
+            ] {
+                let mut shared = SharedContext::new();
+                shared.insert(StackSplitFrameState {
+                    visible: true,
+                    x,
+                    y,
+                    text: "4".into(),
+                    ..Default::default()
+                });
+                let mut registry = FrameRegistry::new(800.0, 600.0);
+                registry.ui_scale = scale;
+                let mut model = RegistryModel {
+                    screen: Screen::new(stack_split_frame_screen),
+                    shared,
+                    registry,
+                    postsetup: ScreenPostsetup::None,
+                    icon_masks: Default::default(),
+                };
+                model.sync();
+                let bounds =
+                    compute_layout_with_intrinsics(&model.registry, &HashMap::new()).unwrap();
+                for name in [FRAME_NAME, "StackSplitFrameOkayButton"] {
+                    let id = model.registry.get_by_name(name).unwrap();
+                    let rect = &bounds[&id];
+                    assert!(
+                        rect.x >= 0.0
+                            && rect.y >= 0.0
+                            && rect.x + rect.width <= 800.0
+                            && rect.y + rect.height <= 600.0,
+                        "scale={scale} anchor=({x},{y}) {name}: {rect:?}"
+                    );
+                }
+                let okay = model
+                    .registry
+                    .get_by_name("StackSplitFrameOkayButton")
+                    .unwrap();
+                assert_eq!(
+                    model.registry.get(okay).unwrap().onclick.as_deref(),
+                    Some(ACTION_OKAY)
+                );
+                assert!(model.registry.get(okay).unwrap().mouse_enabled);
+                let picker = model.registry.get_by_name(FRAME_NAME).unwrap();
+                let rect = &bounds[&picker];
+                let button = &bounds[&okay];
+                assert_eq!((button.x - rect.x, button.y - rect.y), (19.0, 52.0));
+            }
+        }
+    }
+
+    #[test]
+    fn stacksplit_clamp_applies_to_any_flagged_frame_without_moving_unflagged_frames() {
+        let mut registry = FrameRegistry::new(800.0, 600.0);
+        let parent = registry.create_frame("OtherPicker", None);
+        let child = registry.create_frame("OtherOkay", Some(parent));
+        for (id, x, y, width, height) in [
+            (parent, -60.0, 580.0, 100.0, 80.0),
+            (child, 10.0, 20.0, 40.0, 24.0),
+        ] {
+            let frame = registry.get_mut(id).unwrap();
+            frame.width = FrameDimension::Fixed(width);
+            frame.height = FrameDimension::Fixed(height);
+            frame.position_type = FramePosition::Absolute;
+            frame.position.left = Val::Px(x);
+            frame.position.top = Val::Px(y);
+        }
+        let before = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+        assert_eq!((before[&parent].x, before[&parent].y), (-60.0, 580.0));
+        registry.get_mut(parent).unwrap().clamped_to_screen = true;
+        let after = compute_layout_with_intrinsics(&registry, &HashMap::new()).unwrap();
+        assert_eq!((after[&parent].x, after[&parent].y), (0.0, 520.0));
+        assert_eq!((after[&child].x, after[&child].y), (10.0, 540.0));
+        assert_eq!((after[&parent].width, after[&parent].height), (100.0, 80.0));
+    }
 
     #[test]
     fn uifixes_quest_counter_flows_below_measured_wine_ticket_paragraph() {

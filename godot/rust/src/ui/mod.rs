@@ -3,8 +3,8 @@ mod auction_icon_preview;
 #[cfg(debug_assertions)]
 mod audit_probe;
 mod aura_preview;
-mod bank_preview;
 mod bagtitle_preview;
+mod bank_preview;
 #[cfg(test)]
 mod buffcancel_tests;
 #[cfg(debug_assertions)]
@@ -271,6 +271,13 @@ impl RegistryModel {
     }
 
     fn apply_postsetup(&mut self) {
+        // StackSplitFrame.xml:3. Shared by standalone bag/bank and merchant canvases.
+        if let Some(id) = self
+            .registry
+            .get_by_name(game_engine_ui_model::stack_split_frame_component::FRAME_NAME)
+        {
+            self.registry.get_mut(id).unwrap().clamped_to_screen = true;
+        }
         match self.postsetup {
             ScreenPostsetup::None | ScreenPostsetup::Loading | ScreenPostsetup::Trade => {}
             ScreenPostsetup::Auction => {
