@@ -686,7 +686,7 @@ fn blip(blip: &MinimapBlip, style: &ClusterStyle) -> Element {
     );
     if let BlipKind::QuestObjective { number } = blip.kind {
         let text = number.to_string();
-        elements.extend(rsx! { font_string {
+        elements.extend(rsx! { fontstring {
             name: {DynName(format!("{prefix}{}Number", blip.unit))},
             text: {text.as_str()}, font: GameFont::FrizQuadrata, font_size: 10.0,
             font_color: WHITE, justify_h: "CENTER", justify_v: "MIDDLE",

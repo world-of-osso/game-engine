@@ -289,3 +289,36 @@ fn minimapblips_raid_dot_and_offline_missing_left_members() {
     state.members.clear();
     assert!(group_minimap_blips(&state, Some("Blipsone"), &view, style.map_size).is_empty());
 }
+
+#[test]
+fn minimapblips_quest_objective_displays_its_number_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = build(
+            skin,
+            MinimapClusterState {
+                blips: vec![game_engine_ui_model::minimap::MinimapBlip {
+                    unit: 28766,
+                    kind: BlipKind::QuestObjective { number: 1 },
+                    offset: [0.1, -0.1],
+                }],
+                ..Default::default()
+            },
+        );
+        let frame = registry
+            .get(
+                registry
+                    .get_by_name("MinimapQuestObjective28766Number")
+                    .unwrap(),
+            )
+            .unwrap();
+        let displayed = match frame.widget_data.as_ref() {
+            Some(WidgetData::FontString(text)) => Some(text.text.as_str()),
+            _ => None,
+        };
+        assert_eq!(
+            displayed,
+            Some("1"),
+            "objective icon must contain visible number text"
+        );
+    }
+}
