@@ -287,13 +287,23 @@ impl GameClient {
             return if *found { fdid } else { 0 };
         }
         let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
-        let found = path.exists()
-            || crate::assets::creature::local_resolver(&self.data_root)
+        let found = if path.exists() {
+            true
+        } else {
+            match crate::assets::creature::local_resolver(&self.data_root)
                 .ensure_cached(fdid, &path)
-                .is_some();
-        if !found {
-            godot_warn!("Spell texture FDID {fdid} is not in local CASC");
-        }
+            {
+                Ok(Some(_)) => true,
+                Ok(None) => {
+                    godot_warn!("Spell texture FDID {fdid} is not in local CASC");
+                    false
+                }
+                Err(error) => {
+                    godot_warn!("{error}");
+                    false
+                }
+            }
+        };
         self.spells.textures.insert(fdid, found);
         if found { fdid } else { 0 }
     }

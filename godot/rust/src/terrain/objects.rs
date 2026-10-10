@@ -131,8 +131,8 @@ fn load_asset(
             let fdids = crate::wmo::scene::texture_fdids(&asset);
             for &texture in &fdids {
                 let path = data_root.join("textures").join(format!("{texture}.blp"));
-                // A missing texture is reported when its material is built.
-                resolver.ensure_cached(texture, &path);
+                // Local-CASC misses remain optional; shipped misses fail this load.
+                resolver.ensure_cached(texture, &path)?;
             }
             let textures = decode_new_textures(data_root, &fdids)?;
             Ok(LoadedAsset::Wmo(Arc::new(asset), textures))

@@ -18,6 +18,13 @@
 ## 2026-10-09 — Corrected locked-display premise
 
 [Forever dependency audit](systems/forever-data.md#readable-section-correction-2026-10-09) corrects entire-table decoder rejection being mistaken for seven encrypted appearances. All seven Extras and readable choice/item chains exist; unknown option/geoset parents are zero-filled and cannot be attributed. [Contract](../specs/npc-appearance.md#unknown-key-record-contract) retains unknown-key reports, mandatory explicit references and the corrected lead decision to deactivate none. Decoder714a1042c targeted GREEN13 passed/3 skipped; authentic readable metadata re-import adds7 profiles/97 choices/7 coverage rows without changing prior rows. No CDI references hidden Extra165799 and no creature deactivated. All seven declared bakes remain absent; current Forever70334 local-CASC root archive is unavailable even with fixed80fd790. Native proof/PNGs and independent OAuth-blocked gate remain unproved.
+## 2026-10-09 — Detached extracted-only misses
+
+[Shipped assets](systems/shipped-assets.md#detached-legacy-misses-2026-10-09) records the independent P1 failure: a legacy cache panic killed its detached worker and left the key Loading. Typed cache errors now propagate to Failed completions, preserving local-CASC optional behavior. Cold-process RED proves missing completion and present BLP success; engine `f809ad04a` + resolver `cb64094` GREEN startup7/7 and six-engine-package2658/0/7 pass, zero warnings. Resolver31/2: missing-install and hard-coded-listfile prerequisites fail before changed assertions; product-identity7/7 passes. Independent verifier unavailable (expired Claude OAuth); no clean resolver-integration or rendered-game claim. [Contract](../specs/shipped-assets.md) owns exact error and once-only completion requirements.
+
+## 2026-10-09 — Extracted-only asset policy
+
+[Shipped assets](systems/shipped-assets.md) records the P1 startup and low-level CASC boundary. [Contract](../specs/shipped-assets.md) owns explicit environment selection, shared policy/tripwire APIs and P2–P5 exclusions. Cold-process RED reproduced `WoW install not found`; engine `5dbe8b3c0` + resolver `8fc769b` GREEN5/5 and full six-engine-package2656/0/7 pass, no warnings. Resolver unit22/bin2 pass; its pre-existing install-dependent integration test fails in no-install depot. No deployment, rendered-game or full closure claim.
 
 ## 2026-10-09 — HUD layout names and delete confirmation
 

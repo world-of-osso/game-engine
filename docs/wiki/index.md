@@ -17,6 +17,8 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
+- [Extracted-only assets](systems/shipped-assets.md) — P1 startup/CASC policy, detached legacy-miss completion and cold-process fixture boundaries; complete closure and deployment remain later phases.
+
 - [Native HUD edit mode](systems/native-hud-edit-mode.md) — authenticated account/realm layouts, account-wide optional-mover checkboxes, shared mover registry, draft/save/autosave-on-exit, authored-bounds projection, Retail-style label/manager clearance, 19-default/21-enabled offline inventory and native mouse/relog fixture.
 
 - [Dungeon objectives and achievements](systems/dungeon-achievements.md) — copy-scoped boss tracker, cursor-cached native AchievementFrame and earned alerts in both skins; live Stockade paladin proof covers three kills, toast, 633 dated 2026-10-06 and tracker clearing.
