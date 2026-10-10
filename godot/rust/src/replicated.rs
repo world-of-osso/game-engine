@@ -25,9 +25,9 @@ pub(crate) fn local_pet(replica: &Replica, player: u64) -> Option<u64> {
 
 fn is_non_combat_companion(unit: Unit) -> bool {
     // Companion minions are non-attackable and immune to both players and NPCs.
-    const COMPANION_FLAGS: u32 = 0x2 | 0x100 | 0x200;
+    use shared::pet_battle::COMPANION_UNIT_FLAGS;
     unit.unit_flags()
-        .is_some_and(|flags| flags & COMPANION_FLAGS == COMPANION_FLAGS)
+        .is_some_and(|flags| flags & COMPANION_UNIT_FLAGS == COMPANION_UNIT_FLAGS)
 }
 
 pub(crate) trait UnitFields<'a> {
