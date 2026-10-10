@@ -30,7 +30,7 @@ Retail spell13262 enters item spell-targeting before sending a cast. See [pipeli
 ## Known gaps (current cycle)
 Both-skin private live proof: spellbook→bag cast, eligible consumption, TDB entry3 materials, manual LootFrame take, grey25 refusal/retention, authoritative appearance additions214/242 and relog persistence. [Evidence](../wiki/systems/disenchant.md#private-live-proof--2026-10-10).
 - [ ] Auto-loot/Shift inversion, action-bar activation and cancellation have no separate live proof.
-- [ ] Higher-tier TDB rows reference16 materials absent from this Retail build; 50/100 entries affected,40 wholly unavailable. Pre-fix live753 disposal opens invisible empty loot and blocks the next cast; server remediation is separate.
+- [ ] Higher-tier TDB rows reference16 materials absent from this Retail build; 50/100 entries affected,40 wholly unavailable. Pre-fix live753 disposal opened invisible empty loot and blocked the next cast; [server branch519a34d](../../../game-server/docs/wiki/systems/disenchant.md#stale-material-compatibility--2026-10-10) refuses unavailable/actual-empty rolls before disposal. Targeted8/8 and check/format pass; not merged or re-tested rendered.
 
 ## Out of scope
 - Bank targeting, new cursor art, scrap, new loot UI, server deployment and merges.

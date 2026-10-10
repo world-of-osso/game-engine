@@ -34,7 +34,7 @@ PNG evidence: `/syncthing/AgentShared/2026-10-10/disenchant-live/`. Durable snap
 
 Read-only census:180 rows/100 entries;72 direct-item rows across50 entries reference16 materials absent from `content_item` and both Retail `Item.csv`/`ItemSparse.csv`. Forty entries wholly unavailable; ten partially unavailable. No reference-type rows. Exact row IDs/counts live in `disenchant-census.json` under the evidence directory.
 
-Live753 selects entry14:11082/11083/11084 all absent. Pre-fix server disposes it and collects216, but generates empty personal loot. The native LootFrame hides empty slots; that unclaimed server loot session then rejects the next eligible754 cast with “Another action is in progress.” Relog clears the runtime lock;754 remains. Entry28's11178 is also absent. This is incompatible TDB/build data, not permission to fabricate retired materials; server no-deliverable-loot remediation is separate.
+Live753 selects entry14:11082/11083/11084 all absent. Pre-fix server disposes it and collects216, but generates empty personal loot. The native LootFrame hides empty slots; that unclaimed server loot session then rejects the next eligible754 cast with “Another action is in progress.” Relog clears the runtime lock;754 remains. Entry28's11178 is also absent. This is incompatible TDB/build data, not permission to fabricate retired materials. [Server branch519a34d](../../../../game-server/docs/wiki/systems/disenchant.md#stale-material-compatibility--2026-10-10) refuses wholly unavailable entries at validation and actual-empty rolls before success/disposal. Targeted8/8, native check and format pass; no post-fix rendered run or master merge. Missing materials remain unavailable.
 
 ## Sources
 - [Contract](../../specs/disenchant.md)
