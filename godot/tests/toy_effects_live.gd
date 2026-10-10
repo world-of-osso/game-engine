@@ -72,7 +72,8 @@ func prove_feather_fall(floor_y: float) -> void:
 	if not await wait_until(func(): return actor.position.y > floor_y + 15.0, "private elevated position"): return
 	await record_phase("toy113542-spell-feather-fall", 3.3)
 	if not await wait_until(func(): return actor.position.y <= floor_y + 0.5, "feather landing"): return
-	await cancel_aura(167273)
+	# Its authentic ten-second duration can also expire during capture.
+	if has_aura(167273): await cancel_aura(167273)
 	if not await wait_until(func(): return not has_aura(167273), "feather removal"): return
 	if not command(OS.get_environment("TOYFX_ADMIN"), ["set-position", character, "-8949.95", "-132.49", str(floor_y + 20.0)]): return
 	if not await wait_until(func(): return actor.position.y > floor_y + 15.0, "ordinary fall setup"): return
@@ -92,13 +93,17 @@ func command(binary: String, arguments: Array) -> bool:
 
 func record_phase(label: String, seconds: float) -> void:
 	phase = label
-	var count := int(seconds * 10.0)
-	for frame in range(count):
+	var deadline := Time.get_ticks_msec() + int(seconds * 1000.0)
+	while Time.get_ticks_msec() < deadline:
 		await RenderingServer.frame_post_draw
 		var path := output.path_join("frame-%05d.png" % frame_number)
 		if root.get_texture().get_image().save_png(path) != OK: fail("capture " + path); return
+		var account = client.account_state()
+		var server_position: Vector3 = account.local_server_position
 		receipts.append({"phase": phase, "ms": Time.get_ticks_msec(), "scale": actor.scale.x,
-			"position": [actor.position.x, actor.position.y, actor.position.z], "auras": client.aura_state()})
+			"position": [actor.position.x, actor.position.y, actor.position.z], "auras": client.aura_state(),
+			"server_position": [server_position.x, server_position.y, server_position.z],
+			"health": account.local_player_health})
 		frame_number += 1
 		await create_timer(0.1).timeout
 	write_receipts()
