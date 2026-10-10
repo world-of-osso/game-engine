@@ -12,6 +12,18 @@ use crate::csv_util::read_numeric_rows;
 pub(crate) const FOREVER_RACES: [u8; 2] = [95, 96];
 pub(crate) const FOREVER_DB2_DIR: &str = "db2/1.60.1.70205";
 
+pub fn player_asset_product(_race: u8) -> crate::asset_product::AssetProduct {
+    crate::asset_product::AssetProduct::Retail
+}
+
+#[test]
+fn model_asset_player_sources_follow_the_skyborne_only_overlay() {
+    use crate::asset_product::AssetProduct;
+    assert_eq!(player_asset_product(1), AssetProduct::Retail);
+    assert_eq!(player_asset_product(95), AssetProduct::Forever);
+    assert_eq!(player_asset_product(96), AssetProduct::Forever);
+}
+
 /// (race, sex) → body model FDID, with the explicit Skyborne-only Forever overlay.
 pub fn player_model_fdids(db2_dir: &Path) -> Result<HashMap<(u8, u8), u32>, String> {
     let mut models = read_model_chain(db2_dir)?;
