@@ -20,6 +20,8 @@ def fixed_point(manifest, extract, traverse, count, record):
     while True:
         before = count(manifest)
         extraction = extract(manifest, number)
+        # Full-catalog graphs are multi-GB; release the prior round before replacement.
+        manifest = None
         manifest = traverse()
         after = count(manifest)
         record({'round': number, 'before': before, 'after': after,
