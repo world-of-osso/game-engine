@@ -3,12 +3,12 @@
 Retail spell13262 enters item spell-targeting before sending a cast. See [pipeline](../wiki/systems/disenchant.md).
 
 ## What it must do
-- [ ] Spellbook/action-bar Disenchant enters an item-target cursor without casting immediately.
+- [x] Spellbook Disenchant enters an item-target cursor without casting immediately; action-bar activation shares the implementation but has no separate live proof.
 - [x] Cursor model emits the chosen bag GUID in `SpellCastIntent.target_item_guid`; an empty slot keeps targeting.
-- [ ] Native bag clicks must invoke that model before pickup/use/sale; wired and compiled, rendered routing untested.
+- [x] Native bag clicks invoke that model before pickup/use/sale; private live casts consume eligible items in Modern and Forever.
 - [ ] Escape or right-click cancels targeting without a cast; world clicks do not substitute unit targets.
 - [x] Normal spell initializers set the optional item GUID to None; compile against the companion protocol ABI.
-- [ ] Read-only `tooltip_state().appearance_collection` exposes sorted authoritative account appearance IDs, never bag ownership, for live disposal proof.
+- [x] Read-only `tooltip_state().appearance_collection` exposes sorted authoritative account appearance IDs, never bag ownership, for live disposal proof.
 - [ ] Personal disenchant loot opens the existing LootFrame and honors configured auto-loot/Shift inversion.
 
 ## How it works
@@ -28,8 +28,9 @@ Retail spell13262 enters item spell-targeting before sending a cast. See [pipeli
 - `godot/rust/src/tooltips.rs`: authoritative update replacement/deduplication.
 
 ## Known gaps (current cycle)
-Native cursor/ground UI-model5/5 passes; matching-protocol extension compilation passes.
-- [ ] Native rendered interaction proof not requested or performed; pure cursor tests do not prove pointer routing visually.
+Both-skin private live proof: spellbook→bag cast, eligible consumption, TDB entry3 materials, manual LootFrame take, grey25 refusal/retention, authoritative appearance additions214/242 and relog persistence. [Evidence](../wiki/systems/disenchant.md#private-live-proof--2026-10-10).
+- [ ] Auto-loot/Shift inversion, action-bar activation and cancellation have no separate live proof.
+- [ ] Higher-tier TDB rows reference16 materials absent from this Retail build; 50/100 entries affected,40 wholly unavailable. Pre-fix live753 disposal opens invisible empty loot and blocks the next cast; server remediation is separate.
 
 ## Out of scope
 - Bank targeting, new cursor art, scrap, new loot UI, server deployment and merges.
