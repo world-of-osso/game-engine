@@ -80,7 +80,6 @@ pub mod liquid_data;
 #[path = "game/state/loading_readiness.rs"]
 pub mod loading_readiness;
 pub mod m2;
-pub mod vehicle_seat;
 pub mod m2_billboard;
 pub mod m2_lights;
 pub mod m2_material;
@@ -118,6 +117,7 @@ pub mod ui_click_data;
 pub mod ui_layout_account;
 pub mod ui_layout_data;
 pub mod ui_sound_kits;
+pub mod vehicle_seat;
 #[path = "sound/wmo_surface_data.rs"]
 pub mod wmo_surface_data;
 #[cfg(test)]
