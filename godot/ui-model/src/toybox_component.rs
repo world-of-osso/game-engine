@@ -4,7 +4,22 @@ use crate::ui::screens::quest_art::{
     DynName, named_atlas_texture, portrait_border, window_portrait_slot, window_portrait_texture,
 };
 use crate::ui::strata::FrameStrata;
-use ui_toolkit::{rsx, screen::SharedContext, widget_def::Element};
+use ui_toolkit::{
+    frame::WidgetData, registry::FrameRegistry, rsx, screen::SharedContext, widget_def::Element,
+};
+
+/// Retail ToySpellButton_UpdateButton desaturates the uncollected icon.
+pub fn apply_toybox_postsetup(view: &ToyBoxView, registry: &mut FrameRegistry) {
+    for (index, toy) in view.model.page_items().into_iter().enumerate() {
+        let name = format!("ToySpellButton{}Icon", index + 1);
+        if let Some(id) = registry.get_by_name(&name)
+            && let Some(frame) = registry.get_mut(id)
+            && let Some(WidgetData::Texture(texture)) = &mut frame.widget_data
+        {
+            texture.desaturated = !toy.learned;
+        }
+    }
+}
 
 pub const SIZE: [f32; 2] = [703.0, 606.0];
 pub const TABS: [&str; 6] = [

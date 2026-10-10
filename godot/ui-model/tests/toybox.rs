@@ -1,5 +1,111 @@
 use game_engine_ui_model::toybox::{PAGE_SIZE, ToyAction, ToyBox, ToyFilters};
+use game_engine_ui_model::toybox_component::{ToyBoxView, toybox_screen};
 use shared::protocol::{ActionRef, SpellCooldownUpdate, ToySnapshot};
+use ui_toolkit::atlas::{ActiveSkin, set_thread_skin};
+use ui_toolkit::frame::{Dimension, Frame, WidgetData};
+use ui_toolkit::registry::FrameRegistry;
+use ui_toolkit::screen::{Screen, SharedContext};
+
+fn journal(skin: ActiveSkin) -> FrameRegistry {
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
+    set_thread_skin(skin);
+    let mut model = ToyBox::default();
+    model.receive(
+        (1..=18)
+            .map(|id| toy(id, &format!("Toy {id:02}"), id % 2 == 0))
+            .collect(),
+    );
+    let mut shared = SharedContext::new();
+    shared.insert(ToyBoxView {
+        model,
+        viewport: [1920.0, 1080.0],
+    });
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(toybox_screen).sync(&shared, &mut registry);
+    game_engine_ui_model::toybox_component::apply_toybox_postsetup(
+        shared.get::<ToyBoxView>().unwrap(),
+        &mut registry,
+    );
+    registry
+}
+
+fn visible_frame<'a>(registry: &'a FrameRegistry, name: &str) -> &'a Frame {
+    let frame = registry
+        .get(registry.get_by_name(name).expect(name))
+        .unwrap();
+    assert!(
+        frame.visible && frame.effective_alpha > 0.0,
+        "{name} is invisible"
+    );
+    assert!(
+        matches!(frame.width, Dimension::Fixed(width) if width > 0.0),
+        "{name} has no width"
+    );
+    assert!(
+        matches!(frame.height, Dimension::Fixed(height) if height > 0.0),
+        "{name} has no height"
+    );
+    frame
+}
+
+#[test]
+fn names_are_visible_for_collected_and_uncollected_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = journal(skin);
+        for index in 1..=18 {
+            let frame = visible_frame(&registry, &format!("ToySpellButton{index}Name"));
+            let Some(WidgetData::FontString(text)) = &frame.widget_data else {
+                panic!("missing name text")
+            };
+            assert_eq!(text.text, format!("Toy {index:02}"));
+            assert!(text.color[3] > 0.0);
+            if index % 2 == 1 {
+                assert!(text.color[0] < 1.0, "uncollected name must be greyed");
+            }
+        }
+    }
+}
+
+#[test]
+fn search_progress_and_six_journal_tabs_exist_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = journal(skin);
+        let search = visible_frame(&registry, "ToyBoxSearchBox");
+        assert!(matches!(search.widget_data, Some(WidgetData::EditBox(_))));
+        visible_frame(&registry, "ToyBoxSearchHint");
+        for part in ["Left", "Middle", "Right"] {
+            visible_frame(&registry, &format!("ToyBoxSearch{part}"));
+        }
+        let bar = visible_frame(&registry, "ToyBoxProgressBar");
+        assert_eq!(bar.background_color.unwrap()[3], 1.0);
+        visible_frame(&registry, "ToyBoxProgressFill");
+        visible_frame(&registry, "ToyBoxProgressBorder");
+        let text = visible_frame(&registry, "ToyBoxProgress");
+        assert!(
+            matches!(&text.widget_data, Some(WidgetData::FontString(text)) if text.text == "9 / 18")
+        );
+        for index in 1..=6 {
+            visible_frame(&registry, &format!("CollectionsJournalTab{index}"));
+        }
+    }
+}
+
+#[test]
+fn uncollected_icons_are_desaturated_in_both_skins() {
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let registry = journal(skin);
+        for index in 1..=18 {
+            let frame = visible_frame(&registry, &format!("ToySpellButton{index}Icon"));
+            let Some(WidgetData::Texture(texture)) = &frame.widget_data else {
+                panic!("missing icon")
+            };
+            assert_eq!(texture.desaturated, index % 2 == 1, "{skin:?} toy {index}");
+        }
+    }
+}
 
 fn toy(id: u32, name: &str, learned: bool) -> ToySnapshot {
     ToySnapshot {
