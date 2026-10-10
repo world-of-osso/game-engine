@@ -365,10 +365,16 @@ fn classification_atlas(
 /// `ClassificationFrame` (Blizzard_NamePlates.xml:195-214): 20×20, RIGHT on the
 /// `RaidTargetFrame`'s LEFT, whose own RIGHT sits on the health bars' LEFT
 /// (Blizzard_NamePlateUnitFrame.lua:815). `classificationScale` is 1: our plates have
-/// only the Medium size (Blizzard_NamePlateConstants.lua:57).
-fn classification_rect(style: &NameplateStyle) -> Rect2 {
+/// only the Medium size (Blizzard_NamePlateConstants.lua:57). A hidden raid frame
+/// collapses out of this anchor chain (`collapsesLayout="true"` in Retail XML).
+fn classification_rect(style: &NameplateStyle, raid_marker_shown: bool) -> Rect2 {
     let size = Vector2::splat(CLASSIFICATION_SIZE);
-    let raid_left = -style.health_width / 2.0 - RAID_ICON_SIZE;
+    let raid_width = if raid_marker_shown {
+        RAID_ICON_SIZE
+    } else {
+        0.0
+    };
+    let raid_left = -style.health_width / 2.0 - raid_width;
     Rect2::new(Vector2::new(raid_left - size.x, -size.y / 2.0), size)
 }
 
@@ -1045,7 +1051,7 @@ fn apply_classification(
         plate.classification.set_visible(false);
         return;
     };
-    let rect = classification_rect(style);
+    let rect = classification_rect(style, view.raid_target.is_some());
     plate.classification.set_texture(texture);
     plate.classification.set_position(rect.position);
     plate.classification.set_size(rect.size);
@@ -2105,7 +2111,7 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
         for skin in [ActiveSkin::Forever, ActiveSkin::Modern] {
             for level_width in [0.0, LEVEL_INDICATOR_WIDTH] {
                 let layout = plate_layout(&style, 1.0, level_width, skin);
-                let rect = classification_rect(&style);
+                let rect = classification_rect(&style, false);
                 assert_eq!(rect.end().x, layout.fill.position.x);
                 assert_eq!(rect.size, Vector2::splat(20.0));
             }
@@ -2115,7 +2121,7 @@ ID,Faction,Flags,FactionGroup,FriendGroup,EnemyGroup,Enemies_0,Enemies_1,Enemies
     #[test]
     fn classification_anchor_moves_22_pixels_left_with_raid_marker() {
         let style = NameplateStyle::default();
-        let rect = classification_rect(&style);
+        let rect = classification_rect(&style, true);
         assert_eq!(rect.end().x, -style.health_width / 2.0 - 22.0);
         let name = Rect2::new(Vector2::new(-30.0, -28.5), Vector2::new(60.0, 14.0));
         assert_eq!(rect.end().x, raid_icon_rect(&style, true, name).position.x);
