@@ -1,4 +1,6 @@
 # data/-relative files uploaded for `scripts/depot-build.py --test`; see docs/remote-builds.md.
+# Local battle-pet icon lookup contains quoted multiline source/description fields.
+db2/12.1.0.69933/BattlePetSpecies.csv
 # Existing extracted spell sound for the no-install cold-start fixture (33 KiB).
 sounds/spells/632305.ogg
 # Tests needing files absent here fail remotely with their own missing-path error.

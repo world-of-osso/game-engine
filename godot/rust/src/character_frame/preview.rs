@@ -33,7 +33,7 @@ pub(crate) struct ModelPreview {
     pub(crate) yaw: f32,
 }
 
-struct Scene {
+pub(crate) struct Scene {
     view: Gd<TextureRect>,
     viewport: Gd<SubViewport>,
     root: Gd<Node3D>,
@@ -186,7 +186,7 @@ impl GameClient {
 }
 
 impl Scene {
-    fn new(mut host: Gd<Control>) -> Self {
+    pub(crate) fn new(mut host: Gd<Control>) -> Self {
         let (viewport, root, camera) = model_viewport();
         let mut view = TextureRect::new_alloc();
         view.set_name("CharacterModelView");
@@ -207,7 +207,7 @@ impl Scene {
     }
 
     /// Render at the scene's physical pixel size.
-    fn fit_viewport(&mut self) {
+    pub(crate) fn fit_viewport(&mut self) {
         let size = self.view.get_global_rect().size;
         let size = Vector2i::new(
             size.x.round().max(1.0) as i32,
@@ -218,19 +218,38 @@ impl Scene {
         }
     }
 
-    fn replace_model(&mut self, model: Gd<Node3D>) {
+    pub(crate) fn free(self) {
+        self.view.free();
+    }
+
+    pub(crate) fn replace_model(&mut self, model: Gd<Node3D>) {
         if let Some(previous) = self.model.take() {
             previous.free();
         }
         self.root.add_child(&model);
+        self.fit_viewport();
         self.frame_camera(&model);
         self.model = Some(model);
     }
 
     /// Face the model and fit its height into the frame.
     fn frame_camera(&mut self, model: &Gd<Node3D>) {
-        let bounds = mesh_bounds(model);
-        let height = bounds.size.y.max(0.1) * (1.0 + 2.0 * FRAME_MARGIN);
+        let bounds = model
+            .find_children_ex("*")
+            .type_("MeshInstance3D")
+            .owned(false)
+            .done()
+            .iter_shared()
+            .map(|node| {
+                let mesh = node.cast::<MeshInstance3D>();
+                mesh.get_global_transform() * mesh.get_aabb()
+            })
+            .reduce(|bounds, next| bounds.merge(next))
+            .unwrap_or_default();
+        let size = self.viewport.get_size();
+        let aspect = size.x as f32 / size.y as f32;
+        let extent = bounds.size.y.max(bounds.size.z / aspect).max(0.1);
+        let height = extent * (1.0 + 2.0 * FRAME_MARGIN);
         let center = bounds.center();
         let distance = height / 2.0 / (CAMERA_FOV.to_radians() / 2.0).tan();
         let eye = center + Vector3::new(distance, 0.0, 0.0);

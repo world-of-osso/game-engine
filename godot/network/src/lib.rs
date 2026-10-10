@@ -245,6 +245,7 @@ impl NetworkBridge {
             .receive::<protocol::ResurrectionOffer>()
             .receive::<protocol::SummonRequest>()
             .receive::<protocol::ProfessionSnapshot>()
+            .receive::<protocol::CollectionStateUpdate>()
             .receive::<protocol::TrainerList>()
             .receive::<protocol::TrainerBuyFailed>()
             // Spellbook, action bar and casting.
