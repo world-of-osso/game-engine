@@ -29,7 +29,9 @@ func run_test() -> void:
 	if not error.is_empty():
 		fail(error)
 		return
-	if not await wait_until(func(): return client.account_state().get("screen", "") == "CharacterSelect", 90000):
+	if not await wait_until(func():
+		var ui := client.get_node_or_null("CharacterSelectUI")
+		return client.account_state().get("screen", "") == "CharacterSelect" and ui != null and ui.find_child("EnterWorld", true, false) is Control, 90000):
 		return
 	var enter := client.get_node("CharacterSelectUI").find_child("EnterWorld", true, false) as Control
 	if enter == null:
