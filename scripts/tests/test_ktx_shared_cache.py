@@ -1,7 +1,8 @@
 """Exercise the real compiled build script across concurrent, fresh Cargo OUT_DIRs.
 
-KTX_BUILD_SCRIPT points at target/debug/build/ktx2-rw-*/build-script-build.
-Run after one helper build has populated the host cache. Network is disabled.
+Uses the newest target/debug/build/ktx2-rw-*/build-script-build of this checkout
+(KTX_BUILD_SCRIPT overrides it). Run after one helper build has populated the host
+cache. Network is disabled.
 """
 import concurrent.futures
 import hashlib
@@ -12,10 +13,26 @@ import tempfile
 import unittest
 
 
+def find_ktx_build_script(root):
+    if 'KTX_BUILD_SCRIPT' in os.environ:
+        return Path(os.environ['KTX_BUILD_SCRIPT']).resolve()
+    scripts = sorted(
+        (root / 'target/debug/build').glob('ktx2-rw-*/build-script-build'),
+        key=lambda path: path.stat().st_mtime,
+    )
+    if not scripts:
+        raise AssertionError(
+            f'no compiled ktx2-rw build script under {root}/target/debug/build; '
+            'build the extension once (scripts/depot-build.py) before this test'
+        )
+    return scripts[-1]
+
+
 class SharedKtxCache(unittest.TestCase):
     def test_fresh_out_dirs_reuse_one_library_and_identical_bindings_offline(self):
-        script = Path(os.environ['KTX_BUILD_SCRIPT']).resolve()
-        vendor = Path(__file__).resolve().parents[2] / 'vendor/ktx2-rw'
+        root = Path(__file__).resolve().parents[2]
+        script = find_ktx_build_script(root)
+        vendor = root / 'vendor/ktx2-rw'
         with tempfile.TemporaryDirectory() as temporary:
             directories = [Path(temporary) / str(i) for i in range(3)]
             for directory in directories:
