@@ -3033,3 +3033,7 @@ Updated [private headless recipe](../headless-live-run.md) to link server deploy
 ## [2026-10-09] investigation | Brack picking and rares2 captures
 
 [Classification investigation](investigations/rare-vignettes-and-classification.md#brack-native-selection-and-follow-up-captures): proved box-centre fixture miss versus successful native triangle/mouse selection of Brack; no product picking bug reproduced. Captured post-fix Forever rank2/rank4 and Modern rank4 in the three-launch budget, personally inspected ffmpeg downscales. Mainline rare has star/no dragon; rareelite silver dragon. Private5530 and owned clients stopped; diagnostics remain untracked.
+
+## 2026-10-10 — P2 model isolation native acceptance
+
+Updated [M2 product shadowing](investigations/m2-product-shadowing.md#native-acceptance-2026-10-10) and [contract](../specs/product-isolated-model-assets.md): recovered authentic frozen-build source gaps, scoped14/14, zero-warning native build, extracted-only4/4 GPU proof with tripwire0 and inspected player/item/creature PNGs. No merge or P3/P4 certification.

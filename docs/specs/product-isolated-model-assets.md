@@ -1,16 +1,16 @@
 # Product-isolated model assets
 
-**Approved contract — user decision 2026-10-09: option 1, isolate the full asset chain.** Subsequent shipping direction: extract assets offline with per-asset provenance; converted creature/player/equipment and NPC-appearance paths support explicit `extracted-only` runtime access, with no CASC initialization/extraction or legacy fallback. Keep the global default unchanged while terrain/WMO/spell/UI/sound extraction is handled separately. Displays 139403/139409 select Forever metadata but receive cached Retail M2 bytes. [Investigation](../wiki/investigations/m2-product-shadowing.md) records the collision and failing regression. This contract covers the primary model and its full asset dependencies, not UI skin selection.
+**Approved contract — user decision 2026-10-09: option 1, isolate the full asset chain.** Subsequent shipping direction: extract assets offline with per-asset provenance; converted creature/player/equipment and NPC-appearance paths support explicit `extracted-only` runtime access, with no CASC initialization/extraction or legacy fallback. Keep the global default unchanged while terrain/WMO/spell/UI/sound extraction is handled separately. Displays 139403/139409 previously selected Forever metadata but received cached Retail M2 bytes. [Investigation](../wiki/investigations/m2-product-shadowing.md) records the collision and failing regression. This contract covers the primary model and its full asset dependencies, not UI skin selection.
 
 ## What it must do
 
 Approved acceptance criteria:
 
-- [ ] A model request carries its authored product/build identity; identical FDIDs from Retail and Forever coexist without overwriting or borrowing bytes.
-- [ ] Disk files, parsed models and offline CASC resolution state honor that identity. Converted model/appearance paths in `extracted-only` mode read shipped files only. Missing matching assets error explicitly; no local-CASC or unqualified legacy fallback.
-- [ ] SFID skins, SKID skeletons and external animations inherit their model's identity. Referenced textures retain source identity through decoding/material publication too.
-- [ ] Preserve current Retail CDI precedence and metadata-source rules for equipment; do not assume every asset attached to a Forever NPC belongs to Forever.
-- [ ] Both named displays render from extracted-only model/appearance files without type9 failures; a comparable native run shows no new errors for other displays. Model loads do not require access to a WoW installation.
+- [x] A model request carries its authored product/build identity; identical FDIDs from Retail and Forever coexist without overwriting or borrowing bytes.
+- [x] Disk files, parsed models and offline CASC resolution state honor that identity. Converted model/appearance paths in `extracted-only` mode read shipped files only. Missing matching assets error explicitly; no local-CASC or unqualified legacy fallback.
+- [x] SFID skins, SKID skeletons and external animations inherit their model's identity. Referenced textures retain source identity through decoding/material publication too.
+- [x] Preserve current Retail CDI precedence and metadata-source rules for equipment; do not assume every asset attached to a Forever NPC belongs to Forever.
+- [x] Both named displays render from extracted-only model/appearance files without type9 failures; a comparable native run shows no new errors for other displays. Model loads do not require access to a WoW installation.
 
 ## Decision record (2026-10-09)
 
@@ -35,14 +35,14 @@ Option 1 is approved for the full referenced render-asset chain, preserving exis
 
 ## Tests asserting this spec
 
-`godot/rust/tests/resolver_product_shadowing.rs`: resolver-boundary regression, to be enabled and updated to the approved explicit-identity API. Real resolver file reads in fresh Retail/Forever subprocesses, concrete IDs and distinguishable cache receipts. RED is expected; this is not M2 parsing or native rendering proof. Update it to the approved explicit-identity API when implemented.
+`godot/rust/tests/resolver_product_shadowing.rs`: enabled explicit-identity resolver IO tests alternate Retail/Forever/Retail within one process and reject tempting unqualified bytes. The `model_asset_` unit subset covers parsed models, companion IO, texture pixels/publication, metadata ownership and extracted-only constructor/parser behavior. `godot/tests/model_product_isolation.gd` renders both named Forever displays, a Retail creature and an equipped Human male; verifies source hashes, equipped-item pixel contribution and the CASC tripwire.
 
 ## Known gaps (current cycle)
 
 - [x] Publish verified actual-build per-asset provenance before runtime ownership is consumed. Frozen source publication survives install upgrades and incremental imports retain earlier dependency graphs; no legacy bytes are relabelled.
 - [x] Wire converted creature/player/equipment/appearance constructors, parsed/decode/publication keys, material/cape/body-overlay products and nested animation readers. Focused CPU gate: resolver1/core6/native7 tests pass; this is not named-display GPU acceptance.
-- [ ] Complete authentic named-display equipment/appearance asset availability and render acceptance. Source gaps are recorded in the modelisolation handoff; no borrowed, fabricated or zero-filled assets replace them.
-- [ ] Named-display native captures and post-fix error counts remain pending.
+- [x] Complete authentic named-display equipment/appearance asset availability and render acceptance. Frozen-build local archive extraction recovered all four earlier gaps; no borrowed, fabricated or zero-filled assets replace them.
+- [x] Native acceptance 4/4: displays139403/139409/21774 and Human male equipped with item25. ExtractedOnly, tripwire0, no model/texture/type9 errors. Four inspected PNGs at `/syncthing/AgentShared/2026-10-10/modelisolation/`; [proof ledger](../wiki/investigations/m2-product-shadowing.md#native-acceptance-2026-10-10) records exact scope. This is P2, not full-catalog closure or pristine-bundle certification.
 
 ## Out of scope
 
