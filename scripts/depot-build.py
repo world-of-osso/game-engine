@@ -317,10 +317,17 @@ def native_cargo(root, command, arguments, output=None):
     """Run `cargo <command>` on this host for godot/, with artifacts in the checkout's
     target/ where game_engine.gdextension loads them."""
     environment = os.environ | {"CARGO_TARGET_DIR": str(root / "target")}
-    # Size jobs from the cgroup CPU quota (agents.slice), not an inherited session value.
-    environment.pop("CARGO_BUILD_JOBS", None)
+    # Root .cargo/config.toml caps jobs at two; native dev uses the host CPU set.
+    # Explicit -j on the Cargo command line still overrides this default.
+    environment["CARGO_BUILD_JOBS"] = str(len(os.sched_getaffinity(0)))
+    environment.setdefault("CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER", "clang")
+    if "RUSTFLAGS" not in environment and "CARGO_ENCODED_RUSTFLAGS" not in environment:
+        environment["CARGO_ENCODED_RUSTFLAGS"] = "\x1f".join(
+            ["-C", "link-arg=-fuse-ld=mold", "-C", "link-arg=-Wl,--thread-count=4"]
+        )
     return subprocess.run(
         ["cargo", command, "--locked", "--manifest-path", str(native_source_root(root) / "godot/Cargo.toml"), *arguments],
+        cwd=root,
         env=environment,
         stdout=output,
         stderr=subprocess.STDOUT if output else None,
