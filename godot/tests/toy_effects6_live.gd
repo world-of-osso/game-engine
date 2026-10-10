@@ -30,6 +30,9 @@ func run_fixture() -> void:
 	if OS.get_environment("TOYFX_ONLY_MORTAR") != "1":
 		await prove_attachments()
 		if failed: return
+	# Learning closes bags with Escape, which also clears unit selection. Learn first.
+	await learn_toy(204818)
+	if failed or not learned_toy(204818): return
 	if not await move_near_authored_hostile(): return
 	var hostile := false
 	for attempt in range(40):
@@ -43,6 +46,7 @@ func run_fixture() -> void:
 				break
 	if not hostile: fail("no living hostile target in Tab cycle"); return
 	var target_id := int(client.target_state().target)
+	if not await wait_until(func(): return client.target_state().server_target == target_id, "authoritative hostile target"): return
 	var target_node: Node3D
 	for area in client.find_children("*", "Area3D", true, false):
 		if area.has_meta("unit_server_id") and int(area.get_meta("unit_server_id")) == target_id:
