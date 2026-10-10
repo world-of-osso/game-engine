@@ -125,7 +125,7 @@ pub fn info_row(key: &str, label: &str, detail: &str) -> Element {
             name: {DynName(format!("InfoRow{key}"))},
             width: {OPTIONS_CONTENT_W - 30.0},
             height: row_height,
-            {row_label(key, label)}
+            {row_label(key, label, lines > 1)}
             {info_detail(key, detail, detail_height)}
         }
     }
@@ -137,7 +137,7 @@ pub fn ghost_button_row(key: &str, label: &str, detail: &str) -> Element {
             name: {DynName(format!("GhostRow{key}"))},
             width: {OPTIONS_CONTENT_W - 30.0},
             height: 34.0,
-            {row_label(key, label)}
+            {row_label(key, label, false)}
             {ghost_detail(key, detail)}
             {disabled_button(key)}
         }
@@ -157,7 +157,7 @@ pub fn action_button_row(
             name: {DynName(format!("ActionRow{key}"))},
             width: {OPTIONS_CONTENT_W - 30.0},
             height: 34.0,
-            {row_label(key, label)}
+            {row_label(key, label, false)}
             {ghost_detail(key, detail)}
             button {
                 name: {DynName(format!("ActionButton{key}"))},
@@ -185,7 +185,9 @@ fn section_stack(items: Element) -> OptionsPage {
     OptionsPage { items, gap: 12.0 }
 }
 
-fn row_label(key: &str, text: &str) -> Element {
+fn row_label(key: &str, text: &str, multiline: bool) -> Element {
+    let top = if multiline { "0%" } else { "50%" };
+    let translate_y = if multiline { "0%" } else { "-50%" };
     rsx! {
         fontstring {
             name: {DynName(format!("RowLabel{key}"))},
@@ -197,8 +199,8 @@ fn row_label(key: &str, text: &str) -> Element {
             justify_h: "LEFT",
             pos_type: "absolute",
             left: "0%",
-            top: "50%",
-            translate_y: "-50%",
+            top,
+            translate_y,
         }
     }
 }
