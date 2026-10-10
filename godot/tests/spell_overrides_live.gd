@@ -1,4 +1,4 @@
-    extends "res://tests/skyriding_bar_live.gd"
+extends "res://tests/skyriding_bar_live.gd"
 
 ## Private real-server proof: aura1719 action substitution/restoration, ground leap,
 ## and Blink against the same Abbey wall segment used by the server's real LOS test.
