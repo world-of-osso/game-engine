@@ -5,6 +5,9 @@
 ## 2026-10-10 — Quest POI hover, v3
 
 [Quest map objectives](systems/quest-map-objectives.md#v3-source-boundary-2026-10-10) records title/POI hover selection without super-tracking, authored polygon addition/removal and Retail additive InnerGlow. New RED→GREEN regressions,29 distinct targeted UI-model/core tests, native build/check and private UDP5528 both-skin input fixture pass. Eight originals FFmpeg-downscaled/inspected and published with `v3-` prefix. Native minimap selection is not exposed by searched Retail Lua/API sources; existing watched behavior retained, parity unclaimed.
+## 2026-10-10 — Retail talent footer controls
+
+[Footer controls](systems/talents.md#footer-controls--2026-10-10) records staged class/spec/all reset, real catalog search with previews/keyboard/badges, unnamed default loadout UI and explicit server/serialization blockers. Native ui-model17/17, actual Down/Up/Enter/blur fixture, four inspected Arms/Arcane Modern/Forever v3 captures and footer bounds/glyph proof. Authenticated local atlas1047875 extraction; no CDN, server mutation, merge or independent verification claim.
 
 ## 2026-10-10 — Skyborne baked NPC native capture
 

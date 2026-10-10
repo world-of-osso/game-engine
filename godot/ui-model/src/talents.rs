@@ -1,4 +1,6 @@
 //! UI projection and staged allocations over the local Retail DB2 graph.
+#[path = "talent_search.rs"]
+pub mod search;
 #[path = "talent_editor.rs"]
 mod talent_editor;
 use game_engine_core::spell_catalog::{SPELL_DB2_BUILD, SpellCatalogData};
@@ -13,6 +15,9 @@ pub struct TalentView {
     pub editor: TalentEditor,
     pub level: u8,
     pub names: BTreeMap<u32, String>,
+    pub descriptions: BTreeMap<u32, String>,
+    pub replaced_names: BTreeMap<u32, String>,
+    pub on_action_bar: BTreeSet<u32>,
     pub rules: Option<game_engine_core::talent_data::rule_data::TraitTree>,
     /// Entry ID -> actual definition override or spell icon FDID.
     pub icons: BTreeMap<u32, u32>,
@@ -93,6 +98,39 @@ pub fn load_talent_view(
             Ok((entry.id, name))
         })
         .collect::<Result<_, String>>()?;
+    let context = game_engine_core::spell_catalog::SpellTextContext {
+        spec_id: Some(spec),
+        ..Default::default()
+    };
+    view.descriptions = view
+        .nodes()
+        .flat_map(|node| &node.entries)
+        .filter_map(|entry| {
+            let description = if entry.subtree_id != 0 {
+                view.graph
+                    .heroes
+                    .iter()
+                    .find(|tree| tree.id == entry.subtree_id)
+                    .map(|tree| tree.description.clone())
+            } else {
+                catalog.render_description(entry.spell_id, &context)
+            };
+            description.map(|text| (entry.id, text))
+        })
+        .collect();
+    view.replaced_names = view
+        .rules
+        .as_ref()
+        .unwrap()
+        .nodes
+        .iter()
+        .flat_map(|node| &node.entries)
+        .filter_map(|entry| {
+            catalog
+                .get(entry.overrides_spell_id)
+                .map(|spell| (entry.id, spell.name.to_string()))
+        })
+        .collect();
     view.missing_icons = read_missing_icons(data, &view.icons)?;
     if !view.missing_icons.is_empty() {
         eprintln!(

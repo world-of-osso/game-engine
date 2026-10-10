@@ -251,6 +251,12 @@ impl GameClient {
         self.spells.talent_views[&key].clone().map(|mut view| {
             view.editor = self.account.talents.clone();
             view.level = player.level as u8;
+            view.on_action_bar = (0..crate::player_spells::ACTION_SLOT_COUNT)
+                .filter_map(|slot| match self.action_slot(slot) {
+                    Some(shared::protocol::ActionRef::Spell(id)) => Some(id),
+                    _ => None,
+                })
+                .collect();
             Some(view)
         })
     }
@@ -473,7 +479,32 @@ impl GameClient {
         else {
             return Ok(());
         };
-        let action = ui.bind_mut().pop_action().to_string();
+        let mut host = ui.bind_mut();
+        let error = host.sync_input();
+        if !error.is_empty() {
+            return Err(error.to_string().into());
+        }
+        let action = host.pop_action().to_string();
+        let selecting_search =
+            action == "talent:search_submit" || action.starts_with("talent:search_select");
+        if host.has_frame("TalentSearchBox") {
+            let text = host.frame_text("TalentSearchBox".into()).to_string();
+            let focused = host.is_frame_focused("TalentSearchBox");
+            if self.account.talents.search_text != text {
+                self.account.talents.search_text = text;
+                self.account.talents.search_index = None;
+                self.account.talents.search_preview = focused;
+            } else if focused && !self.account.talents.search_focused {
+                self.account.talents.search_preview = true;
+                self.account.talents.search_index = None;
+            }
+            if !focused && !selecting_search {
+                self.account.talents.search_preview = false;
+                self.account.talents.search_index = None;
+            }
+            self.account.talents.search_focused = focused;
+        }
+        drop(host);
         self.apply_spellbook_action(&action)
     }
 

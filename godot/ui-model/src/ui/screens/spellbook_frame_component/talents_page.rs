@@ -17,6 +17,8 @@ const MAIN_FIRST_ROW: f32 = 126.0;
 const HERO_DIALOG_SIZE: [f32; 2] = [970.0, 832.0];
 const HERO_DIALOG_NODES_TOP: f32 = 417.0;
 const EDGE_COLOR: [f32; 4] = [0.35, 0.35, 0.35, 1.0];
+#[path = "talents_footer.rs"]
+mod footer;
 
 pub(super) fn talents(state: &SpellbookFrameState, scale: f32) -> Element {
     let children = match &state.talents {
@@ -213,6 +215,14 @@ fn render_node(
     let node_scale = node_scale * scale;
     let mut children = node_entries(node, view, node_scale);
     children.extend(node_border(node, view, node_scale));
+    if let Some(atlas) = view.search_match_atlas(node) {
+        children.extend(retail_atlas(
+            &format!("TalentNode{}SearchMatch", node.id),
+            atlas,
+            [node_size(node) - 31.5, -31.5, 63.0, 63.0],
+            node_scale,
+        ));
+    }
     let max = if node.node_type == 1 {
         node.entries.iter().map(|entry| entry.max_ranks).sum()
     } else {
@@ -506,13 +516,18 @@ fn talent_controls(view: &TalentView, scale: f32) -> Element {
         ],
         scale,
     ));
-    let enabled = view.editor.snapshot.is_some();
+    let enabled = view.editor.snapshot.is_some()
+        && (dirty
+            || view
+                .nodes()
+                .any(|node| view.node_rank(node) > node.granted_ranks));
     children.extend(
         rsx! { button {name:{DynName(name.into())},onclick:action,enabled,
             width:{25.0*scale},height:{25.0*scale},button_default_skin:false,
             pos_type:"absolute",pos_x:{(BOOK_W/2.0+96.0)*scale},pos_y:{(BOOK_H-FOOTER_HEIGHT/2.0-3.0-12.5)*scale},
         }},
     );
+    children.extend(footer::controls(view, scale));
     if let Some(reason) = &view.editor.error_text {
         children.extend(label(
             Label {
@@ -669,6 +684,14 @@ fn hero_selector(view: &TalentView, scale: f32) -> Element {
             pos_type:"absolute",pos_x:{button_x*scale},pos_y:{102.0*scale},
         }},
     );
+    if let Some(atlas) = view.inactive_hero_search_atlas() {
+        children.extend(retail_atlas(
+            "HeroSpecSearchMatch",
+            atlas,
+            [button_x + 108.0 - 31.5, 102.0 - 31.5, 63.0, 63.0],
+            scale,
+        ));
+    }
     let text = match active {
         Some(tree) => tree.name.clone(),
         None => selector
