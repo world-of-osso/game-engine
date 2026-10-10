@@ -5,6 +5,7 @@ Binary layouts follow godot/core/src/asset/{adt,m2,wmo}_format. The manifest
 is an audit, not a release certificate: absent bytes stop expansion explicitly;
 legacy filenames and metadata build labels do NOT authenticate actual builds.
 """
+
 import argparse
 from collections import Counter, deque
 from contextlib import closing
@@ -16,7 +17,17 @@ import sqlite3
 
 ASCII_LOWER = str.maketrans("ABCDEFGHIJKLMNOPQRSTUVWXYZ", "abcdefghijklmnopqrstuvwxyz")
 EXPANDABLE = {"adt", "m2", "wmo", "skel", "wdt"}
-DIRECTORIES = {"adt": "terrain", "wdt": "terrain", "wdl": "terrain", "blp": "textures", "blob": "textures", "ogg": "sounds", "mp3": "sounds", "wav": "sounds", "audio": "sounds"}
+DIRECTORIES = {
+    "adt": "terrain",
+    "wdt": "terrain",
+    "wdl": "terrain",
+    "blp": "textures",
+    "blob": "textures",
+    "ogg": "sounds",
+    "mp3": "sounds",
+    "wav": "sounds",
+    "audio": "sounds",
+}
 
 
 def digest(path):
@@ -40,19 +51,19 @@ def chunks(data, reverse=False):
     while offset < len(data):
         if offset + 8 > len(data):
             raise ValueError(f"truncated chunk header at {offset}")
-        tag = data[offset:offset + 4]
+        tag = data[offset : offset + 4]
         size = struct.unpack_from("<I", data, offset + 4)[0]
         end = offset + 8 + size
         if end > len(data):
             raise ValueError(f"truncated {tag!r} at {offset}")
-        yield (tag[::-1] if reverse else tag).decode("ascii"), data[offset + 8:end]
+        yield (tag[::-1] if reverse else tag).decode("ascii"), data[offset + 8 : end]
         offset = end
 
 
 def records(data, stride):
     if len(data) % stride:
         raise ValueError(f"partial {stride}-byte record")
-    return [data[i:i + stride] for i in range(0, len(data), stride)]
+    return [data[i : i + stride] for i in range(0, len(data), stride)]
 
 
 def u32(data, offset=0):
@@ -98,21 +109,31 @@ def read_local_listfile(path):
     by_fdid, by_path = {}, {}
     with closing(sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)) as db:
         db.execute("BEGIN")
-        for fdid, logical, lower in db.execute("SELECT fdid,path,lower_path FROM local_listfile_entries"):
+        for fdid, logical, lower in db.execute(
+            "SELECT fdid,path,lower_path FROM local_listfile_entries"
+        ):
             by_fdid[fdid] = normalized(logical)
             by_path[lower] = fdid
     return by_fdid, by_path
 
 
 class Closure:
-    def __init__(self, data, paths, product, metadata_build, runtime_paths=None, path_cache=None):
+    def __init__(
+        self, data, paths, product, metadata_build, runtime_paths=None, path_cache=None
+    ):
         self.data = Path(data)
         self.paths = paths
         self.by_path = {}
         for fdid, path in paths.items():
             canonical = normalized(path)
-            self.by_path.setdefault(path if canonical == path else canonical, []).append(fdid)
-        self.runtime_paths = runtime_paths if runtime_paths is not None else {path: ids[-1] for path, ids in self.by_path.items()}
+            self.by_path.setdefault(
+                path if canonical == path else canonical, []
+            ).append(fdid)
+        self.runtime_paths = (
+            runtime_paths
+            if runtime_paths is not None
+            else {path: ids[-1] for path, ids in self.by_path.items()}
+        )
         self.local_paths = {}
         self.local_bindings = {}
         self.product = product
@@ -122,6 +143,7 @@ class Closure:
         self.unresolved = set()
         self.resolved = set()
         self.terrain = None
+        self.wmo_root_flags = {}
         self.inputs = {}
         self.seeds = {}
         if path_cache is not None:
@@ -145,26 +167,40 @@ class Closure:
     def input_file(self, path):
         relative = str(path.relative_to(self.data))
         if relative not in self.inputs:
-            self.inputs[relative] = {"path": relative, "size": path.stat().st_size, "sha256": digest(path)}
+            self.inputs[relative] = {
+                "path": relative,
+                "size": path.stat().st_size,
+                "sha256": digest(path),
+            }
 
     def add(self, fdid, kind, reason, parent=None, alias=None):
         if not fdid:
             return
         key = (int(fdid), kind)
         if key not in self.assets:
-            self.assets[key] = {"fdid": int(fdid), "type": kind,
-                                "logical_path": self.logical_path(int(fdid)),
-                                "source_product": None, "requested_product": self.product,
-                                "metadata_build": self.metadata_build,
-                                "actual_build": None, "identity_status": "unverified",
-                                "edges": set(), "locations": set()}
+            self.assets[key] = {
+                "fdid": int(fdid),
+                "type": kind,
+                "logical_path": self.logical_path(int(fdid)),
+                "source_product": None,
+                "requested_product": self.product,
+                "metadata_build": self.metadata_build,
+                "actual_build": None,
+                "identity_status": "unverified",
+                "edges": set(),
+                "locations": set(),
+            }
             self.queue.append(key)
         asset = self.assets[key]
         asset["edges"].add((parent, reason))
         asset["locations"].add(f"{DIRECTORIES.get(kind, 'models')}/{fdid}.{kind}")
         if alias and alias not in asset["locations"]:
             asset["locations"].add(alias)
-            if asset.get("present") is False and kind in EXPANDABLE and (self.data / alias).is_file():
+            if (
+                asset.get("present") is False
+                and kind in EXPANDABLE
+                and (self.data / alias).is_file()
+            ):
                 self.queue.append(key)
 
     def named(self, logical, kind, reason, parent):
@@ -177,25 +213,43 @@ class Closure:
             selected = self.runtime_paths.get(canonical)
             source = "last surviving SQLite INSERT OR REPLACE row, unique fdid/lower_path (asset-resolver listfile_cache.rs)"
         if selected is None:
-            self.issue("unmapped_path", f"{reason}: {logical}; no runtime binding", parent)
+            self.issue(
+                "unmapped_path", f"{reason}: {logical}; no runtime binding", parent
+            )
             return
         if len(ids) > 1 or selected not in ids:
             code = "ambiguous_path" if len(ids) > 1 else "runtime_path_override"
-            self.resolve(code, parent, "resolved", f"{reason}: {logical}; candidates={ids}; selected FDID={selected}; {source}")
+            self.resolve(
+                code,
+                parent,
+                "resolved",
+                f"{reason}: {logical}; candidates={ids}; selected FDID={selected}; {source}",
+            )
         self.add(selected, kind, reason, parent)
+        return selected
 
     def inspect(self, asset):
         found = []
         for location in sorted(asset["locations"]):
             path = self.data / location
             if path.is_file():
-                found.append({"path": location, "size": path.stat().st_size, "sha256": digest(path)})
+                found.append(
+                    {
+                        "path": location,
+                        "size": path.stat().st_size,
+                        "sha256": digest(path),
+                    }
+                )
         asset["present"] = bool(found)
         asset["present_files"] = found
         asset["size"] = found[0]["size"] if found else None
         asset["sha256"] = found[0]["sha256"] if found else None
         if len({file["sha256"] for file in found}) > 1:
-            self.issue("conflicting_local_bytes", f"{asset['type']} aliases differ", asset["fdid"])
+            self.issue(
+                "conflicting_local_bytes",
+                f"{asset['type']} aliases differ",
+                asset["fdid"],
+            )
             return None
         return self.data / found[0]["path"] if found else None
 
@@ -206,7 +260,11 @@ class Closure:
             path = self.inspect(asset)
             if asset["type"] not in EXPANDABLE:
                 continue
-            missing = ("missing_dependency_bytes", f"cannot expand {asset['type']}", asset["fdid"])
+            missing = (
+                "missing_dependency_bytes",
+                f"cannot expand {asset['type']}",
+                asset["fdid"],
+            )
             if not path:
                 if not asset["present"]:
                     self.unresolved.add(missing)
@@ -223,21 +281,48 @@ class Closure:
             self.inspect(asset)
             row = dict(asset)
             row["locations"] = sorted(asset["locations"])
-            row["edges"] = [{"parent_fdid": p, "reason": r} for p, r in sorted(asset["edges"], key=lambda edge: (edge[0] or 0, edge[1]))]
+            row["edges"] = [
+                {"parent_fdid": p, "reason": r}
+                for p, r in sorted(
+                    asset["edges"], key=lambda edge: (edge[0] or 0, edge[1])
+                )
+            ]
             assets.append(row)
-        issues = [{"code": code, "reason": reason, "fdid": fdid}
-                  for code, reason, fdid in sorted(self.unresolved, key=lambda issue: (issue[0], issue[2] or 0, issue[1]))]
-        return {"schema_version": 1, "tool_sha256": digest(Path(__file__)), "seeds": self.seeds,
-                "inputs": sorted(self.inputs.values(), key=lambda row: row["path"]),
-                "assets": assets, "unresolved": issues,
-                "resolved": [{"code": code, "fdid": fdid, "status": status, "evidence": evidence}
-                             for code, fdid, status, evidence in sorted(self.resolved, key=lambda row: (row[0], row[1] or 0, row[2], row[3]))],
-                "summary": {"files": len(assets), "present": sum(a["present"] for a in assets),
-                            "missing": sum(not a["present"] for a in assets), "unresolved": len(issues),
-                            "unresolved_by_code": dict(sorted(Counter(i["code"] for i in issues).items())),
-                            "resolved_by_code": dict(sorted(Counter(r[0] for r in self.resolved).items())),
-                            "unverified_identity": len(assets), "present_bytes": sum(a["size"] or 0 for a in assets),
-                            "by_type": dict(sorted(Counter(a["type"] for a in assets).items()))}}
+        issues = [
+            {"code": code, "reason": reason, "fdid": fdid}
+            for code, reason, fdid in sorted(
+                self.unresolved, key=lambda issue: (issue[0], issue[2] or 0, issue[1])
+            )
+        ]
+        return {
+            "schema_version": 1,
+            "tool_sha256": digest(Path(__file__)),
+            "seeds": self.seeds,
+            "inputs": sorted(self.inputs.values(), key=lambda row: row["path"]),
+            "assets": assets,
+            "unresolved": issues,
+            "resolved": [
+                {"code": code, "fdid": fdid, "status": status, "evidence": evidence}
+                for code, fdid, status, evidence in sorted(
+                    self.resolved, key=lambda row: (row[0], row[1] or 0, row[2], row[3])
+                )
+            ],
+            "summary": {
+                "files": len(assets),
+                "present": sum(a["present"] for a in assets),
+                "missing": sum(not a["present"] for a in assets),
+                "unresolved": len(issues),
+                "unresolved_by_code": dict(
+                    sorted(Counter(i["code"] for i in issues).items())
+                ),
+                "resolved_by_code": dict(
+                    sorted(Counter(r[0] for r in self.resolved).items())
+                ),
+                "unverified_identity": len(assets),
+                "present_bytes": sum(a["size"] or 0 for a in assets),
+                "by_type": dict(sorted(Counter(a["type"] for a in assets).items())),
+            },
+        }
 
     def expand(self, asset, data):
         kind, fdid = asset["type"], asset["fdid"]
@@ -255,18 +340,37 @@ class Closure:
                 if flags & 0x8:
                     self.add(value, "wmo", f"WDT MODF[{i}]", fdid)
                 else:
-                    self.named(string_at(table.get("MWMO", b""), value), "wmo", f"WDT MODF[{i}]", fdid)
+                    self.named(
+                        string_at(table.get("MWMO", b""), value),
+                        "wmo",
+                        f"WDT MODF[{i}]",
+                        fdid,
+                    )
             for tag, payload in table.items():
                 if tag == "MAID":
                     for i, row in enumerate(records(payload, 32)):
                         for column, value in enumerate(integers(row)):
-                            kinds = ["adt", "adt", "adt", "adt", "adt", "blp", "blp", "blp"]
-                            self.add(value, kinds[column], f"WDT MAID tile {i % 64},{i // 64} field {column}", fdid)
+                            kinds = [
+                                "adt",
+                                "adt",
+                                "adt",
+                                "adt",
+                                "adt",
+                                "blp",
+                                "blp",
+                                "blp",
+                            ]
+                            self.add(
+                                value,
+                                kinds[column],
+                                f"WDT MAID tile {i % 64},{i // 64} field {column}",
+                                fdid,
+                            )
 
     def expand_model(self, fdid, kind, data):
         raw = data if data[:4] == b"MD20" else None
         texture_fdids = None
-        for tag, payload in ([] if raw is not None else chunks(data)):
+        for tag, payload in [] if raw is not None else chunks(data):
             if tag == "MD21":
                 raw = payload
             elif tag in {"TXID", "SFID", "SKID"}:
@@ -297,16 +401,29 @@ class Closure:
             if offset + count * 16 > len(raw):
                 raise ValueError("M2 texture array out of bounds")
             for i in range(count):
-                texture_type, flags, length, name_offset = struct.unpack_from("<IIII", raw, offset + i * 16)
+                texture_type, flags, length, name_offset = struct.unpack_from(
+                    "<IIII", raw, offset + i * 16
+                )
                 if length and texture_fdids is None:
-                    self.named(string_at(raw, name_offset), "blp", f"M2 named texture {i}", fdid)
+                    self.named(
+                        string_at(raw, name_offset),
+                        "blp",
+                        f"M2 named texture {i}",
+                        fdid,
+                    )
                 elif length:
                     primary = texture_fdids[i] if i < len(texture_fdids) else None
-                    self.resolve("named_identity_precedence", fdid, "not_needed", f"M2 texture {i}: TXID is authoritative (FDID={primary}, zero/absent slot makes no texture request); stale filename is not requested (core m2_texture.rs)")
+                    self.resolve(
+                        "named_identity_precedence",
+                        fdid,
+                        "not_needed",
+                        f"M2 texture {i}: TXID is authoritative (FDID={primary}, zero/absent slot makes no texture request); stale filename is not requested (core m2_texture.rs)",
+                    )
             # TXID references cover particle/ribbon textures too. Replacement types
             # are supplied by display/customization/item seeds, not guessed here.
             if len(raw) >= 0x130:
                 from closure_emitters import expand_emitters
+
                 expand_emitters(self, fdid, raw, texture_fdids)
 
     def expand_adt(self, fdid, data):
@@ -321,12 +438,18 @@ class Closure:
                 continue
             if "MDID" in table:
                 primary = diffuse_fdids[index] if index < len(diffuse_fdids) else None
-                self.resolve("named_identity_precedence", fdid, "not_needed", f"ADT texture {index}: MDID is authoritative (FDID={primary}); zero/short slots never select MTEX filenames (native terrain/textures.rs); invalid diffuse slots are not certified renderable")
+                self.resolve(
+                    "named_identity_precedence",
+                    fdid,
+                    "not_needed",
+                    f"ADT texture {index}: MDID is authoritative (FDID={primary}); zero/short slots never select MTEX filenames (native terrain/textures.rs); invalid diffuse slots are not certified renderable",
+                )
             else:
                 self.named(path.decode(), "blp", "ADT MTEX", fdid)
         for tag, stride, flag_offset, mask, names, indices, kind in [
             ("MDDF", 36, 34, 0x40, "MMDX", "MMID", "m2"),
-            ("MODF", 64, 56, 0x8, "MWMO", "MWID", "wmo")]:
+            ("MODF", 64, 56, 0x8, "MWMO", "MWID", "wmo"),
+        ]:
             offsets = integers(table.get(indices, b""))
             for i, row in enumerate(records(table.get(tag, b""), stride)):
                 index = u32(row)
@@ -334,26 +457,42 @@ class Closure:
                 if flags & mask:
                     self.add(index, kind, f"ADT {tag}[{i}]", fdid)
                 elif index < len(offsets):
-                    self.named(string_at(table.get(names, b""), offsets[index]), kind, f"ADT {tag}[{i}]", fdid)
+                    self.named(
+                        string_at(table.get(names, b""), offsets[index]),
+                        kind,
+                        f"ADT {tag}[{i}]",
+                        fdid,
+                    )
                 else:
                     self.issue("invalid_name_index", f"{tag}[{i}] index {index}", fdid)
         if self.terrain is None:
             from closure_terrain import TerrainReferences
+
             self.terrain = TerrainReferences(self)
         self.terrain.expand(fdid, stream)
 
     def expand_wmo(self, asset, data):
         fdid = asset["fdid"]
         table = dict(chunks(data, True))
+        from closure_wmo_liquid import inherit_root, expand_liquid
+
+        root_flags = None
+        if "MOHD" in table:
+            root_flags = struct.unpack_from("<H", table["MOHD"], 60)[0]
         groups = integers(table.get("GFID", b""))
         for i, value in enumerate(groups):
+            if root_flags is not None:
+                inherit_root(self, value, root_flags)
             self.add(value, "wmo", f"WMO GFID[{i}] (all LODs)", fdid)
         if "MOHD" in table and not groups:
             n_groups = u32(table["MOHD"], 4)
             logical = asset["logical_path"]
             for i in range(n_groups):
                 if logical:
-                    self.named(logical[:-4] + f"_{i:03}.wmo", "wmo", f"WMO group {i}", fdid)
+                    child = self.named(
+                        logical[:-4] + f"_{i:03}.wmo", "wmo", f"WMO group {i}", fdid
+                    )
+                    inherit_root(self, child, root_flags)
                 else:
                     self.issue("unnamed_wmo_group", f"group {i}", fdid)
         names = table.get("MOTX", b"")
@@ -365,22 +504,36 @@ class Closure:
                 if not value:
                     continue
                 if names:
-                    self.named(string_at(names, value), "blp", f"WMO MOMT[{i}] field {offset}", fdid)
+                    self.named(
+                        string_at(names, value),
+                        "blp",
+                        f"WMO MOMT[{i}] field {offset}",
+                        fdid,
+                    )
                 else:
                     self.add(value, "blp", f"WMO MOMT[{i}] field {offset}", fdid)
             if u32(row, 4) > 23:
-                self.issue("wmo_extended_material", f"MOMT[{i}] shader {u32(row, 4)} auxiliary slots", fdid)
+                self.issue(
+                    "wmo_extended_material",
+                    f"MOMT[{i}] shader {u32(row, 4)} auxiliary slots",
+                    fdid,
+                )
         if "MODI" in table:
             for i, value in enumerate(integers(table["MODI"])):
                 self.add(value, "m2", f"WMO MODI[{i}] (all doodad sets)", fdid)
         else:
             for i, row in enumerate(records(table.get("MODD", b""), 40)):
-                self.named(string_at(table.get("MODN", b""), u32(row) & 0xffffff), "m2", f"WMO MODD[{i}]", fdid)
+                self.named(
+                    string_at(table.get("MODN", b""), u32(row) & 0xFFFFFF),
+                    "m2",
+                    f"WMO MODD[{i}]",
+                    fdid,
+                )
         if "MOGP" in table:
             # Group's nested chunks start after the 68-byte MOGP header.
             nested = dict(chunks(table["MOGP"][68:], True))
             if "MLIQ" in nested:
-                self.issue("wmo_liquid_edges", "MLIQ liquid material metadata not enumerated", fdid)
+                expand_liquid(self, fdid, table["MOGP"][:68], nested["MLIQ"])
 
 
 def estimate_catalog(data, paths):
@@ -391,61 +544,117 @@ def estimate_catalog(data, paths):
     No size information is invented for classes with no local sample.
     """
     classes = {}
-    extensions = {"adt", "wdt", "wdl", "m2", "wmo", "skin", "skel", "anim", "blp", "ogg", "mp3"}
+    extensions = {
+        "adt",
+        "wdt",
+        "wdl",
+        "m2",
+        "wmo",
+        "skin",
+        "skel",
+        "anim",
+        "blp",
+        "ogg",
+        "mp3",
+    }
     for kind in sorted(extensions):
         ids = {fdid for fdid, path in paths.items() if path.endswith("." + kind)}
         roots = [data / DIRECTORIES.get(kind, "models")]
         if kind in {"ogg", "mp3"}:
             roots = [data / "sounds", data / "music"]
-        inventory = [p for root in roots if root.is_dir() for p in root.rglob("*." + kind) if p.is_file()]
+        inventory = [
+            p
+            for root in roots
+            if root.is_dir()
+            for p in root.rglob("*." + kind)
+            if p.is_file()
+        ]
         local_ids = {int(p.stem) for p in inventory if p.stem.isdecimal()} & ids
         local_bytes = sum(p.stat().st_size for p in inventory)
-        matched_bytes = sum(p.stat().st_size for p in inventory if p.stem.isdecimal() and int(p.stem) in ids)
+        matched_bytes = sum(
+            p.stat().st_size
+            for p in inventory
+            if p.stem.isdecimal() and int(p.stem) in ids
+        )
         missing = len(ids - local_ids)
         mean = matched_bytes // len(local_ids) if local_ids else None
-        classes[kind] = {"listfile_files": len(ids), "local_files": len(inventory), "local_bytes": local_bytes,
-                         "legacy_numeric_id_matches": len(local_ids), "missing_file_estimate": missing,
-                         "sample_mean_bytes": mean,
-                         "missing_bytes_estimate": missing * mean if mean is not None else None,
-                         "total_bytes_estimate": len(ids) * mean if mean is not None else None}
-    return {"method": "Unfiltered listfile candidate superset across products/builds; not release closure. "
-                      "Missing/total byte estimates multiply count by local matched-file mean, which is biased. "
-                      "No compression estimate; unknown sizes are null. Local inventory is exact disk bytes, not authenticated coverage.",
-            "classes": classes}
+        classes[kind] = {
+            "listfile_files": len(ids),
+            "local_files": len(inventory),
+            "local_bytes": local_bytes,
+            "legacy_numeric_id_matches": len(local_ids),
+            "missing_file_estimate": missing,
+            "sample_mean_bytes": mean,
+            "missing_bytes_estimate": missing * mean if mean is not None else None,
+            "total_bytes_estimate": len(ids) * mean if mean is not None else None,
+        }
+    return {
+        "method": "Unfiltered listfile candidate superset across products/builds; not release closure. "
+        "Missing/total byte estimates multiply count by local matched-file mean, which is biased. "
+        "No compression estimate; unknown sizes are null. Local inventory is exact disk bytes, not authenticated coverage.",
+        "classes": classes,
+    }
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, required=True)
     parser.add_argument("--world-db", type=Path, required=True)
-    parser.add_argument("--config", type=Path, default=Path(__file__).with_name("closure-northshire.json"))
+    parser.add_argument(
+        "--config",
+        type=Path,
+        default=Path(__file__).with_name("closure-northshire.json"),
+    )
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--estimate-output", type=Path)
-    parser.add_argument("--path-resolution-cache", type=Path, help="read-only snapshot of the shipped runtime local-listfile cache, under data/")
+    parser.add_argument(
+        "--path-resolution-cache",
+        type=Path,
+        help="read-only snapshot of the shipped runtime local-listfile cache, under data/",
+    )
     args = parser.parse_args()
     from closure_seeds import seed_catalogs
+
     config = json.loads(args.config.read_text())
     paths, runtime_paths = read_listfile(args.data / "community-listfile.csv")
-    graph = Closure(args.data, paths, config["product"], config["metadata_build"],
-                    runtime_paths=runtime_paths, path_cache=args.path_resolution_cache)
+    graph = Closure(
+        args.data,
+        paths,
+        config["product"],
+        config["metadata_build"],
+        runtime_paths=runtime_paths,
+        path_cache=args.path_resolution_cache,
+    )
     graph.input_file(args.data / "community-listfile.csv")
     if args.estimate_output:
         estimate = estimate_catalog(args.data, graph.paths)
         args.estimate_output.parent.mkdir(parents=True, exist_ok=True)
-        args.estimate_output.write_text(json.dumps(estimate, indent=2, sort_keys=True) + "\n")
+        args.estimate_output.write_text(
+            json.dumps(estimate, indent=2, sort_keys=True) + "\n"
+        )
     seed_catalogs(graph, args.world_db, config)
     result = graph.run()
     result["config_sha256"] = digest(args.config)
     result["seed_tool_sha256"] = digest(Path(__file__).with_name("closure_seeds.py"))
-    result["spell_seed_tool_sha256"] = digest(Path(__file__).with_name("closure_spell_seeds.py"))
-    result["terrain_tool_sha256"] = digest(Path(__file__).with_name("closure_terrain.py"))
+    result["spell_seed_tool_sha256"] = digest(
+        Path(__file__).with_name("closure_spell_seeds.py")
+    )
+    result["terrain_tool_sha256"] = digest(
+        Path(__file__).with_name("closure_terrain.py")
+    )
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w") as stream:
         json.dump(result, stream, indent=2, sort_keys=True)
         stream.write("\n")
     print(json.dumps(result["summary"], sort_keys=True))
     # Audit output always written; unknown identity is deliberately not a certificate.
-    return 1 if result["summary"]["missing"] or result["summary"]["unresolved"] or result["summary"]["unverified_identity"] else 0
+    return (
+        1
+        if result["summary"]["missing"]
+        or result["summary"]["unresolved"]
+        or result["summary"]["unverified_identity"]
+        else 0
+    )
 
 
 if __name__ == "__main__":
