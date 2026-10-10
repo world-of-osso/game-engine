@@ -41,3 +41,7 @@ Eight final `modern|forever-wild-{win,trap-ready,capture,journal}.png` at `/sync
 
 ## Out of scope
 PvP matchmaking and turn effects not admitted by the inherited server engine. No unsupported-effect direct-damage substitute is allowed.
+
+## Retail HUD v2 — 2026-10-10
+Both skins share Retail Mainline PetBattleFrame geometry: active portraits/quality/level/family/HP/aura rows and available reserve pets; icon-only ability actions with hotkeys, cooldowns, locks and ability-family effectiveness badges. Bottom chrome carries swap/trap/forfeit/pass and the active pet XP bar. Wild PvE hides the round timer per PetBattleFrame_UpdatePassButtonAndTimer; timed snapshots show it. Server event amounts float over their target pets for two seconds; Rust Debug output and ability-name labels never appear. Snapshot metadata owns portrait, quality, XP, ability family and aura icons; no combat simulation moves into the client.
+Sources: local Retail Blizzard_PetBattleUI/Shared/Blizzard_PetBattleUI.xml, .lua and Blizzard_PetBattleUIPatchwerks.xml. Native screenshot acceptance remains pending until recorded in the handoff.

@@ -1921,7 +1921,7 @@ impl GameClient {
             ("Spells", |c, d| c.update_spells(d)),
             ("Professions", |c, _| c.update_professions()),
             ("Pet Journal", |c, _| c.update_pet_journal()),
-            ("Wild Pet Battle", |c, _| c.update_wild_pet_battle()),
+            ("Wild Pet Battle", |c, d| c.update_wild_pet_battle(d)),
             ("Trainer", |c, _| c.update_trainer()),
             ("Auras", |c, _| c.update_auras()),
             ("Launcher", |c, _| c.update_launcher()),
