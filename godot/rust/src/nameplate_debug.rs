@@ -312,10 +312,14 @@ impl WowNameplateDebug {
                 Ok(Some(_)) => {
                     self.icons.insert(spell, fdid);
                 }
-                Ok(None) => godot_error!(
-                    "Nameplate debug: icon {fdid} of spell {spell} is not in local CASC"
-                ),
-                Err(error) => godot_error!("{error}"),
+                Ok(None) => {
+                    godot_error!(
+                        "Nameplate debug: icon {fdid} of spell {spell} is not in local CASC"
+                    );
+                }
+                Err(error) => {
+                    godot_error!("{error}");
+                }
             }
         }
     }

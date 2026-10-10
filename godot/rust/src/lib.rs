@@ -1829,7 +1829,9 @@ impl GameClient {
             self.client_request(request, reply)
         }) {
             Ok(()) => self.ipc = Some(service),
-            Err(error) => godot_error!("Client IPC stopped: {error}"),
+            Err(error) => {
+                godot_error!("Client IPC stopped: {error}");
+            }
         }
     }
 

@@ -168,7 +168,9 @@ fn read_used() -> UsedShaders {
         match UsedShader::parse(line) {
             Some(shader) if !used.contains(&shader) => used.push(shader),
             Some(_) => {}
-            None => godot_error!("{}: malformed used shader {line:?}", path.display()),
+            None => {
+                godot_error!("{}: malformed used shader {line:?}", path.display());
+            }
         }
     }
     UsedShaders {

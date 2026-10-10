@@ -81,9 +81,11 @@ impl GameClient {
                 match resolver.ensure_cached(fdid, &path) {
                     Ok(Some(_)) => {}
                     Ok(None) => {
-                        godot_warn!("Flight map texture FDID {fdid} is unavailable in local CASC")
+                        godot_warn!("Flight map texture FDID {fdid} is unavailable in local CASC");
                     }
-                    Err(error) => godot_warn!("{error}"),
+                    Err(error) => {
+                        godot_warn!("{error}");
+                    }
                 }
             }
         }

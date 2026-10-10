@@ -19,7 +19,9 @@ impl GameClient {
             .and_then(|id| self.replica.unit(id))
             .is_some_and(UnitFields::in_combat);
         match self.logout.request(in_combat, self.in_rest_area) {
-            LogoutRequestOutcome::BlockedInCombat => godot_warn!("Cannot logout while in combat"),
+            LogoutRequestOutcome::BlockedInCombat => {
+                godot_warn!("Cannot logout while in combat");
+            }
             LogoutRequestOutcome::Immediate => self.finish_logout()?,
             LogoutRequestOutcome::StartedCountdown | LogoutRequestOutcome::AlreadyPending => {
                 self.close_game_menu()

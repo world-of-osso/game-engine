@@ -153,7 +153,9 @@ impl GameClient {
                     self.auction.session.open(opened.npc);
                 }
                 InteractionKind::Gossip(menu) => self.show_auction_gossip(opened.npc, menu)?,
-                other => godot_warn!("NPC frame {other:?} is not converted to Godot yet"),
+                other => {
+                    godot_warn!("NPC frame {other:?} is not converted to Godot yet");
+                }
             },
             NpcMessage::Closed(npc) => session.receive_interaction_closed(npc),
             NpcMessage::Vendor(inventory) => {
@@ -607,8 +609,12 @@ impl GameClient {
             if !path.exists() {
                 match resolver.ensure_cached(fdid, &path) {
                     Ok(Some(_)) => {}
-                    Ok(None) => godot_warn!("Merchant item icon FDID {fdid} is not in local CASC"),
-                    Err(error) => godot_warn!("{error}"),
+                    Ok(None) => {
+                        godot_warn!("Merchant item icon FDID {fdid} is not in local CASC");
+                    }
+                    Err(error) => {
+                        godot_warn!("{error}");
+                    }
                 }
             }
         }

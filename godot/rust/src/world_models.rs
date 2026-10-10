@@ -316,10 +316,12 @@ impl VisualCatalogs {
                         .into_iter()
                         .map(|model| (model, attachment)),
                 ),
-                Err(error) => godot_error!(
-                    "Creature display {display_id} virtual item {:?}: {error}",
-                    entry.item_id
-                ),
+                Err(error) => {
+                    godot_error!(
+                        "Creature display {display_id} virtual item {:?}: {error}",
+                        entry.item_id
+                    );
+                }
             }
         }
         Ok(models)
