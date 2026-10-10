@@ -69,7 +69,7 @@ func trace(label: String) -> void:
 	print("ANIMREP TRACE ", label, " animation=", animation_id(), " position=", player.global_position, " errors=", client.spells_state().errors)
 
 func animation_id() -> int:
-	var animation := player.find_child("M2Animation", true, false)
+	var animation := player.get_node_or_null("PlayerModel/M2Animation")
 	if animation == null:
 		fail("Live player visual disappeared")
 		return -1
