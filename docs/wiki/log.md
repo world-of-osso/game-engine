@@ -1,4 +1,8 @@
-## 2026-10-10 — Native Toy Box
+## 2026-10-10 — Toy Box v2 live acceptance
+
+[Native Toy Box](systems/toy-box.md#catalog-labels-and-skin-parity) records the29 missing ItemSparse names behind the blank initial page, Retail ItemID labels and uncollected desaturation. The apparent external tab is the test character's PlayerName. At8e45f4def, targeted9/9 and native build pass; six private master-server process phases prove both-skin learning/favourite sorting, journal cast/cooldown, drag, successful persisted bar cast and final relog. All26 v2 PNGs individually FFmpeg-downscaled/inspected. Existing transform-model/attachment coverage and expired independent-verifier OAuth remain explicit boundaries; no protected realm operations or merge.
+
+## 2026-10-10 — Native Toy Box (initial proof)
 
 [Native Toy Box](systems/toy-box.md) records catalog/favourite protocol consumption, Retail journal/paging/filter UI, ToyAction classification over existing persisted ItemID slots, native radial swipe and the generic-Button modified-press defect. Five UI-model tests and one wire test pass; both-skin native pointer regression passes. Private UDP55373 proof covers catalog/search and supported toy learning/consumption; favourite/use/bar/relog live acceptance remains pending after the host retry cap. Explicit offline screenshots are not server-state proof.
 

@@ -1,6 +1,6 @@
 # Native Toy Box
 
-Verified: 2026-10-10. Native Collections journal and Toy Box consume the unmerged `toys` server/protocol branches. The [contract](../../specs/toy-box.md) owns requirements and parity boundaries.
+Verified: 2026-10-10. Native Collections journal and Toy Box consume game-server master (`3753ca2`, containing `d74aafa`) and shared-protocol master (`75fe6a4`), without sibling overrides. The [contract](../../specs/toy-box.md) owns requirements and parity boundaries.
 
 ## Data and actions
 
@@ -10,11 +10,21 @@ Verified: 2026-10-10. Native Collections journal and Toy Box consume the unmerge
 
 Toy tiles require native coordinate-bearing press and right-click signals, not generic Button `pressed`. Projection uses the same frame-click connector as bank slots; otherwise favourite context menus never open and drag origins are absent. The standalone `toybox_pointer.gd` fixture tests that actual native boundary in both skins. Radial swipe is a native canvas shader shared by the journal and toy bar buttons; countdown state derives from server SpellCooldownUpdate, excluding GCD.
 
+## Catalog labels and skin parity
+
+The apparently missing names were upstream metadata, not Forever hiding labels: the master world.db has 29/1166 Toy identities without ItemSparse names. Empty names sort first, so the initial catalog page consisted entirely of blank labels. Retail `ToySpellButton_UpdateButton` displays ItemID for an empty name; the native component now follows that exact display rule, without inventing names or removing catalog identities. Both skins retain their names, search art/editbox, graphical progress bar and 3×6 grid. Uncollected icons now receive Retail desaturation in postsetup, in addition to the existing alpha .18.
+
+The apparent external “Toybox” tab was the disposable character's `UnitFramesUI/RegistryCanvas/InWorldUnitFramesRoot/PlayerFrame/PlayerFrameOverlay/PlayerName`, observed at (541,796), 157×15 in a 1920×1080 live scene. It belongs to the player HUD, not CollectionsJournal. Changing the test character name makes the identity obvious; no legitimate HUD frame was removed or repositioned.
+
 ## Proof boundary
 
-UI-model behavior: five RED/GREEN tests; account wire ordering: one pass. Native extension and IPC CLI built against shared-protocol5719810. A private toys-branch server on UDP55373 with fb_toybox delivered all1166 entries; native Collections input/search and Time-Lost Figurine32782 learning/consumption were observed. The live fixture stopped at the right-click connector defect. The connector correction has both-skin native offline pointer proof, not a rerun of the live favourite/use/drag/relog sequence: the host-rule live retry budget was exhausted. Complete live acceptance remains pending.
+At engine `8e45f4def`: nine targeted UI-model tests pass, including both-skin collected/uncollected names, empty-name ItemID display, desaturation and visible search/progress. The desaturation and empty-name tests each have observed RED followed by GREEN. Native extension build passes without warnings; IPC CLI and extension use master protocol. Earlier wire/pointer proofs remain historical evidence, not fresh master-protocol assertions.
 
-Screenshots: `/syncthing/AgentShared/2026-10-10/toybox/`. Forever catalog/uncollected/learned captures are live; files marked `offline-pointer` explicitly stage favourite/cooldown state and prove native input/rendering only. FFmpeg decodes/downscales and visual inspection cover both categories. Independent verifier unavailable (expired Claude OAuth), not passed. No :5000 mutation, merges, server/protocol edits, or deployed player bundle.
+Fresh private master server UDP55374 and disposable `fb_toybox_v2_modern`/`fb_toybox_v2_forever` accounts delivered all1166 entries. Each skin's real-input fixture learned/consumed Time-Lost Figurine32782, opened the favourite menu, observed star/favourite-first full-catalog sorting, cast from the journal (aura41301 plus authoritative cooldown), dragged to visible ActionButton9 (persisted slot8), and received the same cooldown refusal from that button. A fresh process then successfully cast from the persisted bar slot; a final fresh process confirmed learned/favourite/slot persistence. An intervening relog was needed before successful bar use because the item has a 30-minute cooldown; server cooldowns are currently reset on relog. No cooldown data or timer was edited.
+
+Current screenshots: `/syncthing/AgentShared/2026-10-10/toybox/v2-*.png`, 13 per skin, including a real named-catalog page. All26 were individually FFmpeg-downscaled to1280×720 and visually inspected. JSON receipts and six successful process logs live under `data/diagnostics/toybox-2026-10-10/v2/`; earlier captures without `v2-` remain historical/partial, and `offline-pointer` files are staged state.
+
+Existing Time-Lost Figurine transform displays17864/20601/20817 are outside imported NPC appearance coverage; attachment19/animation errors remain recorded. Server casts, aura replication and UI cooldowns are proved; complete transform-model/spell-visual rendering is not. Independent verifier remains unavailable (expired Claude OAuth), not passed. Private processes and own slice stopped; no :5000 mutation, merge, server/protocol edit or player-bundle deployment.
 
 ## Sources
 
