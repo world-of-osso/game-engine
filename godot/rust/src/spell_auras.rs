@@ -44,6 +44,7 @@ impl SpellEffects {
         units: &Replica,
         world: &mut WorldUnits,
     ) -> Result<(), String> {
+        world.sync_animation_replacements(units)?;
         let present: Vec<AuraRef> = units
             .units()
             .flat_map(|snapshot| {

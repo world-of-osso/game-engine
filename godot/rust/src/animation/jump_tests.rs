@@ -27,7 +27,7 @@ fn track<T>(values: Vec<T>) -> m2::AnimTrack<T> {
     }
 }
 
-fn player(with_running_landing: bool) -> AnimationState {
+pub(super) fn player(with_running_landing: bool) -> AnimationState {
     let mut sequences = vec![
         sequence(0, 500, 100),
         sequence(5, 500, 200),
@@ -65,6 +65,8 @@ fn player(with_running_landing: bool) -> AnimationState {
         .into(),
         local_pivots: vec![godot::builtin::Vector3::ZERO],
         current: 0,
+        replacements: Default::default(),
+        source_id: 0,
         time_ms: 0.0,
         looping: true,
         transition: None,
