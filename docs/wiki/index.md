@@ -121,6 +121,8 @@ Architecture decisions and feature designs.
 
 ## Investigations
 
+- [Native compile speed](investigations/native-compile-speed.md) — cross-slot KTX cache, host-profile unification, actual linker/job defaults, registry-cache experiment and unmet every-slot seconds target.
+
 - [Rare vignettes and classification](investigations/rare-vignettes-and-classification.md) — server-side vignette assignment versus rank, wrong name joins, local CASC limits, authentic Forever target classification art, Brack fixture-centre diagnosis and captured Forever rareelite/rare plus Modern rare.
 
 - [cage-capture-resolution](investigations/cage-capture-resolution.md) — headless output constrained 1920×1080 requests to 1280×720; capture-only output override, six inspected spellbook pages, and missing specialization assets.
