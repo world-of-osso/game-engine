@@ -366,6 +366,7 @@ mod tests {
 
     fn aura(spell_id: u32) -> AuraView {
         AuraView {
+            overrides: Vec::new(),
             instance_id: 1,
             spell_id,
             caster: None,
