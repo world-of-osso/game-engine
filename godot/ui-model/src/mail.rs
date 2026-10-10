@@ -804,7 +804,7 @@ fn inbox_row(mail: &MailHeader, now: u64, selected: bool) -> InboxRow {
     InboxRow {
         mail_id: mail.mail_id,
         sender: mail.sender.clone(),
-        subject: mail.subject.clone(),
+        subject: crate::auction_mail::subject(mail),
         icon_fdid: first.map_or(STATIONERY_ICON, |a| attachment_item(a).icon_fdid),
         count: first.map_or(0, |a| a.item.count),
         read: mail.read,
@@ -816,10 +816,25 @@ fn inbox_row(mail: &MailHeader, now: u64, selected: bool) -> InboxRow {
 }
 
 fn open_mail(mail: &MailHeader) -> OpenMailView {
+    let (body, invoice) = match crate::auction_mail::invoice(mail) {
+        Ok(invoice) => {
+            let body = if mail.sender == "Auction House" && !mail.from_player {
+                String::new()
+            } else {
+                mail.body.clone()
+            };
+            (body, invoice)
+        }
+        Err(error) => {
+            eprintln!("{error}");
+            (error, None)
+        }
+    };
     OpenMailView {
         sender: mail.sender.clone(),
-        subject: mail.subject.clone(),
-        body: mail.body.clone(),
+        subject: crate::auction_mail::subject(mail),
+        body,
+        invoice,
         money: mail.money,
         cod: mail.cod,
         attachments: mail

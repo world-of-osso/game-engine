@@ -34,8 +34,8 @@ fn mail(id: u64) -> MailHeader {
     MailHeader {
         mail_id: id,
         sender: "Auction House".into(),
-        subject: "Auction won: Linen Cloth".into(),
-        body: "Your won item is enclosed.".into(),
+        subject: "AUCTION_WON_MAIL_SUBJECT:Linen Cloth".into(),
+        body: "Seller:1200:1200:0:0:5".into(),
         money: 1200,
         cod: 0,
         attachments: vec![attachment(7, 81)],
@@ -514,7 +514,7 @@ fn native_mailbox_authored_ui_has_both_tabs_and_disables_actions_while_pending()
     else {
         panic!("Missing subject label")
     };
-    assert_eq!(subject.text, header.subject);
+    assert_eq!(subject.text, "Auction won: Linen Cloth");
     click(&mut session, "mail_take_money");
     let busy = build(&session);
     for name in [
@@ -743,4 +743,105 @@ fn uifixes_mail_body_is_multiline_and_spans_the_stationery_in_both_skins() {
         assert_eq!(paper.height, Dimension::Fixed(154.0));
     }
     set_thread_skin(ActiveSkin::Modern);
+}
+
+#[test]
+fn auction_mail_retail_subjects_and_invoice_fields() {
+    configure_assets();
+    for (key, expected) in [
+        (
+            "AUCTION_SOLD_MAIL_SUBJECT",
+            "Auction successful: Wool Cloth",
+        ),
+        ("AUCTION_WON_MAIL_SUBJECT", "Auction won: Wool Cloth"),
+        (
+            "AUCTION_EXPIRED_MAIL_SUBJECT",
+            "Auction expired: Wool Cloth",
+        ),
+        ("AUCTION_OUTBID_MAIL_SUBJECT", "Outbid on Wool Cloth"),
+        (
+            "AUCTION_REMOVED_MAIL_SUBJECT",
+            "Auction canceled: Wool Cloth",
+        ),
+    ] {
+        let header = MailHeader {
+            subject: format!("{key}:Wool Cloth"),
+            body: String::new(),
+            ..mail(1)
+        };
+        let session = open(vec![header]);
+        let view = session.view(0, &InventoryState::default(), &MailTexts::default());
+        assert_eq!(view.rows[0].subject, expected);
+    }
+}
+
+#[test]
+fn auction_mail_invoice_is_not_a_letter_and_renders_retail_rows() {
+    use game_engine_ui_model::mail_frame_component::mail_frame_screen;
+    use ui_toolkit::frame::WidgetData;
+    use ui_toolkit::registry::FrameRegistry;
+    use ui_toolkit::screen::{Screen, SharedContext};
+    configure_assets();
+    let header = MailHeader {
+        subject: "AUCTION_SOLD_MAIL_SUBJECT:Wool Cloth".into(),
+        body: "Buyer:12345:20000:132:617:4".into(),
+        ..mail(1)
+    };
+    let mut session = open(vec![header]);
+    session.selected = Some(1);
+    let view = session.view(0, &InventoryState::default(), &MailTexts::default());
+    let opened = view.open.as_ref().unwrap();
+    assert_eq!(opened.body, "");
+    let invoice = opened.invoice.as_ref().unwrap();
+    assert_eq!(
+        (
+            invoice.sale_price,
+            invoice.deposit,
+            invoice.house_cut,
+            invoice.amount,
+            invoice.count
+        ),
+        (Some(12345), 132, 617, 11860, 4)
+    );
+    let mut ctx = SharedContext::new();
+    ctx.insert(view);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(mail_frame_screen).sync(&ctx, &mut registry);
+    for (name, expected) in [
+        ("OpenMailInvoiceItemLabel", "Item Sold: Wool Cloth (4)"),
+        ("OpenMailInvoicePurchaser", "Purchased By: Buyer"),
+        ("OpenMailInvoiceSalePrice", "Sale Price:"),
+        ("OpenMailInvoiceDeposit", "Deposit:"),
+        ("OpenMailInvoiceHouseCut", "Auction House Cut:"),
+        ("OpenMailInvoiceAmountReceived", "Amount Received:"),
+    ] {
+        let frame = registry.get(registry.get_by_name(name).unwrap()).unwrap();
+        let Some(WidgetData::FontString(label)) = &frame.widget_data else {
+            panic!("invoice label missing")
+        };
+        assert_eq!(label.text, expected);
+    }
+    let header = MailHeader {
+        subject: "AUCTION_WON_MAIL_SUBJECT:Wool Cloth".into(),
+        body: "Seller:12345:20000:132:0:4".into(),
+        money: 0,
+        ..mail(1)
+    };
+    let mut session = open(vec![header]);
+    session.selected = Some(1);
+    let view = session.view(0, &InventoryState::default(), &MailTexts::default());
+    let invoice = view.open.as_ref().unwrap().invoice.as_ref().unwrap();
+    assert_eq!(invoice.item_label, "Item Purchased: Wool Cloth (4)");
+    assert_eq!(invoice.player_label, "Sold By: Seller");
+    assert_eq!(invoice.amount_label, "Amount Paid:");
+    assert_eq!(invoice.amount, 12345);
+    assert_eq!(invoice.sale_price, None);
+    ctx.insert(view);
+    let mut buyer_registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(mail_frame_screen).sync(&ctx, &mut buyer_registry);
+    assert!(
+        buyer_registry
+            .get_by_name("OpenMailInvoiceSalePrice")
+            .is_none()
+    );
 }
