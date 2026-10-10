@@ -48,9 +48,9 @@ from closure_extract_rounds import fixed_point
 baseline = int(Path('/proc/self/statm').read_text().split()[0]) * os.sysconf('SC_PAGE_SIZE')
 limit = baseline + 40 * 1024 * 1024
 resource.setrlimit(resource.RLIMIT_AS, (limit, limit))
-result = fixed_point({'payload': b'x' * (24 * 1024 * 1024)},
+result = fixed_point({'summary': {'missing': 1}, 'payload': b'x' * (24 * 1024 * 1024)},
                      lambda m, n: {'files': 1},
-                     lambda: {'done': True, 'payload': b'y' * (24 * 1024 * 1024)},
+                     lambda: {'summary': {'missing': 0}, 'done': True, 'payload': b'y' * (24 * 1024 * 1024)},
                      lambda m: 0 if m.get('done') else 1, lambda r: None)
 print(len(result['payload']))
 '''
