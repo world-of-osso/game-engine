@@ -106,6 +106,7 @@ struct UnitNode {
     stand_anim: Option<u16>,
     /// A player's mount (replicated `Mounted`), which its visual rides.
     mount: Option<mount::UnitMount>,
+    passenger: Option<mount::UnitPassenger>,
 }
 
 /// An NPC visual's model node, its bone animation and the merged bounds of its meshes,
@@ -307,6 +308,7 @@ fn spawn_unit(
         stand_state: None,
         stand_anim: None,
         mount: None,
+        passenger: None,
     }
 }
 
@@ -1179,6 +1181,13 @@ impl WorldUnits {
             .is_some_and(|status| status.0);
         request_unit_visual(unit, snapshot, &mut self.models);
         if unit.is_player {
+            if let Err(error) = mount::sync_passenger(
+                unit,
+                snapshot.get::<shared::components::VehiclePassenger>(),
+                self.models.data_root(),
+            ) {
+                godot_error!("Passenger seating: {error}");
+            }
             mount::sync_mount(unit, snapshot.get::<Mounted>(), &mut self.models);
         }
         if let Some(class) = combat::unit_weapon_class(unit, &self.models) {
@@ -1333,6 +1342,22 @@ impl WorldUnits {
         for (id, unit) in &mut self.units {
             advance_unit_transform(unit, self.local_player_id == Some(*id), delta);
             mount::seat_rider(unit);
+        }
+        let mounts: HashMap<_, _> = self
+            .units
+            .iter()
+            .filter_map(|(&id, unit)| {
+                unit.mount
+                    .as_ref()?
+                    .node
+                    .as_ref()
+                    .map(|node| (id, node.clone()))
+            })
+            .collect();
+        for unit in self.units.values_mut() {
+            if let Err(error) = mount::seat_passenger(unit, &mounts) {
+                godot_error!("Passenger attachment: {error}");
+            }
         }
     }
 

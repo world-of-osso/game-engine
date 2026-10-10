@@ -364,6 +364,28 @@ def read_sqlite(path, query):
         return conn.execute(query).fetchall()
 
 
+def merge_existing_rows(base_cache, rows):
+    """Preserve authored rows while extending coverage with validated new imports."""
+    tables = [
+        ("appearances", "display_id, race, sex, class, baked_texture_fdid", 1),
+        ("choices", "display_id, choice_id", 2),
+        ("geosets", "display_id, geoset_index, geoset_value", 2),
+        ("display_coverage", "display_id, requires_appearance", 1),
+    ]
+    merged = []
+    for (table, columns, key_size), imported in zip(tables, rows):
+        existing = read_sqlite(base_cache, f"SELECT {columns} FROM {table}")
+        by_key = {row[:key_size]: tuple(row) for row in existing}
+        for row in imported:
+            row = tuple(row)
+            key = row[:key_size]
+            if key in by_key and by_key[key] != row:
+                raise ValueError(f"conflicting existing {table} row {key}")
+            by_key[key] = row
+        merged.append(sorted(by_key.values()))
+    return tuple(merged)
+
+
 def load_model_paths(cache, listfile, displays):
     fdids = {}
     for display, fdid in read_sqlite(
@@ -460,6 +482,8 @@ def import_files(args):
         models,
         textures,
     )
+    if args.base_cache is not None:
+        rows = merge_existing_rows(args.base_cache, rows)
     write_database(args.output, rows)
     return {
         "output": str(args.output.resolve()),
@@ -516,6 +540,11 @@ def main(argv=None):
         required=True,
         type=Path,
         help="New SQLite path; existing files are never overwritten",
+    )
+    parser.add_argument(
+        "--base-cache",
+        type=Path,
+        help="Preserve this read-only authored cache in the new output; conflicts fail",
     )
     parser.add_argument(
         "--display-id",

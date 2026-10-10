@@ -9,12 +9,13 @@
 use game_engine_core::movement_animation_data::{
     ANIM_RUN, ANIM_SHUFFLE_LEFT, ANIM_SHUFFLE_RIGHT, ANIM_WALK, ANIM_WALK_BACKWARDS,
 };
+use game_engine_core::vehicle_seat::{VehicleSeat, read_vehicle_seat, seat_local_transform};
 use godot::{
     builtin::Transform3D,
     classes::{Node, Node3D},
     prelude::*,
 };
-use shared::components::{Mounted, SheathState};
+use shared::components::{Mounted, SheathState, VehiclePassenger};
 
 use std::collections::HashMap;
 
@@ -31,6 +32,69 @@ const ANIM_MOUNT_FLIGHT_RIGHT: u16 = 554;
 const ANIM_MOUNT_FLIGHT_RUN: u16 = 556;
 /// The mount model's saddle: attachment 0 (MountMain).
 const SADDLE: &str = "NpcModel/Skeleton3D/AttachmentBone0/Attachment0";
+
+pub(super) struct UnitPassenger {
+    pub state: VehiclePassenger,
+    pub definition: VehicleSeat,
+}
+
+pub(super) fn sync_passenger(
+    unit: &mut UnitNode,
+    wanted: Option<&VehiclePassenger>,
+    data_root: &std::path::Path,
+) -> Result<(), String> {
+    if unit.passenger.as_ref().map(|seat| seat.state) == wanted.copied() {
+        return Ok(());
+    }
+    unit.passenger = None;
+    if let Some(visual) = unit.visual.as_mut() {
+        visual.set_transform(Transform3D::IDENTITY);
+    }
+    if let Some(state) = wanted {
+        unit.passenger = Some(UnitPassenger {
+            state: *state,
+            definition: read_vehicle_seat(data_root, state.seat_id)?,
+        });
+    }
+    Ok(())
+}
+
+pub(super) fn seat_passenger(
+    unit: &mut UnitNode,
+    mounts: &HashMap<u64, Gd<Node3D>>,
+) -> Result<(), String> {
+    let Some(passenger) = &unit.passenger else {
+        return Ok(());
+    };
+    let Some(mount) = mounts.get(&passenger.state.driver) else {
+        return Ok(());
+    };
+    let Some(visual) = unit.visual.as_mut() else {
+        return Ok(());
+    };
+    let id = passenger.definition.attachment;
+    let attachment = mount
+        .try_get_node_as::<Node3D>(&format!(
+            "NpcModel/Skeleton3D/AttachmentBone{id}/Attachment{id}"
+        ))
+        .ok_or_else(|| {
+            format!(
+                "VehicleSeat {}: M2 attachment {id} absent",
+                passenger.state.seat_id
+            )
+        })?;
+    let local = seat_local_transform(passenger.definition.offset, passenger.definition.rotation);
+    let matrix = glam::Mat4::from(local).to_cols_array();
+    let basis = Basis::from_cols(
+        Vector3::new(matrix[0], matrix[1], matrix[2]),
+        Vector3::new(matrix[4], matrix[5], matrix[6]),
+        Vector3::new(matrix[8], matrix[9], matrix[10]),
+    );
+    let offset = Vector3::new(matrix[12], matrix[13], matrix[14]);
+    visual
+        .set_global_transform(attachment.get_global_transform() * Transform3D::new(basis, offset));
+    Ok(())
+}
 
 /// The mount model of a mounted unit.
 pub(super) struct UnitMount {
@@ -64,6 +128,18 @@ pub(super) fn animate_mounted(
     flying: bool,
     fallbacks: &HashMap<u16, u16>,
 ) -> Option<Result<(), String>> {
+    if let Some(passenger) = &unit.passenger {
+        let mut rider = unit
+            .visual
+            .as_ref()?
+            .try_get_node_as::<WowAnimationPlayer>("M2Animation")?;
+        return Some(
+            rider
+                .bind_mut()
+                .update_locomotion(passenger.definition.animation, false, false)
+                .map_err(|error| format!("Passenger {}: {error}", unit.name)),
+        );
+    }
     let mount = unit.mount.as_ref()?.node.as_ref()?;
     let mut rider = unit
         .visual
@@ -120,6 +196,9 @@ pub(super) fn sync_mount(unit: &mut UnitNode, mounted: Option<&Mounted>, models:
 /// Put the unit's visual on its mount's saddle, or on the unit's node when it has no loaded
 /// mount. Called every frame, so a re-dressed rider's new visual mounts too.
 pub(super) fn seat_rider(unit: &mut UnitNode) {
+    if unit.passenger.is_some() {
+        return;
+    }
     let Some(mut visual) = unit.visual.clone() else {
         return;
     };

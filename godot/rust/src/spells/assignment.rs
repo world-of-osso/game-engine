@@ -3,7 +3,7 @@ use crate::GameClient;
 use crate::bag_cursor::SpellDrag;
 use crate::frame_error::FrameError;
 use game_engine_ui_model::cursor_item::CursorItem;
-use game_engine_ui_model::main_action_bar_component::parse_action_button;
+use game_engine_ui_model::main_action_bar_component::{ACTION_VEHICLE_EXIT, parse_action_button};
 use game_engine_ui_model::merchant::Click;
 use game_engine_ui_model::spellbook_frame_component::ACTION_SPELLBOOK_CAST;
 use godot::prelude::*;
@@ -35,6 +35,10 @@ impl GameClient {
             .as_ref()
             .is_some_and(|ui| ui.instance_id().to_i64() == owner);
         if bar && !click.right {
+            if action == ACTION_VEHICLE_EXIT {
+                self.account.send_exit_vehicle()?;
+                return Ok(true);
+            }
             if !self.assign_cursor_to_action_button(action)?
                 && let Some((bar, index)) = parse_action_button(action)
             {

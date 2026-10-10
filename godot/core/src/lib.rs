@@ -117,6 +117,7 @@ pub mod ui_click_data;
 pub mod ui_layout_account;
 pub mod ui_layout_data;
 pub mod ui_sound_kits;
+pub mod vehicle_seat;
 #[path = "sound/wmo_surface_data.rs"]
 pub mod wmo_surface_data;
 #[cfg(test)]
