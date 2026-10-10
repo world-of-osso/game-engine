@@ -326,6 +326,8 @@ def native_cargo(root, command, arguments, output=None):
     """Run `cargo <command>` on this host for godot/, with artifacts in the checkout's
     target/ where game_engine.gdextension loads them."""
     environment = os.environ | {"CARGO_TARGET_DIR": str(root / "target")}
+    # Size jobs from the cgroup CPU quota (agents.slice), not an inherited session value.
+    environment.pop("CARGO_BUILD_JOBS", None)
     return subprocess.run(
         ["cargo", command, "--locked", "--manifest-path", str(root / "godot/Cargo.toml"), *arguments],
         env=environment,
