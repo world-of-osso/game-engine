@@ -10,6 +10,7 @@ import json
 import re
 import sqlite3
 from collections import defaultdict
+from contextlib import closing, contextmanager
 
 
 def number(row, key):
@@ -17,11 +18,14 @@ def number(row, key):
     return int(value) if value not in (None, "") else 0
 
 
+@contextmanager
 def readonly(path):
-    conn = sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
-    conn.row_factory = sqlite3.Row
-    conn.execute("BEGIN")
-    return conn
+    with closing(
+        sqlite3.connect(path.resolve().as_uri() + "?mode=ro", uri=True)
+    ) as conn:
+        conn.row_factory = sqlite3.Row
+        conn.execute("BEGIN")
+        yield conn
 
 
 class Catalogs:
