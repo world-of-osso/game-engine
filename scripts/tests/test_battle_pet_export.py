@@ -40,6 +40,23 @@ class BattlePetExportTests(unittest.TestCase):
         self.assertEqual(rows[24]["ParamLabel_5"], "")
         self.assertEqual(len(rows), 135)
 
+    def test_runtime_catalog_joins_species_to_local_creature_display(self):
+        import json
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "pets.json"
+            result = subprocess.run(
+                [sys.executable, str(ROOT / "scripts/export_pet_catalog.py"),
+                 str(ROOT / "data/db2/12.1.0.69933"), str(output)],
+                capture_output=True, text=True,
+            )
+            self.assertEqual(result.returncode, 0, result.stderr)
+            catalog = json.loads(output.read_text())
+            pet = next(row for row in catalog if row["species_id"] == 39)
+            self.assertEqual(pet["name"], "Mechanical Squirrel")
+            self.assertEqual(pet["display_id"], 7937)
+            self.assertEqual(pet["summon_spell_id"], 4055)
+            self.assertEqual(len(catalog), 2994)
+
     def test_creature_names_and_display_arrays_for_companion_models(self):
         rows, report = self.export("Creature", 841631)
         self.assertEqual(rows[2671]["Name_lang"], "Mechanical Squirrel")
