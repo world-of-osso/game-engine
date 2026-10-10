@@ -8,7 +8,8 @@ Native spell presentation consumes server aura overrides without changing learne
 - [x] Learned spellbook entries present the active replacement name, icon, tooltip and cooldown without mutating known spells or base drag/binding IDs.
 - [ ] Ground-destination spells enter targeting mode, show a ground reticle, send the clicked destination, and cancel on right-click or Escape. Forward Blink does not require a destination.
 - [ ] Same-map teleports snap the player while preserving camera orbit without sweeping the camera through intervening geometry.
-- [ ] Apply aura312 animation replacement sets when the native animation system has a replacement-set hook; otherwise record the gap.
+- [x] Consume each unit's aura312 set IDs through local AnimReplacementSet/AnimReplacement rows at base and action animation selection; removal restores source selection. Keep M2 crossfades, the 150 ms movement minimum and continuous outgoing poses.
+- [x] Retain source when the model lacks the destination base sequence; do not substitute the set ID for an animation ID or follow destination fallback chains.
 
 - [x] Pure action resolution applies/restores replacement IDs without changing stored bindings; book projection keeps base IDs while substituting name/icon/cooldown.
 - [x] Pending ground intent includes the clicked finite destination; cancel sends nothing.
@@ -42,9 +43,10 @@ Native spell presentation consumes server aura overrides without changing learne
 
 ## Known gaps (current cycle)
 
-- [ ] Native animation selects M2 sequence IDs and action layers; no animation replacement-set loader/mapping hook exists. `AuraOverride::Animation(1013)` cannot be interpreted as an M2 animation ID.
+- [ ] Nonzero AnimReplacement.ConditionalFlags semantics and overlapping-set precedence need Retail behavioral evidence; such conditional sets fail explicitly, rather than applying unverified conditions.
+- [ ] Missing-destination source retention follows the requested contract; independent primary Retail client implementation citation remains unverified.
 - [ ] Ground ring remains native geometry, not exact Retail art; no pixel-exact Retail camera comparison. Both-skin aura apply/restore, drag/click/hover and ground placement passed on private serverca6b249; both-skin Blink wall proof passed on3753ca2.
 
 ## Out of scope
 
-- Server teleport validation, cross-map transfer lifecycle and new animation replacement-set infrastructure.
+- Server teleport validation and cross-map transfer lifecycle.

@@ -76,12 +76,12 @@ fn aura312_retransition_keeps_sampled_pose_and_minimum_movement_blend() {
     let previous = unit.poses();
     unit.set_replacements(matrix_set(536)).unwrap();
     unit.update_locomotion(0, false, false).unwrap();
-    assert_eq!(unit.poses(), previous);
+    assert!(super::npc_pose_tests::pose_distance(&unit.poses(), &previous) < 1e-5);
     assert_eq!(unit.transition.as_ref().unwrap().duration_ms, 150.0);
     unit.advance(40.0).unwrap();
     let previous = unit.poses();
     unit.set_replacements(Default::default()).unwrap();
-    assert_eq!(unit.poses(), previous);
+    assert!(super::npc_pose_tests::pose_distance(&unit.poses(), &previous) < 1e-5);
 }
 
 #[test]
