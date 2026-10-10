@@ -1,3 +1,7 @@
+## 2026-10-09 — WMO split-family minimap follow-up
+
+[Geometry investigation](investigations/wmo-minimap-geometry.md#split-family-follow-up--2026-10-09): successful wowdev revision37115 inspection and pinned Noggit Red/wowserhq sources distinguish portal split topology from unproved Retail minimap selection. CPU-only fixed-rule fit covers all55 spatial groups,41 with direct rows; per-group scores retain the ≥0.85 blocker. Nonempty child art does not establish placeholder semantics. No product code, build/test, native launch or screenshot; evidence stays in `data/diagnostics/wmominimap-2026-10-09/`.
+
 ## 2026-10-09 — HUD layout names and delete confirmation
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records the user-decided name validation and pending Yes/No deletion transition. [Contract](../specs/hud-edit-mode.md) owns Retail validation/dialog sources, exact confirmation text and unchanged preset Save / unsaved Exit boundaries. RED reproduces enabled empty New and immediate Delete; `4356c20a7` GREEN touched-crate hud69/core-layout7 and extension/CLI build pass. Native captures pending after default-output clearance failure and Vulkan initialization failure; no PNG or live input claim.
