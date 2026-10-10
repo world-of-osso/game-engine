@@ -93,8 +93,8 @@ struct TreeLayout {
     node_scale: f32,
 }
 fn main_tree_zoom(view: &TalentView) -> f32 {
-    // Reserve Retail's ButtonsParent bottomPadding. Include painted spend text,
-    // not only the button hit rect, in the existing uniform zoom transform.
+    // Reserve Retail's ButtonsParent bottomPadding. The capstone badge ends10px
+    // below its64px button; its4px thick outline also paints beyond the Label.
     let bottom = [&view.graph.class, &view.graph.spec]
         .into_iter()
         .map(|tree| {
@@ -102,7 +102,7 @@ fn main_tree_zoom(view: &TalentView) -> f32 {
             tree.nodes
                 .iter()
                 .map(|node| {
-                    (node.position[1] - first) / 10.0 + if is_capstone(node) { 42.0 } else { 20.0 }
+                    (node.position[1] - first) / 10.0 + if is_capstone(node) { 46.0 } else { 20.0 }
                 })
                 .fold(0.0, f32::max)
         })
@@ -227,10 +227,11 @@ fn render_node(
     } }
 }
 fn rank_badge(node: &TalentNode, view: &TalentView, ranks: &str, scale: f32) -> Element {
-    // TalentButtonArt SpendText: bottom anchor, overridden by SizingAdjustment.
-    // Thick black glyph outline is Retail's badge, not a new background panel.
+    // TalentButtonArt SpendText: BOTTOM11,4; Capstone sizing overrides to2,-10.
+    // Bottom-align the glyphs too: a centred Label does not paint at that anchor.
+    // Fonts.xml Roman SystemFont22_Shadow_ThickOutline is Arial Narrow18.
     let (x, y, width, height, font_size) = if is_capstone(node) {
-        (8.0, 42.0, 52.0, 32.0, 22.0)
+        (8.0, 42.0, 52.0, 32.0, 18.0)
     } else {
         (13.0, 12.0, 36.0, 24.0, 16.0)
     };
@@ -240,8 +241,8 @@ fn rank_badge(node: &TalentNode, view: &TalentView, ranks: &str, scale: f32) -> 
         TAB_TEXT_SELECTED
     };
     rsx! {fontstring {name:{DynName(format!("TalentNode{}Ranks",node.id))},text:ranks,
-        width:{width*scale},height:{height*scale},font:GameFont::FrizQuadrata,font_size:{font_size*scale},
-        font_color:color,outline:"THICKOUTLINE",shadow_color:"0.0,0.0,0.0,1.0",shadow_offset:"1.0,-1.0",
+        width:{width*scale},height:{height*scale},font:GameFont::ArialNarrow,font_size:{font_size*scale},
+        justify_v:"BOTTOM",font_color:color,outline:"THICKOUTLINE",shadow_color:"0.0,0.0,0.0,1.0",shadow_offset:"1.0,-1.0",
         justify_h:"CENTER",pos_type:"absolute",pos_x:{x*scale},pos_y:{y*scale},
     }}
 }
