@@ -590,6 +590,12 @@ impl RegistryModel {
             {
                 actions.push_back("auction_search".into())
             }
+            ScreenPostsetup::Spellbook
+                if self.registry.focused_frame == self.registry.get_by_name("TalentSearchBox")
+                    && self.registry.focused_frame.is_some() =>
+            {
+                actions.push_back("talent:search_submit".into());
+            }
             ScreenPostsetup::Trade => actions.push_back(crate::trade::ACTION_MONEY_SUBMIT.into()),
             // Original: Enter confirms a pending deletion once its gate is ready.
             ScreenPostsetup::CharacterSelect => {
@@ -2358,6 +2364,28 @@ impl RegistryUi {
                 }
             }
             UiInput::Submit => model.submit(&mut self.actions),
+            UiInput::SearchPreviewStep(step) => {
+                self.actions.push_back(format!("talent:search_move:{step}"))
+            }
+            UiInput::Hover(id, entered) => {
+                model.update_input_widgets(UiInput::Hover(id, entered), &mut self.slider_events);
+                if entered && matches!(model.postsetup, ScreenPostsetup::Spellbook) {
+                    let name = model
+                        .registry
+                        .get(id)
+                        .and_then(|frame| frame.name.as_deref())
+                        .unwrap_or("");
+                    if let Some(entry) = name
+                        .strip_prefix("TalentSearchPreview")
+                        .and_then(|id| id.parse::<u32>().ok())
+                    {
+                        self.actions
+                            .push_back(format!("talent:search_highlight:{entry}"));
+                    } else if name == "TalentSearchNotOnBar" {
+                        self.actions.push_back("talent:search_highlight_bar".into());
+                    }
+                }
+            }
             other => model.update_input_widgets(other, &mut self.slider_events),
         }
         Ok(())

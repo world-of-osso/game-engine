@@ -30,6 +30,8 @@ entry and does not increment this count.
 
 ## Later phases (not P1)
 
+Round 3 offline dataset evidence (2026-10-10): **970,356 present /2,302 missing /5,024 unresolved**,188,100 new paths /4,967,995,591 bytes. [Final closure counts, receipts and residuals](../wiki/systems/offline-asset-closure.md#round-3-final-dataset--verified-2026-10-10) own the proof; this does not complete P3/P4 or pristine no-install acceptance.
+
 - **P2 (implemented):** Authenticated product/build identities, receipts and
   manifest-qualified model bytes; same-FDID chains coexist without legacy-path
   substitution. [Model/product isolation contract](product-isolated-model-assets.md)

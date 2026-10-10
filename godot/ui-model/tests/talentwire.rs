@@ -65,7 +65,7 @@ fn talents_click_refund_and_undo_stage_without_mutating_committed() {
     assert!(!editor.dirty());
     editor.action(&view, 80, "talent:node:62122").unwrap();
     assert!(editor.dirty());
-    editor.action(&view, 80, "talent:reset").unwrap();
+    editor.action(&view, 80, "talent:undo").unwrap();
     assert!(!editor.dirty());
 }
 #[test]
