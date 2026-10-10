@@ -1,3 +1,7 @@
+## 2026-10-10 — Skyborne baked NPC native capture
+
+[Seven-bake checkpoint](systems/forever-data.md#seven-recovered-bakes--native-npc-checkpoint-2026-10-10) records authenticated70338 scoped asset/receipt publication, seven attached displays and eight inspected private5487 captures of four NPCs in explicitly selected Modern/Forever layouts. Three isolated-body captures remain obscured by overlapping reconstructed spawns; no renderer/server code change or full-zone appearance acceptance.
+
 ## 2026-10-10 — Stable local CASC / 70338 gap recovery
 
 [Recorded-gap recovery](systems/offline-asset-closure.md#recorded-gap-recovery--verified-2026-10-10) records a readable70338 root, seven body bakes, vehicle7476985 and204 IV8 recoveries using the existing fixed extractor. Local cache importer finds48 already-known names. Vehicle+6/VehicleSeat+8/GlobalStrings+65 reexport candidates preserve canonical CSVs; no server import, asset download, mirror write or rendering acceptance.
