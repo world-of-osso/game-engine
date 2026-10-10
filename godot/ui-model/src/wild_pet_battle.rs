@@ -73,6 +73,17 @@ impl WildBattleView {
                     return;
                 }
                 self.result = Some(outcome);
+                let state = self.state.as_mut().expect("matching battle checked");
+                for reward in &rewards {
+                    if let Some(pet) = state.teams[0]
+                        .iter_mut()
+                        .find(|pet| pet.instance_id == Some(reward.instance_id))
+                    {
+                        pet.level = reward.level;
+                        pet.xp = reward.xp;
+                        pet.next_level_xp = reward.next_level_xp;
+                    }
+                }
                 self.combat_text = combat_text;
                 self.combat_text.extend(
                     rewards
@@ -180,6 +191,18 @@ pub fn wild_battle_screen(ctx: &SharedContext) -> Element {
         ));
     }
     children.extend(action_bar(view, state));
+    children.extend(label(
+        "PetBattleError".into(),
+        &view.error,
+        (width / 2.0 - 250.0, height - 310.0, 500.0, 24.0),
+        (14.0, "1,0.2,0.2,1", "CENTER"),
+    ));
+    let left = width * 0.15;
+    let top = height * 0.2;
+    let model_width = width * 0.7;
+    let model_height = height * 0.5;
+    children.extend(rsx! { r#frame { name: "PetBattleModelScene", width: model_width, height: model_height, left, top, pos_type: "absolute", mouse_enabled: false } });
+    let mut floating = vec![];
     if view.feedback_seconds > 0.0 {
         for (index, feedback) in state.feedback.iter().enumerate() {
             if state.active[usize::from(feedback.team)] != feedback.slot {
@@ -191,7 +214,7 @@ pub fn wild_battle_screen(ctx: &SharedContext) -> Element {
                 width * 0.68
             };
             let rise = (2.0 - view.feedback_seconds) * 24.0;
-            children.extend(label(
+            floating.extend(label(
                 format!("PetBattleFloating{index}"),
                 &feedback.text,
                 (
@@ -212,17 +235,8 @@ pub fn wild_battle_screen(ctx: &SharedContext) -> Element {
             ));
         }
     }
-    children.extend(label(
-        "PetBattleError".into(),
-        &view.error,
-        (width / 2.0 - 250.0, height - 310.0, 500.0, 24.0),
-        (14.0, "1,0.2,0.2,1", "CENTER"),
-    ));
-    let left = width * 0.15;
-    let top = height * 0.2;
-    let model_width = width * 0.7;
-    let model_height = height * 0.5;
-    children.extend(rsx! { r#frame { name: "PetBattleModelScene", width: model_width, height: model_height, left, top, pos_type: "absolute", mouse_enabled: false } });
+    children.extend(rsx! { r#frame { name: "PetBattleFloatingLayer", width, height, left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: false, strata: ui_toolkit::strata::FrameStrata::Dialog, {floating} } });
+
     if view.show_swap || state.replacement_required {
         children.extend(swap_panel(view, state));
     }
@@ -256,26 +270,10 @@ fn unit_frame(side: &str, pet: &BattlePetSnapshot, left: f32, top: f32) -> Eleme
         (icon_x, 6.0, 68.0, 68.0),
         WHITE,
     );
-    children.extend(cropped(
-        format!("PetBattle{side}Border"),
-        HUD_TEXTURE,
-        "0.86230469,0.96972656,0.03906250,0.25195313",
-        (icon_x - 21.0, -14.5, 110.0, 109.0),
-    ));
     let quality = quality_color(pet.quality);
-    for (edge, rect) in [
-        ("Top", (icon_x, 6.0, 68.0, 2.0)),
-        ("Bottom", (icon_x, 72.0, 68.0, 2.0)),
-        ("Left", (icon_x, 6.0, 2.0, 68.0)),
-        ("Right", (icon_x + 66.0, 6.0, 2.0, 68.0)),
-    ] {
-        children.extend(texture(
-            format!("PetBattle{side}Quality{edge}"),
-            WHITE_PIXEL,
-            rect,
-            quality,
-        ));
-    }
+    let border_name = DynName(format!("PetBattle{side}Border"));
+    let border_x = icon_x - 21.0;
+    children.extend(rsx! { texture { name: {border_name}, width: 110.0, height: 109.0, texture_fdid: HUD_TEXTURE, tex_coords: "0.86230469,0.96972656,0.03906250,0.25195313", vertex_color: quality, left: border_x, top: -14.5, pos_type: "absolute" } });
     children.extend(label(
         format!("PetBattle{side}Name"),
         &pet.name,
@@ -427,10 +425,11 @@ fn action_bar(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
         (left + 575.0, height - 124.0, 127.0, 125.0),
     ));
     let pet = &state.teams[0][usize::from(state.active[0])];
+    let xp_left = width / 2.0 - 252.0;
     out.extend(texture(
         "PetBattleXPBar".into(),
         WHITE_PIXEL,
-        (left - 2.0, height - 117.0, 504.0, 11.0),
+        (xp_left, height - 117.0, 504.0, 11.0),
         "0,0,0,0.6",
     ));
     let xp_width = if pet.level == 25 {
@@ -441,9 +440,40 @@ fn action_bar(view: &WildBattleView, state: &WildPetBattleSnapshot) -> Element {
     out.extend(texture(
         "PetBattleXPFill".into(),
         WHITE_PIXEL,
-        (left - 2.0, height - 117.0, xp_width, 11.0),
+        (xp_left, height - 117.0, xp_width, 11.0),
         "0.45,0.45,1,1",
     ));
+    out.extend(cropped(
+        "PetBattleXPLeft".into(),
+        386851,
+        "0.1875,0.4375,0.015625,0.265625",
+        (xp_left - 3.0, height - 118.5, 14.0, 14.0),
+    ));
+    out.extend(cropped(
+        "PetBattleXPRight".into(),
+        386851,
+        "0.1875,0.4375,0.296875,0.546875",
+        (xp_left + 493.0, height - 118.5, 14.0, 14.0),
+    ));
+    out.extend(texture(
+        "PetBattleXPMiddle".into(),
+        386852,
+        (xp_left + 11.0, height - 118.5, 482.0, 14.0),
+        WHITE,
+    ));
+    for index in 1..20 {
+        out.extend(cropped(
+            format!("PetBattleXPDivision{index}"),
+            386851,
+            "0.015625,0.15625,0.015625,0.171875",
+            (
+                xp_left + 504.0 * index as f32 / 20.0 - 4.5,
+                height - 115.0,
+                9.0,
+                9.0,
+            ),
+        ));
+    }
     let enabled = !view.pending && view.result.is_none();
     for (index, ability) in pet.abilities.iter().enumerate() {
         let number = index + 1;

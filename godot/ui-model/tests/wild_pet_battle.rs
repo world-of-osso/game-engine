@@ -197,7 +197,33 @@ fn wild_pet_battle_feedback_preserves_event_amounts_and_badges_follow_enemy_type
         );
         let indicator = registry.get_by_name("PetBattleAbility1Effectiveness");
         assert_eq!(indicator.is_some(), badge.is_some());
+        if let Some(id) = indicator {
+            let data = registry.get(id).unwrap().widget_data.as_ref().unwrap();
+            assert!(
+                matches!(data, ui_toolkit::frame::WidgetData::Texture(texture) if texture.source == ui_toolkit::widgets::texture::TextureSource::FileDataId(badge.unwrap()))
+            );
+        }
     }
+}
+#[test]
+fn wild_pet_battle_end_updates_the_active_pet_xp_bar_after_level_up() {
+    let mut view = WildBattleView::default();
+    view.receive(WildPetBattleUpdate::Start(snapshot()));
+    view.receive(WildPetBattleUpdate::End {
+        battle_id: 100,
+        outcome: WildPetBattleOutcome::Won,
+        captured_pet_id: None,
+        combat_text: vec![],
+        rewards: vec![BattlePetXpReward {
+            instance_id: 41,
+            xp_gained: 75,
+            level: 2,
+            xp: 50,
+            next_level_xp: 100,
+        }],
+    });
+    let pet = &view.state.as_ref().unwrap().teams[0][0];
+    assert_eq!((pet.level, pet.xp, pet.next_level_xp), (2, 50, 100));
 }
 #[test]
 fn wild_pet_battle_forfeit_requires_confirmation_and_end_stops_actions() {
