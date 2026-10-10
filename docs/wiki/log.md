@@ -1,3 +1,7 @@
+## 2026-10-10 — Native Toy Box
+
+[Native Toy Box](systems/toy-box.md) records catalog/favourite protocol consumption, Retail journal/paging/filter UI, ToyAction classification over existing persisted ItemID slots, native radial swipe and the generic-Button modified-press defect. Five UI-model tests and one wire test pass; both-skin native pointer regression passes. Private UDP55373 proof covers catalog/search and supported toy learning/consumption; favourite/use/bar/relog live acceptance remains pending after the host retry cap. Explicit offline screenshots are not server-state proof.
+
 ## 2026-10-09 — Retail auction subject and invoice formatting
 
 [Native auction mail](systems/trade-and-mail.md#retail-auction-mail-formatting-2026-10-09) records local-CASC GlobalStrings extraction, client-owned subject localization, seller/buyer invoice rendering and the screenshot-reproduced money-coordinate correction. Final native ui-model844/0/7; real private5510 inbox crop published. Text and numeric field proof are bounded; post-correction invoice pixels and triangle picking are not claimed.

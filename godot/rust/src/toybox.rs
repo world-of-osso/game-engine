@@ -113,6 +113,12 @@ impl GameClient {
             return Ok(());
         }
         self.poll_toybox_search()?;
+        self.acknowledge_hovered_toy();
+        self.sync_toybox()?;
+        Ok(())
+    }
+
+    fn acknowledge_hovered_toy(&mut self) {
         if let Some(ui) = &self.toybox.ui {
             let index = ui.bind().hovered_button().and_then(|(name, _)| {
                 name.strip_prefix("ToySpellButton")?
@@ -132,8 +138,6 @@ impl GameClient {
                 self.toybox.model.acknowledge(id);
             }
         }
-        self.sync_toybox()?;
-        Ok(())
     }
     fn poll_toybox_search(&mut self) -> Result<(), String> {
         let Some(ui) = &mut self.toybox.ui else {
@@ -163,22 +167,8 @@ impl GameClient {
             model: self.toybox.model.clone(),
             viewport: [size.x / scale, size.y / scale],
         };
-        let fdids = crate::quests::screen_texture_fdids(view.clone(), toybox_screen);
-        for fdid in fdids {
-            self.drawable_fdid(fdid);
-        }
-        if self.toybox.ui.is_none() {
-            let mut ui = RegistryUi::new_alloc();
-            ui.set_name("CollectionsJournalUI");
-            ui.set_layer(6);
-            self.base_mut().add_child(&ui);
-            let mounted = ui.bind_mut().show_toybox(view.clone());
-            if let Err(error) = mounted {
-                ui.free();
-                return Err(error);
-            }
-            self.toybox.ui = Some(ui);
-        }
+        self.cache_toybox_textures(&view);
+        self.mount_toybox(&view)?;
         let host = self.toybox.ui.as_mut().ok_or("Toy Box UI missing")?;
         host.bind_mut().set_ui_scale(scale)?;
         let mut host = host.bind_mut();
@@ -191,6 +181,29 @@ impl GameClient {
         }
         Ok(())
     }
+    fn cache_toybox_textures(&mut self, view: &ToyBoxView) {
+        for fdid in crate::quests::screen_texture_fdids(view.clone(), toybox_screen) {
+            self.drawable_fdid(fdid);
+        }
+    }
+
+    fn mount_toybox(&mut self, view: &ToyBoxView) -> Result<(), String> {
+        if self.toybox.ui.is_some() {
+            return Ok(());
+        }
+        let mut ui = RegistryUi::new_alloc();
+        ui.set_name("CollectionsJournalUI");
+        ui.set_layer(6);
+        self.base_mut().add_child(&ui);
+        let mounted = ui.bind_mut().show_toybox(view.clone());
+        if let Err(error) = mounted {
+            ui.free();
+            return Err(error);
+        }
+        self.toybox.ui = Some(ui);
+        Ok(())
+    }
+
     pub(crate) fn toybox_cursor_press(
         &mut self,
         owner: i64,

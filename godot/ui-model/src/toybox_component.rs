@@ -199,7 +199,13 @@ fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -
     let action = format!("{}{}", toybox::USE_PREFIX, toy.item_id);
     let left = 43.0 + (index % 3) as f32 * 208.0;
     let top = 93.0 + (index / 3) as f32 * 66.0;
-    let alpha = if toy.learned { 1.0 } else { 0.18 };
+    let alpha = if !toy.learned {
+        0.18
+    } else if toybox::can_use(toy) {
+        1.0
+    } else {
+        0.5
+    };
     let border = if toy.learned {
         "collections-itemborder-collected"
     } else {
@@ -235,7 +241,7 @@ fn toy_tile(model: &ToyBox, index: usize, toy: &shared::protocol::ToySnapshot) -
         String::new()
     };
     let height = 39.0;
-    let font_color = if toy.learned {
+    let font_color = if toybox::can_use(toy) {
         "1.0,0.82,0.0,1.0"
     } else {
         "0.5,0.5,0.5,1.0"
