@@ -2,6 +2,8 @@
 use super::*;
 use crate::talents::search::{MAX_PREVIEW_ENTRIES, MIN_SEARCH_CHARACTERS, NOT_ON_ACTION_BAR};
 use crate::ui::screens::menu_primitives::{DropdownButton, dropdown_button};
+#[path = "talents_loadouts.rs"]
+mod loadouts;
 
 pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
     let y = BOOK_H - FOOTER_HEIGHT / 2.0 - 15.0;
@@ -9,7 +11,7 @@ pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
         frame_name: "TalentLoadoutDropDown",
         label_name: "TalentLoadoutName",
         arrow_name: "TalentLoadoutArrow",
-        text: "Default Loadout",
+        text: view.editor.loadout_caption(),
         width: 200.0 * scale,
         height: 30.0 * scale,
         x: 48.0 * scale,
@@ -61,45 +63,9 @@ pub(super) fn controls(view: &TalentView, scale: f32) -> Element {
         ));
     }
     if view.editor.loadout_menu {
-        // Protocol exposes only the active per-spec snapshot: no saved config IDs/names.
-        children.extend(menu(
-            "TalentLoadoutMenu",
-            [48.0, y - 106.0, 200.0, 106.0],
-            vec![
-                menu_row(
-                    "TalentNewLoadout",
-                    "New Loadout",
-                    "",
-                    false,
-                    0,
-                    200.0,
-                    scale,
-                ),
-                menu_row(
-                    "TalentImportLoadout",
-                    "Import Loadout",
-                    "",
-                    false,
-                    1,
-                    200.0,
-                    scale,
-                ),
-                menu_row(
-                    "TalentExportLoadout",
-                    "Export Loadout",
-                    "",
-                    false,
-                    2,
-                    200.0,
-                    scale,
-                ),
-            ]
-            .into_iter()
-            .flatten()
-            .collect(),
-            scale,
-        ));
+        children.extend(loadouts::loadout_menu(view, y, scale));
     }
+    children.extend(loadouts::loadout_dialog(view, scale));
     children
 }
 

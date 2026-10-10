@@ -614,6 +614,15 @@ impl Account {
             .map_err(SessionError)
     }
 
+    pub fn send_trait_loadout(
+        &self,
+        request: shared::protocol::TraitLoadoutRequest,
+    ) -> Result<(), SessionError> {
+        self.bridge()?
+            .send::<_, TalentChannel>(request)
+            .map_err(SessionError)
+    }
+
     /// `CreatureTooltipQuery`; the server answers `CreatureTooltip` for the entry.
     pub fn send_creature_tooltip_query(&self, entry: u32) -> Result<(), SessionError> {
         self.bridge()?
@@ -1678,6 +1687,7 @@ impl Account {
             || message.is::<SpecializationChanged>()
             || message.is::<shared::protocol::TraitConfigSnapshot>()
             || message.is::<shared::protocol::TraitCommitResult>()
+            || message.is::<shared::protocol::TraitLoadoutsSnapshot>()
             || message.is::<ActionBarSnapshot>()
             || message.is::<SpellCooldownUpdate>()
             || message.is::<SpellChargesUpdate>()
@@ -1715,6 +1725,8 @@ impl Account {
             }
         } else if message.is::<shared::protocol::TraitConfigSnapshot>() {
             self.talents.receive_snapshot(decode(message)?);
+        } else if message.is::<shared::protocol::TraitLoadoutsSnapshot>() {
+            self.talents.receive_loadouts(decode(message)?);
         } else if message.is::<shared::protocol::TraitCommitResult>() {
             self.talents.receive_result(decode(message)?);
             if let Some(reason) = &self.talents.error_text {

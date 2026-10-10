@@ -6,8 +6,13 @@ use game_engine_core::talent_data::{
 };
 use shared::protocol::{
     CommitTraitConfig, TraitCommitResult, TraitConfigSnapshot, TraitEntrySelection,
+    TraitLoadoutRequest, TraitLoadoutsSnapshot,
 };
 use std::collections::{BTreeMap, BTreeSet};
+
+#[path = "talent_loadouts.rs"]
+mod loadouts;
+pub use loadouts::LoadoutDialog;
 
 #[derive(Clone, Debug, Default, PartialEq)]
 pub struct TalentEditor {
@@ -16,6 +21,12 @@ pub struct TalentEditor {
     pub choice_node: Option<u32>,
     pub reset_menu: bool,
     pub loadout_menu: bool,
+    pub loadouts: Option<TraitLoadoutsSnapshot>,
+    pub loadout_dialog: Option<LoadoutDialog>,
+    pub loadout_name: String,
+    pub loadout_busy: bool,
+    pub loadout_focus_requested: bool,
+    loadout_request: Option<TraitLoadoutRequest>,
     pub search_text: String,
     pub search_filter: String,
     pub search_preview: bool,
@@ -26,6 +37,15 @@ pub struct TalentEditor {
 }
 impl TalentEditor {
     pub fn receive_snapshot(&mut self, mut snapshot: TraitConfigSnapshot) {
+        if self
+            .snapshot
+            .as_ref()
+            .is_some_and(|old| old.spec_id != snapshot.spec_id)
+        {
+            self.loadouts = None;
+        }
+        self.loadout_dialog = None;
+        self.loadout_focus_requested = false;
         snapshot
             .entries
             .sort_by_key(|entry| (entry.node_id, entry.entry_id));
@@ -37,6 +57,9 @@ impl TalentEditor {
         self.error_text = None;
     }
     pub fn receive_result(&mut self, result: TraitCommitResult) {
+        if !result.ok {
+            self.loadout_busy = false;
+        }
         self.error_text = if result.ok { None } else { result.reason };
     }
     pub fn rank(&self, node: u32, entry: u32) -> u8 {
@@ -113,7 +136,7 @@ impl TalentEditor {
     }
     pub fn apply(&self) -> Option<CommitTraitConfig> {
         let snapshot = self.snapshot.as_ref()?;
-        self.dirty().then(|| CommitTraitConfig {
+        (self.dirty() && !self.loadout_busy).then(|| CommitTraitConfig {
             spec_id: snapshot.spec_id,
             entries: self.pending.clone(),
         })
@@ -401,6 +424,9 @@ impl TalentEditor {
         level: u8,
         action: &str,
     ) -> Result<Option<CommitTraitConfig>, String> {
+        if self.loadout_busy && !action.starts_with("talent:search") {
+            return Ok(None);
+        }
         match action {
             "talent:apply" => return Ok(self.apply()),
             "talent:undo" => {
@@ -422,6 +448,10 @@ impl TalentEditor {
                 return Ok(None);
             }
             _ => (),
+        }
+        if let Some(command) = action.strip_prefix("talent:loadout") {
+            self.loadout_action(command)?;
+            return Ok(None);
         }
         if let Some(command) = action.strip_prefix("talent:search") {
             self.search_action(view, command)?;

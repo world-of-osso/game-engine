@@ -1181,7 +1181,10 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
             text_pending.push(UiInput::Text(id, text));
         })
     } else {
-        if frame.name.as_deref() == Some("TalentSearchBox") {
+        if matches!(
+            frame.name.as_deref(),
+            Some("TalentSearchBox" | "TalentLoadoutNameInput")
+        ) {
             let submit_pending = pending.clone();
             let mut edit = node.clone();
             node.connect(
@@ -1191,8 +1194,10 @@ fn connect_edit_box(pending: &PendingInputs, frame: &Frame, node: &mut Gd<Contro
                     edit.release_focus();
                 }),
             );
-            let keys = search_preview_keys(pending.clone(), node.clone());
-            node.connect("gui_input", &keys);
+            if frame.name.as_deref() == Some("TalentSearchBox") {
+                let keys = search_preview_keys(pending.clone(), node.clone());
+                node.connect("gui_input", &keys);
+            }
         } else {
             node.connect("text_submitted", &emit(pending, UiInput::Submit));
         }

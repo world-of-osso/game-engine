@@ -1861,6 +1861,7 @@ fn talents_wire_commits_full_entries_and_receives_snapshot_and_failure() {
 fn talents_wire_preserves_spec_result_snapshot_order_in_one_worker_batch() {
     use shared::protocol::{
         SpecializationChanged, TalentChannel, TraitCommitResult, TraitConfigSnapshot,
+        TraitLoadoutInfo, TraitLoadoutsSnapshot,
     };
     let (mut server, address) = start_fixture_server();
     let mut host = Host::connect(address, 8260);
@@ -1909,13 +1910,22 @@ fn talents_wire_preserves_spec_result_snapshot_order_in_one_worker_batch() {
     send_flush!(TraitConfigSnapshot, arcane.clone());
     send_flush!(SpecializationChanged, SpecializationChanged { spec_id: 64 });
     send_flush!(TraitConfigSnapshot, frost.clone());
+    let loadouts = TraitLoadoutsSnapshot {
+        spec_id: 64,
+        selected_id: 2,
+        configs: vec![TraitLoadoutInfo {
+            id: 2,
+            name: "Raid".into(),
+        }],
+    };
+    send_flush!(TraitLoadoutsSnapshot, loadouts.clone());
     let deadline = Instant::now() + Duration::from_millis(100);
     while Instant::now() < deadline {
         server.update();
         thread::sleep(Duration::from_millis(5));
     }
     resume.send(()).unwrap();
-    let mut received = await_messages(&mut server, &mut host, 6).into_iter();
+    let mut received = await_messages(&mut server, &mut host, 7).into_iter();
     assert_eq!(
         received
             .next()
@@ -1963,6 +1973,14 @@ fn talents_wire_preserves_spec_result_snapshot_order_in_one_worker_batch() {
             .downcast::<TraitConfigSnapshot>()
             .ok(),
         Some(frost)
+    );
+    assert_eq!(
+        received
+            .next()
+            .unwrap()
+            .downcast::<TraitLoadoutsSnapshot>()
+            .ok(),
+        Some(loadouts)
     );
     host.stop();
 }

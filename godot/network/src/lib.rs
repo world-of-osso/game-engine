@@ -591,12 +591,13 @@ fn install_relay<M: network::Message>(app: &mut App, events: Sender<Event>) {
 
 /// One relay preserves the server's config lifecycle across typed receiver buffers.
 fn install_talent_relay(app: &mut App, events: Sender<Event>) {
-    use protocol::{TraitCommitResult, TraitConfigSnapshot};
+    use protocol::{TraitCommitResult, TraitConfigSnapshot, TraitLoadoutsSnapshot};
     app.add_systems(
         Update,
         (move |mut specs: Query<&mut MessageReceiver<SpecializationChanged>>,
                mut snapshots: Query<&mut MessageReceiver<TraitConfigSnapshot>>,
-               mut results: Query<&mut MessageReceiver<TraitCommitResult>>| {
+               mut results: Query<&mut MessageReceiver<TraitCommitResult>>,
+               mut loadouts: Query<&mut MessageReceiver<TraitLoadoutsSnapshot>>| {
             let mut received = Vec::new();
             macro_rules! drain {
                 ($receivers:ident) => {
@@ -610,6 +611,7 @@ fn install_talent_relay(app: &mut App, events: Sender<Event>) {
             drain!(specs);
             drain!(snapshots);
             drain!(results);
+            drain!(loadouts);
             received.sort_by_key(|(id, _)| *id);
             for (_, message) in received {
                 events
