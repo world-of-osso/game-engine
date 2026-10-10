@@ -1,6 +1,6 @@
 ## 2026-10-09 — Offline asset closure tooling
 
-[Offline closure](systems/offline-asset-closure.md) documents deterministic extracted-byte traversal and configurable Northshire/full-catalog seeds. [Contract](../specs/offline-asset-closure.md) separates the audit from runtime no-CASC/identity/release acceptance. Fixture RED covers absent tooling and extended WMO material slots; final fixture/slice evidence pending. No extraction or runtime changes.
+[Offline closure](systems/offline-asset-closure.md) documents deterministic extracted-byte traversal and configurable Northshire/full-catalog seeds. [Contract](../specs/offline-asset-closure.md) separates the audit from runtime no-CASC/identity/release acceptance. Initial nine-fixture/byte-identical real-manifest proof passes at `47c161419`; the audit remains incomplete. Follow-up RED reproduces skipped player requirements, unavailable pinned copies of existing legacy CSV inputs, and a late owner skeleton alias that did not expand. Explicit source configuration, player requirement evaluation and requeue correction implemented; final twelve-fixture/slice evidence pending. No extraction or runtime changes.
 
 ## 2026-10-09 — HUD layout names and delete confirmation
 

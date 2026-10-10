@@ -134,6 +134,55 @@ class ClosureTests(unittest.TestCase):
         self.assertEqual(len(next(a for a in result["assets"] if a["fdid"] == 8)["edges"]), 3)
         self.assertFalse(any(u["code"] == "missing_metadata_row" for u in result["unresolved"]))
 
+    def test_late_owner_alias_expands_a_previously_missing_skeleton(self):
+        self.put("models/2.m2", model(chunk("SKID", ints(6))))
+        self.put("models/2.skel", chunk("AFID", struct.pack("<HHI", 1, 0, 7)))
+        self.put("models/7.anim", b"AFSBfixture")
+        graph = self.tool.Closure(self.data, self.paths, "wow", "fixture")
+        graph.add(6, "skel", "ChrModel skeleton seed")
+        graph.add(2, "m2", "body seed")
+        result = graph.run()
+        self.assertEqual([a["fdid"] for a in result["assets"]], [2, 6, 7])
+        self.assertFalse(any(u["code"] == "missing_dependency_bytes" for u in result["unresolved"]))
+
+    def test_explicit_metadata_sources_do_not_require_a_pinned_copy(self):
+        sys.path.insert(0, str(Path(__file__).parents[1]))
+        self.addCleanup(sys.path.pop, 0)
+        import closure_seeds
+        self.put("ModelFileData.csv", b"FileDataID,ModelResourcesID\n9,40\n")
+        graph = self.tool.Closure(self.data, self.paths, "wow", "fixture")
+        graph.seeds = {"table_paths": {"ModelFileData": "ModelFileData.csv"}}
+        rows = closure_seeds.Catalogs(graph).rows("ModelFileData")
+        self.assertEqual(rows, [{"FileDataID": "9", "ModelResourcesID": "40"}])
+        self.assertTrue(any(code == "unverified_metadata_build" for code, _, _ in graph.unresolved))
+
+    def test_player_requirement_gates_select_a_real_human_choice(self):
+        sys.path.insert(0, str(Path(__file__).parents[1]))
+        self.addCleanup(sys.path.pop, 0)
+        import closure_seeds
+        self.put("db2/fixture/ChrCustomizationReq.csv", b"ID,ReqType,ClassMask,RaceMasks_0,RaceMasks_1\n141,3,-1,-1,-1\n12,2,0,-1,-1\n")
+        dbpath = self.data / "cache/customization.sqlite"
+        dbpath.parent.mkdir()
+        db = sqlite3.connect(dbpath)
+        db.executescript("""
+            CREATE TABLE options (id, chr_model_id, order_index, requirement_id);
+            CREATE TABLE choices (id, option_id, order_index, requirement_id, visibility_requirement_id);
+            CREATE TABLE elements (choice_id, related_choice_id, material_id, skinned_model_id, has_unsupported_effects);
+            CREATE TABLE materials (id,material_resources_id);
+            CREATE TABLE texture_fdids (material_resources_id,file_data_id);
+            CREATE TABLE skinned_models (id,collection_fdid);
+            INSERT INTO options VALUES (10,1,0,0),(11,1,1,12);
+            INSERT INTO choices VALUES (20,10,0,141,0),(21,10,1,141,0),(22,11,0,12,0);
+            INSERT INTO elements VALUES (20,0,1,0,0);
+            INSERT INTO materials VALUES (1,50);
+            INSERT INTO texture_fdids VALUES (50,8);
+        """)
+        db.close()
+        graph = self.tool.Closure(self.data, self.paths, "wow", "fixture")
+        choices = closure_seeds.seed_customizations(graph, 1, "default")
+        self.assertEqual(choices, [20])
+        self.assertEqual([a["fdid"] for a in graph.run()["assets"]], [8])
+
     def test_catalog_size_census_labels_missing_bytes_as_estimates(self):
         self.put("textures/8.blp", b"BLP2fixture")
         result = self.tool.estimate_catalog(self.data, self.paths)

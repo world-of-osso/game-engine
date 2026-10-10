@@ -30,7 +30,12 @@ class Catalogs:
 
     def rows(self, name):
         if name not in self.tables:
-            path = self.graph.data / "db2" / self.graph.metadata_build / (name + ".csv")
+            overrides = self.graph.seeds.get("table_paths", {})
+            if name in overrides:
+                path = self.graph.data / overrides[name]
+                self.graph.issue("unverified_metadata_build", f"{name}: explicit legacy source {overrides[name]}")
+            else:
+                path = self.graph.data / "db2" / self.graph.metadata_build / (name + ".csv")
             if not path.is_file():
                 self.graph.issue("missing_metadata_file", str(path.relative_to(self.graph.data)))
                 self.tables[name] = []
@@ -226,26 +231,47 @@ def human_warrior_spellbook(db, level):
     return sorted(wanted)
 
 
-def seed_customizations(graph, chr_model, selector):
+def requirement_allows(graph, requirements, requirement_id, race, class_id):
+    if requirement_id == 0:
+        return True
+    row = requirements.get(requirement_id)
+    if row is None:
+        graph.issue("missing_customization_requirement", f"requirement {requirement_id}")
+        return False
+    class_mask = number(row, "ClassMask")
+    race_masks = [number(row, "RaceMasks_0"), number(row, "RaceMasks_1")]
+    # Bounded Human race bit follows customization_catalog.rs/support. Full
+    # catalog mode enumerates all choices, so it does not prune by this mask.
+    race_bit = race - 1
+    race_allowed = race_masks == [0, 0] or (race_bit < 64 and race_masks[race_bit // 32] & (1 << (race_bit % 32)))
+    unlocked = not any(number(row, key) for key in ["ReqAchievementID", "ReqQuestID", "ReqItemModifiedAppearanceID", "RegionGroupMask"])
+    class_allowed = class_mask == 0 or class_mask & (1 << (class_id - 1))
+    return bool(number(row, "ReqType") & 1 and unlocked and class_allowed and race_allowed)
+
+
+def seed_customizations(graph, chr_model, selector, race=1, class_id=1):
     path = graph.data / "cache/customization.sqlite"
     if not path.is_file():
         graph.issue("missing_metadata_file", "cache/customization.sqlite")
         return []
     graph.input_file(path)
     graph.issue("unverified_cache_build", "customization.sqlite: source mtimes do not authenticate build")
+    requirements = Catalogs(graph).index("ChrCustomizationReq") if selector != "all" else {}
     with readonly(path) as db:
-        options = [row[0] for row in db.execute("SELECT id FROM options WHERE chr_model_id=? ORDER BY order_index,id", (chr_model,))]
+        options = list(db.execute("SELECT id,requirement_id FROM options WHERE chr_model_id=? ORDER BY order_index,id", (chr_model,)))
         choices = []
-        for option in options:
+        for option, requirement in options:
+            if selector != "all" and not requirement_allows(graph, requirements, requirement, race, class_id):
+                continue
             rows = list(db.execute("SELECT id,requirement_id,visibility_requirement_id FROM choices WHERE option_id=? ORDER BY order_index,id", (option,)))
             if selector == "all":
                 choices.extend(row[0] for row in rows)
             elif selector == "default":
-                eligible = [row[0] for row in rows if row[1] == 0 and row[2] == 0]
+                eligible = [row[0] for row in rows if requirement_allows(graph, requirements, row[1], race, class_id) and row[2] == 0]
                 if eligible:
                     choices.append(eligible[0])
                 elif rows:
-                    graph.issue("customization_requirement", f"model {chr_model} option {option}: no unrestricted choice")
+                    graph.issue("customization_requirement", f"model {chr_model} option {option}: no eligible player choice")
             else:
                 choices.extend(row[0] for row in rows if row[0] in selector)
         apply_choices(graph, db, choices, "all" if selector == "all" else "selected")
@@ -316,7 +342,7 @@ def seed_catalogs(graph, world_path, config):
                 continue
             player_displays.add(number(model, "DisplayID"))
             graph.add(number(model, "SkeletonFileDataID"), "skel", f"ChrModel {model_id} SkeletonFileDataID")
-            character["selected_choices"] = seed_customizations(graph, model_id, character["choices"])
+            character["selected_choices"] = seed_customizations(graph, model_id, character["choices"], character["race"], character.get("class", 1))
     with readonly(world_path) as db:
         spawns, npc_ids = npc_displays(db, tiles)
         if config["npc_displays"] == "all":
