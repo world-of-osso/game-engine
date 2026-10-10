@@ -27,6 +27,8 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 - `godot/ui-model/src/quest_poi.rs` tests: real quest28766 geometry and completion/edge direction.
 - `godot/ui-model/tests/quest_flow.rs`: tracker selection and both-skin numbered POI buttons.
 - `godot/tests/quest_map_objectives.gd`: private quest28766 acceptance, selected quest, live completion and rendered both-skin captures.
+- `godot/ui-model/tests/quest_poi_hover.rs` and world-map model tests: Retail additive/default-opacity button art, hover identity, real area addition/deduplication/removal without super-tracking.
+- `godot/tests/quest_poi_hover.gd`: private input-driven log/tracker hover and leave, rendered world-map button glow and existing watched minimap set in both skins.
 - `godot/ui-model/tests/minimapblips.rs`: visible numbered objective text on both minimap skins.
 - `godot/ui-model/src/world_map_view_data_tests.rs`: projection and completed-objective removal.
 - `godot/core/{src/quest_area_data.rs,tests/minimap_data.rs}`: blue fill, clipping and rotation/inverse projection.
@@ -39,6 +41,8 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 
 - [ ] Conditional POIs require player-condition evaluation; excluded, never replaced with guessed shapes. Missing authored geometry remains absent; [source coverage](../wiki/systems/quest-map-objectives.md#source-ownership).
 - [ ] Independent verification unavailable (Claude OAuth expired). Workspace format check has two unchanged baseline failures; changed-file format check passes.
+
+V3 proof:29 distinct scoped tests pass after hover-polygon/button-art RED; native extension/CLI build, helper check, changed-Rust format and private UDP5528 both-skin hover fixture pass. Eight `v3-` PNG originals were individually FFmpeg-downscaled/inspected before publication. Native minimap selector remains unexposed; watched behavior retained, not claimed Retail parity. [Exact sources and proof](../wiki/systems/quest-map-objectives.md#v3-source-boundary-2026-10-10).
 
 V2 proof: corrected raster3/model1 targeted tests pass after opacity RED; native extension/CLI build, helper cargo check, changed-Rust format and private live fixture pass. Four FFmpeg-decoded/visually inspected `v2-{modern,forever}-objective-{world-map,minimap}.png` originals are published in the same AgentShared directory. Hover/focus and native minimap blob-selection gaps remain explicit above.
 

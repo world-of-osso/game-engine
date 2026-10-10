@@ -1,3 +1,7 @@
+## 2026-10-10 — Quest POI hover, v3
+
+[Quest map objectives](systems/quest-map-objectives.md#v3-source-boundary-2026-10-10) records title/POI hover selection without super-tracking, authored polygon addition/removal and Retail additive InnerGlow. New RED→GREEN regressions,29 distinct targeted UI-model/core tests, native build/check and private UDP5528 both-skin input fixture pass. Eight originals FFmpeg-downscaled/inspected and published with `v3-` prefix. Native minimap selection is not exposed by searched Retail Lua/API sources; existing watched behavior retained, parity unclaimed.
+
 ## 2026-10-10 — Skyborne baked NPC native capture
 
 [Seven-bake checkpoint](systems/forever-data.md#seven-recovered-bakes--native-npc-checkpoint-2026-10-10) records authenticated70338 scoped asset/receipt publication, seven attached displays and eight inspected private5487 captures of four NPCs in explicitly selected Modern/Forever layouts. Three isolated-body captures remain obscured by overlapping reconstructed spawns; no renderer/server code change or full-zone appearance acceptance.

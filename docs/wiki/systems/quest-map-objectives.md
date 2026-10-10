@@ -43,7 +43,13 @@ Retail source references under `~/.cache/wow-ui-sim/blizzard-ui/retail/AddOns/`:
 - `Blizzard_POIButton/POIButton.lua:91-93,565-575`: managed button highlights use UI-QuestPoi-InnerGlow. `POIButton.xml:25-31` defines additive/default opacity,32×32.
 - `Blizzard_Minimap/Mainline/Minimap.lua:37-44`: QuestPOIs is always-on. `Blizzard_APIDocumentationGenerated/MinimapFrameAPIDocumentation.lua:151-217` only exposes texture/alpha/ring controls; `MinimapDocumentation.lua:151-164` queries player-inside-blob, not drawable quest selection. None establishes which quests native minimap draws. Local solarityclient/WebWowViewerCpp searches found no quest-minimap selector. World-map selection is **not** evidence of minimap native selection; retained watched polygons are explicitly unverified, not claimed Retail parity.
 
-The supplied handoff currently has no `quest-poi-alpha` section; its V2 correction is the latest section available. V3 does not fabricate the missing source evidence.
+## V3 proof (2026-10-10)
+
+Production `cc434253f`, live fixture `04c498269`: title/POI hover draws an authored quest area and map-button InnerGlow; leave removes both without changing super-tracking. RED receipts reproduce absent hover polygons and absent button glow.29 distinct scoped tests pass: UI hover2, world-map12 (including real28766 hover), quest-flow12, core raster3. Native extension/CLI build, helper cargo check and changed-Rust format pass; changed-line manual readability found no new violations. No independent verifier claim.
+
+`quest_poi_hover.gd` passes with disposable `fb_questpoi_v3b`/Poivthreeb character30 on private UDP5528, fresh private redb and current server aa36f28/protocol0354eca. Both skins prove tracker/log hover, rendered map-button glow, hover-leave removal, no super-tracked quest and the existing watched minimap set (one28766 area). This proves this client's current minimap behavior, **not** Retail's native selection parity.
+
+Eight1920×1080 originals (both skins: minimap, unhovered map, tracker-hover map, log-hover map) were FFmpeg-decoded/downscaled and individually inspected before publication as `v3-*.png` to `/syncthing/AgentShared/2026-10-10/quest-poi/`. Persistent receipts, manifest/hashes and readable smaller frames: canonical `data/diagnostics/questpoi-2026-10-10/v3/`. Stale handoff server had a protocol mismatch; current server additionally required a current private SQLite backup (old snapshot lacked battle_pet_species). Final proof uses lead-supplied current binaries read-only and an owned SQLite backup, never protected UDP5000. Owned server/client stopped. Existing missing verified unit-asset receipts and compositor warnings were recorded, not suppressed.
 
 ## Sources
 
