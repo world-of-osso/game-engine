@@ -1,9 +1,33 @@
+## 2026-10-09 — Edit Mode labels, autosave and manager padding
+
+[Contract](../specs/hud-edit-mode.md#labelautosavepadding-acceptance-2026-10-09) records separate fixes `fac75ebb1` / `914b196b1` / `533213fe0`, three observed RED boundaries, locked 30/30 GREEN and the final native build. Modern/Forever Player Frame labels have no backing band; both manager rows leave Retail insets and Reset Selected fits. Full 1920×1080 PNGs and manager crops were inspected through ffmpeg downscales. Autosave uses existing Save/preset-copy semantics by explicit user decision; CPU file-reload proof, not fresh native relog. [System](systems/native-hud-edit-mode.md) owns wiring. Party/raid overlap and tracker geometry remain unchanged; owned runtime stopped.
+
 ## 2026-10-09 — Edit Mode account-wide optional mover list
 
 [Native HUD edit mode](systems/native-hud-edit-mode.md) records immediate account-wide visibility persistence and shared selection filtering, independent of gameplay/layout settings. [Contract](../specs/hud-edit-mode.md#manager-system-checkboxes-2026-10-09) owns all Retail labels/order/default boundaries, five supported versus 25 unregistered systems, source citations and RED/GREEN/native proof at `81581bebf`. Both skins expose the same checkbox elements; only the manager reflows, never HUD roots.
 ## 2026-10-09 — Rare vignettes and Forever target classification
 
 [Rare classification investigation](investigations/rare-vignettes-and-classification.md) records315 spawned rare templates with no vignette assignment, distinct newer IDs behind name matches, local CASC comparisons and the Forever target overlay bypass. Three registry RED cases atf314d1b52 reproduce missing art; correctionea8a275bf passed31 focused unit-frame tests and changed-file rustfmt check. Authored Forever gold/silver dragons and the Retail star now populate the target overlay at shared Retail anchors. Native Modern Ruul capture passed; Brack rank4 picking and post-fix Forever pixels remain unproved after the three-run budget.
+## 2026-10-09 — Shipped-only UI icons and refreshed class spellbooks
+
+[Shipped-icon recapture](systems/talents.md#shipped-icon-recapture-2026-10-09) reconciles the pre-fix CASC RED with the current filesystem-only boundary, targeted GREEN, fixed-resolver retry and inspected Forever recaptures. The linked coverage matrix owns per-class icon totals, source/key shipping blockers and residual Paladin same-name pairs. Only the requested PNGs were replaced in AgentShared; no runtime mode duplication, resolver merge or release-readiness claim.
+
+## 2026-10-09 — Offline class spellbooks and spec talents
+
+[Talents](systems/talents.md#offline-classspec-capture-2026-10-09) records paired DB2 preview inputs, preserved default Mage snapshot and production-catalog evidence. [Contract](../specs/talents.md#offline-classspec-evidence) links the data-only coverage matrix, native screenshots, exact blocked specs and existing layout/hero-eligibility limits. No spell behavior, server persistence or complete-tree parity claim.
+## 2026-10-09 — Corrected locked-display premise
+
+[Forever dependency audit](systems/forever-data.md#readable-section-correction-2026-10-09) corrects entire-table decoder rejection being mistaken for seven encrypted appearances. All seven Extras and readable choice/item chains exist; unknown option/geoset parents are zero-filled and cannot be attributed. [Contract](../specs/npc-appearance.md#unknown-key-record-contract) retains unknown-key reports, mandatory explicit references and the corrected lead decision to deactivate none. Decoder714a1042c targeted GREEN13 passed/3 skipped; authentic readable metadata re-import adds7 profiles/97 choices/7 coverage rows without changing prior rows. No CDI references hidden Extra165799 and no creature deactivated. All seven declared bakes remain absent; current Forever70334 local-CASC root archive is unavailable even with fixed80fd790. Native proof/PNGs and independent OAuth-blocked gate remain unproved.
+## 2026-10-09 — Detached extracted-only misses
+
+[Shipped assets](systems/shipped-assets.md#detached-legacy-misses-2026-10-09) records the independent P1 failure: a legacy cache panic killed its detached worker and left the key Loading. Typed cache errors now propagate to Failed completions, preserving local-CASC optional behavior. Cold-process RED proves missing completion and present BLP success; engine `f809ad04a` + resolver `cb64094` GREEN startup7/7 and six-engine-package2658/0/7 pass, zero warnings. Resolver31/2: missing-install and hard-coded-listfile prerequisites fail before changed assertions; product-identity7/7 passes. Independent verifier unavailable (expired Claude OAuth); no clean resolver-integration or rendered-game claim. [Contract](../specs/shipped-assets.md) owns exact error and once-only completion requirements.
+
+## 2026-10-09 — Extracted-only asset policy
+
+[Shipped assets](systems/shipped-assets.md) records the P1 startup and low-level CASC boundary. [Contract](../specs/shipped-assets.md) owns explicit environment selection, shared policy/tripwire APIs and P2–P5 exclusions. Cold-process RED reproduced `WoW install not found`; engine `5dbe8b3c0` + resolver `8fc769b` GREEN5/5 and full six-engine-package2656/0/7 pass, no warnings. Resolver unit22/bin2 pass; its pre-existing install-dependent integration test fails in no-install depot. No deployment, rendered-game or full closure claim.
+## 2026-10-09 — Offline asset closure tooling
+
+[Offline closure](systems/offline-asset-closure.md) documents deterministic extracted-byte traversal and configurable Northshire/full-catalog seeds. [Contract](../specs/offline-asset-closure.md) separates the audit from runtime no-CASC/identity/release acceptance. Initial nine-fixture/byte-identical real-manifest proof passes at `47c161419`; the audit remains incomplete. Follow-up RED reproduces skipped player requirements, unavailable pinned copies of existing legacy CSV inputs, and a late owner skeleton alias that did not expand. Exact `5520e82ff` has locked twelve-fixture PASS and two byte-identical real manifests (SHA256 `98b1fd059d2c70a82d85764e21a4c86cdfb4cae55af833fc09d318cb4700c393`). Final audit: 2,585 identities, 2,472 present/482,511,719 bytes, 113 missing, 156 unresolved and all identities unverified; audit exit1 is intentional. Northshire bell189599 and 112 skins remain absent. Full listfile census is a rough sizing proxy, not authenticated release coverage; unnamed FDIDs can be absent from it. No extraction or runtime changes.
 
 ## 2026-10-09 — HUD layout names and delete confirmation
 

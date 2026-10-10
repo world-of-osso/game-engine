@@ -89,7 +89,7 @@ impl EditDraft {
         self.pending_delete = None;
     }
 
-    /// Exit discards drafts; the host republishes the saved layout.
+    /// Clear transient editor state after the host persists pending changes.
     pub fn exit(&mut self) {
         *self = Self::default();
     }

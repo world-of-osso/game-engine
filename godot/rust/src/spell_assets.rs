@@ -229,15 +229,13 @@ fn load_model(
 }
 
 /// Worker: local-CASC Ogg `fdid`, cached at `data/sounds/spells/{fdid}.ogg`.
-fn load_sound(
+pub(crate) fn load_sound(
     resolver: &CascListfileResolver,
     data_root: &Path,
     fdid: u32,
 ) -> Result<Vec<u8>, String> {
     let destination = data_root.join("sounds/spells").join(format!("{fdid}.ogg"));
-    let path = resolver
-        .ensure_cached(fdid, &destination)
-        .ok_or_else(|| format!("Spell sound {fdid}: not in local CASC"))?;
+    let path = resolver.ensure_cached_checked(fdid, &destination)?;
     let bytes =
         std::fs::read(&path).map_err(|error| format!("Spell sound {}: {error}", path.display()))?;
     if !bytes.starts_with(b"OggS") {
