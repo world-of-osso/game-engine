@@ -25,6 +25,9 @@
 ## 2026-10-09 — Extracted-only asset policy
 
 [Shipped assets](systems/shipped-assets.md) records the P1 startup and low-level CASC boundary. [Contract](../specs/shipped-assets.md) owns explicit environment selection, shared policy/tripwire APIs and P2–P5 exclusions. Cold-process RED reproduced `WoW install not found`; engine `5dbe8b3c0` + resolver `8fc769b` GREEN5/5 and full six-engine-package2656/0/7 pass, no warnings. Resolver unit22/bin2 pass; its pre-existing install-dependent integration test fails in no-install depot. No deployment, rendered-game or full closure claim.
+## 2026-10-09 — Offline asset closure tooling
+
+[Offline closure](systems/offline-asset-closure.md) documents deterministic extracted-byte traversal and configurable Northshire/full-catalog seeds. [Contract](../specs/offline-asset-closure.md) separates the audit from runtime no-CASC/identity/release acceptance. Initial nine-fixture/byte-identical real-manifest proof passes at `47c161419`; the audit remains incomplete. Follow-up RED reproduces skipped player requirements, unavailable pinned copies of existing legacy CSV inputs, and a late owner skeleton alias that did not expand. Exact `5520e82ff` has locked twelve-fixture PASS and two byte-identical real manifests (SHA256 `98b1fd059d2c70a82d85764e21a4c86cdfb4cae55af833fc09d318cb4700c393`). Final audit: 2,585 identities, 2,472 present/482,511,719 bytes, 113 missing, 156 unresolved and all identities unverified; audit exit1 is intentional. Northshire bell189599 and 112 skins remain absent. Full listfile census is a rough sizing proxy, not authenticated release coverage; unnamed FDIDs can be absent from it. No extraction or runtime changes.
 
 ## 2026-10-09 — HUD layout names and delete confirmation
 
