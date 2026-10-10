@@ -42,6 +42,20 @@ At production `dce2a4432` and fixture `c5a681cd2`, the visibility test has obser
 
 Aura233 remains **unimplemented**. Pinned TrinityCore names it CHANGE_MODEL_FOR_ALL_HUMANOIDS and handles it client-side, not MOD_FAKE_INEBRIATE. Its misc payload is not yet resolved to a Retail-correct visual: blindly using4076/6409 as CreatureDisplayInfo would render Troll/Orc models. No such guess, global ModelDisplay rewrite, or viewer-isolation claim was added. Local source investigation and authenticated CASC table receipts are retained in the same diagnostics and `/home/osso/.worktrees/handoff-toy-aura233.md`.
 
+## Toy-effects6 conditional selection and summon coverage (2026-10-10)
+
+Spitzy261981's local PlayerCondition64572 requires absence of aura181943 (`AuraSpellLogic=65536`). The visual catalog now evaluates that single-aura requirement using the caster's replicated spell IDs/stacks. Real-data RED selected no visual; GREEN selects74073 with no181943 and refuses it with181943. Multi-aura operators and unknown requirements stay blocked; no unconditional condition bypass. Scoots1280563 still needs unexported ModifierTree303980. Cloak kit106563 references procedures357988–357990/Type17, but the local export contains only ID/Type, not its payload.
+
+Train Wrecker45057 summons display28599. Its local CreatureDisplayInfo has Extra0 and model2738/FDID123251 with textures123263/123259/123255; it is an ordinary creature, not a missing humanoid profile. Strict appearance importer added coverage `(28599, false)` from raw local CASC tables, preserving every prior appearance/choice/geoset. Counts13214→13215 coverage,7979 appearances,96198 choices,1397 geosets. Backup: `data/cache/npc_appearance.sqlite.pre-toyfx6-20261010`. Hash/preservation receipt: `data/diagnostics/toy-effects6-2026-10-10/appearance-promotion.json`.
+
+Regeneration uses existing tracked importer; no new decoding or raw-model fallback is needed:
+
+```text
+python3 scripts/import_npc_appearance.py --db2-dir data/db2 --data-dir data/diagnostics/toy-effects6-2026-10-10/appearance-input --model-cache data/cache/creature_display.sqlite --base-cache data/cache/npc_appearance.sqlite --display-id 28599 --output data/diagnostics/toy-effects6-2026-10-10/npc-appearance-regenerated.sqlite
+```
+
+`appearance-input` links `CreatureDisplayInfo.csv` from `data/db2/12.1.0.69933/`, plus existing `data/TextureFileData.csv` and `data/community-listfile.csv`. Raw1264997/3692043/1720141 were extracted locally into `data/db2/`; all three source sections decode without omissions. Existing output is never overwritten. Native fixture `godot/tests/toy_effects6_live.gd` uses actual bag learning/journal input, validates Spitzy94072, train123251, Duck Lovie162763 and mortar20yd SpellGo; both-skin acceptance remains pending.
+
 ## Sources
 
 - [Toy Box contract](../../specs/toy-box.md)
