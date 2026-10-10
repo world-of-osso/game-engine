@@ -280,6 +280,7 @@ impl crate::GameClient {
         self.account
             .send_spell_intent(SpellCastIntent {
                 spell_id,
+                destination: None,
                 spell: spell.clone(),
                 target_entity,
                 witness,
