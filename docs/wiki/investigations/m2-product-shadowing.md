@@ -53,6 +53,23 @@ Focused CPU proof at `08b86f04f` / resolver `62bce6c`: resolver1/core6/native7 p
 
 Native Vulkan/cage run of Retail display21774/model126278 through the same `WorldModels` preview path passes the scoped source/hash check, renders two meshes in `ExtractedOnly` mode and reports tripwire0. `native-comparator-1.log` records no model/texture/type9 error; host audio/XWayland/decor warnings remain separate. The requested PNG directory contains `display-21774.png`, inspected at640×360: a textured turkey is visible. This independent comparator consumes one of three native runs; it does not substitute for or close the two named displays' acceptance.
 
+## Native acceptance (2026-10-10)
+
+Verified: 2026-10-10. Rebased engine onto `origin/master` at `602500bb4`; resolver master `22751f4` is already an ancestor of `62bce6c`. Current scoped native tests pass14/14 (resolver1/core6/Godot7); native extension and acceptance metadata fixture builds emit zero compiler warnings. Master's `ab5257289` removes the20 inherited Godot macro warnings; no warning suppression was added. Runtime cage/Wayland capability warnings remain separate.
+
+Re-extraction using authenticated frozen Retail69933 and Forever70291 resolution/root snapshots recovered every requested chain, including formerly unavailable Forever FDIDs7579618(M2),7731246(SKIN),7731197/7961203(BLP). Their payload content-key MD5, magic, SHA256 and actual build identities validate. Publication now holds504 asset receipts plus51 companion aliases, with scoped files copied and hash-checked in canonical data. No legacy bytes are relabelled; Forever bytes remain70291, not70205/70334. The large closure-extract inventory alone was not treated as proof of Forever ownership: each new publication has its own frozen-source local-archive receipt.
+
+The maintained native fixture runs all cases even after a failure, reports exact counts/tripwire, and additionally renders a Human male with item25 through the production player/equipment loader. Framing uses visible mesh bounds, not the oversized authored animation bounds. Final proof at engine`021c39a81`/resolver`62bce6c`, `data/diagnostics/modelisolation-2026-10-10/native-acceptance-framed.log`:
+
+| Case | Observable result | Proof |
+|---|---|---|
+| Forever139403/1100087 | 15 visible meshes; scoped70291 source/hash matches | Native GPU + inspected PNG |
+| Forever139409/1100258 | 18 visible meshes; scoped70291 source/hash matches | Native GPU + inspected PNG |
+| Retail21774/126278 | 2 visible meshes; scoped69933 source/hash matches | Native GPU + inspected PNG |
+| Human male + item25 | Body1011653 and item148132 match Retail receipts; hiding item changes5282 pixels | Native GPU + inspected PNG |
+
+Final acceptance4/4, zero model/texture/type9 errors, `ExtractedOnly`, CASC tripwire0. Four1280×720 RGB PNGs in `/syncthing/AgentShared/2026-10-10/modelisolation/` decode successfully with ffmpeg; ffprobe dimensions and signalstats logs are in the diagnostics `inspection/` directory. Remaining P2 source gap list: empty. No full-world/catalog, missing historical metadata provenance, P3/P4 closure, pristine-bundle or release/deployment claim. Host XWayland/decor/VSync warnings are not compiler warnings or model failures.
+
 ## Sources
 
 - [Native Skyborne checkpoint](../systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09)

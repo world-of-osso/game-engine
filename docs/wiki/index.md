@@ -127,7 +127,7 @@ Architecture decisions and feature designs.
 - [Native compile speed](investigations/native-compile-speed.md) — cross-slot KTX cache, host-profile unification, actual linker/job defaults, registry-cache experiment and unmet every-slot seconds target.
 
 - [Rare vignettes and classification](investigations/rare-vignettes-and-classification.md) — server-side vignette assignment versus rank, wrong name joins, local CASC limits, authentic Forever target classification art, Brack fixture-centre diagnosis and captured Forever rareelite/rare plus Modern rare.
-- [M2 product shadowing](investigations/m2-product-shadowing.md) — source-qualified runtime wiring, actual-build frozen provenance, parser identity RED/GREEN and named-display acceptance boundary.
+- [M2 product shadowing](investigations/m2-product-shadowing.md) — source-qualified runtime wiring, frozen actual-build provenance and native extracted-only acceptance4/4 with CASC tripwire0; P3/P4 remain separate.
 
 
 - [cage-capture-resolution](investigations/cage-capture-resolution.md) — headless output constrained 1920×1080 requests to 1280×720; capture-only output override, six inspected spellbook pages, and missing specialization assets.
