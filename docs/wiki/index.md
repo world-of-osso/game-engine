@@ -1,5 +1,7 @@
 # Wiki Index
 
+- [Offline asset closure](systems/offline-asset-closure.md) — extracted-only Northshire/Human-Warrior graph, configurable full-catalog roots, explicit provenance/unresolved boundaries and approximate inventory sizes.
+
 - [Zephras sky/minimap diagnosis](investigations/zephras-sky-minimap.md) — map2991 listfile-only tile loss and wrong M2 dual-crossfade; shader/tile RED/GREEN and inspected rebuilt private before/after; whole-day sky parity unclaimed.
 
 [Native Skyborne recheck](systems/forever-data.md#native-skyborne-rosterworld-recheck-2026-10-09) — loaded roster visible; races95/96 enter world with sky defects, seven missing imported NPC profiles and two mixed-product M2 failures; source-isolated repair remains open.
@@ -16,6 +18,8 @@ Last updated: 2026-10-09.
 The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-retired)); entries below that describe Bevy behavior or root `src/` paths are historical.
 
 ## Systems
+
+- [Extracted-only assets](systems/shipped-assets.md) — P1 startup/CASC policy, detached legacy-miss completion and cold-process fixture boundaries; complete closure and deployment remain later phases.
 
 - [Native HUD edit mode](systems/native-hud-edit-mode.md) — authenticated account/realm layouts, account-wide optional-mover checkboxes, shared mover registry, draft/save/autosave-on-exit, authored-bounds projection, Retail-style label/manager clearance, 19-default/21-enabled offline inventory and native mouse/relog fixture.
 

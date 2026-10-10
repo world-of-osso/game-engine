@@ -303,7 +303,7 @@ pub(super) fn load_appearance_texture(
     source: &str,
 ) -> Result<TexturePixels, String> {
     let destination = data_root.join("textures").join(format!("{fdid}.blp"));
-    let path = resolver.ensure_cached(fdid, &destination).ok_or_else(|| {
+    let path = resolver.ensure_cached(fdid, &destination)?.ok_or_else(|| {
         format!(
             "missing {source} texture FDID {fdid} at {}",
             destination.display()
