@@ -155,7 +155,7 @@ mod baked_display {
     }
 
     #[test]
-    fn owned_retail_model_replacements_stay_isolated_from_forever() {
+    fn model_asset_owned_equipment_columns_keep_model_and_material_products() {
         let root = write_catalog("owned-replacements");
         let forever = root.join("db2/1.60.1.70205");
         let components = root.join("db2/12.1.0.69933");
@@ -211,6 +211,15 @@ mod baked_display {
             [(2, 4001)]
         );
         let owned_forever = catalog.load_owned_forever_70205().unwrap();
+        use crate::asset_product::AssetProduct;
+        assert_eq!(
+            retail.load_column_products(10, 0).unwrap(),
+            (AssetProduct::Retail, Some(AssetProduct::Retail))
+        );
+        assert_eq!(
+            owned_forever.load_column_products(10, 0).unwrap(),
+            (AssetProduct::Forever, Some(AssetProduct::Forever))
+        );
         assert_eq!(
             owned_forever.try_resolve_column_models(10, 1, 0).unwrap(),
             [(0, 1000, [2000, 0, 0])]
