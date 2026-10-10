@@ -213,6 +213,52 @@ mod tests {
         assert!(y < 0.0, "Northshire is north of the player");
     }
     #[test]
+    fn server_only_kobold_camp_cleanup_keeps_its_authored_geometry() {
+        let catalog = QuestPoiCatalog::load(
+            &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933"),
+        )
+        .unwrap();
+        let mut quest = worg_quest(false);
+        quest.quest_id = 7;
+        quest.title = "Kobold Camp Cleanup".into();
+        quest.objectives[0].object_id = 6;
+        quest.objectives[0].required = 8;
+        quest.objectives[0].text = "Kobold Vermin slain".into();
+        // Actual content_quest_poi_points quest7/blob0, ordered by Idx2.
+        let points = [
+            (-8797, -259),
+            (-8766, -253),
+            (-8754, -193),
+            (-8751, -160),
+            (-8750, -115),
+            (-8766, -93),
+            (-8795, -117),
+            (-8811, -217),
+            (-8809, -234),
+            (-8806, -244),
+        ]
+        .into_iter()
+        .map(|(x, y)| QuestPoiPoint { x, y })
+        .collect();
+        quest.pois = vec![QuestPoiSnapshot {
+            objective_index: 0,
+            map_id: 0,
+            world_map_area_id: 30,
+            floor: 0,
+            priority: 0,
+            flags: 1,
+            points,
+        }];
+        let authored = quest.pois.clone();
+        let mut entries = [quest];
+        catalog.apply(&mut entries);
+        assert_eq!(
+            entries[0].pois, authored,
+            "a quest absent from Retail must retain server POIs"
+        );
+    }
+
+    #[test]
     fn local_beating_them_back_has_the_authored_seven_point_area_and_turnin() {
         let dir = Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data/db2/12.1.0.69933");
         let catalog = QuestPoiCatalog::load(&dir).unwrap();
