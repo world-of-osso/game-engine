@@ -422,6 +422,52 @@ impl OutfitData {
             .ok_or_else(|| format!("Display {display_info_id} has no shoulder {shoulder_index}"))
     }
 
+    pub fn load_source_item_textures(
+        &self,
+        display_info_id: u32,
+        race: u8,
+        sex: u8,
+    ) -> Result<Vec<(u8, crate::asset_product::AssetTexture)>, String> {
+        let display = self
+            .try_resolve_display_info(display_info_id, race, sex)?
+            .ok_or_else(|| format!("Display {display_info_id} missing"))?;
+        Ok(display
+            .item_textures
+            .into_iter()
+            .map(|(section, fdid)| {
+                (
+                    section,
+                    crate::asset_product::AssetTexture {
+                        product: crate::asset_product::AssetProduct::Retail,
+                        fdid,
+                    },
+                )
+            })
+            .collect())
+    }
+
+    pub fn load_source_model_textures(
+        &self,
+        display_info_id: u32,
+        model_index: usize,
+        race: u8,
+        sex: u8,
+    ) -> Result<Vec<(u32, crate::asset_product::AssetTexture)>, String> {
+        Ok(self
+            .resolve_model_texture_fdids(display_info_id, model_index, race, sex)?
+            .into_iter()
+            .map(|(kind, fdid)| {
+                (
+                    kind,
+                    crate::asset_product::AssetTexture {
+                        product: crate::asset_product::AssetProduct::Retail,
+                        fdid,
+                    },
+                )
+            })
+            .collect())
+    }
+
     pub fn load_column_products(
         &self,
         display_info_id: u32,

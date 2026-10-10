@@ -56,6 +56,40 @@ mod baked_display {
     }
 
     #[test]
+    fn model_asset_owned_overlay_and_explicit_material_keep_source_product() {
+        use crate::asset_product::{AssetProduct, AssetTexture};
+        let root = write_catalog("source-overlays");
+        std::fs::write(
+            root.join("db2/1.60.1.70205/ItemDisplayInfoModelMatRes.csv"),
+            "ItemDisplayInfoID,ModelIndex,TextureType,MaterialResourcesID\n13,0,2,200\n",
+        )
+        .unwrap();
+        let catalog = OutfitData::load(&root);
+        let forever = catalog.load_owned_forever_70205().unwrap();
+        assert_eq!(
+            forever.load_source_item_textures(13, 1, 0).unwrap(),
+            [(
+                4,
+                AssetTexture {
+                    product: AssetProduct::Forever,
+                    fdid: 3000
+                }
+            )]
+        );
+        assert_eq!(
+            forever.load_source_model_textures(13, 0, 1, 0).unwrap(),
+            [(
+                2,
+                AssetTexture {
+                    product: AssetProduct::Forever,
+                    fdid: 2000
+                }
+            )]
+        );
+        std::fs::remove_dir_all(root).unwrap();
+    }
+
+    #[test]
     fn single_model_ignores_body_components_but_requires_model_resources() {
         let root = write_catalog("single-model");
         let catalog = OutfitData::load(&root);
