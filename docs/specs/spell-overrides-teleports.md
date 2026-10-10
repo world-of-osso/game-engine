@@ -4,8 +4,8 @@ Native spell presentation consumes server aura overrides without changing learne
 
 ## What it must do
 
-- [ ] Active aura332 substitutions show and cast the replacement on action buttons, including its tooltip, icon and cooldown; removal restores the base spell.
-- [ ] Learned spellbook entries present the active replacement name, icon, tooltip and cooldown without mutating known spells or base drag/binding IDs.
+- [x] Active aura332 substitutions show and cast the replacement on action buttons, including its tooltip, icon and cooldown; removal restores the base spell.
+- [x] Learned spellbook entries present the active replacement name, icon, tooltip and cooldown without mutating known spells or base drag/binding IDs.
 - [ ] Ground-destination spells enter targeting mode, show a ground reticle, send the clicked destination, and cancel on right-click or Escape. Forward Blink does not require a destination.
 - [ ] Same-map teleports snap the player while preserving camera orbit without sweeping the camera through intervening geometry.
 - [ ] Apply aura312 animation replacement sets when the native animation system has a replacement-set hook; otherwise record the gap.
@@ -43,7 +43,7 @@ Native spell presentation consumes server aura overrides without changing learne
 ## Known gaps (current cycle)
 
 - [ ] Native animation selects M2 sequence IDs and action layers; no animation replacement-set loader/mapping hook exists. `AuraOverride::Animation(1013)` cannot be interpreted as an M2 animation ID.
-- [ ] Private-server aura/ground proof blocked on authentic talent spell availability (admin profession-learning success did not add class spells). Both-skin Blink wall proof passed; ground ring remains native geometry, not exact Retail art.
+- [ ] Ground ring remains native geometry, not exact Retail art; no pixel-exact Retail camera comparison. Both-skin aura apply/restore, drag/click/hover and ground placement passed on private serverca6b249; both-skin Blink wall proof passed on3753ca2.
 
 ## Out of scope
 
