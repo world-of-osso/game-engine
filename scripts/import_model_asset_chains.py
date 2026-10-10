@@ -2,8 +2,8 @@
 """Publish authenticated local-CASC model chains without inferring legacy ownership.
 
 Input is a staged extraction receipt set, not an unqualified models directory.
-The current installed build and its resolution records authenticate every asset;
-metadata source paths/hashes remain separate from actual asset build identities.
+Frozen extraction identity and resolution records authenticate every asset;
+publication never re-selects an active install. Metadata hashes remain separate.
 """
 import argparse
 import csv
@@ -40,7 +40,7 @@ def create_asset_receipt(identity, fdid, kind, relative_path, raw, content_key):
 
 def read_verified_asset(identity, staged, connection):
     if (staged["product"], staged["build_key"]) != (identity["product"], identity["build_key"]):
-        raise ValueError(f"FDID {staged['fdid']}: staged identity differs from actual installed build")
+        raise ValueError(f"FDID {staged['fdid']}: staged identity differs from frozen extraction identity")
     fdid, kind = staged["fdid"], staged["kind"]
     record = connection.execute("SELECT content_key FROM resolution WHERE fdid=?", (fdid,)).fetchone()
     if record is None:
@@ -58,6 +58,9 @@ def read_verified_asset(identity, staged, connection):
 
 
 def prepare_verified_assets(identity, staged, resolution_path):
+    expected_resolution = identity["resolution_sha256"]
+    if hashlib.sha256(resolution_path.read_bytes()).hexdigest() != expected_resolution:
+        raise ValueError("Source resolution snapshot differs from frozen extraction receipt")
     if staged["failures"]:
         raise ValueError(f"Cannot publish incomplete chain: {staged['failures']}")
     connection = sqlite3.connect(f"file:{resolution_path}?mode=ro", uri=True)
@@ -121,13 +124,21 @@ def write_asset_index(data, identity, staged, verified, aliases):
     return result
 
 
-def import_staged_chain(data, install, product, staged_manifest, resolution_path):
-    identity = read_installed_identity(install, product)
+def read_frozen_identity(staged, product):
+    identity = staged["source_identity"]
+    if identity["product"] != product or not identity["build"]:
+        raise ValueError("Staged source identity does not match requested product")
+    key = identity["build_key"]
+    if len(key) != 32 or any(char not in "0123456789abcdef" for char in key):
+        raise ValueError("Frozen source build key must be 32 hexadecimal characters")
+    return identity
+
+
+def import_staged_chain(data, product, staged_manifest, resolution_path):
     staged = json.loads(staged_manifest.read_text())
+    identity = read_frozen_identity(staged, product)
     verified = prepare_verified_assets(identity, staged, resolution_path)
     aliases = prepare_companion_aliases(identity, staged["dependencies"], verified)
-    if read_installed_identity(install, product) != identity:
-        raise ValueError("Installed source identity changed while verifying assets")
     write_asset_files(data, [*verified.values(), *aliases])
     return write_asset_index(data, identity, staged, verified.values(), aliases)
 
@@ -135,12 +146,11 @@ def import_staged_chain(data, install, product, staged_manifest, resolution_path
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--data", type=Path, required=True)
-    parser.add_argument("--install", type=Path, required=True)
     parser.add_argument("--product", choices=["wow", "wow_classic_beta"], required=True)
     parser.add_argument("--staged-manifest", type=Path, required=True)
     parser.add_argument("--resolution", type=Path, required=True)
     args = parser.parse_args()
-    result = import_staged_chain(args.data, args.install, args.product, args.staged_manifest, args.resolution)
+    result = import_staged_chain(args.data, args.product, args.staged_manifest, args.resolution)
     print(json.dumps({"index": str(args.data / "cache/model-asset-index.json"), "assets": len(result["assets"]), "aliases": len(result["aliases"])}))
 
 
