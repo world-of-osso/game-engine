@@ -32,7 +32,10 @@ func run_test() -> void:
 	FileAccess.open(ready, FileAccess.WRITE).store_string("online")
 	if not await wait_until(func(): return client.spells_state().known.has(MATRIX_SPELL), 30000, "matrix spell learned"):
 		return
-	push_key(KEY_W, true)
+	root.gui_release_focus()
+	movement_key(true)
+	await wait_frames(10)
+	print("ANIMREP BASE animation=", animation_id(), " position=", player.global_position)
 	if not await wait_until(func(): return animation_id() == 5, 10000, "base Run5"):
 		return
 	await wait_frames(15)
@@ -50,10 +53,20 @@ func run_test() -> void:
 		return
 	await wait_frames(15)
 	await capture("restored")
-	push_key(KEY_W, false)
+	movement_key(false)
 	print("ANIMREP_LIVE PASS skin=", skin, " destination=", animation_id(), " errors=", client.spells_state().errors)
 	client.free()
 	quit(0)
+
+func movement_key(pressed: bool) -> void:
+	var event := InputEventKey.new()
+	event.keycode = KEY_W
+	event.physical_keycode = KEY_W
+	event.pressed = pressed
+	Input.parse_input_event(event)
+
+func trace(label: String) -> void:
+	print("ANIMREP TRACE ", label, " animation=", animation_id(), " position=", player.global_position, " errors=", client.spells_state().errors)
 
 func animation_id() -> int:
 	var animation := player.find_child("M2Animation", true, false)

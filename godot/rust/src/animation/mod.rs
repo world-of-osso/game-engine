@@ -521,10 +521,11 @@ impl AnimationState {
 
     fn play_death(&mut self) {
         self.action = None;
+        let death = self.replacement_id(ANIM_DEATH);
         if let Some(index) = self
             .sequences
             .iter()
-            .position(|sequence| sequence.id == ANIM_DEATH)
+            .position(|sequence| sequence.id == death && sequence.variation_id == 0)
         {
             self.start_transition(index, false);
             self.source_id = ANIM_DEATH;
@@ -592,7 +593,12 @@ impl AnimationState {
             return;
         }
         // Most models have no Dead clip and author the corpse as Death's last frame.
-        let Some(dead) = self.sequences.iter().position(|clip| clip.id == ANIM_DEAD) else {
+        let dead_id = self.replacement_id(ANIM_DEAD);
+        let Some(dead) = self
+            .sequences
+            .iter()
+            .position(|clip| clip.id == dead_id && clip.variation_id == 0)
+        else {
             return;
         };
         self.start_transition(dead, false);

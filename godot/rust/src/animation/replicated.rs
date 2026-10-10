@@ -45,7 +45,7 @@ impl WorldUnits {
         for (&id, unit) in &self.units {
             let sets = active_sets(replica.unit(id).and_then(|unit| unit.get::<UnitAuras>()));
             let Some(visual) = &unit.visual else { continue };
-            let path = if unit.is_player {
+            let path = if unit.visual_player_model.is_some() {
                 "M2Animation"
             } else {
                 "NpcModel/M2Animation"
