@@ -62,14 +62,32 @@ class TerrainTests(unittest.TestCase):
         self.assertEqual(blob['locations'], ['textures/768431.blob'])
         self.assertFalse(any(r['code'] == 'terrain_auxiliary_edges' for r in result['unresolved']))
 
-    def test_empty_liquid_is_not_needed_but_missing_join_stays_unresolved(self):
+    def test_empty_liquid_is_not_needed_but_missing_table_stays_unresolved(self):
         result = self.run_adt(chunk('MH2O', bytes(256 * 12), True))
         self.assertFalse(result['unresolved'])
         self.assertTrue(any(r['status'] == 'not_needed' for r in result['resolved']))
-        self.table('GroundEffectTexture', 'ID,DoodadID_0\n')
-        self.table('GroundEffectDoodad', 'ID,ModelFileID\n')
         result = self.run_adt(chunk('MCNK', chunk('MCLY', ints(0, 0, 0, 99), True), True))
         self.assertTrue(any(r['code'] == 'terrain_auxiliary_edges' and '99' in r['reason'] for r in result['unresolved']))
+
+    def test_absent_optional_ground_rows_and_unconsumed_mptx_are_not_needed(self):
+        self.table('GroundEffectTexture', 'ID,DoodadID_0\n')
+        self.table('GroundEffectDoodad', 'ID,ModelFileID\n')
+        payload = chunk('MCNK', chunk('MCLY', ints(0, 0, 0, 12335), True) + chunk('MPTX', ints(100, 200), True), True)
+        result = self.run_adt(payload)
+        self.assertFalse(result['unresolved'])
+        self.assertEqual([a['fdid'] for a in result['assets']], [1])
+        evidence = '\n'.join(r['evidence'] for r in result['resolved'] if r['status'] == 'not_needed')
+        self.assertIn('12335', evidence)
+        self.assertIn('MPTX', evidence)
+
+    def test_missing_required_liquid_type_is_not_marked_not_needed(self):
+        self.table('LiquidType', 'ID,MaterialID\n')
+        water = bytearray(256 * 12)
+        struct.pack_into('<III', water, 0, len(water), 1, 0)
+        water += struct.pack('<HHffBBBBII', 999, 0, 0, 0, 0, 0, 1, 1, 0, 0)
+        result = self.run_adt(chunk('MH2O', water, True))
+        self.assertTrue(any(r['code'] == 'terrain_auxiliary_edges' and '999' in r['reason'] for r in result['unresolved']))
+        self.assertFalse(any(r['status'] == 'not_needed' for r in result['resolved']))
 
     def test_mdid_mhid_are_ids_mtxf_is_flags_not_a_texture(self):
         result = self.run_adt(chunk('MDID', ints(8), True) + chunk('MHID', ints(9), True) + chunk('MTXF', ints(0x10), True))
