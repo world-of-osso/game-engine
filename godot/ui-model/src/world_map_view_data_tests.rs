@@ -440,7 +440,7 @@ fn real_worg_polygon_projects_into_elwynn_and_completion_replaces_it_with_turnin
     runtime.log.push(entry);
     runtime.watched.push(28766);
     catalog.apply(&mut runtime.log);
-    let view = |runtime: &crate::quest_runtime::QuestRuntime| {
+    let view = |runtime: &crate::quest_runtime::QuestRuntime, selected| {
         world_map_frame_state(
             data(),
             WorldMapRequest {
@@ -450,12 +450,19 @@ fn real_worg_polygon_projects_into_elwynn_and_completion_replaces_it_with_turnin
                 hovered: None,
                 player: None,
                 quests: &runtime.map_entries(),
-                quest_areas: &runtime.watched_objective_areas(),
+                quest_areas: &runtime.selected_objective_areas(selected),
                 vignettes: &[],
             },
         )
     };
-    let active = view(&runtime);
+    let unselected = view(&runtime, None);
+    assert!(unselected.quest_areas.is_empty());
+    assert_eq!(
+        unselected.pins[0].badge, "1",
+        "selection changes blobs, not pins"
+    );
+    assert!(view(&runtime, Some(7)).quest_areas.is_empty());
+    let active = view(&runtime, Some(28766));
     assert_eq!(active.quest_areas.len(), 1);
     assert_eq!(active.quest_areas[0].len(), 7);
     // Independent UiMapAssignment39462 bounds, local DB2 point(-8894,-138).
@@ -471,7 +478,7 @@ fn real_worg_polygon_projects_into_elwynn_and_completion_replaces_it_with_turnin
         removed: Vec::new(),
         watched_quest_ids: vec![28766],
     });
-    let complete = view(&runtime);
+    let complete = view(&runtime, Some(28766));
     assert!(complete.quest_areas.is_empty());
     assert_eq!(complete.pins[0].pin_type, MapPinType::QuestTurnIn);
     assert!(complete.pins[0].badge.is_empty());

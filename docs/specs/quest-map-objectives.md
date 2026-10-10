@@ -5,8 +5,8 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 ## What it must do
 
 - [x] Prefer locally exported Retail POI geometry where present; use authored server POIs for other quest IDs. Never invent missing polygons.
-- [x] Show blue incomplete watched-objective areas and numbered objective pins on both maps. Completion removes areas and replaces the objective pin with a `?` turn-in pin.
-- [x] Match map numbers to objective tracker watch order; clicking a tracker quest super-tracks it and highlights its area.
+- [x] Show blue incomplete objective areas and numbered objective pins on both maps. World-map blobs show only the super-tracked quest (plus explicit hover/focus quests when supported), not every watched quest. Completion removes areas and replaces the objective pin with a `?` turn-in pin.
+- [x] Match map numbers to objective tracker watch order; clicking a tracker quest super-tracks it. Normal and super-tracked blobs use fill128/border192, never stronger selected opacity.
 - [x] Show available-giver `!` pins when authoritative giver status and position exist.
 - [x] Clip minimap areas and icons to its mask; rotate map geometry and overlays together when rotation is enabled. Show the selected off-screen objective's direction arrow at the edge.
 
@@ -32,6 +32,9 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 - `godot/core/{src/quest_area_data.rs,tests/minimap_data.rs}`: blue fill, clipping and rotation/inverse projection.
 
 ## Known gaps (current cycle)
+
+- [ ] Quest-log/tracker hover/focus blob selection and hover visuals: no world-map highlight texture/atlas or native highlight alpha found in cached Retail UI. No invented highlight applied.
+- [ ] Retail minimap native blob selection is not exposed in cached Lua. QuestPOIs is an always-on tracking filter, not proof of which polygons native code draws; retain watched polygons pending native evidence. The authored minimap OutsideSelected border remains, at unchanged128/192 opacity.
 
 - [ ] Conditional POIs require player-condition evaluation; excluded, never replaced with guessed shapes. Missing authored geometry remains absent; [source coverage](../wiki/systems/quest-map-objectives.md#source-ownership).
 - [ ] Independent verification unavailable (Claude OAuth expired). Workspace format check has two unchanged baseline failures; changed-file format check passes.

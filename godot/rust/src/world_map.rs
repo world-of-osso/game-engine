@@ -128,7 +128,6 @@ impl WindowDrag {
 /// The objective area overlay for map-UV polygons, at `QUEST_AREA_TEXTURE_SIZE`.
 fn quest_area_pixels(
     areas: &[Vec<[f32; 2]>],
-    selected: &[Vec<[f32; 2]>],
     art: &game_engine_core::quest_area_data::QuestAreaArt,
 ) -> Vec<u8> {
     let [width, height] = QUEST_AREA_TEXTURE_SIZE;
@@ -140,22 +139,7 @@ fn quest_area_pixels(
                 .collect()
         })
         .collect();
-    let mut pixels = quest_area_overlay(width, height, &polygons, art, false);
-    let selected: Vec<Vec<[f32; 2]>> = selected
-        .iter()
-        .map(|area| {
-            area.iter()
-                .map(|[u, v]| [u * width as f32, v * height as f32])
-                .collect()
-        })
-        .collect();
-    let highlight = quest_area_overlay(width, height, &selected, art, true);
-    for (base, over) in pixels.chunks_exact_mut(4).zip(highlight.chunks_exact(4)) {
-        if over[3] != 0 {
-            base.copy_from_slice(over);
-        }
-    }
-    pixels
+    quest_area_overlay(width, height, &polygons, art, false)
 }
 
 fn canvas_uv(layout: &WorldMapLayout, point: Vector2) -> Option<[f32; 2]> {
@@ -328,7 +312,12 @@ impl GameClient {
                 hovered: self.world_map.hovered,
                 player: player.as_ref(),
                 quests: &self.account.quests.map_entries(),
-                quest_areas: &self.account.quests.watched_objective_areas(),
+                // QuestBlobDataProvider Refresh draws the super-tracked quest,
+                // not every watched quest. Hover/focus selection remains unsupported.
+                quest_areas: &self
+                    .account
+                    .quests
+                    .selected_objective_areas(self.quests.ui.super_tracked),
                 vignettes: &vignettes,
             },
         );
@@ -623,21 +612,11 @@ impl GameClient {
             self.world_map.display.maximized,
         );
         let selection = self.quests.ui.super_tracked;
-        let selected = game_engine_ui_model::world_map_view_data::quest_area_polygons(
-            &self
-                .world_map
-                .data()
-                .ok_or("World map catalog missing")?
-                .catalog,
-            state.map_id,
-            &self.account.quests.selected_objective_areas(selection),
-        );
         let changed = self.world_map.drawn_areas.as_ref() != Some(&state.quest_areas)
             || self.world_map.drawn_selection != selection;
         let overlay = if changed {
             Some(quest_area_pixels(
                 &state.quest_areas,
-                &selected,
                 self.quests
                     .map_blob_art
                     .as_ref()

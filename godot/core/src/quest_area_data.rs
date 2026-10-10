@@ -3,6 +3,9 @@ use crate::minimap_data::{TileImage, sample};
 use std::path::Path;
 
 const RIM_PX: f32 = 3.0;
+// QuestBlobDataProvider.lua OnLoad; selection does not change these values.
+const FILL_ALPHA: u16 = 128;
+const BORDER_ALPHA: u16 = 192;
 
 pub struct QuestAreaArt {
     fill: TileImage,
@@ -30,7 +33,8 @@ impl QuestAreaArt {
 }
 
 /// Transparent RGBA overlay. Shapes come only from POI points; textures never
-/// substitute a missing polygon. Highlighting uses the selected rim and full alpha.
+/// substitute a missing polygon. Selection uses authored minimap OutsideSelected
+/// art only; the world map has no separate selected art. Opacity stays unchanged.
 pub fn quest_area_overlay(
     width: u32,
     height: u32,
@@ -75,8 +79,7 @@ fn polygon_pixel(
                 (y.floor() as u32 % art.fill.height) as f32 / art.fill.height as f32,
             ],
         );
-        let fill_alpha = if highlighted { 180 } else { 128 };
-        color[3] = (u16::from(color[3]) * fill_alpha / 255) as u8;
+        color[3] = (u16::from(color[3]) * FILL_ALPHA / 255) as u8;
     }
     let distance = edge_distance(polygon, point);
     if distance <= RIM_PX {
@@ -86,8 +89,7 @@ fn polygon_pixel(
             &art.rim
         };
         let mut border = sample(rim, [0.5, distance / RIM_PX]);
-        let border_alpha = if highlighted { 255 } else { 192 };
-        border[3] = (u16::from(border[3]) * border_alpha / 255) as u8;
+        border[3] = (u16::from(border[3]) * BORDER_ALPHA / 255) as u8;
         color = over(color, border);
     }
     color
@@ -205,15 +207,37 @@ mod tests {
     }
 
     #[test]
+    fn opaque_art_uses_retail_fill_and_border_alpha_for_both_selection_states() {
+        let opaque = || TileImage {
+            pixels: vec![255; 4],
+            width: 1,
+            height: 1,
+        };
+        let art = QuestAreaArt {
+            fill: opaque(),
+            rim: opaque(),
+            selected_rim: opaque(),
+        };
+        let polygon = [[10.0, 10.0], [30.0, 10.0], [30.0, 30.0], [10.0, 30.0]];
+        for selected in [false, true] {
+            assert_eq!(
+                polygon_pixel(&polygon, [20.0, 20.0], &art, selected)[3],
+                128
+            );
+            assert_eq!(polygon_pixel(&polygon, [9.5, 20.0], &art, selected)[3], 192);
+        }
+    }
+
+    #[test]
     fn overlay_fills_inside_with_a_stronger_rim_and_leaves_outside_clear() {
         let square = vec![[10.0, 10.0], [30.0, 10.0], [30.0, 30.0], [10.0, 30.0]];
         let polygons = [square];
         let overlay = quest_area_overlay(40, 40, &polygons, &art(), false);
         let selected = quest_area_overlay(40, 40, &polygons, &art(), true);
-        assert_eq!(alpha(&selected, 40, 20, 20), 180, "selected fill alpha");
-        assert!(
-            alpha(&selected, 40, 10, 20) > alpha(&overlay, 40, 10, 20),
-            "selected border highlight"
+        assert_eq!(alpha(&selected, 40, 20, 20), 128, "selected fill alpha");
+        assert_eq!(
+            selected, overlay,
+            "world-map selection changes no opacity or art"
         );
         assert_eq!(alpha(&overlay, 40, 5, 5), 0, "outside");
         assert_eq!(alpha(&overlay, 40, 20, 20), 128, "Retail fill alpha");
