@@ -21,6 +21,8 @@ quick-js = "0.4"
 shared = { git = "https://github.com/world-of-osso/shared-protocol.git", rev = "e25c79d" }
 
 [dev-dependencies]
+# Offline frozen-source extraction uses the same local archive reader; never a runtime dependency.
+osso_asset_resolver = { package = "asset-resolver", path = "../../../asset-resolver" }
 # Real NPC fixture oracle: DB2 selection, compositor and authored M2 texture slots.
 game-engine-core = { path = "../core" }
 # Fixture SQL setup and WAL-safe snapshots without a host sqlite3 executable.

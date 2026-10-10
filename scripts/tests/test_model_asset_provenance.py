@@ -100,6 +100,21 @@ class ModelAssetProvenanceTests(unittest.TestCase):
             self.assertEqual(retail.read_bytes(), b"retail-sentinel")
             self.assertEqual(json.loads((data / "cache/model-asset-index.json").read_text()), result)
 
+    def test_incremental_frozen_publication_retains_existing_model_chains(self):
+        with tempfile.TemporaryDirectory() as directory:
+            data = Path(directory)
+            identity = {"product": "wow_classic_beta", "build_key": "e8dd824cf6c3d96cd01f804ca2ea5a63", "build": "1.60.1.70291"}
+            for fdid in [1100087, 1100258]:
+                raw = str(fdid).encode()
+                receipt = chains.create_asset_receipt(identity, fdid, "m2", f"models/{fdid}.m2", raw, hashlib.md5(raw).hexdigest())
+                chains.write_asset_files(data, [(receipt, raw)])
+                result = chains.write_asset_index(data, identity,
+                    {"dependencies": {f"{fdid}.m2": {}}, "metadata": []}, [(receipt, raw)], [])
+            self.assertEqual(result["chains"][0]["dependencies"], {"1100087.m2": {}, "1100258.m2": {}})
+            self.assertEqual([row["fdid"] for row in result["assets"]], [1100087, 1100258])
+            for row in result["assets"]:
+                self.assertEqual(hashlib.md5((data / row["path"]).read_bytes()).hexdigest(), row["content_key"])
+
     def test_receipt_rejects_borrowed_or_zero_filled_bytes(self):
         with self.assertRaisesRegex(ValueError, "content key"):
             chains.create_asset_receipt({"product": "wow_classic_beta", "build_key": "e8dd824cf6c3d96cd01f804ca2ea5a63", "build": "1.60.1.70291"}, 1100087, "m2", "models/1100087.m2", b"retail-model", hashlib.md5(b"forever-model").hexdigest())
