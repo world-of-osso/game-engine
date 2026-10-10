@@ -1,6 +1,9 @@
 //! Canonical UI layout file operation shared with the legacy client schema.
 mod edit_layouts;
-pub use edit_layouts::{create_layout, delete_layout, rename_layout, save_layout_elements};
+pub use edit_layouts::{
+    create_layout, delete_layout, edit_mode_account_settings, rename_layout, save_layout_elements,
+    set_edit_mode_system_shown,
+};
 use serde::{Deserialize, Serialize};
 use std::{collections::BTreeMap, fs, path::Path};
 
@@ -14,6 +17,9 @@ struct LayoutFile {
 
 #[derive(Serialize, Deserialize)]
 struct EditModeLayoutsFile {
+    /// Account-wide editor visibility, independent of layouts/character selection.
+    #[serde(default)]
+    show_systems: BTreeMap<String, bool>,
     #[serde(default)]
     layouts: BTreeMap<String, EditLayout>,
     #[serde(default)]
@@ -26,6 +32,7 @@ struct EditModeLayoutsFile {
 impl Default for EditModeLayoutsFile {
     fn default() -> Self {
         Self {
+            show_systems: BTreeMap::new(),
             layouts: BTreeMap::new(),
             active_layout: BTreeMap::new(),
             forever_default_migrated: true,

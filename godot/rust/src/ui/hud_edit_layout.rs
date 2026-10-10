@@ -3,16 +3,21 @@
 use game_engine_ui_model::hud_edit::{Placements, clamp_position, top_left};
 use game_engine_ui_model::hud_edit_elements::EDIT_MODE_ELEMENTS;
 use std::cell::{Cell, RefCell};
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use ui_toolkit::{anchor::AnchorTarget, layout::LayoutRect, registry::FrameRegistry};
 
 thread_local! {
     static PLACEMENTS: RefCell<Placements> = RefCell::new(Placements::new());
     static EDITOR_ACTIVE: Cell<bool> = const { Cell::new(false) };
+    static SHOW_SYSTEMS: RefCell<BTreeMap<String, bool>> = RefCell::new(BTreeMap::new());
 }
 
 pub(crate) fn publish_editor_active(active: bool) {
     EDITOR_ACTIVE.with(|value| value.set(active));
+}
+
+pub(crate) fn publish_account_settings(settings: BTreeMap<String, bool>) {
+    SHOW_SYSTEMS.with(|value| *value.borrow_mut() = settings);
 }
 
 pub(super) fn editor_active() -> bool {
@@ -84,6 +89,15 @@ pub(crate) fn collect_selection_boxes(
     EDIT_MODE_ELEMENTS
         .iter()
         .filter_map(|element| {
+            let shown = SHOW_SYSTEMS.with(|settings| {
+                game_engine_ui_model::hud_edit_component::mover_is_shown(
+                    &settings.borrow(),
+                    element.key,
+                )
+            });
+            if !shown {
+                return None;
+            }
             let id = registry.get_by_name(element.frame_name)?;
             if !frame_is_visible(registry, id) {
                 return None;

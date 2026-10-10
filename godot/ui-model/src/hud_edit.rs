@@ -160,6 +160,30 @@ impl EditDraft {
             .map(|entry| entry.key.clone());
     }
 
+    pub fn hide_movers(&mut self, movers: &[&str]) {
+        if self
+            .selected
+            .as_deref()
+            .is_some_and(|key| movers.contains(&key))
+        {
+            self.selected = None;
+        }
+        if self
+            .drag
+            .as_ref()
+            .is_some_and(|drag| movers.contains(&drag.key.as_str()))
+        {
+            self.drag = None;
+        }
+        if self
+            .hovered
+            .as_deref()
+            .is_some_and(|key| movers.contains(&key))
+        {
+            self.hovered = None;
+        }
+    }
+
     pub fn reset_selected(&mut self) {
         if let Some(key) = &self.selected {
             self.working.remove(key);

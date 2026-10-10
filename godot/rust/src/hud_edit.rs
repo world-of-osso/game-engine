@@ -46,6 +46,9 @@ impl GameClient {
 
     fn enter_hud_edit(&mut self) -> Result<(), String> {
         self.physical_input.clear();
+        crate::ui::hud_edit_layout::publish_account_settings(
+            ui_layout_data::edit_mode_account_settings(&self.account.hud_layout_path()?)?,
+        );
         self.hud_editor.draft.enter(&self.ui_layout);
         self.hud_editor.status.clear();
         let mut ui = RegistryUi::new_alloc();
@@ -147,6 +150,9 @@ impl GameClient {
             })
             .unwrap_or_default();
         Ok(EditModePanelState {
+            show_systems: ui_layout_data::edit_mode_account_settings(
+                &self.account.hud_layout_path()?,
+            )?,
             layout_name: self.ui_layout.name.clone(),
             name_draft,
             layout_names: ui_layout_data::layout_names(&self.account.hud_layout_path()?)?,
@@ -348,6 +354,10 @@ pub(crate) fn apply_manager_action(
     {
         return Ok(None);
     }
+    if let Some(key) = action.strip_prefix("edit_mode_show_") {
+        persist_system_visibility(path, key, draft)?;
+        return Ok(None);
+    }
     match action {
         ACTION_EDIT_MODE_DELETE => {
             if SYSTEM_PRESETS.iter().any(|(name, _)| *name == layout.name) {
@@ -379,6 +389,25 @@ pub(crate) fn apply_manager_action(
         }
     }
     Ok(None)
+}
+
+fn persist_system_visibility(
+    path: &std::path::Path,
+    key: &str,
+    draft: &mut EditDraft,
+) -> Result<(), String> {
+    let (_, _, movers) = SHOW_SYSTEMS
+        .iter()
+        .find(|(candidate, _, _)| *candidate == key)
+        .ok_or_else(|| format!("Unknown Edit Mode system {key:?}"))?;
+    let settings = ui_layout_data::edit_mode_account_settings(path)?;
+    let shown = !system_is_shown(&settings, key);
+    let settings = ui_layout_data::set_edit_mode_system_shown(path, key, shown)?;
+    crate::ui::hud_edit_layout::publish_account_settings(settings);
+    if !shown {
+        draft.hide_movers(movers);
+    }
+    Ok(())
 }
 
 fn persist_manager_layout(
