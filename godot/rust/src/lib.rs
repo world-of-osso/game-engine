@@ -615,6 +615,12 @@ impl INode3D for GameClient {
             }
             return;
         }
+        if key.get_keycode() == godot::global::Key::ESCAPE
+            && self.account.talents.cancel_loadout_dialog()
+        {
+            self.mark_viewport_input_handled();
+            return;
+        }
         if key.get_keycode() == godot::global::Key::ESCAPE {
             match self.close_all_windows() {
                 Ok(true) => {

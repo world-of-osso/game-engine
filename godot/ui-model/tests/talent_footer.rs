@@ -238,6 +238,21 @@ fn keyboard_search_preview_selects_real_name_and_clear_removes_matches() {
 }
 
 #[test]
+fn talent_loadout_new_opens_a_retail_name_dialog() {
+    let mut state = state();
+    let view = state.talents.as_mut().unwrap();
+    let mut editor = view.editor.clone();
+    editor.action(view, 80, "talent:loadout_new").unwrap();
+    view.editor = editor;
+    let mut shared = SharedContext::new();
+    shared.insert(state);
+    let mut registry = FrameRegistry::new(1920.0, 1080.0);
+    Screen::new(spellbook_frame_screen).sync(&shared, &mut registry);
+    assert!(registry.get_by_name("TalentLoadoutNameInput").is_some());
+    assert!(registry.get_by_name("TalentLoadoutSave").is_some());
+}
+
+#[test]
 fn loadout_menu_has_only_server_supported_default_configuration_no_fabricated_saved_builds() {
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
