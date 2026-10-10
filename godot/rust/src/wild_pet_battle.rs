@@ -4,11 +4,11 @@ use crate::world_models::UnitAppearance;
 use crate::{GameClient, frame_error::FrameError, ui::RegistryUi};
 use game_engine_session::SessionScreen;
 use game_engine_ui_model::wild_pet_battle::{MODEL_SCENE, WildBattleView, wild_battle_screen};
-use godot::classes::Node3D;
+use godot::classes::{CanvasLayer, Node3D};
 use godot::prelude::*;
 use shared::components::Npc;
 use shared::protocol::WildPetBattleUpdate;
-use std::collections::BTreeSet;
+use std::collections::{BTreeMap, BTreeSet};
 
 #[derive(Default)]
 pub(crate) struct WildBattleHud {
@@ -19,6 +19,7 @@ pub(crate) struct WildBattleHud {
     pending: Option<([u64; 2], [u32; 2])>,
     loaded: [Option<Gd<Node3D>>; 2],
     shown: [u32; 2],
+    hidden_layers: BTreeMap<InstanceId, bool>,
 }
 impl WildBattleHud {
     pub(crate) fn visit_uis(
@@ -150,11 +151,41 @@ impl GameClient {
         self.wild_pet_battle.shown = [0; 2];
     }
     pub(super) fn reset_wild_pet_battle(&mut self) {
+        self.wild_pet_battle.view.state = None;
+        self.sync_wild_battle_ui_visibility();
         self.clear_battle_scene();
         if let Some(ui) = self.wild_pet_battle.ui.take() {
             ui.free();
         }
         self.wild_pet_battle = WildBattleHud::default();
+    }
+    pub(super) fn sync_wild_battle_ui_visibility(&mut self) {
+        let active = self.account.session.screen == SessionScreen::InWorld
+            && self.wild_pet_battle.view.state.is_some();
+        let battle_ui = self.wild_pet_battle.ui.as_ref().map(Gd::instance_id);
+        let menu_ui = self.game_menu_ui.as_ref().map(Gd::instance_id);
+        let children = self.base().get_children();
+        for child in children.iter_shared() {
+            let Ok(mut layer) = child.try_cast::<CanvasLayer>() else {
+                continue;
+            };
+            let id = layer.instance_id();
+            if Some(id) == battle_ui || Some(id) == menu_ui || layer.get_name() == "FpsOverlay" {
+                continue;
+            }
+            if active {
+                self.wild_pet_battle
+                    .hidden_layers
+                    .entry(id)
+                    .or_insert_with(|| layer.is_visible());
+                layer.set_visible(false);
+            } else if let Some(visible) = self.wild_pet_battle.hidden_layers.remove(&id) {
+                layer.set_visible(visible);
+            }
+        }
+        if !active {
+            self.wild_pet_battle.hidden_layers.clear();
+        }
     }
     fn sync_battle_scene(&mut self) -> Result<(), String> {
         let state = self

@@ -860,6 +860,8 @@ impl GameClient {
         let session = &self.account.session;
         let mut state = VarDictionary::new();
         state.set("screen", format!("{:?}", session.screen).as_str());
+        state.set("ui_layout", self.ui_layout.name.as_str());
+        state.set("ui_skin", format!("{:?}", self.ui_layout.skin).as_str());
         state.set(
             "reconnect_phase",
             format!("{:?}", session.reconnect_phase).as_str(),
@@ -1998,6 +2000,10 @@ impl GameClient {
             }),
             ("UI scale after updates", |c, _| {
                 Ok(c.sync_registry_ui_scale()?)
+            }),
+            ("Pet battle HUD isolation", |c, _| {
+                c.sync_wild_battle_ui_visibility();
+                Ok(())
             }),
         ];
         for (step, run) in steps {

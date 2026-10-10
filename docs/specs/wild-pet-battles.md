@@ -11,6 +11,7 @@ Wild PvE encounters use server-authoritative snapshots and actions, rendered thr
 - [ ] The camera frames both active 3D pet models on their corresponding health-frame sides, facing each other; swapping updates models.
 - [ ] End displays outcome/XP/capture and disables further actions. Journal updates remain authoritative.
 - [ ] Modern and Forever retain identical geometry and controls.
+- [ ] Ordinary world HUD/nameplates cannot cover the active battle HUD; closing or resetting a battle restores each surviving layer's prior visibility.
 
 ## How it works
 - [Battle-pet journal and assets](../wiki/systems/battle-pets.md).
