@@ -383,7 +383,7 @@ fn forever_npc_gear_reports_declared_missing_resources() {
 }
 
 #[test]
-fn forever_npc_gear_cache_keeps_all_retail_rows_and_removes_absent_overlay() {
+fn model_asset_forever_npc_gear_cache_keeps_retail_groups_and_their_sources() {
     use rusqlite::Connection;
     use std::collections::HashSet;
     let source = Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -441,6 +441,35 @@ fn forever_npc_gear_cache_keeps_all_retail_rows_and_removes_absent_overlay() {
     std::os::unix::fs::symlink(source.join("db2/1.60.1.70205"), &overlay).unwrap();
     crate::outfit_catalog_db::import_outfit_links_cache(&fixture).unwrap();
     let merged = snapshot(&cache);
+    let connection = Connection::open(&cache).unwrap();
+    for (table, index) in [
+        ("display_info", 0),
+        ("material_textures", 2),
+        ("model_to_fdid", 3),
+    ] {
+        let retail_keys = retail[index]
+            .iter()
+            .map(|row| row[0])
+            .collect::<HashSet<_>>();
+        let retail_key = *retail_keys.iter().min().unwrap();
+        let forever_key = merged[index]
+            .iter()
+            .map(|row| row[0])
+            .filter(|key| !retail_keys.contains(key))
+            .min()
+            .unwrap();
+        for (key, expected) in [(retail_key, "wow"), (forever_key, "wow_classic_beta")] {
+            let source: String = connection.query_row(
+                "SELECT source_product FROM asset_resource_sources WHERE table_name = ?1 AND resource_id = ?2",
+                rusqlite::params![table, key], |row| row.get(0),
+            ).unwrap();
+            assert_eq!(
+                source, expected,
+                "{table} resource {key} lost selected group ownership"
+            );
+        }
+    }
+    drop(connection);
     for (retail, merged) in retail.iter().zip(&merged) {
         assert!(retail.is_subset(merged));
         let retail_keys = retail.iter().map(|row| row[0]).collect::<HashSet<_>>();
