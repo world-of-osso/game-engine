@@ -8,10 +8,49 @@ import unittest
 
 sys.path.insert(0, str(Path(__file__).parents[1]))
 from asset_closure import Closure
-from closure_extract_rounds import fixed_point
+from closure_extract_rounds import fixed_point, missing_runtime_assets
 
 
 class ConvergenceTests(unittest.TestCase):
+    def test_existing_skeleton_still_publishes_new_owner_alias(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            d = Path(tmp)
+            (d / "models").mkdir()
+
+            def chunk(tag, payload):
+                return tag.encode() + struct.pack("<I", len(payload)) + payload
+
+            raw = bytearray(0x130)
+            raw[:4] = b"MD20"
+            payloads = {
+                1: chunk("MD21", raw) + chunk("SKID", struct.pack("<I", 2)),
+                2: chunk("AFID", struct.pack("<HHI", 0, 0, 0)),
+            }
+            (d / "models/2.skel").write_bytes(payloads[2])
+
+            def traverse():
+                g = Closure(d, {}, "wow", "fixture")
+                g.add(1, "m2", "root")
+                return g.run()
+
+            def count(m):
+                return len(missing_runtime_assets(m["assets"], d, {}))
+
+            def extract(m, n):
+                created = 0
+                for a in missing_runtime_assets(m["assets"], d, {}):
+                    for name in a["locations"]:
+                        p = d / name
+                        if not p.exists():
+                            p.write_bytes(payloads[a["fdid"]])
+                            created += int(n != 1)
+                return {"files": created}
+
+            result = fixed_point(traverse(), extract, traverse, count, lambda row: None)
+            self.assertEqual(result["summary"]["missing"], 0)
+            self.assertTrue((d / "models/1.skel").is_file())
+            self.assertEqual((d / "models/1.skel").read_bytes(), payloads[2])
+
     def test_peer_publication_with_equal_missing_count_still_expands_new_frontier(self):
         with tempfile.TemporaryDirectory() as tmp:
             d = Path(tmp)
