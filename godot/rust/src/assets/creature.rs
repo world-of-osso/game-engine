@@ -136,6 +136,14 @@ fn held_items<'a>(
         .collect()
 }
 
+pub(crate) fn authored_model_resolver(
+    data_root: &Path,
+    _product: game_engine_core::asset_product::AssetProduct,
+    _fdid: u32,
+) -> Result<CascListfileResolver, String> {
+    Ok(local_resolver(data_root))
+}
+
 pub(crate) fn local_resolver(data_root: &Path) -> CascListfileResolver {
     CascListfileResolver::new(
         AssetResolverConfig::new()
