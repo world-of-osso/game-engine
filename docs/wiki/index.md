@@ -10,6 +10,7 @@
 ## October 9 reconciliation
 
 - [Player cast spark](../specs/player-cast-feedback.md) — `397c20803` skin fill-height fix; `427e5a814` owns scoped native proof.
+- [Pet-battle effect HUD](systems/battle-pets.md#effect-hud-scopes--verified-2026-10-10) — weather and team/pet aura scopes, cooldown/lock overlays, retained log; both-skin private native UI proof, detached model receipts separate.
 - [Native HUD editor](systems/native-hud-edit-mode.md) — rounding `4850c6652`, preview bounds `bcd89f56e`, show-list `386a97f5e`, label/autosave/padding `8ad38c9cb`; [nameplates](../specs/nameplate-style.md) own level removal `37144af3e` and distance step `72689598a`; [HUD contract](../specs/hud-edit-mode.md) owns target rare art `ea8a275bf`.
 - [Spellbook icon shipping](../specs/spellbook-action-bar.md) — classbook proof `21b9fca97`; manifest exceptions `565122e97` are CPU diagnostics only. [StackSplit screen clamping](../specs/cursor-item.md) owns native `clampedToScreen` correction `5b10f31bc`.
 - [Recovered Skyborne NPC bakes](systems/forever-data.md#seven-recovered-bakes--native-npc-checkpoint-2026-10-10) — seven mapped/attached displays; four NPCs textured in eight inspected Modern/Forever captures; overlapping-spawn visual gaps explicit.
