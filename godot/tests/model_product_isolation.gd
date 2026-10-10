@@ -7,13 +7,14 @@ var loader: WowAssetLoader
 var stage: Node3D
 var camera: Camera3D
 var shots := ""
+var failures: Array[String] = []
 
 func _initialize() -> void:
 	call_deferred("run")
 
 func fail(message: String) -> void:
+	failures.append(message)
 	push_error("MODEL_ISOLATION " + message)
-	quit(1)
 
 func run() -> void:
 	await run_displays(DISPLAYS.keys())
@@ -22,11 +23,13 @@ func run_displays(displays: Array) -> void:
 	shots = OS.get_environment("MODEL_ISOLATION_SHOTS")
 	if DisplayServer.get_name() == "headless" or not shots.is_absolute_path():
 		fail("Require native renderer and absolute PNG output directory")
+		quit(1)
 		return
 	root.size = Vector2i(1280, 720)
 	loader = WowAssetLoader.new()
 	if loader.asset_runtime_status().mode != "ExtractedOnly":
 		fail("Require extracted-only runtime")
+		quit(1)
 		return
 	stage = Node3D.new()
 	root.add_child(stage)
@@ -50,17 +53,20 @@ func run_displays(displays: Array) -> void:
 	var index = JSON.parse_string(FileAccess.get_file_as_string("res://../data/cache/model-asset-index.json"))
 	if not index is Dictionary or DirAccess.make_dir_recursive_absolute(shots) != OK:
 		fail("Cannot read asset receipts or create capture directory")
+		quit(1)
 		return
+	var passed := 0
 	for display in displays:
-		if not await capture_display(display, index):
-			return
+		if await capture_display(display, index):
+			passed += 1
 	var status := loader.asset_runtime_status()
 	if status.forbidden_casc_accesses != 0:
 		fail("CASC tripwire count " + str(status.forbidden_casc_accesses))
-		return
-	print("MODEL_ISOLATION PASS displays=", displays, " mode=", status.mode, " tripwire=", status.forbidden_casc_accesses)
+	print("MODEL_ISOLATION SUMMARY passed=", passed, " total=", displays.size(), " failures=", failures, " mode=", status.mode, " tripwire=", status.forbidden_casc_accesses)
+	if failures.is_empty():
+		print("MODEL_ISOLATION PASS displays=", displays, " mode=", status.mode, " tripwire=", status.forbidden_casc_accesses)
 	stage.free()
-	quit(0)
+	quit(0 if failures.is_empty() else 1)
 
 func capture_display(display: int, index: Dictionary) -> bool:
 	var result := loader.load_creature_display(display)
@@ -77,6 +83,7 @@ func capture_display(display: int, index: Dictionary) -> bool:
 			expected = receipt
 	if expected.is_empty() or not source.ends_with("/" + expected.path) or FileAccess.get_sha256(source) != expected.sha256:
 		fail("Display %d: model source/hash differs from actual-build receipt: %s" % [display, source])
+		visual.free()
 		return false
 	var meshes := 0
 	for child in model.find_children("*", "MeshInstance3D", true, false):
@@ -85,6 +92,7 @@ func capture_display(display: int, index: Dictionary) -> bool:
 			meshes += 1
 	if meshes == 0:
 		fail("Display %d has no visible meshes" % display)
+		visual.free()
 		return false
 	var bounds: AABB = model.get_meta("m2_bounds")
 	var focus := visual.global_transform * bounds.get_center()
@@ -98,6 +106,7 @@ func capture_display(display: int, index: Dictionary) -> bool:
 	var path := shots.path_join("display-%d.png" % display)
 	if image.save_png(path) != OK:
 		fail("Cannot save " + path)
+		visual.free()
 		return false
 	print("MODEL_ISOLATION DISPLAY id=", display, " model=", DISPLAYS[display][0], " product=", expected.product, " actual_build=", expected.build, " source=", source, " meshes=", meshes)
 	visual.free()
