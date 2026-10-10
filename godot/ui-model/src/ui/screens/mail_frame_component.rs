@@ -787,7 +787,7 @@ fn invoice_money_row(
     children.extend(money_colored(
         names.1,
         copper,
-        (316.0, FRAME_H - y - 32.0),
+        (316.0, y + 32.0),
         MoneyAlign::Right,
         if red { RED_FONT_COLOR } else { ink },
     ));
