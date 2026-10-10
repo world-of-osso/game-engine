@@ -368,6 +368,7 @@ def main():
     result["config_sha256"] = digest(args.config)
     result["seed_tool_sha256"] = digest(Path(__file__).with_name("closure_seeds.py"))
     result["spell_seed_tool_sha256"] = digest(Path(__file__).with_name("closure_spell_seeds.py"))
+    result["terrain_tool_sha256"] = digest(Path(__file__).with_name("closure_terrain.py"))
     args.output.parent.mkdir(parents=True, exist_ok=True)
     with args.output.open("w") as stream:
         json.dump(result, stream, indent=2, sort_keys=True)
