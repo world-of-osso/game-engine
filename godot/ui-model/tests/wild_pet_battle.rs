@@ -296,36 +296,96 @@ fn petbattle_pvp_waiting_player_can_still_confirm_forfeit() {
 
 #[test]
 fn petbattle_effect_hud_both_skins_show_weather_pads_duration_polarity_and_lockout() {
-    game_engine_ui_model::paths::set_data_root(std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data")).unwrap();
+    game_engine_ui_model::paths::set_data_root(
+        std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+    )
+    .unwrap();
     for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
         set_thread_skin(skin);
         let mut state = snapshot();
-        state.weather = Some(BattleAuraSnapshot { ability_id:403,name:"Sunny Day".into(),icon:133784,rounds_remaining:8,is_buff:true });
-        state.team_auras[0] = vec![BattleAuraSnapshot { ability_id:333,name:"Decoy".into(),icon:132145,rounds_remaining:-1,is_buff:true }];
-        state.team_auras[1] = vec![BattleAuraSnapshot { ability_id:189,name:"Cyclone".into(),icon:136022,rounds_remaining:4,is_buff:false }];
+        state.weather = Some(BattleAuraSnapshot {
+            ability_id: 403,
+            name: "Sunny Day".into(),
+            icon: 133784,
+            rounds_remaining: 8,
+            is_buff: true,
+        });
+        state.team_auras[0] = vec![BattleAuraSnapshot {
+            ability_id: 333,
+            name: "Decoy".into(),
+            icon: 132145,
+            rounds_remaining: -1,
+            is_buff: true,
+        }];
+        state.team_auras[1] = vec![BattleAuraSnapshot {
+            ability_id: 189,
+            name: "Cyclone".into(),
+            icon: 136022,
+            rounds_remaining: 4,
+            is_buff: false,
+        }];
         state.teams[0][0].abilities[0].cooldown = 2;
         state.teams[0][0].abilities[0].lockout = 5;
         let mut view = WildBattleView::default();
-        view.receive(WildPetBattleUpdate::Round { state, combat_text:vec!["Sunlight used".into(),"Cyclone applied".into()] });
-        let mut context = SharedContext::new(); context.insert(skin); context.insert(view);
-        let mut registry = FrameRegistry::new(1280.0,720.0);
-        Screen::new(wild_battle_screen).sync(&context,&mut registry);
-        for (name,text) in [("PetBattleWeatherName","Sunny Day"),("PetBattleWeatherDuration","8"),("PetBattleAllyPadBuff0Duration",""),("PetBattleEnemyPadDebuff0Duration","4 rounds"),("PetBattleAbility1Cooldown","5")] {
-            let frame=registry.get(registry.get_by_name(name).expect(name)).unwrap();
-            assert!(matches!(frame.widget_data.as_ref(),Some(ui_toolkit::frame::WidgetData::FontString(value)) if value.text==text),"{name}: {text}");
+        view.receive(WildPetBattleUpdate::Round {
+            state,
+            combat_text: vec!["Sunlight used".into(), "Cyclone applied".into()],
+        });
+        let mut context = SharedContext::new();
+        context.insert(skin);
+        context.insert(view);
+        let mut registry = FrameRegistry::new(1280.0, 720.0);
+        Screen::new(wild_battle_screen).sync(&context, &mut registry);
+        for (name, text) in [
+            ("PetBattleWeatherName", "Sunny Day"),
+            ("PetBattleWeatherDuration", "8"),
+            ("PetBattleAllyPadBuff0Duration", ""),
+            ("PetBattleEnemyPadDebuff0Duration", "4 rounds"),
+            ("PetBattleAbility1Cooldown", "5"),
+        ] {
+            let frame = registry
+                .get(registry.get_by_name(name).expect(name))
+                .unwrap();
+            assert!(
+                matches!(frame.widget_data.as_ref(),Some(ui_toolkit::frame::WidgetData::FontString(value)) if value.text==text),
+                "{name}: {text}"
+            );
         }
-        assert!(registry.get_by_name("PetBattleEnemyPadDebuff0Border").is_some());
-        assert!(registry.get_by_name("PetBattleAllyPadBuff0Border").is_none());
+        assert!(
+            registry
+                .get_by_name("PetBattleEnemyPadDebuff0Border")
+                .is_some()
+        );
+        assert!(
+            registry
+                .get_by_name("PetBattleAllyPadBuff0Border")
+                .is_none()
+        );
         assert!(registry.get_by_name("PetBattleCombatLog").is_some());
     }
 }
 
 #[test]
 fn petbattle_effect_hud_chat_keeps_rounds_and_terminal_lines_until_next_battle() {
-    let mut view=WildBattleView::default(); view.receive(WildPetBattleUpdate::Start(snapshot()));
-    for text in ["Sunlight used","Cyclone applied"] { view.receive(WildPetBattleUpdate::Round {state:snapshot(),combat_text:vec![text.into()]}); }
-    view.receive(WildPetBattleUpdate::End {battle_id:100,outcome:WildPetBattleOutcome::Won,rewards:vec![],captured_pet_id:None,combat_text:vec!["Rabbit fainted".into()]});
-    assert_eq!(view.combat_text,vec!["Sunlight used","Cyclone applied","Rabbit fainted"]);
-    view.receive(WildPetBattleUpdate::Start(snapshot())); assert!(view.combat_text.is_empty());
+    let mut view = WildBattleView::default();
+    view.receive(WildPetBattleUpdate::Start(snapshot()));
+    for text in ["Sunlight used", "Cyclone applied"] {
+        view.receive(WildPetBattleUpdate::Round {
+            state: snapshot(),
+            combat_text: vec![text.into()],
+        });
+    }
+    view.receive(WildPetBattleUpdate::End {
+        battle_id: 100,
+        outcome: WildPetBattleOutcome::Won,
+        rewards: vec![],
+        captured_pet_id: None,
+        combat_text: vec!["Rabbit fainted".into()],
+    });
+    assert_eq!(
+        view.combat_text,
+        vec!["Sunlight used", "Cyclone applied", "Rabbit fainted"]
+    );
+    view.receive(WildPetBattleUpdate::Start(snapshot()));
+    assert!(view.combat_text.is_empty());
 }
-
