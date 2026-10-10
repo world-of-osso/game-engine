@@ -590,6 +590,12 @@ impl RegistryModel {
             {
                 actions.push_back("auction_search".into())
             }
+            ScreenPostsetup::Spellbook
+                if self.registry.focused_frame == self.registry.get_by_name("TalentSearchBox")
+                    && self.registry.focused_frame.is_some() =>
+            {
+                actions.push_back("talent:search_submit".into());
+            }
             ScreenPostsetup::Trade => actions.push_back(crate::trade::ACTION_MONEY_SUBMIT.into()),
             // Original: Enter confirms a pending deletion once its gate is ready.
             ScreenPostsetup::CharacterSelect => {
