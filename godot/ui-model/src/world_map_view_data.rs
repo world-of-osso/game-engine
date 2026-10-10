@@ -304,6 +304,34 @@ fn vignette_pins(
         .collect()
 }
 
+/// One offer from an authoritative giver status and world-XYZ position.
+pub fn quest_offer_pin(
+    catalog: &UiMapCatalog,
+    map_id: u32,
+    label: &str,
+    status: shared::protocol::QuestGiverStatus,
+    location: (u32, [f32; 3]),
+) -> Option<MapPin> {
+    if !matches!(status, shared::protocol::QuestGiverStatus::Available(_)) {
+        return None;
+    }
+    if !matches!(
+        catalog.map(map_id)?.kind,
+        map_type::ZONE | map_type::CONTINENT
+    ) {
+        return None;
+    }
+    let (source_map, position) = location;
+    let [x, y] = catalog.map_position(map_id, source_map, position)?;
+    Some(MapPin {
+        pin_type: MapPinType::QuestAvailable,
+        label: label.into(),
+        badge: String::new(),
+        x,
+        y,
+    })
+}
+
 fn flight_pins(data: &WorldMapData, map_id: u32, faction: Option<Faction>) -> Vec<MapPin> {
     let wanted = match faction {
         Some(Faction::Alliance) => TAXI_ALLIANCE,
