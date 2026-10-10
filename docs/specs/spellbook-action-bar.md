@@ -10,6 +10,12 @@ References (under `/syncthing/Sync/Projects/wow/reference-addons.new/wow-ui-sour
 - MAB.xml = `Blizzard_ActionBar/Mainline/MainActionBar.xml`; ABT.xml = `Mainline/ActionButtonTemplate.xml`; EMPL.lua = `Blizzard_EditMode/Mainline/EditModePresetLayouts.lua`
 - data: `data/db2/12.1.0.69933` (SkillLine, SkillLineAbility, SpellLevels, SpecializationSpells, SpellMisc, UiTextureAtlasMember, GlobalColor); strings from GlobalStrings.
 
+## Spell icon source
+
+A requested spell icon must decode its own `SpellMisc.SpellIconFileDataID` BLP from the shipped asset set. The UI worker and synchronous icon masks must not read a local WoW installation, call CASC, or substitute question-mark art. Missing or invalid files return a hard error. `classbook_icons.rs` checks every entry in all 13 class preview snapshots against authentic nonempty pixels or a concrete justified exception.
+
+Developer/depot asset preparation enumerates a deterministic superset of reachable icons: every positive SpellMisc icon/active icon, TraitDefinition override, class/spec portrait and source-local item/appearance icon. Extract only authentic local-CASC bytes ahead of shipping, with source-table hashes and per-file provenance. Ship `data/cache/required-ui-icons.json`, `ui-icon-provenance.json` and the declared `data/textures/<fdid>.blp` files. Release builds must fail with an explicit missing-FDID list when this set is incomplete; debug/CPU diagnosis does not constitute shipping acceptance. No unavailable icon may be fabricated or omitted from the required manifest to make validation pass.
+
 ## What it must do
 
 - [x] Known spells, spec, action bar and cooldowns follow the server messages; leaving the world clears them.
@@ -69,7 +75,7 @@ Source exports under `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowforever}/AddOns
 
 ## Assumptions
 
-- Icons missing from the local CASC install show an empty slot (no substitute icon). Several Arms spells' icons (132306, 132400, 970853, 6718291) are not in the local archives.
+- Missing or invalid shipped icon files are explicit asset errors, never accepted empty slots or substitute art. Local-CASC availability is a developer preparation concern, not a runtime source.
 - `UpdateTabWidth` takes the label width from a 6.5 px/char estimate (Retail measures the font string); only labels near the 92 px threshold can differ.
 
 ## Tests asserting this spec

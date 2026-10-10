@@ -1,14 +1,15 @@
-//! Offline Frost mage snapshot from the local Retail catalog, without a session/network.
+//! Offline catalog previews and the unchanged legacy Mage snapshot, without a session/network.
 use crate::spellbook_frame_component::{
     PlayerSpellsTab, SpellbookCategory, SpellbookFrameState, SpellbookGroup, SpellbookItemView,
     specialization_choices,
 };
 use game_engine_core::spell_catalog::{SpellCatalogPaths, load_spell_catalog};
-use game_engine_core::spellbook_data::{SpellbookTab, build_spellbook_tabs};
+use game_engine_core::spellbook_data::{SpellbookPlayer, SpellbookTab, build_spellbook_tabs};
 
 const MAGE_CLASS: u32 = 8;
 const FROST_SPEC: u32 = 64;
 const ARCANE_SPEC: u32 = 62;
+const BASE_PREVIEW_LEVEL: u32 = 80;
 // Frostbolt, Frost Nova, Slow Fall, Remove Curse, Arcane Explosion/Intellect,
 // Blink, Counterspell, Ice Lance, Icy Veins and Attack (a bounded known-spell snapshot).
 const KNOWN_SPELLS: [u32; 11] = [
@@ -31,31 +32,7 @@ pub fn load_preview_state(
         FROST_SPEC
     };
     let talents = if tab == PlayerSpellsTab::Talents {
-        let mut view = crate::talents::load_talent_view(data, MAGE_CLASS, spec, &catalog)?;
-        let tree = view.rules.as_ref().ok_or("Preview talent rules missing")?;
-        let context = game_engine_core::talent_data::rules::TraitContext {
-            spec_id: spec,
-            level: 80,
-        };
-        let grants = game_engine_core::talent_data::rules::granted_entries(tree, context);
-        let entries = grants
-            .iter()
-            .map(|entry| shared::protocol::TraitEntrySelection {
-                node_id: entry.node_id,
-                entry_id: entry.entry_id,
-                rank: entry.total() as u8,
-            })
-            .collect();
-        let unspent = game_engine_core::talent_data::rules::unspent(tree, context, &grants);
-        view.editor
-            .receive_snapshot(shared::protocol::TraitConfigSnapshot {
-                spec_id: spec,
-                tree_id: view.graph.tree_id,
-                entries,
-                unspent,
-            });
-        view.level = context.level;
-        Some(view)
+        Some(load_preview_talents(data, MAGE_CLASS, spec, &catalog)?)
     } else {
         None
     };
@@ -68,7 +45,7 @@ pub fn load_preview_state(
         .icon_fdid;
     Ok(SpellbookFrameState {
         viewport: [1920.0, 1080.0],
-        categories: preview_categories(tabs),
+        categories: preview_categories(tabs, "Mage"),
         tab,
         specializations: specialization_choices(&catalog.tabs, MAGE_CLASS, Some(spec)),
         talents,
@@ -76,6 +53,130 @@ pub fn load_preview_state(
         can_activate_spec: true,
         ..Default::default()
     })
+}
+
+/// Explicit class/spec catalog preview, independent of the legacy Mage snapshot.
+pub fn load_class_preview_state(
+    data: &std::path::Path,
+    tab: PlayerSpellsTab,
+    class: u32,
+    spec: u32,
+) -> Result<SpellbookFrameState, String> {
+    let catalog = load_spell_catalog(&SpellCatalogPaths::for_data_dir(data))?;
+    let class_name = catalog
+        .tabs
+        .class_names
+        .get(&class)
+        .ok_or_else(|| format!("Unknown preview class {class}"))?;
+    let info = catalog
+        .tabs
+        .specs
+        .get(&spec)
+        .ok_or_else(|| format!("Unknown preview specialization {spec}"))?;
+    if info.class_id != class || info.initial {
+        return Err(format!(
+            "Preview spec {spec} is not a playable specialization of class {class}"
+        ));
+    }
+    let known = catalog_preview_spells(&catalog, class, spec);
+    let tabs = build_spellbook_tabs(
+        &known,
+        Some(spec),
+        Some(&catalog),
+        Some(SpellbookPlayer {
+            class_id: class,
+            race_id: 0,
+            level: BASE_PREVIEW_LEVEL,
+        }),
+    );
+    if tabs.is_empty() {
+        return Err(format!(
+            "Preview class {class} spec {spec} has no listed catalog spells"
+        ));
+    }
+    let categories = preview_categories(tabs, class_name);
+    let talents = if tab == PlayerSpellsTab::Talents {
+        Some(load_preview_talents(data, class, spec, &catalog)?)
+    } else {
+        None
+    };
+    Ok(SpellbookFrameState {
+        viewport: [1920.0, 1080.0],
+        categories,
+        tab,
+        specializations: specialization_choices(&catalog.tabs, class, Some(spec)),
+        talents,
+        portrait_fdid: info.icon_fdid,
+        can_activate_spec: true,
+        ..Default::default()
+    })
+}
+
+fn catalog_preview_spells(
+    catalog: &game_engine_core::spell_catalog::SpellCatalogData,
+    class: u32,
+    spec: u32,
+) -> Vec<u32> {
+    // Match production auto-learning, not every historical skill-line reference.
+    // No race/build is supplied: this fixture includes common class spells only.
+    let class_spells = catalog
+        .tabs
+        .class_progression
+        .get(&class)
+        .into_iter()
+        .flatten()
+        .filter(|spell| spell.level <= BASE_PREVIEW_LEVEL && spell.race_masks == [0, 0])
+        .map(|spell| spell.spell_id);
+    let spec_spells = catalog.tabs.specs[&spec]
+        .spells
+        .iter()
+        .copied()
+        .filter(|id| catalog.tabs.spell_levels.get(id).copied().unwrap_or(0) <= BASE_PREVIEW_LEVEL);
+    let mut known: Vec<_> = class_spells
+        .chain(spec_spells)
+        .filter(|&id| catalog.get(id).is_some())
+        .collect();
+    known.sort_unstable();
+    known.dedup();
+    known
+}
+
+fn load_preview_talents(
+    data: &std::path::Path,
+    class: u32,
+    spec: u32,
+    catalog: &game_engine_core::spell_catalog::SpellCatalogData,
+) -> Result<crate::talents::TalentView, String> {
+    let mut view = crate::talents::load_talent_view(data, class, spec, catalog)?;
+    if view.graph.class.nodes.is_empty() || view.graph.spec.nodes.is_empty() {
+        return Err(format!(
+            "Preview class {class} spec {spec} requires nonempty class and spec talent trees"
+        ));
+    }
+    let tree = view.rules.as_ref().ok_or("Preview talent rules missing")?;
+    let context = game_engine_core::talent_data::rules::TraitContext {
+        spec_id: spec,
+        level: 80,
+    };
+    let grants = game_engine_core::talent_data::rules::granted_entries(tree, context);
+    let entries = grants
+        .iter()
+        .map(|entry| shared::protocol::TraitEntrySelection {
+            node_id: entry.node_id,
+            entry_id: entry.entry_id,
+            rank: entry.total() as u8,
+        })
+        .collect();
+    let unspent = game_engine_core::talent_data::rules::unspent(tree, context, &grants);
+    view.editor
+        .receive_snapshot(shared::protocol::TraitConfigSnapshot {
+            spec_id: spec,
+            tree_id: view.graph.tree_id,
+            entries,
+            unspent,
+        });
+    view.level = context.level;
+    Ok(view)
 }
 
 /// Capture-only pending edits through the same model operations as live clicks.
@@ -98,14 +199,14 @@ pub fn stage_talent_preview(state: &mut SpellbookFrameState) -> Result<(), Strin
     Ok(())
 }
 
-fn preview_categories(tabs: Vec<SpellbookTab>) -> Vec<SpellbookCategory> {
+fn preview_categories(tabs: Vec<SpellbookTab>, class_name: &str) -> Vec<SpellbookCategory> {
     let (general, class): (Vec<_>, Vec<_>) = tabs
         .into_iter()
         .map(preview_group)
         .partition(|group| group.name == "General");
     vec![
         SpellbookCategory {
-            name: "Mage".into(),
+            name: class_name.into(),
             groups: class,
         },
         SpellbookCategory {

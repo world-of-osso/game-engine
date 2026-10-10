@@ -16,6 +16,7 @@ import time
 from pathlib import Path
 
 from build_hosts import execute
+from prepare_ui_icons import prepare_ui_icons
 
 ROOT_NAME = "game-engine-godot-conversion"
 SIBLINGS = (
@@ -291,6 +292,10 @@ def stable_context(cache, mode, checkout_key):
 
 
 def build(root, fixture=None, cli=False, release=False, host=None):
+    if release:
+        # Shipping requires prepared UI art; debug/CPU work can diagnose gaps without
+        # publishing an incomplete asset set. Runtime never calls this developer step.
+        prepare_ui_icons(root, sibling_repo(root, "asset-resolver") / "target/debug/casc-local")
     if fixture and fixture not in fixture_names(root):
         raise ValueError(
             f"unknown fixture {fixture!r}; choose from {', '.join(fixture_names(root))}"

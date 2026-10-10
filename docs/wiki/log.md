@@ -4,6 +4,13 @@
 ## 2026-10-09 — Rare vignettes and Forever target classification
 
 [Rare classification investigation](investigations/rare-vignettes-and-classification.md) records315 spawned rare templates with no vignette assignment, distinct newer IDs behind name matches, local CASC comparisons and the Forever target overlay bypass. Three registry RED cases atf314d1b52 reproduce missing art; correctionea8a275bf passed31 focused unit-frame tests and changed-file rustfmt check. Authored Forever gold/silver dragons and the Retail star now populate the target overlay at shared Retail anchors. Native Modern Ruul capture passed; Brack rank4 picking and post-fix Forever pixels remain unproved after the three-run budget.
+## 2026-10-09 — Shipped-only UI icons and refreshed class spellbooks
+
+[Shipped-icon recapture](systems/talents.md#shipped-icon-recapture-2026-10-09) reconciles the pre-fix CASC RED with the current filesystem-only boundary, targeted GREEN, fixed-resolver retry and inspected Forever recaptures. The linked coverage matrix owns per-class icon totals, source/key shipping blockers and residual Paladin same-name pairs. Only the requested PNGs were replaced in AgentShared; no runtime mode duplication, resolver merge or release-readiness claim.
+
+## 2026-10-09 — Offline class spellbooks and spec talents
+
+[Talents](systems/talents.md#offline-classspec-capture-2026-10-09) records paired DB2 preview inputs, preserved default Mage snapshot and production-catalog evidence. [Contract](../specs/talents.md#offline-classspec-evidence) links the data-only coverage matrix, native screenshots, exact blocked specs and existing layout/hero-eligibility limits. No spell behavior, server persistence or complete-tree parity claim.
 
 ## 2026-10-09 — HUD layout names and delete confirmation
 

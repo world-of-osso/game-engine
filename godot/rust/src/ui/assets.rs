@@ -1,12 +1,8 @@
 use std::cell::RefCell;
 use std::collections::HashMap;
-use std::fs;
 use std::path::PathBuf;
 
 use game_engine_core::asset_loader::{AssetLoader, Priority};
-use game_engine_ui_model::bank_art::UNKNOWN_ICON;
-
-use crate::frame_error::report_once;
 
 use godot::classes::{AtlasTexture, FontFile, Image, ImageTexture, ProjectSettings, Texture2D};
 use godot::prelude::*;
@@ -15,6 +11,9 @@ use ui_toolkit::atlas::{self, AtlasSource};
 use ui_toolkit::registry::FrameRegistry;
 use ui_toolkit::widgets::font_string::GameFont;
 use ui_toolkit::widgets::texture::TextureSource;
+
+#[path = "ui_file.rs"]
+mod ui_file;
 
 #[cfg(test)]
 #[path = "assets_meter_gradient_tests.rs"]
@@ -35,7 +34,7 @@ fn asset_path(path: &str) -> PathBuf {
 }
 
 fn load_bytes(path: &str) -> Result<Vec<u8>, String> {
-    fs::read(asset_path(path)).map_err(|error| format!("Read authored UI asset {path}: {error}"))
+    ui_file::read_required_file(&asset_path(path))
 }
 
 thread_local! {
@@ -173,37 +172,7 @@ fn decode_tga(path: &str, bytes: &[u8]) -> Result<DecodedFile, String> {
 }
 
 pub fn decode_blp(path: &str) -> Result<game_engine_core::blp::RgbaImage, String> {
-    let fdid = path
-        .strip_prefix("data/textures/")
-        .and_then(|file| file.strip_suffix(".blp"))
-        .and_then(|id| id.parse().ok());
-    let decode = |path: &str| decode_blp_bytes(path, &load_bytes(path)?);
-    match fdid {
-        Some(id) => load_icon_art(id, |id| decode(&format!("data/textures/{id}.blp"))),
-        None => decode(path),
-    }
-}
-
-/// Keep an unavailable icon visible as Retail's question mark, without replacing
-/// missing panel/model art. Both synchronous masks and asynchronous UI use this policy.
-fn load_icon_art<T>(id: u32, mut load: impl FnMut(u32) -> Result<T, String>) -> Result<T, String> {
-    match load(id) {
-        Err(error) if id != UNKNOWN_ICON && lookup_icon_namespace(id) => {
-            report_once(&format!(
-                "UI icon FDID {id}: {error}; using INV_Misc_QuestionMark ({UNKNOWN_ICON})"
-            ));
-            load(UNKNOWN_ICON)
-        }
-        result => result,
-    }
-}
-
-fn lookup_icon_namespace(id: u32) -> bool {
-    osso_asset_resolver::lookup_fdid(id).is_some_and(|path| {
-        path.replace('\\', "/")
-            .to_ascii_lowercase()
-            .starts_with("interface/icons/")
-    })
+    decode_blp_bytes(path, &load_bytes(path)?)
 }
 
 fn decode_blp_bytes(path: &str, bytes: &[u8]) -> Result<game_engine_core::blp::RgbaImage, String> {
@@ -231,8 +200,7 @@ impl FileTextures {
     fn new() -> Self {
         Self {
             loader: AssetLoader::new("ui-textures", 2, |file: &UiFile| {
-                let bytes = fs::read(&file.file)
-                    .map_err(|error| format!("Read authored UI asset {}: {error}", file.path))?;
+                let bytes = ui_file::read_required_file(&file.file)?;
                 decode_file(&file.path, &bytes)
             }),
             textures: HashMap::new(),
@@ -282,9 +250,9 @@ fn with_file_textures<T>(visit: impl FnOnce(&mut FileTextures) -> T) -> T {
 }
 
 /// FileDataID `id`'s art (`data/textures/<id>.blp`); `Ok(None)` while it loads.
-/// Unavailable `Interface/Icons` art uses the logged question-mark convention.
+/// Only shipped/extracted art is read; missing files are errors, never substitute art.
 pub fn load_file_data_id(id: u32) -> Result<Option<Gd<ImageTexture>>, String> {
-    load_icon_art(id, |id| load_file(&format!("data/textures/{id}.blp")))
+    load_file(&format!("data/textures/{id}.blp"))
 }
 
 /// UI files whose textures arrived so far.
@@ -382,6 +350,20 @@ mod decode_tests {
         writer.write_image_data(pixels).unwrap();
         writer.finish().unwrap();
         bytes
+    }
+
+    #[test]
+    fn shipping_missing_icon_reports_the_shipped_file_without_casc_dependency() {
+        let directory =
+            std::env::temp_dir().join(format!("ui-shipped-only-{}", std::process::id()));
+        std::fs::create_dir_all(&directory).unwrap();
+        let file = directory.join("135875.blp");
+        let error = ui_file::read_required_file(&file).unwrap_err();
+        assert!(error.contains("Read UI file"), "{error}");
+        assert!(error.contains("135875.blp"), "{error}");
+        assert!(!error.contains("CASC"), "{error}");
+        assert!(!file.exists());
+        std::fs::remove_dir_all(directory).unwrap();
     }
 
     #[test]
