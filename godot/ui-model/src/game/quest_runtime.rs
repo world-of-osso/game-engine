@@ -91,6 +91,8 @@ pub enum NpcInteractionRequest {
 #[derive(Default, Debug, Clone, PartialEq)]
 pub struct QuestUiState {
     pub log_selected: Option<u32>,
+    /// Retail C_SuperTrack selection, independent of the quest log details panel.
+    pub super_tracked: Option<u32>,
     /// Collapsed quest log headers (`sort_id`).
     pub collapsed_headers: HashSet<i32>,
     /// Objective tracker minimized to its header.
@@ -160,6 +162,19 @@ impl QuestRuntime {
             .collect()
     }
 
+    /// Watched quests first, so map numbers equal tracker numbers; then other active quests.
+    pub fn map_entries(&self) -> Vec<QuestEntrySnapshot> {
+        self.watched_entries()
+            .into_iter()
+            .chain(
+                self.log
+                    .iter()
+                    .filter(|entry| !self.is_watched(entry.quest_id)),
+            )
+            .cloned()
+            .collect()
+    }
+
     /// Objective areas (`QuestPOI` blobs) of the watched quests: the polygons of each
     /// unfinished objective; finished quests show their turn-in pin instead.
     pub fn watched_objective_areas(&self) -> Vec<&QuestPoiSnapshot> {
@@ -172,6 +187,20 @@ impl QuestRuntime {
                         .ok()
                         .and_then(|index| entry.objectives.get(index));
                     poi.points.len() >= 3 && objective.is_some_and(|objective| !objective.completed)
+                })
+            })
+            .collect()
+    }
+
+    pub fn selected_objective_areas(&self, selected: Option<u32>) -> Vec<&QuestPoiSnapshot> {
+        selected
+            .and_then(|id| self.entry(id))
+            .into_iter()
+            .flat_map(|entry| {
+                entry.pois.iter().filter(move |poi| {
+                    !entry.completed
+                        && poi.points.len() >= 3
+                        && crate::quest_poi::poi_is_visible(entry, poi)
                 })
             })
             .collect()

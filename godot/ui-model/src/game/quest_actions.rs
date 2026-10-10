@@ -38,7 +38,7 @@ pub fn quest_ui_action(
     ui: &mut QuestUiState,
 ) -> Vec<QuestUiEffect> {
     if action.starts_with("quest_tracker:") {
-        tracker_action(action, ui)
+        tracker_action(action, runtime, ui)
     } else if action.starts_with("quest_log:") {
         log_action(action, runtime, ui)
     } else if action.starts_with("quest_frame:") {
@@ -48,12 +48,19 @@ pub fn quest_ui_action(
     }
 }
 
-fn tracker_action(action: &str, ui: &mut QuestUiState) -> Vec<QuestUiEffect> {
+fn tracker_action(
+    action: &str,
+    runtime: &QuestRuntime,
+    ui: &mut QuestUiState,
+) -> Vec<QuestUiEffect> {
     if action == tracker::TOGGLE_ACTION {
         ui.tracker_collapsed = !ui.tracker_collapsed;
     } else if action == tracker::TOGGLE_QUESTS_ACTION {
         ui.quests_collapsed = !ui.quests_collapsed;
-    } else if let Some(id) = parse_suffix::<u32>(action, tracker::OPEN_QUEST_PREFIX) {
+    } else if let Some(id) = parse_suffix::<u32>(action, tracker::OPEN_QUEST_PREFIX)
+        && runtime.entry(id).is_some()
+    {
+        ui.super_tracked = Some(id);
         ui.log_selected = Some(id);
         return vec![QuestUiEffect::OpenLog];
     }

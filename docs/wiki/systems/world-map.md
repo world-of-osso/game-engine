@@ -28,6 +28,6 @@ The synced WoW install is incomplete: many `interface/worldmap/*` tiles report "
 
 ## Marker data availability (2026-09-28)
 
-- Quest POIs: server `QuestLogSnapshot`/`QuestLogUpdate` → `QuestPoiSnapshot` polygons in world yards with `map_id`; pinned at the polygon centroid.
+- Quest POIs: [quest map objectives](quest-map-objectives.md) owns local/server geometry selection, numbered pins, blue areas and current private rendering proof; pins use the arithmetic mean of authored points.
 - Flight masters: `TaxiNodes.csv` (`Flags` 0x1 Alliance map, 0x2 Horde map); faction from `ChrRaces.Alliance`.
 - Missing: world quests, area POIs/events, vignettes, dungeon entrances, explored overlays, party pins — see the spec's Out of scope.

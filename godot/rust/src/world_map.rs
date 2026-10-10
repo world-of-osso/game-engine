@@ -47,6 +47,7 @@ pub(crate) struct WorldMap {
     drag: Option<WindowDrag>,
     /// Objective area polygons last drawn into the overlay texture.
     drawn_areas: Option<Vec<Vec<[f32; 2]>>>,
+    drawn_selection: Option<u32>,
     /// Maximized or windowed (like Retail's `miniWorldMap` CVar it survives closing
     /// the map, this session only) and the quest panel's page.
     display: WorldMapDisplay,
@@ -125,7 +126,10 @@ impl WindowDrag {
 }
 
 /// The objective area overlay for map-UV polygons, at `QUEST_AREA_TEXTURE_SIZE`.
-fn quest_area_pixels(areas: &[Vec<[f32; 2]>]) -> Vec<u8> {
+fn quest_area_pixels(
+    areas: &[Vec<[f32; 2]>],
+    art: &game_engine_core::quest_area_data::QuestAreaArt,
+) -> Vec<u8> {
     let [width, height] = QUEST_AREA_TEXTURE_SIZE;
     let polygons: Vec<Vec<[f32; 2]>> = areas
         .iter()
@@ -135,7 +139,7 @@ fn quest_area_pixels(areas: &[Vec<[f32; 2]>]) -> Vec<u8> {
                 .collect()
         })
         .collect();
-    quest_area_overlay(width, height, &polygons)
+    quest_area_overlay(width, height, &polygons, art, false)
 }
 
 fn canvas_uv(layout: &WorldMapLayout, point: Vector2) -> Option<[f32; 2]> {
@@ -307,11 +311,19 @@ impl GameClient {
                 map_id: self.world_map.map_id,
                 hovered: self.world_map.hovered,
                 player: player.as_ref(),
-                quests: &self.account.quests.log,
-                quest_areas: &self.account.quests.watched_objective_areas(),
+                quests: &self.account.quests.map_entries(),
+                // QuestBlobDataProvider Refresh draws the super-tracked quest,
+                // not every watched quest. Hover/focus selection remains unsupported.
+                quest_areas: &self
+                    .account
+                    .quests
+                    .selected_objective_areas(self.quests.ui.super_tracked),
                 vignettes: &vignettes,
             },
         );
+        state
+            .pins
+            .extend(self.world_map_quest_offer_pins(&data.catalog, state.map_id));
         if let Some(corpse) = self.death_flow.corpse()
             && let Some([x, y]) = data.catalog.map_position(
                 state.map_id,
@@ -328,6 +340,37 @@ impl GameClient {
             });
         }
         Some(state)
+    }
+
+    fn world_map_quest_offer_pins(
+        &self,
+        catalog: &game_engine_ui_model::ui_map_data::UiMapCatalog,
+        map_id: u32,
+    ) -> Vec<MapPin> {
+        let Some(world_map) = self.world_map_id else {
+            return Vec::new();
+        };
+        self.account
+            .quests
+            .giver_status
+            .iter()
+            .filter_map(|(&unit, &status)| {
+                let position = self
+                    .replica
+                    .unit(unit)?
+                    .get::<shared::components::Position>()?;
+                game_engine_ui_model::world_map_view_data::quest_offer_pin(
+                    catalog,
+                    map_id,
+                    &self.npc_name(unit),
+                    status,
+                    (
+                        world_map,
+                        engine_to_world([position.x, position.y, position.z]),
+                    ),
+                )
+            })
+            .collect()
     }
 
     pub(super) fn load_world_map_data(&mut self) -> Result<(), String> {
@@ -568,9 +611,22 @@ impl GameClient {
             self.world_map.position,
             self.world_map.display.maximized,
         );
-        let overlay = (self.world_map.drawn_areas.as_ref() != Some(&state.quest_areas))
-            .then(|| quest_area_pixels(&state.quest_areas));
+        let selection = self.quests.ui.super_tracked;
+        let changed = self.world_map.drawn_areas.as_ref() != Some(&state.quest_areas)
+            || self.world_map.drawn_selection != selection;
+        let overlay = if changed {
+            Some(quest_area_pixels(
+                &state.quest_areas,
+                self.quests
+                    .map_blob_art
+                    .as_ref()
+                    .ok_or("Quest blob art missing")?,
+            ))
+        } else {
+            None
+        };
         self.world_map.drawn_areas = Some(state.quest_areas.clone());
+        self.world_map.drawn_selection = selection;
         let ui = self.world_map.ui.as_mut().ok_or("World map UI vanished")?;
         ui.bind_mut().set_ui_scale(scale)?;
         ui.bind_mut().set_world_map(state, overlay)?;

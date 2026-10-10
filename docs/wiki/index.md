@@ -32,6 +32,7 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 ## Systems
 
 - [Native Toy Box](systems/toy-box.md) — Retail journal, unresolved-name ItemID labels, both-skin search/progress/desaturation; master-protocol private live learning/favourite/cast/bar/relog proof and inspected26 v2 captures. Transform-model coverage remains separate.
+- [Quest map objectives](systems/quest-map-objectives.md) — local Retail POI census, server-only geometry and numbered overlays; v2 fixes128/192 opacity and super-tracked world-map blobs, with targeted/native/private proof and four inspected PNGs. Hover/native-minimap selection gaps explicit.
 
 - [Extracted-only assets](systems/shipped-assets.md) — P1 startup/CASC policy, detached legacy-miss completion and cold-process fixture boundaries; complete closure and deployment remain later phases.
 

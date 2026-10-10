@@ -214,11 +214,16 @@ fn quest_area_tints_only_inside_its_polygon_with_a_brighter_rim() {
         [x + 50.0, z + 50.0],
         [x + 10.0, z + 50.0],
     ];
-    let tinted = tint_quest_areas(&view, size, &mut image, &[square]);
+    let art = game_engine_core::quest_area_data::QuestAreaArt::load(
+        &Path::new(env!("CARGO_MANIFEST_DIR")).join("../../data"),
+        false,
+    )
+    .unwrap();
+    let tinted = tint_quest_areas(&view, size, &mut image, &[square], &art, false);
     let yards_per_pixel = view.diameter / size as f32;
     let expected = (40.0 / yards_per_pixel).powi(2);
     assert!(
-        (tinted as f32 - expected).abs() <= 4.0 * 40.0 / yards_per_pixel,
+        (tinted as f32 - expected).abs() <= 12.0 * 40.0 / yards_per_pixel,
         "{tinted} tinted pixels for a {expected} pixel square"
     );
     // The player's pixel (centre) is outside the square and untouched.
@@ -235,8 +240,8 @@ fn quest_area_tints_only_inside_its_polygon_with_a_brighter_rim() {
     let fill = centre(30.0, 30.0);
     assert_eq!(fill[3], 255);
     assert!(
-        fill[0] > 100 && fill[2] < 100,
-        "fill {fill:?} is not gold-tinted"
+        fill[2] > 100 && fill[2] > fill[0],
+        "fill {fill:?} is not blue-tinted"
     );
     let rim = centre(11.0, 30.0);
     assert!(
@@ -262,4 +267,16 @@ fn vignette_flags_place_doomwalker_on_both_maps() {
     assert_eq!(gift.name, "Gift of the Brokenhearted");
     assert!(!gift.on_minimap() && !gift.on_world_map());
     assert!(vignettes[&2967].hide_on_continent_maps());
+}
+
+#[test]
+fn rotating_minimap_moves_north_east_with_the_map_and_keeps_inverse_projection() {
+    let view = MinimapView::new(NORTHSHIRE, 0).rotated(std::f32::consts::FRAC_PI_2);
+    let north = [NORTHSHIRE[0] + view.diameter * 0.25, NORTHSHIRE[1]];
+    let offset = view.blip_offset(north).unwrap();
+    assert!((offset[0] + 0.25).abs() < 0.0001 && offset[1].abs() < 0.0001);
+    let position = view.pixel_position(16, 32, 64);
+    let inverse = view.blip_offset(position).unwrap();
+    assert!((inverse[0] - (16.5 / 64.0 - 0.5)).abs() < 0.0001);
+    assert!((inverse[1] - (32.5 / 64.0 - 0.5)).abs() < 0.0001);
 }

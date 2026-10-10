@@ -5,7 +5,7 @@ How the native Godot `MinimapCluster` works. Contract: [minimap spec](../../spec
 ## Layers
 
 - **Pure logic** lives in `godot/core/src/minimap_data.rs`, with no engine types:
-  - `MinimapView { center, diameter }`, built from the engine `(x, z)` and the zoom level;
+  - `MinimapView { center, diameter, mask, rotation }`, built from the engine `(x, z)` and the zoom level;
   - `tiles()`, the bounding box of tile keys the view touches;
   - `compose(view, size, tile)`, the RGBA8 circle;
   - `blip_offset`;
@@ -21,7 +21,7 @@ A minimap tile key is `(floor(32 + z/533⅓), floor(32 − x/533⅓))`. This is 
 
 Composite pixel `(px, py)` of a `size`² image maps to `x = cx + (size/2 − py − ½)·d/size` and `z = cz + (px + ½ − size/2)·d/size`, where `d` is the view diameter in yards.
 
-The arrow uses the world map's `arrow_rotation(yaw) = (yaw − π/2) mod 2π`, counter-clockwise, because the minimap is also north-up. Godot controls turn clockwise, so the projection negates the rotation. The fixture reads the drawn `Part0` rotation and checks that `(sin a, −cos a)` follows W movement on the map (right = +z, down = −x).
+By default the minimap is north-up: the arrow uses the world map's `arrow_rotation(yaw) = (yaw − π/2) mod 2π`, counter-clockwise. Optional rotation transforms map pixels, blobs and pins together; [quest map objectives](quest-map-objectives.md) owns that behavior and proof. Godot controls turn clockwise, so the projection negates the rotation. The fixture reads the drawn `Part0` rotation and checks that `(sin a, −cos a)` follows W movement on the map (right = +z, down = −x).
 
 ## Tiles and textures
 
@@ -36,6 +36,10 @@ Indoor WMO rendering is not implemented. `adc7d3a66` exports `WMOMinimapTexture`
 ## Quest-giver blips
 
 The host keeps the set of NPCs it has queried. It sends one `QuestGiverStatusQuery` for newly mirrored `QUESTGIVER` NPCs, and drops NPCs that leave replication. `Account` stores each `QuestGiverStatusMultiple` entry; the server re-sends the statuses after every quest change. `Available` and `Reward` produce blips; the other statuses produce none, and trivial quests stay hidden as with Retail's default tracking.
+
+## Quest objectives
+
+[Quest map objectives](quest-map-objectives.md) owns client-local/server POI geometry, blue fill and selected rim art, numbered icons, super-tracking and completion updates. Its proof ledger includes both-skin private real-quest minimap captures.
 
 ## Member, target and service tracking blips
 
