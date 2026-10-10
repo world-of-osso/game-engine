@@ -8,7 +8,7 @@ Wild PvE encounters use server-authoritative snapshots and actions, rendered thr
 - [ ] Both pets display health, level, family and auras; ability1–3 display cooldown/availability.
 - [ ] Swap, pass, confirmed forfeit and eligible trap actions carry server battle/round identity.
 - [ ] Wild PvE uses the untimed Retail timer mode, not an invented timeout.
-- [ ] The camera frames both active 3D pet models; swapping updates models.
+- [ ] The camera frames both active 3D pet models on their corresponding health-frame sides, facing each other; swapping updates models.
 - [ ] End displays outcome/XP/capture and disables further actions. Journal updates remain authoritative.
 - [ ] Modern and Forever retain identical geometry and controls.
 
@@ -28,7 +28,8 @@ Wild PvE encounters use server-authoritative snapshots and actions, rendered thr
 - `godot/ui-model/tests/pet_journal.rs`: owned loadout action and duplicate-slot clearing.
 
 ## Known gaps (current cycle)
-- [ ] Native build and both-skin private live full win/capture proof with inspected PNGs.
+- [x] Rebased native extension/CLI build (2026-10-10).
+- [ ] Both-skin private live full win/capture proof with inspected PNGs.
 
 ## Out of scope
 PvP matchmaking and turn effects not admitted by the inherited server engine. No unsupported-effect direct-damage substitute is allowed.

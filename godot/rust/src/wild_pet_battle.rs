@@ -215,13 +215,13 @@ impl GameClient {
                 .expect("both pets loaded");
             bind_sheet_light(&model);
             model.set_name(if team == 0 { "AllyPet" } else { "EnemyPet" });
-            model.set_position(Vector3::new(0.0, 0.0, if team == 0 { -1.5 } else { 1.5 }));
+            model.set_position(Vector3::new(0.0, 0.0, if team == 0 { 1.5 } else { -1.5 }));
             model.set_rotation(Vector3::new(
                 0.0,
                 if team == 0 {
-                    -std::f32::consts::FRAC_PI_2
-                } else {
                     std::f32::consts::FRAC_PI_2
+                } else {
+                    -std::f32::consts::FRAC_PI_2
                 },
                 0.0,
             ));
