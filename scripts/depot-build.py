@@ -18,6 +18,7 @@ from pathlib import Path
 
 from build_hosts import execute
 from prepare_ui_icons import prepare_ui_icons
+from native_cargo import native_slot
 
 ROOT_NAME = "game-engine-godot-conversion"
 SIBLINGS = (
@@ -36,8 +37,6 @@ TEST_ASSETS = Path("godot/depot-test-assets.txt")
 TEST_LOG = Path("target/depot-test.log")
 HOSTS = ("desktop", "local", "native")
 CONTAINER_HOSTS = ("desktop", "local")
-# Concurrent native cargo runs. Each already uses every core, so this bounds memory.
-NATIVE_SLOTS = int(os.environ.get("GAME_ENGINE_NATIVE_SLOTS", "3"))
 FICLONE = 0x40049409
 SUMMARY_PREFIXES = ("     Running ", "   Doc-tests ", "test result:", "error")
 
@@ -296,32 +295,6 @@ def stable_context(cache, mode, checkout_key):
         shutil.rmtree(context, ignore_errors=True)
 
 
-@contextlib.contextmanager
-def native_slot():
-    """Hold one of NATIVE_SLOTS host-wide slots for the duration of a native cargo run."""
-    directory = Path.home() / ".cache" / "game-engine" / "native-slots"
-    directory.mkdir(parents=True, exist_ok=True)
-    waiting = False
-    while True:
-        for number in range(1, NATIVE_SLOTS + 1):
-            handle = (directory / f"slot{number}").open("w")
-            try:
-                fcntl.flock(handle, fcntl.LOCK_EX | fcntl.LOCK_NB)
-            except BlockingIOError:
-                handle.close()
-                continue
-            print(f"Native slot {number}/{NATIVE_SLOTS} acquired", flush=True)
-            try:
-                yield
-            finally:
-                handle.close()
-            return
-        if not waiting:
-            print(f"All {NATIVE_SLOTS} native slots busy; waiting", flush=True)
-            waiting = True
-        time.sleep(5)
-
-
 def native_source_root(root):
     """The checkout path Cargo should read. Without DEPOT_SIBLING_* overrides it is `root`;
     with any, a per-checkout directory of symlinks places `root` beside the overridden
@@ -338,6 +311,7 @@ def native_source_root(root):
             link.unlink()
         link.symlink_to(target)
     return tree / "game-engine"
+
 
 
 def native_cargo(root, command, arguments, output=None):
