@@ -369,7 +369,9 @@ def main():
     result["seed_tool_sha256"] = digest(Path(__file__).with_name("closure_seeds.py"))
     result["spell_seed_tool_sha256"] = digest(Path(__file__).with_name("closure_spell_seeds.py"))
     args.output.parent.mkdir(parents=True, exist_ok=True)
-    args.output.write_text(json.dumps(result, indent=2, sort_keys=True) + "\n")
+    with args.output.open("w") as stream:
+        json.dump(result, stream, indent=2, sort_keys=True)
+        stream.write("\n")
     print(json.dumps(result["summary"], sort_keys=True))
     # Audit output always written; unknown identity is deliberately not a certificate.
     return 1 if result["summary"]["missing"] or result["summary"]["unresolved"] or result["summary"]["unverified_identity"] else 0
