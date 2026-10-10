@@ -42,6 +42,9 @@ func login(endpoint: String) -> void:
 	await wait_screen("CharacterSelect")
 	await click("EnterWorld")
 	await wait_screen("InWorld")
+	# Session readiness precedes the independently loaded spell catalog. Give the
+	# cold worker its observed startup interval before sending an opening edge.
+	await frames(1800)
 	# Mainline ToggleTalents default N (input_bindings_data.rs); independent of HUD visibility.
 	await key(KEY_N)
 	await control("TalentLoadoutDropDown")
