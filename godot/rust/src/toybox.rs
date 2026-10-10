@@ -258,14 +258,18 @@ impl GameClient {
     }
     fn apply_toybox_action(&mut self, action: &str) -> Result<(), FrameError> {
         match action {
-            model::CLOSE => self.close_toybox(),
+            model::CLOSE | "collections:close" => self.close_toybox(),
+            "collections:pets" => {
+                self.close_toybox();
+                self.toggle_pet_journal();
+            }
+            "collections:toys" => {}
             "toy_filters" => {
                 self.toybox.model.filters_open = !self.toybox.model.filters_open;
                 self.toybox.model.filter_submenu = None;
             }
             "toy_page:prev" => self.toybox.model.turn_page(-1),
             "toy_page:next" => self.toybox.model.turn_page(1),
-            "toy_tab" => {}
             "toy_search:clear" => {
                 self.toybox.model.filters.search.clear();
                 self.toybox.model.page = 0;

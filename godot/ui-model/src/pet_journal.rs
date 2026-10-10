@@ -1,8 +1,7 @@
 //! Retail Blizzard_Collections PetJournal: 703×606, 260px list, card and three slots.
 use crate::bank_art::{WHITE, label, texture};
 use crate::minimal_scroll_bar::{MinimalScrollBar, Unscrollable, pixel_geometry, scroll_list_attr};
-use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button, window_chrome};
-use crate::ui::strata::FrameStrata;
+use crate::quest_art::{DynName, NORMAL_FONT_COLOR, panel_button};
 use shared::pet_battle::PetJournal;
 use shared::protocol::{CollectionPetSnapshot, CollectionStateUpdate};
 use std::collections::{BTreeMap, BTreeSet};
@@ -39,11 +38,28 @@ pub struct PetRow {
     pub level: Option<u8>,
     pub detail: String,
 }
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Debug, PartialEq, Eq, serde::Deserialize)]
+pub struct PetSpeciesVisual {
+    pub species_id: u32,
+    pub display_id: u32,
+    pub family: u8,
+}
+impl PetSpeciesVisual {
+    pub fn type_icon(&self) -> u32 {
+        // DB2 PetType is zero-based; Retail GetPetTypeTexture uses the same families.
+        [
+            603593, 603590, 603592, 603596, 603589, 603594, 603591, 603588, 603597, 603595,
+        ][usize::from(self.family)]
+    }
+}
+
+#[derive(Clone, Debug, PartialEq)]
 pub struct PetJournalView {
     pub visible: bool,
+    pub viewport: [f32; 2],
     pub catalog: BTreeMap<u32, CollectionPetSnapshot>,
     pub icons: BTreeMap<u32, u32>,
+    pub visuals: BTreeMap<u32, PetSpeciesVisual>,
     pub journal: PetJournal,
     pub summoned: Option<u64>,
     pub selected: Option<PetRowKey>,
@@ -56,8 +72,10 @@ impl Default for PetJournalView {
     fn default() -> Self {
         Self {
             visible: false,
+            viewport: [1280.0, 720.0],
             catalog: BTreeMap::new(),
             icons: BTreeMap::new(),
+            visuals: BTreeMap::new(),
             journal: PetJournal::default(),
             summoned: None,
             selected: None,
@@ -153,6 +171,13 @@ impl PetJournalView {
             self.selected = rows.first().map(|row| row.key);
         }
     }
+    pub fn selected_visual(&self) -> Option<&PetSpeciesVisual> {
+        let species = match self.selected? {
+            PetRowKey::Species(id) => id,
+            PetRowKey::Owned(id) => self.journal.get(id)?.species_id,
+        };
+        self.visuals.get(&species)
+    }
     pub fn summon_or_dismiss(&mut self) -> Option<PetRequest> {
         if self.pending {
             return None;
@@ -176,7 +201,7 @@ pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
     let Some(view) = ctx.get::<PetJournalView>().filter(|view| view.visible) else {
         return vec![];
     };
-    let mut children = window_chrome("PetJournal", (703.0, 606.0), "Pet Journal", "pet:close");
+    let mut children = Vec::new();
     children.extend(label(
         "PetJournalPetCount".into(),
         &format!("Total Pets: {}", view.journal.count()),
@@ -188,9 +213,9 @@ pub fn pet_journal_screen(ctx: &SharedContext) -> Element {
     children.extend(pet_card(view));
     children.extend(battle_slots());
     children.extend(journal_buttons(view));
-    rsx! { r#frame { name: "PetJournal", width: 703.0, height: 606.0,
-    left: 30.0, top: 86.0, pos_type: "absolute", mouse_enabled: true,
-    strata: FrameStrata::Dialog, {children} } }
+    let body = rsx! { r#frame { name: "PetJournal", width: 703.0, height: 606.0,
+    left: 0.0, top: 0.0, pos_type: "absolute", mouse_enabled: true, {children} } };
+    crate::collections_component::collections_shell(view.viewport, 1, body)
 }
 fn search_box() -> Element {
     rsx! { editbox { name: "PetJournalSearchBox", width: 145.0, height: 20.0,
@@ -281,7 +306,7 @@ fn pet_card(view: &PetJournalView) -> Element {
         out.extend(label(
             "PetJournalPetCardDetails".into(),
             &row.detail,
-            (306.0, 132.0, 370.0, 30.0),
+            (510.0, 110.0, 176.0, 50.0),
             (12.0, WHITE, "LEFT"),
         ));
         if let Some(icon) = view.icons.get(&row.species) {
@@ -293,6 +318,18 @@ fn pet_card(view: &PetJournalView) -> Element {
             ));
         }
     }
+    if let Some(visual) = view.selected_visual() {
+        let fdid = visual.type_icon();
+        out.extend(
+            rsx! { texture { name: "PetJournalPetCardTypeIcon", texture_fdid: fdid,
+            width: 28.0, height: 28.0, left: 659.0, top: 67.0, pos_type: "absolute",
+            tex_coords: "0.796875,0.4921875,0.50390625,0.65625" } },
+        );
+    }
+    out.extend(
+        rsx! { r#frame { name: "PetJournalPetCardModelScene", width: 173.0, height: 135.0,
+        left: 337.0, top: 81.0, pos_type: "absolute", mouse_enabled: true } },
+    );
     out.extend(label(
         "PetJournalStatus".into(),
         &view.error,
@@ -322,7 +359,7 @@ fn journal_buttons(view: &PetJournalView) -> Element {
         text,
         "pet:summon",
         owned && !view.pending,
-        (0.0, 584.0, 160.0, 22.0),
+        (292.0, 584.0, 160.0, 22.0),
     );
     out.extend(panel_button(
         "PetJournalFindBattle".into(),
@@ -330,13 +367,6 @@ fn journal_buttons(view: &PetJournalView) -> Element {
         "",
         false,
         (563.0, 584.0, 140.0, 22.0),
-    ));
-    out.extend(panel_button(
-        "PetJournalPetsTab".into(),
-        "Pet Journal",
-        "",
-        false,
-        (105.0, 606.0, 110.0, 30.0),
     ));
     out
 }
