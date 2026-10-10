@@ -8,6 +8,18 @@ Player mounts, Retail "Steady Flight" and Skyriding flight physics on the Godot 
 
 Animation: the rider holds Mount (91). The mount plays the rider's locomotion clip on the ground; while flying (`PlayerMotion::FLYING` for other players, `PlayerMovement::flying` for the local one) its flight clips: MountFlightIdle 548, MountFlightRun 556, MountFlightBackwards 550, MountFlightLeft 552, MountFlightRight 554 (resolved through `AnimationData.Fallback`).
 
+## Passenger mounts
+
+Contract and acceptance: [passenger mounts](../../specs/passenger-mounts.md). `Mounted` carries VehicleID and eight indexed occupancy slots; `VehiclePassenger` carries the driver's server entity bits, seat index and VehicleSeat row. The server validates group membership, living/range/map/zone conditions and enter/exit non-control seat flags, controls passenger movement and ejects invalid ownership. Passengers follow driver-relative M2 bind-pose positions; the server does not animate mount bones.
+
+VehicleSeat.AttachmentID is a seat enum, not an M2 lookup ID: 13 maps to39, 14 to40 (SolariTyClient native A2D3F0, `crates/systems/src/vehicle/vehicle_passenger_c.rs`). `godot/core/src/vehicle_seat.rs` maps it; `world_mount.rs` places the passenger visual at the animated attachment with authored offset/rotation and RideAnimLoop. The visual remains owned by its own unit node, so freeing a driver's mount cannot destroy another player's visual. The normal mount-summoning rider still uses MountMain0; Vehicle seat index0 can be a passenger seat.
+
+Model points must include `WorldModels::build_creature_visual`'s NpcVisualRoot -90degree alignment and display scale before driver facing/translation. The real-M2 server test exposed the missing alignment: seat2764 at driver(10,2,20) was(8.721561,5.1512804,19.206053), not the rendered seat(10.793948,5.1512804,18.721561). Server offsets now include that model frame and the authored offset together.
+
+The party-frame/target-frame menu exposes Ride for a replicated group member's vehicle mount. `MainMenuBarVehicleLeaveButton` is the same32px control in both skins, using local-CASC Retail exit art237700/237699 and sending ExitVehicle. Sources: cached Retail `Blizzard_ActionBar/Shared/VehicleLeaveButton.{xml,lua}`, `Blizzard_OverrideActionBar/OverrideActionBar.lua`; current cached UnitPopup has no Ride entry, so menu placement is the explicit user requirement, not claimed upstream Lua parity.
+
+Readable local data links14 mount/display rows to Vehicles312/313/315 (2 passengers),318/774 (1 passenger). Traveler's Tundra Mammoths280/284 use312/313; Chopper275 uses318. Yak62809 and Drake50269 are absent from the local creature-template link source; their VehicleIDs remain unknown rather than guessed. Proof status and live gaps are owned by the linked contract.
+
 ## Flight controls
 
 `godot/rust/src/gameplay.rs`, after Retail Bindings_Standard.xml:53-65: `JUMP` = `JumpOrAscendStart`, `SITORSTAND` = `SitStandOrDescendStart`.

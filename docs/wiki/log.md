@@ -20,6 +20,9 @@
 ## 2026-10-10 — Quest map objective sources and integration
 
 [Quest map objectives](systems/quest-map-objectives.md) records local CASC coverage, source-owned geometry, numbered icons, blue overlays and super-tracking. 41 distinct targeted tests, native build/check, private5518 real quest28766 acceptance/live completion and both-skin12-PNG FFmpeg/visual proof; published PNG-only to AgentShared. Sprite number and fixture mount-race REDs corrected. Conditional/missing geometry, inherited format failures and unavailable independent OAuth verification remain explicit.
+## 2026-10-10 — Passenger mount seat frames
+
+[Mounts](systems/mounts.md#passenger-mounts) records local-CASC Vehicle/VehicleSeat joins, seat enum13/14→M2 lookup39/40, normal driver MountMain0 independent of passenger index0, and the real-M2 RED exposing the missing NpcVisualRoot alignment. Native both-skin leave-control and pure transform tests pass; live acceptance remains pending in the [contract](../specs/passenger-mounts.md).
 
 ## 2026-10-09 — Retail auction subject and invoice formatting
 

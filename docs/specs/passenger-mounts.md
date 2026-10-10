@@ -37,7 +37,8 @@ Party/raid members can ride available passenger seats on a player's summoned mou
 - Sibling `shared-protocol/tests/vehicle_wire.rs`.
 - Sibling `game-server/crates/server/src/vehicle_tests.rs`.
 - Sibling `game-server/crates/server/src/networking_tests/receiver_rate.rs` passenger input test (pending).
-- `godot/core/src/vehicle_seat.rs` seat-transform test (pending).
+- `godot/core/src/vehicle_seat.rs` seat-transform test.
+- `godot/tests/passenger_mounts_live.gd`: two-client input, animated seat/pose, driver movement, exit, dismount and disconnect fixture (live pending).
 
 ## Known gaps (current cycle)
 - [ ] Yak and drake creature entries are absent from the current local world.db link source; no guessed VehicleIDs.
