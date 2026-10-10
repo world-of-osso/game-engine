@@ -305,9 +305,9 @@ class Closure:
                     self.resolve("named_identity_precedence", fdid, "not_needed", f"M2 texture {i}: TXID is authoritative (FDID={primary}, zero/absent slot makes no texture request); stale filename is not requested (core m2_texture.rs)")
             # TXID references cover particle/ribbon textures too. Replacement types
             # are supplied by display/customization/item seeds, not guessed here.
-            for label, header in [("ribbon", 0x120), ("particle", 0x128)]:
-                if len(raw) >= header + 8 and u32(raw, header):
-                    self.issue("emitter_auxiliary_edges", f"{label}: embedded model/recursive emitter audit required", fdid)
+            if len(raw) >= 0x130:
+                from closure_emitters import expand_emitters
+                expand_emitters(self, fdid, raw, texture_fdids)
 
     def expand_adt(self, fdid, data):
         stream = list(chunks(data, True))
