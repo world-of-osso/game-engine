@@ -185,7 +185,7 @@ mod tests {
         let checked_error = resolver.ensure_cached_checked(fdid, &destination).err();
         let mut loader = AssetLoader::new("legacy-texture", 1, move |&key: &u32| {
             let path = resolver
-                .ensure_cached(key, &destination)
+                .ensure_cached(key, &destination)?
                 .ok_or_else(|| "legacy cache returned None".to_owned())?;
             let bytes = std::fs::read(path).map_err(|error| error.to_string())?;
             game_engine_core::blp::decode_rgba(&bytes)
@@ -212,7 +212,12 @@ mod tests {
         } else {
             assert_eq!(completion.1.err().unwrap(), checked_error.unwrap());
         }
-        assert_eq!(loader.state(&fdid), Some(LoadState::Done));
+        let expected_state = if present {
+            LoadState::Done
+        } else {
+            LoadState::Failed
+        };
+        assert_eq!(loader.state(&fdid), Some(expected_state));
         assert_eq!(loader.loading(), 0);
         assert!(!loader.request(fdid, Priority::Now));
         assert!(loader.poll().is_empty());
@@ -254,7 +259,10 @@ mod tests {
                 resolver.ensure_cached_checked(*fdid, &expected).unwrap(),
                 expected
             );
-            assert_eq!(resolver.ensure_cached(*fdid, &expected).unwrap(), expected);
+            assert_eq!(
+                resolver.ensure_cached(*fdid, &expected).unwrap(),
+                Some(expected)
+            );
         }
         let read = |relative: &str| std::fs::read(root.join(relative)).unwrap();
         let image = blp::decode_rgba(&read("textures/896467.blp")).unwrap();
@@ -288,10 +296,13 @@ mod tests {
                 && error.contains(&missing.display().to_string()),
             "{error}"
         );
-        let legacy = std::panic::catch_unwind(|| resolver.ensure_cached(u32::MAX, &missing));
-        assert!(
-            legacy.is_err(),
-            "legacy Option API must not silently omit required assets"
+        assert_eq!(
+            resolver.ensure_cached(u32::MAX, &missing).unwrap_err(),
+            error
+        );
+        assert_eq!(
+            osso_asset_resolver::ensure_file_cached_at_path(u32::MAX, &missing).unwrap_err(),
+            error
         );
     }
 

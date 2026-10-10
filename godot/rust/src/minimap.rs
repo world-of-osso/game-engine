@@ -182,14 +182,21 @@ impl Minimap {
                 continue;
             }
             let path = data_root.join("textures").join(format!("{fdid}.blp"));
-            let found = path.exists()
-                || self
-                    .resolver(data_root)
-                    .ensure_cached(fdid, &path)
-                    .is_some();
-            if !found {
-                godot_warn!("Minimap texture FDID {fdid} is not in local CASC");
-            }
+            let found = if path.exists() {
+                true
+            } else {
+                match self.resolver(data_root).ensure_cached(fdid, &path) {
+                    Ok(Some(_)) => true,
+                    Ok(None) => {
+                        godot_warn!("Minimap texture FDID {fdid} is not in local CASC");
+                        false
+                    }
+                    Err(error) => {
+                        godot_warn!("{error}");
+                        false
+                    }
+                }
+            };
             self.chrome.insert(fdid, found);
         }
     }
@@ -221,7 +228,7 @@ fn load_tile(
         return Ok(None);
     };
     let cache = data_root.join("textures").join(format!("{fdid}.blp"));
-    let Some(file) = resolver.ensure_cached(fdid, &cache) else {
+    let Some(file) = resolver.ensure_cached(fdid, &cache)? else {
         return Ok(None);
     };
     let rgba = std::fs::read(&file)

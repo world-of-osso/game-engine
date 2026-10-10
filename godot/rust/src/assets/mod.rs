@@ -200,9 +200,21 @@ pub(crate) fn read_model_file(model_path: &Path) -> Result<m2::Model, String> {
     };
     let resolver = model_asset_resolver(model_path)?;
     let _parse = crate::profile::span(|| "phase.m2_parse".to_owned());
-    m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref(), |fdid| {
-        read_animation_asset(model_path, fdid, &resolver)
-    })
+    let mut animation_error = None;
+    let parsed = m2::parse_model_with_skeleton(&model, &skin, skeleton.as_deref(), |fdid| {
+        match read_animation_asset(model_path, fdid, &resolver) {
+            Ok(bytes) => bytes,
+            Err(error) => {
+                animation_error.get_or_insert(error);
+                None
+            }
+        }
+    });
+    // The parser's optional callback cannot carry a required-file error.
+    if let Some(error) = animation_error {
+        return Err(error);
+    }
+    parsed
 }
 
 fn model_asset_resolver(model_path: &Path) -> Result<CascListfileResolver, String> {
@@ -221,24 +233,24 @@ fn read_animation_asset(
     model_path: &Path,
     fdid: u32,
     resolver: &CascListfileResolver,
-) -> Option<Vec<u8>> {
+) -> Result<Option<Vec<u8>>, String> {
     let path = model_path.with_file_name(format!("{fdid}.anim"));
     let cached = if path.is_file() {
         Some(path.clone())
     } else {
-        resolver.ensure_cached(fdid, &path)
+        resolver.ensure_cached(fdid, &path)?
     };
     let loaded = cached
         .ok_or_else(|| format!("Cannot extract animation to {}", path.display()))
         .and_then(|path| fs::read(path).map_err(|error| error.to_string()));
-    loaded
+    Ok(loaded
         .map_err(|error| {
             godot_warn!(
                 "M2 {}: .anim FDID {fdid}: {error}; its sequence has no keyframes",
                 model_path.display()
             );
         })
-        .ok()
+        .ok())
 }
 
 fn result_image(decoded: Result<blp::RgbaImage, String>) -> VarDictionary {

@@ -26,7 +26,24 @@ zero forbidden entries. A separate child deliberately swallows a tripwire panic;
 the counter still makes that child fail. This is CPU asset-startup proof, not a
 rendered gameplay or complete asset-closure proof.
 
-## P1 proof (2026-10-09)
+## Detached legacy misses (2026-10-09)
+
+Independent P1 verification found that the legacy cache API panicked on a shipped
+miss inside detached AssetLoader workers. No result reached the main thread, so
+its key remained Loading indefinitely. The legacy APIs now carry the checked
+error in `Result<Option<PathBuf>, String>`; the inner Option preserves local-CASC
+optional extraction. Ground-detail, WMO, model texture/animation and other worker
+readers propagate the error. The parser's optional animation callback retains
+its first required-file error for the enclosing model read to return.
+
+`AssetLoader::poll` records Failed for Err completions, retaining Done for success.
+Existing consumers log each handed-out error; repeated requests do not enqueue
+known keys. Cold-process worker tests reproduce the missing-texture boundary and
+load a real present BLP in an authored product/build namespace. RED at engine
+`23586a033` + resolver `8fc769b`: worker panicked, key stayed Loading; present BLP
+passed. GREEN and final package verification are pending.
+
+## Original P1 proof (2026-10-09)
 
 Engine code `5dbe8b3c0` and resolver `8fc769b` (on modelisolation's `3157d12`)
 passed the locked depot startup target 5/5 and all six engine packages: 2,656

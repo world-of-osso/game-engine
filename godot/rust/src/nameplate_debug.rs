@@ -304,10 +304,18 @@ impl WowNameplateDebug {
                 continue;
             };
             let path = self.data_root.join("textures").join(format!("{fdid}.blp"));
-            if path.exists() || resolver.ensure_cached(fdid, &path).is_some() {
+            if path.exists() {
                 self.icons.insert(spell, fdid);
-            } else {
-                godot_error!("Nameplate debug: icon {fdid} of spell {spell} is not in local CASC");
+                continue;
+            }
+            match resolver.ensure_cached(fdid, &path) {
+                Ok(Some(_)) => {
+                    self.icons.insert(spell, fdid);
+                }
+                Ok(None) => godot_error!(
+                    "Nameplate debug: icon {fdid} of spell {spell} is not in local CASC"
+                ),
+                Err(error) => godot_error!("{error}"),
             }
         }
     }

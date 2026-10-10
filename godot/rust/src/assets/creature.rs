@@ -266,7 +266,7 @@ pub(crate) fn cache_model_files(
     // A `.anim` that can't be extracted leaves its sequence without keyframes (read_model).
     for fdid in anim_fdids {
         let destination = models.join(format!("{fdid}.anim"));
-        if resolver.ensure_cached(fdid, &destination).is_none() {
+        if resolver.ensure_cached(fdid, &destination)?.is_none() {
             godot_error!(
                 "{}: .anim FDID {fdid} not extractable to {}",
                 path.display(),
@@ -296,8 +296,8 @@ pub(crate) fn cache_model_textures(
     let textures = creature_texture_fdids(resolver, parsed, skin_fdids)?;
     for &fdid in &textures {
         let path = data_root.join("textures").join(format!("{fdid}.blp"));
-        // Missing textures remain the native material loader's reported missing FDIDs.
-        resolver.ensure_cached(fdid, &path);
+        // Local-CASC misses remain optional; shipped misses fail the worker load.
+        resolver.ensure_cached(fdid, &path)?;
     }
     Ok(textures)
 }

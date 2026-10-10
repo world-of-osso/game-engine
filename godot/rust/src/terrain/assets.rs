@@ -635,7 +635,7 @@ impl LiquidSource<'_> {
                 .load_image(self.resolver, self.data_root, fdid);
         }
         let cache = self.data_root.join("textures").join(format!("{fdid}.blob"));
-        let path = self.resolver.ensure_cached(fdid, &cache).ok_or_else(|| {
+        let path = self.resolver.ensure_cached(fdid, &cache)?.ok_or_else(|| {
             format!(
                 "Local CASC noise volume FDID {fdid} unavailable at {}",
                 cache.display()
