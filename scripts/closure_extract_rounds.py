@@ -27,6 +27,11 @@ def fixed_point(manifest, extract, traverse, count, record):
     number = 1
     while True:
         before = count(manifest)
+        frontier = {
+            (a["fdid"], a.get("type"))
+            for a in manifest.get("assets", [])
+            if not a["present"]
+        }
         extraction = extract(manifest, number)
         # Full-catalog graphs are multi-GB; release the prior round before replacement.
         manifest = None
@@ -41,7 +46,14 @@ def fixed_point(manifest, extract, traverse, count, record):
                 "summary": manifest["summary"],
             }
         )
-        if after == 0 or (extraction["files"] == 0 and after >= before):
+        next_frontier = {
+            (a["fdid"], a.get("type"))
+            for a in manifest.get("assets", [])
+            if not a["present"]
+        }
+        if after == 0 or (
+            extraction["files"] == 0 and after >= before and next_frontier <= frontier
+        ):
             return manifest
         number += 1
 
