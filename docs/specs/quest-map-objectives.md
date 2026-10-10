@@ -39,7 +39,9 @@ Quest objectives on the native world map, minimap and objective tracker. Retail 
 - [ ] Conditional POIs require player-condition evaluation; excluded, never replaced with guessed shapes. Missing authored geometry remains absent; [source coverage](../wiki/systems/quest-map-objectives.md#source-ownership).
 - [ ] Independent verification unavailable (Claude OAuth expired). Workspace format check has two unchanged baseline failures; changed-file format check passes.
 
-Current proof: 41 distinct targeted tests; native extension/CLI build and cargo check pass. Real quest28766 accepted on private UDP5518; authoritative completion updates both maps live. Twelve final 1920×1080 PNGs (both skins, incomplete/complete, world map/minimap/rotated minimap) were FFmpeg-decoded and visually inspected before publication to `/syncthing/AgentShared/2026-10-10/quest-poi/`. Off-screen edge arrows have pure-model proof, not live screenshot proof.
+V2 proof: corrected raster3/model1 targeted tests pass after opacity RED; native extension/CLI build, helper cargo check, changed-Rust format and private live fixture pass. Four FFmpeg-decoded/visually inspected `v2-{modern,forever}-objective-{world-map,minimap}.png` originals are published in the same AgentShared directory. Hover/focus and native minimap blob-selection gaps remain explicit above.
+
+Original proof (selected-opacity assertions/captures superseded by v2): 41 distinct targeted tests; native extension/CLI build and cargo check pass. Real quest28766 accepted on private UDP5518; authoritative completion updates both maps live. Twelve final 1920×1080 PNGs (both skins, incomplete/complete, world map/minimap/rotated minimap) were FFmpeg-decoded and visually inspected before publication to `/syncthing/AgentShared/2026-10-10/quest-poi/`. Off-screen edge arrows have pure-model proof, not live screenshot proof.
 
 ## Out of scope
 
