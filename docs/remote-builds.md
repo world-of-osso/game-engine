@@ -36,6 +36,10 @@ python3 scripts/depot-build.py --root "$PWD" --cli
 
 `--fixture`, `--cli`, `--release`, and `--test` retain their arguments and source/assets behavior on both hosts. For CPU tests, use `python3 scripts/depot-build.py --root "$PWD" --build-host desktop --test -p game-engine-core` (substitute `local` as needed). Host selection does not make GDScript or GPU tests part of `--test`.
 
+## UI-model integration tests
+
+UI-model suites share `tests/integration.rs` instead of separate Cargo binaries. Add new suites to that harness. Select one suite with `python3 scripts/depot-build.py --root "$PWD" --test -p game-engine-ui-model --test integration <suite>::`; the old `--test <suite>` target names no longer exist. [Measured rebuild impact and unchanged test inventory](wiki/investigations/native-dev-build-timings.md).
+
 ## UI icons prepared before shipping
 
 Release builds run `scripts/prepare_ui_icons.py` on the originating developer checkout before native compilation. It enumerates all positive spell/trait/class/spec and source-local item icon metadata, writes `data/cache/required-ui-icons.json`, and uses the existing sibling `asset-resolver/target/debug/casc-local` to fill missing BLPs from local archives only. Source-table hashes and actual file hashes/sizes are recorded in `data/cache/ui-icon-provenance.json`; these cache files and textures are included by `deploy.sh`.

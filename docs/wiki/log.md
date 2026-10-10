@@ -1,3 +1,7 @@
+## 2026-10-10 — Native dev rebuild timings
+
+[Native dev rebuild investigation](investigations/native-dev-build-timings.md) separates relocated-cache KTX compilation from warm touch loops. One UI integration harness replaces 93 targets; workspace compilation 37.75s → 14.21s, extension 8.73s → 7.55s (no causal extension improvement claimed). Workspace inventory unchanged: 2681 passed, 8 ignored; link-only timing unavailable.
+
 ## 2026-10-09 — All40 talent views and shipped icon recapture
 
 [All-spec talent recapture](systems/talents.md#all-spec-shipped-icon-recapture-2026-10-09) records rank-bearing currency projection, retained undefined Monk entries and authentic icon proof at `eaae560b9`. Targeted11/11 and native build pass; one offline Forever client exits0, captures40/40 and each PNG is individually FFmpeg-downscaled/inspected before PNG-only publication. Retribution137/137; total5825/5829 entry slots, three explicit undefined Monk IDs/four slots. [Contract](../specs/talents.md#offline-classspec-evidence) and diagnostics matrix retain unsupported auxiliary presentation and existing hero/layout limits; no gameplay/full-parity claim.
