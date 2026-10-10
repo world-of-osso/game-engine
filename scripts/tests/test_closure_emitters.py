@@ -73,6 +73,14 @@ class EmitterTests(unittest.TestCase):
                     i["code"] == "emitter_auxiliary_edges" for i in result["unresolved"]
                 )
             )
+            self.assertIn("resolver_tool_sha256", result)
+            import hashlib
+
+            source = Path(__file__).parents[1] / "closure_emitters.py"
+            self.assertEqual(
+                result["resolver_tool_sha256"]["closure_emitters.py"],
+                hashlib.sha256(source.read_bytes()).hexdigest(),
+            )
             self.assertTrue(
                 any(
                     e["parent_fdid"] == 2

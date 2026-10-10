@@ -297,6 +297,18 @@ class Closure:
         return {
             "schema_version": 1,
             "tool_sha256": digest(Path(__file__)),
+            "resolver_tool_sha256": {
+                name: digest(Path(__file__).with_name(name))
+                for name in [
+                    "closure_seeds.py",
+                    "closure_spell_seeds.py",
+                    "closure_kit_effects.py",
+                    "closure_emitters.py",
+                    "closure_appearance.py",
+                    "closure_terrain.py",
+                    "closure_wmo_liquid.py",
+                ]
+            },
             "seeds": self.seeds,
             "inputs": sorted(self.inputs.values(), key=lambda row: row["path"]),
             "assets": assets,
