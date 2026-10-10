@@ -27,7 +27,7 @@ impl GameClient {
     }
 
     /// Only an unhandled world click places a spell; clicks on frames keep targeting.
-    pub(super) fn ground_spell_pointer(
+    pub(crate) fn ground_spell_pointer(
         &mut self,
         event: &Gd<InputEvent>,
     ) -> Result<bool, FrameError> {
@@ -69,7 +69,7 @@ impl GameClient {
         crate::pet_bar::ground_under(self.world_camera.camera()?, pointer)
     }
 
-    pub(super) fn update_ground_spell_reticle(&mut self) -> Result<(), FrameError> {
+    pub(crate) fn update_ground_spell_reticle(&mut self) -> Result<(), FrameError> {
         if !self.spells.ground.active() {
             return Ok(());
         }
