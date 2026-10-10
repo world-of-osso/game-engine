@@ -75,7 +75,7 @@ Source exports under `~/.cache/wow-ui-sim/blizzard-ui/{retail,wowforever}/AddOns
 
 ## Assumptions
 
-- Icons missing from the local CASC install show an empty slot (no substitute icon). Several Arms spells' icons (132306, 132400, 970853, 6718291) are not in the local archives.
+- Missing or invalid shipped icon files are explicit asset errors, never accepted empty slots or substitute art. Local-CASC availability is a developer preparation concern, not a runtime source.
 - `UpdateTabWidth` takes the label width from a 6.5 px/char estimate (Retail measures the font string); only labels near the 92 px threshold can differ.
 
 ## Tests asserting this spec
