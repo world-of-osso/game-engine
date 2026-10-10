@@ -73,6 +73,13 @@ version = "0.2"
 [dev-dependencies.image]
 version = "0.25"
 
+# Identify the compiler ABI/flags and content-address the shared native cache.
+[build-dependencies.cc]
+version = "1"
+
+[build-dependencies.sha2]
+version = "0.10"
+
 [build-dependencies.bindgen]
 version = "0.73.1"
 

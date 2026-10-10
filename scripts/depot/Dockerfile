@@ -7,17 +7,19 @@ ARG JOBS=8
 ENV CARGO_TARGET_DIR=/src/game-engine-godot-conversion/target \
     CARGO_TARGET_X86_64_UNKNOWN_LINUX_GNU_LINKER=clang \
     RUSTFLAGS="-C link-arg=-fuse-ld=mold -C link-arg=-Wl,--thread-count=4"
-# vendor/ktx2-rw/build.rs reads this archive before downloading; its own fetch has a 300 s
-# whole-request timeout that a slow link cannot meet for 212 MB. BuildKit caches it by checksum.
+# Explicit offline input to the shared libktx cache; 212 MB is too large to vendor.
+ENV KTX_SOFTWARE_ARCHIVE=/opt/ktx-software-v4.4.0.tar.gz
+# BuildKit caches the archive by checksum; container builds never fetch from build.rs.
 ADD --checksum=sha256:3585d76edcdcbe3a671479686f8c81c1c10339f419e4b02a9a6f19cc6e4e0612 \
-    https://github.com/KhronosGroup/KTX-Software/archive/refs/tags/v4.4.0.tar.gz /tmp/ktx-software-v4.4.0.tar.gz
+    https://github.com/KhronosGroup/KTX-Software/archive/refs/tags/v4.4.0.tar.gz /opt/ktx-software-v4.4.0.tar.gz
 COPY --exclude=test-assets . /src/
 
 FROM source AS build
 ARG FIXTURE=""
 ARG CLI=""
 ARG RELEASE=""
-RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry \
+RUN --mount=type=cache,id=godot-ktx-bookworm,target=/root/.cache/game-engine/ktx \
+    --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=godot-bench-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/src/game-engine-godot-conversion/target,sharing=locked \
     python3 /src/refresh-source-mtimes.py /src "$CARGO_TARGET_DIR" && \
@@ -43,7 +45,8 @@ COPY --from=build /out/ /
 FROM source AS test
 ARG TEST_ARGS
 ARG TEST_RUN
-RUN --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry \
+RUN --mount=type=cache,id=godot-ktx-bookworm,target=/root/.cache/game-engine/ktx \
+    --mount=type=cache,id=godot-bench-registry,target=/usr/local/cargo/registry \
     --mount=type=cache,id=godot-bench-git,target=/usr/local/cargo/git \
     --mount=type=cache,id=${TARGET_CACHE},target=/src/game-engine-godot-conversion/target,sharing=locked \
     --mount=type=bind,source=test-assets,target=/test-assets \
