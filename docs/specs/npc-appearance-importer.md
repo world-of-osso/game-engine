@@ -13,6 +13,7 @@ Local-only Python stdlib importer in `scripts/import_npc_appearance.py`. Produce
 - [x] `--pet-catalog` selects every resolved companion display from the local BattlePetSpecies/Creature join. `merge_npc_appearance.py` adds uncovered displays to a new cache, preserves all existing rows, rejects required profiles without an appearance, and never automatically promotes an output.
 - [x] Reader returns `None` only for covered ordinary creatures. Covered required appearances without a profile and displays outside coverage return explicit errors, never raw-model fallback.
 - [x] Require an explicit new output path, refuse replacement, and report failures without producing an incomplete database.
+- [ ] An explicit read-only base cache may extend validated mount coverage into a new output while preserving all prior profiles, choices, geosets and coverage; conflicting rows must fail instead of downgrading required appearances.
 
 ## How it works
 

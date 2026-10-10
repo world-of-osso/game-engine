@@ -39,6 +39,33 @@ fn source(registry: &FrameRegistry, name: &str) -> TextureSource {
     }
 }
 
+#[test]
+fn passenger_vehicle_leave_button_is_visible_only_while_seated_in_both_skins() {
+    use ui_toolkit::atlas::ActiveSkin;
+    for skin in [ActiveSkin::Modern, ActiveSkin::Forever] {
+        let mut shared = SharedContext::new();
+        shared.insert(skin);
+        shared.insert(MainActionBarState {
+            vehicle_leave: true,
+            ..Default::default()
+        });
+        let mut registry = FrameRegistry::new(1920.0, 1080.0);
+        let mut screen = Screen::new(main_action_bar_screen);
+        screen.sync(&shared, &mut registry);
+        let leave = frame(&registry, "MainMenuBarVehicleLeaveButton");
+        assert!(!leave.hidden);
+        assert_eq!(leave.width, Dimension::Fixed(32.0));
+        assert_eq!(leave.height, Dimension::Fixed(32.0));
+        assert_eq!(
+            source(&registry, "MainMenuBarVehicleLeaveButtonIcon"),
+            TextureSource::FileDataId(237700)
+        );
+        shared.insert(MainActionBarState::default());
+        screen.sync(&shared, &mut registry);
+        assert!(frame(&registry, "MainMenuBarVehicleLeaveButton").hidden);
+    }
+}
+
 /// Modern preset: 12 × 45 px buttons 2 px apart, BOTTOM y 45, keys 1..=.
 #[test]
 fn main_bar_uses_retail_geometry_and_default_keys() {

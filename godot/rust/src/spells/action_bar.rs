@@ -223,6 +223,11 @@ impl GameClient {
     pub(super) fn action_bar_state(&mut self) -> MainActionBarState {
         let mut state = MainActionBarState {
             player_class: self.local_player_class(),
+            vehicle_leave: self
+                .world
+                .local_player_id()
+                .and_then(|id| self.replica.unit(id))
+                .is_some_and(|unit| unit.has::<shared::components::VehiclePassenger>()),
             extra_action_bars: self.client_options.hud.extra_action_bars,
             ..Default::default()
         };
@@ -232,6 +237,15 @@ impl GameClient {
             }
         }
         state.set_hotkeys(&self.client_options.bindings);
+        state.vehicle_leave_hovered = self
+            .spells
+            .bar_ui
+            .as_ref()
+            .and_then(|ui| ui.bind().hovered_button())
+            .is_some_and(|(name, _)| name == "MainMenuBarVehicleLeaveButton");
+        state.vehicle_leave_pressed = state.vehicle_leave_hovered
+            && godot::classes::Input::singleton()
+                .is_mouse_button_pressed(godot::global::MouseButton::LEFT);
         if let Some((name, _)) = self
             .spells
             .bar_ui

@@ -155,6 +155,24 @@ TABLES = {
         ("ImpactMilliSeconds", ("u16", 3)), ("RangeTypeEnum", ("i8", 4)),
         ("Flags", ("int", 5, 0)), ("SceneScriptPackageID", ("u16", 6)),
     ]),
+    # Local Retail 12.1.0.69933, WoWDBDefs Vehicle EF5C7D41 / VehicleSeat 973F2793.
+    "Vehicle": (
+        0xEF5C7D41,
+        [("ID", "id"), ("Flags", ("int", 0, 0)), ("FlagsB", ("int", 1, 0))]
+        + [(f"SeatID_{i}", ("u16", 16, i)) for i in range(8)],
+    ),
+    "VehicleSeat": (
+        0x973F2793,
+        [("ID", "id")]
+        + [(f"AttachmentOffset_{i}", ("float", 0, i)) for i in range(3)]
+        + [("Flags", ("int", 2, 0)), ("FlagsB", ("int", 3, 0)),
+           ("FlagsC", ("int", 4, 0)), ("AttachmentID", ("int", 5, 0)),
+           ("RideAnimStart", ("i16", 15)), ("RideAnimLoop", ("i16", 16)),
+           ("PassengerAttachmentID", ("i8", 35)),
+           ("PassengerYaw", ("float", 36, 0)),
+           ("PassengerPitch", ("float", 37, 0)),
+           ("PassengerRoll", ("float", 38, 0))],
+    ),
     # Retail 12.1.0.69933, WoWDBDefs GlobalStrings.dbd layout D40F6D96.
     "GlobalStrings": (
         0xD40F6D96,

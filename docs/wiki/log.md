@@ -7,6 +7,9 @@
 ## 2026-10-10 — Pets in Collections, v2 native proof
 
 [Collections correction](systems/battle-pets.md#collections-integration-correction--2026-10-10) reuses the Toy Box shell/portrait/tab bar and character model viewport. Real pointer input reproduces and fixes content interception of shared close. Rebased private5591 proof: actual item learning, card model/Dismiss, mutual Pets/Toy Box tabs and lateral4-yard follower in both skins. Four inspected v2 PNGs; all7 published PNGs ffmpeg-decode. Pets4/Toy Box9 targeted tests pass. Battles and full species/NPC asset coverage excluded.
+## 2026-10-10 — Passenger mount production boarding and native exit
+
+[Mounts](systems/mounts.md#passenger-mounts) corrects player authority from NPC `Zone` to production `InMap`, with login-spawn RED (`Passenger has no zone`) and nine GREEN server tests. Native cursor routing now dispatches leave-seat instead of swallowing it. Two fb_* characters on private UDP5594 pass Ride, attachment40/animation91, input suppression, driver-follow, leave, dismount ejection and disconnect cleanup in Modern and Forever. Four final PNGs individually ffmpeg-decoded (exit0), published to AgentShared; [contract](../specs/passenger-mounts.md) retains catalog gaps and unavailable independent OAuth verification. Branches remain unmerged.
 
 ## 2026-10-10 — Native compile-speed evidence
 ## 2026-10-09 — Source-qualified runtime wiring and nested parser identity
@@ -33,6 +36,9 @@
 ## 2026-10-10 — Battle-pet data and companion foundation
 
 [Battle pets](systems/battle-pets.md) records pinned local species/ability/state exports, per-element WDC5 string-array offsets, Creature display joins, account journal transport, and Retail-shaped native journal. Private5591 both-skin journals, item learning/shared account ownership and rendered Mechanical Squirrel movement/dismiss are now captured. Strict companion appearance roots add2422 displays without replacing10792 existing rows. Targeted UI4/protocol19/server5/item1 pass; independent gate OAuth-blocked. Phase 1 handoff retains counts and remaining proof limits; turn battles excluded.
+## 2026-10-10 — Passenger mount seat frames
+
+[Mounts](systems/mounts.md#passenger-mounts) records local-CASC Vehicle/VehicleSeat joins, seat enum13/14→M2 lookup39/40, normal driver MountMain0 independent of passenger index0, and the real-M2 RED exposing the missing NpcVisualRoot alignment. Native both-skin leave-control and pure transform tests pass; live acceptance remains pending in the [contract](../specs/passenger-mounts.md).
 
 ## 2026-10-09 — Retail auction subject and invoice formatting
 
