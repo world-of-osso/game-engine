@@ -93,6 +93,8 @@ pub struct QuestUiState {
     pub log_selected: Option<u32>,
     /// Retail C_SuperTrack selection, independent of the quest log details panel.
     pub super_tracked: Option<u32>,
+    /// Transient Retail POI highlight; never changes super-tracking.
+    pub highlighted: Option<u32>,
     /// Collapsed quest log headers (`sort_id`).
     pub collapsed_headers: HashSet<i32>,
     /// Objective tracker minimized to its header.
@@ -204,6 +206,15 @@ impl QuestRuntime {
                 })
             })
             .collect()
+    }
+
+    /// QuestBlobDataProvider Refresh adds the hovered quest to the super-tracked blob.
+    pub fn map_objective_areas(&self, ui: &QuestUiState) -> Vec<&QuestPoiSnapshot> {
+        let mut areas = self.selected_objective_areas(ui.super_tracked);
+        if ui.highlighted != ui.super_tracked {
+            areas.extend(self.selected_objective_areas(ui.highlighted));
+        }
+        areas
     }
 
     pub fn apply_snapshot(&mut self, snapshot: QuestLogSnapshot) {

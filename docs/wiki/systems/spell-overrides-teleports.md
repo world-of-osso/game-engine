@@ -20,9 +20,31 @@ The catalog reads `SpellEffect.ImplicitTarget_0/1 = 87` (DEST_DEST) into `ground
 
 MovementControl epoch changes already snap the player. The camera now translates its previous pose by the player displacement on that epoch change, preserving orbit and normal endpoint collision checks instead of interpolating across the entire teleport distance. Cross-map reset still clears the camera anchor.
 
-## Animation gap
+## Animation replacements
 
-`godot/rust/src/animation/mod.rs` selects M2 sequence animation IDs; action layers in `animation/action.rs` select explicit spell/combat clips. Neither loads animation replacement-set records or translates set IDs to animation IDs. Aura312 set1013 is retained on the replica but not applied. Adding that data subsystem is outside this client pass.
+`godot/core/src/animation_replacements.rs` reads local Retail AnimReplacementSet/AnimReplacement CSVs. `godot/rust/src/animation/replicated.rs` projects each unit's AuraView.overrides onto its loaded controller, including late model arrivals. An empty authoritative aura set clears the map. Set IDs are not M2 animation IDs.
+
+Base and action selection translate source IDs once. Logical source IDs remain separate from sampled destination sequences, so shared jump replacements still progress through jump/landing. Map changes immediately reselect the current source (including a standing NPC whose movement did not change) and any held action. Existing snapshot-based outgoing pose and action weights remain continuous; destination M2 blend_time and minimum150 ms apply. Missing destination base sequences retain source, not the destination's AnimationData fallback chain.
+
+Extract FDIDs1284817/1301100 with local casc-local and export using scripts/export_db2_csv.py: local12.1.0.69933 layouts7C047695/6D1FB51C,913 sets/2714 rows, zero encrypted drops. These layouts have ExecOrder and ConditionalFlags, **no speed field**. Movement pacing uses destination M2 movespeed through the existing locomotion rate. Nonzero ConditionalFlags fail explicitly; matrix sets536/692/499/1013/1315 are unconditional. Composition sorts by ExecOrder then set ID, but collision precedence has no separate Retail behavioral proof.
+
+Primary schema: wowdev/WoWDBDefs definitions/AnimReplacement{Set}.dbd, layouts above. Schema proves fields, not missing-destination behavior. Source retention is the explicit user contract; no independently verified primary Retail client fallback implementation was found.
+
+### Aura312 bounded proof — 2026-10-10
+
+Production8a0a3923e: targeted native animation suite74/74 (including nine aura312 lifecycle/selection tests), actual CSV loader1/1, native extension build exit0 with no warnings. Required native cargo check atd858dac75 exits0 without warnings. Changed Rust formatting passes; workspace formatting still fails in unchanged network/replica/codec.rs and ui-model/game_tooltip/merchant.rs. All commands use agent-run/native helpers, no build-lock. Formatting-onlyd858dac75 does not invalidate runtime behavior evidence. Independent verifier could not authenticate (expired Claude OAuth); no independent verdict claimed.
+
+Server origin/master119c402, protocol3facd18, privateUDP5192/fresh redb: fb_animrep_forever/Animforever (HumanWarrior80, character31), authentic learned matrix1251417 cast applied set499. Forever native fixture observes the unit skeleton at PlayerModel/M2Animation: Run5→FlyRun223→Run5 on expiry, cast errors empty. Three1280×720 PNGs in /syncthing/AgentShared/2026-10-10/anim-replacement/ were visually inspected and decoded with ffmpeg signalstats (exit0). Logs stay in data/diagnostics/animrep-2026-10-10/. Ambient missing NPC asset receipts and inherited editor-thread/import shutdown warnings remain unrelated, not suppressed.
+
+Modern proof is **pending**, not equivalent to Forever proof. Initial187827 cast changed display to68671, outside imported appearance coverage. Two subsequent1251417 attempts used recursive find_child and observed a nested item's static animation0 even while the unit physically ran. Fixture now uses the exact player skeleton path; this correction is exercised by Forever. Modern reached the prescribed retry ceiling before that correction; another live attempt requires approval. Failed Modern baseline PNG was moved to diagnostics, not presented as successful user-visible evidence. Owned private server/client PIDs and agents-animrep.slice were stopped; UDP5000 untouched.
+
+### Approved Modern continuation — setup blocked, 2026-10-10
+
+Rebase onto fetched origin/masterf9d346d54 was already up to date. Server snapshot119c402 still matched fetched server origin/master; no rebuild required. Extension/server/CSV SHA256s matched the preceding proof artifacts; corrected exact-path observerffe1fd4cb and matrix spell1251417 remained unchanged.
+
+No Modern client was launched and no new captures or ffmpeg proof exist. First setup waited180s on an empty stdout log although server tracing appeared on stderr and reported UDP5192 listening: orchestration error, not a server startup failure. A second setup gated on the admin socket's existence, then issued read-only list-characters too early: `Admin command 'list-characters' on socket /tmp/game-server-admin-5192.sock timed out after 10000 ms (connect/request/reply)`. The captured server log shows world initialization still progressing and UDP5192 binding only near the timeout. Socket existence did not establish admin readiness; this does not prove an animation failure. Stopped after that setup failure without a live retry or production changes.
+
+Evidence: data/diagnostics/animrep-2026-10-10/modern-approved-{setup-first,server,roster}.log. Owned agents-animrep.slice stopped; ss confirmed no UDP5192 listener. UDP5000 untouched. Modern acceptance remains open; requested modern-{before,active,restored}.png and their ffmpeg inspection remain missing.
 
 ## Sources
 
@@ -42,7 +64,7 @@ MovementControl epoch changes already snap the player. The camera now translates
 | Spellbook base binding, substituted name/icon/cooldown | Pure projection RED/GREEN plus 12 native-model book layout tests | Both skins: base-bound book entry/tooltip swaps and restores |
 | Ground intent destination/cancel | UI-model3/3; real pinned Infernal Strike/Heroic Leap vs Blink catalog1/1 | Both skins: pending reticle then clicked destination moves14.269yd; reticle is native ring geometry |
 | Same-map player/camera | Epoch/orbit unit test; both-skin private master3753ca2 Blink wall cast moved3.3311yd, no errors | Camera collision near Abbey confines the view; no pixel-exact Retail comparison |
-| Aura312 | Recorded replacement-set loader/translation gap | Not applied |
+| Aura312 | Native base/action hook and local matrix data tests | Conditional flags / Retail fallback citation remain unverified; live evidence recorded below |
 
 Implementation660bd1606 native build passed with no warnings. Changed Rust formatting passed; workspace fmt finds only inherited `network/src/replica/codec.rs` and `ui-model/src/game_tooltip/merchant.rs` differences. Initial cargo check was cancelled after a cold ktx2-rw build script attempted a new network download. Matching same-host cached KTX4.4.0 headers/static library were seeded into that check output (no download/source change); final helper cargo check passed at9455e03ba with no warnings. Cold-build automation itself was not changed. No broad suites.
 

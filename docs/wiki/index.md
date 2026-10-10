@@ -1,6 +1,6 @@
 # Wiki Index
 
-- [Disenchant](systems/disenchant.md) — Retail bag-item cast/loot pipeline and bounded native proof.
+- [Disenchant](systems/disenchant.md) — both-skin private item/cast/loot/appearance/refusal proof; authoritative collection diagnostic and stale TDB material census.
 - [Passenger mounts](systems/mounts.md#passenger-mounts) — local seat enums, authoritative group occupancy, model-aligned seat transforms, production `InMap` authority and both-skin native Ride/leave/dismount live proof; acceptance owned by the [contract](../specs/passenger-mounts.md).
 
 - [Native dev rebuild timings](investigations/native-dev-build-timings.md) — warm workspace test compilation 37.75s → 14.21s with one UI harness; unchanged 2689-test inventory, relocated-cache and linker-profiling limits.
@@ -10,12 +10,14 @@
 - [Player cast spark](../specs/player-cast-feedback.md) — `397c20803` skin fill-height fix; `427e5a814` owns scoped native proof.
 - [Native HUD editor](systems/native-hud-edit-mode.md) — rounding `4850c6652`, preview bounds `bcd89f56e`, show-list `386a97f5e`, label/autosave/padding `8ad38c9cb`; [nameplates](../specs/nameplate-style.md) own level removal `37144af3e` and distance step `72689598a`; [HUD contract](../specs/hud-edit-mode.md) owns target rare art `ea8a275bf`.
 - [Spellbook icon shipping](../specs/spellbook-action-bar.md) — classbook proof `21b9fca97`; manifest exceptions `565122e97` are CPU diagnostics only. [StackSplit screen clamping](../specs/cursor-item.md) owns native `clampedToScreen` correction `5b10f31bc`.
+- [Recovered Skyborne NPC bakes](systems/forever-data.md#seven-recovered-bakes--native-npc-checkpoint-2026-10-10) — seven mapped/attached displays; four NPCs textured in eight inspected Modern/Forever captures; overlapping-spawn visual gaps explicit.
 - [Readable NPC sections](systems/forever-data.md#readable-section-correction-2026-10-09) — tolerant decoder `d1a816b52`/`714a1042c`; seven profiles published, missing bakes still separate. [Indoor minimap](systems/minimap.md#indoor-status-2026-10-09) remains geometry-blocked, not implemented.
 - [Extracted-only policy](systems/shipped-assets.md) — P1 `f6b32b79e`; [closure audit](systems/offline-asset-closure.md) `5520e82ff` is incomplete, not release certification. [Client deployment](../deploy.md) separates extracted-only direction from historical CASC proof; [server deployment](../../../game-server/docs/deploy.md) owns the shared realm's current location.
 
 
 - [Offline asset closure — round 3 final](systems/offline-asset-closure.md#round-3-final-dataset--verified-2026-10-10) — 970,356 present /2,302 missing /5,024 unresolved;188,100 paths /4,967,995,591 bytes and193,049 owned receipts verified. Residual/source drift and no-install acceptance remain explicit.
 - [M2 product shadowing](investigations/m2-product-shadowing.md) — unqualified disk/parsed collisions, metadata-source RED/GREEN, authenticated actual-build offline chains and remaining runtime/native boundary; [continuation evidence](investigations/m2-product-shadowing.md#continuation-authenticated-offline-chains-2026-10-09).
+- [Offline asset closure](systems/offline-asset-closure.md) — full-catalog traversal and authenticated no-clobber extraction; [70338 recheck](systems/offline-asset-closure.md#recorded-gap-recovery--verified-2026-10-10) recovers seven bakes, vehicle7476985 and204 IV8 failures. Optional joins/no-install acceptance remain open.
 
 - [Zephras sky/minimap diagnosis](investigations/zephras-sky-minimap.md) — map2991 listfile-only tile loss and wrong M2 dual-crossfade; shader/tile RED/GREEN and inspected rebuilt private before/after; whole-day sky parity unclaimed.
 
@@ -34,11 +36,15 @@ The Bevy client was retired on 2026-10-02 ([log](log.md#2026-10-02--bevy-client-
 
 ## Systems
 
+- [Effect50 toy objects](systems/toy-box.md#effect50-object-rendering-2026-10-10) — generic decoration visibility separated from interaction; three actual toys rendered in both configured skins; aura233 payload mapping remains unimplemented.
+
 - [Generic toy auras](systems/toy-box.md#generic-toy-aura-consumption-2026-10-10) — scale/fall replication and override sets; private scale proof, Forever fall proof and remaining Modern capture boundary.
 
 - [Native Toy Box](systems/toy-box.md) — Retail journal, unresolved-name ItemID labels, both-skin search/progress/desaturation; master-protocol private live learning/favourite/cast/bar/relog proof and inspected26 v2 captures. Transform-model coverage remains separate.
-- [Quest map objectives](systems/quest-map-objectives.md) — local Retail POI census, server-only geometry and numbered overlays; v2 fixes128/192 opacity and super-tracked world-map blobs, with targeted/native/private proof and four inspected PNGs. Hover/native-minimap selection gaps explicit.
+- [Quest map objectives](systems/quest-map-objectives.md) — local Retail POIs and numbered overlays; v3 title/POI hover adds authored polygons and Retail additive button glow, with both-skin private proof and eight inspected PNGs. Native minimap selection remains source-unexposed; watched behavior retained.
 - [Battle pets](systems/battle-pets.md) — local CASC catalogs, account journal and shared Collections Pets tab with creature-model card; [v2 both-skin proof](systems/battle-pets.md#collections-integration-correction--2026-10-10), turn battles excluded.
+- [Quest map objectives](systems/quest-map-objectives.md) — local Retail POI census, server-only geometry and numbered overlays; v2 fixes128/192 opacity and super-tracked world-map blobs, with targeted/native/private proof and four inspected PNGs. Hover/native-minimap selection gaps explicit.
+- [Battle pets](systems/battle-pets.md) — local CASC catalogs, account journal and shared Collections Pets tab; [v2 companion proof](systems/battle-pets.md#collections-integration-correction--2026-10-10) and [bounded wild PvE](systems/battle-pets.md#wild-pve-integration--verified-2026-10-10), both-skin private win/capture with isolated HUD and [Retail HUD v2](systems/battle-pets.md#retail-hud-correction--verified-2026-10-10).
 
 - [Extracted-only assets](systems/shipped-assets.md) — P1 startup/CASC policy, detached legacy-miss completion and cold-process fixture boundaries; complete closure and deployment remain later phases.
 
@@ -238,6 +244,6 @@ External resources and asset lists.
 - [Auction result icon diagnosis](systems/auction-house-ui.md#missing-result-icons-2026-10-08) — five-item FDID/file trace, local-store proof and shared unavailable-icon policy.
 
 - [Auction house UI](systems/auction-house-ui.md#subcategory-and-displayed-column-sorts--2026-10-08) — native category paths, Bid/Available requests and bounded cross-repo proof.
-- [Talents](systems/talents.md) — native DB2 graph, server snapshot/commit wiring, historical icon proof and [all40-spec both-skin layout/Arms acceptance](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10): eligible hero selector, non-stacked dialog/active tree, shared baseline, outlined ranks and bounded footer; [after2 rank paint/Apply art](systems/talents.md#after2-rank-paint-and-exact-apply-art-2026-10-10) supersedes rank/footer pixels with81 native captures.
+- [Talents](systems/talents.md) — native DB2 graph and snapshot/commit wiring; [all-spec layout](systems/talents.md#talent-layout-and-arms-text-acceptance-2026-10-10), [rank/Apply art](systems/talents.md#after2-rank-paint-and-exact-apply-art-2026-10-10) and [Retail footer controls](systems/talents.md#footer-controls--2026-10-10): staged reset, search previews/keyboard/badges, bounded loadout UI,17 tests and four inspected v3 captures; server/serialization gaps explicit.
 
-- [Spell overrides and teleports](systems/spell-overrides-teleports.md) — aura332 effective actions, destination targeting contract and aura312 replacement-set gap.
+- [Spell overrides and teleports](systems/spell-overrides-teleports.md) — aura332 effective actions, destination targeting and native aura312 base/action replacement hooks; conditional-flag and citation limits.

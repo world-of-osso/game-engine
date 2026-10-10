@@ -50,6 +50,12 @@ Round 3 completed extraction/owned-receipt evidence on2026-10-10: **970,356 pres
 - [ ] Full spell selector is a conservative catalog superset; complete server reachability needs content policy.
 - [ ] Full character selector includes modeled placeholder races; supported playable-pair policy and customization requirement evaluation remain unresolved.
 
+## Recorded local-gap recheck
+
+Separate opt-in `scripts/recheck_local_asset_gaps.py` consumes a recorded product/FDID/path inventory. It resolves the active build through authenticated local root/encoding metadata and IDX bounds, retries payloads in private staging, rejects unknown-key output, and publishes through the existing atomic no-clobber receipt path. Existing files must remain untouched; conflicts and invalid identities remain visible. It never imports server tables or fetches assets remotely.
+
+`scripts/tests/test_recheck_local_asset_gaps.py` covers real extractor-process publication, unknown-key rejection, and conflicting existing-file preservation.
+
 ## Out of scope
 
-Runtime policy/tripwire (P1), product-isolated runtime keys/identity migration (P2), extraction, packaging/release enforcement, audio/UI scenario acceptance. This change cannot establish no-install gameplay acceptance.
+Runtime policy/tripwire (P1), product-isolated runtime keys/identity migration (P2), packaging/release enforcement, audio/UI scenario acceptance. The offline graph audit itself still performs no extraction. Neither tool establishes no-install gameplay acceptance.

@@ -71,6 +71,17 @@ import sys
 # ("float", field index, element) for 32-bit element `element` of a float field, or
 # ("int", field index, element) for signed 32-bit element `element` of an integer field.
 TABLES = {
+    # Local Retail 12.1.0.69933; WoWDBDefs layouts. No speed column in these tables.
+    "AnimReplacementSet": (
+        0x7C047695,
+        [("ID", "id"), ("ExecOrder", ("u8", 0))],
+    ),
+    "AnimReplacement": (
+        0x6D1FB51C,
+        [("ID", "id"), ("SrcAnimID", ("u16", 1)),
+         ("DstAnimID", ("u16", 2)), ("ConditionalFlags", ("int", 3, 0)),
+         ("ParentAnimReplacementSetID", "parent")],
+    ),
     # Local Retail 12.1.0.69933; wowdev/WoWDBDefs QuestPOIBlob/Point layouts.
     "QuestPOIBlob": (
         0xFDC814CF,

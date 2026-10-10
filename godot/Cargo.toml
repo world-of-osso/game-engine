@@ -20,8 +20,12 @@ shared = { path = "../../shared-protocol" }
 debug = 1
 split-debuginfo = "unpacked"
 
+# Dependencies build without debug info (workspace crates keep debug = 1): measured
+# 2026-10-10 on a cold workspace build, 17 -> 13 GiB and 576 -> 305 s. Dependency
+# frames in backtraces/debuggers lose file:line info.
 [profile.dev.package."*"]
 opt-level = 2
+debug = 0
 
 # Shared M2/BLP/ADT parsers and texture composition run per model load;
 # unoptimized they dominated character-select loading.

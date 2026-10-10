@@ -656,7 +656,7 @@ impl crate::GameClient {
     pub(super) fn update_player_input(&mut self, delta: f32) -> Result<(), String> {
         use game_engine_core::camera_input_data::CameraInput;
         use godot::prelude::*;
-        if self.game_menu_ui.is_some() {
+        if self.game_menu_ui.is_some() || self.wild_pet_battle.view.state.is_some() {
             // Match original modal movement: stop direction/autorun, retain airborne state.
             self.player_movement.autorun = false;
             self.player_movement.direction = MoveDirection::None;
@@ -830,7 +830,7 @@ impl crate::GameClient {
         };
         let position = node.get_position();
         let position = glam::Vec3::new(position.x, position.y, position.z);
-        let input = if self.game_menu_ui.is_some() {
+        let input = if self.game_menu_ui.is_some() || self.wild_pet_battle.view.state.is_some() {
             self.player_movement.stop_input(yaw, position, epoch)
         } else {
             self.player_movement.network_input(yaw, position, epoch)

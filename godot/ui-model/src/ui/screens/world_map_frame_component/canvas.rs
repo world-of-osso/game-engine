@@ -46,7 +46,7 @@ pub fn canvas_contents(state: &WorldMapFrameState, size: [f32; 2]) -> Element {
         children.extend(quest_areas(size));
     }
     for (index, pin) in state.pins.iter().enumerate() {
-        children.extend(map_pin(index, pin, size));
+        children.extend(map_pin(index, pin, size, state.highlighted_quest));
     }
     if let Some(player) = &state.player {
         children.extend(player_arrow(player, size));
@@ -114,7 +114,7 @@ fn highlight_texture(highlight: &MapHighlight, rect: [f32; 4]) -> Element {
     }
 }
 
-fn map_pin(index: usize, pin: &MapPin, [w, h]: [f32; 2]) -> Element {
+fn map_pin(index: usize, pin: &MapPin, [w, h]: [f32; 2], highlighted: Option<u32>) -> Element {
     let size = pin.pin_type.size();
     let rect = [pin.x * w - size / 2.0, pin.y * h - size / 2.0, size, size];
     let mut pin_frames = image(format!("WorldMapPin{index}"), pin.pin_type.art(), rect);
@@ -125,6 +125,13 @@ fn map_pin(index: usize, pin: &MapPin, [w, h]: [f32; 2]) -> Element {
             rect,
             11.0,
             WHITE,
+        ));
+    }
+    if pin.quest_id.is_some() && pin.quest_id == highlighted {
+        pin_frames.extend(crate::ui::screens::quest_art::atlas_texture(
+            format!("WorldMapPin{index}Highlight"),
+            &crate::ui::screens::quest_art::POI_INNER_GLOW,
+            (pin.x * w - 16.0, pin.y * h - 16.0, 32.0, 32.0),
         ));
     }
     pin_frames

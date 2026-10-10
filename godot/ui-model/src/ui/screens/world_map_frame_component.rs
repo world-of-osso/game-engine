@@ -167,6 +167,8 @@ impl MapPinType {
 #[derive(Clone, Debug, PartialEq)]
 pub struct MapPin {
     pub pin_type: MapPinType,
+    /// Quest identity for managed POI highlights; other map pins have none.
+    pub quest_id: Option<u32>,
     pub label: String,
     /// Text drawn over the icon (quest number).
     pub badge: String,
@@ -232,6 +234,7 @@ pub struct WorldMapFrameState {
     pub tiles: Vec<MapTile>,
     pub highlight: Option<MapHighlight>,
     pub pins: Vec<MapPin>,
+    pub highlighted_quest: Option<u32>,
     /// Watched quests' objective areas as map-UV polygons (`QuestPOI` blobs); the host
     /// draws them into `WORLD_MAP_QUEST_AREAS`.
     pub quest_areas: Vec<Vec<[f32; 2]>>,
@@ -579,6 +582,15 @@ pub fn apply_world_map_postsetup(state: &WorldMapFrameState, registry: &mut Fram
     edit_texture(registry, WORLD_MAP_HIGHLIGHT, |texture| {
         texture.blend_mode = BlendMode::Additive;
     });
+    for index in 0..state.pins.len() {
+        edit_texture(
+            registry,
+            &format!("WorldMapPin{index}Highlight"),
+            |texture| {
+                texture.blend_mode = BlendMode::Additive;
+            },
+        );
+    }
 }
 
 fn edit_texture(registry: &mut FrameRegistry, name: &str, edit: impl FnOnce(&mut TextureData)) {

@@ -113,6 +113,18 @@ fn unreadable_species_stays_in_catalog_but_not_blank_list_selection() {
 }
 
 #[test]
+fn pet_journal_equips_selected_owned_pet_without_duplicate_slots() {
+    let mut view = view();
+    view.select(PetRowKey::Owned(1));
+    let request = view.equip_selected(2).unwrap();
+    assert_eq!(request.slots, [None, None, Some(1)]);
+    assert!(view.pending);
+    view.pending = false;
+    view.select(PetRowKey::Species(40));
+    assert!(view.equip_selected(0).is_none());
+}
+
+#[test]
 fn pet_journal_skins_share_retail_layout_and_real_instance_text() {
     game_engine_ui_model::paths::set_data_root(
         std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("../../data"),

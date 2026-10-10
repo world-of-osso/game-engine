@@ -62,6 +62,7 @@ pub mod toybox;
 pub mod toybox_component;
 pub mod trainer;
 pub mod trainer_frame;
+pub mod wild_pet_battle;
 
 // Party/raid frames, ready check and the PARTY_INVITE popup (docs/specs/group-frames.md).
 /// The compact unit frame's dispel colours (root `buff_data`).
