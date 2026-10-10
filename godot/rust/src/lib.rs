@@ -100,6 +100,7 @@ mod tooltip_sources;
 mod tooltip_units;
 mod tooltips;
 mod toybox;
+mod toybox_snapshot;
 mod trade;
 mod trainer;
 mod trainer_preview;
@@ -1104,6 +1105,12 @@ impl GameClient {
     #[func]
     fn spells_state(&self) -> VarDictionary {
         self.spells_snapshot()
+    }
+
+    /// Read-only Toy Box and persisted toy-slot state for live process fixtures.
+    #[func]
+    fn toybox_state(&self) -> VarDictionary {
+        self.toybox_snapshot()
     }
 
     /// The pet bar: pet, command/react states, buttons, checked states, Move To targeting
