@@ -160,11 +160,26 @@ pub struct OpenAttachment {
     pub item: SlotItem,
 }
 
+/// Retail GetInboxInvoiceInfo, retained independently of attachment claims.
+#[derive(Clone, Debug, PartialEq)]
+pub struct AuctionInvoiceView {
+    pub item_label: String,
+    pub player_label: String,
+    pub amount_label: String,
+    pub amount: u64,
+    pub sale_price: Option<u64>,
+    pub buyout: u64,
+    pub deposit: u64,
+    pub house_cut: u64,
+    pub count: u64,
+}
+
 #[derive(Clone, Debug, PartialEq, Default)]
 pub struct OpenMailView {
     pub sender: String,
     pub subject: String,
     pub body: String,
+    pub invoice: Option<AuctionInvoiceView>,
     pub money: u64,
     pub cod: u64,
     pub attachments: Vec<OpenAttachment>,
@@ -666,6 +681,119 @@ pub fn open_attachment_position(index: usize, rows: usize) -> (f32, f32) {
     (x, y)
 }
 
+/// Retail MailFrame.xml:1094-1227; invoice replaces the letter, not its attachments.
+fn auction_invoice(invoice: &AuctionInvoiceView) -> Element {
+    let mut children = invoice_heading(invoice);
+    let amount_y = if let Some(bid) = invoice.sale_price {
+        children.extend(seller_invoice_rows(invoice, bid));
+        276.0
+    } else {
+        185.0
+    };
+    children.extend(invoice_total(invoice, amount_y));
+    children
+}
+
+fn invoice_heading(invoice: &AuctionInvoiceView) -> Element {
+    let mut children = label(
+        "OpenMailInvoiceItemLabel".into(),
+        &invoice.item_label,
+        (30.0, 119.0, 270.0, 16.0),
+        (12.0, "0.18,0.12,0.06,1.0", "LEFT"),
+    );
+    children.extend(label(
+        "OpenMailInvoicePurchaser".into(),
+        &invoice.player_label,
+        (30.0, 140.0, 270.0, 16.0),
+        (12.0, "0.18,0.12,0.06,1.0", "LEFT"),
+    ));
+    children
+}
+
+fn seller_invoice_rows(invoice: &AuctionInvoiceView, bid: u64) -> Element {
+    let mut children = invoice_money_row(
+        ("OpenMailInvoiceSalePrice", "OpenMailSalePriceMoneyFrame"),
+        crate::auction_mail::text("SALE_PRICE_COLON"),
+        bid / invoice.count,
+        161.0,
+        false,
+    );
+    children.extend(invoice_sale_count(invoice.count));
+    children.extend(invoice_money_row(
+        ("OpenMailInvoiceDeposit", "OpenMailDepositMoneyFrame"),
+        crate::auction_mail::text("DEPOSIT_COLON"),
+        invoice.deposit,
+        195.0,
+        false,
+    ));
+    children.extend(invoice_money_row(
+        ("OpenMailInvoiceHouseCut", "OpenMailHouseCutMoneyFrame"),
+        crate::auction_mail::text("AUCTION_HOUSE_CUT_COLON"),
+        invoice.house_cut,
+        229.0,
+        true,
+    ));
+    children
+}
+
+fn invoice_sale_count(count: u64) -> Element {
+    if count <= 1 {
+        return Element::default();
+    }
+    let caption = crate::auction_mail::text("AUCTION_HOUSE_MAIL_FORMAT_COUNT")
+        .replace("%s", &count.to_string());
+    label(
+        "OpenMailSalePriceMoneyFrameCount".into(),
+        &caption,
+        (30.0, 178.0, 120.0, 14.0),
+        (12.0, "0.18,0.12,0.06,1.0", "LEFT"),
+    )
+}
+
+fn invoice_total(invoice: &AuctionInvoiceView, y: f32) -> Element {
+    let mut children = texture(
+        "OpenMailArithmeticLine".into(),
+        136_387,
+        (30.0, y - 25.0, 256.0, 32.0),
+        WHITE,
+    );
+    children.extend(invoice_money_row(
+        (
+            "OpenMailInvoiceAmountReceived",
+            "OpenMailTransactionAmountMoneyFrame",
+        ),
+        &invoice.amount_label,
+        invoice.amount,
+        y,
+        false,
+    ));
+    children
+}
+fn invoice_money_row(
+    names: (&str, &str),
+    caption: &str,
+    copper: u64,
+    y: f32,
+    red: bool,
+) -> Element {
+    use crate::merchant_frame_component::{MoneyAlign, money_colored};
+    let ink = "0.18,0.12,0.06,1.0";
+    let mut children = label(
+        names.0.into(),
+        caption,
+        (30.0, y, 270.0, 14.0),
+        (12.0, ink, "RIGHT"),
+    );
+    children.extend(money_colored(
+        names.1,
+        copper,
+        (316.0, y + 32.0),
+        MoneyAlign::Right,
+        if red { RED_FONT_COLOR } else { ink },
+    ));
+    children
+}
+
 fn open_mail(open: &OpenMailView, busy: bool) -> Element {
     let prefix = OPEN_MAIL_NAME;
     let mut children = window_chrome(prefix, (FRAME_W, FRAME_H), "Open Mail", ACTION_OPEN_CLOSE);
@@ -722,6 +850,9 @@ fn open_mail(open: &OpenMailView, busy: bool) -> Element {
         (18.0, 94.0, 276.0, letter_h - 20.0),
         (12.0, "0.18,0.12,0.06,1.0", "LEFT"),
     ));
+    if let Some(invoice) = &open.invoice {
+        children.extend(auction_invoice(invoice));
+    }
     children.extend(horizontal_bar(
         "OpenMailHorizontalBarLeft",
         FRAME_H - 39.0 - area_h,
