@@ -26,6 +26,19 @@ class RequiredUiIconManifestTests(unittest.TestCase):
             missing = icons.missing_required_icons(manifest, Path(directory))
         self.assertEqual(missing, [135875])
 
+    def test_failed_preparation_still_records_available_and_missing_provenance(self):
+        with tempfile.TemporaryDirectory(prefix="ui-icon-provenance-") as directory:
+            root = Path(directory)
+            data = root / "data"
+            data.mkdir()
+            (data / "db2").symlink_to(ROOT / "data/db2", target_is_directory=True)
+            with self.assertRaises(ValueError):
+                icons.prepare_ui_icons(root, root / "no-extractor")
+            provenance = json.loads((data / "cache/ui-icon-provenance.json").read_text())
+            self.assertEqual(provenance["status"], "incomplete")
+            self.assertIn(135875, provenance["missing_fdids"])
+            self.assertEqual(provenance["icons"], [])
+
     def test_generated_manifest_requires_every_icon_in_the_extracted_set(self):
         path = ROOT / "data/cache/required-ui-icons.json"
         manifest = json.loads(path.read_text())
