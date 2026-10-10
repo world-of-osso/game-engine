@@ -38,6 +38,8 @@ Offline audit tooling in `scripts/asset_closure.py` computes a content-rooted de
 
 ## Known gaps (current cycle)
 
+Round 3 completed extraction/owned-receipt evidence on2026-10-10: **970,356 present /2,302 missing /5,024 unresolved**. [Final dataset and proof](../wiki/systems/offline-asset-closure.md#round-3-final-dataset--verified-2026-10-10) preserve all per-class counts, source drift and hashes;3,643 metadata gaps and1,297 unexpanded dependency records remain. Existing69 fixtures at20787e177 remain valid; task-only staged recovery does not establish production-driver memory acceptance or no-install gameplay.
+
 - [ ] Legacy extracted files have no authenticated product/actual-build receipts. Hashing proves local bytes, not origin. Manifest identity remains unverified.
 - [x] Inspect every ADT MCNK and MH2O instance; resolve MCLY ground effects through GroundEffectTexture/Doodad and liquids through LiquidObject/Type/XTexture, including renderer-global textures. Record inline-only chunks and zero-instance liquids as not-needed with evidence; missing required joins/unknown chunks stay unresolved. Absent optional ground-effect rows are not-needed only when the CSV is present and hashed and the current runtime skips the row before any model request; ignored MPTX/legacy MCLQ chunks are explicitly scoped to current runtime support, not Retail-format completeness.
 - [x] Traverse known SpellVisualKitEffect discriminants through pinned local effect tables: attachments, beam chains, emission models, texture blends, decals, screen effects and sound kits. Preserve cycles, missing rows, unknown types and unparsed client-scene script boundaries. Numeric-only effects are scoped to current native file requests, not a claim of full Retail effect rendering.
