@@ -22,7 +22,7 @@
 [Quest map objectives](systems/quest-map-objectives.md) records local CASC coverage, source-owned geometry, numbered icons, blue overlays and super-tracking. 41 distinct targeted tests, native build/check, private5518 real quest28766 acceptance/live completion and both-skin12-PNG FFmpeg/visual proof; published PNG-only to AgentShared. Sprite number and fixture mount-race REDs corrected. Conditional/missing geometry, inherited format failures and unavailable independent OAuth verification remain explicit.
 ## 2026-10-10 — Battle-pet data and companion foundation
 
-[Battle pets](systems/battle-pets.md) records pinned local species/ability/state exports, per-element WDC5 string-array offsets, Creature display joins, account journal transport, and Retail-shaped native journal. Targeted and live acceptance remain recorded in the Phase 1 handoff; turn battles excluded.
+[Battle pets](systems/battle-pets.md) records pinned local species/ability/state exports, per-element WDC5 string-array offsets, Creature display joins, account journal transport, and Retail-shaped native journal. Private5591 both-skin journals, item learning/shared account ownership and rendered Mechanical Squirrel movement/dismiss are now captured. Strict companion appearance roots add2422 displays without replacing10792 existing rows. Targeted UI4/protocol19/server5/item1 pass; independent gate OAuth-blocked. Phase 1 handoff retains counts and remaining proof limits; turn battles excluded.
 
 ## 2026-10-09 — Retail auction subject and invoice formatting
 
