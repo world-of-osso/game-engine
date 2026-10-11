@@ -95,6 +95,8 @@ pub struct Catalog {
     pub loot_difficulties: BTreeMap<u32, Vec<u32>>,
     pub item_specs: BTreeMap<u32, Vec<u32>>,
     pub classes: BTreeMap<u32, String>,
+    pub difficulties: BTreeMap<u32, String>,
+    pub map_difficulties: BTreeMap<u32, Vec<u32>>,
     pub text: BTreeMap<String, String>,
 }
 fn query<T>(
@@ -184,7 +186,16 @@ impl Catalog {
                 })
             },
         )?;
-        let sections=query(&db,"SELECT ID,Title_lang,BodyText_lang,JournalEncounterID,ParentSectionID,FirstChildSectionID,NextSiblingSectionID,Type,SpellID,IconFileDataID,IconFlags FROM JournalEncounterSection",|r|Ok(Section{id:r.get(0)?,title:r.get(1)?,body:r.get(2)?,encounter:r.get(3)?,parent:r.get(4)?,child:r.get(5)?,next:r.get(6)?,kind:r.get(7)?,spell:r.get(8)?,icon:r.get(9)?,roles:r.get(10)?}))?.into_iter().map(|s|(s.id,s)).collect();
+        let sections = query(
+            &db,
+            "SELECT ID,Title_lang,BodyText_lang,JournalEncounterID,ParentSectionID,FirstChildSectionID,NextSiblingSectionID,Type,SpellID,IconFileDataID,IconFlags FROM JournalEncounterSection",
+            |row| Ok(Section {
+                id: row.get(0)?, title: row.get(1)?, body: row.get(2)?,
+                encounter: row.get(3)?, parent: row.get(4)?, child: row.get(5)?,
+                next: row.get(6)?, kind: row.get(7)?, spell: row.get(8)?,
+                icon: row.get(9)?, roles: row.get(10)?,
+            }),
+        )?.into_iter().map(|section| (section.id, section)).collect();
         let loot = query(
             &db,
             "SELECT ID,JournalEncounterID,ItemID FROM JournalEncounterItem",
@@ -254,6 +265,15 @@ impl Catalog {
                 "SELECT JournalEncounterItemID,DifficultyID FROM JournalItemXDifficulty",
             )?,
             item_specs: relations(&db, "SELECT item_id,spec_id FROM item_specialization")?,
+            difficulties: query(&db, "SELECT ID,name FROM difficulty", |r| {
+                Ok((r.get(0)?, r.get(1)?))
+            })?
+            .into_iter()
+            .collect(),
+            map_difficulties: relations(
+                &db,
+                "SELECT map_id,difficulty_id FROM map_difficulty ORDER BY difficulty_id",
+            )?,
             classes: query(&db, "SELECT ID,name FROM class", |r| {
                 Ok((r.get(0)?, r.get(1)?))
             })?

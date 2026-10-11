@@ -176,6 +176,12 @@ def import_presentation(connection, items):
     connection.execute('CREATE TABLE class (ID INTEGER PRIMARY KEY, name TEXT)')
     with (items / 'ChrClasses.csv').open(newline='') as handle:
         connection.executemany('INSERT INTO class VALUES(?,?)', ((int(row['ID']), row['Name_lang']) for row in csv.DictReader(handle)))
+    connection.execute('CREATE TABLE difficulty (ID INTEGER PRIMARY KEY, name TEXT)')
+    with (items / 'Difficulty.csv').open(newline='') as handle:
+        connection.executemany('INSERT INTO difficulty VALUES(?,?)', ((int(row['ID']), row['Name_lang']) for row in csv.DictReader(handle)))
+    connection.execute('CREATE TABLE map_difficulty (map_id INTEGER, difficulty_id INTEGER)')
+    with (items / 'MapDifficulty.csv').open(newline='') as handle:
+        connection.executemany('INSERT INTO map_difficulty VALUES(?,?)', ((int(row['MapID']), int(row['DifficultyID'])) for row in csv.DictReader(handle) if int(row['DifficultyID']) != 0))
     connection.execute('CREATE TABLE journal_text (tag TEXT PRIMARY KEY, text TEXT)')
     with (items / 'GlobalStrings.csv').open(newline='') as handle:
         connection.executemany('INSERT INTO journal_text VALUES(?,?)',
