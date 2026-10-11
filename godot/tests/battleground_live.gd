@@ -32,7 +32,7 @@ func live_run() -> void:
 				result.controls = []
 				for node in root.find_children("*", "Control", true, false):
 					if node.is_visible_in_tree():
-						var rect := node.get_global_rect()
+						var rect: Rect2 = node.get_global_rect()
 						result.controls.append({"name": str(node.name), "rect": [rect.position.x, rect.position.y, rect.size.x, rect.size.y], "text": str(node.text) if node is Label or node is Button else ""})
 			"capture":
 				await frames(3)
