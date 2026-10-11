@@ -6,8 +6,10 @@
 [Investigation](investigations/nonvisual-equipment.md): server additive storage/DB2 uniqueness, same-level Forever model/slot picking RED→GREEN; both-skin paid Mood Ring purchase, five filled slots, tooltip/drag and exact GUID/stat preservation across server restart and client relog. Twelve inspected1280px PNGs shared; legacy relic catalog and existing proficiency/equip-trigger limits explicit.
 
 ## 2026-10-11 — Native follower LFG transport
+## 2026-10-11 — Native Mythic Mentor
 
-[Contract](../specs/follower-dungeons.md): existing LFG IPC requests now reach the reliable native transport; account state retains server matches/refusals and clears on reset. Targeted decoded-account/ephemeral-UDP2/2 pass; no additional skin-specific UI. Subsequent user approval permits same-map Normal population/entrance reuse. Private5750 Modern/Forever five-role party/follow/combat/first-boss kills and eight inspected PNGs now have [bounded live proof](../../../game-server/docs/wiki/investigations/follower-data.md#both-skin-first-boss-proof--2026-10-11); source-empty loot and walked-route gates remain open. No canonical writes, master merge or posed capture.
+[Keys panel](systems/mythic-mentor.md): server party summaries, addon list projection, native launcher/title drag/placement. Private5811 both-skin two-account +8/+11, authored37:30, initial solo snapshot, physical controls and open-panel leave/uninvite pruning. Loading snapshot loss, icon-overpaint and logout retention fixed at lifecycle/layer roots;4 targeted tests/checks/fmt pass, including integrated NPC-companion party identity, two inspected1280×720 PNGs published. No full suites or shared-realm mutation.
+
 ## 2026-10-11 — Native Mythic Keystone UI
 
 [Runtime](systems/mythic-plus.md): shared Mainline Font/slot/start, ChallengeModeFrame tracker and completion banner; physical Font right-click dispatch and occluded-icon root fixes. Private5800 fb_* both-skin bag/activation/forces/boss/completion proof; Modern upgrade and Forever accelerated-clock depletion. Source numeric gaps remain disabled; no canonical world.db/shared-realm changes or full-suite claim.
@@ -15,6 +17,9 @@
 
 [Talents](systems/talents.md#third-pass-rendering-and-live-hero-selection--verified2026-10-11): local-CASC spec backgrounds/masks, purchasability colors, earlier-row gate progress/hover, authored arrows, split choices, separate currency headers, Forever ring/spend art and existing PvP footer. UIParent hero modal/cover/close layering, staged Apply and outgoing-subtree refunds reproduced/fixed. Private UDP5880 fb_* Mage/Ret/Arms × both skins, chosen Sunfury persistence, actual choice/rank/gate hover and hero spend/swap receipts; native checker6/6.42 scoped talent tests plus3 PvP tests/check/native build; no full suites/master landing/5000 or independent review claim.
 
+## 2026-10-11 — Native follower LFG transport
+
+[Contract](../specs/follower-dungeons.md): existing LFG IPC requests now reach the reliable native transport; account state retains server matches/refusals and clears on reset. Targeted decoded-account/ephemeral-UDP2/2 pass; no additional skin-specific UI. Subsequent user approval permits same-map Normal population/entrance reuse. Private5750 Modern/Forever five-role party/follow/combat/first-boss kills and eight inspected PNGs now have [bounded live proof](../../../game-server/docs/wiki/investigations/follower-data.md#both-skin-first-boss-proof--2026-10-11); source-empty loot and walked-route gates remain open. No canonical writes, master merge or posed capture.
 ## 2026-10-11 — Native group loot
 
 [Group loot](systems/group-loot.md): four-choice protocol/server/UI integration; numeric-chat RED→GREEN and real ordered UDP bridge. Modern8 Need90>Greed53 and Forever9 Need43>Greed46 award exactly one authentic Monogrammed Sash to the winner; both-account baselines, completed history and eleven inspected PNGs. Forever party→raid leader settings; deterministic Transmog1>Greed99 and completed-history connection replacement. Private54300 only; no world.db writes or master merge. Full Mainline Need-policy certification and independent verifier authentication remain separate.

@@ -10,6 +10,7 @@ pub(crate) struct ChallengeUi {
     queried: bool,
     dismissed: bool,
     last_snapshot: Option<shared::protocol::ChallengeSnapshot>,
+    pub(crate) mentor: crate::mythic_mentor::MentorUi,
 }
 impl ChallengeUi {
     fn free(&mut self) {
@@ -21,6 +22,7 @@ impl ChallengeUi {
         &mut self,
         visit: &mut impl FnMut(&mut Gd<RegistryUi>) -> Result<(), String>,
     ) -> Result<(), String> {
+        self.mentor.visit_uis(visit)?;
         match &mut self.ui {
             Some(ui) => visit(ui),
             None => Ok(()),
@@ -46,10 +48,12 @@ impl GameClient {
     pub(super) fn update_challenge(&mut self) -> Result<(), FrameError> {
         if self.account.session.screen != SessionScreen::InWorld {
             self.challenge_ui.free();
+            self.challenge_ui.mentor.free();
             self.challenge_ui = ChallengeUi::default();
             self.account.challenge = Default::default();
             return Ok(());
         }
+        self.update_mythic_mentor()?;
         if !self.challenge_ui.queried {
             self.account
                 .send_challenge_request(ChallengeRequest::Query)?;

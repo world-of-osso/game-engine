@@ -127,6 +127,7 @@ pub struct Account {
     pub raid_difficulty: Option<shared::protocol::RaidDifficultySet>,
     pub dungeon_objectives: game_engine_ui_model::dungeon_progress::DungeonObjectives,
     pub challenge: shared::protocol::ChallengeSnapshot,
+    pub party_keystones: shared::protocol::PartyKeystoneSnapshot,
     pub scenario_objectives: game_engine_ui_model::scenario_progress::ScenarioObjectives,
     pub achievements: game_engine_ui_model::achievements::AchievementWindow,
     pub achievement_requests: Vec<shared::protocol::QueryAchievementCatalog>,
@@ -347,6 +348,7 @@ impl Account {
             raid_difficulty: None,
             dungeon_objectives: Default::default(),
             challenge: Default::default(),
+            party_keystones: Default::default(),
             scenario_objectives: Default::default(),
             achievements: Default::default(),
             achievement_requests: Vec::new(),
@@ -1627,6 +1629,7 @@ impl Account {
             || message.is::<InstanceInfo>()
             || message.is::<shared::protocol::DungeonProgress>()
             || message.is::<shared::protocol::ChallengeSnapshot>()
+            || message.is::<shared::protocol::PartyKeystoneSnapshot>()
             || message.is::<shared::protocol::ScenarioProgress>()
             || message.is::<shared::protocol::AchievementCatalogPage>()
             || message.is::<shared::protocol::AchievementStateUpdate>()
@@ -1640,6 +1643,10 @@ impl Account {
         message: ProtocolMessage,
         output: &mut Vec<AccountEvent>,
     ) -> Result<(), String> {
+        if message.is::<shared::protocol::PartyKeystoneSnapshot>() {
+            self.party_keystones = decode(message)?;
+            return Ok(());
+        }
         if message.is::<shared::protocol::ChallengeSnapshot>() {
             self.challenge = decode(message)?;
             return Ok(());
@@ -2167,6 +2174,7 @@ impl Account {
     }
 
     fn stop_bridge(&mut self) -> Result<(), String> {
+        self.party_keystones = Default::default();
         self.session.reset_world_port();
         self.link = None;
         if let Some(mut bridge) = self.bridge.take() {
@@ -2316,6 +2324,10 @@ fn quest_message(
 #[cfg(test)]
 #[path = "account_toys_tests.rs"]
 mod toys_tests;
+
+#[cfg(test)]
+#[path = "account_mythic_mentor_tests.rs"]
+mod mythic_mentor_tests;
 
 #[cfg(test)]
 #[path = "account_dungeonclient_tests.rs"]
