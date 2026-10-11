@@ -3168,3 +3168,8 @@ Added local Retail replacement-table exports and per-unit base/action selection 
 ## 2026-10-10 — PvP queue partial delivery
 
 Updated [battle pets](systems/battle-pets.md#pvp-queue--partial-2026-10-10) and [PvP contract](../specs/petbattle-pvp.md): real queue/proposal transport, shared-engine synchronized rounds and outcomes, model tests/native compile proof; full Retail parity and both-skin native acceptance remain open.
+
+
+## 2026-10-10 — Cache import source pinning
+
+Added [cache source policy](systems/cache-import-sources.md) and [contract](../specs/cache-import-sources.md): local-CASC exports, pinned Retail imports, explicit Forever selection, runtime race/requirement inputs and root-absent CharStartOutfit workaround.
