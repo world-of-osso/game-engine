@@ -85,7 +85,13 @@ fn selected_line(view: &ProfessionView) -> Option<&shared::profession::Professio
         .lines
         .iter()
         .find(|line| Some(line.skill_line) == skill)
-        .or_else(|| view.book.snapshot.lines.first())
+        .or_else(|| {
+            view.book
+                .snapshot
+                .lines
+                .iter()
+                .find(|line| line.max_rank > 0)
+        })
 }
 
 fn skill_bar(view: &ProfessionView) -> Element {
