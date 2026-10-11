@@ -47,7 +47,7 @@ func run_fixture() -> void:
 		await process_frame
 	for sample in SAMPLES:
 		var requested := OS.get_environment("TOYFX_ITEM")
-		if (requested == "mortar" and int(sample[0]) != 204818) or (requested == "all" and int(sample[0]) == 204818) or (requested == "remaining" and int(sample[0]) not in [165791, 221964, 228413, 263198, 267456, 88580]): continue
+		if (requested == "mortar" and int(sample[0]) != 204818) or (requested == "all" and int(sample[0]) == 204818) or (requested == "remaining" and int(sample[0]) not in [88584, 165791, 221964, 228413, 263198, 267456, 88580]): continue
 		await sample_toy(sample)
 		if failed: return
 	write_receipts()
@@ -78,9 +78,9 @@ func sample_toy(sample: Array) -> void:
 	await click("ToySpellButton1")
 	# Closing Collections via its toggle preserves unit selection during casts.
 	await click("CollectionsMicroButton")
-	var frame_count := 12 if item == 153183 else 7
+	var frame_count := 20 if item == 204818 else (12 if item == 153183 else 7)
 	for frame in range(frame_count):
-		await create_timer(0.1 if frame < 3 else 1.0).timeout
+		await create_timer(0.1 if item == 204818 or frame < 3 else 1.0).timeout
 		await RenderingServer.frame_post_draw
 		var path := OS.get_environment("TOYFX_SHOTS").path_join("%s-toy%d-%d.png" % [skin, item, frame])
 		if root.get_texture().get_image().save_png(path) != OK: fail("capture " + path); return
@@ -93,6 +93,12 @@ func sample_toy(sample: Array) -> void:
 	receipts.append(result)
 	write_receipts()
 	print("TOYLIVE2_SAMPLE ", skin, " item=", item, " spell=", spell)
+	if item == 204818:
+		var succeeded := false
+		for frame in result.frames:
+			for cast in frame.visuals.casts:
+				if int(cast.spell) == spell and bool(cast.go): succeeded = true
+		if not succeeded: fail("valid-range selected Invader mortar did not receive SpellGo"); return
 	if has_aura(spell): await cancel_aura(spell)
 	if item == 153183: await tap(KEY_W)
 	await create_timer(1.0).timeout
@@ -110,7 +116,7 @@ func select_mortar_target() -> bool:
 	for attempt in range(40):
 		await tap(KEY_TAB)
 		var selected = client.target_state().target
-		if selected == null: continue
+		if selected == null or str(client.target_state().target_name) != "Blackrock Invader": continue
 		var rules: Dictionary = client.nameplate_rules(int(selected))
 		var distance := float(rules.get("distance", 0.0))
 		if str(rules.get("reaction", "")) != "Hostile" or not bool(rules.get("alive", false)) or distance < 8.0 or distance > 30.0: continue
