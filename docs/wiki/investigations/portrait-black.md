@@ -1,6 +1,6 @@
 # Black unit-frame portraits
 
-Verified: 2026-10-10. Scope: Human/Orc warlocks, summoned Imp display4449, Human paladin control; Modern and Forever art skins. Receipt publication and final live proof are recorded below when complete.
+Verified: 2026-10-10. Missing authenticated starter-cloth and Imp receipts prevented model attachment, producing black Modern unit-frame portraits. Local offline staging restores both Human/Orc warlocks and their summoned Imps; Human paladin remains a control. Forever's existing HUD has no portrait slots; both-skin world-model proof is separate from Modern portrait proof.
 
 ## Root cause
 
@@ -20,4 +20,24 @@ Retail source: local `blizzard-ui/retail/AddOns/Blizzard_UnitFrame/Mainline/Unit
 
 ## Evidence
 
-PNG directory: `/syncthing/AgentShared/2026-10-10/portrait-black/`; logs/receipts/states: `data/diagnostics/portrait-black-2026-10-10/`. Baseline Human/Orc warlock and Human paladin PNGs inspected; black player and black Imp reproduced. Post-publication proof pending.
+PNG directory: `/syncthing/AgentShared/2026-10-10/portrait-black/`; logs/receipts/states: `data/diagnostics/portrait-black-2026-10-10/`. All10 PNGs inspected (four baseline, six after staging). `stage-assets.log` exits0; additive49 receipts and every published file pass size/SHA256/content-key MD5 validation. Actual source Retail12.1.0.69933/build`dcfc90fffd79ba00406ae46f5f657592`. No data files committed.
+
+| Combo | Modern portrait proof | Forever proof |
+| --- | --- | --- |
+| Human warlock + Imp4449 | FixturePASS; player848, target988, pet399 colored pixels | World player/Imp visible; HUD portrait slots absent (`exists=false`) |
+| Orc warlock + Imp4449 | FixturePASS; player1347, target988, pet399 colored pixels | World player/Imp visible; HUD portrait slots absent (`exists=false`) |
+| Human paladin control | Player-only fixturePASS;848 colored pixels | World player visible; HUD portrait slots absent (`exists=false`) |
+
+All four post-fix Human/Orc warlock process logs have zero scoped player/Imp/Targeting errors. Broader realm asset gaps remain outside this fix. Forever HUD portrait rendering cannot be certified: this layout intentionally does not instantiate the slots, and this task did not add them. One paladin fixture invocation incorrectly requested an unselected target; the corrected player-only invocation passes. Existing publisher behavioral tests pass8/8 (`publisher-tests.log`). Native extension+CLI build passes, unchanged Rust code; no redundant Cargo rebuild.
+
+## Sources
+
+- [Product-isolated model assets](../../specs/product-isolated-model-assets.md) — authenticated additive receipts, no legacy fallback.
+- [Offline staging implementation](../../../scripts/stage_portrait_assets.py) — observed replacement sets and Imp dependency closure.
+- [Production image regression](../../../godot/tests/portrait_black.gd) — actual viewport pixel and model-attachment checks.
+- Local Retail `Blizzard_UnitFrame/Mainline/UnitFrame.lua:175-199` and the linked M2 parser above — portrait rules and authored camera selection.
+
+## See Also
+
+- [[m2-product-shadowing]] — product-qualified render chains.
+- [[offline-asset-closure]] — full-catalog shipping remains a separate gate.
