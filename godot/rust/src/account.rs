@@ -201,6 +201,7 @@ pub enum AccountEvent {
     Collections(shared::protocol::CollectionStateUpdate),
     WildPetBattle(shared::protocol::WildPetBattleUpdate),
     PetBattleQueue(shared::protocol::PetBattleQueueUpdate),
+    Pvp(shared::protocol::PvpStateUpdate),
     TrainerList(shared::protocol::TrainerList),
     TrainerFailed(shared::protocol::TrainerBuyFailed),
     /// Bank and guild bank contents, logs and refusals.
@@ -682,6 +683,29 @@ impl Account {
             .send::<_, shared::protocol::CollectionChannel>(request)
             .map_err(SessionError)
     }
+    pub fn send_pvp(
+        &self,
+        action: game_engine_ui_model::battleground::PvpAction,
+    ) -> Result<(), SessionError> {
+        use game_engine_ui_model::battleground::PvpAction;
+        use shared::protocol::*;
+        let bridge = self.bridge()?;
+        let result = match action {
+            PvpAction::Query => bridge.send::<_, PvpChannel>(QueryPvpStatus),
+            PvpAction::Queue(battleground_id) => {
+                bridge.send::<_, PvpChannel>(QueueForBattleground { battleground_id })
+            }
+            PvpAction::Dequeue => bridge.send::<_, PvpChannel>(DequeueFromPvp),
+            PvpAction::Respond { match_id, accepted } => {
+                bridge.send::<_, PvpChannel>(RespondToBattlegroundInvite { match_id, accepted })
+            }
+            PvpAction::Leave(match_id) => {
+                bridge.send::<_, PvpChannel>(LeaveBattleground { match_id })
+            }
+        };
+        result.map_err(SessionError)
+    }
+
     pub fn send_pet_queue(
         &self,
         request: shared::protocol::PetBattleQueueRequest,
@@ -1302,6 +1326,10 @@ impl Account {
         }
         if message.is::<shared::protocol::TrainerBuyFailed>() {
             output.push(AccountEvent::TrainerFailed(decode(message)?));
+            return Ok(());
+        }
+        if message.is::<shared::protocol::PvpStateUpdate>() {
+            output.push(AccountEvent::Pvp(decode(message)?));
             return Ok(());
         }
         if message.is::<shared::protocol::PetBattleQueueUpdate>() {
