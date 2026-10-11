@@ -6,6 +6,7 @@ pub mod area_zone_data;
 pub mod asset;
 pub mod asset_loader;
 pub mod asset_product;
+pub mod assisted_combat;
 pub mod blp;
 #[path = "camera_control_data.rs"]
 pub mod camera_control_data;
@@ -37,6 +38,8 @@ pub mod client_options_data;
 mod client_options_data_tests;
 #[path = "game/equipment/component_file_data.rs"]
 mod component_file_data;
+pub mod cooldown_assist;
+pub mod cooldown_conditions;
 #[path = "scenes/char_create/background_data.rs"]
 pub mod creation_scene_data;
 #[path = "game/creatures/creature_display_cache.rs"]
@@ -49,9 +52,6 @@ mod creature_display_data_tests;
 pub mod creature_health_scaling_data;
 #[path = "csv_util.rs"]
 pub mod csv_util;
-pub mod cooldown_assist;
-pub mod assisted_combat;
-pub mod cooldown_conditions;
 #[path = "rendering/character/customization_cache.rs"]
 pub mod customization_cache;
 #[path = "rendering/character/customization_catalog.rs"]
