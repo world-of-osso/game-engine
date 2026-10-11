@@ -3,17 +3,18 @@
 
 use std::{
     env,
-    process::{Command, ExitCode},
+    process::{self, Command},
 };
 
-fn main() -> ExitCode {
-    match launch() {
-        Ok(code) => ExitCode::from(code as u8),
+fn main() {
+    let code = match launch() {
+        Ok(code) => code,
         Err(error) => {
             eprintln!("World of Osso: {error}");
-            ExitCode::FAILURE
+            1
         }
-    }
+    };
+    process::exit(code);
 }
 
 fn launch() -> std::io::Result<i32> {
