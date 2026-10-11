@@ -13,6 +13,8 @@
 
 - [Spell kit attachment ordering](investigations/spell-kit-attach.md) — authored anchors present in all165 baseline failures; asynchronous owner readiness, explicit asset/anchor diagnostic separation and real-data regression.
 
+- [Black unit-frame portraits](investigations/portrait-black.md) — Human/Orc warlock starter-cloth and Imp authenticated receipt gaps; private live RED, scoped offline staging and pixel regression.
+
 ## October 9 reconciliation
 
 - [Player cast spark](../specs/player-cast-feedback.md) — `397c20803` skin fill-height fix; `427e5a814` owns scoped native proof.

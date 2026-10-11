@@ -1,3 +1,7 @@
+## 2026-10-10 — Black unit-frame portrait receipt gaps
+
+[Investigation](investigations/portrait-black.md): Human/Orc warlocks and summoned Imp reproduce black portraits before model attachment; Human paladin control renders. Authenticated offline receipt staging and production viewport-pixel regression added; final publication/live proof pending.
+
 ## 2026-10-10 — Spell kit owner attachment ordering
 
 [Investigation](investigations/spell-kit-attach.md) classifies41 baseline non-asset lines:165 kit attachment occurrences all have authored anchors, but owner chains failed. Receipt recovery proves an additional ready-effect/late-owner race for spell10848. Scheduling now waits for the requested owner without restarting the kit timeline. Real-data RED→GREEN7/7 and native build pass at a4a3dcaff. Same failed baseline kits attached to authored own anchors for10 spells in both skins;28 inspected PNGs. Scoped final log has0spell errors; original broader no-install certification remains separate.
