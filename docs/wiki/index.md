@@ -4,6 +4,7 @@
 - [Native transmog application](systems/transmog-apply.md) — detached pending preview, exact authoritative paid apply, private both-skin self/observer/relog proof and bag-metadata readiness regression; outfits/thumbnails/data boundaries remain explicit.
 - [Native guilds](systems/guilds.md) — both-skin authoritative lifecycle/profile/vault and authentic Retail charter purchase, distinct-account signatures, registration and durable founding roster/date; tabard/achievement payload gap explicit.
 - [GO and item-spell live quest objectives](systems/quest-ui.md#go-and-item-spell-live-objectives--verified2026-10-11) — both-skin26446/28175 native turn-ins; chest-loot proof remains blocked by hosting/difficulty and typed-invisibility boundaries.
+- [Native Achievement UI](systems/dungeon-achievements.md#achievement-ui-continuation--verified-2026-10-11) — authoritative Summary/scopes, criteria, tracking, Statistics, full search and earned/chat links; both-skin private proof, authored art/foreground fixes and explicit unsupported-data/comparison boundary.
 
 - [No-install receipt recovery](systems/offline-asset-closure.md#no-install-receipt-recovery--verified-2026-10-10) — authenticated legacy publication, pinned display-cache rebuild and bounded sandbox recheck; newly exposed skin/receipt gaps keep certification open.
 
