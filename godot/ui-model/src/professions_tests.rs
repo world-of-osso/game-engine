@@ -158,6 +158,16 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
     std::fs::create_dir_all(&dir).unwrap();
     for (table, data) in [
         (
+            "CraftingQuality",
+            "ID,QualityTier,CraftingQualityAtlasSetID\n14,2,7\n",
+        ),
+        ("CraftingQualityAtlasSet", "ID,IconInv\n7,20209\n"),
+        (
+            "UiTextureAtlasElement",
+            "ID,Name\n20209,Professions-Icon-Quality-Tier1-Inv\n",
+        ),
+        ("Item", "ID,CraftingQualityID\n244634,14\n2589,0\n"),
+        (
             "SkillLine",
             "ID,DisplayName_lang,SpellBookSpellID,CategoryID,ParentSkillLineID\n197,Tailoring,3908,11,0\n2540,Classic Tailoring,0,11,197\n",
         ),
@@ -192,6 +202,8 @@ fn professions_db2_catalog_joins_classic_tailoring_recipe() {
     assert_eq!((recipe.trivial_low, recipe.trivial_high), (30, 60));
     assert_eq!(catalog.openers[&3908], 197);
     assert_eq!(catalog.skill_names[&2540], "Classic Tailoring");
+    assert_eq!(catalog.crafting_quality[&244634].tier, 2);
+    assert!(!catalog.crafting_quality.contains_key(&2589));
     let book = ProfessionBook {
         snapshot: ProfessionSnapshot {
             spells: vec![3275, 2963],

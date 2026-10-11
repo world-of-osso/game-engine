@@ -269,7 +269,20 @@ impl GameClient {
             .and_then(|id| self.replica.unit(id))
             .is_some_and(|unit| unit.has::<CastState>());
         let items = profession_items(&book);
+        let crafting_quality = items
+            .keys()
+            .filter_map(|item| {
+                let quality = self
+                    .professions
+                    .catalog
+                    .as_ref()?
+                    .crafting_quality
+                    .get(item)?;
+                Some((*item, quality.clone()))
+            })
+            .collect();
         let mut view = ProfessionView {
+            crafting_quality,
             can_create: !casting && book.craft_request(inventory, false).is_some(),
             can_all: !casting && book.craft_request(inventory, true).is_some(),
             skill_names: self

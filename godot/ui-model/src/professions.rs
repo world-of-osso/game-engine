@@ -9,7 +9,7 @@ pub struct Recipe {
     /// Parent profession SkillLine, used only for window title/art.
     pub profession: u32,
     pub category: String,
-    pub category_order: u32,
+    pub category_order: i32,
     pub name: String,
     pub min_rank: u16,
     pub trivial_low: u16,
