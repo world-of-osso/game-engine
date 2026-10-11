@@ -160,13 +160,9 @@ func wolf_node() -> Node3D:
 
 func click_world(node: Node3D) -> void:
 	var camera := root.get_camera_3d()
-	var point: Vector2
-	if node.has_meta("game_object_entry"):
-		point = camera.unproject_position(node.global_position + Vector3.UP)
-	else:
-		var picked = drawn_unit_point(node, camera)
-		if picked == null: fail("wolf has no visible pickable posed triangle"); return
-		point = picked
+	var picked = drawn_unit_point(node, camera)
+	if picked == null: fail("resource has no visible pickable posed triangle"); return
+	var point: Vector2 = picked
 	if not Rect2(Vector2.ZERO, Vector2(root.size)).has_point(point): fail("resource outside view " + str(point)); return
 	var motion := InputEventMouseMotion.new()
 	motion.position = point
