@@ -29,6 +29,13 @@ func run_test() -> void:
 	if error != "":
 		fail("Fixture connection: " + error)
 		return
+	if not await wait_frames(func(): return client.account_state().screen == "CharacterSelect", "authenticated roster", 60000):
+		return
+	await frames(30)
+	for button in client.find_children("*", "Button", true, false):
+		if button.is_visible_in_tree():
+			print("FIXTURE ROSTER_BUTTON ", button.name, " text=", button.text, " disabled=", button.disabled, " rect=", button.get_global_rect())
+	await capture(shot_prefix + "-character-select.png")
 	if not await enter_world():
 		return
 	if character_name() != scenario.character:
