@@ -1,6 +1,7 @@
 //! UI integration suites share one harness to avoid repeated dependency linking.
 //! Keep suites as modules; their fixture paths stay relative to the original files.
 
+mod adventure_guide;
 mod ahportrait;
 mod atlas_skins;
 mod auction_dialogs;

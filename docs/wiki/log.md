@@ -3249,6 +3249,10 @@ Updated [battlegrounds](systems/battlegrounds.md#pvp-progression-integration--ve
 
 Added [raid system](systems/raid-entry.md) and contract reconciliation: source-derived single-creature credit, native both-skin private entry/saves/reset/extension proof, and stale terrain-hint ownership fix. Full raid mechanics/data coverage remains incomplete.
 
+
+## 2026-10-11 — Adventure Guide continuation
+
+[Native Adventure Guide](systems/adventure-guide.md): genuine ItemSpec and legacy MapDifficulty filters, authored RPE tutorial content, strict all1889 Journal appearance coverage import and bounded authenticated Ozruk/Lucifron asset chains. Targeted CPU RED→GREEN retained; native pixel acceptance recorded separately, with unsupported realm-backed activity/keystone services explicit.
 ## 2026-10-11 — Gathering branch (acceptance incomplete)
 
 [Native gathering](systems/gathering.md): authored resource codec/render/interaction and learned herb/ore tracking; eleven minimap tests and extension/CLI build. Two bounded private attempts failed; no accepted PNGs and independent verifier unavailable. Not merged or completed.

@@ -4695,3 +4695,5 @@ textures/4638369.blp
 textures/4641164.blp
 textures/5179179.blp
 textures/7323575.blp
+# Adventure Guide cache from pinned local Retail Journal DB2s.
+cache/adventure_guide.sqlite
