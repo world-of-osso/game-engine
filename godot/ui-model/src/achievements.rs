@@ -656,6 +656,9 @@ impl AchievementWindow {
             return &self.search_results.entries;
         }
         if self.selected_category.is_none() {
+            if self.statistics {
+                return &[];
+            }
             if let Some(entry) = self
                 .detail
                 .as_ref()
